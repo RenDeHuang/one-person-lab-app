@@ -1,0 +1,52 @@
+{
+  "status": "macos_app_install_pdf_ready",
+  "release_tag": "v26.5.15",
+  "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.5.15",
+  "source_markdown": "docs/user-guides/macos-app-install.md",
+  "output_pdf": "docs/user-guides/OPL-MAS-新手首次启动图文教程.pdf",
+  "screenshot_source": {
+    "vm_type": "Tart",
+    "macos_language": "zh-Hans",
+    "macos_locale": "zh_CN",
+    "logical_resolution": "1920x1080",
+    "retina_pixels": "3840x2160",
+    "smoke_summary": "tmp/vm-smoke/opl-first-run-tart-zh1080-20260515-230311/tart-smoke-summary.json"
+  },
+  "screenshot_dimensions": {
+    "01-download-release.png": {
+      "width": 3840,
+      "height": 2160
+    },
+    "02-install-dmg.png": {
+      "width": 3840,
+      "height": 2160
+    },
+    "03-codex-config-needed.png": {
+      "width": 3840,
+      "height": 2160
+    },
+    "04-first-run-checking.png": {
+      "width": 3840,
+      "height": 2160
+    },
+    "05-opl-ready-research-entry.png": {
+      "width": 3840,
+      "height": 2160
+    },
+    "06-research-data-folder.png": {
+      "width": 3840,
+      "height": 2160
+    },
+    "07-first-research-entry.png": {
+      "width": 3840,
+      "height": 2160
+    },
+    "08-opl-runtime-status.png": {
+      "width": 3840,
+      "height": 2160
+    }
+  },
+  "pdf_pages": 10,
+  "rendered_pages": 10,
+  "rendered_dir": "tmp/pdfs/macos-app-install/rendered"
+}

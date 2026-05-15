@@ -14,7 +14,12 @@
 *.html text eol=lf
 *.patch text eol=lf
 
+# Keep GitHub Linguist aligned with the App repo's TypeScript ownership.
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
+
 # Binary files
+*.pdf binary
 *.png binary
 *.jpg binary
 *.jpeg binary

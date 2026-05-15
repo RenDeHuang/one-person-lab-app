@@ -72,6 +72,22 @@ test('App-owned automation entrypoints are TypeScript, not JavaScript wrappers',
   assert.deepEqual(javascriptEntrypoints, []);
 });
 
+test('tracked App repo implementation files do not reintroduce JavaScript', () => {
+  const result = spawnSync('git', ['ls-files', '-z'], {
+    cwd: appRoot,
+    encoding: 'utf8',
+    env: process.env,
+  });
+  assert.equal(result.status, 0, result.stderr);
+
+  const javascriptFiles = result.stdout
+    .split('\0')
+    .filter(Boolean)
+    .filter((relativePath) => /\.(mjs|cjs|js|jsx)$/.test(relativePath));
+
+  assert.deepEqual(javascriptFiles, []);
+});
+
 test('publish dry run defaults to the App GitHub Release repo', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
