@@ -830,8 +830,7 @@ function prepareRuntime(options, sources) {
   };
 }
 
-function syncRuntimePayloadToApp(runtimeRoot, manifest) {
-  const payloadRoot = path.join(appRepoRoot, 'packaged-runtimes', FULL_RUNTIME_RESOURCE_DIR);
+function syncRuntimePayload(runtimeRoot, manifest, payloadRoot) {
   fs.rmSync(path.join(payloadRoot, 'runtime'), { recursive: true, force: true });
   fs.rmSync(path.join(payloadRoot, 'manifest'), { recursive: true, force: true });
   fs.mkdirSync(path.join(payloadRoot, 'runtime'), { recursive: true });
@@ -846,6 +845,14 @@ function syncRuntimePayloadToApp(runtimeRoot, manifest) {
     `${JSON.stringify(manifest, null, 2)}\n`,
     'utf8',
   );
+}
+
+function syncRuntimePayloadToBuildRoots(runtimeRoot, manifest, guiRoot) {
+  const appPayloadRoot = path.join(appRepoRoot, 'packaged-runtimes', FULL_RUNTIME_RESOURCE_DIR);
+  const shellPayloadRoot = path.join(guiRoot, 'packaged-runtimes', FULL_RUNTIME_RESOURCE_DIR);
+  syncRuntimePayload(runtimeRoot, manifest, appPayloadRoot);
+  syncRuntimePayload(runtimeRoot, manifest, shellPayloadRoot);
+  return { appPayloadRoot, shellPayloadRoot };
 }
 
 function findBuiltDmg(guiRoot, version) {
@@ -933,7 +940,7 @@ function main() {
   }
 
   const prepared = prepareRuntime(options, sources);
-  syncRuntimePayloadToApp(prepared.runtimeRoot, prepared.manifest);
+  const payloadRoots = syncRuntimePayloadToBuildRoots(prepared.runtimeRoot, prepared.manifest, options.guiRoot);
 
   if (!options.skipGuiBuild) {
     run('npm', ['run', 'build-mac:arm64'], {
@@ -974,6 +981,7 @@ function main() {
     manifest: manifestPath,
     readme: readmePath,
     checksums: checksumPath,
+    payload_roots: payloadRoots,
     staging_root: prepared.stagingRoot,
     runtime_cache: prepared.runtime_cache,
   }, null, 2));

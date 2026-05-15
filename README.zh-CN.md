@@ -20,7 +20,7 @@
 macOS 用户可以使用一键安装入口。它会准备 One Person Lab 运行环境，并安装或打开桌面应用：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/main/install.sh | bash
 ```
 
 也可以从发布页下载当前桌面包：
