@@ -14,8 +14,10 @@ artifacts for machine decisions.
 - Active shell root: `shells/aionui` as an external checkout.
 - Active shell source repo: `gaofeng21cn/opl-aion-shell`.
 - Framework dependency: `gaofeng21cn/one-person-lab`.
-- Local clean App staging path on the maintainer Mac:
-  `/Users/gaofeng/workspace/one-person-lab-app-clean-staging`.
+- Local App repo path on the maintainer Mac:
+  `/Users/gaofeng/workspace/one-person-lab-app`.
+- Local shell repo path on the maintainer Mac:
+  `/Users/gaofeng/workspace/opl-aion-shell`.
 
 The App repo must not merge AionUI history into its default branch. AionUI
 upstream-following work stays in `opl-aion-shell`; App product release and user
@@ -34,12 +36,12 @@ Current release validation is App-root first: root wrappers call the active shel
 build/release scripts, then the produced standard package can replace
 `/Applications/One Person Lab.app` for a real local GUI startup smoke.
 
-2026-05-15 migration note: the current remote `one-person-lab-app` was created
-by renaming the AionUI-derived shell repo, so it carries AionUI contributors in
-GitHub contributor graphs. Clean App staging was created locally with one root
-commit and no tracked `shells/aionui` source. Remote migration should create or
-replace `one-person-lab-app` from this clean staging first, then rename the
-current history-rich repo back to the shell repo.
+2026-05-15 migration note: this local checkout is the clean App repo. It has
+one App-owned root commit, no tracked `shells/aionui` source, and a local
+`shells/aionui` link to `/Users/gaofeng/workspace/opl-aion-shell`. Remote
+migration should keep `gaofeng21cn/opl-aion-shell` as the history-rich shell
+repo and create or replace `gaofeng21cn/one-person-lab-app` from this clean App
+repo.
 
 ## Validation Entry Points
 
