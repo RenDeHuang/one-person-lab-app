@@ -12,7 +12,11 @@ remain the machine truth.
 
 https://github.com/gaofeng21cn/one-person-lab-app/releases/latest
 
-首次安装或干净机器优先选择：
+当前测试版 Release：
+
+https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.5.15
+
+首次安装、干净机器或希望一次准备完整 runtime，选择 Full 版 DMG：
 
 ```text
 One-Person-Lab-Full-<version>-mac-arm64.dmg
@@ -24,7 +28,7 @@ One-Person-Lab-Full-<version>-mac-arm64.dmg
 One-Person-Lab-<version>-mac-arm64.dmg
 ```
 
-Full 版 DMG 是首次安装资产，不进入 `latest*.yml` updater metadata。
+Full 版 DMG 是首次安装资产，不进入 `latest*.yml` updater metadata。自动更新只使用标准 DMG / ZIP 和 `latest*.yml`。
 
 ## 安装
 
@@ -33,14 +37,15 @@ Full 版 DMG 是首次安装资产，不进入 `latest*.yml` updater metadata。
 3. 从 Applications 启动 `One Person Lab.app`。
 4. 如果 macOS 提示需要确认打开，按系统安全提示允许。
 
-![One Person Lab first launch](/Users/gaofeng/workspace/one-person-lab-app/artifacts/opl-installed-smoke-20260515-154821/first-launch.png)
+![One Person Lab first launch](/Users/gaofeng/workspace/one-person-lab-app/artifacts/opl-installed-smoke-20260515-204923/first-launch.png)
 
 ## 首次启动
 
-首次启动会检查 OPL Framework runtime、domain modules、Codex CLI、推荐
-skills 和 Full online runtime readiness。Full 版 DMG 内的 Framework runtime
-/ CLI / contracts payload 来自 `gaofeng21cn/one-person-lab`，但发布流程归
-App 仓。
+首次启动会检查 OPL Framework runtime、domain modules、Codex CLI、推荐 skills 和 Full online runtime readiness。
+
+Full 版 DMG 内的 Framework runtime / CLI / contracts payload 来自
+`gaofeng21cn/one-person-lab`，但标准 DMG、Full DMG、updater metadata 和
+GitHub Release 都归 `gaofeng21cn/one-person-lab-app`。
 
 看到 One Person Lab 主入口后，可以进入 Research Foundry / MAS 工作流。
 如需要配置 Codex API key 或权限，请联系 gflabtoken 管理员开通。

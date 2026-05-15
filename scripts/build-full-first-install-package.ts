@@ -21,7 +21,7 @@ import {
   listFullRuntimeProductionNodeModulePaths,
   shouldExcludeRuntimePath,
 } from './full-first-install-package.ts';
-import { writeRuntimeWrappers } from './full-first-install-runtime-wrappers.mjs';
+import { writeRuntimeWrappers } from './full-first-install-runtime-wrappers.ts';
 
 const appRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const workspaceRoot = path.dirname(appRepoRoot);
@@ -596,9 +596,9 @@ function packageJsonVersion(packagePath) {
 
 function buildRuntimeCacheKeys(options, sources) {
   const packagerInputs = hashFiles(appRepoRoot, [
-    'scripts/build-full-first-install-package.mjs',
+    'scripts/build-full-first-install-package.ts',
     'scripts/full-first-install-package.ts',
-    'scripts/full-first-install-runtime-wrappers.mjs',
+    'scripts/full-first-install-runtime-wrappers.ts',
   ]);
   const excludePolicyHash = stringSha256(shouldExcludeRuntimePath.toString());
   const skillsRoot = path.join(os.homedir(), '.codex', 'skills');

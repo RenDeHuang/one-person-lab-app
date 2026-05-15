@@ -29,6 +29,6 @@
     "updater_visible": false,
     "validation_required": true
   },
-  "normalization_command": "node scripts/prepare-release-assets.mjs build-artifacts release-assets",
-  "validation_command": "node scripts/validate-release.mjs release-assets"
+  "normalization_command": "node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets",
+  "validation_command": "node --experimental-strip-types scripts/validate-release.ts release-assets"
 }

@@ -11,7 +11,7 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..',
 const require = createRequire(import.meta.url);
 
 function runNode(args, options = {}) {
-  return spawnSync(process.execPath, args, {
+  return spawnSync(process.execPath, ['--experimental-strip-types', ...args], {
     cwd: appRoot,
     encoding: 'utf8',
     env: { ...process.env, ...(options.env ?? {}) },
@@ -36,10 +36,40 @@ function writeReleaseMetadata(outDir, version, assetName) {
   ].join('\n'));
 }
 
+function walkFiles(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((left, right) => (
+    left.name.localeCompare(right.name)
+  ));
+  const files = [];
+  for (const entry of entries) {
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...walkFiles(entryPath));
+      continue;
+    }
+    if (entry.isFile()) {
+      files.push(entryPath);
+    }
+  }
+  return files;
+}
+
 test('release boundary guard keeps App release ownership in App repo', () => {
-  const result = runNode(['scripts/validate-release-boundary.mjs']);
+  const result = runNode(['scripts/validate-release-boundary.ts']);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /App release boundary is App-owned/);
+});
+
+test('App-owned automation entrypoints are TypeScript, not JavaScript wrappers', () => {
+  const appOwnedEntrypoints = [
+    ...walkFiles(path.join(appRoot, 'scripts')),
+    ...walkFiles(path.join(appRoot, 'tests')),
+  ];
+  const javascriptEntrypoints = appOwnedEntrypoints
+    .map((filePath) => path.relative(appRoot, filePath))
+    .filter((relativePath) => /\.(mjs|cjs|js)$/.test(relativePath));
+
+  assert.deepEqual(javascriptEntrypoints, []);
 });
 
 test('publish dry run defaults to the App GitHub Release repo', () => {
@@ -54,7 +84,7 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
   writeReleaseMetadata(outDir, version, dmgName);
 
   const result = runNode([
-    'scripts/publish-release.mjs',
+    'scripts/publish-release.ts',
     '--no-build',
     '--dry-run',
     '--shell-root',
@@ -86,7 +116,7 @@ test('publish rejects standard App artifacts that contain the Full runtime paylo
   );
 
   const result = runNode([
-    'scripts/publish-release.mjs',
+    'scripts/publish-release.ts',
     '--no-build',
     '--dry-run',
     '--shell-root',

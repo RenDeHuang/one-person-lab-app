@@ -36,25 +36,29 @@ Current release validation is App-root first: root wrappers call the active shel
 build/release scripts, then the produced standard package can replace
 `/Applications/One Person Lab.app` for a real local GUI startup smoke.
 
-2026-05-15 migration note: this local checkout is the clean App repo. It has
-one App-owned root commit, no tracked `shells/aionui` source, and a local
-`shells/aionui` link to `/Users/gaofeng/workspace/opl-aion-shell`. Remote
-migration should keep `gaofeng21cn/opl-aion-shell` as the history-rich shell
-repo and create or replace `gaofeng21cn/one-person-lab-app` from this clean App
-repo.
+2026-05-15 migration note: this local checkout is the clean App repo. It has no
+tracked `shells/aionui` source, and local `shells/aionui` points to
+`/Users/gaofeng/workspace/opl-aion-shell`. Remote migration keeps
+`gaofeng21cn/opl-aion-shell` as the history-rich shell repo and uses
+`gaofeng21cn/one-person-lab-app` as the clean App product repo.
+
+2026-05-15 release note: `v26.5.15` is published from the clean App repo with
+standard and Full first-install assets. GitHub Release lists for
+`gaofeng21cn/one-person-lab` and `gaofeng21cn/opl-aion-shell` are empty to avoid
+release-entry confusion.
 
 ## Validation Entry Points
 
 ```bash
 npm run ensure:shell
 bun install --cwd shells/aionui --frozen-lockfile
-node scripts/validate-active-shell.mjs --quick
+node --experimental-strip-types scripts/validate-active-shell.ts --quick
 npm run test:release-boundary
-node scripts/validate-release-boundary.mjs
+node --experimental-strip-types scripts/validate-release-boundary.ts
 bun run i18n:types
 bun run test
-node scripts/prepare-release-assets.mjs build-artifacts release-assets
-node scripts/validate-release.mjs release-assets
+node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
+node --experimental-strip-types scripts/validate-release.ts release-assets
 ```
 
 Page-state and first-run expectations are declared in

@@ -26,11 +26,11 @@ AionUI intake work.
 ## App-Level Checks
 
 ```bash
-node scripts/validate-active-shell.mjs --quick
+node --experimental-strip-types scripts/validate-active-shell.ts --quick
 npm run test:release-boundary
-node scripts/validate-release-boundary.mjs
-node scripts/prepare-release-assets.mjs build-artifacts release-assets
-node scripts/validate-release.mjs release-assets
+node --experimental-strip-types scripts/validate-release-boundary.ts
+node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
+node --experimental-strip-types scripts/validate-release.ts release-assets
 ```
 
 The App page-state matrix is declared in
@@ -44,23 +44,35 @@ smoke against the real `/Applications` bundle:
 
 ```bash
 node shells/aionui/scripts/opl-first-run-vm-smoke.mjs \
-  --app "/Applications/One Person Lab.app" \
+  --dmg shells/aionui/out/One-Person-Lab-<version>-mac-arm64.dmg \
   --artifacts artifacts/opl-installed-smoke-<stamp> \
   --timeout-ms 180000
 ```
 
-2026-05-15 evidence: `/Applications/One Person Lab.app` was replaced with the
-26.5.15 arm64 build, the bundle included `Contents/Resources/opl-full-runtime`,
-and the smoke passed with `status=passed` and label `opl-guid-entry`. Final
-evidence directory: `artifacts/opl-installed-smoke-20260515-154821`.
+2026-05-15 evidence: the standard 26.5.15 arm64 DMG replaced
+`/Applications/One Person Lab.app`; the previously installed 1.5G app bundle
+contained `Contents/Resources/opl-full-runtime`, and the replacement bundle was
+354M with no `opl-full-runtime`. The smoke passed with `status=passed` and
+label `opl-guid-entry`. Final evidence directory:
+`artifacts/opl-installed-smoke-20260515-204923`.
+
+Tart clean-VM smoke reached `wait_for_ssh` against
+`opl-first-run-tahoe-base`, received guest IP `192.168.64.87`, timed out before
+guest execution, and cleaned up the temporary VM. Evidence directory:
+`artifacts/opl-first-run-tart-20260515-205500`.
 
 ## Release Matrix
 
 - Contracts/unit: `npm run test:release-boundary`.
-- Standard release metadata: `node scripts/validate-release.mjs release-assets`.
-- App-owned release boundary: `node scripts/validate-release-boundary.mjs`.
+- Standard release metadata: `node --experimental-strip-types scripts/validate-release.ts release-assets`.
+- App-owned release boundary: `node --experimental-strip-types scripts/validate-release-boundary.ts`.
 - Full first-install package: `npm run release:full -- --version <version>`.
 - GUI smoke: installed `/Applications/One Person Lab.app` smoke or the App repo
   VM workflow.
 - Docker/WebUI: build from `shells/aionui/Dockerfile` and verify the WebUI
   starts against the Framework runtime surfaces.
+
+2026-05-15 Docker/WebUI evidence: `docker build -t
+one-person-lab-webui:26.5.15-smoke .` completed from `shells/aionui`, the image
+size was `1132840811` bytes, and a container on `127.0.0.1:33015` returned HTTP
+200 for `/` and `manifest.webmanifest`.

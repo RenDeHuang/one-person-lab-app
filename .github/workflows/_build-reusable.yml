@@ -163,7 +163,7 @@ jobs:
         run: bun run postinstall || true
 
       - name: Prepare standard App payload
-        run: cd "$GITHUB_WORKSPACE" && node scripts/prepare-standard-release-payload.mjs
+        run: cd "$GITHUB_WORKSPACE" && node --experimental-strip-types scripts/prepare-standard-release-payload.ts
 
       - name: Setup Windows native dependencies (for Windows only)
         if: startsWith(matrix.platform, 'windows')

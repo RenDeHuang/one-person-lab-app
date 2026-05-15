@@ -233,11 +233,11 @@ jobs:
 
       - name: Prepare release assets (normalize updater metadata)
         shell: bash
-        run: node scripts/prepare-release-assets.mjs build-artifacts release-assets
+        run: node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 
       - name: Verify release assets
         shell: bash
-        run: node scripts/validate-release.mjs release-assets
+        run: node --experimental-strip-types scripts/validate-release.ts release-assets
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

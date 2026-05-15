@@ -6,17 +6,17 @@ exposes its shell-specific helpers under `shells/aionui/scripts/`.
 
 | Script | Purpose |
 | --- | --- |
-| `ensure-active-shell.mjs` | Clones or validates the external active shell checkout at `shells/aionui`. |
-| `validate-active-shell.mjs` | Validates `contracts/app-shell-adapter.json` and runs selected active shell validation commands. |
-| `prepare-release-assets.mjs` | Calls the active shell release asset normalizer from the App root. |
-| `validate-release.mjs` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
+| `ensure-active-shell.ts` | Clones or validates the external active shell checkout at `shells/aionui`. |
+| `validate-active-shell.ts` | Validates `contracts/app-shell-adapter.json` and runs selected active shell validation commands. |
+| `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
+| `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 
 Examples:
 
 ```bash
-node scripts/ensure-active-shell.mjs
-node scripts/validate-active-shell.mjs --quick
-node scripts/validate-active-shell.mjs --only i18n_types,i18n_check,typecheck
-node scripts/prepare-release-assets.mjs build-artifacts release-assets
-node scripts/validate-release.mjs release-assets
+node --experimental-strip-types scripts/ensure-active-shell.ts
+node --experimental-strip-types scripts/validate-active-shell.ts --quick
+node --experimental-strip-types scripts/validate-active-shell.ts --only i18n_types,i18n_check,typecheck
+node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
+node --experimental-strip-types scripts/validate-release.ts release-assets
 ```

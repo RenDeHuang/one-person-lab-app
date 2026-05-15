@@ -20,7 +20,7 @@
 macOS users can use the one-shot installer. It prepares the One Person Lab runtime environment and installs or opens the desktop App:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
 ```
 
 You can also download the current desktop package from the App repository releases:

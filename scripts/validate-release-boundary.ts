@@ -15,7 +15,7 @@ const checks = [
   },
   {
     id: 'publish_script_repo',
-    file: 'scripts/publish-release.mjs',
+    file: 'scripts/publish-release.ts',
     required: ["'gaofeng21cn/one-person-lab-app'"],
     forbidden: ["'gaofeng21cn/one-person-lab'"],
   },
@@ -40,7 +40,7 @@ const checks = [
   {
     id: 'build_release_uses_app_publish_script',
     file: '.github/workflows/build-and-release.yml',
-    required: ['node scripts/prepare-release-assets.mjs', 'node scripts/validate-release.mjs'],
+    required: ['node --experimental-strip-types scripts/prepare-release-assets.ts', 'node --experimental-strip-types scripts/validate-release.ts'],
     forbidden: ['npm run gui:release', 'packages:full-release'],
   },
   {
