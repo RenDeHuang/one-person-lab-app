@@ -96,6 +96,22 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       owner_repo: 'gaofeng21cn/one-person-lab-app',
       channel: 'github_release_first_install',
       release_asset_role: 'first_install_recommended',
+      payload_boundary: {
+        role: 'declared_payload_assembly_and_validation',
+        app_repo_does_not_own: [
+          'runtime_truth',
+          'provider_implementation',
+          'domain_truth',
+          'domain_quality_verdict',
+          'domain_artifact_authority',
+        ],
+        truth_sources: {
+          framework_runtime_contracts: 'gaofeng21cn/one-person-lab',
+          research_domain_truth: 'gaofeng21cn/med-autoscience',
+          grant_domain_truth: 'gaofeng21cn/med-autogrant',
+          visual_deliverable_domain_truth: 'gaofeng21cn/redcube-ai',
+        },
+      },
       github_release_upload: true,
       updater_metadata_allowed: false,
       channel_manifest: false,
@@ -294,10 +310,11 @@ export function buildFullFirstInstallReadme(input: {
     '4. MAS/MAG/RCA 随包内容只作为首启安装源；初始化后会进入标准模块目录：',
     '   ~/Library/Application Support/OPL/state/modules/<repo-name>',
     '5. Full runtime 内置 officecli CLI binary 与 MAS/MAG/RCA、officecli、officecli-docx/pptx/xlsx、ui-ux-pro-max 等推荐 companion skills；App 初始化会把它们同步到 Codex 可见路径。',
-    '6. Full 包内置 family runtime provider 所需的本地状态与模块材料；OPL Framework 源码和 contracts 只是随包 runtime payload 的输入，不拥有 App 发布流程；生产 durable stage attempt 由 Temporal provider contract 接管。',
-    '7. 在 App 里配置 Codex API key 后，进入 OPL 初始化页确认 Core ready、Domain modules ready、family runtime provider ready 三层状态；Full 完整通过要求三层都 ready。',
-    '8. 首启会通过 opl family-runtime doctor/status 读取 provider-backed readiness；Full 包不再携带 Hermes runtime payload。',
-    '9. 推荐先跑一次 MAS 最小 smoke：进入 Research Foundry，创建或读取一个 workspace 状态。',
+    '6. Full 包只负责组装和校验已声明的 framework/runtime、domain module 与 companion tool payload；runtime truth、provider implementation、domain truth、domain quality verdict 和 artifact authority 仍归 OPL Framework 与各领域智能体。',
+    '7. Full 包内置 family runtime provider 所需的本地状态与模块材料；OPL Framework 源码和 contracts 只是随包 runtime payload 的输入，不拥有 App 发布流程；生产 durable stage attempt 由 Temporal provider contract 接管。',
+    '8. 在 App 里配置 Codex API key 后，进入 OPL 初始化页确认 Core ready、Domain modules ready、family runtime provider ready 三层状态；Full 完整通过要求三层都 ready。',
+    '9. 首启会通过 opl family-runtime doctor/status 读取 provider-backed readiness；Full 包不再携带 Hermes runtime payload。',
+    '10. 推荐先跑一次 MAS 最小 smoke：进入 Research Foundry，创建或读取一个 workspace 状态。',
     '',
     input.runtimeTarName
       ? `补充 runtime 包：如 DMG 内 runtime 安装失败，可保留 ${input.runtimeTarName} 作为人工诊断包。`

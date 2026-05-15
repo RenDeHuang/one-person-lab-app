@@ -155,3 +155,45 @@ test('Full first-install manifest declares App-owned distribution and Framework 
   assert.equal(manifest.distribution.updater_metadata_allowed, false);
   assert.equal(manifest.components.opl.role, 'framework_cli_and_shared_contracts_payload_source');
 });
+
+test('Full first-install payload boundary stays assembly-only', async () => {
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const mod = await import('../../scripts/full-first-install-package.ts');
+  const manifest = mod.buildFullPackageManifest({ version: '26.5.15' });
+
+  assert.equal(
+    releaseContract.full_first_install.payload_boundary.role,
+    'declared_payload_assembly_and_validation',
+  );
+  assert.deepEqual(
+    manifest.distribution.payload_boundary.app_repo_does_not_own,
+    releaseContract.full_first_install.payload_boundary.forbidden_authority,
+  );
+  assert.equal(
+    manifest.distribution.payload_boundary.truth_sources.framework_runtime_contracts,
+    'gaofeng21cn/one-person-lab',
+  );
+  assert.equal(
+    manifest.distribution.payload_boundary.truth_sources.research_domain_truth,
+    'gaofeng21cn/med-autoscience',
+  );
+  assert.equal(
+    manifest.distribution.payload_boundary.truth_sources.grant_domain_truth,
+    'gaofeng21cn/med-autogrant',
+  );
+  assert.equal(
+    manifest.distribution.payload_boundary.truth_sources.visual_deliverable_domain_truth,
+    'gaofeng21cn/redcube-ai',
+  );
+  assert.match(
+    mod.buildFullFirstInstallReadme({
+      version: '26.5.15',
+      dmgName: 'One-Person-Lab-Full-26.5.15-mac-arm64.dmg',
+      runtimeTarName: null,
+      notarized: false,
+    }),
+    /Full 包只负责组装和校验已声明的 framework\/runtime、domain module 与 companion tool payload/,
+  );
+});

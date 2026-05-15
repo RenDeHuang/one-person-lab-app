@@ -27,7 +27,30 @@
   "full_first_install": {
     "asset_name_must_include": "Full",
     "updater_visible": false,
-    "validation_required": true
+    "validation_required": true,
+    "payload_boundary": {
+      "role": "declared_payload_assembly_and_validation",
+      "allowed_actions": [
+        "copy_declared_framework_runtime_payload",
+        "copy_declared_domain_module_payloads",
+        "copy_declared_companion_tool_payloads",
+        "write_distribution_manifest",
+        "write_checksums"
+      ],
+      "forbidden_authority": [
+        "runtime_truth",
+        "provider_implementation",
+        "domain_truth",
+        "domain_quality_verdict",
+        "domain_artifact_authority"
+      ],
+      "truth_sources": [
+        "gaofeng21cn/one-person-lab",
+        "gaofeng21cn/med-autoscience",
+        "gaofeng21cn/med-autogrant",
+        "gaofeng21cn/redcube-ai"
+      ]
+    }
   },
   "normalization_command": "node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets",
   "validation_command": "node --experimental-strip-types scripts/validate-release.ts release-assets"
