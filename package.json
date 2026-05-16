@@ -36,6 +36,7 @@
     "validate:opl-package": "bun run --cwd shells/aionui validate:opl-package",
     "validate:active-shell": "node --experimental-strip-types scripts/validate-active-shell.ts",
     "test:release-boundary": "node --experimental-strip-types --test tests/release/*.test.ts",
+    "docs:macos-guide": "npm run docs:macos-guide:slides && npm run docs:macos-guide:pdf",
     "docs:macos-guide:pdf": "node --experimental-strip-types scripts/build-user-guide-pdf.ts",
     "docs:macos-guide:slides": "node --experimental-strip-types scripts/build-user-guide-slides.ts",
     "release:prepare-standard": "node --experimental-strip-types scripts/prepare-standard-release-payload.ts",

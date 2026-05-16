@@ -29,6 +29,8 @@ You can also download the current desktop package from the App repository releas
 
 For a first-time macOS arm64 install, choose `One-Person-Lab-Full-<version>-mac-arm64.dmg`. The complete first-install package includes the desktop app, One Person Lab, the Research/Grant/Presentation agents, current runtime payloads, `officecli`, and recommended skill payloads.
 
+For a screenshot-based first-run walkthrough, use the primary [macOS App install slides PDF](docs/user-guides/macos-app-install-slides.pdf). The detailed long-form companion is [macOS App install detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf).
+
 Daily updates are handled by the in-app update channel. Releases also publish standard App packages, updater metadata, and separate complete first-install assets.
 
 For Docker or server deployment, see the [Docker/WebUI install guide](https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md).

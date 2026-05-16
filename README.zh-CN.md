@@ -29,6 +29,8 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 macOS arm64 新用户优先选择 `One-Person-Lab-Full-<version>-mac-arm64.dmg`。完整首次安装包包含桌面应用、One Person Lab、研究/基金/汇报智能体、当前运行载荷、`officecli` 和推荐技能载荷。
 
+首次启动图文教程以 [macOS App install slides PDF](docs/user-guides/macos-app-install-slides.pdf) 为主入口；更详细的长文补充见 [macOS App install detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf)。
+
 日常更新由应用内更新通道完成。发布页保留标准应用包和更新元数据，完整首次安装包作为独立安装资产发布。
 
 Docker 或服务器部署请参考 [Docker/WebUI 安装说明](https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md)。

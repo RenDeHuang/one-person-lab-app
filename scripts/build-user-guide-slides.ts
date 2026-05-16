@@ -16,8 +16,8 @@ type Step = {
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const guideDir = path.join(appRoot, 'docs', 'user-guides');
 const assetDir = path.join(guideDir, 'assets');
-const pptxPath = path.join(guideDir, 'OPL-MAS-新手首次启动图文教程-slides.pptx');
-const slidePdfPath = path.join(guideDir, 'OPL-MAS-新手首次启动图文教程-幻灯片.pdf');
+const pptxPath = path.join(guideDir, 'macos-app-install-slides.pptx');
+const slidePdfPath = path.join(guideDir, 'macos-app-install-slides.pdf');
 const verificationPath = path.join(guideDir, 'macos-app-install-slides-verification.json');
 const tempDir = path.join(appRoot, 'tmp', 'pdfs', 'macos-app-install-slides');
 
