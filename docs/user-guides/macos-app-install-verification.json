@@ -1,5 +1,6 @@
 {
   "status": "macos_app_install_pdf_ready",
+  "pdf_layout": "landscape",
   "release_tag": "v26.5.15",
   "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.5.15",
   "source_markdown": "docs/user-guides/macos-app-install.md",
@@ -47,6 +48,10 @@
     }
   },
   "pdf_pages": 10,
+  "pdf_page_size_pts": {
+    "width": 792,
+    "height": 612
+  },
   "rendered_pages": 10,
   "rendered_dir": "tmp/pdfs/macos-app-install/rendered"
 }

@@ -151,7 +151,7 @@ function buildMarkdown(options: { pandocPageBreaks?: boolean } = {}) {
       '',
       step.body,
       '',
-      `![${step.title}](assets/${step.asset})${options.pandocPageBreaks ? '{ width=100% }' : ''}`,
+      `![${step.title}](assets/${step.asset})${options.pandocPageBreaks ? '{ height=64% }' : ''}`,
       '',
     );
     for (const note of step.notes) lines.push(`- ${note}`);
@@ -213,7 +213,7 @@ function buildPdf() {
     '--metadata', 'title=OPL + MAS 新手首次启动图文教程',
     '-V', `mainfont=${font}`,
     '-V', `CJKmainfont=${font}`,
-    '-V', 'geometry:margin=16mm',
+    '-V', 'geometry:margin=14mm,landscape',
     '-V', 'colorlinks=true',
     '-V', 'linkcolor=blue',
     '-V', 'urlcolor=blue',
@@ -246,9 +246,16 @@ function main() {
   if (pages < 10) {
     throw new Error(`Expected a multi-step guide PDF with at least 10 pages, got ${pages}`);
   }
+  const pageSizeMatch = info.match(/^Page size:\s+([\d.]+)\s+x\s+([\d.]+)\s+pts/m);
+  const pageWidth = Number(pageSizeMatch?.[1] ?? 0);
+  const pageHeight = Number(pageSizeMatch?.[2] ?? 0);
+  if (pageWidth <= pageHeight) {
+    throw new Error(`Expected landscape PDF page size, got ${pageWidth}x${pageHeight} pts`);
+  }
 
   const verification = {
     status: 'macos_app_install_pdf_ready',
+    pdf_layout: 'landscape',
     release_tag: releaseTag,
     release_url: releaseUrl,
     source_markdown: path.relative(appRoot, markdownPath),
@@ -263,6 +270,10 @@ function main() {
     },
     screenshot_dimensions: dimensions,
     pdf_pages: pages,
+    pdf_page_size_pts: {
+      width: pageWidth,
+      height: pageHeight,
+    },
     rendered_pages: render.pages.length,
     rendered_dir: path.relative(appRoot, render.renderDir),
   };
