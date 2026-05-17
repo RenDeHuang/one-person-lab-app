@@ -129,6 +129,13 @@ test('tag-triggered release workflow stamps package metadata from tag version', 
   }
 });
 
+test('release code-quality uses App active-shell test runner', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
+
+  assert.match(workflow, /node --experimental-strip-types scripts\/run-active-shell-tests\.ts/);
+  assert.doesNotMatch(workflow, /run:\s*bunx vitest run/);
+});
+
 test('publish rejects standard App artifacts that contain the Full runtime payload', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-full-leak-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');

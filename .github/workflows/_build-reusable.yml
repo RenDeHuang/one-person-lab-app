@@ -82,7 +82,8 @@ jobs:
         run: bunx tsc --noEmit
 
       - name: Run unit tests
-        run: bunx vitest run
+        working-directory: .
+        run: node --experimental-strip-types scripts/run-active-shell-tests.ts
 
   build:
     name: Build ${{ matrix.platform }}
