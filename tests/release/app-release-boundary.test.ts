@@ -136,6 +136,17 @@ test('release code-quality uses App active-shell test runner', () => {
   assert.doesNotMatch(workflow, /run:\s*bunx vitest run/);
 });
 
+test('release build uses App wrappers for cross-shell active-shell commands', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
+
+  assert.match(workflow, /command:\s*bun install --cwd shells\/aionui --frozen-lockfile/);
+  assert.doesNotMatch(workflow, /command:\s*cd shells\/aionui && bun install --frozen-lockfile/);
+  assert.match(
+    workflow,
+    /name: Verify packaged bundled bun assets[\s\S]*working-directory: \$\{\{ github\.workspace \}\}[\s\S]*run: bun run test:packaged:bun/,
+  );
+});
+
 test('publish rejects standard App artifacts that contain the Full runtime payload', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-full-leak-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');

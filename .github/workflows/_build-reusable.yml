@@ -185,7 +185,7 @@ jobs:
           timeout_minutes: 10
           max_attempts: 3
           retry_wait_seconds: 30
-          command: cd shells/aionui && bun install --frozen-lockfile
+          command: bun install --cwd shells/aionui --frozen-lockfile
 
       - name: Run postinstall
         run: bun run postinstall || true
@@ -542,6 +542,7 @@ jobs:
         if: >-
           !startsWith(matrix.platform, 'windows') ||
           steps.windows-build.outputs.result == 'success'
+        working-directory: ${{ github.workspace }}
         run: bun run test:packaged:bun
 
       # macOS 钥匙串清理
