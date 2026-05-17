@@ -162,8 +162,6 @@ test('release artifact upload preserves electron-updater blockmaps', () => {
 
 test('stable release workflow publishes only macOS arm64 standard assets', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'build-and-release.yml'), 'utf8');
-  const reusableWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
-  const manualWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'build-manual.yml'), 'utf8');
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
@@ -174,14 +172,11 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.doesNotMatch(workflow, /"platform":"windows-/);
   assert.doesNotMatch(workflow, /"platform":"linux-/);
   assert.doesNotMatch(workflow, /"platform":"macos-universal"/);
-  assert.doesNotMatch(reusableWorkflow, /Windows|windows-/);
-  assert.doesNotMatch(reusableWorkflow, /Linux|linux-/);
-  assert.doesNotMatch(manualWorkflow, /windows-|linux-|macos-universal|macos-x64|platform"\s*=\s*"all"|-\s+all/);
   assert.equal(packageJson.scripts['build-mac:arm64'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && bun run --cwd shells/aionui build-mac:arm64');
-  assert.equal(packageJson.scripts['build-mac'], undefined);
-  assert.equal(packageJson.scripts['build-mac:x64'], undefined);
-  assert.equal(packageJson.scripts['build-win'], undefined);
-  assert.equal(packageJson.scripts['build-deb'], undefined);
+  assert.equal(packageJson.scripts['build-mac'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && bun run --cwd shells/aionui build-mac');
+  assert.equal(packageJson.scripts['build-mac:x64'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && bun run --cwd shells/aionui build-mac:x64');
+  assert.equal(packageJson.scripts['build-win'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && bun run --cwd shells/aionui build-win');
+  assert.equal(packageJson.scripts['build-deb'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && bun run --cwd shells/aionui build-deb');
   assert.deepEqual(releaseContract.standard_updater.allowed_metadata, [
     'latest-mac.yml',
     'latest-arm64-mac.yml',
@@ -199,6 +194,33 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.exe/);
   assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.msi/);
   assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.deb/);
+});
+
+test('manual build workflow keeps cross-platform builds behind an explicit switch', () => {
+  const reusableWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
+  const manualWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'build-manual.yml'), 'utf8');
+
+  assert.match(manualWorkflow, /default: 'macos-arm64'/);
+  for (const platform of [
+    'macos-arm64',
+    'macos-x64',
+    'macos-universal',
+    'windows-x64',
+    'windows-arm64',
+    'linux-x64',
+    'linux-arm64',
+    'all',
+  ]) {
+    assert.match(manualWorkflow, new RegExp(`- ${platform}`));
+  }
+
+  assert.match(manualWorkflow, /case "\$PLATFORM" in/);
+  assert.match(manualWorkflow, /WINDOWS_X64=.*"platform":"windows-x64"/);
+  assert.match(manualWorkflow, /LINUX_X64=.*"platform":"linux-x64"/);
+  assert.match(reusableWorkflow, /Build with electron-builder \(Windows\)/);
+  assert.match(reusableWorkflow, /Build with electron-builder \(Linux\)/);
+  assert.match(reusableWorkflow, /shells\/aionui\/out\/\*\.exe/);
+  assert.match(reusableWorkflow, /shells\/aionui\/out\/\*\.deb/);
 });
 
 test('release creation job runs TypeScript asset scripts under Node 22', () => {
