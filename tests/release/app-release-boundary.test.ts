@@ -138,13 +138,19 @@ test('release code-quality uses App active-shell test runner', () => {
 
 test('release build uses App wrappers for cross-shell active-shell commands', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
 
   assert.match(workflow, /command:\s*bun install --cwd shells\/aionui --frozen-lockfile/);
   assert.doesNotMatch(workflow, /command:\s*cd shells\/aionui && bun install --frozen-lockfile/);
   assert.match(
     workflow,
-    /name: Verify packaged bundled bun assets[\s\S]*working-directory: \$\{\{ github\.workspace \}\}[\s\S]*run: bun run test:packaged:bun/,
+    /name: Prepare standard App payload[\s\S]*working-directory: \$\{\{ github\.workspace \}\}[\s\S]*run: node --experimental-strip-types scripts\/prepare-standard-release-payload\.ts/,
   );
+  assert.match(
+    workflow,
+    /name: Verify packaged bundled bun assets[\s\S]*working-directory: \$\{\{ github\.workspace \}\}[\s\S]*run: bun run validate:opl-package/,
+  );
+  assert.equal(packageJson.scripts['test:packaged:bun'], 'bun run --cwd shells/aionui validate:opl-package');
 });
 
 test('publish rejects standard App artifacts that contain the Full runtime payload', () => {

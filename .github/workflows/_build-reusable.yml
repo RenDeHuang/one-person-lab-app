@@ -191,7 +191,8 @@ jobs:
         run: bun run postinstall || true
 
       - name: Prepare standard App payload
-        run: cd "$GITHUB_WORKSPACE" && node --experimental-strip-types scripts/prepare-standard-release-payload.ts
+        working-directory: ${{ github.workspace }}
+        run: node --experimental-strip-types scripts/prepare-standard-release-payload.ts
 
       - name: Setup Windows native dependencies (for Windows only)
         if: startsWith(matrix.platform, 'windows')
@@ -543,7 +544,7 @@ jobs:
           !startsWith(matrix.platform, 'windows') ||
           steps.windows-build.outputs.result == 'success'
         working-directory: ${{ github.workspace }}
-        run: bun run test:packaged:bun
+        run: bun run validate:opl-package
 
       # macOS 钥匙串清理
       - name: Clean up keychain (macOS only)

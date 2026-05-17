@@ -25,7 +25,7 @@
     "test:coverage": "bun run --cwd shells/aionui test:coverage",
     "test:contract": "bun run --cwd shells/aionui test:contract",
     "test:e2e": "bun run --cwd shells/aionui test:e2e",
-    "test:packaged:bun": "bun run --cwd shells/aionui test:packaged:bun",
+    "test:packaged:bun": "bun run --cwd shells/aionui validate:opl-package",
     "test:opl-first-run-vm": "bun run --cwd shells/aionui test:opl-first-run-vm",
     "test:opl-first-run-vm:tart": "bun run --cwd shells/aionui test:opl-first-run-vm:tart",
     "lint": "bun run --cwd shells/aionui lint",
