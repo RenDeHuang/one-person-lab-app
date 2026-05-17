@@ -116,6 +116,19 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
   assert.ok(payload.artifacts.some((artifact) => artifact.endsWith(dmgName)));
 });
 
+test('tag-triggered release workflow stamps package metadata from tag version', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
+  const tagVersionResolver = [
+    'if [ -z "$version" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then',
+    'version="${REF_NAME#v}"',
+    'echo "OPL_RELEASE_VERSION=$version" >> "$GITHUB_ENV"',
+  ];
+
+  for (const expectedLine of tagVersionResolver) {
+    assert.match(workflow, new RegExp(expectedLine.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+});
+
 test('publish rejects standard App artifacts that contain the Full runtime payload', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-full-leak-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');

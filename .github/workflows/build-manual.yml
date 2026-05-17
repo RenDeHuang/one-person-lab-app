@@ -31,6 +31,11 @@ on:
         required: false
         type: boolean
         default: false
+      opl_release_version:
+        description: 'Release version stamped into package metadata. Empty uses workflow default.'
+        required: false
+        type: string
+        default: ''
 
 env:
   BUN_INSTALL_REGISTRY: 'https://registry.npmjs.org/'
@@ -88,4 +93,5 @@ jobs:
       skip_code_quality: ${{ inputs.skip_code_quality }}
       append_commit_hash: true
       upload_installers_only: true
+      opl_release_version: ${{ inputs.opl_release_version }}
     secrets: inherit
