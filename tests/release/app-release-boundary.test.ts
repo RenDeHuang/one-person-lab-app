@@ -171,7 +171,16 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.deepEqual(releaseContract.standard_updater.allowed_assets, [
     'One-Person-Lab-*-mac-*.dmg',
     'One-Person-Lab-*-mac-*.zip',
+    'One-Person-Lab-*-mac-*.dmg.blockmap',
+    'One-Person-Lab-*-mac-*.zip.blockmap',
   ]);
+  assert.match(workflow, /release-assets\/\*\*\/\*\.dmg/);
+  assert.match(workflow, /release-assets\/\*\*\/\*\.zip/);
+  assert.match(workflow, /release-assets\/\*\*\/\*\.blockmap/);
+  assert.match(workflow, /release-assets\/\*\*\/\*\.yml/);
+  assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.exe/);
+  assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.msi/);
+  assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.deb/);
 });
 
 test('release creation job runs TypeScript asset scripts under Node 22', () => {

@@ -13,7 +13,9 @@
     ],
     "allowed_assets": [
       "One-Person-Lab-*-mac-*.dmg",
-      "One-Person-Lab-*-mac-*.zip"
+      "One-Person-Lab-*-mac-*.zip",
+      "One-Person-Lab-*-mac-*.dmg.blockmap",
+      "One-Person-Lab-*-mac-*.zip.blockmap"
     ],
     "forbidden_asset_substrings": ["Full"],
     "rule": "standard updater metadata must never point to Full first-install assets"

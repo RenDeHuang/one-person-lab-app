@@ -253,11 +253,9 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag_name }}
           name: ${{ steps.version.outputs.is_dev == 'true' && format('Development Build {0}', steps.version.outputs.tag_name) || steps.version.outputs.tag_name }}
           files: |
-            release-assets/**/*.exe
-            release-assets/**/*.msi
             release-assets/**/*.dmg
-            release-assets/**/*.deb
             release-assets/**/*.zip
+            release-assets/**/*.blockmap
             release-assets/**/*.yml
           generate_release_notes: true
           draft: true
