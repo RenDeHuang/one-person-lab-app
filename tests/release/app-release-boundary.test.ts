@@ -162,6 +162,9 @@ test('release artifact upload preserves electron-updater blockmaps', () => {
 
 test('stable release workflow publishes only macOS arm64 standard assets', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'build-and-release.yml'), 'utf8');
+  const reusableWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
+  const manualWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'build-manual.yml'), 'utf8');
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
@@ -171,15 +174,23 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.doesNotMatch(workflow, /"platform":"windows-/);
   assert.doesNotMatch(workflow, /"platform":"linux-/);
   assert.doesNotMatch(workflow, /"platform":"macos-universal"/);
+  assert.doesNotMatch(reusableWorkflow, /Windows|windows-/);
+  assert.doesNotMatch(reusableWorkflow, /Linux|linux-/);
+  assert.doesNotMatch(manualWorkflow, /windows-|linux-|macos-universal|macos-x64|platform"\s*=\s*"all"|-\s+all/);
+  assert.equal(packageJson.scripts['build-mac:arm64'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && bun run --cwd shells/aionui build-mac:arm64');
+  assert.equal(packageJson.scripts['build-mac'], undefined);
+  assert.equal(packageJson.scripts['build-mac:x64'], undefined);
+  assert.equal(packageJson.scripts['build-win'], undefined);
+  assert.equal(packageJson.scripts['build-deb'], undefined);
   assert.deepEqual(releaseContract.standard_updater.allowed_metadata, [
     'latest-mac.yml',
     'latest-arm64-mac.yml',
   ]);
   assert.deepEqual(releaseContract.standard_updater.allowed_assets, [
-    'One-Person-Lab-*-mac-*.dmg',
-    'One-Person-Lab-*-mac-*.zip',
-    'One-Person-Lab-*-mac-*.dmg.blockmap',
-    'One-Person-Lab-*-mac-*.zip.blockmap',
+    'One-Person-Lab-*-mac-arm64.dmg',
+    'One-Person-Lab-*-mac-arm64.zip',
+    'One-Person-Lab-*-mac-arm64.dmg.blockmap',
+    'One-Person-Lab-*-mac-arm64.zip.blockmap',
   ]);
   assert.match(workflow, /release-assets\/\*\*\/\*\.dmg/);
   assert.match(workflow, /release-assets\/\*\*\/\*\.zip/);

@@ -20,7 +20,7 @@ on:
         type: boolean
         default: false
       upload_installers_only:
-        description: 'Only upload primary installers (exe/msi/dmg/deb), skip zip/yml/blockmap'
+        description: 'Only upload primary macOS DMG installers, skip zip/yml/blockmap'
         type: boolean
         default: false
       opl_release_version:
@@ -194,37 +194,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: node --experimental-strip-types scripts/prepare-standard-release-payload.ts
 
-      - name: Setup Windows native dependencies (for Windows only)
-        if: startsWith(matrix.platform, 'windows')
-        run: |
-          bun install --global node-gyp
-
-      - name: Install MSVC ARM64 toolchain (Windows ARM64 only)
-        if: matrix.platform == 'windows-arm64'
-        continue-on-error: true
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 20
-          max_attempts: 3
-          retry_wait_seconds: 60
-          shell: pwsh
-          command: |
-            choco install visualstudio2022buildtools --yes --params "'--add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --add Microsoft.VisualStudio.Component.Windows11SDK.22000 --includeRecommended --includeOptional'"
-
-      - name: Setup Windows build environment (for Windows only)
-        if: startsWith(matrix.platform, 'windows')
-        run: |
-          echo "Setting Windows SDK version for ConPty support"
-          echo "WindowsTargetPlatformVersion=10.0.19041.0" >> $env:GITHUB_ENV
-
-      - name: Setup MSBuild (for Windows only)
-        if: startsWith(matrix.platform, 'windows')
-        uses: microsoft/setup-msbuild@v2
-        with:
-          vs-version: '17.0'
-
       - name: Rebuild native modules for Electron
-        if: "!startsWith(matrix.platform, 'windows')"
         run: bunx electron-builder install-app-deps
         env:
           npm_config_runtime: electron
@@ -279,146 +249,6 @@ jobs:
             echo "No certificate provided - building unsigned application"
             echo "To enable code signing, add BUILD_CERTIFICATE_BASE64 and P12_PASSWORD secrets"
           fi
-
-      - name: Install Linux dependencies
-        if: startsWith(matrix.platform, 'linux')
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential python3 python3-pip pkg-config libsqlite3-dev fakeroot dpkg-dev rpm libnss3-dev libatk-bridge2.0-dev libdrm2 libxkbcommon-dev libxss1 libatspi2.0-dev libgtk-3-dev libxrandr2 libasound2-dev
-
-      - name: Rebuild native modules for Electron (Windows)
-        if: startsWith(matrix.platform, 'windows')
-        shell: pwsh
-        continue-on-error: false
-        run: |
-          $arch = "${{ matrix.native_arch || matrix.arch }}"
-          $electronVer = (node -p "require('./package.json').devDependencies.electron.replace(/[\^~]/g, '')").Trim()
-
-          Write-Host "=========================================="
-          Write-Host "Rebuilding native modules for Electron $electronVer ($arch)"
-          Write-Host "=========================================="
-
-          # Strategy: Try prebuild-install first (faster, more reliable)
-          # Fallback to electron-rebuild only if prebuild-install fails
-          $success = $false
-
-          # Step 1: Try prebuild-install (downloads prebuilt binaries)
-          Write-Host ""
-          Write-Host "[Step 1] Trying prebuild-install..."
-          $prebuildResult = $null
-          try {
-          $prebuildResult = bun x --yes prebuild-install --runtime=electron --target=$electronVer --platform=win32 --arch=$arch --force 2>&1
-            if ($LASTEXITCODE -eq 0) {
-              Write-Host "✅ prebuild-install succeeded"
-              $success = $true
-            } else {
-              Write-Host "⚠️ prebuild-install exited with code $LASTEXITCODE"
-            }
-          } catch {
-            Write-Host "⚠️ prebuild-install failed: $_"
-          }
-
-          # Step 2: Verify or fallback to electron-rebuild
-          $sqliteNode = "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
-          if (-not (Test-Path $sqliteNode)) {
-            Write-Host ""
-            Write-Host "[Step 2] prebuild-install didn't produce binary, trying electron-rebuild..."
-            try {
-              bunx electron-rebuild -f -w better-sqlite3
-              if ($LASTEXITCODE -eq 0) {
-                Write-Host "✅ electron-rebuild succeeded"
-                $success = $true
-              }
-            } catch {
-              Write-Host "❌ electron-rebuild failed: $_"
-            }
-          }
-
-          # Final verification
-          Write-Host ""
-          Write-Host "Verifying native modules..."
-          if (Test-Path $sqliteNode) {
-            $size = [math]::Round((Get-Item $sqliteNode).Length / 1MB, 1)
-            Write-Host "✅ better-sqlite3 found: $sqliteNode ($size MB)"
-          } else {
-            Write-Error "❌ better-sqlite3 native module not found at: $sqliteNode"
-            exit 1
-          }
-
-          Write-Host ""
-          Write-Host "=========================================="
-          Write-Host "✅ All critical native modules verified"
-          Write-Host "=========================================="
-          exit 0
-        env:
-          npm_config_runtime: electron
-          npm_config_arch: ${{ matrix.native_arch || matrix.arch }}
-          npm_config_target_arch: ${{ matrix.native_arch || matrix.arch }}
-          npm_config_disturl: https://electronjs.org/headers
-          # Don't force build_from_source - let prebuild-install try first
-          MSVS_VERSION: 2022
-          GYP_MSVS_VERSION: 2022
-
-      - name: Build with electron-builder (Windows)
-        if: startsWith(matrix.platform, 'windows')
-        id: windows-build
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $Command = $env:WINDOWS_BUILD_COMMAND
-          $BuildFailed = $false
-
-          try {
-            Write-Host "Running Windows build command: $Command"
-            iex $Command
-            Write-Host "Windows build completed successfully"
-          } catch {
-            $BuildFailed = $true
-            Write-Warning "${{ matrix.platform }} build failed but will not block the workflow"
-            Write-Host "::notice title=Windows build skipped::${{ matrix.platform }} build failed (see logs above) but workflow is allowed to continue."
-          }
-
-          if ($BuildFailed) {
-            "result=failure" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          } else {
-            "result=success" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          }
-        env:
-          WINDOWS_BUILD_COMMAND: ${{ matrix.command }}
-          # Node.js memory limit for vite bundling (prevents OOM during build)
-          # Node.js 内存限制，防止 vite 打包时内存不足
-          NODE_OPTIONS: '--max-old-space-size=8192'
-          # Target arch / 目标架构
-          npm_config_arch: ${{ matrix.native_arch || matrix.arch }}
-          npm_config_target_arch: ${{ matrix.native_arch || matrix.arch }}
-          # Native module compilation / 原生模块编译
-          npm_config_runtime: electron
-          npm_config_disturl: https://electronjs.org/headers
-          npm_config_build_from_source: true
-          npm_config_cache: ${{ runner.temp }}/.npm
-          ELECTRON_CACHE: ${{ runner.temp }}/.cache/electron
-          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/.cache/electron-builder
-          # Signing & IDs / 签名与应用 ID 配置
-          APP_ID: ${{ secrets.APP_ID }}
-          appleId: ${{ secrets.APPLE_ID }}
-          appleIdPassword: ${{ secrets.APPLE_ID_PASSWORD }}
-          teamId: ${{ secrets.TEAM_ID }}
-          identity: ${{ secrets.IDENTITY }}
-          CSC_NAME: ${{ secrets.IDENTITY }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-          # Windows build flags / Windows 构建参数
-          MSVS_VERSION: 2022
-          GYP_MSVS_VERSION: 2022
-          WindowsTargetPlatformVersion: 10.0.19041.0
-          _WIN32_WINNT: 0x0A00
-          # Sentry DSN (injected at build time via vite define)
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-          # CI flag & GitHub token / CI 标识与 GitHub Token
-          CI: true
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       # Clean up any stale disk images before DMG creation (macOS only)
       # 清理可能残留的磁盘镜像，避免 hdiutil "Device not configured" 错误
@@ -510,39 +340,7 @@ jobs:
           CI: true
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      # Linux: Standard build without special error handling
-      # Linux: 标准构建，无特殊错误处理
-      - name: Build with electron-builder (Linux)
-        if: startsWith(matrix.platform, 'linux')
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 60
-          max_attempts: 2
-          retry_wait_seconds: 60
-          command: cd shells/aionui && ${{ matrix.command }}
-        env:
-          NODE_OPTIONS: '--max-old-space-size=8192'
-          npm_config_arch: ${{ matrix.native_arch || matrix.arch }}
-          npm_config_cache: ${{ runner.temp }}/.npm
-          ELECTRON_CACHE: ${{ runner.temp }}/.cache/electron
-          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/.cache/electron-builder
-          ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
-          npm_config_electron_builder_binaries_mirror: https://github.com/electron-userland/electron-builder-binaries/releases/download/
-          ELECTRON_MIRROR: ''
-          npm_config_disturl: https://electronjs.org/headers
-          npm_config_runtime: electron
-          npm_config_target_arch: ${{ matrix.native_arch || matrix.arch }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-          CI: true
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-
       - name: Verify packaged bundled bun assets
-        if: >-
-          !startsWith(matrix.platform, 'windows') ||
-          steps.windows-build.outputs.result == 'success'
         working-directory: ${{ github.workspace }}
         run: bun run validate:opl-package
 
@@ -591,18 +389,8 @@ jobs:
             echo "No out directory found!"
           fi
 
-      # Upload artifacts when:
-      # - Build succeeded (all platforms)
-      # - macOS: notarization timeout but artifacts exist (handled in build step)
-      # - Windows: only if windows-build step succeeded
-      # 上传产物条件：
-      # - 构建成功（所有平台）
-      # - macOS: 公证超时但有产物（已在构建步骤中处理）
-      # - Windows: 仅当 windows-build 步骤成功
       - name: Clean up non-installer artifacts
-        if: >-
-          inputs.upload_installers_only && success() &&
-          (!startsWith(matrix.platform, 'windows') || steps.windows-build.outputs.result == 'success')
+        if: inputs.upload_installers_only && success()
         shell: bash
         run: |
           echo "Removing non-installer files from out/ ..."
@@ -612,16 +400,11 @@ jobs:
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
-        if: >-
-          success() &&
-          (!startsWith(matrix.platform, 'windows') || steps.windows-build.outputs.result == 'success')
+        if: success()
         with:
           name: ${{ inputs.append_commit_hash && format('{0}-{1}', matrix.artifact-name, steps.commit.outputs.short) || matrix.artifact-name }}
           path: |
-            shells/aionui/out/*.exe
-            shells/aionui/out/*.msi
             shells/aionui/out/*.dmg
-            shells/aionui/out/*.deb
             shells/aionui/out/*.zip
             shells/aionui/out/*.blockmap
             shells/aionui/out/*.yml

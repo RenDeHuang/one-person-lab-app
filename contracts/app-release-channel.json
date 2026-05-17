@@ -12,10 +12,10 @@
       "latest-arm64-mac.yml"
     ],
     "allowed_assets": [
-      "One-Person-Lab-*-mac-*.dmg",
-      "One-Person-Lab-*-mac-*.zip",
-      "One-Person-Lab-*-mac-*.dmg.blockmap",
-      "One-Person-Lab-*-mac-*.zip.blockmap"
+      "One-Person-Lab-*-mac-arm64.dmg",
+      "One-Person-Lab-*-mac-arm64.zip",
+      "One-Person-Lab-*-mac-arm64.dmg.blockmap",
+      "One-Person-Lab-*-mac-arm64.zip.blockmap"
     ],
     "forbidden_asset_substrings": ["Full"],
     "rule": "standard updater metadata must never point to Full first-install assets"
