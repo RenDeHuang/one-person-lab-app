@@ -153,6 +153,13 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   assert.equal(packageJson.scripts['test:packaged:bun'], 'bun run --cwd shells/aionui validate:opl-package');
 });
 
+test('release artifact upload preserves electron-updater blockmaps', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
+
+  assert.match(workflow, /find out\/ -type f[\s\S]*-name "\*\.blockmap"/);
+  assert.match(workflow, /shells\/aionui\/out\/\*\.blockmap/);
+});
+
 test('stable release workflow publishes only macOS arm64 standard assets', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'build-and-release.yml'), 'utf8');
   const releaseContract = JSON.parse(
