@@ -8,18 +8,12 @@
   "shell_root": "shells/aionui",
   "standard_updater": {
     "allowed_metadata": [
-      "latest.yml",
-      "latest-win-arm64.yml",
       "latest-mac.yml",
-      "latest-arm64-mac.yml",
-      "latest-linux.yml",
-      "latest-linux-arm64.yml"
+      "latest-arm64-mac.yml"
     ],
     "allowed_assets": [
-      "One-Person-Lab-*-win-*.exe",
       "One-Person-Lab-*-mac-*.dmg",
-      "One-Person-Lab-*-mac-*.zip",
-      "One-Person-Lab-*-linux-*.deb"
+      "One-Person-Lab-*-mac-*.zip"
     ],
     "forbidden_asset_substrings": ["Full"],
     "rule": "standard updater metadata must never point to Full first-install assets"

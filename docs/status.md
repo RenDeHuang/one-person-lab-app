@@ -25,12 +25,13 @@ docs stay in `one-person-lab-app`.
 
 ## Release State
 
-Standard App release assets and updater metadata are App-owned. Full
-first-install assets remain explicitly separate from standard updater metadata.
-The updater must not select assets whose names include `Full`.
-GitHub Release uploads, standard DMG, Full DMG, GUI smoke, and user tutorials
-are all App-owned. The Framework repo is only a runtime/CLI/contracts payload
-source for Full DMG and a machine-interface provider for the App.
+Standard App release assets and updater metadata are App-owned and currently
+macOS arm64-only. Full first-install assets remain explicitly separate from
+standard updater metadata. The updater must not select assets whose names
+include `Full`. GitHub Release uploads, standard DMG, Full DMG, GUI smoke, and
+user tutorials are all App-owned. The Framework repo is only a
+runtime/CLI/contracts payload source for Full DMG and a machine-interface
+provider for the App.
 
 Current release validation is App-root first: root wrappers call the active shell
 build/release scripts, then the produced standard package can replace
@@ -42,10 +43,10 @@ tracked `shells/aionui` source, and local `shells/aionui` points to
 `gaofeng21cn/opl-aion-shell` as the history-rich shell repo and uses
 `gaofeng21cn/one-person-lab-app` as the clean App product repo.
 
-2026-05-15 release note: `v26.5.15` is published from the clean App repo with
-standard and Full first-install assets. GitHub Release lists for
-`gaofeng21cn/one-person-lab` and `gaofeng21cn/opl-aion-shell` are empty to avoid
-release-entry confusion.
+2026-05-17 release note: the stable release channel is narrowed to macOS arm64
+standard update assets plus separate macOS arm64 Full first-install assets.
+Docker/WebUI compatibility remains a validation lane, not a desktop release
+asset lane.
 
 ## Validation Entry Points
 

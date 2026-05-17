@@ -153,6 +153,27 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   assert.equal(packageJson.scripts['test:packaged:bun'], 'bun run --cwd shells/aionui validate:opl-package');
 });
 
+test('stable release workflow publishes only macOS arm64 standard assets', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'build-and-release.yml'), 'utf8');
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+
+  assert.match(workflow, /"platform":"macos-arm64"/);
+  assert.match(workflow, /"artifact-name":"macos-build-arm64"/);
+  assert.doesNotMatch(workflow, /"platform":"windows-/);
+  assert.doesNotMatch(workflow, /"platform":"linux-/);
+  assert.doesNotMatch(workflow, /"platform":"macos-universal"/);
+  assert.deepEqual(releaseContract.standard_updater.allowed_metadata, [
+    'latest-mac.yml',
+    'latest-arm64-mac.yml',
+  ]);
+  assert.deepEqual(releaseContract.standard_updater.allowed_assets, [
+    'One-Person-Lab-*-mac-*.dmg',
+    'One-Person-Lab-*-mac-*.zip',
+  ]);
+});
+
 test('release creation job runs TypeScript asset scripts under Node 22', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'build-and-release.yml'), 'utf8');
 
