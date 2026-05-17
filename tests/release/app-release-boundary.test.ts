@@ -153,6 +153,15 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   assert.equal(packageJson.scripts['test:packaged:bun'], 'bun run --cwd shells/aionui validate:opl-package');
 });
 
+test('release creation job runs TypeScript asset scripts under Node 22', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'build-and-release.yml'), 'utf8');
+
+  assert.match(
+    workflow,
+    /name: Create Release[\s\S]*name: Setup Node\.js[\s\S]*uses: actions\/setup-node@v4[\s\S]*node-version: '22'[\s\S]*node --experimental-strip-types scripts\/prepare-release-assets\.ts/,
+  );
+});
+
 test('publish rejects standard App artifacts that contain the Full runtime payload', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-full-leak-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
