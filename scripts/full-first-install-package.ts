@@ -296,35 +296,35 @@ export function buildFullFirstInstallReadme(input: {
 }) {
   const installPath = '~/Library/Application Support/OPL/runtime/current';
   return [
-    `One Person Lab Full 首次安装包 ${normalizeVersion(input.version)}`,
+    `One Person Lab Full First-Install Package ${normalizeVersion(input.version)}`,
     '',
-    '分发方式：本包由 one-person-lab-app 仓构建并作为 GitHub Release 的首次安装推荐资产发布，不写入 latest*.yml，也不作为 App 自动更新目标。',
-    'App 内已有的自动更新机制保持原样，仍只读取标准 One Person Lab App 的 GitHub Release metadata。',
-    '已安装用户继续使用 App 内更新或标准安装包；新用户需要更快开始 MAS 工作时优先下载本 Full 包。',
+    'Distribution: this package is built by the one-person-lab-app repository and published as the recommended GitHub Release asset for first-time installation. It is not written to latest*.yml and is not an App auto-update target.',
+    'The in-app updater remains unchanged and continues to read only standard One Person Lab App GitHub Release metadata.',
+    'Existing users should keep using in-app updates or the standard App package. New users can choose the Full package when they want the runtime, domain modules, and companion tools preloaded for the first setup.',
     '',
-    '安装步骤：',
-    `1. 打开 ${input.dmgName}，把 One Person Lab 拖到 Applications。`,
-    '2. 首次启动 App 后，随包 runtime 会安装到稳定路径，后续 Full 包刷新会覆盖同一路径：',
+    'Installation:',
+    `1. Open ${input.dmgName} and drag One Person Lab to Applications.`,
+    '2. On first launch, the bundled runtime is installed to the stable runtime path. Later Full package refreshes replace the same path:',
     `   ${installPath}`,
-    '3. runtime 版本只记录在 current.json 和 current/.opl-full-runtime-installed.json，不进入安装目录名。',
-    '4. MAS/MAG/RCA 随包内容只作为首启安装源；初始化后会进入标准模块目录：',
+    '3. The runtime version is recorded only in current.json and current/.opl-full-runtime-installed.json; it is not encoded in the runtime directory name.',
+    '4. Bundled MAS/MAG/RCA payloads are first-launch installation sources. After initialization, they are materialized under the standard module directory:',
     '   ~/Library/Application Support/OPL/state/modules/<repo-name>',
-    '5. Full runtime 内置 officecli CLI binary 与 MAS/MAG/RCA、officecli、officecli-docx/pptx/xlsx、ui-ux-pro-max 等推荐 companion skills；App 初始化会把它们同步到 Codex 可见路径。',
-    '6. Full 包只负责组装和校验已声明的 framework/runtime、domain module 与 companion tool payload；runtime truth、provider implementation、domain truth、domain quality verdict 和 artifact authority 仍归 OPL Framework 与各领域智能体。',
-    '7. Full 包内置 family runtime provider 所需的本地状态与模块材料；OPL Framework 源码和 contracts 只是随包 runtime payload 的输入，不拥有 App 发布流程；生产 durable stage attempt 由 Temporal provider contract 接管。',
-    '8. 在 App 里配置 Codex API key 后，进入 OPL 初始化页确认 Core ready、Domain modules ready、family runtime provider ready 三层状态；Full 完整通过要求三层都 ready。',
-    '9. 首启会通过 opl family-runtime doctor/status 读取 provider-backed readiness；Full 包不再携带 Hermes runtime payload。',
-    '10. 推荐先跑一次 MAS 最小 smoke：进入 Research Foundry，创建或读取一个 workspace 状态。',
+    '5. The Full runtime includes the officecli CLI binary and recommended companion skills such as MAS, MAG, RCA, officecli, officecli-docx, officecli-pptx, officecli-xlsx, and ui-ux-pro-max. App initialization synchronizes those payloads into Codex-visible locations.',
+    '6. The Full package only assembles and validates declared framework/runtime, domain module, and companion tool payloads. Runtime truth, provider implementation, domain truth, domain quality verdicts, and artifact authority remain owned by the OPL Framework and the domain agents.',
+    '7. The Full package includes local state and module material required by the family runtime provider. OPL Framework source and contracts are runtime payload inputs, not owners of the App release flow. Production durable stage attempts are governed by the Temporal provider contract.',
+    '8. After configuring the Codex/OpenAI API key in the App, open OPL initialization and confirm the Core ready, Domain modules ready, and family runtime provider ready states. Full readiness requires all three layers to pass.',
+    '9. First launch reads provider-backed readiness through opl family-runtime doctor/status. The Full package no longer carries Hermes runtime payloads.',
+    '10. Recommended smoke check: open Research Foundry and create or read a workspace status through MAS.',
     '',
     input.runtimeTarName
-      ? `补充 runtime 包：如 DMG 内 runtime 安装失败，可保留 ${input.runtimeTarName} 作为人工诊断包。`
-      : '补充 runtime 包：当前版本使用单 DMG 分发，未拆出独立 runtime tar.zst。',
+      ? `Supplemental runtime package: keep ${input.runtimeTarName} as a manual diagnostic artifact if runtime installation from the DMG fails.`
+      : 'Supplemental runtime package: this version is distributed as a single DMG and does not split out a separate runtime tar.zst.',
     '',
     input.notarized
-      ? '签名/公证：此包已完成 Developer ID 签名并通过 Apple 公证检查。'
-      : '签名/公证：此包按当前标准 GitHub DMG 的同等发布模式构建；如 CI 未配置 Developer ID signing secrets，macOS 可能仍需要右键打开或在系统设置中允许。',
+      ? 'Signing and notarization: this package has completed Developer ID signing and Apple notarization checks.'
+      : 'Signing and notarization: this package uses the same release mode as the current standard GitHub DMG. If CI signing secrets are not configured, macOS may still require right-click Open or approval in System Settings.',
     '',
-    '校验：下载后可用 shasum -a 256 对照 SHA256SUMS.txt。',
+    'Verification: after download, compare shasum -a 256 output against SHA256SUMS.txt.',
     '',
   ].join('\n');
 }

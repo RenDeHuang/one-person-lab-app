@@ -41,6 +41,13 @@ npm run release:publish -- \
   --include-full-package
 ```
 
+Publishing to an existing tag is intentional for Full first-install refreshes:
+`scripts/publish-release.ts` uses `gh release upload --clobber`, so the same
+`v<version>` tag can receive rebuilt Full assets after the standard App release
+already exists. Use `--full-package-only --include-full-package` for that lane;
+it updates the Full release-note section and overwrites matching Full assets
+without rebuilding or replacing standard updater assets.
+
 Boundary guard:
 
 ```bash
@@ -51,6 +58,11 @@ node --experimental-strip-types scripts/validate-release-boundary.ts
 Standard updater metadata is restricted to macOS arm64 standard package assets.
 Full first-install packages must be explicitly named with `Full` and must not
 be referenced from `latest*.yml`.
+
+Full companion text assets, including `README-Full-First-Install.txt`, are
+English-only release assets. Keep those generated strings professional and free
+of Chinese copy so GitHub Release downloads, checksums, and manual diagnostic
+instructions present a single public language surface.
 
 Standard release builds run `scripts/prepare-standard-release-payload.ts`
 before packaging so stale Full runtime payloads cannot leak into standard App

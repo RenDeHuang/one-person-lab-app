@@ -148,6 +148,65 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
   assert.ok(payload.artifacts.some((artifact) => artifact.endsWith(dmgName)));
 });
 
+test('publish dry run generates professional v26.5.18 notes for standard and Full lanes', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-notes-'));
+  const fullPackageDir = path.join(tempRoot, 'full');
+  const version = '26.5.18';
+  const manifest = {
+    generated_at: '2026-05-18T12:00:00.000Z',
+    distribution: {
+      updater_metadata_allowed: false,
+    },
+    components: {
+      mas: { git_commit: '1111111111111111111111111111111111111111' },
+      mag: { git_commit: '2222222222222222222222222222222222222222' },
+      rca: { git_commit: '3333333333333333333333333333333333333333' },
+      officecli: { version: '1.2.3' },
+    },
+  };
+
+  writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
+  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
+  writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--dry-run',
+    '--version',
+    version,
+    '--full-package-only',
+    '--include-full-package',
+    '--full-package-dir',
+    fullPackageDir,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  const notes = payload.release_notes;
+  assert.match(notes, /Release focus/);
+  assert.match(notes, /Settings page:/);
+  assert.match(notes, /Command Line Tools and maintenance:/);
+  assert.match(notes, /Full runtime readiness/);
+  assert.match(notes, /Update channel guidance/);
+  assert.match(notes, /Standard DMG\/ZIP assets and latest\*\.yml metadata remain the only source for the auto-updater/);
+  assert.match(notes, /Full first-install assets are GitHub Release downloads/);
+  assert.match(notes, /Full first-install package/);
+  assert.match(notes, /After installation, users still configure their Codex\/OpenAI API key/);
+  assert.doesNotMatch(notes, /[\u3400-\u9fff]/);
+});
+
+test('existing same-tag standard plus Full publish replaces the full release notes body', () => {
+  const source = fs.readFileSync(path.join(appRoot, 'scripts', 'publish-release.ts'), 'utf8');
+
+  assert.match(source, /else if \(options\.includeFullPackage && options\.fullPackageOnly\)/);
+  assert.match(source, /ensureFullPackageReleaseNotes\(options\.releaseRepo, tag, options\.version, fullPackageManifest\)/);
+  assert.match(
+    source,
+    /else if \(options\.includeFullPackage\) {\s*replaceReleaseNotes\(options\.releaseRepo, tag, releaseNotes\);/
+  );
+});
+
 test('tag-triggered release workflow stamps package metadata from tag version', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
   const tagVersionResolver = [
@@ -331,6 +390,8 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     releaseContract.full_first_install.payload_boundary.role,
     'declared_payload_assembly_and_validation',
   );
+  assert.equal(releaseContract.full_first_install.generated_companion_text_language, 'en');
+  assert.equal(releaseContract.full_first_install.same_tag_refresh.mode, 'github_release_upload_clobber');
   assert.deepEqual(
     manifest.distribution.payload_boundary.app_repo_does_not_own,
     releaseContract.full_first_install.payload_boundary.forbidden_authority,
@@ -351,13 +412,13 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     manifest.distribution.payload_boundary.truth_sources.visual_deliverable_domain_truth,
     'gaofeng21cn/redcube-ai',
   );
-  assert.match(
-    mod.buildFullFirstInstallReadme({
-      version: '26.5.15',
-      dmgName: 'One-Person-Lab-Full-26.5.15-mac-arm64.dmg',
-      runtimeTarName: null,
-      notarized: false,
-    }),
-    /Full 包只负责组装和校验已声明的 framework\/runtime、domain module 与 companion tool payload/,
-  );
+  const fullReadme = mod.buildFullFirstInstallReadme({
+    version: '26.5.15',
+    dmgName: 'One-Person-Lab-Full-26.5.15-mac-arm64.dmg',
+    runtimeTarName: null,
+    notarized: false,
+  });
+  assert.match(fullReadme, /The Full package only assembles and validates declared framework\/runtime, domain module, and companion tool payloads/);
+  assert.match(fullReadme, /standard module directory/);
+  assert.doesNotMatch(fullReadme, /[\u3400-\u9fff]/);
 });

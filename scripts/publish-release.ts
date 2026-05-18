@@ -359,9 +359,10 @@ function buildChangeList(shellRoot, maxItems = 12) {
 
 function buildUpdateGuidanceNotes(version) {
   return [
-    'Update guidance:',
-    `- Existing users should update from inside the app, or install the standard One-Person-Lab-${version}-mac-arm64.dmg package if they need a manual reinstall.`,
-    '- The standard DMG/ZIP assets and latest*.yml metadata remain the only auto-updater source.',
+    'Update channel guidance',
+    `- Existing users should use in-app update, or install the standard One-Person-Lab-${version}-mac-arm64.dmg package for a manual reinstall.`,
+    '- Standard DMG/ZIP assets and latest*.yml metadata remain the only source for the auto-updater.',
+    '- Full first-install assets are GitHub Release downloads for new or clean macOS arm64 setups. They are not a separate update channel and are never referenced by updater metadata.',
   ];
 }
 
@@ -417,12 +418,26 @@ function buildFullPackageReleaseNotesSection(version, manifest = null) {
   const bundledModuleNotes = buildBundledModuleNotes(manifest);
   return [
     'Full first-install package',
-    `- New macOS arm64 users can download One-Person-Lab-Full-${version}-mac-arm64.dmg when they want the fastest first setup. It preloads MAS, MAG, RCA, the family runtime support payload, OfficeCLI, and recommended companion skills; users still only need to configure their API key.`,
-    '- The Full package is built and released by the App repo. OPL Framework code and contracts are bundled as runtime payload inputs, not as the owner of the App release flow.',
-    '- Full OPL readiness is Temporal-backed. Temporal is the required production durable stage-attempt provider; Hermes/Gateway runtime payloads are retired and are not bundled or exposed as compatibility surfaces.',
+    `- New macOS arm64 users can download One-Person-Lab-Full-${version}-mac-arm64.dmg for a first setup that includes the App plus preloaded MAS, MAG, RCA, family runtime support payloads, OfficeCLI, and recommended companion skills.`,
+    '- After installation, users still configure their Codex/OpenAI API key and pass first-run readiness checks in the App.',
+    '- The App repository builds and publishes the Full package. OPL Framework code and contracts are bundled as runtime payload inputs, not as owners of the App release flow.',
+    '- Full runtime readiness is Temporal-backed. Temporal is the required production durable stage-attempt provider; Hermes/Gateway runtime payloads are retired and are not bundled or exposed as compatibility surfaces.',
     '- MDS remains retired and is not bundled as a default module or MAS runtime dependency.',
-    '- Full is a first-install download, not a separate update channel. App auto-update still follows the standard latest*.yml metadata and standard One Person Lab package.',
+    '- Full is a first-install download, not a separate update channel. App auto-update still follows standard latest*.yml metadata and the standard One Person Lab package.',
     ...(bundledModuleNotes.length > 0 ? ['', 'Bundled module versions', ...bundledModuleNotes] : []),
+  ];
+}
+
+function buildReleaseFocusNotes(version, includeFullPackage) {
+  const fullReadinessNote = includeFullPackage
+    ? 'Full runtime readiness is represented as first-run Core, Domain modules, and family runtime provider readiness, with Temporal as the production durable provider contract.'
+    : 'Full runtime readiness remains separated from the standard updater channel and is validated through the Full first-install lane.';
+  return [
+    'Release focus',
+    '- Settings page: preserves the App settings and OPL initialization flows used to configure the Codex/OpenAI API key and inspect readiness, including the update-state repair for the v26.5.18 cycle.',
+    '- Command Line Tools and maintenance: keeps CLT/deferred maintenance as a non-blocking maintenance path so first launch and standard updates are not overstated as runtime provisioning.',
+    `- Runtime packaging: ${fullReadinessNote}`,
+    `- Scope: ${version} is a desktop App release. Domain truth, provider implementation, quality verdicts, and artifact authority remain owned by OPL Framework and the domain agents.`,
   ];
 }
 
@@ -430,7 +445,9 @@ function buildReleaseNotes(version, includeFullPackage, changeList, fullPackageM
   const notes = [
     `One Person Lab desktop GUI release ${version}`,
     '',
-    'Changes in this release:',
+    ...buildReleaseFocusNotes(version, includeFullPackage),
+    '',
+    'Change log',
     ...changeList.map((change) => `- ${change}`),
     '',
     ...buildUpdateGuidanceNotes(version),
@@ -455,23 +472,31 @@ function ensureFullPackageReleaseNotes(repo, tag, version, fullPackageManifest =
 
   const currentNotes = current.stdout.trimEnd();
   const fullSection = buildFullPackageReleaseNotesSection(version, fullPackageManifest).join('\n');
-  const missingUpdateGuidance = !current.stdout.includes('Update guidance:');
-  const existingFullSection = /^Full first-install package:?[\s\S]*$/m.test(currentNotes);
-  let nextNotes = existingFullSection
-    ? currentNotes.replace(/^Full first-install package:?[\s\S]*$/m, fullSection)
-    : [
-        ...(currentNotes ? [currentNotes, ''] : []),
-        fullSection,
-      ].join('\n');
+  const releaseFocusSection = buildReleaseFocusNotes(version, true).join('\n');
+  const missingReleaseFocus = !current.stdout.includes('Release focus');
+  const missingUpdateGuidance = !current.stdout.includes('Update channel guidance') && !current.stdout.includes('Update guidance:');
+  const fullSectionPattern = /^Full first-install package:?[\s\S]*$/m;
+  let baseNotes = currentNotes.replace(fullSectionPattern, '').trimEnd();
+  const appendSection = (notes, lines) => [
+    ...(notes ? [notes, ''] : []),
+    ...lines,
+  ].join('\n');
 
-  if (missingUpdateGuidance) {
-    nextNotes = [
-      nextNotes,
-      '',
-      ...buildUpdateGuidanceNotes(version),
-    ].join('\n');
+  if (missingReleaseFocus) {
+    baseNotes = appendSection(baseNotes, [releaseFocusSection]);
   }
+  if (missingUpdateGuidance) {
+    baseNotes = appendSection(baseNotes, buildUpdateGuidanceNotes(version));
+  }
+  const nextNotes = [
+    ...(baseNotes ? [baseNotes, ''] : []),
+    fullSection,
+  ].join('\n');
   run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', nextNotes]);
+}
+
+function replaceReleaseNotes(repo, tag, notes) {
+  run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', notes]);
 }
 
 function main() {
@@ -543,8 +568,10 @@ function main() {
       '--notes',
       releaseNotes,
     ]);
-  } else if (options.includeFullPackage) {
+  } else if (options.includeFullPackage && options.fullPackageOnly) {
     ensureFullPackageReleaseNotes(options.releaseRepo, tag, options.version, fullPackageManifest);
+  } else if (options.includeFullPackage) {
+    replaceReleaseNotes(options.releaseRepo, tag, releaseNotes);
   }
   run('gh', uploadArgs);
 }

@@ -24,6 +24,12 @@
     "asset_name_must_include": "Full",
     "updater_visible": false,
     "validation_required": true,
+    "generated_companion_text_language": "en",
+    "same_tag_refresh": {
+      "allowed": true,
+      "mode": "github_release_upload_clobber",
+      "scope": "Full first-install assets and Full release-note section only"
+    },
     "payload_boundary": {
       "role": "declared_payload_assembly_and_validation",
       "allowed_actions": [
