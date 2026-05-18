@@ -8,13 +8,16 @@ function writeExecutable(filePath, content) {
 }
 
 export function writeRuntimeWrappers(runtimeRoot) {
-  writeExecutable(path.join(runtimeRoot, 'bin', 'opl'), `#!/usr/bin/env bash
+  writeExecutable(path.join(runtimeRoot, 'bin', 'opl'), `#!/bin/bash
 set -euo pipefail
+SYSTEM_PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH="$SYSTEM_PATH:$PATH"
 RUNTIME_HOME="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON_BIN="$(find "$RUNTIME_HOME/python" -maxdepth 2 -path '*/bin' -type d 2>/dev/null | sort -r | head -n 1 || true)"
 export OPL_FULL_RUNTIME_HOME="$RUNTIME_HOME"
 export OPL_PACKAGED_SKILLS_ROOT="$RUNTIME_HOME/skills"
 export OPL_CODEX_BIN="$RUNTIME_HOME/bin/codex"
+export OPL_FAMILY_RUNTIME_PROVIDER="\${OPL_FAMILY_RUNTIME_PROVIDER:-temporal}"
 export OPL_MODULE_PATH_MEDAUTOSCIENCE="$RUNTIME_HOME/modules/mas"
 export OPL_MODULE_PATH_MEDAUTOGRANT="$RUNTIME_HOME/modules/mag"
 export OPL_MODULE_PATH_REDCUBE="$RUNTIME_HOME/modules/rca"
