@@ -42,6 +42,7 @@ One Person Lab App 是面向用户的日常工作台：
 - 从一个桌面界面进入通用工作、医学研究、基金写作和汇报材料准备。
 - 提供研究工坊、基金工坊、汇报工坊入口。
 - 展示进度、文件、运行状态和可恢复的工作上下文，帮助用户继续长任务和检查交付物。
+- 运行状态页消费 One Person Lab Framework 的 `runtime_tray_snapshot.app_operator_drilldown` 读模型，用同一入口展示 route graph、review queue、artifact gallery、memory refs、quality/readiness、provider SLO 和 owner-aware action routing。
 - 首次启动时检查本机环境、框架依赖、领域模块、配套工具和包就绪状态。
 - 把 One Person Lab 和领域智能体呈现为可直接使用的产品体验。
 

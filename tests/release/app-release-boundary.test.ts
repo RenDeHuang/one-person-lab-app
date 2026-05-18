@@ -60,6 +60,38 @@ test('release boundary guard keeps App release ownership in App repo', () => {
   assert.match(result.stdout, /App release boundary is App-owned/);
 });
 
+test('runtime page consumes OPL App/operator drilldown instead of App-owned runtime truth', () => {
+  const pageStateMatrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
+  );
+  const runtimePage = pageStateMatrix.pages.find((page) => page.id === 'runtime');
+
+  assert.equal(runtimePage.machine_source, 'runtime_tray_snapshot.app_operator_drilldown');
+  assert.equal(runtimePage.framework_command, 'opl runtime app-operator-drilldown --json');
+  assert.equal(runtimePage.page_contract, 'runtime_workbench_drilldown');
+  for (const expected of [
+    'route graph and decision map refs',
+    'review and repair queue',
+    'artifact gallery and package/export lifecycle refs',
+    'memory refs and writeback receipt refs',
+    'quality/readiness refs',
+    'provider SLO and repair refs',
+    'owner-aware action routing',
+  ]) {
+    assert.ok(runtimePage.must_show.includes(expected), expected);
+  }
+  for (const forbiddenOwner of [
+    'runtime truth',
+    'provider implementation',
+    'domain truth',
+    'memory body',
+    'artifact body',
+    'quality/readiness/export verdict',
+  ]) {
+    assert.ok(runtimePage.must_not_own.includes(forbiddenOwner), forbiddenOwner);
+  }
+});
+
 test('App-owned automation entrypoints are TypeScript, not JavaScript wrappers', () => {
   const appOwnedEntrypoints = [
     ...walkFiles(path.join(appRoot, 'scripts')),

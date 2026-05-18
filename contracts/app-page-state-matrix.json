@@ -9,7 +9,29 @@
     {
       "id": "runtime",
       "expected_source": "OPL runtime snapshot or provider-backed projection",
-      "must_show": ["runtime state", "source surface", "repair action when available"]
+      "machine_source": "runtime_tray_snapshot.app_operator_drilldown",
+      "framework_command": "opl runtime app-operator-drilldown --json",
+      "page_contract": "runtime_workbench_drilldown",
+      "must_show": [
+        "runtime state",
+        "source surface",
+        "repair action when available",
+        "route graph and decision map refs",
+        "review and repair queue",
+        "artifact gallery and package/export lifecycle refs",
+        "memory refs and writeback receipt refs",
+        "quality/readiness refs",
+        "provider SLO and repair refs",
+        "owner-aware action routing"
+      ],
+      "must_not_own": [
+        "runtime truth",
+        "provider implementation",
+        "domain truth",
+        "memory body",
+        "artifact body",
+        "quality/readiness/export verdict"
+      ]
     },
     {
       "id": "settings_overview",

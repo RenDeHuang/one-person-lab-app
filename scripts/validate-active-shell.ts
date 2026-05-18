@@ -97,6 +97,44 @@ function validatePageStateMatrix(matrix, contract) {
   if (requiredPages.size > 0) {
     throw new Error(`Page-state matrix is missing required page(s): ${[...requiredPages].join(', ')}`);
   }
+
+  const runtimePage = (matrix.pages ?? []).find((page) => page.id === 'runtime');
+  if (!runtimePage) {
+    throw new Error('Page-state matrix is missing runtime page');
+  }
+  if (runtimePage.machine_source !== 'runtime_tray_snapshot.app_operator_drilldown') {
+    throw new Error(`Runtime page must consume OPL app_operator_drilldown, got: ${runtimePage.machine_source}`);
+  }
+  if (runtimePage.framework_command !== 'opl runtime app-operator-drilldown --json') {
+    throw new Error(`Runtime page must use the OPL drilldown command, got: ${runtimePage.framework_command}`);
+  }
+  const requiredRuntimeSignals = [
+    'route graph and decision map refs',
+    'review and repair queue',
+    'artifact gallery and package/export lifecycle refs',
+    'memory refs and writeback receipt refs',
+    'quality/readiness refs',
+    'provider SLO and repair refs',
+    'owner-aware action routing',
+  ];
+  for (const signal of requiredRuntimeSignals) {
+    if (!runtimePage.must_show.includes(signal)) {
+      throw new Error(`Runtime page must show ${signal}`);
+    }
+  }
+  const forbiddenRuntimeOwners = [
+    'runtime truth',
+    'provider implementation',
+    'domain truth',
+    'memory body',
+    'artifact body',
+    'quality/readiness/export verdict',
+  ];
+  for (const owner of forbiddenRuntimeOwners) {
+    if (!runtimePage.must_not_own?.includes(owner)) {
+      throw new Error(`Runtime page must not own ${owner}`);
+    }
+  }
 }
 
 function validateFirstRunMatrix(matrix, contract) {
