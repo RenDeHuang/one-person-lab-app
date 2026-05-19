@@ -113,6 +113,7 @@ jobs:
         with:
           repository: gaofeng21cn/ai-skills-library
           ref: main
+          token: ${{ secrets.GH_TOKEN }}
           path: ai-skills-library
 
       - name: Checkout UI UX Pro Max skill
