@@ -18,6 +18,13 @@ OPL Framework runtime truth or MAS/MAG/RCA domain truth.
 - [`screenshots/`](screenshots/): screenshot and visual tutorial asset entry.
 - [`history/`](history/): retired App topology and migration notes.
 
+The App-owned product profile lives at
+[`../contracts/app-product-profile.json`](../contracts/app-product-profile.json).
+It is the machine-readable source for desktop session defaults, visible
+companion skills, first-run maintenance behavior, and Settings presentation
+policy. Release preparation generates the shell-facing copy consumed by
+`opl-aion-shell`.
+
 The current stable GUI shell is checked out at `shells/aionui/` from
 `gaofeng21cn/opl-aion-shell`. AionUI-specific implementation docs remain in the
 shell repository. This App repository keeps only App-owned product, release,

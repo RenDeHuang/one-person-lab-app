@@ -22,6 +22,7 @@ import {
   listFullRuntimeProductionNodeModulePaths,
   shouldExcludeRuntimePath,
 } from './full-first-install-package.ts';
+import { syncAppProductProfileToShell } from './app-product-profile.ts';
 import { writeRuntimeWrappers } from './full-first-install-runtime-wrappers.ts';
 
 const appRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -996,6 +997,7 @@ function main() {
 
   const prepared = prepareRuntime(options, sources);
   const payloadRoots = syncRuntimePayloadToBuildRoots(prepared.runtimeRoot, prepared.manifest, options.guiRoot);
+  const productProfileSync = syncAppProductProfileToShell(options.guiRoot);
 
   if (!options.skipGuiBuild) {
     run('npm', ['run', 'build-mac:arm64'], {
@@ -1037,6 +1039,7 @@ function main() {
     readme: readmePath,
     checksums: checksumPath,
     payload_roots: payloadRoots,
+    product_profile: productProfileSync,
     staging_root: prepared.stagingRoot,
     runtime_cache: prepared.runtime_cache,
   }, null, 2));

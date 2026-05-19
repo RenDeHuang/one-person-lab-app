@@ -59,6 +59,8 @@ One Person Lab App 是面向用户的日常工作台：
 
 One Person Lab App 负责桌面产品体验：打包、发布资产、更新元数据、首次启动检查、界面状态测试、截图和用户文档。
 
+App 产品默认策略由 [`contracts/app-product-profile.json`](contracts/app-product-profile.json) 声明。发布脚本会在标准包和 Full 包构建前把该合同同步到活动 shell，让 Codex 默认模型/推理强度、可见配套技能、首次启动维护行为和 Settings 用户文案由 App 仓统一配置，而不是分散写死在 AionUI fork 中。
+
 One Person Lab 提供命令行、激活、阶段控制、运行时提供者、队列、合同、模块发现、技能同步、运行快照和进度投影。MAS、MAG、RCA 承载各自领域的专业判断、质量裁决、阶段语义和交付物。
 
 需要框架、运行时和合同信息时，请进入 [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab)。
@@ -107,6 +109,8 @@ bun run validate-release -- release-assets
 - 上游家族：`AionUI`
 - 界面来源：`gaofeng21cn/opl-aion-shell`
 - 历史策略：外部检出，不合并进 App 默认分支
+
+App 产品默认策略由 [`contracts/app-product-profile.json`](contracts/app-product-profile.json) 声明，并在发布准备阶段生成到 `shells/aionui/src/common/config/oplProductProfile.generated.json`。
 
 当前迁移与发布状态见 [`docs/status.md`](docs/status.md)。
 

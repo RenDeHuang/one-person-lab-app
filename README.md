@@ -59,6 +59,8 @@ One Person Lab App is the daily workbench for users:
 
 One Person Lab App owns the desktop product experience: packaging, release assets, updater metadata, first-run checks, GUI state tests, screenshots, and user documentation.
 
+App-owned product defaults are declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json). Release scripts sync that contract into the active shell before standard and Full packaging so Codex defaults, visible companion skills, first-run maintenance behavior, and user-facing Settings labels are configured by the App repository instead of being scattered through the AionUI fork.
+
 One Person Lab provides CLI, activation, stage control, runtime providers, queue, contracts, module discovery, skill sync, runtime snapshots, and progress projections. MAS, MAG, and RCA carry their domain judgment, quality verdicts, stage semantics, and deliverables.
 
 Need framework, runtime, or contract details? Go to [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab).
@@ -107,6 +109,8 @@ The active shell is declared in [`contracts/app-shell-adapter.json`](contracts/a
 - upstream family: `AionUI`
 - shell source: `gaofeng21cn/opl-aion-shell`
 - shell history policy: external checkout, not merged into App default branch
+
+The App product profile is declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json) and generated into `shells/aionui/src/common/config/oplProductProfile.generated.json` during release preparation.
 
 See [`docs/status.md`](docs/status.md) for the current migration and release state.
 

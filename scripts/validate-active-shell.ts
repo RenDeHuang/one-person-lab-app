@@ -9,6 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const contractPath = path.join(root, 'contracts', 'app-shell-adapter.json');
 const pageStateMatrixPath = path.join(root, 'contracts', 'app-page-state-matrix.json');
 const firstRunMatrixPath = path.join(root, 'contracts', 'app-first-run-test-matrix.json');
+const productProfilePath = path.join(root, 'contracts', 'app-product-profile.json');
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
@@ -151,6 +152,58 @@ function validateFirstRunMatrix(matrix, contract) {
   }
 }
 
+function validateProductProfile(profile) {
+  if (profile.owner !== 'one-person-lab-app') {
+    throw new Error(`Unexpected product profile owner: ${profile.owner}`);
+  }
+  if (profile.purpose !== 'app_owned_product_profile') {
+    throw new Error(`Unexpected product profile purpose: ${profile.purpose}`);
+  }
+  if (profile.app_repo !== 'gaofeng21cn/one-person-lab-app') {
+    throw new Error(`Unexpected product profile repo: ${profile.app_repo}`);
+  }
+  for (const [label, expected] of Object.entries({
+    active_shell: contractPath,
+    page_state: pageStateMatrixPath,
+    first_run: firstRunMatrixPath,
+  })) {
+    const value = profile.contract_refs?.[label];
+    if (typeof value !== 'string' || !value.trim()) {
+      throw new Error(`Product profile missing contract_refs.${label}`);
+    }
+    assertFile(path.join(root, value), `product profile ${label} contract ref`);
+    if (path.resolve(root, value) !== path.resolve(expected)) {
+      throw new Error(`Unexpected product profile contract_refs.${label}: ${value}`);
+    }
+  }
+  if (profile.default_session_profile?.executor !== 'codex_cli') {
+    throw new Error(`Unexpected product profile executor: ${profile.default_session_profile?.executor}`);
+  }
+  if (profile.default_session_profile?.model !== profile.codex?.default_model) {
+    throw new Error('Product profile default_session_profile.model must match codex.default_model');
+  }
+  if (profile.default_session_profile?.reasoning_effort !== profile.codex?.default_reasoning_effort) {
+    throw new Error('Product profile default_session_profile.reasoning_effort must match codex.default_reasoning_effort');
+  }
+  if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('mineru-document-extractor')) {
+    throw new Error('Product profile must include mineru-document-extractor as a default visible skill');
+  }
+  if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('ui-ux-pro-max')) {
+    throw new Error('Product profile must include ui-ux-pro-max as a default visible skill');
+  }
+  for (const forbidden of [
+    'runtime_truth',
+    'provider_implementation',
+    'domain_truth',
+    'domain_quality_verdict',
+    'domain_artifact_authority',
+  ]) {
+    if (!profile.boundary?.app_does_not_own?.includes(forbidden)) {
+      throw new Error(`Product profile boundary must exclude ${forbidden}`);
+    }
+  }
+}
+
 function runCommand(entry) {
   const cwd = path.join(root, entry.cwd);
   console.log(`\n==> ${entry.id}: ${entry.command}`);
@@ -170,6 +223,7 @@ const contract = readJson(contractPath);
 validateContractShape(contract);
 validatePageStateMatrix(readJson(pageStateMatrixPath), contract);
 validateFirstRunMatrix(readJson(firstRunMatrixPath), contract);
+validateProductProfile(readJson(productProfilePath));
 
 if (args.quick) {
   console.log('Active shell contract is structurally valid.');

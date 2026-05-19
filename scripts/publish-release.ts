@@ -4,6 +4,10 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import {
+  formatCodexProfileLabel,
+  readAppProductProfile,
+} from './app-product-profile.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultShellRoot = path.resolve(repoRoot, 'shells', 'aionui');
@@ -558,11 +562,25 @@ function buildBundledModuleNotes(manifest) {
 
 function buildFullPackageReleaseNotesSection(version, manifest = null) {
   const bundledModuleNotes = buildBundledModuleNotes(manifest);
+  const profile = readAppProductProfile();
+  const codexProfileLabel = formatCodexProfileLabel(profile);
+  const domainModules = profile.companion_payloads.domain_modules
+    .map((moduleId) => {
+      if (moduleId === 'mas') return 'MAS';
+      if (moduleId === 'mag') return 'MAG';
+      if (moduleId === 'rca') return 'RCA';
+      if (moduleId === 'opl-meta-agent') return 'OPL Meta Agent';
+      return moduleId;
+    })
+    .join(', ');
+  const companionTools = profile.companion_payloads.tools
+    .map((toolId) => (toolId === 'mineru-open-api' ? 'MinerU document extraction' : toolId))
+    .join(', ');
   return [
     'Full first-install package',
-    `- New macOS arm64 users can download One-Person-Lab-Full-${version}-mac-arm64.dmg for a first setup that includes the App plus preloaded MAS, MAG, RCA, OPL Meta Agent, family runtime support payloads, OfficeCLI, MinerU document extraction, and recommended companion skills.`,
+    `- New macOS arm64 users can download One-Person-Lab-Full-${version}-mac-arm64.dmg for a first setup that includes the App plus preloaded ${domainModules}, family runtime support payloads, ${companionTools}, and recommended companion skills.`,
     '- After installation, users still configure their Codex/OpenAI API key and pass first-run readiness checks in the App.',
-    '- The bundled Codex default profile is gpt-5.5 / xhigh and is applied through the active session path after API-key setup.',
+    `- The bundled Codex default profile is ${codexProfileLabel} and is applied through the active session path after API-key setup.`,
     '- Command Line Tools installation is requested through deferred maintenance when needed; Full first launch continues on the bundled runtime while CLT installation is handled separately.',
     '- OPL Meta Agent is bundled and managed as a default ecosystem module so users can install and maintain the Foundry Agent used to create new OPL-compatible agents.',
     '- The App repository builds and publishes the Full package. OPL Framework code and contracts are bundled as runtime payload inputs, not as owners of the App release flow.',
@@ -574,6 +592,7 @@ function buildFullPackageReleaseNotesSection(version, manifest = null) {
 }
 
 function buildReleaseFocusNotes(version, includeFullPackage) {
+  const codexProfileLabel = formatCodexProfileLabel();
   const fullReadinessNote = includeFullPackage
     ? 'Full runtime readiness is represented as first-run Core, Domain modules, and family runtime provider readiness, with Temporal as the production durable provider contract.'
     : 'Full runtime readiness remains separated from the standard updater channel and is validated through the Full first-install lane.';
@@ -581,7 +600,7 @@ function buildReleaseFocusNotes(version, includeFullPackage) {
     'Release focus',
     '- Settings page: stabilizes the App settings and OPL initialization flows used to configure the Codex/OpenAI API key, refresh readiness, and inspect developer-mode availability.',
     '- First-run resilience: keeps CLT/deferred maintenance and repository refreshes outside the core launch gate so clean installs can enter the App on the bundled runtime.',
-    '- Codex defaults: applies the gpt-5.5 / xhigh profile through the active ACP session path, including packaged Full first-install sessions.',
+    `- Codex defaults: applies the ${codexProfileLabel} profile through the active ACP session path, including packaged Full first-install sessions.`,
     '- VM validation: clean no-CLT macOS arm64 first-install smoke passed at 1920x1080 with the Codex config wizard and all settings pages covered.',
     `- Runtime packaging: ${fullReadinessNote}`,
     `- Scope: ${version} is a desktop App release. Domain truth, provider implementation, quality verdicts, and artifact authority remain owned by OPL Framework and the domain agents.`,

@@ -18,6 +18,14 @@ The active shell source is `gaofeng21cn/opl-aion-shell`. It is consumed as an
 external checkout at `shells/aionui` and is not tracked in the clean App repo
 history.
 
+`contracts/app-product-profile.json` is the release-time source of App-owned
+desktop defaults. Standard release preparation and Full first-install assembly
+sync it into `shells/aionui/src/common/config/oplProductProfile.generated.json`
+before shell packaging. This keeps product decisions such as Codex
+model/reasoning, default companion skills, CLT/deferred-maintenance copy, and
+Settings presentation policy in the App repo while the shell stays a thin
+consumer.
+
 ## GitHub Actions release path
 
 Use **OPL Desktop Release** from the GitHub Actions tab for App-owned release
@@ -142,7 +150,12 @@ current Codex default profile applied by the packaged App session path.
 
 Standard release builds run `scripts/prepare-standard-release-payload.ts`
 before packaging so stale Full runtime payloads cannot leak into standard App
-assets.
+assets and the App product profile is refreshed in the active shell.
+
+Full first-install builds run the same profile sync after runtime payload
+assembly and before the GUI build. The generated Full manifest records
+`distribution.product_profile_contract=contracts/app-product-profile.json` so
+release assets can be traced back to the App-owned contract.
 
 2026-05-17 release policy: the stable App release channel publishes macOS arm64
 standard update assets only. Docker/WebUI support is validated separately

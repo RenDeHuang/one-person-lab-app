@@ -36,6 +36,10 @@ node --experimental-strip-types scripts/validate-release.ts release-assets
 The App page-state matrix is declared in
 `contracts/app-page-state-matrix.json`. The first-run matrix is declared in
 `contracts/app-first-run-test-matrix.json`.
+The App product profile is declared in
+`contracts/app-product-profile.json`; `validate-active-shell.ts --quick` and
+`npm run test:release-boundary` verify that the profile still owns only
+desktop product defaults and still excludes runtime/provider/domain authority.
 
 ## Installed App Smoke
 
@@ -66,6 +70,8 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
 - Contracts/unit: `npm run test:release-boundary`.
 - Standard release metadata: `node --experimental-strip-types scripts/validate-release.ts release-assets`.
 - App-owned release boundary: `node --experimental-strip-types scripts/validate-release-boundary.ts`.
+- App product profile sync: standard and Full release preparation must generate
+  `shells/aionui/src/common/config/oplProductProfile.generated.json`.
 - Full first-install package: `npm run release:full -- --version <version>`.
 - GUI smoke: installed `/Applications/One Person Lab.app` smoke or the App repo
   VM workflow.

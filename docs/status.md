@@ -13,6 +13,7 @@ artifacts for machine decisions.
 - Active shell: `aionui`.
 - Active shell root: `shells/aionui` as an external checkout.
 - Active shell source repo: `gaofeng21cn/opl-aion-shell`.
+- App product profile: `contracts/app-product-profile.json`.
 - Framework dependency: `gaofeng21cn/one-person-lab`.
 - Local App repo path on the maintainer Mac:
   `/Users/gaofeng/workspace/one-person-lab-app`.
@@ -22,6 +23,13 @@ artifacts for machine decisions.
 The App repo must not merge AionUI history into its default branch. AionUI
 upstream-following work stays in `opl-aion-shell`; App product release and user
 docs stay in `one-person-lab-app`.
+
+The App product profile is the current owner for desktop session defaults and
+user-facing product policy: Codex default model/reasoning, default visible
+companion skills, first-run deferred maintenance behavior, and Settings
+presentation keys. The active shell consumes the generated copy at
+`src/common/config/oplProductProfile.generated.json`; runtime truth, provider
+implementation, and domain truth remain outside App ownership.
 
 ## Release State
 
@@ -65,3 +73,4 @@ node --experimental-strip-types scripts/validate-release.ts release-assets
 Page-state and first-run expectations are declared in
 `contracts/app-page-state-matrix.json` and
 `contracts/app-first-run-test-matrix.json`.
+Product defaults are declared in `contracts/app-product-profile.json`.

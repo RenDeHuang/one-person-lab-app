@@ -1,5 +1,10 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
+import {
+  formatCodexProfilePhrase,
+  formatRecommendedCompanionSkills,
+  readAppProductProfile,
+} from './app-product-profile.ts';
 
 export const FULL_FIRST_INSTALL_OUTPUT_DIR = '/Users/gaofeng/Downloads/One-Person-Lab-Full-First-Install';
 export const FULL_RELEASE_OUTPUT_DIR = 'dist/opl-full-release';
@@ -136,6 +141,7 @@ export function classifyFullRuntimeLayerCache(input: {
 export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
   const version = normalizeVersion(input.version);
   const components = input.components ?? {};
+  const productProfile = readAppProductProfile();
 
   return {
     manifest_version: 1,
@@ -160,15 +166,18 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       owner_repo: 'gaofeng21cn/one-person-lab-app',
       channel: 'github_release_first_install',
       release_asset_role: 'first_install_recommended',
+      product_profile_contract: 'contracts/app-product-profile.json',
+      product_profile: {
+        contract_schema_version: productProfile.schema_version,
+        default_model: productProfile.codex.default_model,
+        default_reasoning_effort: productProfile.codex.default_reasoning_effort,
+        companion_tools: productProfile.companion_payloads.tools,
+        domain_modules: productProfile.companion_payloads.domain_modules,
+        recommended_codex_skills: productProfile.companion_payloads.recommended_codex_skills,
+      },
       payload_boundary: {
         role: 'declared_payload_assembly_and_validation',
-        app_repo_does_not_own: [
-          'runtime_truth',
-          'provider_implementation',
-          'domain_truth',
-          'domain_quality_verdict',
-          'domain_artifact_authority',
-        ],
+        app_repo_does_not_own: productProfile.boundary.app_does_not_own,
         truth_sources: {
           framework_runtime_contracts: 'gaofeng21cn/one-person-lab',
           foundry_agent_domain_truth: 'gaofeng21cn/opl-meta-agent',
@@ -372,6 +381,8 @@ export function buildFullFirstInstallReadme(input: {
   notarized: boolean;
 }) {
   const installPath = '~/Library/Application Support/OPL/runtime/current';
+  const codexProfile = formatCodexProfilePhrase();
+  const companionSkills = formatRecommendedCompanionSkills();
   return [
     `One Person Lab Full First-Install Package ${normalizeVersion(input.version)}`,
     '',
@@ -386,8 +397,8 @@ export function buildFullFirstInstallReadme(input: {
     '3. The runtime version is recorded only in current.json and current/.opl-full-runtime-installed.json; it is not encoded in the runtime directory name.',
     '4. Bundled MAS, MAG, RCA, and OPL Meta Agent payloads are launch sources inside the Full runtime. Managed repo reconciliation may later populate the standard module directory, but it is deferred maintenance and does not block first launch:',
     '   ~/Library/Application Support/OPL/state/modules/<repo-name>',
-    '5. The Full runtime includes the Codex CLI, officecli CLI binary, mineru-open-api CLI binary, OPL Meta Agent, and recommended companion skills such as MAS, MAG, RCA, officecli, officecli-docx, officecli-pptx, officecli-xlsx, mineru-document-extractor, and ui-ux-pro-max. App initialization makes those payloads visible to Codex without requiring Command Line Tools or git to finish first.',
-    '6. The bundled Codex profile seeds gpt-5.5 with xhigh reasoning for first-run App sessions after the Codex/OpenAI API key is configured.',
+    `5. The Full runtime includes the Codex CLI, officecli CLI binary, mineru-open-api CLI binary, OPL Meta Agent, and recommended companion skills such as ${companionSkills}. App initialization makes those payloads visible to Codex without requiring Command Line Tools or git to finish first.`,
+    `6. The bundled Codex profile seeds ${codexProfile} for first-run App sessions after the Codex/OpenAI API key is configured.`,
     '7. The Full package only assembles and validates declared framework/runtime, domain module, and companion tool payloads. Runtime truth, provider implementation, domain truth, domain quality verdicts, and artifact authority remain owned by the OPL Framework and the domain agents.',
     '8. The Full package includes local state and module material required by the family runtime provider. OPL Framework source and contracts are runtime payload inputs, not owners of the App release flow. Production durable stage attempts are governed by the Temporal provider contract.',
     '9. After configuring the Codex/OpenAI API key in the App, open OPL initialization and confirm the Core ready, Domain modules ready, and family runtime provider ready states. Full readiness requires all three layers to pass.',

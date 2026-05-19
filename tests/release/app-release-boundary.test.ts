@@ -128,6 +128,10 @@ function writeFullRemoteAssets(outDir, version) {
   ];
 }
 
+function readProductProfile() {
+  return JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-product-profile.json'), 'utf8'));
+}
+
 function walkFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((left, right) => (
     left.name.localeCompare(right.name)
@@ -150,6 +154,33 @@ test('release boundary guard keeps App release ownership in App repo', () => {
   const result = runNode(['scripts/validate-release-boundary.ts']);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /App release boundary is App-owned/);
+});
+
+test('App product profile owns user-facing defaults without runtime authority', () => {
+  const profile = readProductProfile();
+
+  assert.equal(profile.owner, 'one-person-lab-app');
+  assert.equal(profile.purpose, 'app_owned_product_profile');
+  assert.equal(profile.app_repo, 'gaofeng21cn/one-person-lab-app');
+  assert.equal(profile.default_session_profile.executor, 'codex_cli');
+  assert.equal(profile.default_session_profile.model, profile.codex.default_model);
+  assert.equal(profile.default_session_profile.reasoning_effort, profile.codex.default_reasoning_effort);
+  assert.ok(profile.codex.default_visible_skills.includes('mineru-document-extractor'));
+  assert.ok(profile.codex.default_visible_skills.includes('ui-ux-pro-max'));
+  assert.ok(profile.codex.skill_priority.includes('morph-ppt'));
+  assert.ok(profile.first_run.deferred_blockers.includes('domain_modules'));
+  assert.equal(profile.first_run.command_line_tools.auto_request_installer, true);
+  assert.equal(profile.first_run.command_line_tools.blocks_full_first_launch, false);
+  assert.ok(profile.companion_payloads.domain_modules.includes('opl-meta-agent'));
+  for (const forbiddenOwner of [
+    'runtime_truth',
+    'provider_implementation',
+    'domain_truth',
+    'domain_quality_verdict',
+    'domain_artifact_authority',
+  ]) {
+    assert.ok(profile.boundary.app_does_not_own.includes(forbiddenOwner), forbiddenOwner);
+  }
 });
 
 test('runtime page consumes OPL App/operator drilldown instead of App-owned runtime truth', () => {
@@ -523,10 +554,12 @@ test('publish dry run generates professional v26.5.18 notes for standard and Ful
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   const notes = payload.release_notes;
+  const profile = readProductProfile();
+  const codexProfileLabel = `${profile.codex.default_model} / ${profile.codex.default_reasoning_effort}`;
   assert.match(notes, /Release focus/);
   assert.match(notes, /Settings page:/);
   assert.match(notes, /First-run resilience:/);
-  assert.match(notes, /Codex defaults: applies the gpt-5\.5 \/ xhigh profile/);
+  assert.ok(notes.includes(`Codex defaults: applies the ${codexProfileLabel} profile`));
   assert.match(notes, /VM validation: clean no-CLT macOS arm64 first-install smoke passed at 1920x1080/);
   assert.match(notes, /Full runtime readiness/);
   assert.match(notes, /Update channel guidance/);
@@ -885,6 +918,8 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   );
   const mod = await import('../../scripts/full-first-install-package.ts');
   const manifest = mod.buildFullPackageManifest({ version: '26.5.15' });
+  const profile = readProductProfile();
+  const codexProfilePhrase = `${profile.codex.default_model} with ${profile.codex.default_reasoning_effort} reasoning`;
 
   assert.equal(
     releaseContract.full_first_install.payload_boundary.role,
@@ -895,6 +930,11 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   assert.deepEqual(
     manifest.distribution.payload_boundary.app_repo_does_not_own,
     releaseContract.full_first_install.payload_boundary.forbidden_authority,
+  );
+  assert.equal(manifest.distribution.product_profile_contract, 'contracts/app-product-profile.json');
+  assert.deepEqual(
+    manifest.distribution.product_profile.recommended_codex_skills,
+    profile.companion_payloads.recommended_codex_skills,
   );
   assert.equal(
     manifest.distribution.payload_boundary.truth_sources.framework_runtime_contracts,
@@ -928,7 +968,7 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   assert.match(fullReadme, /OPL Meta Agent/);
   assert.match(fullReadme, /mineru-open-api CLI binary/);
   assert.match(fullReadme, /mineru-document-extractor/);
-  assert.match(fullReadme, /gpt-5\.5 with xhigh reasoning/);
+  assert.ok(fullReadme.includes(codexProfilePhrase));
   assert.match(fullReadme, /deferred maintenance and does not block first launch/);
   assert.match(fullReadme, /without requiring Command Line Tools or git to finish first/);
   assert.doesNotMatch(fullReadme, /materialized under the standard module directory/);
@@ -942,6 +982,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const buildScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
   const publishScript = fs.readFileSync(path.join(appRoot, 'scripts', 'publish-release.ts'), 'utf8');
+  const prepareStandardScript = fs.readFileSync(path.join(appRoot, 'scripts', 'prepare-standard-release-payload.ts'), 'utf8');
   const mod = await import('../../scripts/full-first-install-package.ts');
   const cacheDir = path.join(os.tmpdir(), 'opl-full-runtime-cache-test');
   const cacheKey = mod.buildFullRuntimeCacheKey({
@@ -1006,6 +1047,8 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'/);
   assert.match(buildScript, /meta_agent_repo_skill_fingerprint/);
   assert.match(buildScript, /mineru_document_extractor_fingerprint/);
+  assert.match(buildScript, /syncAppProductProfileToShell\(options\.guiRoot\)/);
+  assert.match(prepareStandardScript, /syncAppProductProfileToShell\(shellRoot, \{ optional: true \}\)/);
   assert.match(
     buildScript,
     /if \(cacheEvent\.read_archive\) {\s*extractLayer\(archivePath, targetRoot\);\s*return cacheEvent;\s*}\s*const tempLayerRoot/,
