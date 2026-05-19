@@ -146,10 +146,11 @@ jobs:
           python -m pip install --upgrade pip uv
           uv python install 3.12
           npm install -g @openai/codex
-          npm install -g mineru-open-api
+          go install github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api@latest
           curl -fsSL https://raw.githubusercontent.com/iOfficeAI/OfficeCLI/main/install.sh | bash
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          export PATH="$HOME/.local/bin:$PATH"
+          export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
           codex --version
           officecli --version
           mineru-open-api version

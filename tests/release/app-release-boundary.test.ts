@@ -734,7 +734,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(fullWorkflow, /name: Checkout OPL Meta Agent/);
   assert.match(fullWorkflow, /repository: gaofeng21cn\/opl-meta-agent/);
   assert.match(fullWorkflow, /path: opl-meta-agent/);
-  assert.match(fullWorkflow, /npm install -g mineru-open-api/);
+  assert.match(fullWorkflow, /go install github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api@latest/);
+  assert.match(fullWorkflow, /echo "\$HOME\/go\/bin" >> "\$GITHUB_PATH"/);
   assert.match(fullWorkflow, /OPL_FULL_META_AGENT_ROOT="\$GITHUB_WORKSPACE\/opl-meta-agent"/);
   assert.match(fullWorkflow, /OPL_FULL_MINERU_OPEN_API_BIN/);
   assert.match(fullWorkflow, /assets\/companion-skills\/mineru-document-extractor/);
