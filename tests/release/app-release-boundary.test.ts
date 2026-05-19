@@ -1044,6 +1044,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /copyFirstSkillSource\('opl-meta-agent'/);
   assert.match(buildScript, /copyFirstSkillSource\('mineru-document-extractor'/);
   assert.match(buildScript, /copySingleFile\(sources\.mineruOpenApiBin, path\.join\(layerRoot, 'bin', 'mineru-open-api'\)\)/);
+  assert.match(buildScript, /version: commandOutput\(sources\.mineruOpenApiBin, \['version'\]\)/);
   assert.match(buildScript, /plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'/);
   assert.match(buildScript, /meta_agent_repo_skill_fingerprint/);
   assert.match(buildScript, /mineru_document_extractor_fingerprint/);
