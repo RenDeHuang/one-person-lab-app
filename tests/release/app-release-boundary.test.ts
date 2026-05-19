@@ -186,13 +186,16 @@ test('publish dry run generates professional v26.5.18 notes for standard and Ful
   const notes = payload.release_notes;
   assert.match(notes, /Release focus/);
   assert.match(notes, /Settings page:/);
-  assert.match(notes, /Command Line Tools and maintenance:/);
+  assert.match(notes, /First-run resilience:/);
+  assert.match(notes, /Codex defaults: applies the gpt-5\.5 \/ xhigh profile/);
+  assert.match(notes, /VM validation: clean no-CLT macOS arm64 first-install smoke passed at 1920x1080/);
   assert.match(notes, /Full runtime readiness/);
   assert.match(notes, /Update channel guidance/);
   assert.match(notes, /Standard DMG\/ZIP assets and latest\*\.yml metadata remain the only source for the auto-updater/);
   assert.match(notes, /Full first-install assets are GitHub Release downloads/);
   assert.match(notes, /Full first-install package/);
   assert.match(notes, /After installation, users still configure their Codex\/OpenAI API key/);
+  assert.match(notes, /Command Line Tools installation is requested through deferred maintenance/);
   assert.doesNotMatch(notes, /[\u3400-\u9fff]/);
 });
 
@@ -419,6 +422,7 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     notarized: false,
   });
   assert.match(fullReadme, /The Full package only assembles and validates declared framework\/runtime, domain module, and companion tool payloads/);
+  assert.match(fullReadme, /gpt-5\.5 with xhigh reasoning/);
   assert.match(fullReadme, /standard module directory/);
   assert.doesNotMatch(fullReadme, /[\u3400-\u9fff]/);
 });

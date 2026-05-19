@@ -420,6 +420,8 @@ function buildFullPackageReleaseNotesSection(version, manifest = null) {
     'Full first-install package',
     `- New macOS arm64 users can download One-Person-Lab-Full-${version}-mac-arm64.dmg for a first setup that includes the App plus preloaded MAS, MAG, RCA, family runtime support payloads, OfficeCLI, and recommended companion skills.`,
     '- After installation, users still configure their Codex/OpenAI API key and pass first-run readiness checks in the App.',
+    '- The bundled Codex default profile is gpt-5.5 / xhigh and is applied through the active session path after API-key setup.',
+    '- Command Line Tools installation is requested through deferred maintenance when needed; Full first launch continues on the bundled runtime while CLT installation is handled separately.',
     '- The App repository builds and publishes the Full package. OPL Framework code and contracts are bundled as runtime payload inputs, not as owners of the App release flow.',
     '- Full runtime readiness is Temporal-backed. Temporal is the required production durable stage-attempt provider; Hermes/Gateway runtime payloads are retired and are not bundled or exposed as compatibility surfaces.',
     '- MDS remains retired and is not bundled as a default module or MAS runtime dependency.',
@@ -434,8 +436,10 @@ function buildReleaseFocusNotes(version, includeFullPackage) {
     : 'Full runtime readiness remains separated from the standard updater channel and is validated through the Full first-install lane.';
   return [
     'Release focus',
-    '- Settings page: preserves the App settings and OPL initialization flows used to configure the Codex/OpenAI API key and inspect readiness, including the update-state repair for the v26.5.18 cycle.',
-    '- Command Line Tools and maintenance: keeps CLT/deferred maintenance as a non-blocking maintenance path so first launch and standard updates are not overstated as runtime provisioning.',
+    '- Settings page: stabilizes the App settings and OPL initialization flows used to configure the Codex/OpenAI API key, refresh readiness, and inspect developer-mode availability.',
+    '- First-run resilience: keeps CLT/deferred maintenance and repository refreshes outside the core launch gate so clean installs can enter the App on the bundled runtime.',
+    '- Codex defaults: applies the gpt-5.5 / xhigh profile through the active ACP session path, including packaged Full first-install sessions.',
+    '- VM validation: clean no-CLT macOS arm64 first-install smoke passed at 1920x1080 with the Codex config wizard and all settings pages covered.',
     `- Runtime packaging: ${fullReadinessNote}`,
     `- Scope: ${version} is a desktop App release. Domain truth, provider implementation, quality verdicts, and artifact authority remain owned by OPL Framework and the domain agents.`,
   ];

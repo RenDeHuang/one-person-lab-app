@@ -64,6 +64,11 @@ English-only release assets. Keep those generated strings professional and free
 of Chinese copy so GitHub Release downloads, checksums, and manual diagnostic
 instructions present a single public language surface.
 
+Release notes should name the user-visible validation scope when assets are
+rebuilt after packaging smoke. For Full first-install refreshes, include the
+clean no-CLT VM lane, settings-page coverage, deferred CLT handling, and the
+current Codex default profile applied by the packaged App session path.
+
 Standard release builds run `scripts/prepare-standard-release-payload.ts`
 before packaging so stale Full runtime payloads cannot leak into standard App
 assets.
