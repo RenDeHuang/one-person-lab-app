@@ -4,13 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       release_mode:
-        description: Create a new release or refresh an existing release in place
+        description: Create, draft, or refresh a release in place
         required: true
         default: refresh_existing
         type: choice
         options:
           - refresh_existing
           - new_release
+          - draft_candidate
       opl_version:
         description: OPL version, for example 26.5.19
         required: true
@@ -117,7 +118,7 @@ jobs:
           git fetch --tags origin
 
           case "$RELEASE_MODE" in
-            new_release)
+            new_release | draft_candidate)
               if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
                 echo "::error::Tag $tag already exists; use refresh_existing to replace assets in place."
                 exit 1
@@ -145,13 +146,21 @@ jobs:
       - name: Publish standard assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_MODE: ${{ inputs.release_mode }}
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
         run: |
-          npm run release:publish -- \
-            --no-build \
-            --version "$OPL_RELEASE_VERSION" \
-            --repo "$GITHUB_REPOSITORY" \
+          set -euo pipefail
+          publish_args=(
+            npm run release:publish --
+            --no-build
+            --version "$OPL_RELEASE_VERSION"
+            --repo "$GITHUB_REPOSITORY"
             --standard-artifacts-dir release-assets
+          )
+          if [ "$RELEASE_MODE" = "draft_candidate" ]; then
+            publish_args+=(--draft)
+          fi
+          "${publish_args[@]}"
 
   full-first-install:
     name: Build and publish Full first-install assets
@@ -165,9 +174,74 @@ jobs:
       force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache }}
     secrets: inherit
 
+  remote-verify-standard:
+    name: Verify remote standard release assets
+    needs: publish-standard
+    if: ${{ !inputs.include_full_package }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify remote standard assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        run: |
+          npm run verify-remote-release -- \
+            --version "$OPL_RELEASE_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --summary-path remote-release-verification.json
+
+      - name: Upload remote verification summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-release-verification-${{ inputs.opl_version }}
+          path: remote-release-verification.json
+          if-no-files-found: error
+
+  remote-verify-full:
+    name: Verify remote standard and Full release assets
+    needs: full-first-install
+    if: ${{ inputs.include_full_package }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify remote standard and Full assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        run: |
+          npm run verify-remote-release -- \
+            --version "$OPL_RELEASE_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --include-full-package \
+            --summary-path remote-release-verification.json
+
+      - name: Upload remote verification summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-release-verification-${{ inputs.opl_version }}
+          path: remote-release-verification.json
+          if-no-files-found: error
+
   full-first-run-vm-smoke:
     name: Run clean Full first-run VM smoke
-    needs: full-first-install
+    needs: remote-verify-full
     if: ${{ inputs.include_full_package && inputs.run_vm_smoke }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:

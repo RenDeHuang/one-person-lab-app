@@ -41,6 +41,93 @@ function sha256(content) {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
 
+function fileSha256(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function buildRemoteReleaseView(assetDir, names, tagName) {
+  return {
+    tagName,
+    isDraft: false,
+    isPrerelease: false,
+    assets: names.map((name) => {
+      const filePath = path.join(assetDir, name);
+      return {
+        name,
+        size: fs.statSync(filePath).size,
+        digest: `sha256:${fileSha256(filePath)}`,
+      };
+    }),
+  };
+}
+
+function standardRemoteAssetNames(version) {
+  return [
+    `One-Person-Lab-${version}-mac-arm64.dmg`,
+    `One-Person-Lab-${version}-mac-arm64.zip`,
+    `One-Person-Lab-${version}-mac-arm64.dmg.blockmap`,
+    `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
+    'latest-mac.yml',
+    'latest-arm64-mac.yml',
+  ];
+}
+
+function writeStandardRemoteAssets(outDir, version, options = {}) {
+  const names = standardRemoteAssetNames(version);
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  writeFile(path.join(outDir, dmgName), 'standard-dmg');
+  writeFile(path.join(outDir, zipName), 'standard-zip');
+  writeFile(path.join(outDir, `${dmgName}.blockmap`), 'standard-dmg-blockmap');
+  writeFile(path.join(outDir, `${zipName}.blockmap`), 'standard-zip-blockmap');
+  const metadata = [
+    `version: ${version}`,
+    'files:',
+    `  - url: ${dmgName}`,
+    '    sha512: test-dmg',
+    '    size: 12',
+    `  - url: ${zipName}`,
+    '    sha512: test-zip',
+    '    size: 12',
+    `path: ${dmgName}`,
+    'sha512: test-dmg',
+    ...(options.fullLeak ? [`notes: One-Person-Lab-Full-${version}-mac-arm64.dmg`] : []),
+    '',
+  ].join('\n');
+  writeFile(path.join(outDir, 'latest-mac.yml'), metadata);
+  writeFile(path.join(outDir, 'latest-arm64-mac.yml'), metadata);
+  return names;
+}
+
+function writeFullRemoteAssets(outDir, version) {
+  const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const manifest = {
+    version,
+    package_kind: 'opl_full_first_install_macos_arm64',
+    distribution: {
+      updater_metadata_allowed: false,
+    },
+  };
+  writeFile(path.join(outDir, fullDmgName), 'full-dmg');
+  writeFile(path.join(outDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(path.join(outDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
+  const checksumNames = [
+    fullDmgName,
+    'full-package-manifest.json',
+    'README-Full-First-Install.txt',
+  ];
+  writeFile(
+    path.join(outDir, 'SHA256SUMS.txt'),
+    checksumNames.map((name) => `${fileSha256(path.join(outDir, name))}  ${name}`).join('\n') + '\n',
+  );
+  return [
+    fullDmgName,
+    'full-package-manifest.json',
+    'README-Full-First-Install.txt',
+    'SHA256SUMS.txt',
+  ];
+}
+
 function walkFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((left, right) => (
     left.name.localeCompare(right.name)
@@ -223,6 +310,70 @@ test('prebuilt standard release assets must include updater metadata', () => {
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /latest-mac\.yml/);
+});
+
+test('remote release verifier validates standard and Full assets from GitHub release view', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-'));
+  const version = '26.5.19-remote';
+  const names = [
+    ...writeStandardRemoteAssets(tempRoot, version),
+    ...writeFullRemoteAssets(tempRoot, version),
+  ];
+  const summaryPath = path.join(tempRoot, 'remote-release-verification.json');
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version',
+    version,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--include-full-package',
+    '--download-dir',
+    tempRoot,
+    '--summary-path',
+    summaryPath,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.repo, 'gaofeng21cn/one-person-lab-app');
+  assert.equal(summary.tag, `v${version}`);
+  assert.equal(summary.include_full_package, true);
+  assert.equal(summary.download_dir, tempRoot);
+  assert.equal(summary.verified_asset_count, names.length);
+  assert.deepEqual(summary.verified_assets.map((asset) => asset.name), names);
+});
+
+test('remote release verifier rejects standard updater metadata that references Full assets', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-full-leak-'));
+  const version = '26.5.19-remote-leak';
+  const names = writeStandardRemoteAssets(tempRoot, version, { fullLeak: true });
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version',
+    version,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--download-dir',
+    tempRoot,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /latest-mac\.yml references Full first-install assets/);
 });
 
 test('release plan exposes parallel lanes and the serialized no-CLT VM gate', () => {
@@ -529,18 +680,29 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   );
 
   assert.match(workflow, /name: OPL Desktop Release/);
-  assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release/);
+  assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release[\s\S]*draft_candidate/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /git tag "\$tag" "\$GITHUB_SHA"/);
   assert.match(workflow, /--standard-artifacts-dir release-assets/);
+  assert.match(workflow, /publish_args\+=\(--draft\)/);
+  assert.match(workflow, /remote-verify-standard:/);
+  assert.match(workflow, /remote-verify-full:/);
+  assert.match(workflow, /npm run verify-remote-release/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
   assert.match(workflow, /publish_to_release: true/);
   assert.match(workflow, /run_vm_smoke:/);
+  assert.match(workflow, /needs: remote-verify-full/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
   assert.match(fullWorkflow, /workflow_call:/);
+  assert.match(fullWorkflow, /repository: gaofeng21cn\/opl-meta-agent/);
+  assert.match(fullWorkflow, /repository: gaofeng21cn\/ai-skills-library/);
+  assert.match(fullWorkflow, /npm install -g mineru-open-api/);
+  assert.match(fullWorkflow, /OPL_FULL_META_AGENT_ROOT/);
+  assert.match(fullWorkflow, /OPL_FULL_MINERU_OPEN_API_BIN/);
+  assert.match(fullWorkflow, /OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT/);
   assert.match(vmWorkflow, /workflow_call:/);
   assert.equal(
     releaseContract.standard_updater.same_tag_refresh.mode,
@@ -553,6 +715,65 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.equal(
     releaseContract.release_acceleration.github_actions.first_run_vm_workflow,
     '.github/workflows/opl-first-run-vm.yml',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.draft_candidate_mode,
+    'draft_candidate',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.post_publish_remote_verification.script,
+    'npm run verify-remote-release -- --version <version>',
+  );
+  assert.deepEqual(
+    releaseContract.release_acceleration.post_publish_remote_verification.checks,
+    [
+      'remote_asset_size',
+      'remote_asset_sha256_digest',
+      'standard_updater_metadata',
+      'full_sha256sums',
+      'full_manifest_distribution_boundary',
+      'full_readme_english_only',
+    ],
+  );
+});
+
+test('release automation workflows cover remote verification, Full cache warmup, and draft promotion', () => {
+  const verifyWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'release-verify-remote.yml'), 'utf8');
+  const warmupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-runtime-cache-warmup.yml'), 'utf8');
+  const promoteWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-promote.yml'), 'utf8');
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+
+  assert.match(verifyWorkflow, /name: OPL Remote Release Verification/);
+  assert.match(verifyWorkflow, /npm run verify-remote-release/);
+  assert.match(verifyWorkflow, /--summary-path remote-release-verification\.json/);
+  assert.match(verifyWorkflow, /verify_args\+=\(--include-full-package\)/);
+  assert.match(verifyWorkflow, /actions\/upload-artifact@v4/);
+
+  assert.match(warmupWorkflow, /name: OPL Full Runtime Cache Warmup/);
+  assert.match(warmupWorkflow, /schedule:/);
+  assert.match(warmupWorkflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
+  assert.match(warmupWorkflow, /publish_to_release: false/);
+  assert.match(warmupWorkflow, /force_rebuild_runtime_cache:/);
+
+  assert.match(promoteWorkflow, /name: OPL Desktop Release Promote/);
+  assert.match(promoteWorkflow, /npm run verify-remote-release/);
+  assert.match(promoteWorkflow, /gh release edit "v\$\{OPL_RELEASE_VERSION\}"/);
+  assert.match(promoteWorkflow, /--draft=false/);
+  assert.match(promoteWorkflow, /--latest/);
+
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.remote_verification_workflow,
+    '.github/workflows/release-verify-remote.yml',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.full_runtime_cache_warmup_workflow,
+    '.github/workflows/full-runtime-cache-warmup.yml',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.promote_workflow,
+    '.github/workflows/desktop-release-promote.yml',
   );
 });
 

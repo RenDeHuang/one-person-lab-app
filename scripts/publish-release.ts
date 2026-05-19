@@ -37,6 +37,7 @@ function parseArgs(argv) {
     fullPackageOnly: false,
     dryRun: false,
     forceUpload: false,
+    draft: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -51,6 +52,10 @@ function parseArgs(argv) {
     }
     if (token === '--force-upload') {
       parsed.forceUpload = true;
+      continue;
+    }
+    if (token === '--draft') {
+      parsed.draft = true;
       continue;
     }
     if (token === '--include-full-package') {
@@ -691,6 +696,7 @@ function main() {
       full_package_artifacts: fullPackageArtifacts,
       release_exists: existingRelease,
       create_release: !options.fullPackageOnly && !existingRelease,
+      draft: options.draft,
       force_upload: options.forceUpload,
       skipped_existing_artifacts: uploadPlan.skippedArtifacts,
       release_notes: releaseNotes,
@@ -718,6 +724,7 @@ function main() {
       `One Person Lab ${options.version}`,
       '--notes',
       releaseNotes,
+      ...(options.draft ? ['--draft'] : []),
     ]);
   } else if (options.includeFullPackage && options.fullPackageOnly) {
     ensureFullPackageReleaseNotes(options.releaseRepo, tag, options.version, fullPackageManifest);

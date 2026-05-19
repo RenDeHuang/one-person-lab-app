@@ -10,6 +10,7 @@ exposes its shell-specific helpers under `shells/aionui/scripts/`.
 | `validate-active-shell.ts` | Validates `contracts/app-shell-adapter.json` and runs selected active shell validation commands. |
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
+| `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, and Full checksums. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
 
 Examples:
@@ -21,4 +22,5 @@ node --experimental-strip-types scripts/validate-active-shell.ts --only i18n_typ
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run release:publish -- --no-build --version <version> --standard-artifacts-dir release-assets
+npm run verify-remote-release -- --version <version> --include-full-package
 ```

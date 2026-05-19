@@ -1,0 +1,54 @@
+name: OPL Remote Release Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      opl_version:
+        description: OPL version to verify, for example 26.5.19
+        required: true
+        type: string
+      include_full_package:
+        description: Verify Full first-install assets in addition to standard updater assets
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  verify-remote-release:
+    name: Verify remote GitHub Release assets
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify remote release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        run: |
+          verify_args=(
+            npm run verify-remote-release --
+            --version "$OPL_RELEASE_VERSION"
+            --repo "$GITHUB_REPOSITORY"
+            --summary-path remote-release-verification.json
+          )
+          if [ "${{ inputs.include_full_package }}" = "true" ]; then
+            verify_args+=(--include-full-package)
+          fi
+          "${verify_args[@]}"
+
+      - name: Upload remote verification summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-release-verification-${{ inputs.opl_version }}
+          path: remote-release-verification.json
+          if-no-files-found: error

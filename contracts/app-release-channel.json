@@ -84,10 +84,39 @@
       ],
       "force_flag": "--force-upload"
     },
+    "post_publish_remote_verification": {
+      "script": "npm run verify-remote-release -- --version <version>",
+      "standard_required_assets": [
+        "One-Person-Lab-<version>-mac-arm64.dmg",
+        "One-Person-Lab-<version>-mac-arm64.zip",
+        "One-Person-Lab-<version>-mac-arm64.dmg.blockmap",
+        "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
+        "latest-mac.yml",
+        "latest-arm64-mac.yml"
+      ],
+      "full_required_assets": [
+        "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+        "full-package-manifest.json",
+        "README-Full-First-Install.txt",
+        "SHA256SUMS.txt"
+      ],
+      "checks": [
+        "remote_asset_size",
+        "remote_asset_sha256_digest",
+        "standard_updater_metadata",
+        "full_sha256sums",
+        "full_manifest_distribution_boundary",
+        "full_readme_english_only"
+      ]
+    },
     "github_actions": {
       "desktop_release_workflow": ".github/workflows/desktop-release.yml",
       "new_release_mode": "new_release",
+      "draft_candidate_mode": "draft_candidate",
       "refresh_existing_mode": "refresh_existing",
+      "promote_workflow": ".github/workflows/desktop-release-promote.yml",
+      "remote_verification_workflow": ".github/workflows/release-verify-remote.yml",
+      "full_runtime_cache_warmup_workflow": ".github/workflows/full-runtime-cache-warmup.yml",
       "full_first_install_workflow": ".github/workflows/full-first-install-release.yml",
       "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
       "first_run_vm_mode": "run_vm_smoke"

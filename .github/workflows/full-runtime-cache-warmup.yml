@@ -1,0 +1,65 @@
+name: OPL Full Runtime Cache Warmup
+
+on:
+  workflow_dispatch:
+    inputs:
+      opl_version:
+        description: OPL version stamp for the warmup package. Empty uses the current UTC date version.
+        required: false
+        default: ''
+        type: string
+      framework_ref:
+        description: OPL Framework ref to bundle. Empty means main.
+        required: false
+        default: main
+        type: string
+      force_rebuild_runtime_cache:
+        description: Ignore restored Full runtime layer cache and rebuild all layers
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: '0 17 * * 1,4'
+
+permissions:
+  contents: read
+
+jobs:
+  resolve-version:
+    name: Resolve warmup version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      framework_ref: ${{ steps.version.outputs.framework_ref }}
+
+    steps:
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ github.event_name == 'workflow_dispatch' && inputs.opl_version || '' }}"
+          if [ -z "$version" ]; then
+            version="$(date -u +'%y.%-m.%-d')"
+          fi
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid OPL release version: $version"
+            exit 1
+          fi
+          framework_ref="${{ github.event_name == 'workflow_dispatch' && inputs.framework_ref || 'main' }}"
+          if [ -z "$framework_ref" ]; then
+            framework_ref="main"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "framework_ref=$framework_ref" >> "$GITHUB_OUTPUT"
+
+  warmup:
+    name: Warm Full runtime layer cache
+    needs: resolve-version
+    uses: ./.github/workflows/full-first-install-release.yml
+    with:
+      opl_version: ${{ needs.resolve-version.outputs.version }}
+      framework_ref: ${{ needs.resolve-version.outputs.framework_ref }}
+      publish_to_release: false
+      force_rebuild_runtime_cache: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild_runtime_cache }}
+    secrets: inherit

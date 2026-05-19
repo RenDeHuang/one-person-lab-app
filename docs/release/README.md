@@ -30,6 +30,9 @@ builds that should run on GitHub runners instead of this Mac.
 - `release_mode=new_release` builds the same assets, creates and pushes the
   `v<opl_version>` tag from the workflow commit, creates the GitHub Release, and
   optionally adds the Full first-install assets after the standard release exists.
+- `release_mode=draft_candidate` builds the same assets into a draft
+  `v<opl_version>` Release. Use **OPL Desktop Release Promote** after reviewing
+  the draft assets and verification summary.
 - `include_full_package=true` delegates to the Full first-install workflow so the
   slower runtime/package assembly runs on GitHub Actions with the runtime layer
   cache.
@@ -41,6 +44,17 @@ The older automatic path is still valid for standard-only releases: pushing a
 `v<version>` tag triggers **Build and Release**. After that completes, run
 **OPL Full First-Install Release** with `publish_to_release=true` if the release
 also needs Full first-install assets.
+
+Use **OPL Remote Release Verification** when an existing Release needs a fresh
+remote audit without rebuilding. It downloads the published assets, checks
+GitHub asset size and `sha256:` digest, validates standard updater metadata,
+and, when Full is included, checks `SHA256SUMS.txt`, the Full manifest boundary,
+and English-only Full companion text.
+
+Use **OPL Full Runtime Cache Warmup** before release windows or let its scheduled
+run keep the content-addressed Full runtime layer cache warm. It builds the
+runtime layers on GitHub Actions without publishing a Release, so later Full
+packaging spends less time rebuilding shared payloads locally.
 
 ## Local commands
 

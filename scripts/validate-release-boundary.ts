@@ -57,9 +57,33 @@ const checks = [
       'node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets',
       'node --experimental-strip-types scripts/validate-release.ts release-assets',
       '--standard-artifacts-dir release-assets',
+      'npm run verify-remote-release',
+      'draft_candidate',
       'uses: ./.github/workflows/full-first-install-release.yml',
       'uses: ./.github/workflows/opl-first-run-vm.yml',
     ],
+    forbidden: ['npm run gui:release', 'packages:full-release', 'repository: gaofeng21cn/one-person-lab-app'],
+  },
+  {
+    id: 'remote_release_verification_workflow_uses_app_script',
+    file: '.github/workflows/release-verify-remote.yml',
+    required: ['npm run verify-remote-release', '--include-full-package'],
+    forbidden: ['npm run gui:release', 'packages:full-release', 'repository: gaofeng21cn/one-person-lab-app'],
+  },
+  {
+    id: 'full_runtime_cache_warmup_reuses_full_workflow',
+    file: '.github/workflows/full-runtime-cache-warmup.yml',
+    required: [
+      'uses: ./.github/workflows/full-first-install-release.yml',
+      'publish_to_release: false',
+      'force_rebuild_runtime_cache:',
+    ],
+    forbidden: ['npm run gui:release', 'packages:full-release', 'gh release upload'],
+  },
+  {
+    id: 'desktop_release_promote_verifies_before_publish',
+    file: '.github/workflows/desktop-release-promote.yml',
+    required: ['npm run verify-remote-release', 'gh release edit "v${OPL_RELEASE_VERSION}"', '--draft=false'],
     forbidden: ['npm run gui:release', 'packages:full-release', 'repository: gaofeng21cn/one-person-lab-app'],
   },
 ];

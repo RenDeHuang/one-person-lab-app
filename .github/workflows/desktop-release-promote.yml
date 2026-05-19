@@ -1,0 +1,65 @@
+name: OPL Desktop Release Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      opl_version:
+        description: OPL draft release version to verify and publish, for example 26.5.20
+        required: true
+        type: string
+      include_full_package:
+        description: Verify Full first-install assets before publishing
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    name: Verify and publish draft release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify remote release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        run: |
+          verify_args=(
+            npm run verify-remote-release --
+            --version "$OPL_RELEASE_VERSION"
+            --repo "$GITHUB_REPOSITORY"
+            --summary-path remote-release-verification.json
+          )
+          if [ "${{ inputs.include_full_package }}" = "true" ]; then
+            verify_args+=(--include-full-package)
+          fi
+          "${verify_args[@]}"
+
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        run: |
+          set -euo pipefail
+          gh release edit "v${OPL_RELEASE_VERSION}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --latest
+
+      - name: Upload remote verification summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-release-verification-${{ inputs.opl_version }}
+          path: remote-release-verification.json
+          if-no-files-found: error
