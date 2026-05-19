@@ -20,6 +20,17 @@ history.
 
 ## Commands
 
+Release candidate plan:
+
+```bash
+npm run release:plan -- --version <version> --include-full-package
+```
+
+The plan output separates fast candidate checks, parallel build lanes, the
+clean no-CLT VM gate, and the final publish step. Use it as the release runbook
+for new versions so standard and Full builds can run concurrently while publish
+stays serialized.
+
 ```bash
 npm run ensure:shell
 npm run release:prepare-standard
@@ -32,7 +43,9 @@ npm run release:publish -- --version <version> --repo gaofeng21cn/one-person-lab
 Full first-install DMG:
 
 ```bash
+OPL_FULL_RUNTIME_CACHE_MODE=readwrite \
 OPL_FRAMEWORK_ROOT=/Users/gaofeng/workspace/one-person-lab \
+OPL_FULL_META_AGENT_ROOT=/Users/gaofeng/workspace/opl-meta-agent \
   npm run release:full -- --version <version>
 npm run release:publish -- \
   --version <version> \
@@ -41,12 +54,27 @@ npm run release:publish -- \
   --include-full-package
 ```
 
+Full runtime payload assembly uses a content-addressed layer cache by default
+under `~/Library/Caches/One Person Lab/full-runtime-layers`. The layer keys cover
+the toolchain, domain runtime modules, OPL runtime, skills, packager inputs, and
+runtime exclusion policy. Use `--print-runtime-cache-keys` for a fast
+preflight, `OPL_FULL_RUNTIME_CACHE_MODE=readonly` to consume existing layers
+without writing, or `OPL_FULL_RUNTIME_CACHE_MODE=off` for a clean rebuild.
+
 Publishing to an existing tag is intentional for Full first-install refreshes:
 `scripts/publish-release.ts` uses `gh release upload --clobber`, so the same
 `v<version>` tag can receive rebuilt Full assets after the standard App release
 already exists. Use `--full-package-only --include-full-package` for that lane;
 it updates the Full release-note section and overwrites matching Full assets
 without rebuilding or replacing standard updater assets.
+
+For new same-day versions, prefer a new tag such as `v26.5.19` over deleting and
+replacing a previous release. The publish script is resumable: existing release
+assets are skipped only when the asset name, size, and GitHub `sha256:` digest
+all match the local file. Assets with missing or different digests are uploaded
+with `--clobber`. Pass
+`--force-upload` only when the release operator intentionally wants to overwrite
+all matching asset names.
 
 Boundary guard:
 

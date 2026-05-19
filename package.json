@@ -40,6 +40,7 @@
     "docs:macos-guide:pdf": "node --experimental-strip-types scripts/build-user-guide-pdf.ts",
     "docs:macos-guide:slides": "node --experimental-strip-types scripts/build-user-guide-slides.ts",
     "release:prepare-standard": "node --experimental-strip-types scripts/prepare-standard-release-payload.ts",
+    "release:plan": "node --experimental-strip-types scripts/plan-release-candidate.ts",
     "prepare-release-assets": "node --experimental-strip-types scripts/prepare-release-assets.ts",
     "validate-release": "node --experimental-strip-types scripts/validate-release.ts",
     "release:full": "node --experimental-strip-types scripts/build-full-first-install-package.ts",

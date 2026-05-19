@@ -12,12 +12,13 @@ import {
   FULL_RUNTIME_RESOURCE_DIR,
   FULL_RUNTIME_CACHE_LAYER_IDS,
   PACKAGED_MODULE_MARKER_FILE,
+  buildFullRuntimeCacheArchivePath,
   buildFullPackageManifest,
   buildFullPackageArtifactNames,
-  buildFullRuntimeCacheArchiveName,
   buildFullRuntimeCacheKey,
   buildFullFirstInstallReadme,
   buildPackagedModuleMarker,
+  classifyFullRuntimeLayerCache,
   listFullRuntimeProductionNodeModulePaths,
   shouldExcludeRuntimePath,
 } from './full-first-install-package.ts';
@@ -25,6 +26,13 @@ import { writeRuntimeWrappers } from './full-first-install-runtime-wrappers.ts';
 
 const appRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const workspaceRoot = path.dirname(appRepoRoot);
+
+function defaultRuntimeCacheDir() {
+  if (process.env.OPL_FULL_RUNTIME_CACHE_DIR?.trim()) {
+    return process.env.OPL_FULL_RUNTIME_CACHE_DIR;
+  }
+  return path.join(os.homedir(), 'Library', 'Caches', 'One Person Lab', 'full-runtime-layers');
+}
 
 function parseArgs(argv) {
   const parsed = {
@@ -39,6 +47,7 @@ function parseArgs(argv) {
     masRoot: process.env.OPL_FULL_MAS_ROOT || path.join(workspaceRoot, 'med-autoscience'),
     magRoot: process.env.OPL_FULL_MAG_ROOT || path.join(workspaceRoot, 'med-autogrant'),
     rcaRoot: process.env.OPL_FULL_RCA_ROOT || path.join(workspaceRoot, 'redcube-ai'),
+    metaAgentRoot: process.env.OPL_FULL_META_AGENT_ROOT || path.join(workspaceRoot, 'opl-meta-agent'),
     codexRoot: process.env.OPL_FULL_CODEX_ROOT || '',
     nodeBin: process.env.OPL_FULL_NODE_BIN || '',
     uvBin: process.env.OPL_FULL_UV_BIN || path.join(os.homedir(), '.local', 'bin', 'uv'),
@@ -48,8 +57,8 @@ function parseArgs(argv) {
     uiUxProMaxRoot: process.env.OPL_FULL_UI_UX_PRO_MAX_ROOT || path.join(workspaceRoot, 'ui-ux-pro-max-skill'),
     skipGuiBuild: false,
     splitRuntime: process.env.OPL_FULL_SPLIT_RUNTIME === '1',
-    runtimeCacheDir: process.env.OPL_FULL_RUNTIME_CACHE_DIR || '',
-    runtimeCacheMode: process.env.OPL_FULL_RUNTIME_CACHE_MODE || (process.env.CI === 'true' ? 'readwrite' : 'off'),
+    runtimeCacheDir: defaultRuntimeCacheDir(),
+    runtimeCacheMode: process.env.OPL_FULL_RUNTIME_CACHE_MODE || 'readwrite',
     printRuntimeCacheKeys: false,
   };
 
@@ -83,6 +92,7 @@ function parseArgs(argv) {
     else if (token === '--mas-root') parsed.masRoot = path.resolve(value);
     else if (token === '--mag-root') parsed.magRoot = path.resolve(value);
     else if (token === '--rca-root') parsed.rcaRoot = path.resolve(value);
+    else if (token === '--meta-agent-root') parsed.metaAgentRoot = path.resolve(value);
     else if (token === '--codex-root') parsed.codexRoot = path.resolve(value);
     else if (token === '--node-bin') parsed.nodeBin = path.resolve(value);
     else if (token === '--uv-bin') parsed.uvBin = path.resolve(value);
@@ -627,6 +637,7 @@ function buildRuntimeCacheKeys(options, sources) {
         mas_commit: readGitHead(options.masRoot),
         mag_commit: readGitHead(options.magRoot),
         rca_commit: readGitHead(options.rcaRoot),
+        meta_agent_commit: readGitHead(options.metaAgentRoot),
         packager_inputs: packagerInputs,
         exclude_policy_hash: excludePolicyHash,
       },
@@ -671,48 +682,36 @@ function buildRuntimeCacheKeys(options, sources) {
 }
 
 function cacheLayerArchivePath(options, layerId, key) {
-  return path.join(
-    options.runtimeCacheDir || path.join(os.tmpdir(), 'opl-full-runtime-cache'),
+  return buildFullRuntimeCacheArchivePath({
+    cacheDir: options.runtimeCacheDir,
     layerId,
-    buildFullRuntimeCacheArchiveName({ layerId, key }),
-  );
-}
-
-function layerCacheEnabled(options) {
-  return options.runtimeCacheMode !== 'off' && Boolean(options.runtimeCacheDir);
+    key,
+  });
 }
 
 function runCachedLayer(options, layerId, key, targetRoot, builder) {
   const archivePath = cacheLayerArchivePath(options, layerId, key);
-  if (layerCacheEnabled(options) && fs.existsSync(archivePath)) {
+  const cacheEvent = classifyFullRuntimeLayerCache({
+    mode: options.runtimeCacheMode,
+    cacheDir: options.runtimeCacheDir || null,
+    layerId,
+    key,
+    archiveExists: fs.existsSync(archivePath),
+  });
+
+  if (cacheEvent.read_archive) {
     extractLayer(archivePath, targetRoot);
-    return {
-      layer_id: layerId,
-      key,
-      status: 'hit',
-      archive_path: archivePath,
-    };
+    return cacheEvent;
   }
 
   const tempLayerRoot = fs.mkdtempSync(path.join(os.tmpdir(), `opl-full-${layerId}-`));
   try {
     builder(tempLayerRoot);
     copyPathContents(tempLayerRoot, targetRoot);
-    if (layerCacheEnabled(options) && options.runtimeCacheMode === 'readwrite') {
+    if (cacheEvent.write_archive) {
       archiveLayer(tempLayerRoot, archivePath);
-      return {
-        layer_id: layerId,
-        key,
-        status: 'miss_written',
-        archive_path: archivePath,
-      };
     }
-    return {
-      layer_id: layerId,
-      key,
-      status: layerCacheEnabled(options) ? 'miss_readonly' : 'disabled',
-      archive_path: layerCacheEnabled(options) ? archivePath : null,
-    };
+    return cacheEvent;
   } finally {
     fs.rmSync(tempLayerRoot, { recursive: true, force: true });
   }
@@ -736,6 +735,7 @@ function buildDomainLayer(layerRoot, options) {
   copyTreeFiltered(options.masRoot, path.join(layerRoot, 'modules', 'mas'), 'modules/mas');
   copyTreeFiltered(options.magRoot, path.join(layerRoot, 'modules', 'mag'), 'modules/mag');
   copyTreeFiltered(options.rcaRoot, path.join(layerRoot, 'modules', 'rca'), 'modules/rca');
+  copyTreeFiltered(options.metaAgentRoot, path.join(layerRoot, 'modules', 'meta-agent'), 'modules/meta-agent');
 }
 
 function writeDomainMarkers(runtimeRoot, options, packagedAt) {
@@ -758,6 +758,13 @@ function writeDomainMarkers(runtimeRoot, options, packagedAt) {
     repoName: 'redcube-ai',
     sourcePath: options.rcaRoot,
     headSha: readGitHead(options.rcaRoot),
+    packagedAt,
+  }));
+  writePackagedModuleMarker(path.join(runtimeRoot, 'modules', 'meta-agent'), buildPackagedModuleMarker({
+    moduleId: 'oplmetaagent',
+    repoName: 'opl-meta-agent',
+    sourcePath: options.metaAgentRoot,
+    headSha: readGitHead(options.metaAgentRoot),
     packagedAt,
   }));
 }
@@ -802,6 +809,7 @@ function prepareRuntime(options, sources) {
     mas: { source_path: options.masRoot, git_commit: readGitHead(options.masRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mas')) },
     mag: { source_path: options.magRoot, git_commit: readGitHead(options.magRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mag')) },
     rca: { source_path: options.rcaRoot, git_commit: readGitHead(options.rcaRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'rca')) },
+    meta_agent: { source_path: options.metaAgentRoot, git_commit: readGitHead(options.metaAgentRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'meta-agent')) },
     node: { source_path: sources.nodeBin, version: commandOutput(path.join(runtimeRoot, 'node', 'bin', 'node'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'node')) },
     python: { source_path: sources.pythonRoot, version: commandOutput(path.join(runtimeRoot, 'python', path.basename(sources.pythonRoot), 'bin', 'python3'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'python')) },
     uv: { source_path: sources.uvBin, version: commandOutput(path.join(runtimeRoot, 'uv', 'bin', 'uv'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'uv')) },
@@ -922,6 +930,7 @@ function main() {
     ['MAS root', options.masRoot],
     ['MAG root', options.magRoot],
     ['RCA root', options.rcaRoot],
+    ['OPL Meta Agent root', options.metaAgentRoot],
   ]) {
     requirePath(source, label);
   }

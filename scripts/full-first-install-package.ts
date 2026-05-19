@@ -15,6 +15,7 @@ type ComponentSnapshot = Partial<{
   version: string | null;
   git_commit: string | null;
   size_bytes: number;
+  truth_owner: string;
 }>;
 
 type FullPackageManifestInput = Partial<{
@@ -69,6 +70,69 @@ export function buildFullRuntimeCacheArchiveName(input: {
   return `${input.key}.tar.zst`;
 }
 
+export function buildFullRuntimeCacheArchivePath(input: {
+  cacheDir: string;
+  layerId: FullRuntimeCacheLayerId;
+  key: string;
+}) {
+  return path.join(
+    input.cacheDir,
+    input.layerId,
+    buildFullRuntimeCacheArchiveName({ layerId: input.layerId, key: input.key }),
+  );
+}
+
+export function classifyFullRuntimeLayerCache(input: {
+  mode: 'readwrite' | 'readonly' | 'off';
+  cacheDir: string | null;
+  layerId: FullRuntimeCacheLayerId;
+  key: string;
+  archiveExists: boolean;
+}) {
+  const enabled = input.mode !== 'off' && Boolean(input.cacheDir);
+  const archivePath = input.cacheDir
+    ? buildFullRuntimeCacheArchivePath({
+        cacheDir: input.cacheDir,
+        layerId: input.layerId,
+        key: input.key,
+      })
+    : null;
+
+  if (!enabled) {
+    return {
+      layer_id: input.layerId,
+      key: input.key,
+      status: 'disabled',
+      archive_path: null,
+      read_archive: false,
+      write_archive: false,
+      build_layer: true,
+    } as const;
+  }
+
+  if (input.archiveExists) {
+    return {
+      layer_id: input.layerId,
+      key: input.key,
+      status: 'hit',
+      archive_path: archivePath,
+      read_archive: true,
+      write_archive: false,
+      build_layer: false,
+    } as const;
+  }
+
+  return {
+    layer_id: input.layerId,
+    key: input.key,
+    status: input.mode === 'readwrite' ? 'miss_written' : 'miss_readonly',
+    archive_path: archivePath,
+    read_archive: false,
+    write_archive: input.mode === 'readwrite',
+    build_layer: true,
+  } as const;
+}
+
 export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
   const version = normalizeVersion(input.version);
   const components = input.components ?? {};
@@ -107,6 +171,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         ],
         truth_sources: {
           framework_runtime_contracts: 'gaofeng21cn/one-person-lab',
+          foundry_agent_domain_truth: 'gaofeng21cn/opl-meta-agent',
           research_domain_truth: 'gaofeng21cn/med-autoscience',
           grant_domain_truth: 'gaofeng21cn/med-autogrant',
           visual_deliverable_domain_truth: 'gaofeng21cn/redcube-ai',
@@ -155,6 +220,13 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       rca: {
         ...normalizeComponent(components.rca),
         role: 'visual_deliverable_domain_module',
+        required: true,
+        visible_in_first_run_ui: true,
+      },
+      meta_agent: {
+        ...normalizeComponent(components.meta_agent),
+        role: 'independent_foundry_domain_module',
+        truth_owner: components.meta_agent?.truth_owner ?? 'gaofeng21cn/opl-meta-agent',
         required: true,
         visible_in_first_run_ui: true,
       },
@@ -307,9 +379,9 @@ export function buildFullFirstInstallReadme(input: {
     '2. On first launch, the bundled runtime is installed to the stable runtime path. Later Full package refreshes replace the same path:',
     `   ${installPath}`,
     '3. The runtime version is recorded only in current.json and current/.opl-full-runtime-installed.json; it is not encoded in the runtime directory name.',
-    '4. Bundled MAS/MAG/RCA payloads are first-launch installation sources. After initialization, they are materialized under the standard module directory:',
+    '4. Bundled MAS, MAG, RCA, and OPL Meta Agent payloads are first-launch installation sources. After initialization, they are materialized under the standard module directory:',
     '   ~/Library/Application Support/OPL/state/modules/<repo-name>',
-    '5. The Full runtime includes the Codex CLI, officecli CLI binary, and recommended companion skills such as MAS, MAG, RCA, officecli, officecli-docx, officecli-pptx, officecli-xlsx, and ui-ux-pro-max. App initialization synchronizes those payloads into Codex-visible locations.',
+    '5. The Full runtime includes the Codex CLI, officecli CLI binary, OPL Meta Agent, and recommended companion skills such as MAS, MAG, RCA, officecli, officecli-docx, officecli-pptx, officecli-xlsx, and ui-ux-pro-max. App initialization synchronizes those payloads into Codex-visible locations.',
     '6. The bundled Codex profile seeds gpt-5.5 with xhigh reasoning for first-run App sessions after the Codex/OpenAI API key is configured.',
     '7. The Full package only assembles and validates declared framework/runtime, domain module, and companion tool payloads. Runtime truth, provider implementation, domain truth, domain quality verdicts, and artifact authority remain owned by the OPL Framework and the domain agents.',
     '8. The Full package includes local state and module material required by the family runtime provider. OPL Framework source and contracts are runtime payload inputs, not owners of the App release flow. Production durable stage attempts are governed by the Temporal provider contract.',

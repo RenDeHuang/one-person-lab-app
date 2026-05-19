@@ -35,6 +35,7 @@
       "allowed_actions": [
         "copy_declared_framework_runtime_payload",
         "copy_declared_domain_module_payloads",
+        "copy_declared_foundry_agent_payloads",
         "copy_declared_companion_tool_payloads",
         "write_distribution_manifest",
         "write_checksums"
@@ -48,10 +49,40 @@
       ],
       "truth_sources": [
         "gaofeng21cn/one-person-lab",
+        "gaofeng21cn/opl-meta-agent",
         "gaofeng21cn/med-autoscience",
         "gaofeng21cn/med-autogrant",
         "gaofeng21cn/redcube-ai"
       ]
+    }
+  },
+  "release_acceleration": {
+    "plan_command": "npm run release:plan -- --version <version> --include-full-package",
+    "full_runtime_cache": {
+      "enabled_by_default": true,
+      "mode_env": "OPL_FULL_RUNTIME_CACHE_MODE",
+      "dir_env": "OPL_FULL_RUNTIME_CACHE_DIR",
+      "default_dir": "~/Library/Caches/One Person Lab/full-runtime-layers",
+      "layer_ids": [
+        "toolchain",
+        "domain-runtime",
+        "opl-runtime",
+        "skills"
+      ]
+    },
+    "publish_resume": {
+      "default": "skip_existing_assets_when_size_and_sha256_digest_match",
+      "match_fields": [
+        "asset_name",
+        "size",
+        "sha256"
+      ],
+      "force_flag": "--force-upload"
+    },
+    "vm_gate": {
+      "source": "clean no-CLT Tart base clone",
+      "display": "1920x1080px",
+      "settings_smoke": true
     }
   },
   "normalization_command": "node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets",

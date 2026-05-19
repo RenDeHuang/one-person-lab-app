@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -34,6 +35,7 @@ function parseArgs(argv) {
     includeFullPackage: false,
     fullPackageOnly: false,
     dryRun: false,
+    forceUpload: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -44,6 +46,10 @@ function parseArgs(argv) {
     }
     if (token === '--dry-run') {
       parsed.dryRun = true;
+      continue;
+    }
+    if (token === '--force-upload') {
+      parsed.forceUpload = true;
       continue;
     }
     if (token === '--include-full-package') {
@@ -263,7 +269,7 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
 
 function assertFullPackageManifestHasReleaseNotesMetadata(manifest) {
   const missing = [];
-  for (const key of ['mas', 'mag', 'rca']) {
+  for (const key of ['mas', 'mag', 'rca', 'meta_agent']) {
     const gitCommit = manifest?.components?.[key]?.git_commit;
     if (typeof gitCommit !== 'string' || !gitCommit.trim()) {
       missing.push(`components.${key}.git_commit`);
@@ -287,11 +293,94 @@ function readFullPackageManifest(fullPackageDir) {
 }
 
 function releaseExists(repo, tag) {
+  if (process.env.OPL_RELEASE_EXISTS === '1') {
+    return true;
+  }
+  if (process.env.OPL_RELEASE_EXISTS === '0') {
+    return false;
+  }
   const result = spawnSync('gh', ['release', 'view', tag, '--repo', repo, '--json', 'tagName'], {
     encoding: 'utf8',
     stdio: 'pipe',
   });
   return result.status === 0;
+}
+
+function readExistingReleaseAssets(repo, tag) {
+  if (process.env.OPL_RELEASE_EXISTING_ASSETS_JSON?.trim()) {
+    const parsed = JSON.parse(process.env.OPL_RELEASE_EXISTING_ASSETS_JSON);
+    return Array.isArray(parsed) ? parsed : [];
+  }
+  const result = spawnSync('gh', ['release', 'view', tag, '--repo', repo, '--json', 'assets'], {
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  if (result.status !== 0) {
+    return [];
+  }
+  try {
+    const payload = JSON.parse(result.stdout);
+    return Array.isArray(payload.assets) ? payload.assets : [];
+  } catch {
+    return [];
+  }
+}
+
+function assetDigestMatches(asset, filePath) {
+  const digest = typeof asset?.digest === 'string' ? asset.digest.trim() : '';
+  if (!digest) {
+    return false;
+  }
+  const match = digest.match(/^sha256:(?<hash>[a-f0-9]{64})$/i);
+  if (!match?.groups?.hash) {
+    return false;
+  }
+  const hash = crypto.createHash('sha256');
+  const buffer = Buffer.allocUnsafe(1024 * 1024);
+  const fd = fs.openSync(filePath, 'r');
+  try {
+    let bytesRead = 0;
+    do {
+      bytesRead = fs.readSync(fd, buffer, 0, buffer.length, null);
+      if (bytesRead > 0) {
+        hash.update(buffer.subarray(0, bytesRead));
+      }
+    } while (bytesRead > 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+  const local = hash.digest('hex');
+  return local.toLowerCase() === match.groups.hash.toLowerCase();
+}
+
+function partitionArtifactsForUpload(artifacts, existingAssets, options) {
+  if (options.forceUpload) {
+    return { uploadArtifacts: artifacts, skippedArtifacts: [] };
+  }
+  const assetsByName = new Map(existingAssets.map((asset) => [asset?.name, asset]));
+  const uploadArtifacts = [];
+  const skippedArtifacts = [];
+  for (const artifactPath of artifacts) {
+    const name = path.basename(artifactPath);
+    const existing = assetsByName.get(name);
+    if (!existing) {
+      uploadArtifacts.push(artifactPath);
+      continue;
+    }
+    const localSize = fs.statSync(artifactPath).size;
+    const sizeMatches = Number(existing.size) === localSize;
+    const digestMatches = assetDigestMatches(existing, artifactPath);
+    if (sizeMatches && digestMatches) {
+      skippedArtifacts.push({
+        path: artifactPath,
+        name,
+        reason: 'matching_sha256_and_size',
+      });
+      continue;
+    }
+    uploadArtifacts.push(artifactPath);
+  }
+  return { uploadArtifacts, skippedArtifacts };
 }
 
 function suggestDefaultReleaseVersion(repo, dateVersion) {
@@ -401,6 +490,7 @@ function buildBundledModuleNotes(manifest) {
     ['MAS', manifest.components.mas],
     ['MAG', manifest.components.mag],
     ['RCA', manifest.components.rca],
+    ['OPL Meta Agent', manifest.components.meta_agent],
   ]
     .filter(([, component]) => component && typeof component === 'object')
     .map(([label, component]) => {
@@ -418,10 +508,11 @@ function buildFullPackageReleaseNotesSection(version, manifest = null) {
   const bundledModuleNotes = buildBundledModuleNotes(manifest);
   return [
     'Full first-install package',
-    `- New macOS arm64 users can download One-Person-Lab-Full-${version}-mac-arm64.dmg for a first setup that includes the App plus preloaded MAS, MAG, RCA, family runtime support payloads, OfficeCLI, and recommended companion skills.`,
+    `- New macOS arm64 users can download One-Person-Lab-Full-${version}-mac-arm64.dmg for a first setup that includes the App plus preloaded MAS, MAG, RCA, OPL Meta Agent, family runtime support payloads, OfficeCLI, and recommended companion skills.`,
     '- After installation, users still configure their Codex/OpenAI API key and pass first-run readiness checks in the App.',
     '- The bundled Codex default profile is gpt-5.5 / xhigh and is applied through the active session path after API-key setup.',
     '- Command Line Tools installation is requested through deferred maintenance when needed; Full first launch continues on the bundled runtime while CLT installation is handled separately.',
+    '- OPL Meta Agent is bundled and managed as a default ecosystem module so users can install and maintain the Foundry Agent used to create new OPL-compatible agents.',
     '- The App repository builds and publishes the Full package. OPL Framework code and contracts are bundled as runtime payload inputs, not as owners of the App release flow.',
     '- Full runtime readiness is Temporal-backed. Temporal is the required production durable stage-attempt provider; Hermes/Gateway runtime payloads are retired and are not bundled or exposed as compatibility surfaces.',
     '- MDS remains retired and is not bundled as a default module or MAS runtime dependency.',
@@ -524,8 +615,10 @@ function main() {
     : [];
   const fullPackageManifest = options.includeFullPackage ? readFullPackageManifest(options.fullPackageDir) : null;
   const allArtifacts = [...artifacts, ...fullPackageArtifacts];
-  const uploadArgs = ['release', 'upload', tag, ...allArtifacts, '--repo', options.releaseRepo, '--clobber'];
   const existingRelease = releaseExists(options.releaseRepo, tag);
+  const existingAssets = existingRelease ? readExistingReleaseAssets(options.releaseRepo, tag) : [];
+  const uploadPlan = partitionArtifactsForUpload(allArtifacts, existingAssets, options);
+  const uploadArgs = ['release', 'upload', tag, ...uploadPlan.uploadArtifacts, '--repo', options.releaseRepo, '--clobber'];
   const releaseNotes = buildReleaseNotes(
     options.version,
     options.includeFullPackage,
@@ -546,6 +639,8 @@ function main() {
       full_package_artifacts: fullPackageArtifacts,
       release_exists: existingRelease,
       create_release: !options.fullPackageOnly && !existingRelease,
+      force_upload: options.forceUpload,
+      skipped_existing_artifacts: uploadPlan.skippedArtifacts,
       release_notes: releaseNotes,
       upload_command: ['gh', ...uploadArgs],
     }, null, 2));
@@ -577,7 +672,9 @@ function main() {
   } else if (options.includeFullPackage) {
     replaceReleaseNotes(options.releaseRepo, tag, releaseNotes);
   }
-  run('gh', uploadArgs);
+  if (uploadPlan.uploadArtifacts.length > 0) {
+    run('gh', uploadArgs);
+  }
 }
 
 try {

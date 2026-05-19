@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -34,6 +35,10 @@ function writeReleaseMetadata(outDir, version, assetName) {
     'sha512: test',
     '',
   ].join('\n'));
+}
+
+function sha256(content) {
+  return crypto.createHash('sha256').update(content).digest('hex');
 }
 
 function walkFiles(dir) {
@@ -148,6 +153,115 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
   assert.ok(payload.artifacts.some((artifact) => artifact.endsWith(dmgName)));
 });
 
+test('release plan exposes parallel lanes and the serialized no-CLT VM gate', () => {
+  const result = runNode([
+    'scripts/plan-release-candidate.ts',
+    '--version',
+    '26.5.19',
+    '--include-full-package',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.version, '26.5.19');
+  assert.equal(payload.strategy.same_tag_replacement, 'avoid_for_new_versions');
+  assert.equal(payload.strategy.resume_uploads, 'skip_existing_assets_when_size_and_sha256_digest_match');
+  assert.equal(payload.strategy.full_runtime_cache, 'content_addressed_layer_cache');
+  assert.ok(payload.lanes.some((lane) => lane.id === 'standard_build' && lane.can_run_with.includes('full_build')));
+  assert.ok(payload.lanes.some((lane) => lane.id === 'full_build' && lane.command.includes('OPL_FULL_RUNTIME_CACHE_MODE=readwrite')));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'no_clt_vm_settings_smoke'
+    && lane.phase === 'release_gate'
+    && lane.command.includes('--display 1920x1080px')
+    && lane.command.includes('--settings-smoke')
+  )));
+});
+
+test('publish dry run skips existing release assets when a resumed upload already has matching files', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-resume-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const outDir = path.join(shellRoot, 'out');
+  const version = '26.5.19-resume';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+
+  const dmgContent = 'dmg';
+  const zipContent = 'zip';
+  writeFile(path.join(outDir, dmgName), dmgContent);
+  writeFile(path.join(outDir, zipName), zipContent);
+  writeReleaseMetadata(outDir, version, dmgName);
+
+  const existingAssets = [
+    { name: dmgName, size: Buffer.byteLength(dmgContent), digest: `sha256:${sha256(dmgContent)}` },
+    { name: zipName, size: Buffer.byteLength(zipContent), digest: `sha256:${sha256(zipContent)}` },
+    {
+      name: 'latest-mac.yml',
+      size: fs.statSync(path.join(outDir, 'latest-mac.yml')).size,
+      digest: `sha256:${sha256(fs.readFileSync(path.join(outDir, 'latest-mac.yml')))}`,
+    },
+  ];
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--shell-root',
+    shellRoot,
+    '--version',
+    version,
+  ], {
+    env: {
+      OPL_RELEASE_EXISTS: '1',
+      OPL_RELEASE_EXISTING_ASSETS_JSON: JSON.stringify(existingAssets),
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.release_exists, true);
+  assert.ok(payload.skipped_existing_artifacts.some((artifact) => artifact.name === dmgName));
+  assert.ok(payload.skipped_existing_artifacts.some((artifact) => artifact.name === zipName));
+  assert.ok(payload.upload_command.every((part) => !String(part).endsWith('.dmg')));
+  assert.equal(payload.force_upload, false);
+});
+
+test('publish dry run reuploads same-size existing release assets when sha256 digest is missing or different', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-resume-strict-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const outDir = path.join(shellRoot, 'out');
+  const version = '26.5.19-resume-strict';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+
+  writeFile(path.join(outDir, dmgName), 'dmg');
+  writeFile(path.join(outDir, zipName), 'zip');
+  writeReleaseMetadata(outDir, version, dmgName);
+
+  const existingAssets = [
+    { name: dmgName, size: 3 },
+    { name: zipName, size: 3, digest: `sha256:${sha256('old')}` },
+  ];
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--shell-root',
+    shellRoot,
+    '--version',
+    version,
+  ], {
+    env: {
+      OPL_RELEASE_EXISTS: '1',
+      OPL_RELEASE_EXISTING_ASSETS_JSON: JSON.stringify(existingAssets),
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.ok(payload.upload_command.some((part) => String(part).endsWith('.dmg')));
+  assert.ok(payload.upload_command.some((part) => String(part).endsWith('.zip')));
+  assert.deepEqual(payload.skipped_existing_artifacts, []);
+});
+
 test('publish dry run generates professional v26.5.18 notes for standard and Full lanes', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-notes-'));
   const fullPackageDir = path.join(tempRoot, 'full');
@@ -161,6 +275,7 @@ test('publish dry run generates professional v26.5.18 notes for standard and Ful
       mas: { git_commit: '1111111111111111111111111111111111111111' },
       mag: { git_commit: '2222222222222222222222222222222222222222' },
       rca: { git_commit: '3333333333333333333333333333333333333333' },
+      meta_agent: { git_commit: '4444444444444444444444444444444444444444' },
       officecli: { version: '1.2.3' },
     },
   };
@@ -194,9 +309,48 @@ test('publish dry run generates professional v26.5.18 notes for standard and Ful
   assert.match(notes, /Standard DMG\/ZIP assets and latest\*\.yml metadata remain the only source for the auto-updater/);
   assert.match(notes, /Full first-install assets are GitHub Release downloads/);
   assert.match(notes, /Full first-install package/);
+  assert.match(notes, /OPL Meta Agent/);
+  assert.match(notes, /OPL Meta Agent: .*main @ 4444444/);
   assert.match(notes, /After installation, users still configure their Codex\/OpenAI API key/);
   assert.match(notes, /Command Line Tools installation is requested through deferred maintenance/);
   assert.doesNotMatch(notes, /[\u3400-\u9fff]/);
+});
+
+test('publish rejects Full notes when OPL Meta Agent release-note metadata is missing', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-notes-meta-agent-'));
+  const fullPackageDir = path.join(tempRoot, 'full');
+  const version = '26.5.19-meta-missing';
+  const manifest = {
+    generated_at: '2026-05-19T12:00:00.000Z',
+    distribution: {
+      updater_metadata_allowed: false,
+    },
+    components: {
+      mas: { git_commit: '1111111111111111111111111111111111111111' },
+      mag: { git_commit: '2222222222222222222222222222222222222222' },
+      rca: { git_commit: '3333333333333333333333333333333333333333' },
+      officecli: { version: '1.2.3' },
+    },
+  };
+
+  writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
+  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
+  writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--dry-run',
+    '--version',
+    version,
+    '--full-package-only',
+    '--include-full-package',
+    '--full-package-dir',
+    fullPackageDir,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /components\.meta_agent\.git_commit/);
 });
 
 test('existing same-tag standard plus Full publish replaces the full release notes body', () => {
@@ -408,6 +562,10 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     'gaofeng21cn/med-autoscience',
   );
   assert.equal(
+    manifest.distribution.payload_boundary.truth_sources.foundry_agent_domain_truth,
+    'gaofeng21cn/opl-meta-agent',
+  );
+  assert.equal(
     manifest.distribution.payload_boundary.truth_sources.grant_domain_truth,
     'gaofeng21cn/med-autogrant',
   );
@@ -422,7 +580,81 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     notarized: false,
   });
   assert.match(fullReadme, /The Full package only assembles and validates declared framework\/runtime, domain module, and companion tool payloads/);
+  assert.match(fullReadme, /OPL Meta Agent/);
   assert.match(fullReadme, /gpt-5\.5 with xhigh reasoning/);
   assert.match(fullReadme, /standard module directory/);
   assert.doesNotMatch(fullReadme, /[\u3400-\u9fff]/);
+});
+
+test('Full first-install cache and release acceleration contract are explicit', async () => {
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+  const buildScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
+  const publishScript = fs.readFileSync(path.join(appRoot, 'scripts', 'publish-release.ts'), 'utf8');
+  const mod = await import('../../scripts/full-first-install-package.ts');
+  const cacheDir = path.join(os.tmpdir(), 'opl-full-runtime-cache-test');
+  const cacheKey = mod.buildFullRuntimeCacheKey({
+    layerId: 'opl-runtime',
+    parts: {
+      opl_commit: '1111111111111111111111111111111111111111',
+      package_lock_sha256: '2222222222222222222222222222222222222222222222222222222222222222',
+    },
+  });
+  const cacheMiss = mod.classifyFullRuntimeLayerCache({
+    mode: 'readwrite',
+    cacheDir,
+    layerId: 'opl-runtime',
+    key: cacheKey,
+    archiveExists: false,
+  });
+  const cacheHit = mod.classifyFullRuntimeLayerCache({
+    mode: 'readwrite',
+    cacheDir,
+    layerId: 'opl-runtime',
+    key: cacheKey,
+    archiveExists: true,
+  });
+  const readonlyMiss = mod.classifyFullRuntimeLayerCache({
+    mode: 'readonly',
+    cacheDir,
+    layerId: 'opl-runtime',
+    key: cacheKey,
+    archiveExists: false,
+  });
+  const disabled = mod.classifyFullRuntimeLayerCache({
+    mode: 'off',
+    cacheDir,
+    layerId: 'opl-runtime',
+    key: cacheKey,
+    archiveExists: true,
+  });
+
+  assert.equal(packageJson.scripts['release:plan'], 'node --experimental-strip-types scripts/plan-release-candidate.ts');
+  assert.equal(releaseContract.release_acceleration.full_runtime_cache.enabled_by_default, true);
+  assert.deepEqual(releaseContract.release_acceleration.full_runtime_cache.layer_ids, mod.FULL_RUNTIME_CACHE_LAYER_IDS);
+  assert.deepEqual(releaseContract.release_acceleration.publish_resume.match_fields, ['asset_name', 'size', 'sha256']);
+  assert.equal(cacheMiss.status, 'miss_written');
+  assert.equal(cacheMiss.build_layer, true);
+  assert.equal(cacheMiss.write_archive, true);
+  assert.equal(cacheMiss.read_archive, false);
+  assert.equal(cacheHit.status, 'hit');
+  assert.equal(cacheHit.build_layer, false);
+  assert.equal(cacheHit.read_archive, true);
+  assert.equal(cacheHit.write_archive, false);
+  assert.equal(readonlyMiss.status, 'miss_readonly');
+  assert.equal(readonlyMiss.build_layer, true);
+  assert.equal(readonlyMiss.write_archive, false);
+  assert.equal(disabled.status, 'disabled');
+  assert.equal(disabled.archive_path, null);
+  assert.match(cacheHit.archive_path, /opl-runtime/);
+  assert.match(buildScript, /Library', 'Caches', 'One Person Lab', 'full-runtime-layers'/);
+  assert.match(buildScript, /runtimeCacheMode: process\.env\.OPL_FULL_RUNTIME_CACHE_MODE \|\| 'readwrite'/);
+  assert.match(
+    buildScript,
+    /if \(cacheEvent\.read_archive\) {\s*extractLayer\(archivePath, targetRoot\);\s*return cacheEvent;\s*}\s*const tempLayerRoot/,
+  );
+  assert.match(publishScript, /skipped_existing_artifacts/);
+  assert.match(publishScript, /--force-upload/);
 });
