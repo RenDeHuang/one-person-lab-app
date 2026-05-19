@@ -556,6 +556,10 @@ function copyRecommendedSkills(targetRoot, options) {
     path.join(os.homedir(), '.codex', 'skills', 'rca'),
     path.join(options.rcaRoot, 'plugins', 'rca', 'skills', 'rca'),
   ]);
+  copyFirstSkillSource('opl-meta-agent', targetRoot, [
+    path.join(os.homedir(), '.codex', 'skills', 'opl-meta-agent'),
+    path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'),
+  ]);
   copyOfficeCliCoreSkill(targetRoot, options);
   copyFirstSkillSource('officecli-docx', targetRoot, [
     path.join(options.officeCliRoot, 'skills', 'officecli-docx'),
@@ -661,9 +665,11 @@ function buildRuntimeCacheKeys(options, sources) {
         mas_skill_fingerprint: directoryFingerprint(path.join(skillsRoot, 'mas'), 'skills/mas'),
         mag_skill_fingerprint: directoryFingerprint(path.join(skillsRoot, 'mag'), 'skills/mag'),
         rca_skill_fingerprint: directoryFingerprint(path.join(skillsRoot, 'rca'), 'skills/rca'),
+        meta_agent_skill_fingerprint: directoryFingerprint(path.join(skillsRoot, 'opl-meta-agent'), 'skills/opl-meta-agent'),
         mas_repo_skill_fingerprint: directoryFingerprint(path.join(options.masRoot, 'plugins', 'mas', 'skills', 'mas'), 'skills/mas'),
         mag_repo_skill_fingerprint: directoryFingerprint(path.join(options.magRoot, 'plugins', 'mag', 'skills', 'mag'), 'skills/mag'),
         rca_repo_skill_fingerprint: directoryFingerprint(path.join(options.rcaRoot, 'plugins', 'rca', 'skills', 'rca'), 'skills/rca'),
+        meta_agent_repo_skill_fingerprint: directoryFingerprint(path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'), 'skills/opl-meta-agent'),
         officecli_root_commit: readGitHead(options.officeCliRoot),
         officecli_core_fingerprint: directoryFingerprint(path.join(skillsManagerRoot, 'officecli'), 'skills/officecli'),
         officecli_docx_fingerprint: directoryFingerprint(path.join(options.officeCliRoot, 'skills', 'officecli-docx'), 'skills/officecli-docx'),
@@ -674,6 +680,7 @@ function buildRuntimeCacheKeys(options, sources) {
         mas_skill_git: readGitHead(path.join(skillsRoot, 'mas')),
         mag_skill_git: readGitHead(path.join(skillsRoot, 'mag')),
         rca_skill_git: readGitHead(path.join(skillsRoot, 'rca')),
+        meta_agent_skill_git: readGitHead(path.join(skillsRoot, 'opl-meta-agent')),
         packager_inputs: packagerInputs,
         exclude_policy_hash: excludePolicyHash,
       },

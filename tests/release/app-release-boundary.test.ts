@@ -533,6 +533,10 @@ test('Full first-install manifest declares App-owned distribution and Framework 
 
   assert.equal(manifest.distribution.owner_repo, 'gaofeng21cn/one-person-lab-app');
   assert.equal(manifest.distribution.updater_metadata_allowed, false);
+  assert.equal(
+    manifest.runtime.domain_module_payload_policy,
+    'packaged_runtime_modules_are_launch_sources; managed repo reconciliation is deferred maintenance',
+  );
   assert.equal(manifest.components.opl.role, 'framework_cli_and_shared_contracts_payload_source');
 });
 
@@ -582,7 +586,9 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   assert.match(fullReadme, /The Full package only assembles and validates declared framework\/runtime, domain module, and companion tool payloads/);
   assert.match(fullReadme, /OPL Meta Agent/);
   assert.match(fullReadme, /gpt-5\.5 with xhigh reasoning/);
-  assert.match(fullReadme, /standard module directory/);
+  assert.match(fullReadme, /deferred maintenance and does not block first launch/);
+  assert.match(fullReadme, /without requiring Command Line Tools or git to finish first/);
+  assert.doesNotMatch(fullReadme, /materialized under the standard module directory/);
   assert.doesNotMatch(fullReadme, /[\u3400-\u9fff]/);
 });
 
@@ -651,6 +657,9 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(cacheHit.archive_path, /opl-runtime/);
   assert.match(buildScript, /Library', 'Caches', 'One Person Lab', 'full-runtime-layers'/);
   assert.match(buildScript, /runtimeCacheMode: process\.env\.OPL_FULL_RUNTIME_CACHE_MODE \|\| 'readwrite'/);
+  assert.match(buildScript, /copyFirstSkillSource\('opl-meta-agent'/);
+  assert.match(buildScript, /plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'/);
+  assert.match(buildScript, /meta_agent_repo_skill_fingerprint/);
   assert.match(
     buildScript,
     /if \(cacheEvent\.read_archive\) {\s*extractLayer\(archivePath, targetRoot\);\s*return cacheEvent;\s*}\s*const tempLayerRoot/,
