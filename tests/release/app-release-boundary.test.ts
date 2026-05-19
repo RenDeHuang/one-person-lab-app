@@ -523,6 +523,7 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
 test('manual desktop release workflow supports new releases and same-tag refreshes in GitHub Actions', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
+  const fullPackageScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
   const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
@@ -544,12 +545,14 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(fullWorkflow, /name: Checkout OPL Meta Agent/);
   assert.match(fullWorkflow, /repository: gaofeng21cn\/opl-meta-agent/);
   assert.match(fullWorkflow, /path: opl-meta-agent/);
-  assert.match(fullWorkflow, /repository: gaofeng21cn\/ai-skills-library/);
-  assert.match(fullWorkflow, /token: \$\{\{ secrets\.GH_TOKEN \}\}/);
   assert.match(fullWorkflow, /npm install -g mineru-open-api/);
   assert.match(fullWorkflow, /OPL_FULL_META_AGENT_ROOT="\$GITHUB_WORKSPACE\/opl-meta-agent"/);
   assert.match(fullWorkflow, /OPL_FULL_MINERU_OPEN_API_BIN/);
-  assert.match(fullWorkflow, /OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT/);
+  assert.match(fullWorkflow, /assets\/companion-skills\/mineru-document-extractor/);
+  assert.match(fullPackageScript, /assets', 'companion-skills', 'mineru-document-extractor/);
+  assert.ok(
+    fs.existsSync(path.join(appRoot, 'assets', 'companion-skills', 'mineru-document-extractor', 'SKILL.md')),
+  );
   assert.match(vmWorkflow, /workflow_call:/);
   assert.equal(
     releaseContract.standard_updater.same_tag_refresh.mode,
