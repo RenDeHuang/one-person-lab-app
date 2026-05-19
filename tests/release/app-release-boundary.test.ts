@@ -541,10 +541,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
   assert.match(fullWorkflow, /workflow_call:/);
+  assert.match(fullWorkflow, /name: Checkout OPL Meta Agent/);
   assert.match(fullWorkflow, /repository: gaofeng21cn\/opl-meta-agent/);
+  assert.match(fullWorkflow, /path: opl-meta-agent/);
   assert.match(fullWorkflow, /repository: gaofeng21cn\/ai-skills-library/);
   assert.match(fullWorkflow, /npm install -g mineru-open-api/);
-  assert.match(fullWorkflow, /OPL_FULL_META_AGENT_ROOT/);
+  assert.match(fullWorkflow, /OPL_FULL_META_AGENT_ROOT="\$GITHUB_WORKSPACE\/opl-meta-agent"/);
   assert.match(fullWorkflow, /OPL_FULL_MINERU_OPEN_API_BIN/);
   assert.match(fullWorkflow, /OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT/);
   assert.match(vmWorkflow, /workflow_call:/);
