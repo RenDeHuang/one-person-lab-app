@@ -54,6 +54,8 @@ function parseArgs(argv) {
     pythonRoot: process.env.OPL_FULL_PYTHON_ROOT || '',
     officeCliBin: process.env.OPL_FULL_OFFICECLI_BIN || '',
     officeCliRoot: process.env.OPL_FULL_OFFICECLI_ROOT || path.join(workspaceRoot, 'OfficeCLI'),
+    mineruOpenApiBin: process.env.OPL_FULL_MINERU_OPEN_API_BIN || '',
+    mineruDocumentExtractorRoot: process.env.OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT || path.join(workspaceRoot, 'mineru-document-extractor'),
     uiUxProMaxRoot: process.env.OPL_FULL_UI_UX_PRO_MAX_ROOT || path.join(workspaceRoot, 'ui-ux-pro-max-skill'),
     skipGuiBuild: false,
     splitRuntime: process.env.OPL_FULL_SPLIT_RUNTIME === '1',
@@ -99,6 +101,8 @@ function parseArgs(argv) {
     else if (token === '--python-root') parsed.pythonRoot = path.resolve(value);
     else if (token === '--officecli-bin') parsed.officeCliBin = path.resolve(value);
     else if (token === '--officecli-root') parsed.officeCliRoot = path.resolve(value);
+    else if (token === '--mineru-open-api-bin') parsed.mineruOpenApiBin = path.resolve(value);
+    else if (token === '--mineru-document-extractor-root') parsed.mineruDocumentExtractorRoot = path.resolve(value);
     else if (token === '--ui-ux-pro-max-root') parsed.uiUxProMaxRoot = path.resolve(value);
     else if (token === '--runtime-cache-dir') parsed.runtimeCacheDir = path.resolve(value);
     else if (token === '--runtime-cache-mode') parsed.runtimeCacheMode = value;
@@ -161,18 +165,38 @@ function findExecutable(name) {
   return result.status === 0 ? result.stdout.trim() || null : null;
 }
 
-function findOfficeCliBinary(explicitBin) {
+function findCompanionBinary(input) {
   const candidates = [
-    explicitBin,
-    process.env.OPL_OFFICECLI_BIN || '',
-    findExecutable('officecli') || '',
-    path.join(os.homedir(), '.local', 'bin', 'officecli'),
+    input.explicitBin,
+    input.envBin,
+    findExecutable(input.name) || '',
+    path.join(os.homedir(), '.local', 'bin', input.name),
   ].filter(Boolean);
   const found = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
   if (!found) {
-    throw new Error('officecli binary not found. Install officecli or pass --officecli-bin / set OPL_FULL_OFFICECLI_BIN.');
+    throw new Error(`${input.name} binary not found. Install ${input.name} or pass ${input.flagName} / set ${input.envName}.`);
   }
   return found;
+}
+
+function findOfficeCliBinary(explicitBin) {
+  return findCompanionBinary({
+    name: 'officecli',
+    explicitBin,
+    envBin: process.env.OPL_OFFICECLI_BIN || '',
+    flagName: '--officecli-bin',
+    envName: 'OPL_FULL_OFFICECLI_BIN',
+  });
+}
+
+function findMineruOpenApiBinary(explicitBin) {
+  return findCompanionBinary({
+    name: 'mineru-open-api',
+    explicitBin,
+    envBin: process.env.OPL_MINERU_OPEN_API_BIN || '',
+    flagName: '--mineru-open-api-bin',
+    envName: 'OPL_FULL_MINERU_OPEN_API_BIN',
+  });
 }
 
 function fileSha256(filePath) {
@@ -577,6 +601,11 @@ function copyRecommendedSkills(targetRoot, options) {
     path.join(os.homedir(), '.codex', 'skills', 'officecli-xlsx'),
   ]);
   copyUiUxProMaxSkill(targetRoot, options);
+  copyFirstSkillSource('mineru-document-extractor', targetRoot, [
+    options.mineruDocumentExtractorRoot,
+    path.join(os.homedir(), '.skills-manager', 'skills', 'mineru-document-extractor'),
+    path.join(os.homedir(), '.codex', 'skills', 'mineru-document-extractor'),
+  ]);
 }
 
 function resolveRuntimeSources(options) {
@@ -586,6 +615,7 @@ function resolveRuntimeSources(options) {
   const pythonRoot = findPythonRoot(options.pythonRoot);
   const uvBin = requirePath(options.uvBin, 'uv binary');
   const officeCliBin = findOfficeCliBinary(options.officeCliBin);
+  const mineruOpenApiBin = findMineruOpenApiBinary(options.mineruOpenApiBin);
 
   return {
     codexRoot,
@@ -594,6 +624,7 @@ function resolveRuntimeSources(options) {
     pythonRoot,
     uvBin,
     officeCliBin,
+    mineruOpenApiBin,
   };
 }
 
@@ -629,6 +660,8 @@ function buildRuntimeCacheKeys(options, sources) {
         uv_sha256: fileSha256(sources.uvBin),
         officecli_sha256: fileSha256(sources.officeCliBin),
         officecli_version: commandOutput(sources.officeCliBin, ['--version']),
+        mineru_open_api_sha256: fileSha256(sources.mineruOpenApiBin),
+        mineru_open_api_version: commandOutput(sources.mineruOpenApiBin, ['version']),
         python_root_name: path.basename(sources.pythonRoot),
         python_version: commandOutput(path.join(sources.pythonRoot, 'bin', 'python3'), ['--version']),
         packager_inputs: packagerInputs,
@@ -675,6 +708,9 @@ function buildRuntimeCacheKeys(options, sources) {
         officecli_docx_fingerprint: directoryFingerprint(path.join(options.officeCliRoot, 'skills', 'officecli-docx'), 'skills/officecli-docx'),
         officecli_pptx_fingerprint: directoryFingerprint(path.join(options.officeCliRoot, 'skills', 'officecli-pptx'), 'skills/officecli-pptx'),
         officecli_xlsx_fingerprint: directoryFingerprint(path.join(options.officeCliRoot, 'skills', 'officecli-xlsx'), 'skills/officecli-xlsx'),
+        mineru_document_extractor_root_commit: readGitHead(options.mineruDocumentExtractorRoot),
+        mineru_document_extractor_fingerprint: directoryFingerprint(options.mineruDocumentExtractorRoot, 'skills/mineru-document-extractor'),
+        mineru_document_extractor_skill_fingerprint: directoryFingerprint(path.join(skillsManagerRoot, 'mineru-document-extractor'), 'skills/mineru-document-extractor'),
         ui_ux_pro_max_root_commit: readGitHead(options.uiUxProMaxRoot),
         ui_ux_pro_max_fingerprint: directoryFingerprint(options.uiUxProMaxRoot, 'skills/ui-ux-pro-max'),
         mas_skill_git: readGitHead(path.join(skillsRoot, 'mas')),
@@ -728,6 +764,7 @@ function buildToolchainLayer(layerRoot, sources) {
   copySingleFile(sources.codexBinaries.codex, path.join(layerRoot, 'bin', 'codex'));
   copySingleFile(sources.codexBinaries.rg, path.join(layerRoot, 'bin', 'rg'));
   copySingleFile(sources.officeCliBin, path.join(layerRoot, 'bin', 'officecli'));
+  copySingleFile(sources.mineruOpenApiBin, path.join(layerRoot, 'bin', 'mineru-open-api'));
   copySingleFile(sources.nodeBin, path.join(layerRoot, 'node', 'bin', 'node'));
   copySingleFile(sources.uvBin, path.join(layerRoot, 'uv', 'bin', 'uv'));
   copyTreeFiltered(
@@ -821,6 +858,7 @@ function prepareRuntime(options, sources) {
     python: { source_path: sources.pythonRoot, version: commandOutput(path.join(runtimeRoot, 'python', path.basename(sources.pythonRoot), 'bin', 'python3'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'python')) },
     uv: { source_path: sources.uvBin, version: commandOutput(path.join(runtimeRoot, 'uv', 'bin', 'uv'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'uv')) },
     officecli: { source_path: sources.officeCliBin, version: commandOutput(path.join(runtimeRoot, 'bin', 'officecli'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'officecli')) },
+    mineru_open_api: { source_path: sources.mineruOpenApiBin, version: commandOutput(path.join(runtimeRoot, 'bin', 'mineru-open-api'), ['version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'mineru-open-api')) },
     skills: { source_path: path.join(os.homedir(), '.codex', 'skills'), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'skills')) },
   };
 

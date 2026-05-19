@@ -277,6 +277,7 @@ test('publish dry run generates professional v26.5.18 notes for standard and Ful
       rca: { git_commit: '3333333333333333333333333333333333333333' },
       meta_agent: { git_commit: '4444444444444444444444444444444444444444' },
       officecli: { version: '1.2.3' },
+      mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
     },
   };
 
@@ -311,6 +312,8 @@ test('publish dry run generates professional v26.5.18 notes for standard and Ful
   assert.match(notes, /Full first-install package/);
   assert.match(notes, /OPL Meta Agent/);
   assert.match(notes, /OPL Meta Agent: .*main @ 4444444/);
+  assert.match(notes, /MinerU document extraction/);
+  assert.match(notes, /MinerU OpenAPI CLI: mineru-open-api version v0\.1\.3/);
   assert.match(notes, /After installation, users still configure their Codex\/OpenAI API key/);
   assert.match(notes, /Command Line Tools installation is requested through deferred maintenance/);
   assert.doesNotMatch(notes, /[\u3400-\u9fff]/);
@@ -330,6 +333,7 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
       mag: { git_commit: '2222222222222222222222222222222222222222' },
       rca: { git_commit: '3333333333333333333333333333333333333333' },
       officecli: { version: '1.2.3' },
+      mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
     },
   };
 
@@ -577,6 +581,8 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     manifest.distribution.payload_boundary.truth_sources.visual_deliverable_domain_truth,
     'gaofeng21cn/redcube-ai',
   );
+  assert.equal(manifest.components.mineru_open_api.role, 'document_extraction_cli_binary');
+  assert.equal(manifest.components.skills.role, 'recommended_codex_skills_including_officecli_mineru_ui_ux');
   const fullReadme = mod.buildFullFirstInstallReadme({
     version: '26.5.15',
     dmgName: 'One-Person-Lab-Full-26.5.15-mac-arm64.dmg',
@@ -585,6 +591,8 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   });
   assert.match(fullReadme, /The Full package only assembles and validates declared framework\/runtime, domain module, and companion tool payloads/);
   assert.match(fullReadme, /OPL Meta Agent/);
+  assert.match(fullReadme, /mineru-open-api CLI binary/);
+  assert.match(fullReadme, /mineru-document-extractor/);
   assert.match(fullReadme, /gpt-5\.5 with xhigh reasoning/);
   assert.match(fullReadme, /deferred maintenance and does not block first launch/);
   assert.match(fullReadme, /without requiring Command Line Tools or git to finish first/);
@@ -658,8 +666,11 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /Library', 'Caches', 'One Person Lab', 'full-runtime-layers'/);
   assert.match(buildScript, /runtimeCacheMode: process\.env\.OPL_FULL_RUNTIME_CACHE_MODE \|\| 'readwrite'/);
   assert.match(buildScript, /copyFirstSkillSource\('opl-meta-agent'/);
+  assert.match(buildScript, /copyFirstSkillSource\('mineru-document-extractor'/);
+  assert.match(buildScript, /copySingleFile\(sources\.mineruOpenApiBin, path\.join\(layerRoot, 'bin', 'mineru-open-api'\)\)/);
   assert.match(buildScript, /plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'/);
   assert.match(buildScript, /meta_agent_repo_skill_fingerprint/);
+  assert.match(buildScript, /mineru_document_extractor_fingerprint/);
   assert.match(
     buildScript,
     /if \(cacheEvent\.read_archive\) {\s*extractLayer\(archivePath, targetRoot\);\s*return cacheEvent;\s*}\s*const tempLayerRoot/,

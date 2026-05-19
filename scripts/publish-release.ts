@@ -279,6 +279,10 @@ function assertFullPackageManifestHasReleaseNotesMetadata(manifest) {
   if (typeof officeCliVersion !== 'string' || !officeCliVersion.trim()) {
     missing.push('components.officecli.version');
   }
+  const mineruOpenApiVersion = manifest?.components?.mineru_open_api?.version;
+  if (typeof mineruOpenApiVersion !== 'string' || !mineruOpenApiVersion.trim()) {
+    missing.push('components.mineru_open_api.version');
+  }
   if (missing.length > 0) {
     throw new Error(`Full package manifest is missing release-note metadata: ${missing.join(', ')}`);
   }
@@ -501,6 +505,10 @@ function buildBundledModuleNotes(manifest) {
   if (officeCliVersion) {
     modules.push(`- OfficeCLI: ${String(officeCliVersion).split(/\r?\n/)[0]}`);
   }
+  const mineruOpenApiVersion = manifest.components.mineru_open_api?.version;
+  if (mineruOpenApiVersion) {
+    modules.push(`- MinerU OpenAPI CLI: ${String(mineruOpenApiVersion).split(/\r?\n/)[0]}`);
+  }
   return modules;
 }
 
@@ -508,7 +516,7 @@ function buildFullPackageReleaseNotesSection(version, manifest = null) {
   const bundledModuleNotes = buildBundledModuleNotes(manifest);
   return [
     'Full first-install package',
-    `- New macOS arm64 users can download One-Person-Lab-Full-${version}-mac-arm64.dmg for a first setup that includes the App plus preloaded MAS, MAG, RCA, OPL Meta Agent, family runtime support payloads, OfficeCLI, and recommended companion skills.`,
+    `- New macOS arm64 users can download One-Person-Lab-Full-${version}-mac-arm64.dmg for a first setup that includes the App plus preloaded MAS, MAG, RCA, OPL Meta Agent, family runtime support payloads, OfficeCLI, MinerU document extraction, and recommended companion skills.`,
     '- After installation, users still configure their Codex/OpenAI API key and pass first-run readiness checks in the App.',
     '- The bundled Codex default profile is gpt-5.5 / xhigh and is applied through the active session path after API-key setup.',
     '- Command Line Tools installation is requested through deferred maintenance when needed; Full first launch continues on the bundled runtime while CLT installation is handled separately.',

@@ -25,7 +25,7 @@ const steps = [
     asset: '01-download-release.png',
     notes: [
       `最新版本页面：${latestReleaseUrl}`,
-      'Full 版 DMG 是首次安装资产，包含 OPL Framework runtime、MAS/MAG/RCA、officecli 与推荐 skills 等 payload。',
+      'Full 版 DMG 是首次安装资产，包含 OPL Framework runtime、MAS/MAG/RCA、officecli、mineru-open-api 与推荐 skills 等 payload。',
       '标准 mac-arm64 DMG 体积更小，适合已经安装过 One Person Lab App 的用户和后续自动更新。',
     ],
   },
