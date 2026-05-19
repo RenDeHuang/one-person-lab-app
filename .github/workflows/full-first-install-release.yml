@@ -22,6 +22,27 @@ on:
         required: false
         default: false
         type: boolean
+  workflow_call:
+    inputs:
+      opl_version:
+        description: OPL version to publish, for example 26.5.15
+        required: true
+        type: string
+      framework_ref:
+        description: OPL Framework ref to bundle. Empty means main.
+        required: false
+        default: main
+        type: string
+      publish_to_release:
+        description: Upload Full first-install assets to an existing App GitHub Release
+        required: false
+        default: false
+        type: boolean
+      force_rebuild_runtime_cache:
+        description: Ignore restored Full runtime layer cache and rebuild all layers
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write

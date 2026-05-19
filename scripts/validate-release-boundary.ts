@@ -49,6 +49,19 @@ const checks = [
     required: ['npm --silent run release:full', 'npm run release:publish'],
     forbidden: ['npm run gui:release', 'packages:full-release', 'repository: gaofeng21cn/one-person-lab-app'],
   },
+  {
+    id: 'desktop_release_workflow_uses_app_scripts',
+    file: '.github/workflows/desktop-release.yml',
+    required: [
+      'uses: ./.github/workflows/_build-reusable.yml',
+      'node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets',
+      'node --experimental-strip-types scripts/validate-release.ts release-assets',
+      '--standard-artifacts-dir release-assets',
+      'uses: ./.github/workflows/full-first-install-release.yml',
+      'uses: ./.github/workflows/opl-first-run-vm.yml',
+    ],
+    forbidden: ['npm run gui:release', 'packages:full-release', 'repository: gaofeng21cn/one-person-lab-app'],
+  },
 ];
 
 let failures = 0;

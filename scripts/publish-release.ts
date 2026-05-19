@@ -30,6 +30,7 @@ function parseArgs(argv) {
     version: process.env.OPL_RELEASE_VERSION || '',
     versionExplicit: Boolean(process.env.OPL_RELEASE_VERSION),
     macArch: process.env.OPL_RELEASE_MAC_ARCH || 'arm64',
+    standardArtifactsDir: process.env.OPL_STANDARD_ARTIFACTS_DIR || '',
     fullPackageDir: process.env.OPL_FULL_PACKAGE_DIR || '',
     build: true,
     includeFullPackage: false,
@@ -90,6 +91,12 @@ function parseArgs(argv) {
     }
     if (token === '--mac-arch') {
       parsed.macArch = value;
+      index += 1;
+      continue;
+    }
+    if (token === '--standard-artifacts-dir') {
+      parsed.standardArtifactsDir = path.resolve(value);
+      parsed.build = false;
       index += 1;
       continue;
     }
@@ -234,6 +241,38 @@ function findArtifacts(shellRoot, version, macArch) {
     return uploadPath;
   });
   return [...new Set(artifacts)];
+}
+
+function findPrebuiltStandardArtifacts(standardArtifactsDir, version, macArch) {
+  const releaseDir = path.resolve(standardArtifactsDir);
+  if (!fs.existsSync(releaseDir)) {
+    throw new Error(`Missing prebuilt standard release asset directory: ${releaseDir}`);
+  }
+  const files = fs.readdirSync(releaseDir).filter((name) => {
+    if (isGuiArtifact(name, version, '.dmg', macArch)) {
+      return true;
+    }
+    if (isGuiArtifact(name, version, '.zip', macArch)) {
+      return true;
+    }
+    if (isGuiArtifact(name, version, '.blockmap', macArch)) {
+      return true;
+    }
+    return isLatestMetadataForVersion(releaseDir, name, version, macArch);
+  });
+  const requiredKinds = [
+    ['DMG', (name) => name.endsWith('.dmg')],
+    ['ZIP', (name) => name.endsWith('.zip')],
+    ['latest-mac.yml', (name) => name === 'latest-mac.yml'],
+    ['latest-arm64-mac.yml', (name) => name === 'latest-arm64-mac.yml'],
+  ];
+  for (const [label, predicate] of requiredKinds) {
+    if (!files.some(predicate)) {
+      throw new Error(`Missing prebuilt One Person Lab ${version} ${macArch} standard release asset: ${label}`);
+    }
+  }
+  assertUpdaterMetadataDoesNotReferenceFullPackage(releaseDir, files);
+  return [...new Set(files.map((name) => path.join(releaseDir, name)))];
 }
 
 function findFullPackageArtifacts(fullPackageDir, version, macArch) {
@@ -609,15 +648,19 @@ function main() {
   }
   const tag = `v${options.version}`;
 
-  if (!options.fullPackageOnly && !fs.existsSync(options.shellRoot)) {
+  if (!options.fullPackageOnly && !options.standardArtifactsDir && !fs.existsSync(options.shellRoot)) {
     throw new Error(`Missing One Person Lab App active shell checkout: ${options.shellRoot}`);
   }
 
-  if (options.build && !options.fullPackageOnly) {
+  if (options.build && !options.fullPackageOnly && !options.standardArtifactsDir) {
     run('bun', ['run', `build-mac:${options.macArch}`], { cwd: options.shellRoot });
   }
 
-  const artifacts = options.fullPackageOnly ? [] : findArtifacts(options.shellRoot, options.version, options.macArch);
+  const artifacts = options.fullPackageOnly
+    ? []
+    : options.standardArtifactsDir
+      ? findPrebuiltStandardArtifacts(options.standardArtifactsDir, options.version, options.macArch)
+      : findArtifacts(options.shellRoot, options.version, options.macArch);
   const fullPackageArtifacts = options.includeFullPackage
     ? findFullPackageArtifacts(options.fullPackageDir, options.version, options.macArch)
     : [];
@@ -641,6 +684,7 @@ function main() {
       shell_root: options.shellRoot,
       mac_arch: options.macArch,
       build: options.build,
+      standard_artifacts_dir: options.standardArtifactsDir || null,
       full_package_only: options.fullPackageOnly,
       artifacts: allArtifacts,
       standard_artifacts: artifacts,

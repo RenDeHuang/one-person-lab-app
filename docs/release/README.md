@@ -18,7 +18,31 @@ The active shell source is `gaofeng21cn/opl-aion-shell`. It is consumed as an
 external checkout at `shells/aionui` and is not tracked in the clean App repo
 history.
 
-## Commands
+## GitHub Actions release path
+
+Use **OPL Desktop Release** from the GitHub Actions tab for App-owned release
+builds that should run on GitHub runners instead of this Mac.
+
+- `release_mode=refresh_existing` rebuilds standard macOS arm64 assets, validates
+  updater metadata, uploads them to the existing `v<opl_version>` release with
+  clobber semantics, then optionally builds and publishes the Full first-install
+  assets.
+- `release_mode=new_release` builds the same assets, creates and pushes the
+  `v<opl_version>` tag from the workflow commit, creates the GitHub Release, and
+  optionally adds the Full first-install assets after the standard release exists.
+- `include_full_package=true` delegates to the Full first-install workflow so the
+  slower runtime/package assembly runs on GitHub Actions with the runtime layer
+  cache.
+- `run_vm_smoke=true` runs the clean Full first-run VM smoke after Full assets
+  are uploaded. Leave it off for fast packaging-only refreshes or when the
+  self-hosted Tart runner is unavailable.
+
+The older automatic path is still valid for standard-only releases: pushing a
+`v<version>` tag triggers **Build and Release**. After that completes, run
+**OPL Full First-Install Release** with `publish_to_release=true` if the release
+also needs Full first-install assets.
+
+## Local commands
 
 Release candidate plan:
 
@@ -67,6 +91,11 @@ Publishing to an existing tag is intentional for Full first-install refreshes:
 already exists. Use `--full-package-only --include-full-package` for that lane;
 it updates the Full release-note section and overwrites matching Full assets
 without rebuilding or replacing standard updater assets.
+
+GitHub Actions standard refreshes use the same publish script with
+`--standard-artifacts-dir release-assets`, which publishes the already-built
+standard assets from the workflow artifact download instead of rebuilding the
+App inside the publish job.
 
 For new same-day versions, prefer a new tag such as `v26.5.19` over deleting and
 replacing a previous release. The publish script is resumable: existing release

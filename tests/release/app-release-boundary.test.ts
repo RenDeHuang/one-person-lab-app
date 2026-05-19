@@ -153,6 +153,78 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
   assert.ok(payload.artifacts.some((artifact) => artifact.endsWith(dmgName)));
 });
 
+test('publish dry run accepts prebuilt standard release assets from GitHub Actions', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-prebuilt-release-'));
+  const releaseAssetsDir = path.join(tempRoot, 'release-assets');
+  const version = '26.5.15-test';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  const metadata = [
+    `version: ${version}`,
+    'files:',
+    `  - url: ${dmgName}`,
+    '    sha512: test',
+    '    size: 1',
+    `path: ${dmgName}`,
+    'sha512: test',
+    '',
+  ].join('\n');
+
+  writeFile(path.join(releaseAssetsDir, dmgName));
+  writeFile(path.join(releaseAssetsDir, zipName));
+  writeFile(path.join(releaseAssetsDir, `${dmgName}.blockmap`));
+  writeFile(path.join(releaseAssetsDir, `${zipName}.blockmap`));
+  writeFile(path.join(releaseAssetsDir, 'latest-mac.yml'), metadata);
+  writeFile(path.join(releaseAssetsDir, 'latest-arm64-mac.yml'), metadata);
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--standard-artifacts-dir',
+    releaseAssetsDir,
+    '--version',
+    version,
+  ], {
+    env: {
+      OPL_RELEASE_EXISTS: '0',
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.standard_artifacts_dir, releaseAssetsDir);
+  assert.ok(payload.standard_artifacts.some((artifact) => artifact.endsWith(dmgName)));
+  assert.ok(payload.standard_artifacts.some((artifact) => artifact.endsWith('latest-arm64-mac.yml')));
+  assert.ok(payload.upload_command.includes('--clobber'));
+});
+
+test('prebuilt standard release assets must include updater metadata', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-prebuilt-release-missing-metadata-'));
+  const releaseAssetsDir = path.join(tempRoot, 'release-assets');
+  const version = '26.5.15-test';
+
+  writeFile(path.join(releaseAssetsDir, `One-Person-Lab-${version}-mac-arm64.dmg`));
+  writeFile(path.join(releaseAssetsDir, `One-Person-Lab-${version}-mac-arm64.zip`));
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--standard-artifacts-dir',
+    releaseAssetsDir,
+    '--version',
+    version,
+  ], {
+    env: {
+      OPL_RELEASE_EXISTS: '0',
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /latest-mac\.yml/);
+});
+
 test('release plan exposes parallel lanes and the serialized no-CLT VM gate', () => {
   const result = runNode([
     'scripts/plan-release-candidate.ts',
@@ -446,6 +518,33 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.exe/);
   assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.msi/);
   assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.deb/);
+});
+
+test('manual desktop release workflow supports new releases and same-tag refreshes in GitHub Actions', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
+  const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+
+  assert.match(workflow, /name: OPL Desktop Release/);
+  assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release/);
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
+  assert.match(workflow, /git tag "\$tag" "\$GITHUB_SHA"/);
+  assert.match(workflow, /--standard-artifacts-dir release-assets/);
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
+  assert.match(workflow, /publish_to_release: true/);
+  assert.match(fullWorkflow, /workflow_call:/);
+  assert.equal(
+    releaseContract.standard_updater.same_tag_refresh.mode,
+    'github_actions_prebuilt_assets_upload_clobber',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.desktop_release_workflow,
+    '.github/workflows/desktop-release.yml',
+  );
 });
 
 test('manual build workflow keeps cross-platform builds behind an explicit switch', () => {

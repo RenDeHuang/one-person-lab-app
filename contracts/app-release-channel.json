@@ -18,7 +18,12 @@
       "One-Person-Lab-*-mac-arm64.zip.blockmap"
     ],
     "forbidden_asset_substrings": ["Full"],
-    "rule": "standard updater metadata must never point to Full first-install assets"
+    "rule": "standard updater metadata must never point to Full first-install assets",
+    "same_tag_refresh": {
+      "allowed": true,
+      "mode": "github_actions_prebuilt_assets_upload_clobber",
+      "scope": "standard App DMG, ZIP, blockmaps, and updater metadata for an existing release"
+    }
   },
   "full_first_install": {
     "asset_name_must_include": "Full",
@@ -78,6 +83,14 @@
         "sha256"
       ],
       "force_flag": "--force-upload"
+    },
+    "github_actions": {
+      "desktop_release_workflow": ".github/workflows/desktop-release.yml",
+      "new_release_mode": "new_release",
+      "refresh_existing_mode": "refresh_existing",
+      "full_first_install_workflow": ".github/workflows/full-first-install-release.yml",
+      "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
+      "first_run_vm_mode": "run_vm_smoke"
     },
     "vm_gate": {
       "source": "clean no-CLT Tart base clone",
