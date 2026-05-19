@@ -523,6 +523,7 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
 test('manual desktop release workflow supports new releases and same-tag refreshes in GitHub Actions', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
+  const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
@@ -536,7 +537,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /--standard-artifacts-dir release-assets/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
   assert.match(workflow, /publish_to_release: true/);
+  assert.match(workflow, /run_vm_smoke:/);
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
+  assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
   assert.match(fullWorkflow, /workflow_call:/);
+  assert.match(vmWorkflow, /workflow_call:/);
   assert.equal(
     releaseContract.standard_updater.same_tag_refresh.mode,
     'github_actions_prebuilt_assets_upload_clobber',
@@ -544,6 +549,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.equal(
     releaseContract.release_acceleration.github_actions.desktop_release_workflow,
     '.github/workflows/desktop-release.yml',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.first_run_vm_workflow,
+    '.github/workflows/opl-first-run-vm.yml',
   );
 });
 
