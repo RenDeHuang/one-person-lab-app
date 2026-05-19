@@ -55,7 +55,8 @@ function parseArgs(argv) {
     officeCliBin: process.env.OPL_FULL_OFFICECLI_BIN || '',
     officeCliRoot: process.env.OPL_FULL_OFFICECLI_ROOT || path.join(workspaceRoot, 'OfficeCLI'),
     mineruOpenApiBin: process.env.OPL_FULL_MINERU_OPEN_API_BIN || '',
-    mineruDocumentExtractorRoot: process.env.OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT || path.join(workspaceRoot, 'mineru-document-extractor'),
+    mineruDocumentExtractorRoot: process.env.OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT
+      || path.join(appRepoRoot, 'assets', 'companion-skills', 'mineru-document-extractor'),
     uiUxProMaxRoot: process.env.OPL_FULL_UI_UX_PRO_MAX_ROOT || path.join(workspaceRoot, 'ui-ux-pro-max-skill'),
     skipGuiBuild: false,
     splitRuntime: process.env.OPL_FULL_SPLIT_RUNTIME === '1',
