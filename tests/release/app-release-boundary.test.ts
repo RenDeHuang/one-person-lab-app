@@ -739,7 +739,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(fullWorkflow, /path: MinerU-Ecosystem/);
   assert.match(fullWorkflow, /uses: actions\/setup-go@v5/);
   assert.match(fullWorkflow, /go-version: '1\.26\.x'/);
-  assert.match(fullWorkflow, /\(cd MinerU-Ecosystem && go install \.\/cli\/mineru-open-api\)/);
+  assert.match(fullWorkflow, /mineru_root="\$GITHUB_WORKSPACE\/MinerU-Ecosystem\/cli\/mineru-open-api"/);
+  assert.match(fullWorkflow, /go install -ldflags/);
+  assert.match(fullWorkflow, /MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.version=\$mineru_version/);
   assert.match(fullWorkflow, /echo "\$HOME\/go\/bin" >> "\$GITHUB_PATH"/);
   assert.match(fullWorkflow, /OPL_FULL_META_AGENT_ROOT="\$GITHUB_WORKSPACE\/opl-meta-agent"/);
   assert.match(fullWorkflow, /OPL_FULL_MINERU_OPEN_API_BIN/);

@@ -122,6 +122,13 @@ jobs:
           ref: main
           path: ui-ux-pro-max-skill
 
+      - name: Checkout MinerU Ecosystem
+        uses: actions/checkout@v4
+        with:
+          repository: opendatalab/MinerU-Ecosystem
+          ref: main
+          path: MinerU-Ecosystem
+
       - name: Resolve release version
         shell: bash
         run: |
@@ -158,7 +165,14 @@ jobs:
           python -m pip install --upgrade pip uv
           uv python install 3.12
           npm install -g @openai/codex
-          (cd MinerU-Ecosystem && go install ./cli/mineru-open-api)
+          mineru_root="$GITHUB_WORKSPACE/MinerU-Ecosystem/cli/mineru-open-api"
+          mineru_version="$(cat "$mineru_root/VERSION")"
+          mineru_commit="$(git -C "$GITHUB_WORKSPACE/MinerU-Ecosystem" rev-parse --short HEAD)"
+          mineru_built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          (
+            cd "$mineru_root"
+            go install -ldflags "-X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.version=$mineru_version -X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.commit=$mineru_commit -X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.date=$mineru_built_at" .
+          )
           curl -fsSL https://raw.githubusercontent.com/iOfficeAI/OfficeCLI/main/install.sh | bash
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
