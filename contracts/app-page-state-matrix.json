@@ -12,17 +12,29 @@
       "machine_source": "runtime_tray_snapshot.app_operator_drilldown",
       "framework_command": "opl runtime app-operator-drilldown --json",
       "page_contract": "runtime_workbench_drilldown",
+      "operator_evidence_acceptance_path": {
+        "role": "runtime_page_operator_evidence_acceptance",
+        "accepts_refs_only_json": true,
+        "summary_drilldown_command": "opl runtime app-operator-drilldown --json",
+        "full_drilldown_command": "opl runtime app-operator-drilldown --detail full --json",
+        "action_dry_run_command": "opl runtime action execute --action <action_id> --dry-run --json",
+        "action_execute_command": "opl runtime action execute --action <action_id> --json",
+        "action_route_source": "runtime_tray_snapshot.app_operator_drilldown.safe_action_routes",
+        "action_execution_policy": "operator_selected_safe_action_route_only"
+      },
       "must_show": [
         "runtime state",
         "source surface",
         "repair action when available",
+        "operator evidence acceptance state",
         "route graph and decision map refs",
         "review and repair queue",
         "artifact gallery and package/export lifecycle refs",
         "memory refs and writeback receipt refs",
         "quality/readiness refs",
         "provider SLO and repair refs",
-        "owner-aware action routing"
+        "owner-aware action routing",
+        "safe action dry-run and execute result refs"
       ],
       "must_not_own": [
         "runtime truth",
@@ -30,7 +42,8 @@
         "domain truth",
         "memory body",
         "artifact body",
-        "quality/readiness/export verdict"
+        "quality/readiness/export verdict",
+        "action route authority"
       ]
     },
     {
