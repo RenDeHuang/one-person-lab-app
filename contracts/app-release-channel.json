@@ -160,75 +160,93 @@
   "operator_evidence_bundle": {
     "purpose": "runtime_page_operator_evidence_acceptance",
     "bundle_root_pattern": "release-evidence/<version>/",
+    "manifest_path": "evidence-manifest.json",
     "acceptance_path": "Runtime page",
     "runtime_page_contract": "contracts/app-page-state-matrix.json#runtime",
     "refs_only": true,
+    "missing_evidence_policy": {
+      "default_validation": "fail_closed",
+      "allow_missing_evidence_flag": "--allow-missing-evidence",
+      "missing_status": "missing_evidence",
+      "packaged_app_evidence_requires": "all_required_artifacts_present_and_verified"
+    },
     "required_artifacts": [
       {
         "id": "runtime_snapshot",
         "path": "runtime-snapshot.json",
         "kind": "json",
-        "producer": "opl runtime snapshot --json"
+        "producer": "opl runtime snapshot --json",
+        "source_kind": "opl_runtime_snapshot"
       },
       {
         "id": "drilldown_summary",
         "path": "drilldown-summary.json",
         "kind": "json",
-        "producer": "opl runtime app-operator-drilldown --json"
+        "producer": "opl runtime app-operator-drilldown --json",
+        "source_kind": "opl_app_operator_drilldown_summary"
       },
       {
         "id": "drilldown_full",
         "path": "drilldown-full.json",
         "kind": "json",
-        "producer": "opl runtime app-operator-drilldown --json --detail full"
+        "producer": "opl runtime app-operator-drilldown --detail full --json",
+        "source_kind": "opl_app_operator_drilldown_full"
       },
       {
         "id": "action_dry_run_result",
         "path": "action-dry-run-result.json",
         "kind": "json",
-        "producer": "opl runtime action execute --action <action_id> --dry-run"
+        "producer": "opl runtime action execute --action <action_id> --dry-run",
+        "source_kind": "opl_runtime_action_dry_run"
       },
       {
         "id": "action_execute_result",
         "path": "action-execute-result.json",
         "kind": "json",
-        "producer": "opl runtime action execute --action <action_id>"
+        "producer": "opl runtime action execute --action <action_id>",
+        "source_kind": "opl_runtime_action_execute"
       },
       {
         "id": "runtime_screenshot",
         "path": "screenshots/runtime.png",
         "kind": "image",
-        "producer": "Runtime page screenshot"
+        "producer": "Runtime page screenshot",
+        "source_kind": "app_runtime_page_screenshot"
       },
       {
         "id": "full_screenshot",
         "path": "screenshots/full.png",
         "kind": "image",
-        "producer": "Full first-install release screenshot"
+        "producer": "Full first-install release screenshot",
+        "source_kind": "full_first_install_release_screenshot"
       },
       {
         "id": "action_screenshot",
         "path": "screenshots/action.png",
         "kind": "image",
-        "producer": "Runtime action confirmation/result screenshot"
+        "producer": "Runtime action confirmation/result screenshot",
+        "source_kind": "app_runtime_action_screenshot"
       },
       {
         "id": "first_run_log",
         "path": "first-run.log",
         "kind": "log",
-        "producer": "clean first-run VM smoke"
+        "producer": "clean first-run VM smoke",
+        "source_kind": "clean_first_run_vm_smoke"
       },
       {
         "id": "settings_smoke",
         "path": "settings-smoke.json",
         "kind": "json",
-        "producer": "settings smoke"
+        "producer": "settings smoke",
+        "source_kind": "settings_smoke"
       },
       {
         "id": "remote_release_verification",
         "path": "remote-release-verification.json",
         "kind": "json",
-        "producer": "npm run verify-remote-release -- --version <version> --include-full-package --summary-path remote-release-verification.json"
+        "producer": "npm run verify-remote-release -- --version <version> --include-full-package --summary-path remote-release-verification.json",
+        "source_kind": "remote_release_verification"
       }
     ],
     "forbidden_authority": [

@@ -29,6 +29,8 @@ AionUI intake work.
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 npm run test:release-boundary
 node --experimental-strip-types scripts/validate-release-boundary.ts
+node --experimental-strip-types scripts/write-release-evidence-manifest.ts --bundle-dir release-evidence/<version> --overwrite
+node --experimental-strip-types scripts/validate-release-evidence-bundle.ts --bundle-dir release-evidence/<version>
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 node --experimental-strip-types scripts/validate-release.ts release-assets
 ```
@@ -44,6 +46,12 @@ The runtime page matrix also verifies the App/operator evidence path: summary
 read model first, lazy full-detail load, refs-only dry-run/execute action
 commands, receipt/count refresh after execute, and explicit authority-boundary
 fields.
+
+Release evidence bundle validation requires `evidence-manifest.json` plus the
+contracted artifact files. When a local lane cannot produce a clean VM smoke,
+settings smoke, remote Release verification, OPL runtime JSON, or screenshots,
+the manifest must mark those entries as `missing`; `--allow-missing-evidence`
+then validates the gap report without treating it as packaged App evidence.
 
 ## Installed App Smoke
 

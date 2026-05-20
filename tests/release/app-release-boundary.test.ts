@@ -24,6 +24,21 @@ function writeFile(filePath, content = 'artifact') {
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
+function writeBinaryFile(filePath, content) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content);
+}
+
+function writeTinyPng(filePath) {
+  writeBinaryFile(
+    filePath,
+    Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lC0V9wAAAABJRU5ErkJggg==',
+      'base64',
+    ),
+  );
+}
+
 function writeReleaseMetadata(outDir, version, assetName) {
   writeFile(path.join(outDir, 'latest-mac.yml'), [
     `version: ${version}`,
@@ -379,7 +394,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
 
   assert.equal(runtimePage.machine_source, 'runtime_tray_snapshot.app_operator_drilldown');
   assert.equal(runtimePage.framework_command, 'opl runtime app-operator-drilldown --json');
-  assert.equal(runtimePage.framework_full_detail_command, 'opl runtime app-operator-drilldown --json --detail full');
+  assert.equal(runtimePage.framework_full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.equal(runtimePage.framework_action_command, 'opl runtime action execute --action <id> [--payload refs-only-json] [--dry-run]');
   assert.equal(runtimePage.page_contract, 'runtime_workbench_drilldown');
   assert.equal(
@@ -393,7 +408,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.full_drilldown_command,
-    'opl runtime app-operator-drilldown --json --detail full',
+    'opl runtime app-operator-drilldown --detail full --json',
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.action_dry_run_command,
@@ -472,6 +487,13 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
   assert.equal(bundle.runtime_page_contract, 'contracts/app-page-state-matrix.json#runtime');
   assert.equal(bundle.refs_only, true);
   assert.equal(bundle.bundle_root_pattern, 'release-evidence/<version>/');
+  assert.equal(bundle.manifest_path, 'evidence-manifest.json');
+  assert.deepEqual(bundle.missing_evidence_policy, {
+    default_validation: 'fail_closed',
+    allow_missing_evidence_flag: '--allow-missing-evidence',
+    missing_status: 'missing_evidence',
+    packaged_app_evidence_requires: 'all_required_artifacts_present_and_verified',
+  });
   assert.equal(
     artifactById.get('runtime_snapshot').producer,
     'opl runtime snapshot --json',
@@ -508,6 +530,22 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       'remote-release-verification.json',
     ],
   );
+  assert.deepEqual(
+    [...artifactById.values()].map((artifact) => artifact.source_kind),
+    [
+      'opl_runtime_snapshot',
+      'opl_app_operator_drilldown_summary',
+      'opl_app_operator_drilldown_full',
+      'opl_runtime_action_dry_run',
+      'opl_runtime_action_execute',
+      'app_runtime_page_screenshot',
+      'full_first_install_release_screenshot',
+      'app_runtime_action_screenshot',
+      'clean_first_run_vm_smoke',
+      'settings_smoke',
+      'remote_release_verification',
+    ],
+  );
   assert.deepEqual(fullFirstRun.release_evidence_artifacts, [
     'first-run.log',
     'settings-smoke.json',
@@ -526,21 +564,111 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
 
 test('release evidence bundle validator accepts the declared Runtime page artifact set', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-'));
-  const jsonFiles = [
+  const artifacts = [
+    {
+      id: 'runtime_snapshot',
+      path: 'runtime-snapshot.json',
+      kind: 'json',
+      producer: 'opl runtime snapshot --json',
+      source_kind: 'opl_runtime_snapshot',
+    },
+    {
+      id: 'drilldown_summary',
+      path: 'drilldown-summary.json',
+      kind: 'json',
+      producer: 'opl runtime app-operator-drilldown --json',
+      source_kind: 'opl_app_operator_drilldown_summary',
+    },
+    {
+      id: 'drilldown_full',
+      path: 'drilldown-full.json',
+      kind: 'json',
+      producer: 'opl runtime app-operator-drilldown --detail full --json',
+      source_kind: 'opl_app_operator_drilldown_full',
+    },
+    {
+      id: 'action_dry_run_result',
+      path: 'action-dry-run-result.json',
+      kind: 'json',
+      producer: 'opl runtime action execute --action <action_id> --dry-run',
+      source_kind: 'opl_runtime_action_dry_run',
+    },
+    {
+      id: 'action_execute_result',
+      path: 'action-execute-result.json',
+      kind: 'json',
+      producer: 'opl runtime action execute --action <action_id>',
+      source_kind: 'opl_runtime_action_execute',
+    },
+    {
+      id: 'runtime_screenshot',
+      path: 'screenshots/runtime.png',
+      kind: 'image',
+      producer: 'Runtime page screenshot',
+      source_kind: 'app_runtime_page_screenshot',
+    },
+    {
+      id: 'full_screenshot',
+      path: 'screenshots/full.png',
+      kind: 'image',
+      producer: 'Full first-install release screenshot',
+      source_kind: 'full_first_install_release_screenshot',
+    },
+    {
+      id: 'action_screenshot',
+      path: 'screenshots/action.png',
+      kind: 'image',
+      producer: 'Runtime action confirmation/result screenshot',
+      source_kind: 'app_runtime_action_screenshot',
+    },
+    {
+      id: 'first_run_log',
+      path: 'first-run.log',
+      kind: 'log',
+      producer: 'clean first-run VM smoke',
+      source_kind: 'clean_first_run_vm_smoke',
+    },
+    {
+      id: 'settings_smoke',
+      path: 'settings-smoke.json',
+      kind: 'json',
+      producer: 'settings smoke',
+      source_kind: 'settings_smoke',
+    },
+    {
+      id: 'remote_release_verification',
+      path: 'remote-release-verification.json',
+      kind: 'json',
+      producer: 'npm run verify-remote-release -- --version <version> --include-full-package --summary-path remote-release-verification.json',
+      source_kind: 'remote_release_verification',
+    },
+  ];
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'passed',
+    packaged_app_evidence: true,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts: artifacts.map((artifact) => ({ ...artifact, status: 'present' })),
+    missing_evidence: [],
+  }, null, 2)}\n`);
+  for (const name of [
     'runtime-snapshot.json',
     'drilldown-summary.json',
     'drilldown-full.json',
     'action-dry-run-result.json',
     'action-execute-result.json',
-    'settings-smoke.json',
-    'remote-release-verification.json',
-  ];
-  for (const name of jsonFiles) {
-    writeFile(path.join(tempRoot, name), '{"status":"passed"}\n');
+  ]) {
+    writeFile(path.join(tempRoot, name), '{"status":"passed","refs_only":true}\n');
   }
-  writeFile(path.join(tempRoot, 'screenshots', 'runtime.png'), 'runtime-screenshot');
-  writeFile(path.join(tempRoot, 'screenshots', 'full.png'), 'full-screenshot');
-  writeFile(path.join(tempRoot, 'screenshots', 'action.png'), 'action-screenshot');
+  writeFile(path.join(tempRoot, 'settings-smoke.json'), '{"status":"passed","pages_checked":["settings_overview","environment","about","update"]}\n');
+  writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
   writeFile(path.join(tempRoot, 'first-run.log'), 'first run passed\n');
 
   const result = runNode([
@@ -553,11 +681,14 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.status, 'passed');
   assert.equal(payload.bundle_dir, tempRoot);
+  assert.equal(payload.manifest_path, 'evidence-manifest.json');
+  assert.equal(payload.packaged_app_evidence, true);
   assert.equal(
     payload.evidence_boundary,
     'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
   );
   assert.equal(payload.verified_artifact_count, 11);
+  assert.equal(payload.missing_artifact_count, 0);
   assert.deepEqual(
     payload.verified_artifacts.map((artifact) => artifact.id),
     [
@@ -574,6 +705,211 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
       'remote_release_verification',
     ],
   );
+});
+
+test('release evidence bundle validator fails closed for incomplete packaged App evidence', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-missing-'));
+  const artifacts = [
+    {
+      id: 'runtime_snapshot',
+      path: 'runtime-snapshot.json',
+      kind: 'json',
+      producer: 'opl runtime snapshot --json',
+      source_kind: 'opl_runtime_snapshot',
+      status: 'present',
+    },
+    {
+      id: 'drilldown_summary',
+      path: 'drilldown-summary.json',
+      kind: 'json',
+      producer: 'opl runtime app-operator-drilldown --json',
+      source_kind: 'opl_app_operator_drilldown_summary',
+      status: 'present',
+    },
+    {
+      id: 'drilldown_full',
+      path: 'drilldown-full.json',
+      kind: 'json',
+      producer: 'opl runtime app-operator-drilldown --detail full --json',
+      source_kind: 'opl_app_operator_drilldown_full',
+      status: 'present',
+    },
+    {
+      id: 'action_dry_run_result',
+      path: 'action-dry-run-result.json',
+      kind: 'json',
+      producer: 'opl runtime action execute --action <action_id> --dry-run',
+      source_kind: 'opl_runtime_action_dry_run',
+      status: 'present',
+    },
+    {
+      id: 'action_execute_result',
+      path: 'action-execute-result.json',
+      kind: 'json',
+      producer: 'opl runtime action execute --action <action_id>',
+      source_kind: 'opl_runtime_action_execute',
+      status: 'present',
+    },
+    {
+      id: 'runtime_screenshot',
+      path: 'screenshots/runtime.png',
+      kind: 'image',
+      producer: 'Runtime page screenshot',
+      source_kind: 'app_runtime_page_screenshot',
+      status: 'present',
+    },
+    {
+      id: 'full_screenshot',
+      path: 'screenshots/full.png',
+      kind: 'image',
+      producer: 'Full first-install release screenshot',
+      source_kind: 'full_first_install_release_screenshot',
+      status: 'present',
+    },
+    {
+      id: 'action_screenshot',
+      path: 'screenshots/action.png',
+      kind: 'image',
+      producer: 'Runtime action confirmation/result screenshot',
+      source_kind: 'app_runtime_action_screenshot',
+      status: 'present',
+    },
+    {
+      id: 'first_run_log',
+      path: 'first-run.log',
+      kind: 'log',
+      producer: 'clean first-run VM smoke',
+      source_kind: 'clean_first_run_vm_smoke',
+      status: 'missing',
+      missing_reason: 'clean VM first-run evidence was not generated in this environment',
+    },
+    {
+      id: 'settings_smoke',
+      path: 'settings-smoke.json',
+      kind: 'json',
+      producer: 'settings smoke',
+      source_kind: 'settings_smoke',
+      status: 'missing',
+      missing_reason: 'settings smoke evidence was not generated in this environment',
+    },
+    {
+      id: 'remote_release_verification',
+      path: 'remote-release-verification.json',
+      kind: 'json',
+      producer: 'npm run verify-remote-release -- --version <version> --include-full-package --summary-path remote-release-verification.json',
+      source_kind: 'remote_release_verification',
+      status: 'missing',
+      missing_reason: 'remote release verification was not generated in this environment',
+    },
+  ];
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'missing_evidence',
+    packaged_app_evidence: false,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts,
+    missing_evidence: artifacts
+      .filter((artifact) => artifact.status === 'missing')
+      .map((artifact) => ({
+        id: artifact.id,
+        path: artifact.path,
+        reason: artifact.missing_reason,
+      })),
+  }, null, 2)}\n`);
+  for (const name of [
+    'runtime-snapshot.json',
+    'drilldown-summary.json',
+    'drilldown-full.json',
+    'action-dry-run-result.json',
+    'action-execute-result.json',
+  ]) {
+    writeFile(path.join(tempRoot, name), '{"status":"passed","refs_only":true}\n');
+  }
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+
+  const blocked = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+  ]);
+
+  assert.notEqual(blocked.status, 0);
+  assert.match(blocked.stderr, /cannot be used as packaged App evidence/);
+
+  const allowed = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+    '--allow-missing-evidence',
+  ]);
+
+  assert.equal(allowed.status, 0, allowed.stderr || allowed.stdout);
+  const payload = JSON.parse(allowed.stdout);
+  assert.equal(payload.status, 'missing_evidence');
+  assert.equal(payload.packaged_app_evidence, false);
+  assert.equal(payload.verified_artifact_count, 8);
+  assert.equal(payload.missing_artifact_count, 3);
+  assert.deepEqual(payload.missing_artifacts.map((artifact) => artifact.id), [
+    'first_run_log',
+    'settings_smoke',
+    'remote_release_verification',
+  ]);
+});
+
+test('release evidence manifest generator records missing artifacts without claiming packaged App evidence', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-generated-'));
+  writeFile(path.join(tempRoot, 'runtime-snapshot.json'), '{"status":"passed","refs_only":true}\n');
+  writeFile(path.join(tempRoot, 'drilldown-summary.json'), '{"status":"passed","refs_only":true}\n');
+  writeFile(path.join(tempRoot, 'drilldown-full.json'), '{"status":"passed","refs_only":true}\n');
+  writeFile(path.join(tempRoot, 'action-dry-run-result.json'), '{"status":"passed","refs_only":true}\n');
+  writeFile(path.join(tempRoot, 'action-execute-result.json'), '{"status":"passed","refs_only":true}\n');
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+
+  const generated = runNode([
+    'scripts/write-release-evidence-manifest.ts',
+    '--bundle-dir',
+    tempRoot,
+  ]);
+
+  assert.equal(generated.status, 0, generated.stderr || generated.stdout);
+  const generatedPayload = JSON.parse(generated.stdout);
+  assert.equal(generatedPayload.status, 'missing_evidence');
+  assert.equal(generatedPayload.packaged_app_evidence, false);
+  assert.equal(generatedPayload.missing_artifact_count, 3);
+  assert.deepEqual(generatedPayload.missing_artifacts.map((artifact) => artifact.id), [
+    'first_run_log',
+    'settings_smoke',
+    'remote_release_verification',
+  ]);
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(tempRoot, 'evidence-manifest.json'), 'utf8'));
+  assert.equal(manifest.status, 'missing_evidence');
+  assert.equal(manifest.packaged_app_evidence, false);
+  assert.deepEqual(manifest.missing_evidence.map((artifact) => artifact.id), [
+    'first_run_log',
+    'settings_smoke',
+    'remote_release_verification',
+  ]);
+
+  const validation = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+    '--allow-missing-evidence',
+  ]);
+
+  assert.equal(validation.status, 0, validation.stderr || validation.stdout);
+  const validationPayload = JSON.parse(validation.stdout);
+  assert.equal(validationPayload.status, 'missing_evidence');
+  assert.equal(validationPayload.packaged_app_evidence, false);
 });
 
 test('App-owned automation entrypoints are TypeScript, not JavaScript wrappers', () => {

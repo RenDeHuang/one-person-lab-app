@@ -67,7 +67,7 @@ build/release scripts, then the produced standard package can replace
 Runtime page evidence path is declared in
 `contracts/app-page-state-matrix.json`: the active shell loads the summary read
 model through `opl runtime app-operator-drilldown --json`, lazy-loads full detail
-through `opl runtime app-operator-drilldown --json --detail full`, and exposes
+through `opl runtime app-operator-drilldown --detail full --json`, and exposes
 only refs-only `opl runtime action execute --action <id> [--payload refs-only-json]
 [--dry-run]` controls. Execution refreshes the App/operator projection so
 receipt/count fields stay framework-owned.
