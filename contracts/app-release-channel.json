@@ -139,6 +139,89 @@
       "settings_smoke": true
     }
   },
+  "operator_evidence_bundle": {
+    "purpose": "runtime_page_operator_evidence_acceptance",
+    "bundle_root_pattern": "release-evidence/<version>/",
+    "acceptance_path": "Runtime page",
+    "runtime_page_contract": "contracts/app-page-state-matrix.json#runtime",
+    "refs_only": true,
+    "required_artifacts": [
+      {
+        "id": "runtime_snapshot",
+        "path": "runtime-snapshot.json",
+        "kind": "json",
+        "producer": "opl runtime snapshot --json"
+      },
+      {
+        "id": "drilldown_summary",
+        "path": "drilldown-summary.json",
+        "kind": "json",
+        "producer": "opl runtime app-operator-drilldown --json"
+      },
+      {
+        "id": "drilldown_full",
+        "path": "drilldown-full.json",
+        "kind": "json",
+        "producer": "opl runtime app-operator-drilldown --detail full --json"
+      },
+      {
+        "id": "action_dry_run_result",
+        "path": "action-dry-run-result.json",
+        "kind": "json",
+        "producer": "opl runtime action execute --action <action_id> --dry-run --json"
+      },
+      {
+        "id": "action_execute_result",
+        "path": "action-execute-result.json",
+        "kind": "json",
+        "producer": "opl runtime action execute --action <action_id> --json"
+      },
+      {
+        "id": "runtime_screenshot",
+        "path": "screenshots/runtime.png",
+        "kind": "image",
+        "producer": "Runtime page screenshot"
+      },
+      {
+        "id": "full_screenshot",
+        "path": "screenshots/full.png",
+        "kind": "image",
+        "producer": "Full first-install release screenshot"
+      },
+      {
+        "id": "action_screenshot",
+        "path": "screenshots/action.png",
+        "kind": "image",
+        "producer": "Runtime action confirmation/result screenshot"
+      },
+      {
+        "id": "first_run_log",
+        "path": "first-run.log",
+        "kind": "log",
+        "producer": "clean first-run VM smoke"
+      },
+      {
+        "id": "settings_smoke",
+        "path": "settings-smoke.json",
+        "kind": "json",
+        "producer": "settings smoke"
+      },
+      {
+        "id": "remote_release_verification",
+        "path": "remote-release-verification.json",
+        "kind": "json",
+        "producer": "npm run verify-remote-release -- --version <version> --include-full-package --summary-path remote-release-verification.json"
+      }
+    ],
+    "forbidden_authority": [
+      "runtime_truth",
+      "provider_implementation",
+      "domain_truth",
+      "domain_quality_verdict",
+      "domain_artifact_authority"
+    ],
+    "acceptance_rule": "App records and displays refs-only release evidence produced by OPL/runtime/domain owners; it does not reinterpret the bundle as runtime truth, domain truth, artifact authority, or a quality verdict."
+  },
   "normalization_command": "node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets",
   "validation_command": "node --experimental-strip-types scripts/validate-release.ts release-assets"
 }

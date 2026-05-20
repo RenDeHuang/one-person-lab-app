@@ -235,7 +235,37 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimePage.machine_source, 'runtime_tray_snapshot.app_operator_drilldown');
   assert.equal(runtimePage.framework_command, 'opl runtime app-operator-drilldown --json');
   assert.equal(runtimePage.page_contract, 'runtime_workbench_drilldown');
+  assert.equal(
+    runtimePage.operator_evidence_acceptance_path.role,
+    'runtime_page_operator_evidence_acceptance',
+  );
+  assert.equal(runtimePage.operator_evidence_acceptance_path.accepts_refs_only_json, true);
+  assert.equal(
+    runtimePage.operator_evidence_acceptance_path.summary_drilldown_command,
+    'opl runtime app-operator-drilldown --json',
+  );
+  assert.equal(
+    runtimePage.operator_evidence_acceptance_path.full_drilldown_command,
+    'opl runtime app-operator-drilldown --detail full --json',
+  );
+  assert.equal(
+    runtimePage.operator_evidence_acceptance_path.action_dry_run_command,
+    'opl runtime action execute --action <action_id> --dry-run --json',
+  );
+  assert.equal(
+    runtimePage.operator_evidence_acceptance_path.action_execute_command,
+    'opl runtime action execute --action <action_id> --json',
+  );
+  assert.equal(
+    runtimePage.operator_evidence_acceptance_path.action_route_source,
+    'runtime_tray_snapshot.app_operator_drilldown.safe_action_routes',
+  );
+  assert.equal(
+    runtimePage.operator_evidence_acceptance_path.action_execution_policy,
+    'operator_selected_safe_action_route_only',
+  );
   for (const expected of [
+    'operator evidence acceptance state',
     'route graph and decision map refs',
     'review and repair queue',
     'artifact gallery and package/export lifecycle refs',
@@ -243,6 +273,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'quality/readiness refs',
     'provider SLO and repair refs',
     'owner-aware action routing',
+    'safe action dry-run and execute result refs',
   ]) {
     assert.ok(runtimePage.must_show.includes(expected), expected);
   }
@@ -253,9 +284,134 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'memory body',
     'artifact body',
     'quality/readiness/export verdict',
+    'action route authority',
   ]) {
     assert.ok(runtimePage.must_not_own.includes(forbiddenOwner), forbiddenOwner);
   }
+});
+
+test('release evidence bundle records Runtime page acceptance artifacts without App authority', () => {
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const pageStateMatrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
+  );
+  const firstRunMatrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-first-run-test-matrix.json'), 'utf8'),
+  );
+  const runtimePage = pageStateMatrix.pages.find((page) => page.id === 'runtime');
+  const fullFirstRun = firstRunMatrix.scenarios.find((scenario) => scenario.id === 'full_first_install_clean_machine');
+  const bundle = releaseContract.operator_evidence_bundle;
+  const artifactById = new Map(bundle.required_artifacts.map((artifact) => [artifact.id, artifact]));
+
+  assert.equal(bundle.purpose, 'runtime_page_operator_evidence_acceptance');
+  assert.equal(bundle.acceptance_path, 'Runtime page');
+  assert.equal(bundle.runtime_page_contract, 'contracts/app-page-state-matrix.json#runtime');
+  assert.equal(bundle.refs_only, true);
+  assert.equal(bundle.bundle_root_pattern, 'release-evidence/<version>/');
+  assert.equal(
+    artifactById.get('runtime_snapshot').producer,
+    'opl runtime snapshot --json',
+  );
+  assert.equal(
+    artifactById.get('drilldown_summary').producer,
+    runtimePage.operator_evidence_acceptance_path.summary_drilldown_command,
+  );
+  assert.equal(
+    artifactById.get('drilldown_full').producer,
+    runtimePage.operator_evidence_acceptance_path.full_drilldown_command,
+  );
+  assert.equal(
+    artifactById.get('action_dry_run_result').producer,
+    runtimePage.operator_evidence_acceptance_path.action_dry_run_command,
+  );
+  assert.equal(
+    artifactById.get('action_execute_result').producer,
+    runtimePage.operator_evidence_acceptance_path.action_execute_command,
+  );
+  assert.deepEqual(
+    [...artifactById.values()].map((artifact) => artifact.path),
+    [
+      'runtime-snapshot.json',
+      'drilldown-summary.json',
+      'drilldown-full.json',
+      'action-dry-run-result.json',
+      'action-execute-result.json',
+      'screenshots/runtime.png',
+      'screenshots/full.png',
+      'screenshots/action.png',
+      'first-run.log',
+      'settings-smoke.json',
+      'remote-release-verification.json',
+    ],
+  );
+  assert.deepEqual(fullFirstRun.release_evidence_artifacts, [
+    'first-run.log',
+    'settings-smoke.json',
+  ]);
+  for (const forbiddenAuthority of [
+    'runtime_truth',
+    'provider_implementation',
+    'domain_truth',
+    'domain_quality_verdict',
+    'domain_artifact_authority',
+  ]) {
+    assert.ok(bundle.forbidden_authority.includes(forbiddenAuthority), forbiddenAuthority);
+  }
+  assert.match(bundle.acceptance_rule, /does not reinterpret the bundle as runtime truth/);
+});
+
+test('release evidence bundle validator accepts the declared Runtime page artifact set', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-'));
+  const jsonFiles = [
+    'runtime-snapshot.json',
+    'drilldown-summary.json',
+    'drilldown-full.json',
+    'action-dry-run-result.json',
+    'action-execute-result.json',
+    'settings-smoke.json',
+    'remote-release-verification.json',
+  ];
+  for (const name of jsonFiles) {
+    writeFile(path.join(tempRoot, name), '{"status":"passed"}\n');
+  }
+  writeFile(path.join(tempRoot, 'screenshots', 'runtime.png'), 'runtime-screenshot');
+  writeFile(path.join(tempRoot, 'screenshots', 'full.png'), 'full-screenshot');
+  writeFile(path.join(tempRoot, 'screenshots', 'action.png'), 'action-screenshot');
+  writeFile(path.join(tempRoot, 'first-run.log'), 'first run passed\n');
+
+  const result = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.status, 'passed');
+  assert.equal(payload.bundle_dir, tempRoot);
+  assert.equal(
+    payload.evidence_boundary,
+    'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+  );
+  assert.equal(payload.verified_artifact_count, 11);
+  assert.deepEqual(
+    payload.verified_artifacts.map((artifact) => artifact.id),
+    [
+      'runtime_snapshot',
+      'drilldown_summary',
+      'drilldown_full',
+      'action_dry_run_result',
+      'action_execute_result',
+      'runtime_screenshot',
+      'full_screenshot',
+      'action_screenshot',
+      'first_run_log',
+      'settings_smoke',
+      'remote_release_verification',
+    ],
+  );
 });
 
 test('App-owned automation entrypoints are TypeScript, not JavaScript wrappers', () => {

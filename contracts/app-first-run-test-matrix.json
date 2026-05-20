@@ -22,6 +22,10 @@
         "Full runtime payload is materialized",
         "Codex remains the default executor path",
         "standard state modules are visible after initialization"
+      ],
+      "release_evidence_artifacts": [
+        "first-run.log",
+        "settings-smoke.json"
       ]
     },
     {

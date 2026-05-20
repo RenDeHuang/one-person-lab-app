@@ -59,6 +59,33 @@ GitHub asset size and `sha256:` digest, validates standard updater metadata,
 and, when Full is included, checks `SHA256SUMS.txt`, the Full manifest boundary,
 and English-only Full companion text.
 
+The Runtime page is the operator evidence acceptance path for App release
+evidence. It consumes OPL refs-only JSON from
+`opl runtime app-operator-drilldown --json`,
+`opl runtime app-operator-drilldown --detail full --json`, and selected safe
+action routes executed through `opl runtime action execute`. The App records and
+displays those refs; it does not become runtime truth, provider implementation,
+domain truth, artifact authority, or quality verdict owner.
+
+Each release evidence bundle should follow
+`contracts/app-release-channel.json` `operator_evidence_bundle` and contain:
+
+- `runtime-snapshot.json`.
+- `drilldown-summary.json` and `drilldown-full.json`.
+- `action-dry-run-result.json` and `action-execute-result.json`.
+- `screenshots/runtime.png`, `screenshots/full.png`, and
+  `screenshots/action.png`.
+- `first-run.log`.
+- `settings-smoke.json`.
+- `remote-release-verification.json`.
+
+Validate a collected bundle with:
+
+```bash
+node --experimental-strip-types scripts/validate-release-evidence-bundle.ts \
+  --bundle-dir release-evidence/<version>
+```
+
 Use **OPL Full Runtime Cache Warmup** before release windows or let its scheduled
 run keep the content-addressed Full runtime layer cache warm. It builds the
 runtime layers on GitHub Actions without publishing a Release, so later Full
