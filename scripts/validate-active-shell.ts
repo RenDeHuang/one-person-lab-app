@@ -313,6 +313,45 @@ function validateFirstRunMatrix(matrix, contract) {
       throw new Error(`Invalid first-run scenario: ${JSON.stringify(scenario)}`);
     }
   }
+  const scenarioById = new Map((matrix.scenarios ?? []).map((scenario) => [scenario.id, scenario]));
+  const fullClean = scenarioById.get('full_first_install_clean_machine');
+  for (const tool of ['command_line_tools', 'homebrew', 'node', 'git']) {
+    if (!fullClean?.clean_machine_missing_tools?.includes(tool)) {
+      throw new Error(`Full first-install clean-machine scenario must allow missing ${tool}`);
+    }
+  }
+  if (fullClean?.core_ready_source !== 'bundled_runtime') {
+    throw new Error('Full first-install clean-machine scenario must reach Core ready from bundled_runtime');
+  }
+  for (const item of ['repo_sync', 'module_reconcile', 'command_line_tools_install', 'ecosystem_module_updates']) {
+    if (!fullClean?.background_maintenance?.includes(item)) {
+      throw new Error(`Full first-install clean-machine scenario must defer ${item} to background maintenance`);
+    }
+  }
+  const standardBootstrap = scenarioById.get('standard_app_managed_bootstrap');
+  if (!standardBootstrap?.expects?.some((entry) => /App-managed bootstrap/.test(entry))) {
+    throw new Error('First-run matrix must declare standard App-managed bootstrap');
+  }
+  if (!standardBootstrap?.expects?.some((entry) => /does not end.*Homebrew, Node, or Git/i.test(entry))) {
+    throw new Error('Standard bootstrap must not make Homebrew/Node/Git installation the first-screen end state');
+  }
+  const cltInstaller = scenarioById.get('macos_clt_system_installer');
+  if (cltInstaller?.command !== 'xcode-select --install') {
+    throw new Error('CLT first-run scenario must use xcode-select --install');
+  }
+  if (!cltInstaller?.expects?.some((entry) => /user confirmation/.test(entry))) {
+    throw new Error('CLT first-run scenario must wait for user confirmation in the system installer');
+  }
+  const ecosystem = scenarioById.get('ecosystem_modules_app_cli_managed');
+  for (const moduleId of ['officecli', 'mineru', 'opl-meta-agent']) {
+    if (!ecosystem?.modules?.includes(moduleId)) {
+      throw new Error(`First-run matrix must mark ${moduleId} as App/CLI managed ecosystem module`);
+    }
+  }
+  const updater = scenarioById.get('updater_standard_channel');
+  if (updater?.update_policy?.download !== 'background' || updater?.update_policy?.apply !== 'restart_when_ready') {
+    throw new Error('Standard updater scenario must download in background and apply after restart when ready');
+  }
 }
 
 function validateProductProfile(profile) {
@@ -353,6 +392,56 @@ function validateProductProfile(profile) {
   }
   if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('ui-ux-pro-max')) {
     throw new Error('Product profile must include ui-ux-pro-max as a default visible skill');
+  }
+  const fullFirstInstall = profile.first_run?.core_ready_policy?.full_first_install_clean_machine;
+  for (const tool of ['command_line_tools', 'homebrew', 'node', 'git']) {
+    if (!fullFirstInstall?.missing_host_tools_allowed?.includes(tool)) {
+      throw new Error(`Product profile Full first-install policy must allow missing ${tool}`);
+    }
+  }
+  if (fullFirstInstall?.initial_runtime_source !== 'bundled_runtime' || fullFirstInstall?.core_ready_without_host_tools !== true) {
+    throw new Error('Product profile Full first-install must reach Core ready through bundled_runtime without host tools');
+  }
+  for (const blocker of ['repo_sync', 'module_reconcile', 'command_line_tools_install', 'ecosystem_module_updates']) {
+    if (!fullFirstInstall?.must_not_block_core_ready?.includes(blocker)) {
+      throw new Error(`Product profile Full first-install must not block Core ready on ${blocker}`);
+    }
+    if (!profile.first_run?.background_maintenance?.items?.includes(blocker)) {
+      throw new Error(`Product profile background maintenance must include ${blocker}`);
+    }
+  }
+  if (profile.first_run?.background_maintenance?.blocks_core_ready !== false) {
+    throw new Error('Product profile background maintenance must not block Core ready');
+  }
+  const standardPackage = profile.first_run?.core_ready_policy?.standard_package;
+  if (standardPackage?.bootstrap_owner !== 'app_managed' || standardPackage?.user_first_screen_terminal_instruction_allowed !== false) {
+    throw new Error('Product profile standard package must use App-managed bootstrap without terminal-install first-screen end states');
+  }
+  for (const forbidden of ['install_homebrew_first', 'install_node_first', 'install_git_first']) {
+    if (!standardPackage?.forbidden_terminal_instruction_end_states?.includes(forbidden)) {
+      throw new Error(`Product profile standard bootstrap must forbid ${forbidden}`);
+    }
+  }
+  if (profile.first_run?.command_line_tools?.installer_command !== 'xcode-select --install') {
+    throw new Error('Product profile CLT installer command must be xcode-select --install');
+  }
+  if (profile.first_run?.command_line_tools?.waits_for_user_confirmation !== true) {
+    throw new Error('Product profile CLT installer must wait for user confirmation');
+  }
+  if (
+    profile.first_run?.updates?.standard_channel?.download_policy !== 'background_download'
+    || profile.first_run?.updates?.standard_channel?.apply_policy !== 'restart_when_ready'
+    || profile.first_run?.updates?.standard_channel?.blocks_core_ready !== false
+  ) {
+    throw new Error('Product profile standard updates must download in background, apply after restart, and not block Core ready');
+  }
+  for (const moduleId of ['officecli', 'mineru', 'opl-meta-agent']) {
+    if (!profile.companion_payloads?.ecosystem_modules?.includes(moduleId)) {
+      throw new Error(`Product profile must list ${moduleId} as ecosystem module`);
+    }
+    if (profile.companion_payloads?.management_authority?.[moduleId] !== 'app_or_cli_managed') {
+      throw new Error(`Product profile must mark ${moduleId} as App/CLI managed`);
+    }
   }
   for (const forbidden of [
     'runtime_truth',

@@ -75,14 +75,55 @@
   "first_run": {
     "readiness_layers": ["core", "domain_modules", "family_runtime_provider"],
     "deferred_blockers": ["domain_modules", "family_runtime_provider", "recommended_skills"],
+    "core_ready_policy": {
+      "full_first_install_clean_machine": {
+        "missing_host_tools_allowed": ["command_line_tools", "homebrew", "node", "git"],
+        "initial_runtime_source": "bundled_runtime",
+        "core_ready_without_host_tools": true,
+        "must_not_block_core_ready": [
+          "repo_sync",
+          "module_reconcile",
+          "command_line_tools_install",
+          "ecosystem_module_updates"
+        ]
+      },
+      "standard_package": {
+        "bootstrap_owner": "app_managed",
+        "user_first_screen_terminal_instruction_allowed": false,
+        "forbidden_terminal_instruction_end_states": [
+          "install_homebrew_first",
+          "install_node_first",
+          "install_git_first"
+        ]
+      }
+    },
+    "background_maintenance": {
+      "items": [
+        "repo_sync",
+        "module_reconcile",
+        "command_line_tools_install",
+        "ecosystem_module_updates"
+      ],
+      "blocks_core_ready": false,
+      "resumption_surface": "Settings"
+    },
     "command_line_tools": {
       "auto_request_installer": true,
+      "installer_command": "xcode-select --install",
+      "waits_for_user_confirmation": true,
       "blocks_full_first_launch": false,
       "messages": [
         "One Person Lab uses Apple Command Line Tools for Git-backed updates and standard module maintenance on this Mac.",
         "The macOS Command Line Tools installer has been opened. You can keep using One Person Lab while that Apple installer runs.",
         "If module maintenance or Git-backed updates are still waiting afterward, One Person Lab will resume them from Settings."
       ]
+    },
+    "updates": {
+      "standard_channel": {
+        "download_policy": "background_download",
+        "apply_policy": "restart_when_ready",
+        "blocks_core_ready": false
+      }
     }
   },
   "settings": {
@@ -104,6 +145,12 @@
   "companion_payloads": {
     "tools": ["officecli", "mineru-open-api"],
     "domain_modules": ["mas", "mag", "rca", "opl-meta-agent"],
+    "ecosystem_modules": ["officecli", "mineru", "opl-meta-agent"],
+    "management_authority": {
+      "officecli": "app_or_cli_managed",
+      "mineru": "app_or_cli_managed",
+      "opl-meta-agent": "app_or_cli_managed"
+    },
     "recommended_codex_skills": [
       "mas",
       "mag",
