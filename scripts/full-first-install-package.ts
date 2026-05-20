@@ -37,6 +37,7 @@ type FullPackageManifestInput = Partial<{
   generatedAt: string;
   components: Record<string, ComponentSnapshot>;
   sizeBreakdown: unknown;
+  runtimeAssertions: unknown;
 }>;
 
 function normalizeVersion(version?: string) {
@@ -161,6 +162,10 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
     generated_at: input.generatedAt ?? new Date().toISOString(),
     size_budget: FULL_PACKAGE_SIZE_BUDGET,
     measurement_policy: FULL_PACKAGE_MEASUREMENT_POLICY,
+    runtime_assertions: input.runtimeAssertions ?? {
+      temporal_core_bridge_releases: [],
+      excluded_module_venv_count: 0,
+    },
     size_breakdown: input.sizeBreakdown ?? {
       total_runtime_uncompressed_bytes: 0,
       layers: {

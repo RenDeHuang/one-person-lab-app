@@ -578,6 +578,27 @@ function assertTemporalCoreBridgeMacosArm64Only(nodeModulesRoot) {
   }
 }
 
+function countRuntimeModuleVenvDirectories(runtimeRoot) {
+  const modulesRoot = path.join(runtimeRoot, 'modules');
+  if (!fs.existsSync(modulesRoot)) {
+    return 0;
+  }
+  let count = 0;
+  for (const moduleName of fs.readdirSync(modulesRoot)) {
+    if (fs.existsSync(path.join(modulesRoot, moduleName, '.venv'))) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function collectRuntimeAssertions(runtimeRoot) {
+  return {
+    temporal_core_bridge_releases: listTemporalCoreBridgeReleases(path.join(runtimeRoot, 'opl', 'node_modules')),
+    excluded_module_venv_count: countRuntimeModuleVenvDirectories(runtimeRoot),
+  };
+}
+
 function copySkillDirectory(sourceRoot, targetRoot, skillName) {
   if (!fs.existsSync(path.join(sourceRoot, 'SKILL.md'))) {
     throw new Error(`Skill source missing SKILL.md for ${skillName}: ${sourceRoot}`);
@@ -931,6 +952,7 @@ function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components) 
     version: options.version,
     generatedAt: packagedAt,
     components,
+    runtimeAssertions: collectRuntimeAssertions(runtimeRoot),
   });
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -940,6 +962,7 @@ function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components) 
       version: options.version,
       generatedAt: packagedAt,
       components,
+      runtimeAssertions: collectRuntimeAssertions(runtimeRoot),
       sizeBreakdown,
     });
     fs.writeFileSync(manifestPath, `${JSON.stringify(nextManifest, null, 2)}\n`, 'utf8');

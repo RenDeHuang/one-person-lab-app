@@ -246,6 +246,23 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
     'Full manifest size_budget.max_runtime_uncompressed_bytes',
   );
   const runtimeUncompressedBytes = readFullRuntimeUncompressedBytes(manifest);
+  const runtimeAssertions = assertPlainObject(manifest.runtime_assertions, 'Full manifest runtime_assertions');
+  if (!Array.isArray(runtimeAssertions.temporal_core_bridge_releases)) {
+    throw new Error('Full manifest runtime_assertions.temporal_core_bridge_releases must be an array.');
+  }
+  if (
+    runtimeAssertions.temporal_core_bridge_releases.length !== 1
+    || runtimeAssertions.temporal_core_bridge_releases[0] !== 'aarch64-apple-darwin'
+  ) {
+    throw new Error(
+      `Full runtime Temporal core-bridge releases must be only aarch64-apple-darwin; got ${runtimeAssertions.temporal_core_bridge_releases.join(', ')}`,
+    );
+  }
+  if (runtimeAssertions.excluded_module_venv_count !== 0) {
+    throw new Error(
+      `Full runtime must not package modules/*/.venv directories; count=${runtimeAssertions.excluded_module_venv_count}`,
+    );
+  }
 
   if (fullDmgAssetSize > maxFullDmgBytes) {
     throw new Error(`Full DMG size budget exceeded: ${fullDmgAssetSize} > ${maxFullDmgBytes}`);
@@ -263,6 +280,8 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
     max_runtime_uncompressed_bytes: maxRuntimeUncompressedBytes,
     full_dmg_size_bytes: fullDmgAssetSize,
     runtime_uncompressed_bytes: runtimeUncompressedBytes,
+    temporal_core_bridge_releases: runtimeAssertions.temporal_core_bridge_releases,
+    excluded_module_venv_count: runtimeAssertions.excluded_module_venv_count,
   };
 }
 

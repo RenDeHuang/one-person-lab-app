@@ -114,6 +114,10 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
       full_dmg_bytes: 'github_release_asset_size_bytes',
       runtime_uncompressed_bytes: 'manifest_size_breakdown_total_runtime_uncompressed_bytes',
     },
+    runtime_assertions: {
+      temporal_core_bridge_releases: ['aarch64-apple-darwin'],
+      excluded_module_venv_count: 0,
+    },
     size_breakdown: {
       total_runtime_uncompressed_bytes: 128,
       layers: {
@@ -409,6 +413,42 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.full_first_install_budget.max_full_dmg_bytes, 450000000);
   assert.equal(summary.full_first_install_budget.full_dmg_size_bytes, Buffer.byteLength('full-dmg'));
   assert.equal(summary.full_first_install_budget.runtime_uncompressed_bytes, 128);
+  assert.deepEqual(summary.full_first_install_budget.temporal_core_bridge_releases, ['aarch64-apple-darwin']);
+  assert.equal(summary.full_first_install_budget.excluded_module_venv_count, 0);
+});
+
+test('remote release verifier fails closed when Full runtime assertions are missing or broad', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-runtime-assertions-'));
+  const version = '26.5.19-runtime-assertions';
+  const names = writeStandardRemoteAssets(tempRoot, version);
+  names.push(...writeFullRemoteAssets(tempRoot, version, {
+    manifest: {
+      runtime_assertions: {
+        temporal_core_bridge_releases: ['aarch64-apple-darwin', 'x86_64-apple-darwin'],
+        excluded_module_venv_count: 1,
+      },
+    },
+  }));
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version',
+    version,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--include-full-package',
+    '--download-dir',
+    tempRoot,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Temporal core-bridge releases must be only aarch64-apple-darwin/);
 });
 
 test('remote release verifier rejects standard updater metadata that references Full assets', () => {
@@ -1027,6 +1067,10 @@ test('Full first-install manifest declares App-owned distribution and Framework 
     full_dmg_bytes: 'github_release_asset_size_bytes',
     runtime_uncompressed_bytes: 'manifest_size_breakdown_total_runtime_uncompressed_bytes',
   });
+  assert.deepEqual(manifest.runtime_assertions, {
+    temporal_core_bridge_releases: [],
+    excluded_module_venv_count: 0,
+  });
   assert.deepEqual(Object.keys(manifest.size_breakdown.layers), [
     'toolchain',
     'domain-runtime',
@@ -1199,5 +1243,6 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.match(buildScript, /MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET = 'aarch64-apple-darwin'/);
   assert.match(buildScript, /pruneTemporalCoreBridgeReleases\(path\.join\(targetRoot, 'node_modules'\)\)/);
   assert.match(buildScript, /assertTemporalCoreBridgeMacosArm64Only\(path\.join\(runtimeRoot, 'opl', 'node_modules'\)\)/);
+  assert.match(buildScript, /runtimeAssertions: collectRuntimeAssertions\(runtimeRoot\)/);
   assert.match(buildScript, /codex: \{ source_path: sources\.codexRoot[\s\S]*size_bytes: directorySizeBytes\(path\.join\(runtimeRoot, 'bin', 'codex'\)\)/);
 });
