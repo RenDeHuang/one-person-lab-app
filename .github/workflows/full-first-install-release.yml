@@ -43,6 +43,9 @@ on:
         required: false
         default: false
         type: boolean
+    secrets:
+      GH_TOKEN:
+        required: true
 
 permissions:
   contents: write
