@@ -548,8 +548,11 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
   assert.ok(payload.lanes.some((lane) => (
     lane.id === 'no_clt_vm_settings_smoke'
     && lane.phase === 'release_gate'
+    && lane.command.includes('One-Person-Lab-Full-26.5.19-mac-arm64.dmg')
+    && lane.command.includes('--smoke-profile no-clt-clean-vm')
     && lane.command.includes('--display 1920x1080px')
     && lane.command.includes('--settings-smoke')
+    && lane.command.includes('--runtime-profile full')
   )));
 });
 
@@ -873,6 +876,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     fs.existsSync(path.join(appRoot, 'assets', 'companion-skills', 'mineru-document-extractor', 'SKILL.md')),
   );
   assert.match(vmWorkflow, /workflow_call:/);
+  assert.match(vmWorkflow, /One-Person-Lab-Full-\*-mac-arm64\.dmg/);
+  assert.match(vmWorkflow, /--smoke-profile no-clt-clean-vm/);
+  assert.match(vmWorkflow, /--display 1920x1080px/);
+  assert.match(vmWorkflow, /--settings-smoke/);
+  assert.match(vmWorkflow, /--runtime-profile full/);
   assert.equal(
     releaseContract.standard_updater.same_tag_refresh.mode,
     'github_actions_prebuilt_assets_upload_clobber',
@@ -884,6 +892,28 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.equal(
     releaseContract.release_acceleration.github_actions.first_run_vm_workflow,
     '.github/workflows/opl-first-run-vm.yml',
+  );
+  assert.deepEqual(
+    releaseContract.release_acceleration.vm_gate,
+    {
+      source: 'clean no-CLT Tart base clone',
+      artifact: 'One-Person-Lab-Full-<version>-mac-arm64.dmg',
+      smoke_profile: 'no-clt-clean-vm',
+      display: '1920x1080px',
+      settings_smoke: true,
+      runtime_profile: 'full',
+      codex_config_wizard: 'required_and_submitted',
+      release_blocking_readiness: [
+        'core_ready',
+        'domain_modules_ready',
+        'family_runtime_provider_ready',
+      ],
+      non_blocking_deferred_maintenance: [
+        'Command Line Tools installation',
+        'git availability',
+        'managed repo sync',
+      ],
+    },
   );
   assert.equal(
     releaseContract.release_acceleration.github_actions.draft_candidate_mode,

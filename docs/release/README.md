@@ -47,6 +47,13 @@ builds that should run on GitHub runners instead of this Mac.
 - `run_vm_smoke=true` runs the clean Full first-run VM smoke after Full assets
   are uploaded. Leave it off for fast packaging-only refreshes or when the
   self-hosted Tart runner is unavailable.
+- The VM smoke downloads the published
+  `One-Person-Lab-Full-*-mac-arm64.dmg`, clones a clean no-CLT Tart base VM,
+  fixes the logical display at `1920x1080px`, submits the Codex/OpenAI API key
+  configuration wizard, sweeps the packaged Settings pages, and checks Full
+  runtime readiness. CLT installation, git availability, and managed repo sync
+  are deferred maintenance and must not block Core, Domain module, or family
+  runtime provider readiness on first launch.
 
 The older automatic path is still valid for standard-only releases: pushing a
 `v<version>` tag triggers **Build and Release**. After that completes, run

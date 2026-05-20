@@ -34,7 +34,14 @@ const checks = [
   {
     id: 'first_run_vm_download_repo',
     file: '.github/workflows/opl-first-run-vm.yml',
-    required: ['--repo "$GITHUB_REPOSITORY"'],
+    required: [
+      '--repo "$GITHUB_REPOSITORY"',
+      'One-Person-Lab-Full-*-mac-arm64.dmg',
+      '--smoke-profile no-clt-clean-vm',
+      '--display 1920x1080px',
+      '--settings-smoke',
+      '--runtime-profile full',
+    ],
     forbidden: ['--repo gaofeng21cn/one-person-lab'],
   },
   {

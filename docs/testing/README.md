@@ -74,7 +74,11 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   `shells/aionui/src/common/config/oplProductProfile.generated.json`.
 - Full first-install package: `npm run release:full -- --version <version>`.
 - GUI smoke: installed `/Applications/One Person Lab.app` smoke or the App repo
-  VM workflow.
+  VM workflow. The release-blocking Full first-install VM gate uses a clean
+  no-CLT Tart base, the Full DMG, `1920x1080px`, Codex/OpenAI API key wizard
+  submission, Settings page coverage, and Full runtime readiness. CLT, git, and
+  managed repo sync are deferred maintenance and must not block Core, Domain
+  module, or family runtime provider readiness.
 - Docker/WebUI: build from `shells/aionui/Dockerfile` and verify the WebUI
   starts against the Framework runtime surfaces.
 

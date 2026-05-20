@@ -94,8 +94,10 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
         'npm run test:opl-first-run-vm:tart --',
         '--source-vm opl-first-run-no-clt-clean-base',
         `--dmg dist/opl-full-release/One-Person-Lab-Full-${options.version}-mac-arm64.dmg`,
+        '--smoke-profile no-clt-clean-vm',
         '--display 1920x1080px',
         '--settings-smoke',
+        '--runtime-profile full',
       ].join(' '),
       required_for: ['full_first_install'],
     });
