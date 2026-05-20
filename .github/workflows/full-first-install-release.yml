@@ -122,13 +122,6 @@ jobs:
           ref: main
           path: ui-ux-pro-max-skill
 
-      - name: Checkout MinerU Ecosystem
-        uses: actions/checkout@v4
-        with:
-          repository: opendatalab/MinerU-Ecosystem
-          ref: main
-          path: MinerU-Ecosystem
-
       - name: Resolve release version
         shell: bash
         run: |

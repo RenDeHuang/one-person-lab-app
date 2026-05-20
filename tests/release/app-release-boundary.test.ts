@@ -150,6 +150,10 @@ function walkFiles(dir) {
   return files;
 }
 
+function matchCount(source, pattern) {
+  return Array.from(source.matchAll(pattern)).length;
+}
+
 test('release boundary guard keeps App release ownership in App repo', () => {
   const result = runNode(['scripts/validate-release-boundary.ts']);
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -822,6 +826,42 @@ test('release automation workflows cover remote verification, Full cache warmup,
     releaseContract.release_acceleration.github_actions.promote_workflow,
     '.github/workflows/desktop-release-promote.yml',
   );
+});
+
+test('Full first-install workflow has one MinerU checkout and keeps standalone binary build path', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
+
+  assert.equal(matchCount(workflow, /name: Checkout MinerU Ecosystem/g), 1);
+  assert.equal(matchCount(workflow, /repository: opendatalab\/MinerU-Ecosystem/g), 1);
+  assert.equal(matchCount(workflow, /path: MinerU-Ecosystem/g), 1);
+  assert.match(workflow, /mineru_root="\$GITHUB_WORKSPACE\/MinerU-Ecosystem\/cli\/mineru-open-api"/);
+  assert.match(workflow, /cd "\$mineru_root"[\s\S]*go install -ldflags/);
+  assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.version=\$mineru_version/);
+  assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.commit=\$mineru_commit/);
+  assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.date=\$mineru_built_at/);
+});
+
+test('Full release docs publish size policy and remote verifier budget boundaries', () => {
+  const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
+  const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
+  const combinedDocs = `${releaseDocs}\n${scriptsDocs}`;
+
+  for (const expected of [
+    'Full size policy',
+    'compressed DMG size',
+    'uncompressed runtime size',
+    'layer breakdown',
+    'remote verifier size budget',
+  ]) {
+    assert.match(combinedDocs, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
+  }
+
+  assert.match(releaseDocs, /Full size policy/i);
+  assert.match(releaseDocs, /compressed DMG size/i);
+  assert.match(releaseDocs, /uncompressed runtime size/i);
+  assert.match(releaseDocs, /layer breakdown/i);
+  assert.match(releaseDocs, /remote verifier size budget/i);
+  assert.match(scriptsDocs, /verify-remote-release-assets\.ts[\s\S]*remote verifier size budget/i);
 });
 
 test('manual build workflow keeps cross-platform builds behind an explicit switch', () => {

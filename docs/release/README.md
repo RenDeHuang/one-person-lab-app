@@ -107,6 +107,27 @@ runtime exclusion policy. Use `--print-runtime-cache-keys` for a fast
 preflight, `OPL_FULL_RUNTIME_CACHE_MODE=readonly` to consume existing layers
 without writing, or `OPL_FULL_RUNTIME_CACHE_MODE=off` for a clean rebuild.
 
+## Full size policy
+
+The Full first-install package is allowed to be materially larger than the
+standard updater DMG because it carries the declared offline runtime payload.
+Release review should track three size surfaces for every Full build:
+
+- compressed DMG size: the GitHub Release asset size for
+  `One-Person-Lab-Full-<version>-mac-arm64.dmg`.
+- uncompressed runtime size: the installed
+  `One Person Lab.app/Contents/Resources/opl-full-runtime` payload size.
+- layer breakdown: the manifest/runtime-cache split for framework runtime,
+  domain runtime modules, companion tools, skills, and packaging metadata.
+
+The remote verifier size budget is the release-time guardrail for the published
+compressed asset. `scripts/verify-remote-release-assets.ts` compares the GitHub
+asset size against the downloaded file size and the recorded `sha256:` digest;
+when Full is included, review the verification summary together with the
+manifest layer breakdown before promoting or refreshing the release. Treat size
+growth as acceptable only when it is explained by an intentional layer change,
+not by duplicated checkouts, stale runtime payloads, or standard-updater leakage.
+
 Publishing to an existing tag is intentional for Full first-install refreshes:
 `scripts/publish-release.ts` uses `gh release upload --clobber`, so the same
 `v<version>` tag can receive rebuilt Full assets after the standard App release
