@@ -99,16 +99,36 @@ function writeStandardRemoteAssets(outDir, version, options = {}) {
   return names;
 }
 
-function writeFullRemoteAssets(outDir, version) {
+function writeFullRemoteAssets(outDir, version, options = {}) {
   const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const manifest = {
+    manifest_version: 2,
     version,
     package_kind: 'opl_full_first_install_macos_arm64',
+    size_budget: {
+      platform_scope: 'macos-arm64',
+      max_full_dmg_bytes: 450000000,
+      max_runtime_uncompressed_bytes: 800000000,
+    },
+    measurement_policy: {
+      full_dmg_bytes: 'github_release_asset_size_bytes',
+      runtime_uncompressed_bytes: 'manifest_size_breakdown_total_runtime_uncompressed_bytes',
+    },
+    size_breakdown: {
+      total_runtime_uncompressed_bytes: 128,
+      layers: {
+        toolchain: { size_bytes: 64 },
+        'domain-runtime': { size_bytes: 32 },
+        'opl-runtime': { size_bytes: 24 },
+        skills: { size_bytes: 8 },
+      },
+    },
     distribution: {
       updater_metadata_allowed: false,
     },
+    ...(options.manifest ?? {}),
   };
-  writeFile(path.join(outDir, fullDmgName), 'full-dmg');
+  writeFile(path.join(outDir, fullDmgName), options.dmgContent ?? 'full-dmg');
   writeFile(path.join(outDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   writeFile(path.join(outDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   const checksumNames = [
@@ -384,6 +404,11 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.download_dir, tempRoot);
   assert.equal(summary.verified_asset_count, names.length);
   assert.deepEqual(summary.verified_assets.map((asset) => asset.name), names);
+  assert.equal(summary.full_first_install_budget.status, 'passed');
+  assert.equal(summary.full_first_install_budget.platform_scope, 'macos-arm64');
+  assert.equal(summary.full_first_install_budget.max_full_dmg_bytes, 450000000);
+  assert.equal(summary.full_first_install_budget.full_dmg_size_bytes, Buffer.byteLength('full-dmg'));
+  assert.equal(summary.full_first_install_budget.runtime_uncompressed_bytes, 128);
 });
 
 test('remote release verifier rejects standard updater metadata that references Full assets', () => {
@@ -409,6 +434,44 @@ test('remote release verifier rejects standard updater metadata that references 
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /latest-mac\.yml references Full first-install assets/);
+});
+
+test('remote release verifier fails closed when Full size budget is exceeded', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-budget-'));
+  const version = '26.5.19-budget';
+  const names = [
+    ...writeStandardRemoteAssets(tempRoot, version),
+    ...writeFullRemoteAssets(tempRoot, version, {
+      dmgContent: 'oversized-full-dmg',
+      manifest: {
+        size_budget: {
+          platform_scope: 'macos-arm64',
+          max_full_dmg_bytes: 4,
+          max_runtime_uncompressed_bytes: 800000000,
+        },
+      },
+    }),
+  ];
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version',
+    version,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--include-full-package',
+    '--download-dir',
+    tempRoot,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Full DMG size budget exceeded/);
 });
 
 test('release plan exposes parallel lanes and the serialized no-CLT VM gate', () => {
@@ -783,6 +846,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'standard_updater_metadata',
       'full_sha256sums',
       'full_manifest_distribution_boundary',
+      'full_manifest_size_budget',
+      'full_release_asset_size_budget',
+      'full_runtime_uncompressed_size_budget',
       'full_readme_english_only',
     ],
   );
@@ -951,6 +1017,22 @@ test('Full first-install manifest declares App-owned distribution and Framework 
   const mod = await import('../../scripts/full-first-install-package.ts');
   const manifest = mod.buildFullPackageManifest({ version: '26.5.15' });
 
+  assert.equal(manifest.manifest_version, 2);
+  assert.deepEqual(manifest.size_budget, {
+    platform_scope: 'macos-arm64',
+    max_full_dmg_bytes: 450000000,
+    max_runtime_uncompressed_bytes: 800000000,
+  });
+  assert.deepEqual(manifest.measurement_policy, {
+    full_dmg_bytes: 'github_release_asset_size_bytes',
+    runtime_uncompressed_bytes: 'manifest_size_breakdown_total_runtime_uncompressed_bytes',
+  });
+  assert.deepEqual(Object.keys(manifest.size_breakdown.layers), [
+    'toolchain',
+    'domain-runtime',
+    'opl-runtime',
+    'skills',
+  ]);
   assert.equal(manifest.distribution.owner_repo, 'gaofeng21cn/one-person-lab-app');
   assert.equal(manifest.distribution.updater_metadata_allowed, false);
   assert.equal(

@@ -332,6 +332,59 @@ function directorySizeBytes(root) {
   return total;
 }
 
+function directoryChildSizes(root) {
+  if (!fs.existsSync(root)) {
+    return {};
+  }
+  return Object.fromEntries(
+    fs.readdirSync(root)
+      .sort()
+      .map((entry) => [
+        entry,
+        {
+          relative_path: entry,
+          size_bytes: directorySizeBytes(path.join(root, entry)),
+        },
+      ]),
+  );
+}
+
+function sizeBreakdownEntry(runtimeRoot, relativePath, children = undefined) {
+  const absolutePath = path.join(runtimeRoot, ...relativePath.split('/').filter(Boolean));
+  return {
+    relative_path: relativePath,
+    size_bytes: directorySizeBytes(absolutePath),
+    ...(children ? { children } : {}),
+  };
+}
+
+function collectFullRuntimeSizeBreakdown(runtimeRoot) {
+  return {
+    measurement_policy: 'uncompressed_file_bytes_after_full_runtime_pruning',
+    total_runtime_uncompressed_bytes: directorySizeBytes(runtimeRoot),
+    layers: {
+      toolchain: {
+        relative_paths: ['bin', 'node', 'python', 'uv'],
+        size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin'))
+          + directorySizeBytes(path.join(runtimeRoot, 'node'))
+          + directorySizeBytes(path.join(runtimeRoot, 'python'))
+          + directorySizeBytes(path.join(runtimeRoot, 'uv')),
+        children: {
+          bin: sizeBreakdownEntry(runtimeRoot, 'bin', directoryChildSizes(path.join(runtimeRoot, 'bin'))),
+          node: sizeBreakdownEntry(runtimeRoot, 'node'),
+          python: sizeBreakdownEntry(runtimeRoot, 'python'),
+          uv: sizeBreakdownEntry(runtimeRoot, 'uv'),
+        },
+      },
+      'domain-runtime': sizeBreakdownEntry(runtimeRoot, 'modules', directoryChildSizes(path.join(runtimeRoot, 'modules'))),
+      'opl-runtime': sizeBreakdownEntry(runtimeRoot, 'opl', {
+        'node_modules': sizeBreakdownEntry(runtimeRoot, 'opl/node_modules'),
+      }),
+      skills: sizeBreakdownEntry(runtimeRoot, 'skills', directoryChildSizes(path.join(runtimeRoot, 'skills'))),
+    },
+  };
+}
+
 function copyTreeFiltered(sourceRoot, targetRoot, runtimePrefix) {
   fs.rmSync(targetRoot, { recursive: true, force: true });
   fs.mkdirSync(targetRoot, { recursive: true });
@@ -869,6 +922,37 @@ function buildSkillsLayer(layerRoot, options) {
   copyRecommendedSkills(path.join(layerRoot, 'skills'), options);
 }
 
+function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components) {
+  const manifestDir = path.join(runtimeRoot, 'manifest');
+  const manifestPath = path.join(manifestDir, 'full-package-manifest.json');
+  fs.mkdirSync(manifestDir, { recursive: true });
+
+  let manifest = buildFullPackageManifest({
+    version: options.version,
+    generatedAt: packagedAt,
+    components,
+  });
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+    const sizeBreakdown = collectFullRuntimeSizeBreakdown(runtimeRoot);
+    const nextManifest = buildFullPackageManifest({
+      version: options.version,
+      generatedAt: packagedAt,
+      components,
+      sizeBreakdown,
+    });
+    fs.writeFileSync(manifestPath, `${JSON.stringify(nextManifest, null, 2)}\n`, 'utf8');
+
+    if (JSON.stringify(sizeBreakdown) === JSON.stringify(collectFullRuntimeSizeBreakdown(runtimeRoot))) {
+      return nextManifest;
+    }
+    manifest = nextManifest;
+  }
+
+  throw new Error('Full runtime manifest size_breakdown did not stabilize.');
+}
+
 function prepareRuntime(options, sources) {
   const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-runtime-'));
   const runtimeRoot = path.join(stagingRoot, 'current');
@@ -909,13 +993,7 @@ function prepareRuntime(options, sources) {
     skills: { source_path: path.join(os.homedir(), '.codex', 'skills'), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'skills')) },
   };
 
-  const manifest = buildFullPackageManifest({
-    version: options.version,
-    generatedAt: packagedAt,
-    components,
-  });
-  fs.mkdirSync(path.join(runtimeRoot, 'manifest'), { recursive: true });
-  fs.writeFileSync(path.join(runtimeRoot, 'manifest', 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  const manifest = writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components);
 
   return {
     stagingRoot,

@@ -185,6 +185,20 @@ function assertStandardMetadata(downloadDir, version) {
   }
 }
 
+function assertPlainObject(value, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} must be an object.`);
+  }
+  return value;
+}
+
+function assertSafePositiveInteger(value, label) {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${label} must be a positive integer.`);
+  }
+  return value;
+}
+
 function parseSha256Sums(text) {
   const entries = new Map();
   for (const line of text.split(/\r?\n/)) {
@@ -201,7 +215,58 @@ function parseSha256Sums(text) {
   return entries;
 }
 
-function assertFullAssets(downloadDir, version) {
+function readFullRuntimeUncompressedBytes(manifest) {
+  const sizeBreakdown = assertPlainObject(manifest?.size_breakdown, 'Full manifest size_breakdown');
+  return assertSafePositiveInteger(
+    sizeBreakdown.total_runtime_uncompressed_bytes,
+    'Full manifest size_breakdown.total_runtime_uncompressed_bytes',
+  );
+}
+
+function assertFullSizeBudget(manifest, fullDmgAssetSize) {
+  if (manifest?.manifest_version !== 2) {
+    throw new Error(`Full manifest must declare manifest_version=2; got ${manifest?.manifest_version}`);
+  }
+
+  const sizeBudget = assertPlainObject(manifest.size_budget, 'Full manifest size_budget');
+  const measurementPolicy = assertPlainObject(manifest.measurement_policy, 'Full manifest measurement_policy');
+  if (sizeBudget.platform_scope !== 'macos-arm64') {
+    throw new Error(`Full size budget platform_scope must be macos-arm64; got ${sizeBudget.platform_scope}`);
+  }
+  if (measurementPolicy.full_dmg_bytes !== 'github_release_asset_size_bytes') {
+    throw new Error(`Full measurement policy full_dmg_bytes must be github_release_asset_size_bytes; got ${measurementPolicy.full_dmg_bytes}`);
+  }
+  if (measurementPolicy.runtime_uncompressed_bytes !== 'manifest_size_breakdown_total_runtime_uncompressed_bytes') {
+    throw new Error(`Full measurement policy runtime_uncompressed_bytes must be manifest_size_breakdown_total_runtime_uncompressed_bytes; got ${measurementPolicy.runtime_uncompressed_bytes}`);
+  }
+
+  const maxFullDmgBytes = assertSafePositiveInteger(sizeBudget.max_full_dmg_bytes, 'Full manifest size_budget.max_full_dmg_bytes');
+  const maxRuntimeUncompressedBytes = assertSafePositiveInteger(
+    sizeBudget.max_runtime_uncompressed_bytes,
+    'Full manifest size_budget.max_runtime_uncompressed_bytes',
+  );
+  const runtimeUncompressedBytes = readFullRuntimeUncompressedBytes(manifest);
+
+  if (fullDmgAssetSize > maxFullDmgBytes) {
+    throw new Error(`Full DMG size budget exceeded: ${fullDmgAssetSize} > ${maxFullDmgBytes}`);
+  }
+  if (runtimeUncompressedBytes > maxRuntimeUncompressedBytes) {
+    throw new Error(`Full runtime uncompressed size budget exceeded: ${runtimeUncompressedBytes} > ${maxRuntimeUncompressedBytes}`);
+  }
+
+  return {
+    status: 'passed',
+    platform_scope: sizeBudget.platform_scope,
+    full_dmg_bytes_policy: measurementPolicy.full_dmg_bytes,
+    runtime_uncompressed_bytes_policy: measurementPolicy.runtime_uncompressed_bytes,
+    max_full_dmg_bytes: maxFullDmgBytes,
+    max_runtime_uncompressed_bytes: maxRuntimeUncompressedBytes,
+    full_dmg_size_bytes: fullDmgAssetSize,
+    runtime_uncompressed_bytes: runtimeUncompressedBytes,
+  };
+}
+
+function assertFullAssets(downloadDir, version, verifiedAssets) {
   const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const checksumEntries = parseSha256Sums(readText(path.join(downloadDir, 'SHA256SUMS.txt')));
   for (const name of [fullDmgName, 'full-package-manifest.json', 'README-Full-First-Install.txt']) {
@@ -230,6 +295,12 @@ function assertFullAssets(downloadDir, version) {
   if (/[\u3400-\u9fff]/.test(readme)) {
     throw new Error('README-Full-First-Install.txt must remain English-only.');
   }
+
+  const fullDmgAsset = verifiedAssets.find((asset) => asset.name === fullDmgName);
+  if (!fullDmgAsset) {
+    throw new Error(`Verified assets are missing ${fullDmgName}.`);
+  }
+  return assertFullSizeBudget(manifest, fullDmgAsset.size);
 }
 
 function verifyDownloadedAssets(releaseView, options, names, downloadDir) {
@@ -266,10 +337,14 @@ function verifyDownloadedAssets(releaseView, options, names, downloadDir) {
   }
 
   assertStandardMetadata(downloadDir, options.version);
+  let fullFirstInstallBudget = null;
   if (options.includeFullPackage) {
-    assertFullAssets(downloadDir, options.version);
+    fullFirstInstallBudget = assertFullAssets(downloadDir, options.version, verified);
   }
-  return verified;
+  return {
+    verified,
+    fullFirstInstallBudget,
+  };
 }
 
 function writeSummary(summaryPath, summary) {
@@ -291,7 +366,7 @@ function main() {
   }
 
   downloadAssets(options, names, downloadDir);
-  const verifiedAssets = verifyDownloadedAssets(releaseView, options, names, downloadDir);
+  const verification = verifyDownloadedAssets(releaseView, options, names, downloadDir);
   const summary = {
     status: 'passed',
     repo: options.repo,
@@ -299,8 +374,11 @@ function main() {
     version: options.version,
     include_full_package: options.includeFullPackage,
     download_dir: options.keepDownload || options.noDownload ? downloadDir : null,
-    verified_asset_count: verifiedAssets.length,
-    verified_assets: verifiedAssets,
+    verified_asset_count: verification.verified.length,
+    verified_assets: verification.verified,
+    ...(verification.fullFirstInstallBudget
+      ? { full_first_install_budget: verification.fullFirstInstallBudget }
+      : {}),
   };
   writeSummary(options.summaryPath, summary);
   console.log(JSON.stringify(summary, null, 2));

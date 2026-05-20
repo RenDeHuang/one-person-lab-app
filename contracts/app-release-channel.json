@@ -30,6 +30,15 @@
     "updater_visible": false,
     "validation_required": true,
     "generated_companion_text_language": "en",
+    "size_budget": {
+      "platform_scope": "macos-arm64",
+      "max_full_dmg_bytes": 450000000,
+      "max_runtime_uncompressed_bytes": 800000000
+    },
+    "measurement_policy": {
+      "full_dmg_bytes": "github_release_asset_size_bytes",
+      "runtime_uncompressed_bytes": "manifest_size_breakdown_total_runtime_uncompressed_bytes"
+    },
     "same_tag_refresh": {
       "allowed": true,
       "mode": "github_release_upload_clobber",
@@ -106,6 +115,9 @@
         "standard_updater_metadata",
         "full_sha256sums",
         "full_manifest_distribution_boundary",
+        "full_manifest_size_budget",
+        "full_release_asset_size_budget",
+        "full_runtime_uncompressed_size_budget",
         "full_readme_english_only"
       ]
     },

@@ -12,6 +12,15 @@ export const FULL_RUNTIME_RESOURCE_DIR = 'opl-full-runtime';
 export const PACKAGED_MODULE_MARKER_FILE = 'opl-runtime-module.json';
 export const FULL_RUNTIME_CACHE_LAYOUT_VERSION = 1;
 export const FULL_RUNTIME_CACHE_LAYER_IDS = ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'] as const;
+export const FULL_PACKAGE_SIZE_BUDGET = {
+  platform_scope: 'macos-arm64',
+  max_full_dmg_bytes: 450000000,
+  max_runtime_uncompressed_bytes: 800000000,
+} as const;
+export const FULL_PACKAGE_MEASUREMENT_POLICY = {
+  full_dmg_bytes: 'github_release_asset_size_bytes',
+  runtime_uncompressed_bytes: 'manifest_size_breakdown_total_runtime_uncompressed_bytes',
+} as const;
 
 export type FullRuntimeCacheLayerId = typeof FULL_RUNTIME_CACHE_LAYER_IDS[number];
 
@@ -27,6 +36,7 @@ type FullPackageManifestInput = Partial<{
   version: string;
   generatedAt: string;
   components: Record<string, ComponentSnapshot>;
+  sizeBreakdown: unknown;
 }>;
 
 function normalizeVersion(version?: string) {
@@ -144,11 +154,22 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
   const productProfile = readAppProductProfile();
 
   return {
-    manifest_version: 1,
+    manifest_version: 2,
     package_kind: 'opl_full_first_install_macos_arm64',
     version,
     arch: 'macos-arm64',
     generated_at: input.generatedAt ?? new Date().toISOString(),
+    size_budget: FULL_PACKAGE_SIZE_BUDGET,
+    measurement_policy: FULL_PACKAGE_MEASUREMENT_POLICY,
+    size_breakdown: input.sizeBreakdown ?? {
+      total_runtime_uncompressed_bytes: 0,
+      layers: {
+        toolchain: { size_bytes: 0 },
+        'domain-runtime': { size_bytes: 0 },
+        'opl-runtime': { size_bytes: 0 },
+        skills: { size_bytes: 0 },
+      },
+    },
     runtime: {
       layout_version: 1,
       payload_resource_dir: FULL_RUNTIME_RESOURCE_DIR,

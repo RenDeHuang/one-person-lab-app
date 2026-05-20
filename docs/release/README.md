@@ -120,13 +120,17 @@ Release review should track three size surfaces for every Full build:
 - layer breakdown: the manifest/runtime-cache split for framework runtime,
   domain runtime modules, companion tools, skills, and packaging metadata.
 
-The remote verifier size budget is the release-time guardrail for the published
-compressed asset. `scripts/verify-remote-release-assets.ts` compares the GitHub
-asset size against the downloaded file size and the recorded `sha256:` digest;
-when Full is included, review the verification summary together with the
-manifest layer breakdown before promoting or refreshing the release. Treat size
-growth as acceptable only when it is explained by an intentional layer change,
-not by duplicated checkouts, stale runtime payloads, or standard-updater leakage.
+The remote verifier size budget is the release-time guardrail for both the
+published compressed asset and the packaged runtime payload. With Full included,
+`scripts/verify-remote-release-assets.ts` requires manifest v2, enforces
+`platform_scope=macos-arm64`, checks the GitHub Full DMG asset size against
+`max_full_dmg_bytes=450000000`, and checks
+`size_breakdown.total_runtime_uncompressed_bytes` against
+`max_runtime_uncompressed_bytes=800000000`. It also compares the GitHub asset
+size against the downloaded file size and the recorded `sha256:` digest. Treat
+size growth as acceptable only when it is explained by an intentional layer
+change, not by duplicated checkouts, stale runtime payloads, or standard-updater
+leakage.
 
 Publishing to an existing tag is intentional for Full first-install refreshes:
 `scripts/publish-release.ts` uses `gh release upload --clobber`, so the same
