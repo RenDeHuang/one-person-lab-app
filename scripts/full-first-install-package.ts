@@ -303,7 +303,7 @@ const EXCLUDED_RUNTIME_PATH_PATTERNS = [
   /^hermes\/(?:web|ui|frontend)(?:\/|$)/,
   /^hermes\/tests?(?:\/|$)/,
   /^hermes\/.*(?:voice|tts|telegram|discord|slack|matrix|dingtalk|feishu)/,
-  /^modules\/[^/]+\/\.venv\/bin(?:\/|$)/,
+  /^modules\/[^/]+\/\.venv(?:\/|$)/,
   /^modules\/[^/]+\/tests?(?:\/|$)/,
   /^modules\/[^/]+\/(?:htmlcov|docs\/_build|notebooks|runtime|runs|sessions|\.ds)(?:\/|$)/,
   /^opl\/node_modules(?:\/|$)/,

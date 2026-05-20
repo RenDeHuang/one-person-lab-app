@@ -27,6 +27,7 @@ import { writeRuntimeWrappers } from './full-first-install-runtime-wrappers.ts';
 
 const appRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const workspaceRoot = path.dirname(appRepoRoot);
+const MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET = 'aarch64-apple-darwin';
 
 function defaultRuntimeCacheDir() {
   if (process.env.OPL_FULL_RUNTIME_CACHE_DIR?.trim()) {
@@ -482,6 +483,48 @@ function copyProductionNodeModules(sourceRoot, targetRoot) {
   }
 }
 
+function temporalCoreBridgeReleasesRoot(nodeModulesRoot) {
+  return path.join(nodeModulesRoot, '@temporalio', 'core-bridge', 'releases');
+}
+
+function listTemporalCoreBridgeReleases(nodeModulesRoot) {
+  const releasesRoot = temporalCoreBridgeReleasesRoot(nodeModulesRoot);
+  if (!fs.existsSync(releasesRoot)) {
+    return [];
+  }
+  return fs.readdirSync(releasesRoot)
+    .filter((entry) => fs.statSync(path.join(releasesRoot, entry)).isDirectory())
+    .sort();
+}
+
+function pruneTemporalCoreBridgeReleases(nodeModulesRoot) {
+  const releasesRoot = temporalCoreBridgeReleasesRoot(nodeModulesRoot);
+  if (!fs.existsSync(releasesRoot)) {
+    return;
+  }
+  for (const releaseName of fs.readdirSync(releasesRoot)) {
+    if (releaseName === MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET) {
+      continue;
+    }
+    fs.rmSync(path.join(releasesRoot, releaseName), { recursive: true, force: true });
+  }
+}
+
+function assertTemporalCoreBridgeMacosArm64Only(nodeModulesRoot) {
+  const releasesRoot = temporalCoreBridgeReleasesRoot(nodeModulesRoot);
+  const releases = listTemporalCoreBridgeReleases(nodeModulesRoot);
+  if (!releases.includes(MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET)) {
+    throw new Error(`Full runtime Temporal core-bridge is missing ${MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET}.`);
+  }
+  if (releases.length !== 1) {
+    throw new Error(`Full runtime Temporal core-bridge must include only ${MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET}; found ${releases.join(', ')}.`);
+  }
+  const nativeModule = path.join(releasesRoot, MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET, 'index.node');
+  if (!fs.existsSync(nativeModule)) {
+    throw new Error(`Full runtime Temporal core-bridge native module missing: ${nativeModule}`);
+  }
+}
+
 function copySkillDirectory(sourceRoot, targetRoot, skillName) {
   if (!fs.existsSync(path.join(sourceRoot, 'SKILL.md'))) {
     throw new Error(`Skill source missing SKILL.md for ${skillName}: ${sourceRoot}`);
@@ -819,6 +862,7 @@ function buildOplLayer(layerRoot, options) {
   const targetRoot = path.join(layerRoot, 'opl');
   copyTreeFiltered(options.frameworkRoot, targetRoot, 'opl');
   copyProductionNodeModules(options.frameworkRoot, targetRoot);
+  pruneTemporalCoreBridgeReleases(path.join(targetRoot, 'node_modules'));
 }
 
 function buildSkillsLayer(layerRoot, options) {
@@ -847,11 +891,12 @@ function prepareRuntime(options, sources) {
     }),
   ];
   assertOplRuntimeProductionDependencies(path.join(runtimeRoot, 'opl'));
+  assertTemporalCoreBridgeMacosArm64Only(path.join(runtimeRoot, 'opl', 'node_modules'));
   writeDomainMarkers(runtimeRoot, options, packagedAt);
 
   const components = {
     opl: { source_path: options.frameworkRoot, git_commit: readGitHead(options.frameworkRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'opl')) },
-    codex: { source_path: sources.codexRoot, version: commandOutput(path.join(runtimeRoot, 'bin', 'codex'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin')) },
+    codex: { source_path: sources.codexRoot, version: commandOutput(path.join(runtimeRoot, 'bin', 'codex'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'codex')) },
     mas: { source_path: options.masRoot, git_commit: readGitHead(options.masRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mas')) },
     mag: { source_path: options.magRoot, git_commit: readGitHead(options.magRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mag')) },
     rca: { source_path: options.rcaRoot, git_commit: readGitHead(options.rcaRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'rca')) },
