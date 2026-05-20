@@ -26,12 +26,24 @@
         "command_line_tools_install",
         "ecosystem_module_updates"
       ],
+      "release_gate": true,
+      "vm": {
+        "source": "clean no-CLT Tart base clone",
+        "display": "1920x1080px",
+        "smoke_profile": "no-clt-clean-vm",
+        "settings_smoke": true,
+        "runtime_profile": "full"
+      },
       "expects": [
+        "Full DMG is installed into /Applications on first launch",
+        "Codex/OpenAI API key configuration wizard is seen and submitted",
+        "Settings pages are navigable after first-run initialization",
         "Full runtime payload is materialized",
         "Core ready is reached from bundled runtime without requiring host CLT, Homebrew, Node, or Git",
         "repo sync, module reconcile, CLT installation, and ecosystem module updates are deferred background maintenance",
         "Codex remains the default executor path",
-        "standard state modules are visible after initialization"
+        "standard state modules are visible after initialization",
+        "Core, Domain modules, and family runtime provider readiness are not blocked by CLT, git, or managed repo sync maintenance"
       ],
       "release_evidence_artifacts": [
         "first-run.log",

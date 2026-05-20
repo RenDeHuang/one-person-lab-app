@@ -169,6 +169,10 @@ jobs:
             --artifacts artifacts/opl-first-run-vm
             --timeout-ms 900000
             --smoke-timeout-ms 900000
+            --smoke-profile no-clt-clean-vm
+            --display 1920x1080px
+            --settings-smoke
+            --runtime-profile full
           )
           if [ -n "$SSH_KEY" ]; then
             CMD+=(--ssh-key "$SSH_KEY")

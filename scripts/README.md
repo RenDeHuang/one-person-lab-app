@@ -12,6 +12,7 @@ exposes its shell-specific helpers under `shells/aionui/scripts/`.
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
+| `plan-release-candidate.ts` | Prints the release lane plan, including the serialized clean no-CLT Full first-install VM gate. |
 
 Examples:
 
@@ -23,6 +24,7 @@ node --experimental-strip-types scripts/prepare-release-assets.ts build-artifact
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run release:publish -- --no-build --version <version> --standard-artifacts-dir release-assets
 npm run verify-remote-release -- --version <version> --include-full-package
+npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --runtime-profile full
 ```
 
 Full size policy lives in `docs/release/README.md`: release review records the
@@ -31,3 +33,13 @@ compressed DMG size, uncompressed runtime size, and layer breakdown, then uses
 published GitHub Release assets. The remote verifier enforces the compressed
 Full DMG budget from the GitHub asset size and the uncompressed runtime budget
 from `full-package-manifest.json` `size_breakdown.total_runtime_uncompressed_bytes`.
+
+The clean no-CLT first-install gate is wired through
+`.github/workflows/opl-first-run-vm.yml` and the active shell Tart smoke helper.
+It downloads a `One-Person-Lab-Full-*-mac-arm64.dmg`, clones a clean no-CLT Tart
+base VM, fixes the logical display at `1920x1080px`, submits the Codex/OpenAI
+API key configuration wizard, sweeps the packaged Settings pages, and keeps
+Full runtime readiness on the release-blocking path. Command Line Tools, git
+availability, and managed repo sync are deferred maintenance and must not block
+Core, Domain module, or family runtime provider readiness for the Full
+first-run gate.

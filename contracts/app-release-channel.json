@@ -135,8 +135,22 @@
     },
     "vm_gate": {
       "source": "clean no-CLT Tart base clone",
+      "artifact": "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+      "smoke_profile": "no-clt-clean-vm",
       "display": "1920x1080px",
-      "settings_smoke": true
+      "settings_smoke": true,
+      "runtime_profile": "full",
+      "codex_config_wizard": "required_and_submitted",
+      "release_blocking_readiness": [
+        "core_ready",
+        "domain_modules_ready",
+        "family_runtime_provider_ready"
+      ],
+      "non_blocking_deferred_maintenance": [
+        "Command Line Tools installation",
+        "git availability",
+        "managed repo sync"
+      ]
     }
   },
   "operator_evidence_bundle": {
