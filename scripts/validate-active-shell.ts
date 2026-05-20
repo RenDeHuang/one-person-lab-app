@@ -323,12 +323,36 @@ function validateFirstRunMatrix(matrix, contract) {
   if (fullClean?.core_ready_source !== 'bundled_runtime') {
     throw new Error('Full first-install clean-machine scenario must reach Core ready from bundled_runtime');
   }
-  for (const item of ['repo_sync', 'module_reconcile', 'command_line_tools_install', 'ecosystem_module_updates']) {
+  const deferredMaintenanceItems = [
+    'repo_sync',
+    'module_reconcile',
+    'command_line_tools_install',
+    'companion_skills_install',
+    'ecosystem_module_updates',
+  ];
+  for (const item of deferredMaintenanceItems) {
     if (!fullClean?.background_maintenance?.includes(item)) {
       throw new Error(`Full first-install clean-machine scenario must defer ${item} to background maintenance`);
     }
   }
+  if (fullClean?.post_core_ready_background_policy?.mode !== 'best_effort_non_blocking') {
+    throw new Error('Full first-install clean-machine scenario must continue background maintenance as best-effort non-blocking work');
+  }
+  if (fullClean?.post_core_ready_background_policy?.continues_after_core_ready !== true) {
+    throw new Error('Full first-install clean-machine scenario must continue maintenance after Core ready');
+  }
+  for (const item of deferredMaintenanceItems) {
+    if (!fullClean?.post_core_ready_background_policy?.managed_items?.includes(item)) {
+      throw new Error(`Full first-install post-Core maintenance must manage ${item}`);
+    }
+  }
   const standardBootstrap = scenarioById.get('standard_app_managed_bootstrap');
+  if (standardBootstrap?.bootstrap_owner !== 'app_managed') {
+    throw new Error('Standard bootstrap scenario must declare App-managed bootstrap ownership');
+  }
+  if (standardBootstrap?.maintenance_resolution_policy !== 'app_or_cli_managed_best_effort_until_ready') {
+    throw new Error('Standard bootstrap scenario must keep App/CLI-managed maintenance responsible until host tools are ready');
+  }
   if (!standardBootstrap?.expects?.some((entry) => /App-managed bootstrap/.test(entry))) {
     throw new Error('First-run matrix must declare standard App-managed bootstrap');
   }
@@ -349,8 +373,13 @@ function validateFirstRunMatrix(matrix, contract) {
     }
   }
   const updater = scenarioById.get('updater_standard_channel');
-  if (updater?.update_policy?.download !== 'background' || updater?.update_policy?.apply !== 'restart_when_ready') {
-    throw new Error('Standard updater scenario must download in background and apply after restart when ready');
+  if (
+    updater?.update_policy?.download !== 'background'
+    || updater?.update_policy?.apply !== 'restart_when_ready'
+    || updater?.update_policy?.ready_prompt !== 'prompt_restart_after_download_ready'
+    || updater?.update_policy?.full_first_install_metadata_allowed !== false
+  ) {
+    throw new Error('Standard updater scenario must download in background, prompt for restart when ready, and exclude Full metadata');
   }
 }
 
@@ -402,7 +431,14 @@ function validateProductProfile(profile) {
   if (fullFirstInstall?.initial_runtime_source !== 'bundled_runtime' || fullFirstInstall?.core_ready_without_host_tools !== true) {
     throw new Error('Product profile Full first-install must reach Core ready through bundled_runtime without host tools');
   }
-  for (const blocker of ['repo_sync', 'module_reconcile', 'command_line_tools_install', 'ecosystem_module_updates']) {
+  const deferredMaintenanceItems = [
+    'repo_sync',
+    'module_reconcile',
+    'command_line_tools_install',
+    'companion_skills_install',
+    'ecosystem_module_updates',
+  ];
+  for (const blocker of deferredMaintenanceItems) {
     if (!fullFirstInstall?.must_not_block_core_ready?.includes(blocker)) {
       throw new Error(`Product profile Full first-install must not block Core ready on ${blocker}`);
     }
@@ -413,9 +449,32 @@ function validateProductProfile(profile) {
   if (profile.first_run?.background_maintenance?.blocks_core_ready !== false) {
     throw new Error('Product profile background maintenance must not block Core ready');
   }
+  if (
+    profile.first_run?.background_maintenance?.mode !== 'best_effort_after_core_ready'
+    || profile.first_run?.background_maintenance?.continues_after_core_ready !== true
+  ) {
+    throw new Error('Product profile background maintenance must continue best-effort after Core ready');
+  }
+  if (
+    fullFirstInstall?.post_core_ready_background_policy?.mode !== 'best_effort_non_blocking'
+    || fullFirstInstall?.post_core_ready_background_policy?.continues_after_core_ready !== true
+  ) {
+    throw new Error('Product profile Full first-install must continue best-effort maintenance after Core ready');
+  }
+  for (const blocker of deferredMaintenanceItems) {
+    if (!fullFirstInstall?.post_core_ready_background_policy?.managed_items?.includes(blocker)) {
+      throw new Error(`Product profile Full first-install post-Core maintenance must manage ${blocker}`);
+    }
+  }
   const standardPackage = profile.first_run?.core_ready_policy?.standard_package;
-  if (standardPackage?.bootstrap_owner !== 'app_managed' || standardPackage?.user_first_screen_terminal_instruction_allowed !== false) {
-    throw new Error('Product profile standard package must use App-managed bootstrap without terminal-install first-screen end states');
+  if (
+    standardPackage?.bootstrap_owner !== 'app_managed'
+    || standardPackage?.maintenance_owner !== 'app_managed'
+    || standardPackage?.user_first_screen_terminal_instruction_allowed !== false
+    || standardPackage?.manual_host_tool_install_terminal_state_allowed !== false
+    || standardPackage?.maintenance_resolution_policy !== 'app_or_cli_managed_best_effort_until_ready'
+  ) {
+    throw new Error('Product profile standard package must use App-managed bootstrap/maintenance without terminal-install end states');
   }
   for (const forbidden of ['install_homebrew_first', 'install_node_first', 'install_git_first']) {
     if (!standardPackage?.forbidden_terminal_instruction_end_states?.includes(forbidden)) {
@@ -425,15 +484,21 @@ function validateProductProfile(profile) {
   if (profile.first_run?.command_line_tools?.installer_command !== 'xcode-select --install') {
     throw new Error('Product profile CLT installer command must be xcode-select --install');
   }
+  if (profile.first_run?.command_line_tools?.system_installer_only !== true) {
+    throw new Error('Product profile CLT installer must use the macOS system installer path');
+  }
   if (profile.first_run?.command_line_tools?.waits_for_user_confirmation !== true) {
     throw new Error('Product profile CLT installer must wait for user confirmation');
   }
   if (
-    profile.first_run?.updates?.standard_channel?.download_policy !== 'background_download'
+    profile.first_run?.updates?.standard_channel?.implementation_reference !== 'electron_autoUpdater_background_download_update_downloaded_restart_prompt'
+    || profile.first_run?.updates?.standard_channel?.ready_prompt !== 'prompt_restart_after_download_ready'
+    || profile.first_run?.updates?.standard_channel?.full_first_install_metadata_allowed !== false
+    || profile.first_run?.updates?.standard_channel?.download_policy !== 'background_download'
     || profile.first_run?.updates?.standard_channel?.apply_policy !== 'restart_when_ready'
     || profile.first_run?.updates?.standard_channel?.blocks_core_ready !== false
   ) {
-    throw new Error('Product profile standard updates must download in background, apply after restart, and not block Core ready');
+    throw new Error('Product profile standard updates must download in background, prompt restart after ready, exclude Full metadata, and not block Core ready');
   }
   for (const moduleId of ['officecli', 'mineru', 'opl-meta-agent']) {
     if (!profile.companion_payloads?.ecosystem_modules?.includes(moduleId)) {

@@ -36,11 +36,15 @@ First-install policy is now contract-backed in
 `contracts/app-first-run-test-matrix.json`: Full first-install reaches Core
 ready from bundled runtime on a clean Mac without requiring CLT, Homebrew, Node,
 or Git first; repo sync, module reconcile, CLT installation, and ecosystem
-module updates are background maintenance. Standard packages prefer App-managed
-bootstrap and cannot use “install Homebrew/Node/Git first” as the first-screen
-terminal state. CLT requests use `xcode-select --install` and wait for the user
-inside Apple's installer. `officecli`, MinerU, and `opl-meta-agent` are
-App/CLI-managed ecosystem modules.
+module updates are background maintenance. Companion skills installation is
+also App/CLI-managed maintenance. After Core ready, the App continues CLT,
+companion skills, and ecosystem module work as best-effort background
+maintenance instead of blocking first launch. Standard packages prefer
+App-managed bootstrap and maintenance and cannot use “install
+Homebrew/Node/Git first” as the first-screen terminal state. CLT requests use
+`xcode-select --install` and wait for user confirmation inside Apple's system
+installer. `officecli`, MinerU, and `opl-meta-agent` are App/CLI-managed
+ecosystem modules.
 
 ## Release State
 
@@ -48,9 +52,11 @@ Standard App release assets and updater metadata are App-owned and currently
 macOS arm64-only. Full first-install assets remain explicitly separate from
 standard updater metadata. The updater must not select assets whose names
 include `Full`. Standard App updates download in the background and apply after
-restart when ready; they do not block first-run Core ready. GitHub Release
-uploads, standard DMG, Full DMG, GUI smoke, and user tutorials are all
-App-owned. The Framework repo is only a
+restart when ready; they do not block first-run Core ready. This follows the
+Electron autoUpdater background-download and download-ready restart prompt
+model. Full assets are GitHub Release first-install downloads and do not enter
+updater metadata. GitHub Release uploads, standard DMG, Full DMG, GUI smoke,
+and user tutorials are all App-owned. The Framework repo is only a
 runtime/CLI/contracts payload source for Full DMG and a machine-interface
 provider for the App.
 

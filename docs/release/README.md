@@ -14,10 +14,28 @@ normalization, GUI smoke, and user-facing release notes.
 First-install product policy is App-owned. A Full first-install package must
 reach Core ready from the bundled runtime on a clean Mac even when Apple Command
 Line Tools, Homebrew, Node, and Git are absent. Repository sync, module
-reconcile, CLT installation, and ecosystem module updates are background
-maintenance and cannot block Core ready. Standard packages should use
-App-managed bootstrap where possible; the first screen must not end by telling
-the user to install Homebrew, Node, or Git before One Person Lab can proceed.
+reconcile, CLT installation, companion skills install, and ecosystem module
+updates continue as best-effort background maintenance after Core ready and
+cannot block first launch. Standard packages should use App-managed bootstrap
+and App-managed maintenance where possible; the first screen must not end by
+telling the user to install Homebrew, Node, or Git before One Person Lab can
+proceed.
+
+The standard updater policy follows Electron's documented autoUpdater pattern:
+standard assets use background download, the App prompts for restart only after
+the update is downloaded, and the restart/install step is user visible. See
+Electron's [Updating Applications](https://www.electronjs.org/docs/latest/tutorial/updates)
+guide and [`autoUpdater`](https://www.electronjs.org/docs/latest/api/auto-updater)
+API notes for the background-download, `update-downloaded`, and
+`quitAndInstall()` flow. Full first-install assets are never written into
+`latest*.yml` updater metadata and are not an updater target.
+
+Apple Command Line Tools are a system-owned installation path. The App may
+request the installer with `xcode-select --install`, but macOS presents the
+installer and requires the user to confirm before CLT is installed. See Apple's
+[Installing the command-line tools](https://developer.apple.com/documentation/xcode/installing-the-command-line-tools/)
+documentation. CLT remains deferred maintenance; Core ready stays on the
+bundled runtime while Settings resumes Git-backed and module maintenance.
 
 The OPL Framework repository is a payload source for the Full DMG
 runtime/CLI/contracts layer. It does not own App release workflows.
@@ -229,8 +247,10 @@ CLT handling is a deferred macOS system installation path: the App requests
 and keeps Core ready on the bundled runtime while Settings resumes any pending
 Git-backed maintenance. `officecli`, MinerU, and `opl-meta-agent` are ecosystem
 modules managed through App/CLI maintenance, not shell-owned implementation
-requirements. App updates download in the background and apply after restart
-when ready; Full first-install assets remain separate release downloads.
+requirements. Companion skills are managed the same way. App updates download
+in the background and prompt for restart after the update is ready; Full
+first-install assets remain separate release downloads and are not updater
+metadata.
 
 2026-05-17 release policy: the stable App release channel publishes macOS arm64
 standard update assets only. Docker/WebUI support is validated separately
