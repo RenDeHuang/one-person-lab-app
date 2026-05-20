@@ -11,6 +11,14 @@ The App repository owns the macOS arm64 standard desktop package, Full
 first-install DMG, updater metadata, GitHub Release uploads, release asset
 normalization, GUI smoke, and user-facing release notes.
 
+First-install product policy is App-owned. A Full first-install package must
+reach Core ready from the bundled runtime on a clean Mac even when Apple Command
+Line Tools, Homebrew, Node, and Git are absent. Repository sync, module
+reconcile, CLT installation, and ecosystem module updates are background
+maintenance and cannot block Core ready. Standard packages should use
+App-managed bootstrap where possible; the first screen must not end by telling
+the user to install Homebrew, Node, or Git before One Person Lab can proceed.
+
 The OPL Framework repository is a payload source for the Full DMG
 runtime/CLI/contracts layer. It does not own App release workflows.
 
@@ -208,6 +216,14 @@ Full first-install builds run the same profile sync after runtime payload
 assembly and before the GUI build. The generated Full manifest records
 `distribution.product_profile_contract=contracts/app-product-profile.json` so
 release assets can be traced back to the App-owned contract.
+
+CLT handling is a deferred macOS system installation path: the App requests
+`xcode-select --install`, waits for the user to confirm in Apple's installer,
+and keeps Core ready on the bundled runtime while Settings resumes any pending
+Git-backed maintenance. `officecli`, MinerU, and `opl-meta-agent` are ecosystem
+modules managed through App/CLI maintenance, not shell-owned implementation
+requirements. App updates download in the background and apply after restart
+when ready; Full first-install assets remain separate release downloads.
 
 2026-05-17 release policy: the stable App release channel publishes macOS arm64
 standard update assets only. Docker/WebUI support is validated separately

@@ -197,13 +197,52 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.ok(profile.codex.default_visible_skills.includes('ui-ux-pro-max'));
   assert.ok(profile.codex.skill_priority.includes('morph-ppt'));
   assert.ok(profile.first_run.deferred_blockers.includes('domain_modules'));
+  assert.deepEqual(
+    profile.first_run.core_ready_policy.full_first_install_clean_machine.missing_host_tools_allowed,
+    ['command_line_tools', 'homebrew', 'node', 'git'],
+  );
+  assert.equal(
+    profile.first_run.core_ready_policy.full_first_install_clean_machine.initial_runtime_source,
+    'bundled_runtime',
+  );
+  assert.equal(
+    profile.first_run.core_ready_policy.full_first_install_clean_machine.core_ready_without_host_tools,
+    true,
+  );
+  assert.deepEqual(
+    profile.first_run.core_ready_policy.full_first_install_clean_machine.must_not_block_core_ready,
+    ['repo_sync', 'module_reconcile', 'command_line_tools_install', 'ecosystem_module_updates'],
+  );
+  assert.equal(profile.first_run.background_maintenance.blocks_core_ready, false);
+  assert.deepEqual(
+    profile.first_run.background_maintenance.items,
+    ['repo_sync', 'module_reconcile', 'command_line_tools_install', 'ecosystem_module_updates'],
+  );
+  assert.equal(profile.first_run.core_ready_policy.standard_package.bootstrap_owner, 'app_managed');
+  assert.equal(
+    profile.first_run.core_ready_policy.standard_package.user_first_screen_terminal_instruction_allowed,
+    false,
+  );
+  assert.deepEqual(
+    profile.first_run.core_ready_policy.standard_package.forbidden_terminal_instruction_end_states,
+    ['install_homebrew_first', 'install_node_first', 'install_git_first'],
+  );
   assert.equal(profile.first_run.command_line_tools.auto_request_installer, true);
+  assert.equal(profile.first_run.command_line_tools.installer_command, 'xcode-select --install');
+  assert.equal(profile.first_run.command_line_tools.waits_for_user_confirmation, true);
   assert.equal(profile.first_run.command_line_tools.blocks_full_first_launch, false);
   assert.match(
     profile.first_run.command_line_tools.messages.join('\n'),
     /keep using One Person Lab while that Apple installer runs/,
   );
   assert.doesNotMatch(profile.first_run.command_line_tools.messages.join('\n'), /retry setup/i);
+  assert.equal(profile.first_run.updates.standard_channel.download_policy, 'background_download');
+  assert.equal(profile.first_run.updates.standard_channel.apply_policy, 'restart_when_ready');
+  assert.equal(profile.first_run.updates.standard_channel.blocks_core_ready, false);
+  assert.deepEqual(profile.companion_payloads.ecosystem_modules, ['officecli', 'mineru', 'opl-meta-agent']);
+  assert.equal(profile.companion_payloads.management_authority.officecli, 'app_or_cli_managed');
+  assert.equal(profile.companion_payloads.management_authority.mineru, 'app_or_cli_managed');
+  assert.equal(profile.companion_payloads.management_authority['opl-meta-agent'], 'app_or_cli_managed');
   assert.ok(profile.companion_payloads.domain_modules.includes('opl-meta-agent'));
   for (const forbiddenOwner of [
     'runtime_truth',
@@ -214,6 +253,39 @@ test('App product profile owns user-facing defaults without runtime authority', 
   ]) {
     assert.ok(profile.boundary.app_does_not_own.includes(forbiddenOwner), forbiddenOwner);
   }
+});
+
+test('first-run matrix locks Full clean-machine and App-managed bootstrap rules', () => {
+  const matrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-first-run-test-matrix.json'), 'utf8'),
+  );
+  const scenarioById = new Map(matrix.scenarios.map((scenario) => [scenario.id, scenario]));
+  const fullClean = scenarioById.get('full_first_install_clean_machine');
+
+  assert.deepEqual(fullClean.clean_machine_missing_tools, ['command_line_tools', 'homebrew', 'node', 'git']);
+  assert.equal(fullClean.core_ready_source, 'bundled_runtime');
+  assert.deepEqual(fullClean.background_maintenance, [
+    'repo_sync',
+    'module_reconcile',
+    'command_line_tools_install',
+    'ecosystem_module_updates',
+  ]);
+  assert.ok(fullClean.expects.some((entry) => /without requiring host CLT, Homebrew, Node, or Git/.test(entry)));
+
+  const standardBootstrap = scenarioById.get('standard_app_managed_bootstrap');
+  assert.ok(standardBootstrap.expects.some((entry) => /App-managed bootstrap/.test(entry)));
+  assert.ok(standardBootstrap.expects.some((entry) => /does not end.*Homebrew, Node, or Git/i.test(entry)));
+
+  const clt = scenarioById.get('macos_clt_system_installer');
+  assert.equal(clt.command, 'xcode-select --install');
+  assert.ok(clt.expects.some((entry) => /user confirmation/.test(entry)));
+  assert.ok(clt.expects.some((entry) => /Core ready is not blocked/.test(entry)));
+
+  const updater = scenarioById.get('updater_standard_channel');
+  assert.deepEqual(updater.update_policy, { download: 'background', apply: 'restart_when_ready' });
+
+  const ecosystem = scenarioById.get('ecosystem_modules_app_cli_managed');
+  assert.deepEqual(ecosystem.modules, ['officecli', 'mineru', 'opl-meta-agent']);
 });
 
 test('one-shot App installer defaults to App-first core setup', () => {

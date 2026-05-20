@@ -18,8 +18,18 @@
     {
       "id": "full_first_install_clean_machine",
       "package_type": "full",
+      "clean_machine_missing_tools": ["command_line_tools", "homebrew", "node", "git"],
+      "core_ready_source": "bundled_runtime",
+      "background_maintenance": [
+        "repo_sync",
+        "module_reconcile",
+        "command_line_tools_install",
+        "ecosystem_module_updates"
+      ],
       "expects": [
         "Full runtime payload is materialized",
+        "Core ready is reached from bundled runtime without requiring host CLT, Homebrew, Node, or Git",
+        "repo sync, module reconcile, CLT installation, and ecosystem module updates are deferred background maintenance",
         "Codex remains the default executor path",
         "standard state modules are visible after initialization"
       ],
@@ -31,9 +41,42 @@
     {
       "id": "updater_standard_channel",
       "package_type": "standard",
+      "update_policy": {
+        "download": "background",
+        "apply": "restart_when_ready"
+      },
       "expects": [
         "updater reads standard metadata",
-        "Full first-install assets are excluded from update selection"
+        "Full first-install assets are excluded from update selection",
+        "updates download in the background and apply after restart when ready"
+      ]
+    },
+    {
+      "id": "standard_app_managed_bootstrap",
+      "package_type": "standard",
+      "expects": [
+        "standard package uses App-managed bootstrap where possible",
+        "first screen does not end by asking the user to install Homebrew, Node, or Git first"
+      ]
+    },
+    {
+      "id": "macos_clt_system_installer",
+      "package_type": "standard_or_full",
+      "command": "xcode-select --install",
+      "expects": [
+        "macOS Command Line Tools are requested through the system installer",
+        "user confirmation happens in Apple's installer",
+        "Core ready is not blocked while CLT installation is pending"
+      ]
+    },
+    {
+      "id": "ecosystem_modules_app_cli_managed",
+      "package_type": "standard_or_full",
+      "modules": ["officecli", "mineru", "opl-meta-agent"],
+      "expects": [
+        "officecli is managed by App or CLI maintenance",
+        "mineru is managed by App or CLI maintenance",
+        "opl-meta-agent is managed by App or CLI maintenance"
       ]
     }
   ],
