@@ -211,17 +211,55 @@ test('App product profile owns user-facing defaults without runtime authority', 
   );
   assert.deepEqual(
     profile.first_run.core_ready_policy.full_first_install_clean_machine.must_not_block_core_ready,
-    ['repo_sync', 'module_reconcile', 'command_line_tools_install', 'ecosystem_module_updates'],
+    [
+      'repo_sync',
+      'module_reconcile',
+      'command_line_tools_install',
+      'companion_skills_install',
+      'ecosystem_module_updates',
+    ],
+  );
+  assert.deepEqual(
+    profile.first_run.core_ready_policy.full_first_install_clean_machine.post_core_ready_background_policy,
+    {
+      mode: 'best_effort_non_blocking',
+      continues_after_core_ready: true,
+      managed_items: [
+        'repo_sync',
+        'module_reconcile',
+        'command_line_tools_install',
+        'companion_skills_install',
+        'ecosystem_module_updates',
+      ],
+      user_confirmation_items: ['command_line_tools_install'],
+    },
   );
   assert.equal(profile.first_run.background_maintenance.blocks_core_ready, false);
+  assert.equal(profile.first_run.background_maintenance.mode, 'best_effort_after_core_ready');
+  assert.equal(profile.first_run.background_maintenance.continues_after_core_ready, true);
   assert.deepEqual(
     profile.first_run.background_maintenance.items,
-    ['repo_sync', 'module_reconcile', 'command_line_tools_install', 'ecosystem_module_updates'],
+    [
+      'repo_sync',
+      'module_reconcile',
+      'command_line_tools_install',
+      'companion_skills_install',
+      'ecosystem_module_updates',
+    ],
   );
   assert.equal(profile.first_run.core_ready_policy.standard_package.bootstrap_owner, 'app_managed');
+  assert.equal(profile.first_run.core_ready_policy.standard_package.maintenance_owner, 'app_managed');
   assert.equal(
     profile.first_run.core_ready_policy.standard_package.user_first_screen_terminal_instruction_allowed,
     false,
+  );
+  assert.equal(
+    profile.first_run.core_ready_policy.standard_package.manual_host_tool_install_terminal_state_allowed,
+    false,
+  );
+  assert.equal(
+    profile.first_run.core_ready_policy.standard_package.maintenance_resolution_policy,
+    'app_or_cli_managed_best_effort_until_ready',
   );
   assert.deepEqual(
     profile.first_run.core_ready_policy.standard_package.forbidden_terminal_instruction_end_states,
@@ -229,6 +267,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   );
   assert.equal(profile.first_run.command_line_tools.auto_request_installer, true);
   assert.equal(profile.first_run.command_line_tools.installer_command, 'xcode-select --install');
+  assert.equal(profile.first_run.command_line_tools.system_installer_only, true);
   assert.equal(profile.first_run.command_line_tools.waits_for_user_confirmation, true);
   assert.equal(profile.first_run.command_line_tools.blocks_full_first_launch, false);
   assert.match(
@@ -236,8 +275,18 @@ test('App product profile owns user-facing defaults without runtime authority', 
     /keep using One Person Lab while that Apple installer runs/,
   );
   assert.doesNotMatch(profile.first_run.command_line_tools.messages.join('\n'), /retry setup/i);
+  assert.equal(
+    profile.first_run.updates.standard_channel.implementation_reference,
+    'electron_autoUpdater_background_download_update_downloaded_restart_prompt',
+  );
+  assert.deepEqual(profile.first_run.updates.standard_channel.metadata_scope, [
+    'latest-mac.yml',
+    'latest-arm64-mac.yml',
+  ]);
   assert.equal(profile.first_run.updates.standard_channel.download_policy, 'background_download');
   assert.equal(profile.first_run.updates.standard_channel.apply_policy, 'restart_when_ready');
+  assert.equal(profile.first_run.updates.standard_channel.ready_prompt, 'prompt_restart_after_download_ready');
+  assert.equal(profile.first_run.updates.standard_channel.full_first_install_metadata_allowed, false);
   assert.equal(profile.first_run.updates.standard_channel.blocks_core_ready, false);
   assert.deepEqual(profile.companion_payloads.ecosystem_modules, ['officecli', 'mineru', 'opl-meta-agent']);
   assert.equal(profile.companion_payloads.management_authority.officecli, 'app_or_cli_managed');
@@ -268,13 +317,32 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
     'repo_sync',
     'module_reconcile',
     'command_line_tools_install',
+    'companion_skills_install',
     'ecosystem_module_updates',
   ]);
+  assert.deepEqual(fullClean.post_core_ready_background_policy, {
+    mode: 'best_effort_non_blocking',
+    continues_after_core_ready: true,
+    managed_items: [
+      'repo_sync',
+      'module_reconcile',
+      'command_line_tools_install',
+      'companion_skills_install',
+      'ecosystem_module_updates',
+    ],
+  });
   assert.ok(fullClean.expects.some((entry) => /without requiring host CLT, Homebrew, Node, or Git/.test(entry)));
+  assert.ok(fullClean.expects.some((entry) => /best-effort background maintenance after Core ready/.test(entry)));
 
   const standardBootstrap = scenarioById.get('standard_app_managed_bootstrap');
+  assert.equal(standardBootstrap.bootstrap_owner, 'app_managed');
+  assert.equal(
+    standardBootstrap.maintenance_resolution_policy,
+    'app_or_cli_managed_best_effort_until_ready',
+  );
   assert.ok(standardBootstrap.expects.some((entry) => /App-managed bootstrap/.test(entry)));
   assert.ok(standardBootstrap.expects.some((entry) => /does not end.*Homebrew, Node, or Git/i.test(entry)));
+  assert.ok(standardBootstrap.expects.some((entry) => /App-managed bootstrap or maintenance remains responsible/.test(entry)));
 
   const clt = scenarioById.get('macos_clt_system_installer');
   assert.equal(clt.command, 'xcode-select --install');
@@ -282,7 +350,12 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
   assert.ok(clt.expects.some((entry) => /Core ready is not blocked/.test(entry)));
 
   const updater = scenarioById.get('updater_standard_channel');
-  assert.deepEqual(updater.update_policy, { download: 'background', apply: 'restart_when_ready' });
+  assert.deepEqual(updater.update_policy, {
+    download: 'background',
+    apply: 'restart_when_ready',
+    ready_prompt: 'prompt_restart_after_download_ready',
+    full_first_install_metadata_allowed: false,
+  });
 
   const ecosystem = scenarioById.get('ecosystem_modules_app_cli_managed');
   assert.deepEqual(ecosystem.modules, ['officecli', 'mineru', 'opl-meta-agent']);
@@ -1153,8 +1226,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
         'domain_modules_ready',
         'family_runtime_provider_ready',
       ],
+      post_core_ready_background_policy: 'best_effort_non_blocking_until_maintenance_ready',
       non_blocking_deferred_maintenance: [
         'Command Line Tools installation',
+        'companion skills install',
+        'ecosystem module updates',
         'git availability',
         'managed repo sync',
       ],
@@ -1258,6 +1334,23 @@ test('Full release docs publish size policy and remote verifier budget boundarie
   assert.match(releaseDocs, /layer breakdown/i);
   assert.match(releaseDocs, /remote verifier size budget/i);
   assert.match(scriptsDocs, /verify-remote-release-assets\.ts[\s\S]*remote verifier size budget/i);
+});
+
+test('release docs lock first-install maintenance and updater reference boundaries', () => {
+  const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
+  const statusDocs = fs.readFileSync(path.join(appRoot, 'docs', 'status.md'), 'utf8');
+  const combinedDocs = `${releaseDocs}\n${statusDocs}`;
+
+  assert.match(combinedDocs, /Core ready[\s\S]*best-effort background maintenance/i);
+  assert.match(combinedDocs, /companion skills/i);
+  assert.match(combinedDocs, /standard package[\s\S]*App-managed bootstrap[\s\S]*maintenance/i);
+  assert.match(combinedDocs, /Electron autoUpdater/i);
+  assert.match(combinedDocs, /background download/i);
+  assert.match(combinedDocs, /restart/i);
+  assert.match(combinedDocs, /Full[\s\S]*not[\s\S]*updater metadata/i);
+  assert.match(combinedDocs, /Apple Command Line Tools/i);
+  assert.match(combinedDocs, /xcode-select --install/i);
+  assert.match(combinedDocs, /user confirmation/i);
 });
 
 test('manual build workflow keeps cross-platform builds behind an explicit switch', () => {
@@ -1390,6 +1483,8 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     'declared_payload_assembly_and_validation',
   );
   assert.equal(releaseContract.full_first_install.generated_companion_text_language, 'en');
+  assert.equal(releaseContract.full_first_install.updater_visible, false);
+  assert.equal(releaseContract.full_first_install.updater_metadata_allowed, false);
   assert.equal(releaseContract.full_first_install.same_tag_refresh.mode, 'github_release_upload_clobber');
   assert.deepEqual(
     manifest.distribution.payload_boundary.app_repo_does_not_own,

@@ -28,6 +28,7 @@
   "full_first_install": {
     "asset_name_must_include": "Full",
     "updater_visible": false,
+    "updater_metadata_allowed": false,
     "validation_required": true,
     "generated_companion_text_language": "en",
     "size_budget": {
@@ -146,8 +147,11 @@
         "domain_modules_ready",
         "family_runtime_provider_ready"
       ],
+      "post_core_ready_background_policy": "best_effort_non_blocking_until_maintenance_ready",
       "non_blocking_deferred_maintenance": [
         "Command Line Tools installation",
+        "companion skills install",
+        "ecosystem module updates",
         "git availability",
         "managed repo sync"
       ]

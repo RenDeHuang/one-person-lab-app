@@ -24,8 +24,20 @@
         "repo_sync",
         "module_reconcile",
         "command_line_tools_install",
+        "companion_skills_install",
         "ecosystem_module_updates"
       ],
+      "post_core_ready_background_policy": {
+        "mode": "best_effort_non_blocking",
+        "continues_after_core_ready": true,
+        "managed_items": [
+          "repo_sync",
+          "module_reconcile",
+          "command_line_tools_install",
+          "companion_skills_install",
+          "ecosystem_module_updates"
+        ]
+      },
       "release_gate": true,
       "vm": {
         "source": "clean no-CLT Tart base clone",
@@ -40,7 +52,7 @@
         "Settings pages are navigable after first-run initialization",
         "Full runtime payload is materialized",
         "Core ready is reached from bundled runtime without requiring host CLT, Homebrew, Node, or Git",
-        "repo sync, module reconcile, CLT installation, and ecosystem module updates are deferred background maintenance",
+        "repo sync, module reconcile, CLT installation, companion skills install, and ecosystem module updates continue as best-effort background maintenance after Core ready",
         "Codex remains the default executor path",
         "standard state modules are visible after initialization",
         "Core, Domain modules, and family runtime provider readiness are not blocked by CLT, git, or managed repo sync maintenance"
@@ -55,20 +67,25 @@
       "package_type": "standard",
       "update_policy": {
         "download": "background",
-        "apply": "restart_when_ready"
+        "apply": "restart_when_ready",
+        "ready_prompt": "prompt_restart_after_download_ready",
+        "full_first_install_metadata_allowed": false
       },
       "expects": [
         "updater reads standard metadata",
         "Full first-install assets are excluded from update selection",
-        "updates download in the background and apply after restart when ready"
+        "updates download in the background and prompt for restart only after the update is ready"
       ]
     },
     {
       "id": "standard_app_managed_bootstrap",
       "package_type": "standard",
+      "bootstrap_owner": "app_managed",
+      "maintenance_resolution_policy": "app_or_cli_managed_best_effort_until_ready",
       "expects": [
         "standard package uses App-managed bootstrap where possible",
-        "first screen does not end by asking the user to install Homebrew, Node, or Git first"
+        "first screen does not end by asking the user to install Homebrew, Node, or Git first",
+        "App-managed bootstrap or maintenance remains responsible for resolving Homebrew, Node, and Git readiness"
       ]
     },
     {

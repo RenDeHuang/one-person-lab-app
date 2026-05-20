@@ -84,12 +84,28 @@
           "repo_sync",
           "module_reconcile",
           "command_line_tools_install",
+          "companion_skills_install",
           "ecosystem_module_updates"
-        ]
+        ],
+        "post_core_ready_background_policy": {
+          "mode": "best_effort_non_blocking",
+          "continues_after_core_ready": true,
+          "managed_items": [
+            "repo_sync",
+            "module_reconcile",
+            "command_line_tools_install",
+            "companion_skills_install",
+            "ecosystem_module_updates"
+          ],
+          "user_confirmation_items": ["command_line_tools_install"]
+        }
       },
       "standard_package": {
         "bootstrap_owner": "app_managed",
+        "maintenance_owner": "app_managed",
         "user_first_screen_terminal_instruction_allowed": false,
+        "manual_host_tool_install_terminal_state_allowed": false,
+        "maintenance_resolution_policy": "app_or_cli_managed_best_effort_until_ready",
         "forbidden_terminal_instruction_end_states": [
           "install_homebrew_first",
           "install_node_first",
@@ -102,14 +118,18 @@
         "repo_sync",
         "module_reconcile",
         "command_line_tools_install",
+        "companion_skills_install",
         "ecosystem_module_updates"
       ],
+      "mode": "best_effort_after_core_ready",
       "blocks_core_ready": false,
+      "continues_after_core_ready": true,
       "resumption_surface": "Settings"
     },
     "command_line_tools": {
       "auto_request_installer": true,
       "installer_command": "xcode-select --install",
+      "system_installer_only": true,
       "waits_for_user_confirmation": true,
       "blocks_full_first_launch": false,
       "messages": [
@@ -120,8 +140,12 @@
     },
     "updates": {
       "standard_channel": {
+        "implementation_reference": "electron_autoUpdater_background_download_update_downloaded_restart_prompt",
+        "metadata_scope": ["latest-mac.yml", "latest-arm64-mac.yml"],
         "download_policy": "background_download",
         "apply_policy": "restart_when_ready",
+        "ready_prompt": "prompt_restart_after_download_ready",
+        "full_first_install_metadata_allowed": false,
         "blocks_core_ready": false
       }
     }
