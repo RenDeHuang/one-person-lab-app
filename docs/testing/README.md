@@ -40,6 +40,10 @@ The App product profile is declared in
 `contracts/app-product-profile.json`; `validate-active-shell.ts --quick` and
 `npm run test:release-boundary` verify that the profile still owns only
 desktop product defaults and still excludes runtime/provider/domain authority.
+The runtime page matrix also verifies the App/operator evidence path: summary
+read model first, lazy full-detail load, refs-only dry-run/execute action
+commands, receipt/count refresh after execute, and explicit authority-boundary
+fields.
 
 ## Installed App Smoke
 

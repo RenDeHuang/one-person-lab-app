@@ -45,6 +45,14 @@ Current release validation is App-root first: root wrappers call the active shel
 build/release scripts, then the produced standard package can replace
 `/Applications/One Person Lab.app` for a real local GUI startup smoke.
 
+Runtime page evidence path is declared in
+`contracts/app-page-state-matrix.json`: the active shell loads the summary read
+model through `opl runtime app-operator-drilldown --json`, lazy-loads full detail
+through `opl runtime app-operator-drilldown --json --detail full`, and exposes
+only refs-only `opl runtime action execute --action <id> [--payload refs-only-json]
+[--dry-run]` controls. Execution refreshes the App/operator projection so
+receipt/count fields stay framework-owned.
+
 2026-05-15 migration note: this local checkout is the clean App repo. It has no
 tracked `shells/aionui` source, and local `shells/aionui` points to
 `/Users/gaofeng/workspace/opl-aion-shell`. Remote migration keeps

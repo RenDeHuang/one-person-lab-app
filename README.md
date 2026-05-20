@@ -44,7 +44,7 @@ One Person Lab App is the daily workbench for users:
 - Enter general work, medical research, grant writing, and presentation preparation from one desktop interface.
 - Enter Research Foundry, Grant Foundry, and Presentation Foundry.
 - View progress, files, runtime status, and recoverable work context for continuing long tasks and inspecting deliverables.
-- Consume the One Person Lab Framework `runtime_tray_snapshot.app_operator_drilldown` read model on the runtime page for route graph, review queue, artifact gallery, memory refs, quality/readiness, provider SLO, and owner-aware action routing.
+- Consume the One Person Lab Framework `runtime_tray_snapshot.app_operator_drilldown` read model on the runtime page for a summary-first operator evidence path: route graph, review queue, artifact gallery, memory refs, quality/readiness, provider SLO, full-detail lazy load, refs-only dry-run/execute actions, receipt/count refresh, and authority-boundary fields.
 - Check the local environment, framework dependency, domain modules, companion tools, and package readiness on first launch.
 - Present One Person Lab and domain agents as a usable product experience.
 

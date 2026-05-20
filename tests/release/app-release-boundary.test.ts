@@ -234,6 +234,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
 
   assert.equal(runtimePage.machine_source, 'runtime_tray_snapshot.app_operator_drilldown');
   assert.equal(runtimePage.framework_command, 'opl runtime app-operator-drilldown --json');
+  assert.equal(runtimePage.framework_full_detail_command, 'opl runtime app-operator-drilldown --json --detail full');
+  assert.equal(runtimePage.framework_action_command, 'opl runtime action execute --action <id> [--payload refs-only-json] [--dry-run]');
   assert.equal(runtimePage.page_contract, 'runtime_workbench_drilldown');
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.role,
@@ -246,15 +248,15 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.full_drilldown_command,
-    'opl runtime app-operator-drilldown --detail full --json',
+    'opl runtime app-operator-drilldown --json --detail full',
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.action_dry_run_command,
-    'opl runtime action execute --action <action_id> --dry-run --json',
+    'opl runtime action execute --action <action_id> --dry-run',
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.action_execute_command,
-    'opl runtime action execute --action <action_id> --json',
+    'opl runtime action execute --action <action_id>',
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.action_route_source,
@@ -265,7 +267,21 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'operator_selected_safe_action_route_only',
   );
   for (const expected of [
+    'summary-first app operator read model',
+    'full detail lazy load',
+    'safe action dry-run',
+    'safe action execute',
+    'receipt/count refresh after execute',
+    'authority boundary fields',
+  ]) {
+    assert.ok(runtimePage.operator_evidence_path.includes(expected), expected);
+  }
+  for (const expected of [
     'operator evidence acceptance state',
+    'summary-first app operator read model',
+    'full detail lazy load',
+    'safe action dry-run/execute controls',
+    'receipt/count refresh after execute',
     'route graph and decision map refs',
     'review and repair queue',
     'artifact gallery and package/export lifecycle refs',
@@ -285,6 +301,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'artifact body',
     'quality/readiness/export verdict',
     'action route authority',
+    'domain action approval override',
   ]) {
     assert.ok(runtimePage.must_not_own.includes(forbiddenOwner), forbiddenOwner);
   }

@@ -162,19 +162,19 @@
         "id": "drilldown_full",
         "path": "drilldown-full.json",
         "kind": "json",
-        "producer": "opl runtime app-operator-drilldown --detail full --json"
+        "producer": "opl runtime app-operator-drilldown --json --detail full"
       },
       {
         "id": "action_dry_run_result",
         "path": "action-dry-run-result.json",
         "kind": "json",
-        "producer": "opl runtime action execute --action <action_id> --dry-run --json"
+        "producer": "opl runtime action execute --action <action_id> --dry-run"
       },
       {
         "id": "action_execute_result",
         "path": "action-execute-result.json",
         "kind": "json",
-        "producer": "opl runtime action execute --action <action_id> --json"
+        "producer": "opl runtime action execute --action <action_id>"
       },
       {
         "id": "runtime_screenshot",

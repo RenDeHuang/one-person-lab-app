@@ -110,6 +110,12 @@ function validatePageStateMatrix(matrix, contract) {
   if (runtimePage.framework_command !== 'opl runtime app-operator-drilldown --json') {
     throw new Error(`Runtime page must use the OPL drilldown command, got: ${runtimePage.framework_command}`);
   }
+  if (runtimePage.framework_full_detail_command !== 'opl runtime app-operator-drilldown --json --detail full') {
+    throw new Error(`Runtime page must lazy-load full App/operator drilldown through the whitelisted OPL command, got: ${runtimePage.framework_full_detail_command}`);
+  }
+  if (runtimePage.framework_action_command !== 'opl runtime action execute --action <id> [--payload refs-only-json] [--dry-run]') {
+    throw new Error(`Runtime page must expose only the whitelisted OPL action command, got: ${runtimePage.framework_action_command}`);
+  }
   const acceptancePath = runtimePage.operator_evidence_acceptance_path;
   if (acceptancePath?.role !== 'runtime_page_operator_evidence_acceptance') {
     throw new Error('Runtime page must declare operator evidence acceptance path');
@@ -119,9 +125,9 @@ function validatePageStateMatrix(matrix, contract) {
   }
   for (const [field, expected] of Object.entries({
     summary_drilldown_command: 'opl runtime app-operator-drilldown --json',
-    full_drilldown_command: 'opl runtime app-operator-drilldown --detail full --json',
-    action_dry_run_command: 'opl runtime action execute --action <action_id> --dry-run --json',
-    action_execute_command: 'opl runtime action execute --action <action_id> --json',
+    full_drilldown_command: 'opl runtime app-operator-drilldown --json --detail full',
+    action_dry_run_command: 'opl runtime action execute --action <action_id> --dry-run',
+    action_execute_command: 'opl runtime action execute --action <action_id>',
     action_route_source: 'runtime_tray_snapshot.app_operator_drilldown.safe_action_routes',
     action_execution_policy: 'operator_selected_safe_action_route_only',
   })) {
@@ -129,8 +135,25 @@ function validatePageStateMatrix(matrix, contract) {
       throw new Error(`Runtime page operator evidence acceptance ${field} must be ${expected}`);
     }
   }
+  const requiredEvidencePath = [
+    'summary-first app operator read model',
+    'full detail lazy load',
+    'safe action dry-run',
+    'safe action execute',
+    'receipt/count refresh after execute',
+    'authority boundary fields',
+  ];
+  for (const signal of requiredEvidencePath) {
+    if (!runtimePage.operator_evidence_path?.includes(signal)) {
+      throw new Error(`Runtime page operator evidence path must include ${signal}`);
+    }
+  }
   const requiredRuntimeSignals = [
     'operator evidence acceptance state',
+    'summary-first app operator read model',
+    'full detail lazy load',
+    'safe action dry-run/execute controls',
+    'receipt/count refresh after execute',
     'route graph and decision map refs',
     'review and repair queue',
     'artifact gallery and package/export lifecycle refs',
@@ -153,6 +176,7 @@ function validatePageStateMatrix(matrix, contract) {
     'artifact body',
     'quality/readiness/export verdict',
     'action route authority',
+    'domain action approval override',
   ];
   for (const owner of forbiddenRuntimeOwners) {
     if (!runtimePage.must_not_own?.includes(owner)) {
@@ -190,17 +214,17 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
     },
     drilldown_full: {
       path: 'drilldown-full.json',
-      producer: 'opl runtime app-operator-drilldown --detail full --json',
+      producer: 'opl runtime app-operator-drilldown --json --detail full',
       kind: 'json',
     },
     action_dry_run_result: {
       path: 'action-dry-run-result.json',
-      producer: 'opl runtime action execute --action <action_id> --dry-run --json',
+      producer: 'opl runtime action execute --action <action_id> --dry-run',
       kind: 'json',
     },
     action_execute_result: {
       path: 'action-execute-result.json',
-      producer: 'opl runtime action execute --action <action_id> --json',
+      producer: 'opl runtime action execute --action <action_id>',
       kind: 'json',
     },
     runtime_screenshot: {
