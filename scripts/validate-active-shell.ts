@@ -110,7 +110,7 @@ function validatePageStateMatrix(matrix, contract) {
   if (runtimePage.framework_command !== 'opl runtime app-operator-drilldown --json') {
     throw new Error(`Runtime page must use the OPL drilldown command, got: ${runtimePage.framework_command}`);
   }
-  if (runtimePage.framework_full_detail_command !== 'opl runtime app-operator-drilldown --json --detail full') {
+  if (runtimePage.framework_full_detail_command !== 'opl runtime app-operator-drilldown --detail full --json') {
     throw new Error(`Runtime page must lazy-load full App/operator drilldown through the whitelisted OPL command, got: ${runtimePage.framework_full_detail_command}`);
   }
   if (runtimePage.framework_action_command !== 'opl runtime action execute --action <id> [--payload refs-only-json] [--dry-run]') {
@@ -125,7 +125,7 @@ function validatePageStateMatrix(matrix, contract) {
   }
   for (const [field, expected] of Object.entries({
     summary_drilldown_command: 'opl runtime app-operator-drilldown --json',
-    full_drilldown_command: 'opl runtime app-operator-drilldown --json --detail full',
+    full_drilldown_command: 'opl runtime app-operator-drilldown --detail full --json',
     action_dry_run_command: 'opl runtime action execute --action <action_id> --dry-run',
     action_execute_command: 'opl runtime action execute --action <action_id>',
     action_route_source: 'runtime_tray_snapshot.app_operator_drilldown.safe_action_routes',
@@ -199,6 +199,21 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
   if (bundle.refs_only !== true) {
     throw new Error('Operator evidence bundle must be refs-only');
   }
+  if (bundle.manifest_path !== 'evidence-manifest.json') {
+    throw new Error(`Unexpected operator evidence manifest path: ${bundle.manifest_path}`);
+  }
+  if (bundle.missing_evidence_policy?.default_validation !== 'fail_closed') {
+    throw new Error('Operator evidence bundle missing evidence policy must fail closed by default');
+  }
+  if (bundle.missing_evidence_policy?.allow_missing_evidence_flag !== '--allow-missing-evidence') {
+    throw new Error('Operator evidence bundle missing evidence policy must declare --allow-missing-evidence');
+  }
+  if (bundle.missing_evidence_policy?.missing_status !== 'missing_evidence') {
+    throw new Error('Operator evidence bundle missing evidence policy must declare missing_evidence status');
+  }
+  if (bundle.missing_evidence_policy?.packaged_app_evidence_requires !== 'all_required_artifacts_present_and_verified') {
+    throw new Error('Operator evidence bundle must require all artifacts before claiming packaged App evidence');
+  }
 
   const artifactById = new Map((bundle.required_artifacts ?? []).map((artifact) => [artifact.id, artifact]));
   const requiredArtifacts = {
@@ -206,56 +221,67 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
       path: 'runtime-snapshot.json',
       producer: 'opl runtime snapshot --json',
       kind: 'json',
+      source_kind: 'opl_runtime_snapshot',
     },
     drilldown_summary: {
       path: 'drilldown-summary.json',
       producer: 'opl runtime app-operator-drilldown --json',
       kind: 'json',
+      source_kind: 'opl_app_operator_drilldown_summary',
     },
     drilldown_full: {
       path: 'drilldown-full.json',
-      producer: 'opl runtime app-operator-drilldown --json --detail full',
+      producer: 'opl runtime app-operator-drilldown --detail full --json',
       kind: 'json',
+      source_kind: 'opl_app_operator_drilldown_full',
     },
     action_dry_run_result: {
       path: 'action-dry-run-result.json',
       producer: 'opl runtime action execute --action <action_id> --dry-run',
       kind: 'json',
+      source_kind: 'opl_runtime_action_dry_run',
     },
     action_execute_result: {
       path: 'action-execute-result.json',
       producer: 'opl runtime action execute --action <action_id>',
       kind: 'json',
+      source_kind: 'opl_runtime_action_execute',
     },
     runtime_screenshot: {
       path: 'screenshots/runtime.png',
       producer: 'Runtime page screenshot',
       kind: 'image',
+      source_kind: 'app_runtime_page_screenshot',
     },
     full_screenshot: {
       path: 'screenshots/full.png',
       producer: 'Full first-install release screenshot',
       kind: 'image',
+      source_kind: 'full_first_install_release_screenshot',
     },
     action_screenshot: {
       path: 'screenshots/action.png',
       producer: 'Runtime action confirmation/result screenshot',
       kind: 'image',
+      source_kind: 'app_runtime_action_screenshot',
     },
     first_run_log: {
       path: 'first-run.log',
       producer: 'clean first-run VM smoke',
       kind: 'log',
+      source_kind: 'clean_first_run_vm_smoke',
     },
     settings_smoke: {
       path: 'settings-smoke.json',
       producer: 'settings smoke',
       kind: 'json',
+      source_kind: 'settings_smoke',
     },
     remote_release_verification: {
       path: 'remote-release-verification.json',
       producer: 'npm run verify-remote-release -- --version <version> --include-full-package --summary-path remote-release-verification.json',
       kind: 'json',
+      source_kind: 'remote_release_verification',
     },
   };
   for (const [id, expected] of Object.entries(requiredArtifacts)) {

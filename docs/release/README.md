@@ -85,6 +85,7 @@ domain truth, artifact authority, or quality verdict owner.
 Each release evidence bundle should follow
 `contracts/app-release-channel.json` `operator_evidence_bundle` and contain:
 
+- `evidence-manifest.json`.
 - `runtime-snapshot.json`.
 - `drilldown-summary.json` and `drilldown-full.json`.
 - `action-dry-run-result.json` and `action-execute-result.json`.
@@ -94,12 +95,35 @@ Each release evidence bundle should follow
 - `settings-smoke.json`.
 - `remote-release-verification.json`.
 
+Generate or refresh the manifest after collecting available artifacts:
+
+```bash
+node --experimental-strip-types scripts/write-release-evidence-manifest.ts \
+  --bundle-dir release-evidence/<version> \
+  --overwrite
+```
+
 Validate a collected bundle with:
 
 ```bash
 node --experimental-strip-types scripts/validate-release-evidence-bundle.ts \
   --bundle-dir release-evidence/<version>
 ```
+
+Default validation fails closed when required evidence is absent. If a VM smoke,
+settings smoke, screenshot, OPL runtime JSON, or remote Release artifact could
+not be produced in the current environment, keep that artifact marked as
+`missing` in `evidence-manifest.json` and run:
+
+```bash
+node --experimental-strip-types scripts/validate-release-evidence-bundle.ts \
+  --bundle-dir release-evidence/<version> \
+  --allow-missing-evidence
+```
+
+That output is a missing-evidence report only. It is not packaged App release
+evidence and must not be used to claim that a published App bundle, Full DMG,
+clean first-run VM path, settings smoke, or remote Release has been verified.
 
 Use **OPL Full Runtime Cache Warmup** before release windows or let its scheduled
 run keep the content-addressed Full runtime layer cache warm. It builds the
