@@ -80,8 +80,8 @@
       "blocks_full_first_launch": false,
       "messages": [
         "One Person Lab uses Apple Command Line Tools for Git-backed updates and standard module maintenance on this Mac.",
-        "The macOS Command Line Tools installer has been opened. Please finish that installer, then retry setup in One Person Lab.",
-        "Full first-install can continue with the bundled runtime while Command Line Tools is being installed."
+        "The macOS Command Line Tools installer has been opened. You can keep using One Person Lab while that Apple installer runs.",
+        "If module maintenance or Git-backed updates are still waiting afterward, One Person Lab will resume them from Settings."
       ]
     }
   },

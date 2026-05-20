@@ -23,6 +23,8 @@ macOS 用户可以使用一键安装入口。它会准备 One Person Lab 运行�
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
 ```
 
+该入口默认采用 App-first 安装，让全新 Mac 可以先打开 App，Git-backed 模块维护随后由 App 继续处理。需要从终端执行完整框架/模块安装时，可显式追加 `--complete`。
+
 也可以从发布页下载当前桌面包：
 
 [下载 One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)

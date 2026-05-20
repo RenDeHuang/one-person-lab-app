@@ -23,6 +23,8 @@ macOS users can use the one-shot installer. It prepares the One Person Lab runti
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
 ```
 
+The installer defaults to an App-first setup so a clean Mac can open the App before Git-backed module maintenance finishes. Use `--complete` when you explicitly want the full framework/module install from the terminal.
+
 You can also download the current desktop package from the App repository releases:
 
 [Download One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)

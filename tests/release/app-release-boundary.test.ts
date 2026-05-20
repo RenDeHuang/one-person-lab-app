@@ -199,6 +199,11 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.ok(profile.first_run.deferred_blockers.includes('domain_modules'));
   assert.equal(profile.first_run.command_line_tools.auto_request_installer, true);
   assert.equal(profile.first_run.command_line_tools.blocks_full_first_launch, false);
+  assert.match(
+    profile.first_run.command_line_tools.messages.join('\n'),
+    /keep using One Person Lab while that Apple installer runs/,
+  );
+  assert.doesNotMatch(profile.first_run.command_line_tools.messages.join('\n'), /retry setup/i);
   assert.ok(profile.companion_payloads.domain_modules.includes('opl-meta-agent'));
   for (const forbiddenOwner of [
     'runtime_truth',
@@ -209,6 +214,16 @@ test('App product profile owns user-facing defaults without runtime authority', 
   ]) {
     assert.ok(profile.boundary.app_does_not_own.includes(forbiddenOwner), forbiddenOwner);
   }
+});
+
+test('one-shot App installer defaults to App-first core setup', () => {
+  const script = fs.readFileSync(path.join(appRoot, 'install.sh'), 'utf8');
+
+  assert.match(script, /OPL_APP_INSTALL_MODE=\$\{OPL_APP_INSTALL_MODE:-app-first\}/);
+  assert.match(script, /--complete/);
+  assert.match(script, /--skip-modules/);
+  assert.match(script, /curl -fsSL "\$OPL_INSTALL_SCRIPT_URL" \| bash -s -- "\$\{INSTALL_ARGS\[@\]\}"/);
+  assert.doesNotMatch(script, /bash -s -- "\$@"/);
 });
 
 test('runtime page consumes OPL App/operator drilldown instead of App-owned runtime truth', () => {
