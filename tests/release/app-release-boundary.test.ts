@@ -1989,6 +1989,13 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(cacheHit.archive_path, /opl-runtime/);
   assert.match(buildScript, /Library', 'Caches', 'One Person Lab', 'full-runtime-layers'/);
   assert.match(buildScript, /runtimeCacheMode: process\.env\.OPL_FULL_RUNTIME_CACHE_MODE \|\| 'readwrite'/);
+  assert.match(buildScript, /CODEX_MACOS_ARM64_TARGET = 'aarch64-apple-darwin'/);
+  assert.match(buildScript, /path\.join\(platformVendorRoot, 'bin', 'codex'\)/);
+  assert.match(buildScript, /path\.join\(localVendorRoot, 'bin', 'codex'\)/);
+  assert.match(buildScript, /path\.join\(platformVendorRoot, 'codex-path', 'rg'\)/);
+  assert.match(buildScript, /path\.join\(localVendorRoot, 'codex-path', 'rg'\)/);
+  assert.match(buildScript, /path\.join\(platformVendorRoot, 'codex', 'codex'\)/);
+  assert.match(buildScript, /path\.join\(platformVendorRoot, 'path', 'rg'\)/);
   assert.match(buildScript, /copyFirstSkillSource\('opl-meta-agent'/);
   assert.match(buildScript, /copyFirstSkillSource\('mineru-document-extractor'/);
   assert.match(buildScript, /copySingleFile\(sources\.mineruOpenApiBin, path\.join\(layerRoot, 'bin', 'mineru-open-api'\)\)/);

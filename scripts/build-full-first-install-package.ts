@@ -28,6 +28,7 @@ import { writeRuntimeWrappers } from './full-first-install-runtime-wrappers.ts';
 const appRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const workspaceRoot = path.dirname(appRepoRoot);
 const MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET = 'aarch64-apple-darwin';
+const CODEX_MACOS_ARM64_TARGET = 'aarch64-apple-darwin';
 
 function defaultRuntimeCacheDir() {
   if (process.env.OPL_FULL_RUNTIME_CACHE_DIR?.trim()) {
@@ -448,17 +449,35 @@ function findCodexRoot(explicitRoot) {
 }
 
 function findCodexBinary(codexRoot) {
-  const vendorRoot = path.join(
+  const platformVendorRoot = path.join(
     codexRoot,
     'node_modules',
     '@openai',
     'codex-darwin-arm64',
     'vendor',
-    'aarch64-apple-darwin',
+    CODEX_MACOS_ARM64_TARGET,
   );
+  const localVendorRoot = path.join(codexRoot, 'vendor', CODEX_MACOS_ARM64_TARGET);
+  const requireFirstPath = (candidates, label) => {
+    const found = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+    if (!found) {
+      throw new Error(`${label} not found. Checked:\n${candidates.map((candidate) => `  - ${candidate}`).join('\n')}`);
+    }
+    return found;
+  };
   return {
-    codex: requirePath(path.join(vendorRoot, 'codex', 'codex'), 'Codex darwin-arm64 binary'),
-    rg: requirePath(path.join(vendorRoot, 'path', 'rg'), 'Codex bundled rg'),
+    codex: requireFirstPath([
+      path.join(platformVendorRoot, 'bin', 'codex'),
+      path.join(localVendorRoot, 'bin', 'codex'),
+      path.join(platformVendorRoot, 'codex', 'codex'),
+      path.join(localVendorRoot, 'codex', 'codex'),
+    ], 'Codex darwin-arm64 binary'),
+    rg: requireFirstPath([
+      path.join(platformVendorRoot, 'codex-path', 'rg'),
+      path.join(localVendorRoot, 'codex-path', 'rg'),
+      path.join(platformVendorRoot, 'path', 'rg'),
+      path.join(localVendorRoot, 'path', 'rg'),
+    ], 'Codex bundled rg'),
   };
 }
 
