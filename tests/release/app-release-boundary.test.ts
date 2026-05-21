@@ -1559,7 +1559,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
   assert.match(fullWorkflow, /workflow_call:/);
-  assert.match(fullWorkflow, /secrets:[\s\S]*GH_TOKEN:[\s\S]*required: true/);
+  assert.doesNotMatch(fullWorkflow, /workflow_call:[\s\S]*secrets:[\s\S]*GH_TOKEN:/);
   assert.match(fullWorkflow, /name: Checkout OPL Meta Agent/);
   assert.match(fullWorkflow, /repository: gaofeng21cn\/opl-meta-agent/);
   assert.match(fullWorkflow, /path: opl-meta-agent/);
@@ -1662,9 +1662,11 @@ test('release automation workflows cover remote verification, Full cache warmup,
 
   assert.match(warmupWorkflow, /name: OPL Full Runtime Cache Warmup/);
   assert.match(warmupWorkflow, /schedule:/);
+  assert.match(warmupWorkflow, /permissions:[\s\S]*contents: write/);
   assert.match(warmupWorkflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
   assert.match(warmupWorkflow, /publish_to_release: false/);
   assert.match(warmupWorkflow, /force_rebuild_runtime_cache:/);
+  assert.doesNotMatch(warmupWorkflow, /secrets: inherit/);
 
   assert.match(promoteWorkflow, /name: OPL Desktop Release Promote/);
   assert.match(promoteWorkflow, /npm run verify-remote-release/);
@@ -1694,6 +1696,7 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.equal(matchCount(workflow, /path: MinerU-Ecosystem/g), 1);
   assert.match(workflow, /mineru_root="\$GITHUB_WORKSPACE\/MinerU-Ecosystem\/cli\/mineru-open-api"/);
   assert.match(workflow, /cd "\$mineru_root"[\s\S]*go install -ldflags/);
+  assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.version=\$mineru_version/);
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.commit=\$mineru_commit/);
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.date=\$mineru_built_at/);

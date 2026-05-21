@@ -43,10 +43,6 @@ on:
         required: false
         default: false
         type: boolean
-    secrets:
-      GH_TOKEN:
-        required: true
-
 permissions:
   contents: write
 
@@ -301,7 +297,7 @@ jobs:
           CSC_NAME: ${{ secrets.IDENTITY }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
           CI: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           ulimit -n 65536 || true
@@ -349,7 +345,7 @@ jobs:
       - name: Verify release upload plan
         working-directory: one-person-lab-app
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           npm run release:publish -- \
             --no-build \
@@ -362,7 +358,7 @@ jobs:
       - name: Verify existing standard updater metadata
         if: ${{ inputs.publish_to_release }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -389,7 +385,7 @@ jobs:
         if: ${{ inputs.publish_to_release }}
         working-directory: one-person-lab-app
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           npm run release:publish -- \
             --no-build \

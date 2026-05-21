@@ -22,7 +22,7 @@ on:
     - cron: '0 17 * * 1,4'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   resolve-version:
@@ -62,4 +62,3 @@ jobs:
       framework_ref: ${{ needs.resolve-version.outputs.framework_ref }}
       publish_to_release: false
       force_rebuild_runtime_cache: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild_runtime_cache }}
-    secrets: inherit
