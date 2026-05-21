@@ -29,6 +29,7 @@ AionUI intake work.
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 npm run test:release-boundary
 node --experimental-strip-types scripts/validate-release-boundary.ts
+node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite
 node --experimental-strip-types scripts/write-release-evidence-manifest.ts --bundle-dir release-evidence/<version> --overwrite
 node --experimental-strip-types scripts/validate-release-evidence-bundle.ts --bundle-dir release-evidence/<version>
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
@@ -52,6 +53,9 @@ contracted artifact files. When a local lane cannot produce a clean VM smoke,
 settings smoke, remote Release verification, OPL runtime JSON, or screenshots,
 the manifest must mark those entries as `missing`; `--allow-missing-evidence`
 then validates the gap report without treating it as packaged App evidence.
+`collect-release-evidence.ts` can fill the OPL runtime JSON and selected
+safe-action dry-run/execute artifacts from the live Framework CLI before that
+validation step.
 
 ## Installed App Smoke
 

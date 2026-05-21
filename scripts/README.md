@@ -13,6 +13,7 @@ exposes its shell-specific helpers under `shells/aionui/scripts/`.
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
 | `plan-release-candidate.ts` | Prints the release lane plan, including the serialized clean no-CLT Full first-install VM gate. |
+| `collect-release-evidence.ts` | Collects live OPL runtime snapshot, App/operator drilldown, and selected safe-action dry-run/execute JSON into a release evidence bundle, then writes the manifest without claiming missing screenshot, VM, settings, or remote evidence. |
 | `write-release-evidence-manifest.ts` | Writes `evidence-manifest.json` for a release evidence bundle and marks absent VM/remote artifacts as missing evidence. |
 | `validate-release-evidence-bundle.ts` | Validates a release evidence bundle manifest and artifact files; default validation fails closed when required evidence is missing. |
 
@@ -27,6 +28,7 @@ node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run release:publish -- --no-build --version <version> --standard-artifacts-dir release-assets
 npm run verify-remote-release -- --version <version> --include-full-package
 node --experimental-strip-types scripts/write-release-evidence-manifest.ts --bundle-dir release-evidence/<version>
+node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite
 node --experimental-strip-types scripts/validate-release-evidence-bundle.ts --bundle-dir release-evidence/<version>
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --runtime-profile full
 ```

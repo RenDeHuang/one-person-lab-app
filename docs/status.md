@@ -72,6 +72,16 @@ only refs-only `opl runtime action execute --action <id> [--payload refs-only-js
 [--dry-run]` controls. Execution refreshes the App/operator projection so
 receipt/count fields stay framework-owned.
 
+2026-05-22 App release evidence collection now has an App-owned CLI wrapper:
+`scripts/collect-release-evidence.ts` fills `runtime-snapshot.json`,
+`drilldown-summary.json`, `drilldown-full.json`, `action-dry-run-result.json`,
+and, when explicitly requested, `action-execute-result.json` by calling the live
+OPL CLI. It then writes `evidence-manifest.json` through the existing manifest
+writer. Screenshot, clean first-run VM, settings smoke, and remote Release
+verification artifacts remain required release evidence and stay marked
+`missing` until real artifacts exist; the collector is a user-path evidence
+bridge, not a packaged App release closeout.
+
 2026-05-15 migration note: this local checkout is the clean App repo. It has no
 tracked `shells/aionui` source, and local `shells/aionui` points to
 `/Users/gaofeng/workspace/opl-aion-shell`. Remote migration keeps

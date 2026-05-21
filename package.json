@@ -41,6 +41,7 @@
     "docs:macos-guide:slides": "node --experimental-strip-types scripts/build-user-guide-slides.ts",
     "release:prepare-standard": "node --experimental-strip-types scripts/prepare-standard-release-payload.ts",
     "release:plan": "node --experimental-strip-types scripts/plan-release-candidate.ts",
+    "release:collect-evidence": "node --experimental-strip-types scripts/collect-release-evidence.ts",
     "prepare-release-assets": "node --experimental-strip-types scripts/prepare-release-assets.ts",
     "validate-release": "node --experimental-strip-types scripts/validate-release.ts",
     "verify-remote-release": "node --experimental-strip-types scripts/verify-remote-release-assets.ts",

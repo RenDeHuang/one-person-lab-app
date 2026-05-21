@@ -116,10 +116,22 @@ Each release evidence bundle should follow
 Generate or refresh the manifest after collecting available artifacts:
 
 ```bash
+node --experimental-strip-types scripts/collect-release-evidence.ts \
+  --bundle-dir release-evidence/<version> \
+  --action-id <opl-runtime-safe-action-id> \
+  --execute-action \
+  --overwrite
+
 node --experimental-strip-types scripts/write-release-evidence-manifest.ts \
   --bundle-dir release-evidence/<version> \
   --overwrite
 ```
+
+The collector writes only OPL-owned runtime snapshot, summary/full
+App/operator drilldown, and selected safe-action dry-run/execute JSON. It does
+not create screenshots, VM first-run logs, settings smoke, remote Release
+verification, runtime truth, domain truth, artifact authority, or quality
+verdicts; absent App/VM/remote artifacts remain `missing` in the manifest.
 
 Validate a collected bundle with:
 

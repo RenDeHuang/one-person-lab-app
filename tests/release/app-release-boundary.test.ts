@@ -961,6 +961,120 @@ test('release evidence manifest generator records missing artifacts without clai
   assert.equal(validationPayload.packaged_app_evidence, false);
 });
 
+test('release evidence collector captures live OPL runtime refs and keeps missing App evidence explicit', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-collector-'));
+  const fakeBin = path.join(tempRoot, 'bin');
+  const bundleDir = path.join(tempRoot, 'bundle');
+  const actionLog = path.join(tempRoot, 'opl-actions.jsonl');
+  const fakeOpl = path.join(fakeBin, 'opl');
+  fs.mkdirSync(fakeBin, { recursive: true });
+  fs.writeFileSync(fakeOpl, `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+fs.appendFileSync(${JSON.stringify(actionLog)}, JSON.stringify(args) + '\\n');
+function out(value) {
+  process.stdout.write(JSON.stringify(value) + '\\n');
+}
+if (args.join(' ') === 'runtime snapshot --json') {
+  out({ runtime_tray_snapshot: { schema_version: 'runtime_tray_snapshot.v1', runtime_health: { status: 'running' } } });
+  process.exit(0);
+}
+if (args.join(' ') === 'runtime app-operator-drilldown --json') {
+  out({
+    app_operator_drilldown: {
+      surface_kind: 'opl_app_operator_drilldown_read_model',
+      detail_level: 'summary',
+      summary: { stage_attempt_count: 2 },
+      attention_first_payload: {
+        next_safe_action: { action_id: 'provider-scheduler:temporal:trigger' }
+      }
+    }
+  });
+  process.exit(0);
+}
+if (args.join(' ') === 'runtime app-operator-drilldown --detail full --json') {
+  out({
+    app_operator_drilldown: {
+      surface_kind: 'opl_app_operator_drilldown_read_model',
+      detail_level: 'full',
+      summary: { stage_attempt_count: 2 }
+    }
+  });
+  process.exit(0);
+}
+if (args.slice(0, 4).join(' ') === 'runtime action execute --action') {
+  const actionId = args[4];
+  const dryRun = args.includes('--dry-run');
+  out({
+    runtime_operator_action_execution: {
+      surface_kind: 'opl_runtime_operator_action_execution',
+      action_id: actionId,
+      dry_run: dryRun,
+      execution: { execution_status: dryRun ? 'dry_run' : 'executed' },
+      authority_boundary: { can_write_domain_truth: false }
+    }
+  });
+  process.exit(0);
+}
+console.error('unexpected opl args: ' + args.join(' '));
+process.exit(2);
+`, { mode: 0o755 });
+
+  const collected = runNode([
+    'scripts/collect-release-evidence.ts',
+    '--bundle-dir',
+    bundleDir,
+    '--action-id',
+    'provider-scheduler:temporal:trigger',
+    '--execute-action',
+    '--overwrite',
+  ], {
+    env: { PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}` },
+  });
+
+  assert.equal(collected.status, 0, collected.stderr || collected.stdout);
+  const payload = JSON.parse(collected.stdout);
+  assert.equal(payload.status, 'missing_evidence');
+  assert.equal(payload.packaged_app_evidence, false);
+  assert.equal(payload.action_id, 'provider-scheduler:temporal:trigger');
+  assert.deepEqual(payload.collected_artifacts, [
+    'runtime_snapshot',
+    'drilldown_summary',
+    'drilldown_full',
+    'action_dry_run_result',
+    'action_execute_result',
+  ]);
+  assert.deepEqual(payload.missing_artifacts, [
+    'runtime_screenshot',
+    'full_screenshot',
+    'action_screenshot',
+    'first_run_log',
+    'settings_smoke',
+    'remote_release_verification',
+  ]);
+
+  const validation = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    bundleDir,
+    '--allow-missing-evidence',
+  ]);
+  assert.equal(validation.status, 0, validation.stderr || validation.stdout);
+  const validationPayload = JSON.parse(validation.stdout);
+  assert.equal(validationPayload.status, 'missing_evidence');
+  assert.equal(validationPayload.verified_artifact_count, 5);
+  assert.equal(validationPayload.missing_artifact_count, 6);
+
+  const actionArgs = fs.readFileSync(actionLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  assert.deepEqual(actionArgs, [
+    ['runtime', 'snapshot', '--json'],
+    ['runtime', 'app-operator-drilldown', '--json'],
+    ['runtime', 'app-operator-drilldown', '--detail', 'full', '--json'],
+    ['runtime', 'action', 'execute', '--action', 'provider-scheduler:temporal:trigger', '--dry-run'],
+    ['runtime', 'action', 'execute', '--action', 'provider-scheduler:temporal:trigger'],
+  ]);
+});
+
 test('App-owned automation entrypoints are TypeScript, not JavaScript wrappers', () => {
   const appOwnedEntrypoints = [
     ...walkFiles(path.join(appRoot, 'scripts')),
