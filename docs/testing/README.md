@@ -91,6 +91,10 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   submission, Settings page coverage, and Full runtime readiness. CLT, git, and
   managed repo sync are deferred maintenance and must not block Core, Domain
   module, or family runtime provider readiness.
+- Scheduled VM smoke backlog: the App repo VM workflow must cancel stale
+  scheduled runs through GitHub Actions concurrency while keeping manual and
+  release-called validation runs serialized in a separate non-cancelling group.
+  `npm run test:release-boundary` locks this workflow policy.
 - Docker/WebUI: build from `shells/aionui/Dockerfile` and verify the WebUI
   starts against the Framework runtime surfaces.
 

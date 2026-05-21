@@ -80,6 +80,13 @@ builds that should run on GitHub runners instead of this Mac.
   runtime readiness. CLT installation, git availability, and managed repo sync
   are deferred maintenance and must not block Core, Domain module, or family
   runtime provider readiness on first launch.
+- Scheduled **OPL GUI First-Run VM** runs use a dedicated GitHub Actions
+  concurrency group with `cancel-in-progress` enabled, so nightly clean-VM
+  backlog collapses to the newest scheduled run instead of occupying the
+  self-hosted Tart runner for stale release checks. Manual dispatches and
+  release-called VM gates use a separate serialized group and are not cancelled
+  by the scheduled queue policy; they remain the explicit operator validation
+  path.
 
 The older automatic path is still valid for standard-only releases: pushing a
 `v<version>` tag triggers **Build and Release**. After that completes, run

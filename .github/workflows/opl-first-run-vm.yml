@@ -69,8 +69,10 @@ on:
     - cron: '0 18 * * *'
 
 concurrency:
-  group: opl-gui-first-run-vm
-  cancel-in-progress: false
+  # Scheduled runs collapse to the latest queued run; manual and release-called
+  # validation runs stay serialized without being cancelled by the schedule.
+  group: ${{ github.event_name == 'schedule' && 'opl-gui-first-run-vm-scheduled' || 'opl-gui-first-run-vm-manual' }}
+  cancel-in-progress: ${{ github.event_name == 'schedule' }}
 
 permissions:
   contents: read

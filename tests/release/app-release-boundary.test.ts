@@ -1580,6 +1580,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     fs.existsSync(path.join(appRoot, 'assets', 'companion-skills', 'mineru-document-extractor', 'SKILL.md')),
   );
   assert.match(vmWorkflow, /workflow_call:/);
+  assert.match(vmWorkflow, /schedule:/);
+  assert.match(vmWorkflow, /concurrency:/);
+  assert.match(vmWorkflow, /github\.event_name == 'schedule'/);
+  assert.match(vmWorkflow, /opl-gui-first-run-vm-scheduled/);
+  assert.match(vmWorkflow, /opl-gui-first-run-vm-manual/);
+  assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
   assert.match(vmWorkflow, /One-Person-Lab-Full-\*-mac-arm64\.dmg/);
   assert.match(vmWorkflow, /--smoke-profile no-clt-clean-vm/);
   assert.match(vmWorkflow, /--display 1920x1080px/);
