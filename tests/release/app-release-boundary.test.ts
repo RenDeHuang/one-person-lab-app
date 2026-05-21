@@ -39,6 +39,29 @@ function writeTinyPng(filePath) {
   );
 }
 
+function writeRuntimeEvidenceJsonFiles(tempRoot) {
+  writeFile(
+    path.join(tempRoot, 'runtime-snapshot.json'),
+    '{"runtime_tray_snapshot":{"schema_version":"runtime_tray_snapshot.v1","runtime_health":{"status":"running"}}}\n',
+  );
+  writeFile(
+    path.join(tempRoot, 'drilldown-summary.json'),
+    '{"app_operator_drilldown":{"surface_kind":"opl_app_operator_drilldown_read_model","detail_level":"summary","summary":{"stage_attempt_count":1}}}\n',
+  );
+  writeFile(
+    path.join(tempRoot, 'drilldown-full.json'),
+    '{"app_operator_drilldown":{"surface_kind":"opl_app_operator_drilldown_read_model","detail_level":"full","summary":{"stage_attempt_count":1}}}\n',
+  );
+  writeFile(
+    path.join(tempRoot, 'action-dry-run-result.json'),
+    '{"runtime_operator_action_execution":{"surface_kind":"opl_runtime_operator_action_execution","action_id":"stage-production-attempt:medautoscience:analysis-campaign","dry_run":true,"execution":{"execution_status":"dry_run"},"authority_boundary":{"can_write_domain_truth":false}}}\n',
+  );
+  writeFile(
+    path.join(tempRoot, 'action-execute-result.json'),
+    '{"runtime_operator_action_execution":{"surface_kind":"opl_runtime_operator_action_execution","action_id":"stage-production-attempt:medautoscience:analysis-campaign","dry_run":false,"execution":{"execution_status":"executed"},"authority_boundary":{"can_write_domain_truth":false}}}\n',
+  );
+}
+
 function writeReleaseMetadata(outDir, version, assetName) {
   writeFile(path.join(outDir, 'latest-mac.yml'), [
     `version: ${version}`,
@@ -655,15 +678,7 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
     artifacts: artifacts.map((artifact) => ({ ...artifact, status: 'present' })),
     missing_evidence: [],
   }, null, 2)}\n`);
-  for (const name of [
-    'runtime-snapshot.json',
-    'drilldown-summary.json',
-    'drilldown-full.json',
-    'action-dry-run-result.json',
-    'action-execute-result.json',
-  ]) {
-    writeFile(path.join(tempRoot, name), '{"status":"passed","refs_only":true}\n');
-  }
+  writeRuntimeEvidenceJsonFiles(tempRoot);
   writeFile(path.join(tempRoot, 'settings-smoke.json'), '{"status":"passed","pages_checked":["settings_overview","environment","about","update"]}\n');
   writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
   writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
@@ -820,15 +835,7 @@ test('release evidence bundle validator fails closed for incomplete packaged App
         reason: artifact.missing_reason,
       })),
   }, null, 2)}\n`);
-  for (const name of [
-    'runtime-snapshot.json',
-    'drilldown-summary.json',
-    'drilldown-full.json',
-    'action-dry-run-result.json',
-    'action-execute-result.json',
-  ]) {
-    writeFile(path.join(tempRoot, name), '{"status":"passed","refs_only":true}\n');
-  }
+  writeRuntimeEvidenceJsonFiles(tempRoot);
   writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
@@ -862,13 +869,55 @@ test('release evidence bundle validator fails closed for incomplete packaged App
   ]);
 });
 
+test('release evidence bundle validator rejects contract-only runtime JSON placeholders', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-placeholder-'));
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'passed',
+    packaged_app_evidence: true,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts: releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => ({
+      ...artifact,
+      status: 'present',
+    })),
+    missing_evidence: [],
+  }, null, 2)}\n`);
+  for (const name of [
+    'runtime-snapshot.json',
+    'drilldown-summary.json',
+    'drilldown-full.json',
+    'action-dry-run-result.json',
+    'action-execute-result.json',
+    'settings-smoke.json',
+    'remote-release-verification.json',
+  ]) {
+    writeFile(path.join(tempRoot, name), '{"status":"passed","refs_only":true}\n');
+  }
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeFile(path.join(tempRoot, 'first-run.log'), 'first run passed\n');
+
+  const result = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /runtime_snapshot\.runtime_tray_snapshot/);
+});
+
 test('release evidence manifest generator records missing artifacts without claiming packaged App evidence', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-generated-'));
-  writeFile(path.join(tempRoot, 'runtime-snapshot.json'), '{"status":"passed","refs_only":true}\n');
-  writeFile(path.join(tempRoot, 'drilldown-summary.json'), '{"status":"passed","refs_only":true}\n');
-  writeFile(path.join(tempRoot, 'drilldown-full.json'), '{"status":"passed","refs_only":true}\n');
-  writeFile(path.join(tempRoot, 'action-dry-run-result.json'), '{"status":"passed","refs_only":true}\n');
-  writeFile(path.join(tempRoot, 'action-execute-result.json'), '{"status":"passed","refs_only":true}\n');
+  writeRuntimeEvidenceJsonFiles(tempRoot);
   writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));

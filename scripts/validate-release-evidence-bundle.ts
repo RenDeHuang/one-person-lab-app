@@ -129,6 +129,48 @@ function resolveBundlePath(bundleDir: string, artifactPath: string) {
 
 function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown) {
   const record = asRecord(payload, artifact.id);
+  if (artifact.id === 'runtime_snapshot') {
+    const snapshot = asRecord(record.runtime_tray_snapshot, 'runtime_snapshot.runtime_tray_snapshot');
+    if (typeof snapshot.schema_version !== 'string' || !snapshot.schema_version.trim()) {
+      throw new Error('runtime_snapshot must be real opl runtime snapshot JSON with schema_version.');
+    }
+    if (!snapshot.runtime_health || typeof snapshot.runtime_health !== 'object') {
+      throw new Error('runtime_snapshot must include runtime_health from OPL.');
+    }
+  }
+  if (artifact.id === 'drilldown_summary' || artifact.id === 'drilldown_full') {
+    const drilldown = asRecord(record.app_operator_drilldown, `${artifact.id}.app_operator_drilldown`);
+    if (drilldown.surface_kind !== 'opl_app_operator_drilldown_read_model') {
+      throw new Error(`${artifact.id} must be an OPL App/operator drilldown read model.`);
+    }
+    if (artifact.id === 'drilldown_full' && drilldown.detail_level !== 'full') {
+      throw new Error('drilldown_full must be full-detail App/operator drilldown JSON.');
+    }
+    if (!drilldown.summary || typeof drilldown.summary !== 'object') {
+      throw new Error(`${artifact.id} must include App/operator drilldown summary.`);
+    }
+  }
+  if (artifact.id === 'action_dry_run_result' || artifact.id === 'action_execute_result') {
+    const execution = asRecord(record.runtime_operator_action_execution, `${artifact.id}.runtime_operator_action_execution`);
+    if (execution.surface_kind !== 'opl_runtime_operator_action_execution') {
+      throw new Error(`${artifact.id} must be an OPL runtime action execution JSON result.`);
+    }
+    if (typeof execution.action_id !== 'string' || !execution.action_id.trim()) {
+      throw new Error(`${artifact.id} must include action_id.`);
+    }
+    if (artifact.id === 'action_dry_run_result' && execution.dry_run !== true) {
+      throw new Error('action_dry_run_result must be a dry-run execution result.');
+    }
+    if (artifact.id === 'action_execute_result' && execution.dry_run !== false) {
+      throw new Error('action_execute_result must be a non-dry-run execution result.');
+    }
+    if (!execution.execution || typeof execution.execution !== 'object') {
+      throw new Error(`${artifact.id} must include execution details.`);
+    }
+    if (!execution.authority_boundary || typeof execution.authority_boundary !== 'object') {
+      throw new Error(`${artifact.id} must include authority_boundary.`);
+    }
+  }
   if (artifact.id === 'settings_smoke') {
     if (record.status !== 'passed') {
       throw new Error('settings_smoke must be a passed settings smoke JSON artifact.');
