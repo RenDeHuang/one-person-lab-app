@@ -9,6 +9,11 @@ framework-owned machine-readable contracts, CLI JSON, provider receipts, and
 domain-owned projections. Do not copy runtime truth, domain truth, provider
 implementation, or domain artifact authority into this repository.
 
+Root `TASTE.md` records the shared OPL family maintenance taste for architecture,
+code, docs, tests, review, cleanup, and closeout decisions. Use it as the
+preference layer, then apply this App repository guide, contracts, docs, and
+source truth.
+
 ## Repository Boundaries
 
 - `origin/main` is the clean One Person Lab App product mainline.
