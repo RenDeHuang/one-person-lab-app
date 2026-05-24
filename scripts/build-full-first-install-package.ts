@@ -634,6 +634,28 @@ function copyFirstSkillSource(skillName, targetRoot, candidates) {
   return source;
 }
 
+function copyOplMetaAgentSkill(targetRoot, options) {
+  const target = path.join(targetRoot, 'opl-meta-agent');
+  const domainSkill = path.join(options.metaAgentRoot, 'agent', 'skills', 'opl-meta-agent-domain-skill.md');
+  const agentRoot = path.join(options.metaAgentRoot, 'agent');
+  if (fs.existsSync(domainSkill) && fs.existsSync(agentRoot)) {
+    fs.rmSync(target, { recursive: true, force: true });
+    fs.mkdirSync(target, { recursive: true });
+    fs.copyFileSync(domainSkill, path.join(target, 'SKILL.md'));
+    for (const entry of ['knowledge', 'prompts', 'quality_gates', 'skills', 'stages']) {
+      const source = path.join(agentRoot, entry);
+      if (fs.existsSync(source)) {
+        copyTreeFiltered(source, path.join(target, entry), `skills/opl-meta-agent/${entry}`);
+      }
+    }
+    return options.metaAgentRoot;
+  }
+  return copyFirstSkillSource('opl-meta-agent', targetRoot, [
+    path.join(os.homedir(), '.codex', 'skills', 'opl-meta-agent'),
+    path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'),
+  ]);
+}
+
 function copyOfficeCliCoreSkill(targetRoot, options) {
   const target = path.join(targetRoot, 'officecli');
   if (fs.existsSync(path.join(options.officeCliRoot, 'SKILL.md'))) {
@@ -718,10 +740,7 @@ function copyRecommendedSkills(targetRoot, options) {
     path.join(os.homedir(), '.codex', 'skills', 'rca'),
     path.join(options.rcaRoot, 'plugins', 'rca', 'skills', 'rca'),
   ]);
-  copyFirstSkillSource('opl-meta-agent', targetRoot, [
-    path.join(os.homedir(), '.codex', 'skills', 'opl-meta-agent'),
-    path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'),
-  ]);
+  copyOplMetaAgentSkill(targetRoot, options);
   copyOfficeCliCoreSkill(targetRoot, options);
   copyFirstSkillSource('officecli-docx', targetRoot, [
     path.join(options.officeCliRoot, 'skills', 'officecli-docx'),

@@ -1694,6 +1694,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     fs.existsSync(path.join(appRoot, 'assets', 'companion-skills', 'mineru-document-extractor', 'SKILL.md')),
   );
   assert.match(vmWorkflow, /workflow_call:/);
+  assert.match(vmWorkflow, /schedule:/);
+  assert.match(vmWorkflow, /concurrency:/);
+  assert.match(vmWorkflow, /github\.event_name == 'schedule'/);
+  assert.match(vmWorkflow, /opl-gui-first-run-vm-scheduled/);
+  assert.match(vmWorkflow, /opl-gui-first-run-vm-manual/);
+  assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
   assert.match(vmWorkflow, /One-Person-Lab-Full-\*-mac-arm64\.dmg/);
   assert.match(vmWorkflow, /--smoke-profile no-clt-clean-vm/);
   assert.match(vmWorkflow, /--display 1920x1080px/);
@@ -2110,7 +2116,11 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /path\.join\(localVendorRoot, 'codex-path', 'rg'\)/);
   assert.match(buildScript, /path\.join\(platformVendorRoot, 'codex', 'codex'\)/);
   assert.match(buildScript, /path\.join\(platformVendorRoot, 'path', 'rg'\)/);
-  assert.match(buildScript, /copyFirstSkillSource\('opl-meta-agent'/);
+  assert.match(buildScript, /function copyOplMetaAgentSkill\(targetRoot, options\)/);
+  assert.match(buildScript, /'agent', 'skills', 'opl-meta-agent-domain-skill\.md'/);
+  assert.match(buildScript, /fs\.copyFileSync\(domainSkill, path\.join\(target, 'SKILL\.md'\)\)/);
+  assert.match(buildScript, /\['knowledge', 'prompts', 'quality_gates', 'skills', 'stages'\]/);
+  assert.match(buildScript, /copyOplMetaAgentSkill\(targetRoot, options\)/);
   assert.match(buildScript, /copyFirstSkillSource\('mineru-document-extractor'/);
   assert.match(buildScript, /copySingleFile\(sources\.mineruOpenApiBin, path\.join\(layerRoot, 'bin', 'mineru-open-api'\)\)/);
   assert.match(buildScript, /version: commandOutput\(sources\.mineruOpenApiBin, \['version'\]\)/);
