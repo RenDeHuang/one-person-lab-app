@@ -338,6 +338,11 @@ const EXCLUDED_RUNTIME_PATH_PATTERNS = [
   /^opl\/dist(?:\/|$)/,
 ] as const;
 
+const INCLUDED_RUNTIME_PATH_PATTERNS = [
+  /^modules\/meta-agent\/runtime$/,
+  /^modules\/meta-agent\/runtime\/authority_functions(?:\/|$)/,
+] as const;
+
 function hasExcludedRuntimePathSegment(relativePath: string) {
   return EXCLUDED_RUNTIME_PATH_SEGMENTS.some((segment) => hasPathSegment(relativePath, segment));
 }
@@ -351,6 +356,10 @@ function matchesExcludedRuntimePathPattern(relativePath: string) {
   return EXCLUDED_RUNTIME_PATH_PATTERNS.some((pattern) => pattern.test(relativePath));
 }
 
+function matchesIncludedRuntimePathPattern(relativePath: string) {
+  return INCLUDED_RUNTIME_PATH_PATTERNS.some((pattern) => pattern.test(relativePath));
+}
+
 export function shouldExcludeRuntimePath(relativePathInput: string) {
   const relativePath = normalizeRuntimeRelativePath(relativePathInput);
 
@@ -360,6 +369,9 @@ export function shouldExcludeRuntimePath(relativePathInput: string) {
 
   const lower = relativePath.toLowerCase();
   const baseName = path.posix.basename(relativePath);
+  if (matchesIncludedRuntimePathPattern(lower)) {
+    return false;
+  }
   return hasExcludedRuntimePathSegment(relativePath)
     || isExcludedRuntimeBaseName(baseName)
     || matchesExcludedRuntimePathPattern(lower);
