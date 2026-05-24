@@ -7,7 +7,7 @@ Machine boundary: Human-readable user guide. Release contracts, workflows, VM sm
 
 适用对象：医生、PI、课题负责人；不要求计算机基础。本文以 macOS App 首次启动为主线，说明如何下载、安装、配置 One Person Lab，并通过 Research Foundry / Med Auto Science 发起首次科研任务。
 
-当前示例 Release：https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.5.15
+下载最新版本：https://github.com/gaofeng21cn/one-person-lab-app/releases/latest
 
 > 涉及 Codex API Key 或 Codex 权限配置时，请联系 gflabtoken 管理员开通。不要自行购买、复制来源不明的密钥，或把密钥写入研究数据目录。
 

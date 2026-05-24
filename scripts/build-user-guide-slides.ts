@@ -21,9 +21,8 @@ const slidePdfPath = path.join(guideDir, 'macos-app-install-slides.pdf');
 const verificationPath = path.join(guideDir, 'macos-app-install-slides-verification.json');
 const tempDir = path.join(appRoot, 'tmp', 'pdfs', 'macos-app-install-slides');
 
-const releaseTag = 'v26.5.15';
-const releaseUrl = `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/${releaseTag}`;
 const latestReleaseUrl = 'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest';
+const screenshotReleaseTag = 'v26.5.15';
 const titleFont = 'Arial';
 const cjkFont = 'PingFang SC';
 const bodyFont = 'Arial';
@@ -294,7 +293,7 @@ function buildCoverSlide() {
     margin: '0cm',
   });
   addShape(1, {
-    text: `示例 Release\n${releaseUrl}`,
+    text: `下载最新版本\n${latestReleaseUrl}`,
     x: '1.45cm',
     y: '10.85cm',
     width: '13.3cm',
@@ -512,8 +511,8 @@ function main() {
 
   const verification = {
     status: 'macos_app_install_slides_ready',
-    release_tag: releaseTag,
-    release_url: releaseUrl,
+    download_url: latestReleaseUrl,
+    screenshot_release_tag: screenshotReleaseTag,
     output_pptx: path.relative(appRoot, pptxPath),
     output_pdf: path.relative(appRoot, slidePdfPath),
     slide_layout: '16:9',

@@ -14,9 +14,8 @@ const verificationPath = path.join(guideDir, 'macos-app-install-verification.jso
 const tempDir = path.join(appRoot, 'tmp', 'pdfs', 'macos-app-install');
 const tempMarkdownPath = path.join(tempDir, 'macos-app-install.pandoc.md');
 
-const releaseTag = 'v26.5.15';
 const latestReleaseUrl = 'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest';
-const releaseUrl = `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/${releaseTag}`;
+const screenshotReleaseTag = 'v26.5.15';
 
 const steps = [
   {
@@ -130,7 +129,7 @@ function buildMarkdown(options: { pandocPageBreaks?: boolean } = {}) {
     '',
     '适用对象：医生、PI、课题负责人；不要求计算机基础。本文以 macOS App 首次启动为主线，说明如何下载、安装、配置 One Person Lab，并通过 Research Foundry / Med Auto Science 发起首次科研任务。',
     '',
-    `当前示例 Release：${releaseUrl}`,
+    `下载最新版本：${latestReleaseUrl}`,
     '',
     '> 涉及 Codex API Key 或 Codex 权限配置时，请联系 gflabtoken 管理员开通。不要自行购买、复制来源不明的密钥，或把密钥写入研究数据目录。',
     '',
@@ -256,8 +255,8 @@ function main() {
   const verification = {
     status: 'macos_app_install_pdf_ready',
     pdf_layout: 'landscape',
-    release_tag: releaseTag,
-    release_url: releaseUrl,
+    download_url: latestReleaseUrl,
+    screenshot_release_tag: screenshotReleaseTag,
     source_markdown: path.relative(appRoot, markdownPath),
     output_pdf: path.relative(appRoot, pdfPath),
     screenshot_source: {
