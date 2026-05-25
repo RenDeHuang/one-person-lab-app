@@ -89,10 +89,34 @@ jobs:
       OPL_FIRST_RUN_GUEST_SSH_KEY: ${{ vars.OPL_FIRST_RUN_GUEST_SSH_KEY }}
 
     steps:
+      - name: Skip unconfigured scheduled smoke
+        id: scheduled_config
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_VM="${{ inputs.tart_source_vm }}"
+          if [ -z "$SOURCE_VM" ]; then
+            SOURCE_VM="${OPL_FIRST_RUN_TART_SOURCE:-}"
+          fi
+          if [ "${{ github.event_name }}" = "schedule" ] && [ -z "$SOURCE_VM" ]; then
+            {
+              echo "## OPL GUI first-run VM"
+              echo
+              echo "- Status: skipped"
+              echo "- Reason: scheduled run has no Tart source VM configured."
+              echo '- Configure repository variable `OPL_FIRST_RUN_TART_SOURCE` to enable scheduled VM smoke.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "skip_smoke=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_smoke=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: steps.scheduled_config.outputs.skip_smoke != 'true'
         uses: actions/checkout@v4
 
       - name: Checkout active shell
+        if: steps.scheduled_config.outputs.skip_smoke != 'true'
         uses: actions/checkout@v4
         with:
           repository: gaofeng21cn/opl-aion-shell
@@ -100,17 +124,20 @@ jobs:
           path: shells/aionui
 
       - name: Setup Node.js
+        if: steps.scheduled_config.outputs.skip_smoke != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       - name: Validate smoke scripts
+        if: steps.scheduled_config.outputs.skip_smoke != 'true'
         shell: bash
         run: |
           node --check shells/aionui/scripts/opl-first-run-vm-smoke.mjs
           node --check shells/aionui/scripts/opl-first-run-tart-smoke.mjs
 
       - name: Resolve Full release DMG
+        if: steps.scheduled_config.outputs.skip_smoke != 'true'
         id: dmg
         shell: bash
         run: |
@@ -140,6 +167,7 @@ jobs:
           echo "Using DMG: $DMG_PATH"
 
       - name: Run clean VM first launch smoke
+        if: steps.scheduled_config.outputs.skip_smoke != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -189,7 +217,7 @@ jobs:
           "${CMD[@]}"
 
       - name: Upload first-run VM artifacts
-        if: always()
+        if: always() && steps.scheduled_config.outputs.skip_smoke != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: opl-first-run-vm-${{ github.run_id }}
@@ -197,7 +225,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Clean stale first-run Tart VMs
-        if: always() && inputs.keep_vm != true
+        if: always() && steps.scheduled_config.outputs.skip_smoke != 'true' && inputs.keep_vm != true
         shell: bash
         run: |
           set -euo pipefail
@@ -213,7 +241,7 @@ jobs:
           done < <(tart list --source local --quiet)
 
       - name: Summarize
-        if: always()
+        if: always() && steps.scheduled_config.outputs.skip_smoke != 'true'
         shell: bash
         run: |
           {
