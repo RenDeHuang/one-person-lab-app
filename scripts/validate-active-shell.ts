@@ -108,8 +108,14 @@ function validatePageStateMatrix(matrix, contract) {
   if (!runtimePage) {
     throw new Error('Page-state matrix is missing runtime page');
   }
-  if (runtimePage.machine_source !== 'runtime_tray_snapshot.app_operator_drilldown') {
-    throw new Error(`Runtime page must consume OPL app_operator_drilldown, got: ${runtimePage.machine_source}`);
+  if (runtimePage.machine_source !== 'runtime_visualization_projection or runtime_tray_snapshot.app_operator_drilldown') {
+    throw new Error(`Runtime page must consume OPL runtime visualization projection or app_operator_drilldown, got: ${runtimePage.machine_source}`);
+  }
+  if (runtimePage.primary_projection !== 'runtime_visualization_projection') {
+    throw new Error(`Runtime page primary_projection must be runtime_visualization_projection, got: ${runtimePage.primary_projection}`);
+  }
+  if (runtimePage.fallback_projection !== 'runtime_tray_snapshot.app_operator_drilldown') {
+    throw new Error(`Runtime page fallback_projection must be runtime_tray_snapshot.app_operator_drilldown, got: ${runtimePage.fallback_projection}`);
   }
   if (runtimePage.framework_command !== 'opl runtime app-operator-drilldown --json') {
     throw new Error(`Runtime page must use the OPL drilldown command, got: ${runtimePage.framework_command}`);
@@ -155,6 +161,12 @@ function validatePageStateMatrix(matrix, contract) {
   const requiredRuntimeSignals = [
     'operator evidence acceptance state',
     'summary-first app operator read model',
+    'runtime visualization projection when available',
+    'stage graph',
+    'route graph',
+    'decision map',
+    'timeline',
+    'research paper lens refs',
     'full detail lazy load',
     'safe action dry-run/execute controls',
     'receipt/count refresh after execute',

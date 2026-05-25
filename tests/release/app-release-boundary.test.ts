@@ -419,7 +419,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   const runtimePage = pageStateMatrix.pages.find((page) => page.id === 'runtime');
 
-  assert.equal(runtimePage.machine_source, 'runtime_tray_snapshot.app_operator_drilldown');
+  assert.equal(
+    runtimePage.machine_source,
+    'runtime_visualization_projection or runtime_tray_snapshot.app_operator_drilldown',
+  );
+  assert.equal(runtimePage.primary_projection, 'runtime_visualization_projection');
+  assert.equal(runtimePage.fallback_projection, 'runtime_tray_snapshot.app_operator_drilldown');
   assert.equal(runtimePage.framework_command, 'opl runtime app-operator-drilldown --json');
   assert.equal(runtimePage.framework_full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.equal(runtimePage.framework_action_command, 'opl runtime action execute --action <id> [--payload refs-only-json] [--dry-run]');
@@ -466,6 +471,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   for (const expected of [
     'operator evidence acceptance state',
     'summary-first app operator read model',
+    'runtime visualization projection when available',
+    'stage graph',
+    'route graph',
+    'decision map',
+    'timeline',
+    'research paper lens refs',
     'full detail lazy load',
     'safe action dry-run/execute controls',
     'receipt/count refresh after execute',
