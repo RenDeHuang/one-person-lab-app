@@ -98,6 +98,8 @@ jobs:
 
       - name: Verify standard release assets
         shell: bash
+        env:
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
         run: node --experimental-strip-types scripts/validate-release.ts release-assets
 
       - name: Resolve release target

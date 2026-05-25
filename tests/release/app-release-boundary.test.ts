@@ -1207,6 +1207,42 @@ test('prebuilt standard release assets must include updater metadata', () => {
   assert.match(result.stderr, /latest-mac\.yml/);
 });
 
+test('release asset validation fails before tagging when updater metadata keeps the shell version', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-shell-version-metadata-'));
+  const releaseAssetsDir = path.join(tempRoot, 'release-assets');
+  const version = '26.5.25';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  const metadata = [
+    'version: 2.1.1',
+    'files:',
+    `  - url: ${zipName}`,
+    '    sha512: test-zip',
+    '    size: 1',
+    `  - url: ${dmgName}`,
+    '    sha512: test-dmg',
+    '    size: 1',
+    `path: ${zipName}`,
+    'sha512: test-zip',
+    '',
+  ].join('\n');
+
+  writeFile(path.join(releaseAssetsDir, dmgName));
+  writeFile(path.join(releaseAssetsDir, zipName));
+  writeFile(path.join(releaseAssetsDir, `${dmgName}.blockmap`));
+  writeFile(path.join(releaseAssetsDir, `${zipName}.blockmap`));
+  writeFile(path.join(releaseAssetsDir, 'latest-mac.yml'), metadata);
+  writeFile(path.join(releaseAssetsDir, 'latest-arm64-mac.yml'), metadata);
+
+  const result = runNode(['scripts/validate-release.ts', releaseAssetsDir], {
+    env: { OPL_RELEASE_VERSION: version },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /latest-mac\.yml does not declare OPL release version 26\.5\.25/);
+  assert.match(result.stderr, /latest-arm64-mac\.yml does not declare OPL release version 26\.5\.25/);
+});
+
 test('remote release verifier validates standard and Full assets from GitHub release view', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-'));
   const version = '26.5.19-remote';
@@ -1594,6 +1630,11 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const adapterContract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'));
+  const shellBuildScript = fs.readFileSync(path.join(activeShellRoot, 'scripts', 'build-with-builder.js'), 'utf8');
+  const shellViteConfig = fs.readFileSync(
+    path.join(activeShellRoot, 'packages', 'desktop', 'electron.vite.config.ts'),
+    'utf8',
+  );
 
   assert.match(workflow, /command:\s*bun install --cwd shells\/aionui --frozen-lockfile/);
   assert.doesNotMatch(workflow, /command:\s*cd shells\/aionui && bun install --frozen-lockfile/);
@@ -1612,6 +1653,10 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   assert.equal(packageJson.scripts['test:packaged:bun'], 'node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:opl-package');
   assert.equal(packageJson.scripts['install:shell'], 'node --experimental-strip-types scripts/run-active-shell-command.ts bun install --frozen-lockfile');
   assert.doesNotMatch(JSON.stringify(packageJson.scripts), /--cwd shells\/aionui|cd shells\/aionui/);
+  assert.match(shellBuildScript, /--config\.extraMetadata\.version=\$\{version\}/);
+  assert.match(shellBuildScript, /\$\{publishArg\} \$\{oplReleaseVersionConfigArg\}/);
+  assert.match(shellViteConfig, /const appReleaseVersion = injectedOplReleaseVersion \|\| rootPackageJson\.version/);
+  assert.match(shellViteConfig, /__APP_VERSION__:\s*JSON\.stringify\(appReleaseVersion\)/);
 });
 
 test('release artifact upload preserves electron-updater blockmaps', () => {
@@ -1670,6 +1715,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release[\s\S]*draft_candidate/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
+  assert.match(workflow, /name: Verify standard release assets[\s\S]*OPL_RELEASE_VERSION: \$\{\{ inputs\.opl_version \}\}[\s\S]*node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /git tag "\$tag" "\$GITHUB_SHA"/);
   assert.match(workflow, /--standard-artifacts-dir release-assets/);

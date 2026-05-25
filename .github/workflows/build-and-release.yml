@@ -128,7 +128,14 @@ jobs:
             echo "🚀 Production release: $TAG_NAME"
           fi
 
+          VERSION="${TAG_NAME#v}"
+          VERSION="${VERSION%%+*}"
+          if [[ "$VERSION" == *-dev-* ]]; then
+            VERSION="${VERSION%%-dev-*}"
+          fi
+
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "is_dev=$IS_DEV" >> $GITHUB_OUTPUT
 
           # 检查远程tag是否已存在
@@ -245,6 +252,8 @@ jobs:
 
       - name: Verify release assets
         shell: bash
+        env:
+          OPL_RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: node --experimental-strip-types scripts/validate-release.ts release-assets
 
       - name: Create Release

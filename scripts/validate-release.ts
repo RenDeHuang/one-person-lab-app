@@ -8,6 +8,7 @@ import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputDir = path.resolve(root, process.argv[2] ?? 'release-assets');
+const expectedVersion = process.env.OPL_RELEASE_VERSION?.trim() || '';
 const shellPaths = resolveActiveShellPaths();
 
 const result = spawnSync('bash', [shellPaths.releaseVerifyScriptPath, outputDir], {
@@ -35,6 +36,13 @@ for (const fileName of metadataFiles) {
   if (/One-Person-Lab-Full|Full-/i.test(text)) {
     console.error(`FAIL: standard updater metadata references a Full first-install asset: ${fileName}`);
     errors += 1;
+  }
+  if (expectedVersion) {
+    const escapedVersion = expectedVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (!new RegExp(`^version:\\s*['"]?${escapedVersion}['"]?\\s*$`, 'm').test(text)) {
+      console.error(`FAIL: ${fileName} does not declare OPL release version ${expectedVersion}`);
+      errors += 1;
+    }
   }
 }
 
