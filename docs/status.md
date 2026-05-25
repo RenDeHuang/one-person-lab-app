@@ -27,9 +27,10 @@ docs stay in `one-person-lab-app`.
 The App product profile is the current owner for desktop session defaults and
 user-facing product policy: Codex default model/reasoning, default visible
 companion skills, first-run deferred maintenance behavior, and Settings
-presentation keys. The active shell consumes the generated copy at
-`src/common/config/oplProductProfile.generated.json`; runtime truth, provider
-implementation, and domain truth remain outside App ownership.
+presentation keys. The active shell consumes the generated copy at the
+`shell_contract.paths.product_profile_target` path declared in
+`contracts/app-shell-adapter.json`; runtime truth, provider implementation, and
+domain truth remain outside App ownership.
 
 First-install policy is now contract-backed in
 `contracts/app-product-profile.json` and

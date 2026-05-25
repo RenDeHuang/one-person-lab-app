@@ -4,13 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const contractPath = path.join(appRoot, 'contracts', 'app-shell-adapter.json');
-
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -69,9 +65,10 @@ function resolveShellSourceLayout(shellRoot) {
 
 function main() {
   const args = parseArgs(process.argv);
-  const contract = readJson(contractPath);
+  const contract = readAppShellAdapterContract();
   const source = contract.shell_source;
-  const shellRoot = path.join(appRoot, source.checkout_path);
+  const shellPaths = resolveActiveShellPaths({ contract });
+  const shellRoot = shellPaths.shellRoot;
   const repo = args.repo || `git@github.com:${source.owner_repo}.git`;
   const ref = args.ref || source.default_ref || 'main';
 
@@ -86,8 +83,8 @@ function main() {
     throw new Error(`${source.checkout_path} exists but is not a Git checkout. Move it aside or pass --reset.`);
   }
 
-  const packageJsonPath = path.join(shellRoot, 'package.json');
-  const agentsPath = path.join(shellRoot, 'AGENTS.md');
+  const packageJsonPath = shellPaths.packageManifestPath;
+  const agentsPath = shellPaths.agentsGuidePath;
   if (!fs.existsSync(packageJsonPath) || !fs.existsSync(agentsPath)) {
     throw new Error(`${source.checkout_path} is missing required shell files.`);
   }
@@ -95,7 +92,7 @@ function main() {
   const head = run('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: shellRoot, capture: true }).stdout.trim();
   console.log(JSON.stringify({
     status: 'active_shell_ready',
-    shell_root: source.checkout_path,
+    shell_root: shellPaths.shellRootForDisplay,
     source_repo: source.owner_repo,
     ref,
     head,

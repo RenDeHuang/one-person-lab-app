@@ -46,8 +46,8 @@ history.
 
 `contracts/app-product-profile.json` is the release-time source of App-owned
 desktop defaults. Standard release preparation and Full first-install assembly
-sync it into `shells/aionui/src/common/config/oplProductProfile.generated.json`
-before shell packaging. This keeps product decisions such as Codex
+sync it into the active shell `shell_contract.paths.product_profile_target`
+declared in `contracts/app-shell-adapter.json` before shell packaging. This keeps product decisions such as Codex
 model/reasoning, default companion skills, CLT/deferred-maintenance copy, and
 Settings presentation policy in the App repo while the shell stays a thin
 consumer.

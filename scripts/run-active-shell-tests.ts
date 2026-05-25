@@ -1,16 +1,13 @@
 #!/usr/bin/env node
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const contractPath = path.join(root, 'contracts', 'app-shell-adapter.json');
-
-function readJson(filePath) {
-  return JSON.parse(readFileSync(filePath, 'utf8'));
-}
 
 function parseArgs(argv) {
   const parsed = {
@@ -164,14 +161,12 @@ function runProject({ shellRoot, project, files, chunkSize, fileParallelism, max
 }
 
 const args = parseArgs(process.argv);
-const contract = readJson(contractPath);
-const shellRoot = path.join(root, contract.shell_root);
+const contract = readAppShellAdapterContract(contractPath);
+const shellPaths = resolveActiveShellPaths({ contract });
+const shellRoot = shellPaths.shellRoot;
 
-if (contract.active_shell !== 'aionui' || contract.shell_root !== 'shells/aionui') {
-  throw new Error(`Unsupported active shell: ${contract.active_shell} at ${contract.shell_root}`);
-}
-if (!existsSync(path.join(shellRoot, 'vitest.config.ts'))) {
-  throw new Error(`Missing active shell Vitest config: ${path.relative(root, path.join(shellRoot, 'vitest.config.ts'))}`);
+if (!existsSync(shellPaths.vitestConfigPath)) {
+  throw new Error(`Missing active shell Vitest config: ${path.relative(root, shellPaths.vitestConfigPath)}`);
 }
 
 const tests = collectTests(shellRoot);

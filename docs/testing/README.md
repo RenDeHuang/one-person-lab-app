@@ -87,7 +87,8 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
 - Standard release metadata: `node --experimental-strip-types scripts/validate-release.ts release-assets`.
 - App-owned release boundary: `node --experimental-strip-types scripts/validate-release-boundary.ts`.
 - App product profile sync: standard and Full release preparation must generate
-  `shells/aionui/src/common/config/oplProductProfile.generated.json`.
+  the active shell `shell_contract.paths.product_profile_target` declared in
+  `contracts/app-shell-adapter.json`.
 - Full first-install package: `npm run release:full -- --version <version>`.
 - GUI smoke: installed `/Applications/One Person Lab.app` smoke or the App repo
   VM workflow. The release-blocking Full first-install VM gate uses a clean

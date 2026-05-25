@@ -10,6 +10,10 @@ import test from 'node:test';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const require = createRequire(import.meta.url);
+const externalShellRoot = process.env.OPL_APP_SHELL_ROOT?.trim()
+  ? path.resolve(appRoot, process.env.OPL_APP_SHELL_ROOT)
+  : null;
+const activeShellRoot = externalShellRoot ?? path.join(appRoot, 'shells', 'aionui');
 
 function runNode(args, options = {}) {
   return spawnSync(process.execPath, ['--experimental-strip-types', ...args], {
@@ -1589,9 +1593,14 @@ test('release code-quality uses App active-shell test runner', () => {
 test('release build uses App wrappers for cross-shell active-shell commands', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+  const adapterContract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'));
 
   assert.match(workflow, /command:\s*bun install --cwd shells\/aionui --frozen-lockfile/);
   assert.doesNotMatch(workflow, /command:\s*cd shells\/aionui && bun install --frozen-lockfile/);
+  assert.equal(adapterContract.shell_contract.layout_id, 'aionui_v2_workspace');
+  assert.equal(adapterContract.shell_contract.paths.product_profile_target, 'packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json');
+  assert.equal(adapterContract.shell_contract.paths.electron_builder_config, 'packages/desktop/electron-builder.yml');
+  assert.equal(adapterContract.shell_source.upstream_ref, 'v2.1.1');
   assert.match(
     workflow,
     /name: Prepare standard App payload[\s\S]*working-directory: \$\{\{ github\.workspace \}\}[\s\S]*run: node --experimental-strip-types scripts\/prepare-standard-release-payload\.ts/,
@@ -1600,7 +1609,9 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
     workflow,
     /name: Verify packaged bundled bun assets[\s\S]*working-directory: \$\{\{ github\.workspace \}\}[\s\S]*run: bun run validate:opl-package/,
   );
-  assert.equal(packageJson.scripts['test:packaged:bun'], 'bun run --cwd shells/aionui validate:opl-package');
+  assert.equal(packageJson.scripts['test:packaged:bun'], 'node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:opl-package');
+  assert.equal(packageJson.scripts['install:shell'], 'node --experimental-strip-types scripts/run-active-shell-command.ts bun install --frozen-lockfile');
+  assert.doesNotMatch(JSON.stringify(packageJson.scripts), /--cwd shells\/aionui|cd shells\/aionui/);
 });
 
 test('release artifact upload preserves electron-updater blockmaps', () => {
@@ -1622,11 +1633,11 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.doesNotMatch(workflow, /"platform":"windows-/);
   assert.doesNotMatch(workflow, /"platform":"linux-/);
   assert.doesNotMatch(workflow, /"platform":"macos-universal"/);
-  assert.equal(packageJson.scripts['build-mac:arm64'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && bun run --cwd shells/aionui build-mac:arm64');
-  assert.equal(packageJson.scripts['build-mac'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && bun run --cwd shells/aionui build-mac');
-  assert.equal(packageJson.scripts['build-mac:x64'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && bun run --cwd shells/aionui build-mac:x64');
-  assert.equal(packageJson.scripts['build-win'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && bun run --cwd shells/aionui build-win');
-  assert.equal(packageJson.scripts['build-deb'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && bun run --cwd shells/aionui build-deb');
+  assert.equal(packageJson.scripts['build-mac:arm64'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-mac:arm64');
+  assert.equal(packageJson.scripts['build-mac'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-mac');
+  assert.equal(packageJson.scripts['build-mac:x64'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-mac:x64');
+  assert.equal(packageJson.scripts['build-win'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-win');
+  assert.equal(packageJson.scripts['build-deb'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-deb');
   assert.deepEqual(releaseContract.standard_updater.allowed_metadata, [
     'latest-mac.yml',
     'latest-arm64-mac.yml',
@@ -1935,7 +1946,7 @@ test('packaged runtime validator only requires Full runtime when explicitly requ
   fs.mkdirSync(resourcesRoot, { recursive: true });
   fs.writeFileSync(asarPath, '', 'utf8');
 
-  const validator = require('../../shells/aionui/scripts/validate-packaged-runtime.js');
+  const validator = require(path.join(activeShellRoot, 'scripts', 'validate-packaged-runtime.js'));
   const optional = validator.validateFullRuntimeResources(resourcesRoot, { require: false });
   const required = validator.validateFullRuntimeResources(resourcesRoot, { require: true });
 
@@ -2128,7 +2139,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /meta_agent_repo_skill_fingerprint/);
   assert.match(buildScript, /mineru_document_extractor_fingerprint/);
   assert.match(buildScript, /syncAppProductProfileToShell\(options\.guiRoot\)/);
-  assert.match(prepareStandardScript, /syncAppProductProfileToShell\(shellRoot, \{ optional: true \}\)/);
+  assert.match(prepareStandardScript, /syncAppProductProfileToShell\(shellPaths\.shellRoot, \{ optional: true \}\)/);
   assert.match(
     buildScript,
     /if \(cacheEvent\.read_archive\) {\s*extractLayer\(archivePath, targetRoot\);\s*return cacheEvent;\s*}\s*const tempLayerRoot/,

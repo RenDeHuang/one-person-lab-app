@@ -23,6 +23,7 @@ import {
   shouldExcludeRuntimePath,
 } from './full-first-install-package.ts';
 import { syncAppProductProfileToShell } from './app-product-profile.ts';
+import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { writeRuntimeWrappers } from './full-first-install-runtime-wrappers.ts';
 
 const appRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -1088,14 +1089,14 @@ function syncRuntimePayload(runtimeRoot, manifest, payloadRoot) {
 
 function syncRuntimePayloadToBuildRoots(runtimeRoot, manifest, guiRoot) {
   const appPayloadRoot = path.join(appRepoRoot, 'packaged-runtimes', FULL_RUNTIME_RESOURCE_DIR);
-  const shellPayloadRoot = path.join(guiRoot, 'packaged-runtimes', FULL_RUNTIME_RESOURCE_DIR);
+  const shellPayloadRoot = resolveActiveShellPaths({ shellRoot: guiRoot }).packagedRuntimeRoot;
   syncRuntimePayload(runtimeRoot, manifest, appPayloadRoot);
   syncRuntimePayload(runtimeRoot, manifest, shellPayloadRoot);
   return { appPayloadRoot, shellPayloadRoot };
 }
 
 function findBuiltDmg(guiRoot, version) {
-  const outDir = path.join(guiRoot, 'out');
+  const outDir = resolveActiveShellPaths({ shellRoot: guiRoot }).buildOutputDir;
   const candidates = [
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One Person Lab-${version}-mac-arm64.dmg`,
@@ -1108,7 +1109,7 @@ function findBuiltDmg(guiRoot, version) {
 }
 
 function removeStandardGuiArtifacts(guiRoot, version) {
-  const outDir = path.join(guiRoot, 'out');
+  const outDir = resolveActiveShellPaths({ shellRoot: guiRoot }).buildOutputDir;
   if (!fs.existsSync(outDir)) {
     return;
   }

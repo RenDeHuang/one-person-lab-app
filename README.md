@@ -112,7 +112,7 @@ The active shell is declared in [`contracts/app-shell-adapter.json`](contracts/a
 - shell source: `gaofeng21cn/opl-aion-shell`
 - shell history policy: external checkout, not merged into App default branch
 
-The App product profile is declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json) and generated into `shells/aionui/src/common/config/oplProductProfile.generated.json` during release preparation.
+The App product profile is declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json) and generated into the active shell path declared by [`contracts/app-shell-adapter.json`](contracts/app-shell-adapter.json) during release preparation.
 
 See [`docs/status.md`](docs/status.md) for the current migration and release state.
 

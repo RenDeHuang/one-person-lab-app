@@ -8,13 +8,13 @@ import {
   formatCodexProfileLabel,
   readAppProductProfile,
 } from './app-product-profile.ts';
+import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const defaultShellRoot = path.resolve(repoRoot, 'shells', 'aionui');
 const defaultFullPackageDir = path.resolve(repoRoot, 'dist', 'opl-full-release');
 
 function resolveShellRootEnv() {
-  return process.env.OPL_APP_SHELL_ROOT || process.env.OPL_AION_SHELL_ROOT || defaultShellRoot;
+  return process.env.OPL_APP_SHELL_ROOT || process.env.OPL_AION_SHELL_ROOT || resolveActiveShellPaths().shellRoot;
 }
 
 function defaultReleaseVersion() {
@@ -158,7 +158,7 @@ function metadataMatchesMacArch(metadata, macArch) {
 }
 
 function assertStandardArtifactDoesNotContainFullRuntime(shellRoot, version, macArch) {
-  const appPath = path.join(shellRoot, 'out', `mac-${macArch}`, 'One Person Lab.app');
+  const appPath = path.join(resolveActiveShellPaths({ shellRoot }).buildOutputDir, `mac-${macArch}`, 'One Person Lab.app');
   if (!fs.existsSync(appPath)) {
     return;
   }
@@ -204,11 +204,11 @@ function isLatestMetadataForVersion(releaseDir, name, version, macArch) {
 }
 
 function findArtifacts(shellRoot, version, macArch) {
-  const releaseDir = ['release', 'out']
-    .map((entry) => path.join(shellRoot, entry))
+  const shellPaths = resolveActiveShellPaths({ shellRoot });
+  const releaseDir = [path.join(shellRoot, 'release'), shellPaths.buildOutputDir]
     .find((candidate) => fs.existsSync(candidate));
   if (!releaseDir) {
-    throw new Error(`Missing GUI artifact directory: expected ${path.join(shellRoot, 'release')} or ${path.join(shellRoot, 'out')}`);
+    throw new Error(`Missing GUI artifact directory: expected ${path.join(shellRoot, 'release')} or ${shellPaths.buildOutputDir}`);
   }
   const files = fs.readdirSync(releaseDir).filter((name) => {
     if (isGuiArtifact(name, version, '.dmg', macArch)) {

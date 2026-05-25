@@ -11,7 +11,8 @@
     "owner_repo": "gaofeng21cn/opl-aion-shell",
     "default_ref": "main",
     "checkout_path": "shells/aionui",
-    "history_policy": "external_checkout_not_merged_into_app_default_branch"
+    "history_policy": "external_checkout_not_merged_into_app_default_branch",
+    "upstream_ref": "v2.1.1"
   },
   "app_remote": {
     "name": "origin",
@@ -23,6 +24,31 @@
     "main_branch": "main"
   },
   "release_role": "stable_app_shell",
+  "shell_contract": {
+    "layout_id": "aionui_v2_workspace",
+    "source_topology": "root_workspace_with_desktop_package",
+    "paths": {
+      "package_manifest": "package.json",
+      "agents_guide": "AGENTS.md",
+      "vitest_config": "vitest.config.ts",
+      "electron_builder_config": "packages/desktop/electron-builder.yml",
+      "build_output_dir": "out",
+      "product_profile_target": "packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json",
+      "packaged_runtime_root": "packaged-runtimes/opl-full-runtime",
+      "packaged_runtime_validator": "scripts/validate-packaged-runtime.js",
+      "release_prepare_script": "scripts/prepare-release-assets.sh",
+      "release_verify_script": "scripts/verify-release-assets.sh"
+    },
+    "capabilities": [
+      "app_product_profile_generated_config",
+      "electron_builder_release_packaging",
+      "opl_packaged_runtime_extra_resource",
+      "standard_release_asset_normalization",
+      "standard_release_asset_verification",
+      "app_managed_host_tool_bootstrap",
+      "bundled_runtime_core_ready_without_host_node"
+    ]
+  },
   "framework_boundary": {
     "framework_repo": "gaofeng21cn/one-person-lab",
     "app_consumes": [

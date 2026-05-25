@@ -4,14 +4,14 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const shellRoot = path.join(root, 'shells', 'aionui');
 const outputDir = path.resolve(root, process.argv[2] ?? 'release-assets');
-const script = path.join(shellRoot, 'scripts', 'verify-release-assets.sh');
+const shellPaths = resolveActiveShellPaths();
 
-const result = spawnSync('bash', [script, outputDir], {
-  cwd: shellRoot,
+const result = spawnSync('bash', [shellPaths.releaseVerifyScriptPath, outputDir], {
+  cwd: shellPaths.shellRoot,
   stdio: 'inherit',
   env: process.env,
 });

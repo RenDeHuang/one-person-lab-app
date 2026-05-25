@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const contractPath = path.join(root, 'contracts', 'app-shell-adapter.json');
@@ -43,15 +44,16 @@ function assertFile(filePath, label) {
   }
 }
 
+function resolveValidationCwd(entry, contract, shellPaths) {
+  if (entry.cwd === contract.shell_root) {
+    return shellPaths.shellRoot;
+  }
+  return path.join(root, entry.cwd);
+}
+
 function validateContractShape(contract) {
   if (contract.app_repo !== 'gaofeng21cn/one-person-lab-app') {
     throw new Error(`Unexpected app_repo: ${contract.app_repo}`);
-  }
-  if (contract.active_shell !== 'aionui') {
-    throw new Error(`Unexpected active_shell: ${contract.active_shell}`);
-  }
-  if (contract.shell_root !== 'shells/aionui') {
-    throw new Error(`Unexpected shell_root: ${contract.shell_root}`);
   }
   if (contract.shell_source?.owner_repo !== 'gaofeng21cn/opl-aion-shell') {
     throw new Error(`Unexpected shell_source owner: ${contract.shell_source?.owner_repo}`);
@@ -60,10 +62,12 @@ function validateContractShape(contract) {
     throw new Error(`Unexpected shell history policy: ${contract.shell_source?.history_policy}`);
   }
 
-  const shellRoot = path.join(root, contract.shell_root);
-  assertFile(shellRoot, 'active shell root');
-  assertFile(path.join(shellRoot, 'package.json'), 'active shell package.json');
-  assertFile(path.join(shellRoot, 'AGENTS.md'), 'active shell AGENTS.md');
+  const shellPaths = resolveActiveShellPaths({ contract });
+  assertFile(shellPaths.shellRoot, 'active shell root');
+  assertFile(shellPaths.packageManifestPath, 'active shell package.json');
+  assertFile(shellPaths.agentsGuidePath, 'active shell AGENTS.md');
+  assertFile(shellPaths.vitestConfigPath, 'active shell vitest config');
+  assertFile(shellPaths.electronBuilderConfigPath, 'active shell electron-builder config');
 
   if (!Array.isArray(contract.validation_commands) || contract.validation_commands.length === 0) {
     throw new Error('validation_commands must be a non-empty array');
@@ -73,7 +77,7 @@ function validateContractShape(contract) {
     if (!entry.id || !entry.cwd || !entry.command) {
       throw new Error(`Invalid validation command entry: ${JSON.stringify(entry)}`);
     }
-    assertFile(path.join(root, entry.cwd), `validation cwd for ${entry.id}`);
+    assertFile(resolveValidationCwd(entry, contract, shellPaths), `validation cwd for ${entry.id}`);
   }
 }
 
@@ -547,8 +551,8 @@ function validateProductProfile(profile) {
   }
 }
 
-function runCommand(entry) {
-  const cwd = path.join(root, entry.cwd);
+function runCommand(entry, contract, shellPaths) {
+  const cwd = resolveValidationCwd(entry, contract, shellPaths);
   console.log(`\n==> ${entry.id}: ${entry.command}`);
   const result = spawnSync(entry.command, {
     cwd,
@@ -562,7 +566,8 @@ function runCommand(entry) {
 }
 
 const args = parseArgs(process.argv);
-const contract = readJson(contractPath);
+const contract = readAppShellAdapterContract(contractPath);
+const shellPaths = resolveActiveShellPaths({ contract });
 const pageStateMatrix = readJson(pageStateMatrixPath);
 const firstRunMatrix = readJson(firstRunMatrixPath);
 validateContractShape(contract);
@@ -582,7 +587,7 @@ if (commands.length === 0) {
 }
 
 for (const command of commands) {
-  runCommand(command);
+  runCommand(command, contract, shellPaths);
 }
 
 console.log('\nActive shell validation passed.');

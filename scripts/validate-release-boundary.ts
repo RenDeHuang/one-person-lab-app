@@ -3,8 +3,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const shellPaths = resolveActiveShellPaths();
 
 const checks = [
   {
@@ -21,13 +23,13 @@ const checks = [
   },
   {
     id: 'update_bridge_repo',
-    file: 'shells/aionui/src/process/bridge/updateBridge.ts',
+    file: path.relative(appRoot, path.join(shellPaths.shellRoot, 'packages/desktop/src/process/bridge/updateBridge.ts')),
     required: ["'gaofeng21cn/one-person-lab-app'"],
     forbidden: ["const DEFAULT_REPO = 'gaofeng21cn/one-person-lab'"],
   },
   {
     id: 'application_bridge_repo',
-    file: 'shells/aionui/src/process/bridge/applicationBridgeCore.ts',
+    file: path.relative(appRoot, path.join(shellPaths.shellRoot, 'packages/desktop/src/process/bridge/applicationBridgeCore.ts')),
     required: ["'gaofeng21cn/one-person-lab-app'"],
     forbidden: ["|| 'gaofeng21cn/one-person-lab'"],
   },

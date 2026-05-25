@@ -112,7 +112,7 @@ bun run validate-release -- release-assets
 - 界面来源：`gaofeng21cn/opl-aion-shell`
 - 历史策略：外部检出，不合并进 App 默认分支
 
-App 产品默认策略由 [`contracts/app-product-profile.json`](contracts/app-product-profile.json) 声明，并在发布准备阶段生成到 `shells/aionui/src/common/config/oplProductProfile.generated.json`。
+App 产品默认策略由 [`contracts/app-product-profile.json`](contracts/app-product-profile.json) 声明，并在发布准备阶段生成到 [`contracts/app-shell-adapter.json`](contracts/app-shell-adapter.json) 声明的当前 shell 路径。
 
 当前迁移与发布状态见 [`docs/status.md`](docs/status.md)。
 
