@@ -149,7 +149,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
     package_kind: 'opl_full_first_install_macos_arm64',
     size_budget: {
       platform_scope: 'macos-arm64',
-      max_full_dmg_bytes: 450000000,
+      max_full_dmg_bytes: 550000000,
       max_runtime_uncompressed_bytes: 800000000,
     },
     measurement_policy: {
@@ -1282,7 +1282,7 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.deepEqual(summary.verified_assets.map((asset) => asset.name), names);
   assert.equal(summary.full_first_install_budget.status, 'passed');
   assert.equal(summary.full_first_install_budget.platform_scope, 'macos-arm64');
-  assert.equal(summary.full_first_install_budget.max_full_dmg_bytes, 450000000);
+  assert.equal(summary.full_first_install_budget.max_full_dmg_bytes, 550000000);
   assert.equal(summary.full_first_install_budget.full_dmg_size_bytes, Buffer.byteLength('full-dmg'));
   assert.equal(summary.full_first_install_budget.runtime_uncompressed_bytes, 128);
   assert.deepEqual(summary.full_first_install_budget.temporal_core_bridge_releases, ['aarch64-apple-darwin']);
@@ -2009,7 +2009,7 @@ test('Full first-install manifest declares App-owned distribution and Framework 
   assert.equal(manifest.manifest_version, 2);
   assert.deepEqual(manifest.size_budget, {
     platform_scope: 'macos-arm64',
-    max_full_dmg_bytes: 450000000,
+    max_full_dmg_bytes: 550000000,
     max_runtime_uncompressed_bytes: 800000000,
   });
   assert.deepEqual(manifest.measurement_policy, {

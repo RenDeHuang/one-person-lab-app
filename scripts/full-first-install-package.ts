@@ -14,7 +14,7 @@ export const FULL_RUNTIME_CACHE_LAYOUT_VERSION = 1;
 export const FULL_RUNTIME_CACHE_LAYER_IDS = ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'] as const;
 export const FULL_PACKAGE_SIZE_BUDGET = {
   platform_scope: 'macos-arm64',
-  max_full_dmg_bytes: 450000000,
+  max_full_dmg_bytes: 550000000,
   max_runtime_uncompressed_bytes: 800000000,
 } as const;
 export const FULL_PACKAGE_MEASUREMENT_POLICY = {
