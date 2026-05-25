@@ -101,7 +101,8 @@ npm run ensure:shell
 bun install --cwd shells/aionui --frozen-lockfile
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 npm run test:release-boundary
-node --experimental-strip-types scripts/validate-release-boundary.ts
+npm run validate:release-boundary
+npm run hygiene:fallow -- --format json --summary
 bun run i18n:types
 bun run test
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets

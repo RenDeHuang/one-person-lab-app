@@ -129,7 +129,7 @@ node --experimental-strip-types scripts/collect-release-evidence.ts \
   --execute-action \
   --overwrite
 
-node --experimental-strip-types scripts/write-release-evidence-manifest.ts \
+npm run release:evidence:manifest -- \
   --bundle-dir release-evidence/<version> \
   --overwrite
 ```
@@ -143,7 +143,7 @@ verdicts; absent App/VM/remote artifacts remain `missing` in the manifest.
 Validate a collected bundle with:
 
 ```bash
-node --experimental-strip-types scripts/validate-release-evidence-bundle.ts \
+npm run release:evidence:validate -- \
   --bundle-dir release-evidence/<version>
 ```
 
@@ -153,7 +153,7 @@ not be produced in the current environment, keep that artifact marked as
 `missing` in `evidence-manifest.json` and run:
 
 ```bash
-node --experimental-strip-types scripts/validate-release-evidence-bundle.ts \
+npm run release:evidence:validate -- \
   --bundle-dir release-evidence/<version> \
   --allow-missing-evidence
 ```
@@ -259,7 +259,7 @@ Boundary guard:
 
 ```bash
 npm run test:release-boundary
-node --experimental-strip-types scripts/validate-release-boundary.ts
+npm run validate:release-boundary
 ```
 
 Standard updater metadata is restricted to macOS arm64 standard package assets.

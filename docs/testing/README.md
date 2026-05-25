@@ -28,12 +28,13 @@ AionUI intake work.
 ```bash
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 npm run test:release-boundary
-node --experimental-strip-types scripts/validate-release-boundary.ts
+npm run validate:release-boundary
 node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite
-node --experimental-strip-types scripts/write-release-evidence-manifest.ts --bundle-dir release-evidence/<version> --overwrite
-node --experimental-strip-types scripts/validate-release-evidence-bundle.ts --bundle-dir release-evidence/<version>
+npm run release:evidence:manifest -- --bundle-dir release-evidence/<version> --overwrite
+npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 node --experimental-strip-types scripts/validate-release.ts release-assets
+npm run hygiene:fallow -- --format json --summary
 ```
 
 The App page-state matrix is declared in
@@ -56,6 +57,11 @@ then validates the gap report without treating it as packaged App evidence.
 `collect-release-evidence.ts` can fill the OPL runtime JSON and selected
 safe-action dry-run/execute artifacts from the live Framework CLI before that
 validation step.
+
+`hygiene:fallow` is scoped to App-owned root wrappers, contracts, and docs.
+`.fallowrc.json` excludes the ignored `shells/aionui/**` external checkout so
+App hygiene does not report shell-owned dependency or source findings. Run
+shell hygiene in the `gaofeng21cn/opl-aion-shell` repository.
 
 ## Installed App Smoke
 
@@ -85,7 +91,8 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
 
 - Contracts/unit: `npm run test:release-boundary`.
 - Standard release metadata: `node --experimental-strip-types scripts/validate-release.ts release-assets`.
-- App-owned release boundary: `node --experimental-strip-types scripts/validate-release-boundary.ts`.
+- App-owned release boundary: `npm run validate:release-boundary`.
+- Fallow production hygiene: `npm run hygiene:fallow -- --format json --summary`.
 - App product profile sync: standard and Full release preparation must generate
   the active shell `shell_contract.paths.product_profile_target` declared in
   `contracts/app-shell-adapter.json`.

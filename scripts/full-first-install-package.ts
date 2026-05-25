@@ -10,14 +10,14 @@ export const FULL_FIRST_INSTALL_OUTPUT_DIR = '/Users/gaofeng/Downloads/One-Perso
 export const FULL_RELEASE_OUTPUT_DIR = 'dist/opl-full-release';
 export const FULL_RUNTIME_RESOURCE_DIR = 'opl-full-runtime';
 export const PACKAGED_MODULE_MARKER_FILE = 'opl-runtime-module.json';
-export const FULL_RUNTIME_CACHE_LAYOUT_VERSION = 1;
+const FULL_RUNTIME_CACHE_LAYOUT_VERSION = 1;
 export const FULL_RUNTIME_CACHE_LAYER_IDS = ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'] as const;
-export const FULL_PACKAGE_SIZE_BUDGET = {
+const FULL_PACKAGE_SIZE_BUDGET = {
   platform_scope: 'macos-arm64',
   max_full_dmg_bytes: 550000000,
   max_runtime_uncompressed_bytes: 800000000,
 } as const;
-export const FULL_PACKAGE_MEASUREMENT_POLICY = {
+const FULL_PACKAGE_MEASUREMENT_POLICY = {
   full_dmg_bytes: 'github_release_asset_size_bytes',
   runtime_uncompressed_bytes: 'manifest_size_breakdown_total_runtime_uncompressed_bytes',
 } as const;
@@ -79,7 +79,7 @@ export function buildFullRuntimeCacheKey(input: {
   return `full-runtime-v${FULL_RUNTIME_CACHE_LAYOUT_VERSION}-${input.layerId}-${digest}`;
 }
 
-export function buildFullRuntimeCacheArchiveName(input: {
+function buildFullRuntimeCacheArchiveName(input: {
   layerId: FullRuntimeCacheLayerId;
   key: string;
 }) {

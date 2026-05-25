@@ -343,21 +343,30 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
   }
 }
 
-function validateFirstRunMatrix(matrix, contract) {
-  if (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root) {
-    throw new Error('First-run matrix must target the active shell contract');
-  }
+const firstRunRequiredHostTools = ['command_line_tools', 'homebrew', 'node', 'git'];
+const firstRunDeferredMaintenanceItems = [
+  'repo_sync',
+  'module_reconcile',
+  'command_line_tools_install',
+  'companion_skills_install',
+  'ecosystem_module_updates',
+];
+const firstRunEcosystemModules = ['officecli', 'mineru', 'opl-meta-agent'];
+
+function buildScenarioMap(matrix) {
   if (!Array.isArray(matrix.scenarios) || matrix.scenarios.length === 0) {
     throw new Error('First-run matrix must declare scenarios');
   }
-  for (const scenario of matrix.scenarios) {
+  return new Map(matrix.scenarios.map((scenario) => {
     if (!scenario.id || !scenario.package_type || !Array.isArray(scenario.expects) || scenario.expects.length === 0) {
       throw new Error(`Invalid first-run scenario: ${JSON.stringify(scenario)}`);
     }
-  }
-  const scenarioById = new Map((matrix.scenarios ?? []).map((scenario) => [scenario.id, scenario]));
-  const fullClean = scenarioById.get('full_first_install_clean_machine');
-  for (const tool of ['command_line_tools', 'homebrew', 'node', 'git']) {
+    return [scenario.id, scenario];
+  }));
+}
+
+function validateFullFirstInstallScenario(fullClean) {
+  for (const tool of firstRunRequiredHostTools) {
     if (!fullClean?.clean_machine_missing_tools?.includes(tool)) {
       throw new Error(`Full first-install clean-machine scenario must allow missing ${tool}`);
     }
@@ -365,14 +374,7 @@ function validateFirstRunMatrix(matrix, contract) {
   if (fullClean?.core_ready_source !== 'bundled_runtime') {
     throw new Error('Full first-install clean-machine scenario must reach Core ready from bundled_runtime');
   }
-  const deferredMaintenanceItems = [
-    'repo_sync',
-    'module_reconcile',
-    'command_line_tools_install',
-    'companion_skills_install',
-    'ecosystem_module_updates',
-  ];
-  for (const item of deferredMaintenanceItems) {
+  for (const item of firstRunDeferredMaintenanceItems) {
     if (!fullClean?.background_maintenance?.includes(item)) {
       throw new Error(`Full first-install clean-machine scenario must defer ${item} to background maintenance`);
     }
@@ -383,12 +385,14 @@ function validateFirstRunMatrix(matrix, contract) {
   if (fullClean?.post_core_ready_background_policy?.continues_after_core_ready !== true) {
     throw new Error('Full first-install clean-machine scenario must continue maintenance after Core ready');
   }
-  for (const item of deferredMaintenanceItems) {
+  for (const item of firstRunDeferredMaintenanceItems) {
     if (!fullClean?.post_core_ready_background_policy?.managed_items?.includes(item)) {
       throw new Error(`Full first-install post-Core maintenance must manage ${item}`);
     }
   }
-  const standardBootstrap = scenarioById.get('standard_app_managed_bootstrap');
+}
+
+function validateStandardBootstrapScenario(standardBootstrap) {
   if (standardBootstrap?.bootstrap_owner !== 'app_managed') {
     throw new Error('Standard bootstrap scenario must declare App-managed bootstrap ownership');
   }
@@ -401,20 +405,26 @@ function validateFirstRunMatrix(matrix, contract) {
   if (!standardBootstrap?.expects?.some((entry) => /does not end.*Homebrew, Node, or Git/i.test(entry))) {
     throw new Error('Standard bootstrap must not make Homebrew/Node/Git installation the first-screen end state');
   }
-  const cltInstaller = scenarioById.get('macos_clt_system_installer');
+}
+
+function validateCommandLineToolsScenario(cltInstaller) {
   if (cltInstaller?.command !== 'xcode-select --install') {
     throw new Error('CLT first-run scenario must use xcode-select --install');
   }
   if (!cltInstaller?.expects?.some((entry) => /user confirmation/.test(entry))) {
     throw new Error('CLT first-run scenario must wait for user confirmation in the system installer');
   }
-  const ecosystem = scenarioById.get('ecosystem_modules_app_cli_managed');
-  for (const moduleId of ['officecli', 'mineru', 'opl-meta-agent']) {
+}
+
+function validateEcosystemModuleScenario(ecosystem) {
+  for (const moduleId of firstRunEcosystemModules) {
     if (!ecosystem?.modules?.includes(moduleId)) {
       throw new Error(`First-run matrix must mark ${moduleId} as App/CLI managed ecosystem module`);
     }
   }
-  const updater = scenarioById.get('updater_standard_channel');
+}
+
+function validateUpdaterScenario(updater) {
   if (
     updater?.update_policy?.download !== 'background'
     || updater?.update_policy?.apply !== 'restart_when_ready'
@@ -425,7 +435,36 @@ function validateFirstRunMatrix(matrix, contract) {
   }
 }
 
-function validateProductProfile(profile) {
+function validateFirstRunMatrix(matrix, contract) {
+  if (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root) {
+    throw new Error('First-run matrix must target the active shell contract');
+  }
+  const scenarioById = buildScenarioMap(matrix);
+  validateFullFirstInstallScenario(scenarioById.get('full_first_install_clean_machine'));
+  validateStandardBootstrapScenario(scenarioById.get('standard_app_managed_bootstrap'));
+  validateCommandLineToolsScenario(scenarioById.get('macos_clt_system_installer'));
+  validateEcosystemModuleScenario(scenarioById.get('ecosystem_modules_app_cli_managed'));
+  validateUpdaterScenario(scenarioById.get('updater_standard_channel'));
+}
+
+const requiredHostTools = ['command_line_tools', 'homebrew', 'node', 'git'];
+const deferredMaintenanceItems = [
+  'repo_sync',
+  'module_reconcile',
+  'command_line_tools_install',
+  'companion_skills_install',
+  'ecosystem_module_updates',
+];
+const ecosystemModuleIds = ['officecli', 'mineru', 'opl-meta-agent'];
+const forbiddenAuthorityOwners = [
+  'runtime_truth',
+  'provider_implementation',
+  'domain_truth',
+  'domain_quality_verdict',
+  'domain_artifact_authority',
+];
+
+function validateProductProfileIdentity(profile) {
   if (profile.owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected product profile owner: ${profile.owner}`);
   }
@@ -435,6 +474,9 @@ function validateProductProfile(profile) {
   if (profile.app_repo !== 'gaofeng21cn/one-person-lab-app') {
     throw new Error(`Unexpected product profile repo: ${profile.app_repo}`);
   }
+}
+
+function validateProductProfileContractRefs(profile) {
   for (const [label, expected] of Object.entries({
     active_shell: contractPath,
     page_state: pageStateMatrixPath,
@@ -449,6 +491,9 @@ function validateProductProfile(profile) {
       throw new Error(`Unexpected product profile contract_refs.${label}: ${value}`);
     }
   }
+}
+
+function validateProductProfileCodexDefaults(profile) {
   if (profile.default_session_profile?.executor !== 'codex_cli') {
     throw new Error(`Unexpected product profile executor: ${profile.default_session_profile?.executor}`);
   }
@@ -464,8 +509,11 @@ function validateProductProfile(profile) {
   if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('ui-ux-pro-max')) {
     throw new Error('Product profile must include ui-ux-pro-max as a default visible skill');
   }
+}
+
+function validateFullFirstInstallCoreReadyPolicy(profile) {
   const fullFirstInstall = profile.first_run?.core_ready_policy?.full_first_install_clean_machine;
-  for (const tool of ['command_line_tools', 'homebrew', 'node', 'git']) {
+  for (const tool of requiredHostTools) {
     if (!fullFirstInstall?.missing_host_tools_allowed?.includes(tool)) {
       throw new Error(`Product profile Full first-install policy must allow missing ${tool}`);
     }
@@ -473,13 +521,6 @@ function validateProductProfile(profile) {
   if (fullFirstInstall?.initial_runtime_source !== 'bundled_runtime' || fullFirstInstall?.core_ready_without_host_tools !== true) {
     throw new Error('Product profile Full first-install must reach Core ready through bundled_runtime without host tools');
   }
-  const deferredMaintenanceItems = [
-    'repo_sync',
-    'module_reconcile',
-    'command_line_tools_install',
-    'companion_skills_install',
-    'ecosystem_module_updates',
-  ];
   for (const blocker of deferredMaintenanceItems) {
     if (!fullFirstInstall?.must_not_block_core_ready?.includes(blocker)) {
       throw new Error(`Product profile Full first-install must not block Core ready on ${blocker}`);
@@ -508,6 +549,9 @@ function validateProductProfile(profile) {
       throw new Error(`Product profile Full first-install post-Core maintenance must manage ${blocker}`);
     }
   }
+}
+
+function validateStandardPackagePolicy(profile) {
   const standardPackage = profile.first_run?.core_ready_policy?.standard_package;
   if (
     standardPackage?.bootstrap_owner !== 'app_managed'
@@ -523,6 +567,9 @@ function validateProductProfile(profile) {
       throw new Error(`Product profile standard bootstrap must forbid ${forbidden}`);
     }
   }
+}
+
+function validateCommandLineToolsPolicy(profile) {
   if (profile.first_run?.command_line_tools?.installer_command !== 'xcode-select --install') {
     throw new Error('Product profile CLT installer command must be xcode-select --install');
   }
@@ -532,6 +579,9 @@ function validateProductProfile(profile) {
   if (profile.first_run?.command_line_tools?.waits_for_user_confirmation !== true) {
     throw new Error('Product profile CLT installer must wait for user confirmation');
   }
+}
+
+function validateStandardUpdatePolicy(profile) {
   if (
     profile.first_run?.updates?.standard_channel?.implementation_reference !== 'electron_autoUpdater_background_download_update_downloaded_restart_prompt'
     || profile.first_run?.updates?.standard_channel?.ready_prompt !== 'prompt_restart_after_download_ready'
@@ -542,7 +592,10 @@ function validateProductProfile(profile) {
   ) {
     throw new Error('Product profile standard updates must download in background, prompt restart after ready, exclude Full metadata, and not block Core ready');
   }
-  for (const moduleId of ['officecli', 'mineru', 'opl-meta-agent']) {
+}
+
+function validateCompanionPayloadAuthority(profile) {
+  for (const moduleId of ecosystemModuleIds) {
     if (!profile.companion_payloads?.ecosystem_modules?.includes(moduleId)) {
       throw new Error(`Product profile must list ${moduleId} as ecosystem module`);
     }
@@ -550,17 +603,26 @@ function validateProductProfile(profile) {
       throw new Error(`Product profile must mark ${moduleId} as App/CLI managed`);
     }
   }
-  for (const forbidden of [
-    'runtime_truth',
-    'provider_implementation',
-    'domain_truth',
-    'domain_quality_verdict',
-    'domain_artifact_authority',
-  ]) {
+}
+
+function validateProductProfileBoundary(profile) {
+  for (const forbidden of forbiddenAuthorityOwners) {
     if (!profile.boundary?.app_does_not_own?.includes(forbidden)) {
       throw new Error(`Product profile boundary must exclude ${forbidden}`);
     }
   }
+}
+
+function validateProductProfile(profile) {
+  validateProductProfileIdentity(profile);
+  validateProductProfileContractRefs(profile);
+  validateProductProfileCodexDefaults(profile);
+  validateFullFirstInstallCoreReadyPolicy(profile);
+  validateStandardPackagePolicy(profile);
+  validateCommandLineToolsPolicy(profile);
+  validateStandardUpdatePolicy(profile);
+  validateCompanionPayloadAuthority(profile);
+  validateProductProfileBoundary(profile);
 }
 
 function runCommand(entry, contract, shellPaths) {

@@ -131,11 +131,7 @@ export function readAppShellAdapterContract(filePath = contractPath): ShellAdapt
   return contract;
 }
 
-export function resolveAppRoot(): string {
-  return appRoot;
-}
-
-export function resolveActiveShellRoot(contract = readAppShellAdapterContract()): string {
+function resolveActiveShellRoot(contract = readAppShellAdapterContract()): string {
   const override = process.env.OPL_APP_SHELL_ROOT?.trim();
   return override ? path.resolve(appRoot, override) : path.join(appRoot, contract.shell_root);
 }
@@ -160,4 +156,3 @@ export function resolveActiveShellPaths(options: { shellRoot?: string; contract?
     releaseVerifyScriptPath: path.join(shellRoot, paths.release_verify_script),
   };
 }
-
