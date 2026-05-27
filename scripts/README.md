@@ -54,6 +54,10 @@ OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
 
+`release:prepare-standard` also copies the App root installer into the active
+shell resources as `opl-install.sh`, which is the packaged standard DMG
+bootstrap carrier used when clean first launch cannot find `opl`.
+
 Full size policy lives in `docs/release/README.md`: release review records the
 compressed DMG size, uncompressed runtime size, and layer breakdown, then uses
 `verify-remote-release-assets.ts` as the remote verifier size budget check for
@@ -73,23 +77,28 @@ domain-specific allowlists must come from the owning domain repositories.
 The clean no-CLT first-install gate is wired through
 `.github/workflows/opl-first-run-vm.yml` and the active shell Tart smoke helper.
 It supports `package_profile=standard` and `package_profile=full`. The standard
-profile downloads `One-Person-Lab-*-mac-arm64.dmg` excluding Full assets and runs
-`--runtime-profile standard`; the Full profile downloads
-`One-Person-Lab-Full-*-mac-arm64.dmg` and runs `--runtime-profile full`. Both
-profiles clone a clean no-CLT Tart base VM, fix the logical display at
-`1920x1080px`, and sweep packaged Settings pages. The Full profile additionally
-submits the Codex/OpenAI API key configuration wizard and keeps Full runtime
-readiness on the release-blocking path. Command Line Tools, git availability,
-and managed repo sync are deferred maintenance. The pre-`/guid`
-`ready_to_launch` gate requires only workspace root, Codex CLI, and Codex
-config; Domain modules, the family runtime provider, recommended skills, native
-helpers, CLT, repo sync, and ecosystem updates are Full readiness or background
-maintenance and must not block launch. The
-workflow writes a preflight summary with runner labels, source VM, guest user,
-package/runtime profile, DMG path, display, and artifact output before executing
-the smoke. Codex App and Computer Use checks are non-blocking exploratory tools;
-release-blocking App readiness must live in deterministic scripts, contracts, or
-GitHub Actions gates.
+profile resolves `One-Person-Lab-*-mac-arm64.dmg` excluding Full assets and runs
+`--runtime-profile standard`; the Full profile resolves
+`One-Person-Lab-Full-*-mac-arm64.dmg` and runs `--runtime-profile full`. Release
+workflows pass a same-run workflow artifact for the DMG so draft candidates do
+not depend on GitHub Release draft visibility. The release tag stays in the
+preflight summary as provenance and remote release verification remains the
+published-asset gate. Both profiles clone a clean no-CLT Tart base VM, fix the
+logical display at `1920x1080px`, sweep packaged Settings pages, and write
+profile-scoped artifacts named `opl-first-run-vm-<profile>-<run_id>`. The Full
+profile uses live `opl system initialize --json` output as the pre-`/guid`
+`ready_to_launch` proof source, keeps Full runtime readiness on the
+release-blocking path, and submits the Codex/OpenAI API key configuration wizard
+when the wizard is visible. It does not require the wizard UI when Codex config
+is already ready. Command Line Tools, git availability, and managed repo sync
+are deferred maintenance. The pre-`/guid` gate requires only workspace root,
+Codex CLI, and Codex config; Domain modules, the family runtime provider,
+recommended skills, native helpers, CLT, repo sync, and ecosystem updates are
+Full readiness or background maintenance and must not block launch. The workflow writes a preflight summary
+with runner labels, source VM, guest user, package/runtime profile, DMG path,
+display, and artifact output before executing the smoke. Codex App and Computer
+Use checks are non-blocking exploratory tools; release-blocking App readiness
+must live in deterministic scripts, contracts, or GitHub Actions gates.
 Scheduled GitHub Actions runs must have repository variable
 `OPL_FIRST_RUN_TART_SOURCE` set to a local Tart source VM on the self-hosted
 runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18`.
@@ -114,7 +123,10 @@ Release automation has two distinct improvement tracks:
   changing release truth.
 
 `actionlint` belongs to the second track as the workflow semantic gate in the
-reusable build quality jobs; Ruby/YAML parsing remains only a syntax check.
+reusable build quality jobs; Ruby/YAML parsing remains only a syntax check. The
+CI gate disables opportunistic external `shellcheck`/`pyflakes` integrations so
+host image drift cannot turn historical script-style findings into a release
+blocker for packaging or VM telemetry runs.
 
 GitHub Actions `concurrency` belongs to duplicate-run governance. Use it to
 cancel stale scheduled runs or serialize operator-triggered runs, not as proof

@@ -1565,17 +1565,17 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
       kind: 'image',
       source_kind: 'app_runtime_action_screenshot',
     },
-    first_run_log: {
-      path: 'first-run.log',
+    first_run_vm_summary: {
+      path: 'tart-smoke-summary.json',
       producer: 'clean first-run VM smoke',
-      kind: 'log',
+      kind: 'json',
       source_kind: 'clean_first_run_vm_smoke',
     },
-    settings_smoke: {
-      path: 'settings-smoke.json',
-      producer: 'settings smoke',
+    guest_smoke_summary: {
+      path: 'artifacts/smoke-summary.json',
+      producer: 'packaged GUI first-run guest smoke',
       kind: 'json',
-      source_kind: 'settings_smoke',
+      source_kind: 'packaged_gui_first_run_smoke',
     },
     remote_release_verification: {
       path: 'remote-release-verification.json',
@@ -1614,7 +1614,7 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
   }
 
   const fullFirstInstall = (firstRunMatrix.scenarios ?? []).find((scenario) => scenario.id === 'full_first_install_clean_machine');
-  for (const artifactPath of ['first-run.log', 'settings-smoke.json']) {
+  for (const artifactPath of ['tart-smoke-summary.json', 'artifacts/smoke-summary.json', 'artifacts/settings-smoke-summary.json']) {
     if (!fullFirstInstall?.release_evidence_artifacts?.includes(artifactPath)) {
       throw new Error(`Full first-install first-run scenario must list release evidence artifact ${artifactPath}`);
     }

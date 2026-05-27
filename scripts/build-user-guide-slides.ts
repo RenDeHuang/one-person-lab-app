@@ -365,7 +365,7 @@ function buildFinalSlide() {
     '截图来自中文 macOS VM。',
     '逻辑桌面 1920×1080，Retina 输出 3840×2160。',
     '真实 DMG 安装到 /Applications/One Person Lab.app。',
-    'VM smoke 看到 opl-guid-entry。',
+    '标准版验证 GUID 输入页，Full 版额外验证 Codex 向导。',
   ];
 
   addShape(10, {

@@ -127,6 +127,29 @@ function resolveBundlePath(bundleDir: string, artifactPath: string) {
   return resolved;
 }
 
+function validateVmSummary(artifact: EvidenceArtifact, payload: unknown) {
+  const record = asRecord(payload, artifact.id);
+  if (record.status !== 'passed') {
+    throw new Error(`${artifact.id} must be a passed VM smoke JSON artifact.`);
+  }
+  if (record.runtime_profile !== 'standard' && record.runtime_profile !== 'full') {
+    throw new Error(`${artifact.id} must report runtime_profile standard or full.`);
+  }
+  const settingsSmoke = asRecord(record.settings_smoke, `${artifact.id}.settings_smoke`);
+  if (settingsSmoke.status !== 'passed') {
+    throw new Error(`${artifact.id} must include passed Settings smoke evidence.`);
+  }
+  if (!Array.isArray(settingsSmoke.pages) || settingsSmoke.pages.length === 0) {
+    throw new Error(`${artifact.id} must report visited Settings pages.`);
+  }
+  if (artifact.id === 'guest_smoke_summary') {
+    const guiReady = asRecord(record.gui_ready, `${artifact.id}.gui_ready`);
+    if (guiReady.hasGuidInput !== true || guiReady.hasGuidSendButton !== true) {
+      throw new Error('guest_smoke_summary must prove the packaged GUID entry is usable.');
+    }
+  }
+}
+
 function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown) {
   const record = asRecord(payload, artifact.id);
   if (artifact.id === 'app_state_summary' || artifact.id === 'app_state_full') {
@@ -182,13 +205,8 @@ function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown)
       throw new Error(`${artifact.id} must include authority_boundary.`);
     }
   }
-  if (artifact.id === 'settings_smoke') {
-    if (record.status !== 'passed') {
-      throw new Error('settings_smoke must be a passed settings smoke JSON artifact.');
-    }
-    if (!Array.isArray(record.pages_checked) || record.pages_checked.length === 0) {
-      throw new Error('settings_smoke must report checked Settings pages.');
-    }
+  if (artifact.id === 'first_run_vm_summary' || artifact.id === 'guest_smoke_summary') {
+    validateVmSummary(artifact, record);
   }
   if (artifact.id === 'remote_release_verification') {
     if (record.status !== 'passed') {

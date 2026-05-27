@@ -385,18 +385,18 @@
         "source_kind": "app_runtime_action_screenshot"
       },
       {
-        "id": "first_run_log",
-        "path": "first-run.log",
-        "kind": "log",
+        "id": "first_run_vm_summary",
+        "path": "tart-smoke-summary.json",
+        "kind": "json",
         "producer": "clean first-run VM smoke",
         "source_kind": "clean_first_run_vm_smoke"
       },
       {
-        "id": "settings_smoke",
-        "path": "settings-smoke.json",
+        "id": "guest_smoke_summary",
+        "path": "artifacts/smoke-summary.json",
         "kind": "json",
-        "producer": "settings smoke",
-        "source_kind": "settings_smoke"
+        "producer": "packaged GUI first-run guest smoke",
+        "source_kind": "packaged_gui_first_run_smoke"
       },
       {
         "id": "remote_release_verification",

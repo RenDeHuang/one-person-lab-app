@@ -20,8 +20,11 @@ recommended skills, native helpers, repository sync, module reconcile, CLT
 installation, companion skills install, and ecosystem module updates are Full
 readiness or best-effort background maintenance after `ready_to_launch`; they
 cannot block first launch.
-Standard packages should use App-managed bootstrap
-and App-managed maintenance where possible; the first screen must not end by
+Standard packages bundle the App installer as the standard bootstrap carrier.
+On a clean Mac where `opl` is missing, first launch runs that carrier as an
+App-managed core setup with modules, GUI open, native-helper repair, and online
+family runtime install disabled, then proves `ready_to_launch` through
+`opl system initialize --json` before `/guid`. The first screen must not end by
 telling the user to install Homebrew, Node, or Git before One Person Lab can
 proceed.
 
@@ -102,13 +105,15 @@ builds that should run on GitHub runners instead of this Mac.
   prerelease/Nightly updates in the App.
 - The VM smoke downloads the published DMG for the selected package profile,
   clones a clean no-CLT Tart base VM, fixes the logical display at
-  `1920x1080px`, and sweeps the packaged Settings pages. The standard profile
-  checks launch and App-managed bootstrap readiness. The Full profile also
-  submits the Codex/OpenAI API key configuration wizard and checks Full runtime
-  readiness after `ready_to_launch`. CLT installation, git availability, and
-  managed repo sync are deferred maintenance; domain modules, the family
-  runtime provider, recommended skills, native helpers, repo sync, CLT, and
-  ecosystem updates must not block the pre-`/guid` Core launch gate. This VM workflow is deterministic
+  `1920x1080px`, copies the GitHub runner's Node.js runtime into the guest for
+  the smoke harness, and sweeps the packaged Settings pages. The standard
+  profile checks launch and App-managed bootstrap readiness. The Full profile
+  also submits the Codex/OpenAI API key configuration wizard and checks Full
+  runtime readiness after `ready_to_launch`. CLT installation, git availability,
+  preinstalled Node.js, and managed repo sync are deferred maintenance; domain
+  modules, the family runtime provider, recommended skills, native helpers,
+  repo sync, CLT, and ecosystem updates must not block the pre-`/guid` Core
+  launch gate. This VM workflow is deterministic
   release-blocking evidence for stable release readiness. Codex App and
   Computer Use browser/desktop sessions are allowed only as non-blocking
   exploratory triage; if they reveal release-relevant behavior, the finding
@@ -126,7 +131,9 @@ builds that should run on GitHub runners instead of this Mac.
   source is `opl-first-run-no-clt-clean-base-26-5-18`. Missing configuration is
   a failed VM gate, not a skipped success. Set `OPL_FIRST_RUN_GUEST_USER` when
   the guest SSH user differs from `runner`, and set `OPL_FIRST_RUN_GUEST_SSH_KEY`
-  only when the runner needs a non-default SSH private key.
+  only when the runner needs a non-default SSH private key. The current source
+  VM logs in as `admin` with `/Users/gaofeng/.ssh/opl_first_run_tart_ed25519`
+  on the self-hosted runner.
 
 The older automatic path is still valid for standard-only releases: pushing a
 `v<version>` tag triggers **Build and Release**. After that completes, run
@@ -191,8 +198,8 @@ Each release evidence bundle should follow
 - `action-dry-run-result.json` and `action-execute-result.json`.
 - `screenshots/runtime.png`, `screenshots/full.png`, and
   `screenshots/action.png`.
-- `first-run.log`.
-- `settings-smoke.json`.
+- `tart-smoke-summary.json`.
+- `artifacts/smoke-summary.json`.
 - `remote-release-verification.json`.
 
 Generate or refresh the manifest after collecting available artifacts:
@@ -211,7 +218,7 @@ npm run release:evidence:manifest -- \
 
 The collector writes only OPL-owned runtime snapshot, summary/full
 App/operator drilldown, and selected safe-action dry-run/execute JSON. It does
-not create screenshots, VM first-run logs, settings smoke, remote Release
+not create screenshots, VM first-run summaries, guest smoke summaries, remote Release
 verification, runtime truth, domain truth, artifact authority, or quality
 verdicts; absent App/VM/remote artifacts remain `missing` in the manifest.
 
@@ -222,9 +229,9 @@ npm run release:evidence:validate -- \
   --bundle-dir release-evidence/<version>
 ```
 
-Default validation fails closed when required evidence is absent. If a VM smoke,
-settings smoke, screenshot, OPL runtime JSON, or remote Release artifact could
-not be produced in the current environment, keep that artifact marked as
+Default validation fails closed when required evidence is absent. If a VM smoke
+summary, guest smoke summary, screenshot, OPL runtime JSON, or remote Release
+artifact could not be produced in the current environment, keep that artifact marked as
 `missing` in `evidence-manifest.json` and run:
 
 ```bash
@@ -235,7 +242,7 @@ npm run release:evidence:validate -- \
 
 That output is a missing-evidence report only. It is not packaged App release
 evidence and must not be used to claim that a published App bundle, Full DMG,
-clean first-run VM path, settings smoke, or remote Release has been verified.
+clean first-run VM path, packaged Settings navigation, or remote Release has been verified.
 
 Use **OPL Full Runtime Cache Warmup** before release windows or let its scheduled
 run keep the content-addressed Full runtime layer cache warm. It builds the

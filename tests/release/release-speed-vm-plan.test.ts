@@ -88,7 +88,7 @@ test('_build-reusable splits quality work into parallel App and active-shell job
   }
 
   assertMatches(workflow, /go install github\.com\/rhysd\/actionlint\/cmd\/actionlint@latest/, 'actionlint install');
-  assertMatches(workflow, /actionlint -color/, 'actionlint gate');
+  assertMatches(workflow, /actionlint -color -shellcheck= -pyflakes=/, 'actionlint semantic gate');
   assertMatches(workflow, /uses:\s+\.\/\.github\/actions\/setup-active-shell-deps/, 'reusable active shell setup action');
   assertMatches(setupAction, /path:\s+shells\/aionui/, 'active shell checkout');
   assertMatches(setupAction, /key:\s+bun-install-[^\n]*hashFiles\('shells\/aionui\/package\.json', 'shells\/aionui\/bun\.lock'\)/, 'active shell Bun dependency cache key');
@@ -164,12 +164,23 @@ test('first-run VM workflow writes deterministic preflight and final summaries b
   assert.ok(smokeIndex > preflightIndex, 'preflight summary must run before the VM smoke command');
   assertMatches(workflow, /## OPL GUI first-run VM preflight/, 'VM preflight heading');
   assertMatches(workflow, /deterministic release-blocking clean VM first launch/, 'VM gate purpose');
+  assertMatches(workflow, /release_artifact_name:/, 'VM same-run artifact input');
+  assertMatches(workflow, /actions\/download-artifact@v7/, 'VM same-run artifact download');
+  assertMatches(workflow, /Using same-run workflow artifact/, 'VM artifact source log');
+  assertMatches(workflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/, 'VM release tag provenance');
+  assertMatches(workflow, /Resolve host Node\.js runtime for guest smoke/, 'VM host Node runtime resolution');
+  assertMatches(workflow, /--guest-node-root "\$\{\{ steps\.host_node\.outputs\.node_root \}\}"/, 'VM guest Node copy');
   assertMatches(workflow, /Runner labels/, 'VM runner labels');
   assertMatches(workflow, /Source VM/, 'VM source summary');
   assertMatches(workflow, /Smoke profile: \\?`no-clt-clean-vm\\?`/, 'VM smoke profile summary');
   assertMatches(workflow, /Display: \\?`1920x1080px\\?`/, 'VM display summary');
   assertMatches(workflow, /Settings smoke: enabled/, 'VM settings smoke summary');
   assertMatches(workflow, /tart-smoke-summary\.json/, 'VM final smoke summary artifact');
+  assertMatches(
+    workflow,
+    /name:\s+opl-first-run-vm-\$\{\{\s*steps\.package_profile\.outputs\.profile\s*\}\}-\$\{\{\s*github\.run_id\s*\}\}/,
+    'VM artifacts must be profile-scoped so standard and Full evidence do not collide',
+  );
 });
 
 test('Docker WebUI smoke records image size as a release-speed artifact', () => {

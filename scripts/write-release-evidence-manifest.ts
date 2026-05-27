@@ -56,11 +56,11 @@ function resolveBundlePath(bundleDir, artifactPath) {
 }
 
 function missingReasonFor(artifact) {
-  if (artifact.id === 'first_run_log') {
-    return 'clean first-run VM smoke log was not generated for this bundle';
+  if (artifact.id === 'first_run_vm_summary') {
+    return 'clean first-run VM smoke summary was not generated for this bundle';
   }
-  if (artifact.id === 'settings_smoke') {
-    return 'settings smoke JSON was not generated for this bundle';
+  if (artifact.id === 'guest_smoke_summary') {
+    return 'packaged GUI first-run guest smoke summary was not generated for this bundle';
   }
   if (artifact.id === 'remote_release_verification') {
     return 'remote release verification JSON was not generated for this bundle';

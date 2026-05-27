@@ -65,10 +65,10 @@ is unavailable, refs-only dry-run/execute action commands, receipt/count refresh
 after execute, and explicit non-authority boundary fields.
 
 Release evidence bundle validation requires `evidence-manifest.json` plus the
-contracted artifact files. When a local lane cannot produce a clean VM smoke,
-settings smoke, remote Release verification, OPL runtime JSON, or screenshots,
-the manifest must mark those entries as `missing`; `--allow-missing-evidence`
-then validates the gap report without treating it as packaged App evidence.
+contracted artifact files. When a local lane cannot produce clean VM smoke
+summaries, remote Release verification, OPL runtime JSON, or screenshots, the
+manifest must mark those entries as `missing`; `--allow-missing-evidence` then
+validates the gap report without treating it as packaged App evidence.
 `collect-release-evidence.ts` can fill the OPL runtime JSON and selected
 safe-action dry-run/execute artifacts from the live Framework CLI before that
 validation step.
@@ -129,10 +129,13 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
 - GUI smoke: installed `/Applications/One Person Lab.app` smoke or the App repo
   VM workflow. The standard DMG gate uses `--runtime-profile standard` to prove
   launch, App-managed bootstrap/readiness, and Settings navigation. The Full DMG
-  gate uses `--runtime-profile full` to add Codex/OpenAI API key wizard
-  submission, bundled runtime materialization, and Full readiness checks after
-  `ready_to_launch`. The pre-`/guid` Core launch gate requires only workspace
-  root, Codex CLI, and Codex config. Domain modules, the family runtime
+  gate uses `--runtime-profile full` to add bundled runtime materialization and
+  Full readiness checks after `ready_to_launch`. The Full gate proves the
+  pre-`/guid` Core launch gate through `opl system initialize --json`; the gate
+  requires only workspace root, Codex CLI, and Codex config. If the Codex/OpenAI
+  API key wizard appears during first launch, the smoke submits it and records
+  that path, but Full release readiness is based on Codex config readiness rather
+  than requiring the wizard UI to be shown. Domain modules, the family runtime
   provider, recommended skills, native helpers, CLT, git, managed repo sync, and
   ecosystem updates are Full readiness or deferred maintenance and must not
   block `ready_to_launch`. First-run progress evidence must map visible phase,
@@ -149,6 +152,12 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   in `full-workflow-telemetry.json` artifacts. These artifacts help compare
   build speed across runs; they do not replace release manifests, checksums,
   remote verification, VM smoke artifacts, or evidence bundle validation.
+- Standard DMG clean VM smoke: the packaged App must run its bundled
+  `opl-install.sh` bootstrap carrier if `opl` is missing, reach
+  `ready_to_launch` through `opl system initialize --json`, and only then enter
+  `/guid`. The smoke keeps Full-only runtime equivalence out of the standard
+  profile but still uploads `system-initialize.json` as the core readiness
+  proof.
 - One-shot installer: the App root `install.sh` remains the public entrypoint.
   Stable verification runs it against a checked-out Framework installer with
   `OPL_INSTALL_SCRIPT_URL=file://.../one-person-lab/install.sh ./install.sh
@@ -160,9 +169,16 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   base VM on the self-hosted runner; the current source VM is
   `opl-first-run-no-clt-clean-base-26-5-18`. Missing source-VM configuration is
   a failed gate because no clean first-run evidence can be produced.
+  The workflow copies the GitHub runner's Node.js runtime into the guest for
+  the smoke harness, so the clean VM does not need preinstalled Node.js, CLT, or
+  other developer tooling.
   `npm run test:release-boundary` locks this workflow policy.
 - Docker/WebUI: build from `shells/aionui/Dockerfile`, run the container, and
   verify HTTP 200 for `/` and `/manifest.webmanifest`.
+- Release-called VM smokes consume the same-run standard or Full DMG workflow
+  artifact for draft candidates, while keeping the release tag as provenance.
+  Remote verification remains responsible for proving that the published
+  GitHub Release assets match the release manifest and checksums.
 
 ## Release CI Operations Boundaries
 
