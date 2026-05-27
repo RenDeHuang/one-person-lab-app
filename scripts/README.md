@@ -80,14 +80,17 @@ workflows pass a same-run workflow artifact for the DMG so draft candidates do
 not depend on GitHub Release draft visibility. The release tag stays in the
 preflight summary as provenance and remote release verification remains the
 published-asset gate. Both profiles clone a clean no-CLT Tart base VM, fix the
-logical display at `1920x1080px`, and sweep packaged Settings pages. The Full
-profile additionally submits the Codex/OpenAI API key configuration wizard and
-keeps Full runtime readiness on the release-blocking path. Command Line Tools,
-git availability, and managed repo sync are deferred maintenance. The pre-`/guid`
-`ready_to_launch` gate requires only workspace root, Codex CLI, and Codex
-config; Domain modules, the family runtime provider, recommended skills, native
-helpers, CLT, repo sync, and ecosystem updates are Full readiness or background
-maintenance and must not block launch. The workflow writes a preflight summary
+logical display at `1920x1080px`, sweep packaged Settings pages, and write
+profile-scoped artifacts named `opl-first-run-vm-<profile>-<run_id>`. The Full
+profile uses live `opl system initialize --json` output as the pre-`/guid`
+`ready_to_launch` proof source, keeps Full runtime readiness on the
+release-blocking path, and submits the Codex/OpenAI API key configuration wizard
+when the wizard is visible. It does not require the wizard UI when Codex config
+is already ready. Command Line Tools, git availability, and managed repo sync
+are deferred maintenance. The pre-`/guid` gate requires only workspace root,
+Codex CLI, and Codex config; Domain modules, the family runtime provider,
+recommended skills, native helpers, CLT, repo sync, and ecosystem updates are
+Full readiness or background maintenance and must not block launch. The workflow writes a preflight summary
 with runner labels, source VM, guest user, package/runtime profile, DMG path,
 display, and artifact output before executing the smoke. Codex App and Computer
 Use checks are non-blocking exploratory tools; release-blocking App readiness

@@ -129,10 +129,13 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
 - GUI smoke: installed `/Applications/One Person Lab.app` smoke or the App repo
   VM workflow. The standard DMG gate uses `--runtime-profile standard` to prove
   launch, App-managed bootstrap/readiness, and Settings navigation. The Full DMG
-  gate uses `--runtime-profile full` to add Codex/OpenAI API key wizard
-  submission, bundled runtime materialization, and Full readiness checks after
-  `ready_to_launch`. The pre-`/guid` Core launch gate requires only workspace
-  root, Codex CLI, and Codex config. Domain modules, the family runtime
+  gate uses `--runtime-profile full` to add bundled runtime materialization and
+  Full readiness checks after `ready_to_launch`. The Full gate proves the
+  pre-`/guid` Core launch gate through `opl system initialize --json`; the gate
+  requires only workspace root, Codex CLI, and Codex config. If the Codex/OpenAI
+  API key wizard appears during first launch, the smoke submits it and records
+  that path, but Full release readiness is based on Codex config readiness rather
+  than requiring the wizard UI to be shown. Domain modules, the family runtime
   provider, recommended skills, native helpers, CLT, git, managed repo sync, and
   ecosystem updates are Full readiness or deferred maintenance and must not
   block `ready_to_launch`. The App repo VM workflow is the deterministic

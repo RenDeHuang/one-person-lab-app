@@ -345,7 +345,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: opl-first-run-vm-${{ github.run_id }}
+          name: opl-first-run-vm-${{ steps.package_profile.outputs.profile }}-${{ github.run_id }}
           path: artifacts/opl-first-run-vm
           if-no-files-found: warn
 

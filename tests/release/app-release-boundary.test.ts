@@ -773,6 +773,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
   assert.deepEqual(fullFirstRun.release_evidence_artifacts, [
     'tart-smoke-summary.json',
     'artifacts/smoke-summary.json',
+    'artifacts/system-initialize.json',
     'artifacts/settings-smoke-summary.json',
   ]);
   for (const forbiddenAuthority of [

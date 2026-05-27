@@ -55,7 +55,7 @@
       },
       "expects": [
         "Full DMG is installed into /Applications on first launch",
-        "Codex/OpenAI API key configuration wizard is seen and submitted",
+        "Codex config is ready before /guid; if the Codex/OpenAI API key configuration wizard is visible, it is submitted",
         "Settings pages are navigable after first-run initialization",
         "Full runtime payload is materialized",
         "ready_to_launch is reached before /guid after workspace root, Codex CLI, and Codex config are ready",
@@ -68,6 +68,7 @@
       "release_evidence_artifacts": [
         "tart-smoke-summary.json",
         "artifacts/smoke-summary.json",
+        "artifacts/system-initialize.json",
         "artifacts/settings-smoke-summary.json"
       ]
     },
@@ -110,7 +111,7 @@
       "expects": [
         "Full DMG reaches Core ready from the bundled runtime",
         "ready_to_launch is reached before /guid after workspace root, Codex CLI, and Codex config are ready",
-        "Codex/OpenAI API key configuration wizard is seen and submitted",
+        "Codex config is ready before /guid; if the Codex/OpenAI API key configuration wizard is visible, it is submitted",
         "Domain modules and family runtime provider readiness are verified as Full readiness after ready_to_launch",
         "Settings pages are navigable after first-run initialization"
       ],
