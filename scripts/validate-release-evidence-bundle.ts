@@ -134,10 +134,12 @@ function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown)
     if (appState.schema !== 'opl_app_state.v1' && appState.schema_version !== 'opl_app_state.v1') {
       throw new Error(`${artifact.id} must be real OPL App state JSON with schema opl_app_state.v1.`);
     }
-    if (artifact.id === 'app_state_summary' && appState.profile !== 'fast') {
+    const meta = appState.meta === undefined ? {} : asRecord(appState.meta, `${artifact.id}.app_state.meta`);
+    const profile = appState.profile ?? meta.profile;
+    if (artifact.id === 'app_state_summary' && profile !== 'fast') {
       throw new Error('app_state_summary must use the fast OPL App state profile.');
     }
-    if (artifact.id === 'app_state_full' && appState.profile !== 'full') {
+    if (artifact.id === 'app_state_full' && profile !== 'full') {
       throw new Error('app_state_full must use the full OPL App state profile.');
     }
     if (!appState.operator || typeof appState.operator !== 'object') {
@@ -161,7 +163,7 @@ function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown)
   }
   if (artifact.id === 'action_dry_run_result' || artifact.id === 'action_execute_result') {
     const execution = asRecord(record.app_action_execution, `${artifact.id}.app_action_execution`);
-    if (execution.surface_kind !== 'opl_app_action_execution') {
+    if (execution.surface_kind !== 'opl_app_action_execution.v1') {
       throw new Error(`${artifact.id} must be an OPL App action execution JSON result.`);
     }
     if (typeof execution.action_id !== 'string' || !execution.action_id.trim()) {
@@ -173,8 +175,8 @@ function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown)
     if (artifact.id === 'action_execute_result' && execution.dry_run !== false) {
       throw new Error('action_execute_result must be a non-dry-run execution result.');
     }
-    if (!execution.execution || typeof execution.execution !== 'object') {
-      throw new Error(`${artifact.id} must include execution details.`);
+    if (!execution.result || typeof execution.result !== 'object') {
+      throw new Error(`${artifact.id} must include result details.`);
     }
     if (!execution.authority_boundary || typeof execution.authority_boundary !== 'object') {
       throw new Error(`${artifact.id} must include authority_boundary.`);

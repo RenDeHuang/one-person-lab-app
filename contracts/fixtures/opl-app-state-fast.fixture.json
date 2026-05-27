@@ -1,0 +1,244 @@
+{
+  "version": "g2",
+  "app_state": {
+    "schema_version": "opl_app_state.v1",
+    "surface_kind": "opl_app_state.v1",
+    "meta": {
+      "profile": "fast",
+      "read_policy": "bounded_local_read_no_network_no_repair"
+    },
+    "runtime_source": {
+      "owner": "one-person-lab",
+      "cli_surface": "opl app state",
+      "action_surface": "opl app action execute",
+      "app_repo_truth_owner": "one-person-lab-app"
+    },
+    "operator": {
+      "status": "attention_needed",
+      "summary": {
+        "runtime_status": "attention_needed",
+        "provider_status": "not_selected",
+        "visible_action_count": 3,
+        "profile": "fast"
+      },
+      "full_detail_surface": "opl runtime app-operator-drilldown --detail full",
+      "workbench": {
+        "view_model_schema": "opl_app_operator_workbench.v1",
+        "summary_cards": [
+          {
+            "card_id": "runtime_status",
+            "label": "Runtime status",
+            "value": "attention_needed",
+            "tone": "attention",
+            "source_ref": "app_state.provider.temporal"
+          },
+          {
+            "card_id": "codex_cli",
+            "label": "Codex CLI",
+            "value": "0.125.0 / gpt-5.5 xhigh",
+            "tone": "ready",
+            "source_ref": "app_state.core.codex"
+          },
+          {
+            "card_id": "temporal_provider",
+            "label": "Temporal provider",
+            "value": "not_selected",
+            "tone": "attention",
+            "source_ref": "app_state.provider.temporal"
+          }
+        ],
+        "sections": [
+          {
+            "section_id": "home",
+            "label": "Home",
+            "state": "ready",
+            "source_ref": "app_state.ui_defaults",
+            "lazy": false
+          },
+          {
+            "section_id": "runtime",
+            "label": "Runtime",
+            "state": "attention_needed",
+            "source_ref": "app_state.operator.workbench",
+            "lazy": false
+          },
+          {
+            "section_id": "full_runtime_drilldown",
+            "label": "Full runtime drilldown",
+            "state": "lazy",
+            "source_ref": "opl runtime app-operator-drilldown --detail full --json",
+            "lazy": true
+          }
+        ],
+        "navigation": {
+          "primary_items": [
+            {
+              "item_id": "home",
+              "label": "Home",
+              "section_ref": "home"
+            },
+            {
+              "item_id": "runtime",
+              "label": "Runtime",
+              "section_ref": "runtime"
+            }
+          ],
+          "replacement_policy": "app_repo_owns_navigation_truth_shell_renders_typed_items"
+        },
+        "action_queue": {
+          "items": [
+            {
+              "item_id": "action:provider_scheduler_status",
+              "task_id": "provider_scheduler_status",
+              "title": "Read Temporal scheduler status",
+              "subtitle": "opl family-runtime scheduler status --provider temporal",
+              "domain_id": "opl",
+              "domain_label": "OPL",
+              "state": "ready",
+              "priority_bucket": "can_dry_run",
+              "safe_action_ref_count": 1,
+              "blocker_ref_count": 0,
+              "paper_route_lens_ref_count": 0
+            }
+          ],
+          "item_limit": 16,
+          "source_ref": "app_state.actions"
+        },
+        "domain_lane_map": {
+          "lanes": [
+            {
+              "domain_id": "medautoscience",
+              "lane_label": "Med Auto Science",
+              "active_task_count": 1,
+              "blocked_task_count": 1,
+              "paper_route_lens_ref_count": 0,
+              "tasks": [
+                {
+                  "task_id": "medautoscience",
+                  "label": "Med Auto Science",
+                  "state": "missing",
+                  "active_stage_id": "module_runtime",
+                  "active_path_node_ids": ["module:medautoscience"],
+                  "paper_route_lens_ref_count": 0
+                }
+              ]
+            }
+          ],
+          "source_ref": "app_state.modules.items"
+        },
+        "task_drilldowns": [
+          {
+            "task_id": "medautoscience",
+            "domain_id": "medautoscience",
+            "title": "Med Auto Science",
+            "state": "missing",
+            "active_stage_id": "module_runtime",
+            "stage_attempt_ids": [],
+            "safe_action_ref_count": 0,
+            "blocker_ref_count": 1,
+            "paper_route_lens_ref_count": 0,
+            "active_path": [
+              {
+                "node_id": "module:medautoscience",
+                "node_kind": "stage_attempt",
+                "label": "Med Auto Science",
+                "state": "missing",
+                "owner": "opl_framework",
+                "ref": "/workspace/med-autoscience"
+              }
+            ]
+          }
+        ],
+        "safe_action_routes": [
+          {
+            "action_id": "provider_scheduler_status",
+            "label": "Read Temporal scheduler status",
+            "owner": "opl_framework",
+            "route": "opl app action execute --action provider_scheduler_status",
+            "dry_run_required": true,
+            "source_ref": "app_state.actions"
+          }
+        ],
+        "refresh_policy": {
+          "summary_poll_interval_seconds": 10,
+          "full_detail_auto_poll": false,
+          "per_token_streaming": false,
+          "failure_policy": "section_level_status_with_last_good_display_cache_allowed"
+        },
+        "performance_policy": {
+          "fast_json_target_bytes": 200000,
+          "fast_json_max_bytes": 500000,
+          "first_screen_action_limit": 16,
+          "global_map_renderer": "bounded_typed_view_model",
+          "graph_layout_recompute": "on_input_hash_change",
+          "shell_must_not_derive_layout_from_raw_runtime_projection": true
+        },
+        "lazy_refs": [
+          {
+            "ref_id": "full_app_state_refresh",
+            "surface": "opl app state --profile full --json",
+            "policy": "manual_refresh_or_section_level_refresh"
+          },
+          {
+            "ref_id": "full_runtime_drilldown",
+            "surface": "opl runtime app-operator-drilldown --detail full --json",
+            "policy": "on_demand_diagnostic_only"
+          }
+        ]
+      },
+      "dynamic_vertical_map": {
+        "nodes": [
+          {
+            "node_id": "route_graph:opl_app_state",
+            "node_kind": "route_graph",
+            "label": "OPL App state",
+            "state": "ready",
+            "owner": "opl_framework",
+            "ref": "opl app state --profile fast --json"
+          },
+          {
+            "node_id": "safe_action:provider_scheduler_status",
+            "node_kind": "safe_action",
+            "label": "Read Temporal scheduler status",
+            "state": "ready",
+            "owner": "opl_framework",
+            "ref": "opl app action execute --action provider_scheduler_status"
+          }
+        ],
+        "edges": [
+          {
+            "from_node_id": "route_graph:opl_app_state",
+            "to_node_id": "safe_action:provider_scheduler_status",
+            "edge_kind": "attempt_has_safe_action_route",
+            "label": "safe action"
+          }
+        ]
+      },
+      "owner_boundary": {
+        "app_repo": "gui_product_truth_and_release_gate_owner",
+        "opl_framework": "app_state_action_and_runtime_projection_owner",
+        "shell": "thin_renderer_and_ipc_adapter",
+        "can_write_domain_truth": false,
+        "can_read_memory_body": false,
+        "can_read_artifact_body": false,
+        "can_authorize_quality_verdict": false
+      }
+    },
+    "provider": {
+      "temporal": {
+        "status": "not_selected",
+        "health_status": "not_selected"
+      }
+    },
+    "actions": [
+      {
+        "action_id": "provider_scheduler_status",
+        "label": "Read Temporal scheduler status",
+        "surface": "opl app action execute",
+        "delegated_surface": "opl family-runtime scheduler status --provider temporal",
+        "payload_fields": [],
+        "mutates": "none_read_only"
+      }
+    ]
+  }
+}

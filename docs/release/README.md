@@ -11,12 +11,16 @@ The App repository owns the macOS arm64 standard desktop package, Full
 first-install DMG, updater metadata, GitHub Release uploads, release asset
 normalization, GUI smoke, and user-facing release notes.
 
-First-install product policy is App-owned. A Full first-install package must
-reach Core ready from the bundled runtime on a clean Mac even when Apple Command
-Line Tools, Homebrew, Node, and Git are absent. Repository sync, module
-reconcile, CLT installation, companion skills install, and ecosystem module
-updates continue as best-effort background maintenance after Core ready and
-cannot block first launch. Standard packages should use App-managed bootstrap
+First-install product policy is App-owned. The launch gate is `ready_to_launch`
+before `/guid`, and Core means workspace root, Codex CLI, and Codex config. A
+Full first-install package must reach Core ready from the bundled runtime on a
+clean Mac even when Apple Command Line Tools, Homebrew, Node, and Git are
+absent. After Core ready, domain modules, the family runtime provider,
+recommended skills, native helpers, repository sync, module reconcile, CLT
+installation, companion skills install, and ecosystem module updates are Full
+readiness or best-effort background maintenance after `ready_to_launch`; they
+cannot block first launch.
+Standard packages should use App-managed bootstrap
 and App-managed maintenance where possible; the first screen must not end by
 telling the user to install Homebrew, Node, or Git before One Person Lab can
 proceed.
@@ -93,9 +97,10 @@ builds that should run on GitHub runners instead of this Mac.
   `1920x1080px`, and sweeps the packaged Settings pages. The standard profile
   checks launch and App-managed bootstrap readiness. The Full profile also
   submits the Codex/OpenAI API key configuration wizard and checks Full runtime
-  readiness. CLT installation, git availability, and managed repo sync are
-  deferred maintenance and must not block Core, Domain module, or family runtime
-  provider readiness on first launch. This VM workflow is deterministic
+  readiness after `ready_to_launch`. CLT installation, git availability, and
+  managed repo sync are deferred maintenance; domain modules, the family
+  runtime provider, recommended skills, native helpers, repo sync, CLT, and
+  ecosystem updates must not block the pre-`/guid` Core launch gate. This VM workflow is deterministic
   release-blocking evidence for stable release readiness. Codex App and
   Computer Use browser/desktop sessions are allowed only as non-blocking
   exploratory triage; if they reveal release-relevant behavior, the finding

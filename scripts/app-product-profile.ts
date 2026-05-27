@@ -19,6 +19,8 @@ export type AppProductProfile = {
   };
   contract_refs: Record<string, string>;
   default_session_profile: {
+    provider: string;
+    base_url: string;
     executor: string;
     model: string;
     reasoning_effort: string;
@@ -55,7 +57,18 @@ export type AppProductProfile = {
   };
   first_run: {
     readiness_layers: string[];
+    ready_to_launch_gate: {
+      id: string;
+      ui_order: string;
+      required_core_items: string[];
+      must_not_require: string[];
+    };
+    full_readiness_layers: string[];
     deferred_blockers: string[];
+    runtime_provider: {
+      full_readiness_provider: string;
+      ready_to_launch_blocking: boolean;
+    };
     command_line_tools: {
       auto_request_installer: boolean;
       blocks_full_first_launch: boolean;
@@ -108,6 +121,12 @@ function assertProfileShape(profile: AppProductProfile): void {
   if (profile.default_session_profile.executor !== 'codex_cli') {
     throw new Error(`Unexpected App product profile executor: ${profile.default_session_profile.executor}`);
   }
+  if (profile.default_session_profile.provider !== 'gflab') {
+    throw new Error(`Unexpected App product profile provider: ${profile.default_session_profile.provider}`);
+  }
+  if (profile.default_session_profile.base_url !== 'https://gflabtoken.cn/v1') {
+    throw new Error(`Unexpected App product profile base URL: ${profile.default_session_profile.base_url}`);
+  }
   if (profile.default_session_profile.model !== profile.codex.default_model) {
     throw new Error('App product profile Codex default model is inconsistent');
   }
@@ -120,11 +139,11 @@ function assertProfileShape(profile: AppProductProfile): void {
   if (profile.gui?.implementation_carrier !== 'opl-aion-shell') {
     throw new Error('App product profile GUI implementation carrier must be opl-aion-shell');
   }
-  if (profile.gui.appearance?.default_css_theme_id !== 'default-theme') {
-    throw new Error('App product profile GUI must default to the default CSS theme');
+  if (profile.gui.appearance?.default_css_theme_id !== 'codex') {
+    throw new Error('App product profile GUI must default to the Codex CSS theme');
   }
-  if (profile.gui.appearance?.codex_theme_default_enabled !== false) {
-    throw new Error('App product profile GUI must not default to the Codex CSS theme');
+  if (profile.gui.appearance?.codex_theme_default_enabled !== true) {
+    throw new Error('App product profile GUI must default to the Codex CSS theme');
   }
   if (
     profile.gui.home?.primary_input_surface !== 'single_card' ||
@@ -149,6 +168,9 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.codex.skill_priority, 'codex.skill_priority');
   assertStringArray(profile.codex.session_context_lines, 'codex.session_context_lines', { allowBlank: true });
   assertStringArray(profile.first_run.readiness_layers, 'first_run.readiness_layers');
+  assertStringArray(profile.first_run.ready_to_launch_gate.required_core_items, 'first_run.ready_to_launch_gate.required_core_items');
+  assertStringArray(profile.first_run.ready_to_launch_gate.must_not_require, 'first_run.ready_to_launch_gate.must_not_require');
+  assertStringArray(profile.first_run.full_readiness_layers, 'first_run.full_readiness_layers');
   assertStringArray(profile.first_run.deferred_blockers, 'first_run.deferred_blockers');
   assertStringArray(profile.first_run.command_line_tools.messages, 'first_run.command_line_tools.messages');
   assertStringArray(profile.settings.visible_tabs, 'settings.visible_tabs');

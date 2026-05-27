@@ -80,8 +80,8 @@
     }
   ],
   "theme_and_branding": {
-    "default_theme_id": "default-theme",
-    "allowed_theme_ids": ["default-theme", "codex"],
+    "default_theme_id": "codex",
+    "allowed_theme_ids": ["codex", "default-theme"],
     "default_visible_product_name": "One Person Lab App",
     "legacy_upstream_branding_forbidden": true,
     "forbidden_visible_terms": ["AionUI", "Aion UI"]
@@ -91,6 +91,27 @@
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile full --json",
     "policy": "Settings pages display App-owned product state and framework-owned refs without taking runtime or domain authority."
+  },
+  "first_launch_readiness_policy": {
+    "launch_gate": "ready_to_launch",
+    "ui_order": "before_guid",
+    "core_required_items": ["workspace_root", "codex_cli", "codex_config"],
+    "full_readiness_items": [
+      "domain_modules",
+      "family_runtime_provider",
+      "recommended_skills",
+      "native_helpers",
+      "repo_sync",
+      "command_line_tools_install",
+      "ecosystem_module_updates"
+    ],
+    "full_readiness_blocks_launch": false,
+    "default_provider": "gflab",
+    "default_base_url": "https://gflabtoken.cn/v1",
+    "default_model": "gpt-5.5",
+    "default_reasoning_effort": "xhigh",
+    "default_executor": "codex_cli",
+    "full_runtime_provider": "temporal"
   },
   "module_path_source_policy": {
     "source": "app_state.modules[].source + app_state.modules[].path + app_state.paths",

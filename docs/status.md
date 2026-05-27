@@ -34,12 +34,13 @@ domain truth remain outside App ownership.
 
 First-install policy is now contract-backed in
 `contracts/app-product-profile.json` and
-`contracts/app-first-run-test-matrix.json`: Full first-install reaches Core
-ready from bundled runtime on a clean Mac without requiring CLT, Homebrew, Node,
-or Git first; repo sync, module reconcile, CLT installation, and ecosystem
-module updates are background maintenance. Companion skills installation is
-also App/CLI-managed maintenance. After Core ready, the App continues CLT,
-companion skills, and ecosystem module work as best-effort background
+`contracts/app-first-run-test-matrix.json`: `ready_to_launch` runs before
+`/guid` and requires only Core readiness: workspace root, Codex CLI, and Codex
+config. Full first-install reaches Core ready from bundled runtime on a clean
+Mac without requiring CLT, Homebrew, Node, or Git first. Domain modules, the
+Temporal-backed family runtime provider, recommended skills, native helpers,
+repo sync, module reconcile, CLT installation, companion skills installation,
+and ecosystem module updates are Full readiness or App/CLI-managed background
 maintenance instead of blocking first launch. Standard packages prefer
 App-managed bootstrap and maintenance and cannot use “install
 Homebrew/Node/Git first” as the first-screen terminal state. CLT requests use

@@ -16,7 +16,7 @@
         "implementation_carrier": "opl-aion-shell",
         "primary_input_surface": "single_card",
         "nested_input_card_frames_allowed": false,
-        "appearance_default_css_theme_id": "default-theme",
+        "appearance_default_css_theme_id": "codex",
         "codex_model_selector_visible": false,
         "codex_model_list_visible": false,
         "codex_model_policy": "auto_latest_frontier_from_codex_capabilities_or_app_default",
@@ -276,9 +276,28 @@
     },
     {
       "id": "first_launch_readiness",
-      "expected_source": "first-run wizard and OPL initialize result",
+      "expected_source": "pre-/guid first-run wizard and OPL initialize result",
+      "launch_gate": {
+        "id": "ready_to_launch",
+        "ui_order": "before_guid",
+        "required_core_items": ["workspace_root", "codex_cli", "codex_config"],
+        "full_readiness_items": [
+          "domain_modules",
+          "family_runtime_provider",
+          "recommended_skills",
+          "native_helpers",
+          "repo_sync",
+          "command_line_tools_install",
+          "ecosystem_module_updates"
+        ],
+        "full_readiness_blocks_ready_to_launch": false
+      },
       "must_show": [
-        "required setup state",
+        "workspace root readiness",
+        "Codex CLI readiness",
+        "Codex config readiness",
+        "ready_to_launch before /guid",
+        "full readiness and background maintenance state",
         "completion state",
         "blocking error source"
       ]

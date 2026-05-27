@@ -13,6 +13,45 @@
   "refresh_command": "opl app state --profile full --json",
   "full_detail_command": "opl runtime app-operator-drilldown --detail full --json",
   "action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+  "live_conformance_gate": {
+    "owner": "one-person-lab-app",
+    "producer_owner": "one-person-lab",
+    "mode": "explicit_env_opt_in",
+    "default_enforcement": "disabled",
+    "enable_env": "OPL_APP_LIVE_CONFORMANCE",
+    "opl_root_env": "OPL_APP_LIVE_OPL_ROOT",
+    "action_fixture_env": "OPL_APP_LIVE_ACTION_FIXTURE",
+    "opl_bin": "./bin/opl",
+    "fast_state_command": "./bin/opl app state --profile fast --json",
+    "full_state_command": "./bin/opl app state --profile full --json",
+    "action_dry_run_command": "./bin/opl app action execute --action <fixture> --dry-run --json",
+    "fast_state_max_bytes": 500000,
+    "required_state_schema": "opl_app_state.v1",
+    "golden_fast_state_fixture": "contracts/fixtures/opl-app-state-fast.fixture.json",
+    "state_schema_paths": [
+      "app_state.schema_version",
+      "app_state.surface_kind",
+      "app_state.schema",
+      "app_state.surface",
+      "schema",
+      "surface"
+    ],
+    "app_role": "protocol_conformance_consumer",
+    "assertions": [
+      "fast App state command returns JSON",
+      "full App state command returns JSON",
+      "dry-run App action command returns JSON",
+      "fast App state output stays below 500KB",
+      "fast App state declares opl_app_state.v1 schema or surface"
+    ],
+    "forbidden_authority": [
+      "runtime_truth",
+      "provider_implementation",
+      "domain_truth",
+      "domain_quality_verdict",
+      "domain_artifact_authority"
+    ]
+  },
   "projection_sources": {
     "primary": "app_state.operator.summary",
     "provider": "app_state.provider",

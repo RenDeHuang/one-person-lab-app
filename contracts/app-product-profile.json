@@ -19,6 +19,8 @@
     "gui_product": "contracts/app-gui-product-contract.json"
   },
   "default_session_profile": {
+    "provider": "gflab",
+    "base_url": "https://gflabtoken.cn/v1",
     "executor": "codex_cli",
     "model": "gpt-5.5",
     "reasoning_effort": "xhigh",
@@ -29,9 +31,9 @@
     "authority": "app_repo_owned_product_truth",
     "implementation_carrier": "opl-aion-shell",
     "appearance": {
-      "default_css_theme_id": "default-theme",
-      "default_css_theme_name": "Default",
-      "codex_theme_default_enabled": false
+      "default_css_theme_id": "codex",
+      "default_css_theme_name": "Codex",
+      "codex_theme_default_enabled": true
     },
     "home": {
       "primary_input_surface": "single_card",
@@ -98,17 +100,54 @@
     ]
   },
   "first_run": {
-    "readiness_layers": ["core", "domain_modules", "family_runtime_provider"],
-    "deferred_blockers": ["domain_modules", "family_runtime_provider", "recommended_skills"],
+    "readiness_layers": ["core"],
+    "ready_to_launch_gate": {
+      "id": "ready_to_launch",
+      "ui_order": "before_guid",
+      "required_core_items": ["workspace_root", "codex_cli", "codex_config"],
+      "must_not_require": [
+        "domain_modules",
+        "family_runtime_provider",
+        "recommended_skills",
+        "native_helpers",
+        "repo_sync",
+        "command_line_tools_install",
+        "ecosystem_module_updates"
+      ]
+    },
+    "full_readiness_layers": [
+      "core",
+      "domain_modules",
+      "family_runtime_provider",
+      "recommended_skills",
+      "native_helpers",
+      "repo_sync",
+      "command_line_tools_install",
+      "ecosystem_module_updates"
+    ],
+    "deferred_blockers": [
+      "domain_modules",
+      "family_runtime_provider",
+      "recommended_skills",
+      "native_helpers",
+      "repo_sync",
+      "command_line_tools_install",
+      "ecosystem_module_updates"
+    ],
+    "runtime_provider": {
+      "full_readiness_provider": "temporal",
+      "ready_to_launch_blocking": false
+    },
     "core_ready_policy": {
       "full_first_install_clean_machine": {
         "missing_host_tools_allowed": ["command_line_tools", "homebrew", "node", "git"],
         "initial_runtime_source": "bundled_runtime",
         "core_ready_without_host_tools": true,
-        "must_not_block_core_ready": [
+          "must_not_block_core_ready": [
           "repo_sync",
           "module_reconcile",
           "command_line_tools_install",
+          "native_helpers",
           "companion_skills_install",
           "ecosystem_module_updates"
         ],
@@ -119,6 +158,7 @@
             "repo_sync",
             "module_reconcile",
             "command_line_tools_install",
+            "native_helpers",
             "companion_skills_install",
             "ecosystem_module_updates"
           ],
@@ -143,6 +183,7 @@
         "repo_sync",
         "module_reconcile",
         "command_line_tools_install",
+        "native_helpers",
         "companion_skills_install",
         "ecosystem_module_updates"
       ],

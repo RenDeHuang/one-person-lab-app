@@ -20,10 +20,16 @@
       "package_type": "full",
       "clean_machine_missing_tools": ["command_line_tools", "homebrew", "node", "git"],
       "core_ready_source": "bundled_runtime",
+      "ready_to_launch_gate": {
+        "ui_order": "before_guid",
+        "required_core_items": ["workspace_root", "codex_cli", "codex_config"],
+        "blocks_on_full_readiness": false
+      },
       "background_maintenance": [
         "repo_sync",
         "module_reconcile",
         "command_line_tools_install",
+        "native_helpers",
         "companion_skills_install",
         "ecosystem_module_updates"
       ],
@@ -34,6 +40,7 @@
           "repo_sync",
           "module_reconcile",
           "command_line_tools_install",
+          "native_helpers",
           "companion_skills_install",
           "ecosystem_module_updates"
         ]
@@ -51,11 +58,12 @@
         "Codex/OpenAI API key configuration wizard is seen and submitted",
         "Settings pages are navigable after first-run initialization",
         "Full runtime payload is materialized",
+        "ready_to_launch is reached before /guid after workspace root, Codex CLI, and Codex config are ready",
         "Core ready is reached from bundled runtime without requiring host CLT, Homebrew, Node, or Git",
-        "repo sync, module reconcile, CLT installation, companion skills install, and ecosystem module updates continue as best-effort background maintenance after Core ready",
+        "domain modules, family runtime provider, recommended skills, native helpers, repo sync, CLT installation, and ecosystem module updates continue as full readiness or best-effort background maintenance after Core ready and ready_to_launch",
         "Codex remains the default executor path",
         "standard state modules are visible after initialization",
-        "Core, Domain modules, and family runtime provider readiness are not blocked by CLT, git, or managed repo sync maintenance"
+        "Domain modules, family runtime provider, recommended skills, native helpers, repo sync, CLT, and ecosystem updates do not block ready_to_launch"
       ],
       "release_evidence_artifacts": [
         "first-run.log",
@@ -98,8 +106,9 @@
       },
       "expects": [
         "Full DMG reaches Core ready from the bundled runtime",
+        "ready_to_launch is reached before /guid after workspace root, Codex CLI, and Codex config are ready",
         "Codex/OpenAI API key configuration wizard is seen and submitted",
-        "Domain modules and family runtime provider readiness are verified",
+        "Domain modules and family runtime provider readiness are verified as Full readiness after ready_to_launch",
         "Settings pages are navigable after first-run initialization"
       ],
       "release_evidence_artifacts": [
