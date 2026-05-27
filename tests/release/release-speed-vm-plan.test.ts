@@ -48,6 +48,8 @@ function laneById(plan: { lanes: Array<{ id: string }> }, laneId: string) {
 test('desktop release workflow keeps the release DAG split by build, publish, verification, and VM gates', () => {
   const workflow = readRepoFile('.github/workflows/desktop-release.yml');
 
+  assertMatches(workflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-\$\{\{ inputs\.release_mode == 'draft_candidate' && 'draft' \|\| 'stable' \}\}-\$\{\{ inputs\.opl_version \}\}/, 'desktop release concurrency group');
+  assertMatches(workflow, /cancel-in-progress:\s+\$\{\{ inputs\.release_mode == 'draft_candidate' \}\}/, 'desktop release draft cancellation policy');
   assertIncludes(workflow, 'standard-build:', 'desktop release workflow');
   assertIncludes(workflow, 'uses: ./.github/workflows/_build-reusable.yml', 'standard build job');
   assertMatches(workflow, /publish-standard:[\s\S]*?needs:\s+standard-build/, 'publish-standard job');
@@ -76,6 +78,7 @@ test('_build-reusable splits quality work into parallel App and active-shell job
   const setupAction = readRepoFile('.github/actions/setup-active-shell-deps/action.yml');
 
   for (const jobId of [
+    'workflow-lint',
     'lint-format',
     'typecheck',
     'release-boundary',
@@ -84,6 +87,8 @@ test('_build-reusable splits quality work into parallel App and active-shell job
     assertMatches(workflow, new RegExp(`\\n  ${jobId}:\\n`), `_build-reusable job ${jobId}`);
   }
 
+  assertMatches(workflow, /go install github\.com\/rhysd\/actionlint\/cmd\/actionlint@latest/, 'actionlint install');
+  assertMatches(workflow, /actionlint -color/, 'actionlint gate');
   assertMatches(workflow, /uses:\s+\.\/\.github\/actions\/setup-active-shell-deps/, 'reusable active shell setup action');
   assertMatches(setupAction, /path:\s+shells\/aionui/, 'active shell checkout');
   assertMatches(setupAction, /key:\s+bun-install-[^\n]*hashFiles\('shells\/aionui\/package\.json', 'shells\/aionui\/bun\.lock'\)/, 'active shell Bun dependency cache key');
@@ -98,6 +103,7 @@ test('_build-reusable splits quality work into parallel App and active-shell job
 
   const buildNeeds = workflow.match(/build:[\s\S]*?needs:[\s\S]*?if:/)?.[0] ?? '';
   for (const dependency of [
+    'workflow-lint',
     'lint-format',
     'typecheck',
     'release-boundary',
@@ -110,6 +116,8 @@ test('_build-reusable splits quality work into parallel App and active-shell job
 test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an operator summary', () => {
   const workflow = readRepoFile('.github/workflows/full-first-install-release.yml');
 
+  assertMatches(workflow, /concurrency:[\s\S]*group:\s+opl-full-first-install-\$\{\{ inputs\.opl_version \}\}/, 'Full workflow concurrency group');
+  assertMatches(workflow, /cancel-in-progress:\s+false/, 'Full workflow stable cancellation policy');
   assertMatches(workflow, /Setup Node\.js[\s\S]*cache:\s+npm/, 'Full workflow npm cache');
   assertMatches(workflow, /Setup Go[\s\S]*cache:\s+true/, 'Full workflow Go cache');
   assertMatches(workflow, /uv cache dir|~\/\.cache\/uv|\$\{\{\s*runner\.temp\s*\}\}\/uv-cache/, 'Full workflow uv cache');
@@ -126,6 +134,25 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /Upload Full workflow telemetry[\s\S]*actions\/upload-artifact@v4/, 'Full telemetry artifact upload');
   assertMatches(workflow, /cache:[\s\S]*full_runtime_layers/, 'Full telemetry cache fields');
   assertMatches(workflow, /duration_seconds:[\s\S]*full_package_build/, 'Full telemetry duration fields');
+});
+
+test('release operations workflows serialize refreshable GitHub Actions runs without cancelling stable release runs', () => {
+  const docs = readRepoFile('docs/release/README.md');
+  const legacyWorkflow = readRepoFile('.github/workflows/build-and-release.yml');
+  const warmupWorkflow = readRepoFile('.github/workflows/full-runtime-cache-warmup.yml');
+  const promoteWorkflow = readRepoFile('.github/workflows/desktop-release-promote.yml');
+  const verifyWorkflow = readRepoFile('.github/workflows/release-verify-remote.yml');
+
+  assertMatches(legacyWorkflow, /concurrency:[\s\S]*group:\s+opl-build-and-release-\$\{\{ github\.ref \}\}/, 'legacy build concurrency group');
+  assertMatches(legacyWorkflow, /cancel-in-progress:\s+\$\{\{ github\.ref == 'refs\/heads\/dev' \}\}/, 'legacy dev cancellation policy');
+  assertMatches(warmupWorkflow, /concurrency:[\s\S]*group:\s+opl-full-runtime-cache-warmup-/, 'Full warmup concurrency group');
+  assertMatches(warmupWorkflow, /cancel-in-progress:\s+true/, 'Full warmup cancellation policy');
+  assertMatches(promoteWorkflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-promote-\$\{\{ inputs\.opl_version \}\}/, 'promote concurrency group');
+  assertMatches(promoteWorkflow, /cancel-in-progress:\s+true/, 'promote cancellation policy');
+  assertMatches(verifyWorkflow, /concurrency:[\s\S]*group:\s+opl-remote-release-verification-\$\{\{ inputs\.opl_version \}\}/, 'remote verify concurrency group');
+  assertMatches(verifyWorkflow, /cancel-in-progress:\s+true/, 'remote verify cancellation policy');
+  assertMatches(docs, /Stable desktop release runs[\s\S]*do not cancel running jobs/, 'stable release concurrency docs');
+  assertMatches(docs, /Draft candidates[\s\S]*cancel older in-progress runs/, 'refreshable release concurrency docs');
 });
 
 test('first-run VM workflow writes deterministic preflight and final summaries before release-blocking smoke', () => {

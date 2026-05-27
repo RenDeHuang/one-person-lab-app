@@ -24,6 +24,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: opl-full-runtime-cache-warmup-${{ github.event_name == 'workflow_dispatch' && inputs.opl_version || 'scheduled' }}-${{ github.event_name == 'workflow_dispatch' && inputs.framework_ref || 'main' }}
+  cancel-in-progress: true
+
 jobs:
   resolve-version:
     name: Resolve warmup version

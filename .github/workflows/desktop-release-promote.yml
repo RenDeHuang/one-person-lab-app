@@ -16,6 +16,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: opl-desktop-release-promote-${{ inputs.opl_version }}
+  cancel-in-progress: true
+
 jobs:
   promote:
     name: Verify and publish draft release

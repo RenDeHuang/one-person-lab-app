@@ -12,6 +12,10 @@ on:
     tags:
       - '*'
 
+concurrency:
+  group: opl-build-and-release-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/dev' }}
+
 env:
   BUN_INSTALL_REGISTRY: 'https://registry.npmjs.org/'
 

@@ -46,6 +46,10 @@ permissions:
   contents: write
   actions: read
 
+concurrency:
+  group: opl-desktop-release-${{ inputs.release_mode == 'draft_candidate' && 'draft' || 'stable' }}-${{ inputs.opl_version }}
+  cancel-in-progress: ${{ inputs.release_mode == 'draft_candidate' }}
+
 env:
   BUN_INSTALL_REGISTRY: 'https://registry.npmjs.org/'
 

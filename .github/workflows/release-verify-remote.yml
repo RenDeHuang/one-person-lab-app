@@ -16,6 +16,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: opl-remote-release-verification-${{ inputs.opl_version }}-${{ inputs.include_full_package && 'full' || 'standard' }}
+  cancel-in-progress: true
+
 jobs:
   verify-remote-release:
     name: Verify remote GitHub Release assets

@@ -67,6 +67,13 @@ builds that should run on GitHub runners instead of this Mac.
 - `release_mode=draft_candidate` builds the same assets into a draft
   `v<opl_version>` Release. Use **OPL Desktop Release Promote** after reviewing
   the draft assets and verification summary.
+- Release workflows use GitHub Actions concurrency groups by version and
+  purpose. Stable desktop release runs share a stable `v<opl_version>` group and
+  do not cancel running jobs; GitHub keeps the newest pending run in that group
+  so repeated dispatches do not build a stale queue. Draft candidates,
+  standalone remote verification, draft promotion, scheduled Full cache warmup,
+  and `dev` branch legacy builds cancel older in-progress runs because they are
+  refreshable operator lanes.
 - `include_full_package=true` delegates to the Full first-install workflow so the
   slower runtime/package assembly runs on GitHub Actions with the runtime layer
   cache.
@@ -220,7 +227,11 @@ clean first-run VM path, settings smoke, or remote Release has been verified.
 Use **OPL Full Runtime Cache Warmup** before release windows or let its scheduled
 run keep the content-addressed Full runtime layer cache warm. It builds the
 runtime layers on GitHub Actions without publishing a Release, so later Full
-packaging spends less time rebuilding shared payloads locally.
+packaging spends less time rebuilding shared payloads locally. Warmup runs use a
+cancel-in-progress concurrency group because only the latest warm cache matters;
+Stable Full packaging keeps `cancel-in-progress=false` and emits both a step
+summary and `full-runtime-cache-timing-<version>` JSON artifact for cache
+hit/miss and step-duration telemetry.
 
 ## Local commands
 
@@ -327,12 +338,13 @@ The speed design is one release graph, not separate manual phases:
 - Full assets publish only after the standard release exists and the Full build
   artifact is available.
 - Full remote verification and Full DMG VM stay on the Full path.
-- cache hit/miss and size summaries are audit surfaces only; manifest,
-  SHA256SUMS, remote verification, and size budget checks still run every time.
+- workflow lint, cache hit/miss, step-duration telemetry, and size summaries are
+  audit surfaces only; manifest, SHA256SUMS, remote verification, and size
+  budget checks still run every time.
 - Full cache/timing telemetry is uploaded as `full-workflow-telemetry.json` so
   release operators can compare cache hits and step durations across runs before
   tuning cache keys or test matrix width.
-- Shared setup/cache blocks should move into local composite actions when the
+- Shared active-shell setup/cache blocks use a local composite action when the
   reuse is exact and release semantics stay visible in the workflow jobs.
 
 Publishing to an existing tag is intentional for Full first-install refreshes:
