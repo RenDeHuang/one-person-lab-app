@@ -387,6 +387,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          telemetry_dir="$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"
+          telemetry_path="$telemetry_dir/full-workflow-telemetry.json"
+          mkdir -p "$telemetry_dir"
           duration() {
             local start="$1"
             local end="$2"
@@ -396,6 +399,53 @@ jobs:
               echo "$((end - start))s"
             fi
           }
+          duration_json() {
+            local start="$1"
+            local end="$2"
+            if [ -z "$start" ] || [ -z "$end" ]; then
+              echo "null"
+            else
+              echo "$((end - start))"
+            fi
+          }
+          node - "$telemetry_path" <<'NODE'
+          const fs = require('node:fs');
+          const outputPath = process.argv[2];
+          const env = process.env;
+          const intValue = (value) => {
+            const parsed = Number(value || '');
+            return Number.isFinite(parsed) ? parsed : null;
+          };
+          const duration = (start, end) => {
+            const left = intValue(start);
+            const right = intValue(end);
+            return left === null || right === null ? null : right - left;
+          };
+          const payload = {
+            schema: 'opl_full_workflow_telemetry.v1',
+            version: env.OPL_RELEASE_VERSION || null,
+            run_id: env.GITHUB_RUN_ID || null,
+            run_attempt: env.GITHUB_RUN_ATTEMPT || null,
+            cache: {
+              npm_dependencies: '${{ steps.node-cache.outputs.cache-hit || 'unknown' }}',
+              bun_install: '${{ steps.bun-cache.outputs.cache-hit || 'false' }}',
+              uv_artifacts: '${{ steps.uv-cache.outputs.cache-hit || 'false' }}',
+              go_modules_build: '${{ steps.go-cache.outputs.cache-hit || 'unknown' }}',
+              full_runtime_layers: '${{ inputs.force_rebuild_runtime_cache && 'forced-rebuild' || steps.restore-runtime-cache.outputs.cache-hit || 'false' }}',
+              full_runtime_cache_key: '${{ steps.runtime-cache-keys.outputs.cache_key }}',
+            },
+            duration_seconds: {
+              toolchain_install: duration(env.OPL_FULL_WORKFLOW_STARTED_AT, env.OPL_FULL_TOOLCHAIN_READY_AT),
+              framework_npm_ci: duration(env.OPL_FULL_TOOLCHAIN_READY_AT, env.OPL_FULL_FRAMEWORK_DEPS_READY_AT),
+              framework_build: duration(env.OPL_FULL_FRAMEWORK_DEPS_READY_AT, env.OPL_FULL_FRAMEWORK_BUILD_READY_AT),
+              shell_dependencies: duration(env.OPL_FULL_FRAMEWORK_BUILD_READY_AT, env.OPL_FULL_SHELL_DEPS_READY_AT),
+              domain_dependencies: duration(env.OPL_FULL_SHELL_DEPS_READY_AT, env.OPL_FULL_DOMAIN_DEPS_READY_AT),
+              full_package_build: duration(env.OPL_FULL_DOMAIN_DEPS_READY_AT, env.OPL_FULL_PACKAGE_READY_AT),
+              checksum_signing_verify: duration(env.OPL_FULL_PACKAGE_READY_AT, env.OPL_FULL_VERIFY_READY_AT),
+            },
+          };
+          fs.writeFileSync(outputPath, `${JSON.stringify(payload, null, 2)}\n`);
+          NODE
           {
             echo
             echo "## Full Runtime Cache and Timing"
@@ -419,12 +469,13 @@ jobs:
             echo "| Full checksum/signing verify | $(duration "${OPL_FULL_PACKAGE_READY_AT:-}" "${OPL_FULL_VERIFY_READY_AT:-}") |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Summarize Full package size
-        working-directory: one-person-lab-app
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run release:full:size -- --markdown >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload Full workflow telemetry
+        uses: actions/upload-artifact@v4
+        with:
+          name: opl-full-workflow-telemetry-${{ env.OPL_RELEASE_VERSION }}
+          path: one-person-lab-app/dist/opl-full-release/full-workflow-telemetry.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Save Full runtime layer cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache.outputs.cache-hit != 'true' }}

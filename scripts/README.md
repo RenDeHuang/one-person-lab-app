@@ -62,6 +62,9 @@ Full DMG budget from the GitHub asset size and the uncompressed runtime budget
 from `full-package-manifest.json` `size_breakdown.total_runtime_uncompressed_bytes`.
 `npm run release:full:size -- --markdown` prints the same component and layer
 breakdown for local review and is appended to the Full GitHub Actions summary.
+The Full workflow also uploads `full-workflow-telemetry.json`, a machine-readable
+cache/timing artifact for post-release bottleneck review; use it as tuning input,
+not as release truth.
 Full packaging excludes local development indexes, dependency caches, tests, and
 runtime/user state such as `.codegraph`, `.git`, `.worktrees`, `.venv`,
 `node_modules`, `runtime`, `runtime-state`, `runs`, `sessions`, and `tests`;

@@ -329,6 +329,11 @@ The speed design is one release graph, not separate manual phases:
 - Full remote verification and Full DMG VM stay on the Full path.
 - cache hit/miss and size summaries are audit surfaces only; manifest,
   SHA256SUMS, remote verification, and size budget checks still run every time.
+- Full cache/timing telemetry is uploaded as `full-workflow-telemetry.json` so
+  release operators can compare cache hits and step durations across runs before
+  tuning cache keys or test matrix width.
+- Shared setup/cache blocks should move into local composite actions when the
+  reuse is exact and release semantics stay visible in the workflow jobs.
 
 Publishing to an existing tag is intentional for Full first-install refreshes:
 `scripts/publish-release.ts` uses `gh release upload --clobber`, so the same

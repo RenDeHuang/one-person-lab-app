@@ -139,6 +139,10 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   are non-blocking and cannot replace the Tart VM gate. Any exploratory finding
   that should affect release readiness must be converted into a deterministic
   contract, workflow, or script gate before it can block or clear a release.
+- Release tuning evidence: Full workflow cache hits and step timings are stored
+  in `full-workflow-telemetry.json` artifacts. These artifacts help compare
+  build speed across runs; they do not replace release manifests, checksums,
+  remote verification, VM smoke artifacts, or evidence bundle validation.
 - One-shot installer: the App root `install.sh` remains the public entrypoint.
   Stable verification runs it against a checked-out Framework installer with
   `OPL_INSTALL_SCRIPT_URL=file://.../one-person-lab/install.sh ./install.sh

@@ -73,6 +73,7 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
 
 test('_build-reusable splits quality work into parallel App and active-shell jobs with Bun cache boundaries', () => {
   const workflow = readRepoFile('.github/workflows/_build-reusable.yml');
+  const setupAction = readRepoFile('.github/actions/setup-active-shell-deps/action.yml');
 
   for (const jobId of [
     'lint-format',
@@ -83,9 +84,11 @@ test('_build-reusable splits quality work into parallel App and active-shell job
     assertMatches(workflow, new RegExp(`\\n  ${jobId}:\\n`), `_build-reusable job ${jobId}`);
   }
 
-  assertMatches(workflow, /path:\s+shells\/aionui/, 'active shell checkout');
-  assertMatches(workflow, /key:\s+bun-install-[^\n]*hashFiles\('shells\/aionui\/package\.json', 'shells\/aionui\/bun\.lock'\)/, 'active shell Bun dependency cache key');
-  assertMatches(workflow, /~\/\.bun\/install\/cache|\$\{\{\s*runner\.temp\s*\}\}\/\.bun/, 'Bun install cache');
+  assertMatches(workflow, /uses:\s+\.\/\.github\/actions\/setup-active-shell-deps/, 'reusable active shell setup action');
+  assertMatches(setupAction, /path:\s+shells\/aionui/, 'active shell checkout');
+  assertMatches(setupAction, /key:\s+bun-install-[^\n]*hashFiles\('shells\/aionui\/package\.json', 'shells\/aionui\/bun\.lock'\)/, 'active shell Bun dependency cache key');
+  assertMatches(setupAction, /~\/\.bun\/install\/cache|\$\{\{\s*runner\.temp\s*\}\}\/\.bun/, 'Bun install cache');
+  assertMatches(setupAction, /Install dependencies[\s\S]*bun install --frozen-lockfile/, 'active shell dependency install');
   assertMatches(workflow, /npm run test:release-boundary|node --experimental-strip-types --test tests\/release\/\*\.test\.ts/, 'App release-boundary quality job');
   assertMatches(workflow, /bun run lint/, 'active shell lint job');
   assertMatches(workflow, /bun run format:check/, 'active shell format job');
@@ -113,6 +116,16 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /~\/\.bun\/install\/cache|\$\{\{\s*runner\.temp\s*\}\}\/\.bun/, 'Full workflow Bun cache');
   assertMatches(workflow, /\$GITHUB_STEP_SUMMARY/, 'Full workflow summary');
   assertMatches(workflow, /Full first-install|runtime layer cache|Full runtime/, 'Full workflow summary content');
+  assert.equal(
+    (workflow.match(/name:\s+Summarize Full package size/g) ?? []).length,
+    1,
+    'Full workflow should summarize package size once',
+  );
+  assertMatches(workflow, /schema:\s+'opl_full_workflow_telemetry\.v1'|schema:\s+"opl_full_workflow_telemetry\.v1"/, 'Full telemetry schema');
+  assertMatches(workflow, /full-workflow-telemetry\.json/, 'Full telemetry JSON path');
+  assertMatches(workflow, /Upload Full workflow telemetry[\s\S]*actions\/upload-artifact@v4/, 'Full telemetry artifact upload');
+  assertMatches(workflow, /cache:[\s\S]*full_runtime_layers/, 'Full telemetry cache fields');
+  assertMatches(workflow, /duration_seconds:[\s\S]*full_package_build/, 'Full telemetry duration fields');
 });
 
 test('first-run VM workflow writes deterministic preflight and final summaries before release-blocking smoke', () => {
