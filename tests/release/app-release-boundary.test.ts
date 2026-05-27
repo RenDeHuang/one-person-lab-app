@@ -207,10 +207,35 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
   };
   writeFile(path.join(outDir, fullDmgName), options.dmgContent ?? 'full-dmg');
   writeFile(path.join(outDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(
+    path.join(outDir, 'runtime-cache-events.json'),
+    `${JSON.stringify({
+      mode: 'readwrite',
+      dir: '/tmp/opl-full-runtime-cache-test',
+      keys: {
+        toolchain: 'full-runtime-v1-toolchain-test',
+        'domain-runtime': 'full-runtime-v1-domain-runtime-test',
+        'opl-runtime': 'full-runtime-v1-opl-runtime-test',
+        skills: 'full-runtime-v1-skills-test',
+      },
+      events: [
+        {
+          layer_id: 'toolchain',
+          key: 'full-runtime-v1-toolchain-test',
+          status: 'hit',
+          archive_path: '/tmp/opl-full-runtime-cache-test/toolchain/full-runtime-v1-toolchain-test.tar.zst',
+          read_archive: true,
+          write_archive: false,
+          build_layer: false,
+        },
+      ],
+    }, null, 2)}\n`,
+  );
   writeFile(path.join(outDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   const checksumNames = [
     fullDmgName,
     'full-package-manifest.json',
+    'runtime-cache-events.json',
     'README-Full-First-Install.txt',
   ];
   writeFile(
@@ -220,6 +245,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
   return [
     fullDmgName,
     'full-package-manifest.json',
+    'runtime-cache-events.json',
     'README-Full-First-Install.txt',
     'SHA256SUMS.txt',
   ];
@@ -1620,6 +1646,7 @@ test('publish dry run generates professional v26.5.18 notes for standard and Ful
 
   writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
   writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
 
@@ -1678,6 +1705,7 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
 
   writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
   writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
 
@@ -2203,6 +2231,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'remote_asset_sha256_digest',
       'standard_updater_metadata',
       'full_sha256sums',
+      'full_runtime_cache_events',
       'full_manifest_distribution_boundary',
       'full_manifest_size_budget',
       'full_release_asset_size_budget',
@@ -2399,6 +2428,10 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /name: Summarize Full package size/);
   assert.match(workflow, /npm run release:full:size -- --markdown >> "\$GITHUB_STEP_SUMMARY"/);
   assert.match(workflow, /name: Summarize Full caches and timings/);
+  assert.match(workflow, /opl-full-runtime-cache-aggregate-key\.json/);
+  assert.match(workflow, /input\.aggregate_key_input/);
+  assert.match(workflow, /runtime-cache-events\.json/);
+  assert.match(workflow, /full_runtime_layer_events/);
 });
 
 test('Full release docs publish size policy and remote verifier budget boundaries', () => {
@@ -2795,6 +2828,28 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.equal(readonlyMiss.write_archive, false);
   assert.equal(disabled.status, 'disabled');
   assert.equal(disabled.archive_path, null);
+  assert.equal(mod.FULL_RUNTIME_CACHE_AGGREGATE_KEY_SCHEMA, 'opl_full_runtime_cache_aggregate_key.v1');
+  assert.deepEqual(
+    mod.buildFullRuntimeAggregateCacheKeyInput({
+      layers: {
+        toolchain: 'full-runtime-v1-toolchain-a',
+        'domain-runtime': 'full-runtime-v1-domain-runtime-b',
+        'opl-runtime': 'full-runtime-v1-opl-runtime-c',
+        skills: 'full-runtime-v1-skills-d',
+      },
+    }),
+    {
+      schema: 'opl_full_runtime_cache_aggregate_key.v1',
+      layout_version: 1,
+      layer_ids: ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'],
+      layers: {
+        toolchain: 'full-runtime-v1-toolchain-a',
+        'domain-runtime': 'full-runtime-v1-domain-runtime-b',
+        'opl-runtime': 'full-runtime-v1-opl-runtime-c',
+        skills: 'full-runtime-v1-skills-d',
+      },
+    },
+  );
   assert.match(cacheHit.archive_path, /opl-runtime/);
   assert.match(buildScript, /Library', 'Caches', 'One Person Lab', 'full-runtime-layers'/);
   assert.match(buildScript, /runtimeCacheMode: process\.env\.OPL_FULL_RUNTIME_CACHE_MODE \|\| 'readwrite'/);
@@ -2836,6 +2891,8 @@ test('Full first-install cache and release acceleration contract are explicit', 
     buildScript,
     /if \(cacheEvent\.read_archive\) {\s*extractLayer\(archivePath, targetRoot\);\s*return cacheEvent;\s*}\s*const tempLayerRoot/,
   );
+  assert.match(buildScript, /aggregate_key_input: buildFullRuntimeAggregateCacheKeyInput\(\{ layers \}\)/);
+  assert.match(buildScript, /artifactNames\.runtimeCacheEvents/);
   assert.match(publishScript, /skipped_existing_artifacts/);
   assert.match(publishScript, /--force-upload/);
 });

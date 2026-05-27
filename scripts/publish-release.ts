@@ -295,6 +295,7 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
   const required = [
     `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
     'full-package-manifest.json',
+    'runtime-cache-events.json',
     'SHA256SUMS.txt',
     'README-Full-First-Install.txt',
   ];

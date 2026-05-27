@@ -107,6 +107,7 @@ function requiredAssetNames(version, includeFullPackage) {
     ...standard,
     `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
     'full-package-manifest.json',
+    'runtime-cache-events.json',
     'README-Full-First-Install.txt',
     'SHA256SUMS.txt',
   ];
@@ -288,7 +289,7 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
 function assertFullAssets(downloadDir, version, verifiedAssets) {
   const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const checksumEntries = parseSha256Sums(readText(path.join(downloadDir, 'SHA256SUMS.txt')));
-  for (const name of [fullDmgName, 'full-package-manifest.json', 'README-Full-First-Install.txt']) {
+  for (const name of [fullDmgName, 'full-package-manifest.json', 'runtime-cache-events.json', 'README-Full-First-Install.txt']) {
     const expected = checksumEntries.get(name);
     if (!expected) {
       throw new Error(`SHA256SUMS.txt is missing ${name}.`);
@@ -308,6 +309,11 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
   }
   if (manifest?.package_kind !== 'opl_full_first_install_macos_arm64') {
     throw new Error(`Unexpected Full manifest package_kind: ${manifest?.package_kind}`);
+  }
+
+  const runtimeCacheEvents = JSON.parse(readText(path.join(downloadDir, 'runtime-cache-events.json')));
+  if (!Array.isArray(runtimeCacheEvents?.events) || runtimeCacheEvents.events.length === 0) {
+    throw new Error('runtime-cache-events.json must include non-empty runtime cache events.');
   }
 
   const readme = readText(path.join(downloadDir, 'README-Full-First-Install.txt'));

@@ -161,6 +161,7 @@
       "full_required_assets": [
         "One-Person-Lab-Full-<version>-mac-arm64.dmg",
         "full-package-manifest.json",
+        "runtime-cache-events.json",
         "README-Full-First-Install.txt",
         "SHA256SUMS.txt"
       ],
@@ -169,6 +170,7 @@
         "remote_asset_sha256_digest",
         "standard_updater_metadata",
         "full_sha256sums",
+        "full_runtime_cache_events",
         "full_manifest_distribution_boundary",
         "full_manifest_size_budget",
         "full_release_asset_size_budget",

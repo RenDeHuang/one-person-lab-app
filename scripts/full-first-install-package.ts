@@ -12,6 +12,7 @@ export const FULL_RUNTIME_RESOURCE_DIR = 'opl-full-runtime';
 export const PACKAGED_MODULE_MARKER_FILE = 'opl-runtime-module.json';
 const FULL_RUNTIME_CACHE_LAYOUT_VERSION = 1;
 export const FULL_RUNTIME_CACHE_LAYER_IDS = ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'] as const;
+export const FULL_RUNTIME_CACHE_AGGREGATE_KEY_SCHEMA = 'opl_full_runtime_cache_aggregate_key.v1';
 const FULL_PACKAGE_SIZE_BUDGET = {
   platform_scope: 'macos-arm64',
   max_full_dmg_bytes: 550000000,
@@ -61,6 +62,7 @@ export function buildFullPackageArtifactNames(versionInput: string) {
     checksums: 'SHA256SUMS.txt',
     readme: 'README-Full-First-Install.txt',
     manifest: 'full-package-manifest.json',
+    runtimeCacheEvents: 'runtime-cache-events.json',
   };
 }
 
@@ -77,6 +79,17 @@ export function buildFullRuntimeCacheKey(input: {
     .digest('hex')
     .slice(0, 24);
   return `full-runtime-v${FULL_RUNTIME_CACHE_LAYOUT_VERSION}-${input.layerId}-${digest}`;
+}
+
+export function buildFullRuntimeAggregateCacheKeyInput(input: {
+  layers: Record<FullRuntimeCacheLayerId, string>;
+}) {
+  return {
+    schema: FULL_RUNTIME_CACHE_AGGREGATE_KEY_SCHEMA,
+    layout_version: FULL_RUNTIME_CACHE_LAYOUT_VERSION,
+    layer_ids: FULL_RUNTIME_CACHE_LAYER_IDS,
+    layers: input.layers,
+  } as const;
 }
 
 function buildFullRuntimeCacheArchiveName(input: {

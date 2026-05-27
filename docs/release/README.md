@@ -293,8 +293,12 @@ Full runtime payload assembly uses a content-addressed layer cache by default
 under `~/Library/Caches/One Person Lab/full-runtime-layers`. The layer keys cover
 the toolchain, domain runtime modules, OPL runtime, skills, packager inputs, and
 runtime exclusion policy. Use `--print-runtime-cache-keys` for a fast
-preflight, `OPL_FULL_RUNTIME_CACHE_MODE=readonly` to consume existing layers
-without writing, or `OPL_FULL_RUNTIME_CACHE_MODE=off` for a clean rebuild.
+preflight. GitHub Actions derives the outer cache key only from the stable
+`aggregate_key_input`, so release version stamps and runner-local cache paths do
+not invalidate otherwise identical layer archives. Full artifacts include
+`runtime-cache-events.json` for per-layer hit/miss evidence. Use
+`OPL_FULL_RUNTIME_CACHE_MODE=readonly` to consume existing layers without
+writing, or `OPL_FULL_RUNTIME_CACHE_MODE=off` for a clean rebuild.
 
 ## Full size policy
 

@@ -12,6 +12,7 @@ import {
   FULL_RUNTIME_RESOURCE_DIR,
   FULL_RUNTIME_CACHE_LAYER_IDS,
   PACKAGED_MODULE_MARKER_FILE,
+  buildFullRuntimeAggregateCacheKeyInput,
   buildFullRuntimeCacheArchivePath,
   buildFullPackageManifest,
   buildFullPackageArtifactNames,
@@ -917,6 +918,24 @@ function cacheLayerArchivePath(options, layerId, key) {
   });
 }
 
+function writeJsonFile(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+}
+
+function buildRuntimeCacheKeyReport(options, sources) {
+  const layers = buildRuntimeCacheKeys(options, sources);
+  return {
+    status: 'runtime_cache_keys',
+    version: options.version,
+    runtime_cache_mode: options.runtimeCacheMode,
+    runtime_cache_dir: options.runtimeCacheDir || null,
+    aggregate_key_input: buildFullRuntimeAggregateCacheKeyInput({ layers }),
+    layers,
+    layer_ids: FULL_RUNTIME_CACHE_LAYER_IDS,
+  };
+}
+
 function runCachedLayer(options, layerId, key, targetRoot, builder) {
   const archivePath = cacheLayerArchivePath(options, layerId, key);
   const cacheEvent = classifyFullRuntimeLayerCache({
@@ -1203,18 +1222,13 @@ function main() {
 
   const sources = resolveRuntimeSources(options);
   if (options.printRuntimeCacheKeys) {
-    console.log(JSON.stringify({
-      status: 'runtime_cache_keys',
-      version: options.version,
-      runtime_cache_mode: options.runtimeCacheMode,
-      runtime_cache_dir: options.runtimeCacheDir || null,
-      layers: buildRuntimeCacheKeys(options, sources),
-      layer_ids: FULL_RUNTIME_CACHE_LAYER_IDS,
-    }, null, 2));
+    console.log(JSON.stringify(buildRuntimeCacheKeyReport(options, sources), null, 2));
     return;
   }
 
   const prepared = prepareRuntime(options, sources);
+  const runtimeCacheEventsPath = path.join(options.outDir, artifactNames.runtimeCacheEvents);
+  writeJsonFile(runtimeCacheEventsPath, prepared.runtime_cache);
   const payloadRoots = syncRuntimePayloadToBuildRoots(prepared.runtimeRoot, prepared.manifest, options.guiRoot);
   const productProfileSync = syncAppProductProfileToShell(options.guiRoot);
 
@@ -1244,7 +1258,13 @@ function main() {
     runtimeTarName: runtimeTar ? artifactNames.runtimeTar : null,
     notarized: process.env.OPL_FULL_PACKAGE_NOTARIZED === 'true',
   }), 'utf8');
-  const checksumPath = writeChecksums(options.outDir, [targetDmg, manifestPath, readmePath, ...(runtimeTar ? [runtimeTar] : [])]);
+  const checksumPath = writeChecksums(options.outDir, [
+    targetDmg,
+    manifestPath,
+    runtimeCacheEventsPath,
+    readmePath,
+    ...(runtimeTar ? [runtimeTar] : []),
+  ]);
 
   console.log(JSON.stringify({
     status: 'completed',
@@ -1255,6 +1275,7 @@ function main() {
     dmg: targetDmg,
     runtime_tar: runtimeTar,
     manifest: manifestPath,
+    runtime_cache_events: runtimeCacheEventsPath,
     readme: readmePath,
     checksums: checksumPath,
     payload_roots: payloadRoots,

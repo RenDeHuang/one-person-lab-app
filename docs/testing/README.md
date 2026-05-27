@@ -195,6 +195,9 @@ workflow-operations hygiene:
   summaries and ad hoc text artifacts are useful for operators, but a JSON
   telemetry artifact should be treated as the basis for later cache/matrix
   tuning, not as the source of release truth.
+- Full package tuning reads both `full-workflow-telemetry.json` and
+  `runtime-cache-events.json`; the first captures workflow-level cache and
+  timing surfaces, and the second records per-layer Full runtime cache status.
 - Composite/setup reuse is allowed only when the shared action is checked in
   and release-boundary tests lock its behavior. The current active-shell
   checkout/setup/cache reuse lives in `.github/actions/setup-active-shell-deps`.
