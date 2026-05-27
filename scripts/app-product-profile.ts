@@ -46,6 +46,16 @@ export type AppProductProfile = {
       codex_default_permission_mode: string;
       retired_codex_models_must_not_be_exposed: string[];
     };
+    default_assistants: Array<{
+      id: string;
+      display_name: string;
+      short_name: string;
+      role: string;
+      home_entry_policy: string;
+      avatar: string;
+      description_i18n: Record<string, string>;
+      prompts_i18n: Record<string, string[]>;
+    }>;
   };
   codex: {
     default_model: string;
@@ -164,6 +174,22 @@ function assertProfileShape(profile: AppProductProfile): void {
     profile.gui.home.retired_codex_models_must_not_be_exposed,
     'gui.home.retired_codex_models_must_not_be_exposed',
   );
+  const defaultAssistantIds = profile.gui.default_assistants?.map((assistant) => assistant.id) ?? [];
+  for (const assistantId of ['mas', 'mag', 'rca', 'oma']) {
+    if (!defaultAssistantIds.includes(assistantId)) {
+      throw new Error(`App product profile missing default assistant ${assistantId}`);
+    }
+  }
+  if (defaultAssistantIds.includes('mds')) {
+    throw new Error('App product profile must not include MDS as a default assistant');
+  }
+  for (const assistant of profile.gui.default_assistants ?? []) {
+    if (assistant.home_entry_policy !== 'visible_click_to_start') {
+      throw new Error(`Default assistant ${assistant.id} must be visible click-to-start`);
+    }
+    assertStringArray(Object.keys(assistant.description_i18n ?? {}), `gui.default_assistants.${assistant.id}.description_i18n`);
+    assertStringArray(Object.keys(assistant.prompts_i18n ?? {}), `gui.default_assistants.${assistant.id}.prompts_i18n`);
+  }
   assertStringArray(profile.codex.default_visible_skills, 'codex.default_visible_skills');
   assertStringArray(profile.codex.skill_priority, 'codex.skill_priority');
   assertStringArray(profile.codex.session_context_lines, 'codex.session_context_lines', { allowBlank: true });
