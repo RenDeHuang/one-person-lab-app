@@ -2150,6 +2150,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /actions\/download-artifact@v7/);
   assert.match(vmWorkflow, /Using same-run workflow artifact/);
   assert.match(vmWorkflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/);
+  assert.match(vmWorkflow, /Resolve host Node\.js runtime for guest smoke/);
+  assert.match(vmWorkflow, /--guest-node-root "\$\{\{ steps\.host_node\.outputs\.node_root \}\}"/);
   assert.match(vmWorkflow, /schedule:/);
   assert.match(vmWorkflow, /concurrency:/);
   assert.match(vmWorkflow, /github\.event_name == 'schedule'/);

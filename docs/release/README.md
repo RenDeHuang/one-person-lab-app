@@ -90,12 +90,14 @@ builds that should run on GitHub runners instead of this Mac.
   prerelease/Nightly updates in the App.
 - The VM smoke downloads the published DMG for the selected package profile,
   clones a clean no-CLT Tart base VM, fixes the logical display at
-  `1920x1080px`, and sweeps the packaged Settings pages. The standard profile
-  checks launch and App-managed bootstrap readiness. The Full profile also
-  submits the Codex/OpenAI API key configuration wizard and checks Full runtime
-  readiness. CLT installation, git availability, and managed repo sync are
-  deferred maintenance and must not block Core, Domain module, or family runtime
-  provider readiness on first launch. This VM workflow is deterministic
+  `1920x1080px`, copies the GitHub runner's Node.js runtime into the guest for
+  the smoke harness, and sweeps the packaged Settings pages. The standard
+  profile checks launch and App-managed bootstrap readiness. The Full profile
+  also submits the Codex/OpenAI API key configuration wizard and checks Full
+  runtime readiness. CLT installation, git availability, preinstalled Node.js,
+  and managed repo sync are deferred maintenance and must not block Core,
+  Domain module, or family runtime provider readiness on first launch. This VM
+  workflow is deterministic
   release-blocking evidence for stable release readiness. Codex App and
   Computer Use browser/desktop sessions are allowed only as non-blocking
   exploratory triage; if they reveal release-relevant behavior, the finding
@@ -113,7 +115,9 @@ builds that should run on GitHub runners instead of this Mac.
   source is `opl-first-run-no-clt-clean-base-26-5-18`. Missing configuration is
   a failed VM gate, not a skipped success. Set `OPL_FIRST_RUN_GUEST_USER` when
   the guest SSH user differs from `runner`, and set `OPL_FIRST_RUN_GUEST_SSH_KEY`
-  only when the runner needs a non-default SSH private key.
+  only when the runner needs a non-default SSH private key. The current source
+  VM logs in as `admin` with `/Users/gaofeng/.ssh/opl_first_run_tart_ed25519`
+  on the self-hosted runner.
 
 The older automatic path is still valid for standard-only releases: pushing a
 `v<version>` tag triggers **Build and Release**. After that completes, run

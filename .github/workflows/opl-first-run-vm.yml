@@ -149,6 +149,20 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Resolve host Node.js runtime for guest smoke
+        id: host_node
+        shell: bash
+        run: |
+          set -euo pipefail
+          NODE_BIN="$(command -v node)"
+          NODE_ROOT="$(cd "$(dirname "$NODE_BIN")/.." && pwd)"
+          if [ ! -x "$NODE_ROOT/bin/node" ]; then
+            echo "::error::Unable to resolve host Node.js runtime root from $NODE_BIN"
+            exit 1
+          fi
+          echo "node_root=$NODE_ROOT" >> "$GITHUB_OUTPUT"
+          echo "node_bin=$NODE_BIN" >> "$GITHUB_OUTPUT"
+
       - name: Validate smoke scripts
         shell: bash
         run: |
@@ -313,6 +327,7 @@ jobs:
             --display 1920x1080px
             --settings-smoke
             --runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"
+            --guest-node-root "${{ steps.host_node.outputs.node_root }}"
           )
           if [ -n "$SSH_KEY" ]; then
             CMD+=(--ssh-key "$SSH_KEY")

@@ -154,6 +154,9 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   base VM on the self-hosted runner; the current source VM is
   `opl-first-run-no-clt-clean-base-26-5-18`. Missing source-VM configuration is
   a failed gate because no clean first-run evidence can be produced.
+  The workflow copies the GitHub runner's Node.js runtime into the guest for
+  the smoke harness, so the clean VM does not need preinstalled Node.js, CLT, or
+  other developer tooling.
   `npm run test:release-boundary` locks this workflow policy.
 - Docker/WebUI: build from `shells/aionui/Dockerfile`, run the container, and
   verify HTTP 200 for `/` and `/manifest.webmanifest`.
