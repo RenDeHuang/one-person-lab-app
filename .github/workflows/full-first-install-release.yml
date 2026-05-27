@@ -494,13 +494,7 @@ jobs:
             echo "| Full runtime layer | Status |"
             echo "| --- | --- |"
             if [ -f "$telemetry_dir/runtime-cache-events.json" ]; then
-              node - "$telemetry_dir/runtime-cache-events.json" <<'NODE'
-              const fs = require('node:fs');
-              const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-              for (const event of report.events || []) {
-                console.log(`| ${event.layer_id} | ${event.status} |`);
-              }
-              NODE
+              node -e 'const fs = require("node:fs"); const report = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); for (const event of report.events || []) console.log(`| ${event.layer_id} | ${event.status} |`);' "$telemetry_dir/runtime-cache-events.json"
             else
               echo "| unavailable | missing runtime-cache-events.json |"
             fi
