@@ -44,7 +44,7 @@ One Person Lab App 是面向用户的日常工作台：
 - 从一个桌面界面进入通用工作、医学研究、基金写作和汇报材料准备。
 - 提供研究工坊、基金工坊、汇报工坊入口。
 - 展示进度、文件、运行状态和可恢复的工作上下文，帮助用户继续长任务和检查交付物。
-- 运行状态页消费 One Person Lab Framework 的 `runtime_visualization_projection`，并兼容现有 `runtime_tray_snapshot.app_operator_drilldown` 读模型，形成 summary-first operator evidence path：展示 stage graph、route graph、decision map、timeline、research paper lens refs、review queue、artifact gallery、memory refs、quality/readiness、provider SLO，按需加载完整详情，执行 refs-only dry-run/execute 安全动作，刷新回执/计数，并展示 authority boundary 字段。
+- 运行状态页消费 One Person Lab Framework 的 `runtime_visualization_projection`，并以现有 `runtime_tray_snapshot.app_operator_drilldown` 作为兼容读模型。该页面是多任务运行基座视角：展示行动队列、纵向动态地图、单任务 drilldown、MAS paper lens refs、stage/route/decision/timeline refs、review queue、artifact gallery、memory refs、quality/readiness 和 provider SLO；默认 summary-first，完整详情按需加载；在没有推送投影时使用 5-10 秒轻轮询兜底；安全动作只通过 refs-only dry-run/execute 路由执行，并刷新回执/计数与 non-authority boundary 字段。
 - 首次启动时检查本机环境、框架依赖、领域模块、配套工具和包就绪状态。
 - 把 One Person Lab 和领域智能体呈现为可直接使用的产品体验。
 

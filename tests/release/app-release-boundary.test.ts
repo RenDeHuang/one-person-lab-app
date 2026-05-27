@@ -458,9 +458,28 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     runtimePage.operator_evidence_acceptance_path.action_execution_policy,
     'operator_selected_safe_action_route_only',
   );
+  assert.equal(runtimePage.runtime_view_model.role, 'multi_task_runtime_base');
+  assert.equal(runtimePage.runtime_view_model.default_mode, 'summary_first');
+  assert.equal(runtimePage.runtime_view_model.full_detail_policy, 'on_demand_only');
+  assert.equal(runtimePage.runtime_view_model.polling_fallback.interval_seconds_min, 5);
+  assert.equal(runtimePage.runtime_view_model.polling_fallback.interval_seconds_max, 10);
+  assert.equal(runtimePage.runtime_view_model.polling_fallback.policy, 'lightweight_polling_until_push_projection_available');
+  assert.equal(runtimePage.runtime_view_model.action_queue.source, 'runtime_visualization_projection.action_queue');
+  assert.equal(runtimePage.runtime_view_model.vertical_map.source, 'runtime_visualization_projection.dynamic_vertical_map');
+  assert.equal(runtimePage.runtime_view_model.task_drilldown.command, 'opl runtime app-operator-drilldown --task <task_id> --json');
+  assert.equal(runtimePage.runtime_view_model.mas_paper_lens.source, 'domain_projection_refs.mas.paper_lens');
+  assert.equal(runtimePage.runtime_view_model.authority_boundary.refs_only, true);
+  assert.equal(runtimePage.runtime_view_model.authority_boundary.non_authority_display_only, true);
   for (const expected of [
     'summary-first app operator read model',
     'full detail lazy load',
+    'multi-task runtime base projection',
+    'action queue refs',
+    'vertical dynamic map refs',
+    'single task drilldown refs',
+    'MAS paper lens refs',
+    '5-10 second lightweight polling fallback',
+    'refs-only non-authority boundary',
     'safe action dry-run',
     'safe action execute',
     'receipt/count refresh after execute',
@@ -472,6 +491,14 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'operator evidence acceptance state',
     'summary-first app operator read model',
     'runtime visualization projection when available',
+    'multi-task runtime base',
+    'action queue',
+    'vertical dynamic map',
+    'single task drilldown',
+    'MAS paper lens',
+    'summary-first/full-detail-on-demand controls',
+    '5-10 second lightweight polling fallback',
+    'refs-only non-authority boundary',
     'stage graph',
     'route graph',
     'decision map',

@@ -145,9 +145,62 @@ function validatePageStateMatrix(matrix, contract) {
       throw new Error(`Runtime page operator evidence acceptance ${field} must be ${expected}`);
     }
   }
+  const runtimeViewModel = runtimePage.runtime_view_model;
+  if (runtimeViewModel?.role !== 'multi_task_runtime_base') {
+    throw new Error('Runtime page must declare a multi-task runtime base view model');
+  }
+  if (runtimeViewModel.default_mode !== 'summary_first') {
+    throw new Error('Runtime page view model must default to summary_first');
+  }
+  if (runtimeViewModel.full_detail_policy !== 'on_demand_only') {
+    throw new Error('Runtime page full detail must be on-demand only');
+  }
+  if (
+    runtimeViewModel.polling_fallback?.interval_seconds_min !== 5
+    || runtimeViewModel.polling_fallback?.interval_seconds_max !== 10
+    || runtimeViewModel.polling_fallback?.policy !== 'lightweight_polling_until_push_projection_available'
+  ) {
+    throw new Error('Runtime page polling fallback must be lightweight 5-10 second polling');
+  }
+  for (const [field, expected] of Object.entries({
+    'action_queue.source': 'runtime_visualization_projection.action_queue',
+    'action_queue.fallback_source': 'runtime_tray_snapshot.app_operator_drilldown.safe_action_routes',
+    'action_queue.authority': 'framework_refs_only',
+    'vertical_map.source': 'runtime_visualization_projection.dynamic_vertical_map',
+    'vertical_map.fallback_source': 'runtime_tray_snapshot.app_operator_drilldown.route_graph',
+    'vertical_map.orientation': 'vertical',
+    'vertical_map.scope': 'multi_task_runtime_map',
+    'task_drilldown.command': 'opl runtime app-operator-drilldown --task <task_id> --json',
+    'task_drilldown.detail_command': 'opl runtime app-operator-drilldown --task <task_id> --detail full --json',
+    'task_drilldown.scope': 'single_task',
+    'task_drilldown.default_mode': 'summary_first',
+    'mas_paper_lens.source': 'domain_projection_refs.mas.paper_lens',
+    'mas_paper_lens.scope': 'refs_only_publication_progress',
+    'mas_paper_lens.authority': 'mas_owned',
+    'authority_boundary.action_execution_owner': 'opl_framework',
+    'authority_boundary.domain_verdict_owner': 'domain_agent',
+  })) {
+    const actual = field.split('.').reduce((value, key) => value?.[key], runtimeViewModel);
+    if (actual !== expected) {
+      throw new Error(`Runtime page view model ${field} must be ${expected}`);
+    }
+  }
+  if (runtimeViewModel.authority_boundary?.refs_only !== true) {
+    throw new Error('Runtime page view model must be refs-only');
+  }
+  if (runtimeViewModel.authority_boundary?.non_authority_display_only !== true) {
+    throw new Error('Runtime page view model must be display-only for non-authority domain refs');
+  }
   const requiredEvidencePath = [
     'summary-first app operator read model',
     'full detail lazy load',
+    'multi-task runtime base projection',
+    'action queue refs',
+    'vertical dynamic map refs',
+    'single task drilldown refs',
+    'MAS paper lens refs',
+    '5-10 second lightweight polling fallback',
+    'refs-only non-authority boundary',
     'safe action dry-run',
     'safe action execute',
     'receipt/count refresh after execute',
@@ -162,6 +215,14 @@ function validatePageStateMatrix(matrix, contract) {
     'operator evidence acceptance state',
     'summary-first app operator read model',
     'runtime visualization projection when available',
+    'multi-task runtime base',
+    'action queue',
+    'vertical dynamic map',
+    'single task drilldown',
+    'MAS paper lens',
+    'summary-first/full-detail-on-demand controls',
+    '5-10 second lightweight polling fallback',
+    'refs-only non-authority boundary',
     'stage graph',
     'route graph',
     'decision map',

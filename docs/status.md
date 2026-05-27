@@ -72,10 +72,15 @@ and compiles through the App wrapper path.
 Runtime page evidence path is declared in
 `contracts/app-page-state-matrix.json`: the active shell loads the summary read
 model through `opl runtime app-operator-drilldown --json`, lazy-loads full detail
-through `opl runtime app-operator-drilldown --detail full --json`, and exposes
-only refs-only `opl runtime action execute --action <id> [--payload refs-only-json]
-[--dry-run]` controls. Execution refreshes the App/operator projection so
-receipt/count fields stay framework-owned.
+through `opl runtime app-operator-drilldown --detail full --json`, and presents
+a multi-task runtime base view with action queue refs, a vertical dynamic map,
+single-task drilldown, and MAS paper lens refs. The page stays summary-first,
+loads full detail only on demand, uses a 5-10 second lightweight polling
+fallback when push projection is unavailable, and exposes only refs-only
+`opl runtime action execute --action <id> [--payload refs-only-json] [--dry-run]`
+controls. Execution refreshes the App/operator projection so receipt/count
+fields stay framework-owned; MAS/MAG/RCA verdicts and artifact authority remain
+domain-owned refs.
 
 2026-05-22 App release evidence collection now has an App-owned CLI wrapper:
 `scripts/collect-release-evidence.ts` fills `runtime-snapshot.json`,

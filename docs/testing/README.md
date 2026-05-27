@@ -51,10 +51,12 @@ The App product profile is declared in
 `contracts/app-product-profile.json`; `validate-active-shell.ts --quick` and
 `npm run test:release-boundary` verify that the profile still owns only
 desktop product defaults and still excludes runtime/provider/domain authority.
-The runtime page matrix also verifies the App/operator evidence path: summary
-read model first, lazy full-detail load, refs-only dry-run/execute action
-commands, receipt/count refresh after execute, and explicit authority-boundary
-fields.
+The runtime page matrix also verifies the App/operator evidence path: a
+multi-task runtime base view, action queue refs, vertical dynamic map refs,
+single-task drilldown refs, MAS paper lens refs, summary read model first, lazy
+full-detail load, 5-10 second lightweight polling fallback when push projection
+is unavailable, refs-only dry-run/execute action commands, receipt/count refresh
+after execute, and explicit non-authority boundary fields.
 
 Release evidence bundle validation requires `evidence-manifest.json` plus the
 contracted artifact files. When a local lane cannot produce a clean VM smoke,

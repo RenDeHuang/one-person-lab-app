@@ -16,6 +16,44 @@
       "framework_full_detail_command": "opl runtime app-operator-drilldown --detail full --json",
       "framework_action_command": "opl runtime action execute --action <id> [--payload refs-only-json] [--dry-run]",
       "page_contract": "runtime_workbench_drilldown",
+      "runtime_view_model": {
+        "role": "multi_task_runtime_base",
+        "default_mode": "summary_first",
+        "full_detail_policy": "on_demand_only",
+        "polling_fallback": {
+          "interval_seconds_min": 5,
+          "interval_seconds_max": 10,
+          "policy": "lightweight_polling_until_push_projection_available"
+        },
+        "action_queue": {
+          "source": "runtime_visualization_projection.action_queue",
+          "fallback_source": "runtime_tray_snapshot.app_operator_drilldown.safe_action_routes",
+          "authority": "framework_refs_only"
+        },
+        "vertical_map": {
+          "source": "runtime_visualization_projection.dynamic_vertical_map",
+          "fallback_source": "runtime_tray_snapshot.app_operator_drilldown.route_graph",
+          "orientation": "vertical",
+          "scope": "multi_task_runtime_map"
+        },
+        "task_drilldown": {
+          "command": "opl runtime app-operator-drilldown --task <task_id> --json",
+          "detail_command": "opl runtime app-operator-drilldown --task <task_id> --detail full --json",
+          "scope": "single_task",
+          "default_mode": "summary_first"
+        },
+        "mas_paper_lens": {
+          "source": "domain_projection_refs.mas.paper_lens",
+          "scope": "refs_only_publication_progress",
+          "authority": "mas_owned"
+        },
+        "authority_boundary": {
+          "refs_only": true,
+          "non_authority_display_only": true,
+          "action_execution_owner": "opl_framework",
+          "domain_verdict_owner": "domain_agent"
+        }
+      },
       "operator_evidence_acceptance_path": {
         "role": "runtime_page_operator_evidence_acceptance",
         "accepts_refs_only_json": true,
@@ -29,6 +67,13 @@
       "operator_evidence_path": [
         "summary-first app operator read model",
         "full detail lazy load",
+        "multi-task runtime base projection",
+        "action queue refs",
+        "vertical dynamic map refs",
+        "single task drilldown refs",
+        "MAS paper lens refs",
+        "5-10 second lightweight polling fallback",
+        "refs-only non-authority boundary",
         "safe action dry-run",
         "safe action execute",
         "receipt/count refresh after execute",
@@ -38,6 +83,14 @@
         "runtime state",
         "source surface",
         "runtime visualization projection when available",
+        "multi-task runtime base",
+        "action queue",
+        "vertical dynamic map",
+        "single task drilldown",
+        "MAS paper lens",
+        "summary-first/full-detail-on-demand controls",
+        "5-10 second lightweight polling fallback",
+        "refs-only non-authority boundary",
         "repair action when available",
         "operator evidence acceptance state",
         "summary-first app operator read model",
