@@ -152,6 +152,12 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   in `full-workflow-telemetry.json` artifacts. These artifacts help compare
   build speed across runs; they do not replace release manifests, checksums,
   remote verification, VM smoke artifacts, or evidence bundle validation.
+  Full workflows also upload `opl-full-diagnostics-<version>`, a small
+  diagnostics artifact with telemetry, `full-package-manifest.json`,
+  `runtime-cache-events.json`, `SHA256SUMS.txt`, and the Full README so cache
+  and hash checks do not require downloading the large Full DMG. Warmup runs do
+  not upload the large Full package artifact; release-called Full builds still
+  do because publish and VM gates consume the DMG.
 - Standard DMG clean VM smoke: the packaged App must run its bundled
   `opl-install.sh` bootstrap carrier if `opl` is missing, reach
   `ready_to_launch` through `opl system initialize --json`, and only then enter
@@ -198,6 +204,8 @@ workflow-operations hygiene:
 - Full package tuning reads both `full-workflow-telemetry.json` and
   `runtime-cache-events.json`; the first captures workflow-level cache and
   timing surfaces, and the second records per-layer Full runtime cache status.
+  Prefer `opl-full-diagnostics-<version>` for remote tuning because it contains
+  those files plus manifest and checksum evidence without the large DMG.
 - Composite/setup reuse is allowed only when the shared action is checked in
   and release-boundary tests lock its behavior. The current active-shell
   checkout/setup/cache reuse lives in `.github/actions/setup-active-shell-deps`.

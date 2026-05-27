@@ -17,6 +17,11 @@ on:
         required: false
         default: false
         type: boolean
+      upload_full_package_artifact:
+        description: Upload the large Full package workflow artifact for downstream publish/VM jobs
+        required: false
+        default: true
+        type: boolean
       force_rebuild_runtime_cache:
         description: Ignore restored Full runtime layer cache and rebuild all layers
         required: false
@@ -37,6 +42,11 @@ on:
         description: Upload Full first-install assets to an existing App GitHub Release
         required: false
         default: false
+        type: boolean
+      upload_full_package_artifact:
+        description: Upload the large Full package workflow artifact for downstream publish/VM jobs
+        required: false
+        default: true
         type: boolean
       force_rebuild_runtime_cache:
         description: Ignore restored Full runtime layer cache and rebuild all layers
@@ -557,6 +567,19 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Upload Full diagnostics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opl-full-diagnostics-${{ env.OPL_RELEASE_VERSION }}
+          path: |
+            one-person-lab-app/dist/opl-full-release/full-workflow-telemetry.json
+            one-person-lab-app/dist/opl-full-release/full-package-manifest.json
+            one-person-lab-app/dist/opl-full-release/runtime-cache-events.json
+            one-person-lab-app/dist/opl-full-release/SHA256SUMS.txt
+            one-person-lab-app/dist/opl-full-release/README-Full-First-Install.txt
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Save Full toolchain runtime cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-toolchain.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v4
@@ -622,6 +645,7 @@ jobs:
           fi
 
       - name: Upload Full package workflow artifact
+        if: ${{ inputs.upload_full_package_artifact }}
         uses: actions/upload-artifact@v4
         with:
           name: opl-full-first-install-${{ env.OPL_RELEASE_VERSION }}-mac-arm64

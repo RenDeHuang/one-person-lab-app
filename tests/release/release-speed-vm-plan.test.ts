@@ -132,11 +132,18 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /schema:\s+'opl_full_workflow_telemetry\.v1'|schema:\s+"opl_full_workflow_telemetry\.v1"/, 'Full telemetry schema');
   assertMatches(workflow, /full-workflow-telemetry\.json/, 'Full telemetry JSON path');
   assertMatches(workflow, /Upload Full workflow telemetry[\s\S]*actions\/upload-artifact@v4/, 'Full telemetry artifact upload');
+  assertMatches(workflow, /Upload Full diagnostics artifact[\s\S]*name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/, 'Full diagnostics artifact upload');
+  assertMatches(workflow, /Upload Full diagnostics artifact[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
+  assertMatches(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/, 'Full package artifact upload defaults on for release-call consumers');
+  assertMatches(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/, 'large Full package artifact is explicitly gated');
   assertMatches(workflow, /cache:[\s\S]*full_runtime_layers/, 'Full telemetry cache fields');
   assertMatches(workflow, /Restore Full toolchain runtime cache[\s\S]*Restore Full domain runtime cache[\s\S]*Restore Full OPL runtime cache[\s\S]*Restore Full skills runtime cache/, 'per-layer Full runtime cache restore');
   assertMatches(workflow, /Save Full toolchain runtime cache[\s\S]*Save Full domain runtime cache[\s\S]*Save Full OPL runtime cache[\s\S]*Save Full skills runtime cache/, 'per-layer Full runtime cache save');
   assertMatches(workflow, /git -C "\$GITHUB_WORKSPACE\/MinerU-Ecosystem" show -s --format=%cI HEAD/, 'MinerU build metadata is source-commit stable');
   assertMatches(workflow, /duration_seconds:[\s\S]*full_package_build/, 'Full telemetry duration fields');
+
+  const warmupWorkflow = readRepoFile('.github/workflows/full-runtime-cache-warmup.yml');
+  assertMatches(warmupWorkflow, /upload_full_package_artifact:\s+false/, 'Full warmup must avoid uploading the large Full DMG artifact');
 });
 
 test('release operations workflows serialize refreshable GitHub Actions runs without cancelling stable release runs', () => {
@@ -205,6 +212,8 @@ test('release CI operations docs separate implemented release gates from follow-
   assertMatches(combinedDocs, /concurrency[\s\S]*duplicate-run governance/i, 'concurrency policy');
   assertMatches(combinedDocs, /not release evidence|not as proof/i, 'concurrency non-evidence boundary');
   assertMatches(combinedDocs, /Machine-readable telemetry[\s\S]*JSON artifact/i, 'machine-readable telemetry artifact');
+  assertMatches(combinedDocs, /opl-full-diagnostics/i, 'small Full diagnostics artifact');
+  assertMatches(combinedDocs, /warmup[\s\S]*(does\s+not\s+upload|do\s+not\s+upload|disable)[\s\S]*large Full package artifact|large Full package artifact[\s\S]*disabled[\s\S]*warmup/i, 'warmup large artifact boundary');
   assertMatches(combinedDocs, /post-release tuning|after-release tuning/i, 'telemetry tuning role');
   assertMatches(combinedDocs, /does not replace[\s\S]*(manifest|manifests)[\s\S]*SHA256SUMS[\s\S]*remote verification[\s\S]*VM/i, 'telemetry non-truth boundary');
   assertMatches(combinedDocs, /Composite\/setup[\s\S]*checked-in composite action|Composite\/setup[\s\S]*checked in/i, 'composite setup implementation policy');

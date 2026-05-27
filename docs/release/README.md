@@ -251,7 +251,15 @@ packaging spends less time rebuilding shared payloads locally. Warmup runs use a
 cancel-in-progress concurrency group because only the latest warm cache matters;
 Stable Full packaging keeps `cancel-in-progress=false` and emits both a step
 summary and `full-workflow-telemetry.json` JSON artifact for cache
-hit/miss and step-duration telemetry.
+hit/miss and step-duration telemetry. Full runs also upload
+`opl-full-diagnostics-<version>`, a small JSON/text artifact containing
+`full-workflow-telemetry.json`, `full-package-manifest.json`,
+`runtime-cache-events.json`, `SHA256SUMS.txt`, and the Full README so operators
+can inspect cache status, manifest commits, and recorded hashes without
+downloading the 500 MB class Full DMG. Warmup disables the large
+`opl-full-first-install-<version>-mac-arm64` workflow artifact; release-called
+Full builds keep that artifact enabled because downstream publish and VM jobs
+need the actual DMG.
 
 ## Local commands
 
