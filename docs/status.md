@@ -48,6 +48,14 @@ Homebrew/Node/Git first” as the first-screen terminal state. CLT requests use
 installer. `officecli`, MinerU, and `opl-meta-agent` are App/CLI-managed
 ecosystem modules.
 
+First-run progress is also contract-backed. The shared progress model is
+produced by `opl system initialize --json` at
+`system_initialize.setup_flow`; App, CLI one-shot install, and Docker/WebUI
+surfaces must derive phase, Core progress, Full readiness progress, background
+maintenance counts, blockers, and next visible steps from that model instead of
+maintaining separate installer-specific progress truth. The active shell renders
+this model only and does not own private first-run progress state.
+
 ## Release State
 
 Standard App release assets and updater metadata are App-owned and currently

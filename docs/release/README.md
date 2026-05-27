@@ -25,6 +25,14 @@ and App-managed maintenance where possible; the first screen must not end by
 telling the user to install Homebrew, Node, or Git before One Person Lab can
 proceed.
 
+All first-install variants share the same progress model. Full DMG, standard
+App bootstrap, CLI one-shot install, and Docker/WebUI status surfaces consume
+`opl system initialize --json` and its `system_initialize.setup_flow` payload for
+phase, Core completed/total count, Full readiness completed/total count,
+background maintenance completed/total count, blockers, and next visible step.
+Release evidence should prove that mapping; it should not introduce a separate
+installer-local progress authority.
+
 The standard updater policy follows Electron's documented autoUpdater pattern:
 standard assets use background download, the App prompts for restart only after
 the update is downloaded, and the restart/install step is user visible. See

@@ -49,11 +49,11 @@ Machine boundary: Human-readable user guide. Release contracts, workflows, VM sm
 
 ## 4. 等待首次环境检查
 
-OPL 会检查 Codex、模块、skills 和本机运行环境。等待状态进入可继续阶段。
+OPL 会检查 Codex、模块、skills 和本机运行环境。界面会显示当前阶段、Core 进度、Full readiness / 后台维护进度、阻塞项和下一步，等待状态进入可继续阶段。
 
 ![4. 等待首次环境检查](assets/04-first-run-checking.png)
 
-- 首启准备可能需要几分钟。
+- 首启准备可能需要几分钟，进度来自 OPL 底层初始化状态；App 只负责展示，不单独维护另一套安装进度。
 - 遇到阻塞时先阅读界面提示，再联系技术支持处理。
 
 ## 5. 进入科研入口

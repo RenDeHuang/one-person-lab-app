@@ -5,6 +5,55 @@
   "state": "active",
   "active_shell": "aionui",
   "shell_root": "shells/aionui",
+  "shared_progress_model": {
+    "producer": "one-person-lab",
+    "source_command": "opl system initialize --json",
+    "source_path": "system_initialize.setup_flow",
+    "truth_policy": "all_installers_and_renderers_derive_progress_from_the_shared_initialize_model",
+    "required_setup_flow_fields": [
+      "phase",
+      "ready_to_launch",
+      "progress",
+      "blocking_items",
+      "maintenance_items"
+    ],
+    "required_progress_fields": [
+      "ready_required_count",
+      "total_required_count",
+      "ready_full_readiness_count",
+      "total_full_readiness_count",
+      "ready_optional_count",
+      "total_optional_count"
+    ],
+    "required_checklist_fields": [
+      "item_id",
+      "label",
+      "status",
+      "readiness_layer",
+      "blocking",
+      "severity",
+      "next_visible_step",
+      "detail_summary"
+    ],
+    "consumers": [
+      {
+        "package_type": "full",
+        "surface": "App first-run readiness page"
+      },
+      {
+        "package_type": "standard",
+        "surface": "App-managed bootstrap or ready-state page"
+      },
+      {
+        "package_type": "source_installer",
+        "surface": "CLI one-shot install output"
+      },
+      {
+        "package_type": "docker_webui",
+        "surface": "WebUI container logs or CLI-backed status"
+      }
+    ]
+  },
   "scenarios": [
     {
       "id": "standard_app_existing_framework",

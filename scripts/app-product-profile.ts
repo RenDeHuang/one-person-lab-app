@@ -79,6 +79,15 @@ export type AppProductProfile = {
       full_readiness_provider: string;
       ready_to_launch_blocking: boolean;
     };
+    progress_model: {
+      source_command: string;
+      source_path: string;
+      renderer_truth_policy: string;
+      required_setup_flow_fields: string[];
+      required_progress_fields: string[];
+      required_checklist_fields: string[];
+      required_visible_elements: string[];
+    };
     command_line_tools: {
       auto_request_installer: boolean;
       blocks_full_first_launch: boolean;
@@ -198,6 +207,19 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.first_run.ready_to_launch_gate.must_not_require, 'first_run.ready_to_launch_gate.must_not_require');
   assertStringArray(profile.first_run.full_readiness_layers, 'first_run.full_readiness_layers');
   assertStringArray(profile.first_run.deferred_blockers, 'first_run.deferred_blockers');
+  if (profile.first_run.progress_model.source_command !== 'opl system initialize --json') {
+    throw new Error('App product profile first_run.progress_model.source_command must be opl system initialize --json');
+  }
+  if (profile.first_run.progress_model.source_path !== 'system_initialize.setup_flow') {
+    throw new Error('App product profile first_run.progress_model.source_path must be system_initialize.setup_flow');
+  }
+  if (profile.first_run.progress_model.renderer_truth_policy !== 'render_only_no_shell_private_progress_truth') {
+    throw new Error('App product profile first_run.progress_model must keep renderers display-only');
+  }
+  assertStringArray(profile.first_run.progress_model.required_setup_flow_fields, 'first_run.progress_model.required_setup_flow_fields');
+  assertStringArray(profile.first_run.progress_model.required_progress_fields, 'first_run.progress_model.required_progress_fields');
+  assertStringArray(profile.first_run.progress_model.required_checklist_fields, 'first_run.progress_model.required_checklist_fields');
+  assertStringArray(profile.first_run.progress_model.required_visible_elements, 'first_run.progress_model.required_visible_elements');
   assertStringArray(profile.first_run.command_line_tools.messages, 'first_run.command_line_tools.messages');
   assertStringArray(profile.settings.visible_tabs, 'settings.visible_tabs');
   assertStringArray(profile.settings.environment_items, 'settings.environment_items');
