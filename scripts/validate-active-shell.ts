@@ -368,10 +368,10 @@ function validateActiveShellImplementation(shellPaths) {
     }
   }
   for (const expected of [
-    'const paths = oplRecord(appStateQuery.appState.paths)',
-    'oplString(paths.workspace_root_path)',
-    'oplPathString(paths.workspace_root)',
-    'oplString(paths.logs_dir)',
+    'const appPaths = appState?.paths',
+    "readOplString(appPaths, 'workspace_root_path')",
+    "readOplString(readOplRecord(appPaths, 'workspace_root'), 'selected_path')",
+    "readOplString(appPaths, 'logs_dir')",
   ]) {
     if (!systemSettings.includes(expected)) {
       throw new Error(`Active shell System settings must derive visible OPL paths from app_state.paths: ${expected}`);
