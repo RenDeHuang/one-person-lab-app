@@ -81,13 +81,25 @@
   ],
   "theme_and_branding": {
     "default_theme_id": "codex",
-    "allowed_theme_ids": ["codex", "default-theme"],
+    "allowed_theme_ids": [
+      "codex",
+      "default-theme"
+    ],
     "default_visible_product_name": "One Person Lab App",
     "legacy_upstream_branding_forbidden": true,
-    "forbidden_visible_terms": ["AionUI", "Aion UI"]
+    "forbidden_visible_terms": [
+      "AionUI",
+      "Aion UI"
+    ]
   },
   "settings_navigation": {
-    "required_sections": ["system", "runtime", "about", "update", "theme"],
+    "required_sections": [
+      "system",
+      "runtime",
+      "about",
+      "update",
+      "theme"
+    ],
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile full --json",
     "policy": "Settings pages display App-owned product state and framework-owned refs without taking runtime or domain authority."
@@ -95,7 +107,11 @@
   "first_launch_readiness_policy": {
     "launch_gate": "ready_to_launch",
     "ui_order": "before_guid",
-    "core_required_items": ["workspace_root", "codex_cli", "codex_config"],
+    "core_required_items": [
+      "workspace_root",
+      "codex_cli",
+      "codex_config"
+    ],
     "full_readiness_items": [
       "domain_modules",
       "family_runtime_provider",
@@ -148,6 +164,26 @@
         "background maintenance completed and total count",
         "blocking item list",
         "next visible step"
+      ]
+    },
+    "beginner_presentation": {
+      "audience": "beginner_non_technical_users",
+      "presentation_mode": "simplified_first_run",
+      "primary_user_goal": "reach_guid_with_codex_ready",
+      "primary_steps": [
+        "workspace_root",
+        "codex_cli",
+        "codex_config"
+      ],
+      "primary_progress_signal": "Core completed and total count",
+      "advanced_progress_disclosure": "collapsed_or_secondary",
+      "background_maintenance_presentation": "secondary_non_blocking",
+      "technical_detail_policy": "hidden_until_expanded_or_error",
+      "mature_project_pattern_refs": [
+        "github_desktop_welcome",
+        "vscode_getting_started",
+        "homebrew_default_install",
+        "rustup_default_install"
       ]
     }
   },
@@ -239,7 +275,11 @@
     "settings_system": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile full --json",
-      "sections": ["developer_mode", "paths", "opl_agent_codex_context"],
+      "sections": [
+        "developer_mode",
+        "paths",
+        "opl_agent_codex_context"
+      ],
       "must_show": [
         "Developer Mode effective state from app_state.developer_mode",
         "workspace path from app_state.paths",
@@ -254,7 +294,13 @@
     "settings_runtime": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile full --json",
-      "sections": ["core.codex", "provider.temporal", "modules", "assistants", "release"],
+      "sections": [
+        "core.codex",
+        "provider.temporal",
+        "modules",
+        "assistants",
+        "release"
+      ],
       "module_path_source_policy_ref": "module_path_source_policy",
       "must_show": [
         "Codex CLI version and default profile from app_state.core",
@@ -272,7 +318,9 @@
     "about": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile full --json",
-      "sections": ["release"],
+      "sections": [
+        "release"
+      ],
       "must_show": [
         "One Person Lab App version",
         "GUI shell version",
@@ -289,7 +337,9 @@
     "update": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile full --json",
-      "sections": ["release"],
+      "sections": [
+        "release"
+      ],
       "must_show": [
         "Stable channel update state",
         "Nightly opt-in update state when enabled",
@@ -303,7 +353,9 @@
     "settings_theme": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile full --json",
-      "sections": ["theme"],
+      "sections": [
+        "theme"
+      ],
       "must_show": [
         "Default theme option",
         "Codex theme option",

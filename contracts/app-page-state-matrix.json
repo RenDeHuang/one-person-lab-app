@@ -280,7 +280,11 @@
       "launch_gate": {
         "id": "ready_to_launch",
         "ui_order": "before_guid",
-        "required_core_items": ["workspace_root", "codex_cli", "codex_config"],
+        "required_core_items": [
+          "workspace_root",
+          "codex_cli",
+          "codex_config"
+        ],
         "full_readiness_items": [
           "domain_modules",
           "family_runtime_provider",
@@ -304,7 +308,11 @@
         "background maintenance completed and total count",
         "next visible step",
         "completion state",
-        "blocking error source"
+        "blocking error source",
+        "beginner-facing readiness summary",
+        "primary start action",
+        "background maintenance secondary disclosure",
+        "technical details toggle"
       ],
       "progress_model": {
         "source_command": "opl system initialize --json",
@@ -343,7 +351,32 @@
           "blocking item list",
           "next visible step"
         ]
-      }
+      },
+      "beginner_view_model": {
+        "audience": "beginner_non_technical_users",
+        "presentation_mode": "simplified_first_run",
+        "primary_user_goal": "reach_guid_with_codex_ready",
+        "primary_steps": [
+          "workspace_root",
+          "codex_cli",
+          "codex_config"
+        ],
+        "primary_progress_signal": "Core completed and total count",
+        "advanced_progress_disclosure": "collapsed_or_secondary",
+        "background_maintenance_presentation": "secondary_non_blocking",
+        "technical_detail_policy": "hidden_until_expanded_or_error",
+        "required_shell_testids": [
+          "opl-first-run-beginner-summary",
+          "opl-first-run-primary-action",
+          "opl-first-run-background-maintenance-secondary",
+          "opl-first-run-technical-details-toggle"
+        ]
+      },
+      "must_not_show": [
+        "Homebrew, Node, Git, CLT, module, provider, or runtime maintenance as primary first-screen terminal goals",
+        "Full readiness progress as the dominant first-screen message",
+        "raw command output in the beginner primary area"
+      ]
     }
   ],
   "gui_product_contract": "contracts/app-gui-product-contract.json",

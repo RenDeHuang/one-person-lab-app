@@ -65,13 +65,42 @@
       ]
     },
     {
+      "id": "beginner_simplified_first_run_clean_machine",
+      "package_type": "standard_or_full",
+      "audience": "beginner_non_technical_users",
+      "view_model": "simplified_first_run",
+      "source_command": "opl system initialize --json",
+      "required_shell_testids": [
+        "opl-first-run-beginner-summary",
+        "opl-first-run-primary-action",
+        "opl-first-run-background-maintenance-secondary",
+        "opl-first-run-technical-details-toggle"
+      ],
+      "expects": [
+        "first screen shows a plain readiness summary instead of a technical checklist as the dominant view",
+        "primary action leads to /guid only after ready_to_launch is true",
+        "workspace root, Codex CLI, and Codex config are the only primary steps",
+        "Full readiness and background maintenance remain visible as secondary or collapsed details",
+        "Homebrew, Node, Git, CLT, modules, provider, and runtime maintenance do not become the beginner primary terminal goals"
+      ]
+    },
+    {
       "id": "full_first_install_clean_machine",
       "package_type": "full",
-      "clean_machine_missing_tools": ["command_line_tools", "homebrew", "node", "git"],
+      "clean_machine_missing_tools": [
+        "command_line_tools",
+        "homebrew",
+        "node",
+        "git"
+      ],
       "core_ready_source": "bundled_runtime",
       "ready_to_launch_gate": {
         "ui_order": "before_guid",
-        "required_core_items": ["workspace_root", "codex_cli", "codex_config"],
+        "required_core_items": [
+          "workspace_root",
+          "codex_cli",
+          "codex_config"
+        ],
         "blocks_on_full_readiness": false
       },
       "background_maintenance": [
@@ -145,7 +174,9 @@
       "id": "full_dmg_clean_vm_smoke",
       "package_type": "full",
       "release_gate": true,
-      "aliases": ["full_first_install_clean_machine"],
+      "aliases": [
+        "full_first_install_clean_machine"
+      ],
       "vm": {
         "source": "clean no-CLT Tart base clone",
         "display": "1920x1080px",
@@ -228,7 +259,11 @@
     {
       "id": "ecosystem_modules_app_cli_managed",
       "package_type": "standard_or_full",
-      "modules": ["officecli", "mineru", "opl-meta-agent"],
+      "modules": [
+        "officecli",
+        "mineru",
+        "opl-meta-agent"
+      ],
       "expects": [
         "officecli is managed by App or CLI maintenance",
         "mineru is managed by App or CLI maintenance",

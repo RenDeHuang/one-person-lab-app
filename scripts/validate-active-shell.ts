@@ -15,6 +15,39 @@ const firstRunMatrixPath = path.join(root, 'contracts', 'app-first-run-test-matr
 const productProfilePath = path.join(root, 'contracts', 'app-product-profile.json');
 const releaseChannelPath = path.join(root, 'contracts', 'app-release-channel.json');
 const commandMaxBuffer = 128 * 1024 * 1024;
+const requiredHostTools = ['command_line_tools', 'homebrew', 'node', 'git'];
+const firstRunCoreItems = ['workspace_root', 'codex_cli', 'codex_config'];
+const fullReadinessItems = [
+  'domain_modules',
+  'family_runtime_provider',
+  'recommended_skills',
+  'native_helpers',
+  'repo_sync',
+  'command_line_tools_install',
+  'ecosystem_module_updates',
+];
+const deferredMaintenanceItems = [
+  'repo_sync',
+  'module_reconcile',
+  'command_line_tools_install',
+  'native_helpers',
+  'companion_skills_install',
+  'ecosystem_module_updates',
+];
+const ecosystemModuleIds = ['officecli', 'mineru', 'opl-meta-agent'];
+const forbiddenAuthorityOwners = [
+  'runtime_truth',
+  'provider_implementation',
+  'domain_truth',
+  'domain_quality_verdict',
+  'domain_artifact_authority',
+];
+const beginnerFirstRunTestIds = [
+  'opl-first-run-beginner-summary',
+  'opl-first-run-primary-action',
+  'opl-first-run-background-maintenance-secondary',
+  'opl-first-run-technical-details-toggle',
+];
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
@@ -27,6 +60,28 @@ function assertIncludesAll(actual, expected, label) {
   for (const item of expected) {
     if (!actual.includes(item)) {
       throw new Error(`${label} must include ${item}`);
+    }
+  }
+}
+
+function validateBeginnerFirstRunPresentation(presentation, label) {
+  if (presentation?.audience !== 'beginner_non_technical_users') {
+    throw new Error(`${label} must target beginner_non_technical_users`);
+  }
+  if (presentation.presentation_mode !== 'simplified_first_run') {
+    throw new Error(`${label} must use simplified_first_run presentation`);
+  }
+  if (presentation.primary_user_goal !== 'reach_guid_with_codex_ready') {
+    throw new Error(`${label} must focus on reaching /guid with Codex ready`);
+  }
+  assertIncludesAll(presentation.primary_steps, firstRunCoreItems, `${label} primary steps`);
+  for (const [field, expected] of Object.entries({
+    advanced_progress_disclosure: 'collapsed_or_secondary',
+    background_maintenance_presentation: 'secondary_non_blocking',
+    technical_detail_policy: 'hidden_until_expanded_or_error',
+  })) {
+    if (presentation[field] !== expected) {
+      throw new Error(`${label}.${field} must be ${expected}`);
     }
   }
 }
@@ -354,6 +409,11 @@ function validateActiveShellImplementation(shellPaths) {
   ]) {
     if (!firstRunPage.includes(expected)) {
       throw new Error(`Active shell FirstRun page must render shared initialize progress: ${expected}`);
+    }
+  }
+  for (const expected of beginnerFirstRunTestIds.map((id) => `data-testid='${id}'`)) {
+    if (!firstRunPage.includes(expected)) {
+      throw new Error(`Active shell FirstRun page must implement beginner first-run surface ${expected}`);
     }
   }
 
@@ -947,6 +1007,10 @@ function validateAppGuiProductContract(guiContract, releaseChannel) {
       throw new Error(`App GUI first-launch readiness ${field} must be ${expected}`);
     }
   }
+  validateBeginnerFirstRunPresentation(
+    firstLaunchPolicy?.beginner_presentation,
+    'App GUI first-launch beginner presentation',
+  );
   const firstLaunchProgressModel = firstLaunchPolicy?.progress_model;
   if (firstLaunchProgressModel?.source_command !== firstRunProgressSourceCommand) {
     throw new Error('App GUI first-launch progress model must use opl system initialize --json');
@@ -1195,6 +1259,15 @@ function validatePageStateMatrix(matrix, contract) {
   if (firstLaunchPage.launch_gate?.full_readiness_blocks_ready_to_launch !== false) {
     throw new Error('First-launch readiness page must keep full readiness non-blocking for ready_to_launch');
   }
+  validateBeginnerFirstRunPresentation(
+    firstLaunchPage.beginner_view_model,
+    'First-launch readiness beginner view model',
+  );
+  assertIncludesAll(
+    firstLaunchPage.beginner_view_model?.required_shell_testids,
+    beginnerFirstRunTestIds,
+    'First-launch readiness beginner shell test ids',
+  );
   for (const item of firstRunCoreItems) {
     if (!firstLaunchPage.launch_gate?.required_core_items?.includes(item)) {
       throw new Error(`First-launch readiness page must require Core item ${item}`);
@@ -1216,9 +1289,22 @@ function validatePageStateMatrix(matrix, contract) {
     'Full readiness completed and total count',
     'background maintenance completed and total count',
     'next visible step',
+    'beginner-facing readiness summary',
+    'primary start action',
+    'background maintenance secondary disclosure',
+    'technical details toggle',
   ]) {
     if (!firstLaunchPage.must_show?.includes(signal)) {
       throw new Error(`First-launch readiness page must show ${signal}`);
+    }
+  }
+  for (const hiddenSignal of [
+    'Homebrew, Node, Git, CLT, module, provider, or runtime maintenance as primary first-screen terminal goals',
+    'Full readiness progress as the dominant first-screen message',
+    'raw command output in the beginner primary area',
+  ]) {
+    if (!firstLaunchPage.must_not_show?.includes(hiddenSignal)) {
+      throw new Error(`First-launch readiness page must not show ${hiddenSignal}`);
     }
   }
   const firstLaunchProgressModel = firstLaunchPage.progress_model;
@@ -1720,39 +1806,26 @@ function validateFirstRunMatrix(matrix, contract) {
   validateSharedProgressModel(matrix.shared_progress_model);
   const scenarioById = buildScenarioMap(matrix);
   validateFullFirstInstallScenario(scenarioById.get('full_first_install_clean_machine'));
+  const beginnerScenario = scenarioById.get('beginner_simplified_first_run_clean_machine');
+  if (!beginnerScenario) {
+    throw new Error('First-run matrix is missing beginner_simplified_first_run_clean_machine');
+  }
+  if (beginnerScenario.audience !== 'beginner_non_technical_users') {
+    throw new Error('Beginner first-run scenario must target beginner_non_technical_users');
+  }
+  if (beginnerScenario.view_model !== 'simplified_first_run') {
+    throw new Error('Beginner first-run scenario must use simplified_first_run');
+  }
+  assertIncludesAll(
+    beginnerScenario.required_shell_testids,
+    beginnerFirstRunTestIds,
+    'Beginner first-run scenario shell test ids',
+  );
   validateStandardBootstrapScenario(scenarioById.get('standard_app_managed_bootstrap'));
   validateCommandLineToolsScenario(scenarioById.get('macos_clt_system_installer'));
   validateEcosystemModuleScenario(scenarioById.get('ecosystem_modules_app_cli_managed'));
   validateUpdaterScenario(scenarioById.get('updater_standard_channel'));
 }
-
-const requiredHostTools = ['command_line_tools', 'homebrew', 'node', 'git'];
-const firstRunCoreItems = ['workspace_root', 'codex_cli', 'codex_config'];
-const fullReadinessItems = [
-  'domain_modules',
-  'family_runtime_provider',
-  'recommended_skills',
-  'native_helpers',
-  'repo_sync',
-  'command_line_tools_install',
-  'ecosystem_module_updates',
-];
-const deferredMaintenanceItems = [
-  'repo_sync',
-  'module_reconcile',
-  'command_line_tools_install',
-  'native_helpers',
-  'companion_skills_install',
-  'ecosystem_module_updates',
-];
-const ecosystemModuleIds = ['officecli', 'mineru', 'opl-meta-agent'];
-const forbiddenAuthorityOwners = [
-  'runtime_truth',
-  'provider_implementation',
-  'domain_truth',
-  'domain_quality_verdict',
-  'domain_artifact_authority',
-];
 
 function validateProductProfileIdentity(profile) {
   if (profile.owner !== 'one-person-lab-app') {
@@ -1845,6 +1918,10 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
   if (JSON.stringify(profile.first_run?.readiness_layers) !== JSON.stringify(['core'])) {
     throw new Error('Product profile ready_to_launch readiness_layers must contain only core');
   }
+  validateBeginnerFirstRunPresentation(
+    profile.first_run?.beginner_presentation,
+    'Product profile first-run beginner presentation',
+  );
   const launchGate = profile.first_run?.ready_to_launch_gate;
   if (launchGate?.id !== 'ready_to_launch' || launchGate?.ui_order !== 'before_guid') {
     throw new Error('Product profile ready_to_launch gate must run before /guid');
