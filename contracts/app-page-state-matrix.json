@@ -256,6 +256,63 @@
       ]
     },
     {
+      "id": "login",
+      "expected_source": "App-owned i18n and product branding",
+      "must_show": [
+        "One Person Lab brand",
+        "localized sign-in copy when login is reachable"
+      ],
+      "must_not_show": [
+        "AionUi brand",
+        "raw i18n keys"
+      ],
+      "machine_source": "App-owned locale files",
+      "refresh_source": "none",
+      "page_contract": "login",
+      "state_sections": [
+        "branding"
+      ]
+    },
+    {
+      "id": "first_run_localization",
+      "expected_source": "App-owned i18n and OPL initialize result",
+      "must_show": [
+        "localized first-run title",
+        "localized ready/checking/progress labels",
+        "localized update and setup error copy"
+      ],
+      "must_not_show": [
+        "raw settings.firstRun keys",
+        "English first-run fallback in Chinese locales"
+      ],
+      "machine_source": "opl system initialize --json plus App-owned locale files",
+      "refresh_source": "opl system initialize --json",
+      "page_contract": "first_launch_readiness",
+      "state_sections": [
+        "first_run",
+        "localization"
+      ]
+    },
+    {
+      "id": "web_pwa_branding",
+      "expected_source": "App-owned theme and branding contract",
+      "must_show": [
+        "One Person Lab App manifest",
+        "OPL PWA icons",
+        "One Person Lab App HTML metadata"
+      ],
+      "must_not_show": [
+        "AionUi manifest",
+        "AionUi PWA icon"
+      ],
+      "machine_source": "App-owned active-shell validation",
+      "refresh_source": "none",
+      "page_contract": "theme_and_branding",
+      "state_sections": [
+        "branding"
+      ]
+    },
+    {
       "id": "settings_theme",
       "expected_source": "OPL App state projection",
       "must_show": [

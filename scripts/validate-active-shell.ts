@@ -381,6 +381,7 @@ function validateActiveShellImplementation(shellPaths) {
   for (const [relativePath, forbidden] of [
     ['packages/desktop/src/renderer/services/i18n/locales/en-US/login.json', '"brand": "AionUi"'],
     ['packages/desktop/src/renderer/services/i18n/locales/zh-CN/login.json', '"brand": "AionUi"'],
+    ['packages/desktop/src/renderer/services/i18n/locales/zh-TW/login.json', '"brand": "AionUi"'],
     ['packages/desktop/src/common/api/ClientFactory.ts', "'X-Title': 'AionUi'"],
     ['packages/desktop/src/common/utils/appConfig.ts', "|| 'AionUi'"],
     ['packages/desktop/src/common/platform/index.ts', 'AionUi-Dev'],
@@ -394,6 +395,7 @@ function validateActiveShellImplementation(shellPaths) {
   for (const [relativePath, expected] of [
     ['packages/desktop/src/renderer/services/i18n/locales/en-US/login.json', '"brand": "One Person Lab"'],
     ['packages/desktop/src/renderer/services/i18n/locales/zh-CN/login.json', '"brand": "One Person Lab"'],
+    ['packages/desktop/src/renderer/services/i18n/locales/zh-TW/login.json', '"brand": "One Person Lab"'],
     ['packages/desktop/src/common/api/ClientFactory.ts', "'X-Title': 'One Person Lab App'"],
     ['packages/desktop/src/common/utils/appConfig.ts', "|| 'One Person Lab App'"],
     ['packages/desktop/src/common/platform/index.ts', 'OnePersonLab-Dev'],
@@ -401,6 +403,49 @@ function validateActiveShellImplementation(shellPaths) {
     const text = readShellText(shellPaths, relativePath);
     if (!text.includes(expected)) {
       throw new Error(`Active shell visible OPL branding must include ${expected} in ${relativePath}`);
+    }
+  }
+
+  const zhCnFirstRun = readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-CN/settings.json');
+  const zhTwFirstRun = readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-TW/settings.json');
+  for (const [locale, text] of [
+    ['zh-CN', zhCnFirstRun],
+    ['zh-TW', zhTwFirstRun],
+  ]) {
+    for (const expected of ['"firstRun"', 'One Person Lab', 'Codex']) {
+      if (!text.includes(expected)) {
+        throw new Error(`Active shell ${locale} first-run locale must include ${expected}`);
+      }
+    }
+    for (const forbidden of [
+      '"title": "Prepare One Person Lab"',
+      '"wizardTitle": "Prepare One Person Lab"',
+      'Checking the essentials',
+      'Ready to start',
+    ]) {
+      if (text.includes(forbidden)) {
+        throw new Error(`Active shell ${locale} first-run locale must not expose English fallback ${forbidden}`);
+      }
+    }
+  }
+
+  const zhCnUpdate = readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-CN/update.json');
+  const zhTwUpdate = readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-TW/update.json');
+  for (const [locale, text] of [
+    ['zh-CN', zhCnUpdate],
+    ['zh-TW', zhTwUpdate],
+  ]) {
+    if (!text.includes('GitHub API')) {
+      throw new Error(`Active shell ${locale} update locale must keep GitHub API error context localized.`);
+    }
+    for (const forbidden of [
+      'GitHub API request failed',
+      'GitHub API response was not a release list',
+      'Update check returned no result',
+    ]) {
+      if (text.includes(forbidden)) {
+        throw new Error(`Active shell ${locale} update locale must not expose English update fallback ${forbidden}`);
+      }
     }
   }
 
@@ -609,6 +654,13 @@ function validateActiveShellImplementation(shellPaths) {
     'ddf1071a56ff912b39c77543b158592b8b87f72382a11e1779e6b69b608e0ef7',
     'resources/app.ico OPL icon',
   );
+  for (const [relativePath, expectedHash] of [
+    ['public/pwa/icon-180.png', '028e831b65057e3f1cc906f75e37a80de75e050cc8842561d05ee3c015899a90'],
+    ['public/pwa/icon-192.png', 'c873622198071e0f04dae6d279d3e861b80a87c6e4a12f4fc68a8bf4e868adaf'],
+    ['public/pwa/icon-512.png', 'fb8cddda7b12e53ced77571c5576bd4d68463da673b0316b1f0e7ce481a5d559'],
+  ]) {
+    assertShellFileHash(shellPaths, relativePath, expectedHash, `${relativePath} OPL PWA icon`);
+  }
 }
 
 function assertCommandSurface(value, expected, label) {

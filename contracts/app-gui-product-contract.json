@@ -89,9 +89,24 @@
     ],
     "default_visible_product_name": "One Person Lab App",
     "legacy_upstream_branding_forbidden": true,
+    "visible_branding_surfaces": [
+      "desktop_app_icon",
+      "window_title",
+      "html_meta_title",
+      "web_manifest",
+      "pwa_icons",
+      "login_page",
+      "first_run_page",
+      "about_page",
+      "update_page",
+      "api_request_headers",
+      "development_app_name",
+      "logs_and_userdata_display_names"
+    ],
     "forbidden_visible_terms": [
       "AionUI",
-      "Aion UI"
+      "Aion UI",
+      "AionUi"
     ]
   },
   "settings_navigation": {
