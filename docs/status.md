@@ -56,6 +56,14 @@ maintenance counts, blockers, and next visible steps from that model instead of
 maintaining separate installer-specific progress truth. The active shell renders
 this model only and does not own private first-run progress state.
 
+The App first-run screen presents that shared model in a beginner-first way:
+the primary view shows a plain readiness summary, the required Core progress,
+the single primary start action, and only the next user-relevant step. Full
+readiness, background maintenance, raw command refs, and module/provider/tool
+details stay secondary or collapsed so clean-machine users are not asked to
+interpret Homebrew, Node, Git, CLT, runtime provider, or module maintenance as
+the main installation goal.
+
 ## Release State
 
 Standard App release assets and updater metadata are App-owned and currently
