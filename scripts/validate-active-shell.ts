@@ -1029,14 +1029,33 @@ function validateAppGuiProductContract(guiContract, releaseChannel) {
     throw new Error('App GUI must hide executor tab when Codex CLI is the only executor');
   }
   const assistants = new Map((guiContract.default_assistants ?? []).map((assistant) => [assistant.id, assistant]));
-  for (const assistantId of ['mas', 'mag', 'rca', 'oma']) {
+  for (const assistantId of ['mas', 'mag', 'rca']) {
     const assistant = assistants.get(assistantId);
     if (!assistant) {
       throw new Error(`App GUI contract missing default assistant ${assistantId}`);
     }
-    if (assistant.home_entry_policy !== 'visible_click_to_start') {
-      throw new Error(`Default assistant ${assistantId} must be visible click-to-start`);
+    if (assistant.home_entry_policy !== 'purpose_entry_target' || assistant.home_entry_display_policy !== 'purpose_first') {
+      throw new Error(`Default assistant ${assistantId} must be a purpose-first entry target`);
     }
+  }
+  const purposeEntries = guiContract.home_purpose_entries ?? [];
+  if (JSON.stringify(purposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
+    throw new Error('App GUI contract must expose research, grant, and ppt purpose entries');
+  }
+  if (JSON.stringify(purposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
+    throw new Error('App GUI contract purpose entries must target MAS, MAG, and RCA');
+  }
+  for (const entry of purposeEntries) {
+    if (entry.display_policy !== 'purpose_first' || entry.home_entry_policy !== 'visible_click_to_start') {
+      throw new Error(`App GUI purpose entry ${entry.id} must be purpose-first and click-to-start`);
+    }
+  }
+  const oma = (guiContract.non_default_assistants ?? []).find((assistant) => assistant.id === 'oma');
+  if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
+    throw new Error('App GUI contract must keep OMA available but out of default home entries');
+  }
+  if (assistants.has('oma')) {
+    throw new Error('OMA must not be a default App GUI assistant');
   }
   if (assistants.has('mds')) {
     throw new Error('MDS must not be a default App GUI assistant');
@@ -1168,8 +1187,11 @@ function validateAppGuiProductContract(guiContract, releaseChannel) {
     assertCommandSurface(pages[pageId].state_source, 'opl app state --profile fast --json', `App GUI ${pageId} state source`);
     assertCommandSurface(pages[pageId].refresh_source, 'opl app state --profile fast --json', `App GUI ${pageId} refresh source`);
   }
-  if (!pages.guid_home.must_show?.includes('default assistants MAS/MAG/RCA/OMA as click-to-start entries')) {
-    throw new Error('App GUI home must show MAS/MAG/RCA/OMA default assistants');
+  if (!pages.guid_home.must_show?.includes('purpose-first assistants Research/Grant/PPT as click-to-start entries')) {
+    throw new Error('App GUI home must show purpose-first Research/Grant/PPT entries');
+  }
+  if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
+    throw new Error('App GUI home must keep OMA out of default home entries');
   }
   if (!pages.settings_system.must_show?.includes('OPL Agent Codex context')) {
     throw new Error('Settings system must show OPL Agent Codex context');
@@ -1248,26 +1270,42 @@ function validatePageStateMatrix(matrix, contract) {
     executor_tab_visible_when_single_executor: false,
     primary_input_surface: 'single_card',
     nested_input_card_frames_allowed: false,
-    codex_model_selector_visible: false,
-    codex_model_list_visible: false,
-    codex_default_model: 'gpt-5.5',
+    codex_model_selector_visible: true,
+    codex_model_list_visible: true,
+    codex_model_policy: 'auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore',
+    codex_model_auto_option_visible: true,
+    codex_default_model: 'auto_latest_available_frontier',
     codex_default_reasoning_effort: 'xhigh',
-    codex_default_display_label: 'gpt-5.5xhigh',
+    codex_default_display_label: 'Auto: latest available Codex frontier',
     codex_default_permission_mode: 'full-access',
   })) {
     if (homeViewModel[field] !== expected) {
       throw new Error(`Guid home page ${field} must be ${expected}`);
     }
   }
-  for (const assistant of ['mas', 'mag', 'rca', 'oma']) {
+  for (const assistant of ['mas', 'mag', 'rca']) {
     if (!homeViewModel.default_assistants?.includes(assistant)) {
       throw new Error(`Guid home page must include default assistant ${assistant}`);
     }
   }
+  if (homeViewModel.default_assistants?.includes('oma')) {
+    throw new Error('Guid home page must not include OMA as a default assistant');
+  }
+  if (homeViewModel.purpose_entry_source_ref !== 'contracts/app-gui-product-contract.json#home_purpose_entries') {
+    throw new Error('Guid home page must reference App-owned purpose entries');
+  }
+  const homePurposeEntries = homeViewModel.home_purpose_entries ?? [];
+  if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
+    throw new Error('Guid home page must expose research, grant, and ppt purpose entries');
+  }
+  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
+    throw new Error('Guid home page purpose entries must target MAS, MAG, and RCA');
+  }
   for (const visibleSignal of [
     'Codex-only default executor experience',
-    'default Codex model state without a visible model tab',
-    'default assistants MAS/MAG/RCA/OMA as click-to-start entries',
+    'auto-selected latest available Codex frontier model',
+    'user-selectable Codex model control with return-to-auto option',
+    'purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA',
     'workspace selector',
     'file attachment control',
     'permission mode control',
@@ -1279,7 +1317,8 @@ function validatePageStateMatrix(matrix, contract) {
   }
   for (const hiddenSignal of [
     'executor tab when Codex CLI is the only executor',
-    'Codex model dropdown on new conversation',
+    'full assistant names as default home entry labels',
+    'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
   ]) {
@@ -1979,13 +2018,41 @@ function validateProductProfileCodexDefaults(profile) {
   if (
     profile.gui.home?.primary_input_surface !== 'single_card' ||
     profile.gui.home?.nested_input_card_frames_allowed !== false ||
-    profile.gui.home?.codex_model_selector_visible !== false ||
-    profile.gui.home?.codex_model_list_visible !== false ||
-    profile.gui.home?.codex_default_model !== profile.codex?.default_model ||
+    profile.gui.home?.codex_model_selector_visible !== true ||
+    profile.gui.home?.codex_model_list_visible !== true ||
+    profile.gui.home?.codex_model_policy !== 'auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore' ||
+    profile.gui.home?.codex_model_auto_option_visible !== true ||
+    profile.gui.home?.codex_default_model !== 'auto_latest_available_frontier' ||
     profile.gui.home?.codex_default_reasoning_effort !== profile.codex?.default_reasoning_effort ||
     profile.gui.home?.codex_default_permission_mode !== 'full-access'
   ) {
-    throw new Error('Product profile GUI home must hide Codex model selection and match App Codex defaults');
+    throw new Error('Product profile GUI home must expose auto Codex model selection and match App Codex defaults');
+  }
+  if (
+    profile.gui.home.codex_auto_model_selection?.strategy !== 'auto_latest_available_codex_frontier' ||
+    profile.gui.home.codex_auto_model_selection.user_can_override_model !== true ||
+    profile.gui.home.codex_auto_model_selection.user_can_restore_auto !== true
+  ) {
+    throw new Error('Product profile GUI home must allow auto frontier selection, user override, and restore-auto');
+  }
+  const homePurposeEntries = profile.gui.home.home_purpose_entries ?? [];
+  if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
+    throw new Error('Product profile GUI home must expose research, grant, and ppt purpose entries');
+  }
+  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
+    throw new Error('Product profile GUI home purpose entries must target MAS, MAG, and RCA');
+  }
+  if (JSON.stringify((profile.gui.default_assistants ?? []).map((assistant) => assistant.id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
+    throw new Error('Product profile default assistants must be MAS, MAG, and RCA only');
+  }
+  for (const assistant of profile.gui.default_assistants ?? []) {
+    if (assistant.home_entry_policy !== 'purpose_entry_target' || assistant.home_entry_display_policy !== 'purpose_first') {
+      throw new Error(`Product profile default assistant ${assistant.id} must be a purpose-first entry target`);
+    }
+  }
+  const oma = (profile.gui.non_default_assistants ?? []).find((assistant) => assistant.id === 'oma');
+  if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
+    throw new Error('Product profile must keep OMA available but out of default home entries');
   }
   for (const retiredModel of ['gpt-5.2-codex', 'gpt-5.1-codex-max', 'gpt-5.1-codex-mini']) {
     if (!profile.gui.home?.retired_codex_models_must_not_be_exposed?.includes(retiredModel)) {

@@ -45,40 +45,86 @@
     "codex_only_default": true,
     "executor_tab_visible_when_single_executor": false,
     "default_model": "gpt-5.5",
+    "default_model_strategy": "auto_latest_available_codex_frontier",
     "default_reasoning_effort": "xhigh",
-    "default_display_label": "gpt-5.5xhigh",
+    "default_display_label": "Auto: latest available Codex frontier",
     "default_permission_mode": "full-access",
-    "model_selector_visible_on_new_conversation": false,
-    "send_after_model_display_policy": "must_remain_on_default_codex_model_without_page_navigation"
+    "model_selector_visible_on_new_conversation": true,
+    "model_selector_visible_in_conversation": true,
+    "model_selection_auto_option_visible": true,
+    "user_model_override_allowed": true,
+    "restore_auto_model_selection_allowed": true,
+    "frontier_model_preference_order": [
+      "gpt-5.5",
+      "gpt-5.4",
+      "gpt-5.3-codex",
+      "gpt-5.2"
+    ],
+    "send_after_model_display_policy": "must_allow_review_and_change_selected_codex_model_without_page_navigation"
   },
+  "home_purpose_entries": [
+    {
+      "id": "research",
+      "primary_label": "科研",
+      "target_assistant_id": "mas",
+      "target_assistant_short_name": "MAS",
+      "display_policy": "purpose_first",
+      "home_entry_policy": "visible_click_to_start"
+    },
+    {
+      "id": "grant",
+      "primary_label": "基金",
+      "target_assistant_id": "mag",
+      "target_assistant_short_name": "MAG",
+      "display_policy": "purpose_first",
+      "home_entry_policy": "visible_click_to_start"
+    },
+    {
+      "id": "ppt",
+      "primary_label": "PPT",
+      "target_assistant_id": "rca",
+      "target_assistant_short_name": "RCA",
+      "display_policy": "purpose_first",
+      "home_entry_policy": "visible_click_to_start"
+    }
+  ],
   "default_assistants": [
     {
       "id": "mas",
       "display_name": "Med Auto Science",
       "short_name": "MAS",
+      "home_purpose_label": "科研",
+      "home_entry_display_policy": "purpose_first",
       "role": "research_and_paper_agent",
-      "home_entry_policy": "visible_click_to_start"
+      "home_entry_policy": "purpose_entry_target"
     },
     {
       "id": "mag",
       "display_name": "Med Auto Grant",
       "short_name": "MAG",
+      "home_purpose_label": "基金",
+      "home_entry_display_policy": "purpose_first",
       "role": "grant_authoring_agent",
-      "home_entry_policy": "visible_click_to_start"
+      "home_entry_policy": "purpose_entry_target"
     },
     {
       "id": "rca",
       "display_name": "RedCube AI",
       "short_name": "RCA",
+      "home_purpose_label": "PPT",
+      "home_entry_display_policy": "purpose_first",
       "role": "presentation_and_visual_deliverable_agent",
-      "home_entry_policy": "visible_click_to_start"
-    },
+      "home_entry_policy": "purpose_entry_target"
+    }
+  ],
+  "non_default_assistants": [
     {
       "id": "oma",
       "display_name": "OPL Meta Agent",
       "short_name": "OMA",
       "role": "opl_agent_design_and_testing_agent",
-      "home_entry_policy": "visible_click_to_start"
+      "home_entry_policy": "explicit_or_settings_only",
+      "home_default_visible": false
     }
   ],
   "theme_and_branding": {
@@ -272,11 +318,14 @@
       "refresh_source": "opl app state --profile fast --json",
       "executor_policy_ref": "executor_policy",
       "assistant_source_ref": "default_assistants",
+      "purpose_entry_source_ref": "home_purpose_entries",
       "hero_prompt": "把研究、基金和汇报交给 One Person Lab 自动推进",
       "must_show": [
         "Codex-only default executor experience",
-        "default Codex model state without a visible model tab",
-        "default assistants MAS/MAG/RCA/OMA as click-to-start entries",
+        "default Codex auto-latest model selector with user override",
+        "return-to-auto Codex model option",
+        "purpose-first assistants Research/Grant/PPT as click-to-start entries",
+        "selected assistant shown as a compact @ purpose tag",
         "workspace selector",
         "file attachment control",
         "permission mode control",
@@ -284,7 +333,9 @@
       ],
       "must_not_show": [
         "executor tab when Codex CLI is the only executor",
-        "Codex model dropdown on new conversation",
+        "hidden Codex model selection on new conversation",
+        "OPL Meta Agent as a default home assistant",
+        "selected assistant full name as the hero title",
         "retired Codex model choices",
         "nested input card frames"
       ]
@@ -341,7 +392,7 @@
       "must_show": [
         "One Person Lab App version",
         "GUI shell version",
-        "OPL Framework version",
+        "OPL Framework revision",
         "Stable or Nightly channel",
         "localized update status"
       ],

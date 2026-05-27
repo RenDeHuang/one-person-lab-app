@@ -298,17 +298,31 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.gui.appearance.codex_theme_default_enabled, true);
   assert.equal(profile.gui.home.primary_input_surface, 'single_card');
   assert.equal(profile.gui.home.nested_input_card_frames_allowed, false);
-  assert.equal(profile.gui.home.codex_model_selector_visible, false);
-  assert.equal(profile.gui.home.codex_model_list_visible, false);
-  assert.equal(profile.gui.home.codex_model_policy, 'auto_latest_frontier_from_codex_capabilities_or_app_default');
-  assert.equal(profile.gui.home.codex_default_model, profile.codex.default_model);
+  assert.equal(profile.gui.home.codex_model_selector_visible, true);
+  assert.equal(profile.gui.home.codex_model_list_visible, true);
+  assert.equal(profile.gui.home.codex_model_policy, 'auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore');
+  assert.equal(profile.gui.home.codex_default_model, 'auto_latest_available_frontier');
   assert.equal(profile.gui.home.codex_default_reasoning_effort, profile.codex.default_reasoning_effort);
   assert.equal(profile.gui.home.codex_default_permission_mode, 'full-access');
+  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_override_model, true);
+  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_restore_auto, true);
+  assert.equal(profile.gui.home.codex_auto_model_selection.selection_persists_into_conversation, true);
+  assert.deepEqual(
+    profile.gui.home.codex_auto_model_selection.frontier_model_preference_order,
+    ['gpt-5.5', 'gpt-5.4', 'gpt-5.3-codex', 'gpt-5.2'],
+  );
   assert.deepEqual(profile.gui.home.retired_codex_models_must_not_be_exposed, [
     'gpt-5.2-codex',
     'gpt-5.1-codex-max',
     'gpt-5.1-codex-mini',
   ]);
+  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
+  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', 'PPT']);
+  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
+  assert.ok(profile.gui.home.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
+  assert.deepEqual(profile.gui.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca']);
+  assert.ok(profile.gui.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
+  assert.equal(profile.gui.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
   assert.ok(profile.codex.default_visible_skills.includes('mineru-document-extractor'));
   assert.ok(profile.codex.default_visible_skills.includes('ui-ux-pro-max'));
   assert.ok(profile.codex.skill_priority.includes('morph-ppt'));
@@ -558,16 +572,24 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guidHomePage.home_view_model.primary_input_surface, 'single_card');
   assert.equal(guidHomePage.home_view_model.nested_input_card_frames_allowed, false);
   assert.equal(guidHomePage.home_view_model.appearance_default_css_theme_id, 'codex');
-  assert.equal(guidHomePage.home_view_model.codex_model_selector_visible, false);
-  assert.equal(guidHomePage.home_view_model.codex_model_list_visible, false);
+  assert.equal(guidHomePage.home_view_model.codex_model_selector_visible, true);
+  assert.equal(guidHomePage.home_view_model.codex_model_list_visible, true);
   assert.equal(
     guidHomePage.home_view_model.codex_model_policy,
-    'auto_latest_frontier_from_codex_capabilities_or_app_default',
+    'auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore',
   );
-  assert.equal(guidHomePage.home_view_model.codex_default_model, 'gpt-5.5');
+  assert.equal(guidHomePage.home_view_model.codex_default_model, 'auto_latest_available_frontier');
   assert.equal(guidHomePage.home_view_model.codex_default_reasoning_effort, 'xhigh');
-  assert.equal(guidHomePage.home_view_model.codex_default_display_label, 'gpt-5.5xhigh');
+  assert.equal(guidHomePage.home_view_model.codex_default_display_label, 'Auto: latest available Codex frontier');
   assert.equal(guidHomePage.home_view_model.codex_default_permission_mode, 'full-access');
+  assert.deepEqual(guidHomePage.home_view_model.codex_frontier_model_preference_order, [
+    'gpt-5.5',
+    'gpt-5.4',
+    'gpt-5.3-codex',
+    'gpt-5.2',
+  ]);
+  assert.equal(guidHomePage.home_view_model.codex_user_can_override_model, true);
+  assert.equal(guidHomePage.home_view_model.codex_user_can_restore_auto, true);
   assert.deepEqual(guidHomePage.home_view_model.retired_codex_models_must_not_be_exposed, [
     'gpt-5.2-codex',
     'gpt-5.1-codex-max',
@@ -579,11 +601,17 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guidHomePage.home_view_model.assistant_source_ref, 'contracts/app-gui-product-contract.json#default_assistants');
   assert.equal(guidHomePage.home_view_model.codex_only_default, true);
   assert.equal(guidHomePage.home_view_model.executor_tab_visible_when_single_executor, false);
-  assert.deepEqual(guidHomePage.home_view_model.default_assistants, ['mas', 'mag', 'rca', 'oma']);
+  assert.equal(guidHomePage.home_view_model.purpose_entry_source_ref, 'contracts/app-gui-product-contract.json#home_purpose_entries');
+  assert.deepEqual(guidHomePage.home_view_model.default_assistants, ['mas', 'mag', 'rca']);
+  assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
+  assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', 'PPT']);
+  assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
+  assert.ok(guidHomePage.home_view_model.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   for (const expected of [
     'Codex-only default executor experience',
-    'default Codex model state without a visible model tab',
-    'default assistants MAS/MAG/RCA/OMA as click-to-start entries',
+    'auto-selected latest available Codex frontier model',
+    'user-selectable Codex model control with return-to-auto option',
+    'purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA',
     'workspace selector',
     'file attachment control',
     'permission mode control',
@@ -593,7 +621,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   }
   for (const forbidden of [
     'executor tab when Codex CLI is the only executor',
-    'Codex model dropdown on new conversation',
+    'full assistant names as default home entry labels',
+    'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
   ]) {
@@ -725,6 +754,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(settingsThemePage.refresh_source, 'opl app state --profile fast --json');
   assert.ok(settingsThemePage.must_show.includes('Default theme option'));
   assert.ok(settingsThemePage.must_show.includes('Codex theme option'));
+  const aboutPage = pageStateMatrix.pages.find((page) => page.id === 'about');
+  assert.ok(aboutPage.must_show.includes('OPL Framework revision'));
   assert.ok(pageStateMatrix.pages.every((page) => page.id !== 'docker_webui'));
 });
 
@@ -1931,8 +1962,24 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.executor_policy.default_executor, 'codex_cli');
   assert.equal(guiContract.executor_policy.codex_only_default, true);
   assert.equal(guiContract.executor_policy.executor_tab_visible_when_single_executor, false);
-  assert.deepEqual(guiContract.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca', 'oma']);
-  assert.ok(guiContract.default_assistants.every((assistant) => assistant.home_entry_policy === 'visible_click_to_start'));
+  assert.equal(guiContract.executor_policy.default_model_strategy, 'auto_latest_available_codex_frontier');
+  assert.equal(guiContract.executor_policy.model_selector_visible_on_new_conversation, true);
+  assert.equal(guiContract.executor_policy.model_selector_visible_in_conversation, true);
+  assert.equal(guiContract.executor_policy.user_model_override_allowed, true);
+  assert.equal(guiContract.executor_policy.restore_auto_model_selection_allowed, true);
+  assert.deepEqual(guiContract.executor_policy.frontier_model_preference_order, [
+    'gpt-5.5',
+    'gpt-5.4',
+    'gpt-5.3-codex',
+    'gpt-5.2',
+  ]);
+  assert.deepEqual(guiContract.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca']);
+  assert.ok(guiContract.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
+  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
+  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', 'PPT']);
+  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
+  assert.ok(guiContract.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
+  assert.equal(guiContract.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
   assert.equal(guiContract.retired_domain_agents.find((agent) => agent.id === 'mds').default_display_allowed, false);
   assert.equal(guiContract.pages.guid_home.hero_prompt, '把研究、基金和汇报交给 One Person Lab 自动推进');
   assert.ok(guiContract.pages.settings_system.must_show.includes('OPL Agent Codex context'));
@@ -1950,6 +1997,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.pages.settings_runtime.module_path_source_policy_ref, 'module_path_source_policy');
   assert.ok(guiContract.pages.settings_runtime.must_show.includes('module path source explanation'));
   assert.ok(guiContract.pages.settings_runtime.must_not_show.includes('Med Deep Scientist as a default module'));
+  assert.ok(guiContract.pages.about.must_show.includes('OPL Framework revision'));
   assert.equal(guiContract.theme_and_branding.default_theme_id, 'codex');
   assert.deepEqual(guiContract.theme_and_branding.allowed_theme_ids, ['codex', 'default-theme']);
   assert.ok(guiContract.pages.settings_theme.must_show.includes('Default theme option'));
@@ -2776,7 +2824,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   const buildScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
   const publishScript = fs.readFileSync(path.join(appRoot, 'scripts', 'publish-release.ts'), 'utf8');
   const prepareStandardScript = fs.readFileSync(path.join(appRoot, 'scripts', 'prepare-standard-release-payload.ts'), 'utf8');
-  const electronBuilder = fs.readFileSync(path.join(appRoot, 'shells', 'aionui', 'packages', 'desktop', 'electron-builder.yml'), 'utf8');
+  const electronBuilder = fs.readFileSync(path.join(activeShellRoot, 'packages', 'desktop', 'electron-builder.yml'), 'utf8');
   const mod = await import('../../scripts/full-first-install-package.ts');
   const cacheDir = path.join(os.tmpdir(), 'opl-full-runtime-cache-test');
   const cacheKey = mod.buildFullRuntimeCacheKey({

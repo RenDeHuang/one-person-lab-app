@@ -17,13 +17,22 @@
         "primary_input_surface": "single_card",
         "nested_input_card_frames_allowed": false,
         "appearance_default_css_theme_id": "codex",
-        "codex_model_selector_visible": false,
-        "codex_model_list_visible": false,
-        "codex_model_policy": "auto_latest_frontier_from_codex_capabilities_or_app_default",
-        "codex_default_model": "gpt-5.5",
+        "codex_model_selector_visible": true,
+        "codex_model_list_visible": true,
+        "codex_model_policy": "auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore",
+        "codex_model_auto_option_visible": true,
+        "codex_default_model": "auto_latest_available_frontier",
         "codex_default_reasoning_effort": "xhigh",
-        "codex_default_display_label": "gpt-5.5xhigh",
+        "codex_default_display_label": "Auto: latest available Codex frontier",
         "codex_default_permission_mode": "full-access",
+        "codex_frontier_model_preference_order": [
+          "gpt-5.5",
+          "gpt-5.4",
+          "gpt-5.3-codex",
+          "gpt-5.2"
+        ],
+        "codex_user_can_override_model": true,
+        "codex_user_can_restore_auto": true,
         "retired_codex_models_must_not_be_exposed": [
           "gpt-5.2-codex",
           "gpt-5.1-codex-max",
@@ -33,20 +42,53 @@
         "refresh_source": "opl app state --profile fast --json",
         "executor_policy_ref": "contracts/app-gui-product-contract.json#executor_policy",
         "assistant_source_ref": "contracts/app-gui-product-contract.json#default_assistants",
+        "purpose_entry_source_ref": "contracts/app-gui-product-contract.json#home_purpose_entries",
         "codex_only_default": true,
         "executor_tab_visible_when_single_executor": false,
         "default_assistants": [
           "mas",
           "mag",
-          "rca",
-          "oma"
+          "rca"
+        ],
+        "default_assistant_purpose_labels": {
+          "mas": "科研",
+          "mag": "基金",
+          "rca": "PPT"
+        },
+        "home_purpose_entries": [
+          {
+            "id": "research",
+            "primary_label": "科研",
+            "target_assistant_id": "mas",
+            "target_assistant_short_name": "MAS",
+            "display_policy": "purpose_first",
+            "home_entry_policy": "visible_click_to_start"
+          },
+          {
+            "id": "grant",
+            "primary_label": "基金",
+            "target_assistant_id": "mag",
+            "target_assistant_short_name": "MAG",
+            "display_policy": "purpose_first",
+            "home_entry_policy": "visible_click_to_start"
+          },
+          {
+            "id": "ppt",
+            "primary_label": "PPT",
+            "target_assistant_id": "rca",
+            "target_assistant_short_name": "RCA",
+            "display_policy": "purpose_first",
+            "home_entry_policy": "visible_click_to_start"
+          }
         ],
         "hero_prompt": "把研究、基金和汇报交给 One Person Lab 自动推进"
       },
       "must_show": [
         "Codex-only default executor experience",
-        "default Codex model state without a visible model tab",
-        "default assistants MAS/MAG/RCA/OMA as click-to-start entries",
+        "auto-selected latest available Codex frontier model",
+        "user-selectable Codex model control with return-to-auto option",
+        "purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA",
+        "selected assistant shown as a compact @ purpose tag",
         "workspace selector",
         "file attachment control",
         "permission mode control",
@@ -54,7 +96,8 @@
       ],
       "must_not_show": [
         "executor tab when Codex CLI is the only executor",
-        "Codex model dropdown on new conversation",
+        "full assistant names as default home entry labels",
+        "OPL Meta Agent as a default home assistant",
         "retired Codex model choices",
         "nested input card frames"
       ],
@@ -220,7 +263,7 @@
       "must_show": [
         "One Person Lab App version",
         "GUI shell version",
-        "OPL Framework version",
+        "OPL Framework revision",
         "Stable or Nightly channel",
         "localized update status"
       ],

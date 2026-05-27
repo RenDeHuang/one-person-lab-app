@@ -41,17 +41,46 @@ export type AppProductProfile = {
       codex_model_selector_visible: boolean;
       codex_model_list_visible: boolean;
       codex_model_policy: string;
+      codex_model_auto_option_visible: boolean;
       codex_default_model: string;
       codex_default_reasoning_effort: string;
       codex_default_permission_mode: string;
+      codex_auto_model_selection: {
+        strategy: string;
+        user_can_override_model: boolean;
+        user_can_restore_auto: boolean;
+        selection_persists_into_conversation: boolean;
+        frontier_model_preference_order: string[];
+      };
+      home_purpose_entries: Array<{
+        id: string;
+        primary_label: string;
+        target_assistant_id: string;
+        target_assistant_short_name: string;
+        display_policy: string;
+        home_entry_policy: string;
+      }>;
       retired_codex_models_must_not_be_exposed: string[];
     };
     default_assistants: Array<{
       id: string;
       display_name: string;
       short_name: string;
+      home_purpose_label: string;
+      home_entry_display_policy: string;
       role: string;
       home_entry_policy: string;
+      avatar: string;
+      description_i18n: Record<string, string>;
+      prompts_i18n: Record<string, string[]>;
+    }>;
+    non_default_assistants: Array<{
+      id: string;
+      display_name: string;
+      short_name: string;
+      role: string;
+      home_entry_policy: string;
+      home_default_visible: boolean;
       avatar: string;
       description_i18n: Record<string, string>;
       prompts_i18n: Record<string, string[]>;
@@ -167,37 +196,77 @@ function assertProfileShape(profile: AppProductProfile): void {
   if (
     profile.gui.home?.primary_input_surface !== 'single_card' ||
     profile.gui.home?.nested_input_card_frames_allowed !== false ||
-    profile.gui.home?.codex_model_selector_visible !== false ||
-    profile.gui.home?.codex_model_list_visible !== false
+    profile.gui.home?.codex_model_selector_visible !== true ||
+    profile.gui.home?.codex_model_list_visible !== true ||
+    profile.gui.home?.codex_model_policy !== 'auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore' ||
+    profile.gui.home?.codex_model_auto_option_visible !== true
   ) {
-    throw new Error('App product profile GUI home contract must keep Codex model selection hidden and input single-card');
+    throw new Error('App product profile GUI home contract must expose Codex model selection with an auto option and input single-card');
   }
   if (
-    profile.gui.home.codex_default_model !== profile.codex.default_model ||
+    profile.gui.home.codex_default_model !== 'auto_latest_available_frontier' ||
     profile.gui.home.codex_default_reasoning_effort !== profile.codex.default_reasoning_effort ||
     profile.gui.home.codex_default_permission_mode !== 'full-access'
   ) {
-    throw new Error('App product profile GUI home Codex defaults must match the App Codex profile and full-access mode');
+    throw new Error('App product profile GUI home Codex defaults must use auto frontier selection and full-access mode');
+  }
+  if (
+    profile.gui.home.codex_auto_model_selection?.strategy !== 'auto_latest_available_codex_frontier' ||
+    profile.gui.home.codex_auto_model_selection.user_can_override_model !== true ||
+    profile.gui.home.codex_auto_model_selection.user_can_restore_auto !== true ||
+    profile.gui.home.codex_auto_model_selection.selection_persists_into_conversation !== true
+  ) {
+    throw new Error('App product profile GUI home Codex model policy must allow auto frontier selection, user override, and restore-auto');
+  }
+  assertStringArray(
+    profile.gui.home.codex_auto_model_selection.frontier_model_preference_order,
+    'gui.home.codex_auto_model_selection.frontier_model_preference_order',
+  );
+  const purposeEntries = profile.gui.home.home_purpose_entries ?? [];
+  if (JSON.stringify(purposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
+    throw new Error('App product profile GUI home must expose exactly research, grant, and ppt purpose entries');
+  }
+  if (JSON.stringify(purposeEntries.map((entry) => entry.primary_label)) !== JSON.stringify(['科研', '基金', 'PPT'])) {
+    throw new Error('App product profile GUI home purpose labels must be 科研, 基金, PPT');
+  }
+  if (JSON.stringify(purposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
+    throw new Error('App product profile GUI home purpose entries must route to MAS, MAG, and RCA');
+  }
+  for (const entry of purposeEntries) {
+    if (entry.display_policy !== 'purpose_first' || entry.home_entry_policy !== 'visible_click_to_start') {
+      throw new Error(`App product profile GUI home purpose entry ${entry.id} must be purpose-first and click-to-start`);
+    }
   }
   assertStringArray(
     profile.gui.home.retired_codex_models_must_not_be_exposed,
     'gui.home.retired_codex_models_must_not_be_exposed',
   );
   const defaultAssistantIds = profile.gui.default_assistants?.map((assistant) => assistant.id) ?? [];
-  for (const assistantId of ['mas', 'mag', 'rca', 'oma']) {
+  if (JSON.stringify(defaultAssistantIds) !== JSON.stringify(['mas', 'mag', 'rca'])) {
+    throw new Error('App product profile default home assistants must be MAS, MAG, and RCA only');
+  }
+  const purposeLabels = profile.gui.default_assistants?.map((assistant) => assistant.home_purpose_label) ?? [];
+  if (JSON.stringify(purposeLabels) !== JSON.stringify(['科研', '基金', 'PPT'])) {
+    throw new Error('App product profile default assistants must expose purpose-first home labels');
+  }
+  for (const assistantId of ['mas', 'mag', 'rca']) {
     if (!defaultAssistantIds.includes(assistantId)) {
       throw new Error(`App product profile missing default assistant ${assistantId}`);
     }
   }
-  if (defaultAssistantIds.includes('mds')) {
-    throw new Error('App product profile must not include MDS as a default assistant');
+  if (defaultAssistantIds.includes('mds') || defaultAssistantIds.includes('oma')) {
+    throw new Error('App product profile must not include MDS or OMA as a default home assistant');
   }
   for (const assistant of profile.gui.default_assistants ?? []) {
-    if (assistant.home_entry_policy !== 'visible_click_to_start') {
-      throw new Error(`Default assistant ${assistant.id} must be visible click-to-start`);
+    if (assistant.home_entry_policy !== 'purpose_entry_target' || assistant.home_entry_display_policy !== 'purpose_first') {
+      throw new Error(`Default assistant ${assistant.id} must use purpose-first home display`);
     }
     assertStringArray(Object.keys(assistant.description_i18n ?? {}), `gui.default_assistants.${assistant.id}.description_i18n`);
     assertStringArray(Object.keys(assistant.prompts_i18n ?? {}), `gui.default_assistants.${assistant.id}.prompts_i18n`);
+  }
+  const oma = profile.gui.non_default_assistants?.find((assistant) => assistant.id === 'oma');
+  if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
+    throw new Error('App product profile must keep OMA available but out of default home entries');
   }
   assertStringArray(profile.codex.default_visible_skills, 'codex.default_visible_skills');
   assertStringArray(profile.codex.skill_priority, 'codex.skill_priority');
