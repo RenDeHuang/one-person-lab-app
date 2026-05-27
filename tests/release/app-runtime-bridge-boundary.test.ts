@@ -25,7 +25,9 @@ test('App owns runtime bridge contract while active shell remains replaceable ad
   assert.equal(runtimeBridge.default_adapter_repo, adapter.shell_source.owner_repo);
   assert.equal(runtimeBridge.default_adapter_path, adapter.shell_root);
   assert.equal(runtimeBridge.summary_command, 'opl app state --profile fast --json');
-  assert.equal(runtimeBridge.refresh_command, 'opl app state --profile full --json');
+  assert.equal(runtimeBridge.refresh_command, 'opl app state --profile fast --json');
+  assert.equal(runtimeBridge.full_state_command, 'opl app state --profile full --json');
+  assert.equal(runtimeBridge.full_state_policy, 'diagnostic_or_release_evidence_only');
   assert.equal(runtimeBridge.full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.equal(runtimeBridge.action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
   assert.deepEqual(runtimeBridge.live_conformance_gate, {

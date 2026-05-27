@@ -10,7 +10,9 @@
   "default_adapter_repo": "gaofeng21cn/opl-aion-shell",
   "default_adapter_path": "shells/aionui",
   "summary_command": "opl app state --profile fast --json",
-  "refresh_command": "opl app state --profile full --json",
+  "refresh_command": "opl app state --profile fast --json",
+  "full_state_command": "opl app state --profile full --json",
+  "full_state_policy": "diagnostic_or_release_evidence_only",
   "full_detail_command": "opl runtime app-operator-drilldown --detail full --json",
   "action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
   "live_conformance_gate": {

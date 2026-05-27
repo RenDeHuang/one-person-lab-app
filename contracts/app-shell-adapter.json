@@ -165,7 +165,9 @@
   },
   "state_surface_contract": {
     "primary_read_command": "opl app state --profile fast --json",
-    "refresh_read_command": "opl app state --profile full --json",
+    "refresh_read_command": "opl app state --profile fast --json",
+    "full_state_read_command": "opl app state --profile full --json",
+    "full_state_policy": "diagnostic_or_release_evidence_only",
     "action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
     "full_drilldown_exception": "opl runtime app-operator-drilldown --detail full --json",
     "forbidden_gui_truth_sources": [

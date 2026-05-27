@@ -63,6 +63,8 @@ export type ShellAdapterContract = {
   state_surface_contract: {
     primary_read_command: string;
     refresh_read_command: string;
+    full_state_read_command: string;
+    full_state_policy: string;
     action_command: string;
     full_drilldown_exception: string;
     forbidden_gui_truth_sources: string[];
@@ -205,8 +207,14 @@ export function readAppShellAdapterContract(filePath = contractPath): ShellAdapt
   if (stateSurface?.primary_read_command !== 'opl app state --profile fast --json') {
     throw new Error(`Unexpected active shell primary state read command: ${stateSurface?.primary_read_command}`);
   }
-  if (stateSurface.refresh_read_command !== 'opl app state --profile full --json') {
+  if (stateSurface.refresh_read_command !== 'opl app state --profile fast --json') {
     throw new Error(`Unexpected active shell refresh state read command: ${stateSurface.refresh_read_command}`);
+  }
+  if (stateSurface.full_state_read_command !== 'opl app state --profile full --json') {
+    throw new Error(`Unexpected active shell full state read command: ${stateSurface.full_state_read_command}`);
+  }
+  if (stateSurface.full_state_policy !== 'diagnostic_or_release_evidence_only') {
+    throw new Error(`Unexpected active shell full state policy: ${stateSurface.full_state_policy}`);
   }
   if (stateSurface.action_command !== 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json') {
     throw new Error(`Unexpected active shell action command: ${stateSurface.action_command}`);

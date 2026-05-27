@@ -235,7 +235,9 @@ function validateContractShape(contract) {
   const stateSurface = contract.state_surface_contract;
   for (const [field, expected] of Object.entries({
     primary_read_command: 'opl app state --profile fast --json',
-    refresh_read_command: 'opl app state --profile full --json',
+    refresh_read_command: 'opl app state --profile fast --json',
+    full_state_read_command: 'opl app state --profile full --json',
+    full_state_policy: 'diagnostic_or_release_evidence_only',
     action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
     full_drilldown_exception: 'opl runtime app-operator-drilldown --detail full --json',
   })) {
@@ -823,7 +825,9 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
   }
   for (const [field, expected] of Object.entries({
     summary_command: 'opl app state --profile fast --json',
-    refresh_command: 'opl app state --profile full --json',
+    refresh_command: 'opl app state --profile fast --json',
+    full_state_command: 'opl app state --profile full --json',
+    full_state_policy: 'diagnostic_or_release_evidence_only',
     full_detail_command: 'opl runtime app-operator-drilldown --detail full --json',
     action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
     'projection_sources.primary': 'app_state.operator.summary',
@@ -901,12 +905,15 @@ function validateAppGuiProductContract(guiContract, releaseChannel) {
   }
 
   assertCommandSurface(guiContract.framework_surfaces?.canonical_state?.default_command, 'opl app state --profile fast --json', 'App GUI default state command');
-  assertCommandSurface(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile full --json', 'App GUI refresh state command');
+  assertCommandSurface(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile fast --json', 'App GUI refresh state command');
   if (guiContract.framework_surfaces.canonical_state.default_profile !== 'fast') {
     throw new Error('App GUI default state profile must be fast');
   }
-  if (guiContract.framework_surfaces.canonical_state.manual_refresh_profile !== 'full') {
-    throw new Error('App GUI manual refresh profile must be full');
+  if (guiContract.framework_surfaces.canonical_state.manual_refresh_profile !== 'fast') {
+    throw new Error('App GUI manual refresh profile must be fast');
+  }
+  if (guiContract.framework_surfaces.canonical_state.full_profile_policy !== 'diagnostic_or_release_evidence_only') {
+    throw new Error('App GUI full state profile must be reserved for diagnostics or release evidence');
   }
   assertCommandSurface(
     guiContract.framework_surfaces.canonical_action?.command,
@@ -977,8 +984,8 @@ function validateAppGuiProductContract(guiContract, releaseChannel) {
   if (guiContract.settings_navigation.source !== 'opl app state --profile fast --json') {
     throw new Error('App GUI settings navigation must default to fast App state');
   }
-  if (guiContract.settings_navigation.refresh_source !== 'opl app state --profile full --json') {
-    throw new Error('App GUI settings navigation refresh must use full App state');
+  if (guiContract.settings_navigation.refresh_source !== 'opl app state --profile fast --json') {
+    throw new Error('App GUI settings navigation refresh must use fast App state');
   }
   const firstLaunchPolicy = guiContract.first_launch_readiness_policy;
   if (firstLaunchPolicy?.launch_gate !== 'ready_to_launch' || firstLaunchPolicy?.ui_order !== 'before_guid') {
@@ -1081,7 +1088,7 @@ function validateAppGuiProductContract(guiContract, releaseChannel) {
   }
   for (const pageId of ['guid_home', 'settings_system', 'settings_runtime', 'about', 'update', 'settings_theme']) {
     assertCommandSurface(pages[pageId].state_source, 'opl app state --profile fast --json', `App GUI ${pageId} state source`);
-    assertCommandSurface(pages[pageId].refresh_source, 'opl app state --profile full --json', `App GUI ${pageId} refresh source`);
+    assertCommandSurface(pages[pageId].refresh_source, 'opl app state --profile fast --json', `App GUI ${pageId} refresh source`);
   }
   if (!pages.guid_home.must_show?.includes('default assistants MAS/MAG/RCA/OMA as click-to-start entries')) {
     throw new Error('App GUI home must show MAS/MAG/RCA/OMA default assistants');
@@ -1156,7 +1163,7 @@ function validatePageStateMatrix(matrix, contract) {
   }
   for (const [field, expected] of Object.entries({
     state_source: 'opl app state --profile fast --json',
-    refresh_source: 'opl app state --profile full --json',
+    refresh_source: 'opl app state --profile fast --json',
     executor_policy_ref: 'contracts/app-gui-product-contract.json#executor_policy',
     assistant_source_ref: 'contracts/app-gui-product-contract.json#default_assistants',
     codex_only_default: true,
@@ -1212,8 +1219,8 @@ function validatePageStateMatrix(matrix, contract) {
     if (page.machine_source !== 'opl app state --profile fast --json') {
       throw new Error(`${pageId} must default to opl app state --profile fast --json`);
     }
-    if (page.refresh_source !== 'opl app state --profile full --json') {
-      throw new Error(`${pageId} must refresh through opl app state --profile full --json`);
+    if (page.refresh_source !== 'opl app state --profile fast --json') {
+      throw new Error(`${pageId} must refresh through opl app state --profile fast --json`);
     }
   }
   const settingsOverview = (matrix.pages ?? []).find((page) => page.id === 'settings_overview');
@@ -1367,7 +1374,7 @@ function validatePageStateMatrix(matrix, contract) {
   }
   for (const [field, expected] of Object.entries({
     summary_state_command: 'opl app state --profile fast --json',
-    refresh_state_command: 'opl app state --profile full --json',
+    refresh_state_command: 'opl app state --profile fast --json',
     full_drilldown_command: 'opl runtime app-operator-drilldown --detail full --json',
     action_dry_run_command: 'opl app action execute --action <action_id> --dry-run --json',
     action_execute_command: 'opl app action execute --action <action_id> --json',
@@ -1403,7 +1410,7 @@ function validatePageStateMatrix(matrix, contract) {
     'action_queue.fallback_source': 'app_state.operator.actions',
     'action_queue.authority': 'framework_refs_only',
     primary_state_source: 'opl app state --profile fast --json',
-    refresh_state_source: 'opl app state --profile full --json',
+    refresh_state_source: 'opl app state --profile fast --json',
     summary_source: 'app_state.operator.summary',
     full_detail_source: 'opl runtime app-operator-drilldown --detail full --json',
     'provider_status.source': 'app_state.provider',
@@ -1424,7 +1431,7 @@ function validatePageStateMatrix(matrix, contract) {
   }
   const requiredEvidencePath = [
     'summary-first OPL App state read model',
-    'full App state refresh',
+    'fast App state refresh',
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
@@ -1474,8 +1481,8 @@ function validatePageStateMatrix(matrix, contract) {
   if (matrix.canonical_state_surface?.default_command !== 'opl app state --profile fast --json') {
     throw new Error('Page-state matrix canonical default state command must be fast App state');
   }
-  if (matrix.canonical_state_surface.refresh_command !== 'opl app state --profile full --json') {
-    throw new Error('Page-state matrix canonical refresh state command must be full App state');
+  if (matrix.canonical_state_surface.refresh_command !== 'opl app state --profile fast --json') {
+    throw new Error('Page-state matrix canonical refresh state command must be fast App state');
   }
   if (matrix.canonical_action_surface?.command !== 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json') {
     throw new Error('Page-state matrix canonical action command must be the OPL App action execute boundary');
@@ -1600,8 +1607,8 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
   if (runtimePage?.operator_evidence_acceptance_path?.summary_state_command !== requiredArtifacts.app_state_summary.producer) {
     throw new Error('Runtime page summary state command must match release evidence bundle producer');
   }
-  if (runtimePage?.operator_evidence_acceptance_path?.refresh_state_command !== requiredArtifacts.app_state_full.producer) {
-    throw new Error('Runtime page refresh state command must match release evidence bundle producer');
+  if (runtimePage?.operator_evidence_acceptance_path?.refresh_state_command !== requiredArtifacts.app_state_summary.producer) {
+    throw new Error('Runtime page refresh state command must match the fast App state summary producer');
   }
   if (runtimePage?.operator_evidence_acceptance_path?.full_drilldown_command !== requiredArtifacts.drilldown_full.producer) {
     throw new Error('Runtime page full drilldown command must match release evidence bundle producer');

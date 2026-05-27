@@ -499,7 +499,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimeBridge.default_adapter_repo, activeShellContract.shell_source.owner_repo);
   assert.equal(runtimeBridge.default_adapter_path, activeShellContract.shell_root);
   assert.equal(runtimeBridge.summary_command, 'opl app state --profile fast --json');
-  assert.equal(runtimeBridge.refresh_command, 'opl app state --profile full --json');
+  assert.equal(runtimeBridge.refresh_command, 'opl app state --profile fast --json');
+  assert.equal(runtimeBridge.full_state_command, 'opl app state --profile full --json');
+  assert.equal(runtimeBridge.full_state_policy, 'diagnostic_or_release_evidence_only');
   assert.equal(runtimeBridge.full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.equal(runtimeBridge.action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
   assert.equal(runtimeBridge.live_conformance_gate.mode, 'explicit_env_opt_in');
@@ -546,7 +548,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'gpt-5.1-codex-mini',
   ]);
   assert.equal(guidHomePage.home_view_model.state_source, 'opl app state --profile fast --json');
-  assert.equal(guidHomePage.home_view_model.refresh_source, 'opl app state --profile full --json');
+  assert.equal(guidHomePage.home_view_model.refresh_source, 'opl app state --profile fast --json');
   assert.equal(guidHomePage.home_view_model.executor_policy_ref, 'contracts/app-gui-product-contract.json#executor_policy');
   assert.equal(guidHomePage.home_view_model.assistant_source_ref, 'contracts/app-gui-product-contract.json#default_assistants');
   assert.equal(guidHomePage.home_view_model.codex_only_default, true);
@@ -593,7 +595,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.refresh_state_command,
-    'opl app state --profile full --json',
+    'opl app state --profile fast --json',
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.full_drilldown_command,
@@ -626,7 +628,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimePage.runtime_view_model.action_queue.fallback_source, 'app_state.operator.actions');
   assert.equal(runtimePage.runtime_view_model.action_queue.authority, 'framework_refs_only');
   assert.equal(runtimePage.runtime_view_model.primary_state_source, 'opl app state --profile fast --json');
-  assert.equal(runtimePage.runtime_view_model.refresh_state_source, 'opl app state --profile full --json');
+  assert.equal(runtimePage.runtime_view_model.refresh_state_source, 'opl app state --profile fast --json');
   assert.equal(runtimePage.runtime_view_model.summary_source, 'app_state.operator.summary');
   assert.equal(runtimePage.runtime_view_model.full_detail_source, 'opl runtime app-operator-drilldown --detail full --json');
   assert.equal(runtimePage.runtime_view_model.provider_status.source, 'app_state.provider');
@@ -637,7 +639,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimePage.runtime_view_model.authority_boundary.domain_verdict_owner, 'domain_agent');
   for (const expected of [
     'summary-first OPL App state read model',
-    'full App state refresh',
+    'fast App state refresh',
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
@@ -676,7 +678,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     assert.ok(runtimePage.must_not_own.includes(forbiddenOwner), forbiddenOwner);
   }
   assert.equal(pageStateMatrix.canonical_state_surface.default_command, 'opl app state --profile fast --json');
-  assert.equal(pageStateMatrix.canonical_state_surface.refresh_command, 'opl app state --profile full --json');
+  assert.equal(pageStateMatrix.canonical_state_surface.refresh_command, 'opl app state --profile fast --json');
   assert.equal(
     pageStateMatrix.canonical_action_surface.command,
     'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
@@ -686,7 +688,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'opl runtime app-operator-drilldown --detail full --json',
   );
   assert.equal(environmentPage.machine_source, 'opl app state --profile fast --json');
-  assert.equal(environmentPage.refresh_source, 'opl app state --profile full --json');
+  assert.equal(environmentPage.refresh_source, 'opl app state --profile fast --json');
   assert.equal(
     environmentPage.module_path_source_policy_ref,
     'contracts/app-gui-product-contract.json#module_path_source_policy',
@@ -694,7 +696,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.ok(environmentPage.must_show.includes('module path source explanation'));
   assert.ok(environmentPage.must_not_show.includes('Med Deep Scientist as a default module'));
   assert.equal(settingsThemePage.machine_source, 'opl app state --profile fast --json');
-  assert.equal(settingsThemePage.refresh_source, 'opl app state --profile full --json');
+  assert.equal(settingsThemePage.refresh_source, 'opl app state --profile fast --json');
   assert.ok(settingsThemePage.must_show.includes('Default theme option'));
   assert.ok(settingsThemePage.must_show.includes('Codex theme option'));
   assert.ok(pageStateMatrix.pages.every((page) => page.id !== 'docker_webui'));
@@ -733,7 +735,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
   );
   assert.equal(
     artifactById.get('app_state_full').producer,
-    runtimePage.operator_evidence_acceptance_path.refresh_state_command,
+    'opl app state --profile full --json',
   );
   assert.equal(
     artifactById.get('drilldown_full').producer,
@@ -1824,7 +1826,9 @@ test('active shell adapter keeps GUI authority and replacement gates in the App 
   });
   assert.deepEqual(adapterContract.state_surface_contract, {
     primary_read_command: 'opl app state --profile fast --json',
-    refresh_read_command: 'opl app state --profile full --json',
+    refresh_read_command: 'opl app state --profile fast --json',
+    full_state_read_command: 'opl app state --profile full --json',
+    full_state_policy: 'diagnostic_or_release_evidence_only',
     action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
     full_drilldown_exception: 'opl runtime app-operator-drilldown --detail full --json',
     forbidden_gui_truth_sources: [
@@ -1883,9 +1887,10 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'must_match_app_owned_gui_product_contract_before_release',
   );
   assert.equal(guiContract.framework_surfaces.canonical_state.default_command, 'opl app state --profile fast --json');
-  assert.equal(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile full --json');
+  assert.equal(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile fast --json');
   assert.equal(guiContract.framework_surfaces.canonical_state.default_profile, 'fast');
-  assert.equal(guiContract.framework_surfaces.canonical_state.manual_refresh_profile, 'full');
+  assert.equal(guiContract.framework_surfaces.canonical_state.manual_refresh_profile, 'fast');
+  assert.equal(guiContract.framework_surfaces.canonical_state.full_profile_policy, 'diagnostic_or_release_evidence_only');
   assert.equal(
     guiContract.framework_surfaces.canonical_action.command,
     'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
@@ -1905,7 +1910,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.ok(guiContract.pages.settings_system.must_show.includes('OPL Agent Codex context'));
   assert.deepEqual(guiContract.settings_navigation.required_sections, ['system', 'runtime', 'about', 'update', 'theme']);
   assert.equal(guiContract.settings_navigation.source, 'opl app state --profile fast --json');
-  assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile full --json');
+  assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
   assert.equal(
     guiContract.module_path_source_policy.source,
     'app_state.modules[].source + app_state.modules[].path + app_state.paths',
