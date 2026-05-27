@@ -45,6 +45,7 @@
     "executor_tab_visible_when_single_executor": false,
     "default_model": "gpt-5.5",
     "default_reasoning_effort": "xhigh",
+    "default_display_label": "gpt-5.5xhigh",
     "default_permission_mode": "full-access",
     "model_selector_visible_on_new_conversation": false,
     "send_after_model_display_policy": "must_remain_on_default_codex_model_without_page_navigation"

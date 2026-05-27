@@ -440,7 +440,7 @@ function validateActiveShellImplementation(shellPaths) {
     "t('conversation.welcome.placeholder')",
     'AssistantSelectionArea',
     'codexDefaultStatus',
-    'DEFAULT_CODEX_MODEL_WITH_REASONING_ID',
+    'DEFAULT_CODEX_MODEL_DISPLAY_LABEL',
     'CODEX_MODE_NATIVE_FULL_ACCESS',
   ]) {
     if (!guidPage.includes(expected)) {
@@ -1167,6 +1167,7 @@ function validatePageStateMatrix(matrix, contract) {
     codex_model_list_visible: false,
     codex_default_model: 'gpt-5.5',
     codex_default_reasoning_effort: 'xhigh',
+    codex_default_display_label: 'gpt-5.5xhigh',
     codex_default_permission_mode: 'full-access',
   })) {
     if (homeViewModel[field] !== expected) {

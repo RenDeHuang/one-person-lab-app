@@ -499,6 +499,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   assert.equal(guidHomePage.home_view_model.codex_default_model, 'gpt-5.5');
   assert.equal(guidHomePage.home_view_model.codex_default_reasoning_effort, 'xhigh');
+  assert.equal(guidHomePage.home_view_model.codex_default_display_label, 'gpt-5.5xhigh');
   assert.equal(guidHomePage.home_view_model.codex_default_permission_mode, 'full-access');
   assert.deepEqual(guidHomePage.home_view_model.retired_codex_models_must_not_be_exposed, [
     'gpt-5.2-codex',

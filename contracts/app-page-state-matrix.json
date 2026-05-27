@@ -22,6 +22,7 @@
         "codex_model_policy": "auto_latest_frontier_from_codex_capabilities_or_app_default",
         "codex_default_model": "gpt-5.5",
         "codex_default_reasoning_effort": "xhigh",
+        "codex_default_display_label": "gpt-5.5xhigh",
         "codex_default_permission_mode": "full-access",
         "retired_codex_models_must_not_be_exposed": [
           "gpt-5.2-codex",
