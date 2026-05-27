@@ -9,7 +9,7 @@ Machine boundary: Human-readable governance entry and coverage ledger. Machine t
 
 `one-person-lab-app` owns the desktop product repository: packaging, release assets, updater metadata, first-run product policy, App-level contracts, screenshots, user guides, and App validation wrappers. It consumes OPL Framework CLI JSON, framework contracts, runtime snapshots, provider receipts, and domain-owned projections. It does not own runtime truth, provider implementation, domain truth, domain quality/export verdicts, memory body, artifact body, artifact authority, or owner receipt authority.
 
-The single Active Truth owner for App product progress, gaps, and next-round baton is `docs/active/app-ideal-state-gap-plan.md`. Durable current truth is split across `docs/status.md`, `docs/project.md`, `docs/architecture.md`, and `docs/invariants.md`; `docs/README.md` is the docs index. `shells/aionui/` remains an external checkout from `gaofeng21cn/opl-aion-shell`; shell implementation history must not be merged into the App default branch.
+The single Active Truth owner for App product progress, gaps, and next-round baton is `docs/active/app-ideal-state-gap-plan.md`. Durable current truth is split across `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, and `docs/decisions.md`; `docs/README.md` is the docs index. `shells/aionui/` remains an external checkout from `gaofeng21cn/opl-aion-shell`; shell implementation history must not be merged into the App default branch.
 
 This repository intentionally uses a lighter docs taxonomy than the framework and domain-agent repos. It currently has `docs/active/`, `docs/history/`, `docs/release/`, `docs/screenshots/`, `docs/testing/`, and `docs/user-guides/`. Future `public/`, `product/`, `runtime/`, `delivery/`, `source/`, `policies/`, `specs/`, or `references/` directories should be created only when App-owned long-lived material has a clear owner, purpose, state, and machine boundary.
 
@@ -21,7 +21,7 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 | `docs/README.md` | Docs entry and App docs index | Navigation only |
 | `docs/active/app-ideal-state-gap-plan.md` | Single Active Truth owner for current progress, gaps, and next-round Agent prompt | Human-readable active plan; contracts/tests/artifacts prove machine claims |
 | `docs/status.md` | Current App repository, shell, release, runtime-page, and validation state | Human-readable status; no runtime/provider/domain authority |
-| `docs/project.md`, `docs/architecture.md`, `docs/invariants.md` | Product boundary, architecture split, and non-ownership rules | Durable human-readable current truth; machine decisions use contracts/source/tests |
+| `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md` | Product boundary, architecture split, non-ownership rules, and still-active App decisions | Durable human-readable current truth; machine decisions use contracts/source/tests |
 | `docs/release/` | Release, updater, Full first-install, and release-evidence notes | Release truth stays in produced assets, updater metadata, evidence manifests, CI/logs, and validation commands |
 | `docs/testing/` | Validation and test guidance | Tests and scripts are authoritative |
 | `docs/user-guides/`, `docs/screenshots/` | User-facing guides and visual tutorial assets | User docs; not production/readiness proof |
@@ -44,7 +44,7 @@ This tranche adds the App repo-local docs governance ledger so the App repositor
 
 Fresh live truth inputs:
 
-- App `AGENTS.md`, `TASTE.md`, root `README.md`, `README.zh-CN.md`, `docs/README.md`, `docs/active/app-ideal-state-gap-plan.md`, `docs/status.md`, `docs/project.md`, `docs/architecture.md`, and `docs/invariants.md`.
+- App `AGENTS.md`, `TASTE.md`, root `README.md`, `README.zh-CN.md`, `docs/README.md`, `docs/active/app-ideal-state-gap-plan.md`, `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, and new `docs/decisions.md`.
 - App machine refs: `contracts/app-product-profile.json`, `contracts/app-shell-adapter.json`, `contracts/app-first-run-test-matrix.json`, `contracts/app-page-state-matrix.json`, and `package.json`.
 - Current App exact inventory over repo-root `README*` plus `docs/**/*.md`:
   - `README.md`
@@ -52,6 +52,7 @@ Fresh live truth inputs:
   - `docs/README.md`
   - `docs/active/app-ideal-state-gap-plan.md`
   - `docs/architecture.md`
+  - `docs/decisions.md`
   - `docs/docs_portfolio_consolidation.md`
   - `docs/history/README.md`
   - `docs/invariants.md`
@@ -66,8 +67,8 @@ Fresh live truth inputs:
 
 Fresh semantic result:
 
-- App docs already have one active truth owner, one docs entry, durable current product-boundary docs, and App-owned contract surfaces for product profile, active shell, first-run, page-state, release channel, and release/evidence scripts.
-- The missing piece was repo-local governance ledger / exact-coverage accounting. Because the main checkout currently has unrelated dirty release/testing files, this tranche intentionally does not rewrite existing App prose bodies.
+- App docs already have one active truth owner, one docs entry, durable current product-boundary docs, a still-active decisions record, and App-owned contract surfaces for product profile, active shell, first-run, page-state, release channel, and release/evidence scripts.
+- The missing pieces were repo-local governance ledger / exact-coverage accounting and the lightweight `docs/decisions.md` core-doc owner. Because the main checkout currently has unrelated dirty release/testing files, this tranche intentionally does not rewrite existing release/testing prose bodies.
 - Current contracts confirm the App boundary: the App owns product defaults, release assets, updater metadata, first-run UX checks, GUI page-state tests, and user documentation; it consumes framework contracts, OPL CLI JSON outputs, runtime snapshots, provider receipts, and domain-owned projections; it does not own runtime truth, provider implementation, domain truth, domain quality verdict, or domain artifact authority.
 - Active shell remains `aionui` under `shells/aionui`, sourced from `gaofeng21cn/opl-aion-shell` with `history_policy=external_checkout_not_merged_into_app_default_branch`.
 - First-run and page-state contracts keep release evidence and runtime-page behavior contract-backed but not domain-ready or production-ready proof.
@@ -76,7 +77,7 @@ Reviewed documents / sections:
 
 | Repo | Reviewed docs / sections | Edited docs this tranche |
 | --- | --- | --- |
-| `one-person-lab-app` | First-screen / role read of App `README*`, current docs index, active plan, core product-boundary docs, release/testing/user-guide/screenshot/history indexes, support `scripts/README.md`, and App contracts listed above. | `docs/docs_portfolio_consolidation.md` |
+| `one-person-lab-app` | First-screen / role read of App `README*`, current docs index, active plan, core product-boundary docs including decisions, release/testing/user-guide/screenshot/history indexes, support `scripts/README.md`, and App contracts listed above. | `docs/README.md`, `docs/active/app-ideal-state-gap-plan.md`, `docs/decisions.md`, `docs/docs_portfolio_consolidation.md` |
 
 Archived / tombstoned / deleted docs:
 

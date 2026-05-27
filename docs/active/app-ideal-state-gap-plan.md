@@ -4,7 +4,7 @@ Owner: `one-person-lab-app`
 Purpose: `app_ideal_state_gap_plan`
 State: `active_plan`
 Machine boundary: Human-readable active truth and gap plan. Machine-readable truth lives in `contracts/`, source, release artifacts, updater metadata, and test results.
-Date: `2026-05-25`
+Date: `2026-05-27`
 
 ## Current Completion Progress
 
@@ -14,7 +14,7 @@ Date: `2026-05-25`
 | Framework / domain split | `active_truth` | OPL Framework owns runtime/provider/read-model/action execution; MAS/MAG/RCA/OMA own domain truth, quality/export verdicts, memory body, artifact body, owner receipts, and typed blockers. |
 | Active shell boundary | `active_external_checkout` | `shells/aionui/` is an external checkout from `gaofeng21cn/opl-aion-shell`; shell implementation history is not merged into the App repo default branch. |
 | Product contracts | `landed_with_release_evidence_tail` | `contracts/app-product-profile.json`, `contracts/app-page-state-matrix.json`, `contracts/app-first-run-test-matrix.json`, and `contracts/app-release-channel.json` hold App-owned machine policy. |
-| Docs lifecycle | `single_active_truth_owner` | This file holds current App product gaps and next-round baton; `docs/status.md`, `docs/project.md`, `docs/architecture.md`, and `docs/invariants.md` hold durable current truth. |
+| Docs lifecycle | `single_active_truth_owner` | This file holds current App product gaps and next-round baton; `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, and `docs/decisions.md` hold durable current truth. |
 
 ## Current-State vs Ideal-State Gaps
 
@@ -33,7 +33,7 @@ Objective:
 
 Write scope:
 
-- `docs/active/app-ideal-state-gap-plan.md`, `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, App contracts, release scripts, testing docs, and focused App tests that affect App product boundary, release evidence, first-run policy, or page-state validation.
+- `docs/active/app-ideal-state-gap-plan.md`, `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md`, App contracts, release scripts, testing docs, and focused App tests that affect App product boundary, release evidence, first-run policy, or page-state validation.
 
 Live truth inputs:
 
@@ -58,10 +58,10 @@ Verification commands:
 
 Completion gate:
 
-- The App active plan, status, project, architecture, invariants, contracts, and test docs agree on App ownership and non-ownership.
+- The App active plan, status, project, architecture, invariants, decisions, contracts, and test docs agree on App ownership and non-ownership.
 - Release evidence gaps are explicit; no App doc claims runtime truth, domain ready, release ready, or production ready beyond the available artifacts and contracts.
 
 Foldback target:
 
-- Durable product truth folds back to `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, or App contracts.
+- Durable product truth folds back to `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md`, or App contracts.
 - Release proof, screenshots, VM logs, remote verification, and command traces stay in release artifacts, evidence manifests, CI logs, history docs, or commit history, not in active docs as execution logs.

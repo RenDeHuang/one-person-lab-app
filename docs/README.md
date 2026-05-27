@@ -20,6 +20,7 @@ runtime, provider, or domain authority.
 - [`project.md`](project.md): App product repository role and ownership boundary.
 - [`architecture.md`](architecture.md): App, shell, OPL Framework, and domain-agent ownership split.
 - [`invariants.md`](invariants.md): App repository invariants and non-ownership rules.
+- [`decisions.md`](decisions.md): still-active App product, shell, runtime bridge, release, and docs lifecycle decisions.
 - [`release/`](release/): App release, updater, and Full first-install notes.
 - [`testing/`](testing/): App validation and page-state test guidance.
 - [`user-guides/`](user-guides/): user-facing guide entry point.
