@@ -230,7 +230,7 @@ runtime layers on GitHub Actions without publishing a Release, so later Full
 packaging spends less time rebuilding shared payloads locally. Warmup runs use a
 cancel-in-progress concurrency group because only the latest warm cache matters;
 Stable Full packaging keeps `cancel-in-progress=false` and emits both a step
-summary and `full-runtime-cache-timing-<version>` JSON artifact for cache
+summary and `full-workflow-telemetry.json` JSON artifact for cache
 hit/miss and step-duration telemetry.
 
 ## Local commands

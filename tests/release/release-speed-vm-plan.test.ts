@@ -193,8 +193,8 @@ test('release CI operations docs separate implemented release gates from follow-
   assertMatches(combinedDocs, /Machine-readable telemetry[\s\S]*JSON artifact/i, 'machine-readable telemetry artifact');
   assertMatches(combinedDocs, /post-release tuning|after-release tuning/i, 'telemetry tuning role');
   assertMatches(combinedDocs, /does not replace[\s\S]*(manifest|manifests)[\s\S]*SHA256SUMS[\s\S]*remote verification[\s\S]*VM/i, 'telemetry non-truth boundary');
-  assertMatches(combinedDocs, /Composite\/setup[\s\S]*optional follow-up/i, 'composite setup optional policy');
-  assertMatches(combinedDocs, /\.github\/actions\/\.\.\.[\s\S]*checked in and tested|checked-in composite action exists/i, 'composite implementation boundary');
+  assertMatches(combinedDocs, /Composite\/setup[\s\S]*checked-in composite action|Composite\/setup[\s\S]*checked in/i, 'composite setup implementation policy');
+  assertMatches(combinedDocs, /\.github\/actions\/setup-active-shell-deps/i, 'composite active shell setup action');
 });
 
 test('release plan exposes depends_on and can_run_with for parallel speed lanes and serialized gates', () => {

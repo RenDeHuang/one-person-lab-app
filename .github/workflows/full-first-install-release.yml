@@ -478,40 +478,6 @@ jobs:
             echo "| Full package build | $(duration "${OPL_FULL_DOMAIN_DEPS_READY_AT:-}" "${OPL_FULL_PACKAGE_READY_AT:-}") |"
             echo "| Full checksum/signing verify | $(duration "${OPL_FULL_PACKAGE_READY_AT:-}" "${OPL_FULL_VERIFY_READY_AT:-}") |"
           } >> "$GITHUB_STEP_SUMMARY"
-          node > "$RUNNER_TEMP/opl-full-runtime-telemetry.json" <<'NODE'
-          const env = process.env;
-          const seconds = (start, end) => {
-            const startValue = Number.parseInt(env[start] || '', 10);
-            const endValue = Number.parseInt(env[end] || '', 10);
-            return Number.isFinite(startValue) && Number.isFinite(endValue) ? endValue - startValue : null;
-          };
-          console.log(JSON.stringify({
-            version: env.OPL_RELEASE_VERSION,
-            cache_hits: {
-              npm_dependencies: env.OPL_FULL_NPM_CACHE_HIT,
-              bun_install: env.OPL_FULL_BUN_CACHE_HIT,
-              uv_artifacts: env.OPL_FULL_UV_CACHE_HIT,
-              go_modules_build: env.OPL_FULL_GO_CACHE_HIT,
-              full_runtime_layers: env.OPL_FULL_RUNTIME_CACHE_HIT,
-            },
-            durations_seconds: {
-              toolchain_install: seconds('OPL_FULL_WORKFLOW_STARTED_AT', 'OPL_FULL_TOOLCHAIN_READY_AT'),
-              framework_npm_ci: seconds('OPL_FULL_TOOLCHAIN_READY_AT', 'OPL_FULL_FRAMEWORK_DEPS_READY_AT'),
-              framework_build: seconds('OPL_FULL_FRAMEWORK_DEPS_READY_AT', 'OPL_FULL_FRAMEWORK_BUILD_READY_AT'),
-              shell_dependencies: seconds('OPL_FULL_FRAMEWORK_BUILD_READY_AT', 'OPL_FULL_SHELL_DEPS_READY_AT'),
-              domain_dependencies: seconds('OPL_FULL_SHELL_DEPS_READY_AT', 'OPL_FULL_DOMAIN_DEPS_READY_AT'),
-              full_package_build: seconds('OPL_FULL_DOMAIN_DEPS_READY_AT', 'OPL_FULL_PACKAGE_READY_AT'),
-              full_checksum_verify: seconds('OPL_FULL_PACKAGE_READY_AT', 'OPL_FULL_VERIFY_READY_AT'),
-            },
-          }, null, 2));
-          NODE
-
-      - name: Upload Full cache timing telemetry
-        uses: actions/upload-artifact@v4
-        with:
-          name: full-runtime-cache-timing-${{ env.OPL_RELEASE_VERSION }}
-          path: ${{ runner.temp }}/opl-full-runtime-telemetry.json
-          if-no-files-found: error
 
       - name: Upload Full workflow telemetry
         uses: actions/upload-artifact@v4

@@ -2341,11 +2341,11 @@ test('release CI operations policy distinguishes workflow hygiene from release e
   const workflowActionsDir = path.join(appRoot, '.github', 'actions');
   const combinedDocs = `${testingDocs}\n${scriptsDocs}`;
 
-  assert.match(combinedDocs, /actionlint[\s\S]*workflow semantic gate/i);
+  assert.match(combinedDocs, /actionlint[\s\S]*(workflow semantic gate|workflow semantic gate in the reusable build quality jobs)/i);
   assert.match(combinedDocs, /YAML parsing[\s\S]*syntax check|YAML parsing[\s\S]*only proves syntax/i);
   assert.ok(
     !Object.values(packageJson.scripts).some((script) => String(script).includes('actionlint')),
-    'actionlint is documented as a semantic gate to add, not a current package script',
+    'actionlint is a CI gate, not an App-root package script',
   );
 
   assert.match(vmWorkflow, /concurrency:[\s\S]*opl-gui-first-run-vm-scheduled[\s\S]*opl-gui-first-run-vm-manual/);
@@ -2357,9 +2357,9 @@ test('release CI operations policy distinguishes workflow hygiene from release e
   assert.match(combinedDocs, /after-release tuning|post-release tuning/i);
   assert.match(combinedDocs, /does not replace[\s\S]*(manifests|manifest)[\s\S]*SHA256SUMS[\s\S]*remote verification[\s\S]*VM/i);
 
-  assert.equal(fs.existsSync(workflowActionsDir), false);
-  assert.match(combinedDocs, /Composite\/setup[\s\S]*optional follow-up/i);
-  assert.match(combinedDocs, /checked-in composite action exists|checked in and tested/i);
+  assert.equal(fs.existsSync(path.join(workflowActionsDir, 'setup-active-shell-deps', 'action.yml')), true);
+  assert.match(combinedDocs, /Composite\/setup[\s\S]*(checked-in composite action|checked in)/i);
+  assert.match(combinedDocs, /\.github\/actions\/setup-active-shell-deps/i);
 });
 
 test('Full first-install workflow has one MinerU checkout and keeps standalone binary build path', () => {

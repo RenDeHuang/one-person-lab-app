@@ -163,9 +163,9 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
 The release-speed work keeps packaging and installation proof separate from
 workflow-operations hygiene:
 
-- `actionlint` is a workflow semantic gate. YAML parsing only proves syntax;
-  `actionlint` should be added as an explicit local/CI check before claiming
-  workflow-level semantic validation.
+- `actionlint` is the workflow semantic gate in the reusable build quality
+  jobs. YAML parsing only proves syntax; `actionlint` is the check that should
+  fail semantic GitHub Actions mistakes.
 - GitHub Actions `concurrency` is duplicate-run governance. It collapses stale
   scheduled queues or serializes operator runs; it is not release evidence and
   does not replace remote verification, installer smoke, or VM gates.
@@ -173,10 +173,9 @@ workflow-operations hygiene:
   summaries and ad hoc text artifacts are useful for operators, but a JSON
   telemetry artifact should be treated as the basis for later cache/matrix
   tuning, not as the source of release truth.
-- Composite/setup reuse is an optional follow-up until a checked-in composite
-  action exists and the release-boundary tests lock its behavior. Keep repeated
-  setup/cache blocks explicit rather than documenting a shared setup action as
-  implemented before it actually exists.
+- Composite/setup reuse is allowed only when the shared action is checked in
+  and release-boundary tests lock its behavior. The current active-shell
+  checkout/setup/cache reuse lives in `.github/actions/setup-active-shell-deps`.
 
 ## VM and AI-first testing boundary
 
