@@ -25,12 +25,49 @@
       "scope": "standard App DMG, ZIP, blockmaps, and updater metadata for an existing release"
     }
   },
+  "nightly_standard": {
+    "prerelease": true,
+    "full_first_install_allowed": false,
+    "latest_release_allowed": false,
+    "tag_pattern": "v<YY.M.D-nightly.YYYYMMDD>",
+    "asset_scope": [
+      "One-Person-Lab-<version>-mac-arm64.dmg",
+      "One-Person-Lab-<version>-mac-arm64.zip",
+      "One-Person-Lab-<version>-mac-arm64.dmg.blockmap",
+      "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
+      "latest-mac.yml",
+      "latest-arm64-mac.yml"
+    ],
+    "rule": "Nightly releases publish standard macOS arm64 updater assets only and remain visible only to prerelease opt-in update checks."
+  },
   "full_first_install": {
     "asset_name_must_include": "Full",
     "updater_visible": false,
     "updater_metadata_allowed": false,
     "validation_required": true,
     "generated_companion_text_language": "en",
+    "required_payloads": {
+      "codex_cli": {
+        "version_source": "npm view @openai/codex version",
+        "install_rule": "install_exact_latest_npm_version",
+        "receipt_env": "OPL_FULL_CODEX_VERSION",
+        "runtime_path": "runtime/current/bin/codex",
+        "verification": "codex --version must equal codex-cli <npm_latest>"
+      },
+      "temporal_runtime_provider": {
+        "provider_env_default": "OPL_FAMILY_RUNTIME_PROVIDER=temporal",
+        "required_packages": [
+          "@temporalio/activity",
+          "@temporalio/client",
+          "@temporalio/common",
+          "@temporalio/worker",
+          "@temporalio/workflow"
+        ],
+        "forbidden_packages": ["@temporalio/testing"],
+        "native_core_bridge_releases": ["aarch64-apple-darwin"],
+        "verification": "Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin"
+      }
+    },
     "size_budget": {
       "platform_scope": "macos-arm64",
       "max_full_dmg_bytes": 550000000,
@@ -130,10 +167,43 @@
       "promote_workflow": ".github/workflows/desktop-release-promote.yml",
       "remote_verification_workflow": ".github/workflows/release-verify-remote.yml",
       "full_runtime_cache_warmup_workflow": ".github/workflows/full-runtime-cache-warmup.yml",
+      "nightly_standard_release_workflow": ".github/workflows/nightly-standard-release.yml",
       "full_first_install_workflow": ".github/workflows/full-first-install-release.yml",
       "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
       "first_run_vm_mode": "run_vm_smoke"
     },
+    "vm_gates": [
+      {
+        "id": "standard_dmg_clean_vm_smoke",
+        "source": "clean no-CLT Tart base clone",
+        "artifact": "One-Person-Lab-<version>-mac-arm64.dmg",
+        "smoke_profile": "no-clt-clean-vm",
+        "display": "1920x1080px",
+        "settings_smoke": true,
+        "runtime_profile": "standard",
+        "release_blocking_readiness": [
+          "app_launch",
+          "core_ready_or_app_managed_bootstrap_visible",
+          "settings_navigation"
+        ]
+      },
+      {
+        "id": "full_dmg_clean_vm_smoke",
+        "source": "clean no-CLT Tart base clone",
+        "artifact": "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+        "smoke_profile": "no-clt-clean-vm",
+        "display": "1920x1080px",
+        "settings_smoke": true,
+        "runtime_profile": "full",
+        "codex_config_wizard": "required_and_submitted",
+        "release_blocking_readiness": [
+          "core_ready",
+          "domain_modules_ready",
+          "family_runtime_provider_ready"
+        ],
+        "post_core_ready_background_policy": "best_effort_non_blocking_until_maintenance_ready"
+      }
+    ],
     "vm_gate": {
       "source": "clean no-CLT Tart base clone",
       "artifact": "One-Person-Lab-Full-<version>-mac-arm64.dmg",
@@ -155,6 +225,51 @@
         "git availability",
         "managed repo sync"
       ]
+    }
+  },
+  "release_validation_profiles": {
+    "nightly_standard": {
+      "purpose": "fast prerelease confidence for users who opt into standard updater Nightly builds",
+      "required_lanes": [
+        "release_boundary_contract",
+        "standard_macos_arm64_build",
+        "local_standard_asset_validation",
+        "remote_standard_release_verification"
+      ],
+      "forbidden_lanes": [
+        "full_first_install_build",
+        "standard_dmg_clean_vm_smoke",
+        "full_dmg_clean_vm_smoke",
+        "one_shot_app_installer_fresh_install_smoke",
+        "docker_webui_smoke",
+        "operator_evidence_bundle"
+      ],
+      "release_latest_policy": "never_mark_latest",
+      "github_release_visibility": "prerelease_only"
+    },
+    "stable": {
+      "purpose": "complete user-install proof before a stable App Release is treated as smooth",
+      "required_lanes": [
+        "release_boundary_contract",
+        "active_shell_quick_validation",
+        "standard_macos_arm64_build",
+        "local_standard_asset_validation",
+        "full_first_install_build",
+        "remote_standard_and_full_release_verification",
+        "standard_dmg_clean_vm_smoke",
+        "full_dmg_clean_vm_smoke",
+        "one_shot_app_installer_fresh_install_smoke",
+        "docker_webui_smoke",
+        "operator_evidence_bundle"
+      ],
+      "required_installation_surfaces": [
+        "standard_dmg_clean_vm_smoke",
+        "full_dmg_clean_vm_smoke",
+        "one_shot_app_installer_fresh_install_smoke",
+        "docker_webui_smoke"
+      ],
+      "release_latest_policy": "stable_release_may_be_marked_latest_after_required_lanes_pass",
+      "heavy_gate_policy": "run before stable promotion; may be skipped only for draft or emergency packaging refreshes that are not called stable-complete"
     }
   },
   "operator_evidence_bundle": {

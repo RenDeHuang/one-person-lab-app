@@ -32,9 +32,9 @@ on:
         default: false
         type: boolean
       run_vm_smoke:
-        description: Run clean Full first-run VM smoke after Full assets are uploaded
+        description: Run stable installation smokes after release assets are uploaded
         required: false
-        default: false
+        default: true
         type: boolean
       skip_code_quality:
         description: Skip standard App code quality checks for emergency rebuilds
@@ -241,6 +241,26 @@ jobs:
           path: remote-release-verification.json
           if-no-files-found: error
 
+  standard-first-run-vm-smoke-after-standard-only:
+    name: Run clean standard first-run VM smoke
+    needs: remote-verify-standard
+    if: ${{ !inputs.include_full_package && inputs.run_vm_smoke }}
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_tag: v${{ inputs.opl_version }}
+      package_profile: standard
+    secrets: inherit
+
+  standard-first-run-vm-smoke-after-full:
+    name: Run clean standard first-run VM smoke
+    needs: remote-verify-full
+    if: ${{ inputs.include_full_package && inputs.run_vm_smoke }}
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_tag: v${{ inputs.opl_version }}
+      package_profile: standard
+    secrets: inherit
+
   full-first-run-vm-smoke:
     name: Run clean Full first-run VM smoke
     needs: remote-verify-full
@@ -248,4 +268,93 @@ jobs:
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
+      package_profile: full
     secrets: inherit
+
+  one-shot-app-installer-smoke:
+    name: Run one-shot App installer smoke
+    needs: publish-standard
+    if: ${{ inputs.run_vm_smoke }}
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Checkout OPL Framework installer source
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: main
+          path: one-person-lab
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Smoke App one-shot installer
+        shell: bash
+        env:
+          OPL_INSTALL_SCRIPT_URL: file://${{ github.workspace }}/one-person-lab/install.sh
+          OPL_INSTALL_DIR: ${{ runner.temp }}/opl-one-shot-install
+          OPL_APP_INSTALL_MODE: app-first
+        run: |
+          set -euo pipefail
+          chmod +x ./install.sh one-person-lab/install.sh
+          ./install.sh --complete --skip-modules
+          "$OPL_INSTALL_DIR/bin/opl" system initialize --json >/tmp/opl-one-shot-system-initialize.json
+
+      - name: Upload one-shot installer smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: one-shot-app-installer-smoke-${{ inputs.opl_version }}
+          path: /tmp/opl-one-shot-system-initialize.json
+          if-no-files-found: error
+
+  docker-webui-smoke:
+    name: Run Docker WebUI smoke
+    needs: publish-standard
+    if: ${{ inputs.run_vm_smoke }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Checkout active shell
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: main
+          path: shells/aionui
+
+      - name: Build and verify Docker WebUI
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build -t "one-person-lab-webui:${{ inputs.opl_version }}" shells/aionui
+          container="$(docker run --rm -d -p 127.0.0.1::3000 "one-person-lab-webui:${{ inputs.opl_version }}")"
+          cleanup() {
+            docker rm -f "$container" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          port="$(docker port "$container" 3000/tcp | sed -E 's/.*:([0-9]+)$/\1/')"
+          for attempt in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:${port}/" >/tmp/opl-webui-index.html; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS "http://127.0.0.1:${port}/manifest.webmanifest" >/tmp/opl-webui-manifest.webmanifest
+
+      - name: Upload Docker WebUI smoke artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-webui-smoke-${{ inputs.opl_version }}
+          path: |
+            /tmp/opl-webui-index.html
+            /tmp/opl-webui-manifest.webmanifest
+          if-no-files-found: error

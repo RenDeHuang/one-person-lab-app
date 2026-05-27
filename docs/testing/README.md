@@ -101,6 +101,17 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
 - Contracts/unit: `npm run test:release-boundary`.
 - Standard release metadata: `node --experimental-strip-types scripts/validate-release.ts release-assets`.
 - App-owned release boundary: `npm run validate:release-boundary`.
+- Nightly standard release: `.github/workflows/nightly-standard-release.yml`
+  is the lightweight profile. It publishes standard macOS arm64 prerelease
+  assets only; `npm run test:release-boundary` locks the semver prerelease tag,
+  `--latest=false`, remote standard verification, and no-Full boundary. It does
+  not run Full packaging, VM install gates, one-shot installer, Docker/WebUI, or
+  operator evidence gates.
+- Stable release: `.github/workflows/desktop-release.yml` is the full user-path
+  profile when `run_vm_smoke=true`. It must cover standard DMG clean-VM install,
+  Full DMG clean-VM install when Full is included, the App one-shot installer,
+  Docker/WebUI over HTTP, remote standard/Full verification, and the release
+  evidence bundle.
 - Fallow production hygiene: `npm run hygiene:fallow -- --format json --summary`.
 - Active GUI shell validation: `npm run validate:gui-shell`.
 - App product profile sync: standard and Full release preparation must generate
@@ -108,11 +119,17 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   `contracts/app-shell-adapter.json`.
 - Full first-install package: `npm run release:full -- --version <version>`.
 - GUI smoke: installed `/Applications/One Person Lab.app` smoke or the App repo
-  VM workflow. The release-blocking Full first-install VM gate uses a clean
-  no-CLT Tart base, the Full DMG, `1920x1080px`, Codex/OpenAI API key wizard
-  submission, Settings page coverage, and Full runtime readiness. CLT, git, and
-  managed repo sync are deferred maintenance and must not block Core, Domain
-  module, or family runtime provider readiness.
+  VM workflow. The standard DMG gate uses `--runtime-profile standard` to prove
+  launch, App-managed bootstrap/readiness, and Settings navigation. The Full DMG
+  gate uses `--runtime-profile full` to add Codex/OpenAI API key wizard
+  submission, bundled runtime materialization, Domain module readiness, and
+  family runtime provider readiness. CLT, git, and managed repo sync are
+  deferred maintenance and must not block Core, Domain module, or family runtime
+  provider readiness.
+- One-shot installer: the App root `install.sh` remains the public entrypoint.
+  Stable verification runs it against a checked-out Framework installer with
+  `OPL_INSTALL_SCRIPT_URL=file://.../one-person-lab/install.sh ./install.sh
+  --complete --skip-modules`, then runs `opl system initialize`.
 - Scheduled VM smoke backlog: the App repo VM workflow must cancel stale
   scheduled runs through GitHub Actions concurrency while keeping manual and
   release-called validation runs serialized in a separate non-cancelling group.
@@ -121,8 +138,8 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   `opl-first-run-no-clt-clean-base-26-5-18`. Missing source-VM configuration is
   a failed gate because no clean first-run evidence can be produced.
   `npm run test:release-boundary` locks this workflow policy.
-- Docker/WebUI: build from `shells/aionui/Dockerfile` and verify the WebUI
-  starts against the Framework runtime surfaces.
+- Docker/WebUI: build from `shells/aionui/Dockerfile`, run the container, and
+  verify HTTP 200 for `/` and `/manifest.webmanifest`.
 
 2026-05-15 Docker/WebUI evidence: `docker build -t
 one-person-lab-webui:26.5.15-smoke .` completed from `shells/aionui`, the image

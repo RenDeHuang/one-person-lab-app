@@ -11,6 +11,14 @@ on:
         description: 'Direct DMG URL. Overrides release_tag when set.'
         required: false
         type: string
+      package_profile:
+        description: 'DMG profile to test.'
+        required: false
+        default: full
+        type: choice
+        options:
+          - full
+          - standard
       tart_source_vm:
         description: 'Tart clean snapshot/base VM. Empty means repository variable OPL_FIRST_RUN_TART_SOURCE.'
         required: false
@@ -42,6 +50,11 @@ on:
       release_dmg_url:
         description: 'Direct DMG URL. Overrides release_tag when set.'
         required: false
+        type: string
+      package_profile:
+        description: 'DMG profile to test: full or standard.'
+        required: false
+        default: full
         type: string
       tart_source_vm:
         description: 'Tart clean snapshot/base VM. Empty means repository variable OPL_FIRST_RUN_TART_SOURCE.'
@@ -132,7 +145,34 @@ jobs:
           node --check shells/aionui/scripts/opl-first-run-vm-smoke.mjs
           node --check shells/aionui/scripts/opl-first-run-tart-smoke.mjs
 
-      - name: Resolve Full release DMG
+      - name: Resolve package profile
+        id: package_profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          profile="${{ inputs.package_profile }}"
+          if [ -z "$profile" ]; then
+            profile="full"
+          fi
+          case "$profile" in
+            full)
+              echo "download_pattern=One-Person-Lab-Full-*-mac-arm64.dmg" >> "$GITHUB_OUTPUT"
+              echo "find_args=-name 'One-Person-Lab-Full-*-mac-arm64.dmg'" >> "$GITHUB_OUTPUT"
+              echo "runtime_profile=full" >> "$GITHUB_OUTPUT"
+              ;;
+            standard)
+              echo "download_pattern=One-Person-Lab-*-mac-arm64.dmg" >> "$GITHUB_OUTPUT"
+              echo "find_args=-name 'One-Person-Lab-*-mac-arm64.dmg' ! -name 'One-Person-Lab-Full-*'" >> "$GITHUB_OUTPUT"
+              echo "runtime_profile=standard" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Unsupported package_profile: $profile"
+              exit 1
+              ;;
+          esac
+          echo "profile=$profile" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve release DMG
         id: dmg
         shell: bash
         run: |
@@ -140,22 +180,29 @@ jobs:
           mkdir -p artifacts/release
 
           if [ -n "${{ inputs.release_dmg_url }}" ]; then
-            curl -fL "${{ inputs.release_dmg_url }}" -o artifacts/release/One-Person-Lab.dmg
+            DMG_PATH="artifacts/release/One-Person-Lab-${{ steps.package_profile.outputs.profile }}.dmg"
+            curl -fL "${{ inputs.release_dmg_url }}" -o "$DMG_PATH"
           elif [ -n "${{ inputs.release_tag }}" ]; then
             gh release download "${{ inputs.release_tag }}" \
               --repo "$GITHUB_REPOSITORY" \
-              --pattern "One-Person-Lab-Full-*-mac-arm64.dmg" \
+              --pattern "${{ steps.package_profile.outputs.download_pattern }}" \
               --dir artifacts/release
           else
             gh release download \
               --repo "$GITHUB_REPOSITORY" \
-              --pattern "One-Person-Lab-Full-*-mac-arm64.dmg" \
+              --pattern "${{ steps.package_profile.outputs.download_pattern }}" \
               --dir artifacts/release
           fi
 
-          DMG_PATH="$(find artifacts/release -maxdepth 1 -type f -name '*.dmg' | sort | head -n 1)"
+          if [ -n "${DMG_PATH:-}" ]; then
+            true
+          elif [ "${{ steps.package_profile.outputs.profile }}" = "standard" ]; then
+            DMG_PATH="$(find artifacts/release -maxdepth 1 -type f -name 'One-Person-Lab-*-mac-arm64.dmg' ! -name 'One-Person-Lab-Full-*' | sort | head -n 1)"
+          else
+            DMG_PATH="$(find artifacts/release -maxdepth 1 -type f -name 'One-Person-Lab-Full-*-mac-arm64.dmg' | sort | head -n 1)"
+          fi
           if [ -z "$DMG_PATH" ]; then
-            echo "::error::No Full DMG artifact found for first-run VM smoke."
+            echo "::error::No ${{ steps.package_profile.outputs.profile }} DMG artifact found for first-run VM smoke."
             exit 1
           fi
           echo "dmg_path=$DMG_PATH" >> "$GITHUB_OUTPUT"
@@ -189,7 +236,7 @@ jobs:
             --smoke-profile no-clt-clean-vm
             --display 1920x1080px
             --settings-smoke
-            --runtime-profile full
+            --runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"
           )
           if [ -n "$SSH_KEY" ]; then
             CMD+=(--ssh-key "$SSH_KEY")
@@ -234,6 +281,8 @@ jobs:
           {
             echo "## OPL GUI first-run VM"
             echo
+            echo "- Package profile: ${{ steps.package_profile.outputs.profile }}"
+            echo "- Runtime profile: ${{ steps.package_profile.outputs.runtime_profile }}"
             echo "- Tart source VM: ${{ steps.tart_source.outputs.source_vm }}"
             echo "- DMG: ${{ steps.dmg.outputs.dmg_path }}"
             echo "- Artifacts: artifacts/opl-first-run-vm"

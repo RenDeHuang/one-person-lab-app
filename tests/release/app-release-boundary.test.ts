@@ -1413,8 +1413,18 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
   assert.equal(payload.strategy.full_runtime_cache, 'content_addressed_layer_cache');
   assert.ok(payload.lanes.some((lane) => lane.id === 'standard_build' && lane.can_run_with.includes('full_build')));
   assert.ok(payload.lanes.some((lane) => lane.id === 'full_build' && lane.command.includes('OPL_FULL_RUNTIME_CACHE_MODE=readwrite')));
+  assert.equal(payload.profile, 'stable');
   assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'no_clt_vm_settings_smoke'
+    lane.id === 'standard_dmg_clean_vm_smoke'
+    && lane.phase === 'installation_gate'
+    && lane.command.includes('One-Person-Lab-26.5.19-mac-arm64.dmg')
+    && lane.command.includes('--smoke-profile no-clt-clean-vm')
+    && lane.command.includes('--display 1920x1080px')
+    && lane.command.includes('--settings-smoke')
+    && lane.command.includes('--runtime-profile standard')
+  )));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'full_dmg_clean_vm_smoke'
     && lane.phase === 'release_gate'
     && lane.command.includes('One-Person-Lab-Full-26.5.19-mac-arm64.dmg')
     && lane.command.includes('--smoke-profile no-clt-clean-vm')
@@ -1422,6 +1432,30 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
     && lane.command.includes('--settings-smoke')
     && lane.command.includes('--runtime-profile full')
   )));
+  assert.ok(payload.lanes.some((lane) => lane.id === 'one_shot_app_installer_smoke'));
+  assert.ok(payload.lanes.some((lane) => lane.id === 'docker_webui_smoke'));
+  assert.ok(payload.lanes.some((lane) => lane.id === 'release_evidence_bundle'));
+});
+
+test('nightly release plan stays lightweight and excludes stable installation gates', () => {
+  const result = runNode([
+    'scripts/plan-release-candidate.ts',
+    '--version',
+    '26.5.19-nightly.20260527',
+    '--profile',
+    'nightly',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.profile, 'nightly_standard');
+  assert.deepEqual(payload.lanes.map((lane) => lane.id), [
+    'release_boundary',
+    'standard_build',
+    'publish_nightly_prerelease',
+    'remote_verify_standard',
+  ]);
+  assert.ok(payload.lanes.every((lane) => !/full|vm|installer|docker|evidence/i.test(lane.id)));
 });
 
 test('publish dry run skips existing release assets when a resumed upload already has matching files', () => {
@@ -1756,9 +1790,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
   assert.match(workflow, /publish_to_release: true/);
   assert.match(workflow, /run_vm_smoke:/);
-  assert.match(workflow, /needs: remote-verify-full/);
+  assert.match(workflow, /default: true/);
+  assert.match(workflow, /standard-first-run-vm-smoke-after-standard-only:/);
+  assert.match(workflow, /standard-first-run-vm-smoke-after-full:/);
+  assert.match(workflow, /full-first-run-vm-smoke:/);
+  assert.match(workflow, /one-shot-app-installer-smoke:/);
+  assert.match(workflow, /docker-webui-smoke:/);
+  assert.match(workflow, /OPL_INSTALL_SCRIPT_URL: file:\/\/\$\{\{ github\.workspace \}\}\/one-person-lab\/install\.sh/);
+  assert.match(workflow, /\.\/install\.sh --complete --skip-modules/);
+  assert.match(workflow, /docker build -t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}" shells\/aionui/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /package_profile: standard/);
+  assert.match(workflow, /package_profile: full/);
   assert.match(fullWorkflow, /workflow_call:/);
   assert.doesNotMatch(fullWorkflow, /workflow_call:[\s\S]*secrets:[\s\S]*GH_TOKEN:/);
   assert.match(fullWorkflow, /name: Checkout OPL Meta Agent/);
@@ -1788,15 +1832,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /opl-gui-first-run-vm-manual/);
   assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
   assert.match(vmWorkflow, /Resolve Tart source VM/);
+  assert.match(vmWorkflow, /package_profile:/);
+  assert.match(vmWorkflow, /Resolve package profile/);
   assert.match(vmWorkflow, /Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_TART_SOURCE/);
   assert.match(vmWorkflow, /source_vm=\$SOURCE_VM/);
   assert.doesNotMatch(vmWorkflow, /skip_smoke=true/);
   assert.doesNotMatch(vmWorkflow, /steps\.scheduled_config\.outputs\.skip_smoke != 'true'/);
   assert.match(vmWorkflow, /One-Person-Lab-Full-\*-mac-arm64\.dmg/);
+  assert.match(vmWorkflow, /One-Person-Lab-\*-mac-arm64\.dmg/);
+  assert.match(vmWorkflow, /!\s+-name 'One-Person-Lab-Full-\*'/);
   assert.match(vmWorkflow, /--smoke-profile no-clt-clean-vm/);
   assert.match(vmWorkflow, /--display 1920x1080px/);
   assert.match(vmWorkflow, /--settings-smoke/);
-  assert.match(vmWorkflow, /--runtime-profile full/);
+  assert.match(vmWorkflow, /--runtime-profile "\$\{\{ steps\.package_profile\.outputs\.runtime_profile \}\}"/);
   assert.equal(
     releaseContract.standard_updater.same_tag_refresh.mode,
     'github_actions_prebuilt_assets_upload_clobber',
@@ -1808,6 +1856,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.equal(
     releaseContract.release_acceleration.github_actions.first_run_vm_workflow,
     '.github/workflows/opl-first-run-vm.yml',
+  );
+  assert.deepEqual(
+    releaseContract.release_acceleration.vm_gates.map((gate) => gate.id),
+    ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke'],
   );
   assert.deepEqual(
     releaseContract.release_acceleration.vm_gate,
@@ -1858,6 +1910,79 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   );
 });
 
+test('Nightly release workflow publishes standard-only semver prereleases', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'nightly-standard-release.yml'), 'utf8');
+  const boundaryScript = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-release-boundary.ts'), 'utf8');
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+
+  assert.match(workflow, /name: OPL Nightly Standard Release/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /schedule:/);
+  assert.match(workflow, /cron: '17 18 \* \* \*'/);
+  assert.match(workflow, /group: opl-nightly-standard-release/);
+  assert.match(workflow, /cancel-in-progress: true/);
+  assert.match(workflow, /version="\$\(date -u \+'%y\.%-m\.%-d'\)-nightly\.\$\{stamp\}"/);
+  assert.match(workflow, /tag="v\$\{version\}"/);
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
+  assert.match(workflow, /opl_release_version: \$\{\{ needs\.resolve-nightly\.outputs\.version \}\}/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
+  assert.match(workflow, /gh release create "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease[\s\S]*--latest=false[\s\S]*--verify-tag/);
+  assert.match(workflow, /gh release edit "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease/);
+  assert.match(workflow, /gh release upload "\$\{OPL_RELEASE_TAG\}" release-assets\/\*/);
+  assert.match(workflow, /npm run verify-remote-release/);
+  assert.doesNotMatch(workflow, /full-first-install-release\.yml/);
+  assert.doesNotMatch(workflow, /include_full_package/);
+  assert.doesNotMatch(workflow, /One-Person-Lab-Full/);
+  assert.match(boundaryScript, /nightly_standard_release_workflow/);
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.nightly_standard_release_workflow,
+    '.github/workflows/nightly-standard-release.yml',
+  );
+  assert.equal(releaseContract.nightly_standard.prerelease, true);
+  assert.equal(releaseContract.nightly_standard.full_first_install_allowed, false);
+  assert.equal(releaseContract.nightly_standard.latest_release_allowed, false);
+  assert.deepEqual(releaseContract.release_validation_profiles.nightly_standard.required_lanes, [
+    'release_boundary_contract',
+    'standard_macos_arm64_build',
+    'local_standard_asset_validation',
+    'remote_standard_release_verification',
+  ]);
+  assert.ok(
+    releaseContract.release_validation_profiles.nightly_standard.forbidden_lanes.includes('full_first_install_build'),
+  );
+});
+
+test('stable validation profile covers every user installation surface', () => {
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const firstRunMatrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-first-run-test-matrix.json'), 'utf8'),
+  );
+  const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
+  const testingDocs = fs.readFileSync(path.join(appRoot, 'docs', 'testing', 'README.md'), 'utf8');
+  const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
+  const combinedDocs = `${releaseDocs}\n${testingDocs}\n${scriptsDocs}`;
+  const scenarioIds = firstRunMatrix.scenarios.map((scenario) => scenario.id);
+  const stable = releaseContract.release_validation_profiles.stable;
+
+  assert.deepEqual(stable.required_installation_surfaces, [
+    'standard_dmg_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+    'one_shot_app_installer_fresh_install_smoke',
+    'docker_webui_smoke',
+  ]);
+  assert.ok(stable.required_lanes.includes('operator_evidence_bundle'));
+  for (const scenarioId of stable.required_installation_surfaces) {
+    assert.ok(scenarioIds.includes(scenarioId), scenarioId);
+  }
+  assert.match(combinedDocs, /Nightly[\s\S]*standard[\s\S]*remote/i);
+  assert.match(combinedDocs, /Stable[\s\S]*standard DMG[\s\S]*Full DMG[\s\S]*one-shot[\s\S]*Docker\/WebUI/i);
+});
+
 test('release automation workflows cover remote verification, Full cache warmup, and draft promotion', () => {
   const verifyWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'release-verify-remote.yml'), 'utf8');
   const warmupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-runtime-cache-warmup.yml'), 'utf8');
@@ -1903,6 +2028,10 @@ test('release automation workflows cover remote verification, Full cache warmup,
 test('Full first-install workflow has one MinerU checkout and keeps standalone binary build path', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
 
+  assert.match(workflow, /npm view @openai\/codex version/);
+  assert.match(workflow, /npm install -g "@openai\/codex@\$\{codex_latest\}"/);
+  assert.match(workflow, /echo "OPL_FULL_CODEX_VERSION=\$codex_latest" >> "\$GITHUB_ENV"/);
+  assert.match(workflow, /\[\[ "\$codex_version" == "codex-cli \$codex_latest" \]\]/);
   assert.equal(matchCount(workflow, /name: Checkout MinerU Ecosystem/g), 1);
   assert.equal(matchCount(workflow, /repository: opendatalab\/MinerU-Ecosystem/g), 1);
   assert.equal(matchCount(workflow, /path: MinerU-Ecosystem/g), 1);
@@ -2087,6 +2216,26 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   assert.equal(releaseContract.full_first_install.updater_visible, false);
   assert.equal(releaseContract.full_first_install.updater_metadata_allowed, false);
   assert.equal(releaseContract.full_first_install.same_tag_refresh.mode, 'github_release_upload_clobber');
+  assert.deepEqual(releaseContract.full_first_install.required_payloads.codex_cli, {
+    version_source: 'npm view @openai/codex version',
+    install_rule: 'install_exact_latest_npm_version',
+    receipt_env: 'OPL_FULL_CODEX_VERSION',
+    runtime_path: 'runtime/current/bin/codex',
+    verification: 'codex --version must equal codex-cli <npm_latest>',
+  });
+  assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_runtime_provider, {
+    provider_env_default: 'OPL_FAMILY_RUNTIME_PROVIDER=temporal',
+    required_packages: [
+      '@temporalio/activity',
+      '@temporalio/client',
+      '@temporalio/common',
+      '@temporalio/worker',
+      '@temporalio/workflow',
+    ],
+    forbidden_packages: ['@temporalio/testing'],
+    native_core_bridge_releases: ['aarch64-apple-darwin'],
+    verification: 'Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin',
+  });
   assert.deepEqual(
     manifest.distribution.payload_boundary.app_repo_does_not_own,
     releaseContract.full_first_install.payload_boundary.forbidden_authority,

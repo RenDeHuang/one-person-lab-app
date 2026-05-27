@@ -70,16 +70,25 @@ builds that should run on GitHub runners instead of this Mac.
 - `include_full_package=true` delegates to the Full first-install workflow so the
   slower runtime/package assembly runs on GitHub Actions with the runtime layer
   cache.
-- `run_vm_smoke=true` runs the clean Full first-run VM smoke after Full assets
-  are uploaded. Leave it off for fast packaging-only refreshes or when the
-  self-hosted Tart runner is unavailable.
-- The VM smoke downloads the published
-  `One-Person-Lab-Full-*-mac-arm64.dmg`, clones a clean no-CLT Tart base VM,
-  fixes the logical display at `1920x1080px`, submits the Codex/OpenAI API key
-  configuration wizard, sweeps the packaged Settings pages, and checks Full
-  runtime readiness. CLT installation, git availability, and managed repo sync
-  are deferred maintenance and must not block Core, Domain module, or family
-  runtime provider readiness on first launch.
+- `run_vm_smoke=true` is the stable release installation profile. It runs the
+  standard DMG clean-VM smoke, Full DMG clean-VM smoke when Full is included,
+  the App one-shot installer smoke, and Docker/WebUI HTTP smoke after release
+  assets are uploaded. Leave it off only for draft or emergency packaging
+  refreshes that are not being treated as stable-complete.
+- Scheduled **OPL Nightly Standard Release** builds and publishes standard
+  macOS arm64 assets only. It creates a semver prerelease tag such as
+  `v26.5.27-nightly.20260527`, marks the Release as prerelease, does not mark it
+  as latest, excludes Full first-install assets, and runs remote standard asset
+  verification after upload. Users only see this channel after opting into
+  prerelease/Nightly updates in the App.
+- The VM smoke downloads the published DMG for the selected package profile,
+  clones a clean no-CLT Tart base VM, fixes the logical display at
+  `1920x1080px`, and sweeps the packaged Settings pages. The standard profile
+  checks launch and App-managed bootstrap readiness. The Full profile also
+  submits the Codex/OpenAI API key configuration wizard and checks Full runtime
+  readiness. CLT installation, git availability, and managed repo sync are
+  deferred maintenance and must not block Core, Domain module, or family runtime
+  provider readiness on first launch.
 - Scheduled **OPL GUI First-Run VM** runs use a dedicated GitHub Actions
   concurrency group with `cancel-in-progress` enabled, so nightly clean-VM
   backlog collapses to the newest scheduled run instead of occupying the
@@ -104,6 +113,33 @@ remote audit without rebuilding. It downloads the published assets, checks
 GitHub asset size and `sha256:` digest, validates standard updater metadata,
 and, when Full is included, checks `SHA256SUMS.txt`, the Full manifest boundary,
 and English-only Full companion text.
+
+## Purpose-based release validation
+
+Nightly and stable releases intentionally run different validation profiles.
+Nightly is a fast standard-updater confidence lane: release-boundary contract,
+standard macOS arm64 build, local standard asset validation, prerelease upload
+with `--latest=false`, and remote standard asset verification. It does not build
+Full assets and does not require clean VM, one-shot installer, Docker/WebUI, or
+operator evidence gates.
+
+Stable is the complete user-install proof lane. Before a stable App Release is
+treated as smooth, it must cover standard DMG clean-VM installation, Full DMG
+clean-VM installation, the public App one-shot installer, Docker/WebUI through
+HTTP, remote verification for standard and Full assets, and the operator
+evidence bundle. The heavy gates are grouped by installation surface so failures
+say which user path is broken instead of producing one vague release failure.
+Stable validation covers standard DMG, Full DMG, one-shot installer, and
+Docker/WebUI evidence as separate installation surfaces.
+
+The Full first-install payload must include the latest npm-published Codex CLI
+and the Temporal-backed family runtime provider. The Full workflow resolves the
+current `@openai/codex` version with `npm view @openai/codex version`, installs
+that exact version, records `OPL_FULL_CODEX_VERSION`, and verifies `codex
+--version`. Temporal runtime packages stay in the Framework production
+dependency payload, `@temporalio/testing` is excluded, and the remote verifier
+requires the Full manifest to report only the macOS arm64 Temporal core bridge
+release.
 
 The Runtime page is the operator evidence acceptance path for App release
 evidence. It consumes OPL refs-only JSON from
@@ -271,6 +307,8 @@ npm run validate:release-boundary
 Standard updater metadata is restricted to macOS arm64 standard package assets.
 Full first-install packages must be explicitly named with `Full` and must not
 be referenced from `latest*.yml`.
+Nightly standard releases use the same standard asset boundary, plus a
+prerelease semver tag, `--latest=false`, and no Full first-install payload.
 
 Full companion text assets, including `README-Full-First-Install.txt`, are
 English-only release assets. Keep those generated strings professional and free

@@ -156,7 +156,11 @@ jobs:
           brew install zstd || true
           python -m pip install --upgrade pip uv
           uv python install 3.12
-          npm install -g @openai/codex
+          codex_latest="$(npm view @openai/codex version)"
+          npm install -g "@openai/codex@${codex_latest}" --fetch-retries=3 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=20000 --fetch-timeout=60000
+          codex_version="$(codex --version)"
+          [[ "$codex_version" == "codex-cli $codex_latest" ]]
+          echo "OPL_FULL_CODEX_VERSION=$codex_latest" >> "$GITHUB_ENV"
           mineru_root="$GITHUB_WORKSPACE/MinerU-Ecosystem/cli/mineru-open-api"
           mineru_version="$(cat "$mineru_root/VERSION")"
           mineru_commit="$(git -C "$GITHUB_WORKSPACE/MinerU-Ecosystem" rev-parse --short HEAD)"
@@ -169,7 +173,7 @@ jobs:
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
-          codex --version
+          echo "$codex_version"
           officecli --version
           mineru-open-api version
           uv --version

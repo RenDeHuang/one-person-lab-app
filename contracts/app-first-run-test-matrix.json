@@ -63,6 +63,75 @@
       ]
     },
     {
+      "id": "standard_dmg_clean_vm_smoke",
+      "package_type": "standard",
+      "release_gate": true,
+      "vm": {
+        "source": "clean no-CLT Tart base clone",
+        "display": "1920x1080px",
+        "smoke_profile": "no-clt-clean-vm",
+        "settings_smoke": true,
+        "runtime_profile": "standard"
+      },
+      "expects": [
+        "Standard DMG is installed into /Applications on first launch",
+        "App launches without Full-only runtime equivalence checks",
+        "standard App-managed bootstrap or ready state is visible",
+        "Settings pages are navigable after first-run initialization"
+      ],
+      "release_evidence_artifacts": [
+        "first-run.log",
+        "settings-smoke.json"
+      ]
+    },
+    {
+      "id": "full_dmg_clean_vm_smoke",
+      "package_type": "full",
+      "release_gate": true,
+      "aliases": ["full_first_install_clean_machine"],
+      "vm": {
+        "source": "clean no-CLT Tart base clone",
+        "display": "1920x1080px",
+        "smoke_profile": "no-clt-clean-vm",
+        "settings_smoke": true,
+        "runtime_profile": "full"
+      },
+      "expects": [
+        "Full DMG reaches Core ready from the bundled runtime",
+        "Codex/OpenAI API key configuration wizard is seen and submitted",
+        "Domain modules and family runtime provider readiness are verified",
+        "Settings pages are navigable after first-run initialization"
+      ],
+      "release_evidence_artifacts": [
+        "first-run.log",
+        "settings-smoke.json"
+      ]
+    },
+    {
+      "id": "one_shot_app_installer_fresh_install_smoke",
+      "package_type": "source_installer",
+      "release_gate": true,
+      "command": "OPL_INSTALL_SCRIPT_URL=file://<framework-checkout>/install.sh ./install.sh --complete --skip-modules",
+      "expects": [
+        "App root install.sh remains the public one-shot entrypoint",
+        "Framework installer performs complete One Person Lab setup",
+        "managed Node or archive fallback handles clean macOS paths without requiring manual Homebrew setup first",
+        "opl system initialize runs after install"
+      ]
+    },
+    {
+      "id": "docker_webui_smoke",
+      "package_type": "docker_webui",
+      "release_gate": true,
+      "command": "docker build -t one-person-lab-webui:<version> shells/aionui && docker run -p 127.0.0.1::<container_port> one-person-lab-webui:<version>",
+      "expects": [
+        "Docker image builds from the active AionUI shell Dockerfile",
+        "WebUI container starts on port 3000",
+        "HTTP / returns 200",
+        "HTTP /manifest.webmanifest returns 200"
+      ]
+    },
+    {
       "id": "updater_standard_channel",
       "package_type": "standard",
       "update_policy": {
