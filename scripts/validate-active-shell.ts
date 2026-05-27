@@ -20,6 +20,17 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
 }
 
+function assertIncludesAll(actual, expected, label) {
+  if (!Array.isArray(actual)) {
+    throw new Error(`${label} must be an array`);
+  }
+  for (const item of expected) {
+    if (!actual.includes(item)) {
+      throw new Error(`${label} must include ${item}`);
+    }
+  }
+}
+
 function parseArgs(argv) {
   const parsed = { quick: false, only: new Set() };
   for (let index = 2; index < argv.length; index += 1) {
@@ -302,6 +313,35 @@ function validateActiveShellImplementation(shellPaths) {
   }
   if (/med[-_ ]?deep[-_ ]?scientist|module_id['"]?\s*:\s*['"]mds['"]/i.test(runtimeSettings)) {
     throw new Error('Active shell Runtime settings must not default-display Med Deep Scientist/MDS.');
+  }
+
+  const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
+  for (const expected of [
+    'formatFullReadinessProgressText',
+    'formatMaintenanceProgressText',
+    'findNextVisibleStep',
+    "data-testid='opl-first-run-stage'",
+    "data-testid='opl-first-run-core-progress'",
+    "data-testid='opl-first-run-full-readiness-progress'",
+    "data-testid='opl-first-run-maintenance-progress'",
+    "data-testid='opl-first-run-next-step'",
+  ]) {
+    if (!firstRunPage.includes(expected)) {
+      throw new Error(`Active shell FirstRun page must render shared initialize progress: ${expected}`);
+    }
+  }
+
+  const firstRunModel = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/initializeModel.ts');
+  for (const expected of [
+    'ready_full_readiness_count',
+    'total_full_readiness_count',
+    'ready_optional_count',
+    'total_optional_count',
+    'next_visible_step',
+  ]) {
+    if (!firstRunModel.includes(expected)) {
+      throw new Error(`Active shell FirstRun model must consume initialize progress field ${expected}`);
+    }
   }
 
   const guidPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/GuidPage.tsx');
@@ -826,6 +866,36 @@ function validateAppGuiProductContract(guiContract, releaseChannel) {
       throw new Error(`App GUI first-launch readiness ${field} must be ${expected}`);
     }
   }
+  const firstLaunchProgressModel = firstLaunchPolicy?.progress_model;
+  if (firstLaunchProgressModel?.source_command !== firstRunProgressSourceCommand) {
+    throw new Error('App GUI first-launch progress model must use opl system initialize --json');
+  }
+  if (firstLaunchProgressModel?.source_path !== firstRunProgressSourcePath) {
+    throw new Error('App GUI first-launch progress model must read system_initialize.setup_flow');
+  }
+  if (firstLaunchProgressModel?.renderer_truth_policy !== firstRunRendererTruthPolicy) {
+    throw new Error('App GUI first-launch progress model must keep the shell as render-only');
+  }
+  assertIncludesAll(
+    firstLaunchProgressModel?.required_setup_flow_fields,
+    firstRunSetupFlowFields,
+    'App GUI first-launch progress setup_flow fields',
+  );
+  assertIncludesAll(
+    firstLaunchProgressModel?.required_progress_fields,
+    firstRunProgressFields,
+    'App GUI first-launch progress fields',
+  );
+  assertIncludesAll(
+    firstLaunchProgressModel?.required_checklist_fields,
+    firstRunChecklistFields,
+    'App GUI first-launch progress checklist fields',
+  );
+  assertIncludesAll(
+    firstLaunchProgressModel?.required_visible_elements,
+    firstRunProgressVisibleElements,
+    'App GUI first-launch progress visible elements',
+  );
 
   const modulePathPolicy = guiContract.module_path_source_policy;
   if (modulePathPolicy?.source !== 'app_state.modules[].source + app_state.modules[].path + app_state.paths') {
@@ -1060,11 +1130,46 @@ function validatePageStateMatrix(matrix, contract) {
     'Codex config readiness',
     'ready_to_launch before /guid',
     'full readiness and background maintenance state',
+    'current initialization phase',
+    'Core completed and total count',
+    'Full readiness completed and total count',
+    'background maintenance completed and total count',
+    'next visible step',
   ]) {
     if (!firstLaunchPage.must_show?.includes(signal)) {
       throw new Error(`First-launch readiness page must show ${signal}`);
     }
   }
+  const firstLaunchProgressModel = firstLaunchPage.progress_model;
+  if (firstLaunchProgressModel?.source_command !== firstRunProgressSourceCommand) {
+    throw new Error('First-launch readiness page progress model must use opl system initialize --json');
+  }
+  if (firstLaunchProgressModel?.source_path !== firstRunProgressSourcePath) {
+    throw new Error('First-launch readiness page progress model must read system_initialize.setup_flow');
+  }
+  if (firstLaunchProgressModel?.renderer_truth_policy !== firstRunRendererTruthPolicy) {
+    throw new Error('First-launch readiness page progress model must keep the shell as render-only');
+  }
+  assertIncludesAll(
+    firstLaunchProgressModel?.required_setup_flow_fields,
+    firstRunSetupFlowFields,
+    'First-launch readiness page progress setup_flow fields',
+  );
+  assertIncludesAll(
+    firstLaunchProgressModel?.required_progress_fields,
+    firstRunProgressFields,
+    'First-launch readiness page progress fields',
+  );
+  assertIncludesAll(
+    firstLaunchProgressModel?.required_checklist_fields,
+    firstRunChecklistFields,
+    'First-launch readiness page progress checklist fields',
+  );
+  assertIncludesAll(
+    firstLaunchProgressModel?.required_visible_elements,
+    firstRunProgressVisibleElements,
+    'First-launch readiness page progress visible elements',
+  );
 
   const runtimePage = (matrix.pages ?? []).find((page) => page.id === 'runtime');
   if (!runtimePage) {
@@ -1370,6 +1475,37 @@ const firstRunDeferredMaintenanceItems = [
   'ecosystem_module_updates',
 ];
 const firstRunEcosystemModules = ['officecli', 'mineru', 'opl-meta-agent'];
+const firstRunProgressSourceCommand = 'opl system initialize --json';
+const firstRunProgressSourcePath = 'system_initialize.setup_flow';
+const firstRunRendererTruthPolicy = 'render_only_no_shell_private_progress_truth';
+const firstRunSetupFlowFields = ['phase', 'ready_to_launch', 'progress', 'blocking_items', 'maintenance_items'];
+const firstRunProgressFields = [
+  'ready_required_count',
+  'total_required_count',
+  'ready_full_readiness_count',
+  'total_full_readiness_count',
+  'ready_optional_count',
+  'total_optional_count',
+];
+const firstRunChecklistFields = [
+  'item_id',
+  'label',
+  'status',
+  'readiness_layer',
+  'blocking',
+  'severity',
+  'next_visible_step',
+  'detail_summary',
+];
+const firstRunProgressVisibleElements = [
+  'current initialization phase',
+  'Core completed and total count',
+  'Full readiness completed and total count',
+  'background maintenance completed and total count',
+  'blocking item list',
+  'next visible step',
+];
+const firstRunProgressConsumerPackageTypes = ['full', 'standard', 'source_installer', 'docker_webui'];
 
 function buildScenarioMap(matrix) {
   if (!Array.isArray(matrix.scenarios) || matrix.scenarios.length === 0) {
@@ -1464,10 +1600,43 @@ function validateUpdaterScenario(updater) {
   }
 }
 
+function validateSharedProgressModel(progressModel) {
+  if (progressModel?.producer !== 'one-person-lab') {
+    throw new Error('First-run shared progress model producer must be one-person-lab');
+  }
+  if (progressModel?.source_command !== firstRunProgressSourceCommand) {
+    throw new Error('First-run shared progress model must use opl system initialize --json');
+  }
+  if (progressModel?.source_path !== firstRunProgressSourcePath) {
+    throw new Error('First-run shared progress model must read system_initialize.setup_flow');
+  }
+  if (progressModel?.truth_policy !== 'all_installers_and_renderers_derive_progress_from_the_shared_initialize_model') {
+    throw new Error('First-run shared progress model must forbid parallel installer progress truth');
+  }
+  assertIncludesAll(
+    progressModel?.required_setup_flow_fields,
+    firstRunSetupFlowFields,
+    'First-run shared progress model setup_flow fields',
+  );
+  assertIncludesAll(
+    progressModel?.required_progress_fields,
+    firstRunProgressFields,
+    'First-run shared progress model progress fields',
+  );
+  assertIncludesAll(
+    progressModel?.required_checklist_fields,
+    firstRunChecklistFields,
+    'First-run shared progress model checklist fields',
+  );
+  const packageTypes = (progressModel?.consumers ?? []).map((consumer) => consumer.package_type);
+  assertIncludesAll(packageTypes, firstRunProgressConsumerPackageTypes, 'First-run shared progress model consumers');
+}
+
 function validateFirstRunMatrix(matrix, contract) {
   if (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root) {
     throw new Error('First-run matrix must target the active shell contract');
   }
+  validateSharedProgressModel(matrix.shared_progress_model);
   const scenarioById = buildScenarioMap(matrix);
   validateFullFirstInstallScenario(scenarioById.get('full_first_install_clean_machine'));
   validateStandardBootstrapScenario(scenarioById.get('standard_app_managed_bootstrap'));
@@ -1655,6 +1824,36 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
       throw new Error(`Product profile Full first-install post-Core maintenance must manage ${blocker}`);
     }
   }
+  const progressModel = profile.first_run?.progress_model;
+  if (progressModel?.source_command !== firstRunProgressSourceCommand) {
+    throw new Error('Product profile first-run progress model must use opl system initialize --json');
+  }
+  if (progressModel?.source_path !== firstRunProgressSourcePath) {
+    throw new Error('Product profile first-run progress model must read system_initialize.setup_flow');
+  }
+  if (progressModel?.renderer_truth_policy !== firstRunRendererTruthPolicy) {
+    throw new Error('Product profile first-run progress model must keep renderers as display-only consumers');
+  }
+  assertIncludesAll(
+    progressModel?.required_setup_flow_fields,
+    firstRunSetupFlowFields,
+    'Product profile first-run progress setup_flow fields',
+  );
+  assertIncludesAll(
+    progressModel?.required_progress_fields,
+    firstRunProgressFields,
+    'Product profile first-run progress fields',
+  );
+  assertIncludesAll(
+    progressModel?.required_checklist_fields,
+    firstRunChecklistFields,
+    'Product profile first-run progress checklist fields',
+  );
+  assertIncludesAll(
+    progressModel?.required_visible_elements,
+    firstRunProgressVisibleElements,
+    'Product profile first-run progress visible elements',
+  );
 }
 
 function validateStandardPackagePolicy(profile) {

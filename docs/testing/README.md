@@ -135,7 +135,11 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   root, Codex CLI, and Codex config. Domain modules, the family runtime
   provider, recommended skills, native helpers, CLT, git, managed repo sync, and
   ecosystem updates are Full readiness or deferred maintenance and must not
-  block `ready_to_launch`. The App repo VM workflow is the deterministic
+  block `ready_to_launch`. First-run progress evidence must map visible phase,
+  Core progress, Full readiness progress, background maintenance counts,
+  blockers, and next step back to `opl system initialize --json` /
+  `system_initialize.setup_flow`; release tests must not accept a separate
+  installer-local progress authority. The App repo VM workflow is the deterministic
   release-blocking gate for first-run GUI evidence; Codex App or Computer Use
   sessions may explore UI behavior during triage, but those exploratory checks
   are non-blocking and cannot replace the Tart VM gate. Any exploratory finding
