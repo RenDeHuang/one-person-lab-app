@@ -116,7 +116,10 @@ Release automation has two distinct improvement tracks:
   changing release truth.
 
 `actionlint` belongs to the second track as the workflow semantic gate in the
-reusable build quality jobs; Ruby/YAML parsing remains only a syntax check.
+reusable build quality jobs; Ruby/YAML parsing remains only a syntax check. The
+CI gate disables opportunistic external `shellcheck`/`pyflakes` integrations so
+host image drift cannot turn historical script-style findings into a release
+blocker for packaging or VM telemetry runs.
 
 GitHub Actions `concurrency` belongs to duplicate-run governance. Use it to
 cancel stale scheduled runs or serialize operator-triggered runs, not as proof

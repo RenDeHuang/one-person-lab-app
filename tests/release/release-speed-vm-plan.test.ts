@@ -88,7 +88,7 @@ test('_build-reusable splits quality work into parallel App and active-shell job
   }
 
   assertMatches(workflow, /go install github\.com\/rhysd\/actionlint\/cmd\/actionlint@latest/, 'actionlint install');
-  assertMatches(workflow, /actionlint -color/, 'actionlint gate');
+  assertMatches(workflow, /actionlint -color -shellcheck= -pyflakes=/, 'actionlint semantic gate');
   assertMatches(workflow, /uses:\s+\.\/\.github\/actions\/setup-active-shell-deps/, 'reusable active shell setup action');
   assertMatches(setupAction, /path:\s+shells\/aionui/, 'active shell checkout');
   assertMatches(setupAction, /key:\s+bun-install-[^\n]*hashFiles\('shells\/aionui\/package\.json', 'shells\/aionui\/bun\.lock'\)/, 'active shell Bun dependency cache key');

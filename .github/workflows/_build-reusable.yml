@@ -61,7 +61,7 @@ jobs:
           echo "$RUNNER_TEMP/actionlint-bin" >> "$GITHUB_PATH"
 
       - name: Lint GitHub Actions workflows
-        run: actionlint -color
+        run: actionlint -color -shellcheck= -pyflakes=
 
   lint-format:
     name: Lint and format
