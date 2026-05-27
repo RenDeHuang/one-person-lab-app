@@ -2,7 +2,7 @@
 
 This repository is the One Person Lab App product repository. It owns desktop
 App packaging, release assets, updater metadata, user guides, screenshots,
-first-run checks, and GUI page-state tests.
+first-run checks, GUI product requirements, and GUI page-state tests.
 
 The OPL Framework remains in `gaofeng21cn/one-person-lab`. App code must consume
 framework-owned machine-readable contracts, CLI JSON, provider receipts, and
@@ -29,6 +29,22 @@ Root `docs/`, `contracts/`, and `scripts/` describe the App product layer.
 AionUI-specific source, package metadata, tests, shell release hooks, and
 upstream intake rules live in the shell repository and are consumed here through
 the active shell checkout.
+
+## GUI Product Authority
+
+- The App repo is the authority for what the One Person Lab App GUI should be,
+  regardless of which shell implementation is currently active.
+- Product-level GUI decisions, user-facing page behavior, model-selection
+  policy, onboarding flow, release screenshots, and page-state expectations must
+  be documented, contracted, or tested from this repo when they define App truth.
+- `shells/aionui/` is the current implementation carrier and upstream-sync
+  surface. It may change shape as AionUI evolves, but it must implement the App
+  repo's GUI truth rather than become the source of product authority.
+- When a GUI behavior is implemented in the shell repo, keep the App-level
+  rationale and acceptance boundary in this repo, then apply the shell code
+  change in the shell checkout.
+- Upstream AionUI behavior can be reused as implementation material only after
+  checking it against App-owned GUI requirements and contracts.
 
 ## Working Rules
 
