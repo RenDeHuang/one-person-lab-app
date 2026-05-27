@@ -209,6 +209,185 @@ function validateContractShape(contract) {
   }
 }
 
+function readShellText(shellPaths, relativePath) {
+  const filePath = path.join(shellPaths.shellRoot, relativePath);
+  assertFile(filePath, `active shell implementation file ${relativePath}`);
+  return readFileSync(filePath, 'utf8');
+}
+
+function assertShellTextIncludes(shellPaths, relativePath, expected, label) {
+  const text = readShellText(shellPaths, relativePath);
+  if (!text.includes(expected)) {
+    throw new Error(`Active shell ${label} must include ${expected} in ${relativePath}`);
+  }
+  return text;
+}
+
+function assertShellTextExcludes(shellPaths, relativePath, forbidden, label) {
+  const text = readShellText(shellPaths, relativePath);
+  if (text.includes(forbidden)) {
+    throw new Error(`Active shell ${label} must not include ${forbidden} in ${relativePath}`);
+  }
+  return text;
+}
+
+function validateActiveShellImplementation(shellPaths) {
+  const appStateHook = assertShellTextIncludes(
+    shellPaths,
+    'packages/desktop/src/renderer/hooks/system/useOplAppState.ts',
+    'ipcBridge.oplRuntime.getAppState.invoke({ profile })',
+    'OPL App state hook',
+  );
+  for (const forbidden of ['shell.runOplCommand', 'application.systemInfo']) {
+    if (appStateHook.includes(forbidden)) {
+      throw new Error(`Active shell OPL App state hook must not use ${forbidden}`);
+    }
+  }
+
+  const runtimeBridge = readShellText(shellPaths, 'packages/desktop/src/process/bridge/oplRuntimeBridge.ts');
+  for (const expected of [
+    "args: ['app', 'state', '--profile', profile, '--json']",
+    "args: ['runtime', 'app-operator-drilldown', '--detail', 'full', '--json']",
+    "['app', 'action', 'execute', '--action', assertActionId(request.actionId)]",
+  ]) {
+    if (!runtimeBridge.includes(expected)) {
+      throw new Error(`Active shell runtime bridge must implement canonical surface: ${expected}`);
+    }
+  }
+
+  const settingsNav = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/sections/settingsNav.tsx');
+  for (const expected of [
+    'getOplGuiSettingsVisibleTabs',
+    'SETTINGS_DEFAULT_ROUTE',
+    'LEGACY_SETTINGS_ROUTE_REDIRECTS',
+    'overview',
+    'runtime',
+    'capabilities',
+    'access',
+    'appearance',
+  ]) {
+    if (!settingsNav.includes(expected)) {
+      throw new Error(`Active shell settings navigation must carry App-owned section ${expected}`);
+    }
+  }
+
+  const systemSettings = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/components/settings/SettingsModal/contents/SystemModalContent/index.tsx',
+  );
+  for (const expected of [
+    "useOplAppState('fast')",
+    "actionId: 'developer_supervisor'",
+    "actionId: 'workspace_root_set'",
+    'workspace_root_path',
+    'selected_path',
+    'logs_dir',
+    'opl_agent_codex_context',
+    'settings.oplAgentCodexContext',
+  ]) {
+    if (!systemSettings.includes(expected)) {
+      throw new Error(`Active shell System settings must implement ${expected}`);
+    }
+  }
+  for (const forbidden of [
+    'application.updateSystemInfo.invoke',
+    'application.systemInfo.invoke',
+    'shell.runOplCommand.invoke',
+    'settings.restartConfirm',
+  ]) {
+    if (systemSettings.includes(forbidden)) {
+      throw new Error(`Active shell System settings must not use legacy OPL truth/action source ${forbidden}`);
+    }
+  }
+
+  const runtimeSettings = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/sections/RuntimeSettings.tsx');
+  for (const expected of [
+    "useOplAppState('fast')",
+    "'medautoscience'",
+    "'medautogrant'",
+    "'redcube'",
+    "'oplmetaagent'",
+    'workspace_root_path',
+    'family_workspace_root',
+    'modulesSourcePayload',
+    'pathSources.familyWorkspaceRoot',
+  ]) {
+    if (!runtimeSettings.includes(expected)) {
+      throw new Error(`Active shell Runtime settings must implement ${expected}`);
+    }
+  }
+  if (/med[-_ ]?deep[-_ ]?scientist|module_id['"]?\s*:\s*['"]mds['"]/i.test(runtimeSettings)) {
+    throw new Error('Active shell Runtime settings must not default-display Med Deep Scientist/MDS.');
+  }
+
+  const guidPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/GuidPage.tsx');
+  for (const expected of [
+    'conversation.welcome.oplPlaceholder',
+    'shouldShowOplHomeAgentTabs',
+    "|| 'codex'",
+    'DEFAULT_CODEX_MODEL_WITH_REASONING_ID',
+  ]) {
+    if (!guidPage.includes(expected)) {
+      throw new Error(`Active shell Guid home must implement ${expected}`);
+    }
+  }
+
+  const productProfile = readShellText(
+    shellPaths,
+    'packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json',
+  );
+  for (const expected of ['"default_model": "gpt-5.5"', '"default_reasoning_effort": "xhigh"', '"codex_model_selector_visible": false']) {
+    if (!productProfile.includes(expected)) {
+      throw new Error(`Active shell product profile must carry App Codex default ${expected}`);
+    }
+  }
+
+  const guidProfile = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/oplGuidProfile.ts');
+  for (const expected of ['mas', 'mag', 'rca', 'oma', 'filterOplFoundryAssistants', 'resolveOplDefaultAgentKey']) {
+    if (!guidProfile.includes(expected)) {
+      throw new Error(`Active shell Guid profile must include App-owned assistant/default signal ${expected}`);
+    }
+  }
+  if (/mds|Med Deep Scientist/.test(guidProfile)) {
+    throw new Error('Active shell Guid profile must not include MDS as a default home assistant.');
+  }
+
+  const presets = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/DisplaySettings/presets.ts');
+  if (!presets.includes("export const CODEX_THEME_ID = 'codex'")) {
+    throw new Error('Active shell theme presets must expose CODEX_THEME_ID=codex.');
+  }
+  if (!presets.includes("presets/opl-codex.css?raw")) {
+    throw new Error('Active shell theme presets must load the App-owned OPL Codex theme CSS.');
+  }
+  if (presets.includes("glittering-input-field.css?raw")) {
+    throw new Error('Active shell theme presets must not load the legacy glittering-input-field CSS as the Codex theme.');
+  }
+  const codexCss = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/DisplaySettings/presets/opl-codex.css');
+  for (const expected of ['One Person Lab Codex Theme', '--opl-codex-sidebar-bg', 'SF Pro Text']) {
+    if (!codexCss.includes(expected)) {
+      throw new Error(`Active shell OPL Codex CSS must include ${expected}`);
+    }
+  }
+  for (const forbidden of ['Retroma', 'aurora', 'Palatino']) {
+    if (codexCss.includes(forbidden)) {
+      throw new Error(`Active shell OPL Codex CSS must not include legacy theme marker ${forbidden}`);
+    }
+  }
+
+  const about = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/components/settings/SettingsModal/contents/AboutModalContent.tsx',
+  );
+  for (const expected of ['useOplAppState', 'aboutShellVersion', 'aboutFrameworkVersion', 'includeNightlyUpdates']) {
+    if (!about.includes(expected)) {
+      throw new Error(`Active shell About page must implement ${expected}`);
+    }
+  }
+  if (/AionUI version|Aion UI version/.test(about)) {
+    throw new Error('Active shell About page must not present AionUI as the App version.');
+  }
+}
+
 function assertCommandSurface(value, expected, label) {
   if (value !== expected) {
     throw new Error(`${label} must be ${expected}`);
@@ -1567,6 +1746,7 @@ validatePageStateMatrix(pageStateMatrix, contract);
 validateFirstRunMatrix(firstRunMatrix, contract);
 validateProductProfile(readJson(productProfilePath));
 validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix);
+validateActiveShellImplementation(shellPaths);
 validateLiveOplConformance(runtimeBridge);
 
 if (args.quick) {
