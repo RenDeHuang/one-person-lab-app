@@ -2432,6 +2432,12 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /input\.aggregate_key_input/);
   assert.match(workflow, /runtime-cache-events\.json/);
   assert.match(workflow, /full_runtime_layer_events/);
+  assert.match(workflow, /node -e 'const fs = require\("node:fs"\); const report = JSON\.parse\(fs\.readFileSync\(process\.argv\[1\], "utf8"\)\);/);
+  assert.doesNotMatch(
+    workflow,
+    /runtime-cache-events\.json[\s\S]{0,400}<<'NODE'[\s\S]{0,400}NODE/,
+    'runtime-cache-events summary must not use a nested heredoc; indented heredoc delimiters break bash on GitHub Actions',
+  );
 });
 
 test('Full release docs publish size policy and remote verifier budget boundaries', () => {
