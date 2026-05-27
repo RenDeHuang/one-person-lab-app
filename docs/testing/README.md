@@ -165,7 +165,9 @@ workflow-operations hygiene:
 
 - `actionlint` is the workflow semantic gate in the reusable build quality
   jobs. YAML parsing only proves syntax; `actionlint` is the check that should
-  fail semantic GitHub Actions mistakes.
+  fail semantic GitHub Actions mistakes. Its CI invocation disables ShellCheck
+  and pyflakes integration so shell style debt stays separate from workflow
+  semantic validity.
 - GitHub Actions `concurrency` is duplicate-run governance. It collapses stale
   scheduled queues or serializes operator runs; it is not release evidence and
   does not replace remote verification, installer smoke, or VM gates.

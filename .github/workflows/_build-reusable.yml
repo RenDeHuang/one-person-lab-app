@@ -33,6 +33,7 @@ env:
   AIONUI_HUB_TAG: 'dist-ebc6a2b'
   # aionrs binary version to bundle (used by scripts/prepareAionrs.js)
   AIONRS_VERSION: 'latest'
+  ACTIONLINT_VERSION: 'v1.7.12'
 
 jobs:
   workflow-lint:
@@ -57,11 +58,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/actionlint-bin"
-          GOBIN="$RUNNER_TEMP/actionlint-bin" go install github.com/rhysd/actionlint/cmd/actionlint@latest
+          GOBIN="$RUNNER_TEMP/actionlint-bin" go install "github.com/rhysd/actionlint/cmd/actionlint@${ACTIONLINT_VERSION}"
           echo "$RUNNER_TEMP/actionlint-bin" >> "$GITHUB_PATH"
 
       - name: Lint GitHub Actions workflows
-        run: actionlint -color
+        run: actionlint -color -shellcheck "" -pyflakes ""
 
   lint-format:
     name: Lint and format

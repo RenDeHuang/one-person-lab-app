@@ -2342,6 +2342,7 @@ test('release CI operations policy distinguishes workflow hygiene from release e
   const combinedDocs = `${testingDocs}\n${scriptsDocs}`;
 
   assert.match(combinedDocs, /actionlint[\s\S]*(workflow semantic gate|workflow semantic gate in the reusable build quality jobs)/i);
+  assert.match(combinedDocs, /actionlint[\s\S]*(shellcheck|ShellCheck)[\s\S]*(disabled|separate|style debt)/i);
   assert.match(combinedDocs, /YAML parsing[\s\S]*syntax check|YAML parsing[\s\S]*only proves syntax/i);
   assert.ok(
     !Object.values(packageJson.scripts).some((script) => String(script).includes('actionlint')),
