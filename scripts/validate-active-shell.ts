@@ -242,6 +242,25 @@ function assertShellTextExcludes(shellPaths, relativePath, forbidden, label) {
   return text;
 }
 
+function assertShellFileHash(shellPaths, relativePath, expectedHash, label) {
+  const filePath = path.join(shellPaths.shellRoot, relativePath);
+  assertFile(filePath, label);
+  const result = spawnSync('shasum', ['-a', '256', filePath], {
+    encoding: 'utf8',
+    maxBuffer: commandMaxBuffer,
+  });
+  if (result.error) {
+    throw new Error(`Failed to hash ${label}: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    throw new Error(`Failed to hash ${label}: ${result.stderr.trim()}`);
+  }
+  const actualHash = result.stdout.trim().split(/\s+/)[0];
+  if (actualHash !== expectedHash) {
+    throw new Error(`Active shell ${label} hash must be ${expectedHash}; got ${actualHash}`);
+  }
+}
+
 function validateActiveShellImplementation(shellPaths) {
   const appStateHook = assertShellTextIncludes(
     shellPaths,
@@ -291,12 +310,15 @@ function validateActiveShellImplementation(shellPaths) {
       throw new Error(`Active shell System settings must not use legacy OPL truth/action source ${forbidden}`);
     }
   }
-  if (
-    !systemSettings.includes(
-      'Keep Electron systemInfo only for the legacy update payload shape; visible OPL paths come from app_state.paths.'
-    )
-  ) {
-    throw new Error('Active shell System settings must document that visible OPL paths come from app_state.paths.');
+  for (const expected of [
+    'const paths = oplRecord(appStateQuery.appState.paths)',
+    'oplString(paths.workspace_root_path)',
+    'oplPathString(paths.workspace_root)',
+    'oplString(paths.logs_dir)',
+  ]) {
+    if (!systemSettings.includes(expected)) {
+      throw new Error(`Active shell System settings must derive visible OPL paths from app_state.paths: ${expected}`);
+    }
   }
 
   const runtimeSettings = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/RuntimeSettings/index.tsx');
@@ -317,6 +339,10 @@ function validateActiveShellImplementation(shellPaths) {
 
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
   for (const expected of [
+    "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })",
+    'isCoreLaunchReadyFromAppState',
+    "navigate('/guid', { replace: true })",
+    "document.title = 'One Person Lab App'",
     'formatFullReadinessProgressText',
     'formatMaintenanceProgressText',
     'findNextVisibleStep',
@@ -333,6 +359,10 @@ function validateActiveShellImplementation(shellPaths) {
 
   const firstRunModel = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/initializeModel.ts');
   for (const expected of [
+    'isCoreLaunchReadyFromAppState',
+    'api_key_present',
+    'workspace_root',
+    'version_status',
     'ready_full_readiness_count',
     'total_full_readiness_count',
     'ready_optional_count',
@@ -340,7 +370,7 @@ function validateActiveShellImplementation(shellPaths) {
     'next_visible_step',
   ]) {
     if (!firstRunModel.includes(expected)) {
-      throw new Error(`Active shell FirstRun model must consume initialize progress field ${expected}`);
+      throw new Error(`Active shell FirstRun model must consume App state and initialize progress field ${expected}`);
     }
   }
 
@@ -364,8 +394,8 @@ function validateActiveShellImplementation(shellPaths) {
   );
   for (const expected of [
     'getOplDefaultExecutorAgentKey',
-    'const OPL_DEFAULT_AGENT_KEY = getOplDefaultExecutorAgentKey()',
-    'useState<string>(OPL_DEFAULT_AGENT_KEY)',
+    'resolveOplDefaultAgentKey(undefined)',
+    "agent_type: assistant.preset_agent_type || getOplDefaultExecutorAgentKey()",
     'useState<string>(CODEX_MODE_NATIVE_FULL_ACCESS)',
   ]) {
     if (!guidAgentSelection.includes(expected)) {
@@ -410,14 +440,14 @@ function validateActiveShellImplementation(shellPaths) {
   if (!presets.includes("export const CODEX_THEME_ID = 'codex'")) {
     throw new Error('Active shell theme presets must expose CODEX_THEME_ID=codex.');
   }
-  if (!presets.includes("glittering-input-field.css?raw")) {
+  if (!presets.includes("opl-codex.css?raw")) {
     throw new Error('Active shell theme presets must load the current App-owned Codex CSS payload.');
   }
   const codexCss = readShellText(
     shellPaths,
-    'packages/desktop/src/renderer/pages/settings/DisplaySettings/presets/glittering-input-field.css',
+    'packages/desktop/src/renderer/pages/settings/DisplaySettings/presets/opl-codex.css',
   );
-  for (const expected of ['--opl-codex-sidebar-bg', '--opl-codex-card-bg', '--opl-codex-placeholder']) {
+  for (const expected of ['--opl-codex-sidebar-bg', '--opl-codex-surface', '--opl-codex-focus-ring']) {
     if (!codexCss.includes(expected)) {
       throw new Error(`Active shell OPL Codex CSS must include ${expected}`);
     }
@@ -432,7 +462,7 @@ function validateActiveShellImplementation(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/components/settings/SettingsModal/contents/AboutModalContent.tsx',
   );
-  for (const expected of ['useOplAppState', 'guiShellVersion', 'oplFrameworkVersion', 'includePrereleaseUpdates']) {
+  for (const expected of ['useOplAppState', 'guiVersion', 'frameworkVersion', 'includeNightlyUpdates']) {
     if (!about.includes(expected)) {
       throw new Error(`Active shell About page must implement ${expected}`);
     }
@@ -440,6 +470,57 @@ function validateActiveShellImplementation(shellPaths) {
   if (/AionUI version|Aion UI version/.test(about)) {
     throw new Error('Active shell About page must not present AionUI as the App version.');
   }
+
+  const indexHtml = readShellText(shellPaths, 'packages/desktop/src/renderer/index.html');
+  for (const expected of [
+    '<meta name="application-name" content="One Person Lab App" />',
+    '<meta name="apple-mobile-web-app-title" content="One Person Lab App" />',
+    '<title>One Person Lab App</title>',
+  ]) {
+    if (!indexHtml.includes(expected)) {
+      throw new Error(`Active shell HTML branding must include ${expected}`);
+    }
+  }
+  for (const forbidden of ['content="AionUi"', '<title>AionUi</title>']) {
+    if (indexHtml.includes(forbidden)) {
+      throw new Error(`Active shell HTML branding must not expose ${forbidden}`);
+    }
+  }
+
+  const webManifest = readShellText(shellPaths, 'public/manifest.webmanifest');
+  for (const expected of [
+    '"name": "One Person Lab App"',
+    '"short_name": "OPL"',
+    '"description": "One Person Lab App for Codex-first OPL workflows."',
+  ]) {
+    if (!webManifest.includes(expected)) {
+      throw new Error(`Active shell web manifest branding must include ${expected}`);
+    }
+  }
+  if (webManifest.includes('"name": "AionUi"') || webManifest.includes('"short_name": "AionUi"')) {
+    throw new Error('Active shell web manifest must not expose upstream AionUi branding.');
+  }
+
+  for (const relativePath of ['resources/app.png', 'resources/icon.png', 'resources/app_dev.png']) {
+    assertShellFileHash(
+      shellPaths,
+      relativePath,
+      '540a7a393e26ab84c9ab9a4ccae121bc41d8963b19febcef5cf7acc685d5786c',
+      `${relativePath} OPL icon`,
+    );
+  }
+  assertShellFileHash(
+    shellPaths,
+    'resources/app.icns',
+    'cafe7b133ef70027332b97d5a25ddf1223e870a137814cb86ec3f0e51ca73216',
+    'resources/app.icns OPL icon',
+  );
+  assertShellFileHash(
+    shellPaths,
+    'resources/app.ico',
+    'ddf1071a56ff912b39c77543b158592b8b87f72382a11e1779e6b69b608e0ef7',
+    'resources/app.ico OPL icon',
+  );
 }
 
 function assertCommandSurface(value, expected, label) {
