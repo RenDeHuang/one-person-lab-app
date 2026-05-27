@@ -65,10 +65,10 @@ is unavailable, refs-only dry-run/execute action commands, receipt/count refresh
 after execute, and explicit non-authority boundary fields.
 
 Release evidence bundle validation requires `evidence-manifest.json` plus the
-contracted artifact files. When a local lane cannot produce a clean VM smoke,
-settings smoke, remote Release verification, OPL runtime JSON, or screenshots,
-the manifest must mark those entries as `missing`; `--allow-missing-evidence`
-then validates the gap report without treating it as packaged App evidence.
+contracted artifact files. When a local lane cannot produce clean VM smoke
+summaries, remote Release verification, OPL runtime JSON, or screenshots, the
+manifest must mark those entries as `missing`; `--allow-missing-evidence` then
+validates the gap report without treating it as packaged App evidence.
 `collect-release-evidence.ts` can fill the OPL runtime JSON and selected
 safe-action dry-run/execute artifacts from the live Framework CLI before that
 validation step.

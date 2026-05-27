@@ -66,6 +66,37 @@ function writeRuntimeEvidenceJsonFiles(tempRoot) {
   );
 }
 
+function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
+  const settingsSmoke = { status: 'passed', pages: ['overview', 'runtime', 'capabilities', 'access', 'appearance', 'system', 'about'] };
+  const guestSummary = {
+    surface_id: 'opl_packaged_gui_first_run_smoke',
+    status: 'passed',
+    runtime_profile: runtimeProfile,
+    gui_ready: {
+      hash: '#/guid',
+      textLength: 240,
+      hasGuidInput: true,
+      hasGuidSendButton: true,
+      hasAgentPill: true,
+    },
+    codex_config_wizard_seen: runtimeProfile === 'full',
+    codex_config_wizard_submitted: runtimeProfile === 'full',
+    settings_smoke: settingsSmoke,
+  };
+  writeFile(path.join(tempRoot, 'artifacts', 'smoke-summary.json'), `${JSON.stringify(guestSummary)}\n`);
+  writeFile(
+    path.join(tempRoot, 'tart-smoke-summary.json'),
+    `${JSON.stringify({
+      surface_id: 'opl_tart_gui_first_run_smoke',
+      status: 'passed',
+      runtime_profile: runtimeProfile,
+      require_codex_config_wizard: runtimeProfile === 'full',
+      settings_smoke: settingsSmoke,
+      guest_summary: guestSummary,
+    })}\n`,
+  );
+}
+
 function writeReleaseMetadata(outDir, version, assetName) {
   writeFile(path.join(outDir, 'latest-mac.yml'), [
     `version: ${version}`,
@@ -705,8 +736,8 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       'screenshots/runtime.png',
       'screenshots/full.png',
       'screenshots/action.png',
-      'first-run.log',
-      'settings-smoke.json',
+      'tart-smoke-summary.json',
+      'artifacts/smoke-summary.json',
       'remote-release-verification.json',
     ],
   );
@@ -722,13 +753,14 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       'full_first_install_release_screenshot',
       'app_runtime_action_screenshot',
       'clean_first_run_vm_smoke',
-      'settings_smoke',
+      'packaged_gui_first_run_smoke',
       'remote_release_verification',
     ],
   );
   assert.deepEqual(fullFirstRun.release_evidence_artifacts, [
-    'first-run.log',
-    'settings-smoke.json',
+    'tart-smoke-summary.json',
+    'artifacts/smoke-summary.json',
+    'artifacts/settings-smoke-summary.json',
   ]);
   for (const forbiddenAuthority of [
     'runtime_truth',
@@ -744,85 +776,10 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
 
 test('release evidence bundle validator accepts the declared Runtime page artifact set', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-'));
-  const artifacts = [
-    {
-      id: 'app_state_summary',
-      path: 'app-state-summary.json',
-      kind: 'json',
-      producer: 'opl app state --profile fast --json',
-      source_kind: 'opl_app_state_summary',
-    },
-    {
-      id: 'app_state_full',
-      path: 'app-state-full.json',
-      kind: 'json',
-      producer: 'opl app state --profile full --json',
-      source_kind: 'opl_app_state_full',
-    },
-    {
-      id: 'drilldown_full',
-      path: 'drilldown-full.json',
-      kind: 'json',
-      producer: 'opl runtime app-operator-drilldown --detail full --json',
-      source_kind: 'opl_app_operator_drilldown_full',
-    },
-    {
-      id: 'action_dry_run_result',
-      path: 'action-dry-run-result.json',
-      kind: 'json',
-      producer: 'opl app action execute --action <action_id> --dry-run --json',
-      source_kind: 'opl_app_action_dry_run',
-    },
-    {
-      id: 'action_execute_result',
-      path: 'action-execute-result.json',
-      kind: 'json',
-      producer: 'opl app action execute --action <action_id> --json',
-      source_kind: 'opl_app_action_execute',
-    },
-    {
-      id: 'runtime_screenshot',
-      path: 'screenshots/runtime.png',
-      kind: 'image',
-      producer: 'Runtime page screenshot',
-      source_kind: 'app_runtime_page_screenshot',
-    },
-    {
-      id: 'full_screenshot',
-      path: 'screenshots/full.png',
-      kind: 'image',
-      producer: 'Full first-install release screenshot',
-      source_kind: 'full_first_install_release_screenshot',
-    },
-    {
-      id: 'action_screenshot',
-      path: 'screenshots/action.png',
-      kind: 'image',
-      producer: 'Runtime action confirmation/result screenshot',
-      source_kind: 'app_runtime_action_screenshot',
-    },
-    {
-      id: 'first_run_log',
-      path: 'first-run.log',
-      kind: 'log',
-      producer: 'clean first-run VM smoke',
-      source_kind: 'clean_first_run_vm_smoke',
-    },
-    {
-      id: 'settings_smoke',
-      path: 'settings-smoke.json',
-      kind: 'json',
-      producer: 'settings smoke',
-      source_kind: 'settings_smoke',
-    },
-    {
-      id: 'remote_release_verification',
-      path: 'remote-release-verification.json',
-      kind: 'json',
-      producer: 'npm run verify-remote-release -- --version <version> --include-full-package --summary-path remote-release-verification.json',
-      source_kind: 'remote_release_verification',
-    },
-  ];
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const artifacts = releaseContract.operator_evidence_bundle.required_artifacts;
   writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
     schema_version: 1,
     purpose: 'app_release_evidence_bundle',
@@ -836,12 +793,11 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
     missing_evidence: [],
   }, null, 2)}\n`);
   writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeFile(path.join(tempRoot, 'settings-smoke.json'), '{"status":"passed","pages_checked":["settings_overview","environment","about","update"]}\n');
+  writeVmSmokeSummaryFiles(tempRoot);
   writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
   writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
-  writeFile(path.join(tempRoot, 'first-run.log'), 'first run passed\n');
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -872,8 +828,8 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
       'runtime_screenshot',
       'full_screenshot',
       'action_screenshot',
-      'first_run_log',
-      'settings_smoke',
+      'first_run_vm_summary',
+      'guest_smoke_summary',
       'remote_release_verification',
     ],
   );
@@ -881,99 +837,22 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
 
 test('release evidence bundle validator fails closed for incomplete packaged App evidence', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-missing-'));
-  const artifacts = [
-    {
-      id: 'app_state_summary',
-      path: 'app-state-summary.json',
-      kind: 'json',
-      producer: 'opl app state --profile fast --json',
-      source_kind: 'opl_app_state_summary',
-      status: 'present',
-    },
-    {
-      id: 'app_state_full',
-      path: 'app-state-full.json',
-      kind: 'json',
-      producer: 'opl app state --profile full --json',
-      source_kind: 'opl_app_state_full',
-      status: 'present',
-    },
-    {
-      id: 'drilldown_full',
-      path: 'drilldown-full.json',
-      kind: 'json',
-      producer: 'opl runtime app-operator-drilldown --detail full --json',
-      source_kind: 'opl_app_operator_drilldown_full',
-      status: 'present',
-    },
-    {
-      id: 'action_dry_run_result',
-      path: 'action-dry-run-result.json',
-      kind: 'json',
-      producer: 'opl app action execute --action <action_id> --dry-run --json',
-      source_kind: 'opl_app_action_dry_run',
-      status: 'present',
-    },
-    {
-      id: 'action_execute_result',
-      path: 'action-execute-result.json',
-      kind: 'json',
-      producer: 'opl app action execute --action <action_id> --json',
-      source_kind: 'opl_app_action_execute',
-      status: 'present',
-    },
-    {
-      id: 'runtime_screenshot',
-      path: 'screenshots/runtime.png',
-      kind: 'image',
-      producer: 'Runtime page screenshot',
-      source_kind: 'app_runtime_page_screenshot',
-      status: 'present',
-    },
-    {
-      id: 'full_screenshot',
-      path: 'screenshots/full.png',
-      kind: 'image',
-      producer: 'Full first-install release screenshot',
-      source_kind: 'full_first_install_release_screenshot',
-      status: 'present',
-    },
-    {
-      id: 'action_screenshot',
-      path: 'screenshots/action.png',
-      kind: 'image',
-      producer: 'Runtime action confirmation/result screenshot',
-      source_kind: 'app_runtime_action_screenshot',
-      status: 'present',
-    },
-    {
-      id: 'first_run_log',
-      path: 'first-run.log',
-      kind: 'log',
-      producer: 'clean first-run VM smoke',
-      source_kind: 'clean_first_run_vm_smoke',
-      status: 'missing',
-      missing_reason: 'clean VM first-run evidence was not generated in this environment',
-    },
-    {
-      id: 'settings_smoke',
-      path: 'settings-smoke.json',
-      kind: 'json',
-      producer: 'settings smoke',
-      source_kind: 'settings_smoke',
-      status: 'missing',
-      missing_reason: 'settings smoke evidence was not generated in this environment',
-    },
-    {
-      id: 'remote_release_verification',
-      path: 'remote-release-verification.json',
-      kind: 'json',
-      producer: 'npm run verify-remote-release -- --version <version> --include-full-package --summary-path remote-release-verification.json',
-      source_kind: 'remote_release_verification',
-      status: 'missing',
-      missing_reason: 'remote release verification was not generated in this environment',
-    },
-  ];
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const missingArtifactIds = new Set(['first_run_vm_summary', 'guest_smoke_summary', 'remote_release_verification']);
+  const artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => (
+    missingArtifactIds.has(artifact.id)
+      ? {
+          ...artifact,
+          status: 'missing',
+          missing_reason: `${artifact.producer} was not generated in this environment`,
+        }
+      : {
+          ...artifact,
+          status: 'present',
+        }
+  ));
   writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
     schema_version: 1,
     purpose: 'app_release_evidence_bundle',
@@ -1020,8 +899,8 @@ test('release evidence bundle validator fails closed for incomplete packaged App
   assert.equal(payload.verified_artifact_count, 8);
   assert.equal(payload.missing_artifact_count, 3);
   assert.deepEqual(payload.missing_artifacts.map((artifact) => artifact.id), [
-    'first_run_log',
-    'settings_smoke',
+    'first_run_vm_summary',
+    'guest_smoke_summary',
     'remote_release_verification',
   ]);
 });
@@ -1052,15 +931,14 @@ test('release evidence bundle validator rejects contract-only runtime JSON place
     'drilldown-full.json',
     'action-dry-run-result.json',
     'action-execute-result.json',
-    'settings-smoke.json',
     'remote-release-verification.json',
   ]) {
     writeFile(path.join(tempRoot, name), '{"status":"passed","refs_only":true}\n');
   }
+  writeVmSmokeSummaryFiles(tempRoot);
   writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
-  writeFile(path.join(tempRoot, 'first-run.log'), 'first run passed\n');
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -1091,8 +969,8 @@ test('release evidence manifest generator records missing artifacts without clai
   assert.equal(generatedPayload.packaged_app_evidence, false);
   assert.equal(generatedPayload.missing_artifact_count, 3);
   assert.deepEqual(generatedPayload.missing_artifacts.map((artifact) => artifact.id), [
-    'first_run_log',
-    'settings_smoke',
+    'first_run_vm_summary',
+    'guest_smoke_summary',
     'remote_release_verification',
   ]);
 
@@ -1100,8 +978,8 @@ test('release evidence manifest generator records missing artifacts without clai
   assert.equal(manifest.status, 'missing_evidence');
   assert.equal(manifest.packaged_app_evidence, false);
   assert.deepEqual(manifest.missing_evidence.map((artifact) => artifact.id), [
-    'first_run_log',
-    'settings_smoke',
+    'first_run_vm_summary',
+    'guest_smoke_summary',
     'remote_release_verification',
   ]);
 
@@ -1216,8 +1094,8 @@ process.exit(2);
     'runtime_screenshot',
     'full_screenshot',
     'action_screenshot',
-    'first_run_log',
-    'settings_smoke',
+    'first_run_vm_summary',
+    'guest_smoke_summary',
     'remote_release_verification',
   ]);
 

@@ -103,5 +103,5 @@ OPL 会检查 Codex、模块、skills 和本机运行环境。等待状态进入
 ## 截图与验证来源
 
 - 截图来自中文 macOS VM，逻辑桌面 1920x1080，Retina 输出 3840x2160。
-- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`，Codex 配置向导出现并提交，最终看到 `opl-guid-entry`。
+- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页和 Settings 可用，Full 版额外验证 Codex 配置向导和 bundled runtime readiness。
 - Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。
