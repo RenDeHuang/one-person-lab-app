@@ -202,7 +202,8 @@
           "app_launch",
           "core_ready_or_app_managed_bootstrap_visible",
           "settings_navigation"
-        ]
+        ],
+        "gate_policy": "deterministic_release_blocking"
       },
       {
         "id": "full_dmg_clean_vm_smoke",
@@ -218,6 +219,7 @@
           "domain_modules_ready",
           "family_runtime_provider_ready"
         ],
+        "gate_policy": "deterministic_release_blocking",
         "post_core_ready_background_policy": "best_effort_non_blocking_until_maintenance_ready"
       }
     ],
@@ -229,6 +231,23 @@
       "settings_smoke": true,
       "runtime_profile": "full",
       "codex_config_wizard": "required_and_submitted",
+      "gate_policy": "deterministic_release_blocking",
+      "preflight_summary_fields": [
+        "runner_labels",
+        "source_vm",
+        "guest_user",
+        "ssh_key_configured",
+        "release_source",
+        "package_profile",
+        "runtime_profile",
+        "dmg_artifact_path",
+        "smoke_profile",
+        "display",
+        "settings_smoke",
+        "artifact_output",
+        "tart_graphics",
+        "temporary_vm_retention"
+      ],
       "release_blocking_readiness": [
         "core_ready",
         "domain_modules_ready",
@@ -242,6 +261,12 @@
         "git availability",
         "managed repo sync"
       ]
+    },
+    "ai_exploratory_policy": {
+      "codex_app": "non_blocking_exploratory_only",
+      "computer_use": "non_blocking_exploratory_only",
+      "release_blocking_requirement": "findings_must_be_promoted_to_deterministic_contract_workflow_or_script_gate",
+      "rule": "AI-assisted exploratory UI checks can discover issues but cannot block or clear release readiness without a deterministic gate."
     }
   },
   "release_validation_profiles": {

@@ -133,7 +133,12 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   submission, bundled runtime materialization, Domain module readiness, and
   family runtime provider readiness. CLT, git, and managed repo sync are
   deferred maintenance and must not block Core, Domain module, or family runtime
-  provider readiness.
+  provider readiness. The App repo VM workflow is the deterministic
+  release-blocking gate for first-run GUI evidence; Codex App or Computer Use
+  sessions may explore UI behavior during triage, but those exploratory checks
+  are non-blocking and cannot replace the Tart VM gate. Any exploratory finding
+  that should affect release readiness must be converted into a deterministic
+  contract, workflow, or script gate before it can block or clear a release.
 - One-shot installer: the App root `install.sh` remains the public entrypoint.
   Stable verification runs it against a checked-out Framework installer with
   `OPL_INSTALL_SCRIPT_URL=file://.../one-person-lab/install.sh ./install.sh

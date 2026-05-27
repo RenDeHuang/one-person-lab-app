@@ -165,16 +165,53 @@ jobs:
           "${publish_args[@]}"
 
   full-first-install:
-    name: Build and publish Full first-install assets
-    needs: publish-standard
+    name: Build Full first-install assets
     if: ${{ inputs.include_full_package }}
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       opl_version: ${{ inputs.opl_version }}
       framework_ref: ${{ inputs.framework_ref }}
-      publish_to_release: true
+      publish_to_release: false
       force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache }}
     secrets: inherit
+
+  publish-full-assets:
+    name: Publish Full first-install assets
+    runs-on: ubuntu-latest
+    needs:
+      - publish-standard
+      - full-first-install
+    if: ${{ inputs.include_full_package }}
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Download Full package workflow artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: opl-full-first-install-${{ inputs.opl_version }}-mac-arm64
+          path: full-package-artifacts
+
+      - name: Publish Full assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        run: |
+          npm run release:publish -- \
+            --no-build \
+            --version "$OPL_RELEASE_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --full-package-only \
+            --include-full-package \
+            --full-package-dir full-package-artifacts
 
   remote-verify-standard:
     name: Verify remote standard release assets
@@ -210,7 +247,7 @@ jobs:
 
   remote-verify-full:
     name: Verify remote standard and Full release assets
-    needs: full-first-install
+    needs: publish-full-assets
     if: ${{ inputs.include_full_package }}
     runs-on: ubuntu-latest
 
@@ -253,7 +290,7 @@ jobs:
 
   standard-first-run-vm-smoke-after-full:
     name: Run clean standard first-run VM smoke
-    needs: remote-verify-full
+    needs: publish-standard
     if: ${{ inputs.include_full_package && inputs.run_vm_smoke }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
@@ -336,6 +373,8 @@ jobs:
         run: |
           set -euo pipefail
           docker build -t "one-person-lab-webui:${{ inputs.opl_version }}" shells/aionui
+          docker image inspect "one-person-lab-webui:${{ inputs.opl_version }}" \
+            --format '{{.Size}}' > /tmp/opl-webui-image-size-bytes.txt
           container="$(docker run --rm -d -p 127.0.0.1::3000 "one-person-lab-webui:${{ inputs.opl_version }}")"
           cleanup() {
             docker rm -f "$container" >/dev/null 2>&1 || true
@@ -357,4 +396,5 @@ jobs:
           path: |
             /tmp/opl-webui-index.html
             /tmp/opl-webui-manifest.webmanifest
+            /tmp/opl-webui-image-size-bytes.txt
           if-no-files-found: error

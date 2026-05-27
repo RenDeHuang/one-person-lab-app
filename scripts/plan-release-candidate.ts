@@ -8,6 +8,7 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 type Lane = {
   id: string;
   phase: 'fast_candidate' | 'parallel_build' | 'remote_gate' | 'installation_gate' | 'release_gate' | 'publish';
+  depends_on: string[];
   can_run_with: string[];
   command: string;
   required_for: string[];
@@ -76,6 +77,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
         {
           id: 'release_boundary',
           phase: 'fast_candidate',
+          depends_on: [],
           can_run_with: ['standard_build'],
           command: 'npm run test:release-boundary',
           required_for: ['nightly_standard_release'],
@@ -83,6 +85,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
         {
           id: 'standard_build',
           phase: 'parallel_build',
+          depends_on: [],
           can_run_with: ['release_boundary'],
           command: `npm run build-mac:arm64 && node --experimental-strip-types scripts/validate-release.ts release-assets`,
           required_for: ['nightly_standard_release'],
@@ -90,6 +93,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
         {
           id: 'publish_nightly_prerelease',
           phase: 'publish',
+          depends_on: ['standard_build', 'release_boundary'],
           can_run_with: [],
           command: `.github/workflows/nightly-standard-release.yml publishes v${options.version} as --prerelease --latest=false`,
           required_for: ['nightly_standard_release'],
@@ -97,6 +101,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
         {
           id: 'remote_verify_standard',
           phase: 'remote_gate',
+          depends_on: ['publish_nightly_prerelease'],
           can_run_with: [],
           command: `npm run verify-remote-release -- --version ${options.version}`,
           required_for: ['nightly_standard_release'],
@@ -109,27 +114,31 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     {
       id: 'release_boundary',
       phase: 'fast_candidate',
-      can_run_with: ['standard_build', 'full_runtime_keys'],
+      depends_on: [],
+      can_run_with: ['standard_build', 'full_runtime_keys', 'active_shell_quick_validation'],
       command: 'npm run test:release-boundary',
       required_for: ['standard_release', 'full_first_install'],
     },
     {
       id: 'standard_build',
       phase: 'parallel_build',
-      can_run_with: ['release_boundary', 'full_build'],
+      depends_on: [],
+      can_run_with: options.includeFullPackage ? ['full_build'] : [],
       command: `npm run build-mac:arm64 && npm run release:publish -- --dry-run --version ${options.version}`,
       required_for: ['standard_release'],
     },
     {
       id: 'full_runtime_keys',
       phase: 'fast_candidate',
-      can_run_with: ['release_boundary', 'standard_build'],
+      depends_on: ['release_boundary'],
+      can_run_with: ['active_shell_quick_validation', 'standard_build'],
       command: `npm run release:full -- --version ${options.version} --print-runtime-cache-keys`,
       required_for: ['full_first_install'],
     },
     {
       id: 'active_shell_quick_validation',
       phase: 'fast_candidate',
+      depends_on: [],
       can_run_with: ['release_boundary', 'full_runtime_keys'],
       command: 'npm run validate:active-shell -- --quick',
       required_for: ['standard_release', 'full_first_install'],
@@ -140,7 +149,8 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     lanes.push({
       id: 'full_build',
       phase: 'parallel_build',
-      can_run_with: ['standard_build'],
+      depends_on: ['full_runtime_keys'],
+      can_run_with: ['standard_build', 'release_boundary', 'active_shell_quick_validation'],
       command: [
         'OPL_FULL_RUNTIME_CACHE_MODE=readwrite',
         'npm run release:full --',
@@ -150,11 +160,45 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     });
   }
 
+  lanes.push({
+    id: 'publish_standard',
+    phase: 'publish',
+    depends_on: ['standard_build', 'release_boundary', 'active_shell_quick_validation'],
+    can_run_with: options.includeFullPackage ? ['full_build'] : [],
+    command: `.github/workflows/desktop-release.yml publishes standard assets for v${options.version}`,
+    required_for: ['standard_release'],
+  });
+
+  if (options.includeFullPackage) {
+    lanes.push({
+      id: 'publish_full_assets',
+      phase: 'publish',
+      depends_on: ['publish_standard', 'full_build'],
+      can_run_with: [
+        'standard_dmg_clean_vm_smoke',
+        'one_shot_app_installer_smoke',
+        'docker_webui_smoke',
+      ],
+      command: [
+        'npm run release:publish --',
+        '--no-build',
+        `--version ${options.version}`,
+        '--full-package-only',
+        '--include-full-package',
+        '--full-package-dir <downloaded-full-package-artifact>',
+      ].join(' '),
+      required_for: ['full_first_install'],
+    });
+  }
+
   if (options.settingsVm) {
     lanes.push({
       id: 'standard_dmg_clean_vm_smoke',
       phase: 'installation_gate',
-      can_run_with: [],
+      depends_on: ['publish_standard'],
+      can_run_with: options.includeFullPackage
+        ? ['full_build', 'publish_full_assets', 'one_shot_app_installer_smoke', 'docker_webui_smoke']
+        : ['one_shot_app_installer_smoke', 'docker_webui_smoke'],
       command: [
         'npm run test:opl-first-run-vm:tart --',
         '--source-vm opl-first-run-no-clt-clean-base',
@@ -169,6 +213,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     lanes.push({
       id: 'full_dmg_clean_vm_smoke',
       phase: 'release_gate',
+      depends_on: ['remote_verify_standard_and_full'],
       can_run_with: [],
       command: [
         'npm run test:opl-first-run-vm:tart --',
@@ -186,7 +231,10 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   lanes.push({
     id: 'remote_verify_standard_and_full',
     phase: 'remote_gate',
-    can_run_with: [],
+    depends_on: options.includeFullPackage ? ['publish_full_assets'] : ['publish_standard'],
+    can_run_with: options.includeFullPackage
+      ? ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke', 'docker_webui_smoke']
+      : ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke', 'docker_webui_smoke'],
     command: [
       'npm run verify-remote-release --',
       `--version ${options.version}`,
@@ -198,7 +246,10 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   lanes.push({
     id: 'one_shot_app_installer_smoke',
     phase: 'installation_gate',
-    can_run_with: ['docker_webui_smoke'],
+    depends_on: ['publish_standard'],
+    can_run_with: options.includeFullPackage
+      ? ['standard_dmg_clean_vm_smoke', 'full_build', 'publish_full_assets', 'docker_webui_smoke']
+      : ['standard_dmg_clean_vm_smoke', 'docker_webui_smoke'],
     command: 'OPL_INSTALL_SCRIPT_URL=file://<framework-checkout>/install.sh ./install.sh --complete --skip-modules',
     required_for: ['stable_release'],
   });
@@ -206,7 +257,10 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   lanes.push({
     id: 'docker_webui_smoke',
     phase: 'installation_gate',
-    can_run_with: ['one_shot_app_installer_smoke'],
+    depends_on: ['publish_standard'],
+    can_run_with: options.includeFullPackage
+      ? ['standard_dmg_clean_vm_smoke', 'full_build', 'publish_full_assets', 'one_shot_app_installer_smoke']
+      : ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke'],
     command: [
       `docker build -t one-person-lab-webui:${options.version} shells/aionui`,
       `docker run --rm -d -p 127.0.0.1::3000 one-person-lab-webui:${options.version}`,
@@ -219,6 +273,13 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   lanes.push({
     id: 'release_evidence_bundle',
     phase: 'release_gate',
+    depends_on: [
+      'remote_verify_standard_and_full',
+      ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
+      ...(options.includeFullPackage && options.settingsVm ? ['full_dmg_clean_vm_smoke'] : []),
+      'one_shot_app_installer_smoke',
+      'docker_webui_smoke',
+    ],
     can_run_with: [],
     command: `npm run release:evidence:validate -- --bundle-dir release-evidence/${options.version}`,
     required_for: ['stable_release'],
@@ -227,6 +288,12 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   lanes.push({
     id: 'publish_new_tag',
     phase: 'publish',
+    depends_on: [
+      'release_evidence_bundle',
+      'remote_verify_standard_and_full',
+      'publish_standard',
+      ...(options.includeFullPackage ? ['publish_full_assets'] : []),
+    ],
     can_run_with: [],
     command: [
       'npm run release:publish --',

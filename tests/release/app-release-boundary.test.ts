@@ -2102,7 +2102,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /remote-verify-full:/);
   assert.match(workflow, /npm run verify-remote-release/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
-  assert.match(workflow, /publish_to_release: true/);
+  assert.match(workflow, /publish_to_release: false/);
+  assert.match(workflow, /publish-full-assets:/);
+  assert.match(workflow, /--full-package-dir full-package-artifacts/);
+  assert.match(workflow, /remote-verify-full:[\s\S]*needs: publish-full-assets/);
+  assert.match(workflow, /standard-first-run-vm-smoke-after-full:[\s\S]*needs: publish-standard/);
   assert.match(workflow, /run_vm_smoke:/);
   assert.match(workflow, /default: true/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-standard-only:/);
@@ -2158,6 +2162,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /--smoke-profile no-clt-clean-vm/);
   assert.match(vmWorkflow, /--display 1920x1080px/);
   assert.match(vmWorkflow, /--settings-smoke/);
+  assert.match(vmWorkflow, /Write first-run VM preflight summary/);
+  assert.match(vmWorkflow, /deterministic release-blocking clean VM first launch/);
   assert.match(vmWorkflow, /--runtime-profile "\$\{\{ steps\.package_profile\.outputs\.runtime_profile \}\}"/);
   assert.equal(
     releaseContract.standard_updater.same_tag_refresh.mode,
@@ -2175,30 +2181,18 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     releaseContract.release_acceleration.vm_gates.map((gate) => gate.id),
     ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke'],
   );
-  assert.deepEqual(
-    releaseContract.release_acceleration.vm_gate,
-    {
-      source: 'clean no-CLT Tart base clone',
-      artifact: 'One-Person-Lab-Full-<version>-mac-arm64.dmg',
-      smoke_profile: 'no-clt-clean-vm',
-      display: '1920x1080px',
-      settings_smoke: true,
-      runtime_profile: 'full',
-      codex_config_wizard: 'required_and_submitted',
-      release_blocking_readiness: [
-        'core_ready',
-        'domain_modules_ready',
-        'family_runtime_provider_ready',
-      ],
-      post_core_ready_background_policy: 'best_effort_non_blocking_until_maintenance_ready',
-      non_blocking_deferred_maintenance: [
-        'Command Line Tools installation',
-        'companion skills install',
-        'ecosystem module updates',
-        'git availability',
-        'managed repo sync',
-      ],
-    },
+  assert.equal(releaseContract.release_acceleration.vm_gate.gate_policy, 'deterministic_release_blocking');
+  assert.equal(releaseContract.release_acceleration.vm_gate.source, 'clean no-CLT Tart base clone');
+  assert.equal(releaseContract.release_acceleration.vm_gate.artifact, 'One-Person-Lab-Full-<version>-mac-arm64.dmg');
+  assert.equal(releaseContract.release_acceleration.vm_gate.smoke_profile, 'no-clt-clean-vm');
+  assert.equal(releaseContract.release_acceleration.vm_gate.display, '1920x1080px');
+  assert.equal(releaseContract.release_acceleration.vm_gate.runtime_profile, 'full');
+  assert.ok(releaseContract.release_acceleration.vm_gate.preflight_summary_fields.includes('runner_labels'));
+  assert.ok(releaseContract.release_acceleration.vm_gate.preflight_summary_fields.includes('dmg_artifact_path'));
+  assert.equal(releaseContract.release_acceleration.ai_exploratory_policy.codex_app, 'non_blocking_exploratory_only');
+  assert.equal(
+    releaseContract.release_acceleration.ai_exploratory_policy.release_blocking_requirement,
+    'findings_must_be_promoted_to_deterministic_contract_workflow_or_script_gate',
   );
   assert.equal(
     releaseContract.release_acceleration.github_actions.draft_candidate_mode,
@@ -2348,7 +2342,7 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /\[\[ "\$codex_version" == "codex-cli \$codex_latest" \]\]/);
   assert.equal(matchCount(workflow, /name: Checkout MinerU Ecosystem/g), 1);
   assert.equal(matchCount(workflow, /repository: opendatalab\/MinerU-Ecosystem/g), 1);
-  assert.equal(matchCount(workflow, /path: MinerU-Ecosystem/g), 1);
+  assert.equal(matchCount(workflow, /^\s+path: MinerU-Ecosystem$/gm), 1);
   assert.match(workflow, /mineru_root="\$GITHUB_WORKSPACE\/MinerU-Ecosystem\/cli\/mineru-open-api"/);
   assert.match(workflow, /cd "\$mineru_root"[\s\S]*go install -ldflags/);
   assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
@@ -2357,6 +2351,7 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.date=\$mineru_built_at/);
   assert.match(workflow, /name: Summarize Full package size/);
   assert.match(workflow, /npm run release:full:size -- --markdown >> "\$GITHUB_STEP_SUMMARY"/);
+  assert.match(workflow, /name: Summarize Full caches and timings/);
 });
 
 test('Full release docs publish size policy and remote verifier budget boundaries', () => {
@@ -2374,6 +2369,7 @@ test('Full release docs publish size policy and remote verifier budget boundarie
     '.codegraph',
     'runtime-state',
     'domain repositories',
+    'domain repository',
   ]) {
     assert.match(combinedDocs, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
   }
@@ -2442,6 +2438,8 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.match(markdownResult.stdout, /\| Component \| Size \| Runtime % \| Version \/ Commit \|/);
   assert.match(markdownResult.stdout, /mas/);
   assert.match(markdownResult.stdout, /50% used/);
+  assert.match(markdownResult.stdout, /Runtime budget: 1000 B \(50% used\)/);
+  assert.match(markdownResult.stdout, /\| mas \| 180 B \| 36% \|/);
 });
 
 test('release docs lock first-install maintenance and updater reference boundaries', () => {

@@ -78,7 +78,12 @@ profiles clone a clean no-CLT Tart base VM, fix the logical display at
 submits the Codex/OpenAI API key configuration wizard and keeps Full runtime
 readiness on the release-blocking path. Command Line Tools, git availability,
 and managed repo sync are deferred maintenance and must not block Core, Domain
-module, or family runtime provider readiness for the Full first-run gate.
+module, or family runtime provider readiness for the Full first-run gate. The
+workflow writes a preflight summary with runner labels, source VM, guest user,
+package/runtime profile, DMG path, display, and artifact output before executing
+the smoke. Codex App and Computer Use checks are non-blocking exploratory tools;
+release-blocking App readiness must live in deterministic scripts, contracts, or
+GitHub Actions gates.
 Scheduled GitHub Actions runs must have repository variable
 `OPL_FIRST_RUN_TART_SOURCE` set to a local Tart source VM on the self-hosted
 runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18`.

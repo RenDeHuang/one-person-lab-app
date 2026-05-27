@@ -92,10 +92,10 @@ function componentEntries(manifest: Record<string, any>) {
   return Object.entries(manifest.components ?? {})
     .map(([id, component]) => ({
       id,
-      size_bytes: Number.isFinite(component?.size_bytes) ? component.size_bytes : null,
-      version: component?.version ?? null,
-      git_commit: component?.git_commit ?? null,
-      role: component?.role ?? null,
+      size_bytes: Number.isFinite((component as any)?.size_bytes) ? (component as any).size_bytes : null,
+      version: (component as any)?.version ?? null,
+      git_commit: (component as any)?.git_commit ?? null,
+      role: (component as any)?.role ?? null,
     }))
     .sort((left, right) => (right.size_bytes ?? -1) - (left.size_bytes ?? -1));
 }
@@ -230,4 +230,9 @@ function main() {
   }
 }
 
-main();
+try {
+  main();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}

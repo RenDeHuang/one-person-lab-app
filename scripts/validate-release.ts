@@ -13,12 +13,17 @@ const shellPaths = resolveActiveShellPaths();
 
 const result = spawnSync('bash', [shellPaths.releaseVerifyScriptPath, outputDir], {
   cwd: shellPaths.shellRoot,
-  stdio: 'inherit',
+  stdio: 'pipe',
+  encoding: 'utf8',
   env: process.env,
 });
 if (result.status !== 0) {
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
   process.exit(result.status ?? 1);
 }
+if (result.stdout) process.stdout.write(result.stdout);
+if (result.stderr) process.stderr.write(result.stderr);
 
 if (!existsSync(outputDir)) {
   console.error(`Release asset directory does not exist: ${outputDir}`);

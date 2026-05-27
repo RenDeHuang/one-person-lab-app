@@ -88,7 +88,12 @@ builds that should run on GitHub runners instead of this Mac.
   submits the Codex/OpenAI API key configuration wizard and checks Full runtime
   readiness. CLT installation, git availability, and managed repo sync are
   deferred maintenance and must not block Core, Domain module, or family runtime
-  provider readiness on first launch.
+  provider readiness on first launch. This VM workflow is deterministic
+  release-blocking evidence for stable release readiness. Codex App and
+  Computer Use browser/desktop sessions are allowed only as non-blocking
+  exploratory triage; if they reveal release-relevant behavior, the finding
+  must be captured as a deterministic contract, workflow, or script gate before
+  it can block promotion or be used to clear a release.
 - Scheduled **OPL GUI First-Run VM** runs use a dedicated GitHub Actions
   concurrency group with `cancel-in-progress` enabled, so nightly clean-VM
   backlog collapses to the newest scheduled run instead of occupying the
@@ -312,6 +317,18 @@ The current size-control design is one step, not a separate research phase:
 - fail remote verification when published assets exceed the manifest budgets.
 - treat new large components as acceptable only when the manifest shows the
   intentional owner and layer that grew.
+
+The speed design is one release graph, not separate manual phases:
+
+- Nightly publishes only standard updater assets.
+- Stable starts standard and Full builds as early as their gates allow.
+- Standard DMG VM, one-shot installer, and Docker/WebUI start after the standard
+  assets are published.
+- Full assets publish only after the standard release exists and the Full build
+  artifact is available.
+- Full remote verification and Full DMG VM stay on the Full path.
+- cache hit/miss and size summaries are audit surfaces only; manifest,
+  SHA256SUMS, remote verification, and size budget checks still run every time.
 
 Publishing to an existing tag is intentional for Full first-install refreshes:
 `scripts/publish-release.ts` uses `gh release upload --clobber`, so the same

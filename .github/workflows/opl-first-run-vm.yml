@@ -97,6 +97,7 @@ jobs:
     timeout-minutes: 90
     env:
       GH_TOKEN: ${{ github.token }}
+      OPL_FIRST_RUN_RUNNER_LABELS: ${{ vars.OPL_FIRST_RUN_RUNNER_LABELS }}
       OPL_FIRST_RUN_TART_SOURCE: ${{ vars.OPL_FIRST_RUN_TART_SOURCE }}
       OPL_FIRST_RUN_GUEST_USER: ${{ vars.OPL_FIRST_RUN_GUEST_USER }}
       OPL_FIRST_RUN_GUEST_SSH_KEY: ${{ vars.OPL_FIRST_RUN_GUEST_SSH_KEY }}
@@ -207,6 +208,58 @@ jobs:
           fi
           echo "dmg_path=$DMG_PATH" >> "$GITHUB_OUTPUT"
           echo "Using DMG: $DMG_PATH"
+
+      - name: Write first-run VM preflight summary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          GUEST_USER="${{ inputs.guest_user }}"
+          if [ -z "$GUEST_USER" ]; then
+            GUEST_USER="${OPL_FIRST_RUN_GUEST_USER:-runner}"
+          fi
+
+          SSH_KEY="${{ inputs.guest_ssh_key_path }}"
+          if [ -z "$SSH_KEY" ]; then
+            SSH_KEY="${OPL_FIRST_RUN_GUEST_SSH_KEY:-}"
+          fi
+
+          RUNNER_LABELS="${OPL_FIRST_RUN_RUNNER_LABELS:-}"
+          if [ -z "$RUNNER_LABELS" ]; then
+            RUNNER_LABELS='["self-hosted","macOS","opl-gui-vm"]'
+          fi
+
+          RELEASE_SOURCE="latest GitHub Release"
+          if [ -n "${{ inputs.release_dmg_url }}" ]; then
+            RELEASE_SOURCE="direct DMG URL"
+          elif [ -n "${{ inputs.release_tag }}" ]; then
+            RELEASE_SOURCE="GitHub Release tag ${{ inputs.release_tag }}"
+          fi
+
+          SSH_KEY_STATUS="not configured"
+          if [ -n "$SSH_KEY" ]; then
+            SSH_KEY_STATUS="configured on runner"
+          fi
+
+          {
+            echo "## OPL GUI first-run VM preflight"
+            echo
+            echo "- Gate: deterministic release-blocking clean VM first launch"
+            echo "- Runner labels: \`$RUNNER_LABELS\`"
+            echo "- Source VM: \`${{ steps.tart_source.outputs.source_vm }}\`"
+            echo "- Guest user: \`$GUEST_USER\`"
+            echo "- SSH key: $SSH_KEY_STATUS"
+            echo "- Release source: $RELEASE_SOURCE"
+            echo "- Package profile: \`${{ steps.package_profile.outputs.profile }}\`"
+            echo "- Runtime profile: \`${{ steps.package_profile.outputs.runtime_profile }}\`"
+            echo "- DMG artifact path: \`${{ steps.dmg.outputs.dmg_path }}\`"
+            echo "- Smoke profile: \`no-clt-clean-vm\`"
+            echo "- Display: \`1920x1080px\`"
+            echo "- Settings smoke: enabled"
+            echo "- Artifact output: \`artifacts/opl-first-run-vm\`"
+            echo "- Tart graphics: ${{ inputs.no_graphics && 'disabled (--no-graphics)' || 'enabled' }}"
+            echo "- Temporary VM retention: ${{ inputs.keep_vm && 'keep for debugging' || 'clean up after run' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run clean VM first launch smoke
         shell: bash

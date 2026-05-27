@@ -126,28 +126,57 @@ jobs:
         run: |
           set -euo pipefail
           echo "OPL_RELEASE_VERSION=${{ inputs.opl_version }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_WORKFLOW_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
+        id: node-cache
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: one-person-lab/package-lock.json
+          cache-dependency-path: |
+            one-person-lab/package-lock.json
+            redcube-ai/package-lock.json
 
       - name: Setup bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
+      - name: Cache Bun install cache
+        id: bun-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: full-bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock') }}
+          restore-keys: |
+            full-bun-install-${{ runner.os }}-${{ runner.arch }}-
+            full-bun-install-${{ runner.os }}-
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
+      - name: Cache uv artifacts
+        id: uv-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/Library/Caches/uv
+          key: full-uv-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('med-autoscience/uv.lock', 'med-autoscience/pyproject.toml', 'med-autogrant/uv.lock', 'med-autogrant/pyproject.toml') }}
+          restore-keys: |
+            full-uv-${{ runner.os }}-${{ runner.arch }}-
+            full-uv-${{ runner.os }}-
+
       - name: Setup Go
+        id: go-cache
         uses: actions/setup-go@v5
         with:
           go-version: '1.26.x'
+          cache: true
+          cache-dependency-path: MinerU-Ecosystem/cli/mineru-open-api/go.sum
 
       - name: Install uv, zstd, Codex CLI, OfficeCLI, and MinerU
         shell: bash
@@ -178,14 +207,19 @@ jobs:
           mineru-open-api version
           uv --version
           zstd --version
+          echo "OPL_FULL_TOOLCHAIN_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Install Framework dependencies
         working-directory: one-person-lab
-        run: npm ci
+        run: |
+          npm ci
+          echo "OPL_FULL_FRAMEWORK_DEPS_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Build Framework CLI payload
         working-directory: one-person-lab
-        run: npm run build
+        run: |
+          npm run build
+          echo "OPL_FULL_FRAMEWORK_BUILD_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Install App shell dependencies
         working-directory: one-person-lab-app/shells/aionui
@@ -195,6 +229,7 @@ jobs:
           bun install --frozen-lockfile
           bun run postinstall || true
           bunx electron-builder install-app-deps
+          echo "OPL_FULL_SHELL_DEPS_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Prepare domain runtime dependencies
         shell: bash
@@ -204,6 +239,7 @@ jobs:
           uv sync --project med-autogrant --no-dev
           npm ci --prefix redcube-ai
           npm run --prefix redcube-ai build
+          echo "OPL_FULL_DOMAIN_DEPS_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Resolve Full runtime cache keys
         id: runtime-cache-keys
@@ -320,6 +356,7 @@ jobs:
             --version "$OPL_RELEASE_VERSION" \
             --runtime-cache-dir "${{ steps.runtime-cache-keys.outputs.cache_dir }}" \
             --runtime-cache-mode readwrite
+          echo "OPL_FULL_PACKAGE_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Verify Full package checksums and optional signing
         shell: bash
@@ -337,6 +374,50 @@ jobs:
           fi
           hdiutil verify "$dmg_path"
           (cd "$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release" && shasum -a 256 -c SHA256SUMS.txt)
+          echo "OPL_FULL_VERIFY_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Summarize Full package size
+        working-directory: one-person-lab-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run release:full:size -- --markdown >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summarize Full caches and timings
+        shell: bash
+        run: |
+          set -euo pipefail
+          duration() {
+            local start="$1"
+            local end="$2"
+            if [ -z "$start" ] || [ -z "$end" ]; then
+              echo "n/a"
+            else
+              echo "$((end - start))s"
+            fi
+          }
+          {
+            echo
+            echo "## Full Runtime Cache and Timing"
+            echo
+            echo "| Surface | Cache hit |"
+            echo "| --- | --- |"
+            echo "| npm dependencies | ${{ steps.node-cache.outputs.cache-hit || 'unknown' }} |"
+            echo "| Bun install cache | ${{ steps.bun-cache.outputs.cache-hit || 'false' }} |"
+            echo "| uv artifacts | ${{ steps.uv-cache.outputs.cache-hit || 'false' }} |"
+            echo "| Go modules/build | ${{ steps.go-cache.outputs.cache-hit || 'unknown' }} |"
+            echo "| Full runtime layers | ${{ inputs.force_rebuild_runtime_cache && 'forced-rebuild' || steps.restore-runtime-cache.outputs.cache-hit || 'false' }} |"
+            echo
+            echo "| Step | Duration |"
+            echo "| --- | --- |"
+            echo "| Toolchain install | $(duration "${OPL_FULL_WORKFLOW_STARTED_AT:-}" "${OPL_FULL_TOOLCHAIN_READY_AT:-}") |"
+            echo "| Framework npm ci | $(duration "${OPL_FULL_TOOLCHAIN_READY_AT:-}" "${OPL_FULL_FRAMEWORK_DEPS_READY_AT:-}") |"
+            echo "| Framework build | $(duration "${OPL_FULL_FRAMEWORK_DEPS_READY_AT:-}" "${OPL_FULL_FRAMEWORK_BUILD_READY_AT:-}") |"
+            echo "| Shell dependencies | $(duration "${OPL_FULL_FRAMEWORK_BUILD_READY_AT:-}" "${OPL_FULL_SHELL_DEPS_READY_AT:-}") |"
+            echo "| Domain dependencies | $(duration "${OPL_FULL_SHELL_DEPS_READY_AT:-}" "${OPL_FULL_DOMAIN_DEPS_READY_AT:-}") |"
+            echo "| Full package build | $(duration "${OPL_FULL_DOMAIN_DEPS_READY_AT:-}" "${OPL_FULL_PACKAGE_READY_AT:-}") |"
+            echo "| Full checksum/signing verify | $(duration "${OPL_FULL_PACKAGE_READY_AT:-}" "${OPL_FULL_VERIFY_READY_AT:-}") |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summarize Full package size
         working-directory: one-person-lab-app
@@ -357,6 +438,7 @@ jobs:
         working-directory: one-person-lab-app
         env:
           GH_TOKEN: ${{ github.token }}
+          OPL_RELEASE_EXISTS: ${{ inputs.publish_to_release && '1' || '0' }}
         run: |
           npm run release:publish -- \
             --no-build \

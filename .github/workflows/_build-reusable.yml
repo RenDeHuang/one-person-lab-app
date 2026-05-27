@@ -35,8 +35,8 @@ env:
   AIONRS_VERSION: 'latest'
 
 jobs:
-  code-quality:
-    name: Code Quality
+  lint-format:
+    name: Lint and format
     runs-on: ubuntu-latest
     if: ${{ !inputs.skip_code_quality }}
     defaults:
@@ -66,6 +66,15 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache Bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('shells/aionui/package.json', 'shells/aionui/bun.lock') }}
+          restore-keys: |
+            bun-install-${{ runner.os }}-${{ runner.arch }}-
+            bun-install-${{ runner.os }}-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -78,18 +87,149 @@ jobs:
       - name: Check Prettier formatting
         run: bun run format:check
 
+  typecheck:
+    name: TypeScript type check
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_code_quality }}
+    defaults:
+      run:
+        working-directory: shells/aionui
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Checkout active shell
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: main
+          path: shells/aionui
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('shells/aionui/package.json', 'shells/aionui/bun.lock') }}
+          restore-keys: |
+            bun-install-${{ runner.os }}-${{ runner.arch }}-
+            bun-install-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run postinstall
+        run: bun run postinstall || true
+
       - name: TypeScript type check
         run: bunx tsc --noEmit
 
-      - name: Run unit tests
+  release-boundary:
+    name: App release-boundary tests
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_code_quality }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Checkout active shell
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: main
+          path: shells/aionui
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run release-boundary tests
+        run: npm run test:release-boundary
+
+      - name: Validate release-boundary contract
+        run: npm run validate:release-boundary
+
+  active-shell-tests:
+    name: Active shell tests (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_code_quality }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - node
+          - dom
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Checkout active shell
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: main
+          path: shells/aionui
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('shells/aionui/package.json', 'shells/aionui/bun.lock') }}
+          restore-keys: |
+            bun-install-${{ runner.os }}-${{ runner.arch }}-
+            bun-install-${{ runner.os }}-
+
+      - name: Install dependencies
+        working-directory: shells/aionui
+        run: bun install --frozen-lockfile
+
+      - name: Run postinstall
+        working-directory: shells/aionui
+        run: bun run postinstall || true
+
+      - name: Run active shell test project
         working-directory: .
-        run: node --experimental-strip-types scripts/run-active-shell-tests.ts
+        run: node --experimental-strip-types scripts/run-active-shell-tests.ts --project ${{ matrix.project }} --chunk-size 8 --max-workers 2
 
   build:
     name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
-    needs: code-quality
-    if: ${{ always() && (inputs.skip_code_quality || needs.code-quality.result == 'success') }}
+    needs:
+      - lint-format
+      - typecheck
+      - release-boundary
+      - active-shell-tests
+    if: ${{ always() && (inputs.skip_code_quality || (needs['lint-format'].result == 'success' && needs.typecheck.result == 'success' && needs['release-boundary'].result == 'success' && needs['active-shell-tests'].result == 'success')) }}
     defaults:
       run:
         working-directory: shells/aionui
@@ -176,8 +316,20 @@ jobs:
             electron-cache-${{ matrix.platform }}-${{ matrix.arch }}-
             electron-cache-${{ matrix.platform }}-
 
+      - name: Cache Bun install cache
+        id: bun-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('shells/aionui/package.json', 'shells/aionui/bun.lock') }}
+          restore-keys: |
+            bun-install-${{ runner.os }}-${{ runner.arch }}-
+            bun-install-${{ runner.os }}-
+
       - name: Cache status
-        run: echo "electron-cache-hit=${{ steps.electron-cache.outputs.cache-hit }}"
+        run: |
+          echo "electron-cache-hit=${{ steps.electron-cache.outputs.cache-hit }}"
+          echo "bun-cache-hit=${{ steps.bun-cache.outputs.cache-hit }}"
 
       - name: Install dependencies
         uses: nick-fields/retry@v3
@@ -540,7 +692,7 @@ jobs:
   build-summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [code-quality, build]
+    needs: [lint-format, typecheck, release-boundary, active-shell-tests, build]
     if: always()
 
     steps:
@@ -557,5 +709,8 @@ jobs:
           echo "| Ref | \`${{ inputs.ref || '(default)' }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Commit | \`${{ needs.build.outputs.commit-short }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Platforms | $PLATFORMS |" >> $GITHUB_STEP_SUMMARY
-          echo "| Code Quality | ${{ needs.code-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint / format | ${{ needs['lint-format'].result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Typecheck | ${{ needs.typecheck.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Release boundary | ${{ needs['release-boundary'].result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Active shell tests | ${{ needs['active-shell-tests'].result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
