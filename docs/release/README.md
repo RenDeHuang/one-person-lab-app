@@ -87,6 +87,12 @@ builds that should run on GitHub runners instead of this Mac.
   release-called VM gates use a separate serialized group and are not cancelled
   by the scheduled queue policy; they remain the explicit operator validation
   path.
+- Scheduled VM smoke requires repository variable `OPL_FIRST_RUN_TART_SOURCE`
+  to name a local Tart base VM on the self-hosted runner. The current runner
+  source is `opl-first-run-no-clt-clean-base-26-5-18`. Missing configuration is
+  a failed VM gate, not a skipped success. Set `OPL_FIRST_RUN_GUEST_USER` when
+  the guest SSH user differs from `runner`, and set `OPL_FIRST_RUN_GUEST_SSH_KEY`
+  only when the runner needs a non-default SSH private key.
 
 The older automatic path is still valid for standard-only releases: pushing a
 `v<version>` tag triggers **Build and Release**. After that completes, run

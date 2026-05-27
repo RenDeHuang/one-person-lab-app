@@ -61,4 +61,6 @@ API key configuration wizard, sweeps the packaged Settings pages, and keeps
 Full runtime readiness on the release-blocking path. Command Line Tools, git
 availability, and managed repo sync are deferred maintenance and must not block
 Core, Domain module, or family runtime provider readiness for the Full
-first-run gate.
+first-run gate. Scheduled GitHub Actions runs must have repository variable
+`OPL_FIRST_RUN_TART_SOURCE` set to a local Tart source VM on the self-hosted
+runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18`.

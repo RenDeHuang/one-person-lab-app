@@ -116,6 +116,10 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
 - Scheduled VM smoke backlog: the App repo VM workflow must cancel stale
   scheduled runs through GitHub Actions concurrency while keeping manual and
   release-called validation runs serialized in a separate non-cancelling group.
+  Repository variable `OPL_FIRST_RUN_TART_SOURCE` must point to a local Tart
+  base VM on the self-hosted runner; the current source VM is
+  `opl-first-run-no-clt-clean-base-26-5-18`. Missing source-VM configuration is
+  a failed gate because no clean first-run evidence can be produced.
   `npm run test:release-boundary` locks this workflow policy.
 - Docker/WebUI: build from `shells/aionui/Dockerfile` and verify the WebUI
   starts against the Framework runtime surfaces.

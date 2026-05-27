@@ -1,0 +1,163 @@
+name: OPL Nightly Standard Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_code_quality:
+        description: Skip standard App code quality checks for emergency nightly rebuilds
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: '17 18 * * *'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: opl-nightly-standard-release
+  cancel-in-progress: true
+
+env:
+  BUN_INSTALL_REGISTRY: 'https://registry.npmjs.org/'
+
+jobs:
+  resolve-nightly:
+    name: Resolve nightly semver prerelease target
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Resolve nightly version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +'%Y%m%d')"
+          version="$(date -u +'%y.%-m.%-d')-nightly.${stamp}"
+          tag="v${version}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}$ ]]; then
+            echo "::error::Invalid nightly version: $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  standard-build:
+    name: Build standard App assets
+    needs: resolve-nightly
+    uses: ./.github/workflows/_build-reusable.yml
+    with:
+      matrix: >-
+        {"include":[
+          {"platform":"macos-arm64","os":"macos-14","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"macos-build-arm64","arch":"arm64"}
+        ]}
+      skip_code_quality: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_code_quality || false }}
+      opl_release_version: ${{ needs.resolve-nightly.outputs.version }}
+    secrets: inherit
+
+  publish-nightly:
+    name: Publish standard Nightly prerelease
+    runs-on: ubuntu-latest
+    needs:
+      - resolve-nightly
+      - standard-build
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Checkout active shell
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: main
+          path: shells/aionui
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Download standard build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: build-artifacts
+
+      - name: Prepare standard release assets
+        shell: bash
+        run: node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
+
+      - name: Verify standard release assets
+        shell: bash
+        env:
+          OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
+        run: node --experimental-strip-types scripts/validate-release.ts release-assets
+
+      - name: Create or refresh Nightly prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
+          OPL_RELEASE_TAG: ${{ needs.resolve-nightly.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch --tags origin
+
+          if ! git rev-parse -q --verify "refs/tags/${OPL_RELEASE_TAG}" >/dev/null; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "${OPL_RELEASE_TAG}" "$GITHUB_SHA"
+            git push origin "${OPL_RELEASE_TAG}"
+          fi
+
+          notes_file="$RUNNER_TEMP/opl-nightly-notes.md"
+          cat > "$notes_file" <<EOF
+          One Person Lab standard Nightly ${OPL_RELEASE_VERSION}
+
+          - Standard macOS arm64 App assets only.
+          - Full first-install assets are intentionally excluded.
+          - This prerelease is for users who opt into prerelease/Nightly updates.
+          EOF
+
+          if gh release view "${OPL_RELEASE_TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "${OPL_RELEASE_TAG}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "One Person Lab Nightly ${OPL_RELEASE_VERSION}" \
+              --notes-file "$notes_file" \
+              --prerelease
+          else
+            gh release create "${OPL_RELEASE_TAG}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "One Person Lab Nightly ${OPL_RELEASE_VERSION}" \
+              --notes-file "$notes_file" \
+              --prerelease \
+              --latest=false \
+              --verify-tag
+          fi
+
+          gh release upload "${OPL_RELEASE_TAG}" release-assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Verify remote standard Nightly assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
+        run: |
+          npm run verify-remote-release -- \
+            --version "$OPL_RELEASE_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --summary-path remote-nightly-release-verification.json
+
+      - name: Upload Nightly remote verification summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-nightly-release-verification-${{ needs.resolve-nightly.outputs.version }}
+          path: remote-nightly-release-verification.json
+          if-no-files-found: error

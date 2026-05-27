@@ -1787,9 +1787,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /opl-gui-first-run-vm-scheduled/);
   assert.match(vmWorkflow, /opl-gui-first-run-vm-manual/);
   assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
-  assert.match(vmWorkflow, /Skip unconfigured scheduled smoke/);
-  assert.match(vmWorkflow, /steps\.scheduled_config\.outputs\.skip_smoke != 'true'/);
-  assert.match(vmWorkflow, /Configure repository variable `OPL_FIRST_RUN_TART_SOURCE`/);
+  assert.match(vmWorkflow, /Resolve Tart source VM/);
+  assert.match(vmWorkflow, /Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_TART_SOURCE/);
+  assert.match(vmWorkflow, /source_vm=\$SOURCE_VM/);
+  assert.doesNotMatch(vmWorkflow, /skip_smoke=true/);
+  assert.doesNotMatch(vmWorkflow, /steps\.scheduled_config\.outputs\.skip_smoke != 'true'/);
   assert.match(vmWorkflow, /One-Person-Lab-Full-\*-mac-arm64\.dmg/);
   assert.match(vmWorkflow, /--smoke-profile no-clt-clean-vm/);
   assert.match(vmWorkflow, /--display 1920x1080px/);
