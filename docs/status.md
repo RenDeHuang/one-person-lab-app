@@ -64,6 +64,10 @@ provider for the App.
 Current release validation is App-root first: root wrappers call the active shell
 build/release scripts, then the produced standard package can replace
 `/Applications/One Person Lab.app` for a real local GUI startup smoke.
+`hygiene:fallow` is only the App-root wrapper hygiene gate and does not replace
+active shell validation or GUI compile evidence. Use `npm run
+validate:gui-shell` when the change must prove the active shell still validates
+and compiles through the App wrapper path.
 
 Runtime page evidence path is declared in
 `contracts/app-page-state-matrix.json`: the active shell loads the summary read
@@ -103,6 +107,7 @@ node --experimental-strip-types scripts/validate-active-shell.ts --quick
 npm run test:release-boundary
 npm run validate:release-boundary
 npm run hygiene:fallow -- --format json --summary
+npm run validate:gui-shell
 bun run i18n:types
 bun run test
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets

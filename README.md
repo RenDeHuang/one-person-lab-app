@@ -92,10 +92,14 @@ one-person-lab-app/
 npm run ensure:shell
 bun install --cwd shells/aionui --frozen-lockfile
 bun run validate:active-shell
+npm run validate:gui-shell
 bun run i18n:types
 bun run test
 bun run build-mac
 ```
+
+`hygiene:fallow` intentionally covers only App-root wrappers and contracts. The
+active GUI shell remains validated and compiled through `validate:gui-shell`.
 
 Release asset normalization and validation are exposed from the App root:
 

@@ -35,6 +35,7 @@
     "validate:packaged-runtime": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:packaged-runtime",
     "validate:opl-package": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:opl-package",
     "validate:active-shell": "node --experimental-strip-types scripts/validate-active-shell.ts",
+    "validate:gui-shell": "node --experimental-strip-types scripts/validate-active-shell.ts && node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run package",
     "validate:release-boundary": "node --experimental-strip-types scripts/validate-release-boundary.ts",
     "test:release-boundary": "node --experimental-strip-types --test tests/release/*.test.ts",
     "hygiene:fallow": "npx --yes fallow@latest --root . --no-cache --production",

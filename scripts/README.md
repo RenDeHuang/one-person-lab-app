@@ -18,12 +18,14 @@ exposes its shell-specific helpers under `shells/aionui/scripts/`.
 | `validate-release-evidence-bundle.ts` | Validates a release evidence bundle manifest and artifact files; default validation fails closed when required evidence is missing. |
 
 Stable App-root npm entries are `validate:release-boundary`,
-`release:evidence:manifest`, `release:evidence:validate`, and
+`validate:gui-shell`, `release:evidence:manifest`, `release:evidence:validate`, and
 `hygiene:fallow`. These keep release boundary/evidence scripts visible as
 production entrypoints while the files remain thin App-owned wrappers around
 contracts and release artifacts. App-root fallow config excludes
-`shells/aionui/**` because that path is an ignored external shell checkout; run
-shell hygiene in `gaofeng21cn/opl-aion-shell`.
+`shells/aionui/**` because that path is an ignored external shell checkout.
+`hygiene:fallow` is not GUI shell build or runtime evidence; `validate:gui-shell`
+runs the full active shell validation list and the shell GUI compile path
+through App wrappers. Run shell hygiene in `gaofeng21cn/opl-aion-shell`.
 
 Examples:
 
@@ -40,6 +42,7 @@ npm run release:evidence:manifest -- --bundle-dir release-evidence/<version>
 node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
 npm run hygiene:fallow -- --format json --summary
+npm run validate:gui-shell
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --runtime-profile full
 ```
 

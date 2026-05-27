@@ -1663,11 +1663,30 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   );
   assert.equal(packageJson.scripts['test:packaged:bun'], 'node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:opl-package');
   assert.equal(packageJson.scripts['install:shell'], 'node --experimental-strip-types scripts/run-active-shell-command.ts bun install --frozen-lockfile');
+  assert.equal(
+    packageJson.scripts['validate:gui-shell'],
+    'node --experimental-strip-types scripts/validate-active-shell.ts && node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run package',
+  );
   assert.doesNotMatch(JSON.stringify(packageJson.scripts), /--cwd shells\/aionui|cd shells\/aionui/);
   assert.match(shellBuildScript, /--config\.extraMetadata\.version=\$\{version\}/);
   assert.match(shellBuildScript, /\$\{publishArg\} \$\{oplReleaseVersionConfigArg\}/);
   assert.match(shellViteConfig, /const appReleaseVersion = injectedOplReleaseVersion \|\| rootPackageJson\.version/);
   assert.match(shellViteConfig, /__APP_VERSION__:\s*JSON\.stringify\(appReleaseVersion\)/);
+});
+
+test('App fallow hygiene is not the active GUI shell validation gate', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+  const fallowConfig = JSON.parse(fs.readFileSync(path.join(appRoot, '.fallowrc.json'), 'utf8'));
+  const testingDocs = fs.readFileSync(path.join(appRoot, 'docs', 'testing', 'README.md'), 'utf8');
+  const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
+  const combinedDocs = `${testingDocs}\n${scriptsDocs}`;
+
+  assert.deepEqual(fallowConfig.ignorePatterns, ['shells/aionui/**']);
+  assert.equal(packageJson.scripts['hygiene:fallow'], 'npx --yes fallow@latest --root . --no-cache --production');
+  assert.match(packageJson.scripts['validate:gui-shell'], /validate-active-shell\.ts/);
+  assert.match(packageJson.scripts['validate:gui-shell'], /run-active-shell-command\.ts bun run package/);
+  assert.match(combinedDocs, /hygiene:fallow[\s\S]*not GUI shell build or runtime evidence/i);
+  assert.match(combinedDocs, /validate:gui-shell[\s\S]*active shell[\s\S]*GUI compile/i);
 });
 
 test('release artifact upload preserves electron-updater blockmaps', () => {

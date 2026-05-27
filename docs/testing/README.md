@@ -15,6 +15,7 @@ cd shells/aionui && node scripts/check-i18n.js
 bun run test
 bun run --cwd shells/aionui lint
 bun run --cwd shells/aionui validate:opl-package
+npm run validate:gui-shell
 ```
 
 `bun run test` is the App-level stable runner. It reads
@@ -22,6 +23,12 @@ bun run --cwd shells/aionui validate:opl-package
 and runs them as isolated sequential `node` / `dom` chunks. The upstream shell
 entrypoint remains available as `bun run --cwd shells/aionui test` for direct
 AionUI intake work.
+
+`validate:gui-shell` is the App-root gate for active shell health plus GUI
+compile evidence. It runs the full active shell validation list from
+`contracts/app-shell-adapter.json`, syncs App-owned release payloads into the
+active shell, and compiles the Electron main, preload, and renderer bundles
+through the shell `bun run package` entry.
 
 ## App-Level Checks
 
@@ -60,8 +67,10 @@ validation step.
 
 `hygiene:fallow` is scoped to App-owned root wrappers, contracts, and docs.
 `.fallowrc.json` excludes the ignored `shells/aionui/**` external checkout so
-App hygiene does not report shell-owned dependency or source findings. Run
-shell hygiene in the `gaofeng21cn/opl-aion-shell` repository.
+App hygiene does not report shell-owned dependency or source findings. It is
+not GUI shell build or runtime evidence; use `npm run validate:gui-shell` for
+active shell validation and GUI compile proof. Run shell hygiene in the
+`gaofeng21cn/opl-aion-shell` repository.
 
 ## Installed App Smoke
 
@@ -93,6 +102,7 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
 - Standard release metadata: `node --experimental-strip-types scripts/validate-release.ts release-assets`.
 - App-owned release boundary: `npm run validate:release-boundary`.
 - Fallow production hygiene: `npm run hygiene:fallow -- --format json --summary`.
+- Active GUI shell validation: `npm run validate:gui-shell`.
 - App product profile sync: standard and Full release preparation must generate
   the active shell `shell_contract.paths.product_profile_target` declared in
   `contracts/app-shell-adapter.json`.
