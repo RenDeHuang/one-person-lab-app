@@ -321,7 +321,7 @@ function assertShellFileHash(shellPaths, relativePath, expectedHash, label) {
 function validateActiveShellImplementation(shellPaths) {
   const appStateHook = assertShellTextIncludes(
     shellPaths,
-    'packages/desktop/src/renderer/hooks/opl/useOplAppState.ts',
+    'packages/desktop/src/renderer/hooks/system/useOplAppState.ts',
     'ipcBridge.oplRuntime.getAppState.invoke({ profile })',
     'OPL App state hook',
   );
@@ -368,13 +368,39 @@ function validateActiveShellImplementation(shellPaths) {
     }
   }
   for (const expected of [
-    'const appPaths = appState?.paths',
-    "readOplString(appPaths, 'workspace_root_path')",
-    "readOplString(readOplRecord(appPaths, 'workspace_root'), 'selected_path')",
-    "readOplString(appPaths, 'logs_dir')",
+    'const appPaths = oplRecord(appState.paths)',
+    'oplString(appPaths.workspace_root_path)',
+    'oplPathString(appPaths.workspace_root)',
+    'oplString(appPaths.logs_dir)',
   ]) {
     if (!systemSettings.includes(expected)) {
       throw new Error(`Active shell System settings must derive visible OPL paths from app_state.paths: ${expected}`);
+    }
+  }
+
+  for (const [relativePath, forbidden] of [
+    ['packages/desktop/src/renderer/services/i18n/locales/en-US/login.json', '"brand": "AionUi"'],
+    ['packages/desktop/src/renderer/services/i18n/locales/zh-CN/login.json', '"brand": "AionUi"'],
+    ['packages/desktop/src/common/api/ClientFactory.ts', "'X-Title': 'AionUi'"],
+    ['packages/desktop/src/common/utils/appConfig.ts', "|| 'AionUi'"],
+    ['packages/desktop/src/common/platform/index.ts', 'AionUi-Dev'],
+  ]) {
+    const text = readShellText(shellPaths, relativePath);
+    if (text.includes(forbidden)) {
+      throw new Error(`Active shell visible OPL branding must not expose ${forbidden} in ${relativePath}`);
+    }
+  }
+
+  for (const [relativePath, expected] of [
+    ['packages/desktop/src/renderer/services/i18n/locales/en-US/login.json', '"brand": "One Person Lab"'],
+    ['packages/desktop/src/renderer/services/i18n/locales/zh-CN/login.json', '"brand": "One Person Lab"'],
+    ['packages/desktop/src/common/api/ClientFactory.ts', "'X-Title': 'One Person Lab App'"],
+    ['packages/desktop/src/common/utils/appConfig.ts', "|| 'One Person Lab App'"],
+    ['packages/desktop/src/common/platform/index.ts', 'OnePersonLab-Dev'],
+  ]) {
+    const text = readShellText(shellPaths, relativePath);
+    if (!text.includes(expected)) {
+      throw new Error(`Active shell visible OPL branding must include ${expected} in ${relativePath}`);
     }
   }
 
