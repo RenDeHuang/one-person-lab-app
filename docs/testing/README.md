@@ -47,6 +47,12 @@ npm run hygiene:fallow -- --format json --summary
 The App page-state matrix is declared in
 `contracts/app-page-state-matrix.json`. The first-run matrix is declared in
 `contracts/app-first-run-test-matrix.json`.
+The App GUI product contract is declared in
+`contracts/app-gui-product-contract.json`; `validate-active-shell.ts --quick`
+checks the Codex-only default executor, MAS/MAG/RCA/OMA default assistants,
+home prompt, Settings System/Runtime/About/Update/Theme coverage, module path
+source explanation, stable/nightly release gating, MDS non-default display, and
+OPL Agent Codex context before shell validation runs.
 The App product profile is declared in
 `contracts/app-product-profile.json`; `validate-active-shell.ts --quick` and
 `npm run test:release-boundary` verify that the profile still owns only
@@ -142,6 +148,32 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   `npm run test:release-boundary` locks this workflow policy.
 - Docker/WebUI: build from `shells/aionui/Dockerfile`, run the container, and
   verify HTTP 200 for `/` and `/manifest.webmanifest`.
+
+## VM and AI-first testing boundary
+
+Stable release installation proof uses deterministic automation as the blocking
+gate. The VM lane downloads the published DMG, clones the configured clean
+no-CLT Tart base VM, fixes the display size, installs the App, launches it, and
+collects first-run/settings artifacts. That lane is the source of release
+readiness for standard DMG and Full DMG installation because it is repeatable,
+time-bounded, and produces comparable logs.
+
+Codex App or Computer Use based UI exploration is useful, but it is not the
+blocking release gate by itself. Use AI-first exploration for pre-release user
+journeys that are hard to script yet: visual regressions, unclear first-run
+copy, unexpected modal ordering, long waits, or accessibility of Settings
+paths. The output of that lane should be screenshots, operation notes, and
+candidate regressions. Once a finding is stable, convert it into the VM smoke,
+Playwright, contract, or shell test surface before it becomes release-blocking.
+
+This keeps the full validation plan fast and usable:
+
+- PR/local: contract and release-boundary checks.
+- Nightly: standard package build and remote standard asset verification.
+- Stable: standard DMG VM, Full DMG VM, one-shot installer, Docker/WebUI,
+  remote standard/Full verification, and evidence bundle validation.
+- Exploratory AI-first: non-blocking unless its findings are converted into a
+  deterministic gate.
 
 2026-05-15 Docker/WebUI evidence: `docker build -t
 one-person-lab-webui:26.5.15-smoke .` completed from `shells/aionui`, the image

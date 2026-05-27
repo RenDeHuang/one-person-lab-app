@@ -129,21 +129,30 @@ function resolveBundlePath(bundleDir: string, artifactPath: string) {
 
 function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown) {
   const record = asRecord(payload, artifact.id);
-  if (artifact.id === 'runtime_snapshot') {
-    const snapshot = asRecord(record.runtime_tray_snapshot, 'runtime_snapshot.runtime_tray_snapshot');
-    if (typeof snapshot.schema_version !== 'string' || !snapshot.schema_version.trim()) {
-      throw new Error('runtime_snapshot must be real opl runtime snapshot JSON with schema_version.');
+  if (artifact.id === 'app_state_summary' || artifact.id === 'app_state_full') {
+    const appState = asRecord(record.app_state, `${artifact.id}.app_state`);
+    if (appState.schema !== 'opl_app_state.v1' && appState.schema_version !== 'opl_app_state.v1') {
+      throw new Error(`${artifact.id} must be real OPL App state JSON with schema opl_app_state.v1.`);
     }
-    if (!snapshot.runtime_health || typeof snapshot.runtime_health !== 'object') {
-      throw new Error('runtime_snapshot must include runtime_health from OPL.');
+    if (artifact.id === 'app_state_summary' && appState.profile !== 'fast') {
+      throw new Error('app_state_summary must use the fast OPL App state profile.');
+    }
+    if (artifact.id === 'app_state_full' && appState.profile !== 'full') {
+      throw new Error('app_state_full must use the full OPL App state profile.');
+    }
+    if (!appState.operator || typeof appState.operator !== 'object') {
+      throw new Error(`${artifact.id} must include operator state from OPL.`);
+    }
+    if (!appState.provider || typeof appState.provider !== 'object') {
+      throw new Error(`${artifact.id} must include provider state from OPL.`);
     }
   }
-  if (artifact.id === 'drilldown_summary' || artifact.id === 'drilldown_full') {
+  if (artifact.id === 'drilldown_full') {
     const drilldown = asRecord(record.app_operator_drilldown, `${artifact.id}.app_operator_drilldown`);
     if (drilldown.surface_kind !== 'opl_app_operator_drilldown_read_model') {
       throw new Error(`${artifact.id} must be an OPL App/operator drilldown read model.`);
     }
-    if (artifact.id === 'drilldown_full' && drilldown.detail_level !== 'full') {
+    if (drilldown.detail_level !== 'full') {
       throw new Error('drilldown_full must be full-detail App/operator drilldown JSON.');
     }
     if (!drilldown.summary || typeof drilldown.summary !== 'object') {
@@ -151,9 +160,9 @@ function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown)
     }
   }
   if (artifact.id === 'action_dry_run_result' || artifact.id === 'action_execute_result') {
-    const execution = asRecord(record.runtime_operator_action_execution, `${artifact.id}.runtime_operator_action_execution`);
-    if (execution.surface_kind !== 'opl_runtime_operator_action_execution') {
-      throw new Error(`${artifact.id} must be an OPL runtime action execution JSON result.`);
+    const execution = asRecord(record.app_action_execution, `${artifact.id}.app_action_execution`);
+    if (execution.surface_kind !== 'opl_app_action_execution') {
+      throw new Error(`${artifact.id} must be an OPL App action execution JSON result.`);
     }
     if (typeof execution.action_id !== 'string' || !execution.action_id.trim()) {
       throw new Error(`${artifact.id} must include action_id.`);

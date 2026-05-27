@@ -122,6 +122,23 @@
         "skills"
       ]
     },
+    "full_runtime_packaging_hygiene": {
+      "local_state_excluded": [
+        ".codegraph",
+        ".git",
+        ".worktrees",
+        ".venv",
+        "node_modules",
+        "runtime",
+        "runtime-state",
+        "runs",
+        "sessions",
+        "tests"
+      ],
+      "measurement_command": "npm run release:full:size -- --markdown",
+      "domain_runtime_allowlist_owner": "domain_repositories",
+      "app_policy": "exclude local indexes, dependency caches, tests, and user/runtime state; do not infer domain truth or artifact authority from package pruning"
+    },
     "publish_resume": {
       "default": "skip_existing_assets_when_size_and_sha256_digest_match",
       "match_fields": [
@@ -287,18 +304,18 @@
     },
     "required_artifacts": [
       {
-        "id": "runtime_snapshot",
-        "path": "runtime-snapshot.json",
+        "id": "app_state_summary",
+        "path": "app-state-summary.json",
         "kind": "json",
-        "producer": "opl runtime snapshot --json",
-        "source_kind": "opl_runtime_snapshot"
+        "producer": "opl app state --profile fast --json",
+        "source_kind": "opl_app_state_summary"
       },
       {
-        "id": "drilldown_summary",
-        "path": "drilldown-summary.json",
+        "id": "app_state_full",
+        "path": "app-state-full.json",
         "kind": "json",
-        "producer": "opl runtime app-operator-drilldown --json",
-        "source_kind": "opl_app_operator_drilldown_summary"
+        "producer": "opl app state --profile full --json",
+        "source_kind": "opl_app_state_full"
       },
       {
         "id": "drilldown_full",
@@ -311,15 +328,15 @@
         "id": "action_dry_run_result",
         "path": "action-dry-run-result.json",
         "kind": "json",
-        "producer": "opl runtime action execute --action <action_id> --dry-run",
-        "source_kind": "opl_runtime_action_dry_run"
+        "producer": "opl app action execute --action <action_id> --dry-run --json",
+        "source_kind": "opl_app_action_dry_run"
       },
       {
         "id": "action_execute_result",
         "path": "action-execute-result.json",
         "kind": "json",
-        "producer": "opl runtime action execute --action <action_id>",
-        "source_kind": "opl_runtime_action_execute"
+        "producer": "opl app action execute --action <action_id> --json",
+        "source_kind": "opl_app_action_execute"
       },
       {
         "id": "runtime_screenshot",

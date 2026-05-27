@@ -23,6 +23,7 @@ export type ShellAdapterContract = {
   app_repo: string;
   active_shell: string;
   shell_root: string;
+  runtime_bridge_contract: string;
   upstream_family: string;
   shell_source: {
     owner_repo: string;
@@ -31,11 +32,40 @@ export type ShellAdapterContract = {
     history_policy: string;
     upstream_ref?: string;
   };
+  gui_authority: {
+    source_of_truth: string;
+    implementation_role: string;
+    product_contracts: string[];
+    shell_may_own: string[];
+    shell_must_not_own: string[];
+    upstream_intake_policy: string;
+  };
+  shell_replacement_policy: {
+    candidate_root_pattern: string;
+    candidate_state: string;
+    authority_transfer_allowed: boolean;
+    adoption_gate: string[];
+  };
   shell_contract: {
     layout_id: string;
     source_topology: string;
     paths: ShellPathContract;
     capabilities: string[];
+  };
+  gui_product_contract: string;
+  gui_product_contract_policy: {
+    must_implement: boolean;
+    source_of_truth: string;
+    upstream_override_allowed: boolean;
+    upstream_family_role: string;
+    aionui_upstream_must_not_override_app_truth: boolean;
+  };
+  state_surface_contract: {
+    primary_read_command: string;
+    refresh_read_command: string;
+    action_command: string;
+    full_drilldown_exception: string;
+    forbidden_gui_truth_sources: string[];
   };
   validation_commands: Array<{
     id: string;
@@ -99,7 +129,30 @@ export function readAppShellAdapterContract(filePath = contractPath): ShellAdapt
   if (contract.shell_source?.history_policy !== 'external_checkout_not_merged_into_app_default_branch') {
     throw new Error(`Unexpected shell history policy: ${contract.shell_source?.history_policy}`);
   }
+  if (contract.gui_authority?.source_of_truth !== 'one-person-lab-app') {
+    throw new Error('active shell GUI authority must stay in one-person-lab-app');
+  }
+  if (contract.gui_authority.implementation_role !== 'active_shell_implementation_carrier') {
+    throw new Error('active shell GUI implementation role must be active_shell_implementation_carrier');
+  }
+  assertStringArray(contract.gui_authority.product_contracts, 'gui_authority.product_contracts');
+  assertStringArray(contract.gui_authority.shell_may_own, 'gui_authority.shell_may_own');
+  assertStringArray(contract.gui_authority.shell_must_not_own, 'gui_authority.shell_must_not_own');
+  if (contract.gui_authority.upstream_intake_policy !== 'check_against_app_owned_gui_contracts_before_acceptance') {
+    throw new Error(`Unexpected GUI upstream intake policy: ${contract.gui_authority.upstream_intake_policy}`);
+  }
+  if (contract.shell_replacement_policy?.candidate_root_pattern !== 'shells/<candidate>') {
+    throw new Error('active shell replacement policy must keep candidates under shells/<candidate>');
+  }
+  if (contract.shell_replacement_policy.candidate_state !== 'candidate_until_contracts_and_tests_complete') {
+    throw new Error(`Unexpected shell candidate state: ${contract.shell_replacement_policy.candidate_state}`);
+  }
+  if (contract.shell_replacement_policy.authority_transfer_allowed !== false) {
+    throw new Error('active shell replacement must not transfer App GUI authority');
+  }
+  assertStringArray(contract.shell_replacement_policy.adoption_gate, 'shell_replacement_policy.adoption_gate');
   assertRelativePath(contract.shell_root, 'shell_root');
+  assertRelativePath(contract.runtime_bridge_contract, 'runtime_bridge_contract');
   assertRelativePath(contract.shell_source?.checkout_path, 'shell_source.checkout_path');
   if (contract.shell_source.checkout_path !== contract.shell_root) {
     throw new Error('shell_source.checkout_path must match shell_root');
@@ -119,6 +172,49 @@ export function readAppShellAdapterContract(filePath = contractPath): ShellAdapt
   if (!contract.shell_contract.capabilities.includes('opl_packaged_runtime_extra_resource')) {
     throw new Error('active shell capabilities must include opl_packaged_runtime_extra_resource');
   }
+  for (const capability of [
+    'app_owned_gui_product_contract',
+    'app_owned_runtime_bridge_contract',
+    'opl_app_state_bridge',
+    'opl_app_action_bridge',
+    'app_gui_release_channel_gating',
+  ]) {
+    if (!contract.shell_contract.capabilities.includes(capability)) {
+      throw new Error(`active shell capabilities must include ${capability}`);
+    }
+  }
+  if (contract.gui_product_contract !== 'contracts/app-gui-product-contract.json') {
+    throw new Error(`Unexpected active shell gui_product_contract: ${contract.gui_product_contract}`);
+  }
+  if (contract.gui_product_contract_policy?.must_implement !== true) {
+    throw new Error('active shell must implement the App GUI product contract');
+  }
+  if (contract.gui_product_contract_policy.source_of_truth !== 'one-person-lab-app') {
+    throw new Error('active shell GUI product contract source of truth must stay in one-person-lab-app');
+  }
+  if (contract.gui_product_contract_policy.upstream_override_allowed !== false) {
+    throw new Error('AionUI upstream must not override App GUI product truth');
+  }
+  if (contract.gui_product_contract_policy.upstream_family_role !== 'implementation_material_only') {
+    throw new Error(`Unexpected upstream GUI role: ${contract.gui_product_contract_policy.upstream_family_role}`);
+  }
+  if (contract.gui_product_contract_policy.aionui_upstream_must_not_override_app_truth !== true) {
+    throw new Error('active shell must declare that AionUI upstream cannot override App truth');
+  }
+  const stateSurface = contract.state_surface_contract;
+  if (stateSurface?.primary_read_command !== 'opl app state --profile fast --json') {
+    throw new Error(`Unexpected active shell primary state read command: ${stateSurface?.primary_read_command}`);
+  }
+  if (stateSurface.refresh_read_command !== 'opl app state --profile full --json') {
+    throw new Error(`Unexpected active shell refresh state read command: ${stateSurface.refresh_read_command}`);
+  }
+  if (stateSurface.action_command !== 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json') {
+    throw new Error(`Unexpected active shell action command: ${stateSurface.action_command}`);
+  }
+  if (stateSurface.full_drilldown_exception !== 'opl runtime app-operator-drilldown --detail full --json') {
+    throw new Error(`Unexpected active shell full drilldown exception: ${stateSurface.full_drilldown_exception}`);
+  }
+  assertStringArray(stateSurface.forbidden_gui_truth_sources, 'state_surface_contract.forbidden_gui_truth_sources');
   if (!Array.isArray(contract.validation_commands) || contract.validation_commands.length === 0) {
     throw new Error('validation_commands must be a non-empty array');
   }

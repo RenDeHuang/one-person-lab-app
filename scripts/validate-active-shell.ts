@@ -8,6 +8,8 @@ import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shel
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const contractPath = path.join(root, 'contracts', 'app-shell-adapter.json');
+const guiProductContractPath = path.join(root, 'contracts', 'app-gui-product-contract.json');
+const runtimeBridgePath = path.join(root, 'contracts', 'app-runtime-bridge.json');
 const pageStateMatrixPath = path.join(root, 'contracts', 'app-page-state-matrix.json');
 const firstRunMatrixPath = path.join(root, 'contracts', 'app-first-run-test-matrix.json');
 const productProfilePath = path.join(root, 'contracts', 'app-product-profile.json');
@@ -61,6 +63,131 @@ function validateContractShape(contract) {
   if (contract.shell_source?.history_policy !== 'external_checkout_not_merged_into_app_default_branch') {
     throw new Error(`Unexpected shell history policy: ${contract.shell_source?.history_policy}`);
   }
+  if (contract.runtime_bridge_contract !== 'contracts/app-runtime-bridge.json') {
+    throw new Error(`Unexpected runtime bridge contract ref: ${contract.runtime_bridge_contract}`);
+  }
+  if (contract.gui_authority?.source_of_truth !== 'one-person-lab-app') {
+    throw new Error('Active shell GUI authority must stay in one-person-lab-app');
+  }
+  if (contract.gui_authority.implementation_role !== 'active_shell_implementation_carrier') {
+    throw new Error('Active shell GUI implementation role must be active_shell_implementation_carrier');
+  }
+  const requiredProductContracts = [
+    'contracts/app-gui-product-contract.json',
+    'contracts/app-runtime-bridge.json',
+    'contracts/app-product-profile.json',
+    'contracts/app-page-state-matrix.json',
+    'contracts/app-first-run-test-matrix.json',
+    'contracts/app-release-channel.json',
+  ];
+  for (const contractRef of requiredProductContracts) {
+    if (!contract.gui_authority.product_contracts?.includes(contractRef)) {
+      throw new Error(`Active shell GUI authority must include product contract ${contractRef}`);
+    }
+    assertFile(path.join(root, contractRef), `GUI authority contract ${contractRef}`);
+  }
+  for (const allowed of [
+    'concrete renderer implementation',
+    'process and preload implementation',
+    'shell package metadata',
+    'shell tests and release hooks',
+    'upstream AionUI intake',
+  ]) {
+    if (!contract.gui_authority.shell_may_own?.includes(allowed)) {
+      throw new Error(`Active shell GUI authority must declare shell-owned surface ${allowed}`);
+    }
+  }
+  for (const forbidden of [
+    'App GUI product truth',
+    'App user-facing page-state authority',
+    'App model-selection policy',
+    'App onboarding policy',
+    'App release/user documentation authority',
+    'OPL runtime truth',
+    'domain truth',
+    'provider implementation',
+  ]) {
+    if (!contract.gui_authority.shell_must_not_own?.includes(forbidden)) {
+      throw new Error(`Active shell GUI authority must exclude shell ownership of ${forbidden}`);
+    }
+  }
+  if (contract.gui_authority.upstream_intake_policy !== 'check_against_app_owned_gui_contracts_before_acceptance') {
+    throw new Error(`Unexpected GUI upstream intake policy: ${contract.gui_authority.upstream_intake_policy}`);
+  }
+  if (contract.shell_replacement_policy?.candidate_root_pattern !== 'shells/<candidate>') {
+    throw new Error('Shell replacement policy must keep candidates under shells/<candidate>');
+  }
+  if (contract.shell_replacement_policy.candidate_state !== 'candidate_until_contracts_and_tests_complete') {
+    throw new Error(`Unexpected shell candidate state: ${contract.shell_replacement_policy.candidate_state}`);
+  }
+  if (contract.shell_replacement_policy.authority_transfer_allowed !== false) {
+    throw new Error('Shell replacement must not transfer App GUI authority');
+  }
+  for (const gate of [
+    'declare candidate in contracts/app-shell-adapter.json',
+    'implement contracts/app-gui-product-contract.json',
+    'sync App product profile into the candidate shell target',
+    'pass App page-state and first-run matrices',
+    'pass App-root active shell validation',
+    'pass GUI package compile through App wrapper',
+    'preserve external checkout history policy',
+  ]) {
+    if (!contract.shell_replacement_policy.adoption_gate?.includes(gate)) {
+      throw new Error(`Shell replacement policy missing adoption gate ${gate}`);
+    }
+  }
+  for (const capability of [
+    'app_owned_gui_product_contract',
+    'app_owned_runtime_bridge_contract',
+    'opl_app_state_bridge',
+    'opl_app_action_bridge',
+    'app_gui_release_channel_gating',
+  ]) {
+    if (!contract.shell_contract.capabilities?.includes(capability)) {
+      throw new Error(`Active shell capability missing ${capability}`);
+    }
+  }
+  if (contract.gui_product_contract !== 'contracts/app-gui-product-contract.json') {
+    throw new Error(`Unexpected active shell gui_product_contract: ${contract.gui_product_contract}`);
+  }
+  if (contract.gui_product_contract_policy?.must_implement !== true) {
+    throw new Error('Active shell must implement the App GUI product contract');
+  }
+  if (contract.gui_product_contract_policy.source_of_truth !== 'one-person-lab-app') {
+    throw new Error('Active shell GUI product contract source of truth must stay in one-person-lab-app');
+  }
+  if (contract.gui_product_contract_policy.upstream_override_allowed !== false) {
+    throw new Error('AionUI upstream must not override App GUI product truth');
+  }
+  if (contract.gui_product_contract_policy.upstream_family_role !== 'implementation_material_only') {
+    throw new Error(`Unexpected upstream GUI role: ${contract.gui_product_contract_policy.upstream_family_role}`);
+  }
+  if (contract.gui_product_contract_policy.aionui_upstream_must_not_override_app_truth !== true) {
+    throw new Error('Active shell must declare that AionUI upstream cannot override App truth');
+  }
+  const stateSurface = contract.state_surface_contract;
+  for (const [field, expected] of Object.entries({
+    primary_read_command: 'opl app state --profile fast --json',
+    refresh_read_command: 'opl app state --profile full --json',
+    action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
+    full_drilldown_exception: 'opl runtime app-operator-drilldown --detail full --json',
+  })) {
+    if (stateSurface?.[field] !== expected) {
+      throw new Error(`Active shell state_surface_contract.${field} must be ${expected}`);
+    }
+  }
+  for (const forbiddenSource of [
+    'direct opl modules --json page aggregation',
+    'direct opl system developer-supervisor page aggregation',
+    'direct opl family-runtime worker status page aggregation',
+    'application.systemInfo as OPL path truth',
+    'application.appVersions as OPL release truth',
+    'direct reads of OPL internal state files',
+  ]) {
+    if (!stateSurface?.forbidden_gui_truth_sources?.includes(forbiddenSource)) {
+      throw new Error(`Active shell state surface must forbid ${forbiddenSource}`);
+    }
+  }
 
   const shellPaths = resolveActiveShellPaths({ contract });
   assertFile(shellPaths.shellRoot, 'active shell root');
@@ -81,17 +208,282 @@ function validateContractShape(contract) {
   }
 }
 
+function assertCommandSurface(value, expected, label) {
+  if (value !== expected) {
+    throw new Error(`${label} must be ${expected}`);
+  }
+}
+
+function validateRuntimeBridgeContract(runtimeBridge, contract) {
+  if (runtimeBridge.owner !== 'one-person-lab-app') {
+    throw new Error(`Unexpected runtime bridge owner: ${runtimeBridge.owner}`);
+  }
+  if (runtimeBridge.purpose !== 'runtime_bridge_abstraction') {
+    throw new Error(`Unexpected runtime bridge purpose: ${runtimeBridge.purpose}`);
+  }
+  if (runtimeBridge.state !== 'active') {
+    throw new Error(`Unexpected runtime bridge state: ${runtimeBridge.state}`);
+  }
+  if (runtimeBridge.active_adapter !== contract.active_shell) {
+    throw new Error(`Runtime bridge active adapter must match active shell: ${runtimeBridge.active_adapter}`);
+  }
+  if (runtimeBridge.adapter_role !== 'replaceable_gui_shell_adapter') {
+    throw new Error(`Unexpected runtime bridge adapter role: ${runtimeBridge.adapter_role}`);
+  }
+  if (runtimeBridge.protocol_owner !== 'one-person-lab') {
+    throw new Error(`Unexpected runtime bridge protocol owner: ${runtimeBridge.protocol_owner}`);
+  }
+  if (runtimeBridge.ui_contract_owner !== 'one-person-lab-app') {
+    throw new Error(`Unexpected runtime bridge UI contract owner: ${runtimeBridge.ui_contract_owner}`);
+  }
+  if (runtimeBridge.default_adapter_repo !== contract.shell_source?.owner_repo) {
+    throw new Error(`Runtime bridge adapter repo must match active shell source: ${runtimeBridge.default_adapter_repo}`);
+  }
+  if (runtimeBridge.default_adapter_path !== contract.shell_root) {
+    throw new Error(`Runtime bridge adapter path must match active shell root: ${runtimeBridge.default_adapter_path}`);
+  }
+  for (const [field, expected] of Object.entries({
+    summary_command: 'opl app state --profile fast --json',
+    refresh_command: 'opl app state --profile full --json',
+    full_detail_command: 'opl runtime app-operator-drilldown --detail full --json',
+    action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
+    'projection_sources.primary': 'app_state.operator.summary',
+    'projection_sources.provider': 'app_state.provider',
+    'projection_sources.actions': 'app_state.actions',
+    'projection_sources.full_detail': 'runtime_tray_snapshot.app_operator_drilldown',
+    'projection_sources.policy': 'summary_first_full_detail_on_demand',
+  })) {
+    const actual = field.split('.').reduce((value, key) => value?.[key], runtimeBridge);
+    if (actual !== expected) {
+      throw new Error(`Runtime bridge ${field} must be ${expected}`);
+    }
+  }
+  for (const [field, expected] of Object.entries({
+    shell_adapter_can_own_runtime_truth: false,
+    app_can_own_runtime_truth: false,
+    app_can_write_domain_truth: false,
+    app_can_read_artifact_body: false,
+    app_can_read_memory_body: false,
+    app_can_authorize_quality_verdict: false,
+    app_can_authorize_export_verdict: false,
+    provider_completion_is_domain_ready: false,
+  })) {
+    if (runtimeBridge.authority_boundary?.[field] !== expected) {
+      throw new Error(`Runtime bridge authority_boundary.${field} must be ${expected}`);
+    }
+  }
+  for (const [field, expected] of Object.entries({
+    runtime_protocol_stable_across_shell_replacement: true,
+    shell_adapter_must_call_declared_opl_cli_surfaces: true,
+    new_shell_adapter_must_pass_active_shell_validation: true,
+    direct_domain_repo_reads_are_forbidden: true,
+    direct_runtime_state_file_reads_are_forbidden: true,
+  })) {
+    if (runtimeBridge.replacement_policy?.[field] !== expected) {
+      throw new Error(`Runtime bridge replacement_policy.${field} must be ${expected}`);
+    }
+  }
+  for (const forbidden of [
+    'direct_domain_repo_reads',
+    'direct_runtime_state_file_reads',
+    'direct_opl_internal_state_file_reads',
+    'domain_artifact_body_reads',
+    'domain_memory_body_reads',
+    'shell_private_runtime_status',
+  ]) {
+    if (!runtimeBridge.forbidden_truth_sources?.includes(forbidden)) {
+      throw new Error(`Runtime bridge must forbid ${forbidden}`);
+    }
+  }
+}
+
+function validateAppGuiProductContract(guiContract, releaseChannel) {
+  if (guiContract.owner !== 'one-person-lab-app') {
+    throw new Error(`Unexpected App GUI product contract owner: ${guiContract.owner}`);
+  }
+  if (guiContract.purpose !== 'app_owned_gui_product_contract') {
+    throw new Error(`Unexpected App GUI product contract purpose: ${guiContract.purpose}`);
+  }
+  if (guiContract.state !== 'active') {
+    throw new Error(`Unexpected App GUI product contract state: ${guiContract.state}`);
+  }
+  if (guiContract.product_authority?.source_of_truth !== 'one-person-lab-app') {
+    throw new Error('App GUI product contract source of truth must be one-person-lab-app');
+  }
+  if (guiContract.product_authority.active_shell_role !== 'implementation_carrier') {
+    throw new Error('App GUI product contract must treat the active shell as implementation carrier');
+  }
+  if (guiContract.product_authority.upstream_gui_role !== 'implementation_material_only') {
+    throw new Error('App GUI product contract must keep upstream GUI behavior as implementation material only');
+  }
+  if (guiContract.product_authority.upstream_behavior_acceptance_policy !== 'must_match_app_owned_gui_product_contract_before_release') {
+    throw new Error('App GUI product contract must gate upstream behavior against App-owned GUI requirements');
+  }
+
+  assertCommandSurface(guiContract.framework_surfaces?.canonical_state?.default_command, 'opl app state --profile fast --json', 'App GUI default state command');
+  assertCommandSurface(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile full --json', 'App GUI refresh state command');
+  if (guiContract.framework_surfaces.canonical_state.default_profile !== 'fast') {
+    throw new Error('App GUI default state profile must be fast');
+  }
+  if (guiContract.framework_surfaces.canonical_state.manual_refresh_profile !== 'full') {
+    throw new Error('App GUI manual refresh profile must be full');
+  }
+  assertCommandSurface(
+    guiContract.framework_surfaces.canonical_action?.command,
+    'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
+    'App GUI action command',
+  );
+  assertCommandSurface(
+    guiContract.framework_surfaces.runtime_full_drilldown?.command,
+    'opl runtime app-operator-drilldown --detail full --json',
+    'App GUI runtime full drilldown exception',
+  );
+  if (guiContract.framework_surfaces.runtime_full_drilldown.policy !== 'on_demand_only') {
+    throw new Error('App GUI runtime full drilldown must be on-demand only');
+  }
+  for (const forbiddenSource of [
+    'direct opl modules --json page aggregation',
+    'direct opl system developer-supervisor page aggregation',
+    'direct opl family-runtime worker status page aggregation',
+    'application.systemInfo as OPL path truth',
+    'application.appVersions as OPL release truth',
+    'direct reads of OPL internal state files',
+  ]) {
+    if (!guiContract.framework_surfaces.forbidden_gui_truth_sources?.includes(forbiddenSource)) {
+      throw new Error(`App GUI contract must forbid ${forbiddenSource}`);
+    }
+  }
+
+  if (guiContract.executor_policy?.default_executor !== 'codex_cli') {
+    throw new Error('App GUI default executor must be Codex CLI');
+  }
+  if (guiContract.executor_policy.codex_only_default !== true) {
+    throw new Error('App GUI default executor policy must be Codex-only');
+  }
+  if (guiContract.executor_policy.executor_tab_visible_when_single_executor !== false) {
+    throw new Error('App GUI must hide executor tab when Codex CLI is the only executor');
+  }
+  const assistants = new Map((guiContract.default_assistants ?? []).map((assistant) => [assistant.id, assistant]));
+  for (const assistantId of ['mas', 'mag', 'rca', 'oma']) {
+    const assistant = assistants.get(assistantId);
+    if (!assistant) {
+      throw new Error(`App GUI contract missing default assistant ${assistantId}`);
+    }
+    if (assistant.home_entry_policy !== 'visible_click_to_start') {
+      throw new Error(`Default assistant ${assistantId} must be visible click-to-start`);
+    }
+  }
+  if (assistants.has('mds')) {
+    throw new Error('MDS must not be a default App GUI assistant');
+  }
+  const retiredMds = (guiContract.retired_domain_agents ?? []).find((agent) => agent.id === 'mds');
+  if (retiredMds?.default_display_allowed !== false) {
+    throw new Error('App GUI contract must mark MDS as not default-displayed');
+  }
+
+  if (guiContract.theme_and_branding?.default_theme_id !== 'default-theme') {
+    throw new Error('App GUI default theme must be default-theme');
+  }
+  for (const themeId of ['default-theme', 'codex']) {
+    if (!guiContract.theme_and_branding.allowed_theme_ids?.includes(themeId)) {
+      throw new Error(`App GUI theme list must include ${themeId}`);
+    }
+  }
+  for (const section of ['system', 'runtime', 'about', 'update', 'theme']) {
+    if (!guiContract.settings_navigation?.required_sections?.includes(section)) {
+      throw new Error(`App GUI settings navigation must include ${section}`);
+    }
+  }
+  if (guiContract.settings_navigation.source !== 'opl app state --profile fast --json') {
+    throw new Error('App GUI settings navigation must default to fast App state');
+  }
+  if (guiContract.settings_navigation.refresh_source !== 'opl app state --profile full --json') {
+    throw new Error('App GUI settings navigation refresh must use full App state');
+  }
+
+  const modulePathPolicy = guiContract.module_path_source_policy;
+  if (modulePathPolicy?.source !== 'app_state.modules[].source + app_state.modules[].path + app_state.paths') {
+    throw new Error('App GUI module path explanation must come from App state module/path refs');
+  }
+  for (const explanation of [
+    'whether a module comes from the bundled Full runtime payload',
+    'whether a module comes from a local domain repository checkout',
+    'whether a module is managed by App/CLI maintenance',
+    'that module path display is refs-only and not domain truth authority',
+  ]) {
+    if (!modulePathPolicy.must_explain?.includes(explanation)) {
+      throw new Error(`App GUI module path source policy must explain ${explanation}`);
+    }
+  }
+
+  for (const lane of releaseChannel.release_validation_profiles.stable.required_lanes) {
+    if (!guiContract.release_channel_policy?.stable?.must_gate?.includes(lane)) {
+      throw new Error(`App GUI stable release policy must gate ${lane}`);
+    }
+  }
+  for (const lane of releaseChannel.release_validation_profiles.nightly_standard.required_lanes) {
+    if (!guiContract.release_channel_policy?.nightly?.must_gate?.includes(lane)) {
+      throw new Error(`App GUI nightly release policy must gate ${lane}`);
+    }
+  }
+  for (const lane of releaseChannel.release_validation_profiles.nightly_standard.forbidden_lanes) {
+    if (!guiContract.release_channel_policy?.nightly?.must_not_gate?.includes(lane)) {
+      throw new Error(`App GUI nightly release policy must exclude ${lane}`);
+    }
+  }
+
+  const pages = guiContract.pages ?? {};
+  for (const pageId of ['guid_home', 'settings_system', 'settings_runtime', 'about', 'update', 'settings_theme', 'runtime_status']) {
+    if (!pages[pageId]) {
+      throw new Error(`App GUI contract missing page ${pageId}`);
+    }
+  }
+  for (const pageId of ['guid_home', 'settings_system', 'settings_runtime', 'about', 'update', 'settings_theme']) {
+    assertCommandSurface(pages[pageId].state_source, 'opl app state --profile fast --json', `App GUI ${pageId} state source`);
+    assertCommandSurface(pages[pageId].refresh_source, 'opl app state --profile full --json', `App GUI ${pageId} refresh source`);
+  }
+  if (!pages.guid_home.must_show?.includes('default assistants MAS/MAG/RCA/OMA as click-to-start entries')) {
+    throw new Error('App GUI home must show MAS/MAG/RCA/OMA default assistants');
+  }
+  if (!pages.settings_system.must_show?.includes('OPL Agent Codex context')) {
+    throw new Error('Settings system must show OPL Agent Codex context');
+  }
+  if (pages.settings_runtime.module_path_source_policy_ref !== 'module_path_source_policy') {
+    throw new Error('Settings runtime must reference the App GUI module path source policy');
+  }
+  if (!pages.settings_runtime.must_show?.includes('module path source explanation')) {
+    throw new Error('Settings runtime must show module path source explanation');
+  }
+  if (!pages.settings_runtime.must_not_show?.includes('Med Deep Scientist as a default module')) {
+    throw new Error('Settings runtime must keep MDS out of default module display');
+  }
+  if (!pages.about.must_show?.includes('Stable or Nightly channel')) {
+    throw new Error('About page must show Stable or Nightly channel');
+  }
+  if (!pages.update.must_show?.includes('Stable channel update state') || !pages.update.must_show?.includes('Nightly opt-in update state when enabled')) {
+    throw new Error('Update page must show stable and nightly update states');
+  }
+  if (!pages.settings_theme.must_show?.includes('Default theme option') || !pages.settings_theme.must_show?.includes('Codex theme option')) {
+    throw new Error('Settings theme page must show default and Codex theme options');
+  }
+  if ('docker_webui' in guiContract) {
+    throw new Error('App GUI contract must not include withdrawn Docker/WebUI username, title, logo, or branding requirements');
+  }
+}
+
 function validatePageStateMatrix(matrix, contract) {
   if (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root) {
     throw new Error('Page-state matrix must target the active shell contract');
   }
 
   const requiredPages = new Set([
+    'guid_home',
     'runtime',
     'settings_overview',
     'environment',
     'about',
     'update',
+    'settings_theme',
     'first_launch_readiness',
   ]);
   for (const page of matrix.pages ?? []) {
@@ -103,28 +495,137 @@ function validatePageStateMatrix(matrix, contract) {
   if (requiredPages.size > 0) {
     throw new Error(`Page-state matrix is missing required page(s): ${[...requiredPages].join(', ')}`);
   }
+  if ((matrix.pages ?? []).some((page) => page.id === 'docker_webui')) {
+    throw new Error('Page-state matrix must not include withdrawn Docker/WebUI username, title, logo, or branding requirements');
+  }
+
+  const guidHomePage = (matrix.pages ?? []).find((page) => page.id === 'guid_home');
+  if (!guidHomePage) {
+    throw new Error('Page-state matrix is missing guid_home page');
+  }
+  if (guidHomePage.machine_source !== 'contracts/app-gui-product-contract.json#pages.guid_home + opl app state --profile fast --json') {
+    throw new Error(`Guid home page must consume the App GUI product contract and OPL App state, got: ${guidHomePage.machine_source}`);
+  }
+  const homeViewModel = guidHomePage.home_view_model;
+  if (homeViewModel?.authority !== 'app_repo_owned_product_truth') {
+    throw new Error('Guid home page must declare App-owned GUI authority');
+  }
+  if (homeViewModel.implementation_carrier !== 'opl-aion-shell') {
+    throw new Error('Guid home page implementation carrier must be opl-aion-shell');
+  }
+  for (const [field, expected] of Object.entries({
+    state_source: 'opl app state --profile fast --json',
+    refresh_source: 'opl app state --profile full --json',
+    executor_policy_ref: 'contracts/app-gui-product-contract.json#executor_policy',
+    assistant_source_ref: 'contracts/app-gui-product-contract.json#default_assistants',
+    codex_only_default: true,
+    executor_tab_visible_when_single_executor: false,
+    primary_input_surface: 'single_card',
+    nested_input_card_frames_allowed: false,
+    codex_model_selector_visible: false,
+    codex_model_list_visible: false,
+    codex_default_model: 'gpt-5.5',
+    codex_default_reasoning_effort: 'xhigh',
+    codex_default_permission_mode: 'full-access',
+  })) {
+    if (homeViewModel[field] !== expected) {
+      throw new Error(`Guid home page ${field} must be ${expected}`);
+    }
+  }
+  for (const assistant of ['mas', 'mag', 'rca', 'oma']) {
+    if (!homeViewModel.default_assistants?.includes(assistant)) {
+      throw new Error(`Guid home page must include default assistant ${assistant}`);
+    }
+  }
+  for (const visibleSignal of [
+    'Codex-only default executor experience',
+    'default Codex model state without a visible model tab',
+    'default assistants MAS/MAG/RCA/OMA as click-to-start entries',
+    'workspace selector',
+    'file attachment control',
+    'permission mode control',
+    'send action',
+  ]) {
+    if (!guidHomePage.must_show.includes(visibleSignal)) {
+      throw new Error(`Guid home page must show ${visibleSignal}`);
+    }
+  }
+  for (const hiddenSignal of [
+    'executor tab when Codex CLI is the only executor',
+    'Codex model dropdown on new conversation',
+    'retired Codex model choices',
+    'nested input card frames',
+  ]) {
+    if (!guidHomePage.must_not_show?.includes(hiddenSignal)) {
+      throw new Error(`Guid home page must not show ${hiddenSignal}`);
+    }
+  }
+
+  const appStatePages = ['settings_overview', 'environment', 'about', 'update', 'settings_theme'];
+  for (const pageId of appStatePages) {
+    const page = (matrix.pages ?? []).find((entry) => entry.id === pageId);
+    if (!page) {
+      throw new Error(`Page-state matrix is missing ${pageId}`);
+    }
+    if (page.machine_source !== 'opl app state --profile fast --json') {
+      throw new Error(`${pageId} must default to opl app state --profile fast --json`);
+    }
+    if (page.refresh_source !== 'opl app state --profile full --json') {
+      throw new Error(`${pageId} must refresh through opl app state --profile full --json`);
+    }
+  }
+  const settingsOverview = (matrix.pages ?? []).find((page) => page.id === 'settings_overview');
+  if (!settingsOverview?.must_show?.includes('OPL Agent Codex context')) {
+    throw new Error('Settings overview must show OPL Agent Codex context');
+  }
+  const environmentPage = (matrix.pages ?? []).find((page) => page.id === 'environment');
+  if (environmentPage?.module_path_source_policy_ref !== 'contracts/app-gui-product-contract.json#module_path_source_policy') {
+    throw new Error('Environment page must reference the App GUI module path source policy');
+  }
+  if (!environmentPage.must_show?.includes('module path source explanation')) {
+    throw new Error('Environment page must show module path source explanation');
+  }
+  if (!environmentPage.must_not_show?.includes('Med Deep Scientist as a default module')) {
+    throw new Error('Environment page must keep MDS out of default module display');
+  }
+  const aboutPage = (matrix.pages ?? []).find((page) => page.id === 'about');
+  if (!aboutPage?.must_show?.includes('Stable or Nightly channel')) {
+    throw new Error('About page must show Stable or Nightly channel');
+  }
+  const updatePage = (matrix.pages ?? []).find((page) => page.id === 'update');
+  if (!updatePage?.must_show?.includes('Stable channel update state') || !updatePage.must_show.includes('Nightly opt-in update state when enabled')) {
+    throw new Error('Update page must show stable and nightly update states');
+  }
+  const settingsThemePage = (matrix.pages ?? []).find((page) => page.id === 'settings_theme');
+  for (const signal of [
+    'Default theme option',
+    'Codex theme option',
+    'current theme from app_state.settings.theme',
+    'theme choice as App product preference',
+  ]) {
+    if (!settingsThemePage?.must_show?.includes(signal)) {
+      throw new Error(`Settings theme page must show ${signal}`);
+    }
+  }
 
   const runtimePage = (matrix.pages ?? []).find((page) => page.id === 'runtime');
   if (!runtimePage) {
     throw new Error('Page-state matrix is missing runtime page');
   }
-  if (runtimePage.machine_source !== 'runtime_visualization_projection or runtime_tray_snapshot.app_operator_drilldown') {
-    throw new Error(`Runtime page must consume OPL runtime visualization projection or app_operator_drilldown, got: ${runtimePage.machine_source}`);
+  if (runtimePage.machine_source !== 'opl app state --profile fast --json') {
+    throw new Error(`Runtime page must consume OPL App state as the summary source, got: ${runtimePage.machine_source}`);
   }
-  if (runtimePage.primary_projection !== 'runtime_visualization_projection') {
-    throw new Error(`Runtime page primary_projection must be runtime_visualization_projection, got: ${runtimePage.primary_projection}`);
+  if (runtimePage.primary_projection !== 'app_state.operator.summary') {
+    throw new Error(`Runtime page primary_projection must be app_state.operator.summary, got: ${runtimePage.primary_projection}`);
   }
-  if (runtimePage.fallback_projection !== 'runtime_tray_snapshot.app_operator_drilldown') {
-    throw new Error(`Runtime page fallback_projection must be runtime_tray_snapshot.app_operator_drilldown, got: ${runtimePage.fallback_projection}`);
-  }
-  if (runtimePage.framework_command !== 'opl runtime app-operator-drilldown --json') {
-    throw new Error(`Runtime page must use the OPL drilldown command, got: ${runtimePage.framework_command}`);
+  if (runtimePage.framework_command !== 'opl app state --profile fast --json') {
+    throw new Error(`Runtime page must use the OPL App state command, got: ${runtimePage.framework_command}`);
   }
   if (runtimePage.framework_full_detail_command !== 'opl runtime app-operator-drilldown --detail full --json') {
-    throw new Error(`Runtime page must lazy-load full App/operator drilldown through the whitelisted OPL command, got: ${runtimePage.framework_full_detail_command}`);
+    throw new Error(`Runtime page must lazy-load full App/operator drilldown only on demand, got: ${runtimePage.framework_full_detail_command}`);
   }
-  if (runtimePage.framework_action_command !== 'opl runtime action execute --action <id> [--payload refs-only-json] [--dry-run]') {
-    throw new Error(`Runtime page must expose only the whitelisted OPL action command, got: ${runtimePage.framework_action_command}`);
+  if (runtimePage.framework_action_command !== 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json') {
+    throw new Error(`Runtime page must expose only the whitelisted OPL App action command, got: ${runtimePage.framework_action_command}`);
   }
   const acceptancePath = runtimePage.operator_evidence_acceptance_path;
   if (acceptancePath?.role !== 'runtime_page_operator_evidence_acceptance') {
@@ -134,23 +635,27 @@ function validatePageStateMatrix(matrix, contract) {
     throw new Error('Runtime page operator evidence acceptance must be refs-only JSON');
   }
   for (const [field, expected] of Object.entries({
-    summary_drilldown_command: 'opl runtime app-operator-drilldown --json',
+    summary_state_command: 'opl app state --profile fast --json',
+    refresh_state_command: 'opl app state --profile full --json',
     full_drilldown_command: 'opl runtime app-operator-drilldown --detail full --json',
-    action_dry_run_command: 'opl runtime action execute --action <action_id> --dry-run',
-    action_execute_command: 'opl runtime action execute --action <action_id>',
-    action_route_source: 'runtime_tray_snapshot.app_operator_drilldown.safe_action_routes',
-    action_execution_policy: 'operator_selected_safe_action_route_only',
+    action_dry_run_command: 'opl app action execute --action <action_id> --dry-run --json',
+    action_execute_command: 'opl app action execute --action <action_id> --json',
+    action_route_source: 'app_state.actions',
+    action_execution_policy: 'operator_selected_safe_app_action_route_only',
   })) {
     if (acceptancePath[field] !== expected) {
       throw new Error(`Runtime page operator evidence acceptance ${field} must be ${expected}`);
     }
   }
   const runtimeViewModel = runtimePage.runtime_view_model;
-  if (runtimeViewModel?.role !== 'multi_task_runtime_base') {
-    throw new Error('Runtime page must declare a multi-task runtime base view model');
+  if (runtimeViewModel?.role !== 'opl_runtime_status_summary') {
+    throw new Error('Runtime page must declare OPL runtime status summary view model');
   }
-  if (runtimeViewModel.default_mode !== 'summary_first') {
-    throw new Error('Runtime page view model must default to summary_first');
+  if (runtimeViewModel.bridge_contract !== 'contracts/app-runtime-bridge.json') {
+    throw new Error(`Runtime page view model must reference app-runtime-bridge.json, got: ${runtimeViewModel.bridge_contract}`);
+  }
+  if (runtimeViewModel.default_mode !== 'app_state_summary_first') {
+    throw new Error('Runtime page view model must default to app_state_summary_first');
   }
   if (runtimeViewModel.full_detail_policy !== 'on_demand_only') {
     throw new Error('Runtime page full detail must be on-demand only');
@@ -163,20 +668,15 @@ function validatePageStateMatrix(matrix, contract) {
     throw new Error('Runtime page polling fallback must be lightweight 5-10 second polling');
   }
   for (const [field, expected] of Object.entries({
-    'action_queue.source': 'runtime_visualization_projection.action_queue',
-    'action_queue.fallback_source': 'runtime_tray_snapshot.app_operator_drilldown.safe_action_routes',
+    'action_queue.source': 'app_state.actions',
+    'action_queue.fallback_source': 'app_state.operator.actions',
     'action_queue.authority': 'framework_refs_only',
-    'vertical_map.source': 'runtime_visualization_projection.dynamic_vertical_map',
-    'vertical_map.fallback_source': 'runtime_tray_snapshot.app_operator_drilldown.route_graph',
-    'vertical_map.orientation': 'vertical',
-    'vertical_map.scope': 'multi_task_runtime_map',
-    'task_drilldown.command': 'opl runtime app-operator-drilldown --task <task_id> --json',
-    'task_drilldown.detail_command': 'opl runtime app-operator-drilldown --task <task_id> --detail full --json',
-    'task_drilldown.scope': 'single_task',
-    'task_drilldown.default_mode': 'summary_first',
-    'mas_paper_lens.source': 'domain_projection_refs.mas.paper_lens',
-    'mas_paper_lens.scope': 'refs_only_publication_progress',
-    'mas_paper_lens.authority': 'mas_owned',
+    primary_state_source: 'opl app state --profile fast --json',
+    refresh_state_source: 'opl app state --profile full --json',
+    summary_source: 'app_state.operator.summary',
+    full_detail_source: 'opl runtime app-operator-drilldown --detail full --json',
+    'provider_status.source': 'app_state.provider',
+    'provider_status.authority': 'opl_framework',
     'authority_boundary.action_execution_owner': 'opl_framework',
     'authority_boundary.domain_verdict_owner': 'domain_agent',
   })) {
@@ -192,17 +692,15 @@ function validatePageStateMatrix(matrix, contract) {
     throw new Error('Runtime page view model must be display-only for non-authority domain refs');
   }
   const requiredEvidencePath = [
-    'summary-first app operator read model',
+    'summary-first OPL App state read model',
+    'full App state refresh',
     'full detail lazy load',
-    'multi-task runtime base projection',
-    'action queue refs',
-    'vertical dynamic map refs',
-    'single task drilldown refs',
-    'MAS paper lens refs',
-    '5-10 second lightweight polling fallback',
+    'app_state.operator.summary refs',
+    'app_state.provider readiness refs',
+    'app_state.actions safe action refs',
     'refs-only non-authority boundary',
-    'safe action dry-run',
-    'safe action execute',
+    'safe app action dry-run',
+    'safe app action execute',
     'receipt/count refresh after execute',
     'authority boundary fields',
   ];
@@ -212,33 +710,15 @@ function validatePageStateMatrix(matrix, contract) {
     }
   }
   const requiredRuntimeSignals = [
-    'operator evidence acceptance state',
-    'summary-first app operator read model',
-    'runtime visualization projection when available',
-    'multi-task runtime base',
-    'action queue',
-    'vertical dynamic map',
-    'single task drilldown',
-    'MAS paper lens',
-    'summary-first/full-detail-on-demand controls',
-    '5-10 second lightweight polling fallback',
-    'refs-only non-authority boundary',
-    'stage graph',
-    'route graph',
-    'decision map',
-    'timeline',
-    'research paper lens refs',
+    'summary-first OPL runtime status',
+    'provider readiness from app_state.provider',
+    'operator summary from app_state.operator',
+    'safe action refs from app_state.actions',
+    'summary-first OPL App state read model',
     'full detail lazy load',
-    'safe action dry-run/execute controls',
+    'safe app action dry-run/execute controls',
     'receipt/count refresh after execute',
-    'route graph and decision map refs',
-    'review and repair queue',
-    'artifact gallery and package/export lifecycle refs',
-    'memory refs and writeback receipt refs',
-    'quality/readiness refs',
-    'provider SLO and repair refs',
-    'owner-aware action routing',
-    'safe action dry-run and execute result refs',
+    'refs-only non-authority boundary',
   ];
   for (const signal of requiredRuntimeSignals) {
     if (!runtimePage.must_show.includes(signal)) {
@@ -259,6 +739,18 @@ function validatePageStateMatrix(matrix, contract) {
     if (!runtimePage.must_not_own?.includes(owner)) {
       throw new Error(`Runtime page must not own ${owner}`);
     }
+  }
+  if (matrix.canonical_state_surface?.default_command !== 'opl app state --profile fast --json') {
+    throw new Error('Page-state matrix canonical default state command must be fast App state');
+  }
+  if (matrix.canonical_state_surface.refresh_command !== 'opl app state --profile full --json') {
+    throw new Error('Page-state matrix canonical refresh state command must be full App state');
+  }
+  if (matrix.canonical_action_surface?.command !== 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json') {
+    throw new Error('Page-state matrix canonical action command must be the OPL App action execute boundary');
+  }
+  if (matrix.full_detail_exception?.command !== 'opl runtime app-operator-drilldown --detail full --json') {
+    throw new Error('Page-state matrix full detail exception must be OPL runtime app-operator-drilldown');
   }
 }
 
@@ -294,17 +786,17 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
 
   const artifactById = new Map((bundle.required_artifacts ?? []).map((artifact) => [artifact.id, artifact]));
   const requiredArtifacts = {
-    runtime_snapshot: {
-      path: 'runtime-snapshot.json',
-      producer: 'opl runtime snapshot --json',
+    app_state_summary: {
+      path: 'app-state-summary.json',
+      producer: 'opl app state --profile fast --json',
       kind: 'json',
-      source_kind: 'opl_runtime_snapshot',
+      source_kind: 'opl_app_state_summary',
     },
-    drilldown_summary: {
-      path: 'drilldown-summary.json',
-      producer: 'opl runtime app-operator-drilldown --json',
+    app_state_full: {
+      path: 'app-state-full.json',
+      producer: 'opl app state --profile full --json',
       kind: 'json',
-      source_kind: 'opl_app_operator_drilldown_summary',
+      source_kind: 'opl_app_state_full',
     },
     drilldown_full: {
       path: 'drilldown-full.json',
@@ -314,15 +806,15 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
     },
     action_dry_run_result: {
       path: 'action-dry-run-result.json',
-      producer: 'opl runtime action execute --action <action_id> --dry-run',
+      producer: 'opl app action execute --action <action_id> --dry-run --json',
       kind: 'json',
-      source_kind: 'opl_runtime_action_dry_run',
+      source_kind: 'opl_app_action_dry_run',
     },
     action_execute_result: {
       path: 'action-execute-result.json',
-      producer: 'opl runtime action execute --action <action_id>',
+      producer: 'opl app action execute --action <action_id> --json',
       kind: 'json',
-      source_kind: 'opl_runtime_action_execute',
+      source_kind: 'opl_app_action_execute',
     },
     runtime_screenshot: {
       path: 'screenshots/runtime.png',
@@ -374,6 +866,12 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
   }
 
   const runtimePage = (pageStateMatrix.pages ?? []).find((page) => page.id === 'runtime');
+  if (runtimePage?.operator_evidence_acceptance_path?.summary_state_command !== requiredArtifacts.app_state_summary.producer) {
+    throw new Error('Runtime page summary state command must match release evidence bundle producer');
+  }
+  if (runtimePage?.operator_evidence_acceptance_path?.refresh_state_command !== requiredArtifacts.app_state_full.producer) {
+    throw new Error('Runtime page refresh state command must match release evidence bundle producer');
+  }
   if (runtimePage?.operator_evidence_acceptance_path?.full_drilldown_command !== requiredArtifacts.drilldown_full.producer) {
     throw new Error('Runtime page full drilldown command must match release evidence bundle producer');
   }
@@ -564,6 +1062,34 @@ function validateProductProfileCodexDefaults(profile) {
   if (profile.default_session_profile?.reasoning_effort !== profile.codex?.default_reasoning_effort) {
     throw new Error('Product profile default_session_profile.reasoning_effort must match codex.default_reasoning_effort');
   }
+  if (profile.gui?.authority !== 'app_repo_owned_product_truth') {
+    throw new Error('Product profile GUI authority must be App-owned');
+  }
+  if (profile.gui?.implementation_carrier !== 'opl-aion-shell') {
+    throw new Error('Product profile GUI implementation carrier must be opl-aion-shell');
+  }
+  if (
+    profile.gui.appearance?.default_css_theme_id !== 'default-theme' ||
+    profile.gui.appearance?.codex_theme_default_enabled !== false
+  ) {
+    throw new Error('Product profile GUI appearance must default to the default theme');
+  }
+  if (
+    profile.gui.home?.primary_input_surface !== 'single_card' ||
+    profile.gui.home?.nested_input_card_frames_allowed !== false ||
+    profile.gui.home?.codex_model_selector_visible !== false ||
+    profile.gui.home?.codex_model_list_visible !== false ||
+    profile.gui.home?.codex_default_model !== profile.codex?.default_model ||
+    profile.gui.home?.codex_default_reasoning_effort !== profile.codex?.default_reasoning_effort ||
+    profile.gui.home?.codex_default_permission_mode !== 'full-access'
+  ) {
+    throw new Error('Product profile GUI home must hide Codex model selection and match App Codex defaults');
+  }
+  for (const retiredModel of ['gpt-5.2-codex', 'gpt-5.1-codex-max', 'gpt-5.1-codex-mini']) {
+    if (!profile.gui.home?.retired_codex_models_must_not_be_exposed?.includes(retiredModel)) {
+      throw new Error(`Product profile GUI home must ban retired Codex model ${retiredModel}`);
+    }
+  }
   if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('mineru-document-extractor')) {
     throw new Error('Product profile must include mineru-document-extractor as a default visible skill');
   }
@@ -703,13 +1229,18 @@ function runCommand(entry, contract, shellPaths) {
 const args = parseArgs(process.argv);
 const contract = readAppShellAdapterContract(contractPath);
 const shellPaths = resolveActiveShellPaths({ contract });
+const guiProductContract = readJson(guiProductContractPath);
+const runtimeBridge = readJson(runtimeBridgePath);
 const pageStateMatrix = readJson(pageStateMatrixPath);
 const firstRunMatrix = readJson(firstRunMatrixPath);
+const releaseChannel = readJson(releaseChannelPath);
 validateContractShape(contract);
+validateRuntimeBridgeContract(runtimeBridge, contract);
+validateAppGuiProductContract(guiProductContract, releaseChannel);
 validatePageStateMatrix(pageStateMatrix, contract);
 validateFirstRunMatrix(firstRunMatrix, contract);
 validateProductProfile(readJson(productProfilePath));
-validateReleaseEvidenceBundle(readJson(releaseChannelPath), pageStateMatrix, firstRunMatrix);
+validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix);
 
 if (args.quick) {
   console.log('Active shell contract is structurally valid.');

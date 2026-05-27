@@ -338,6 +338,13 @@ jobs:
           hdiutil verify "$dmg_path"
           (cd "$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release" && shasum -a 256 -c SHA256SUMS.txt)
 
+      - name: Summarize Full package size
+        working-directory: one-person-lab-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run release:full:size -- --markdown >> "$GITHUB_STEP_SUMMARY"
+
       - name: Save Full runtime layer cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v4

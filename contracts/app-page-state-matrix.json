@@ -7,18 +7,73 @@
   "shell_root": "shells/aionui",
   "pages": [
     {
+      "id": "guid_home",
+      "expected_source": "App-owned GUI product contract and OPL App state projection",
+      "machine_source": "contracts/app-gui-product-contract.json#pages.guid_home + opl app state --profile fast --json",
+      "page_contract": "guid_home_entry",
+      "home_view_model": {
+        "authority": "app_repo_owned_product_truth",
+        "implementation_carrier": "opl-aion-shell",
+        "primary_input_surface": "single_card",
+        "nested_input_card_frames_allowed": false,
+        "appearance_default_css_theme_id": "default-theme",
+        "codex_model_selector_visible": false,
+        "codex_model_list_visible": false,
+        "codex_model_policy": "auto_latest_frontier_from_codex_capabilities_or_app_default",
+        "codex_default_model": "gpt-5.5",
+        "codex_default_reasoning_effort": "xhigh",
+        "codex_default_permission_mode": "full-access",
+        "retired_codex_models_must_not_be_exposed": [
+          "gpt-5.2-codex",
+          "gpt-5.1-codex-max",
+          "gpt-5.1-codex-mini"
+        ],
+        "state_source": "opl app state --profile fast --json",
+        "refresh_source": "opl app state --profile full --json",
+        "executor_policy_ref": "contracts/app-gui-product-contract.json#executor_policy",
+        "assistant_source_ref": "contracts/app-gui-product-contract.json#default_assistants",
+        "codex_only_default": true,
+        "executor_tab_visible_when_single_executor": false,
+        "default_assistants": [
+          "mas",
+          "mag",
+          "rca",
+          "oma"
+        ],
+        "hero_prompt": "把研究、基金和汇报交给 One Person Lab 自动推进"
+      },
+      "must_show": [
+        "Codex-only default executor experience",
+        "default Codex model state without a visible model tab",
+        "default assistants MAS/MAG/RCA/OMA as click-to-start entries",
+        "workspace selector",
+        "file attachment control",
+        "permission mode control",
+        "send action"
+      ],
+      "must_not_show": [
+        "executor tab when Codex CLI is the only executor",
+        "Codex model dropdown on new conversation",
+        "retired Codex model choices",
+        "nested input card frames"
+      ],
+      "state_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile full --json"
+    },
+    {
       "id": "runtime",
-      "expected_source": "OPL runtime snapshot or provider-backed projection",
-      "machine_source": "runtime_visualization_projection or runtime_tray_snapshot.app_operator_drilldown",
-      "primary_projection": "runtime_visualization_projection",
-      "fallback_projection": "runtime_tray_snapshot.app_operator_drilldown",
-      "framework_command": "opl runtime app-operator-drilldown --json",
+      "expected_source": "OPL App state projection summary with on-demand Framework drilldown",
+      "machine_source": "opl app state --profile fast --json",
+      "primary_projection": "app_state.operator.summary",
+      "fallback_projection": "full App/operator drilldown only for on-demand full detail",
+      "framework_command": "opl app state --profile fast --json",
       "framework_full_detail_command": "opl runtime app-operator-drilldown --detail full --json",
-      "framework_action_command": "opl runtime action execute --action <id> [--payload refs-only-json] [--dry-run]",
-      "page_contract": "runtime_workbench_drilldown",
+      "framework_action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+      "page_contract": "runtime_status_summary_first",
       "runtime_view_model": {
-        "role": "multi_task_runtime_base",
-        "default_mode": "summary_first",
+        "role": "opl_runtime_status_summary",
+        "bridge_contract": "contracts/app-runtime-bridge.json",
+        "default_mode": "app_state_summary_first",
         "full_detail_policy": "on_demand_only",
         "polling_fallback": {
           "interval_seconds_min": 5,
@@ -26,13 +81,13 @@
           "policy": "lightweight_polling_until_push_projection_available"
         },
         "action_queue": {
-          "source": "runtime_visualization_projection.action_queue",
-          "fallback_source": "runtime_tray_snapshot.app_operator_drilldown.safe_action_routes",
+          "source": "app_state.actions",
+          "fallback_source": "app_state.operator.actions",
           "authority": "framework_refs_only"
         },
         "vertical_map": {
-          "source": "runtime_visualization_projection.dynamic_vertical_map",
-          "fallback_source": "runtime_tray_snapshot.app_operator_drilldown.route_graph",
+          "source": "app_state.operator.dynamic_vertical_map",
+          "fallback_source": "app_operator_drilldown.route_graph on demand",
           "orientation": "vertical",
           "scope": "multi_task_runtime_map"
         },
@@ -52,64 +107,50 @@
           "non_authority_display_only": true,
           "action_execution_owner": "opl_framework",
           "domain_verdict_owner": "domain_agent"
+        },
+        "primary_state_source": "opl app state --profile fast --json",
+        "refresh_state_source": "opl app state --profile full --json",
+        "summary_source": "app_state.operator.summary",
+        "full_detail_source": "opl runtime app-operator-drilldown --detail full --json",
+        "provider_status": {
+          "source": "app_state.provider",
+          "authority": "opl_framework"
         }
       },
       "operator_evidence_acceptance_path": {
         "role": "runtime_page_operator_evidence_acceptance",
         "accepts_refs_only_json": true,
-        "summary_drilldown_command": "opl runtime app-operator-drilldown --json",
+        "summary_state_command": "opl app state --profile fast --json",
+        "refresh_state_command": "opl app state --profile full --json",
         "full_drilldown_command": "opl runtime app-operator-drilldown --detail full --json",
-        "action_dry_run_command": "opl runtime action execute --action <action_id> --dry-run",
-        "action_execute_command": "opl runtime action execute --action <action_id>",
-        "action_route_source": "runtime_tray_snapshot.app_operator_drilldown.safe_action_routes",
-        "action_execution_policy": "operator_selected_safe_action_route_only"
+        "action_dry_run_command": "opl app action execute --action <action_id> --dry-run --json",
+        "action_execute_command": "opl app action execute --action <action_id> --json",
+        "action_route_source": "app_state.actions",
+        "action_execution_policy": "operator_selected_safe_app_action_route_only"
       },
       "operator_evidence_path": [
-        "summary-first app operator read model",
+        "summary-first OPL App state read model",
+        "full App state refresh",
         "full detail lazy load",
-        "multi-task runtime base projection",
-        "action queue refs",
-        "vertical dynamic map refs",
-        "single task drilldown refs",
-        "MAS paper lens refs",
-        "5-10 second lightweight polling fallback",
+        "app_state.operator.summary refs",
+        "app_state.provider readiness refs",
+        "app_state.actions safe action refs",
         "refs-only non-authority boundary",
-        "safe action dry-run",
-        "safe action execute",
+        "safe app action dry-run",
+        "safe app action execute",
         "receipt/count refresh after execute",
         "authority boundary fields"
       ],
       "must_show": [
-        "runtime state",
-        "source surface",
-        "runtime visualization projection when available",
-        "multi-task runtime base",
-        "action queue",
-        "vertical dynamic map",
-        "single task drilldown",
-        "MAS paper lens",
-        "summary-first/full-detail-on-demand controls",
-        "5-10 second lightweight polling fallback",
-        "refs-only non-authority boundary",
-        "repair action when available",
-        "operator evidence acceptance state",
-        "summary-first app operator read model",
-        "stage graph",
-        "route graph",
-        "decision map",
-        "timeline",
-        "research paper lens refs",
+        "summary-first OPL runtime status",
+        "provider readiness from app_state.provider",
+        "operator summary from app_state.operator",
+        "safe action refs from app_state.actions",
+        "summary-first OPL App state read model",
         "full detail lazy load",
-        "safe action dry-run/execute controls",
+        "safe app action dry-run/execute controls",
         "receipt/count refresh after execute",
-        "route graph and decision map refs",
-        "review and repair queue",
-        "artifact gallery and package/export lifecycle refs",
-        "memory refs and writeback receipt refs",
-        "quality/readiness refs",
-        "provider SLO and repair refs",
-        "owner-aware action routing",
-        "safe action dry-run and execute result refs"
+        "refs-only non-authority boundary"
       ],
       "must_not_own": [
         "runtime truth",
@@ -120,33 +161,145 @@
         "quality/readiness/export verdict",
         "action route authority",
         "domain action approval override"
-      ]
+      ],
+      "framework_refresh_command": "opl app state --profile full --json"
     },
     {
       "id": "settings_overview",
-      "expected_source": "App settings and OPL environment summary",
-      "must_show": ["current app version", "executor boundary", "environment state"]
+      "expected_source": "OPL App state projection",
+      "must_show": [
+        "Developer Mode effective state from app_state.developer_mode",
+        "workspace path from app_state.paths",
+        "logs path from app_state.paths",
+        "OPL Agent Codex context"
+      ],
+      "machine_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile full --json",
+      "page_contract": "settings_system",
+      "state_sections": [
+        "developer_mode",
+        "paths",
+        "opl_agent_codex_context"
+      ],
+      "must_not_show": [
+        "delayed developer mode flip from a shell-local cache",
+        "AionUI local directory as OPL path truth"
+      ]
     },
     {
       "id": "environment",
-      "expected_source": "OPL system initialize / module / skill surfaces",
-      "must_show": ["Codex default path", "module state", "repair command when needed"]
+      "expected_source": "OPL App state projection",
+      "must_show": [
+        "Codex CLI version and default profile from app_state.core",
+        "Temporal status from app_state.provider.temporal",
+        "MAS/MAG/RCA/OMA module version and source from app_state.modules",
+        "module path source explanation",
+        "section-level refresh state"
+      ],
+      "machine_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile full --json",
+      "page_contract": "settings_runtime",
+      "state_sections": [
+        "core.codex",
+        "provider.temporal",
+        "modules",
+        "assistants",
+        "release"
+      ],
+      "module_path_source_policy_ref": "contracts/app-gui-product-contract.json#module_path_source_policy",
+      "must_not_show": [
+        "Med Deep Scientist as a default module",
+        "page-wide spinner while one section refreshes",
+        "GUI-owned Temporal restart judgment"
+      ]
     },
     {
       "id": "about",
-      "expected_source": "packaged App metadata and release channel",
-      "must_show": ["product name", "version", "release channel"]
+      "expected_source": "OPL App state projection",
+      "must_show": [
+        "One Person Lab App version",
+        "GUI shell version",
+        "OPL Framework version",
+        "Stable or Nightly channel",
+        "localized update status"
+      ],
+      "machine_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile full --json",
+      "page_contract": "about",
+      "state_sections": [
+        "release"
+      ],
+      "must_not_show": [
+        "AionUI version as the App version",
+        "raw i18n keys",
+        "raw update error codes as user-facing copy"
+      ]
     },
     {
       "id": "update",
-      "expected_source": "standard updater metadata",
-      "must_show": ["standard package update state"],
-      "must_not_show": ["Full first-install asset as standard update"]
+      "expected_source": "OPL App state projection",
+      "must_show": [
+        "Stable channel update state",
+        "Nightly opt-in update state when enabled",
+        "localized GitHub release check failure"
+      ],
+      "must_not_show": [
+        "Full first-install asset as a standard updater target",
+        "English update labels in Chinese UI"
+      ],
+      "machine_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile full --json",
+      "page_contract": "update",
+      "state_sections": [
+        "release"
+      ]
+    },
+    {
+      "id": "settings_theme",
+      "expected_source": "OPL App state projection",
+      "must_show": [
+        "Default theme option",
+        "Codex theme option",
+        "current theme from app_state.settings.theme",
+        "theme choice as App product preference"
+      ],
+      "must_not_show": [
+        "AionUI theme as product authority",
+        "theme choice as runtime or domain readiness"
+      ],
+      "machine_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile full --json",
+      "page_contract": "settings_theme",
+      "state_sections": [
+        "theme"
+      ]
     },
     {
       "id": "first_launch_readiness",
       "expected_source": "first-run wizard and OPL initialize result",
-      "must_show": ["required setup state", "completion state", "blocking error source"]
+      "must_show": [
+        "required setup state",
+        "completion state",
+        "blocking error source"
+      ]
     }
-  ]
+  ],
+  "gui_product_contract": "contracts/app-gui-product-contract.json",
+  "canonical_state_surface": {
+    "schema": "opl_app_state.v1",
+    "default_command": "opl app state --profile fast --json",
+    "refresh_command": "opl app state --profile full --json",
+    "default_profile": "fast",
+    "manual_refresh_profile": "full",
+    "page_load_policy": "fast_state_first_no_page_wide_spinner",
+    "failure_policy": "section_level_status_with_last_good_display_cache_allowed"
+  },
+  "canonical_action_surface": {
+    "command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+    "policy": "mutating_work_uses_explicit_app_action_route"
+  },
+  "full_detail_exception": {
+    "command": "opl runtime app-operator-drilldown --detail full --json",
+    "policy": "on_demand_only"
+  }
 }

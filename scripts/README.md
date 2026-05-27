@@ -13,6 +13,7 @@ exposes its shell-specific helpers under `shells/aionui/scripts/`.
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
 | `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates. |
+| `analyze-full-package-size.ts` | Reads `full-package-manifest.json` and reports Full runtime component/layer size, budget use, and optional runtime-root top entries. |
 | `collect-release-evidence.ts` | Collects live OPL runtime snapshot, App/operator drilldown, and selected safe-action dry-run/execute JSON into a release evidence bundle, then writes the manifest without claiming missing screenshot, VM, settings, or remote evidence. |
 | `write-release-evidence-manifest.ts` | Writes `evidence-manifest.json` for a release evidence bundle and marks absent VM/remote artifacts as missing evidence. |
 | `validate-release-evidence-bundle.ts` | Validates a release evidence bundle manifest and artifact files; default validation fails closed when required evidence is missing. |
@@ -46,6 +47,7 @@ npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
 npm run release:plan -- --version <version> --profile nightly
 npm run release:plan -- --version <version> --include-full-package
+npm run release:full:size -- --markdown
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --runtime-profile standard
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --runtime-profile full
 OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --complete --skip-modules
@@ -58,6 +60,12 @@ compressed DMG size, uncompressed runtime size, and layer breakdown, then uses
 published GitHub Release assets. The remote verifier enforces the compressed
 Full DMG budget from the GitHub asset size and the uncompressed runtime budget
 from `full-package-manifest.json` `size_breakdown.total_runtime_uncompressed_bytes`.
+`npm run release:full:size -- --markdown` prints the same component and layer
+breakdown for local review and is appended to the Full GitHub Actions summary.
+Full packaging excludes local development indexes, dependency caches, tests, and
+runtime/user state such as `.codegraph`, `.git`, `.worktrees`, `.venv`,
+`node_modules`, `runtime`, `runtime-state`, `runs`, `sessions`, and `tests`;
+domain-specific allowlists must come from the owning domain repositories.
 
 The clean no-CLT first-install gate is wired through
 `.github/workflows/opl-first-run-vm.yml` and the active shell Tart smoke helper.

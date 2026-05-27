@@ -143,18 +143,26 @@ release.
 
 The Runtime page is the operator evidence acceptance path for App release
 evidence. It consumes OPL refs-only JSON from
-`opl runtime app-operator-drilldown --json`,
-`opl runtime app-operator-drilldown --detail full --json`, and selected safe
-action routes executed through `opl runtime action execute`. The App records and
-displays those refs; it does not become runtime truth, provider implementation,
-domain truth, artifact authority, or quality verdict owner.
+`opl app state --profile fast --json`, refreshes through
+`opl app state --profile full --json`, lazy-loads full detail through
+`opl runtime app-operator-drilldown --detail full --json`, and executes selected
+safe action routes through `opl app action execute`. The App records and displays
+those refs; it does not become runtime truth, provider implementation, domain
+truth, artifact authority, or quality verdict owner.
+
+GUI release readiness is App-contract first. `contracts/app-gui-product-contract.json`
+owns the user-visible GUI requirements and mirrors the stable/nightly gate sets
+from `contracts/app-release-channel.json`; `contracts/app-shell-adapter.json`
+requires the active shell to implement that contract. Shell implementation or
+upstream AionUI changes do not redefine release readiness without an App-owned
+contract, docs, and test update.
 
 Each release evidence bundle should follow
 `contracts/app-release-channel.json` `operator_evidence_bundle` and contain:
 
 - `evidence-manifest.json`.
-- `runtime-snapshot.json`.
-- `drilldown-summary.json` and `drilldown-full.json`.
+- `app-state-summary.json`.
+- `app-state-full.json` and `drilldown-full.json`.
 - `action-dry-run-result.json` and `action-execute-result.json`.
 - `screenshots/runtime.png`, `screenshots/full.png`, and
   `screenshots/action.png`.
@@ -276,6 +284,34 @@ size against the downloaded file size and the recorded `sha256:` digest. Treat
 size growth as acceptable only when it is explained by an intentional layer
 change, not by duplicated checkouts, stale runtime payloads, or standard-updater
 leakage.
+
+Run the local size analyzer after a Full build, or read its GitHub Actions step
+summary:
+
+```bash
+npm run release:full:size -- --markdown
+```
+
+Full runtime packaging follows a hygiene-first policy before any domain-specific
+runtime allowlist exists. The App packager excludes local indexes, dependency
+caches, test folders, and user/runtime state such as `.codegraph`, `.git`,
+`.worktrees`, `.venv`, `node_modules`, `runtime`, `runtime-state`, `runs`,
+`sessions`, and `tests`. This is an App-owned distribution boundary only: App
+packaging may remove local development state, but it must not decide which MAS,
+MAG, RCA, or OPL Meta Agent source, prompt, contract, or asset is domain truth.
+Any narrower runtime allowlist must be declared by the owning domain repository
+and then consumed by the App packager as a contract.
+
+The current size-control design is one step, not a separate research phase:
+
+- package only the standard updater assets for Nightly.
+- build Full only for Stable or explicit Full refreshes.
+- keep Full runtime layers content-addressed and warm before release windows.
+- record component, layer, compressed DMG, and uncompressed runtime sizes on
+  every Full build.
+- fail remote verification when published assets exceed the manifest budgets.
+- treat new large components as acceptable only when the manifest shows the
+  intentional owner and layer that grew.
 
 Publishing to an existing tag is intentional for Full first-install refreshes:
 `scripts/publish-release.ts` uses `gh release upload --clobber`, so the same

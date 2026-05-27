@@ -45,12 +45,12 @@ function writeTinyPng(filePath) {
 
 function writeRuntimeEvidenceJsonFiles(tempRoot) {
   writeFile(
-    path.join(tempRoot, 'runtime-snapshot.json'),
-    '{"runtime_tray_snapshot":{"schema_version":"runtime_tray_snapshot.v1","runtime_health":{"status":"running"}}}\n',
+    path.join(tempRoot, 'app-state-summary.json'),
+    '{"app_state":{"schema":"opl_app_state.v1","profile":"fast","operator":{"summary":{"stage_attempt_count":1},"actions":[{"action_id":"provider-scheduler:temporal:trigger"}]},"provider":{"temporal":{"status":"ready"}}}}\n',
   );
   writeFile(
-    path.join(tempRoot, 'drilldown-summary.json'),
-    '{"app_operator_drilldown":{"surface_kind":"opl_app_operator_drilldown_read_model","detail_level":"summary","summary":{"stage_attempt_count":1}}}\n',
+    path.join(tempRoot, 'app-state-full.json'),
+    '{"app_state":{"schema":"opl_app_state.v1","profile":"full","operator":{"summary":{"stage_attempt_count":1},"actions":[{"action_id":"provider-scheduler:temporal:trigger"}]},"provider":{"temporal":{"status":"ready"}}}}\n',
   );
   writeFile(
     path.join(tempRoot, 'drilldown-full.json'),
@@ -58,11 +58,11 @@ function writeRuntimeEvidenceJsonFiles(tempRoot) {
   );
   writeFile(
     path.join(tempRoot, 'action-dry-run-result.json'),
-    '{"runtime_operator_action_execution":{"surface_kind":"opl_runtime_operator_action_execution","action_id":"stage-production-attempt:medautoscience:analysis-campaign","dry_run":true,"execution":{"execution_status":"dry_run"},"authority_boundary":{"can_write_domain_truth":false}}}\n',
+    '{"app_action_execution":{"surface_kind":"opl_app_action_execution","action_id":"stage-production-attempt:medautoscience:analysis-campaign","dry_run":true,"execution":{"execution_status":"dry_run"},"authority_boundary":{"can_write_domain_truth":false}}}\n',
   );
   writeFile(
     path.join(tempRoot, 'action-execute-result.json'),
-    '{"runtime_operator_action_execution":{"surface_kind":"opl_runtime_operator_action_execution","action_id":"stage-production-attempt:medautoscience:analysis-campaign","dry_run":false,"execution":{"execution_status":"executed"},"authority_boundary":{"can_write_domain_truth":false}}}\n',
+    '{"app_action_execution":{"surface_kind":"opl_app_action_execution","action_id":"stage-production-attempt:medautoscience:analysis-campaign","dry_run":false,"execution":{"execution_status":"executed"},"authority_boundary":{"can_write_domain_truth":false}}}\n',
   );
 }
 
@@ -235,6 +235,23 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.default_session_profile.executor, 'codex_cli');
   assert.equal(profile.default_session_profile.model, profile.codex.default_model);
   assert.equal(profile.default_session_profile.reasoning_effort, profile.codex.default_reasoning_effort);
+  assert.equal(profile.gui.authority, 'app_repo_owned_product_truth');
+  assert.equal(profile.gui.implementation_carrier, 'opl-aion-shell');
+  assert.equal(profile.gui.appearance.default_css_theme_id, 'default-theme');
+  assert.equal(profile.gui.appearance.codex_theme_default_enabled, false);
+  assert.equal(profile.gui.home.primary_input_surface, 'single_card');
+  assert.equal(profile.gui.home.nested_input_card_frames_allowed, false);
+  assert.equal(profile.gui.home.codex_model_selector_visible, false);
+  assert.equal(profile.gui.home.codex_model_list_visible, false);
+  assert.equal(profile.gui.home.codex_model_policy, 'auto_latest_frontier_from_codex_capabilities_or_app_default');
+  assert.equal(profile.gui.home.codex_default_model, profile.codex.default_model);
+  assert.equal(profile.gui.home.codex_default_reasoning_effort, profile.codex.default_reasoning_effort);
+  assert.equal(profile.gui.home.codex_default_permission_mode, 'full-access');
+  assert.deepEqual(profile.gui.home.retired_codex_models_must_not_be_exposed, [
+    'gpt-5.2-codex',
+    'gpt-5.1-codex-max',
+    'gpt-5.1-codex-mini',
+  ]);
   assert.ok(profile.codex.default_visible_skills.includes('mineru-document-extractor'));
   assert.ok(profile.codex.default_visible_skills.includes('ui-ux-pro-max'));
   assert.ok(profile.codex.skill_priority.includes('morph-ppt'));
@@ -414,29 +431,116 @@ test('one-shot App installer defaults to App-first core setup', () => {
 });
 
 test('runtime page consumes OPL App/operator drilldown instead of App-owned runtime truth', () => {
+  const activeShellContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'),
+  );
+  const runtimeBridge = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-runtime-bridge.json'), 'utf8'),
+  );
   const pageStateMatrix = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
   );
+  const guidHomePage = pageStateMatrix.pages.find((page) => page.id === 'guid_home');
   const runtimePage = pageStateMatrix.pages.find((page) => page.id === 'runtime');
+  const environmentPage = pageStateMatrix.pages.find((page) => page.id === 'environment');
+  const settingsThemePage = pageStateMatrix.pages.find((page) => page.id === 'settings_theme');
+
+  assert.equal(activeShellContract.runtime_bridge_contract, 'contracts/app-runtime-bridge.json');
+  assert.equal(runtimeBridge.owner, 'one-person-lab-app');
+  assert.equal(runtimeBridge.purpose, 'runtime_bridge_abstraction');
+  assert.equal(runtimeBridge.active_adapter, activeShellContract.active_shell);
+  assert.equal(runtimeBridge.adapter_role, 'replaceable_gui_shell_adapter');
+  assert.equal(runtimeBridge.protocol_owner, 'one-person-lab');
+  assert.equal(runtimeBridge.ui_contract_owner, 'one-person-lab-app');
+  assert.equal(runtimeBridge.default_adapter_repo, activeShellContract.shell_source.owner_repo);
+  assert.equal(runtimeBridge.default_adapter_path, activeShellContract.shell_root);
+  assert.equal(runtimeBridge.summary_command, 'opl app state --profile fast --json');
+  assert.equal(runtimeBridge.refresh_command, 'opl app state --profile full --json');
+  assert.equal(runtimeBridge.full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
+  assert.equal(runtimeBridge.action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
+  assert.equal(runtimeBridge.projection_sources.primary, 'app_state.operator.summary');
+  assert.equal(runtimeBridge.projection_sources.provider, 'app_state.provider');
+  assert.equal(runtimeBridge.projection_sources.actions, 'app_state.actions');
+  assert.equal(runtimeBridge.authority_boundary.shell_adapter_can_own_runtime_truth, false);
+  assert.equal(runtimeBridge.authority_boundary.app_can_own_runtime_truth, false);
+  assert.equal(runtimeBridge.authority_boundary.app_can_write_domain_truth, false);
+  assert.equal(runtimeBridge.authority_boundary.app_can_read_artifact_body, false);
+  assert.equal(runtimeBridge.authority_boundary.app_can_read_memory_body, false);
+  assert.equal(runtimeBridge.replacement_policy.runtime_protocol_stable_across_shell_replacement, true);
+
+  assert.equal(
+    guidHomePage.machine_source,
+    'contracts/app-gui-product-contract.json#pages.guid_home + opl app state --profile fast --json',
+  );
+  assert.equal(guidHomePage.page_contract, 'guid_home_entry');
+  assert.equal(guidHomePage.home_view_model.authority, 'app_repo_owned_product_truth');
+  assert.equal(guidHomePage.home_view_model.implementation_carrier, 'opl-aion-shell');
+  assert.equal(guidHomePage.home_view_model.primary_input_surface, 'single_card');
+  assert.equal(guidHomePage.home_view_model.nested_input_card_frames_allowed, false);
+  assert.equal(guidHomePage.home_view_model.appearance_default_css_theme_id, 'default-theme');
+  assert.equal(guidHomePage.home_view_model.codex_model_selector_visible, false);
+  assert.equal(guidHomePage.home_view_model.codex_model_list_visible, false);
+  assert.equal(
+    guidHomePage.home_view_model.codex_model_policy,
+    'auto_latest_frontier_from_codex_capabilities_or_app_default',
+  );
+  assert.equal(guidHomePage.home_view_model.codex_default_model, 'gpt-5.5');
+  assert.equal(guidHomePage.home_view_model.codex_default_reasoning_effort, 'xhigh');
+  assert.equal(guidHomePage.home_view_model.codex_default_permission_mode, 'full-access');
+  assert.deepEqual(guidHomePage.home_view_model.retired_codex_models_must_not_be_exposed, [
+    'gpt-5.2-codex',
+    'gpt-5.1-codex-max',
+    'gpt-5.1-codex-mini',
+  ]);
+  assert.equal(guidHomePage.home_view_model.state_source, 'opl app state --profile fast --json');
+  assert.equal(guidHomePage.home_view_model.refresh_source, 'opl app state --profile full --json');
+  assert.equal(guidHomePage.home_view_model.executor_policy_ref, 'contracts/app-gui-product-contract.json#executor_policy');
+  assert.equal(guidHomePage.home_view_model.assistant_source_ref, 'contracts/app-gui-product-contract.json#default_assistants');
+  assert.equal(guidHomePage.home_view_model.codex_only_default, true);
+  assert.equal(guidHomePage.home_view_model.executor_tab_visible_when_single_executor, false);
+  assert.deepEqual(guidHomePage.home_view_model.default_assistants, ['mas', 'mag', 'rca', 'oma']);
+  for (const expected of [
+    'Codex-only default executor experience',
+    'default Codex model state without a visible model tab',
+    'default assistants MAS/MAG/RCA/OMA as click-to-start entries',
+    'workspace selector',
+    'file attachment control',
+    'permission mode control',
+    'send action',
+  ]) {
+    assert.ok(guidHomePage.must_show.includes(expected), expected);
+  }
+  for (const forbidden of [
+    'executor tab when Codex CLI is the only executor',
+    'Codex model dropdown on new conversation',
+    'retired Codex model choices',
+    'nested input card frames',
+  ]) {
+    assert.ok(guidHomePage.must_not_show.includes(forbidden), forbidden);
+  }
 
   assert.equal(
     runtimePage.machine_source,
-    'runtime_visualization_projection or runtime_tray_snapshot.app_operator_drilldown',
+    'opl app state --profile fast --json',
   );
-  assert.equal(runtimePage.primary_projection, 'runtime_visualization_projection');
-  assert.equal(runtimePage.fallback_projection, 'runtime_tray_snapshot.app_operator_drilldown');
-  assert.equal(runtimePage.framework_command, 'opl runtime app-operator-drilldown --json');
+  assert.equal(runtimePage.primary_projection, 'app_state.operator.summary');
+  assert.equal(runtimePage.fallback_projection, 'full App/operator drilldown only for on-demand full detail');
+  assert.equal(runtimePage.framework_command, 'opl app state --profile fast --json');
   assert.equal(runtimePage.framework_full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
-  assert.equal(runtimePage.framework_action_command, 'opl runtime action execute --action <id> [--payload refs-only-json] [--dry-run]');
-  assert.equal(runtimePage.page_contract, 'runtime_workbench_drilldown');
+  assert.equal(runtimePage.framework_action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
+  assert.equal(runtimePage.page_contract, 'runtime_status_summary_first');
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.role,
     'runtime_page_operator_evidence_acceptance',
   );
   assert.equal(runtimePage.operator_evidence_acceptance_path.accepts_refs_only_json, true);
   assert.equal(
-    runtimePage.operator_evidence_acceptance_path.summary_drilldown_command,
-    'opl runtime app-operator-drilldown --json',
+    runtimePage.operator_evidence_acceptance_path.summary_state_command,
+    'opl app state --profile fast --json',
+  );
+  assert.equal(
+    runtimePage.operator_evidence_acceptance_path.refresh_state_command,
+    'opl app state --profile full --json',
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.full_drilldown_command,
@@ -444,77 +548,65 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.action_dry_run_command,
-    'opl runtime action execute --action <action_id> --dry-run',
+    'opl app action execute --action <action_id> --dry-run --json',
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.action_execute_command,
-    'opl runtime action execute --action <action_id>',
+    'opl app action execute --action <action_id> --json',
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.action_route_source,
-    'runtime_tray_snapshot.app_operator_drilldown.safe_action_routes',
+    'app_state.actions',
   );
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.action_execution_policy,
-    'operator_selected_safe_action_route_only',
+    'operator_selected_safe_app_action_route_only',
   );
-  assert.equal(runtimePage.runtime_view_model.role, 'multi_task_runtime_base');
-  assert.equal(runtimePage.runtime_view_model.default_mode, 'summary_first');
+  assert.equal(runtimePage.runtime_view_model.role, 'opl_runtime_status_summary');
+  assert.equal(runtimePage.runtime_view_model.bridge_contract, 'contracts/app-runtime-bridge.json');
+  assert.equal(runtimePage.runtime_view_model.default_mode, 'app_state_summary_first');
   assert.equal(runtimePage.runtime_view_model.full_detail_policy, 'on_demand_only');
   assert.equal(runtimePage.runtime_view_model.polling_fallback.interval_seconds_min, 5);
   assert.equal(runtimePage.runtime_view_model.polling_fallback.interval_seconds_max, 10);
   assert.equal(runtimePage.runtime_view_model.polling_fallback.policy, 'lightweight_polling_until_push_projection_available');
-  assert.equal(runtimePage.runtime_view_model.action_queue.source, 'runtime_visualization_projection.action_queue');
-  assert.equal(runtimePage.runtime_view_model.vertical_map.source, 'runtime_visualization_projection.dynamic_vertical_map');
-  assert.equal(runtimePage.runtime_view_model.task_drilldown.command, 'opl runtime app-operator-drilldown --task <task_id> --json');
-  assert.equal(runtimePage.runtime_view_model.mas_paper_lens.source, 'domain_projection_refs.mas.paper_lens');
+  assert.equal(runtimePage.runtime_view_model.action_queue.source, 'app_state.actions');
+  assert.equal(runtimePage.runtime_view_model.action_queue.fallback_source, 'app_state.operator.actions');
+  assert.equal(runtimePage.runtime_view_model.action_queue.authority, 'framework_refs_only');
+  assert.equal(runtimePage.runtime_view_model.primary_state_source, 'opl app state --profile fast --json');
+  assert.equal(runtimePage.runtime_view_model.refresh_state_source, 'opl app state --profile full --json');
+  assert.equal(runtimePage.runtime_view_model.summary_source, 'app_state.operator.summary');
+  assert.equal(runtimePage.runtime_view_model.full_detail_source, 'opl runtime app-operator-drilldown --detail full --json');
+  assert.equal(runtimePage.runtime_view_model.provider_status.source, 'app_state.provider');
+  assert.equal(runtimePage.runtime_view_model.provider_status.authority, 'opl_framework');
   assert.equal(runtimePage.runtime_view_model.authority_boundary.refs_only, true);
   assert.equal(runtimePage.runtime_view_model.authority_boundary.non_authority_display_only, true);
+  assert.equal(runtimePage.runtime_view_model.authority_boundary.action_execution_owner, 'opl_framework');
+  assert.equal(runtimePage.runtime_view_model.authority_boundary.domain_verdict_owner, 'domain_agent');
   for (const expected of [
-    'summary-first app operator read model',
+    'summary-first OPL App state read model',
+    'full App state refresh',
     'full detail lazy load',
-    'multi-task runtime base projection',
-    'action queue refs',
-    'vertical dynamic map refs',
-    'single task drilldown refs',
-    'MAS paper lens refs',
-    '5-10 second lightweight polling fallback',
+    'app_state.operator.summary refs',
+    'app_state.provider readiness refs',
+    'app_state.actions safe action refs',
     'refs-only non-authority boundary',
-    'safe action dry-run',
-    'safe action execute',
+    'safe app action dry-run',
+    'safe app action execute',
     'receipt/count refresh after execute',
     'authority boundary fields',
   ]) {
     assert.ok(runtimePage.operator_evidence_path.includes(expected), expected);
   }
   for (const expected of [
-    'operator evidence acceptance state',
-    'summary-first app operator read model',
-    'runtime visualization projection when available',
-    'multi-task runtime base',
-    'action queue',
-    'vertical dynamic map',
-    'single task drilldown',
-    'MAS paper lens',
-    'summary-first/full-detail-on-demand controls',
-    '5-10 second lightweight polling fallback',
-    'refs-only non-authority boundary',
-    'stage graph',
-    'route graph',
-    'decision map',
-    'timeline',
-    'research paper lens refs',
+    'summary-first OPL runtime status',
+    'provider readiness from app_state.provider',
+    'operator summary from app_state.operator',
+    'safe action refs from app_state.actions',
+    'summary-first OPL App state read model',
     'full detail lazy load',
-    'safe action dry-run/execute controls',
+    'safe app action dry-run/execute controls',
     'receipt/count refresh after execute',
-    'route graph and decision map refs',
-    'review and repair queue',
-    'artifact gallery and package/export lifecycle refs',
-    'memory refs and writeback receipt refs',
-    'quality/readiness refs',
-    'provider SLO and repair refs',
-    'owner-aware action routing',
-    'safe action dry-run and execute result refs',
+    'refs-only non-authority boundary',
   ]) {
     assert.ok(runtimePage.must_show.includes(expected), expected);
   }
@@ -530,6 +622,29 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   ]) {
     assert.ok(runtimePage.must_not_own.includes(forbiddenOwner), forbiddenOwner);
   }
+  assert.equal(pageStateMatrix.canonical_state_surface.default_command, 'opl app state --profile fast --json');
+  assert.equal(pageStateMatrix.canonical_state_surface.refresh_command, 'opl app state --profile full --json');
+  assert.equal(
+    pageStateMatrix.canonical_action_surface.command,
+    'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
+  );
+  assert.equal(
+    pageStateMatrix.full_detail_exception.command,
+    'opl runtime app-operator-drilldown --detail full --json',
+  );
+  assert.equal(environmentPage.machine_source, 'opl app state --profile fast --json');
+  assert.equal(environmentPage.refresh_source, 'opl app state --profile full --json');
+  assert.equal(
+    environmentPage.module_path_source_policy_ref,
+    'contracts/app-gui-product-contract.json#module_path_source_policy',
+  );
+  assert.ok(environmentPage.must_show.includes('module path source explanation'));
+  assert.ok(environmentPage.must_not_show.includes('Med Deep Scientist as a default module'));
+  assert.equal(settingsThemePage.machine_source, 'opl app state --profile fast --json');
+  assert.equal(settingsThemePage.refresh_source, 'opl app state --profile full --json');
+  assert.ok(settingsThemePage.must_show.includes('Default theme option'));
+  assert.ok(settingsThemePage.must_show.includes('Codex theme option'));
+  assert.ok(pageStateMatrix.pages.every((page) => page.id !== 'docker_webui'));
 });
 
 test('release evidence bundle records Runtime page acceptance artifacts without App authority', () => {
@@ -560,12 +675,12 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
     packaged_app_evidence_requires: 'all_required_artifacts_present_and_verified',
   });
   assert.equal(
-    artifactById.get('runtime_snapshot').producer,
-    'opl runtime snapshot --json',
+    artifactById.get('app_state_summary').producer,
+    'opl app state --profile fast --json',
   );
   assert.equal(
-    artifactById.get('drilldown_summary').producer,
-    runtimePage.operator_evidence_acceptance_path.summary_drilldown_command,
+    artifactById.get('app_state_full').producer,
+    runtimePage.operator_evidence_acceptance_path.refresh_state_command,
   );
   assert.equal(
     artifactById.get('drilldown_full').producer,
@@ -582,8 +697,8 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
   assert.deepEqual(
     [...artifactById.values()].map((artifact) => artifact.path),
     [
-      'runtime-snapshot.json',
-      'drilldown-summary.json',
+      'app-state-summary.json',
+      'app-state-full.json',
       'drilldown-full.json',
       'action-dry-run-result.json',
       'action-execute-result.json',
@@ -598,11 +713,11 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
   assert.deepEqual(
     [...artifactById.values()].map((artifact) => artifact.source_kind),
     [
-      'opl_runtime_snapshot',
-      'opl_app_operator_drilldown_summary',
+      'opl_app_state_summary',
+      'opl_app_state_full',
       'opl_app_operator_drilldown_full',
-      'opl_runtime_action_dry_run',
-      'opl_runtime_action_execute',
+      'opl_app_action_dry_run',
+      'opl_app_action_execute',
       'app_runtime_page_screenshot',
       'full_first_install_release_screenshot',
       'app_runtime_action_screenshot',
@@ -631,18 +746,18 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-'));
   const artifacts = [
     {
-      id: 'runtime_snapshot',
-      path: 'runtime-snapshot.json',
+      id: 'app_state_summary',
+      path: 'app-state-summary.json',
       kind: 'json',
-      producer: 'opl runtime snapshot --json',
-      source_kind: 'opl_runtime_snapshot',
+      producer: 'opl app state --profile fast --json',
+      source_kind: 'opl_app_state_summary',
     },
     {
-      id: 'drilldown_summary',
-      path: 'drilldown-summary.json',
+      id: 'app_state_full',
+      path: 'app-state-full.json',
       kind: 'json',
-      producer: 'opl runtime app-operator-drilldown --json',
-      source_kind: 'opl_app_operator_drilldown_summary',
+      producer: 'opl app state --profile full --json',
+      source_kind: 'opl_app_state_full',
     },
     {
       id: 'drilldown_full',
@@ -655,15 +770,15 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
       id: 'action_dry_run_result',
       path: 'action-dry-run-result.json',
       kind: 'json',
-      producer: 'opl runtime action execute --action <action_id> --dry-run',
-      source_kind: 'opl_runtime_action_dry_run',
+      producer: 'opl app action execute --action <action_id> --dry-run --json',
+      source_kind: 'opl_app_action_dry_run',
     },
     {
       id: 'action_execute_result',
       path: 'action-execute-result.json',
       kind: 'json',
-      producer: 'opl runtime action execute --action <action_id>',
-      source_kind: 'opl_runtime_action_execute',
+      producer: 'opl app action execute --action <action_id> --json',
+      source_kind: 'opl_app_action_execute',
     },
     {
       id: 'runtime_screenshot',
@@ -749,8 +864,8 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
   assert.deepEqual(
     payload.verified_artifacts.map((artifact) => artifact.id),
     [
-      'runtime_snapshot',
-      'drilldown_summary',
+      'app_state_summary',
+      'app_state_full',
       'drilldown_full',
       'action_dry_run_result',
       'action_execute_result',
@@ -768,19 +883,19 @@ test('release evidence bundle validator fails closed for incomplete packaged App
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-missing-'));
   const artifacts = [
     {
-      id: 'runtime_snapshot',
-      path: 'runtime-snapshot.json',
+      id: 'app_state_summary',
+      path: 'app-state-summary.json',
       kind: 'json',
-      producer: 'opl runtime snapshot --json',
-      source_kind: 'opl_runtime_snapshot',
+      producer: 'opl app state --profile fast --json',
+      source_kind: 'opl_app_state_summary',
       status: 'present',
     },
     {
-      id: 'drilldown_summary',
-      path: 'drilldown-summary.json',
+      id: 'app_state_full',
+      path: 'app-state-full.json',
       kind: 'json',
-      producer: 'opl runtime app-operator-drilldown --json',
-      source_kind: 'opl_app_operator_drilldown_summary',
+      producer: 'opl app state --profile full --json',
+      source_kind: 'opl_app_state_full',
       status: 'present',
     },
     {
@@ -795,16 +910,16 @@ test('release evidence bundle validator fails closed for incomplete packaged App
       id: 'action_dry_run_result',
       path: 'action-dry-run-result.json',
       kind: 'json',
-      producer: 'opl runtime action execute --action <action_id> --dry-run',
-      source_kind: 'opl_runtime_action_dry_run',
+      producer: 'opl app action execute --action <action_id> --dry-run --json',
+      source_kind: 'opl_app_action_dry_run',
       status: 'present',
     },
     {
       id: 'action_execute_result',
       path: 'action-execute-result.json',
       kind: 'json',
-      producer: 'opl runtime action execute --action <action_id>',
-      source_kind: 'opl_runtime_action_execute',
+      producer: 'opl app action execute --action <action_id> --json',
+      source_kind: 'opl_app_action_execute',
       status: 'present',
     },
     {
@@ -932,8 +1047,8 @@ test('release evidence bundle validator rejects contract-only runtime JSON place
     missing_evidence: [],
   }, null, 2)}\n`);
   for (const name of [
-    'runtime-snapshot.json',
-    'drilldown-summary.json',
+    'app-state-summary.json',
+    'app-state-full.json',
     'drilldown-full.json',
     'action-dry-run-result.json',
     'action-execute-result.json',
@@ -954,7 +1069,7 @@ test('release evidence bundle validator rejects contract-only runtime JSON place
   ]);
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /runtime_snapshot\.runtime_tray_snapshot/);
+  assert.match(result.stderr, /app_state_summary\.app_state/);
 });
 
 test('release evidence manifest generator records missing artifacts without claiming packaged App evidence', () => {
@@ -1017,19 +1132,30 @@ fs.appendFileSync(${JSON.stringify(actionLog)}, JSON.stringify(args) + '\\n');
 function out(value) {
   process.stdout.write(JSON.stringify(value) + '\\n');
 }
-if (args.join(' ') === 'runtime snapshot --json') {
-  out({ runtime_tray_snapshot: { schema_version: 'runtime_tray_snapshot.v1', runtime_health: { status: 'running' } } });
+if (args.join(' ') === 'app state --profile fast --json') {
+  out({
+    app_state: {
+      schema: 'opl_app_state.v1',
+      profile: 'fast',
+      operator: {
+        summary: { stage_attempt_count: 2 },
+        actions: [{ action_id: 'provider-scheduler:temporal:trigger' }]
+      },
+      provider: { temporal: { status: 'ready' } }
+    }
+  });
   process.exit(0);
 }
-if (args.join(' ') === 'runtime app-operator-drilldown --json') {
+if (args.join(' ') === 'app state --profile full --json') {
   out({
-    app_operator_drilldown: {
-      surface_kind: 'opl_app_operator_drilldown_read_model',
-      detail_level: 'summary',
-      summary: { stage_attempt_count: 2 },
-      attention_first_payload: {
-        next_safe_action: { action_id: 'provider-scheduler:temporal:trigger' }
-      }
+    app_state: {
+      schema: 'opl_app_state.v1',
+      profile: 'full',
+      operator: {
+        summary: { stage_attempt_count: 2 },
+        actions: [{ action_id: 'provider-scheduler:temporal:trigger' }]
+      },
+      provider: { temporal: { status: 'ready' } }
     }
   });
   process.exit(0);
@@ -1044,12 +1170,12 @@ if (args.join(' ') === 'runtime app-operator-drilldown --detail full --json') {
   });
   process.exit(0);
 }
-if (args.slice(0, 4).join(' ') === 'runtime action execute --action') {
+if (args.slice(0, 4).join(' ') === 'app action execute --action') {
   const actionId = args[4];
   const dryRun = args.includes('--dry-run');
   out({
-    runtime_operator_action_execution: {
-      surface_kind: 'opl_runtime_operator_action_execution',
+    app_action_execution: {
+      surface_kind: 'opl_app_action_execution',
       action_id: actionId,
       dry_run: dryRun,
       execution: { execution_status: dryRun ? 'dry_run' : 'executed' },
@@ -1080,8 +1206,8 @@ process.exit(2);
   assert.equal(payload.packaged_app_evidence, false);
   assert.equal(payload.action_id, 'provider-scheduler:temporal:trigger');
   assert.deepEqual(payload.collected_artifacts, [
-    'runtime_snapshot',
-    'drilldown_summary',
+    'app_state_summary',
+    'app_state_full',
     'drilldown_full',
     'action_dry_run_result',
     'action_execute_result',
@@ -1109,11 +1235,11 @@ process.exit(2);
 
   const actionArgs = fs.readFileSync(actionLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   assert.deepEqual(actionArgs, [
-    ['runtime', 'snapshot', '--json'],
-    ['runtime', 'app-operator-drilldown', '--json'],
+    ['app', 'state', '--profile', 'fast', '--json'],
+    ['app', 'state', '--profile', 'full', '--json'],
     ['runtime', 'app-operator-drilldown', '--detail', 'full', '--json'],
-    ['runtime', 'action', 'execute', '--action', 'provider-scheduler:temporal:trigger', '--dry-run'],
-    ['runtime', 'action', 'execute', '--action', 'provider-scheduler:temporal:trigger'],
+    ['app', 'action', 'execute', '--action', 'provider-scheduler:temporal:trigger', '--dry-run', '--json'],
+    ['app', 'action', 'execute', '--action', 'provider-scheduler:temporal:trigger', '--json'],
   ]);
 });
 
@@ -1735,6 +1861,167 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   assert.match(shellViteConfig, /__APP_VERSION__:\s*JSON\.stringify\(appReleaseVersion\)/);
 });
 
+test('active shell adapter keeps GUI authority and replacement gates in the App repo', () => {
+  const adapterContract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'));
+
+  assert.equal(adapterContract.gui_authority.source_of_truth, 'one-person-lab-app');
+  assert.equal(adapterContract.gui_authority.implementation_role, 'active_shell_implementation_carrier');
+  for (const contractRef of [
+    'contracts/app-gui-product-contract.json',
+    'contracts/app-product-profile.json',
+    'contracts/app-page-state-matrix.json',
+    'contracts/app-first-run-test-matrix.json',
+    'contracts/app-release-channel.json',
+  ]) {
+    assert.ok(adapterContract.gui_authority.product_contracts.includes(contractRef), contractRef);
+  }
+  assert.deepEqual(adapterContract.gui_authority.shell_may_own, [
+    'concrete renderer implementation',
+    'process and preload implementation',
+    'shell package metadata',
+    'shell tests and release hooks',
+    'upstream AionUI intake',
+    'shell-local implementation details',
+    'shell-local tests that prove App contracts are implemented',
+  ]);
+  assert.deepEqual(adapterContract.gui_authority.shell_must_not_own, [
+    'App GUI product truth',
+    'App user-facing page-state authority',
+    'App model-selection policy',
+    'App onboarding policy',
+    'App release/user documentation authority',
+    'App release gate policy',
+    'OPL runtime truth',
+    'domain truth',
+    'provider implementation',
+  ]);
+  assert.equal(
+    adapterContract.gui_authority.upstream_intake_policy,
+    'check_against_app_owned_gui_contracts_before_acceptance',
+  );
+  assert.equal(adapterContract.gui_product_contract, 'contracts/app-gui-product-contract.json');
+  assert.deepEqual(adapterContract.gui_product_contract_policy, {
+    must_implement: true,
+    source_of_truth: 'one-person-lab-app',
+    upstream_override_allowed: false,
+    upstream_family_role: 'implementation_material_only',
+    aionui_upstream_must_not_override_app_truth: true,
+  });
+  assert.deepEqual(adapterContract.state_surface_contract, {
+    primary_read_command: 'opl app state --profile fast --json',
+    refresh_read_command: 'opl app state --profile full --json',
+    action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
+    full_drilldown_exception: 'opl runtime app-operator-drilldown --detail full --json',
+    forbidden_gui_truth_sources: [
+      'direct opl modules --json page aggregation',
+      'direct opl system developer-supervisor page aggregation',
+      'direct opl family-runtime worker status page aggregation',
+      'application.systemInfo as OPL path truth',
+      'application.appVersions as OPL release truth',
+      'direct reads of OPL internal state files',
+    ],
+  });
+  for (const capability of [
+    'app_owned_gui_product_contract',
+    'opl_app_state_bridge',
+    'opl_app_action_bridge',
+    'app_gui_release_channel_gating',
+  ]) {
+    assert.ok(adapterContract.shell_contract.capabilities.includes(capability), capability);
+  }
+  assert.ok(!('docker_webui_contract' in adapterContract));
+
+  assert.equal(adapterContract.shell_replacement_policy.candidate_root_pattern, 'shells/<candidate>');
+  assert.equal(
+    adapterContract.shell_replacement_policy.candidate_state,
+    'candidate_until_contracts_and_tests_complete',
+  );
+  assert.equal(adapterContract.shell_replacement_policy.authority_transfer_allowed, false);
+  for (const gate of [
+    'declare candidate in contracts/app-shell-adapter.json',
+    'implement contracts/app-gui-product-contract.json',
+    'sync App product profile into the candidate shell target',
+    'pass App page-state and first-run matrices',
+    'pass App-root active shell validation',
+    'pass GUI package compile through App wrapper',
+    'preserve external checkout history policy',
+  ]) {
+    assert.ok(adapterContract.shell_replacement_policy.adoption_gate.includes(gate), gate);
+  }
+});
+
+test('App GUI product contract owns GUI requirements and unified OPL state/action boundaries', () => {
+  const guiContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-gui-product-contract.json'), 'utf8'),
+  );
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+
+  assert.equal(guiContract.owner, 'one-person-lab-app');
+  assert.equal(guiContract.purpose, 'app_owned_gui_product_contract');
+  assert.equal(guiContract.product_authority.source_of_truth, 'one-person-lab-app');
+  assert.equal(guiContract.product_authority.active_shell_role, 'implementation_carrier');
+  assert.equal(guiContract.product_authority.upstream_gui_role, 'implementation_material_only');
+  assert.equal(
+    guiContract.product_authority.upstream_behavior_acceptance_policy,
+    'must_match_app_owned_gui_product_contract_before_release',
+  );
+  assert.equal(guiContract.framework_surfaces.canonical_state.default_command, 'opl app state --profile fast --json');
+  assert.equal(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile full --json');
+  assert.equal(guiContract.framework_surfaces.canonical_state.default_profile, 'fast');
+  assert.equal(guiContract.framework_surfaces.canonical_state.manual_refresh_profile, 'full');
+  assert.equal(
+    guiContract.framework_surfaces.canonical_action.command,
+    'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
+  );
+  assert.equal(
+    guiContract.framework_surfaces.runtime_full_drilldown.command,
+    'opl runtime app-operator-drilldown --detail full --json',
+  );
+  assert.equal(guiContract.framework_surfaces.runtime_full_drilldown.policy, 'on_demand_only');
+  assert.equal(guiContract.executor_policy.default_executor, 'codex_cli');
+  assert.equal(guiContract.executor_policy.codex_only_default, true);
+  assert.equal(guiContract.executor_policy.executor_tab_visible_when_single_executor, false);
+  assert.deepEqual(guiContract.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca', 'oma']);
+  assert.ok(guiContract.default_assistants.every((assistant) => assistant.home_entry_policy === 'visible_click_to_start'));
+  assert.equal(guiContract.retired_domain_agents.find((agent) => agent.id === 'mds').default_display_allowed, false);
+  assert.equal(guiContract.pages.guid_home.hero_prompt, '把研究、基金和汇报交给 One Person Lab 自动推进');
+  assert.ok(guiContract.pages.settings_system.must_show.includes('OPL Agent Codex context'));
+  assert.deepEqual(guiContract.settings_navigation.required_sections, ['system', 'runtime', 'about', 'update', 'theme']);
+  assert.equal(guiContract.settings_navigation.source, 'opl app state --profile fast --json');
+  assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile full --json');
+  assert.equal(
+    guiContract.module_path_source_policy.source,
+    'app_state.modules[].source + app_state.modules[].path + app_state.paths',
+  );
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the bundled Full runtime payload'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from a local domain repository checkout'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module is managed by App/CLI maintenance'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('that module path display is refs-only and not domain truth authority'));
+  assert.equal(guiContract.pages.settings_runtime.module_path_source_policy_ref, 'module_path_source_policy');
+  assert.ok(guiContract.pages.settings_runtime.must_show.includes('module path source explanation'));
+  assert.ok(guiContract.pages.settings_runtime.must_not_show.includes('Med Deep Scientist as a default module'));
+  assert.equal(guiContract.theme_and_branding.default_theme_id, 'default-theme');
+  assert.deepEqual(guiContract.theme_and_branding.allowed_theme_ids, ['default-theme', 'codex']);
+  assert.ok(guiContract.pages.settings_theme.must_show.includes('Default theme option'));
+  assert.ok(guiContract.pages.settings_theme.must_show.includes('Codex theme option'));
+  assert.deepEqual(
+    guiContract.release_channel_policy.stable.must_gate,
+    releaseContract.release_validation_profiles.stable.required_lanes,
+  );
+  assert.deepEqual(
+    guiContract.release_channel_policy.nightly.must_gate,
+    releaseContract.release_validation_profiles.nightly_standard.required_lanes,
+  );
+  assert.deepEqual(
+    guiContract.release_channel_policy.nightly.must_not_gate,
+    releaseContract.release_validation_profiles.nightly_standard.forbidden_lanes,
+  );
+  assert.ok(!('docker_webui' in guiContract));
+  assert.doesNotMatch(JSON.stringify(guiContract), /username input gate|must_skip_username_input|manifest_name|logo_policy/);
+});
+
 test('App fallow hygiene is not the active GUI shell validation gate', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const fallowConfig = JSON.parse(fs.readFileSync(path.join(appRoot, '.fallowrc.json'), 'utf8'));
@@ -2068,6 +2355,8 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.version=\$mineru_version/);
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.commit=\$mineru_commit/);
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.date=\$mineru_built_at/);
+  assert.match(workflow, /name: Summarize Full package size/);
+  assert.match(workflow, /npm run release:full:size -- --markdown >> "\$GITHUB_STEP_SUMMARY"/);
 });
 
 test('Full release docs publish size policy and remote verifier budget boundaries', () => {
@@ -2081,6 +2370,10 @@ test('Full release docs publish size policy and remote verifier budget boundarie
     'uncompressed runtime size',
     'layer breakdown',
     'remote verifier size budget',
+    'release:full:size',
+    '.codegraph',
+    'runtime-state',
+    'domain repositories',
   ]) {
     assert.match(combinedDocs, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
   }
@@ -2090,7 +2383,65 @@ test('Full release docs publish size policy and remote verifier budget boundarie
   assert.match(releaseDocs, /uncompressed runtime size/i);
   assert.match(releaseDocs, /layer breakdown/i);
   assert.match(releaseDocs, /remote verifier size budget/i);
+  assert.match(releaseDocs, /Full runtime packaging follows a hygiene-first policy/i);
+  assert.match(releaseDocs, /Any narrower runtime allowlist must be declared by the owning domain repository/i);
   assert.match(scriptsDocs, /verify-remote-release-assets\.ts[\s\S]*remote verifier size budget/i);
+});
+
+test('Full package size analyzer reports manifest component and layer budgets', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-size-analysis-'));
+  const manifestPath = path.join(tempRoot, 'full-package-manifest.json');
+  writeFile(
+    manifestPath,
+    JSON.stringify({
+      manifest_version: 2,
+      version: '26.5.27-size',
+      package_kind: 'opl_full_first_install_macos_arm64',
+      size_budget: {
+        platform_scope: 'macos-arm64',
+        max_full_dmg_bytes: 550000000,
+        max_runtime_uncompressed_bytes: 1000,
+      },
+      size_breakdown: {
+        total_runtime_uncompressed_bytes: 500,
+        layers: {
+          toolchain: { size_bytes: 200 },
+          'domain-runtime': { size_bytes: 180 },
+          'opl-runtime': { size_bytes: 100 },
+          skills: { size_bytes: 20 },
+        },
+      },
+      components: {
+        mas: { size_bytes: 180, git_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+        codex: { size_bytes: 120, version: 'codex-cli 0.130.0' },
+        opl: { size_bytes: 100, git_commit: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+      },
+    }, null, 2),
+  );
+
+  const jsonResult = runNode([
+    'scripts/analyze-full-package-size.ts',
+    '--manifest',
+    manifestPath,
+  ]);
+  assert.equal(jsonResult.status, 0, jsonResult.stderr);
+  const summary = JSON.parse(jsonResult.stdout);
+  assert.equal(summary.version, '26.5.27-size');
+  assert.equal(summary.runtime_budget_used_percent, 50);
+  assert.equal(summary.components[0].id, 'mas');
+  assert.equal(summary.layers[0].id, 'toolchain');
+
+  const markdownResult = runNode([
+    'scripts/analyze-full-package-size.ts',
+    '--manifest',
+    manifestPath,
+    '--markdown',
+  ]);
+  assert.equal(markdownResult.status, 0, markdownResult.stderr);
+  assert.match(markdownResult.stdout, /## Full Package Size/);
+  assert.match(markdownResult.stdout, /\| Component \| Size \| Runtime % \| Version \/ Commit \|/);
+  assert.match(markdownResult.stdout, /mas/);
+  assert.match(markdownResult.stdout, /50% used/);
 });
 
 test('release docs lock first-install maintenance and updater reference boundaries', () => {
@@ -2358,8 +2709,32 @@ test('Full first-install cache and release acceleration contract are explicit', 
   });
 
   assert.equal(packageJson.scripts['release:plan'], 'node --experimental-strip-types scripts/plan-release-candidate.ts');
+  assert.equal(
+    packageJson.scripts['release:full:size'],
+    'node --experimental-strip-types scripts/analyze-full-package-size.ts',
+  );
   assert.equal(releaseContract.release_acceleration.full_runtime_cache.enabled_by_default, true);
   assert.deepEqual(releaseContract.release_acceleration.full_runtime_cache.layer_ids, mod.FULL_RUNTIME_CACHE_LAYER_IDS);
+  assert.deepEqual(releaseContract.release_acceleration.full_runtime_packaging_hygiene.local_state_excluded, [
+    '.codegraph',
+    '.git',
+    '.worktrees',
+    '.venv',
+    'node_modules',
+    'runtime',
+    'runtime-state',
+    'runs',
+    'sessions',
+    'tests',
+  ]);
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.measurement_command,
+    'npm run release:full:size -- --markdown',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.domain_runtime_allowlist_owner,
+    'domain_repositories',
+  );
   assert.deepEqual(releaseContract.release_acceleration.publish_resume.match_fields, ['asset_name', 'size', 'sha256']);
   assert.equal(cacheMiss.status, 'miss_written');
   assert.equal(cacheMiss.build_layer, true);
@@ -2419,6 +2794,12 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
     false,
   );
   assert.equal(mod.shouldExcludeRuntimePath('modules/mas/runtime/legacy-state.json'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/.codegraph/codegraph.db'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/.codegraph/codegraph.db-wal'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/runtime-state/quest/output.png'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/runs/2026-05-27/result.json'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/prompts/xiaohongshu/style-references/ref.png'), false);
+  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/assets/branding/logo.png'), false);
   assert.match(buildScript, /MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET = 'aarch64-apple-darwin'/);
   assert.match(buildScript, /pruneTemporalCoreBridgeReleases\(path\.join\(targetRoot, 'node_modules'\)\)/);
   assert.match(buildScript, /assertTemporalCoreBridgeMacosArm64Only\(path\.join\(runtimeRoot, 'opl', 'node_modules'\)\)/);

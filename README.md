@@ -44,7 +44,7 @@ One Person Lab App is the daily workbench for users:
 - Enter general work, medical research, grant writing, and presentation preparation from one desktop interface.
 - Enter Research Foundry, Grant Foundry, and Presentation Foundry.
 - View progress, files, runtime status, and recoverable work context for continuing long tasks and inspecting deliverables.
-- Consume the One Person Lab Framework `runtime_visualization_projection` on the runtime page, with `runtime_tray_snapshot.app_operator_drilldown` as the compatibility read model. The page is a multi-task runtime base view with an action queue, vertical dynamic map, single-task drilldown, MAS paper lens refs, summary-first/full-detail-on-demand controls, 5-10 second lightweight polling fallback, refs-only dry-run/execute actions, receipt/count refresh, and explicit non-authority boundary fields.
+- Consume `opl app state --profile fast --json` as the runtime page summary source, use `opl app state --profile full --json` for refresh, and lazy-load full Framework drilldown only on demand. The page is a multi-task runtime base view with an action queue, vertical dynamic map, single-task drilldown, MAS paper lens refs, summary-first/full-detail-on-demand controls, 5-10 second lightweight polling fallback, refs-only dry-run/execute actions, receipt/count refresh, and explicit non-authority boundary fields.
 - Check the local environment, framework dependency, domain modules, companion tools, and package readiness on first launch.
 - Present One Person Lab and domain agents as a usable product experience.
 
@@ -61,7 +61,9 @@ One Person Lab App is the daily workbench for users:
 
 One Person Lab App owns the desktop product experience: packaging, release assets, updater metadata, first-run checks, GUI state tests, screenshots, and user documentation.
 
-App-owned product defaults are declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json). Release scripts sync that contract into the active shell before standard and Full packaging so Codex defaults, visible companion skills, first-run maintenance behavior, and user-facing Settings labels are configured by the App repository instead of being scattered through the AionUI fork.
+App-owned product defaults are declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json). The runtime bridge is declared in [`contracts/app-runtime-bridge.json`](contracts/app-runtime-bridge.json): OPL owns the runtime/app CLI protocol, the App owns the GUI bridge contract, and `opl-aion-shell` is the current replaceable adapter implementation. Release scripts sync App-owned contracts into the active shell before standard and Full packaging so Codex defaults, visible companion skills, first-run maintenance behavior, and user-facing Settings labels are configured by the App repository instead of being scattered through the AionUI fork.
+
+GUI product truth is App-owned as well. The active shell implements the current renderer and package surface, but page behavior, model-selection policy, onboarding behavior, screenshots, release docs, and user-facing defaults are governed by App contracts. Future shells stay under `shells/<candidate>` until the App shell adapter, product profile sync, page-state and first-run matrices, active-shell validation, GUI package compile, and external checkout history policy all pass.
 
 One Person Lab provides CLI, activation, stage control, runtime providers, queue, contracts, module discovery, skill sync, runtime snapshots, and progress projections. MAS, MAG, and RCA carry their domain judgment, quality verdicts, stage semantics, and deliverables.
 
@@ -112,6 +114,7 @@ The active shell is declared in [`contracts/app-shell-adapter.json`](contracts/a
 
 - active shell: `aionui`
 - shell root: `shells/aionui`
+- runtime bridge contract: `contracts/app-runtime-bridge.json`
 - upstream family: `AionUI`
 - shell source: `gaofeng21cn/opl-aion-shell`
 - shell history policy: external checkout, not merged into App default branch

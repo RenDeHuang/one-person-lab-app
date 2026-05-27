@@ -6,6 +6,7 @@
   "app_repo": "gaofeng21cn/one-person-lab-app",
   "active_shell": "aionui",
   "shell_root": "shells/aionui",
+  "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
   "upstream_family": "AionUI",
   "shell_source": {
     "owner_repo": "gaofeng21cn/opl-aion-shell",
@@ -24,6 +25,53 @@
     "main_branch": "main"
   },
   "release_role": "stable_app_shell",
+  "gui_authority": {
+    "source_of_truth": "one-person-lab-app",
+    "implementation_role": "active_shell_implementation_carrier",
+    "product_contracts": [
+      "contracts/app-gui-product-contract.json",
+      "contracts/app-runtime-bridge.json",
+      "contracts/app-product-profile.json",
+      "contracts/app-page-state-matrix.json",
+      "contracts/app-first-run-test-matrix.json",
+      "contracts/app-release-channel.json"
+    ],
+    "shell_may_own": [
+      "concrete renderer implementation",
+      "process and preload implementation",
+      "shell package metadata",
+      "shell tests and release hooks",
+      "upstream AionUI intake",
+      "shell-local implementation details",
+      "shell-local tests that prove App contracts are implemented"
+    ],
+    "shell_must_not_own": [
+      "App GUI product truth",
+      "App user-facing page-state authority",
+      "App model-selection policy",
+      "App onboarding policy",
+      "App release/user documentation authority",
+      "App release gate policy",
+      "OPL runtime truth",
+      "domain truth",
+      "provider implementation"
+    ],
+    "upstream_intake_policy": "check_against_app_owned_gui_contracts_before_acceptance"
+  },
+  "shell_replacement_policy": {
+    "candidate_root_pattern": "shells/<candidate>",
+    "candidate_state": "candidate_until_contracts_and_tests_complete",
+    "authority_transfer_allowed": false,
+    "adoption_gate": [
+      "declare candidate in contracts/app-shell-adapter.json",
+      "implement contracts/app-gui-product-contract.json",
+      "sync App product profile into the candidate shell target",
+      "pass App page-state and first-run matrices",
+      "pass App-root active shell validation",
+      "pass GUI package compile through App wrapper",
+      "preserve external checkout history policy"
+    ]
+  },
   "shell_contract": {
     "layout_id": "aionui_v2_workspace",
     "source_topology": "root_workspace_with_desktop_package",
@@ -46,7 +94,12 @@
       "standard_release_asset_normalization",
       "standard_release_asset_verification",
       "app_managed_host_tool_bootstrap",
-      "bundled_runtime_core_ready_without_host_node"
+      "bundled_runtime_core_ready_without_host_node",
+      "app_owned_gui_product_contract",
+      "app_owned_runtime_bridge_contract",
+      "opl_app_state_bridge",
+      "opl_app_action_bridge",
+      "app_gui_release_channel_gating"
     ]
   },
   "framework_boundary": {
@@ -101,5 +154,27 @@
       "cwd": "shells/aionui",
       "command": "node scripts/validate-packaged-runtime.js --scan-all"
     }
-  ]
+  ],
+  "gui_product_contract": "contracts/app-gui-product-contract.json",
+  "gui_product_contract_policy": {
+    "must_implement": true,
+    "source_of_truth": "one-person-lab-app",
+    "upstream_override_allowed": false,
+    "upstream_family_role": "implementation_material_only",
+    "aionui_upstream_must_not_override_app_truth": true
+  },
+  "state_surface_contract": {
+    "primary_read_command": "opl app state --profile fast --json",
+    "refresh_read_command": "opl app state --profile full --json",
+    "action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+    "full_drilldown_exception": "opl runtime app-operator-drilldown --detail full --json",
+    "forbidden_gui_truth_sources": [
+      "direct opl modules --json page aggregation",
+      "direct opl system developer-supervisor page aggregation",
+      "direct opl family-runtime worker status page aggregation",
+      "application.systemInfo as OPL path truth",
+      "application.appVersions as OPL release truth",
+      "direct reads of OPL internal state files"
+    ]
+  }
 }

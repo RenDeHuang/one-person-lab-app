@@ -25,6 +25,26 @@ export type AppProductProfile = {
     applies_after: string;
     authority: string;
   };
+  gui: {
+    authority: string;
+    implementation_carrier: string;
+    appearance: {
+      default_css_theme_id: string;
+      default_css_theme_name: string;
+      codex_theme_default_enabled: boolean;
+    };
+    home: {
+      primary_input_surface: string;
+      nested_input_card_frames_allowed: boolean;
+      codex_model_selector_visible: boolean;
+      codex_model_list_visible: boolean;
+      codex_model_policy: string;
+      codex_default_model: string;
+      codex_default_reasoning_effort: string;
+      codex_default_permission_mode: string;
+      retired_codex_models_must_not_be_exposed: string[];
+    };
+  };
   codex: {
     default_model: string;
     default_model_description: string;
@@ -94,6 +114,37 @@ function assertProfileShape(profile: AppProductProfile): void {
   if (profile.default_session_profile.reasoning_effort !== profile.codex.default_reasoning_effort) {
     throw new Error('App product profile Codex reasoning effort is inconsistent');
   }
+  if (profile.gui?.authority !== 'app_repo_owned_product_truth') {
+    throw new Error('App product profile must declare App-owned GUI authority');
+  }
+  if (profile.gui?.implementation_carrier !== 'opl-aion-shell') {
+    throw new Error('App product profile GUI implementation carrier must be opl-aion-shell');
+  }
+  if (profile.gui.appearance?.default_css_theme_id !== 'default-theme') {
+    throw new Error('App product profile GUI must default to the default CSS theme');
+  }
+  if (profile.gui.appearance?.codex_theme_default_enabled !== false) {
+    throw new Error('App product profile GUI must not default to the Codex CSS theme');
+  }
+  if (
+    profile.gui.home?.primary_input_surface !== 'single_card' ||
+    profile.gui.home?.nested_input_card_frames_allowed !== false ||
+    profile.gui.home?.codex_model_selector_visible !== false ||
+    profile.gui.home?.codex_model_list_visible !== false
+  ) {
+    throw new Error('App product profile GUI home contract must keep Codex model selection hidden and input single-card');
+  }
+  if (
+    profile.gui.home.codex_default_model !== profile.codex.default_model ||
+    profile.gui.home.codex_default_reasoning_effort !== profile.codex.default_reasoning_effort ||
+    profile.gui.home.codex_default_permission_mode !== 'full-access'
+  ) {
+    throw new Error('App product profile GUI home Codex defaults must match the App Codex profile and full-access mode');
+  }
+  assertStringArray(
+    profile.gui.home.retired_codex_models_must_not_be_exposed,
+    'gui.home.retired_codex_models_must_not_be_exposed',
+  );
   assertStringArray(profile.codex.default_visible_skills, 'codex.default_visible_skills');
   assertStringArray(profile.codex.skill_priority, 'codex.skill_priority');
   assertStringArray(profile.codex.session_context_lines, 'codex.session_context_lines', { allowBlank: true });

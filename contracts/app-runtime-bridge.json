@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "owner": "one-person-lab-app",
+  "purpose": "runtime_bridge_abstraction",
+  "state": "active",
+  "active_adapter": "aionui",
+  "adapter_role": "replaceable_gui_shell_adapter",
+  "protocol_owner": "one-person-lab",
+  "ui_contract_owner": "one-person-lab-app",
+  "default_adapter_repo": "gaofeng21cn/opl-aion-shell",
+  "default_adapter_path": "shells/aionui",
+  "summary_command": "opl app state --profile fast --json",
+  "refresh_command": "opl app state --profile full --json",
+  "full_detail_command": "opl runtime app-operator-drilldown --detail full --json",
+  "action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+  "projection_sources": {
+    "primary": "app_state.operator.summary",
+    "provider": "app_state.provider",
+    "actions": "app_state.actions",
+    "full_detail": "runtime_tray_snapshot.app_operator_drilldown",
+    "policy": "summary_first_full_detail_on_demand"
+  },
+  "authority_boundary": {
+    "shell_adapter_can_own_runtime_truth": false,
+    "app_can_own_runtime_truth": false,
+    "app_can_write_domain_truth": false,
+    "app_can_read_artifact_body": false,
+    "app_can_read_memory_body": false,
+    "app_can_authorize_quality_verdict": false,
+    "app_can_authorize_export_verdict": false,
+    "provider_completion_is_domain_ready": false
+  },
+  "replacement_policy": {
+    "runtime_protocol_stable_across_shell_replacement": true,
+    "shell_adapter_must_call_declared_opl_cli_surfaces": true,
+    "new_shell_adapter_must_pass_active_shell_validation": true,
+    "direct_domain_repo_reads_are_forbidden": true,
+    "direct_runtime_state_file_reads_are_forbidden": true
+  },
+  "forbidden_truth_sources": [
+    "direct_domain_repo_reads",
+    "direct_runtime_state_file_reads",
+    "direct_opl_internal_state_file_reads",
+    "domain_artifact_body_reads",
+    "domain_memory_body_reads",
+    "shell_private_runtime_status"
+  ]
+}

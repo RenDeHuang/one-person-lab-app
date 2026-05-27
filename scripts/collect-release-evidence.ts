@@ -17,8 +17,8 @@ type Options = {
 };
 
 type CollectedArtifactId =
-  | 'runtime_snapshot'
-  | 'drilldown_summary'
+  | 'app_state_summary'
+  | 'app_state_full'
   | 'drilldown_full'
   | 'action_dry_run_result'
   | 'action_execute_result';
@@ -148,17 +148,17 @@ function collectRuntimeEvidence(options: Options): CollectedArtifactId[] {
   const collected: CollectedArtifactId[] = [];
   writeJsonArtifact(
     options.bundleDir,
-    'runtime-snapshot.json',
-    runJsonCommand(options, ['runtime', 'snapshot', '--json']),
+    'app-state-summary.json',
+    runJsonCommand(options, ['app', 'state', '--profile', 'fast', '--json']),
   );
-  collected.push('runtime_snapshot');
+  collected.push('app_state_summary');
 
   writeJsonArtifact(
     options.bundleDir,
-    'drilldown-summary.json',
-    runJsonCommand(options, ['runtime', 'app-operator-drilldown', '--json']),
+    'app-state-full.json',
+    runJsonCommand(options, ['app', 'state', '--profile', 'full', '--json']),
   );
-  collected.push('drilldown_summary');
+  collected.push('app_state_full');
 
   writeJsonArtifact(
     options.bundleDir,
@@ -170,7 +170,7 @@ function collectRuntimeEvidence(options: Options): CollectedArtifactId[] {
   writeJsonArtifact(
     options.bundleDir,
     'action-dry-run-result.json',
-    runJsonCommand(options, ['runtime', 'action', 'execute', '--action', options.actionId, '--dry-run']),
+    runJsonCommand(options, ['app', 'action', 'execute', '--action', options.actionId, '--dry-run', '--json']),
   );
   collected.push('action_dry_run_result');
 
@@ -178,7 +178,7 @@ function collectRuntimeEvidence(options: Options): CollectedArtifactId[] {
     writeJsonArtifact(
       options.bundleDir,
       'action-execute-result.json',
-      runJsonCommand(options, ['runtime', 'action', 'execute', '--action', options.actionId]),
+      runJsonCommand(options, ['app', 'action', 'execute', '--action', options.actionId, '--json']),
     );
     collected.push('action_execute_result');
   }

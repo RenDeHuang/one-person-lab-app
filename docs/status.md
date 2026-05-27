@@ -71,22 +71,33 @@ and compiles through the App wrapper path.
 
 Runtime page evidence path is declared in
 `contracts/app-page-state-matrix.json`: the active shell loads the summary read
-model through `opl runtime app-operator-drilldown --json`, lazy-loads full detail
-through `opl runtime app-operator-drilldown --detail full --json`, and presents
-a multi-task runtime base view with action queue refs, a vertical dynamic map,
+model through `opl app state --profile fast --json`, refreshes through
+`opl app state --profile full --json`, lazy-loads full detail through
+`opl runtime app-operator-drilldown --detail full --json`, and presents a
+multi-task runtime base view with action queue refs, a vertical dynamic map,
 single-task drilldown, and MAS paper lens refs. The page stays summary-first,
 loads full detail only on demand, uses a 5-10 second lightweight polling
 fallback when push projection is unavailable, and exposes only refs-only
-`opl runtime action execute --action <id> [--payload refs-only-json] [--dry-run]`
-controls. Execution refreshes the App/operator projection so receipt/count
-fields stay framework-owned; MAS/MAG/RCA verdicts and artifact authority remain
+`opl app action execute --action <id> [--payload json] [--dry-run] --json`
+controls. Execution refreshes the App state projection so receipt/count fields
+stay framework-owned; MAS/MAG/RCA verdicts and artifact authority remain
 domain-owned refs.
 
+Current GUI product truth is declared in
+`contracts/app-gui-product-contract.json`: the default executor experience is
+Codex-only; MAS, MAG, RCA, and OPL Meta Agent are the default assistant entries;
+the home prompt, Settings System/Runtime/About/Update/Theme surfaces, module
+path source explanation, stable/nightly release gates, and OPL Agent Codex
+context are App-owned requirements. MDS is not a default GUI module and remains
+historical or explicit-reference only. `contracts/app-shell-adapter.json`
+requires the active shell to implement that App contract and keeps upstream
+AionUI as implementation material rather than product authority.
+
 2026-05-22 App release evidence collection now has an App-owned CLI wrapper:
-`scripts/collect-release-evidence.ts` fills `runtime-snapshot.json`,
-`drilldown-summary.json`, `drilldown-full.json`, `action-dry-run-result.json`,
-and, when explicitly requested, `action-execute-result.json` by calling the live
-OPL CLI. It then writes `evidence-manifest.json` through the existing manifest
+`scripts/collect-release-evidence.ts` fills `app-state-summary.json`,
+`app-state-full.json`, `drilldown-full.json`, `action-dry-run-result.json`, and,
+when explicitly requested, `action-execute-result.json` by calling the live OPL
+CLI. It then writes `evidence-manifest.json` through the existing manifest
 writer. Screenshot, clean first-run VM, settings smoke, and remote Release
 verification artifacts remain required release evidence and stay marked
 `missing` until real artifacts exist; the collector is a user-path evidence

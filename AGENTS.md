@@ -3,6 +3,8 @@
 This repository is the One Person Lab App product repository. It owns desktop
 App packaging, release assets, updater metadata, user guides, screenshots,
 first-run checks, GUI product requirements, and GUI page-state tests.
+It is the sole control root for GUI product truth, App-owned documentation,
+machine-readable GUI contracts, page-state validation, and App release gates.
 
 The OPL Framework remains in `gaofeng21cn/one-person-lab`. App code must consume
 framework-owned machine-readable contracts, CLI JSON, provider receipts, and
@@ -29,6 +31,11 @@ Root `docs/`, `contracts/`, and `scripts/` describe the App product layer.
 AionUI-specific source, package metadata, tests, shell release hooks, and
 upstream intake rules live in the shell repository and are consumed here through
 the active shell checkout.
+When a behavior changes what users see, what page state is accepted, or what
+counts as release-ready, change the App-owned contract, docs, and tests first;
+then implement the shell behavior in the shell checkout. Do not let shell code,
+upstream AionUI defaults, or local GUI implementation details become the hidden
+source of App truth.
 
 ## GUI Product Authority
 
@@ -37,6 +44,16 @@ the active shell checkout.
 - Product-level GUI decisions, user-facing page behavior, model-selection
   policy, onboarding flow, release screenshots, and page-state expectations must
   be documented, contracted, or tested from this repo when they define App truth.
+- `contracts/app-gui-product-contract.json` owns the GUI product requirements.
+  `contracts/app-page-state-matrix.json` owns GUI page-state expectations.
+  `contracts/app-shell-adapter.json` owns the active shell implementation
+  boundary. `contracts/app-release-channel.json` owns stable/nightly release
+  gating.
+- Default GUI state reads use `opl app state --profile fast --json`. Explicit
+  refresh/detail reads use `opl app state --profile full --json`, with
+  `opl runtime app-operator-drilldown --detail full --json` reserved for the
+  runtime/Operator full drilldown exception. Mutations go through
+  `opl app action execute --action <id> [--payload <json>] [--dry-run] --json`.
 - `shells/aionui/` is the current implementation carrier and upstream-sync
   surface. It may change shape as AionUI evolves, but it must implement the App
   repo's GUI truth rather than become the source of product authority.
@@ -45,6 +62,10 @@ the active shell checkout.
   change in the shell checkout.
 - Upstream AionUI behavior can be reused as implementation material only after
   checking it against App-owned GUI requirements and contracts.
+- Replacing the GUI shell changes the implementation carrier only. Future shells
+  must remain under `shells/<candidate>` until the App shell adapter, product
+  profile sync, page-state matrix, first-run matrix, active-shell validation,
+  GUI package compile, and external checkout history policy all pass.
 
 ## Working Rules
 

@@ -15,7 +15,8 @@
     "active_shell": "contracts/app-shell-adapter.json",
     "page_state": "contracts/app-page-state-matrix.json",
     "first_run": "contracts/app-first-run-test-matrix.json",
-    "release_channel": "contracts/app-release-channel.json"
+    "release_channel": "contracts/app-release-channel.json",
+    "gui_product": "contracts/app-gui-product-contract.json"
   },
   "default_session_profile": {
     "executor": "codex_cli",
@@ -23,6 +24,30 @@
     "reasoning_effort": "xhigh",
     "applies_after": "codex_openai_api_key_configured",
     "authority": "app_session_default_only"
+  },
+  "gui": {
+    "authority": "app_repo_owned_product_truth",
+    "implementation_carrier": "opl-aion-shell",
+    "appearance": {
+      "default_css_theme_id": "default-theme",
+      "default_css_theme_name": "Default",
+      "codex_theme_default_enabled": false
+    },
+    "home": {
+      "primary_input_surface": "single_card",
+      "nested_input_card_frames_allowed": false,
+      "codex_model_selector_visible": false,
+      "codex_model_list_visible": false,
+      "codex_model_policy": "auto_latest_frontier_from_codex_capabilities_or_app_default",
+      "codex_default_model": "gpt-5.5",
+      "codex_default_reasoning_effort": "xhigh",
+      "codex_default_permission_mode": "full-access",
+      "retired_codex_models_must_not_be_exposed": [
+        "gpt-5.2-codex",
+        "gpt-5.1-codex-max",
+        "gpt-5.1-codex-mini"
+      ]
+    }
   },
   "codex": {
     "default_model": "gpt-5.5",

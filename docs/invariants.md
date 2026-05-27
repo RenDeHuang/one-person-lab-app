@@ -6,8 +6,14 @@ State: `active_truth`
 Machine boundary: Human-readable invariants. Machine-readable truth lives in `contracts/`, source, release artifacts, updater metadata, and test results.
 
 - The App repo owns desktop product packaging, release metadata, first-run product policy, App-level contracts, screenshots, user guides, and App validation wrappers.
+- The App repo owns One Person Lab App GUI product truth. The active shell may implement renderer/process/package/test/release-hook details and absorb upstream AionUI changes, but App page behavior, model-selection policy, onboarding policy, screenshots, and release/user docs stay App-owned.
+- GUI behavior changes must land first in App-owned contracts, docs, page-state tests, and release gates. Shell implementation follows those App-owned boundaries.
+- The App repo owns the GUI runtime bridge contract; OPL owns the runtime/app CLI protocol; the active shell only implements the replaceable adapter.
+- `opl app state --profile fast --json` is the default GUI state source; `opl app state --profile full --json` is explicit refresh/detail state; `opl app action execute --action <id> [--payload <json>] [--dry-run] --json` is the App mutation boundary.
+- `opl runtime app-operator-drilldown --detail full --json` is only the runtime/Operator full drilldown exception.
 - The App must not own OPL runtime truth, provider implementation, domain truth, domain quality verdicts, memory body, artifact body, artifact authority, or owner receipt authority.
 - `shells/aionui/` remains an external checkout of `gaofeng21cn/opl-aion-shell`; this repo must not merge or vendor AionUI history into the App default branch.
+- Future GUI shells stay under `shells/<candidate>` until the App shell adapter, product profile sync, page-state/first-run matrices, active-shell validation, GUI package compile, and external checkout history policy all pass.
 - Standard updater assets and Full first-install assets stay separate. Updater metadata must not select assets whose names include `Full`.
 - First-run Core ready can use bundled runtime payloads; repo sync, module reconcile, CLT installation, companion skills, and ecosystem module updates remain background maintenance after Core ready.
 - App page-state behavior must consume framework-owned read models and refs-only action routes; it must not infer domain ready, production ready, quality verdict, release ready, or artifact authority from provider completion or UI rendering alone.

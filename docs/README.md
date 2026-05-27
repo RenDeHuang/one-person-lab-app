@@ -26,11 +26,14 @@ OPL Framework runtime truth or MAS/MAG/RCA domain truth.
 The App-owned product profile lives at
 [`../contracts/app-product-profile.json`](../contracts/app-product-profile.json).
 It is the machine-readable source for desktop session defaults, visible
-companion skills, first-run maintenance behavior, and Settings presentation
-policy. Release preparation generates the shell-facing copy consumed by
-`opl-aion-shell`.
+companion skills, first-run maintenance behavior, Settings presentation policy,
+and GUI product defaults. Release preparation generates the shell-facing copy
+consumed by `opl-aion-shell`.
 
 The current stable GUI shell is checked out at `shells/aionui/` from
 `gaofeng21cn/opl-aion-shell`. AionUI-specific implementation docs remain in the
 shell repository. This App repository keeps only App-owned product, release,
-contract, and user documentation in its default branch.
+contract, and user documentation in its default branch. A future GUI shell must
+enter as `shells/<candidate>` and pass the App-owned shell adapter, product
+profile sync, page-state, first-run, validation, and package compile gates
+before it can become active.

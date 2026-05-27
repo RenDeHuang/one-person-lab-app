@@ -309,6 +309,7 @@ function hasPathSegment(relativePath: string, segment: string) {
 
 const EXCLUDED_RUNTIME_PATH_SEGMENTS: readonly string[] = [
   '.git',
+  '.codegraph',
   '.codex',
   '.omx',
   '.worktrees',
@@ -332,7 +333,7 @@ const EXCLUDED_RUNTIME_PATH_PATTERNS = [
   /^modules\/[^/]+\/\.venv(?:\/|$)/,
   /^modules\/[^/]+\/node_modules(?:\/|$)/,
   /^modules\/[^/]+\/tests?(?:\/|$)/,
-  /^modules\/[^/]+\/(?:htmlcov|docs\/_build|notebooks|runtime|runs|sessions|\.ds)(?:\/|$)/,
+  /^modules\/[^/]+\/(?:htmlcov|docs\/_build|notebooks|runtime|runtime-state|runs|sessions|\.ds)(?:\/|$)/,
   /^opl\/node_modules(?:\/|$)/,
   /^opl\/.*\/\.venv(?:\/|$)/,
   /^opl\/dist(?:\/|$)/,
