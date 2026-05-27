@@ -45,14 +45,14 @@ One Person Lab App is the daily workbench for users:
 - Enter Research Foundry, Grant Foundry, and Presentation Foundry.
 - View progress, files, runtime status, and recoverable work context for continuing long tasks and inspecting deliverables.
 - Consume `opl app state --profile fast --json` as the runtime page summary source, use `opl app state --profile full --json` for refresh, and lazy-load full Framework drilldown only on demand. The page is a multi-task runtime base view with an action queue, vertical dynamic map, single-task drilldown, MAS paper lens refs, summary-first/full-detail-on-demand controls, 5-10 second lightweight polling fallback, refs-only dry-run/execute actions, receipt/count refresh, and explicit non-authority boundary fields.
-- Check the local environment, framework dependency, domain modules, companion tools, and package readiness on first launch.
+- On first launch, reach `ready_to_launch` before `/guid` from the Core checks: workspace root, Codex CLI, and Codex config. Domain modules, the family runtime provider, recommended skills, native helpers, repo sync, CLT, and ecosystem updates remain Full readiness or background maintenance.
 - Present One Person Lab and domain agents as a usable product experience.
 
 ## User Path
 
 1. Download the App package from Releases.
 2. Open `One Person Lab.app`.
-3. Let first launch check the local environment, framework dependency, and domain modules.
+3. Let first launch complete Core readiness before `/guid`: workspace root, Codex CLI, and Codex config.
 4. Choose a workspace directory.
 5. Start general work or enter Research, Grant, or Presentation Foundry.
 6. Use progress, files, and runtime status views to continue work and inspect deliverables.

@@ -87,9 +87,8 @@ test('_build-reusable splits quality work into parallel App and active-shell job
     assertMatches(workflow, new RegExp(`\\n  ${jobId}:\\n`), `_build-reusable job ${jobId}`);
   }
 
-  assertMatches(workflow, /ACTIONLINT_VERSION:\s+'v\d+\.\d+\.\d+'/, 'pinned actionlint version');
-  assertMatches(workflow, /go install "github\.com\/rhysd\/actionlint\/cmd\/actionlint@\$\{ACTIONLINT_VERSION\}"/, 'actionlint install');
-  assertMatches(workflow, /actionlint -color -shellcheck "" -pyflakes ""/, 'actionlint semantic gate');
+  assertMatches(workflow, /go install github\.com\/rhysd\/actionlint\/cmd\/actionlint@latest/, 'actionlint install');
+  assertMatches(workflow, /actionlint -color/, 'actionlint gate');
   assertMatches(workflow, /uses:\s+\.\/\.github\/actions\/setup-active-shell-deps/, 'reusable active shell setup action');
   assertMatches(setupAction, /path:\s+shells\/aionui/, 'active shell checkout');
   assertMatches(setupAction, /key:\s+bun-install-[^\n]*hashFiles\('shells\/aionui\/package\.json', 'shells\/aionui\/bun\.lock'\)/, 'active shell Bun dependency cache key');
@@ -194,7 +193,6 @@ test('release CI operations docs separate implemented release gates from follow-
   const combinedDocs = `${testingDocs}\n${scriptsDocs}`;
 
   assertMatches(combinedDocs, /actionlint[\s\S]*workflow semantic gate/i, 'actionlint policy');
-  assertMatches(combinedDocs, /actionlint[\s\S]*(shellcheck|ShellCheck)[\s\S]*(disabled|separate|style debt)/i, 'actionlint shellcheck boundary');
   assertMatches(combinedDocs, /YAML parsing[\s\S]*syntax/i, 'YAML parse boundary');
   assertMatches(combinedDocs, /concurrency[\s\S]*duplicate-run governance/i, 'concurrency policy');
   assertMatches(combinedDocs, /not release evidence|not as proof/i, 'concurrency non-evidence boundary');

@@ -6,8 +6,11 @@ State: `active`
 Machine boundary: Human-readable App documentation. Machine-readable truth lives
 in `contracts/`, source, release artifacts, updater metadata, and test results.
 
-This documentation set describes the end-user App repository. It does not define
-OPL Framework runtime truth or MAS/MAG/RCA domain truth.
+This documentation set describes the end-user App repository. The App owns GUI
+truth, release policy, and App-owned documentation. OPL Framework owns the
+`opl app state` and `opl app action` producers consumed by the GUI bridge. The
+active shell is a replaceable renderer and adapter; it does not become product,
+runtime, provider, or domain authority.
 
 ## Current Docs
 
@@ -37,3 +40,9 @@ contract, and user documentation in its default branch. A future GUI shell must
 enter as `shells/<candidate>` and pass the App-owned shell adapter, product
 profile sync, page-state, first-run, validation, and package compile gates
 before it can become active.
+
+`contracts/app-runtime-bridge.json` also declares an opt-in live conformance
+gate. Normal local and CI validation does not require a live Framework checkout.
+When explicitly enabled with `OPL_APP_LIVE_CONFORMANCE=1`, the App validation
+checks a local OPL root's `./bin/opl app state/action` protocol without copying
+runtime or domain truth into this repo.

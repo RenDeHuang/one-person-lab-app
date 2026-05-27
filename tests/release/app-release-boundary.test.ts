@@ -58,11 +58,11 @@ function writeRuntimeEvidenceJsonFiles(tempRoot) {
   );
   writeFile(
     path.join(tempRoot, 'action-dry-run-result.json'),
-    '{"app_action_execution":{"surface_kind":"opl_app_action_execution","action_id":"stage-production-attempt:medautoscience:analysis-campaign","dry_run":true,"execution":{"execution_status":"dry_run"},"authority_boundary":{"can_write_domain_truth":false}}}\n',
+    '{"app_action_execution":{"surface_kind":"opl_app_action_execution.v1","action_id":"stage-production-attempt:medautoscience:analysis-campaign","dry_run":true,"result":{"execution":{"execution_status":"dry_run"}},"authority_boundary":{"can_write_domain_truth":false}}}\n',
   );
   writeFile(
     path.join(tempRoot, 'action-execute-result.json'),
-    '{"app_action_execution":{"surface_kind":"opl_app_action_execution","action_id":"stage-production-attempt:medautoscience:analysis-campaign","dry_run":false,"execution":{"execution_status":"executed"},"authority_boundary":{"can_write_domain_truth":false}}}\n',
+    '{"app_action_execution":{"surface_kind":"opl_app_action_execution.v1","action_id":"stage-production-attempt:medautoscience:analysis-campaign","dry_run":false,"result":{"execution":{"execution_status":"executed"}},"authority_boundary":{"can_write_domain_truth":false}}}\n',
   );
 }
 
@@ -268,8 +268,8 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.default_session_profile.reasoning_effort, profile.codex.default_reasoning_effort);
   assert.equal(profile.gui.authority, 'app_repo_owned_product_truth');
   assert.equal(profile.gui.implementation_carrier, 'opl-aion-shell');
-  assert.equal(profile.gui.appearance.default_css_theme_id, 'default-theme');
-  assert.equal(profile.gui.appearance.codex_theme_default_enabled, false);
+  assert.equal(profile.gui.appearance.default_css_theme_id, 'codex');
+  assert.equal(profile.gui.appearance.codex_theme_default_enabled, true);
   assert.equal(profile.gui.home.primary_input_surface, 'single_card');
   assert.equal(profile.gui.home.nested_input_card_frames_allowed, false);
   assert.equal(profile.gui.home.codex_model_selector_visible, false);
@@ -305,6 +305,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
       'repo_sync',
       'module_reconcile',
       'command_line_tools_install',
+      'native_helpers',
       'companion_skills_install',
       'ecosystem_module_updates',
     ],
@@ -318,6 +319,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
         'repo_sync',
         'module_reconcile',
         'command_line_tools_install',
+        'native_helpers',
         'companion_skills_install',
         'ecosystem_module_updates',
       ],
@@ -333,6 +335,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
       'repo_sync',
       'module_reconcile',
       'command_line_tools_install',
+      'native_helpers',
       'companion_skills_install',
       'ecosystem_module_updates',
     ],
@@ -407,6 +410,7 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
     'repo_sync',
     'module_reconcile',
     'command_line_tools_install',
+    'native_helpers',
     'companion_skills_install',
     'ecosystem_module_updates',
   ]);
@@ -417,6 +421,7 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
       'repo_sync',
       'module_reconcile',
       'command_line_tools_install',
+      'native_helpers',
       'companion_skills_install',
       'ecosystem_module_updates',
     ],
@@ -489,6 +494,14 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimeBridge.refresh_command, 'opl app state --profile full --json');
   assert.equal(runtimeBridge.full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.equal(runtimeBridge.action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
+  assert.equal(runtimeBridge.live_conformance_gate.mode, 'explicit_env_opt_in');
+  assert.equal(runtimeBridge.live_conformance_gate.default_enforcement, 'disabled');
+  assert.equal(runtimeBridge.live_conformance_gate.enable_env, 'OPL_APP_LIVE_CONFORMANCE');
+  assert.equal(runtimeBridge.live_conformance_gate.opl_root_env, 'OPL_APP_LIVE_OPL_ROOT');
+  assert.equal(runtimeBridge.live_conformance_gate.action_fixture_env, 'OPL_APP_LIVE_ACTION_FIXTURE');
+  assert.equal(runtimeBridge.live_conformance_gate.fast_state_max_bytes, 500000);
+  assert.equal(runtimeBridge.live_conformance_gate.required_state_schema, 'opl_app_state.v1');
+  assert.equal(runtimeBridge.live_conformance_gate.golden_fast_state_fixture, 'contracts/fixtures/opl-app-state-fast.fixture.json');
   assert.equal(runtimeBridge.projection_sources.primary, 'app_state.operator.summary');
   assert.equal(runtimeBridge.projection_sources.provider, 'app_state.provider');
   assert.equal(runtimeBridge.projection_sources.actions, 'app_state.actions');
@@ -508,7 +521,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guidHomePage.home_view_model.implementation_carrier, 'opl-aion-shell');
   assert.equal(guidHomePage.home_view_model.primary_input_surface, 'single_card');
   assert.equal(guidHomePage.home_view_model.nested_input_card_frames_allowed, false);
-  assert.equal(guidHomePage.home_view_model.appearance_default_css_theme_id, 'default-theme');
+  assert.equal(guidHomePage.home_view_model.appearance_default_css_theme_id, 'codex');
   assert.equal(guidHomePage.home_view_model.codex_model_selector_visible, false);
   assert.equal(guidHomePage.home_view_model.codex_model_list_visible, false);
   assert.equal(
@@ -1053,10 +1066,10 @@ if (args.slice(0, 4).join(' ') === 'app action execute --action') {
   const dryRun = args.includes('--dry-run');
   out({
     app_action_execution: {
-      surface_kind: 'opl_app_action_execution',
+      surface_kind: 'opl_app_action_execution.v1',
       action_id: actionId,
       dry_run: dryRun,
-      execution: { execution_status: dryRun ? 'dry_run' : 'executed' },
+      result: { execution: { execution_status: dryRun ? 'dry_run' : 'executed' } },
       authority_boundary: { can_write_domain_truth: false }
     }
   });
@@ -1695,6 +1708,20 @@ test('tag-triggered release workflow stamps package metadata from tag version', 
   }
 });
 
+test('active shell command wrapper injects App release version for local builds', () => {
+  const today = new Date();
+  const expectedDefaultVersion = `${String(today.getUTCFullYear()).slice(-2)}.${today.getUTCMonth() + 1}.${today.getUTCDate()}`;
+  const printVersion = ['scripts/run-active-shell-command.ts', process.execPath, '-e', 'process.stdout.write(process.env.OPL_RELEASE_VERSION || "")'];
+
+  const defaultResult = runNode(printVersion, { env: { OPL_RELEASE_VERSION: '' } });
+  assert.equal(defaultResult.status, 0, defaultResult.stderr || defaultResult.stdout);
+  assert.equal(defaultResult.stdout, expectedDefaultVersion);
+
+  const explicitResult = runNode(printVersion, { env: { OPL_RELEASE_VERSION: '30.1.2-test.3' } });
+  assert.equal(explicitResult.status, 0, explicitResult.stderr || explicitResult.stdout);
+  assert.equal(explicitResult.stdout, '30.1.2-test.3');
+});
+
 test('release code-quality uses App active-shell test runner', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
 
@@ -1880,8 +1907,8 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.pages.settings_runtime.module_path_source_policy_ref, 'module_path_source_policy');
   assert.ok(guiContract.pages.settings_runtime.must_show.includes('module path source explanation'));
   assert.ok(guiContract.pages.settings_runtime.must_not_show.includes('Med Deep Scientist as a default module'));
-  assert.equal(guiContract.theme_and_branding.default_theme_id, 'default-theme');
-  assert.deepEqual(guiContract.theme_and_branding.allowed_theme_ids, ['default-theme', 'codex']);
+  assert.equal(guiContract.theme_and_branding.default_theme_id, 'codex');
+  assert.deepEqual(guiContract.theme_and_branding.allowed_theme_ids, ['codex', 'default-theme']);
   assert.ok(guiContract.pages.settings_theme.must_show.includes('Default theme option'));
   assert.ok(guiContract.pages.settings_theme.must_show.includes('Codex theme option'));
   assert.deepEqual(
@@ -1913,6 +1940,70 @@ test('App fallow hygiene is not the active GUI shell validation gate', () => {
   assert.match(packageJson.scripts['validate:gui-shell'], /run-active-shell-command\.ts bun run package/);
   assert.match(combinedDocs, /hygiene:fallow[\s\S]*not GUI shell build or runtime evidence/i);
   assert.match(combinedDocs, /validate:gui-shell[\s\S]*active shell[\s\S]*GUI compile/i);
+});
+
+test('active shell validation exposes opt-in live OPL conformance without making it default', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+  const runtimeBridge = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-runtime-bridge.json'), 'utf8'),
+  );
+  const testingDocs = fs.readFileSync(path.join(appRoot, 'docs', 'testing', 'README.md'), 'utf8');
+  const architectureDocs = fs.readFileSync(path.join(appRoot, 'docs', 'architecture.md'), 'utf8');
+  const combinedDocs = `${testingDocs}\n${architectureDocs}`;
+
+  assert.equal(packageJson.scripts['validate:active-shell'], 'node --experimental-strip-types scripts/validate-active-shell.ts');
+  assert.equal(runtimeBridge.live_conformance_gate.mode, 'explicit_env_opt_in');
+  assert.equal(runtimeBridge.live_conformance_gate.default_enforcement, 'disabled');
+  assert.equal(runtimeBridge.live_conformance_gate.opl_bin, './bin/opl');
+  assert.equal(runtimeBridge.live_conformance_gate.fast_state_command, './bin/opl app state --profile fast --json');
+  assert.equal(runtimeBridge.live_conformance_gate.full_state_command, './bin/opl app state --profile full --json');
+  assert.equal(
+    runtimeBridge.live_conformance_gate.action_dry_run_command,
+    './bin/opl app action execute --action <fixture> --dry-run --json',
+  );
+  assert.equal(runtimeBridge.live_conformance_gate.fast_state_max_bytes, 500000);
+  assert.equal(
+    runtimeBridge.live_conformance_gate.golden_fast_state_fixture,
+    'contracts/fixtures/opl-app-state-fast.fixture.json',
+  );
+  assert.deepEqual(runtimeBridge.live_conformance_gate.state_schema_paths, [
+    'app_state.schema_version',
+    'app_state.surface_kind',
+    'app_state.schema',
+    'app_state.surface',
+    'schema',
+    'surface',
+  ]);
+  assert.match(combinedDocs, /OPL_APP_LIVE_CONFORMANCE=1[\s\S]*OPL_APP_LIVE_OPL_ROOT/i);
+  assert.match(combinedDocs, /fast[\s\S]*500KB[\s\S]*opl_app_state\.v1/i);
+  const fixture = JSON.parse(
+    fs.readFileSync(path.join(appRoot, runtimeBridge.live_conformance_gate.golden_fast_state_fixture), 'utf8'),
+  );
+  assert.equal(fixture.app_state.surface_kind, 'opl_app_state.v1');
+  assert.equal(fixture.app_state.operator.workbench.view_model_schema, 'opl_app_operator_workbench.v1');
+  assert.equal(
+    fixture.app_state.operator.workbench.performance_policy.shell_must_not_derive_layout_from_raw_runtime_projection,
+    true,
+  );
+
+  const defaultResult = runNode(['scripts/validate-active-shell.ts', '--quick'], {
+    env: {
+      OPL_APP_LIVE_CONFORMANCE: '',
+      OPL_APP_LIVE_OPL_ROOT: '',
+      OPL_APP_LIVE_ACTION_FIXTURE: '',
+    },
+  });
+  assert.equal(defaultResult.status, 0, defaultResult.stderr || defaultResult.stdout);
+
+  const enabledWithoutRoot = runNode(['scripts/validate-active-shell.ts', '--quick'], {
+    env: {
+      OPL_APP_LIVE_CONFORMANCE: '1',
+      OPL_APP_LIVE_OPL_ROOT: '',
+      OPL_APP_LIVE_ACTION_FIXTURE: 'fixture',
+    },
+  });
+  assert.notEqual(enabledWithoutRoot.status, 0);
+  assert.match(enabledWithoutRoot.stderr, /Set OPL_APP_LIVE_OPL_ROOT/);
 });
 
 test('release artifact upload preserves electron-updater blockmaps', () => {
@@ -2149,6 +2240,12 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.ok(
     releaseContract.release_validation_profiles.nightly_standard.forbidden_lanes.includes('full_first_install_build'),
   );
+  assert.ok(
+    releaseContract.release_validation_profiles.nightly_standard.forbidden_lanes.includes('docker_webui_smoke'),
+  );
+  assert.ok(
+    !releaseContract.release_validation_profiles.nightly_standard.required_lanes.includes('docker_webui_smoke'),
+  );
 });
 
 test('stable validation profile covers every user installation surface', () => {
@@ -2171,6 +2268,22 @@ test('stable validation profile covers every user installation surface', () => {
     'one_shot_app_installer_fresh_install_smoke',
     'docker_webui_smoke',
   ]);
+  assert.ok(stable.required_lanes.includes('docker_webui_smoke'));
+  assert.deepEqual(
+    firstRunMatrix.scenarios.find((scenario) => scenario.id === 'docker_webui_smoke'),
+    {
+      id: 'docker_webui_smoke',
+      package_type: 'docker_webui',
+      release_gate: true,
+      command: 'docker build -t one-person-lab-webui:<version> shells/aionui && docker run -p 127.0.0.1::<container_port> one-person-lab-webui:<version>',
+      expects: [
+        'Docker image builds from the active AionUI shell Dockerfile',
+        'WebUI container starts on port 3000',
+        'HTTP / returns 200',
+        'HTTP /manifest.webmanifest returns 200',
+      ],
+    },
+  );
   assert.ok(stable.required_lanes.includes('operator_evidence_bundle'));
   for (const scenarioId of stable.required_installation_surfaces) {
     assert.ok(scenarioIds.includes(scenarioId), scenarioId);
@@ -2230,7 +2343,6 @@ test('release CI operations policy distinguishes workflow hygiene from release e
   const combinedDocs = `${testingDocs}\n${scriptsDocs}`;
 
   assert.match(combinedDocs, /actionlint[\s\S]*(workflow semantic gate|workflow semantic gate in the reusable build quality jobs)/i);
-  assert.match(combinedDocs, /actionlint[\s\S]*(shellcheck|ShellCheck)[\s\S]*(disabled|separate|style debt)/i);
   assert.match(combinedDocs, /YAML parsing[\s\S]*syntax check|YAML parsing[\s\S]*only proves syntax/i);
   assert.ok(
     !Object.values(packageJson.scripts).some((script) => String(script).includes('actionlint')),

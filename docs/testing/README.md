@@ -130,10 +130,12 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   VM workflow. The standard DMG gate uses `--runtime-profile standard` to prove
   launch, App-managed bootstrap/readiness, and Settings navigation. The Full DMG
   gate uses `--runtime-profile full` to add Codex/OpenAI API key wizard
-  submission, bundled runtime materialization, Domain module readiness, and
-  family runtime provider readiness. CLT, git, and managed repo sync are
-  deferred maintenance and must not block Core, Domain module, or family runtime
-  provider readiness. The App repo VM workflow is the deterministic
+  submission, bundled runtime materialization, and Full readiness checks after
+  `ready_to_launch`. The pre-`/guid` Core launch gate requires only workspace
+  root, Codex CLI, and Codex config. Domain modules, the family runtime
+  provider, recommended skills, native helpers, CLT, git, managed repo sync, and
+  ecosystem updates are Full readiness or deferred maintenance and must not
+  block `ready_to_launch`. The App repo VM workflow is the deterministic
   release-blocking gate for first-run GUI evidence; Codex App or Computer Use
   sessions may explore UI behavior during triage, but those exploratory checks
   are non-blocking and cannot replace the Tart VM gate. Any exploratory finding
@@ -172,9 +174,7 @@ workflow-operations hygiene:
 
 - `actionlint` is the workflow semantic gate in the reusable build quality
   jobs. YAML parsing only proves syntax; `actionlint` is the check that should
-  fail semantic GitHub Actions mistakes. Its CI invocation disables ShellCheck
-  and pyflakes integration so shell style debt stays separate from workflow
-  semantic validity.
+  fail semantic GitHub Actions mistakes.
 - GitHub Actions `concurrency` is duplicate-run governance. It collapses stale
   scheduled queues or serializes operator runs; it is not release evidence and
   does not replace remote verification, installer smoke, or VM gates.

@@ -83,13 +83,15 @@ published-asset gate. Both profiles clone a clean no-CLT Tart base VM, fix the
 logical display at `1920x1080px`, and sweep packaged Settings pages. The Full
 profile additionally submits the Codex/OpenAI API key configuration wizard and
 keeps Full runtime readiness on the release-blocking path. Command Line Tools,
-git availability, and managed repo sync are deferred maintenance and must not
-block Core, Domain module, or family runtime provider readiness for the Full
-first-run gate. The workflow writes a preflight summary with runner labels,
-source VM, guest user, package/runtime profile, DMG path, display, and artifact
-output before executing the smoke. Codex App and Computer Use checks are
-non-blocking exploratory tools; release-blocking App readiness must live in
-deterministic scripts, contracts, or GitHub Actions gates.
+git availability, and managed repo sync are deferred maintenance. The pre-`/guid`
+`ready_to_launch` gate requires only workspace root, Codex CLI, and Codex
+config; Domain modules, the family runtime provider, recommended skills, native
+helpers, CLT, repo sync, and ecosystem updates are Full readiness or background
+maintenance and must not block launch. The workflow writes a preflight summary
+with runner labels, source VM, guest user, package/runtime profile, DMG path,
+display, and artifact output before executing the smoke. Codex App and Computer
+Use checks are non-blocking exploratory tools; release-blocking App readiness
+must live in deterministic scripts, contracts, or GitHub Actions gates.
 Scheduled GitHub Actions runs must have repository variable
 `OPL_FIRST_RUN_TART_SOURCE` set to a local Tart source VM on the self-hosted
 runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18`.
@@ -114,9 +116,7 @@ Release automation has two distinct improvement tracks:
   changing release truth.
 
 `actionlint` belongs to the second track as the workflow semantic gate in the
-reusable build quality jobs. Its CI invocation disables ShellCheck and pyflakes
-integration so historical shell style debt stays separate from release workflow
-semantic validity; Ruby/YAML parsing remains only a syntax check.
+reusable build quality jobs; Ruby/YAML parsing remains only a syntax check.
 
 GitHub Actions `concurrency` belongs to duplicate-run governance. Use it to
 cancel stale scheduled runs or serialize operator-triggered runs, not as proof

@@ -14,6 +14,7 @@ const pageStateMatrixPath = path.join(root, 'contracts', 'app-page-state-matrix.
 const firstRunMatrixPath = path.join(root, 'contracts', 'app-first-run-test-matrix.json');
 const productProfilePath = path.join(root, 'contracts', 'app-product-profile.json');
 const releaseChannelPath = path.join(root, 'contracts', 'app-release-channel.json');
+const commandMaxBuffer = 128 * 1024 * 1024;
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
@@ -214,6 +215,210 @@ function assertCommandSurface(value, expected, label) {
   }
 }
 
+function lookupPath(value, dotPath) {
+  return dotPath.split('.').reduce((current, key) => {
+    if (!current || typeof current !== 'object' || Array.isArray(current)) {
+      return undefined;
+    }
+    return current[key];
+  }, value);
+}
+
+function resolveLiveGateEnabled(gate) {
+  const envName = gate?.enable_env;
+  return typeof envName === 'string' && process.env[envName]?.trim() === '1';
+}
+
+function runLiveJsonCommand(oplRoot, args, label, maxStdoutBytes = commandMaxBuffer) {
+  const result = spawnSync('./bin/opl', args, {
+    cwd: oplRoot,
+    encoding: 'utf8',
+    env: process.env,
+    maxBuffer: Math.max(commandMaxBuffer, maxStdoutBytes),
+  });
+  if (result.error) {
+    throw new Error(`Live OPL ${label} failed to launch: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    throw new Error([
+      `Live OPL ${label} failed: ./bin/opl ${args.join(' ')}`,
+      result.stderr.trim(),
+      result.stdout.trim(),
+    ].filter(Boolean).join('\n'));
+  }
+  const stdoutBytes = Buffer.byteLength(result.stdout, 'utf8');
+  if (stdoutBytes > maxStdoutBytes) {
+    throw new Error(`Live OPL ${label} exceeded ${maxStdoutBytes} bytes: ${stdoutBytes}`);
+  }
+  try {
+    return {
+      payload: JSON.parse(result.stdout),
+      stdoutBytes,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Live OPL ${label} returned invalid JSON: ${message}`);
+  }
+}
+
+function validateLiveConformanceContract(gate) {
+  if (!gate || typeof gate !== 'object' || Array.isArray(gate)) {
+    throw new Error('Runtime bridge must declare live_conformance_gate');
+  }
+  if (gate.owner !== 'one-person-lab-app') {
+    throw new Error(`Unexpected live conformance owner: ${gate.owner}`);
+  }
+  if (gate.producer_owner !== 'one-person-lab') {
+    throw new Error(`Unexpected live conformance producer owner: ${gate.producer_owner}`);
+  }
+  if (gate.mode !== 'explicit_env_opt_in') {
+    throw new Error(`Unexpected live conformance mode: ${gate.mode}`);
+  }
+  if (gate.default_enforcement !== 'disabled') {
+    throw new Error(`Unexpected live conformance default enforcement: ${gate.default_enforcement}`);
+  }
+  for (const [field, expected] of Object.entries({
+    enable_env: 'OPL_APP_LIVE_CONFORMANCE',
+    opl_root_env: 'OPL_APP_LIVE_OPL_ROOT',
+    action_fixture_env: 'OPL_APP_LIVE_ACTION_FIXTURE',
+    opl_bin: './bin/opl',
+    fast_state_command: './bin/opl app state --profile fast --json',
+    full_state_command: './bin/opl app state --profile full --json',
+    action_dry_run_command: './bin/opl app action execute --action <fixture> --dry-run --json',
+    required_state_schema: 'opl_app_state.v1',
+    golden_fast_state_fixture: 'contracts/fixtures/opl-app-state-fast.fixture.json',
+    app_role: 'protocol_conformance_consumer',
+  })) {
+    if (gate[field] !== expected) {
+      throw new Error(`Runtime bridge live_conformance_gate.${field} must be ${expected}`);
+    }
+  }
+  if (gate.fast_state_max_bytes !== 500000) {
+    throw new Error('Runtime bridge live_conformance_gate.fast_state_max_bytes must be 500000');
+  }
+  for (const schemaPath of ['app_state.schema_version', 'app_state.surface_kind', 'app_state.schema', 'app_state.surface', 'schema', 'surface']) {
+    if (!gate.state_schema_paths?.includes(schemaPath)) {
+      throw new Error(`Runtime bridge live conformance schema paths must include ${schemaPath}`);
+    }
+  }
+  for (const assertion of [
+    'fast App state command returns JSON',
+    'full App state command returns JSON',
+    'dry-run App action command returns JSON',
+    'fast App state output stays below 500KB',
+    'fast App state declares opl_app_state.v1 schema or surface',
+  ]) {
+    if (!gate.assertions?.includes(assertion)) {
+      throw new Error(`Runtime bridge live conformance assertions must include ${assertion}`);
+    }
+  }
+  for (const forbidden of forbiddenAuthorityOwners) {
+    if (!gate.forbidden_authority?.includes(forbidden)) {
+      throw new Error(`Runtime bridge live conformance must exclude ${forbidden}`);
+    }
+  }
+  validateGoldenAppStateFixture(gate);
+}
+
+function validateGoldenAppStateFixture(gate) {
+  const fixturePath = path.join(root, gate.golden_fast_state_fixture);
+  assertFile(fixturePath, 'OPL App state golden fixture');
+  const fixtureText = readFileSync(fixturePath, 'utf8');
+  const fixture = JSON.parse(fixtureText);
+  if (Buffer.byteLength(fixtureText, 'utf8') >= gate.fast_state_max_bytes) {
+    throw new Error(`OPL App state golden fixture must stay below ${gate.fast_state_max_bytes} bytes.`);
+  }
+  if (lookupPath(fixture, 'app_state.schema_version') !== gate.required_state_schema) {
+    throw new Error('OPL App state golden fixture must declare app_state.schema_version.');
+  }
+  if (lookupPath(fixture, 'app_state.surface_kind') !== gate.required_state_schema) {
+    throw new Error('OPL App state golden fixture must declare app_state.surface_kind.');
+  }
+  if (lookupPath(fixture, 'app_state.meta.profile') !== 'fast') {
+    throw new Error('OPL App state golden fixture must use the fast profile.');
+  }
+  if (lookupPath(fixture, 'app_state.operator.workbench.view_model_schema') !== 'opl_app_operator_workbench.v1') {
+    throw new Error('OPL App state golden fixture must include typed operator workbench.');
+  }
+  if (lookupPath(fixture, 'app_state.operator.workbench.performance_policy.fast_json_max_bytes') !== gate.fast_state_max_bytes) {
+    throw new Error('OPL App state golden fixture must carry the App fast JSON max budget.');
+  }
+  if (lookupPath(fixture, 'app_state.operator.workbench.performance_policy.shell_must_not_derive_layout_from_raw_runtime_projection') !== true) {
+    throw new Error('OPL App state golden fixture must forbid shell-side layout derivation from raw runtime projection.');
+  }
+  for (const [pathName, label] of Object.entries({
+    'app_state.operator.workbench.summary_cards': 'summary cards',
+    'app_state.operator.workbench.sections': 'sections',
+    'app_state.operator.workbench.action_queue.items': 'action queue items',
+    'app_state.operator.workbench.domain_lane_map.lanes': 'domain lanes',
+    'app_state.operator.workbench.task_drilldowns': 'task drilldowns',
+    'app_state.operator.workbench.safe_action_routes': 'safe action routes',
+    'app_state.operator.workbench.lazy_refs': 'lazy refs',
+  })) {
+    const value = lookupPath(fixture, pathName);
+    if (!Array.isArray(value) || value.length === 0) {
+      throw new Error(`OPL App state golden fixture must include ${label}.`);
+    }
+  }
+}
+
+function validateLiveOplConformance(runtimeBridge) {
+  const gate = runtimeBridge.live_conformance_gate;
+  validateLiveConformanceContract(gate);
+  if (!resolveLiveGateEnabled(gate)) {
+    return;
+  }
+
+  const oplRoot = process.env[gate.opl_root_env]?.trim();
+  if (!oplRoot) {
+    throw new Error(`Set ${gate.opl_root_env} to the local OPL Framework root when ${gate.enable_env}=1.`);
+  }
+  const resolvedOplRoot = path.resolve(oplRoot);
+  assertFile(path.join(resolvedOplRoot, 'bin', 'opl'), 'live OPL ./bin/opl');
+
+  const actionFixture = process.env[gate.action_fixture_env]?.trim();
+  if (!actionFixture) {
+    throw new Error(`Set ${gate.action_fixture_env} to a safe OPL App action id when ${gate.enable_env}=1.`);
+  }
+
+  const fast = runLiveJsonCommand(
+    resolvedOplRoot,
+    ['app', 'state', '--profile', 'fast', '--json'],
+    'fast App state',
+    gate.fast_state_max_bytes,
+  );
+  const full = runLiveJsonCommand(resolvedOplRoot, ['app', 'state', '--profile', 'full', '--json'], 'full App state');
+  const action = runLiveJsonCommand(
+    resolvedOplRoot,
+    ['app', 'action', 'execute', '--action', actionFixture, '--dry-run', '--json'],
+    'App action dry-run',
+  );
+
+  if (fast.stdoutBytes >= gate.fast_state_max_bytes) {
+    throw new Error(`Live OPL fast App state must stay below ${gate.fast_state_max_bytes} bytes.`);
+  }
+  const declaredSchema = gate.state_schema_paths
+    .map((schemaPath) => lookupPath(fast.payload, schemaPath))
+    .find((value) => typeof value === 'string' && value.trim());
+  if (declaredSchema !== gate.required_state_schema) {
+    throw new Error(`Live OPL fast App state must declare ${gate.required_state_schema} schema/surface.`);
+  }
+  if (lookupPath(fast.payload, 'app_state.meta.profile') !== 'fast') {
+    throw new Error('Live OPL fast App state must declare app_state.meta.profile=fast.');
+  }
+  if (lookupPath(full.payload, 'app_state.meta.profile') !== 'full') {
+    throw new Error('Live OPL full App state must declare app_state.meta.profile=full.');
+  }
+  if (lookupPath(action.payload, 'app_action_execution.surface_kind') !== 'opl_app_action_execution.v1') {
+    throw new Error('Live OPL App action dry-run must declare opl_app_action_execution.v1.');
+  }
+  if (lookupPath(action.payload, 'app_action_execution.dry_run') !== true) {
+    throw new Error('Live OPL App action dry-run must return dry_run=true.');
+  }
+
+  console.log('Live OPL App state/action conformance passed.');
+}
+
 function validateRuntimeBridgeContract(runtimeBridge, contract) {
   if (runtimeBridge.owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected runtime bridge owner: ${runtimeBridge.owner}`);
@@ -295,6 +500,7 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
       throw new Error(`Runtime bridge must forbid ${forbidden}`);
     }
   }
+  validateLiveConformanceContract(runtimeBridge.live_conformance_gate);
 }
 
 function validateAppGuiProductContract(guiContract, releaseChannel) {
@@ -381,10 +587,10 @@ function validateAppGuiProductContract(guiContract, releaseChannel) {
     throw new Error('App GUI contract must mark MDS as not default-displayed');
   }
 
-  if (guiContract.theme_and_branding?.default_theme_id !== 'default-theme') {
-    throw new Error('App GUI default theme must be default-theme');
+  if (guiContract.theme_and_branding?.default_theme_id !== 'codex') {
+    throw new Error('App GUI default theme must be codex');
   }
-  for (const themeId of ['default-theme', 'codex']) {
+  for (const themeId of ['codex', 'default-theme']) {
     if (!guiContract.theme_and_branding.allowed_theme_ids?.includes(themeId)) {
       throw new Error(`App GUI theme list must include ${themeId}`);
     }
@@ -399,6 +605,33 @@ function validateAppGuiProductContract(guiContract, releaseChannel) {
   }
   if (guiContract.settings_navigation.refresh_source !== 'opl app state --profile full --json') {
     throw new Error('App GUI settings navigation refresh must use full App state');
+  }
+  const firstLaunchPolicy = guiContract.first_launch_readiness_policy;
+  if (firstLaunchPolicy?.launch_gate !== 'ready_to_launch' || firstLaunchPolicy?.ui_order !== 'before_guid') {
+    throw new Error('App GUI first-launch readiness must gate ready_to_launch before /guid');
+  }
+  for (const item of firstRunCoreItems) {
+    if (!firstLaunchPolicy?.core_required_items?.includes(item)) {
+      throw new Error(`App GUI first-launch readiness must require Core item ${item}`);
+    }
+  }
+  for (const item of fullReadinessItems) {
+    if (!firstLaunchPolicy?.full_readiness_items?.includes(item)) {
+      throw new Error(`App GUI first-launch readiness must keep ${item} in full readiness`);
+    }
+  }
+  for (const [field, expected] of Object.entries({
+    full_readiness_blocks_launch: false,
+    default_provider: 'gflab',
+    default_base_url: 'https://gflabtoken.cn/v1',
+    default_model: 'gpt-5.5',
+    default_reasoning_effort: 'xhigh',
+    default_executor: 'codex_cli',
+    full_runtime_provider: 'temporal',
+  })) {
+    if (firstLaunchPolicy?.[field] !== expected) {
+      throw new Error(`App GUI first-launch readiness ${field} must be ${expected}`);
+    }
   }
 
   const modulePathPolicy = guiContract.module_path_source_policy;
@@ -605,6 +838,38 @@ function validatePageStateMatrix(matrix, contract) {
   ]) {
     if (!settingsThemePage?.must_show?.includes(signal)) {
       throw new Error(`Settings theme page must show ${signal}`);
+    }
+  }
+
+  const firstLaunchPage = (matrix.pages ?? []).find((page) => page.id === 'first_launch_readiness');
+  if (!firstLaunchPage) {
+    throw new Error('Page-state matrix is missing first_launch_readiness page');
+  }
+  if (firstLaunchPage.launch_gate?.id !== 'ready_to_launch' || firstLaunchPage.launch_gate?.ui_order !== 'before_guid') {
+    throw new Error('First-launch readiness page must gate ready_to_launch before /guid');
+  }
+  if (firstLaunchPage.launch_gate?.full_readiness_blocks_ready_to_launch !== false) {
+    throw new Error('First-launch readiness page must keep full readiness non-blocking for ready_to_launch');
+  }
+  for (const item of firstRunCoreItems) {
+    if (!firstLaunchPage.launch_gate?.required_core_items?.includes(item)) {
+      throw new Error(`First-launch readiness page must require Core item ${item}`);
+    }
+  }
+  for (const item of fullReadinessItems) {
+    if (!firstLaunchPage.launch_gate?.full_readiness_items?.includes(item)) {
+      throw new Error(`First-launch readiness page must list ${item} as full readiness`);
+    }
+  }
+  for (const signal of [
+    'workspace root readiness',
+    'Codex CLI readiness',
+    'Codex config readiness',
+    'ready_to_launch before /guid',
+    'full readiness and background maintenance state',
+  ]) {
+    if (!firstLaunchPage.must_show?.includes(signal)) {
+      throw new Error(`First-launch readiness page must show ${signal}`);
     }
   }
 
@@ -907,6 +1172,7 @@ const firstRunDeferredMaintenanceItems = [
   'repo_sync',
   'module_reconcile',
   'command_line_tools_install',
+  'native_helpers',
   'companion_skills_install',
   'ecosystem_module_updates',
 ];
@@ -932,6 +1198,17 @@ function validateFullFirstInstallScenario(fullClean) {
   }
   if (fullClean?.core_ready_source !== 'bundled_runtime') {
     throw new Error('Full first-install clean-machine scenario must reach Core ready from bundled_runtime');
+  }
+  if (fullClean?.ready_to_launch_gate?.ui_order !== 'before_guid') {
+    throw new Error('Full first-install clean-machine scenario must gate ready_to_launch before /guid');
+  }
+  if (fullClean?.ready_to_launch_gate?.blocks_on_full_readiness !== false) {
+    throw new Error('Full first-install ready_to_launch must not block on full readiness');
+  }
+  for (const item of firstRunCoreItems) {
+    if (!fullClean?.ready_to_launch_gate?.required_core_items?.includes(item)) {
+      throw new Error(`Full first-install ready_to_launch must require Core item ${item}`);
+    }
   }
   for (const item of firstRunDeferredMaintenanceItems) {
     if (!fullClean?.background_maintenance?.includes(item)) {
@@ -1007,10 +1284,21 @@ function validateFirstRunMatrix(matrix, contract) {
 }
 
 const requiredHostTools = ['command_line_tools', 'homebrew', 'node', 'git'];
+const firstRunCoreItems = ['workspace_root', 'codex_cli', 'codex_config'];
+const fullReadinessItems = [
+  'domain_modules',
+  'family_runtime_provider',
+  'recommended_skills',
+  'native_helpers',
+  'repo_sync',
+  'command_line_tools_install',
+  'ecosystem_module_updates',
+];
 const deferredMaintenanceItems = [
   'repo_sync',
   'module_reconcile',
   'command_line_tools_install',
+  'native_helpers',
   'companion_skills_install',
   'ecosystem_module_updates',
 ];
@@ -1053,8 +1341,20 @@ function validateProductProfileContractRefs(profile) {
 }
 
 function validateProductProfileCodexDefaults(profile) {
+  if (profile.default_session_profile?.provider !== 'gflab') {
+    throw new Error(`Unexpected product profile provider: ${profile.default_session_profile?.provider}`);
+  }
+  if (profile.default_session_profile?.base_url !== 'https://gflabtoken.cn/v1') {
+    throw new Error(`Unexpected product profile base URL: ${profile.default_session_profile?.base_url}`);
+  }
   if (profile.default_session_profile?.executor !== 'codex_cli') {
     throw new Error(`Unexpected product profile executor: ${profile.default_session_profile?.executor}`);
+  }
+  if (profile.default_session_profile?.model !== 'gpt-5.5') {
+    throw new Error(`Unexpected product profile model: ${profile.default_session_profile?.model}`);
+  }
+  if (profile.default_session_profile?.reasoning_effort !== 'xhigh') {
+    throw new Error(`Unexpected product profile reasoning effort: ${profile.default_session_profile?.reasoning_effort}`);
   }
   if (profile.default_session_profile?.model !== profile.codex?.default_model) {
     throw new Error('Product profile default_session_profile.model must match codex.default_model');
@@ -1069,10 +1369,10 @@ function validateProductProfileCodexDefaults(profile) {
     throw new Error('Product profile GUI implementation carrier must be opl-aion-shell');
   }
   if (
-    profile.gui.appearance?.default_css_theme_id !== 'default-theme' ||
-    profile.gui.appearance?.codex_theme_default_enabled !== false
+    profile.gui.appearance?.default_css_theme_id !== 'codex' ||
+    profile.gui.appearance?.codex_theme_default_enabled !== true
   ) {
-    throw new Error('Product profile GUI appearance must default to the default theme');
+    throw new Error('Product profile GUI appearance must default to the Codex theme');
   }
   if (
     profile.gui.home?.primary_input_surface !== 'single_card' ||
@@ -1099,6 +1399,32 @@ function validateProductProfileCodexDefaults(profile) {
 }
 
 function validateFullFirstInstallCoreReadyPolicy(profile) {
+  if (JSON.stringify(profile.first_run?.readiness_layers) !== JSON.stringify(['core'])) {
+    throw new Error('Product profile ready_to_launch readiness_layers must contain only core');
+  }
+  const launchGate = profile.first_run?.ready_to_launch_gate;
+  if (launchGate?.id !== 'ready_to_launch' || launchGate?.ui_order !== 'before_guid') {
+    throw new Error('Product profile ready_to_launch gate must run before /guid');
+  }
+  for (const item of firstRunCoreItems) {
+    if (!launchGate?.required_core_items?.includes(item)) {
+      throw new Error(`Product profile ready_to_launch gate must require Core item ${item}`);
+    }
+  }
+  for (const item of fullReadinessItems) {
+    if (!launchGate?.must_not_require?.includes(item)) {
+      throw new Error(`Product profile ready_to_launch gate must not require ${item}`);
+    }
+    if (!profile.first_run?.full_readiness_layers?.includes(item)) {
+      throw new Error(`Product profile full readiness layers must include ${item}`);
+    }
+  }
+  if (
+    profile.first_run?.runtime_provider?.full_readiness_provider !== 'temporal'
+    || profile.first_run.runtime_provider.ready_to_launch_blocking !== false
+  ) {
+    throw new Error('Product profile full runtime provider must stay Temporal and non-blocking for ready_to_launch');
+  }
   const fullFirstInstall = profile.first_run?.core_ready_policy?.full_first_install_clean_machine;
   for (const tool of requiredHostTools) {
     if (!fullFirstInstall?.missing_host_tools_allowed?.includes(tool)) {
@@ -1241,6 +1567,7 @@ validatePageStateMatrix(pageStateMatrix, contract);
 validateFirstRunMatrix(firstRunMatrix, contract);
 validateProductProfile(readJson(productProfilePath));
 validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix);
+validateLiveOplConformance(runtimeBridge);
 
 if (args.quick) {
   console.log('Active shell contract is structurally valid.');

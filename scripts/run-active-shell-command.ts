@@ -3,6 +3,22 @@
 import { spawnSync } from 'node:child_process';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
+const OPL_RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
+
+function defaultOplReleaseVersion(date = new Date()): string {
+  const year = String(date.getUTCFullYear()).slice(-2);
+  return `${year}.${date.getUTCMonth() + 1}.${date.getUTCDate()}`;
+}
+
+function resolveOplReleaseVersion(): string {
+  const explicit = process.env.OPL_RELEASE_VERSION?.trim();
+  const version = explicit || defaultOplReleaseVersion();
+  if (!OPL_RELEASE_VERSION_PATTERN.test(version)) {
+    throw new Error(`Invalid OPL_RELEASE_VERSION: ${version}`);
+  }
+  return version;
+}
+
 const args = process.argv.slice(2);
 if (args.length === 0) {
   console.error('Usage: run-active-shell-command.ts <command> [...args]');
@@ -13,7 +29,10 @@ const shellPaths = resolveActiveShellPaths();
 const result = spawnSync(args[0], args.slice(1), {
   cwd: shellPaths.shellRoot,
   stdio: 'inherit',
-  env: process.env,
+  env: {
+    ...process.env,
+    OPL_RELEASE_VERSION: resolveOplReleaseVersion(),
+  },
 });
 
 process.exit(result.status ?? 1);
