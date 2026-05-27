@@ -100,3 +100,31 @@ Stable release verification keeps the heavy installation checks in separate
 lanes for speed and debuggability: standard DMG clean VM, Full DMG clean VM,
 one-shot App installer, Docker/WebUI, remote verification, and release evidence
 bundle validation can identify the exact user installation path that failed.
+
+## Release CI operations notes
+
+Release automation has two distinct improvement tracks:
+
+- Release gates prove user installation paths: standard DMG, Full DMG, one-shot
+  installer, Docker/WebUI, remote verification, and evidence bundles.
+- CI operations reduce wasted runner time and improve diagnostics without
+  changing release truth.
+
+`actionlint` belongs to the second track as a workflow semantic gate. Add it as
+an explicit script or CI job before claiming semantic GitHub Actions coverage;
+Ruby/YAML parsing remains only a syntax check.
+
+GitHub Actions `concurrency` belongs to duplicate-run governance. Use it to
+cancel stale scheduled runs or serialize operator-triggered runs, not as proof
+that any package installed correctly.
+
+Machine-readable release telemetry should be a JSON artifact that records
+cache hit/miss, lane timing, package sizes, and image sizes. That artifact is
+the evidence base for after-release tuning of cache keys and matrix size; it
+does not replace manifests, SHA256SUMS, remote verification, or VM smoke
+artifacts.
+
+Composite/setup action reuse is still an optional follow-up unless a
+`.github/actions/...` composite action is checked in and tested. Until then,
+the duplicated checkout/setup/cache blocks are intentional explicit workflow
+code, not a hidden shared implementation.

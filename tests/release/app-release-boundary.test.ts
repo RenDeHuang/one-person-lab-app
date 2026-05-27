@@ -2333,6 +2333,35 @@ test('release automation workflows cover remote verification, Full cache warmup,
   );
 });
 
+test('release CI operations policy distinguishes workflow hygiene from release evidence', () => {
+  const testingDocs = fs.readFileSync(path.join(appRoot, 'docs', 'testing', 'README.md'), 'utf8');
+  const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+  const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
+  const workflowActionsDir = path.join(appRoot, '.github', 'actions');
+  const combinedDocs = `${testingDocs}\n${scriptsDocs}`;
+
+  assert.match(combinedDocs, /actionlint[\s\S]*workflow semantic gate/i);
+  assert.match(combinedDocs, /YAML parsing[\s\S]*syntax check|YAML parsing[\s\S]*only proves syntax/i);
+  assert.ok(
+    !Object.values(packageJson.scripts).some((script) => String(script).includes('actionlint')),
+    'actionlint is documented as a semantic gate to add, not a current package script',
+  );
+
+  assert.match(vmWorkflow, /concurrency:[\s\S]*opl-gui-first-run-vm-scheduled[\s\S]*opl-gui-first-run-vm-manual/);
+  assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
+  assert.match(combinedDocs, /concurrency[\s\S]*duplicate-run governance/i);
+  assert.match(combinedDocs, /not release evidence|not as proof/i);
+
+  assert.match(combinedDocs, /Machine-readable release telemetry[\s\S]*JSON artifact|Machine-readable telemetry[\s\S]*JSON artifact/i);
+  assert.match(combinedDocs, /after-release tuning|post-release tuning/i);
+  assert.match(combinedDocs, /does not replace[\s\S]*(manifests|manifest)[\s\S]*SHA256SUMS[\s\S]*remote verification[\s\S]*VM/i);
+
+  assert.equal(fs.existsSync(workflowActionsDir), false);
+  assert.match(combinedDocs, /Composite\/setup[\s\S]*optional follow-up/i);
+  assert.match(combinedDocs, /checked-in composite action exists|checked in and tested/i);
+});
+
 test('Full first-install workflow has one MinerU checkout and keeps standalone binary build path', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
 

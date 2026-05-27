@@ -181,6 +181,22 @@ test('Docker WebUI smoke records image size as a release-speed artifact', () => 
   assertMatches(workflow, /Upload Docker WebUI smoke artifacts[\s\S]*opl-webui-image-size/, 'Docker image size upload');
 });
 
+test('release CI operations docs separate implemented release gates from follow-up workflow hygiene', () => {
+  const testingDocs = readRepoFile('docs/testing/README.md');
+  const scriptsDocs = readRepoFile('scripts/README.md');
+  const combinedDocs = `${testingDocs}\n${scriptsDocs}`;
+
+  assertMatches(combinedDocs, /actionlint[\s\S]*workflow semantic gate/i, 'actionlint policy');
+  assertMatches(combinedDocs, /YAML parsing[\s\S]*syntax/i, 'YAML parse boundary');
+  assertMatches(combinedDocs, /concurrency[\s\S]*duplicate-run governance/i, 'concurrency policy');
+  assertMatches(combinedDocs, /not release evidence|not as proof/i, 'concurrency non-evidence boundary');
+  assertMatches(combinedDocs, /Machine-readable telemetry[\s\S]*JSON artifact/i, 'machine-readable telemetry artifact');
+  assertMatches(combinedDocs, /post-release tuning|after-release tuning/i, 'telemetry tuning role');
+  assertMatches(combinedDocs, /does not replace[\s\S]*(manifest|manifests)[\s\S]*SHA256SUMS[\s\S]*remote verification[\s\S]*VM/i, 'telemetry non-truth boundary');
+  assertMatches(combinedDocs, /Composite\/setup[\s\S]*optional follow-up/i, 'composite setup optional policy');
+  assertMatches(combinedDocs, /\.github\/actions\/\.\.\.[\s\S]*checked in and tested|checked-in composite action exists/i, 'composite implementation boundary');
+});
+
 test('release plan exposes depends_on and can_run_with for parallel speed lanes and serialized gates', () => {
   const plan = runReleasePlan(['--version', '26.5.27', '--include-full-package']);
 
