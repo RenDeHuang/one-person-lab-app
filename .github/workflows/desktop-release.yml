@@ -289,6 +289,7 @@ jobs:
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
+      release_artifact_name: macos-build-arm64
       package_profile: standard
     secrets: inherit
 
@@ -299,6 +300,7 @@ jobs:
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
+      release_artifact_name: macos-build-arm64
       package_profile: standard
     secrets: inherit
 
@@ -309,6 +311,7 @@ jobs:
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
+      release_artifact_name: opl-full-first-install-${{ inputs.opl_version }}-mac-arm64
       package_profile: full
     secrets: inherit
 

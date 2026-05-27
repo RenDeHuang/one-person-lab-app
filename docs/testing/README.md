@@ -157,6 +157,10 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   `npm run test:release-boundary` locks this workflow policy.
 - Docker/WebUI: build from `shells/aionui/Dockerfile`, run the container, and
   verify HTTP 200 for `/` and `/manifest.webmanifest`.
+- Release-called VM smokes consume the same-run standard or Full DMG workflow
+  artifact for draft candidates, while keeping the release tag as provenance.
+  Remote verification remains responsible for proving that the published
+  GitHub Release assets match the release manifest and checksums.
 
 ## Release CI Operations Boundaries
 

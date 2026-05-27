@@ -165,6 +165,10 @@ test('first-run VM workflow writes deterministic preflight and final summaries b
   assert.ok(smokeIndex > preflightIndex, 'preflight summary must run before the VM smoke command');
   assertMatches(workflow, /## OPL GUI first-run VM preflight/, 'VM preflight heading');
   assertMatches(workflow, /deterministic release-blocking clean VM first launch/, 'VM gate purpose');
+  assertMatches(workflow, /release_artifact_name:/, 'VM same-run artifact input');
+  assertMatches(workflow, /actions\/download-artifact@v7/, 'VM same-run artifact download');
+  assertMatches(workflow, /Using same-run workflow artifact/, 'VM artifact source log');
+  assertMatches(workflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/, 'VM release tag provenance');
   assertMatches(workflow, /Runner labels/, 'VM runner labels');
   assertMatches(workflow, /Source VM/, 'VM source summary');
   assertMatches(workflow, /Smoke profile: \\?`no-clt-clean-vm\\?`/, 'VM smoke profile summary');

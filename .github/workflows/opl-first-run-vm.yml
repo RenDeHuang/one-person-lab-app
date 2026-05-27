@@ -11,6 +11,10 @@ on:
         description: 'Direct DMG URL. Overrides release_tag when set.'
         required: false
         type: string
+      release_artifact_name:
+        description: 'Same-run GitHub Actions artifact containing the DMG. Used by release workflows before draft assets are externally visible.'
+        required: false
+        type: string
       package_profile:
         description: 'DMG profile to test.'
         required: false
@@ -51,6 +55,10 @@ on:
         description: 'Direct DMG URL. Overrides release_tag when set.'
         required: false
         type: string
+      release_artifact_name:
+        description: 'Same-run GitHub Actions artifact containing the DMG. Used by release workflows before draft assets are externally visible.'
+        required: false
+        type: string
       package_profile:
         description: 'DMG profile to test: full or standard.'
         required: false
@@ -89,6 +97,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   clean-vm-first-run:
@@ -173,6 +182,13 @@ jobs:
           esac
           echo "profile=$profile" >> "$GITHUB_OUTPUT"
 
+      - name: Download release DMG artifact
+        if: ${{ inputs.release_artifact_name != '' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.release_artifact_name }}
+          path: artifacts/release
+
       - name: Resolve release DMG
         id: dmg
         shell: bash
@@ -180,7 +196,9 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/release
 
-          if [ -n "${{ inputs.release_dmg_url }}" ]; then
+          if [ -n "${{ inputs.release_artifact_name }}" ]; then
+            echo "Using same-run workflow artifact: ${{ inputs.release_artifact_name }}"
+          elif [ -n "${{ inputs.release_dmg_url }}" ]; then
             DMG_PATH="artifacts/release/One-Person-Lab-${{ steps.package_profile.outputs.profile }}.dmg"
             curl -fL "${{ inputs.release_dmg_url }}" -o "$DMG_PATH"
           elif [ -n "${{ inputs.release_tag }}" ]; then
@@ -198,9 +216,9 @@ jobs:
           if [ -n "${DMG_PATH:-}" ]; then
             true
           elif [ "${{ steps.package_profile.outputs.profile }}" = "standard" ]; then
-            DMG_PATH="$(find artifacts/release -maxdepth 1 -type f -name 'One-Person-Lab-*-mac-arm64.dmg' ! -name 'One-Person-Lab-Full-*' | sort | head -n 1)"
+            DMG_PATH="$(find artifacts/release -type f -name 'One-Person-Lab-*-mac-arm64.dmg' ! -name 'One-Person-Lab-Full-*' | sort | head -n 1)"
           else
-            DMG_PATH="$(find artifacts/release -maxdepth 1 -type f -name 'One-Person-Lab-Full-*-mac-arm64.dmg' | sort | head -n 1)"
+            DMG_PATH="$(find artifacts/release -type f -name 'One-Person-Lab-Full-*-mac-arm64.dmg' | sort | head -n 1)"
           fi
           if [ -z "$DMG_PATH" ]; then
             echo "::error::No ${{ steps.package_profile.outputs.profile }} DMG artifact found for first-run VM smoke."
@@ -230,7 +248,12 @@ jobs:
           fi
 
           RELEASE_SOURCE="latest GitHub Release"
-          if [ -n "${{ inputs.release_dmg_url }}" ]; then
+          if [ -n "${{ inputs.release_artifact_name }}" ]; then
+            RELEASE_SOURCE="same-run workflow artifact ${{ inputs.release_artifact_name }}"
+            if [ -n "${{ inputs.release_tag }}" ]; then
+              RELEASE_SOURCE="$RELEASE_SOURCE; release tag ${{ inputs.release_tag }} kept for provenance"
+            fi
+          elif [ -n "${{ inputs.release_dmg_url }}" ]; then
             RELEASE_SOURCE="direct DMG URL"
           elif [ -n "${{ inputs.release_tag }}" ]; then
             RELEASE_SOURCE="GitHub Release tag ${{ inputs.release_tag }}"

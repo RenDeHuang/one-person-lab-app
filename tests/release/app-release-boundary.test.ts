@@ -2117,8 +2117,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /OPL_INSTALL_SCRIPT_URL: file:\/\/\$\{\{ github\.workspace \}\}\/one-person-lab\/install\.sh/);
   assert.match(workflow, /\.\/install\.sh --complete --skip-modules/);
   assert.match(workflow, /docker build -t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}" shells\/aionui/);
+  assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /release_artifact_name: macos-build-arm64/);
+  assert.match(workflow, /release_artifact_name: opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(workflow, /package_profile: standard/);
   assert.match(workflow, /package_profile: full/);
   assert.match(fullWorkflow, /workflow_call:/);
@@ -2143,6 +2146,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     fs.existsSync(path.join(appRoot, 'assets', 'companion-skills', 'mineru-document-extractor', 'SKILL.md')),
   );
   assert.match(vmWorkflow, /workflow_call:/);
+  assert.match(vmWorkflow, /release_artifact_name:/);
+  assert.match(vmWorkflow, /actions\/download-artifact@v7/);
+  assert.match(vmWorkflow, /Using same-run workflow artifact/);
+  assert.match(vmWorkflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/);
   assert.match(vmWorkflow, /schedule:/);
   assert.match(vmWorkflow, /concurrency:/);
   assert.match(vmWorkflow, /github\.event_name == 'schedule'/);
@@ -2159,6 +2166,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /One-Person-Lab-Full-\*-mac-arm64\.dmg/);
   assert.match(vmWorkflow, /One-Person-Lab-\*-mac-arm64\.dmg/);
   assert.match(vmWorkflow, /!\s+-name 'One-Person-Lab-Full-\*'/);
+  assert.match(vmWorkflow, /find artifacts\/release -type f -name 'One-Person-Lab-\*-mac-arm64\.dmg'/);
   assert.match(vmWorkflow, /--smoke-profile no-clt-clean-vm/);
   assert.match(vmWorkflow, /--display 1920x1080px/);
   assert.match(vmWorkflow, /--settings-smoke/);
@@ -2357,6 +2365,8 @@ test('release CI operations policy distinguishes workflow hygiene from release e
   assert.match(combinedDocs, /Machine-readable release telemetry[\s\S]*JSON artifact|Machine-readable telemetry[\s\S]*JSON artifact/i);
   assert.match(combinedDocs, /after-release tuning|post-release tuning/i);
   assert.match(combinedDocs, /does not replace[\s\S]*(manifests|manifest)[\s\S]*SHA256SUMS[\s\S]*remote verification[\s\S]*VM/i);
+  assert.match(combinedDocs, /same-run workflow artifact[\s\S]*draft/i);
+  assert.match(combinedDocs, /release tag[\s\S]*provenance/i);
 
   assert.equal(fs.existsSync(path.join(workflowActionsDir, 'setup-active-shell-deps', 'action.yml')), true);
   assert.match(combinedDocs, /Composite\/setup[\s\S]*(checked-in composite action|checked in)/i);
