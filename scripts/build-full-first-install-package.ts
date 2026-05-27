@@ -482,7 +482,22 @@ function findCodexBinary(codexRoot) {
   };
 }
 
-function findNodeBinary(explicitNodeBin) {
+function requireNodeToolchainFile(nodeBinDir, name) {
+  const filePath = path.join(nodeBinDir, name);
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    throw new Error(`Node toolchain file not found: ${filePath}`);
+  }
+  return filePath;
+}
+
+function requireNodeToolchainDirectory(directoryPath) {
+  if (!fs.existsSync(directoryPath) || !fs.statSync(directoryPath).isDirectory()) {
+    throw new Error(`Node toolchain directory not found: ${directoryPath}`);
+  }
+  return directoryPath;
+}
+
+function findNodeToolchain(explicitNodeBin) {
   const candidates = [
     explicitNodeBin,
     path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.16.0', 'bin', 'node'),
@@ -492,7 +507,15 @@ function findNodeBinary(explicitNodeBin) {
   if (!found) {
     throw new Error('Node binary not found. Pass --node-bin or set OPL_FULL_NODE_BIN.');
   }
-  return found;
+  const nodeBin = found;
+  const nodeBinDir = path.dirname(nodeBin);
+  const nodeRoot = path.dirname(nodeBinDir);
+  return {
+    nodeBin,
+    npmBin: requireNodeToolchainFile(nodeBinDir, 'npm'),
+    npxBin: requireNodeToolchainFile(nodeBinDir, 'npx'),
+    npmRoot: requireNodeToolchainDirectory(path.join(nodeRoot, 'lib', 'node_modules', 'npm')),
+  };
 }
 
 function findPythonRoot(explicitPythonRoot) {
@@ -769,7 +792,7 @@ function copyRecommendedSkills(targetRoot, options) {
 function resolveRuntimeSources(options) {
   const codexRoot = findCodexRoot(options.codexRoot);
   const codexBinaries = findCodexBinary(codexRoot);
-  const nodeBin = findNodeBinary(options.nodeBin);
+  const nodeToolchain = findNodeToolchain(options.nodeBin);
   const pythonRoot = findPythonRoot(options.pythonRoot);
   const uvBin = requirePath(options.uvBin, 'uv binary');
   const officeCliBin = findOfficeCliBinary(options.officeCliBin);
@@ -778,7 +801,7 @@ function resolveRuntimeSources(options) {
   return {
     codexRoot,
     codexBinaries,
-    nodeBin,
+    nodeToolchain,
     pythonRoot,
     uvBin,
     officeCliBin,
@@ -814,7 +837,11 @@ function buildRuntimeCacheKeys(options, sources) {
         codex_package_version: packageJsonVersion(path.join(sources.codexRoot, 'package.json')),
         codex_binary_sha256: fileSha256(sources.codexBinaries.codex),
         rg_sha256: fileSha256(sources.codexBinaries.rg),
-        node_sha256: fileSha256(sources.nodeBin),
+        node_sha256: fileSha256(sources.nodeToolchain.nodeBin),
+        npm_bin_sha256: fileSha256(sources.nodeToolchain.npmBin),
+        npx_bin_sha256: fileSha256(sources.nodeToolchain.npxBin),
+        npm_package_version: packageJsonVersion(path.join(sources.nodeToolchain.npmRoot, 'package.json')),
+        npm_package_fingerprint: directoryFingerprint(sources.nodeToolchain.npmRoot, 'node/lib/node_modules/npm'),
         uv_sha256: fileSha256(sources.uvBin),
         officecli_sha256: fileSha256(sources.officeCliBin),
         officecli_version: commandOutput(sources.officeCliBin, ['--version']),
@@ -923,7 +950,14 @@ function buildToolchainLayer(layerRoot, sources) {
   copySingleFile(sources.codexBinaries.rg, path.join(layerRoot, 'bin', 'rg'));
   copySingleFile(sources.officeCliBin, path.join(layerRoot, 'bin', 'officecli'));
   copySingleFile(sources.mineruOpenApiBin, path.join(layerRoot, 'bin', 'mineru-open-api'));
-  copySingleFile(sources.nodeBin, path.join(layerRoot, 'node', 'bin', 'node'));
+  copySingleFile(sources.nodeToolchain.nodeBin, path.join(layerRoot, 'node', 'bin', 'node'));
+  copySingleFile(sources.nodeToolchain.npmBin, path.join(layerRoot, 'node', 'bin', 'npm'));
+  copySingleFile(sources.nodeToolchain.npxBin, path.join(layerRoot, 'node', 'bin', 'npx'));
+  copyTreeFiltered(
+    sources.nodeToolchain.npmRoot,
+    path.join(layerRoot, 'node', 'lib', 'node_modules', 'npm'),
+    'node/lib/node_modules/npm',
+  );
   copySingleFile(sources.uvBin, path.join(layerRoot, 'uv', 'bin', 'uv'));
   copyTreeFiltered(
     sources.pythonRoot,
@@ -1047,7 +1081,7 @@ function prepareRuntime(options, sources) {
     mag: { source_path: options.magRoot, git_commit: readGitHead(options.magRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mag')) },
     rca: { source_path: options.rcaRoot, git_commit: readGitHead(options.rcaRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'rca')) },
     meta_agent: { source_path: options.metaAgentRoot, git_commit: readGitHead(options.metaAgentRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'meta-agent')) },
-    node: { source_path: sources.nodeBin, version: commandOutput(path.join(runtimeRoot, 'node', 'bin', 'node'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'node')) },
+    node: { source_path: sources.nodeToolchain.nodeBin, version: commandOutput(path.join(runtimeRoot, 'node', 'bin', 'node'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'node')) },
     python: { source_path: sources.pythonRoot, version: commandOutput(path.join(runtimeRoot, 'python', path.basename(sources.pythonRoot), 'bin', 'python3'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'python')) },
     uv: { source_path: sources.uvBin, version: commandOutput(path.join(runtimeRoot, 'uv', 'bin', 'uv'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'uv')) },
     officecli: { source_path: sources.officeCliBin, version: commandOutput(path.join(runtimeRoot, 'bin', 'officecli'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'officecli')) },

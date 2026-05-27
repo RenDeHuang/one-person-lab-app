@@ -2899,6 +2899,17 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /path\.join\(localVendorRoot, 'codex-path', 'rg'\)/);
   assert.match(buildScript, /path\.join\(platformVendorRoot, 'codex', 'codex'\)/);
   assert.match(buildScript, /path\.join\(platformVendorRoot, 'path', 'rg'\)/);
+  assert.match(buildScript, /function findNodeToolchain\(explicitNodeBin\)/);
+  assert.match(buildScript, /npmBin: requireNodeToolchainFile\(nodeBinDir, 'npm'/);
+  assert.match(buildScript, /npxBin: requireNodeToolchainFile\(nodeBinDir, 'npx'/);
+  assert.match(buildScript, /npmRoot: requireNodeToolchainDirectory\(path\.join\(nodeRoot, 'lib', 'node_modules', 'npm'\)/);
+  assert.match(buildScript, /copySingleFile\(sources\.nodeToolchain\.npmBin, path\.join\(layerRoot, 'node', 'bin', 'npm'\)\)/);
+  assert.match(buildScript, /copySingleFile\(sources\.nodeToolchain\.npxBin, path\.join\(layerRoot, 'node', 'bin', 'npx'\)\)/);
+  assert.match(buildScript, /copyTreeFiltered\(\s*sources\.nodeToolchain\.npmRoot,\s*path\.join\(layerRoot, 'node', 'lib', 'node_modules', 'npm'\)/);
+  assert.match(buildScript, /npm_bin_sha256: fileSha256\(sources\.nodeToolchain\.npmBin\)/);
+  assert.match(buildScript, /npx_bin_sha256: fileSha256\(sources\.nodeToolchain\.npxBin\)/);
+  assert.match(buildScript, /npm_package_version: packageJsonVersion\(path\.join\(sources\.nodeToolchain\.npmRoot, 'package\.json'\)\)/);
+  assert.match(buildScript, /npm_package_fingerprint: directoryFingerprint\(sources\.nodeToolchain\.npmRoot, 'node\/lib\/node_modules\/npm'\)/);
   assert.match(buildScript, /function copyOplMetaAgentSkill\(targetRoot, options\)/);
   assert.match(buildScript, /'agent', 'skills', 'opl-meta-agent-domain-skill\.md'/);
   assert.match(buildScript, /fs\.copyFileSync\(domainSkill, path\.join\(target, 'SKILL\.md'\)\)/);
