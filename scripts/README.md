@@ -69,6 +69,13 @@ breakdown for local review and is appended to the Full GitHub Actions summary.
 The Full workflow also uploads `full-workflow-telemetry.json`, a machine-readable
 cache/timing artifact for post-release bottleneck review; use it as tuning input,
 not as release truth.
+For remote diagnosis, prefer the small `opl-full-diagnostics-<version>` artifact.
+It contains `full-workflow-telemetry.json`, `full-package-manifest.json`,
+`runtime-cache-events.json`, `SHA256SUMS.txt`, and the Full README, so operators
+can compare recorded hashes, manifest commits, and runtime layer cache status
+without downloading the large Full DMG. Warmup runs disable the large Full
+package artifact; release-called Full builds keep it enabled for publish and VM
+consumers.
 Full packaging excludes local development indexes, dependency caches, tests, and
 runtime/user state such as `.codegraph`, `.git`, `.worktrees`, `.venv`,
 `node_modules`, `runtime`, `runtime-state`, `runs`, `sessions`, and `tests`;
@@ -136,7 +143,9 @@ Machine-readable release telemetry should be a JSON artifact that records
 cache hit/miss, lane timing, package sizes, and image sizes. That artifact is
 the evidence base for after-release tuning of cache keys and matrix size; it
 does not replace manifests, SHA256SUMS, remote verification, or VM smoke
-artifacts.
+artifacts. Full remote tuning should read the small
+`opl-full-diagnostics-<version>` artifact before downloading any large package
+artifact.
 
 Composite/setup action reuse is used only where a checked-in composite action is
 tested and the job still keeps release semantics visible. Active-shell

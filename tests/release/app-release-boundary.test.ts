@@ -2448,6 +2448,12 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.doesNotMatch(workflow, /restore-keys:\s*\|\s*\n\s*opl-full-runtime-layers-/);
   assert.match(workflow, /runtime-cache-events\.json/);
   assert.match(workflow, /full_runtime_layer_events/);
+  assert.match(workflow, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/);
+  assert.match(workflow, /Upload Full diagnostics artifact[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/);
+  assert.match(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/);
+  assert.match(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/);
+  const warmupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-runtime-cache-warmup.yml'), 'utf8');
+  assert.match(warmupWorkflow, /upload_full_package_artifact:\s+false/);
   assert.match(workflow, /node -e 'const fs = require\("node:fs"\); const report = JSON\.parse\(fs\.readFileSync\(process\.argv\[1\], "utf8"\)\);/);
   assert.doesNotMatch(
     workflow,

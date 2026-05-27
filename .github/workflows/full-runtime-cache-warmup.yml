@@ -65,4 +65,5 @@ jobs:
       opl_version: ${{ needs.resolve-version.outputs.version }}
       framework_ref: ${{ needs.resolve-version.outputs.framework_ref }}
       publish_to_release: false
+      upload_full_package_artifact: false
       force_rebuild_runtime_cache: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild_runtime_cache }}
