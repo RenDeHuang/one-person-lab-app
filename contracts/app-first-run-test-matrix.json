@@ -85,6 +85,8 @@
       },
       "expects": [
         "Standard DMG is installed into /Applications on first launch",
+        "App-managed bootstrap installs or refreshes the Framework CLI when opl is missing on the clean Mac",
+        "Core first-launch readiness is proven through opl system initialize --json before /guid",
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
         "Settings pages are navigable after first-run initialization"
@@ -92,6 +94,7 @@
       "release_evidence_artifacts": [
         "tart-smoke-summary.json",
         "artifacts/smoke-summary.json",
+        "artifacts/system-initialize.json",
         "artifacts/settings-smoke-summary.json",
         "artifacts/first-launch.png"
       ]
@@ -168,7 +171,8 @@
       "bootstrap_owner": "app_managed",
       "maintenance_resolution_policy": "app_or_cli_managed_best_effort_until_ready",
       "expects": [
-        "standard package uses App-managed bootstrap where possible",
+        "standard package uses the packaged App installer as its App-managed bootstrap carrier when opl is missing",
+        "standard App-managed bootstrap runs complete core setup with modules, GUI open, native-helper repair, and online family runtime install disabled",
         "first screen does not end by asking the user to install Homebrew, Node, or Git first",
         "App-managed bootstrap or maintenance remains responsible for resolving Homebrew, Node, and Git readiness"
       ]

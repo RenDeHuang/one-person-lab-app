@@ -54,6 +54,10 @@ OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
 
+`release:prepare-standard` also copies the App root installer into the active
+shell resources as `opl-install.sh`, which is the packaged standard DMG
+bootstrap carrier used when clean first launch cannot find `opl`.
+
 Full size policy lives in `docs/release/README.md`: release review records the
 compressed DMG size, uncompressed runtime size, and layer breakdown, then uses
 `verify-remote-release-assets.ts` as the remote verifier size budget check for

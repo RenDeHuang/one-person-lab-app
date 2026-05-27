@@ -148,6 +148,12 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   in `full-workflow-telemetry.json` artifacts. These artifacts help compare
   build speed across runs; they do not replace release manifests, checksums,
   remote verification, VM smoke artifacts, or evidence bundle validation.
+- Standard DMG clean VM smoke: the packaged App must run its bundled
+  `opl-install.sh` bootstrap carrier if `opl` is missing, reach
+  `ready_to_launch` through `opl system initialize --json`, and only then enter
+  `/guid`. The smoke keeps Full-only runtime equivalence out of the standard
+  profile but still uploads `system-initialize.json` as the core readiness
+  proof.
 - One-shot installer: the App root `install.sh` remains the public entrypoint.
   Stable verification runs it against a checked-out Framework installer with
   `OPL_INSTALL_SCRIPT_URL=file://.../one-person-lab/install.sh ./install.sh

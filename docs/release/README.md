@@ -20,8 +20,11 @@ recommended skills, native helpers, repository sync, module reconcile, CLT
 installation, companion skills install, and ecosystem module updates are Full
 readiness or best-effort background maintenance after `ready_to_launch`; they
 cannot block first launch.
-Standard packages should use App-managed bootstrap
-and App-managed maintenance where possible; the first screen must not end by
+Standard packages bundle the App installer as the standard bootstrap carrier.
+On a clean Mac where `opl` is missing, first launch runs that carrier as an
+App-managed core setup with modules, GUI open, native-helper repair, and online
+family runtime install disabled, then proves `ready_to_launch` through
+`opl system initialize --json` before `/guid`. The first screen must not end by
 telling the user to install Homebrew, Node, or Git before One Person Lab can
 proceed.
 

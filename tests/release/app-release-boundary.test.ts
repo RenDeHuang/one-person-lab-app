@@ -429,13 +429,21 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
   assert.ok(fullClean.expects.some((entry) => /without requiring host CLT, Homebrew, Node, or Git/.test(entry)));
   assert.ok(fullClean.expects.some((entry) => /best-effort background maintenance after Core ready/.test(entry)));
 
+  const standardClean = scenarioById.get('standard_dmg_clean_vm_smoke');
+  assert.equal(standardClean.release_gate, true);
+  assert.equal(standardClean.vm.runtime_profile, 'standard');
+  assert.ok(standardClean.expects.some((entry) => /Framework CLI when opl is missing/.test(entry)));
+  assert.ok(standardClean.expects.some((entry) => /Core first-launch readiness.*opl system initialize --json/.test(entry)));
+  assert.ok(standardClean.release_evidence_artifacts.includes('artifacts/system-initialize.json'));
+
   const standardBootstrap = scenarioById.get('standard_app_managed_bootstrap');
   assert.equal(standardBootstrap.bootstrap_owner, 'app_managed');
   assert.equal(
     standardBootstrap.maintenance_resolution_policy,
     'app_or_cli_managed_best_effort_until_ready',
   );
-  assert.ok(standardBootstrap.expects.some((entry) => /App-managed bootstrap/.test(entry)));
+  assert.ok(standardBootstrap.expects.some((entry) => /packaged App installer/.test(entry)));
+  assert.ok(standardBootstrap.expects.some((entry) => /modules, GUI open, native-helper repair, and online family runtime install disabled/.test(entry)));
   assert.ok(standardBootstrap.expects.some((entry) => /does not end.*Homebrew, Node, or Git/i.test(entry)));
   assert.ok(standardBootstrap.expects.some((entry) => /App-managed bootstrap or maintenance remains responsible/.test(entry)));
 
@@ -2701,6 +2709,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   const buildScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
   const publishScript = fs.readFileSync(path.join(appRoot, 'scripts', 'publish-release.ts'), 'utf8');
   const prepareStandardScript = fs.readFileSync(path.join(appRoot, 'scripts', 'prepare-standard-release-payload.ts'), 'utf8');
+  const electronBuilder = fs.readFileSync(path.join(appRoot, 'shells', 'aionui', 'packages', 'desktop', 'electron-builder.yml'), 'utf8');
   const mod = await import('../../scripts/full-first-install-package.ts');
   const cacheDir = path.join(os.tmpdir(), 'opl-full-runtime-cache-test');
   const cacheKey = mod.buildFullRuntimeCacheKey({
@@ -2803,6 +2812,9 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /mineru_document_extractor_fingerprint/);
   assert.match(buildScript, /syncAppProductProfileToShell\(options\.guiRoot\)/);
   assert.match(prepareStandardScript, /syncAppProductProfileToShell\(shellPaths\.shellRoot, \{ optional: true \}\)/);
+  assert.match(prepareStandardScript, /fs\.copyFileSync\(appInstallerPath, shellBootstrapInstallerPath\)/);
+  assert.match(prepareStandardScript, /fs\.chmodSync\(shellBootstrapInstallerPath, 0o755\)/);
+  assert.match(electronBuilder, /from: resources\/opl-install\.sh\s+to: opl-install\.sh/);
   assert.match(
     buildScript,
     /if \(cacheEvent\.read_archive\) {\s*extractLayer\(archivePath, targetRoot\);\s*return cacheEvent;\s*}\s*const tempLayerRoot/,
