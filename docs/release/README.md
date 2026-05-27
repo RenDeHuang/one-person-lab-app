@@ -294,9 +294,13 @@ under `~/Library/Caches/One Person Lab/full-runtime-layers`. The layer keys cove
 the toolchain, domain runtime modules, OPL runtime, skills, packager inputs, and
 runtime exclusion policy. Use `--print-runtime-cache-keys` for a fast
 preflight. GitHub Actions derives the outer cache key only from the stable
-`aggregate_key_input`, so release version stamps and runner-local cache paths do
-not invalidate otherwise identical layer archives. Full artifacts include
-`runtime-cache-events.json` for per-layer hit/miss evidence. Use
+`aggregate_key_input`, then restores and saves each runtime layer independently,
+so a changed domain or OPL commit does not force Actions to download or rewrite
+unchanged toolchain or skills archives. Release version stamps and runner-local
+cache paths do not invalidate otherwise identical layer archives. The MinerU
+helper binary uses the MinerU source commit time in its embedded build metadata
+so the toolchain layer key is not polluted by the current Actions run time. Full
+artifacts include `runtime-cache-events.json` for per-layer hit/miss evidence. Use
 `OPL_FULL_RUNTIME_CACHE_MODE=readonly` to consume existing layers without
 writing, or `OPL_FULL_RUNTIME_CACHE_MODE=off` for a clean rebuild.
 

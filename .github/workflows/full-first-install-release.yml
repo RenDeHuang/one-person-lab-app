@@ -197,7 +197,7 @@ jobs:
           mineru_root="$GITHUB_WORKSPACE/MinerU-Ecosystem/cli/mineru-open-api"
           mineru_version="$(cat "$mineru_root/VERSION")"
           mineru_commit="$(git -C "$GITHUB_WORKSPACE/MinerU-Ecosystem" rev-parse --short HEAD)"
-          mineru_built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          mineru_built_at="$(git -C "$GITHUB_WORKSPACE/MinerU-Ecosystem" show -s --format=%cI HEAD)"
           (
             cd "$mineru_root"
             go install -ldflags "-X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.version=$mineru_version -X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.commit=$mineru_commit -X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.date=$mineru_built_at" .
@@ -279,6 +279,23 @@ jobs:
           echo "cache_dir=$cache_dir" >> "$GITHUB_OUTPUT"
           echo "cache_digest=$digest" >> "$GITHUB_OUTPUT"
           echo "cache_key=$cache_key" >> "$GITHUB_OUTPUT"
+          node - "$RUNNER_TEMP/opl-full-runtime-cache-keys.json" "$cache_dir" <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const cacheDir = process.argv[3];
+          const outputNames = {
+            toolchain: 'toolchain',
+            'domain-runtime': 'domain_runtime',
+            'opl-runtime': 'opl_runtime',
+            skills: 'skills',
+          };
+          for (const [layerId, outputName] of Object.entries(outputNames)) {
+            const key = report.layers[layerId];
+            console.log(`${outputName}_cache_dir=${path.join(cacheDir, layerId)}`);
+            console.log(`${outputName}_cache_key=opl-full-runtime-layer-${process.env.RUNNER_OS}-${process.env.RUNNER_ARCH}-${key}`);
+          }
+          NODE
           {
             echo "runtime_cache_key_report<<EOF"
             cat "$RUNNER_TEMP/opl-full-runtime-cache-keys.json"
@@ -288,15 +305,37 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Restore Full runtime layer cache
+      - name: Restore Full toolchain runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
-        id: restore-runtime-cache
+        id: restore-runtime-cache-toolchain
         uses: actions/cache/restore@v4
         with:
-          path: ${{ steps.runtime-cache-keys.outputs.cache_dir }}
-          key: ${{ steps.runtime-cache-keys.outputs.cache_key }}
-          restore-keys: |
-            opl-full-runtime-layers-${{ runner.os }}-${{ runner.arch }}-
+          path: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_dir }}
+          key: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_key }}
+
+      - name: Restore Full domain runtime cache
+        if: ${{ !inputs.force_rebuild_runtime_cache }}
+        id: restore-runtime-cache-domain
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_dir }}
+          key: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_key }}
+
+      - name: Restore Full OPL runtime cache
+        if: ${{ !inputs.force_rebuild_runtime_cache }}
+        id: restore-runtime-cache-opl
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_dir }}
+          key: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_key }}
+
+      - name: Restore Full skills runtime cache
+        if: ${{ !inputs.force_rebuild_runtime_cache }}
+        id: restore-runtime-cache-skills
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.runtime-cache-keys.outputs.skills_cache_dir }}
+          key: ${{ steps.runtime-cache-keys.outputs.skills_cache_key }}
 
       - name: Reset Full runtime layer cache when forced
         if: ${{ inputs.force_rebuild_runtime_cache }}
@@ -407,7 +446,7 @@ jobs:
           OPL_FULL_BUN_CACHE_HIT: ${{ steps.bun-cache.outputs.cache-hit || 'false' }}
           OPL_FULL_UV_CACHE_HIT: ${{ steps.uv-cache.outputs.cache-hit || 'false' }}
           OPL_FULL_GO_CACHE_HIT: ${{ steps.go-cache.outputs.cache-hit || 'unknown' }}
-          OPL_FULL_RUNTIME_CACHE_HIT: ${{ inputs.force_rebuild_runtime_cache && 'forced-rebuild' || steps.restore-runtime-cache.outputs.cache-hit || 'false' }}
+          OPL_FULL_RUNTIME_CACHE_HIT: ${{ inputs.force_rebuild_runtime_cache && 'forced-rebuild' || format('toolchain:{0};domain-runtime:{1};opl-runtime:{2};skills:{3}', steps.restore-runtime-cache-toolchain.outputs.cache-hit || 'false', steps.restore-runtime-cache-domain.outputs.cache-hit || 'false', steps.restore-runtime-cache-opl.outputs.cache-hit || 'false', steps.restore-runtime-cache-skills.outputs.cache-hit || 'false') }}
         run: |
           set -euo pipefail
           telemetry_dir="$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"
@@ -461,7 +500,7 @@ jobs:
               bun_install: '${{ steps.bun-cache.outputs.cache-hit || 'false' }}',
               uv_artifacts: '${{ steps.uv-cache.outputs.cache-hit || 'false' }}',
               go_modules_build: '${{ steps.go-cache.outputs.cache-hit || 'unknown' }}',
-              full_runtime_layers: '${{ inputs.force_rebuild_runtime_cache && 'forced-rebuild' || steps.restore-runtime-cache.outputs.cache-hit || 'false' }}',
+              full_runtime_layers: env.OPL_FULL_RUNTIME_CACHE_HIT || 'unknown',
               full_runtime_cache_key: '${{ steps.runtime-cache-keys.outputs.cache_key }}',
               full_runtime_cache_digest: '${{ steps.runtime-cache-keys.outputs.cache_digest }}',
               full_runtime_layer_events: readJson('runtime-cache-events.json')?.events ?? null,
@@ -489,7 +528,7 @@ jobs:
             echo "| Bun install cache | ${{ steps.bun-cache.outputs.cache-hit || 'false' }} |"
             echo "| uv artifacts | ${{ steps.uv-cache.outputs.cache-hit || 'false' }} |"
             echo "| Go modules/build | ${{ steps.go-cache.outputs.cache-hit || 'unknown' }} |"
-            echo "| Full runtime layers | ${{ inputs.force_rebuild_runtime_cache && 'forced-rebuild' || steps.restore-runtime-cache.outputs.cache-hit || 'false' }} |"
+            echo "| Full runtime layers | $OPL_FULL_RUNTIME_CACHE_HIT |"
             echo
             echo "| Full runtime layer | Status |"
             echo "| --- | --- |"
@@ -518,13 +557,37 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Save Full runtime layer cache
-        if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache.outputs.cache-hit != 'true' }}
+      - name: Save Full toolchain runtime cache
+        if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-toolchain.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v4
         continue-on-error: true
         with:
-          path: ${{ steps.runtime-cache-keys.outputs.cache_dir }}
-          key: ${{ steps.runtime-cache-keys.outputs.cache_key }}
+          path: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_dir }}
+          key: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_key }}
+
+      - name: Save Full domain runtime cache
+        if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-domain.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_dir }}
+          key: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_key }}
+
+      - name: Save Full OPL runtime cache
+        if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-opl.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_dir }}
+          key: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_key }}
+
+      - name: Save Full skills runtime cache
+        if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-skills.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: ${{ steps.runtime-cache-keys.outputs.skills_cache_dir }}
+          key: ${{ steps.runtime-cache-keys.outputs.skills_cache_key }}
 
       - name: Verify release upload plan
         working-directory: one-person-lab-app
