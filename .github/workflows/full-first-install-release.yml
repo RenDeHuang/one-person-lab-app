@@ -437,15 +437,18 @@ jobs:
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"
           export OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT="$GITHUB_WORKSPACE/one-person-lab-app/assets/companion-skills/mineru-document-extractor"
           export OPL_FULL_UI_UX_PRO_MAX_ROOT="$GITHUB_WORKSPACE/ui-ux-pro-max-skill"
-          reuse_gui_args=()
           if [ "${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }}" = "true" ]; then
-            reuse_gui_args+=(--reuse-gui-vite-output)
+            npm run release:full -- \
+              --version "$OPL_RELEASE_VERSION" \
+              --runtime-cache-dir "${{ steps.runtime-cache-keys.outputs.cache_dir }}" \
+              --runtime-cache-mode readwrite \
+              --reuse-gui-vite-output
+          else
+            npm run release:full -- \
+              --version "$OPL_RELEASE_VERSION" \
+              --runtime-cache-dir "${{ steps.runtime-cache-keys.outputs.cache_dir }}" \
+              --runtime-cache-mode readwrite
           fi
-          npm run release:full -- \
-            --version "$OPL_RELEASE_VERSION" \
-            --runtime-cache-dir "${{ steps.runtime-cache-keys.outputs.cache_dir }}" \
-            --runtime-cache-mode readwrite \
-            "${reuse_gui_args[@]}"
           echo "OPL_FULL_PACKAGE_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Verify Full package checksums and optional signing

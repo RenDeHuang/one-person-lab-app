@@ -147,6 +147,8 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /name:\s+Restore Full shell Vite output cache[\s\S]*id:\s+restore-shell-vite-output/, 'Full workflow restores reusable shell Vite output');
   assertMatches(workflow, /shell_vite_output:\s+'\$\{\{ steps\.restore-shell-vite-output\.outputs\.cache-hit \|\| 'false' \}\}'/, 'Full telemetry records shell Vite output cache hit');
   assertMatches(workflow, /--reuse-gui-vite-output/, 'Full package build can reuse restored shell Vite output');
+  assert.ok(!workflow.includes('reuse_gui_args=()'), 'Full workflow avoids empty bash array expansion under set -u');
+  assertMatches(workflow, /if \[ "\$\{\{ steps\.restore-shell-vite-output\.outputs\.cache-hit \|\| 'false' \}\}" = "true" \]; then[\s\S]*--reuse-gui-vite-output[\s\S]*else[\s\S]*npm run release:full/, 'Full workflow handles Vite cache hit and miss explicitly');
   assertMatches(workflow, /name:\s+Save Full shell Vite output cache[\s\S]*actions\/cache\/save@v4/, 'Full workflow saves reusable shell Vite output');
   assertMatches(workflow, /payload_refs:\s+fullManifest\?\.resolved_refs/, 'Full telemetry resolved refs field');
   assertMatches(workflow, /resolved_refs:\s+fullManifest\?\.resolved_refs/, 'Full telemetry normalized resolved refs field');
