@@ -264,15 +264,38 @@ jobs:
       - name: Install App shell dependencies
         working-directory: one-person-lab-app/shells/aionui
         shell: bash
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          bun run postinstall || true
+          echo "OPL_FULL_SHELL_NODE_DEPS_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Resolve App shell Electron version
+        id: shell-electron-version
+        working-directory: one-person-lab-app/shells/aionui
+        shell: bash
+        run: |
+          set -euo pipefail
+          electron_version="$(node -p "require('./package.json').devDependencies.electron.replace(/^[~^]/, '')")"
+          if [ -z "$electron_version" ] || [ "$electron_version" = "undefined" ]; then
+            echo "Unable to resolve App shell Electron version from package.json." >&2
+            exit 1
+          fi
+          echo "version=$electron_version" >> "$GITHUB_OUTPUT"
+          echo "OPL_FULL_SHELL_ELECTRON_VERSION=$electron_version" >> "$GITHUB_ENV"
+
+      - name: Rebuild App shell native modules for Electron
+        working-directory: one-person-lab-app/shells/aionui
+        shell: bash
         env:
           ELECTRON_CACHE: ${{ runner.temp }}/.cache/electron
           ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/.cache/electron-builder
           npm_config_disturl: https://electronjs.org/headers
           npm_config_runtime: electron
+          npm_config_target: ${{ steps.shell-electron-version.outputs.version }}
+          npm_config_target_arch: arm64
         run: |
           set -euo pipefail
-          bun install --frozen-lockfile
-          bun run postinstall || true
           bunx electron-builder install-app-deps
           echo "OPL_FULL_SHELL_DEPS_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
@@ -457,6 +480,8 @@ jobs:
           ELECTRON_MIRROR: ''
           npm_config_disturl: https://electronjs.org/headers
           npm_config_runtime: electron
+          npm_config_target: ${{ steps.shell-electron-version.outputs.version }}
+          npm_config_target_arch: arm64
         run: |
           set -euo pipefail
           ulimit -n 65536 || true
@@ -591,6 +616,8 @@ jobs:
               framework_npm_ci: duration(env.OPL_FULL_TOOLCHAIN_READY_AT, env.OPL_FULL_FRAMEWORK_DEPS_READY_AT),
               framework_build: duration(env.OPL_FULL_FRAMEWORK_DEPS_READY_AT, env.OPL_FULL_FRAMEWORK_BUILD_READY_AT),
               shell_dependencies: duration(env.OPL_FULL_FRAMEWORK_BUILD_READY_AT, env.OPL_FULL_SHELL_DEPS_READY_AT),
+              shell_node_dependencies: duration(env.OPL_FULL_FRAMEWORK_BUILD_READY_AT, env.OPL_FULL_SHELL_NODE_DEPS_READY_AT),
+              shell_electron_native_rebuild: duration(env.OPL_FULL_SHELL_NODE_DEPS_READY_AT, env.OPL_FULL_SHELL_DEPS_READY_AT),
               domain_dependencies: duration(env.OPL_FULL_SHELL_DEPS_READY_AT, env.OPL_FULL_DOMAIN_DEPS_READY_AT),
               full_package_build: fullBuildTiming?.duration_seconds?.full_package_build
                 ?? duration(env.OPL_FULL_DOMAIN_DEPS_READY_AT, env.OPL_FULL_PACKAGE_READY_AT),
@@ -638,6 +665,8 @@ jobs:
             echo "| Framework npm ci | $(duration "${OPL_FULL_TOOLCHAIN_READY_AT:-}" "${OPL_FULL_FRAMEWORK_DEPS_READY_AT:-}") |"
             echo "| Framework build | $(duration "${OPL_FULL_FRAMEWORK_DEPS_READY_AT:-}" "${OPL_FULL_FRAMEWORK_BUILD_READY_AT:-}") |"
             echo "| Shell dependencies | $(duration "${OPL_FULL_FRAMEWORK_BUILD_READY_AT:-}" "${OPL_FULL_SHELL_DEPS_READY_AT:-}") |"
+            echo "| Shell Node/Bun install | $(duration "${OPL_FULL_FRAMEWORK_BUILD_READY_AT:-}" "${OPL_FULL_SHELL_NODE_DEPS_READY_AT:-}") |"
+            echo "| Shell Electron native rebuild | $(duration "${OPL_FULL_SHELL_NODE_DEPS_READY_AT:-}" "${OPL_FULL_SHELL_DEPS_READY_AT:-}") |"
             echo "| Domain dependencies | $(duration "${OPL_FULL_SHELL_DEPS_READY_AT:-}" "${OPL_FULL_DOMAIN_DEPS_READY_AT:-}") |"
             echo "| Full package build | $(duration "${OPL_FULL_DOMAIN_DEPS_READY_AT:-}" "${OPL_FULL_PACKAGE_READY_AT:-}") |"
             echo "| Full checksum/signing verify | $(duration "${OPL_FULL_PACKAGE_READY_AT:-}" "${OPL_FULL_VERIFY_READY_AT:-}") |"

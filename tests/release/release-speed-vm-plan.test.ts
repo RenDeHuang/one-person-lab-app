@@ -135,6 +135,10 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /name:\s+Cache Electron artifacts[\s\S]*id:\s+electron-cache/, 'Full workflow Electron artifact cache');
   assertMatches(workflow, /full-electron-cache-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}/, 'Full Electron cache is scoped to runner OS and arch');
   assertMatches(workflow, /electron-cache-macos-arm64-arm64-/, 'Full Electron cache can reuse standard macOS arm64 cache lineage');
+  assertMatches(workflow, /name:\s+Install App shell dependencies[\s\S]*bun install --frozen-lockfile/, 'Full workflow installs shell dependencies before Electron rebuild');
+  assert.doesNotMatch(workflow, /name:\s+Install App shell dependencies[\s\S]*npm_config_runtime:\s+electron[\s\S]*bun install --frozen-lockfile/, 'Full shell dependency install must not compile native modules against Electron headers');
+  assertMatches(workflow, /name:\s+Resolve App shell Electron version[\s\S]*id:\s+shell-electron-version[\s\S]*OPL_FULL_SHELL_ELECTRON_VERSION/, 'Full workflow resolves shell Electron version once');
+  assertMatches(workflow, /name:\s+Rebuild App shell native modules for Electron[\s\S]*npm_config_runtime:\s+electron[\s\S]*npm_config_target:\s+\$\{\{ steps\.shell-electron-version\.outputs\.version \}\}[\s\S]*electron-builder install-app-deps/, 'Full workflow rebuilds native modules against the resolved Electron version');
   assertMatches(workflow, /\$GITHUB_STEP_SUMMARY/, 'Full workflow summary');
   assertMatches(workflow, /Full first-install|runtime layer cache|Full runtime/, 'Full workflow summary content');
   assert.equal(
@@ -145,6 +149,8 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /schema:\s+'opl_full_workflow_telemetry\.v1'|schema:\s+"opl_full_workflow_telemetry\.v1"/, 'Full telemetry schema');
   assertMatches(workflow, /full-workflow-telemetry\.json/, 'Full telemetry JSON path');
   assertMatches(workflow, /full-package-build-timing\.json/, 'Full package build timing JSON path');
+  assertMatches(workflow, /shell_node_dependencies:\s+duration\(env\.OPL_FULL_FRAMEWORK_BUILD_READY_AT, env\.OPL_FULL_SHELL_NODE_DEPS_READY_AT\)/, 'Full telemetry separates shell Node dependency install timing');
+  assertMatches(workflow, /shell_electron_native_rebuild:\s+duration\(env\.OPL_FULL_SHELL_NODE_DEPS_READY_AT, env\.OPL_FULL_SHELL_DEPS_READY_AT\)/, 'Full telemetry separates Electron native rebuild timing');
   assertMatches(workflow, /full_package_build_breakdown/, 'Full telemetry package build breakdown');
   assertMatches(workflow, /## Full Package Build Breakdown/, 'Full summary package build breakdown section');
   assertMatches(workflow, /name:\s+Restore Full shell Vite output cache[\s\S]*id:\s+restore-shell-vite-output/, 'Full workflow restores reusable shell Vite output');
