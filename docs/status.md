@@ -148,8 +148,8 @@ It shows only a compact automatic Codex model status label; the precise model
 and reasoning effort belong in technical details or a connected state surface.
 Each default purpose entry also owns an assistant-scoped skill profile: MAS
 requires `mas`, MAG requires `mag`, and RCA requires `rca`; optional companion
-skills are selected from that assistant profile, and AionUI-specific internal
-skills stay out of the home skill menu. Settings System/Runtime/About/Update/Theme
+skills are selected from that assistant profile after passing the App packaged
+skill set boundary. Settings System/Runtime/About/Update/Theme
 surfaces, module path source explanation, stable/nightly release gates, and OPL
 Agent Codex context are App-owned requirements. Ordinary Settings navigation is
 also App-owned: Overview, Runtime, Capabilities, Access, Appearance, System, and

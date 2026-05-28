@@ -128,7 +128,7 @@
         "permission mode selector on the home input",
         "backend/model/permission selectors after entering an ordinary Codex conversation",
         "full assistant names as default home entry labels",
-        "AionUI-specific internal skills in home skill menu",
+        "skills outside the App packaged skill set in home skill menu",
         "OPL Meta Agent as a default home assistant",
         "retired Codex model choices",
         "nested input card frames"

@@ -431,7 +431,13 @@ test('App product profile owns user-facing defaults without runtime authority', 
       (profile) => profile.skill_menu_policy === 'assistant_scoped_required_checked_optional_visible',
     ),
   );
-  assert.ok(profile.gui.assistant_skill_profiles.every((profile) => profile.hidden_home_skill_names.includes('aionui-skills')));
+  const appPackagedSkillIds = new Set(profile.companion_payloads.default_packaged_codex_skill_ids);
+  assert.ok(
+    profile.gui.assistant_skill_profiles.every((profile) =>
+      [...profile.required_skills, ...profile.optional_skills].every((skill) => appPackagedSkillIds.has(skill)),
+    ),
+  );
+  assert.ok(profile.gui.assistant_skill_profiles.every((profile) => !('hidden_home_skill_names' in profile)));
   assert.ok(profile.gui.assistant_skill_profiles.every((profile) => !profile.optional_skills.includes('morph-ppt')));
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
   assert.deepEqual(profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca']);
@@ -862,7 +868,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'permission mode selector on the home input',
     'backend/model/permission selectors after entering an ordinary Codex conversation',
     'full assistant names as default home entry labels',
-    'AionUI-specific internal skills in home skill menu',
+    'skills outside the App packaged skill set in home skill menu',
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
@@ -2369,6 +2375,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
+  const productProfile = readProductProfile();
 
   assert.equal(guiContract.owner, 'one-person-lab-app');
   assert.equal(guiContract.purpose, 'app_owned_gui_product_contract');
@@ -2426,6 +2433,13 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
       (profile) => profile.skill_menu_policy === 'assistant_scoped_required_checked_optional_visible',
     ),
   );
+  const guiContractPackagedSkillIds = new Set(productProfile.companion_payloads.default_packaged_codex_skill_ids);
+  assert.ok(
+    guiContract.assistant_skill_profiles.every((profile) =>
+      [...profile.required_skills, ...profile.optional_skills].every((skill) => guiContractPackagedSkillIds.has(skill)),
+    ),
+  );
+  assert.ok(guiContract.assistant_skill_profiles.every((profile) => !('hidden_home_skill_names' in profile)));
   assert.ok(guiContract.assistant_skill_profiles.every((profile) => !profile.optional_skills.includes('morph-ppt')));
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
   assert.deepEqual(guiContract.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca']);

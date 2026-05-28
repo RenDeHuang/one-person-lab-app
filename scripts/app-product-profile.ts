@@ -96,7 +96,6 @@ export type AppProductProfile = {
       assistant_id: string;
       required_skills: string[];
       optional_skills: string[];
-      hidden_home_skill_names: string[];
       required_skill_policy: string;
       optional_skill_policy: string;
       skill_menu_policy: string;
@@ -382,7 +381,9 @@ function assertProfileShape(profile: AppProductProfile): void {
   for (const entry of skillProfiles) {
     assertStringArray(entry.required_skills, `gui.assistant_skill_profiles.${entry.assistant_id}.required_skills`);
     assertStringArray(entry.optional_skills, `gui.assistant_skill_profiles.${entry.assistant_id}.optional_skills`);
-    assertStringArray(entry.hidden_home_skill_names, `gui.assistant_skill_profiles.${entry.assistant_id}.hidden_home_skill_names`);
+    if ('hidden_home_skill_names' in entry) {
+      throw new Error(`App product profile assistant ${entry.assistant_id} must not carry UI hiding policy`);
+    }
     if (entry.optional_skills.includes('morph-ppt')) {
       throw new Error(`App product profile assistant ${entry.assistant_id} must not expose retired morph-ppt skill wiring`);
     }
@@ -392,11 +393,6 @@ function assertProfileShape(profile: AppProductProfile): void {
       entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
     ) {
       throw new Error(`App product profile assistant ${entry.assistant_id} has invalid skill menu policy`);
-    }
-    for (const hiddenSkill of ['aionui-skills', 'aionui-webui-setup', 'cron', 'skill-creator']) {
-      if (!entry.hidden_home_skill_names.includes(hiddenSkill)) {
-        throw new Error(`App product profile assistant ${entry.assistant_id} must hide ${hiddenSkill} on the home skill menu`);
-      }
     }
   }
   const oma = profile.gui.non_default_assistants?.find((assistant) => assistant.id === 'oma');
@@ -463,6 +459,15 @@ function assertProfileShape(profile: AppProductProfile): void {
   const visibleSkills = new Set(profile.codex.default_visible_skills);
   const defaultPackagedSkills = new Set(profile.companion_payloads.default_packaged_codex_skill_ids);
   const packagedExplicitSkills = new Set(profile.companion_payloads.packaged_not_default_visible_codex_skill_ids);
+  for (const entry of skillProfiles) {
+    const unpackagedProfileSkills = [...entry.required_skills, ...entry.optional_skills]
+      .filter((skill) => !defaultPackagedSkills.has(skill));
+    if (unpackagedProfileSkills.length > 0) {
+      throw new Error(
+        `App product profile assistant ${entry.assistant_id} references skills outside the App packaged set: ${unpackagedProfileSkills.join(', ')}`,
+      );
+    }
+  }
   const missingPackagedVisibleSkills = profile.codex.default_visible_skills
     .filter((skill) => !defaultPackagedSkills.has(skill));
   if (missingPackagedVisibleSkills.length > 0) {

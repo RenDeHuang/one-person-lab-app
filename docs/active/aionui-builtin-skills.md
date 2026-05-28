@@ -82,13 +82,13 @@ Opt-in builtin candidates:
 
 Keep in App package now:
 
-- `cron`: default packaged and visible as an App scheduling capability. It stays hidden from MAS/MAG/RCA assistant-scoped home skill menus so scheduled-task controls do not pollute domain entry choices.
+- `cron`: default packaged and visible as an App scheduling capability. It stays out of MAS/MAG/RCA assistant-scoped home skill menus because it is not part of those assistant profiles.
 - `officecli`, `officecli-docx`, `officecli-pptx`, `officecli-xlsx`, `officecli-academic-paper`, `officecli-data-dashboard`, `officecli-financial-model`, `officecli-pitch-deck`: default packaged OfficeCLI family so the App package exposes common document, spreadsheet, model, deck, and paper workflows without relying on shell-local builtin discovery.
 - `pdf`: default packaged for visual PDF review and generation workflows that complement MinerU extraction and OfficeCLI editing.
 
 Do not include by default:
 
-- `aionui-skills`, `skill-creator`: AionUI internal/developer automation surfaces; keep out of normal home skill menus and App default package policy.
+- `aionui-skills`, `skill-creator`: AionUI internal/developer automation surfaces; keep out of the App package policy.
 - `aionui-webui-setup`: setting-page guidance for manually enabling AionUI WebUI and remote access. OPL Docker/WebUI installs should be configured by the Docker/install/runtime policy and smoke gates, not by a prompt skill.
 - `morph-ppt`, `morph-ppt-3d`: retired for OPL App packaging; RCA and OfficeCLI/PPTX cover the product route.
 - `mermaid`: potentially useful, but currently overlapped by UI-UX and presentation workflows; review only if a product workflow needs direct default exposure.

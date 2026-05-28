@@ -205,12 +205,6 @@
           "officecli-docx",
           "officecli-xlsx"
         ],
-        "hidden_home_skill_names": [
-          "aionui-skills",
-          "aionui-webui-setup",
-          "cron",
-          "skill-creator"
-        ],
         "required_skill_policy": "checked_locked",
         "optional_skill_policy": "unchecked_user_selectable",
         "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
@@ -225,12 +219,6 @@
           "officecli-xlsx",
           "mineru-document-extractor"
         ],
-        "hidden_home_skill_names": [
-          "aionui-skills",
-          "aionui-webui-setup",
-          "cron",
-          "skill-creator"
-        ],
         "required_skill_policy": "checked_locked",
         "optional_skill_policy": "unchecked_user_selectable",
         "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
@@ -243,12 +231,6 @@
         "optional_skills": [
           "officecli-pptx",
           "ui-ux-pro-max"
-        ],
-        "hidden_home_skill_names": [
-          "aionui-skills",
-          "aionui-webui-setup",
-          "cron",
-          "skill-creator"
         ],
         "required_skill_policy": "checked_locked",
         "optional_skill_policy": "unchecked_user_selectable",

@@ -743,7 +743,7 @@ function validateActiveShellImplementation(shellPaths) {
     '"assistant_skill_profiles"',
     '"required_skills"',
     '"skill_menu_policy": "assistant_scoped_required_checked_optional_visible"',
-    '"aionui-skills"',
+    '"default_packaged_codex_skill_ids"',
   ]) {
     if (!productProfile.includes(expected)) {
       throw new Error(`Active shell product profile must carry App Codex default ${expected}`);
@@ -790,7 +790,6 @@ function validateActiveShellImplementation(shellPaths) {
   for (const expected of [
     'buildAssistantScopedSkillMenuItems',
     'mergeRequiredSkills',
-    'hidden_home_skill_names',
     'required_skills',
     'locked: isRequired',
   ]) {
@@ -1622,10 +1621,8 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     ) {
       throw new Error(`App GUI assistant ${profile.assistant_id} has invalid home skill policy`);
     }
-    for (const hiddenSkill of ['aionui-skills', 'aionui-webui-setup', 'cron', 'skill-creator']) {
-      if (!profile.hidden_home_skill_names?.includes(hiddenSkill)) {
-        throw new Error(`App GUI assistant ${profile.assistant_id} must hide ${hiddenSkill} from the home skill menu`);
-      }
+    if ('hidden_home_skill_names' in profile) {
+      throw new Error(`App GUI assistant ${profile.assistant_id} must not carry UI hiding policy`);
     }
   }
   const purposeEntries = guiContract.home_purpose_entries ?? [];
@@ -1952,7 +1949,7 @@ function validatePageStateMatrix(matrix, contract) {
     'permission mode selector on the home input',
     'backend/model/permission selectors after entering an ordinary Codex conversation',
     'full assistant names as default home entry labels',
-    'AionUI-specific internal skills in home skill menu',
+    'skills outside the App packaged skill set in home skill menu',
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
@@ -2722,6 +2719,7 @@ function validateProductProfileCodexDefaults(profile) {
   if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
     throw new Error('Product profile assistant skill profiles must target MAS, MAG, and RCA');
   }
+  const defaultPackagedSkillIds = new Set(profile.companion_payloads?.default_packaged_codex_skill_ids ?? []);
   for (const entry of productSkillProfiles) {
     if (JSON.stringify(entry.required_skills) !== JSON.stringify([entry.assistant_id])) {
       throw new Error(`Product profile assistant ${entry.assistant_id} must require its matching skill`);
@@ -2732,8 +2730,15 @@ function validateProductProfileCodexDefaults(profile) {
     if (entry.optional_skills?.includes('morph-ppt')) {
       throw new Error(`Product profile assistant ${entry.assistant_id} must not expose retired morph-ppt skill wiring`);
     }
-    if (!entry.hidden_home_skill_names?.includes('aionui-skills')) {
-      throw new Error(`Product profile assistant ${entry.assistant_id} must hide AionUI internal skills on the home skill menu`);
+    if ('hidden_home_skill_names' in entry) {
+      throw new Error(`Product profile assistant ${entry.assistant_id} must not carry UI hiding policy`);
+    }
+    const unpackagedProfileSkills = [...(entry.required_skills ?? []), ...(entry.optional_skills ?? [])]
+      .filter((skill) => !defaultPackagedSkillIds.has(skill));
+    if (unpackagedProfileSkills.length > 0) {
+      throw new Error(
+        `Product profile assistant ${entry.assistant_id} references skills outside the App packaged set: ${unpackagedProfileSkills.join(', ')}`,
+      );
     }
   }
   for (const assistant of profile.gui.default_assistants ?? []) {
