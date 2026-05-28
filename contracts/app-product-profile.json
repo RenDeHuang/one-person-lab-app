@@ -223,8 +223,7 @@
       "officecli-pptx",
       "officecli-xlsx",
       "mineru-document-extractor",
-      "ui-ux-pro-max",
-      "morph-ppt"
+      "ui-ux-pro-max"
     ],
     "session_context_lines": [
       "## OPL App 默认会话规则",
@@ -487,12 +486,16 @@
       "mas",
       "mag",
       "rca",
+      "superpowers",
       "officecli",
       "officecli-docx",
       "officecli-pptx",
       "officecli-xlsx",
       "mineru-document-extractor",
       "ui-ux-pro-max"
+    ],
+    "packaged_not_default_visible_codex_skills": [
+      "opl-meta-agent"
     ]
   },
   "boundary": {

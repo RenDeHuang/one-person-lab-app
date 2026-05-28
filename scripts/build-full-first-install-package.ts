@@ -53,6 +53,7 @@ function parseArgs(argv) {
     magRoot: process.env.OPL_FULL_MAG_ROOT || path.join(workspaceRoot, 'med-autogrant'),
     rcaRoot: process.env.OPL_FULL_RCA_ROOT || path.join(workspaceRoot, 'redcube-ai'),
     metaAgentRoot: process.env.OPL_FULL_META_AGENT_ROOT || path.join(workspaceRoot, 'opl-meta-agent'),
+    superpowersRoot: process.env.OPL_FULL_SUPERPOWERS_ROOT || path.join(os.homedir(), '.codex', 'superpowers'),
     codexRoot: process.env.OPL_FULL_CODEX_ROOT || '',
     nodeBin: process.env.OPL_FULL_NODE_BIN || '',
     uvBin: process.env.OPL_FULL_UV_BIN || path.join(os.homedir(), '.local', 'bin', 'uv'),
@@ -75,6 +76,7 @@ function parseArgs(argv) {
     magRef: process.env.OPL_FULL_MAG_REF || 'main',
     rcaRef: process.env.OPL_FULL_RCA_REF || 'main',
     metaAgentRef: process.env.OPL_FULL_META_AGENT_REF || 'main',
+    superpowersRef: process.env.OPL_FULL_SUPERPOWERS_REF || 'main',
     officeCliRef: process.env.OPL_FULL_OFFICECLI_REF || 'main',
     mineruRef: process.env.OPL_FULL_MINERU_REF || 'main',
     uiUxProMaxRef: process.env.OPL_FULL_UI_UX_PRO_MAX_REF || 'main',
@@ -115,6 +117,7 @@ function parseArgs(argv) {
     else if (token === '--mag-root') parsed.magRoot = path.resolve(value);
     else if (token === '--rca-root') parsed.rcaRoot = path.resolve(value);
     else if (token === '--meta-agent-root') parsed.metaAgentRoot = path.resolve(value);
+    else if (token === '--superpowers-root') parsed.superpowersRoot = path.resolve(value);
     else if (token === '--codex-root') parsed.codexRoot = path.resolve(value);
     else if (token === '--node-bin') parsed.nodeBin = path.resolve(value);
     else if (token === '--uv-bin') parsed.uvBin = path.resolve(value);
@@ -238,6 +241,14 @@ function buildResolvedFullPayloadRefs(options, sources, components) {
       repository: readGitOriginUrl(options.metaAgentRoot) || 'gaofeng21cn/opl-meta-agent',
       requested_ref: options.metaAgentRef,
       resolved_commit: components.meta_agent?.git_commit ?? readGitHead(options.metaAgentRoot),
+    },
+    superpowers: {
+      label: 'Superpowers',
+      source_path: options.superpowersRoot,
+      repository: readGitOriginUrl(options.superpowersRoot) || 'obra/superpowers',
+      requested_ref: options.superpowersRef,
+      resolved_commit: readGitHead(options.superpowersRoot),
+      version: packageJsonVersion(path.join(options.superpowersRoot, 'package.json')),
     },
     officecli: {
       label: 'OfficeCLI',
@@ -780,6 +791,20 @@ function copyOplMetaAgentSkill(targetRoot, options) {
   ]);
 }
 
+function copySuperpowersBundle(targetRoot, options) {
+  const sourceRoot = options.superpowersRoot;
+  const skillsRoot = path.join(sourceRoot, 'skills');
+  if (
+    !fs.existsSync(path.join(sourceRoot, '.codex-plugin', 'plugin.json')) ||
+    !fs.existsSync(path.join(skillsRoot, 'using-superpowers', 'SKILL.md')) ||
+    !fs.existsSync(path.join(skillsRoot, 'verification-before-completion', 'SKILL.md'))
+  ) {
+    throw new Error(`Required Full companion skill source not found: superpowers bundle at ${sourceRoot}`);
+  }
+  copyTreeFiltered(sourceRoot, path.join(targetRoot, 'superpowers'), 'skills/superpowers');
+  return sourceRoot;
+}
+
 function copyOfficeCliCoreSkill(targetRoot, options) {
   const target = path.join(targetRoot, 'officecli');
   if (fs.existsSync(path.join(options.officeCliRoot, 'SKILL.md'))) {
@@ -864,6 +889,7 @@ function copyRecommendedSkills(targetRoot, options) {
     path.join(os.homedir(), '.codex', 'skills', 'rca'),
     path.join(options.rcaRoot, 'plugins', 'rca', 'skills', 'rca'),
   ]);
+  copySuperpowersBundle(targetRoot, options);
   copyOplMetaAgentSkill(targetRoot, options);
   copyOfficeCliCoreSkill(targetRoot, options);
   copyFirstSkillSource('officecli-docx', targetRoot, [
@@ -989,6 +1015,8 @@ function buildRuntimeCacheKeys(options, sources) {
         mag_repo_skill_fingerprint: directoryFingerprint(path.join(options.magRoot, 'plugins', 'mag', 'skills', 'mag'), 'skills/mag'),
         rca_repo_skill_fingerprint: directoryFingerprint(path.join(options.rcaRoot, 'plugins', 'rca', 'skills', 'rca'), 'skills/rca'),
         meta_agent_repo_skill_fingerprint: directoryFingerprint(path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'), 'skills/opl-meta-agent'),
+        superpowers_root_commit: readGitHead(options.superpowersRoot),
+        superpowers_fingerprint: directoryFingerprint(options.superpowersRoot, 'skills/superpowers'),
         officecli_root_commit: readGitHead(options.officeCliRoot),
         officecli_core_fingerprint: directoryFingerprint(path.join(skillsManagerRoot, 'officecli'), 'skills/officecli'),
         officecli_docx_fingerprint: directoryFingerprint(path.join(options.officeCliRoot, 'skills', 'officecli-docx'), 'skills/officecli-docx'),
@@ -1327,6 +1355,7 @@ function main() {
     ['MAG root', options.magRoot],
     ['RCA root', options.rcaRoot],
     ['OPL Meta Agent root', options.metaAgentRoot],
+    ['Superpowers root', options.superpowersRoot],
   ]) {
     requirePath(source, label);
   }

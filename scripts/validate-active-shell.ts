@@ -2114,6 +2114,25 @@ function validateProductProfileCodexDefaults(profile) {
   if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('ui-ux-pro-max')) {
     throw new Error('Product profile must include ui-ux-pro-max as a default visible skill');
   }
+  if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('superpowers')) {
+    throw new Error('Product profile must include superpowers as a default visible packaged skill');
+  }
+  if (!Array.isArray(profile.companion_payloads?.recommended_codex_skills) || !profile.companion_payloads.recommended_codex_skills.includes('superpowers')) {
+    throw new Error('Product profile must include superpowers in recommended packaged Codex skills');
+  }
+  if (
+    !Array.isArray(profile.companion_payloads?.packaged_not_default_visible_codex_skills) ||
+    !profile.companion_payloads.packaged_not_default_visible_codex_skills.includes('opl-meta-agent')
+  ) {
+    throw new Error('Product profile must mark OPL Meta Agent as packaged but not default visible');
+  }
+  if (
+    profile.codex.skill_priority.includes('morph-ppt') ||
+    profile.companion_payloads.recommended_codex_skills.includes('morph-ppt') ||
+    profile.companion_payloads.packaged_not_default_visible_codex_skills.includes('morph-ppt')
+  ) {
+    throw new Error('Product profile must not include retired morph-ppt skill wiring');
+  }
 }
 
 function validateFullFirstInstallCoreReadyPolicy(profile) {

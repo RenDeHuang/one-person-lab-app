@@ -355,9 +355,13 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.deepEqual(profile.gui.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca']);
   assert.ok(profile.gui.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
   assert.equal(profile.gui.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
+  assert.ok(profile.codex.default_visible_skills.includes('superpowers'));
   assert.ok(profile.codex.default_visible_skills.includes('mineru-document-extractor'));
   assert.ok(profile.codex.default_visible_skills.includes('ui-ux-pro-max'));
-  assert.ok(profile.codex.skill_priority.includes('morph-ppt'));
+  assert.ok(profile.companion_payloads.recommended_codex_skills.includes('superpowers'));
+  assert.ok(profile.companion_payloads.packaged_not_default_visible_codex_skills.includes('opl-meta-agent'));
+  assert.ok(!profile.codex.skill_priority.includes('morph-ppt'));
+  assert.ok(!profile.companion_payloads.recommended_codex_skills.includes('morph-ppt'));
   assert.ok(profile.first_run.deferred_blockers.includes('domain_modules'));
   assert.deepEqual(
     profile.first_run.core_ready_policy.full_first_install_clean_machine.missing_host_tools_allowed,
@@ -2910,6 +2914,10 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     manifest.distribution.product_profile.recommended_codex_skills,
     profile.companion_payloads.recommended_codex_skills,
   );
+  assert.deepEqual(
+    manifest.distribution.product_profile.packaged_not_default_visible_codex_skills,
+    profile.companion_payloads.packaged_not_default_visible_codex_skills,
+  );
   assert.equal(
     manifest.distribution.payload_boundary.truth_sources.framework_runtime_contracts,
     'gaofeng21cn/one-person-lab',
@@ -2931,7 +2939,10 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     'gaofeng21cn/redcube-ai',
   );
   assert.equal(manifest.components.mineru_open_api.role, 'document_extraction_cli_binary');
-  assert.equal(manifest.components.skills.role, 'recommended_codex_skills_including_officecli_mineru_ui_ux');
+  assert.equal(
+    manifest.components.skills.role,
+    'packaged_codex_skills_including_superpowers_officecli_mineru_ui_ux_and_explicit_oma',
+  );
   const fullReadme = mod.buildFullFirstInstallReadme({
     version: '26.5.15',
     dmgName: 'One-Person-Lab-Full-26.5.15-mac-arm64.dmg',
@@ -3084,6 +3095,11 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /'agent', 'skills', 'opl-meta-agent-domain-skill\.md'/);
   assert.match(buildScript, /fs\.copyFileSync\(domainSkill, path\.join\(target, 'SKILL\.md'\)\)/);
   assert.match(buildScript, /\['knowledge', 'prompts', 'quality_gates', 'skills', 'stages'\]/);
+  assert.match(buildScript, /function copySuperpowersBundle\(targetRoot, options\)/);
+  assert.match(buildScript, /path\.join\(sourceRoot, 'skills'\)/);
+  assert.match(buildScript, /path\.join\(skillsRoot, 'using-superpowers', 'SKILL\.md'\)/);
+  assert.match(buildScript, /copySuperpowersBundle\(targetRoot, options\)/);
+  assert.match(buildScript, /superpowers_fingerprint: directoryFingerprint\(options\.superpowersRoot, 'skills\/superpowers'\)/);
   assert.match(buildScript, /copyOplMetaAgentSkill\(targetRoot, options\)/);
   assert.match(buildScript, /copyFirstSkillSource\('mineru-document-extractor'/);
   assert.match(buildScript, /copySingleFile\(sources\.mineruOpenApiBin, path\.join\(layerRoot, 'bin', 'mineru-open-api'\)\)/);

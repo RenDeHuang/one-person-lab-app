@@ -224,6 +224,8 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         companion_tools: productProfile.companion_payloads.tools,
         domain_modules: productProfile.companion_payloads.domain_modules,
         recommended_codex_skills: productProfile.companion_payloads.recommended_codex_skills,
+        packaged_not_default_visible_codex_skills:
+          productProfile.companion_payloads.packaged_not_default_visible_codex_skills,
       },
       payload_boundary: {
         role: 'declared_payload_assembly_and_validation',
@@ -316,7 +318,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       },
       skills: {
         ...normalizeComponent(components.skills),
-        role: 'recommended_codex_skills_including_officecli_mineru_ui_ux',
+        role: 'packaged_codex_skills_including_superpowers_officecli_mineru_ui_ux_and_explicit_oma',
         required: true,
       },
     },

@@ -143,6 +143,7 @@ export type AppProductProfile = {
     tools: string[];
     domain_modules: string[];
     recommended_codex_skills: string[];
+    packaged_not_default_visible_codex_skills: string[];
   };
   boundary: {
     app_owns: string[];
@@ -307,6 +308,38 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.companion_payloads.tools, 'companion_payloads.tools');
   assertStringArray(profile.companion_payloads.domain_modules, 'companion_payloads.domain_modules');
   assertStringArray(profile.companion_payloads.recommended_codex_skills, 'companion_payloads.recommended_codex_skills');
+  assertStringArray(
+    profile.companion_payloads.packaged_not_default_visible_codex_skills,
+    'companion_payloads.packaged_not_default_visible_codex_skills',
+  );
+  const visibleSkills = new Set(profile.codex.default_visible_skills);
+  const recommendedSkills = new Set(profile.companion_payloads.recommended_codex_skills);
+  const packagedExplicitSkills = new Set(profile.companion_payloads.packaged_not_default_visible_codex_skills);
+  const missingPackagedVisibleSkills = profile.codex.default_visible_skills
+    .filter((skill) => !recommendedSkills.has(skill));
+  if (missingPackagedVisibleSkills.length > 0) {
+    throw new Error(`App product profile default visible skills must be packaged: ${missingPackagedVisibleSkills.join(', ')}`);
+  }
+  const missingPrioritySkills = profile.codex.default_visible_skills
+    .filter((skill) => !profile.codex.skill_priority.includes(skill));
+  if (missingPrioritySkills.length > 0) {
+    throw new Error(`App product profile skill_priority is missing default visible skills: ${missingPrioritySkills.join(', ')}`);
+  }
+  const overlappingExplicitSkills = [...packagedExplicitSkills].filter((skill) => visibleSkills.has(skill));
+  if (overlappingExplicitSkills.length > 0) {
+    throw new Error(
+      `App product profile packaged_not_default_visible skills must stay out of default_visible_skills: ${overlappingExplicitSkills.join(', ')}`,
+    );
+  }
+  if (!recommendedSkills.has('superpowers')) {
+    throw new Error('App product profile must package superpowers when it is default visible');
+  }
+  if (!packagedExplicitSkills.has('opl-meta-agent')) {
+    throw new Error('App product profile must mark opl-meta-agent as packaged but not default visible');
+  }
+  if (profile.codex.skill_priority.includes('morph-ppt') || recommendedSkills.has('morph-ppt') || packagedExplicitSkills.has('morph-ppt')) {
+    throw new Error('App product profile must not include retired morph-ppt skill wiring');
+  }
   assertStringArray(profile.boundary.app_does_not_own, 'boundary.app_does_not_own');
 }
 
