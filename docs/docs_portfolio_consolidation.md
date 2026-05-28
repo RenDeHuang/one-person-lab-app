@@ -38,6 +38,93 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 
 ## Coverage Ledger
 
+### 2026-05-29 packaged-skill-boundary and user-guide currentness tranche
+
+This tranche refreshes the App repo-local coverage ledger after the latest
+packaged-skill boundary and macOS user-guide changes. It keeps the global OPL
+series `/goal` active and does not reopen the full App docs inventory because
+the prior 2026-05-28 tranche already completed the paragraph/body pass for the
+then-current repo-root `README*` plus `docs/**/*.md` set.
+
+Fresh live truth inputs:
+
+- App commits `a52cad4` and `f0a2c35`, covering the home packaged-skill
+  boundary and the 26.5.28 macOS user-guide refresh.
+- App current docs: `README.md`, `README.zh-CN.md`, `docs/README.md`,
+  `docs/active/aionui-builtin-skills.md`,
+  `docs/active/app-ideal-state-gap-plan.md`, `docs/status.md`,
+  `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`,
+  `docs/decisions.md`, `docs/release/README.md`, `docs/testing/README.md`,
+  `docs/user-guides/README.md`, and `docs/user-guides/macos-app-install.md`.
+- App machine refs: `contracts/app-product-profile.json`,
+  `contracts/app-gui-product-contract.json`,
+  `contracts/app-first-run-test-matrix.json`,
+  `contracts/app-install-exposure-policy.json`,
+  `contracts/app-runtime-bridge.json`, `contracts/app-shell-adapter.json`,
+  `scripts/validate-active-shell.ts`, `scripts/app-product-profile.ts`,
+  `scripts/build-user-guide-pdf.ts`, `scripts/build-user-guide-slides.ts`,
+  `tests/release/app-release-boundary.test.ts`, and current user-guide
+  verification JSON.
+- Framework read-model smoke:
+  `opl app state --profile fast --json`, read as App/operator consumed input
+  rather than App-owned runtime truth.
+
+Reviewed documents / sections:
+
+| Repo | Reviewed docs / sections | Edited docs this tranche |
+| --- | --- | --- |
+| `one-person-lab-app` | Targeted currentness pass over the current App public entries, core current-truth docs, active plan, active-shell builtin-skills support doc, release/testing/user-guide support docs, package/product contracts, user-guide generation scripts, active-shell validation, release-boundary tests, and verification JSON. | `docs/docs_portfolio_consolidation.md` |
+| `one-person-lab` | OPL App/operator fast-state read model was sampled only to confirm the App docs still describe consumed framework state as refs/read-model input. | none |
+
+Fresh semantic result:
+
+- No prose body correction was needed in App canonical docs. The current docs
+  already keep one App-level packaged-skill boundary:
+  `companion_payloads.default_packaged_codex_skill_ids` plus
+  `companion_payloads.packaged_not_default_visible_codex_skill_ids`.
+- MAS/MAG/RCA remain default App purpose entries and packaged domain skills,
+  not companion mirrors. OPL Meta Agent remains explicit-only and outside the
+  default home assistant set.
+- The refreshed macOS user guide keeps visible downloads on
+  `releases/latest`, treats the Full DMG as the first-install recommendation,
+  and leaves fixed-version screenshot/verification details as provenance rather
+  than public release authority.
+- The App/operator fast-state readout still belongs to the Framework/App
+  consumption boundary. It can confirm available actions and refs for the App
+  surface, but it does not become domain readiness, owner receipt authority, or
+  App release-ready proof.
+
+Archived / tombstoned / deleted docs:
+
+- none. This was a currentness ledger tranche only.
+
+Unreviewed docs:
+
+- `one-person-lab-app`: no full reopened body tail for repo-root `README*` plus
+  `docs/**/*.md` in this tranche; the exact full inventory was covered on
+  2026-05-28, and this pass covered the newly relevant packaged-skill and
+  user-guide truth surfaces.
+- Other OPL series repos were not semantically re-governed in this tranche
+  beyond the App/operator fast-state sample from `one-person-lab`.
+
+Remaining stale / retire candidates:
+
+- Future stale pollution remains any prose that turns App packaged skill
+  membership, App user-guide screenshots/downloads, OPL App/operator read-model
+  refs, updater metadata, or release artifact existence into MAS/MAG/RCA
+  readiness, App release-ready authority, owner receipt authority, or family
+  production readiness.
+- Packaged GUI Codex-path evidence still requires a fresh DMG/App smoke before
+  the `packaged_gui_codex_path_evidence` gap can close.
+
+Next tranche write scope:
+
+- Continue OPL series governance from repos with remaining exact-inventory
+  tails, stale/retire candidates, or newly reopened contract/read-model facts.
+  Revisit App only when a new App product contract, release/user-guide asset,
+  shell sync, packaged-GUI evidence, first-run policy, or App/operator
+  read-model change reopens App docs truth.
+
 ### 2026-05-28 active-shell upstream and Codex-output foldback tranche
 
 This tranche folds the post-upstream active shell state back into the App
