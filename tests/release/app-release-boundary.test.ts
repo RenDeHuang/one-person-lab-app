@@ -18,6 +18,7 @@ const releaseWorkflowPaths = [
   '.github/workflows/_build-reusable.yml',
   '.github/workflows/build-and-release.yml',
   '.github/workflows/build-manual.yml',
+  '.github/workflows/desktop-release-cleanup-drafts.yml',
   '.github/workflows/desktop-release-promote.yml',
   '.github/workflows/desktop-release.yml',
   '.github/workflows/full-first-install-release.yml',
@@ -2884,6 +2885,11 @@ test('release automation workflows cover remote verification, Full cache warmup,
   const verifyWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'release-verify-remote.yml'), 'utf8');
   const warmupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-runtime-cache-warmup.yml'), 'utf8');
   const promoteWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-promote.yml'), 'utf8');
+  const cleanupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-cleanup-drafts.yml'), 'utf8');
+  const cleanupScript = fs.readFileSync(path.join(appRoot, 'scripts', 'cleanup-draft-release-candidates.ts'), 'utf8');
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+  const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
+  const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
@@ -2907,6 +2913,24 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(promoteWorkflow, /gh release edit "v\$\{OPL_RELEASE_VERSION\}"/);
   assert.match(promoteWorkflow, /--draft=false/);
   assert.match(promoteWorkflow, /--latest/);
+
+  assert.equal(packageJson.scripts['release:cleanup-drafts'], 'node --experimental-strip-types scripts/cleanup-draft-release-candidates.ts');
+  assert.match(cleanupWorkflow, /name: OPL Desktop Release Cleanup Drafts/);
+  assert.match(cleanupWorkflow, /workflow_dispatch:/);
+  assert.match(cleanupWorkflow, /dry_run:/);
+  assert.match(cleanupWorkflow, /permissions:[\s\S]*contents: write/);
+  assert.match(cleanupWorkflow, /npm run release:cleanup-drafts/);
+  assert.match(cleanupWorkflow, /--summary-path release-draft-cleanup-summary\.json/);
+  assert.match(cleanupWorkflow, /cleanup_args\+=\(--execute\)/);
+  assert.match(cleanupWorkflow, /cleanup_args\+=\(--dry-run\)/);
+  assert.match(cleanupWorkflow, /actions\/upload-artifact@v4/);
+  assert.doesNotMatch(cleanupWorkflow, /actions\/download-artifact/);
+  assert.doesNotMatch(cleanupWorkflow, /gh release download/);
+  assert.match(cleanupScript, /\^v\$\{escaped\}-\(draft\|readiness\)\\\\\.\\\\d\{14\}\$/);
+  assert.match(cleanupScript, /must be a published stable release/);
+  assert.match(cleanupScript, /'--cleanup-tag'/);
+  assert.match(`${releaseDocs}\n${scriptsDocs}`, /release:cleanup-drafts[\s\S]*dry-run/i);
+  assert.match(`${releaseDocs}\n${scriptsDocs}`, /OPL Desktop Release Cleanup Drafts[\s\S]*v<version>-draft\.\*[\s\S]*v<version>-readiness\.\*/i);
 
   assert.equal(
     releaseContract.release_acceleration.github_actions.remote_verification_workflow,

@@ -1,0 +1,64 @@
+name: OPL Desktop Release Cleanup Drafts
+
+on:
+  workflow_dispatch:
+    inputs:
+      opl_version:
+        description: Published stable OPL version whose draft candidates should be cleaned up, for example 26.5.28
+        required: true
+        type: string
+      dry_run:
+        description: List matching draft/readiness candidates without deleting them
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: opl-desktop-release-cleanup-drafts-${{ inputs.opl_version }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  cleanup-draft-candidates:
+    name: Cleanup draft release candidates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Cleanup draft candidates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        run: |
+          set -euo pipefail
+          cleanup_args=(
+            npm run release:cleanup-drafts --
+            --version "$OPL_RELEASE_VERSION"
+            --repo "$GITHUB_REPOSITORY"
+            --summary-path release-draft-cleanup-summary.json
+          )
+          if [ "${{ inputs.dry_run }}" = "false" ]; then
+            cleanup_args+=(--execute)
+          else
+            cleanup_args+=(--dry-run)
+          fi
+          "${cleanup_args[@]}"
+
+      - name: Upload cleanup summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-draft-cleanup-summary-${{ inputs.opl_version }}
+          path: release-draft-cleanup-summary.json
+          if-no-files-found: error

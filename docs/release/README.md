@@ -97,6 +97,11 @@ builds that should run on GitHub runners instead of this Mac.
 - `release_mode=draft_candidate` builds the same assets into a draft
   `v<opl_version>` Release. Use **OPL Desktop Release Promote** after reviewing
   the draft assets and verification summary.
+- **OPL Desktop Release Cleanup Drafts** removes stale candidate Releases after
+  the stable `v<opl_version>` Release has been published. It only inspects
+  GitHub Release metadata, defaults to dry-run, and deletes matching
+  `v<version>-draft.*` and `v<version>-readiness.*` draft Releases with their
+  tags when `dry_run=false`.
 - Release workflows use GitHub Actions concurrency groups by version and
   purpose. Stable desktop release runs share a stable `v<opl_version>` group and
   do not cancel running jobs; GitHub keeps the newest pending run in that group
@@ -472,6 +477,28 @@ Publishing to an existing tag is intentional for Full first-install refreshes:
 already exists. Use `--full-package-only --include-full-package` for that lane;
 it updates the Full release-note section and overwrites matching Full assets
 without rebuilding or replacing standard updater assets.
+
+After a stable same-day replacement is published, clean stale candidate draft
+Releases explicitly instead of downloading large assets for inspection:
+
+```bash
+npm run release:cleanup-drafts -- \
+  --version <version> \
+  --repo gaofeng21cn/one-person-lab-app \
+  --summary-path release-draft-cleanup-summary.json
+
+npm run release:cleanup-drafts -- \
+  --version <version> \
+  --repo gaofeng21cn/one-person-lab-app \
+  --summary-path release-draft-cleanup-summary.json \
+  --execute
+```
+
+The cleanup script fails closed unless `v<version>` is a published stable
+Release. It matches only draft Releases named `v<version>-draft.*` or
+`v<version>-readiness.*`, deletes them with `--cleanup-tag`, and writes a JSON
+summary artifact. The workflow wrapper, **OPL Desktop Release Cleanup Drafts**,
+uses the same script and should be run first with the default dry-run setting.
 
 GitHub Actions standard refreshes use the same publish script with
 `--standard-artifacts-dir release-assets`, which publishes the already-built

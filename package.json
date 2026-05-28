@@ -51,6 +51,7 @@
     "prepare-release-assets": "node --experimental-strip-types scripts/prepare-release-assets.ts",
     "validate-release": "node --experimental-strip-types scripts/validate-release.ts",
     "verify-remote-release": "node --experimental-strip-types scripts/verify-remote-release-assets.ts",
+    "release:cleanup-drafts": "node --experimental-strip-types scripts/cleanup-draft-release-candidates.ts",
     "release:full:size": "node --experimental-strip-types scripts/analyze-full-package-size.ts",
     "release:full": "node --experimental-strip-types scripts/build-full-first-install-package.ts",
     "release:publish": "node --experimental-strip-types scripts/publish-release.ts"

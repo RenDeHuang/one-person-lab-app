@@ -12,6 +12,7 @@ const releaseWorkflowPaths = [
   '.github/workflows/_build-reusable.yml',
   '.github/workflows/build-and-release.yml',
   '.github/workflows/build-manual.yml',
+  '.github/workflows/desktop-release-cleanup-drafts.yml',
   '.github/workflows/desktop-release-promote.yml',
   '.github/workflows/desktop-release.yml',
   '.github/workflows/full-first-install-release.yml',
@@ -152,6 +153,21 @@ const checks = [
     file: '.github/workflows/desktop-release-promote.yml',
     required: ['npm run verify-remote-release', 'gh release edit "v${OPL_RELEASE_VERSION}"', '--draft=false'],
     forbidden: ['npm run gui:release', 'packages:full-release', 'repository: gaofeng21cn/one-person-lab-app'],
+  },
+  {
+    id: 'desktop_release_cleanup_drafts_workflow',
+    file: '.github/workflows/desktop-release-cleanup-drafts.yml',
+    required: [
+      'name: OPL Desktop Release Cleanup Drafts',
+      'workflow_dispatch:',
+      'dry_run:',
+      'npm run release:cleanup-drafts',
+      '--summary-path release-draft-cleanup-summary.json',
+      '--execute',
+      '--dry-run',
+      'actions/upload-artifact@v4',
+    ],
+    forbidden: ['One-Person-Lab-*.dmg', 'gh release download', 'actions/download-artifact'],
   },
 ];
 
