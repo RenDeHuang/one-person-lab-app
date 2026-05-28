@@ -223,9 +223,9 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         default_reasoning_effort: productProfile.codex.default_reasoning_effort,
         companion_tools: productProfile.companion_payloads.tools,
         domain_modules: productProfile.companion_payloads.domain_modules,
-        recommended_codex_skills: productProfile.companion_payloads.recommended_codex_skills,
-        packaged_not_default_visible_codex_skills:
-          productProfile.companion_payloads.packaged_not_default_visible_codex_skills,
+        default_packaged_codex_skill_ids: productProfile.companion_payloads.default_packaged_codex_skill_ids,
+        packaged_not_default_visible_codex_skill_ids:
+          productProfile.companion_payloads.packaged_not_default_visible_codex_skill_ids,
       },
       payload_boundary: {
         role: 'declared_payload_assembly_and_validation',
@@ -318,7 +318,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       },
       skills: {
         ...normalizeComponent(components.skills),
-        role: 'packaged_codex_skills_including_superpowers_officecli_mineru_ui_ux_and_explicit_oma',
+        role: 'packaged_codex_skills_declared_by_app_product_profile',
         required: true,
       },
     },

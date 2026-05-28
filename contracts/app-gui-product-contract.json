@@ -223,10 +223,10 @@
     }
   ],
   "theme_and_branding": {
-    "default_theme_id": "codex",
+    "default_theme_id": "default-theme",
     "allowed_theme_ids": [
-      "codex",
-      "default-theme"
+      "default-theme",
+      "codex"
     ],
     "default_visible_product_name": "One Person Lab App",
     "legacy_upstream_branding_forbidden": true,

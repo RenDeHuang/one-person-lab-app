@@ -23,7 +23,7 @@ import {
   listFullRuntimeProductionNodeModulePaths,
   shouldExcludeRuntimePath,
 } from './full-first-install-package.ts';
-import { syncAppProductProfileToShell } from './app-product-profile.ts';
+import { readAppProductProfile, syncAppProductProfileToShell } from './app-product-profile.ts';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { writeRuntimeWrappers } from './full-first-install-runtime-wrappers.ts';
 
@@ -333,6 +333,7 @@ function functionSourceSha256(functions) {
 function buildRuntimeLayerPackagerInputs() {
   return {
     support_files: hashFiles(appRepoRoot, [
+      'contracts/app-product-profile.json',
       'scripts/full-first-install-package.ts',
       'scripts/full-first-install-runtime-wrappers.ts',
     ]),
@@ -341,7 +342,8 @@ function buildRuntimeLayerPackagerInputs() {
       buildDomainLayer,
       buildOplLayer,
       buildSkillsLayer,
-      copyRecommendedSkills,
+      copyPackagedSkills,
+      ...Object.values(packagedSkillCopyHandlers),
       copyOplMetaAgentSkill,
       copySuperpowersBundle,
       copyOfficeCliCoreSkill,
@@ -351,6 +353,9 @@ function buildRuntimeLayerPackagerInputs() {
       firstExistingSkillSource,
       skillSourceSnapshot,
       skillFileSourceSnapshot,
+      appCompanionSkillRoot,
+      appCompanionSkillCandidates,
+      officeCliSkillCandidates,
       metaAgentSkillSnapshot,
       officeCliCoreSkillSnapshot,
       masSkillCandidates,
@@ -879,6 +884,7 @@ function rcaSkillCandidates(options) {
 function officeCliCoreSkillCandidates(options) {
   return [
     options.officeCliRoot,
+    path.join(options.officeCliRoot, 'skills', 'officecli'),
     path.join(os.homedir(), '.skills-manager', 'skills', 'officecli'),
     path.join(os.homedir(), '.codex', 'skills', 'officecli'),
   ];
@@ -889,6 +895,26 @@ function mineruDocumentExtractorSkillCandidates(options) {
     options.mineruDocumentExtractorRoot,
     path.join(os.homedir(), '.skills-manager', 'skills', 'mineru-document-extractor'),
     path.join(os.homedir(), '.codex', 'skills', 'mineru-document-extractor'),
+  ];
+}
+
+function appCompanionSkillRoot(skillId) {
+  return path.join(appRepoRoot, 'assets', 'companion-skills', skillId);
+}
+
+function officeCliSkillCandidates(options, skillId) {
+  return [
+    path.join(options.officeCliRoot, 'skills', skillId),
+    path.join(os.homedir(), '.skills-manager', 'skills', skillId),
+    path.join(os.homedir(), '.codex', 'skills', skillId),
+  ];
+}
+
+function appCompanionSkillCandidates(skillId) {
+  return [
+    appCompanionSkillRoot(skillId),
+    path.join(os.homedir(), '.skills-manager', 'skills', skillId),
+    path.join(os.homedir(), '.codex', 'skills', skillId),
   ];
 }
 
@@ -994,32 +1020,45 @@ function writePackagedModuleMarker(moduleRoot, marker) {
   fs.writeFileSync(path.join(moduleRoot, PACKAGED_MODULE_MARKER_FILE), `${JSON.stringify(marker, null, 2)}\n`, 'utf8');
 }
 
-function copyRecommendedSkills(targetRoot, options) {
+const packagedSkillCopyHandlers = {
+  mas: (targetRoot, options) => copyFirstSkillSource('mas', targetRoot, masSkillCandidates(options)),
+  mag: (targetRoot, options) => copyFirstSkillSource('mag', targetRoot, magSkillCandidates(options)),
+  rca: (targetRoot, options) => copyFirstSkillSource('rca', targetRoot, rcaSkillCandidates(options)),
+  superpowers: (targetRoot, options) => copySuperpowersBundle(targetRoot, options),
+  cron: (targetRoot) => copyFirstSkillSource('cron', targetRoot, appCompanionSkillCandidates('cron')),
+  'opl-meta-agent': (targetRoot, options) => copyOplMetaAgentSkill(targetRoot, options),
+  officecli: (targetRoot, options) => copyOfficeCliCoreSkill(targetRoot, options),
+  'officecli-docx': (targetRoot, options) => copyFirstSkillSource('officecli-docx', targetRoot, officeCliSkillCandidates(options, 'officecli-docx')),
+  'officecli-pptx': (targetRoot, options) => copyFirstSkillSource('officecli-pptx', targetRoot, officeCliSkillCandidates(options, 'officecli-pptx')),
+  'officecli-xlsx': (targetRoot, options) => copyFirstSkillSource('officecli-xlsx', targetRoot, officeCliSkillCandidates(options, 'officecli-xlsx')),
+  'officecli-academic-paper': (targetRoot, options) => copyFirstSkillSource('officecli-academic-paper', targetRoot, officeCliSkillCandidates(options, 'officecli-academic-paper')),
+  'officecli-data-dashboard': (targetRoot, options) => copyFirstSkillSource('officecli-data-dashboard', targetRoot, officeCliSkillCandidates(options, 'officecli-data-dashboard')),
+  'officecli-financial-model': (targetRoot, options) => copyFirstSkillSource('officecli-financial-model', targetRoot, officeCliSkillCandidates(options, 'officecli-financial-model')),
+  'officecli-pitch-deck': (targetRoot, options) => copyFirstSkillSource('officecli-pitch-deck', targetRoot, officeCliSkillCandidates(options, 'officecli-pitch-deck')),
+  pdf: (targetRoot) => copyFirstSkillSource('pdf', targetRoot, appCompanionSkillCandidates('pdf')),
+  'ui-ux-pro-max': (targetRoot, options) => copyUiUxProMaxSkill(targetRoot, options),
+  'mineru-document-extractor': (targetRoot, options) => copyFirstSkillSource(
+    'mineru-document-extractor',
+    targetRoot,
+    mineruDocumentExtractorSkillCandidates(options),
+  ),
+};
+
+function copyPackagedSkills(targetRoot, options) {
   fs.rmSync(targetRoot, { recursive: true, force: true });
   fs.mkdirSync(targetRoot, { recursive: true });
-  copyFirstSkillSource('mas', targetRoot, masSkillCandidates(options));
-  copyFirstSkillSource('mag', targetRoot, magSkillCandidates(options));
-  copyFirstSkillSource('rca', targetRoot, rcaSkillCandidates(options));
-  copySuperpowersBundle(targetRoot, options);
-  copyOplMetaAgentSkill(targetRoot, options);
-  copyOfficeCliCoreSkill(targetRoot, options);
-  copyFirstSkillSource('officecli-docx', targetRoot, [
-    path.join(options.officeCliRoot, 'skills', 'officecli-docx'),
-    path.join(os.homedir(), '.skills-manager', 'skills', 'officecli-docx'),
-    path.join(os.homedir(), '.codex', 'skills', 'officecli-docx'),
-  ]);
-  copyFirstSkillSource('officecli-pptx', targetRoot, [
-    path.join(options.officeCliRoot, 'skills', 'officecli-pptx'),
-    path.join(os.homedir(), '.skills-manager', 'skills', 'officecli-pptx'),
-    path.join(os.homedir(), '.codex', 'skills', 'officecli-pptx'),
-  ]);
-  copyFirstSkillSource('officecli-xlsx', targetRoot, [
-    path.join(options.officeCliRoot, 'skills', 'officecli-xlsx'),
-    path.join(os.homedir(), '.skills-manager', 'skills', 'officecli-xlsx'),
-    path.join(os.homedir(), '.codex', 'skills', 'officecli-xlsx'),
-  ]);
-  copyUiUxProMaxSkill(targetRoot, options);
-  copyFirstSkillSource('mineru-document-extractor', targetRoot, mineruDocumentExtractorSkillCandidates(options));
+  const productProfile = readAppProductProfile();
+  const packagedSkillIds = [
+    ...productProfile.companion_payloads.default_packaged_codex_skill_ids,
+    ...productProfile.companion_payloads.packaged_not_default_visible_codex_skill_ids,
+  ];
+  for (const skillId of packagedSkillIds) {
+    const copySkill = packagedSkillCopyHandlers[skillId];
+    if (!copySkill) {
+      throw new Error(`No Full package copy handler declared for App packaged skill: ${skillId}`);
+    }
+    copySkill(targetRoot, options);
+  }
 }
 
 function resolveRuntimeSources(options) {
@@ -1104,9 +1143,15 @@ function buildRuntimeCacheKeyInputs(options, sources) {
         superpowers_fingerprint: directoryFingerprint(options.superpowersRoot, 'skills/superpowers'),
         officecli_root_commit: readGitHead(options.officeCliRoot),
         officecli_core_source: officeCliCoreSkillSnapshot(options),
-        officecli_docx_fingerprint: directoryFingerprint(path.join(options.officeCliRoot, 'skills', 'officecli-docx'), 'skills/officecli-docx'),
-        officecli_pptx_fingerprint: directoryFingerprint(path.join(options.officeCliRoot, 'skills', 'officecli-pptx'), 'skills/officecli-pptx'),
-        officecli_xlsx_fingerprint: directoryFingerprint(path.join(options.officeCliRoot, 'skills', 'officecli-xlsx'), 'skills/officecli-xlsx'),
+        cron_skill_source: skillSourceSnapshot(appCompanionSkillCandidates('cron'), 'skills/cron'),
+        officecli_docx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-docx'), 'skills/officecli-docx'),
+        officecli_pptx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-pptx'), 'skills/officecli-pptx'),
+        officecli_xlsx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-xlsx'), 'skills/officecli-xlsx'),
+        officecli_academic_paper_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-academic-paper'), 'skills/officecli-academic-paper'),
+        officecli_data_dashboard_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-data-dashboard'), 'skills/officecli-data-dashboard'),
+        officecli_financial_model_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-financial-model'), 'skills/officecli-financial-model'),
+        officecli_pitch_deck_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-pitch-deck'), 'skills/officecli-pitch-deck'),
+        pdf_skill_source: skillSourceSnapshot(appCompanionSkillCandidates('pdf'), 'skills/pdf'),
         mineru_document_extractor_root_commit: readGitHead(options.mineruDocumentExtractorRoot),
         mineru_document_extractor_source: skillSourceSnapshot(mineruDocumentExtractorSkillCandidates(options), 'skills/mineru-document-extractor'),
         ui_ux_pro_max_root_commit: readGitHead(options.uiUxProMaxRoot),
@@ -1273,7 +1318,7 @@ function buildOplLayer(layerRoot, options) {
 }
 
 function buildSkillsLayer(layerRoot, options) {
-  copyRecommendedSkills(path.join(layerRoot, 'skills'), options);
+  copyPackagedSkills(path.join(layerRoot, 'skills'), options);
 }
 
 function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs) {

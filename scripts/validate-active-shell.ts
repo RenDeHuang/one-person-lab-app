@@ -36,6 +36,21 @@ const deferredMaintenanceItems = [
   'ecosystem_module_updates',
 ];
 const ecosystemModuleIds = ['officecli', 'mineru', 'opl-meta-agent'];
+const defaultCompanionSkillSyncIds = [
+  'superpowers',
+  'cron',
+  'officecli',
+  'officecli-docx',
+  'officecli-pptx',
+  'officecli-xlsx',
+  'officecli-academic-paper',
+  'officecli-data-dashboard',
+  'officecli-financial-model',
+  'officecli-pitch-deck',
+  'pdf',
+  'mineru-document-extractor',
+  'ui-ux-pro-max',
+];
 const domainExposureEntries = [
   {
     domain_id: 'mas',
@@ -1321,6 +1336,11 @@ function validateInstallExposurePolicy(policy) {
   if (companionClass?.sync_target !== 'codex_user_skill_discovery_path') {
     throw new Error('Install exposure companion skill class must sync to Codex user skill discovery path');
   }
+  assertIncludesAll(
+    companionClass?.members,
+    defaultCompanionSkillSyncIds,
+    'Install exposure companion skill members',
+  );
   for (const forbiddenDomain of ['mas', 'mag', 'rca']) {
     if (companionClass.members?.includes(forbiddenDomain)) {
       throw new Error(`Install exposure companion skill class must not include domain plugin ${forbiddenDomain}`);
@@ -1605,8 +1625,8 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     throw new Error('App GUI contract must mark MDS as not default-displayed');
   }
 
-  if (guiContract.theme_and_branding?.default_theme_id !== 'codex') {
-    throw new Error('App GUI default theme must be codex');
+  if (guiContract.theme_and_branding?.default_theme_id !== 'default-theme') {
+    throw new Error('App GUI default theme must be default-theme');
   }
   for (const themeId of ['codex', 'default-theme']) {
     if (!guiContract.theme_and_branding.allowed_theme_ids?.includes(themeId)) {
@@ -2596,10 +2616,10 @@ function validateProductProfileCodexDefaults(profile) {
     throw new Error('Product profile GUI implementation carrier must be opl-aion-shell');
   }
   if (
-    profile.gui.appearance?.default_css_theme_id !== 'codex' ||
-    profile.gui.appearance?.codex_theme_default_enabled !== true
+    profile.gui.appearance?.default_css_theme_id !== 'default-theme' ||
+    profile.gui.appearance?.codex_theme_default_enabled !== false
   ) {
-    throw new Error('Product profile GUI appearance must default to the Codex theme');
+    throw new Error('Product profile GUI appearance must default to the default theme');
   }
   if (
     profile.gui.home?.primary_input_surface !== 'single_card' ||
@@ -2709,19 +2729,29 @@ function validateProductProfileCodexDefaults(profile) {
   if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('superpowers')) {
     throw new Error('Product profile must include superpowers as a default visible packaged skill');
   }
-  if (!Array.isArray(profile.companion_payloads?.recommended_codex_skills) || !profile.companion_payloads.recommended_codex_skills.includes('superpowers')) {
-    throw new Error('Product profile must include superpowers in recommended packaged Codex skills');
+  for (const skillId of defaultCompanionSkillSyncIds) {
+    if (!profile.codex.default_visible_skills.includes(skillId)) {
+      throw new Error(`Product profile must include ${skillId} as a default visible skill`);
+    }
+  }
+  if (!Array.isArray(profile.companion_payloads?.default_packaged_codex_skill_ids) || !profile.companion_payloads.default_packaged_codex_skill_ids.includes('superpowers')) {
+    throw new Error('Product profile must include superpowers in default packaged Codex skills');
+  }
+  for (const skillId of defaultCompanionSkillSyncIds) {
+    if (!profile.companion_payloads.default_packaged_codex_skill_ids.includes(skillId)) {
+      throw new Error(`Product profile must include ${skillId} in default packaged Codex skills`);
+    }
   }
   if (
-    !Array.isArray(profile.companion_payloads?.packaged_not_default_visible_codex_skills) ||
-    !profile.companion_payloads.packaged_not_default_visible_codex_skills.includes('opl-meta-agent')
+    !Array.isArray(profile.companion_payloads?.packaged_not_default_visible_codex_skill_ids) ||
+    !profile.companion_payloads.packaged_not_default_visible_codex_skill_ids.includes('opl-meta-agent')
   ) {
     throw new Error('Product profile must mark OPL Meta Agent as packaged but not default visible');
   }
   if (
     profile.codex.skill_priority.includes('morph-ppt') ||
-    profile.companion_payloads.recommended_codex_skills.includes('morph-ppt') ||
-    profile.companion_payloads.packaged_not_default_visible_codex_skills.includes('morph-ppt')
+    profile.companion_payloads.default_packaged_codex_skill_ids.includes('morph-ppt') ||
+    profile.companion_payloads.packaged_not_default_visible_codex_skill_ids.includes('morph-ppt')
   ) {
     throw new Error('Product profile must not include retired morph-ppt skill wiring');
   }
@@ -2904,7 +2934,7 @@ function validateCompanionPayloadAuthority(profile, installExposurePolicy) {
   );
   assertIncludesAll(
     profile.companion_payloads?.companion_skill_sync_default_ids,
-    ['superpowers', 'officecli', 'officecli-docx', 'officecli-pptx', 'officecli-xlsx', 'mineru-document-extractor', 'ui-ux-pro-max'],
+    defaultCompanionSkillSyncIds,
     'Product profile companion skill sync default ids',
   );
   if (profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors !== true) {

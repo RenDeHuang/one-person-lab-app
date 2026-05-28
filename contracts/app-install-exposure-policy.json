@@ -87,10 +87,16 @@
       "owner": "one-person-lab",
       "members": [
         "superpowers",
+        "cron",
         "officecli",
         "officecli-docx",
         "officecli-pptx",
         "officecli-xlsx",
+        "officecli-academic-paper",
+        "officecli-data-dashboard",
+        "officecli-financial-model",
+        "officecli-pitch-deck",
+        "pdf",
         "mineru-document-extractor",
         "ui-ux-pro-max"
       ],

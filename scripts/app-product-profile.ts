@@ -172,8 +172,8 @@ export type AppProductProfile = {
     };
     tools: string[];
     domain_modules: string[];
-    recommended_codex_skills: string[];
-    packaged_not_default_visible_codex_skills: string[];
+    default_packaged_codex_skill_ids: string[];
+    packaged_not_default_visible_codex_skill_ids: string[];
     companion_skill_sync_default_ids: string[];
     domain_plugin_skill_ids: string[];
     domain_plugin_skills_must_not_be_companion_mirrors: boolean;
@@ -193,6 +193,27 @@ export type AppProductProfile = {
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const appProductProfilePath = path.join(appRoot, 'contracts', 'app-product-profile.json');
+const requiredDefaultPackagedSkillIds = [
+  'mas',
+  'mag',
+  'rca',
+  'superpowers',
+  'cron',
+  'officecli',
+  'officecli-docx',
+  'officecli-pptx',
+  'officecli-xlsx',
+  'officecli-academic-paper',
+  'officecli-data-dashboard',
+  'officecli-financial-model',
+  'officecli-pitch-deck',
+  'pdf',
+  'mineru-document-extractor',
+  'ui-ux-pro-max',
+];
+const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((skillId) => (
+  !['mas', 'mag', 'rca'].includes(skillId)
+));
 
 function assertStringArray(value: unknown, label: string, options: { allowBlank?: boolean } = {}): asserts value is string[] {
   if (!Array.isArray(value) || value.length === 0 || !value.every((entry) => (
@@ -241,11 +262,11 @@ function assertProfileShape(profile: AppProductProfile): void {
   if (profile.gui?.implementation_carrier !== 'opl-aion-shell') {
     throw new Error('App product profile GUI implementation carrier must be opl-aion-shell');
   }
-  if (profile.gui.appearance?.default_css_theme_id !== 'codex') {
-    throw new Error('App product profile GUI must default to the Codex CSS theme');
+  if (profile.gui.appearance?.default_css_theme_id !== 'default-theme') {
+    throw new Error('App product profile GUI must default to the default CSS theme');
   }
-  if (profile.gui.appearance?.codex_theme_default_enabled !== true) {
-    throw new Error('App product profile GUI must default to the Codex CSS theme');
+  if (profile.gui.appearance?.codex_theme_default_enabled !== false) {
+    throw new Error('App product profile GUI must not default to the Codex CSS theme');
   }
   if (
     profile.gui.home?.primary_input_surface !== 'single_card' ||
@@ -429,20 +450,30 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.settings.environment_items, 'settings.environment_items');
   assertStringArray(profile.companion_payloads.tools, 'companion_payloads.tools');
   assertStringArray(profile.companion_payloads.domain_modules, 'companion_payloads.domain_modules');
-  assertStringArray(profile.companion_payloads.recommended_codex_skills, 'companion_payloads.recommended_codex_skills');
   assertStringArray(
-    profile.companion_payloads.packaged_not_default_visible_codex_skills,
-    'companion_payloads.packaged_not_default_visible_codex_skills',
+    profile.companion_payloads.default_packaged_codex_skill_ids,
+    'companion_payloads.default_packaged_codex_skill_ids',
+  );
+  assertStringArray(
+    profile.companion_payloads.packaged_not_default_visible_codex_skill_ids,
+    'companion_payloads.packaged_not_default_visible_codex_skill_ids',
   );
   assertStringArray(profile.companion_payloads.companion_skill_sync_default_ids, 'companion_payloads.companion_skill_sync_default_ids');
   assertStringArray(profile.companion_payloads.domain_plugin_skill_ids, 'companion_payloads.domain_plugin_skill_ids');
   const visibleSkills = new Set(profile.codex.default_visible_skills);
-  const recommendedSkills = new Set(profile.companion_payloads.recommended_codex_skills);
-  const packagedExplicitSkills = new Set(profile.companion_payloads.packaged_not_default_visible_codex_skills);
+  const defaultPackagedSkills = new Set(profile.companion_payloads.default_packaged_codex_skill_ids);
+  const packagedExplicitSkills = new Set(profile.companion_payloads.packaged_not_default_visible_codex_skill_ids);
   const missingPackagedVisibleSkills = profile.codex.default_visible_skills
-    .filter((skill) => !recommendedSkills.has(skill));
+    .filter((skill) => !defaultPackagedSkills.has(skill));
   if (missingPackagedVisibleSkills.length > 0) {
     throw new Error(`App product profile default visible skills must be packaged: ${missingPackagedVisibleSkills.join(', ')}`);
+  }
+  const hiddenDefaultPackagedSkills = profile.companion_payloads.default_packaged_codex_skill_ids
+    .filter((skill) => !visibleSkills.has(skill));
+  if (hiddenDefaultPackagedSkills.length > 0) {
+    throw new Error(
+      `App product profile default packaged skills must be default visible: ${hiddenDefaultPackagedSkills.join(', ')}`,
+    );
   }
   const missingPrioritySkills = profile.codex.default_visible_skills
     .filter((skill) => !profile.codex.skill_priority.includes(skill));
@@ -455,13 +486,23 @@ function assertProfileShape(profile: AppProductProfile): void {
       `App product profile packaged_not_default_visible skills must stay out of default_visible_skills: ${overlappingExplicitSkills.join(', ')}`,
     );
   }
-  if (!recommendedSkills.has('superpowers')) {
+  if (!defaultPackagedSkills.has('superpowers')) {
     throw new Error('App product profile must package superpowers when it is default visible');
   }
+  assertIncludesAll(
+    profile.companion_payloads.default_packaged_codex_skill_ids,
+    requiredDefaultPackagedSkillIds,
+    'companion_payloads.default_packaged_codex_skill_ids',
+  );
+  assertIncludesAll(
+    profile.companion_payloads.companion_skill_sync_default_ids,
+    requiredCompanionSkillSyncIds,
+    'companion_payloads.companion_skill_sync_default_ids',
+  );
   if (!packagedExplicitSkills.has('opl-meta-agent')) {
     throw new Error('App product profile must mark opl-meta-agent as packaged but not default visible');
   }
-  if (profile.codex.skill_priority.includes('morph-ppt') || recommendedSkills.has('morph-ppt') || packagedExplicitSkills.has('morph-ppt')) {
+  if (profile.codex.skill_priority.includes('morph-ppt') || defaultPackagedSkills.has('morph-ppt') || packagedExplicitSkills.has('morph-ppt')) {
     throw new Error('App product profile must not include retired morph-ppt skill wiring');
   }
   if (profile.companion_payloads.install_exposure_policy_ref !== 'contracts/app-install-exposure-policy.json') {
@@ -499,7 +540,7 @@ export function formatCodexProfilePhrase(profile = readAppProductProfile()): str
 }
 
 export function formatRecommendedCompanionSkills(profile = readAppProductProfile()): string {
-  return profile.companion_payloads.recommended_codex_skills.join(', ');
+  return profile.companion_payloads.default_packaged_codex_skill_ids.join(', ');
 }
 
 export function syncAppProductProfileToShell(

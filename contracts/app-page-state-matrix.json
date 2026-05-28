@@ -16,7 +16,7 @@
         "implementation_carrier": "opl-aion-shell",
         "primary_input_surface": "single_card",
         "nested_input_card_frames_allowed": false,
-        "appearance_default_css_theme_id": "codex",
+        "appearance_default_css_theme_id": "default-theme",
         "codex_cli_fixed_executor": true,
         "home_executor_selector_visible": false,
         "codex_model_selector_visible": false,

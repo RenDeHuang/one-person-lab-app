@@ -26,6 +26,27 @@ const releaseWorkflowPaths = [
   '.github/workflows/opl-first-run-vm.yml',
   '.github/workflows/release-verify-remote.yml',
 ];
+const expectedDefaultCompanionSkillSyncIds = [
+  'superpowers',
+  'cron',
+  'officecli',
+  'officecli-docx',
+  'officecli-pptx',
+  'officecli-xlsx',
+  'officecli-academic-paper',
+  'officecli-data-dashboard',
+  'officecli-financial-model',
+  'officecli-pitch-deck',
+  'pdf',
+  'mineru-document-extractor',
+  'ui-ux-pro-max',
+];
+const expectedDefaultPackagedSkillIds = [
+  'mas',
+  'mag',
+  'rca',
+  ...expectedDefaultCompanionSkillSyncIds,
+];
 
 function runNode(args, options = {}) {
   return spawnSync(process.execPath, ['--experimental-strip-types', ...args], {
@@ -324,8 +345,8 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.default_session_profile.reasoning_effort, profile.codex.default_reasoning_effort);
   assert.equal(profile.gui.authority, 'app_repo_owned_product_truth');
   assert.equal(profile.gui.implementation_carrier, 'opl-aion-shell');
-  assert.equal(profile.gui.appearance.default_css_theme_id, 'codex');
-  assert.equal(profile.gui.appearance.codex_theme_default_enabled, true);
+  assert.equal(profile.gui.appearance.default_css_theme_id, 'default-theme');
+  assert.equal(profile.gui.appearance.codex_theme_default_enabled, false);
   assert.equal(profile.gui.home.primary_input_surface, 'single_card');
   assert.equal(profile.gui.home.nested_input_card_frames_allowed, false);
   assert.equal(profile.gui.home.codex_cli_fixed_executor, true);
@@ -408,12 +429,15 @@ test('App product profile owns user-facing defaults without runtime authority', 
   });
   assert.equal(profile.gui.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
   assert.ok(profile.codex.default_visible_skills.includes('superpowers'));
+  assert.ok(profile.codex.default_visible_skills.includes('cron'));
+  assert.ok(profile.codex.default_visible_skills.includes('pdf'));
   assert.ok(profile.codex.default_visible_skills.includes('mineru-document-extractor'));
   assert.ok(profile.codex.default_visible_skills.includes('ui-ux-pro-max'));
-  assert.ok(profile.companion_payloads.recommended_codex_skills.includes('superpowers'));
-  assert.ok(profile.companion_payloads.packaged_not_default_visible_codex_skills.includes('opl-meta-agent'));
+  assert.ok(profile.companion_payloads.default_packaged_codex_skill_ids.includes('superpowers'));
+  assert.deepEqual(profile.companion_payloads.default_packaged_codex_skill_ids, expectedDefaultPackagedSkillIds);
+  assert.ok(profile.companion_payloads.packaged_not_default_visible_codex_skill_ids.includes('opl-meta-agent'));
   assert.ok(!profile.codex.skill_priority.includes('morph-ppt'));
-  assert.ok(!profile.companion_payloads.recommended_codex_skills.includes('morph-ppt'));
+  assert.ok(!profile.companion_payloads.default_packaged_codex_skill_ids.includes('morph-ppt'));
   assert.ok(profile.first_run.deferred_blockers.includes('domain_modules'));
   assert.deepEqual(
     profile.first_run.core_ready_policy.full_first_install_clean_machine.missing_host_tools_allowed,
@@ -519,15 +543,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.companion_payloads.public_abi.plugin_must_not_create_second_semantics, true);
   assert.equal(profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors, true);
   assert.deepEqual(profile.companion_payloads.domain_plugin_skill_ids, ['mas', 'mag', 'rca']);
-  assert.deepEqual(profile.companion_payloads.companion_skill_sync_default_ids, [
-    'superpowers',
-    'officecli',
-    'officecli-docx',
-    'officecli-pptx',
-    'officecli-xlsx',
-    'mineru-document-extractor',
-    'ui-ux-pro-max',
-  ]);
+  assert.deepEqual(profile.companion_payloads.companion_skill_sync_default_ids, expectedDefaultCompanionSkillSyncIds);
   for (const domainPluginId of profile.companion_payloads.domain_plugin_skill_ids) {
     assert.equal(profile.companion_payloads.companion_skill_sync_default_ids.includes(domainPluginId), false);
   }
@@ -570,6 +586,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   ]);
   assert.equal(exposureClassById.get('opl_generated_skill_surfaces').sync_target, 'opl_generated_codex_surface');
   assert.deepEqual(exposureClassById.get('opl_generated_skill_surfaces').members, ['opl-meta-agent']);
+  assert.deepEqual(exposureClassById.get('companion_skill_sync').members, expectedDefaultCompanionSkillSyncIds);
   assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mas'), false);
   assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mag'), false);
   assert.equal(exposureClassById.get('companion_skill_sync').members.includes('rca'), false);
@@ -726,7 +743,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guidHomePage.home_view_model.implementation_carrier, 'opl-aion-shell');
   assert.equal(guidHomePage.home_view_model.primary_input_surface, 'single_card');
   assert.equal(guidHomePage.home_view_model.nested_input_card_frames_allowed, false);
-  assert.equal(guidHomePage.home_view_model.appearance_default_css_theme_id, 'codex');
+  assert.equal(guidHomePage.home_view_model.appearance_default_css_theme_id, 'default-theme');
   assert.equal(guidHomePage.home_view_model.codex_cli_fixed_executor, true);
   assert.equal(guidHomePage.home_view_model.home_executor_selector_visible, false);
   assert.equal(guidHomePage.home_view_model.codex_model_selector_visible, false);
@@ -2306,8 +2323,8 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.ok(guiContract.pages.settings_runtime.must_show.includes('module path source explanation'));
   assert.ok(guiContract.pages.settings_runtime.must_not_show.includes('Med Deep Scientist as a default module'));
   assert.ok(guiContract.pages.about.must_show.includes('OPL Framework revision'));
-  assert.equal(guiContract.theme_and_branding.default_theme_id, 'codex');
-  assert.deepEqual(guiContract.theme_and_branding.allowed_theme_ids, ['codex', 'default-theme']);
+  assert.equal(guiContract.theme_and_branding.default_theme_id, 'default-theme');
+  assert.deepEqual(guiContract.theme_and_branding.allowed_theme_ids, ['default-theme', 'codex']);
   assert.ok(guiContract.pages.settings_theme.must_show.includes('Default theme option'));
   assert.ok(guiContract.pages.settings_theme.must_show.includes('Codex theme option'));
   assert.deepEqual(
@@ -3120,12 +3137,12 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   );
   assert.equal(manifest.distribution.product_profile_contract, 'contracts/app-product-profile.json');
   assert.deepEqual(
-    manifest.distribution.product_profile.recommended_codex_skills,
-    profile.companion_payloads.recommended_codex_skills,
+    manifest.distribution.product_profile.default_packaged_codex_skill_ids,
+    profile.companion_payloads.default_packaged_codex_skill_ids,
   );
   assert.deepEqual(
-    manifest.distribution.product_profile.packaged_not_default_visible_codex_skills,
-    profile.companion_payloads.packaged_not_default_visible_codex_skills,
+    manifest.distribution.product_profile.packaged_not_default_visible_codex_skill_ids,
+    profile.companion_payloads.packaged_not_default_visible_codex_skill_ids,
   );
   assert.equal(
     manifest.distribution.payload_boundary.truth_sources.framework_runtime_contracts,
@@ -3150,7 +3167,7 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   assert.equal(manifest.components.mineru_open_api.role, 'document_extraction_cli_binary');
   assert.equal(
     manifest.components.skills.role,
-    'packaged_codex_skills_including_superpowers_officecli_mineru_ui_ux_and_explicit_oma',
+    'packaged_codex_skills_declared_by_app_product_profile',
   );
   const fullReadme = mod.buildFullFirstInstallReadme({
     version: '26.5.15',
@@ -3308,19 +3325,26 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /function copySuperpowersBundle\(targetRoot, options\)/);
   assert.match(buildScript, /path\.join\(sourceRoot, 'skills'\)/);
   assert.match(buildScript, /path\.join\(skillsRoot, 'using-superpowers', 'SKILL\.md'\)/);
-  assert.match(buildScript, /copySuperpowersBundle\(targetRoot, options\)/);
+  assert.match(buildScript, /superpowers: \(targetRoot, options\) => copySuperpowersBundle\(targetRoot, options\)/);
   assert.match(buildScript, /superpowers_fingerprint: directoryFingerprint\(options\.superpowersRoot, 'skills\/superpowers'\)/);
   assert.match(fullWorkflow, /repository: obra\/superpowers/);
   assert.match(fullWorkflow, /path: superpowers/);
   assert.match(fullWorkflow, /OPL_FULL_SUPERPOWERS_ROOT="\$GITHUB_WORKSPACE\/superpowers"/);
-  assert.match(buildScript, /copyOplMetaAgentSkill\(targetRoot, options\)/);
-  assert.match(buildScript, /copyFirstSkillSource\('mineru-document-extractor'/);
+  assert.match(buildScript, /cron: \(targetRoot\) => copyFirstSkillSource\('cron', targetRoot, appCompanionSkillCandidates\('cron'\)\)/);
+  assert.match(buildScript, /'opl-meta-agent': \(targetRoot, options\) => copyOplMetaAgentSkill\(targetRoot, options\)/);
+  assert.match(buildScript, /pdf: \(targetRoot\) => copyFirstSkillSource\('pdf', targetRoot, appCompanionSkillCandidates\('pdf'\)\)/);
+  assert.match(
+    buildScript,
+    /'mineru-document-extractor': \(targetRoot, options\) => copyFirstSkillSource\(\s*'mineru-document-extractor'/,
+  );
   assert.match(buildScript, /copySingleFile\(sources\.mineruOpenApiBin, path\.join\(layerRoot, 'bin', 'mineru-open-api'\)\)/);
   assert.match(buildScript, /version: commandOutput\(sources\.mineruOpenApiBin, \['version'\]\)/);
   assert.match(buildScript, /plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'/);
   assert.match(buildScript, /function masSkillCandidates\(options\)[\s\S]*options\.masRoot[\s\S]*\.codex', 'skills', 'mas'/);
   assert.match(buildScript, /copyFirstSkillSource\('mas', targetRoot, masSkillCandidates\(options\)\)/);
   assert.match(buildScript, /meta_agent_skill_source: metaAgentSkillSnapshot\(options\)/);
+  assert.match(buildScript, /cron_skill_source: skillSourceSnapshot\(appCompanionSkillCandidates\('cron'\), 'skills\/cron'\)/);
+  assert.match(buildScript, /pdf_skill_source: skillSourceSnapshot\(appCompanionSkillCandidates\('pdf'\), 'skills\/pdf'\)/);
   assert.match(buildScript, /mineru_document_extractor_source: skillSourceSnapshot\(mineruDocumentExtractorSkillCandidates\(options\), 'skills\/mineru-document-extractor'\)/);
   assert.match(buildScript, /runtime_layer_builder_source_hash: functionSourceSha256/);
   assert.match(buildScript, /key_inputs: cacheKeyInputs/);
