@@ -260,6 +260,7 @@ Each release evidence bundle should follow
   `screenshots/action.png`.
 - `tart-smoke-summary.json`.
 - `artifacts/smoke-summary.json`.
+- `artifacts/assistant-route-smoke-summary.json`.
 - `remote-release-verification.json`.
 
 Generate or refresh the manifest after collecting available artifacts:
@@ -278,9 +279,10 @@ npm run release:evidence:manifest -- \
 
 The collector writes only OPL-owned runtime snapshot, summary/full
 App/operator drilldown, and selected safe-action dry-run/execute JSON. It does
-not create screenshots, VM first-run summaries, guest smoke summaries, remote Release
-verification, runtime truth, domain truth, artifact authority, or quality
-verdicts; absent App/VM/remote artifacts remain `missing` in the manifest.
+not create screenshots, VM first-run summaries, guest smoke summaries,
+assistant route smoke summaries, remote Release verification, runtime truth,
+domain truth, artifact authority, or quality verdicts; absent App/VM/remote
+artifacts remain `missing` in the manifest.
 
 Validate a collected bundle with:
 
@@ -290,9 +292,10 @@ npm run release:evidence:validate -- \
 ```
 
 Default validation fails closed when required evidence is absent. If a VM smoke
-summary, guest smoke summary, screenshot, OPL runtime JSON, or remote Release
-artifact could not be produced in the current environment, keep that artifact marked as
-`missing` in `evidence-manifest.json` and run:
+summary, guest smoke summary, assistant route smoke summary, screenshot, OPL
+runtime JSON, or remote Release artifact could not be produced in the current
+environment, keep that artifact marked as `missing` in
+`evidence-manifest.json` and run:
 
 ```bash
 npm run release:evidence:validate -- \
@@ -302,7 +305,8 @@ npm run release:evidence:validate -- \
 
 That output is a missing-evidence report only. It is not packaged App release
 evidence and must not be used to claim that a published App bundle, Full DMG,
-clean first-run VM path, packaged Settings navigation, or remote Release has been verified.
+clean first-run VM path, packaged Settings navigation, packaged Codex assistant
+route, or remote Release has been verified.
 
 Use **OPL Full Runtime Cache Warmup** before release windows or let its scheduled
 run keep the content-addressed Full runtime layer cache warm. It builds the

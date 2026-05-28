@@ -62,6 +62,9 @@ function missingReasonFor(artifact) {
   if (artifact.id === 'guest_smoke_summary') {
     return 'packaged GUI first-run guest smoke summary was not generated for this bundle';
   }
+  if (artifact.id === 'assistant_route_smoke_summary') {
+    return 'packaged GUI assistant route smoke summary was not generated for this bundle';
+  }
   if (artifact.id === 'remote_release_verification') {
     return 'remote release verification JSON was not generated for this bundle';
   }

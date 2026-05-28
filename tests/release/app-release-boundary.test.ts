@@ -80,6 +80,7 @@ function writeRuntimeEvidenceJsonFiles(tempRoot) {
 
 function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
   const settingsSmoke = { status: 'passed', pages: ['overview', 'runtime', 'capabilities', 'access', 'appearance', 'system', 'about'] };
+  const assistantRouteSmoke = { status: 'passed', assistants: ['mas', 'mag', 'rca'] };
   const guestSummary = {
     surface_id: 'opl_packaged_gui_first_run_smoke',
     status: 'passed',
@@ -94,8 +95,43 @@ function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
     codex_config_wizard_seen: runtimeProfile === 'full',
     codex_config_wizard_submitted: runtimeProfile === 'full',
     settings_smoke: settingsSmoke,
+    assistant_route_smoke: assistantRouteSmoke,
   };
   writeFile(path.join(tempRoot, 'artifacts', 'smoke-summary.json'), `${JSON.stringify(guestSummary)}\n`);
+  writeFile(
+    path.join(tempRoot, 'artifacts', 'assistant-route-smoke-summary.json'),
+    `${JSON.stringify({
+      surface_id: 'opl_packaged_gui_assistant_route_smoke',
+      status: 'passed',
+      cdp_port: 9230,
+      assistants: ['mas', 'mag', 'rca'].map((id) => {
+        const shortName = id.toUpperCase();
+        const badge = `@${shortName}`;
+        return {
+          id,
+          badge,
+          ready: {
+            assistant_id: id,
+            badge,
+            selectors_hidden: true,
+          },
+          receipt: {
+            status: 'passed',
+            conversation_id: `${id}-conversation`,
+            conversation_type: 'acp',
+            backend: 'codex',
+            route: {
+              route_kind: 'builtin_capability',
+              executor: 'codex_cli',
+              assistant_id: id,
+              assistant_short_name: shortName,
+              source: 'opl_app_home',
+            },
+          },
+        };
+      }),
+    })}\n`,
+  );
   writeFile(
     path.join(tempRoot, 'tart-smoke-summary.json'),
     `${JSON.stringify({
@@ -104,6 +140,7 @@ function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
       runtime_profile: runtimeProfile,
       require_codex_config_wizard: runtimeProfile === 'full',
       settings_smoke: settingsSmoke,
+      assistant_route_smoke: assistantRouteSmoke,
       guest_summary: guestSummary,
     })}\n`,
   );
@@ -630,6 +667,8 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
   assert.ok(standardClean.expects.some((entry) => /Framework CLI when opl is missing/.test(entry)));
   assert.ok(standardClean.expects.some((entry) => /Core first-launch readiness.*opl system initialize --json/.test(entry)));
   assert.ok(standardClean.release_evidence_artifacts.includes('artifacts/system-initialize.json'));
+  assert.ok(standardClean.release_evidence_artifacts.includes('artifacts/assistant-route-smoke-summary.json'));
+  assert.ok(standardClean.expects.some((entry) => /Packaged GUI route smoke selects MAS, MAG, and RCA/.test(entry)));
 
   const standardBootstrap = scenarioById.get('standard_app_managed_bootstrap');
   assert.equal(standardBootstrap.bootstrap_owner, 'app_managed');
@@ -1003,6 +1042,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       'screenshots/action.png',
       'tart-smoke-summary.json',
       'artifacts/smoke-summary.json',
+      'artifacts/assistant-route-smoke-summary.json',
       'remote-release-verification.json',
     ],
   );
@@ -1019,6 +1059,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       'app_runtime_action_screenshot',
       'clean_first_run_vm_smoke',
       'packaged_gui_first_run_smoke',
+      'packaged_gui_assistant_route_smoke',
       'remote_release_verification',
     ],
   );
@@ -1027,6 +1068,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
     'artifacts/smoke-summary.json',
     'artifacts/system-initialize.json',
     'artifacts/settings-smoke-summary.json',
+    'artifacts/assistant-route-smoke-summary.json',
   ]);
   for (const forbiddenAuthority of [
     'runtime_truth',
@@ -1081,7 +1123,7 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
     payload.evidence_boundary,
     'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
   );
-  assert.equal(payload.verified_artifact_count, 11);
+  assert.equal(payload.verified_artifact_count, 12);
   assert.equal(payload.missing_artifact_count, 0);
   assert.deepEqual(
     payload.verified_artifacts.map((artifact) => artifact.id),
@@ -1096,6 +1138,7 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
       'action_screenshot',
       'first_run_vm_summary',
       'guest_smoke_summary',
+      'assistant_route_smoke_summary',
       'remote_release_verification',
     ],
   );
@@ -1106,7 +1149,12 @@ test('release evidence bundle validator fails closed for incomplete packaged App
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
-  const missingArtifactIds = new Set(['first_run_vm_summary', 'guest_smoke_summary', 'remote_release_verification']);
+  const missingArtifactIds = new Set([
+    'first_run_vm_summary',
+    'guest_smoke_summary',
+    'assistant_route_smoke_summary',
+    'remote_release_verification',
+  ]);
   const artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => (
     missingArtifactIds.has(artifact.id)
       ? {
@@ -1163,10 +1211,11 @@ test('release evidence bundle validator fails closed for incomplete packaged App
   assert.equal(payload.status, 'missing_evidence');
   assert.equal(payload.packaged_app_evidence, false);
   assert.equal(payload.verified_artifact_count, 8);
-  assert.equal(payload.missing_artifact_count, 3);
+  assert.equal(payload.missing_artifact_count, 4);
   assert.deepEqual(payload.missing_artifacts.map((artifact) => artifact.id), [
     'first_run_vm_summary',
     'guest_smoke_summary',
+    'assistant_route_smoke_summary',
     'remote_release_verification',
   ]);
 });
@@ -1233,10 +1282,11 @@ test('release evidence manifest generator records missing artifacts without clai
   const generatedPayload = JSON.parse(generated.stdout);
   assert.equal(generatedPayload.status, 'missing_evidence');
   assert.equal(generatedPayload.packaged_app_evidence, false);
-  assert.equal(generatedPayload.missing_artifact_count, 3);
+  assert.equal(generatedPayload.missing_artifact_count, 4);
   assert.deepEqual(generatedPayload.missing_artifacts.map((artifact) => artifact.id), [
     'first_run_vm_summary',
     'guest_smoke_summary',
+    'assistant_route_smoke_summary',
     'remote_release_verification',
   ]);
 
@@ -1246,6 +1296,7 @@ test('release evidence manifest generator records missing artifacts without clai
   assert.deepEqual(manifest.missing_evidence.map((artifact) => artifact.id), [
     'first_run_vm_summary',
     'guest_smoke_summary',
+    'assistant_route_smoke_summary',
     'remote_release_verification',
   ]);
 
@@ -1362,6 +1413,7 @@ process.exit(2);
     'action_screenshot',
     'first_run_vm_summary',
     'guest_smoke_summary',
+    'assistant_route_smoke_summary',
     'remote_release_verification',
   ]);
 
@@ -1375,7 +1427,7 @@ process.exit(2);
   const validationPayload = JSON.parse(validation.stdout);
   assert.equal(validationPayload.status, 'missing_evidence');
   assert.equal(validationPayload.verified_artifact_count, 5);
-  assert.equal(validationPayload.missing_artifact_count, 6);
+  assert.equal(validationPayload.missing_artifact_count, 7);
 
   const actionArgs = fs.readFileSync(actionLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   assert.deepEqual(actionArgs, [
