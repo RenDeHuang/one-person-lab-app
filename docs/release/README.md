@@ -239,9 +239,10 @@ release.
 
 The Runtime page is the operator evidence acceptance path for App release
 evidence. It consumes OPL refs-only JSON from
-`opl app state --profile fast --json`, refreshes through
-`opl app state --profile full --json`, lazy-loads full detail through
-`opl runtime app-operator-drilldown --detail full --json`, and executes selected
+`opl app state --profile fast --json`, refreshes through the same fast App state
+surface, keeps `opl app state --profile full --json` for explicit full-state
+release evidence, lazy-loads full detail through `opl runtime
+app-operator-drilldown --detail full --json`, and executes selected
 safe action routes through `opl app action execute`. The App records and displays
 those refs; it does not become runtime truth, provider implementation, domain
 truth, artifact authority, or quality verdict owner.

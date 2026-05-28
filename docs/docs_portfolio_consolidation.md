@@ -38,6 +38,90 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 
 ## Coverage Ledger
 
+### 2026-05-28 runtime-page README truth and body coverage tranche
+
+This tranche completes paragraph-level governance for the current App
+repo-root `README*` plus `docs/**/*.md` inventory. It keeps the global OPL
+series `/goal` active, does not rewrite App runtime or release authority, and
+does not stage the unrelated dirty shell-ref update in
+`contracts/app-shell-adapter.json` /
+`tests/release/app-release-boundary.test.ts`.
+
+Fresh live truth inputs:
+
+- Current repo guidance: `AGENTS.md` and `TASTE.md`.
+- Public entries and canonical docs: `README.md`, `README.zh-CN.md`,
+  `docs/README.md`, `docs/project.md`, `docs/status.md`,
+  `docs/architecture.md`, `docs/invariants.md`, and `docs/decisions.md`.
+- Active truth and governance owner docs:
+  `docs/active/app-ideal-state-gap-plan.md`,
+  `docs/active/aionui-builtin-skills.md`, and this ledger.
+- Support docs: `docs/release/README.md`, `docs/testing/README.md`,
+  `docs/user-guides/README.md`, `docs/user-guides/macos-app-install.md`,
+  `docs/screenshots/README.md`, and `docs/history/README.md`.
+- Machine refs: `contracts/app-runtime-bridge.json`,
+  `contracts/app-page-state-matrix.json`,
+  `contracts/app-gui-product-contract.json`,
+  `contracts/app-product-profile.json`,
+  `contracts/app-shell-candidates.json`, and `package.json`.
+
+Reviewed documents / sections:
+
+| Repo | Reviewed docs / sections | Edited docs this tranche |
+| --- | --- | --- |
+| `one-person-lab-app` | Full paragraph/body pass over the current exact `README*` + `docs/**/*.md` inventory: `README.md`, `README.zh-CN.md`, `docs/README.md`, `docs/active/aionui-builtin-skills.md`, `docs/active/app-ideal-state-gap-plan.md`, `docs/architecture.md`, `docs/decisions.md`, `docs/docs_portfolio_consolidation.md`, `docs/history/README.md`, `docs/invariants.md`, `docs/project.md`, `docs/release/README.md`, `docs/screenshots/README.md`, `docs/status.md`, `docs/testing/README.md`, `docs/user-guides/README.md`, and `docs/user-guides/macos-app-install.md`. | `README.md`, `README.zh-CN.md`, `docs/architecture.md`, `docs/docs_portfolio_consolidation.md`, `docs/invariants.md`, `docs/release/README.md`, `docs/status.md` |
+
+Fresh semantic result:
+
+- The App docs have one active truth owner, one docs index, public bilingual
+  App entries, durable current product-boundary docs, release/testing/user
+  support guides, screenshot/user-guide support, and history provenance.
+- The stale prose found in the current inventory was the runtime page read-model
+  wording. The Chinese README still named `runtime_visualization_projection` and
+  `runtime_tray_snapshot.app_operator_drilldown` as a compatibility read model,
+  while several docs described `opl app state --profile full --json` as the
+  ordinary refresh source. The edited docs now match the current App runtime
+  bridge and validation tests: summary and refresh from
+  `opl app state --profile fast --json`, `opl app state --profile full --json`
+  only for explicit full-state diagnostic or release evidence, on-demand full
+  Framework drilldown, and refs-only safe action routing.
+- `docs/release/README.md`, `docs/testing/README.md`, and the core App docs
+  already align on the App boundary: release evidence and runtime-page output
+  are App/operator acceptance surfaces, not runtime truth, provider
+  implementation, domain truth, memory body, artifact authority, owner receipt
+  authority, or quality/export verdict ownership.
+
+Archived / tombstoned / deleted docs:
+
+- none. The current App inventory has legitimate long-term roles after the
+  runtime-page README truth correction.
+
+Unreviewed docs:
+
+- `one-person-lab-app`: none for repo-root `README*` plus `docs/**/*.md` at this
+  tranche's inventory snapshot.
+- `scripts/README.md` was read as support context, but it is outside the exact
+  `README*` / `docs/**/*.md` coverage set.
+
+Remaining stale / retire candidates:
+
+- The unrelated dirty shell-ref update in `contracts/app-shell-adapter.json` /
+  `tests/release/app-release-boundary.test.ts` remains assigned outside this
+  docs tranche and must be validated or absorbed by its owner before any release
+  shell-ref claim is treated as committed App truth.
+- Future stale pollution remains any prose that turns App UI rendering, updater
+  metadata, release artifact existence, release evidence collector output,
+  first-run contract presence, or OPL read-model availability into MAS/MAG/RCA
+  domain readiness, quality verdict, artifact authority, owner receipt
+  authority, App release readiness without evidence, or family production
+  readiness.
+
+Next tranche write scope:
+
+- Continue OPL series coverage from repos that still have exact-inventory
+  tails or stale/retire candidates; do not revisit App docs unless new contract,
+  release, shell, or first-run changes reopen the App doc boundary.
+
 ### 2026-05-27 repo-local ledger bootstrap tranche
 
 This tranche adds the App repo-local docs governance ledger so the App repository has a local coverage accounting entry instead of relying only on the OPL family ledger. It does not rewrite App active truth, does not touch existing dirty release/testing files in the main checkout, does not add release/readiness claims, and does not close the OPL series global `/goal`.

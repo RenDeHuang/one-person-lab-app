@@ -44,7 +44,7 @@ One Person Lab App 是面向用户的日常工作台：
 - 从一个桌面界面进入通用工作、医学研究、基金写作和汇报材料准备。
 - 提供研究工坊、基金工坊、汇报工坊入口。
 - 展示进度、文件、运行状态和可恢复的工作上下文，帮助用户继续长任务和检查交付物。
-- 运行状态页消费 One Person Lab Framework 的 `runtime_visualization_projection`，并以现有 `runtime_tray_snapshot.app_operator_drilldown` 作为兼容读模型。该页面是多任务运行基座视角：展示行动队列、纵向动态地图、单任务 drilldown、MAS paper lens refs、stage/route/decision/timeline refs、review queue、artifact gallery、memory refs、quality/readiness 和 provider SLO；默认 summary-first，完整详情按需加载；在没有推送投影时使用 5-10 秒轻轮询兜底；安全动作只通过 refs-only dry-run/execute 路由执行，并刷新回执/计数与 non-authority boundary 字段。
+- 运行状态页以 `opl app state --profile fast --json` 作为摘要和刷新来源，`opl app state --profile full --json` 只用于显式 full-state 诊断或发布证据，并只在需要时按需加载完整 Framework drilldown。该页面是多任务运行基座视角：展示行动队列、纵向动态地图、单任务 drilldown、MAS paper lens refs、summary-first/full-detail-on-demand 控制、5-10 秒轻量轮询兜底、refs-only dry-run/execute 动作、回执/计数刷新和明确的 non-authority boundary 字段。
 - 首次启动在进入 `/guid` 前完成 `ready_to_launch`：只要求工作目录、Codex CLI 和 Codex config。领域模块、family runtime provider、推荐技能、native helpers、repo sync、CLT 和生态更新属于 Full readiness 或后台维护。
 - 首次启动界面从共享的 `opl system initialize --json` 模型展示当前阶段、Core 进度、Full readiness 进度、后台维护计数、阻塞项和下一步，不为不同安装形态维护各自的进度真相。
 - Foundry Agents 只暴露一条公共语义路径：domain skill 是 ABI。Codex App 可以通过 plugin-packaged skill 暴露 MAS/MAG/RCA，CLI 和 direct Codex 仍消费同一套 skill/action/stage metadata；plugin 只是分发壳，不能生成第二套语义，也不能把 MAS/MAG/RCA 再镜像成裸 `~/.codex/skills/{mas,mag,rca}`。

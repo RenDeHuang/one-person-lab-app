@@ -112,9 +112,10 @@ and compiles through the App wrapper path.
 
 Runtime page evidence path is declared in
 `contracts/app-page-state-matrix.json`: the active shell loads the summary read
-model through `opl app state --profile fast --json`, refreshes through
-`opl app state --profile full --json`, lazy-loads full detail through
-`opl runtime app-operator-drilldown --detail full --json`, and presents a
+model through `opl app state --profile fast --json`, refreshes through the same
+fast App state surface, keeps `opl app state --profile full --json` for explicit
+full-state diagnostic or release evidence, lazy-loads full detail through `opl
+runtime app-operator-drilldown --detail full --json`, and presents a
 multi-task runtime base view with action queue refs, a vertical dynamic map,
 single-task drilldown, and MAS paper lens refs. The page stays summary-first,
 loads full detail only on demand, uses a 5-10 second lightweight polling
