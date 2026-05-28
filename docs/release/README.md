@@ -190,6 +190,13 @@ the large Full DMG workflow artifact, or published DMG assets for diagnosis.
 Full build bottleneck analysis uses `duration_seconds.full_package_build` and
 `duration_seconds.full_package_build_breakdown` from telemetry, while manifest,
 SHA256SUMS, remote verification, and VM gates remain release truth.
+The Full workflow also caches active-shell Vite output as a speed aid. A cache
+hit enables `--reuse-gui-vite-output`, which passes `--skip-vite` to the shell
+build so the Full package can reuse the already bundled main/preload/renderer
+output. A cache miss keeps the normal full shell build path and saves the Vite
+output for the next run. The cache is never release truth; DMG verification,
+manifest generation, checksums, remote verification, and VM gates still decide
+release readiness.
 
 The Full first-install payload must include the latest npm-published Codex CLI
 and the Temporal-backed family runtime provider. The Full workflow resolves the

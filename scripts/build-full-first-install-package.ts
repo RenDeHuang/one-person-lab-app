@@ -66,6 +66,7 @@ function parseArgs(argv) {
     uiUxProMaxRoot: process.env.OPL_FULL_UI_UX_PRO_MAX_ROOT || path.join(workspaceRoot, 'ui-ux-pro-max-skill'),
     skipGuiBuild: false,
     splitRuntime: process.env.OPL_FULL_SPLIT_RUNTIME === '1',
+    reuseGuiViteOutput: process.env.OPL_FULL_REUSE_GUI_VITE_OUTPUT === '1',
     runtimeCacheDir: defaultRuntimeCacheDir(),
     runtimeCacheMode: process.env.OPL_FULL_RUNTIME_CACHE_MODE || 'readwrite',
     printRuntimeCacheKeys: false,
@@ -87,6 +88,10 @@ function parseArgs(argv) {
     }
     if (token === '--split-runtime') {
       parsed.splitRuntime = true;
+      continue;
+    }
+    if (token === '--reuse-gui-vite-output') {
+      parsed.reuseGuiViteOutput = true;
       continue;
     }
     if (token === '--print-runtime-cache-keys') {
@@ -1350,7 +1355,11 @@ function main() {
 
   if (!options.skipGuiBuild) {
     const shellBuildStartedAt = monotonicSeconds();
-    run('npm', ['run', 'build-mac:arm64'], {
+    const shellBuildArgs = ['run', 'build-mac:arm64'];
+    if (options.reuseGuiViteOutput) {
+      shellBuildArgs.push('--', '--skip-vite');
+    }
+    run('npm', shellBuildArgs, {
       cwd: options.guiRoot,
       env: {
         ...process.env,

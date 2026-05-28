@@ -144,6 +144,10 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /full-package-build-timing\.json/, 'Full package build timing JSON path');
   assertMatches(workflow, /full_package_build_breakdown/, 'Full telemetry package build breakdown');
   assertMatches(workflow, /## Full Package Build Breakdown/, 'Full summary package build breakdown section');
+  assertMatches(workflow, /name:\s+Restore Full shell Vite output cache[\s\S]*id:\s+restore-shell-vite-output/, 'Full workflow restores reusable shell Vite output');
+  assertMatches(workflow, /shell_vite_output:\s+'\$\{\{ steps\.restore-shell-vite-output\.outputs\.cache-hit \|\| 'false' \}\}'/, 'Full telemetry records shell Vite output cache hit');
+  assertMatches(workflow, /--reuse-gui-vite-output/, 'Full package build can reuse restored shell Vite output');
+  assertMatches(workflow, /name:\s+Save Full shell Vite output cache[\s\S]*actions\/cache\/save@v4/, 'Full workflow saves reusable shell Vite output');
   assertMatches(workflow, /payload_refs:\s+fullManifest\?\.resolved_refs/, 'Full telemetry resolved refs field');
   assertMatches(workflow, /resolved_refs:\s+fullManifest\?\.resolved_refs/, 'Full telemetry normalized resolved refs field');
   assertMatches(workflow, /## Full Payload Resolved Refs/, 'Full summary resolved refs section');
@@ -171,6 +175,11 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /bash "\$GITHUB_WORKSPACE\/OfficeCLI\/install\.sh"/, 'OfficeCLI install uses the resolved checkout');
   assert.doesNotMatch(workflow, /raw\.githubusercontent\.com\/iOfficeAI\/OfficeCLI\/main\/install\.sh/, 'OfficeCLI install must not bypass the resolved checkout');
   assertMatches(workflow, /duration_seconds:[\s\S]*full_package_build/, 'Full telemetry duration fields');
+
+  const buildScript = readRepoFile('scripts/build-full-first-install-package.ts');
+  assertMatches(buildScript, /reuseGuiViteOutput:\s+process\.env\.OPL_FULL_REUSE_GUI_VITE_OUTPUT === '1'/, 'Full package script reads Vite reuse flag');
+  assertMatches(buildScript, /--reuse-gui-vite-output/, 'Full package script exposes Vite reuse CLI flag');
+  assertMatches(buildScript, /build-mac:arm64'[\s\S]*--skip-vite/, 'Full package script passes --skip-vite to active shell build when reuse is enabled');
 
   const warmupWorkflow = readRepoFile('.github/workflows/full-runtime-cache-warmup.yml');
   assertMatches(warmupWorkflow, /upload_full_package_artifact:\s+false/, 'Full warmup must avoid uploading the large Full DMG artifact');

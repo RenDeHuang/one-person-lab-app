@@ -156,6 +156,12 @@ one-shot installer output, Docker/WebUI smoke output, Full diagnostics, and
 for readiness diagnosis; missing small evidence is a fail-closed release
 readiness failure.
 
+Full build speed tuning should start with `full-workflow-telemetry.json`.
+`cache.shell_vite_output=true` means the Full workflow restored active-shell
+Vite output and invoked the shell build with `--skip-vite`; `false` means it ran
+the normal shell build and saved the output for the next run. Treat this as a
+cache acceleration signal only, not as release truth.
+
 Composite/setup action reuse is used only where a checked-in composite action is
 tested and the job still keeps release semantics visible. Active-shell
 checkout/setup/cache reuse lives in `.github/actions/setup-active-shell-deps`.

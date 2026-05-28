@@ -161,6 +161,11 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   `duration_seconds.full_package_build_breakdown`. These artifacts help compare
   build speed across runs; they do not replace release manifests, checksums,
   remote verification, VM smoke artifacts, or evidence bundle validation.
+  `cache.shell_vite_output` records whether the Full workflow reused the
+  active-shell Vite output. When it is `true`, the Full shell build skips Vite
+  bundling and still repackages/signs/verifies the Full DMG after runtime
+  payload sync; when it is `false`, the workflow runs the normal full shell
+  build and saves Vite output for later runs.
   Full workflows also upload `opl-full-diagnostics-<version>`, a small
   diagnostics artifact with telemetry, `full-package-build-timing.json`,
   `full-package-manifest.json`, `runtime-cache-events.json`, `SHA256SUMS.txt`,

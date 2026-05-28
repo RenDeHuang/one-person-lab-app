@@ -246,6 +246,19 @@ jobs:
           bunx electron-builder install-app-deps
           echo "OPL_FULL_SHELL_DEPS_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
+      - name: Restore Full shell Vite output cache
+        id: restore-shell-vite-output
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            one-person-lab-app/shells/aionui/out/main
+            one-person-lab-app/shells/aionui/out/preload
+            one-person-lab-app/shells/aionui/out/renderer
+            one-person-lab-app/shells/aionui/out/.build-hash
+          key: full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock', 'one-person-lab-app/shells/aionui/tsconfig.json', 'one-person-lab-app/shells/aionui/packages/desktop/electron.vite.config.ts', 'one-person-lab-app/shells/aionui/packages/desktop/electron-builder.yml', 'one-person-lab-app/shells/aionui/packages/desktop/src/**', 'one-person-lab-app/shells/aionui/public/**', 'one-person-lab-app/shells/aionui/scripts/**', 'one-person-lab-app/contracts/app-product-profile.json') }}
+          restore-keys: |
+            full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Prepare domain runtime dependencies
         shell: bash
         run: |
@@ -421,10 +434,15 @@ jobs:
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"
           export OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT="$GITHUB_WORKSPACE/one-person-lab-app/assets/companion-skills/mineru-document-extractor"
           export OPL_FULL_UI_UX_PRO_MAX_ROOT="$GITHUB_WORKSPACE/ui-ux-pro-max-skill"
+          reuse_gui_args=()
+          if [ "${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }}" = "true" ]; then
+            reuse_gui_args+=(--reuse-gui-vite-output)
+          fi
           npm run release:full -- \
             --version "$OPL_RELEASE_VERSION" \
             --runtime-cache-dir "${{ steps.runtime-cache-keys.outputs.cache_dir }}" \
-            --runtime-cache-mode readwrite
+            --runtime-cache-mode readwrite \
+            "${reuse_gui_args[@]}"
           echo "OPL_FULL_PACKAGE_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Verify Full package checksums and optional signing
@@ -517,6 +535,7 @@ jobs:
               bun_install: '${{ steps.bun-cache.outputs.cache-hit || 'false' }}',
               uv_artifacts: '${{ steps.uv-cache.outputs.cache-hit || 'false' }}',
               go_modules_build: '${{ steps.go-cache.outputs.cache-hit || 'unknown' }}',
+              shell_vite_output: '${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }}',
               full_runtime_layers: env.OPL_FULL_RUNTIME_CACHE_HIT || 'unknown',
               full_runtime_cache_key: '${{ steps.runtime-cache-keys.outputs.cache_key }}',
               full_runtime_cache_digest: '${{ steps.runtime-cache-keys.outputs.cache_digest }}',
@@ -547,6 +566,7 @@ jobs:
             echo "| Bun install cache | ${{ steps.bun-cache.outputs.cache-hit || 'false' }} |"
             echo "| uv artifacts | ${{ steps.uv-cache.outputs.cache-hit || 'false' }} |"
             echo "| Go modules/build | ${{ steps.go-cache.outputs.cache-hit || 'unknown' }} |"
+            echo "| Shell Vite output | ${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }} |"
             echo "| Full runtime layers | $OPL_FULL_RUNTIME_CACHE_HIT |"
             echo
             echo "## Full Payload Resolved Refs"
@@ -609,6 +629,18 @@ jobs:
             one-person-lab-app/dist/opl-full-release/README-Full-First-Install.txt
           if-no-files-found: error
           retention-days: 30
+
+      - name: Save Full shell Vite output cache
+        if: ${{ steps.restore-shell-vite-output.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: |
+            one-person-lab-app/shells/aionui/out/main
+            one-person-lab-app/shells/aionui/out/preload
+            one-person-lab-app/shells/aionui/out/renderer
+            one-person-lab-app/shells/aionui/out/.build-hash
+          key: full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock', 'one-person-lab-app/shells/aionui/tsconfig.json', 'one-person-lab-app/shells/aionui/packages/desktop/electron.vite.config.ts', 'one-person-lab-app/shells/aionui/packages/desktop/electron-builder.yml', 'one-person-lab-app/shells/aionui/packages/desktop/src/**', 'one-person-lab-app/shells/aionui/public/**', 'one-person-lab-app/shells/aionui/scripts/**', 'one-person-lab-app/contracts/app-product-profile.json') }}
 
       - name: Save Full toolchain runtime cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-toolchain.outputs.cache-hit != 'true' }}
