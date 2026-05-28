@@ -33,10 +33,19 @@ type ComponentSnapshot = Partial<{
   truth_owner: string;
 }>;
 
+type ResolvedFullPayloadRefs = Record<string, Partial<{
+  source_path: string | null;
+  repository: string;
+  requested_ref: string | null;
+  resolved_commit: string | null;
+  version: string | null;
+}>>;
+
 type FullPackageManifestInput = Partial<{
   version: string;
   generatedAt: string;
   components: Record<string, ComponentSnapshot>;
+  resolvedRefs: ResolvedFullPayloadRefs;
   sizeBreakdown: unknown;
   runtimeAssertions: unknown;
 }>;
@@ -188,6 +197,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         skills: { size_bytes: 0 },
       },
     },
+    resolved_refs: input.resolvedRefs ?? {},
     runtime: {
       layout_version: 1,
       payload_resource_dir: FULL_RUNTIME_RESOURCE_DIR,

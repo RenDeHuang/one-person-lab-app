@@ -140,6 +140,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "OPL_RELEASE_VERSION=${{ inputs.opl_version }}" >> "$GITHUB_ENV"
+          echo "OPL_FULL_FRAMEWORK_REF=${{ inputs.framework_ref || 'main' }}" >> "$GITHUB_ENV"
           echo "OPL_FULL_WORKFLOW_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Setup Node.js
@@ -212,7 +213,7 @@ jobs:
             cd "$mineru_root"
             go install -ldflags "-X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.version=$mineru_version -X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.commit=$mineru_commit -X github.com/opendatalab/MinerU-Ecosystem/cli/mineru-open-api/cmd.date=$mineru_built_at" .
           )
-          curl -fsSL https://raw.githubusercontent.com/iOfficeAI/OfficeCLI/main/install.sh | bash
+          bash "$GITHUB_WORKSPACE/OfficeCLI/install.sh"
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
@@ -270,6 +271,7 @@ jobs:
           export OPL_FULL_RCA_ROOT="$GITHUB_WORKSPACE/redcube-ai"
           export OPL_FULL_META_AGENT_ROOT="$GITHUB_WORKSPACE/opl-meta-agent"
           export OPL_FULL_OFFICECLI_ROOT="$GITHUB_WORKSPACE/OfficeCLI"
+          export OPL_FULL_MINERU_ROOT="$GITHUB_WORKSPACE/MinerU-Ecosystem"
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"
           export OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT="$GITHUB_WORKSPACE/one-person-lab-app/assets/companion-skills/mineru-document-extractor"
           export OPL_FULL_UI_UX_PRO_MAX_ROOT="$GITHUB_WORKSPACE/ui-ux-pro-max-skill"
@@ -415,6 +417,7 @@ jobs:
           export OPL_FULL_RCA_ROOT="$GITHUB_WORKSPACE/redcube-ai"
           export OPL_FULL_META_AGENT_ROOT="$GITHUB_WORKSPACE/opl-meta-agent"
           export OPL_FULL_OFFICECLI_ROOT="$GITHUB_WORKSPACE/OfficeCLI"
+          export OPL_FULL_MINERU_ROOT="$GITHUB_WORKSPACE/MinerU-Ecosystem"
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"
           export OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT="$GITHUB_WORKSPACE/one-person-lab-app/assets/companion-skills/mineru-document-extractor"
           export OPL_FULL_UI_UX_PRO_MAX_ROOT="$GITHUB_WORKSPACE/ui-ux-pro-max-skill"
@@ -491,6 +494,8 @@ jobs:
             if (!fs.existsSync(filePath)) return null;
             return JSON.parse(fs.readFileSync(filePath, 'utf8'));
           };
+          const fullBuildTiming = readJson('full-package-build-timing.json');
+          const fullManifest = readJson('full-package-manifest.json');
           const intValue = (value) => {
             const parsed = Number(value || '');
             return Number.isFinite(parsed) ? parsed : null;
@@ -505,6 +510,8 @@ jobs:
             version: env.OPL_RELEASE_VERSION || null,
             run_id: env.GITHUB_RUN_ID || null,
             run_attempt: env.GITHUB_RUN_ATTEMPT || null,
+            payload_refs: fullManifest?.resolved_refs ?? fullBuildTiming?.resolved_refs ?? null,
+            resolved_refs: fullManifest?.resolved_refs ?? fullBuildTiming?.resolved_refs ?? null,
             cache: {
               npm_dependencies: '${{ steps.node-cache.outputs.cache-hit || 'unknown' }}',
               bun_install: '${{ steps.bun-cache.outputs.cache-hit || 'false' }}',
@@ -522,7 +529,9 @@ jobs:
               framework_build: duration(env.OPL_FULL_FRAMEWORK_DEPS_READY_AT, env.OPL_FULL_FRAMEWORK_BUILD_READY_AT),
               shell_dependencies: duration(env.OPL_FULL_FRAMEWORK_BUILD_READY_AT, env.OPL_FULL_SHELL_DEPS_READY_AT),
               domain_dependencies: duration(env.OPL_FULL_SHELL_DEPS_READY_AT, env.OPL_FULL_DOMAIN_DEPS_READY_AT),
-              full_package_build: duration(env.OPL_FULL_DOMAIN_DEPS_READY_AT, env.OPL_FULL_PACKAGE_READY_AT),
+              full_package_build: fullBuildTiming?.duration_seconds?.full_package_build
+                ?? duration(env.OPL_FULL_DOMAIN_DEPS_READY_AT, env.OPL_FULL_PACKAGE_READY_AT),
+              full_package_build_breakdown: fullBuildTiming?.duration_seconds?.full_package_build_breakdown ?? null,
               checksum_signing_verify: duration(env.OPL_FULL_PACKAGE_READY_AT, env.OPL_FULL_VERIFY_READY_AT),
             },
           };
@@ -539,6 +548,16 @@ jobs:
             echo "| uv artifacts | ${{ steps.uv-cache.outputs.cache-hit || 'false' }} |"
             echo "| Go modules/build | ${{ steps.go-cache.outputs.cache-hit || 'unknown' }} |"
             echo "| Full runtime layers | $OPL_FULL_RUNTIME_CACHE_HIT |"
+            echo
+            echo "## Full Payload Resolved Refs"
+            echo
+            if [ -f "$telemetry_dir/full-package-manifest.json" ]; then
+              node -e 'const fs = require("node:fs"); const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); console.log("| Payload | Requested ref | Resolved commit |"); console.log("| --- | --- | --- |"); for (const ref of Object.values(manifest.resolved_refs || {})) console.log(`| ${ref.label || ref.repository} | ${ref.requested_ref || ""} | ${ref.resolved_commit || ""} |`);' "$telemetry_dir/full-package-manifest.json"
+            else
+              echo "| Payload | Requested ref | Resolved commit |"
+              echo "| --- | --- | --- |"
+              echo "| unavailable | unavailable | missing full-package-manifest.json |"
+            fi
             echo
             echo "| Full runtime layer | Status |"
             echo "| --- | --- |"
@@ -557,6 +576,16 @@ jobs:
             echo "| Domain dependencies | $(duration "${OPL_FULL_SHELL_DEPS_READY_AT:-}" "${OPL_FULL_DOMAIN_DEPS_READY_AT:-}") |"
             echo "| Full package build | $(duration "${OPL_FULL_DOMAIN_DEPS_READY_AT:-}" "${OPL_FULL_PACKAGE_READY_AT:-}") |"
             echo "| Full checksum/signing verify | $(duration "${OPL_FULL_PACKAGE_READY_AT:-}" "${OPL_FULL_VERIFY_READY_AT:-}") |"
+            echo
+            echo "## Full Package Build Breakdown"
+            echo
+            if [ -f "$telemetry_dir/full-package-build-timing.json" ]; then
+              node -e 'const fs = require("node:fs"); const report = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); console.log("| Segment | Seconds |"); console.log("| --- | ---: |"); for (const [key, value] of Object.entries(report.duration_seconds?.full_package_build_breakdown || {})) console.log(`| ${key} | ${value} |`);' "$telemetry_dir/full-package-build-timing.json"
+            else
+              echo "| Segment | Seconds |"
+              echo "| --- | ---: |"
+              echo "| unavailable | missing full-package-build-timing.json |"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Full workflow telemetry
@@ -573,6 +602,7 @@ jobs:
           name: opl-full-diagnostics-${{ env.OPL_RELEASE_VERSION }}
           path: |
             one-person-lab-app/dist/opl-full-release/full-workflow-telemetry.json
+            one-person-lab-app/dist/opl-full-release/full-package-build-timing.json
             one-person-lab-app/dist/opl-full-release/full-package-manifest.json
             one-person-lab-app/dist/opl-full-release/runtime-cache-events.json
             one-person-lab-app/dist/opl-full-release/SHA256SUMS.txt

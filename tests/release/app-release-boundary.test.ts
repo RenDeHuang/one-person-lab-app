@@ -2499,10 +2499,30 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.doesNotMatch(workflow, /restore-keys:\s*\|\s*\n\s*opl-full-runtime-layers-/);
   assert.match(workflow, /runtime-cache-events\.json/);
   assert.match(workflow, /full_runtime_layer_events/);
+  assert.match(workflow, /full-package-build-timing\.json/);
+  assert.match(workflow, /full_package_build_breakdown/);
+  assert.match(workflow, /## Full Package Build Breakdown/);
+  assert.match(workflow, /payload_refs:\s+fullManifest\?\.resolved_refs/);
+  assert.match(workflow, /resolved_refs:\s+fullManifest\?\.resolved_refs/);
+  assert.match(workflow, /## Full Payload Resolved Refs/);
+  for (const expected of [
+    'gaofeng21cn/one-person-lab',
+    'gaofeng21cn/med-autoscience',
+    'gaofeng21cn/med-autogrant',
+    'gaofeng21cn/redcube-ai',
+    'gaofeng21cn/opl-meta-agent',
+    'iOfficeAI/OfficeCLI',
+    'opendatalab/MinerU-Ecosystem',
+    'nextlevelbuilder/ui-ux-pro-max-skill',
+  ]) {
+    assert.match(`${workflow}\n${fs.readFileSync(path.join(appRoot, 'scripts', 'plan-release-candidate.ts'), 'utf8')}`, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
   assert.match(workflow, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/);
-  assert.match(workflow, /Upload Full diagnostics artifact[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/);
+  assert.match(workflow, /Upload Full diagnostics artifact[\s\S]*full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/);
   assert.match(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/);
   assert.match(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/);
+  assert.match(workflow, /bash "\$GITHUB_WORKSPACE\/OfficeCLI\/install\.sh"/);
+  assert.doesNotMatch(workflow, /raw\.githubusercontent\.com\/iOfficeAI\/OfficeCLI\/main\/install\.sh/);
   const warmupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-runtime-cache-warmup.yml'), 'utf8');
   assert.match(warmupWorkflow, /upload_full_package_artifact:\s+false/);
   assert.match(workflow, /node -e 'const fs = require\("node:fs"\); const report = JSON\.parse\(fs\.readFileSync\(process\.argv\[1\], "utf8"\)\);/);
@@ -2968,8 +2988,9 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(electronBuilder, /from: resources\/opl-install\.sh\s+to: opl-install\.sh/);
   assert.match(
     buildScript,
-    /if \(cacheEvent\.read_archive\) {\s*extractLayer\(archivePath, targetRoot\);\s*return cacheEvent;\s*}\s*const tempLayerRoot/,
+    /if \(cacheEvent\.read_archive\) {\s*extractLayer\(archivePath, targetRoot\);\s*return {\s*\.\.\.cacheEvent,\s*duration_seconds: durationSeconds\(startedAt, monotonicSeconds\(\)\),\s*};\s*}\s*const tempLayerRoot/,
   );
+  assert.match(buildScript, /duration_seconds: durationSeconds\(startedAt, monotonicSeconds\(\)\)/);
   assert.match(buildScript, /aggregate_key_input: buildFullRuntimeAggregateCacheKeyInput\(\{ layers \}\)/);
   assert.match(buildScript, /artifactNames\.runtimeCacheEvents/);
   assert.match(publishScript, /skipped_existing_artifacts/);

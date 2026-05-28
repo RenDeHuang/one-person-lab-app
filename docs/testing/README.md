@@ -156,15 +156,26 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   release readiness must be converted into a deterministic contract, workflow,
   or script gate before it can block or clear a release.
 - Release tuning evidence: Full workflow cache hits and step timings are stored
-  in `full-workflow-telemetry.json` artifacts. These artifacts help compare
+  in `full-workflow-telemetry.json` artifacts, including
+  `duration_seconds.full_package_build` and
+  `duration_seconds.full_package_build_breakdown`. These artifacts help compare
   build speed across runs; they do not replace release manifests, checksums,
   remote verification, VM smoke artifacts, or evidence bundle validation.
   Full workflows also upload `opl-full-diagnostics-<version>`, a small
-  diagnostics artifact with telemetry, `full-package-manifest.json`,
-  `runtime-cache-events.json`, `SHA256SUMS.txt`, and the Full README so cache
-  and hash checks do not require downloading the large Full DMG. Warmup runs do
-  not upload the large Full package artifact; release-called Full builds still
-  do because publish and VM gates consume the DMG.
+  diagnostics artifact with telemetry, `full-package-build-timing.json`,
+  `full-package-manifest.json`, `runtime-cache-events.json`, `SHA256SUMS.txt`,
+  and the Full README so cache and hash checks do not require downloading the
+  large Full DMG. Warmup runs do not upload the large Full package artifact;
+  release-called Full builds still do because publish and VM gates consume the
+  DMG.
+- Final readiness diagnostics: the `release-readiness-summary` job is the final
+  stable pass/fail entry. It reads dependency results plus only small artifacts:
+  remote verification JSON, VM smoke summaries, one-shot installer output,
+  Docker/WebUI smoke output, Full diagnostics, and telemetry. It fails closed
+  when a required remote, VM, one-shot, Docker/WebUI, or Full timing gate is
+  failed, cancelled, missing, or unexpectedly skipped. It must not download the
+  standard DMG, the large Full DMG workflow artifact, or published DMG assets
+  for diagnosis.
 - Standard DMG clean VM smoke: the packaged App must run its bundled
   `opl-install.sh` bootstrap carrier if `opl` is missing, reach
   `ready_to_launch` through `opl system initialize --json`, and only then enter

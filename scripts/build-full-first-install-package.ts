@@ -60,6 +60,7 @@ function parseArgs(argv) {
     officeCliBin: process.env.OPL_FULL_OFFICECLI_BIN || '',
     officeCliRoot: process.env.OPL_FULL_OFFICECLI_ROOT || path.join(workspaceRoot, 'OfficeCLI'),
     mineruOpenApiBin: process.env.OPL_FULL_MINERU_OPEN_API_BIN || '',
+    mineruRoot: process.env.OPL_FULL_MINERU_ROOT || path.join(workspaceRoot, 'MinerU-Ecosystem'),
     mineruDocumentExtractorRoot: process.env.OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT
       || path.join(appRepoRoot, 'assets', 'companion-skills', 'mineru-document-extractor'),
     uiUxProMaxRoot: process.env.OPL_FULL_UI_UX_PRO_MAX_ROOT || path.join(workspaceRoot, 'ui-ux-pro-max-skill'),
@@ -68,6 +69,14 @@ function parseArgs(argv) {
     runtimeCacheDir: defaultRuntimeCacheDir(),
     runtimeCacheMode: process.env.OPL_FULL_RUNTIME_CACHE_MODE || 'readwrite',
     printRuntimeCacheKeys: false,
+    frameworkRef: process.env.OPL_FULL_FRAMEWORK_REF || process.env.OPL_FRAMEWORK_REF || null,
+    masRef: process.env.OPL_FULL_MAS_REF || 'main',
+    magRef: process.env.OPL_FULL_MAG_REF || 'main',
+    rcaRef: process.env.OPL_FULL_RCA_REF || 'main',
+    metaAgentRef: process.env.OPL_FULL_META_AGENT_REF || 'main',
+    officeCliRef: process.env.OPL_FULL_OFFICECLI_REF || 'main',
+    mineruRef: process.env.OPL_FULL_MINERU_REF || 'main',
+    uiUxProMaxRef: process.env.OPL_FULL_UI_UX_PRO_MAX_REF || 'main',
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -108,6 +117,7 @@ function parseArgs(argv) {
     else if (token === '--officecli-bin') parsed.officeCliBin = path.resolve(value);
     else if (token === '--officecli-root') parsed.officeCliRoot = path.resolve(value);
     else if (token === '--mineru-open-api-bin') parsed.mineruOpenApiBin = path.resolve(value);
+    else if (token === '--mineru-root') parsed.mineruRoot = path.resolve(value);
     else if (token === '--mineru-document-extractor-root') parsed.mineruDocumentExtractorRoot = path.resolve(value);
     else if (token === '--ui-ux-pro-max-root') parsed.uiUxProMaxRoot = path.resolve(value);
     else if (token === '--runtime-cache-dir') parsed.runtimeCacheDir = path.resolve(value);
@@ -158,12 +168,96 @@ function readGitHead(sourcePath) {
   return result.status === 0 ? result.stdout.trim() || null : null;
 }
 
+function readGitOriginUrl(sourcePath) {
+  if (!fs.existsSync(path.join(sourcePath, '.git'))) {
+    return null;
+  }
+  const result = spawnSync('git', ['config', '--get', 'remote.origin.url'], {
+    cwd: sourcePath,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  return result.status === 0 ? result.stdout.trim() || null : null;
+}
+
 function commandOutput(command, args) {
   const result = spawnSync(command, args, { encoding: 'utf8', stdio: 'pipe' });
   if (result.status !== 0) {
     return null;
   }
   return [result.stdout, result.stderr].filter(Boolean).join('\n').trim() || null;
+}
+
+function monotonicSeconds() {
+  return Number(process.hrtime.bigint()) / 1_000_000_000;
+}
+
+function durationSeconds(start, end) {
+  return Number((end - start).toFixed(3));
+}
+
+function buildResolvedFullPayloadRefs(options, sources, components) {
+  const mineruRepoRoot = sources.mineruRepoRoot || options.mineruRoot;
+  return {
+    opl_framework: {
+      label: 'OPL Framework',
+      source_path: options.frameworkRoot,
+      repository: readGitOriginUrl(options.frameworkRoot) || 'gaofeng21cn/one-person-lab',
+      requested_ref: options.frameworkRef || 'main',
+      resolved_commit: components.opl?.git_commit ?? readGitHead(options.frameworkRoot),
+    },
+    mas: {
+      label: 'MAS',
+      source_path: options.masRoot,
+      repository: readGitOriginUrl(options.masRoot) || 'gaofeng21cn/med-autoscience',
+      requested_ref: options.masRef,
+      resolved_commit: components.mas?.git_commit ?? readGitHead(options.masRoot),
+    },
+    mag: {
+      label: 'MAG',
+      source_path: options.magRoot,
+      repository: readGitOriginUrl(options.magRoot) || 'gaofeng21cn/med-autogrant',
+      requested_ref: options.magRef,
+      resolved_commit: components.mag?.git_commit ?? readGitHead(options.magRoot),
+    },
+    rca: {
+      label: 'RCA',
+      source_path: options.rcaRoot,
+      repository: readGitOriginUrl(options.rcaRoot) || 'gaofeng21cn/redcube-ai',
+      requested_ref: options.rcaRef,
+      resolved_commit: components.rca?.git_commit ?? readGitHead(options.rcaRoot),
+    },
+    opl_meta_agent: {
+      label: 'OPL Meta Agent',
+      source_path: options.metaAgentRoot,
+      repository: readGitOriginUrl(options.metaAgentRoot) || 'gaofeng21cn/opl-meta-agent',
+      requested_ref: options.metaAgentRef,
+      resolved_commit: components.meta_agent?.git_commit ?? readGitHead(options.metaAgentRoot),
+    },
+    officecli: {
+      label: 'OfficeCLI',
+      source_path: options.officeCliRoot,
+      repository: readGitOriginUrl(options.officeCliRoot) || 'iOfficeAI/OfficeCLI',
+      requested_ref: options.officeCliRef,
+      resolved_commit: readGitHead(options.officeCliRoot),
+      version: components.officecli?.version ?? null,
+    },
+    mineru: {
+      label: 'MinerU',
+      source_path: mineruRepoRoot,
+      repository: 'opendatalab/MinerU-Ecosystem',
+      requested_ref: options.mineruRef,
+      resolved_commit: readGitHead(mineruRepoRoot),
+      version: components.mineru_open_api?.version ?? null,
+    },
+    ui_ux_skill: {
+      label: 'UI UX skill',
+      source_path: options.uiUxProMaxRoot,
+      repository: readGitOriginUrl(options.uiUxProMaxRoot) || 'nextlevelbuilder/ui-ux-pro-max-skill',
+      requested_ref: options.uiUxProMaxRef,
+      resolved_commit: readGitHead(options.uiUxProMaxRoot),
+    },
+  };
 }
 
 function findExecutable(name) {
@@ -807,6 +901,7 @@ function resolveRuntimeSources(options) {
     uvBin,
     officeCliBin,
     mineruOpenApiBin,
+    mineruRepoRoot: fs.existsSync(path.join(options.mineruRoot, '.git')) ? options.mineruRoot : null,
   };
 }
 
@@ -937,6 +1032,7 @@ function buildRuntimeCacheKeyReport(options, sources) {
 }
 
 function runCachedLayer(options, layerId, key, targetRoot, builder) {
+  const startedAt = monotonicSeconds();
   const archivePath = cacheLayerArchivePath(options, layerId, key);
   const cacheEvent = classifyFullRuntimeLayerCache({
     mode: options.runtimeCacheMode,
@@ -948,7 +1044,10 @@ function runCachedLayer(options, layerId, key, targetRoot, builder) {
 
   if (cacheEvent.read_archive) {
     extractLayer(archivePath, targetRoot);
-    return cacheEvent;
+    return {
+      ...cacheEvent,
+      duration_seconds: durationSeconds(startedAt, monotonicSeconds()),
+    };
   }
 
   const tempLayerRoot = fs.mkdtempSync(path.join(os.tmpdir(), `opl-full-${layerId}-`));
@@ -958,7 +1057,10 @@ function runCachedLayer(options, layerId, key, targetRoot, builder) {
     if (cacheEvent.write_archive) {
       archiveLayer(tempLayerRoot, archivePath);
     }
-    return cacheEvent;
+    return {
+      ...cacheEvent,
+      duration_seconds: durationSeconds(startedAt, monotonicSeconds()),
+    };
   } finally {
     fs.rmSync(tempLayerRoot, { recursive: true, force: true });
   }
@@ -1035,7 +1137,7 @@ function buildSkillsLayer(layerRoot, options) {
   copyRecommendedSkills(path.join(layerRoot, 'skills'), options);
 }
 
-function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components) {
+function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs) {
   const manifestDir = path.join(runtimeRoot, 'manifest');
   const manifestPath = path.join(manifestDir, 'full-package-manifest.json');
   fs.mkdirSync(manifestDir, { recursive: true });
@@ -1044,6 +1146,7 @@ function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components) 
     version: options.version,
     generatedAt: packagedAt,
     components,
+    resolvedRefs,
     runtimeAssertions: collectRuntimeAssertions(runtimeRoot),
   });
 
@@ -1054,6 +1157,7 @@ function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components) 
       version: options.version,
       generatedAt: packagedAt,
       components,
+      resolvedRefs,
       runtimeAssertions: collectRuntimeAssertions(runtimeRoot),
       sizeBreakdown,
     });
@@ -1108,7 +1212,8 @@ function prepareRuntime(options, sources) {
     skills: { source_path: path.join(os.homedir(), '.codex', 'skills'), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'skills')) },
   };
 
-  const manifest = writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components);
+  const resolvedRefs = buildResolvedFullPayloadRefs(options, sources, components);
+  const manifest = writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs);
 
   return {
     stagingRoot,
@@ -1120,6 +1225,7 @@ function prepareRuntime(options, sources) {
       keys: cacheKeys,
       events: cacheEvents,
     },
+    resolved_refs: resolvedRefs,
   };
 }
 
@@ -1226,13 +1332,24 @@ function main() {
     return;
   }
 
+  const timings = {};
+  const buildStartedAt = monotonicSeconds();
   const prepared = prepareRuntime(options, sources);
+  const runtimePreparedAt = monotonicSeconds();
+  timings.runtime_materialize = durationSeconds(buildStartedAt, runtimePreparedAt);
+  timings.runtime_cache_materialize = Number(prepared.runtime_cache.events.reduce((sum, event) => {
+    return sum + (typeof event.duration_seconds === 'number' ? event.duration_seconds : 0);
+  }, 0).toFixed(3));
   const runtimeCacheEventsPath = path.join(options.outDir, artifactNames.runtimeCacheEvents);
   writeJsonFile(runtimeCacheEventsPath, prepared.runtime_cache);
+  const cacheEventsWrittenAt = monotonicSeconds();
   const payloadRoots = syncRuntimePayloadToBuildRoots(prepared.runtimeRoot, prepared.manifest, options.guiRoot);
+  const payloadSyncedAt = monotonicSeconds();
+  timings.payload_sync = durationSeconds(cacheEventsWrittenAt, payloadSyncedAt);
   const productProfileSync = syncAppProductProfileToShell(options.guiRoot);
 
   if (!options.skipGuiBuild) {
+    const shellBuildStartedAt = monotonicSeconds();
     run('npm', ['run', 'build-mac:arm64'], {
       cwd: options.guiRoot,
       env: {
@@ -1241,14 +1358,20 @@ function main() {
         OPL_REQUIRE_FULL_RUNTIME: '1',
       },
     });
+    timings.shell_build = durationSeconds(shellBuildStartedAt, monotonicSeconds());
+  } else {
+    timings.shell_build = 0;
   }
 
+  const packageCompressionStartedAt = monotonicSeconds();
   const sourceDmg = findBuiltDmg(options.guiRoot, options.version);
   const targetDmg = path.join(options.outDir, artifactNames.dmg);
   fs.copyFileSync(sourceDmg, targetDmg);
   removeStandardGuiArtifacts(options.guiRoot, options.version);
   const runtimeTar = maybeCreateRuntimeTar(options, prepared.runtimeRoot, artifactNames);
+  timings.dmg_package_compression = durationSeconds(packageCompressionStartedAt, monotonicSeconds());
 
+  const manifestChecksumStartedAt = monotonicSeconds();
   const manifestPath = path.join(options.outDir, artifactNames.manifest);
   fs.writeFileSync(manifestPath, `${JSON.stringify(prepared.manifest, null, 2)}\n`, 'utf8');
   const readmePath = path.join(options.outDir, artifactNames.readme);
@@ -1265,6 +1388,18 @@ function main() {
     readmePath,
     ...(runtimeTar ? [runtimeTar] : []),
   ]);
+  timings.manifest_checksum = durationSeconds(manifestChecksumStartedAt, monotonicSeconds());
+  const buildFinishedAt = monotonicSeconds();
+  const timingPath = path.join(options.outDir, 'full-package-build-timing.json');
+  writeJsonFile(timingPath, {
+    schema: 'opl_full_package_build_timing.v1',
+    version: options.version,
+    duration_seconds: {
+      full_package_build: durationSeconds(buildStartedAt, buildFinishedAt),
+      full_package_build_breakdown: timings,
+    },
+    resolved_refs: prepared.resolved_refs,
+  });
 
   console.log(JSON.stringify({
     status: 'completed',
@@ -1276,12 +1411,18 @@ function main() {
     runtime_tar: runtimeTar,
     manifest: manifestPath,
     runtime_cache_events: runtimeCacheEventsPath,
+    timing: timingPath,
     readme: readmePath,
     checksums: checksumPath,
     payload_roots: payloadRoots,
     product_profile: productProfileSync,
     staging_root: prepared.stagingRoot,
     runtime_cache: prepared.runtime_cache,
+    resolved_refs: prepared.resolved_refs,
+    duration_seconds: {
+      full_package_build: durationSeconds(buildStartedAt, buildFinishedAt),
+      full_package_build_breakdown: timings,
+    },
   }, null, 2));
 }
 

@@ -174,6 +174,23 @@ say which user path is broken instead of producing one vague release failure.
 Stable validation covers standard DMG, Full DMG, one-shot installer, and
 Docker/WebUI evidence as separate installation surfaces.
 
+The final stable decision entry is the `release-readiness-summary` job in
+`.github/workflows/desktop-release.yml`. It runs after the selected remote
+verification, standard/Full clean-VM gates, one-shot installer smoke,
+Docker/WebUI smoke, and evidence bundle validation, then writes
+`release-readiness-summary.json` plus a GitHub Step Summary. It fails closed
+when any required gate result or small evidence artifact is failed, cancelled,
+missing, or unexpectedly skipped.
+
+That final summary is a diagnostic reader, not another package consumer. It
+downloads only small artifacts: remote verification JSON, VM smoke summaries,
+one-shot installer output, Docker/WebUI smoke output, Full diagnostics, and
+`full-workflow-telemetry.json`. It must not download the standard DMG artifact,
+the large Full DMG workflow artifact, or published DMG assets for diagnosis.
+Full build bottleneck analysis uses `duration_seconds.full_package_build` and
+`duration_seconds.full_package_build_breakdown` from telemetry, while manifest,
+SHA256SUMS, remote verification, and VM gates remain release truth.
+
 The Full first-install payload must include the latest npm-published Codex CLI
 and the Temporal-backed family runtime provider. The Full workflow resolves the
 current `@openai/codex` version with `npm view @openai/codex version`, installs

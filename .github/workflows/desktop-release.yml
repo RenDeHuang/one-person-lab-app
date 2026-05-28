@@ -411,6 +411,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ always() }}
     needs:
+      - full-first-install
       - remote-verify-standard
       - remote-verify-full
       - standard-first-run-vm-smoke-after-standard-only
@@ -479,6 +480,22 @@ jobs:
           name: opl-full-diagnostics-${{ inputs.opl_version }}
           path: release-readiness-inputs/opl-full-diagnostics-${{ inputs.opl_version }}
 
+      - name: Write release readiness job results
+        shell: bash
+        run: |
+          cat > release-readiness-job-results.json <<'JSON'
+          {
+            "full-first-install": "${{ needs.full-first-install.result }}",
+            "remote-verify-standard": "${{ needs.remote-verify-standard.result }}",
+            "remote-verify-full": "${{ needs.remote-verify-full.result }}",
+            "standard-first-run-vm-smoke-after-standard-only": "${{ needs.standard-first-run-vm-smoke-after-standard-only.result }}",
+            "standard-first-run-vm-smoke-after-full": "${{ needs.standard-first-run-vm-smoke-after-full.result }}",
+            "full-first-run-vm-smoke": "${{ needs.full-first-run-vm-smoke.result }}",
+            "one-shot-app-installer-smoke": "${{ needs.one-shot-app-installer-smoke.result }}",
+            "docker-webui-smoke": "${{ needs.docker-webui-smoke.result }}"
+          }
+          JSON
+
       - name: Build final release readiness summary
         shell: bash
         env:
@@ -493,6 +510,7 @@ jobs:
             --include-full-package "$OPL_INCLUDE_FULL_PACKAGE" \
             --run-vm-smoke "$OPL_RUN_VM_SMOKE" \
             --artifacts-dir release-readiness-inputs \
+            --job-results release-readiness-job-results.json \
             --output release-readiness-summary.json \
             --markdown release-readiness-summary.md
           cat release-readiness-summary.md >> "$GITHUB_STEP_SUMMARY"

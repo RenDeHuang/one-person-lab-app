@@ -141,15 +141,35 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   );
   assertMatches(workflow, /schema:\s+'opl_full_workflow_telemetry\.v1'|schema:\s+"opl_full_workflow_telemetry\.v1"/, 'Full telemetry schema');
   assertMatches(workflow, /full-workflow-telemetry\.json/, 'Full telemetry JSON path');
+  assertMatches(workflow, /full-package-build-timing\.json/, 'Full package build timing JSON path');
+  assertMatches(workflow, /full_package_build_breakdown/, 'Full telemetry package build breakdown');
+  assertMatches(workflow, /## Full Package Build Breakdown/, 'Full summary package build breakdown section');
+  assertMatches(workflow, /payload_refs:\s+fullManifest\?\.resolved_refs/, 'Full telemetry resolved refs field');
+  assertMatches(workflow, /resolved_refs:\s+fullManifest\?\.resolved_refs/, 'Full telemetry normalized resolved refs field');
+  assertMatches(workflow, /## Full Payload Resolved Refs/, 'Full summary resolved refs section');
+  for (const payloadLabel of [
+    'OPL Framework',
+    'MAS',
+    'MAG',
+    'RCA',
+    'OPL Meta Agent',
+    'OfficeCLI',
+    'MinerU',
+    'UI UX skill',
+  ]) {
+    assertIncludes(workflow + readRepoFile('scripts/plan-release-candidate.ts'), payloadLabel, `Full resolved refs payload ${payloadLabel}`);
+  }
   assertMatches(workflow, /Upload Full workflow telemetry[\s\S]*actions\/upload-artifact@v4/, 'Full telemetry artifact upload');
   assertMatches(workflow, /Upload Full diagnostics artifact[\s\S]*name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/, 'Full diagnostics artifact upload');
-  assertMatches(workflow, /Upload Full diagnostics artifact[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
+  assertMatches(workflow, /Upload Full diagnostics artifact[\s\S]*full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
   assertMatches(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/, 'Full package artifact upload defaults on for release-call consumers');
   assertMatches(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/, 'large Full package artifact is explicitly gated');
   assertMatches(workflow, /cache:[\s\S]*full_runtime_layers/, 'Full telemetry cache fields');
   assertMatches(workflow, /Restore Full toolchain runtime cache[\s\S]*Restore Full domain runtime cache[\s\S]*Restore Full OPL runtime cache[\s\S]*Restore Full skills runtime cache/, 'per-layer Full runtime cache restore');
   assertMatches(workflow, /Save Full toolchain runtime cache[\s\S]*Save Full domain runtime cache[\s\S]*Save Full OPL runtime cache[\s\S]*Save Full skills runtime cache/, 'per-layer Full runtime cache save');
   assertMatches(workflow, /git -C "\$GITHUB_WORKSPACE\/MinerU-Ecosystem" show -s --format=%cI HEAD/, 'MinerU build metadata is source-commit stable');
+  assertMatches(workflow, /bash "\$GITHUB_WORKSPACE\/OfficeCLI\/install\.sh"/, 'OfficeCLI install uses the resolved checkout');
+  assert.doesNotMatch(workflow, /raw\.githubusercontent\.com\/iOfficeAI\/OfficeCLI\/main\/install\.sh/, 'OfficeCLI install must not bypass the resolved checkout');
   assertMatches(workflow, /duration_seconds:[\s\S]*full_package_build/, 'Full telemetry duration fields');
 
   const warmupWorkflow = readRepoFile('.github/workflows/full-runtime-cache-warmup.yml');
@@ -235,6 +255,23 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
 
   assert.equal(plan.profile, 'stable');
   assert.equal(plan.strategy.vm_policy, 'clone_clean_no_clt_base_for_release_gate');
+  assert.equal(plan.full_payload_ref_audit.schema, 'opl_full_payload_ref_audit_plan.v1');
+  assert.equal(plan.full_payload_ref_audit.record_path, 'dist/opl-full-release/full-package-manifest.json#resolved_refs');
+  assert.equal(plan.full_payload_ref_audit.telemetry_path, 'dist/opl-full-release/full-workflow-telemetry.json#payload_refs');
+  assert.equal(plan.full_payload_ref_audit.modes.stable.records_resolved_refs, true);
+  assert.equal(plan.full_payload_ref_audit.modes.stable.pin_input_required, false);
+  assert.equal(plan.full_payload_ref_audit.modes.draft_candidate.records_resolved_refs, true);
+  assert.equal(plan.full_payload_ref_audit.modes.draft_candidate.pin_input_required, false);
+  assert.deepEqual(Object.keys(plan.full_payload_ref_audit.payloads), [
+    'opl_framework',
+    'mas',
+    'mag',
+    'rca',
+    'opl_meta_agent',
+    'officecli',
+    'mineru',
+    'ui_ux_skill',
+  ]);
 
   const releaseBoundary = laneById(plan, 'release_boundary');
   const standardBuild = laneById(plan, 'standard_build');
@@ -248,6 +285,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   const oneShotInstaller = laneById(plan, 'one_shot_app_installer_smoke');
   const evidenceBundle = laneById(plan, 'release_evidence_bundle');
   const publish = laneById(plan, 'publish_new_tag');
+  const readinessSummary = laneById(plan, 'release_readiness_summary');
 
   assert.deepEqual(releaseBoundary.depends_on, []);
   assert.deepEqual(standardBuild.depends_on, []);
@@ -283,6 +321,16 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.ok(publish.depends_on.includes('release_evidence_bundle'));
   assert.ok(publish.depends_on.includes('publish_standard'));
   assert.ok(publish.depends_on.includes('publish_full_assets'));
+  assert.equal(readinessSummary.phase, 'release_gate');
+  assert.deepEqual(readinessSummary.can_run_with, []);
+  assert.ok(readinessSummary.depends_on?.includes('remote_verify_standard_and_full'));
+  assert.ok(readinessSummary.depends_on?.includes('standard_dmg_clean_vm_smoke'));
+  assert.ok(readinessSummary.depends_on?.includes('full_dmg_clean_vm_smoke'));
+  assert.ok(readinessSummary.depends_on?.includes('one_shot_app_installer_smoke'));
+  assert.ok(readinessSummary.depends_on?.includes('docker_webui_smoke'));
+  assert.ok(readinessSummary.command.includes('release-readiness-summary'));
+  assert.ok(readinessSummary.required_for.includes('stable_release'));
+  assert.equal(plan.lanes.at(-1)?.id, 'release_readiness_summary');
 });
 
 test('AI exploratory release policy is locked in both machine contract and release docs', () => {

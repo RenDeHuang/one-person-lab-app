@@ -83,12 +83,27 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
   writeFile(path.join(root, `opl-full-diagnostics-${version}`, 'SHA256SUMS.txt'), 'checksum evidence\n');
 }
 
+function writePassingJobResults(filePath: string) {
+  writeJson(filePath, {
+    'full-first-install': 'success',
+    'remote-verify-standard': 'skipped',
+    'remote-verify-full': 'success',
+    'standard-first-run-vm-smoke-after-standard-only': 'skipped',
+    'standard-first-run-vm-smoke-after-full': 'success',
+    'full-first-run-vm-smoke': 'success',
+    'one-shot-app-installer-smoke': 'success',
+    'docker-webui-smoke': 'success',
+  });
+}
+
 test('release readiness summary passes only from small diagnostic artifacts', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
   const summaryPath = path.join(tempRoot, 'summary.md');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
+  writePassingJobResults(jobResultsPath);
 
   const result = runSummary([
     '--version',
@@ -101,6 +116,8 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
     'true',
     '--artifacts-dir',
     artifactsRoot,
+    '--job-results',
+    jobResultsPath,
     '--output',
     outputPath,
     '--markdown',
@@ -124,8 +141,10 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
 test('release readiness summary fails closed when a stable-required gate is missing', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-missing-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
+  writePassingJobResults(jobResultsPath);
   fs.rmSync(path.join(artifactsRoot, 'opl-first-run-vm-standard-local'), { recursive: true, force: true });
 
   const result = runSummary([
@@ -139,6 +158,8 @@ test('release readiness summary fails closed when a stable-required gate is miss
     'true',
     '--artifacts-dir',
     artifactsRoot,
+    '--job-results',
+    jobResultsPath,
     '--output',
     outputPath,
   ]);
@@ -164,6 +185,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
     'full-first-run-vm-smoke',
     'one-shot-app-installer-smoke',
     'docker-webui-smoke',
+    'full-first-install',
   ]) {
     assert.match(job, new RegExp(dependency), `readiness job must depend on ${dependency}`);
   }
@@ -184,4 +206,6 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.doesNotMatch(job, /name:\s+opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(job, /release-readiness-summary\.json/);
   assert.match(job, /summarize-release-readiness\.ts/);
+  assert.match(job, /needs\[['"]?remote-verify-full['"]?\]\.result|needs\.remote-verify-full\.result/);
+  assert.match(job, /release-readiness-job-results\.json/);
 });

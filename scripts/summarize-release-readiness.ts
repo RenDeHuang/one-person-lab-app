@@ -11,6 +11,8 @@ type GateStatus = 'passed' | 'failed' | 'skipped';
 type GateSummary = {
   status: GateStatus;
   required: boolean;
+  job_name?: string;
+  job_result?: string;
   artifact_name?: string;
   artifact_path?: string;
   reason?: string;
@@ -23,6 +25,7 @@ type Options = {
   includeFullPackage: boolean;
   runVmSmoke: boolean;
   artifactsDir: string;
+  jobResultsPath: string;
   output: string;
   markdown: string;
 };
@@ -39,6 +42,7 @@ function parseArgs(argv: string[]): Options {
     includeFullPackage: parseBoolean(process.env.OPL_INCLUDE_FULL_PACKAGE),
     runVmSmoke: parseBoolean(process.env.OPL_RUN_VM_SMOKE),
     artifactsDir: process.env.OPL_RELEASE_READINESS_ARTIFACTS_DIR || '',
+    jobResultsPath: process.env.OPL_RELEASE_READINESS_JOB_RESULTS || '',
     output: process.env.OPL_RELEASE_READINESS_OUTPUT || '',
     markdown: process.env.OPL_RELEASE_READINESS_MARKDOWN || '',
   };
@@ -58,6 +62,7 @@ function parseArgs(argv: string[]): Options {
     if (token === '--version') parsed.version = value;
     else if (token === '--release-mode') parsed.releaseMode = value;
     else if (token === '--artifacts-dir') parsed.artifactsDir = value;
+    else if (token === '--job-results') parsed.jobResultsPath = value;
     else if (token === '--output') parsed.output = value;
     else if (token === '--markdown') parsed.markdown = value;
     else throw new Error(`Unknown argument: ${token}`);
@@ -70,6 +75,7 @@ function parseArgs(argv: string[]): Options {
   return {
     ...parsed,
     artifactsDir: path.resolve(parsed.artifactsDir),
+    jobResultsPath: parsed.jobResultsPath ? path.resolve(parsed.jobResultsPath) : '',
     output: parsed.output ? path.resolve(parsed.output) : path.resolve(appRoot, 'release-readiness-summary.json'),
     markdown: parsed.markdown ? path.resolve(parsed.markdown) : '',
   };
@@ -95,6 +101,35 @@ function findFile(root: string, name: string) {
 
 function artifactDir(options: Options, artifactName: string) {
   return path.join(options.artifactsDir, artifactName);
+}
+
+function readJobResults(options: Options) {
+  if (!options.jobResultsPath || !fs.existsSync(options.jobResultsPath)) {
+    return {};
+  }
+  const payload = readJson(options.jobResultsPath);
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('Release readiness job results must be a JSON object.');
+  }
+  return payload as Record<string, string>;
+}
+
+function applyJobResult(gate: GateSummary, jobResults: Record<string, string>, jobName: string, required: boolean): GateSummary {
+  const result = jobResults[jobName] || 'unknown';
+  const expectedSkipped = !required && result === 'skipped';
+  const passed = result === 'success' || expectedSkipped;
+  const status = passed ? gate.status : required ? 'failed' : 'skipped';
+  const reason = passed
+    ? gate.reason
+    : `Workflow job ${jobName} result is ${result}; expected ${required ? 'success' : 'success or skipped'}.`;
+  return {
+    ...gate,
+    status,
+    required,
+    job_name: jobName,
+    job_result: result,
+    reason,
+  };
 }
 
 function missingGate(required: boolean, artifactName: string, reason: string): GateSummary {
@@ -182,6 +217,7 @@ function statusString(value: unknown) {
 }
 
 function buildSummary(options: Options) {
+  const jobResults = readJobResults(options);
   const remoteArtifactName = `remote-release-verification-${options.version}`;
   const standardVmArtifactName = `opl-first-run-vm-standard-${process.env.GITHUB_RUN_ID || 'local'}`;
   const fullVmArtifactName = `opl-first-run-vm-full-${process.env.GITHUB_RUN_ID || 'local'}`;
@@ -324,17 +360,31 @@ function buildSummary(options: Options) {
         }
     : missingGate(false, `${fullTelemetryArtifactName}, ${fullDiagnosticsArtifactName}`, 'Full package is not included.');
 
+  const selectedRemoteJob = options.includeFullPackage ? 'remote-verify-full' : 'remote-verify-standard';
+  const selectedStandardVmJob = options.includeFullPackage
+    ? 'standard-first-run-vm-smoke-after-full'
+    : 'standard-first-run-vm-smoke-after-standard-only';
   const gates = {
-    remote_release_verification: remoteGate,
-    standard_dmg_clean_vm: options.runVmSmoke
-      ? vmGate(standardVmArtifactName, 'standard', true)
-      : missingGate(false, standardVmArtifactName, 'VM smoke disabled for this run.'),
-    full_dmg_clean_vm: options.includeFullPackage && options.runVmSmoke
-      ? vmGate(fullVmArtifactName, 'full', true)
-      : missingGate(false, fullVmArtifactName, options.includeFullPackage ? 'VM smoke disabled for this run.' : 'Full package is not included.'),
-    one_shot_app_installer: oneShotGate,
-    docker_webui: dockerGate,
-    full_size_cache_timing: fullSizeCacheTimingGate,
+    remote_release_verification: applyJobResult(remoteGate, jobResults, selectedRemoteJob, true),
+    standard_dmg_clean_vm: applyJobResult(
+      options.runVmSmoke
+        ? vmGate(standardVmArtifactName, 'standard', true)
+        : missingGate(false, standardVmArtifactName, 'VM smoke disabled for this run.'),
+      jobResults,
+      selectedStandardVmJob,
+      options.runVmSmoke,
+    ),
+    full_dmg_clean_vm: applyJobResult(
+      options.includeFullPackage && options.runVmSmoke
+        ? vmGate(fullVmArtifactName, 'full', true)
+        : missingGate(false, fullVmArtifactName, options.includeFullPackage ? 'VM smoke disabled for this run.' : 'Full package is not included.'),
+      jobResults,
+      'full-first-run-vm-smoke',
+      options.includeFullPackage && options.runVmSmoke,
+    ),
+    one_shot_app_installer: applyJobResult(oneShotGate, jobResults, 'one-shot-app-installer-smoke', true),
+    docker_webui: applyJobResult(dockerGate, jobResults, 'docker-webui-smoke', true),
+    full_size_cache_timing: applyJobResult(fullSizeCacheTimingGate, jobResults, 'full-first-install', options.includeFullPackage),
   };
 
   const failedRequired = Object.entries(gates)
@@ -356,6 +406,7 @@ function buildSummary(options: Options) {
       downloads_large_dmg_artifacts: false,
       rule: 'readiness aggregation downloads only small diagnostic artifacts and summaries; DMG assets are validated by remote verification and VM jobs.',
     },
+    job_results: jobResults,
     gates,
     failed_required_gates: failedRequired,
     full_package: {

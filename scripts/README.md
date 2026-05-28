@@ -147,6 +147,15 @@ artifacts. Full remote tuning should read the small
 `opl-full-diagnostics-<version>` artifact before downloading any large package
 artifact.
 
+The final stable release decision is `release-readiness-summary.json`, produced
+by `.github/workflows/desktop-release.yml` through
+`scripts/summarize-release-readiness.ts`. The summary script consumes dependency
+results and small artifacts only: remote verification JSON, VM summaries,
+one-shot installer output, Docker/WebUI smoke output, Full diagnostics, and
+`full-workflow-telemetry.json`. Do not download standard or Full DMG artifacts
+for readiness diagnosis; missing small evidence is a fail-closed release
+readiness failure.
+
 Composite/setup action reuse is used only where a checked-in composite action is
 tested and the job still keeps release semantics visible. Active-shell
 checkout/setup/cache reuse lives in `.github/actions/setup-active-shell-deps`.

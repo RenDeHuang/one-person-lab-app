@@ -14,6 +14,69 @@ type Lane = {
   required_for: string[];
 };
 
+const FULL_PAYLOAD_REF_AUDIT = {
+  schema: 'opl_full_payload_ref_audit_plan.v1',
+  record_path: 'dist/opl-full-release/full-package-manifest.json#resolved_refs',
+  telemetry_path: 'dist/opl-full-release/full-workflow-telemetry.json#payload_refs',
+  summary_section: 'Full Payload Resolved Refs',
+  resolution: 'actual_full_workflow_checkout_commit',
+  modes: {
+    stable: {
+      records_resolved_refs: true,
+      pin_input_required: false,
+      default_refs_can_follow_main: true,
+    },
+    draft_candidate: {
+      records_resolved_refs: true,
+      pin_input_required: false,
+      default_refs_can_follow_main: true,
+    },
+  },
+  payloads: {
+    opl_framework: {
+      label: 'OPL Framework',
+      repository: 'gaofeng21cn/one-person-lab',
+      default_ref: 'main',
+      workflow_input: 'framework_ref',
+    },
+    mas: {
+      label: 'MAS',
+      repository: 'gaofeng21cn/med-autoscience',
+      default_ref: 'main',
+    },
+    mag: {
+      label: 'MAG',
+      repository: 'gaofeng21cn/med-autogrant',
+      default_ref: 'main',
+    },
+    rca: {
+      label: 'RCA',
+      repository: 'gaofeng21cn/redcube-ai',
+      default_ref: 'main',
+    },
+    opl_meta_agent: {
+      label: 'OPL Meta Agent',
+      repository: 'gaofeng21cn/opl-meta-agent',
+      default_ref: 'main',
+    },
+    officecli: {
+      label: 'OfficeCLI',
+      repository: 'iOfficeAI/OfficeCLI',
+      default_ref: 'main',
+    },
+    mineru: {
+      label: 'MinerU',
+      repository: 'opendatalab/MinerU-Ecosystem',
+      default_ref: 'main',
+    },
+    ui_ux_skill: {
+      label: 'UI UX skill',
+      repository: 'nextlevelbuilder/ui-ux-pro-max-skill',
+      default_ref: 'main',
+    },
+  },
+} as const;
+
 function parseArgs(argv: string[]) {
   const parsed = {
     version: process.env.OPL_RELEASE_VERSION || '',
@@ -304,11 +367,31 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     required_for: ['standard_release', ...(options.includeFullPackage ? ['full_first_install'] : [])],
   });
 
+  lanes.push({
+    id: 'release_readiness_summary',
+    phase: 'release_gate',
+    depends_on: [
+      'publish_standard',
+      ...(options.includeFullPackage ? ['publish_full_assets'] : []),
+      'remote_verify_standard_and_full',
+      ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
+      ...(options.includeFullPackage && options.settingsVm ? ['full_dmg_clean_vm_smoke'] : []),
+      'one_shot_app_installer_smoke',
+      'docker_webui_smoke',
+      'release_evidence_bundle',
+      'publish_new_tag',
+    ],
+    can_run_with: [],
+    command: '.github/workflows/desktop-release.yml release-readiness-summary writes release-readiness-summary.json from small diagnostic artifacts and fails closed on any required gate',
+    required_for: ['stable_release'],
+  });
+
   return {
     schema_version: 1,
     version: options.version,
     profile: 'stable',
     release_repo: 'gaofeng21cn/one-person-lab-app',
+    full_payload_ref_audit: FULL_PAYLOAD_REF_AUDIT,
     strategy: {
       same_tag_replacement: 'avoid_for_new_versions',
       resume_uploads: 'skip_existing_assets_when_size_and_sha256_digest_match',
