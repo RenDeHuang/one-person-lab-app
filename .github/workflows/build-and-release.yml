@@ -242,7 +242,14 @@ jobs:
             echo "🔧 Creating development release: $TAG_NAME"
           fi
 
+          VERSION="${TAG_NAME#v}"
+          VERSION="${VERSION%%+*}"
+          if [[ "$VERSION" == *-dev-* ]]; then
+            VERSION="${VERSION%%-dev-*}"
+          fi
+
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "is_dev=$IS_DEV" >> $GITHUB_OUTPUT
 
       - name: Download all build artifacts
@@ -252,6 +259,8 @@ jobs:
 
       - name: Prepare release assets (normalize updater metadata)
         shell: bash
+        env:
+          OPL_RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 
       - name: Verify release assets

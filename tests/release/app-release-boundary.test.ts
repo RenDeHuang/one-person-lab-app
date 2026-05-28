@@ -1367,6 +1367,69 @@ test('release asset validation fails before tagging when updater metadata keeps 
   assert.match(result.stderr, /latest-arm64-mac\.yml does not declare OPL release version 26\.5\.25/);
 });
 
+test('release asset preparation drops stale standard assets from older OPL versions', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-stale-assets-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const artifactsDir = path.join(tempRoot, 'artifacts');
+  const releaseAssetsDir = path.join(tempRoot, 'release-assets');
+  const version = '26.5.28';
+  const previousVersion = '26.5.27';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  const metadata = [
+    `version: ${version}`,
+    'files:',
+    `  - url: ${zipName}`,
+    '    sha512: test-zip',
+    '    size: 1',
+    `  - url: ${dmgName}`,
+    '    sha512: test-dmg',
+    '    size: 1',
+    `path: ${zipName}`,
+    'sha512: test-zip',
+    '',
+  ].join('\n');
+
+  writeFile(
+    path.join(shellRoot, 'scripts', 'prepare-release-assets.sh'),
+    [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      'rm -rf "$2"',
+      'mkdir -p "$2"',
+      'cp -f "$1"/* "$2"/',
+      '',
+    ].join('\n'),
+  );
+  fs.chmodSync(path.join(shellRoot, 'scripts', 'prepare-release-assets.sh'), 0o755);
+
+  writeFile(path.join(artifactsDir, dmgName));
+  writeFile(path.join(artifactsDir, zipName));
+  writeFile(path.join(artifactsDir, `${dmgName}.blockmap`));
+  writeFile(path.join(artifactsDir, `${zipName}.blockmap`));
+  writeFile(path.join(artifactsDir, `One-Person-Lab-${previousVersion}-mac-arm64.dmg.blockmap`));
+  writeFile(path.join(artifactsDir, `One-Person-Lab-${previousVersion}-mac-arm64.zip.blockmap`));
+  writeFile(path.join(artifactsDir, 'latest-mac.yml'), metadata);
+  writeFile(path.join(artifactsDir, 'latest-arm64-mac.yml'), metadata);
+
+  const result = runNode(['scripts/prepare-release-assets.ts', artifactsDir, releaseAssetsDir], {
+    env: {
+      OPL_APP_SHELL_ROOT: shellRoot,
+      OPL_RELEASE_VERSION: version,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(fs.readdirSync(releaseAssetsDir).sort(), [
+    dmgName,
+    `${dmgName}.blockmap`,
+    zipName,
+    `${zipName}.blockmap`,
+    'latest-arm64-mac.yml',
+    'latest-mac.yml',
+  ]);
+});
+
 test('remote release verifier validates standard and Full assets from GitHub release view', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-'));
   const version = '26.5.19-remote';
