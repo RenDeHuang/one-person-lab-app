@@ -3120,6 +3120,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   );
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const buildScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
+  const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
   const publishScript = fs.readFileSync(path.join(appRoot, 'scripts', 'publish-release.ts'), 'utf8');
   const prepareStandardScript = fs.readFileSync(path.join(appRoot, 'scripts', 'prepare-standard-release-payload.ts'), 'utf8');
   const electronBuilder = fs.readFileSync(path.join(activeShellRoot, 'packages', 'desktop', 'electron-builder.yml'), 'utf8');
@@ -3254,6 +3255,9 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /path\.join\(skillsRoot, 'using-superpowers', 'SKILL\.md'\)/);
   assert.match(buildScript, /copySuperpowersBundle\(targetRoot, options\)/);
   assert.match(buildScript, /superpowers_fingerprint: directoryFingerprint\(options\.superpowersRoot, 'skills\/superpowers'\)/);
+  assert.match(fullWorkflow, /repository: obra\/superpowers/);
+  assert.match(fullWorkflow, /path: superpowers/);
+  assert.match(fullWorkflow, /OPL_FULL_SUPERPOWERS_ROOT="\$GITHUB_WORKSPACE\/superpowers"/);
   assert.match(buildScript, /copyOplMetaAgentSkill\(targetRoot, options\)/);
   assert.match(buildScript, /copyFirstSkillSource\('mineru-document-extractor'/);
   assert.match(buildScript, /copySingleFile\(sources\.mineruOpenApiBin, path\.join\(layerRoot, 'bin', 'mineru-open-api'\)\)/);
