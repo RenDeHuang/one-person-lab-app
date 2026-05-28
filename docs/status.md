@@ -113,11 +113,18 @@ domain-owned refs.
 
 Current GUI product truth is declared in
 `contracts/app-gui-product-contract.json`: the default executor experience is
-Codex-only; MAS, MAG, RCA, and OPL Meta Agent are the default assistant entries;
-the home prompt, Settings System/Runtime/About/Update/Theme surfaces, module
-path source explanation, stable/nightly release gates, and OPL Agent Codex
-context are App-owned requirements. MDS is not a default GUI module and remains
-historical or explicit-reference only. `contracts/app-shell-adapter.json`
+Codex-only; the home screen exposes three beginner-facing purpose entries:
+科研, 基金, and PPT. Those entries route to MAS, MAG, and RCA respectively, and
+the selected entry is presented as a compact `@` purpose tag instead of a full
+agent-title hero. Codex model selection is visible as an auto-latest selector:
+the App defaults to the latest usable Codex frontier model reported by the
+Codex capability surface while still allowing an explicit user override and a
+return to automatic selection. Settings System/Runtime/About/Update/Theme
+surfaces, module path source explanation, stable/nightly release gates, and OPL
+Agent Codex context are App-owned requirements. OPL Meta Agent remains an
+App/CLI-managed ecosystem module rather than a default home assistant entry.
+MDS is not a default GUI module and remains historical or explicit-reference
+only. `contracts/app-shell-adapter.json`
 requires the active shell to implement that App contract and keeps upstream
 AionUI as implementation material rather than product authority.
 

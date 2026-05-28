@@ -512,9 +512,10 @@ function validateActiveShellImplementation(shellPaths) {
     "document.title = 'One Person Lab App'",
     "t('conversation.welcome.placeholder')",
     'AssistantSelectionArea',
-    'codexDefaultStatus',
-    'DEFAULT_CODEX_MODEL_DISPLAY_LABEL',
-    'CODEX_MODE_NATIVE_FULL_ACCESS',
+    'GuidModelSelector',
+    'MentionSelectorBadge',
+    'selectedAgentLabelOverride',
+    'onClear={() =>',
   ]) {
     if (!guidPage.includes(expected)) {
       throw new Error(`Active shell Guid home must implement ${expected}`);
@@ -543,7 +544,13 @@ function validateActiveShellImplementation(shellPaths) {
   for (const expected of [
     '"default_model": "gpt-5.5"',
     '"default_reasoning_effort": "xhigh"',
-    '"codex_model_selector_visible": false',
+    '"codex_model_selector_visible": true',
+    '"codex_model_list_visible": true',
+    '"codex_model_policy": "auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore"',
+    '"codex_model_auto_option_visible": true',
+    '"codex_default_model": "auto_latest_available_frontier"',
+    '"strategy": "auto_latest_available_codex_frontier"',
+    '"user_can_restore_auto": true',
     '"id": "mas"',
     '"id": "mag"',
     '"id": "rca"',
@@ -1189,6 +1196,9 @@ function validateAppGuiProductContract(guiContract, releaseChannel) {
   }
   if (!pages.guid_home.must_show?.includes('purpose-first assistants Research/Grant/PPT as click-to-start entries')) {
     throw new Error('App GUI home must show purpose-first Research/Grant/PPT entries');
+  }
+  if (!pages.guid_home.must_show?.includes('selected assistant shown as a compact @ purpose tag')) {
+    throw new Error('App GUI home must show selected assistant as a compact @ purpose tag');
   }
   if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
     throw new Error('App GUI home must keep OMA out of default home entries');
