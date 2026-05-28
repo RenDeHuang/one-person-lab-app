@@ -359,6 +359,63 @@ test('release readiness summary keeps one-shot fields actionable when setup_flow
   assert.equal(summary.gates.one_shot_app_installer.fields.skip_modules, true);
 });
 
+test('release readiness summary keeps one-shot failure diagnostics when the installer job fails', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-oneshot-failure-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot);
+  writePassingJobResults(jobResultsPath);
+  writeJson(jobResultsPath, {
+    'full-first-install': 'success',
+    'remote-verify-standard': 'skipped',
+    'remote-verify-full': 'success',
+    'standard-first-run-vm-smoke-after-standard-only': 'skipped',
+    'standard-first-run-vm-smoke-after-full': 'success',
+    'full-first-run-vm-smoke': 'success',
+    'one-shot-app-installer-smoke': 'failure',
+    'docker-webui-smoke': 'success',
+  });
+  writeJson(path.join(artifactsRoot, 'one-shot-app-installer-smoke-26.5.99', 'opl-one-shot-system-initialize.json'), {
+    status: 'failed',
+    error: {
+      code: 'one_shot_app_installer_smoke_failed',
+      message: 'one-shot installer exited with 1',
+      install_exit_code: 1,
+      initialize_exit_code: 0,
+    },
+  });
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'draft_candidate',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.notEqual(result.status, 0, result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'failed');
+  assert.equal(summary.gates.one_shot_app_installer.status, 'failed');
+  assert.match(summary.gates.one_shot_app_installer.reason, /one-shot installer exited with 1/);
+  assert.deepEqual(summary.gates.one_shot_app_installer.fields.error, {
+    code: 'one_shot_app_installer_smoke_failed',
+    message: 'one-shot installer exited with 1',
+    install_exit_code: 1,
+    initialize_exit_code: 0,
+  });
+});
+
 test('desktop release workflow has a final readiness aggregation job that downloads only small artifacts', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const match = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/);
@@ -396,4 +453,18 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.match(job, /summarize-release-readiness\.ts/);
   assert.match(job, /needs\[['"]?remote-verify-full['"]?\]\.result|needs\.remote-verify-full\.result/);
   assert.match(job, /release-readiness-job-results\.json/);
+});
+
+test('one-shot installer smoke uploads its diagnostic artifact even when bootstrap fails', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
+  const match = workflow.match(/\n  one-shot-app-installer-smoke:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/);
+  assert.ok(match, 'desktop release workflow must include one-shot installer smoke job');
+  const job = match[0];
+
+  assert.match(job, /install_status=0/);
+  assert.match(job, /initialize_status=0/);
+  assert.match(job, /one_shot_app_installer_smoke_failed/);
+  assert.match(job, /exit "\$smoke_status"/);
+  assert.match(job, /Upload one-shot installer smoke artifact[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/);
+  assert.match(job, /path: \/tmp\/opl-one-shot-system-initialize\.json/);
 });

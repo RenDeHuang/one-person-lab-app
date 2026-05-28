@@ -348,10 +348,41 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x ./install.sh one-person-lab/install.sh
-          ./install.sh --complete --skip-modules
-          "$OPL_INSTALL_DIR/bin/opl" system initialize --json >/tmp/opl-one-shot-system-initialize.json
+          install_status=0
+          initialize_status=0
+          ./install.sh --complete --skip-modules || install_status=$?
+          if [ "$install_status" -eq 0 ]; then
+            "$OPL_INSTALL_DIR/bin/opl" system initialize --json >/tmp/opl-one-shot-system-initialize.json || initialize_status=$?
+          fi
+          smoke_status="$install_status"
+          if [ "$smoke_status" -eq 0 ]; then
+            smoke_status="$initialize_status"
+          fi
+          if [ "$smoke_status" -ne 0 ] && [ ! -s /tmp/opl-one-shot-system-initialize.json ]; then
+            OPL_ONE_SHOT_INSTALL_EXIT_CODE="$install_status" \
+            OPL_ONE_SHOT_INITIALIZE_EXIT_CODE="$initialize_status" \
+            node <<'NODE'
+          const fs = require('node:fs');
+          const installExitCode = Number(process.env.OPL_ONE_SHOT_INSTALL_EXIT_CODE || 0);
+          const initializeExitCode = Number(process.env.OPL_ONE_SHOT_INITIALIZE_EXIT_CODE || 0);
+          const message = installExitCode !== 0
+            ? `one-shot installer exited with ${installExitCode}`
+            : `opl system initialize exited with ${initializeExitCode}`;
+          fs.writeFileSync('/tmp/opl-one-shot-system-initialize.json', `${JSON.stringify({
+            status: 'failed',
+            error: {
+              code: 'one_shot_app_installer_smoke_failed',
+              message,
+              install_exit_code: installExitCode,
+              initialize_exit_code: initializeExitCode,
+            },
+          }, null, 2)}\n`);
+          NODE
+          fi
+          exit "$smoke_status"
 
       - name: Upload one-shot installer smoke artifact
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: one-shot-app-installer-smoke-${{ inputs.opl_version }}

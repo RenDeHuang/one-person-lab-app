@@ -121,7 +121,9 @@ function applyJobResult(gate: GateSummary, jobResults: Record<string, string>, j
   const status = passed ? gate.status : required ? 'failed' : 'skipped';
   const reason = passed
     ? gate.reason
-    : `Workflow job ${jobName} result is ${result}; expected ${required ? 'success' : 'success or skipped'}.`;
+    : gate.reason
+      ? `Workflow job ${jobName} result is ${result}; expected ${required ? 'success' : 'success or skipped'}. ${gate.reason}`
+      : `Workflow job ${jobName} result is ${result}; expected ${required ? 'success' : 'success or skipped'}.`;
   return {
     ...gate,
     status,
@@ -348,7 +350,7 @@ function buildSummary(options: Options) {
     validate: (payload) => {
       const systemInitialize = recordOrNull(payload.system_initialize);
       const setupFlow = recordOrNull(systemInitialize?.setup_flow);
-      const fields = {
+      const fields: Record<string, unknown> = {
         installer_entry: './install.sh --complete --skip-modules',
         bootstrap_status_source: 'workflow job result one-shot-app-installer-smoke',
         initialization_command: 'opl system initialize --json',
@@ -364,7 +366,12 @@ function buildSummary(options: Options) {
         retry_detected: false,
         skip_modules: true,
       };
-      if (payload.status === 'failed') return { reason: 'One-shot installer reported failed status.', fields };
+      if (payload.status === 'failed') {
+        const error = recordOrNull(payload.error);
+        if (error) fields.error = error;
+        const message = typeof error?.message === 'string' ? error.message : 'One-shot installer reported failed status.';
+        return { reason: message, fields };
+      }
       if (setupFlow?.status && !['ready_to_launch', 'passed', 'initialized'].includes(String(setupFlow.status))) {
         return { reason: `One-shot setup_flow status is ${String(setupFlow.status)}.`, fields };
       }
