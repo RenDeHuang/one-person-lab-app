@@ -51,6 +51,7 @@ concurrency:
   cancel-in-progress: ${{ inputs.release_mode == 'draft_candidate' }}
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   BUN_INSTALL_REGISTRY: 'https://registry.npmjs.org/'
 
 jobs:

@@ -96,6 +96,12 @@ builds that should run on GitHub runners instead of this Mac.
   standalone remote verification, draft promotion, scheduled Full cache warmup,
   and `dev` branch legacy builds cancel older in-progress runs because they are
   refreshable operator lanes.
+- Release and build workflows declare
+  `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` at top-level `env`. This is the
+  App release policy for checked-in JavaScript actions such as checkout,
+  setup-node, artifact, and cache actions, reducing exposure to GitHub Actions
+  Node 20 deprecation while keeping packaged App Node versions and release
+  readiness logic unchanged.
 - `include_full_package=true` delegates to the Full first-install workflow so the
   slower runtime/package assembly runs on GitHub Actions with the runtime layer
   cache.
@@ -461,6 +467,8 @@ Full first-install packages must be explicitly named with `Full` and must not
 be referenced from `latest*.yml`.
 Nightly standard releases use the same standard asset boundary, plus a
 prerelease semver tag, `--latest=false`, and no Full first-install payload.
+The same boundary guard fails closed when any release workflow drops the
+top-level `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` policy.
 
 Full companion text assets, including `README-Full-First-Install.txt`, are
 English-only release assets. Keep those generated strings professional and free

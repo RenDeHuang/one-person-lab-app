@@ -248,6 +248,8 @@ test('release CI operations docs separate implemented release gates from follow-
 
   assertMatches(combinedDocs, /actionlint[\s\S]*workflow semantic gate/i, 'actionlint policy');
   assertMatches(combinedDocs, /YAML parsing[\s\S]*syntax/i, 'YAML parse boundary');
+  assertMatches(combinedDocs, /FORCE_JAVASCRIPT_ACTIONS_TO_NODE24[\s\S]*Node 24[\s\S]*action runtime/i, 'Node 24 action runtime policy');
+  assertMatches(combinedDocs, /test:release-boundary[\s\S]*validate:release-boundary[\s\S]*lock this policy/i, 'Node 24 action runtime validation');
   assertMatches(combinedDocs, /concurrency[\s\S]*duplicate-run governance/i, 'concurrency policy');
   assertMatches(combinedDocs, /not release evidence|not as proof/i, 'concurrency non-evidence boundary');
   assertMatches(combinedDocs, /Machine-readable telemetry[\s\S]*JSON artifact/i, 'machine-readable telemetry artifact');

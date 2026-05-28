@@ -20,6 +20,9 @@ concurrency:
   group: opl-desktop-release-promote-${{ inputs.opl_version }}
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   promote:
     name: Verify and publish draft release

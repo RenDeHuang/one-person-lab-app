@@ -60,6 +60,9 @@ concurrency:
   group: opl-full-first-install-${{ inputs.opl_version }}
   cancel-in-progress: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   full-first-install:
     name: Build App-owned Full first-install DMG

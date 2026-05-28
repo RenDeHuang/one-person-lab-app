@@ -29,6 +29,7 @@ on:
         default: ''
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   BUN_INSTALL_REGISTRY: 'https://registry.npmjs.org/'
   AIONUI_HUB_TAG: 'dist-ebc6a2b'
   # aionrs binary version to bundle (used by scripts/prepareAionrs.js)

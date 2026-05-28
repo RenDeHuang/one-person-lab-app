@@ -8,6 +8,19 @@ import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shellPaths = resolveActiveShellPaths();
 
+const releaseWorkflowPaths = [
+  '.github/workflows/_build-reusable.yml',
+  '.github/workflows/build-and-release.yml',
+  '.github/workflows/build-manual.yml',
+  '.github/workflows/desktop-release-promote.yml',
+  '.github/workflows/desktop-release.yml',
+  '.github/workflows/full-first-install-release.yml',
+  '.github/workflows/full-runtime-cache-warmup.yml',
+  '.github/workflows/nightly-standard-release.yml',
+  '.github/workflows/opl-first-run-vm.yml',
+  '.github/workflows/release-verify-remote.yml',
+];
+
 const checks = [
   {
     id: 'release_contract_repo',
@@ -165,8 +178,24 @@ for (const check of checks) {
   }
 }
 
+for (const workflowPath of releaseWorkflowPaths) {
+  const absolutePath = path.join(appRoot, workflowPath);
+  if (!fs.existsSync(absolutePath)) {
+    console.error(`FAIL actions_node24_runtime_policy: missing ${workflowPath}`);
+    failures += 1;
+    continue;
+  }
+  const text = fs.readFileSync(absolutePath, 'utf8');
+  if (!/\nenv:\n(?:  [A-Z0-9_]+: .+\n)*  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true\n/.test(text)) {
+    console.error(
+      `FAIL actions_node24_runtime_policy: ${workflowPath} must declare FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true in top-level env`,
+    );
+    failures += 1;
+  }
+}
+
 if (failures > 0) {
   process.exit(1);
 }
 
-console.log('PASS: App release boundary is App-owned.');
+console.log('PASS: App release boundary is App-owned and release workflows force JavaScript actions onto Node 24.');

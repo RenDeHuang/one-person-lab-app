@@ -223,6 +223,10 @@ workflow-operations hygiene:
 - `actionlint` is the workflow semantic gate in the reusable build quality
   jobs. YAML parsing only proves syntax; `actionlint` is the check that should
   fail semantic GitHub Actions mistakes.
+- Release workflows must set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` in
+  top-level `env` so checked-in JavaScript actions run on GitHub's Node 24
+  action runtime. `npm run test:release-boundary` and
+  `npm run validate:release-boundary` lock this policy.
 - GitHub Actions `concurrency` is duplicate-run governance. It collapses stale
   scheduled queues or serializes operator runs; it is not release evidence and
   does not replace remote verification, installer smoke, or VM gates.

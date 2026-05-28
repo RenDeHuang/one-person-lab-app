@@ -14,6 +14,18 @@ const externalShellRoot = process.env.OPL_APP_SHELL_ROOT?.trim()
   ? path.resolve(appRoot, process.env.OPL_APP_SHELL_ROOT)
   : null;
 const activeShellRoot = externalShellRoot ?? path.join(appRoot, 'shells', 'aionui');
+const releaseWorkflowPaths = [
+  '.github/workflows/_build-reusable.yml',
+  '.github/workflows/build-and-release.yml',
+  '.github/workflows/build-manual.yml',
+  '.github/workflows/desktop-release-promote.yml',
+  '.github/workflows/desktop-release.yml',
+  '.github/workflows/full-first-install-release.yml',
+  '.github/workflows/full-runtime-cache-warmup.yml',
+  '.github/workflows/nightly-standard-release.yml',
+  '.github/workflows/opl-first-run-vm.yml',
+  '.github/workflows/release-verify-remote.yml',
+];
 
 function runNode(args, options = {}) {
   return spawnSync(process.execPath, ['--experimental-strip-types', ...args], {
@@ -282,6 +294,18 @@ test('release boundary guard keeps App release ownership in App repo', () => {
   const result = runNode(['scripts/validate-release-boundary.ts']);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /App release boundary is App-owned/);
+});
+
+test('release workflows force JavaScript actions onto the Node 24 runtime', () => {
+  for (const workflowPath of releaseWorkflowPaths) {
+    const workflow = fs.readFileSync(path.join(appRoot, workflowPath), 'utf8');
+
+    assert.match(
+      workflow,
+      /\nenv:\n(?:  [A-Z0-9_]+: .+\n)*  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true\n/,
+      `${workflowPath} must declare the Node 24 JavaScript action runtime policy in top-level env`,
+    );
+  }
 });
 
 test('App product profile owns user-facing defaults without runtime authority', () => {
