@@ -29,6 +29,9 @@
         "codex_precise_model_display_policy": "technical_details_or_connected_state_only",
         "codex_default_permission_mode": "full-access",
         "permission_mode_selector_visible": false,
+        "conversation_backend_selector_visible": false,
+        "conversation_model_selector_visible": false,
+        "conversation_permission_mode_selector_visible": false,
         "codex_frontier_model_preference_order": [
           "gpt-5.5",
           "gpt-5.4",
@@ -47,6 +50,15 @@
         "executor_policy_ref": "contracts/app-gui-product-contract.json#executor_policy",
         "assistant_source_ref": "contracts/app-gui-product-contract.json#default_assistants",
         "purpose_entry_source_ref": "contracts/app-gui-product-contract.json#home_purpose_entries",
+        "assistant_skill_profile_source_ref": "contracts/app-gui-product-contract.json#assistant_skill_profiles",
+        "route_receipt_source_ref": "contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy",
+        "route_receipt_required_fields": [
+          "route_kind",
+          "executor",
+          "assistant_id",
+          "assistant_short_name",
+          "source"
+        ],
         "codex_only_default": true,
         "executor_tab_visible_when_single_executor": false,
         "default_assistants": [
@@ -58,6 +70,17 @@
           "mas": "科研",
           "mag": "基金",
           "rca": "PPT"
+        },
+        "default_assistant_required_skills": {
+          "mas": [
+            "mas"
+          ],
+          "mag": [
+            "mag"
+          ],
+          "rca": [
+            "rca"
+          ]
         },
         "home_purpose_entries": [
           {
@@ -92,6 +115,8 @@
         "Codex automatic model status label",
         "purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA",
         "selected assistant shown as a compact @ purpose tag",
+        "selected assistant keeps purpose entry switcher visible",
+        "assistant-scoped skill menu with required skill checked",
         "workspace selector",
         "file attachment control",
         "send action"
@@ -101,7 +126,9 @@
         "Aion CLI or Claude Code backend choices on the home input",
         "Codex model override selector on the home input",
         "permission mode selector on the home input",
+        "backend/model/permission selectors after entering an ordinary Codex conversation",
         "full assistant names as default home entry labels",
+        "AionUI-specific internal skills in home skill menu",
         "OPL Meta Agent as a default home assistant",
         "retired Codex model choices",
         "nested input card frames"

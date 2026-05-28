@@ -124,14 +124,21 @@ domain-owned refs.
 
 Current GUI product truth is declared in
 `contracts/app-gui-product-contract.json`: the default executor experience is
-fixed to Codex CLI on the home path; the home screen exposes three
+fixed to Codex CLI on the ordinary App path; the home screen exposes three
 beginner-facing purpose entries: 科研, 基金, and PPT. Those entries route to
 MAS, MAG, and RCA respectively, and the selected entry is presented as a compact
 `@` purpose tag instead of a full agent-title hero. The home input does not
 expose Aion CLI, Claude Code, backend switching, model override, or permission
-mode controls. It shows only a compact automatic Codex model status label; the
-precise model and reasoning effort belong in technical details or a connected
-state surface. Settings System/Runtime/About/Update/Theme
+mode controls; ordinary Codex conversations must not reintroduce those selector
+surfaces after send. Built-in MAS/MAG/RCA sends must persist a route receipt
+showing `builtin_capability`, `codex_cli`, the assistant id, the assistant short
+name, and `opl_app_home`, so the route is observable beyond the visible badge.
+It shows only a compact automatic Codex model status label; the precise model
+and reasoning effort belong in technical details or a connected state surface.
+Each default purpose entry also owns an assistant-scoped skill profile: MAS
+requires `mas`, MAG requires `mag`, and RCA requires `rca`; optional companion
+skills are selected from that assistant profile, and AionUI-specific internal
+skills stay out of the home skill menu. Settings System/Runtime/About/Update/Theme
 surfaces, module path source explanation, stable/nightly release gates, and OPL
 Agent Codex context are App-owned requirements. OPL Meta Agent remains an
 App/CLI-managed ecosystem module rather than a default home assistant entry.

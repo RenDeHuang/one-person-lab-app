@@ -337,6 +337,9 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.gui.home.codex_default_reasoning_effort, profile.codex.default_reasoning_effort);
   assert.equal(profile.gui.home.codex_default_permission_mode, 'full-access');
   assert.equal(profile.gui.home.permission_mode_selector_visible, false);
+  assert.equal(profile.gui.home.conversation_backend_selector_visible, false);
+  assert.equal(profile.gui.home.conversation_model_selector_visible, false);
+  assert.equal(profile.gui.home.conversation_permission_mode_selector_visible, false);
   assert.equal(profile.gui.home.codex_home_model_status_label, '自动');
   assert.equal(profile.gui.home.codex_home_model_status_label_en, 'Auto');
   assert.equal(profile.gui.home.codex_precise_model_display_policy, 'technical_details_or_connected_state_only');
@@ -359,6 +362,30 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.ok(profile.gui.home.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   assert.deepEqual(profile.gui.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca']);
   assert.ok(profile.gui.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
+  assert.deepEqual(profile.gui.assistant_skill_profiles.map((profile) => profile.assistant_id), ['mas', 'mag', 'rca']);
+  assert.deepEqual(
+    Object.fromEntries(profile.gui.assistant_skill_profiles.map((profile) => [profile.assistant_id, profile.required_skills])),
+    { mas: ['mas'], mag: ['mag'], rca: ['rca'] },
+  );
+  assert.ok(
+    profile.gui.assistant_skill_profiles.every(
+      (profile) => profile.skill_menu_policy === 'assistant_scoped_required_checked_optional_visible',
+    ),
+  );
+  assert.ok(profile.gui.assistant_skill_profiles.every((profile) => profile.hidden_home_skill_names.includes('aionui-skills')));
+  assert.equal(profile.gui.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
+  assert.deepEqual(profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca']);
+  assert.equal(profile.gui.builtin_assistant_route_receipt_policy.route_kind, 'builtin_capability');
+  assert.equal(profile.gui.builtin_assistant_route_receipt_policy.executor, 'codex_cli');
+  assert.equal(profile.gui.builtin_assistant_route_receipt_policy.source, 'opl_app_home');
+  assert.deepEqual(profile.gui.builtin_assistant_route_receipt_policy.required_fields, [
+    'route_kind',
+    'executor',
+    'assistant_id',
+    'assistant_short_name',
+    'source',
+  ]);
+  assert.equal(profile.gui.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection, true);
   assert.equal(profile.gui.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
   assert.ok(profile.codex.default_visible_skills.includes('superpowers'));
   assert.ok(profile.codex.default_visible_skills.includes('mineru-document-extractor'));
@@ -690,6 +717,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guidHomePage.home_view_model.codex_default_display_label, '自动');
   assert.equal(guidHomePage.home_view_model.codex_default_permission_mode, 'full-access');
   assert.equal(guidHomePage.home_view_model.permission_mode_selector_visible, false);
+  assert.equal(guidHomePage.home_view_model.conversation_backend_selector_visible, false);
+  assert.equal(guidHomePage.home_view_model.conversation_model_selector_visible, false);
+  assert.equal(guidHomePage.home_view_model.conversation_permission_mode_selector_visible, false);
   assert.equal(guidHomePage.home_view_model.codex_precise_model_display_policy, 'technical_details_or_connected_state_only');
   assert.deepEqual(guidHomePage.home_view_model.codex_frontier_model_preference_order, [
     'gpt-5.5',
@@ -711,7 +741,27 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guidHomePage.home_view_model.codex_only_default, true);
   assert.equal(guidHomePage.home_view_model.executor_tab_visible_when_single_executor, false);
   assert.equal(guidHomePage.home_view_model.purpose_entry_source_ref, 'contracts/app-gui-product-contract.json#home_purpose_entries');
+  assert.equal(
+    guidHomePage.home_view_model.assistant_skill_profile_source_ref,
+    'contracts/app-gui-product-contract.json#assistant_skill_profiles',
+  );
+  assert.equal(
+    guidHomePage.home_view_model.route_receipt_source_ref,
+    'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
+  );
+  assert.deepEqual(guidHomePage.home_view_model.route_receipt_required_fields, [
+    'route_kind',
+    'executor',
+    'assistant_id',
+    'assistant_short_name',
+    'source',
+  ]);
   assert.deepEqual(guidHomePage.home_view_model.default_assistants, ['mas', 'mag', 'rca']);
+  assert.deepEqual(guidHomePage.home_view_model.default_assistant_required_skills, {
+    mas: ['mas'],
+    mag: ['mag'],
+    rca: ['rca'],
+  });
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', 'PPT']);
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
@@ -720,6 +770,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'Codex CLI fixed executor experience',
     'Codex automatic model status label',
     'purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA',
+    'selected assistant keeps purpose entry switcher visible',
+    'assistant-scoped skill menu with required skill checked',
     'workspace selector',
     'file attachment control',
     'send action',
@@ -731,7 +783,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'Aion CLI or Claude Code backend choices on the home input',
     'Codex model override selector on the home input',
     'permission mode selector on the home input',
+    'backend/model/permission selectors after entering an ordinary Codex conversation',
     'full assistant names as default home entry labels',
+    'AionUI-specific internal skills in home skill menu',
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
@@ -2144,6 +2198,8 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.executor_policy.permission_mode_selector_visible_on_home, false);
   assert.equal(guiContract.executor_policy.model_selector_visible_on_new_conversation, false);
   assert.equal(guiContract.executor_policy.model_selector_visible_in_conversation, false);
+  assert.equal(guiContract.executor_policy.backend_selector_visible_in_conversation, false);
+  assert.equal(guiContract.executor_policy.permission_mode_selector_visible_in_conversation, false);
   assert.equal(guiContract.executor_policy.user_model_override_allowed, false);
   assert.equal(guiContract.executor_policy.restore_auto_model_selection_allowed, false);
   assert.deepEqual(guiContract.executor_policy.frontier_model_preference_order, [
@@ -2154,6 +2210,29 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   ]);
   assert.deepEqual(guiContract.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca']);
   assert.ok(guiContract.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
+  assert.deepEqual(guiContract.assistant_skill_profiles.map((profile) => profile.assistant_id), ['mas', 'mag', 'rca']);
+  assert.deepEqual(
+    Object.fromEntries(guiContract.assistant_skill_profiles.map((profile) => [profile.assistant_id, profile.required_skills])),
+    { mas: ['mas'], mag: ['mag'], rca: ['rca'] },
+  );
+  assert.ok(
+    guiContract.assistant_skill_profiles.every(
+      (profile) => profile.skill_menu_policy === 'assistant_scoped_required_checked_optional_visible',
+    ),
+  );
+  assert.equal(guiContract.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
+  assert.deepEqual(guiContract.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca']);
+  assert.equal(guiContract.builtin_assistant_route_receipt_policy.route_kind, 'builtin_capability');
+  assert.equal(guiContract.builtin_assistant_route_receipt_policy.executor, 'codex_cli');
+  assert.equal(guiContract.builtin_assistant_route_receipt_policy.source, 'opl_app_home');
+  assert.deepEqual(guiContract.builtin_assistant_route_receipt_policy.required_fields, [
+    'route_kind',
+    'executor',
+    'assistant_id',
+    'assistant_short_name',
+    'source',
+  ]);
+  assert.equal(guiContract.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection, true);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', 'PPT']);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);

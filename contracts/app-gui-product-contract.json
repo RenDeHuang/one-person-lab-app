@@ -64,6 +64,8 @@
     "permission_mode_selector_visible_on_home": false,
     "model_selector_visible_on_new_conversation": false,
     "model_selector_visible_in_conversation": false,
+    "backend_selector_visible_in_conversation": false,
+    "permission_mode_selector_visible_in_conversation": false,
     "model_selection_auto_option_visible": false,
     "user_model_override_allowed": false,
     "restore_auto_model_selection_allowed": false,
@@ -74,6 +76,25 @@
       "gpt-5.2"
     ],
     "send_after_model_display_policy": "must_not_require_model_or_executor_choice_before_send"
+  },
+  "builtin_assistant_route_receipt_policy": {
+    "scope": "home_purpose_entry_to_conversation",
+    "required_for_assistants": [
+      "mas",
+      "mag",
+      "rca"
+    ],
+    "route_kind": "builtin_capability",
+    "executor": "codex_cli",
+    "source": "opl_app_home",
+    "required_fields": [
+      "route_kind",
+      "executor",
+      "assistant_id",
+      "assistant_short_name",
+      "source"
+    ],
+    "must_not_depend_on_visible_backend_selection": true
   },
   "home_purpose_entries": [
     {
@@ -128,6 +149,68 @@
       "home_entry_display_policy": "purpose_first",
       "role": "presentation_and_visual_deliverable_agent",
       "home_entry_policy": "purpose_entry_target"
+    }
+  ],
+  "assistant_skill_profiles": [
+    {
+      "assistant_id": "mas",
+      "required_skills": [
+        "mas"
+      ],
+      "optional_skills": [
+        "mineru-document-extractor",
+        "officecli-docx",
+        "officecli-xlsx"
+      ],
+      "hidden_home_skill_names": [
+        "aionui-skills",
+        "aionui-webui-setup",
+        "cron",
+        "skill-creator"
+      ],
+      "required_skill_policy": "checked_locked",
+      "optional_skill_policy": "unchecked_user_selectable",
+      "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
+    },
+    {
+      "assistant_id": "mag",
+      "required_skills": [
+        "mag"
+      ],
+      "optional_skills": [
+        "officecli-docx",
+        "officecli-xlsx",
+        "mineru-document-extractor"
+      ],
+      "hidden_home_skill_names": [
+        "aionui-skills",
+        "aionui-webui-setup",
+        "cron",
+        "skill-creator"
+      ],
+      "required_skill_policy": "checked_locked",
+      "optional_skill_policy": "unchecked_user_selectable",
+      "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
+    },
+    {
+      "assistant_id": "rca",
+      "required_skills": [
+        "rca"
+      ],
+      "optional_skills": [
+        "officecli-pptx",
+        "morph-ppt",
+        "ui-ux-pro-max"
+      ],
+      "hidden_home_skill_names": [
+        "aionui-skills",
+        "aionui-webui-setup",
+        "cron",
+        "skill-creator"
+      ],
+      "required_skill_policy": "checked_locked",
+      "optional_skill_policy": "unchecked_user_selectable",
+      "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     }
   ],
   "non_default_assistants": [
@@ -332,12 +415,15 @@
       "executor_policy_ref": "executor_policy",
       "assistant_source_ref": "default_assistants",
       "purpose_entry_source_ref": "home_purpose_entries",
+      "assistant_skill_profile_source_ref": "assistant_skill_profiles",
       "hero_prompt": "把研究、基金和汇报交给 One Person Lab 自动推进",
       "must_show": [
         "Codex CLI fixed executor experience",
         "Codex automatic model status label",
         "purpose-first assistants Research/Grant/PPT as click-to-start entries",
         "selected assistant shown as a compact @ purpose tag",
+        "selected assistant keeps purpose entry switcher visible",
+        "assistant-scoped skill menu with required skill checked",
         "workspace selector",
         "file attachment control",
         "send action"
@@ -347,8 +433,10 @@
         "Aion CLI or Claude Code backend choices on the home input",
         "Codex model override selector on the home input",
         "permission mode selector on the home input",
+        "backend/model/permission selectors after entering an ordinary Codex conversation",
         "OPL Meta Agent as a default home assistant",
         "selected assistant full name as the hero title",
+        "AionUI-specific internal skills in home skill menu",
         "retired Codex model choices",
         "nested input card frames"
       ]

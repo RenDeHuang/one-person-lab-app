@@ -7,7 +7,7 @@ Machine boundary: Human-readable project boundary. Machine-readable truth lives 
 
 One Person Lab App is the desktop product repository for One Person Lab. It owns packaging, release assets, updater metadata, user guides, screenshots, first-run checks, App product contracts, GUI runtime bridge contract, GUI product truth, and GUI page-state validation.
 
-The intended product shape is a Codex App equivalent wrapper for the OPL family: Codex CLI is the fixed executor on the user home path, and MAS, MAG, and RCA are built-in intelligent task entries for research, grants, and presentation work. The App does not present upstream AionUI multi-backend selection as a normal user workflow.
+The intended product shape is a Codex App equivalent wrapper for the OPL family: Codex CLI is the fixed executor on the ordinary user path, and MAS, MAG, and RCA are built-in intelligent task entries for research, grants, and presentation work. The App does not present upstream AionUI multi-backend selection as a normal user workflow. Selecting a built-in entry creates a Codex CLI conversation with an App-owned route receipt; it is not a backend switcher.
 
 The App consumes OPL Framework CLI JSON, machine-readable contracts, provider receipts, and domain-owned projections. It does not own OPL runtime truth, provider implementation, MAS/MAG/RCA domain truth, domain quality verdicts, memory body, artifact body, or artifact authority.
 

@@ -48,6 +48,9 @@ export type AppProductProfile = {
       codex_default_reasoning_effort: string;
       codex_default_permission_mode: string;
       permission_mode_selector_visible: boolean;
+      conversation_backend_selector_visible: boolean;
+      conversation_model_selector_visible: boolean;
+      conversation_permission_mode_selector_visible: boolean;
       codex_home_model_status_label: string;
       codex_home_model_status_label_en: string;
       codex_precise_model_display_policy: string;
@@ -68,6 +71,15 @@ export type AppProductProfile = {
       }>;
       retired_codex_models_must_not_be_exposed: string[];
     };
+    builtin_assistant_route_receipt_policy: {
+      scope: string;
+      required_for_assistants: string[];
+      route_kind: string;
+      executor: string;
+      source: string;
+      required_fields: string[];
+      must_not_depend_on_visible_backend_selection: boolean;
+    };
     default_assistants: Array<{
       id: string;
       display_name: string;
@@ -79,6 +91,15 @@ export type AppProductProfile = {
       avatar: string;
       description_i18n: Record<string, string>;
       prompts_i18n: Record<string, string[]>;
+    }>;
+    assistant_skill_profiles: Array<{
+      assistant_id: string;
+      required_skills: string[];
+      optional_skills: string[];
+      hidden_home_skill_names: string[];
+      required_skill_policy: string;
+      optional_skill_policy: string;
+      skill_menu_policy: string;
     }>;
     non_default_assistants: Array<{
       id: string;
@@ -180,6 +201,14 @@ function assertStringArray(value: unknown, label: string, options: { allowBlank?
   }
 }
 
+function assertIncludesAll(actual: string[], expected: string[], label: string): void {
+  for (const item of expected) {
+    if (!actual.includes(item)) {
+      throw new Error(`Invalid App product profile ${label}: missing ${item}`);
+    }
+  }
+}
+
 function assertProfileShape(profile: AppProductProfile): void {
   if (profile.owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected App product profile owner: ${profile.owner}`);
@@ -226,7 +255,10 @@ function assertProfileShape(profile: AppProductProfile): void {
     profile.gui.home?.codex_model_list_visible !== false ||
     profile.gui.home?.codex_model_policy !== 'codex_cli_auto_model_hidden_on_home' ||
     profile.gui.home?.codex_model_auto_option_visible !== false ||
-    profile.gui.home?.permission_mode_selector_visible !== false
+    profile.gui.home?.permission_mode_selector_visible !== false ||
+    profile.gui.home?.conversation_backend_selector_visible !== false ||
+    profile.gui.home?.conversation_model_selector_visible !== false ||
+    profile.gui.home?.conversation_permission_mode_selector_visible !== false
   ) {
     throw new Error('App product profile GUI home contract must keep Codex CLI fixed and hide executor/model/permission selectors');
   }
@@ -271,6 +303,26 @@ function assertProfileShape(profile: AppProductProfile): void {
     profile.gui.home.retired_codex_models_must_not_be_exposed,
     'gui.home.retired_codex_models_must_not_be_exposed',
   );
+  if (
+    profile.gui.builtin_assistant_route_receipt_policy?.scope !== 'home_purpose_entry_to_conversation' ||
+    profile.gui.builtin_assistant_route_receipt_policy.route_kind !== 'builtin_capability' ||
+    profile.gui.builtin_assistant_route_receipt_policy.executor !== 'codex_cli' ||
+    profile.gui.builtin_assistant_route_receipt_policy.source !== 'opl_app_home' ||
+    profile.gui.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection !== true
+  ) {
+    throw new Error('App product profile built-in assistant routes must emit Codex CLI route receipts without visible backend selection');
+  }
+  if (
+    JSON.stringify(profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants) !==
+    JSON.stringify(['mas', 'mag', 'rca'])
+  ) {
+    throw new Error('App product profile route receipt policy must cover MAS, MAG, and RCA');
+  }
+  assertIncludesAll(
+    profile.gui.builtin_assistant_route_receipt_policy.required_fields,
+    ['route_kind', 'executor', 'assistant_id', 'assistant_short_name', 'source'],
+    'gui.builtin_assistant_route_receipt_policy.required_fields',
+  );
   const defaultAssistantIds = profile.gui.default_assistants?.map((assistant) => assistant.id) ?? [];
   if (JSON.stringify(defaultAssistantIds) !== JSON.stringify(['mas', 'mag', 'rca'])) {
     throw new Error('App product profile default home assistants must be MAS, MAG, and RCA only');
@@ -293,6 +345,34 @@ function assertProfileShape(profile: AppProductProfile): void {
     }
     assertStringArray(Object.keys(assistant.description_i18n ?? {}), `gui.default_assistants.${assistant.id}.description_i18n`);
     assertStringArray(Object.keys(assistant.prompts_i18n ?? {}), `gui.default_assistants.${assistant.id}.prompts_i18n`);
+  }
+  const skillProfiles = profile.gui.assistant_skill_profiles ?? [];
+  if (JSON.stringify(skillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
+    throw new Error('App product profile assistant skill profiles must target MAS, MAG, and RCA');
+  }
+  const requiredByAssistant = new Map(skillProfiles.map((entry) => [entry.assistant_id, entry.required_skills]));
+  for (const assistantId of ['mas', 'mag', 'rca']) {
+    const requiredSkills = requiredByAssistant.get(assistantId);
+    if (JSON.stringify(requiredSkills) !== JSON.stringify([assistantId])) {
+      throw new Error(`App product profile assistant ${assistantId} must require its matching Codex skill`);
+    }
+  }
+  for (const entry of skillProfiles) {
+    assertStringArray(entry.required_skills, `gui.assistant_skill_profiles.${entry.assistant_id}.required_skills`);
+    assertStringArray(entry.optional_skills, `gui.assistant_skill_profiles.${entry.assistant_id}.optional_skills`);
+    assertStringArray(entry.hidden_home_skill_names, `gui.assistant_skill_profiles.${entry.assistant_id}.hidden_home_skill_names`);
+    if (
+      entry.required_skill_policy !== 'checked_locked' ||
+      entry.optional_skill_policy !== 'unchecked_user_selectable' ||
+      entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
+    ) {
+      throw new Error(`App product profile assistant ${entry.assistant_id} has invalid skill menu policy`);
+    }
+    for (const hiddenSkill of ['aionui-skills', 'aionui-webui-setup', 'cron', 'skill-creator']) {
+      if (!entry.hidden_home_skill_names.includes(hiddenSkill)) {
+        throw new Error(`App product profile assistant ${entry.assistant_id} must hide ${hiddenSkill} on the home skill menu`);
+      }
+    }
   }
   const oma = profile.gui.non_default_assistants?.find((assistant) => assistant.id === 'oma');
   if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
@@ -416,4 +496,20 @@ export function syncAppProductProfileToShell(
     spawnSync(localOxfmt, [targetPath], { cwd: shellRoot, stdio: 'ignore' });
   }
   return { synced: true, targetPath };
+}
+
+function main(): void {
+  const profile = readAppProductProfile();
+  const shellPaths = resolveActiveShellPaths();
+  const result = syncAppProductProfileToShell(shellPaths.shellRoot);
+  console.log(JSON.stringify({
+    status: result.synced ? 'synced' : 'skipped',
+    owner: profile.owner,
+    source: path.relative(appRoot, appProductProfilePath),
+    target: result.targetPath,
+  }, null, 2));
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
 }

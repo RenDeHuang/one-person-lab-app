@@ -611,6 +611,10 @@ function validateActiveShellImplementation(shellPaths) {
     '"id": "mag"',
     '"id": "rca"',
     '"id": "oma"',
+    '"assistant_skill_profiles"',
+    '"required_skills"',
+    '"skill_menu_policy": "assistant_scoped_required_checked_optional_visible"',
+    '"aionui-skills"',
   ]) {
     if (!productProfile.includes(expected)) {
       throw new Error(`Active shell product profile must carry App Codex default ${expected}`);
@@ -621,9 +625,13 @@ function validateActiveShellImplementation(shellPaths) {
   for (const expected of [
     'getOplDefaultExecutorAgentKey',
     'getOplDefaultHomeAssistants',
+    'getOplAssistantSkillProfiles',
     'resolveOplHomeAssistants',
     'const DEFAULT_PRESET_AGENT_TYPE = getOplDefaultExecutorAgentKey()',
     'preset_agent_type: DEFAULT_PRESET_AGENT_TYPE',
+    'enabled_skills',
+    'custom_skill_names',
+    'disabled_builtin_skills',
   ]) {
     if (!guidAssistants.includes(expected)) {
       throw new Error(`Active shell Guid assistants must consume App-owned assistant/default signal ${expected}`);
@@ -631,6 +639,55 @@ function validateActiveShellImplementation(shellPaths) {
   }
   if (/mds|Med Deep Scientist/.test(guidAssistants)) {
     throw new Error('Active shell Guid profile must not include MDS as a default home assistant.');
+  }
+
+  for (const expected of [
+    'selectedAssistantRequiredSkills',
+    'selectedAssistantOptionalSkills',
+    'selectedAssistantHiddenHomeSkills',
+    'scopedHomeSkills',
+    'visibleSkills.has(skill.name)',
+    '!selectedAssistantHiddenHomeSkills.includes(skill.name)',
+    'setGuidEnabledSkills(selectedAssistantRequiredSkills)',
+    'allSkills={scopedHomeSkills}',
+    'lockedSkills={selectedAssistantRequiredSkills}',
+  ]) {
+    if (!guidPage.includes(expected)) {
+      throw new Error(`Active shell Guid page must enforce App assistant skill profile rule ${expected}`);
+    }
+  }
+
+  const guidActionRow = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx',
+  );
+  for (const expected of [
+    'lockedSkills',
+    'lockedSkillSet',
+    'lockedSkillSet.has(skill.name)',
+    'disabled={lockedSkillSet.has(skill.name)}',
+  ]) {
+    if (!guidActionRow.includes(expected)) {
+      throw new Error(`Active shell Guid action row must lock required assistant skills ${expected}`);
+    }
+  }
+
+  const createConversationParams = readShellText(
+    shellPaths,
+    'packages/desktop/src/common/utils/buildAgentConversationParams.ts',
+  );
+  for (const expected of [
+    'isOplCodexCliFixedExecutor',
+    'buildOplAssistantRouteReceipt',
+    'opl_assistant_route',
+    'preset_enabled_skills',
+    "route_kind: 'builtin_capability'",
+    "executor: 'codex_cli'",
+    "source: 'opl_app_home'",
+  ]) {
+    if (!createConversationParams.includes(expected)) {
+      throw new Error(`Active shell create conversation must persist App assistant route/skill signal ${expected}`);
+    }
   }
 
   const presets = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/DisplaySettings/presets.ts');
@@ -1346,6 +1403,27 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
       throw new Error(`Default assistant ${assistantId} must be a purpose-first entry target`);
     }
   }
+  const skillProfiles = guiContract.assistant_skill_profiles ?? [];
+  if (JSON.stringify(skillProfiles.map((profile) => profile.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
+    throw new Error('App GUI contract assistant skill profiles must target MAS, MAG, and RCA');
+  }
+  for (const profile of skillProfiles) {
+    if (JSON.stringify(profile.required_skills) !== JSON.stringify([profile.assistant_id])) {
+      throw new Error(`App GUI assistant ${profile.assistant_id} must require its matching skill`);
+    }
+    if (
+      profile.required_skill_policy !== 'checked_locked' ||
+      profile.optional_skill_policy !== 'unchecked_user_selectable' ||
+      profile.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
+    ) {
+      throw new Error(`App GUI assistant ${profile.assistant_id} has invalid home skill policy`);
+    }
+    for (const hiddenSkill of ['aionui-skills', 'aionui-webui-setup', 'cron', 'skill-creator']) {
+      if (!profile.hidden_home_skill_names?.includes(hiddenSkill)) {
+        throw new Error(`App GUI assistant ${profile.assistant_id} must hide ${hiddenSkill} from the home skill menu`);
+      }
+    }
+  }
   const purposeEntries = guiContract.home_purpose_entries ?? [];
   if (JSON.stringify(purposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
     throw new Error('App GUI contract must expose research, grant, and ppt purpose entries');
@@ -1577,6 +1655,7 @@ function validatePageStateMatrix(matrix, contract) {
     refresh_source: 'opl app state --profile fast --json',
     executor_policy_ref: 'contracts/app-gui-product-contract.json#executor_policy',
     assistant_source_ref: 'contracts/app-gui-product-contract.json#default_assistants',
+    assistant_skill_profile_source_ref: 'contracts/app-gui-product-contract.json#assistant_skill_profiles',
     codex_only_default: true,
     codex_cli_fixed_executor: true,
     home_executor_selector_visible: false,
@@ -1593,6 +1672,9 @@ function validatePageStateMatrix(matrix, contract) {
     codex_precise_model_display_policy: 'technical_details_or_connected_state_only',
     codex_default_permission_mode: 'full-access',
     permission_mode_selector_visible: false,
+    conversation_backend_selector_visible: false,
+    conversation_model_selector_visible: false,
+    conversation_permission_mode_selector_visible: false,
   })) {
     if (homeViewModel[field] !== expected) {
       throw new Error(`Guid home page ${field} must be ${expected}`);
@@ -1606,9 +1688,23 @@ function validatePageStateMatrix(matrix, contract) {
   if (homeViewModel.default_assistants?.includes('oma')) {
     throw new Error('Guid home page must not include OMA as a default assistant');
   }
+  const requiredSkills = homeViewModel.default_assistant_required_skills ?? {};
+  for (const assistant of ['mas', 'mag', 'rca']) {
+    if (JSON.stringify(requiredSkills[assistant]) !== JSON.stringify([assistant])) {
+      throw new Error(`Guid home page must require ${assistant} skill for ${assistant}`);
+    }
+  }
   if (homeViewModel.purpose_entry_source_ref !== 'contracts/app-gui-product-contract.json#home_purpose_entries') {
     throw new Error('Guid home page must reference App-owned purpose entries');
   }
+  if (homeViewModel.route_receipt_source_ref !== 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy') {
+    throw new Error('Guid home page must reference App-owned built-in assistant route receipt policy');
+  }
+  assertIncludesAll(
+    homeViewModel.route_receipt_required_fields,
+    ['route_kind', 'executor', 'assistant_id', 'assistant_short_name', 'source'],
+    'Guid home page route receipt fields',
+  );
   const homePurposeEntries = homeViewModel.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
     throw new Error('Guid home page must expose research, grant, and ppt purpose entries');
@@ -1620,6 +1716,8 @@ function validatePageStateMatrix(matrix, contract) {
     'Codex CLI fixed executor experience',
     'Codex automatic model status label',
     'purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA',
+    'selected assistant keeps purpose entry switcher visible',
+    'assistant-scoped skill menu with required skill checked',
     'workspace selector',
     'file attachment control',
     'send action',
@@ -1633,7 +1731,9 @@ function validatePageStateMatrix(matrix, contract) {
     'Aion CLI or Claude Code backend choices on the home input',
     'Codex model override selector on the home input',
     'permission mode selector on the home input',
+    'backend/model/permission selectors after entering an ordinary Codex conversation',
     'full assistant names as default home entry labels',
+    'AionUI-specific internal skills in home skill menu',
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
@@ -2345,6 +2445,9 @@ function validateProductProfileCodexDefaults(profile) {
     profile.gui.home?.codex_default_reasoning_effort !== profile.codex?.default_reasoning_effort ||
     profile.gui.home?.codex_default_permission_mode !== 'full-access' ||
     profile.gui.home?.permission_mode_selector_visible !== false ||
+    profile.gui.home?.conversation_backend_selector_visible !== false ||
+    profile.gui.home?.conversation_model_selector_visible !== false ||
+    profile.gui.home?.conversation_permission_mode_selector_visible !== false ||
     profile.gui.home?.codex_home_model_status_label !== '自动' ||
     profile.gui.home?.codex_precise_model_display_policy !== 'technical_details_or_connected_state_only'
   ) {
@@ -2357,6 +2460,25 @@ function validateProductProfileCodexDefaults(profile) {
   ) {
     throw new Error('Product profile GUI home must keep Codex CLI automatic model selection hidden on the home path');
   }
+  if (
+    profile.gui.builtin_assistant_route_receipt_policy?.scope !== 'home_purpose_entry_to_conversation' ||
+    profile.gui.builtin_assistant_route_receipt_policy.route_kind !== 'builtin_capability' ||
+    profile.gui.builtin_assistant_route_receipt_policy.executor !== 'codex_cli' ||
+    profile.gui.builtin_assistant_route_receipt_policy.source !== 'opl_app_home' ||
+    profile.gui.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection !== true
+  ) {
+    throw new Error('Product profile must require built-in assistant Codex CLI route receipts');
+  }
+  assertIncludesAll(
+    profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants,
+    ['mas', 'mag', 'rca'],
+    'Product profile route receipt assistants',
+  );
+  assertIncludesAll(
+    profile.gui.builtin_assistant_route_receipt_policy.required_fields,
+    ['route_kind', 'executor', 'assistant_id', 'assistant_short_name', 'source'],
+    'Product profile route receipt fields',
+  );
   const homePurposeEntries = profile.gui.home.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
     throw new Error('Product profile GUI home must expose research, grant, and ppt purpose entries');
@@ -2366,6 +2488,21 @@ function validateProductProfileCodexDefaults(profile) {
   }
   if (JSON.stringify((profile.gui.default_assistants ?? []).map((assistant) => assistant.id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
     throw new Error('Product profile default assistants must be MAS, MAG, and RCA only');
+  }
+  const productSkillProfiles = profile.gui.assistant_skill_profiles ?? [];
+  if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
+    throw new Error('Product profile assistant skill profiles must target MAS, MAG, and RCA');
+  }
+  for (const entry of productSkillProfiles) {
+    if (JSON.stringify(entry.required_skills) !== JSON.stringify([entry.assistant_id])) {
+      throw new Error(`Product profile assistant ${entry.assistant_id} must require its matching skill`);
+    }
+    if (entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible') {
+      throw new Error(`Product profile assistant ${entry.assistant_id} has invalid home skill menu policy`);
+    }
+    if (!entry.hidden_home_skill_names?.includes('aionui-skills')) {
+      throw new Error(`Product profile assistant ${entry.assistant_id} must hide AionUI internal skills on the home skill menu`);
+    }
   }
   for (const assistant of profile.gui.default_assistants ?? []) {
     if (assistant.home_entry_policy !== 'purpose_entry_target' || assistant.home_entry_display_policy !== 'purpose_first') {
