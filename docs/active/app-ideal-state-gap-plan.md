@@ -16,8 +16,10 @@ Date: `2026-05-28`
 | Product contracts | `landed_with_release_evidence_tail` | `contracts/app-product-profile.json`, `contracts/app-page-state-matrix.json`, `contracts/app-first-run-test-matrix.json`, and `contracts/app-release-channel.json` hold App-owned machine policy. |
 | Release user-path evidence | `current_cohort_refs_verified` | Fresh OPL App/operator summary reads `app_release_user_path_evidence_gate_count=5`, `app_release_user_path_evidence_open_gate_count=0`, `app_release_user_path_evidence_verified_ledger_receipt_ref_count=6`, and `app_release_user_path_production_user_path_ready=true`; this is refs-only user-path evidence, not App release-ready or family production-ready authority. |
 | Codex App positioning | `active_contract_truth` | The App ordinary path is a Codex CLI fixed-executor experience with built-in MAS/MAG/RCA purpose entries; AionUI multi-backend choices are implementation material, not the user-facing App model. |
+| Active shell upstream intake | `landed_verified` | The active shell has absorbed AionUI upstream through `5ac67e0d1f9df229a90269c0725a674d930754de`; App `contracts/app-shell-adapter.json` records that upstream ref while shell implementation history stays in `gaofeng21cn/opl-aion-shell`. |
 | Home shell conformance | `landed_contract_backed` | App contracts and shell tests now require the home input to hide executor/model/permission selectors and show MAS/MAG/RCA as purpose-first entries. |
 | Conversation shell conformance | `landed_contract_backed` | App contracts now require ordinary Codex conversations to keep backend/model/permission selectors hidden after send; shell tests cover the conversation header and sendbox. |
+| Codex CLI tool-output rendering | `landed_shell_tested` | The active shell normalizes Codex ACP `raw_output` from `aggregated_output`, `formatted_output`, `stdout`, and `stderr` fields and preserves newline-bearing tool output in the conversation view; the shell regression test covers the newline case. |
 | Built-in assistant route receipt | `landed_contract_backed` | App contracts now require MAS/MAG/RCA home entry sends to persist a Codex CLI `builtin_capability` route receipt so selection is observable beyond the UI badge. |
 | Settings diagnostics partition | `landed_contract_backed` | App contracts and product profile now require ordinary Settings tabs to be Overview, Runtime, Capabilities, Access, Appearance, System, and About. Legacy model/agent/assistants/skills-hub/tools/display/webui/pet routes redirect to App-owned pages, and active-shell validation plus shell tests cover the modal, router, and Guid Access shortcut. |
 | Docs lifecycle | `single_active_truth_owner` | This file holds current App product gaps and next-round baton; `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, and `docs/decisions.md` hold durable current truth. |
@@ -45,13 +47,14 @@ Write scope:
 
 Live truth inputs:
 
-- `AGENTS.md`, `TASTE.md`, `README.md`, `docs/README.md`, `docs/status.md`, this plan, App contracts, release/test scripts, shell adapter contract, release evidence manifests, and active shell validation outputs.
+- `AGENTS.md`, `TASTE.md`, `README.md`, `docs/README.md`, `docs/status.md`, this plan, App contracts, release/test scripts, shell adapter contract, release evidence manifests, active shell validation outputs, and focused shell tests for App-owned GUI behavior.
 - OPL Framework runtime/App drilldown CLI JSON only as consumed input; it remains framework-owned truth.
 
 Required actions:
 
 - Keep App docs, contracts, release wrappers, evidence manifests, and page-state tests aligned with the App product boundary.
 - Keep the App ordinary path aligned with the Codex App equivalent positioning: Codex CLI fixed executor, no home or ordinary-conversation backend/model/permission selector, MAS/MAG/RCA as built-in purpose entries, precise model details limited to technical/connected-state surfaces.
+- Keep Codex CLI conversation output rendering aligned with native Codex behavior: ACP tool-call normalization must preserve newline-bearing `raw_output` / `stdout` / `stderr` content instead of collapsing command output into one visual line.
 - Keep built-in assistant sends observable with a route receipt: `route_kind=builtin_capability`, `executor=codex_cli`, `assistant_id`, `assistant_short_name`, and `source=opl_app_home`.
 - Keep ordinary Settings aligned with the App-owned navigation partition: Overview, Runtime, Capabilities, Access, Appearance, System, and About. Treat model/agent/assistants/skills-hub/tools/display/webui/pet as legacy or diagnostics routes that redirect to App-owned pages.
 - Keep shell candidate work isolated in `contracts/app-shell-candidates.json`, `contracts/shell-adapters/<candidate>.json`, and linked `shells/<candidate>` external repos until adoption; default release wrappers continue to use `contracts/app-shell-adapter.json` unless `OPL_APP_SHELL_ADAPTER_CONTRACT` is explicitly set for a candidate build.

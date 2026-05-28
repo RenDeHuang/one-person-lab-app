@@ -32,6 +32,14 @@ presentation keys. The active shell consumes the generated copy at the
 `contracts/app-shell-adapter.json`; runtime truth, provider implementation, and
 domain truth remain outside App ownership.
 
+The active shell currently tracks AionUI upstream through
+`5ac67e0d1f9df229a90269c0725a674d930754de` while preserving the App-owned
+product profile. That intake is recorded in `contracts/app-shell-adapter.json`;
+the upstream code is implementation material, not product authority. The shell
+also keeps Codex ACP tool-call output display aligned with native Codex
+behavior by preserving newline-bearing `raw_output` / `stdout` / `stderr`
+content in the conversation view.
+
 Install/exposure policy is now contract-backed in
 `contracts/app-install-exposure-policy.json`. The public semantic ABI is the
 domain skill; Codex App plugins are distribution/capability bundles, and CLI,

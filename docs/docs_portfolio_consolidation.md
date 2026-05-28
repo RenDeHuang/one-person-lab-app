@@ -38,14 +38,96 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 
 ## Coverage Ledger
 
+### 2026-05-28 active-shell upstream and Codex-output foldback tranche
+
+This tranche folds the post-upstream active shell state back into the App
+active truth after the shell absorbed AionUI through upstream commit
+`5ac67e0d1f9df229a90269c0725a674d930754de`. It keeps the global OPL series
+`/goal` active and does not promote shell validation into packaged release
+readiness.
+
+Fresh live truth inputs:
+
+- App guidance and core docs: `AGENTS.md`, `TASTE.md`,
+  `docs/active/app-ideal-state-gap-plan.md`, `docs/status.md`,
+  `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, and
+  `docs/decisions.md`.
+- App machine refs: `contracts/app-shell-adapter.json`,
+  `contracts/app-gui-product-contract.json`,
+  `contracts/app-product-profile.json`, and
+  `tests/release/app-release-boundary.test.ts`.
+- Shell implementation refs: `docs/guides/opl-app-shell-boundary.md`,
+  `packages/desktop/src/common/chat/normalizeToolCall.ts`,
+  `tests/unit/common/normalizeToolCall.test.ts`,
+  `packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx`,
+  conversation selector tests, and active-shell validation output.
+- Framework support refs:
+  `/Users/gaofeng/workspace/one-person-lab/docs/references/current-support/opl-gui-shell-adapter-boundary.md`.
+
+Reviewed documents / sections:
+
+| Repo | Reviewed docs / sections | Edited docs this tranche |
+| --- | --- | --- |
+| `one-person-lab-app` | Active plan, status, docs coverage ledger, GUI product contract, product profile, shell adapter contract, release-boundary test, and current App core docs for Codex App wrapper / fixed executor truth. | `docs/active/app-ideal-state-gap-plan.md`, `docs/status.md`, `docs/docs_portfolio_consolidation.md` |
+| `opl-aion-shell` | Shell boundary guide plus Codex ACP output normalization and fixed Codex selector implementation/tests. | `docs/guides/opl-app-shell-boundary.md` |
+| `one-person-lab` | GUI shell adapter support reference for the Framework/App/shell state-source split. | `docs/references/current-support/opl-gui-shell-adapter-boundary.md` |
+
+Fresh semantic result:
+
+- The App ordinary path remains the intended Codex App equivalent: fixed
+  `Codex CLI` executor, MAS/MAG/RCA built-in purpose entries, no normal
+  backend/model/permission selector, and App-owned route receipt policy.
+- The active shell upstream ref is now current and explicit in App contract
+  truth. App main still does not merge shell implementation history.
+- The Codex CLI no-newline symptom was a shell ACP normalization issue, not a
+  Codex CLI setting. The shell now consumes Codex ACP `raw_output`
+  `aggregated_output` / `formatted_output` / `stdout` / `stderr` fields and
+  preserves newline-bearing output in the rendered tool-call body.
+- The Framework support reference is aligned with the current runtime bridge:
+  normal GUI state comes from `opl app state --profile fast --json`; full App
+  state and runtime drilldown are explicit diagnostic / release-evidence
+  surfaces, not ordinary page-state truth.
+
+Archived / tombstoned / deleted docs:
+
+- none. The touched docs remain active plan, active support, or support
+  reference surfaces.
+
+Unreviewed docs:
+
+- `one-person-lab-app`: no reopened repo-root `README*` / `docs/**/*.md`
+  body tail in this tranche; the change was a targeted foldback over the
+  reopened shell-sync and Codex-output facts.
+- `opl-aion-shell`: broader upstream AionUI docs remain upstream/product docs
+  and were not governed in this App-boundary tranche.
+- `one-person-lab`: full framework docs portfolio was not re-governed here;
+  only the App/shell support reference was updated because it contradicted the
+  current App state-source split.
+
+Remaining stale / retire candidates:
+
+- Packaged GUI screenshot/click evidence for the fixed Codex path remains open
+  until a real DMG/App bundle smoke proves MAS/MAG/RCA selection, `@` badge,
+  hidden backend/model/permission selectors, and route receipt in the packaged
+  app.
+- Future stale pollution remains any prose that turns active-shell tests,
+  raw-output rendering fixes, App UI rendering, updater metadata, release
+  artifact existence, OPL read-model availability, or user-path refs into
+  domain readiness, quality verdict, artifact authority, App release readiness,
+  or family production readiness.
+
+Next tranche write scope:
+
+- Continue OPL series coverage from repos with remaining exact-inventory tails
+  or stale/retire candidates. Revisit App only when a new contract, release,
+  shell, first-run, packaged-GUI evidence, or App/operator read-model change
+  reopens App product truth.
+
 ### 2026-05-28 runtime-page README truth and body coverage tranche
 
 This tranche completes paragraph-level governance for the current App
 repo-root `README*` plus `docs/**/*.md` inventory. It keeps the global OPL
-series `/goal` active, does not rewrite App runtime or release authority, and
-does not stage the unrelated dirty shell-ref update in
-`contracts/app-shell-adapter.json` /
-`tests/release/app-release-boundary.test.ts`.
+series `/goal` active and does not rewrite App runtime or release authority.
 
 Fresh live truth inputs:
 
@@ -105,10 +187,6 @@ Unreviewed docs:
 
 Remaining stale / retire candidates:
 
-- The unrelated dirty shell-ref update in `contracts/app-shell-adapter.json` /
-  `tests/release/app-release-boundary.test.ts` remains assigned outside this
-  docs tranche and must be validated or absorbed by its owner before any release
-  shell-ref claim is treated as committed App truth.
 - Future stale pollution remains any prose that turns App UI rendering, updater
   metadata, release artifact existence, release evidence collector output,
   first-run contract presence, or OPL read-model availability into MAS/MAG/RCA
