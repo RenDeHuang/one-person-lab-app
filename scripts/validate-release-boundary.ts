@@ -62,6 +62,7 @@ const checks = [
       '--smoke-profile no-clt-clean-vm',
       '--display 1920x1080px',
       '--settings-smoke',
+      '--assistant-route-smoke',
       '--runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"',
     ],
     forbidden: ['--repo gaofeng21cn/one-person-lab'],

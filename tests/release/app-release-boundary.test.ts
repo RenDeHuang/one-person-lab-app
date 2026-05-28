@@ -1858,6 +1858,7 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
     && lane.command.includes('--smoke-profile no-clt-clean-vm')
     && lane.command.includes('--display 1920x1080px')
     && lane.command.includes('--settings-smoke')
+    && lane.command.includes('--assistant-route-smoke')
     && lane.command.includes('--runtime-profile standard')
   )));
   assert.ok(payload.lanes.some((lane) => (
@@ -1867,6 +1868,7 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
     && lane.command.includes('--smoke-profile no-clt-clean-vm')
     && lane.command.includes('--display 1920x1080px')
     && lane.command.includes('--settings-smoke')
+    && lane.command.includes('--assistant-route-smoke')
     && lane.command.includes('--runtime-profile full')
   )));
   assert.ok(payload.lanes.some((lane) => lane.id === 'one_shot_app_installer_smoke'));
@@ -2740,6 +2742,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /--smoke-profile no-clt-clean-vm/);
   assert.match(vmWorkflow, /--display 1920x1080px/);
   assert.match(vmWorkflow, /--settings-smoke/);
+  assert.match(vmWorkflow, /--assistant-route-smoke/);
   assert.match(vmWorkflow, /Write first-run VM preflight summary/);
   assert.match(vmWorkflow, /deterministic release-blocking clean VM first launch/);
   assert.match(vmWorkflow, /--runtime-profile "\$\{\{ steps\.package_profile\.outputs\.runtime_profile \}\}"/);
