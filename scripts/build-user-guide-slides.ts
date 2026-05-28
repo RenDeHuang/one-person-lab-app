@@ -22,7 +22,7 @@ const verificationPath = path.join(guideDir, 'macos-app-install-slides-verificat
 const tempDir = path.join(appRoot, 'tmp', 'pdfs', 'macos-app-install-slides');
 
 const latestReleaseUrl = 'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest';
-const screenshotReleaseTag = 'v26.5.15';
+const screenshotReleaseTag = process.env.OPL_APP_GUIDE_SCREENSHOT_RELEASE_TAG || 'v26.5.28';
 const titleFont = 'Arial';
 const cjkFont = 'PingFang SC';
 const bodyFont = 'Arial';
@@ -39,7 +39,7 @@ const steps: Step[] = [
     subtitle: '从 App repo 的最新 Release 下载 macOS Apple Silicon DMG。',
     asset: '01-download-release.png',
     callouts: [
-      `最新版本：${latestReleaseUrl}`,
+      '从 GitHub Releases latest 页面下载。',
       '首次安装建议使用 Full 版 DMG。',
       '标准 DMG 适合已安装用户和后续更新。',
     ],
@@ -67,13 +67,14 @@ const steps: Step[] = [
   },
   {
     title: '4. 等待首次环境检查',
-    subtitle: '界面显示当前阶段、Core 进度、后台维护进度、阻塞项和下一步。',
+    subtitle: '首屏只显示准备状态、三步进度、下一步和进入 OPL 的主按钮。',
     asset: '04-first-run-checking.png',
     callouts: [
-      '首启准备可能需要几分钟，进度来自 OPL 底层初始化状态。',
+      '先检查工作目录、Codex CLI 和 Codex 权限。',
+      '技术 phase、刷新和原始错误默认收在技术细节里。',
       '遇到阻塞时先阅读界面提示。',
     ],
-    notes: 'OPL 会检查 Codex、模块、skills 和本机运行环境。App 只负责展示底层初始化状态，不单独维护另一套安装进度。等待状态进入可继续阶段；遇到阻塞时先阅读界面提示，再联系技术支持处理。',
+    notes: 'OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Codex 权限。首屏只显示“正在准备 / 可以开始 / 需要处理”的简短状态、三步准备进度、下一步，以及进入 OPL 的主按钮。模块、skills、运行底座和本机工具属于后台维护，技术细节默认折叠。',
   },
   {
     title: '5. 进入科研入口',

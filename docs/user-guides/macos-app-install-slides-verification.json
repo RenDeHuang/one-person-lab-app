@@ -1,7 +1,7 @@
 {
   "status": "macos_app_install_slides_ready",
   "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
-  "screenshot_release_tag": "v26.5.15",
+  "screenshot_release_tag": "v26.5.28",
   "output_pptx": "docs/user-guides/macos-app-install-slides.pptx",
   "output_pdf": "docs/user-guides/macos-app-install-slides.pdf",
   "slide_layout": "16:9",

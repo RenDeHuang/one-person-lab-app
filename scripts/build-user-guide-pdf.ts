@@ -15,7 +15,7 @@ const tempDir = path.join(appRoot, 'tmp', 'pdfs', 'macos-app-install');
 const tempMarkdownPath = path.join(tempDir, 'macos-app-install.pandoc.md');
 
 const latestReleaseUrl = 'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest';
-const screenshotReleaseTag = 'v26.5.15';
+const screenshotReleaseTag = process.env.OPL_APP_GUIDE_SCREENSHOT_RELEASE_TAG || 'v26.5.28';
 
 const steps = [
   {
@@ -42,11 +42,11 @@ const steps = [
   },
   {
     title: '4. 等待首次环境检查',
-    body: 'OPL 会检查 Codex、模块、skills 和本机运行环境。界面会显示当前阶段、Core 进度、Full readiness / 后台维护进度、阻塞项和下一步，等待状态进入可继续阶段。',
+    body: 'OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Codex 权限。首屏只显示“正在准备 / 可以开始 / 需要处理”的简短状态、三步准备进度、下一步，以及进入 OPL 的主按钮。',
     asset: '04-first-run-checking.png',
     notes: [
-      '首启准备可能需要几分钟，进度来自 OPL 底层初始化状态。',
-      'App 只负责展示，不单独维护另一套安装进度。',
+      '首启准备可能需要几分钟，进度来自 OPL 底层初始化状态；App 只负责展示，不单独维护另一套安装进度。',
+      '模块、skills、运行底座和本机工具属于后台维护；技术 phase、刷新、运行时设置、原始错误和维护动作默认收在“技术细节”里，不会把新手停在 Homebrew、Node、Git 或命令行工具清单上。',
       '遇到阻塞时先阅读界面提示，再联系技术支持处理。',
     ],
   },
@@ -175,7 +175,7 @@ function buildMarkdown(options: { pandocPageBreaks?: boolean } = {}) {
     '## 截图与验证来源',
     '',
     '- 截图来自中文 macOS VM，逻辑桌面 1920x1080，Retina 输出 3840x2160。',
-    '- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页和 Settings 可用，Full 版额外验证 Codex 配置向导和 bundled runtime readiness。',
+    '- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页和 Settings 可用，Full 版额外验证 Codex 配置向导和 bundled runtime readiness。首启截图和 layout gate 还会验证新手首屏保持简化，技术细节默认折叠。',
     '- Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。',
     '',
   );

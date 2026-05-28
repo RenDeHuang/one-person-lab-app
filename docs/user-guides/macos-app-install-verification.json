@@ -2,7 +2,7 @@
   "status": "macos_app_install_pdf_ready",
   "pdf_layout": "landscape",
   "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
-  "screenshot_release_tag": "v26.5.15",
+  "screenshot_release_tag": "v26.5.28",
   "source_markdown": "docs/user-guides/macos-app-install.md",
   "output_pdf": "docs/user-guides/macos-app-install-detailed-guide.pdf",
   "screenshot_source": {
