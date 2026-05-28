@@ -405,3 +405,104 @@ jobs:
             /tmp/opl-webui-manifest.webmanifest
             /tmp/opl-webui-image-size-bytes.txt
           if-no-files-found: error
+
+  release-readiness-summary:
+    name: Summarize release readiness
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs:
+      - remote-verify-standard
+      - remote-verify-full
+      - standard-first-run-vm-smoke-after-standard-only
+      - standard-first-run-vm-smoke-after-full
+      - full-first-run-vm-smoke
+      - one-shot-app-installer-smoke
+      - docker-webui-smoke
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Download remote verification summary
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: remote-release-verification-${{ inputs.opl_version }}
+          path: release-readiness-inputs/remote-release-verification-${{ inputs.opl_version }}
+
+      - name: Download standard VM smoke summary
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: opl-first-run-vm-standard-${{ github.run_id }}
+          path: release-readiness-inputs/opl-first-run-vm-standard-${{ github.run_id }}
+
+      - name: Download Full VM smoke summary
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: opl-first-run-vm-full-${{ github.run_id }}
+          path: release-readiness-inputs/opl-first-run-vm-full-${{ github.run_id }}
+
+      - name: Download one-shot installer smoke summary
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: one-shot-app-installer-smoke-${{ inputs.opl_version }}
+          path: release-readiness-inputs/one-shot-app-installer-smoke-${{ inputs.opl_version }}
+
+      - name: Download Docker WebUI smoke summary
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: docker-webui-smoke-${{ inputs.opl_version }}
+          path: release-readiness-inputs/docker-webui-smoke-${{ inputs.opl_version }}
+
+      - name: Download Full workflow telemetry
+        if: ${{ inputs.include_full_package }}
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: opl-full-workflow-telemetry-${{ inputs.opl_version }}
+          path: release-readiness-inputs/opl-full-workflow-telemetry-${{ inputs.opl_version }}
+
+      - name: Download Full diagnostics summary
+        if: ${{ inputs.include_full_package }}
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: opl-full-diagnostics-${{ inputs.opl_version }}
+          path: release-readiness-inputs/opl-full-diagnostics-${{ inputs.opl_version }}
+
+      - name: Build final release readiness summary
+        shell: bash
+        env:
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_MODE: ${{ inputs.release_mode }}
+          OPL_INCLUDE_FULL_PACKAGE: ${{ inputs.include_full_package }}
+          OPL_RUN_VM_SMOKE: ${{ inputs.run_vm_smoke }}
+        run: |
+          node --experimental-strip-types scripts/summarize-release-readiness.ts \
+            --version "$OPL_RELEASE_VERSION" \
+            --release-mode "$OPL_RELEASE_MODE" \
+            --include-full-package "$OPL_INCLUDE_FULL_PACKAGE" \
+            --run-vm-smoke "$OPL_RUN_VM_SMOKE" \
+            --artifacts-dir release-readiness-inputs \
+            --output release-readiness-summary.json \
+            --markdown release-readiness-summary.md
+          cat release-readiness-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release readiness summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-readiness-summary-${{ inputs.opl_version }}
+          path: |
+            release-readiness-summary.json
+            release-readiness-summary.md
+          if-no-files-found: error

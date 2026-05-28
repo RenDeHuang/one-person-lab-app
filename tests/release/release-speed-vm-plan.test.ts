@@ -71,6 +71,16 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(workflow, /full-first-run-vm-smoke:[\s\S]*?needs:\s+remote-verify-full/, 'Full VM smoke job');
   assertMatches(workflow, /one-shot-app-installer-smoke:[\s\S]*?needs:\s+publish-standard/, 'one-shot installer smoke');
   assertMatches(workflow, /docker-webui-smoke:[\s\S]*?needs:\s+publish-standard/, 'Docker WebUI smoke');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/, 'final release readiness summary job');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?remote-verify-full[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?full-first-run-vm-smoke[\s\S]*?one-shot-app-installer-smoke[\s\S]*?docker-webui-smoke/, 'final release readiness dependencies');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-release-verification-\$\{\{ inputs\.opl_version \}\}/, 'remote verification small artifact');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?opl-full-workflow-telemetry-\$\{\{ inputs\.opl_version \}\}/, 'Full telemetry small artifact');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?opl-full-diagnostics-\$\{\{ inputs\.opl_version \}\}/, 'Full diagnostics small artifact');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?release-readiness-summary\.json/, 'machine-readable release readiness summary');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?summarize-release-readiness\.ts/, 'scripted release readiness aggregation');
+  const readinessJob = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assert.doesNotMatch(readinessJob, /name:\s+macos-build-arm64/);
+  assert.doesNotMatch(readinessJob, /name:\s+opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
 });
 
 test('_build-reusable splits quality work into parallel App and active-shell jobs with Bun cache boundaries', () => {
