@@ -42,7 +42,7 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 
 This tranche folds the post-upstream active shell state back into the App
 active truth after the shell absorbed AionUI through upstream commit
-`5ac67e0d1f9df229a90269c0725a674d930754de`. It keeps the global OPL series
+`9a895fa4a57d18016ba8dbf7f893b22145cd7e0a`. It keeps the global OPL series
 `/goal` active and does not promote shell validation into packaged release
 readiness.
 
