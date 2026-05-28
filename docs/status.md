@@ -33,7 +33,7 @@ presentation keys. The active shell consumes the generated copy at the
 domain truth remain outside App ownership.
 
 The active shell currently tracks AionUI upstream through
-`9a895fa4a57d18016ba8dbf7f893b22145cd7e0a` while preserving the App-owned
+`83eb8bda02af44df9795a10f32fa938dd62b628c` while preserving the App-owned
 product profile. That intake is recorded in `contracts/app-shell-adapter.json`;
 the upstream code is implementation material, not product authority. The shell
 also keeps Codex ACP tool-call output display aligned with native Codex

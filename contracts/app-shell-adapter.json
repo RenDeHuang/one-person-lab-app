@@ -13,7 +13,7 @@
     "default_ref": "main",
     "checkout_path": "shells/aionui",
     "history_policy": "external_checkout_not_merged_into_app_default_branch",
-    "upstream_ref": "9a895fa4a57d18016ba8dbf7f893b22145cd7e0a"
+    "upstream_ref": "83eb8bda02af44df9795a10f32fa938dd62b628c"
   },
   "app_remote": {
     "name": "origin",
