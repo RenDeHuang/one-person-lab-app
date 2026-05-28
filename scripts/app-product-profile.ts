@@ -38,6 +38,8 @@ export type AppProductProfile = {
     home: {
       primary_input_surface: string;
       nested_input_card_frames_allowed: boolean;
+      codex_cli_fixed_executor: boolean;
+      home_executor_selector_visible: boolean;
       codex_model_selector_visible: boolean;
       codex_model_list_visible: boolean;
       codex_model_policy: string;
@@ -45,6 +47,10 @@ export type AppProductProfile = {
       codex_default_model: string;
       codex_default_reasoning_effort: string;
       codex_default_permission_mode: string;
+      permission_mode_selector_visible: boolean;
+      codex_home_model_status_label: string;
+      codex_home_model_status_label_en: string;
+      codex_precise_model_display_policy: string;
       codex_auto_model_selection: {
         strategy: string;
         user_can_override_model: boolean;
@@ -196,27 +202,33 @@ function assertProfileShape(profile: AppProductProfile): void {
   if (
     profile.gui.home?.primary_input_surface !== 'single_card' ||
     profile.gui.home?.nested_input_card_frames_allowed !== false ||
-    profile.gui.home?.codex_model_selector_visible !== true ||
-    profile.gui.home?.codex_model_list_visible !== true ||
-    profile.gui.home?.codex_model_policy !== 'auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore' ||
-    profile.gui.home?.codex_model_auto_option_visible !== true
+    profile.gui.home?.codex_cli_fixed_executor !== true ||
+    profile.gui.home?.home_executor_selector_visible !== false ||
+    profile.gui.home?.codex_model_selector_visible !== false ||
+    profile.gui.home?.codex_model_list_visible !== false ||
+    profile.gui.home?.codex_model_policy !== 'codex_cli_auto_model_hidden_on_home' ||
+    profile.gui.home?.codex_model_auto_option_visible !== false ||
+    profile.gui.home?.permission_mode_selector_visible !== false
   ) {
-    throw new Error('App product profile GUI home contract must expose Codex model selection with an auto option and input single-card');
+    throw new Error('App product profile GUI home contract must keep Codex CLI fixed and hide executor/model/permission selectors');
   }
   if (
-    profile.gui.home.codex_default_model !== 'auto_latest_available_frontier' ||
+    profile.gui.home.codex_default_model !== 'codex_cli_auto' ||
     profile.gui.home.codex_default_reasoning_effort !== profile.codex.default_reasoning_effort ||
-    profile.gui.home.codex_default_permission_mode !== 'full-access'
+    profile.gui.home.codex_default_permission_mode !== 'full-access' ||
+    profile.gui.home.codex_home_model_status_label !== '自动' ||
+    profile.gui.home.codex_home_model_status_label_en !== 'Auto' ||
+    profile.gui.home.codex_precise_model_display_policy !== 'technical_details_or_connected_state_only'
   ) {
-    throw new Error('App product profile GUI home Codex defaults must use auto frontier selection and full-access mode');
+    throw new Error('App product profile GUI home Codex defaults must use automatic Codex CLI status and full-access mode');
   }
   if (
-    profile.gui.home.codex_auto_model_selection?.strategy !== 'auto_latest_available_codex_frontier' ||
-    profile.gui.home.codex_auto_model_selection.user_can_override_model !== true ||
-    profile.gui.home.codex_auto_model_selection.user_can_restore_auto !== true ||
+    profile.gui.home.codex_auto_model_selection?.strategy !== 'codex_cli_auto_latest_available_frontier' ||
+    profile.gui.home.codex_auto_model_selection.user_can_override_model !== false ||
+    profile.gui.home.codex_auto_model_selection.user_can_restore_auto !== false ||
     profile.gui.home.codex_auto_model_selection.selection_persists_into_conversation !== true
   ) {
-    throw new Error('App product profile GUI home Codex model policy must allow auto frontier selection, user override, and restore-auto');
+    throw new Error('App product profile GUI home Codex model policy must keep automatic Codex CLI selection hidden on the home path');
   }
   assertStringArray(
     profile.gui.home.codex_auto_model_selection.frontier_model_preference_order,

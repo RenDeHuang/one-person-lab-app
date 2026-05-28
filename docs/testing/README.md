@@ -49,9 +49,9 @@ The App page-state matrix is declared in
 `contracts/app-first-run-test-matrix.json`.
 The App GUI product contract is declared in
 `contracts/app-gui-product-contract.json`; `validate-active-shell.ts --quick`
-checks the Codex-only default executor, purpose-first Research/Grant/PPT home
-entries routed to MAS/MAG/RCA, the auto-latest Codex model selector with user
-override, home prompt, Settings System/Runtime/About/Update/Theme coverage,
+checks the Codex CLI fixed executor, purpose-first Research/Grant/PPT home
+entries routed to MAS/MAG/RCA, hidden home-path executor/model/permission
+selectors with automatic Codex model status, home prompt, Settings System/Runtime/About/Update/Theme coverage,
 module path source explanation, stable/nightly release gating, MDS non-default
 display, and OPL Agent Codex context before shell validation runs.
 The App product profile is declared in

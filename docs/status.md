@@ -113,13 +113,14 @@ domain-owned refs.
 
 Current GUI product truth is declared in
 `contracts/app-gui-product-contract.json`: the default executor experience is
-Codex-only; the home screen exposes three beginner-facing purpose entries:
-科研, 基金, and PPT. Those entries route to MAS, MAG, and RCA respectively, and
-the selected entry is presented as a compact `@` purpose tag instead of a full
-agent-title hero. Codex model selection is visible as an auto-latest selector:
-the App defaults to the latest usable Codex frontier model reported by the
-Codex capability surface while still allowing an explicit user override and a
-return to automatic selection. Settings System/Runtime/About/Update/Theme
+fixed to Codex CLI on the home path; the home screen exposes three
+beginner-facing purpose entries: 科研, 基金, and PPT. Those entries route to
+MAS, MAG, and RCA respectively, and the selected entry is presented as a compact
+`@` purpose tag instead of a full agent-title hero. The home input does not
+expose Aion CLI, Claude Code, backend switching, model override, or permission
+mode controls. It shows only a compact automatic Codex model status label; the
+precise model and reasoning effort belong in technical details or a connected
+state surface. Settings System/Runtime/About/Update/Theme
 surfaces, module path source explanation, stable/nightly release gates, and OPL
 Agent Codex context are App-owned requirements. OPL Meta Agent remains an
 App/CLI-managed ecosystem module rather than a default home assistant entry.

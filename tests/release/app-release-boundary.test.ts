@@ -323,14 +323,21 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.gui.appearance.codex_theme_default_enabled, true);
   assert.equal(profile.gui.home.primary_input_surface, 'single_card');
   assert.equal(profile.gui.home.nested_input_card_frames_allowed, false);
-  assert.equal(profile.gui.home.codex_model_selector_visible, true);
-  assert.equal(profile.gui.home.codex_model_list_visible, true);
-  assert.equal(profile.gui.home.codex_model_policy, 'auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore');
-  assert.equal(profile.gui.home.codex_default_model, 'auto_latest_available_frontier');
+  assert.equal(profile.gui.home.codex_cli_fixed_executor, true);
+  assert.equal(profile.gui.home.home_executor_selector_visible, false);
+  assert.equal(profile.gui.home.codex_model_selector_visible, false);
+  assert.equal(profile.gui.home.codex_model_list_visible, false);
+  assert.equal(profile.gui.home.codex_model_policy, 'codex_cli_auto_model_hidden_on_home');
+  assert.equal(profile.gui.home.codex_default_model, 'codex_cli_auto');
   assert.equal(profile.gui.home.codex_default_reasoning_effort, profile.codex.default_reasoning_effort);
   assert.equal(profile.gui.home.codex_default_permission_mode, 'full-access');
-  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_override_model, true);
-  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_restore_auto, true);
+  assert.equal(profile.gui.home.permission_mode_selector_visible, false);
+  assert.equal(profile.gui.home.codex_home_model_status_label, '自动');
+  assert.equal(profile.gui.home.codex_home_model_status_label_en, 'Auto');
+  assert.equal(profile.gui.home.codex_precise_model_display_policy, 'technical_details_or_connected_state_only');
+  assert.equal(profile.gui.home.codex_auto_model_selection.strategy, 'codex_cli_auto_latest_available_frontier');
+  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_override_model, false);
+  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_restore_auto, false);
   assert.equal(profile.gui.home.codex_auto_model_selection.selection_persists_into_conversation, true);
   assert.deepEqual(
     profile.gui.home.codex_auto_model_selection.frontier_model_preference_order,
@@ -597,24 +604,25 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guidHomePage.home_view_model.primary_input_surface, 'single_card');
   assert.equal(guidHomePage.home_view_model.nested_input_card_frames_allowed, false);
   assert.equal(guidHomePage.home_view_model.appearance_default_css_theme_id, 'codex');
-  assert.equal(guidHomePage.home_view_model.codex_model_selector_visible, true);
-  assert.equal(guidHomePage.home_view_model.codex_model_list_visible, true);
-  assert.equal(
-    guidHomePage.home_view_model.codex_model_policy,
-    'auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore',
-  );
-  assert.equal(guidHomePage.home_view_model.codex_default_model, 'auto_latest_available_frontier');
+  assert.equal(guidHomePage.home_view_model.codex_cli_fixed_executor, true);
+  assert.equal(guidHomePage.home_view_model.home_executor_selector_visible, false);
+  assert.equal(guidHomePage.home_view_model.codex_model_selector_visible, false);
+  assert.equal(guidHomePage.home_view_model.codex_model_list_visible, false);
+  assert.equal(guidHomePage.home_view_model.codex_model_policy, 'codex_cli_auto_model_hidden_on_home');
+  assert.equal(guidHomePage.home_view_model.codex_default_model, 'codex_cli_auto');
   assert.equal(guidHomePage.home_view_model.codex_default_reasoning_effort, 'xhigh');
-  assert.equal(guidHomePage.home_view_model.codex_default_display_label, 'Auto: latest available Codex frontier');
+  assert.equal(guidHomePage.home_view_model.codex_default_display_label, '自动');
   assert.equal(guidHomePage.home_view_model.codex_default_permission_mode, 'full-access');
+  assert.equal(guidHomePage.home_view_model.permission_mode_selector_visible, false);
+  assert.equal(guidHomePage.home_view_model.codex_precise_model_display_policy, 'technical_details_or_connected_state_only');
   assert.deepEqual(guidHomePage.home_view_model.codex_frontier_model_preference_order, [
     'gpt-5.5',
     'gpt-5.4',
     'gpt-5.3-codex',
     'gpt-5.2',
   ]);
-  assert.equal(guidHomePage.home_view_model.codex_user_can_override_model, true);
-  assert.equal(guidHomePage.home_view_model.codex_user_can_restore_auto, true);
+  assert.equal(guidHomePage.home_view_model.codex_user_can_override_model, false);
+  assert.equal(guidHomePage.home_view_model.codex_user_can_restore_auto, false);
   assert.deepEqual(guidHomePage.home_view_model.retired_codex_models_must_not_be_exposed, [
     'gpt-5.2-codex',
     'gpt-5.1-codex-max',
@@ -633,19 +641,20 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
   assert.ok(guidHomePage.home_view_model.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   for (const expected of [
-    'Codex-only default executor experience',
-    'auto-selected latest available Codex frontier model',
-    'user-selectable Codex model control with return-to-auto option',
+    'Codex CLI fixed executor experience',
+    'Codex automatic model status label',
     'purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA',
     'workspace selector',
     'file attachment control',
-    'permission mode control',
     'send action',
   ]) {
     assert.ok(guidHomePage.must_show.includes(expected), expected);
   }
   for (const forbidden of [
-    'executor tab when Codex CLI is the only executor',
+    'executor selector on the home input',
+    'Aion CLI or Claude Code backend choices on the home input',
+    'Codex model override selector on the home input',
+    'permission mode selector on the home input',
     'full assistant names as default home entry labels',
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
@@ -2048,13 +2057,18 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   );
   assert.equal(guiContract.framework_surfaces.runtime_full_drilldown.policy, 'on_demand_only');
   assert.equal(guiContract.executor_policy.default_executor, 'codex_cli');
+  assert.equal(guiContract.executor_policy.codex_cli_fixed_executor, true);
   assert.equal(guiContract.executor_policy.codex_only_default, true);
+  assert.equal(guiContract.executor_policy.home_executor_selector_visible, false);
   assert.equal(guiContract.executor_policy.executor_tab_visible_when_single_executor, false);
-  assert.equal(guiContract.executor_policy.default_model_strategy, 'auto_latest_available_codex_frontier');
-  assert.equal(guiContract.executor_policy.model_selector_visible_on_new_conversation, true);
-  assert.equal(guiContract.executor_policy.model_selector_visible_in_conversation, true);
-  assert.equal(guiContract.executor_policy.user_model_override_allowed, true);
-  assert.equal(guiContract.executor_policy.restore_auto_model_selection_allowed, true);
+  assert.equal(guiContract.executor_policy.default_model_strategy, 'codex_cli_auto_latest_available_frontier');
+  assert.equal(guiContract.executor_policy.home_model_status_label, '自动');
+  assert.equal(guiContract.executor_policy.precise_model_display_policy, 'technical_details_or_connected_state_only');
+  assert.equal(guiContract.executor_policy.permission_mode_selector_visible_on_home, false);
+  assert.equal(guiContract.executor_policy.model_selector_visible_on_new_conversation, false);
+  assert.equal(guiContract.executor_policy.model_selector_visible_in_conversation, false);
+  assert.equal(guiContract.executor_policy.user_model_override_allowed, false);
+  assert.equal(guiContract.executor_policy.restore_auto_model_selection_allowed, false);
   assert.deepEqual(guiContract.executor_policy.frontier_model_preference_order, [
     'gpt-5.5',
     'gpt-5.4',

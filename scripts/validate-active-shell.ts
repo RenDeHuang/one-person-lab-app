@@ -567,13 +567,18 @@ function validateActiveShellImplementation(shellPaths) {
   for (const expected of [
     '"default_model": "gpt-5.5"',
     '"default_reasoning_effort": "xhigh"',
-    '"codex_model_selector_visible": true',
-    '"codex_model_list_visible": true',
-    '"codex_model_policy": "auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore"',
-    '"codex_model_auto_option_visible": true',
-    '"codex_default_model": "auto_latest_available_frontier"',
-    '"strategy": "auto_latest_available_codex_frontier"',
-    '"user_can_restore_auto": true',
+    '"codex_cli_fixed_executor": true',
+    '"home_executor_selector_visible": false',
+    '"codex_model_selector_visible": false',
+    '"codex_model_list_visible": false',
+    '"codex_model_policy": "codex_cli_auto_model_hidden_on_home"',
+    '"codex_model_auto_option_visible": false',
+    '"codex_default_model": "codex_cli_auto"',
+    '"codex_home_model_status_label": "自动"',
+    '"codex_precise_model_display_policy": "technical_details_or_connected_state_only"',
+    '"strategy": "codex_cli_auto_latest_available_frontier"',
+    '"user_can_override_model": false',
+    '"user_can_restore_auto": false',
     '"id": "mas"',
     '"id": "mag"',
     '"id": "rca"',
@@ -586,9 +591,10 @@ function validateActiveShellImplementation(shellPaths) {
 
   const guidAssistants = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/oplHomeAssistants.ts');
   for (const expected of [
+    'getOplDefaultExecutorAgentKey',
     'getOplDefaultHomeAssistants',
     'resolveOplHomeAssistants',
-    "const DEFAULT_PRESET_AGENT_TYPE = 'codex'",
+    'const DEFAULT_PRESET_AGENT_TYPE = getOplDefaultExecutorAgentKey()',
     'preset_agent_type: DEFAULT_PRESET_AGENT_TYPE',
   ]) {
     if (!guidAssistants.includes(expected)) {
@@ -1300,17 +1306,21 @@ function validatePageStateMatrix(matrix, contract) {
     executor_policy_ref: 'contracts/app-gui-product-contract.json#executor_policy',
     assistant_source_ref: 'contracts/app-gui-product-contract.json#default_assistants',
     codex_only_default: true,
+    codex_cli_fixed_executor: true,
+    home_executor_selector_visible: false,
     executor_tab_visible_when_single_executor: false,
     primary_input_surface: 'single_card',
     nested_input_card_frames_allowed: false,
-    codex_model_selector_visible: true,
-    codex_model_list_visible: true,
-    codex_model_policy: 'auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore',
-    codex_model_auto_option_visible: true,
-    codex_default_model: 'auto_latest_available_frontier',
+    codex_model_selector_visible: false,
+    codex_model_list_visible: false,
+    codex_model_policy: 'codex_cli_auto_model_hidden_on_home',
+    codex_model_auto_option_visible: false,
+    codex_default_model: 'codex_cli_auto',
     codex_default_reasoning_effort: 'xhigh',
-    codex_default_display_label: 'Auto: latest available Codex frontier',
+    codex_default_display_label: '自动',
+    codex_precise_model_display_policy: 'technical_details_or_connected_state_only',
     codex_default_permission_mode: 'full-access',
+    permission_mode_selector_visible: false,
   })) {
     if (homeViewModel[field] !== expected) {
       throw new Error(`Guid home page ${field} must be ${expected}`);
@@ -1335,13 +1345,11 @@ function validatePageStateMatrix(matrix, contract) {
     throw new Error('Guid home page purpose entries must target MAS, MAG, and RCA');
   }
   for (const visibleSignal of [
-    'Codex-only default executor experience',
-    'auto-selected latest available Codex frontier model',
-    'user-selectable Codex model control with return-to-auto option',
+    'Codex CLI fixed executor experience',
+    'Codex automatic model status label',
     'purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA',
     'workspace selector',
     'file attachment control',
-    'permission mode control',
     'send action',
   ]) {
     if (!guidHomePage.must_show.includes(visibleSignal)) {
@@ -1349,7 +1357,10 @@ function validatePageStateMatrix(matrix, contract) {
     }
   }
   for (const hiddenSignal of [
-    'executor tab when Codex CLI is the only executor',
+    'executor selector on the home input',
+    'Aion CLI or Claude Code backend choices on the home input',
+    'Codex model override selector on the home input',
+    'permission mode selector on the home input',
     'full assistant names as default home entry labels',
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
@@ -2051,22 +2062,27 @@ function validateProductProfileCodexDefaults(profile) {
   if (
     profile.gui.home?.primary_input_surface !== 'single_card' ||
     profile.gui.home?.nested_input_card_frames_allowed !== false ||
-    profile.gui.home?.codex_model_selector_visible !== true ||
-    profile.gui.home?.codex_model_list_visible !== true ||
-    profile.gui.home?.codex_model_policy !== 'auto_latest_frontier_from_codex_capabilities_user_selectable_with_auto_restore' ||
-    profile.gui.home?.codex_model_auto_option_visible !== true ||
-    profile.gui.home?.codex_default_model !== 'auto_latest_available_frontier' ||
+    profile.gui.home?.codex_cli_fixed_executor !== true ||
+    profile.gui.home?.home_executor_selector_visible !== false ||
+    profile.gui.home?.codex_model_selector_visible !== false ||
+    profile.gui.home?.codex_model_list_visible !== false ||
+    profile.gui.home?.codex_model_policy !== 'codex_cli_auto_model_hidden_on_home' ||
+    profile.gui.home?.codex_model_auto_option_visible !== false ||
+    profile.gui.home?.codex_default_model !== 'codex_cli_auto' ||
     profile.gui.home?.codex_default_reasoning_effort !== profile.codex?.default_reasoning_effort ||
-    profile.gui.home?.codex_default_permission_mode !== 'full-access'
+    profile.gui.home?.codex_default_permission_mode !== 'full-access' ||
+    profile.gui.home?.permission_mode_selector_visible !== false ||
+    profile.gui.home?.codex_home_model_status_label !== '自动' ||
+    profile.gui.home?.codex_precise_model_display_policy !== 'technical_details_or_connected_state_only'
   ) {
-    throw new Error('Product profile GUI home must expose auto Codex model selection and match App Codex defaults');
+    throw new Error('Product profile GUI home must keep Codex CLI fixed and hide model/executor selectors');
   }
   if (
-    profile.gui.home.codex_auto_model_selection?.strategy !== 'auto_latest_available_codex_frontier' ||
-    profile.gui.home.codex_auto_model_selection.user_can_override_model !== true ||
-    profile.gui.home.codex_auto_model_selection.user_can_restore_auto !== true
+    profile.gui.home.codex_auto_model_selection?.strategy !== 'codex_cli_auto_latest_available_frontier' ||
+    profile.gui.home.codex_auto_model_selection.user_can_override_model !== false ||
+    profile.gui.home.codex_auto_model_selection.user_can_restore_auto !== false
   ) {
-    throw new Error('Product profile GUI home must allow auto frontier selection, user override, and restore-auto');
+    throw new Error('Product profile GUI home must keep Codex CLI automatic model selection hidden on the home path');
   }
   const homePurposeEntries = profile.gui.home.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {

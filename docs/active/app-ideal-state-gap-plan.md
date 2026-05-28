@@ -14,6 +14,7 @@ Date: `2026-05-27`
 | Framework / domain split | `active_truth` | OPL Framework owns runtime/provider/read-model/action execution; MAS/MAG/RCA/OMA own domain truth, quality/export verdicts, memory body, artifact body, owner receipts, and typed blockers. |
 | Active shell boundary | `active_external_checkout` | `shells/aionui/` is an external checkout from `gaofeng21cn/opl-aion-shell`; shell implementation history is not merged into the App repo default branch. |
 | Product contracts | `landed_with_release_evidence_tail` | `contracts/app-product-profile.json`, `contracts/app-page-state-matrix.json`, `contracts/app-first-run-test-matrix.json`, and `contracts/app-release-channel.json` hold App-owned machine policy. |
+| Codex App positioning | `active_contract_truth` | The App home path is a Codex CLI fixed-executor experience with built-in MAS/MAG/RCA purpose entries; AionUI multi-backend choices are implementation material, not the user-facing App model. |
 | Docs lifecycle | `single_active_truth_owner` | This file holds current App product gaps and next-round baton; `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, and `docs/decisions.md` hold durable current truth. |
 
 ## Current-State vs Ideal-State Gaps
@@ -24,6 +25,7 @@ Date: `2026-05-27`
 | `full_first_install_vm_evidence` | Full first-install policy is contract-backed; clean no-CLT VM evidence remains a release gate when requested. | Full first-install reaches Core ready from bundled runtime on a clean Mac, with deferred maintenance proven by VM smoke artifacts. |
 | `runtime_page_operator_evidence` | Runtime page consumes OPL App/operator drilldown and refs-only safe action routes. | Page-state tests and GUI smoke show summary-first read model, lazy full detail, dry-run/execute controls, receipt/count refresh, and authority-boundary fields. |
 | `active_shell_sync` | App root wrappers prepare App-owned payloads and call the external shell. | Product profile and release contracts are generated into the active shell before build/release, without merging shell history into App mainline. |
+| `codex_app_home_shell_conformance` | App contracts now define the home path as fixed Codex CLI plus MAS/MAG/RCA entries, with hidden executor/model/permission selectors and a compact automatic model status. | `opl-aion-shell` implements the contracted home path; App active-shell validation and shell GUI tests reject Aion CLI/Claude Code/backend/model override controls on the home input. |
 
 ## Next-Round Agent Prompt
 
@@ -43,6 +45,7 @@ Live truth inputs:
 Required actions:
 
 - Keep App docs, contracts, release wrappers, evidence manifests, and page-state tests aligned with the App product boundary.
+- Keep the App home path aligned with the Codex App equivalent positioning: Codex CLI fixed executor, no home backend/model/permission selector, MAS/MAG/RCA as built-in purpose entries, precise model details limited to technical/connected-state surfaces.
 - For each release cohort, classify evidence as present, missing, typed blocker, or not applicable; never promote missing evidence to release-ready proof.
 - Keep active shell intake explicit: App-owned product/release contract changes stay here, shell implementation changes stay in `opl-aion-shell`.
 
