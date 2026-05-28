@@ -48,7 +48,7 @@ function parseArgs(argv) {
     frameworkRoot: process.env.OPL_FRAMEWORK_ROOT
       || process.env.OPL_FULL_OPL_ROOT
       || path.join(workspaceRoot, 'one-person-lab'),
-    guiRoot: process.env.OPL_FULL_GUI_ROOT || path.join(appRepoRoot, 'shells', 'aionui'),
+    guiRoot: process.env.OPL_FULL_GUI_ROOT || resolveActiveShellPaths().shellRoot,
     masRoot: process.env.OPL_FULL_MAS_ROOT || path.join(workspaceRoot, 'med-autoscience'),
     magRoot: process.env.OPL_FULL_MAG_ROOT || path.join(workspaceRoot, 'med-autogrant'),
     rcaRoot: process.env.OPL_FULL_RCA_ROOT || path.join(workspaceRoot, 'redcube-ai'),

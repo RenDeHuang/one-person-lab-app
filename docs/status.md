@@ -153,6 +153,19 @@ remains historical or explicit-reference only. `contracts/app-shell-adapter.json
 requires the active shell to implement that App contract and keeps upstream
 AionUI as implementation material rather than product authority.
 
+Experimental shell candidate work is separated from the active release adapter.
+`contracts/app-shell-candidates.json` now declares `agui-codex` under
+`shells/agui-codex/` as a linked external repo for a thinner AG-UI/Codex shell.
+`contracts/shell-adapters/agui-codex.json` can be selected with
+`OPL_APP_SHELL_ADAPTER_CONTRACT` so the same App wrapper syncs the product
+profile and builds the candidate launchable `.app` bundle. Default stable/nightly release
+packaging still resolves `contracts/app-shell-adapter.json` and the active
+`aionui` shell. Candidate validation can prove fixed Codex home behavior,
+purpose-first MAS/MAG/RCA entries, AG-UI event mapping, `opl app state/action`
+consumption, first-run/page-state mapping, explicit `.app` packaging with
+`Contents/Info.plist` and a `Contents/MacOS` executable, and
+release isolation without changing the active release shell.
+
 2026-05-22 App release evidence collection now has an App-owned CLI wrapper:
 `scripts/collect-release-evidence.ts` fills `app-state-summary.json`,
 `app-state-full.json`, `drilldown-full.json`, `action-dry-run-result.json`, and,
@@ -196,6 +209,8 @@ npm run test:release-boundary
 npm run validate:release-boundary
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
+npm run validate:shell-candidates
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 bun run i18n:types
 bun run test
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets

@@ -4,27 +4,18 @@
   "purpose": "active_shell_adapter",
   "state": "active",
   "app_repo": "gaofeng21cn/one-person-lab-app",
-  "active_shell": "aionui",
-  "shell_root": "shells/aionui",
+  "active_shell": "agui-codex",
+  "shell_root": "shells/agui-codex",
   "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
-  "upstream_family": "AionUI",
+  "upstream_family": "AG-UI/Codex",
   "shell_source": {
-    "owner_repo": "gaofeng21cn/opl-aion-shell",
+    "owner_repo": "gaofeng21cn/opl-agui-codex-shell",
     "default_ref": "main",
-    "checkout_path": "shells/aionui",
+    "checkout_path": "shells/agui-codex",
     "history_policy": "external_checkout_not_merged_into_app_default_branch",
-    "upstream_ref": "v2.1.1"
+    "upstream_ref": "technical-verification"
   },
-  "app_remote": {
-    "name": "origin",
-    "url": "git@github.com:gaofeng21cn/one-person-lab-app.git",
-    "main_branch": "main"
-  },
-  "upstream_remote": {
-    "url": "https://github.com/iOfficeAI/AionUi",
-    "main_branch": "main"
-  },
-  "release_role": "stable_app_shell",
+  "release_role": "experimental_candidate_shell",
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",
     "implementation_role": "active_shell_implementation_carrier",
@@ -42,7 +33,7 @@
       "process and preload implementation",
       "shell package metadata",
       "shell tests and release hooks",
-      "upstream AionUI intake",
+      "AG-UI/Codex implementation experiments",
       "shell-local implementation details",
       "shell-local tests that prove App contracts are implemented"
     ],
@@ -74,15 +65,16 @@
     ]
   },
   "shell_contract": {
-    "layout_id": "aionui_v2_workspace",
-    "source_topology": "root_workspace_with_desktop_package",
+    "layout_id": "agui_codex_app_bundle",
+    "source_topology": "external_checkout_linked_shell_repo",
+    "implementation_validation": "contract_paths_only",
     "paths": {
       "package_manifest": "package.json",
       "agents_guide": "AGENTS.md",
       "vitest_config": "vitest.config.ts",
-      "electron_builder_config": "packages/desktop/electron-builder.yml",
+      "electron_builder_config": "electron-builder.yml",
       "build_output_dir": "out",
-      "product_profile_target": "packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json",
+      "product_profile_target": "src/generated/oplProductProfile.generated.json",
       "packaged_runtime_root": "packaged-runtimes/opl-full-runtime",
       "packaged_runtime_validator": "scripts/validate-packaged-runtime.js",
       "release_prepare_script": "scripts/prepare-release-assets.sh",
@@ -90,12 +82,10 @@
     },
     "capabilities": [
       "app_product_profile_generated_config",
-      "electron_builder_release_packaging",
+      "candidate_app_bundle_package",
       "opl_packaged_runtime_extra_resource",
       "standard_release_asset_normalization",
       "standard_release_asset_verification",
-      "app_managed_host_tool_bootstrap",
-      "bundled_runtime_core_ready_without_host_node",
       "app_owned_gui_product_contract",
       "app_owned_runtime_bridge_contract",
       "opl_app_state_bridge",
@@ -103,57 +93,16 @@
       "app_gui_release_channel_gating"
     ]
   },
-  "framework_boundary": {
-    "framework_repo": "gaofeng21cn/one-person-lab",
-    "app_consumes": [
-      "OPL CLI JSON outputs",
-      "framework contracts",
-      "runtime snapshots",
-      "provider receipts",
-      "domain-owned projections"
-    ],
-    "app_does_not_own": [
-      "runtime truth",
-      "domain truth",
-      "provider implementation",
-      "domain artifact authority"
-    ]
-  },
   "validation_commands": [
     {
-      "id": "install",
-      "cwd": "shells/aionui",
-      "command": "bun install --frozen-lockfile"
+      "id": "candidate_contract",
+      "cwd": "shells/agui-codex",
+      "command": "node --experimental-strip-types scripts/validate-agui-codex-candidate.ts"
     },
     {
-      "id": "i18n_types",
-      "cwd": "shells/aionui",
-      "command": "bun run i18n:types"
-    },
-    {
-      "id": "i18n_check",
-      "cwd": "shells/aionui",
-      "command": "node scripts/check-i18n.js"
-    },
-    {
-      "id": "typecheck",
-      "cwd": "shells/aionui",
-      "command": "bunx tsc --noEmit"
-    },
-    {
-      "id": "test",
-      "cwd": ".",
-      "command": "bun run test"
-    },
-    {
-      "id": "lint",
-      "cwd": "shells/aionui",
-      "command": "bun run lint"
-    },
-    {
-      "id": "packaged_runtime_validation",
-      "cwd": "shells/aionui",
-      "command": "node scripts/validate-packaged-runtime.js --scan-all"
+      "id": "candidate_app_bundle_build",
+      "cwd": "shells/agui-codex",
+      "command": "npm run package"
     }
   ],
   "gui_product_contract": "contracts/app-gui-product-contract.json",
@@ -162,7 +111,7 @@
     "source_of_truth": "one-person-lab-app",
     "upstream_override_allowed": false,
     "upstream_family_role": "implementation_material_only",
-    "aionui_upstream_must_not_override_app_truth": true
+    "upstream_must_not_override_app_truth": true
   },
   "state_surface_contract": {
     "primary_read_command": "opl app state --profile fast --json",

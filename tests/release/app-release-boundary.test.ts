@@ -2181,7 +2181,7 @@ test('active shell adapter keeps GUI authority and replacement gates in the App 
   );
   assert.equal(adapterContract.shell_replacement_policy.authority_transfer_allowed, false);
   for (const gate of [
-    'declare candidate in contracts/app-shell-adapter.json',
+    'declare candidate in contracts/app-shell-candidates.json',
     'implement contracts/app-gui-product-contract.json',
     'sync App product profile into the candidate shell target',
     'pass App page-state and first-run matrices',
@@ -2191,6 +2191,121 @@ test('active shell adapter keeps GUI authority and replacement gates in the App 
   ]) {
     assert.ok(adapterContract.shell_replacement_policy.adoption_gate.includes(gate), gate);
   }
+  assert.ok(
+    !adapterContract.shell_replacement_policy.adoption_gate.includes('declare candidate in contracts/app-shell-adapter.json'),
+  );
+});
+
+test('App shell candidates are isolated from active AionUI release shell', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+  const adapterContract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'));
+  const candidateRegistry = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-candidates.json'), 'utf8'),
+  );
+  const aguiCandidate = candidateRegistry.candidates.find((candidate) => candidate.id === 'agui-codex');
+
+  assert.equal(packageJson.scripts['validate:shell-candidates'], 'node --experimental-strip-types scripts/validate-shell-candidates.ts');
+  assert.equal(candidateRegistry.owner, 'one-person-lab-app');
+  assert.equal(candidateRegistry.purpose, 'app_shell_candidate_registry');
+  assert.equal(candidateRegistry.state, 'active_experimental');
+  assert.equal(candidateRegistry.active_shell_unchanged, adapterContract.active_shell);
+  assert.equal(candidateRegistry.release_shell_contract, 'contracts/app-shell-adapter.json');
+  assert.equal(candidateRegistry.candidate_policy.release_participation_until_adopted, 'explicit_candidate_build_only');
+  assert.equal(candidateRegistry.candidate_policy.release_scripts_must_use_active_shell_adapter, true);
+  assert.equal(candidateRegistry.candidate_policy.authority_transfer_allowed, false);
+  assert.ok(candidateRegistry.candidate_policy.adoption_gate.includes('candidate is declared in contracts/app-shell-candidates.json'));
+  assert.ok(
+    candidateRegistry.candidate_policy.adoption_gate.includes(
+      'contracts/app-shell-adapter.json is changed only when candidate becomes active release shell',
+    ),
+  );
+  assert.ok(aguiCandidate);
+  assert.equal(aguiCandidate.state, 'technical_verification');
+  assert.equal(aguiCandidate.candidate_root, 'shells/agui-codex');
+  assert.equal(aguiCandidate.adapter_contract, 'contracts/shell-adapters/agui-codex.json');
+  assert.equal(aguiCandidate.source_topology, 'external_checkout_linked_shell_repo');
+  assert.equal(aguiCandidate.release_participation, 'selectable_for_explicit_candidate_build');
+  assert.equal(aguiCandidate.target_product_shape.codex_cli_fixed_executor, true);
+  assert.equal(aguiCandidate.target_product_shape.home_executor_selector_visible, false);
+  assert.equal(aguiCandidate.target_product_shape.home_backend_selector_visible, false);
+  assert.equal(aguiCandidate.target_product_shape.home_model_selector_visible, false);
+  assert.equal(aguiCandidate.target_product_shape.permission_mode_selector_visible, false);
+  assert.deepEqual(aguiCandidate.target_product_shape.purpose_entries, ['research', 'grant', 'ppt']);
+  assert.equal(aguiCandidate.framework_surfaces.state, 'opl app state --profile fast --json');
+  assert.equal(
+    aguiCandidate.framework_surfaces.action,
+    'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
+  );
+  assert.ok(aguiCandidate.required_capabilities.includes('agui_event_contract_map'));
+  assert.ok(aguiCandidate.required_capabilities.includes('release_isolation'));
+  assert.ok(aguiCandidate.required_capabilities.includes('candidate_app_bundle_package'));
+  assert.ok(aguiCandidate.validation_commands.some((entry) => (
+    entry.id === 'candidate_app_bundle_build'
+    && /OPL_APP_SHELL_ADAPTER_CONTRACT=contracts\/shell-adapters\/agui-codex\.json npm run package/.test(entry.command)
+  )));
+  assert.ok(aguiCandidate.must_not_own.includes('App GUI product truth'));
+  assert.ok(aguiCandidate.must_not_own.includes('OPL runtime truth'));
+  assert.ok(aguiCandidate.must_not_own.includes('domain truth'));
+  assert.ok(aguiCandidate.non_goals.includes('do not switch active_shell away from aionui'));
+  assert.ok(aguiCandidate.non_goals.includes('do not enter default stable or nightly release packaging'));
+});
+
+test('explicit AG-UI/Codex adapter contract selects linked external candidate shell', () => {
+  const result = runNode(
+    [
+      '-e',
+      "import('./scripts/app-shell-adapter.ts').then(({ resolveActiveShellPaths }) => { const shell = resolveActiveShellPaths(); console.log(JSON.stringify({ active_shell: shell.contract.active_shell, shell_root: shell.contract.shell_root, shell_root_for_display: shell.shellRootForDisplay, product_profile_target: shell.productProfileTargetPath, release_role: shell.contract.release_role })); })",
+    ],
+    {
+      env: {
+        OPL_APP_SHELL_ADAPTER_CONTRACT: 'contracts/shell-adapters/agui-codex.json',
+        OPL_APP_SHELL_ROOT: '',
+      },
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const resolved = JSON.parse(result.stdout);
+  assert.equal(resolved.active_shell, 'agui-codex');
+  assert.equal(resolved.shell_root, 'shells/agui-codex');
+  assert.equal(resolved.shell_root_for_display, 'shells/agui-codex');
+  assert.match(resolved.product_profile_target, /shells\/agui-codex\/src\/generated\/oplProductProfile\.generated\.json$/);
+  assert.equal(resolved.release_role, 'experimental_candidate_shell');
+});
+
+test('AG-UI/Codex candidate package validation requires a real app bundle manifest', () => {
+  const source = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-shell-candidates.ts'), 'utf8');
+  const candidateAdapter = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'shell-adapters', 'agui-codex.json'), 'utf8'),
+  );
+
+  assert.equal(candidateAdapter.shell_contract.layout_id, 'agui_codex_app_bundle');
+  assert.ok(candidateAdapter.shell_contract.capabilities.includes('candidate_app_bundle_package'));
+  assert.ok(candidateAdapter.validation_commands.some((entry) => entry.id === 'candidate_app_bundle_build'));
+  assert.match(source, /validateCandidatePackageManifest/);
+  assert.match(source, /candidate_app_bundle_ready/);
+  assert.match(source, /explicit_candidate_app_bundle/);
+  assert.match(source, /\.endsWith\('\.app'\)/);
+  assert.match(source, /assertDirectory\(appBundleRoot/);
+  assert.match(source, /Contents', 'Info\.plist'/);
+  assert.match(source, /Contents', 'MacOS'/);
+  assert.match(source, /findMacAppExecutable/);
+  assert.match(source, /assertNoAbsoluteSymlinks/);
+  assert.match(source, /App-owned product profile input/);
+  assert.doesNotMatch(JSON.stringify(candidateAdapter), /candidate_package_smoke|candidate_package_smoke_ready|\.txt/);
+});
+
+test('default shell adapter remains stable AionUI when no candidate adapter is selected', () => {
+  const result = runNode([
+    '-e',
+    "import('./scripts/app-shell-adapter.ts').then(({ resolveActiveShellPaths }) => { const shell = resolveActiveShellPaths(); console.log(JSON.stringify({ active_shell: shell.contract.active_shell, shell_root: shell.contract.shell_root, release_role: shell.contract.release_role })); })",
+  ], { env: { OPL_APP_SHELL_ADAPTER_CONTRACT: '' } });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const resolved = JSON.parse(result.stdout);
+  assert.equal(resolved.active_shell, 'aionui');
+  assert.equal(resolved.shell_root, 'shells/aionui');
+  assert.equal(resolved.release_role, 'stable_app_shell');
 });
 
 test('App GUI product contract owns GUI requirements and unified OPL state/action boundaries', () => {
@@ -2350,7 +2465,7 @@ test('App fallow hygiene is not the active GUI shell validation gate', () => {
   const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
   const combinedDocs = `${testingDocs}\n${scriptsDocs}`;
 
-  assert.deepEqual(fallowConfig.ignorePatterns, ['shells/aionui/**']);
+  assert.deepEqual(fallowConfig.ignorePatterns, ['shells/aionui/**', 'shells/agui-codex/**']);
   assert.equal(packageJson.scripts['hygiene:fallow'], 'npx --yes fallow@latest --root . --no-cache --production');
   assert.match(packageJson.scripts['validate:gui-shell'], /validate-active-shell\.ts/);
   assert.match(packageJson.scripts['validate:gui-shell'], /run-active-shell-command\.ts bun run package/);
@@ -3348,6 +3463,8 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /mineru_document_extractor_source: skillSourceSnapshot\(mineruDocumentExtractorSkillCandidates\(options\), 'skills\/mineru-document-extractor'\)/);
   assert.match(buildScript, /runtime_layer_builder_source_hash: functionSourceSha256/);
   assert.match(buildScript, /key_inputs: cacheKeyInputs/);
+  assert.match(buildScript, /guiRoot: process\.env\.OPL_FULL_GUI_ROOT \|\| resolveActiveShellPaths\(\)\.shellRoot/);
+  assert.doesNotMatch(buildScript, /guiRoot: process\.env\.OPL_FULL_GUI_ROOT \|\| path\.join\(appRepoRoot, 'shells', 'aionui'\)/);
   assert.match(buildScript, /syncAppProductProfileToShell\(options\.guiRoot\)/);
   assert.match(prepareStandardScript, /syncAppProductProfileToShell\(shellPaths\.shellRoot, \{ optional: true \}\)/);
   assert.match(prepareStandardScript, /fs\.copyFileSync\(appInstallerPath, shellBootstrapInstallerPath\)/);

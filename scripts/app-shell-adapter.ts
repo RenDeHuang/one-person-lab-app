@@ -49,6 +49,7 @@ export type ShellAdapterContract = {
   shell_contract: {
     layout_id: string;
     source_topology: string;
+    implementation_validation?: string;
     paths: ShellPathContract;
     capabilities: string[];
   };
@@ -58,7 +59,8 @@ export type ShellAdapterContract = {
     source_of_truth: string;
     upstream_override_allowed: boolean;
     upstream_family_role: string;
-    aionui_upstream_must_not_override_app_truth: boolean;
+    upstream_must_not_override_app_truth?: boolean;
+    aionui_upstream_must_not_override_app_truth?: boolean;
   };
   state_surface_contract: {
     primary_read_command: string;
@@ -93,7 +95,8 @@ export type ActiveShellPaths = {
 };
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const contractPath = path.join(appRoot, 'contracts', 'app-shell-adapter.json');
+const defaultContractRef = 'contracts/app-shell-adapter.json';
+const contractPath = path.join(appRoot, defaultContractRef);
 
 function readJson(filePath: string): unknown {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -108,13 +111,29 @@ function assertRelativePath(value: unknown, label: string): asserts value is str
   }
 }
 
+function resolveRepoRelativePath(value: string, label: string): string {
+  assertRelativePath(value, label);
+  return path.join(appRoot, value);
+}
+
 function assertStringArray(value: unknown, label: string): asserts value is string[] {
   if (!Array.isArray(value) || value.length === 0 || !value.every((entry) => typeof entry === 'string' && entry.trim())) {
     throw new Error(`Invalid active shell ${label}: expected non-empty string array`);
   }
 }
 
-export function readAppShellAdapterContract(filePath = contractPath): ShellAdapterContract {
+export function resolveAdapterContractPath(): string {
+  const override = process.env.OPL_APP_SHELL_ADAPTER_CONTRACT?.trim();
+  if (!override) {
+    return contractPath;
+  }
+  if (!override.startsWith('contracts/') || !override.endsWith('.json')) {
+    throw new Error('OPL_APP_SHELL_ADAPTER_CONTRACT must point at a repository-relative contracts/*.json file');
+  }
+  return resolveRepoRelativePath(override, 'OPL_APP_SHELL_ADAPTER_CONTRACT');
+}
+
+export function readAppShellAdapterContract(filePath = resolveAdapterContractPath()): ShellAdapterContract {
   const contract = readJson(filePath) as ShellAdapterContract;
   if (contract.owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected active shell owner: ${contract.owner}`);
@@ -153,6 +172,12 @@ export function readAppShellAdapterContract(filePath = contractPath): ShellAdapt
     throw new Error('active shell replacement must not transfer App GUI authority');
   }
   assertStringArray(contract.shell_replacement_policy.adoption_gate, 'shell_replacement_policy.adoption_gate');
+  if (!contract.shell_replacement_policy.adoption_gate.includes('declare candidate in contracts/app-shell-candidates.json')) {
+    throw new Error('active shell replacement policy must delegate candidate declarations to contracts/app-shell-candidates.json');
+  }
+  if (contract.shell_replacement_policy.adoption_gate.includes('declare candidate in contracts/app-shell-adapter.json')) {
+    throw new Error('active shell replacement policy must not declare candidates inside contracts/app-shell-adapter.json');
+  }
   assertRelativePath(contract.shell_root, 'shell_root');
   assertRelativePath(contract.runtime_bridge_contract, 'runtime_bridge_contract');
   assertRelativePath(contract.shell_source?.checkout_path, 'shell_source.checkout_path');
@@ -200,8 +225,11 @@ export function readAppShellAdapterContract(filePath = contractPath): ShellAdapt
   if (contract.gui_product_contract_policy.upstream_family_role !== 'implementation_material_only') {
     throw new Error(`Unexpected upstream GUI role: ${contract.gui_product_contract_policy.upstream_family_role}`);
   }
-  if (contract.gui_product_contract_policy.aionui_upstream_must_not_override_app_truth !== true) {
-    throw new Error('active shell must declare that AionUI upstream cannot override App truth');
+  if (
+    contract.gui_product_contract_policy.upstream_must_not_override_app_truth !== true
+    && contract.gui_product_contract_policy.aionui_upstream_must_not_override_app_truth !== true
+  ) {
+    throw new Error('active shell must declare that upstream GUI behavior cannot override App truth');
   }
   const stateSurface = contract.state_surface_contract;
   if (stateSurface?.primary_read_command !== 'opl app state --profile fast --json') {
@@ -244,10 +272,11 @@ export function resolveActiveShellPaths(options: { shellRoot?: string; contract?
   const contract = options.contract ?? readAppShellAdapterContract();
   const shellRoot = options.shellRoot ? path.resolve(options.shellRoot) : resolveActiveShellRoot(contract);
   const paths = contract.shell_contract.paths;
+  const shellRootEnv = process.env.OPL_APP_SHELL_ROOT?.trim();
   return {
     contract,
     shellRoot,
-    shellRootForDisplay: options.shellRoot ?? process.env.OPL_APP_SHELL_ROOT ?? contract.shell_root,
+    shellRootForDisplay: options.shellRoot ?? (shellRootEnv || contract.shell_root),
     packageManifestPath: path.join(shellRoot, paths.package_manifest),
     agentsGuidePath: path.join(shellRoot, paths.agents_guide),
     vitestConfigPath: path.join(shellRoot, paths.vitest_config),

@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const contractPath = path.join(root, 'contracts', 'app-shell-adapter.json');
 const guiProductContractPath = path.join(root, 'contracts', 'app-gui-product-contract.json');
 const runtimeBridgePath = path.join(root, 'contracts', 'app-runtime-bridge.json');
 const pageStateMatrixPath = path.join(root, 'contracts', 'app-page-state-matrix.json');
@@ -15,6 +14,7 @@ const firstRunMatrixPath = path.join(root, 'contracts', 'app-first-run-test-matr
 const productProfilePath = path.join(root, 'contracts', 'app-product-profile.json');
 const installExposurePolicyPath = path.join(root, 'contracts', 'app-install-exposure-policy.json');
 const releaseChannelPath = path.join(root, 'contracts', 'app-release-channel.json');
+const defaultActiveShellContractPath = path.join(root, 'contracts', 'app-shell-adapter.json');
 const commandMaxBuffer = 128 * 1024 * 1024;
 const requiredHostTools = ['command_line_tools', 'homebrew', 'node', 'git'];
 const firstRunCoreItems = ['workspace_root', 'codex_cli', 'codex_config'];
@@ -180,12 +180,16 @@ function resolveValidationCwd(entry, contract, shellPaths) {
   return path.join(root, entry.cwd);
 }
 
+function isDefaultReleaseAdapter(contract) {
+  return contract.active_shell === 'aionui' && contract.shell_root === 'shells/aionui';
+}
+
 function validateContractShape(contract) {
   if (contract.app_repo !== 'gaofeng21cn/one-person-lab-app') {
     throw new Error(`Unexpected app_repo: ${contract.app_repo}`);
   }
-  if (contract.shell_source?.owner_repo !== 'gaofeng21cn/opl-aion-shell') {
-    throw new Error(`Unexpected shell_source owner: ${contract.shell_source?.owner_repo}`);
+  if (contract.active_shell === 'aionui' && contract.shell_source?.owner_repo !== 'gaofeng21cn/opl-aion-shell') {
+    throw new Error(`Unexpected AionUI shell_source owner: ${contract.shell_source?.owner_repo}`);
   }
   if (contract.shell_source?.history_policy !== 'external_checkout_not_merged_into_app_default_branch') {
     throw new Error(`Unexpected shell history policy: ${contract.shell_source?.history_policy}`);
@@ -214,13 +218,16 @@ function validateContractShape(contract) {
     }
     assertFile(path.join(root, contractRef), `GUI authority contract ${contractRef}`);
   }
-  for (const allowed of [
+  const requiredShellOwnedSurface = [
     'concrete renderer implementation',
     'process and preload implementation',
     'shell package metadata',
     'shell tests and release hooks',
-    'upstream AionUI intake',
-  ]) {
+  ];
+  if (isDefaultReleaseAdapter(contract)) {
+    requiredShellOwnedSurface.push('upstream AionUI intake');
+  }
+  for (const allowed of requiredShellOwnedSurface) {
     if (!contract.gui_authority.shell_may_own?.includes(allowed)) {
       throw new Error(`Active shell GUI authority must declare shell-owned surface ${allowed}`);
     }
@@ -252,7 +259,7 @@ function validateContractShape(contract) {
     throw new Error('Shell replacement must not transfer App GUI authority');
   }
   for (const gate of [
-    'declare candidate in contracts/app-shell-adapter.json',
+    'declare candidate in contracts/app-shell-candidates.json',
     'implement contracts/app-gui-product-contract.json',
     'sync App product profile into the candidate shell target',
     'pass App page-state and first-run matrices',
@@ -263,6 +270,9 @@ function validateContractShape(contract) {
     if (!contract.shell_replacement_policy.adoption_gate?.includes(gate)) {
       throw new Error(`Shell replacement policy missing adoption gate ${gate}`);
     }
+  }
+  if (contract.shell_replacement_policy.adoption_gate.includes('declare candidate in contracts/app-shell-adapter.json')) {
+    throw new Error('Shell replacement policy must not declare candidates inside contracts/app-shell-adapter.json');
   }
   for (const capability of [
     'app_owned_gui_product_contract',
@@ -290,8 +300,11 @@ function validateContractShape(contract) {
   if (contract.gui_product_contract_policy.upstream_family_role !== 'implementation_material_only') {
     throw new Error(`Unexpected upstream GUI role: ${contract.gui_product_contract_policy.upstream_family_role}`);
   }
-  if (contract.gui_product_contract_policy.aionui_upstream_must_not_override_app_truth !== true) {
-    throw new Error('Active shell must declare that AionUI upstream cannot override App truth');
+  if (
+    contract.gui_product_contract_policy.upstream_must_not_override_app_truth !== true
+    && contract.gui_product_contract_policy.aionui_upstream_must_not_override_app_truth !== true
+  ) {
+    throw new Error('Active shell must declare that upstream GUI behavior cannot override App truth');
   }
   const stateSurface = contract.state_surface_contract;
   for (const [field, expected] of Object.entries({
@@ -380,6 +393,10 @@ function assertShellFileHash(shellPaths, relativePath, expectedHash, label) {
 }
 
 function validateActiveShellImplementation(shellPaths) {
+  if (shellPaths.contract.shell_contract?.implementation_validation === 'contract_paths_only') {
+    return;
+  }
+
   const i18nConfig = JSON.parse(
     readShellText(shellPaths, 'packages/desktop/src/common/config/i18n-config.json'),
   );
@@ -1173,7 +1190,7 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
   if (runtimeBridge.state !== 'active') {
     throw new Error(`Unexpected runtime bridge state: ${runtimeBridge.state}`);
   }
-  if (runtimeBridge.active_adapter !== contract.active_shell) {
+  if (isDefaultReleaseAdapter(contract) && runtimeBridge.active_adapter !== contract.active_shell) {
     throw new Error(`Runtime bridge active adapter must match active shell: ${runtimeBridge.active_adapter}`);
   }
   if (runtimeBridge.adapter_role !== 'replaceable_gui_shell_adapter') {
@@ -1185,10 +1202,10 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
   if (runtimeBridge.ui_contract_owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected runtime bridge UI contract owner: ${runtimeBridge.ui_contract_owner}`);
   }
-  if (runtimeBridge.default_adapter_repo !== contract.shell_source?.owner_repo) {
+  if (isDefaultReleaseAdapter(contract) && runtimeBridge.default_adapter_repo !== contract.shell_source?.owner_repo) {
     throw new Error(`Runtime bridge adapter repo must match active shell source: ${runtimeBridge.default_adapter_repo}`);
   }
-  if (runtimeBridge.default_adapter_path !== contract.shell_root) {
+  if (isDefaultReleaseAdapter(contract) && runtimeBridge.default_adapter_path !== contract.shell_root) {
     throw new Error(`Runtime bridge adapter path must match active shell root: ${runtimeBridge.default_adapter_path}`);
   }
   for (const [field, expected] of Object.entries({
@@ -1798,7 +1815,7 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
 }
 
 function validatePageStateMatrix(matrix, contract) {
-  if (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root) {
+  if (isDefaultReleaseAdapter(contract) && (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root)) {
     throw new Error('Page-state matrix must target the active shell contract');
   }
 
@@ -2530,7 +2547,7 @@ function validateSharedProgressModel(progressModel) {
 }
 
 function validateFirstRunMatrix(matrix, contract) {
-  if (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root) {
+  if (isDefaultReleaseAdapter(contract) && (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root)) {
     throw new Error('First-run matrix must target the active shell contract');
   }
   validateSharedProgressModel(matrix.shared_progress_model);
@@ -2571,7 +2588,7 @@ function validateProductProfileIdentity(profile) {
 
 function validateProductProfileContractRefs(profile) {
   for (const [label, expected] of Object.entries({
-    active_shell: contractPath,
+    active_shell: defaultActiveShellContractPath,
     page_state: pageStateMatrixPath,
     first_run: firstRunMatrixPath,
     install_exposure: installExposurePolicyPath,
@@ -2998,7 +3015,7 @@ function runCommand(entry, contract, shellPaths) {
 }
 
 const args = parseArgs(process.argv);
-const contract = readAppShellAdapterContract(contractPath);
+const contract = readAppShellAdapterContract();
 const shellPaths = resolveActiveShellPaths({ contract });
 const guiProductContract = readJson(guiProductContractPath);
 const runtimeBridge = readJson(runtimeBridgePath);

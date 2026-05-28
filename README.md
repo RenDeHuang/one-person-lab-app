@@ -65,7 +65,7 @@ One Person Lab App owns the desktop product experience: packaging, release asset
 
 App-owned product defaults are declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json). Installation and Codex-visible exposure policy is declared in [`contracts/app-install-exposure-policy.json`](contracts/app-install-exposure-policy.json): the App decides the user-facing install surfaces and default visible entries, while OPL Framework produces the install/sync/read-model surfaces and domain repos keep skill semantics. The runtime bridge is declared in [`contracts/app-runtime-bridge.json`](contracts/app-runtime-bridge.json): OPL owns the runtime/app CLI protocol, the App owns the GUI bridge contract, and `opl-aion-shell` is the current replaceable adapter implementation. Release scripts sync App-owned contracts into the active shell before standard and Full packaging so Codex defaults, visible companion skills, first-run maintenance behavior, and user-facing Settings labels are configured by the App repository instead of being scattered through the AionUI fork.
 
-GUI product truth is App-owned as well. The active shell implements the current renderer and package surface, but page behavior, model-selection policy, onboarding behavior, screenshots, release docs, and user-facing defaults are governed by App contracts. Future shells stay under `shells/<candidate>` until the App shell adapter, product profile sync, page-state and first-run matrices, active-shell validation, GUI package compile, and external checkout history policy all pass.
+GUI product truth is App-owned as well. The active shell implements the current renderer and package surface, but page behavior, model-selection policy, onboarding behavior, screenshots, release docs, and user-facing defaults are governed by App contracts. Future shells stay under `shells/<candidate>` until the App shell adapter, product profile sync, page-state and first-run matrices, active-shell validation, GUI package compile, and external checkout history policy all pass. A technical verification shell can be selected explicitly with `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`; that selected wrapper path must compile a launchable `.app` bundle and package manifest for the candidate. The default release shell remains `contracts/app-shell-adapter.json`.
 
 One Person Lab provides CLI, activation, stage control, runtime providers, queue, contracts, module discovery, skill sync, runtime snapshots, and progress projections. MAS, MAG, and RCA carry their domain judgment, quality verdicts, stage semantics, and deliverables.
 
@@ -88,7 +88,7 @@ one-person-lab-app/
     aionui/             External checkout of gaofeng21cn/opl-aion-shell
 ```
 
-`shells/aionui/` is intentionally not tracked by this repository. It is checked out from `gaofeng21cn/opl-aion-shell` for builds and validation, keeping AionUI history and contributors outside the clean App product repository.
+`shells/aionui/` is intentionally not tracked by this repository. It is checked out from `gaofeng21cn/opl-aion-shell` for builds and validation, keeping AionUI history and contributors outside the clean App product repository. Candidate shells follow the same external-checkout rule; for example, `shells/agui-codex/` links to `gaofeng21cn/opl-agui-codex-shell` and is selected only for explicit technical verification builds.
 
 ### Validation Commands
 
@@ -120,6 +120,14 @@ The active shell is declared in [`contracts/app-shell-adapter.json`](contracts/a
 - upstream family: `AionUI`
 - shell source: `gaofeng21cn/opl-aion-shell`
 - shell history policy: external checkout, not merged into App default branch
+
+An experimental shell can be selected without changing the default release adapter:
+
+```bash
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
+```
+
+Candidate package validation requires the manifest to declare `candidate_app_bundle_ready`, `explicit_candidate_app_bundle`, and a relative `.app` bundle path with `Contents/Info.plist` plus a `Contents/MacOS` executable. Text-only smoke artifacts are not accepted as candidate App packages.
 
 The App product profile is declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json) and generated into the active shell path declared by [`contracts/app-shell-adapter.json`](contracts/app-shell-adapter.json) during release preparation.
 

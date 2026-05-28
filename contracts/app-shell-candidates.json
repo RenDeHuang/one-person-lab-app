@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "owner": "one-person-lab-app",
+  "purpose": "app_shell_candidate_registry",
+  "state": "active_experimental",
+  "machine_boundary": "GUI shell candidate registry. Candidates stay out of default release packaging, but a candidate with an adapter contract can be selected explicitly through OPL_APP_SHELL_ADAPTER_CONTRACT for launchable .app technical verification builds.",
+  "active_shell_unchanged": "aionui",
+  "release_shell_contract": "contracts/app-shell-adapter.json",
+  "gui_product_contract": "contracts/app-gui-product-contract.json",
+  "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
+  "product_profile_contract": "contracts/app-product-profile.json",
+  "page_state_matrix": "contracts/app-page-state-matrix.json",
+  "first_run_matrix": "contracts/app-first-run-test-matrix.json",
+  "candidate_policy": {
+    "candidate_root_pattern": "shells/<candidate>",
+    "candidate_state": "candidate_until_contracts_and_tests_complete",
+    "release_participation_until_adopted": "explicit_candidate_build_only",
+    "authority_transfer_allowed": false,
+    "release_scripts_must_use_active_shell_adapter": true,
+    "candidate_validation_script": "scripts/validate-shell-candidates.ts",
+    "adoption_gate": [
+      "candidate is declared in contracts/app-shell-candidates.json",
+      "candidate implements contracts/app-gui-product-contract.json",
+      "candidate maps App product profile without owning product truth",
+      "candidate consumes opl app state/action surfaces only",
+      "candidate passes page-state and first-run matrix mapping checks",
+      "candidate passes App-root candidate validation",
+      "candidate compiles a launchable .app bundle through the App wrapper when OPL_APP_SHELL_ADAPTER_CONTRACT selects its adapter contract",
+      "contracts/app-shell-adapter.json is changed only when candidate becomes active release shell"
+    ]
+  },
+  "candidates": [
+    {
+      "id": "agui-codex",
+      "state": "technical_verification",
+      "candidate_root": "shells/agui-codex",
+      "adapter_contract": "contracts/shell-adapters/agui-codex.json",
+      "source_topology": "external_checkout_linked_shell_repo",
+      "release_participation": "selectable_for_explicit_candidate_build",
+      "implementation_basis": [
+        "AG-UI event model",
+        "CopilotKit-style React agent UI patterns",
+        "OPL App-owned product profile",
+        "OPL Framework app state/action CLI protocol"
+      ],
+      "target_product_shape": {
+        "codex_cli_fixed_executor": true,
+        "home_executor_selector_visible": false,
+        "home_backend_selector_visible": false,
+        "home_model_selector_visible": false,
+        "permission_mode_selector_visible": false,
+        "purpose_entries": [
+          "research",
+          "grant",
+          "ppt"
+        ],
+        "runtime_page_policy": "summary_first_full_detail_on_demand",
+        "settings_policy": "app_state_refs_only"
+      },
+      "framework_surfaces": {
+        "state": "opl app state --profile fast --json",
+        "refresh": "opl app state --profile fast --json",
+        "full_state": "opl app state --profile full --json",
+        "full_drilldown": "opl runtime app-operator-drilldown --detail full --json",
+        "action": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json"
+      },
+      "required_capabilities": [
+        "codex_cli_fixed_executor_home",
+        "purpose_first_home_entries",
+        "agui_event_contract_map",
+        "app_product_profile_mapping",
+        "opl_app_state_bridge",
+        "opl_app_action_bridge",
+        "page_state_matrix_mapping",
+        "first_run_matrix_mapping",
+        "release_isolation",
+        "candidate_app_bundle_package"
+      ],
+      "must_not_own": [
+        "App GUI product truth",
+        "App model-selection policy",
+        "App release gate policy",
+        "OPL runtime truth",
+        "provider implementation",
+        "domain truth",
+        "domain quality verdict",
+        "memory body",
+        "artifact body",
+        "artifact authority"
+      ],
+      "forbidden_home_controls": [
+        "Aion CLI backend choice",
+        "Claude Code backend choice",
+        "generic backend selector",
+        "Codex model override selector",
+        "permission mode selector"
+      ],
+      "validation_commands": [
+        {
+          "id": "candidate_contract",
+          "cwd": ".",
+          "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json node --experimental-strip-types scripts/validate-active-shell.ts --quick"
+        },
+        {
+          "id": "candidate_self_check",
+          "cwd": "shells/agui-codex",
+          "command": "node --experimental-strip-types scripts/validate-agui-codex-candidate.ts"
+        },
+        {
+          "id": "candidate_app_bundle_build",
+          "cwd": ".",
+          "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package"
+        }
+      ],
+      "non_goals": [
+        "do not switch active_shell away from aionui",
+        "do not enter default stable or nightly release packaging",
+        "do not vendor opl-aion-shell implementation",
+        "do not introduce runtime or domain truth into the App repo"
+      ]
+    }
+  ]
+}

@@ -65,6 +65,8 @@ One Person Lab App 负责桌面产品体验：打包、发布资产、更新元�
 
 App 产品默认策略由 [`contracts/app-product-profile.json`](contracts/app-product-profile.json) 声明。安装与 Codex 可见暴露策略由 [`contracts/app-install-exposure-policy.json`](contracts/app-install-exposure-policy.json) 声明：App 决定用户看到的安装形态和默认入口，OPL Framework 生产 install/sync/read-model surface，domain 仓继续持有 skill 语义。发布脚本会在标准包和 Full 包构建前把该合同同步到活动 shell，让 Codex 默认模型/推理强度、默认打包 skill 白名单、首次启动维护行为和 Settings 用户文案由 App 仓统一配置，而不是分散写死在 AionUI fork 中。
 
+GUI 产品事实也由 App 仓拥有。默认发布界面仍由 [`contracts/app-shell-adapter.json`](contracts/app-shell-adapter.json) 指向 `shells/aionui`；技术验证界面可以通过 `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json` 显式选择，复用同一套 App 包装脚本同步 product profile，并为候选 shell 编译出可启动的 `.app` bundle 与 package manifest。
+
 One Person Lab 提供命令行、激活、阶段控制、运行时提供者、队列、合同、模块发现、技能同步、运行快照和进度投影。MAS、MAG、RCA 承载各自领域的专业判断、质量裁决、阶段语义和交付物。
 
 需要框架、运行时和合同信息时，请进入 [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab)。
@@ -86,7 +88,7 @@ one-person-lab-app/
     aionui/             gaofeng21cn/opl-aion-shell 的外部检出目录
 ```
 
-`shells/aionui/` 不纳入本仓跟踪。构建和验证时从 `gaofeng21cn/opl-aion-shell` 检出，AionUI 历史和贡献者记录保留在独立 shell 仓库中。
+`shells/aionui/` 不纳入本仓跟踪。构建和验证时从 `gaofeng21cn/opl-aion-shell` 检出，AionUI 历史和贡献者记录保留在独立 shell 仓库中。候选 shell 也遵循同样的外部检出规则；例如 `shells/agui-codex/` 链接到 `gaofeng21cn/opl-agui-codex-shell`，只在显式技术验证构建时使用。
 
 ### 常用验证命令
 
@@ -113,6 +115,14 @@ bun run validate-release -- release-assets
 - 上游家族：`AionUI`
 - 界面来源：`gaofeng21cn/opl-aion-shell`
 - 历史策略：外部检出，不合并进 App 默认分支
+
+不改变默认发布 adapter 的情况下，可以显式选择实验 shell：
+
+```bash
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
+```
+
+候选 package validation 要求 manifest 声明 `candidate_app_bundle_ready`、`explicit_candidate_app_bundle`，以及相对路径形式的 `.app` bundle；该 bundle 必须包含 `Contents/Info.plist` 和 `Contents/MacOS` 可执行文件。纯文本 smoke artifact 不算候选 App package。
 
 App 产品默认策略由 [`contracts/app-product-profile.json`](contracts/app-product-profile.json) 声明，并在发布准备阶段生成到 [`contracts/app-shell-adapter.json`](contracts/app-shell-adapter.json) 声明的当前 shell 路径。
 

@@ -31,6 +31,7 @@ Date: `2026-05-28`
 | `runtime_page_operator_evidence` | Runtime page consumes OPL App/operator drilldown and refs-only safe action routes. | Page-state tests and GUI smoke show summary-first read model, lazy full detail, dry-run/execute controls, receipt/count refresh, and authority-boundary fields. |
 | `active_shell_sync` | App root wrappers prepare App-owned payloads and call the external shell. | Product profile and release contracts are generated into the active shell before build/release, without merging shell history into App mainline. |
 | `packaged_gui_codex_path_evidence` | Home and ordinary conversation conformance are contract-backed and unit-tested; packaged App screenshot/click smoke still needs to prove the same behavior from a DMG/App bundle. | Packaged GUI smoke shows: select MAS/MAG/RCA, badge is `@MAS/@MAG/@RCA`, no backend/model/permission selector appears on home or ordinary conversation, and `opl_assistant_route` receipt exists. |
+| `agui_codex_candidate_spike` | `contracts/app-shell-candidates.json` declares `agui-codex`; `contracts/shell-adapters/agui-codex.json` can explicitly select the linked `shells/agui-codex` external repo for a technical verification `.app` build. | Candidate validation proves fixed Codex home, purpose entries, AG-UI event mapping, OPL App state/action consumption, first-run/page-state mapping, App-wrapper launchable `.app` bundle output, and release isolation before any default active-shell switch is considered. |
 
 ## Next-Round Agent Prompt
 
@@ -53,6 +54,7 @@ Required actions:
 - Keep the App ordinary path aligned with the Codex App equivalent positioning: Codex CLI fixed executor, no home or ordinary-conversation backend/model/permission selector, MAS/MAG/RCA as built-in purpose entries, precise model details limited to technical/connected-state surfaces.
 - Keep built-in assistant sends observable with a route receipt: `route_kind=builtin_capability`, `executor=codex_cli`, `assistant_id`, `assistant_short_name`, and `source=opl_app_home`.
 - Keep ordinary Settings aligned with the App-owned navigation partition: Overview, Runtime, Capabilities, Access, Appearance, System, and About. Treat model/agent/assistants/skills-hub/tools/display/webui/pet as legacy or diagnostics routes that redirect to App-owned pages.
+- Keep shell candidate work isolated in `contracts/app-shell-candidates.json`, `contracts/shell-adapters/<candidate>.json`, and linked `shells/<candidate>` external repos until adoption; default release wrappers continue to use `contracts/app-shell-adapter.json` unless `OPL_APP_SHELL_ADAPTER_CONTRACT` is explicitly set for a candidate build.
 - For each release cohort, classify evidence as present, missing, typed blocker, or not applicable; never promote missing evidence to release-ready proof.
 - When OPL App/operator drilldown reports current cohort release/user-path refs, reflect the verified refs-only state in App docs without converting it into release-ready, domain-ready, or production-ready authority.
 - Keep active shell intake explicit: App-owned product/release contract changes stay here, shell implementation changes stay in `opl-aion-shell`.

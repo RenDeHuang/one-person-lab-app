@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { resolveActiveShellPaths } from './app-shell-adapter.ts';
+import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 export type AppProductProfile = {
   schema_version: number;
@@ -547,7 +547,7 @@ export function syncAppProductProfileToShell(
   shellRoot: string,
   options: { optional?: boolean } = {},
 ): { synced: boolean; targetPath: string } {
-  const shellPaths = resolveActiveShellPaths({ shellRoot });
+  const shellPaths = resolveActiveShellPaths({ contract: readAppShellAdapterContract(), shellRoot });
   const targetPath = shellPaths.productProfileTargetPath;
   if (!fs.existsSync(shellPaths.packageManifestPath)) {
     if (options.optional) return { synced: false, targetPath };

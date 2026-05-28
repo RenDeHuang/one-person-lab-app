@@ -3,11 +3,15 @@
 The root `scripts/` directory exposes App-level wrappers. The active Electron
 shell implementation is checked out from `gaofeng21cn/opl-aion-shell` and
 exposes its shell-specific helpers under `shells/aionui/scripts/`.
+By default wrappers read `contracts/app-shell-adapter.json`. Technical
+verification can select a different linked shell repo with
+`OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`.
 
 | Script | Purpose |
 | --- | --- |
-| `ensure-active-shell.ts` | Clones or validates the external active shell checkout at `shells/aionui`. |
-| `validate-active-shell.ts` | Validates `contracts/app-shell-adapter.json` and runs selected active shell validation commands. |
+| `ensure-active-shell.ts` | Clones or validates the selected external shell checkout, defaulting to `shells/aionui`. |
+| `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
+| `validate-shell-candidates.ts` | Validates GUI shell candidates from `contracts/app-shell-candidates.json`; selectable candidates are packageable only through an explicit adapter contract env override and must emit a real `.app` bundle manifest. |
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
@@ -23,7 +27,8 @@ Stable App-root npm entries are `validate:release-boundary`,
 `hygiene:fallow`. These keep release boundary/evidence scripts visible as
 production entrypoints while the files remain thin App-owned wrappers around
 contracts and release artifacts. App-root fallow config excludes
-`shells/aionui/**` because that path is an ignored external shell checkout.
+`shells/aionui/**` and `shells/agui-codex/**` because those paths are ignored
+external shell checkouts.
 `hygiene:fallow` is not GUI shell build or runtime evidence; `validate:gui-shell`
 runs the full active shell validation list and the shell GUI compile path
 through App wrappers. Run shell hygiene in `gaofeng21cn/opl-aion-shell`.
@@ -45,6 +50,7 @@ node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 npm run release:plan -- --version <version> --profile nightly
 npm run release:plan -- --version <version> --include-full-package
 npm run release:full:size -- --markdown
@@ -53,6 +59,12 @@ npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt
 OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --complete --skip-modules
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
+
+For candidate shells, `npm run validate:shell-candidates -- --run-candidate-commands`
+expects the selected package command to produce `out/agui-codex-candidate-manifest.json`
+with `candidate_app_bundle_ready`, `explicit_candidate_app_bundle`, and a
+relative `.app` bundle path whose bundle contains `Contents/Info.plist` and a
+`Contents/MacOS` executable. A `.txt` smoke output is intentionally rejected.
 
 `release:prepare-standard` also copies the App root installer into the active
 shell resources as `opl-install.sh`, which is the packaged standard DMG

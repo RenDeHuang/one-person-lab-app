@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const contractPath = path.join(root, 'contracts', 'app-shell-adapter.json');
 
 function parseArgs(argv) {
   const parsed = {
@@ -161,7 +160,7 @@ function runProject({ shellRoot, project, files, chunkSize, fileParallelism, max
 }
 
 const args = parseArgs(process.argv);
-const contract = readAppShellAdapterContract(contractPath);
+const contract = readAppShellAdapterContract();
 const shellPaths = resolveActiveShellPaths({ contract });
 const shellRoot = shellPaths.shellRoot;
 

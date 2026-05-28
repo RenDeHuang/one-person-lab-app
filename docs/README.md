@@ -44,10 +44,19 @@ mirrors.
 The current stable GUI shell is checked out at `shells/aionui/` from
 `gaofeng21cn/opl-aion-shell`. AionUI-specific implementation docs remain in the
 shell repository. This App repository keeps only App-owned product, release,
-contract, and user documentation in its default branch. A future GUI shell must
-enter as `shells/<candidate>` and pass the App-owned shell adapter, product
-profile sync, page-state, first-run, validation, and package compile gates
-before it can become active.
+contract, and user documentation in its default branch. Experimental shell
+candidates are declared in
+[`../contracts/app-shell-candidates.json`](../contracts/app-shell-candidates.json)
+and stay outside default release packaging until adoption. A selectable
+candidate also has an adapter contract under `../contracts/shell-adapters/`;
+for example `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json`
+targets the linked `shells/agui-codex` checkout for a launchable `.app` bundle
+technical verification build. Candidate package validation rejects text-only
+smoke outputs and requires a `.app` manifest with `Contents/Info.plist` and a
+`Contents/MacOS` executable. A candidate becomes the default release shell only after
+`contracts/app-shell-adapter.json` is changed deliberately and the App-owned
+shell adapter, product profile sync, page-state, first-run, validation, package
+compile, and external checkout history gates pass.
 
 `contracts/app-runtime-bridge.json` also declares an opt-in live conformance
 gate. Normal local and CI validation does not require a live Framework checkout.

@@ -97,10 +97,12 @@ typings/
 # Electron-Forge
 out/
 
-# External active shell checkout. The shell repo keeps AionUI history outside
+# External GUI shell checkouts. Shell repos keep implementation history outside
 # this clean App product repository.
 shells/aionui
 shells/aionui/
+shells/agui-codex
+shells/agui-codex/
 !shells/.gitkeep
 
 # IDE and Editor files
