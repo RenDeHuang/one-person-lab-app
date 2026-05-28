@@ -75,6 +75,18 @@ const beginnerFirstRunTestIds = [
   'opl-first-run-background-maintenance-secondary',
   'opl-first-run-technical-details-toggle',
 ];
+const appOwnedSettingsTabs = ['overview', 'runtime', 'capabilities', 'access', 'appearance', 'system', 'about'];
+const legacySettingsRouteRedirects = {
+  model: 'runtime',
+  agent: 'runtime',
+  assistants: 'capabilities',
+  'skills-hub': 'capabilities',
+  tools: 'capabilities',
+  display: 'appearance',
+  webui: 'access',
+  pet: 'appearance',
+};
+const ordinaryHiddenLegacySettingsTabs = Object.keys(legacySettingsRouteRedirects);
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
@@ -88,6 +100,12 @@ function assertIncludesAll(actual, expected, label) {
     if (!actual.includes(item)) {
       throw new Error(`${label} must include ${item}`);
     }
+  }
+}
+
+function assertDeepEqualJson(actual, expected, label) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label} must be ${JSON.stringify(expected)}; got ${JSON.stringify(actual)}`);
   }
 }
 
@@ -514,6 +532,85 @@ function validateActiveShellImplementation(shellPaths) {
   }
   if (/med[-_ ]?deep[-_ ]?scientist|module_id['"]?\s*:\s*['"]mds['"]/i.test(runtimeSettings)) {
     throw new Error('Active shell Runtime settings must not default-display Med Deep Scientist/MDS.');
+  }
+
+  const settingsNav = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/sections/settingsNav.tsx');
+  for (const expected of [
+    'getOplGuiSettingsVisibleTabs',
+    'getOplGuiLegacySettingsRouteRedirects',
+    'SETTINGS_DEFAULT_ROUTE = \'/settings/overview\'',
+    "if (legacyId === 'skills-hub') return '/settings/capabilities?tab=skills'",
+    "if (legacyId === 'tools') return '/settings/capabilities?tab=tools'",
+    'LEGACY_SETTINGS_ROUTE_REDIRECTS',
+    'LEGACY_ANCHOR_REMAP',
+  ]) {
+    if (!settingsNav.includes(expected)) {
+      throw new Error(`Active shell settings navigation must derive App-owned settings partition: ${expected}`);
+    }
+  }
+
+  const settingsModal = readShellText(shellPaths, 'packages/desktop/src/renderer/components/settings/SettingsModal/index.tsx');
+  for (const expected of [
+    'getOplGuiSettingsVisibleTabs',
+    'getOplGuiLegacySettingsRouteRedirects',
+    "defaultTab = 'runtime'",
+    '<OverviewSettings withWrapper={false} />',
+    '<RuntimeSettings withWrapper={false} />',
+    '<SkillsHubSettings withWrapper={false} />',
+    '<ToolsModalContent />',
+    '<WebuiModalContent />',
+    '<DisplayModalContent />',
+  ]) {
+    if (!settingsModal.includes(expected)) {
+      throw new Error(`Active shell settings modal must implement App-owned settings partition: ${expected}`);
+    }
+  }
+  for (const forbidden of [
+    'ModelModalContent',
+    'AgentModalContent',
+    "label: t('settings.model')",
+    "label: t('settings.tools')",
+    "label: t('settings.webui')",
+  ]) {
+    if (settingsModal.includes(forbidden)) {
+      throw new Error(`Active shell settings modal must not expose legacy ordinary settings entry ${forbidden}`);
+    }
+  }
+
+  const router = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Router.tsx');
+  for (const [legacyId, targetId] of Object.entries(legacySettingsRouteRedirects)) {
+    const expectedTarget =
+      legacyId === 'skills-hub'
+        ? '/settings/capabilities?tab=skills'
+        : legacyId === 'tools'
+          ? '/settings/capabilities?tab=tools'
+          : `/settings/${targetId}`;
+    const expectedRoute = `path='/settings/${legacyId}' element={<Navigate to='${expectedTarget}' replace />}`;
+    if (!router.includes(expectedRoute)) {
+      throw new Error(`Active shell router must redirect legacy settings route ${legacyId} to ${expectedTarget}`);
+    }
+  }
+
+  const quickActions = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/components/QuickActionButtons.tsx',
+  );
+  for (const expected of [
+    'guid-access-quick-action',
+    "navigate('/settings/access')",
+    "t('settings.access'",
+  ]) {
+    if (!quickActions.includes(expected)) {
+      throw new Error(`Active shell Guid quick action must expose App Access settings, not WebUI: ${expected}`);
+    }
+  }
+  for (const forbidden of [
+    "navigate('/settings/webui')",
+    "t('settings.webui', { defaultValue: 'WebUI' })",
+  ]) {
+    if (quickActions.includes(forbidden)) {
+      throw new Error(`Active shell Guid quick action must not expose WebUI as ordinary entry: ${forbidden}`);
+    }
   }
 
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
@@ -1521,6 +1618,21 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
       throw new Error(`App GUI settings navigation must include ${section}`);
     }
   }
+  assertDeepEqualJson(
+    guiContract.settings_navigation?.ordinary_visible_tabs,
+    appOwnedSettingsTabs,
+    'App GUI settings navigation ordinary visible tabs',
+  );
+  assertDeepEqualJson(
+    guiContract.settings_navigation?.legacy_route_redirects,
+    legacySettingsRouteRedirects,
+    'App GUI settings navigation legacy route redirects',
+  );
+  assertDeepEqualJson(
+    guiContract.settings_navigation?.ordinary_hidden_legacy_tabs,
+    ordinaryHiddenLegacySettingsTabs,
+    'App GUI settings navigation ordinary hidden legacy tabs',
+  );
   if (guiContract.settings_navigation.source !== 'opl app state --profile fast --json') {
     throw new Error('App GUI settings navigation must default to fast App state');
   }
@@ -2546,6 +2658,16 @@ function validateProductProfileCodexDefaults(profile) {
   if (JSON.stringify((profile.gui.default_assistants ?? []).map((assistant) => assistant.id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
     throw new Error('Product profile default assistants must be MAS, MAG, and RCA only');
   }
+  assertDeepEqualJson(
+    profile.settings?.visible_tabs,
+    appOwnedSettingsTabs,
+    'Product profile ordinary settings visible tabs',
+  );
+  assertDeepEqualJson(
+    profile.settings?.legacy_route_redirects,
+    legacySettingsRouteRedirects,
+    'Product profile legacy settings route redirects',
+  );
   const productSkillProfiles = profile.gui.assistant_skill_profiles ?? [];
   if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
     throw new Error('Product profile assistant skill profiles must target MAS, MAG, and RCA');

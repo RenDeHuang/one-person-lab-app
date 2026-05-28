@@ -387,6 +387,25 @@ test('App product profile owns user-facing defaults without runtime authority', 
     'source',
   ]);
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection, true);
+  assert.deepEqual(profile.settings.visible_tabs, [
+    'overview',
+    'runtime',
+    'capabilities',
+    'access',
+    'appearance',
+    'system',
+    'about',
+  ]);
+  assert.deepEqual(profile.settings.legacy_route_redirects, {
+    model: 'runtime',
+    agent: 'runtime',
+    assistants: 'capabilities',
+    'skills-hub': 'capabilities',
+    tools: 'capabilities',
+    display: 'appearance',
+    webui: 'access',
+    pet: 'appearance',
+  });
   assert.equal(profile.gui.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
   assert.ok(profile.codex.default_visible_skills.includes('superpowers'));
   assert.ok(profile.codex.default_visible_skills.includes('mineru-document-extractor'));
@@ -2243,6 +2262,35 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.retired_domain_agents.find((agent) => agent.id === 'mds').default_display_allowed, false);
   assert.equal(guiContract.pages.guid_home.hero_prompt, '把研究、基金和汇报交给 One Person Lab 自动推进');
   assert.ok(guiContract.pages.settings_system.must_show.includes('OPL Agent Codex context'));
+  assert.deepEqual(guiContract.settings_navigation.ordinary_visible_tabs, [
+    'overview',
+    'runtime',
+    'capabilities',
+    'access',
+    'appearance',
+    'system',
+    'about',
+  ]);
+  assert.deepEqual(guiContract.settings_navigation.legacy_route_redirects, {
+    model: 'runtime',
+    agent: 'runtime',
+    assistants: 'capabilities',
+    'skills-hub': 'capabilities',
+    tools: 'capabilities',
+    display: 'appearance',
+    webui: 'access',
+    pet: 'appearance',
+  });
+  assert.deepEqual(guiContract.settings_navigation.ordinary_hidden_legacy_tabs, [
+    'model',
+    'agent',
+    'assistants',
+    'skills-hub',
+    'tools',
+    'display',
+    'webui',
+    'pet',
+  ]);
   assert.deepEqual(guiContract.settings_navigation.required_sections, ['system', 'runtime', 'about', 'update', 'theme']);
   assert.equal(guiContract.settings_navigation.source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');

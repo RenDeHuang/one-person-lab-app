@@ -524,6 +524,16 @@
       "system",
       "about"
     ],
+    "legacy_route_redirects": {
+      "model": "runtime",
+      "agent": "runtime",
+      "assistants": "capabilities",
+      "skills-hub": "capabilities",
+      "tools": "capabilities",
+      "display": "appearance",
+      "webui": "access",
+      "pet": "appearance"
+    },
     "environment_items": [
       "codex",
       "temporal",

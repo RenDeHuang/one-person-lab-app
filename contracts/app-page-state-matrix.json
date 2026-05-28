@@ -259,7 +259,10 @@
       ],
       "must_not_show": [
         "delayed developer mode flip from a shell-local cache",
-        "AionUI local directory as OPL path truth"
+        "AionUI local directory as OPL path truth",
+        "Model provider settings as an ordinary settings tab",
+        "Agent backend settings as an ordinary settings tab",
+        "WebUI settings as an ordinary settings tab"
       ]
     },
     {
@@ -286,7 +289,8 @@
       "must_not_show": [
         "Med Deep Scientist as a default module",
         "page-wide spinner while one section refreshes",
-        "GUI-owned Temporal restart judgment"
+        "GUI-owned Temporal restart judgment",
+        "backend/provider selector as normal App configuration"
       ]
     },
     {

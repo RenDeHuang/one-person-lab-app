@@ -251,6 +251,35 @@
     ]
   },
   "settings_navigation": {
+    "ordinary_visible_tabs": [
+      "overview",
+      "runtime",
+      "capabilities",
+      "access",
+      "appearance",
+      "system",
+      "about"
+    ],
+    "legacy_route_redirects": {
+      "model": "runtime",
+      "agent": "runtime",
+      "assistants": "capabilities",
+      "skills-hub": "capabilities",
+      "tools": "capabilities",
+      "display": "appearance",
+      "webui": "access",
+      "pet": "appearance"
+    },
+    "ordinary_hidden_legacy_tabs": [
+      "model",
+      "agent",
+      "assistants",
+      "skills-hub",
+      "tools",
+      "display",
+      "webui",
+      "pet"
+    ],
     "required_sections": [
       "system",
       "runtime",
@@ -260,7 +289,7 @@
     ],
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "Settings pages display App-owned product state and framework-owned refs without taking runtime or domain authority."
+    "policy": "Settings pages display App-owned product state and framework-owned refs without taking runtime or domain authority. Ordinary settings navigation uses the OPL App tabs only; upstream model, agent, assistants, skills-hub, tools, display, webui, and pet tabs are legacy/developer surfaces that redirect to App-owned Runtime, Capabilities, Access, or Appearance pages."
   },
   "first_launch_readiness_policy": {
     "launch_gate": "ready_to_launch",

@@ -140,10 +140,14 @@ requires `mas`, MAG requires `mag`, and RCA requires `rca`; optional companion
 skills are selected from that assistant profile, and AionUI-specific internal
 skills stay out of the home skill menu. Settings System/Runtime/About/Update/Theme
 surfaces, module path source explanation, stable/nightly release gates, and OPL
-Agent Codex context are App-owned requirements. OPL Meta Agent remains an
-App/CLI-managed ecosystem module rather than a default home assistant entry.
-MDS is not a default GUI module and remains historical or explicit-reference
-only. `contracts/app-shell-adapter.json`
+Agent Codex context are App-owned requirements. Ordinary Settings navigation is
+also App-owned: Overview, Runtime, Capabilities, Access, Appearance, System, and
+About are the visible tabs. Upstream model, agent, assistants, skills-hub,
+tools, display, webui, and pet routes redirect to those App-owned pages and are
+not ordinary user tabs. The `/guid` quick shortcut opens Access rather than a
+WebUI-branded entry. OPL Meta Agent remains an App/CLI-managed ecosystem module
+rather than a default home assistant entry. MDS is not a default GUI module and
+remains historical or explicit-reference only. `contracts/app-shell-adapter.json`
 requires the active shell to implement that App contract and keeps upstream
 AionUI as implementation material rather than product authority.
 

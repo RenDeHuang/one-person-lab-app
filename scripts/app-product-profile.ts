@@ -152,6 +152,7 @@ export type AppProductProfile = {
   };
   settings: {
     visible_tabs: string[];
+    legacy_route_redirects: Record<string, string>;
     environment_items: string[];
     developer_mode: {
       label_key: string;
@@ -404,6 +405,27 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.first_run.progress_model.required_visible_elements, 'first_run.progress_model.required_visible_elements');
   assertStringArray(profile.first_run.command_line_tools.messages, 'first_run.command_line_tools.messages');
   assertStringArray(profile.settings.visible_tabs, 'settings.visible_tabs');
+  if (
+    JSON.stringify(profile.settings.visible_tabs) !==
+    JSON.stringify(['overview', 'runtime', 'capabilities', 'access', 'appearance', 'system', 'about'])
+  ) {
+    throw new Error('App product profile settings.visible_tabs must keep ordinary settings on OPL App-owned pages');
+  }
+  if (
+    JSON.stringify(profile.settings.legacy_route_redirects) !==
+    JSON.stringify({
+      model: 'runtime',
+      agent: 'runtime',
+      assistants: 'capabilities',
+      'skills-hub': 'capabilities',
+      tools: 'capabilities',
+      display: 'appearance',
+      webui: 'access',
+      pet: 'appearance',
+    })
+  ) {
+    throw new Error('App product profile settings.legacy_route_redirects must route legacy AionUI settings to App-owned pages');
+  }
   assertStringArray(profile.settings.environment_items, 'settings.environment_items');
   assertStringArray(profile.companion_payloads.tools, 'companion_payloads.tools');
   assertStringArray(profile.companion_payloads.domain_modules, 'companion_payloads.domain_modules');
