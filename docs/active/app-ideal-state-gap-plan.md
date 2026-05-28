@@ -4,7 +4,7 @@ Owner: `one-person-lab-app`
 Purpose: `app_ideal_state_gap_plan`
 State: `active_plan`
 Machine boundary: Human-readable active truth and gap plan. Machine-readable truth lives in `contracts/`, source, release artifacts, updater metadata, and test results.
-Date: `2026-05-27`
+Date: `2026-05-28`
 
 ## Current Completion Progress
 
@@ -14,6 +14,7 @@ Date: `2026-05-27`
 | Framework / domain split | `active_truth` | OPL Framework owns runtime/provider/read-model/action execution; MAS/MAG/RCA/OMA own domain truth, quality/export verdicts, memory body, artifact body, owner receipts, and typed blockers. |
 | Active shell boundary | `active_external_checkout` | `shells/aionui/` is an external checkout from `gaofeng21cn/opl-aion-shell`; shell implementation history is not merged into the App repo default branch. |
 | Product contracts | `landed_with_release_evidence_tail` | `contracts/app-product-profile.json`, `contracts/app-page-state-matrix.json`, `contracts/app-first-run-test-matrix.json`, and `contracts/app-release-channel.json` hold App-owned machine policy. |
+| Release user-path evidence | `current_cohort_refs_verified` | Fresh OPL App/operator summary reads `app_release_user_path_evidence_gate_count=5`, `app_release_user_path_evidence_open_gate_count=0`, `app_release_user_path_evidence_verified_ledger_receipt_ref_count=6`, and `app_release_user_path_production_user_path_ready=true`; this is refs-only user-path evidence, not App release-ready or family production-ready authority. |
 | Codex App positioning | `active_contract_truth` | The App ordinary path is a Codex CLI fixed-executor experience with built-in MAS/MAG/RCA purpose entries; AionUI multi-backend choices are implementation material, not the user-facing App model. |
 | Home shell conformance | `landed_contract_backed` | App contracts and shell tests now require the home input to hide executor/model/permission selectors and show MAS/MAG/RCA as purpose-first entries. |
 | Conversation shell conformance | `landed_contract_backed` | App contracts now require ordinary Codex conversations to keep backend/model/permission selectors hidden after send; shell tests cover the conversation header and sendbox. |
@@ -24,7 +25,7 @@ Date: `2026-05-27`
 
 | Gap | Current state | Completion gate |
 | --- | --- | --- |
-| `repeat_release_evidence` | App release evidence collector and manifest validation exist; screenshots, clean first-run VM smoke, settings smoke, remote Release verification, and runtime JSON can still be missing per bundle. | Each release cohort has real artifacts or explicit missing evidence entries; no missing artifact is written as release-ready proof. |
+| `repeat_release_evidence` | App release evidence collector, manifest validation, and OPL ledger projection exist. The current OPL-selected App release/user-path cohort has five evidence gates observed and six verified ledger refs, while per-bundle evidence can still be missing for future release cohorts. | Each release cohort has real artifacts or explicit missing evidence entries, then any release/user-path ledger refs are recorded and verified without claiming App release-ready or family production-ready. |
 | `full_first_install_vm_evidence` | Full first-install policy is contract-backed; clean no-CLT VM evidence remains a release gate when requested. | Full first-install reaches Core ready from bundled runtime on a clean Mac, with deferred maintenance proven by VM smoke artifacts. |
 | `runtime_page_operator_evidence` | Runtime page consumes OPL App/operator drilldown and refs-only safe action routes. | Page-state tests and GUI smoke show summary-first read model, lazy full detail, dry-run/execute controls, receipt/count refresh, and authority-boundary fields. |
 | `active_shell_sync` | App root wrappers prepare App-owned payloads and call the external shell. | Product profile and release contracts are generated into the active shell before build/release, without merging shell history into App mainline. |
@@ -52,6 +53,7 @@ Required actions:
 - Keep the App ordinary path aligned with the Codex App equivalent positioning: Codex CLI fixed executor, no home or ordinary-conversation backend/model/permission selector, MAS/MAG/RCA as built-in purpose entries, precise model details limited to technical/connected-state surfaces.
 - Keep built-in assistant sends observable with a route receipt: `route_kind=builtin_capability`, `executor=codex_cli`, `assistant_id`, `assistant_short_name`, and `source=opl_app_home`.
 - For each release cohort, classify evidence as present, missing, typed blocker, or not applicable; never promote missing evidence to release-ready proof.
+- When OPL App/operator drilldown reports current cohort release/user-path refs, reflect the verified refs-only state in App docs without converting it into release-ready, domain-ready, or production-ready authority.
 - Keep active shell intake explicit: App-owned product/release contract changes stay here, shell implementation changes stay in `opl-aion-shell`.
 
 Non-goals:

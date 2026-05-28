@@ -157,6 +157,18 @@ verification artifacts remain required release evidence and stay marked
 `missing` until real artifacts exist; the collector is a user-path evidence
 bridge, not a packaged App release closeout.
 
+2026-05-28 OPL App/operator summary currently reads the selected App
+release/user-path cohort as refs-observed: five release/user-path evidence gates,
+zero open gates, six verified ledger receipt refs, and
+`app_release_user_path_production_user_path_ready=true`. That readout means the
+current cohort has body-free release package, screenshot/reload/user-path,
+provider linkage, and long-operator refs available to the App/operator surface.
+It remains a refs-only user-path projection from OPL runtime evidence; it is not
+an App release-ready claim, a domain readiness claim, or a family production
+readiness claim. Future release cohorts must still provide real artifacts or
+explicit missing evidence entries through the release evidence bundle and OPL
+ledger before being treated as observed.
+
 2026-05-15 migration note: this local checkout is the clean App repo. It has no
 tracked `shells/aionui` source, and local `shells/aionui` points to
 `/Users/gaofeng/workspace/opl-aion-shell`. Remote migration keeps
