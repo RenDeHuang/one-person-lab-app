@@ -140,10 +140,27 @@ export type AppProductProfile = {
     };
   };
   companion_payloads: {
+    install_exposure_policy_ref: string;
+    exposure_classes_ref: string;
+    public_abi: {
+      primary_semantic_entry: string;
+      preferred_app_distribution: string;
+      plugin_must_not_create_second_semantics: boolean;
+      cli_and_app_share_skill_semantics: boolean;
+    };
     tools: string[];
     domain_modules: string[];
     recommended_codex_skills: string[];
     packaged_not_default_visible_codex_skills: string[];
+    companion_skill_sync_default_ids: string[];
+    domain_plugin_skill_ids: string[];
+    domain_plugin_skills_must_not_be_companion_mirrors: boolean;
+    domain_exposure: Array<{
+      domain_id: string;
+      codex_visible_entry: string;
+      preferred_app_distribution: string;
+      direct_skill_semantics_required: boolean;
+    }>;
   };
   boundary: {
     app_owns: string[];
@@ -312,6 +329,8 @@ function assertProfileShape(profile: AppProductProfile): void {
     profile.companion_payloads.packaged_not_default_visible_codex_skills,
     'companion_payloads.packaged_not_default_visible_codex_skills',
   );
+  assertStringArray(profile.companion_payloads.companion_skill_sync_default_ids, 'companion_payloads.companion_skill_sync_default_ids');
+  assertStringArray(profile.companion_payloads.domain_plugin_skill_ids, 'companion_payloads.domain_plugin_skill_ids');
   const visibleSkills = new Set(profile.codex.default_visible_skills);
   const recommendedSkills = new Set(profile.companion_payloads.recommended_codex_skills);
   const packagedExplicitSkills = new Set(profile.companion_payloads.packaged_not_default_visible_codex_skills);
@@ -339,6 +358,23 @@ function assertProfileShape(profile: AppProductProfile): void {
   }
   if (profile.codex.skill_priority.includes('morph-ppt') || recommendedSkills.has('morph-ppt') || packagedExplicitSkills.has('morph-ppt')) {
     throw new Error('App product profile must not include retired morph-ppt skill wiring');
+  }
+  if (profile.companion_payloads.install_exposure_policy_ref !== 'contracts/app-install-exposure-policy.json') {
+    throw new Error('App product profile companion payloads must reference app-install-exposure-policy.json');
+  }
+  if (profile.companion_payloads.public_abi?.primary_semantic_entry !== 'skill') {
+    throw new Error('App product profile companion payloads must keep skill as the primary semantic entry');
+  }
+  if (profile.companion_payloads.public_abi.plugin_must_not_create_second_semantics !== true) {
+    throw new Error('App product profile companion payloads must forbid second semantics from plugin packaging');
+  }
+  if (profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors !== true) {
+    throw new Error('App product profile domain plugin skills must not be companion mirrors');
+  }
+  for (const domainPluginId of profile.companion_payloads.domain_plugin_skill_ids) {
+    if (profile.companion_payloads.companion_skill_sync_default_ids.includes(domainPluginId)) {
+      throw new Error(`App product profile companion sync defaults must not include domain plugin ${domainPluginId}`);
+    }
   }
   assertStringArray(profile.boundary.app_does_not_own, 'boundary.app_does_not_own');
 }

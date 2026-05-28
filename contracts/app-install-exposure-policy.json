@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "owner": "one-person-lab-app",
+  "purpose": "app_install_exposure_policy",
+  "state": "active",
+  "machine_boundary": "App-owned installation and Codex-visible exposure policy. OPL Framework owns install/sync producers, generated family surfaces, action execution, and read models. Domain agents own skill semantics, domain handlers, action/stage truth, quality verdicts, and artifact authority.",
+  "producer_owner": "one-person-lab",
+  "product_authority": {
+    "source_of_truth": "one-person-lab-app",
+    "policy_scope": [
+      "which installer surfaces must expose progress",
+      "which App user path surfaces hide skill/plugin mechanics",
+      "which Codex-visible companion entries are expected after App-managed setup",
+      "which release gates prove the policy"
+    ],
+    "forbidden_authority": [
+      "runtime_truth",
+      "provider_implementation",
+      "domain_truth",
+      "domain_quality_verdict",
+      "domain_artifact_authority"
+    ]
+  },
+  "canonical_metadata_sources": {
+    "owner": "one-person-lab",
+    "domain_owner": "foundry_agent_repositories",
+    "sources": [
+      "family_action_catalog",
+      "family_stage_control_plane",
+      "family-product-entry-manifest-v2"
+    ],
+    "derived_surfaces": [
+      "cli",
+      "mcp",
+      "skill",
+      "product_entry",
+      "product_status",
+      "product_session",
+      "domain_action_adapter",
+      "workbench"
+    ],
+    "policy": "App, CLI, plugin-packaged skills, direct skills, and product-entry surfaces must consume the same domain-owned action/stage metadata instead of maintaining parallel semantic maps."
+  },
+  "public_abi": {
+    "primary_semantic_entry": "skill",
+    "skill_role": "public_codex_semantic_entry_and_prompt_contract",
+    "plugin_role": "codex_app_distribution_and_capability_bundle",
+    "command_contract_role": "machine_readable_action_and_stage_contract_under_the_skill",
+    "product_entry_role": "domain_owned_product_entry_manifest_and_session_surface",
+    "direct_skill_compatibility_required": true,
+    "plugin_may_package_skill": true,
+    "plugin_must_not_create_second_semantics": true,
+    "app_must_not_require_plugin_for_cli_semantics": true,
+    "app_must_not_mirror_plugin_skill_as_duplicate_bare_skill": true
+  },
+  "exposure_classes": [
+    {
+      "id": "family_domain_plugin_surfaces",
+      "owner": "one-person-lab",
+      "members": [
+        "mas",
+        "mag",
+        "rca"
+      ],
+      "default_app_visible": true,
+      "sync_target": "codex_plugin_registry",
+      "must_not_sync_to": [
+        "~/.codex/skills/mas",
+        "~/.codex/skills/mag",
+        "~/.codex/skills/rca"
+      ]
+    },
+    {
+      "id": "opl_generated_skill_surfaces",
+      "owner": "one-person-lab",
+      "members": [
+        "opl-meta-agent"
+      ],
+      "default_app_visible": false,
+      "sync_target": "opl_generated_codex_surface",
+      "must_not_sync_to": [
+        "default_home_assistant_entry"
+      ]
+    },
+    {
+      "id": "companion_skill_sync",
+      "owner": "one-person-lab",
+      "members": [
+        "superpowers",
+        "officecli",
+        "officecli-docx",
+        "officecli-pptx",
+        "officecli-xlsx",
+        "mineru-document-extractor",
+        "ui-ux-pro-max"
+      ],
+      "default_app_visible": true,
+      "sync_target": "codex_user_skill_discovery_path",
+      "must_not_sync_to": [
+        "domain_plugin_semantic_mirror"
+      ]
+    },
+    {
+      "id": "packaged_full_runtime_payloads",
+      "owner": "one-person-lab-app",
+      "members": [
+        "runtime_payloads",
+        "domain_modules",
+        "companion_skill_payloads",
+        "native_helpers"
+      ],
+      "default_app_visible": false,
+      "sync_target": "bundled_runtime_payload_refs",
+      "must_not_sync_to": [
+        "implicit_user_codex_skill_install_without_managed_sync"
+      ]
+    }
+  ],
+  "domain_exposure": [
+    {
+      "domain_id": "mas",
+      "display_name": "Med Auto Science",
+      "home_purpose_entry": "research",
+      "default_home_visible": true,
+      "codex_visible_entry": "mas",
+      "preferred_app_distribution": "plugin_packaged_skill",
+      "direct_skill_semantics_required": true,
+      "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+    },
+    {
+      "domain_id": "mag",
+      "display_name": "Med Auto Grant",
+      "home_purpose_entry": "grant",
+      "default_home_visible": true,
+      "codex_visible_entry": "mag",
+      "preferred_app_distribution": "plugin_packaged_skill",
+      "direct_skill_semantics_required": true,
+      "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+    },
+    {
+      "domain_id": "rca",
+      "display_name": "RedCube AI",
+      "home_purpose_entry": "ppt",
+      "default_home_visible": true,
+      "codex_visible_entry": "rca",
+      "preferred_app_distribution": "plugin_packaged_skill",
+      "direct_skill_semantics_required": true,
+      "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+    },
+    {
+      "domain_id": "oma",
+      "display_name": "OPL Meta Agent",
+      "home_purpose_entry": null,
+      "default_home_visible": false,
+      "codex_visible_entry": "opl-meta-agent",
+      "preferred_app_distribution": "opl_generated_skill_surface",
+      "direct_skill_semantics_required": true,
+      "canonical_metadata_source": "opl_generated_interface_contract_pack"
+    }
+  ],
+  "installer_surfaces": [
+    {
+      "surface": "app_first_run",
+      "entrypoint": "One Person Lab.app",
+      "primary_audience": "beginner_non_technical_users",
+      "progress_source": "opl system initialize --json",
+      "exposure_policy": "hide_skill_plugin_packaging_mechanics_by_default",
+      "codex_exposure_owner": "app_or_cli_managed_background_maintenance"
+    },
+    {
+      "surface": "full_first_install_dmg",
+      "entrypoint": "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+      "primary_audience": "beginner_non_technical_users",
+      "progress_source": "opl system initialize --json",
+      "exposure_policy": "bundle_runtime_payloads_then_continue_codex_exposure_maintenance_after_core_ready",
+      "codex_exposure_owner": "app_or_cli_managed_background_maintenance"
+    },
+    {
+      "surface": "standard_dmg",
+      "entrypoint": "One-Person-Lab-<version>-mac-arm64.dmg",
+      "primary_audience": "beginner_non_technical_users",
+      "progress_source": "opl system initialize --json",
+      "exposure_policy": "app_managed_bootstrap_then_background_codex_exposure_maintenance",
+      "codex_exposure_owner": "app_or_cli_managed_background_maintenance"
+    },
+    {
+      "surface": "one_shot_cli_installer",
+      "entrypoint": "install.sh",
+      "primary_audience": "terminal_users",
+      "progress_source": "opl system initialize --json",
+      "exposure_policy": "print_shared_progress_without_separate_installer_truth",
+      "codex_exposure_owner": "opl_framework"
+    },
+    {
+      "surface": "docker_webui",
+      "entrypoint": "Docker/WebUI",
+      "primary_audience": "server_or_webui_users",
+      "progress_source": "opl system initialize --json",
+      "exposure_policy": "show_cli_backed_status_without_desktop_plugin_semantics",
+      "codex_exposure_owner": "opl_framework"
+    }
+  ],
+  "first_run_user_presentation": {
+    "default_mode": "beginner_first",
+    "skill_plugin_distinction_visible_by_default": false,
+    "primary_message": "One Person Lab is preparing Codex and the workspace.",
+    "primary_steps": [
+      "workspace_root",
+      "codex_cli",
+      "codex_config"
+    ],
+    "secondary_steps": [
+      "domain_modules",
+      "family_runtime_provider",
+      "recommended_skills",
+      "native_helpers",
+      "repo_sync",
+      "command_line_tools_install",
+      "ecosystem_module_updates"
+    ],
+    "technical_detail_policy": "hidden_until_expanded_or_error",
+    "mature_project_pattern_refs": [
+      "github_desktop_clone_flow",
+      "vscode_getting_started_entry",
+      "electron_auto_updater_downloaded_restart_prompt",
+      "apple_clt_system_installer"
+    ]
+  },
+  "setup_flow_contract": {
+    "source_command": "opl system initialize --json",
+    "source_path": "system_initialize.setup_flow",
+    "truth_policy": "all_installers_and_renderers_derive_progress_from_the_shared_initialize_model",
+    "ready_to_launch_gate": "ready_to_launch",
+    "ready_to_launch_required_core_items": [
+      "workspace_root",
+      "codex_cli",
+      "codex_config"
+    ],
+    "full_readiness_non_blocking_items": [
+      "domain_modules",
+      "family_runtime_provider",
+      "recommended_skills",
+      "native_helpers",
+      "repo_sync",
+      "command_line_tools_install",
+      "ecosystem_module_updates"
+    ]
+  },
+  "sync_and_install_contract": {
+    "framework_commands": [
+      "opl install",
+      "opl system initialize --json",
+      "opl system startup-maintenance",
+      "opl skill sync"
+    ],
+    "codex_plugin_registry_owner": "one-person-lab",
+    "app_release_payload_owner": "one-person-lab-app",
+    "companion_skill_management": "app_or_cli_managed_background_maintenance",
+    "duplicate_prevention": [
+      "plugin-packaged MAS/MAG/RCA skills must not be mirrored into duplicate bare skill directories",
+      "OPL Meta Agent is surfaced as an OPL-generated skill surface",
+      "App visible companion skill defaults must be product profile configuration, not shell-local hardcoding"
+    ],
+    "fail_closed_states": [
+      "dirty_managed_checkout",
+      "ahead_or_diverged_managed_checkout",
+      "missing_plugin_manifest",
+      "missing_skill_entry",
+      "duplicate_codex_visible_domain_skill"
+    ]
+  },
+  "release_validation": {
+    "structural_gate": "node --experimental-strip-types scripts/validate-active-shell.ts --quick",
+    "stable_install_gates": [
+      "standard_dmg_clean_vm_smoke",
+      "full_dmg_clean_vm_smoke",
+      "one_shot_app_installer_fresh_install_smoke",
+      "docker_webui_smoke"
+    ],
+    "must_verify": [
+      "shared progress source",
+      "beginner-first first-run presentation",
+      "Core ready before /guid",
+      "non-blocking companion skill and plugin maintenance",
+      "Codex-visible MAS/MAG/RCA/OMA entries without duplicate semantics"
+    ]
+  }
+}

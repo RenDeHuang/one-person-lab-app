@@ -74,6 +74,14 @@ model/reasoning, default companion skills, CLT/deferred-maintenance copy, and
 Settings presentation policy in the App repo while the shell stays a thin
 consumer.
 
+`contracts/app-install-exposure-policy.json` is the release-time source of
+App-owned install/exposure policy. Stable installation proof must show that all
+install surfaces derive progress from `opl system initialize --json` and that
+Codex-visible domain entries do not fork semantics: MAS/MAG/RCA are
+plugin-packaged domain skills backed by OPL Framework plugin registry refresh,
+not duplicate companion skill mirrors, while shared companion skills are synced
+through their own App/CLI-managed path.
+
 ## GitHub Actions release path
 
 Use **OPL Desktop Release** from the GitHub Actions tab for App-owned release

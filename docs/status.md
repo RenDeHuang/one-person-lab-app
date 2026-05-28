@@ -32,6 +32,17 @@ presentation keys. The active shell consumes the generated copy at the
 `contracts/app-shell-adapter.json`; runtime truth, provider implementation, and
 domain truth remain outside App ownership.
 
+Install/exposure policy is now contract-backed in
+`contracts/app-install-exposure-policy.json`. The public semantic ABI is the
+domain skill; Codex App plugins are distribution/capability bundles, and CLI,
+App, direct skill, and product-entry surfaces converge on the same
+domain-owned action/stage metadata. MAS/MAG/RCA are default App purpose entries
+and plugin-visible domain skills, not companion skill mirrors under
+`~/.codex/skills/{mas,mag,rca}`. OPL Meta Agent remains an OPL-generated Codex
+surface and an App/CLI-managed ecosystem module, but not a default home
+assistant. Companion skill sync stays limited to shared skills such as
+Superpowers, OfficeCLI, MinerU, and UI/UX helpers.
+
 First-install policy is now contract-backed in
 `contracts/app-product-profile.json` and
 `contracts/app-first-run-test-matrix.json`: `ready_to_launch` runs before

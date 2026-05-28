@@ -58,6 +58,12 @@ The App product profile is declared in
 `contracts/app-product-profile.json`; `validate-active-shell.ts --quick` and
 `npm run test:release-boundary` verify that the profile still owns only
 desktop product defaults and still excludes runtime/provider/domain authority.
+The App install/exposure policy is declared in
+`contracts/app-install-exposure-policy.json`; `validate-active-shell.ts --quick`
+verifies that `skill` remains the public semantic ABI, MAS/MAG/RCA stay
+plugin-visible domain routes rather than companion skill mirrors, OPL Meta
+Agent stays an OPL-generated surface outside the default home path, and all
+installer surfaces use the shared first-run progress model.
 The runtime page matrix also verifies the App/operator evidence path: a
 multi-task runtime base view, action queue refs, vertical dynamic map refs,
 single-task drilldown refs, MAS paper lens refs, summary read model first, lazy

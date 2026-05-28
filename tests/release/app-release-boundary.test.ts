@@ -268,6 +268,10 @@ function readProductProfile() {
   return JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-product-profile.json'), 'utf8'));
 }
 
+function readInstallExposurePolicy() {
+  return JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-install-exposure-policy.json'), 'utf8'));
+}
+
 function walkFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((left, right) => (
     left.name.localeCompare(right.name)
@@ -310,6 +314,7 @@ test('release workflows force JavaScript actions onto the Node 24 runtime', () =
 
 test('App product profile owns user-facing defaults without runtime authority', () => {
   const profile = readProductProfile();
+  const installExposurePolicy = readInstallExposurePolicy();
 
   assert.equal(profile.owner, 'one-person-lab-app');
   assert.equal(profile.purpose, 'app_owned_product_profile');
@@ -462,6 +467,24 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.companion_payloads.management_authority.mineru, 'app_or_cli_managed');
   assert.equal(profile.companion_payloads.management_authority['opl-meta-agent'], 'app_or_cli_managed');
   assert.ok(profile.companion_payloads.domain_modules.includes('opl-meta-agent'));
+  assert.equal(profile.companion_payloads.install_exposure_policy_ref, 'contracts/app-install-exposure-policy.json');
+  assert.equal(profile.companion_payloads.public_abi.primary_semantic_entry, 'skill');
+  assert.equal(profile.companion_payloads.public_abi.plugin_must_not_create_second_semantics, true);
+  assert.equal(profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors, true);
+  assert.deepEqual(profile.companion_payloads.domain_plugin_skill_ids, ['mas', 'mag', 'rca']);
+  assert.deepEqual(profile.companion_payloads.companion_skill_sync_default_ids, [
+    'superpowers',
+    'officecli',
+    'officecli-docx',
+    'officecli-pptx',
+    'officecli-xlsx',
+    'mineru-document-extractor',
+    'ui-ux-pro-max',
+  ]);
+  for (const domainPluginId of profile.companion_payloads.domain_plugin_skill_ids) {
+    assert.equal(profile.companion_payloads.companion_skill_sync_default_ids.includes(domainPluginId), false);
+  }
+  assert.equal(installExposurePolicy.public_abi.primary_semantic_entry, profile.companion_payloads.public_abi.primary_semantic_entry);
   for (const forbiddenOwner of [
     'runtime_truth',
     'provider_implementation',
@@ -471,6 +494,55 @@ test('App product profile owns user-facing defaults without runtime authority', 
   ]) {
     assert.ok(profile.boundary.app_does_not_own.includes(forbiddenOwner), forbiddenOwner);
   }
+});
+
+test('App install exposure policy keeps skill ABI and plugin distribution separate', () => {
+  const policy = readInstallExposurePolicy();
+
+  assert.equal(policy.owner, 'one-person-lab-app');
+  assert.equal(policy.purpose, 'app_install_exposure_policy');
+  assert.equal(policy.producer_owner, 'one-person-lab');
+  assert.deepEqual(policy.canonical_metadata_sources.sources, [
+    'family_action_catalog',
+    'family_stage_control_plane',
+    'family-product-entry-manifest-v2',
+  ]);
+  assert.equal(policy.public_abi.primary_semantic_entry, 'skill');
+  assert.equal(policy.public_abi.plugin_role, 'codex_app_distribution_and_capability_bundle');
+  assert.equal(policy.public_abi.direct_skill_compatibility_required, true);
+  assert.equal(policy.public_abi.plugin_must_not_create_second_semantics, true);
+  assert.equal(policy.public_abi.app_must_not_mirror_plugin_skill_as_duplicate_bare_skill, true);
+
+  const exposureClassById = new Map(policy.exposure_classes.map((entry) => [entry.id, entry]));
+  assert.deepEqual(exposureClassById.get('family_domain_plugin_surfaces').members, ['mas', 'mag', 'rca']);
+  assert.equal(exposureClassById.get('family_domain_plugin_surfaces').sync_target, 'codex_plugin_registry');
+  assert.deepEqual(exposureClassById.get('family_domain_plugin_surfaces').must_not_sync_to, [
+    '~/.codex/skills/mas',
+    '~/.codex/skills/mag',
+    '~/.codex/skills/rca',
+  ]);
+  assert.equal(exposureClassById.get('opl_generated_skill_surfaces').sync_target, 'opl_generated_codex_surface');
+  assert.deepEqual(exposureClassById.get('opl_generated_skill_surfaces').members, ['opl-meta-agent']);
+  assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mas'), false);
+  assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mag'), false);
+  assert.equal(exposureClassById.get('companion_skill_sync').members.includes('rca'), false);
+
+  const domainById = new Map(policy.domain_exposure.map((entry) => [entry.domain_id, entry]));
+  assert.equal(domainById.get('mas').preferred_app_distribution, 'plugin_packaged_skill');
+  assert.equal(domainById.get('mag').preferred_app_distribution, 'plugin_packaged_skill');
+  assert.equal(domainById.get('rca').preferred_app_distribution, 'plugin_packaged_skill');
+  assert.equal(domainById.get('oma').preferred_app_distribution, 'opl_generated_skill_surface');
+  assert.equal(domainById.get('oma').default_home_visible, false);
+
+  for (const surface of policy.installer_surfaces) {
+    assert.equal(surface.progress_source, 'opl system initialize --json');
+  }
+  assert.equal(policy.first_run_user_presentation.skill_plugin_distinction_visible_by_default, false);
+  assert.deepEqual(policy.setup_flow_contract.ready_to_launch_required_core_items, [
+    'workspace_root',
+    'codex_cli',
+    'codex_config',
+  ]);
 });
 
 test('first-run matrix locks Full clean-machine and App-managed bootstrap rules', () => {
@@ -1946,6 +2018,7 @@ test('active shell adapter keeps GUI authority and replacement gates in the App 
   for (const contractRef of [
     'contracts/app-gui-product-contract.json',
     'contracts/app-product-profile.json',
+    'contracts/app-install-exposure-policy.json',
     'contracts/app-page-state-matrix.json',
     'contracts/app-first-run-test-matrix.json',
     'contracts/app-release-channel.json',

@@ -34,6 +34,13 @@ companion skills, first-run maintenance behavior, Settings presentation policy,
 and GUI product defaults. Release preparation generates the shell-facing copy
 consumed by `opl-aion-shell`.
 
+The App-owned install/exposure policy lives at
+[`../contracts/app-install-exposure-policy.json`](../contracts/app-install-exposure-policy.json).
+It keeps domain `skill` as the public ABI, treats Codex App `plugin` packages
+as distribution shells, separates family domain plugin surfaces from companion
+skill sync, and prevents MAS/MAG/RCA from being duplicated as bare user skill
+mirrors.
+
 The current stable GUI shell is checked out at `shells/aionui/` from
 `gaofeng21cn/opl-aion-shell`. AionUI-specific implementation docs remain in the
 shell repository. This App repository keeps only App-owned product, release,

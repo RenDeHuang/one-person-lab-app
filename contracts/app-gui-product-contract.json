@@ -13,6 +13,13 @@
     "upstream_behavior_acceptance_policy": "must_match_app_owned_gui_product_contract_before_release"
   },
   "framework_surfaces": {
+    "install_exposure_policy": {
+      "contract": "contracts/app-install-exposure-policy.json",
+      "skill_role": "public_codex_semantic_entry_and_prompt_contract",
+      "plugin_role": "codex_app_distribution_and_capability_bundle",
+      "default_presentation": "hide_skill_plugin_packaging_mechanics_by_default",
+      "duplicate_skill_policy": "plugin_packaged_domain_skills_must_not_be_mirrored_as_duplicate_bare_skills"
+    },
     "canonical_state": {
       "schema": "opl_app_state.v1",
       "default_command": "opl app state --profile fast --json",

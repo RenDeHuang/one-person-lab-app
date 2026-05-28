@@ -32,6 +32,7 @@
       "contracts/app-gui-product-contract.json",
       "contracts/app-runtime-bridge.json",
       "contracts/app-product-profile.json",
+      "contracts/app-install-exposure-policy.json",
       "contracts/app-page-state-matrix.json",
       "contracts/app-first-run-test-matrix.json",
       "contracts/app-release-channel.json"

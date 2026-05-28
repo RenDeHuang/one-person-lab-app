@@ -13,6 +13,7 @@ const runtimeBridgePath = path.join(root, 'contracts', 'app-runtime-bridge.json'
 const pageStateMatrixPath = path.join(root, 'contracts', 'app-page-state-matrix.json');
 const firstRunMatrixPath = path.join(root, 'contracts', 'app-first-run-test-matrix.json');
 const productProfilePath = path.join(root, 'contracts', 'app-product-profile.json');
+const installExposurePolicyPath = path.join(root, 'contracts', 'app-install-exposure-policy.json');
 const releaseChannelPath = path.join(root, 'contracts', 'app-release-channel.json');
 const commandMaxBuffer = 128 * 1024 * 1024;
 const requiredHostTools = ['command_line_tools', 'homebrew', 'node', 'git'];
@@ -35,6 +36,32 @@ const deferredMaintenanceItems = [
   'ecosystem_module_updates',
 ];
 const ecosystemModuleIds = ['officecli', 'mineru', 'opl-meta-agent'];
+const domainExposureEntries = [
+  {
+    domain_id: 'mas',
+    home_purpose_entry: 'research',
+    codex_visible_entry: 'mas',
+    preferred_app_distribution: 'plugin_packaged_skill',
+  },
+  {
+    domain_id: 'mag',
+    home_purpose_entry: 'grant',
+    codex_visible_entry: 'mag',
+    preferred_app_distribution: 'plugin_packaged_skill',
+  },
+  {
+    domain_id: 'rca',
+    home_purpose_entry: 'ppt',
+    codex_visible_entry: 'rca',
+    preferred_app_distribution: 'plugin_packaged_skill',
+  },
+  {
+    domain_id: 'oma',
+    home_purpose_entry: null,
+    codex_visible_entry: 'opl-meta-agent',
+    preferred_app_distribution: 'opl_generated_skill_surface',
+  },
+];
 const forbiddenAuthorityOwners = [
   'runtime_truth',
   'provider_implementation',
@@ -143,6 +170,7 @@ function validateContractShape(contract) {
     'contracts/app-gui-product-contract.json',
     'contracts/app-runtime-bridge.json',
     'contracts/app-product-profile.json',
+    'contracts/app-install-exposure-policy.json',
     'contracts/app-page-state-matrix.json',
     'contracts/app-first-run-test-matrix.json',
     'contracts/app-release-channel.json',
@@ -995,7 +1023,234 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
   validateLiveConformanceContract(runtimeBridge.live_conformance_gate);
 }
 
-function validateAppGuiProductContract(guiContract, releaseChannel) {
+function validateInstallExposurePolicy(policy) {
+  if (policy.owner !== 'one-person-lab-app') {
+    throw new Error(`Unexpected install exposure policy owner: ${policy.owner}`);
+  }
+  if (policy.purpose !== 'app_install_exposure_policy') {
+    throw new Error(`Unexpected install exposure policy purpose: ${policy.purpose}`);
+  }
+  if (policy.state !== 'active') {
+    throw new Error(`Unexpected install exposure policy state: ${policy.state}`);
+  }
+  if (policy.producer_owner !== 'one-person-lab') {
+    throw new Error(`Unexpected install exposure producer owner: ${policy.producer_owner}`);
+  }
+  if (policy.product_authority?.source_of_truth !== 'one-person-lab-app') {
+    throw new Error('Install exposure policy source of truth must be one-person-lab-app');
+  }
+  for (const forbidden of forbiddenAuthorityOwners) {
+    if (!policy.product_authority?.forbidden_authority?.includes(forbidden)) {
+      throw new Error(`Install exposure policy must exclude ${forbidden}`);
+    }
+  }
+
+  const canonical = policy.canonical_metadata_sources;
+  if (canonical?.owner !== 'one-person-lab') {
+    throw new Error('Install exposure canonical metadata owner must be one-person-lab');
+  }
+  if (canonical.domain_owner !== 'foundry_agent_repositories') {
+    throw new Error('Install exposure canonical metadata domain owner must be foundry_agent_repositories');
+  }
+  for (const source of ['family_action_catalog', 'family_stage_control_plane', 'family-product-entry-manifest-v2']) {
+    if (!canonical.sources?.includes(source)) {
+      throw new Error(`Install exposure canonical metadata sources must include ${source}`);
+    }
+  }
+  for (const surface of ['cli', 'mcp', 'skill', 'product_entry', 'product_status', 'product_session', 'domain_action_adapter', 'workbench']) {
+    if (!canonical.derived_surfaces?.includes(surface)) {
+      throw new Error(`Install exposure canonical metadata derived surfaces must include ${surface}`);
+    }
+  }
+
+  const abi = policy.public_abi;
+  for (const [field, expected] of Object.entries({
+    primary_semantic_entry: 'skill',
+    skill_role: 'public_codex_semantic_entry_and_prompt_contract',
+    plugin_role: 'codex_app_distribution_and_capability_bundle',
+    command_contract_role: 'machine_readable_action_and_stage_contract_under_the_skill',
+    product_entry_role: 'domain_owned_product_entry_manifest_and_session_surface',
+  })) {
+    if (abi?.[field] !== expected) {
+      throw new Error(`Install exposure public_abi.${field} must be ${expected}`);
+    }
+  }
+  for (const [field, expected] of Object.entries({
+    direct_skill_compatibility_required: true,
+    plugin_may_package_skill: true,
+    plugin_must_not_create_second_semantics: true,
+    app_must_not_require_plugin_for_cli_semantics: true,
+    app_must_not_mirror_plugin_skill_as_duplicate_bare_skill: true,
+  })) {
+    if (abi?.[field] !== expected) {
+      throw new Error(`Install exposure public_abi.${field} must be ${expected}`);
+    }
+  }
+
+  const exposureClassById = new Map((policy.exposure_classes ?? []).map((entry) => [entry.id, entry]));
+  const domainPluginClass = exposureClassById.get('family_domain_plugin_surfaces');
+  if (domainPluginClass?.sync_target !== 'codex_plugin_registry') {
+    throw new Error('Install exposure domain plugin class must sync to codex_plugin_registry');
+  }
+  assertIncludesAll(
+    domainPluginClass?.members,
+    ['mas', 'mag', 'rca'],
+    'Install exposure domain plugin members',
+  );
+  for (const forbiddenMirror of ['~/.codex/skills/mas', '~/.codex/skills/mag', '~/.codex/skills/rca']) {
+    if (!domainPluginClass.must_not_sync_to?.includes(forbiddenMirror)) {
+      throw new Error(`Install exposure domain plugin class must forbid ${forbiddenMirror}`);
+    }
+  }
+  const generatedClass = exposureClassById.get('opl_generated_skill_surfaces');
+  if (generatedClass?.sync_target !== 'opl_generated_codex_surface' || !generatedClass?.members?.includes('opl-meta-agent')) {
+    throw new Error('Install exposure generated class must route OPL Meta Agent through OPL-generated Codex surface');
+  }
+  const companionClass = exposureClassById.get('companion_skill_sync');
+  if (companionClass?.sync_target !== 'codex_user_skill_discovery_path') {
+    throw new Error('Install exposure companion skill class must sync to Codex user skill discovery path');
+  }
+  for (const forbiddenDomain of ['mas', 'mag', 'rca']) {
+    if (companionClass.members?.includes(forbiddenDomain)) {
+      throw new Error(`Install exposure companion skill class must not include domain plugin ${forbiddenDomain}`);
+    }
+  }
+  const packagedRuntimeClass = exposureClassById.get('packaged_full_runtime_payloads');
+  if (packagedRuntimeClass?.owner !== 'one-person-lab-app') {
+    throw new Error('Install exposure packaged Full runtime payloads must stay App-owned');
+  }
+  if (!packagedRuntimeClass?.must_not_sync_to?.includes('implicit_user_codex_skill_install_without_managed_sync')) {
+    throw new Error('Install exposure packaged Full runtime payloads must not imply user skill install without managed sync');
+  }
+
+  const exposureById = new Map((policy.domain_exposure ?? []).map((entry) => [entry.domain_id, entry]));
+  for (const expected of domainExposureEntries) {
+    const entry = exposureById.get(expected.domain_id);
+    if (!entry) {
+      throw new Error(`Install exposure policy missing domain ${expected.domain_id}`);
+    }
+    for (const [field, expectedValue] of Object.entries(expected)) {
+      if (entry[field] !== expectedValue) {
+        throw new Error(`Install exposure domain ${expected.domain_id}.${field} must be ${expectedValue}`);
+      }
+    }
+    if (entry.direct_skill_semantics_required !== true) {
+      throw new Error(`Install exposure domain ${expected.domain_id} must require direct skill semantics`);
+    }
+  }
+  for (const domainId of ['mas', 'mag', 'rca']) {
+    if (exposureById.get(domainId)?.default_home_visible !== true) {
+      throw new Error(`Install exposure domain ${domainId} must be visible on the default home path`);
+    }
+  }
+  if (exposureById.get('oma')?.default_home_visible !== false) {
+    throw new Error('Install exposure policy must keep OMA out of the default home path');
+  }
+
+  const installerSurfaces = new Map((policy.installer_surfaces ?? []).map((entry) => [entry.surface, entry]));
+  for (const surface of ['app_first_run', 'full_first_install_dmg', 'standard_dmg', 'one_shot_cli_installer', 'docker_webui']) {
+    const entry = installerSurfaces.get(surface);
+    if (!entry) {
+      throw new Error(`Install exposure policy missing installer surface ${surface}`);
+    }
+    if (entry.progress_source !== firstRunProgressSourceCommand) {
+      throw new Error(`Install exposure surface ${surface} must use ${firstRunProgressSourceCommand}`);
+    }
+  }
+  if (installerSurfaces.get('app_first_run')?.exposure_policy !== 'hide_skill_plugin_packaging_mechanics_by_default') {
+    throw new Error('App first-run install exposure must hide skill/plugin packaging mechanics by default');
+  }
+
+  const presentation = policy.first_run_user_presentation;
+  if (presentation?.default_mode !== 'beginner_first') {
+    throw new Error('Install exposure first-run presentation must be beginner_first');
+  }
+  if (presentation.skill_plugin_distinction_visible_by_default !== false) {
+    throw new Error('Install exposure first-run presentation must hide skill/plugin distinction by default');
+  }
+  assertIncludesAll(
+    presentation.primary_steps,
+    firstRunCoreItems,
+    'Install exposure first-run primary steps',
+  );
+  assertIncludesAll(
+    presentation.secondary_steps,
+    fullReadinessItems,
+    'Install exposure first-run secondary steps',
+  );
+  if (presentation.technical_detail_policy !== 'hidden_until_expanded_or_error') {
+    throw new Error('Install exposure technical details must be hidden until expanded or error');
+  }
+
+  const setupFlow = policy.setup_flow_contract;
+  if (setupFlow?.source_command !== firstRunProgressSourceCommand) {
+    throw new Error('Install exposure setup flow must use opl system initialize --json');
+  }
+  if (setupFlow?.source_path !== firstRunProgressSourcePath) {
+    throw new Error('Install exposure setup flow must read system_initialize.setup_flow');
+  }
+  if (setupFlow?.truth_policy !== 'all_installers_and_renderers_derive_progress_from_the_shared_initialize_model') {
+    throw new Error('Install exposure setup flow must forbid separate installer progress truth');
+  }
+  if (setupFlow.ready_to_launch_gate !== 'ready_to_launch') {
+    throw new Error('Install exposure setup flow must use ready_to_launch gate');
+  }
+  assertIncludesAll(
+    setupFlow.ready_to_launch_required_core_items,
+    firstRunCoreItems,
+    'Install exposure ready_to_launch core items',
+  );
+  assertIncludesAll(
+    setupFlow.full_readiness_non_blocking_items,
+    fullReadinessItems,
+    'Install exposure full readiness non-blocking items',
+  );
+
+  const sync = policy.sync_and_install_contract;
+  for (const command of ['opl install', 'opl system initialize --json', 'opl system startup-maintenance', 'opl skill sync']) {
+    if (!sync?.framework_commands?.includes(command)) {
+      throw new Error(`Install exposure sync contract must include ${command}`);
+    }
+  }
+  if (sync.codex_plugin_registry_owner !== 'one-person-lab') {
+    throw new Error('Install exposure sync contract must keep Codex plugin registry owner in one-person-lab');
+  }
+  if (sync.app_release_payload_owner !== 'one-person-lab-app') {
+    throw new Error('Install exposure sync contract must keep App release payload owner in one-person-lab-app');
+  }
+  for (const prevention of [
+    'plugin-packaged MAS/MAG/RCA skills must not be mirrored into duplicate bare skill directories',
+    'OPL Meta Agent is surfaced as an OPL-generated skill surface',
+    'App visible companion skill defaults must be product profile configuration, not shell-local hardcoding',
+  ]) {
+    if (!sync.duplicate_prevention?.includes(prevention)) {
+      throw new Error(`Install exposure duplicate prevention must include ${prevention}`);
+    }
+  }
+  for (const state of [
+    'dirty_managed_checkout',
+    'ahead_or_diverged_managed_checkout',
+    'missing_plugin_manifest',
+    'missing_skill_entry',
+    'duplicate_codex_visible_domain_skill',
+  ]) {
+    if (!sync.fail_closed_states?.includes(state)) {
+      throw new Error(`Install exposure fail-closed states must include ${state}`);
+    }
+  }
+
+  const validation = policy.release_validation;
+  if (validation?.structural_gate !== 'node --experimental-strip-types scripts/validate-active-shell.ts --quick') {
+    throw new Error('Install exposure release validation structural gate must be validate-active-shell --quick');
+  }
+  for (const gate of ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke', 'one_shot_app_installer_fresh_install_smoke', 'docker_webui_smoke']) {
+    if (!validation.stable_install_gates?.includes(gate)) {
+      throw new Error(`Install exposure stable install gates must include ${gate}`);
+    }
+  }
+}
+
+function validateAppGuiProductContract(guiContract, releaseChannel, installExposurePolicy) {
   if (guiContract.owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected App GUI product contract owner: ${guiContract.owner}`);
   }
@@ -1016,6 +1271,23 @@ function validateAppGuiProductContract(guiContract, releaseChannel) {
   }
   if (guiContract.product_authority.upstream_behavior_acceptance_policy !== 'must_match_app_owned_gui_product_contract_before_release') {
     throw new Error('App GUI product contract must gate upstream behavior against App-owned GUI requirements');
+  }
+
+  const installExposure = guiContract.framework_surfaces?.install_exposure_policy;
+  if (installExposure?.contract !== 'contracts/app-install-exposure-policy.json') {
+    throw new Error('App GUI contract must reference app-install-exposure-policy.json');
+  }
+  if (installExposure.skill_role !== installExposurePolicy.public_abi?.skill_role) {
+    throw new Error('App GUI install exposure skill role must match install exposure policy');
+  }
+  if (installExposure.plugin_role !== installExposurePolicy.public_abi?.plugin_role) {
+    throw new Error('App GUI install exposure plugin role must match install exposure policy');
+  }
+  if (installExposure.default_presentation !== 'hide_skill_plugin_packaging_mechanics_by_default') {
+    throw new Error('App GUI install exposure must hide skill/plugin mechanics by default');
+  }
+  if (installExposure.duplicate_skill_policy !== 'plugin_packaged_domain_skills_must_not_be_mirrored_as_duplicate_bare_skills') {
+    throw new Error('App GUI install exposure must reject duplicate bare skill mirrors');
   }
 
   assertCommandSurface(guiContract.framework_surfaces?.canonical_state?.default_command, 'opl app state --profile fast --json', 'App GUI default state command');
@@ -2013,6 +2285,7 @@ function validateProductProfileContractRefs(profile) {
     active_shell: contractPath,
     page_state: pageStateMatrixPath,
     first_run: firstRunMatrixPath,
+    install_exposure: installExposurePolicyPath,
   })) {
     const value = profile.contract_refs?.[label];
     if (typeof value !== 'string' || !value.trim()) {
@@ -2278,13 +2551,65 @@ function validateStandardUpdatePolicy(profile) {
   }
 }
 
-function validateCompanionPayloadAuthority(profile) {
+function validateCompanionPayloadAuthority(profile, installExposurePolicy) {
+  if (profile.companion_payloads?.install_exposure_policy_ref !== 'contracts/app-install-exposure-policy.json') {
+    throw new Error('Product profile companion payloads must reference app-install-exposure-policy.json');
+  }
+  if (profile.companion_payloads?.exposure_classes_ref !== 'contracts/app-install-exposure-policy.json#exposure_classes') {
+    throw new Error('Product profile companion payloads must reference install exposure classes');
+  }
+  if (profile.companion_payloads?.public_abi?.primary_semantic_entry !== installExposurePolicy.public_abi?.primary_semantic_entry) {
+    throw new Error('Product profile companion payload public ABI must match install exposure primary semantic entry');
+  }
+  if (profile.companion_payloads.public_abi.preferred_app_distribution !== 'plugin_packaged_skill') {
+    throw new Error('Product profile companion payloads must prefer plugin-packaged skills for the App path');
+  }
+  if (profile.companion_payloads.public_abi.plugin_must_not_create_second_semantics !== true) {
+    throw new Error('Product profile companion payloads must forbid second semantics from plugin packaging');
+  }
+  if (profile.companion_payloads.public_abi.cli_and_app_share_skill_semantics !== true) {
+    throw new Error('Product profile companion payloads must keep CLI and App on shared skill semantics');
+  }
   for (const moduleId of ecosystemModuleIds) {
     if (!profile.companion_payloads?.ecosystem_modules?.includes(moduleId)) {
       throw new Error(`Product profile must list ${moduleId} as ecosystem module`);
     }
     if (profile.companion_payloads?.management_authority?.[moduleId] !== 'app_or_cli_managed') {
       throw new Error(`Product profile must mark ${moduleId} as App/CLI managed`);
+    }
+  }
+  assertIncludesAll(
+    profile.companion_payloads?.domain_plugin_skill_ids,
+    ['mas', 'mag', 'rca'],
+    'Product profile domain plugin skill ids',
+  );
+  assertIncludesAll(
+    profile.companion_payloads?.companion_skill_sync_default_ids,
+    ['superpowers', 'officecli', 'officecli-docx', 'officecli-pptx', 'officecli-xlsx', 'mineru-document-extractor', 'ui-ux-pro-max'],
+    'Product profile companion skill sync default ids',
+  );
+  if (profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors !== true) {
+    throw new Error('Product profile domain plugin skills must not be companion skill mirrors');
+  }
+  for (const domainPluginId of profile.companion_payloads.domain_plugin_skill_ids ?? []) {
+    if (profile.companion_payloads.companion_skill_sync_default_ids?.includes(domainPluginId)) {
+      throw new Error(`Product profile companion skill sync defaults must not include domain plugin ${domainPluginId}`);
+    }
+  }
+  const exposureById = new Map((profile.companion_payloads?.domain_exposure ?? []).map((entry) => [entry.domain_id, entry]));
+  for (const expected of domainExposureEntries) {
+    const entry = exposureById.get(expected.domain_id);
+    if (!entry) {
+      throw new Error(`Product profile companion payloads missing domain exposure ${expected.domain_id}`);
+    }
+    if (entry.codex_visible_entry !== expected.codex_visible_entry) {
+      throw new Error(`Product profile domain exposure ${expected.domain_id}.codex_visible_entry must be ${expected.codex_visible_entry}`);
+    }
+    if (entry.preferred_app_distribution !== expected.preferred_app_distribution) {
+      throw new Error(`Product profile domain exposure ${expected.domain_id}.preferred_app_distribution must be ${expected.preferred_app_distribution}`);
+    }
+    if (entry.direct_skill_semantics_required !== true) {
+      throw new Error(`Product profile domain exposure ${expected.domain_id} must require direct skill semantics`);
     }
   }
 }
@@ -2297,7 +2622,7 @@ function validateProductProfileBoundary(profile) {
   }
 }
 
-function validateProductProfile(profile) {
+function validateProductProfile(profile, installExposurePolicy) {
   validateProductProfileIdentity(profile);
   validateProductProfileContractRefs(profile);
   validateProductProfileCodexDefaults(profile);
@@ -2305,7 +2630,7 @@ function validateProductProfile(profile) {
   validateStandardPackagePolicy(profile);
   validateCommandLineToolsPolicy(profile);
   validateStandardUpdatePolicy(profile);
-  validateCompanionPayloadAuthority(profile);
+  validateCompanionPayloadAuthority(profile, installExposurePolicy);
   validateProductProfileBoundary(profile);
 }
 
@@ -2331,12 +2656,14 @@ const runtimeBridge = readJson(runtimeBridgePath);
 const pageStateMatrix = readJson(pageStateMatrixPath);
 const firstRunMatrix = readJson(firstRunMatrixPath);
 const releaseChannel = readJson(releaseChannelPath);
+const installExposurePolicy = readJson(installExposurePolicyPath);
 validateContractShape(contract);
 validateRuntimeBridgeContract(runtimeBridge, contract);
-validateAppGuiProductContract(guiProductContract, releaseChannel);
+validateInstallExposurePolicy(installExposurePolicy);
+validateAppGuiProductContract(guiProductContract, releaseChannel, installExposurePolicy);
 validatePageStateMatrix(pageStateMatrix, contract);
 validateFirstRunMatrix(firstRunMatrix, contract);
-validateProductProfile(readJson(productProfilePath));
+validateProductProfile(readJson(productProfilePath), installExposurePolicy);
 validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix);
 validateActiveShellImplementation(shellPaths);
 validateLiveOplConformance(runtimeBridge);
