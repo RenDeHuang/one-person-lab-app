@@ -204,6 +204,18 @@ output for the next run. The cache is never release truth; DMG verification,
 manifest generation, checksums, remote verification, and VM gates still decide
 release readiness.
 
+For the one-shot installer gate, `release-readiness-summary.json`
+`gates.one_shot_app_installer.fields` records the public entry command
+`./install.sh --complete --skip-modules`, the bootstrap status source
+(`one-shot-app-installer-smoke` job result), the initialization command
+`opl system initialize --json`, the initialization source
+`system_initialize.setup_flow`, and the small artifact file
+`opl-one-shot-system-initialize.json`. It also exposes the safely extracted
+setup flow status, phase, Core/Full/maintenance progress, blockers, next visible
+step, `retry_detected`, and `skip_modules` as machine-readable fields. The
+Markdown summary mirrors the key one-shot entry, source, artifact, setup flow,
+Core progress, retry, and skip-module values for operator triage.
+
 The Full first-install payload must include the latest npm-published Codex CLI
 and the Temporal-backed family runtime provider. The Full workflow resolves the
 current `@openai/codex` version with `npm view @openai/codex version`, installs

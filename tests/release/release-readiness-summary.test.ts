@@ -55,7 +55,17 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
     settings_smoke: { status: 'passed', pages: ['overview'] },
   });
   writeJson(path.join(root, `one-shot-app-installer-smoke-${version}`, 'opl-one-shot-system-initialize.json'), {
-    system_initialize: { setup_flow: { status: 'ready_to_launch' } },
+    system_initialize: {
+      setup_flow: {
+        status: 'ready_to_launch',
+        phase: 'core_ready',
+        core_progress: { completed: 3, total: 3 },
+        full_readiness_progress: { completed: 1, total: 4 },
+        maintenance_progress: { completed: 0, total: 2 },
+        blockers: [],
+        next_visible_step: 'Open One Person Lab',
+      },
+    },
   });
   writeFile(path.join(root, `docker-webui-smoke-${version}`, 'opl-webui-index.html'), '<html></html>');
   writeFile(path.join(root, `docker-webui-smoke-${version}`, 'opl-webui-manifest.webmanifest'), '{"name":"One Person Lab"}\n');
@@ -154,13 +164,37 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(summary.gates.standard_dmg_clean_vm.status, 'passed');
   assert.equal(summary.gates.full_dmg_clean_vm.status, 'passed');
   assert.equal(summary.gates.one_shot_app_installer.status, 'passed');
+  assert.deepEqual(summary.gates.one_shot_app_installer.fields, {
+    installer_entry: './install.sh --complete --skip-modules',
+    bootstrap_status_source: 'workflow job result one-shot-app-installer-smoke',
+    initialization_command: 'opl system initialize --json',
+    initialization_source: 'system_initialize.setup_flow',
+    artifact_files: ['opl-one-shot-system-initialize.json'],
+    setup_flow_status: 'ready_to_launch',
+    setup_flow_phase: 'core_ready',
+    core_progress: { completed: 3, total: 3 },
+    full_readiness_progress: { completed: 1, total: 4 },
+    maintenance_progress: { completed: 0, total: 2 },
+    blockers: [],
+    next_visible_step: 'Open One Person Lab',
+    retry_detected: false,
+    skip_modules: true,
+  });
   assert.equal(summary.gates.docker_webui.status, 'passed');
   assert.equal(summary.gates.remote_release_verification.status, 'passed');
   assert.equal(summary.gates.full_size_cache_timing.status, 'passed');
   assert.equal(summary.full_package.duration_seconds.full_package_build, 380);
   assert.equal(summary.full_package.duration_seconds.full_package_build_breakdown.shell_build, 4);
   assert.equal(summary.full_package.resolved_refs.opl_framework.commit, '1111111111111111111111111111111111111111');
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /Release Readiness Summary/);
+  const markdown = fs.readFileSync(summaryPath, 'utf8');
+  assert.match(markdown, /Release Readiness Summary/);
+  assert.match(markdown, /One-shot installer/);
+  assert.match(markdown, /\.\/install\.sh --complete --skip-modules/);
+  assert.match(markdown, /one-shot-app-installer-smoke/);
+  assert.match(markdown, /setup_flow: ready_to_launch/);
+  assert.match(markdown, /core: 3\/3/);
+  assert.match(markdown, /retry: false/);
+  assert.match(markdown, /skip_modules: true/);
 });
 
 test('release readiness summary passes with explicit Full size warning below hard budget', () => {
@@ -286,6 +320,43 @@ test('release readiness summary fails closed when a stable-required gate is miss
   assert.equal(summary.status, 'failed');
   assert.equal(summary.gates.standard_dmg_clean_vm.status, 'failed');
   assert.match(summary.gates.standard_dmg_clean_vm.reason, /Missing/);
+});
+
+test('release readiness summary keeps one-shot fields actionable when setup_flow is absent', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-oneshot-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot);
+  writePassingJobResults(jobResultsPath);
+  writeJson(path.join(artifactsRoot, 'one-shot-app-installer-smoke-26.5.99', 'opl-one-shot-system-initialize.json'), {
+    status: 'passed',
+  });
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'draft_candidate',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.gates.one_shot_app_installer.fields.setup_flow_status, 'passed');
+  assert.equal(summary.gates.one_shot_app_installer.fields.initialization_source, 'system_initialize.setup_flow');
+  assert.deepEqual(summary.gates.one_shot_app_installer.fields.artifact_files, ['opl-one-shot-system-initialize.json']);
+  assert.equal(summary.gates.one_shot_app_installer.fields.retry_detected, false);
+  assert.equal(summary.gates.one_shot_app_installer.fields.skip_modules, true);
 });
 
 test('desktop release workflow has a final readiness aggregation job that downloads only small artifacts', () => {

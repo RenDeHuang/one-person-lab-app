@@ -160,7 +160,11 @@ results and small artifacts only: remote verification JSON, VM summaries,
 one-shot installer output, Docker/WebUI smoke output, Full diagnostics, and
 `full-workflow-telemetry.json`. Do not download standard or Full DMG artifacts
 for readiness diagnosis; missing small evidence is a fail-closed release
-readiness failure.
+readiness failure. The one-shot installer section records the fixed public
+entry command, the workflow job result as bootstrap status source, the
+`opl system initialize --json` setup-flow source, artifact file names, progress
+fields, blockers, next step, retry state, and `--skip-modules` state in JSON and
+the Markdown summary.
 
 Full build speed tuning should start with `full-workflow-telemetry.json`.
 `cache.shell_vite_output=true` means the Full workflow restored active-shell

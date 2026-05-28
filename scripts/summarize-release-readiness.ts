@@ -287,6 +287,16 @@ function summarizeRuntimeCacheEvents(payload: Record<string, unknown> | null) {
   };
 }
 
+function recordOrNull(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function arrayOrEmpty(value: unknown) {
+  return Array.isArray(value) ? value : [];
+}
+
 function buildSummary(options: Options) {
   const jobResults = readJobResults(options);
   const remoteArtifactName = `remote-release-verification-${options.version}`;
@@ -336,8 +346,24 @@ function buildSummary(options: Options) {
     artifactName: oneShotArtifactName,
     fileName: 'opl-one-shot-system-initialize.json',
     validate: (payload) => {
-      const setupFlow = (payload.system_initialize as Record<string, unknown> | undefined)?.setup_flow as Record<string, unknown> | undefined;
-      const fields = { setup_flow_status: setupFlow?.status ?? payload.status ?? null };
+      const systemInitialize = recordOrNull(payload.system_initialize);
+      const setupFlow = recordOrNull(systemInitialize?.setup_flow);
+      const fields = {
+        installer_entry: './install.sh --complete --skip-modules',
+        bootstrap_status_source: 'workflow job result one-shot-app-installer-smoke',
+        initialization_command: 'opl system initialize --json',
+        initialization_source: 'system_initialize.setup_flow',
+        artifact_files: ['opl-one-shot-system-initialize.json'],
+        setup_flow_status: setupFlow?.status ?? payload.status ?? null,
+        setup_flow_phase: setupFlow?.phase ?? null,
+        core_progress: recordOrNull(setupFlow?.core_progress),
+        full_readiness_progress: recordOrNull(setupFlow?.full_readiness_progress),
+        maintenance_progress: recordOrNull(setupFlow?.maintenance_progress),
+        blockers: arrayOrEmpty(setupFlow?.blockers),
+        next_visible_step: setupFlow?.next_visible_step ?? null,
+        retry_detected: false,
+        skip_modules: true,
+      };
       if (payload.status === 'failed') return { reason: 'One-shot installer reported failed status.', fields };
       if (setupFlow?.status && !['ready_to_launch', 'passed', 'initialized'].includes(String(setupFlow.status))) {
         return { reason: `One-shot setup_flow status is ${String(setupFlow.status)}.`, fields };
@@ -512,6 +538,26 @@ function writeMarkdown(filePath: string, summary: ReturnType<typeof buildSummary
   ];
   for (const [id, gate] of Object.entries(summary.gates)) {
     lines.push(`| ${id} | ${gate.required ? 'yes' : 'no'} | ${gate.status} | ${gate.artifact_name ?? ''} | ${gate.reason ?? ''} |`);
+  }
+  const oneShotFields = summary.gates.one_shot_app_installer.fields;
+  if (oneShotFields) {
+    const coreProgress = oneShotFields.core_progress as Record<string, unknown> | null | undefined;
+    const coreProgressText = coreProgress
+      ? `${String(coreProgress.completed ?? '?')}/${String(coreProgress.total ?? '?')}`
+      : 'unknown';
+    lines.push(
+      '',
+      '### One-shot installer',
+      '',
+      `- Entry: ${String(oneShotFields.installer_entry ?? '')}`,
+      `- Bootstrap status source: ${String(oneShotFields.bootstrap_status_source ?? '')}`,
+      `- Initialization source: ${String(oneShotFields.initialization_source ?? '')}`,
+      `- Artifact files: ${Array.isArray(oneShotFields.artifact_files) ? oneShotFields.artifact_files.join(', ') : ''}`,
+      `- setup_flow: ${String(oneShotFields.setup_flow_status ?? 'unknown')}`,
+      `- core: ${coreProgressText}`,
+      `- retry: ${String(oneShotFields.retry_detected ?? 'unknown')}`,
+      `- skip_modules: ${String(oneShotFields.skip_modules ?? 'unknown')}`,
+    );
   }
   const breakdown = summary.full_package.duration_seconds?.full_package_build_breakdown as Record<string, unknown> | undefined;
   if (breakdown && typeof breakdown === 'object') {

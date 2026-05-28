@@ -186,7 +186,11 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   when a required remote, VM, one-shot, Docker/WebUI, or Full timing gate is
   failed, cancelled, missing, or unexpectedly skipped. It must not download the
   standard DMG, the large Full DMG workflow artifact, or published DMG assets
-  for diagnosis.
+  for diagnosis. The one-shot fields are diagnostic machine fields derived from
+  the public installer entry, the job result, and
+  `opl-one-shot-system-initialize.json`; they expose setup-flow status/source,
+  progress, blockers, next step, retry, and skip-module state without creating a
+  separate installer-local readiness authority.
 - Standard DMG clean VM smoke: the packaged App must run its bundled
   `opl-install.sh` bootstrap carrier if `opl` is missing, reach
   `ready_to_launch` through `opl system initialize --json`, and only then enter
