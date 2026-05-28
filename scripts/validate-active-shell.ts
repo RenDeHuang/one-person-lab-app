@@ -840,14 +840,25 @@ function validateActiveShellImplementation(shellPaths) {
 
   const acpModelSelector = readShellText(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx');
   for (const expected of [
-    'isOplCodexCliFixedExecutor',
-    'shouldShowOplCodexModelList',
-    'shouldShowOplCodexModelAutoOption',
-    'hideCodexModelList',
-    'showCodexAutoOption',
+    'useAcpModelInfo',
+    'canSwitch',
+    'if (!canSwitch)',
   ]) {
     if (!acpModelSelector.includes(expected)) {
-      throw new Error(`Active shell ACP model selector must hide fixed Codex model controls ${expected}`);
+      throw new Error(`Active shell ACP model selector must consume fixed Codex model guard ${expected}`);
+    }
+  }
+
+  const acpModelInfoHook = readShellText(shellPaths, 'packages/desktop/src/renderer/hooks/agent/useAcpModelInfo.ts');
+  for (const expected of [
+    'isOplCodexCliFixedExecutor',
+    'shouldShowOplCodexModelList',
+    "backend === 'codex'",
+    '!shouldShowOplCodexModelList()',
+    'canSwitch',
+  ]) {
+    if (!acpModelInfoHook.includes(expected)) {
+      throw new Error(`Active shell ACP model hook must hide fixed Codex model controls ${expected}`);
     }
   }
 
@@ -867,9 +878,11 @@ function validateActiveShellImplementation(shellPaths) {
 
   const acpSendBox = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx');
   for (const expected of [
+    'isOplCodexCliFixedExecutor',
     'shouldShowOplConversationPermissionModeSelector',
     "backend === 'codex'",
-    'const showModeSelector = teamPermission',
+    'const showModeSelector',
+    'showModeSelector ?',
   ]) {
     if (!acpSendBox.includes(expected)) {
       throw new Error(`Active shell ordinary Codex conversation must hide permission selector ${expected}`);
