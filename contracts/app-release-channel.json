@@ -29,7 +29,7 @@
     "prerelease": true,
     "full_first_install_allowed": false,
     "latest_release_allowed": false,
-    "tag_pattern": "v<YY.M.D-nightly.YYYYMMDD>",
+    "tag_pattern": "v<YY.M.D>-nightly",
     "asset_scope": [
       "One-Person-Lab-<version>-mac-arm64.dmg",
       "One-Person-Lab-<version>-mac-arm64.zip",

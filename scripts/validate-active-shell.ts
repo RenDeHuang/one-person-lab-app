@@ -319,6 +319,13 @@ function assertShellFileHash(shellPaths, relativePath, expectedHash, label) {
 }
 
 function validateActiveShellImplementation(shellPaths) {
+  const i18nConfig = JSON.parse(
+    readShellText(shellPaths, 'packages/desktop/src/common/config/i18n-config.json'),
+  );
+  const supportedLanguages = Array.isArray(i18nConfig.supportedLanguages)
+    ? i18nConfig.supportedLanguages.filter((language) => typeof language === 'string')
+    : [];
+  const requiresLocale = (language) => supportedLanguages.includes(language);
   const appStateHook = assertShellTextIncludes(
     shellPaths,
     'packages/desktop/src/renderer/hooks/system/useOplAppState.ts',
@@ -381,10 +388,12 @@ function validateActiveShellImplementation(shellPaths) {
   for (const [relativePath, forbidden] of [
     ['packages/desktop/src/renderer/services/i18n/locales/en-US/login.json', '"brand": "AionUi"'],
     ['packages/desktop/src/renderer/services/i18n/locales/zh-CN/login.json', '"brand": "AionUi"'],
-    ['packages/desktop/src/renderer/services/i18n/locales/zh-TW/login.json', '"brand": "AionUi"'],
     ['packages/desktop/src/common/api/ClientFactory.ts', "'X-Title': 'AionUi'"],
     ['packages/desktop/src/common/utils/appConfig.ts', "|| 'AionUi'"],
     ['packages/desktop/src/common/platform/index.ts', 'AionUi-Dev'],
+    ...(requiresLocale('zh-TW')
+      ? [['packages/desktop/src/renderer/services/i18n/locales/zh-TW/login.json', '"brand": "AionUi"']]
+      : []),
   ]) {
     const text = readShellText(shellPaths, relativePath);
     if (text.includes(forbidden)) {
@@ -395,10 +404,12 @@ function validateActiveShellImplementation(shellPaths) {
   for (const [relativePath, expected] of [
     ['packages/desktop/src/renderer/services/i18n/locales/en-US/login.json', '"brand": "One Person Lab"'],
     ['packages/desktop/src/renderer/services/i18n/locales/zh-CN/login.json', '"brand": "One Person Lab"'],
-    ['packages/desktop/src/renderer/services/i18n/locales/zh-TW/login.json', '"brand": "One Person Lab"'],
     ['packages/desktop/src/common/api/ClientFactory.ts', "'X-Title': 'One Person Lab App'"],
     ['packages/desktop/src/common/utils/appConfig.ts', "|| 'One Person Lab App'"],
     ['packages/desktop/src/common/platform/index.ts', 'OnePersonLab-Dev'],
+    ...(requiresLocale('zh-TW')
+      ? [['packages/desktop/src/renderer/services/i18n/locales/zh-TW/login.json', '"brand": "One Person Lab"']]
+      : []),
   ]) {
     const text = readShellText(shellPaths, relativePath);
     if (!text.includes(expected)) {
@@ -407,10 +418,16 @@ function validateActiveShellImplementation(shellPaths) {
   }
 
   const zhCnFirstRun = readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-CN/settings.json');
-  const zhTwFirstRun = readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-TW/settings.json');
   for (const [locale, text] of [
     ['zh-CN', zhCnFirstRun],
-    ['zh-TW', zhTwFirstRun],
+    ...(requiresLocale('zh-TW')
+      ? [
+          [
+            'zh-TW',
+            readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-TW/settings.json'),
+          ],
+        ]
+      : []),
   ]) {
     for (const expected of ['"firstRun"', 'One Person Lab', 'Codex']) {
       if (!text.includes(expected)) {
@@ -430,10 +447,16 @@ function validateActiveShellImplementation(shellPaths) {
   }
 
   const zhCnUpdate = readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-CN/update.json');
-  const zhTwUpdate = readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-TW/update.json');
   for (const [locale, text] of [
     ['zh-CN', zhCnUpdate],
-    ['zh-TW', zhTwUpdate],
+    ...(requiresLocale('zh-TW')
+      ? [
+          [
+            'zh-TW',
+            readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-TW/update.json'),
+          ],
+        ]
+      : []),
   ]) {
     if (!text.includes('GitHub API')) {
       throw new Error(`Active shell ${locale} update locale must keep GitHub API error context localized.`);
@@ -602,7 +625,7 @@ function validateActiveShellImplementation(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/components/settings/SettingsModal/contents/AboutModalContent.tsx',
   );
-  for (const expected of ['useOplAppState', 'guiVersion', 'frameworkVersion', 'includeNightlyUpdates']) {
+  for (const expected of ['useOplAppState', 'guiVersion', 'frameworkRevision', 'includeNightlyUpdates']) {
     if (!about.includes(expected)) {
       throw new Error(`Active shell About page must implement ${expected}`);
     }

@@ -101,6 +101,7 @@ const checks = [
       'uses: ./.github/workflows/_build-reusable.yml',
       'node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets',
       'node --experimental-strip-types scripts/validate-release.ts release-assets',
+      '--title "${OPL_RELEASE_TAG}"',
       '--prerelease',
       '--latest=false',
       'npm run verify-remote-release',
@@ -108,6 +109,8 @@ const checks = [
     forbidden: [
       'full-first-install-release.yml',
       'One-Person-Lab-Full',
+      'nightly.${stamp}',
+      'One Person Lab Nightly ${OPL_RELEASE_VERSION}',
       '--include-full-package',
       'include_full_package',
     ],

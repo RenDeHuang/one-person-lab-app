@@ -38,7 +38,7 @@ node --experimental-strip-types scripts/prepare-release-assets.ts build-artifact
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run release:publish -- --no-build --version <version> --standard-artifacts-dir release-assets
 npm run verify-remote-release -- --version <version> --include-full-package
-npm run verify-remote-release -- --version <YY.M.D-nightly.YYYYMMDD>
+npm run verify-remote-release -- --version <YY.M.D-nightly>
 npm run validate:release-boundary
 npm run release:evidence:manifest -- --bundle-dir release-evidence/<version>
 node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite

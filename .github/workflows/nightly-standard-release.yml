@@ -36,10 +36,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          stamp="$(date -u +'%Y%m%d')"
-          version="$(date -u +'%y.%-m.%-d')-nightly.${stamp}"
+          version="$(date -u +'%y.%-m.%-d')-nightly"
           tag="v${version}"
-          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{8}$ ]]; then
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-nightly$ ]]; then
             echo "::error::Invalid nightly version: $version"
             exit 1
           fi
@@ -118,7 +117,7 @@ jobs:
 
           notes_file="$RUNNER_TEMP/opl-nightly-notes.md"
           cat > "$notes_file" <<EOF
-          One Person Lab standard Nightly ${OPL_RELEASE_VERSION}
+          ${OPL_RELEASE_TAG}
 
           - Standard macOS arm64 App assets only.
           - Full first-install assets are intentionally excluded.
@@ -128,13 +127,13 @@ jobs:
           if gh release view "${OPL_RELEASE_TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "${OPL_RELEASE_TAG}" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "One Person Lab Nightly ${OPL_RELEASE_VERSION}" \
+              --title "${OPL_RELEASE_TAG}" \
               --notes-file "$notes_file" \
               --prerelease
           else
             gh release create "${OPL_RELEASE_TAG}" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "One Person Lab Nightly ${OPL_RELEASE_VERSION}" \
+              --title "${OPL_RELEASE_TAG}" \
               --notes-file "$notes_file" \
               --prerelease \
               --latest=false \

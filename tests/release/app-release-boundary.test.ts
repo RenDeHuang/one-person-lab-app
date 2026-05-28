@@ -2302,7 +2302,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /cron: '17 18 \* \* \*'/);
   assert.match(workflow, /group: opl-nightly-standard-release/);
   assert.match(workflow, /cancel-in-progress: true/);
-  assert.match(workflow, /version="\$\(date -u \+'%y\.%-m\.%-d'\)-nightly\.\$\{stamp\}"/);
+  assert.match(workflow, /version="\$\(date -u \+'%y\.%-m\.%-d'\)-nightly"/);
   assert.match(workflow, /tag="v\$\{version\}"/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
   assert.match(workflow, /opl_release_version: \$\{\{ needs\.resolve-nightly\.outputs\.version \}\}/);
@@ -2310,11 +2310,14 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /gh release create "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease[\s\S]*--latest=false[\s\S]*--verify-tag/);
   assert.match(workflow, /gh release edit "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease/);
+  assert.match(workflow, /--title "\$\{OPL_RELEASE_TAG\}"/);
   assert.match(workflow, /gh release upload "\$\{OPL_RELEASE_TAG\}" release-assets\/\*/);
   assert.match(workflow, /npm run verify-remote-release/);
   assert.doesNotMatch(workflow, /full-first-install-release\.yml/);
   assert.doesNotMatch(workflow, /include_full_package/);
   assert.doesNotMatch(workflow, /One-Person-Lab-Full/);
+  assert.doesNotMatch(workflow, /nightly\.\$\{stamp\}/);
+  assert.doesNotMatch(workflow, /One Person Lab Nightly \$\{OPL_RELEASE_VERSION\}/);
   assert.match(boundaryScript, /nightly_standard_release_workflow/);
   assert.equal(
     releaseContract.release_acceleration.github_actions.nightly_standard_release_workflow,
