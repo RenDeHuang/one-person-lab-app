@@ -64,6 +64,8 @@ compressed DMG size, uncompressed runtime size, and layer breakdown, then uses
 published GitHub Release assets. The remote verifier enforces the compressed
 Full DMG budget from the GitHub asset size and the uncompressed runtime budget
 from `full-package-manifest.json` `size_breakdown.total_runtime_uncompressed_bytes`.
+`warning_full_dmg_bytes=530000000` is a release-readiness warning threshold;
+`max_full_dmg_bytes=550000000` remains the hard remote-verification budget.
 `npm run release:full:size -- --markdown` prints the same component and layer
 breakdown for local review and is appended to the Full GitHub Actions summary.
 The Full workflow also uploads `full-workflow-telemetry.json`, a machine-readable
@@ -76,6 +78,10 @@ can compare recorded hashes, manifest commits, and runtime layer cache status
 without downloading the large Full DMG. Warmup runs disable the large Full
 package artifact; release-called Full builds keep it enabled for publish and VM
 consumers.
+`scripts/summarize-release-readiness.ts` also flattens
+`runtime-cache-events.json` into readable cache counts and `miss_written` layer
+names in `release-readiness-summary.json`, making fresh cache writes visible in
+the final release summary.
 Full packaging excludes local development indexes, dependency caches, tests, and
 runtime/user state such as `.codegraph`, `.git`, `.worktrees`, `.venv`,
 `node_modules`, `runtime`, `runtime-state`, `runs`, `sessions`, and `tests`;

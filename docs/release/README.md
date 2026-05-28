@@ -345,6 +345,10 @@ so the toolchain layer key is not polluted by the current Actions run time. Full
 artifacts include `runtime-cache-events.json` for per-layer hit/miss evidence. Use
 `OPL_FULL_RUNTIME_CACHE_MODE=readonly` to consume existing layers without
 writing, or `OPL_FULL_RUNTIME_CACHE_MODE=off` for a clean rebuild.
+Release readiness summarizes this cache evidence into readable layer counts;
+`miss_written` names layers that were rebuilt and written back to the cache, so
+the next optimization pass can focus on changed layer keys without opening the
+raw event JSON first.
 
 ## Full size policy
 
@@ -363,6 +367,7 @@ The remote verifier size budget is the release-time guardrail for both the
 published compressed asset and the packaged runtime payload. With Full included,
 `scripts/verify-remote-release-assets.ts` requires manifest v2, enforces
 `platform_scope=macos-arm64`, checks the GitHub Full DMG asset size against
+the `530MB warning threshold` and the hard budget
 `max_full_dmg_bytes=550000000`, and checks
 `size_breakdown.total_runtime_uncompressed_bytes` against
 `max_runtime_uncompressed_bytes=800000000`. It also compares the GitHub asset
@@ -370,6 +375,10 @@ size against the downloaded file size and the recorded `sha256:` digest. Treat
 size growth as acceptable only when it is explained by an intentional layer
 change, not by duplicated checkouts, stale runtime payloads, or standard-updater
 leakage.
+When the Full DMG is above `warning_full_dmg_bytes=530000000` and still at or
+below `max_full_dmg_bytes=550000000`, the release readiness summary remains
+`passed` and records a warning in both JSON and the GitHub Step Summary. Above
+the hard budget, remote verification still fails closed.
 
 Run the local size analyzer after a Full build, or read its GitHub Actions step
 summary:
@@ -414,6 +423,9 @@ The speed design is one release graph, not separate manual phases:
 - Full cache/timing telemetry is uploaded as `full-workflow-telemetry.json` so
   release operators can compare cache hits and step durations across runs before
   tuning cache keys or test matrix width.
+- Runtime cache event summaries surface `miss_written` layer names and counts in
+  `release-readiness-summary.json`; this is tuning telemetry, not a release
+  authority replacement.
 - Shared active-shell setup/cache blocks use a local composite action when the
   reuse is exact and release semantics stay visible in the workflow jobs.
 

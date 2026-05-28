@@ -29,7 +29,10 @@ function runSummary(args: string[], env: NodeJS.ProcessEnv = {}) {
   );
 }
 
-function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local') {
+function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local', options: {
+  fullBudget?: Record<string, unknown>;
+  runtimeCacheEvents?: unknown[];
+} = {}) {
   writeJson(path.join(root, `remote-release-verification-${version}`, 'remote-release-verification.json'), {
     status: 'passed',
     include_full_package: true,
@@ -38,6 +41,7 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
       status: 'passed',
       full_dmg_size_bytes: 512,
       runtime_uncompressed_bytes: 1024,
+      ...options.fullBudget,
     },
   });
   writeJson(path.join(root, `opl-first-run-vm-standard-${runId}`, 'tart-smoke-summary.json'), {
@@ -98,7 +102,7 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
     size_breakdown: { total_runtime_uncompressed_bytes: 1024 },
   });
   writeJson(path.join(root, `opl-full-diagnostics-${version}`, 'runtime-cache-events.json'), {
-    events: [{ layer_id: 'toolchain', status: 'hit' }],
+    events: options.runtimeCacheEvents ?? [{ layer_id: 'toolchain', status: 'hit' }],
   });
   writeFile(path.join(root, `opl-full-diagnostics-${version}`, 'SHA256SUMS.txt'), 'checksum evidence\n');
 }
@@ -157,6 +161,98 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(summary.full_package.duration_seconds.full_package_build_breakdown.shell_build, 4);
   assert.equal(summary.full_package.resolved_refs.opl_framework.commit, '1111111111111111111111111111111111111111');
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /Release Readiness Summary/);
+});
+
+test('release readiness summary passes with explicit Full size warning below hard budget', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-full-warning-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const summaryPath = path.join(tempRoot, 'summary.md');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot, '26.5.99', 'local', {
+    fullBudget: {
+      max_full_dmg_bytes: 550000000,
+      full_dmg_size_bytes: 540000000,
+    },
+  });
+  writePassingJobResults(jobResultsPath);
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'draft_candidate',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+    '--markdown',
+    summaryPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.full_package.size_budget.status, 'passed');
+  assert.equal(summary.full_package.size_budget.full_dmg_size_status, 'warning');
+  assert.equal(summary.full_package.size_budget.warning_full_dmg_bytes, 530000000);
+  assert.equal(summary.full_package.size_budget.max_full_dmg_bytes, 550000000);
+  assert.deepEqual(summary.warnings.map((warning) => warning.code), ['full_dmg_size_warning']);
+  assert.match(fs.readFileSync(summaryPath, 'utf8'), /Full DMG size warning/);
+  assert.match(fs.readFileSync(summaryPath, 'utf8'), /540000000/);
+});
+
+test('release readiness summary surfaces miss_written runtime cache layers', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-cache-miss-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const summaryPath = path.join(tempRoot, 'summary.md');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot, '26.5.99', 'local', {
+    runtimeCacheEvents: [
+      { layer_id: 'toolchain', status: 'hit', duration_seconds: 1 },
+      { layer_id: 'domain-runtime', status: 'miss_written', duration_seconds: 12.5, write_archive: true },
+      { layer_id: 'opl-runtime', status: 'miss_written', duration_seconds: 7.25, write_archive: true },
+      { layer_id: 'skills', status: 'miss_readonly', duration_seconds: 2 },
+    ],
+  });
+  writePassingJobResults(jobResultsPath);
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'draft_candidate',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+    '--markdown',
+    summaryPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.full_package.runtime_cache.layer_status_counts.hit, 1);
+  assert.equal(summary.full_package.runtime_cache.layer_status_counts.miss_written, 2);
+  assert.deepEqual(summary.full_package.runtime_cache.miss_written_layers, ['domain-runtime', 'opl-runtime']);
+  assert.equal(summary.full_package.runtime_cache.miss_written_count, 2);
+  assert.equal(summary.full_package.runtime_cache.written_layer_count, 2);
+  assert.match(fs.readFileSync(summaryPath, 'utf8'), /Runtime cache miss_written layers/);
+  assert.match(fs.readFileSync(summaryPath, 'utf8'), /domain-runtime, opl-runtime/);
 });
 
 test('release readiness summary fails closed when a stable-required gate is missing', () => {

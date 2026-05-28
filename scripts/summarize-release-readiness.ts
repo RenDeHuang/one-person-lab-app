@@ -216,6 +216,77 @@ function statusString(value: unknown) {
   return typeof value === 'string' ? value : '';
 }
 
+function numberField(record: Record<string, unknown> | null | undefined, key: string) {
+  const value = record?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function objectField(record: Record<string, unknown> | null | undefined, key: string) {
+  const value = record?.[key];
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function arrayField(record: Record<string, unknown> | null | undefined, key: string) {
+  const value = record?.[key];
+  return Array.isArray(value) ? value : [];
+}
+
+function summarizeFullSizeBudget(remoteGate: GateSummary) {
+  const budget = objectField(remoteGate.fields ?? null, 'full_first_install_budget');
+  if (!budget) return null;
+  const fullDmgSizeBytes = numberField(budget, 'full_dmg_size_bytes');
+  const warningFullDmgBytes = numberField(budget, 'warning_full_dmg_bytes') ?? 530000000;
+  const maxFullDmgBytes = numberField(budget, 'max_full_dmg_bytes');
+  const fullDmgSizeStatus = fullDmgSizeBytes !== null && warningFullDmgBytes !== null && maxFullDmgBytes !== null
+    ? fullDmgSizeBytes > maxFullDmgBytes
+      ? 'failed'
+      : fullDmgSizeBytes >= warningFullDmgBytes
+        ? 'warning'
+        : 'passed'
+    : null;
+  return {
+    ...budget,
+    warning_full_dmg_bytes: warningFullDmgBytes,
+    full_dmg_size_status: fullDmgSizeStatus,
+  };
+}
+
+function warningsFromFullSizeBudget(sizeBudget: Record<string, unknown> | null) {
+  if (!sizeBudget) return [];
+  const explicitWarnings = arrayField(sizeBudget, 'warnings')
+    .filter((warning) => warning && typeof warning === 'object' && !Array.isArray(warning));
+  if (explicitWarnings.length > 0) return explicitWarnings;
+  if (sizeBudget.full_dmg_size_status !== 'warning') return [];
+  return [{
+    code: 'full_dmg_size_warning',
+    message: `Full DMG size ${String(sizeBudget.full_dmg_size_bytes)} is above warning threshold ${String(sizeBudget.warning_full_dmg_bytes)} and below hard budget ${String(sizeBudget.max_full_dmg_bytes)}.`,
+  }];
+}
+
+function summarizeRuntimeCacheEvents(payload: Record<string, unknown> | null) {
+  const events = arrayField(payload, 'events')
+    .filter((event) => event && typeof event === 'object' && !Array.isArray(event)) as Record<string, unknown>[];
+  const layerStatusCounts: Record<string, number> = {};
+  const missWrittenLayers: string[] = [];
+  const writtenLayers: string[] = [];
+  for (const event of events) {
+    const status = typeof event.status === 'string' ? event.status : 'unknown';
+    const layerId = typeof event.layer_id === 'string' ? event.layer_id : 'unknown';
+    layerStatusCounts[status] = (layerStatusCounts[status] ?? 0) + 1;
+    if (status === 'miss_written') missWrittenLayers.push(layerId);
+    if (event.write_archive === true) writtenLayers.push(layerId);
+  }
+  return {
+    mode: typeof payload?.mode === 'string' ? payload.mode : null,
+    dir: typeof payload?.dir === 'string' ? payload.dir : null,
+    layer_status_counts: layerStatusCounts,
+    miss_written_layers: missWrittenLayers,
+    miss_written_count: missWrittenLayers.length,
+    written_layers: writtenLayers,
+    written_layer_count: writtenLayers.length,
+  };
+}
+
 function buildSummary(options: Options) {
   const jobResults = readJobResults(options);
   const remoteArtifactName = `remote-release-verification-${options.version}`;
@@ -393,6 +464,9 @@ function buildSummary(options: Options) {
   const telemetryPath = findFile(artifactDir(options, fullTelemetryArtifactName), 'full-workflow-telemetry.json');
   const fullPackage = telemetryPath ? readJson(telemetryPath) : null;
   const manifest = manifestPath ? readJson(manifestPath) : null;
+  const runtimeCacheEvents = runtimeCacheEventsPath ? readJson(runtimeCacheEventsPath) : null;
+  const sizeBudget = summarizeFullSizeBudget(gates.remote_release_verification);
+  const warnings = warningsFromFullSizeBudget(sizeBudget);
 
   return {
     schema: 'opl_release_readiness_summary.v1',
@@ -407,11 +481,14 @@ function buildSummary(options: Options) {
       rule: 'readiness aggregation downloads only small diagnostic artifacts and summaries; DMG assets are validated by remote verification and VM jobs.',
     },
     job_results: jobResults,
+    warnings,
     gates,
     failed_required_gates: failedRequired,
     full_package: {
       duration_seconds: fullPackage?.duration_seconds ?? null,
       cache: fullPackage?.cache ?? null,
+      runtime_cache: summarizeRuntimeCacheEvents(runtimeCacheEvents),
+      size_budget: sizeBudget,
       resolved_refs: fullPackage?.resolved_refs ?? manifest?.resolved_refs ?? null,
       size_breakdown: manifest?.size_breakdown ?? null,
     },
@@ -442,6 +519,19 @@ function writeMarkdown(filePath: string, summary: ReturnType<typeof buildSummary
     for (const [key, value] of Object.entries(breakdown)) {
       lines.push(`| ${key} | ${String(value)} |`);
     }
+  }
+  if (summary.warnings.length > 0) {
+    lines.push('', '### Warnings', '');
+    for (const warning of summary.warnings) {
+      const record = warning as Record<string, unknown>;
+      lines.push(`- Full DMG size warning: ${String(record.message ?? record.code ?? 'warning')}`);
+    }
+  }
+  if (summary.full_package.runtime_cache?.miss_written_count > 0) {
+    lines.push(
+      '',
+      `- Runtime cache miss_written layers: ${summary.full_package.runtime_cache.miss_written_layers.join(', ')}`,
+    );
   }
   lines.push('');
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

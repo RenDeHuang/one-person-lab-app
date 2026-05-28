@@ -180,6 +180,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
     package_kind: 'opl_full_first_install_macos_arm64',
     size_budget: {
       platform_scope: 'macos-arm64',
+      warning_full_dmg_bytes: 530000000,
       max_full_dmg_bytes: 550000000,
       max_runtime_uncompressed_bytes: 800000000,
     },
@@ -2607,6 +2608,8 @@ test('Full release docs publish size policy and remote verifier budget boundarie
     'uncompressed runtime size',
     'layer breakdown',
     'remote verifier size budget',
+    '530MB warning threshold',
+    'miss_written',
     'release:full:size',
     '.codegraph',
     'runtime-state',
@@ -2637,6 +2640,7 @@ test('Full package size analyzer reports manifest component and layer budgets', 
       package_kind: 'opl_full_first_install_macos_arm64',
       size_budget: {
         platform_scope: 'macos-arm64',
+        warning_full_dmg_bytes: 530000000,
         max_full_dmg_bytes: 550000000,
         max_runtime_uncompressed_bytes: 1000,
       },
@@ -2665,6 +2669,8 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.equal(jsonResult.status, 0, jsonResult.stderr);
   const summary = JSON.parse(jsonResult.stdout);
   assert.equal(summary.version, '26.5.27-size');
+  assert.equal(summary.warning_full_dmg_bytes, 530000000);
+  assert.equal(summary.max_full_dmg_bytes, 550000000);
   assert.equal(summary.runtime_budget_used_percent, 50);
   assert.equal(summary.components[0].id, 'mas');
   assert.equal(summary.layers[0].id, 'toolchain');
@@ -2680,6 +2686,8 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.match(markdownResult.stdout, /\| Component \| Size \| Runtime % \| Version \/ Commit \|/);
   assert.match(markdownResult.stdout, /mas/);
   assert.match(markdownResult.stdout, /50% used/);
+  assert.match(markdownResult.stdout, /Full DMG warning threshold: 505\.4 MiB/);
+  assert.match(markdownResult.stdout, /Full DMG hard budget: 524\.5 MiB/);
   assert.match(markdownResult.stdout, /Runtime budget: 1000 B \(50% used\)/);
   assert.match(markdownResult.stdout, /\| mas \| 180 B \| 36% \|/);
 });
@@ -2791,6 +2799,7 @@ test('Full first-install manifest declares App-owned distribution and Framework 
   assert.equal(manifest.manifest_version, 2);
   assert.deepEqual(manifest.size_budget, {
     platform_scope: 'macos-arm64',
+    warning_full_dmg_bytes: 530000000,
     max_full_dmg_bytes: 550000000,
     max_runtime_uncompressed_bytes: 800000000,
   });

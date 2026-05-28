@@ -133,6 +133,8 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
   const manifest = readJson(options.manifestPath);
   const totalRuntimeBytes = manifest.size_breakdown?.total_runtime_uncompressed_bytes ?? null;
   const maxRuntimeBytes = manifest.size_budget?.max_runtime_uncompressed_bytes ?? null;
+  const warningFullDmgBytes = manifest.size_budget?.warning_full_dmg_bytes ?? null;
+  const maxFullDmgBytes = manifest.size_budget?.max_full_dmg_bytes ?? null;
   const budgetPercent = Number.isFinite(totalRuntimeBytes) && Number.isFinite(maxRuntimeBytes)
     ? percent(totalRuntimeBytes, maxRuntimeBytes)
     : null;
@@ -145,6 +147,8 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
     version: manifest.version ?? null,
     package_kind: manifest.package_kind ?? null,
     total_runtime_uncompressed_bytes: totalRuntimeBytes,
+    warning_full_dmg_bytes: warningFullDmgBytes,
+    max_full_dmg_bytes: maxFullDmgBytes,
     max_runtime_uncompressed_bytes: maxRuntimeBytes,
     runtime_budget_used_percent: budgetPercent,
     components: components.map((component) => ({
@@ -179,6 +183,8 @@ function renderMarkdown(summary: ReturnType<typeof buildSummary>, top: number) {
     `- Version: ${summary.version ?? 'unknown'}`,
     `- Manifest: ${summary.manifest_path}`,
     `- Runtime total: ${formatBytes(summary.total_runtime_uncompressed_bytes)}`,
+    `- Full DMG warning threshold: ${formatBytes(summary.warning_full_dmg_bytes)}`,
+    `- Full DMG hard budget: ${formatBytes(summary.max_full_dmg_bytes)}`,
     `- Runtime budget: ${formatBytes(summary.max_runtime_uncompressed_bytes)}${summary.runtime_budget_used_percent === null ? '' : ` (${summary.runtime_budget_used_percent}% used)`}`,
     '',
     '### Layers',
