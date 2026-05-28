@@ -24,7 +24,7 @@ function runSummary(args: string[], env: NodeJS.ProcessEnv = {}) {
     {
       cwd: appRoot,
       encoding: 'utf8',
-      env: { ...process.env, ...env },
+      env: { ...process.env, GITHUB_RUN_ID: 'local', ...env },
     },
   );
 }
@@ -59,6 +59,16 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
   writeJson(path.join(root, `opl-full-workflow-telemetry-${version}`, 'full-workflow-telemetry.json'), {
     schema: 'opl_full_workflow_telemetry.v1',
     cache: { full_runtime_layers: 'toolchain:true;domain-runtime:true;opl-runtime:true;skills:true' },
+    resolved_refs: {
+      opl_framework: { ref: 'main', commit: '1111111111111111111111111111111111111111' },
+      mas: { ref: 'main', commit: '2222222222222222222222222222222222222222' },
+      mag: { ref: 'main', commit: '3333333333333333333333333333333333333333' },
+      rca: { ref: 'main', commit: '4444444444444444444444444444444444444444' },
+      opl_meta_agent: { ref: 'main', commit: '5555555555555555555555555555555555555555' },
+      officecli: { ref: 'main', commit: '6666666666666666666666666666666666666666' },
+      mineru: { ref: 'main', commit: '7777777777777777777777777777777777777777' },
+      ui_ux_skill: { ref: 'main', commit: '8888888888888888888888888888888888888888' },
+    },
     duration_seconds: {
       full_package_build: 380,
       full_package_build_breakdown: {
@@ -75,6 +85,16 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
     manifest_version: 2,
     version: '26.5.99',
     package_kind: 'opl_full_first_install_macos_arm64',
+    resolved_refs: {
+      opl_framework: { ref: 'main', commit: '1111111111111111111111111111111111111111' },
+      mas: { ref: 'main', commit: '2222222222222222222222222222222222222222' },
+      mag: { ref: 'main', commit: '3333333333333333333333333333333333333333' },
+      rca: { ref: 'main', commit: '4444444444444444444444444444444444444444' },
+      opl_meta_agent: { ref: 'main', commit: '5555555555555555555555555555555555555555' },
+      officecli: { ref: 'main', commit: '6666666666666666666666666666666666666666' },
+      mineru: { ref: 'main', commit: '7777777777777777777777777777777777777777' },
+      ui_ux_skill: { ref: 'main', commit: '8888888888888888888888888888888888888888' },
+    },
     size_breakdown: { total_runtime_uncompressed_bytes: 1024 },
   });
   writeJson(path.join(root, `opl-full-diagnostics-${version}`, 'runtime-cache-events.json'), {
@@ -135,6 +155,7 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(summary.gates.full_size_cache_timing.status, 'passed');
   assert.equal(summary.full_package.duration_seconds.full_package_build, 380);
   assert.equal(summary.full_package.duration_seconds.full_package_build_breakdown.shell_build, 4);
+  assert.equal(summary.full_package.resolved_refs.opl_framework.commit, '1111111111111111111111111111111111111111');
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /Release Readiness Summary/);
 });
 
