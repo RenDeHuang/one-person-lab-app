@@ -373,6 +373,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
     ),
   );
   assert.ok(profile.gui.assistant_skill_profiles.every((profile) => profile.hidden_home_skill_names.includes('aionui-skills')));
+  assert.ok(profile.gui.assistant_skill_profiles.every((profile) => !profile.optional_skills.includes('morph-ppt')));
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
   assert.deepEqual(profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca']);
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.route_kind, 'builtin_capability');
@@ -2220,6 +2221,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
       (profile) => profile.skill_menu_policy === 'assistant_scoped_required_checked_optional_visible',
     ),
   );
+  assert.ok(guiContract.assistant_skill_profiles.every((profile) => !profile.optional_skills.includes('morph-ppt')));
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
   assert.deepEqual(guiContract.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca']);
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.route_kind, 'builtin_capability');

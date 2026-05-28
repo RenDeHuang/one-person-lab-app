@@ -625,7 +625,7 @@ function validateActiveShellImplementation(shellPaths) {
   for (const expected of [
     'getOplDefaultExecutorAgentKey',
     'getOplDefaultHomeAssistants',
-    'getOplAssistantSkillProfiles',
+    'getOplAssistantSkillProfile',
     'resolveOplHomeAssistants',
     'const DEFAULT_PRESET_AGENT_TYPE = getOplDefaultExecutorAgentKey()',
     'preset_agent_type: DEFAULT_PRESET_AGENT_TYPE',
@@ -643,17 +643,30 @@ function validateActiveShellImplementation(shellPaths) {
 
   for (const expected of [
     'selectedAssistantRequiredSkills',
-    'selectedAssistantOptionalSkills',
-    'selectedAssistantHiddenHomeSkills',
-    'scopedHomeSkills',
-    'visibleSkills.has(skill.name)',
-    '!selectedAssistantHiddenHomeSkills.includes(skill.name)',
-    'setGuidEnabledSkills(selectedAssistantRequiredSkills)',
-    'allSkills={scopedHomeSkills}',
-    'lockedSkills={selectedAssistantRequiredSkills}',
+    'selectedAssistantSkillProfile',
+    'effectiveGuidEnabledSkills',
+    'mergeRequiredSkills',
+    'buildAssistantScopedSkillMenuItems',
+    'guidEnabledSkills: effectiveGuidEnabledSkills',
   ]) {
     if (!guidPage.includes(expected)) {
       throw new Error(`Active shell Guid page must enforce App assistant skill profile rule ${expected}`);
+    }
+  }
+
+  const guidSkillMenu = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/guid/utils/assistantSkillMenu.ts',
+  );
+  for (const expected of [
+    'buildAssistantScopedSkillMenuItems',
+    'mergeRequiredSkills',
+    'hidden_home_skill_names',
+    'required_skills',
+    'locked: isRequired',
+  ]) {
+    if (!guidSkillMenu.includes(expected)) {
+      throw new Error(`Active shell Guid skill menu must enforce App assistant skill profile rule ${expected}`);
     }
   }
 
@@ -662,13 +675,25 @@ function validateActiveShellImplementation(shellPaths) {
     'packages/desktop/src/renderer/pages/guid/components/GuidActionRow.tsx',
   );
   for (const expected of [
-    'lockedSkills',
-    'lockedSkillSet',
-    'lockedSkillSet.has(skill.name)',
-    'disabled={lockedSkillSet.has(skill.name)}',
+    'GuidSkillMenuItem',
+    'isGuidSkillChecked',
+    'skill.locked',
+    'disabled={skill.locked}',
   ]) {
     if (!guidActionRow.includes(expected)) {
       throw new Error(`Active shell Guid action row must lock required assistant skills ${expected}`);
+    }
+  }
+
+  const guidSend = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/hooks/useGuidSend.ts');
+  for (const expected of [
+    'getOplBuiltinAssistantRouteReceiptPolicy',
+    'buildOplAssistantRouteReceipt',
+    'opl_assistant_route',
+    'preset_enabled_skills',
+  ]) {
+    if (!guidSend.includes(expected)) {
+      throw new Error(`Active shell Guid send must persist App assistant route/skill signal ${expected}`);
     }
   }
 
@@ -677,16 +702,48 @@ function validateActiveShellImplementation(shellPaths) {
     'packages/desktop/src/common/utils/buildAgentConversationParams.ts',
   );
   for (const expected of [
-    'isOplCodexCliFixedExecutor',
-    'buildOplAssistantRouteReceipt',
-    'opl_assistant_route',
     'preset_enabled_skills',
-    "route_kind: 'builtin_capability'",
-    "executor: 'codex_cli'",
-    "source: 'opl_app_home'",
   ]) {
     if (!createConversationParams.includes(expected)) {
       throw new Error(`Active shell create conversation must persist App assistant route/skill signal ${expected}`);
+    }
+  }
+
+  const acpModelSelector = readShellText(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx');
+  for (const expected of [
+    'isOplCodexCliFixedExecutor',
+    'shouldShowOplCodexModelList',
+    'shouldShowOplCodexModelAutoOption',
+    'hideCodexModelList',
+    'showCodexAutoOption',
+  ]) {
+    if (!acpModelSelector.includes(expected)) {
+      throw new Error(`Active shell ACP model selector must hide fixed Codex model controls ${expected}`);
+    }
+  }
+
+  const chatConversation = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/components/ChatConversation.tsx',
+  );
+  for (const expected of [
+    'shouldShowOplConversationModelSelector',
+    "extra.backend === 'codex'",
+    'return undefined',
+  ]) {
+    if (!chatConversation.includes(expected)) {
+      throw new Error(`Active shell ordinary Codex conversation must hide model selector ${expected}`);
+    }
+  }
+
+  const acpSendBox = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx');
+  for (const expected of [
+    'shouldShowOplConversationPermissionModeSelector',
+    "backend === 'codex'",
+    'const showModeSelector = teamPermission',
+  ]) {
+    if (!acpSendBox.includes(expected)) {
+      throw new Error(`Active shell ordinary Codex conversation must hide permission selector ${expected}`);
     }
   }
 
@@ -2499,6 +2556,9 @@ function validateProductProfileCodexDefaults(profile) {
     }
     if (entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible') {
       throw new Error(`Product profile assistant ${entry.assistant_id} has invalid home skill menu policy`);
+    }
+    if (entry.optional_skills?.includes('morph-ppt')) {
+      throw new Error(`Product profile assistant ${entry.assistant_id} must not expose retired morph-ppt skill wiring`);
     }
     if (!entry.hidden_home_skill_names?.includes('aionui-skills')) {
       throw new Error(`Product profile assistant ${entry.assistant_id} must hide AionUI internal skills on the home skill menu`);

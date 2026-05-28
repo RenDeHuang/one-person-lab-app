@@ -361,6 +361,9 @@ function assertProfileShape(profile: AppProductProfile): void {
     assertStringArray(entry.required_skills, `gui.assistant_skill_profiles.${entry.assistant_id}.required_skills`);
     assertStringArray(entry.optional_skills, `gui.assistant_skill_profiles.${entry.assistant_id}.optional_skills`);
     assertStringArray(entry.hidden_home_skill_names, `gui.assistant_skill_profiles.${entry.assistant_id}.hidden_home_skill_names`);
+    if (entry.optional_skills.includes('morph-ppt')) {
+      throw new Error(`App product profile assistant ${entry.assistant_id} must not expose retired morph-ppt skill wiring`);
+    }
     if (
       entry.required_skill_policy !== 'checked_locked' ||
       entry.optional_skill_policy !== 'unchecked_user_selectable' ||
