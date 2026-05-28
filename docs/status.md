@@ -180,10 +180,10 @@ release isolation without changing the active release shell.
 `app-state-full.json`, `drilldown-full.json`, `action-dry-run-result.json`, and,
 when explicitly requested, `action-execute-result.json` by calling the live OPL
 CLI. It then writes `evidence-manifest.json` through the existing manifest
-writer. Screenshot, clean first-run VM, settings smoke, and remote Release
-verification artifacts remain required release evidence and stay marked
-`missing` until real artifacts exist; the collector is a user-path evidence
-bridge, not a packaged App release closeout.
+writer. Screenshot, clean first-run VM, settings smoke, packaged assistant
+route smoke, and remote Release verification artifacts remain required release
+evidence and stay marked `missing` until real artifacts exist; the collector is
+a user-path evidence bridge, not a packaged App release closeout.
 
 2026-05-28 OPL App/operator summary currently reads the selected App
 release/user-path cohort as refs-observed: five release/user-path evidence gates,

@@ -141,13 +141,15 @@
         "domain modules, family runtime provider, recommended skills, native helpers, repo sync, CLT installation, and ecosystem module updates continue as full readiness or best-effort background maintenance after Core ready and ready_to_launch",
         "Codex remains the default executor path",
         "standard state modules are visible after initialization",
-        "Domain modules, family runtime provider, recommended skills, native helpers, repo sync, CLT, and ecosystem updates do not block ready_to_launch"
+        "Domain modules, family runtime provider, recommended skills, native helpers, repo sync, CLT, and ecosystem updates do not block ready_to_launch",
+        "Packaged GUI route smoke selects MAS, MAG, and RCA purpose entries, shows @MAS/@MAG/@RCA badges, hides ordinary backend/model/permission selectors, and records Codex CLI builtin_capability route receipts"
       ],
       "release_evidence_artifacts": [
         "tart-smoke-summary.json",
         "artifacts/smoke-summary.json",
         "artifacts/system-initialize.json",
-        "artifacts/settings-smoke-summary.json"
+        "artifacts/settings-smoke-summary.json",
+        "artifacts/assistant-route-smoke-summary.json"
       ]
     },
     {
@@ -167,13 +169,15 @@
         "Core first-launch readiness is proven through opl system initialize --json before /guid",
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
-        "Settings pages are navigable after first-run initialization"
+        "Settings pages are navigable after first-run initialization",
+        "Packaged GUI route smoke selects MAS, MAG, and RCA purpose entries, shows @MAS/@MAG/@RCA badges, hides ordinary backend/model/permission selectors, and records Codex CLI builtin_capability route receipts"
       ],
       "release_evidence_artifacts": [
         "tart-smoke-summary.json",
         "artifacts/smoke-summary.json",
         "artifacts/system-initialize.json",
         "artifacts/settings-smoke-summary.json",
+        "artifacts/assistant-route-smoke-summary.json",
         "artifacts/first-launch.png"
       ]
     },
@@ -196,11 +200,13 @@
         "ready_to_launch is reached before /guid after workspace root, Codex CLI, and Codex config are ready",
         "Codex config is ready before /guid; if the Codex/OpenAI API key configuration wizard is visible, it is submitted",
         "Domain modules and family runtime provider readiness are verified as Full readiness after ready_to_launch",
-        "Settings pages are navigable after first-run initialization"
+        "Settings pages are navigable after first-run initialization",
+        "Packaged GUI route smoke selects MAS, MAG, and RCA purpose entries, shows @MAS/@MAG/@RCA badges, hides ordinary backend/model/permission selectors, and records Codex CLI builtin_capability route receipts"
       ],
       "release_evidence_artifacts": [
         "tart-smoke-summary.json",
         "artifacts/smoke-summary.json",
+        "artifacts/assistant-route-smoke-summary.json",
         "artifacts/settings-smoke-summary.json",
         "artifacts/system-initialize.json",
         "artifacts/modules.json"

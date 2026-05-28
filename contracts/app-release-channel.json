@@ -401,6 +401,13 @@
         "source_kind": "packaged_gui_first_run_smoke"
       },
       {
+        "id": "assistant_route_smoke_summary",
+        "path": "artifacts/assistant-route-smoke-summary.json",
+        "kind": "json",
+        "producer": "packaged GUI assistant route smoke",
+        "source_kind": "packaged_gui_assistant_route_smoke"
+      },
+      {
         "id": "remote_release_verification",
         "path": "remote-release-verification.json",
         "kind": "json",

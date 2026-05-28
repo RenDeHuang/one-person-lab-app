@@ -96,7 +96,9 @@ smoke against the real `/Applications` bundle:
 node shells/aionui/scripts/opl-first-run-vm-smoke.mjs \
   --dmg shells/aionui/out/One-Person-Lab-<version>-mac-arm64.dmg \
   --artifacts artifacts/opl-installed-smoke-<stamp> \
-  --timeout-ms 180000
+  --timeout-ms 180000 \
+  --settings-smoke \
+  --assistant-route-smoke
 ```
 
 2026-05-15 evidence: the standard 26.5.15 arm64 DMG replaced
@@ -266,8 +268,9 @@ workflow-operations hygiene:
 Stable release installation proof uses deterministic automation as the blocking
 gate. The VM lane downloads the published DMG, clones the configured clean
 no-CLT Tart base VM, fixes the display size, installs the App, launches it, and
-collects first-run/settings artifacts, including screenshots and layout checks
-for the first-run view. That lane is the source of release
+collects first-run/settings artifacts and assistant route smoke evidence,
+including screenshots, layout checks for the first-run view, and MAS/MAG/RCA
+Codex route receipts. That lane is the source of release
 readiness for standard DMG and Full DMG installation because it is repeatable,
 time-bounded, and produces comparable logs.
 

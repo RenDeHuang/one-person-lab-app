@@ -150,6 +150,59 @@ function validateVmSummary(artifact: EvidenceArtifact, payload: unknown) {
   }
 }
 
+function validateAssistantRouteSmokeSummary(artifact: EvidenceArtifact, payload: unknown) {
+  const record = asRecord(payload, artifact.id);
+  if (record.surface_id !== 'opl_packaged_gui_assistant_route_smoke') {
+    throw new Error(`${artifact.id} must be a packaged GUI assistant route smoke summary.`);
+  }
+  if (record.status !== 'passed') {
+    throw new Error(`${artifact.id} must be passed.`);
+  }
+  if (!Array.isArray(record.assistants)) {
+    throw new Error(`${artifact.id} must include assistant route smoke results.`);
+  }
+  const resultsById = new Map(
+    record.assistants.map((entry) => {
+      const assistant = asRecord(entry, `${artifact.id}.assistants[]`);
+      return [assistant.id, assistant];
+    }),
+  );
+  for (const [assistantId, badge, shortName] of [
+    ['mas', '@MAS', 'MAS'],
+    ['mag', '@MAG', 'MAG'],
+    ['rca', '@RCA', 'RCA'],
+  ]) {
+    const assistant = resultsById.get(assistantId);
+    if (!assistant) {
+      throw new Error(`${artifact.id} must include ${assistantId} route smoke result.`);
+    }
+    if (assistant.badge !== badge) {
+      throw new Error(`${artifact.id}.${assistantId} must show ${badge}.`);
+    }
+    const ready = asRecord(assistant.ready, `${artifact.id}.${assistantId}.ready`);
+    if (ready.selectors_hidden !== true || ready.badge !== badge) {
+      throw new Error(`${artifact.id}.${assistantId} must prove ordinary selectors are hidden after selection.`);
+    }
+    const receipt = asRecord(assistant.receipt, `${artifact.id}.${assistantId}.receipt`);
+    if (receipt.status !== 'passed') {
+      throw new Error(`${artifact.id}.${assistantId} must include a passed route receipt.`);
+    }
+    if (receipt.conversation_type !== 'acp' || receipt.backend !== 'codex') {
+      throw new Error(`${artifact.id}.${assistantId} must create a Codex ACP conversation.`);
+    }
+    const route = asRecord(receipt.route, `${artifact.id}.${assistantId}.receipt.route`);
+    if (
+      route.route_kind !== 'builtin_capability' ||
+      route.executor !== 'codex_cli' ||
+      route.assistant_id !== assistantId ||
+      route.assistant_short_name !== shortName ||
+      route.source !== 'opl_app_home'
+    ) {
+      throw new Error(`${artifact.id}.${assistantId} must include the App-owned Codex builtin assistant route receipt.`);
+    }
+  }
+}
+
 function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown) {
   const record = asRecord(payload, artifact.id);
   if (artifact.id === 'app_state_summary' || artifact.id === 'app_state_full') {
@@ -207,6 +260,9 @@ function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown)
   }
   if (artifact.id === 'first_run_vm_summary' || artifact.id === 'guest_smoke_summary') {
     validateVmSummary(artifact, record);
+  }
+  if (artifact.id === 'assistant_route_smoke_summary') {
+    validateAssistantRouteSmokeSummary(artifact, record);
   }
   if (artifact.id === 'remote_release_verification') {
     if (record.status !== 'passed') {

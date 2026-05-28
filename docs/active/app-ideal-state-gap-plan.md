@@ -13,14 +13,14 @@ Date: `2026-05-28`
 | App product boundary | `active_truth` | App owns desktop packaging, release assets, updater metadata, first-run checks, screenshots, user guides, App contracts, and GUI page-state validation. |
 | Framework / domain split | `active_truth` | OPL Framework owns runtime/provider/read-model/action execution; MAS/MAG/RCA/OMA own domain truth, quality/export verdicts, memory body, artifact body, owner receipts, and typed blockers. |
 | Active shell boundary | `active_external_checkout` | `shells/aionui/` is an external checkout from `gaofeng21cn/opl-aion-shell`; shell implementation history is not merged into the App repo default branch. |
-| Product contracts | `landed_with_release_evidence_tail` | `contracts/app-product-profile.json`, `contracts/app-page-state-matrix.json`, `contracts/app-first-run-test-matrix.json`, and `contracts/app-release-channel.json` hold App-owned machine policy. |
+| Product contracts | `landed_with_release_evidence_tail` | `contracts/app-product-profile.json`, `contracts/app-page-state-matrix.json`, `contracts/app-first-run-test-matrix.json`, and `contracts/app-release-channel.json` hold App-owned machine policy, including packaged assistant route smoke evidence. |
 | Release user-path evidence | `current_cohort_refs_verified` | Fresh OPL App/operator summary reads `app_release_user_path_evidence_gate_count=5`, `app_release_user_path_evidence_open_gate_count=0`, `app_release_user_path_evidence_verified_ledger_receipt_ref_count=6`, and `app_release_user_path_production_user_path_ready=true`; this is refs-only user-path evidence, not App release-ready or family production-ready authority. |
 | Codex App positioning | `active_contract_truth` | The App ordinary path is a Codex CLI fixed-executor experience with built-in MAS/MAG/RCA purpose entries; AionUI multi-backend choices are implementation material, not the user-facing App model. |
 | Active shell upstream intake | `landed_verified` | The active shell has absorbed AionUI upstream through `9a895fa4a57d18016ba8dbf7f893b22145cd7e0a`; App `contracts/app-shell-adapter.json` records that upstream ref while shell implementation history stays in `gaofeng21cn/opl-aion-shell`. |
 | Home shell conformance | `landed_contract_backed` | App contracts and shell tests now require the home input to hide executor/model/permission selectors and show MAS/MAG/RCA as purpose-first entries. |
 | Conversation shell conformance | `landed_contract_backed` | App contracts now require ordinary Codex conversations to keep backend/model/permission selectors hidden after send; shell tests cover the conversation header and sendbox. |
 | Codex CLI tool-output rendering | `landed_shell_tested` | The active shell normalizes Codex ACP `raw_output` from `aggregated_output`, `formatted_output`, `stdout`, and `stderr` fields and preserves newline-bearing tool output in the conversation view; the shell regression test covers the newline case. |
-| Built-in assistant route receipt | `landed_contract_backed` | App contracts now require MAS/MAG/RCA home entry sends to persist a Codex CLI `builtin_capability` route receipt so selection is observable beyond the UI badge. |
+| Built-in assistant route receipt | `landed_release_gate_backed` | App contracts and release evidence validation now require MAS/MAG/RCA packaged GUI route smoke to persist a Codex CLI `builtin_capability` route receipt so selection is observable beyond the UI badge. |
 | Settings diagnostics partition | `landed_contract_backed` | App contracts and product profile now require ordinary Settings tabs to be Overview, Runtime, Capabilities, Access, Appearance, System, and About. Legacy model/agent/assistants/skills-hub/tools/display/webui/pet routes redirect to App-owned pages, and active-shell validation plus shell tests cover the modal, router, and Guid Access shortcut. |
 | Docs lifecycle | `single_active_truth_owner` | This file holds current App product gaps and next-round baton; `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, and `docs/decisions.md` hold durable current truth. |
 
@@ -32,7 +32,7 @@ Date: `2026-05-28`
 | `full_first_install_vm_evidence` | Full first-install policy is contract-backed; clean no-CLT VM evidence remains a release gate when requested. | Full first-install reaches Core ready from bundled runtime on a clean Mac, with deferred maintenance proven by VM smoke artifacts. |
 | `runtime_page_operator_evidence` | Runtime page consumes OPL App/operator drilldown and refs-only safe action routes. | Page-state tests and GUI smoke show summary-first read model, lazy full detail, dry-run/execute controls, receipt/count refresh, and authority-boundary fields. |
 | `active_shell_sync` | App root wrappers prepare App-owned payloads and call the external shell. | Product profile and release contracts are generated into the active shell before build/release, without merging shell history into App mainline. |
-| `packaged_gui_codex_path_evidence` | Home and ordinary conversation conformance are contract-backed and unit-tested; packaged App screenshot/click smoke still needs to prove the same behavior from a DMG/App bundle. | Packaged GUI smoke shows: select MAS/MAG/RCA, badge is `@MAS/@MAG/@RCA`, no backend/model/permission selector appears on home or ordinary conversation, and `opl_assistant_route` receipt exists. |
+| `packaged_gui_codex_path_evidence` | Home and ordinary conversation conformance are contract-backed and unit-tested. The packaged GUI assistant route smoke script and release evidence bundle now require MAS/MAG/RCA selection, `@MAS/@MAG/@RCA` badges, hidden backend/model/permission selectors, and `opl_assistant_route` receipts; a fresh DMG/App run is still needed for the current local bundle before this gap closes. | Packaged GUI smoke from a DMG/App bundle produces `artifacts/assistant-route-smoke-summary.json` and screenshots for MAS/MAG/RCA with passed Codex CLI route receipts. |
 | `agui_codex_candidate_spike` | `contracts/app-shell-candidates.json` declares `agui-codex`; `contracts/shell-adapters/agui-codex.json` can explicitly select the linked `shells/agui-codex` external repo for a technical verification `.app` build. | Candidate validation proves fixed Codex home, purpose entries, AG-UI event mapping, OPL App state/action consumption, first-run/page-state mapping, App-wrapper launchable `.app` bundle output, and release isolation before any default active-shell switch is considered. |
 
 ## Next-Round Agent Prompt
@@ -71,13 +71,13 @@ Verification commands:
 
 - Docs-only: `rtk git diff --check`, `rtk rg -n "^(<<<<<<<|=======|>>>>>>>)" docs`, `python3 /Users/gaofeng/workspace/opl-doc-governance/scripts/opl_doc_doctor.py doctor /Users/gaofeng/workspace/one-person-lab-app --format json`.
 - App contract/release boundary changes: `rtk npm run test:release-boundary`, `rtk node --experimental-strip-types scripts/validate-active-shell.ts --quick`, and the touched release/evidence validation script.
-- Shell implementation changes: focused `vitest` for Guid/home/conversation selectors, Settings modal, Guid Access shortcut, and route receipt, `bunx tsc --noEmit`, `bunx oxfmt --check` on touched shell files, and packaged GUI smoke for release evidence.
+- Shell implementation changes: focused `vitest` for Guid/home/conversation selectors, Settings modal, Guid Access shortcut, and route receipt, `bunx tsc --noEmit`, `bunx oxfmt --check` on touched shell files, and packaged GUI smoke with `--assistant-route-smoke` for release evidence.
 
 Completion gate:
 
 - The App active plan, status, project, architecture, invariants, decisions, contracts, and test docs agree on App ownership and non-ownership.
 - Home, ordinary conversation, ordinary Settings, and built-in assistant route receipt behavior are enforced by App contracts, active-shell validation, and active shell tests.
-- Release evidence gaps are explicit; no App doc claims runtime truth, domain ready, release ready, or production ready beyond the available artifacts and contracts.
+- Release evidence gaps are explicit; packaged assistant route smoke must be present before claiming packaged GUI Codex-path evidence, and no App doc claims runtime truth, domain ready, release ready, or production ready beyond the available artifacts and contracts.
 
 Foldback target:
 
