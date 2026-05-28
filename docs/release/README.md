@@ -36,6 +36,13 @@ background maintenance completed/total count, blockers, and next visible step.
 Release evidence should prove that mapping; it should not introduce a separate
 installer-local progress authority.
 
+The first-run GUI presents that model as a novice-facing launch screen. The
+default visible state is limited to the simplified readiness summary, three
+setup steps, Core progress, the primary entry action, and the next visible user
+step. Technical phase names, refresh controls, runtime settings, raw errors,
+maintenance actions, Full readiness, and background maintenance remain available
+inside collapsed technical details by default.
+
 The standard updater policy follows Electron's documented autoUpdater pattern:
 standard assets use background download, the App prompts for restart only after
 the update is downloaded, and the restart/install step is user visible. See
@@ -99,7 +106,7 @@ builds that should run on GitHub runners instead of this Mac.
   refreshes that are not being treated as stable-complete.
 - Scheduled **OPL Nightly Standard Release** builds and publishes standard
   macOS arm64 assets only. It creates a semver prerelease tag such as
-  `v26.5.27-nightly.20260527`, marks the Release as prerelease, does not mark it
+  `v26.5.27-nightly`, marks the Release as prerelease, does not mark it
   as latest, excludes Full first-install assets, and runs remote standard asset
   verification after upload. Users only see this channel after opting into
   prerelease/Nightly updates in the App.
@@ -113,7 +120,10 @@ builds that should run on GitHub runners instead of this Mac.
   preinstalled Node.js, and managed repo sync are deferred maintenance; domain
   modules, the family runtime provider, recommended skills, native helpers,
   repo sync, CLT, and ecosystem updates must not block the pre-`/guid` Core
-  launch gate. This VM workflow is deterministic
+  launch gate. The smoke must capture first-run screenshots and run a layout
+  gate that proves technical details are collapsed by default and the novice
+  first screen is not dominated by phase/debug/maintenance controls. This VM
+  workflow is deterministic
   release-blocking evidence for stable release readiness. Codex App and
   Computer Use browser/desktop sessions are allowed only as non-blocking
   exploratory triage; if they reveal release-relevant behavior, the finding

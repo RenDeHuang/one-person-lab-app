@@ -49,12 +49,12 @@ Machine boundary: Human-readable user guide. Release contracts, workflows, VM sm
 
 ## 4. 等待首次环境检查
 
-OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Codex 权限。界面会显示“正在准备 / 可以开始 / 需要处理”的简短状态、完成进度、下一步，以及进入 OPL 的主按钮。
+OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Codex 权限。首屏只显示“正在准备 / 可以开始 / 需要处理”的简短状态、三步准备进度、下一步，以及进入 OPL 的主按钮。
 
 ![4. 等待首次环境检查](assets/04-first-run-checking.png)
 
 - 首启准备可能需要几分钟，进度来自 OPL 底层初始化状态；App 只负责展示，不单独维护另一套安装进度。
-- 模块、skills、运行底座和本机工具属于后台维护；它们会作为次要信息或技术详情显示，不会把新手停在 Homebrew、Node、Git 或命令行工具清单上。
+- 模块、skills、运行底座和本机工具属于后台维护；技术 phase、刷新、运行时设置、原始错误和维护动作默认收在“技术细节”里，不会把新手停在 Homebrew、Node、Git 或命令行工具清单上。
 - 遇到阻塞时先阅读界面提示，再联系技术支持处理。
 
 ## 5. 进入科研入口
@@ -104,5 +104,5 @@ OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Co
 ## 截图与验证来源
 
 - 截图来自中文 macOS VM，逻辑桌面 1920x1080，Retina 输出 3840x2160。
-- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页和 Settings 可用，Full 版额外验证 Codex 配置向导和 bundled runtime readiness。
+- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页和 Settings 可用，Full 版额外验证 Codex 配置向导和 bundled runtime readiness。首启截图和 layout gate 还会验证新手首屏保持简化，技术细节默认折叠。
 - Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。

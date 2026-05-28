@@ -142,12 +142,18 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   Core progress, Full readiness progress, background maintenance counts,
   blockers, and next step back to `opl system initialize --json` /
   `system_initialize.setup_flow`; release tests must not accept a separate
-  installer-local progress authority. The App repo VM workflow is the deterministic
-  release-blocking gate for first-run GUI evidence; Codex App or Computer Use
-  sessions may explore UI behavior during triage, but those exploratory checks
-  are non-blocking and cannot replace the Tart VM gate. Any exploratory finding
-  that should affect release readiness must be converted into a deterministic
-  contract, workflow, or script gate before it can block or clear a release.
+  installer-local progress authority. VM smoke evidence must also include a
+  first-run screenshot/layout gate proving the beginner-first default: the
+  visible first screen is limited to the simplified readiness summary, three
+  setup steps, Core progress, the primary entry action, and the next visible
+  user step, while technical phase labels, refresh, runtime settings, raw
+  errors, and maintenance actions are folded under technical details by
+  default. The App repo VM workflow is the deterministic release-blocking gate
+  for first-run GUI evidence; Codex App or Computer Use sessions may explore UI
+  behavior during triage, but those exploratory checks are non-blocking and
+  cannot replace the Tart VM gate. Any exploratory finding that should affect
+  release readiness must be converted into a deterministic contract, workflow,
+  or script gate before it can block or clear a release.
 - Release tuning evidence: Full workflow cache hits and step timings are stored
   in `full-workflow-telemetry.json` artifacts. These artifacts help compare
   build speed across runs; they do not replace release manifests, checksums,
@@ -215,7 +221,8 @@ workflow-operations hygiene:
 Stable release installation proof uses deterministic automation as the blocking
 gate. The VM lane downloads the published DMG, clones the configured clean
 no-CLT Tart base VM, fixes the display size, installs the App, launches it, and
-collects first-run/settings artifacts. That lane is the source of release
+collects first-run/settings artifacts, including screenshots and layout checks
+for the first-run view. That lane is the source of release
 readiness for standard DMG and Full DMG installation because it is repeatable,
 time-bounded, and produces comparable logs.
 

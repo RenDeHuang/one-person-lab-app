@@ -57,12 +57,23 @@ maintaining separate installer-specific progress truth. The active shell renders
 this model only and does not own private first-run progress state.
 
 The App first-run screen presents that shared model in a beginner-first way:
-the primary view shows a plain readiness summary, the required Core progress,
-the single primary start action, and only the next user-relevant step. Full
-readiness, background maintenance, raw command refs, and module/provider/tool
-details stay secondary or collapsed so clean-machine users are not asked to
-interpret Homebrew, Node, Git, CLT, runtime provider, or module maintenance as
-the main installation goal.
+the primary view shows a plain readiness summary, three user-facing setup
+steps, the required Core progress, the single primary start action, and only
+the next user-relevant step. Technical phase labels, refresh controls, runtime
+settings, raw errors, maintenance actions, Full readiness, background
+maintenance, raw command refs, and module/provider/tool details stay inside
+collapsed technical details by default. Clean-machine users should see whether
+the App is preparing, ready, or needs their attention without being asked to
+interpret Homebrew, Node, Git, CLT, runtime provider, module maintenance, or
+raw command output as the main installation goal.
+
+This follows mature first-run patterns rather than a custom App-only wizard.
+GNOME Initial Setup frames first boot around only a few essential steps that
+lack good defaults; VS Code walkthrough guidance keeps onboarding checklists
+short and action-oriented; Homebrew's installer history shows that ambiguous
+terminal prompts can confuse non-technical users. OPL therefore keeps the App
+first screen essential, action-led, and user-language first, while retaining
+full diagnostics in collapsed technical details.
 
 ## Release State
 
