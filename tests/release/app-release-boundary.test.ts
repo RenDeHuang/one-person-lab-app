@@ -2789,6 +2789,11 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /name: Summarize Full package size/);
   assert.match(workflow, /npm run release:full:size -- --markdown >> "\$GITHUB_STEP_SUMMARY"/);
   assert.match(workflow, /name: Summarize Full caches and timings/);
+  assert.match(workflow, /name: Cache Electron artifacts[\s\S]*id: electron-cache/);
+  assert.match(workflow, /full-electron-cache-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}/);
+  assert.match(workflow, /electron-cache-macos-arm64-arm64-/);
+  assert.match(workflow, /ELECTRON_CACHE: \$\{\{ runner\.temp \}\}\/\.cache\/electron/);
+  assert.match(workflow, /ELECTRON_BUILDER_CACHE: \$\{\{ runner\.temp \}\}\/\.cache\/electron-builder/);
   assert.match(workflow, /opl-full-runtime-cache-aggregate-key\.json/);
   assert.match(workflow, /input\.aggregate_key_input/);
   assert.match(workflow, /toolchain:\s+'toolchain'/);
@@ -2807,6 +2812,8 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.doesNotMatch(workflow, /restore-keys:\s*\|\s*\n\s*opl-full-runtime-layers-/);
   assert.match(workflow, /runtime-cache-events\.json/);
   assert.match(workflow, /full_runtime_layer_events/);
+  assert.match(workflow, /full_runtime_layer_key_inputs/);
+  assert.match(workflow, /electron_artifacts/);
   assert.match(workflow, /full-package-build-timing\.json/);
   assert.match(workflow, /full_package_build_breakdown/);
   assert.match(workflow, /## Full Package Build Breakdown/);
@@ -3311,8 +3318,12 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /copySingleFile\(sources\.mineruOpenApiBin, path\.join\(layerRoot, 'bin', 'mineru-open-api'\)\)/);
   assert.match(buildScript, /version: commandOutput\(sources\.mineruOpenApiBin, \['version'\]\)/);
   assert.match(buildScript, /plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'/);
-  assert.match(buildScript, /meta_agent_repo_skill_fingerprint/);
-  assert.match(buildScript, /mineru_document_extractor_fingerprint/);
+  assert.match(buildScript, /function masSkillCandidates\(options\)[\s\S]*options\.masRoot[\s\S]*\.codex', 'skills', 'mas'/);
+  assert.match(buildScript, /copyFirstSkillSource\('mas', targetRoot, masSkillCandidates\(options\)\)/);
+  assert.match(buildScript, /meta_agent_skill_source: metaAgentSkillSnapshot\(options\)/);
+  assert.match(buildScript, /mineru_document_extractor_source: skillSourceSnapshot\(mineruDocumentExtractorSkillCandidates\(options\), 'skills\/mineru-document-extractor'\)/);
+  assert.match(buildScript, /runtime_layer_builder_source_hash: functionSourceSha256/);
+  assert.match(buildScript, /key_inputs: cacheKeyInputs/);
   assert.match(buildScript, /syncAppProductProfileToShell\(options\.guiRoot\)/);
   assert.match(prepareStandardScript, /syncAppProductProfileToShell\(shellPaths\.shellRoot, \{ optional: true \}\)/);
   assert.match(prepareStandardScript, /fs\.copyFileSync\(appInstallerPath, shellBootstrapInstallerPath\)/);

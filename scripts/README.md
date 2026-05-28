@@ -169,8 +169,13 @@ the Markdown summary.
 Full build speed tuning should start with `full-workflow-telemetry.json`.
 `cache.shell_vite_output=true` means the Full workflow restored active-shell
 Vite output and invoked the shell build with `--skip-vite`; `false` means it ran
-the normal shell build and saved the output for the next run. Treat this as a
-cache acceleration signal only, not as release truth.
+the normal shell build and saved the output for the next run. The cache is
+version-scoped because the bundled shell output embeds `OPL_RELEASE_VERSION`.
+`cache.electron_artifacts` records whether Electron/Electron Builder downloads
+were restored. `runtime-cache-events.json` carries per-layer keys plus
+`key_inputs`, which should be used to explain Full runtime cache misses before
+changing cache policy. Treat these as cache acceleration signals only, not as
+release truth.
 
 Composite/setup action reuse is used only where a checked-in composite action is
 tested and the job still keeps release semantics visible. Active-shell

@@ -171,12 +171,20 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   active-shell Vite output. When it is `true`, the Full shell build skips Vite
   bundling and still repackages/signs/verifies the Full DMG after runtime
   payload sync; when it is `false`, the workflow runs the normal full shell
-  build and saves Vite output for later runs.
+  build and saves Vite output for later runs. The Vite cache key is scoped to
+  the release version and renderer/main/preload inputs because the shell build
+  injects the release version into the bundled output. Packager-only script or
+  Electron Builder config changes should not invalidate the Vite cache. The same
+  telemetry includes `cache.electron_artifacts` for Electron/Electron Builder
+  download cache hits.
   Full workflows also upload `opl-full-diagnostics-<version>`, a small
   diagnostics artifact with telemetry, `full-package-build-timing.json`,
   `full-package-manifest.json`, `runtime-cache-events.json`, `SHA256SUMS.txt`,
   and the Full README so cache and hash checks do not require downloading the
-  large Full DMG. Warmup runs do not upload the large Full package artifact;
+  large Full DMG. `runtime-cache-events.json` includes per-layer cache keys and
+  key inputs so operators can see whether a miss came from payload refs,
+  toolchain versions, skill source fingerprints, packager inputs, or the runtime
+  exclusion policy. Warmup runs do not upload the large Full package artifact;
   release-called Full builds still do because publish and VM gates consume the
   DMG.
 - Full size/cache summary checks: `release-readiness-summary.json` stays

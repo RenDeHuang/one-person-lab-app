@@ -326,6 +326,46 @@ function stringSha256(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
 
+function functionSourceSha256(functions) {
+  return stringSha256(functions.map((fn) => fn.toString()).join('\n\n'));
+}
+
+function buildRuntimeLayerPackagerInputs() {
+  return {
+    support_files: hashFiles(appRepoRoot, [
+      'scripts/full-first-install-package.ts',
+      'scripts/full-first-install-runtime-wrappers.ts',
+    ]),
+    runtime_layer_builder_source_hash: functionSourceSha256([
+      buildToolchainLayer,
+      buildDomainLayer,
+      buildOplLayer,
+      buildSkillsLayer,
+      copyRecommendedSkills,
+      copyOplMetaAgentSkill,
+      copySuperpowersBundle,
+      copyOfficeCliCoreSkill,
+      copyUiUxProMaxSkill,
+      copyFirstSkillSource,
+      copySkillDirectory,
+      firstExistingSkillSource,
+      skillSourceSnapshot,
+      skillFileSourceSnapshot,
+      metaAgentSkillSnapshot,
+      officeCliCoreSkillSnapshot,
+      masSkillCandidates,
+      magSkillCandidates,
+      rcaSkillCandidates,
+      officeCliCoreSkillCandidates,
+      mineruDocumentExtractorSkillCandidates,
+      copyTreeFiltered,
+      copySingleFile,
+      copyProductionNodeModules,
+      pruneTemporalCoreBridgeReleases,
+    ]),
+  };
+}
+
 function hashFiles(sourceRoot, relativePaths) {
   const entries = {};
   for (const relativePath of relativePaths) {
@@ -760,13 +800,96 @@ function copySkillDirectory(sourceRoot, targetRoot, skillName) {
   copyTreeFiltered(sourceRoot, targetRoot, `skills/${skillName}`);
 }
 
+function firstExistingSkillSource(candidates) {
+  return candidates.find((candidate) => candidate && fs.existsSync(path.join(candidate, 'SKILL.md'))) || null;
+}
+
 function copyFirstSkillSource(skillName, targetRoot, candidates) {
-  const source = candidates.find((candidate) => candidate && fs.existsSync(path.join(candidate, 'SKILL.md')));
+  const source = firstExistingSkillSource(candidates);
   if (!source) {
     throw new Error(`Required Full companion skill source not found: ${skillName}`);
   }
   copySkillDirectory(source, path.join(targetRoot, skillName), skillName);
   return source;
+}
+
+function skillSourceSnapshot(candidates, runtimePrefix) {
+  const source = firstExistingSkillSource(candidates);
+  return {
+    source_path: source,
+    git_commit: source ? readGitHead(source) : null,
+    fingerprint: source ? directoryFingerprint(source, runtimePrefix) : null,
+  };
+}
+
+function skillFileSourceSnapshot(candidates) {
+  const source = firstExistingSkillSource(candidates);
+  return {
+    source_path: source,
+    git_commit: source ? readGitHead(source) : null,
+    skill_md_sha256: source ? fileSha256(path.join(source, 'SKILL.md')) : null,
+  };
+}
+
+function masSkillCandidates(options) {
+  return [
+    path.join(options.masRoot, 'plugins', 'mas', 'skills', 'mas'),
+    path.join(os.homedir(), '.codex', 'skills', 'mas'),
+  ];
+}
+
+function metaAgentSkillSnapshot(options) {
+  const domainSkill = path.join(options.metaAgentRoot, 'agent', 'skills', 'opl-meta-agent-domain-skill.md');
+  const agentRoot = path.join(options.metaAgentRoot, 'agent');
+  if (fs.existsSync(domainSkill) && fs.existsSync(agentRoot)) {
+    return {
+      source_path: options.metaAgentRoot,
+      git_commit: readGitHead(options.metaAgentRoot),
+      domain_skill_sha256: fileSha256(domainSkill),
+      agent_payload_fingerprint: directoryFingerprint(agentRoot, 'skills/opl-meta-agent'),
+    };
+  }
+  return skillSourceSnapshot([
+    path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'),
+    path.join(os.homedir(), '.codex', 'skills', 'opl-meta-agent'),
+  ], 'skills/opl-meta-agent');
+}
+
+function officeCliCoreSkillSnapshot(options) {
+  if (fs.existsSync(path.join(options.officeCliRoot, 'SKILL.md'))) {
+    return skillFileSourceSnapshot([options.officeCliRoot]);
+  }
+  return skillSourceSnapshot(officeCliCoreSkillCandidates(options).slice(1), 'skills/officecli');
+}
+
+function magSkillCandidates(options) {
+  return [
+    path.join(options.magRoot, 'plugins', 'mag', 'skills', 'mag'),
+    path.join(os.homedir(), '.codex', 'skills', 'mag'),
+  ];
+}
+
+function rcaSkillCandidates(options) {
+  return [
+    path.join(options.rcaRoot, 'plugins', 'rca', 'skills', 'rca'),
+    path.join(os.homedir(), '.codex', 'skills', 'rca'),
+  ];
+}
+
+function officeCliCoreSkillCandidates(options) {
+  return [
+    options.officeCliRoot,
+    path.join(os.homedir(), '.skills-manager', 'skills', 'officecli'),
+    path.join(os.homedir(), '.codex', 'skills', 'officecli'),
+  ];
+}
+
+function mineruDocumentExtractorSkillCandidates(options) {
+  return [
+    options.mineruDocumentExtractorRoot,
+    path.join(os.homedir(), '.skills-manager', 'skills', 'mineru-document-extractor'),
+    path.join(os.homedir(), '.codex', 'skills', 'mineru-document-extractor'),
+  ];
 }
 
 function copyOplMetaAgentSkill(targetRoot, options) {
@@ -786,8 +909,8 @@ function copyOplMetaAgentSkill(targetRoot, options) {
     return options.metaAgentRoot;
   }
   return copyFirstSkillSource('opl-meta-agent', targetRoot, [
-    path.join(os.homedir(), '.codex', 'skills', 'opl-meta-agent'),
     path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'),
+    path.join(os.homedir(), '.codex', 'skills', 'opl-meta-agent'),
   ]);
 }
 
@@ -813,10 +936,7 @@ function copyOfficeCliCoreSkill(targetRoot, options) {
     fs.copyFileSync(path.join(options.officeCliRoot, 'SKILL.md'), path.join(target, 'SKILL.md'));
     return options.officeCliRoot;
   }
-  return copyFirstSkillSource('officecli', targetRoot, [
-    path.join(os.homedir(), '.skills-manager', 'skills', 'officecli'),
-    path.join(os.homedir(), '.codex', 'skills', 'officecli'),
-  ]);
+  return copyFirstSkillSource('officecli', targetRoot, officeCliCoreSkillCandidates(options).slice(1));
 }
 
 function copyUiUxProMaxSkill(targetRoot, options) {
@@ -877,18 +997,9 @@ function writePackagedModuleMarker(moduleRoot, marker) {
 function copyRecommendedSkills(targetRoot, options) {
   fs.rmSync(targetRoot, { recursive: true, force: true });
   fs.mkdirSync(targetRoot, { recursive: true });
-  copyFirstSkillSource('mas', targetRoot, [
-    path.join(os.homedir(), '.codex', 'skills', 'mas'),
-    path.join(options.masRoot, 'plugins', 'mas', 'skills', 'mas'),
-  ]);
-  copyFirstSkillSource('mag', targetRoot, [
-    path.join(os.homedir(), '.codex', 'skills', 'mag'),
-    path.join(options.magRoot, 'plugins', 'mag', 'skills', 'mag'),
-  ]);
-  copyFirstSkillSource('rca', targetRoot, [
-    path.join(os.homedir(), '.codex', 'skills', 'rca'),
-    path.join(options.rcaRoot, 'plugins', 'rca', 'skills', 'rca'),
-  ]);
+  copyFirstSkillSource('mas', targetRoot, masSkillCandidates(options));
+  copyFirstSkillSource('mag', targetRoot, magSkillCandidates(options));
+  copyFirstSkillSource('rca', targetRoot, rcaSkillCandidates(options));
   copySuperpowersBundle(targetRoot, options);
   copyOplMetaAgentSkill(targetRoot, options);
   copyOfficeCliCoreSkill(targetRoot, options);
@@ -908,11 +1019,7 @@ function copyRecommendedSkills(targetRoot, options) {
     path.join(os.homedir(), '.codex', 'skills', 'officecli-xlsx'),
   ]);
   copyUiUxProMaxSkill(targetRoot, options);
-  copyFirstSkillSource('mineru-document-extractor', targetRoot, [
-    options.mineruDocumentExtractorRoot,
-    path.join(os.homedir(), '.skills-manager', 'skills', 'mineru-document-extractor'),
-    path.join(os.homedir(), '.codex', 'skills', 'mineru-document-extractor'),
-  ]);
+  copyFirstSkillSource('mineru-document-extractor', targetRoot, mineruDocumentExtractorSkillCandidates(options));
 }
 
 function resolveRuntimeSources(options) {
@@ -947,20 +1054,12 @@ function packageJsonVersion(packagePath) {
   }
 }
 
-function buildRuntimeCacheKeys(options, sources) {
-  const packagerInputs = hashFiles(appRepoRoot, [
-    'scripts/build-full-first-install-package.ts',
-    'scripts/full-first-install-package.ts',
-    'scripts/full-first-install-runtime-wrappers.ts',
-  ]);
+function buildRuntimeCacheKeyInputs(options, sources) {
+  const packagerInputs = buildRuntimeLayerPackagerInputs();
   const excludePolicyHash = stringSha256(shouldExcludeRuntimePath.toString());
-  const skillsRoot = path.join(os.homedir(), '.codex', 'skills');
-  const skillsManagerRoot = path.join(os.homedir(), '.skills-manager', 'skills');
 
   return {
-    toolchain: buildFullRuntimeCacheKey({
-      layerId: 'toolchain',
-      parts: {
+    toolchain: {
         codex_package_version: packageJsonVersion(path.join(sources.codexRoot, 'package.json')),
         codex_binary_sha256: fileSha256(sources.codexBinaries.codex),
         rg_sha256: fileSha256(sources.codexBinaries.rg),
@@ -978,22 +1077,16 @@ function buildRuntimeCacheKeys(options, sources) {
         python_version: commandOutput(path.join(sources.pythonRoot, 'bin', 'python3'), ['--version']),
         packager_inputs: packagerInputs,
         exclude_policy_hash: excludePolicyHash,
-      },
-    }),
-    'domain-runtime': buildFullRuntimeCacheKey({
-      layerId: 'domain-runtime',
-      parts: {
+    },
+    'domain-runtime': {
         mas_commit: readGitHead(options.masRoot),
         mag_commit: readGitHead(options.magRoot),
         rca_commit: readGitHead(options.rcaRoot),
         meta_agent_commit: readGitHead(options.metaAgentRoot),
         packager_inputs: packagerInputs,
         exclude_policy_hash: excludePolicyHash,
-      },
-    }),
-    'opl-runtime': buildFullRuntimeCacheKey({
-      layerId: 'opl-runtime',
-      parts: {
+    },
+    'opl-runtime': {
         opl_commit: readGitHead(options.frameworkRoot),
         package_json_sha256: fileSha256(path.join(options.frameworkRoot, 'package.json')),
         package_lock_sha256: fileSha256(path.join(options.frameworkRoot, 'package-lock.json')),
@@ -1001,39 +1094,50 @@ function buildRuntimeCacheKeys(options, sources) {
         tsconfig_sha256: fileSha256(path.join(options.frameworkRoot, 'tsconfig.json')),
         packager_inputs: packagerInputs,
         exclude_policy_hash: excludePolicyHash,
-      },
-    }),
-    skills: buildFullRuntimeCacheKey({
-      layerId: 'skills',
-      parts: {
-        skills_root_exists: fs.existsSync(skillsRoot),
-        mas_skill_fingerprint: directoryFingerprint(path.join(skillsRoot, 'mas'), 'skills/mas'),
-        mag_skill_fingerprint: directoryFingerprint(path.join(skillsRoot, 'mag'), 'skills/mag'),
-        rca_skill_fingerprint: directoryFingerprint(path.join(skillsRoot, 'rca'), 'skills/rca'),
-        meta_agent_skill_fingerprint: directoryFingerprint(path.join(skillsRoot, 'opl-meta-agent'), 'skills/opl-meta-agent'),
-        mas_repo_skill_fingerprint: directoryFingerprint(path.join(options.masRoot, 'plugins', 'mas', 'skills', 'mas'), 'skills/mas'),
-        mag_repo_skill_fingerprint: directoryFingerprint(path.join(options.magRoot, 'plugins', 'mag', 'skills', 'mag'), 'skills/mag'),
-        rca_repo_skill_fingerprint: directoryFingerprint(path.join(options.rcaRoot, 'plugins', 'rca', 'skills', 'rca'), 'skills/rca'),
-        meta_agent_repo_skill_fingerprint: directoryFingerprint(path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'), 'skills/opl-meta-agent'),
+    },
+    skills: {
+        mas_skill_source: skillSourceSnapshot(masSkillCandidates(options), 'skills/mas'),
+        mag_skill_source: skillSourceSnapshot(magSkillCandidates(options), 'skills/mag'),
+        rca_skill_source: skillSourceSnapshot(rcaSkillCandidates(options), 'skills/rca'),
+        meta_agent_skill_source: metaAgentSkillSnapshot(options),
         superpowers_root_commit: readGitHead(options.superpowersRoot),
         superpowers_fingerprint: directoryFingerprint(options.superpowersRoot, 'skills/superpowers'),
         officecli_root_commit: readGitHead(options.officeCliRoot),
-        officecli_core_fingerprint: directoryFingerprint(path.join(skillsManagerRoot, 'officecli'), 'skills/officecli'),
+        officecli_core_source: officeCliCoreSkillSnapshot(options),
         officecli_docx_fingerprint: directoryFingerprint(path.join(options.officeCliRoot, 'skills', 'officecli-docx'), 'skills/officecli-docx'),
         officecli_pptx_fingerprint: directoryFingerprint(path.join(options.officeCliRoot, 'skills', 'officecli-pptx'), 'skills/officecli-pptx'),
         officecli_xlsx_fingerprint: directoryFingerprint(path.join(options.officeCliRoot, 'skills', 'officecli-xlsx'), 'skills/officecli-xlsx'),
         mineru_document_extractor_root_commit: readGitHead(options.mineruDocumentExtractorRoot),
-        mineru_document_extractor_fingerprint: directoryFingerprint(options.mineruDocumentExtractorRoot, 'skills/mineru-document-extractor'),
-        mineru_document_extractor_skill_fingerprint: directoryFingerprint(path.join(skillsManagerRoot, 'mineru-document-extractor'), 'skills/mineru-document-extractor'),
+        mineru_document_extractor_source: skillSourceSnapshot(mineruDocumentExtractorSkillCandidates(options), 'skills/mineru-document-extractor'),
         ui_ux_pro_max_root_commit: readGitHead(options.uiUxProMaxRoot),
         ui_ux_pro_max_fingerprint: directoryFingerprint(options.uiUxProMaxRoot, 'skills/ui-ux-pro-max'),
-        mas_skill_git: readGitHead(path.join(skillsRoot, 'mas')),
-        mag_skill_git: readGitHead(path.join(skillsRoot, 'mag')),
-        rca_skill_git: readGitHead(path.join(skillsRoot, 'rca')),
-        meta_agent_skill_git: readGitHead(path.join(skillsRoot, 'opl-meta-agent')),
         packager_inputs: packagerInputs,
         exclude_policy_hash: excludePolicyHash,
-      },
+    },
+  };
+}
+
+function buildRuntimeCacheKeys(options, sources) {
+  return buildRuntimeCacheKeysFromInputs(buildRuntimeCacheKeyInputs(options, sources));
+}
+
+function buildRuntimeCacheKeysFromInputs(layerInputs) {
+  return {
+    toolchain: buildFullRuntimeCacheKey({
+      layerId: 'toolchain',
+      parts: layerInputs.toolchain,
+    }),
+    'domain-runtime': buildFullRuntimeCacheKey({
+      layerId: 'domain-runtime',
+      parts: layerInputs['domain-runtime'],
+    }),
+    'opl-runtime': buildFullRuntimeCacheKey({
+      layerId: 'opl-runtime',
+      parts: layerInputs['opl-runtime'],
+    }),
+    skills: buildFullRuntimeCacheKey({
+      layerId: 'skills',
+      parts: layerInputs.skills,
     }),
   };
 }
@@ -1052,13 +1156,15 @@ function writeJsonFile(filePath, value) {
 }
 
 function buildRuntimeCacheKeyReport(options, sources) {
-  const layers = buildRuntimeCacheKeys(options, sources);
+  const layerKeyInputs = buildRuntimeCacheKeyInputs(options, sources);
+  const layers = buildRuntimeCacheKeysFromInputs(layerKeyInputs);
   return {
     status: 'runtime_cache_keys',
     version: options.version,
     runtime_cache_mode: options.runtimeCacheMode,
     runtime_cache_dir: options.runtimeCacheDir || null,
     aggregate_key_input: buildFullRuntimeAggregateCacheKeyInput({ layers }),
+    layer_key_inputs: layerKeyInputs,
     layers,
     layer_ids: FULL_RUNTIME_CACHE_LAYER_IDS,
   };
@@ -1211,7 +1317,8 @@ function prepareRuntime(options, sources) {
   fs.mkdirSync(path.join(runtimeRoot, 'bin'), { recursive: true });
 
   const packagedAt = new Date().toISOString();
-  const cacheKeys = buildRuntimeCacheKeys(options, sources);
+  const cacheKeyInputs = buildRuntimeCacheKeyInputs(options, sources);
+  const cacheKeys = buildRuntimeCacheKeysFromInputs(cacheKeyInputs);
   const cacheEvents = [
     runCachedLayer(options, 'toolchain', cacheKeys.toolchain, runtimeRoot, (layerRoot) => {
       buildToolchainLayer(layerRoot, sources);
@@ -1256,6 +1363,7 @@ function prepareRuntime(options, sources) {
       mode: options.runtimeCacheMode,
       dir: options.runtimeCacheDir || null,
       keys: cacheKeys,
+      key_inputs: cacheKeyInputs,
       events: cacheEvents,
     },
     resolved_refs: resolvedRefs,

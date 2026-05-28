@@ -178,6 +178,21 @@ jobs:
             full-bun-install-${{ runner.os }}-${{ runner.arch }}-
             full-bun-install-${{ runner.os }}-
 
+      - name: Cache Electron artifacts
+        id: electron-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/.cache/electron
+            ${{ runner.temp }}/.cache/electron-builder
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: full-electron-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock', 'one-person-lab-app/shells/aionui/packages/desktop/electron-builder.yml') }}
+          restore-keys: |
+            full-electron-cache-${{ runner.os }}-${{ runner.arch }}-
+            electron-cache-macos-arm64-arm64-
+            electron-cache-macos-arm64-
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -249,6 +264,11 @@ jobs:
       - name: Install App shell dependencies
         working-directory: one-person-lab-app/shells/aionui
         shell: bash
+        env:
+          ELECTRON_CACHE: ${{ runner.temp }}/.cache/electron
+          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/.cache/electron-builder
+          npm_config_disturl: https://electronjs.org/headers
+          npm_config_runtime: electron
         run: |
           set -euo pipefail
           bun install --frozen-lockfile
@@ -265,9 +285,9 @@ jobs:
             one-person-lab-app/shells/aionui/out/preload
             one-person-lab-app/shells/aionui/out/renderer
             one-person-lab-app/shells/aionui/out/.build-hash
-          key: full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock', 'one-person-lab-app/shells/aionui/tsconfig.json', 'one-person-lab-app/shells/aionui/packages/desktop/electron.vite.config.ts', 'one-person-lab-app/shells/aionui/packages/desktop/electron-builder.yml', 'one-person-lab-app/shells/aionui/packages/desktop/src/**', 'one-person-lab-app/shells/aionui/public/**', 'one-person-lab-app/shells/aionui/scripts/**', 'one-person-lab-app/contracts/app-product-profile.json') }}
+          key: full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ inputs.opl_version }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock', 'one-person-lab-app/shells/aionui/tsconfig.json', 'one-person-lab-app/shells/aionui/packages/desktop/electron.vite.config.ts', 'one-person-lab-app/shells/aionui/packages/desktop/src/**', 'one-person-lab-app/shells/aionui/public/**', 'one-person-lab-app/contracts/app-product-profile.json') }}
           restore-keys: |
-            full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-
+            full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ inputs.opl_version }}-
 
       - name: Prepare domain runtime dependencies
         shell: bash
@@ -430,6 +450,13 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           CI: true
           GH_TOKEN: ${{ github.token }}
+          ELECTRON_CACHE: ${{ runner.temp }}/.cache/electron
+          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/.cache/electron-builder
+          ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+          npm_config_electron_builder_binaries_mirror: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+          ELECTRON_MIRROR: ''
+          npm_config_disturl: https://electronjs.org/headers
+          npm_config_runtime: electron
         run: |
           set -euo pipefail
           ulimit -n 65536 || true
@@ -550,12 +577,14 @@ jobs:
               bun_install: '${{ steps.bun-cache.outputs.cache-hit || 'false' }}',
               uv_artifacts: '${{ steps.uv-cache.outputs.cache-hit || 'false' }}',
               go_modules_build: '${{ steps.go-cache.outputs.cache-hit || 'unknown' }}',
+              electron_artifacts: '${{ steps.electron-cache.outputs.cache-hit || 'false' }}',
               shell_vite_output: '${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }}',
               full_runtime_layers: env.OPL_FULL_RUNTIME_CACHE_HIT || 'unknown',
               full_runtime_cache_key: '${{ steps.runtime-cache-keys.outputs.cache_key }}',
               full_runtime_cache_digest: '${{ steps.runtime-cache-keys.outputs.cache_digest }}',
               full_runtime_layer_events: readJson('runtime-cache-events.json')?.events ?? null,
               full_runtime_layer_keys: readJson('runtime-cache-events.json')?.keys ?? null,
+              full_runtime_layer_key_inputs: readJson('runtime-cache-events.json')?.key_inputs ?? null,
             },
             duration_seconds: {
               toolchain_install: duration(env.OPL_FULL_WORKFLOW_STARTED_AT, env.OPL_FULL_TOOLCHAIN_READY_AT),
@@ -581,6 +610,7 @@ jobs:
             echo "| Bun install cache | ${{ steps.bun-cache.outputs.cache-hit || 'false' }} |"
             echo "| uv artifacts | ${{ steps.uv-cache.outputs.cache-hit || 'false' }} |"
             echo "| Go modules/build | ${{ steps.go-cache.outputs.cache-hit || 'unknown' }} |"
+            echo "| Electron artifacts | ${{ steps.electron-cache.outputs.cache-hit || 'false' }} |"
             echo "| Shell Vite output | ${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }} |"
             echo "| Full runtime layers | $OPL_FULL_RUNTIME_CACHE_HIT |"
             echo
@@ -655,7 +685,7 @@ jobs:
             one-person-lab-app/shells/aionui/out/preload
             one-person-lab-app/shells/aionui/out/renderer
             one-person-lab-app/shells/aionui/out/.build-hash
-          key: full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock', 'one-person-lab-app/shells/aionui/tsconfig.json', 'one-person-lab-app/shells/aionui/packages/desktop/electron.vite.config.ts', 'one-person-lab-app/shells/aionui/packages/desktop/electron-builder.yml', 'one-person-lab-app/shells/aionui/packages/desktop/src/**', 'one-person-lab-app/shells/aionui/public/**', 'one-person-lab-app/shells/aionui/scripts/**', 'one-person-lab-app/contracts/app-product-profile.json') }}
+          key: full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ inputs.opl_version }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock', 'one-person-lab-app/shells/aionui/tsconfig.json', 'one-person-lab-app/shells/aionui/packages/desktop/electron.vite.config.ts', 'one-person-lab-app/shells/aionui/packages/desktop/src/**', 'one-person-lab-app/shells/aionui/public/**', 'one-person-lab-app/contracts/app-product-profile.json') }}
 
       - name: Save Full toolchain runtime cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-toolchain.outputs.cache-hit != 'true' }}

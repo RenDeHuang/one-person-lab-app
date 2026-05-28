@@ -132,6 +132,9 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /Setup Go[\s\S]*cache:\s+true/, 'Full workflow Go cache');
   assertMatches(workflow, /uv cache dir|~\/\.cache\/uv|\$\{\{\s*runner\.temp\s*\}\}\/uv-cache/, 'Full workflow uv cache');
   assertMatches(workflow, /~\/\.bun\/install\/cache|\$\{\{\s*runner\.temp\s*\}\}\/\.bun/, 'Full workflow Bun cache');
+  assertMatches(workflow, /name:\s+Cache Electron artifacts[\s\S]*id:\s+electron-cache/, 'Full workflow Electron artifact cache');
+  assertMatches(workflow, /full-electron-cache-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}/, 'Full Electron cache is scoped to runner OS and arch');
+  assertMatches(workflow, /electron-cache-macos-arm64-arm64-/, 'Full Electron cache can reuse standard macOS arm64 cache lineage');
   assertMatches(workflow, /\$GITHUB_STEP_SUMMARY/, 'Full workflow summary');
   assertMatches(workflow, /Full first-install|runtime layer cache|Full runtime/, 'Full workflow summary content');
   assert.equal(
@@ -145,7 +148,12 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /full_package_build_breakdown/, 'Full telemetry package build breakdown');
   assertMatches(workflow, /## Full Package Build Breakdown/, 'Full summary package build breakdown section');
   assertMatches(workflow, /name:\s+Restore Full shell Vite output cache[\s\S]*id:\s+restore-shell-vite-output/, 'Full workflow restores reusable shell Vite output');
+  assertMatches(workflow, /full-shell-vite-output-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-\$\{\{ inputs\.opl_version \}\}-/, 'Full Vite cache key includes release version');
+  assert.doesNotMatch(workflow, /full-shell-vite-output-[\s\S]*one-person-lab-app\/shells\/aionui\/scripts\/\*\*/, 'Full Vite cache key should not include unrelated shell scripts');
+  assert.doesNotMatch(workflow, /full-shell-vite-output-[\s\S]*one-person-lab-app\/shells\/aionui\/packages\/desktop\/electron-builder\.yml/, 'Full Vite cache key should not include packager-only config');
   assertMatches(workflow, /shell_vite_output:\s+'\$\{\{ steps\.restore-shell-vite-output\.outputs\.cache-hit \|\| 'false' \}\}'/, 'Full telemetry records shell Vite output cache hit');
+  assertMatches(workflow, /electron_artifacts:\s+'\$\{\{ steps\.electron-cache\.outputs\.cache-hit \|\| 'false' \}\}'/, 'Full telemetry records Electron cache hit');
+  assertMatches(workflow, /full_runtime_layer_key_inputs:\s+readJson\('runtime-cache-events\.json'\)\?\.key_inputs/, 'Full telemetry records runtime cache key inputs');
   assertMatches(workflow, /--reuse-gui-vite-output/, 'Full package build can reuse restored shell Vite output');
   assert.ok(!workflow.includes('reuse_gui_args=()'), 'Full workflow avoids empty bash array expansion under set -u');
   assertMatches(workflow, /if \[ "\$\{\{ steps\.restore-shell-vite-output\.outputs\.cache-hit \|\| 'false' \}\}" = "true" \]; then[\s\S]*--reuse-gui-vite-output[\s\S]*else[\s\S]*npm run release:full/, 'Full workflow handles Vite cache hit and miss explicitly');
