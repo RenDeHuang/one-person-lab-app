@@ -2720,10 +2720,14 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /actions\/download-artifact@v7/);
   assert.match(vmWorkflow, /Using same-run workflow artifact/);
   assert.match(vmWorkflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/);
+  assert.match(vmWorkflow, /fetch_release_metadata_with_retry\(\)/);
+  assert.match(vmWorkflow, /Release metadata fetch failed on attempt \$attempt/);
+  assert.match(vmWorkflow, /download_asset_with_retry\(\)/);
   assert.match(vmWorkflow, /download_release_with_retry\(\)/);
-  assert.match(vmWorkflow, /max_attempts=4/);
-  assert.match(vmWorkflow, /Release DMG download failed on attempt \$attempt/);
-  assert.match(vmWorkflow, /curl -fL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 30 --max-time 1800/);
+  assert.match(vmWorkflow, /max_attempts=8/);
+  assert.match(vmWorkflow, /Resolved release DMG asset: \$asset_name/);
+  assert.match(vmWorkflow, /Release DMG asset download failed on attempt \$attempt/);
+  assert.match(vmWorkflow, /curl -fL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 30 --max-time 1800 --continue-at -/);
   assert.match(vmWorkflow, /Resolve host Node\.js runtime for guest smoke/);
   assert.match(vmWorkflow, /--guest-node-root "\$\{\{ steps\.host_node\.outputs\.node_root \}\}"/);
   assert.match(vmWorkflow, /schedule:/);

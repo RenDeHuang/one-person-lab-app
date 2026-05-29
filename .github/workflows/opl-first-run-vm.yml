@@ -213,30 +213,138 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/release
 
-          download_release_with_retry() {
+          fetch_release_metadata_with_retry() {
+            local repo="$1"
+            local release_ref="$2"
+            local output_path="$3"
             local attempt
-            local max_attempts=4
+            local max_attempts=8
             local delay_seconds=15
             for attempt in $(seq 1 "$max_attempts"); do
-              if gh release download "$@"; then
+              if [ -n "$release_ref" ]; then
+                if gh release view "$release_ref" --repo "$repo" --json tagName,assets > "$output_path"; then
+                  return 0
+                fi
+              elif gh release view --repo "$repo" --json tagName,assets > "$output_path"; then
                 return 0
               fi
               local status="$?"
               if [ "$attempt" -eq "$max_attempts" ]; then
                 return "$status"
               fi
-              find artifacts/release -type f -name 'One-Person-Lab-*.dmg' -delete
-              echo "::warning::Release DMG download failed on attempt $attempt; retrying in ${delay_seconds}s."
+              echo "::warning::Release metadata fetch failed on attempt $attempt; retrying in ${delay_seconds}s."
               sleep "$delay_seconds"
               delay_seconds="$((delay_seconds * 2))"
             done
+          }
+
+          select_release_asset() {
+            local metadata_path="$1"
+            local download_pattern="$2"
+            RELEASE_JSON="$metadata_path" DOWNLOAD_PATTERN="$download_pattern" node <<'NODE'
+          const fs = require('node:fs');
+          const metadata = JSON.parse(fs.readFileSync(process.env.RELEASE_JSON, 'utf8'));
+          const pattern = process.env.DOWNLOAD_PATTERN;
+          const regex = new RegExp(`^${pattern.split('*').map((part) => part.replace(/[|\\{}()[\]^$+?.]/g, '\\$&')).join('.*')}$`);
+          const asset = (metadata.assets || []).find((candidate) => regex.test(candidate.name || ''));
+          if (!asset) {
+            console.error(`No release asset matched ${pattern}. Available assets: ${(metadata.assets || []).map((candidate) => candidate.name).join(', ')}`);
+            process.exit(2);
+          }
+          const url = asset.url || asset.browserDownloadUrl || asset.browser_download_url;
+          if (!url) {
+            console.error(`Release asset ${asset.name} did not include a downloadable URL.`);
+            process.exit(2);
+          }
+          process.stdout.write([asset.name, url, asset.size || ''].join('\t'));
+          NODE
+          }
+
+          download_asset_with_retry() {
+            local asset_url="$1"
+            local output_path="$2"
+            local expected_size="${3:-}"
+            local partial_path="${output_path}.part"
+            local attempt
+            local max_attempts=8
+            local delay_seconds=15
+            local status=1
+            mkdir -p "$(dirname "$output_path")"
+            for attempt in $(seq 1 "$max_attempts"); do
+              if curl -fL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 30 --max-time 1800 --continue-at - "$asset_url" -o "$partial_path"; then
+                mv "$partial_path" "$output_path"
+                if [ -n "$expected_size" ]; then
+                  actual_size="$(wc -c < "$output_path" | tr -d ' ')"
+                  if [ "$actual_size" != "$expected_size" ]; then
+                    echo "::warning::Release DMG size mismatch after attempt $attempt: expected ${expected_size}, got ${actual_size}."
+                    rm -f "$output_path"
+                    status=1
+                  else
+                    return 0
+                  fi
+                else
+                  return 0
+                fi
+              else
+                status="$?"
+              fi
+              if [ "$attempt" -eq "$max_attempts" ]; then
+                return "$status"
+              fi
+              echo "::warning::Release DMG asset download failed on attempt $attempt; retrying in ${delay_seconds}s."
+              sleep "$delay_seconds"
+              delay_seconds="$((delay_seconds * 2))"
+            done
+          }
+
+          download_release_with_retry() {
+            local release_ref=""
+            local repo="$GITHUB_REPOSITORY"
+            local download_pattern=""
+            local output_dir="artifacts/release"
+            while [ "$#" -gt 0 ]; do
+              case "$1" in
+                --repo)
+                  repo="$2"
+                  shift 2
+                  ;;
+                --pattern)
+                  download_pattern="$2"
+                  shift 2
+                  ;;
+                --dir)
+                  output_dir="$2"
+                  shift 2
+                  ;;
+                *)
+                  if [ -z "$release_ref" ]; then
+                    release_ref="$1"
+                    shift
+                  else
+                    echo "::error::Unexpected release download argument: $1"
+                    return 2
+                  fi
+                  ;;
+              esac
+            done
+            if [ -z "$download_pattern" ]; then
+              echo "::error::Missing release download pattern."
+              return 2
+            fi
+            local metadata_path="artifacts/release/release-metadata.json"
+            fetch_release_metadata_with_retry "$repo" "$release_ref" "$metadata_path"
+            local asset_info
+            asset_info="$(select_release_asset "$metadata_path" "$download_pattern")"
+            IFS=$'\t' read -r asset_name asset_url asset_size <<< "$asset_info"
+            echo "Resolved release DMG asset: $asset_name"
+            download_asset_with_retry "$asset_url" "$output_dir/$asset_name" "$asset_size"
           }
 
           if [ -n "${{ inputs.release_artifact_name }}" ]; then
             echo "Using same-run workflow artifact: ${{ inputs.release_artifact_name }}"
           elif [ -n "${{ inputs.release_dmg_url }}" ]; then
             DMG_PATH="artifacts/release/One-Person-Lab-${{ steps.package_profile.outputs.profile }}.dmg"
-            curl -fL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 30 --max-time 1800 "${{ inputs.release_dmg_url }}" -o "$DMG_PATH"
+            download_asset_with_retry "${{ inputs.release_dmg_url }}" "$DMG_PATH"
           elif [ -n "${{ inputs.release_tag }}" ]; then
             download_release_with_retry "${{ inputs.release_tag }}" \
               --repo "$GITHUB_REPOSITORY" \
