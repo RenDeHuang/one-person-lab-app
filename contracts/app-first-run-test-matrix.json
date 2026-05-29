@@ -73,14 +73,16 @@
       "required_shell_testids": [
         "opl-first-run-beginner-summary",
         "opl-first-run-primary-action",
-        "opl-first-run-background-maintenance-secondary",
         "opl-first-run-technical-details-toggle"
       ],
       "expects": [
         "first screen shows a plain readiness summary instead of a technical checklist as the dominant view",
         "primary action leads to /guid only after ready_to_launch is true",
         "workspace root, Codex CLI, and Codex config are the only primary steps",
-        "Full readiness and background maintenance remain visible as secondary or collapsed details",
+        "Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 访问权限 even when initialize checklist labels are English",
+        "Chinese locale first-run primary area does not expose Codex API Configuration, Unknown, Needs setup, raw setup_flow fields, or opl system commands",
+        "access key entry uses beginner-facing 访问密钥 copy while keeping the narrow Codex configuration bridge underneath",
+        "Full readiness and background maintenance remain visible after expanding technical details",
         "Homebrew, Node, Git, CLT, modules, provider, and runtime maintenance do not become the beginner primary terminal goals"
       ]
     },

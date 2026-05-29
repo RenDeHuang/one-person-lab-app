@@ -9,13 +9,13 @@ Machine boundary: Human-readable user guide. Release contracts, workflows, VM sm
 
 下载最新版本：https://github.com/gaofeng21cn/one-person-lab-app/releases/latest
 
-> 涉及 Codex API Key 或 Codex 权限配置时，请联系 gflabtoken 管理员开通。不要自行购买、复制来源不明的密钥，或把密钥写入研究数据目录。
+> 涉及访问权限配置时，请联系 gflabtoken 管理员获取访问密钥。不要自行购买、复制来源不明的密钥，或把密钥写入研究数据目录。
 
 ## 准备清单
 
 - 一台 Apple Silicon Mac 或可运行 macOS App 的 Mac。
 - 稳定网络，用于下载 One Person Lab 和完成首次环境检查。
-- gflabtoken 开通状态；涉及 Codex 权限时请联系 gflabtoken 管理员。
+- gflabtoken 开通状态；涉及访问权限时请联系 gflabtoken 管理员获取访问密钥。
 - 本地研究数据文件夹，数据需完成脱敏并符合本机构数据管理要求。
 - 变量说明、纳排标准、终点定义、统计计划、参考文献或已有草稿；可以先放入专病 workspace 的 `raw_data/`。
 
@@ -38,18 +38,18 @@ Machine boundary: Human-readable user guide. Release contracts, workflows, VM sm
 - 安装完成后从 Applications 启动 App。
 - 不要长期在 DMG 挂载窗口内运行 App。
 
-## 3. 配置 Codex 权限
+## 3. 配置访问权限
 
-首次启动如果 Codex API 配置还未完成，界面会把 Codex API Configuration 标为需要处理。统一联系 gflabtoken 管理员开通。
+首次启动如果提示访问权限未配置，请联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。
 
-![3. 配置 Codex 权限](assets/03-codex-config-needed.png)
+![3. 配置访问权限](assets/03-codex-config-needed.png)
 
-- 管理员开通后，按管理员给出的方式完成配置。
+- 管理员开通后，在页面输入访问密钥并点击完成配置。
 - 不要把密钥截图、转发或写入研究数据目录。
 
 ## 4. 等待首次环境检查
 
-OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Codex 权限。首屏只显示“正在准备 / 可以开始 / 需要处理”的简短状态、三步准备进度、下一步，以及进入 OPL 的主按钮。
+OPL 会先检查开始使用所需的关键项：工作目录、本机助手和访问权限。首屏只显示“正在准备 / 可以开始 / 需要处理”的简短状态、三步准备进度、下一步，以及进入 OPL 的主按钮。
 
 ![4. 等待首次环境检查](assets/04-first-run-checking.png)
 
@@ -68,7 +68,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Co
 
 ## 6. 确认工作目录和运行设置
 
-在 Settings / Overview 中确认 Workspace Root、Codex CLI、Foundry Agents 和 Access 等入口。需要调整数据目录或运行设置时，从这里进入。
+在设置概览中确认工作目录、本机助手、智能体入口和访问状态。需要调整数据目录或运行设置时，从这里进入。
 
 ![6. 确认工作目录和运行设置](assets/06-research-data-folder.png)
 
@@ -96,7 +96,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Co
 
 - 下载失败：换网络后重试，或请技术支持人员确认 GitHub Release 是否可访问。
 - 打不开 App：确认已拖入 Applications，并按 macOS 安全提示允许打开。
-- Codex 未配置：联系 gflabtoken 管理员开通。
+- 访问权限未配置：联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。
 - 模块未就绪：在 App 的环境管理中重新检查，确认 OPL 完整安装资产与本机网络状态。
 - 数据路径看不到：确认选择的是本机可访问的专病 workspace，或能看到其中的 `raw_data/`。
 - 任务启动后不知道看哪里：查看运行状态页的当前阶段、下一步和需要人工确认的项目。
@@ -104,6 +104,6 @@ OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Co
 ## 截图与验证来源
 
 - 截图资产统一规范化为 3840x2160；来源包括 GitHub Release 页面、本机 26.5.28 DMG 安装窗口、26.5.28 App CDP 截图，以及 26.5.28 GitHub Actions clean VM artifact。
-- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页和 Settings 可用，Full 版额外验证 Codex 配置向导和 bundled runtime readiness。首启截图和 layout gate 会验证新手首屏保持简化，技术细节默认折叠。
+- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页和 Settings 可用，Full 版额外验证访问权限配置向导和 bundled runtime readiness。首启截图和 layout gate 会验证新手首屏保持简化，技术细节默认折叠。
 - 每张截图的来源、原始尺寸和 SHA256 记录在 `macos-app-install-assets.json` 与生成后的 verification JSON 中。
 - Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。

@@ -504,7 +504,7 @@
       ],
       "primary_progress_signal": "Core completed and total count",
       "advanced_progress_disclosure": "collapsed_or_secondary",
-      "background_maintenance_presentation": "secondary_non_blocking",
+      "background_maintenance_presentation": "collapsed_technical_non_blocking",
       "technical_detail_policy": "hidden_until_expanded_or_error"
     }
   },

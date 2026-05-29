@@ -358,11 +358,16 @@
       "must_show": [
         "localized first-run title",
         "localized ready/checking/progress labels",
-        "localized update and setup error copy"
+        "localized update and setup error copy",
+        "Chinese beginner labels for workspace root, local assistant, and access",
+        "Chinese access-key copy for Codex configuration blockers"
       ],
       "must_not_show": [
         "raw settings.firstRun keys",
-        "English first-run fallback in Chinese locales"
+        "English first-run fallback in Chinese locales",
+        "Codex API Configuration in Chinese beginner primary area",
+        "Unknown or Needs setup in Chinese beginner primary area",
+        "raw setup_flow fields or opl system commands in beginner primary area"
       ],
       "machine_source": "opl system initialize --json plus App-owned locale files",
       "refresh_source": "opl system initialize --json",
@@ -448,7 +453,7 @@
         "blocking error source",
         "beginner-facing readiness summary",
         "primary start action",
-        "background maintenance secondary disclosure",
+        "background maintenance collapsed technical disclosure",
         "technical details toggle"
       ],
       "progress_model": {
@@ -500,19 +505,36 @@
         ],
         "primary_progress_signal": "Core completed and total count",
         "advanced_progress_disclosure": "collapsed_or_secondary",
-        "background_maintenance_presentation": "secondary_non_blocking",
+        "background_maintenance_presentation": "collapsed_technical_non_blocking",
         "technical_detail_policy": "hidden_until_expanded_or_error",
         "required_shell_testids": [
           "opl-first-run-beginner-summary",
           "opl-first-run-primary-action",
-          "opl-first-run-background-maintenance-secondary",
           "opl-first-run-technical-details-toggle"
-        ]
+        ],
+        "localization_policy": {
+          "chinese_primary_labels": [
+            "工作目录",
+            "本机助手",
+            "访问权限"
+          ],
+          "technical_label_policy": "map_initialize_item_ids_to_app_owned_beginner_labels_before_rendering_primary_area",
+          "forbidden_primary_area_text": [
+            "Codex API Configuration",
+            "Unknown",
+            "Needs setup",
+            "setup_flow",
+            "opl system"
+          ]
+        }
       },
       "must_not_show": [
         "Homebrew, Node, Git, CLT, module, provider, or runtime maintenance as primary first-screen terminal goals",
         "Full readiness progress as the dominant first-screen message",
-        "raw command output in the beginner primary area"
+        "raw command output in the beginner primary area",
+        "English runtime checklist labels in the Chinese beginner primary area",
+        "Codex API Configuration, Unknown, or Needs setup in the Chinese beginner primary area",
+        "background maintenance counters or labels in the beginner primary area"
       ]
     }
   ],

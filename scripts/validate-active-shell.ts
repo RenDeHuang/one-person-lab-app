@@ -87,7 +87,6 @@ const forbiddenAuthorityOwners = [
 const beginnerFirstRunTestIds = [
   'opl-first-run-beginner-summary',
   'opl-first-run-primary-action',
-  'opl-first-run-background-maintenance-secondary',
   'opl-first-run-technical-details-toggle',
 ];
 const appOwnedSettingsTabs = ['overview', 'runtime', 'capabilities', 'access', 'appearance', 'system', 'about'];
@@ -137,7 +136,7 @@ function validateBeginnerFirstRunPresentation(presentation, label) {
   assertIncludesAll(presentation.primary_steps, firstRunCoreItems, `${label} primary steps`);
   for (const [field, expected] of Object.entries({
     advanced_progress_disclosure: 'collapsed_or_secondary',
-    background_maintenance_presentation: 'secondary_non_blocking',
+    background_maintenance_presentation: 'collapsed_technical_non_blocking',
     technical_detail_policy: 'hidden_until_expanded_or_error',
   })) {
     if (presentation[field] !== expected) {
@@ -512,13 +511,21 @@ function validateActiveShellImplementation(shellPaths) {
         throw new Error(`Active shell ${locale} first-run locale must include ${expected}`);
       }
     }
+    const settingsLocale = JSON.parse(text);
+    const firstRunLocaleText = JSON.stringify(settingsLocale.firstRun ?? {});
+    const firstLaunchLocaleText = JSON.stringify(settingsLocale.oplFirstLaunch ?? {});
+    const firstRunSetupText = `${firstRunLocaleText}\n${firstLaunchLocaleText}`;
     for (const forbidden of [
       '"title": "Prepare One Person Lab"',
       '"wizardTitle": "Prepare One Person Lab"',
       'Checking the essentials',
       'Ready to start',
+      'Codex API 配置',
+      'Codex API Key',
+      'Codex API Configuration',
+      'Needs setup',
     ]) {
-      if (text.includes(forbidden)) {
+      if (firstRunSetupText.includes(forbidden)) {
         throw new Error(`Active shell ${locale} first-run locale must not expose English fallback ${forbidden}`);
       }
     }
@@ -667,6 +674,38 @@ function validateActiveShellImplementation(shellPaths) {
   for (const expected of beginnerFirstRunTestIds.map((id) => `data-testid='${id}'`)) {
     if (!firstRunPage.includes(expected)) {
       throw new Error(`Active shell FirstRun page must implement beginner first-run surface ${expected}`);
+    }
+  }
+  if (!firstRunPage.includes("data-testid='opl-first-run-background-maintenance-secondary'")) {
+    throw new Error('Active shell FirstRun page must keep background maintenance available in technical details');
+  }
+  const firstRunProgressStart = firstRunPage.indexOf("data-testid='opl-first-run-progress'");
+  const technicalDetailsStart = firstRunPage.indexOf('<Collapse', firstRunProgressStart);
+  const backgroundMaintenanceIndex = firstRunPage.indexOf("data-testid='opl-first-run-background-maintenance-secondary'");
+  if (
+    firstRunProgressStart < 0 ||
+    technicalDetailsStart < 0 ||
+    backgroundMaintenanceIndex < 0 ||
+    (backgroundMaintenanceIndex > firstRunProgressStart && backgroundMaintenanceIndex < technicalDetailsStart)
+  ) {
+    throw new Error('Active shell FirstRun page must keep background maintenance out of the beginner primary area');
+  }
+  for (const expected of [
+    'formatItemLabel',
+    'formatItemSummary',
+    'formatNextVisibleStep',
+    'ITEM_LABEL_KEYS',
+    'ITEM_SUMMARY_KEYS',
+    'NEXT_STEP_KEYS',
+    "t('settings.firstRun.nextSteps.generic')",
+  ]) {
+    if (!firstRunPage.includes(expected)) {
+      throw new Error(`Active shell FirstRun page must map technical initialize text to App-owned beginner copy: ${expected}`);
+    }
+  }
+  for (const forbidden of ['item?.label ?? label', 'item?.detail_summary ?? item?.next_visible_step']) {
+    if (firstRunPage.includes(forbidden)) {
+      throw new Error(`Active shell FirstRun beginner primary area must not directly render initialize fallback text: ${forbidden}`);
     }
   }
 
@@ -2048,7 +2087,7 @@ function validatePageStateMatrix(matrix, contract) {
     'next visible step',
     'beginner-facing readiness summary',
     'primary start action',
-    'background maintenance secondary disclosure',
+    'background maintenance collapsed technical disclosure',
     'technical details toggle',
   ]) {
     if (!firstLaunchPage.must_show?.includes(signal)) {
@@ -2059,10 +2098,30 @@ function validatePageStateMatrix(matrix, contract) {
     'Homebrew, Node, Git, CLT, module, provider, or runtime maintenance as primary first-screen terminal goals',
     'Full readiness progress as the dominant first-screen message',
     'raw command output in the beginner primary area',
+    'English runtime checklist labels in the Chinese beginner primary area',
+    'Codex API Configuration, Unknown, or Needs setup in the Chinese beginner primary area',
+    'background maintenance counters or labels in the beginner primary area',
   ]) {
     if (!firstLaunchPage.must_not_show?.includes(hiddenSignal)) {
       throw new Error(`First-launch readiness page must not show ${hiddenSignal}`);
     }
+  }
+  const localizationPolicy = firstLaunchPage.beginner_view_model?.localization_policy;
+  assertIncludesAll(
+    localizationPolicy?.chinese_primary_labels,
+    ['工作目录', '本机助手', '访问权限'],
+    'First-launch readiness beginner localization labels',
+  );
+  assertIncludesAll(
+    localizationPolicy?.forbidden_primary_area_text,
+    ['Codex API Configuration', 'Unknown', 'Needs setup', 'setup_flow', 'opl system'],
+    'First-launch readiness beginner forbidden primary text',
+  );
+  if (
+    localizationPolicy?.technical_label_policy !==
+    'map_initialize_item_ids_to_app_owned_beginner_labels_before_rendering_primary_area'
+  ) {
+    throw new Error('First-launch readiness beginner localization must map initialize item ids before rendering');
   }
   const firstLaunchProgressModel = firstLaunchPage.progress_model;
   if (firstLaunchProgressModel?.source_command !== firstRunProgressSourceCommand) {
@@ -2578,6 +2637,15 @@ function validateFirstRunMatrix(matrix, contract) {
     beginnerFirstRunTestIds,
     'Beginner first-run scenario shell test ids',
   );
+  for (const expected of [
+    'Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 访问权限 even when initialize checklist labels are English',
+    'Chinese locale first-run primary area does not expose Codex API Configuration, Unknown, Needs setup, raw setup_flow fields, or opl system commands',
+    'access key entry uses beginner-facing 访问密钥 copy while keeping the narrow Codex configuration bridge underneath',
+  ]) {
+    if (!beginnerScenario.expects?.includes(expected)) {
+      throw new Error(`Beginner first-run scenario must require localized beginner setup UX: ${expected}`);
+    }
+  }
   validateStandardBootstrapScenario(scenarioById.get('standard_app_managed_bootstrap'));
   validateCommandLineToolsScenario(scenarioById.get('macos_clt_system_installer'));
   validateEcosystemModuleScenario(scenarioById.get('ecosystem_modules_app_cli_managed'));

@@ -35,22 +35,22 @@
       "normalized_sha256": "222457ddb37d4cc8c96ebded5920105007ad9cc10306391d7dd0ee6a6997602e"
     },
     "03-codex-config-needed.png": {
-      "title": "First-run Codex/API configuration crop",
-      "source_kind": "github_actions_vm_artifact",
-      "source": "opl-first-run-vm-standard-26581198816/artifacts/first-run-beginner.png",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "863021d641a608a241ea51e0088e6868063256a3ea96757bd684b0ed983af139",
-      "normalized_sha256": "cf88f443159c389ec4ef46b36c487f625e67d51c0303374ce304079fbeaee137"
+      "title": "First-run access setup screen",
+      "source_kind": "local_guide_first_run_render",
+      "source": "shell FirstRun real component render, codex/beginner-first-run-zh, blocked access fixture",
+      "source_width": 3840,
+      "source_height": 2160,
+      "source_sha256": "5c8fd81d72cd3b684303c463e7ef2d447a02b49277db092888736b9e98cc3d14",
+      "normalized_sha256": "5c8fd81d72cd3b684303c463e7ef2d447a02b49277db092888736b9e98cc3d14"
     },
     "04-first-run-checking.png": {
       "title": "First-run beginner readiness screen",
-      "source_kind": "github_actions_vm_artifact",
-      "source": "opl-first-run-vm-standard-26581198816/artifacts/first-run-beginner.png",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "863021d641a608a241ea51e0088e6868063256a3ea96757bd684b0ed983af139",
-      "normalized_sha256": "2202381baa474308db0138b43cec8573e05b4f799f37b47471b922a37b7f10f2"
+      "source_kind": "local_guide_first_run_render",
+      "source": "shell FirstRun real component render, codex/beginner-first-run-zh, ready fixture",
+      "source_width": 3840,
+      "source_height": 2160,
+      "source_sha256": "017a9c40dda70fdaca89dafa8df125fc096ea78c81b27466797b0f6949b8aa3c",
+      "normalized_sha256": "017a9c40dda70fdaca89dafa8df125fc096ea78c81b27466797b0f6949b8aa3c"
     },
     "05-opl-ready-research-entry.png": {
       "title": "Current 26.5.28 App Research/MAS GUID entry crop",

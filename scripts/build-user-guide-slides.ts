@@ -61,25 +61,26 @@ const steps: Step[] = [
     notes: '打开下载的 DMG，将 One Person Lab.app 拖入 Applications。首次打开如出现 macOS 安全提示，按系统提示确认。',
   },
   {
-    title: '3. 配置 Codex 权限',
-    subtitle: 'Codex API Configuration 如果显示 Unknown 或 Needs setup，联系 gflabtoken 管理员开通。',
+    title: '3. 配置访问权限',
+    subtitle: '如果首启页面提示访问权限未配置，请联系 gflabtoken 管理员获取访问密钥。',
     asset: '03-codex-config-needed.png',
     callouts: [
-      '管理员开通后，按给出的方式完成配置。',
+      '管理员开通后，在页面输入访问密钥。',
+      '点击完成配置后继续首启检查。',
       '不要截图、转发或保存密钥到研究目录。',
     ],
-    notes: '涉及 Codex API Key 或 Codex 权限配置时，请联系 gflabtoken 管理员开通。不要自行购买、复制来源不明的密钥，或把密钥写入研究数据目录。',
+    notes: '涉及访问权限配置时，请联系 gflabtoken 管理员获取访问密钥。不要自行购买、复制来源不明的密钥，或把密钥写入研究数据目录。',
   },
   {
     title: '4. 等待首次环境检查',
     subtitle: '首屏只显示准备状态、三步进度、下一步和进入 OPL 的主按钮。',
     asset: '04-first-run-checking.png',
     callouts: [
-      '先检查工作目录、Codex CLI 和 Codex 权限。',
+      '先检查工作目录、本机助手和访问权限。',
       '技术 phase、刷新和原始错误默认收在技术细节里。',
       '遇到阻塞时先阅读界面提示。',
     ],
-    notes: 'OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Codex 权限。首屏只显示“正在准备 / 可以开始 / 需要处理”的简短状态、三步准备进度、下一步，以及进入 OPL 的主按钮。模块、skills、运行底座和本机工具属于后台维护，技术细节默认折叠。',
+    notes: 'OPL 会先检查开始使用所需的关键项：工作目录、本机助手和访问权限。首屏只显示“正在准备 / 可以开始 / 需要处理”的简短状态、三步准备进度、下一步，以及进入 OPL 的主按钮。模块、skills、运行底座和本机工具属于后台维护，技术细节默认折叠。',
   },
   {
     title: '5. 进入科研入口',
@@ -93,13 +94,13 @@ const steps: Step[] = [
   },
   {
     title: '6. 确认工作目录和运行设置',
-    subtitle: '在 Settings / Overview 中确认 Workspace Root、Codex CLI、Foundry Agents 和 Access。',
+    subtitle: '在设置概览中确认工作目录、本机助手、智能体入口和访问状态。',
     asset: '06-research-data-folder.png',
     callouts: [
       '数据目录和运行入口从 Settings 进入。',
       '患者数据需先脱敏，并遵守机构要求。',
     ],
-    notes: '在 Settings / Overview 中确认 Workspace Root、Codex CLI、Foundry Agents 和 Access 等入口。建议按一个病种或稳定研究主题建立本地 workspace，把原始或脱敏材料集中放入工作目录。',
+    notes: '在设置概览中确认工作目录、本机助手、智能体入口和访问状态。建议按一个病种或稳定研究主题建立本地 workspace，把原始或脱敏材料集中放入工作目录。',
   },
   {
     title: '7. 发起首次科研任务',
@@ -386,7 +387,7 @@ function buildFinalSlide() {
   const left = [
     '下载失败：换网络后重试，或确认 GitHub Release 可访问。',
     '打不开 App：确认已拖入 Applications，并按 macOS 安全提示允许打开。',
-    'Codex 未配置：联系 gflabtoken 管理员开通。',
+    '访问权限未配置：联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。',
     '模块未就绪：在 App 的环境管理中重新检查。',
   ];
   const right = [
