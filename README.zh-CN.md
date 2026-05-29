@@ -8,12 +8,41 @@
 
 <h1 align="center">One Person Lab App</h1>
 
-<p align="center"><strong>One Person Lab 的桌面工作台</strong></p>
-<p align="center">把 One Person Lab、领域智能体和配套工具打包到一个应用里，用统一界面进入研究、基金、汇报和通用知识工作</p>
+<p align="center"><strong>面向复杂知识工作的 chat-first 桌面 AI 应用</strong></p>
+<p align="center">从一个应用进入研究、基金、汇报和通用任务，查看进度、继续长任务、检查交付物</p>
 
 <p align="center">
   <img src="assets/branding/opl-app-product-map.png" alt="One Person Lab App 产品打包关系图" width="100%" />
 </p>
+
+## 为什么需要它
+
+AI 已经很擅长回答问题和生成内容，但当工作变成一篇论文、一个基金本子、一套汇报材料或一个长期项目时，用户真正关心的是：
+
+- 从哪里开始，下一步该做什么？
+- 之前跑过的任务进展到哪一步了？
+- 生成了哪些文件，哪些还需要检查？
+- 后台任务是否还在运行，失败时卡在哪里？
+- 研究、基金、汇报这些专业 Agent 能不能放在一个统一入口里使用？
+
+**One Person Lab App 就是这个入口。** 它把 One Person Lab、专业 Agent 和常用工具打包成桌面应用，让用户用一个界面进入复杂知识工作。
+
+## 核心亮点
+
+**一个入口进入多类专业 AI 工作**<br/>
+从桌面应用进入通用工作、医学研究、基金写作和汇报材料准备，不需要在多个命令、仓库和工具之间切换。
+
+**看得见长任务进度**<br/>
+应用展示任务进展、文件、运行状态和可继续的上下文。用户回来时可以直接看到做到了哪一步、有哪些结果、是否需要人工处理。
+
+**把首次安装做成产品体验**<br/>
+macOS 新用户可以使用完整首次安装包，先打开 App，再让后台继续准备框架、专业 Agent、技能和工具载荷。
+
+**专业 Agent 保持清晰分工**<br/>
+Research Foundry、Grant Foundry、Presentation Foundry 面向不同类型成果。用户看到统一入口，背后仍保留各自专业判断和交付边界。
+
+**适合从日常使用走向长期托管**<br/>
+它不只服务一次对话，也面向需要多轮推进、后台维护、失败恢复和持续交付的工作。
 
 ## 下载与安装
 
@@ -39,7 +68,7 @@ Docker 或服务器部署请参考 [Docker/WebUI 安装说明](https://github.co
 
 ## 应用能做什么
 
-One Person Lab App 是面向用户的日常工作台：
+One Person Lab App 是面向用户的日常 chat-first 桌面入口：
 
 - 从一个桌面界面进入通用工作、医学研究、基金写作和汇报材料准备。
 - 提供研究工坊、基金工坊、汇报工坊入口。

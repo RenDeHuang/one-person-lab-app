@@ -8,12 +8,41 @@
 
 <h1 align="center">One Person Lab App</h1>
 
-<p align="center"><strong>The desktop workbench for One Person Lab</strong></p>
-<p align="center">Package One Person Lab, domain agents, and companion tools into one app for research, grants, presentations, and general knowledge work.</p>
+<p align="center"><strong>A chat-first desktop AI app for complex knowledge work</strong></p>
+<p align="center">Start research, grants, presentations, and general tasks from one app; track progress, resume long-running work, and inspect deliverables.</p>
 
 <p align="center">
   <img src="assets/branding/opl-app-product-map.png" alt="One Person Lab App product packaging map" width="100%" />
 </p>
+
+## Why It Exists
+
+AI is already strong at answering questions and generating content. The harder part begins when the work becomes a paper, a grant proposal, a presentation package, or a long-running project. Users need to know:
+
+- Where do I start, and what should happen next?
+- How far did the previous task get?
+- Which files were produced, and what still needs review?
+- Is the background work still running, and where did it stop if it failed?
+- Can research, grant, and presentation agents live behind one clear entry point?
+
+**One Person Lab App is that entry point.** It packages One Person Lab, professional agents, and companion tools into a desktop app for complex knowledge work.
+
+## Core Highlights
+
+**One entry point for professional AI work**<br/>
+Enter general work, medical research, grant writing, and presentation preparation from the desktop app instead of jumping across commands, repositories, and tools.
+
+**Visible progress for long tasks**<br/>
+The app shows task progress, files, runtime status, and recoverable work context. When you come back, you can see what happened, what was produced, and whether anything needs human attention.
+
+**First install feels like a product**<br/>
+New macOS users can start with the complete first-install package, open the App first, and let background maintenance prepare the framework, professional agents, skills, and tool payloads.
+
+**Professional agents with clear roles**<br/>
+Research Foundry, Grant Foundry, and Presentation Foundry focus on different deliverables. Users get one interface while each agent keeps its own professional boundary.
+
+**Built for daily use and long-running work**<br/>
+The app is not just for one chat. It supports work that needs multiple rounds, background maintenance, recovery after failure, and continuing delivery.
 
 ## Download And Install
 
@@ -39,7 +68,7 @@ For Docker or server deployment, see the [Docker/WebUI install guide](https://gi
 
 ## What The App Does
 
-One Person Lab App is the daily workbench for users:
+One Person Lab App is the daily chat-first desktop entry point for users:
 
 - Enter general work, medical research, grant writing, and presentation preparation from one desktop interface.
 - Enter Research Foundry, Grant Foundry, and Presentation Foundry.
