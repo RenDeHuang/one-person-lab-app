@@ -929,6 +929,33 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimePage.runtime_view_model.action_queue.source, 'app_state.actions');
   assert.equal(runtimePage.runtime_view_model.action_queue.fallback_source, 'app_state.operator.actions');
   assert.equal(runtimePage.runtime_view_model.action_queue.authority, 'framework_refs_only');
+  assert.equal(
+    runtimePage.runtime_view_model.progress_delta.source,
+    'app_state.operator.workbench.task_drilldowns.progress_delta_classification',
+  );
+  assert.equal(runtimePage.runtime_view_model.progress_delta.authority, 'opl_framework_shared_progress_projection');
+  assert.equal(runtimePage.runtime_view_model.progress_delta.display_policy, 'classification_only_no_domain_artifact_body');
+  assert.deepEqual(runtimePage.runtime_view_model.progress_delta.required_fields, [
+    'deliverable_progress_delta',
+    'platform_repair_delta',
+    'progress_delta_classification',
+  ]);
+  assert.deepEqual(runtimePage.runtime_view_model.progress_delta.visible_classes, [
+    'deliverable_progress',
+    'platform_repair',
+    'mixed',
+    'typed_blocker',
+    'human_gate',
+    'stop_loss',
+  ]);
+  assert.equal(runtimePage.runtime_view_model.progress_delta.deliverable_progress_source, 'deliverable_progress_delta');
+  assert.equal(runtimePage.runtime_view_model.progress_delta.platform_repair_source, 'platform_repair_delta');
+  assert.equal(runtimePage.runtime_view_model.progress_delta.classification_source, 'progress_delta_classification');
+  assert.equal(
+    runtimePage.runtime_view_model.progress_delta.platform_repair_display_treatment,
+    'separate_infrastructure_repair_not_deliverable_progress',
+  );
+  assert.equal(runtimePage.runtime_view_model.progress_delta.forbidden_delivery_claim_for_platform_repair, true);
   assert.equal(runtimePage.runtime_view_model.primary_state_source, 'opl app state --profile fast --json');
   assert.equal(runtimePage.runtime_view_model.refresh_state_source, 'opl app state --profile fast --json');
   assert.equal(runtimePage.runtime_view_model.summary_source, 'app_state.operator.summary');
@@ -962,6 +989,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'summary-first OPL App state read model',
     'full detail lazy load',
     'safe app action dry-run/execute controls',
+    'deliverable progress delta classification',
+    'platform repair delta as separate infrastructure repair',
     'receipt/count refresh after execute',
     'refs-only non-authority boundary',
   ]) {
@@ -974,6 +1003,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'memory body',
     'artifact body',
     'quality/readiness/export verdict',
+    'deliverable progress truth',
+    'platform repair truth',
     'action route authority',
     'domain action approval override',
   ]) {

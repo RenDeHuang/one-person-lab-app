@@ -77,6 +77,13 @@ maintenance counts, blockers, and next visible steps from that model instead of
 maintaining separate installer-specific progress truth. The active shell renders
 this model only and does not own private first-run progress state.
 
+Runtime progress display is contract-backed separately from first-run progress.
+The Runtime page consumes OPL shared progress projection delta fields and
+classifies `deliverable_progress_delta` separately from
+`platform_repair_delta`. Platform repair is shown as infrastructure repair and
+cannot be presented as substantive deliverable, paper, manuscript, or
+submission progress.
+
 The App first-run screen presents that shared model in a beginner-first way:
 the primary view shows a plain readiness summary, three user-facing setup
 steps, the required Core progress, the single primary start action, and only

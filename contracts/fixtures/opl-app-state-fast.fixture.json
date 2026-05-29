@@ -133,6 +133,22 @@
             "title": "Med Auto Science",
             "state": "missing",
             "active_stage_id": "module_runtime",
+            "progress_delta_classification": "platform_repair",
+            "deliverable_progress_delta": {
+              "count": 0,
+              "refs": [],
+              "domain_alias": "task_deliverable_delta"
+            },
+            "platform_repair_delta": {
+              "count": 1,
+              "refs": [
+                "/workspace/med-autoscience"
+              ],
+              "domain_alias": "platform_repair_delta"
+            },
+            "user_facing_progress_claim_allowed": false,
+            "progress_display_bucket": "platform_repair",
+            "progress_display_label": "Platform repair",
             "stage_attempt_ids": [],
             "safe_action_ref_count": 0,
             "blocker_ref_count": 1,
