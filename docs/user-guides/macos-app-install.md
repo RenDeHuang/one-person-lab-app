@@ -40,7 +40,7 @@ Machine boundary: Human-readable user guide. Release contracts, workflows, VM sm
 
 ## 3. 配置 Codex 权限
 
-首次启动如果要求 API Key 或 Codex 权限，统一联系 gflabtoken 管理员开通。
+首次启动如果 Codex API 配置还未完成，界面会把 Codex API Configuration 标为需要处理。统一联系 gflabtoken 管理员开通。
 
 ![3. 配置 Codex 权限](assets/03-codex-config-needed.png)
 
@@ -66,13 +66,13 @@ OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Co
 - MAS 通过 OPL 内的 Research Foundry / Med Auto Science 入口使用。
 - 用户不需要另行获取 MAS 分发资产。
 
-## 6. 准备研究数据目录
+## 6. 确认工作目录和运行设置
 
-建议按一个病种或稳定研究主题新建本地 workspace，把原始或脱敏材料集中放入 raw_data/。
+在 Settings / Overview 中确认 Workspace Root、Codex CLI、Foundry Agents 和 Access 等入口。需要调整数据目录或运行设置时，从这里进入。
 
-![6. 准备研究数据目录](assets/06-research-data-folder.png)
+![6. 确认工作目录和运行设置](assets/06-research-data-folder.png)
 
-- 新手首启阶段不需要手工建立 MAS 内部目录结构。
+- 建议按一个病种或稳定研究主题建立本地 workspace，再把原始或脱敏材料集中放入工作目录。
 - 患者数据需先脱敏，并遵守本机构数据管理要求。
 
 ## 7. 发起首次科研任务
@@ -103,6 +103,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、Codex CLI 和 Co
 
 ## 截图与验证来源
 
-- 截图来自中文 macOS VM，逻辑桌面 1920x1080，Retina 输出 3840x2160。
-- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页和 Settings 可用，Full 版额外验证 Codex 配置向导和 bundled runtime readiness。首启截图和 layout gate 还会验证新手首屏保持简化，技术细节默认折叠。
+- 截图资产统一规范化为 3840x2160；来源包括 GitHub Release 页面、本机 26.5.28 DMG 安装窗口、26.5.28 App CDP 截图，以及 26.5.28 GitHub Actions clean VM artifact。
+- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页和 Settings 可用，Full 版额外验证 Codex 配置向导和 bundled runtime readiness。首启截图和 layout gate 会验证新手首屏保持简化，技术细节默认折叠。
+- 每张截图的来源、原始尺寸和 SHA256 记录在 `macos-app-install-assets.json` 与生成后的 verification JSON 中。
 - Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。

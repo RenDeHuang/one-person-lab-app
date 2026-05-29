@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -16,13 +17,17 @@ type Step = {
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const guideDir = path.join(appRoot, 'docs', 'user-guides');
 const assetDir = path.join(guideDir, 'assets');
+const assetManifestPath = path.join(guideDir, 'macos-app-install-assets.json');
 const pptxPath = path.join(guideDir, 'macos-app-install-slides.pptx');
 const slidePdfPath = path.join(guideDir, 'macos-app-install-slides.pdf');
 const verificationPath = path.join(guideDir, 'macos-app-install-slides-verification.json');
 const tempDir = path.join(appRoot, 'tmp', 'pdfs', 'macos-app-install-slides');
 
 const latestReleaseUrl = 'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest';
-const screenshotReleaseTag = process.env.OPL_APP_GUIDE_SCREENSHOT_RELEASE_TAG || 'v26.5.28';
+const assetManifest = JSON.parse(fs.readFileSync(assetManifestPath, 'utf8'));
+const screenshotReleaseTag = process.env.OPL_APP_GUIDE_SCREENSHOT_RELEASE_TAG || assetManifest.release_tag || 'v26.5.28';
+const expectedAssetWidth = Number(assetManifest.normalized_canvas_pixels?.width ?? 3840);
+const expectedAssetHeight = Number(assetManifest.normalized_canvas_pixels?.height ?? 2160);
 const titleFont = 'Arial';
 const cjkFont = 'PingFang SC';
 const bodyFont = 'Arial';
@@ -57,7 +62,7 @@ const steps: Step[] = [
   },
   {
     title: '3. 配置 Codex 权限',
-    subtitle: '首次启动如果要求 API Key 或 Codex 权限，联系 gflabtoken 管理员开通。',
+    subtitle: 'Codex API Configuration 如果显示 Unknown 或 Needs setup，联系 gflabtoken 管理员开通。',
     asset: '03-codex-config-needed.png',
     callouts: [
       '管理员开通后，按给出的方式完成配置。',
@@ -87,14 +92,14 @@ const steps: Step[] = [
     notes: '准备完成后，在主界面选择科研入口，进入 Research Foundry / Med Auto Science 工作流。MAS 通过 OPL 内的入口使用。',
   },
   {
-    title: '6. 准备研究数据目录',
-    subtitle: '按病种或稳定研究主题建立本地 workspace。',
+    title: '6. 确认工作目录和运行设置',
+    subtitle: '在 Settings / Overview 中确认 Workspace Root、Codex CLI、Foundry Agents 和 Access。',
     asset: '06-research-data-folder.png',
     callouts: [
-      '原始或脱敏材料集中放入 raw_data/。',
+      '数据目录和运行入口从 Settings 进入。',
       '患者数据需先脱敏，并遵守机构要求。',
     ],
-    notes: '建议按一个病种或稳定研究主题新建本地 workspace，把原始或脱敏材料集中放入 raw_data/。新手首启阶段不需要手工建立 MAS 内部目录结构。',
+    notes: '在 Settings / Overview 中确认 Workspace Root、Codex CLI、Foundry Agents 和 Access 等入口。建议按一个病种或稳定研究主题建立本地 workspace，把原始或脱敏材料集中放入工作目录。',
   },
   {
     title: '7. 发起首次科研任务',
@@ -142,18 +147,40 @@ function imageInfo(filePath: string) {
   return { width, height };
 }
 
+function fileSha256(filePath: string) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
 function assertAssets() {
   const dimensions: Record<string, { width: number; height: number }> = {};
+  const assets: Record<string, Record<string, unknown>> = {};
   for (const step of steps) {
     const filePath = path.join(assetDir, step.asset);
     if (!fs.existsSync(filePath)) throw new Error(`Missing slide screenshot asset: ${step.asset}`);
     const info = imageInfo(filePath);
-    if (info.width !== 3840 || info.height !== 2160) {
-      throw new Error(`Expected ${step.asset} to be 3840x2160, got ${info.width}x${info.height}`);
+    const expected = assetManifest.assets?.[step.asset];
+    if (!expected) {
+      throw new Error(`Missing slide screenshot provenance in ${path.relative(appRoot, assetManifestPath)}: ${step.asset}`);
+    }
+    const sha256 = fileSha256(filePath);
+    if (info.width !== expectedAssetWidth || info.height !== expectedAssetHeight) {
+      throw new Error(`Expected ${step.asset} to be ${expectedAssetWidth}x${expectedAssetHeight}, got ${info.width}x${info.height}`);
+    }
+    if (sha256 !== expected.normalized_sha256) {
+      throw new Error(`Slide screenshot hash mismatch for ${step.asset}: expected ${expected.normalized_sha256}, got ${sha256}`);
     }
     dimensions[step.asset] = info;
+    assets[step.asset] = {
+      title: expected.title,
+      source_kind: expected.source_kind,
+      source: expected.source,
+      source_width: expected.source_width,
+      source_height: expected.source_height,
+      source_sha256: expected.source_sha256,
+      normalized_sha256: sha256,
+    };
   }
-  return dimensions;
+  return { dimensions, assets };
 }
 
 function addSlide(background = 'FFFFFF') {
@@ -363,10 +390,10 @@ function buildFinalSlide() {
     '模块未就绪：在 App 的环境管理中重新检查。',
   ];
   const right = [
-    '截图来自中文 macOS VM。',
-    '逻辑桌面 1920×1080，Retina 输出 3840×2160。',
+    '截图资产统一规范化为 3840×2160。',
+    '来源包括 Release 页面、本机 26.5.28 App、DMG 和 VM artifact。',
     '真实 DMG 安装到 /Applications/One Person Lab.app。',
-    '标准版验证 GUID 输入页，Full 版额外验证 Codex 向导。',
+    'verification JSON 记录每张图的来源和 SHA。',
   ];
 
   addShape(10, {
@@ -494,7 +521,7 @@ function pptxStats() {
 }
 
 function main() {
-  const dimensions = assertAssets();
+  const { dimensions, assets } = assertAssets();
   buildPptx();
   exportSlidePdf();
   const render = renderPdf();
@@ -514,6 +541,7 @@ function main() {
     status: 'macos_app_install_slides_ready',
     download_url: latestReleaseUrl,
     screenshot_release_tag: screenshotReleaseTag,
+    screenshot_asset_manifest: path.relative(appRoot, assetManifestPath),
     output_pptx: path.relative(appRoot, pptxPath),
     output_pdf: path.relative(appRoot, slidePdfPath),
     slide_layout: '16:9',
@@ -529,13 +557,12 @@ function main() {
       cover_title_pt: 38,
     },
     screenshot_source: {
-      vm_type: 'Tart',
-      macos_language: 'zh-Hans',
-      macos_locale: 'zh_CN',
-      logical_resolution: '1920x1080',
-      retina_pixels: '3840x2160',
-      smoke_summary: 'tmp/vm-smoke/opl-first-run-tart-zh1080-20260515-230311/tart-smoke-summary.json',
+      release_run_id: assetManifest.release_run?.id,
+      release_run_url: assetManifest.release_run?.url,
+      release_run_conclusion: assetManifest.release_run?.conclusion,
+      normalized_canvas_pixels: assetManifest.normalized_canvas_pixels,
     },
+    screenshot_assets: assets,
     screenshot_dimensions: dimensions,
     rendered_pages: render.pages.length,
     rendered_dir: path.relative(appRoot, render.renderDir),
