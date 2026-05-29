@@ -175,6 +175,59 @@ consumption, first-run/page-state mapping, explicit `.app` packaging with
 `Contents/Info.plist` and a `Contents/MacOS` executable, and
 release isolation without changing the active release shell.
 
+The `agui-codex` target is the full Codex App-like OPL workbench inventory, not
+an AionUI patch list. The intended first-class experience is workspace-first
+conversation, fixed Codex execution, MAS/MAG/RCA purpose routing, compact
+runtime/status refs, App-owned Settings, and packaged `.app` verification
+through the App wrapper. CopilotKit is the visible UI/runtime layer for chat,
+sidebar, popup, and agent runtime binding. AG-UI is the internal event/protocol
+layer between that renderer runtime and Codex app-server or ACP compatibility
+adapters; AG-UI protocol naming and debug dashboards are not ordinary user
+concepts.
+
+The candidate command surface is explicit. App-root guard and packaging use:
+
+```bash
+node --experimental-strip-types scripts/validate-active-shell.ts --quick
+npm run validate:shell-candidates
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json node --experimental-strip-types scripts/validate-active-shell.ts --quick
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
+```
+
+Candidate-shell source and smoke checks use:
+
+```bash
+cd shells/agui-codex
+npm install
+npm run validate:candidate
+npm run build:renderer
+npx electron . --ui-smoke-test
+'./out/One Person Lab AG-UI Codex Candidate.app/Contents/MacOS/One Person Lab AG-UI Codex Candidate' --ui-smoke-test
+```
+
+Minimum candidate acceptance is App-root AionUI release guard still passing,
+candidate registry validation, explicit adapter selection only, App-owned
+generated product profile consumption, source renderer build, source and
+packaged visible-pixel UI smoke against a real Codex app-server `OK` turn, a
+launchable `.app` bundle with `Contents/Info.plist` and `Contents/MacOS`, and
+no AG-UI/debug protocol copy on the ordinary chat surface. Page-state,
+first-run, runtime mapping, and release promotion remain separate gates.
+
+On 2026-05-29, the `agui-codex` candidate shell reached a usable chat-first
+technical verification bundle. The renderer uses CopilotKit React v2 chat
+primitives inside a compact OPL frame, keeps AG-UI as an internal event
+boundary rather than user-visible copy, and binds the backend to Codex
+app-server over stdio. Source UI smoke passed with
+`/tmp/opl-agui-codex-ui-smoke-final.png`, purpose entries `科研`, `基金`, and
+`PPT`, pixel-visible paint ratio `0.09426579354378173`, and Codex reply `OK`.
+The packaged candidate `.app` at
+`/Users/gaofeng/workspace/opl-agui-codex-shell/out/One Person Lab AG-UI Codex Candidate.app`
+also passed UI smoke with `packaged=true`, screenshot
+`/tmp/opl-agui-codex-packaged-ui-smoke.png`, pixel-visible paint ratio
+`0.08607183930837563`, and Codex reply `OK`. This is candidate evidence only;
+the default release shell remains AionUI until the replacement gate is
+intentionally promoted.
+
 2026-05-22 App release evidence collection now has an App-owned CLI wrapper:
 `scripts/collect-release-evidence.ts` fills `app-state-summary.json`,
 `app-state-full.json`, `drilldown-full.json`, `action-dry-run-result.json`, and,
@@ -196,6 +249,30 @@ an App release-ready claim, a domain readiness claim, or a family production
 readiness claim. Future release cohorts must still provide real artifacts or
 explicit missing evidence entries through the release evidence bundle and OPL
 ledger before being treated as observed.
+
+2026-05-29 packaged GUI assistant route evidence remains open for the local
+26.5.28 Full DMG. The smoke harness now writes a fail-closed
+`assistant-route-smoke-summary.json` when MAS/MAG/RCA route controls do not meet
+the App contract. The current local run at
+`/tmp/opl-packaged-route-smoke-20260529063512-fail-summary/assistant-route-smoke-summary.json`
+failed on MAS because the installed App exposed no `preset-pill-mas/mag/rca`
+purpose-entry controls and still showed the ordinary permission selector. This
+is a release-evidence blocker for the packaged Codex path until a DMG/App smoke
+produces passed MAS/MAG/RCA route receipts with hidden ordinary selectors.
+
+Later on 2026-05-29, the current-source shell App bundle and current-source DMG
+both produced passed packaged GUI assistant route smoke evidence after the
+receipt verifier was corrected to read the backend REST `{success,data}`
+envelope. The evidence artifacts are
+`/tmp/opl-current-build-route-smoke-20260529065519/assistant-route-smoke-summary.json`
+for the `.app` bundle and
+`/tmp/opl-current-dmg-route-smoke-20260529065705/assistant-route-smoke-summary.json`
+for the DMG installed into `/tmp/opl-current-dmg-install-20260529065705`.
+Each artifact records passed MAS/MAG/RCA selection, hidden ordinary selectors,
+and persisted Codex ACP route receipts with `route_kind=builtin_capability`,
+`executor=codex_cli`, `backend=codex`, and `source=opl_app_home`. This is
+current-source evidence only; it does not change the published 26.5.28 Full DMG
+blocker or claim App release readiness.
 
 2026-05-15 migration note: this local checkout is the clean App repo. It has no
 tracked `shells/aionui` source, and local `shells/aionui` points to

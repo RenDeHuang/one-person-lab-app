@@ -67,6 +67,8 @@ App-owned product defaults are declared in [`contracts/app-product-profile.json`
 
 GUI product truth is App-owned as well. The active shell implements the current renderer and package surface, but page behavior, model-selection policy, onboarding behavior, screenshots, release docs, and user-facing defaults are governed by App contracts. Future shells stay under `shells/<candidate>` until the App shell adapter, product profile sync, page-state and first-run matrices, active-shell validation, GUI package compile, and external checkout history policy all pass. A technical verification shell can be selected explicitly with `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`; that selected wrapper path must compile a launchable `.app` bundle and package manifest for the candidate. The default release shell remains `contracts/app-shell-adapter.json`.
 
+The product-level GUI capability list is maintained in [`docs/app-gui-feature-inventory.md`](docs/app-gui-feature-inventory.md). It is the cross-shell inventory for the ideal Codex App-shaped OPL experience, separate from AionUI-specific intake notes or candidate implementation deltas.
+
 One Person Lab provides CLI, activation, stage control, runtime providers, queue, contracts, module discovery, skill sync, runtime snapshots, and progress projections. MAS, MAG, and RCA carry their domain judgment, quality verdicts, stage semantics, and deliverables.
 
 Need framework, runtime, or contract details? Go to [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab).

@@ -38,13 +38,123 @@
       "source_topology": "external_checkout_linked_shell_repo",
       "release_participation": "selectable_for_explicit_candidate_build",
       "implementation_basis": [
+        "Codex App-like desktop workbench target",
         "AG-UI event model",
-        "CopilotKit-style React agent UI patterns",
+        "CopilotKit React v2 chat/sidebar/popup UI primitives",
+        "Codex app-server JSON-RPC thread/turn/event stream",
+        "ACP compatibility through codex-acp when non-Codex agents are tested",
         "OPL App-owned product profile",
         "OPL Framework app state/action CLI protocol"
       ],
+      "reference_implementations": [
+        {
+          "id": "acp_to_agui",
+          "url": "https://github.com/namanrajpal/acp-to-agui",
+          "role": "primary ACP-to-AG-UI bridge reference; includes CopilotKit demo and codex-acp path"
+        },
+        {
+          "id": "zed_codex_acp",
+          "url": "https://github.com/zed-industries/codex-acp",
+          "role": "Codex CLI ACP adapter compatibility reference"
+        },
+        {
+          "id": "agent_client_protocol",
+          "url": "https://github.com/agentclientprotocol/agent-client-protocol",
+          "role": "ACP protocol version, capability negotiation, and wire contract reference"
+        },
+        {
+          "id": "openai_codex_app_server",
+          "url": "https://github.com/openai/codex/tree/main/codex-rs/app-server",
+          "role": "primary Codex-native thread, turn, event, review, process, filesystem, and MCP protocol reference"
+        },
+        {
+          "id": "copilotkit_v2_react_router",
+          "url": "https://github.com/CopilotKit/CopilotKit/tree/main/examples/v2/react-router",
+          "role": "primary_thin_shell_ui_reference"
+        },
+        {
+          "id": "copilotkit_v2_react_demo",
+          "url": "https://github.com/CopilotKit/CopilotKit/tree/main/examples/v2/react/demo",
+          "role": "chat_sidebar_popup_surface_reference"
+        },
+        {
+          "id": "agui_dojo",
+          "url": "https://github.com/ag-ui-protocol/ag-ui/tree/main/apps/dojo",
+          "role": "protocol_capability_and_debugging_reference"
+        },
+        {
+          "id": "acp_ui",
+          "url": "https://github.com/formulahendry/acp-ui",
+          "role": "Tauri ACP desktop GUI reference with codex-acp agent configuration"
+        },
+        {
+          "id": "aionui_acp_setup",
+          "url": "https://github.com/iOfficeAI/AionUi/wiki/ACP-Setup",
+          "role": "current shell family ACP multi-agent setup reference, including Codex ACP configuration"
+        },
+        {
+          "id": "harnss",
+          "url": "https://github.com/OpenSource03/harnss",
+          "role": "ACP desktop UI reference for tool cards, diffs, terminal, git, browser, and Codex agent surfaces"
+        },
+        {
+          "id": "openclaw_acpx",
+          "url": "https://github.com/openclaw/acpx",
+          "role": "headless ACP client and orchestration harness reference for automated compatibility tests"
+        },
+        {
+          "id": "datalayer_agent_runtimes",
+          "url": "https://github.com/datalayer/agent-runtimes",
+          "role": "multi-protocol runtime abstraction reference across ACP, AG-UI, MCP-UI, and adjacent agent UI protocols"
+        },
+        {
+          "id": "beyond5959_acp_adapter",
+          "url": "https://github.com/beyond5959/acp-adapter",
+          "role": "Codex app-server backed ACP adapter reference for standalone or embedded bridge designs"
+        },
+        {
+          "id": "cola_io_codex_acp",
+          "url": "https://github.com/cola-io/codex-acp",
+          "role": "early Codex ACP adapter reference for session mode, slash commands, and IDE status behavior"
+        },
+        {
+          "id": "codex_web",
+          "url": "https://github.com/0xcaff/codex-web",
+          "role": "Codex app-server browser frontend reference for thin wrapper risks and security boundaries"
+        }
+      ],
+      "protocol_policy": {
+        "primary_backend": "codex_app_server",
+        "primary_backend_reason": "OPL App ideal state is Codex App-shaped and needs native Codex thread, turn, review, process, filesystem, MCP, and user-input semantics.",
+        "visible_user_concept": "Codex App-like OPL workbench",
+        "copilotkit_role": "user_visible_ui_runtime_layer_for_chat_sidebar_popup_and_agent_runtime_binding",
+        "agui_role": "internal_event_protocol_layer_between_renderer_runtime_and_codex_or_acp_adapters",
+        "agui_user_visible": false,
+        "user_visible_protocol_copy_allowed": false,
+        "acp_role": "interoperability_lane_for_non_Codex_or_external_agent_harnesses",
+        "acp_codex_reference": "codex-acp is valid for ACP compatibility tests, but must not replace the Codex-native backend when OPL is evaluating Codex App parity.",
+        "research_conclusion_2026_05_29": "No public project found provides a mature, directly reusable Codex ACP adapter to AG-UI/CopilotKit desktop shell. OPL must keep a normalized adapter contract between Codex or ACP session events and AG-UI events."
+      },
+      "codex_app_like_workbench_target": {
+        "scope": "full OPL desktop workbench target, not an AionUI modification list",
+        "primary_user_flow": "choose workspace, start or continue a Codex conversation, route the turn to an OPL purpose, inspect refs and runtime status without leaving the chat-first workbench",
+        "capability_inventory": [
+          "workspace directory picker",
+          "new conversation and thread history frame",
+          "Codex app-server backed chat turns",
+          "streaming assistant text and run state",
+          "tool/process/event visibility mapped into user-safe workbench surfaces",
+          "MAS/MAG/RCA purpose entries and compact purpose tags",
+          "right-side CopilotKit panel for secondary context",
+          "runtime summary-first status and explicit full drilldown",
+          "App-owned Settings partition",
+          "candidate .app package through the App wrapper"
+        ]
+      },
       "target_product_shape": {
         "codex_cli_fixed_executor": true,
+        "workspace_directory_picker": true,
+        "new_conversation_resets_codex_thread": true,
         "home_executor_selector_visible": false,
         "home_backend_selector_visible": false,
         "home_model_selector_visible": false,
@@ -66,8 +176,19 @@
       },
       "required_capabilities": [
         "codex_cli_fixed_executor_home",
+        "codex_app_server_thread_turn_backend",
+        "copilotkit_visible_ui_runtime_layer",
+        "agui_internal_protocol_not_user_visible",
         "purpose_first_home_entries",
         "agui_event_contract_map",
+        "app_server_event_to_agui_stream_mapping",
+        "acp_compatibility_reference_documented",
+        "workspace_directory_picker",
+        "new_conversation_thread_reset",
+        "pixel_visible_ui_smoke",
+        "source_renderer_build",
+        "source_ui_smoke",
+        "packaged_ui_smoke",
         "app_product_profile_mapping",
         "opl_app_state_bridge",
         "opl_app_action_bridge",
@@ -76,6 +197,68 @@
         "release_isolation",
         "candidate_app_bundle_package"
       ],
+      "technical_verification": {
+        "app_root_commands": [
+          {
+            "id": "default_release_shell_guard",
+            "cwd": ".",
+            "command": "node --experimental-strip-types scripts/validate-active-shell.ts --quick"
+          },
+          {
+            "id": "candidate_registry",
+            "cwd": ".",
+            "command": "npm run validate:shell-candidates"
+          },
+          {
+            "id": "candidate_adapter_quick",
+            "cwd": ".",
+            "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json node --experimental-strip-types scripts/validate-active-shell.ts --quick"
+          },
+          {
+            "id": "candidate_app_bundle_build",
+            "cwd": ".",
+            "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package"
+          }
+        ],
+        "candidate_shell_commands": [
+          {
+            "id": "install",
+            "cwd": "shells/agui-codex",
+            "command": "npm install"
+          },
+          {
+            "id": "source_self_check",
+            "cwd": "shells/agui-codex",
+            "command": "npm run validate:candidate"
+          },
+          {
+            "id": "source_renderer_build",
+            "cwd": "shells/agui-codex",
+            "command": "npm run build:renderer"
+          },
+          {
+            "id": "source_ui_smoke",
+            "cwd": "shells/agui-codex",
+            "command": "npx electron . --ui-smoke-test"
+          },
+          {
+            "id": "packaged_ui_smoke",
+            "cwd": "shells/agui-codex",
+            "command": "\"./out/One Person Lab AG-UI Codex Candidate.app/Contents/MacOS/One Person Lab AG-UI Codex Candidate\" --ui-smoke-test"
+          }
+        ],
+        "minimum_acceptance": [
+          "default App release adapter still validates as aionui",
+          "candidate registry validates without changing release_shell_contract",
+          "candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT",
+          "candidate consumes the App-owned generated product profile",
+          "source renderer builds and source UI smoke paints visible pixels",
+          "packaged .app contains Contents/Info.plist and a Contents/MacOS executable",
+          "packaged UI smoke runs a real Codex app-server turn and receives OK",
+          "ordinary UI shows the CopilotKit-backed workbench, not AG-UI protocol/debug copy",
+          "home and ordinary conversation keep backend, model, and permission selectors hidden"
+        ]
+      },
       "must_not_own": [
         "App GUI product truth",
         "App model-selection policy",
