@@ -213,18 +213,37 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/release
 
+          download_release_with_retry() {
+            local attempt
+            local max_attempts=4
+            local delay_seconds=15
+            for attempt in $(seq 1 "$max_attempts"); do
+              if gh release download "$@"; then
+                return 0
+              fi
+              local status="$?"
+              if [ "$attempt" -eq "$max_attempts" ]; then
+                return "$status"
+              fi
+              find artifacts/release -type f -name 'One-Person-Lab-*.dmg' -delete
+              echo "::warning::Release DMG download failed on attempt $attempt; retrying in ${delay_seconds}s."
+              sleep "$delay_seconds"
+              delay_seconds="$((delay_seconds * 2))"
+            done
+          }
+
           if [ -n "${{ inputs.release_artifact_name }}" ]; then
             echo "Using same-run workflow artifact: ${{ inputs.release_artifact_name }}"
           elif [ -n "${{ inputs.release_dmg_url }}" ]; then
             DMG_PATH="artifacts/release/One-Person-Lab-${{ steps.package_profile.outputs.profile }}.dmg"
-            curl -fL "${{ inputs.release_dmg_url }}" -o "$DMG_PATH"
+            curl -fL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 30 --max-time 1800 "${{ inputs.release_dmg_url }}" -o "$DMG_PATH"
           elif [ -n "${{ inputs.release_tag }}" ]; then
-            gh release download "${{ inputs.release_tag }}" \
+            download_release_with_retry "${{ inputs.release_tag }}" \
               --repo "$GITHUB_REPOSITORY" \
               --pattern "${{ steps.package_profile.outputs.download_pattern }}" \
               --dir artifacts/release
           else
-            gh release download \
+            download_release_with_retry \
               --repo "$GITHUB_REPOSITORY" \
               --pattern "${{ steps.package_profile.outputs.download_pattern }}" \
               --dir artifacts/release
