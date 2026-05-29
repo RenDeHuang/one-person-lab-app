@@ -552,11 +552,25 @@
       "summary_source": "app_state.operator.summary",
       "full_detail_source": "opl runtime app-operator-drilldown --detail full --json",
       "full_detail_policy": "on_demand_only",
+      "progress_delta_policy": {
+        "source": "app_state.operator.workbench.task_drilldowns.progress_delta_classification",
+        "authority": "opl_framework_shared_progress_projection",
+        "display_policy": "classification_only_no_domain_artifact_body",
+        "required_fields": [
+          "deliverable_progress_delta",
+          "platform_repair_delta",
+          "progress_delta_classification"
+        ],
+        "platform_repair_display_treatment": "separate_infrastructure_repair_not_deliverable_progress",
+        "forbidden_delivery_claim_for_platform_repair": true
+      },
       "must_show": [
         "summary-first OPL runtime status",
         "provider readiness from app_state.provider",
         "operator summary from app_state.operator",
-        "safe action refs from app_state.actions"
+        "safe action refs from app_state.actions",
+        "deliverable progress delta classification",
+        "platform repair delta as separate infrastructure repair"
       ],
       "must_not_own": [
         "runtime truth",
@@ -565,6 +579,8 @@
         "memory body",
         "artifact body",
         "quality/readiness/export verdict",
+        "deliverable progress truth",
+        "platform repair truth",
         "action route authority"
       ]
     }

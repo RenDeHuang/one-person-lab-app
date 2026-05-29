@@ -178,6 +178,29 @@
           "scope": "refs_only_publication_progress",
           "authority": "mas_owned"
         },
+        "progress_delta": {
+          "source": "app_state.operator.workbench.task_drilldowns.progress_delta_classification",
+          "authority": "opl_framework_shared_progress_projection",
+          "display_policy": "classification_only_no_domain_artifact_body",
+          "required_fields": [
+            "deliverable_progress_delta",
+            "platform_repair_delta",
+            "progress_delta_classification"
+          ],
+          "visible_classes": [
+            "deliverable_progress",
+            "platform_repair",
+            "mixed",
+            "typed_blocker",
+            "human_gate",
+            "stop_loss"
+          ],
+          "deliverable_progress_source": "deliverable_progress_delta",
+          "platform_repair_source": "platform_repair_delta",
+          "classification_source": "progress_delta_classification",
+          "platform_repair_display_treatment": "separate_infrastructure_repair_not_deliverable_progress",
+          "forbidden_delivery_claim_for_platform_repair": true
+        },
         "authority_boundary": {
           "refs_only": true,
           "non_authority_display_only": true,
@@ -225,6 +248,8 @@
         "summary-first OPL App state read model",
         "full detail lazy load",
         "safe app action dry-run/execute controls",
+        "deliverable progress delta classification",
+        "platform repair delta as separate infrastructure repair",
         "receipt/count refresh after execute",
         "refs-only non-authority boundary"
       ],
@@ -235,6 +260,8 @@
         "memory body",
         "artifact body",
         "quality/readiness/export verdict",
+        "deliverable progress truth",
+        "platform repair truth",
         "action route authority",
         "domain action approval override"
       ],

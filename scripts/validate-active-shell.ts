@@ -123,6 +123,30 @@ function assertDeepEqualJson(actual, expected, label) {
   }
 }
 
+function validateProgressDeltaDisplayContract(progressDelta, label) {
+  if (!progressDelta || typeof progressDelta !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.task_drilldowns.progress_delta_classification',
+    authority: 'opl_framework_shared_progress_projection',
+    display_policy: 'classification_only_no_domain_artifact_body',
+    platform_repair_display_treatment: 'separate_infrastructure_repair_not_deliverable_progress',
+  })) {
+    if (progressDelta[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    progressDelta.required_fields,
+    ['deliverable_progress_delta', 'platform_repair_delta', 'progress_delta_classification'],
+    `${label} required_fields`,
+  );
+  if (progressDelta.forbidden_delivery_claim_for_platform_repair !== true) {
+    throw new Error(`${label} must forbid platform repair from being shown as deliverable progress`);
+  }
+}
+
 function validateBeginnerFirstRunPresentation(presentation, label) {
   if (presentation?.audience !== 'beginner_non_technical_users') {
     throw new Error(`${label} must target beginner_non_technical_users`);
@@ -1158,6 +1182,24 @@ function validateGoldenAppStateFixture(gate) {
   if (lookupPath(fixture, 'app_state.operator.workbench.performance_policy.shell_must_not_derive_layout_from_raw_runtime_projection') !== true) {
     throw new Error('OPL App state golden fixture must forbid shell-side layout derivation from raw runtime projection.');
   }
+  const taskDrilldowns = lookupPath(fixture, 'app_state.operator.workbench.task_drilldowns') ?? [];
+  const platformRepairExample = taskDrilldowns.find(
+    (task) => task?.progress_delta_classification === 'platform_repair',
+  );
+  if (!platformRepairExample) {
+    throw new Error('OPL App state golden fixture must include a platform_repair task example.');
+  }
+  if (
+    platformRepairExample.deliverable_progress_delta?.count !== 0
+    || !(platformRepairExample.platform_repair_delta?.count > 0)
+    || platformRepairExample.user_facing_progress_claim_allowed !== false
+    || platformRepairExample.progress_display_bucket !== 'platform_repair'
+  ) {
+    throw new Error('OPL App state platform repair example must not claim deliverable progress.');
+  }
+  if (/deliverable|paper|manuscript|submission/i.test(platformRepairExample.progress_display_label ?? '')) {
+    throw new Error('OPL App state platform repair label must not present repair as deliverable progress.');
+  }
   for (const [pathName, label] of Object.entries({
     'app_state.operator.workbench.summary_cards': 'summary cards',
     'app_state.operator.workbench.sections': 'sections',
@@ -1858,6 +1900,23 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (!pages.settings_theme.must_show?.includes('Default theme option') || !pages.settings_theme.must_show?.includes('Codex theme option')) {
     throw new Error('Settings theme page must show default and Codex theme options');
   }
+  validateProgressDeltaDisplayContract(
+    pages.runtime_status.progress_delta_policy,
+    'App GUI runtime status progress delta policy',
+  );
+  for (const signal of [
+    'deliverable progress delta classification',
+    'platform repair delta as separate infrastructure repair',
+  ]) {
+    if (!pages.runtime_status.must_show?.includes(signal)) {
+      throw new Error(`App GUI runtime status must show ${signal}`);
+    }
+  }
+  for (const owner of ['deliverable progress truth', 'platform repair truth']) {
+    if (!pages.runtime_status.must_not_own?.includes(owner)) {
+      throw new Error(`App GUI runtime status must not own ${owner}`);
+    }
+  }
   if ('docker_webui' in guiContract) {
     throw new Error('App GUI contract must not include withdrawn Docker/WebUI username, title, logo, or branding requirements');
   }
@@ -2217,6 +2276,13 @@ function validatePageStateMatrix(matrix, contract) {
     'action_queue.source': 'app_state.actions',
     'action_queue.fallback_source': 'app_state.operator.actions',
     'action_queue.authority': 'framework_refs_only',
+    'progress_delta.source': 'app_state.operator.workbench.task_drilldowns.progress_delta_classification',
+    'progress_delta.authority': 'opl_framework_shared_progress_projection',
+    'progress_delta.display_policy': 'classification_only_no_domain_artifact_body',
+    'progress_delta.deliverable_progress_source': 'deliverable_progress_delta',
+    'progress_delta.platform_repair_source': 'platform_repair_delta',
+    'progress_delta.classification_source': 'progress_delta_classification',
+    'progress_delta.platform_repair_display_treatment': 'separate_infrastructure_repair_not_deliverable_progress',
     primary_state_source: 'opl app state --profile fast --json',
     refresh_state_source: 'opl app state --profile fast --json',
     summary_source: 'app_state.operator.summary',
@@ -2237,6 +2303,7 @@ function validatePageStateMatrix(matrix, contract) {
   if (runtimeViewModel.authority_boundary?.non_authority_display_only !== true) {
     throw new Error('Runtime page view model must be display-only for non-authority domain refs');
   }
+  validateProgressDeltaDisplayContract(runtimeViewModel.progress_delta, 'Runtime page progress delta display contract');
   const requiredEvidencePath = [
     'summary-first OPL App state read model',
     'fast App state refresh',
@@ -2263,6 +2330,8 @@ function validatePageStateMatrix(matrix, contract) {
     'summary-first OPL App state read model',
     'full detail lazy load',
     'safe app action dry-run/execute controls',
+    'deliverable progress delta classification',
+    'platform repair delta as separate infrastructure repair',
     'receipt/count refresh after execute',
     'refs-only non-authority boundary',
   ];
@@ -2278,6 +2347,8 @@ function validatePageStateMatrix(matrix, contract) {
     'memory body',
     'artifact body',
     'quality/readiness/export verdict',
+    'deliverable progress truth',
+    'platform repair truth',
     'action route authority',
     'domain action approval override',
   ];
