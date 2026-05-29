@@ -3,6 +3,9 @@
 Owner: `one-person-lab-app`
 Purpose: product-level GUI feature inventory
 State: `active`
+Machine boundary: Human-readable feature inventory. Machine-readable GUI truth
+lives in App-owned contracts, page-state matrices, adapter contracts, and
+release evidence.
 
 This document lists the target GUI capabilities of One Person Lab App independent
 of the current shell implementation. It is not an AionUI modification list.

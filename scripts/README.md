@@ -133,8 +133,10 @@ runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18`.
 
 `.github/workflows/nightly-standard-release.yml` is the standard-only Nightly
 publisher. It reuses the standard build workflow, prepares and validates
-standard updater assets, publishes a prerelease semver tag, keeps `latest`
-unchanged, and runs the remote standard asset verifier without Full assets.
+standard updater assets, publishes or refreshes the daily prerelease semver tag,
+updates that tag to the current workflow commit on same-day reruns, keeps
+`latest` unchanged, and runs the remote standard asset verifier without Full
+assets.
 
 Stable release verification keeps the heavy installation checks in separate
 lanes for speed and debuggability: standard DMG clean VM, Full DMG clean VM,
