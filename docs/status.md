@@ -78,7 +78,8 @@ maintaining separate installer-specific progress truth. The active shell renders
 this model only and does not own private first-run progress state.
 
 Runtime progress display is contract-backed separately from first-run progress.
-The Runtime page consumes OPL shared progress projection delta fields and
+The Runtime page consumes the OPL Foundry Agent series shared progress
+projection delta fields and
 classifies `deliverable_progress_delta` separately from
 `platform_repair_delta`. Platform repair is shown as infrastructure repair and
 cannot be presented as substantive deliverable, paper, manuscript, or
@@ -174,23 +175,42 @@ Experimental shell candidate work is separated from the active release adapter.
 `shells/agui-codex/` as a linked external repo for a thinner AG-UI/Codex shell.
 `contracts/shell-adapters/agui-codex.json` can be selected with
 `OPL_APP_SHELL_ADAPTER_CONTRACT` so the same App wrapper syncs the product
-profile and builds the candidate launchable `.app` bundle. Default stable/nightly release
-packaging still resolves `contracts/app-shell-adapter.json` and the active
-`aionui` shell. Candidate validation can prove fixed Codex home behavior,
-purpose-first MAS/MAG/RCA entries, AG-UI event mapping, `opl app state/action`
-consumption, first-run/page-state mapping, explicit `.app` packaging with
-`Contents/Info.plist` and a `Contents/MacOS` executable, and
-release isolation without changing the active release shell.
+profile and builds the candidate launchable `.app` bundle. Default
+stable/nightly release packaging still resolves `contracts/app-shell-adapter.json`
+and the active `aionui` shell. Candidate validation now requires fixed Codex
+home behavior, purpose-first MAS/MAG/RCA entries, CopilotKit visible UI,
+AG-UI internal event mapping, `opl app state/action` consumption,
+first-run/page-state mapping, shared Electron/WebUI renderer, Web transport
+bridge, WebUI smoke, explicit `.app` packaging with `Contents/Info.plist` and a
+`Contents/MacOS` executable, and release isolation without changing the active
+release shell.
 
-The `agui-codex` target is the full Codex App-like OPL workbench inventory, not
-an AionUI patch list. The intended first-class experience is workspace-first
-conversation, fixed Codex execution, MAS/MAG/RCA purpose routing, compact
-runtime/status refs, App-owned Settings, and packaged `.app` verification
-through the App wrapper. CopilotKit is the visible UI/runtime layer for chat,
-sidebar, popup, and agent runtime binding. AG-UI is the internal event/protocol
-layer between that renderer runtime and Codex app-server or ACP compatibility
-adapters; AG-UI protocol naming and debug dashboards are not ordinary user
-concepts.
+The `agui-codex` target is the Codex App-like OPL chat-first inventory, not an
+AionUI patch list or full workbench first screen. The intended first-class
+experience is workspace-aware conversation, fixed Codex execution, MAS/MAG/RCA
+purpose routing, lightweight workspace/session rail, right-side collapsible
+Files/Skills/Routing/Memory/Always-On context tabs, compact runtime/status refs,
+App-owned Settings, WebUI delivery from the same renderer, and packaged `.app`
+verification through the App wrapper. CopilotKit is the
+visible UI/runtime layer for chat, sidebar, popup, and agent runtime binding.
+AG-UI is the internal event/protocol layer between that renderer runtime and
+Codex app-server or ACP compatibility adapters; AG-UI protocol naming and debug
+dashboards are not ordinary user concepts. WebUI uses the same
+`window.oplCandidate` bridge shape through local HTTP actions and SSE Codex
+events, not a separate product state source.
+
+OpenBMB PilotDeck has been recorded as a design reference for information
+organization, not as a source, runtime dependency, or first-screen product
+template. The useful reference is its polished lightweight workspace/project
+rail, nested conversations, chat-first main pane, grouped Files, Skills,
+Routing, Memory, and Always-On context, and compact composer controls. OPL maps
+those ideas to App-owned conversation, Files, Capabilities, Runtime/cost refs,
+Memory refs, Automations, and Settings as right-side collapsible inspector
+surfaces while keeping Codex app-server as the primary backend and `opl app
+state/action` as the runtime bridge. PilotDeck is AGPL-3.0, so its code,
+gateway, runtime, memory, router, always-on store, provider model list, and
+WorkSpace state model remain excluded unless a separate license and
+candidate-adoption decision is made.
 
 The candidate command surface is explicit. App-root guard and packaging use:
 
@@ -206,34 +226,40 @@ Candidate-shell source and smoke checks use:
 ```bash
 cd shells/agui-codex
 npm install
+npm run validate:adapter-events
 npm run validate:candidate
 npm run build:renderer
+npm run smoke:webui
 npx electron . --ui-smoke-test
 './out/One Person Lab AG-UI Codex Candidate.app/Contents/MacOS/One Person Lab AG-UI Codex Candidate' --ui-smoke-test
 ```
 
 Minimum candidate acceptance is App-root AionUI release guard still passing,
 candidate registry validation, explicit adapter selection only, App-owned
-generated product profile consumption, source renderer build, source and
-packaged visible-pixel UI smoke against a real Codex app-server `OK` turn, a
-launchable `.app` bundle with `Contents/Info.plist` and `Contents/MacOS`, and
-no AG-UI/debug protocol copy on the ordinary chat surface. Page-state,
-first-run, runtime mapping, and release promotion remain separate gates.
+generated product profile consumption, source renderer build, shared
+Electron/WebUI renderer proof, WebUI smoke, PilotDeck-informed reference-only
+information organization proof, source and packaged visible-pixel UI smoke against a real Codex
+app-server `OK` turn, a launchable `.app` bundle with `Contents/Info.plist` and
+`Contents/MacOS`, page-state/first-run matrix mapping, runtime summary plus
+explicit full drilldown, safe App action dry-run receipts, and no AG-UI/debug
+protocol copy on the ordinary chat surface. Default release promotion is still
+an explicit release decision: stable/nightly packaging continues to use AionUI
+until `contracts/app-shell-adapter.json` is deliberately changed.
 
-On 2026-05-29, the `agui-codex` candidate shell reached a usable chat-first
-technical verification bundle. The renderer uses CopilotKit React v2 chat
-primitives inside a compact OPL frame, keeps AG-UI as an internal event
-boundary rather than user-visible copy, and binds the backend to Codex
-app-server over stdio. Source UI smoke passed with
-`/tmp/opl-agui-codex-ui-smoke-final.png`, purpose entries `科研`, `基金`, and
-`PPT`, pixel-visible paint ratio `0.09426579354378173`, and Codex reply `OK`.
-The packaged candidate `.app` at
-`/Users/gaofeng/workspace/opl-agui-codex-shell/out/One Person Lab AG-UI Codex Candidate.app`
-also passed UI smoke with `packaged=true`, screenshot
-`/tmp/opl-agui-codex-packaged-ui-smoke.png`, pixel-visible paint ratio
-`0.08607183930837563`, and Codex reply `OK`. This is candidate evidence only;
-the default release shell remains AionUI until the replacement gate is
-intentionally promoted.
+On 2026-05-30, the `agui-codex` candidate shell was corrected back to the
+Codex App-style chat-first target. The ordinary home opens on the conversation
+canvas with `without-rail` and `without-inspector`; the workspace/session rail
+and right-side inspector remain collapsed until the user explicitly opens them.
+The candidate contract and validation now require
+`default_context_collapsed_chat_first_home` in addition to shared
+Electron/WebUI renderer evidence, Web transport bridge evidence, WebUI smoke,
+source UI smoke, packaged UI smoke, page-state/first-run mapping, runtime
+summary/full-drilldown evidence, safe App action dry-run receipts, and real
+Codex app-server `OK` turn evidence. PilotDeck remains reference-only
+information organization for optional rail/inspector surfaces, not a first
+screen workbench template. This is candidate evidence only; the default release
+shell remains AionUI until `contracts/app-shell-adapter.json` is deliberately
+promoted.
 
 2026-05-22 App release evidence collection now has an App-owned CLI wrapper:
 `scripts/collect-release-evidence.ts` fills `app-state-summary.json`,

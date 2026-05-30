@@ -21,6 +21,10 @@
     "adoption_gate": [
       "candidate is declared in contracts/app-shell-candidates.json",
       "candidate implements contracts/app-gui-product-contract.json",
+      "candidate uses one shared React/CopilotKit renderer for Electron and WebUI surfaces",
+      "candidate provides a Web transport bridge that exposes the same App-owned window.oplCandidate API without taking runtime authority",
+      "candidate passes WebUI smoke in addition to source Electron and packaged Electron smoke",
+      "candidate re-expresses PilotDeck information organization as a Codex App-style chat-first UI with a lightweight workspace/session rail and right-side collapsible contextual tabs without copying PilotDeck code or runtime",
       "candidate maps App product profile without owning product truth",
       "candidate consumes opl app state/action surfaces only",
       "candidate passes page-state and first-run matrix mapping checks",
@@ -29,6 +33,44 @@
       "contracts/app-shell-adapter.json is changed only when candidate becomes active release shell"
     ]
   },
+  "design_reference_policy": {
+    "purpose": "External agent UI projects can inform OPL-owned information organization without becoming shell candidates, runtime sources, or copied code.",
+    "source_code_use": "reference_only_no_vendoring_or_copying_without_license_decision",
+    "runtime_authority_transfer_allowed": false,
+    "license_gate_required_before_code_reuse": true,
+    "candidate_promotion_route": "external_checkout_under_shells/<candidate>_with_adapter_contract_and_App_owned_gates"
+  },
+  "design_references": [
+    {
+      "id": "pilotdeck",
+      "source_repo": "https://github.com/OpenBMB/PilotDeck",
+      "evaluated_ref": "33394d1069c3528052c3f12eb1d905060b34cc2f",
+      "evaluated_at": "2026-05-30",
+      "license": "AGPL-3.0",
+      "source_usage": "design_reference_only",
+      "reference_value": [
+        "workspace/project sidebar pattern for lightweight rail organization",
+        "chat-first main pane with persistent composer",
+        "information grouping for Agent, Files, Skills, Routing, Memory, and Always-On",
+        "file, memory, routing, and always-on context surfaces",
+        "process/status traces kept near the conversation rather than hidden in logs"
+      ],
+      "opl_mapping": [
+        "OPL lightweight workspace rail should group work by workspace and conversation without exposing backend selection",
+        "OPL main surface should stay chat-first with MAS/MAG/RCA purpose tags in the composer",
+        "OPL right-side collapsible contextual tabs should map to Files, Runtime, Capabilities, Memory refs, Automations, and Settings using App-owned state/action surfaces",
+        "OPL long-running work should surface progress, queued actions, receipts, and deliverables as inspectable refs",
+        "OPL runtime and memory panels must consume OPL Framework/domain projections rather than PilotDeck state stores"
+      ],
+      "forbidden_reuse": [
+        "do not copy or vendor PilotDeck AGPL source into the Apache-2.0 App repo",
+        "do not adopt PilotDeck gateway, agent runtime, memory, router, or always-on stores as OPL authority",
+        "do not expose PilotDeck provider/model/backend selection as ordinary OPL App controls",
+        "do not replace Codex app-server as the primary OPL Codex backend because a reference UI supports other agents",
+        "do not treat PilotDeck screenshots, demo data, or WorkSpace model as App product truth"
+      ]
+    }
+  ],
   "candidates": [
     {
       "id": "agui-codex",
@@ -38,9 +80,10 @@
       "source_topology": "external_checkout_linked_shell_repo",
       "release_participation": "selectable_for_explicit_candidate_build",
       "implementation_basis": [
-        "Codex App-like desktop workbench target",
+        "Codex App-like chat-first desktop target",
         "AG-UI event model",
         "CopilotKit React v2 chat/sidebar/popup UI primitives",
+        "shared React/CopilotKit renderer for Electron and WebUI",
         "Codex app-server JSON-RPC thread/turn/event stream",
         "ACP compatibility through codex-acp when non-Codex agents are tested",
         "OPL App-owned product profile",
@@ -121,12 +164,17 @@
           "id": "codex_web",
           "url": "https://github.com/0xcaff/codex-web",
           "role": "Codex app-server browser frontend reference for thin wrapper risks and security boundaries"
+        },
+        {
+          "id": "pilotdeck",
+          "url": "https://github.com/OpenBMB/PilotDeck",
+          "role": "reference-only information-organization input for lightweight workspace/session rail, chat-first main pane, and grouped files, memory, routing, and always-on context; AGPL source and runtime remain excluded unless separately licensed and adopted through candidate gates"
         }
       ],
       "protocol_policy": {
         "primary_backend": "codex_app_server",
         "primary_backend_reason": "OPL App ideal state is Codex App-shaped and needs native Codex thread, turn, review, process, filesystem, MCP, and user-input semantics.",
-        "visible_user_concept": "Codex App-like OPL workbench",
+        "visible_user_concept": "Codex App-like OPL chat",
         "copilotkit_role": "user_visible_ui_runtime_layer_for_chat_sidebar_popup_and_agent_runtime_binding",
         "agui_role": "internal_event_protocol_layer_between_renderer_runtime_and_codex_or_acp_adapters",
         "agui_user_visible": false,
@@ -135,20 +183,61 @@
         "acp_codex_reference": "codex-acp is valid for ACP compatibility tests, but must not replace the Codex-native backend when OPL is evaluating Codex App parity.",
         "research_conclusion_2026_05_29": "No public project found provides a mature, directly reusable Codex ACP adapter to AG-UI/CopilotKit desktop shell. OPL must keep a normalized adapter contract between Codex or ACP session events and AG-UI events."
       },
-      "codex_app_like_workbench_target": {
-        "scope": "full OPL desktop workbench target, not an AionUI modification list",
-        "primary_user_flow": "choose workspace, start or continue a Codex conversation, route the turn to an OPL purpose, inspect refs and runtime status without leaving the chat-first workbench",
+      "codex_app_like_chat_target": {
+        "scope": "Codex App-style chat-first desktop and WebUI target, not a full workbench first screen or AionUI modification list",
+        "primary_user_flow": "choose workspace, start or continue a Codex conversation, route the turn to an OPL purpose, and inspect refs or runtime status through lightweight rail and collapsible context without displacing the chat canvas",
         "capability_inventory": [
           "workspace directory picker",
-          "new conversation and thread history frame",
+          "new conversation and lightweight thread history rail",
           "Codex app-server backed chat turns",
+          "shared React/CopilotKit renderer for Electron and WebUI",
+          "Web transport bridge with HTTP actions and SSE Codex events",
           "streaming assistant text and run state",
-          "tool/process/event visibility mapped into user-safe workbench surfaces",
+          "tool/process/event visibility mapped into user-safe conversation and context surfaces",
           "MAS/MAG/RCA purpose entries and compact purpose tags",
+          "PilotDeck-informed information organization as reference-only",
+          "chat-first main canvas with pinned composer",
+          "right-side collapsible Files, Skills, Routing, Memory, and Always-On context tabs",
           "right-side CopilotKit panel for secondary context",
           "runtime summary-first status and explicit full drilldown",
           "App-owned Settings partition",
           "candidate .app package through the App wrapper"
+        ]
+      },
+      "webui_transport": {
+        "shared_renderer": true,
+        "electron_surface": "Electron preload/IPC window.oplCandidate",
+        "web_surface": "browser window.oplCandidate compatibility bridge",
+        "web_bridge": "src/renderer/web-bridge.js",
+        "event_stream": "SSE /api/codex-events",
+        "gateway": "scripts/dev-webui-server.js",
+        "native_picker_policy": "Electron may use native directory picker; WebUI uses an explicit workspace path/action bridge without changing App product truth"
+      },
+      "pilotdeck_information_architecture_target": {
+        "source_usage": "design_reference_only",
+        "license": "AGPL-3.0",
+        "copied_source_allowed": false,
+        "runtime_authority_transfer_allowed": false,
+        "required_surfaces": [
+          "chat-first main canvas",
+          "lightweight workspace/session rail",
+          "right-side collapsible inspector tabs",
+          "Files context tab",
+          "Skills context tab",
+          "Routing context tab",
+          "Memory context tab",
+          "Always-On context tab"
+        ],
+        "required_testids": [
+          "opl-workspace-rail",
+          "opl-session-list",
+          "opl-context-tabs",
+          "opl-files-panel",
+          "opl-skills-panel",
+          "opl-routing-panel",
+          "opl-memory-panel",
+          "opl-always-on-panel",
+          "opl-web-transport"
         ]
       },
       "target_product_shape": {
@@ -159,6 +248,8 @@
         "home_backend_selector_visible": false,
         "home_model_selector_visible": false,
         "permission_mode_selector_visible": false,
+        "workspace_session_rail_default_visible": false,
+        "inspector_default_visible": false,
         "purpose_entries": [
           "research",
           "grant",
@@ -173,6 +264,23 @@
         "full_state": "opl app state --profile full --json",
         "full_drilldown": "opl runtime app-operator-drilldown --detail full --json",
         "action": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json"
+      },
+      "foundry_agent_series_display_contract": {
+        "authority": "opl_framework_shared_progress_projection",
+        "display_policy": "classification_only_no_domain_artifact_body",
+        "required_shared_progress_fields": [
+          "progress_delta_classification",
+          "deliverable_progress_delta",
+          "platform_repair_delta",
+          "next_forced_delta"
+        ],
+        "forbidden_domain_fields": [
+          "domain_body",
+          "artifact_body",
+          "memory_body",
+          "quality_verdict",
+          "export_verdict"
+        ]
       },
       "required_capabilities": [
         "codex_cli_fixed_executor_home",
@@ -189,11 +297,20 @@
         "source_renderer_build",
         "source_ui_smoke",
         "packaged_ui_smoke",
+        "webui_shared_renderer",
+        "web_transport_bridge",
+        "webui_smoke",
+        "chat_first_codex_app_surface",
+        "default_context_collapsed_chat_first_home",
+        "lightweight_workspace_session_rail",
+        "collapsible_contextual_tabs",
         "app_product_profile_mapping",
         "opl_app_state_bridge",
         "opl_app_action_bridge",
         "page_state_matrix_mapping",
         "first_run_matrix_mapping",
+        "runtime_summary_detail_action_bridge",
+        "foundry_agent_series_shared_progress_display",
         "release_isolation",
         "candidate_app_bundle_package"
       ],
@@ -237,6 +354,11 @@
             "command": "npm run build:renderer"
           },
           {
+            "id": "webui_smoke",
+            "cwd": "shells/agui-codex",
+            "command": "npm run smoke:webui"
+          },
+          {
             "id": "source_ui_smoke",
             "cwd": "shells/agui-codex",
             "command": "npx electron . --ui-smoke-test"
@@ -253,9 +375,14 @@
           "candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT",
           "candidate consumes the App-owned generated product profile",
           "source renderer builds and source UI smoke paints visible pixels",
+          "Electron and WebUI use the same React/CopilotKit renderer and App-owned window.oplCandidate bridge shape",
+          "WebUI smoke proves the browser transport bridge, HTTP action routes, and SSE Codex event stream",
+          "ordinary UI stays chat-first while exposing a lightweight workspace/session rail and right-side collapsible Files, Skills, Routing, Memory, and Always-On context tabs as OPL-owned inspector surfaces",
+          "ordinary home opens with workspace/session rail and inspector collapsed by default",
           "packaged .app contains Contents/Info.plist and a Contents/MacOS executable",
           "packaged UI smoke runs a real Codex app-server turn and receives OK",
-          "ordinary UI shows the CopilotKit-backed workbench, not AG-UI protocol/debug copy",
+          "packaged UI smoke proves page-state matrix mapping, first-run matrix mapping, runtime full-drilldown lazy load, and safe App action dry-run",
+          "ordinary UI shows the CopilotKit-backed chat surface, not AG-UI protocol/debug copy",
           "home and ordinary conversation keep backend, model, and permission selectors hidden"
         ]
       },
@@ -288,6 +415,11 @@
           "id": "candidate_self_check",
           "cwd": "shells/agui-codex",
           "command": "node --experimental-strip-types scripts/validate-agui-codex-candidate.ts"
+        },
+        {
+          "id": "candidate_webui_smoke",
+          "cwd": "shells/agui-codex",
+          "command": "npm run smoke:webui"
         },
         {
           "id": "candidate_app_bundle_build",
