@@ -61,6 +61,22 @@
     "full_detail": "runtime_tray_snapshot.app_operator_drilldown",
     "policy": "summary_first_full_detail_on_demand"
   },
+  "progress_delta_projection": {
+    "source": "app_state.operator.workbench.task_drilldowns.progress_delta_classification",
+    "authority": "opl_framework_shared_progress_projection",
+    "display_policy": "classification_only_no_domain_artifact_body",
+    "required_fields": [
+      "deliverable_progress_delta",
+      "platform_repair_delta",
+      "progress_delta_classification"
+    ],
+    "deliverable_progress_source": "deliverable_progress_delta",
+    "platform_repair_source": "platform_repair_delta",
+    "classification_source": "progress_delta_classification",
+    "platform_repair_display_treatment": "separate_infrastructure_repair_not_deliverable_progress",
+    "forbidden_delivery_claim_for_platform_repair": true,
+    "app_role": "display_only_projection_consumer"
+  },
   "authority_boundary": {
     "shell_adapter_can_own_runtime_truth": false,
     "app_can_own_runtime_truth": false,

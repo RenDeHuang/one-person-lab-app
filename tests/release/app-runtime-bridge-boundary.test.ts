@@ -84,16 +84,35 @@ test('App owns runtime bridge contract while active shell remains replaceable ad
 });
 
 test('Runtime page classifies deliverable progress separately from platform repair deltas', () => {
+  const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
   const pageMatrix = readJson('contracts/app-page-state-matrix.json');
   const fixture = readJson('contracts/fixtures/opl-app-state-fast.fixture.json');
   const runtimePage = pageMatrix.pages.find((page) => page.id === 'runtime');
   const progressDelta = runtimePage.runtime_view_model.progress_delta;
+  const bridgeProgressDelta = runtimeBridge.progress_delta_projection;
   const taskDrilldown = fixture.app_state.operator.workbench.task_drilldowns.find(
     (task) => task.task_id === 'medautoscience',
   );
 
   assert.ok(progressDelta, 'runtime page must declare progress_delta display contract');
+  assert.ok(bridgeProgressDelta, 'runtime bridge must declare progress_delta_projection');
   assert.ok(taskDrilldown, 'fixture must include medautoscience task drilldown');
+  assert.deepEqual(bridgeProgressDelta, {
+    source: 'app_state.operator.workbench.task_drilldowns.progress_delta_classification',
+    authority: 'opl_framework_shared_progress_projection',
+    display_policy: 'classification_only_no_domain_artifact_body',
+    required_fields: [
+      'deliverable_progress_delta',
+      'platform_repair_delta',
+      'progress_delta_classification',
+    ],
+    deliverable_progress_source: 'deliverable_progress_delta',
+    platform_repair_source: 'platform_repair_delta',
+    classification_source: 'progress_delta_classification',
+    platform_repair_display_treatment: 'separate_infrastructure_repair_not_deliverable_progress',
+    forbidden_delivery_claim_for_platform_repair: true,
+    app_role: 'display_only_projection_consumer',
+  });
   assert.equal(progressDelta.source, 'app_state.operator.workbench.task_drilldowns.progress_delta_classification');
   assert.equal(progressDelta.authority, 'opl_framework_shared_progress_projection');
   assert.equal(progressDelta.display_policy, 'classification_only_no_domain_artifact_body');
@@ -115,6 +134,18 @@ test('Runtime page classifies deliverable progress separately from platform repa
   assert.equal(progressDelta.platform_repair_source, 'platform_repair_delta');
   assert.equal(progressDelta.classification_source, 'progress_delta_classification');
   assert.equal(progressDelta.forbidden_delivery_claim_for_platform_repair, true);
+  assert.equal(progressDelta.source, bridgeProgressDelta.source);
+  assert.equal(progressDelta.authority, bridgeProgressDelta.authority);
+  assert.equal(progressDelta.display_policy, bridgeProgressDelta.display_policy);
+  assert.deepEqual(progressDelta.required_fields, bridgeProgressDelta.required_fields);
+  assert.equal(progressDelta.deliverable_progress_source, bridgeProgressDelta.deliverable_progress_source);
+  assert.equal(progressDelta.platform_repair_source, bridgeProgressDelta.platform_repair_source);
+  assert.equal(progressDelta.classification_source, bridgeProgressDelta.classification_source);
+  assert.equal(progressDelta.platform_repair_display_treatment, bridgeProgressDelta.platform_repair_display_treatment);
+  assert.equal(
+    progressDelta.forbidden_delivery_claim_for_platform_repair,
+    bridgeProgressDelta.forbidden_delivery_claim_for_platform_repair,
+  );
 
   assert.equal(taskDrilldown.progress_delta_classification, 'platform_repair');
   assert.deepEqual(taskDrilldown.deliverable_progress_delta, {
