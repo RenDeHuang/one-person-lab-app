@@ -184,6 +184,7 @@ wiki/
 desdoc/
 
 # E2E test artifacts (Playwright)
+.playwright-mcp/
 artifacts/
 tests/e2e/screenshots/
 tests/e2e/results/
