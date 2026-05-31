@@ -4,11 +4,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import {
-  formatCodexProfileLabel,
-  readAppProductProfile,
-} from './app-product-profile.ts';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
+import { buildReleaseNotesDocument } from './release-notes.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultFullPackageDir = path.resolve(repoRoot, 'dist', 'opl-full-release');
@@ -450,64 +447,6 @@ function suggestDefaultReleaseVersion(repo, dateVersion) {
   throw new Error(`No available same-day suffix for GUI release date version ${dateVersion}.`);
 }
 
-function commandOutput(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    cwd: options.cwd,
-    encoding: 'utf8',
-    stdio: 'pipe',
-    env: process.env,
-  });
-  if (result.status !== 0) {
-    return '';
-  }
-  return result.stdout.trim();
-}
-
-function humanizeCommitSubject(subject) {
-  const match = subject.match(/^(?<type>[a-z]+)(?:\((?<scope>[^)]+)\))?!?:\s*(?<body>.+)$/i);
-  if (!match?.groups) {
-    return subject.replace(/^[a-z]/, (value) => value.toUpperCase());
-  }
-  const scope = match.groups.scope
-    ? match.groups.scope
-        .split(/[-_/]+/)
-        .filter(Boolean)
-        .map((part) => part.replace(/^[a-z]/, (value) => value.toUpperCase()))
-        .join(' ')
-    : match.groups.type.replace(/^[a-z]/, (value) => value.toUpperCase());
-  const body = match.groups.body.replace(/^[a-z]/, (value) => value.toUpperCase());
-  return `${scope}: ${body}`;
-}
-
-function buildChangeList(shellRoot, maxItems = 12) {
-  if (!fs.existsSync(path.join(shellRoot, '.git'))) {
-    return ['GUI package refresh from the current OPL shell main branch.'];
-  }
-
-  const lastTag = commandOutput('git', ['describe', '--tags', '--abbrev=0', 'HEAD'], { cwd: shellRoot });
-  const rangeArgs = lastTag ? [`${lastTag}..HEAD`] : ['HEAD'];
-  const rawSubjects = commandOutput(
-    'git',
-    ['log', '--no-merges', '--pretty=%s', ...rangeArgs, `--max-count=${maxItems}`],
-    { cwd: shellRoot },
-  );
-  const subjects = rawSubjects
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map(humanizeCommitSubject);
-  return subjects.length > 0 ? subjects : ['GUI package refresh from the current OPL shell main branch.'];
-}
-
-function buildUpdateGuidanceNotes(version) {
-  return [
-    'Update channel guidance',
-    `- Existing users should use in-app update, or install the standard One-Person-Lab-${version}-mac-arm64.dmg package for a manual reinstall.`,
-    '- Standard DMG/ZIP assets and latest*.yml metadata remain the only source for the auto-updater.',
-    '- Full first-install assets are GitHub Release downloads for new or clean macOS arm64 setups. They are not a separate update channel and are never referenced by updater metadata.',
-  ];
-}
-
 function formatFriendlyTimestamp(value) {
   if (!value) {
     return 'this release build';
@@ -561,71 +500,16 @@ function buildBundledModuleNotes(manifest) {
   return modules;
 }
 
-function buildFullPackageReleaseNotesSection(version, manifest = null) {
-  const bundledModuleNotes = buildBundledModuleNotes(manifest);
-  const profile = readAppProductProfile();
-  const codexProfileLabel = formatCodexProfileLabel(profile);
-  const domainModules = profile.companion_payloads.domain_modules
-    .map((moduleId) => {
-      if (moduleId === 'mas') return 'MAS';
-      if (moduleId === 'mag') return 'MAG';
-      if (moduleId === 'rca') return 'RCA';
-      if (moduleId === 'opl-meta-agent') return 'OPL Meta Agent';
-      return moduleId;
-    })
-    .join(', ');
-  const companionTools = profile.companion_payloads.tools
-    .map((toolId) => (toolId === 'mineru-open-api' ? 'MinerU document extraction' : toolId))
-    .join(', ');
-  return [
-    'Full first-install package',
-    `- New macOS arm64 users can download One-Person-Lab-Full-${version}-mac-arm64.dmg for a first setup that includes the App plus preloaded ${domainModules}, family runtime support payloads, ${companionTools}, and recommended companion skills.`,
-    '- After installation, users still configure their Codex/OpenAI API key and pass first-run readiness checks in the App.',
-    `- The bundled Codex default profile is ${codexProfileLabel} and is applied through the active session path after API-key setup.`,
-    '- Command Line Tools installation is requested through deferred maintenance when needed; Full first launch continues on the bundled runtime while CLT installation is handled separately.',
-    '- OPL Meta Agent is bundled and managed as a default ecosystem module so users can install and maintain the Foundry Agent used to create new OPL-compatible agents.',
-    '- The App repository builds and publishes the Full package. OPL Framework code and contracts are bundled as runtime payload inputs, not as owners of the App release flow.',
-    '- Full runtime readiness is Temporal-backed. Temporal is the required production durable stage-attempt provider; Hermes/Gateway runtime payloads are retired and are not bundled or exposed as compatibility surfaces.',
-    '- MDS remains retired and is not bundled as a default module or MAS runtime dependency.',
-    '- Full is a first-install download, not a separate update channel. App auto-update still follows standard latest*.yml metadata and the standard One Person Lab package.',
-    ...(bundledModuleNotes.length > 0 ? ['', 'Bundled module versions', ...bundledModuleNotes] : []),
-  ];
-}
-
-function buildReleaseFocusNotes(version, includeFullPackage) {
-  const codexProfileLabel = formatCodexProfileLabel();
-  const fullReadinessNote = includeFullPackage
-    ? 'Full runtime readiness is represented as first-run Core, Domain modules, and family runtime provider readiness, with Temporal as the production durable provider contract.'
-    : 'Full runtime readiness remains separated from the standard updater channel and is validated through the Full first-install lane.';
-  return [
-    'Release focus',
-    '- Settings page: stabilizes the App settings and OPL initialization flows used to configure the Codex/OpenAI API key, refresh readiness, and inspect developer-mode availability.',
-    '- First-run resilience: keeps CLT/deferred maintenance and repository refreshes outside the core launch gate so clean installs can enter the App on the bundled runtime.',
-    `- Codex defaults: applies the ${codexProfileLabel} profile through the active ACP session path, including packaged Full first-install sessions.`,
-    '- VM validation: clean no-CLT macOS arm64 first-install smoke passed at 1920x1080 with the Codex config wizard and all settings pages covered.',
-    `- Runtime packaging: ${fullReadinessNote}`,
-    `- Scope: ${version} is a desktop App release. Domain truth, provider implementation, quality verdicts, and artifact authority remain owned by OPL Framework and the domain agents.`,
-  ];
-}
-
-function buildReleaseNotes(version, includeFullPackage, changeList, fullPackageManifest = null) {
-  const notes = [
-    `One Person Lab desktop GUI release ${version}`,
-    '',
-    ...buildReleaseFocusNotes(version, includeFullPackage),
-    '',
-    'Change log',
-    ...changeList.map((change) => `- ${change}`),
-    '',
-    ...buildUpdateGuidanceNotes(version),
-  ];
-  if (includeFullPackage) {
-    notes.push(
-      '',
-      ...buildFullPackageReleaseNotesSection(version, fullPackageManifest),
-    );
-  }
-  return notes.join('\n');
+function buildReleaseNotes(version, includeFullPackage, shellRoot, fullPackageManifest = null) {
+  return buildReleaseNotesDocument({
+    version,
+    channel: version.includes('-nightly') ? 'nightly' : 'stable',
+    releaseRepo: process.env.OPL_RELEASE_REPO || 'gaofeng21cn/one-person-lab-app',
+    shellRoot,
+    includeFullPackage,
+    fullPackageManifest,
+    currentTag: `v${version}`,
+  });
 }
 
 function ensureFullPackageReleaseNotes(repo, tag, version, fullPackageManifest = null) {
@@ -638,27 +522,21 @@ function ensureFullPackageReleaseNotes(repo, tag, version, fullPackageManifest =
   }
 
   const currentNotes = current.stdout.trimEnd();
-  const fullSection = buildFullPackageReleaseNotesSection(version, fullPackageManifest).join('\n');
-  const releaseFocusSection = buildReleaseFocusNotes(version, true).join('\n');
-  const missingReleaseFocus = !current.stdout.includes('Release focus');
-  const missingUpdateGuidance = !current.stdout.includes('Update channel guidance') && !current.stdout.includes('Update guidance:');
-  const fullSectionPattern = /^Full first-install package:?[\s\S]*$/m;
-  let baseNotes = currentNotes.replace(fullSectionPattern, '').trimEnd();
-  const appendSection = (notes, lines) => [
-    ...(notes ? [notes, ''] : []),
-    ...lines,
-  ].join('\n');
-
-  if (missingReleaseFocus) {
-    baseNotes = appendSection(baseNotes, [releaseFocusSection]);
-  }
-  if (missingUpdateGuidance) {
-    baseNotes = appendSection(baseNotes, buildUpdateGuidanceNotes(version));
-  }
-  const nextNotes = [
-    ...(baseNotes ? [baseNotes, ''] : []),
-    fullSection,
-  ].join('\n');
+  const legacyFullSectionPattern = /^Full first-install package:?[\s\S]*$/m;
+  const fullVersionsPattern = /^## (?:本次 Full 包内置版本|Bundled OPL runtime and agent versions)[\s\S]*$/m;
+  const baseNotes = currentNotes
+    .replace(legacyFullSectionPattern, '')
+    .replace(fullVersionsPattern, '')
+    .trimEnd();
+  const bundledModuleNotes = buildBundledModuleNotes(fullPackageManifest)
+    .map((line) => line.replace(/^-\s*/, ''));
+  const nextNotes = bundledModuleNotes.length > 0
+    ? [
+        ...(baseNotes ? [baseNotes, ''] : []),
+        '## Bundled OPL runtime and agent versions',
+        `- ${bundledModuleNotes.join('; ')}`,
+      ].join('\n')
+    : baseNotes;
   run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', nextNotes]);
 }
 
@@ -698,7 +576,7 @@ function main() {
   const releaseNotes = buildReleaseNotes(
     options.version,
     options.includeFullPackage,
-    options.fullPackageOnly ? ['Full first-install package assets for the existing standard release.'] : buildChangeList(options.shellRoot),
+    options.shellRoot,
     fullPackageManifest,
   );
 

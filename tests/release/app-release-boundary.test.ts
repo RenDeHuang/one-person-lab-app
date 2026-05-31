@@ -2088,7 +2088,7 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
   assert.deepEqual(payload.skipped_existing_artifacts, []);
 });
 
-test('publish dry run generates professional v26.5.18 notes for standard and Full lanes', () => {
+test('publish dry run generates organized English release notes for standard and Full lanes', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-notes-'));
   const fullPackageDir = path.join(tempRoot, 'full');
   const version = '26.5.18';
@@ -2127,24 +2127,20 @@ test('publish dry run generates professional v26.5.18 notes for standard and Ful
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   const notes = payload.release_notes;
-  const profile = readProductProfile();
-  const codexProfileLabel = `${profile.codex.default_model} / ${profile.codex.default_reasoning_effort}`;
-  assert.match(notes, /Release focus/);
-  assert.match(notes, /Settings page:/);
-  assert.match(notes, /First-run resilience:/);
-  assert.ok(notes.includes(`Codex defaults: applies the ${codexProfileLabel} profile`));
-  assert.match(notes, /VM validation: clean no-CLT macOS arm64 first-install smoke passed at 1920x1080/);
-  assert.match(notes, /Full runtime readiness/);
-  assert.match(notes, /Update channel guidance/);
-  assert.match(notes, /Standard DMG\/ZIP assets and latest\*\.yml metadata remain the only source for the auto-updater/);
-  assert.match(notes, /Full first-install assets are GitHub Release downloads/);
-  assert.match(notes, /Full first-install package/);
-  assert.match(notes, /OPL Meta Agent/);
-  assert.match(notes, /OPL Meta Agent: .*main @ 4444444/);
-  assert.match(notes, /MinerU document extraction/);
-  assert.match(notes, /MinerU OpenAPI CLI: mineru-open-api version v0\.1\.3/);
-  assert.match(notes, /After installation, users still configure their Codex\/OpenAI API key/);
-  assert.match(notes, /Command Line Tools installation is requested through deferred maintenance/);
+  assert.match(notes, /One Person Lab 26\.5\.18/);
+  assert.match(notes, /What changed/);
+  assert.match(notes, /Release scope/);
+  assert.match(notes, /Standard macOS arm64 updater package and Full clean-install DMG/);
+  assert.match(notes, /Bundled OPL runtime and agent versions/);
+  assert.match(notes, /MAS @ 1111111/);
+  assert.match(notes, /MAG @ 2222222/);
+  assert.match(notes, /RCA @ 3333333/);
+  assert.match(notes, /OPL Meta Agent @ 4444444/);
+  assert.match(notes, /OfficeCLI 1\.2\.3/);
+  assert.match(notes, /MinerU v0\.1\.3/);
+  assert.doesNotMatch(notes, /Release focus/);
+  assert.doesNotMatch(notes, /Update channel guidance/);
+  assert.doesNotMatch(notes, /Full first-install package/);
   assert.doesNotMatch(notes, /[\u3400-\u9fff]/);
 });
 
@@ -2933,6 +2929,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /opl_release_version: \$\{\{ needs\.resolve-nightly\.outputs\.version \}\}/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/generate-release-notes\.ts[\s\S]*--channel nightly/);
   assert.match(workflow, /gh release create "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease[\s\S]*--latest=false[\s\S]*--verify-tag/);
   assert.match(workflow, /gh release edit "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease/);
   assert.match(workflow, /--title "\$\{OPL_RELEASE_TAG\}"/);
@@ -2943,6 +2940,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.doesNotMatch(workflow, /One-Person-Lab-Full/);
   assert.doesNotMatch(workflow, /nightly\.\$\{stamp\}/);
   assert.doesNotMatch(workflow, /One Person Lab Nightly \$\{OPL_RELEASE_VERSION\}/);
+  assert.doesNotMatch(workflow, /This prerelease is for users who opt into prerelease\/Nightly updates/);
   assert.match(boundaryScript, /nightly_standard_release_workflow/);
   assert.equal(
     releaseContract.release_acceleration.github_actions.nightly_standard_release_workflow,

@@ -115,13 +115,12 @@ jobs:
           git push --force-with-lease origin "refs/tags/${OPL_RELEASE_TAG}"
 
           notes_file="$RUNNER_TEMP/opl-nightly-notes.md"
-          cat > "$notes_file" <<EOF
-          ${OPL_RELEASE_TAG}
-
-          - Standard macOS arm64 App assets only.
-          - Full first-install assets are intentionally excluded.
-          - This prerelease is for users who opt into prerelease/Nightly updates.
-          EOF
+          node --experimental-strip-types scripts/generate-release-notes.ts \
+            --version "$OPL_RELEASE_VERSION" \
+            --channel nightly \
+            --repo "$GITHUB_REPOSITORY" \
+            --shell-root shells/aionui \
+            --output "$notes_file"
 
           if gh release view "${OPL_RELEASE_TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "${OPL_RELEASE_TAG}" \

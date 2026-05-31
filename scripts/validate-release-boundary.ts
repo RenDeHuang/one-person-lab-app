@@ -128,6 +128,7 @@ const checks = [
       'uses: ./.github/workflows/_build-reusable.yml',
       'node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets',
       'node --experimental-strip-types scripts/validate-release.ts release-assets',
+      'node --experimental-strip-types scripts/generate-release-notes.ts',
       'git tag -f "${OPL_RELEASE_TAG}" "$GITHUB_SHA"',
       'git push --force-with-lease origin "refs/tags/${OPL_RELEASE_TAG}"',
       '--title "${OPL_RELEASE_TAG}"',
