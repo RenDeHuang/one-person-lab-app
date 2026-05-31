@@ -51,7 +51,14 @@ surface and an App/CLI-managed ecosystem module, but not a default home
 assistant. Companion skill sync stays limited to the App-level packaged
 whitelist such as Superpowers, cron, the OfficeCLI family, PDF, MinerU, and
 UI/UX helpers. AionUI builtin skills remain candidate shell capabilities unless
-the App profile explicitly whitelists them.
+the App profile explicitly whitelists them. `agent_installation_contract` now
+pins the independent agent installation path: MAS/MAG/RCA must register through
+Codex plugin registry targets while keeping direct skill compatibility and the
+same action/stage metadata; OMA stays on the OPL-generated skill surface. The
+machine gate is `npm run validate:agent-installation`, with optional
+`--agent-root <id>=<path>` checks for real plugin roots and
+`--codex-skills-root <path>` checks that MAS/MAG/RCA are not also installed as
+duplicate bare Codex skill mirrors.
 
 First-install policy is now contract-backed in
 `contracts/app-product-profile.json` and

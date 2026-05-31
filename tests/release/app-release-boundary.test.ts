@@ -359,6 +359,35 @@ test('release boundary guard keeps App release ownership in App repo', () => {
   assert.match(result.stdout, /App release boundary is App-owned/);
 });
 
+test('agent installation contract validator is wired into release boundary guard', () => {
+  const boundaryScript = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-release-boundary.ts'), 'utf8');
+  const result = runNode(['scripts/validate-agent-installation-contract.ts']);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /App agent installation contract is consistent/);
+  assert.match(boundaryScript, /validate-agent-installation-contract\.ts/);
+});
+
+test('agent installation validator rejects duplicate bare MAS/MAG/RCA skill mirrors', () => {
+  const skillsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-codex-skills-'));
+  const cleanResult = runNode([
+    'scripts/validate-agent-installation-contract.ts',
+    '--codex-skills-root',
+    skillsRoot,
+  ]);
+  assert.equal(cleanResult.status, 0, cleanResult.stderr || cleanResult.stdout);
+  assert.match(cleanResult.stdout, /"validated_codex_skills_root"/);
+
+  writeFile(path.join(skillsRoot, 'mas', 'SKILL.md'), '# duplicate MAS skill\n');
+  const duplicateResult = runNode([
+    'scripts/validate-agent-installation-contract.ts',
+    '--codex-skills-root',
+    skillsRoot,
+  ]);
+  assert.notEqual(duplicateResult.status, 0);
+  assert.match(duplicateResult.stderr, /mas must not be mirrored as a bare Codex skill/);
+});
+
 test('release workflows force JavaScript actions onto the Node 24 runtime', () => {
   for (const workflowPath of releaseWorkflowPaths) {
     const workflow = fs.readFileSync(path.join(appRoot, workflowPath), 'utf8');
@@ -605,6 +634,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
 
 test('App install exposure policy keeps skill ABI and plugin distribution separate', () => {
   const policy = readInstallExposurePolicy();
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
 
   assert.equal(policy.owner, 'one-person-lab-app');
   assert.equal(policy.purpose, 'app_install_exposure_policy');
@@ -651,6 +681,51 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'codex_cli',
     'codex_config',
   ]);
+
+  assert.equal(
+    packageJson.scripts['validate:agent-installation'],
+    'node --experimental-strip-types scripts/validate-agent-installation-contract.ts',
+  );
+
+  assert.equal(policy.agent_installation_contract.owner, 'one-person-lab-app');
+  assert.equal(policy.agent_installation_contract.producer_owner, 'one-person-lab');
+  assert.equal(policy.agent_installation_contract.unified_sync_command, 'opl skill sync');
+  assert.equal(policy.agent_installation_contract.managed_install_source, 'opl_managed_modules');
+  assert.equal(policy.agent_installation_contract.user_agent_installation_mode, 'consume_shared_skill_action_stage_metadata');
+  assert.equal(policy.agent_installation_contract.codex_plugin_registry_target, 'codex_plugin_registry');
+  assert.equal(policy.agent_installation_contract.direct_skill_target, 'codex_user_skill_discovery_path');
+  assert.equal(policy.agent_installation_contract.product_entry_target, 'family-product-entry-manifest-v2');
+  assert.deepEqual(policy.agent_installation_contract.required_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.deepEqual(policy.agent_installation_contract.default_plugin_agent_ids, ['mas', 'mag', 'rca']);
+  assert.deepEqual(policy.agent_installation_contract.generated_skill_agent_ids, ['oma']);
+  assert.deepEqual(policy.agent_installation_contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states);
+  assert.equal(policy.agent_installation_contract.may_use_developer_checkout_by_default, false);
+  assert.equal(policy.agent_installation_contract.developer_checkout_override_policy, 'explicit_opt_in_only');
+  assert.equal(policy.agent_installation_contract.duplicate_bare_skill_policy, 'forbid_domain_plugin_skill_mirrors');
+  assert.equal(policy.agent_installation_contract.plugin_registration_validation_command, 'npm run validate:agent-installation');
+  assert.equal(policy.agent_installation_contract.plugin_registration_validation_inputs.plugin_root_flag, '--agent-root <agent_id>=<path>');
+  assert.equal(policy.agent_installation_contract.plugin_registration_validation_inputs.codex_skills_root_flag, '--codex-skills-root <path>');
+  assert.equal(policy.agent_installation_contract.plugin_registration_validation_inputs.default_live_codex_skills_root, '~/.codex/skills');
+  assert.deepEqual(policy.agent_installation_contract.plugin_registration_validation_inputs.validated_output_fields, [
+    'validated_plugin_roots',
+    'validated_codex_skills_root',
+  ]);
+
+  const installAgentById = new Map(policy.agent_installation_contract.agents.map((entry) => [entry.agent_id, entry]));
+  for (const agentId of ['mas', 'mag', 'rca']) {
+    const entry = installAgentById.get(agentId);
+    assert.equal(entry.plugin_registry_required, true);
+    assert.equal(entry.direct_skill_compatibility_required, true);
+    assert.equal(entry.plugin_must_package_skill, true);
+    assert.equal(entry.must_not_create_second_semantics, true);
+    assert.equal(entry.sync_command, 'opl skill sync');
+    assert.equal(entry.product_entry_manifest, 'family-product-entry-manifest-v2');
+    assert.equal(entry.canonical_metadata_source, 'domain_action_catalog_and_stage_control_plane');
+    assert.equal(entry.codex_visible_entry, agentId);
+  }
+  assert.equal(installAgentById.get('oma').plugin_registry_required, false);
+  assert.equal(installAgentById.get('oma').preferred_distribution, 'opl_generated_skill_surface');
+  assert.equal(installAgentById.get('oma').canonical_metadata_source, 'opl_generated_interface_contract_pack');
 });
 
 test('first-run matrix locks Full clean-machine and App-managed bootstrap rules', () => {

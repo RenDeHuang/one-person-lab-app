@@ -4,7 +4,7 @@ Owner: `one-person-lab-app`
 Purpose: `app_ideal_state_gap_plan`
 State: `active_plan`
 Machine boundary: Human-readable active truth and gap plan. Machine-readable truth lives in `contracts/`, source, release artifacts, updater metadata, and test results.
-Date: `2026-05-29`
+Date: `2026-05-30`
 
 ## Current Completion Progress
 
@@ -14,6 +14,8 @@ Date: `2026-05-29`
 | Framework / domain split | `active_truth` | OPL Framework owns runtime/provider/read-model/action execution; MAS/MAG/RCA/OMA own domain truth, quality/export verdicts, memory body, artifact body, owner receipts, and typed blockers. |
 | Active shell boundary | `active_external_checkout` | `shells/aionui/` is an external checkout from `gaofeng21cn/opl-aion-shell`; shell implementation history is not merged into the App repo default branch. |
 | Product contracts | `landed_with_release_evidence_tail` | `contracts/app-product-profile.json`, `contracts/app-page-state-matrix.json`, `contracts/app-first-run-test-matrix.json`, and `contracts/app-release-channel.json` hold App-owned machine policy, including packaged assistant route smoke evidence. |
+| Runtime progress projection | `landed_contract_backed` | Runtime display consumes OPL shared progress projection fields only: `deliverable_progress_delta`, `platform_repair_delta`, and `progress_delta_classification`. Platform repair is infrastructure repair and cannot be displayed as deliverable, paper, manuscript, or submission progress. |
+| Agent installation exposure | `landed_contract_and_live_root_guard_backed` | `contracts/app-install-exposure-policy.json` now owns `agent_installation_contract`: MAS/MAG/RCA are plugin-packaged skill entries with direct skill compatibility, OMA remains an OPL-generated skill surface, and `npm run validate:agent-installation` can verify both real plugin roots and a Codex skills root for duplicate bare MAS/MAG/RCA mirrors. |
 | Release user-path evidence | `current_cohort_refs_verified` | Fresh OPL App/operator summary reads `app_release_user_path_evidence_gate_count=5`, `app_release_user_path_evidence_open_gate_count=0`, `app_release_user_path_evidence_verified_ledger_receipt_ref_count=6`, and `app_release_user_path_production_user_path_ready=true`; this is refs-only user-path evidence, not App release-ready or family production-ready authority. |
 | Codex App positioning | `active_contract_truth` | The App ordinary path is a Codex CLI fixed-executor experience with built-in MAS/MAG/RCA purpose entries; AionUI multi-backend choices are implementation material, not the user-facing App model. |
 | Active shell upstream intake | `landed_verified` | The active shell has absorbed AionUI upstream through `83eb8bda02af44df9795a10f32fa938dd62b628c`; App `contracts/app-shell-adapter.json` records that upstream ref while shell implementation history stays in `gaofeng21cn/opl-aion-shell`. |
@@ -48,12 +50,14 @@ Write scope:
 
 Live truth inputs:
 
-- `AGENTS.md`, `TASTE.md`, `README.md`, `docs/README.md`, `docs/status.md`, this plan, App contracts, release/test scripts, shell adapter contract, release evidence manifests, active shell validation outputs, and focused shell tests for App-owned GUI behavior.
+- `AGENTS.md`, `TASTE.md`, `README.md`, `docs/README.md`, `docs/status.md`, this plan, App contracts, release/test scripts, shell adapter contract, release evidence manifests, active shell validation outputs, focused shell tests for App-owned GUI behavior, and live `npm run validate:agent-installation` output when install exposure is touched.
 - OPL Framework runtime/App drilldown CLI JSON only as consumed input; it remains framework-owned truth.
 
 Required actions:
 
 - Keep App docs, contracts, release wrappers, evidence manifests, and page-state tests aligned with the App product boundary.
+- Keep Runtime progress display bound to OPL shared progress projection classifications only; platform repair must stay an infrastructure repair signal, not a deliverable or manuscript/submission progress claim.
+- Keep the independent agent installation contract aligned with App/Framework/domain ownership: MAS/MAG/RCA are plugin-packaged skill entries, OMA is OPL-generated, optional live plugin roots must contain `.codex-plugin/plugin.json` plus `skills/<id>/SKILL.md`, and optional Codex skills root validation must fail closed on duplicate bare MAS/MAG/RCA mirrors.
 - Keep the App ordinary path aligned with the Codex App equivalent positioning: Codex CLI fixed executor, no home or ordinary-conversation backend/model/permission selector, MAS/MAG/RCA as built-in purpose entries, precise model details limited to technical/connected-state surfaces.
 - Keep Codex CLI conversation output rendering aligned with native Codex behavior: ACP tool-call normalization must preserve newline-bearing `raw_output` / `stdout` / `stderr` content instead of collapsing command output into one visual line.
 - Keep built-in assistant sends observable with a route receipt: `route_kind=builtin_capability`, `executor=codex_cli`, `assistant_id`, `assistant_short_name`, and `source=opl_app_home`.
@@ -73,13 +77,14 @@ Non-goals:
 Verification commands:
 
 - Docs-only: `rtk git diff --check`, `rtk rg -n "^(<<<<<<<|=======|>>>>>>>)" docs`, `python3 /Users/gaofeng/workspace/opl-doc-governance/scripts/opl_doc_doctor.py doctor /Users/gaofeng/workspace/one-person-lab-app --format json`.
-- App contract/release boundary changes: `rtk npm run test:release-boundary`, `rtk node --experimental-strip-types scripts/validate-active-shell.ts --quick`, and the touched release/evidence validation script.
+- App contract/release boundary changes: `rtk npm run test:release-boundary`, `rtk npm run validate:agent-installation`, live `npm run validate:agent-installation -- --codex-skills-root ~/.codex/skills --agent-root mas=<path> --agent-root mag=<path> --agent-root rca=<path>` when plugin roots are available, `rtk node --experimental-strip-types scripts/validate-active-shell.ts --quick`, and the touched release/evidence validation script.
 - AG-UI/CopilotKit candidate contract/docs changes: `rtk npm run validate:shell-candidates`, `rtk env OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json node --experimental-strip-types scripts/validate-active-shell.ts --quick`, `rtk npm --prefix shells/agui-codex run smoke:webui`, and, when packaging evidence is being claimed, `rtk env OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package`.
 - Shell implementation changes: focused `vitest` for Guid/home/conversation selectors, Settings modal, Guid Access shortcut, and route receipt, `bunx tsc --noEmit`, `bunx oxfmt --check` on touched shell files, and packaged GUI smoke with `--assistant-route-smoke` for release evidence.
 
 Completion gate:
 
 - The App active plan, status, project, architecture, invariants, decisions, contracts, and test docs agree on App ownership and non-ownership.
+- Agent installation exposure has a single semantic path: MAS/MAG/RCA plugin-packaged skills plus direct skill compatibility, no duplicate bare skill mirrors, and OMA as an OPL-generated skill surface.
 - Home, ordinary conversation, ordinary Settings, and built-in assistant route receipt behavior are enforced by App contracts, active-shell validation, and active shell tests.
 - Release evidence gaps are explicit; packaged assistant route smoke must be present before claiming packaged GUI Codex-path evidence, and no App doc claims runtime truth, domain ready, release ready, or production ready beyond the available artifacts and contracts.
 

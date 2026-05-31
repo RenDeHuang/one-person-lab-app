@@ -275,6 +275,109 @@
       "duplicate_codex_visible_domain_skill"
     ]
   },
+  "agent_installation_contract": {
+    "owner": "one-person-lab-app",
+    "producer_owner": "one-person-lab",
+    "unified_sync_command": "opl skill sync",
+    "managed_install_source": "opl_managed_modules",
+    "user_agent_installation_mode": "consume_shared_skill_action_stage_metadata",
+    "codex_plugin_registry_target": "codex_plugin_registry",
+    "direct_skill_target": "codex_user_skill_discovery_path",
+    "product_entry_target": "family-product-entry-manifest-v2",
+    "required_agent_ids": [
+      "mas",
+      "mag",
+      "rca",
+      "oma"
+    ],
+    "default_plugin_agent_ids": [
+      "mas",
+      "mag",
+      "rca"
+    ],
+    "generated_skill_agent_ids": [
+      "oma"
+    ],
+    "fail_closed_states": [
+      "dirty_managed_checkout",
+      "ahead_or_diverged_managed_checkout",
+      "missing_plugin_manifest",
+      "missing_skill_entry",
+      "duplicate_codex_visible_domain_skill"
+    ],
+    "may_use_developer_checkout_by_default": false,
+    "developer_checkout_override_policy": "explicit_opt_in_only",
+    "duplicate_bare_skill_policy": "forbid_domain_plugin_skill_mirrors",
+    "plugin_registration_validation_command": "npm run validate:agent-installation",
+    "plugin_registration_validation_inputs": {
+      "plugin_root_flag": "--agent-root <agent_id>=<path>",
+      "codex_skills_root_flag": "--codex-skills-root <path>",
+      "default_live_codex_skills_root": "~/.codex/skills",
+      "validated_output_fields": [
+        "validated_plugin_roots",
+        "validated_codex_skills_root"
+      ],
+      "codex_skills_root_validation_scope": "fail if mas, mag, or rca exists as a bare Codex skill mirror at <codex_skills_root>/<agent_id>/SKILL.md"
+    },
+    "agents": [
+      {
+        "agent_id": "mas",
+        "display_name": "Med Auto Science",
+        "preferred_distribution": "plugin_packaged_skill",
+        "codex_visible_entry": "mas",
+        "home_purpose_entry": "research",
+        "plugin_registry_required": true,
+        "direct_skill_compatibility_required": true,
+        "plugin_must_package_skill": true,
+        "must_not_create_second_semantics": true,
+        "sync_command": "opl skill sync",
+        "product_entry_manifest": "family-product-entry-manifest-v2",
+        "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+      },
+      {
+        "agent_id": "mag",
+        "display_name": "Med Auto Grant",
+        "preferred_distribution": "plugin_packaged_skill",
+        "codex_visible_entry": "mag",
+        "home_purpose_entry": "grant",
+        "plugin_registry_required": true,
+        "direct_skill_compatibility_required": true,
+        "plugin_must_package_skill": true,
+        "must_not_create_second_semantics": true,
+        "sync_command": "opl skill sync",
+        "product_entry_manifest": "family-product-entry-manifest-v2",
+        "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+      },
+      {
+        "agent_id": "rca",
+        "display_name": "RedCube AI",
+        "preferred_distribution": "plugin_packaged_skill",
+        "codex_visible_entry": "rca",
+        "home_purpose_entry": "ppt",
+        "plugin_registry_required": true,
+        "direct_skill_compatibility_required": true,
+        "plugin_must_package_skill": true,
+        "must_not_create_second_semantics": true,
+        "sync_command": "opl skill sync",
+        "product_entry_manifest": "family-product-entry-manifest-v2",
+        "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+      },
+      {
+        "agent_id": "oma",
+        "display_name": "OPL Meta Agent",
+        "preferred_distribution": "opl_generated_skill_surface",
+        "codex_visible_entry": "opl-meta-agent",
+        "home_purpose_entry": null,
+        "plugin_registry_required": false,
+        "direct_skill_compatibility_required": true,
+        "plugin_must_package_skill": false,
+        "must_not_create_second_semantics": true,
+        "sync_command": "opl skill sync",
+        "product_entry_manifest": "family-product-entry-manifest-v2",
+        "canonical_metadata_source": "opl_generated_interface_contract_pack"
+      }
+    ]
+  },
   "release_validation": {
     "structural_gate": "node --experimental-strip-types scripts/validate-active-shell.ts --quick",
     "stable_install_gates": [

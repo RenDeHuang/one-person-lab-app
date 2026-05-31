@@ -2,11 +2,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const shellPaths = resolveActiveShellPaths();
+const commandMaxBuffer = 16 * 1024 * 1024;
 
 const releaseWorkflowPaths = [
   '.github/workflows/_build-reusable.yml',
@@ -220,8 +222,22 @@ for (const workflowPath of releaseWorkflowPaths) {
   }
 }
 
+const agentInstallationValidation = spawnSync(process.execPath, [
+  '--experimental-strip-types',
+  'scripts/validate-agent-installation-contract.ts',
+], {
+  cwd: appRoot,
+  encoding: 'utf8',
+  maxBuffer: commandMaxBuffer,
+});
+if (agentInstallationValidation.status !== 0) {
+  if (agentInstallationValidation.stdout) process.stdout.write(agentInstallationValidation.stdout);
+  if (agentInstallationValidation.stderr) process.stderr.write(agentInstallationValidation.stderr);
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exit(1);
 }
 
-console.log('PASS: App release boundary is App-owned and release workflows force JavaScript actions onto Node 24.');
+console.log('PASS: App release boundary is App-owned, agent installation is contract-validated, and release workflows force JavaScript actions onto Node 24.');
