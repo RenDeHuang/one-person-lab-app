@@ -138,17 +138,17 @@ jobs:
           echo "source_vm=$SOURCE_VM" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout active shell
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: main
           path: shells/aionui
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -201,7 +201,7 @@ jobs:
 
       - name: Download release DMG artifact
         if: ${{ inputs.release_artifact_name != '' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.release_artifact_name }}
           path: artifacts/release
@@ -474,7 +474,7 @@ jobs:
 
       - name: Upload first-run VM artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: opl-first-run-vm-${{ steps.package_profile.outputs.profile }}-${{ github.run_id }}
           path: artifacts/opl-first-run-vm

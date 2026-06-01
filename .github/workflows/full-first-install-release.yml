@@ -71,75 +71,75 @@ jobs:
 
     steps:
       - name: Checkout App repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: one-person-lab-app
 
       - name: Checkout active shell
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: main
           path: one-person-lab-app/shells/aionui
 
       - name: Checkout OPL Framework payload source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/one-person-lab
           ref: ${{ inputs.framework_ref || 'main' }}
           path: one-person-lab
 
       - name: Checkout MAS
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/med-autoscience
           ref: main
           path: med-autoscience
 
       - name: Checkout MAG
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/med-autogrant
           ref: main
           path: med-autogrant
 
       - name: Checkout RCA
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/redcube-ai
           ref: main
           path: redcube-ai
 
       - name: Checkout OPL Meta Agent
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/opl-meta-agent
           ref: main
           path: opl-meta-agent
 
       - name: Checkout OfficeCLI
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: iOfficeAI/OfficeCLI
           ref: main
           path: OfficeCLI
 
       - name: Checkout MinerU Ecosystem
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: opendatalab/MinerU-Ecosystem
           ref: main
           path: MinerU-Ecosystem
 
       - name: Checkout UI UX Pro Max skill
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: nextlevelbuilder/ui-ux-pro-max-skill
           ref: main
           path: ui-ux-pro-max-skill
 
       - name: Checkout Superpowers bundle
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: obra/superpowers
           ref: main
@@ -155,7 +155,7 @@ jobs:
 
       - name: Setup Node.js
         id: node-cache
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
@@ -194,7 +194,7 @@ jobs:
             electron-cache-macos-arm64-
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -212,7 +212,7 @@ jobs:
 
       - name: Setup Go
         id: go-cache
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.26.x'
           cache: true
@@ -683,7 +683,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Full workflow telemetry
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: opl-full-workflow-telemetry-${{ env.OPL_RELEASE_VERSION }}
           path: one-person-lab-app/dist/opl-full-release/full-workflow-telemetry.json
@@ -691,7 +691,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Full diagnostics artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: opl-full-diagnostics-${{ env.OPL_RELEASE_VERSION }}
           path: |
@@ -782,7 +782,7 @@ jobs:
 
       - name: Upload Full package workflow artifact
         if: ${{ inputs.upload_full_package_artifact }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: opl-full-first-install-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
           path: one-person-lab-app/dist/opl-full-release

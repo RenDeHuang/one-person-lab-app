@@ -80,12 +80,12 @@ jobs:
           path: shells/aionui
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
       - name: Download standard build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: build-artifacts
 
@@ -153,7 +153,7 @@ jobs:
             --summary-path remote-nightly-release-verification.json
 
       - name: Upload Nightly remote verification summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: remote-nightly-release-verification-${{ needs.resolve-nightly.outputs.version }}
           path: remote-nightly-release-verification.json

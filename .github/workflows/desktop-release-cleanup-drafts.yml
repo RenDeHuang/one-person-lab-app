@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -57,7 +57,7 @@ jobs:
           "${cleanup_args[@]}"
 
       - name: Upload cleanup summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-draft-cleanup-summary-${{ inputs.opl_version }}
           path: release-draft-cleanup-summary.json
