@@ -30,7 +30,16 @@
       "candidate passes page-state and first-run matrix mapping checks",
       "candidate passes App-root candidate validation",
       "candidate compiles a launchable .app bundle through the App wrapper when OPL_APP_SHELL_ADAPTER_CONTRACT selects its adapter contract",
-      "contracts/app-shell-adapter.json is changed only when candidate becomes active release shell"
+      "contracts/app-shell-adapter.json is changed only when candidate becomes active release shell",
+      "candidate enters App product truth only through App-owned contract updates and validation gates",
+      "candidate evidence remains technical verification until explicit active-shell adoption decision"
+    ],
+    "entry_route": "App_contract_gate_only",
+    "forbidden_entry_routes": [
+      "shell implementation roadmap copied into App truth",
+      "upstream GUI defaults treated as App product authority",
+      "candidate package evidence treated as active release adoption",
+      "release wrapper default switched without contracts/app-shell-adapter.json change"
     ]
   },
   "design_reference_policy": {
@@ -440,7 +449,13 @@
         "do not enter default stable or nightly release packaging",
         "do not vendor opl-aion-shell implementation",
         "do not introduce runtime or domain truth into the App repo"
-      ]
+      ],
+      "product_truth_policy": {
+        "entry_route": "contracts/app-shell-candidates.json plus selectable adapter contract plus validation gates",
+        "ordinary_product_copy_source": "contracts/app-gui-product-contract.json",
+        "implementation_roadmap_role": "candidate_shell_private_execution_plan_only",
+        "adoption_policy": "no_default_release_authority_until_contracts_app_shell_adapter_changes"
+      }
     }
   ]
 }

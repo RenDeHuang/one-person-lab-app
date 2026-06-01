@@ -37,6 +37,13 @@ presentation keys. The active shell consumes the generated copy at the
 `contracts/app-shell-adapter.json`; runtime truth, provider implementation, and
 domain truth remain outside App ownership.
 
+The current product boundary is purpose-first: the App is the Codex wrapper and
+product truth for ordinary users entering research, grant, presentation, and
+general work. It owns the App user path and contracts that make MAS/MAG/RCA
+visible as built-in purpose entries; it does not own domain readiness,
+owner-receipt authority, artifact authority, memory body, or OPL family
+production readiness.
+
 The active shell currently tracks AionUI upstream through
 `83eb8bda02af44df9795a10f32fa938dd62b628c` while preserving the App-owned
 product profile. That intake is recorded in `contracts/app-shell-adapter.json`;
@@ -100,6 +107,11 @@ classifies `deliverable_progress_delta` separately from
 cannot be presented as substantive deliverable, paper, manuscript, or
 submission progress.
 
+The default Runtime page attention model is owner-action first, not ledger
+first. The ordinary view should surface the next visible step, next owner,
+delta class, and blocker state before full evidence detail. Full ledger detail
+is reserved for explicit diagnostics, audit, or release evidence.
+
 The App first-run screen presents that shared model in a beginner-first way:
 the primary view shows a plain readiness summary, three user-facing setup
 steps, the required Core progress, the single primary start action, and only
@@ -132,6 +144,12 @@ updater metadata. GitHub Release uploads, standard DMG, Full DMG, GUI smoke,
 and user tutorials are all App-owned. The Framework repo is only a
 runtime/CLI/contracts payload source for Full DMG and a machine-interface
 provider for the App.
+
+Release and user-path evidence remains cohort-bound App evidence. Verified
+release bundle refs, screenshots, remote asset checks, or packaged route smoke
+can support release-owner review for the same App cohort, but they do not
+promote stable/latest by themselves and do not prove domain readiness or OPL
+family production readiness.
 
 Current release validation is App-root first: root wrappers call the active shell
 build/release scripts, then the produced standard package can replace
@@ -206,6 +224,11 @@ first-run/page-state mapping, shared Electron/WebUI renderer, Web transport
 bridge, WebUI smoke, explicit `.app` packaging with `Contents/Info.plist` and a
 `Contents/MacOS` executable, and release isolation without changing the active
 release shell.
+
+Candidate shell work enters App product truth only through App-owned contract
+updates and validation gates. Shell implementation roadmaps, upstream GUI
+defaults, and candidate package evidence remain technical verification until a
+separate active-shell adoption decision changes the default adapter contract.
 
 The `agui-codex` target is the Codex App-like OPL chat-first inventory, not an
 AionUI patch list or full workbench first screen. The intended first-class

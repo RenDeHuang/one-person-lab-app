@@ -220,7 +220,9 @@
             "progress_delta_classification",
             "deliverable_progress_delta",
             "platform_repair_delta",
-            "blocker_ref_count"
+            "blocker_ref_count",
+            "next_visible_step",
+            "next_owner"
           ],
           "optional_user_fields": [
             "domain_label",
@@ -285,6 +287,23 @@
         "provider_status": {
           "source": "app_state.provider",
           "authority": "opl_framework"
+        },
+        "default_attention": {
+          "mode": "owner_action_and_project_progress_first",
+          "primary_fields": [
+            "project title/domain/current state/current stage",
+            "next_visible_step",
+            "next_owner",
+            "progress_delta_classification",
+            "blocker_ref_count"
+          ],
+          "secondary_fields": [
+            "operator summary",
+            "safe action refs",
+            "evidence refs",
+            "full detail digest"
+          ],
+          "full_ledger_policy": "not_default_visible_on_demand_only"
         }
       },
       "operator_evidence_acceptance_path": {
@@ -329,7 +348,9 @@
         "deliverable progress delta classification",
         "platform repair delta as separate infrastructure repair",
         "receipt/count refresh after execute",
-        "refs-only non-authority boundary"
+        "refs-only non-authority boundary",
+        "next owner action before full evidence ledger",
+        "full evidence ledger only as secondary on-demand diagnostic"
       ],
       "must_not_own": [
         "runtime truth",
@@ -341,9 +362,15 @@
         "deliverable progress truth",
         "platform repair truth",
         "action route authority",
-        "domain action approval override"
+        "domain action approval override",
+        "owner receipt authority",
+        "family production readiness"
       ],
-      "framework_refresh_command": "opl app state --profile fast --json"
+      "framework_refresh_command": "opl app state --profile fast --json",
+      "must_not_show": [
+        "full evidence ledger as the default Runtime page focus",
+        "release/user-path evidence as family production ready"
+      ]
     },
     {
       "id": "environment",

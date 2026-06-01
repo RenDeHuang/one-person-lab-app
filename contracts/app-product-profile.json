@@ -11,7 +11,9 @@
     "primary_surface": "desktop_workbench",
     "supported_release_platforms": [
       "macos-arm64"
-    ]
+    ],
+    "positioning": "purpose_first_codex_app_wrapper",
+    "primary_user_path": "chat_first_codex_cli_with_builtin_mas_mag_rca_purpose_entries"
   },
   "contract_refs": {
     "active_shell": "contracts/app-shell-adapter.json",
@@ -776,21 +778,57 @@
       "updater metadata",
       "first-run UX checks",
       "GUI page-state tests",
-      "user documentation"
+      "user documentation",
+      "App product truth",
+      "purpose-first Codex wrapper experience",
+      "runtime page display contract",
+      "shell candidate admission gates",
+      "release and user-path evidence classification"
     ],
     "app_consumes": [
       "framework contracts",
       "OPL CLI JSON outputs",
       "runtime snapshots",
       "provider receipts",
-      "domain-owned projections"
+      "domain-owned projections",
+      "owner action projections",
+      "refs-only evidence summaries"
     ],
     "app_does_not_own": [
       "runtime_truth",
       "provider_implementation",
       "domain_truth",
       "domain_quality_verdict",
-      "domain_artifact_authority"
-    ]
+      "domain_artifact_authority",
+      "owner_receipt_authority",
+      "memory_body",
+      "artifact_body",
+      "family_production_readiness"
+    ],
+    "default_runtime_page_attention": {
+      "mode": "owner_action_and_project_progress_first",
+      "primary_questions": [
+        "which project is running or waiting",
+        "what is the next visible owner action",
+        "whether the next delta is deliverable progress, platform repair, human gate, typed blocker, or stop-loss",
+        "which owner must produce the next receipt, delta, or blocker"
+      ],
+      "secondary_diagnostics": [
+        "operator summary",
+        "safe action refs",
+        "refs-only evidence summary",
+        "full ledger drilldown"
+      ],
+      "full_ledger_policy": "on_demand_diagnostic_or_release_evidence_only"
+    },
+    "release_evidence_scope": {
+      "classification": "cohort_bound_app_user_path_evidence",
+      "must_not_imply": [
+        "stable_latest_promotion",
+        "App release-ready without promotion decision",
+        "MAS/MAG/RCA domain readiness",
+        "OPL family production readiness"
+      ]
+    }
   }
 }

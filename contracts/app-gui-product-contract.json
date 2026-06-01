@@ -60,7 +60,24 @@
       },
       "upgrade_rule": "follow upstream AionUI only after checking the delta against App-owned contracts; upstream defaults can be implementation material but never product authority",
       "replacement_rule": "new shells remain candidate implementations until App-owned contracts, page-state matrix, first-run matrix, active-shell validation, and package compile pass"
-    }
+    },
+    "product_positioning": "purpose_first_codex_app_wrapper",
+    "app_truth_scope": [
+      "desktop product defaults",
+      "purpose-first home entries",
+      "runtime page display policy",
+      "release and user-path evidence classification",
+      "shell candidate admission gates"
+    ],
+    "forbidden_authority_transfer": [
+      "runtime_truth",
+      "provider_implementation",
+      "domain_truth",
+      "domain_quality_verdict",
+      "domain_artifact_authority",
+      "owner_receipt_authority",
+      "family_production_readiness"
+    ]
   },
   "framework_surfaces": {
     "install_exposure_policy": {
@@ -95,7 +112,18 @@
       "application.systemInfo as OPL path truth",
       "application.appVersions as OPL release truth",
       "direct reads of OPL internal state files"
-    ]
+    ],
+    "runtime_default_attention": {
+      "default_mode": "owner_action_and_project_progress_first",
+      "full_ledger_default_visible": false,
+      "owner_action_fields": [
+        "next_visible_step",
+        "next_owner",
+        "progress_delta_classification",
+        "blocker_ref_count"
+      ],
+      "diagnostics_policy": "secondary_disclosure_or_on_demand_full_detail"
+    }
   },
   "executor_policy": {
     "default_executor": "codex_cli",

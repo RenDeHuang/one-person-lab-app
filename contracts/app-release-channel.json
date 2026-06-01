@@ -17,7 +17,9 @@
       "One-Person-Lab-*-mac-arm64.dmg.blockmap",
       "One-Person-Lab-*-mac-arm64.zip.blockmap"
     ],
-    "forbidden_asset_substrings": ["Full"],
+    "forbidden_asset_substrings": [
+      "Full"
+    ],
     "rule": "standard updater metadata must never point to Full first-install assets",
     "same_tag_refresh": {
       "allowed": true,
@@ -87,8 +89,12 @@
           "@temporalio/worker",
           "@temporalio/workflow"
         ],
-        "forbidden_packages": ["@temporalio/testing"],
-        "native_core_bridge_releases": ["aarch64-apple-darwin"],
+        "forbidden_packages": [
+          "@temporalio/testing"
+        ],
+        "native_core_bridge_releases": [
+          "aarch64-apple-darwin"
+        ],
         "verification": "Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin"
       }
     },
@@ -348,7 +354,13 @@
         "docker_webui_smoke"
       ],
       "release_latest_policy": "stable_release_may_be_marked_latest_after_required_lanes_pass",
-      "heavy_gate_policy": "run before stable promotion; may be skipped only for draft or emergency packaging refreshes that are not called stable-complete"
+      "heavy_gate_policy": "run before stable promotion; may be skipped only for draft or emergency packaging refreshes that are not called stable-complete",
+      "forbidden_inferences": [
+        "stable/latest promotion from draft evidence bundle alone",
+        "family production readiness from App release/user-path evidence",
+        "MAS/MAG/RCA domain readiness from App release/user-path evidence",
+        "runtime truth from App UI rendering"
+      ]
     }
   },
   "operator_evidence_bundle": {
@@ -502,7 +514,22 @@
       "domain_quality_verdict",
       "domain_artifact_authority"
     ],
-    "acceptance_rule": "App records and displays refs-only release evidence produced by OPL/runtime/domain owners; it does not reinterpret the bundle as runtime truth, domain truth, artifact authority, or a quality verdict."
+    "acceptance_rule": "App records and displays cohort-bound refs-only release evidence produced by OPL/runtime/domain owners; it does not reinterpret the bundle as runtime truth, domain truth, artifact authority, a quality verdict, stable/latest promotion, or family production readiness.",
+    "evidence_scope": {
+      "classification": "cohort_bound_app_user_path_evidence",
+      "can_support": [
+        "Runtime page acceptance for the same release cohort",
+        "packaged GUI route smoke for the same release cohort",
+        "App release owner promotion review input"
+      ],
+      "cannot_support": [
+        "stable/latest promotion without explicit release owner decision",
+        "family production readiness",
+        "domain readiness",
+        "runtime truth",
+        "domain quality/export verdict"
+      ]
+    }
   },
   "normalization_command": "node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets",
   "validation_command": "node --experimental-strip-types scripts/validate-release.ts release-assets"
