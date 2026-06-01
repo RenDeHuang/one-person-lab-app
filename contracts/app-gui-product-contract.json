@@ -386,6 +386,7 @@
         "full_dmg_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "docker_webui_smoke",
+        "webui_ghcr_publish",
         "operator_evidence_bundle"
       ],
       "latest_policy": "stable_release_may_be_marked_latest_after_required_lanes_pass"
@@ -397,7 +398,8 @@
         "release_boundary_contract",
         "standard_macos_arm64_build",
         "local_standard_asset_validation",
-        "remote_standard_release_verification"
+        "remote_standard_release_verification",
+        "webui_ghcr_publish"
       ],
       "must_not_gate": [
         "full_first_install_build",

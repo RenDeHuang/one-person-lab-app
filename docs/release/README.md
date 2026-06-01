@@ -61,6 +61,11 @@ bundled runtime while Settings resumes Git-backed and module maintenance.
 
 The OPL Framework repository is a payload source for the Full DMG
 runtime/CLI/contracts layer. It does not own App release workflows.
+It may reference the public WebUI image coordinate, but the App repo owns
+publishing `ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>` and the
+stable/latest/nightly tag semantics. The App workflow builds the image with the
+OCI source label `org.opencontainers.image.source=https://github.com/gaofeng21cn/one-person-lab-app`
+so GitHub Packages can associate the package with the App repository.
 
 The active shell source is `gaofeng21cn/opl-aion-shell`. It is consumed as an
 external checkout at `shells/aionui` and is not tracked in the clean App repo
@@ -180,31 +185,37 @@ and English-only Full companion text.
 Nightly and stable releases intentionally run different validation profiles.
 Nightly is a fast standard-updater confidence lane: release-boundary contract,
 standard macOS arm64 build, local standard asset validation, prerelease upload
-with `--latest=false`, and remote standard asset verification. It does not build
-Full assets and does not require clean VM, one-shot installer, Docker/WebUI, or
-operator evidence gates.
+with `--latest=false`, remote standard asset verification, and App-owned WebUI
+GHCR image publish for `ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>`
+plus the `nightly` tag, with the App repository OCI source label. It does not build Full assets and does not require
+clean VM, one-shot installer, Docker/WebUI smoke, or operator evidence gates.
 
 Stable is the complete user-install proof lane. Before a stable App Release is
 treated as smooth, it must cover standard DMG clean-VM installation, Full DMG
 clean-VM installation, the public App one-shot installer, Docker/WebUI through
-HTTP, remote verification for standard and Full assets, and the operator
+HTTP, App-owned WebUI GHCR image publish for
+`ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>` with `stable` and
+`latest`, remote verification for standard and Full assets, and the operator
 evidence bundle. The heavy gates are grouped by installation surface so failures
 say which user path is broken instead of producing one vague release failure.
 Stable validation covers standard DMG, Full DMG, one-shot installer, and
-Docker/WebUI evidence as separate installation surfaces.
+Docker/WebUI evidence as separate installation surfaces, then publishes the
+WebUI image from the App workflow after HTTP smoke passes. The published image
+must carry `org.opencontainers.image.source=https://github.com/gaofeng21cn/one-person-lab-app`.
 
 The final stable decision entry is the `release-readiness-summary` job in
 `.github/workflows/desktop-release.yml`. It runs after the selected remote
 verification, standard/Full clean-VM gates, one-shot installer smoke,
-Docker/WebUI smoke, and evidence bundle validation, then writes
+Docker/WebUI smoke, WebUI GHCR publish, and evidence bundle validation, then writes
 `release-readiness-summary.json` plus a GitHub Step Summary. It fails closed
 when any required gate result or small evidence artifact is failed, cancelled,
 missing, or unexpectedly skipped.
 
 That final summary is a diagnostic reader, not another package consumer. It
 downloads only small artifacts: remote verification JSON, VM smoke summaries,
-one-shot installer output, Docker/WebUI smoke output, Full diagnostics, and
-`full-workflow-telemetry.json`. It must not download the standard DMG artifact,
+one-shot installer output, Docker/WebUI smoke output, WebUI GHCR publish
+summary, Full diagnostics, and `full-workflow-telemetry.json`. It must not
+download the standard DMG artifact,
 the large Full DMG workflow artifact, or published DMG assets for diagnosis.
 Full build bottleneck analysis uses `duration_seconds.full_package_build` and
 `duration_seconds.full_package_build_breakdown` from telemetry, while manifest,
@@ -488,6 +499,8 @@ The speed design is one release graph, not separate manual phases:
 - Stable starts standard and Full builds as early as their gates allow.
 - Standard DMG VM, one-shot installer, and Docker/WebUI start after the standard
   assets are published.
+- WebUI GHCR publish starts only after Docker/WebUI HTTP smoke passes; draft
+  candidates record the intended tags without pushing.
 - Full assets publish only after the standard release exists and the Full build
   artifact is available.
 - Full remote verification and Full DMG VM stay on the Full path.
@@ -595,9 +608,14 @@ in the background and prompt for restart after the update is ready; Full
 first-install assets remain separate release downloads and are not updater
 metadata.
 
-2026-05-17 release policy: the stable App release channel publishes macOS arm64
-standard update assets only. Docker/WebUI support is validated separately
-against the Framework runtime surfaces; it is not a desktop release asset lane.
+2026-06-01 release policy: the App release channel owns WebUI GHCR publishing.
+Stable desktop release workflows publish
+`ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>`, `stable`, and
+`latest` after Docker/WebUI HTTP smoke passes. Nightly publishes
+`<app_or_opl_version>` and `nightly`. Both lanes label the image source as
+`https://github.com/gaofeng21cn/one-person-lab-app`. The Framework only references this image
+coordinate. Full DMG payload assembly must not include the WebUI GHCR image, and
+standard updater metadata remains restricted to standard macOS arm64 App assets.
 
 The `gaofeng21cn/one-person-lab` and `gaofeng21cn/opl-aion-shell` GitHub
 Release lists should stay empty so App release ownership has a single remote

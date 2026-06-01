@@ -2166,8 +2166,14 @@ test('nightly release plan stays lightweight and excludes stable installation ga
     'standard_build',
     'publish_nightly_prerelease',
     'remote_verify_standard',
+    'webui_ghcr_publish',
   ]);
   assert.ok(payload.lanes.every((lane) => !/full|vm|installer|docker|evidence/i.test(lane.id)));
+  assert.ok(
+    payload.lanes
+      .find((lane) => lane.id === 'webui_ghcr_publish')
+      ?.command.includes('ghcr.io/<owner>/one-person-lab-webui:nightly'),
+  );
 });
 
 test('publish dry run skips existing release assets when a resumed upload already has matching files', () => {
@@ -2948,6 +2954,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:[\s\S]*needs: publish-standard/);
   assert.match(workflow, /run_vm_smoke:/);
   assert.match(workflow, /default: true/);
+  assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-standard-only:/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
@@ -2955,8 +2962,15 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /docker-webui-smoke:/);
   assert.match(workflow, /OPL_INSTALL_SCRIPT_URL: file:\/\/\$\{\{ github\.workspace \}\}\/one-person-lab\/install\.sh/);
   assert.match(workflow, /\.\/install\.sh --complete --skip-modules/);
-  assert.match(workflow, /docker build -t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}" shells\/aionui/);
+  assert.match(workflow, /docker build[\s\S]*--label "org\.opencontainers\.image\.source=https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"[\s\S]*-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"[\s\S]*shells\/aionui/);
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
+  assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
+  assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
+  assert.match(workflow, /"source_repository":"https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"/);
+  assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}"/);
+  assert.match(workflow, /"\$\{ghcr_image\}:stable"/);
+  assert.match(workflow, /"\$\{ghcr_image\}:latest"/);
+  assert.match(workflow, /RELEASE_MODE.*draft_candidate/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /release_artifact_name: macos-build-arm64/);
@@ -3031,6 +3045,27 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     releaseContract.release_acceleration.github_actions.desktop_release_workflow,
     '.github/workflows/desktop-release.yml',
   );
+  assert.deepEqual(releaseContract.webui_ghcr_image, {
+    owner: 'one-person-lab-app',
+    registry: 'ghcr.io',
+    image: 'ghcr.io/<owner>/one-person-lab-webui',
+    version_tag: '<app_or_opl_version>',
+    source: 'shells/aionui Dockerfile',
+    source_repository: 'https://github.com/gaofeng21cn/one-person-lab-app',
+    required_oci_labels: {
+      'org.opencontainers.image.source': 'https://github.com/gaofeng21cn/one-person-lab-app',
+    },
+    publish_workflows: [
+      '.github/workflows/desktop-release.yml',
+      '.github/workflows/nightly-standard-release.yml',
+    ],
+    stable_tags: ['<app_or_opl_version>', 'stable', 'latest'],
+    nightly_tags: ['<app_or_opl_version>', 'nightly'],
+    draft_candidate_push: false,
+    full_first_install_payload_allowed: false,
+    framework_role: 'references_image_coordinate_only',
+    rule: 'WebUI GHCR image publish truth is App-owned; Framework may reference the image coordinate but does not own publishing.',
+  });
   assert.equal(
     releaseContract.release_acceleration.github_actions.first_run_vm_workflow,
     '.github/workflows/opl-first-run-vm.yml',
@@ -3085,6 +3120,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   );
 
   assert.match(workflow, /name: OPL Nightly Standard Release/);
+  assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /schedule:/);
   assert.match(workflow, /cron: '17 18 \* \* \*'/);
@@ -3102,12 +3138,22 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /--title "\$\{OPL_RELEASE_TAG\}"/);
   assert.match(workflow, /gh release upload "\$\{OPL_RELEASE_TAG\}" release-assets\/\*/);
   assert.match(workflow, /npm run verify-remote-release/);
+  assert.match(workflow, /webui-ghcr-publish:/);
+  assert.match(workflow, /docker build[\s\S]*--label "org\.opencontainers\.image\.source=https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"[\s\S]*-t "one-person-lab-webui:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}"[\s\S]*shells\/aionui/);
+  assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
+  assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
+  assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
+  assert.match(workflow, /"source_repository":"https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"/);
+  assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}"/);
+  assert.match(workflow, /"\$\{ghcr_image\}:nightly"/);
   assert.doesNotMatch(workflow, /full-first-install-release\.yml/);
   assert.doesNotMatch(workflow, /include_full_package/);
   assert.doesNotMatch(workflow, /One-Person-Lab-Full/);
   assert.doesNotMatch(workflow, /nightly\.\$\{stamp\}/);
   assert.doesNotMatch(workflow, /One Person Lab Nightly \$\{OPL_RELEASE_VERSION\}/);
   assert.doesNotMatch(workflow, /This prerelease is for users who opt into prerelease\/Nightly updates/);
+  assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:latest"/);
+  assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:stable"/);
   assert.match(boundaryScript, /nightly_standard_release_workflow/);
   assert.equal(
     releaseContract.release_acceleration.github_actions.nightly_standard_release_workflow,
@@ -3121,6 +3167,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
     'standard_macos_arm64_build',
     'local_standard_asset_validation',
     'remote_standard_release_verification',
+    'webui_ghcr_publish',
   ]);
   assert.ok(
     releaseContract.release_validation_profiles.nightly_standard.forbidden_lanes.includes('full_first_install_build'),
@@ -3147,6 +3194,8 @@ test('stable validation profile covers every user installation surface', () => {
   const scenarioIds = firstRunMatrix.scenarios.map((scenario) => scenario.id);
   const stable = releaseContract.release_validation_profiles.stable;
 
+  assert.ok(stable.required_lanes.includes('webui_ghcr_publish'));
+  assert.ok(stable.required_lanes.indexOf('webui_ghcr_publish') > stable.required_lanes.indexOf('docker_webui_smoke'));
   assert.deepEqual(stable.required_installation_surfaces, [
     'standard_dmg_clean_vm_smoke',
     'full_dmg_clean_vm_smoke',
@@ -3175,6 +3224,9 @@ test('stable validation profile covers every user installation surface', () => {
   }
   assert.match(combinedDocs, /Nightly[\s\S]*standard[\s\S]*remote/i);
   assert.match(combinedDocs, /Stable[\s\S]*standard DMG[\s\S]*Full DMG[\s\S]*one-shot[\s\S]*Docker\/WebUI/i);
+  assert.match(combinedDocs, /ghcr\.io\/<owner>\/one-person-lab-webui:<app_or_opl_version>/);
+  assert.match(combinedDocs, /Framework[\s\S]*references?[\s\S]*image coordinate/i);
+  assert.match(combinedDocs, /Full[\s\S]*DMG[\s\S]*must not include[\s\S]*WebUI GHCR image/i);
 });
 
 test('release automation workflows cover remote verification, Full cache warmup, and draft promotion', () => {

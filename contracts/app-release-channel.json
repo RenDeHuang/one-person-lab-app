@@ -40,6 +40,34 @@
     ],
     "rule": "Nightly releases publish standard macOS arm64 updater assets only and remain visible only to prerelease opt-in update checks."
   },
+  "webui_ghcr_image": {
+    "owner": "one-person-lab-app",
+    "registry": "ghcr.io",
+    "image": "ghcr.io/<owner>/one-person-lab-webui",
+    "version_tag": "<app_or_opl_version>",
+    "source": "shells/aionui Dockerfile",
+    "source_repository": "https://github.com/gaofeng21cn/one-person-lab-app",
+    "required_oci_labels": {
+      "org.opencontainers.image.source": "https://github.com/gaofeng21cn/one-person-lab-app"
+    },
+    "publish_workflows": [
+      ".github/workflows/desktop-release.yml",
+      ".github/workflows/nightly-standard-release.yml"
+    ],
+    "stable_tags": [
+      "<app_or_opl_version>",
+      "stable",
+      "latest"
+    ],
+    "nightly_tags": [
+      "<app_or_opl_version>",
+      "nightly"
+    ],
+    "draft_candidate_push": false,
+    "full_first_install_payload_allowed": false,
+    "framework_role": "references_image_coordinate_only",
+    "rule": "WebUI GHCR image publish truth is App-owned; Framework may reference the image coordinate but does not own publishing."
+  },
   "full_first_install": {
     "asset_name_must_include": "Full",
     "updater_visible": false,
@@ -278,7 +306,8 @@
         "release_boundary_contract",
         "standard_macos_arm64_build",
         "local_standard_asset_validation",
-        "remote_standard_release_verification"
+        "remote_standard_release_verification",
+        "webui_ghcr_publish"
       ],
       "forbidden_lanes": [
         "full_first_install_build",
@@ -304,6 +333,7 @@
         "full_dmg_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "docker_webui_smoke",
+        "webui_ghcr_publish",
         "operator_evidence_bundle"
       ],
       "required_installation_surfaces": [

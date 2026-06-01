@@ -14,6 +14,7 @@ on:
 permissions:
   contents: write
   actions: read
+  packages: write
 
 concurrency:
   group: opl-nightly-standard-release
@@ -157,4 +158,65 @@ jobs:
         with:
           name: remote-nightly-release-verification-${{ needs.resolve-nightly.outputs.version }}
           path: remote-nightly-release-verification.json
+          if-no-files-found: error
+
+  webui-ghcr-publish:
+    name: Publish Nightly WebUI GHCR image
+    runs-on: ubuntu-latest
+    needs:
+      - resolve-nightly
+      - publish-nightly
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Checkout active shell
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: main
+          path: shells/aionui
+
+      - name: Build, verify, and publish Nightly WebUI image
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          image_owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          ghcr_image="ghcr.io/${image_owner}/one-person-lab-webui"
+          docker build \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            -t "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}" \
+            shells/aionui
+          container="$(docker run --rm -d -p 127.0.0.1::3000 "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}")"
+          cleanup() {
+            docker rm -f "$container" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          port="$(docker port "$container" 3000/tcp | sed -E 's/.*:([0-9]+)$/\1/')"
+          for attempt in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:${port}/" >/tmp/opl-webui-index.html; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS "http://127.0.0.1:${port}/manifest.webmanifest" >/tmp/opl-webui-manifest.webmanifest
+
+          docker tag "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}" "${ghcr_image}:${{ needs.resolve-nightly.outputs.version }}"
+          docker tag "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}" "${ghcr_image}:nightly"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "${ghcr_image}:${{ needs.resolve-nightly.outputs.version }}"
+          docker push "${ghcr_image}:nightly"
+          cat > /tmp/opl-webui-ghcr-publish.json <<JSON
+          {"status":"published","image":"${ghcr_image}","tags":["${{ needs.resolve-nightly.outputs.version }}","nightly"],"source_repository":"https://github.com/${GITHUB_REPOSITORY}"}
+          JSON
+
+      - name: Upload Nightly WebUI GHCR publish summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: webui-ghcr-publish-${{ needs.resolve-nightly.outputs.version }}
+          path: /tmp/opl-webui-ghcr-publish.json
           if-no-files-found: error

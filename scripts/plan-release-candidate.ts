@@ -165,8 +165,20 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
           id: 'remote_verify_standard',
           phase: 'remote_gate',
           depends_on: ['publish_nightly_prerelease'],
-          can_run_with: [],
+          can_run_with: ['webui_ghcr_publish'],
           command: `npm run verify-remote-release -- --version ${options.version}`,
+          required_for: ['nightly_standard_release'],
+        },
+        {
+          id: 'webui_ghcr_publish',
+          phase: 'publish',
+          depends_on: ['publish_nightly_prerelease'],
+          can_run_with: ['remote_verify_standard'],
+          command: [
+            `.github/workflows/nightly-standard-release.yml builds and verifies one-person-lab-webui:${options.version}`,
+            `docker push ghcr.io/<owner>/one-person-lab-webui:${options.version}`,
+            'docker push ghcr.io/<owner>/one-person-lab-webui:nightly',
+          ].join(' && '),
           required_for: ['nightly_standard_release'],
         },
       ] satisfies Lane[],
@@ -336,6 +348,24 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   });
 
   lanes.push({
+    id: 'webui_ghcr_publish',
+    phase: 'publish',
+    depends_on: ['docker_webui_smoke'],
+    can_run_with: options.includeFullPackage
+      ? ['standard_dmg_clean_vm_smoke', 'full_build', 'publish_full_assets', 'one_shot_app_installer_smoke']
+      : ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke'],
+    command: [
+      `docker tag one-person-lab-webui:${options.version} ghcr.io/<owner>/one-person-lab-webui:${options.version}`,
+      `docker tag one-person-lab-webui:${options.version} ghcr.io/<owner>/one-person-lab-webui:stable`,
+      `docker tag one-person-lab-webui:${options.version} ghcr.io/<owner>/one-person-lab-webui:latest`,
+      'docker push ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>',
+      'docker push ghcr.io/<owner>/one-person-lab-webui:stable',
+      'docker push ghcr.io/<owner>/one-person-lab-webui:latest',
+    ].join(' && '),
+    required_for: ['stable_release'],
+  });
+
+  lanes.push({
     id: 'release_evidence_bundle',
     phase: 'release_gate',
     depends_on: [
@@ -344,6 +374,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       ...(options.includeFullPackage && options.settingsVm ? ['full_dmg_clean_vm_smoke'] : []),
       'one_shot_app_installer_smoke',
       'docker_webui_smoke',
+      'webui_ghcr_publish',
     ],
     can_run_with: [],
     command: `npm run release:evidence:validate -- --bundle-dir release-evidence/${options.version}`,
@@ -380,6 +411,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       ...(options.includeFullPackage && options.settingsVm ? ['full_dmg_clean_vm_smoke'] : []),
       'one_shot_app_installer_smoke',
       'docker_webui_smoke',
+      'webui_ghcr_publish',
       'release_evidence_bundle',
       'publish_new_tag',
     ],
