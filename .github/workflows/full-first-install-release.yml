@@ -170,7 +170,7 @@ jobs:
 
       - name: Cache Bun install cache
         id: bun-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: full-bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('one-person-lab-app/shells/aionui/package.json', 'one-person-lab-app/shells/aionui/bun.lock') }}
@@ -180,7 +180,7 @@ jobs:
 
       - name: Cache Electron artifacts
         id: electron-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ runner.temp }}/.cache/electron
@@ -200,7 +200,7 @@ jobs:
 
       - name: Cache uv artifacts
         id: uv-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/uv
@@ -301,7 +301,7 @@ jobs:
 
       - name: Restore Full shell Vite output cache
         id: restore-shell-vite-output
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             one-person-lab-app/shells/aionui/out/main
@@ -387,7 +387,7 @@ jobs:
       - name: Restore Full toolchain runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-toolchain
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_key }}
@@ -395,7 +395,7 @@ jobs:
       - name: Restore Full domain runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-domain
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_key }}
@@ -403,7 +403,7 @@ jobs:
       - name: Restore Full OPL runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-opl
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_key }}
@@ -411,7 +411,7 @@ jobs:
       - name: Restore Full skills runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
         id: restore-runtime-cache-skills
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ steps.runtime-cache-keys.outputs.skills_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.skills_cache_key }}
@@ -706,7 +706,7 @@ jobs:
 
       - name: Save Full shell Vite output cache
         if: ${{ steps.restore-shell-vite-output.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         continue-on-error: true
         with:
           path: |
@@ -718,7 +718,7 @@ jobs:
 
       - name: Save Full toolchain runtime cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-toolchain.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         continue-on-error: true
         with:
           path: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_dir }}
@@ -726,7 +726,7 @@ jobs:
 
       - name: Save Full domain runtime cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-domain.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         continue-on-error: true
         with:
           path: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_dir }}
@@ -734,7 +734,7 @@ jobs:
 
       - name: Save Full OPL runtime cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-opl.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         continue-on-error: true
         with:
           path: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_dir }}
@@ -742,7 +742,7 @@ jobs:
 
       - name: Save Full skills runtime cache
         if: ${{ inputs.force_rebuild_runtime_cache || steps.restore-runtime-cache-skills.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         continue-on-error: true
         with:
           path: ${{ steps.runtime-cache-keys.outputs.skills_cache_dir }}
