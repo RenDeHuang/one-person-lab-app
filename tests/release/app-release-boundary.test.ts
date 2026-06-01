@@ -1137,6 +1137,20 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
     default_validation: 'fail_closed',
     allow_missing_evidence_flag: '--allow-missing-evidence',
     missing_status: 'missing_evidence',
+    allowed_artifact_statuses: [
+      'present',
+      'missing',
+      'typed_blocker',
+      'not_applicable',
+    ],
+    typed_blocker_status_requires: [
+      'reason',
+      'typed_blocker_ref',
+    ],
+    not_applicable_status_requires: [
+      'reason',
+      'not_applicable_reason',
+    ],
     packaged_app_evidence_requires: 'all_required_artifacts_present_and_verified',
   });
   assert.equal(
@@ -1308,12 +1322,13 @@ test('release evidence bundle validator fails closed for incomplete packaged App
     authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
     artifacts,
     missing_evidence: artifacts
-      .filter((artifact) => artifact.status === 'missing')
-      .map((artifact) => ({
-        id: artifact.id,
-        path: artifact.path,
-        reason: artifact.missing_reason,
-      })),
+    .filter((artifact) => artifact.status === 'missing')
+    .map((artifact) => ({
+      id: artifact.id,
+      path: artifact.path,
+      status: artifact.status,
+      reason: artifact.missing_reason,
+    })),
   }, null, 2)}\n`);
   writeRuntimeEvidenceJsonFiles(tempRoot);
   writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
@@ -1348,6 +1363,158 @@ test('release evidence bundle validator fails closed for incomplete packaged App
     'assistant_route_smoke_summary',
     'remote_release_verification',
   ]);
+});
+
+test('release evidence bundle validator classifies typed blockers and not-applicable artifacts without packaged evidence', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-classified-'));
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const nonPresentById = new Map([
+    ['first_run_vm_summary', {
+      status: 'typed_blocker',
+      reason: 'clean VM host is unavailable for this cohort',
+      typed_blocker_ref: 'github-actions:opl-first-run-vm#blocked-no-runner',
+    }],
+    ['guest_smoke_summary', {
+      status: 'not_applicable',
+      reason: 'draft evidence cohort did not package a launchable app',
+      not_applicable_reason: 'draft_evidence_only_no_packaged_app',
+    }],
+  ]);
+  const artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => (
+    nonPresentById.has(artifact.id)
+      ? {
+          ...artifact,
+          ...nonPresentById.get(artifact.id),
+        }
+      : {
+          ...artifact,
+          status: 'present',
+        }
+  ));
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'missing_evidence',
+    packaged_app_evidence: false,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts,
+    missing_evidence: artifacts
+      .filter((artifact) => artifact.status !== 'present')
+      .map((artifact) => ({
+        id: artifact.id,
+        path: artifact.path,
+        status: artifact.status,
+        reason: artifact.reason,
+        ...(artifact.typed_blocker_ref ? { typed_blocker_ref: artifact.typed_blocker_ref } : {}),
+        ...(artifact.not_applicable_reason ? { not_applicable_reason: artifact.not_applicable_reason } : {}),
+      })),
+  }, null, 2)}\n`);
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeVmSmokeSummaryFiles(tempRoot);
+  writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+
+  const blocked = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+  ]);
+
+  assert.notEqual(blocked.status, 0);
+  assert.match(blocked.stderr, /cannot be used as packaged App evidence/);
+
+  const allowed = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+    '--allow-missing-evidence',
+  ]);
+
+  assert.equal(allowed.status, 0, allowed.stderr || allowed.stdout);
+  const payload = JSON.parse(allowed.stdout);
+  assert.equal(payload.status, 'missing_evidence');
+  assert.equal(payload.packaged_app_evidence, false);
+  assert.equal(payload.verified_artifact_count, 10);
+  assert.equal(payload.missing_artifact_count, 2);
+  assert.deepEqual(
+    payload.missing_artifacts.map((artifact) => [artifact.id, artifact.status]),
+    [
+      ['first_run_vm_summary', 'typed_blocker'],
+      ['guest_smoke_summary', 'not_applicable'],
+    ],
+  );
+  assert.equal(
+    payload.missing_artifacts.find((artifact) => artifact.id === 'first_run_vm_summary').typed_blocker_ref,
+    'github-actions:opl-first-run-vm#blocked-no-runner',
+  );
+  assert.equal(
+    payload.missing_artifacts.find((artifact) => artifact.id === 'guest_smoke_summary').not_applicable_reason,
+    'draft_evidence_only_no_packaged_app',
+  );
+});
+
+test('release evidence manifest generator applies explicit artifact classifications', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-classified-generated-'));
+  const classificationPath = path.join(tempRoot, 'artifact-classifications.json');
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeFile(path.join(classificationPath), `${JSON.stringify({
+    artifact_classifications: [
+      {
+        id: 'first_run_vm_summary',
+        status: 'typed_blocker',
+        reason: 'clean VM host is unavailable for this cohort',
+        typed_blocker_ref: 'github-actions:opl-first-run-vm#blocked-no-runner',
+      },
+      {
+        id: 'guest_smoke_summary',
+        status: 'not_applicable',
+        reason: 'draft evidence cohort did not package a launchable app',
+        not_applicable_reason: 'draft_evidence_only_no_packaged_app',
+      },
+    ],
+  }, null, 2)}\n`);
+
+  const generated = runNode([
+    'scripts/write-release-evidence-manifest.ts',
+    '--bundle-dir',
+    tempRoot,
+    '--classification',
+    classificationPath,
+  ]);
+
+  assert.equal(generated.status, 0, generated.stderr || generated.stdout);
+  const generatedPayload = JSON.parse(generated.stdout);
+  assert.equal(generatedPayload.status, 'missing_evidence');
+  assert.equal(generatedPayload.packaged_app_evidence, false);
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(tempRoot, 'evidence-manifest.json'), 'utf8'));
+  assert.deepEqual(
+    manifest.missing_evidence.map((artifact) => [artifact.id, artifact.status]),
+    [
+      ['first_run_vm_summary', 'typed_blocker'],
+      ['guest_smoke_summary', 'not_applicable'],
+      ['assistant_route_smoke_summary', 'missing'],
+      ['remote_release_verification', 'missing'],
+    ],
+  );
+  assert.equal(
+    manifest.missing_evidence.find((artifact) => artifact.id === 'first_run_vm_summary').typed_blocker_ref,
+    'github-actions:opl-first-run-vm#blocked-no-runner',
+  );
+  assert.equal(
+    manifest.missing_evidence.find((artifact) => artifact.id === 'guest_smoke_summary').not_applicable_reason,
+    'draft_evidence_only_no_packaged_app',
+  );
 });
 
 test('release evidence bundle validator rejects contract-only runtime JSON placeholders', () => {
@@ -2804,7 +2971,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(fullWorkflow, /name: Checkout MinerU Ecosystem/);
   assert.match(fullWorkflow, /repository: opendatalab\/MinerU-Ecosystem/);
   assert.match(fullWorkflow, /path: MinerU-Ecosystem/);
-  assert.match(fullWorkflow, /uses: actions\/setup-go@v5/);
+  assert.match(fullWorkflow, /uses: actions\/setup-go@v6/);
   assert.match(fullWorkflow, /go-version: '1\.26\.x'/);
   assert.match(fullWorkflow, /mineru_root="\$GITHUB_WORKSPACE\/MinerU-Ecosystem\/cli\/mineru-open-api"/);
   assert.match(fullWorkflow, /go install -ldflags/);
@@ -2819,7 +2986,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   );
   assert.match(vmWorkflow, /workflow_call:/);
   assert.match(vmWorkflow, /release_artifact_name:/);
-  assert.match(vmWorkflow, /actions\/download-artifact@v7/);
+  assert.match(vmWorkflow, /actions\/download-artifact@v8/);
   assert.match(vmWorkflow, /Using same-run workflow artifact/);
   assert.match(vmWorkflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/);
   assert.match(vmWorkflow, /fetch_release_metadata_with_retry\(\)/);
@@ -3027,7 +3194,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(verifyWorkflow, /npm run verify-remote-release/);
   assert.match(verifyWorkflow, /--summary-path remote-release-verification\.json/);
   assert.match(verifyWorkflow, /verify_args\+=\(--include-full-package\)/);
-  assert.match(verifyWorkflow, /actions\/upload-artifact@v4/);
+  assert.match(verifyWorkflow, /actions\/upload-artifact@v7/);
 
   assert.match(warmupWorkflow, /name: OPL Full Runtime Cache Warmup/);
   assert.match(warmupWorkflow, /schedule:/);
@@ -3052,7 +3219,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(cleanupWorkflow, /--summary-path release-draft-cleanup-summary\.json/);
   assert.match(cleanupWorkflow, /cleanup_args\+=\(--execute\)/);
   assert.match(cleanupWorkflow, /cleanup_args\+=\(--dry-run\)/);
-  assert.match(cleanupWorkflow, /actions\/upload-artifact@v4/);
+  assert.match(cleanupWorkflow, /actions\/upload-artifact@v7/);
   assert.doesNotMatch(cleanupWorkflow, /actions\/download-artifact/);
   assert.doesNotMatch(cleanupWorkflow, /gh release download/);
   assert.match(cleanupScript, /\^v\$\{escaped\}-\(draft\|readiness\)\\\\\.\\\\d\{14\}\$/);
@@ -3330,7 +3497,7 @@ test('release creation job runs TypeScript asset scripts under Node 22', () => {
 
   assert.match(
     workflow,
-    /name: Create Release[\s\S]*name: Checkout active shell[\s\S]*repository: gaofeng21cn\/opl-aion-shell[\s\S]*path: shells\/aionui[\s\S]*name: Setup Node\.js[\s\S]*uses: actions\/setup-node@v4[\s\S]*node-version: '22'[\s\S]*node --experimental-strip-types scripts\/prepare-release-assets\.ts/,
+    /name: Create Release[\s\S]*name: Checkout active shell[\s\S]*repository: gaofeng21cn\/opl-aion-shell[\s\S]*path: shells\/aionui[\s\S]*name: Setup Node\.js[\s\S]*uses: actions\/setup-node@v6[\s\S]*node-version: '22'[\s\S]*node --experimental-strip-types scripts\/prepare-release-assets\.ts/,
   );
 });
 

@@ -163,7 +163,7 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /--reuse-gui-vite-output/, 'Full package build can reuse restored shell Vite output');
   assert.ok(!workflow.includes('reuse_gui_args=()'), 'Full workflow avoids empty bash array expansion under set -u');
   assertMatches(workflow, /if \[ "\$\{\{ steps\.restore-shell-vite-output\.outputs\.cache-hit \|\| 'false' \}\}" = "true" \]; then[\s\S]*--reuse-gui-vite-output[\s\S]*else[\s\S]*npm run release:full/, 'Full workflow handles Vite cache hit and miss explicitly');
-  assertMatches(workflow, /name:\s+Save Full shell Vite output cache[\s\S]*actions\/cache\/save@v4/, 'Full workflow saves reusable shell Vite output');
+  assertMatches(workflow, /name:\s+Save Full shell Vite output cache[\s\S]*actions\/cache\/save@v5/, 'Full workflow saves reusable shell Vite output');
   assertMatches(workflow, /payload_refs:\s+fullManifest\?\.resolved_refs/, 'Full telemetry resolved refs field');
   assertMatches(workflow, /resolved_refs:\s+fullManifest\?\.resolved_refs/, 'Full telemetry normalized resolved refs field');
   assertMatches(workflow, /## Full Payload Resolved Refs/, 'Full summary resolved refs section');
@@ -179,7 +179,7 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   ]) {
     assertIncludes(workflow + readRepoFile('scripts/plan-release-candidate.ts'), payloadLabel, `Full resolved refs payload ${payloadLabel}`);
   }
-  assertMatches(workflow, /Upload Full workflow telemetry[\s\S]*actions\/upload-artifact@v4/, 'Full telemetry artifact upload');
+  assertMatches(workflow, /Upload Full workflow telemetry[\s\S]*actions\/upload-artifact@v7/, 'Full telemetry artifact upload');
   assertMatches(workflow, /Upload Full diagnostics artifact[\s\S]*name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/, 'Full diagnostics artifact upload');
   assertMatches(workflow, /Upload Full diagnostics artifact[\s\S]*full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
   assertMatches(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/, 'Full package artifact upload defaults on for release-call consumers');
@@ -230,7 +230,7 @@ test('first-run VM workflow writes deterministic preflight and final summaries b
   assertMatches(workflow, /## OPL GUI first-run VM preflight/, 'VM preflight heading');
   assertMatches(workflow, /deterministic release-blocking clean VM first launch/, 'VM gate purpose');
   assertMatches(workflow, /release_artifact_name:/, 'VM same-run artifact input');
-  assertMatches(workflow, /actions\/download-artifact@v7/, 'VM same-run artifact download');
+  assertMatches(workflow, /actions\/download-artifact@v8/, 'VM same-run artifact download');
   assertMatches(workflow, /Using same-run workflow artifact/, 'VM artifact source log');
   assertMatches(workflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/, 'VM release tag provenance');
   assertMatches(workflow, /Resolve host Node\.js runtime for guest smoke/, 'VM host Node runtime resolution');

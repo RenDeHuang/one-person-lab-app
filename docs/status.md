@@ -287,8 +287,10 @@ provider linkage, and long-operator refs available to the App/operator surface.
 It remains a refs-only user-path projection from OPL runtime evidence; it is not
 an App release-ready claim, a domain readiness claim, or a family production
 readiness claim. Future release cohorts must still provide real artifacts or
-explicit missing evidence entries through the release evidence bundle and OPL
-ledger before being treated as observed.
+explicit artifact classifications through the release evidence bundle and OPL
+ledger before being treated as observed. The release evidence manifest uses
+`present`, `missing`, `typed_blocker`, and `not_applicable` artifact statuses;
+only an all-present verified bundle can set `packaged_app_evidence=true`.
 
 2026-05-29 packaged GUI assistant route evidence remains open for the local
 26.5.28 Full DMG. The smoke harness now writes a fail-closed

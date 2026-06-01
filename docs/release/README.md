@@ -287,12 +287,44 @@ npm run release:evidence:manifest -- \
   --overwrite
 ```
 
+If a cohort has a real owner-visible typed blocker or an artifact is not
+applicable to that cohort, record that explicitly in a small classification
+file and pass it to the manifest writer:
+
+```json
+{
+  "artifact_classifications": [
+    {
+      "id": "first_run_vm_summary",
+      "status": "typed_blocker",
+      "reason": "clean VM host is unavailable for this cohort",
+      "typed_blocker_ref": "github-actions:opl-first-run-vm#blocked-no-runner"
+    },
+    {
+      "id": "guest_smoke_summary",
+      "status": "not_applicable",
+      "reason": "draft evidence cohort did not package a launchable app",
+      "not_applicable_reason": "draft_evidence_only_no_packaged_app"
+    }
+  ]
+}
+```
+
+```bash
+npm run release:evidence:manifest -- \
+  --bundle-dir release-evidence/<version> \
+  --classification release-evidence/<version>/artifact-classifications.json \
+  --overwrite
+```
+
 The collector writes only OPL-owned runtime snapshot, summary/full
 App/operator drilldown, and selected safe-action dry-run/execute JSON. It does
 not create screenshots, VM first-run summaries, guest smoke summaries,
 assistant route smoke summaries, remote Release verification, runtime truth,
 domain truth, artifact authority, or quality verdicts; absent App/VM/remote
-artifacts remain `missing` in the manifest.
+artifacts remain `missing` in the manifest unless the cohort explicitly records
+`typed_blocker` or `not_applicable`. These non-present statuses are reportable
+evidence classifications, not packaged App evidence.
 
 Validate a collected bundle with:
 
@@ -304,8 +336,8 @@ npm run release:evidence:validate -- \
 Default validation fails closed when required evidence is absent. If a VM smoke
 summary, guest smoke summary, assistant route smoke summary, screenshot, OPL
 runtime JSON, or remote Release artifact could not be produced in the current
-environment, keep that artifact marked as `missing` in
-`evidence-manifest.json` and run:
+environment, keep that artifact marked as `missing`, `typed_blocker`, or
+`not_applicable` in `evidence-manifest.json` and run:
 
 ```bash
 npm run release:evidence:validate -- \

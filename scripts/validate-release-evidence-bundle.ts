@@ -27,8 +27,11 @@ type EvidenceContract = {
 };
 
 type ManifestArtifact = EvidenceArtifact & {
-  status: 'present' | 'missing';
+  status: 'present' | 'missing' | 'typed_blocker' | 'not_applicable';
+  reason?: string;
   missing_reason?: string;
+  typed_blocker_ref?: string;
+  not_applicable_reason?: string;
 };
 
 function parseArgs(argv: string[]): Options {
@@ -311,6 +314,24 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   if (record.missing_evidence_policy?.missing_status !== 'missing_evidence') {
     throw new Error('Operator evidence bundle missing evidence policy must declare missing_evidence status.');
   }
+  const allowedStatuses = record.missing_evidence_policy?.allowed_artifact_statuses;
+  if (
+    !Array.isArray(allowedStatuses) ||
+    !['present', 'missing', 'typed_blocker', 'not_applicable'].every((status) => allowedStatuses.includes(status))
+  ) {
+    throw new Error('Operator evidence bundle must allow present, missing, typed_blocker, and not_applicable artifact statuses.');
+  }
+  const typedBlockerRequirements = record.missing_evidence_policy?.typed_blocker_status_requires;
+  if (!Array.isArray(typedBlockerRequirements) || !['reason', 'typed_blocker_ref'].every((field) => typedBlockerRequirements.includes(field))) {
+    throw new Error('Operator evidence bundle typed_blocker status must require reason and typed_blocker_ref.');
+  }
+  const notApplicableRequirements = record.missing_evidence_policy?.not_applicable_status_requires;
+  if (
+    !Array.isArray(notApplicableRequirements) ||
+    !['reason', 'not_applicable_reason'].every((field) => notApplicableRequirements.includes(field))
+  ) {
+    throw new Error('Operator evidence bundle not_applicable status must require reason and not_applicable_reason.');
+  }
   if (record.missing_evidence_policy?.packaged_app_evidence_requires !== 'all_required_artifacts_present_and_verified') {
     throw new Error('Operator evidence bundle must require all artifacts before claiming packaged App evidence.');
   }
@@ -347,11 +368,32 @@ function validateManifestArtifact(manifestArtifact: unknown, expected: EvidenceA
       throw new Error(`Manifest artifact ${expected.id}.${key} must match release contract.`);
     }
   }
-  if (artifact.status !== 'present' && artifact.status !== 'missing') {
-    throw new Error(`Manifest artifact ${expected.id}.status must be present or missing.`);
+  if (
+    artifact.status !== 'present' &&
+    artifact.status !== 'missing' &&
+    artifact.status !== 'typed_blocker' &&
+    artifact.status !== 'not_applicable'
+  ) {
+    throw new Error(`Manifest artifact ${expected.id}.status must be present, missing, typed_blocker, or not_applicable.`);
   }
   if (artifact.status === 'missing' && typeof artifact.missing_reason !== 'string') {
     throw new Error(`Manifest artifact ${expected.id} must explain missing_reason.`);
+  }
+  if (artifact.status === 'typed_blocker') {
+    if (typeof artifact.reason !== 'string' || !artifact.reason.trim()) {
+      throw new Error(`Manifest artifact ${expected.id} typed_blocker must include reason.`);
+    }
+    if (typeof artifact.typed_blocker_ref !== 'string' || !artifact.typed_blocker_ref.trim()) {
+      throw new Error(`Manifest artifact ${expected.id} typed_blocker must include typed_blocker_ref.`);
+    }
+  }
+  if (artifact.status === 'not_applicable') {
+    if (typeof artifact.reason !== 'string' || !artifact.reason.trim()) {
+      throw new Error(`Manifest artifact ${expected.id} not_applicable must include reason.`);
+    }
+    if (typeof artifact.not_applicable_reason !== 'string' || !artifact.not_applicable_reason.trim()) {
+      throw new Error(`Manifest artifact ${expected.id} not_applicable must include not_applicable_reason.`);
+    }
   }
   return artifact as ManifestArtifact;
 }
@@ -365,8 +407,29 @@ function validateMissingEvidenceList(manifest: Record<string, unknown>, missingA
   const declaredIds = new Set();
   for (const entry of missingEvidence) {
     const record = asRecord(entry, 'missing evidence entry');
-    if (typeof record.id !== 'string' || typeof record.path !== 'string' || typeof record.reason !== 'string') {
-      throw new Error('Missing evidence entries must include id, path, and reason.');
+    if (
+      typeof record.id !== 'string' ||
+      typeof record.path !== 'string' ||
+      typeof record.status !== 'string' ||
+      typeof record.reason !== 'string'
+    ) {
+      throw new Error('Missing evidence entries must include id, path, status, and reason.');
+    }
+    if (!missingIds.has(record.id)) {
+      throw new Error(`Evidence manifest missing_evidence includes unexpected artifact ${record.id}.`);
+    }
+    const artifact = missingArtifacts.find((candidate) => candidate.id === record.id);
+    if (!artifact) {
+      throw new Error(`Evidence manifest missing_evidence includes unexpected artifact ${record.id}.`);
+    }
+    if (artifact?.status !== record.status) {
+      throw new Error(`Evidence manifest missing_evidence ${record.id}.status must match artifact status.`);
+    }
+    if (record.status === 'typed_blocker' && record.typed_blocker_ref !== artifact.typed_blocker_ref) {
+      throw new Error(`Evidence manifest missing_evidence ${record.id} must carry typed_blocker_ref.`);
+    }
+    if (record.status === 'not_applicable' && record.not_applicable_reason !== artifact.not_applicable_reason) {
+      throw new Error(`Evidence manifest missing_evidence ${record.id} must carry not_applicable_reason.`);
     }
     declaredIds.add(record.id);
   }
@@ -423,7 +486,7 @@ function validateBundle(bundleDir: string, options: Options) {
       throw new Error(`Evidence manifest is missing artifact ${expected.id}`);
     }
     const artifact = validateManifestArtifact(entry, expected);
-    if (artifact.status === 'missing') {
+    if (artifact.status !== 'present') {
       missing.push(artifact);
       continue;
     }
@@ -487,7 +550,16 @@ function validateBundle(bundleDir: string, options: Options) {
       producer: artifact.producer,
       source_kind: artifact.source_kind,
       status: artifact.status,
-      missing_reason: artifact.missing_reason,
+      reason: artifact.reason ?? artifact.missing_reason,
+      ...(artifact.missing_reason
+        ? { missing_reason: artifact.missing_reason }
+        : {}),
+      ...(artifact.typed_blocker_ref
+        ? { typed_blocker_ref: artifact.typed_blocker_ref }
+        : {}),
+      ...(artifact.not_applicable_reason
+        ? { not_applicable_reason: artifact.not_applicable_reason }
+        : {}),
     })),
   };
 }
