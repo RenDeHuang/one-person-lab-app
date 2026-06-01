@@ -45,6 +45,7 @@ on:
 permissions:
   contents: write
   actions: read
+  models: read
 
 concurrency:
   group: opl-desktop-release-${{ inputs.release_mode == 'draft_candidate' && 'draft' || 'stable' }}-${{ inputs.opl_version }}
@@ -91,6 +92,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Install Codex release-note writer
+        shell: bash
+        run: npm install -g @openai/codex@latest
+
+      - name: Configure Codex release-note writer
+        shell: bash
+        env:
+          CODEX_HOME: ${{ runner.temp }}/release-notes-codex-home
+          OPL_RELEASE_NOTES_CODEX_PROVIDER: ${{ vars.OPL_RELEASE_NOTES_CODEX_PROVIDER || 'gflab' }}
+          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
+          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
+          OPL_RELEASE_NOTES_CODEX_WIRE_API: ${{ vars.OPL_RELEASE_NOTES_CODEX_WIRE_API || 'responses' }}
+          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
+        run: node --experimental-strip-types scripts/setup-release-notes-codex-config.ts
 
       - name: Download standard build artifacts
         uses: actions/download-artifact@v7
@@ -153,8 +169,12 @@ jobs:
       - name: Publish standard assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_NOTES_PROVIDER: auto
+          OPL_RELEASE_NOTES_GITHUB_MODEL: ${{ vars.OPL_RELEASE_NOTES_GITHUB_MODEL || 'openai/gpt-5-mini' }}
           RELEASE_MODE: ${{ inputs.release_mode }}
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/standard-release-notes-evidence.json
         run: |
           set -euo pipefail
           publish_args=(
@@ -168,6 +188,13 @@ jobs:
             publish_args+=(--draft)
           fi
           "${publish_args[@]}"
+
+      - name: Upload standard release-note evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: standard-release-notes-evidence-${{ inputs.opl_version }}
+          path: ${{ runner.temp }}/standard-release-notes-evidence.json
+          if-no-files-found: error
 
   full-first-install:
     name: Build Full first-install assets
@@ -199,6 +226,21 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install Codex release-note writer
+        shell: bash
+        run: npm install -g @openai/codex@latest
+
+      - name: Configure Codex release-note writer
+        shell: bash
+        env:
+          CODEX_HOME: ${{ runner.temp }}/release-notes-codex-home
+          OPL_RELEASE_NOTES_CODEX_PROVIDER: ${{ vars.OPL_RELEASE_NOTES_CODEX_PROVIDER || 'gflab' }}
+          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
+          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
+          OPL_RELEASE_NOTES_CODEX_WIRE_API: ${{ vars.OPL_RELEASE_NOTES_CODEX_WIRE_API || 'responses' }}
+          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
+        run: node --experimental-strip-types scripts/setup-release-notes-codex-config.ts
+
       - name: Download Full package workflow artifact
         uses: actions/download-artifact@v7
         with:
@@ -208,7 +250,11 @@ jobs:
       - name: Publish Full assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_NOTES_PROVIDER: auto
+          OPL_RELEASE_NOTES_GITHUB_MODEL: ${{ vars.OPL_RELEASE_NOTES_GITHUB_MODEL || 'openai/gpt-5-mini' }}
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/full-release-notes-evidence.json
         run: |
           npm run release:publish -- \
             --no-build \
@@ -217,6 +263,13 @@ jobs:
             --full-package-only \
             --include-full-package \
             --full-package-dir full-package-artifacts
+
+      - name: Upload Full release-note evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-release-notes-evidence-${{ inputs.opl_version }}
+          path: ${{ runner.temp }}/full-release-notes-evidence.json
+          if-no-files-found: error
 
   remote-verify-standard:
     name: Verify remote standard release assets

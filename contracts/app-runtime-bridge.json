@@ -55,11 +55,37 @@
     ]
   },
   "projection_sources": {
-    "primary": "app_state.operator.summary",
+    "primary": "app_state.operator.workbench.task_drilldowns",
     "provider": "app_state.provider",
     "actions": "app_state.actions",
     "full_detail": "runtime_tray_snapshot.app_operator_drilldown",
-    "policy": "summary_first_full_detail_on_demand"
+    "policy": "project_progress_first_full_detail_on_demand"
+  },
+  "project_progress_projection": {
+    "source": "app_state.operator.workbench.task_drilldowns",
+    "authority": "opl_framework_shared_project_progress_projection",
+    "display_policy": "project_progress_first_no_domain_artifact_body",
+    "required_fields": [
+      "task_id",
+      "title",
+      "domain_id",
+      "state",
+      "active_stage_id",
+      "progress_delta_classification",
+      "deliverable_progress_delta",
+      "platform_repair_delta",
+      "blocker_ref_count"
+    ],
+    "optional_user_fields": [
+      "domain_label",
+      "active_stage_label",
+      "next_visible_step",
+      "next_owner",
+      "last_progress_at"
+    ],
+    "diagnostics_treatment": "secondary_disclosure",
+    "safe_actions_treatment": "secondary_operator_disclosure",
+    "app_role": "display_only_project_progress_consumer"
   },
   "progress_delta_projection": {
     "source": "app_state.operator.workbench.task_drilldowns.progress_delta_classification",

@@ -15,13 +15,14 @@ verification can select a different linked shell repo with
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
+| `generate-release-notes.ts` | Generates deterministic release-note evidence and, with `--ai`, asks the configured AI provider chain to write English OPL App release notes from that evidence. Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, Stable/Full includes OPL Framework, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, and MinerU payload refs plus payload deltas when manifests are available, and Nightly explains the standard agent entry/plugin/skill sync surface without Full payloads. For Full manifests with local `source_path` repos, evidence also includes `agent_runtime_changes` so the note can describe MAS research/study, MAG grant/funding, RCA visual-deliverable, OPL Meta Agent, runtime, Office, and extraction improvements in user-facing language before listing audit refs. |
 | `cleanup-draft-release-candidates.ts` | Dry-runs or deletes stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
 | `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates. |
 | `analyze-full-package-size.ts` | Reads `full-package-manifest.json` and reports Full runtime component/layer size, budget use, and optional runtime-root top entries. |
-| `collect-release-evidence.ts` | Collects live OPL runtime snapshot, App/operator drilldown, and selected safe-action dry-run/execute JSON into a release evidence bundle, then writes the manifest without claiming missing screenshot, VM, settings, or remote evidence. |
+| `collect-release-evidence.ts` | Collects live OPL runtime snapshot, App/operator drilldown, selected safe-action dry-run/execute JSON, and standard smoke source-dir artifacts into a release evidence bundle, writes the manifest, and validates the bundle in missing-evidence mode without claiming absent screenshot, VM, settings, or remote evidence. |
 | `write-release-evidence-manifest.ts` | Writes `evidence-manifest.json` for a release evidence bundle and marks absent VM/remote artifacts as missing evidence. |
-| `validate-release-evidence-bundle.ts` | Validates a release evidence bundle manifest and artifact files; default validation fails closed when required evidence is missing. |
+| `validate-release-evidence-bundle.ts` | Validates a release evidence bundle manifest and artifact files, including real screenshot dimensions; default validation fails closed when required evidence is missing. |
 
 Stable App-root npm entries are `validate:release-boundary`,
 `validate:gui-shell`, `release:evidence:manifest`, `release:evidence:validate`, and
@@ -43,13 +44,15 @@ node --experimental-strip-types scripts/validate-active-shell.ts --only i18n_typ
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run release:publish -- --no-build --version <version> --standard-artifacts-dir release-assets
+npm run release:notes -- --ai --version <version> --channel stable --include-full-package --full-package-manifest <path/to/full-package-manifest.json> --evidence-output /tmp/opl-release-notes-evidence.json
+npm run release:notes -- --ai --version <YY.M.D-nightly> --channel nightly --evidence-output /tmp/opl-nightly-notes-evidence.json
 npm run verify-remote-release -- --version <version> --include-full-package
 npm run verify-remote-release -- --version <YY.M.D-nightly>
 npm run release:cleanup-drafts -- --version <version>
 npm run release:cleanup-drafts -- --version <version> --execute
 npm run validate:release-boundary
 npm run release:evidence:manifest -- --bundle-dir release-evidence/<version>
-node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite
+node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm --artifact runtime_screenshot=/path/to/runtime.png
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
@@ -135,8 +138,30 @@ runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18`.
 publisher. It reuses the standard build workflow, prepares and validates
 standard updater assets, publishes or refreshes the daily prerelease semver tag,
 updates that tag to the current workflow commit on same-day reruns, keeps
-`latest` unchanged, and runs the remote standard asset verifier without Full
-assets.
+`latest` unchanged, writes release notes that compare against the previous
+Nightly, and runs the remote standard asset verifier without Full assets.
+All generated GitHub Release notes are English AI-first prose written from
+deterministic evidence JSON. Keep the OPL App package perspective: the main
+payload story is the bundled or App-managed OPL agent/runtime surface.
+Stable/Full notes use the Full manifest for exact Framework, Codex CLI, MAS,
+MAG, RCA, OPL Meta Agent, OfficeCLI, and MinerU refs; Nightly notes describe the
+standard updater package's OPL agent entry surface and state that Full runtime
+payloads remain out of Nightly. `OPL_RELEASE_NOTES_AI_COMMAND` is the local test
+hook for injecting a fake writer. `OPL_RELEASE_NOTES_MODE=template` is only for
+dry-run diagnostics; published releases fail closed unless the AI writer and
+quality gate pass. GitHub release jobs use `OPL_RELEASE_NOTES_PROVIDER=auto`:
+they request `models: read`, call GitHub Models first with `GITHUB_TOKEN` and
+`OPL_RELEASE_NOTES_GITHUB_MODEL` (default `openai/gpt-5-mini`), then fall back
+to Codex/gflab if GitHub Models is unavailable, rate-limited, or fails the
+quality gate. The fallback installs `@openai/codex@latest`, and
+`scripts/setup-release-notes-codex-config.ts` writes a CI-only
+`CODEX_HOME/config.toml` from repository configuration: variables
+`OPL_RELEASE_NOTES_CODEX_PROVIDER` (defaults to `gflab`),
+`OPL_RELEASE_NOTES_CODEX_BASE_URL`, `OPL_RELEASE_NOTES_CODEX_WIRE_API`
+(defaults to `responses`), `OPL_RELEASE_NOTES_MODEL`, and secret
+`OPL_RELEASE_NOTES_CODEX_API_KEY`. The runner never inherits the maintainer
+Mac's `~/.codex/config.toml`. Release jobs upload only the small
+`release-notes-evidence-<version>` JSON artifact for audit.
 
 Stable release verification keeps the heavy installation checks in separate
 lanes for speed and debuggability: standard DMG clean VM, Full DMG clean VM,

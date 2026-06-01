@@ -6,6 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { deflateSync } from 'node:zlib';
 import test from 'node:test';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -62,19 +63,112 @@ function writeFile(filePath, content = 'artifact') {
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
+function writeFakeReleaseNotesAiWriter(scriptPath, body) {
+  fs.mkdirSync(path.dirname(scriptPath), { recursive: true });
+  fs.writeFileSync(scriptPath, `#!/usr/bin/env node
+const fs = require('node:fs');
+const input = fs.readFileSync(0, 'utf8');
+if (!input.includes('"release_evidence"')) {
+  console.error('missing release evidence input');
+  process.exit(2);
+}
+process.stdout.write(${JSON.stringify(body)});
+`, { mode: 0o755 });
+}
+
+function validStandardAiReleaseNotes(version) {
+  return `One Person Lab ${version}
+
+This release helps users upgrade the standard OPL App package with a clearer first launch path for MAS, MAG, RCA, and OPL Meta Agent entries.
+
+## What improved
+
+### Built-in OPL agent entries are easier to reach
+- New users can open the built-in OPL entries for MAS, MAG, RCA, and OPL Meta Agent from the standard App package with less setup ambiguity.
+
+## OPL agents and runtime payload
+- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.
+
+## Release scope
+- Standard macOS arm64 updater package is published for this release.
+`;
+}
+
 function writeBinaryFile(filePath, content) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content);
 }
 
-function writeTinyPng(filePath) {
+function crc32(buffer) {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let index = 0; index < 8; index += 1) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data) {
+  const typeBuffer = Buffer.from(type, 'ascii');
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])));
+  return Buffer.concat([length, typeBuffer, data, crc]);
+}
+
+function writeScreenshotPng(filePath, width = 640, height = 360) {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  const raw = Buffer.alloc((width * 4 + 1) * height);
+  for (let y = 0; y < height; y += 1) {
+    const rowOffset = y * (width * 4 + 1);
+    raw[rowOffset] = 0;
+    for (let x = 0; x < width; x += 1) {
+      const offset = rowOffset + 1 + x * 4;
+      raw[offset] = (x + y) % 256;
+      raw[offset + 1] = (x * 3 + y) % 256;
+      raw[offset + 2] = (x + y * 3) % 256;
+      raw[offset + 3] = 255;
+    }
+  }
   writeBinaryFile(
     filePath,
-    Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lC0V9wAAAABJRU5ErkJggg==',
-      'base64',
-    ),
+    Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      pngChunk('IHDR', ihdr),
+      pngChunk('IDAT', deflateSync(raw)),
+      pngChunk('IEND', Buffer.alloc(0)),
+    ]),
   );
+}
+
+function writeWebpVp8x(filePath, width, height, minimumSize = 4096) {
+  const payload = Buffer.alloc(10);
+  payload[4] = (width - 1) & 0xff;
+  payload[5] = ((width - 1) >> 8) & 0xff;
+  payload[6] = ((width - 1) >> 16) & 0xff;
+  payload[7] = (height - 1) & 0xff;
+  payload[8] = ((height - 1) >> 8) & 0xff;
+  payload[9] = ((height - 1) >> 16) & 0xff;
+  const chunkSize = Buffer.alloc(4);
+  chunkSize.writeUInt32LE(payload.length);
+  const chunk = Buffer.concat([Buffer.from('VP8X', 'ascii'), chunkSize, payload]);
+  const padding = Buffer.alloc(Math.max(0, minimumSize - 12 - chunk.length));
+  const riffSize = Buffer.alloc(4);
+  riffSize.writeUInt32LE(4 + chunk.length + padding.length);
+  writeBinaryFile(filePath, Buffer.concat([Buffer.from('RIFF', 'ascii'), riffSize, Buffer.from('WEBP', 'ascii'), chunk, padding]));
+}
+
+function writeAssistantRouteSmokeScreenshots(tempRoot) {
+  for (const assistantId of ['mas', 'mag', 'rca']) {
+    writeScreenshotPng(path.join(tempRoot, 'artifacts', 'assistant-route-smoke', `${assistantId}.png`));
+  }
 }
 
 function writeRuntimeEvidenceJsonFiles(tempRoot) {
@@ -98,6 +192,65 @@ function writeRuntimeEvidenceJsonFiles(tempRoot) {
     path.join(tempRoot, 'action-execute-result.json'),
     '{"app_action_execution":{"surface_kind":"opl_app_action_execution.v1","action_id":"stage-production-attempt:medautoscience:analysis-campaign","dry_run":false,"result":{"execution":{"execution_status":"executed"}},"authority_boundary":{"can_write_domain_truth":false}}}\n',
   );
+}
+
+function writeCollectorFakeOpl(fakeOpl, actionLog = '') {
+  fs.mkdirSync(path.dirname(fakeOpl), { recursive: true });
+  fs.writeFileSync(fakeOpl, `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+${actionLog ? `fs.appendFileSync(${JSON.stringify(actionLog)}, JSON.stringify(args) + '\\n');` : ''}
+function out(value) {
+  process.stdout.write(JSON.stringify(value) + '\\n');
+}
+if (args.join(' ') === 'app state --profile fast --json') {
+  out({
+    app_state: {
+      schema: 'opl_app_state.v1',
+      profile: 'fast',
+      operator: { summary: { stage_attempt_count: 2 } },
+      provider: { temporal: { status: 'ready' } }
+    }
+  });
+  process.exit(0);
+}
+if (args.join(' ') === 'app state --profile full --json') {
+  out({
+    app_state: {
+      schema: 'opl_app_state.v1',
+      profile: 'full',
+      operator: { summary: { stage_attempt_count: 2 } },
+      provider: { temporal: { status: 'ready' } }
+    }
+  });
+  process.exit(0);
+}
+if (args.join(' ') === 'runtime app-operator-drilldown --detail full --json') {
+  out({
+    app_operator_drilldown: {
+      surface_kind: 'opl_app_operator_drilldown_read_model',
+      detail_level: 'full',
+      summary: { stage_attempt_count: 2 }
+    }
+  });
+  process.exit(0);
+}
+if (args.slice(0, 4).join(' ') === 'app action execute --action') {
+  const dryRun = args.includes('--dry-run');
+  out({
+    app_action_execution: {
+      surface_kind: 'opl_app_action_execution.v1',
+      action_id: args[4],
+      dry_run: dryRun,
+      result: { execution: { execution_status: dryRun ? 'dry_run' : 'executed' } },
+      authority_boundary: { can_write_domain_truth: false }
+    }
+  });
+  process.exit(0);
+}
+console.error('unexpected opl args: ' + args.join(' '));
+process.exit(2);
+`, { mode: 0o755 });
 }
 
 function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
@@ -165,6 +318,22 @@ function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
       assistant_route_smoke: assistantRouteSmoke,
       guest_summary: guestSummary,
     })}\n`,
+  );
+}
+
+function writeTypedBlockerFile(tempRoot, artifactId, fields = {}) {
+  writeFile(
+    path.join(tempRoot, 'typed-blockers', `${artifactId}.json`),
+    `${JSON.stringify({
+      artifact_id: artifactId,
+      typed_blocker_ref: `typed_blocker_ref://one-person-lab-app/test/${artifactId}`,
+      owner: 'one-person-lab-app',
+      blocker_kind: 'release_evidence_producer_blocked',
+      reason: `${artifactId} producer did not complete in this test environment`,
+      evidence_refs: [`log_ref://one-person-lab-app/test/${artifactId}`],
+      next_action: `rerun ${artifactId} producer with a reachable release environment`,
+      ...fields,
+    }, null, 2)}\n`,
   );
 }
 
@@ -845,9 +1014,36 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimeBridge.live_conformance_gate.fast_state_max_bytes, 500000);
   assert.equal(runtimeBridge.live_conformance_gate.required_state_schema, 'opl_app_state.v1');
   assert.equal(runtimeBridge.live_conformance_gate.golden_fast_state_fixture, 'contracts/fixtures/opl-app-state-fast.fixture.json');
-  assert.equal(runtimeBridge.projection_sources.primary, 'app_state.operator.summary');
+  assert.equal(runtimeBridge.projection_sources.primary, 'app_state.operator.workbench.task_drilldowns');
   assert.equal(runtimeBridge.projection_sources.provider, 'app_state.provider');
   assert.equal(runtimeBridge.projection_sources.actions, 'app_state.actions');
+  assert.equal(runtimeBridge.projection_sources.policy, 'project_progress_first_full_detail_on_demand');
+  assert.deepEqual(runtimeBridge.project_progress_projection, {
+    source: 'app_state.operator.workbench.task_drilldowns',
+    authority: 'opl_framework_shared_project_progress_projection',
+    display_policy: 'project_progress_first_no_domain_artifact_body',
+    required_fields: [
+      'task_id',
+      'title',
+      'domain_id',
+      'state',
+      'active_stage_id',
+      'progress_delta_classification',
+      'deliverable_progress_delta',
+      'platform_repair_delta',
+      'blocker_ref_count',
+    ],
+    optional_user_fields: [
+      'domain_label',
+      'active_stage_label',
+      'next_visible_step',
+      'next_owner',
+      'last_progress_at',
+    ],
+    diagnostics_treatment: 'secondary_disclosure',
+    safe_actions_treatment: 'secondary_operator_disclosure',
+    app_role: 'display_only_project_progress_consumer',
+  });
   assert.equal(runtimeBridge.authority_boundary.shell_adapter_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_write_domain_truth, false);
@@ -955,12 +1151,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     runtimePage.machine_source,
     'opl app state --profile fast --json',
   );
-  assert.equal(runtimePage.primary_projection, 'app_state.operator.summary');
+  assert.equal(runtimePage.primary_projection, 'app_state.operator.workbench.task_drilldowns');
   assert.equal(runtimePage.fallback_projection, 'full App/operator drilldown only for on-demand full detail');
   assert.equal(runtimePage.framework_command, 'opl app state --profile fast --json');
   assert.equal(runtimePage.framework_full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.equal(runtimePage.framework_action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
-  assert.equal(runtimePage.page_contract, 'runtime_status_summary_first');
+  assert.equal(runtimePage.page_contract, 'runtime_project_progress_first');
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.role,
     'runtime_page_operator_evidence_acceptance',
@@ -994,16 +1190,45 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     runtimePage.operator_evidence_acceptance_path.action_execution_policy,
     'operator_selected_safe_app_action_route_only',
   );
-  assert.equal(runtimePage.runtime_view_model.role, 'opl_runtime_status_summary');
+  assert.equal(runtimePage.runtime_view_model.role, 'opl_runtime_project_progress');
   assert.equal(runtimePage.runtime_view_model.bridge_contract, 'contracts/app-runtime-bridge.json');
-  assert.equal(runtimePage.runtime_view_model.default_mode, 'app_state_summary_first');
+  assert.equal(runtimePage.runtime_view_model.default_mode, 'project_progress_first');
   assert.equal(runtimePage.runtime_view_model.full_detail_policy, 'on_demand_only');
   assert.equal(runtimePage.runtime_view_model.polling_fallback.interval_seconds_min, 5);
   assert.equal(runtimePage.runtime_view_model.polling_fallback.interval_seconds_max, 10);
   assert.equal(runtimePage.runtime_view_model.polling_fallback.policy, 'lightweight_polling_until_push_projection_available');
+  assert.deepEqual(runtimePage.runtime_view_model.diagnostics, {
+    default_visibility: 'secondary_disclosure',
+    sections: ['operator summary', 'safe actions', 'evidence refs', 'full detail digest'],
+  });
   assert.equal(runtimePage.runtime_view_model.action_queue.source, 'app_state.actions');
   assert.equal(runtimePage.runtime_view_model.action_queue.fallback_source, 'app_state.operator.actions');
   assert.equal(runtimePage.runtime_view_model.action_queue.authority, 'framework_refs_only');
+  assert.deepEqual(runtimePage.runtime_view_model.project_progress, {
+    source: 'app_state.operator.workbench.task_drilldowns',
+    authority: 'opl_framework_shared_project_progress_projection',
+    display_policy: 'project_progress_first_no_domain_artifact_body',
+    required_fields: [
+      'task_id',
+      'title',
+      'domain_id',
+      'state',
+      'active_stage_id',
+      'progress_delta_classification',
+      'deliverable_progress_delta',
+      'platform_repair_delta',
+      'blocker_ref_count',
+    ],
+    optional_user_fields: [
+      'domain_label',
+      'active_stage_label',
+      'next_visible_step',
+      'next_owner',
+      'last_progress_at',
+    ],
+    diagnostics_treatment: 'secondary_disclosure',
+    safe_actions_treatment: 'secondary_operator_disclosure',
+  });
   assert.equal(
     runtimePage.runtime_view_model.progress_delta.source,
     'app_state.operator.workbench.task_drilldowns.progress_delta_classification',
@@ -1044,6 +1269,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   for (const expected of [
     'summary-first OPL App state read model',
     'fast App state refresh',
+    'app_state.operator.workbench.task_drilldowns project progress refs',
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
@@ -1057,7 +1283,13 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     assert.ok(runtimePage.operator_evidence_path.includes(expected), expected);
   }
   for (const expected of [
-    'summary-first OPL runtime status',
+    'project progress first OPL runtime status',
+    'project progress from app_state.operator.workbench.task_drilldowns',
+    'project title/domain/current state/current stage',
+    'next visible step when projected',
+    'blocker count and user attention status',
+    'progress delta rendered as user-facing labels',
+    'runtime diagnostics as secondary disclosure',
     'provider readiness from app_state.provider',
     'operator summary from app_state.operator',
     'safe action refs from app_state.actions',
@@ -1137,7 +1369,24 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
     default_validation: 'fail_closed',
     allow_missing_evidence_flag: '--allow-missing-evidence',
     missing_status: 'missing_evidence',
+    blocked_status: 'blocked_evidence',
+    typed_blocker_root: 'typed-blockers/',
+    typed_blocker_requires: [
+      'typed_blocker_ref',
+      'owner',
+      'blocker_kind',
+      'reason',
+      'evidence_refs',
+      'next_action',
+    ],
     packaged_app_evidence_requires: 'all_required_artifacts_present_and_verified',
+  });
+  assert.deepEqual(bundle.image_evidence_policy, {
+    applies_to_kind: 'image',
+    minimum_width_px: 640,
+    minimum_height_px: 360,
+    minimum_file_size_bytes: 4096,
+    placeholder_screenshot_allowed: false,
   });
   assert.equal(
     artifactById.get('app_state_summary').producer,
@@ -1173,6 +1422,9 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       'tart-smoke-summary.json',
       'artifacts/smoke-summary.json',
       'artifacts/assistant-route-smoke-summary.json',
+      'artifacts/assistant-route-smoke/mas.png',
+      'artifacts/assistant-route-smoke/mag.png',
+      'artifacts/assistant-route-smoke/rca.png',
       'remote-release-verification.json',
     ],
   );
@@ -1190,6 +1442,9 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       'clean_first_run_vm_smoke',
       'packaged_gui_first_run_smoke',
       'packaged_gui_assistant_route_smoke',
+      'packaged_gui_assistant_route_smoke_screenshot',
+      'packaged_gui_assistant_route_smoke_screenshot',
+      'packaged_gui_assistant_route_smoke_screenshot',
       'remote_release_verification',
     ],
   );
@@ -1199,6 +1454,9 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
     'artifacts/system-initialize.json',
     'artifacts/settings-smoke-summary.json',
     'artifacts/assistant-route-smoke-summary.json',
+    'artifacts/assistant-route-smoke/mas.png',
+    'artifacts/assistant-route-smoke/mag.png',
+    'artifacts/assistant-route-smoke/rca.png',
   ]);
   for (const forbiddenAuthority of [
     'runtime_truth',
@@ -1229,13 +1487,15 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
     authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
     artifacts: artifacts.map((artifact) => ({ ...artifact, status: 'present' })),
     missing_evidence: [],
+    blocked_evidence: [],
   }, null, 2)}\n`);
   writeRuntimeEvidenceJsonFiles(tempRoot);
   writeVmSmokeSummaryFiles(tempRoot);
+  writeAssistantRouteSmokeScreenshots(tempRoot);
   writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -1253,7 +1513,7 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
     payload.evidence_boundary,
     'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
   );
-  assert.equal(payload.verified_artifact_count, 12);
+  assert.equal(payload.verified_artifact_count, 15);
   assert.equal(payload.missing_artifact_count, 0);
   assert.deepEqual(
     payload.verified_artifacts.map((artifact) => artifact.id),
@@ -1269,6 +1529,9 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
       'first_run_vm_summary',
       'guest_smoke_summary',
       'assistant_route_smoke_summary',
+      'assistant_route_smoke_mas_screenshot',
+      'assistant_route_smoke_mag_screenshot',
+      'assistant_route_smoke_rca_screenshot',
       'remote_release_verification',
     ],
   );
@@ -1283,6 +1546,9 @@ test('release evidence bundle validator fails closed for incomplete packaged App
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'assistant_route_smoke_mas_screenshot',
+    'assistant_route_smoke_mag_screenshot',
+    'assistant_route_smoke_rca_screenshot',
     'remote_release_verification',
   ]);
   const artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => (
@@ -1314,11 +1580,12 @@ test('release evidence bundle validator fails closed for incomplete packaged App
         path: artifact.path,
         reason: artifact.missing_reason,
       })),
+    blocked_evidence: [],
   }, null, 2)}\n`);
   writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
 
   const blocked = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -1341,13 +1608,92 @@ test('release evidence bundle validator fails closed for incomplete packaged App
   assert.equal(payload.status, 'missing_evidence');
   assert.equal(payload.packaged_app_evidence, false);
   assert.equal(payload.verified_artifact_count, 8);
-  assert.equal(payload.missing_artifact_count, 4);
+  assert.equal(payload.missing_artifact_count, 7);
   assert.deepEqual(payload.missing_artifacts.map((artifact) => artifact.id), [
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'assistant_route_smoke_mas_screenshot',
+    'assistant_route_smoke_mag_screenshot',
+    'assistant_route_smoke_rca_screenshot',
     'remote_release_verification',
   ]);
+});
+
+test('release evidence bundle validator records typed blockers without claiming packaged App evidence', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-blocked-'));
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => (
+    artifact.id === 'first_run_vm_summary'
+      ? {
+          ...artifact,
+          status: 'blocked',
+          typed_blocker_path: 'typed-blockers/first_run_vm_summary.json',
+        }
+      : {
+          ...artifact,
+          status: 'present',
+        }
+  ));
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'blocked_evidence',
+    packaged_app_evidence: false,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts,
+    missing_evidence: [],
+    blocked_evidence: [
+      {
+        id: 'first_run_vm_summary',
+        path: 'tart-smoke-summary.json',
+        typed_blocker_path: 'typed-blockers/first_run_vm_summary.json',
+      },
+    ],
+  }, null, 2)}\n`);
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeVmSmokeSummaryFiles(tempRoot);
+  writeAssistantRouteSmokeScreenshots(tempRoot);
+  writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  fs.rmSync(path.join(tempRoot, 'tart-smoke-summary.json'), { force: true });
+  writeTypedBlockerFile(tempRoot, 'first_run_vm_summary', {
+    reason: 'clean Tart VM received an IP but SSH closed the connection before guest smoke could run',
+  });
+
+  const blocked = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+  ]);
+
+  assert.notEqual(blocked.status, 0);
+  assert.match(blocked.stderr, /missing or blocked and cannot be used as packaged App evidence/);
+
+  const allowed = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+    '--allow-missing-evidence',
+  ]);
+
+  assert.equal(allowed.status, 0, allowed.stderr || allowed.stdout);
+  const payload = JSON.parse(allowed.stdout);
+  assert.equal(payload.status, 'blocked_evidence');
+  assert.equal(payload.packaged_app_evidence, false);
+  assert.equal(payload.verified_artifact_count, 14);
+  assert.equal(payload.missing_artifact_count, 0);
+  assert.equal(payload.blocked_artifact_count, 1);
+  assert.equal(payload.blocked_artifacts[0].id, 'first_run_vm_summary');
+  assert.equal(payload.blocked_artifacts[0].typed_blocker_ref, 'typed_blocker_ref://one-person-lab-app/test/first_run_vm_summary');
+  assert.match(payload.blocked_artifacts[0].reason, /SSH closed/);
 });
 
 test('release evidence bundle validator rejects contract-only runtime JSON placeholders', () => {
@@ -1369,6 +1715,7 @@ test('release evidence bundle validator rejects contract-only runtime JSON place
       status: 'present',
     })),
     missing_evidence: [],
+    blocked_evidence: [],
   }, null, 2)}\n`);
   for (const name of [
     'app-state-summary.json',
@@ -1382,9 +1729,10 @@ test('release evidence bundle validator rejects contract-only runtime JSON place
     writeFile(path.join(tempRoot, name), '{"status":"passed","refs_only":true}\n');
   }
   writeVmSmokeSummaryFiles(tempRoot);
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeAssistantRouteSmokeScreenshots(tempRoot);
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
 
   const result = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -1396,12 +1744,115 @@ test('release evidence bundle validator rejects contract-only runtime JSON place
   assert.match(result.stderr, /app_state_summary\.app_state/);
 });
 
+test('release evidence bundle validator rejects undersized WebP screenshot evidence', () => {
+  const tempAppRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-webp-contract-'));
+  const tempRoot = path.join(tempAppRoot, 'release-evidence');
+  const tempScriptPath = path.join(tempAppRoot, 'scripts', 'validate-release-evidence-bundle.ts');
+  const tempContractPath = path.join(tempAppRoot, 'contracts', 'app-release-channel.json');
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  fs.mkdirSync(path.dirname(tempScriptPath), { recursive: true });
+  fs.copyFileSync(path.join(appRoot, 'scripts', 'validate-release-evidence-bundle.ts'), tempScriptPath);
+  releaseContract.operator_evidence_bundle.required_artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => (
+    artifact.id === 'runtime_screenshot'
+      ? { ...artifact, path: 'screenshots/runtime.webp', status: 'present' }
+      : { ...artifact, status: 'present' }
+  ));
+  const artifacts = releaseContract.operator_evidence_bundle.required_artifacts;
+  writeFile(tempContractPath, `${JSON.stringify(releaseContract, null, 2)}\n`);
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'passed',
+    packaged_app_evidence: true,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts,
+    missing_evidence: [],
+    blocked_evidence: [],
+  }, null, 2)}\n`);
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeVmSmokeSummaryFiles(tempRoot);
+  writeAssistantRouteSmokeScreenshots(tempRoot);
+  writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeWebpVp8x(path.join(tempRoot, 'screenshots', 'runtime.webp'), 1, 1);
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    tempScriptPath,
+    '--bundle-dir',
+    tempRoot,
+  ], {
+    cwd: tempAppRoot,
+    encoding: 'utf8',
+    env: process.env,
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /runtime_screenshot must be at least 640x360px screenshot evidence/);
+});
+
+test('release evidence bundle validator rejects image policy without image scope', () => {
+  const tempAppRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-image-policy-'));
+  const tempRoot = path.join(tempAppRoot, 'release-evidence');
+  const tempScriptPath = path.join(tempAppRoot, 'scripts', 'validate-release-evidence-bundle.ts');
+  const tempContractPath = path.join(tempAppRoot, 'contracts', 'app-release-channel.json');
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  fs.mkdirSync(path.dirname(tempScriptPath), { recursive: true });
+  fs.copyFileSync(path.join(appRoot, 'scripts', 'validate-release-evidence-bundle.ts'), tempScriptPath);
+  releaseContract.operator_evidence_bundle.image_evidence_policy.applies_to_kind = 'json';
+  writeFile(tempContractPath, `${JSON.stringify(releaseContract, null, 2)}\n`);
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'missing_evidence',
+    packaged_app_evidence: false,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts: releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => ({
+      ...artifact,
+      status: 'missing',
+      missing_reason: `${artifact.producer} output was not generated in this environment`,
+    })),
+    missing_evidence: releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => ({
+      id: artifact.id,
+      path: artifact.path,
+      reason: `${artifact.producer} output was not generated in this environment`,
+    })),
+    blocked_evidence: [],
+  }, null, 2)}\n`);
+
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    tempScriptPath,
+    '--bundle-dir',
+    tempRoot,
+    '--allow-missing-evidence',
+  ], {
+    cwd: tempAppRoot,
+    encoding: 'utf8',
+    env: process.env,
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /image evidence policy must apply to image artifacts/);
+});
+
 test('release evidence manifest generator records missing artifacts without claiming packaged App evidence', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-generated-'));
   writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
 
   const generated = runNode([
     'scripts/write-release-evidence-manifest.ts',
@@ -1413,11 +1864,14 @@ test('release evidence manifest generator records missing artifacts without clai
   const generatedPayload = JSON.parse(generated.stdout);
   assert.equal(generatedPayload.status, 'missing_evidence');
   assert.equal(generatedPayload.packaged_app_evidence, false);
-  assert.equal(generatedPayload.missing_artifact_count, 4);
+  assert.equal(generatedPayload.missing_artifact_count, 7);
   assert.deepEqual(generatedPayload.missing_artifacts.map((artifact) => artifact.id), [
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'assistant_route_smoke_mas_screenshot',
+    'assistant_route_smoke_mag_screenshot',
+    'assistant_route_smoke_rca_screenshot',
     'remote_release_verification',
   ]);
 
@@ -1428,6 +1882,9 @@ test('release evidence manifest generator records missing artifacts without clai
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'assistant_route_smoke_mas_screenshot',
+    'assistant_route_smoke_mag_screenshot',
+    'assistant_route_smoke_rca_screenshot',
     'remote_release_verification',
   ]);
 
@@ -1545,6 +2002,9 @@ process.exit(2);
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'assistant_route_smoke_mas_screenshot',
+    'assistant_route_smoke_mag_screenshot',
+    'assistant_route_smoke_rca_screenshot',
     'remote_release_verification',
   ]);
 
@@ -1558,7 +2018,7 @@ process.exit(2);
   const validationPayload = JSON.parse(validation.stdout);
   assert.equal(validationPayload.status, 'missing_evidence');
   assert.equal(validationPayload.verified_artifact_count, 5);
-  assert.equal(validationPayload.missing_artifact_count, 7);
+  assert.equal(validationPayload.missing_artifact_count, 10);
 
   const actionArgs = fs.readFileSync(actionLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   assert.deepEqual(actionArgs, [
@@ -1568,6 +2028,353 @@ process.exit(2);
     ['app', 'action', 'execute', '--action', 'provider-scheduler:temporal:trigger', '--dry-run', '--json'],
     ['app', 'action', 'execute', '--action', 'provider-scheduler:temporal:trigger', '--json'],
   ]);
+});
+
+test('release evidence collector validates generated bundle shape before reporting success', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-collector-invalid-'));
+  const fakeBin = path.join(tempRoot, 'bin');
+  const bundleDir = path.join(tempRoot, 'bundle');
+  const fakeOpl = path.join(fakeBin, 'opl');
+  fs.mkdirSync(fakeBin, { recursive: true });
+  fs.writeFileSync(fakeOpl, `#!/usr/bin/env node
+const args = process.argv.slice(2);
+function out(value) {
+  process.stdout.write(JSON.stringify(value) + '\\n');
+}
+if (args.join(' ') === 'app state --profile fast --json') {
+  out({ status: 'passed', refs_only: true });
+  process.exit(0);
+}
+if (args.join(' ') === 'app state --profile full --json') {
+  out({
+    app_state: {
+      schema: 'opl_app_state.v1',
+      profile: 'full',
+      operator: { summary: { stage_attempt_count: 2 } },
+      provider: { temporal: { status: 'ready' } }
+    }
+  });
+  process.exit(0);
+}
+if (args.join(' ') === 'runtime app-operator-drilldown --detail full --json') {
+  out({
+    app_operator_drilldown: {
+      surface_kind: 'opl_app_operator_drilldown_read_model',
+      detail_level: 'full',
+      summary: { stage_attempt_count: 2 }
+    }
+  });
+  process.exit(0);
+}
+if (args.slice(0, 4).join(' ') === 'app action execute --action') {
+  const dryRun = args.includes('--dry-run');
+  out({
+    app_action_execution: {
+      surface_kind: 'opl_app_action_execution.v1',
+      action_id: args[4],
+      dry_run: dryRun,
+      result: { execution: { execution_status: dryRun ? 'dry_run' : 'executed' } },
+      authority_boundary: { can_write_domain_truth: false }
+    }
+  });
+  process.exit(0);
+}
+console.error('unexpected opl args: ' + args.join(' '));
+process.exit(2);
+`, { mode: 0o755 });
+
+  const collected = runNode([
+    'scripts/collect-release-evidence.ts',
+    '--bundle-dir',
+    bundleDir,
+    '--action-id',
+    'provider-scheduler:temporal:trigger',
+    '--overwrite',
+  ], {
+    env: { PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}` },
+  });
+
+  assert.notEqual(collected.status, 0);
+  assert.match(collected.stderr, /Release evidence bundle validation failed/);
+  assert.match(collected.stderr, /app_state_summary\.app_state/);
+});
+
+test('release evidence collector can attach externally produced contracted artifacts', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-collector-attach-'));
+  const fakeBin = path.join(tempRoot, 'bin');
+  const bundleDir = path.join(tempRoot, 'bundle');
+  const externalEvidence = path.join(tempRoot, 'external-evidence');
+  const fakeOpl = path.join(fakeBin, 'opl');
+  fs.mkdirSync(fakeBin, { recursive: true });
+  fs.writeFileSync(fakeOpl, `#!/usr/bin/env node
+const args = process.argv.slice(2);
+function out(value) {
+  process.stdout.write(JSON.stringify(value) + '\\n');
+}
+if (args.join(' ') === 'app state --profile fast --json') {
+  out({
+    app_state: {
+      schema: 'opl_app_state.v1',
+      profile: 'fast',
+      operator: { summary: { stage_attempt_count: 2 } },
+      provider: { temporal: { status: 'ready' } }
+    }
+  });
+  process.exit(0);
+}
+if (args.join(' ') === 'app state --profile full --json') {
+  out({
+    app_state: {
+      schema: 'opl_app_state.v1',
+      profile: 'full',
+      operator: { summary: { stage_attempt_count: 2 } },
+      provider: { temporal: { status: 'ready' } }
+    }
+  });
+  process.exit(0);
+}
+if (args.join(' ') === 'runtime app-operator-drilldown --detail full --json') {
+  out({
+    app_operator_drilldown: {
+      surface_kind: 'opl_app_operator_drilldown_read_model',
+      detail_level: 'full',
+      summary: { stage_attempt_count: 2 }
+    }
+  });
+  process.exit(0);
+}
+if (args.slice(0, 4).join(' ') === 'app action execute --action') {
+  const dryRun = args.includes('--dry-run');
+  out({
+    app_action_execution: {
+      surface_kind: 'opl_app_action_execution.v1',
+      action_id: args[4],
+      dry_run: dryRun,
+      result: { execution: { execution_status: dryRun ? 'dry_run' : 'executed' } },
+      authority_boundary: { can_write_domain_truth: false }
+    }
+  });
+  process.exit(0);
+}
+console.error('unexpected opl args: ' + args.join(' '));
+process.exit(2);
+`, { mode: 0o755 });
+  writeScreenshotPng(path.join(externalEvidence, 'runtime.png'));
+  writeScreenshotPng(path.join(externalEvidence, 'full.png'));
+  writeScreenshotPng(path.join(externalEvidence, 'action.png'));
+  writeVmSmokeSummaryFiles(externalEvidence);
+  writeAssistantRouteSmokeScreenshots(externalEvidence);
+  writeFile(
+    path.join(externalEvidence, 'remote-release-verification.json'),
+    '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n',
+  );
+
+  const collected = runNode([
+    'scripts/collect-release-evidence.ts',
+    '--bundle-dir',
+    bundleDir,
+    '--action-id',
+    'provider-scheduler:temporal:trigger',
+    '--overwrite',
+    '--execute-action',
+    '--artifact',
+    `runtime_screenshot=${path.join(externalEvidence, 'runtime.png')}`,
+    '--artifact',
+    `full_screenshot=${path.join(externalEvidence, 'full.png')}`,
+    '--artifact',
+    `action_screenshot=${path.join(externalEvidence, 'action.png')}`,
+    '--artifact',
+    `first_run_vm_summary=${path.join(externalEvidence, 'tart-smoke-summary.json')}`,
+    '--artifact',
+    `guest_smoke_summary=${path.join(externalEvidence, 'artifacts', 'smoke-summary.json')}`,
+    '--artifact',
+    `assistant_route_smoke_summary=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke-summary.json')}`,
+    '--artifact',
+    `assistant_route_smoke_mas_screenshot=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke', 'mas.png')}`,
+    '--artifact',
+    `assistant_route_smoke_mag_screenshot=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke', 'mag.png')}`,
+    '--artifact',
+    `assistant_route_smoke_rca_screenshot=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke', 'rca.png')}`,
+    '--artifact',
+    `remote_release_verification=${path.join(externalEvidence, 'remote-release-verification.json')}`,
+  ], {
+    env: { PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}` },
+  });
+
+  assert.equal(collected.status, 0, collected.stderr || collected.stdout);
+  const payload = JSON.parse(collected.stdout);
+  assert.equal(payload.status, 'passed');
+  assert.equal(payload.packaged_app_evidence, true);
+  assert.equal(payload.missing_artifact_count, 0);
+  assert.deepEqual(payload.attached_artifacts, [
+    'runtime_screenshot',
+    'full_screenshot',
+    'action_screenshot',
+    'first_run_vm_summary',
+    'guest_smoke_summary',
+    'assistant_route_smoke_summary',
+    'assistant_route_smoke_mas_screenshot',
+    'assistant_route_smoke_mag_screenshot',
+    'assistant_route_smoke_rca_screenshot',
+    'remote_release_verification',
+  ]);
+
+  const validation = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    bundleDir,
+  ]);
+  assert.equal(validation.status, 0, validation.stderr || validation.stdout);
+  const validationPayload = JSON.parse(validation.stdout);
+  assert.equal(validationPayload.status, 'passed');
+  assert.equal(validationPayload.verified_artifact_count, 15);
+  assert.equal(validationPayload.missing_artifact_count, 0);
+});
+
+test('release evidence collector imports standard smoke source directories without hand-mapping every artifact', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-collector-source-dir-'));
+  const fakeBin = path.join(tempRoot, 'bin');
+  const bundleDir = path.join(tempRoot, 'bundle');
+  const sourceDir = path.join(tempRoot, 'standard-smoke-source');
+  const overrideEvidence = path.join(tempRoot, 'override-evidence');
+  const fakeOpl = path.join(fakeBin, 'opl');
+  writeCollectorFakeOpl(fakeOpl);
+
+  writeVmSmokeSummaryFiles(sourceDir);
+  writeAssistantRouteSmokeScreenshots(sourceDir);
+  writeScreenshotPng(path.join(sourceDir, 'first-run-beginner.png'));
+  writeScreenshotPng(path.join(sourceDir, 'action.png'));
+  writeScreenshotPng(path.join(sourceDir, 'settings-pages', 'runtime.png'), 1, 1);
+  writeFile(
+    path.join(sourceDir, 'remote-release-verification.json'),
+    '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n',
+  );
+  writeScreenshotPng(path.join(overrideEvidence, 'runtime.png'));
+
+  const collected = runNode([
+    'scripts/collect-release-evidence.ts',
+    '--bundle-dir',
+    bundleDir,
+    '--action-id',
+    'provider-scheduler:temporal:trigger',
+    '--overwrite',
+    '--execute-action',
+    '--evidence-source-dir',
+    sourceDir,
+    '--artifact',
+    `runtime_screenshot=${path.join(overrideEvidence, 'runtime.png')}`,
+  ], {
+    env: { PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}` },
+  });
+
+  assert.equal(collected.status, 0, collected.stderr || collected.stdout);
+  const payload = JSON.parse(collected.stdout);
+  assert.equal(payload.status, 'passed');
+  assert.equal(payload.packaged_app_evidence, true);
+  assert.equal(payload.missing_artifact_count, 0);
+  assert.deepEqual(payload.attached_artifacts, [
+    'runtime_screenshot',
+    'full_screenshot',
+    'action_screenshot',
+    'first_run_vm_summary',
+    'guest_smoke_summary',
+    'assistant_route_smoke_summary',
+    'assistant_route_smoke_mas_screenshot',
+    'assistant_route_smoke_mag_screenshot',
+    'assistant_route_smoke_rca_screenshot',
+    'remote_release_verification',
+  ]);
+  assert.equal(
+    fileSha256(path.join(bundleDir, 'screenshots', 'runtime.png')),
+    fileSha256(path.join(overrideEvidence, 'runtime.png')),
+  );
+
+  const validation = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    bundleDir,
+  ]);
+  assert.equal(validation.status, 0, validation.stderr || validation.stdout);
+  const validationPayload = JSON.parse(validation.stdout);
+  assert.equal(validationPayload.status, 'passed');
+  assert.equal(validationPayload.verified_artifact_count, 15);
+  assert.equal(validationPayload.missing_artifact_count, 0);
+});
+
+test('release evidence collector imports typed blockers as blocked evidence', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-collector-blocker-'));
+  const fakeBin = path.join(tempRoot, 'bin');
+  const bundleDir = path.join(tempRoot, 'bundle');
+  const sourceDir = path.join(tempRoot, 'standard-smoke-source');
+  const blockerRoot = path.join(tempRoot, 'blockers');
+  const fakeOpl = path.join(fakeBin, 'opl');
+  writeCollectorFakeOpl(fakeOpl);
+
+  writeScreenshotPng(path.join(sourceDir, 'runtime.png'));
+  writeScreenshotPng(path.join(sourceDir, 'first-run-beginner.png'));
+  writeScreenshotPng(path.join(sourceDir, 'action.png'));
+  writeVmSmokeSummaryFiles(sourceDir);
+  writeAssistantRouteSmokeScreenshots(sourceDir);
+  writeFile(
+    path.join(sourceDir, 'remote-release-verification.json'),
+    '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n',
+  );
+  fs.rmSync(path.join(sourceDir, 'tart-smoke-summary.json'), { force: true });
+  writeTypedBlockerFile(blockerRoot, 'first_run_vm_summary', {
+    typed_blocker_ref: 'typed_blocker_ref://one-person-lab-app/test/collector-first-run-vm-summary',
+  });
+
+  const collected = runNode([
+    'scripts/collect-release-evidence.ts',
+    '--bundle-dir',
+    bundleDir,
+    '--action-id',
+    'provider-scheduler:temporal:trigger',
+    '--overwrite',
+    '--execute-action',
+    '--evidence-source-dir',
+    sourceDir,
+    '--typed-blocker',
+    `first_run_vm_summary=${path.join(blockerRoot, 'typed-blockers', 'first_run_vm_summary.json')}`,
+  ], {
+    env: { PATH: `${fakeBin}${path.delimiter}${process.env.PATH ?? ''}` },
+  });
+
+  assert.equal(collected.status, 0, collected.stderr || collected.stdout);
+  const payload = JSON.parse(collected.stdout);
+  assert.equal(payload.status, 'blocked_evidence');
+  assert.equal(payload.packaged_app_evidence, false);
+  assert.deepEqual(payload.attached_artifacts, [
+    'runtime_screenshot',
+    'full_screenshot',
+    'action_screenshot',
+    'guest_smoke_summary',
+    'assistant_route_smoke_summary',
+    'assistant_route_smoke_mas_screenshot',
+    'assistant_route_smoke_mag_screenshot',
+    'assistant_route_smoke_rca_screenshot',
+    'remote_release_verification',
+    'first_run_vm_summary:typed_blocker',
+  ]);
+  assert.equal(payload.blocked_artifact_count, 1);
+  assert.deepEqual(payload.blocked_artifacts, ['first_run_vm_summary']);
+  assert.equal(payload.missing_artifact_count, 0);
+
+  const validation = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    bundleDir,
+    '--allow-missing-evidence',
+  ]);
+  assert.equal(validation.status, 0, validation.stderr || validation.stdout);
+  const validationPayload = JSON.parse(validation.stdout);
+  assert.equal(validationPayload.status, 'blocked_evidence');
+  assert.equal(validationPayload.verified_artifact_count, 14);
+  assert.equal(validationPayload.blocked_artifact_count, 1);
+  assert.equal(
+    validationPayload.blocked_artifacts[0].typed_blocker_ref,
+    'typed_blocker_ref://one-person-lab-app/test/collector-first-run-vm-summary',
+  );
 });
 
 test('App-owned automation entrypoints are TypeScript, not JavaScript wrappers', () => {
@@ -1602,12 +2409,14 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
   const outDir = path.join(shellRoot, 'out');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const version = '26.5.15-test';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
 
   writeFile(path.join(outDir, dmgName));
   writeFile(path.join(outDir, `One-Person-Lab-${version}-mac-arm64.zip`));
   writeReleaseMetadata(outDir, version, dmgName);
+  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -1617,18 +2426,24 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
     shellRoot,
     '--version',
     version,
-  ]);
+  ], {
+    env: {
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
+    },
+  });
 
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.release_repo, 'gaofeng21cn/one-person-lab-app');
   assert.equal(payload.tag, `v${version}`);
+  assert.equal(payload.release_notes_mode, 'ai');
   assert.ok(payload.artifacts.some((artifact) => artifact.endsWith(dmgName)));
 });
 
 test('publish dry run accepts prebuilt standard release assets from GitHub Actions', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-prebuilt-release-'));
   const releaseAssetsDir = path.join(tempRoot, 'release-assets');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const version = '26.5.15-test';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
@@ -1649,6 +2464,7 @@ test('publish dry run accepts prebuilt standard release assets from GitHub Actio
   writeFile(path.join(releaseAssetsDir, `${zipName}.blockmap`));
   writeFile(path.join(releaseAssetsDir, 'latest-mac.yml'), metadata);
   writeFile(path.join(releaseAssetsDir, 'latest-arm64-mac.yml'), metadata);
+  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -1661,15 +2477,19 @@ test('publish dry run accepts prebuilt standard release assets from GitHub Actio
   ], {
     env: {
       OPL_RELEASE_EXISTS: '0',
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
     },
   });
 
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.standard_artifacts_dir, releaseAssetsDir);
+  assert.equal(payload.release_notes_mode, 'ai');
   assert.ok(payload.standard_artifacts.some((artifact) => artifact.endsWith(dmgName)));
   assert.ok(payload.standard_artifacts.some((artifact) => artifact.endsWith('latest-arm64-mac.yml')));
   assert.ok(payload.upload_command.includes('--clobber'));
+  assert.ok(payload.upload_commands.every((command) => command.includes('--clobber')));
+  assert.equal(payload.upload_commands.length, payload.upload_command.filter((part) => String(part).startsWith(releaseAssetsDir)).length);
 });
 
 test('prebuilt standard release assets must include updater metadata', () => {
@@ -2007,6 +2827,7 @@ test('publish dry run skips existing release assets when a resumed upload alread
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-resume-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
   const outDir = path.join(shellRoot, 'out');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const version = '26.5.19-resume';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
@@ -2016,6 +2837,7 @@ test('publish dry run skips existing release assets when a resumed upload alread
   writeFile(path.join(outDir, dmgName), dmgContent);
   writeFile(path.join(outDir, zipName), zipContent);
   writeReleaseMetadata(outDir, version, dmgName);
+  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const existingAssets = [
     { name: dmgName, size: Buffer.byteLength(dmgContent), digest: `sha256:${sha256(dmgContent)}` },
@@ -2038,6 +2860,7 @@ test('publish dry run skips existing release assets when a resumed upload alread
     env: {
       OPL_RELEASE_EXISTS: '1',
       OPL_RELEASE_EXISTING_ASSETS_JSON: JSON.stringify(existingAssets),
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
     },
   });
 
@@ -2054,6 +2877,7 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-resume-strict-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
   const outDir = path.join(shellRoot, 'out');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const version = '26.5.19-resume-strict';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
@@ -2061,6 +2885,7 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
   writeFile(path.join(outDir, dmgName), 'dmg');
   writeFile(path.join(outDir, zipName), 'zip');
   writeReleaseMetadata(outDir, version, dmgName);
+  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const existingAssets = [
     { name: dmgName, size: 3 },
@@ -2078,6 +2903,7 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
     env: {
       OPL_RELEASE_EXISTS: '1',
       OPL_RELEASE_EXISTING_ASSETS_JSON: JSON.stringify(existingAssets),
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
     },
   });
 
@@ -2088,19 +2914,138 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
   assert.deepEqual(payload.skipped_existing_artifacts, []);
 });
 
-test('publish dry run generates professional v26.5.18 notes for standard and Full lanes', () => {
+test('publish dry run uploads one asset at a time with largest assets first', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-upload-order-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const outDir = path.join(shellRoot, 'out');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
+  const version = '26.5.19-upload-order';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+
+  writeFile(path.join(outDir, dmgName), 'd'.repeat(2048));
+  writeFile(path.join(outDir, zipName), 'z'.repeat(128));
+  writeFile(path.join(outDir, `${dmgName}.blockmap`), 'b'.repeat(64));
+  writeReleaseMetadata(outDir, version, dmgName);
+  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--shell-root',
+    shellRoot,
+    '--version',
+    version,
+  ], {
+    env: {
+      OPL_RELEASE_EXISTS: '0',
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.upload_commands.length, payload.artifacts.length);
+  assert.ok(payload.upload_commands.every((command) => command[0] === 'gh'));
+  assert.ok(payload.upload_commands.every((command) => command[1] === 'release' && command[2] === 'upload'));
+  const uploadSizes = payload.upload_commands.map((command) => fs.statSync(command[4]).size);
+  assert.deepEqual(uploadSizes, [...uploadSizes].sort((left, right) => right - left));
+  assert.ok(payload.upload_commands.every((command) => command.includes('--clobber')));
+});
+
+test('publish cleans up a newly-created draft release when asset upload fails', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-upload-failure-cleanup-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const outDir = path.join(shellRoot, 'out');
+  const binDir = path.join(tempRoot, 'bin');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
+  const ghLog = path.join(tempRoot, 'gh-log.jsonl');
+  const version = '26.5.19-upload-cleanup';
+  const tag = `v${version}`;
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+
+  writeFile(path.join(outDir, dmgName), 'dmg');
+  writeFile(path.join(outDir, zipName), 'zip');
+  writeReleaseMetadata(outDir, version, dmgName);
+  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.writeFileSync(path.join(binDir, 'gh'), `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+fs.appendFileSync(${JSON.stringify(ghLog)}, JSON.stringify(args) + '\\n');
+if (args.join(' ') === ${JSON.stringify(`release view ${tag} --repo gaofeng21cn/one-person-lab-app --json tagName`)}) {
+  process.exit(1);
+}
+if (args[0] === 'release' && args[1] === 'create') {
+  process.exit(0);
+}
+if (args[0] === 'release' && args[1] === 'upload') {
+  console.error('simulated large asset upload failure');
+  process.exit(1);
+}
+if (args.join(' ') === ${JSON.stringify(`release delete ${tag} --repo gaofeng21cn/one-person-lab-app --yes --cleanup-tag`)}) {
+  process.exit(0);
+}
+console.error('unexpected gh args: ' + args.join(' '));
+process.exit(2);
+`, { mode: 0o755 });
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--shell-root',
+    shellRoot,
+    '--version',
+    version,
+    '--draft',
+  ], {
+    env: {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /simulated large asset upload failure/);
+  assert.match(result.stderr, /Cleaned up newly created release v26\.5\.19-upload-cleanup after upload failure/);
+  const ghCalls = fs.readFileSync(ghLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  assert.deepEqual(ghCalls.map((args) => args.slice(0, 2).join(' ')), [
+    'release view',
+    'release list',
+    'release create',
+    'release upload',
+    'release delete',
+  ]);
+  assert.equal(ghCalls.find((args) => args[0] === 'release' && args[1] === 'upload').filter((arg) => String(arg).startsWith(outDir)).length, 1);
+  assert.deepEqual(ghCalls.at(-1), [
+    'release',
+    'delete',
+    tag,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--yes',
+    '--cleanup-tag',
+  ]);
+});
+
+test('publish dry run generates organized English release notes for standard and Full lanes', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-notes-'));
   const fullPackageDir = path.join(tempRoot, 'full');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const version = '26.5.18';
   const manifest = {
     generated_at: '2026-05-18T12:00:00.000Z',
     distribution: {
       updater_metadata_allowed: false,
     },
-    components: {
-      mas: { git_commit: '1111111111111111111111111111111111111111' },
-      mag: { git_commit: '2222222222222222222222222222222222222222' },
-      rca: { git_commit: '3333333333333333333333333333333333333333' },
+      components: {
+        opl: { git_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+        codex: { version: 'codex-cli 0.130.0' },
+        mas: { git_commit: '1111111111111111111111111111111111111111' },
+        mag: { git_commit: '2222222222222222222222222222222222222222' },
+        rca: { git_commit: '3333333333333333333333333333333333333333' },
       meta_agent: { git_commit: '4444444444444444444444444444444444444444' },
       officecli: { version: '1.2.3' },
       mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
@@ -2112,6 +3057,28 @@ test('publish dry run generates professional v26.5.18 notes for standard and Ful
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
+  writeFakeReleaseNotesAiWriter(fakeAi, `One Person Lab 26.5.18
+
+This release makes a clean OPL install more useful immediately by shipping refreshed MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and packaged Codex skills together in the Full installer.
+
+## What improved
+
+### Packaged OPL agents are ready sooner
+- MAS, MAG, RCA, and OPL Meta Agent are bundled from the Full package manifest, so new users reach the built-in research, grant-writing, visual-deliverable, and meta-agent entries with less module reconciliation after first launch.
+
+### Installation proof is clearer
+- The release keeps standard DMG, Full DMG, one-shot installer, and Docker/WebUI validation as separate install surfaces, so a failed gate points to the user path that needs attention.
+
+## OPL agents and runtime payload
+- Full clean-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
+- Build-time payload refs: OPL Framework @ aaaaaaa; Codex CLI 0.130.0; MAS @ 1111111; MAG @ 2222222; RCA @ 3333333; OPL Meta Agent @ 4444444; OfficeCLI 1.2.3; MinerU v0.1.3.
+- Payload updates since previous Stable: OPL Framework de72385 -> aaaaaaa; Codex CLI 0.129.0 -> 0.130.0; MAS 29369d4 -> 1111111; MAG 36ce5a9 -> 2222222; RCA c4af4b3 -> 3333333; OPL Meta Agent added at 4444444; OfficeCLI 1.0.93 -> 1.2.3; MinerU added at v0.1.3.
+
+## Release scope
+- Standard macOS arm64 updater package plus Full clean-install DMG.
+
+**Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.5.17...v26.5.18
+`);
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -2122,29 +3089,36 @@ test('publish dry run generates professional v26.5.18 notes for standard and Ful
     '--include-full-package',
     '--full-package-dir',
     fullPackageDir,
-  ]);
+  ], {
+    env: {
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
+    },
+  });
 
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   const notes = payload.release_notes;
-  const profile = readProductProfile();
-  const codexProfileLabel = `${profile.codex.default_model} / ${profile.codex.default_reasoning_effort}`;
-  assert.match(notes, /Release focus/);
-  assert.match(notes, /Settings page:/);
-  assert.match(notes, /First-run resilience:/);
-  assert.ok(notes.includes(`Codex defaults: applies the ${codexProfileLabel} profile`));
-  assert.match(notes, /VM validation: clean no-CLT macOS arm64 first-install smoke passed at 1920x1080/);
-  assert.match(notes, /Full runtime readiness/);
-  assert.match(notes, /Update channel guidance/);
-  assert.match(notes, /Standard DMG\/ZIP assets and latest\*\.yml metadata remain the only source for the auto-updater/);
-  assert.match(notes, /Full first-install assets are GitHub Release downloads/);
-  assert.match(notes, /Full first-install package/);
-  assert.match(notes, /OPL Meta Agent/);
-  assert.match(notes, /OPL Meta Agent: .*main @ 4444444/);
-  assert.match(notes, /MinerU document extraction/);
-  assert.match(notes, /MinerU OpenAPI CLI: mineru-open-api version v0\.1\.3/);
-  assert.match(notes, /After installation, users still configure their Codex\/OpenAI API key/);
-  assert.match(notes, /Command Line Tools installation is requested through deferred maintenance/);
+  assert.match(notes, /One Person Lab 26\.5\.18/);
+  assert.match(notes, /OPL agents and runtime payload/);
+  assert.match(notes, /Full clean-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills\./);
+  assert.match(notes, /OPL Framework @ aaaaaaa/);
+  assert.match(notes, /Codex CLI 0\.130\.0/);
+  assert.match(notes, /What improved/);
+  assert.match(notes, /clean OPL install more useful immediately/);
+  assert.match(notes, /Packaged OPL agents are ready sooner/);
+  assert.match(notes, /Release scope/);
+  assert.match(notes, /Standard macOS arm64 updater package plus Full clean-install DMG\./);
+  assert.match(notes, /MAS @ 1111111/);
+  assert.match(notes, /MAG @ 2222222/);
+  assert.match(notes, /RCA @ 3333333/);
+  assert.match(notes, /OPL Meta Agent @ 4444444/);
+  assert.match(notes, /OfficeCLI 1\.2\.3/);
+  assert.match(notes, /MinerU v0\.1\.3/);
+  assert.doesNotMatch(notes, /Release focus/);
+  assert.doesNotMatch(notes, /Update channel guidance/);
+  assert.doesNotMatch(notes, /Full first-install package/);
+  assert.doesNotMatch(notes, /Bundled OPL runtime and agent versions/);
+  assert.doesNotMatch(notes, /Strengthened package builds/);
   assert.doesNotMatch(notes, /[\u3400-\u9fff]/);
 });
 
@@ -2157,10 +3131,12 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
     distribution: {
       updater_metadata_allowed: false,
     },
-    components: {
-      mas: { git_commit: '1111111111111111111111111111111111111111' },
-      mag: { git_commit: '2222222222222222222222222222222222222222' },
-      rca: { git_commit: '3333333333333333333333333333333333333333' },
+      components: {
+        opl: { git_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+        codex: { version: 'codex-cli 0.130.0' },
+        mas: { git_commit: '1111111111111111111111111111111111111111' },
+        mag: { git_commit: '2222222222222222222222222222222222222222' },
+        rca: { git_commit: '3333333333333333333333333333333333333333' },
       officecli: { version: '1.2.3' },
       mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
     },
@@ -2191,11 +3167,16 @@ test('existing same-tag standard plus Full publish replaces the full release not
   const source = fs.readFileSync(path.join(appRoot, 'scripts', 'publish-release.ts'), 'utf8');
 
   assert.match(source, /else if \(options\.includeFullPackage && options\.fullPackageOnly\)/);
-  assert.match(source, /ensureFullPackageReleaseNotes\(options\.releaseRepo, tag, options\.version, fullPackageManifest\)/);
+  assert.match(source, /replaceReleaseNotes\(options\.releaseRepo, tag, releaseNotes\)/);
+  assert.match(source, /buildAiReleaseNotesDocument\(evidence\)/);
+  assert.match(source, /OPL_RELEASE_NOTES_EVIDENCE_OUTPUT/);
+  assert.match(source, /OPL_RELEASE_NOTES_MODE=template is allowed only for dry-run diagnostics/);
   assert.match(
     source,
     /else if \(options\.includeFullPackage\) {\s*replaceReleaseNotes\(options\.releaseRepo, tag, releaseNotes\);/
   );
+  assert.doesNotMatch(source, /Bundled OPL runtime and agent versions/);
+  assert.doesNotMatch(source, /buildBundledModuleNotes/);
 });
 
 test('tag-triggered release workflow stamps package metadata from tag version', () => {
@@ -2602,6 +3583,12 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.settings_navigation.required_sections, ['system', 'runtime', 'about', 'update', 'theme']);
   assert.equal(guiContract.settings_navigation.source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
+  assert.equal(guiContract.desktop_tray_policy.default_visible, true);
+  assert.equal(guiContract.desktop_tray_policy.desktop_startup_behavior, 'create_tray_by_default');
+  assert.equal(guiContract.desktop_tray_policy.e2e_startup_behavior, 'destroy_tray_and_disable_close_to_tray');
+  assert.equal(guiContract.desktop_tray_policy.close_to_tray_role, 'window_close_behavior_only');
+  assert.equal(guiContract.desktop_tray_policy.settings_key, 'system.closeToTray');
+  assert.equal(guiContract.desktop_tray_policy.must_not_gate_tray_visibility_on_close_to_tray, true);
   assert.equal(
     guiContract.module_path_source_policy.source,
     'app_state.modules[].source + app_state.modules[].path + app_state.paths',
@@ -2751,6 +3738,25 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.match(workflow, /release-assets\/\*\*\/\*\.zip/);
   assert.match(workflow, /release-assets\/\*\*\/\*\.blockmap/);
   assert.match(workflow, /release-assets\/\*\*\/\*\.yml/);
+  assert.match(workflow, /Install Codex release-note writer/);
+  assert.match(workflow, /npm install -g @openai\/codex@latest/);
+  assert.match(workflow, /models: read/);
+  assert.match(workflow, /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_PROVIDER: auto/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_GITHUB_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_GITHUB_MODEL \|\| 'openai\/gpt-5-mini' \}\}/);
+  assert.match(workflow, /Configure Codex release-note writer/);
+  assert.match(workflow, /CODEX_HOME: \$\{\{ runner\.temp \}\}\/release-notes-codex-home/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_PROVIDER: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_PROVIDER \|\| 'gflab' \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_BASE_URL \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_CODEX_API_KEY \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_WIRE_API: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_WIRE_API \|\| 'responses' \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_MODEL \}\}/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/setup-release-notes-codex-config\.ts/);
+  assert.doesNotMatch(workflow, /OPENAI_API_KEY: \$\{\{ secrets\.OPENAI_API_KEY \}\}/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/generate-release-notes\.ts[\s\S]*--ai[\s\S]*--evidence-output "\$RUNNER_TEMP\/opl-release-notes-evidence\.json"[\s\S]*--output "\$RUNNER_TEMP\/opl-release-notes\.md"/);
+  assert.match(workflow, /body_path: \$\{\{ runner\.temp \}\}\/opl-release-notes\.md/);
+  assert.match(workflow, /release-notes-evidence-\$\{\{ steps\.version\.outputs\.version \}\}/);
+  assert.doesNotMatch(workflow, /generate_release_notes: true/);
   assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.exe/);
   assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.msi/);
   assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.deb/);
@@ -2771,6 +3777,24 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /name: Verify standard release assets[\s\S]*OPL_RELEASE_VERSION: \$\{\{ inputs\.opl_version \}\}[\s\S]*node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
+  assert.match(workflow, /Install Codex release-note writer/);
+  assert.match(workflow, /npm install -g @openai\/codex@latest/);
+  assert.match(workflow, /models: read/);
+  assert.match(workflow, /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_PROVIDER: auto/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_GITHUB_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_GITHUB_MODEL \|\| 'openai\/gpt-5-mini' \}\}/);
+  assert.match(workflow, /Configure Codex release-note writer/);
+  assert.match(workflow, /CODEX_HOME: \$\{\{ runner\.temp \}\}\/release-notes-codex-home/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_PROVIDER: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_PROVIDER \|\| 'gflab' \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_BASE_URL \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_CODEX_API_KEY \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_WIRE_API: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_WIRE_API \|\| 'responses' \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_MODEL \}\}/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/setup-release-notes-codex-config\.ts/);
+  assert.doesNotMatch(workflow, /OPENAI_API_KEY: \$\{\{ secrets\.OPENAI_API_KEY \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: \$\{\{ runner\.temp \}\}\/standard-release-notes-evidence\.json/);
+  assert.match(workflow, /standard-release-notes-evidence-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /full-release-notes-evidence-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /git tag "\$tag" "\$GITHUB_SHA"/);
   assert.match(workflow, /--standard-artifacts-dir release-assets/);
   assert.match(workflow, /publish_args\+=\(--draft\)/);
@@ -2933,6 +3957,24 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /opl_release_version: \$\{\{ needs\.resolve-nightly\.outputs\.version \}\}/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/generate-release-notes\.ts[\s\S]*--channel nightly/);
+  assert.match(workflow, /Install Codex release-note writer/);
+  assert.match(workflow, /npm install -g @openai\/codex@latest/);
+  assert.match(workflow, /models: read/);
+  assert.match(workflow, /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_PROVIDER: auto/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_GITHUB_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_GITHUB_MODEL \|\| 'openai\/gpt-5-mini' \}\}/);
+  assert.match(workflow, /Configure Codex release-note writer/);
+  assert.match(workflow, /CODEX_HOME: \$\{\{ runner\.temp \}\}\/release-notes-codex-home/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_PROVIDER: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_PROVIDER \|\| 'gflab' \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_BASE_URL \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_CODEX_API_KEY \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_WIRE_API: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_WIRE_API \|\| 'responses' \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_MODEL \}\}/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/setup-release-notes-codex-config\.ts/);
+  assert.doesNotMatch(workflow, /OPENAI_API_KEY: \$\{\{ secrets\.OPENAI_API_KEY \}\}/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/generate-release-notes\.ts[\s\S]*--ai[\s\S]*--evidence-output "\$evidence_file"/);
+  assert.match(workflow, /release-notes-evidence-\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}/);
   assert.match(workflow, /gh release create "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease[\s\S]*--latest=false[\s\S]*--verify-tag/);
   assert.match(workflow, /gh release edit "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease/);
   assert.match(workflow, /--title "\$\{OPL_RELEASE_TAG\}"/);
@@ -2943,6 +3985,8 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.doesNotMatch(workflow, /One-Person-Lab-Full/);
   assert.doesNotMatch(workflow, /nightly\.\$\{stamp\}/);
   assert.doesNotMatch(workflow, /One Person Lab Nightly \$\{OPL_RELEASE_VERSION\}/);
+  assert.doesNotMatch(workflow, /Standard macOS arm64 App assets only/);
+  assert.doesNotMatch(workflow, /This prerelease is for users/);
   assert.match(boundaryScript, /nightly_standard_release_workflow/);
   assert.equal(
     releaseContract.release_acceleration.github_actions.nightly_standard_release_workflow,
@@ -3585,6 +4629,15 @@ test('Full first-install cache and release acceleration contract are explicit', 
     'domain_repositories',
   );
   assert.deepEqual(releaseContract.release_acceleration.publish_resume.match_fields, ['asset_name', 'size', 'sha256']);
+  assert.equal(releaseContract.release_acceleration.publish_resume.upload_order, 'largest_assets_first_then_name');
+  assert.equal(releaseContract.release_acceleration.publish_resume.upload_mode, 'one_asset_per_gh_release_upload_command');
+  assert.deepEqual(releaseContract.release_acceleration.publish_resume.new_release_upload_failure_cleanup, {
+    enabled: true,
+    scope: 'release created by the current publish invocation before asset upload',
+    command: 'gh release delete <tag> --repo <repo> --yes --cleanup-tag',
+    existing_release_refresh_cleanup_allowed: false,
+    rule: 'If standard or Full asset upload fails after creating a new draft or release, delete that newly-created incomplete release and tag so the next same-cohort attempt starts from a clean remote state.',
+  });
   assert.equal(cacheMiss.status, 'miss_written');
   assert.equal(cacheMiss.build_layer, true);
   assert.equal(cacheMiss.write_archive, true);
@@ -3687,6 +4740,8 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /artifactNames\.runtimeCacheEvents/);
   assert.match(publishScript, /skipped_existing_artifacts/);
   assert.match(publishScript, /--force-upload/);
+  assert.match(publishScript, /cleanupNewlyCreatedReleaseAfterUploadFailure/);
+  assert.match(publishScript, /'release', 'delete', tag, '--repo', repo, '--yes', '--cleanup-tag'/);
 });
 
 test('Full runtime pruning keeps macOS arm64 launch payloads without development environments', async () => {

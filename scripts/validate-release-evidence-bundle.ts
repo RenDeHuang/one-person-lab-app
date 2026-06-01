@@ -24,11 +24,27 @@ type EvidenceArtifact = {
 type EvidenceContract = {
   manifestPath: string;
   artifacts: EvidenceArtifact[];
+  imageEvidencePolicy: ImageEvidencePolicy;
+  typedBlockerPolicy: TypedBlockerPolicy;
 };
 
 type ManifestArtifact = EvidenceArtifact & {
-  status: 'present' | 'missing';
+  status: 'present' | 'missing' | 'blocked';
   missing_reason?: string;
+  typed_blocker_path?: string;
+};
+
+type ImageEvidencePolicy = {
+  applies_to_kind: 'image';
+  minimum_width_px: number;
+  minimum_height_px: number;
+  minimum_file_size_bytes: number;
+  placeholder_screenshot_allowed: boolean;
+};
+
+type TypedBlockerPolicy = {
+  root: string;
+  requiredFields: string[];
 };
 
 function parseArgs(argv: string[]): Options {
@@ -93,18 +109,106 @@ function assertJsonFile(filePath: string, label: string) {
   }
 }
 
-function assertImageFile(filePath: string, label: string) {
+function isJpegSofMarker(marker: number) {
+  return (
+    (marker >= 0xc0 && marker <= 0xc3)
+    || (marker >= 0xc5 && marker <= 0xc7)
+    || (marker >= 0xc9 && marker <= 0xcb)
+    || (marker >= 0xcd && marker <= 0xcf)
+  );
+}
+
+function readUInt24LE(bytes: Buffer, offset: number) {
+  return bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16);
+}
+
+function webpDimensions(bytes: Buffer) {
+  if (bytes.subarray(0, 4).toString('ascii') !== 'RIFF' || bytes.subarray(8, 12).toString('ascii') !== 'WEBP') {
+    return null;
+  }
+  for (let offset = 12; offset + 8 <= bytes.length;) {
+    const chunkType = bytes.subarray(offset, offset + 4).toString('ascii');
+    const chunkSize = bytes.readUInt32LE(offset + 4);
+    const dataOffset = offset + 8;
+    const nextOffset = dataOffset + chunkSize + (chunkSize % 2);
+    if (dataOffset + chunkSize > bytes.length) {
+      return null;
+    }
+    if (chunkType === 'VP8X' && chunkSize >= 10) {
+      return {
+        width: readUInt24LE(bytes, dataOffset + 4) + 1,
+        height: readUInt24LE(bytes, dataOffset + 7) + 1,
+      };
+    }
+    if (chunkType === 'VP8L' && chunkSize >= 5 && bytes[dataOffset] === 0x2f) {
+      return {
+        width: 1 + bytes[dataOffset + 1] + ((bytes[dataOffset + 2] & 0x3f) << 8),
+        height: 1 + ((bytes[dataOffset + 2] & 0xc0) >> 6) + (bytes[dataOffset + 3] << 2) + ((bytes[dataOffset + 4] & 0x0f) << 10),
+      };
+    }
+    if (
+      chunkType === 'VP8 '
+      && chunkSize >= 10
+      && bytes[dataOffset + 3] === 0x9d
+      && bytes[dataOffset + 4] === 0x01
+      && bytes[dataOffset + 5] === 0x2a
+    ) {
+      return {
+        width: bytes.readUInt16LE(dataOffset + 6) & 0x3fff,
+        height: bytes.readUInt16LE(dataOffset + 8) & 0x3fff,
+      };
+    }
+    offset = nextOffset;
+  }
+  return null;
+}
+
+function imageDimensions(filePath: string, header: Buffer) {
+  const extension = path.extname(filePath).toLowerCase();
+  if (extension === '.png') {
+    return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
+  }
+  if (extension === '.jpg' || extension === '.jpeg') {
+    const bytes = fs.readFileSync(filePath);
+    for (let offset = 2; offset + 9 < bytes.length;) {
+      if (bytes[offset] !== 0xff) break;
+      const marker = bytes[offset + 1];
+      const length = bytes.readUInt16BE(offset + 2);
+      if (isJpegSofMarker(marker)) {
+        return { height: bytes.readUInt16BE(offset + 5), width: bytes.readUInt16BE(offset + 7) };
+      }
+      offset += 2 + length;
+    }
+  }
+  if (extension === '.webp') {
+    return webpDimensions(fs.readFileSync(filePath));
+  }
+  return null;
+}
+
+function assertImageFile(filePath: string, label: string, policy: ImageEvidencePolicy) {
   assertFile(filePath, label);
+  const stat = fs.statSync(filePath);
+  if (stat.size < policy.minimum_file_size_bytes) {
+    throw new Error(`${label} must be a real screenshot, not a placeholder image: ${filePath}`);
+  }
   if (!/\.(png|jpg|jpeg|webp)$/i.test(filePath)) {
     throw new Error(`${label} must be a screenshot image file: ${filePath}`);
   }
-  const header = fs.readFileSync(filePath).subarray(0, 12);
+  const header = fs.readFileSync(filePath).subarray(0, 24);
   const extension = path.extname(filePath).toLowerCase();
   const isPng = header.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
   const isJpeg = header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
   const isWebp = header.subarray(0, 4).toString('ascii') === 'RIFF' && header.subarray(8, 12).toString('ascii') === 'WEBP';
   if ((extension === '.png' && !isPng) || (['.jpg', '.jpeg'].includes(extension) && !isJpeg) || (extension === '.webp' && !isWebp)) {
     throw new Error(`${label} must contain real screenshot image bytes: ${filePath}`);
+  }
+  const dimensions = imageDimensions(filePath, header);
+  if (!dimensions) {
+    throw new Error(`${label} dimensions must be readable screenshot evidence: ${filePath}`);
+  }
+  if (dimensions && (dimensions.width < policy.minimum_width_px || dimensions.height < policy.minimum_height_px)) {
+    throw new Error(`${label} must be at least ${policy.minimum_width_px}x${policy.minimum_height_px}px screenshot evidence: ${filePath}`);
   }
 }
 
@@ -289,6 +393,7 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
     required_artifacts?: unknown;
     forbidden_authority?: unknown;
     missing_evidence_policy?: Record<string, unknown>;
+    image_evidence_policy?: ImageEvidencePolicy;
   };
   if (record.purpose !== 'runtime_page_operator_evidence_acceptance') {
     throw new Error(`Unexpected operator evidence bundle purpose: ${String(record.purpose)}`);
@@ -311,11 +416,36 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   if (record.missing_evidence_policy?.missing_status !== 'missing_evidence') {
     throw new Error('Operator evidence bundle missing evidence policy must declare missing_evidence status.');
   }
+  if (record.missing_evidence_policy?.blocked_status !== 'blocked_evidence') {
+    throw new Error('Operator evidence bundle missing evidence policy must declare blocked_evidence status.');
+  }
+  if (record.missing_evidence_policy?.typed_blocker_root !== 'typed-blockers/') {
+    throw new Error('Operator evidence bundle missing evidence policy must declare typed-blockers/ root.');
+  }
+  const typedBlockerRequires = record.missing_evidence_policy?.typed_blocker_requires;
+  if (
+    !Array.isArray(typedBlockerRequires)
+    || !['typed_blocker_ref', 'owner', 'blocker_kind', 'reason', 'evidence_refs', 'next_action'].every((field) => typedBlockerRequires.includes(field))
+  ) {
+    throw new Error('Operator evidence bundle missing evidence policy must declare typed blocker required fields.');
+  }
   if (record.missing_evidence_policy?.packaged_app_evidence_requires !== 'all_required_artifacts_present_and_verified') {
     throw new Error('Operator evidence bundle must require all artifacts before claiming packaged App evidence.');
   }
   if (!Array.isArray(record.required_artifacts) || record.required_artifacts.length === 0) {
     throw new Error('Operator evidence bundle must declare required artifacts.');
+  }
+  const imageEvidencePolicy = asRecord(record.image_evidence_policy, 'operator evidence image_evidence_policy') as unknown as ImageEvidencePolicy;
+  if (imageEvidencePolicy.applies_to_kind !== 'image') {
+    throw new Error('Operator evidence bundle image evidence policy must apply to image artifacts.');
+  }
+  if (
+    imageEvidencePolicy.minimum_width_px !== 640 ||
+    imageEvidencePolicy.minimum_height_px !== 360 ||
+    imageEvidencePolicy.minimum_file_size_bytes !== 4096 ||
+    imageEvidencePolicy.placeholder_screenshot_allowed !== false
+  ) {
+    throw new Error('Operator evidence bundle image evidence policy must reject placeholder screenshots.');
   }
   const forbiddenAuthority = Array.isArray(record.forbidden_authority) ? record.forbidden_authority : [];
   for (const forbidden of [
@@ -337,6 +467,11 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   return {
     manifestPath: record.manifest_path,
     artifacts: record.required_artifacts as EvidenceArtifact[],
+    imageEvidencePolicy,
+    typedBlockerPolicy: {
+      root: record.missing_evidence_policy.typed_blocker_root as string,
+      requiredFields: typedBlockerRequires as string[],
+    },
   };
 }
 
@@ -347,11 +482,14 @@ function validateManifestArtifact(manifestArtifact: unknown, expected: EvidenceA
       throw new Error(`Manifest artifact ${expected.id}.${key} must match release contract.`);
     }
   }
-  if (artifact.status !== 'present' && artifact.status !== 'missing') {
-    throw new Error(`Manifest artifact ${expected.id}.status must be present or missing.`);
+  if (artifact.status !== 'present' && artifact.status !== 'missing' && artifact.status !== 'blocked') {
+    throw new Error(`Manifest artifact ${expected.id}.status must be present, missing, or blocked.`);
   }
   if (artifact.status === 'missing' && typeof artifact.missing_reason !== 'string') {
     throw new Error(`Manifest artifact ${expected.id} must explain missing_reason.`);
+  }
+  if (artifact.status === 'blocked' && typeof artifact.typed_blocker_path !== 'string') {
+    throw new Error(`Manifest artifact ${expected.id} must include typed_blocker_path.`);
   }
   return artifact as ManifestArtifact;
 }
@@ -373,6 +511,90 @@ function validateMissingEvidenceList(manifest: Record<string, unknown>, missingA
   if (declaredIds.size !== missingIds.size || [...missingIds].some((id) => !declaredIds.has(id))) {
     throw new Error('Evidence manifest missing_evidence must match missing artifact statuses.');
   }
+}
+
+function validateTypedBlockerFile(filePath: string, artifact: ManifestArtifact, policy: TypedBlockerPolicy) {
+  const blocker = asRecord(assertJsonFile(filePath, `${artifact.id} typed blocker`), `${artifact.id} typed blocker`);
+  for (const field of policy.requiredFields) {
+    if (!(field in blocker)) {
+      throw new Error(`${artifact.id} typed blocker must include ${field}.`);
+    }
+  }
+  if (blocker.artifact_id !== artifact.id) {
+    throw new Error(`${artifact.id} typed blocker must match artifact_id.`);
+  }
+  if (typeof blocker.typed_blocker_ref !== 'string' || !blocker.typed_blocker_ref.trim()) {
+    throw new Error(`${artifact.id} typed blocker must include a non-empty typed_blocker_ref.`);
+  }
+  if (typeof blocker.owner !== 'string' || !blocker.owner.trim()) {
+    throw new Error(`${artifact.id} typed blocker must include owner.`);
+  }
+  if (typeof blocker.blocker_kind !== 'string' || !blocker.blocker_kind.trim()) {
+    throw new Error(`${artifact.id} typed blocker must include blocker_kind.`);
+  }
+  if (typeof blocker.reason !== 'string' || !blocker.reason.trim()) {
+    throw new Error(`${artifact.id} typed blocker must include reason.`);
+  }
+  if (!Array.isArray(blocker.evidence_refs) || blocker.evidence_refs.length === 0) {
+    throw new Error(`${artifact.id} typed blocker must include evidence_refs.`);
+  }
+  if (!blocker.evidence_refs.every((entry) => typeof entry === 'string' && entry.trim())) {
+    throw new Error(`${artifact.id} typed blocker evidence_refs must be non-empty strings.`);
+  }
+  if (typeof blocker.next_action !== 'string' || !blocker.next_action.trim()) {
+    throw new Error(`${artifact.id} typed blocker must include next_action.`);
+  }
+  return {
+    typed_blocker_ref: blocker.typed_blocker_ref,
+    owner: blocker.owner,
+    blocker_kind: blocker.blocker_kind,
+    reason: blocker.reason,
+    evidence_refs: blocker.evidence_refs,
+    next_action: blocker.next_action,
+  };
+}
+
+function validateBlockedEvidenceList(
+  bundleDir: string,
+  manifest: Record<string, unknown>,
+  blockedArtifacts: ManifestArtifact[],
+  policy: TypedBlockerPolicy,
+) {
+  const blockedEvidence = manifest.blocked_evidence;
+  if (!Array.isArray(blockedEvidence)) {
+    throw new Error('Evidence manifest must declare blocked_evidence array.');
+  }
+  const blockedIds = new Set(blockedArtifacts.map((artifact) => artifact.id));
+  const declaredIds = new Set();
+  for (const entry of blockedEvidence) {
+    const record = asRecord(entry, 'blocked evidence entry');
+    if (typeof record.id !== 'string' || typeof record.path !== 'string' || typeof record.typed_blocker_path !== 'string') {
+      throw new Error('Blocked evidence entries must include id, path, and typed_blocker_path.');
+    }
+    declaredIds.add(record.id);
+  }
+  if (declaredIds.size !== blockedIds.size || [...blockedIds].some((id) => !declaredIds.has(id))) {
+    throw new Error('Evidence manifest blocked_evidence must match blocked artifact statuses.');
+  }
+  return blockedArtifacts.map((artifact) => {
+    if (typeof artifact.typed_blocker_path !== 'string') {
+      throw new Error(`Blocked artifact ${artifact.id} must include typed_blocker_path.`);
+    }
+    if (!artifact.typed_blocker_path.startsWith(policy.root)) {
+      throw new Error(`Blocked artifact ${artifact.id} typed_blocker_path must stay under ${policy.root}.`);
+    }
+    const blockerRef = validateTypedBlockerFile(resolveBundlePath(bundleDir, artifact.typed_blocker_path), artifact, policy);
+    return {
+      id: artifact.id,
+      path: artifact.path,
+      kind: artifact.kind,
+      producer: artifact.producer,
+      source_kind: artifact.source_kind,
+      status: artifact.status,
+      typed_blocker_path: artifact.typed_blocker_path,
+      ...blockerRef,
+    };
+  });
 }
 
 function validateBundle(bundleDir: string, options: Options) {
@@ -416,6 +638,7 @@ function validateBundle(bundleDir: string, options: Options) {
 
   const verified: ManifestArtifact[] = [];
   const missing: ManifestArtifact[] = [];
+  const blocked: ManifestArtifact[] = [];
 
   for (const expected of contract.artifacts) {
     const entry = manifestArtifacts.get(expected.id);
@@ -427,12 +650,16 @@ function validateBundle(bundleDir: string, options: Options) {
       missing.push(artifact);
       continue;
     }
+    if (artifact.status === 'blocked') {
+      blocked.push(artifact);
+      continue;
+    }
 
     const filePath = resolveBundlePath(bundleDir, artifact.path);
     if (artifact.kind === 'json') {
       validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id));
     } else if (artifact.kind === 'image') {
-      assertImageFile(filePath, artifact.id);
+      assertImageFile(filePath, artifact.id, contract.imageEvidencePolicy);
     } else if (artifact.kind === 'log') {
       assertLogFile(filePath, artifact.id);
     } else {
@@ -441,17 +668,23 @@ function validateBundle(bundleDir: string, options: Options) {
     verified.push(artifact);
   }
 
-  if (missing.length > 0) {
-    if (manifest.status !== 'missing_evidence') {
-      throw new Error('Evidence manifest status must be missing_evidence when required artifacts are missing.');
+  const blockedEvidence = validateBlockedEvidenceList(bundleDir, manifest, blocked, contract.typedBlockerPolicy);
+
+  if (missing.length > 0 || blocked.length > 0) {
+    const expectedStatus = blocked.length > 0 ? 'blocked_evidence' : 'missing_evidence';
+    if (manifest.status !== expectedStatus) {
+      throw new Error(`Evidence manifest status must be ${expectedStatus} when required artifacts are ${blocked.length > 0 ? 'blocked' : 'missing'}.`);
     }
     if (manifest.packaged_app_evidence !== false) {
-      throw new Error('Evidence manifest must set packaged_app_evidence=false while evidence is missing.');
+      throw new Error('Evidence manifest must set packaged_app_evidence=false while evidence is missing or blocked.');
     }
     validateMissingEvidenceList(manifest, missing);
     if (!options.allowMissingEvidence) {
       throw new Error(
-        `Release evidence bundle is missing required evidence and cannot be used as packaged App evidence: ${missing.map((artifact) => artifact.id).join(', ')}`,
+        `Release evidence bundle is missing or blocked and cannot be used as packaged App evidence: ${[
+          ...missing.map((artifact) => artifact.id),
+          ...blocked.map((artifact) => artifact.id),
+        ].join(', ')}`,
       );
     }
   } else {
@@ -462,13 +695,14 @@ function validateBundle(bundleDir: string, options: Options) {
       throw new Error('Evidence manifest must set packaged_app_evidence=true only when all artifacts are present and verified.');
     }
     validateMissingEvidenceList(manifest, []);
+    validateBlockedEvidenceList(bundleDir, manifest, [], contract.typedBlockerPolicy);
   }
 
   return {
-    status: missing.length > 0 ? 'missing_evidence' : 'passed',
+    status: blocked.length > 0 ? 'blocked_evidence' : missing.length > 0 ? 'missing_evidence' : 'passed',
     bundle_dir: bundleDir,
     manifest_path: contract.manifestPath,
-    packaged_app_evidence: missing.length === 0,
+    packaged_app_evidence: missing.length === 0 && blocked.length === 0,
     evidence_boundary: evidenceBoundary,
     verified_artifact_count: verified.length,
     verified_artifacts: verified.map((artifact) => ({
@@ -489,6 +723,8 @@ function validateBundle(bundleDir: string, options: Options) {
       status: artifact.status,
       missing_reason: artifact.missing_reason,
     })),
+    blocked_artifact_count: blocked.length,
+    blocked_artifacts: blockedEvidence,
   };
 }
 

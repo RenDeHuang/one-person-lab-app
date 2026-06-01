@@ -146,7 +146,16 @@
         "size",
         "sha256"
       ],
-      "force_flag": "--force-upload"
+      "upload_order": "largest_assets_first_then_name",
+      "upload_mode": "one_asset_per_gh_release_upload_command",
+      "force_flag": "--force-upload",
+      "new_release_upload_failure_cleanup": {
+        "enabled": true,
+        "scope": "release created by the current publish invocation before asset upload",
+        "command": "gh release delete <tag> --repo <repo> --yes --cleanup-tag",
+        "existing_release_refresh_cleanup_allowed": false,
+        "rule": "If standard or Full asset upload fails after creating a new draft or release, delete that newly-created incomplete release and tag so the next same-cohort attempt starts from a clean remote state."
+      }
     },
     "post_publish_remote_verification": {
       "script": "npm run verify-remote-release -- --version <version>",
@@ -327,7 +336,24 @@
       "default_validation": "fail_closed",
       "allow_missing_evidence_flag": "--allow-missing-evidence",
       "missing_status": "missing_evidence",
+      "blocked_status": "blocked_evidence",
+      "typed_blocker_root": "typed-blockers/",
+      "typed_blocker_requires": [
+        "typed_blocker_ref",
+        "owner",
+        "blocker_kind",
+        "reason",
+        "evidence_refs",
+        "next_action"
+      ],
       "packaged_app_evidence_requires": "all_required_artifacts_present_and_verified"
+    },
+    "image_evidence_policy": {
+      "applies_to_kind": "image",
+      "minimum_width_px": 640,
+      "minimum_height_px": 360,
+      "minimum_file_size_bytes": 4096,
+      "placeholder_screenshot_allowed": false
     },
     "required_artifacts": [
       {
@@ -406,6 +432,27 @@
         "kind": "json",
         "producer": "packaged GUI assistant route smoke",
         "source_kind": "packaged_gui_assistant_route_smoke"
+      },
+      {
+        "id": "assistant_route_smoke_mas_screenshot",
+        "path": "artifacts/assistant-route-smoke/mas.png",
+        "kind": "image",
+        "producer": "packaged GUI assistant route smoke",
+        "source_kind": "packaged_gui_assistant_route_smoke_screenshot"
+      },
+      {
+        "id": "assistant_route_smoke_mag_screenshot",
+        "path": "artifacts/assistant-route-smoke/mag.png",
+        "kind": "image",
+        "producer": "packaged GUI assistant route smoke",
+        "source_kind": "packaged_gui_assistant_route_smoke_screenshot"
+      },
+      {
+        "id": "assistant_route_smoke_rca_screenshot",
+        "path": "artifacts/assistant-route-smoke/rca.png",
+        "kind": "image",
+        "producer": "packaged GUI assistant route smoke",
+        "source_kind": "packaged_gui_assistant_route_smoke_screenshot"
       },
       {
         "id": "remote_release_verification",

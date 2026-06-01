@@ -36,7 +36,7 @@ through the shell `bun run package` entry.
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 npm run test:release-boundary
 npm run validate:release-boundary
-node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite
+node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm --artifact runtime_screenshot=/path/to/runtime.png
 npm run release:evidence:manifest -- --bundle-dir release-evidence/<version> --overwrite
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
@@ -77,8 +77,14 @@ summaries, remote Release verification, OPL runtime JSON, or screenshots, the
 manifest must mark those entries as `missing`; `--allow-missing-evidence` then
 validates the gap report without treating it as packaged App evidence.
 `collect-release-evidence.ts` can fill the OPL runtime JSON and selected
-safe-action dry-run/execute artifacts from the live Framework CLI before that
-validation step.
+safe-action dry-run/execute artifacts from the live Framework CLI and runs that
+same missing-evidence validation before reporting collection success. It can
+also import standard packaged/VM/remote smoke outputs with
+`--evidence-source-dir <dir>` and attach explicit overrides with repeated
+`--artifact <artifact_id>=<source_path>` flags. Explicit artifact mappings take
+precedence over source-dir discovery. Every imported file is copied into the
+contract path and then validated through the release evidence bundle validator
+instead of trusting its original path.
 
 `hygiene:fallow` is scoped to App-owned root wrappers, contracts, and docs.
 `.fallowrc.json` excludes the ignored `shells/aionui/**` external checkout so
@@ -290,6 +296,31 @@ This keeps the full validation plan fast and usable:
   remote standard/Full verification, and evidence bundle validation.
 - Exploratory AI-first: non-blocking unless its findings are converted into a
   deterministic gate.
+
+Release-note validation is part of the same boundary. Public GitHub Release
+notes are AI-first English prose generated from deterministic evidence JSON:
+Stable compares with the previous Stable, Nightly compares with the previous
+Nightly, and the primary story is the OPL App package carrying or exposing OPL
+agents and runtime payloads. Stable/Full notes must include exact payload refs
+and payload deltas from `full-package-manifest.json`; Nightly notes must
+describe the standard App-managed MAS/MAG/RCA/OPL Meta Agent entry surface and
+Codex plugin/skill sync policy while stating that Full runtime payloads are not
+in Nightly. When Full manifests expose local component `source_path` repos, the
+evidence must include concrete `agent_runtime_changes` commit summaries so the
+note can explain agent/runtime improvements before audit refs. The quality gate
+rejects vague boilerplate, Chinese text, self-referential release-note copy,
+process-first openings, missing agent names, and missing user impact before
+release publication. It also requires the opening user-benefit paragraph before
+any section heading, keeps payload evidence as normal bullets, and rejects
+role-only payload copy when concrete runtime change hints are available. Tests should use `OPL_RELEASE_NOTES_AI_COMMAND` to inject a fake provider; only dry-run
+diagnostics may set `OPL_RELEASE_NOTES_MODE=template`. GitHub release jobs pass
+`OPL_RELEASE_NOTES_PROVIDER=auto`, request `models: read`, use GitHub Models
+with `GITHUB_TOKEN` first, and fall back to explicit Codex provider
+configuration through `OPL_RELEASE_NOTES_CODEX_*` vars and the
+`OPL_RELEASE_NOTES_CODEX_API_KEY` secret. They generate a temporary
+`CODEX_HOME/config.toml` for that fallback and upload the small
+`release-notes-evidence-<version>` JSON artifact instead of downloading large
+DMG/ZIP assets for note diagnosis.
 
 2026-05-15 Docker/WebUI evidence: `docker build -t
 one-person-lab-webui:26.5.15-smoke .` completed from `shells/aionui`, the image

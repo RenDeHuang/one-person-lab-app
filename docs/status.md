@@ -85,8 +85,11 @@ maintaining separate installer-specific progress truth. The active shell renders
 this model only and does not own private first-run progress state.
 
 Runtime progress display is contract-backed separately from first-run progress.
-The Runtime page consumes the OPL Foundry Agent series shared progress
-projection delta fields and
+The Runtime page is a project-progress surface first: it consumes
+`app_state.operator.workbench.task_drilldowns` to show which projects are
+running, their current state and stage, projected next step, blockers, and
+human-readable progress delta labels. Operator summary, safe actions, evidence
+refs, and full detail are secondary diagnostics. The same projection still
 classifies `deliverable_progress_delta` separately from
 `platform_repair_delta`. Platform repair is shown as infrastructure repair and
 cannot be presented as substantive deliverable, paper, manuscript, or
@@ -273,10 +276,23 @@ promoted.
 `app-state-full.json`, `drilldown-full.json`, `action-dry-run-result.json`, and,
 when explicitly requested, `action-execute-result.json` by calling the live OPL
 CLI. It then writes `evidence-manifest.json` through the existing manifest
-writer. Screenshot, clean first-run VM, settings smoke, packaged assistant
-route smoke, and remote Release verification artifacts remain required release
-evidence and stay marked `missing` until real artifacts exist; the collector is
-a user-path evidence bridge, not a packaged App release closeout.
+writer and immediately validates the bundle in `--allow-missing-evidence`
+mode. It can also attach externally produced contracted artifact files with
+`--artifact <artifact_id>=<source_path>`. On 2026-05-31 the same collector was
+extended with `--evidence-source-dir <dir>` so standard packaged/VM/remote smoke
+directories can be imported without hand-mapping every contracted artifact;
+explicit `--artifact` mappings still take precedence. Imported files are copied
+into the contract path and then validated by the same bundle validator. The
+collector also accepts `--typed-blocker <artifact_id>=<source_path>` for a
+producer run that actually happened but could not yield the required artifact.
+Typed blockers are copied under `typed-blockers/`, must name owner, blocker
+kind, reason, evidence refs, and next action, and keep
+`packaged_app_evidence=false`. Screenshot, clean first-run VM, settings smoke,
+packaged assistant route smoke, and remote Release verification artifacts remain
+required release evidence and stay marked `missing` or `blocked` until real
+artifacts exist; malformed OPL JSON, malformed attached evidence, malformed
+typed blockers, or contract drift still fails the collector. The collector is a
+user-path evidence bridge, not a packaged App release closeout.
 
 2026-05-28 OPL App/operator summary currently reads the selected App
 release/user-path cohort as refs-observed: five release/user-path evidence gates,
@@ -312,7 +328,64 @@ Each artifact records passed MAS/MAG/RCA selection, hidden ordinary selectors,
 and persisted Codex ACP route receipts with `route_kind=builtin_capability`,
 `executor=codex_cli`, `backend=codex`, and `source=opl_app_home`. This is
 current-source evidence only; it does not change the published 26.5.28 Full DMG
-blocker or claim App release readiness.
+release evidence. The App release evidence contract now treats
+`artifacts/assistant-route-smoke-summary.json` and
+`artifacts/assistant-route-smoke/{mas,mag,rca}.png` as required packaged GUI
+Codex-path artifacts, so a future release cohort cannot claim packaged App
+evidence from the route summary alone. The validator also applies an
+`image_evidence_policy` to all release screenshot artifacts: minimum
+`640x360px`, at least `4096` bytes, no placeholder screenshots, and readable
+PNG/JPEG/WebP dimensions. This keeps real packaged UI evidence distinct from
+contract-only or 1x1 image fixtures.
+
+On 2026-05-31 the current-source DMG route smoke artifacts were assembled into
+`/Users/gaofeng/workspace/opl-release-evidence/app-current-source-dmg-route-smoke-20260531/evidence-manifest.json`
+through `collect-release-evidence.ts`. The same cohort now has a complete
+GitHub `v26.5.31` draft release and validates as `passed` with
+`packaged_app_evidence=true`: 15 contracted artifacts are present, with zero
+missing evidence and zero blocked evidence. The bundle includes live OPL App
+state, full drilldown, action dry-run and execute JSON, Runtime screenshot,
+clean standard first-run VM summary, packaged first-run smoke, MAS/MAG/RCA
+assistant-route summary and screenshots, Full first-install screenshot and VM
+summary, Runtime action screenshot, and remote release verification.
+
+The same-cohort standard VM run at
+`/tmp/opl-current-standard-vm-smoke-20260531-current-source-archive-1/tart-smoke-summary.json`
+passed Core first-run, Settings navigation, MAS/MAG/RCA route smoke, and
+Runtime action dry-run evidence. The Full first-install DMG at
+`/Users/gaofeng/workspace/opl-release-evidence/app-current-source-dmg-route-smoke-20260531/full-package/One-Person-Lab-Full-26.5.31-mac-arm64.dmg`
+was verified by a real Tart Full clean-VM run under
+`full-vm-smoke/tart-smoke-summary.json` with Codex wizard seen and submitted,
+Core ready before `/guid`, Settings navigation passed, MAS/MAG/RCA route smoke
+passed, and Runtime action evidence passed. Its imported
+`screenshots/full.png` is `1536x912`, `98746` bytes, SHA-256
+`7ce5bd8c2abe8245f52d1ab36fe99849818eae02e7203ea288758650715fee15`; Runtime
+action evidence is present at `screenshots/action.png` with
+`runtime-action-evidence.json` recording `dryRunCompleted=true`.
+
+The `v26.5.31` GitHub release remains a draft and is not stable/latest. Remote
+verification downloaded and verified all 11 standard and Full assets:
+standard DMG, standard ZIP, two blockmaps, `latest-mac.yml`,
+`latest-arm64-mac.yml`, Full DMG, `full-package-manifest.json`,
+`runtime-cache-events.json`, `README-Full-First-Install.txt`, and
+`SHA256SUMS.txt`. `remote-release-verification.json` reports `status=passed`,
+`verified_asset_count=11`, Full DMG size `508995657` bytes, runtime
+uncompressed bytes `632065216`, and passed Full first-install budget. This
+closes the current-source draft release evidence tail only; stable publication,
+updater/latest promotion, App release-ready, domain readiness, and family
+production readiness remain separate owner decisions and evidence gates.
+
+Also on 2026-05-31, the active AionUI shell smoke producer was extended so
+future Full clean first-run CDP runs write the beginner-first screenshot into
+`screenshots/full.png`, and Runtime page dry-run action evidence writes
+`screenshots/action.png` plus `runtime-action-evidence.json`. It now also keeps
+Settings/page evidence and MAS/MAG/RCA assistant-route evidence independent from
+the Runtime action screenshot lane: when no safe App action route is exposed, it
+writes `runtime-action-evidence-blocker.json` and still lets the remaining
+packaged GUI smoke run. The Tart host wrapper writes a structured
+`tart-smoke-summary.json` on guest-smoke failure after artifacts are copied, so
+future bundles get a precise failure stage instead of an unstructured missing VM
+summary.
 
 2026-05-15 migration note: this local checkout is the clean App repo. It has no
 tracked `shells/aionui` source, and local `shells/aionui` points to

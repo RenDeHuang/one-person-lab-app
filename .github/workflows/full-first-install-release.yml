@@ -55,6 +55,7 @@ on:
         type: boolean
 permissions:
   contents: write
+  models: read
 
 concurrency:
   group: opl-full-first-install-${{ inputs.opl_version }}
@@ -753,6 +754,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           OPL_RELEASE_EXISTS: ${{ inputs.publish_to_release && '1' || '0' }}
+          OPL_RELEASE_NOTES_MODE: template
         run: |
           npm run release:publish -- \
             --no-build \
@@ -789,11 +791,28 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Configure Codex release-note writer
+        if: ${{ inputs.publish_to_release }}
+        working-directory: one-person-lab-app
+        shell: bash
+        env:
+          CODEX_HOME: ${{ runner.temp }}/release-notes-codex-home
+          OPL_RELEASE_NOTES_CODEX_PROVIDER: ${{ vars.OPL_RELEASE_NOTES_CODEX_PROVIDER || 'gflab' }}
+          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
+          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
+          OPL_RELEASE_NOTES_CODEX_WIRE_API: ${{ vars.OPL_RELEASE_NOTES_CODEX_WIRE_API || 'responses' }}
+          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
+        run: node --experimental-strip-types scripts/setup-release-notes-codex-config.ts
+
       - name: Publish GitHub Release assets
         if: ${{ inputs.publish_to_release }}
         working-directory: one-person-lab-app
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          OPL_RELEASE_NOTES_PROVIDER: auto
+          OPL_RELEASE_NOTES_GITHUB_MODEL: ${{ vars.OPL_RELEASE_NOTES_GITHUB_MODEL || 'openai/gpt-5-mini' }}
+          OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/full-release-notes-evidence.json
         run: |
           npm run release:publish -- \
             --no-build \
@@ -801,6 +820,14 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --full-package-only \
             --include-full-package
+
+      - name: Upload Full release-note evidence
+        if: ${{ inputs.publish_to_release }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-release-notes-evidence-${{ env.OPL_RELEASE_VERSION }}
+          path: ${{ runner.temp }}/full-release-notes-evidence.json
+          if-no-files-found: error
 
       - name: Clean up keychain
         if: always()

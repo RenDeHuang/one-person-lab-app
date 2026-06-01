@@ -11,6 +11,9 @@ const commandMaxBuffer = 128 * 1024 * 1024;
 type Options = {
   bundleDir: string;
   actionId: string;
+  artifacts: Record<string, string>;
+  evidenceSourceDirs: string[];
+  typedBlockers: Record<string, string>;
   executeAction: boolean;
   overwrite: boolean;
   oplBin: string;
@@ -28,13 +31,21 @@ type ManifestArtifact = {
   status: string;
 };
 
+type EvidenceArtifact = {
+  id: string;
+  path: string;
+};
+
 function parseArgs(argv: string[]): Options {
   const parsed: Options = {
     bundleDir: process.env.OPL_RELEASE_EVIDENCE_BUNDLE_DIR || '',
-    actionId: process.env.OPL_RELEASE_EVIDENCE_ACTION_ID || '',
-    executeAction: false,
-    overwrite: false,
-    oplBin: process.env.OPL_BIN || 'opl',
+      actionId: process.env.OPL_RELEASE_EVIDENCE_ACTION_ID || '',
+      artifacts: {},
+      evidenceSourceDirs: [],
+      typedBlockers: {},
+      executeAction: false,
+      overwrite: false,
+      oplBin: process.env.OPL_BIN || 'opl',
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -61,6 +72,46 @@ function parseArgs(argv: string[]): Options {
         throw new Error('Missing value for --action-id');
       }
       parsed.actionId = value;
+      index += 1;
+      continue;
+    }
+    if (token === '--artifact') {
+      if (!value || value.startsWith('--')) {
+        throw new Error('Missing value for --artifact');
+      }
+      const separatorIndex = value.indexOf('=');
+      if (separatorIndex <= 0 || separatorIndex === value.length - 1) {
+        throw new Error('--artifact must use <artifact_id>=<source_path>.');
+      }
+      const artifactId = value.slice(0, separatorIndex);
+      if (Object.hasOwn(parsed.artifacts, artifactId)) {
+        throw new Error(`Duplicate --artifact entry: ${artifactId}`);
+      }
+      parsed.artifacts[artifactId] = path.resolve(value.slice(separatorIndex + 1));
+      index += 1;
+      continue;
+    }
+    if (token === '--evidence-source-dir') {
+      if (!value || value.startsWith('--')) {
+        throw new Error('Missing value for --evidence-source-dir');
+      }
+      parsed.evidenceSourceDirs.push(path.resolve(value));
+      index += 1;
+      continue;
+    }
+    if (token === '--typed-blocker') {
+      if (!value || value.startsWith('--')) {
+        throw new Error('Missing value for --typed-blocker');
+      }
+      const separatorIndex = value.indexOf('=');
+      if (separatorIndex <= 0 || separatorIndex === value.length - 1) {
+        throw new Error('--typed-blocker must use <artifact_id>=<source_path>.');
+      }
+      const artifactId = value.slice(0, separatorIndex);
+      if (Object.hasOwn(parsed.typedBlockers, artifactId)) {
+        throw new Error(`Duplicate --typed-blocker entry: ${artifactId}`);
+      }
+      parsed.typedBlockers[artifactId] = path.resolve(value.slice(separatorIndex + 1));
       index += 1;
       continue;
     }
@@ -103,6 +154,161 @@ function writeJsonArtifact(bundleDir: string, artifactPath: string, payload: unk
   fs.writeFileSync(resolved, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
 
+function readReleaseEvidenceArtifacts(): EvidenceArtifact[] {
+  const releaseContract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8')) as {
+    operator_evidence_bundle?: {
+      required_artifacts?: EvidenceArtifact[];
+    };
+  };
+  const artifacts = releaseContract.operator_evidence_bundle?.required_artifacts;
+  if (!Array.isArray(artifacts)) {
+    throw new Error('Release evidence bundle contract must declare required_artifacts.');
+  }
+  return artifacts;
+}
+
+function artifactSourceCandidates(artifact: EvidenceArtifact): string[] {
+  const candidatesById: Record<string, string[]> = {
+    runtime_screenshot: [
+      'screenshots/runtime.png',
+      'runtime.png',
+      'settings-pages/runtime.png',
+    ],
+    full_screenshot: [
+      'screenshots/full.png',
+      'full.png',
+      'first-run-beginner.png',
+      'first-launch.png',
+    ],
+    action_screenshot: [
+      'screenshots/action.png',
+      'action.png',
+    ],
+    first_run_vm_summary: [
+      'tart-smoke-summary.json',
+    ],
+    guest_smoke_summary: [
+      'artifacts/smoke-summary.json',
+      'smoke-summary.json',
+    ],
+    assistant_route_smoke_summary: [
+      'artifacts/assistant-route-smoke-summary.json',
+      'assistant-route-smoke-summary.json',
+    ],
+    assistant_route_smoke_mas_screenshot: [
+      'artifacts/assistant-route-smoke/mas.png',
+      'assistant-route-smoke/mas.png',
+    ],
+    assistant_route_smoke_mag_screenshot: [
+      'artifacts/assistant-route-smoke/mag.png',
+      'assistant-route-smoke/mag.png',
+    ],
+    assistant_route_smoke_rca_screenshot: [
+      'artifacts/assistant-route-smoke/rca.png',
+      'assistant-route-smoke/rca.png',
+    ],
+    remote_release_verification: [
+      'remote-release-verification.json',
+    ],
+  };
+  const candidates = candidatesById[artifact.id] ?? [artifact.path];
+  return [...new Set([artifact.path, ...candidates])];
+}
+
+function discoverEvidenceSourceArtifacts(options: Options, artifacts: EvidenceArtifact[]): Record<string, string> {
+  const discovered: Record<string, string> = {};
+  for (const sourceDir of options.evidenceSourceDirs) {
+    if (!fs.existsSync(sourceDir)) {
+      throw new Error(`Missing release evidence source directory: ${sourceDir}`);
+    }
+    const stat = fs.statSync(sourceDir);
+    if (!stat.isDirectory()) {
+      throw new Error(`Release evidence source must be a directory: ${sourceDir}`);
+    }
+    for (const artifact of artifacts) {
+      if (Object.hasOwn(discovered, artifact.id)) {
+        continue;
+      }
+      for (const candidate of artifactSourceCandidates(artifact)) {
+        const candidatePath = path.resolve(sourceDir, candidate);
+        const relative = path.relative(sourceDir, candidatePath);
+        if (relative.startsWith('..') || path.isAbsolute(relative)) {
+          continue;
+        }
+        if (fs.existsSync(candidatePath) && fs.statSync(candidatePath).isFile()) {
+          discovered[artifact.id] = candidatePath;
+          break;
+        }
+      }
+    }
+  }
+  return discovered;
+}
+
+function attachExternalArtifacts(options: Options): string[] {
+  if (
+    Object.keys(options.artifacts).length === 0
+    && options.evidenceSourceDirs.length === 0
+    && Object.keys(options.typedBlockers).length === 0
+  ) {
+    return [];
+  }
+  const releaseEvidenceArtifacts = readReleaseEvidenceArtifacts();
+  const discoveredArtifacts = discoverEvidenceSourceArtifacts(options, releaseEvidenceArtifacts);
+  const artifactById = new Map(releaseEvidenceArtifacts.map((artifact) => [artifact.id, artifact]));
+  const attached: string[] = [];
+  for (const artifactId of Object.keys(options.artifacts)) {
+    if (!artifactById.has(artifactId)) {
+      throw new Error(`Unknown release evidence artifact id: ${artifactId}`);
+    }
+  }
+  for (const artifactId of Object.keys(options.typedBlockers)) {
+    if (!artifactById.has(artifactId)) {
+      throw new Error(`Unknown release evidence artifact id for typed blocker: ${artifactId}`);
+    }
+  }
+  for (const artifact of releaseEvidenceArtifacts) {
+    const artifactId = artifact.id;
+    const sourcePath = options.artifacts[artifactId] ?? discoveredArtifacts[artifactId];
+    if (!sourcePath) {
+      continue;
+    }
+    const releaseArtifact = artifactById.get(artifactId);
+    if (!releaseArtifact) {
+      throw new Error(`Unknown release evidence artifact id: ${artifactId}`);
+    }
+    if (!fs.existsSync(sourcePath)) {
+      throw new Error(`Missing source file for ${artifactId}: ${sourcePath}`);
+    }
+    const stat = fs.statSync(sourcePath);
+    if (!stat.isFile()) {
+      throw new Error(`Source for ${artifactId} must be a file: ${sourcePath}`);
+    }
+    const targetPath = resolveBundlePath(options.bundleDir, releaseArtifact.path);
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    fs.copyFileSync(sourcePath, targetPath);
+    attached.push(artifactId);
+  }
+  for (const artifact of releaseEvidenceArtifacts) {
+    const artifactId = artifact.id;
+    const sourcePath = options.typedBlockers[artifactId];
+    if (!sourcePath) {
+      continue;
+    }
+    if (!fs.existsSync(sourcePath)) {
+      throw new Error(`Missing typed blocker file for ${artifactId}: ${sourcePath}`);
+    }
+    if (!fs.statSync(sourcePath).isFile()) {
+      throw new Error(`Typed blocker for ${artifactId} must be a file: ${sourcePath}`);
+    }
+    const blockerPath = resolveBundlePath(options.bundleDir, path.join('typed-blockers', `${artifactId}.json`));
+    fs.mkdirSync(path.dirname(blockerPath), { recursive: true });
+    fs.copyFileSync(sourcePath, blockerPath);
+    attached.push(`${artifactId}:typed_blocker`);
+  }
+  return attached;
+}
+
 function runJsonCommand(options: Options, args: string[]): unknown {
   const result = spawnSync(options.oplBin, args, {
     cwd: appRoot,
@@ -142,6 +348,27 @@ function runNodeScript(args: string[]): unknown {
     ].filter(Boolean).join('\n'));
   }
   return JSON.parse(result.stdout);
+}
+
+function validateGeneratedBundle(options: Options): void {
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    options.bundleDir,
+    '--allow-missing-evidence',
+  ], {
+    cwd: appRoot,
+    encoding: 'utf8',
+    env: process.env,
+  });
+  if (result.status !== 0) {
+    throw new Error([
+      'Release evidence bundle validation failed after collection.',
+      result.stderr.trim(),
+      result.stdout.trim(),
+    ].filter(Boolean).join('\n'));
+  }
 }
 
 function collectRuntimeEvidence(options: Options): CollectedArtifactId[] {
@@ -194,6 +421,7 @@ function main(): void {
   fs.mkdirSync(options.bundleDir, { recursive: true });
 
   const collectedArtifacts = collectRuntimeEvidence(options);
+  const attachedArtifacts = attachExternalArtifacts(options);
   const manifest = runNodeScript([
     'scripts/write-release-evidence-manifest.ts',
     '--bundle-dir',
@@ -203,11 +431,15 @@ function main(): void {
     status: string;
     packaged_app_evidence: boolean;
   };
+  validateGeneratedBundle(options);
   const manifestJson = JSON.parse(
     fs.readFileSync(resolveBundlePath(options.bundleDir, 'evidence-manifest.json'), 'utf8'),
   ) as {
     artifacts: ManifestArtifact[];
   };
+  const blockedArtifacts = manifestJson.artifacts
+    .filter((artifact) => artifact.status === 'blocked')
+    .map((artifact) => artifact.id);
   const missingArtifacts = manifestJson.artifacts
     .filter((artifact) => artifact.status === 'missing')
     .map((artifact) => artifact.id);
@@ -221,6 +453,9 @@ function main(): void {
     action_id: options.actionId,
     action_execute_collected: options.executeAction,
     collected_artifacts: collectedArtifacts,
+    attached_artifacts: attachedArtifacts,
+    blocked_artifact_count: blockedArtifacts.length,
+    blocked_artifacts: blockedArtifacts,
     missing_artifact_count: missingArtifacts.length,
     missing_artifacts: missingArtifacts,
   }, null, 2));

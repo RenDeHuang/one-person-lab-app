@@ -127,8 +127,9 @@ builds that should run on GitHub runners instead of this Mac.
   macOS arm64 assets only. It creates a semver prerelease tag such as
   `v26.5.27-nightly`, marks the Release as prerelease, does not mark it
   as latest, excludes Full first-install assets, and runs remote standard asset
-  verification after upload. Users only see this channel after opting into
-  prerelease/Nightly updates in the App.
+  verification after upload. Its release notes compare against the previous
+  Nightly and explain the main user-visible changes in grouped prose. Users
+  only see this channel after opting into prerelease/Nightly updates in the App.
 - The VM smoke downloads the published DMG for the selected package profile,
   clones a clean no-CLT Tart base VM, fixes the logical display at
   `1920x1080px`, copies the GitHub runner's Node.js runtime into the guest for
@@ -141,8 +142,11 @@ builds that should run on GitHub runners instead of this Mac.
   repo sync, CLT, and ecosystem updates must not block the pre-`/guid` Core
   launch gate. The smoke must capture first-run screenshots and run a layout
   gate that proves technical details are collapsed by default and the novice
-  first screen is not dominated by phase/debug/maintenance controls. This VM
-  workflow is deterministic
+  first screen is not dominated by phase/debug/maintenance controls. The Full
+  clean first-run CDP screenshot is also the source for
+  `screenshots/full.png`, and the Runtime page dry-run action evidence capture
+  writes `screenshots/action.png` plus `runtime-action-evidence.json` for the
+  release evidence bundle. This VM workflow is deterministic
   release-blocking evidence for stable release readiness. Codex App and
   Computer Use browser/desktop sessions are allowed only as non-blocking
   exploratory triage; if they reveal release-relevant behavior, the finding
@@ -280,19 +284,26 @@ node --experimental-strip-types scripts/collect-release-evidence.ts \
   --bundle-dir release-evidence/<version> \
   --action-id <opl-runtime-safe-action-id> \
   --execute-action \
-  --overwrite
+  --overwrite \
+  --evidence-source-dir artifacts/opl-first-run-vm \
+  --artifact runtime_screenshot=/path/to/runtime.png
 
 npm run release:evidence:manifest -- \
   --bundle-dir release-evidence/<version> \
   --overwrite
 ```
 
-The collector writes only OPL-owned runtime snapshot, summary/full
-App/operator drilldown, and selected safe-action dry-run/execute JSON. It does
-not create screenshots, VM first-run summaries, guest smoke summaries,
+The collector writes OPL-owned runtime snapshot, summary/full App/operator
+drilldown, and selected safe-action dry-run/execute JSON. It can also import
+standard smoke source directories and explicit artifact overrides, then validates
+the copied files through the bundle validator. For a producer run that actually
+failed before writing the required artifact, pass `--typed-blocker
+<artifact_id>=<source_path>` so the manifest records `blocked_evidence` with a
+bundle-local typed blocker instead of an empty `missing` slot. It still does not
+create or fake screenshots, VM first-run summaries, guest smoke summaries,
 assistant route smoke summaries, remote Release verification, runtime truth,
 domain truth, artifact authority, or quality verdicts; absent App/VM/remote
-artifacts remain `missing` in the manifest.
+artifacts remain `missing` or `blocked` in the manifest.
 
 Validate a collected bundle with:
 
@@ -513,6 +524,17 @@ with `--clobber`. Pass
 `--force-upload` only when the release operator intentionally wants to overwrite
 all matching asset names.
 
+Uploads run one asset per `gh release upload` command, starting with the largest
+assets and then sorting by name. That keeps large DMG/ZIP failures explicit in
+operator logs and lets a retry skip any assets that already reached the release
+with matching size and digest.
+
+When `release:publish` creates a new draft or Release in the current invocation
+and asset upload fails, it deletes that newly-created incomplete Release with
+`gh release delete <tag> --cleanup-tag` before returning the upload error. This
+cleanup is limited to releases created by the current publish attempt; existing
+release refreshes and Full-only refreshes are not deleted on upload failure.
+
 Boundary guard:
 
 ```bash
@@ -525,6 +547,63 @@ Full first-install packages must be explicitly named with `Full` and must not
 be referenced from `latest*.yml`.
 Nightly standard releases use the same standard asset boundary, plus a
 prerelease semver tag, `--latest=false`, and no Full first-install payload.
+Both Stable and Nightly release notes are generated through
+`scripts/generate-release-notes.ts --ai` or `release:publish`'s default
+AI-first path. The deterministic release-note evidence JSON is the source of
+truth; Codex only turns that evidence into public English prose. Stable compares
+with the previous Stable release, Nightly compares with the previous Nightly
+prerelease, and repeated channel boilerplate is excluded from the body. Public
+GitHub Release notes must present One Person Lab as the OPL App distribution of
+the OPL agent/runtime package, not as a GUI-only changelog. Stable/Full notes
+must include the build-time payload refs from `full-package-manifest.json` for
+the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI,
+and MinerU, plus the payload changes against the previous Stable manifest when
+that manifest is available. Nightly notes must still describe the standard
+package's App-managed MAS/MAG/RCA/OPL Meta Agent entry surface and Codex
+plugin/skill sync policy, and explicitly state that Full runtime payloads are
+outside the Nightly channel. The AI quality gate rejects Chinese text, missing
+payload refs, missing user impact, generic version lists, and fixed boilerplate
+sections such as Release focus, Update channel guidance, Full first-install
+package, or Bundled OPL runtime and agent versions. Full release evidence also
+records `agent_runtime_changes` from each payload component's manifest
+`source_path` and resolved commit when the source repo is locally available.
+Those summaries are the material the AI writer should turn into user-facing
+agent value: MAS as research/study workflow support, MAG as grant/funding
+workflow support, RCA as visual deliverable support, OPL Meta Agent as agent
+design/testing support, Framework/Codex as runtime support, and OfficeCLI/MinerU
+as document and extraction tooling. Build refs remain audit evidence in the
+payload section; they should not be the headline of the release note.
+
+GitHub release jobs run release notes in `OPL_RELEASE_NOTES_PROVIDER=auto`.
+They request `models: read` and first call GitHub Models with
+`GITHUB_TOKEN`; `OPL_RELEASE_NOTES_GITHUB_MODEL` defaults to
+`openai/gpt-5-mini`. They also install `@openai/codex@latest` and run
+`scripts/setup-release-notes-codex-config.ts` to write a CI-only
+`CODEX_HOME/config.toml` from repository configuration for fallback use.
+Required fallback configuration is variable `OPL_RELEASE_NOTES_CODEX_BASE_URL`,
+variable `OPL_RELEASE_NOTES_MODEL`, and secret
+`OPL_RELEASE_NOTES_CODEX_API_KEY`; `OPL_RELEASE_NOTES_CODEX_PROVIDER` defaults
+to `gflab`, and `OPL_RELEASE_NOTES_CODEX_WIRE_API` defaults to `responses`.
+GitHub Actions does not inherit the maintainer Mac's `~/.codex/config.toml`,
+third-party `base_url`, or local auth state. Jobs upload the small
+`release-notes-evidence-<version>` artifact for audit and do not download
+DMG/ZIP assets to diagnose release notes. If GitHub Models is unavailable,
+rate-limited, or fails the note quality gate, the writer logs the provider
+failure and falls back to the configured Codex/gflab provider. If both providers
+or the quality gate fail, publishing fails closed. The quality gate also rejects
+self-referential release-note copy and process-first openings that talk about
+CI, workflows, contracts, telemetry, or validation before explaining what users
+can do more easily in the App. The opening user-benefit paragraph must appear
+immediately after the title, before section headings, and payload evidence lines
+must remain normal bullets rather than blockquotes. When concrete
+`agent_runtime_changes` are available, role-only copy is insufficient; the note
+must mention the actual runtime changes such as currentness, closeout handoff,
+route-back, progress-first owner payloads, provider/operator evidence, or
+work-order gates in user-facing language. `OPL_RELEASE_NOTES_MODE=template`
+is reserved for dry-run diagnostics only; published releases must use the
+AI-first path. Local tests can inject a fake writer with
+`OPL_RELEASE_NOTES_AI_COMMAND`; production jobs must use the auto provider
+chain above.
 The same boundary guard fails closed when any release workflow drops the
 top-level `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` policy.
 

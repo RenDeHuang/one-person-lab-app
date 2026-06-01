@@ -4,11 +4,9 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import {
-  formatCodexProfileLabel,
-  readAppProductProfile,
-} from './app-product-profile.ts';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
+import { buildReleaseNotesDocument, buildReleaseNotesEvidence } from './release-notes.ts';
+import { buildAiReleaseNotesDocument } from './release-notes-ai-writer.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultFullPackageDir = path.resolve(repoRoot, 'dist', 'opl-full-release');
@@ -407,8 +405,16 @@ function assetDigestMatches(asset, filePath) {
 }
 
 function partitionArtifactsForUpload(artifacts, existingAssets, options) {
+  const orderUploadArtifacts = (artifactPaths) => [...artifactPaths].sort((left, right) => {
+    const sizeDelta = fs.statSync(right).size - fs.statSync(left).size;
+    if (sizeDelta !== 0) {
+      return sizeDelta;
+    }
+    return path.basename(left).localeCompare(path.basename(right));
+  });
+
   if (options.forceUpload) {
-    return { uploadArtifacts: artifacts, skippedArtifacts: [] };
+    return { uploadArtifacts: orderUploadArtifacts(artifacts), skippedArtifacts: [] };
   }
   const assetsByName = new Map(existingAssets.map((asset) => [asset?.name, asset]));
   const uploadArtifacts = [];
@@ -433,7 +439,7 @@ function partitionArtifactsForUpload(artifacts, existingAssets, options) {
     }
     uploadArtifacts.push(artifactPath);
   }
-  return { uploadArtifacts, skippedArtifacts };
+  return { uploadArtifacts: orderUploadArtifacts(uploadArtifacts), skippedArtifacts };
 }
 
 function suggestDefaultReleaseVersion(repo, dateVersion) {
@@ -450,220 +456,90 @@ function suggestDefaultReleaseVersion(repo, dateVersion) {
   throw new Error(`No available same-day suffix for GUI release date version ${dateVersion}.`);
 }
 
-function commandOutput(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    cwd: options.cwd,
+function releaseNotesMode() {
+  const mode = (process.env.OPL_RELEASE_NOTES_MODE || 'ai').trim().toLowerCase();
+  if (mode !== 'ai' && mode !== 'template') {
+    throw new Error(`Unsupported OPL_RELEASE_NOTES_MODE: ${process.env.OPL_RELEASE_NOTES_MODE}`);
+  }
+  return mode;
+}
+
+function writeReleaseNotesEvidence(evidence) {
+  const outputPath = process.env.OPL_RELEASE_NOTES_EVIDENCE_OUTPUT?.trim();
+  if (!outputPath) {
+    return;
+  }
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, `${JSON.stringify(evidence, null, 2)}\n`);
+}
+
+function buildReleaseNotes(version, includeFullPackage, shellRoot, fullPackageManifest = null, options = {}) {
+  const releaseNoteOptions = {
+    version,
+    channel: version.includes('-nightly') ? 'nightly' : 'stable',
+    releaseRepo: options.releaseRepo || process.env.OPL_RELEASE_REPO || 'gaofeng21cn/one-person-lab-app',
+    shellRoot,
+    includeFullPackage,
+    fullPackageManifest,
+    currentTag: `v${version}`,
+  };
+  const evidence = buildReleaseNotesEvidence(releaseNoteOptions);
+  writeReleaseNotesEvidence(evidence);
+  const mode = releaseNotesMode();
+  if (mode === 'template') {
+    if (!options.allowTemplate) {
+      throw new Error('OPL_RELEASE_NOTES_MODE=template is allowed only for dry-run diagnostics; published releases must use AI release notes.');
+    }
+    return {
+      mode,
+      notes: buildReleaseNotesDocument(releaseNoteOptions),
+    };
+  }
+  return {
+    mode,
+    notes: buildAiReleaseNotesDocument(evidence),
+  };
+}
+
+function replaceReleaseNotes(repo, tag, notes) {
+  run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', notes]);
+}
+
+function cleanupNewlyCreatedReleaseAfterUploadFailure(repo, tag) {
+  const result = spawnSync('gh', ['release', 'delete', tag, '--repo', repo, '--yes', '--cleanup-tag'], {
     encoding: 'utf8',
     stdio: 'pipe',
     env: process.env,
   });
   if (result.status !== 0) {
-    return '';
-  }
-  return result.stdout.trim();
-}
-
-function humanizeCommitSubject(subject) {
-  const match = subject.match(/^(?<type>[a-z]+)(?:\((?<scope>[^)]+)\))?!?:\s*(?<body>.+)$/i);
-  if (!match?.groups) {
-    return subject.replace(/^[a-z]/, (value) => value.toUpperCase());
-  }
-  const scope = match.groups.scope
-    ? match.groups.scope
-        .split(/[-_/]+/)
-        .filter(Boolean)
-        .map((part) => part.replace(/^[a-z]/, (value) => value.toUpperCase()))
-        .join(' ')
-    : match.groups.type.replace(/^[a-z]/, (value) => value.toUpperCase());
-  const body = match.groups.body.replace(/^[a-z]/, (value) => value.toUpperCase());
-  return `${scope}: ${body}`;
-}
-
-function buildChangeList(shellRoot, maxItems = 12) {
-  if (!fs.existsSync(path.join(shellRoot, '.git'))) {
-    return ['GUI package refresh from the current OPL shell main branch.'];
-  }
-
-  const lastTag = commandOutput('git', ['describe', '--tags', '--abbrev=0', 'HEAD'], { cwd: shellRoot });
-  const rangeArgs = lastTag ? [`${lastTag}..HEAD`] : ['HEAD'];
-  const rawSubjects = commandOutput(
-    'git',
-    ['log', '--no-merges', '--pretty=%s', ...rangeArgs, `--max-count=${maxItems}`],
-    { cwd: shellRoot },
-  );
-  const subjects = rawSubjects
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map(humanizeCommitSubject);
-  return subjects.length > 0 ? subjects : ['GUI package refresh from the current OPL shell main branch.'];
-}
-
-function buildUpdateGuidanceNotes(version) {
-  return [
-    'Update channel guidance',
-    `- Existing users should use in-app update, or install the standard One-Person-Lab-${version}-mac-arm64.dmg package for a manual reinstall.`,
-    '- Standard DMG/ZIP assets and latest*.yml metadata remain the only source for the auto-updater.',
-    '- Full first-install assets are GitHub Release downloads for new or clean macOS arm64 setups. They are not a separate update channel and are never referenced by updater metadata.',
-  ];
-}
-
-function formatFriendlyTimestamp(value) {
-  if (!value) {
-    return 'this release build';
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Shanghai',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).formatToParts(date).map((part) => [part.type, part.value]),
-  );
-  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} Beijing time`;
-}
-
-function shortSha(value) {
-  return typeof value === 'string' && value.trim() ? value.trim().slice(0, 7) : null;
-}
-
-function buildBundledModuleNotes(manifest) {
-  if (!manifest?.components || typeof manifest.components !== 'object') {
-    return [];
-  }
-  const generatedAt = formatFriendlyTimestamp(manifest.generated_at);
-  const modules = [
-    ['MAS', manifest.components.mas],
-    ['MAG', manifest.components.mag],
-    ['RCA', manifest.components.rca],
-    ['OPL Meta Agent', manifest.components.meta_agent],
-  ]
-    .filter(([, component]) => component && typeof component === 'object')
-    .map(([label, component]) => {
-      const sha = shortSha(component?.git_commit);
-      return sha ? `- ${label}: ${generatedAt} build, main @ ${sha}` : `- ${label}: ${generatedAt} build`;
-    });
-  const officeCliVersion = manifest.components.officecli?.version;
-  if (officeCliVersion) {
-    modules.push(`- OfficeCLI: ${String(officeCliVersion).split(/\r?\n/)[0]}`);
-  }
-  const mineruOpenApiVersion = manifest.components.mineru_open_api?.version;
-  if (mineruOpenApiVersion) {
-    modules.push(`- MinerU OpenAPI CLI: ${String(mineruOpenApiVersion).split(/\r?\n/)[0]}`);
-  }
-  return modules;
-}
-
-function buildFullPackageReleaseNotesSection(version, manifest = null) {
-  const bundledModuleNotes = buildBundledModuleNotes(manifest);
-  const profile = readAppProductProfile();
-  const codexProfileLabel = formatCodexProfileLabel(profile);
-  const domainModules = profile.companion_payloads.domain_modules
-    .map((moduleId) => {
-      if (moduleId === 'mas') return 'MAS';
-      if (moduleId === 'mag') return 'MAG';
-      if (moduleId === 'rca') return 'RCA';
-      if (moduleId === 'opl-meta-agent') return 'OPL Meta Agent';
-      return moduleId;
-    })
-    .join(', ');
-  const companionTools = profile.companion_payloads.tools
-    .map((toolId) => (toolId === 'mineru-open-api' ? 'MinerU document extraction' : toolId))
-    .join(', ');
-  return [
-    'Full first-install package',
-    `- New macOS arm64 users can download One-Person-Lab-Full-${version}-mac-arm64.dmg for a first setup that includes the App plus preloaded ${domainModules}, family runtime support payloads, ${companionTools}, and recommended companion skills.`,
-    '- After installation, users still configure their Codex/OpenAI API key and pass first-run readiness checks in the App.',
-    `- The bundled Codex default profile is ${codexProfileLabel} and is applied through the active session path after API-key setup.`,
-    '- Command Line Tools installation is requested through deferred maintenance when needed; Full first launch continues on the bundled runtime while CLT installation is handled separately.',
-    '- OPL Meta Agent is bundled and managed as a default ecosystem module so users can install and maintain the Foundry Agent used to create new OPL-compatible agents.',
-    '- The App repository builds and publishes the Full package. OPL Framework code and contracts are bundled as runtime payload inputs, not as owners of the App release flow.',
-    '- Full runtime readiness is Temporal-backed. Temporal is the required production durable stage-attempt provider; Hermes/Gateway runtime payloads are retired and are not bundled or exposed as compatibility surfaces.',
-    '- MDS remains retired and is not bundled as a default module or MAS runtime dependency.',
-    '- Full is a first-install download, not a separate update channel. App auto-update still follows standard latest*.yml metadata and the standard One Person Lab package.',
-    ...(bundledModuleNotes.length > 0 ? ['', 'Bundled module versions', ...bundledModuleNotes] : []),
-  ];
-}
-
-function buildReleaseFocusNotes(version, includeFullPackage) {
-  const codexProfileLabel = formatCodexProfileLabel();
-  const fullReadinessNote = includeFullPackage
-    ? 'Full runtime readiness is represented as first-run Core, Domain modules, and family runtime provider readiness, with Temporal as the production durable provider contract.'
-    : 'Full runtime readiness remains separated from the standard updater channel and is validated through the Full first-install lane.';
-  return [
-    'Release focus',
-    '- Settings page: stabilizes the App settings and OPL initialization flows used to configure the Codex/OpenAI API key, refresh readiness, and inspect developer-mode availability.',
-    '- First-run resilience: keeps CLT/deferred maintenance and repository refreshes outside the core launch gate so clean installs can enter the App on the bundled runtime.',
-    `- Codex defaults: applies the ${codexProfileLabel} profile through the active ACP session path, including packaged Full first-install sessions.`,
-    '- VM validation: clean no-CLT macOS arm64 first-install smoke passed at 1920x1080 with the Codex config wizard and all settings pages covered.',
-    `- Runtime packaging: ${fullReadinessNote}`,
-    `- Scope: ${version} is a desktop App release. Domain truth, provider implementation, quality verdicts, and artifact authority remain owned by OPL Framework and the domain agents.`,
-  ];
-}
-
-function buildReleaseNotes(version, includeFullPackage, changeList, fullPackageManifest = null) {
-  const notes = [
-    `One Person Lab desktop GUI release ${version}`,
-    '',
-    ...buildReleaseFocusNotes(version, includeFullPackage),
-    '',
-    'Change log',
-    ...changeList.map((change) => `- ${change}`),
-    '',
-    ...buildUpdateGuidanceNotes(version),
-  ];
-  if (includeFullPackage) {
-    notes.push(
-      '',
-      ...buildFullPackageReleaseNotesSection(version, fullPackageManifest),
+    const detail = `${result.stdout || ''}${result.stderr || ''}`.trim();
+    throw new Error(
+      `Upload failed after creating ${tag}, and cleanup failed. Delete the incomplete release manually before retrying.${detail ? `\ncleanup=${detail}` : ''}`,
     );
   }
-  return notes.join('\n');
+  console.error(`Cleaned up newly created release ${tag} after upload failure.`);
 }
 
-function ensureFullPackageReleaseNotes(repo, tag, version, fullPackageManifest = null) {
-  const current = spawnSync('gh', ['release', 'view', tag, '--repo', repo, '--json', 'body', '--jq', '.body'], {
-    encoding: 'utf8',
-    stdio: 'pipe',
-  });
-  if (current.status !== 0) {
-    throw new Error(`Command failed: gh release view ${tag} --repo ${repo}\nstderr=${current.stderr || ''}`);
-  }
-
-  const currentNotes = current.stdout.trimEnd();
-  const fullSection = buildFullPackageReleaseNotesSection(version, fullPackageManifest).join('\n');
-  const releaseFocusSection = buildReleaseFocusNotes(version, true).join('\n');
-  const missingReleaseFocus = !current.stdout.includes('Release focus');
-  const missingUpdateGuidance = !current.stdout.includes('Update channel guidance') && !current.stdout.includes('Update guidance:');
-  const fullSectionPattern = /^Full first-install package:?[\s\S]*$/m;
-  let baseNotes = currentNotes.replace(fullSectionPattern, '').trimEnd();
-  const appendSection = (notes, lines) => [
-    ...(notes ? [notes, ''] : []),
-    ...lines,
-  ].join('\n');
-
-  if (missingReleaseFocus) {
-    baseNotes = appendSection(baseNotes, [releaseFocusSection]);
-  }
-  if (missingUpdateGuidance) {
-    baseNotes = appendSection(baseNotes, buildUpdateGuidanceNotes(version));
-  }
-  const nextNotes = [
-    ...(baseNotes ? [baseNotes, ''] : []),
-    fullSection,
-  ].join('\n');
-  run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', nextNotes]);
+function buildUploadArgs(repo, tag, artifactPath) {
+  return ['release', 'upload', tag, artifactPath, '--repo', repo, '--clobber'];
 }
 
-function replaceReleaseNotes(repo, tag, notes) {
-  run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', notes]);
+function uploadReleaseArtifacts(repo, tag, artifactPaths) {
+  const uploaded = [];
+  for (const artifactPath of artifactPaths) {
+    const name = path.basename(artifactPath);
+    console.error(`Uploading release asset ${name} (${uploaded.length + 1}/${artifactPaths.length}).`);
+    try {
+      run('gh', buildUploadArgs(repo, tag, artifactPath));
+      uploaded.push(name);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      const uploadedDetail = uploaded.length > 0
+        ? ` Uploaded before failure: ${uploaded.join(', ')}.`
+        : '';
+      throw new Error(`Failed to upload release asset ${name} to ${tag}.${uploadedDetail}\n${detail}`);
+    }
+  }
 }
 
 function main() {
@@ -695,12 +571,15 @@ function main() {
   const existingAssets = existingRelease ? readExistingReleaseAssets(options.releaseRepo, tag) : [];
   const uploadPlan = partitionArtifactsForUpload(allArtifacts, existingAssets, options);
   const uploadArgs = ['release', 'upload', tag, ...uploadPlan.uploadArtifacts, '--repo', options.releaseRepo, '--clobber'];
-  const releaseNotes = buildReleaseNotes(
+  const uploadCommands = uploadPlan.uploadArtifacts.map((artifactPath) => ['gh', ...buildUploadArgs(options.releaseRepo, tag, artifactPath)]);
+  const releaseNotesResult = buildReleaseNotes(
     options.version,
     options.includeFullPackage,
-    options.fullPackageOnly ? ['Full first-install package assets for the existing standard release.'] : buildChangeList(options.shellRoot),
+    options.shellRoot,
     fullPackageManifest,
+    { allowTemplate: options.dryRun, releaseRepo: options.releaseRepo },
   );
+  const releaseNotes = releaseNotesResult.notes;
 
   if (options.dryRun) {
     console.log(JSON.stringify({
@@ -719,8 +598,10 @@ function main() {
       draft: options.draft,
       force_upload: options.forceUpload,
       skipped_existing_artifacts: uploadPlan.skippedArtifacts,
+      release_notes_mode: releaseNotesResult.mode,
       release_notes: releaseNotes,
       upload_command: ['gh', ...uploadArgs],
+      upload_commands: uploadCommands,
     }, null, 2));
     return;
   }
@@ -733,6 +614,7 @@ function main() {
     throw new Error(`Release ${tag} does not exist in ${options.releaseRepo}; publish the standard release before uploading Full first-install assets.`);
   }
 
+  let createdRelease = false;
   if (!existingRelease) {
     run('gh', [
       'release',
@@ -746,13 +628,21 @@ function main() {
       releaseNotes,
       ...(options.draft ? ['--draft'] : []),
     ]);
+    createdRelease = true;
   } else if (options.includeFullPackage && options.fullPackageOnly) {
-    ensureFullPackageReleaseNotes(options.releaseRepo, tag, options.version, fullPackageManifest);
+    replaceReleaseNotes(options.releaseRepo, tag, releaseNotes);
   } else if (options.includeFullPackage) {
     replaceReleaseNotes(options.releaseRepo, tag, releaseNotes);
   }
   if (uploadPlan.uploadArtifacts.length > 0) {
-    run('gh', uploadArgs);
+    try {
+      uploadReleaseArtifacts(options.releaseRepo, tag, uploadPlan.uploadArtifacts);
+    } catch (error) {
+      if (createdRelease) {
+        cleanupNewlyCreatedReleaseAfterUploadFailure(options.releaseRepo, tag);
+      }
+      throw error;
+    }
   }
 }
 

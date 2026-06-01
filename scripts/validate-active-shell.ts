@@ -147,6 +147,43 @@ function validateProgressDeltaDisplayContract(progressDelta, label) {
   }
 }
 
+function validateProjectProgressDisplayContract(projectProgress, label) {
+  if (!projectProgress || typeof projectProgress !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.task_drilldowns',
+    authority: 'opl_framework_shared_project_progress_projection',
+    display_policy: 'project_progress_first_no_domain_artifact_body',
+    diagnostics_treatment: 'secondary_disclosure',
+    safe_actions_treatment: 'secondary_operator_disclosure',
+  })) {
+    if (projectProgress[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    projectProgress.required_fields,
+    [
+      'task_id',
+      'title',
+      'domain_id',
+      'state',
+      'active_stage_id',
+      'progress_delta_classification',
+      'deliverable_progress_delta',
+      'platform_repair_delta',
+      'blocker_ref_count',
+    ],
+    `${label} required_fields`,
+  );
+  assertIncludesAll(
+    projectProgress.optional_user_fields,
+    ['domain_label', 'active_stage_label', 'next_visible_step', 'next_owner', 'last_progress_at'],
+    `${label} optional_user_fields`,
+  );
+}
+
 function validateBeginnerFirstRunPresentation(presentation, label) {
   if (presentation?.audience !== 'beginner_non_technical_users') {
     throw new Error(`${label} must target beginner_non_technical_users`);
@@ -595,6 +632,33 @@ function validateActiveShellImplementation(shellPaths) {
   }
   if (/med[-_ ]?deep[-_ ]?scientist|module_id['"]?\s*:\s*['"]mds['"]/i.test(runtimeSettings)) {
     throw new Error('Active shell Runtime settings must not default-display Med Deep Scientist/MDS.');
+  }
+
+  const trayStartup = readShellText(shellPaths, 'packages/desktop/src/process/startup/trayStartup.ts');
+  for (const expected of [
+    'export async function initializeTrayForDesktopMode',
+    'deps.createOrUpdateTray()',
+    'deps.destroyTray()',
+    'deps.setCloseToTrayEnabled(false)',
+  ]) {
+    if (!trayStartup.includes(expected)) {
+      throw new Error(`Active shell desktop tray startup must implement App-owned tray policy: ${expected}`);
+    }
+  }
+  if (trayStartup.includes('if (deps.getCloseToTrayEnabled())') || trayStartup.includes('if (getCloseToTrayEnabled())')) {
+    throw new Error('Active shell desktop tray visibility must not be gated on close-to-tray setting.');
+  }
+
+  const desktopMain = readShellText(shellPaths, 'packages/desktop/src/index.ts');
+  for (const expected of [
+    'initializeTrayForDesktopMode',
+    "readCloseToTray: () => ProcessConfig.get('system.closeToTray')",
+    'createOrUpdateTray',
+    'destroyTray',
+  ]) {
+    if (!desktopMain.includes(expected)) {
+      throw new Error(`Active shell desktop startup must wire App-owned tray policy: ${expected}`);
+    }
   }
 
   const settingsNav = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/sections/settingsNav.tsx');
@@ -1308,17 +1372,18 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
     full_state_policy: 'diagnostic_or_release_evidence_only',
     full_detail_command: 'opl runtime app-operator-drilldown --detail full --json',
     action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
-    'projection_sources.primary': 'app_state.operator.summary',
+    'projection_sources.primary': 'app_state.operator.workbench.task_drilldowns',
     'projection_sources.provider': 'app_state.provider',
     'projection_sources.actions': 'app_state.actions',
     'projection_sources.full_detail': 'runtime_tray_snapshot.app_operator_drilldown',
-    'projection_sources.policy': 'summary_first_full_detail_on_demand',
+    'projection_sources.policy': 'project_progress_first_full_detail_on_demand',
   })) {
     const actual = field.split('.').reduce((value, key) => value?.[key], runtimeBridge);
     if (actual !== expected) {
       throw new Error(`Runtime bridge ${field} must be ${expected}`);
     }
   }
+  validateProjectProgressDisplayContract(runtimeBridge.project_progress_projection, 'Runtime bridge project progress projection');
   for (const [field, expected] of Object.entries({
     shell_adapter_can_own_runtime_truth: false,
     app_can_own_runtime_truth: false,
@@ -2220,8 +2285,8 @@ function validatePageStateMatrix(matrix, contract) {
   if (runtimePage.machine_source !== 'opl app state --profile fast --json') {
     throw new Error(`Runtime page must consume OPL App state as the summary source, got: ${runtimePage.machine_source}`);
   }
-  if (runtimePage.primary_projection !== 'app_state.operator.summary') {
-    throw new Error(`Runtime page primary_projection must be app_state.operator.summary, got: ${runtimePage.primary_projection}`);
+  if (runtimePage.primary_projection !== 'app_state.operator.workbench.task_drilldowns') {
+    throw new Error(`Runtime page primary_projection must be app_state.operator.workbench.task_drilldowns, got: ${runtimePage.primary_projection}`);
   }
   if (runtimePage.framework_command !== 'opl app state --profile fast --json') {
     throw new Error(`Runtime page must use the OPL App state command, got: ${runtimePage.framework_command}`);
@@ -2253,14 +2318,14 @@ function validatePageStateMatrix(matrix, contract) {
     }
   }
   const runtimeViewModel = runtimePage.runtime_view_model;
-  if (runtimeViewModel?.role !== 'opl_runtime_status_summary') {
-    throw new Error('Runtime page must declare OPL runtime status summary view model');
+  if (runtimeViewModel?.role !== 'opl_runtime_project_progress') {
+    throw new Error('Runtime page must declare OPL runtime project progress view model');
   }
   if (runtimeViewModel.bridge_contract !== 'contracts/app-runtime-bridge.json') {
     throw new Error(`Runtime page view model must reference app-runtime-bridge.json, got: ${runtimeViewModel.bridge_contract}`);
   }
-  if (runtimeViewModel.default_mode !== 'app_state_summary_first') {
-    throw new Error('Runtime page view model must default to app_state_summary_first');
+  if (runtimeViewModel.default_mode !== 'project_progress_first') {
+    throw new Error('Runtime page view model must default to project_progress_first');
   }
   if (runtimeViewModel.full_detail_policy !== 'on_demand_only') {
     throw new Error('Runtime page full detail must be on-demand only');
@@ -2297,6 +2362,15 @@ function validatePageStateMatrix(matrix, contract) {
       throw new Error(`Runtime page view model ${field} must be ${expected}`);
     }
   }
+  validateProjectProgressDisplayContract(runtimeViewModel.project_progress, 'Runtime page project progress display contract');
+  if (runtimeViewModel.diagnostics?.default_visibility !== 'secondary_disclosure') {
+    throw new Error('Runtime page diagnostics must be secondary disclosure, not a primary daily surface');
+  }
+  assertIncludesAll(
+    runtimeViewModel.diagnostics?.sections,
+    ['operator summary', 'safe actions', 'evidence refs', 'full detail digest'],
+    'Runtime page diagnostics sections',
+  );
   if (runtimeViewModel.authority_boundary?.refs_only !== true) {
     throw new Error('Runtime page view model must be refs-only');
   }
@@ -2307,6 +2381,7 @@ function validatePageStateMatrix(matrix, contract) {
   const requiredEvidencePath = [
     'summary-first OPL App state read model',
     'fast App state refresh',
+    'app_state.operator.workbench.task_drilldowns project progress refs',
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
@@ -2323,7 +2398,13 @@ function validatePageStateMatrix(matrix, contract) {
     }
   }
   const requiredRuntimeSignals = [
-    'summary-first OPL runtime status',
+    'project progress first OPL runtime status',
+    'project progress from app_state.operator.workbench.task_drilldowns',
+    'project title/domain/current state/current stage',
+    'next visible step when projected',
+    'blocker count and user attention status',
+    'progress delta rendered as user-facing labels',
+    'runtime diagnostics as secondary disclosure',
     'provider readiness from app_state.provider',
     'operator summary from app_state.operator',
     'safe action refs from app_state.actions',
@@ -2399,6 +2480,15 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
   }
   if (bundle.missing_evidence_policy?.packaged_app_evidence_requires !== 'all_required_artifacts_present_and_verified') {
     throw new Error('Operator evidence bundle must require all artifacts before claiming packaged App evidence');
+  }
+  if (
+    bundle.image_evidence_policy?.applies_to_kind !== 'image'
+    || bundle.image_evidence_policy?.minimum_width_px !== 640
+    || bundle.image_evidence_policy?.minimum_height_px !== 360
+    || bundle.image_evidence_policy?.minimum_file_size_bytes !== 4096
+    || bundle.image_evidence_policy?.placeholder_screenshot_allowed !== false
+  ) {
+    throw new Error('Operator evidence bundle image policy must reject placeholder screenshots');
   }
 
   const artifactById = new Map((bundle.required_artifacts ?? []).map((artifact) => [artifact.id, artifact]));

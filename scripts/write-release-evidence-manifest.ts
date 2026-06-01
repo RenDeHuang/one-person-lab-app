@@ -71,6 +71,12 @@ function missingReasonFor(artifact) {
   return `${artifact.producer} output was not generated for this bundle`;
 }
 
+function readTypedBlocker(bundleDir, artifact) {
+  const blockerPath = resolveBundlePath(bundleDir, path.join('typed-blockers', `${artifact.id}.json`));
+  if (!fs.existsSync(blockerPath)) return null;
+  return readJson(blockerPath);
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const releaseContract = readJson(releaseContractPath);
@@ -90,14 +96,19 @@ function main() {
 
   const artifacts = bundle.required_artifacts.map((artifact) => {
     const exists = fs.existsSync(resolveBundlePath(options.bundleDir, artifact.path));
+    const typedBlocker = readTypedBlocker(options.bundleDir, artifact);
     return {
       id: artifact.id,
       path: artifact.path,
       kind: artifact.kind,
       producer: artifact.producer,
       source_kind: artifact.source_kind,
-      status: exists ? 'present' : 'missing',
-      ...(exists ? {} : { missing_reason: missingReasonFor(artifact) }),
+      status: exists ? 'present' : typedBlocker ? 'blocked' : 'missing',
+      ...(exists
+        ? {}
+        : typedBlocker
+          ? { typed_blocker_path: path.join('typed-blockers', `${artifact.id}.json`) }
+          : { missing_reason: missingReasonFor(artifact) }),
     };
   });
   const missingEvidence = artifacts
@@ -107,17 +118,25 @@ function main() {
       path: artifact.path,
       reason: artifact.missing_reason,
     }));
+  const blockedEvidence = artifacts
+    .filter((artifact) => artifact.status === 'blocked')
+    .map((artifact) => ({
+      id: artifact.id,
+      path: artifact.path,
+      typed_blocker_path: artifact.typed_blocker_path,
+    }));
   const manifest = {
     schema_version: 1,
     purpose: 'app_release_evidence_bundle',
-    status: missingEvidence.length > 0 ? 'missing_evidence' : 'passed',
-    packaged_app_evidence: missingEvidence.length === 0,
+    status: blockedEvidence.length > 0 ? 'blocked_evidence' : missingEvidence.length > 0 ? 'missing_evidence' : 'passed',
+    packaged_app_evidence: missingEvidence.length === 0 && blockedEvidence.length === 0,
     acceptance_path: bundle.acceptance_path,
     runtime_page_contract: bundle.runtime_page_contract,
     refs_only: bundle.refs_only,
     authority_boundary: evidenceBoundary,
     artifacts,
     missing_evidence: missingEvidence,
+    blocked_evidence: blockedEvidence,
   };
 
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
@@ -126,6 +145,8 @@ function main() {
     bundle_dir: options.bundleDir,
     manifest_path: path.relative(options.bundleDir, manifestPath),
     packaged_app_evidence: manifest.packaged_app_evidence,
+    blocked_artifact_count: blockedEvidence.length,
+    blocked_artifacts: blockedEvidence,
     missing_artifact_count: missingEvidence.length,
     missing_artifacts: missingEvidence,
   }, null, 2));

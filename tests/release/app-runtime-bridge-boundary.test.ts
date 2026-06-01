@@ -69,10 +69,13 @@ test('App owns runtime bridge contract while active shell remains replaceable ad
       'domain_artifact_authority',
     ],
   });
-  assert.equal(runtimeBridge.projection_sources.primary, 'app_state.operator.summary');
+  assert.equal(runtimeBridge.projection_sources.primary, 'app_state.operator.workbench.task_drilldowns');
   assert.equal(runtimeBridge.projection_sources.provider, 'app_state.provider');
   assert.equal(runtimeBridge.projection_sources.actions, 'app_state.actions');
   assert.equal(runtimeBridge.projection_sources.full_detail, 'runtime_tray_snapshot.app_operator_drilldown');
+  assert.equal(runtimeBridge.projection_sources.policy, 'project_progress_first_full_detail_on_demand');
+  assert.equal(runtimeBridge.project_progress_projection.source, 'app_state.operator.workbench.task_drilldowns');
+  assert.equal(runtimeBridge.project_progress_projection.display_policy, 'project_progress_first_no_domain_artifact_body');
   assert.equal(runtimeBridge.authority_boundary.shell_adapter_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_write_domain_truth, false);
@@ -88,15 +91,52 @@ test('Runtime page classifies deliverable progress separately from platform repa
   const pageMatrix = readJson('contracts/app-page-state-matrix.json');
   const fixture = readJson('contracts/fixtures/opl-app-state-fast.fixture.json');
   const runtimePage = pageMatrix.pages.find((page) => page.id === 'runtime');
+  const projectProgress = runtimePage.runtime_view_model.project_progress;
+  const bridgeProjectProgress = runtimeBridge.project_progress_projection;
   const progressDelta = runtimePage.runtime_view_model.progress_delta;
   const bridgeProgressDelta = runtimeBridge.progress_delta_projection;
   const taskDrilldown = fixture.app_state.operator.workbench.task_drilldowns.find(
     (task) => task.task_id === 'medautoscience',
   );
 
+  assert.ok(projectProgress, 'runtime page must declare project progress display contract');
+  assert.ok(bridgeProjectProgress, 'runtime bridge must declare project_progress_projection');
   assert.ok(progressDelta, 'runtime page must declare progress_delta display contract');
   assert.ok(bridgeProgressDelta, 'runtime bridge must declare progress_delta_projection');
   assert.ok(taskDrilldown, 'fixture must include medautoscience task drilldown');
+  assert.deepEqual(bridgeProjectProgress, {
+    source: 'app_state.operator.workbench.task_drilldowns',
+    authority: 'opl_framework_shared_project_progress_projection',
+    display_policy: 'project_progress_first_no_domain_artifact_body',
+    required_fields: [
+      'task_id',
+      'title',
+      'domain_id',
+      'state',
+      'active_stage_id',
+      'progress_delta_classification',
+      'deliverable_progress_delta',
+      'platform_repair_delta',
+      'blocker_ref_count',
+    ],
+    optional_user_fields: [
+      'domain_label',
+      'active_stage_label',
+      'next_visible_step',
+      'next_owner',
+      'last_progress_at',
+    ],
+    diagnostics_treatment: 'secondary_disclosure',
+    safe_actions_treatment: 'secondary_operator_disclosure',
+    app_role: 'display_only_project_progress_consumer',
+  });
+  assert.equal(projectProgress.source, bridgeProjectProgress.source);
+  assert.equal(projectProgress.authority, bridgeProjectProgress.authority);
+  assert.equal(projectProgress.display_policy, bridgeProjectProgress.display_policy);
+  assert.deepEqual(projectProgress.required_fields, bridgeProjectProgress.required_fields);
+  assert.deepEqual(projectProgress.optional_user_fields, bridgeProjectProgress.optional_user_fields);
+  assert.equal(projectProgress.diagnostics_treatment, bridgeProjectProgress.diagnostics_treatment);
+  assert.equal(projectProgress.safe_actions_treatment, bridgeProjectProgress.safe_actions_treatment);
   assert.deepEqual(bridgeProgressDelta, {
     source: 'app_state.operator.workbench.task_drilldowns.progress_delta_classification',
     authority: 'opl_framework_shared_progress_projection',

@@ -5,6 +5,7 @@ permissions:
   issues: read
   pull-requests: read
   actions: write
+  models: read
 
 on:
   push:
@@ -227,6 +228,21 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install Codex release-note writer
+        shell: bash
+        run: npm install -g @openai/codex@latest
+
+      - name: Configure Codex release-note writer
+        shell: bash
+        env:
+          CODEX_HOME: ${{ runner.temp }}/release-notes-codex-home
+          OPL_RELEASE_NOTES_CODEX_PROVIDER: ${{ vars.OPL_RELEASE_NOTES_CODEX_PROVIDER || 'gflab' }}
+          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
+          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
+          OPL_RELEASE_NOTES_CODEX_WIRE_API: ${{ vars.OPL_RELEASE_NOTES_CODEX_WIRE_API || 'responses' }}
+          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
+        run: node --experimental-strip-types scripts/setup-release-notes-codex-config.ts
+
       - name: Get version for release
         id: version
         run: |
@@ -270,17 +286,40 @@ jobs:
           OPL_RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: node --experimental-strip-types scripts/validate-release.ts release-assets
 
+      - name: Generate AI release notes
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_NOTES_PROVIDER: auto
+          OPL_RELEASE_NOTES_GITHUB_MODEL: ${{ vars.OPL_RELEASE_NOTES_GITHUB_MODEL || 'openai/gpt-5-mini' }}
+        run: |
+          node --experimental-strip-types scripts/generate-release-notes.ts \
+            --ai \
+            --version "${{ steps.version.outputs.version }}" \
+            --channel stable \
+            --repo "$GITHUB_REPOSITORY" \
+            --shell-root shells/aionui \
+            --evidence-output "$RUNNER_TEMP/opl-release-notes-evidence.json" \
+            --output "$RUNNER_TEMP/opl-release-notes.md"
+
+      - name: Upload release-note evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes-evidence-${{ steps.version.outputs.version }}
+          path: ${{ runner.temp }}/opl-release-notes-evidence.json
+          if-no-files-found: error
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag_name }}
           name: ${{ steps.version.outputs.is_dev == 'true' && format('Development Build {0}', steps.version.outputs.tag_name) || steps.version.outputs.tag_name }}
+          body_path: ${{ runner.temp }}/opl-release-notes.md
           files: |
             release-assets/**/*.dmg
             release-assets/**/*.zip
             release-assets/**/*.blockmap
             release-assets/**/*.yml
-          generate_release_notes: true
           draft: true
           prerelease: ${{ steps.version.outputs.is_dev == 'true' || contains(steps.version.outputs.tag_name, 'beta') || contains(steps.version.outputs.tag_name, 'alpha') || contains(steps.version.outputs.tag_name, 'rc') }}
         env:
