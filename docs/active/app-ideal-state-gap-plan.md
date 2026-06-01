@@ -18,6 +18,7 @@ Date: `2026-05-30`
 | Agent installation exposure | `landed_contract_and_live_root_guard_backed` | `contracts/app-install-exposure-policy.json` now owns `agent_installation_contract`: MAS/MAG/RCA are plugin-packaged skill entries with direct skill compatibility, OMA remains an OPL-generated skill surface, and `npm run validate:agent-installation` can verify both real plugin roots and a Codex skills root for duplicate bare MAS/MAG/RCA mirrors. |
 | Release user-path evidence | `current_cohort_refs_verified` | Fresh OPL App/operator summary reads `app_release_user_path_evidence_gate_count=5`, `app_release_user_path_evidence_open_gate_count=0`, `app_release_user_path_evidence_verified_ledger_receipt_ref_count=6`, and `app_release_user_path_production_user_path_ready=true`; this is refs-only user-path evidence, not App release-ready or family production-ready authority. |
 | Codex App positioning | `active_contract_truth` | The App ordinary path is a Codex CLI fixed-executor experience with built-in MAS/MAG/RCA purpose entries; AionUI multi-backend choices are implementation material, not the user-facing App model. |
+| GUI 定义栈 | `active_definition` | `docs/app-ideal-gui-interaction-spec.md` 定义理想 Codex App 形态交互模型，`docs/codex-to-opl-app-delta.md` 定义 OPL 专用产品增量，`docs/app-gui-feature-inventory.md` 继续维护跨 shell 能力清单。 |
 | Active shell upstream intake | `landed_verified` | The active shell has absorbed AionUI upstream through `83eb8bda02af44df9795a10f32fa938dd62b628c`; App `contracts/app-shell-adapter.json` records that upstream ref while shell implementation history stays in `gaofeng21cn/opl-aion-shell`. |
 | Home shell conformance | `landed_contract_backed` | App contracts and shell tests now require the home input to hide executor/model/permission selectors and show MAS/MAG/RCA as purpose-first entries. |
 | Conversation shell conformance | `landed_contract_backed` | App contracts now require ordinary Codex conversations to keep backend/model/permission selectors hidden after send; shell tests cover the conversation header and sendbox. |
@@ -60,6 +61,9 @@ Live truth inputs:
 Required actions:
 
 - Keep App docs, contracts, release wrappers, evidence manifests, and page-state tests aligned with the App product boundary.
+- GUI design work 必须基于 App-owned 定义栈：先读理想交互细则，再读
+  Codex-to-OPL delta，再读 feature inventory，最后对照 contracts 和 page-state
+  matrices。
 - Keep Runtime progress display bound to OPL shared progress projection classifications only; platform repair must stay an infrastructure repair signal, not a deliverable or manuscript/submission progress claim.
 - Keep the independent agent installation contract aligned with App/Framework/domain ownership: MAS/MAG/RCA are plugin-packaged skill entries, OMA is OPL-generated, optional live plugin roots must contain `.codex-plugin/plugin.json` plus `skills/<id>/SKILL.md`, and optional Codex skills root validation must fail closed on duplicate bare MAS/MAG/RCA mirrors.
 - Keep the App ordinary path aligned with the Codex App equivalent positioning: Codex CLI fixed executor, no home or ordinary-conversation backend/model/permission selector, MAS/MAG/RCA as built-in purpose entries, precise model details limited to technical/connected-state surfaces.

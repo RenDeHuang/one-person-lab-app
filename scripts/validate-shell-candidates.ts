@@ -53,6 +53,9 @@ type ShellCandidate = {
     runtime_page_policy: string;
     settings_policy: string;
   };
+  technical_verification?: {
+    minimum_acceptance?: string[];
+  };
   framework_surfaces: Record<string, string>;
   foundry_agent_series_display_contract?: {
     authority: string;
@@ -146,9 +149,29 @@ const requiredCapabilities = [
   'first_run_matrix_mapping',
   'runtime_summary_detail_action_bridge',
   'foundry_agent_series_shared_progress_display',
+  'app_owned_settings_information_architecture',
+  'continue_work_activity_center',
+  'conversation_event_ref_rendering',
+  'webui_renderer_parity',
   'release_isolation',
   'candidate_app_bundle_package',
 ];
+const requiredSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced', 'about'];
+const forbiddenLegacySettingsTabs = [
+  'overview',
+  'runtime',
+  'system',
+  'model',
+  'agent',
+  'assistants',
+  'skills-hub',
+  'tools',
+  'display',
+  'webui',
+  'pet',
+];
+const requiredActivityGroups = ['needs_attention', 'active_projects', 'recent_projects'];
+const requiredConversationEventKinds = ['tool', 'process', 'diff', 'file', 'receipt', 'user_input', 'permission'];
 const requiredContextSurfaces = [
   'chat-first main canvas',
   'lightweight workspace/session rail',
@@ -513,6 +536,15 @@ function validateCandidate(candidate: ShellCandidate): void {
     throw new Error(`${candidate.id} must preserve Codex fixed-executor chat-first home without selectors or default side context`);
   }
   assertStringArrayIncludes(candidate.target_product_shape.purpose_entries, requiredHomeEntries, `${candidate.id}.target_product_shape.purpose_entries`);
+  if (candidate.target_product_shape.settings_policy !== 'app_state_refs_only') {
+    throw new Error(`${candidate.id}.target_product_shape.settings_policy must keep Settings App-owned and refs-only`);
+  }
+  assertStringArrayIncludes(candidate.technical_verification?.minimum_acceptance ?? [], [
+    'ordinary Settings uses General, Access, Agents & Capabilities, Local Environment, Appearance, Advanced, and About & Updates',
+    'ordinary home exposes the refs-only continue-work activity center near the composer without becoming a workbench grid',
+    'tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs',
+    'WebUI parity evidence proves the same React/CopilotKit renderer and product semantics as Electron',
+  ], `${candidate.id}.technical_verification.minimum_acceptance`);
   for (const [surface, expected] of Object.entries(expectedFrameworkSurfaces)) {
     if (candidate.framework_surfaces[surface] !== expected) {
       throw new Error(`${candidate.id}.framework_surfaces.${surface} must be ${expected}`);
@@ -719,11 +751,35 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
     first_run_matrix_mapping_status: 'passed',
     runtime_summary_detail_action_bridge_status: 'passed',
     default_home_layout_status: 'passed',
+    settings_ia_status: 'passed',
+    activity_center_status: 'passed',
+    chat_event_rendering_status: 'passed',
+    webui_parity_status: 'passed',
   })) {
     if ((manifest as Record<string, unknown>)[field] !== expected) {
       throw new Error(`${candidate.id} package manifest ${field} must be ${expected}`);
     }
   }
+  assertStringArrayIncludes(
+    (manifest as { settings_tabs?: string[] }).settings_tabs ?? [],
+    requiredSettingsTabs,
+    `${candidate.id} package manifest settings tabs`,
+  );
+  for (const legacyTab of forbiddenLegacySettingsTabs) {
+    if (((manifest as { settings_tabs?: string[] }).settings_tabs ?? []).includes(legacyTab)) {
+      throw new Error(`${candidate.id} package manifest must not expose legacy Settings tab ${legacyTab}`);
+    }
+  }
+  assertStringArrayIncludes(
+    (manifest as { activity_center_groups?: string[] }).activity_center_groups ?? [],
+    requiredActivityGroups,
+    `${candidate.id} package manifest activity center groups`,
+  );
+  assertStringArrayIncludes(
+    (manifest as { conversation_event_kinds?: string[] }).conversation_event_kinds ?? [],
+    requiredConversationEventKinds,
+    `${candidate.id} package manifest conversation event kinds`,
+  );
   if (options.requireSmoke !== false) {
     for (const [field, expected] of Object.entries({
       copilotkit_ui_smoke_status: 'passed',
@@ -771,6 +827,10 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
     page_state_matrix_mapping: { page_ids: string[]; runtime_testids: string[]; settings_testids: string[] };
     first_run_matrix_mapping: { required_shell_testids: string[] };
     runtime_summary_detail_action_bridge: { renderer_testids: string[]; full_detail_policy: string; action_policy: string };
+    settings_information_architecture?: { visible_tabs: string[]; labels_en: string[]; legacy_tabs_hidden: string[] };
+    activity_center?: { authority: string; source: string; display_groups: string[]; default_placement: string; empty_state_policy: string; forbidden_body_display: string[]; renderer_testids: string[] };
+    conversation_event_rendering?: { event_kinds: string[]; display_policy: string; forbidden_visible_protocol_copy: string[]; renderer_testids: string[] };
+    webui_parity?: { shared_renderer: boolean; bridge_shape: string; product_profile: string; desktop_and_webui_default_home: string; evidence_status_field: string };
     foundry_agent_series_display_contract?: {
       authority: string;
       display_policy: string;
@@ -782,6 +842,65 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
     throw new Error(`${candidate.id} evidence must be App-owned and match the candidate id`);
   }
   assertStringArrayIncludes(evidence.capabilities, requiredCapabilities, `${candidate.id} evidence capabilities`);
+  assertStringArrayIncludes(
+    evidence.settings_information_architecture?.visible_tabs ?? [],
+    requiredSettingsTabs,
+    `${candidate.id} evidence settings_information_architecture.visible_tabs`,
+  );
+  assertStringArrayIncludes(
+    evidence.settings_information_architecture?.legacy_tabs_hidden ?? [],
+    forbiddenLegacySettingsTabs,
+    `${candidate.id} evidence settings_information_architecture.legacy_tabs_hidden`,
+  );
+  if (
+    evidence.activity_center?.authority !== 'opl_framework_refs_only_projection' ||
+    evidence.activity_center?.source !== 'app_state.operator.workbench.task_drilldowns + app_state.operator.summary' ||
+    evidence.activity_center?.default_placement !== 'near_home_input' ||
+    evidence.activity_center?.empty_state_policy !== 'stable_empty_state_without_page_wide_spinner'
+  ) {
+    throw new Error(`${candidate.id} evidence must define the refs-only continue-work activity center near the home input`);
+  }
+  assertStringArrayIncludes(
+    evidence.activity_center.display_groups,
+    requiredActivityGroups,
+    `${candidate.id} evidence activity_center.display_groups`,
+  );
+  assertStringArrayIncludes(
+    evidence.activity_center.forbidden_body_display,
+    ['domain artifact body', 'memory body', 'quality verdict body', 'provider implementation details'],
+    `${candidate.id} evidence activity_center.forbidden_body_display`,
+  );
+  assertStringArrayIncludes(
+    evidence.activity_center.renderer_testids,
+    ['opl-activity-center', 'opl-activity-group', 'opl-activity-item'],
+    `${candidate.id} evidence activity_center.renderer_testids`,
+  );
+  if (evidence.conversation_event_rendering?.display_policy !== 'summary_first_compact_conversation_events_or_expandable_refs') {
+    throw new Error(`${candidate.id} evidence must render runtime events as compact conversation events or expandable refs`);
+  }
+  assertStringArrayIncludes(
+    evidence.conversation_event_rendering.event_kinds,
+    requiredConversationEventKinds,
+    `${candidate.id} evidence conversation_event_rendering.event_kinds`,
+  );
+  assertStringArrayIncludes(
+    evidence.conversation_event_rendering.forbidden_visible_protocol_copy,
+    ['AG-UI event name', 'ACP wire detail', 'app-server raw frame'],
+    `${candidate.id} evidence conversation_event_rendering.forbidden_visible_protocol_copy`,
+  );
+  assertStringArrayIncludes(
+    evidence.conversation_event_rendering.renderer_testids,
+    ['opl-conversation-event', 'opl-event-feed'],
+    `${candidate.id} evidence conversation_event_rendering.renderer_testids`,
+  );
+  if (
+    evidence.webui_parity?.shared_renderer !== true ||
+    evidence.webui_parity?.bridge_shape !== 'window.oplCandidate' ||
+    evidence.webui_parity?.product_profile !== 'src/generated/oplProductProfile.generated.json' ||
+    evidence.webui_parity?.desktop_and_webui_default_home !== 'chat_first_default_collapsed'
+  ) {
+    throw new Error(`${candidate.id} evidence must prove WebUI uses the same renderer, bridge shape, product profile, and default home semantics as Electron`);
+  }
   const evidenceSeriesDisplay = evidence.foundry_agent_series_display_contract;
   if (evidenceSeriesDisplay?.authority !== 'opl_framework_shared_progress_projection') {
     throw new Error(`${candidate.id} evidence must bind Foundry series display to the shared OPL progress projection`);

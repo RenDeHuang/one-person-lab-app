@@ -7,9 +7,13 @@ Machine boundary: Human-readable invariants. Machine-readable truth lives in `co
 
 - The App repo owns desktop product packaging, release metadata, first-run product policy, App-level contracts, screenshots, user guides, and App validation wrappers.
 - The App repo owns One Person Lab App GUI product truth. The active shell may implement renderer/process/package/test/release-hook details and absorb upstream AionUI changes, but App page behavior, model-selection policy, onboarding policy, screenshots, and release/user docs stay App-owned.
+- GUI 定义必须从 App-owned product docs 流向 implementation：
+  `docs/app-ideal-gui-interaction-spec.md` 定义交互模型，
+  `docs/codex-to-opl-app-delta.md` 定义 OPL 产品增量，
+  `docs/app-gui-feature-inventory.md` 维护跨 shell 能力清单。
 - The App ordinary path is a Codex CLI fixed-executor experience with built-in MAS/MAG/RCA purpose entries. It must not expose Aion CLI, Claude Code, generic backend switching, home or conversation model override lists, or permission-mode selectors as normal user choices.
 - The App home assistant entries are not backend selectors. MAS, MAG, and RCA route to Codex with assistant-scoped skill profiles, each default entry must require its matching Codex skill by default, and each created conversation must carry an App-owned route receipt.
-- Ordinary Settings navigation is App-owned. Overview, Runtime, Capabilities, Access, Appearance, System, and About are the visible tabs; legacy model/agent/assistants/skills-hub/tools/display/webui/pet routes must redirect to App-owned pages instead of becoming normal user paths.
+- Ordinary Settings navigation 由 App 拥有。General、Access、Agents & Capabilities、Local Environment、Appearance、Advanced、About & Updates 是 visible tabs；legacy overview/runtime/system/model/agent/assistants/skills-hub/tools/display/webui/pet routes 必须 redirect 到 App-owned pages，不能成为 normal user paths。
 - GUI behavior changes must land first in App-owned contracts, docs, page-state tests, and release gates. Shell implementation follows those App-owned boundaries.
 - App install/exposure policy keeps `skill` as the public semantic ABI. Codex App plugins may package MAS/MAG/RCA skills, but plugin packaging must not create second semantics or duplicate bare `~/.codex/skills/{mas,mag,rca}` mirrors.
 - Companion skill sync is separate from family domain plugin surfaces. `default_packaged_codex_skill_ids` is the App-level whitelist for default packaged and default visible skills, regardless of whether a candidate comes from AionUI builtin assets, Skills Manager, Codex local skills, or plugin payloads. Shared skills such as Superpowers, cron, the OfficeCLI family, PDF, MinerU, and UI/UX helpers may sync to user skill discovery paths; MAS/MAG/RCA stay plugin-visible domain routes, and OPL Meta Agent stays an OPL-generated surface outside the default home assistant list through `packaged_not_default_visible_codex_skill_ids`.

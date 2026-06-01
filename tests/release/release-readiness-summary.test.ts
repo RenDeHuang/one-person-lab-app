@@ -70,6 +70,12 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
   writeFile(path.join(root, `docker-webui-smoke-${version}`, 'opl-webui-index.html'), '<html></html>');
   writeFile(path.join(root, `docker-webui-smoke-${version}`, 'opl-webui-manifest.webmanifest'), '{"name":"One Person Lab"}\n');
   writeFile(path.join(root, `docker-webui-smoke-${version}`, 'opl-webui-image-size-bytes.txt'), '123456\n');
+  writeJson(path.join(root, `webui-ghcr-publish-${version}`, 'opl-webui-ghcr-publish.json'), {
+    status: 'draft_not_pushed',
+    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
+    tags: [version, 'stable', 'latest'],
+    draft_candidate_push: false,
+  });
   writeJson(path.join(root, `opl-full-workflow-telemetry-${version}`, 'full-workflow-telemetry.json'), {
     schema: 'opl_full_workflow_telemetry.v1',
     cache: { full_runtime_layers: 'toolchain:true;domain-runtime:true;opl-runtime:true;skills:true' },
@@ -127,6 +133,7 @@ function writePassingJobResults(filePath: string) {
     'full-first-run-vm-smoke': 'success',
     'one-shot-app-installer-smoke': 'success',
     'docker-webui-smoke': 'success',
+    'webui-ghcr-publish': 'success',
   });
 }
 
@@ -181,6 +188,8 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
     skip_modules: true,
   });
   assert.equal(summary.gates.docker_webui.status, 'passed');
+  assert.equal(summary.gates.webui_ghcr_publish.status, 'passed');
+  assert.deepEqual(summary.gates.webui_ghcr_publish.fields.tags, ['26.5.99', 'stable', 'latest']);
   assert.equal(summary.gates.remote_release_verification.status, 'passed');
   assert.equal(summary.gates.full_size_cache_timing.status, 'passed');
   assert.equal(summary.full_package.duration_seconds.full_package_build, 380);
@@ -375,6 +384,7 @@ test('release readiness summary keeps one-shot failure diagnostics when the inst
     'full-first-run-vm-smoke': 'success',
     'one-shot-app-installer-smoke': 'failure',
     'docker-webui-smoke': 'success',
+    'webui-ghcr-publish': 'success',
   });
   writeJson(path.join(artifactsRoot, 'one-shot-app-installer-smoke-26.5.99', 'opl-one-shot-system-initialize.json'), {
     status: 'failed',
@@ -430,6 +440,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
     'full-first-run-vm-smoke',
     'one-shot-app-installer-smoke',
     'docker-webui-smoke',
+    'webui-ghcr-publish',
     'full-first-install',
   ]) {
     assert.match(job, new RegExp(dependency), `readiness job must depend on ${dependency}`);
@@ -441,6 +452,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
     'opl-first-run-vm-full-${{ github.run_id }}',
     'one-shot-app-installer-smoke-${{ inputs.opl_version }}',
     'docker-webui-smoke-${{ inputs.opl_version }}',
+    'webui-ghcr-publish-${{ inputs.opl_version }}',
     'opl-full-workflow-telemetry-${{ inputs.opl_version }}',
     'opl-full-diagnostics-${{ inputs.opl_version }}',
   ]) {

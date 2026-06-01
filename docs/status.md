@@ -6,6 +6,11 @@ State: `active`
 Machine boundary: Human-readable status. Use `contracts/` and release/test
 artifacts for machine decisions.
 
+Plugin native profile pointer: `contracts/opl-native-profile.json` only declares
+the repo-native profile used by OPL Flow / OPL Doc plugin sync and drift checks.
+It is not GUI product truth, release authority, runtime truth, domain truth, or
+installation evidence.
+
 ## Current State
 
 - GitHub repo: `gaofeng21cn/one-person-lab-app`.
@@ -151,8 +156,11 @@ controls. Execution refreshes the App state projection so receipt/count fields
 stay framework-owned; MAS/MAG/RCA verdicts and artifact authority remain
 domain-owned refs.
 
-Current GUI product truth is declared in
-`contracts/app-gui-product-contract.json`: the default executor experience is
+Current GUI product truth 现在有明确的人读定义栈：
+`docs/app-ideal-gui-interaction-spec.md` 定义 Codex App 形态、chat-first 的交互
+目标；`docs/codex-to-opl-app-delta.md` 定义 Codex App 之上的 OPL 产品增量；
+`docs/app-gui-feature-inventory.md` 跟踪跨 shell 能力清单和参考模式。机器可读
+GUI truth 声明在 `contracts/app-gui-product-contract.json`：the default executor experience is
 fixed to Codex CLI on the ordinary App path; the home screen exposes three
 beginner-facing purpose entries: 科研, 基金, and PPT. Those entries route to
 MAS, MAG, and RCA respectively, and the selected entry is presented as a compact
@@ -167,18 +175,22 @@ and reasoning effort belong in technical details or a connected state surface.
 Each default purpose entry also owns an assistant-scoped skill profile: MAS
 requires `mas`, MAG requires `mag`, and RCA requires `rca`; optional companion
 skills are selected from that assistant profile after passing the App packaged
-skill set boundary. Settings System/Runtime/About/Update/Theme
-surfaces, module path source explanation, stable/nightly release gates, and OPL
-Agent Codex context are App-owned requirements. Ordinary Settings navigation is
-also App-owned: Overview, Runtime, Capabilities, Access, Appearance, System, and
-About are the visible tabs. Upstream model, agent, assistants, skills-hub,
-tools, display, webui, and pet routes redirect to those App-owned pages and are
-not ordinary user tabs. The `/guid` quick shortcut opens Access rather than a
-WebUI-branded entry. OPL Meta Agent remains an App/CLI-managed ecosystem module
-rather than a default home assistant entry. MDS is not a default GUI module and
-remains historical or explicit-reference only. `contracts/app-shell-adapter.json`
-requires the active shell to implement that App contract and keeps upstream
-AionUI as implementation material rather than product authority.
+skill set boundary。Home surface 可以在 input 附近显示紧凑 continue-work
+activity center，用于 needs-attention、active、recent project refs，但必须保持
+refs-only，不能变成 full workbench。Settings 的 General/Access/Agents &
+Capabilities/Local Environment/Appearance/Advanced/About & Updates surfaces、
+module path source explanation、stable/nightly release gates 和 OPL Agent Codex
+context 都是 App-owned requirements。Upstream overview、runtime、system、model、
+agent、assistants、skills-hub、tools、display、webui、pet routes redirect 到
+App-owned pages，不是 ordinary user tabs。`/guid` quick shortcut 打开 Access，
+而不是 WebUI-branded entry。OPL Meta Agent 仍是 App/CLI-managed ecosystem
+module，不是 default home assistant entry。MDS 不是 default GUI module，只保留
+historical 或 explicit-reference。`contracts/app-shell-adapter.json` 要求 active
+shell 实现该 App contract，并保持 upstream AionUI 只是 implementation material，
+不是 product authority。Home activity center item fields、forbidden display
+fields 和 Settings page sections now have matching page-state matrix entries,
+and `validate:active-shell --quick` plus the focused release-boundary GUI tests
+fail closed if the contract and matrix drift.
 
 Experimental shell candidate work is separated from the active release adapter.
 `contracts/app-shell-candidates.json` now declares `agui-codex` under

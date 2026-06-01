@@ -125,7 +125,14 @@ is already ready. Command Line Tools, git availability, and managed repo sync
 are deferred maintenance. The pre-`/guid` gate requires only workspace root,
 Codex CLI, and Codex config; Domain modules, the family runtime provider,
 recommended skills, native helpers, CLT, repo sync, and ecosystem updates are
-Full readiness or background maintenance and must not block launch. The workflow writes a preflight summary
+Full readiness or background maintenance and must not block launch. With
+`--codex-functional-check`, the guest smoke writes
+`codex-functional-check-summary.json` as a deterministic post-install receipt
+for Codex CLI detection, App-managed `opl-flow` context expectation, user
+`AGENTS.md` policy, built-in route receipts, and skill/plugin visibility without
+calling an external LLM. App-managed `opl-flow` is injected as localized,
+session-scoped preset context; it must not write or overwrite workspace
+`AGENTS.md`. The workflow writes a preflight summary
 with runner labels, source VM, guest user, package/runtime profile, DMG path,
 display, and artifact output before executing the smoke. Codex App and Computer
 Use checks are non-blocking exploratory tools; release-blocking App readiness

@@ -70,6 +70,16 @@ export type AppProductProfile = {
         home_entry_policy: string;
       }>;
       retired_codex_models_must_not_be_exposed: string[];
+      activity_center_policy: {
+        source: string;
+        authority: string;
+        role: string;
+        default_placement: string;
+        display_groups: string[];
+        item_fields: string[];
+        must_not_display: string[];
+        empty_state_policy: string;
+      };
     };
     builtin_assistant_route_receipt_policy: {
       scope: string;
@@ -116,9 +126,17 @@ export type AppProductProfile = {
     default_model: string;
     default_model_description: string;
     default_reasoning_effort: string;
+    opl_flow_context: {
+      flow_id: string;
+      source: string;
+      delivery: string;
+      user_agents_policy: string;
+      language_policy: string;
+    };
     default_visible_skills: string[];
     skill_priority: string[];
     session_context_lines: string[];
+    session_context_i18n?: Record<'zh-CN' | 'en-US', string[]>;
   };
   first_run: {
     readiness_layers: string[];
@@ -152,6 +170,12 @@ export type AppProductProfile = {
   settings: {
     visible_tabs: string[];
     legacy_route_redirects: Record<string, string>;
+    settings_information_architecture?: Record<string, {
+      label_zh: string;
+      label_en: string;
+      role: string;
+      primary_question: string;
+    }>;
     environment_items: string[];
     developer_mode: {
       label_key: string;
@@ -213,6 +237,20 @@ const requiredDefaultPackagedSkillIds = [
 const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((skillId) => (
   !['mas', 'mag', 'rca'].includes(skillId)
 ));
+const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced', 'about'];
+const legacySettingsRouteRedirects = {
+  overview: 'general',
+  runtime: 'environment',
+  system: 'advanced',
+  model: 'environment',
+  agent: 'capabilities',
+  assistants: 'capabilities',
+  'skills-hub': 'capabilities',
+  tools: 'capabilities',
+  display: 'appearance',
+  webui: 'access',
+  pet: 'appearance',
+};
 
 function assertStringArray(value: unknown, label: string, options: { allowBlank?: boolean } = {}): asserts value is string[] {
   if (!Array.isArray(value) || value.length === 0 || !value.every((entry) => (
@@ -254,6 +292,22 @@ function assertProfileShape(profile: AppProductProfile): void {
   }
   if (profile.default_session_profile.reasoning_effort !== profile.codex.default_reasoning_effort) {
     throw new Error('App product profile Codex reasoning effort is inconsistent');
+  }
+  if (
+    profile.codex.opl_flow_context?.flow_id !== 'opl-flow' ||
+    profile.codex.opl_flow_context.delivery !== 'session_scoped_preset_context' ||
+    profile.codex.opl_flow_context.user_agents_policy !== 'respect_user_agents_no_overwrite_detect_conflicts' ||
+    profile.codex.opl_flow_context.language_policy !== 'follow_ui_locale_zh_only_when_ui_zh'
+  ) {
+    throw new Error('App product profile must declare App-managed OPL Flow Context policy');
+  }
+  if (
+    !Array.isArray(profile.codex.session_context_i18n?.['zh-CN']) ||
+    !profile.codex.session_context_i18n['zh-CN'].some((line) => line.includes('你正在 One Person Lab App')) ||
+    !Array.isArray(profile.codex.session_context_i18n?.['en-US']) ||
+    !profile.codex.session_context_i18n['en-US'].some((line) => line.includes('You are working inside a Codex session'))
+  ) {
+    throw new Error('App product profile must declare localized OPL Flow session context');
   }
   if (profile.gui?.authority !== 'app_repo_owned_product_truth') {
     throw new Error('App product profile must declare App-owned GUI authority');
@@ -323,6 +377,30 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertStringArray(
     profile.gui.home.retired_codex_models_must_not_be_exposed,
     'gui.home.retired_codex_models_must_not_be_exposed',
+  );
+  if (
+    profile.gui.home.activity_center_policy?.source !== 'app_state.operator.workbench.task_drilldowns + app_state.operator.summary' ||
+    profile.gui.home.activity_center_policy.authority !== 'opl_framework_refs_only_projection' ||
+    profile.gui.home.activity_center_policy.role !== 'codex_style_continue_work_center' ||
+    profile.gui.home.activity_center_policy.default_placement !== 'near_home_input' ||
+    profile.gui.home.activity_center_policy.empty_state_policy !== 'stable_empty_state_without_page_wide_spinner'
+  ) {
+    throw new Error('App product profile GUI home activity center must be a Codex-style refs-only continue-work center');
+  }
+  assertIncludesAll(
+    profile.gui.home.activity_center_policy.display_groups,
+    ['needs_attention', 'active_projects', 'recent_projects'],
+    'gui.home.activity_center_policy.display_groups',
+  );
+  assertIncludesAll(
+    profile.gui.home.activity_center_policy.item_fields,
+    ['task_id', 'title', 'state', 'next_visible_step', 'blocker_ref_count', 'last_progress_at'],
+    'gui.home.activity_center_policy.item_fields',
+  );
+  assertIncludesAll(
+    profile.gui.home.activity_center_policy.must_not_display,
+    ['domain artifact body', 'memory body', 'quality verdict body', 'provider implementation details'],
+    'gui.home.activity_center_policy.must_not_display',
   );
   if (
     profile.gui.builtin_assistant_route_receipt_policy?.scope !== 'home_purpose_entry_to_conversation' ||
@@ -424,24 +502,19 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.settings.visible_tabs, 'settings.visible_tabs');
   if (
     JSON.stringify(profile.settings.visible_tabs) !==
-    JSON.stringify(['overview', 'runtime', 'capabilities', 'access', 'appearance', 'system', 'about'])
+    JSON.stringify(appOwnedSettingsTabs)
   ) {
     throw new Error('App product profile settings.visible_tabs must keep ordinary settings on OPL App-owned pages');
   }
   if (
     JSON.stringify(profile.settings.legacy_route_redirects) !==
-    JSON.stringify({
-      model: 'runtime',
-      agent: 'runtime',
-      assistants: 'capabilities',
-      'skills-hub': 'capabilities',
-      tools: 'capabilities',
-      display: 'appearance',
-      webui: 'access',
-      pet: 'appearance',
-    })
+    JSON.stringify(legacySettingsRouteRedirects)
   ) {
     throw new Error('App product profile settings.legacy_route_redirects must route legacy AionUI settings to App-owned pages');
+  }
+  const settingsIaKeys = Object.keys(profile.settings.settings_information_architecture ?? {});
+  if (JSON.stringify(settingsIaKeys) !== JSON.stringify(appOwnedSettingsTabs)) {
+    throw new Error('App product profile settings_information_architecture must describe every ordinary App settings tab');
   }
   assertStringArray(profile.settings.environment_items, 'settings.environment_items');
   assertStringArray(profile.companion_payloads.tools, 'companion_payloads.tools');

@@ -96,6 +96,8 @@ App 产品默认策略由 [`contracts/app-product-profile.json`](contracts/app-p
 
 GUI 产品事实也由 App 仓拥有。默认发布界面仍由 [`contracts/app-shell-adapter.json`](contracts/app-shell-adapter.json) 指向 `shells/aionui`；技术验证界面可以通过 `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json` 显式选择，复用同一套 App 包装脚本同步 product profile，并为候选 shell 编译出可启动的 `.app` bundle 与 package manifest。
 
+GUI 定义栈按顺序阅读：[`docs/app-ideal-gui-interaction-spec.md`](docs/app-ideal-gui-interaction-spec.md) 定义不绑定具体 shell 的理想交互形态，[`docs/codex-to-opl-app-delta.md`](docs/codex-to-opl-app-delta.md) 定义 Codex App 变成 OPL App 需要追加、隐藏和治理的产品增量，[`docs/app-gui-feature-inventory.md`](docs/app-gui-feature-inventory.md) 维护跨 shell 的能力清单。后续设计或评审 GUI 时先看这三份，再看 contracts 和 page-state 矩阵；AionUI、`agui-codex` 和 PilotDeck 只提供实现或参考材料，不能反过来定义 OPL App 产品事实。
+
 One Person Lab 提供命令行、激活、阶段控制、运行时提供者、队列、合同、模块发现、技能同步、运行快照和进度投影。MAS、MAG、RCA 承载各自领域的专业判断、质量裁决、阶段语义和交付物。
 
 需要框架、运行时和合同信息时，请进入 [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab)。

@@ -306,6 +306,7 @@ function buildSummary(options: Options) {
   const fullVmArtifactName = `opl-first-run-vm-full-${process.env.GITHUB_RUN_ID || 'local'}`;
   const oneShotArtifactName = `one-shot-app-installer-smoke-${options.version}`;
   const dockerArtifactName = `docker-webui-smoke-${options.version}`;
+  const webuiGhcrArtifactName = `webui-ghcr-publish-${options.version}`;
   const fullTelemetryArtifactName = `opl-full-workflow-telemetry-${options.version}`;
   const fullDiagnosticsArtifactName = `opl-full-diagnostics-${options.version}`;
 
@@ -387,6 +388,38 @@ function buildSummary(options: Options) {
       'opl-webui-manifest.webmanifest',
       'opl-webui-image-size-bytes.txt',
     ],
+  });
+
+  const webuiGhcrGate = jsonGate(options, {
+    required: true,
+    artifactName: webuiGhcrArtifactName,
+    fileName: 'opl-webui-ghcr-publish.json',
+    validate: (payload) => {
+      const tags = arrayOrEmpty(payload.tags);
+      const fields = {
+        image: payload.image,
+        tags,
+        draft_candidate_push: payload.draft_candidate_push ?? null,
+      };
+      if (options.releaseMode === 'draft_candidate') {
+        if (payload.status !== 'draft_not_pushed') {
+          return { reason: `Draft WebUI GHCR publish status is ${statusString(payload.status) || 'unknown'}.`, fields };
+        }
+        if (payload.draft_candidate_push !== false) {
+          return { reason: 'Draft WebUI GHCR publish must not push tags.', fields };
+        }
+        return { fields };
+      }
+      if (payload.status !== 'published') {
+        return { reason: `WebUI GHCR publish status is ${statusString(payload.status) || 'unknown'}.`, fields };
+      }
+      for (const requiredTag of [options.version, 'stable', 'latest']) {
+        if (!tags.includes(requiredTag)) {
+          return { reason: `WebUI GHCR publish summary is missing tag ${requiredTag}.`, fields };
+        }
+      }
+      return { fields };
+    },
   });
 
   const fullTelemetryGate = jsonGate(options, {
@@ -488,6 +521,7 @@ function buildSummary(options: Options) {
     ),
     one_shot_app_installer: applyJobResult(oneShotGate, jobResults, 'one-shot-app-installer-smoke', true),
     docker_webui: applyJobResult(dockerGate, jobResults, 'docker-webui-smoke', true),
+    webui_ghcr_publish: applyJobResult(webuiGhcrGate, jobResults, 'webui-ghcr-publish', true),
     full_size_cache_timing: applyJobResult(fullSizeCacheTimingGate, jobResults, 'full-first-install', options.includeFullPackage),
   };
 

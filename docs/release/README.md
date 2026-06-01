@@ -61,6 +61,9 @@ bundled runtime while Settings resumes Git-backed and module maintenance.
 
 The OPL Framework repository is a payload source for the Full DMG
 runtime/CLI/contracts layer. It does not own App release workflows.
+It may reference the public WebUI image coordinate, but the App repo owns
+publishing `ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>` and the
+stable/latest/nightly tag semantics.
 
 The active shell source is `gaofeng21cn/opl-aion-shell`. It is consumed as an
 external checkout at `shells/aionui` and is not tracked in the clean App repo
@@ -120,16 +123,18 @@ builds that should run on GitHub runners instead of this Mac.
   cache.
 - `run_vm_smoke=true` is the stable release installation profile. It runs the
   standard DMG clean-VM smoke, Full DMG clean-VM smoke when Full is included,
-  the App one-shot installer smoke, and Docker/WebUI HTTP smoke after release
-  assets are uploaded. Leave it off only for draft or emergency packaging
-  refreshes that are not being treated as stable-complete.
+  the App one-shot installer smoke, Docker/WebUI HTTP smoke, and App-owned WebUI
+  GHCR publish after release assets are uploaded. Leave it off only for draft or
+  emergency packaging refreshes that are not being treated as stable-complete.
 - Scheduled **OPL Nightly Standard Release** builds and publishes standard
   macOS arm64 assets only. It creates a semver prerelease tag such as
   `v26.5.27-nightly`, marks the Release as prerelease, does not mark it
-  as latest, excludes Full first-install assets, and runs remote standard asset
-  verification after upload. Its release notes compare against the previous
-  Nightly and explain the main user-visible changes in grouped prose. Users
-  only see this channel after opting into prerelease/Nightly updates in the App.
+  as latest, excludes Full first-install assets, runs remote standard asset
+  verification after upload, and publishes
+  `ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>` plus the `nightly`
+  tag from the App workflow. Its release notes compare against the previous
+  Nightly and explain the main user-visible changes in grouped prose. Users only
+  see this channel after opting into prerelease/Nightly updates in the App.
 - The VM smoke downloads the published DMG for the selected package profile,
   clones a clean no-CLT Tart base VM, fixes the logical display at
   `1920x1080px`, copies the GitHub runner's Node.js runtime into the guest for
@@ -147,7 +152,16 @@ builds that should run on GitHub runners instead of this Mac.
   `screenshots/full.png`, and the Runtime page dry-run action evidence capture
   writes `screenshots/action.png` plus `runtime-action-evidence.json` for the
   release evidence bundle. This VM workflow is deterministic
-  release-blocking evidence for stable release readiness. Codex App and
+  release-blocking evidence for stable release readiness. When
+  `--codex-functional-check` is enabled, the same VM smoke writes
+  `artifacts/codex-functional-check-summary.json` as a post-install functional
+  receipt for Codex behavior: UI language, App-managed `opl-flow` context,
+  user `AGENTS.md` non-override policy, Codex CLI detection, MAS/MAG/RCA route
+  receipts, and skill/plugin visibility. The receipt is deterministic and does
+  not call an external LLM; missing Codex credentials remain diagnostic state,
+  not a network dependency. The `opl-flow` context is injected as localized,
+  session-scoped Codex preset context and never mutates the user's workspace
+  `AGENTS.md`. Codex App and
   Computer Use browser/desktop sessions are allowed only as non-blocking
   exploratory triage; if they reveal release-relevant behavior, the finding
   must be captured as a deterministic contract, workflow, or script gate before
@@ -184,31 +198,36 @@ and English-only Full companion text.
 Nightly and stable releases intentionally run different validation profiles.
 Nightly is a fast standard-updater confidence lane: release-boundary contract,
 standard macOS arm64 build, local standard asset validation, prerelease upload
-with `--latest=false`, and remote standard asset verification. It does not build
-Full assets and does not require clean VM, one-shot installer, Docker/WebUI, or
-operator evidence gates.
+with `--latest=false`, remote standard asset verification, and App-owned WebUI
+GHCR image publish for `ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>`
+plus the `nightly` tag. It does not build Full assets and does not require clean
+VM, one-shot installer, Docker/WebUI smoke, or operator evidence gates.
 
 Stable is the complete user-install proof lane. Before a stable App Release is
 treated as smooth, it must cover standard DMG clean-VM installation, Full DMG
 clean-VM installation, the public App one-shot installer, Docker/WebUI through
-HTTP, remote verification for standard and Full assets, and the operator
+HTTP, App-owned WebUI GHCR image publish for
+`ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>` with `stable` and
+`latest`, remote verification for standard and Full assets, and the operator
 evidence bundle. The heavy gates are grouped by installation surface so failures
 say which user path is broken instead of producing one vague release failure.
 Stable validation covers standard DMG, Full DMG, one-shot installer, and
-Docker/WebUI evidence as separate installation surfaces.
+Docker/WebUI evidence as separate installation surfaces, then publishes the
+WebUI image from the App workflow after HTTP smoke passes.
 
 The final stable decision entry is the `release-readiness-summary` job in
 `.github/workflows/desktop-release.yml`. It runs after the selected remote
 verification, standard/Full clean-VM gates, one-shot installer smoke,
-Docker/WebUI smoke, and evidence bundle validation, then writes
+Docker/WebUI smoke, WebUI GHCR publish, and evidence bundle validation, then writes
 `release-readiness-summary.json` plus a GitHub Step Summary. It fails closed
 when any required gate result or small evidence artifact is failed, cancelled,
 missing, or unexpectedly skipped.
 
 That final summary is a diagnostic reader, not another package consumer. It
 downloads only small artifacts: remote verification JSON, VM smoke summaries,
-one-shot installer output, Docker/WebUI smoke output, Full diagnostics, and
-`full-workflow-telemetry.json`. It must not download the standard DMG artifact,
+one-shot installer output, Docker/WebUI smoke output, WebUI GHCR publish
+summary, Full diagnostics, and `full-workflow-telemetry.json`. It must not
+download the standard DMG artifact,
 the large Full DMG workflow artifact, or published DMG assets for diagnosis.
 Full build bottleneck analysis uses `duration_seconds.full_package_build` and
 `duration_seconds.full_package_build_breakdown` from telemetry, while manifest,
@@ -275,6 +294,7 @@ Each release evidence bundle should follow
 - `tart-smoke-summary.json`.
 - `artifacts/smoke-summary.json`.
 - `artifacts/assistant-route-smoke-summary.json`.
+- `artifacts/codex-functional-check-summary.json`.
 - `remote-release-verification.json`.
 
 Generate or refresh the manifest after collecting available artifacts:
@@ -301,9 +321,10 @@ failed before writing the required artifact, pass `--typed-blocker
 <artifact_id>=<source_path>` so the manifest records `blocked_evidence` with a
 bundle-local typed blocker instead of an empty `missing` slot. It still does not
 create or fake screenshots, VM first-run summaries, guest smoke summaries,
-assistant route smoke summaries, remote Release verification, runtime truth,
-domain truth, artifact authority, or quality verdicts; absent App/VM/remote
-artifacts remain `missing` or `blocked` in the manifest.
+assistant route smoke summaries, Codex functional check receipts, remote
+Release verification, runtime truth, domain truth, artifact authority, or
+quality verdicts; absent App/VM/remote artifacts remain `missing` or `blocked`
+in the manifest.
 
 Validate a collected bundle with:
 
@@ -313,9 +334,9 @@ npm run release:evidence:validate -- \
 ```
 
 Default validation fails closed when required evidence is absent. If a VM smoke
-summary, guest smoke summary, assistant route smoke summary, screenshot, OPL
-runtime JSON, or remote Release artifact could not be produced in the current
-environment, keep that artifact marked as `missing` in
+summary, guest smoke summary, assistant route smoke summary, Codex functional
+check receipt, screenshot, OPL runtime JSON, or remote Release artifact could
+not be produced in the current environment, keep that artifact marked as `missing` in
 `evidence-manifest.json` and run:
 
 ```bash
@@ -467,6 +488,8 @@ The speed design is one release graph, not separate manual phases:
 - Stable starts standard and Full builds as early as their gates allow.
 - Standard DMG VM, one-shot installer, and Docker/WebUI start after the standard
   assets are published.
+- WebUI GHCR publish starts only after Docker/WebUI HTTP smoke passes; draft
+  candidates record the intended tags without pushing.
 - Full assets publish only after the standard release exists and the Full build
   artifact is available.
 - Full remote verification and Full DMG VM stay on the Full path.
@@ -636,9 +659,13 @@ in the background and prompt for restart after the update is ready; Full
 first-install assets remain separate release downloads and are not updater
 metadata.
 
-2026-05-17 release policy: the stable App release channel publishes macOS arm64
-standard update assets only. Docker/WebUI support is validated separately
-against the Framework runtime surfaces; it is not a desktop release asset lane.
+2026-06-01 release policy: the App release channel owns WebUI GHCR publishing.
+Stable desktop release workflows publish
+`ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>`, `stable`, and
+`latest` after Docker/WebUI HTTP smoke passes. Nightly publishes
+`<app_or_opl_version>` and `nightly`. The Framework only references this image
+coordinate. Full DMG payload assembly must not include the WebUI GHCR image, and
+standard updater metadata remains restricted to standard macOS arm64 App assets.
 
 The `gaofeng21cn/one-person-lab` and `gaofeng21cn/opl-aion-shell` GitHub
 Release lists should stay empty so App release ownership has a single remote

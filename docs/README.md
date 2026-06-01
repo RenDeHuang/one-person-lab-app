@@ -21,6 +21,12 @@ runtime, provider, or domain authority.
 - [`architecture.md`](architecture.md): App, shell, OPL Framework, and domain-agent ownership split.
 - [`invariants.md`](invariants.md): App repository invariants and non-ownership rules.
 - [`decisions.md`](decisions.md): still-active App product, shell, runtime bridge, release, and docs lifecycle decisions.
+- [`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md)：
+  不绑定具体 shell 的理想 GUI 交互定义，目标是 Codex App 形态的 OPL App。
+- [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)：Codex App 变成
+  OPL App 时需要新增、隐藏和治理的产品增量。
+- [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md)：跨 shell 的
+  GUI 能力清单和当前候选验证参考。
 - [`release/`](release/): App release, updater, and Full first-install notes.
 - [`testing/`](testing/): App validation and page-state test guidance.
 - [`user-guides/`](user-guides/): user-facing guide entry point.
@@ -63,3 +69,20 @@ gate. Normal local and CI validation does not require a live Framework checkout.
 When explicitly enabled with `OPL_APP_LIVE_CONFORMANCE=1`, the App validation
 checks a local OPL root's `./bin/opl app state/action` protocol without copying
 runtime or domain truth into this repo.
+
+## GUI 定义栈
+
+设计或评审 GUI 变更时，按以下顺序阅读：
+
+1. [`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md)
+   定义目标用户交互模型。
+2. [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 定义 Codex App
+   baseline 之上的 OPL 增量。
+3. [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md) 跟踪跨 shell
+   能力清单和验证预期。
+4. `contracts/` 和 page-state matrices 承载机器可读 gates。
+
+## 文档语言
+
+App 内部开发文档默认使用中文，便于维护者直接评审 GUI、release、contract 和
+runtime boundary。公共 README 可以保留双语或英文入口。

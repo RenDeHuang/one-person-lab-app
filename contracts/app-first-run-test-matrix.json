@@ -152,6 +152,7 @@
         "artifacts/system-initialize.json",
         "artifacts/settings-smoke-summary.json",
         "artifacts/assistant-route-smoke-summary.json",
+        "artifacts/codex-functional-check-summary.json",
         "artifacts/assistant-route-smoke/mas.png",
         "artifacts/assistant-route-smoke/mag.png",
         "artifacts/assistant-route-smoke/rca.png"
@@ -183,6 +184,7 @@
         "artifacts/system-initialize.json",
         "artifacts/settings-smoke-summary.json",
         "artifacts/assistant-route-smoke-summary.json",
+        "artifacts/codex-functional-check-summary.json",
         "artifacts/assistant-route-smoke/mas.png",
         "artifacts/assistant-route-smoke/mag.png",
         "artifacts/assistant-route-smoke/rca.png",
@@ -215,6 +217,7 @@
         "tart-smoke-summary.json",
         "artifacts/smoke-summary.json",
         "artifacts/assistant-route-smoke-summary.json",
+        "artifacts/codex-functional-check-summary.json",
         "artifacts/assistant-route-smoke/mas.png",
         "artifacts/assistant-route-smoke/mag.png",
         "artifacts/assistant-route-smoke/rca.png",

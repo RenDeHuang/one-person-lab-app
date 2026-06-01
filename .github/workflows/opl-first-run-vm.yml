@@ -457,6 +457,7 @@ jobs:
             --display 1920x1080px
             --settings-smoke
             --assistant-route-smoke
+            --codex-functional-check
             --runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"
             --guest-node-root "${{ steps.host_node.outputs.node_root }}"
           )

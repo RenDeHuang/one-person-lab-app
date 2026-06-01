@@ -309,6 +309,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   const publishFullAssets = laneById(plan, 'publish_full_assets');
   const remoteVerify = laneById(plan, 'remote_verify_standard_and_full');
   const dockerSmoke = laneById(plan, 'docker_webui_smoke');
+  const webuiGhcrPublish = laneById(plan, 'webui_ghcr_publish');
   const oneShotInstaller = laneById(plan, 'one_shot_app_installer_smoke');
   const evidenceBundle = laneById(plan, 'release_evidence_bundle');
   const publish = laneById(plan, 'publish_new_tag');
@@ -337,6 +338,11 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.deepEqual(dockerSmoke.depends_on, ['publish_standard']);
   assert.ok(oneShotInstaller.can_run_with.includes('docker_webui_smoke'));
   assert.ok(dockerSmoke.can_run_with.includes('one_shot_app_installer_smoke'));
+  assert.deepEqual(webuiGhcrPublish.depends_on, ['docker_webui_smoke']);
+  assert.ok(webuiGhcrPublish.command.includes('ghcr.io/<owner>/one-person-lab-webui'));
+  assert.ok(webuiGhcrPublish.command.includes('stable'));
+  assert.ok(webuiGhcrPublish.command.includes('latest'));
+  assert.ok(webuiGhcrPublish.required_for.includes('stable_release'));
 
   assert.deepEqual(evidenceBundle.depends_on?.sort(), [
     'docker_webui_smoke',
@@ -344,6 +350,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
     'one_shot_app_installer_smoke',
     'remote_verify_standard_and_full',
     'standard_dmg_clean_vm_smoke',
+    'webui_ghcr_publish',
   ].sort());
   assert.ok(publish.depends_on.includes('release_evidence_bundle'));
   assert.ok(publish.depends_on.includes('publish_standard'));
@@ -355,6 +362,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.ok(readinessSummary.depends_on?.includes('full_dmg_clean_vm_smoke'));
   assert.ok(readinessSummary.depends_on?.includes('one_shot_app_installer_smoke'));
   assert.ok(readinessSummary.depends_on?.includes('docker_webui_smoke'));
+  assert.ok(readinessSummary.depends_on?.includes('webui_ghcr_publish'));
   assert.ok(readinessSummary.command.includes('release-readiness-summary'));
   assert.ok(readinessSummary.required_for.includes('stable_release'));
   assert.equal(plan.lanes.at(-1)?.id, 'release_readiness_summary');

@@ -49,6 +49,105 @@ const expectedDefaultPackagedSkillIds = [
   'rca',
   ...expectedDefaultCompanionSkillSyncIds,
 ];
+const expectedHomeActivityCenterItemFields = [
+  'task_id',
+  'title',
+  'domain_label',
+  'state',
+  'active_stage_label',
+  'next_visible_step',
+  'blocker_ref_count',
+  'last_progress_at',
+];
+const expectedHomeActivityCenterForbiddenDisplays = [
+  'domain artifact body',
+  'memory body',
+  'quality verdict body',
+  'provider implementation details',
+];
+const expectedSettingsPageSections = {
+  settings_general: {
+    matrixId: 'settings_general',
+    sections: ['workspace', 'startup', 'tray', 'language'],
+    mustShow: [
+      'workspace root from app_state.paths',
+      'startup and tray preferences as App product preferences',
+      'language preference',
+      'short links to Access, Agents & Capabilities, Local Environment, and Project Progress',
+    ],
+    mustNotShow: [
+      'raw OPL internal state files',
+      'provider implementation internals as ordinary General settings',
+    ],
+  },
+  settings_access: {
+    matrixId: 'access',
+    sections: ['codex_cli', 'provider_readiness', 'api_keys', 'webui_compatibility'],
+    mustShow: [
+      'whether Codex CLI can run now',
+      'whether configured provider access can work now',
+      'current permission meaning in user-facing language',
+      'API key and base URL controls behind advanced disclosure',
+      'section-level refresh state',
+    ],
+    mustNotShow: [
+      'raw base URL and token paths as first-screen content',
+      'backend selector as ordinary App configuration',
+      'WebUI as the primary access mental model',
+    ],
+  },
+  settings_capabilities: {
+    matrixId: 'capabilities',
+    sections: ['research', 'grant', 'ppt', 'opl_meta_agent', 'skills_detail', 'tools_detail'],
+    mustShow: [
+      'purpose-grouped MAS research capability',
+      'purpose-grouped MAG grant capability',
+      'purpose-grouped RCA presentation capability',
+      'OPL Meta Agent as explicit non-default capability',
+      'required skills locked and optional skills selectable by assistant',
+      'MCP and tool details as secondary support details',
+    ],
+    mustNotShow: [
+      'Skills and Tools as the only top-level mental model',
+      'AG-UI as a user-visible capability concept',
+      'OPL Meta Agent as a default Home assistant',
+    ],
+  },
+  settings_environment: {
+    matrixId: 'environment',
+    sections: ['core.codex', 'provider.temporal', 'modules', 'paths', 'release'],
+    mustShow: [
+      'Codex CLI version and default profile from app_state.core',
+      'Temporal status from app_state.provider.temporal',
+      'MAS/MAG/RCA/OMA module version and source from app_state.modules',
+      'module path source explanation',
+      'section-level refresh state',
+      'environment page named Local Environment, distinct from Project Progress',
+    ],
+    mustNotShow: [
+      'Med Deep Scientist as a default module',
+      'page-wide spinner while one section refreshes',
+      'GUI-owned Temporal restart judgment',
+      'project progress as a settings runtime page',
+    ],
+  },
+  settings_advanced: {
+    matrixId: 'advanced',
+    sections: ['developer_mode', 'paths', 'logs', 'opl_flow_context', 'opl_agent_codex_context', 'diagnostics'],
+    mustShow: [
+      'Developer Mode effective state from app_state.developer_mode',
+      'workspace path from app_state.paths',
+      'logs path from app_state.paths',
+      'OPL Flow Context',
+      'diagnostics and raw refs behind Advanced navigation',
+    ],
+    mustNotShow: [
+      'delayed developer mode flip from a shell-local cache',
+      'AionUI local directory as OPL path truth',
+      'Developer Mode as ordinary first-level user setup',
+    ],
+  },
+};
 
 function runNode(args, options = {}) {
   return spawnSync(process.execPath, ['--experimental-strip-types', ...args], {
@@ -77,7 +176,7 @@ process.stdout.write(${JSON.stringify(body)});
 }
 
 function validStandardAiReleaseNotes(version) {
-  return `One Person Lab ${version}
+  const publicMarkdown = `One Person Lab ${version}
 
 This release helps users upgrade the standard OPL App package with a clearer first launch path for MAS, MAG, RCA, and OPL Meta Agent entries.
 
@@ -92,6 +191,40 @@ This release helps users upgrade the standard OPL App package with a clearer fir
 ## Release scope
 - Standard macOS arm64 updater package is published for this release.
 `;
+  return withHiddenLocalizedReleaseNotes(publicMarkdown, `One Person Lab ${version}
+
+这次更新让用户升级标准 OPL App 包后，更容易从首次启动进入 MAS、MAG、RCA 和 OPL Meta Agent 入口。
+
+## What improved
+
+### 内置 OPL 智能体入口更容易到达
+- 新用户可以从标准 App 包打开 MAS、MAG、RCA 和 OPL Meta Agent，设置路径更清晰。
+
+## OPL agents and runtime payload
+- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.
+
+## Release scope
+- Standard macOS arm64 updater package is published for this release.
+`);
+}
+
+function withHiddenLocalizedReleaseNotes(publicMarkdown, zhMarkdown) {
+  return `${publicMarkdown.trimEnd()}
+
+<!-- OPL_RELEASE_NOTES:en-US
+${publicMarkdown.trimEnd()}
+-->
+<!-- OPL_RELEASE_NOTES:zh-CN
+${zhMarkdown.trimEnd()}
+-->
+`;
+}
+
+function stripLocalizedReleaseNotesForTest(markdown) {
+  return `${markdown
+    .replace(/<!--\s*OPL_RELEASE_NOTES:[A-Za-z-]+\s*\n[\s\S]*?\n?-->\s*/g, '')
+    .replace(/<!--\s*OPL_RELEASE_NOTES:[A-Za-z-]+\s*-->[\s\S]*?<!--\s*\/OPL_RELEASE_NOTES:[A-Za-z-]+\s*-->\s*/g, '')
+    .trimEnd()}\n`;
 }
 
 function writeBinaryFile(filePath, content) {
@@ -254,8 +387,49 @@ process.exit(2);
 }
 
 function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
-  const settingsSmoke = { status: 'passed', pages: ['overview', 'runtime', 'capabilities', 'access', 'appearance', 'system', 'about'] };
+  const settingsSmoke = { status: 'passed', pages: ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced', 'about'] };
   const assistantRouteSmoke = { status: 'passed', assistants: ['mas', 'mag', 'rca'] };
+  const codexFunctionalCheck = {
+    schema: 'opl_codex_functional_check_receipt.v1',
+    status: 'diagnostic_skipped',
+    ui_language: 'zh-CN',
+    opl_flow_context_expected: {
+      status: 'passed',
+      context_id: 'opl-flow',
+      deterministic: true,
+    },
+    user_agents_policy: {
+      status: 'passed',
+      agents_override_allowed: false,
+      deterministic: true,
+    },
+    codex_cli_invokable: {
+      status: 'missing',
+      detected: false,
+      deterministic: true,
+    },
+    assistant_route_receipts_checked: {
+      status: 'passed',
+      required: ['mas', 'mag', 'rca'],
+      checked: ['mas', 'mag', 'rca'],
+      deterministic: true,
+    },
+    skills_or_plugins_policy_checked: {
+      status: 'passed',
+      companion_skills_policy: 'codex_visible_companion_skills',
+      domain_routes_policy: 'plugin_visible_domain_routes_not_companion_skill_mirrors',
+      deterministic: true,
+    },
+    blocking_release_gate: {
+      stable_vm_gate: 'receipt_file_exists_and_deterministic_fields_passed',
+      deterministic_fields_passed: true,
+      llm_invocation_required: false,
+    },
+    future_codex_invocation: {
+      status: 'diagnostic_skipped',
+      reason: 'missing_codex_credentials',
+    },
+  };
   const guestSummary = {
     surface_id: 'opl_packaged_gui_first_run_smoke',
     status: 'passed',
@@ -271,8 +445,13 @@ function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
     codex_config_wizard_submitted: runtimeProfile === 'full',
     settings_smoke: settingsSmoke,
     assistant_route_smoke: assistantRouteSmoke,
+    codex_functional_check: codexFunctionalCheck,
   };
   writeFile(path.join(tempRoot, 'artifacts', 'smoke-summary.json'), `${JSON.stringify(guestSummary)}\n`);
+  writeFile(
+    path.join(tempRoot, 'artifacts', 'codex-functional-check-summary.json'),
+    `${JSON.stringify(codexFunctionalCheck)}\n`,
+  );
   writeFile(
     path.join(tempRoot, 'artifacts', 'assistant-route-smoke-summary.json'),
     `${JSON.stringify({
@@ -316,6 +495,7 @@ function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
       require_codex_config_wizard: runtimeProfile === 'full',
       settings_smoke: settingsSmoke,
       assistant_route_smoke: assistantRouteSmoke,
+      codex_functional_check: codexFunctionalCheck,
       guest_summary: guestSummary,
     })}\n`,
   );
@@ -651,17 +831,20 @@ test('App product profile owns user-facing defaults without runtime authority', 
   ]);
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection, true);
   assert.deepEqual(profile.settings.visible_tabs, [
-    'overview',
-    'runtime',
-    'capabilities',
+    'general',
     'access',
+    'capabilities',
+    'environment',
     'appearance',
-    'system',
+    'advanced',
     'about',
   ]);
   assert.deepEqual(profile.settings.legacy_route_redirects, {
-    model: 'runtime',
-    agent: 'runtime',
+    overview: 'general',
+    runtime: 'environment',
+    system: 'advanced',
+    model: 'environment',
+    agent: 'capabilities',
     assistants: 'capabilities',
     'skills-hub': 'capabilities',
     tools: 'capabilities',
@@ -669,6 +852,15 @@ test('App product profile owns user-facing defaults without runtime authority', 
     webui: 'access',
     pet: 'appearance',
   });
+  assert.deepEqual(Object.keys(profile.settings.settings_information_architecture), [
+    'general',
+    'access',
+    'capabilities',
+    'environment',
+    'appearance',
+    'advanced',
+    'about',
+  ]);
   assert.equal(profile.gui.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
   assert.ok(profile.codex.default_visible_skills.includes('superpowers'));
   assert.ok(profile.codex.default_visible_skills.includes('cron'));
@@ -990,6 +1182,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   const runtimePage = pageStateMatrix.pages.find((page) => page.id === 'runtime');
   const environmentPage = pageStateMatrix.pages.find((page) => page.id === 'environment');
   const settingsThemePage = pageStateMatrix.pages.find((page) => page.id === 'settings_theme');
+  const pageById = new Map(pageStateMatrix.pages.map((page) => [page.id, page]));
 
   assert.equal(activeShellContract.runtime_bridge_contract, 'contracts/app-runtime-bridge.json');
   assert.equal(runtimeBridge.owner, 'one-person-lab-app');
@@ -1120,6 +1313,13 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', 'PPT']);
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
   assert.ok(guidHomePage.home_view_model.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
+  assert.deepEqual(guidHomePage.home_view_model.activity_center.item_fields, expectedHomeActivityCenterItemFields);
+  assert.deepEqual(guidHomePage.home_view_model.activity_center.must_not_display, expectedHomeActivityCenterForbiddenDisplays);
+  assert.deepEqual(guidHomePage.home_view_model.activity_center.forbidden_body_display, [
+    'domain artifact body',
+    'memory body',
+    'quality verdict body',
+  ]);
   for (const expected of [
     'Codex CLI fixed executor experience',
     'Codex automatic model status label',
@@ -1143,8 +1343,22 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
+    'domain artifact body in Home activity center',
+    'memory body in Home activity center',
   ]) {
     assert.ok(guidHomePage.must_not_show.includes(forbidden), forbidden);
+  }
+
+  for (const [pageContract, expected] of Object.entries(expectedSettingsPageSections)) {
+    const page = pageById.get(expected.matrixId);
+    assert.equal(page.page_contract, pageContract);
+    assert.deepEqual(page.sections, expected.sections);
+    for (const item of expected.mustShow) {
+      assert.ok(page.must_show.includes(item), `${expected.matrixId} must show ${item}`);
+    }
+    for (const item of expected.mustNotShow) {
+      assert.ok(page.must_not_show.includes(item), `${expected.matrixId} must not show ${item}`);
+    }
   }
 
   assert.equal(
@@ -1422,6 +1636,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       'tart-smoke-summary.json',
       'artifacts/smoke-summary.json',
       'artifacts/assistant-route-smoke-summary.json',
+      'artifacts/codex-functional-check-summary.json',
       'artifacts/assistant-route-smoke/mas.png',
       'artifacts/assistant-route-smoke/mag.png',
       'artifacts/assistant-route-smoke/rca.png',
@@ -1442,6 +1657,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       'clean_first_run_vm_smoke',
       'packaged_gui_first_run_smoke',
       'packaged_gui_assistant_route_smoke',
+      'packaged_gui_codex_functional_check',
       'packaged_gui_assistant_route_smoke_screenshot',
       'packaged_gui_assistant_route_smoke_screenshot',
       'packaged_gui_assistant_route_smoke_screenshot',
@@ -1454,6 +1670,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
     'artifacts/system-initialize.json',
     'artifacts/settings-smoke-summary.json',
     'artifacts/assistant-route-smoke-summary.json',
+    'artifacts/codex-functional-check-summary.json',
     'artifacts/assistant-route-smoke/mas.png',
     'artifacts/assistant-route-smoke/mag.png',
     'artifacts/assistant-route-smoke/rca.png',
@@ -1513,7 +1730,7 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
     payload.evidence_boundary,
     'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
   );
-  assert.equal(payload.verified_artifact_count, 15);
+  assert.equal(payload.verified_artifact_count, 16);
   assert.equal(payload.missing_artifact_count, 0);
   assert.deepEqual(
     payload.verified_artifacts.map((artifact) => artifact.id),
@@ -1529,6 +1746,7 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
       'first_run_vm_summary',
       'guest_smoke_summary',
       'assistant_route_smoke_summary',
+      'codex_functional_check_summary',
       'assistant_route_smoke_mas_screenshot',
       'assistant_route_smoke_mag_screenshot',
       'assistant_route_smoke_rca_screenshot',
@@ -1546,6 +1764,7 @@ test('release evidence bundle validator fails closed for incomplete packaged App
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'codex_functional_check_summary',
     'assistant_route_smoke_mas_screenshot',
     'assistant_route_smoke_mag_screenshot',
     'assistant_route_smoke_rca_screenshot',
@@ -1608,11 +1827,12 @@ test('release evidence bundle validator fails closed for incomplete packaged App
   assert.equal(payload.status, 'missing_evidence');
   assert.equal(payload.packaged_app_evidence, false);
   assert.equal(payload.verified_artifact_count, 8);
-  assert.equal(payload.missing_artifact_count, 7);
+  assert.equal(payload.missing_artifact_count, 8);
   assert.deepEqual(payload.missing_artifacts.map((artifact) => artifact.id), [
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'codex_functional_check_summary',
     'assistant_route_smoke_mas_screenshot',
     'assistant_route_smoke_mag_screenshot',
     'assistant_route_smoke_rca_screenshot',
@@ -1688,7 +1908,7 @@ test('release evidence bundle validator records typed blockers without claiming 
   const payload = JSON.parse(allowed.stdout);
   assert.equal(payload.status, 'blocked_evidence');
   assert.equal(payload.packaged_app_evidence, false);
-  assert.equal(payload.verified_artifact_count, 14);
+  assert.equal(payload.verified_artifact_count, 15);
   assert.equal(payload.missing_artifact_count, 0);
   assert.equal(payload.blocked_artifact_count, 1);
   assert.equal(payload.blocked_artifacts[0].id, 'first_run_vm_summary');
@@ -1864,11 +2084,12 @@ test('release evidence manifest generator records missing artifacts without clai
   const generatedPayload = JSON.parse(generated.stdout);
   assert.equal(generatedPayload.status, 'missing_evidence');
   assert.equal(generatedPayload.packaged_app_evidence, false);
-  assert.equal(generatedPayload.missing_artifact_count, 7);
+  assert.equal(generatedPayload.missing_artifact_count, 8);
   assert.deepEqual(generatedPayload.missing_artifacts.map((artifact) => artifact.id), [
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'codex_functional_check_summary',
     'assistant_route_smoke_mas_screenshot',
     'assistant_route_smoke_mag_screenshot',
     'assistant_route_smoke_rca_screenshot',
@@ -1882,6 +2103,7 @@ test('release evidence manifest generator records missing artifacts without clai
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'codex_functional_check_summary',
     'assistant_route_smoke_mas_screenshot',
     'assistant_route_smoke_mag_screenshot',
     'assistant_route_smoke_rca_screenshot',
@@ -2002,6 +2224,7 @@ process.exit(2);
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'codex_functional_check_summary',
     'assistant_route_smoke_mas_screenshot',
     'assistant_route_smoke_mag_screenshot',
     'assistant_route_smoke_rca_screenshot',
@@ -2190,6 +2413,8 @@ process.exit(2);
     '--artifact',
     `assistant_route_smoke_summary=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke-summary.json')}`,
     '--artifact',
+    `codex_functional_check_summary=${path.join(externalEvidence, 'artifacts', 'codex-functional-check-summary.json')}`,
+    '--artifact',
     `assistant_route_smoke_mas_screenshot=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke', 'mas.png')}`,
     '--artifact',
     `assistant_route_smoke_mag_screenshot=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke', 'mag.png')}`,
@@ -2213,6 +2438,7 @@ process.exit(2);
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'codex_functional_check_summary',
     'assistant_route_smoke_mas_screenshot',
     'assistant_route_smoke_mag_screenshot',
     'assistant_route_smoke_rca_screenshot',
@@ -2227,7 +2453,7 @@ process.exit(2);
   assert.equal(validation.status, 0, validation.stderr || validation.stdout);
   const validationPayload = JSON.parse(validation.stdout);
   assert.equal(validationPayload.status, 'passed');
-  assert.equal(validationPayload.verified_artifact_count, 15);
+  assert.equal(validationPayload.verified_artifact_count, 16);
   assert.equal(validationPayload.missing_artifact_count, 0);
 });
 
@@ -2279,6 +2505,7 @@ test('release evidence collector imports standard smoke source directories witho
     'first_run_vm_summary',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'codex_functional_check_summary',
     'assistant_route_smoke_mas_screenshot',
     'assistant_route_smoke_mag_screenshot',
     'assistant_route_smoke_rca_screenshot',
@@ -2297,7 +2524,7 @@ test('release evidence collector imports standard smoke source directories witho
   assert.equal(validation.status, 0, validation.stderr || validation.stdout);
   const validationPayload = JSON.parse(validation.stdout);
   assert.equal(validationPayload.status, 'passed');
-  assert.equal(validationPayload.verified_artifact_count, 15);
+  assert.equal(validationPayload.verified_artifact_count, 16);
   assert.equal(validationPayload.missing_artifact_count, 0);
 });
 
@@ -2350,6 +2577,7 @@ test('release evidence collector imports typed blockers as blocked evidence', ()
     'action_screenshot',
     'guest_smoke_summary',
     'assistant_route_smoke_summary',
+    'codex_functional_check_summary',
     'assistant_route_smoke_mas_screenshot',
     'assistant_route_smoke_mag_screenshot',
     'assistant_route_smoke_rca_screenshot',
@@ -2369,7 +2597,7 @@ test('release evidence collector imports typed blockers as blocked evidence', ()
   assert.equal(validation.status, 0, validation.stderr || validation.stdout);
   const validationPayload = JSON.parse(validation.stdout);
   assert.equal(validationPayload.status, 'blocked_evidence');
-  assert.equal(validationPayload.verified_artifact_count, 14);
+  assert.equal(validationPayload.verified_artifact_count, 15);
   assert.equal(validationPayload.blocked_artifact_count, 1);
   assert.equal(
     validationPayload.blocked_artifacts[0].typed_blocker_ref,
@@ -2819,8 +3047,14 @@ test('nightly release plan stays lightweight and excludes stable installation ga
     'standard_build',
     'publish_nightly_prerelease',
     'remote_verify_standard',
+    'webui_ghcr_publish',
   ]);
   assert.ok(payload.lanes.every((lane) => !/full|vm|installer|docker|evidence/i.test(lane.id)));
+  assert.ok(
+    payload.lanes
+      .find((lane) => lane.id === 'webui_ghcr_publish')
+      ?.command.includes('ghcr.io/<owner>/one-person-lab-webui:nightly'),
+  );
 });
 
 test('publish dry run skips existing release assets when a resumed upload already has matching files', () => {
@@ -3475,6 +3709,14 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     guiContract.product_authority.upstream_behavior_acceptance_policy,
     'must_match_app_owned_gui_product_contract_before_release',
   );
+  assert.equal(guiContract.product_authority.shell_upgrade_policy.role, 'replaceable_implementation_carrier');
+  assert.ok(guiContract.product_authority.shell_upgrade_policy.app_repo_controls.includes('settings information architecture'));
+  assert.ok(guiContract.product_authority.shell_upgrade_policy.app_repo_controls.includes('home command center requirements'));
+  assert.ok(guiContract.product_authority.shell_upgrade_policy.app_repo_controls.includes('page-state acceptance matrix'));
+  assert.ok(guiContract.product_authority.shell_upgrade_policy.shell_repo_controls.includes('renderer implementation details'));
+  assert.ok(guiContract.product_authority.shell_upgrade_policy.shell_repo_controls.includes('upstream AionUI intake patches'));
+  assert.match(guiContract.product_authority.shell_upgrade_policy.upgrade_rule, /App-owned contracts/);
+  assert.match(guiContract.product_authority.shell_upgrade_policy.replacement_rule, /active-shell validation/);
   assert.equal(guiContract.framework_surfaces.canonical_state.default_command, 'opl app state --profile fast --json');
   assert.equal(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile fast --json');
   assert.equal(guiContract.framework_surfaces.canonical_state.default_profile, 'fast');
@@ -3549,20 +3791,65 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.ok(guiContract.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   assert.equal(guiContract.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
   assert.equal(guiContract.retired_domain_agents.find((agent) => agent.id === 'mds').default_display_allowed, false);
+  assert.equal(
+    guiContract.product_authority.shell_upgrade_policy.fork_delta_budget.policy,
+    'app_contract_first_thin_shell_delta',
+  );
+  assert.ok(
+    guiContract.product_authority.shell_upgrade_policy.fork_delta_budget.preferred_optimization_path.includes(
+      'encode product behavior in App contracts and product profile',
+    ),
+  );
+  assert.ok(
+    guiContract.product_authority.shell_upgrade_policy.fork_delta_budget.allowed_shell_delta.includes(
+      'thin renderer components for App-owned pages',
+    ),
+  );
+  assert.ok(
+    guiContract.product_authority.shell_upgrade_policy.fork_delta_budget.requires_app_contract_before_shell_change.includes(
+      'new visible model/provider/permission control',
+    ),
+  );
+  assert.ok(
+    guiContract.product_authority.shell_upgrade_policy.fork_delta_budget.forbidden_shell_delta.includes(
+      'shell-owned product IA',
+    ),
+  );
+  assert.equal(
+    guiContract.product_authority.shell_upgrade_policy.fork_delta_budget.replacement_rule,
+    'a candidate shell should implement the same App contracts by swapping adapters/profile consumers, not by inheriting AionUI-specific product logic',
+  );
   assert.equal(guiContract.pages.guid_home.hero_prompt, '把研究、基金和汇报交给 One Person Lab 自动推进');
-  assert.ok(guiContract.pages.settings_system.must_show.includes('OPL Agent Codex context'));
+  assert.ok(guiContract.pages.guid_home.must_show.includes('continue work activity center near the home input'));
+  assert.equal(guiContract.pages.guid_home.activity_center_policy.authority, 'opl_framework_refs_only_projection');
+  assert.deepEqual(guiContract.pages.guid_home.activity_center_policy.display_groups, [
+    'needs_attention',
+    'active_projects',
+    'recent_projects',
+  ]);
+  assert.equal(guiContract.pages.guid_home.activity_center_policy.default_placement, 'near_home_input');
+  assert.ok(guiContract.pages.guid_home.activity_center_policy.item_fields.includes('next_visible_step'));
+  assert.ok(guiContract.pages.guid_home.activity_center_policy.item_fields.includes('blocker_ref_count'));
+  assert.ok(guiContract.pages.guid_home.activity_center_policy.must_not_display.includes('domain artifact body'));
+  assert.ok(guiContract.pages.guid_home.activity_center_policy.must_not_display.includes('memory body'));
+  assert.ok(guiContract.pages.settings_advanced.must_show.includes('OPL Flow Context'));
+  assert.ok(guiContract.pages.settings_advanced.sections.includes('opl_agent_codex_context'));
+  assert.ok(guiContract.pages.settings_advanced.legacy_state_sections.includes('opl_agent_codex_context'));
   assert.deepEqual(guiContract.settings_navigation.ordinary_visible_tabs, [
-    'overview',
-    'runtime',
-    'capabilities',
+    'general',
     'access',
+    'capabilities',
+    'environment',
     'appearance',
-    'system',
+    'advanced',
     'about',
   ]);
   assert.deepEqual(guiContract.settings_navigation.legacy_route_redirects, {
-    model: 'runtime',
-    agent: 'runtime',
+    overview: 'general',
+    runtime: 'environment',
+    system: 'advanced',
+    model: 'environment',
+    agent: 'capabilities',
     assistants: 'capabilities',
     'skills-hub': 'capabilities',
     tools: 'capabilities',
@@ -3571,6 +3858,9 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     pet: 'appearance',
   });
   assert.deepEqual(guiContract.settings_navigation.ordinary_hidden_legacy_tabs, [
+    'overview',
+    'runtime',
+    'system',
     'model',
     'agent',
     'assistants',
@@ -3580,9 +3870,30 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'webui',
     'pet',
   ]);
-  assert.deepEqual(guiContract.settings_navigation.required_sections, ['system', 'runtime', 'about', 'update', 'theme']);
+  assert.deepEqual(guiContract.settings_navigation.required_sections, [
+    'general',
+    'access',
+    'capabilities',
+    'environment',
+    'appearance',
+    'advanced',
+    'about',
+    'update',
+    'theme',
+  ]);
   assert.equal(guiContract.settings_navigation.source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
+  assert.equal(guiContract.settings_navigation.primary_tabs.general.label_zh, '通用');
+  assert.equal(guiContract.settings_navigation.primary_tabs.environment.label_en, 'Local Environment');
+  for (const [pageId, expected] of Object.entries(expectedSettingsPageSections)) {
+    assert.deepEqual(guiContract.pages[pageId].sections, expected.sections);
+    for (const item of expected.mustShow) {
+      assert.ok(guiContract.pages[pageId].must_show.includes(item), `${pageId} must show ${item}`);
+    }
+    for (const item of expected.mustNotShow) {
+      assert.ok(guiContract.pages[pageId].must_not_show.includes(item), `${pageId} must not show ${item}`);
+    }
+  }
   assert.equal(guiContract.desktop_tray_policy.default_visible, true);
   assert.equal(guiContract.desktop_tray_policy.desktop_startup_behavior, 'create_tray_by_default');
   assert.equal(guiContract.desktop_tray_policy.e2e_startup_behavior, 'destroy_tray_and_disable_close_to_tray');
@@ -3597,9 +3908,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from a local domain repository checkout'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module is managed by App/CLI maintenance'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('that module path display is refs-only and not domain truth authority'));
-  assert.equal(guiContract.pages.settings_runtime.module_path_source_policy_ref, 'module_path_source_policy');
-  assert.ok(guiContract.pages.settings_runtime.must_show.includes('module path source explanation'));
-  assert.ok(guiContract.pages.settings_runtime.must_not_show.includes('Med Deep Scientist as a default module'));
+  assert.equal(guiContract.pages.settings_environment.module_path_source_policy_ref, 'module_path_source_policy');
   assert.ok(guiContract.pages.about.must_show.includes('OPL Framework revision'));
   assert.equal(guiContract.theme_and_branding.default_theme_id, 'default-theme');
   assert.deepEqual(guiContract.theme_and_branding.allowed_theme_ids, ['default-theme', 'codex']);
@@ -3773,6 +4082,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
 
   assert.match(workflow, /name: OPL Desktop Release/);
   assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release[\s\S]*draft_candidate/);
+  assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /name: Verify standard release assets[\s\S]*OPL_RELEASE_VERSION: \$\{\{ inputs\.opl_version \}\}[\s\S]*node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
@@ -3814,10 +4124,17 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /full-first-run-vm-smoke:/);
   assert.match(workflow, /one-shot-app-installer-smoke:/);
   assert.match(workflow, /docker-webui-smoke:/);
+  assert.match(workflow, /webui-ghcr-publish:/);
   assert.match(workflow, /OPL_INSTALL_SCRIPT_URL: file:\/\/\$\{\{ github\.workspace \}\}\/one-person-lab\/install\.sh/);
   assert.match(workflow, /\.\/install\.sh --complete --skip-modules/);
   assert.match(workflow, /docker build -t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}" shells\/aionui/);
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
+  assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
+  assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
+  assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}"/);
+  assert.match(workflow, /"\$\{ghcr_image\}:stable"/);
+  assert.match(workflow, /"\$\{ghcr_image\}:latest"/);
+  assert.match(workflow, /RELEASE_MODE.*draft_candidate/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /release_artifact_name: macos-build-arm64/);
@@ -3896,6 +4213,23 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     releaseContract.release_acceleration.github_actions.first_run_vm_workflow,
     '.github/workflows/opl-first-run-vm.yml',
   );
+  assert.deepEqual(releaseContract.webui_ghcr_image, {
+    owner: 'one-person-lab-app',
+    registry: 'ghcr.io',
+    image: 'ghcr.io/<owner>/one-person-lab-webui',
+    version_tag: '<app_or_opl_version>',
+    source: 'shells/aionui Dockerfile',
+    publish_workflows: [
+      '.github/workflows/desktop-release.yml',
+      '.github/workflows/nightly-standard-release.yml',
+    ],
+    stable_tags: ['<app_or_opl_version>', 'stable', 'latest'],
+    nightly_tags: ['<app_or_opl_version>', 'nightly'],
+    draft_candidate_push: false,
+    full_first_install_payload_allowed: false,
+    framework_role: 'references_image_coordinate_only',
+    rule: 'WebUI GHCR image publish truth is App-owned; Framework may reference the image coordinate but does not own publishing.',
+  });
   assert.deepEqual(
     releaseContract.release_acceleration.vm_gates.map((gate) => gate.id),
     ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke'],
@@ -3946,6 +4280,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   );
 
   assert.match(workflow, /name: OPL Nightly Standard Release/);
+  assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /schedule:/);
   assert.match(workflow, /cron: '17 18 \* \* \*'/);
@@ -3980,6 +4315,13 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /--title "\$\{OPL_RELEASE_TAG\}"/);
   assert.match(workflow, /gh release upload "\$\{OPL_RELEASE_TAG\}" release-assets\/\*/);
   assert.match(workflow, /npm run verify-remote-release/);
+  assert.match(workflow, /webui-ghcr-publish:/);
+  assert.match(workflow, /docker build -t "one-person-lab-webui:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}" shells\/aionui/);
+  assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
+  assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
+  assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
+  assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}"/);
+  assert.match(workflow, /"\$\{ghcr_image\}:nightly"/);
   assert.doesNotMatch(workflow, /full-first-install-release\.yml/);
   assert.doesNotMatch(workflow, /include_full_package/);
   assert.doesNotMatch(workflow, /One-Person-Lab-Full/);
@@ -3987,6 +4329,8 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.doesNotMatch(workflow, /One Person Lab Nightly \$\{OPL_RELEASE_VERSION\}/);
   assert.doesNotMatch(workflow, /Standard macOS arm64 App assets only/);
   assert.doesNotMatch(workflow, /This prerelease is for users/);
+  assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:latest"/);
+  assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:stable"/);
   assert.match(boundaryScript, /nightly_standard_release_workflow/);
   assert.equal(
     releaseContract.release_acceleration.github_actions.nightly_standard_release_workflow,
@@ -4000,6 +4344,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
     'standard_macos_arm64_build',
     'local_standard_asset_validation',
     'remote_standard_release_verification',
+    'webui_ghcr_publish',
   ]);
   assert.ok(
     releaseContract.release_validation_profiles.nightly_standard.forbidden_lanes.includes('full_first_install_build'),
@@ -4033,6 +4378,8 @@ test('stable validation profile covers every user installation surface', () => {
     'docker_webui_smoke',
   ]);
   assert.ok(stable.required_lanes.includes('docker_webui_smoke'));
+  assert.ok(stable.required_lanes.includes('webui_ghcr_publish'));
+  assert.ok(stable.required_lanes.indexOf('webui_ghcr_publish') > stable.required_lanes.indexOf('docker_webui_smoke'));
   assert.deepEqual(
     firstRunMatrix.scenarios.find((scenario) => scenario.id === 'docker_webui_smoke'),
     {
@@ -4054,6 +4401,9 @@ test('stable validation profile covers every user installation surface', () => {
   }
   assert.match(combinedDocs, /Nightly[\s\S]*standard[\s\S]*remote/i);
   assert.match(combinedDocs, /Stable[\s\S]*standard DMG[\s\S]*Full DMG[\s\S]*one-shot[\s\S]*Docker\/WebUI/i);
+  assert.match(combinedDocs, /ghcr\.io\/<owner>\/one-person-lab-webui:<app_or_opl_version>/);
+  assert.match(combinedDocs, /Framework[\s\S]*references?[\s\S]*image coordinate/i);
+  assert.match(combinedDocs, /Full[\s\S]*DMG[\s\S]*must not include[\s\S]*WebUI GHCR image/i);
 });
 
 test('release automation workflows cover remote verification, Full cache warmup, and draft promotion', () => {

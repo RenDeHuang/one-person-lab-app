@@ -368,6 +368,21 @@ function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown)
   if (artifact.id === 'assistant_route_smoke_summary') {
     validateAssistantRouteSmokeSummary(artifact, record);
   }
+  if (artifact.id === 'codex_functional_check_summary') {
+    if (record.schema !== 'opl_codex_functional_check_receipt.v1') {
+      throw new Error('codex_functional_check_summary must use the Codex functional check receipt schema.');
+    }
+    if (!['passed', 'diagnostic_skipped'].includes(String(record.status))) {
+      throw new Error('codex_functional_check_summary must be passed or diagnostic_skipped for release evidence.');
+    }
+    const gate = asRecord(record.blocking_release_gate, 'codex_functional_check_summary.blocking_release_gate');
+    if (gate.deterministic_fields_passed !== true) {
+      throw new Error('codex_functional_check_summary deterministic fields must pass.');
+    }
+    if (gate.llm_invocation_required !== false) {
+      throw new Error('codex_functional_check_summary must not require LLM invocation.');
+    }
+  }
   if (artifact.id === 'remote_release_verification') {
     if (record.status !== 'passed') {
       throw new Error('remote_release_verification must be a passed remote release verification summary.');

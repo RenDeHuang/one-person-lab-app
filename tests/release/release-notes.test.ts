@@ -5,7 +5,12 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { buildAiReleaseNotesDocument, validateAiReleaseNotes } from '../../scripts/release-notes-ai-writer.ts';
+import {
+  buildAiReleaseNotesDocument,
+  extractLocalizedReleaseNotes,
+  stripLocalizedReleaseNotes,
+  validateAiReleaseNotes,
+} from '../../scripts/release-notes-ai-writer.ts';
 import { buildReleaseNotesEvidence } from '../../scripts/release-notes.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -138,7 +143,7 @@ function sampleAiEvidence(version = '26.6.1') {
 }
 
 function validAiMarkdown(version: string, lead: string) {
-  return `One Person Lab ${version}
+  const publicMarkdown = `One Person Lab ${version}
 
 ${lead} makes the built-in OPL entries ready to use sooner for users upgrading the App.
 
@@ -150,6 +155,26 @@ ${lead} makes the built-in OPL entries ready to use sooner for users upgrading t
 
 ## Release scope
 - Standard macOS arm64 updater package.
+`;
+  return `${publicMarkdown.trimEnd()}
+
+<!-- OPL_RELEASE_NOTES:en-US
+${publicMarkdown.trimEnd()}
+-->
+<!-- OPL_RELEASE_NOTES:zh-CN
+One Person Lab ${version}
+
+这次更新让升级后的用户更快进入内置 OPL 智能体入口，MAS、MAG、RCA 和 OPL Meta Agent 会以 App 管理的上下文打开。
+
+## 主要改进
+- MAS、MAG 和 RCA 入口会带着更清晰的 App 管理设置上下文打开，用户可以从预期的 OPL 智能体表面开始工作。
+
+## OPL agents and runtime payload
+- MAS、MAG、RCA 和 OPL Meta Agent 继续通过标准 App 包暴露，并遵循 Codex plugin 和 skill 同步策略。
+
+## 发布范围
+- 标准 macOS arm64 更新包。
+-->
 `;
 }
 
@@ -421,7 +446,7 @@ test('AI-first release notes use provider output, evidence input, and human-read
   const shellRoot = createShellHistory();
   const { manifestPath, previousManifestPath } = writeReleaseNoteManifests(shellRoot);
   const fakeAi = path.join(shellRoot, 'fake-release-notes-ai.js');
-  writeFakeAiWriter(fakeAi, `One Person Lab 26.5.31
+  const publicMarkdown = `One Person Lab 26.5.31
 
 This Stable release is about making a clean OPL install more useful immediately: the App now ships a newer OPL Framework runtime, refreshed MAS/MAG/RCA domain agents, the OPL Meta Agent, Codex CLI, OfficeCLI, MinerU, and the packaged Codex skills needed for those entries to work after first launch.
 
@@ -446,6 +471,38 @@ This Stable release is about making a clean OPL install more useful immediately:
 - Standard macOS arm64 updater package plus Full clean-install DMG.
 
 **Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.5.28...v26.5.31
+`;
+  writeFakeAiWriter(fakeAi, `${publicMarkdown}
+<!-- OPL_RELEASE_NOTES:en-US
+${publicMarkdown.trimEnd()}
+-->
+<!-- OPL_RELEASE_NOTES:zh-CN
+One Person Lab 26.5.31
+
+这次 Stable 更新让一次干净的 OPL 安装更快可用：App 会带上更新后的 OPL Framework runtime、MAS/MAG/RCA 领域智能体、OPL Meta Agent、Codex CLI、OfficeCLI、MinerU，以及首次启动后内置入口需要的 Codex skills。
+
+## What improved
+
+### 打包的 OPL 智能体在首次启动时更新
+- MAS、MAG、RCA 和 OPL Meta Agent 会随 Full package manifest 一起刷新，新 Full 安装可以直接获得更新后的科研、基金写作、视觉交付和 meta-agent 能力表面。
+- 打包的 Codex skill/plugin 表面会和这些智能体一起刷新，内置 OPL 入口会带着预期的领域 skill 上下文打开。
+
+### 新用户首次启动更简单
+- 首次启动流程围绕 App 管理的设置表面收敛，用户更容易看清 OPL 智能体什么时候已经可用。
+
+### 安装证明更完整
+- Stable 验证继续分开覆盖标准 DMG、Full DMG、一键安装器和 Docker/WebUI 路径，方便定位具体安装路径的问题。
+
+## OPL agents and runtime payload
+- Full clean-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
+- Build-time payload refs: OPL Framework @ aaaaaaa; Codex CLI 0.130.0; MAS @ 1111111; MAG @ 2222222; RCA @ 3333333; OPL Meta Agent @ 4444444; OfficeCLI 1.2.3; MinerU v0.1.3.
+- Payload updates since previous Stable: OPL Framework 0000000 -> aaaaaaa; Codex CLI 0.129.0 -> 0.130.0; MAS aaaaaaa -> 1111111; MAG bbbbbbb -> 2222222; RCA ccccccc -> 3333333; OPL Meta Agent ddddddd -> 4444444; OfficeCLI 1.2.2 -> 1.2.3; MinerU v0.1.2 -> v0.1.3.
+
+## Release scope
+- Standard macOS arm64 updater package plus Full clean-install DMG.
+
+**Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.5.28...v26.5.31
+-->
 `);
   const result = runNode([
     'scripts/generate-release-notes.ts',
@@ -486,7 +543,9 @@ This Stable release is about making a clean OPL install more useful immediately:
   assert.match(result.stdout, /OPL agents and runtime payload/);
   assert.doesNotMatch(result.stdout, /Strengthened package builds/);
   assert.doesNotMatch(result.stdout, /Updated the OPL App package with the current/);
-  assert.doesNotMatch(result.stdout, /[\u3400-\u9fff]/);
+  assert.doesNotMatch(stripLocalizedReleaseNotes(result.stdout), /[\u3400-\u9fff]/);
+  assert.match(extractLocalizedReleaseNotes(result.stdout, 'zh-CN'), /干净的 OPL 安装/);
+  assert.match(extractLocalizedReleaseNotes(result.stdout, 'zh-CN'), /MAS、MAG、RCA/);
 });
 
 test('AI-first release notes reject vague provider output before publishing', () => {
@@ -543,6 +602,27 @@ This Stable release focuses on changes since v26.5.28.
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /AI release notes failed quality gate/);
   assert.match(result.stderr, /vague/);
+});
+
+test('AI-first release notes require hidden App popup localization blocks', () => {
+  const markdown = `One Person Lab 26.6.6
+
+The App upgrade makes MAS, MAG, and RCA ready to use sooner after users install the standard App package.
+
+## What improved
+- MAS, MAG, and RCA entry surfaces open with clearer App-managed setup context for research, grant, and visual deliverable work.
+
+## OPL agents and runtime payload
+- MAS, MAG, RCA, and OPL Meta Agent remain exposed through the standard App package with Codex plugin and skill sync policy.
+
+## Release scope
+- Standard macOS arm64 updater package.
+`;
+
+  assert.throws(
+    () => validateAiReleaseNotes(markdown, sampleAiEvidence('26.6.6') as any),
+    /missing localized en-US block|missing localized zh-CN block/,
+  );
 });
 
 test('AI-first release notes reject self-referential or process-first output', () => {

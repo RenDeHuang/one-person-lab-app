@@ -89,10 +89,13 @@ const beginnerFirstRunTestIds = [
   'opl-first-run-primary-action',
   'opl-first-run-technical-details-toggle',
 ];
-const appOwnedSettingsTabs = ['overview', 'runtime', 'capabilities', 'access', 'appearance', 'system', 'about'];
+const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced', 'about'];
 const legacySettingsRouteRedirects = {
-  model: 'runtime',
-  agent: 'runtime',
+  overview: 'general',
+  runtime: 'environment',
+  system: 'advanced',
+  model: 'environment',
+  agent: 'capabilities',
   assistants: 'capabilities',
   'skills-hub': 'capabilities',
   tools: 'capabilities',
@@ -101,6 +104,105 @@ const legacySettingsRouteRedirects = {
   pet: 'appearance',
 };
 const ordinaryHiddenLegacySettingsTabs = Object.keys(legacySettingsRouteRedirects);
+const homeActivityCenterItemFields = [
+  'task_id',
+  'title',
+  'domain_label',
+  'state',
+  'active_stage_label',
+  'next_visible_step',
+  'blocker_ref_count',
+  'last_progress_at',
+];
+const homeActivityCenterForbiddenDisplays = [
+  'domain artifact body',
+  'memory body',
+  'quality verdict body',
+  'provider implementation details',
+];
+const settingsPageExpectations = {
+  settings_general: {
+    matrix_id: 'settings_general',
+    sections: ['workspace', 'startup', 'tray', 'language'],
+    must_show: [
+      'workspace root from app_state.paths',
+      'startup and tray preferences as App product preferences',
+      'language preference',
+      'short links to Access, Agents & Capabilities, Local Environment, and Project Progress',
+    ],
+    must_not_show: [
+      'raw OPL internal state files',
+      'provider implementation internals as ordinary General settings',
+    ],
+  },
+  settings_access: {
+    matrix_id: 'access',
+    sections: ['codex_cli', 'provider_readiness', 'api_keys', 'webui_compatibility'],
+    must_show: [
+      'whether Codex CLI can run now',
+      'whether configured provider access can work now',
+      'current permission meaning in user-facing language',
+      'API key and base URL controls behind advanced disclosure',
+      'section-level refresh state',
+    ],
+    must_not_show: [
+      'raw base URL and token paths as first-screen content',
+      'backend selector as ordinary App configuration',
+      'WebUI as the primary access mental model',
+    ],
+  },
+  settings_capabilities: {
+    matrix_id: 'capabilities',
+    sections: ['research', 'grant', 'ppt', 'opl_meta_agent', 'skills_detail', 'tools_detail'],
+    must_show: [
+      'purpose-grouped MAS research capability',
+      'purpose-grouped MAG grant capability',
+      'purpose-grouped RCA presentation capability',
+      'OPL Meta Agent as explicit non-default capability',
+      'required skills locked and optional skills selectable by assistant',
+      'MCP and tool details as secondary support details',
+    ],
+    must_not_show: [
+      'Skills and Tools as the only top-level mental model',
+      'AG-UI as a user-visible capability concept',
+      'OPL Meta Agent as a default Home assistant',
+    ],
+  },
+  settings_environment: {
+    matrix_id: 'environment',
+    sections: ['core.codex', 'provider.temporal', 'modules', 'paths', 'release'],
+    must_show: [
+      'Codex CLI version and default profile from app_state.core',
+      'Temporal status from app_state.provider.temporal',
+      'MAS/MAG/RCA/OMA module version and source from app_state.modules',
+      'module path source explanation',
+      'section-level refresh state',
+      'environment page named Local Environment, distinct from Project Progress',
+    ],
+    must_not_show: [
+      'Med Deep Scientist as a default module',
+      'page-wide spinner while one section refreshes',
+      'GUI-owned Temporal restart judgment',
+      'project progress as a settings runtime page',
+    ],
+  },
+  settings_advanced: {
+    matrix_id: 'advanced',
+    sections: ['developer_mode', 'paths', 'logs', 'opl_flow_context', 'opl_agent_codex_context', 'diagnostics'],
+    must_show: [
+      'Developer Mode effective state from app_state.developer_mode',
+      'workspace path from app_state.paths',
+      'logs path from app_state.paths',
+      'OPL Flow Context',
+      'diagnostics and raw refs behind Advanced navigation',
+    ],
+    must_not_show: [
+      'delayed developer mode flip from a shell-local cache',
+      'AionUI local directory as OPL path truth',
+      'Developer Mode as ordinary first-level user setup',
+    ],
+  },
+};
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
@@ -201,6 +303,22 @@ function validateBeginnerFirstRunPresentation(presentation, label) {
     technical_detail_policy: 'hidden_until_expanded_or_error',
   })) {
     if (presentation[field] !== expected) {
+      throw new Error(`${label}.${field} must be ${expected}`);
+    }
+  }
+}
+
+function validateOplFlowContext(context, label) {
+  if (!context || typeof context !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    flow_id: 'opl-flow',
+    delivery: 'session_scoped_preset_context',
+    user_agents_policy: 'respect_user_agents_no_overwrite_detect_conflicts',
+    language_policy: 'follow_ui_locale_zh_only_when_ui_zh',
+  })) {
+    if (context[field] !== expected) {
       throw new Error(`${label}.${field} must be ${expected}`);
     }
   }
@@ -497,8 +615,9 @@ function validateActiveShellImplementation(shellPaths) {
     'workspace_root_path',
     'selected_path',
     'logs_dir',
+    'opl_flow_context',
     'opl_agent_codex_context',
-    'settings.oplAgentCodexContext',
+    'settings.oplFlowContext',
   ]) {
     if (!systemSettings.includes(expected)) {
       throw new Error(`Active shell System settings must implement ${expected}`);
@@ -665,7 +784,7 @@ function validateActiveShellImplementation(shellPaths) {
   for (const expected of [
     'getOplGuiSettingsVisibleTabs',
     'getOplGuiLegacySettingsRouteRedirects',
-    'SETTINGS_DEFAULT_ROUTE = \'/settings/overview\'',
+    'SETTINGS_DEFAULT_ROUTE = \'/settings/general\'',
     "if (legacyId === 'skills-hub') return '/settings/capabilities?tab=skills'",
     "if (legacyId === 'tools') return '/settings/capabilities?tab=tools'",
     'LEGACY_SETTINGS_ROUTE_REDIRECTS',
@@ -680,12 +799,11 @@ function validateActiveShellImplementation(shellPaths) {
   for (const expected of [
     'getOplGuiSettingsVisibleTabs',
     'getOplGuiLegacySettingsRouteRedirects',
-    "defaultTab = 'runtime'",
+    "defaultTab = 'general'",
     '<OverviewSettings withWrapper={false} />',
     '<RuntimeSettings withWrapper={false} />',
-    '<SkillsHubSettings withWrapper={false} />',
-    '<ToolsModalContent />',
-    '<WebuiModalContent />',
+    '<CapabilitiesSettingsContent activeTab={capabilitiesTab} onTabChange={setCapabilitiesTab} />',
+    '<AccessSettingsContent />',
     '<DisplayModalContent />',
   ]) {
     if (!settingsModal.includes(expected)) {
@@ -815,9 +933,14 @@ function validateActiveShellImplementation(shellPaths) {
   }
 
   const guidPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/GuidPage.tsx');
+  const guidInputCard = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/GuidInputCard.tsx');
+  const guidActivityCenter = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/guidActivityCenter.ts');
   for (const expected of [
     "document.title = 'One Person Lab App'",
     "t('conversation.welcome.placeholder')",
+    "useOplAppState('fast')",
+    'normalizeGuidActivityCenter',
+    'activityCenter={activityCenter}',
     'AssistantSelectionArea',
     'GuidModelSelector',
     'MentionSelectorBadge',
@@ -826,6 +949,33 @@ function validateActiveShellImplementation(shellPaths) {
   ]) {
     if (!guidPage.includes(expected)) {
       throw new Error(`Active shell Guid home must implement ${expected}`);
+    }
+  }
+  for (const expected of [
+    "data-testid='guid-activity-center'",
+    'guid.activity.needsAttention',
+    'guid.activity.activeProjects',
+    'guid.activity.recentProjects',
+    'activityCenter.hasItems',
+  ]) {
+    if (!guidInputCard.includes(expected)) {
+      throw new Error(`Active shell Guid activity center must render refs-only task groups near input: ${expected}`);
+    }
+  }
+  for (const expected of [
+    'workbench.task_drilldowns',
+    'blocker_ref_count',
+    'next_visible_step',
+    'domain_label',
+    'active_stage_label',
+  ]) {
+    if (!guidActivityCenter.includes(expected)) {
+      throw new Error(`Active shell Guid activity center must derive from App state refs: ${expected}`);
+    }
+  }
+  for (const forbidden of ['artifact_body', 'memory_body', 'domain_artifact_body']) {
+    if (guidInputCard.includes(forbidden) || guidActivityCenter.includes(forbidden)) {
+      throw new Error(`Active shell Guid activity center must not render domain artifact or memory bodies: ${forbidden}`);
     }
   }
 
@@ -1678,6 +1828,97 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (guiContract.product_authority.upstream_behavior_acceptance_policy !== 'must_match_app_owned_gui_product_contract_before_release') {
     throw new Error('App GUI product contract must gate upstream behavior against App-owned GUI requirements');
   }
+  const shellUpgradePolicy = guiContract.product_authority.shell_upgrade_policy;
+  if (shellUpgradePolicy?.role !== 'replaceable_implementation_carrier') {
+    throw new Error('App GUI product contract must treat shell upgrades as replaceable implementation carrier work');
+  }
+  assertIncludesAll(
+    shellUpgradePolicy.app_repo_controls,
+    [
+      'settings information architecture',
+      'home command center requirements',
+      'page-state acceptance matrix',
+      'release and screenshot evidence gates',
+    ],
+    'App GUI shell upgrade policy app repo controls',
+  );
+  assertIncludesAll(
+    shellUpgradePolicy.shell_repo_controls,
+    [
+      'renderer implementation details',
+      'upstream AionUI intake patches',
+      'shell-local tests proving App contract implementation',
+    ],
+    'App GUI shell upgrade policy shell repo controls',
+  );
+  const forkDeltaBudget = shellUpgradePolicy.fork_delta_budget;
+  if (forkDeltaBudget?.policy !== 'app_contract_first_thin_shell_delta') {
+    throw new Error('App GUI shell upgrade policy must keep fork delta App-contract-first and thin');
+  }
+  assertIncludesAll(
+    forkDeltaBudget.preferred_optimization_path,
+    [
+      'encode product behavior in App contracts and product profile',
+      'project App state/action refs through adapter bridge',
+      'compose existing shell components before introducing new shell-owned flows',
+      'keep upstream route compatibility as redirects instead of ordinary tabs',
+      'prove behavior with App-root validation and shell-local focused tests',
+    ],
+    'App GUI fork delta preferred optimization path',
+  );
+  assertIncludesAll(
+    forkDeltaBudget.allowed_shell_delta,
+    [
+      'generated product profile reader',
+      'route and tab compatibility redirects',
+      'thin renderer components for App-owned pages',
+      'App state/action bridge calls',
+      'shell-local styling and i18n needed to render App contract',
+      'package and smoke hooks',
+    ],
+    'App GUI fork delta allowed shell changes',
+  );
+  assertIncludesAll(
+    forkDeltaBudget.requires_app_contract_before_shell_change,
+    [
+      'new ordinary Settings tab',
+      'new Home surface',
+      'new capability or purpose entry',
+      'new runtime/action truth source',
+      'new visible model/provider/permission control',
+      'new first-run gate',
+    ],
+    'App GUI fork delta App-contract-before-shell-change rules',
+  );
+  assertIncludesAll(
+    forkDeltaBudget.forbidden_shell_delta,
+    [
+      'shell-owned product IA',
+      'shell-owned runtime/domain truth',
+      'fork-local model/provider policy',
+      'deep rewrites of upstream shell core without App contract and adoption gate',
+      'copying external UI source into shell without license and candidate decision',
+    ],
+    'App GUI fork delta forbidden shell changes',
+  );
+  if (
+    forkDeltaBudget.replacement_rule !==
+    'a candidate shell should implement the same App contracts by swapping adapters/profile consumers, not by inheriting AionUI-specific product logic'
+  ) {
+    throw new Error('App GUI fork delta budget must keep shell replacement adapter/profile driven');
+  }
+  if (
+    shellUpgradePolicy.upgrade_rule !==
+    'follow upstream AionUI only after checking the delta against App-owned contracts; upstream defaults can be implementation material but never product authority'
+  ) {
+    throw new Error('App GUI shell upgrade policy must keep upstream defaults out of product authority');
+  }
+  if (
+    shellUpgradePolicy.replacement_rule !==
+    'new shells remain candidate implementations until App-owned contracts, page-state matrix, first-run matrix, active-shell validation, and package compile pass'
+  ) {
+    throw new Error('App GUI shell replacement rule must require App-owned gates before adoption');
+  }
 
   const installExposure = guiContract.framework_surfaces?.install_exposure_policy;
   if (installExposure?.contract !== 'contracts/app-install-exposure-policy.json') {
@@ -1806,7 +2047,7 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
       throw new Error(`App GUI theme list must include ${themeId}`);
     }
   }
-  for (const section of ['system', 'runtime', 'about', 'update', 'theme']) {
+  for (const section of ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced', 'about', 'update', 'theme']) {
     if (!guiContract.settings_navigation?.required_sections?.includes(section)) {
       throw new Error(`App GUI settings navigation must include ${section}`);
     }
@@ -1926,12 +2167,33 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   }
 
   const pages = guiContract.pages ?? {};
-  for (const pageId of ['guid_home', 'settings_system', 'settings_runtime', 'about', 'update', 'settings_theme', 'runtime_status']) {
+  for (const pageId of [
+    'guid_home',
+    'settings_general',
+    'settings_access',
+    'settings_capabilities',
+    'settings_environment',
+    'settings_advanced',
+    'about',
+    'update',
+    'settings_theme',
+    'runtime_status',
+  ]) {
     if (!pages[pageId]) {
       throw new Error(`App GUI contract missing page ${pageId}`);
     }
   }
-  for (const pageId of ['guid_home', 'settings_system', 'settings_runtime', 'about', 'update', 'settings_theme']) {
+  for (const pageId of [
+    'guid_home',
+    'settings_general',
+    'settings_access',
+    'settings_capabilities',
+    'settings_environment',
+    'settings_advanced',
+    'about',
+    'update',
+    'settings_theme',
+  ]) {
     assertCommandSurface(pages[pageId].state_source, 'opl app state --profile fast --json', `App GUI ${pageId} state source`);
     assertCommandSurface(pages[pageId].refresh_source, 'opl app state --profile fast --json', `App GUI ${pageId} refresh source`);
   }
@@ -1944,17 +2206,51 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
     throw new Error('App GUI home must keep OMA out of default home entries');
   }
-  if (!pages.settings_system.must_show?.includes('OPL Agent Codex context')) {
-    throw new Error('Settings system must show OPL Agent Codex context');
+  if (!pages.guid_home.activity_center_policy?.display_groups?.includes('needs_attention')) {
+    throw new Error('App GUI home must expose a refs-only activity center with needs_attention grouping');
   }
-  if (pages.settings_runtime.module_path_source_policy_ref !== 'module_path_source_policy') {
-    throw new Error('Settings runtime must reference the App GUI module path source policy');
+  assertIncludesAll(
+    pages.guid_home.activity_center_policy.display_groups,
+    ['needs_attention', 'active_projects', 'recent_projects'],
+    'App GUI home activity center display groups',
+  );
+  assertIncludesAll(
+    pages.guid_home.activity_center_policy.item_fields,
+    homeActivityCenterItemFields,
+    'App GUI home activity center item fields',
+  );
+  assertIncludesAll(
+    pages.guid_home.activity_center_policy.must_not_display,
+    homeActivityCenterForbiddenDisplays,
+    'App GUI home activity center forbidden displays',
+  );
+  if (!pages.guid_home.must_show?.includes('continue work activity center near the home input')) {
+    throw new Error('App GUI home must show the continue-work activity center');
   }
-  if (!pages.settings_runtime.must_show?.includes('module path source explanation')) {
-    throw new Error('Settings runtime must show module path source explanation');
+  for (const [pageId, expected] of Object.entries(settingsPageExpectations)) {
+    const page = pages[pageId];
+    assertDeepEqualJson(page.sections, expected.sections, `App GUI ${pageId} sections`);
+    assertIncludesAll(page.must_show, expected.must_show, `App GUI ${pageId} must_show`);
+    assertIncludesAll(page.must_not_show, expected.must_not_show, `App GUI ${pageId} must_not_show`);
   }
-  if (!pages.settings_runtime.must_not_show?.includes('Med Deep Scientist as a default module')) {
-    throw new Error('Settings runtime must keep MDS out of default module display');
+  validateOplFlowContext(guiContract.opl_flow_context, 'App GUI OPL Flow Context');
+  if (!pages.settings_advanced.sections?.includes('opl_flow_context')) {
+    throw new Error('Settings Advanced sections must include opl_flow_context');
+  }
+  if (!pages.settings_advanced.legacy_state_sections?.includes('opl_agent_codex_context')) {
+    throw new Error('Settings Advanced must retain legacy opl_agent_codex_context compatibility');
+  }
+  if (!pages.settings_advanced.must_show?.includes('OPL Flow Context')) {
+    throw new Error('Settings Advanced must show OPL Flow Context');
+  }
+  if (pages.settings_environment.module_path_source_policy_ref !== 'module_path_source_policy') {
+    throw new Error('Settings Environment must reference the App GUI module path source policy');
+  }
+  if (!pages.settings_environment.must_show?.includes('module path source explanation')) {
+    throw new Error('Settings Environment must show module path source explanation');
+  }
+  if (!pages.settings_environment.must_not_show?.includes('Med Deep Scientist as a default module')) {
+    throw new Error('Settings Environment must keep MDS out of default module display');
   }
   if (!pages.about.must_show?.includes('Stable or Nightly channel')) {
     throw new Error('About page must show Stable or Nightly channel');
@@ -1995,8 +2291,11 @@ function validatePageStateMatrix(matrix, contract) {
   const requiredPages = new Set([
     'guid_home',
     'runtime',
-    'settings_overview',
+    'settings_general',
+    'access',
+    'capabilities',
     'environment',
+    'advanced',
     'about',
     'update',
     'settings_theme',
@@ -2100,6 +2399,9 @@ function validatePageStateMatrix(matrix, contract) {
     'workspace selector',
     'file attachment control',
     'send action',
+    'continue work activity center near the home input',
+    'needs attention projects from app_state.operator.workbench.task_drilldowns',
+    'active and recent project refs without domain artifact bodies',
   ]) {
     if (!guidHomePage.must_show.includes(visibleSignal)) {
       throw new Error(`Guid home page must show ${visibleSignal}`);
@@ -2116,13 +2418,37 @@ function validatePageStateMatrix(matrix, contract) {
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
+    'domain artifact body in Home activity center',
+    'memory body in Home activity center',
   ]) {
     if (!guidHomePage.must_not_show?.includes(hiddenSignal)) {
       throw new Error(`Guid home page must not show ${hiddenSignal}`);
     }
   }
+  if (
+    homeViewModel.activity_center?.authority !== 'opl_framework_refs_only_projection' ||
+    !homeViewModel.activity_center?.display_groups?.includes('needs_attention') ||
+    homeViewModel.activity_center?.default_placement !== 'near_home_input'
+  ) {
+    throw new Error('Guid home page activity center must be a refs-only near-input continue-work projection');
+  }
+  assertIncludesAll(
+    homeViewModel.activity_center.item_fields,
+    homeActivityCenterItemFields,
+    'Guid home page activity center item fields',
+  );
+  assertIncludesAll(
+    homeViewModel.activity_center.must_not_display,
+    homeActivityCenterForbiddenDisplays,
+    'Guid home page activity center forbidden displays',
+  );
+  assertIncludesAll(
+    homeViewModel.activity_center.forbidden_body_display,
+    ['domain artifact body', 'memory body', 'quality verdict body'],
+    'Guid home page activity center forbidden body display',
+  );
 
-  const appStatePages = ['settings_overview', 'environment', 'about', 'update', 'settings_theme'];
+  const appStatePages = ['settings_general', 'access', 'environment', 'advanced', 'about', 'update', 'settings_theme'];
   for (const pageId of appStatePages) {
     const page = (matrix.pages ?? []).find((entry) => entry.id === pageId);
     if (!page) {
@@ -2135,9 +2461,24 @@ function validatePageStateMatrix(matrix, contract) {
       throw new Error(`${pageId} must refresh through opl app state --profile fast --json`);
     }
   }
-  const settingsOverview = (matrix.pages ?? []).find((page) => page.id === 'settings_overview');
-  if (!settingsOverview?.must_show?.includes('OPL Agent Codex context')) {
-    throw new Error('Settings overview must show OPL Agent Codex context');
+  for (const [contractPageId, expected] of Object.entries(settingsPageExpectations)) {
+    const page = (matrix.pages ?? []).find((entry) => entry.id === expected.matrix_id);
+    if (!page) {
+      throw new Error(`Page-state matrix is missing ${expected.matrix_id}`);
+    }
+    if (page.page_contract !== contractPageId) {
+      throw new Error(`${expected.matrix_id} page_contract must be ${contractPageId}`);
+    }
+    assertDeepEqualJson(page.sections, expected.sections, `${expected.matrix_id} sections`);
+    assertIncludesAll(page.must_show, expected.must_show, `${expected.matrix_id} must_show`);
+    assertIncludesAll(page.must_not_show, expected.must_not_show, `${expected.matrix_id} must_not_show`);
+  }
+  const capabilitiesPage = (matrix.pages ?? []).find((page) => page.id === 'capabilities');
+  if (capabilitiesPage?.refresh_source !== 'opl app state --profile fast --json') {
+    throw new Error('Capabilities page must refresh through opl app state --profile fast --json');
+  }
+  if (capabilitiesPage?.machine_source !== 'contracts/app-gui-product-contract.json#default_assistants + opl app state --profile fast --json') {
+    throw new Error('Capabilities page must combine App-owned assistant profile truth with OPL App state readiness refs');
   }
   const environmentPage = (matrix.pages ?? []).find((page) => page.id === 'environment');
   if (environmentPage?.module_path_source_policy_ref !== 'contracts/app-gui-product-contract.json#module_path_source_policy') {
@@ -2146,8 +2487,21 @@ function validatePageStateMatrix(matrix, contract) {
   if (!environmentPage.must_show?.includes('module path source explanation')) {
     throw new Error('Environment page must show module path source explanation');
   }
+  const advancedPage = (matrix.pages ?? []).find((page) => page.id === 'advanced');
+  if (!advancedPage?.state_sections?.includes('opl_flow_context')) {
+    throw new Error('Advanced page state_sections must include opl_flow_context');
+  }
+  if (!advancedPage?.legacy_state_sections?.includes('opl_agent_codex_context')) {
+    throw new Error('Advanced page must retain legacy opl_agent_codex_context compatibility');
+  }
+  if (!advancedPage?.must_show?.includes('OPL Flow Context')) {
+    throw new Error('Advanced page must show OPL Flow Context');
+  }
   if (!environmentPage.must_not_show?.includes('Med Deep Scientist as a default module')) {
     throw new Error('Environment page must keep MDS out of default module display');
+  }
+  if (!advancedPage?.state_sections?.includes('opl_agent_codex_context')) {
+    throw new Error('Advanced page state_sections must retain opl_agent_codex_context');
   }
   const aboutPage = (matrix.pages ?? []).find((page) => page.id === 'about');
   if (!aboutPage?.must_show?.includes('Stable or Nightly channel')) {
@@ -2553,6 +2907,12 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
       kind: 'json',
       source_kind: 'packaged_gui_first_run_smoke',
     },
+    codex_functional_check_summary: {
+      path: 'artifacts/codex-functional-check-summary.json',
+      producer: 'packaged GUI Codex post-install functional check',
+      kind: 'json',
+      source_kind: 'packaged_gui_codex_functional_check',
+    },
     remote_release_verification: {
       path: 'remote-release-verification.json',
       producer: 'npm run verify-remote-release -- --version <version> --include-full-package --summary-path remote-release-verification.json',
@@ -2590,7 +2950,12 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
   }
 
   const fullFirstInstall = (firstRunMatrix.scenarios ?? []).find((scenario) => scenario.id === 'full_first_install_clean_machine');
-  for (const artifactPath of ['tart-smoke-summary.json', 'artifacts/smoke-summary.json', 'artifacts/settings-smoke-summary.json']) {
+  for (const artifactPath of [
+    'tart-smoke-summary.json',
+    'artifacts/smoke-summary.json',
+    'artifacts/settings-smoke-summary.json',
+    'artifacts/codex-functional-check-summary.json',
+  ]) {
     if (!fullFirstInstall?.release_evidence_artifacts?.includes(artifactPath)) {
       throw new Error(`Full first-install first-run scenario must list release evidence artifact ${artifactPath}`);
     }
@@ -2844,6 +3209,16 @@ function validateProductProfileContractRefs(profile) {
 }
 
 function validateProductProfileCodexDefaults(profile) {
+  validateOplFlowContext(profile.codex?.opl_flow_context, 'Product profile OPL Flow Context');
+  const sessionContextI18n = profile.codex?.session_context_i18n;
+  if (
+    !Array.isArray(sessionContextI18n?.['zh-CN']) ||
+    !sessionContextI18n['zh-CN'].some((line) => typeof line === 'string' && line.includes('你正在 One Person Lab App')) ||
+    !Array.isArray(sessionContextI18n?.['en-US']) ||
+    !sessionContextI18n['en-US'].some((line) => typeof line === 'string' && line.includes('You are working inside a Codex session'))
+  ) {
+    throw new Error('Product profile must declare localized OPL Flow session context');
+  }
   if (profile.default_session_profile?.provider !== 'gflab') {
     throw new Error(`Unexpected product profile provider: ${profile.default_session_profile?.provider}`);
   }

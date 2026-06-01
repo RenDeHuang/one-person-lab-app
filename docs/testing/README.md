@@ -163,7 +163,15 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   setup steps, Core progress, the primary entry action, and the next visible
   user step, while technical phase labels, refresh, runtime settings, raw
   errors, and maintenance actions are folded under technical details by
-  default. The App repo VM workflow is the deterministic release-blocking gate
+  default. When `--codex-functional-check` is enabled, the same VM smoke writes
+  `codex-functional-check-summary.json` as a post-install functional receipt for
+  Codex behavior: UI language, App-managed `opl-flow` context expectation,
+  user `AGENTS.md` policy, Codex CLI detection, MAS/MAG/RCA route receipts, and
+  skill/plugin visibility. The App-managed context is session-scoped preset
+  context, localized from the current UI language, and must not write or
+  overwrite a user's workspace `AGENTS.md`. The receipt is deterministic and
+  does not call an external LLM; missing credentials are recorded as diagnostic
+  skipped rather than a network gate. The App repo VM workflow is the deterministic release-blocking gate
   for first-run GUI evidence; Codex App or Computer Use sessions may explore UI
   behavior during triage, but those exploratory checks are non-blocking and
   cannot replace the Tart VM gate. Any exploratory finding that should affect
@@ -275,8 +283,11 @@ Stable release installation proof uses deterministic automation as the blocking
 gate. The VM lane downloads the published DMG, clones the configured clean
 no-CLT Tart base VM, fixes the display size, installs the App, launches it, and
 collects first-run/settings artifacts and assistant route smoke evidence,
-including screenshots, layout checks for the first-run view, and MAS/MAG/RCA
-Codex route receipts. That lane is the source of release
+including screenshots, layout checks for the first-run view, MAS/MAG/RCA Codex
+route receipts, and the Codex functional check receipt when
+`--codex-functional-check` is present. That receipt freezes installed-App Codex
+behavior in machine-readable form while keeping actual AI/LLM exploration
+non-blocking until it is converted into deterministic evidence. That lane is the source of release
 readiness for standard DMG and Full DMG installation because it is repeatable,
 time-bounded, and produces comparable logs.
 

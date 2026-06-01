@@ -6,6 +6,10 @@ type AiReleaseNotesOptions = {
   model?: string;
 };
 
+type ReleaseNotesLocale = 'en-US' | 'zh-CN';
+
+const releaseNotesLocales: ReleaseNotesLocale[] = ['en-US', 'zh-CN'];
+
 const vaguePhrases = [
   'Strengthened package builds',
   'Updated the OPL App package with the current',
@@ -67,18 +71,51 @@ function selectedProvider() {
   return value;
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function extractLocalizedReleaseNotes(markdown: string, locale: ReleaseNotesLocale) {
+  const escapedLocale = escapeRegExp(locale);
+  const hiddenBlock = markdown.match(
+    new RegExp(`<!--\\s*OPL_RELEASE_NOTES:${escapedLocale}\\s*\\n([\\s\\S]*?)\\n?-->`, 'i')
+  );
+  if (hiddenBlock?.[1]?.trim()) {
+    return `${hiddenBlock[1].trimEnd()}\n`;
+  }
+
+  const visibleBlock = markdown.match(
+    new RegExp(
+      `<!--\\s*OPL_RELEASE_NOTES:${escapedLocale}\\s*-->\\s*([\\s\\S]*?)\\s*<!--\\s*/OPL_RELEASE_NOTES:${escapedLocale}\\s*-->`,
+      'i'
+    )
+  );
+  if (visibleBlock?.[1]?.trim()) {
+    return `${visibleBlock[1].trimEnd()}\n`;
+  }
+  return '';
+}
+
+export function stripLocalizedReleaseNotes(markdown: string) {
+  return `${markdown
+    .replace(/<!--\s*OPL_RELEASE_NOTES:[A-Za-z-]+\s*\n[\s\S]*?\n?-->\s*/g, '')
+    .replace(/<!--\s*OPL_RELEASE_NOTES:[A-Za-z-]+\s*-->[\s\S]*?<!--\s*\/OPL_RELEASE_NOTES:[A-Za-z-]+\s*-->\s*/g, '')
+    .trimEnd()}\n`;
+}
+
 export function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
   return [
-    'Write the public GitHub Release notes for One Person Lab App in English.',
+    'Write the public GitHub Release notes for One Person Lab App.',
     '',
     'Use the JSON evidence below as the only source of truth.',
     'Audience: normal OPL App users who want to know what improved and why they should upgrade.',
     '',
     'Hard requirements:',
-    `- Start the first line exactly with: One Person Lab ${evidence.version}`,
+    `- Start the visible public Markdown first line exactly with: One Person Lab ${evidence.version}`,
+    '- The visible public Markdown must be English only.',
     '- Write natural, concrete, user-facing English. Do not sound like a commit classifier.',
-    '- The first paragraph must explain what a user can do more easily after installing or upgrading. Do not lead with CI, workflows, contracts, release-note generation, or audit mechanics.',
-    '- Put that first paragraph immediately after the title, before any "##" section heading.',
+    '- The visible first paragraph must explain what a user can do more easily after installing or upgrading. Do not lead with CI, workflows, contracts, release-note generation, or audit mechanics.',
+    '- Put that visible first paragraph immediately after the title, before any "##" section heading.',
     '- Explain bundled OPL agent/runtime changes in plain language: MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and Codex skills when present.',
     '- When release_evidence.agent_runtime_changes is non-empty, use those entries to write concise role-based bullets. Say what MAS, MAG, RCA, OPL Meta Agent, Framework, Codex CLI, OfficeCLI, or MinerU help users do; do not list refs as the main improvement.',
     '- When an agent_runtime_changes entry has change_summary_hint or change_subjects, include the concrete change in user language. Do not stop at generic role descriptions such as "MAS helps research" or "RCA helps slides".',
@@ -89,10 +126,19 @@ export function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
     '- Do not format release_evidence.payload.lines as blockquotes. They must stay normal bullets.',
     '- Keep build-time refs and payload deltas in the payload/audit part of the note. They are supporting evidence, not the headline.',
     '- Include the Full Changelog link when evidence.full_changelog_url is present.',
-    '- Do not include Chinese text.',
+    '- Do not include Chinese text in the visible public Markdown.',
     '- Do not invent domain results, quality claims, benchmarks, or unsupported agent capabilities.',
     '- Avoid self-referential claims about release notes, AI generation, CI, contracts, validation, telemetry, or workflows unless tied directly to a concrete user install or agent-use benefit.',
     '- Avoid vague filler such as "strengthened validation", "refreshed docs", "improved status visibility", or plain version-change lists unless followed by concrete user impact.',
+    '- After the visible English public Markdown, append two hidden machine-readable localization blocks exactly in this form:',
+    '  <!-- OPL_RELEASE_NOTES:en-US',
+    '  <English Markdown for the App update popup, matching the visible public note>',
+    '  -->',
+    '  <!-- OPL_RELEASE_NOTES:zh-CN',
+    '  <Chinese Markdown for the App update popup, written for normal Chinese users and covering the same concrete improvements>',
+    '  -->',
+    '- Keep the zh-CN block inside the HTML comment block so the public GitHub Release page remains English-only.',
+    '- The en-US block must not contain Chinese text. The zh-CN block must contain Chinese text and mention MAS, MAG, and RCA when the visible note does.',
     '- Output Markdown only. Do not wrap it in code fences.',
     '',
     'release_evidence:',
@@ -181,7 +227,7 @@ function runCodexProvider(prompt: string, evidence: ReleaseNotesEvidence, comman
   return markdown;
 }
 
-export function validateAiReleaseNotes(markdown: string, evidence: ReleaseNotesEvidence) {
+function validateEnglishReleaseNotesMarkdown(markdown: string, evidence: ReleaseNotesEvidence) {
   const failures: string[] = [];
   const firstParagraph = markdown
     .split(/\n\s*\n/)
@@ -258,6 +304,37 @@ export function validateAiReleaseNotes(markdown: string, evidence: ReleaseNotesE
   if (failures.length > 0) {
     throw new Error(`AI release notes failed quality gate: ${failures.join('; ')}`);
   }
+}
+
+function validateLocalizedReleaseNotes(markdown: string, evidence: ReleaseNotesEvidence) {
+  const failures: string[] = [];
+  for (const locale of releaseNotesLocales) {
+    const localized = extractLocalizedReleaseNotes(markdown, locale);
+    if (!localized) {
+      failures.push(`missing localized ${locale} block`);
+      continue;
+    }
+    if (!new RegExp(`^#?\\s*One Person Lab(?: App)? ${escapeRegExp(evidence.version)}(?:\\s|$)`).test(localized)) {
+      failures.push(`localized ${locale} block missing release title`);
+    }
+    if (locale === 'en-US' && /[\u3400-\u9fff]/.test(localized)) {
+      failures.push('localized en-US block contains Chinese text');
+    }
+    if (locale === 'zh-CN' && !/[\u3400-\u9fff]/.test(localized)) {
+      failures.push('localized zh-CN block does not contain Chinese text');
+    }
+    if (locale === 'zh-CN' && /(MAS|MAG|RCA)/.test(stripLocalizedReleaseNotes(markdown)) && !/(MAS|MAG|RCA)/.test(localized)) {
+      failures.push('localized zh-CN block missing OPL agent names');
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(`AI release notes failed localization gate: ${failures.join('; ')}`);
+  }
+}
+
+export function validateAiReleaseNotes(markdown: string, evidence: ReleaseNotesEvidence) {
+  validateEnglishReleaseNotesMarkdown(stripLocalizedReleaseNotes(markdown), evidence);
+  validateLocalizedReleaseNotes(markdown, evidence);
 }
 
 export function buildAiReleaseNotesDocument(evidence: ReleaseNotesEvidence, options: AiReleaseNotesOptions = {}) {

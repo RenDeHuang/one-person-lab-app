@@ -195,6 +195,10 @@ function artifactSourceCandidates(artifact: EvidenceArtifact): string[] {
       'artifacts/assistant-route-smoke-summary.json',
       'assistant-route-smoke-summary.json',
     ],
+    codex_functional_check_summary: [
+      'artifacts/codex-functional-check-summary.json',
+      'codex-functional-check-summary.json',
+    ],
     assistant_route_smoke_mas_screenshot: [
       'artifacts/assistant-route-smoke/mas.png',
       'assistant-route-smoke/mas.png',

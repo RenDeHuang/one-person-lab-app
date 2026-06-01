@@ -1,267 +1,271 @@
-# OPL App GUI Feature Inventory
+# OPL App GUI 能力清单
 
 Owner: `one-person-lab-app`
-Purpose: product-level GUI feature inventory
+Purpose: `product_level_gui_feature_inventory`
 State: `active`
-Machine boundary: Human-readable feature inventory. Machine-readable GUI truth
-lives in App-owned contracts, page-state matrices, adapter contracts, and
-release evidence.
+机器边界：本文是人读能力清单。机器可读 GUI 真相在 App-owned contracts、
+page-state matrices、adapter contracts 和 release evidence 中。
 
-This document lists the target GUI capabilities of One Person Lab App independent
-of the current shell implementation. It is not an AionUI modification list.
-AionUI and future shells implement this inventory through App-owned contracts,
-page-state matrices, and release validation.
+本文列出 One Person Lab App 不依赖当前 shell implementation 的目标 GUI 能力。
+它不是 AionUI 修改列表。AionUI 和未来 shell 必须通过 App-owned contracts、
+page-state matrices 和 release validation 实现这份清单。
 
-## Product Shape
+因为当前 active shell 是 AionUI fork，清单里的能力不应默认解释为“继续深改
+AionUI”。每个能力都应先有 App-owned contract/profile/source，再由 shell 用
+thin adapter delta 表达：读取 generated profile、复用 existing primitives、
+映射 legacy routes、调用 App state/action bridge，并用 focused tests 和 App-root
+validation 证明。这样后续跟随 AionUI upstream 或替换为其他 shell 时，迁移的是
+contract implementation，而不是 fork-local 产品逻辑。
 
-The ideal OPL App GUI is a Codex App-shaped chat-first desktop surface:
+本文是能力清单，不是完整交互细则。理想且不绑定具体 shell 的交互模型看
+[`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md)；
+Codex App 变成 OPL App 的产品增量看
+[`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)。
 
-- Start a conversation from a selected workspace directory.
-- Keep Codex CLI as the fixed executor and show model status as automatic.
-- Route home entries to OPL capabilities: Research/MAS, Grant/MAG, and
-  Presentation/RCA.
-- Preserve a chat-first first screen with no dashboard or explanatory landing
-  page copy.
-- Provide a persistent workspace frame with a lightweight workspace/session
-  rail, conversation area, and a collapsible right-side context panel.
-- Keep backend, model, and permission choices out of ordinary home and
-  conversation flow.
+## 产品形态
 
-This inventory describes the total App target, not a list of changes to the
-current AionUI shell. A conforming shell should feel like Codex App specialized
-for OPL work: workspace-aware, chat-first, executor-first, and able to expose
-runtime status, purpose routing, receipts, and packaged App settings without
-turning the first screen into a dashboard.
+理想 OPL App GUI 是 Codex App 形态的 chat-first desktop surface：
 
-## Codex App Target Feature Set
+- 从已选 workspace directory 开始 conversation。
+- 固定 Codex CLI 作为 executor，并把 model status 显示为 automatic。
+- Home entries 路由到 OPL capabilities：Research/MAS、Grant/MAG、
+  Presentation/RCA。
+- 第一屏保持 chat-first，不出现 dashboard 或解释性 landing page copy。
+- 提供持久 workspace frame，包含轻量 workspace/session rail、conversation
+  area 和可收起右侧 context panel。
+- Backend、model、permission choices 不进入普通 home 和 conversation flow。
 
-The App target is the Codex App experience specialized for OPL work, not a
-generic agent dashboard. The total feature set is:
+这份清单描述的是 App 总目标，不是当前 AionUI shell 的改动列表。合格 shell
+应该像一个专门服务 OPL 工作的 Codex App：workspace-aware、chat-first、
+executor-first，并能展示 runtime status、purpose routing、receipts 和 packaged
+App settings，同时不把第一屏变成 dashboard。
 
-- Open the App on a selected workspace directory and keep that workspace visible
-  in the frame.
-- Start a new conversation, resume recent conversations, and keep thread/session
-  history in the workspace rail.
-- Keep the main surface as a working chat canvas with a pinned composer, compact
-  route tag, file/context controls, and visible run state.
-- Bind ordinary turns to Codex app-server/Codex CLI as the fixed executor.
-- Stream assistant text, tool/process progress, user-input prompts, and receipts
-  into user-safe conversation surfaces.
-- Show file and artifact refs for the selected workspace/conversation without
-  taking ownership of artifact bodies.
-- Surface diffs, command/process output, review refs, and runtime receipts near
-  the conversation when the backend emits them.
-- Provide a collapsible right-side panel for secondary context, runtime
-  inspection, and App-owned settings, with the chat canvas remaining primary.
-- Offer right-side contextual inspector tabs for Files, Skills/Capabilities,
-  Routing/runtime refs, Memory refs, Always-On/Automations, and Settings without
-  competing with the main chat canvas.
-- Keep MAS/MAG/RCA as built-in purpose entries over Codex, represented as
-  compact tags and route receipts rather than separate backend choices.
-- Keep backend, model, provider, and permission mode selectors out of ordinary
-  home and conversation flows.
-- Use the same App product truth for desktop Electron and WebUI surfaces.
+第一屏规范以
+[`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md) 为准：
+普通 home 打开即是 chat canvas，workspace/session rail 和右侧 inspector 默认
+收起，contextual surfaces 只在用户主动触发时打开。
 
-The WebUI target shares the same React/CopilotKit renderer as the Electron
-candidate. Electron uses native preload/IPC for `window.oplCandidate`; browser
-mode uses a local Web transport bridge that exposes the same App-owned API shape
-through HTTP actions and SSE Codex events. This makes WebUI a delivery surface
-for the same chat-first surface, not a second product with separate state or
-authority.
+## Codex App 目标功能集
 
-## PilotDeck-Informed Information Organization
+App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent dashboard。
+完整功能集包括：
 
-PilotDeck is useful as an interaction and visual reference for information
-organization, not as source code, runtime authority, or a first-screen
-workbench template. The 2026-05-30 review used
-`OpenBMB/PilotDeck@33394d1069c3528052c3f12eb1d905060b34cc2f` and its public demo.
-PilotDeck is AGPL-3.0, while this App repo is Apache-2.0, so OPL must not copy
-or vendor PilotDeck code without an explicit license decision. The reusable
-lesson is information organization:
+- 在已选 workspace directory 上打开 App，并在 frame 中保持 workspace 可见。
+- 新建 conversation、恢复 recent conversations，并把 thread/session history
+  放在 workspace rail 中。
+- 主 surface 保持工作 chat canvas，带 pinned composer、compact route tag、
+  file/context controls 和 visible run state。
+- 普通 turns 绑定 Codex app-server/Codex CLI，作为固定 executor。
+- 把 assistant text、tool/process progress、user-input prompts 和 receipts
+  streaming 到用户安全的 conversation surfaces。
+- 为选中的 workspace/conversation 展示 file 和 artifact refs，但不拥有
+  artifact bodies。
+- Backend 发出 diff、command/process output、review refs、runtime receipts
+  时，在 conversation 附近展示。
+- 提供可收起右侧 panel，用于 secondary context、runtime inspection 和
+  App-owned settings，同时保持 chat canvas 为主面。
+- 提供右侧 contextual inspector tabs：Files、Skills/Capabilities、
+  Routing/runtime refs、Memory refs、Always-On/Automations、Settings；这些
+  tabs 不能和主 chat canvas 竞争。
+- MAS/MAG/RCA 是 Codex 之上的 built-in purpose entries，用 compact tags 和
+  route receipts 表示，而不是 separate backend choices。
+- Backend、model、provider、permission mode selectors 不进入普通 home 和
+  conversation flows。
+- Desktop Electron 和 WebUI surfaces 使用同一套 App product truth。
 
-- A lightweight left rail groups work by workspace or project, then by
-  conversation, without becoming the primary UI.
-- The main pane stays chat-first and keeps a composer pinned at the bottom, so
-  the first screen is a working surface rather than a dashboard or landing page.
-- Compact grouped tabs expose adjacent context without forcing the user to leave
-  the selected chat: Agent, Files, Skills, Routing, Memory, and Always-On in
-  PilotDeck; OPL should map these to right-side collapsible inspector tabs for
-  conversation context, Files, Capabilities, Runtime/cost refs, Memory refs,
-  Automations, and Settings.
-- File browsing, process traces, routing/cost readouts, memory inspection, and
-  long-running work views are contextual surfaces behind or beside the chat, not
-  first-screen panels that compete with the conversation.
-- The composer uses compact controls for mode, attachments, mentions, context
-  usage, and send state. OPL should keep the same density but replace mode and
-  permission controls with App-owned MAS/MAG/RCA purpose tags, file attachment,
-  refs, and Codex status.
+WebUI 目标与 Electron candidate 共享同一个 React/CopilotKit renderer。Electron
+通过 native preload/IPC 提供 `window.oplCandidate`；browser mode 通过 local
+Web transport bridge 暴露同样 App-owned API shape，使用 HTTP actions 和 SSE
+Codex events。WebUI 是同一 chat-first surface 的 delivery surface，不是拥有
+独立 state 或 authority 的第二个产品。
 
-The OPL adaptation is deliberately narrower than PilotDeck. OPL keeps Codex
-app-server as the primary backend, App-owned purpose routing as the ordinary
-path, and OPL Framework/domain projections as the source of runtime, memory,
-action, and artifact refs. PilotDeck's gateway, agent runtime, memory store,
-router, always-on store, provider model list, and WorkSpace state model remain
-implementation material to study, not App authority.
+## PilotDeck 启发的信息组织
 
-## Core Conversation Features
+PilotDeck 可作为 interaction 和 visual reference 来学习 information
+organization，但不能作为 source code、runtime authority 或第一屏 workbench
+template。2026-05-30 的 review 使用
+`OpenBMB/PilotDeck@33394d1069c3528052c3f12eb1d905060b34cc2f` 和 public demo。
+PilotDeck 是 AGPL-3.0，而本 App repo 是 Apache-2.0；没有明确 license 决策前，
+OPL 不能复制或 vendoring PilotDeck 代码。可复用经验是信息组织方式：
 
-- Create a new conversation.
-- Select or change the workspace directory before sending.
-- Send a text instruction to Codex.
-- Attach files or folders when the shell supports native file picking.
-- Show streaming or pending assistant state while Codex is running.
-- Keep assistant replies in a readable chat thread.
-- Allow purpose routing to be changed without leaving the conversation.
-- Preserve the selected purpose route as a compact `@` tag.
-- Keep conversation history available from the navigation rail.
-- Allow a pop-out or collapsible right-side Copilot panel for secondary context.
-- Show safe tool, process, diff, and file/context events when the backend emits
-  them, without turning protocol details into user-facing navigation.
-- Keep user-input prompts and permission confirmations in the conversation when
-  Codex requires a decision.
-- Keep logs, raw protocol frames, and adapter diagnostics in technical or
-  developer surfaces rather than ordinary chat UI.
-- Keep the composer dense and work-focused: purpose tag, file attach, mention or
-  ref insertion, context status, and send/stop state should fit without turning
-  the composer into a backend settings panel.
+- 轻量 left rail 按 workspace 或 project 分组，再按 conversation 分组，但不
+  成为 primary UI。
+- Main pane 保持 chat-first，并把 composer 固定在底部，让第一屏是工作面，
+  而不是 dashboard 或 landing page。
+- Compact grouped tabs 暴露相邻 context，且不强迫用户离开 selected chat：
+  PilotDeck 中是 Agent、Files、Skills、Routing、Memory、Always-On；OPL 应映射
+  为右侧可收起 inspector tabs：conversation context、Files、Capabilities、
+  Runtime/cost refs、Memory refs、Automations、Settings。
+- File browsing、process traces、routing/cost readouts、memory inspection 和
+  long-running work views 是 chat 背后或旁边的 contextual surfaces，不是和
+  conversation 竞争的 first-screen panels。
+- Composer 用紧凑 controls 表达 mode、attachments、mentions、context usage 和
+  send state。OPL 应保留这种密度，但用 App-owned MAS/MAG/RCA purpose tags、
+  file attachment、refs 和 Codex status 替代 mode 和 permission controls。
+
+OPL adaptation 故意比 PilotDeck 窄。OPL 保持 Codex app-server 作为 primary
+backend，App-owned purpose routing 作为普通路径，OPL Framework/domain
+projections 作为 runtime、memory、action、artifact refs 的来源。PilotDeck 的
+gateway、agent runtime、memory store、router、always-on store、provider model
+list 和 WorkSpace state model 只是可研究的 implementation material，不是 App
+authority。
+
+## Core Conversation 功能
+
+- 创建 new conversation。
+- 发送前选择或更改 workspace directory。
+- 向 Codex 发送 text instruction。
+- Shell 支持 native file picking 时，可以 attach files 或 folders。
+- Codex 运行中展示 streaming 或 pending assistant state。
+- Assistant replies 保持在可读 chat thread 中。
+- 不离开 conversation 也可以切换 purpose routing。
+- 选中的 purpose route 以 compact `@` tag 保留。
+- Conversation history 可从 navigation rail 访问。
+- 支持 pop-out 或可收起右侧 Copilot panel 作为 secondary context。
+- Backend 发出 safe tool、process、diff、file/context events 时展示这些事件，
+  但不把 protocol details 变成用户导航。
+- Codex 需要 decision 时，user-input prompts 和 permission confirmations 留在
+  conversation 中。
+- Logs、raw protocol frames、adapter diagnostics 留在 technical 或 developer
+  surfaces，而不是 ordinary chat UI。
+- Composer 保持高密度且面向工作：purpose tag、file attach、mention/ref
+  insertion、context status、send/stop state 要能共存，同时不把 composer 变成
+  backend settings panel。
 
 ## OPL Capability Entries
 
-- `科研` routes to MAS.
-- `基金` routes to MAG.
-- `PPT` routes to RCA.
-- OMA remains explicit or settings-only until a product decision makes it
-  default visible.
-- Assistant-scoped skills are shown from App-owned packaged skill profiles, not
-  from shell-local discovery.
+- `科研` 路由到 MAS。
+- `基金` 路由到 MAG。
+- `PPT` 路由到 RCA。
+- OMA 保持 explicit 或 settings-only，直到产品决策让它默认可见。
+- Assistant-scoped skills 来自 App-owned packaged skill profiles，而不是
+  shell-local discovery。
 
-## Runtime And Settings Features
+## Runtime 与 Settings 功能
 
-- Read ordinary page state from `opl app state --profile fast --json`.
-- Refresh ordinary page state from the same fast profile.
-- Keep full state and Operator full drilldown on explicit diagnostic/release
-  paths.
-- Show runtime status summary before detailed drilldown.
-- Show module and path refs as refs only, without taking runtime or domain
-  authority.
-- Provide Settings sections for System, Runtime, Capabilities, Access,
-  Appearance, About, and Update.
-- Keep update state and release channel labels localized.
-- Present runtime, memory, automations, files, and capabilities as collapsible
-  contextual tabs or inspector surfaces scoped to the selected
-  workspace/conversation.
-- Surface long-running work as plans, runs, receipts, deliverable refs, and
-  operator actions; do not represent it as an unmanaged background daemon.
-- Show cost/routing/model details as technical or connected-state readouts, not
-  as a normal model picker on the home or ordinary conversation path.
+- 普通 page state 从 `opl app state --profile fast --json` 读取。
+- 普通 page state refresh 也使用同一个 fast profile。
+- Full state 和 Operator full drilldown 只在 explicit diagnostic/release paths
+  使用。
+- 先展示 runtime status summary，再展示 detailed drilldown。
+- Home input 附近展示紧凑 continue-work activity center，包含
+  needs-attention、active、recent project refs；它必须 refs-only，避免 full
+  workbench density。
+- Module 和 path 只作为 refs 展示，不取得 runtime 或 domain authority。
+- Settings sections 是 General、Access、Agents & Capabilities、Local
+  Environment、Appearance、Advanced、About & Updates。
+- Update state 和 release channel labels 本地化。
+- Runtime、memory、automations、files、capabilities 作为可收起 contextual
+  tabs 或 inspector surfaces 展示，并 scoped 到 selected workspace/conversation。
+- Long-running work 呈现为 plans、runs、receipts、deliverable refs 和 operator
+  actions；不要表现成无人管理的 background daemon。
+- Cost/routing/model details 作为 technical 或 connected-state readouts 展示，
+  不作为 home 或 ordinary conversation path 上的普通 model picker。
 
-## First-Run Features
+## First-Run 功能
 
-- Gate launch readiness on Core items: workspace root, Codex CLI, and Codex
-  config.
-- Show first-run phase, Core progress, Full readiness progress, background
-  maintenance counts, blockers, and next visible step from
-  `opl system initialize --json`.
-- Allow the user to reach the main guide once Core readiness is complete.
-- Keep Full readiness and background maintenance non-blocking unless the
-  App-owned contract says otherwise.
+- Launch readiness 只 gate Core items：workspace root、Codex CLI、Codex config。
+- 从 `opl system initialize --json` 展示 first-run phase、Core progress、Full
+  readiness progress、background maintenance counts、blockers 和 next visible
+  step。
+- Core readiness 完成后，允许用户进入 main guide。
+- Full readiness 和 background maintenance 保持非阻塞，除非 App-owned
+  contract 另有声明。
 
-## Shell Requirements
+## Shell 要求
 
-Any shell candidate must implement this inventory without becoming product
-authority:
+任何 shell candidate 必须实现这份清单，但不能成为 product authority：
 
-- Consume generated App product profile from the adapter contract.
-- Use App-owned state/action command surfaces.
-- Compile through the App wrapper into a launchable `.app`.
-- When claiming WebUI support, use the same renderer and App-owned bridge shape
-  as the Electron shell, with Web transport evidence and WebUI smoke.
-- Pass App-owned page-state and first-run matrices before adoption.
-- Remain selectable only through an explicit candidate adapter until adopted.
-- Prove both source and packaged UI smoke with visible pixels when changing the
-  primary chat surface.
+- 消费 adapter contract 生成的 App product profile。
+- 使用 App-owned state/action command surfaces。
+- 通过 App wrapper 编译为可启动 `.app`。
+- 用 thin-shell delta 实现 OPL product behavior：profile consumer、route
+  redirects、bridge calls、局部 renderer 组合、CSS/i18n 和 focused tests。
+- 新 Home/Settings/capability/runtime/first-run 产品行为先进入 App contract，
+  再进入 shell implementation。
+- 声称 WebUI support 时，使用与 Electron shell 相同的 renderer 和 App-owned
+  bridge shape，并提供 Web transport evidence 和 WebUI smoke。
+- Adoption 前通过 App-owned page-state 和 first-run matrices。
+- Adoption 前只能通过 explicit candidate adapter 被选择。
+- 修改 primary chat surface 时，用 visible pixels 证明 source 和 packaged UI
+  smoke。
 
-## AG-UI/CopilotKit Candidate Projection
+## AG-UI/CopilotKit Candidate 投影
 
-The AG-UI/CopilotKit candidate should use:
+AG-UI/CopilotKit candidate 应使用：
 
-- CopilotKit React v2 as the user-visible UI/runtime layer for chat, popup,
-  sidebar, and agent runtime binding.
-- AG-UI events as the internal event/protocol layer between the renderer runtime
-  and Codex or ACP adapters.
-- Codex app-server as the primary Codex backend behind the protocol boundary.
-- `codex-acp` only as an ACP interoperability lane when testing external ACP
-  clients or non-Codex agents.
-- CopilotKit examples as UI integration reference, especially the v2 React
-  Router and React demo examples.
-- AG-UI Dojo as protocol capability and debugging reference, not as a desktop
-  shell to copy wholesale.
-- `namanrajpal/acp-to-agui` as the closest public ACP-to-AG-UI reference,
-  because it bridges ACP agent streams to AG-UI and includes a CopilotKit demo.
-- `agentclientprotocol/agent-client-protocol` as the ACP wire contract and
-  capability negotiation reference.
-- Zed `codex-acp`, AionUi ACP setup, `formulahendry/acp-ui`, Harnss,
-  OpenClaw `acpx`, Datalayer Agent Runtimes, `beyond5959/acp-adapter`,
-  `cola-io/codex-acp`, and `0xcaff/codex-web` as compatibility and
-  implementation references, not as the primary OPL Codex path.
-- OpenBMB PilotDeck as an information-organization reference for a polished
-  lightweight workspace/session rail, chat-first main pane, and grouped Files,
-  Skills, Routing, Memory, and Always-On context. PilotDeck's AGPL code and
-  runtime must not be copied into the App repo; OPL should re-express the useful
-  organization pattern through App-owned contracts and the selected shell.
+- CopilotKit React v2 作为用户可见 UI/runtime layer，承载 chat、popup、
+  sidebar 和 agent runtime binding。
+- AG-UI events 作为 renderer runtime 与 Codex 或 ACP adapters 之间的内部
+  event/protocol layer。
+- Codex app-server 作为 protocol boundary 后面的 primary Codex backend。
+- `codex-acp` 只作为测试 external ACP clients 或 non-Codex agents 时的 ACP
+  interoperability lane。
+- CopilotKit examples 作为 UI integration reference，尤其是 v2 React Router
+  和 React demo examples。
+- AG-UI Dojo 作为 protocol capability 和 debugging reference，而不是直接复制
+  的 desktop shell。
+- `namanrajpal/acp-to-agui` 作为最接近的公开 ACP-to-AG-UI reference，因为它
+  把 ACP agent streams bridge 到 AG-UI，并包含 CopilotKit demo。
+- `agentclientprotocol/agent-client-protocol` 作为 ACP wire contract 和
+  capability negotiation reference。
+- Zed `codex-acp`、AionUi ACP setup、`formulahendry/acp-ui`、Harnss、
+  OpenClaw `acpx`、Datalayer Agent Runtimes、`beyond5959/acp-adapter`、
+  `cola-io/codex-acp`、`0xcaff/codex-web` 作为 compatibility 和 implementation
+  references，而不是 primary OPL Codex path。
+- OpenBMB PilotDeck 作为 polished lightweight workspace/session rail、
+  chat-first main pane，以及 grouped Files、Skills、Routing、Memory、
+  Always-On context 的信息组织参考。PilotDeck 的 AGPL code 和 runtime 不能复制
+  到 App repo；OPL 应通过 App-owned contracts 和 selected shell 重新表达可用的
+  organization pattern。
 
-The 2026-05-29 research conclusion is that there is no mature public project
-that can be used as a complete Codex ACP adapter to AG-UI/CopilotKit desktop
-shell. The reusable parts are separate: Codex app-server for the native Codex
-GUI protocol, codex-acp style adapters for ACP compatibility, and AG-UI plus
-CopilotKit for the visible event/UI layer. OPL therefore keeps a normalized
-adapter contract between Codex or ACP session events and AG-UI events.
+2026-05-29 的调研结论是：还没有成熟公开项目可以直接作为完整 Codex ACP
+adapter 到 AG-UI/CopilotKit desktop shell。可复用部分是分散的：Codex
+app-server 提供 native Codex GUI protocol，codex-acp style adapters 提供 ACP
+compatibility，AG-UI 加 CopilotKit 提供 visible event/UI layer。因此 OPL 保留
+一个 normalized adapter contract，把 Codex 或 ACP session events 映射到 AG-UI
+events。
 
-AG-UI is not a user-visible product concept for the ordinary App path. Users
-should see the OPL chat surface, purpose entries, conversation state, receipts, and
-runtime status. Protocol names, event frames, and debug dashboards belong only
-in diagnostics or developer verification material.
+AG-UI 不是普通 App path 的用户可见产品概念。用户应该看到 OPL chat surface、
+purpose entries、conversation state、receipts 和 runtime status。Protocol names、
+event frames、debug dashboards 只属于 diagnostics 或 developer verification
+material。
 
-The current candidate proof path is:
+当前 candidate proof path：
 
-- Electron thin shell loads the generated App product profile.
-- The renderer uses CopilotKit React v2 chat primitives and a compact OPL frame
-  derived from the public chat-agent demo shape, not a dashboard or explanatory
-  landing page.
-- The same renderer must be usable as WebUI through a browser bridge that creates
-  `window.oplCandidate` only when Electron preload is absent.
-- The main process owns Codex app-server JSON-RPC over stdio.
-- The WebUI gateway owns local HTTP action routes and an SSE Codex event stream
-  while still consuming App-owned `opl app state/action` and Codex app-server
-  surfaces.
-- Codex `thread/start`, `turn/start`, and `item/agentMessage/delta` events are
-  mapped to AG-UI run/text/step events.
-- The workspace selector opens a native directory picker, and changing the
-  directory starts subsequent Codex turns from a fresh app-server thread in that
-  workspace.
-- The new-conversation action resets the current Codex thread while preserving
-  the selected workspace.
-- The ordinary UI stays chat-first, with a lightweight workspace/session rail and
-  right-side collapsible Files/Skills/Routing/Memory/Always-On inspector tabs
-  inspired by PilotDeck's information organization.
-- Candidate packaging must produce a launchable `.app` and pass source plus
-  packaged UI smoke against the real Codex backend.
-- Candidate WebUI smoke must prove the shared renderer, browser transport
-  bridge, HTTP action routes, and SSE event stream.
-- Candidate UI smoke must include a pixel-visible paint check, so a DOM-only
-  pass cannot mask a visually blank window.
-- Candidate UI smoke must keep AG-UI as an internal event boundary and reject
-  user-visible AG-UI/debug dashboard copy on the ordinary chat surface.
+- Electron thin shell 加载 generated App product profile。
+- Renderer 使用 CopilotKit React v2 chat primitives 和紧凑 OPL frame；形态来自
+  public chat-agent demo，而不是 dashboard 或解释性 landing page。
+- 同一个 renderer 必须能作为 WebUI 使用；Electron preload 缺失时，browser
+  bridge 创建 `window.oplCandidate`。
+- Main process 拥有 Codex app-server JSON-RPC over stdio。
+- WebUI gateway 拥有 local HTTP action routes 和 SSE Codex event stream，同时
+  继续消费 App-owned `opl app state/action` 和 Codex app-server surfaces。
+- Codex `thread/start`、`turn/start`、`item/agentMessage/delta` events 映射到
+  AG-UI run/text/step events。
+- Workspace selector 打开 native directory picker；切换 directory 会在该
+  workspace 中为后续 Codex turns 启动 fresh app-server thread。
+- New-conversation action reset 当前 Codex thread，同时保留 selected workspace。
+- 普通 UI 保持 chat-first，带 lightweight workspace/session rail 和右侧可收起
+  Files/Skills/Routing/Memory/Always-On inspector tabs；信息组织参考 PilotDeck。
+- Candidate packaging 必须产出可启动 `.app`，并通过真实 Codex backend 的 source
+  与 packaged UI smoke。
+- Candidate WebUI smoke 必须证明 shared renderer、browser transport bridge、
+  HTTP action routes 和 SSE event stream。
+- Candidate UI smoke 必须包含 pixel-visible paint check，避免 DOM-only pass
+  掩盖视觉空白窗口。
+- Candidate UI smoke 必须保持 AG-UI 作为内部 event boundary，并拒绝 ordinary
+  chat surface 上出现用户可见 AG-UI/debug dashboard copy。
 
-## AG-UI/CopilotKit Candidate Verification
+## AG-UI/CopilotKit Candidate 验证
 
-The candidate is selected only by an explicit adapter contract:
+Candidate 只能通过 explicit adapter contract 选择：
 
 ```bash
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json
 ```
 
-App-root verification and packaging commands:
+App-root verification 和 packaging commands：
 
 ```bash
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
@@ -270,7 +274,7 @@ OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json node --e
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 ```
 
-Candidate-shell verification commands:
+Candidate-shell verification commands：
 
 ```bash
 cd shells/agui-codex
@@ -283,58 +287,56 @@ npx electron . --ui-smoke-test
 './out/One Person Lab AG-UI Codex Candidate.app/Contents/MacOS/One Person Lab AG-UI Codex Candidate' --ui-smoke-test
 ```
 
-Minimum acceptance for this candidate is:
+该 candidate 的最低验收：
 
-- App-root active-shell validation still resolves the default release shell as
-  AionUI.
-- Candidate registry validation passes and confirms explicit candidate build
-  participation only.
-- The generated product profile is App-owned and contains the Codex fixed
-  executor, MAS/MAG/RCA purpose entries, and hidden ordinary selectors.
-- Source renderer build succeeds.
-- WebUI smoke passes using the same renderer, browser `window.oplCandidate`
-  bridge, HTTP action routes, and SSE Codex event stream.
-- Source UI smoke paints visible pixels on the default chat-first home, shows
-  the purpose entries, starts a real Codex app-server turn, receives `OK`, and
-  proves the workspace/session rail plus inspector are collapsed by default.
-- The UI exposes a lightweight workspace/session rail and right-side collapsible
-  Files, Skills, Routing, Memory, and Always-On inspector tabs as optional
-  context surfaces without adopting PilotDeck runtime authority or making them
-  first-screen panels.
-- Candidate packaging produces a launchable `.app` with `Contents/Info.plist`
-  and a `Contents/MacOS` executable.
-- Packaged UI smoke passes against the `.app` bundle, keeps AG-UI/debug
-  protocol copy out of the ordinary chat surface, and proves the same
-  default-collapsed chat-first home.
-- Page-state, first-run, runtime summary/full-drilldown, and safe App action
-  dry-run evidence are recorded by the candidate smoke and checked by
-  App-root candidate validation.
-- Release replacement remains explicit: the candidate does not become the
-  default stable/nightly shell until `contracts/app-shell-adapter.json` is
-  deliberately changed.
+- App-root active-shell validation 仍把默认 release shell 解析为 AionUI。
+- Candidate registry validation 通过，并确认只有 explicit candidate build
+  participation。
+- Generated product profile 由 App 拥有，并包含 Codex fixed executor、
+  MAS/MAG/RCA purpose entries 和 hidden ordinary selectors。
+- Source renderer build 成功。
+- WebUI smoke 通过，使用同一 renderer、browser `window.oplCandidate` bridge、
+  HTTP action routes 和 SSE Codex event stream。
+- Source UI smoke 在默认 chat-first home 上绘制 visible pixels，展示 purpose
+  entries，启动真实 Codex app-server turn，收到 `OK`，并证明 workspace/session
+  rail 和 inspector 默认收起。
+- UI 把 lightweight workspace/session rail 和右侧可收起 Files、Skills、Routing、
+  Memory、Always-On inspector tabs 暴露为 optional context surfaces，不采用
+  PilotDeck runtime authority，也不把它们做成 first-screen panels。
+- Candidate packaging 产出带 `Contents/Info.plist` 和 `Contents/MacOS`
+  executable 的可启动 `.app`。
+- Packaged UI smoke 针对 `.app` bundle 通过，ordinary chat surface 不出现
+  AG-UI/debug protocol copy，并证明同样 default-collapsed chat-first home。
+- Page-state、first-run、runtime summary/full-drilldown 和 safe App action
+  dry-run evidence 由 candidate smoke 记录，并由 App-root candidate validation
+  检查。
+- Release replacement 保持 explicit：candidate 不会成为默认 stable/nightly
+  shell，直到 `contracts/app-shell-adapter.json` 被明确修改。
 
-2026-05-30 chat-first technical verification evidence:
+2026-05-30 chat-first 技术验证 evidence：
 
-- Source renderer build passed in `/Users/gaofeng/workspace/opl-agui-codex-shell`.
-- Source UI smoke passed with screenshot
-  `/tmp/opl-agui-codex-source-ui-smoke-chat-first-final.png`, purpose entries
-  `科研`, `基金`, `PPT`, `default_home_layout_status=passed`, stage classes
-  `without-rail` and `without-inspector`, visible paint, and Codex reply `OK`.
-- Candidate `.app` bundle built at
-  `/Users/gaofeng/workspace/opl-agui-codex-shell/out/One Person Lab AG-UI Codex Candidate.app`.
-- Packaged UI smoke passed with screenshot
-  `/tmp/opl-agui-codex-packaged-ui-smoke-chat-first-final.png`,
-  `packaged=true`, `default_home_layout_status=passed`, visible paint, and
-  Codex reply `OK`.
-- WebUI uses the same renderer and passed smoke; browser visual inspection
-  captured `/tmp/opl-agui-codex-webui-chat-first-final.png` with the ordinary
-  home on the chat canvas and both side context surfaces collapsed.
-- The final manifest records `source_ui_smoke_status=passed`,
-  `packaged_ui_smoke_status=passed`, `webui_smoke_status=passed`,
-  `default_home_layout_status=passed`, `page_state_matrix_mapping_status=passed`,
-  `first_run_matrix_mapping_status=passed`,
-  `runtime_summary_detail_action_bridge_status=passed`, and
-  `action_dry_run_status=passed`.
+- Source renderer build 已在
+  `/Users/gaofeng/workspace/opl-agui-codex-shell` 通过。
+- Source UI smoke 已通过，截图为
+  `/tmp/opl-agui-codex-source-ui-smoke-chat-first-final.png`，purpose entries
+  为 `科研`、`基金`、`PPT`，`default_home_layout_status=passed`，stage classes
+  为 `without-rail` 和 `without-inspector`，visible paint 成功，并收到 Codex
+  reply `OK`。
+- Candidate `.app` bundle 已构建到
+  `/Users/gaofeng/workspace/opl-agui-codex-shell/out/One Person Lab AG-UI Codex Candidate.app`。
+- Packaged UI smoke 已通过，截图为
+  `/tmp/opl-agui-codex-packaged-ui-smoke-chat-first-final.png`，
+  `packaged=true`，`default_home_layout_status=passed`，visible paint 成功，并
+  收到 Codex reply `OK`。
+- WebUI 使用同一 renderer 并通过 smoke；browser visual inspection 捕获
+  `/tmp/opl-agui-codex-webui-chat-first-final.png`，ordinary home 位于 chat
+  canvas，两个 side context surfaces 均默认收起。
+- Final manifest 记录 `source_ui_smoke_status=passed`、
+  `packaged_ui_smoke_status=passed`、`webui_smoke_status=passed`、
+  `default_home_layout_status=passed`、`page_state_matrix_mapping_status=passed`、
+  `first_run_matrix_mapping_status=passed`、
+  `runtime_summary_detail_action_bridge_status=passed` 和
+  `action_dry_run_status=passed`。
 
-The current default release shell remains AionUI until this candidate satisfies
-the shell replacement gate in `contracts/app-shell-candidates.json`.
+当前默认 release shell 仍是 AionUI，直到该 candidate 满足
+`contracts/app-shell-candidates.json` 中的 shell replacement gate。

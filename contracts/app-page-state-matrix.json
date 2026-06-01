@@ -108,7 +108,39 @@
             "home_entry_policy": "visible_click_to_start"
           }
         ],
-        "hero_prompt": "把研究、基金和汇报交给 One Person Lab 自动推进"
+        "hero_prompt": "把研究、基金和汇报交给 One Person Lab 自动推进",
+        "activity_center": {
+          "authority": "opl_framework_refs_only_projection",
+          "source": "app_state.operator.workbench.task_drilldowns + app_state.operator.summary",
+          "display_groups": [
+            "needs_attention",
+            "active_projects",
+            "recent_projects"
+          ],
+          "default_placement": "near_home_input",
+          "item_fields": [
+            "task_id",
+            "title",
+            "domain_label",
+            "state",
+            "active_stage_label",
+            "next_visible_step",
+            "blocker_ref_count",
+            "last_progress_at"
+          ],
+          "must_not_display": [
+            "domain artifact body",
+            "memory body",
+            "quality verdict body",
+            "provider implementation details"
+          ],
+          "empty_state_policy": "stable_empty_state_without_page_wide_spinner",
+          "forbidden_body_display": [
+            "domain artifact body",
+            "memory body",
+            "quality verdict body"
+          ]
+        }
       },
       "must_show": [
         "Codex CLI fixed executor experience",
@@ -119,7 +151,10 @@
         "assistant-scoped skill menu with required skill checked",
         "workspace selector",
         "file attachment control",
-        "send action"
+        "send action",
+        "continue work activity center near the home input",
+        "needs attention projects from app_state.operator.workbench.task_drilldowns",
+        "active and recent project refs without domain artifact bodies"
       ],
       "must_not_show": [
         "executor selector on the home input",
@@ -131,7 +166,9 @@
         "skills outside the App packaged skill set in home skill menu",
         "OPL Meta Agent as a default home assistant",
         "retired Codex model choices",
-        "nested input card frames"
+        "nested input card frames",
+        "domain artifact body in Home activity center",
+        "memory body in Home activity center"
       ],
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json"
@@ -309,31 +346,6 @@
       "framework_refresh_command": "opl app state --profile fast --json"
     },
     {
-      "id": "settings_overview",
-      "expected_source": "OPL App state projection",
-      "must_show": [
-        "Developer Mode effective state from app_state.developer_mode",
-        "workspace path from app_state.paths",
-        "logs path from app_state.paths",
-        "OPL Agent Codex context"
-      ],
-      "machine_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json",
-      "page_contract": "settings_system",
-      "state_sections": [
-        "developer_mode",
-        "paths",
-        "opl_agent_codex_context"
-      ],
-      "must_not_show": [
-        "delayed developer mode flip from a shell-local cache",
-        "AionUI local directory as OPL path truth",
-        "Model provider settings as an ordinary settings tab",
-        "Agent backend settings as an ordinary settings tab",
-        "WebUI settings as an ordinary settings tab"
-      ]
-    },
-    {
       "id": "environment",
       "expected_source": "OPL App state projection",
       "must_show": [
@@ -341,11 +353,19 @@
         "Temporal status from app_state.provider.temporal",
         "MAS/MAG/RCA/OMA module version and source from app_state.modules",
         "module path source explanation",
-        "section-level refresh state"
+        "section-level refresh state",
+        "environment page named Local Environment, distinct from Project Progress"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
-      "page_contract": "settings_runtime",
+      "page_contract": "settings_environment",
+      "sections": [
+        "core.codex",
+        "provider.temporal",
+        "modules",
+        "paths",
+        "release"
+      ],
       "state_sections": [
         "core.codex",
         "provider.temporal",
@@ -358,7 +378,8 @@
         "Med Deep Scientist as a default module",
         "page-wide spinner while one section refreshes",
         "GUI-owned Temporal restart judgment",
-        "backend/provider selector as normal App configuration"
+        "backend/provider selector as normal App configuration",
+        "project progress as a settings runtime page"
       ]
     },
     {
@@ -603,6 +624,135 @@
         "English runtime checklist labels in the Chinese beginner primary area",
         "Codex API Configuration, Unknown, or Needs setup in the Chinese beginner primary area",
         "background maintenance counters or labels in the beginner primary area"
+      ]
+    },
+    {
+      "id": "settings_general",
+      "expected_source": "OPL App state projection and App-owned settings information architecture",
+      "machine_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json",
+      "page_contract": "settings_general",
+      "sections": [
+        "workspace",
+        "startup",
+        "tray",
+        "language"
+      ],
+      "state_sections": [
+        "paths",
+        "settings",
+        "desktop_startup"
+      ],
+      "must_show": [
+        "workspace root from app_state.paths",
+        "startup and tray preferences as App product preferences",
+        "language preference",
+        "short links to Access, Agents & Capabilities, Local Environment, and Project Progress"
+      ],
+      "must_not_show": [
+        "raw OPL internal state files",
+        "provider implementation internals as ordinary General settings"
+      ]
+    },
+    {
+      "id": "access",
+      "expected_source": "OPL App state provider and Codex readiness projection",
+      "machine_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json",
+      "page_contract": "settings_access",
+      "sections": [
+        "codex_cli",
+        "provider_readiness",
+        "api_keys",
+        "webui_compatibility"
+      ],
+      "state_sections": [
+        "core.codex",
+        "provider",
+        "access"
+      ],
+      "must_show": [
+        "whether Codex CLI can run now",
+        "whether configured provider access can work now",
+        "current permission meaning in user-facing language",
+        "API key and base URL controls behind advanced disclosure",
+        "section-level refresh state"
+      ],
+      "must_not_show": [
+        "raw base URL and token paths as first-screen content",
+        "backend selector as ordinary App configuration",
+        "WebUI as the primary access mental model"
+      ]
+    },
+    {
+      "id": "capabilities",
+      "expected_source": "App-owned assistant and skill profiles with OPL App state readiness refs",
+      "machine_source": "contracts/app-gui-product-contract.json#default_assistants + opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json",
+      "page_contract": "settings_capabilities",
+      "sections": [
+        "research",
+        "grant",
+        "ppt",
+        "opl_meta_agent",
+        "skills_detail",
+        "tools_detail"
+      ],
+      "state_sections": [
+        "default_assistants",
+        "assistant_skill_profiles",
+        "modules",
+        "tools"
+      ],
+      "must_show": [
+        "purpose-grouped MAS research capability",
+        "purpose-grouped MAG grant capability",
+        "purpose-grouped RCA presentation capability",
+        "OPL Meta Agent as explicit non-default capability",
+        "required skills locked and optional skills selectable by assistant",
+        "MCP and tool details as secondary support details"
+      ],
+      "must_not_show": [
+        "Skills and Tools as the only top-level mental model",
+        "AG-UI as a user-visible capability concept",
+        "OPL Meta Agent as a default Home assistant"
+      ]
+    },
+    {
+      "id": "advanced",
+      "expected_source": "OPL App state projection for developer and diagnostic refs",
+      "machine_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json",
+      "page_contract": "settings_advanced",
+      "sections": [
+        "developer_mode",
+        "paths",
+        "logs",
+        "opl_flow_context",
+        "opl_agent_codex_context",
+        "diagnostics"
+      ],
+      "state_sections": [
+        "developer_mode",
+        "paths",
+        "logs",
+        "opl_flow_context",
+        "opl_agent_codex_context"
+      ],
+      "legacy_state_sections": [
+        "opl_agent_codex_context"
+      ],
+      "must_show": [
+        "Developer Mode effective state from app_state.developer_mode",
+        "workspace path from app_state.paths",
+        "logs path from app_state.paths",
+        "OPL Flow Context",
+        "diagnostics and raw refs behind Advanced navigation"
+      ],
+      "must_not_show": [
+        "delayed developer mode flip from a shell-local cache",
+        "AionUI local directory as OPL path truth",
+        "Developer Mode as ordinary first-level user setup"
       ]
     }
   ],

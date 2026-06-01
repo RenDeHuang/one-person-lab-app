@@ -311,6 +311,10 @@
         "first_run_matrix_mapping",
         "runtime_summary_detail_action_bridge",
         "foundry_agent_series_shared_progress_display",
+        "app_owned_settings_information_architecture",
+        "continue_work_activity_center",
+        "conversation_event_ref_rendering",
+        "webui_renderer_parity",
         "release_isolation",
         "candidate_app_bundle_package"
       ],
@@ -383,6 +387,10 @@
           "packaged UI smoke runs a real Codex app-server turn and receives OK",
           "packaged UI smoke proves page-state matrix mapping, first-run matrix mapping, runtime full-drilldown lazy load, and safe App action dry-run",
           "ordinary UI shows the CopilotKit-backed chat surface, not AG-UI protocol/debug copy",
+          "ordinary Settings uses General, Access, Agents & Capabilities, Local Environment, Appearance, Advanced, and About & Updates",
+          "ordinary home exposes the refs-only continue-work activity center near the composer without becoming a workbench grid",
+          "tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs",
+          "WebUI parity evidence proves the same React/CopilotKit renderer and product semantics as Electron",
           "home and ordinary conversation keep backend, model, and permission selectors hidden"
         ]
       },
