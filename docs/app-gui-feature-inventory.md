@@ -27,9 +27,9 @@ Codex App 变成 OPL App 的产品增量看
 理想 OPL App GUI 是 Codex App 形态的 chat-first desktop surface：
 
 - 从已选 workspace directory 开始 conversation。
-- 固定 Codex CLI 作为 executor，并把 model status 显示为只读状态。状态必须
-  从 App product profile 派生默认模型和推理强度，例如 `gpt-5.5xhigh`，不能
-  恢复为普通 model picker。
+- 固定 Codex CLI 作为 executor，并把模型控制收敛为 App-owned selector。默认
+  必须从 App product profile 派生为最新最强模型，例如 `GPT-5.5（超高）`；用户
+  可以合理切换模型，但 executor、backend 和 permission 仍不是普通选择项。
 - Home entries 路由到 OPL capabilities：Research/MAS、Grant/MAG、
   Presentation/RCA。
 - 第一屏保持 chat-first，不出现 dashboard 或解释性 landing page copy。
@@ -37,7 +37,8 @@ Codex App 变成 OPL App 的产品增量看
   needs/active/recent refs 或底部 feedback/favorite/web 图标。
 - 提供持久 workspace frame，包含轻量 workspace/session rail、conversation
   area 和可收起右侧 context panel。
-- Backend、model、permission choices 不进入普通 home 和 conversation flow。
+- Backend 和 permission choices 不进入普通 home 和 conversation flow；模型选择器
+  可以进入普通路径，但必须服从 App-owned 默认与退休模型过滤策略。
 - 支持中文/英文双语 UI；普通界面同屏单一语言呈现，不随机中英混排。
 
 这份清单描述的是 App 总目标，不是当前 AionUI shell 的改动列表。合格 shell
@@ -82,10 +83,10 @@ App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent da
   是普通用户层 chrome，必须按当前语言完整渲染；隐藏 DOM 或 raw details 可以
   保留技术标签，但可见中文普通层不能混入 `New Codex turn`、`Local assistant`、
   `Codex CLI`、`MAS/MAG/RCA`，英文普通层不能残留中文目的/状态标签。
-- Backend、model、provider、permission mode selectors 不进入普通 home 和
-  conversation flows。
-- Codex conversation composer 仍要显示同一个只读 model status，并在
-  pending/running 时显示已经等待的秒数。
+- Backend、provider、permission mode selectors 不进入普通 home 和
+  conversation flows；model selector 只能作为 App-owned Codex 模型控制出现。
+- Codex conversation composer 仍要显示同一个 App-owned model selector/status，
+  并在 pending/running 时显示已经等待的秒数。
 - Desktop Electron 和 WebUI surfaces 使用同一套 App product truth。
 - 窄桌面和 WebUI 宽度下，二级 context 不变成首页工作台；用户打开后必须以
   overlay/drawer/右侧浮层形式可见，至少保证 `opl-context-tabs` 和

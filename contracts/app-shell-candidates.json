@@ -282,7 +282,7 @@
         "new_conversation_resets_codex_thread": true,
         "home_executor_selector_visible": false,
         "home_backend_selector_visible": false,
-        "home_model_selector_visible": false,
+        "home_model_selector_visible": true,
         "permission_mode_selector_visible": false,
         "workspace_session_rail_default_visible": false,
         "inspector_default_visible": false,

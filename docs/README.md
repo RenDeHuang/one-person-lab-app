@@ -23,6 +23,8 @@ runtime, provider, or domain authority.
 - [`decisions.md`](decisions.md): still-active App product, shell, runtime bridge, release, and docs lifecycle decisions.
 - [`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md)：
   不绑定具体 shell 的理想 GUI 交互定义，目标是 Codex App 形态的 OPL App。
+- [`app-gui-element-audit.md`](app-gui-element-audit.md)：逐项审计普通用户路径
+  的页面元素、作用、缺口和位置判断。
 - [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)：Codex App 变成
   OPL App 时需要新增、隐藏和治理的产品增量。
 - [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md)：跨 shell 的
@@ -76,11 +78,13 @@ runtime or domain truth into this repo.
 
 1. [`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md)
    定义目标用户交互模型。
-2. [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 定义 Codex App
+2. [`app-gui-element-audit.md`](app-gui-element-audit.md) 说明当前普通用户路径
+   上每个页面元素的作用、缺口和位置判断。
+3. [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 定义 Codex App
    baseline 之上的 OPL 增量。
-3. [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md) 跟踪跨 shell
+4. [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md) 跟踪跨 shell
    能力清单和验证预期。
-4. `contracts/` 和 page-state matrices 承载机器可读 gates。
+5. `contracts/` 和 page-state matrices 承载机器可读 gates。
 
 ## 文档语言
 

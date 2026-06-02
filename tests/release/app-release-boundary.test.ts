@@ -792,22 +792,22 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.gui.home.nested_input_card_frames_allowed, false);
   assert.equal(profile.gui.home.codex_cli_fixed_executor, true);
   assert.equal(profile.gui.home.home_executor_selector_visible, false);
-  assert.equal(profile.gui.home.codex_model_selector_visible, false);
-  assert.equal(profile.gui.home.codex_model_list_visible, false);
-  assert.equal(profile.gui.home.codex_model_policy, 'codex_cli_auto_model_hidden_on_home');
-  assert.equal(profile.gui.home.codex_default_model, 'codex_cli_auto');
+  assert.equal(profile.gui.home.codex_model_selector_visible, true);
+  assert.equal(profile.gui.home.codex_model_list_visible, true);
+  assert.equal(profile.gui.home.codex_model_policy, 'codex_cli_latest_strongest_model_selector_visible');
+  assert.equal(profile.gui.home.codex_default_model, 'gpt-5.5');
   assert.equal(profile.gui.home.codex_default_reasoning_effort, profile.codex.default_reasoning_effort);
   assert.equal(profile.gui.home.codex_default_permission_mode, 'full-access');
   assert.equal(profile.gui.home.permission_mode_selector_visible, false);
   assert.equal(profile.gui.home.conversation_backend_selector_visible, false);
-  assert.equal(profile.gui.home.conversation_model_selector_visible, false);
+  assert.equal(profile.gui.home.conversation_model_selector_visible, true);
   assert.equal(profile.gui.home.conversation_permission_mode_selector_visible, false);
-  assert.equal(profile.gui.home.codex_home_model_status_label, '自动');
-  assert.equal(profile.gui.home.codex_home_model_status_label_en, 'Auto');
-  assert.equal(profile.gui.home.codex_precise_model_display_policy, 'technical_details_or_connected_state_only');
+  assert.equal(profile.gui.home.codex_home_model_status_label, 'GPT-5.5（超高）');
+  assert.equal(profile.gui.home.codex_home_model_status_label_en, 'GPT-5.5 (Ultra)');
+  assert.equal(profile.gui.home.codex_precise_model_display_policy, 'friendly_default_model_and_reasoning_visible');
   assert.equal(profile.gui.home.codex_auto_model_selection.strategy, 'codex_cli_auto_latest_available_frontier');
-  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_override_model, false);
-  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_restore_auto, false);
+  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_override_model, true);
+  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_restore_auto, true);
   assert.equal(profile.gui.home.codex_auto_model_selection.selection_persists_into_conversation, true);
   assert.deepEqual(
     profile.gui.home.codex_auto_model_selection.frontier_model_preference_order,
@@ -1311,31 +1311,31 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guidHomePage.home_view_model.appearance_default_css_theme_id, 'default-theme');
   assert.equal(guidHomePage.home_view_model.codex_cli_fixed_executor, true);
   assert.equal(guidHomePage.home_view_model.home_executor_selector_visible, false);
-  assert.equal(guidHomePage.home_view_model.codex_model_selector_visible, false);
-  assert.equal(guidHomePage.home_view_model.codex_model_list_visible, false);
-  assert.equal(guidHomePage.home_view_model.codex_model_policy, 'codex_cli_auto_model_hidden_on_home');
-  assert.equal(guidHomePage.home_view_model.codex_default_model, 'codex_cli_auto');
+  assert.equal(guidHomePage.home_view_model.codex_model_selector_visible, true);
+  assert.equal(guidHomePage.home_view_model.codex_model_list_visible, true);
+  assert.equal(guidHomePage.home_view_model.codex_model_policy, 'codex_cli_latest_strongest_model_selector_visible');
+  assert.equal(guidHomePage.home_view_model.codex_default_model, 'gpt-5.5');
   assert.equal(guidHomePage.home_view_model.codex_default_reasoning_effort, 'xhigh');
-  assert.equal(guidHomePage.home_view_model.codex_default_display_label, '自动');
-  assert.equal(guidHomePage.home_view_model.codex_default_model_display_value, 'gpt-5.5xhigh');
+  assert.equal(guidHomePage.home_view_model.codex_default_display_label, 'GPT-5.5（超高）');
+  assert.equal(guidHomePage.home_view_model.codex_default_model_display_value, 'GPT-5.5（超高）');
   assert.equal(
     guidHomePage.home_view_model.codex_model_status_display_policy,
-    'readonly_default_model_and_reasoning_status_without_selector',
+    'default_model_and_reasoning_status_with_visible_selector',
   );
   assert.equal(guidHomePage.home_view_model.codex_default_permission_mode, 'full-access');
   assert.equal(guidHomePage.home_view_model.permission_mode_selector_visible, false);
   assert.equal(guidHomePage.home_view_model.conversation_backend_selector_visible, false);
-  assert.equal(guidHomePage.home_view_model.conversation_model_selector_visible, false);
+  assert.equal(guidHomePage.home_view_model.conversation_model_selector_visible, true);
   assert.equal(guidHomePage.home_view_model.conversation_permission_mode_selector_visible, false);
-  assert.equal(guidHomePage.home_view_model.codex_precise_model_display_policy, 'technical_details_or_connected_state_only');
+  assert.equal(guidHomePage.home_view_model.codex_precise_model_display_policy, 'friendly_default_model_and_reasoning_visible');
   assert.deepEqual(guidHomePage.home_view_model.codex_frontier_model_preference_order, [
     'gpt-5.5',
     'gpt-5.4',
     'gpt-5.3-codex',
     'gpt-5.2',
   ]);
-  assert.equal(guidHomePage.home_view_model.codex_user_can_override_model, false);
-  assert.equal(guidHomePage.home_view_model.codex_user_can_restore_auto, false);
+  assert.equal(guidHomePage.home_view_model.codex_user_can_override_model, true);
+  assert.equal(guidHomePage.home_view_model.codex_user_can_restore_auto, true);
   assert.deepEqual(guidHomePage.home_view_model.retired_codex_models_must_not_be_exposed, [
     'gpt-5.2-codex',
     'gpt-5.1-codex-max',
@@ -1358,7 +1358,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   assert.equal(
     guidHomePage.home_view_model.conversation_model_status_display_policy,
-    'same_readonly_model_status_in_codex_conversation_composer',
+    'same_model_status_and_selector_in_codex_conversation_composer',
   );
   assert.equal(
     guidHomePage.home_view_model.route_receipt_source_ref,
@@ -1396,8 +1396,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   for (const expected of [
     'Codex CLI fixed executor experience',
-    'Codex automatic model status label',
-    'readonly default model and reasoning status gpt-5.5xhigh',
+    'Codex model selector defaulting to GPT-5.5（超高）',
+    'default model and reasoning status GPT-5.5（超高）',
     'conversation pending elapsed seconds while Codex is working',
     'purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA',
     'selected assistant keeps purpose entry switcher visible',
@@ -1411,9 +1411,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   for (const forbidden of [
     'executor selector on the home input',
     'Aion CLI or Claude Code backend choices on the home input',
-    'Codex model override selector on the home input',
+    'retired Codex model choices on the home input',
     'permission mode selector on the home input',
-    'backend/model/permission selectors after entering an ordinary Codex conversation',
+    'backend or permission selectors after entering an ordinary Codex conversation',
     'full assistant names as default home entry labels',
     'skills outside the App packaged skill set in home skill menu',
     'OPL Meta Agent as a default home assistant',
@@ -1913,6 +1913,55 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
       'remote_release_verification',
     ],
   );
+});
+
+test('release evidence bundle validator rejects Codex functional checks without packaged route receipt coverage', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-weak-codex-check-'));
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const artifacts = releaseContract.operator_evidence_bundle.required_artifacts;
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'passed',
+    packaged_app_evidence: true,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts: artifacts.map((artifact) => ({ ...artifact, status: 'present' })),
+    missing_evidence: [],
+    blocked_evidence: [],
+  }, null, 2)}\n`);
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeVmSmokeSummaryFiles(tempRoot);
+  writeAssistantRouteSmokeScreenshots(tempRoot);
+  writeFile(
+    path.join(tempRoot, 'artifacts', 'codex-functional-check-summary.json'),
+    `${JSON.stringify({
+      schema: 'opl_codex_functional_check_receipt.v1',
+      status: 'diagnostic_skipped',
+      blocking_release_gate: {
+        stable_vm_gate: 'receipt_file_exists_and_deterministic_fields_passed',
+        deterministic_fields_passed: true,
+        llm_invocation_required: false,
+      },
+    })}\n`,
+  );
+  writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+
+  const result = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+  ]);
+
+  assert.notEqual(result.status, 0, result.stdout);
+  assert.match(result.stderr, /assistant route receipts/i);
 });
 
 test('release evidence bundle validator accepts optional Codex AI self-check diagnostics without making them required', () => {
@@ -3851,7 +3900,7 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   assert.equal(aguiCandidate.target_product_shape.codex_cli_fixed_executor, true);
   assert.equal(aguiCandidate.target_product_shape.home_executor_selector_visible, false);
   assert.equal(aguiCandidate.target_product_shape.home_backend_selector_visible, false);
-  assert.equal(aguiCandidate.target_product_shape.home_model_selector_visible, false);
+  assert.equal(aguiCandidate.target_product_shape.home_model_selector_visible, true);
   assert.equal(aguiCandidate.target_product_shape.permission_mode_selector_visible, false);
   assert.deepEqual(aguiCandidate.target_product_shape.purpose_entries, ['research', 'grant', 'ppt']);
   assert.equal(aguiCandidate.framework_surfaces.state, 'opl app state --profile fast --json');
@@ -3986,28 +4035,28 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.executor_policy.home_executor_selector_visible, false);
   assert.equal(guiContract.executor_policy.executor_tab_visible_when_single_executor, false);
   assert.equal(guiContract.executor_policy.default_model_strategy, 'codex_cli_auto_latest_available_frontier');
-  assert.equal(guiContract.executor_policy.default_model_display_value, 'gpt-5.5xhigh');
-  assert.equal(guiContract.executor_policy.home_model_status_label, '自动');
+  assert.equal(guiContract.executor_policy.default_model_display_value, 'GPT-5.5（超高）');
+  assert.equal(guiContract.executor_policy.home_model_status_label, 'GPT-5.5（超高）');
   assert.equal(
     guiContract.executor_policy.home_model_status_policy,
-    'display_readonly_default_model_and_reasoning_without_exposing_selector',
+    'display_default_model_and_reasoning_with_visible_selector',
   );
   assert.equal(
     guiContract.executor_policy.conversation_model_status_policy,
-    'display_same_readonly_model_status_in_codex_conversation_composer',
+    'display_same_model_and_reasoning_with_visible_selector_in_codex_conversation',
   );
   assert.equal(
     guiContract.executor_policy.conversation_pending_feedback_policy,
     'display_elapsed_seconds_while_ai_processing_or_backend_running',
   );
-  assert.equal(guiContract.executor_policy.precise_model_display_policy, 'technical_details_or_connected_state_only');
+  assert.equal(guiContract.executor_policy.precise_model_display_policy, 'friendly_default_model_and_reasoning_visible');
   assert.equal(guiContract.executor_policy.permission_mode_selector_visible_on_home, false);
-  assert.equal(guiContract.executor_policy.model_selector_visible_on_new_conversation, false);
-  assert.equal(guiContract.executor_policy.model_selector_visible_in_conversation, false);
+  assert.equal(guiContract.executor_policy.model_selector_visible_on_new_conversation, true);
+  assert.equal(guiContract.executor_policy.model_selector_visible_in_conversation, true);
   assert.equal(guiContract.executor_policy.backend_selector_visible_in_conversation, false);
   assert.equal(guiContract.executor_policy.permission_mode_selector_visible_in_conversation, false);
-  assert.equal(guiContract.executor_policy.user_model_override_allowed, false);
-  assert.equal(guiContract.executor_policy.restore_auto_model_selection_allowed, false);
+  assert.equal(guiContract.executor_policy.user_model_override_allowed, true);
+  assert.equal(guiContract.executor_policy.restore_auto_model_selection_allowed, true);
   assert.deepEqual(guiContract.executor_policy.frontier_model_preference_order, [
     'gpt-5.5',
     'gpt-5.4',
@@ -4082,15 +4131,15 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'a candidate shell should implement the same App contracts by swapping adapters/profile consumers, not by inheriting AionUI-specific product logic',
   );
   assert.equal(guiContract.pages.guid_home.hero_prompt, '把研究、基金和汇报交给 One Person Lab 自动推进');
-  assert.equal(guiContract.pages.guid_home.model_status.display_value, 'gpt-5.5xhigh');
-  assert.equal(guiContract.pages.guid_home.model_status.selector_visible, false);
+  assert.equal(guiContract.pages.guid_home.model_status.display_value, 'GPT-5.5（超高）');
+  assert.equal(guiContract.pages.guid_home.model_status.selector_visible, true);
   assert.equal(
     guiContract.pages.guid_home.conversation_feedback_policy.pending_indicator,
     'visible elapsed seconds while request is pending or backend is running',
   );
   assert.equal(
     guiContract.pages.guid_home.conversation_feedback_policy.model_status,
-    'same readonly model status appears in Codex conversation composer',
+    'same model status and selector appear in Codex conversation composer',
   );
   assert.equal(guiContract.pages.guid_home.conversation_feedback_policy.raw_trace_visible, false);
   assert.ok(guiContract.pages.guid_home.must_show.includes('single composer-first home input'));

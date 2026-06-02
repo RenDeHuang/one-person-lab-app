@@ -39,8 +39,8 @@ inspector，而不是把普通第一屏做得很密很重。
 - workspace/session rail 默认收起，除非用户主动打开。
 - 右侧 inspector 默认收起，除非用户主动打开。
 - 普通路径上没有解释性 landing page、marketing hero、dashboard grid、raw
-  protocol monitor、backend selector、model selector、provider selector 或
-  permission-mode selector。
+  protocol monitor、backend selector、provider selector 或 permission-mode
+  selector；model selector 只作为 App-owned Codex 模型控制出现。
 
 第一屏可以在 chat surface 内展示最近对话或启动状态，但只在有助于下一步
 输入时展示。它不能在用户请求 context 前变成独立 dashboard。
@@ -57,7 +57,7 @@ App frame 有四层：
 
 - **Nav rail：** 窄 icon rail，用于当前 chat、新建对话、workspace/session
   rail toggle、context inspector toggle 和 settings。
-- **Header：** 产品名、active route、workspace path、automatic model status
+- **Header：** 产品名、active route、workspace path、App-owned model status
   和轻量 connected-state indicators。
 - **Chat canvas：** 主工作面。它承载对话历史、streaming assistant output、
   tool/process summary、user-input prompt、permission prompt 和 composer。
@@ -131,9 +131,9 @@ Composer 是紧凑的 Codex-style command surface：
 - File/folder attach、mention/ref insertion、context usage、send、stop 都是
   直接控件。
 - 可以切换 purpose，但不暴露 backend 或 provider choice。
-- Model 信息是只读状态，不是选择器。Home 和 Codex conversation composer
-  都应紧凑显示默认模型与推理强度，例如 `gpt-5.5xhigh`；状态来源是
-  App product profile，不来自 shell-local provider policy。
+- Model 信息是可见选择器。Home 和 Codex conversation composer 都应紧凑显示
+  默认模型与推理强度，例如 `GPT-5.5（超高）`；默认值、退休模型过滤和选择
+  持久化来源是 App product profile，不来自 shell-local provider policy。
 - Send 状态明确：idle、running、stopping、blocked、failed。
 - Composer 支持 keyboard-only navigation。
 
@@ -331,7 +331,7 @@ renderer 结构变化。
 - Workspace/session rail 与右侧 inspector 在窄桌面/WebUI 下仍能通过用户动作
   打开，并且 context tabs 与 Routing summary 实际可见可操作。
 - MAS/MAG/RCA 是 Codex 之上的 purpose entries，不是 backend choices。
-- 普通 home 和 conversation paths 隐藏 backend/model/provider/permission
-  selectors。
+- 普通 home 和 conversation paths 隐藏 backend/provider/permission selectors；
+  model selector 只作为 App-owned Codex 模型控制出现。
 - 普通 home 不显示 runtime activity、continue-work、activity refs grid、
   per-assistant running badges 或底部 feedback/favorite/web 图标。

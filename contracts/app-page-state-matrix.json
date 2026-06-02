@@ -19,20 +19,20 @@
         "appearance_default_css_theme_id": "default-theme",
         "codex_cli_fixed_executor": true,
         "home_executor_selector_visible": false,
-        "codex_model_selector_visible": false,
-        "codex_model_list_visible": false,
-        "codex_model_policy": "codex_cli_auto_model_hidden_on_home",
-        "codex_model_auto_option_visible": false,
-        "codex_default_model": "codex_cli_auto",
+        "codex_model_selector_visible": true,
+        "codex_model_list_visible": true,
+        "codex_model_policy": "codex_cli_latest_strongest_model_selector_visible",
+        "codex_model_auto_option_visible": true,
+        "codex_default_model": "gpt-5.5",
         "codex_default_reasoning_effort": "xhigh",
-        "codex_default_display_label": "自动",
-        "codex_default_model_display_value": "gpt-5.5xhigh",
-        "codex_model_status_display_policy": "readonly_default_model_and_reasoning_status_without_selector",
-        "codex_precise_model_display_policy": "technical_details_or_connected_state_only",
+        "codex_default_display_label": "GPT-5.5（超高）",
+        "codex_default_model_display_value": "GPT-5.5（超高）",
+        "codex_model_status_display_policy": "default_model_and_reasoning_status_with_visible_selector",
+        "codex_precise_model_display_policy": "friendly_default_model_and_reasoning_visible",
         "codex_default_permission_mode": "full-access",
         "permission_mode_selector_visible": false,
         "conversation_backend_selector_visible": false,
-        "conversation_model_selector_visible": false,
+        "conversation_model_selector_visible": true,
         "conversation_permission_mode_selector_visible": false,
         "codex_frontier_model_preference_order": [
           "gpt-5.5",
@@ -40,8 +40,8 @@
           "gpt-5.3-codex",
           "gpt-5.2"
         ],
-        "codex_user_can_override_model": false,
-        "codex_user_can_restore_auto": false,
+        "codex_user_can_override_model": true,
+        "codex_user_can_restore_auto": true,
         "retired_codex_models_must_not_be_exposed": [
           "gpt-5.2-codex",
           "gpt-5.1-codex-max",
@@ -54,7 +54,7 @@
         "purpose_entry_source_ref": "contracts/app-gui-product-contract.json#home_purpose_entries",
         "assistant_skill_profile_source_ref": "contracts/app-gui-product-contract.json#assistant_skill_profiles",
         "conversation_pending_feedback_policy": "elapsed_seconds_visible_while_ai_processing_or_backend_running",
-        "conversation_model_status_display_policy": "same_readonly_model_status_in_codex_conversation_composer",
+        "conversation_model_status_display_policy": "same_model_status_and_selector_in_codex_conversation_composer",
         "route_receipt_source_ref": "contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy",
         "route_receipt_required_fields": [
           "route_kind",
@@ -73,7 +73,7 @@
         "default_assistant_purpose_labels": {
           "mas": "科研",
           "mag": "基金",
-          "rca": "PPT"
+          "rca": "演示"
         },
         "default_assistant_required_skills": {
           "mas": [
@@ -105,7 +105,7 @@
           },
           {
             "id": "ppt",
-            "primary_label": "PPT",
+            "primary_label": "演示",
             "target_assistant_id": "rca",
             "target_assistant_short_name": "RCA",
             "display_policy": "purpose_first",
@@ -134,10 +134,10 @@
       },
       "must_show": [
         "Codex CLI fixed executor experience",
-        "Codex automatic model status label",
-        "readonly default model and reasoning status gpt-5.5xhigh",
+        "Codex model selector defaulting to GPT-5.5（超高）",
+        "default model and reasoning status GPT-5.5（超高）",
         "conversation pending elapsed seconds while Codex is working",
-        "purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA",
+        "purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA",
         "selected assistant shown as a compact @ purpose tag",
         "selected assistant keeps purpose entry switcher visible",
         "assistant-scoped skill menu with required skill checked",
@@ -150,9 +150,9 @@
       "must_not_show": [
         "executor selector on the home input",
         "Aion CLI or Claude Code backend choices on the home input",
-        "Codex model override selector on the home input",
+        "retired Codex model choices on the home input",
         "permission mode selector on the home input",
-        "backend/model/permission selectors after entering an ordinary Codex conversation",
+        "backend or permission selectors after entering an ordinary Codex conversation",
         "full assistant names as default home entry labels",
         "skills outside the App packaged skill set in home skill menu",
         "OPL Meta Agent as a default home assistant",

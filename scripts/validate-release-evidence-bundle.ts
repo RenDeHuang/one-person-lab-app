@@ -308,6 +308,41 @@ function validateAssistantRouteSmokeSummary(artifact: EvidenceArtifact, payload:
   }
 }
 
+function validateCodexFunctionalCheckSummary(record: Record<string, unknown>) {
+  if (record.schema !== 'opl_codex_functional_check_receipt.v1') {
+    throw new Error('codex_functional_check_summary must use the Codex functional check receipt schema.');
+  }
+  if (!['passed', 'diagnostic_skipped'].includes(String(record.status))) {
+    throw new Error('codex_functional_check_summary must be passed or diagnostic_skipped for release evidence.');
+  }
+  const gate = asRecord(record.blocking_release_gate, 'codex_functional_check_summary.blocking_release_gate');
+  if (gate.deterministic_fields_passed !== true) {
+    throw new Error('codex_functional_check_summary deterministic fields must pass.');
+  }
+  if (gate.llm_invocation_required !== false) {
+    throw new Error('codex_functional_check_summary must not require LLM invocation.');
+  }
+
+  if (
+    !record.assistant_route_receipts_checked
+    || typeof record.assistant_route_receipts_checked !== 'object'
+    || Array.isArray(record.assistant_route_receipts_checked)
+  ) {
+    throw new Error('codex_functional_check_summary must include assistant route receipts evidence.');
+  }
+  const routeReceipts = record.assistant_route_receipts_checked as Record<string, unknown>;
+  if (routeReceipts.status !== 'passed' || routeReceipts.deterministic !== true) {
+    throw new Error('codex_functional_check_summary assistant route receipts must be deterministic and passed.');
+  }
+  const required = Array.isArray(routeReceipts.required) ? routeReceipts.required : [];
+  const checked = Array.isArray(routeReceipts.checked) ? routeReceipts.checked : [];
+  for (const assistantId of ['mas', 'mag', 'rca']) {
+    if (!required.includes(assistantId) || !checked.includes(assistantId)) {
+      throw new Error('codex_functional_check_summary must cover MAS/MAG/RCA assistant route receipts.');
+    }
+  }
+}
+
 function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown) {
   const record = asRecord(payload, artifact.id);
   if (artifact.id === 'app_state_summary' || artifact.id === 'app_state_full') {
@@ -370,19 +405,7 @@ function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown)
     validateAssistantRouteSmokeSummary(artifact, record);
   }
   if (artifact.id === 'codex_functional_check_summary') {
-    if (record.schema !== 'opl_codex_functional_check_receipt.v1') {
-      throw new Error('codex_functional_check_summary must use the Codex functional check receipt schema.');
-    }
-    if (!['passed', 'diagnostic_skipped'].includes(String(record.status))) {
-      throw new Error('codex_functional_check_summary must be passed or diagnostic_skipped for release evidence.');
-    }
-    const gate = asRecord(record.blocking_release_gate, 'codex_functional_check_summary.blocking_release_gate');
-    if (gate.deterministic_fields_passed !== true) {
-      throw new Error('codex_functional_check_summary deterministic fields must pass.');
-    }
-    if (gate.llm_invocation_required !== false) {
-      throw new Error('codex_functional_check_summary must not require LLM invocation.');
-    }
+    validateCodexFunctionalCheckSummary(record);
   }
   if (artifact.id === 'codex_ai_self_check_summary') {
     if (record.schema !== 'opl_codex_ai_self_check_receipt.v1') {

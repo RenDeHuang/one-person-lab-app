@@ -1073,16 +1073,16 @@ function validateActiveShellImplementation(shellPaths) {
     '"default_reasoning_effort": "xhigh"',
     '"codex_cli_fixed_executor": true',
     '"home_executor_selector_visible": false',
-    '"codex_model_selector_visible": false',
-    '"codex_model_list_visible": false',
-    '"codex_model_policy": "codex_cli_auto_model_hidden_on_home"',
-    '"codex_model_auto_option_visible": false',
-    '"codex_default_model": "codex_cli_auto"',
-    '"codex_home_model_status_label": "自动"',
-    '"codex_precise_model_display_policy": "technical_details_or_connected_state_only"',
+    '"codex_model_selector_visible": true',
+    '"codex_model_list_visible": true',
+    '"codex_model_policy": "codex_cli_latest_strongest_model_selector_visible"',
+    '"codex_model_auto_option_visible": true',
+    '"codex_default_model": "gpt-5.5"',
+    '"codex_home_model_status_label": "GPT-5.5（超高）"',
+    '"codex_precise_model_display_policy": "friendly_default_model_and_reasoning_visible"',
     '"strategy": "codex_cli_auto_latest_available_frontier"',
-    '"user_can_override_model": false',
-    '"user_can_restore_auto": false',
+    '"user_can_override_model": true',
+    '"user_can_restore_auto": true',
     '"id": "mas"',
     '"id": "mag"',
     '"id": "rca"',
@@ -1200,11 +1200,11 @@ function validateActiveShellImplementation(shellPaths) {
     'isOplCodexCliFixedExecutor',
     'shouldShowOplCodexModelList',
     "backend === 'codex'",
-    '!shouldShowOplCodexModelList()',
+    'shouldShowOplCodexModelList()',
     'canSwitch',
   ]) {
     if (!acpModelInfoHook.includes(expected)) {
-      throw new Error(`Active shell ACP model hook must hide fixed Codex model controls ${expected}`);
+      throw new Error(`Active shell ACP model hook must expose App-owned Codex model controls ${expected}`);
     }
   }
 
@@ -1215,7 +1215,7 @@ function validateActiveShellImplementation(shellPaths) {
   for (const expected of [
     'shouldShowOplConversationModelSelector',
     "extra.backend === 'codex'",
-    'return undefined',
+    'AcpModelSelector',
   ]) {
     if (!chatConversation.includes(expected)) {
       throw new Error(`Active shell ordinary Codex conversation must hide model selector ${expected}`);
@@ -2368,11 +2368,11 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (!pages.guid_home.must_show?.includes('selected assistant shown as a compact @ purpose tag')) {
     throw new Error('App GUI home must show selected assistant as a compact @ purpose tag');
   }
-  if (pages.guid_home.model_status?.display_value !== 'gpt-5.5xhigh') {
-    throw new Error('App GUI home must display the readonly default model and reasoning status');
+  if (pages.guid_home.model_status?.display_value !== 'GPT-5.5（超高）') {
+    throw new Error('App GUI home must display the friendly default model and reasoning status');
   }
-  if (pages.guid_home.model_status?.selector_visible !== false) {
-    throw new Error('App GUI home model status must not become a selector');
+  if (pages.guid_home.model_status?.selector_visible !== true) {
+    throw new Error('App GUI home model status must expose the App-owned model selector');
   }
   if (
     pages.guid_home.conversation_feedback_policy?.pending_indicator !==
@@ -2382,9 +2382,9 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   }
   if (
     pages.guid_home.conversation_feedback_policy?.model_status !==
-    'same readonly model status appears in Codex conversation composer'
+    'same model status and selector appear in Codex conversation composer'
   ) {
-    throw new Error('App GUI conversation must show the same readonly model status');
+    throw new Error('App GUI conversation must show the same model status and selector');
   }
   if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
     throw new Error('App GUI home must keep OMA out of default home entries');
@@ -2558,18 +2558,18 @@ function validatePageStateMatrix(matrix, contract) {
     executor_tab_visible_when_single_executor: false,
     primary_input_surface: 'single_card',
     nested_input_card_frames_allowed: false,
-    codex_model_selector_visible: false,
-    codex_model_list_visible: false,
-    codex_model_policy: 'codex_cli_auto_model_hidden_on_home',
-    codex_model_auto_option_visible: false,
-    codex_default_model: 'codex_cli_auto',
+    codex_model_selector_visible: true,
+    codex_model_list_visible: true,
+    codex_model_policy: 'codex_cli_latest_strongest_model_selector_visible',
+    codex_model_auto_option_visible: true,
+    codex_default_model: 'gpt-5.5',
     codex_default_reasoning_effort: 'xhigh',
-    codex_default_display_label: '自动',
-    codex_precise_model_display_policy: 'technical_details_or_connected_state_only',
+    codex_default_display_label: 'GPT-5.5（超高）',
+    codex_precise_model_display_policy: 'friendly_default_model_and_reasoning_visible',
     codex_default_permission_mode: 'full-access',
     permission_mode_selector_visible: false,
     conversation_backend_selector_visible: false,
-    conversation_model_selector_visible: false,
+    conversation_model_selector_visible: true,
     conversation_permission_mode_selector_visible: false,
   })) {
     if (homeViewModel[field] !== expected) {
@@ -2610,7 +2610,8 @@ function validatePageStateMatrix(matrix, contract) {
   }
   for (const visibleSignal of [
     'Codex CLI fixed executor experience',
-    'Codex automatic model status label',
+    'Codex model selector defaulting to GPT-5.5（超高）',
+    'default model and reasoning status GPT-5.5（超高）',
     'purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA',
     'selected assistant keeps purpose entry switcher visible',
     'assistant-scoped skill menu with required skill checked',
@@ -2627,9 +2628,9 @@ function validatePageStateMatrix(matrix, contract) {
   for (const hiddenSignal of [
     'executor selector on the home input',
     'Aion CLI or Claude Code backend choices on the home input',
-    'Codex model override selector on the home input',
+    'retired Codex model choices on the home input',
     'permission mode selector on the home input',
-    'backend/model/permission selectors after entering an ordinary Codex conversation',
+    'backend or permission selectors after entering an ordinary Codex conversation',
     'full assistant names as default home entry labels',
     'skills outside the App packaged skill set in home skill menu',
     'OPL Meta Agent as a default home assistant',
@@ -3550,28 +3551,28 @@ function validateProductProfileCodexDefaults(profile) {
     profile.gui.home?.nested_input_card_frames_allowed !== false ||
     profile.gui.home?.codex_cli_fixed_executor !== true ||
     profile.gui.home?.home_executor_selector_visible !== false ||
-    profile.gui.home?.codex_model_selector_visible !== false ||
-    profile.gui.home?.codex_model_list_visible !== false ||
-    profile.gui.home?.codex_model_policy !== 'codex_cli_auto_model_hidden_on_home' ||
-    profile.gui.home?.codex_model_auto_option_visible !== false ||
-    profile.gui.home?.codex_default_model !== 'codex_cli_auto' ||
+    profile.gui.home?.codex_model_selector_visible !== true ||
+    profile.gui.home?.codex_model_list_visible !== true ||
+    profile.gui.home?.codex_model_policy !== 'codex_cli_latest_strongest_model_selector_visible' ||
+    profile.gui.home?.codex_model_auto_option_visible !== true ||
+    profile.gui.home?.codex_default_model !== profile.codex?.default_model ||
     profile.gui.home?.codex_default_reasoning_effort !== profile.codex?.default_reasoning_effort ||
     profile.gui.home?.codex_default_permission_mode !== 'full-access' ||
     profile.gui.home?.permission_mode_selector_visible !== false ||
     profile.gui.home?.conversation_backend_selector_visible !== false ||
-    profile.gui.home?.conversation_model_selector_visible !== false ||
+    profile.gui.home?.conversation_model_selector_visible !== true ||
     profile.gui.home?.conversation_permission_mode_selector_visible !== false ||
-    profile.gui.home?.codex_home_model_status_label !== '自动' ||
-    profile.gui.home?.codex_precise_model_display_policy !== 'technical_details_or_connected_state_only'
+    profile.gui.home?.codex_home_model_status_label !== 'GPT-5.5（超高）' ||
+    profile.gui.home?.codex_precise_model_display_policy !== 'friendly_default_model_and_reasoning_visible'
   ) {
-    throw new Error('Product profile GUI home must keep Codex CLI fixed and hide model/executor selectors');
+    throw new Error('Product profile GUI home must keep Codex CLI fixed while exposing App-owned model selectors');
   }
   if (
     profile.gui.home.codex_auto_model_selection?.strategy !== 'codex_cli_auto_latest_available_frontier' ||
-    profile.gui.home.codex_auto_model_selection.user_can_override_model !== false ||
-    profile.gui.home.codex_auto_model_selection.user_can_restore_auto !== false
+    profile.gui.home.codex_auto_model_selection.user_can_override_model !== true ||
+    profile.gui.home.codex_auto_model_selection.user_can_restore_auto !== true
   ) {
-    throw new Error('Product profile GUI home must keep Codex CLI automatic model selection hidden on the home path');
+    throw new Error('Product profile GUI home must expose App-owned Codex model selection on the home path');
   }
   if (
     profile.gui.builtin_assistant_route_receipt_policy?.scope !== 'home_purpose_entry_to_conversation' ||

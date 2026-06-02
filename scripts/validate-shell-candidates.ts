@@ -528,12 +528,12 @@ function validateCandidate(candidate: ShellCandidate): void {
     candidate.target_product_shape.codex_cli_fixed_executor !== true ||
     candidate.target_product_shape.home_executor_selector_visible !== false ||
     candidate.target_product_shape.home_backend_selector_visible !== false ||
-    candidate.target_product_shape.home_model_selector_visible !== false ||
+    candidate.target_product_shape.home_model_selector_visible !== true ||
     candidate.target_product_shape.permission_mode_selector_visible !== false ||
     candidate.target_product_shape.workspace_session_rail_default_visible !== false ||
     candidate.target_product_shape.inspector_default_visible !== false
   ) {
-    throw new Error(`${candidate.id} must preserve Codex fixed-executor chat-first home without selectors or default side context`);
+    throw new Error(`${candidate.id} must preserve Codex fixed-executor chat-first home with App-owned model selector and without backend/permission/default side context`);
   }
   assertStringArrayIncludes(candidate.target_product_shape.purpose_entries, requiredHomeEntries, `${candidate.id}.target_product_shape.purpose_entries`);
   if (candidate.target_product_shape.settings_policy !== 'app_state_refs_only') {

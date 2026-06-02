@@ -204,18 +204,18 @@ Current GUI product truth 现在有明确的人读定义栈：
 `docs/app-gui-feature-inventory.md` 跟踪跨 shell 能力清单和参考模式。机器可读
 GUI truth 声明在 `contracts/app-gui-product-contract.json`：the default executor experience is
 fixed to Codex CLI on the ordinary App path; the home screen exposes three
-beginner-facing purpose entries: 科研, 基金, and PPT. Those entries route to
+beginner-facing purpose entries: 科研, 基金, and 演示. Those entries route to
 MAS, MAG, and RCA respectively, and the selected entry is presented as a compact
 `@` purpose tag instead of a full agent-title hero. The home input does not
-expose Aion CLI, Claude Code, backend switching, model override, or permission
+expose Aion CLI, Claude Code, backend switching, provider lists, or permission
 mode controls; ordinary Codex conversations must not reintroduce those selector
 surfaces after send. Built-in MAS/MAG/RCA sends must persist a route receipt
 showing `builtin_capability`, `codex_cli`, the assistant id, the assistant short
 name, and `opl_app_home`, so the route is observable beyond the visible badge.
-It shows a compact readonly Codex model status derived from the App product
-profile, currently `gpt-5.5xhigh`, on Home and ordinary Codex conversation
-composer surfaces; this remains status-only and must not become a model
-selector. Conversation pending/running state now shows elapsed seconds so users
+It shows a compact Codex model selector/status derived from the App product
+profile, currently `GPT-5.5（超高）`, on Home and ordinary Codex conversation
+composer surfaces; this remains App-owned and must not become backend or
+permission selection. Conversation pending/running state now shows elapsed seconds so users
 can see the App is working while a Codex response is still in progress.
 Each default purpose entry also owns an assistant-scoped skill profile: MAS
 requires `mas`, MAG requires `mag`, and RCA requires `rca`; optional companion
@@ -428,7 +428,10 @@ full drilldown, action dry-run and execute JSON, Runtime screenshot, clean
 first-run VM summary, packaged first-run smoke, MAS/MAG/RCA assistant-route
 summary and screenshots, Full first-install screenshot and VM summary, Runtime
 action screenshot, remote release verification, and the passed Codex functional
-check receipt.
+check receipt. The default validator now fails closed when a Codex functional
+check summary lacks deterministic MAS/MAG/RCA assistant route receipt coverage,
+so future cohorts cannot use a weak post-install Codex receipt as packaged GUI
+Codex-path evidence.
 
 The same-cohort standard VM run at
 `/tmp/opl-current-standard-vm-smoke-20260531-current-source-archive-1/tart-smoke-summary.json`
