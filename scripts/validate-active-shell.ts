@@ -334,6 +334,52 @@ function validateProjectProgressDisplayContract(projectProgress, label) {
   );
 }
 
+function validateUserTaskStatusProjectionContract(userTaskStatus, label) {
+  if (!userTaskStatus || typeof userTaskStatus !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs',
+    authority: 'opl_framework_refs_only_user_task_projection',
+    display_policy: 'user_task_status_first_provider_projection_diagnostic_only',
+    default_user_question: "How many tasks are running, how many projects or tasks are active or queued, how many need attention, and what is each task's current step?",
+    progress_label_policy: 'render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names',
+    diagnostic_source_policy: 'provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language',
+  })) {
+    if (userTaskStatus[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    userTaskStatus.summary_fields,
+    ['running_task_count', 'active_project_count', 'queued_project_count', 'attention_count'],
+    `${label} summary_fields`,
+  );
+  assertDeepEqualJson(
+    userTaskStatus.task_fields,
+    ['task_id', 'title', 'status', 'stage', 'progress_label', 'next_step', 'owner', 'last_progress'],
+    `${label} task_fields`,
+  );
+  for (const [field, expected] of Object.entries({
+    running_task_count: 'count user tasks projected as actively running or advancing, never raw provider attempts',
+    active_project_count: 'count active user-visible project lines from the framework project-line projection',
+    queued_project_count: 'count queued or waiting user-visible project/task lines without claiming active worker runs',
+    attention_count: 'count user-visible blockers, human gates, failed safe actions, or owner attention states',
+  })) {
+    if (userTaskStatus.count_policies?.[field] !== expected) {
+      throw new Error(`${label} count_policies.${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    userTaskStatus.must_not_default_display_terms,
+    ['Temporal', 'provider', 'projection', 'ref', 'stage attempt', 'ledger', 'current_control_state'],
+    `${label} must_not_default_display_terms`,
+  );
+  if (userTaskStatus.refs_only !== true) {
+    throw new Error(`${label} must be refs-only`);
+  }
+}
+
 function validateBeginnerFirstRunPresentation(presentation, label) {
   if (presentation?.audience !== 'beginner_non_technical_users') {
     throw new Error(`${label} must target beginner_non_technical_users`);
@@ -1668,16 +1714,23 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
     full_state_policy: 'diagnostic_or_release_evidence_only',
     full_detail_command: 'opl runtime app-operator-drilldown --detail full --json',
     action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
-    'projection_sources.primary': 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.summary',
+    'projection_sources.primary': 'app_state.operator user task status projection',
     'projection_sources.provider': 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.states.provider_run',
     'projection_sources.actions': 'app_state.actions',
     'projection_sources.full_detail': 'runtime_tray_snapshot.app_operator_drilldown',
-    'projection_sources.policy': 'running_activity_from_provider_attempt_projection_project_progress_refs_secondary',
+    'projection_sources.policy': 'user_task_status_from_app_state_project_refs_provider_projection_diagnostic_only',
   })) {
     const actual = field.split('.').reduce((value, key) => value?.[key], runtimeBridge);
     if (actual !== expected) {
       throw new Error(`Runtime bridge ${field} must be ${expected}`);
     }
+  }
+  validateUserTaskStatusProjectionContract(
+    runtimeBridge.user_task_status_projection,
+    'Runtime bridge user task status projection',
+  );
+  if (runtimeBridge.user_task_status_projection?.app_role !== 'display_only_user_task_status_consumer') {
+    throw new Error('Runtime bridge user task status projection must be a display-only consumer');
   }
   const commandResolutionPolicy = runtimeBridge.command_resolution_policy;
   if (commandResolutionPolicy?.owner !== 'one-person-lab-app') {
@@ -2135,6 +2188,19 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     throw new Error('App GUI runtime full drilldown must be on-demand only');
   }
   const runtimeDefaultAttention = guiContract.framework_surfaces.runtime_default_attention;
+  if (runtimeDefaultAttention?.default_mode !== 'user_task_status_first') {
+    throw new Error('App GUI runtime default attention must be user_task_status_first');
+  }
+  assertDeepEqualJson(
+    runtimeDefaultAttention?.primary_fields,
+    ['running_task_count', 'active_project_count', 'queued_project_count', 'attention_count'],
+    'App GUI runtime default attention primary fields',
+  );
+  assertDeepEqualJson(
+    runtimeDefaultAttention?.owner_action_fields,
+    ['task title', 'task status', 'task stage', 'progress label', 'next step', 'owner', 'last progress'],
+    'App GUI runtime default attention owner action fields',
+  );
   assertIncludesAll(
     runtimeDefaultAttention?.active_project_line_fields,
     [
@@ -2150,6 +2216,11 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   ) {
     throw new Error('App GUI runtime default attention must separate active project lines from active worker runs');
   }
+  assertDeepEqualJson(
+    runtimeDefaultAttention?.must_not_default_display_terms,
+    ['Temporal', 'provider', 'projection', 'ref', 'stage attempt', 'ledger', 'current_control_state'],
+    'App GUI runtime default attention forbidden default terms',
+  );
   for (const forbiddenSource of [
     'direct opl modules --json page aggregation',
     'direct opl system developer-supervisor page aggregation',
@@ -2507,7 +2578,20 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     pages.runtime_status.progress_delta_policy,
     'App GUI runtime status progress delta policy',
   );
+  if (pages.runtime_status.primary_projection !== 'app_state.operator user task status projection') {
+    throw new Error('App GUI runtime status must default to the user task status projection');
+  }
+  validateUserTaskStatusProjectionContract(
+    pages.runtime_status.user_task_status_policy,
+    'App GUI runtime status user task status policy',
+  );
   for (const signal of [
+    'user task status first OPL runtime status',
+    'running task count',
+    'active project count',
+    'queued project count',
+    'attention count',
+    'task title/status/stage/progress label/next step/owner/last progress',
     'deliverable progress delta classification',
     'platform repair delta as separate infrastructure repair',
   ]) {
@@ -2515,6 +2599,11 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
       throw new Error(`App GUI runtime status must show ${signal}`);
     }
   }
+  assertDeepEqualJson(
+    pages.runtime_status.must_not_default_show,
+    ['Temporal', 'provider', 'projection', 'ref', 'stage attempt', 'ledger', 'current_control_state'],
+    'App GUI runtime status forbidden default terms',
+  );
   for (const owner of ['deliverable progress truth', 'platform repair truth']) {
     if (!pages.runtime_status.must_not_own?.includes(owner)) {
       throw new Error(`App GUI runtime status must not own ${owner}`);
@@ -2883,8 +2972,8 @@ function validatePageStateMatrix(matrix, contract) {
   if (runtimePage.machine_source !== 'opl app state --profile fast --json + opl runtime app-operator-drilldown --json') {
     throw new Error(`Runtime page must consume OPL App state plus operator drilldown as the summary source, got: ${runtimePage.machine_source}`);
   }
-  if (runtimePage.primary_projection !== 'app_operator_drilldown.current_control_state.states active provider executions') {
-    throw new Error(`Runtime page primary_projection must be current-control active provider executions, got: ${runtimePage.primary_projection}`);
+  if (runtimePage.primary_projection !== 'app_state.operator user task status projection') {
+    throw new Error(`Runtime page primary_projection must be user task status, got: ${runtimePage.primary_projection}`);
   }
   if (runtimePage.framework_command !== 'opl app state --profile fast --json') {
     throw new Error(`Runtime page must use the OPL App state command, got: ${runtimePage.framework_command}`);
@@ -2916,14 +3005,14 @@ function validatePageStateMatrix(matrix, contract) {
     }
   }
   const runtimeViewModel = runtimePage.runtime_view_model;
-  if (runtimeViewModel?.role !== 'opl_runtime_running_activity') {
-    throw new Error('Runtime page must declare OPL runtime running activity view model');
+  if (runtimeViewModel?.role !== 'opl_runtime_user_task_status') {
+    throw new Error('Runtime page must declare OPL runtime user task status view model');
   }
   if (runtimeViewModel.bridge_contract !== 'contracts/app-runtime-bridge.json') {
     throw new Error(`Runtime page view model must reference app-runtime-bridge.json, got: ${runtimeViewModel.bridge_contract}`);
   }
-  if (runtimeViewModel.default_mode !== 'running_activity_first') {
-    throw new Error('Runtime page view model must default to running_activity_first');
+  if (runtimeViewModel.default_mode !== 'user_task_status_first') {
+    throw new Error('Runtime page view model must default to user_task_status_first');
   }
   if (runtimeViewModel.full_detail_policy !== 'on_demand_only') {
     throw new Error('Runtime page full detail must be on-demand only');
@@ -2960,8 +3049,20 @@ function validatePageStateMatrix(matrix, contract) {
       throw new Error(`Runtime page view model ${field} must be ${expected}`);
     }
   }
+  validateUserTaskStatusProjectionContract(
+    runtimeViewModel.user_task_status_projection,
+    'Runtime page user task status projection',
+  );
   validateProjectProgressDisplayContract(runtimeViewModel.project_progress, 'Runtime page project progress display contract');
   const pageDefaultAttention = runtimeViewModel.default_attention;
+  if (pageDefaultAttention?.mode !== 'user_task_status_first') {
+    throw new Error('Runtime page default attention must be user_task_status_first');
+  }
+  assertDeepEqualJson(
+    pageDefaultAttention?.primary_fields,
+    ['running_task_count', 'active_project_count', 'queued_project_count', 'attention_count'],
+    'Runtime page default attention primary fields',
+  );
   assertIncludesAll(
     pageDefaultAttention?.active_project_line_fields,
     [
@@ -2996,13 +3097,13 @@ function validatePageStateMatrix(matrix, contract) {
   if (
     runningTaskProjection?.source !== 'app_operator_drilldown.current_control_state.summary + current_control_state.states' ||
     runningTaskProjection.authority !== 'opl_framework_provider_attempt_projection' ||
-    runningTaskProjection.display_policy !== 'active_execution_first_no_module_dirty_or_checkpointed_provider_ref_as_task' ||
+    runningTaskProjection.display_policy !== 'diagnostic_only_no_provider_attempt_count_as_user_running_task_count' ||
     runningTaskProjection.active_execution_filter !==
       'states where running_provider_attempt is true and provider_run.provider_status or current_attempt_state is running' ||
     runningTaskProjection.diagnostic_provider_ref_policy !==
       'running_provider_attempt_count may include checkpointed provider refs and must not be displayed as the user-visible running task count'
   ) {
-    throw new Error('Runtime page must derive active execution from current_control_state provider projection');
+    throw new Error('Runtime page must keep provider running activity as diagnostic projection');
   }
   assertIncludesAll(
     runningTaskProjection.required_user_fields,
@@ -3031,7 +3132,13 @@ function validatePageStateMatrix(matrix, contract) {
     'Runtime page running task forbidden sources',
   );
   const requiredEvidencePath = [
-    'running activity from current_control_state provider projection',
+    'user task status first OPL runtime status',
+    'running task count from framework user task projection',
+    'active project count from framework project-line projection',
+    'queued project count from framework project-line projection',
+    'attention count from framework blocker and owner-attention projection',
+    'task title/status/stage/progress label/next step/owner/last progress',
+    'provider/current_control_state details as diagnostics only',
     'summary OPL operator drilldown read model',
     'fast App state refresh',
     'app_state.operator.workbench.task_drilldowns project progress refs',
@@ -3053,8 +3160,12 @@ function validatePageStateMatrix(matrix, contract) {
     }
   }
   const requiredRuntimeSignals = [
-    'running activity first OPL runtime status',
-    'running activity from app_operator_drilldown.current_control_state provider projection',
+    'user task status first OPL runtime status',
+    'running task count',
+    'active project count',
+    'queued project count',
+    'attention count',
+    'task title/status/stage/progress label/next step/owner/last progress',
     'project progress from app_state.operator.workbench.task_drilldowns',
     'active project line count from app_state.operator.workbench.activity_center.active_projects',
     'project title/domain/current state/current stage',
@@ -3078,6 +3189,11 @@ function validatePageStateMatrix(matrix, contract) {
       throw new Error(`Runtime page must show ${signal}`);
     }
   }
+  assertDeepEqualJson(
+    runtimePage.must_not_default_show,
+    ['Temporal', 'provider', 'projection', 'ref', 'stage attempt', 'ledger', 'current_control_state'],
+    'Runtime page forbidden default display terms',
+  );
   const forbiddenRuntimeOwners = [
     'runtime truth',
     'provider implementation',

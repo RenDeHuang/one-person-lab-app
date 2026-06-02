@@ -105,36 +105,54 @@ managed shim must not make first-run display `0/0` progress or override
 `opl system initialize --json` when the framework CLI is otherwise available.
 
 Runtime progress display is contract-backed separately from first-run progress.
-The Runtime page is running-activity first: it consumes `opl runtime
-app-operator-drilldown --json` and reads `current_control_state.summary` plus
-`current_control_state.states` to show active provider executions after
-filtering checkpointed provider refs, running domains, task kinds, and latest
-heartbeat. `opl app state --profile
-fast --json` remains the refresh/availability/action/project-ref source.
-Project progress from `app_state.operator.workbench.task_drilldowns` is
-secondary and shows project title, current state/stage, projected next step,
-blockers, and human-readable progress delta labels. The same projection still
-classifies `deliverable_progress_delta` separately from
-`platform_repair_delta`. Platform repair is shown as infrastructure repair and
-cannot be presented as substantive deliverable, paper, manuscript, or
-submission progress.
+The Runtime page is now user-task-status first. Its first screen answers four
+ordinary user questions before showing any technical runtime evidence: how many
+tasks are running, how many projects/tasks are active, how many are queued, and
+how many need attention. Each visible task line must then show title, status,
+stage, progress label, next step, owner, and last progress. The App derives that
+view from the OPL Framework refs-only App state projection:
+`app_state.operator.workbench.summary_cards`,
+`activity_center`, `task_drilldowns`, and
+`operator.visual_ref_groups.active_project_refs`.
 
-The default Runtime page attention model is provider running activity first,
-not ledger first and not module diagnostics first. `running_provider_attempt_count`
-may be larger than the user-visible active execution count because it can include
-checkpointed provider refs; the GUI must not present that summary count as
-active tasks. `domain_lane_map.active_task_count`,
-`module_runtime dirty`, module readiness, repo/worktree diagnostics, and
-assistant purpose cards are forbidden running-task sources. Full ledger detail
-is reserved for explicit diagnostics, audit, or release evidence.
-User-visible active project lines are a separate project-line projection from
-`app_state.operator.workbench.activity_center.active_projects` and
-`operator.visual_ref_groups.active_project_refs`: queued or escalated
-owner-handled paper/project lines can count as active projects only with their
-original `status`, `active_run_id`, and next visible step preserved, and never as
-active worker runs, domain readiness, or paper-quality readiness. The
-`validate:active-shell --quick` and focused release-boundary/runtime-bridge
-tests now lock this distinction.
+The mature product lesson is that a status page should start with the user's
+job-to-be-done, not with the implementation's telemetry nouns. Users want to
+know whether work is moving, what is queued, what needs them, and where each
+task is stuck or progressing. Provider runs, projections, refs, ledgers, stage
+attempts, and `current_control_state` are valuable evidence, but they are
+diagnostic vocabulary. They stay behind secondary disclosure, explicit full
+detail, audit, or release evidence paths. The daily Runtime page must not
+default-display the words Temporal, provider, projection, ref, stage attempt,
+ledger, or current_control_state.
+
+External status-page references checked on 2026-06-02 support the same shape.
+GitHub Actions and GitLab CI organize live execution around workflow/pipeline,
+job, stage, status, and logs; Airflow exposes task-instance state in its Grid
+view; Material Design frames progress indicators as real-time status for
+ongoing processes. For the OPL App, that translates to a user-task first
+surface: counts and task rows first, then expandable diagnostics and evidence.
+References: [GitHub Actions workflow run history](https://docs.github.com/en/actions/monitoring-and-troubleshooting-workflows/monitoring-workflows/viewing-workflow-run-history),
+[GitLab CI/CD pipelines](https://docs.gitlab.com/ci/pipelines/),
+[Apache Airflow UI overview](https://airflow.apache.org/docs/apache-airflow/stable/ui.html),
+and [Material Design progress indicators](https://m3.material.io/components/progress-indicators/overview).
+
+The user-visible counts stay display-only and refs-only. `running_task_count`
+counts tasks projected as actively running or advancing, not raw provider
+attempts. `active_project_count` and `queued_project_count` come from
+framework-owned project/task line projections and preserve status, active run
+presence, and next step without claiming worker execution. `attention_count`
+comes from projected blockers, human gates, failed safe actions, or owner
+attention states. Project progress still classifies
+`deliverable_progress_delta` separately from `platform_repair_delta`; platform
+repair is shown as infrastructure repair and cannot be presented as substantive
+deliverable, paper, manuscript, or submission progress.
+
+`running_provider_attempt_count` remains diagnostic. It may include checkpointed
+provider refs and must not be displayed as the user's running task count.
+`domain_lane_map.active_task_count`, `module_runtime dirty`, module readiness,
+repo/worktree diagnostics, and assistant purpose cards remain forbidden
+running-task sources. The `validate:active-shell --quick` and focused
+release-boundary/runtime-bridge tests lock this user-task-first distinction.
 
 The App first-run screen presents that shared model in a beginner-first way:
 the primary view shows a plain readiness summary, three user-facing setup
@@ -184,19 +202,18 @@ validate:gui-shell` when the change must prove the active shell still validates
 and compiles through the App wrapper path.
 
 Runtime page evidence path is declared in
-`contracts/app-page-state-matrix.json`: the active shell loads running activity
-through `opl runtime app-operator-drilldown --json`, refreshes availability and
-actions through `opl app state --profile fast --json`, keeps `opl app state
---profile full --json` for explicit full-state diagnostic or release evidence,
-lazy-loads full detail through `opl runtime app-operator-drilldown --detail
-full --json`, and presents active project lines and project progress refs only
-after the current-control provider projection. The page stays
-running-activity-first, loads full detail only on demand, uses a 5-10 second
-lightweight polling fallback when push projection is unavailable, and exposes
-only refs-only `opl app action execute --action <id> [--payload json]
-[--dry-run] --json` controls. Execution refreshes the App state projection so
-receipt/count fields stay framework-owned; MAS/MAG/RCA verdicts and artifact
-authority remain domain-owned refs.
+`contracts/app-page-state-matrix.json`: the active shell reads default task
+status through `opl app state --profile fast --json`, uses
+`opl runtime app-operator-drilldown --json` only for secondary runtime
+diagnostics, keeps `opl app state --profile full --json` for explicit full-state
+diagnostic or release evidence, and lazy-loads full detail through `opl runtime
+app-operator-drilldown --detail full --json`. The page stays user-task-first,
+loads full detail only on demand, uses a 5-10 second lightweight polling
+fallback when push projection is unavailable, and exposes only refs-only
+`opl app action execute --action <id> [--payload json] [--dry-run] --json`
+controls. Execution refreshes the App state projection so receipt/count fields
+stay framework-owned; MAS/MAG/RCA verdicts and artifact authority remain
+domain-owned refs.
 
 Current GUI product truth 现在有明确的人读定义栈：
 `docs/app-ideal-gui-interaction-spec.md` 定义 Codex App 形态、chat-first 的交互

@@ -114,22 +114,22 @@
       "direct reads of OPL internal state files"
     ],
     "runtime_default_attention": {
-      "default_mode": "running_activity_first_project_refs_second",
+      "default_mode": "user_task_status_first",
       "full_ledger_default_visible": false,
-      "running_activity_fields": [
-        "current_control_state.states[].running_provider_attempt",
-        "current_control_state.states[].provider_run.provider_status",
-        "current_control_state.states[].current_attempt_state",
-        "running_provider_attempt_count",
-        "running_provider_attempt_domain_ids",
-        "running_provider_attempt_task_kinds",
-        "latest_running_provider_heartbeat_at"
+      "primary_fields": [
+        "running_task_count",
+        "active_project_count",
+        "queued_project_count",
+        "attention_count"
       ],
       "owner_action_fields": [
-        "next_visible_step",
-        "next_owner",
-        "progress_delta_classification",
-        "blocker_ref_count"
+        "task title",
+        "task status",
+        "task stage",
+        "progress label",
+        "next step",
+        "owner",
+        "last progress"
       ],
       "active_project_line_fields": [
         "app_state.operator.workbench.summary_cards[active_projects]",
@@ -137,6 +137,15 @@
         "app_state.operator.visual_ref_groups.active_project_refs"
       ],
       "active_project_line_policy": "queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run",
+      "must_not_default_display_terms": [
+        "Temporal",
+        "provider",
+        "projection",
+        "ref",
+        "stage attempt",
+        "ledger",
+        "current_control_state"
+      ],
       "diagnostics_policy": "secondary_disclosure_or_on_demand_full_detail"
     }
   },
@@ -172,6 +181,85 @@
       "gpt-5.2"
     ],
     "send_after_model_display_policy": "must_not_require_model_or_executor_choice_before_send"
+  },
+  "home_layout": {
+    "default_mode": "composer_first_chat_canvas",
+    "first_screen_policy": "chat_first_no_dashboard_or_landing_copy",
+    "composer_position": "pinned_bottom",
+    "composer_primary": true,
+    "workspace_selector_visible": true,
+    "purpose_entries_visible": [
+      "research",
+      "grant",
+      "ppt"
+    ],
+    "workspace_session_rail_default_state": "collapsed",
+    "right_context_inspector_default_state": "collapsed",
+    "must_not_show": [
+      "dashboard-first home",
+      "explanatory landing page",
+      "backend settings panel in composer"
+    ]
+  },
+  "ordinary_conversation": {
+    "path_id": "ordinary_codex_conversation",
+    "entry_source": "home_purpose_entry_or_new_conversation",
+    "executor": "codex_cli",
+    "composer_position": "pinned_bottom",
+    "purpose_tag_visible": true,
+    "assistant_route_receipt_required": true,
+    "backend_selector_visible": false,
+    "model_selector_visible": true,
+    "permission_mode_selector_visible": false,
+    "provider_selector_visible": false,
+    "model_status_surface": "executor_policy.default_model_display_value",
+    "technical_details_policy": "friendly_default_model_and_reasoning_visible"
+  },
+  "right_context_inspector": {
+    "placement": "right",
+    "default_state": "collapsed",
+    "opens_on_user_request_only": true,
+    "chat_canvas_remains_primary": true,
+    "scope": "selected_workspace_and_conversation",
+    "tabs": [
+      {
+        "id": "files",
+        "label": "Files",
+        "authority": "workspace_refs_only"
+      },
+      {
+        "id": "capabilities",
+        "label": "Capabilities",
+        "authority": "app_packaged_skill_profiles"
+      },
+      {
+        "id": "runtime",
+        "label": "Routing/runtime refs",
+        "authority": "opl_app_state_refs_only"
+      },
+      {
+        "id": "memory",
+        "label": "Memory refs",
+        "authority": "refs_only_no_memory_body_authority"
+      },
+      {
+        "id": "automations",
+        "label": "Always-On/Automations",
+        "authority": "app_state_action_refs"
+      },
+      {
+        "id": "settings",
+        "label": "Settings",
+        "authority": "app_owned_settings"
+      }
+    ],
+    "must_not_own": [
+      "runtime truth",
+      "domain truth",
+      "artifact body",
+      "memory body",
+      "backend selection authority"
+    ]
   },
   "opl_flow_context": {
     "flow_id": "opl-flow",
@@ -747,10 +835,50 @@
     "runtime_status": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
-      "primary_projection": "app_operator_drilldown.current_control_state.states active provider executions",
+      "primary_projection": "app_state.operator user task status projection",
       "summary_source": "opl runtime app-operator-drilldown --json",
       "full_detail_source": "opl runtime app-operator-drilldown --detail full --json",
       "full_detail_policy": "on_demand_only",
+      "user_task_status_policy": {
+        "source": "app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs",
+        "authority": "opl_framework_refs_only_user_task_projection",
+        "display_policy": "user_task_status_first_provider_projection_diagnostic_only",
+        "default_user_question": "How many tasks are running, how many projects or tasks are active or queued, how many need attention, and what is each task's current step?",
+        "summary_fields": [
+          "running_task_count",
+          "active_project_count",
+          "queued_project_count",
+          "attention_count"
+        ],
+        "task_fields": [
+          "task_id",
+          "title",
+          "status",
+          "stage",
+          "progress_label",
+          "next_step",
+          "owner",
+          "last_progress"
+        ],
+        "count_policies": {
+          "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
+          "active_project_count": "count active user-visible project lines from the framework project-line projection",
+          "queued_project_count": "count queued or waiting user-visible project/task lines without claiming active worker runs",
+          "attention_count": "count user-visible blockers, human gates, failed safe actions, or owner attention states"
+        },
+        "progress_label_policy": "render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names",
+        "diagnostic_source_policy": "provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language",
+        "must_not_default_display_terms": [
+          "Temporal",
+          "provider",
+          "projection",
+          "ref",
+          "stage attempt",
+          "ledger",
+          "current_control_state"
+        ],
+        "refs_only": true
+      },
       "diagnostics_policy": {
         "default_visibility": "secondary_disclosure",
         "sections": [
@@ -810,8 +938,12 @@
         "forbidden_delivery_claim_for_platform_repair": true
       },
       "must_show": [
-        "running activity first OPL runtime status",
-        "running activity from app_operator_drilldown.current_control_state provider projection",
+        "user task status first OPL runtime status",
+        "running task count",
+        "active project count",
+        "queued project count",
+        "attention count",
+        "task title/status/stage/progress label/next step/owner/last progress",
         "project progress from app_state.operator.workbench.task_drilldowns",
         "active project line count from app_state.operator.workbench.activity_center.active_projects",
         "project title/domain/current state/current stage",
@@ -824,6 +956,15 @@
         "safe action refs from app_state.actions",
         "deliverable progress delta classification",
         "platform repair delta as separate infrastructure repair"
+      ],
+      "must_not_default_show": [
+        "Temporal",
+        "provider",
+        "projection",
+        "ref",
+        "stage attempt",
+        "ledger",
+        "current_control_state"
       ],
       "must_not_own": [
         "runtime truth",

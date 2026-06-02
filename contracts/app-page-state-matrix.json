@@ -172,18 +172,18 @@
     },
     {
       "id": "runtime",
-      "expected_source": "OPL App state plus operator summary drilldown provider projection",
+      "expected_source": "OPL App user task state plus operator summary drilldown diagnostics",
       "machine_source": "opl app state --profile fast --json + opl runtime app-operator-drilldown --json",
-      "primary_projection": "app_operator_drilldown.current_control_state.states active provider executions",
+      "primary_projection": "app_state.operator user task status projection",
       "fallback_projection": "fast App state only for availability/actions; full drilldown only for explicit detail",
       "framework_command": "opl app state --profile fast --json",
       "framework_full_detail_command": "opl runtime app-operator-drilldown --detail full --json",
       "framework_action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
-      "page_contract": "runtime_running_activity_first",
+      "page_contract": "runtime_user_task_status_first",
       "runtime_view_model": {
-        "role": "opl_runtime_running_activity",
+        "role": "opl_runtime_user_task_status",
         "bridge_contract": "contracts/app-runtime-bridge.json",
-        "default_mode": "running_activity_first",
+        "default_mode": "user_task_status_first",
         "full_detail_policy": "on_demand_only",
         "polling_fallback": {
           "interval_seconds_min": 5,
@@ -203,6 +203,46 @@
           "source": "app_state.actions",
           "fallback_source": "app_state.operator.actions",
           "authority": "framework_refs_only"
+        },
+        "user_task_status_projection": {
+          "source": "app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs",
+          "authority": "opl_framework_refs_only_user_task_projection",
+          "display_policy": "user_task_status_first_provider_projection_diagnostic_only",
+          "default_user_question": "How many tasks are running, how many projects or tasks are active or queued, how many need attention, and what is each task's current step?",
+          "summary_fields": [
+            "running_task_count",
+            "active_project_count",
+            "queued_project_count",
+            "attention_count"
+          ],
+          "task_fields": [
+            "task_id",
+            "title",
+            "status",
+            "stage",
+            "progress_label",
+            "next_step",
+            "owner",
+            "last_progress"
+          ],
+          "count_policies": {
+            "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
+            "active_project_count": "count active user-visible project lines from the framework project-line projection",
+            "queued_project_count": "count queued or waiting user-visible project/task lines without claiming active worker runs",
+            "attention_count": "count user-visible blockers, human gates, failed safe actions, or owner attention states"
+          },
+          "progress_label_policy": "render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names",
+          "diagnostic_source_policy": "provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language",
+          "must_not_default_display_terms": [
+            "Temporal",
+            "provider",
+            "projection",
+            "ref",
+            "stage attempt",
+            "ledger",
+            "current_control_state"
+          ],
+          "refs_only": true
         },
         "project_progress": {
           "source": "app_state.operator.workbench.task_drilldowns",
@@ -323,15 +363,12 @@
           "authority": "opl_framework"
         },
         "default_attention": {
-          "mode": "running_activity_first_project_refs_second",
+          "mode": "user_task_status_first",
           "primary_fields": [
-            "current_control_state.states[].running_provider_attempt",
-            "current_control_state.states[].provider_run.provider_status",
-            "current_control_state.states[].current_attempt_state",
-            "running_provider_attempt_count",
-            "running_provider_attempt_domain_ids",
-            "running_provider_attempt_task_kinds",
-            "latest_running_provider_heartbeat_at"
+            "running_task_count",
+            "active_project_count",
+            "queued_project_count",
+            "attention_count"
           ],
           "active_project_line_fields": [
             "app_state.operator.workbench.summary_cards[active_projects]",
@@ -340,11 +377,13 @@
           ],
           "active_project_line_policy": "queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run",
           "secondary_fields": [
-            "project title/domain/current state/current stage",
-            "next_visible_step",
-            "next_owner",
-            "progress_delta_classification",
-            "blocker_ref_count",
+            "task title",
+            "task status",
+            "task stage",
+            "progress label",
+            "next step",
+            "owner",
+            "last progress",
             "operator summary",
             "safe action refs",
             "evidence refs",
@@ -355,7 +394,7 @@
         "running_task_projection": {
           "source": "app_operator_drilldown.current_control_state.summary + current_control_state.states",
           "authority": "opl_framework_provider_attempt_projection",
-          "display_policy": "active_execution_first_no_module_dirty_or_checkpointed_provider_ref_as_task",
+          "display_policy": "diagnostic_only_no_provider_attempt_count_as_user_running_task_count",
           "user_visible_grain": "domain_and_active_execution_summary_until_project_projection_available",
           "active_execution_filter": "states where running_provider_attempt is true and provider_run.provider_status or current_attempt_state is running",
           "diagnostic_provider_ref_policy": "running_provider_attempt_count may include checkpointed provider refs and must not be displayed as the user-visible running task count",
@@ -377,7 +416,16 @@
             "latest_running_provider_heartbeat_at",
             "running_provider_attempt_summary_policy"
           ]
-        }
+        },
+        "must_not_default_display_terms": [
+          "Temporal",
+          "provider",
+          "projection",
+          "ref",
+          "stage attempt",
+          "ledger",
+          "current_control_state"
+        ]
       },
       "operator_evidence_acceptance_path": {
         "role": "runtime_page_operator_evidence_acceptance",
@@ -391,7 +439,13 @@
         "action_execution_policy": "operator_selected_safe_app_action_route_only"
       },
       "operator_evidence_path": [
-        "running activity from current_control_state provider projection",
+        "user task status first OPL runtime status",
+        "running task count from framework user task projection",
+        "active project count from framework project-line projection",
+        "queued project count from framework project-line projection",
+        "attention count from framework blocker and owner-attention projection",
+        "task title/status/stage/progress label/next step/owner/last progress",
+        "provider/current_control_state details as diagnostics only",
         "summary OPL operator drilldown read model",
         "fast App state refresh",
         "app_state.operator.workbench.task_drilldowns project progress refs",
@@ -408,8 +462,12 @@
         "authority boundary fields"
       ],
       "must_show": [
-        "running activity first OPL runtime status",
-        "running activity from app_operator_drilldown.current_control_state provider projection",
+        "user task status first OPL runtime status",
+        "running task count",
+        "active project count",
+        "queued project count",
+        "attention count",
+        "task title/status/stage/progress label/next step/owner/last progress",
         "project progress from app_state.operator.workbench.task_drilldowns",
         "active project line count from app_state.operator.workbench.activity_center.active_projects",
         "project title/domain/current state/current stage",
@@ -429,6 +487,15 @@
         "refs-only non-authority boundary",
         "next owner action before full evidence ledger",
         "full evidence ledger only as secondary on-demand diagnostic"
+      ],
+      "must_not_default_show": [
+        "Temporal",
+        "provider",
+        "projection",
+        "ref",
+        "stage attempt",
+        "ledger",
+        "current_control_state"
       ],
       "must_not_own": [
         "runtime truth",
