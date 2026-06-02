@@ -203,12 +203,17 @@ mode controls; ordinary Codex conversations must not reintroduce those selector
 surfaces after send. Built-in MAS/MAG/RCA sends must persist a route receipt
 showing `builtin_capability`, `codex_cli`, the assistant id, the assistant short
 name, and `opl_app_home`, so the route is observable beyond the visible badge.
-It shows only a compact automatic Codex model status label; the precise model
-and reasoning effort belong in technical details or a connected state surface.
+It shows a compact readonly Codex model status derived from the App product
+profile, currently `gpt-5.5xhigh`, on Home and ordinary Codex conversation
+composer surfaces; this remains status-only and must not become a model
+selector. Conversation pending/running state now shows elapsed seconds so users
+can see the App is working while a Codex response is still in progress.
 Each default purpose entry also owns an assistant-scoped skill profile: MAS
 requires `mas`, MAG requires `mag`, and RCA requires `rca`; optional companion
 skills are selected from that assistant profile after passing the App packaged
-skill set boundary。Home surface 不显示 runtime activity、continue-work、
+skill set boundary；Settings auto-injected skills are filtered through the same
+App packaged whitelist, so AionUI helper skills such as `aionui-skills` do not
+surface as OPL App capabilities。Home surface 不显示 runtime activity、continue-work、
 needs-attention/active/recent refs、per-assistant running badges 或底部
 feedback/favorite/web 图标；这些信息属于 Runtime、右侧 inspector、drawer 或其他
 secondary context surface，必须保持 refs-only，不能变成 ordinary home first-screen

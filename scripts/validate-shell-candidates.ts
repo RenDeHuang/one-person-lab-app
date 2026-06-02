@@ -841,18 +841,20 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
     page_state_matrix_mapping: { page_ids: string[]; runtime_testids: string[]; settings_testids: string[] };
     first_run_matrix_mapping: { required_shell_testids: string[] };
     runtime_summary_detail_action_bridge: { renderer_testids: string[]; full_detail_policy: string; action_policy: string };
-	    settings_information_architecture?: { visible_tabs: string[]; labels_en: string[]; legacy_tabs_hidden: string[] };
-	    bilingual_ui?: {
-	      default_locale: string;
-	      supported_locales: string[];
-	      ordinary_ui_policy: string;
-	      language_toggle_testid: string;
-	      zh_purpose_labels: string[];
-	      en_purpose_labels: string[];
-	      secondary_detail_allowed_technical_tags: string[];
-	      ordinary_home_forbidden_language_mix: string[];
-	    };
-	    secondary_runtime_context_refs?: { authority: string; source: string; display_groups: string[]; default_placement: string; home_surface_policy: string; empty_state_policy: string; forbidden_body_display: string[]; renderer_testids: string[] };
+    settings_information_architecture?: { visible_tabs: string[]; labels_en: string[]; legacy_tabs_hidden: string[] };
+    bilingual_ui?: {
+      default_locale: string;
+      supported_locales: string[];
+      ordinary_ui_policy: string;
+      language_toggle_testid: string;
+      zh_purpose_labels: string[];
+      en_purpose_labels: string[];
+      secondary_detail_allowed_technical_tags: string[];
+      ordinary_user_chrome_scope?: string[];
+      ordinary_user_chrome_forbidden_technical_tags?: string[];
+      ordinary_home_forbidden_language_mix: string[];
+    };
+    secondary_runtime_context_refs?: { authority: string; source: string; display_groups: string[]; default_placement: string; home_surface_policy: string; empty_state_policy: string; forbidden_body_display: string[]; renderer_testids: string[] };
     conversation_event_rendering?: { event_kinds: string[]; display_policy: string; forbidden_visible_protocol_copy: string[]; renderer_testids: string[] };
     webui_parity?: { shared_renderer: boolean; bridge_shape: string; product_profile: string; desktop_and_webui_default_home: string; evidence_status_field: string };
     foundry_agent_series_display_contract?: {
@@ -871,38 +873,55 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
     requiredSettingsTabs,
     `${candidate.id} evidence settings_information_architecture.visible_tabs`,
   );
-	  assertStringArrayIncludes(
-	    evidence.settings_information_architecture?.legacy_tabs_hidden ?? [],
-	    forbiddenLegacySettingsTabs,
-	    `${candidate.id} evidence settings_information_architecture.legacy_tabs_hidden`,
-	  );
-	  if (
-	    evidence.bilingual_ui?.default_locale !== 'zh'
-	    || evidence.bilingual_ui?.ordinary_ui_policy !== 'same_screen_single_language_for_user_visible_chrome'
-	    || evidence.bilingual_ui?.language_toggle_testid !== 'opl-locale-toggle'
-	  ) {
-	    throw new Error(`${candidate.id} evidence must define bilingual UI as same-screen single-language user-visible chrome`);
-	  }
-	  assertStringArrayIncludes(
-	    evidence.bilingual_ui?.supported_locales ?? [],
-	    ['zh', 'en'],
-	    `${candidate.id} evidence bilingual_ui.supported_locales`,
-	  );
-	  assertStringArrayIncludes(
-	    evidence.bilingual_ui?.zh_purpose_labels ?? [],
-	    ['科研', '基金', 'PPT'],
-	    `${candidate.id} evidence bilingual_ui.zh_purpose_labels`,
-	  );
-	  assertStringArrayIncludes(
-	    evidence.bilingual_ui?.en_purpose_labels ?? [],
-	    ['Research', 'Grant', 'Presentation'],
-	    `${candidate.id} evidence bilingual_ui.en_purpose_labels`,
-	  );
-	  assertStringArrayIncludes(
-	    evidence.bilingual_ui?.ordinary_home_forbidden_language_mix ?? [],
-	    ['Med Auto Science', 'Med Auto Grant', 'RedCube AI', 'Codex CLI', 'Local assistant'],
-	    `${candidate.id} evidence bilingual_ui.ordinary_home_forbidden_language_mix`,
-	  );
+  assertStringArrayIncludes(
+    evidence.settings_information_architecture?.legacy_tabs_hidden ?? [],
+    forbiddenLegacySettingsTabs,
+    `${candidate.id} evidence settings_information_architecture.legacy_tabs_hidden`,
+  );
+  if (
+    evidence.bilingual_ui?.default_locale !== 'zh'
+    || evidence.bilingual_ui?.ordinary_ui_policy !== 'same_screen_single_language_for_user_visible_chrome'
+    || evidence.bilingual_ui?.language_toggle_testid !== 'opl-locale-toggle'
+  ) {
+    throw new Error(`${candidate.id} evidence must define bilingual UI as same-screen single-language user-visible chrome`);
+  }
+  assertStringArrayIncludes(
+    evidence.bilingual_ui?.supported_locales ?? [],
+    ['zh', 'en'],
+    `${candidate.id} evidence bilingual_ui.supported_locales`,
+  );
+  assertStringArrayIncludes(
+    evidence.bilingual_ui?.zh_purpose_labels ?? [],
+    ['科研', '基金', 'PPT'],
+    `${candidate.id} evidence bilingual_ui.zh_purpose_labels`,
+  );
+  assertStringArrayIncludes(
+    evidence.bilingual_ui?.en_purpose_labels ?? [],
+    ['Research', 'Grant', 'Presentation'],
+    `${candidate.id} evidence bilingual_ui.en_purpose_labels`,
+  );
+  assertStringArrayIncludes(
+    evidence.bilingual_ui?.ordinary_user_chrome_scope ?? [],
+    [
+      'ordinary home topbar',
+      'chat composer',
+      'workspace/session rail',
+      'context inspector',
+      'context tabs',
+      'routing tab summaries',
+    ],
+    `${candidate.id} evidence bilingual_ui.ordinary_user_chrome_scope`,
+  );
+  assertStringArrayIncludes(
+    evidence.bilingual_ui?.ordinary_user_chrome_forbidden_technical_tags ?? [],
+    ['Codex CLI', 'MAS', 'MAG', 'RCA', '@MAS', '@MAG', '@RCA', 'app_state.actions', 'opl_app_state.v1'],
+    `${candidate.id} evidence bilingual_ui.ordinary_user_chrome_forbidden_technical_tags`,
+  );
+  assertStringArrayIncludes(
+    evidence.bilingual_ui?.ordinary_home_forbidden_language_mix ?? [],
+    ['Med Auto Science', 'Med Auto Grant', 'RedCube AI', 'Codex CLI', 'Local assistant'],
+    `${candidate.id} evidence bilingual_ui.ordinary_home_forbidden_language_mix`,
+  );
   if (
     evidence.secondary_runtime_context_refs?.authority !== 'opl_framework_refs_only_projection' ||
     evidence.secondary_runtime_context_refs?.source !== 'Runtime page and secondary context surfaces only' ||

@@ -109,11 +109,13 @@ const expectedSettingsPageSections = {
       'purpose-grouped RCA presentation capability',
       'OPL Meta Agent as explicit non-default capability',
       'required skills locked and optional skills selectable by assistant',
+      'auto-injected skills filtered to App packaged skill ids',
       'MCP and tool details as secondary support details',
     ],
     mustNotShow: [
       'Skills and Tools as the only top-level mental model',
       'AG-UI as a user-visible capability concept',
+      'AionUI implementation auto skills such as aionui-skills',
       'OPL Meta Agent as a default Home assistant',
     ],
   },
@@ -1294,6 +1296,11 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guidHomePage.home_view_model.codex_default_model, 'codex_cli_auto');
   assert.equal(guidHomePage.home_view_model.codex_default_reasoning_effort, 'xhigh');
   assert.equal(guidHomePage.home_view_model.codex_default_display_label, '自动');
+  assert.equal(guidHomePage.home_view_model.codex_default_model_display_value, 'gpt-5.5xhigh');
+  assert.equal(
+    guidHomePage.home_view_model.codex_model_status_display_policy,
+    'readonly_default_model_and_reasoning_status_without_selector',
+  );
   assert.equal(guidHomePage.home_view_model.codex_default_permission_mode, 'full-access');
   assert.equal(guidHomePage.home_view_model.permission_mode_selector_visible, false);
   assert.equal(guidHomePage.home_view_model.conversation_backend_selector_visible, false);
@@ -1323,6 +1330,14 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(
     guidHomePage.home_view_model.assistant_skill_profile_source_ref,
     'contracts/app-gui-product-contract.json#assistant_skill_profiles',
+  );
+  assert.equal(
+    guidHomePage.home_view_model.conversation_pending_feedback_policy,
+    'elapsed_seconds_visible_while_ai_processing_or_backend_running',
+  );
+  assert.equal(
+    guidHomePage.home_view_model.conversation_model_status_display_policy,
+    'same_readonly_model_status_in_codex_conversation_composer',
   );
   assert.equal(
     guidHomePage.home_view_model.route_receipt_source_ref,
@@ -1361,6 +1376,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   for (const expected of [
     'Codex CLI fixed executor experience',
     'Codex automatic model status label',
+    'readonly default model and reasoning status gpt-5.5xhigh',
+    'conversation pending elapsed seconds while Codex is working',
     'purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA',
     'selected assistant keeps purpose entry switcher visible',
     'assistant-scoped skill menu with required skill checked',
@@ -3906,7 +3923,20 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.executor_policy.home_executor_selector_visible, false);
   assert.equal(guiContract.executor_policy.executor_tab_visible_when_single_executor, false);
   assert.equal(guiContract.executor_policy.default_model_strategy, 'codex_cli_auto_latest_available_frontier');
+  assert.equal(guiContract.executor_policy.default_model_display_value, 'gpt-5.5xhigh');
   assert.equal(guiContract.executor_policy.home_model_status_label, '自动');
+  assert.equal(
+    guiContract.executor_policy.home_model_status_policy,
+    'display_readonly_default_model_and_reasoning_without_exposing_selector',
+  );
+  assert.equal(
+    guiContract.executor_policy.conversation_model_status_policy,
+    'display_same_readonly_model_status_in_codex_conversation_composer',
+  );
+  assert.equal(
+    guiContract.executor_policy.conversation_pending_feedback_policy,
+    'display_elapsed_seconds_while_ai_processing_or_backend_running',
+  );
   assert.equal(guiContract.executor_policy.precise_model_display_policy, 'technical_details_or_connected_state_only');
   assert.equal(guiContract.executor_policy.permission_mode_selector_visible_on_home, false);
   assert.equal(guiContract.executor_policy.model_selector_visible_on_new_conversation, false);
@@ -3989,6 +4019,17 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'a candidate shell should implement the same App contracts by swapping adapters/profile consumers, not by inheriting AionUI-specific product logic',
   );
   assert.equal(guiContract.pages.guid_home.hero_prompt, '把研究、基金和汇报交给 One Person Lab 自动推进');
+  assert.equal(guiContract.pages.guid_home.model_status.display_value, 'gpt-5.5xhigh');
+  assert.equal(guiContract.pages.guid_home.model_status.selector_visible, false);
+  assert.equal(
+    guiContract.pages.guid_home.conversation_feedback_policy.pending_indicator,
+    'visible elapsed seconds while request is pending or backend is running',
+  );
+  assert.equal(
+    guiContract.pages.guid_home.conversation_feedback_policy.model_status,
+    'same readonly model status appears in Codex conversation composer',
+  );
+  assert.equal(guiContract.pages.guid_home.conversation_feedback_policy.raw_trace_visible, false);
   assert.ok(guiContract.pages.guid_home.must_show.includes('single composer-first home input'));
   assert.ok(guiContract.pages.guid_home.must_show.includes('runtime/task progress available from Runtime page, not Home activity grid'));
   assert.ok(guiContract.pages.guid_home.must_not_show.includes('expanded workbench or activity refs grid on ordinary home'));
@@ -4080,6 +4121,17 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
       assert.ok(guiContract.pages[pageId].must_not_show.includes(item), `${pageId} must not show ${item}`);
     }
   }
+  assert.equal(
+    guiContract.pages.settings_capabilities.auto_injected_skills_policy.allowed_set_ref,
+    'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids',
+  );
+  assert.ok(guiContract.pages.settings_capabilities.must_show.includes('auto-injected skills filtered to App packaged skill ids'));
+  assert.ok(
+    guiContract.pages.settings_capabilities.must_not_show.includes(
+      'AionUI implementation auto skills such as aionui-skills',
+    ),
+  );
+  assert.ok(guiContract.pages.settings_capabilities.auto_injected_skills_policy.forbidden_examples.includes('aionui-skills'));
   assert.equal(guiContract.desktop_tray_policy.default_visible, true);
   assert.equal(guiContract.desktop_tray_policy.desktop_startup_behavior, 'create_tray_by_default');
   assert.equal(guiContract.desktop_tray_policy.e2e_startup_behavior, 'destroy_tray_and_disable_close_to_tray');

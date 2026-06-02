@@ -160,11 +160,13 @@ const settingsPageExpectations = {
       'purpose-grouped RCA presentation capability',
       'OPL Meta Agent as explicit non-default capability',
       'required skills locked and optional skills selectable by assistant',
+      'auto-injected skills filtered to App packaged skill ids',
       'MCP and tool details as secondary support details',
     ],
     must_not_show: [
       'Skills and Tools as the only top-level mental model',
       'AG-UI as a user-visible capability concept',
+      'AionUI implementation auto skills such as aionui-skills',
       'OPL Meta Agent as a default Home assistant',
     ],
   },
@@ -959,6 +961,8 @@ function validateActiveShellImplementation(shellPaths) {
   for (const expected of [
     "document.title = 'One Person Lab App'",
     "t('conversation.welcome.placeholder')",
+    'getOplModelStatusDisplayText',
+    "data-testid='opl-home-model-status'",
     "t('guid.postInstallSelfCheck.prompt'",
     'POST_INSTALL_SELF_CHECK_PROMPT_DEFAULTS',
     'postInstallSelfCheckRequested',
@@ -1187,13 +1191,34 @@ function validateActiveShellImplementation(shellPaths) {
   const acpSendBox = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpSendBox.tsx');
   for (const expected of [
     'isOplCodexCliFixedExecutor',
+    'getOplModelStatusDisplayText',
+    "data-testid='opl-conversation-model-status'",
     'shouldShowOplConversationPermissionModeSelector',
     "backend === 'codex'",
     'const showModeSelector',
     'showModeSelector ?',
+    '<ThoughtDisplay running={isBusy}',
   ]) {
     if (!acpSendBox.includes(expected)) {
       throw new Error(`Active shell ordinary Codex conversation must hide permission selector ${expected}`);
+    }
+  }
+
+  const thoughtDisplay = readShellText(shellPaths, 'packages/desktop/src/renderer/components/chat/ThoughtDisplay.tsx');
+  for (const expected of ['formatElapsedTime', "t('conversation.chat.processing')", 'elapsedTime']) {
+    if (!thoughtDisplay.includes(expected)) {
+      throw new Error(`Active shell ThoughtDisplay must expose elapsed processing feedback ${expected}`);
+    }
+  }
+
+  const skillsHubSettings = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/SkillsHubSettings.tsx');
+  for (const expected of [
+    'getOplDefaultPackagedCodexSkills',
+    'appPackagedSkills',
+    'autoSkills.filter((skill) => appPackagedSkills.has(skill.name))',
+  ]) {
+    if (!skillsHubSettings.includes(expected)) {
+      throw new Error(`Active shell SkillsHubSettings must filter upstream auto skills through App packaged policy ${expected}`);
     }
   }
 
@@ -2262,6 +2287,24 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (!pages.guid_home.must_show?.includes('selected assistant shown as a compact @ purpose tag')) {
     throw new Error('App GUI home must show selected assistant as a compact @ purpose tag');
   }
+  if (pages.guid_home.model_status?.display_value !== 'gpt-5.5xhigh') {
+    throw new Error('App GUI home must display the readonly default model and reasoning status');
+  }
+  if (pages.guid_home.model_status?.selector_visible !== false) {
+    throw new Error('App GUI home model status must not become a selector');
+  }
+  if (
+    pages.guid_home.conversation_feedback_policy?.pending_indicator !==
+    'visible elapsed seconds while request is pending or backend is running'
+  ) {
+    throw new Error('App GUI conversation must show elapsed seconds while Codex is working');
+  }
+  if (
+    pages.guid_home.conversation_feedback_policy?.model_status !==
+    'same readonly model status appears in Codex conversation composer'
+  ) {
+    throw new Error('App GUI conversation must show the same readonly model status');
+  }
   if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
     throw new Error('App GUI home must keep OMA out of default home entries');
   }
@@ -2305,6 +2348,17 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     assertIncludesAll(page.must_show, expected.must_show, `App GUI ${pageId} must_show`);
     assertIncludesAll(page.must_not_show, expected.must_not_show, `App GUI ${pageId} must_not_show`);
   }
+  if (
+    pages.settings_capabilities.auto_injected_skills_policy?.allowed_set_ref !==
+    'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids'
+  ) {
+    throw new Error('Settings Capabilities must filter auto-injected skills through the App packaged skill set');
+  }
+  assertIncludesAll(
+    pages.settings_capabilities.auto_injected_skills_policy?.forbidden_examples,
+    ['aionui-skills', 'aionui-webui-setup', 'skill-creator'],
+    'Settings Capabilities forbidden upstream auto skills',
+  );
   validateOplFlowContext(guiContract.opl_flow_context, 'App GUI OPL Flow Context');
   if (!pages.settings_advanced.sections?.includes('opl_flow_context')) {
     throw new Error('Settings Advanced sections must include opl_flow_context');

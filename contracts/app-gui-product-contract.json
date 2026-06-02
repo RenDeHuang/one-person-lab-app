@@ -143,9 +143,12 @@
     "default_model": "gpt-5.5",
     "default_model_strategy": "codex_cli_auto_latest_available_frontier",
     "default_reasoning_effort": "xhigh",
+    "default_model_display_value": "gpt-5.5xhigh",
     "home_model_status_label": "自动",
     "home_model_status_label_en": "Auto",
-    "home_model_status_policy": "display_auto_only_until_codex_cli_connected",
+    "home_model_status_policy": "display_readonly_default_model_and_reasoning_without_exposing_selector",
+    "conversation_model_status_policy": "display_same_readonly_model_status_in_codex_conversation_composer",
+    "conversation_pending_feedback_policy": "display_elapsed_seconds_while_ai_processing_or_backend_running",
     "precise_model_display_policy": "technical_details_or_connected_state_only",
     "default_permission_mode": "full-access",
     "permission_mode_selector_visible_on_home": false,
@@ -605,9 +608,22 @@
       "purpose_entry_source_ref": "home_purpose_entries",
       "assistant_skill_profile_source_ref": "assistant_skill_profiles",
       "hero_prompt": "把研究、基金和汇报交给 One Person Lab 自动推进",
+      "model_status": {
+        "value_source": "default_session_profile.model + default_session_profile.reasoning_effort",
+        "display_value": "gpt-5.5xhigh",
+        "placement": "compact readonly status near Home composer",
+        "selector_visible": false
+      },
+      "conversation_feedback_policy": {
+        "pending_indicator": "visible elapsed seconds while request is pending or backend is running",
+        "model_status": "same readonly model status appears in Codex conversation composer",
+        "raw_trace_visible": false
+      },
       "must_show": [
         "Codex CLI fixed executor experience",
         "Codex automatic model status label",
+        "readonly default model and reasoning status gpt-5.5xhigh",
+        "conversation pending elapsed seconds while Codex is working",
         "purpose-first assistants Research/Grant/PPT as click-to-start entries",
         "selected assistant shown as a compact @ purpose tag",
         "selected assistant keeps purpose entry switcher visible",
@@ -861,13 +877,25 @@
         "purpose-grouped RCA presentation capability",
         "OPL Meta Agent as explicit non-default capability",
         "required skills locked and optional skills selectable by assistant",
+        "auto-injected skills filtered to App packaged skill ids",
         "MCP and tool details as secondary support details"
       ],
       "must_not_show": [
         "Skills and Tools as the only top-level mental model",
         "AG-UI as a user-visible capability concept",
+        "AionUI implementation auto skills such as aionui-skills",
         "OPL Meta Agent as a default Home assistant"
-      ]
+      ],
+      "auto_injected_skills_policy": {
+        "source": "AionUI shell builtin-auto list filtered by App product profile default_packaged_codex_skill_ids",
+        "allowed_set_ref": "contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids",
+        "forbidden_examples": [
+          "aionui-skills",
+          "aionui-webui-setup",
+          "skill-creator"
+        ],
+        "display_role": "App packaged support detail only, not upstream shell implementation inventory"
+      }
     },
     "settings_environment": {
       "state_source": "opl app state --profile fast --json",

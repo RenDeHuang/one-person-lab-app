@@ -81,13 +81,15 @@ OPL App 普通界面必须支持中文和英文两套 UI copy。默认语言可�
 切换语言只改变 UI labels、aria labels、empty states、状态文案和普通产品提示，不
 改变 workspace、thread、route receipt、runtime state 或 domain authority。
 
-普通用户层 chrome 必须按当前语言完整呈现。普通中文 first screen 使用
+普通用户层 chrome 必须按当前语言完整呈现。这里的普通用户层包括 Home topbar、
+chat composer、workspace/session rail、右侧 inspector 默认 summary、context tabs
+和 Routing tab summary。普通中文 first screen 使用
 `科研`、`基金`、`PPT`、`本机助手`、`自动` 这类中文工作标签；英文 UI 中使用
 `Research`、`Grant`、`Presentation`、`Local assistant`、`Auto`。`OPL` 和
 `Codex` 可作为产品/执行器品牌保留，但 `Codex CLI`、`MAS`、`MAG`、`RCA`、
 `OMA`、命令片段、schema id、receipt id、文件路径和用户/系统原始输出应进入
-右侧 inspector、details、Settings、diagnostics、logs 或 developer evidence，
-不要成为中文普通首页的主要视觉文本。
+details、Settings、diagnostics、logs、developer evidence 或原始输出区域，不要
+成为中文普通首页、composer、rail 或 inspector summary 的主要视觉文本。
 
 技术长名如 Med Auto Science、Med Auto Grant、RedCube AI 可以进入英文界面、
 details、Settings 或 diagnostics；中文普通 first screen 应优先使用短标签和中文
@@ -106,6 +108,8 @@ Chat canvas 是产品重心。
   或可展开 refs 出现。
 - Error 出现在失败 turn 内，并在存在 App-owned action 时暴露恢复动作。
 - Permission 和 user-input prompt 留在 conversation flow 中。
+- Assistant 正在处理时必须有可见等待反馈，并显示已经等待的秒数；即使
+  thinking/tool event 已开始，普通用户也应持续看到 App 正在工作。
 - Raw adapter frame、AG-UI event name、ACP wire detail 和 shell diagnostic
   留在 developer 或 diagnostic surface。
 
@@ -121,6 +125,9 @@ Composer 是紧凑的 Codex-style command surface：
 - File/folder attach、mention/ref insertion、context usage、send、stop 都是
   直接控件。
 - 可以切换 purpose，但不暴露 backend 或 provider choice。
+- Model 信息是只读状态，不是选择器。Home 和 Codex conversation composer
+  都应紧凑显示默认模型与推理强度，例如 `gpt-5.5xhigh`；状态来源是
+  App product profile，不来自 shell-local provider policy。
 - Send 状态明确：idle、running、stopping、blocked、failed。
 - Composer 支持 keyboard-only navigation。
 
@@ -229,6 +236,11 @@ surface 继续维护。
 Model、agent、assistants、skills-hub、tools、display、WebUI、pet 等 legacy
 或 upstream settings categories 路由到 App-owned pages 或 diagnostics。它们
 不能成为普通产品 tabs。
+
+Agents & Capabilities 主视图按科研、基金、PPT 和显式 OPL Meta Agent 组织。
+自动注入技能只能显示 App product profile 的 packaged skill whitelist 里的
+技能；`aionui-skills`、`aionui-webui-setup`、`skill-creator` 等 AionUI
+implementation helper 不进入普通能力页。
 
 Project progress 是 runtime/work context surface，不属于 Settings
 information architecture。Local Environment 展示 Codex CLI、Temporal、

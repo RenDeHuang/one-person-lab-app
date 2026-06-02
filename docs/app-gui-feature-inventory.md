@@ -27,7 +27,9 @@ Codex App 变成 OPL App 的产品增量看
 理想 OPL App GUI 是 Codex App 形态的 chat-first desktop surface：
 
 - 从已选 workspace directory 开始 conversation。
-- 固定 Codex CLI 作为 executor，并把 model status 显示为 automatic。
+- 固定 Codex CLI 作为 executor，并把 model status 显示为只读状态。状态必须
+  从 App product profile 派生默认模型和推理强度，例如 `gpt-5.5xhigh`，不能
+  恢复为普通 model picker。
 - Home entries 路由到 OPL capabilities：Research/MAS、Grant/MAG、
   Presentation/RCA。
 - 第一屏保持 chat-first，不出现 dashboard 或解释性 landing page copy。
@@ -70,13 +72,16 @@ App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent da
 - 提供右侧 contextual inspector tabs：Files、Skills/Capabilities、
   Routing/runtime refs、Memory refs、Always-On/Automations、Settings；这些
   tabs 不能和主 chat canvas 竞争。
-- MAS/MAG/RCA 是 Codex 之上的 built-in purpose entries，用 compact tags 和
-  route receipts 表示，而不是 separate backend choices。
+- MAS/MAG/RCA 是 Codex 之上的 built-in purpose entries。普通 chrome 使用
+  `科研`、`基金`、`PPT` 或 `Research`、`Grant`、`Presentation`，route receipts
+  和 technical refs 再记录 MAS/MAG/RCA，不把它们当 separate backend choices。
 - UI labels、empty states、button titles、aria labels、first-run、runtime、
   activity 和 settings copy 有中文/英文两套显示；切换语言不改变 runtime truth、
   route receipt 或 workspace/thread state。
 - Backend、model、provider、permission mode selectors 不进入普通 home 和
   conversation flows。
+- Codex conversation composer 仍要显示同一个只读 model status，并在
+  pending/running 时显示已经等待的秒数。
 - Desktop Electron 和 WebUI surfaces 使用同一套 App product truth。
 
 WebUI 目标与 Electron candidate 共享同一个 React/CopilotKit renderer。Electron
@@ -106,8 +111,9 @@ OPL 不能复制或 vendoring PilotDeck 代码。可复用经验是信息组织�
   long-running work views 是 chat 背后或旁边的 contextual surfaces，不是和
   conversation 竞争的 first-screen panels。
 - Composer 用紧凑 controls 表达 mode、attachments、mentions、context usage 和
-  send state。OPL 应保留这种密度，但用 App-owned MAS/MAG/RCA purpose tags、
-  file attachment、refs 和 Codex status 替代 mode 和 permission controls。
+  send state。OPL 应保留这种密度，但普通界面使用 App-owned purpose labels、
+  file attachment、refs 和 Codex status 替代 mode、permission controls 和
+  `@MAS`/`@MAG`/`@RCA` 技术标签。
 
 OPL adaptation 故意比 PilotDeck 窄。OPL 保持 Codex app-server 作为 primary
 backend，App-owned purpose routing 作为普通路径，OPL Framework/domain
@@ -155,7 +161,8 @@ secondary context，不在 composer 附近显示 compact entry。
 - Codex 运行中展示 streaming 或 pending assistant state。
 - Assistant replies 保持在可读 chat thread 中。
 - 不离开 conversation 也可以切换 purpose routing。
-- 选中的 purpose route 以 compact `@` tag 保留。
+- 选中的 purpose route 以普通语言标签保留；`@MAS`、`@MAG`、`@RCA` 只作为
+  route receipt 或 diagnostics 技术信息。
 - Conversation history 可从 navigation rail 访问。
 - 支持 pop-out 或可收起右侧 Copilot panel 作为 secondary context。
 - Backend 发出 safe tool、process、diff、file/context events 时展示这些事件，
@@ -167,6 +174,8 @@ secondary context，不在 composer 附近显示 compact entry。
 - Composer 保持高密度且面向工作：purpose tag、file attach、mention/ref
   insertion、context status、send/stop state 要能共存，同时不把 composer 变成
   backend settings panel。
+- Composer 的运行反馈必须能被用户直接看见：发送后显示处理中状态和 elapsed
+  seconds，直到 response 完成、停止或失败。
 
 ## OPL Capability Entries
 
@@ -192,6 +201,8 @@ secondary context，不在 composer 附近显示 compact entry。
 - Module 和 path 只作为 refs 展示，不取得 runtime 或 domain authority。
 - Settings sections 是 General、Access、Agents & Capabilities、Local
   Environment、Appearance、Advanced、About & Updates。
+- Agents & Capabilities 的自动注入技能只展示 App packaged skill whitelist 中
+  的技能；AionUI implementation helper 如 `aionui-skills` 不作为 OPL 能力展示。
 - Update state 和 release channel labels 本地化。
 - Runtime、memory、automations、files、capabilities 作为可收起 contextual
   tabs 或 inspector surfaces 展示，并 scoped 到 selected workspace/conversation。
@@ -221,8 +232,10 @@ secondary context，不在 composer 附近显示 compact entry。
   redirects、bridge calls、局部 renderer 组合、CSS/i18n 和 focused tests。
 - 实现 App-owned bilingual copy policy：普通 UI 在中文/英文下分别一致呈现，
   中文普通首页不混入 `Med Auto Science`、`Med Auto Grant`、`RedCube AI`、
-  `Codex CLI`、`Local assistant` 这类英文技术/产品文案；协议或 backend 名称不
-  进入 ordinary chat surface。
+  `Codex CLI`、`Local assistant` 这类英文技术/产品文案；workspace rail、composer、
+  context inspector 和 routing summary 也不得混入 `MAS`、`MAG`、`RCA`、
+  `app_state.actions`、`opl_app_state.v1` 等技术标签；协议或 backend 名称不进入
+  ordinary chat surface。
 - 新 Home/Settings/capability/runtime/first-run 产品行为先进入 App contract，
   再进入 shell implementation。
 - 声称 WebUI support 时，使用与 Electron shell 相同的 renderer 和 App-owned

@@ -136,10 +136,14 @@ assistant reply 可见为 `OK`。
   SSE Codex app-server events、Settings IA、secondary activity refs surface、
   conversation event rendering 和 default-collapsed home parity。
 - Source UI smoke 把普通 home 绘制为 chat-first canvas，stage class 同时包含
-  `without-rail` 和 `without-inspector`，展示 MAS/MAG/RCA purpose entries，并
+  `without-rail` 和 `without-inspector`，展示 `科研`/`基金`/`PPT` purpose entries，并
   收到 Codex app-server 的 `OK`。当前 App contract 要求普通 home 不显示 runtime
   activity、continue-work、per-agent running badges 或 footer quick icons；refs
   只能进入 Runtime 或 secondary context。
+- Source UI smoke 还必须打开 workspace/session rail、右侧 inspector 和 Routing
+  tab，证明普通用户层 chrome 在中文状态下仍使用 `科研`、`基金`、`PPT`、`本机助手`、
+  `本机能力`、`自动`、`状态投影` 等用户层文案，不显示 `Codex CLI`、`MAS`、`MAG`、
+  `RCA`、`app_state.actions`、`opl_app_state.v1`、AG-UI/ACP/app-server 等技术标签。
 - App-wrapper packaging 产出可启动 `.app`，包含 `Contents/Info.plist` 和
   `Contents/MacOS` executable。
 - Packaged UI smoke 针对 `.app` bundle 通过，并证明同样的 default-collapsed
@@ -152,7 +156,9 @@ assistant reply 可见为 `OK`。
   drilldown 和 safe App action dry-run evidence 写入 candidate smoke evidence 和
   package manifest。
 - Ordinary chat UI 展示 OPL chat surface 和 CopilotKit-backed chat surface，不显示
-  AG-UI protocol/debug dashboard copy。
+  AG-UI protocol/debug dashboard copy。`Codex CLI`、`MAS`、`MAG`、`RCA` 和命令/schema
+  id 只进入 route receipt、diagnostics、developer evidence 或原始详情，不作为普通
+  chrome 的主要文案。
 - Backend、model、permission selectors 不进入 ordinary home 和 conversation
   paths。
 
@@ -183,7 +189,8 @@ Candidate 可以端到端验证而不改变当前 release。只有明确修改
   `purpose_labels=["科研","基金","PPT"]`、
   `home_stage_class_name="stage-shell without-rail without-inspector"`、
   `home_continue_work_visible=false`、`home_runtime_activity_visible=false`、
-  `bilingual_ui_status=passed`、`locale_switch_status=passed`、
+  `bilingual_ui_status=passed`、`locale_switch_status=passed`，并覆盖
+  expanded rail/inspector 与 Routing tab 的中文用户层文案检查；
   `codex_app_server_turn_status=passed` 和 `last_assistant_text="OK"`。
 - Package 之后重新运行 packaged UI smoke：
   `./out/One Person Lab AG-UI Codex Candidate.app/Contents/MacOS/One Person Lab AG-UI Codex Candidate --ui-smoke-test`。

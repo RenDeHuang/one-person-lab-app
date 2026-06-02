@@ -66,7 +66,9 @@ OPL App 隐藏或重构通用 agent app 控件：
 
 - 普通路径隐藏 executor selection；Codex CLI 是固定 executor。
 - 普通路径隐藏 backend 和 provider selection。
-- Model override list 不是普通控件；model status 自动展示。
+- Model override list 不是普通控件；model status 作为只读状态展示默认模型和
+  推理强度，例如 `gpt-5.5xhigh`，并在 Home 与 Codex conversation composer
+  保持一致。
 - Permission-mode selection 不是普通 composer UI。
 - AG-UI、ACP、app-server events、adapter frames 等 raw protocol names 只在
   diagnostics 中出现。
@@ -99,6 +101,9 @@ Codex App 有 skills 和 tools。OPL App 增加 App-owned skill exposure policy�
 - 每个 purpose 有一个 required domain skill：`mas`、`mag` 或 `rca`。
 - Companion skills 通过一份 App whitelist 打包，不区分来源是 AionUI、
   Skills Manager、本地 Codex skills 还是 plugin payloads。
+- Settings 里的自动注入技能也必须按同一 App whitelist 过滤；AionUI
+  implementation helper 如 `aionui-skills`、`aionui-webui-setup` 和
+  `skill-creator` 不应作为 OPL App 普通能力显示。
 - Plugin packaging 是 distribution shell；`skill` 仍是 public semantic ABI。
 - MAS/MAG/RCA 作为 plugins 打包时，不能再镜像成裸
   `~/.codex/skills/{mas,mag,rca}`。
@@ -129,6 +134,10 @@ Codex App 展示 process 和 tool state。OPL App 增加 Framework-backed runtim
   Runtime 页、右侧 inspector、drawer 或其他 secondary context surface。
 - `domain_lane_map.active_task_count`、`module_runtime dirty`、module readiness 和
   assistant purpose cards 不能作为 running task truth。
+
+Conversation 自身的工作反馈继承 Codex App 的 expectation：用户发送消息后，
+pending/running 状态必须有可见等待反馈和秒数，而不是只依赖后台处理、console
+trace 或 raw event stream。
 
 GUI 应让当前工作可理解，但不能声称 domain truth。例如 platform repair 显示为
 infrastructure repair，而不是 manuscript 或 deliverable progress。
@@ -185,7 +194,8 @@ Continue-work 详细列表也属于次级 surface。OPL App 可以让用户从 c
 
 - 普通 purpose entries 使用 `科研`、`基金`、`PPT`。
 - 英文 UI 中对应显示 `Research`、`Grant`、`Presentation`。
-- MAS/MAG/RCA 可作为紧凑 route tags 和 technical refs。
+- MAS/MAG/RCA 是 route receipt 和 technical refs；普通 chrome 使用
+  `科研`、`基金`、`PPT` 或 `Research`、`Grant`、`Presentation`。
 - 中文普通首页用 `本机助手 / 自动` 作为紧凑状态，英文界面用
   `Local assistant / Auto`；`Codex CLI` 可进入二级技术详情或 diagnostics，
   不作为中文 first-screen 的主要状态文案。
@@ -196,7 +206,8 @@ Continue-work 详细列表也属于次级 surface。OPL App 可以让用户从 c
 - 普通 UI 支持中文/英文两套界面 copy。同一屏用户层 chrome 必须使用同一语言。
   `OPL` 和 `Codex` 可作为产品/执行器品牌保留；`Codex CLI`、`MAS`、`MAG`、
   `RCA`、命令、receipt id、路径和用户原文进入二级详情、diagnostics 或原文输出，
-  不应让中文普通首页看起来像随机中英混排。
+  不应让中文普通首页、composer、workspace rail、context inspector 或 routing
+  summary 看起来像随机中英混排。
 - 中文普通 first screen 优先使用短标签和中文工作意图，不把 Med Auto Science、
   Med Auto Grant、RedCube AI 这类英文长名作为主要视觉文本；这些长名可在英文界面、
   details、Settings 或 diagnostics 中出现。

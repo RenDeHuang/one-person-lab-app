@@ -26,6 +26,8 @@
         "codex_default_model": "codex_cli_auto",
         "codex_default_reasoning_effort": "xhigh",
         "codex_default_display_label": "自动",
+        "codex_default_model_display_value": "gpt-5.5xhigh",
+        "codex_model_status_display_policy": "readonly_default_model_and_reasoning_status_without_selector",
         "codex_precise_model_display_policy": "technical_details_or_connected_state_only",
         "codex_default_permission_mode": "full-access",
         "permission_mode_selector_visible": false,
@@ -51,6 +53,8 @@
         "assistant_source_ref": "contracts/app-gui-product-contract.json#default_assistants",
         "purpose_entry_source_ref": "contracts/app-gui-product-contract.json#home_purpose_entries",
         "assistant_skill_profile_source_ref": "contracts/app-gui-product-contract.json#assistant_skill_profiles",
+        "conversation_pending_feedback_policy": "elapsed_seconds_visible_while_ai_processing_or_backend_running",
+        "conversation_model_status_display_policy": "same_readonly_model_status_in_codex_conversation_composer",
         "route_receipt_source_ref": "contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy",
         "route_receipt_required_fields": [
           "route_kind",
@@ -131,6 +135,8 @@
       "must_show": [
         "Codex CLI fixed executor experience",
         "Codex automatic model status label",
+        "readonly default model and reasoning status gpt-5.5xhigh",
+        "conversation pending elapsed seconds while Codex is working",
         "purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA",
         "selected assistant shown as a compact @ purpose tag",
         "selected assistant keeps purpose entry switcher visible",
@@ -792,17 +798,28 @@
         "modules",
         "tools"
       ],
+      "auto_injected_skills_policy": {
+        "source": "active shell builtin-auto list filtered by App product profile packaged skills",
+        "allowed_set_ref": "contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids",
+        "forbidden_examples": [
+          "aionui-skills",
+          "aionui-webui-setup",
+          "skill-creator"
+        ]
+      },
       "must_show": [
         "purpose-grouped MAS research capability",
         "purpose-grouped MAG grant capability",
         "purpose-grouped RCA presentation capability",
         "OPL Meta Agent as explicit non-default capability",
         "required skills locked and optional skills selectable by assistant",
+        "auto-injected skills filtered to App packaged skill ids",
         "MCP and tool details as secondary support details"
       ],
       "must_not_show": [
         "Skills and Tools as the only top-level mental model",
         "AG-UI as a user-visible capability concept",
+        "AionUI implementation auto skills such as aionui-skills",
         "OPL Meta Agent as a default Home assistant"
       ]
     },
