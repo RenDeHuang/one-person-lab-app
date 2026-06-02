@@ -1873,6 +1873,7 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeAssistantRouteSmokeScreenshots(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
@@ -2151,9 +2152,10 @@ test('release evidence bundle validator classifies typed blockers and not-applic
   writeRuntimeEvidenceJsonFiles(tempRoot);
   writeVmSmokeSummaryFiles(tempRoot);
   writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeAssistantRouteSmokeScreenshots(tempRoot);
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
 
   const blocked = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -2175,7 +2177,7 @@ test('release evidence bundle validator classifies typed blockers and not-applic
   const payload = JSON.parse(allowed.stdout);
   assert.equal(payload.status, 'missing_evidence');
   assert.equal(payload.packaged_app_evidence, false);
-  assert.equal(payload.verified_artifact_count, 10);
+  assert.equal(payload.verified_artifact_count, 14);
   assert.equal(payload.missing_artifact_count, 2);
   assert.deepEqual(
     payload.missing_artifacts.map((artifact) => [artifact.id, artifact.status]),
@@ -2198,9 +2200,9 @@ test('release evidence manifest generator applies explicit artifact classificati
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-classified-generated-'));
   const classificationPath = path.join(tempRoot, 'artifact-classifications.json');
   writeRuntimeEvidenceJsonFiles(tempRoot);
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
   writeFile(path.join(classificationPath), `${JSON.stringify({
     artifact_classifications: [
       {
@@ -2238,6 +2240,10 @@ test('release evidence manifest generator applies explicit artifact classificati
       ['first_run_vm_summary', 'typed_blocker'],
       ['guest_smoke_summary', 'not_applicable'],
       ['assistant_route_smoke_summary', 'missing'],
+      ['codex_functional_check_summary', 'missing'],
+      ['assistant_route_smoke_mas_screenshot', 'missing'],
+      ['assistant_route_smoke_mag_screenshot', 'missing'],
+      ['assistant_route_smoke_rca_screenshot', 'missing'],
       ['remote_release_verification', 'missing'],
     ],
   );
@@ -3581,11 +3587,12 @@ This release makes a clean OPL install more useful immediately by shipping refre
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   const notes = payload.release_notes;
+  const publicNotes = stripLocalizedReleaseNotesForTest(notes);
   assert.match(notes, /One Person Lab 26\.5\.18/);
-  assert.match(notes, /What changed/);
+  assert.match(notes, /What improved/);
   assert.match(notes, /Release scope/);
-  assert.match(notes, /Standard macOS arm64 updater package and Full clean-install DMG/);
-  assert.match(notes, /Bundled OPL runtime and agent versions/);
+  assert.match(notes, /Standard macOS arm64 updater package plus Full clean-install DMG/);
+  assert.match(notes, /OPL agents and runtime payload/);
   assert.match(notes, /MAS @ 1111111/);
   assert.match(notes, /MAG @ 2222222/);
   assert.match(notes, /RCA @ 3333333/);
@@ -3595,7 +3602,7 @@ This release makes a clean OPL install more useful immediately by shipping refre
   assert.doesNotMatch(notes, /Release focus/);
   assert.doesNotMatch(notes, /Update channel guidance/);
   assert.doesNotMatch(notes, /Full first-install package/);
-  assert.doesNotMatch(notes, /[\u3400-\u9fff]/);
+  assert.doesNotMatch(publicNotes, /[\u3400-\u9fff]/);
 });
 
 test('publish rejects Full notes when OPL Meta Agent release-note metadata is missing', () => {

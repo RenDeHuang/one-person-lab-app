@@ -34,6 +34,7 @@ type ManifestArtifact = EvidenceArtifact & {
   reason?: string;
   missing_reason?: string;
   typed_blocker_ref?: string;
+  typed_blocker_path?: string;
   not_applicable_reason?: string;
 };
 
@@ -536,8 +537,8 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
     optionalDiagnostics: (optionalDiagnostics ?? []) as EvidenceArtifact[],
     imageEvidencePolicy,
     typedBlockerPolicy: {
-      root: record.missing_evidence_policy.typed_blocker_root as string,
-      requiredFields: typedBlockerRequires as string[],
+      root: 'typed-blockers/',
+      requiredFields: typedBlockerRequirements as string[],
     },
   };
 }
@@ -575,6 +576,19 @@ function validateManifestArtifact(manifestArtifact: unknown, expected: EvidenceA
     if (typeof artifact.not_applicable_reason !== 'string' || !artifact.not_applicable_reason.trim()) {
       throw new Error(`Manifest artifact ${expected.id} not_applicable must include not_applicable_reason.`);
     }
+  }
+  return artifact as ManifestArtifact;
+}
+
+function validateDiagnosticArtifact(manifestArtifact: unknown, expected: EvidenceArtifact): ManifestArtifact {
+  const artifact = asRecord(manifestArtifact, `diagnostic artifact ${expected.id}`);
+  for (const key of ['id', 'path', 'kind', 'producer', 'source_kind'] as const) {
+    if (artifact[key] !== expected[key]) {
+      throw new Error(`Diagnostic artifact ${expected.id}.${key} must match release contract.`);
+    }
+  }
+  if (artifact.status !== 'present') {
+    throw new Error(`Diagnostic artifact ${expected.id}.status must be present when declared.`);
   }
   return artifact as ManifestArtifact;
 }
@@ -665,8 +679,9 @@ function validateBlockedEvidenceList(
   manifest: Record<string, unknown>,
   blockedArtifacts: ManifestArtifact[],
   policy: TypedBlockerPolicy,
+  options: { validateFiles: boolean } = { validateFiles: true },
 ) {
-  const blockedEvidence = manifest.blocked_evidence;
+  const blockedEvidence = manifest.blocked_evidence ?? [];
   if (!Array.isArray(blockedEvidence)) {
     throw new Error('Evidence manifest must declare blocked_evidence array.');
   }
@@ -688,6 +703,18 @@ function validateBlockedEvidenceList(
     }
     if (!artifact.typed_blocker_path.startsWith(policy.root)) {
       throw new Error(`Blocked artifact ${artifact.id} typed_blocker_path must stay under ${policy.root}.`);
+    }
+    if (!options.validateFiles) {
+      return {
+        id: artifact.id,
+        path: artifact.path,
+        kind: artifact.kind,
+        producer: artifact.producer,
+        source_kind: artifact.source_kind,
+        status: artifact.status,
+        typed_blocker_path: artifact.typed_blocker_path,
+        typed_blocker_ref: artifact.typed_blocker_ref,
+      };
     }
     const blockerRef = validateTypedBlockerFile(resolveBundlePath(bundleDir, artifact.typed_blocker_path), artifact, policy);
     return {
@@ -762,6 +789,8 @@ function validateBundle(bundleDir: string, options: Options) {
   const verifiedDiagnostics: ManifestArtifact[] = [];
   const missing: ManifestArtifact[] = [];
   const blocked: ManifestArtifact[] = [];
+  const deferredPresent: ManifestArtifact[] = [];
+  let blockedEvidence: ReturnType<typeof validateBlockedEvidenceList> = [];
 
   for (const expected of contract.artifacts) {
     const entry = manifestArtifacts.get(expected.id);
@@ -769,12 +798,16 @@ function validateBundle(bundleDir: string, options: Options) {
       throw new Error(`Evidence manifest is missing artifact ${expected.id}`);
     }
     const artifact = validateManifestArtifact(entry, expected);
+    if (artifact.status === 'typed_blocker' && typeof artifact.typed_blocker_path === 'string') {
+      blocked.push(artifact);
+      continue;
+    }
     if (artifact.status !== 'present') {
       missing.push(artifact);
       continue;
     }
-    if (artifact.status === 'blocked') {
-      blocked.push(artifact);
+    if ((manifest.status === 'missing_evidence' || manifest.status === 'blocked_evidence') && !options.allowMissingEvidence) {
+      deferredPresent.push(artifact);
       continue;
     }
 
@@ -810,8 +843,6 @@ function validateBundle(bundleDir: string, options: Options) {
     verifiedDiagnostics.push(artifact);
   }
 
-  const blockedEvidence = validateBlockedEvidenceList(bundleDir, manifest, blocked, contract.typedBlockerPolicy);
-
   if (missing.length > 0 || blocked.length > 0) {
     const expectedStatus = blocked.length > 0 ? 'blocked_evidence' : 'missing_evidence';
     if (manifest.status !== expectedStatus) {
@@ -821,6 +852,7 @@ function validateBundle(bundleDir: string, options: Options) {
       throw new Error('Evidence manifest must set packaged_app_evidence=false while evidence is missing or blocked.');
     }
     validateMissingEvidenceList(manifest, missing);
+    blockedEvidence = validateBlockedEvidenceList(bundleDir, manifest, blocked, contract.typedBlockerPolicy, { validateFiles: false });
     if (!options.allowMissingEvidence) {
       throw new Error(
         `Release evidence bundle is missing or blocked and cannot be used as packaged App evidence: ${[
@@ -829,6 +861,20 @@ function validateBundle(bundleDir: string, options: Options) {
         ].join(', ')}`,
       );
     }
+    for (const artifact of deferredPresent) {
+      const filePath = resolveBundlePath(bundleDir, artifact.path);
+      if (artifact.kind === 'json') {
+        validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id));
+      } else if (artifact.kind === 'image') {
+        assertImageFile(filePath, artifact.id, contract.imageEvidencePolicy);
+      } else if (artifact.kind === 'log') {
+        assertLogFile(filePath, artifact.id);
+      } else {
+        throw new Error(`Unsupported operator evidence artifact kind: ${artifact.kind}`);
+      }
+      verified.push(artifact);
+    }
+    blockedEvidence = validateBlockedEvidenceList(bundleDir, manifest, blocked, contract.typedBlockerPolicy);
   } else {
     if (manifest.status !== 'passed') {
       throw new Error('Evidence manifest status must be passed when all required artifacts are present.');

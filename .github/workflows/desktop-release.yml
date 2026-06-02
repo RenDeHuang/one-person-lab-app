@@ -45,6 +45,7 @@ on:
 permissions:
   contents: write
   actions: read
+  models: read
   packages: write
 
 concurrency:

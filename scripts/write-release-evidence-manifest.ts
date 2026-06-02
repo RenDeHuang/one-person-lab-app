@@ -140,6 +140,28 @@ function readArtifactClassifications(classificationPath) {
   return classifications;
 }
 
+function readTypedBlocker(bundleDir, artifact) {
+  const blockerPath = resolveBundlePath(bundleDir, path.join('typed-blockers', `${artifact.id}.json`));
+  if (!fs.existsSync(blockerPath)) {
+    return null;
+  }
+  const blocker = readJson(blockerPath);
+  if (!blocker || typeof blocker !== 'object' || Array.isArray(blocker)) {
+    throw new Error(`Typed blocker ${artifact.id} must be a JSON object.`);
+  }
+  const reason = String(blocker.reason ?? '');
+  const typedBlockerRef = String(blocker.typed_blocker_ref ?? '');
+  if (!reason.trim() || !typedBlockerRef.trim()) {
+    throw new Error(`Typed blocker ${artifact.id} must include reason and typed_blocker_ref.`);
+  }
+  return {
+    status: 'typed_blocker',
+    reason,
+    typed_blocker_ref: typedBlockerRef,
+    typed_blocker_path: path.join('typed-blockers', `${artifact.id}.json`),
+  };
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const releaseContract = readJson(releaseContractPath);
@@ -150,6 +172,9 @@ function main() {
   if (!Array.isArray(bundle.required_artifacts)) {
     throw new Error('Release evidence bundle contract must declare required_artifacts.');
   }
+  const optionalDiagnosticArtifacts = Array.isArray(bundle.optional_diagnostic_artifacts)
+    ? bundle.optional_diagnostic_artifacts
+    : [];
   const classifications = readArtifactClassifications(options.classificationPath);
   const artifactIds = new Set(bundle.required_artifacts.map((artifact) => artifact.id));
   const unknownClassifications = [...classifications.keys()].filter((id) => !artifactIds.has(id));
@@ -166,6 +191,7 @@ function main() {
   const artifacts = bundle.required_artifacts.map((artifact) => {
     const classification = classifications.get(artifact.id);
     const exists = fs.existsSync(resolveBundlePath(options.bundleDir, artifact.path));
+    const typedBlocker = readTypedBlocker(options.bundleDir, artifact);
     if (classification) {
       return {
         id: artifact.id,
@@ -192,16 +218,20 @@ function main() {
       kind: artifact.kind,
       producer: artifact.producer,
       source_kind: artifact.source_kind,
-      status: exists ? 'present' : typedBlocker ? 'blocked' : 'missing',
+      status: exists ? 'present' : typedBlocker ? 'typed_blocker' : 'missing',
       ...(exists
         ? {}
         : typedBlocker
-          ? { typed_blocker_path: path.join('typed-blockers', `${artifact.id}.json`) }
+          ? {
+              reason: typedBlocker.reason,
+              typed_blocker_ref: typedBlocker.typed_blocker_ref,
+              typed_blocker_path: typedBlocker.typed_blocker_path,
+            }
           : { missing_reason: missingReasonFor(artifact) }),
     };
   });
   const missingEvidence = artifacts
-    .filter((artifact) => artifact.status !== 'present')
+    .filter((artifact) => artifact.status !== 'present' && !(artifact.status === 'typed_blocker' && artifact.typed_blocker_path))
     .map((artifact) => ({
       id: artifact.id,
       path: artifact.path,
@@ -215,7 +245,7 @@ function main() {
         : {}),
     }));
   const blockedEvidence = artifacts
-    .filter((artifact) => artifact.status === 'blocked')
+    .filter((artifact) => artifact.status === 'typed_blocker' && artifact.typed_blocker_path)
     .map((artifact) => ({
       id: artifact.id,
       path: artifact.path,

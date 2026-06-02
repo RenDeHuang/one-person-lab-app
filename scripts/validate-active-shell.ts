@@ -849,12 +849,22 @@ function validateActiveShellImplementation(shellPaths) {
   const desktopMain = readShellText(shellPaths, 'packages/desktop/src/index.ts');
   for (const expected of [
     'initializeTrayForDesktopMode',
-    "readCloseToTray: () => ProcessConfig.get('system.closeToTray')",
+    'readCloseToTray: readCloseToTraySetting',
     'createOrUpdateTray',
     'destroyTray',
   ]) {
     if (!desktopMain.includes(expected)) {
       throw new Error(`Active shell desktop startup must wire App-owned tray policy: ${expected}`);
+    }
+  }
+  const closeToTraySetting = readShellText(shellPaths, 'packages/desktop/src/process/utils/closeToTraySetting.ts');
+  for (const expected of [
+    "const CLOSE_TO_TRAY_CONFIG_KEY = 'system.closeToTray'",
+    'await ProcessConfig.get(CLOSE_TO_TRAY_CONFIG_KEY)',
+    'await ProcessConfig.set(CLOSE_TO_TRAY_CONFIG_KEY, enabled)',
+  ]) {
+    if (!closeToTraySetting.includes(expected)) {
+      throw new Error(`Active shell close-to-tray settings bridge must preserve App-owned tray preference key: ${expected}`);
     }
   }
 

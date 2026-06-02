@@ -451,7 +451,7 @@ function main(): void {
     artifacts: ManifestArtifact[];
   };
   const blockedArtifacts = manifestJson.artifacts
-    .filter((artifact) => artifact.status === 'blocked')
+    .filter((artifact) => artifact.status === 'typed_blocker')
     .map((artifact) => artifact.id);
   const missingArtifacts = manifestJson.artifacts
     .filter((artifact) => artifact.status === 'missing')
