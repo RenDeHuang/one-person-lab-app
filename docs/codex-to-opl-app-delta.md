@@ -188,6 +188,11 @@ Continue-work 详细列表也属于次级 surface。OPL App 可以让用户从 c
 旁边一键打开这些 refs，但不能把 needs-attention、active、recent refs 默认铺
 在 ordinary home 第一屏。
 
+在窄桌面或 WebUI 宽度下，次级 surfaces 的产品语义不变：默认仍收起，打开后
+以 overlay sheet、drawer 或等价右侧浮层呈现。用户点击 context toggle 后必须
+能看到 context tabs、Routing summary 和相关 refs；不能把 inspector 直接
+`display:none`，也不能只改变按钮状态而不显示内容。
+
 ## 命名与语言增量
 
 用户可见名称应该描述工作，而不是基础设施：
@@ -208,6 +213,10 @@ Continue-work 详细列表也属于次级 surface。OPL App 可以让用户从 c
   `RCA`、命令、receipt id、路径和用户原文进入二级详情、diagnostics 或原文输出，
   不应让中文普通首页、composer、workspace rail、context inspector 或 routing
   summary 看起来像随机中英混排。
+- Workspace/session rail、context inspector、context tabs 和 routing summary
+  同样属于普通用户层 chrome；中文模式不能出现 `New Codex turn`、
+  `Local assistant` 这类英文普通标签，英文模式也不能残留 `科研`、`基金`、
+  `本机助手`、`自动` 这类中文普通标签。
 - 中文普通 first screen 优先使用短标签和中文工作意图，不把 Med Auto Science、
   Med Auto Grant、RedCube AI 这类英文长名作为主要视觉文本；这些长名可在英文界面、
   details、Settings 或 diagnostics 中出现。
@@ -242,6 +251,8 @@ OPL-specific GUI modules：
 - 证明 page-state 和 first-run matrices。
 - 证明 source 和 packaged UI smoke。
 - 声称 WebUI 时证明 WebUI parity。
+- 声称 WebUI 或窄桌面可用时，证明 context inspector 打开后不是隐藏 DOM：
+  context tabs 与 Routing summary 必须实际可见。
 - 在 adoption 前保持 App release shell selection explicit。
 - 通过薄适配实现产品增量：profile consumer、route redirect、state/action
   bridge、局部 renderer 组合和 shell-local tests；不要把 Settings IA、

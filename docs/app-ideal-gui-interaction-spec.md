@@ -71,6 +71,12 @@ App frame 有四层：
 桌面端应该保留足够大的中心 chat canvas。WebUI 使用同一个 renderer 和同样
 默认收起状态。移动端或窄窗口把次级 context 折叠成 sheet/drawer。
 
+窄桌面和 WebUI 宽度下，workspace rail 和 inspector 仍然是次级层，不应默认
+铺在 home 上；但用户点击 toggle 后必须真的可见、可操作。若横向空间不足，
+右侧 inspector 应以 overlay sheet 或 drawer 形式打开，至少保证 context tabs、
+Routing summary 和 close/collapse affordance 可见。不能出现按钮 active、
+DOM 已挂载，但 inspector 因响应式 CSS 被隐藏或压成 0 宽的状态。
+
 ## 双语与界面语言
 
 OPL App 普通界面必须支持中文和英文两套 UI copy。默认语言可以按产品发行策略或
@@ -278,6 +284,8 @@ App-owned workspace actions，但产品语义保持一致。
 - 右侧 inspector 打开后应有清晰分层：session summary、run state、context tabs、
   first-run/runtime/settings/detail cards 之间用 spacing、outline 和标题层级区分。
   它不应像一组同权重 dashboard cards。
+- 窄桌面/WebUI 下，inspector 打开后用 overlay/drawer 保持可读宽度；context
+  tabs 和 Routing panel 必须可见，不能为了保留 chat-first 而让二级层按钮不可用。
 
 2026-06-02 的 Google Stitch `One Person Lab` 设计稿可作为视觉参考输入：
 采用 Quiet Utility 风格、灰阶 tonal layers、1px outline、8px 以内圆角、
@@ -312,16 +320,10 @@ renderer 结构变化。
 - 普通 home 打开就是 chat-first canvas。
 - Workspace/session rail 默认关闭。
 - 右侧 inspector 默认关闭。
+- Workspace/session rail 与右侧 inspector 在窄桌面/WebUI 下仍能通过用户动作
+  打开，并且 context tabs 与 Routing summary 实际可见可操作。
 - MAS/MAG/RCA 是 Codex 之上的 purpose entries，不是 backend choices。
 - 普通 home 和 conversation paths 隐藏 backend/model/provider/permission
   selectors。
 - 普通 home 不显示 runtime activity、continue-work、activity refs grid、
   per-assistant running badges 或底部 feedback/favorite/web 图标。
-- Chat、composer、route tag、workspace、automatic model status 可见。
-- Runtime/action/detail surfaces 使用 App-owned state/action contracts。
-- First-run 可在 Full maintenance 前达到 Core readiness。
-- WebUI 与 desktop 共享产品语义。
-- 支持中文/英文 UI 切换，普通 UI 在任一语言下不随机中英混排。
-- 普通中文界面只保留必要短技术标签，不用英文长助手名或协议名填满 first screen。
-- Page-state、first-run、source UI smoke、packaged UI smoke 和 release gates
-  能从 App-owned contracts 与 artifacts 证明这些声明。

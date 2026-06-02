@@ -144,6 +144,9 @@ assistant reply 可见为 `OK`。
   tab，证明普通用户层 chrome 在中文状态下仍使用 `科研`、`基金`、`PPT`、`本机助手`、
   `本机能力`、`自动`、`状态投影` 等用户层文案，不显示 `Codex CLI`、`MAS`、`MAG`、
   `RCA`、`app_state.actions`、`opl_app_state.v1`、AG-UI/ACP/app-server 等技术标签。
+- Source 和 packaged UI smoke 还必须把窗口压到窄桌面/WebUI 宽度验证 context
+  layer：workspace/session rail 与 inspector 仍是默认收起的二级层，但显式打开后
+  inspector、context tabs 和 Routing tab 必须有真实可见尺寸。
 - App-wrapper packaging 产出可启动 `.app`，包含 `Contents/Info.plist` 和
   `Contents/MacOS` executable。
 - Packaged UI smoke 针对 `.app` bundle 通过，并证明同样的 default-collapsed
@@ -191,17 +194,22 @@ Candidate 可以端到端验证而不改变当前 release。只有明确修改
   `home_continue_work_visible=false`、`home_runtime_activity_visible=false`、
   `bilingual_ui_status=passed`、`locale_switch_status=passed`，并覆盖
   expanded rail/inspector 与 Routing tab 的中文用户层文案检查；
+  `responsive_context_layer_status=passed`、`responsive_context_layer_width=998`、
+  `responsive_inspector_visible=true`、`responsive_context_tabs_visible=true`、
+  `responsive_routing_tab_visible=true`；
   `codex_app_server_turn_status=passed` 和 `last_assistant_text="OK"`。
 - Package 之后重新运行 packaged UI smoke：
   `./out/One Person Lab AG-UI Codex Candidate.app/Contents/MacOS/One Person Lab AG-UI Codex Candidate --ui-smoke-test`。
   证据记录 `packaged=true`，并证明同样的 default-collapsed chat-first home、
   中文默认 UI、英文切换、secondary runtime context refs、七类 conversation
-  events、safe App action dry-run、visible paint 和 Codex reply `OK`。
+  events、998px 下 inspector/context tabs/Routing tab 实际可见、safe App action
+  dry-run、visible paint 和 Codex reply `OK`。
 - Candidate shell final gate
   `npm run validate:candidate -- --require-app --require-smoke` 通过。
 - Final manifest 当前记录 `source_ui_smoke_status=passed`、
   `packaged_ui_smoke_status=passed`、`webui_smoke_status=passed`、
   `bilingual_ui_status=passed`、`default_home_layout_status=passed`、
+  `responsive_context_layer_status=passed`、
   `secondary_runtime_context_refs_status=passed`、`codex_app_server_turn_status=passed`
   和 `action_dry_run_status=passed`；普通 home 的
   `home_runtime_activity_visible=false`、`home_continue_work_visible=false`、

@@ -78,11 +78,18 @@ App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent da
 - UI labels、empty states、button titles、aria labels、first-run、runtime、
   activity 和 settings copy 有中文/英文两套显示；切换语言不改变 runtime truth、
   route receipt 或 workspace/thread state。
+- Workspace/session rail、context inspector、context tabs 和 routing summary
+  是普通用户层 chrome，必须按当前语言完整渲染；隐藏 DOM 或 raw details 可以
+  保留技术标签，但可见中文普通层不能混入 `New Codex turn`、`Local assistant`、
+  `Codex CLI`、`MAS/MAG/RCA`，英文普通层不能残留中文目的/状态标签。
 - Backend、model、provider、permission mode selectors 不进入普通 home 和
   conversation flows。
 - Codex conversation composer 仍要显示同一个只读 model status，并在
   pending/running 时显示已经等待的秒数。
 - Desktop Electron 和 WebUI surfaces 使用同一套 App product truth。
+- 窄桌面和 WebUI 宽度下，二级 context 不变成首页工作台；用户打开后必须以
+  overlay/drawer/右侧浮层形式可见，至少保证 `opl-context-tabs` 和
+  `opl-routing-panel` 实际显示。
 
 WebUI 目标与 Electron candidate 共享同一个 React/CopilotKit renderer。Electron
 通过 native preload/IPC 提供 `window.oplCandidate`；browser mode 通过 local
@@ -206,6 +213,9 @@ secondary context，不在 composer 附近显示 compact entry。
 - Update state 和 release channel labels 本地化。
 - Runtime、memory、automations、files、capabilities 作为可收起 contextual
   tabs 或 inspector surfaces 展示，并 scoped 到 selected workspace/conversation。
+- Inspector 在窄桌面/WebUI 下仍是可收起次级层。若横向空间不足，用 overlay 或
+  drawer 保持可用宽度；不能让 context toggle 进入 active 状态但 tabs 和 Routing
+  panel 不可见。
 - Long-running work 呈现为 plans、runs、receipts、deliverable refs 和 operator
   actions；不要表现成无人管理的 background daemon。
 - Cost/routing/model details 作为 technical 或 connected-state readouts 展示，

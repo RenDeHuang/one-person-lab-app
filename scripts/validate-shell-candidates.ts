@@ -753,14 +753,14 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
   for (const [field, expected] of Object.entries({
     page_state_matrix_mapping_status: 'passed',
     first_run_matrix_mapping_status: 'passed',
-	    runtime_summary_detail_action_bridge_status: 'passed',
-	    default_home_layout_status: 'passed',
-	    settings_ia_status: 'passed',
-	    secondary_runtime_context_refs_status: 'passed',
-	    bilingual_ui_status: 'passed',
-	    chat_event_rendering_status: 'passed',
-	    webui_parity_status: 'passed',
-	  })) {
+    runtime_summary_detail_action_bridge_status: 'passed',
+    default_home_layout_status: 'passed',
+    settings_ia_status: 'passed',
+    secondary_runtime_context_refs_status: 'passed',
+    bilingual_ui_status: 'passed',
+    chat_event_rendering_status: 'passed',
+    webui_parity_status: 'passed',
+  })) {
     if ((manifest as Record<string, unknown>)[field] !== expected) {
       throw new Error(`${candidate.id} package manifest ${field} must be ${expected}`);
     }
@@ -802,10 +802,19 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
       packaged_ui_smoke_status: 'passed',
       webui_smoke_status: 'passed',
       action_dry_run_status: 'passed',
+      responsive_context_layer_status: 'passed',
     })) {
       if ((manifest as Record<string, unknown>)[field] !== expected) {
         throw new Error(`${candidate.id} package manifest ${field} must be ${expected}`);
       }
+    }
+    if (
+      Number((manifest as Record<string, unknown>).responsive_context_layer_width ?? 9999) > 1020 ||
+      (manifest as Record<string, unknown>).responsive_inspector_visible !== true ||
+      (manifest as Record<string, unknown>).responsive_context_tabs_visible !== true ||
+      (manifest as Record<string, unknown>).responsive_routing_tab_visible !== true
+    ) {
+      throw new Error(`${candidate.id} package manifest must prove narrow desktop/WebUI context layers are visibly usable`);
     }
     if (Number((manifest as Record<string, unknown>).runtime_safe_action_count ?? 0) < 1) {
       throw new Error(`${candidate.id} package manifest must prove at least one runtime safe action route`);
