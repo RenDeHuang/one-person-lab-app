@@ -353,6 +353,27 @@ if (agentInstallationValidation.status !== 0) {
   failures += 1;
 }
 
+const releaseContract = JSON.parse(
+  fs.readFileSync(path.join(appRoot, 'contracts/app-release-channel.json'), 'utf8'),
+);
+const webuiPackage = releaseContract.webui_ghcr_image;
+if (webuiPackage?.github_package_access?.target_repository_association !== 'gaofeng21cn/one-person-lab-app') {
+  console.error('FAIL webui_package_association: target repository association must be gaofeng21cn/one-person-lab-app');
+  failures += 1;
+}
+if (webuiPackage?.github_package_access?.current_historical_association_allowed_until_ui_migration !== 'gaofeng21cn/one-person-lab') {
+  console.error('FAIL webui_package_association: historical association allowance must name gaofeng21cn/one-person-lab');
+  failures += 1;
+}
+if (webuiPackage?.retention_policy?.cleanup_execution_mode !== 'dry_run_first_explicit_execute_required') {
+  console.error('FAIL webui_retention_policy: cleanup must be dry-run first with explicit execute');
+  failures += 1;
+}
+if (!webuiPackage?.retention_policy?.protected_tags?.includes('nightly')) {
+  console.error('FAIL webui_retention_policy: protected tags must include nightly');
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exit(1);
 }

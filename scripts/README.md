@@ -17,6 +17,7 @@ verification can select a different linked shell repo with
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
 | `generate-release-notes.ts` | Generates deterministic release-note evidence and, with `--ai`, asks the configured AI provider chain to write English OPL App release notes from that evidence. Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, Stable/Full includes OPL Framework, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, and MinerU payload refs plus payload deltas when manifests are available, and Nightly explains the standard agent entry/plugin/skill sync surface without Full payloads. For Full manifests with local `source_path` repos, evidence also includes `agent_runtime_changes` so the note can describe MAS research/study, MAG grant/funding, RCA visual-deliverable, OPL Meta Agent, runtime, Office, and extraction improvements in user-facing language before listing audit refs. |
 | `cleanup-draft-release-candidates.ts` | Dry-runs or deletes stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. |
+| `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
 | `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates. |
 | `analyze-full-package-size.ts` | Reads `full-package-manifest.json` and reports Full runtime component/layer size, budget use, and optional runtime-root top entries. |
@@ -50,6 +51,8 @@ npm run verify-remote-release -- --version <version> --include-full-package
 npm run verify-remote-release -- --version <YY.M.D-nightly>
 npm run release:cleanup-drafts -- --version <version>
 npm run release:cleanup-drafts -- --version <version> --execute
+npm run release:cleanup-webui-ghcr -- --summary-path webui-ghcr-cleanup.json
+npm run release:cleanup-webui-ghcr -- --rollback-tag <version> --execute
 npm run validate:release-boundary
 npm run release:evidence:manifest -- --bundle-dir release-evidence/<version>
 node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm --artifact runtime_screenshot=/path/to/runtime.png
@@ -226,6 +229,15 @@ stable `v<version>` Release is published to remove stale
 `v<version>-draft.*` and `v<version>-readiness.*` draft Releases and their tags.
 The default is dry-run; pass `--execute` only after reviewing the generated
 summary. This path does not download standard or Full DMG assets.
+
+WebUI GHCR cleanup is a separate dry-run-first package admin step. Use
+`release:cleanup-webui-ghcr` to read
+`contracts/app-release-channel.json#webui_ghcr_image.retention_policy`, keep
+protected moving tags (`latest`, `stable`, `nightly`), keep the declared recent
+stable/nightly windows and rollback tags, then list stale package versions. Pass
+`--execute` only after reviewing the summary and only from a token with package
+admin / `delete:packages`; ordinary release publishing never deletes GHCR
+versions.
 
 Full build speed tuning should start with `full-workflow-telemetry.json`.
 `cache.shell_vite_output=true` means the Full workflow restored active-shell
