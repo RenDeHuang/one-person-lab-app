@@ -109,13 +109,13 @@ const expectedSettingsPageSections = {
       'purpose-grouped RCA presentation capability',
       'OPL Meta Agent as explicit non-default capability',
       'required skills locked and optional skills selectable by assistant',
-      'auto-injected skills filtered to App packaged skill ids',
+      'builtin skill catalog and auto-injected skills filtered to App packaged skill ids',
       'MCP and tool details as secondary support details',
     ],
     mustNotShow: [
       'Skills and Tools as the only top-level mental model',
       'AG-UI as a user-visible capability concept',
-      'AionUI implementation auto skills such as aionui-skills',
+      'AionUI implementation skills such as aionui-skills',
       'OPL Meta Agent as a default Home assistant',
     ],
   },
@@ -4122,13 +4122,24 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     }
   }
   assert.equal(
+    guiContract.pages.settings_capabilities.builtin_skill_catalog_policy.allowed_set_ref,
+    'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + packaged_not_default_visible_codex_skill_ids',
+  );
+  assert.ok(
+    guiContract.pages.settings_capabilities.builtin_skill_catalog_policy.forbidden_examples.includes('aionui-skills'),
+  );
+  assert.equal(
     guiContract.pages.settings_capabilities.auto_injected_skills_policy.allowed_set_ref,
     'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids',
   );
-  assert.ok(guiContract.pages.settings_capabilities.must_show.includes('auto-injected skills filtered to App packaged skill ids'));
+  assert.ok(
+    guiContract.pages.settings_capabilities.must_show.includes(
+      'builtin skill catalog and auto-injected skills filtered to App packaged skill ids',
+    ),
+  );
   assert.ok(
     guiContract.pages.settings_capabilities.must_not_show.includes(
-      'AionUI implementation auto skills such as aionui-skills',
+      'AionUI implementation skills such as aionui-skills',
     ),
   );
   assert.ok(guiContract.pages.settings_capabilities.auto_injected_skills_policy.forbidden_examples.includes('aionui-skills'));

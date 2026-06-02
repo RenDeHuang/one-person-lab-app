@@ -160,13 +160,13 @@ const settingsPageExpectations = {
       'purpose-grouped RCA presentation capability',
       'OPL Meta Agent as explicit non-default capability',
       'required skills locked and optional skills selectable by assistant',
-      'auto-injected skills filtered to App packaged skill ids',
+      'builtin skill catalog and auto-injected skills filtered to App packaged skill ids',
       'MCP and tool details as secondary support details',
     ],
     must_not_show: [
       'Skills and Tools as the only top-level mental model',
       'AG-UI as a user-visible capability concept',
-      'AionUI implementation auto skills such as aionui-skills',
+      'AionUI implementation skills such as aionui-skills',
       'OPL Meta Agent as a default Home assistant',
     ],
   },
@@ -1214,11 +1214,14 @@ function validateActiveShellImplementation(shellPaths) {
   const skillsHubSettings = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/SkillsHubSettings.tsx');
   for (const expected of [
     'getOplDefaultPackagedCodexSkills',
+    'getOplPackagedCodexSkills',
+    'appVisibleSkills',
+    "skills.filter((skill) => skill.source !== 'builtin' || appVisibleSkills.has(skill.name))",
     'appPackagedSkills',
     'autoSkills.filter((skill) => appPackagedSkills.has(skill.name))',
   ]) {
     if (!skillsHubSettings.includes(expected)) {
-      throw new Error(`Active shell SkillsHubSettings must filter upstream auto skills through App packaged policy ${expected}`);
+      throw new Error(`Active shell SkillsHubSettings must filter upstream builtin skills through App packaged policy ${expected}`);
     }
   }
 
@@ -2348,6 +2351,17 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     assertIncludesAll(page.must_show, expected.must_show, `App GUI ${pageId} must_show`);
     assertIncludesAll(page.must_not_show, expected.must_not_show, `App GUI ${pageId} must_not_show`);
   }
+  if (
+    pages.settings_capabilities.builtin_skill_catalog_policy?.allowed_set_ref !==
+    'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + packaged_not_default_visible_codex_skill_ids'
+  ) {
+    throw new Error('Settings Capabilities must filter builtin skill catalog through the App packaged skill set');
+  }
+  assertIncludesAll(
+    pages.settings_capabilities.builtin_skill_catalog_policy?.forbidden_examples,
+    ['aionui-skills', 'aionui-webui-setup', 'skill-creator'],
+    'Settings Capabilities forbidden upstream builtin skills',
+  );
   if (
     pages.settings_capabilities.auto_injected_skills_policy?.allowed_set_ref !==
     'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids'

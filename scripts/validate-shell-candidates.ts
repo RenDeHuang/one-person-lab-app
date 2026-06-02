@@ -836,6 +836,13 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
       workspace_rail_default_open: boolean;
       inspector_default_open: boolean;
     };
+    responsive_context_layers?: {
+      policy: string;
+      narrow_desktop_width_px: number;
+      home_default: string;
+      opened_context: string;
+      required_visible_testids_when_open: string[];
+    };
     webui_transport: { renderer: string; electron_transport: string; web_transport: string; gateway: string; shared_surface: boolean; events: string };
     pilotdeck_reference: { source_usage: string; license: string; copied_source: boolean; runtime_authority_transfer: boolean; mapped_surfaces: string[] };
     page_state_matrix_mapping: { page_ids: string[]; runtime_testids: string[]; settings_testids: string[] };
@@ -1003,6 +1010,19 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
     evidence.default_home_layout?.stage_classes ?? [],
     ['without-rail', 'without-inspector'],
     `${candidate.id} evidence default_home_layout.stage_classes`,
+  );
+  if (
+    evidence.responsive_context_layers?.policy !== 'workspace rail and inspector remain secondary layers, but explicit toggles must make them visibly usable on narrow desktop and WebUI widths' ||
+    evidence.responsive_context_layers?.narrow_desktop_width_px !== 998 ||
+    evidence.responsive_context_layers?.home_default !== 'chat_first_collapsed' ||
+    evidence.responsive_context_layers?.opened_context !== 'right_inspector_overlay_with_visible_tabs'
+  ) {
+    throw new Error(`${candidate.id} evidence must define narrow desktop/WebUI context layer behavior`);
+  }
+  assertStringArrayIncludes(
+    evidence.responsive_context_layers?.required_visible_testids_when_open ?? [],
+    ['opl-workspace-rail', 'opl-context-tabs', 'opl-routing-panel'],
+    `${candidate.id} evidence responsive_context_layers.required_visible_testids_when_open`,
   );
   if (
     evidence.webui_transport?.renderer !== 'src/renderer/App.jsx'

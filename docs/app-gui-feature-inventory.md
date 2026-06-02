@@ -201,8 +201,8 @@ secondary context，不在 composer 附近显示 compact entry。
 - Module 和 path 只作为 refs 展示，不取得 runtime 或 domain authority。
 - Settings sections 是 General、Access、Agents & Capabilities、Local
   Environment、Appearance、Advanced、About & Updates。
-- Agents & Capabilities 的自动注入技能只展示 App packaged skill whitelist 中
-  的技能；AionUI implementation helper 如 `aionui-skills` 不作为 OPL 能力展示。
+- Agents & Capabilities 的内置技能列表和自动注入技能只展示 App packaged skill
+  whitelist 中的技能；AionUI implementation helper 如 `aionui-skills` 不作为 OPL 能力展示。
 - Update state 和 release channel labels 本地化。
 - Runtime、memory、automations、files、capabilities 作为可收起 contextual
   tabs 或 inspector surfaces 展示，并 scoped 到 selected workspace/conversation。

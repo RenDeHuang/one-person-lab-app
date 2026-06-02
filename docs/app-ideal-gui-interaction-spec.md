@@ -238,8 +238,8 @@ Model、agent、assistants、skills-hub、tools、display、WebUI、pet 等 lega
 不能成为普通产品 tabs。
 
 Agents & Capabilities 主视图按科研、基金、PPT 和显式 OPL Meta Agent 组织。
-自动注入技能只能显示 App product profile 的 packaged skill whitelist 里的
-技能；`aionui-skills`、`aionui-webui-setup`、`skill-creator` 等 AionUI
+内置技能列表和自动注入技能只能显示 App product profile 的 packaged skill
+whitelist 里的技能；`aionui-skills`、`aionui-webui-setup`、`skill-creator` 等 AionUI
 implementation helper 不进入普通能力页。
 
 Project progress 是 runtime/work context surface，不属于 Settings
