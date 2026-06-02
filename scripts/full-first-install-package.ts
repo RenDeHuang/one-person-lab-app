@@ -188,6 +188,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
     runtime_assertions: input.runtimeAssertions ?? {
       temporal_core_bridge_releases: [],
       excluded_module_venv_count: 0,
+      packaged_global_node_packages: [],
     },
     size_breakdown: input.sizeBreakdown ?? {
       total_runtime_uncompressed_bytes: 0,

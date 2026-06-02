@@ -112,6 +112,16 @@
         "runtime_path": "runtime/current/bin/codex",
         "verification": "codex --version must equal codex-cli <npm_latest>"
       },
+      "bun_cli": {
+        "source": "Full workflow setup-bun resolved binary",
+        "runtime_path": "runtime/current/bin/bun",
+        "verification": "Full manifest components.bun.version is recorded from runtime/current/bin/bun --version"
+      },
+      "temporal_cli": {
+        "source": "Homebrew temporal CLI resolved binary or OPL_FULL_TEMPORAL_CLI_BIN",
+        "runtime_path": "runtime/current/bin/temporal",
+        "verification": "Full manifest components.temporal_cli.version is recorded from runtime/current/bin/temporal --version"
+      },
       "temporal_runtime_provider": {
         "provider_env_default": "OPL_FAMILY_RUNTIME_PROVIDER=temporal",
         "required_packages": [

@@ -292,14 +292,17 @@ step, `retry_detected`, and `skip_modules` as machine-readable fields. The
 Markdown summary mirrors the key one-shot entry, source, artifact, setup flow,
 Core progress, retry, and skip-module values for operator triage.
 
-The Full first-install payload must include the latest npm-published Codex CLI
-and the Temporal-backed family runtime provider. The Full workflow resolves the
-current `@openai/codex` version with `npm view @openai/codex version`, installs
-that exact version, records `OPL_FULL_CODEX_VERSION`, and verifies `codex
---version`. Temporal runtime packages stay in the Framework production
-dependency payload, `@temporalio/testing` is excluded, and the remote verifier
-requires the Full manifest to report only the macOS arm64 Temporal core bridge
-release.
+The Full first-install payload must include the latest npm-published Codex CLI,
+the packaged Bun CLI, the Temporal CLI, and the Temporal-backed family runtime
+provider. The Full workflow resolves the current `@openai/codex` version with
+`npm view @openai/codex version`, installs that exact version, records
+`OPL_FULL_CODEX_VERSION`, and verifies `codex --version`. It also exports the
+resolved `OPL_FULL_BUN_BIN` and `OPL_FULL_TEMPORAL_CLI_BIN` paths before runtime
+cache-key calculation and package assembly, so the manifest records
+`components.bun` and `components.temporal_cli` from the packaged runtime.
+Temporal runtime packages stay in the Framework production dependency payload,
+`@temporalio/testing` is excluded, and the remote verifier requires the Full
+manifest to report only the macOS arm64 Temporal core bridge release.
 
 The Runtime page is the operator evidence acceptance path for App release
 evidence. It consumes OPL refs-only JSON from

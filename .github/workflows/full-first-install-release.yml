@@ -229,11 +229,11 @@ jobs:
           cache: true
           cache-dependency-path: MinerU-Ecosystem/cli/mineru-open-api/go.sum
 
-      - name: Install uv, zstd, Codex CLI, OfficeCLI, and MinerU
+      - name: Install uv, zstd, Temporal CLI, Codex CLI, OfficeCLI, and MinerU
         shell: bash
         run: |
           set -euo pipefail
-          brew install zstd || true
+          brew install zstd temporal || true
           python -m pip install --upgrade pip uv
           uv python install 3.12
           codex_latest="$(npm view @openai/codex version)"
@@ -256,8 +256,11 @@ jobs:
           echo "$codex_version"
           officecli --version
           mineru-open-api version
+          temporal --version
           uv --version
           zstd --version
+          echo "OPL_FULL_BUN_BIN=$(command -v bun)" >> "$GITHUB_ENV"
+          echo "OPL_FULL_TEMPORAL_CLI_BIN=$(command -v temporal)" >> "$GITHUB_ENV"
           echo "OPL_FULL_TOOLCHAIN_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Install Framework dependencies
@@ -342,7 +345,9 @@ jobs:
           cache_dir="$GITHUB_WORKSPACE/.opl-full-runtime-cache"
           export OPL_FRAMEWORK_ROOT="$GITHUB_WORKSPACE/one-person-lab"
           export OPL_FULL_CODEX_ROOT="$(npm root -g)/@openai/codex"
+          export OPL_FULL_BUN_BIN="${OPL_FULL_BUN_BIN:-$(command -v bun)}"
           export OPL_FULL_UV_BIN="$(command -v uv)"
+          export OPL_FULL_TEMPORAL_CLI_BIN="${OPL_FULL_TEMPORAL_CLI_BIN:-$(command -v temporal)}"
           export OPL_FULL_MAS_ROOT="$GITHUB_WORKSPACE/med-autoscience"
           export OPL_FULL_MAG_ROOT="$GITHUB_WORKSPACE/med-autogrant"
           export OPL_FULL_RCA_ROOT="$GITHUB_WORKSPACE/redcube-ai"
@@ -498,7 +503,9 @@ jobs:
           ulimit -n 65536 || true
           export OPL_FRAMEWORK_ROOT="$GITHUB_WORKSPACE/one-person-lab"
           export OPL_FULL_CODEX_ROOT="$(npm root -g)/@openai/codex"
+          export OPL_FULL_BUN_BIN="${OPL_FULL_BUN_BIN:-$(command -v bun)}"
           export OPL_FULL_UV_BIN="$(command -v uv)"
+          export OPL_FULL_TEMPORAL_CLI_BIN="${OPL_FULL_TEMPORAL_CLI_BIN:-$(command -v temporal)}"
           export OPL_FULL_MAS_ROOT="$GITHUB_WORKSPACE/med-autoscience"
           export OPL_FULL_MAG_ROOT="$GITHUB_WORKSPACE/med-autogrant"
           export OPL_FULL_RCA_ROOT="$GITHUB_WORKSPACE/redcube-ai"

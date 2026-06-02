@@ -87,7 +87,15 @@ const checks = [
   {
     id: 'full_release_workflow_uses_app_scripts',
     file: '.github/workflows/full-first-install-release.yml',
-    required: ['npm --silent run release:full', 'npm run release:publish'],
+    required: [
+      'npm --silent run release:full',
+      'npm run release:publish',
+      'brew install zstd temporal || true',
+      'OPL_FULL_BUN_BIN=$(command -v bun)',
+      'OPL_FULL_TEMPORAL_CLI_BIN=$(command -v temporal)',
+      'export OPL_FULL_BUN_BIN="${OPL_FULL_BUN_BIN:-$(command -v bun)}"',
+      'export OPL_FULL_TEMPORAL_CLI_BIN="${OPL_FULL_TEMPORAL_CLI_BIN:-$(command -v temporal)}"',
+    ],
     forbidden: ['npm run gui:release', 'packages:full-release', 'repository: gaofeng21cn/one-person-lab-app'],
   },
   {

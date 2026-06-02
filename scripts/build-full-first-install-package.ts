@@ -56,7 +56,9 @@ function parseArgs(argv) {
     superpowersRoot: process.env.OPL_FULL_SUPERPOWERS_ROOT || path.join(os.homedir(), '.codex', 'superpowers'),
     codexRoot: process.env.OPL_FULL_CODEX_ROOT || '',
     nodeBin: process.env.OPL_FULL_NODE_BIN || '',
+    bunBin: process.env.OPL_FULL_BUN_BIN || '',
     uvBin: process.env.OPL_FULL_UV_BIN || path.join(os.homedir(), '.local', 'bin', 'uv'),
+    temporalCliBin: process.env.OPL_FULL_TEMPORAL_CLI_BIN || '',
     pythonRoot: process.env.OPL_FULL_PYTHON_ROOT || '',
     officeCliBin: process.env.OPL_FULL_OFFICECLI_BIN || '',
     officeCliRoot: process.env.OPL_FULL_OFFICECLI_ROOT || path.join(workspaceRoot, 'OfficeCLI'),
@@ -120,7 +122,9 @@ function parseArgs(argv) {
     else if (token === '--superpowers-root') parsed.superpowersRoot = path.resolve(value);
     else if (token === '--codex-root') parsed.codexRoot = path.resolve(value);
     else if (token === '--node-bin') parsed.nodeBin = path.resolve(value);
+    else if (token === '--bun-bin') parsed.bunBin = path.resolve(value);
     else if (token === '--uv-bin') parsed.uvBin = path.resolve(value);
+    else if (token === '--temporal-cli-bin') parsed.temporalCliBin = path.resolve(value);
     else if (token === '--python-root') parsed.pythonRoot = path.resolve(value);
     else if (token === '--officecli-bin') parsed.officeCliBin = path.resolve(value);
     else if (token === '--officecli-root') parsed.officeCliRoot = path.resolve(value);
@@ -315,6 +319,16 @@ function findMineruOpenApiBinary(explicitBin) {
   });
 }
 
+function findTemporalCliBinary(explicitBin) {
+  return findCompanionBinary({
+    name: 'temporal',
+    explicitBin,
+    envBin: process.env.OPL_TEMPORAL_CLI_BIN || '',
+    flagName: '--temporal-cli-bin',
+    envName: 'OPL_FULL_TEMPORAL_CLI_BIN',
+  });
+}
+
 function fileSha256(filePath) {
   if (!filePath || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
     return null;
@@ -344,6 +358,8 @@ function buildRuntimeLayerPackagerInputs() {
       buildSkillsLayer,
       copyPackagedSkills,
       ...Object.values(packagedSkillCopyHandlers),
+      findBunBinary,
+      findTemporalCliBinary,
       copyOplMetaAgentSkill,
       copySuperpowersBundle,
       copyOfficeCliCoreSkill,
@@ -365,6 +381,10 @@ function buildRuntimeLayerPackagerInputs() {
       mineruDocumentExtractorSkillCandidates,
       copyTreeFiltered,
       copySingleFile,
+      copyPortableTree,
+      copyExecutableOrSymlinkTarget,
+      copyNodeRuntimePayload,
+      assertNoExternalSymlinks,
       copyProductionNodeModules,
       pruneTemporalCoreBridgeReleases,
     ]),
@@ -674,6 +694,19 @@ function findNodeToolchain(explicitNodeBin) {
   };
 }
 
+function findBunBinary(explicitBunBin) {
+  const candidates = [
+    explicitBunBin,
+    findExecutable('bun') || '',
+    path.join(os.homedir(), '.bun', 'bin', 'bun'),
+  ].filter(Boolean);
+  const found = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+  if (!found) {
+    throw new Error('Bun binary not found. Pass --bun-bin or set OPL_FULL_BUN_BIN.');
+  }
+  return found;
+}
+
 function findPythonRoot(explicitPythonRoot) {
   if (explicitPythonRoot) {
     return requirePath(explicitPythonRoot, 'Python root');
@@ -700,18 +733,125 @@ function copySingleFile(sourcePath, targetPath) {
   fs.chmodSync(targetPath, fs.statSync(sourcePath).mode);
 }
 
+function isInsidePath(root, candidate) {
+  const relative = path.relative(root, candidate);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function copyPortableTree(sourceRoot, targetRoot) {
+  fs.rmSync(targetRoot, { recursive: true, force: true });
+  const sourceBase = path.resolve(sourceRoot);
+  const targetBase = path.resolve(targetRoot);
+
+  const copyEntry = (sourcePath, targetPath) => {
+    const stat = fs.lstatSync(sourcePath);
+    if (stat.isDirectory()) {
+      fs.mkdirSync(targetPath, { recursive: true });
+      for (const entry of fs.readdirSync(sourcePath)) {
+        copyEntry(path.join(sourcePath, entry), path.join(targetPath, entry));
+      }
+      return;
+    }
+
+    if (stat.isSymbolicLink()) {
+      const linkTarget = fs.readlinkSync(sourcePath);
+      const resolvedSourceTarget = path.resolve(path.dirname(sourcePath), linkTarget);
+      if (isInsidePath(sourceBase, resolvedSourceTarget)) {
+        const targetEquivalent = path.join(targetBase, path.relative(sourceBase, resolvedSourceTarget));
+        const portableLinkTarget = path.relative(path.dirname(targetPath), targetEquivalent) || '.';
+        fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+        fs.rmSync(targetPath, { recursive: true, force: true });
+        fs.symlinkSync(portableLinkTarget, targetPath);
+        return;
+      }
+
+      const realStat = fs.statSync(resolvedSourceTarget);
+      if (realStat.isDirectory()) {
+        copyPortableTree(resolvedSourceTarget, targetPath);
+        return;
+      }
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.copyFileSync(resolvedSourceTarget, targetPath);
+      fs.chmodSync(targetPath, realStat.mode);
+      return;
+    }
+
+    if (stat.isFile()) {
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.copyFileSync(sourcePath, targetPath);
+      fs.chmodSync(targetPath, stat.mode);
+    }
+  };
+
+  copyEntry(sourceBase, targetBase);
+}
+
+function assertNoExternalSymlinks(root, label) {
+  const rootPath = path.resolve(root);
+  const violations = [];
+  const stack = [rootPath];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const stat = fs.lstatSync(current);
+    if (stat.isDirectory()) {
+      for (const entry of fs.readdirSync(current)) {
+        stack.push(path.join(current, entry));
+      }
+      continue;
+    }
+    if (!stat.isSymbolicLink()) {
+      continue;
+    }
+    const linkTarget = fs.readlinkSync(current);
+    const resolvedTarget = path.resolve(path.dirname(current), linkTarget);
+    if (path.isAbsolute(linkTarget) || !isInsidePath(rootPath, resolvedTarget)) {
+      violations.push(`${path.relative(rootPath, current)} -> ${linkTarget}`);
+    }
+  }
+  if (violations.length > 0) {
+    throw new Error(`${label} contains external symlink(s):\n${violations.map((entry) => `  - ${entry}`).join('\n')}`);
+  }
+}
+
 function copyPathContents(sourceRoot, targetRoot) {
   fs.mkdirSync(targetRoot, { recursive: true });
   if (!fs.existsSync(sourceRoot)) {
     return;
   }
   for (const entry of fs.readdirSync(sourceRoot)) {
-    fs.cpSync(path.join(sourceRoot, entry), path.join(targetRoot, entry), {
-      recursive: true,
-      dereference: true,
-      preserveTimestamps: true,
-    });
+    copyPortableTree(path.join(sourceRoot, entry), path.join(targetRoot, entry));
   }
+}
+
+function copyExecutableOrSymlinkTarget(sourceRoot, relativePath, targetRoot) {
+  const sourcePath = path.join(sourceRoot, ...relativePath.split('/'));
+  const targetPath = path.join(targetRoot, ...relativePath.split('/'));
+  const stat = fs.lstatSync(sourcePath);
+  if (stat.isSymbolicLink()) {
+    const resolved = fs.realpathSync(sourcePath);
+    const realStat = fs.statSync(resolved);
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    fs.copyFileSync(resolved, targetPath);
+    fs.chmodSync(targetPath, realStat.mode);
+    return;
+  }
+  copySingleFile(sourcePath, targetPath);
+}
+
+function copyNodeRuntimePayload(nodeRoot, targetRoot) {
+  fs.rmSync(targetRoot, { recursive: true, force: true });
+  for (const relativePath of ['bin/node', 'bin/npm', 'bin/npx']) {
+    copyExecutableOrSymlinkTarget(nodeRoot, relativePath, targetRoot);
+  }
+  for (const packageName of ['npm', 'corepack']) {
+    const sourcePath = path.join(nodeRoot, 'lib', 'node_modules', packageName);
+    if (!fs.existsSync(sourcePath)) {
+      if (packageName === 'corepack') continue;
+      throw new Error(`Node runtime package missing: lib/node_modules/${packageName}`);
+    }
+    copyPortableTree(sourcePath, path.join(targetRoot, 'lib', 'node_modules', packageName));
+  }
+  assertNoExternalSymlinks(targetRoot, 'Full first-install Node runtime');
 }
 
 function copyProductionNodeModules(sourceRoot, targetRoot) {
@@ -795,6 +935,9 @@ function collectRuntimeAssertions(runtimeRoot) {
   return {
     temporal_core_bridge_releases: listTemporalCoreBridgeReleases(path.join(runtimeRoot, 'opl', 'node_modules')),
     excluded_module_venv_count: countRuntimeModuleVenvDirectories(runtimeRoot),
+    packaged_global_node_packages: fs.existsSync(path.join(runtimeRoot, 'node', 'lib', 'node_modules'))
+      ? fs.readdirSync(path.join(runtimeRoot, 'node', 'lib', 'node_modules')).sort()
+      : [],
   };
 }
 
@@ -1065,8 +1208,10 @@ function resolveRuntimeSources(options) {
   const codexRoot = findCodexRoot(options.codexRoot);
   const codexBinaries = findCodexBinary(codexRoot);
   const nodeToolchain = findNodeToolchain(options.nodeBin);
+  const bunBin = findBunBinary(options.bunBin);
   const pythonRoot = findPythonRoot(options.pythonRoot);
   const uvBin = requirePath(options.uvBin, 'uv binary');
+  const temporalCliBin = findTemporalCliBinary(options.temporalCliBin);
   const officeCliBin = findOfficeCliBinary(options.officeCliBin);
   const mineruOpenApiBin = findMineruOpenApiBinary(options.mineruOpenApiBin);
 
@@ -1074,8 +1219,10 @@ function resolveRuntimeSources(options) {
     codexRoot,
     codexBinaries,
     nodeToolchain,
+    bunBin,
     pythonRoot,
     uvBin,
+    temporalCliBin,
     officeCliBin,
     mineruOpenApiBin,
     mineruRepoRoot: fs.existsSync(path.join(options.mineruRoot, '.git')) ? options.mineruRoot : null,
@@ -1107,7 +1254,10 @@ function buildRuntimeCacheKeyInputs(options, sources) {
         npx_bin_sha256: fileSha256(sources.nodeToolchain.npxBin),
         npm_package_version: packageJsonVersion(path.join(sources.nodeToolchain.npmRoot, 'package.json')),
         npm_package_fingerprint: directoryFingerprint(sources.nodeToolchain.npmRoot, 'node/lib/node_modules/npm'),
+        bun_sha256: fileSha256(sources.bunBin),
         uv_sha256: fileSha256(sources.uvBin),
+        temporal_cli_sha256: fileSha256(sources.temporalCliBin),
+        temporal_cli_version: commandOutput(sources.temporalCliBin, ['--version']),
         officecli_sha256: fileSha256(sources.officeCliBin),
         officecli_version: commandOutput(sources.officeCliBin, ['--version']),
         mineru_open_api_sha256: fileSha256(sources.mineruOpenApiBin),
@@ -1253,16 +1403,11 @@ function runCachedLayer(options, layerId, key, targetRoot, builder) {
 function buildToolchainLayer(layerRoot, sources) {
   copySingleFile(sources.codexBinaries.codex, path.join(layerRoot, 'bin', 'codex'));
   copySingleFile(sources.codexBinaries.rg, path.join(layerRoot, 'bin', 'rg'));
+  copySingleFile(sources.bunBin, path.join(layerRoot, 'bin', 'bun'));
+  copySingleFile(sources.temporalCliBin, path.join(layerRoot, 'bin', 'temporal'));
   copySingleFile(sources.officeCliBin, path.join(layerRoot, 'bin', 'officecli'));
   copySingleFile(sources.mineruOpenApiBin, path.join(layerRoot, 'bin', 'mineru-open-api'));
-  copySingleFile(sources.nodeToolchain.nodeBin, path.join(layerRoot, 'node', 'bin', 'node'));
-  copySingleFile(sources.nodeToolchain.npmBin, path.join(layerRoot, 'node', 'bin', 'npm'));
-  copySingleFile(sources.nodeToolchain.npxBin, path.join(layerRoot, 'node', 'bin', 'npx'));
-  copyTreeFiltered(
-    sources.nodeToolchain.npmRoot,
-    path.join(layerRoot, 'node', 'lib', 'node_modules', 'npm'),
-    'node/lib/node_modules/npm',
-  );
+  copyNodeRuntimePayload(path.dirname(path.dirname(sources.nodeToolchain.nodeBin)), path.join(layerRoot, 'node'));
   copySingleFile(sources.uvBin, path.join(layerRoot, 'uv', 'bin', 'uv'));
   copyTreeFiltered(
     sources.pythonRoot,
@@ -1390,8 +1535,10 @@ function prepareRuntime(options, sources) {
     rca: { source_path: options.rcaRoot, git_commit: readGitHead(options.rcaRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'rca')) },
     meta_agent: { source_path: options.metaAgentRoot, git_commit: readGitHead(options.metaAgentRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'meta-agent')) },
     node: { source_path: sources.nodeToolchain.nodeBin, version: commandOutput(path.join(runtimeRoot, 'node', 'bin', 'node'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'node')) },
+    bun: { source_path: sources.bunBin, version: commandOutput(path.join(runtimeRoot, 'bin', 'bun'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'bun')) },
     python: { source_path: sources.pythonRoot, version: commandOutput(path.join(runtimeRoot, 'python', path.basename(sources.pythonRoot), 'bin', 'python3'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'python')) },
     uv: { source_path: sources.uvBin, version: commandOutput(path.join(runtimeRoot, 'uv', 'bin', 'uv'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'uv')) },
+    temporal_cli: { source_path: sources.temporalCliBin, version: commandOutput(path.join(runtimeRoot, 'bin', 'temporal'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'temporal')) },
     officecli: { source_path: sources.officeCliBin, version: commandOutput(path.join(runtimeRoot, 'bin', 'officecli'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'officecli')) },
     mineru_open_api: { source_path: sources.mineruOpenApiBin, version: commandOutput(sources.mineruOpenApiBin, ['version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'mineru-open-api')) },
     skills: { source_path: path.join(os.homedir(), '.codex', 'skills'), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'skills')) },

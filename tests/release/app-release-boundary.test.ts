@@ -5146,6 +5146,10 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /npm install -g "@openai\/codex@\$\{codex_latest\}"/);
   assert.match(workflow, /echo "OPL_FULL_CODEX_VERSION=\$codex_latest" >> "\$GITHUB_ENV"/);
   assert.match(workflow, /\[\[ "\$codex_version" == "codex-cli \$codex_latest" \]\]/);
+  assert.match(workflow, /brew install zstd temporal \|\| true/);
+  assert.match(workflow, /temporal --version/);
+  assert.match(workflow, /echo "OPL_FULL_BUN_BIN=\$\(command -v bun\)" >> "\$GITHUB_ENV"/);
+  assert.match(workflow, /echo "OPL_FULL_TEMPORAL_CLI_BIN=\$\(command -v temporal\)" >> "\$GITHUB_ENV"/);
   assert.equal(matchCount(workflow, /name: Checkout MinerU Ecosystem/g), 1);
   assert.equal(matchCount(workflow, /repository: opendatalab\/MinerU-Ecosystem/g), 1);
   assert.equal(matchCount(workflow, /^\s+path: MinerU-Ecosystem$/gm), 1);
@@ -5166,6 +5170,8 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /ELECTRON_CACHE: \$\{\{ runner\.temp \}\}\/\.cache\/electron/);
   assert.match(workflow, /ELECTRON_BUILDER_CACHE: \$\{\{ runner\.temp \}\}\/\.cache\/electron-builder/);
   assert.match(workflow, /opl-full-runtime-cache-aggregate-key\.json/);
+  assert.match(workflow, /export OPL_FULL_BUN_BIN="\$\{OPL_FULL_BUN_BIN:-\$\(command -v bun\)\}"/);
+  assert.match(workflow, /export OPL_FULL_TEMPORAL_CLI_BIN="\$\{OPL_FULL_TEMPORAL_CLI_BIN:-\$\(command -v temporal\)\}"/);
   assert.match(workflow, /input\.aggregate_key_input/);
   assert.match(workflow, /toolchain:\s+'toolchain'/);
   assert.match(workflow, /'domain-runtime':\s+'domain_runtime'/);
@@ -5432,6 +5438,7 @@ test('Full first-install manifest declares App-owned distribution and Framework 
   assert.deepEqual(manifest.runtime_assertions, {
     temporal_core_bridge_releases: [],
     excluded_module_venv_count: 0,
+    packaged_global_node_packages: [],
   });
   assert.deepEqual(Object.keys(manifest.size_breakdown.layers), [
     'toolchain',
@@ -5471,6 +5478,16 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     receipt_env: 'OPL_FULL_CODEX_VERSION',
     runtime_path: 'runtime/current/bin/codex',
     verification: 'codex --version must equal codex-cli <npm_latest>',
+  });
+  assert.deepEqual(releaseContract.full_first_install.required_payloads.bun_cli, {
+    source: 'Full workflow setup-bun resolved binary',
+    runtime_path: 'runtime/current/bin/bun',
+    verification: 'Full manifest components.bun.version is recorded from runtime/current/bin/bun --version',
+  });
+  assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_cli, {
+    source: 'Homebrew temporal CLI resolved binary or OPL_FULL_TEMPORAL_CLI_BIN',
+    runtime_path: 'runtime/current/bin/temporal',
+    verification: 'Full manifest components.temporal_cli.version is recorded from runtime/current/bin/temporal --version',
   });
   assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_runtime_provider, {
     provider_env_default: 'OPL_FAMILY_RUNTIME_PROVIDER=temporal',
@@ -5674,13 +5691,33 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /npmBin: requireNodeToolchainFile\(nodeBinDir, 'npm'/);
   assert.match(buildScript, /npxBin: requireNodeToolchainFile\(nodeBinDir, 'npx'/);
   assert.match(buildScript, /npmRoot: requireNodeToolchainDirectory\(path\.join\(nodeRoot, 'lib', 'node_modules', 'npm'\)/);
-  assert.match(buildScript, /copySingleFile\(sources\.nodeToolchain\.npmBin, path\.join\(layerRoot, 'node', 'bin', 'npm'\)\)/);
-  assert.match(buildScript, /copySingleFile\(sources\.nodeToolchain\.npxBin, path\.join\(layerRoot, 'node', 'bin', 'npx'\)\)/);
-  assert.match(buildScript, /copyTreeFiltered\(\s*sources\.nodeToolchain\.npmRoot,\s*path\.join\(layerRoot, 'node', 'lib', 'node_modules', 'npm'\)/);
+  assert.match(buildScript, /bunBin: process\.env\.OPL_FULL_BUN_BIN \|\| ''/);
+  assert.match(buildScript, /temporalCliBin: process\.env\.OPL_FULL_TEMPORAL_CLI_BIN \|\| ''/);
+  assert.match(buildScript, /else if \(token === '--bun-bin'\) parsed\.bunBin = path\.resolve\(value\)/);
+  assert.match(buildScript, /else if \(token === '--temporal-cli-bin'\) parsed\.temporalCliBin = path\.resolve\(value\)/);
+  assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
+  assert.match(buildScript, /function findTemporalCliBinary\(explicitBin\)/);
+  assert.match(buildScript, /findBunBinary,\s+findTemporalCliBinary,/);
+  assert.match(buildScript, /copyPortableTree,\s+copyExecutableOrSymlinkTarget,\s+copyNodeRuntimePayload,\s+assertNoExternalSymlinks,/);
+  assert.match(buildScript, /copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\)/);
+  assert.match(buildScript, /copySingleFile\(sources\.temporalCliBin, path\.join\(layerRoot, 'bin', 'temporal'\)\)/);
+  assert.match(buildScript, /copyNodeRuntimePayload\(path\.dirname\(path\.dirname\(sources\.nodeToolchain\.nodeBin\)\), path\.join\(layerRoot, 'node'\)\)/);
+  assert.match(buildScript, /function copyNodeRuntimePayload\(nodeRoot, targetRoot\)/);
+  assert.match(buildScript, /for \(const relativePath of \['bin\/node', 'bin\/npm', 'bin\/npx'\]\)/);
+  assert.match(buildScript, /for \(const packageName of \['npm', 'corepack'\]\)/);
+  assert.match(buildScript, /assertNoExternalSymlinks\(targetRoot, 'Full first-install Node runtime'\)/);
+  assert.match(buildScript, /function assertNoExternalSymlinks\(root, label\)/);
+  assert.match(buildScript, /path\.isAbsolute\(linkTarget\) \|\| !isInsidePath\(rootPath, resolvedTarget\)/);
   assert.match(buildScript, /npm_bin_sha256: fileSha256\(sources\.nodeToolchain\.npmBin\)/);
   assert.match(buildScript, /npx_bin_sha256: fileSha256\(sources\.nodeToolchain\.npxBin\)/);
   assert.match(buildScript, /npm_package_version: packageJsonVersion\(path\.join\(sources\.nodeToolchain\.npmRoot, 'package\.json'\)\)/);
   assert.match(buildScript, /npm_package_fingerprint: directoryFingerprint\(sources\.nodeToolchain\.npmRoot, 'node\/lib\/node_modules\/npm'\)/);
+  assert.match(buildScript, /bun_sha256: fileSha256\(sources\.bunBin\)/);
+  assert.match(buildScript, /temporal_cli_sha256: fileSha256\(sources\.temporalCliBin\)/);
+  assert.match(buildScript, /temporal_cli_version: commandOutput\(sources\.temporalCliBin, \['--version'\]\)/);
+  assert.match(buildScript, /packaged_global_node_packages: fs\.existsSync\(path\.join\(runtimeRoot, 'node', 'lib', 'node_modules'\)\)/);
+  assert.match(buildScript, /bun: \{ source_path: sources\.bunBin/);
+  assert.match(buildScript, /temporal_cli: \{ source_path: sources\.temporalCliBin/);
   assert.match(buildScript, /function copyOplMetaAgentSkill\(targetRoot, options\)/);
   assert.match(buildScript, /'agent', 'skills', 'opl-meta-agent-domain-skill\.md'/);
   assert.match(buildScript, /fs\.copyFileSync\(domainSkill, path\.join\(target, 'SKILL\.md'\)\)/);
@@ -5755,5 +5792,18 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.match(buildScript, /pruneTemporalCoreBridgeReleases\(path\.join\(targetRoot, 'node_modules'\)\)/);
   assert.match(buildScript, /assertTemporalCoreBridgeMacosArm64Only\(path\.join\(runtimeRoot, 'opl', 'node_modules'\)\)/);
   assert.match(buildScript, /runtimeAssertions: collectRuntimeAssertions\(runtimeRoot\)/);
+  assert.match(buildScript, /bunBin: process\.env\.OPL_FULL_BUN_BIN \|\| ''/);
+  assert.match(buildScript, /temporalCliBin: process\.env\.OPL_FULL_TEMPORAL_CLI_BIN \|\| ''/);
+  assert.match(buildScript, /else if \(token === '--bun-bin'\) parsed\.bunBin = path\.resolve\(value\)/);
+  assert.match(buildScript, /else if \(token === '--temporal-cli-bin'\) parsed\.temporalCliBin = path\.resolve\(value\)/);
+  assert.match(buildScript, /function findTemporalCliBinary\(explicitBin\)/);
+  assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
+  assert.match(buildScript, /copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\)/);
+  assert.match(buildScript, /copySingleFile\(sources\.temporalCliBin, path\.join\(layerRoot, 'bin', 'temporal'\)\)/);
+  assert.match(buildScript, /copyNodeRuntimePayload\(path\.dirname\(path\.dirname\(sources\.nodeToolchain\.nodeBin\)\), path\.join\(layerRoot, 'node'\)\)/);
+  assert.match(buildScript, /assertNoExternalSymlinks\(targetRoot, 'Full first-install Node runtime'\)/);
+  assert.match(buildScript, /packaged_global_node_packages:/);
+  assert.match(buildScript, /bun: \{ source_path: sources\.bunBin[\s\S]*path\.join\(runtimeRoot, 'bin', 'bun'\)/);
+  assert.match(buildScript, /temporal_cli: \{ source_path: sources\.temporalCliBin[\s\S]*path\.join\(runtimeRoot, 'bin', 'temporal'\)/);
   assert.match(buildScript, /codex: \{ source_path: sources\.codexRoot[\s\S]*size_bytes: directorySizeBytes\(path\.join\(runtimeRoot, 'bin', 'codex'\)\)/);
 });
