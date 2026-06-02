@@ -136,14 +136,14 @@ assistant reply 可见为 `OK`。
   SSE Codex app-server events、Settings IA、secondary activity refs surface、
   conversation event rendering 和 default-collapsed home parity。
 - Source UI smoke 把普通 home 绘制为 chat-first canvas，stage class 同时包含
-  `without-rail` 和 `without-inspector`，展示 `科研`/`基金`/`PPT` purpose entries，并
+  `without-rail` 和 `without-inspector`，展示 `科研`/`基金`/`演示` purpose entries，并
   收到 Codex app-server 的 `OK`。当前 App contract 要求普通 home 不显示 runtime
   activity、continue-work、per-agent running badges 或 footer quick icons；refs
   只能进入 Runtime 或 secondary context。
 - Source UI smoke 还必须打开 workspace/session rail、右侧 inspector 和 Routing
-  tab，证明普通用户层 chrome 在中文状态下仍使用 `科研`、`基金`、`PPT`、`本机助手`、
-  `本机能力`、`自动`、`状态投影` 等用户层文案，不显示 `Codex CLI`、`MAS`、`MAG`、
-  `RCA`、`app_state.actions`、`opl_app_state.v1`、AG-UI/ACP/app-server 等技术标签。
+  tab，证明普通用户层 chrome 在中文状态下仍使用 `科研`、`基金`、`演示`、`本机助手`、
+  `本机能力`、`自动`、`状态摘要` 等用户层文案，不显示 `PPT`、`Codex CLI`、`MAS`、
+  `MAG`、`RCA`、`app_state.actions`、`opl_app_state.v1`、AG-UI/ACP/app-server 等技术标签。
 - Source 和 packaged UI smoke 还必须把窗口压到窄桌面/WebUI 宽度验证 context
   layer：workspace/session rail 与 inspector 仍是默认收起的二级层，但显式打开后
   inspector、context tabs 和 Routing tab 必须有真实可见尺寸。
@@ -189,7 +189,7 @@ Candidate 可以端到端验证而不改变当前 release。只有明确修改
 - Package 之后重新运行 source UI smoke：
   `npx electron . --ui-smoke-test`。证据记录 `packaged=false`、
   `route_label="科研本机助手/Users/gaofeng"`、`model_status="自动"`、
-  `purpose_labels=["科研","基金","PPT"]`、
+  `purpose_labels=["科研","基金","演示"]`、
   `home_stage_class_name="stage-shell without-rail without-inspector"`、
   `home_continue_work_visible=false`、`home_runtime_activity_visible=false`、
   `bilingual_ui_status=passed`、`locale_switch_status=passed`，并覆盖

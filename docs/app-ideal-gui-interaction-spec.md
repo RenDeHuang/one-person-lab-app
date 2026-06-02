@@ -90,7 +90,7 @@ OPL App 普通界面必须支持中文和英文两套 UI copy。默认语言可�
 普通用户层 chrome 必须按当前语言完整呈现。这里的普通用户层包括 Home topbar、
 chat composer、workspace/session rail、右侧 inspector 默认 summary、context tabs
 和 Routing tab summary。普通中文 first screen 使用
-`科研`、`基金`、`PPT`、`本机助手`、`自动` 这类中文工作标签；英文 UI 中使用
+`科研`、`基金`、`演示`、`本机助手`、`自动` 这类中文工作标签；英文 UI 中使用
 `Research`、`Grant`、`Presentation`、`Local assistant`、`Auto`。`OPL` 和
 `Codex` 可作为产品/执行器品牌保留，但 `Codex CLI`、`MAS`、`MAG`、`RCA`、
 `OMA`、命令片段、schema id、receipt id、文件路径和用户/系统原始输出应进入
@@ -204,11 +204,13 @@ OPL purposes 是固定 Codex executor 上的 App-owned defaults：
 
 - `科研` 路由到 MAS，用于 research 和 paper work。
 - `基金` 路由到 MAG，用于 grant work。
-- `PPT` 路由到 RCA，用于 presentation 和 visual deliverable work。
+- `演示` 路由到 RCA，用于 presentation、PPT 和 visual deliverable work。
 
 Purpose selection 改变 route context 和 assistant skill profile；它不是
 backend selection。每个 routed conversation 必须带 App-owned receipt，记录
 route kind、executor、assistant id、assistant short name 和 source。
+当前底层 route id 仍可保留 `ppt` 以兼容既有 product profile；普通中文 UI
+显示 `演示`，不要把 `PPT` 当作中文 chrome 主标签。
 
 OMA 保持 explicit 或 settings-only，直到单独产品决策把它提升为默认可见。
 
@@ -243,7 +245,7 @@ Model、agent、assistants、skills-hub、tools、display、WebUI、pet 等 lega
 或 upstream settings categories 路由到 App-owned pages 或 diagnostics。它们
 不能成为普通产品 tabs。
 
-Agents & Capabilities 主视图按科研、基金、PPT 和显式 OPL Meta Agent 组织。
+Agents & Capabilities 主视图按科研、基金、演示和显式 OPL Meta Agent 组织。
 内置技能列表和自动注入技能只能显示 App product profile 的 packaged skill
 whitelist 里的技能；`aionui-skills`、`aionui-webui-setup`、`skill-creator` 等 AionUI
 implementation helper 不进入普通能力页。

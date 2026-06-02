@@ -73,7 +73,7 @@ App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent da
   Routing/runtime refs、Memory refs、Always-On/Automations、Settings；这些
   tabs 不能和主 chat canvas 竞争。
 - MAS/MAG/RCA 是 Codex 之上的 built-in purpose entries。普通 chrome 使用
-  `科研`、`基金`、`PPT` 或 `Research`、`Grant`、`Presentation`，route receipts
+  `科研`、`基金`、`演示` 或 `Research`、`Grant`、`Presentation`，route receipts
   和 technical refs 再记录 MAS/MAG/RCA，不把它们当 separate backend choices。
 - UI labels、empty states、button titles、aria labels、first-run、runtime、
   activity 和 settings copy 有中文/英文两套显示；切换语言不改变 runtime truth、
@@ -148,7 +148,7 @@ Google Stitch 生成的 `One Person Lab` 设计稿可作为 `agui-codex` 和未�
 - Header route line、model status 和 composer status 必须保持辅助权重；主视觉
   锚点是 conversation reading lane 和 composer input。右侧 inspector 打开后要用
   spacing、outline 和清晰标题分层，避免所有 cards 同权重堆叠成 workbench。
-- 双语界面中，中文 first screen 主标签使用 `科研`、`基金`、`PPT`、`本机助手`
+- 双语界面中，中文 first screen 主标签使用 `科研`、`基金`、`演示`、`本机助手`
   和 `自动`，英文界面使用 `Research`、`Grant`、`Presentation`、
   `Local assistant` 和 `Auto`；`Codex CLI`、`MAS/MAG/RCA` 等技术标签进入
   二级详情、diagnostics 或 evidence，不作为中文普通首页主要文案。
@@ -188,7 +188,8 @@ secondary context，不在 composer 附近显示 compact entry。
 
 - `科研` 路由到 MAS。
 - `基金` 路由到 MAG。
-- `PPT` 路由到 RCA。
+- `演示` 路由到 RCA，用于 PPT、汇报和视觉交付物。底层 route id 可继续是 `ppt`
+  以兼容既有 profile。
 - OMA 保持 explicit 或 settings-only，直到产品决策让它默认可见。
 - Assistant-scoped skills 来自 App-owned packaged skill profiles，而不是
   shell-local discovery。
@@ -242,7 +243,7 @@ secondary context，不在 composer 附近显示 compact entry。
   redirects、bridge calls、局部 renderer 组合、CSS/i18n 和 focused tests。
 - 实现 App-owned bilingual copy policy：普通 UI 在中文/英文下分别一致呈现，
   中文普通首页不混入 `Med Auto Science`、`Med Auto Grant`、`RedCube AI`、
-  `Codex CLI`、`Local assistant` 这类英文技术/产品文案；workspace rail、composer、
+  `PPT`、`Codex CLI`、`Local assistant` 这类英文技术/产品文案；workspace rail、composer、
   context inspector 和 routing summary 也不得混入 `MAS`、`MAG`、`RCA`、
   `app_state.actions`、`opl_app_state.v1` 等技术标签；协议或 backend 名称不进入
   ordinary chat surface。
@@ -393,7 +394,7 @@ npx electron . --ui-smoke-test
 - Package 后重新运行 WebUI smoke，通过同一 renderer、browser bridge 注入、
   `window.oplCandidate` shape、Settings IA、secondary Runtime/refs surface、
   七类 conversation events、bilingual UI 和 default-collapsed home parity。
-- Package 后重新运行 source UI smoke，purpose entries 为 `科研`、`基金`、`PPT`，
+- Package 后重新运行 source UI smoke，普通中文 purpose entries 为 `科研`、`基金`、`演示`，
   route label 为 `科研本机助手/Users/gaofeng`，`model_status=自动`，
   `default_home_layout_status=passed`，stage classes 为 `without-rail` 和
   `without-inspector`，`home_continue_work_visible=false`，

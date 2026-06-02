@@ -86,10 +86,12 @@ orchestration。
 | --- | --- | --- | --- |
 | Research | `科研` | Med Auto Science | MAS |
 | Grant | `基金` | Med Auto Grant | MAG |
-| Presentation | `PPT` | RedCube AI | RCA |
+| Presentation | `演示` | RedCube AI | RCA |
 
 每个 purpose 改变 assistant context、prompt rules、skill profile、route
 receipt 和 domain-specific contextual surfaces。它不改变 executor 或 backend。
+底层 product profile 可继续使用 `ppt` route id 和历史 `PPT` compatibility label；
+普通中文界面显示 `演示`，避免把英文缩写放进中文 first screen chrome。
 
 OMA 保持 explicit 或 Settings-only，直到单独 App 产品决策让它进入普通 home。
 
@@ -197,10 +199,10 @@ Continue-work 详细列表也属于次级 surface。OPL App 可以让用户从 c
 
 用户可见名称应该描述工作，而不是基础设施：
 
-- 普通 purpose entries 使用 `科研`、`基金`、`PPT`。
+- 普通中文 purpose entries 使用 `科研`、`基金`、`演示`。
 - 英文 UI 中对应显示 `Research`、`Grant`、`Presentation`。
 - MAS/MAG/RCA 是 route receipt 和 technical refs；普通 chrome 使用
-  `科研`、`基金`、`PPT` 或 `Research`、`Grant`、`Presentation`。
+  `科研`、`基金`、`演示` 或 `Research`、`Grant`、`Presentation`。
 - 中文普通首页用 `本机助手 / 自动` 作为紧凑状态，英文界面用
   `Local assistant / Auto`；`Codex CLI` 可进入二级技术详情或 diagnostics，
   不作为中文 first-screen 的主要状态文案。
@@ -218,8 +220,8 @@ Continue-work 详细列表也属于次级 surface。OPL App 可以让用户从 c
   `Local assistant` 这类英文普通标签，英文模式也不能残留 `科研`、`基金`、
   `本机助手`、`自动` 这类中文普通标签。
 - 中文普通 first screen 优先使用短标签和中文工作意图，不把 Med Auto Science、
-  Med Auto Grant、RedCube AI 这类英文长名作为主要视觉文本；这些长名可在英文界面、
-  details、Settings 或 diagnostics 中出现。
+  Med Auto Grant、RedCube AI 或 `PPT` 这类英文缩写/长名作为主要视觉文本；
+  这些长名可在英文界面、details、Settings 或 diagnostics 中出现。
 
 技术标签可以出现在 diagnostics、logs、validation evidence 或 developer docs。
 
@@ -277,7 +279,7 @@ App-owned gates 通过后，才能成为默认 release shell。
 当用户可以做到以下事项时，Codex App 形态才算变成 OPL App：
 
 - 打开 workspace 并开始 Codex conversation。
-- 选择 `科研`、`基金` 或 `PPT` 作为 purpose，而不是 backend。
+- 选择 `科研`、`基金` 或 `演示` 作为 purpose，而不是 backend。
 - 用与 Codex App 一样低摩擦的 chat flow 发送任务。
 - 不离开 chat 就能看到 OPL progress、blockers、refs 和 receipts。
 - 只在需要时打开 files、capabilities、memory、runtime 或 automations。
