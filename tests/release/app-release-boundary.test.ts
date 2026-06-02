@@ -4614,7 +4614,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /name: OPL Desktop Release/);
   assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release[\s\S]*draft_candidate/);
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
+  assert.match(workflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to build and verify/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /name: Verify standard release assets[\s\S]*OPL_RELEASE_VERSION: \$\{\{ inputs\.opl_version \}\}[\s\S]*node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
@@ -4643,6 +4645,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /remote-verify-full:/);
   assert.match(workflow, /npm run verify-remote-release/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
   assert.match(workflow, /publish_to_release: false/);
   assert.match(workflow, /publish-full-assets:/);
   assert.match(workflow, /--full-package-dir full-package-artifacts/);
@@ -4672,12 +4675,15 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /RELEASE_MODE.*draft_candidate/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
   assert.match(workflow, /release_artifact_name: macos-build-arm64/);
   assert.match(workflow, /release_artifact_name: opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(workflow, /package_profile: standard/);
   assert.match(workflow, /package_profile: full/);
   assert.match(fullWorkflow, /workflow_call:/);
   assert.doesNotMatch(fullWorkflow, /workflow_call:[\s\S]*secrets:[\s\S]*GH_TOKEN:/);
+  assert.match(fullWorkflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to bundle/);
+  assert.match(fullWorkflow, /name: Checkout active shell[\s\S]*ref: \$\{\{ inputs\.shell_ref \|\| 'main' \}\}/);
   assert.match(fullWorkflow, /name: Checkout OPL Meta Agent/);
   assert.match(fullWorkflow, /repository: gaofeng21cn\/opl-meta-agent/);
   assert.match(fullWorkflow, /path: opl-meta-agent/);
@@ -4698,6 +4704,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     fs.existsSync(path.join(appRoot, 'assets', 'companion-skills', 'mineru-document-extractor', 'SKILL.md')),
   );
   assert.match(vmWorkflow, /workflow_call:/);
+  assert.match(vmWorkflow, /shell_ref:[\s\S]*description: 'opl-aion-shell ref containing the first-run smoke scripts/);
+  assert.match(vmWorkflow, /name: Checkout active shell[\s\S]*ref: \$\{\{ inputs\.shell_ref \|\| 'main' \}\}/);
   assert.match(vmWorkflow, /release_artifact_name:/);
   assert.match(vmWorkflow, /actions\/download-artifact@v8/);
   assert.match(vmWorkflow, /Using same-run workflow artifact/);

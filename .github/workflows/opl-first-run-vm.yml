@@ -15,6 +15,11 @@ on:
         description: 'Same-run GitHub Actions artifact containing the DMG. Used by release workflows before draft assets are externally visible.'
         required: false
         type: string
+      shell_ref:
+        description: 'opl-aion-shell ref containing the first-run smoke scripts. Empty means main.'
+        required: false
+        default: main
+        type: string
       package_profile:
         description: 'DMG profile to test.'
         required: false
@@ -58,6 +63,11 @@ on:
       release_artifact_name:
         description: 'Same-run GitHub Actions artifact containing the DMG. Used by release workflows before draft assets are externally visible.'
         required: false
+        type: string
+      shell_ref:
+        description: 'opl-aion-shell ref containing the first-run smoke scripts. Empty means main.'
+        required: false
+        default: main
         type: string
       package_profile:
         description: 'DMG profile to test: full or standard.'
@@ -144,7 +154,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/opl-aion-shell
-          ref: main
+          ref: ${{ inputs.shell_ref || 'main' }}
           path: shells/aionui
 
       - name: Setup Node.js

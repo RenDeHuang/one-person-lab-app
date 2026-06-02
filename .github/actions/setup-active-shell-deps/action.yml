@@ -2,6 +2,10 @@ name: Setup active shell dependencies
 description: Checkout the active shell and prepare Node/Bun dependencies for App-owned CI jobs.
 
 inputs:
+  shell-ref:
+    description: opl-aion-shell ref to checkout for the active shell. Empty means main.
+    required: false
+    default: main
   install-dependencies:
     description: Whether to run bun install in shells/aionui.
     required: false
@@ -18,7 +22,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: gaofeng21cn/opl-aion-shell
-        ref: main
+        ref: ${{ inputs.shell-ref || 'main' }}
         path: shells/aionui
 
     - name: Setup Node.js

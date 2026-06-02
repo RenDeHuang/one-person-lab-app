@@ -13,6 +13,11 @@ on:
         required: false
         default: main
         type: string
+      shell_ref:
+        description: opl-aion-shell ref to bundle. Empty means main.
+        required: false
+        default: main
+        type: string
       force_rebuild_runtime_cache:
         description: Ignore restored Full runtime layer cache and rebuild all layers
         required: false
@@ -38,6 +43,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       framework_ref: ${{ steps.version.outputs.framework_ref }}
+      shell_ref: ${{ steps.version.outputs.shell_ref }}
 
     steps:
       - name: Resolve version
@@ -57,8 +63,13 @@ jobs:
           if [ -z "$framework_ref" ]; then
             framework_ref="main"
           fi
+          shell_ref="${{ github.event_name == 'workflow_dispatch' && inputs.shell_ref || 'main' }}"
+          if [ -z "$shell_ref" ]; then
+            shell_ref="main"
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "framework_ref=$framework_ref" >> "$GITHUB_OUTPUT"
+          echo "shell_ref=$shell_ref" >> "$GITHUB_OUTPUT"
 
   warmup:
     name: Warm Full runtime layer cache
@@ -67,6 +78,7 @@ jobs:
     with:
       opl_version: ${{ needs.resolve-version.outputs.version }}
       framework_ref: ${{ needs.resolve-version.outputs.framework_ref }}
+      shell_ref: ${{ needs.resolve-version.outputs.shell_ref }}
       publish_to_release: false
       upload_full_package_artifact: false
       force_rebuild_runtime_cache: ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild_runtime_cache }}

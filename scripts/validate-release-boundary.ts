@@ -111,6 +111,8 @@ const checks = [
       'release-readiness-summary:',
       'scripts/summarize-release-readiness.ts',
       'release-readiness-summary.json',
+      'shell_ref:',
+      'shell_ref: ${{ inputs.shell_ref }}',
       'release_artifact_name: macos-build-arm64',
       'release_artifact_name: opl-full-first-install-${{ inputs.opl_version }}-mac-arm64',
       'package_profile: standard',
