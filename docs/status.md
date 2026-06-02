@@ -96,20 +96,36 @@ maintenance counts, blockers, and next visible steps from that model instead of
 maintaining separate installer-specific progress truth. The active shell renders
 this model only and does not own private first-run progress state.
 
+Runtime bridge command resolution is part of the App-owned runtime contract.
+The active shell may prefer an App-managed `opl` only when that shim resolves to
+an existing CLI payload. If a stale managed Node shim points at a removed
+temporary install or missing `dist/cli.js`, the adapter must skip it and fall
+through to a healthy system `opl` such as `/opt/homebrew/bin/opl`. A damaged
+managed shim must not make first-run display `0/0` progress or override
+`opl system initialize --json` when the framework CLI is otherwise available.
+
 Runtime progress display is contract-backed separately from first-run progress.
-The Runtime page is a project-progress surface first: it consumes
-`app_state.operator.workbench.task_drilldowns` to show which projects are
-running, their current state and stage, projected next step, blockers, and
-human-readable progress delta labels. Operator summary, safe actions, evidence
-refs, and full detail are secondary diagnostics. The same projection still
+The Runtime page is running-activity first: it consumes `opl runtime
+app-operator-drilldown --json` and reads `current_control_state.summary` plus
+`current_control_state.states` to show active provider executions after
+filtering checkpointed provider refs, running domains, task kinds, and latest
+heartbeat. `opl app state --profile
+fast --json` remains the refresh/availability/action/project-ref source.
+Project progress from `app_state.operator.workbench.task_drilldowns` is
+secondary and shows project title, current state/stage, projected next step,
+blockers, and human-readable progress delta labels. The same projection still
 classifies `deliverable_progress_delta` separately from
 `platform_repair_delta`. Platform repair is shown as infrastructure repair and
 cannot be presented as substantive deliverable, paper, manuscript, or
 submission progress.
 
-The default Runtime page attention model is owner-action first, not ledger
-first. The ordinary view should surface the next visible step, next owner,
-delta class, and blocker state before full evidence detail. Full ledger detail
+The default Runtime page attention model is provider running activity first,
+not ledger first and not module diagnostics first. `running_provider_attempt_count`
+may be larger than the user-visible active execution count because it can include
+checkpointed provider refs; the GUI must not present that summary count as
+active tasks. `domain_lane_map.active_task_count`,
+`module_runtime dirty`, module readiness, repo/worktree diagnostics, and
+assistant purpose cards are forbidden running-task sources. Full ledger detail
 is reserved for explicit diagnostics, audit, or release evidence.
 
 The App first-run screen presents that shared model in a beginner-first way:
@@ -160,19 +176,18 @@ validate:gui-shell` when the change must prove the active shell still validates
 and compiles through the App wrapper path.
 
 Runtime page evidence path is declared in
-`contracts/app-page-state-matrix.json`: the active shell loads the summary read
-model through `opl app state --profile fast --json`, refreshes through the same
-fast App state surface, keeps `opl app state --profile full --json` for explicit
-full-state diagnostic or release evidence, lazy-loads full detail through `opl
-runtime app-operator-drilldown --detail full --json`, and presents a
-multi-task runtime base view with action queue refs, a vertical dynamic map,
-single-task drilldown, and MAS paper lens refs. The page stays summary-first,
-loads full detail only on demand, uses a 5-10 second lightweight polling
-fallback when push projection is unavailable, and exposes only refs-only
-`opl app action execute --action <id> [--payload json] [--dry-run] --json`
-controls. Execution refreshes the App state projection so receipt/count fields
-stay framework-owned; MAS/MAG/RCA verdicts and artifact authority remain
-domain-owned refs.
+`contracts/app-page-state-matrix.json`: the active shell loads running activity
+through `opl runtime app-operator-drilldown --json`, refreshes availability and
+actions through `opl app state --profile fast --json`, keeps `opl app state
+--profile full --json` for explicit full-state diagnostic or release evidence,
+lazy-loads full detail through `opl runtime app-operator-drilldown --detail
+full --json`, and presents project progress refs only after the current-control
+provider projection. The page stays running-activity-first, loads full detail
+only on demand, uses a 5-10 second lightweight polling fallback when push
+projection is unavailable, and exposes only refs-only `opl app action execute
+--action <id> [--payload json] [--dry-run] --json` controls. Execution refreshes
+the App state projection so receipt/count fields stay framework-owned;
+MAS/MAG/RCA verdicts and artifact authority remain domain-owned refs.
 
 Current GUI product truth 现在有明确的人读定义栈：
 `docs/app-ideal-gui-interaction-spec.md` 定义 Codex App 形态、chat-first 的交互
@@ -193,9 +208,11 @@ and reasoning effort belong in technical details or a connected state surface.
 Each default purpose entry also owns an assistant-scoped skill profile: MAS
 requires `mas`, MAG requires `mag`, and RCA requires `rca`; optional companion
 skills are selected from that assistant profile after passing the App packaged
-skill set boundary。Home surface 可以在 input 附近显示紧凑 continue-work
-activity center，用于 needs-attention、active、recent project refs，但必须保持
-refs-only，不能变成 full workbench。Settings 的 General/Access/Agents &
+skill set boundary。Home surface 不显示 runtime activity、continue-work、
+needs-attention/active/recent refs、per-assistant running badges 或底部
+feedback/favorite/web 图标；这些信息属于 Runtime、右侧 inspector、drawer 或其他
+secondary context surface，必须保持 refs-only，不能变成 ordinary home first-screen
+workbench。Settings 的 General/Access/Agents &
 Capabilities/Local Environment/Appearance/Advanced/About & Updates surfaces、
 module path source explanation、stable/nightly release gates 和 OPL Agent Codex
 context 都是 App-owned requirements。Upstream overview、runtime、system、model、
@@ -205,8 +222,8 @@ App-owned pages，不是 ordinary user tabs。`/guid` quick shortcut 打开 Acce
 module，不是 default home assistant entry。MDS 不是 default GUI module，只保留
 historical 或 explicit-reference。`contracts/app-shell-adapter.json` 要求 active
 shell 实现该 App contract，并保持 upstream AionUI 只是 implementation material，
-不是 product authority。Home activity center item fields、forbidden display
-fields 和 Settings page sections now have matching page-state matrix entries,
+不是 product authority。Home runtime suppression、secondary runtime refs、
+forbidden display fields 和 Settings page sections now have matching page-state matrix entries,
 and `validate:active-shell --quick` plus the focused release-boundary GUI tests
 fail closed if the contract and matrix drift.
 
@@ -291,20 +308,28 @@ protocol copy on the ordinary chat surface. Default release promotion is still
 an explicit release decision: stable/nightly packaging continues to use AionUI
 until `contracts/app-shell-adapter.json` is deliberately changed.
 
-On 2026-05-30, the `agui-codex` candidate shell was corrected back to the
-Codex App-style chat-first target. The ordinary home opens on the conversation
-canvas with `without-rail` and `without-inspector`; the workspace/session rail
-and right-side inspector remain collapsed until the user explicitly opens them.
-The candidate contract and validation now require
-`default_context_collapsed_chat_first_home` in addition to shared
-Electron/WebUI renderer evidence, Web transport bridge evidence, WebUI smoke,
-source UI smoke, packaged UI smoke, page-state/first-run mapping, runtime
-summary/full-drilldown evidence, safe App action dry-run receipts, and real
-Codex app-server `OK` turn evidence. PilotDeck remains reference-only
-information organization for optional rail/inspector surfaces, not a first
-screen workbench template. This is candidate evidence only; the default release
-shell remains AionUI until `contracts/app-shell-adapter.json` is deliberately
-promoted.
+On 2026-06-02, the `agui-codex` candidate shell reached its then-current
+technical verification target. The ordinary home opened on the conversation canvas with
+`without-rail` and `without-inspector`; the workspace/session rail and
+right-side inspector remain collapsed until the user explicitly opens them. The
+candidate now renders App-owned Settings IA and refs-only secondary activity
+groups with `needs_attention`, `active_projects`, and `recent_projects`, plus
+compact conversation event refs for tool, process, diff, file, receipt,
+user-input, and permission events. Its older compact continue-work evidence is
+superseded by the current Home-minimal contract and must be refreshed before the
+candidate can be claimed current again. WebUI smoke now proves built renderer parity,
+browser bridge injection, `window.oplCandidate` shape, Settings IA, secondary
+Activity refs surface, conversation events, and default-collapsed home semantics. Source and
+packaged UI smoke both run a real Codex app-server `OK` turn, prove visible
+paint, run safe App action dry-run, and write final manifest evidence. That
+candidate final gate passed for the earlier contract; after the Home-minimal
+update, `npm run validate:shell-candidates` remains a registry/isolation gate and
+full candidate implementation evidence must be regenerated before claiming the
+candidate implementation is current. PilotDeck remains
+reference-only information organization for optional rail/inspector surfaces,
+not a first-screen workbench template. This is candidate evidence only; the
+default release shell remains AionUI until `contracts/app-shell-adapter.json` is
+deliberately promoted.
 
 2026-05-22 App release evidence collection now has an App-owned CLI wrapper:
 `scripts/collect-release-evidence.ts` fills `app-state-summary.json`,
@@ -375,14 +400,21 @@ contract-only or 1x1 image fixtures.
 
 On 2026-05-31 the current-source DMG route smoke artifacts were assembled into
 `/Users/gaofeng/workspace/opl-release-evidence/app-current-source-dmg-route-smoke-20260531/evidence-manifest.json`
-through `collect-release-evidence.ts`. The same cohort now has a complete
-GitHub `v26.5.31` draft release and validates as `passed` with
-`packaged_app_evidence=true`: 15 contracted artifacts are present, with zero
-missing evidence and zero blocked evidence. The bundle includes live OPL App
-state, full drilldown, action dry-run and execute JSON, Runtime screenshot,
-clean standard first-run VM summary, packaged first-run smoke, MAS/MAG/RCA
-assistant-route summary and screenshots, Full first-install screenshot and VM
-summary, Runtime action screenshot, and remote release verification.
+through `collect-release-evidence.ts`. After the App release evidence contract
+added the packaged GUI Codex functional check summary, a same-cohort Full clean
+VM rerun at
+`codex-functional-check-vm-smoke-20260602-admin-routefix/` used the configured
+`admin` guest user and `/Users/gaofeng/.ssh/opl_first_run_tart_ed25519` key,
+passed Settings smoke, MAS/MAG/RCA route smoke, Runtime action evidence, and
+produced `artifacts/codex-functional-check-summary.json`. The refreshed bundle
+now validates with the default validator as `status=passed`,
+`packaged_app_evidence=true`, 16 contracted artifacts present, zero missing
+artifacts, and zero blocked artifacts. The bundle includes live OPL App state,
+full drilldown, action dry-run and execute JSON, Runtime screenshot, clean
+first-run VM summary, packaged first-run smoke, MAS/MAG/RCA assistant-route
+summary and screenshots, Full first-install screenshot and VM summary, Runtime
+action screenshot, remote release verification, and the passed Codex functional
+check receipt.
 
 The same-cohort standard VM run at
 `/tmp/opl-current-standard-vm-smoke-20260531-current-source-archive-1/tart-smoke-summary.json`
@@ -398,17 +430,19 @@ passed, and Runtime action evidence passed. Its imported
 action evidence is present at `screenshots/action.png` with
 `runtime-action-evidence.json` recording `dryRunCompleted=true`.
 
-The `v26.5.31` GitHub release remains a draft and is not stable/latest. Remote
-verification downloaded and verified all 11 standard and Full assets:
-standard DMG, standard ZIP, two blockmaps, `latest-mac.yml`,
-`latest-arm64-mac.yml`, Full DMG, `full-package-manifest.json`,
-`runtime-cache-events.json`, `README-Full-First-Install.txt`, and
-`SHA256SUMS.txt`. `remote-release-verification.json` reports `status=passed`,
+The `v26.5.31` GitHub release is now non-draft and non-prerelease. Remote
+verification downloaded and verified all 11 standard and Full assets: standard
+DMG, standard ZIP, two blockmaps, `latest-mac.yml`, `latest-arm64-mac.yml`,
+Full DMG, `full-package-manifest.json`, `runtime-cache-events.json`,
+`README-Full-First-Install.txt`, and `SHA256SUMS.txt`.
+`remote-release-verification.json` reports `status=passed`,
 `verified_asset_count=11`, Full DMG size `508995657` bytes, runtime
-uncompressed bytes `632065216`, and passed Full first-install budget. This
-closes the current-source draft release evidence tail only; stable publication,
-updater/latest promotion, App release-ready, domain readiness, and family
-production readiness remain separate owner decisions and evidence gates.
+uncompressed bytes `632065216`, and passed Full first-install budget. This is
+cohort-bound App release evidence together with the passed local bundle; it
+does not by itself promote stable/latest, prove MAS/MAG/RCA domain readiness,
+or prove OPL family production readiness. App release-ready, domain readiness,
+and family production readiness remain separate owner decisions and evidence
+gates.
 
 Also on 2026-05-31, the active AionUI shell smoke producer was extended so
 future Full clean first-run CDP runs write the beginner-first screenshot into

@@ -110,36 +110,22 @@
         ],
         "hero_prompt": "把研究、基金和汇报交给 One Person Lab 自动推进",
         "activity_center": {
-          "authority": "opl_framework_refs_only_projection",
-          "source": "app_state.operator.workbench.task_drilldowns + app_state.operator.summary",
-          "display_groups": [
-            "needs_attention",
-            "active_projects",
-            "recent_projects"
-          ],
-          "default_placement": "near_home_input",
-          "item_fields": [
-            "task_id",
-            "title",
-            "domain_label",
-            "state",
-            "active_stage_label",
-            "next_visible_step",
-            "blocker_ref_count",
-            "last_progress_at"
-          ],
+          "authority": "app_owned_home_minimal_command_surface",
+          "source": "not_rendered_on_ordinary_home",
+          "default_placement": "not_rendered_on_ordinary_home",
+          "home_surface_policy": "ordinary_home_must_not_render_activity_center_or_continue_work_grid",
+          "allowed_home_runtime_context": [],
           "must_not_display": [
+            "expanded continue-work center",
+            "needs attention / active / recent activity groups",
+            "per-assistant running badges",
+            "module_runtime dirty state as task",
             "domain artifact body",
             "memory body",
             "quality verdict body",
             "provider implementation details"
           ],
-          "empty_state_policy": "stable_empty_state_without_page_wide_spinner",
-          "forbidden_body_display": [
-            "domain artifact body",
-            "memory body",
-            "quality verdict body"
-          ]
+          "footer_quick_actions_policy": "do_not_render_feedback_star_web_icons_on_home"
         }
       },
       "must_show": [
@@ -152,9 +138,8 @@
         "workspace selector",
         "file attachment control",
         "send action",
-        "continue work activity center near the home input",
-        "needs attention projects from app_state.operator.workbench.task_drilldowns",
-        "active and recent project refs without domain artifact bodies"
+        "single composer-first home input",
+        "runtime/task progress available from Runtime page, not Home activity grid"
       ],
       "must_not_show": [
         "executor selector on the home input",
@@ -167,26 +152,32 @@
         "OPL Meta Agent as a default home assistant",
         "retired Codex model choices",
         "nested input card frames",
+        "expanded workbench or activity refs grid on ordinary home",
         "domain artifact body in Home activity center",
-        "memory body in Home activity center"
+        "memory body in Home activity center",
+        "compact continue-work entry near the home input",
+        "Home footer feedback icon",
+        "Home footer favorite/star icon",
+        "Home footer web/access globe icon",
+        "per-assistant running badges derived from module or domain lane diagnostics"
       ],
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json"
     },
     {
       "id": "runtime",
-      "expected_source": "OPL App state project progress projection with on-demand Framework drilldown",
-      "machine_source": "opl app state --profile fast --json",
-      "primary_projection": "app_state.operator.workbench.task_drilldowns",
-      "fallback_projection": "full App/operator drilldown only for on-demand full detail",
+      "expected_source": "OPL App state plus operator summary drilldown provider projection",
+      "machine_source": "opl app state --profile fast --json + opl runtime app-operator-drilldown --json",
+      "primary_projection": "app_operator_drilldown.current_control_state.states active provider executions",
+      "fallback_projection": "fast App state only for availability/actions; full drilldown only for explicit detail",
       "framework_command": "opl app state --profile fast --json",
       "framework_full_detail_command": "opl runtime app-operator-drilldown --detail full --json",
       "framework_action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
-      "page_contract": "runtime_project_progress_first",
+      "page_contract": "runtime_running_activity_first",
       "runtime_view_model": {
-        "role": "opl_runtime_project_progress",
+        "role": "opl_runtime_running_activity",
         "bridge_contract": "contracts/app-runtime-bridge.json",
-        "default_mode": "project_progress_first",
+        "default_mode": "running_activity_first",
         "full_detail_policy": "on_demand_only",
         "polling_fallback": {
           "interval_seconds_min": 5,
@@ -210,7 +201,7 @@
         "project_progress": {
           "source": "app_state.operator.workbench.task_drilldowns",
           "authority": "opl_framework_shared_project_progress_projection",
-          "display_policy": "project_progress_first_no_domain_artifact_body",
+          "display_policy": "project_progress_refs_secondary_no_module_runtime_dirty_as_project",
           "required_fields": [
             "task_id",
             "title",
@@ -231,8 +222,24 @@
             "next_owner",
             "last_progress_at"
           ],
+          "user_display_fields": [
+            "task_id",
+            "title",
+            "domain_label",
+            "state",
+            "active_stage_label",
+            "next_visible_step",
+            "blocker_ref_count",
+            "last_progress_at"
+          ],
           "diagnostics_treatment": "secondary_disclosure",
-          "safe_actions_treatment": "secondary_operator_disclosure"
+          "safe_actions_treatment": "secondary_operator_disclosure",
+          "forbidden_running_task_sources": [
+            "module_runtime dirty state",
+            "domain lane active_task_count",
+            "assistant purpose cards",
+            "module readiness diagnostics"
+          ]
         },
         "vertical_map": {
           "source": "app_state.operator.dynamic_vertical_map",
@@ -282,28 +289,61 @@
         },
         "primary_state_source": "opl app state --profile fast --json",
         "refresh_state_source": "opl app state --profile fast --json",
-        "summary_source": "app_state.operator.summary",
+        "summary_source": "opl runtime app-operator-drilldown --json",
         "full_detail_source": "opl runtime app-operator-drilldown --detail full --json",
         "provider_status": {
           "source": "app_state.provider",
           "authority": "opl_framework"
         },
         "default_attention": {
-          "mode": "owner_action_and_project_progress_first",
+          "mode": "running_activity_first_project_refs_second",
           "primary_fields": [
+            "current_control_state.states[].running_provider_attempt",
+            "current_control_state.states[].provider_run.provider_status",
+            "current_control_state.states[].current_attempt_state",
+            "running_provider_attempt_count",
+            "running_provider_attempt_domain_ids",
+            "running_provider_attempt_task_kinds",
+            "latest_running_provider_heartbeat_at"
+          ],
+          "secondary_fields": [
             "project title/domain/current state/current stage",
             "next_visible_step",
             "next_owner",
             "progress_delta_classification",
-            "blocker_ref_count"
-          ],
-          "secondary_fields": [
+            "blocker_ref_count",
             "operator summary",
             "safe action refs",
             "evidence refs",
             "full detail digest"
           ],
           "full_ledger_policy": "not_default_visible_on_demand_only"
+        },
+        "running_task_projection": {
+          "source": "app_operator_drilldown.current_control_state.summary + current_control_state.states",
+          "authority": "opl_framework_provider_attempt_projection",
+          "display_policy": "active_execution_first_no_module_dirty_or_checkpointed_provider_ref_as_task",
+          "user_visible_grain": "domain_and_active_execution_summary_until_project_projection_available",
+          "active_execution_filter": "states where running_provider_attempt is true and provider_run.provider_status or current_attempt_state is running",
+          "diagnostic_provider_ref_policy": "running_provider_attempt_count may include checkpointed provider refs and must not be displayed as the user-visible running task count",
+          "forbidden_sources": [
+            "domain_lane_map active_task_count",
+            "app_state.operator.workbench.task_drilldowns where active_stage_id is module_runtime",
+            "app_state.modules",
+            "module_runtime dirty state",
+            "repo/worktree diagnostics",
+            "assistant cards"
+          ],
+          "required_user_fields": [
+            "current_control_state.states[].running_provider_attempt",
+            "current_control_state.states[].provider_run.provider_status",
+            "current_control_state.states[].current_attempt_state",
+            "running_provider_attempt_count",
+            "running_provider_attempt_domain_ids",
+            "running_provider_attempt_task_kinds",
+            "latest_running_provider_heartbeat_at",
+            "running_provider_attempt_summary_policy"
+          ]
         }
       },
       "operator_evidence_acceptance_path": {
@@ -318,7 +358,8 @@
         "action_execution_policy": "operator_selected_safe_app_action_route_only"
       },
       "operator_evidence_path": [
-        "summary-first OPL App state read model",
+        "running activity from current_control_state provider projection",
+        "summary OPL operator drilldown read model",
         "fast App state refresh",
         "app_state.operator.workbench.task_drilldowns project progress refs",
         "full detail lazy load",
@@ -332,7 +373,8 @@
         "authority boundary fields"
       ],
       "must_show": [
-        "project progress first OPL runtime status",
+        "running activity first OPL runtime status",
+        "running activity from app_operator_drilldown.current_control_state provider projection",
         "project progress from app_state.operator.workbench.task_drilldowns",
         "project title/domain/current state/current stage",
         "next visible step when projected",
@@ -342,7 +384,7 @@
         "provider readiness from app_state.provider",
         "operator summary from app_state.operator",
         "safe action refs from app_state.actions",
-        "summary-first OPL App state read model",
+        "summary OPL operator drilldown read model",
         "full detail lazy load",
         "safe app action dry-run/execute controls",
         "deliverable progress delta classification",
@@ -370,7 +412,8 @@
       "must_not_show": [
         "full evidence ledger as the default Runtime page focus",
         "release/user-path evidence as family production ready"
-      ]
+      ],
+      "framework_operator_summary_command": "opl runtime app-operator-drilldown --json"
     },
     {
       "id": "environment",
@@ -623,6 +666,24 @@
         "advanced_progress_disclosure": "collapsed_or_secondary",
         "background_maintenance_presentation": "collapsed_technical_non_blocking",
         "technical_detail_policy": "hidden_until_expanded_or_error",
+        "post_install_ai_self_check_entry": {
+          "trigger": "ready_to_launch first-run completion or explicit ready entry",
+          "target_route": "/guid",
+          "route_state": "postInstallSelfCheck",
+          "prompt_policy": "localized Codex CLI read-only diagnosis prompt describing target OPL working mode",
+          "target_state_checks": [
+            "codex_cli_callable",
+            "ui_language_policy",
+            "session_scoped_opl_flow_context",
+            "user_agents_md_respected_no_overwrite",
+            "mas_mag_rca_routes_visible",
+            "opl_meta_agent_capability_visible",
+            "codex_skills_plugins_visible",
+            "module_update_skill_plugin_continuity"
+          ],
+          "mutation_policy": "diagnose_first_no_file_mutation_without_user_confirmation",
+          "release_gate_policy": "user_visible_entry_complements_non_blocking_codex_ai_self_check_receipt"
+        },
         "required_shell_testids": [
           "opl-first-run-beginner-summary",
           "opl-first-run-primary-action",

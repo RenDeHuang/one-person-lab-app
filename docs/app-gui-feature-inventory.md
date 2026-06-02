@@ -31,9 +31,12 @@ Codex App 变成 OPL App 的产品增量看
 - Home entries 路由到 OPL capabilities：Research/MAS、Grant/MAG、
   Presentation/RCA。
 - 第一屏保持 chat-first，不出现 dashboard 或解释性 landing page copy。
+- 第一屏不展示 runtime activity、continue-work、per-assistant running badges、
+  needs/active/recent refs 或底部 feedback/favorite/web 图标。
 - 提供持久 workspace frame，包含轻量 workspace/session rail、conversation
   area 和可收起右侧 context panel。
 - Backend、model、permission choices 不进入普通 home 和 conversation flow。
+- 支持中文/英文双语 UI；普通界面同屏单一语言呈现，不随机中英混排。
 
 这份清单描述的是 App 总目标，不是当前 AionUI shell 的改动列表。合格 shell
 应该像一个专门服务 OPL 工作的 Codex App：workspace-aware、chat-first、
@@ -69,6 +72,9 @@ App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent da
   tabs 不能和主 chat canvas 竞争。
 - MAS/MAG/RCA 是 Codex 之上的 built-in purpose entries，用 compact tags 和
   route receipts 表示，而不是 separate backend choices。
+- UI labels、empty states、button titles、aria labels、first-run、runtime、
+  activity 和 settings copy 有中文/英文两套显示；切换语言不改变 runtime truth、
+  route receipt 或 workspace/thread state。
 - Backend、model、provider、permission mode selectors 不进入普通 home 和
   conversation flows。
 - Desktop Electron 和 WebUI surfaces 使用同一套 App product truth。
@@ -110,6 +116,36 @@ gateway、agent runtime、memory store、router、always-on store、provider mod
 list 和 WorkSpace state model 只是可研究的 implementation material，不是 App
 authority。
 
+## Stitch 启发的视觉语言
+
+Google Stitch 生成的 `One Person Lab` 设计稿可作为 `agui-codex` 和未来 shell
+的 visual reference。它的价值是美术风格、视觉比例和组件语言，不是源码采纳：
+
+- 主屏保持 chat-first，使用约 760px fixed reading lane，避免大面积居中卡片。
+- Bottom composer 是第一屏视觉锚点，位于底部渐隐层上，带目的 chips、attach
+  和 send 控件。
+- Nav rail 是窄 icon rail，active state 用浅灰 tonal fill，不用高饱和色块。
+- 右侧 inspector 是可收起的次级 surface，用 Runtime、Files、Context、
+  Automations 等 tabs 组织信息。
+- 视觉系统采用 Quiet Utility：`#f8f9fa` canvas、`#ffffff` active surface、
+  `#e1e3e4/#c6c6cd` outline、`#111827/#191c1d` primary text/action、4px spacing
+  base、8px 以内 radius、轻 outline 替代重 shadow。
+- Typography 使用 Inter 为主，JetBrains Mono 仅用于 code、receipt、process 和
+  technical refs。
+- Header route line、model status 和 composer status 必须保持辅助权重；主视觉
+  锚点是 conversation reading lane 和 composer input。右侧 inspector 打开后要用
+  spacing、outline 和清晰标题分层，避免所有 cards 同权重堆叠成 workbench。
+- 双语界面中，中文 first screen 主标签使用 `科研`、`基金`、`PPT`、`本机助手`
+  和 `自动`，英文界面使用 `Research`、`Grant`、`Presentation`、
+  `Local assistant` 和 `Auto`；`Codex CLI`、`MAS/MAG/RCA` 等技术标签进入
+  二级详情、diagnostics 或 evidence，不作为中文普通首页主要文案。
+
+OPL adaptation 必须比 Stitch 窄：不要复制 Stitch HTML、Tailwind class 或生成
+源码；不要采用其中的 local inference、model/VRAM 或 demo data 语义；不要让
+示范 inspector 默认打开。App-owned 规则仍是 ordinary home 默认 chat-first，
+workspace rail 和 inspector 默认收起，运行与 continue-work 信息进入 Runtime 或
+secondary context，不在 composer 附近显示 compact entry。
+
 ## Core Conversation 功能
 
 - 创建 new conversation。
@@ -147,10 +183,12 @@ authority。
 - 普通 page state refresh 也使用同一个 fast profile。
 - Full state 和 Operator full drilldown 只在 explicit diagnostic/release paths
   使用。
-- 先展示 runtime status summary，再展示 detailed drilldown。
-- Home input 附近展示紧凑 continue-work activity center，包含
-  needs-attention、active、recent project refs；它必须 refs-only，避免 full
-  workbench density。
+- Runtime 页先展示 `opl runtime app-operator-drilldown --json` 的
+  `current_control_state` provider running activity，再展示 project progress
+  refs 和 detailed drilldown。
+- Home 不展示 runtime activity、continue-work、needs-attention/active/recent
+  refs、per-assistant running badges 或底部 feedback/favorite/web 图标；这些信息
+  进入 Runtime 页、右侧 inspector、drawer 或其他 secondary context surface。
 - Module 和 path 只作为 refs 展示，不取得 runtime 或 domain authority。
 - Settings sections 是 General、Access、Agents & Capabilities、Local
   Environment、Appearance、Advanced、About & Updates。
@@ -181,6 +219,10 @@ authority。
 - 通过 App wrapper 编译为可启动 `.app`。
 - 用 thin-shell delta 实现 OPL product behavior：profile consumer、route
   redirects、bridge calls、局部 renderer 组合、CSS/i18n 和 focused tests。
+- 实现 App-owned bilingual copy policy：普通 UI 在中文/英文下分别一致呈现，
+  中文普通首页不混入 `Med Auto Science`、`Med Auto Grant`、`RedCube AI`、
+  `Codex CLI`、`Local assistant` 这类英文技术/产品文案；协议或 backend 名称不
+  进入 ordinary chat surface。
 - 新 Home/Settings/capability/runtime/first-run 产品行为先进入 App contract，
   再进入 shell implementation。
 - 声称 WebUI support 时，使用与 Electron shell 相同的 renderer 和 App-owned
@@ -218,6 +260,9 @@ AG-UI/CopilotKit candidate 应使用：
   Always-On context 的信息组织参考。PilotDeck 的 AGPL code 和 runtime 不能复制
   到 App repo；OPL 应通过 App-owned contracts 和 selected shell 重新表达可用的
   organization pattern。
+- Google Stitch `One Person Lab` 设计稿作为 Quiet Utility 视觉参考：灰阶
+  tonal layers、1px outline、760px reading lane、底部 pinned composer、窄 rail
+  和右侧 inspector。它不能成为源码或 runtime authority。
 
 2026-05-29 的调研结论是：还没有成熟公开项目可以直接作为完整 Codex ACP
 adapter 到 AG-UI/CopilotKit desktop shell。可复用部分是分散的：Codex
@@ -248,6 +293,8 @@ material。
 - New-conversation action reset 当前 Codex thread，同时保留 selected workspace。
 - 普通 UI 保持 chat-first，带 lightweight workspace/session rail 和右侧可收起
   Files/Skills/Routing/Memory/Always-On inspector tabs；信息组织参考 PilotDeck。
+- Continue-work refs 和运行活动只能进入 Runtime 或 secondary context，
+  不能在 ordinary home 第一屏显示为 compact entry 或 Activity/refs grid。
 - Candidate packaging 必须产出可启动 `.app`，并通过真实 Codex backend 的 source
   与 packaged UI smoke。
 - Candidate WebUI smoke 必须证明 shared renderer、browser transport bridge、
@@ -299,7 +346,8 @@ npx electron . --ui-smoke-test
   HTTP action routes 和 SSE Codex event stream。
 - Source UI smoke 在默认 chat-first home 上绘制 visible pixels，展示 purpose
   entries，启动真实 Codex app-server turn，收到 `OK`，并证明 workspace/session
-  rail 和 inspector 默认收起。
+  rail 和 inspector 默认收起，首页不显示 runtime activity、continue-work 或
+  Activity/refs grid；refs 只在 Runtime/secondary context 出现。
 - UI 把 lightweight workspace/session rail 和右侧可收起 Files、Skills、Routing、
   Memory、Always-On inspector tabs 暴露为 optional context surfaces，不采用
   PilotDeck runtime authority，也不把它们做成 first-screen panels。
@@ -313,30 +361,33 @@ npx electron . --ui-smoke-test
 - Release replacement 保持 explicit：candidate 不会成为默认 stable/nightly
   shell，直到 `contracts/app-shell-adapter.json` 被明确修改。
 
-2026-05-30 chat-first 技术验证 evidence：
+2026-06-02 chat-first / bilingual 技术验证 evidence：
 
-- Source renderer build 已在
-  `/Users/gaofeng/workspace/opl-agui-codex-shell` 通过。
-- Source UI smoke 已通过，截图为
-  `/tmp/opl-agui-codex-source-ui-smoke-chat-first-final.png`，purpose entries
-  为 `科研`、`基金`、`PPT`，`default_home_layout_status=passed`，stage classes
-  为 `without-rail` 和 `without-inspector`，visible paint 成功，并收到 Codex
-  reply `OK`。
-- Candidate `.app` bundle 已构建到
+- Source renderer build 在 `/Users/gaofeng/workspace/opl-agui-codex-shell` 通过；
+  Vite 仍有 node-fetch browser externalization 和大 chunk warning，未导致失败。
+- Candidate `.app` bundle 当前构建到
   `/Users/gaofeng/workspace/opl-agui-codex-shell/out/One Person Lab AG-UI Codex Candidate.app`。
-- Packaged UI smoke 已通过，截图为
-  `/tmp/opl-agui-codex-packaged-ui-smoke-chat-first-final.png`，
-  `packaged=true`，`default_home_layout_status=passed`，visible paint 成功，并
-  收到 Codex reply `OK`。
-- WebUI 使用同一 renderer 并通过 smoke；browser visual inspection 捕获
-  `/tmp/opl-agui-codex-webui-chat-first-final.png`，ordinary home 位于 chat
-  canvas，两个 side context surfaces 均默认收起。
-- Final manifest 记录 `source_ui_smoke_status=passed`、
+- Package 后重新运行 WebUI smoke，通过同一 renderer、browser bridge 注入、
+  `window.oplCandidate` shape、Settings IA、secondary Runtime/refs surface、
+  七类 conversation events、bilingual UI 和 default-collapsed home parity。
+- Package 后重新运行 source UI smoke，purpose entries 为 `科研`、`基金`、`PPT`，
+  route label 为 `科研本机助手/Users/gaofeng`，`model_status=自动`，
+  `default_home_layout_status=passed`，stage classes 为 `without-rail` 和
+  `without-inspector`，`home_continue_work_visible=false`，
+  `home_runtime_activity_visible=false`，`bilingual_ui_status=passed`，
+  `locale_switch_status=passed`，visible paint 成功，并收到 Codex reply `OK`。
+- Package 后重新运行 packaged UI smoke，`packaged=true`，同样证明
+  default-collapsed chat-first home、中文默认 UI、英文切换、secondary runtime
+  context refs、safe App action dry-run、visible paint 和 Codex reply `OK`。
+- Final manifest 当前包含 `source_ui_smoke_status=passed`、
   `packaged_ui_smoke_status=passed`、`webui_smoke_status=passed`、
-  `default_home_layout_status=passed`、`page_state_matrix_mapping_status=passed`、
-  `first_run_matrix_mapping_status=passed`、
-  `runtime_summary_detail_action_bridge_status=passed` 和
+  `bilingual_ui_status=passed`、`default_home_layout_status=passed`、
+  `secondary_runtime_context_refs_status=passed`、
+  `runtime_summary_detail_action_bridge_status=passed`、`settings_ia_status=passed`、
+  `chat_event_rendering_status=passed`、`webui_parity_status=passed` 和
   `action_dry_run_status=passed`。
+- Candidate shell final gate 通过：
+  `npm run validate:candidate -- --require-app --require-smoke`。
 
 当前默认 release shell 仍是 AionUI，直到该 candidate 满足
 `contracts/app-shell-candidates.json` 中的 shell replacement gate。

@@ -158,13 +158,18 @@ function readReleaseEvidenceArtifacts(): EvidenceArtifact[] {
   const releaseContract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8')) as {
     operator_evidence_bundle?: {
       required_artifacts?: EvidenceArtifact[];
+      optional_diagnostic_artifacts?: EvidenceArtifact[];
     };
   };
-  const artifacts = releaseContract.operator_evidence_bundle?.required_artifacts;
-  if (!Array.isArray(artifacts)) {
+  const requiredArtifacts = releaseContract.operator_evidence_bundle?.required_artifacts;
+  if (!Array.isArray(requiredArtifacts)) {
     throw new Error('Release evidence bundle contract must declare required_artifacts.');
   }
-  return artifacts;
+  const optionalDiagnosticArtifacts = releaseContract.operator_evidence_bundle?.optional_diagnostic_artifacts;
+  if (optionalDiagnosticArtifacts !== undefined && !Array.isArray(optionalDiagnosticArtifacts)) {
+    throw new Error('Release evidence bundle optional_diagnostic_artifacts must be an array when present.');
+  }
+  return [...requiredArtifacts, ...(optionalDiagnosticArtifacts ?? [])];
 }
 
 function artifactSourceCandidates(artifact: EvidenceArtifact): string[] {
@@ -198,6 +203,10 @@ function artifactSourceCandidates(artifact: EvidenceArtifact): string[] {
     codex_functional_check_summary: [
       'artifacts/codex-functional-check-summary.json',
       'codex-functional-check-summary.json',
+    ],
+    codex_ai_self_check_summary: [
+      'artifacts/codex-ai-self-check-summary.json',
+      'codex-ai-self-check-summary.json',
     ],
     assistant_route_smoke_mas_screenshot: [
       'artifacts/assistant-route-smoke/mas.png',

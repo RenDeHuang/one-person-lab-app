@@ -151,8 +151,10 @@
             "progress_display_label": "Platform repair",
             "stage_attempt_ids": [],
             "safe_action_ref_count": 0,
-            "blocker_ref_count": 1,
-            "paper_route_lens_ref_count": 0,
+          "blocker_ref_count": 1,
+          "next_visible_step": "Resolve missing Med Auto Science workspace ref",
+          "next_owner": "opl_framework",
+          "paper_route_lens_ref_count": 0,
             "active_path": [
               {
                 "node_id": "module:medautoscience",

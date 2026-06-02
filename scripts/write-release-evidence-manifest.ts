@@ -87,6 +87,9 @@ function main() {
   if (!Array.isArray(bundle.required_artifacts)) {
     throw new Error('Release evidence bundle contract must declare required_artifacts.');
   }
+  const optionalDiagnosticArtifacts = Array.isArray(bundle.optional_diagnostic_artifacts)
+    ? bundle.optional_diagnostic_artifacts
+    : [];
 
   fs.mkdirSync(options.bundleDir, { recursive: true });
   const manifestPath = resolveBundlePath(options.bundleDir, bundle.manifest_path);
@@ -125,6 +128,16 @@ function main() {
       path: artifact.path,
       typed_blocker_path: artifact.typed_blocker_path,
     }));
+  const diagnostics = optionalDiagnosticArtifacts
+    .filter((artifact) => fs.existsSync(resolveBundlePath(options.bundleDir, artifact.path)))
+    .map((artifact) => ({
+      id: artifact.id,
+      path: artifact.path,
+      kind: artifact.kind,
+      producer: artifact.producer,
+      source_kind: artifact.source_kind,
+      status: 'present',
+    }));
   const manifest = {
     schema_version: 1,
     purpose: 'app_release_evidence_bundle',
@@ -135,6 +148,7 @@ function main() {
     refs_only: bundle.refs_only,
     authority_boundary: evidenceBoundary,
     artifacts,
+    diagnostics,
     missing_evidence: missingEvidence,
     blocked_evidence: blockedEvidence,
   };

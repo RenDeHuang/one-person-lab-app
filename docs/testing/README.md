@@ -171,7 +171,18 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   context, localized from the current UI language, and must not write or
   overwrite a user's workspace `AGENTS.md`. The receipt is deterministic and
   does not call an external LLM; missing credentials are recorded as diagnostic
-  skipped rather than a network gate. The App repo VM workflow is the deterministic release-blocking gate
+  skipped rather than a network gate. When `--codex-ai-self-check` is enabled,
+  the VM smoke runs a second, non-blocking AI-first stage after the deterministic
+  receipt: Codex CLI receives the target installed OPL working mode and the
+  collected evidence, then writes `codex-ai-self-check-summary.json` with a
+  structured judgment and recommended actions. The default `diagnose` mode is
+  read-only and must not overwrite user `AGENTS.md`; any future fix mode remains
+  explicit. Product UI exposes the same principle after setup: real first-run
+  completion or the ready entry opens `/guid` with a localized Codex CLI task
+  that asks the user-facing Codex session to verify the installed working mode
+  against the target state. That App entry remains diagnosis-first; repair
+  commands or file mutations require explicit user confirmation. The App repo
+  VM workflow is the deterministic release-blocking gate
   for first-run GUI evidence; Codex App or Computer Use sessions may explore UI
   behavior during triage, but those exploratory checks are non-blocking and
   cannot replace the Tart VM gate. Any exploratory finding that should affect
@@ -287,7 +298,13 @@ including screenshots, layout checks for the first-run view, MAS/MAG/RCA Codex
 route receipts, and the Codex functional check receipt when
 `--codex-functional-check` is present. That receipt freezes installed-App Codex
 behavior in machine-readable form while keeping actual AI/LLM exploration
-non-blocking until it is converted into deterministic evidence. That lane is the source of release
+non-blocking until it is converted into deterministic evidence. When
+`--codex-ai-self-check` is present, the same VM lane also writes a structured
+Codex CLI AI self-check receipt. This is the intended AI-first layer: after
+normal initialization succeeds, Codex reads the target state and evidence and
+decides whether the App-owned working mode really matches expectation. It is a
+diagnostic receipt, separate from Computer Use, and does not clear or block a
+stable release by itself. That lane is the source of release
 readiness for standard DMG and Full DMG installation because it is repeatable,
 time-bounded, and produces comparable logs.
 
@@ -305,7 +322,8 @@ This keeps the full validation plan fast and usable:
 - Nightly: standard package build and remote standard asset verification.
 - Stable: standard DMG VM, Full DMG VM, one-shot installer, Docker/WebUI,
   remote standard/Full verification, and evidence bundle validation.
-- Exploratory AI-first: non-blocking unless its findings are converted into a
+- Codex CLI AI self-check: non-blocking post-install diagnostic receipt.
+- Exploratory Computer Use: non-blocking unless its findings are converted into a
   deterministic gate.
 
 Release-note validation is part of the same boundary. Public GitHub Release

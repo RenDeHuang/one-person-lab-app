@@ -256,7 +256,7 @@ function validateProjectProgressDisplayContract(projectProgress, label) {
   for (const [field, expected] of Object.entries({
     source: 'app_state.operator.workbench.task_drilldowns',
     authority: 'opl_framework_shared_project_progress_projection',
-    display_policy: 'project_progress_first_no_domain_artifact_body',
+    display_policy: 'project_progress_refs_secondary_no_module_runtime_dirty_as_project',
     diagnostics_treatment: 'secondary_disclosure',
     safe_actions_treatment: 'secondary_operator_disclosure',
   })) {
@@ -276,6 +276,8 @@ function validateProjectProgressDisplayContract(projectProgress, label) {
       'deliverable_progress_delta',
       'platform_repair_delta',
       'blocker_ref_count',
+      'next_visible_step',
+      'next_owner',
     ],
     `${label} required_fields`,
   );
@@ -283,6 +285,16 @@ function validateProjectProgressDisplayContract(projectProgress, label) {
     projectProgress.optional_user_fields,
     ['domain_label', 'active_stage_label', 'next_visible_step', 'next_owner', 'last_progress_at'],
     `${label} optional_user_fields`,
+  );
+  assertIncludesAll(
+    projectProgress.forbidden_running_task_sources,
+    [
+      'module_runtime dirty state',
+      'domain lane active_task_count',
+      'assistant purpose cards',
+      'module readiness diagnostics',
+    ],
+    `${label} forbidden_running_task_sources`,
   );
 }
 
@@ -306,6 +318,35 @@ function validateBeginnerFirstRunPresentation(presentation, label) {
       throw new Error(`${label}.${field} must be ${expected}`);
     }
   }
+  const selfCheck = presentation.post_install_ai_self_check_entry;
+  if (!selfCheck || typeof selfCheck !== 'object') {
+    throw new Error(`${label} must define post_install_ai_self_check_entry`);
+  }
+  for (const [field, expected] of Object.entries({
+    target_route: '/guid',
+    route_state: 'postInstallSelfCheck',
+    prompt_policy: 'localized Codex CLI read-only diagnosis prompt describing target OPL working mode',
+    mutation_policy: 'diagnose_first_no_file_mutation_without_user_confirmation',
+    release_gate_policy: 'user_visible_entry_complements_non_blocking_codex_ai_self_check_receipt',
+  })) {
+    if (selfCheck[field] !== expected) {
+      throw new Error(`${label}.post_install_ai_self_check_entry.${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    selfCheck.target_state_checks,
+    [
+      'codex_cli_callable',
+      'ui_language_policy',
+      'session_scoped_opl_flow_context',
+      'user_agents_md_respected_no_overwrite',
+      'mas_mag_rca_routes_visible',
+      'opl_meta_agent_capability_visible',
+      'codex_skills_plugins_visible',
+      'module_update_skill_plugin_continuity',
+    ],
+    `${label}.post_install_ai_self_check_entry target_state_checks`,
+  );
 }
 
 function validateOplFlowContext(context, label) {
@@ -597,6 +638,7 @@ function validateActiveShellImplementation(shellPaths) {
   const runtimeBridge = readShellText(shellPaths, 'packages/desktop/src/process/bridge/oplRuntimeBridge.ts');
   for (const expected of [
     "args: ['app', 'state', '--profile', profile, '--json']",
+    "args: ['runtime', 'app-operator-drilldown', '--json']",
     "args: ['runtime', 'app-operator-drilldown', '--detail', 'full', '--json']",
     "['app', 'action', 'execute', '--action', assertActionId(request.actionId)]",
   ]) {
@@ -836,33 +878,13 @@ function validateActiveShellImplementation(shellPaths) {
     }
   }
 
-  const quickActions = readShellText(
-    shellPaths,
-    'packages/desktop/src/renderer/pages/guid/components/QuickActionButtons.tsx',
-  );
-  for (const expected of [
-    'guid-access-quick-action',
-    "navigate('/settings/access')",
-    "t('settings.access'",
-  ]) {
-    if (!quickActions.includes(expected)) {
-      throw new Error(`Active shell Guid quick action must expose App Access settings, not WebUI: ${expected}`);
-    }
-  }
-  for (const forbidden of [
-    "navigate('/settings/webui')",
-    "t('settings.webui', { defaultValue: 'WebUI' })",
-  ]) {
-    if (quickActions.includes(forbidden)) {
-      throw new Error(`Active shell Guid quick action must not expose WebUI as ordinary entry: ${forbidden}`);
-    }
-  }
-
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
   for (const expected of [
     "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })",
     'isCoreLaunchReadyFromAppState',
-    "navigate('/guid', { replace: true })",
+    "navigate('/guid',",
+    'postInstallSelfCheck',
+    'shouldOfferPostInstallSelfCheck',
     "document.title = 'One Person Lab App'",
     'formatFullReadinessProgressText',
     'formatMaintenanceProgressText',
@@ -934,13 +956,13 @@ function validateActiveShellImplementation(shellPaths) {
 
   const guidPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/GuidPage.tsx');
   const guidInputCard = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/components/GuidInputCard.tsx');
-  const guidActivityCenter = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/guidActivityCenter.ts');
   for (const expected of [
     "document.title = 'One Person Lab App'",
     "t('conversation.welcome.placeholder')",
-    "useOplAppState('fast')",
-    'normalizeGuidActivityCenter',
-    'activityCenter={activityCenter}',
+    "t('guid.postInstallSelfCheck.prompt'",
+    'POST_INSTALL_SELF_CHECK_PROMPT_DEFAULTS',
+    'postInstallSelfCheckRequested',
+    "navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true, state: null })",
     'AssistantSelectionArea',
     'GuidModelSelector',
     'MentionSelectorBadge',
@@ -951,31 +973,41 @@ function validateActiveShellImplementation(shellPaths) {
       throw new Error(`Active shell Guid home must implement ${expected}`);
     }
   }
-  for (const expected of [
-    "data-testid='guid-activity-center'",
-    'guid.activity.needsAttention',
-    'guid.activity.activeProjects',
-    'guid.activity.recentProjects',
-    'activityCenter.hasItems',
-  ]) {
-    if (!guidInputCard.includes(expected)) {
-      throw new Error(`Active shell Guid activity center must render refs-only task groups near input: ${expected}`);
+  for (const [locale, expectedStrings] of Object.entries({
+    'zh-CN': ['安装后智能自检', '程序化初始化已经完成', '不要覆盖用户已有的 AGENTS.md', '模块自动更新'],
+    'en-US': ['Post-install intelligent self-check', 'Programmatic initialization has completed', "Do not overwrite the user's AGENTS.md", 'module auto-update'],
+  })) {
+    const localeText = readShellText(shellPaths, `packages/desktop/src/renderer/services/i18n/locales/${locale}/guid.json`);
+    for (const expected of expectedStrings) {
+      if (!localeText.includes(expected)) {
+        throw new Error(`Active shell ${locale} Guid locale must include post-install self-check copy: ${expected}`);
+      }
     }
   }
-  for (const expected of [
-    'workbench.task_drilldowns',
-    'blocker_ref_count',
-    'next_visible_step',
-    'domain_label',
-    'active_stage_label',
+  for (const forbidden of [
+    "useOplAppState('fast')",
+    'normalizeGuidActivityCenter',
+    'activityCenter={activityCenter}',
+    "data-testid='opl-continue-context-entry'",
+    'guid.activity.continuationPrompt',
+    'guid.activity.continueAction',
+    'guid.activity.attentionCount',
+    'guid.activity.activeCount',
+    'activityCenter.hasItems',
+    'QuickActionButtons',
   ]) {
-    if (!guidActivityCenter.includes(expected)) {
-      throw new Error(`Active shell Guid activity center must derive from App state refs: ${expected}`);
+    if (guidPage.includes(forbidden) || guidInputCard.includes(forbidden)) {
+      throw new Error(`Active shell ordinary Home must not render or query runtime activity: ${forbidden}`);
+    }
+  }
+  for (const forbidden of ["data-testid='guid-activity-center'", 'guid.activity.needsAttention', 'guid.activity.recentProjects']) {
+    if (guidInputCard.includes(forbidden)) {
+      throw new Error(`Active shell ordinary Home must not render expanded activity groups near input: ${forbidden}`);
     }
   }
   for (const forbidden of ['artifact_body', 'memory_body', 'domain_artifact_body']) {
-    if (guidInputCard.includes(forbidden) || guidActivityCenter.includes(forbidden)) {
-      throw new Error(`Active shell Guid activity center must not render domain artifact or memory bodies: ${forbidden}`);
+    if (guidInputCard.includes(forbidden)) {
+      throw new Error(`Active shell Guid composer must not render domain artifact or memory bodies: ${forbidden}`);
     }
   }
 
@@ -1522,15 +1554,42 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
     full_state_policy: 'diagnostic_or_release_evidence_only',
     full_detail_command: 'opl runtime app-operator-drilldown --detail full --json',
     action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
-    'projection_sources.primary': 'app_state.operator.workbench.task_drilldowns',
-    'projection_sources.provider': 'app_state.provider',
+    'projection_sources.primary': 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.summary',
+    'projection_sources.provider': 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.states.provider_run',
     'projection_sources.actions': 'app_state.actions',
     'projection_sources.full_detail': 'runtime_tray_snapshot.app_operator_drilldown',
-    'projection_sources.policy': 'project_progress_first_full_detail_on_demand',
+    'projection_sources.policy': 'running_activity_from_provider_attempt_projection_project_progress_refs_secondary',
   })) {
     const actual = field.split('.').reduce((value, key) => value?.[key], runtimeBridge);
     if (actual !== expected) {
       throw new Error(`Runtime bridge ${field} must be ${expected}`);
+    }
+  }
+  const commandResolutionPolicy = runtimeBridge.command_resolution_policy;
+  if (commandResolutionPolicy?.owner !== 'one-person-lab-app') {
+    throw new Error('Runtime bridge command resolution policy must be App-owned');
+  }
+  if (commandResolutionPolicy?.adapter_responsibility !== 'resolve_healthy_opl_cli_before_running_declared_surfaces') {
+    throw new Error('Runtime bridge command resolution policy must require healthy OPL CLI resolution');
+  }
+  if (commandResolutionPolicy?.managed_opl_priority !== 'prefer_only_when_shim_targets_existing_cli_payload') {
+    throw new Error('Runtime bridge must prefer managed OPL only when its shim targets an existing CLI payload');
+  }
+  if (commandResolutionPolicy?.broken_managed_shim_policy !== 'skip_and_fall_through_to_system_opl') {
+    throw new Error('Runtime bridge must skip broken managed OPL shims and fall through to system OPL');
+  }
+  for (const fallbackPath of ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin']) {
+    if (!commandResolutionPolicy?.system_opl_fallback_paths?.includes(fallbackPath)) {
+      throw new Error(`Runtime bridge command resolution policy must include fallback path ${fallbackPath}`);
+    }
+  }
+  for (const forbidden of [
+    'let stale managed Node opl shims shadow a healthy system opl',
+    'rewrite App runtime truth from shell-private state',
+    'treat missing managed bootstrap artifacts as first-run UI truth',
+  ]) {
+    if (!commandResolutionPolicy?.must_not?.includes(forbidden)) {
+      throw new Error(`Runtime bridge command resolution policy must forbid: ${forbidden}`);
     }
   }
   validateProjectProgressDisplayContract(runtimeBridge.project_progress_projection, 'Runtime bridge project progress projection');
@@ -2206,26 +2265,39 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
     throw new Error('App GUI home must keep OMA out of default home entries');
   }
-  if (!pages.guid_home.activity_center_policy?.display_groups?.includes('needs_attention')) {
-    throw new Error('App GUI home must expose a refs-only activity center with needs_attention grouping');
+  if (pages.guid_home.activity_center_policy?.source !== 'runtime page only; Home does not query running task lists') {
+    throw new Error('App GUI home activity center must be suppressed on ordinary Home and routed to Runtime/secondary context');
   }
-  assertIncludesAll(
-    pages.guid_home.activity_center_policy.display_groups,
-    ['needs_attention', 'active_projects', 'recent_projects'],
-    'App GUI home activity center display groups',
-  );
-  assertIncludesAll(
-    pages.guid_home.activity_center_policy.item_fields,
-    homeActivityCenterItemFields,
-    'App GUI home activity center item fields',
+  if (pages.guid_home.activity_center_policy?.authority !== 'app_owned_home_minimal_command_surface') {
+    throw new Error('App GUI home activity center policy must be App-owned minimal command surface');
+  }
+  if (pages.guid_home.activity_center_policy?.default_placement !== 'not_rendered_on_ordinary_home') {
+    throw new Error('App GUI home must not render the expanded activity center on ordinary Home');
+  }
+  if (pages.guid_home.activity_center_policy?.home_surface_policy !== 'ordinary_home_must_not_render_activity_center_or_continue_work_grid') {
+    throw new Error('App GUI home must forbid ordinary Home activity center / continue-work grid rendering');
+  }
+  assertDeepEqualJson(
+    pages.guid_home.activity_center_policy.allowed_home_runtime_context,
+    [],
+    'App GUI home allowed runtime context',
   );
   assertIncludesAll(
     pages.guid_home.activity_center_policy.must_not_display,
     homeActivityCenterForbiddenDisplays,
     'App GUI home activity center forbidden displays',
   );
-  if (!pages.guid_home.must_show?.includes('continue work activity center near the home input')) {
-    throw new Error('App GUI home must show the continue-work activity center');
+  for (const hiddenSignal of [
+    'compact continue-work entry near the home input',
+    'needs attention, active, and recent refs on Home',
+    'Home footer feedback icon',
+    'Home footer favorite/star icon',
+    'Home footer web/access globe icon',
+    'per-assistant running badges derived from module or domain lane diagnostics',
+  ]) {
+    if (!pages.guid_home.must_not_show?.includes(hiddenSignal)) {
+      throw new Error(`App GUI home must not show ${hiddenSignal}`);
+    }
   }
   for (const [pageId, expected] of Object.entries(settingsPageExpectations)) {
     const page = pages[pageId];
@@ -2399,9 +2471,8 @@ function validatePageStateMatrix(matrix, contract) {
     'workspace selector',
     'file attachment control',
     'send action',
-    'continue work activity center near the home input',
-    'needs attention projects from app_state.operator.workbench.task_drilldowns',
-    'active and recent project refs without domain artifact bodies',
+    'single composer-first home input',
+    'runtime/task progress available from Runtime page, not Home activity grid',
   ]) {
     if (!guidHomePage.must_show.includes(visibleSignal)) {
       throw new Error(`Guid home page must show ${visibleSignal}`);
@@ -2418,34 +2489,36 @@ function validatePageStateMatrix(matrix, contract) {
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
+    'expanded workbench or activity refs grid on ordinary home',
     'domain artifact body in Home activity center',
     'memory body in Home activity center',
+    'compact continue-work entry near the home input',
+    'Home footer feedback icon',
+    'Home footer favorite/star icon',
+    'Home footer web/access globe icon',
+    'per-assistant running badges derived from module or domain lane diagnostics',
   ]) {
     if (!guidHomePage.must_not_show?.includes(hiddenSignal)) {
       throw new Error(`Guid home page must not show ${hiddenSignal}`);
     }
   }
   if (
-    homeViewModel.activity_center?.authority !== 'opl_framework_refs_only_projection' ||
-    !homeViewModel.activity_center?.display_groups?.includes('needs_attention') ||
-    homeViewModel.activity_center?.default_placement !== 'near_home_input'
+    homeViewModel.activity_center?.authority !== 'app_owned_home_minimal_command_surface' ||
+    homeViewModel.activity_center?.source !== 'not_rendered_on_ordinary_home' ||
+    homeViewModel.activity_center?.default_placement !== 'not_rendered_on_ordinary_home' ||
+    homeViewModel.activity_center?.home_surface_policy !== 'ordinary_home_must_not_render_activity_center_or_continue_work_grid'
   ) {
-    throw new Error('Guid home page activity center must be a refs-only near-input continue-work projection');
+    throw new Error('Guid home page activity center must be suppressed on ordinary Home and routed to Runtime/secondary context');
   }
-  assertIncludesAll(
-    homeViewModel.activity_center.item_fields,
-    homeActivityCenterItemFields,
-    'Guid home page activity center item fields',
+  assertDeepEqualJson(
+    homeViewModel.activity_center.allowed_home_runtime_context,
+    [],
+    'Guid home page allowed runtime context',
   );
   assertIncludesAll(
     homeViewModel.activity_center.must_not_display,
     homeActivityCenterForbiddenDisplays,
     'Guid home page activity center forbidden displays',
-  );
-  assertIncludesAll(
-    homeViewModel.activity_center.forbidden_body_display,
-    ['domain artifact body', 'memory body', 'quality verdict body'],
-    'Guid home page activity center forbidden body display',
   );
 
   const appStatePages = ['settings_general', 'access', 'environment', 'advanced', 'about', 'update', 'settings_theme'];
@@ -2636,11 +2709,11 @@ function validatePageStateMatrix(matrix, contract) {
   if (!runtimePage) {
     throw new Error('Page-state matrix is missing runtime page');
   }
-  if (runtimePage.machine_source !== 'opl app state --profile fast --json') {
-    throw new Error(`Runtime page must consume OPL App state as the summary source, got: ${runtimePage.machine_source}`);
+  if (runtimePage.machine_source !== 'opl app state --profile fast --json + opl runtime app-operator-drilldown --json') {
+    throw new Error(`Runtime page must consume OPL App state plus operator drilldown as the summary source, got: ${runtimePage.machine_source}`);
   }
-  if (runtimePage.primary_projection !== 'app_state.operator.workbench.task_drilldowns') {
-    throw new Error(`Runtime page primary_projection must be app_state.operator.workbench.task_drilldowns, got: ${runtimePage.primary_projection}`);
+  if (runtimePage.primary_projection !== 'app_operator_drilldown.current_control_state.states active provider executions') {
+    throw new Error(`Runtime page primary_projection must be current-control active provider executions, got: ${runtimePage.primary_projection}`);
   }
   if (runtimePage.framework_command !== 'opl app state --profile fast --json') {
     throw new Error(`Runtime page must use the OPL App state command, got: ${runtimePage.framework_command}`);
@@ -2672,14 +2745,14 @@ function validatePageStateMatrix(matrix, contract) {
     }
   }
   const runtimeViewModel = runtimePage.runtime_view_model;
-  if (runtimeViewModel?.role !== 'opl_runtime_project_progress') {
-    throw new Error('Runtime page must declare OPL runtime project progress view model');
+  if (runtimeViewModel?.role !== 'opl_runtime_running_activity') {
+    throw new Error('Runtime page must declare OPL runtime running activity view model');
   }
   if (runtimeViewModel.bridge_contract !== 'contracts/app-runtime-bridge.json') {
     throw new Error(`Runtime page view model must reference app-runtime-bridge.json, got: ${runtimeViewModel.bridge_contract}`);
   }
-  if (runtimeViewModel.default_mode !== 'project_progress_first') {
-    throw new Error('Runtime page view model must default to project_progress_first');
+  if (runtimeViewModel.default_mode !== 'running_activity_first') {
+    throw new Error('Runtime page view model must default to running_activity_first');
   }
   if (runtimeViewModel.full_detail_policy !== 'on_demand_only') {
     throw new Error('Runtime page full detail must be on-demand only');
@@ -2704,7 +2777,7 @@ function validatePageStateMatrix(matrix, contract) {
     'progress_delta.platform_repair_display_treatment': 'separate_infrastructure_repair_not_deliverable_progress',
     primary_state_source: 'opl app state --profile fast --json',
     refresh_state_source: 'opl app state --profile fast --json',
-    summary_source: 'app_state.operator.summary',
+    summary_source: 'opl runtime app-operator-drilldown --json',
     full_detail_source: 'opl runtime app-operator-drilldown --detail full --json',
     'provider_status.source': 'app_state.provider',
     'provider_status.authority': 'opl_framework',
@@ -2732,8 +2805,47 @@ function validatePageStateMatrix(matrix, contract) {
     throw new Error('Runtime page view model must be display-only for non-authority domain refs');
   }
   validateProgressDeltaDisplayContract(runtimeViewModel.progress_delta, 'Runtime page progress delta display contract');
+  const runningTaskProjection = runtimeViewModel.running_task_projection;
+  if (
+    runningTaskProjection?.source !== 'app_operator_drilldown.current_control_state.summary + current_control_state.states' ||
+    runningTaskProjection.authority !== 'opl_framework_provider_attempt_projection' ||
+    runningTaskProjection.display_policy !== 'active_execution_first_no_module_dirty_or_checkpointed_provider_ref_as_task' ||
+    runningTaskProjection.active_execution_filter !==
+      'states where running_provider_attempt is true and provider_run.provider_status or current_attempt_state is running' ||
+    runningTaskProjection.diagnostic_provider_ref_policy !==
+      'running_provider_attempt_count may include checkpointed provider refs and must not be displayed as the user-visible running task count'
+  ) {
+    throw new Error('Runtime page must derive active execution from current_control_state provider projection');
+  }
+  assertIncludesAll(
+    runningTaskProjection.required_user_fields,
+    [
+      'current_control_state.states[].running_provider_attempt',
+      'current_control_state.states[].provider_run.provider_status',
+      'current_control_state.states[].current_attempt_state',
+      'running_provider_attempt_count',
+      'running_provider_attempt_domain_ids',
+      'running_provider_attempt_task_kinds',
+      'latest_running_provider_heartbeat_at',
+      'running_provider_attempt_summary_policy',
+    ],
+    'Runtime page running task required user fields',
+  );
+  assertIncludesAll(
+    runningTaskProjection.forbidden_sources,
+    [
+      'domain_lane_map active_task_count',
+      'app_state.operator.workbench.task_drilldowns where active_stage_id is module_runtime',
+      'app_state.modules',
+      'module_runtime dirty state',
+      'repo/worktree diagnostics',
+      'assistant cards',
+    ],
+    'Runtime page running task forbidden sources',
+  );
   const requiredEvidencePath = [
-    'summary-first OPL App state read model',
+    'running activity from current_control_state provider projection',
+    'summary OPL operator drilldown read model',
     'fast App state refresh',
     'app_state.operator.workbench.task_drilldowns project progress refs',
     'full detail lazy load',
@@ -2752,7 +2864,8 @@ function validatePageStateMatrix(matrix, contract) {
     }
   }
   const requiredRuntimeSignals = [
-    'project progress first OPL runtime status',
+    'running activity first OPL runtime status',
+    'running activity from app_operator_drilldown.current_control_state provider projection',
     'project progress from app_state.operator.workbench.task_drilldowns',
     'project title/domain/current state/current stage',
     'next visible step when projected',
@@ -2762,7 +2875,7 @@ function validatePageStateMatrix(matrix, contract) {
     'provider readiness from app_state.provider',
     'operator summary from app_state.operator',
     'safe action refs from app_state.actions',
-    'summary-first OPL App state read model',
+    'summary OPL operator drilldown read model',
     'full detail lazy load',
     'safe app action dry-run/execute controls',
     'deliverable progress delta classification',
@@ -2929,6 +3042,21 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
       if (artifact[field] !== expectedValue) {
         throw new Error(`Operator evidence bundle artifact ${id}.${field} must be ${expectedValue}`);
       }
+    }
+  }
+  const optionalArtifactById = new Map((bundle.optional_diagnostic_artifacts ?? []).map((artifact) => [artifact.id, artifact]));
+  const codexAiSelfCheck = optionalArtifactById.get('codex_ai_self_check_summary');
+  if (!codexAiSelfCheck) {
+    throw new Error('Operator evidence bundle missing optional diagnostic artifact codex_ai_self_check_summary');
+  }
+  for (const [field, expectedValue] of Object.entries({
+    path: 'artifacts/codex-ai-self-check-summary.json',
+    producer: 'packaged GUI Codex AI-first post-install self-check',
+    kind: 'json',
+    source_kind: 'packaged_gui_codex_ai_self_check',
+  })) {
+    if (codexAiSelfCheck[field] !== expectedValue) {
+      throw new Error(`Operator evidence bundle optional diagnostic codex_ai_self_check_summary.${field} must be ${expectedValue}`);
     }
   }
 

@@ -51,6 +51,33 @@
   },
   "design_references": [
     {
+      "id": "stitch_one_lab_assistant",
+      "source_url": "https://stitch.withgoogle.com/projects/11170501787352919788",
+      "local_artifact": "/Users/gaofeng/Downloads/stitch_one_lab_assistant.zip",
+      "evaluated_at": "2026-06-02",
+      "source_usage": "visual_reference_only",
+      "reference_value": [
+        "Quiet Utility visual language for a professional AI work app",
+        "neutral tonal layers with 1px outline and low-shadow depth",
+        "fixed-width chat reading lane around 760px",
+        "bottom pinned composer with purpose chips, attach, and send controls",
+        "narrow icon rail and right-side inspector proportions",
+        "Inter typography with JetBrains Mono for technical text"
+      ],
+      "opl_mapping": [
+        "OPL ordinary home keeps the chat canvas as the visual center",
+        "OPL composer uses purpose chips, attach, and send controls without backend/model/provider selectors or runtime summaries",
+        "OPL context details remain in collapsible inspector tabs rather than first-screen panels",
+        "OPL visual tokens prefer gray tonal surfaces, 1px outlines, restrained shadows, and cards with radius no larger than 8px"
+      ],
+      "forbidden_reuse": [
+        "do not copy or vendor Stitch generated HTML, Tailwind classes, or demo source as App product code",
+        "do not treat Stitch demo data, local inference labels, model or VRAM status as OPL runtime truth",
+        "do not make the inspector default-open because the visual reference shows it",
+        "do not let Stitch override App-owned contracts, page-state matrices, or shell adapter boundaries"
+      ]
+    },
+    {
       "id": "pilotdeck",
       "source_repo": "https://github.com/OpenBMB/PilotDeck",
       "evaluated_ref": "33394d1069c3528052c3f12eb1d905060b34cc2f",
@@ -321,7 +348,7 @@
         "runtime_summary_detail_action_bridge",
         "foundry_agent_series_shared_progress_display",
         "app_owned_settings_information_architecture",
-        "continue_work_activity_center",
+        "secondary_runtime_context_refs",
         "conversation_event_ref_rendering",
         "webui_renderer_parity",
         "release_isolation",
@@ -397,7 +424,7 @@
           "packaged UI smoke proves page-state matrix mapping, first-run matrix mapping, runtime full-drilldown lazy load, and safe App action dry-run",
           "ordinary UI shows the CopilotKit-backed chat surface, not AG-UI protocol/debug copy",
           "ordinary Settings uses General, Access, Agents & Capabilities, Local Environment, Appearance, Advanced, and About & Updates",
-          "ordinary home exposes the refs-only continue-work activity center near the composer without becoming a workbench grid",
+          "ordinary home does not expose runtime activity, continue-work, per-agent running badges, or footer quick icons; Runtime and secondary context surfaces carry refs-only activity details",
           "tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs",
           "WebUI parity evidence proves the same React/CopilotKit renderer and product semantics as Electron",
           "home and ordinary conversation keep backend, model, and permission selectors hidden"

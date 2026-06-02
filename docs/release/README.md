@@ -161,8 +161,24 @@ builds that should run on GitHub runners instead of this Mac.
   not call an external LLM; missing Codex credentials remain diagnostic state,
   not a network dependency. The `opl-flow` context is injected as localized,
   session-scoped Codex preset context and never mutates the user's workspace
-  `AGENTS.md`. Codex App and
-  Computer Use browser/desktop sessions are allowed only as non-blocking
+  `AGENTS.md`. With `--codex-ai-self-check`, the smoke then asks Codex CLI to
+  read that deterministic evidence plus the target installed working mode and
+  write `artifacts/codex-ai-self-check-summary.json`. That is the AI-first
+  post-install inspection: programmatic initialization proves the App is
+  installed, and Codex CLI judges whether the installed OPL workflow matches the
+  intended `opl-flow`, language, AGENTS.md, agent-route, plugin/skill, and module
+  update continuity policies. The default mode is read-only `diagnose`; it is
+  optional diagnostic evidence and is not the stable blocking release gate.
+  The same AI-first concept also has a user-visible App entry: when real
+  first-run initialization reaches `ready_to_launch`, or when the user clicks
+  the ready entry on the First Run page, the App opens `/guid` with a localized
+  Codex task prefilled. That task tells Codex CLI to inspect the installed OPL
+  working mode after programmatic initialization, covering Codex CLI callability,
+  localized `opl-flow` session context, user `AGENTS.md` non-overwrite policy,
+  MAS/MAG/RCA routing, OPL Meta Agent capability, Codex skills/plugins, and
+  module-update continuity. It starts as read-only diagnosis and must ask for
+  user confirmation before any repair command or file mutation.
+  Codex App and Computer Use browser/desktop sessions are allowed only as non-blocking
   exploratory triage; if they reveal release-relevant behavior, the finding
   must be captured as a deterministic contract, workflow, or script gate before
   it can block promotion or be used to clear a release.
@@ -295,6 +311,7 @@ Each release evidence bundle should follow
 - `artifacts/smoke-summary.json`.
 - `artifacts/assistant-route-smoke-summary.json`.
 - `artifacts/codex-functional-check-summary.json`.
+- Optional diagnostic: `artifacts/codex-ai-self-check-summary.json`.
 - `remote-release-verification.json`.
 
 Generate or refresh the manifest after collecting available artifacts:

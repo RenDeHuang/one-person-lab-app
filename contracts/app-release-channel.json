@@ -127,7 +127,11 @@
         "provider_implementation",
         "domain_truth",
         "domain_quality_verdict",
-        "domain_artifact_authority"
+        "domain_artifact_authority",
+        "owner_receipt_authority",
+        "memory_body",
+        "artifact_body",
+        "family_production_readiness"
       ],
       "truth_sources": [
         "gaofeng21cn/one-person-lab",
@@ -505,6 +509,15 @@
         "kind": "json",
         "producer": "npm run verify-remote-release -- --version <version> --include-full-package --summary-path remote-release-verification.json",
         "source_kind": "remote_release_verification"
+      }
+    ],
+    "optional_diagnostic_artifacts": [
+      {
+        "id": "codex_ai_self_check_summary",
+        "path": "artifacts/codex-ai-self-check-summary.json",
+        "kind": "json",
+        "producer": "packaged GUI Codex AI-first post-install self-check",
+        "source_kind": "packaged_gui_codex_ai_self_check"
       }
     ],
     "forbidden_authority": [

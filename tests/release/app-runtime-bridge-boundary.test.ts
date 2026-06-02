@@ -30,6 +30,27 @@ test('App owns runtime bridge contract while active shell remains replaceable ad
   assert.equal(runtimeBridge.full_state_policy, 'diagnostic_or_release_evidence_only');
   assert.equal(runtimeBridge.full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.equal(runtimeBridge.action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
+  assert.deepEqual(runtimeBridge.command_resolution_policy, {
+    owner: 'one-person-lab-app',
+    adapter_responsibility: 'resolve_healthy_opl_cli_before_running_declared_surfaces',
+    managed_opl_priority: 'prefer_only_when_shim_targets_existing_cli_payload',
+    broken_managed_shim_policy: 'skip_and_fall_through_to_system_opl',
+    system_opl_fallback_paths: [
+      '/opt/homebrew/bin',
+      '/usr/local/bin',
+      '/usr/bin',
+      '/bin',
+      '/usr/sbin',
+      '/sbin',
+    ],
+    must_not: [
+      'let stale managed Node opl shims shadow a healthy system opl',
+      'rewrite App runtime truth from shell-private state',
+      'treat missing managed bootstrap artifacts as first-run UI truth',
+    ],
+    regression:
+      'packaged first-run must reach /guid when opl system initialize --json reports ready_to_launch=true even if a stale managed opl shim exists',
+  });
   assert.deepEqual(runtimeBridge.live_conformance_gate, {
     owner: 'one-person-lab-app',
     producer_owner: 'one-person-lab',
@@ -69,13 +90,50 @@ test('App owns runtime bridge contract while active shell remains replaceable ad
       'domain_artifact_authority',
     ],
   });
-  assert.equal(runtimeBridge.projection_sources.primary, 'app_state.operator.workbench.task_drilldowns');
-  assert.equal(runtimeBridge.projection_sources.provider, 'app_state.provider');
+  assert.equal(runtimeBridge.projection_sources.primary, 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.summary');
+  assert.equal(runtimeBridge.projection_sources.provider, 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.states.provider_run');
   assert.equal(runtimeBridge.projection_sources.actions, 'app_state.actions');
   assert.equal(runtimeBridge.projection_sources.full_detail, 'runtime_tray_snapshot.app_operator_drilldown');
-  assert.equal(runtimeBridge.projection_sources.policy, 'project_progress_first_full_detail_on_demand');
+  assert.equal(runtimeBridge.projection_sources.policy, 'running_activity_from_provider_attempt_projection_project_progress_refs_secondary');
+  assert.equal(runtimeBridge.operator_summary_drilldown_command, 'opl runtime app-operator-drilldown --json');
+  assert.deepEqual(runtimeBridge.running_task_projection, {
+    source: 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.summary + current_control_state.states',
+    command: 'opl runtime app-operator-drilldown --json',
+    authority: 'opl_framework_provider_attempt_projection',
+    display_policy: 'active_execution_first_no_module_dirty_or_checkpointed_provider_ref_as_task',
+    user_visible_grain: 'domain_and_active_execution_summary_until_domain_project_projection_is_available',
+    active_execution_filter:
+      'states where running_provider_attempt is true and provider_run.provider_status or current_attempt_state is running',
+    diagnostic_provider_ref_policy:
+      'running_provider_attempt_count may include checkpointed provider refs and must not be displayed as the user-visible running task count',
+    required_fields: [
+      'current_control_state.states[].running_provider_attempt',
+      'current_control_state.states[].provider_run.provider_status',
+      'current_control_state.states[].current_attempt_state',
+      'running_provider_attempt_count',
+      'running_provider_attempt_domain_ids',
+      'running_provider_attempt_task_kinds',
+      'latest_running_provider_heartbeat_at',
+      'running_provider_attempt_summary_policy',
+    ],
+    allowed_derivation_sources: [
+      'family_runtime_queue_task',
+      'stage_attempt_ledger',
+      'provider_run_projection',
+    ],
+    forbidden_sources: [
+      'app_state.operator.workbench.domain_lane_map',
+      'app_state.operator.workbench.task_drilldowns when active_stage_id is module_runtime',
+      'app_state.modules',
+      'module_runtime dirty state',
+      'repo/worktree diagnostics',
+      'assistant cards',
+      'domain lane card counts',
+    ],
+    app_role: 'display_only_running_activity_consumer',
+  });
   assert.equal(runtimeBridge.project_progress_projection.source, 'app_state.operator.workbench.task_drilldowns');
-  assert.equal(runtimeBridge.project_progress_projection.display_policy, 'project_progress_first_no_domain_artifact_body');
+  assert.equal(runtimeBridge.project_progress_projection.display_policy, 'project_progress_refs_secondary_no_module_runtime_dirty_as_project');
   assert.equal(runtimeBridge.authority_boundary.shell_adapter_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_write_domain_truth, false);
@@ -107,7 +165,7 @@ test('Runtime page classifies deliverable progress separately from platform repa
   assert.deepEqual(bridgeProjectProgress, {
     source: 'app_state.operator.workbench.task_drilldowns',
     authority: 'opl_framework_shared_project_progress_projection',
-    display_policy: 'project_progress_first_no_domain_artifact_body',
+    display_policy: 'project_progress_refs_secondary_no_module_runtime_dirty_as_project',
     required_fields: [
       'task_id',
       'title',
@@ -118,6 +176,8 @@ test('Runtime page classifies deliverable progress separately from platform repa
       'deliverable_progress_delta',
       'platform_repair_delta',
       'blocker_ref_count',
+      'next_visible_step',
+      'next_owner',
     ],
     optional_user_fields: [
       'domain_label',
@@ -129,6 +189,12 @@ test('Runtime page classifies deliverable progress separately from platform repa
     diagnostics_treatment: 'secondary_disclosure',
     safe_actions_treatment: 'secondary_operator_disclosure',
     app_role: 'display_only_project_progress_consumer',
+    forbidden_running_task_sources: [
+      'module_runtime dirty state',
+      'domain lane active_task_count',
+      'assistant purpose cards',
+      'module readiness diagnostics',
+    ],
   });
   assert.equal(projectProgress.source, bridgeProjectProgress.source);
   assert.equal(projectProgress.authority, bridgeProjectProgress.authority);

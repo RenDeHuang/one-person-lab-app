@@ -24,6 +24,7 @@ type EvidenceArtifact = {
 type EvidenceContract = {
   manifestPath: string;
   artifacts: EvidenceArtifact[];
+  optionalDiagnostics: EvidenceArtifact[];
   imageEvidencePolicy: ImageEvidencePolicy;
   typedBlockerPolicy: TypedBlockerPolicy;
 };
@@ -383,6 +384,29 @@ function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown)
       throw new Error('codex_functional_check_summary must not require LLM invocation.');
     }
   }
+  if (artifact.id === 'codex_ai_self_check_summary') {
+    if (record.schema !== 'opl_codex_ai_self_check_receipt.v1') {
+      throw new Error('codex_ai_self_check_summary must use the Codex AI self-check receipt schema.');
+    }
+    if (
+      ![
+        'passed',
+        'failed',
+        'needs_attention',
+        'error',
+        'skipped_not_requested',
+        'skipped_missing_codex_config',
+      ].includes(String(record.status))
+    ) {
+      throw new Error('codex_ai_self_check_summary must report a known diagnostic status.');
+    }
+    if (record.blocking_release_gate !== false) {
+      throw new Error('codex_ai_self_check_summary must remain non-blocking diagnostic evidence.');
+    }
+    if (record.mutations_allowed !== false && record.mode !== 'fix') {
+      throw new Error('codex_ai_self_check_summary diagnose mode must not allow mutations.');
+    }
+  }
   if (artifact.id === 'remote_release_verification') {
     if (record.status !== 'passed') {
       throw new Error('remote_release_verification must be a passed remote release verification summary.');
@@ -406,6 +430,7 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
     acceptance_path?: unknown;
     refs_only?: unknown;
     required_artifacts?: unknown;
+    optional_diagnostic_artifacts?: unknown;
     forbidden_authority?: unknown;
     missing_evidence_policy?: Record<string, unknown>;
     image_evidence_policy?: ImageEvidencePolicy;
@@ -450,6 +475,10 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   if (!Array.isArray(record.required_artifacts) || record.required_artifacts.length === 0) {
     throw new Error('Operator evidence bundle must declare required artifacts.');
   }
+  const optionalDiagnostics = record.optional_diagnostic_artifacts;
+  if (optionalDiagnostics !== undefined && !Array.isArray(optionalDiagnostics)) {
+    throw new Error('Operator evidence bundle optional diagnostic artifacts must be an array.');
+  }
   const imageEvidencePolicy = asRecord(record.image_evidence_policy, 'operator evidence image_evidence_policy') as unknown as ImageEvidencePolicy;
   if (imageEvidencePolicy.applies_to_kind !== 'image') {
     throw new Error('Operator evidence bundle image evidence policy must apply to image artifacts.');
@@ -479,9 +508,15 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
       throw new Error(`Invalid operator evidence artifact contract: ${JSON.stringify(artifact)}`);
     }
   }
+  for (const artifact of (optionalDiagnostics ?? []) as EvidenceArtifact[]) {
+    if (!artifact.id || !artifact.path || !artifact.kind || !artifact.producer || !artifact.source_kind) {
+      throw new Error(`Invalid optional operator evidence diagnostic artifact contract: ${JSON.stringify(artifact)}`);
+    }
+  }
   return {
     manifestPath: record.manifest_path,
     artifacts: record.required_artifacts as EvidenceArtifact[],
+    optionalDiagnostics: (optionalDiagnostics ?? []) as EvidenceArtifact[],
     imageEvidencePolicy,
     typedBlockerPolicy: {
       root: record.missing_evidence_policy.typed_blocker_root as string,
@@ -505,6 +540,19 @@ function validateManifestArtifact(manifestArtifact: unknown, expected: EvidenceA
   }
   if (artifact.status === 'blocked' && typeof artifact.typed_blocker_path !== 'string') {
     throw new Error(`Manifest artifact ${expected.id} must include typed_blocker_path.`);
+  }
+  return artifact as ManifestArtifact;
+}
+
+function validateDiagnosticArtifact(manifestArtifact: unknown, expected: EvidenceArtifact): ManifestArtifact {
+  const artifact = asRecord(manifestArtifact, `diagnostic artifact ${expected.id}`);
+  for (const key of ['id', 'path', 'kind', 'producer', 'source_kind'] as const) {
+    if (artifact[key] !== expected[key]) {
+      throw new Error(`Diagnostic artifact ${expected.id}.${key} must match release contract.`);
+    }
+  }
+  if (artifact.status !== 'present') {
+    throw new Error(`Diagnostic artifact ${expected.id}.status must be present when declared.`);
   }
   return artifact as ManifestArtifact;
 }
@@ -639,6 +687,9 @@ function validateBundle(bundleDir: string, options: Options) {
   if (!Array.isArray(manifest.artifacts)) {
     throw new Error('Evidence manifest must declare artifacts array.');
   }
+  if (manifest.diagnostics !== undefined && !Array.isArray(manifest.diagnostics)) {
+    throw new Error('Evidence manifest diagnostics must be an array when present.');
+  }
 
   const manifestArtifacts = new Map(
     manifest.artifacts.map((entry) => {
@@ -650,8 +701,22 @@ function validateBundle(bundleDir: string, options: Options) {
   if (unexpectedIds.length > 0) {
     throw new Error(`Evidence manifest declares unknown artifact(s): ${unexpectedIds.join(', ')}`);
   }
+  const diagnostics = Array.isArray(manifest.diagnostics) ? manifest.diagnostics : [];
+  const diagnosticArtifacts = new Map(
+    diagnostics.map((entry) => {
+      const record = asRecord(entry, 'evidence manifest diagnostic artifact');
+      return [record.id, entry];
+    }),
+  );
+  const unexpectedDiagnosticIds = [...diagnosticArtifacts.keys()].filter(
+    (id) => !contract.optionalDiagnostics.some((artifact) => artifact.id === id),
+  );
+  if (unexpectedDiagnosticIds.length > 0) {
+    throw new Error(`Evidence manifest declares unknown diagnostic artifact(s): ${unexpectedDiagnosticIds.join(', ')}`);
+  }
 
   const verified: ManifestArtifact[] = [];
+  const verifiedDiagnostics: ManifestArtifact[] = [];
   const missing: ManifestArtifact[] = [];
   const blocked: ManifestArtifact[] = [];
 
@@ -681,6 +746,25 @@ function validateBundle(bundleDir: string, options: Options) {
       throw new Error(`Unsupported operator evidence artifact kind: ${artifact.kind}`);
     }
     verified.push(artifact);
+  }
+
+  for (const expected of contract.optionalDiagnostics) {
+    const entry = diagnosticArtifacts.get(expected.id);
+    if (!entry) {
+      continue;
+    }
+    const artifact = validateDiagnosticArtifact(entry, expected);
+    const filePath = resolveBundlePath(bundleDir, artifact.path);
+    if (artifact.kind === 'json') {
+      validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id));
+    } else if (artifact.kind === 'image') {
+      assertImageFile(filePath, artifact.id, contract.imageEvidencePolicy);
+    } else if (artifact.kind === 'log') {
+      assertLogFile(filePath, artifact.id);
+    } else {
+      throw new Error(`Unsupported operator evidence diagnostic artifact kind: ${artifact.kind}`);
+    }
+    verifiedDiagnostics.push(artifact);
   }
 
   const blockedEvidence = validateBlockedEvidenceList(bundleDir, manifest, blocked, contract.typedBlockerPolicy);
@@ -721,6 +805,15 @@ function validateBundle(bundleDir: string, options: Options) {
     evidence_boundary: evidenceBoundary,
     verified_artifact_count: verified.length,
     verified_artifacts: verified.map((artifact) => ({
+      id: artifact.id,
+      path: artifact.path,
+      kind: artifact.kind,
+      producer: artifact.producer,
+      source_kind: artifact.source_kind,
+      status: artifact.status,
+    })),
+    verified_diagnostic_count: verifiedDiagnostics.length,
+    verified_diagnostics: verifiedDiagnostics.map((artifact) => ({
       id: artifact.id,
       path: artifact.path,
       kind: artifact.kind,

@@ -109,18 +109,26 @@ plugin registry。
 
 ## Runtime 与进度增量
 
-Codex App 展示 process 和 tool state。OPL App 增加 Framework-backed project
-state：
+Codex App 展示 process 和 tool state。OPL App 增加 Framework-backed runtime
+和 project refs：
 
+- Runtime 页默认从 `opl runtime app-operator-drilldown --json` 读取
+  `current_control_state.summary` 和 `current_control_state.states`，先展示真实
+  active provider executions、running domains、task kinds 和 heartbeat。
+  `running_provider_attempt_count` 这类 provider ref summary 只能作为高级诊断，
+  不能直接当成用户可见的正在运行任务数。
 - 来自 `opl app state` 的 current project title、domain、owner/state/stage、
-  next visible step 和 blockers。
+  next visible step 和 blockers 作为二级 project progress refs 展示。
 - 基于 OPL shared progress projection classifications 展示 progress：
   deliverable progress、platform repair 和 progress delta classification。
 - 通过 dry-run-first App actions 触发 safe action routes。
 - 按需 full Operator drilldown，用于 diagnostics。
 - 在 conversation 或 runtime panel 上附加 evidence refs 和 receipt refs。
-- Home input 附近的轻量 continue-work activity center，来自 refs-only OPL
-  operator projections，展示 needs-attention、active、recent projects。
+- Home 不展示运行摘要、continue-work、needs-attention/active/recent refs、
+  per-assistant running badges 或底部 feedback/favorite/web 图标；这些信息进入
+  Runtime 页、右侧 inspector、drawer 或其他 secondary context surface。
+- `domain_lane_map.active_task_count`、`module_runtime dirty`、module readiness 和
+  assistant purpose cards 不能作为 running task truth。
 
 GUI 应让当前工作可理解，但不能声称 domain truth。例如 platform repair 显示为
 infrastructure repair，而不是 manuscript 或 deliverable progress。
@@ -167,17 +175,31 @@ OPL App 增加 domain-aware context panels：
 
 所有这些都是次级 surfaces。Chat canvas 仍是主面。
 
+Continue-work 详细列表也属于次级 surface。OPL App 可以让用户从 composer
+旁边一键打开这些 refs，但不能把 needs-attention、active、recent refs 默认铺
+在 ordinary home 第一屏。
+
 ## 命名与语言增量
 
 用户可见名称应该描述工作，而不是基础设施：
 
 - 普通 purpose entries 使用 `科研`、`基金`、`PPT`。
+- 英文 UI 中对应显示 `Research`、`Grant`、`Presentation`。
 - MAS/MAG/RCA 可作为紧凑 route tags 和 technical refs。
-- 用 "Codex CLI / Auto" 作为紧凑状态，而不是配置表单。
+- 中文普通首页用 `本机助手 / 自动` 作为紧凑状态，英文界面用
+  `Local assistant / Auto`；`Codex CLI` 可进入二级技术详情或 diagnostics，
+  不作为中文 first-screen 的主要状态文案。
 - Settings 使用 "General"、"Access"、"Agents & Capabilities"、
   "Local Environment"、"Appearance"、"Advanced"、"About & Updates"。
 - 普通 UI 文案避免 AG-UI、ACP、provider、backend、app-server、route id 或
   raw schema names。
+- 普通 UI 支持中文/英文两套界面 copy。同一屏用户层 chrome 必须使用同一语言。
+  `OPL` 和 `Codex` 可作为产品/执行器品牌保留；`Codex CLI`、`MAS`、`MAG`、
+  `RCA`、命令、receipt id、路径和用户原文进入二级详情、diagnostics 或原文输出，
+  不应让中文普通首页看起来像随机中英混排。
+- 中文普通 first screen 优先使用短标签和中文工作意图，不把 Med Auto Science、
+  Med Auto Grant、RedCube AI 这类英文长名作为主要视觉文本；这些长名可在英文界面、
+  details、Settings 或 diagnostics 中出现。
 
 技术标签可以出现在 diagnostics、logs、validation evidence 或 developer docs。
 

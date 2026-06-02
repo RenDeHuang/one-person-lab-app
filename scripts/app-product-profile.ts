@@ -75,10 +75,10 @@ export type AppProductProfile = {
         authority: string;
         role: string;
         default_placement: string;
-        display_groups: string[];
-        item_fields: string[];
+        home_surface_policy: string;
+        allowed_home_runtime_context: string[];
         must_not_display: string[];
-        empty_state_policy: string;
+        footer_quick_actions_policy: string;
       };
     };
     builtin_assistant_route_receipt_policy: {
@@ -165,6 +165,25 @@ export type AppProductProfile = {
       auto_request_installer: boolean;
       blocks_full_first_launch: boolean;
       messages: string[];
+    };
+    beginner_presentation: {
+      audience: string;
+      presentation_mode: string;
+      primary_user_goal: string;
+      primary_steps: string[];
+      primary_progress_signal: string;
+      advanced_progress_disclosure: string;
+      background_maintenance_presentation: string;
+      technical_detail_policy: string;
+      post_install_ai_self_check_entry: {
+        trigger: string;
+        target_route: string;
+        route_state: string;
+        prompt_policy: string;
+        target_state_checks: string[];
+        mutation_policy: string;
+        release_gate_policy: string;
+      };
     };
   };
   settings: {
@@ -266,6 +285,34 @@ function assertIncludesAll(actual: string[], expected: string[], label: string):
       throw new Error(`Invalid App product profile ${label}: missing ${item}`);
     }
   }
+}
+
+function assertPostInstallAiSelfCheckEntry(
+  entry: AppProductProfile['first_run']['beginner_presentation']['post_install_ai_self_check_entry'],
+): void {
+  if (
+    entry?.target_route !== '/guid' ||
+    entry.route_state !== 'postInstallSelfCheck' ||
+    entry.prompt_policy !== 'localized Codex CLI read-only diagnosis prompt describing target OPL working mode' ||
+    entry.mutation_policy !== 'diagnose_first_no_file_mutation_without_user_confirmation' ||
+    entry.release_gate_policy !== 'user_visible_entry_complements_non_blocking_codex_ai_self_check_receipt'
+  ) {
+    throw new Error('App product profile first_run.beginner_presentation.post_install_ai_self_check_entry has invalid route or policy');
+  }
+  assertIncludesAll(
+    entry.target_state_checks,
+    [
+      'codex_cli_callable',
+      'ui_language_policy',
+      'session_scoped_opl_flow_context',
+      'user_agents_md_respected_no_overwrite',
+      'mas_mag_rca_routes_visible',
+      'opl_meta_agent_capability_visible',
+      'codex_skills_plugins_visible',
+      'module_update_skill_plugin_continuity',
+    ],
+    'first_run.beginner_presentation.post_install_ai_self_check_entry.target_state_checks',
+  );
 }
 
 function assertProfileShape(profile: AppProductProfile): void {
@@ -379,27 +426,30 @@ function assertProfileShape(profile: AppProductProfile): void {
     'gui.home.retired_codex_models_must_not_be_exposed',
   );
   if (
-    profile.gui.home.activity_center_policy?.source !== 'app_state.operator.workbench.task_drilldowns + app_state.operator.summary' ||
-    profile.gui.home.activity_center_policy.authority !== 'opl_framework_refs_only_projection' ||
-    profile.gui.home.activity_center_policy.role !== 'codex_style_continue_work_center' ||
-    profile.gui.home.activity_center_policy.default_placement !== 'near_home_input' ||
-    profile.gui.home.activity_center_policy.empty_state_policy !== 'stable_empty_state_without_page_wide_spinner'
+    profile.gui.home.activity_center_policy?.source !== 'not_rendered_on_ordinary_home' ||
+    profile.gui.home.activity_center_policy.authority !== 'app_owned_home_minimal_command_surface' ||
+    profile.gui.home.activity_center_policy.role !== 'home_runtime_activity_suppressed_to_keep_composer_first' ||
+    profile.gui.home.activity_center_policy.default_placement !== 'not_rendered_on_ordinary_home' ||
+    profile.gui.home.activity_center_policy.home_surface_policy !== 'ordinary_home_must_not_render_activity_center_or_continue_work_grid' ||
+    profile.gui.home.activity_center_policy.footer_quick_actions_policy !== 'do_not_render_feedback_star_web_icons_on_home'
   ) {
-    throw new Error('App product profile GUI home activity center must be a Codex-style refs-only continue-work center');
+    throw new Error('App product profile GUI home must keep runtime activity off ordinary Home');
+  }
+  if (profile.gui.home.activity_center_policy.allowed_home_runtime_context.length !== 0) {
+    throw new Error('App product profile GUI home must not allow runtime context on ordinary Home');
   }
   assertIncludesAll(
-    profile.gui.home.activity_center_policy.display_groups,
-    ['needs_attention', 'active_projects', 'recent_projects'],
-    'gui.home.activity_center_policy.display_groups',
-  );
-  assertIncludesAll(
-    profile.gui.home.activity_center_policy.item_fields,
-    ['task_id', 'title', 'state', 'next_visible_step', 'blocker_ref_count', 'last_progress_at'],
-    'gui.home.activity_center_policy.item_fields',
-  );
-  assertIncludesAll(
     profile.gui.home.activity_center_policy.must_not_display,
-    ['domain artifact body', 'memory body', 'quality verdict body', 'provider implementation details'],
+    [
+      'expanded continue-work center',
+      'needs attention / active / recent activity groups',
+      'per-assistant running badges',
+      'module_runtime dirty state as task',
+      'domain artifact body',
+      'memory body',
+      'quality verdict body',
+      'provider implementation details',
+    ],
     'gui.home.activity_center_policy.must_not_display',
   );
   if (
@@ -485,6 +535,8 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.first_run.ready_to_launch_gate.must_not_require, 'first_run.ready_to_launch_gate.must_not_require');
   assertStringArray(profile.first_run.full_readiness_layers, 'first_run.full_readiness_layers');
   assertStringArray(profile.first_run.deferred_blockers, 'first_run.deferred_blockers');
+  assertStringArray(profile.first_run.beginner_presentation.primary_steps, 'first_run.beginner_presentation.primary_steps');
+  assertPostInstallAiSelfCheckEntry(profile.first_run.beginner_presentation.post_install_ai_self_check_entry);
   if (profile.first_run.progress_model.source_command !== 'opl system initialize --json') {
     throw new Error('App product profile first_run.progress_model.source_command must be opl system initialize --json');
   }

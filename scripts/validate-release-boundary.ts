@@ -73,6 +73,7 @@ const checks = [
       '--settings-smoke',
       '--assistant-route-smoke',
       '--codex-functional-check',
+      '--codex-ai-self-check',
       '--runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"',
     ],
     forbidden: ['--repo gaofeng21cn/one-person-lab'],

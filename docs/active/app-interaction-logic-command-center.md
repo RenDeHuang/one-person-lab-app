@@ -7,15 +7,16 @@ State: `active_plan`
 
 ## 目标
 
-One Person Lab App 应该表现为一个 agent command center。主路径是：继续当前
-工作、看到需要注意的事项、启动特定 purpose 的 agent task，并检查项目进度。
-Settings 是偏好与 readiness surface，不是日常 workbench，也不是 upstream
-AionUI configuration dump。
+One Person Lab App 应该表现为一个 Codex App 风格的 agent command surface。主
+路径是：在当前 workspace 里直接输入任务、启动特定 purpose 的 agent task，并
+在需要时打开 Runtime 或 context 查看运行状态。Settings 是偏好与 readiness
+surface，不是日常 workbench，也不是 upstream AionUI configuration dump。
 
 ## Source Of Truth
 
-- `contracts/app-gui-product-contract.json` 拥有 product IA、Home activity
-  center、Settings tabs 和 App/Shell authority boundary。
+- `contracts/app-gui-product-contract.json` 拥有 product IA、Home minimal command
+  surface、Runtime running activity、Settings tabs 和 App/Shell authority
+  boundary。
 - `contracts/app-page-state-matrix.json` 拥有 page-state acceptance
   expectations。
 - `contracts/app-product-profile.json` 是 shell-consumed generated profile
@@ -25,16 +26,20 @@ AionUI configuration dump。
 
 ## Home
 
-Home 必须固定 Codex CLI，并隐藏 executor/model/permission selectors。它必须在
-input 附近增加 continue-work activity center，包含三个用户可见分组：
-needs attention、active projects、recent projects。
+Home 必须固定 Codex CLI，并隐藏 executor/model/permission selectors。它不展示
+runtime activity、continue-work、needs-attention/active/recent refs、
+per-assistant running badges 或底部 feedback/favorite/web 图标。Home 只承担
+composer-first 的开始/继续对话职责。
 
-Activity center 读取 refs-only 数据：
-`app_state.operator.workbench.task_drilldowns` 和
-`app_state.operator.summary`。它可以展示 task title、domain label、state、
-current stage、next visible step、blocker count 和 last progress time。它不能
-展示 domain artifact body、memory body、provider implementation internals 或
-quality verdict body。
+Runtime 读取 `opl runtime app-operator-drilldown --json` 的
+`current_control_state.summary` 和 `current_control_state.states`。它先展示真实
+active provider executions、running domains、task kinds 和 heartbeat。
+`running_provider_attempt_count` 可以包含 checkpointed provider refs，只能进入
+高级诊断，不能当成正在运行任务数。Project
+progress refs 读取 `app_state.operator.workbench.task_drilldowns`，但只作为二级
+project refs，不能作为 running task truth。`domain_lane_map.active_task_count`、
+`module_runtime dirty`、module readiness、repo/worktree diagnostics 和 assistant
+cards 都不能推导“正在运行的任务数”。
 
 ## Settings
 

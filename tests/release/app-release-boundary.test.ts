@@ -49,7 +49,7 @@ const expectedDefaultPackagedSkillIds = [
   'rca',
   ...expectedDefaultCompanionSkillSyncIds,
 ];
-const expectedHomeActivityCenterItemFields = [
+const expectedRuntimeProjectProgressUserFields = [
   'task_id',
   'title',
   'domain_label',
@@ -60,6 +60,10 @@ const expectedHomeActivityCenterItemFields = [
   'last_progress_at',
 ];
 const expectedHomeActivityCenterForbiddenDisplays = [
+  'expanded continue-work center',
+  'needs attention / active / recent activity groups',
+  'per-assistant running badges',
+  'module_runtime dirty state as task',
   'domain artifact body',
   'memory body',
   'quality verdict body',
@@ -430,6 +434,19 @@ function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
       reason: 'missing_codex_credentials',
     },
   };
+  const codexAiSelfCheck = {
+    schema: 'opl_codex_ai_self_check_receipt.v1',
+    status: 'skipped_missing_codex_config',
+    mode: 'diagnose',
+    mutations_allowed: false,
+    blocking_release_gate: false,
+    codex_cli: {
+      command: 'codex',
+      detected: false,
+      version: null,
+    },
+    skip_reason: 'missing_codex_config',
+  };
   const guestSummary = {
     surface_id: 'opl_packaged_gui_first_run_smoke',
     status: 'passed',
@@ -446,11 +463,16 @@ function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
     settings_smoke: settingsSmoke,
     assistant_route_smoke: assistantRouteSmoke,
     codex_functional_check: codexFunctionalCheck,
+    codex_ai_self_check: codexAiSelfCheck,
   };
   writeFile(path.join(tempRoot, 'artifacts', 'smoke-summary.json'), `${JSON.stringify(guestSummary)}\n`);
   writeFile(
     path.join(tempRoot, 'artifacts', 'codex-functional-check-summary.json'),
     `${JSON.stringify(codexFunctionalCheck)}\n`,
+  );
+  writeFile(
+    path.join(tempRoot, 'artifacts', 'codex-ai-self-check-summary.json'),
+    `${JSON.stringify(codexAiSelfCheck)}\n`,
   );
   writeFile(
     path.join(tempRoot, 'artifacts', 'assistant-route-smoke-summary.json'),
@@ -496,6 +518,7 @@ function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = 'full') {
       settings_smoke: settingsSmoke,
       assistant_route_smoke: assistantRouteSmoke,
       codex_functional_check: codexFunctionalCheck,
+      codex_ai_self_check: codexAiSelfCheck,
       guest_summary: guestSummary,
     })}\n`,
   );
@@ -1207,14 +1230,14 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimeBridge.live_conformance_gate.fast_state_max_bytes, 500000);
   assert.equal(runtimeBridge.live_conformance_gate.required_state_schema, 'opl_app_state.v1');
   assert.equal(runtimeBridge.live_conformance_gate.golden_fast_state_fixture, 'contracts/fixtures/opl-app-state-fast.fixture.json');
-  assert.equal(runtimeBridge.projection_sources.primary, 'app_state.operator.workbench.task_drilldowns');
-  assert.equal(runtimeBridge.projection_sources.provider, 'app_state.provider');
+  assert.equal(runtimeBridge.projection_sources.primary, 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.summary');
+  assert.equal(runtimeBridge.projection_sources.provider, 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.states.provider_run');
   assert.equal(runtimeBridge.projection_sources.actions, 'app_state.actions');
-  assert.equal(runtimeBridge.projection_sources.policy, 'project_progress_first_full_detail_on_demand');
+  assert.equal(runtimeBridge.projection_sources.policy, 'running_activity_from_provider_attempt_projection_project_progress_refs_secondary');
   assert.deepEqual(runtimeBridge.project_progress_projection, {
     source: 'app_state.operator.workbench.task_drilldowns',
     authority: 'opl_framework_shared_project_progress_projection',
-    display_policy: 'project_progress_first_no_domain_artifact_body',
+    display_policy: 'project_progress_refs_secondary_no_module_runtime_dirty_as_project',
     required_fields: [
       'task_id',
       'title',
@@ -1225,6 +1248,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'deliverable_progress_delta',
       'platform_repair_delta',
       'blocker_ref_count',
+      'next_visible_step',
+      'next_owner',
     ],
     optional_user_fields: [
       'domain_label',
@@ -1236,7 +1261,14 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     diagnostics_treatment: 'secondary_disclosure',
     safe_actions_treatment: 'secondary_operator_disclosure',
     app_role: 'display_only_project_progress_consumer',
+    forbidden_running_task_sources: [
+      'module_runtime dirty state',
+      'domain lane active_task_count',
+      'assistant purpose cards',
+      'module readiness diagnostics',
+    ],
   });
+  assert.deepEqual(runtimePage.runtime_view_model.project_progress.user_display_fields, expectedRuntimeProjectProgressUserFields);
   assert.equal(runtimeBridge.authority_boundary.shell_adapter_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_write_domain_truth, false);
@@ -1313,13 +1345,19 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', 'PPT']);
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
   assert.ok(guidHomePage.home_view_model.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
-  assert.deepEqual(guidHomePage.home_view_model.activity_center.item_fields, expectedHomeActivityCenterItemFields);
+  assert.equal(guidHomePage.home_view_model.activity_center.authority, 'app_owned_home_minimal_command_surface');
+  assert.equal(guidHomePage.home_view_model.activity_center.source, 'not_rendered_on_ordinary_home');
+  assert.equal(guidHomePage.home_view_model.activity_center.default_placement, 'not_rendered_on_ordinary_home');
+  assert.equal(
+    guidHomePage.home_view_model.activity_center.home_surface_policy,
+    'ordinary_home_must_not_render_activity_center_or_continue_work_grid',
+  );
+  assert.deepEqual(guidHomePage.home_view_model.activity_center.allowed_home_runtime_context, []);
   assert.deepEqual(guidHomePage.home_view_model.activity_center.must_not_display, expectedHomeActivityCenterForbiddenDisplays);
-  assert.deepEqual(guidHomePage.home_view_model.activity_center.forbidden_body_display, [
-    'domain artifact body',
-    'memory body',
-    'quality verdict body',
-  ]);
+  assert.equal(
+    guidHomePage.home_view_model.activity_center.footer_quick_actions_policy,
+    'do_not_render_feedback_star_web_icons_on_home',
+  );
   for (const expected of [
     'Codex CLI fixed executor experience',
     'Codex automatic model status label',
@@ -1363,14 +1401,17 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
 
   assert.equal(
     runtimePage.machine_source,
-    'opl app state --profile fast --json',
+    'opl app state --profile fast --json + opl runtime app-operator-drilldown --json',
   );
-  assert.equal(runtimePage.primary_projection, 'app_state.operator.workbench.task_drilldowns');
-  assert.equal(runtimePage.fallback_projection, 'full App/operator drilldown only for on-demand full detail');
+  assert.equal(
+    runtimePage.primary_projection,
+    'app_operator_drilldown.current_control_state.states active provider executions',
+  );
+  assert.equal(runtimePage.fallback_projection, 'fast App state only for availability/actions; full drilldown only for explicit detail');
   assert.equal(runtimePage.framework_command, 'opl app state --profile fast --json');
   assert.equal(runtimePage.framework_full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.equal(runtimePage.framework_action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
-  assert.equal(runtimePage.page_contract, 'runtime_project_progress_first');
+  assert.equal(runtimePage.page_contract, 'runtime_running_activity_first');
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.role,
     'runtime_page_operator_evidence_acceptance',
@@ -1404,9 +1445,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     runtimePage.operator_evidence_acceptance_path.action_execution_policy,
     'operator_selected_safe_app_action_route_only',
   );
-  assert.equal(runtimePage.runtime_view_model.role, 'opl_runtime_project_progress');
+  assert.equal(runtimePage.runtime_view_model.role, 'opl_runtime_running_activity');
   assert.equal(runtimePage.runtime_view_model.bridge_contract, 'contracts/app-runtime-bridge.json');
-  assert.equal(runtimePage.runtime_view_model.default_mode, 'project_progress_first');
+  assert.equal(runtimePage.runtime_view_model.default_mode, 'running_activity_first');
   assert.equal(runtimePage.runtime_view_model.full_detail_policy, 'on_demand_only');
   assert.equal(runtimePage.runtime_view_model.polling_fallback.interval_seconds_min, 5);
   assert.equal(runtimePage.runtime_view_model.polling_fallback.interval_seconds_max, 10);
@@ -1421,7 +1462,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.deepEqual(runtimePage.runtime_view_model.project_progress, {
     source: 'app_state.operator.workbench.task_drilldowns',
     authority: 'opl_framework_shared_project_progress_projection',
-    display_policy: 'project_progress_first_no_domain_artifact_body',
+    display_policy: 'project_progress_refs_secondary_no_module_runtime_dirty_as_project',
     required_fields: [
       'task_id',
       'title',
@@ -1432,6 +1473,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'deliverable_progress_delta',
       'platform_repair_delta',
       'blocker_ref_count',
+      'next_visible_step',
+      'next_owner',
     ],
     optional_user_fields: [
       'domain_label',
@@ -1440,8 +1483,15 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'next_owner',
       'last_progress_at',
     ],
+    user_display_fields: expectedRuntimeProjectProgressUserFields,
     diagnostics_treatment: 'secondary_disclosure',
     safe_actions_treatment: 'secondary_operator_disclosure',
+    forbidden_running_task_sources: [
+      'module_runtime dirty state',
+      'domain lane active_task_count',
+      'assistant purpose cards',
+      'module readiness diagnostics',
+    ],
   });
   assert.equal(
     runtimePage.runtime_view_model.progress_delta.source,
@@ -1472,8 +1522,36 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimePage.runtime_view_model.progress_delta.forbidden_delivery_claim_for_platform_repair, true);
   assert.equal(runtimePage.runtime_view_model.primary_state_source, 'opl app state --profile fast --json');
   assert.equal(runtimePage.runtime_view_model.refresh_state_source, 'opl app state --profile fast --json');
-  assert.equal(runtimePage.runtime_view_model.summary_source, 'app_state.operator.summary');
+  assert.equal(runtimePage.runtime_view_model.summary_source, 'opl runtime app-operator-drilldown --json');
   assert.equal(runtimePage.runtime_view_model.full_detail_source, 'opl runtime app-operator-drilldown --detail full --json');
+  assert.deepEqual(runtimePage.runtime_view_model.running_task_projection, {
+    source: 'app_operator_drilldown.current_control_state.summary + current_control_state.states',
+    authority: 'opl_framework_provider_attempt_projection',
+    display_policy: 'active_execution_first_no_module_dirty_or_checkpointed_provider_ref_as_task',
+    user_visible_grain: 'domain_and_active_execution_summary_until_project_projection_available',
+    active_execution_filter:
+      'states where running_provider_attempt is true and provider_run.provider_status or current_attempt_state is running',
+    diagnostic_provider_ref_policy:
+      'running_provider_attempt_count may include checkpointed provider refs and must not be displayed as the user-visible running task count',
+    forbidden_sources: [
+      'domain_lane_map active_task_count',
+      'app_state.operator.workbench.task_drilldowns where active_stage_id is module_runtime',
+      'app_state.modules',
+      'module_runtime dirty state',
+      'repo/worktree diagnostics',
+      'assistant cards',
+    ],
+    required_user_fields: [
+      'current_control_state.states[].running_provider_attempt',
+      'current_control_state.states[].provider_run.provider_status',
+      'current_control_state.states[].current_attempt_state',
+      'running_provider_attempt_count',
+      'running_provider_attempt_domain_ids',
+      'running_provider_attempt_task_kinds',
+      'latest_running_provider_heartbeat_at',
+      'running_provider_attempt_summary_policy',
+    ],
+  });
   assert.equal(runtimePage.runtime_view_model.provider_status.source, 'app_state.provider');
   assert.equal(runtimePage.runtime_view_model.provider_status.authority, 'opl_framework');
   assert.equal(runtimePage.runtime_view_model.authority_boundary.refs_only, true);
@@ -1481,7 +1559,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimePage.runtime_view_model.authority_boundary.action_execution_owner, 'opl_framework');
   assert.equal(runtimePage.runtime_view_model.authority_boundary.domain_verdict_owner, 'domain_agent');
   for (const expected of [
-    'summary-first OPL App state read model',
+    'running activity from current_control_state provider projection',
+    'summary OPL operator drilldown read model',
     'fast App state refresh',
     'app_state.operator.workbench.task_drilldowns project progress refs',
     'full detail lazy load',
@@ -1497,7 +1576,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     assert.ok(runtimePage.operator_evidence_path.includes(expected), expected);
   }
   for (const expected of [
-    'project progress first OPL runtime status',
+    'running activity first OPL runtime status',
+    'running activity from app_operator_drilldown.current_control_state provider projection',
     'project progress from app_state.operator.workbench.task_drilldowns',
     'project title/domain/current state/current stage',
     'next visible step when projected',
@@ -1507,7 +1587,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'provider readiness from app_state.provider',
     'operator summary from app_state.operator',
     'safe action refs from app_state.actions',
-    'summary-first OPL App state read model',
+    'summary OPL operator drilldown read model',
     'full detail lazy load',
     'safe app action dry-run/execute controls',
     'deliverable progress delta classification',
@@ -1572,6 +1652,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
   const fullFirstRun = firstRunMatrix.scenarios.find((scenario) => scenario.id === 'full_first_install_clean_machine');
   const bundle = releaseContract.operator_evidence_bundle;
   const artifactById = new Map(bundle.required_artifacts.map((artifact) => [artifact.id, artifact]));
+  const diagnosticById = new Map((bundle.optional_diagnostic_artifacts ?? []).map((artifact) => [artifact.id, artifact]));
 
   assert.equal(bundle.purpose, 'runtime_page_operator_evidence_acceptance');
   assert.equal(bundle.acceptance_path, 'Runtime page');
@@ -1643,6 +1724,13 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       'remote-release-verification.json',
     ],
   );
+  assert.deepEqual(diagnosticById.get('codex_ai_self_check_summary'), {
+    id: 'codex_ai_self_check_summary',
+    path: 'artifacts/codex-ai-self-check-summary.json',
+    kind: 'json',
+    producer: 'packaged GUI Codex AI-first post-install self-check',
+    source_kind: 'packaged_gui_codex_ai_self_check',
+  });
   assert.deepEqual(
     [...artifactById.values()].map((artifact) => artifact.source_kind),
     [
@@ -1731,6 +1819,7 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
     'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
   );
   assert.equal(payload.verified_artifact_count, 16);
+  assert.equal(payload.verified_diagnostic_count, 0);
   assert.equal(payload.missing_artifact_count, 0);
   assert.deepEqual(
     payload.verified_artifacts.map((artifact) => artifact.id),
@@ -1753,6 +1842,52 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
       'remote_release_verification',
     ],
   );
+});
+
+test('release evidence bundle validator accepts optional Codex AI self-check diagnostics without making them required', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-ai-diagnostic-'));
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const requiredArtifacts = releaseContract.operator_evidence_bundle.required_artifacts;
+  const diagnostics = releaseContract.operator_evidence_bundle.optional_diagnostic_artifacts;
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'passed',
+    packaged_app_evidence: true,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts: requiredArtifacts.map((artifact) => ({ ...artifact, status: 'present' })),
+    diagnostics: diagnostics.map((artifact) => ({ ...artifact, status: 'present' })),
+    missing_evidence: [],
+    blocked_evidence: [],
+  }, null, 2)}\n`);
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeVmSmokeSummaryFiles(tempRoot);
+  writeAssistantRouteSmokeScreenshots(tempRoot);
+  writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+
+  const result = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.status, 'passed');
+  assert.equal(payload.verified_artifact_count, 16);
+  assert.equal(payload.verified_diagnostic_count, 1);
+  assert.deepEqual(payload.verified_diagnostics.map((artifact) => artifact.id), [
+    'codex_ai_self_check_summary',
+  ]);
+  assert.equal(payload.missing_artifact_count, 0);
 });
 
 test('release evidence bundle validator fails closed for incomplete packaged App evidence', () => {
@@ -2099,6 +2234,7 @@ test('release evidence manifest generator records missing artifacts without clai
   const manifest = JSON.parse(fs.readFileSync(path.join(tempRoot, 'evidence-manifest.json'), 'utf8'));
   assert.equal(manifest.status, 'missing_evidence');
   assert.equal(manifest.packaged_app_evidence, false);
+  assert.deepEqual(manifest.diagnostics, []);
   assert.deepEqual(manifest.missing_evidence.map((artifact) => artifact.id), [
     'first_run_vm_summary',
     'guest_smoke_summary',
@@ -2241,7 +2377,7 @@ process.exit(2);
   const validationPayload = JSON.parse(validation.stdout);
   assert.equal(validationPayload.status, 'missing_evidence');
   assert.equal(validationPayload.verified_artifact_count, 5);
-  assert.equal(validationPayload.missing_artifact_count, 10);
+  assert.equal(validationPayload.missing_artifact_count, 11);
 
   const actionArgs = fs.readFileSync(actionLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   assert.deepEqual(actionArgs, [
@@ -2415,6 +2551,8 @@ process.exit(2);
     '--artifact',
     `codex_functional_check_summary=${path.join(externalEvidence, 'artifacts', 'codex-functional-check-summary.json')}`,
     '--artifact',
+    `codex_ai_self_check_summary=${path.join(externalEvidence, 'artifacts', 'codex-ai-self-check-summary.json')}`,
+    '--artifact',
     `assistant_route_smoke_mas_screenshot=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke', 'mas.png')}`,
     '--artifact',
     `assistant_route_smoke_mag_screenshot=${path.join(externalEvidence, 'artifacts', 'assistant-route-smoke', 'mag.png')}`,
@@ -2443,6 +2581,7 @@ process.exit(2);
     'assistant_route_smoke_mag_screenshot',
     'assistant_route_smoke_rca_screenshot',
     'remote_release_verification',
+    'codex_ai_self_check_summary',
   ]);
 
   const validation = runNode([
@@ -2454,6 +2593,7 @@ process.exit(2);
   const validationPayload = JSON.parse(validation.stdout);
   assert.equal(validationPayload.status, 'passed');
   assert.equal(validationPayload.verified_artifact_count, 16);
+  assert.equal(validationPayload.verified_diagnostic_count, 1);
   assert.equal(validationPayload.missing_artifact_count, 0);
 });
 
@@ -2510,6 +2650,7 @@ test('release evidence collector imports standard smoke source directories witho
     'assistant_route_smoke_mag_screenshot',
     'assistant_route_smoke_rca_screenshot',
     'remote_release_verification',
+    'codex_ai_self_check_summary',
   ]);
   assert.equal(
     fileSha256(path.join(bundleDir, 'screenshots', 'runtime.png')),
@@ -2525,6 +2666,7 @@ test('release evidence collector imports standard smoke source directories witho
   const validationPayload = JSON.parse(validation.stdout);
   assert.equal(validationPayload.status, 'passed');
   assert.equal(validationPayload.verified_artifact_count, 16);
+  assert.equal(validationPayload.verified_diagnostic_count, 1);
   assert.equal(validationPayload.missing_artifact_count, 0);
 });
 
@@ -2582,6 +2724,7 @@ test('release evidence collector imports typed blockers as blocked evidence', ()
     'assistant_route_smoke_mag_screenshot',
     'assistant_route_smoke_rca_screenshot',
     'remote_release_verification',
+    'codex_ai_self_check_summary',
     'first_run_vm_summary:typed_blocker',
   ]);
   assert.equal(payload.blocked_artifact_count, 1);
@@ -3291,7 +3434,7 @@ test('publish dry run generates organized English release notes for standard and
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
-  writeFakeReleaseNotesAiWriter(fakeAi, `One Person Lab 26.5.18
+  const publicMarkdown = `One Person Lab 26.5.18
 
 This release makes a clean OPL install more useful immediately by shipping refreshed MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and packaged Codex skills together in the Full installer.
 
@@ -3312,7 +3455,29 @@ This release makes a clean OPL install more useful immediately by shipping refre
 - Standard macOS arm64 updater package plus Full clean-install DMG.
 
 **Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.5.17...v26.5.18
-`);
+`;
+  writeFakeReleaseNotesAiWriter(fakeAi, withHiddenLocalizedReleaseNotes(publicMarkdown, `One Person Lab 26.5.18
+
+这次更新让一次干净的 OPL 安装更快可用：Full installer 会同时带上更新后的 MAS、MAG、RCA、OPL Meta Agent、OPL Framework、Codex CLI、OfficeCLI、MinerU 和打包的 Codex skills。
+
+## What improved
+
+### 打包的 OPL 智能体更快可用
+- MAS、MAG、RCA 和 OPL Meta Agent 会随 Full package manifest 一起打包，新用户首次启动后更少需要等待模块 reconcile。
+
+### 安装证明更清晰
+- 标准 DMG、Full DMG、一键安装器和 Docker/WebUI 验证继续分开，失败时可以定位到具体用户路径。
+
+## OPL agents and runtime payload
+- Full clean-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
+- Build-time payload refs: OPL Framework @ aaaaaaa; Codex CLI 0.130.0; MAS @ 1111111; MAG @ 2222222; RCA @ 3333333; OPL Meta Agent @ 4444444; OfficeCLI 1.2.3; MinerU v0.1.3.
+- Payload updates since previous Stable: OPL Framework de72385 -> aaaaaaa; Codex CLI 0.129.0 -> 0.130.0; MAS 29369d4 -> 1111111; MAG 36ce5a9 -> 2222222; RCA c4af4b3 -> 3333333; OPL Meta Agent added at 4444444; OfficeCLI 1.0.93 -> 1.2.3; MinerU added at v0.1.3.
+
+## Release scope
+- Standard macOS arm64 updater package plus Full clean-install DMG.
+
+**Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.5.17...v26.5.18
+`));
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -3332,28 +3497,32 @@ This release makes a clean OPL install more useful immediately by shipping refre
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   const notes = payload.release_notes;
-  assert.match(notes, /One Person Lab 26\.5\.18/);
-  assert.match(notes, /OPL agents and runtime payload/);
-  assert.match(notes, /Full clean-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills\./);
-  assert.match(notes, /OPL Framework @ aaaaaaa/);
-  assert.match(notes, /Codex CLI 0\.130\.0/);
-  assert.match(notes, /What improved/);
-  assert.match(notes, /clean OPL install more useful immediately/);
-  assert.match(notes, /Packaged OPL agents are ready sooner/);
-  assert.match(notes, /Release scope/);
-  assert.match(notes, /Standard macOS arm64 updater package plus Full clean-install DMG\./);
-  assert.match(notes, /MAS @ 1111111/);
-  assert.match(notes, /MAG @ 2222222/);
-  assert.match(notes, /RCA @ 3333333/);
-  assert.match(notes, /OPL Meta Agent @ 4444444/);
-  assert.match(notes, /OfficeCLI 1\.2\.3/);
-  assert.match(notes, /MinerU v0\.1\.3/);
-  assert.doesNotMatch(notes, /Release focus/);
-  assert.doesNotMatch(notes, /Update channel guidance/);
-  assert.doesNotMatch(notes, /Full first-install package/);
-  assert.doesNotMatch(notes, /Bundled OPL runtime and agent versions/);
-  assert.doesNotMatch(notes, /Strengthened package builds/);
-  assert.doesNotMatch(notes, /[\u3400-\u9fff]/);
+  const visibleNotes = stripLocalizedReleaseNotesForTest(notes);
+  assert.match(notes, /OPL_RELEASE_NOTES:en-US/);
+  assert.match(notes, /OPL_RELEASE_NOTES:zh-CN/);
+  assert.match(notes, /这次更新让一次干净的 OPL 安装更快可用/);
+  assert.match(visibleNotes, /One Person Lab 26\.5\.18/);
+  assert.match(visibleNotes, /OPL agents and runtime payload/);
+  assert.match(visibleNotes, /Full clean-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills\./);
+  assert.match(visibleNotes, /OPL Framework @ aaaaaaa/);
+  assert.match(visibleNotes, /Codex CLI 0\.130\.0/);
+  assert.match(visibleNotes, /What improved/);
+  assert.match(visibleNotes, /clean OPL install more useful immediately/);
+  assert.match(visibleNotes, /Packaged OPL agents are ready sooner/);
+  assert.match(visibleNotes, /Release scope/);
+  assert.match(visibleNotes, /Standard macOS arm64 updater package plus Full clean-install DMG\./);
+  assert.match(visibleNotes, /MAS @ 1111111/);
+  assert.match(visibleNotes, /MAG @ 2222222/);
+  assert.match(visibleNotes, /RCA @ 3333333/);
+  assert.match(visibleNotes, /OPL Meta Agent @ 4444444/);
+  assert.match(visibleNotes, /OfficeCLI 1\.2\.3/);
+  assert.match(visibleNotes, /MinerU v0\.1\.3/);
+  assert.doesNotMatch(visibleNotes, /Release focus/);
+  assert.doesNotMatch(visibleNotes, /Update channel guidance/);
+  assert.doesNotMatch(visibleNotes, /Full first-install package/);
+  assert.doesNotMatch(visibleNotes, /Bundled OPL runtime and agent versions/);
+  assert.doesNotMatch(visibleNotes, /Strengthened package builds/);
+  assert.doesNotMatch(visibleNotes, /[\u3400-\u9fff]/);
 });
 
 test('publish rejects Full notes when OPL Meta Agent release-note metadata is missing', () => {
@@ -3820,16 +3989,33 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'a candidate shell should implement the same App contracts by swapping adapters/profile consumers, not by inheriting AionUI-specific product logic',
   );
   assert.equal(guiContract.pages.guid_home.hero_prompt, '把研究、基金和汇报交给 One Person Lab 自动推进');
-  assert.ok(guiContract.pages.guid_home.must_show.includes('continue work activity center near the home input'));
-  assert.equal(guiContract.pages.guid_home.activity_center_policy.authority, 'opl_framework_refs_only_projection');
-  assert.deepEqual(guiContract.pages.guid_home.activity_center_policy.display_groups, [
-    'needs_attention',
-    'active_projects',
-    'recent_projects',
-  ]);
-  assert.equal(guiContract.pages.guid_home.activity_center_policy.default_placement, 'near_home_input');
-  assert.ok(guiContract.pages.guid_home.activity_center_policy.item_fields.includes('next_visible_step'));
-  assert.ok(guiContract.pages.guid_home.activity_center_policy.item_fields.includes('blocker_ref_count'));
+  assert.ok(guiContract.pages.guid_home.must_show.includes('single composer-first home input'));
+  assert.ok(guiContract.pages.guid_home.must_show.includes('runtime/task progress available from Runtime page, not Home activity grid'));
+  assert.ok(guiContract.pages.guid_home.must_not_show.includes('expanded workbench or activity refs grid on ordinary home'));
+  assert.ok(guiContract.pages.guid_home.must_not_show.includes('compact continue-work entry near the home input'));
+  assert.ok(guiContract.pages.guid_home.must_not_show.includes('Home footer feedback icon'));
+  assert.ok(guiContract.pages.guid_home.must_not_show.includes('Home footer favorite/star icon'));
+  assert.ok(guiContract.pages.guid_home.must_not_show.includes('Home footer web/access globe icon'));
+  assert.equal(
+    guiContract.pages.guid_home.activity_center_policy.source,
+    'runtime page only; Home does not query running task lists',
+  );
+  assert.equal(guiContract.pages.guid_home.activity_center_policy.authority, 'app_owned_home_minimal_command_surface');
+  assert.equal(
+    guiContract.pages.guid_home.activity_center_policy.role,
+    'home_runtime_activity_suppressed_to_keep_composer_first',
+  );
+  assert.equal(
+    guiContract.pages.guid_home.activity_center_policy.default_placement,
+    'not_rendered_on_ordinary_home',
+  );
+  assert.equal(
+    guiContract.pages.guid_home.activity_center_policy.home_surface_policy,
+    'ordinary_home_must_not_render_activity_center_or_continue_work_grid',
+  );
+  assert.deepEqual(guiContract.pages.guid_home.activity_center_policy.allowed_home_runtime_context, []);
+  assert.ok(guiContract.pages.guid_home.activity_center_policy.must_not_display.includes('expanded continue-work center'));
+  assert.ok(guiContract.pages.guid_home.activity_center_policy.must_not_display.includes('needs attention / active / recent activity groups'));
   assert.ok(guiContract.pages.guid_home.activity_center_policy.must_not_display.includes('domain artifact body'));
   assert.ok(guiContract.pages.guid_home.activity_center_policy.must_not_display.includes('memory body'));
   assert.ok(guiContract.pages.settings_advanced.must_show.includes('OPL Flow Context'));
@@ -3900,6 +4086,31 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.desktop_tray_policy.close_to_tray_role, 'window_close_behavior_only');
   assert.equal(guiContract.desktop_tray_policy.settings_key, 'system.closeToTray');
   assert.equal(guiContract.desktop_tray_policy.must_not_gate_tray_visibility_on_close_to_tray, true);
+  assert.equal(
+    guiContract.first_launch_readiness_policy.beginner_presentation.post_install_ai_self_check_entry.target_route,
+    '/guid',
+  );
+  assert.equal(
+    guiContract.first_launch_readiness_policy.beginner_presentation.post_install_ai_self_check_entry.route_state,
+    'postInstallSelfCheck',
+  );
+  assert.deepEqual(
+    guiContract.first_launch_readiness_policy.beginner_presentation.post_install_ai_self_check_entry.target_state_checks,
+    [
+      'codex_cli_callable',
+      'ui_language_policy',
+      'session_scoped_opl_flow_context',
+      'user_agents_md_respected_no_overwrite',
+      'mas_mag_rca_routes_visible',
+      'opl_meta_agent_capability_visible',
+      'codex_skills_plugins_visible',
+      'module_update_skill_plugin_continuity',
+    ],
+  );
+  assert.equal(
+    guiContract.first_launch_readiness_policy.beginner_presentation.post_install_ai_self_check_entry.mutation_policy,
+    'diagnose_first_no_file_mutation_without_user_confirmation',
+  );
   assert.equal(
     guiContract.module_path_source_policy.source,
     'app_state.modules[].source + app_state.modules[].path + app_state.paths',

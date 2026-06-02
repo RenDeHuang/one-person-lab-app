@@ -43,13 +43,13 @@ inspector，而不是把普通第一屏做得很密很重。
   permission-mode selector。
 
 第一屏可以在 chat surface 内展示最近对话或启动状态，但只在有助于下一步
-工作时展示。它不能在用户请求 context 前变成独立 dashboard。
+输入时展示。它不能在用户请求 context 前变成独立 dashboard。
 
-第一屏唯一允许的工作摘要，是 home input 附近的轻量 continue-work
-activity center。它可以展示来自 OPL Framework projection 的
-needs-attention、active、recent project refs。它不能展示 domain artifact
-body、memory body、quality verdict body、provider internals，也不能变成完整
-workbench grid。
+普通 home 不展示运行摘要、continue-work 入口、needs-attention/active/recent
+project refs、per-assistant running badges 或底部 feedback/favorite/web 图标。
+来自 OPL Framework projection 的运行与项目 refs 属于 Runtime 页、右侧
+inspector、drawer 或其他次级 context surface。Home 的职责是保持 composer-first，
+让用户直接开始或继续对话。
 
 ## Frame 结构
 
@@ -64,8 +64,37 @@ App frame 有四层：
 - **Context surfaces：** 可选 workspace/session rail 和右侧 inspector。
   它们是次级上下文，不能在普通 home 中视觉上压过 chat canvas。
 
+运行、continue-work、refs、blockers 和 next steps 属于 Context surfaces。
+用户打开 Runtime、inspector 的 Runtime/Files/Memory/Always-On 等相邻面板后
+查看这些信息；普通 home 不用图标或计数提前占用 composer 区。
+
 桌面端应该保留足够大的中心 chat canvas。WebUI 使用同一个 renderer 和同样
 默认收起状态。移动端或窄窗口把次级 context 折叠成 sheet/drawer。
+
+## 双语与界面语言
+
+OPL App 普通界面必须支持中文和英文两套 UI copy。默认语言可以按产品发行策略或
+系统语言选择，但同一屏普通 UI 必须单一语言呈现，不能把中文按钮、英文面板标题和
+英文状态随机混在一起。
+
+语言切换是 App frame 的轻量全局控制，不应该变成首页设置条或 first-screen panel。
+切换语言只改变 UI labels、aria labels、empty states、状态文案和普通产品提示，不
+改变 workspace、thread、route receipt、runtime state 或 domain authority。
+
+普通用户层 chrome 必须按当前语言完整呈现。普通中文 first screen 使用
+`科研`、`基金`、`PPT`、`本机助手`、`自动` 这类中文工作标签；英文 UI 中使用
+`Research`、`Grant`、`Presentation`、`Local assistant`、`Auto`。`OPL` 和
+`Codex` 可作为产品/执行器品牌保留，但 `Codex CLI`、`MAS`、`MAG`、`RCA`、
+`OMA`、命令片段、schema id、receipt id、文件路径和用户/系统原始输出应进入
+右侧 inspector、details、Settings、diagnostics、logs 或 developer evidence，
+不要成为中文普通首页的主要视觉文本。
+
+技术长名如 Med Auto Science、Med Auto Grant、RedCube AI 可以进入英文界面、
+details、Settings 或 diagnostics；中文普通 first screen 应优先使用短标签和中文
+工作意图，避免英文长标题压过用户当前任务。
+
+AG-UI、ACP、app-server、provider、backend、raw event frame 等协议或实现名称继续
+属于 diagnostics 和 developer verification surface，不属于普通 UI 文案。
 
 ## Chat Canvas
 
@@ -128,18 +157,29 @@ Inspector 默认收起。打开时应该像在当前 chat 旁边展开上下文�
 
 ## Runtime 与进度显示
 
-Runtime display 必须 summary-first 且 authority-aware。
+Runtime display 必须 running-activity-first 且 authority-aware。
 
 - 普通状态读取使用 `opl app state --profile fast --json`。
 - 显式 refresh 也使用 fast profile。
+- 默认运行活动读取使用 `opl runtime app-operator-drilldown --json` 的
+  `current_control_state.summary` 和 `current_control_state.states` provider
+  projection。
 - Full state 和 full Operator drilldown 属于 diagnostic 或 release-evidence
   path。
 - Mutation 走 App-owned safe action route：
   `opl app action execute --action <id> [--payload <json>] [--dry-run] --json`。
+- UI 先回答当前是否有真实 active provider executions、在哪些 domain、多少
+  executing tasks、最近 heartbeat 和 task kinds。`running_provider_attempt_count`
+  可以包含 checkpointed provider refs，只能作为高级诊断数，不能直接显示为
+  用户可见的“正在运行任务数”。
+- 项目进度 refs 来自 `app_state.operator.workbench.task_drilldowns`，作为二级
+  project progress，不用于推断“正在运行的任务数”。
 - UI 从 OPL shared progress projection 展示项目进度，并区分 deliverable
   progress 与 platform repair。
 - Runtime panel 只展示 refs、receipts、actions、blockers 和 next steps；
   它不拥有 runtime truth。
+- `domain_lane_map.active_task_count`、`module_runtime dirty`、module readiness、
+  repo/worktree diagnostics 和 assistant cards 都不能作为 running task truth。
 
 App 不能从 UI rendering、provider completion、release artifact 或
 read-model availability 推断 domain readiness、production readiness、paper
@@ -221,6 +261,23 @@ App-owned workspace actions，但产品语义保持一致。
 - Nav rail、composer、route chips、context toggles 使用稳定尺寸。
 - 可访问 focus states、keyboard navigation 和足够 touch target。
 - Dark mode 和 light mode 作为成对产品 surface 设计，而不是后期反色。
+- Header route、model status、workspace path、composer status 都是辅助信息，
+  视觉权重必须低于 conversation 和 composer input。
+- 右侧 inspector 打开后应有清晰分层：session summary、run state、context tabs、
+  first-run/runtime/settings/detail cards 之间用 spacing、outline 和标题层级区分。
+  它不应像一组同权重 dashboard cards。
+
+2026-06-02 的 Google Stitch `One Person Lab` 设计稿可作为视觉参考输入：
+采用 Quiet Utility 风格、灰阶 tonal layers、1px outline、8px 以内圆角、
+760px 左右 fixed reading lane、底部渐隐 pinned composer、窄 icon rail 和
+右侧 inspector。该 Stitch 产物只提供视觉 token 和布局比例参考，不成为源码、
+runtime、产品 truth 或 license authority。
+
+可吸收的视觉 token 是：`#f8f9fa` canvas、`#ffffff` active surface、
+`#e1e3e4/#c6c6cd` outline、`#111827/#191c1d` primary text/action、Inter 主字体、
+JetBrains Mono 技术文本、4px spacing base、cards 最大 8px radius、按钮和输入框
+轻 outline 而非重 shadow。普通 home 的视觉锚点应该是 conversation reading
+lane 和 composer，而不是大卡片容器。
 
 视觉优化同样遵守 fork delta budget：优先用 CSS tokens、局部组件组合、profile
 driven labels 和现有 layout primitives 完成；只有当 App contract 明确需要新
@@ -246,9 +303,13 @@ renderer 结构变化。
 - MAS/MAG/RCA 是 Codex 之上的 purpose entries，不是 backend choices。
 - 普通 home 和 conversation paths 隐藏 backend/model/provider/permission
   selectors。
+- 普通 home 不显示 runtime activity、continue-work、activity refs grid、
+  per-assistant running badges 或底部 feedback/favorite/web 图标。
 - Chat、composer、route tag、workspace、automatic model status 可见。
 - Runtime/action/detail surfaces 使用 App-owned state/action contracts。
 - First-run 可在 Full maintenance 前达到 Core readiness。
 - WebUI 与 desktop 共享产品语义。
+- 支持中文/英文 UI 切换，普通 UI 在任一语言下不随机中英混排。
+- 普通中文界面只保留必要短技术标签，不用英文长助手名或协议名填满 first screen。
 - Page-state、first-run、source UI smoke、packaged UI smoke 和 release gates
   能从 App-owned contracts 与 artifacts 证明这些声明。

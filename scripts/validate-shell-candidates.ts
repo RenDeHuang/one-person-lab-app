@@ -150,7 +150,7 @@ const requiredCapabilities = [
   'runtime_summary_detail_action_bridge',
   'foundry_agent_series_shared_progress_display',
   'app_owned_settings_information_architecture',
-  'continue_work_activity_center',
+  'secondary_runtime_context_refs',
   'conversation_event_ref_rendering',
   'webui_renderer_parity',
   'release_isolation',
@@ -541,7 +541,7 @@ function validateCandidate(candidate: ShellCandidate): void {
   }
   assertStringArrayIncludes(candidate.technical_verification?.minimum_acceptance ?? [], [
     'ordinary Settings uses General, Access, Agents & Capabilities, Local Environment, Appearance, Advanced, and About & Updates',
-    'ordinary home exposes the refs-only continue-work activity center near the composer without becoming a workbench grid',
+    'ordinary home does not expose runtime activity, continue-work, per-agent running badges, or footer quick icons; Runtime and secondary context surfaces carry refs-only activity details',
     'tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs',
     'WebUI parity evidence proves the same React/CopilotKit renderer and product semantics as Electron',
   ], `${candidate.id}.technical_verification.minimum_acceptance`);
@@ -613,6 +613,9 @@ function validateCandidate(candidate: ShellCandidate): void {
     '"webui"',
     '"smoke:webui"',
   ], 'package scripts for WebUI');
+}
+
+function validateCandidateImplementationFiles(candidate: ShellCandidate): void {
   assertCandidateFileContains(candidate, 'src/renderer/App.jsx', [
     'data-testid="opl-workspace-rail"',
     'data-testid="opl-session-list"',
@@ -633,7 +636,6 @@ function validateCandidate(candidate: ShellCandidate): void {
     '/api/send-message',
     '/api/codex-events',
   ], 'WebUI gateway');
-  validateCandidateImplementationEvidence(candidate);
 }
 
 function validateCandidateChatTarget(candidate: ShellCandidate): void {
@@ -713,6 +715,8 @@ function runCandidateCommands(candidate: ShellCandidate): void {
       validateCandidatePackageManifest(candidate, { requireSmoke: false });
     }
   }
+  validateCandidateImplementationFiles(candidate);
+  validateCandidateImplementationEvidence(candidate);
 }
 
 function validateCandidatePackageManifest(candidate: ShellCandidate, options: { requireSmoke?: boolean } = { requireSmoke: true }): void {
@@ -749,13 +753,14 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
   for (const [field, expected] of Object.entries({
     page_state_matrix_mapping_status: 'passed',
     first_run_matrix_mapping_status: 'passed',
-    runtime_summary_detail_action_bridge_status: 'passed',
-    default_home_layout_status: 'passed',
-    settings_ia_status: 'passed',
-    activity_center_status: 'passed',
-    chat_event_rendering_status: 'passed',
-    webui_parity_status: 'passed',
-  })) {
+	    runtime_summary_detail_action_bridge_status: 'passed',
+	    default_home_layout_status: 'passed',
+	    settings_ia_status: 'passed',
+	    secondary_runtime_context_refs_status: 'passed',
+	    bilingual_ui_status: 'passed',
+	    chat_event_rendering_status: 'passed',
+	    webui_parity_status: 'passed',
+	  })) {
     if ((manifest as Record<string, unknown>)[field] !== expected) {
       throw new Error(`${candidate.id} package manifest ${field} must be ${expected}`);
     }
@@ -771,10 +776,19 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
     }
   }
   assertStringArrayIncludes(
-    (manifest as { activity_center_groups?: string[] }).activity_center_groups ?? [],
+    (manifest as { secondary_runtime_context_groups?: string[] }).secondary_runtime_context_groups ?? [],
     requiredActivityGroups,
-    `${candidate.id} package manifest activity center groups`,
+    `${candidate.id} package manifest secondary runtime context groups`,
   );
+  for (const [field, expected] of Object.entries({
+    home_runtime_activity_visible: false,
+    home_continue_work_visible: false,
+    home_footer_quick_icons_visible: false,
+  })) {
+    if ((manifest as Record<string, unknown>)[field] !== expected) {
+      throw new Error(`${candidate.id} package manifest ${field} must be ${String(expected)}`);
+    }
+  }
   assertStringArrayIncludes(
     (manifest as { conversation_event_kinds?: string[] }).conversation_event_kinds ?? [],
     requiredConversationEventKinds,
@@ -827,8 +841,18 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
     page_state_matrix_mapping: { page_ids: string[]; runtime_testids: string[]; settings_testids: string[] };
     first_run_matrix_mapping: { required_shell_testids: string[] };
     runtime_summary_detail_action_bridge: { renderer_testids: string[]; full_detail_policy: string; action_policy: string };
-    settings_information_architecture?: { visible_tabs: string[]; labels_en: string[]; legacy_tabs_hidden: string[] };
-    activity_center?: { authority: string; source: string; display_groups: string[]; default_placement: string; empty_state_policy: string; forbidden_body_display: string[]; renderer_testids: string[] };
+	    settings_information_architecture?: { visible_tabs: string[]; labels_en: string[]; legacy_tabs_hidden: string[] };
+	    bilingual_ui?: {
+	      default_locale: string;
+	      supported_locales: string[];
+	      ordinary_ui_policy: string;
+	      language_toggle_testid: string;
+	      zh_purpose_labels: string[];
+	      en_purpose_labels: string[];
+	      secondary_detail_allowed_technical_tags: string[];
+	      ordinary_home_forbidden_language_mix: string[];
+	    };
+	    secondary_runtime_context_refs?: { authority: string; source: string; display_groups: string[]; default_placement: string; home_surface_policy: string; empty_state_policy: string; forbidden_body_display: string[]; renderer_testids: string[] };
     conversation_event_rendering?: { event_kinds: string[]; display_policy: string; forbidden_visible_protocol_copy: string[]; renderer_testids: string[] };
     webui_parity?: { shared_renderer: boolean; bridge_shape: string; product_profile: string; desktop_and_webui_default_home: string; evidence_status_field: string };
     foundry_agent_series_display_contract?: {
@@ -847,33 +871,61 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
     requiredSettingsTabs,
     `${candidate.id} evidence settings_information_architecture.visible_tabs`,
   );
-  assertStringArrayIncludes(
-    evidence.settings_information_architecture?.legacy_tabs_hidden ?? [],
-    forbiddenLegacySettingsTabs,
-    `${candidate.id} evidence settings_information_architecture.legacy_tabs_hidden`,
-  );
+	  assertStringArrayIncludes(
+	    evidence.settings_information_architecture?.legacy_tabs_hidden ?? [],
+	    forbiddenLegacySettingsTabs,
+	    `${candidate.id} evidence settings_information_architecture.legacy_tabs_hidden`,
+	  );
+	  if (
+	    evidence.bilingual_ui?.default_locale !== 'zh'
+	    || evidence.bilingual_ui?.ordinary_ui_policy !== 'same_screen_single_language_for_user_visible_chrome'
+	    || evidence.bilingual_ui?.language_toggle_testid !== 'opl-locale-toggle'
+	  ) {
+	    throw new Error(`${candidate.id} evidence must define bilingual UI as same-screen single-language user-visible chrome`);
+	  }
+	  assertStringArrayIncludes(
+	    evidence.bilingual_ui?.supported_locales ?? [],
+	    ['zh', 'en'],
+	    `${candidate.id} evidence bilingual_ui.supported_locales`,
+	  );
+	  assertStringArrayIncludes(
+	    evidence.bilingual_ui?.zh_purpose_labels ?? [],
+	    ['科研', '基金', 'PPT'],
+	    `${candidate.id} evidence bilingual_ui.zh_purpose_labels`,
+	  );
+	  assertStringArrayIncludes(
+	    evidence.bilingual_ui?.en_purpose_labels ?? [],
+	    ['Research', 'Grant', 'Presentation'],
+	    `${candidate.id} evidence bilingual_ui.en_purpose_labels`,
+	  );
+	  assertStringArrayIncludes(
+	    evidence.bilingual_ui?.ordinary_home_forbidden_language_mix ?? [],
+	    ['Med Auto Science', 'Med Auto Grant', 'RedCube AI', 'Codex CLI', 'Local assistant'],
+	    `${candidate.id} evidence bilingual_ui.ordinary_home_forbidden_language_mix`,
+	  );
   if (
-    evidence.activity_center?.authority !== 'opl_framework_refs_only_projection' ||
-    evidence.activity_center?.source !== 'app_state.operator.workbench.task_drilldowns + app_state.operator.summary' ||
-    evidence.activity_center?.default_placement !== 'near_home_input' ||
-    evidence.activity_center?.empty_state_policy !== 'stable_empty_state_without_page_wide_spinner'
+    evidence.secondary_runtime_context_refs?.authority !== 'opl_framework_refs_only_projection' ||
+    evidence.secondary_runtime_context_refs?.source !== 'Runtime page and secondary context surfaces only' ||
+    evidence.secondary_runtime_context_refs?.default_placement !== 'runtime_page_or_secondary_context_not_home' ||
+    evidence.secondary_runtime_context_refs?.home_surface_policy !== 'ordinary_home_must_not_render_runtime_activity_or_continue_work' ||
+    evidence.secondary_runtime_context_refs?.empty_state_policy !== 'stable_empty_state_without_page_wide_spinner'
   ) {
-    throw new Error(`${candidate.id} evidence must define the refs-only continue-work activity center near the home input`);
+    throw new Error(`${candidate.id} evidence must keep refs-only activity out of ordinary Home and in Runtime/secondary context`);
   }
   assertStringArrayIncludes(
-    evidence.activity_center.display_groups,
+    evidence.secondary_runtime_context_refs.display_groups,
     requiredActivityGroups,
-    `${candidate.id} evidence activity_center.display_groups`,
+    `${candidate.id} evidence secondary_runtime_context_refs.display_groups`,
   );
   assertStringArrayIncludes(
-    evidence.activity_center.forbidden_body_display,
+    evidence.secondary_runtime_context_refs.forbidden_body_display,
     ['domain artifact body', 'memory body', 'quality verdict body', 'provider implementation details'],
-    `${candidate.id} evidence activity_center.forbidden_body_display`,
+    `${candidate.id} evidence secondary_runtime_context_refs.forbidden_body_display`,
   );
   assertStringArrayIncludes(
-    evidence.activity_center.renderer_testids,
-    ['opl-activity-center', 'opl-activity-group', 'opl-activity-item'],
-    `${candidate.id} evidence activity_center.renderer_testids`,
+    evidence.secondary_runtime_context_refs.renderer_testids,
+    ['opl-runtime-summary', 'opl-secondary-runtime-context', 'opl-runtime-context-group', 'opl-runtime-context-item'],
+    `${candidate.id} evidence secondary_runtime_context_refs.renderer_testids`,
   );
   if (evidence.conversation_event_rendering?.display_policy !== 'summary_first_compact_conversation_events_or_expandable_refs') {
     throw new Error(`${candidate.id} evidence must render runtime events as compact conversation events or expandable refs`);

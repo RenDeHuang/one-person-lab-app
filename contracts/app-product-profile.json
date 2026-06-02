@@ -103,32 +103,23 @@
         "gpt-5.1-codex-mini"
       ],
       "activity_center_policy": {
-        "source": "app_state.operator.workbench.task_drilldowns + app_state.operator.summary",
-        "authority": "opl_framework_refs_only_projection",
-        "role": "codex_style_continue_work_center",
-        "default_placement": "near_home_input",
-        "display_groups": [
-          "needs_attention",
-          "active_projects",
-          "recent_projects"
-        ],
-        "item_fields": [
-          "task_id",
-          "title",
-          "domain_label",
-          "state",
-          "active_stage_label",
-          "next_visible_step",
-          "blocker_ref_count",
-          "last_progress_at"
-        ],
+        "source": "not_rendered_on_ordinary_home",
+        "authority": "app_owned_home_minimal_command_surface",
+        "role": "home_runtime_activity_suppressed_to_keep_composer_first",
+        "default_placement": "not_rendered_on_ordinary_home",
+        "home_surface_policy": "ordinary_home_must_not_render_activity_center_or_continue_work_grid",
+        "allowed_home_runtime_context": [],
         "must_not_display": [
+          "expanded continue-work center",
+          "needs attention / active / recent activity groups",
+          "per-assistant running badges",
+          "module_runtime dirty state as task",
           "domain artifact body",
           "memory body",
           "quality verdict body",
           "provider implementation details"
         ],
-        "empty_state_policy": "stable_empty_state_without_page_wide_spinner"
+        "footer_quick_actions_policy": "do_not_render_feedback_star_web_icons_on_home"
       }
     },
     "builtin_assistant_route_receipt_policy": {
@@ -582,7 +573,25 @@
       "primary_progress_signal": "Core completed and total count",
       "advanced_progress_disclosure": "collapsed_or_secondary",
       "background_maintenance_presentation": "collapsed_technical_non_blocking",
-      "technical_detail_policy": "hidden_until_expanded_or_error"
+      "technical_detail_policy": "hidden_until_expanded_or_error",
+      "post_install_ai_self_check_entry": {
+        "trigger": "ready_to_launch first-run completion or explicit ready entry",
+        "target_route": "/guid",
+        "route_state": "postInstallSelfCheck",
+        "prompt_policy": "localized Codex CLI read-only diagnosis prompt describing target OPL working mode",
+        "target_state_checks": [
+          "codex_cli_callable",
+          "ui_language_policy",
+          "session_scoped_opl_flow_context",
+          "user_agents_md_respected_no_overwrite",
+          "mas_mag_rca_routes_visible",
+          "opl_meta_agent_capability_visible",
+          "codex_skills_plugins_visible",
+          "module_update_skill_plugin_continuity"
+        ],
+        "mutation_policy": "diagnose_first_no_file_mutation_without_user_confirmation",
+        "release_gate_policy": "user_visible_entry_complements_non_blocking_codex_ai_self_check_receipt"
+      }
     }
   },
   "settings": {
@@ -806,9 +815,14 @@
       "family_production_readiness"
     ],
     "default_runtime_page_attention": {
-      "mode": "owner_action_and_project_progress_first",
+      "mode": "running_activity_first_project_refs_second",
       "primary_questions": [
-        "which project is running or waiting",
+        "which domain has live Temporal/provider active execution",
+        "how many currently running tasks are visible after filtering checkpointed provider refs",
+        "what kinds of work are currently executing",
+        "when the latest running heartbeat was observed"
+      ],
+      "secondary_questions": [
         "what is the next visible owner action",
         "whether the next delta is deliverable progress, platform repair, human gate, typed blocker, or stop-loss",
         "which owner must produce the next receipt, delta, or blocker"
