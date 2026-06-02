@@ -75,6 +75,8 @@ const checks = [
       '--codex-functional-check',
       '--codex-ai-self-check',
       '--runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"',
+      'guide_screenshots:',
+      'CMD+=(--guide-screenshots)',
     ],
     forbidden: ['--repo gaofeng21cn/one-person-lab'],
   },

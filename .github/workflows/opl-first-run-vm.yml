@@ -50,6 +50,11 @@ on:
         required: false
         type: boolean
         default: false
+      guide_screenshots:
+        description: 'Capture full-screen user-guide screenshots in the VM smoke artifacts.'
+        required: false
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       release_tag:
@@ -93,6 +98,11 @@ on:
         default: false
       keep_vm:
         description: 'Leave temporary Tart VM for debugging.'
+        required: false
+        type: boolean
+        default: false
+      guide_screenshots:
+        description: 'Capture full-screen user-guide screenshots in the VM smoke artifacts.'
         required: false
         type: boolean
         default: false
@@ -481,6 +491,9 @@ jobs:
           if [ "${{ inputs.keep_vm }}" = "true" ]; then
             CMD+=(--keep-vm)
           fi
+          if [ "${{ inputs.guide_screenshots }}" = "true" ]; then
+            CMD+=(--guide-screenshots)
+          fi
 
           "${CMD[@]}"
 
@@ -520,6 +533,9 @@ jobs:
             echo "- Tart source VM: ${{ steps.tart_source.outputs.source_vm }}"
             echo "- DMG: ${{ steps.dmg.outputs.dmg_path }}"
             echo "- Artifacts: artifacts/opl-first-run-vm"
+            if [ -d artifacts/opl-first-run-vm/artifacts/guide-screenshots ]; then
+              echo "- Guide screenshots: artifacts/opl-first-run-vm/artifacts/guide-screenshots"
+            fi
             if [ -f artifacts/opl-first-run-vm/tart-smoke-summary.json ]; then
               echo
               echo '```json'

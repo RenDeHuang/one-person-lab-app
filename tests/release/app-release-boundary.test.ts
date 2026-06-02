@@ -4674,6 +4674,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:[\s\S]*needs: publish-standard/);
   assert.match(workflow, /run_vm_smoke:/);
   assert.match(workflow, /default: true/);
+  assert.match(workflow, /guide_screenshots:[\s\S]*Capture user-guide screenshots/);
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-standard-only:/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:/);
@@ -4701,6 +4702,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /release_artifact_name: opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(workflow, /package_profile: standard/);
   assert.match(workflow, /package_profile: full/);
+  assert.match(workflow, /guide_screenshots: \$\{\{ inputs\.guide_screenshots \}\}/);
   assert.match(fullWorkflow, /workflow_call:/);
   assert.doesNotMatch(fullWorkflow, /workflow_call:[\s\S]*secrets:[\s\S]*GH_TOKEN:/);
   assert.match(fullWorkflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to bundle/);
@@ -4749,6 +4751,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
   assert.match(vmWorkflow, /Resolve Tart source VM/);
   assert.match(vmWorkflow, /package_profile:/);
+  assert.match(vmWorkflow, /guide_screenshots:/);
   assert.match(vmWorkflow, /Resolve package profile/);
   assert.match(vmWorkflow, /Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_TART_SOURCE/);
   assert.match(vmWorkflow, /source_vm=\$SOURCE_VM/);
@@ -4765,6 +4768,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /Write first-run VM preflight summary/);
   assert.match(vmWorkflow, /deterministic release-blocking clean VM first launch/);
   assert.match(vmWorkflow, /--runtime-profile "\$\{\{ steps\.package_profile\.outputs\.runtime_profile \}\}"/);
+  assert.match(vmWorkflow, /CMD\+=\(--guide-screenshots\)/);
   assert.equal(
     releaseContract.standard_updater.same_tag_refresh.mode,
     'github_actions_prebuilt_assets_upload_clobber',

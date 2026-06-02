@@ -41,6 +41,11 @@ on:
         required: false
         default: true
         type: boolean
+      guide_screenshots:
+        description: Capture user-guide screenshots in the clean Full first-run VM smoke artifacts
+        required: false
+        default: false
+        type: boolean
       skip_code_quality:
         description: Skip standard App code quality checks for emergency rebuilds
         required: false
@@ -378,6 +383,7 @@ jobs:
       release_artifact_name: opl-full-first-install-${{ inputs.opl_version }}-mac-arm64
       package_profile: full
       shell_ref: ${{ inputs.shell_ref }}
+      guide_screenshots: ${{ inputs.guide_screenshots }}
     secrets: inherit
 
   one-shot-app-installer-smoke:
