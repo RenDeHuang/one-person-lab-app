@@ -2362,8 +2362,8 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     assertCommandSurface(pages[pageId].state_source, 'opl app state --profile fast --json', `App GUI ${pageId} state source`);
     assertCommandSurface(pages[pageId].refresh_source, 'opl app state --profile fast --json', `App GUI ${pageId} refresh source`);
   }
-  if (!pages.guid_home.must_show?.includes('purpose-first assistants Research/Grant/PPT as click-to-start entries')) {
-    throw new Error('App GUI home must show purpose-first Research/Grant/PPT entries');
+  if (!pages.guid_home.must_show?.includes('purpose-first assistants Research/Grant/Presentation as click-to-start entries')) {
+    throw new Error('App GUI home must show purpose-first Research/Grant/Presentation entries');
   }
   if (!pages.guid_home.must_show?.includes('selected assistant shown as a compact @ purpose tag')) {
     throw new Error('App GUI home must show selected assistant as a compact @ purpose tag');
@@ -2612,7 +2612,7 @@ function validatePageStateMatrix(matrix, contract) {
     'Codex CLI fixed executor experience',
     'Codex model selector defaulting to GPT-5.5（超高）',
     'default model and reasoning status GPT-5.5（超高）',
-    'purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA',
+    'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA',
     'selected assistant keeps purpose entry switcher visible',
     'assistant-scoped skill menu with required skill checked',
     'workspace selector',

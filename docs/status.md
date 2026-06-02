@@ -250,11 +250,11 @@ profile and builds the candidate launchable `.app` bundle. Default
 stable/nightly release packaging still resolves `contracts/app-shell-adapter.json`
 and the active `aionui` shell. Candidate validation now requires fixed Codex
 home behavior, purpose-first MAS/MAG/RCA entries, CopilotKit visible UI,
-AG-UI internal event mapping, `opl app state/action` consumption,
-first-run/page-state mapping, shared Electron/WebUI renderer, Web transport
-bridge, WebUI smoke, explicit `.app` packaging with `Contents/Info.plist` and a
-`Contents/MacOS` executable, and release isolation without changing the active
-release shell.
+AG-UI internal event mapping, `opl app state/action` consumption, active project
+line state-model validation, first-run/page-state mapping, shared
+Electron/WebUI renderer, Web transport bridge, WebUI smoke, explicit `.app`
+packaging with `Contents/Info.plist` and a `Contents/MacOS` executable, and
+release isolation without changing the active release shell.
 
 Candidate shell work enters App product truth only through App-owned contract
 updates and validation gates. Shell implementation roadmaps, upstream GUI
@@ -303,6 +303,7 @@ Candidate-shell source and smoke checks use:
 cd shells/agui-codex
 npm install
 npm run validate:adapter-events
+npm run validate:state-model
 npm run validate:candidate
 npm run build:renderer
 npm run smoke:webui
@@ -312,9 +313,11 @@ npx electron . --ui-smoke-test
 
 Minimum candidate acceptance is App-root AionUI release guard still passing,
 candidate registry validation, explicit adapter selection only, App-owned
-generated product profile consumption, source renderer build, shared
-Electron/WebUI renderer proof, WebUI smoke, PilotDeck-informed reference-only
-information organization proof, source and packaged visible-pixel UI smoke against a real Codex
+generated product profile consumption, shell-side `npm run validate:state-model`
+proof that the candidate consumes active project line projection from `opl app
+state --profile fast --json`, source renderer build, shared Electron/WebUI
+renderer proof, WebUI smoke, PilotDeck-informed reference-only information
+organization proof, source and packaged visible-pixel UI smoke against a real Codex
 app-server `OK` turn, a launchable `.app` bundle with `Contents/Info.plist` and
 `Contents/MacOS`, page-state/first-run matrix mapping, runtime summary plus
 explicit full drilldown, safe App action dry-run receipts, and no AG-UI/debug
@@ -337,9 +340,12 @@ Activity refs surface, conversation events, and default-collapsed home semantics
 packaged UI smoke both run a real Codex app-server `OK` turn, prove visible
 paint, run safe App action dry-run, and write final manifest evidence. That
 candidate final gate passed for the earlier contract; after the Home-minimal
-update, `npm run validate:shell-candidates` remains a registry/isolation gate and
-full candidate implementation evidence must be regenerated before claiming the
-candidate implementation is current. PilotDeck remains
+update, `npm run validate:shell-candidates` remains a registry/isolation gate.
+The new App-owned state-model gate must also pass before refreshing that
+currentness claim, and it remains only candidate projection-consumption evidence,
+not domain-ready, production-ready, clean-VM-ready, Full-release-ready, or
+active-shell-adopted evidence. Full candidate implementation evidence must be
+regenerated before claiming the candidate implementation is current. PilotDeck remains
 reference-only information organization for optional rail/inspector surfaces,
 not a first-screen workbench template. This is candidate evidence only; the
 default release shell remains AionUI until `contracts/app-shell-adapter.json` is

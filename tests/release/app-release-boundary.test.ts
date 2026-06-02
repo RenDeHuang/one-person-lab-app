@@ -819,7 +819,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
     'gpt-5.1-codex-mini',
   ]);
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
-  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', 'PPT']);
+  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示']);
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
   assert.ok(profile.gui.home.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   assert.deepEqual(profile.gui.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca']);
@@ -1378,7 +1378,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     rca: ['rca'],
   });
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
-  assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', 'PPT']);
+  assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示']);
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
   assert.ok(guidHomePage.home_view_model.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   assert.equal(guidHomePage.home_view_model.activity_center.authority, 'app_owned_home_minimal_command_surface');
@@ -1399,7 +1399,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'Codex model selector defaulting to GPT-5.5（超高）',
     'default model and reasoning status GPT-5.5（超高）',
     'conversation pending elapsed seconds while Codex is working',
-    'purpose-first entries 科研/MAS, 基金/MAG, PPT/RCA',
+    'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA',
     'selected assistant keeps purpose entry switcher visible',
     'assistant-scoped skill menu with required skill checked',
     'workspace selector',
@@ -4050,7 +4050,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   ]);
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection, true);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
-  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', 'PPT']);
+  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示']);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
   assert.ok(guiContract.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   assert.equal(guiContract.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);

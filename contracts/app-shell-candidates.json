@@ -27,6 +27,7 @@
       "candidate re-expresses PilotDeck information organization as a Codex App-style chat-first UI with a lightweight workspace/session rail and right-side collapsible contextual tabs without copying PilotDeck code or runtime",
       "candidate maps App product profile without owning product truth",
       "candidate consumes opl app state/action surfaces only",
+      "candidate passes state-model validation proving active project line projection consumption without taking runtime or domain authority",
       "candidate passes page-state and first-run matrix mapping checks",
       "candidate passes App-root candidate validation",
       "candidate compiles a launchable .app bundle through the App wrapper when OPL_APP_SHELL_ADAPTER_CONTRACT selects its adapter contract",
@@ -236,6 +237,7 @@
           "right-side collapsible Files, Skills, Routing, Memory, and Always-On context tabs",
           "right-side CopilotKit panel for secondary context",
           "runtime summary-first status and explicit full drilldown",
+          "active project line projection/state model validation",
           "App-owned Settings partition",
           "candidate .app package through the App wrapper"
         ]
@@ -301,6 +303,27 @@
         "full_drilldown": "opl runtime app-operator-drilldown --detail full --json",
         "action": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json"
       },
+      "active_project_line_state_model": {
+        "authority": "opl_framework_active_project_line_projection",
+        "validation_command": "npm run validate:state-model",
+        "consumed_projection": "opl app state --profile fast --json active_project_lines",
+        "required_fields": [
+          "status",
+          "active_run_id",
+          "next_visible_step",
+          "progress_delta_classification",
+          "deliverable_progress_delta",
+          "platform_repair_delta",
+          "next_forced_delta"
+        ],
+        "forbidden_claims": [
+          "domain_ready",
+          "production_ready",
+          "clean_vm_ready",
+          "full_release_ready",
+          "active_shell_adopted"
+        ]
+      },
       "foundry_agent_series_display_contract": {
         "authority": "opl_framework_shared_progress_projection",
         "display_policy": "classification_only_no_domain_artifact_body",
@@ -342,6 +365,7 @@
         "collapsible_contextual_tabs",
         "app_product_profile_mapping",
         "opl_app_state_bridge",
+        "active_project_line_state_model",
         "opl_app_action_bridge",
         "page_state_matrix_mapping",
         "first_run_matrix_mapping",
@@ -389,6 +413,11 @@
             "command": "npm run validate:candidate"
           },
           {
+            "id": "state_model",
+            "cwd": "shells/agui-codex",
+            "command": "npm run validate:state-model"
+          },
+          {
             "id": "source_renderer_build",
             "cwd": "shells/agui-codex",
             "command": "npm run build:renderer"
@@ -414,6 +443,7 @@
           "candidate registry validates without changing release_shell_contract",
           "candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT",
           "candidate consumes the App-owned generated product profile",
+          "candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims",
           "source renderer builds and source UI smoke paints visible pixels",
           "Electron and WebUI use the same React/CopilotKit renderer and App-owned window.oplCandidate bridge shape",
           "WebUI smoke proves the browser transport bridge, HTTP action routes, and SSE Codex event stream",
@@ -459,6 +489,11 @@
           "id": "candidate_self_check",
           "cwd": "shells/agui-codex",
           "command": "node --experimental-strip-types scripts/validate-agui-codex-candidate.ts"
+        },
+        {
+          "id": "candidate_state_model",
+          "cwd": "shells/agui-codex",
+          "command": "npm run validate:state-model"
         },
         {
           "id": "candidate_webui_smoke",

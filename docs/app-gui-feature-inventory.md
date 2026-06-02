@@ -317,6 +317,9 @@ material。
 - Main process 拥有 Codex app-server JSON-RPC over stdio。
 - WebUI gateway 拥有 local HTTP action routes 和 SSE Codex event stream，同时
   继续消费 App-owned `opl app state/action` 和 Codex app-server surfaces。
+- Candidate 必须通过 shell-side `npm run validate:state-model`，证明 active
+  project line projection/state model 来自 `opl app state --profile fast --json`，
+  且只作为 refs/projection consumption 使用。
 - Codex `thread/start`、`turn/start`、`item/agentMessage/delta` events 映射到
   AG-UI run/text/step events。
 - Workspace selector 打开 native directory picker；切换 directory 会在该
@@ -358,6 +361,7 @@ Candidate-shell verification commands：
 cd shells/agui-codex
 npm install
 npm run validate:adapter-events
+npm run validate:state-model
 npm run validate:candidate
 npm run build:renderer
 npm run smoke:webui
@@ -372,6 +376,11 @@ npx electron . --ui-smoke-test
   participation。
 - Generated product profile 由 App 拥有，并包含 Codex fixed executor、
   MAS/MAG/RCA purpose entries 和 hidden ordinary selectors。
+- Candidate state-model validation 通过，并覆盖 active project line
+  `status`、`active_run_id`、`next_visible_step`、
+  `progress_delta_classification`、`deliverable_progress_delta`、
+  `platform_repair_delta` 和 `next_forced_delta`；该证据不能写成 domain ready、
+  production ready、clean-VM ready、Full release ready 或 active-shell adoption。
 - Source renderer build 成功。
 - WebUI smoke 通过，使用同一 renderer、browser `window.oplCandidate` bridge、
   HTTP action routes 和 SSE Codex event stream。
@@ -396,6 +405,10 @@ npx electron . --ui-smoke-test
 
 - Source renderer build 在 `/Users/gaofeng/workspace/opl-agui-codex-shell` 通过；
   Vite 仍有 node-fetch browser externalization 和大 chunk warning，未导致失败。
+- App-root candidate gate 现在要求 `/Users/gaofeng/workspace/opl-agui-codex-shell`
+  侧 `npm run validate:state-model` 通过后，才能刷新 candidate implementation
+  currentness claim；当前记录不把 state-model gate 解释为 release、domain 或
+  production readiness。
 - Candidate `.app` bundle 当前构建到
   `/Users/gaofeng/workspace/opl-agui-codex-shell/out/One Person Lab AG-UI Codex Candidate.app`。
 - Package 后重新运行 WebUI smoke，通过同一 renderer、browser bridge 注入、

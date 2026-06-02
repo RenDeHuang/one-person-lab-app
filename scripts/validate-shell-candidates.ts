@@ -11,6 +11,14 @@ type ValidationCommand = {
   command: string;
 };
 
+type ActiveProjectLineStateModel = {
+  authority: string;
+  validation_command: string;
+  consumed_projection: string;
+  required_fields: string[];
+  forbidden_claims: string[];
+};
+
 type ShellCandidate = {
   id: string;
   state: string;
@@ -54,9 +62,12 @@ type ShellCandidate = {
     settings_policy: string;
   };
   technical_verification?: {
+    app_root_commands?: ValidationCommand[];
+    candidate_shell_commands?: ValidationCommand[];
     minimum_acceptance?: string[];
   };
   framework_surfaces: Record<string, string>;
+  active_project_line_state_model?: ActiveProjectLineStateModel;
   foundry_agent_series_display_contract?: {
     authority: string;
     display_policy: string;
@@ -144,6 +155,7 @@ const requiredCapabilities = [
   'collapsible_contextual_tabs',
   'app_product_profile_mapping',
   'opl_app_state_bridge',
+  'active_project_line_state_model',
   'opl_app_action_bridge',
   'page_state_matrix_mapping',
   'first_run_matrix_mapping',
@@ -218,6 +230,19 @@ const requiredSeriesProgressFields = [
   'platform_repair_delta',
   'next_forced_delta',
 ];
+const requiredActiveProjectLineFields = [
+  'status',
+  'active_run_id',
+  'next_visible_step',
+  ...requiredSeriesProgressFields,
+];
+const forbiddenStateModelClaims = [
+  'domain_ready',
+  'production_ready',
+  'clean_vm_ready',
+  'full_release_ready',
+  'active_shell_adopted',
+];
 const forbiddenSeriesDomainFields = [
   'domain_body',
   'artifact_body',
@@ -291,6 +316,23 @@ function assertStringArrayIncludes(actual: string[], expected: string[], label: 
   }
 }
 
+function validateActiveProjectLineStateModel(stateModel: ActiveProjectLineStateModel | undefined, label: string): void {
+  if (!stateModel) {
+    throw new Error(`${label} must declare active project line state-model consumption`);
+  }
+  if (stateModel.authority !== 'opl_framework_active_project_line_projection') {
+    throw new Error(`${label}.authority must be opl_framework_active_project_line_projection`);
+  }
+  if (stateModel.validation_command !== 'npm run validate:state-model') {
+    throw new Error(`${label}.validation_command must be npm run validate:state-model`);
+  }
+  if (stateModel.consumed_projection !== 'opl app state --profile fast --json active_project_lines') {
+    throw new Error(`${label}.consumed_projection must be opl app state --profile fast --json active_project_lines`);
+  }
+  assertStringArrayIncludes(stateModel.required_fields, requiredActiveProjectLineFields, `${label}.required_fields`);
+  assertStringArrayIncludes(stateModel.forbidden_claims, forbiddenStateModelClaims, `${label}.forbidden_claims`);
+}
+
 function parseArgs(argv: string[]): { candidate?: string; runCandidateCommands: boolean } {
   const parsed = { candidate: undefined as string | undefined, runCandidateCommands: false };
   for (let index = 2; index < argv.length; index += 1) {
@@ -362,6 +404,7 @@ function validateRegistryShape(registry: ShellCandidateRegistry): void {
     'candidate provides a Web transport bridge that exposes the same App-owned window.oplCandidate API without taking runtime authority',
     'candidate passes WebUI smoke in addition to source Electron and packaged Electron smoke',
     'candidate re-expresses PilotDeck information organization as a Codex App-style chat-first UI with a lightweight workspace/session rail and right-side collapsible contextual tabs without copying PilotDeck code or runtime',
+    'candidate passes state-model validation proving active project line projection consumption without taking runtime or domain authority',
     'candidate compiles a launchable .app bundle through the App wrapper when OPL_APP_SHELL_ADAPTER_CONTRACT selects its adapter contract',
     'candidate passes App-root candidate validation',
     'contracts/app-shell-adapter.json is changed only when candidate becomes active release shell',
@@ -540,6 +583,7 @@ function validateCandidate(candidate: ShellCandidate): void {
     throw new Error(`${candidate.id}.target_product_shape.settings_policy must keep Settings App-owned and refs-only`);
   }
   assertStringArrayIncludes(candidate.technical_verification?.minimum_acceptance ?? [], [
+    'candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims',
     'ordinary Settings uses General, Access, Agents & Capabilities, Local Environment, Appearance, Advanced, and About & Updates',
     'ordinary home does not expose runtime activity, continue-work, per-agent running badges, or footer quick icons; Runtime and secondary context surfaces carry refs-only activity details',
     'tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs',
@@ -549,6 +593,15 @@ function validateCandidate(candidate: ShellCandidate): void {
     if (candidate.framework_surfaces[surface] !== expected) {
       throw new Error(`${candidate.id}.framework_surfaces.${surface} must be ${expected}`);
     }
+  }
+  validateActiveProjectLineStateModel(candidate.active_project_line_state_model, `${candidate.id}.active_project_line_state_model`);
+  const stateModelTechnicalCommand = candidate.technical_verification?.candidate_shell_commands?.find((entry) => entry.id === 'state_model');
+  if (
+    !stateModelTechnicalCommand ||
+    stateModelTechnicalCommand.cwd !== candidate.candidate_root ||
+    stateModelTechnicalCommand.command !== 'npm run validate:state-model'
+  ) {
+    throw new Error(`${candidate.id}.technical_verification.candidate_shell_commands must include state_model running npm run validate:state-model from ${candidate.candidate_root}`);
   }
   const seriesDisplay = candidate.foundry_agent_series_display_contract;
   if (!seriesDisplay) {
@@ -598,6 +651,13 @@ function validateCandidate(candidate: ShellCandidate): void {
   if (!webUiSmokeCommand) {
     throw new Error(`${candidate.id} validation_commands must include candidate_webui_smoke`);
   }
+  const stateModelCommand = candidate.validation_commands.find((entry) => entry.id === 'candidate_state_model');
+  if (!stateModelCommand) {
+    throw new Error(`${candidate.id} validation_commands must include candidate_state_model`);
+  }
+  if (stateModelCommand.cwd !== candidate.candidate_root || stateModelCommand.command !== 'npm run validate:state-model') {
+    throw new Error(`${candidate.id} candidate_state_model must run npm run validate:state-model from ${candidate.candidate_root}`);
+  }
   if (webUiSmokeCommand.cwd !== candidate.candidate_root || !webUiSmokeCommand.command.includes('npm run smoke:webui')) {
     throw new Error(`${candidate.id} candidate_webui_smoke must run npm run smoke:webui from ${candidate.candidate_root}`);
   }
@@ -612,6 +672,7 @@ function validateCandidate(candidate: ShellCandidate): void {
     '"build:webui"',
     '"webui"',
     '"smoke:webui"',
+    '"validate:state-model"',
   ], 'package scripts for WebUI');
 }
 
@@ -879,11 +940,13 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
       required_shared_progress_fields: string[];
       forbidden_domain_fields: string[];
     };
+    active_project_line_state_model?: ActiveProjectLineStateModel;
   }>(evidencePath);
   if (evidence.owner !== 'one-person-lab-app' || evidence.shell !== candidate.id) {
     throw new Error(`${candidate.id} evidence must be App-owned and match the candidate id`);
   }
   assertStringArrayIncludes(evidence.capabilities, requiredCapabilities, `${candidate.id} evidence capabilities`);
+  validateActiveProjectLineStateModel(evidence.active_project_line_state_model, `${candidate.id} evidence active_project_line_state_model`);
   assertStringArrayIncludes(
     evidence.settings_information_architecture?.visible_tabs ?? [],
     requiredSettingsTabs,

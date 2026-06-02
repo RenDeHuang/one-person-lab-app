@@ -25,6 +25,11 @@ first-run policy、release gates 和 generated product profile。链接进来的
 shell 只拥有 shell-local implementation、candidate packaging 和
 candidate-specific smoke validation。
 
+State-model validation 也是 App-owned gate material。候选 shell 必须运行
+`npm run validate:state-model`，并证明它消费来自
+`opl app state --profile fast --json` 的 OPL Framework active project line
+projection，而不拥有 runtime truth、domain truth 或 readiness verdict。
+
 ## 分层
 
 用户可见产品目标是 Codex App-like OPL chat surface：
@@ -111,6 +116,7 @@ shells/agui-codex/out/agui-codex-candidate-manifest.json
 ```bash
 npm install
 npm run validate:adapter-events
+npm run validate:state-model
 npm run validate:candidate
 npm run build:renderer
 npm run smoke:webui
@@ -130,6 +136,12 @@ assistant reply 可见为 `OK`。
 - 只有设置 `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json`
   时 candidate adapter validation 才参与。
 - Candidate 消费 App-owned generated product profile。
+- Candidate `npm run validate:state-model` 通过，并证明 active project line
+  projection/state model 来自 `opl app state --profile fast --json`，覆盖
+  `status`、`active_run_id`、`next_visible_step`、
+  `progress_delta_classification`、`deliverable_progress_delta`、
+  `platform_repair_delta` 和 `next_forced_delta`；该证据不能写成 domain ready、
+  production ready、clean-VM ready、Full release ready 或 active-shell adoption。
 - Source renderer build 通过。
 - Electron 和 WebUI 共享同一个 renderer。
 - WebUI smoke 证明 browser `window.oplCandidate`、HTTP action routes、
@@ -162,8 +174,8 @@ assistant reply 可见为 `OK`。
   AG-UI protocol/debug dashboard copy。`Codex CLI`、`MAS`、`MAG`、`RCA` 和命令/schema
   id 只进入 route receipt、diagnostics、developer evidence 或原始详情，不作为普通
   chrome 的主要文案。
-- Backend、model、permission selectors 不进入 ordinary home 和 conversation
-  paths。
+- Backend 和 permission selectors 不进入 ordinary home 和 conversation paths；
+  model selector/status 只能作为 App-owned Codex model control 出现。
 
 ## Release Promotion
 
@@ -179,6 +191,10 @@ Candidate 可以端到端验证而不改变当前 release。只有明确修改
   通过。
 - Candidate shell `npm run build:renderer` 通过；Vite 仍有 node-fetch browser
   externalization 和大 chunk warning，未导致 build failure。
+- Candidate shell `npm run validate:state-model` 通过；manifest 和
+  `src/candidateContractEvidence.json` 记录 active project line state-model
+  evidence，且不把该 evidence 写成 domain ready、production ready、clean-VM
+  ready、Full release ready 或 active-shell adoption。
 - Candidate shell `npm run package` 构建出
   `/Users/gaofeng/workspace/opl-agui-codex-shell/out/One Person Lab AG-UI Codex Candidate.app`
   和 `out/agui-codex-candidate-manifest.json`。
