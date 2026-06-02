@@ -426,6 +426,72 @@ test('release readiness summary keeps one-shot failure diagnostics when the inst
   });
 });
 
+test('release readiness summary surfaces GHCR package Actions access failures', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-ghcr-failure-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot);
+  writePassingJobResults(jobResultsPath);
+  writeJson(jobResultsPath, {
+    'full-first-install': 'success',
+    'remote-verify-standard': 'skipped',
+    'remote-verify-full': 'success',
+    'standard-first-run-vm-smoke-after-standard-only': 'skipped',
+    'standard-first-run-vm-smoke-after-full': 'success',
+    'full-first-run-vm-smoke': 'success',
+    'one-shot-app-installer-smoke': 'success',
+    'docker-webui-smoke': 'success',
+    'webui-ghcr-publish': 'failure',
+  });
+  writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
+    status: 'failed',
+    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
+    tags: ['26.5.99', 'stable', 'latest'],
+    draft_candidate_push: false,
+    source_repository: 'https://github.com/gaofeng21cn/one-person-lab-app',
+    package_access_required: {
+      package_url: 'https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui/settings',
+      required_actions_access_repository: 'gaofeng21cn/one-person-lab-app',
+      required_actions_access_permission: 'write',
+      configuration_surface: 'GitHub Packages settings Manage Actions access',
+      failure_signal: 'docker push denied: permission_denied: write_package',
+    },
+    error: {
+      code: 'ghcr_write_package_denied',
+      message: 'GHCR push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app.',
+    },
+  });
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'stable',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.notEqual(result.status, 0, result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'failed');
+  assert.equal(summary.gates.webui_ghcr_publish.status, 'failed');
+  assert.match(summary.gates.webui_ghcr_publish.reason, /WebUI GHCR publish status is failed/);
+  assert.equal(summary.gates.webui_ghcr_publish.fields.error.code, 'ghcr_write_package_denied');
+  assert.equal(
+    summary.gates.webui_ghcr_publish.fields.package_access_required.required_actions_access_repository,
+    'gaofeng21cn/one-person-lab-app',
+  );
+});
+
 test('desktop release workflow has a final readiness aggregation job that downloads only small artifacts', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const match = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/);

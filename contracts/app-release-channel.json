@@ -50,6 +50,15 @@
     "required_oci_labels": {
       "org.opencontainers.image.source": "https://github.com/gaofeng21cn/one-person-lab-app"
     },
+    "github_package_access": {
+      "package_url": "https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui/settings",
+      "required_actions_access_repository": "gaofeng21cn/one-person-lab-app",
+      "required_actions_access_permission": "write",
+      "configuration_surface": "GitHub Packages settings Manage Actions access",
+      "public_api_policy": "GitHub does not expose a stable public REST or GraphQL endpoint for configuring personal package Actions access; configure this gate through the package settings UI.",
+      "failure_signal": "docker push denied: permission_denied: write_package",
+      "rule": "App-owned WebUI GHCR publishing requires the one-person-lab-webui package to grant write Actions access to gaofeng21cn/one-person-lab-app before App workflows can update existing GHCR tags."
+    },
     "publish_workflows": [
       ".github/workflows/desktop-release.yml",
       ".github/workflows/nightly-standard-release.yml"

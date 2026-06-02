@@ -469,6 +469,32 @@ jobs:
           set -euo pipefail
           image_owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
           ghcr_image="ghcr.io/${image_owner}/one-person-lab-webui"
+          write_publish_summary() {
+            local status="$1"
+            local error_code="${2:-}"
+            local error_message="${3:-}"
+            node <<NODE
+          const fs = require('node:fs');
+          const payload = {
+            status: '${status}',
+            image: '${ghcr_image}',
+            tags: ['${{ inputs.opl_version }}', 'stable', 'latest'],
+            draft_candidate_push: false,
+            source_repository: 'https://github.com/${GITHUB_REPOSITORY}',
+            package_access_required: {
+              package_url: 'https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui/settings',
+              required_actions_access_repository: 'gaofeng21cn/one-person-lab-app',
+              required_actions_access_permission: 'write',
+              configuration_surface: 'GitHub Packages settings Manage Actions access',
+              failure_signal: 'docker push denied: permission_denied: write_package',
+            },
+          };
+          if ('${error_code}') {
+            payload.error = { code: '${error_code}', message: '${error_message}' };
+          }
+          fs.writeFileSync('/tmp/opl-webui-ghcr-publish.json', JSON.stringify(payload) + '\\n');
+          NODE
+          }
           docker build \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             -t "one-person-lab-webui:${{ inputs.opl_version }}" \
@@ -478,19 +504,24 @@ jobs:
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:latest"
 
           if [ "$RELEASE_MODE" = "draft_candidate" ]; then
-            cat > /tmp/opl-webui-ghcr-publish.json <<JSON
-          {"status":"draft_not_pushed","image":"${ghcr_image}","tags":["${{ inputs.opl_version }}","stable","latest"],"draft_candidate_push":false,"source_repository":"https://github.com/${GITHUB_REPOSITORY}"}
-          JSON
+            write_publish_summary "draft_not_pushed"
             exit 0
           fi
 
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker push "${ghcr_image}:${{ inputs.opl_version }}"
-          docker push "${ghcr_image}:stable"
-          docker push "${ghcr_image}:latest"
-          cat > /tmp/opl-webui-ghcr-publish.json <<JSON
-          {"status":"published","image":"${ghcr_image}","tags":["${{ inputs.opl_version }}","stable","latest"],"draft_candidate_push":false,"source_repository":"https://github.com/${GITHUB_REPOSITORY}"}
-          JSON
+          if ! docker push "${ghcr_image}:${{ inputs.opl_version }}"; then
+            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
+            exit 1
+          fi
+          if ! docker push "${ghcr_image}:stable"; then
+            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR stable tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
+            exit 1
+          fi
+          if ! docker push "${ghcr_image}:latest"; then
+            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR latest tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
+            exit 1
+          fi
+          write_publish_summary "published"
 
       - name: Upload WebUI GHCR publish summary
         if: ${{ always() }}

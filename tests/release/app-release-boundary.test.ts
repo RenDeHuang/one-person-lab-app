@@ -2966,7 +2966,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
   assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
   assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
-  assert.match(workflow, /"source_repository":"https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"/);
+  assert.match(workflow, /write_publish_summary "failed" "ghcr_write_package_denied"/);
+  assert.match(workflow, /required_actions_access_repository: 'gaofeng21cn\/one-person-lab-app'/);
+  assert.match(workflow, /source_repository: 'https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}'/);
   assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}"/);
   assert.match(workflow, /"\$\{ghcr_image\}:stable"/);
   assert.match(workflow, /"\$\{ghcr_image\}:latest"/);
@@ -3054,6 +3056,15 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     source_repository: 'https://github.com/gaofeng21cn/one-person-lab-app',
     required_oci_labels: {
       'org.opencontainers.image.source': 'https://github.com/gaofeng21cn/one-person-lab-app',
+    },
+    github_package_access: {
+      package_url: 'https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui/settings',
+      required_actions_access_repository: 'gaofeng21cn/one-person-lab-app',
+      required_actions_access_permission: 'write',
+      configuration_surface: 'GitHub Packages settings Manage Actions access',
+      public_api_policy: 'GitHub does not expose a stable public REST or GraphQL endpoint for configuring personal package Actions access; configure this gate through the package settings UI.',
+      failure_signal: 'docker push denied: permission_denied: write_package',
+      rule: 'App-owned WebUI GHCR publishing requires the one-person-lab-webui package to grant write Actions access to gaofeng21cn/one-person-lab-app before App workflows can update existing GHCR tags.',
     },
     publish_workflows: [
       '.github/workflows/desktop-release.yml',
@@ -3146,7 +3157,9 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
   assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
   assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
-  assert.match(workflow, /"source_repository":"https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"/);
+  assert.match(workflow, /write_publish_summary "failed" "ghcr_write_package_denied"/);
+  assert.match(workflow, /required_actions_access_repository: 'gaofeng21cn\/one-person-lab-app'/);
+  assert.match(workflow, /source_repository: 'https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}'/);
   assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}"/);
   assert.match(workflow, /"\$\{ghcr_image\}:nightly"/);
   assert.doesNotMatch(workflow, /full-first-install-release\.yml/);
@@ -3228,6 +3241,9 @@ test('stable validation profile covers every user installation surface', () => {
   assert.match(combinedDocs, /Nightly[\s\S]*standard[\s\S]*remote/i);
   assert.match(combinedDocs, /Stable[\s\S]*standard DMG[\s\S]*Full DMG[\s\S]*one-shot[\s\S]*Docker\/WebUI/i);
   assert.match(combinedDocs, /ghcr\.io\/<owner>\/one-person-lab-webui:<app_or_opl_version>/);
+  assert.match(combinedDocs, /Manage Actions access/);
+  assert.match(combinedDocs, /permission_denied: write_package/);
+  assert.match(combinedDocs, /ghcr_write_package_denied/);
   assert.match(combinedDocs, /Framework[\s\S]*references?[\s\S]*image coordinate/i);
   assert.match(combinedDocs, /Full[\s\S]*DMG[\s\S]*must not include[\s\S]*WebUI GHCR image/i);
 });
