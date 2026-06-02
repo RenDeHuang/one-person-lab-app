@@ -50,7 +50,12 @@ Electron's [Updating Applications](https://www.electronjs.org/docs/latest/tutori
 guide and [`autoUpdater`](https://www.electronjs.org/docs/latest/api/auto-updater)
 API notes for the background-download, `update-downloaded`, and
 `quitAndInstall()` flow. Full first-install assets are never written into
-`latest*.yml` updater metadata and are not an updater target.
+`latest*.yml` updater metadata and are not an updater target. The standard
+updater updates desktop App assets only; it does not update OPL module packages,
+select Developer Mode checkouts, publish the WebUI image, or install `opl-flow`.
+Module packages stay under Framework/App maintenance through the stable GHCR
+package channel, while GitHub repo/local checkout sources are an explicit
+Developer Mode path.
 
 Apple Command Line Tools are a system-owned installation path. The App may
 request the installer with `xcode-select --install`, but macOS presents the
