@@ -3059,12 +3059,25 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     },
     github_package_access: {
       package_url: 'https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui/settings',
+      package_landing_url: 'https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui',
+      target_repository_association: 'gaofeng21cn/one-person-lab-app',
+      current_historical_association_allowed_until_ui_migration: 'gaofeng21cn/one-person-lab',
+      repository_association_surface: 'GitHub Packages settings Connect repository',
       required_actions_access_repository: 'gaofeng21cn/one-person-lab-app',
       required_actions_access_permission: 'write',
       configuration_surface: 'GitHub Packages settings Manage Actions access',
-      public_api_policy: 'GitHub does not expose a stable public REST or GraphQL endpoint for configuring personal package Actions access; configure this gate through the package settings UI.',
+      public_api_policy: 'GitHub does not expose a stable public REST or GraphQL endpoint for configuring personal package repository association or Actions access; configure these gates through the package settings UI.',
       failure_signal: 'docker push denied: permission_denied: write_package',
-      rule: 'App-owned WebUI GHCR publishing requires the one-person-lab-webui package to grant write Actions access to gaofeng21cn/one-person-lab-app before App workflows can update existing GHCR tags.',
+      rule: 'App-owned WebUI GHCR publishing requires the one-person-lab-webui package to be associated with gaofeng21cn/one-person-lab-app and to grant write Actions access to gaofeng21cn/one-person-lab-app before App workflows can update existing GHCR tags.',
+    },
+    retention_policy: {
+      strategy: 'retain_latest_n_versions_and_declared_rollbacks',
+      retain_stable_versions: 5,
+      retain_nightly_versions: 7,
+      protected_tags: ['latest', 'stable', 'nightly'],
+      cleanup_execution_mode: 'dry_run_first_explicit_execute_required',
+      destructive_action_requires: 'package_admin_with_delete_packages_scope',
+      rule: 'WebUI GHCR cleanup must retain protected moving tags, recent stable/nightly versions, and declared rollback tags; deletion is never part of ordinary release publishing.',
     },
     publish_workflows: [
       '.github/workflows/desktop-release.yml',
@@ -3254,6 +3267,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   const promoteWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-promote.yml'), 'utf8');
   const cleanupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-cleanup-drafts.yml'), 'utf8');
   const cleanupScript = fs.readFileSync(path.join(appRoot, 'scripts', 'cleanup-draft-release-candidates.ts'), 'utf8');
+  const webuiCleanupScript = fs.readFileSync(path.join(appRoot, 'scripts', 'cleanup-webui-ghcr-versions.ts'), 'utf8');
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
   const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
@@ -3282,6 +3296,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(promoteWorkflow, /--latest/);
 
   assert.equal(packageJson.scripts['release:cleanup-drafts'], 'node --experimental-strip-types scripts/cleanup-draft-release-candidates.ts');
+  assert.equal(packageJson.scripts['release:cleanup-webui-ghcr'], 'node --experimental-strip-types scripts/cleanup-webui-ghcr-versions.ts');
   assert.match(cleanupWorkflow, /name: OPL Desktop Release Cleanup Drafts/);
   assert.match(cleanupWorkflow, /workflow_dispatch:/);
   assert.match(cleanupWorkflow, /dry_run:/);
@@ -3296,7 +3311,12 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(cleanupScript, /\^v\$\{escaped\}-\(draft\|readiness\)\\\\\.\\\\d\{14\}\$/);
   assert.match(cleanupScript, /must be a published stable release/);
   assert.match(cleanupScript, /'--cleanup-tag'/);
+  assert.match(webuiCleanupScript, /cleanup_execution_mode !== 'dry_run_first_explicit_execute_required'/);
+  assert.match(webuiCleanupScript, /retainedStableIds/);
+  assert.match(webuiCleanupScript, /retainedNightlyIds/);
+  assert.match(webuiCleanupScript, /'-X'[\s\S]*'DELETE'/);
   assert.match(`${releaseDocs}\n${scriptsDocs}`, /release:cleanup-drafts[\s\S]*dry-run/i);
+  assert.match(`${releaseDocs}\n${scriptsDocs}`, /release:cleanup-webui-ghcr[\s\S]*dry-run/i);
   assert.match(`${releaseDocs}\n${scriptsDocs}`, /OPL Desktop Release Cleanup Drafts[\s\S]*v<version>-draft\.\*[\s\S]*v<version>-readiness\.\*/i);
 
   assert.equal(

@@ -66,12 +66,18 @@ publishing `ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>` and the
 stable/latest/nightly tag semantics. The App workflow builds the image with the
 OCI source label `org.opencontainers.image.source=https://github.com/gaofeng21cn/one-person-lab-app`
 so GitHub Packages can associate the package with the App repository.
-For an existing personal GHCR package, that source label is not enough to grant
-workflow write access. The `one-person-lab-webui` package settings must grant
-`gaofeng21cn/one-person-lab-app` write access under GitHub Packages
-`Manage Actions access`. Without that package-side grant, App workflows fail at
-`docker push` with `permission_denied: write_package` even when the workflow has
-`packages: write`.
+For an existing personal GHCR package, that source label is not enough to move
+the package repository association or grant workflow write access. The
+`one-person-lab-webui` package settings should be associated with
+`gaofeng21cn/one-person-lab-app` through the package settings `Connect
+repository` surface, and must grant `gaofeng21cn/one-person-lab-app` write
+access under GitHub Packages `Manage Actions access`. Without that package-side
+grant, App workflows fail at `docker push` with
+`permission_denied: write_package` even when the workflow has `packages: write`.
+GitHub's public package REST and GraphQL surfaces can read/delete/restore package
+versions but do not provide a stable automation endpoint for these personal
+package association or Actions-access settings; treat the package settings UI as
+the source of truth for those two gates.
 
 The active shell source is `gaofeng21cn/opl-aion-shell`. It is consumed as an
 external checkout at `shells/aionui` and is not tracked in the clean App repo
@@ -624,11 +630,23 @@ coordinate. Full DMG payload assembly must not include the WebUI GHCR image, and
 standard updater metadata remains restricted to standard macOS arm64 App assets.
 The existing `one-person-lab-webui` GHCR package must separately grant write
 Actions access to `gaofeng21cn/one-person-lab-app` from the package settings
-page. GitHub's public package REST and GraphQL surfaces do not provide a stable
-automation endpoint for this personal-package Actions access grant. If the gate
-is missing, the WebUI GHCR publish artifact records
+page and should be connected to `gaofeng21cn/one-person-lab-app` so the GitHub
+Packages page no longer presents the WebUI package as Framework-owned. If the
+write gate is missing, the WebUI GHCR publish artifact records
 `ghcr_write_package_denied`; fix the package settings gate and rerun the Nightly
-or stable workflow rather than moving publishing back to the Framework.
+or stable workflow rather than moving publishing back to the Framework. WebUI
+GHCR retention keeps `latest`, `stable`, `nightly`, the recent stable/nightly
+version windows declared in `contracts/app-release-channel.json`, and declared
+rollback tags. Deleting package versions is a separate dry-run-first admin
+operation with package admin / `delete:packages` permission; it is not part of
+ordinary App release publishing.
+
+When the GitHub Packages page is filtered by `repo_name=one-person-lab`, a
+historical package association can still show `one-person-lab-webui` beside
+Framework packages. That page grouping is not release authority. The live release
+authority is the App workflow result plus package tags such as
+`<app_or_opl_version>`, `stable`, `latest`, or `nightly`; the page association
+should be corrected through the package settings UI when an admin is available.
 
 The `gaofeng21cn/one-person-lab` and `gaofeng21cn/opl-aion-shell` GitHub
 Release lists should stay empty so App release ownership has a single remote
