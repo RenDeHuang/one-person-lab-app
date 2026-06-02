@@ -127,6 +127,14 @@ active tasks. `domain_lane_map.active_task_count`,
 `module_runtime dirty`, module readiness, repo/worktree diagnostics, and
 assistant purpose cards are forbidden running-task sources. Full ledger detail
 is reserved for explicit diagnostics, audit, or release evidence.
+User-visible active project lines are a separate project-line projection from
+`app_state.operator.workbench.activity_center.active_projects` and
+`operator.visual_ref_groups.active_project_refs`: queued or escalated
+owner-handled paper/project lines can count as active projects only with their
+original `status`, `active_run_id`, and next visible step preserved, and never as
+active worker runs, domain readiness, or paper-quality readiness. The
+`validate:active-shell --quick` and focused release-boundary/runtime-bridge
+tests now lock this distinction.
 
 The App first-run screen presents that shared model in a beginner-first way:
 the primary view shows a plain readiness summary, three user-facing setup
@@ -181,13 +189,14 @@ through `opl runtime app-operator-drilldown --json`, refreshes availability and
 actions through `opl app state --profile fast --json`, keeps `opl app state
 --profile full --json` for explicit full-state diagnostic or release evidence,
 lazy-loads full detail through `opl runtime app-operator-drilldown --detail
-full --json`, and presents project progress refs only after the current-control
-provider projection. The page stays running-activity-first, loads full detail
-only on demand, uses a 5-10 second lightweight polling fallback when push
-projection is unavailable, and exposes only refs-only `opl app action execute
---action <id> [--payload json] [--dry-run] --json` controls. Execution refreshes
-the App state projection so receipt/count fields stay framework-owned;
-MAS/MAG/RCA verdicts and artifact authority remain domain-owned refs.
+full --json`, and presents active project lines and project progress refs only
+after the current-control provider projection. The page stays
+running-activity-first, loads full detail only on demand, uses a 5-10 second
+lightweight polling fallback when push projection is unavailable, and exposes
+only refs-only `opl app action execute --action <id> [--payload json]
+[--dry-run] --json` controls. Execution refreshes the App state projection so
+receipt/count fields stay framework-owned; MAS/MAG/RCA verdicts and artifact
+authority remain domain-owned refs.
 
 Current GUI product truth 现在有明确的人读定义栈：
 `docs/app-ideal-gui-interaction-spec.md` 定义 Codex App 形态、chat-first 的交互

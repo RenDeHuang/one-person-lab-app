@@ -251,6 +251,36 @@ function validateProgressDeltaDisplayContract(progressDelta, label) {
   }
 }
 
+function validateActiveProjectLineProjectionContract(activeProjectLineProjection, label, options = {}) {
+  if (!activeProjectLineProjection || typeof activeProjectLineProjection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.activity_center.active_projects + app_state.operator.visual_ref_groups.active_project_refs',
+    authority: 'opl_framework_refs_only_project_line_projection',
+    display_policy: 'active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run',
+  })) {
+    if (activeProjectLineProjection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  if (activeProjectLineProjection.status_preservation_required !== true) {
+    throw new Error(`${label} must preserve status, active_run_id, and next_visible_step`);
+  }
+  if (options.requireFields !== false) {
+    assertIncludesAll(
+      activeProjectLineProjection.required_fields,
+      ['task_id', 'title', 'state', 'status', 'study_id', 'active_run_id', 'next_visible_step'],
+      `${label} required_fields`,
+    );
+  }
+  assertIncludesAll(
+    activeProjectLineProjection.must_not_claim,
+    ['active_worker_run', 'provider_execution_running', 'domain_ready', 'paper_quality_ready'],
+    `${label} must_not_claim`,
+  );
+}
+
 function validateProjectProgressDisplayContract(projectProgress, label) {
   if (!projectProgress || typeof projectProgress !== 'object') {
     throw new Error(`${label} must be declared`);
@@ -297,6 +327,10 @@ function validateProjectProgressDisplayContract(projectProgress, label) {
       'module readiness diagnostics',
     ],
     `${label} forbidden_running_task_sources`,
+  );
+  validateActiveProjectLineProjectionContract(
+    projectProgress.active_project_line_projection,
+    `${label} active project line projection`,
   );
 }
 
@@ -1474,14 +1508,42 @@ function validateGoldenAppStateFixture(gate) {
   if (/deliverable|paper|manuscript|submission/i.test(platformRepairExample.progress_display_label ?? '')) {
     throw new Error('OPL App state platform repair label must not present repair as deliverable progress.');
   }
+  const activeProjectSummaryCard = (lookupPath(fixture, 'app_state.operator.workbench.summary_cards') ?? []).find(
+    (card) => card?.card_id === 'active_projects',
+  );
+  if (!activeProjectSummaryCard) {
+    throw new Error('OPL App state golden fixture must include an active_projects summary card.');
+  }
+  const activeProjects = lookupPath(fixture, 'app_state.operator.workbench.activity_center.active_projects');
+  if (!Array.isArray(activeProjects) || activeProjects.length === 0) {
+    throw new Error('OPL App state golden fixture must include activity_center.active_projects.');
+  }
+  const visualActiveProjectRefs = lookupPath(fixture, 'app_state.operator.visual_ref_groups.active_project_refs');
+  if (!Array.isArray(visualActiveProjectRefs) || visualActiveProjectRefs.length === 0) {
+    throw new Error('OPL App state golden fixture must include visual_ref_groups.active_project_refs.');
+  }
+  const queuedOrEscalatedProject = activeProjects.find((project) => ['queued', 'escalated'].includes(project?.status));
+  if (!queuedOrEscalatedProject) {
+    throw new Error('OPL App state golden fixture must include a queued or escalated active project line.');
+  }
+  for (const field of ['task_id', 'title', 'state', 'status', 'study_id', 'active_run_id', 'next_visible_step']) {
+    if (!(field in queuedOrEscalatedProject)) {
+      throw new Error(`OPL App state active project line must preserve ${field}.`);
+    }
+  }
+  if (queuedOrEscalatedProject.active_worker_run === true || queuedOrEscalatedProject.provider_execution_running === true) {
+    throw new Error('OPL App state active project line must not claim an active worker run.');
+  }
   for (const [pathName, label] of Object.entries({
     'app_state.operator.workbench.summary_cards': 'summary cards',
     'app_state.operator.workbench.sections': 'sections',
+    'app_state.operator.workbench.activity_center.active_projects': 'active project lines',
     'app_state.operator.workbench.action_queue.items': 'action queue items',
     'app_state.operator.workbench.domain_lane_map.lanes': 'domain lanes',
     'app_state.operator.workbench.task_drilldowns': 'task drilldowns',
     'app_state.operator.workbench.safe_action_routes': 'safe action routes',
     'app_state.operator.workbench.lazy_refs': 'lazy refs',
+    'app_state.operator.visual_ref_groups.active_project_refs': 'visual active project refs',
   })) {
     const value = lookupPath(fixture, pathName);
     if (!Array.isArray(value) || value.length === 0) {
@@ -2047,6 +2109,22 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   );
   if (guiContract.framework_surfaces.runtime_full_drilldown.policy !== 'on_demand_only') {
     throw new Error('App GUI runtime full drilldown must be on-demand only');
+  }
+  const runtimeDefaultAttention = guiContract.framework_surfaces.runtime_default_attention;
+  assertIncludesAll(
+    runtimeDefaultAttention?.active_project_line_fields,
+    [
+      'app_state.operator.workbench.summary_cards[active_projects]',
+      'app_state.operator.workbench.activity_center.active_projects',
+      'app_state.operator.visual_ref_groups.active_project_refs',
+    ],
+    'App GUI runtime default attention active_project_line_fields',
+  );
+  if (
+    runtimeDefaultAttention?.active_project_line_policy
+    !== 'queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run'
+  ) {
+    throw new Error('App GUI runtime default attention must separate active project lines from active worker runs');
   }
   for (const forbiddenSource of [
     'direct opl modules --json page aggregation',
@@ -2858,6 +2936,22 @@ function validatePageStateMatrix(matrix, contract) {
     }
   }
   validateProjectProgressDisplayContract(runtimeViewModel.project_progress, 'Runtime page project progress display contract');
+  const pageDefaultAttention = runtimeViewModel.default_attention;
+  assertIncludesAll(
+    pageDefaultAttention?.active_project_line_fields,
+    [
+      'app_state.operator.workbench.summary_cards[active_projects]',
+      'app_state.operator.workbench.activity_center.active_projects',
+      'app_state.operator.visual_ref_groups.active_project_refs',
+    ],
+    'Runtime page default attention active_project_line_fields',
+  );
+  if (
+    pageDefaultAttention?.active_project_line_policy
+    !== 'queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run'
+  ) {
+    throw new Error('Runtime page default attention must keep active project lines separate from active worker runs');
+  }
   if (runtimeViewModel.diagnostics?.default_visibility !== 'secondary_disclosure') {
     throw new Error('Runtime page diagnostics must be secondary disclosure, not a primary daily surface');
   }
@@ -2916,6 +3010,8 @@ function validatePageStateMatrix(matrix, contract) {
     'summary OPL operator drilldown read model',
     'fast App state refresh',
     'app_state.operator.workbench.task_drilldowns project progress refs',
+    'app_state.operator.workbench.activity_center.active_projects active project lines',
+    'app_state.operator.visual_ref_groups.active_project_refs',
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
@@ -2935,6 +3031,7 @@ function validatePageStateMatrix(matrix, contract) {
     'running activity first OPL runtime status',
     'running activity from app_operator_drilldown.current_control_state provider projection',
     'project progress from app_state.operator.workbench.task_drilldowns',
+    'active project line count from app_state.operator.workbench.activity_center.active_projects',
     'project title/domain/current state/current stage',
     'next visible step when projected',
     'blocker count and user attention status',

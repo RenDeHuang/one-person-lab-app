@@ -203,6 +203,12 @@ secondary context，不在 composer 附近显示 compact entry。
 - Runtime 页先展示 `opl runtime app-operator-drilldown --json` 的
   `current_control_state` provider running activity，再展示 project progress
   refs 和 detailed drilldown。
+- Runtime/inspector 中的“进行中项目”来自 `opl app state --profile fast --json`
+  的 `operator.workbench.activity_center.active_projects`、summary card 和
+  `operator.visual_ref_groups.active_project_refs`。它表示用户视角仍在推进的
+  project/paper line；`queued`、`escalated` 等 owner-handled 状态可以计入，但
+  UI 必须同时展示 status、active_run_id 和 next visible step，避免误读为 active
+  worker execution。
 - Home 不展示 runtime activity、continue-work、needs-attention/active/recent
   refs、per-assistant running badges 或底部 feedback/favorite/web 图标；这些信息
   进入 Runtime 页、右侧 inspector、drawer 或其他 secondary context surface。

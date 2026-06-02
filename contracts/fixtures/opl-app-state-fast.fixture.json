@@ -45,6 +45,13 @@
             "value": "not_selected",
             "tone": "attention",
             "source_ref": "app_state.provider.temporal"
+          },
+          {
+            "card_id": "active_projects",
+            "label": "Active projects",
+            "value": 1,
+            "tone": "attention",
+            "source_ref": "app_state.operator.workbench.activity_center.active_projects"
           }
         ],
         "sections": [
@@ -103,6 +110,27 @@
           ],
           "item_limit": 16,
           "source_ref": "app_state.actions"
+        },
+        "activity_center": {
+          "active_projects": [
+            {
+              "task_id": "dm003-publication-gate",
+              "title": "DM003 publication gate line",
+              "domain_id": "medautoscience",
+              "domain_label": "Med Auto Science",
+              "state": "owner_handoff_pending",
+              "status": "queued",
+              "study_id": "003-dpcc-primary-care-phenotype-treatment-gap",
+              "active_run_id": null,
+              "next_visible_step": "Wait for MAS owner gate-clearing receipt or typed blocker",
+              "active_worker_run": false,
+              "provider_execution_running": false,
+              "domain_ready": false,
+              "paper_quality_ready": false,
+              "source_ref": "app_state.operator.visual_ref_groups.active_project_refs[dm003-publication-gate]"
+            }
+          ],
+          "source_ref": "app_state.operator.visual_ref_groups.active_project_refs"
         },
         "domain_lane_map": {
           "lanes": [
@@ -201,6 +229,18 @@
             "ref_id": "full_runtime_drilldown",
             "surface": "opl runtime app-operator-drilldown --detail full --json",
             "policy": "on_demand_diagnostic_only"
+          }
+        ]
+      },
+      "visual_ref_groups": {
+        "active_project_refs": [
+          {
+            "task_id": "dm003-publication-gate",
+            "ref_kind": "owner_handoff",
+            "status": "queued",
+            "active_run_id": null,
+            "next_visible_step": "Wait for MAS owner gate-clearing receipt or typed blocker",
+            "source_ref": "opl://app-state/active-projects/dm003-publication-gate"
           }
         ]
       },

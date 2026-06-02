@@ -240,6 +240,27 @@
           ],
           "diagnostics_treatment": "secondary_disclosure",
           "safe_actions_treatment": "secondary_operator_disclosure",
+          "active_project_line_projection": {
+            "source": "app_state.operator.workbench.activity_center.active_projects + app_state.operator.visual_ref_groups.active_project_refs",
+            "authority": "opl_framework_refs_only_project_line_projection",
+            "display_policy": "active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run",
+            "status_preservation_required": true,
+            "required_fields": [
+              "task_id",
+              "title",
+              "state",
+              "status",
+              "study_id",
+              "active_run_id",
+              "next_visible_step"
+            ],
+            "must_not_claim": [
+              "active_worker_run",
+              "provider_execution_running",
+              "domain_ready",
+              "paper_quality_ready"
+            ]
+          },
           "forbidden_running_task_sources": [
             "module_runtime dirty state",
             "domain lane active_task_count",
@@ -312,6 +333,12 @@
             "running_provider_attempt_task_kinds",
             "latest_running_provider_heartbeat_at"
           ],
+          "active_project_line_fields": [
+            "app_state.operator.workbench.summary_cards[active_projects]",
+            "app_state.operator.workbench.activity_center.active_projects",
+            "app_state.operator.visual_ref_groups.active_project_refs"
+          ],
+          "active_project_line_policy": "queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run",
           "secondary_fields": [
             "project title/domain/current state/current stage",
             "next_visible_step",
@@ -368,6 +395,8 @@
         "summary OPL operator drilldown read model",
         "fast App state refresh",
         "app_state.operator.workbench.task_drilldowns project progress refs",
+        "app_state.operator.workbench.activity_center.active_projects active project lines",
+        "app_state.operator.visual_ref_groups.active_project_refs",
         "full detail lazy load",
         "app_state.operator.summary refs",
         "app_state.provider readiness refs",
@@ -382,6 +411,7 @@
         "running activity first OPL runtime status",
         "running activity from app_operator_drilldown.current_control_state provider projection",
         "project progress from app_state.operator.workbench.task_drilldowns",
+        "active project line count from app_state.operator.workbench.activity_center.active_projects",
         "project title/domain/current state/current stage",
         "next visible step when projected",
         "blocker count and user attention status",

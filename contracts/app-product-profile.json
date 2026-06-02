@@ -820,8 +820,19 @@
         "which domain has live Temporal/provider active execution",
         "how many currently running tasks are visible after filtering checkpointed provider refs",
         "what kinds of work are currently executing",
-        "when the latest running heartbeat was observed"
+        "when the latest running heartbeat was observed",
+        "which project or paper lines are still active from the user perspective"
       ],
+      "active_project_line_projection": {
+        "source": "app_state.operator.workbench.activity_center.active_projects + app_state.operator.visual_ref_groups.active_project_refs",
+        "display_policy": "queued_or_escalated_owner_handled_project_lines_count_as_active_projects_without_claiming_active_worker_run",
+        "status_preservation_required": true,
+        "must_preserve_fields": [
+          "status",
+          "active_run_id",
+          "next_visible_step"
+        ]
+      },
       "secondary_questions": [
         "what is the next visible owner action",
         "whether the next delta is deliverable progress, platform repair, human gate, typed blocker, or stop-loss",

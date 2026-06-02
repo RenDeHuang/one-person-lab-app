@@ -107,6 +107,27 @@
     ],
     "diagnostics_treatment": "secondary_disclosure",
     "safe_actions_treatment": "secondary_operator_disclosure",
+    "active_project_line_projection": {
+      "source": "app_state.operator.workbench.activity_center.active_projects + app_state.operator.visual_ref_groups.active_project_refs",
+      "authority": "opl_framework_refs_only_project_line_projection",
+      "display_policy": "active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run",
+      "status_preservation_required": true,
+      "required_fields": [
+        "task_id",
+        "title",
+        "state",
+        "status",
+        "study_id",
+        "active_run_id",
+        "next_visible_step"
+      ],
+      "must_not_claim": [
+        "active_worker_run",
+        "provider_execution_running",
+        "domain_ready",
+        "paper_quality_ready"
+      ]
+    },
     "app_role": "display_only_project_progress_consumer",
     "forbidden_running_task_sources": [
       "module_runtime dirty state",

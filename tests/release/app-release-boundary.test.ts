@@ -1262,6 +1262,27 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     ],
     diagnostics_treatment: 'secondary_disclosure',
     safe_actions_treatment: 'secondary_operator_disclosure',
+    active_project_line_projection: {
+      source: 'app_state.operator.workbench.activity_center.active_projects + app_state.operator.visual_ref_groups.active_project_refs',
+      authority: 'opl_framework_refs_only_project_line_projection',
+      display_policy: 'active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run',
+      status_preservation_required: true,
+      required_fields: [
+        'task_id',
+        'title',
+        'state',
+        'status',
+        'study_id',
+        'active_run_id',
+        'next_visible_step',
+      ],
+      must_not_claim: [
+        'active_worker_run',
+        'provider_execution_running',
+        'domain_ready',
+        'paper_quality_ready',
+      ],
+    },
     app_role: 'display_only_project_progress_consumer',
     forbidden_running_task_sources: [
       'module_runtime dirty state',
@@ -1503,6 +1524,27 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     user_display_fields: expectedRuntimeProjectProgressUserFields,
     diagnostics_treatment: 'secondary_disclosure',
     safe_actions_treatment: 'secondary_operator_disclosure',
+    active_project_line_projection: {
+      source: 'app_state.operator.workbench.activity_center.active_projects + app_state.operator.visual_ref_groups.active_project_refs',
+      authority: 'opl_framework_refs_only_project_line_projection',
+      display_policy: 'active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run',
+      status_preservation_required: true,
+      required_fields: [
+        'task_id',
+        'title',
+        'state',
+        'status',
+        'study_id',
+        'active_run_id',
+        'next_visible_step',
+      ],
+      must_not_claim: [
+        'active_worker_run',
+        'provider_execution_running',
+        'domain_ready',
+        'paper_quality_ready',
+      ],
+    },
     forbidden_running_task_sources: [
       'module_runtime dirty state',
       'domain lane active_task_count',
@@ -1510,6 +1552,15 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'module readiness diagnostics',
     ],
   });
+  assert.deepEqual(runtimePage.runtime_view_model.default_attention.active_project_line_fields, [
+    'app_state.operator.workbench.summary_cards[active_projects]',
+    'app_state.operator.workbench.activity_center.active_projects',
+    'app_state.operator.visual_ref_groups.active_project_refs',
+  ]);
+  assert.equal(
+    runtimePage.runtime_view_model.default_attention.active_project_line_policy,
+    'queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run',
+  );
   assert.equal(
     runtimePage.runtime_view_model.progress_delta.source,
     'app_state.operator.workbench.task_drilldowns.progress_delta_classification',
@@ -1580,6 +1631,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'summary OPL operator drilldown read model',
     'fast App state refresh',
     'app_state.operator.workbench.task_drilldowns project progress refs',
+    'app_state.operator.workbench.activity_center.active_projects active project lines',
+    'app_state.operator.visual_ref_groups.active_project_refs',
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
@@ -1596,6 +1649,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'running activity first OPL runtime status',
     'running activity from app_operator_drilldown.current_control_state provider projection',
     'project progress from app_state.operator.workbench.task_drilldowns',
+    'active project line count from app_state.operator.workbench.activity_center.active_projects',
     'project title/domain/current state/current stage',
     'next visible step when projected',
     'blocker count and user attention status',
@@ -3917,6 +3971,15 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'opl runtime app-operator-drilldown --detail full --json',
   );
   assert.equal(guiContract.framework_surfaces.runtime_full_drilldown.policy, 'on_demand_only');
+  assert.deepEqual(guiContract.framework_surfaces.runtime_default_attention.active_project_line_fields, [
+    'app_state.operator.workbench.summary_cards[active_projects]',
+    'app_state.operator.workbench.activity_center.active_projects',
+    'app_state.operator.visual_ref_groups.active_project_refs',
+  ]);
+  assert.equal(
+    guiContract.framework_surfaces.runtime_default_attention.active_project_line_policy,
+    'queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run',
+  );
   assert.equal(guiContract.executor_policy.default_executor, 'codex_cli');
   assert.equal(guiContract.executor_policy.codex_cli_fixed_executor, true);
   assert.equal(guiContract.executor_policy.codex_only_default, true);

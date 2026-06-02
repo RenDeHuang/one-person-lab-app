@@ -185,8 +185,14 @@ Runtime display 必须 running-activity-first 且 authority-aware。
   executing tasks、最近 heartbeat 和 task kinds。`running_provider_attempt_count`
   可以包含 checkpointed provider refs，只能作为高级诊断数，不能直接显示为
   用户可见的“正在运行任务数”。
+- “正在执行任务”和“进行中项目”必须分层显示。前者只来自 provider execution
+  projection；后者来自 `app_state.operator.workbench.activity_center.active_projects`
+  和 `app_state.operator.visual_ref_groups.active_project_refs`。`queued` 或
+  `escalated` 的 owner-handled paper line 可以计入用户可见的进行中项目，但必须
+  保留原始 `status`、`active_run_id` 和 next step，不能伪装成 active worker run。
 - 项目进度 refs 来自 `app_state.operator.workbench.task_drilldowns`，作为二级
-  project progress，不用于推断“正在运行的任务数”。
+  project progress；它可以支撑进行中项目和下一步展示，但不用于推断“正在运行的
+  worker task 数”。
 - UI 从 OPL shared progress projection 展示项目进度，并区分 deliverable
   progress 与 platform repair。
 - Runtime panel 只展示 refs、receipts、actions、blockers 和 next steps；

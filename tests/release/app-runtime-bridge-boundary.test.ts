@@ -132,8 +132,27 @@ test('App owns runtime bridge contract while active shell remains replaceable ad
     ],
     app_role: 'display_only_running_activity_consumer',
   });
-  assert.equal(runtimeBridge.project_progress_projection.source, 'app_state.operator.workbench.task_drilldowns');
-  assert.equal(runtimeBridge.project_progress_projection.display_policy, 'project_progress_refs_secondary_no_module_runtime_dirty_as_project');
+  assert.deepEqual(runtimeBridge.project_progress_projection.active_project_line_projection, {
+    source: 'app_state.operator.workbench.activity_center.active_projects + app_state.operator.visual_ref_groups.active_project_refs',
+    authority: 'opl_framework_refs_only_project_line_projection',
+    display_policy: 'active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run',
+    status_preservation_required: true,
+    required_fields: [
+      'task_id',
+      'title',
+      'state',
+      'status',
+      'study_id',
+      'active_run_id',
+      'next_visible_step',
+    ],
+    must_not_claim: [
+      'active_worker_run',
+      'provider_execution_running',
+      'domain_ready',
+      'paper_quality_ready',
+    ],
+  });
   assert.equal(runtimeBridge.authority_boundary.shell_adapter_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_write_domain_truth, false);
@@ -188,6 +207,27 @@ test('Runtime page classifies deliverable progress separately from platform repa
     ],
     diagnostics_treatment: 'secondary_disclosure',
     safe_actions_treatment: 'secondary_operator_disclosure',
+    active_project_line_projection: {
+      source: 'app_state.operator.workbench.activity_center.active_projects + app_state.operator.visual_ref_groups.active_project_refs',
+      authority: 'opl_framework_refs_only_project_line_projection',
+      display_policy: 'active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run',
+      status_preservation_required: true,
+      required_fields: [
+        'task_id',
+        'title',
+        'state',
+        'status',
+        'study_id',
+        'active_run_id',
+        'next_visible_step',
+      ],
+      must_not_claim: [
+        'active_worker_run',
+        'provider_execution_running',
+        'domain_ready',
+        'paper_quality_ready',
+      ],
+    },
     app_role: 'display_only_project_progress_consumer',
     forbidden_running_task_sources: [
       'module_runtime dirty state',
@@ -203,6 +243,7 @@ test('Runtime page classifies deliverable progress separately from platform repa
   assert.deepEqual(projectProgress.optional_user_fields, bridgeProjectProgress.optional_user_fields);
   assert.equal(projectProgress.diagnostics_treatment, bridgeProjectProgress.diagnostics_treatment);
   assert.equal(projectProgress.safe_actions_treatment, bridgeProjectProgress.safe_actions_treatment);
+  assert.deepEqual(projectProgress.active_project_line_projection, bridgeProjectProgress.active_project_line_projection);
   assert.deepEqual(bridgeProgressDelta, {
     source: 'app_state.operator.workbench.task_drilldowns.progress_delta_classification',
     authority: 'opl_framework_shared_progress_projection',
@@ -268,4 +309,40 @@ test('Runtime page classifies deliverable progress separately from platform repa
   assert.equal(taskDrilldown.progress_display_bucket, 'platform_repair');
   assert.equal(taskDrilldown.progress_display_label, 'Platform repair');
   assert.doesNotMatch(taskDrilldown.progress_display_label, /deliverable|paper|manuscript|submission/i);
+});
+
+test('Runtime page separates user-visible active project lines from active worker runs', () => {
+  const pageMatrix = readJson('contracts/app-page-state-matrix.json');
+  const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
+  const fixture = readJson('contracts/fixtures/opl-app-state-fast.fixture.json');
+  const runtimePage = pageMatrix.pages.find((page) => page.id === 'runtime');
+  const activeLineProjection = runtimePage.runtime_view_model.project_progress.active_project_line_projection;
+  const activeProjectSummaryCard = fixture.app_state.operator.workbench.summary_cards.find(
+    (card) => card.card_id === 'active_projects',
+  );
+  const activeProjects = fixture.app_state.operator.workbench.activity_center.active_projects;
+  const visualActiveProjectRefs = fixture.app_state.operator.visual_ref_groups.active_project_refs;
+  const ownerHandledProject = activeProjects.find((project) => ['queued', 'escalated'].includes(project.status));
+
+  assert.deepEqual(activeLineProjection, runtimeBridge.project_progress_projection.active_project_line_projection);
+  assert.deepEqual(runtimePage.runtime_view_model.default_attention.active_project_line_fields, [
+    'app_state.operator.workbench.summary_cards[active_projects]',
+    'app_state.operator.workbench.activity_center.active_projects',
+    'app_state.operator.visual_ref_groups.active_project_refs',
+  ]);
+  assert.equal(
+    runtimePage.runtime_view_model.default_attention.active_project_line_policy,
+    'queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run',
+  );
+  assert.ok(activeProjectSummaryCard, 'fixture must carry an active_projects summary card');
+  assert.ok(ownerHandledProject, 'fixture must carry a queued or escalated active project line');
+  assert.ok(visualActiveProjectRefs.some((ref) => ref.task_id === ownerHandledProject.task_id));
+  assert.equal(ownerHandledProject.status, 'queued');
+  assert.equal(ownerHandledProject.active_run_id, null);
+  assert.equal(ownerHandledProject.active_worker_run, false);
+  assert.equal(ownerHandledProject.provider_execution_running, false);
+  assert.equal(ownerHandledProject.domain_ready, false);
+  assert.equal(ownerHandledProject.paper_quality_ready, false);
+  assert.ok(ownerHandledProject.next_visible_step);
+  assert.ok(activeLineProjection.required_fields.every((field) => Object.hasOwn(ownerHandledProject, field)));
 });
