@@ -307,6 +307,17 @@
     ],
     "may_use_developer_checkout_by_default": false,
     "developer_checkout_override_policy": "explicit_opt_in_only",
+    "developer_checkout_override_surface": "Developer Mode",
+    "ordinary_user_module_source": "stable_package_channel",
+    "module_package_channel_agent_ids": [
+      "mas",
+      "mag",
+      "rca",
+      "oma"
+    ],
+    "non_module_workflow_plugin_ids": [
+      "opl-flow"
+    ],
     "duplicate_bare_skill_policy": "forbid_domain_plugin_skill_mirrors",
     "plugin_registration_validation_command": "npm run validate:agent-installation",
     "plugin_registration_validation_inputs": {

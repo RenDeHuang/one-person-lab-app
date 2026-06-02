@@ -2475,13 +2475,27 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   }
   for (const explanation of [
     'whether a module comes from the bundled Full runtime payload',
+    'whether a module comes from the stable GHCR package channel',
     'whether a module comes from a local domain repository checkout',
+    'whether a GitHub repo or checkout source is enabled by Developer Mode',
     'whether a module is managed by App/CLI maintenance',
     'that module path display is refs-only and not domain truth authority',
   ]) {
     if (!modulePathPolicy.must_explain?.includes(explanation)) {
       throw new Error(`App GUI module path source policy must explain ${explanation}`);
     }
+  }
+  if (modulePathPolicy.ordinary_user_source !== 'stable_ghcr_package_channel') {
+    throw new Error('App GUI module path source policy must keep ordinary users on stable GHCR package channel');
+  }
+  if (modulePathPolicy.developer_override_surface !== 'Developer Mode') {
+    throw new Error('App GUI module path source policy must route repo/checkout override through Developer Mode');
+  }
+  if (modulePathPolicy.developer_override_policy !== 'explicit_opt_in_only') {
+    throw new Error('App GUI module path source policy must require explicit opt-in for Developer Mode checkout override');
+  }
+  if (!modulePathPolicy.must_not_use?.includes('raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI')) {
+    throw new Error('App GUI module path source policy must not expose raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI');
   }
 
   for (const lane of releaseChannel.release_validation_profiles.stable.required_lanes) {
@@ -3719,8 +3733,21 @@ function validateUpdaterScenario(updater) {
     || updater?.update_policy?.apply !== 'restart_when_ready'
     || updater?.update_policy?.ready_prompt !== 'prompt_restart_after_download_ready'
     || updater?.update_policy?.full_first_install_metadata_allowed !== false
+    || updater?.update_policy?.scope !== 'desktop_app_assets_only'
+    || updater?.update_policy?.module_package_update_allowed !== false
+    || updater?.update_policy?.developer_checkout_selection_allowed !== false
+    || updater?.update_policy?.opl_flow_install_allowed !== false
   ) {
-    throw new Error('Standard updater scenario must download in background, prompt for restart when ready, and exclude Full metadata');
+    throw new Error('Standard updater scenario must update desktop App assets only and exclude Full metadata, module packages, Developer checkouts, and opl-flow install');
+  }
+  for (const expected of [
+    'standard updater does not update domain module packages',
+    'standard updater does not select Developer Mode checkouts',
+    'standard updater does not install opl-flow',
+  ]) {
+    if (!updater.expects?.includes(expected)) {
+      throw new Error(`Standard updater scenario must require: ${expected}`);
+    }
   }
 }
 

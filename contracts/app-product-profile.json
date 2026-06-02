@@ -702,12 +702,20 @@
       "mas",
       "mag",
       "rca",
+      "oma",
       "app"
     ],
     "developer_mode": {
       "label_key": "settings.developerMode",
       "description_key": "settings.developerModeDesc",
       "hide_machine_status": true,
+      "module_source_override": {
+        "surface": "Developer Mode",
+        "source": "app_state.developer_mode + app_state.modules[].source_policy",
+        "ordinary_user_default": "stable_package_channel",
+        "developer_override": "github_repo_or_local_checkout",
+        "policy": "explicit_opt_in_only"
+      },
       "state_keys": {
         "unknown": "settings.developerModeDesc",
         "off": "settings.developerModeStateOff",

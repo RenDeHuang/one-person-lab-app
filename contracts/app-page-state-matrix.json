@@ -654,6 +654,7 @@
         "Temporal status from app_state.provider.temporal",
         "MAS/MAG/RCA/OMA module version and source from app_state.modules",
         "module path source explanation",
+        "stable package channel vs Developer Mode checkout source",
         "section-level refresh state",
         "environment page named Local Environment, distinct from Project Progress"
       ],
@@ -680,6 +681,7 @@
         "page-wide spinner while one section refreshes",
         "GUI-owned Temporal restart judgment",
         "backend/provider selector as normal App configuration",
+        "raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI",
         "project progress as a settings runtime page"
       ]
     },
@@ -1083,6 +1085,7 @@
       ],
       "must_show": [
         "Developer Mode effective state from app_state.developer_mode",
+        "Developer Mode repo or local checkout override state",
         "workspace path from app_state.paths",
         "logs path from app_state.paths",
         "OPL Flow Context",

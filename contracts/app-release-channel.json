@@ -20,6 +20,10 @@
     "forbidden_asset_substrings": [
       "Full"
     ],
+    "scope": "desktop_app_assets_only",
+    "module_package_update_allowed": false,
+    "developer_checkout_selection_allowed": false,
+    "opl_flow_install_allowed": false,
     "rule": "standard updater metadata must never point to Full first-install assets",
     "same_tag_refresh": {
       "allowed": true,
@@ -89,6 +93,8 @@
     ],
     "draft_candidate_push": false,
     "full_first_install_payload_allowed": false,
+    "module_package_publish_allowed": false,
+    "opl_flow_plugin_publish_allowed": false,
     "framework_role": "references_image_coordinate_only",
     "rule": "WebUI GHCR image publish truth is App-owned; Framework may reference the image coordinate but does not own publishing."
   },

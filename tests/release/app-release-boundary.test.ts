@@ -1124,6 +1124,10 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.deepEqual(policy.agent_installation_contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states);
   assert.equal(policy.agent_installation_contract.may_use_developer_checkout_by_default, false);
   assert.equal(policy.agent_installation_contract.developer_checkout_override_policy, 'explicit_opt_in_only');
+  assert.equal(policy.agent_installation_contract.developer_checkout_override_surface, 'Developer Mode');
+  assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'stable_package_channel');
+  assert.deepEqual(policy.agent_installation_contract.module_package_channel_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.deepEqual(policy.agent_installation_contract.non_module_workflow_plugin_ids, ['opl-flow']);
   assert.equal(policy.agent_installation_contract.duplicate_bare_skill_policy, 'forbid_domain_plugin_skill_mirrors');
   assert.equal(policy.agent_installation_contract.plugin_registration_validation_command, 'npm run validate:agent-installation');
   assert.equal(policy.agent_installation_contract.plugin_registration_validation_inputs.plugin_root_flag, '--agent-root <agent_id>=<path>');
@@ -1214,7 +1218,14 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
     apply: 'restart_when_ready',
     ready_prompt: 'prompt_restart_after_download_ready',
     full_first_install_metadata_allowed: false,
+    scope: 'desktop_app_assets_only',
+    module_package_update_allowed: false,
+    developer_checkout_selection_allowed: false,
+    opl_flow_install_allowed: false,
   });
+  assert.ok(updater.expects.includes('standard updater does not update domain module packages'));
+  assert.ok(updater.expects.includes('standard updater does not select Developer Mode checkouts'));
+  assert.ok(updater.expects.includes('standard updater does not install opl-flow'));
 
   const ecosystem = scenarioById.get('ecosystem_modules_app_cli_managed');
   assert.deepEqual(ecosystem.modules, ['officecli', 'mineru', 'opl-meta-agent']);
@@ -4436,9 +4447,15 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'app_state.modules[].source + app_state.modules[].path + app_state.paths',
   );
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the bundled Full runtime payload'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the stable GHCR package channel'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from a local domain repository checkout'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a GitHub repo or checkout source is enabled by Developer Mode'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module is managed by App/CLI maintenance'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('that module path display is refs-only and not domain truth authority'));
+  assert.equal(guiContract.module_path_source_policy.ordinary_user_source, 'stable_ghcr_package_channel');
+  assert.equal(guiContract.module_path_source_policy.developer_override_surface, 'Developer Mode');
+  assert.equal(guiContract.module_path_source_policy.developer_override_policy, 'explicit_opt_in_only');
+  assert.ok(guiContract.module_path_source_policy.must_not_use.includes('raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI'));
   assert.equal(guiContract.pages.settings_environment.module_path_source_policy_ref, 'module_path_source_policy');
   assert.ok(guiContract.pages.about.must_show.includes('OPL Framework revision'));
   assert.equal(guiContract.theme_and_branding.default_theme_id, 'default-theme');
@@ -4574,6 +4591,10 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
     'One-Person-Lab-*-mac-arm64.dmg.blockmap',
     'One-Person-Lab-*-mac-arm64.zip.blockmap',
   ]);
+  assert.equal(releaseContract.standard_updater.scope, 'desktop_app_assets_only');
+  assert.equal(releaseContract.standard_updater.module_package_update_allowed, false);
+  assert.equal(releaseContract.standard_updater.developer_checkout_selection_allowed, false);
+  assert.equal(releaseContract.standard_updater.opl_flow_install_allowed, false);
   assert.match(workflow, /release-assets\/\*\*\/\*\.dmg/);
   assert.match(workflow, /release-assets\/\*\*\/\*\.zip/);
   assert.match(workflow, /release-assets\/\*\*\/\*\.blockmap/);
