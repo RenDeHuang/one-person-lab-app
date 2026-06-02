@@ -257,10 +257,20 @@ jobs:
           officecli --version
           mineru-open-api version
           temporal --version
+          temporal_version="$(temporal --version | awk '/^temporal version / { print $3; exit }')"
+          if [ -z "$temporal_version" ]; then
+            echo "::error::Unable to parse Temporal CLI version from: $(temporal --version)"
+            exit 1
+          fi
+          temporal_archive="$RUNNER_TEMP/temporal_cli_${temporal_version}_darwin_arm64.tar.gz"
+          curl -fL --retry 5 --retry-all-errors --retry-delay 5 \
+            "https://github.com/temporalio/cli/releases/download/v${temporal_version}/temporal_cli_${temporal_version}_darwin_arm64.tar.gz" \
+            -o "$temporal_archive"
           uv --version
           zstd --version
           echo "OPL_FULL_BUN_BIN=$(command -v bun)" >> "$GITHUB_ENV"
           echo "OPL_FULL_TEMPORAL_CLI_BIN=$(command -v temporal)" >> "$GITHUB_ENV"
+          echo "OPL_FULL_TEMPORAL_CLI_ARCHIVE=$temporal_archive" >> "$GITHUB_ENV"
           echo "OPL_FULL_TOOLCHAIN_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Install Framework dependencies

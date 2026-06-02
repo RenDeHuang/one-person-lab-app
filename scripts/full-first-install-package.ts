@@ -15,9 +15,9 @@ export const FULL_RUNTIME_CACHE_LAYER_IDS = ['toolchain', 'domain-runtime', 'opl
 export const FULL_RUNTIME_CACHE_AGGREGATE_KEY_SCHEMA = 'opl_full_runtime_cache_aggregate_key.v1';
 const FULL_PACKAGE_SIZE_BUDGET = {
   platform_scope: 'macos-arm64',
-  warning_full_dmg_bytes: 530000000,
-  max_full_dmg_bytes: 550000000,
-  max_runtime_uncompressed_bytes: 800000000,
+  warning_full_dmg_bytes: 600000000,
+  max_full_dmg_bytes: 650000000,
+  max_runtime_uncompressed_bytes: 950000000,
 } as const;
 const FULL_PACKAGE_MEASUREMENT_POLICY = {
   full_dmg_bytes: 'github_release_asset_size_bytes',

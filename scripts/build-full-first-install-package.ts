@@ -59,6 +59,7 @@ function parseArgs(argv) {
     bunBin: process.env.OPL_FULL_BUN_BIN || '',
     uvBin: process.env.OPL_FULL_UV_BIN || path.join(os.homedir(), '.local', 'bin', 'uv'),
     temporalCliBin: process.env.OPL_FULL_TEMPORAL_CLI_BIN || '',
+    temporalCliArchive: process.env.OPL_FULL_TEMPORAL_CLI_ARCHIVE || '',
     pythonRoot: process.env.OPL_FULL_PYTHON_ROOT || '',
     officeCliBin: process.env.OPL_FULL_OFFICECLI_BIN || '',
     officeCliRoot: process.env.OPL_FULL_OFFICECLI_ROOT || path.join(workspaceRoot, 'OfficeCLI'),
@@ -125,6 +126,7 @@ function parseArgs(argv) {
     else if (token === '--bun-bin') parsed.bunBin = path.resolve(value);
     else if (token === '--uv-bin') parsed.uvBin = path.resolve(value);
     else if (token === '--temporal-cli-bin') parsed.temporalCliBin = path.resolve(value);
+    else if (token === '--temporal-cli-archive') parsed.temporalCliArchive = path.resolve(value);
     else if (token === '--python-root') parsed.pythonRoot = path.resolve(value);
     else if (token === '--officecli-bin') parsed.officeCliBin = path.resolve(value);
     else if (token === '--officecli-root') parsed.officeCliRoot = path.resolve(value);
@@ -329,6 +331,10 @@ function findTemporalCliBinary(explicitBin) {
   });
 }
 
+function findTemporalCliArchive(explicitArchive) {
+  return requirePath(explicitArchive || process.env.OPL_FULL_TEMPORAL_CLI_ARCHIVE || '', 'Temporal CLI archive');
+}
+
 function fileSha256(filePath) {
   if (!filePath || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
     return null;
@@ -360,6 +366,7 @@ function buildRuntimeLayerPackagerInputs() {
       ...Object.values(packagedSkillCopyHandlers),
       findBunBinary,
       findTemporalCliBinary,
+      findTemporalCliArchive,
       copyOplMetaAgentSkill,
       copySuperpowersBundle,
       copyOfficeCliCoreSkill,
@@ -384,6 +391,7 @@ function buildRuntimeLayerPackagerInputs() {
       copyPortableTree,
       copyExecutableOrSymlinkTarget,
       copyNodeRuntimePayload,
+      writeTemporalCliWrapper,
       assertNoExternalSymlinks,
       copyProductionNodeModules,
       pruneTemporalCoreBridgeReleases,
@@ -542,16 +550,18 @@ function collectFullRuntimeSizeBreakdown(runtimeRoot) {
     total_runtime_uncompressed_bytes: directorySizeBytes(runtimeRoot),
     layers: {
       toolchain: {
-        relative_paths: ['bin', 'node', 'python', 'uv'],
+        relative_paths: ['bin', 'node', 'python', 'uv', 'vendor'],
         size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin'))
           + directorySizeBytes(path.join(runtimeRoot, 'node'))
           + directorySizeBytes(path.join(runtimeRoot, 'python'))
-          + directorySizeBytes(path.join(runtimeRoot, 'uv')),
+          + directorySizeBytes(path.join(runtimeRoot, 'uv'))
+          + directorySizeBytes(path.join(runtimeRoot, 'vendor')),
         children: {
           bin: sizeBreakdownEntry(runtimeRoot, 'bin', directoryChildSizes(path.join(runtimeRoot, 'bin'))),
           node: sizeBreakdownEntry(runtimeRoot, 'node'),
           python: sizeBreakdownEntry(runtimeRoot, 'python'),
           uv: sizeBreakdownEntry(runtimeRoot, 'uv'),
+          vendor: sizeBreakdownEntry(runtimeRoot, 'vendor', directoryChildSizes(path.join(runtimeRoot, 'vendor'))),
         },
       },
       'domain-runtime': sizeBreakdownEntry(runtimeRoot, 'modules', directoryChildSizes(path.join(runtimeRoot, 'modules'))),
@@ -852,6 +862,39 @@ function copyNodeRuntimePayload(nodeRoot, targetRoot) {
     copyPortableTree(sourcePath, path.join(targetRoot, 'lib', 'node_modules', packageName));
   }
   assertNoExternalSymlinks(targetRoot, 'Full first-install Node runtime');
+}
+
+function shellSingleQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function writeTemporalCliWrapper(targetPath, versionOutput) {
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.writeFileSync(targetPath, `#!/bin/bash
+set -euo pipefail
+TEMPORAL_VERSION_OUTPUT=${shellSingleQuote(versionOutput)}
+if [[ "\${1:-}" == "--version" ]]; then
+  printf '%s\\n' "$TEMPORAL_VERSION_OUTPUT"
+  exit 0
+fi
+RUNTIME_HOME="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
+ARCHIVE="$RUNTIME_HOME/vendor/temporal/temporal_cli_darwin_arm64.tar.gz"
+EXTRACT_ROOT="$RUNTIME_HOME/.runtime-cache/temporal-cli"
+TEMPORAL_BIN="$EXTRACT_ROOT/temporal"
+if [[ ! -x "$TEMPORAL_BIN" ]]; then
+  rm -rf "$EXTRACT_ROOT"
+  mkdir -p "$EXTRACT_ROOT"
+  tar -xzf "$ARCHIVE" -C "$EXTRACT_ROOT"
+  if [[ ! -x "$TEMPORAL_BIN" ]]; then
+    candidate="$(find "$EXTRACT_ROOT" -type f -name temporal -perm -111 | head -n 1 || true)"
+    if [[ -n "$candidate" ]]; then
+      TEMPORAL_BIN="$candidate"
+    fi
+  fi
+fi
+exec "$TEMPORAL_BIN" "$@"
+`, 'utf8');
+  fs.chmodSync(targetPath, 0o755);
 }
 
 function copyProductionNodeModules(sourceRoot, targetRoot) {
@@ -1212,6 +1255,7 @@ function resolveRuntimeSources(options) {
   const pythonRoot = findPythonRoot(options.pythonRoot);
   const uvBin = requirePath(options.uvBin, 'uv binary');
   const temporalCliBin = findTemporalCliBinary(options.temporalCliBin);
+  const temporalCliArchive = findTemporalCliArchive(options.temporalCliArchive);
   const officeCliBin = findOfficeCliBinary(options.officeCliBin);
   const mineruOpenApiBin = findMineruOpenApiBinary(options.mineruOpenApiBin);
 
@@ -1223,6 +1267,7 @@ function resolveRuntimeSources(options) {
     pythonRoot,
     uvBin,
     temporalCliBin,
+    temporalCliArchive,
     officeCliBin,
     mineruOpenApiBin,
     mineruRepoRoot: fs.existsSync(path.join(options.mineruRoot, '.git')) ? options.mineruRoot : null,
@@ -1258,6 +1303,7 @@ function buildRuntimeCacheKeyInputs(options, sources) {
         uv_sha256: fileSha256(sources.uvBin),
         temporal_cli_sha256: fileSha256(sources.temporalCliBin),
         temporal_cli_version: commandOutput(sources.temporalCliBin, ['--version']),
+        temporal_cli_archive_sha256: fileSha256(sources.temporalCliArchive),
         officecli_sha256: fileSha256(sources.officeCliBin),
         officecli_version: commandOutput(sources.officeCliBin, ['--version']),
         mineru_open_api_sha256: fileSha256(sources.mineruOpenApiBin),
@@ -1404,7 +1450,8 @@ function buildToolchainLayer(layerRoot, sources) {
   copySingleFile(sources.codexBinaries.codex, path.join(layerRoot, 'bin', 'codex'));
   copySingleFile(sources.codexBinaries.rg, path.join(layerRoot, 'bin', 'rg'));
   copySingleFile(sources.bunBin, path.join(layerRoot, 'bin', 'bun'));
-  copySingleFile(sources.temporalCliBin, path.join(layerRoot, 'bin', 'temporal'));
+  copySingleFile(sources.temporalCliArchive, path.join(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64.tar.gz'));
+  writeTemporalCliWrapper(path.join(layerRoot, 'bin', 'temporal'), commandOutput(sources.temporalCliBin, ['--version']));
   copySingleFile(sources.officeCliBin, path.join(layerRoot, 'bin', 'officecli'));
   copySingleFile(sources.mineruOpenApiBin, path.join(layerRoot, 'bin', 'mineru-open-api'));
   copyNodeRuntimePayload(path.dirname(path.dirname(sources.nodeToolchain.nodeBin)), path.join(layerRoot, 'node'));

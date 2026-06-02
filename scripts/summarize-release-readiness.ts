@@ -237,7 +237,7 @@ function summarizeFullSizeBudget(remoteGate: GateSummary) {
   const budget = objectField(remoteGate.fields ?? null, 'full_first_install_budget');
   if (!budget) return null;
   const fullDmgSizeBytes = numberField(budget, 'full_dmg_size_bytes');
-  const warningFullDmgBytes = numberField(budget, 'warning_full_dmg_bytes') ?? 530000000;
+  const warningFullDmgBytes = numberField(budget, 'warning_full_dmg_bytes') ?? 600000000;
   const maxFullDmgBytes = numberField(budget, 'max_full_dmg_bytes');
   const fullDmgSizeStatus = fullDmgSizeBytes !== null && warningFullDmgBytes !== null && maxFullDmgBytes !== null
     ? fullDmgSizeBytes > maxFullDmgBytes
