@@ -400,6 +400,8 @@ function buildSummary(options: Options) {
         image: payload.image,
         tags,
         draft_candidate_push: payload.draft_candidate_push ?? null,
+        package_access_required: payload.package_access_required ?? null,
+        error: payload.error ?? null,
       };
       if (options.releaseMode === 'draft_candidate') {
         if (payload.status !== 'draft_not_pushed') {

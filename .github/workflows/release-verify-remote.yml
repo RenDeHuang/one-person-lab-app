@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -54,7 +54,7 @@ jobs:
           "${verify_args[@]}"
 
       - name: Upload remote verification summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: remote-release-verification-${{ inputs.opl_version }}
           path: remote-release-verification.json

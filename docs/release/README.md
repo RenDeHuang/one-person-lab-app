@@ -230,8 +230,8 @@ Nightly is a fast standard-updater confidence lane: release-boundary contract,
 standard macOS arm64 build, local standard asset validation, prerelease upload
 with `--latest=false`, remote standard asset verification, and App-owned WebUI
 GHCR image publish for `ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>`
-plus the `nightly` tag. It does not build Full assets and does not require clean
-VM, one-shot installer, Docker/WebUI smoke, or operator evidence gates.
+plus the `nightly` tag, with the App repository OCI source label. It does not build Full assets and does not require
+clean VM, one-shot installer, Docker/WebUI smoke, or operator evidence gates.
 
 Stable is the complete user-install proof lane. Before a stable App Release is
 treated as smooth, it must cover standard DMG clean-VM installation, Full DMG
@@ -243,7 +243,8 @@ evidence bundle. The heavy gates are grouped by installation surface so failures
 say which user path is broken instead of producing one vague release failure.
 Stable validation covers standard DMG, Full DMG, one-shot installer, and
 Docker/WebUI evidence as separate installation surfaces, then publishes the
-WebUI image from the App workflow after HTTP smoke passes.
+WebUI image from the App workflow after HTTP smoke passes. The published image
+must carry `org.opencontainers.image.source=https://github.com/gaofeng21cn/one-person-lab-app`.
 
 The final stable decision entry is the `release-readiness-summary` job in
 `.github/workflows/desktop-release.yml`. It runs after the selected remote
@@ -344,18 +345,44 @@ npm run release:evidence:manifest -- \
   --overwrite
 ```
 
-The collector writes OPL-owned runtime snapshot, summary/full App/operator
-drilldown, and selected safe-action dry-run/execute JSON. It can also import
-standard smoke source directories and explicit artifact overrides, then validates
-the copied files through the bundle validator. For a producer run that actually
-failed before writing the required artifact, pass `--typed-blocker
-<artifact_id>=<source_path>` so the manifest records `blocked_evidence` with a
-bundle-local typed blocker instead of an empty `missing` slot. It still does not
-create or fake screenshots, VM first-run summaries, guest smoke summaries,
-assistant route smoke summaries, Codex functional check receipts, remote
-Release verification, runtime truth, domain truth, artifact authority, or
-quality verdicts; absent App/VM/remote artifacts remain `missing` or `blocked`
-in the manifest.
+If a cohort has a real owner-visible typed blocker or an artifact is not
+applicable to that cohort, record that explicitly in a small classification
+file and pass it to the manifest writer:
+
+```json
+{
+  "artifact_classifications": [
+    {
+      "id": "first_run_vm_summary",
+      "status": "typed_blocker",
+      "reason": "clean VM host is unavailable for this cohort",
+      "typed_blocker_ref": "github-actions:opl-first-run-vm#blocked-no-runner"
+    },
+    {
+      "id": "guest_smoke_summary",
+      "status": "not_applicable",
+      "reason": "draft evidence cohort did not package a launchable app",
+      "not_applicable_reason": "draft_evidence_only_no_packaged_app"
+    }
+  ]
+}
+```
+
+```bash
+npm run release:evidence:manifest -- \
+  --bundle-dir release-evidence/<version> \
+  --classification release-evidence/<version>/artifact-classifications.json \
+  --overwrite
+```
+
+The collector writes only OPL-owned runtime snapshot, summary/full
+App/operator drilldown, and selected safe-action dry-run/execute JSON. It does
+not create screenshots, VM first-run summaries, guest smoke summaries,
+assistant route smoke summaries, remote Release verification, runtime truth,
+domain truth, artifact authority, or quality verdicts; absent App/VM/remote
+artifacts remain `missing` in the manifest unless the cohort explicitly records
+`typed_blocker` or `not_applicable`. These non-present statuses are reportable
+evidence classifications, not packaged App evidence.
 
 Validate a collected bundle with:
 
@@ -365,10 +392,10 @@ npm run release:evidence:validate -- \
 ```
 
 Default validation fails closed when required evidence is absent. If a VM smoke
-summary, guest smoke summary, assistant route smoke summary, Codex functional
-check receipt, screenshot, OPL runtime JSON, or remote Release artifact could
-not be produced in the current environment, keep that artifact marked as `missing` in
-`evidence-manifest.json` and run:
+summary, guest smoke summary, assistant route smoke summary, screenshot, OPL
+runtime JSON, or remote Release artifact could not be produced in the current
+environment, keep that artifact marked as `missing`, `typed_blocker`, or
+`not_applicable` in `evidence-manifest.json` and run:
 
 ```bash
 npm run release:evidence:validate -- \
@@ -602,62 +629,11 @@ be referenced from `latest*.yml`.
 Nightly standard releases use the same standard asset boundary, plus a
 prerelease semver tag, `--latest=false`, and no Full first-install payload.
 Both Stable and Nightly release notes are generated through
-`scripts/generate-release-notes.ts --ai` or `release:publish`'s default
-AI-first path. The deterministic release-note evidence JSON is the source of
-truth; Codex only turns that evidence into public English prose. Stable compares
-with the previous Stable release, Nightly compares with the previous Nightly
-prerelease, and repeated channel boilerplate is excluded from the body. Public
-GitHub Release notes must present One Person Lab as the OPL App distribution of
-the OPL agent/runtime package, not as a GUI-only changelog. Stable/Full notes
-must include the build-time payload refs from `full-package-manifest.json` for
-the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI,
-and MinerU, plus the payload changes against the previous Stable manifest when
-that manifest is available. Nightly notes must still describe the standard
-package's App-managed MAS/MAG/RCA/OPL Meta Agent entry surface and Codex
-plugin/skill sync policy, and explicitly state that Full runtime payloads are
-outside the Nightly channel. The AI quality gate rejects Chinese text, missing
-payload refs, missing user impact, generic version lists, and fixed boilerplate
-sections such as Release focus, Update channel guidance, Full first-install
-package, or Bundled OPL runtime and agent versions. Full release evidence also
-records `agent_runtime_changes` from each payload component's manifest
-`source_path` and resolved commit when the source repo is locally available.
-Those summaries are the material the AI writer should turn into user-facing
-agent value: MAS as research/study workflow support, MAG as grant/funding
-workflow support, RCA as visual deliverable support, OPL Meta Agent as agent
-design/testing support, Framework/Codex as runtime support, and OfficeCLI/MinerU
-as document and extraction tooling. Build refs remain audit evidence in the
-payload section; they should not be the headline of the release note.
-
-GitHub release jobs run release notes in `OPL_RELEASE_NOTES_PROVIDER=auto`.
-They request `models: read` and first call GitHub Models with
-`GITHUB_TOKEN`; `OPL_RELEASE_NOTES_GITHUB_MODEL` defaults to
-`openai/gpt-5-mini`. They also install `@openai/codex@latest` and run
-`scripts/setup-release-notes-codex-config.ts` to write a CI-only
-`CODEX_HOME/config.toml` from repository configuration for fallback use.
-Required fallback configuration is variable `OPL_RELEASE_NOTES_CODEX_BASE_URL`,
-variable `OPL_RELEASE_NOTES_MODEL`, and secret
-`OPL_RELEASE_NOTES_CODEX_API_KEY`; `OPL_RELEASE_NOTES_CODEX_PROVIDER` defaults
-to `gflab`, and `OPL_RELEASE_NOTES_CODEX_WIRE_API` defaults to `responses`.
-GitHub Actions does not inherit the maintainer Mac's `~/.codex/config.toml`,
-third-party `base_url`, or local auth state. Jobs upload the small
-`release-notes-evidence-<version>` artifact for audit and do not download
-DMG/ZIP assets to diagnose release notes. If GitHub Models is unavailable,
-rate-limited, or fails the note quality gate, the writer logs the provider
-failure and falls back to the configured Codex/gflab provider. If both providers
-or the quality gate fail, publishing fails closed. The quality gate also rejects
-self-referential release-note copy and process-first openings that talk about
-CI, workflows, contracts, telemetry, or validation before explaining what users
-can do more easily in the App. The opening user-benefit paragraph must appear
-immediately after the title, before section headings, and payload evidence lines
-must remain normal bullets rather than blockquotes. When concrete
-`agent_runtime_changes` are available, role-only copy is insufficient; the note
-must mention the actual runtime changes such as currentness, closeout handoff,
-route-back, progress-first owner payloads, provider/operator evidence, or
-work-order gates in user-facing language. `OPL_RELEASE_NOTES_MODE=template`
-is reserved for dry-run diagnostics only; published releases must use the
-AI-first path. Local tests can inject a fake writer with
-`OPL_RELEASE_NOTES_AI_COMMAND`; production jobs must use the auto provider
-chain above.
+`scripts/generate-release-notes.ts`: Stable compares with the previous Stable
+release, Nightly compares with the previous Nightly prerelease, and repeated
+channel boilerplate is excluded from the body. Public GitHub Release notes are
+English-only and must include the bundled OPL-family agent payloads when a Full
+package is published: MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, and MinerU.
 The same boundary guard fails closed when any release workflow drops the
 top-level `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` policy.
 
@@ -694,7 +670,8 @@ metadata.
 Stable desktop release workflows publish
 `ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>`, `stable`, and
 `latest` after Docker/WebUI HTTP smoke passes. Nightly publishes
-`<app_or_opl_version>` and `nightly`. The Framework only references this image
+`<app_or_opl_version>` and `nightly`. Both lanes label the image source as
+`https://github.com/gaofeng21cn/one-person-lab-app`. The Framework only references this image
 coordinate. Full DMG payload assembly must not include the WebUI GHCR image, and
 standard updater metadata remains restricted to standard macOS arm64 App assets.
 The existing `one-person-lab-webui` GHCR package must separately grant write

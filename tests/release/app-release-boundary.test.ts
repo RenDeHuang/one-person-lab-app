@@ -1735,15 +1735,19 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
     default_validation: 'fail_closed',
     allow_missing_evidence_flag: '--allow-missing-evidence',
     missing_status: 'missing_evidence',
-    blocked_status: 'blocked_evidence',
-    typed_blocker_root: 'typed-blockers/',
-    typed_blocker_requires: [
-      'typed_blocker_ref',
-      'owner',
-      'blocker_kind',
+    allowed_artifact_statuses: [
+      'present',
+      'missing',
+      'typed_blocker',
+      'not_applicable',
+    ],
+    typed_blocker_status_requires: [
       'reason',
-      'evidence_refs',
-      'next_action',
+      'typed_blocker_ref',
+    ],
+    not_applicable_status_requires: [
+      'reason',
+      'not_applicable_reason',
     ],
     packaged_app_evidence_requires: 'all_required_artifacts_present_and_verified',
   });
@@ -2048,13 +2052,13 @@ test('release evidence bundle validator fails closed for incomplete packaged App
     authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
     artifacts,
     missing_evidence: artifacts
-      .filter((artifact) => artifact.status === 'missing')
-      .map((artifact) => ({
-        id: artifact.id,
-        path: artifact.path,
-        reason: artifact.missing_reason,
-      })),
-    blocked_evidence: [],
+    .filter((artifact) => artifact.status === 'missing')
+    .map((artifact) => ({
+      id: artifact.id,
+      path: artifact.path,
+      status: artifact.status,
+      reason: artifact.missing_reason,
+    })),
   }, null, 2)}\n`);
   writeRuntimeEvidenceJsonFiles(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
@@ -2095,17 +2099,28 @@ test('release evidence bundle validator fails closed for incomplete packaged App
   ]);
 });
 
-test('release evidence bundle validator records typed blockers without claiming packaged App evidence', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-blocked-'));
+test('release evidence bundle validator classifies typed blockers and not-applicable artifacts without packaged evidence', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-classified-'));
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
+  const nonPresentById = new Map([
+    ['first_run_vm_summary', {
+      status: 'typed_blocker',
+      reason: 'clean VM host is unavailable for this cohort',
+      typed_blocker_ref: 'github-actions:opl-first-run-vm#blocked-no-runner',
+    }],
+    ['guest_smoke_summary', {
+      status: 'not_applicable',
+      reason: 'draft evidence cohort did not package a launchable app',
+      not_applicable_reason: 'draft_evidence_only_no_packaged_app',
+    }],
+  ]);
   const artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => (
-    artifact.id === 'first_run_vm_summary'
+    nonPresentById.has(artifact.id)
       ? {
           ...artifact,
-          status: 'blocked',
-          typed_blocker_path: 'typed-blockers/first_run_vm_summary.json',
+          ...nonPresentById.get(artifact.id),
         }
       : {
           ...artifact,
@@ -2115,33 +2130,30 @@ test('release evidence bundle validator records typed blockers without claiming 
   writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
     schema_version: 1,
     purpose: 'app_release_evidence_bundle',
-    status: 'blocked_evidence',
+    status: 'missing_evidence',
     packaged_app_evidence: false,
     acceptance_path: 'Runtime page',
     runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
     refs_only: true,
     authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
     artifacts,
-    missing_evidence: [],
-    blocked_evidence: [
-      {
-        id: 'first_run_vm_summary',
-        path: 'tart-smoke-summary.json',
-        typed_blocker_path: 'typed-blockers/first_run_vm_summary.json',
-      },
-    ],
+    missing_evidence: artifacts
+      .filter((artifact) => artifact.status !== 'present')
+      .map((artifact) => ({
+        id: artifact.id,
+        path: artifact.path,
+        status: artifact.status,
+        reason: artifact.reason,
+        ...(artifact.typed_blocker_ref ? { typed_blocker_ref: artifact.typed_blocker_ref } : {}),
+        ...(artifact.not_applicable_reason ? { not_applicable_reason: artifact.not_applicable_reason } : {}),
+      })),
   }, null, 2)}\n`);
   writeRuntimeEvidenceJsonFiles(tempRoot);
   writeVmSmokeSummaryFiles(tempRoot);
-  writeAssistantRouteSmokeScreenshots(tempRoot);
   writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
-  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
-  fs.rmSync(path.join(tempRoot, 'tart-smoke-summary.json'), { force: true });
-  writeTypedBlockerFile(tempRoot, 'first_run_vm_summary', {
-    reason: 'clean Tart VM received an IP but SSH closed the connection before guest smoke could run',
-  });
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
 
   const blocked = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -2150,7 +2162,7 @@ test('release evidence bundle validator records typed blockers without claiming 
   ]);
 
   assert.notEqual(blocked.status, 0);
-  assert.match(blocked.stderr, /missing or blocked and cannot be used as packaged App evidence/);
+  assert.match(blocked.stderr, /cannot be used as packaged App evidence/);
 
   const allowed = runNode([
     'scripts/validate-release-evidence-bundle.ts',
@@ -2161,14 +2173,82 @@ test('release evidence bundle validator records typed blockers without claiming 
 
   assert.equal(allowed.status, 0, allowed.stderr || allowed.stdout);
   const payload = JSON.parse(allowed.stdout);
-  assert.equal(payload.status, 'blocked_evidence');
+  assert.equal(payload.status, 'missing_evidence');
   assert.equal(payload.packaged_app_evidence, false);
-  assert.equal(payload.verified_artifact_count, 15);
-  assert.equal(payload.missing_artifact_count, 0);
-  assert.equal(payload.blocked_artifact_count, 1);
-  assert.equal(payload.blocked_artifacts[0].id, 'first_run_vm_summary');
-  assert.equal(payload.blocked_artifacts[0].typed_blocker_ref, 'typed_blocker_ref://one-person-lab-app/test/first_run_vm_summary');
-  assert.match(payload.blocked_artifacts[0].reason, /SSH closed/);
+  assert.equal(payload.verified_artifact_count, 10);
+  assert.equal(payload.missing_artifact_count, 2);
+  assert.deepEqual(
+    payload.missing_artifacts.map((artifact) => [artifact.id, artifact.status]),
+    [
+      ['first_run_vm_summary', 'typed_blocker'],
+      ['guest_smoke_summary', 'not_applicable'],
+    ],
+  );
+  assert.equal(
+    payload.missing_artifacts.find((artifact) => artifact.id === 'first_run_vm_summary').typed_blocker_ref,
+    'github-actions:opl-first-run-vm#blocked-no-runner',
+  );
+  assert.equal(
+    payload.missing_artifacts.find((artifact) => artifact.id === 'guest_smoke_summary').not_applicable_reason,
+    'draft_evidence_only_no_packaged_app',
+  );
+});
+
+test('release evidence manifest generator applies explicit artifact classifications', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-classified-generated-'));
+  const classificationPath = path.join(tempRoot, 'artifact-classifications.json');
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeTinyPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeFile(path.join(classificationPath), `${JSON.stringify({
+    artifact_classifications: [
+      {
+        id: 'first_run_vm_summary',
+        status: 'typed_blocker',
+        reason: 'clean VM host is unavailable for this cohort',
+        typed_blocker_ref: 'github-actions:opl-first-run-vm#blocked-no-runner',
+      },
+      {
+        id: 'guest_smoke_summary',
+        status: 'not_applicable',
+        reason: 'draft evidence cohort did not package a launchable app',
+        not_applicable_reason: 'draft_evidence_only_no_packaged_app',
+      },
+    ],
+  }, null, 2)}\n`);
+
+  const generated = runNode([
+    'scripts/write-release-evidence-manifest.ts',
+    '--bundle-dir',
+    tempRoot,
+    '--classification',
+    classificationPath,
+  ]);
+
+  assert.equal(generated.status, 0, generated.stderr || generated.stdout);
+  const generatedPayload = JSON.parse(generated.stdout);
+  assert.equal(generatedPayload.status, 'missing_evidence');
+  assert.equal(generatedPayload.packaged_app_evidence, false);
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(tempRoot, 'evidence-manifest.json'), 'utf8'));
+  assert.deepEqual(
+    manifest.missing_evidence.map((artifact) => [artifact.id, artifact.status]),
+    [
+      ['first_run_vm_summary', 'typed_blocker'],
+      ['guest_smoke_summary', 'not_applicable'],
+      ['assistant_route_smoke_summary', 'missing'],
+      ['remote_release_verification', 'missing'],
+    ],
+  );
+  assert.equal(
+    manifest.missing_evidence.find((artifact) => artifact.id === 'first_run_vm_summary').typed_blocker_ref,
+    'github-actions:opl-first-run-vm#blocked-no-runner',
+  );
+  assert.equal(
+    manifest.missing_evidence.find((artifact) => artifact.id === 'guest_smoke_summary').not_applicable_reason,
+    'draft_evidence_only_no_packaged_app',
+  );
 });
 
 test('release evidence bundle validator rejects contract-only runtime JSON placeholders', () => {
@@ -3411,122 +3491,6 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
   assert.deepEqual(payload.skipped_existing_artifacts, []);
 });
 
-test('publish dry run uploads one asset at a time with largest assets first', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-upload-order-'));
-  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
-  const outDir = path.join(shellRoot, 'out');
-  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
-  const version = '26.5.19-upload-order';
-  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
-  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
-
-  writeFile(path.join(outDir, dmgName), 'd'.repeat(2048));
-  writeFile(path.join(outDir, zipName), 'z'.repeat(128));
-  writeFile(path.join(outDir, `${dmgName}.blockmap`), 'b'.repeat(64));
-  writeReleaseMetadata(outDir, version, dmgName);
-  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
-
-  const result = runNode([
-    'scripts/publish-release.ts',
-    '--no-build',
-    '--dry-run',
-    '--shell-root',
-    shellRoot,
-    '--version',
-    version,
-  ], {
-    env: {
-      OPL_RELEASE_EXISTS: '0',
-      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
-    },
-  });
-
-  assert.equal(result.status, 0, result.stderr);
-  const payload = JSON.parse(result.stdout);
-  assert.equal(payload.upload_commands.length, payload.artifacts.length);
-  assert.ok(payload.upload_commands.every((command) => command[0] === 'gh'));
-  assert.ok(payload.upload_commands.every((command) => command[1] === 'release' && command[2] === 'upload'));
-  const uploadSizes = payload.upload_commands.map((command) => fs.statSync(command[4]).size);
-  assert.deepEqual(uploadSizes, [...uploadSizes].sort((left, right) => right - left));
-  assert.ok(payload.upload_commands.every((command) => command.includes('--clobber')));
-});
-
-test('publish cleans up a newly-created draft release when asset upload fails', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-upload-failure-cleanup-'));
-  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
-  const outDir = path.join(shellRoot, 'out');
-  const binDir = path.join(tempRoot, 'bin');
-  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
-  const ghLog = path.join(tempRoot, 'gh-log.jsonl');
-  const version = '26.5.19-upload-cleanup';
-  const tag = `v${version}`;
-  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
-  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
-
-  writeFile(path.join(outDir, dmgName), 'dmg');
-  writeFile(path.join(outDir, zipName), 'zip');
-  writeReleaseMetadata(outDir, version, dmgName);
-  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
-  fs.mkdirSync(binDir, { recursive: true });
-  fs.writeFileSync(path.join(binDir, 'gh'), `#!/usr/bin/env node
-const fs = require('node:fs');
-const args = process.argv.slice(2);
-fs.appendFileSync(${JSON.stringify(ghLog)}, JSON.stringify(args) + '\\n');
-if (args.join(' ') === ${JSON.stringify(`release view ${tag} --repo gaofeng21cn/one-person-lab-app --json tagName`)}) {
-  process.exit(1);
-}
-if (args[0] === 'release' && args[1] === 'create') {
-  process.exit(0);
-}
-if (args[0] === 'release' && args[1] === 'upload') {
-  console.error('simulated large asset upload failure');
-  process.exit(1);
-}
-if (args.join(' ') === ${JSON.stringify(`release delete ${tag} --repo gaofeng21cn/one-person-lab-app --yes --cleanup-tag`)}) {
-  process.exit(0);
-}
-console.error('unexpected gh args: ' + args.join(' '));
-process.exit(2);
-`, { mode: 0o755 });
-
-  const result = runNode([
-    'scripts/publish-release.ts',
-    '--no-build',
-    '--shell-root',
-    shellRoot,
-    '--version',
-    version,
-    '--draft',
-  ], {
-    env: {
-      PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
-      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
-    },
-  });
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /simulated large asset upload failure/);
-  assert.match(result.stderr, /Cleaned up newly created release v26\.5\.19-upload-cleanup after upload failure/);
-  const ghCalls = fs.readFileSync(ghLog, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
-  assert.deepEqual(ghCalls.map((args) => args.slice(0, 2).join(' ')), [
-    'release view',
-    'release list',
-    'release create',
-    'release upload',
-    'release delete',
-  ]);
-  assert.equal(ghCalls.find((args) => args[0] === 'release' && args[1] === 'upload').filter((arg) => String(arg).startsWith(outDir)).length, 1);
-  assert.deepEqual(ghCalls.at(-1), [
-    'release',
-    'delete',
-    tag,
-    '--repo',
-    'gaofeng21cn/one-person-lab-app',
-    '--yes',
-    '--cleanup-tag',
-  ]);
-});
-
 test('publish dry run generates organized English release notes for standard and Full lanes', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-notes-'));
   const fullPackageDir = path.join(tempRoot, 'full');
@@ -3617,32 +3581,21 @@ This release makes a clean OPL install more useful immediately by shipping refre
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   const notes = payload.release_notes;
-  const visibleNotes = stripLocalizedReleaseNotesForTest(notes);
-  assert.match(notes, /OPL_RELEASE_NOTES:en-US/);
-  assert.match(notes, /OPL_RELEASE_NOTES:zh-CN/);
-  assert.match(notes, /这次更新让一次干净的 OPL 安装更快可用/);
-  assert.match(visibleNotes, /One Person Lab 26\.5\.18/);
-  assert.match(visibleNotes, /OPL agents and runtime payload/);
-  assert.match(visibleNotes, /Full clean-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills\./);
-  assert.match(visibleNotes, /OPL Framework @ aaaaaaa/);
-  assert.match(visibleNotes, /Codex CLI 0\.130\.0/);
-  assert.match(visibleNotes, /What improved/);
-  assert.match(visibleNotes, /clean OPL install more useful immediately/);
-  assert.match(visibleNotes, /Packaged OPL agents are ready sooner/);
-  assert.match(visibleNotes, /Release scope/);
-  assert.match(visibleNotes, /Standard macOS arm64 updater package plus Full clean-install DMG\./);
-  assert.match(visibleNotes, /MAS @ 1111111/);
-  assert.match(visibleNotes, /MAG @ 2222222/);
-  assert.match(visibleNotes, /RCA @ 3333333/);
-  assert.match(visibleNotes, /OPL Meta Agent @ 4444444/);
-  assert.match(visibleNotes, /OfficeCLI 1\.2\.3/);
-  assert.match(visibleNotes, /MinerU v0\.1\.3/);
-  assert.doesNotMatch(visibleNotes, /Release focus/);
-  assert.doesNotMatch(visibleNotes, /Update channel guidance/);
-  assert.doesNotMatch(visibleNotes, /Full first-install package/);
-  assert.doesNotMatch(visibleNotes, /Bundled OPL runtime and agent versions/);
-  assert.doesNotMatch(visibleNotes, /Strengthened package builds/);
-  assert.doesNotMatch(visibleNotes, /[\u3400-\u9fff]/);
+  assert.match(notes, /One Person Lab 26\.5\.18/);
+  assert.match(notes, /What changed/);
+  assert.match(notes, /Release scope/);
+  assert.match(notes, /Standard macOS arm64 updater package and Full clean-install DMG/);
+  assert.match(notes, /Bundled OPL runtime and agent versions/);
+  assert.match(notes, /MAS @ 1111111/);
+  assert.match(notes, /MAG @ 2222222/);
+  assert.match(notes, /RCA @ 3333333/);
+  assert.match(notes, /OPL Meta Agent @ 4444444/);
+  assert.match(notes, /OfficeCLI 1\.2\.3/);
+  assert.match(notes, /MinerU v0\.1\.3/);
+  assert.doesNotMatch(notes, /Release focus/);
+  assert.doesNotMatch(notes, /Update channel guidance/);
+  assert.doesNotMatch(notes, /Full first-install package/);
+  assert.doesNotMatch(notes, /[\u3400-\u9fff]/);
 });
 
 test('publish rejects Full notes when OPL Meta Agent release-note metadata is missing', () => {
@@ -4505,6 +4458,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:[\s\S]*needs: publish-standard/);
   assert.match(workflow, /run_vm_smoke:/);
   assert.match(workflow, /default: true/);
+  assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-standard-only:/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
@@ -4513,10 +4467,13 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /webui-ghcr-publish:/);
   assert.match(workflow, /OPL_INSTALL_SCRIPT_URL: file:\/\/\$\{\{ github\.workspace \}\}\/one-person-lab\/install\.sh/);
   assert.match(workflow, /\.\/install\.sh --complete --skip-modules/);
-  assert.match(workflow, /docker build -t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}" shells\/aionui/);
+  assert.match(workflow, /docker build[\s\S]*--label "org\.opencontainers\.image\.source=https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"[\s\S]*-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"[\s\S]*shells\/aionui/);
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
   assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
   assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
+  assert.match(workflow, /write_publish_summary "failed" "ghcr_write_package_denied"/);
+  assert.match(workflow, /required_actions_access_repository: 'gaofeng21cn\/one-person-lab-app'/);
+  assert.match(workflow, /source_repository: 'https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}'/);
   assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}"/);
   assert.match(workflow, /"\$\{ghcr_image\}:stable"/);
   assert.match(workflow, /"\$\{ghcr_image\}:latest"/);
@@ -4535,7 +4492,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(fullWorkflow, /name: Checkout MinerU Ecosystem/);
   assert.match(fullWorkflow, /repository: opendatalab\/MinerU-Ecosystem/);
   assert.match(fullWorkflow, /path: MinerU-Ecosystem/);
-  assert.match(fullWorkflow, /uses: actions\/setup-go@v5/);
+  assert.match(fullWorkflow, /uses: actions\/setup-go@v6/);
   assert.match(fullWorkflow, /go-version: '1\.26\.x'/);
   assert.match(fullWorkflow, /mineru_root="\$GITHUB_WORKSPACE\/MinerU-Ecosystem\/cli\/mineru-open-api"/);
   assert.match(fullWorkflow, /go install -ldflags/);
@@ -4550,7 +4507,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   );
   assert.match(vmWorkflow, /workflow_call:/);
   assert.match(vmWorkflow, /release_artifact_name:/);
-  assert.match(vmWorkflow, /actions\/download-artifact@v7/);
+  assert.match(vmWorkflow, /actions\/download-artifact@v8/);
   assert.match(vmWorkflow, /Using same-run workflow artifact/);
   assert.match(vmWorkflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/);
   assert.match(vmWorkflow, /fetch_release_metadata_with_retry\(\)/);
@@ -4595,6 +4552,49 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     releaseContract.release_acceleration.github_actions.desktop_release_workflow,
     '.github/workflows/desktop-release.yml',
   );
+  assert.deepEqual(releaseContract.webui_ghcr_image, {
+    owner: 'one-person-lab-app',
+    registry: 'ghcr.io',
+    image: 'ghcr.io/<owner>/one-person-lab-webui',
+    version_tag: '<app_or_opl_version>',
+    source: 'shells/aionui Dockerfile',
+    source_repository: 'https://github.com/gaofeng21cn/one-person-lab-app',
+    required_oci_labels: {
+      'org.opencontainers.image.source': 'https://github.com/gaofeng21cn/one-person-lab-app',
+    },
+    github_package_access: {
+      package_url: 'https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui/settings',
+      package_landing_url: 'https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui',
+      target_repository_association: 'gaofeng21cn/one-person-lab-app',
+      current_historical_association_allowed_until_ui_migration: 'gaofeng21cn/one-person-lab',
+      repository_association_surface: 'GitHub Packages settings Connect repository',
+      required_actions_access_repository: 'gaofeng21cn/one-person-lab-app',
+      required_actions_access_permission: 'write',
+      configuration_surface: 'GitHub Packages settings Manage Actions access',
+      public_api_policy: 'GitHub does not expose a stable public REST or GraphQL endpoint for configuring personal package repository association or Actions access; configure these gates through the package settings UI.',
+      failure_signal: 'docker push denied: permission_denied: write_package',
+      rule: 'App-owned WebUI GHCR publishing requires the one-person-lab-webui package to be associated with gaofeng21cn/one-person-lab-app and to grant write Actions access to gaofeng21cn/one-person-lab-app before App workflows can update existing GHCR tags.',
+    },
+    retention_policy: {
+      strategy: 'retain_latest_n_versions_and_declared_rollbacks',
+      retain_stable_versions: 5,
+      retain_nightly_versions: 7,
+      protected_tags: ['latest', 'stable', 'nightly'],
+      cleanup_execution_mode: 'dry_run_first_explicit_execute_required',
+      destructive_action_requires: 'package_admin_with_delete_packages_scope',
+      rule: 'WebUI GHCR cleanup must retain protected moving tags, recent stable/nightly versions, and declared rollback tags; deletion is never part of ordinary release publishing.',
+    },
+    publish_workflows: [
+      '.github/workflows/desktop-release.yml',
+      '.github/workflows/nightly-standard-release.yml',
+    ],
+    stable_tags: ['<app_or_opl_version>', 'stable', 'latest'],
+    nightly_tags: ['<app_or_opl_version>', 'nightly'],
+    draft_candidate_push: false,
+    full_first_install_payload_allowed: false,
+    framework_role: 'references_image_coordinate_only',
+    rule: 'WebUI GHCR image publish truth is App-owned; Framework may reference the image coordinate but does not own publishing.',
+  });
   assert.equal(
     releaseContract.release_acceleration.github_actions.first_run_vm_workflow,
     '.github/workflows/opl-first-run-vm.yml',
@@ -4705,33 +4705,22 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/generate-release-notes\.ts[\s\S]*--channel nightly/);
-  assert.match(workflow, /Install Codex release-note writer/);
-  assert.match(workflow, /npm install -g @openai\/codex@latest/);
-  assert.match(workflow, /models: read/);
-  assert.match(workflow, /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_PROVIDER: auto/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_GITHUB_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_GITHUB_MODEL \|\| 'openai\/gpt-5-mini' \}\}/);
-  assert.match(workflow, /Configure Codex release-note writer/);
-  assert.match(workflow, /CODEX_HOME: \$\{\{ runner\.temp \}\}\/release-notes-codex-home/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_PROVIDER: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_PROVIDER \|\| 'gflab' \}\}/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_BASE_URL \}\}/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_CODEX_API_KEY \}\}/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_WIRE_API: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_WIRE_API \|\| 'responses' \}\}/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_MODEL \}\}/);
-  assert.match(workflow, /node --experimental-strip-types scripts\/setup-release-notes-codex-config\.ts/);
-  assert.doesNotMatch(workflow, /OPENAI_API_KEY: \$\{\{ secrets\.OPENAI_API_KEY \}\}/);
-  assert.match(workflow, /node --experimental-strip-types scripts\/generate-release-notes\.ts[\s\S]*--ai[\s\S]*--evidence-output "\$evidence_file"/);
-  assert.match(workflow, /release-notes-evidence-\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}/);
+  assert.match(workflow, /remote_tag_sha="\$\(git ls-remote --tags origin "refs\/tags\/\$\{OPL_RELEASE_TAG\}" \| awk '\{print \$1\}'\)"/);
+  assert.match(workflow, /git push --force-with-lease="refs\/tags\/\$\{OPL_RELEASE_TAG\}:\$\{remote_tag_sha\}" origin "refs\/tags\/\$\{OPL_RELEASE_TAG\}"/);
+  assert.match(workflow, /git push origin "refs\/tags\/\$\{OPL_RELEASE_TAG\}"/);
   assert.match(workflow, /gh release create "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease[\s\S]*--latest=false[\s\S]*--verify-tag/);
   assert.match(workflow, /gh release edit "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease/);
   assert.match(workflow, /--title "\$\{OPL_RELEASE_TAG\}"/);
   assert.match(workflow, /gh release upload "\$\{OPL_RELEASE_TAG\}" release-assets\/\*/);
   assert.match(workflow, /npm run verify-remote-release/);
   assert.match(workflow, /webui-ghcr-publish:/);
-  assert.match(workflow, /docker build -t "one-person-lab-webui:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}" shells\/aionui/);
+  assert.match(workflow, /docker build[\s\S]*--label "org\.opencontainers\.image\.source=https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"[\s\S]*-t "one-person-lab-webui:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}"[\s\S]*shells\/aionui/);
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
   assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
   assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
+  assert.match(workflow, /write_publish_summary "failed" "ghcr_write_package_denied"/);
+  assert.match(workflow, /required_actions_access_repository: 'gaofeng21cn\/one-person-lab-app'/);
+  assert.match(workflow, /source_repository: 'https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}'/);
   assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}"/);
   assert.match(workflow, /"\$\{ghcr_image\}:nightly"/);
   assert.doesNotMatch(workflow, /full-first-install-release\.yml/);
@@ -4739,8 +4728,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.doesNotMatch(workflow, /One-Person-Lab-Full/);
   assert.doesNotMatch(workflow, /nightly\.\$\{stamp\}/);
   assert.doesNotMatch(workflow, /One Person Lab Nightly \$\{OPL_RELEASE_VERSION\}/);
-  assert.doesNotMatch(workflow, /Standard macOS arm64 App assets only/);
-  assert.doesNotMatch(workflow, /This prerelease is for users/);
+  assert.doesNotMatch(workflow, /This prerelease is for users who opt into prerelease\/Nightly updates/);
   assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:latest"/);
   assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:stable"/);
   assert.match(boundaryScript, /nightly_standard_release_workflow/);
@@ -4783,6 +4771,8 @@ test('stable validation profile covers every user installation surface', () => {
   const scenarioIds = firstRunMatrix.scenarios.map((scenario) => scenario.id);
   const stable = releaseContract.release_validation_profiles.stable;
 
+  assert.ok(stable.required_lanes.includes('webui_ghcr_publish'));
+  assert.ok(stable.required_lanes.indexOf('webui_ghcr_publish') > stable.required_lanes.indexOf('docker_webui_smoke'));
   assert.deepEqual(stable.required_installation_surfaces, [
     'standard_dmg_clean_vm_smoke',
     'full_dmg_clean_vm_smoke',
@@ -4814,6 +4804,9 @@ test('stable validation profile covers every user installation surface', () => {
   assert.match(combinedDocs, /Nightly[\s\S]*standard[\s\S]*remote/i);
   assert.match(combinedDocs, /Stable[\s\S]*standard DMG[\s\S]*Full DMG[\s\S]*one-shot[\s\S]*Docker\/WebUI/i);
   assert.match(combinedDocs, /ghcr\.io\/<owner>\/one-person-lab-webui:<app_or_opl_version>/);
+  assert.match(combinedDocs, /Manage Actions access/);
+  assert.match(combinedDocs, /permission_denied: write_package/);
+  assert.match(combinedDocs, /ghcr_write_package_denied/);
   assert.match(combinedDocs, /Framework[\s\S]*references?[\s\S]*image coordinate/i);
   assert.match(combinedDocs, /Full[\s\S]*DMG[\s\S]*must not include[\s\S]*WebUI GHCR image/i);
 });
@@ -4836,7 +4829,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(verifyWorkflow, /npm run verify-remote-release/);
   assert.match(verifyWorkflow, /--summary-path remote-release-verification\.json/);
   assert.match(verifyWorkflow, /verify_args\+=\(--include-full-package\)/);
-  assert.match(verifyWorkflow, /actions\/upload-artifact@v4/);
+  assert.match(verifyWorkflow, /actions\/upload-artifact@v7/);
 
   assert.match(warmupWorkflow, /name: OPL Full Runtime Cache Warmup/);
   assert.match(warmupWorkflow, /schedule:/);
@@ -4862,7 +4855,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(cleanupWorkflow, /--summary-path release-draft-cleanup-summary\.json/);
   assert.match(cleanupWorkflow, /cleanup_args\+=\(--execute\)/);
   assert.match(cleanupWorkflow, /cleanup_args\+=\(--dry-run\)/);
-  assert.match(cleanupWorkflow, /actions\/upload-artifact@v4/);
+  assert.match(cleanupWorkflow, /actions\/upload-artifact@v7/);
   assert.doesNotMatch(cleanupWorkflow, /actions\/download-artifact/);
   assert.doesNotMatch(cleanupWorkflow, /gh release download/);
   assert.match(cleanupScript, /\^v\$\{escaped\}-\(draft\|readiness\)\\\\\.\\\\d\{14\}\$/);
@@ -5145,7 +5138,7 @@ test('release creation job runs TypeScript asset scripts under Node 22', () => {
 
   assert.match(
     workflow,
-    /name: Create Release[\s\S]*name: Checkout active shell[\s\S]*repository: gaofeng21cn\/opl-aion-shell[\s\S]*path: shells\/aionui[\s\S]*name: Setup Node\.js[\s\S]*uses: actions\/setup-node@v4[\s\S]*node-version: '22'[\s\S]*node --experimental-strip-types scripts\/prepare-release-assets\.ts/,
+    /name: Create Release[\s\S]*name: Checkout active shell[\s\S]*repository: gaofeng21cn\/opl-aion-shell[\s\S]*path: shells\/aionui[\s\S]*name: Setup Node\.js[\s\S]*uses: actions\/setup-node@v6[\s\S]*node-version: '22'[\s\S]*node --experimental-strip-types scripts\/prepare-release-assets\.ts/,
   );
 });
 

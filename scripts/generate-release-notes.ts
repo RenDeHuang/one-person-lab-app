@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { buildReleaseNotesDocument, buildReleaseNotesEvidence } from './release-notes.ts';
-import { buildAiReleaseNotesDocument } from './release-notes-ai-writer.ts';
+import { buildReleaseNotesDocument } from './release-notes.ts';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 type Channel = 'stable' | 'nightly';
@@ -14,9 +13,7 @@ function parseArgs(argv: string[]) {
     releaseRepo: string;
     shellRoot: string;
     includeFullPackage: boolean;
-    ai: boolean;
     fullPackageManifestPath: string;
-    previousFullPackageManifestPath: string;
     output: string;
     previousTag: string;
     currentTag: string;
@@ -24,16 +21,13 @@ function parseArgs(argv: string[]) {
     currentAppRef: string;
     previousShellRef: string;
     currentShellRef: string;
-    evidenceOutput: string;
   } = {
     version: '',
     channel: 'stable',
     releaseRepo: process.env.OPL_RELEASE_REPO || 'gaofeng21cn/one-person-lab-app',
     shellRoot: process.env.OPL_APP_SHELL_ROOT || process.env.OPL_AION_SHELL_ROOT || resolveActiveShellPaths().shellRoot,
     includeFullPackage: false,
-    ai: false,
     fullPackageManifestPath: '',
-    previousFullPackageManifestPath: '',
     output: '',
     previousTag: '',
     currentTag: '',
@@ -41,17 +35,12 @@ function parseArgs(argv: string[]) {
     currentAppRef: '',
     previousShellRef: '',
     currentShellRef: '',
-    evidenceOutput: '',
   };
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === '--include-full-package') {
       parsed.includeFullPackage = true;
-      continue;
-    }
-    if (token === '--ai') {
-      parsed.ai = true;
       continue;
     }
     const value = argv[index + 1];
@@ -72,12 +61,8 @@ function parseArgs(argv: string[]) {
     } else if (token === '--full-package-manifest') {
       parsed.fullPackageManifestPath = path.resolve(value);
       parsed.includeFullPackage = true;
-    } else if (token === '--previous-full-package-manifest') {
-      parsed.previousFullPackageManifestPath = path.resolve(value);
     } else if (token === '--output') {
       parsed.output = path.resolve(value);
-    } else if (token === '--evidence-output') {
-      parsed.evidenceOutput = path.resolve(value);
     } else if (token === '--previous-tag') {
       parsed.previousTag = value;
     } else if (token === '--current-tag') {
@@ -108,32 +93,20 @@ function main() {
   const fullPackageManifest = options.fullPackageManifestPath
     ? JSON.parse(fs.readFileSync(options.fullPackageManifestPath, 'utf8'))
     : null;
-  const previousFullPackageManifest = options.previousFullPackageManifestPath
-    ? JSON.parse(fs.readFileSync(options.previousFullPackageManifestPath, 'utf8'))
-    : null;
-  const releaseNoteOptions = {
+  const notes = buildReleaseNotesDocument({
     version: options.version,
     channel: options.channel,
     releaseRepo: options.releaseRepo,
     shellRoot: options.shellRoot,
     includeFullPackage: options.includeFullPackage,
     fullPackageManifest,
-    previousFullPackageManifest,
     previousTag: options.previousTag,
     currentTag: options.currentTag,
     previousAppRef: options.previousAppRef,
     currentAppRef: options.currentAppRef,
     previousShellRef: options.previousShellRef,
     currentShellRef: options.currentShellRef,
-  };
-  const evidence = buildReleaseNotesEvidence(releaseNoteOptions);
-  if (options.evidenceOutput) {
-    fs.mkdirSync(path.dirname(options.evidenceOutput), { recursive: true });
-    fs.writeFileSync(options.evidenceOutput, `${JSON.stringify(evidence, null, 2)}\n`);
-  }
-  const notes = options.ai
-    ? buildAiReleaseNotesDocument(evidence)
-    : buildReleaseNotesDocument(releaseNoteOptions);
+  });
   if (options.output) {
     fs.mkdirSync(path.dirname(options.output), { recursive: true });
     fs.writeFileSync(options.output, notes);

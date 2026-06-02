@@ -22,7 +22,7 @@ runs:
         path: shells/aionui
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '22'
 
@@ -32,7 +32,7 @@ runs:
         bun-version: latest
 
     - name: Cache Bun install cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.bun/install/cache
         key: bun-install-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('shells/aionui/package.json', 'shells/aionui/bun.lock') }}

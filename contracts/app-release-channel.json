@@ -404,15 +404,19 @@
       "default_validation": "fail_closed",
       "allow_missing_evidence_flag": "--allow-missing-evidence",
       "missing_status": "missing_evidence",
-      "blocked_status": "blocked_evidence",
-      "typed_blocker_root": "typed-blockers/",
-      "typed_blocker_requires": [
-        "typed_blocker_ref",
-        "owner",
-        "blocker_kind",
+      "allowed_artifact_statuses": [
+        "present",
+        "missing",
+        "typed_blocker",
+        "not_applicable"
+      ],
+      "typed_blocker_status_requires": [
         "reason",
-        "evidence_refs",
-        "next_action"
+        "typed_blocker_ref"
+      ],
+      "not_applicable_status_requires": [
+        "reason",
+        "not_applicable_reason"
       ],
       "packaged_app_evidence_requires": "all_required_artifacts_present_and_verified"
     },

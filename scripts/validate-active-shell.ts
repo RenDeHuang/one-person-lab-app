@@ -3111,6 +3111,30 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
   if (bundle.missing_evidence_policy?.missing_status !== 'missing_evidence') {
     throw new Error('Operator evidence bundle missing evidence policy must declare missing_evidence status');
   }
+  if (
+    !Array.isArray(bundle.missing_evidence_policy?.allowed_artifact_statuses) ||
+    !['present', 'missing', 'typed_blocker', 'not_applicable'].every((status) =>
+      bundle.missing_evidence_policy.allowed_artifact_statuses.includes(status)
+    )
+  ) {
+    throw new Error('Operator evidence bundle must declare present, missing, typed_blocker, and not_applicable statuses');
+  }
+  if (
+    !Array.isArray(bundle.missing_evidence_policy?.typed_blocker_status_requires) ||
+    !['reason', 'typed_blocker_ref'].every((field) =>
+      bundle.missing_evidence_policy.typed_blocker_status_requires.includes(field)
+    )
+  ) {
+    throw new Error('Operator evidence bundle typed_blocker status must require reason and typed_blocker_ref');
+  }
+  if (
+    !Array.isArray(bundle.missing_evidence_policy?.not_applicable_status_requires) ||
+    !['reason', 'not_applicable_reason'].every((field) =>
+      bundle.missing_evidence_policy.not_applicable_status_requires.includes(field)
+    )
+  ) {
+    throw new Error('Operator evidence bundle not_applicable status must require reason and not_applicable_reason');
+  }
   if (bundle.missing_evidence_policy?.packaged_app_evidence_requires !== 'all_required_artifacts_present_and_verified') {
     throw new Error('Operator evidence bundle must require all artifacts before claiming packaged App evidence');
   }

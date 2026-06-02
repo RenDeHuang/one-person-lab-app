@@ -5,8 +5,7 @@ import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
-import { buildReleaseNotesDocument, buildReleaseNotesEvidence } from './release-notes.ts';
-import { buildAiReleaseNotesDocument } from './release-notes-ai-writer.ts';
+import { buildReleaseNotesDocument } from './release-notes.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultFullPackageDir = path.resolve(repoRoot, 'dist', 'opl-full-release');
@@ -456,72 +455,97 @@ function suggestDefaultReleaseVersion(repo, dateVersion) {
   throw new Error(`No available same-day suffix for GUI release date version ${dateVersion}.`);
 }
 
-function releaseNotesMode() {
-  const mode = (process.env.OPL_RELEASE_NOTES_MODE || 'ai').trim().toLowerCase();
-  if (mode !== 'ai' && mode !== 'template') {
-    throw new Error(`Unsupported OPL_RELEASE_NOTES_MODE: ${process.env.OPL_RELEASE_NOTES_MODE}`);
+function formatFriendlyTimestamp(value) {
+  if (!value) {
+    return 'this release build';
   }
-  return mode;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(date).map((part) => [part.type, part.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} Beijing time`;
 }
 
-function writeReleaseNotesEvidence(evidence) {
-  const outputPath = process.env.OPL_RELEASE_NOTES_EVIDENCE_OUTPUT?.trim();
-  if (!outputPath) {
-    return;
-  }
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, `${JSON.stringify(evidence, null, 2)}\n`);
+function shortSha(value) {
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, 7) : null;
 }
 
-function buildReleaseNotes(version, includeFullPackage, shellRoot, fullPackageManifest = null, options = {}) {
-  const releaseNoteOptions = {
+function buildBundledModuleNotes(manifest) {
+  if (!manifest?.components || typeof manifest.components !== 'object') {
+    return [];
+  }
+  const generatedAt = formatFriendlyTimestamp(manifest.generated_at);
+  const modules = [
+    ['MAS', manifest.components.mas],
+    ['MAG', manifest.components.mag],
+    ['RCA', manifest.components.rca],
+    ['OPL Meta Agent', manifest.components.meta_agent],
+  ]
+    .filter(([, component]) => component && typeof component === 'object')
+    .map(([label, component]) => {
+      const sha = shortSha(component?.git_commit);
+      return sha ? `- ${label}: ${generatedAt} build, main @ ${sha}` : `- ${label}: ${generatedAt} build`;
+    });
+  const officeCliVersion = manifest.components.officecli?.version;
+  if (officeCliVersion) {
+    modules.push(`- OfficeCLI: ${String(officeCliVersion).split(/\r?\n/)[0]}`);
+  }
+  const mineruOpenApiVersion = manifest.components.mineru_open_api?.version;
+  if (mineruOpenApiVersion) {
+    modules.push(`- MinerU OpenAPI CLI: ${String(mineruOpenApiVersion).split(/\r?\n/)[0]}`);
+  }
+  return modules;
+}
+
+function buildReleaseNotes(version, includeFullPackage, shellRoot, fullPackageManifest = null) {
+  return buildReleaseNotesDocument({
     version,
     channel: version.includes('-nightly') ? 'nightly' : 'stable',
-    releaseRepo: options.releaseRepo || process.env.OPL_RELEASE_REPO || 'gaofeng21cn/one-person-lab-app',
+    releaseRepo: process.env.OPL_RELEASE_REPO || 'gaofeng21cn/one-person-lab-app',
     shellRoot,
     includeFullPackage,
     fullPackageManifest,
     currentTag: `v${version}`,
-  };
-  const evidence = buildReleaseNotesEvidence(releaseNoteOptions);
-  writeReleaseNotesEvidence(evidence);
-  const mode = releaseNotesMode();
-  if (mode === 'template') {
-    if (!options.allowTemplate) {
-      throw new Error('OPL_RELEASE_NOTES_MODE=template is allowed only for dry-run diagnostics; published releases must use AI release notes.');
-    }
-    return {
-      mode,
-      notes: buildReleaseNotesDocument(releaseNoteOptions),
-    };
-  }
-  return {
-    mode,
-    notes: buildAiReleaseNotesDocument(evidence),
-  };
+  });
 }
 
-function replaceReleaseNotes(repo, tag, notes) {
-  run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', notes]);
-}
-
-function cleanupNewlyCreatedReleaseAfterUploadFailure(repo, tag) {
-  const result = spawnSync('gh', ['release', 'delete', tag, '--repo', repo, '--yes', '--cleanup-tag'], {
+function ensureFullPackageReleaseNotes(repo, tag, version, fullPackageManifest = null) {
+  const current = spawnSync('gh', ['release', 'view', tag, '--repo', repo, '--json', 'body', '--jq', '.body'], {
     encoding: 'utf8',
     stdio: 'pipe',
-    env: process.env,
   });
-  if (result.status !== 0) {
-    const detail = `${result.stdout || ''}${result.stderr || ''}`.trim();
-    throw new Error(
-      `Upload failed after creating ${tag}, and cleanup failed. Delete the incomplete release manually before retrying.${detail ? `\ncleanup=${detail}` : ''}`,
-    );
+  if (current.status !== 0) {
+    throw new Error(`Command failed: gh release view ${tag} --repo ${repo}\nstderr=${current.stderr || ''}`);
   }
-  console.error(`Cleaned up newly created release ${tag} after upload failure.`);
-}
 
-function buildUploadArgs(repo, tag, artifactPath) {
-  return ['release', 'upload', tag, artifactPath, '--repo', repo, '--clobber'];
+  const currentNotes = current.stdout.trimEnd();
+  const legacyFullSectionPattern = /^Full first-install package:?[\s\S]*$/m;
+  const fullVersionsPattern = /^## (?:本次 Full 包内置版本|Bundled OPL runtime and agent versions)[\s\S]*$/m;
+  const baseNotes = currentNotes
+    .replace(legacyFullSectionPattern, '')
+    .replace(fullVersionsPattern, '')
+    .trimEnd();
+  const bundledModuleNotes = buildBundledModuleNotes(fullPackageManifest)
+    .map((line) => line.replace(/^-\s*/, ''));
+  const nextNotes = bundledModuleNotes.length > 0
+    ? [
+        ...(baseNotes ? [baseNotes, ''] : []),
+        '## Bundled OPL runtime and agent versions',
+        `- ${bundledModuleNotes.join('; ')}`,
+      ].join('\n')
+    : baseNotes;
+  run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', nextNotes]);
 }
 
 function uploadReleaseArtifacts(repo, tag, artifactPaths) {

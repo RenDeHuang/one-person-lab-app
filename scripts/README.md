@@ -15,7 +15,7 @@ verification can select a different linked shell repo with
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
-| `generate-release-notes.ts` | Generates deterministic release-note evidence and, with `--ai`, asks the configured AI provider chain to write English OPL App release notes from that evidence. Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, Stable/Full includes OPL Framework, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, and MinerU payload refs plus payload deltas when manifests are available, and Nightly explains the standard agent entry/plugin/skill sync surface without Full payloads. For Full manifests with local `source_path` repos, evidence also includes `agent_runtime_changes` so the note can describe MAS research/study, MAG grant/funding, RCA visual-deliverable, OPL Meta Agent, runtime, Office, and extraction improvements in user-facing language before listing audit refs. |
+| `generate-release-notes.ts` | Generates English, channel-aware release notes: Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, both group changes by user purpose, and Full releases include OPL-family agent payload versions. |
 | `cleanup-draft-release-candidates.ts` | Dry-runs or deletes stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. |
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
@@ -45,8 +45,8 @@ node --experimental-strip-types scripts/validate-active-shell.ts --only i18n_typ
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run release:publish -- --no-build --version <version> --standard-artifacts-dir release-assets
-npm run release:notes -- --ai --version <version> --channel stable --include-full-package --full-package-manifest <path/to/full-package-manifest.json> --evidence-output /tmp/opl-release-notes-evidence.json
-npm run release:notes -- --ai --version <YY.M.D-nightly> --channel nightly --evidence-output /tmp/opl-nightly-notes-evidence.json
+npm run release:notes -- --version <version> --channel stable --include-full-package
+npm run release:notes -- --version <YY.M.D-nightly> --channel nightly
 npm run verify-remote-release -- --version <version> --include-full-package
 npm run verify-remote-release -- --version <YY.M.D-nightly>
 npm run release:cleanup-drafts -- --version <version>
@@ -155,28 +155,6 @@ standard updater assets, publishes or refreshes the daily prerelease semver tag,
 updates that tag to the current workflow commit on same-day reruns, keeps
 `latest` unchanged, writes release notes that compare against the previous
 Nightly, and runs the remote standard asset verifier without Full assets.
-All generated GitHub Release notes are English AI-first prose written from
-deterministic evidence JSON. Keep the OPL App package perspective: the main
-payload story is the bundled or App-managed OPL agent/runtime surface.
-Stable/Full notes use the Full manifest for exact Framework, Codex CLI, MAS,
-MAG, RCA, OPL Meta Agent, OfficeCLI, and MinerU refs; Nightly notes describe the
-standard updater package's OPL agent entry surface and state that Full runtime
-payloads remain out of Nightly. `OPL_RELEASE_NOTES_AI_COMMAND` is the local test
-hook for injecting a fake writer. `OPL_RELEASE_NOTES_MODE=template` is only for
-dry-run diagnostics; published releases fail closed unless the AI writer and
-quality gate pass. GitHub release jobs use `OPL_RELEASE_NOTES_PROVIDER=auto`:
-they request `models: read`, call GitHub Models first with `GITHUB_TOKEN` and
-`OPL_RELEASE_NOTES_GITHUB_MODEL` (default `openai/gpt-5-mini`), then fall back
-to Codex/gflab if GitHub Models is unavailable, rate-limited, or fails the
-quality gate. The fallback installs `@openai/codex@latest`, and
-`scripts/setup-release-notes-codex-config.ts` writes a CI-only
-`CODEX_HOME/config.toml` from repository configuration: variables
-`OPL_RELEASE_NOTES_CODEX_PROVIDER` (defaults to `gflab`),
-`OPL_RELEASE_NOTES_CODEX_BASE_URL`, `OPL_RELEASE_NOTES_CODEX_WIRE_API`
-(defaults to `responses`), `OPL_RELEASE_NOTES_MODEL`, and secret
-`OPL_RELEASE_NOTES_CODEX_API_KEY`. The runner never inherits the maintainer
-Mac's `~/.codex/config.toml`. Release jobs upload only the small
-`release-notes-evidence-<version>` JSON artifact for audit.
 
 Stable release verification keeps the heavy installation checks in separate
 lanes for speed and debuggability: standard DMG clean VM, Full DMG clean VM,
