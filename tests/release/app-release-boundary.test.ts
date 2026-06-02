@@ -5699,6 +5699,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /bunBin: process\.env\.OPL_FULL_BUN_BIN \|\| ''/);
   assert.match(buildScript, /temporalCliBin: process\.env\.OPL_FULL_TEMPORAL_CLI_BIN \|\| ''/);
   assert.match(buildScript, /temporalCliArchive: process\.env\.OPL_FULL_TEMPORAL_CLI_ARCHIVE \|\| ''/);
+  assert.doesNotMatch(buildScript, /--hermes-root/);
   assert.match(buildScript, /else if \(token === '--bun-bin'\) parsed\.bunBin = path\.resolve\(value\)/);
   assert.match(buildScript, /else if \(token === '--temporal-cli-bin'\) parsed\.temporalCliBin = path\.resolve\(value\)/);
   assert.match(buildScript, /else if \(token === '--temporal-cli-archive'\) parsed\.temporalCliArchive = path\.resolve\(value\)/);

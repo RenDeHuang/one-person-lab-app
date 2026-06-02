@@ -3,7 +3,7 @@
 Owner: `one-person-lab-app`
 Purpose: `app_ideal_gui_interaction_spec`
 State: `active_definition`
-机器边界：本文是人读交互定义。机器可读 GUI 真相在 `contracts/`、
+Machine boundary: 本文是人读交互定义。机器可读 GUI 真相在 `contracts/`、
 page-state 矩阵、adapter contracts、源码、发布产物和测试输出中。
 
 本文定义 One Person Lab App 的理想用户交互模型。它不绑定具体 shell。

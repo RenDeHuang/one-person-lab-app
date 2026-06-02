@@ -3,7 +3,7 @@
 Owner: `one-person-lab-app`
 Purpose: `product_level_gui_feature_inventory`
 State: `active`
-机器边界：本文是人读能力清单。机器可读 GUI 真相在 App-owned contracts、
+Machine boundary: 本文是人读能力清单。机器可读 GUI 真相在 App-owned contracts、
 page-state matrices、adapter contracts 和 release evidence 中。
 
 本文列出 One Person Lab App 不依赖当前 shell implementation 的目标 GUI 能力。

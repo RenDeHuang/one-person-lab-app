@@ -3,7 +3,7 @@
 Owner: `one-person-lab-app`
 Purpose: `candidate_shell_verification_runbook`
 State: `active_experimental`
-机器边界：本文是人读验证 runbook。机器可读候选策略在
+Machine boundary: 本文是人读验证 runbook。机器可读候选策略在
 `contracts/app-shell-candidates.json` 和
 `contracts/shell-adapters/agui-codex.json` 中。
 

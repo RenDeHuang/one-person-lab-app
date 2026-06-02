@@ -88,7 +88,7 @@ Non-goals:
 
 Verification commands:
 
-- Docs-only: `rtk git diff --check`, `rtk rg -n "^(<<<<<<<|=======|>>>>>>>)" docs`, `python3 /Users/gaofeng/workspace/opl-doc-governance/scripts/opl_doc_doctor.py doctor /Users/gaofeng/workspace/one-person-lab-app --format json`.
+- Docs-only: `rtk git diff --check`, `rtk rg -n "^(<<<<<<<|=======|>>>>>>>)" docs`, `python3 /Users/gaofeng/workspace/opl-doc/scripts/opl_doc_doctor.py doctor /Users/gaofeng/workspace/one-person-lab-app --format json`.
 - App contract/release boundary changes: `rtk npm run test:release-boundary`, `rtk npm run validate:agent-installation`, live `npm run validate:agent-installation -- --codex-skills-root ~/.codex/skills --agent-root mas=<path> --agent-root mag=<path> --agent-root rca=<path>` when plugin roots are available, `rtk node --experimental-strip-types scripts/validate-active-shell.ts --quick`, and the touched release/evidence validation script.
 - AG-UI/CopilotKit candidate contract/docs changes: `rtk npm run validate:shell-candidates`, `rtk env OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json node --experimental-strip-types scripts/validate-active-shell.ts --quick`, `rtk npm --prefix shells/agui-codex run validate:state-model`, `rtk npm --prefix shells/agui-codex run smoke:webui`, and, when packaging evidence is being claimed, `rtk env OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package`.
 - Shell implementation changes: focused `vitest` for Guid/home/conversation selectors, Settings modal, Guid Access shortcut, and route receipt, `bunx tsc --noEmit`, `bunx oxfmt --check` on touched shell files, and packaged GUI smoke with `--assistant-route-smoke` for release evidence.

@@ -113,9 +113,6 @@ function parseArgs(argv) {
     else if (token === '--out-dir') parsed.outDir = path.resolve(value);
     else if (token === '--framework-root' || token === '--opl-root') parsed.frameworkRoot = path.resolve(value);
     else if (token === '--gui-root') parsed.guiRoot = path.resolve(value);
-    else if (token === '--hermes-root') {
-      throw new Error('--hermes-root has been retired; OPL Full packages no longer include Hermes runtime payloads.');
-    }
     else if (token === '--mas-root') parsed.masRoot = path.resolve(value);
     else if (token === '--mag-root') parsed.magRoot = path.resolve(value);
     else if (token === '--rca-root') parsed.rcaRoot = path.resolve(value);

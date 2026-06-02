@@ -3,7 +3,7 @@
 Owner: `one-person-lab-app`
 Purpose: `codex_to_opl_app_delta`
 State: `active_definition`
-机器边界：本文是人读产品增量定义。机器可读真相在 `contracts/`、源码、
+Machine boundary: 本文是人读产品增量定义。机器可读真相在 `contracts/`、源码、
 发布产物、updater metadata 和测试输出中。
 
 本文定义 One Person Lab App 在 Codex App 用户交互模型之上追加的内容。它
