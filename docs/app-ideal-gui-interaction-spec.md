@@ -170,29 +170,32 @@ Inspector 默认收起。打开时应该像在当前 chat 旁边展开上下文�
 
 ## Runtime 与进度显示
 
-Runtime display 必须 running-activity-first 且 authority-aware。
+Runtime display 必须 user-task-status-first 且 authority-aware。
 
 - 普通状态读取使用 `opl app state --profile fast --json`。
 - 显式 refresh 也使用 fast profile。
-- 默认运行活动读取使用 `opl runtime app-operator-drilldown --json` 的
-  `current_control_state.summary` 和 `current_control_state.states` provider
-  projection。
+- 默认首屏读取 `app_state.operator.workbench.summary_cards`、
+  `activity_center`、`task_drilldowns` 和 `visual_ref_groups.active_project_refs`
+  形成用户任务状态投影。
 - Full state 和 full Operator drilldown 属于 diagnostic 或 release-evidence
   path。
 - Mutation 走 App-owned safe action route：
   `opl app action execute --action <id> [--payload <json>] [--dry-run] --json`。
-- UI 先回答当前是否有真实 active provider executions、在哪些 domain、多少
-  executing tasks、最近 heartbeat 和 task kinds。`running_provider_attempt_count`
-  可以包含 checkpointed provider refs，只能作为高级诊断数，不能直接显示为
-  用户可见的“正在运行任务数”。
-- “正在执行任务”和“进行中项目”必须分层显示。前者只来自 provider execution
-  projection；后者来自 `app_state.operator.workbench.activity_center.active_projects`
-  和 `app_state.operator.visual_ref_groups.active_project_refs`。`queued` 或
-  `escalated` 的 owner-handled paper line 可以计入用户可见的进行中项目，但必须
-  保留原始 `status`、`active_run_id` 和 next step，不能伪装成 active worker run。
+- UI 先回答用户真正关心的四件事：running task count、active project count、
+  queued project count 和 attention count；随后展示 task title/status/stage、
+  progress label、next step、owner 和 last progress。
+- Provider/current_control_state 细节是 secondary diagnostics。`running_provider_attempt_count`
+  可以包含 checkpointed provider refs，不能直接显示为用户可见的“正在运行任务数”。
+- “正在运行任务”“进行中项目”“排队项目”和“需要关注”必须分层显示。任务数来自
+  Framework user-task projection；项目线来自
+  `app_state.operator.workbench.activity_center.active_projects`、
+  `app_state.operator.workbench.summary_cards[active_projects]` 和
+  `app_state.operator.visual_ref_groups.active_project_refs`。`queued` 或
+  `escalated` 的 owner-handled paper line 可以计入用户可见项目线，但必须保留原始
+  `status`、`active_run_id` 和 next step，不能伪装成 active worker run。
 - 项目进度 refs 来自 `app_state.operator.workbench.task_drilldowns`，作为二级
-  project progress；它可以支撑进行中项目和下一步展示，但不用于推断“正在运行的
-  worker task 数”。
+  project progress；它可以支撑项目线和下一步展示，但不用于从 module/runtime
+  dirty state 推断运行任务数。
 - UI 从 OPL shared progress projection 展示项目进度，并区分 deliverable
   progress 与 platform repair。
 - Runtime panel 只展示 refs、receipts、actions、blockers 和 next steps；

@@ -45,12 +45,26 @@ owner-receipt authority, artifact authority, memory body, or OPL family
 production readiness.
 
 The active shell currently tracks AionUI upstream through
-`83eb8bda02af44df9795a10f32fa938dd62b628c` while preserving the App-owned
+`4ba1aabdd0857789ef02a22223b8c78b2f26ebe1` while preserving the App-owned
 product profile. That intake is recorded in `contracts/app-shell-adapter.json`;
 the upstream code is implementation material, not product authority. The shell
 also keeps Codex ACP tool-call output display aligned with native Codex
 behavior by preserving newline-bearing `raw_output` / `stdout` / `stderr`
 content in the conversation view.
+
+2026-06-02 GUI interaction status: Home/Guid is now contract-backed as a
+composer-first Codex canvas with visible GPT-5.5（超高） model status, purpose
+entries `科研`/`基金`/`演示`, collapsed workspace/session rail, and a collapsed
+right context inspector. The element audit lives in
+`docs/app-gui-element-audit.md`; the target interaction definition lives in
+`docs/app-ideal-gui-interaction-spec.md`; machine acceptance is enforced by
+`contracts/app-gui-product-contract.json`,
+`contracts/app-page-state-matrix.json`,
+`contracts/app-product-profile.json`, `scripts/validate-active-shell.ts`, and
+focused release-boundary tests. The active shell implements the right inspector
+as a user-opened auxiliary surface with Files, Capabilities, Routing/runtime,
+Memory, Automations, and Settings tabs while keeping runtime truth, domain
+truth, memory body, and artifact body outside shell authority.
 
 Install/exposure policy is now contract-backed in
 `contracts/app-install-exposure-policy.json`. The public semantic ABI is the

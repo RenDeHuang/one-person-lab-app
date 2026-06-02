@@ -805,6 +805,43 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.gui.home.codex_home_model_status_label, 'GPT-5.5（超高）');
   assert.equal(profile.gui.home.codex_home_model_status_label_en, 'GPT-5.5 (Ultra)');
   assert.equal(profile.gui.home.codex_precise_model_display_policy, 'friendly_default_model_and_reasoning_visible');
+  assert.deepEqual(profile.gui.home.home_layout, {
+    default_mode: 'composer_first_chat_canvas',
+    first_screen_policy: 'chat_first_no_dashboard_or_landing_copy',
+    composer_position: 'pinned_bottom',
+    composer_primary: true,
+    workspace_selector_visible: true,
+    purpose_entries_visible: ['research', 'grant', 'ppt'],
+    workspace_session_rail_default_state: 'collapsed',
+    right_context_inspector_default_state: 'collapsed',
+    must_not_show: [
+      'dashboard-first home',
+      'explanatory landing page',
+      'backend settings panel in composer',
+    ],
+  });
+  assert.deepEqual(profile.gui.ordinary_conversation, {
+    path_id: 'ordinary_codex_conversation',
+    entry_source: 'home_purpose_entry_or_new_conversation',
+    executor: 'codex_cli',
+    composer_position: 'pinned_bottom',
+    purpose_tag_visible: true,
+    assistant_route_receipt_required: true,
+    backend_selector_visible: false,
+    model_selector_visible: true,
+    permission_mode_selector_visible: false,
+    provider_selector_visible: false,
+    model_status_surface: 'gui.home.codex_home_model_status_label',
+    technical_details_policy: 'friendly_default_model_and_reasoning_visible',
+  });
+  assert.deepEqual(
+    profile.gui.right_context_inspector.tabs.map((tab) => tab.id),
+    ['files', 'capabilities', 'runtime', 'memory', 'automations', 'settings'],
+  );
+  assert.equal(profile.gui.right_context_inspector.placement, 'right');
+  assert.equal(profile.gui.right_context_inspector.default_state, 'collapsed');
+  assert.equal(profile.gui.right_context_inspector.opens_on_user_request_only, true);
+  assert.equal(profile.gui.right_context_inspector.chat_canvas_remains_primary, true);
   assert.equal(profile.gui.home.codex_auto_model_selection.strategy, 'codex_cli_auto_latest_available_frontier');
   assert.equal(profile.gui.home.codex_auto_model_selection.user_can_override_model, true);
   assert.equal(profile.gui.home.codex_auto_model_selection.user_can_restore_auto, true);
@@ -1232,10 +1269,57 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimeBridge.live_conformance_gate.fast_state_max_bytes, 500000);
   assert.equal(runtimeBridge.live_conformance_gate.required_state_schema, 'opl_app_state.v1');
   assert.equal(runtimeBridge.live_conformance_gate.golden_fast_state_fixture, 'contracts/fixtures/opl-app-state-fast.fixture.json');
-  assert.equal(runtimeBridge.projection_sources.primary, 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.summary');
+  assert.equal(runtimeBridge.projection_sources.primary, 'app_state.operator user task status projection');
   assert.equal(runtimeBridge.projection_sources.provider, 'runtime_tray_snapshot.app_operator_drilldown.current_control_state.states.provider_run');
   assert.equal(runtimeBridge.projection_sources.actions, 'app_state.actions');
-  assert.equal(runtimeBridge.projection_sources.policy, 'running_activity_from_provider_attempt_projection_project_progress_refs_secondary');
+  assert.equal(
+    runtimeBridge.projection_sources.policy,
+    'user_task_status_from_app_state_project_refs_provider_projection_diagnostic_only',
+  );
+  assert.deepEqual(runtimeBridge.user_task_status_projection, {
+    source: 'app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs',
+    authority: 'opl_framework_refs_only_user_task_projection',
+    display_policy: 'user_task_status_first_provider_projection_diagnostic_only',
+    default_user_question:
+      "How many tasks are running, how many projects or tasks are active or queued, how many need attention, and what is each task's current step?",
+    summary_fields: [
+      'running_task_count',
+      'active_project_count',
+      'queued_project_count',
+      'attention_count',
+    ],
+    task_fields: [
+      'task_id',
+      'title',
+      'status',
+      'stage',
+      'progress_label',
+      'next_step',
+      'owner',
+      'last_progress',
+    ],
+    count_policies: {
+      running_task_count: 'count user tasks projected as actively running or advancing, never raw provider attempts',
+      active_project_count: 'count active user-visible project lines from the framework project-line projection',
+      queued_project_count: 'count queued or waiting user-visible project/task lines without claiming active worker runs',
+      attention_count: 'count user-visible blockers, human gates, failed safe actions, or owner attention states',
+    },
+    progress_label_policy:
+      'render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names',
+    diagnostic_source_policy:
+      'provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language',
+    must_not_default_display_terms: [
+      'Temporal',
+      'provider',
+      'projection',
+      'ref',
+      'stage attempt',
+      'ledger',
+      'current_control_state',
+    ],
+    refs_only: true,
+    app_role: 'display_only_user_task_status_consumer',
+  });
   assert.deepEqual(runtimeBridge.project_progress_projection, {
     source: 'app_state.operator.workbench.task_drilldowns',
     authority: 'opl_framework_shared_project_progress_projection',
@@ -1336,6 +1420,21 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   ]);
   assert.equal(guidHomePage.home_view_model.codex_user_can_override_model, true);
   assert.equal(guidHomePage.home_view_model.codex_user_can_restore_auto, true);
+  assert.deepEqual(guidHomePage.home_view_model.home_layout, {
+    default_mode: 'composer_first_chat_canvas',
+    first_screen_policy: 'chat_first_no_dashboard_or_landing_copy',
+    composer_position: 'pinned_bottom',
+    composer_primary: true,
+    workspace_selector_visible: true,
+    purpose_entries_visible: ['research', 'grant', 'ppt'],
+    workspace_session_rail_default_state: 'collapsed',
+    right_context_inspector_default_state: 'collapsed',
+    must_not_show: [
+      'dashboard-first home',
+      'explanatory landing page',
+      'backend settings panel in composer',
+    ],
+  });
   assert.deepEqual(guidHomePage.home_view_model.retired_codex_models_must_not_be_exposed, [
     'gpt-5.2-codex',
     'gpt-5.1-codex-max',
@@ -1405,6 +1504,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'workspace selector',
     'file attachment control',
     'send action',
+    'workspace/session rail collapsed by default',
+    'right context inspector collapsed by default',
   ]) {
     assert.ok(guidHomePage.must_show.includes(expected), expected);
   }
@@ -1419,11 +1520,40 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
+    'dashboard-first home',
+    'explanatory landing page',
+    'backend settings panel in composer',
     'domain artifact body in Home activity center',
     'memory body in Home activity center',
   ]) {
     assert.ok(guidHomePage.must_not_show.includes(forbidden), forbidden);
   }
+
+  const ordinaryConversationPage = pageStateMatrix.pages.find((page) => page.id === 'ordinary_conversation');
+  const rightContextInspectorPage = pageStateMatrix.pages.find((page) => page.id === 'right_context_inspector');
+  assert.equal(ordinaryConversationPage.page_contract, 'ordinary_codex_conversation');
+  assert.deepEqual(ordinaryConversationPage.conversation_view_model, {
+    path_id: 'ordinary_codex_conversation',
+    entry_source: 'home_purpose_entry_or_new_conversation',
+    executor: 'codex_cli',
+    composer_position: 'pinned_bottom',
+    purpose_tag_visible: true,
+    assistant_route_receipt_required: true,
+    backend_selector_visible: false,
+    model_selector_visible: true,
+    permission_mode_selector_visible: false,
+    provider_selector_visible: false,
+    model_status_surface_ref: 'contracts/app-gui-product-contract.json#executor_policy.default_model_display_value',
+    technical_details_policy: 'friendly_default_model_and_reasoning_visible',
+  });
+  assert.deepEqual(
+    rightContextInspectorPage.inspector_view_model.tabs.map((tab) => tab.id),
+    ['files', 'capabilities', 'runtime', 'memory', 'automations', 'settings'],
+  );
+  assert.equal(rightContextInspectorPage.inspector_view_model.placement, 'right');
+  assert.equal(rightContextInspectorPage.inspector_view_model.default_state, 'collapsed');
+  assert.equal(rightContextInspectorPage.inspector_view_model.chat_canvas_remains_primary, true);
+  assert.equal(rightContextInspectorPage.inspector_view_model.opens_on_user_request_only, true);
 
   for (const [pageContract, expected] of Object.entries(expectedSettingsPageSections)) {
     const page = pageById.get(expected.matrixId);
@@ -1443,13 +1573,13 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   assert.equal(
     runtimePage.primary_projection,
-    'app_operator_drilldown.current_control_state.states active provider executions',
+    'app_state.operator user task status projection',
   );
   assert.equal(runtimePage.fallback_projection, 'fast App state only for availability/actions; full drilldown only for explicit detail');
   assert.equal(runtimePage.framework_command, 'opl app state --profile fast --json');
   assert.equal(runtimePage.framework_full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.equal(runtimePage.framework_action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
-  assert.equal(runtimePage.page_contract, 'runtime_running_activity_first');
+  assert.equal(runtimePage.page_contract, 'runtime_user_task_status_first');
   assert.equal(
     runtimePage.operator_evidence_acceptance_path.role,
     'runtime_page_operator_evidence_acceptance',
@@ -1483,9 +1613,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     runtimePage.operator_evidence_acceptance_path.action_execution_policy,
     'operator_selected_safe_app_action_route_only',
   );
-  assert.equal(runtimePage.runtime_view_model.role, 'opl_runtime_running_activity');
+  assert.equal(runtimePage.runtime_view_model.role, 'opl_runtime_user_task_status');
   assert.equal(runtimePage.runtime_view_model.bridge_contract, 'contracts/app-runtime-bridge.json');
-  assert.equal(runtimePage.runtime_view_model.default_mode, 'running_activity_first');
+  assert.equal(runtimePage.runtime_view_model.default_mode, 'user_task_status_first');
   assert.equal(runtimePage.runtime_view_model.full_detail_policy, 'on_demand_only');
   assert.equal(runtimePage.runtime_view_model.polling_fallback.interval_seconds_min, 5);
   assert.equal(runtimePage.runtime_view_model.polling_fallback.interval_seconds_max, 10);
@@ -1497,6 +1627,49 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimePage.runtime_view_model.action_queue.source, 'app_state.actions');
   assert.equal(runtimePage.runtime_view_model.action_queue.fallback_source, 'app_state.operator.actions');
   assert.equal(runtimePage.runtime_view_model.action_queue.authority, 'framework_refs_only');
+  assert.deepEqual(runtimePage.runtime_view_model.user_task_status_projection, {
+    source: 'app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs',
+    authority: 'opl_framework_refs_only_user_task_projection',
+    display_policy: 'user_task_status_first_provider_projection_diagnostic_only',
+    default_user_question:
+      "How many tasks are running, how many projects or tasks are active or queued, how many need attention, and what is each task's current step?",
+    summary_fields: [
+      'running_task_count',
+      'active_project_count',
+      'queued_project_count',
+      'attention_count',
+    ],
+    task_fields: [
+      'task_id',
+      'title',
+      'status',
+      'stage',
+      'progress_label',
+      'next_step',
+      'owner',
+      'last_progress',
+    ],
+    count_policies: {
+      running_task_count: 'count user tasks projected as actively running or advancing, never raw provider attempts',
+      active_project_count: 'count active user-visible project lines from the framework project-line projection',
+      queued_project_count: 'count queued or waiting user-visible project/task lines without claiming active worker runs',
+      attention_count: 'count user-visible blockers, human gates, failed safe actions, or owner attention states',
+    },
+    progress_label_policy:
+      'render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names',
+    diagnostic_source_policy:
+      'provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language',
+    must_not_default_display_terms: [
+      'Temporal',
+      'provider',
+      'projection',
+      'ref',
+      'stage attempt',
+      'ledger',
+      'current_control_state',
+    ],
+    refs_only: true,
+  });
   assert.deepEqual(runtimePage.runtime_view_model.project_progress, {
     source: 'app_state.operator.workbench.task_drilldowns',
     authority: 'opl_framework_shared_project_progress_projection',
@@ -1595,7 +1768,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.deepEqual(runtimePage.runtime_view_model.running_task_projection, {
     source: 'app_operator_drilldown.current_control_state.summary + current_control_state.states',
     authority: 'opl_framework_provider_attempt_projection',
-    display_policy: 'active_execution_first_no_module_dirty_or_checkpointed_provider_ref_as_task',
+    display_policy: 'diagnostic_only_no_provider_attempt_count_as_user_running_task_count',
     user_visible_grain: 'domain_and_active_execution_summary_until_project_projection_available',
     active_execution_filter:
       'states where running_provider_attempt is true and provider_run.provider_status or current_attempt_state is running',
@@ -1627,7 +1800,13 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimePage.runtime_view_model.authority_boundary.action_execution_owner, 'opl_framework');
   assert.equal(runtimePage.runtime_view_model.authority_boundary.domain_verdict_owner, 'domain_agent');
   for (const expected of [
-    'running activity from current_control_state provider projection',
+    'user task status first OPL runtime status',
+    'running task count from framework user task projection',
+    'active project count from framework project-line projection',
+    'queued project count from framework project-line projection',
+    'attention count from framework blocker and owner-attention projection',
+    'task title/status/stage/progress label/next step/owner/last progress',
+    'provider/current_control_state details as diagnostics only',
     'summary OPL operator drilldown read model',
     'fast App state refresh',
     'app_state.operator.workbench.task_drilldowns project progress refs',
@@ -1646,8 +1825,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     assert.ok(runtimePage.operator_evidence_path.includes(expected), expected);
   }
   for (const expected of [
-    'running activity first OPL runtime status',
-    'running activity from app_operator_drilldown.current_control_state provider projection',
+    'user task status first OPL runtime status',
+    'running task count',
+    'active project count',
+    'queued project count',
+    'attention count',
+    'task title/status/stage/progress label/next step/owner/last progress',
     'project progress from app_state.operator.workbench.task_drilldowns',
     'active project line count from app_state.operator.workbench.activity_center.active_projects',
     'project title/domain/current state/current stage',
@@ -1665,6 +1848,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'platform repair delta as separate infrastructure repair',
     'receipt/count refresh after execute',
     'refs-only non-authority boundary',
+    'next owner action before full evidence ledger',
+    'full evidence ledger only as secondary on-demand diagnostic',
   ]) {
     assert.ok(runtimePage.must_show.includes(expected), expected);
   }
@@ -3711,7 +3896,7 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   assert.equal(adapterContract.shell_contract.layout_id, 'aionui_v2_workspace');
   assert.equal(adapterContract.shell_contract.paths.product_profile_target, 'packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json');
   assert.equal(adapterContract.shell_contract.paths.electron_builder_config, 'packages/desktop/electron-builder.yml');
-  assert.equal(adapterContract.shell_source.upstream_ref, '83eb8bda02af44df9795a10f32fa938dd62b628c');
+  assert.equal(adapterContract.shell_source.upstream_ref, '4ba1aabdd0857789ef02a22223b8c78b2f26ebe1');
   assert.match(
     workflow,
     /name: Prepare standard App payload[\s\S]*working-directory: \$\{\{ github\.workspace \}\}[\s\S]*run: node --experimental-strip-types scripts\/prepare-standard-release-payload\.ts/,

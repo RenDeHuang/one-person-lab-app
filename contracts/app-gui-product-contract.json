@@ -698,6 +698,7 @@
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "executor_policy_ref": "executor_policy",
+      "home_layout_ref": "home_layout",
       "assistant_source_ref": "default_assistants",
       "purpose_entry_source_ref": "home_purpose_entries",
       "assistant_skill_profile_source_ref": "assistant_skill_profiles",
@@ -726,6 +727,8 @@
         "file attachment control",
         "send action",
         "single composer-first home input",
+        "workspace/session rail collapsed by default",
+        "right context inspector collapsed by default",
         "runtime/task progress available from Runtime page, not Home activity grid"
       ],
       "must_not_show": [
@@ -739,6 +742,9 @@
         "skills outside the App packaged skill set in home skill menu",
         "retired Codex model choices",
         "nested input card frames",
+        "dashboard-first home",
+        "explanatory landing page",
+        "backend settings panel in composer",
         "expanded workbench or activity refs grid on ordinary home",
         "compact continue-work entry near the home input",
         "needs attention, active, and recent refs on Home",
@@ -777,6 +783,45 @@
         ],
         "rationale": "ordinary Home stays composer-first; access and feedback live in Settings/About surfaces"
       }
+    },
+    "ordinary_conversation": {
+      "state_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json",
+      "ordinary_conversation_ref": "ordinary_conversation",
+      "route_receipt_policy_ref": "builtin_assistant_route_receipt_policy",
+      "must_show": [
+        "Codex CLI ordinary conversation",
+        "pinned composer",
+        "compact purpose tag",
+        "assistant route receipt",
+        "Codex default model and reasoning status"
+      ],
+      "must_not_show": [
+        "backend selector as normal conversation control",
+        "permission mode selector as normal conversation control",
+        "provider selector as normal conversation control"
+      ]
+    },
+    "right_context_inspector": {
+      "state_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json",
+      "right_context_inspector_ref": "right_context_inspector",
+      "must_show": [
+        "right-side collapsible inspector",
+        "Files refs tab",
+        "Capabilities tab",
+        "Routing/runtime refs tab",
+        "Memory refs tab",
+        "Always-On/Automations tab",
+        "Settings tab"
+      ],
+      "must_not_own": [
+        "runtime truth",
+        "domain truth",
+        "artifact body",
+        "memory body",
+        "backend selection authority"
+      ]
     },
     "about": {
       "state_source": "opl app state --profile fast --json",

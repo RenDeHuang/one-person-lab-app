@@ -120,6 +120,49 @@ const homeActivityCenterForbiddenDisplays = [
   'quality verdict body',
   'provider implementation details',
 ];
+const appOwnedHomeLayout = {
+  default_mode: 'composer_first_chat_canvas',
+  first_screen_policy: 'chat_first_no_dashboard_or_landing_copy',
+  composer_position: 'pinned_bottom',
+  composer_primary: true,
+  workspace_selector_visible: true,
+  purpose_entries_visible: ['research', 'grant', 'ppt'],
+  workspace_session_rail_default_state: 'collapsed',
+  right_context_inspector_default_state: 'collapsed',
+  must_not_show: [
+    'dashboard-first home',
+    'explanatory landing page',
+    'backend settings panel in composer',
+  ],
+};
+const appOwnedOrdinaryConversation = {
+  path_id: 'ordinary_codex_conversation',
+  entry_source: 'home_purpose_entry_or_new_conversation',
+  executor: 'codex_cli',
+  composer_position: 'pinned_bottom',
+  purpose_tag_visible: true,
+  assistant_route_receipt_required: true,
+  backend_selector_visible: false,
+  model_selector_visible: true,
+  permission_mode_selector_visible: false,
+  provider_selector_visible: false,
+  model_status_surface: 'gui.home.codex_home_model_status_label',
+  technical_details_policy: 'friendly_default_model_and_reasoning_visible',
+};
+const appOwnedGuiContractOrdinaryConversation = {
+  ...appOwnedOrdinaryConversation,
+  model_status_surface: 'executor_policy.default_model_display_value',
+};
+const appOwnedPageStateOrdinaryConversation = {
+  ...Object.fromEntries(
+    Object.entries(appOwnedOrdinaryConversation).filter(
+      ([key]) => key !== 'model_status_surface' && key !== 'technical_details_policy',
+    ),
+  ),
+  model_status_surface_ref: 'contracts/app-gui-product-contract.json#executor_policy.default_model_display_value',
+  technical_details_policy: appOwnedOrdinaryConversation.technical_details_policy,
+};
+const appOwnedRightContextInspectorTabIds = ['files', 'capabilities', 'runtime', 'memory', 'automations', 'settings'];
 const settingsPageExpectations = {
   settings_general: {
     matrix_id: 'settings_general',
@@ -2243,6 +2286,37 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (guiContract.executor_policy.executor_tab_visible_when_single_executor !== false) {
     throw new Error('App GUI must hide executor tab when Codex CLI is the only executor');
   }
+  assertDeepEqualJson(
+    guiContract.home_layout,
+    appOwnedHomeLayout,
+    'App GUI home layout',
+  );
+  assertDeepEqualJson(
+    guiContract.ordinary_conversation,
+    appOwnedGuiContractOrdinaryConversation,
+    'App GUI ordinary conversation contract',
+  );
+  assertDeepEqualJson(
+    (guiContract.right_context_inspector?.tabs ?? []).map((tab) => tab.id),
+    appOwnedRightContextInspectorTabIds,
+    'App GUI right context inspector tabs',
+  );
+  for (const [field, expected] of Object.entries({
+    placement: 'right',
+    default_state: 'collapsed',
+    opens_on_user_request_only: true,
+    chat_canvas_remains_primary: true,
+    scope: 'selected_workspace_and_conversation',
+  })) {
+    if (guiContract.right_context_inspector?.[field] !== expected) {
+      throw new Error(`App GUI right context inspector ${field} must be ${expected}`);
+    }
+  }
+  for (const forbiddenOwner of ['runtime truth', 'domain truth', 'artifact body', 'memory body', 'backend selection authority']) {
+    if (!guiContract.right_context_inspector?.must_not_own?.includes(forbiddenOwner)) {
+      throw new Error(`App GUI right context inspector must not own ${forbiddenOwner}`);
+    }
+  }
   const assistants = new Map((guiContract.default_assistants ?? []).map((assistant) => [assistant.id, assistant]));
   for (const assistantId of ['mas', 'mag', 'rca']) {
     const assistant = assistants.get(assistantId);
@@ -2689,6 +2763,11 @@ function validatePageStateMatrix(matrix, contract) {
       throw new Error(`Guid home page ${field} must be ${expected}`);
     }
   }
+  assertDeepEqualJson(
+    homeViewModel.home_layout,
+    appOwnedHomeLayout,
+    'Guid home page layout',
+  );
   for (const assistant of ['mas', 'mag', 'rca']) {
     if (!homeViewModel.default_assistants?.includes(assistant)) {
       throw new Error(`Guid home page must include default assistant ${assistant}`);
@@ -2732,6 +2811,8 @@ function validatePageStateMatrix(matrix, contract) {
     'file attachment control',
     'send action',
     'single composer-first home input',
+    'workspace/session rail collapsed by default',
+    'right context inspector collapsed by default',
     'runtime/task progress available from Runtime page, not Home activity grid',
   ]) {
     if (!guidHomePage.must_show.includes(visibleSignal)) {
@@ -2749,6 +2830,9 @@ function validatePageStateMatrix(matrix, contract) {
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',
+    'dashboard-first home',
+    'explanatory landing page',
+    'backend settings panel in composer',
     'expanded workbench or activity refs grid on ordinary home',
     'domain artifact body in Home activity center',
     'memory body in Home activity center',
@@ -2780,6 +2864,79 @@ function validatePageStateMatrix(matrix, contract) {
     homeActivityCenterForbiddenDisplays,
     'Guid home page activity center forbidden displays',
   );
+
+  const ordinaryConversationPage = (matrix.pages ?? []).find((page) => page.id === 'ordinary_conversation');
+  if (!ordinaryConversationPage) {
+    throw new Error('Page-state matrix is missing ordinary_conversation page');
+  }
+  if (ordinaryConversationPage.page_contract !== 'ordinary_codex_conversation') {
+    throw new Error('Ordinary conversation page contract must be ordinary_codex_conversation');
+  }
+  assertDeepEqualJson(
+    ordinaryConversationPage.conversation_view_model,
+    appOwnedPageStateOrdinaryConversation,
+    'Ordinary conversation view model',
+  );
+  for (const visibleSignal of [
+    'Codex CLI ordinary conversation',
+    'pinned composer',
+    'compact purpose tag',
+    'assistant route receipt',
+    'Codex default model and reasoning status',
+  ]) {
+    if (!ordinaryConversationPage.must_show?.includes(visibleSignal)) {
+      throw new Error(`Ordinary conversation page must show ${visibleSignal}`);
+    }
+  }
+  for (const hiddenSignal of [
+    'backend selector as normal conversation control',
+    'permission mode selector as normal conversation control',
+    'provider selector as normal conversation control',
+  ]) {
+    if (!ordinaryConversationPage.must_not_show?.includes(hiddenSignal)) {
+      throw new Error(`Ordinary conversation page must not show ${hiddenSignal}`);
+    }
+  }
+
+  const rightContextInspectorPage = (matrix.pages ?? []).find((page) => page.id === 'right_context_inspector');
+  if (!rightContextInspectorPage) {
+    throw new Error('Page-state matrix is missing right_context_inspector page');
+  }
+  const inspectorViewModel = rightContextInspectorPage.inspector_view_model;
+  assertDeepEqualJson(
+    (inspectorViewModel?.tabs ?? []).map((tab) => tab.id),
+    appOwnedRightContextInspectorTabIds,
+    'Right context inspector tabs',
+  );
+  for (const [field, expected] of Object.entries({
+    placement: 'right',
+    default_state: 'collapsed',
+    opens_on_user_request_only: true,
+    chat_canvas_remains_primary: true,
+    scope: 'selected_workspace_and_conversation',
+  })) {
+    if (inspectorViewModel?.[field] !== expected) {
+      throw new Error(`Right context inspector ${field} must be ${expected}`);
+    }
+  }
+  for (const visibleSignal of [
+    'right-side collapsible inspector',
+    'Files refs tab',
+    'Capabilities tab',
+    'Routing/runtime refs tab',
+    'Memory refs tab',
+    'Always-On/Automations tab',
+    'Settings tab',
+  ]) {
+    if (!rightContextInspectorPage.must_show?.includes(visibleSignal)) {
+      throw new Error(`Right context inspector page must show ${visibleSignal}`);
+    }
+  }
+  for (const forbiddenOwner of ['runtime truth', 'domain truth', 'artifact body', 'memory body', 'backend selection authority']) {
+    if (!rightContextInspectorPage.must_not_own?.includes(forbiddenOwner)) {
+      throw new Error(`Right context inspector page must not own ${forbiddenOwner}`);
+    }
+  }
 
   const appStatePages = ['settings_general', 'access', 'environment', 'advanced', 'about', 'update', 'settings_theme'];
   for (const pageId of appStatePages) {

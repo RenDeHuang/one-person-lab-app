@@ -55,6 +55,25 @@
         "assistant_skill_profile_source_ref": "contracts/app-gui-product-contract.json#assistant_skill_profiles",
         "conversation_pending_feedback_policy": "elapsed_seconds_visible_while_ai_processing_or_backend_running",
         "conversation_model_status_display_policy": "same_model_status_and_selector_in_codex_conversation_composer",
+        "home_layout": {
+          "default_mode": "composer_first_chat_canvas",
+          "first_screen_policy": "chat_first_no_dashboard_or_landing_copy",
+          "composer_position": "pinned_bottom",
+          "composer_primary": true,
+          "workspace_selector_visible": true,
+          "purpose_entries_visible": [
+            "research",
+            "grant",
+            "ppt"
+          ],
+          "workspace_session_rail_default_state": "collapsed",
+          "right_context_inspector_default_state": "collapsed",
+          "must_not_show": [
+            "dashboard-first home",
+            "explanatory landing page",
+            "backend settings panel in composer"
+          ]
+        },
         "route_receipt_source_ref": "contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy",
         "route_receipt_required_fields": [
           "route_kind",
@@ -145,6 +164,8 @@
         "file attachment control",
         "send action",
         "single composer-first home input",
+        "workspace/session rail collapsed by default",
+        "right context inspector collapsed by default",
         "runtime/task progress available from Runtime page, not Home activity grid"
       ],
       "must_not_show": [
@@ -158,6 +179,9 @@
         "OPL Meta Agent as a default home assistant",
         "retired Codex model choices",
         "nested input card frames",
+        "dashboard-first home",
+        "explanatory landing page",
+        "backend settings panel in composer",
         "expanded workbench or activity refs grid on ordinary home",
         "domain artifact body in Home activity center",
         "memory body in Home activity center",
@@ -166,6 +190,110 @@
         "Home footer favorite/star icon",
         "Home footer web/access globe icon",
         "per-assistant running badges derived from module or domain lane diagnostics"
+      ],
+      "state_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json"
+    },
+    {
+      "id": "ordinary_conversation",
+      "expected_source": "App-owned GUI product contract and OPL App state projection",
+      "machine_source": "contracts/app-gui-product-contract.json#ordinary_conversation + opl app state --profile fast --json",
+      "page_contract": "ordinary_codex_conversation",
+      "conversation_view_model": {
+        "path_id": "ordinary_codex_conversation",
+        "entry_source": "home_purpose_entry_or_new_conversation",
+        "executor": "codex_cli",
+        "composer_position": "pinned_bottom",
+        "purpose_tag_visible": true,
+        "assistant_route_receipt_required": true,
+        "backend_selector_visible": false,
+        "model_selector_visible": true,
+        "permission_mode_selector_visible": false,
+        "provider_selector_visible": false,
+        "model_status_surface_ref": "contracts/app-gui-product-contract.json#executor_policy.default_model_display_value",
+        "technical_details_policy": "friendly_default_model_and_reasoning_visible"
+      },
+      "must_show": [
+        "Codex CLI ordinary conversation",
+        "pinned composer",
+        "compact purpose tag",
+        "assistant route receipt",
+        "Codex default model and reasoning status"
+      ],
+      "must_not_show": [
+        "backend selector as normal conversation control",
+        "permission mode selector as normal conversation control",
+        "provider selector as normal conversation control"
+      ],
+      "state_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json"
+    },
+    {
+      "id": "right_context_inspector",
+      "expected_source": "App-owned GUI product contract and OPL App state projection refs",
+      "machine_source": "contracts/app-gui-product-contract.json#right_context_inspector + opl app state --profile fast --json",
+      "page_contract": "right_context_inspector",
+      "inspector_view_model": {
+        "placement": "right",
+        "default_state": "collapsed",
+        "opens_on_user_request_only": true,
+        "chat_canvas_remains_primary": true,
+        "scope": "selected_workspace_and_conversation",
+        "tabs": [
+          {
+            "id": "files",
+            "label": "Files",
+            "authority": "workspace_refs_only"
+          },
+          {
+            "id": "capabilities",
+            "label": "Capabilities",
+            "authority": "app_packaged_skill_profiles"
+          },
+          {
+            "id": "runtime",
+            "label": "Routing/runtime refs",
+            "authority": "opl_app_state_refs_only"
+          },
+          {
+            "id": "memory",
+            "label": "Memory refs",
+            "authority": "refs_only_no_memory_body_authority"
+          },
+          {
+            "id": "automations",
+            "label": "Always-On/Automations",
+            "authority": "app_state_action_refs"
+          },
+          {
+            "id": "settings",
+            "label": "Settings",
+            "authority": "app_owned_settings"
+          }
+        ],
+        "must_not_own": [
+          "runtime truth",
+          "domain truth",
+          "artifact body",
+          "memory body",
+          "backend selection authority"
+        ]
+      },
+      "must_show": [
+        "right-side collapsible inspector",
+        "Files refs tab",
+        "Capabilities tab",
+        "Routing/runtime refs tab",
+        "Memory refs tab",
+        "Always-On/Automations tab",
+        "Settings tab"
+      ],
+      "must_not_own": [
+        "runtime truth",
+        "domain truth",
+        "artifact body",
+        "memory body",
+        "backend selection authority"
       ],
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json"
