@@ -4813,6 +4813,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     nightly_tags: ['<app_or_opl_version>', 'nightly'],
     draft_candidate_push: false,
     full_first_install_payload_allowed: false,
+    module_package_publish_allowed: false,
+    opl_flow_plugin_publish_allowed: false,
     framework_role: 'references_image_coordinate_only',
     rule: 'WebUI GHCR image publish truth is App-owned; Framework may reference the image coordinate but does not own publishing.',
   });
@@ -4860,6 +4862,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     nightly_tags: ['<app_or_opl_version>', 'nightly'],
     draft_candidate_push: false,
     full_first_install_payload_allowed: false,
+    module_package_publish_allowed: false,
+    opl_flow_plugin_publish_allowed: false,
     framework_role: 'references_image_coordinate_only',
     rule: 'WebUI GHCR image publish truth is App-owned; Framework may reference the image coordinate but does not own publishing.',
   });
