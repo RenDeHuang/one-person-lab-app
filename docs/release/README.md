@@ -512,16 +512,16 @@ The remote verifier size budget is the release-time guardrail for both the
 published compressed asset and the packaged runtime payload. With Full included,
 `scripts/verify-remote-release-assets.ts` requires manifest v2, enforces
 `platform_scope=macos-arm64`, checks the GitHub Full DMG asset size against
-the `600MB warning threshold` and the hard budget
-`max_full_dmg_bytes=650000000`, and checks
+the `650MB warning threshold` and the hard budget
+`max_full_dmg_bytes=700000000`, and checks
 `size_breakdown.total_runtime_uncompressed_bytes` against
 `max_runtime_uncompressed_bytes=950000000`. It also compares the GitHub asset
 size against the downloaded file size and the recorded `sha256:` digest. Treat
 size growth as acceptable only when it is explained by an intentional layer
 change, not by duplicated checkouts, stale runtime payloads, or standard-updater
 leakage.
-When the Full DMG is above `warning_full_dmg_bytes=600000000` and still at or
-below `max_full_dmg_bytes=650000000`, the release readiness summary remains
+When the Full DMG is above `warning_full_dmg_bytes=650000000` and still at or
+below `max_full_dmg_bytes=700000000`, the release readiness summary remains
 `passed` and records a warning in both JSON and the GitHub Step Summary. Above
 the hard budget, remote verification still fails closed.
 

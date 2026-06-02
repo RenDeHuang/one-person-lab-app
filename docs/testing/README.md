@@ -215,8 +215,8 @@ guest execution, and cleaned up the temporary VM. Evidence directory:
   release-called Full builds still do because publish and VM gates consume the
   DMG.
 - Full size/cache summary checks: `release-readiness-summary.json` stays
-  `passed` when the Full DMG is above `warning_full_dmg_bytes=600000000` and at
-  or below `max_full_dmg_bytes=650000000`, but it must include a warning in JSON
+  `passed` when the Full DMG is above `warning_full_dmg_bytes=650000000` and at
+  or below `max_full_dmg_bytes=700000000`, but it must include a warning in JSON
   and markdown. The same summary must expose runtime cache `miss_written` layer
   names and counts from `runtime-cache-events.json` for the next cache-key
   optimization pass.

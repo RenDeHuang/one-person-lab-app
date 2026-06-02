@@ -214,9 +214,9 @@ test('release readiness summary passes with explicit Full size warning below har
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot, '26.5.99', 'local', {
     fullBudget: {
-      warning_full_dmg_bytes: 600000000,
-      max_full_dmg_bytes: 650000000,
-      full_dmg_size_bytes: 620000000,
+      warning_full_dmg_bytes: 650000000,
+      max_full_dmg_bytes: 700000000,
+      full_dmg_size_bytes: 675000000,
     },
   });
   writePassingJobResults(jobResultsPath);
@@ -245,11 +245,11 @@ test('release readiness summary passes with explicit Full size warning below har
   assert.equal(summary.status, 'passed');
   assert.equal(summary.full_package.size_budget.status, 'passed');
   assert.equal(summary.full_package.size_budget.full_dmg_size_status, 'warning');
-  assert.equal(summary.full_package.size_budget.warning_full_dmg_bytes, 600000000);
-  assert.equal(summary.full_package.size_budget.max_full_dmg_bytes, 650000000);
+  assert.equal(summary.full_package.size_budget.warning_full_dmg_bytes, 650000000);
+  assert.equal(summary.full_package.size_budget.max_full_dmg_bytes, 700000000);
   assert.deepEqual(summary.warnings.map((warning) => warning.code), ['full_dmg_size_warning']);
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /Full DMG size warning/);
-  assert.match(fs.readFileSync(summaryPath, 'utf8'), /620000000/);
+  assert.match(fs.readFileSync(summaryPath, 'utf8'), /675000000/);
 });
 
 test('release readiness summary surfaces miss_written runtime cache layers', () => {
