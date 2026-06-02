@@ -1093,6 +1093,7 @@ function validateActiveShellImplementation(shellPaths) {
     '"strategy": "codex_cli_auto_latest_available_frontier"',
     '"user_can_override_model": true',
     '"user_can_restore_auto": true',
+    '"frontier_model_preference_order": ["gpt-5.5", "gpt-5.4", "gpt-5.3-codex", "gpt-5.2"]',
     '"id": "mas"',
     '"id": "mag"',
     '"id": "rca"',
@@ -1104,6 +1105,19 @@ function validateActiveShellImplementation(shellPaths) {
   ]) {
     if (!productProfile.includes(expected)) {
       throw new Error(`Active shell product profile must carry App Codex default ${expected}`);
+    }
+  }
+
+  const codexModels = readShellText(shellPaths, 'packages/desktop/src/common/types/codex/codexModels.ts');
+  for (const expected of [
+    'getOplCodexFrontierModelPreferenceOrder',
+    'DEFAULT_CODEX_MODELS',
+    'availableModels.length > 0',
+    'DEFAULT_CODEX_MODELS.map',
+    'available_models: visibleModels',
+  ]) {
+    if (!codexModels.includes(expected)) {
+      throw new Error(`Active shell Codex model policy must expose App-owned default options before ACP handshake: ${expected}`);
     }
   }
 
