@@ -112,8 +112,13 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          remote_tag_sha="$(git ls-remote --tags origin "refs/tags/${OPL_RELEASE_TAG}" | awk '{print $1}')"
           git tag -f "${OPL_RELEASE_TAG}" "$GITHUB_SHA"
-          git push --force-with-lease origin "refs/tags/${OPL_RELEASE_TAG}"
+          if [ -n "$remote_tag_sha" ]; then
+            git push --force-with-lease="refs/tags/${OPL_RELEASE_TAG}:${remote_tag_sha}" origin "refs/tags/${OPL_RELEASE_TAG}"
+          else
+            git push origin "refs/tags/${OPL_RELEASE_TAG}"
+          fi
 
           notes_file="$RUNNER_TEMP/opl-nightly-notes.md"
           node --experimental-strip-types scripts/generate-release-notes.ts \
