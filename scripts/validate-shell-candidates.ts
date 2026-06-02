@@ -908,7 +908,7 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
   );
   assertStringArrayIncludes(
     evidence.bilingual_ui?.zh_purpose_labels ?? [],
-    ['科研', '基金', 'PPT'],
+    ['科研', '基金', '演示'],
     `${candidate.id} evidence bilingual_ui.zh_purpose_labels`,
   );
   assertStringArrayIncludes(
@@ -935,7 +935,7 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
   );
   assertStringArrayIncludes(
     evidence.bilingual_ui?.ordinary_home_forbidden_language_mix ?? [],
-    ['Med Auto Science', 'Med Auto Grant', 'RedCube AI', 'Codex CLI', 'Local assistant'],
+    ['Med Auto Science', 'Med Auto Grant', 'RedCube AI', 'Codex CLI', 'PPT', 'Local assistant'],
     `${candidate.id} evidence bilingual_ui.ordinary_home_forbidden_language_mix`,
   );
   if (
