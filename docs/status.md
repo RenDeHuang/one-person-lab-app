@@ -170,6 +170,16 @@ attention states. Project progress still classifies
 repair is shown as infrastructure repair and cannot be presented as substantive
 deliverable, paper, manuscript, or submission progress.
 
+Runtime task drilldown now also consumes the OPL Stage Artifact Kernel workbench
+projection as artifact-native refs. The App may display current pointer,
+canonical artifact refs, export artifact refs, lineage refs, retention policy
+ref, conformance summary ref, and related manifest/hash/receipt/blocker refs
+from `app_state.operator.workbench.task_drilldowns.artifact_native_drilldown`.
+This remains a refs-only read model: the App does not read domain artifact
+body, does not mutate artifact body, and does not declare MAS/MAG/RCA/OMA
+quality verdicts, export readiness, domain readiness, App release readiness, or
+family production readiness from those refs.
+
 `running_provider_attempt_count` remains diagnostic. It may include checkpointed
 provider refs and must not be displayed as the user's running task count.
 `domain_lane_map.active_task_count`, `module_runtime dirty`, module readiness,

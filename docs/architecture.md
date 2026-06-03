@@ -50,6 +50,12 @@ fields: `deliverable_progress_delta`, `platform_repair_delta`, and
 `progress_delta_classification`. The page-state matrix mirrors those
 bridge-level projections. Platform repair is displayed as infrastructure
 repair, never as deliverable, paper, manuscript, or submission progress.
+`contracts/app-runtime-bridge.json#artifact_native_drilldown_projection` binds
+task drilldown to the OPL Stage Artifact Kernel workbench projection. The App
+consumes current/canonical/export/lineage/retention/conformance refs and
+related manifest/hash/receipt/blocker refs only; it does not read artifact
+body, own artifact authority, or turn those refs into domain quality, export,
+readiness, App release, or family production claims.
 
 The default Runtime page attention model is user-task-status first. The
 ordinary view answers which tasks are explicitly running or advancing, which

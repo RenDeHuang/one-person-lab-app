@@ -179,10 +179,29 @@
             "progress_display_label": "Platform repair",
             "stage_attempt_ids": [],
             "safe_action_ref_count": 0,
-          "blocker_ref_count": 1,
-          "next_visible_step": "Resolve missing Med Auto Science workspace ref",
-          "next_owner": "opl_framework",
-          "paper_route_lens_ref_count": 0,
+            "blocker_ref_count": 1,
+            "next_visible_step": "Resolve missing Med Auto Science workspace ref",
+            "next_owner": "opl_framework",
+            "paper_route_lens_ref_count": 0,
+            "artifact_native_drilldown": {
+              "surface_kind": "opl_stage_artifact_runtime_workbench",
+              "source_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].artifact_native_drilldown",
+              "current_pointer_ref": null,
+              "canonical_artifact_refs": [],
+              "export_artifact_refs": [],
+              "lineage_refs": [],
+              "retention_policy_ref": "opl://stage-artifact-retention-policy/opl_stage_artifact_retention.v1",
+              "conformance_summary_ref": "opl://stage-artifact-conformance/medautoscience/module_runtime",
+              "content_hash_refs": [],
+              "attempt_manifest_refs": [],
+              "owner_receipt_refs": [],
+              "typed_blocker_refs": [
+                "opl://typed-blocker/medautoscience/module-runtime-workspace-missing"
+              ],
+              "decision_receipt_refs": [],
+              "artifact_body_access": false,
+              "domain_verdict_authority": false
+            },
             "active_path": [
               {
                 "node_id": "module:medautoscience",

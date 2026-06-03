@@ -441,3 +441,86 @@ test('Runtime page separates user-visible active project lines from active worke
   assert.ok(ownerHandledProject.next_visible_step);
   assert.ok(activeLineProjection.required_fields.every((field) => Object.hasOwn(ownerHandledProject, field)));
 });
+
+test('Runtime page consumes Stage Artifact Kernel refs without artifact bodies or domain verdict claims', () => {
+  const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
+  const pageMatrix = readJson('contracts/app-page-state-matrix.json');
+  const guiContract = readJson('contracts/app-gui-product-contract.json');
+  const fixture = readJson('contracts/fixtures/opl-app-state-fast.fixture.json');
+  const runtimePage = pageMatrix.pages.find((page) => page.id === 'runtime');
+  const bridgeProjection = runtimeBridge.artifact_native_drilldown_projection;
+  const pageProjection = runtimePage.runtime_view_model.artifact_native_drilldown;
+  const guiFrameworkProjection = guiContract.framework_surfaces.artifact_native_drilldown;
+  const guiRuntimePolicy = guiContract.pages.runtime_status.artifact_native_drilldown_policy;
+  const taskDrilldown = fixture.app_state.operator.workbench.task_drilldowns.find(
+    (task) => task.task_id === 'medautoscience',
+  );
+  const artifactDrilldown = taskDrilldown.artifact_native_drilldown;
+  const expectedArtifactProjection = {
+    source: 'app_state.operator.workbench.task_drilldowns.artifact_native_drilldown',
+    detail_source: 'opl runtime app-operator-drilldown --task <task_id> --json',
+    authority: 'opl_framework_stage_artifact_kernel_refs_projection',
+    framework_contract_ref: 'one-person-lab/contracts/opl-framework/stage-artifact-runtime-contract.json',
+    surface_kind: 'opl_stage_artifact_runtime_workbench',
+    display_policy: 'artifact_kernel_refs_only_no_body_no_domain_readiness_claims',
+    full_detail_policy: 'on_demand_task_drilldown_only',
+    required_ref_fields: [
+      'current_pointer_ref',
+      'canonical_artifact_refs',
+      'export_artifact_refs',
+      'lineage_refs',
+      'retention_policy_ref',
+      'conformance_summary_ref',
+    ],
+    optional_ref_fields: [
+      'content_hash_refs',
+      'attempt_manifest_refs',
+      'owner_receipt_refs',
+      'typed_blocker_refs',
+      'decision_receipt_refs',
+    ],
+    artifact_body_access: false,
+    domain_verdict_authority: false,
+    app_role: 'display_only_stage_artifact_kernel_refs_consumer',
+    forbidden_claims: [
+      'artifact_body',
+      'domain_artifact_body',
+      'domain_artifact_authority',
+      'domain_quality_verdict',
+      'domain_export_readiness',
+      'domain_readiness',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+  };
+
+  assert.deepEqual(bridgeProjection, expectedArtifactProjection);
+  assert.deepEqual(pageProjection, expectedArtifactProjection);
+  assert.deepEqual(guiFrameworkProjection, expectedArtifactProjection);
+  assert.deepEqual(guiRuntimePolicy, expectedArtifactProjection);
+  assert.ok(artifactDrilldown, 'fixture task drilldown must include artifact_native_drilldown refs');
+  assert.equal(artifactDrilldown.surface_kind, 'opl_stage_artifact_runtime_workbench');
+  assert.equal(artifactDrilldown.artifact_body_access, false);
+  assert.equal(artifactDrilldown.domain_verdict_authority, false);
+  for (const field of bridgeProjection.required_ref_fields) {
+    assert.ok(Object.hasOwn(artifactDrilldown, field), `${field} must be present`);
+  }
+  for (const field of bridgeProjection.optional_ref_fields) {
+    assert.ok(Object.hasOwn(artifactDrilldown, field), `${field} must be present as refs or an empty refs list`);
+  }
+  for (const forbidden of [
+    'artifact_body',
+    'artifact_body_preview',
+    'domain_artifact_body',
+    'domain_quality_verdict',
+    'quality_verdict',
+    'domain_export_readiness',
+    'export_readiness',
+    'domain_readiness',
+    'domain_ready',
+    'app_release_readiness',
+    'production_readiness',
+  ]) {
+    assert.equal(Object.hasOwn(artifactDrilldown, forbidden), false, `${forbidden} must not be projected`);
+  }
+});

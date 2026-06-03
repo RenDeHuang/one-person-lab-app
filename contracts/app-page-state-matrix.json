@@ -506,6 +506,43 @@
           "platform_repair_display_treatment": "separate_infrastructure_repair_not_deliverable_progress",
           "forbidden_delivery_claim_for_platform_repair": true
         },
+        "artifact_native_drilldown": {
+          "source": "app_state.operator.workbench.task_drilldowns.artifact_native_drilldown",
+          "detail_source": "opl runtime app-operator-drilldown --task <task_id> --json",
+          "authority": "opl_framework_stage_artifact_kernel_refs_projection",
+          "framework_contract_ref": "one-person-lab/contracts/opl-framework/stage-artifact-runtime-contract.json",
+          "surface_kind": "opl_stage_artifact_runtime_workbench",
+          "display_policy": "artifact_kernel_refs_only_no_body_no_domain_readiness_claims",
+          "full_detail_policy": "on_demand_task_drilldown_only",
+          "required_ref_fields": [
+            "current_pointer_ref",
+            "canonical_artifact_refs",
+            "export_artifact_refs",
+            "lineage_refs",
+            "retention_policy_ref",
+            "conformance_summary_ref"
+          ],
+          "optional_ref_fields": [
+            "content_hash_refs",
+            "attempt_manifest_refs",
+            "owner_receipt_refs",
+            "typed_blocker_refs",
+            "decision_receipt_refs"
+          ],
+          "artifact_body_access": false,
+          "domain_verdict_authority": false,
+          "app_role": "display_only_stage_artifact_kernel_refs_consumer",
+          "forbidden_claims": [
+            "artifact_body",
+            "domain_artifact_body",
+            "domain_artifact_authority",
+            "domain_quality_verdict",
+            "domain_export_readiness",
+            "domain_readiness",
+            "app_release_readiness",
+            "family_production_readiness"
+          ]
+        },
         "authority_boundary": {
           "refs_only": true,
           "non_authority_display_only": true,
@@ -627,6 +664,7 @@
         "summary OPL operator drilldown read model",
         "fast App state refresh",
         "app_state.operator.workbench.task_drilldowns project progress refs",
+        "app_state.operator.workbench.task_drilldowns artifact-native refs",
         "app_state.operator.workbench.activity_center.active_projects active project lines",
         "app_state.operator.visual_ref_groups.active_project_refs",
         "non-running waiting or stopped projects collapsed by default",
@@ -653,6 +691,7 @@
         "next visible step when projected",
         "blocker count and user attention status",
         "progress delta rendered as user-facing labels",
+        "artifact-native current/canonical/export/lineage/retention/conformance refs",
         "runtime diagnostics as secondary disclosure",
         "provider readiness from app_state.provider",
         "operator summary from app_state.operator",
@@ -663,6 +702,7 @@
         "safe app action dry-run/execute controls",
         "deliverable progress delta classification",
         "platform repair delta as separate infrastructure repair",
+        "Stage Artifact Kernel refs-only drilldown",
         "receipt/count refresh after execute",
         "refs-only non-authority boundary",
         "next owner action before full evidence ledger",
@@ -683,6 +723,8 @@
         "domain truth",
         "memory body",
         "artifact body",
+        "domain artifact body",
+        "artifact authority",
         "quality/readiness/export verdict",
         "deliverable progress truth",
         "platform repair truth",
