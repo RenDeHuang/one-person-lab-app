@@ -315,6 +315,265 @@ function validateProgressDeltaDisplayContract(progressDelta, label) {
   }
 }
 
+function validateStateIndexSidecarProjectionContract(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.task_drilldowns.state_index_sidecar_projection',
+    detail_source: 'opl runtime app-operator-drilldown --task <task_id> --json',
+    authority: 'opl_framework_state_index_kernel_sqlite_sidecar_projection',
+    kernel_owner: 'one-person-lab',
+    storage_kind: 'sqlite_sidecar_read_model_cache',
+    app_access_mode: 'read_only_projection_consumer',
+    display_policy: 'state_index_refs_only_no_sqlite_write_no_domain_truth_claims',
+    drilldown_target_policy: 'refs_drill_down_to_stage_folder_not_domain_body',
+    app_role: 'display_only_state_index_read_model_consumer',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    projection.allowed_input_surfaces,
+    [
+      'opl app state --profile fast --json',
+      'opl app state --profile full --json',
+      'opl runtime app-operator-drilldown --task <task_id> --json',
+    ],
+    `${label} allowed_input_surfaces`,
+  );
+  assertDeepEqualJson(
+    projection.required_ref_fields,
+    ['state_index_ref', 'stage_folder_ref', 'task_ref', 'owner_ref', 'updated_at'],
+    `${label} required_ref_fields`,
+  );
+  assertDeepEqualJson(
+    projection.optional_ref_fields,
+    [
+      'artifact_index_refs',
+      'receipt_index_refs',
+      'blocker_index_refs',
+      'readiness_false_flag_refs',
+      'cache_generation_ref',
+    ],
+    `${label} optional_ref_fields`,
+  );
+  for (const field of [
+    'sqlite_direct_read_access',
+    'sqlite_write_access',
+    'sidecar_mutation_access',
+    'domain_truth_write_access',
+    'owner_receipt_write_access',
+    'artifact_body_access',
+    'readiness_authority',
+    'artifact_authority',
+    'quality_verdict_authority',
+  ]) {
+    if (projection[field] !== false) {
+      throw new Error(`${label} ${field} must be false`);
+    }
+  }
+  assertIncludesAll(
+    projection.forbidden_claims,
+    [
+      'sqlite_truth_owner',
+      'sqlite_sidecar_writer',
+      'state_index_kernel_owner',
+      'domain_truth',
+      'owner_receipt_authority',
+      'artifact_body',
+      'artifact_authority',
+      'domain_readiness',
+      'quality_verdict',
+      'export_readiness',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+    `${label} forbidden_claims`,
+  );
+}
+
+function validateStateIndexSidecarFixture(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  if (projection.surface_kind !== 'opl_state_index_kernel_sidecar_read_model') {
+    throw new Error(`${label} surface_kind must be opl_state_index_kernel_sidecar_read_model`);
+  }
+  for (const field of ['state_index_ref', 'stage_folder_ref', 'task_ref', 'owner_ref', 'updated_at']) {
+    if (!Object.hasOwn(projection, field)) {
+      throw new Error(`${label} must include ${field}`);
+    }
+  }
+  for (const field of [
+    'artifact_index_refs',
+    'receipt_index_refs',
+    'blocker_index_refs',
+    'readiness_false_flag_refs',
+    'cache_generation_ref',
+  ]) {
+    if (!Object.hasOwn(projection, field)) {
+      throw new Error(`${label} must include ${field} as refs or an empty refs list`);
+    }
+  }
+  for (const field of [
+    'sqlite_direct_read_access',
+    'sqlite_write_access',
+    'sidecar_mutation_access',
+    'domain_truth_write_access',
+    'owner_receipt_write_access',
+    'artifact_body_access',
+    'readiness_authority',
+    'artifact_authority',
+    'quality_verdict_authority',
+  ]) {
+    if (projection[field] !== false) {
+      throw new Error(`${label} ${field} must be false`);
+    }
+  }
+  for (const forbidden of [
+    'sqlite_path',
+    'sqlite_connection_string',
+    'sqlite_write_query',
+    'state_index_kernel_mutation',
+    'domain_truth',
+    'owner_receipt_body',
+    'artifact_body',
+    'domain_artifact_body',
+    'domain_quality_verdict',
+    'quality_verdict',
+    'domain_export_readiness',
+    'export_readiness',
+    'domain_readiness',
+    'domain_ready',
+    'app_release_readiness',
+    'production_readiness',
+  ]) {
+    if (Object.hasOwn(projection, forbidden)) {
+      throw new Error(`${label} must not project ${forbidden}`);
+    }
+  }
+}
+
+function validateArtifactNativeDrilldownProjectionContract(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.task_drilldowns.artifact_native_drilldown',
+    detail_source: 'opl runtime app-operator-drilldown --task <task_id> --json',
+    authority: 'opl_framework_stage_artifact_kernel_refs_projection',
+    framework_contract_ref: 'one-person-lab/contracts/opl-framework/stage-artifact-runtime-contract.json',
+    surface_kind: 'opl_stage_artifact_runtime_workbench',
+    display_policy: 'artifact_kernel_refs_only_no_body_no_domain_readiness_claims',
+    full_detail_policy: 'on_demand_task_drilldown_only',
+    app_role: 'display_only_stage_artifact_kernel_refs_consumer',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    projection.required_ref_fields,
+    [
+      'current_pointer_ref',
+      'canonical_artifact_refs',
+      'export_artifact_refs',
+      'lineage_refs',
+      'retention_policy_ref',
+      'conformance_summary_ref',
+    ],
+    `${label} required_ref_fields`,
+  );
+  assertDeepEqualJson(
+    projection.optional_ref_fields,
+    [
+      'content_hash_refs',
+      'attempt_manifest_refs',
+      'owner_receipt_refs',
+      'typed_blocker_refs',
+      'decision_receipt_refs',
+    ],
+    `${label} optional_ref_fields`,
+  );
+  if (projection.artifact_body_access !== false) {
+    throw new Error(`${label} artifact_body_access must be false`);
+  }
+  if (projection.domain_verdict_authority !== false) {
+    throw new Error(`${label} domain_verdict_authority must be false`);
+  }
+  assertIncludesAll(
+    projection.forbidden_claims,
+    [
+      'artifact_body',
+      'domain_artifact_body',
+      'domain_artifact_authority',
+      'domain_quality_verdict',
+      'domain_export_readiness',
+      'domain_readiness',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+    `${label} forbidden_claims`,
+  );
+}
+
+function validateArtifactNativeDrilldownFixture(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  if (projection.surface_kind !== 'opl_stage_artifact_runtime_workbench') {
+    throw new Error(`${label} surface_kind must be opl_stage_artifact_runtime_workbench`);
+  }
+  for (const field of [
+    'current_pointer_ref',
+    'canonical_artifact_refs',
+    'export_artifact_refs',
+    'lineage_refs',
+    'retention_policy_ref',
+    'conformance_summary_ref',
+  ]) {
+    if (!Object.hasOwn(projection, field)) {
+      throw new Error(`${label} must include ${field}`);
+    }
+  }
+  for (const field of [
+    'content_hash_refs',
+    'attempt_manifest_refs',
+    'owner_receipt_refs',
+    'typed_blocker_refs',
+    'decision_receipt_refs',
+  ]) {
+    if (!Object.hasOwn(projection, field)) {
+      throw new Error(`${label} must include ${field} as refs or an empty refs list`);
+    }
+  }
+  if (projection.artifact_body_access !== false) {
+    throw new Error(`${label} artifact_body_access must be false`);
+  }
+  if (projection.domain_verdict_authority !== false) {
+    throw new Error(`${label} domain_verdict_authority must be false`);
+  }
+  for (const forbidden of [
+    'artifact_body',
+    'artifact_body_preview',
+    'domain_artifact_body',
+    'domain_quality_verdict',
+    'quality_verdict',
+    'domain_export_readiness',
+    'export_readiness',
+    'domain_readiness',
+    'domain_ready',
+    'app_release_readiness',
+    'production_readiness',
+  ]) {
+    if (Object.hasOwn(projection, forbidden)) {
+      throw new Error(`${label} must not project ${forbidden}`);
+    }
+  }
+}
+
 function validateActiveProjectLineProjectionContract(activeProjectLineProjection, label, options = {}) {
   if (!activeProjectLineProjection || typeof activeProjectLineProjection !== 'object') {
     throw new Error(`${label} must be declared`);
@@ -1697,6 +1956,22 @@ function validateGoldenAppStateFixture(gate) {
   if (/deliverable|paper|manuscript|submission/i.test(platformRepairExample.progress_display_label ?? '')) {
     throw new Error('OPL App state platform repair label must not present repair as deliverable progress.');
   }
+  const stateIndexSidecarExample = taskDrilldowns.find((task) => task?.state_index_sidecar_projection);
+  if (!stateIndexSidecarExample) {
+    throw new Error('OPL App state golden fixture must include a State Index sidecar read-model projection example.');
+  }
+  validateStateIndexSidecarFixture(
+    stateIndexSidecarExample.state_index_sidecar_projection,
+    'OPL App state golden fixture State Index sidecar projection',
+  );
+  const artifactNativeDrilldownExample = taskDrilldowns.find((task) => task?.artifact_native_drilldown);
+  if (!artifactNativeDrilldownExample) {
+    throw new Error('OPL App state golden fixture must include a Stage Artifact refs-only drilldown example.');
+  }
+  validateArtifactNativeDrilldownFixture(
+    artifactNativeDrilldownExample.artifact_native_drilldown,
+    'OPL App state golden fixture Stage Artifact drilldown',
+  );
   const activeProjectSummaryCard = (lookupPath(fixture, 'app_state.operator.workbench.summary_cards') ?? []).find(
     (card) => card?.card_id === 'active_projects',
   );
@@ -1917,6 +2192,14 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
     }
   }
   validateProjectProgressDisplayContract(runtimeBridge.project_progress_projection, 'Runtime bridge project progress projection');
+  validateStateIndexSidecarProjectionContract(
+    runtimeBridge.state_index_sidecar_projection,
+    'Runtime bridge State Index sidecar projection',
+  );
+  validateArtifactNativeDrilldownProjectionContract(
+    runtimeBridge.artifact_native_drilldown_projection,
+    'Runtime bridge Stage Artifact drilldown projection',
+  );
   for (const [field, expected] of Object.entries({
     shell_adapter_can_own_runtime_truth: false,
     app_can_own_runtime_truth: false,
@@ -1925,6 +2208,11 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
     app_can_read_memory_body: false,
     app_can_authorize_quality_verdict: false,
     app_can_authorize_export_verdict: false,
+    app_can_write_sqlite_sidecar: false,
+    app_can_mutate_state_index_kernel: false,
+    app_can_write_owner_receipt: false,
+    app_can_authorize_readiness: false,
+    app_can_authorize_artifact_authority: false,
     provider_completion_is_domain_ready: false,
   })) {
     if (runtimeBridge.authority_boundary?.[field] !== expected) {
@@ -1937,6 +2225,8 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
     new_shell_adapter_must_pass_active_shell_validation: true,
     direct_domain_repo_reads_are_forbidden: true,
     direct_runtime_state_file_reads_are_forbidden: true,
+    direct_sqlite_sidecar_reads_are_forbidden: true,
+    direct_state_index_kernel_writes_are_forbidden: true,
   })) {
     if (runtimeBridge.replacement_policy?.[field] !== expected) {
       throw new Error(`Runtime bridge replacement_policy.${field} must be ${expected}`);
@@ -1946,6 +2236,9 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
     'direct_domain_repo_reads',
     'direct_runtime_state_file_reads',
     'direct_opl_internal_state_file_reads',
+    'direct_opl_sqlite_sidecar_reads',
+    'direct_state_index_kernel_file_reads',
+    'direct_state_index_kernel_writes',
     'domain_artifact_body_reads',
     'domain_memory_body_reads',
     'shell_private_runtime_status',
@@ -2361,6 +2654,14 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (guiContract.framework_surfaces.runtime_full_drilldown.policy !== 'on_demand_only') {
     throw new Error('App GUI runtime full drilldown must be on-demand only');
   }
+  validateStateIndexSidecarProjectionContract(
+    guiContract.framework_surfaces.state_index_sidecar,
+    'App GUI State Index sidecar framework surface',
+  );
+  validateArtifactNativeDrilldownProjectionContract(
+    guiContract.framework_surfaces.artifact_native_drilldown,
+    'App GUI Stage Artifact drilldown framework surface',
+  );
   const runtimeDefaultAttention = guiContract.framework_surfaces.runtime_default_attention;
   if (runtimeDefaultAttention?.default_mode !== 'user_task_status_first') {
     throw new Error('App GUI runtime default attention must be user_task_status_first');
@@ -2407,6 +2708,8 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     'application.systemInfo as OPL path truth',
     'application.appVersions as OPL release truth',
     'direct reads of OPL internal state files',
+    'direct reads of OPL SQLite sidecar files',
+    'direct State Index Kernel writes',
   ]) {
     if (!guiContract.framework_surfaces.forbidden_gui_truth_sources?.includes(forbiddenSource)) {
       throw new Error(`App GUI contract must forbid ${forbiddenSource}`);
@@ -2887,6 +3190,14 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   validateProgressDeltaDisplayContract(
     pages.runtime_status.progress_delta_policy,
     'App GUI runtime status progress delta policy',
+  );
+  validateStateIndexSidecarProjectionContract(
+    pages.runtime_status.state_index_sidecar_policy,
+    'App GUI runtime status State Index sidecar policy',
+  );
+  validateArtifactNativeDrilldownProjectionContract(
+    pages.runtime_status.artifact_native_drilldown_policy,
+    'App GUI runtime status Stage Artifact drilldown policy',
   );
   if (pages.runtime_status.primary_projection !== 'app_state.operator user task status projection') {
     throw new Error('App GUI runtime status must default to the user task status projection');
@@ -3465,6 +3776,14 @@ function validatePageStateMatrix(matrix, contract) {
     'Runtime page user task status projection',
   );
   validateProjectProgressDisplayContract(runtimeViewModel.project_progress, 'Runtime page project progress display contract');
+  validateStateIndexSidecarProjectionContract(
+    runtimeViewModel.state_index_sidecar,
+    'Runtime page State Index sidecar projection',
+  );
+  validateArtifactNativeDrilldownProjectionContract(
+    runtimeViewModel.artifact_native_drilldown,
+    'Runtime page Stage Artifact drilldown projection',
+  );
   const pageDefaultAttention = runtimeViewModel.default_attention;
   if (pageDefaultAttention?.mode !== 'user_task_status_first') {
     throw new Error('Runtime page default attention must be user_task_status_first');
@@ -3558,6 +3877,8 @@ function validatePageStateMatrix(matrix, contract) {
     'summary OPL operator drilldown read model',
     'fast App state refresh',
     'app_state.operator.workbench.task_drilldowns project progress refs',
+    'app_state.operator.workbench.task_drilldowns State Index sidecar refs',
+    'app_state.operator.workbench.task_drilldowns artifact-native refs',
     'app_state.operator.workbench.activity_center.active_projects active project lines',
     'app_state.operator.visual_ref_groups.active_project_refs',
     'non-running waiting or stopped projects collapsed by default',
@@ -3589,6 +3910,8 @@ function validatePageStateMatrix(matrix, contract) {
     'next visible step when projected',
     'blocker count and user attention status',
     'progress delta rendered as user-facing labels',
+    'State Index Kernel / SQLite sidecar read-model refs',
+    'artifact-native current/canonical/export/lineage/retention/conformance refs',
     'runtime diagnostics as secondary disclosure',
     'provider readiness from app_state.provider',
     'operator summary from app_state.operator',
@@ -3599,6 +3922,8 @@ function validatePageStateMatrix(matrix, contract) {
     'safe app action dry-run/execute controls',
     'deliverable progress delta classification',
     'platform repair delta as separate infrastructure repair',
+    'Stage Artifact Kernel refs-only drilldown',
+    'State Index sidecar refs-only drilldown to Stage Folder',
     'receipt/count refresh after execute',
     'refs-only non-authority boundary',
   ];
@@ -3618,11 +3943,17 @@ function validatePageStateMatrix(matrix, contract) {
     'domain truth',
     'memory body',
     'artifact body',
+    'domain artifact body',
+    'artifact authority',
+    'SQLite sidecar write authority',
+    'State Index Kernel mutation authority',
     'quality/readiness/export verdict',
     'deliverable progress truth',
     'platform repair truth',
     'action route authority',
     'domain action approval override',
+    'owner receipt authority',
+    'family production readiness',
   ];
   for (const owner of forbiddenRuntimeOwners) {
     if (!runtimePage.must_not_own?.includes(owner)) {

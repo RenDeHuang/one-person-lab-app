@@ -69,7 +69,12 @@ multi-task runtime base view, action queue refs, vertical dynamic map refs,
 single-task drilldown refs, MAS paper lens refs, summary read model first, lazy
 full-detail load, 5-10 second lightweight polling fallback when push projection
 is unavailable, refs-only dry-run/execute action commands, receipt/count refresh
-after execute, and explicit non-authority boundary fields.
+after execute, State Index / SQLite sidecar refs-only consumption through the
+OPL App/operator projection, Stage Artifact Runtime refs-only drilldown, and
+explicit non-authority boundary fields. The gate rejects direct SQLite sidecar
+access, State Index mutation authority, domain truth, owner receipt authority,
+artifact bodies, artifact authority, and domain/readiness verdict claims in App
+contracts, page-state matrices, and the fast App-state fixture.
 
 Release evidence bundle validation requires `evidence-manifest.json` plus the
 contracted artifact files. When a local lane cannot produce clean VM smoke
