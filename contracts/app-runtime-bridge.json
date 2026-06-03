@@ -33,7 +33,7 @@
       "rewrite App runtime truth from shell-private state",
       "treat missing managed bootstrap artifacts as first-run UI truth"
     ],
-    "regression": "packaged first-run must reach /guid when opl system initialize --json reports ready_to_launch=true even if a stale managed opl shim exists"
+    "regression": "packaged first-run must expose the /guid ready entry when opl system initialize --json reports ready_to_launch=true even if a stale managed opl shim exists"
   },
   "live_conformance_gate": {
     "owner": "one-person-lab-app",

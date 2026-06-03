@@ -45,7 +45,7 @@ owner-receipt authority, artifact authority, memory body, or OPL family
 production readiness.
 
 The active shell currently tracks AionUI upstream through
-`1efb046736d1d61384508eb0ebce7eabbe824ce2` while preserving the App-owned
+`fbce423c7a698048dd4422020541a004785e5d82` while preserving the App-owned
 product profile. That intake is recorded in `contracts/app-shell-adapter.json`,
 which is the active shell source of truth; the upstream code is implementation
 material, not product authority. The shell also keeps Codex ACP tool-call

@@ -49,7 +49,7 @@ test('App owns runtime bridge contract while active shell remains replaceable ad
       'treat missing managed bootstrap artifacts as first-run UI truth',
     ],
     regression:
-      'packaged first-run must reach /guid when opl system initialize --json reports ready_to_launch=true even if a stale managed opl shim exists',
+      'packaged first-run must expose the /guid ready entry when opl system initialize --json reports ready_to_launch=true even if a stale managed opl shim exists',
   });
   assert.deepEqual(runtimeBridge.live_conformance_gate, {
     owner: 'one-person-lab-app',

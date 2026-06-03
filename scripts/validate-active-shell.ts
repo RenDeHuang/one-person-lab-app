@@ -1063,11 +1063,16 @@ function validateActiveShellImplementation(shellPaths) {
 
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
   for (const expected of [
-    "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })",
-    'isCoreLaunchReadyFromAppState',
+    'ipcBridge.oplRuntime.getInitialize.invoke()',
+    'readInitializePayload',
+    'shouldEnterGuidAutomatically',
+    "initialize?.setup_flow?.is_first_run !== false",
+    'initialize.setup_flow.ready_to_launch === true',
+    'initialize.readiness?.launch_ready === true',
     "navigate('/guid',",
     'postInstallSelfCheck',
-    'shouldOfferPostInstallSelfCheck',
+    'POST_INSTALL_SELF_CHECK_STATE',
+    "navigate('/guid', { state: POST_INSTALL_SELF_CHECK_STATE })",
     "document.title = 'One Person Lab App'",
     'formatFullReadinessProgressText',
     'formatMaintenanceProgressText',
@@ -1081,6 +1086,9 @@ function validateActiveShellImplementation(shellPaths) {
     if (!firstRunPage.includes(expected)) {
       throw new Error(`Active shell FirstRun page must render shared initialize progress: ${expected}`);
     }
+  }
+  if (firstRunPage.includes("ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })")) {
+    throw new Error('Active shell FirstRun page must not auto-enter /guid from fast App state; use opl system initialize first-run setup_flow');
   }
   for (const expected of beginnerFirstRunTestIds.map((id) => `data-testid='${id}'`)) {
     if (!firstRunPage.includes(expected)) {
@@ -1122,10 +1130,6 @@ function validateActiveShellImplementation(shellPaths) {
 
   const firstRunModel = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/initializeModel.ts');
   for (const expected of [
-    'isCoreLaunchReadyFromAppState',
-    'api_key_present',
-    'workspace_root',
-    'version_status',
     'ready_full_readiness_count',
     'total_full_readiness_count',
     'ready_optional_count',
@@ -1133,7 +1137,7 @@ function validateActiveShellImplementation(shellPaths) {
     'next_visible_step',
   ]) {
     if (!firstRunModel.includes(expected)) {
-      throw new Error(`Active shell FirstRun model must consume App state and initialize progress field ${expected}`);
+      throw new Error(`Active shell FirstRun model must consume shared initialize progress field ${expected}`);
     }
   }
 
