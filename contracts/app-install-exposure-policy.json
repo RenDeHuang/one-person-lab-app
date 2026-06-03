@@ -307,7 +307,7 @@
     ],
     "may_use_developer_checkout_by_default": false,
     "developer_checkout_override_policy": "explicit_opt_in_only",
-    "developer_checkout_override_surface": "Developer Mode",
+    "developer_checkout_override_surface": "Developer Profile source_channel capability",
     "ordinary_user_module_source": "stable_package_channel",
     "module_package_channel_agent_ids": [
       "mas",

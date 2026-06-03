@@ -90,6 +90,13 @@ const beginnerFirstRunTestIds = [
   'opl-first-run-technical-details-toggle',
 ];
 const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced', 'about'];
+const appOwnedDeveloperProfileCapabilityAxes = [
+  'source_channel',
+  'workspace_trust',
+  'github_authority',
+  'agent_automation',
+  'runtime_mutation_scope',
+];
 const legacySettingsRouteRedirects = {
   overview: 'general',
   runtime: 'environment',
@@ -232,6 +239,7 @@ const settingsPageExpectations = {
       'Temporal status from app_state.provider.temporal',
       'MAS/MAG/RCA/OMA module version and source from app_state.modules',
       'module path source explanation',
+      'Developer Profile source_channel capability and stable package channel default',
       'section-level refresh state',
       'environment page named Local Environment, distinct from Project Progress',
     ],
@@ -244,9 +252,10 @@ const settingsPageExpectations = {
   },
   settings_advanced: {
     matrix_id: 'advanced',
-    sections: ['developer_mode', 'paths', 'logs', 'opl_flow_context', 'opl_agent_codex_context', 'diagnostics'],
+    sections: ['developer_profile', 'paths', 'logs', 'opl_flow_context', 'opl_agent_codex_context', 'diagnostics'],
     must_show: [
-      'Developer Mode effective state from app_state.developer_mode',
+      'Developer Profile effective state and capabilities from app_state.developer_profile',
+      'Developer Profile explicit opt-in state for repo or local checkout source_channel',
       'workspace path from app_state.paths',
       'logs path from app_state.paths',
       'OPL Flow Context',
@@ -255,7 +264,8 @@ const settingsPageExpectations = {
     must_not_show: [
       'delayed developer mode flip from a shell-local cache',
       'AionUI local directory as OPL path truth',
-      'Developer Mode as ordinary first-level user setup',
+      'Developer Profile as ordinary first-level user setup',
+      'single Developer Mode switch as the only capability expression',
     ],
   },
 };
@@ -2559,7 +2569,7 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     'whether a module comes from the bundled Full runtime payload',
     'whether a module comes from the stable GHCR package channel',
     'whether a module comes from a local domain repository checkout',
-    'whether a GitHub repo or checkout source is enabled by Developer Mode',
+    'whether Developer Profile source_channel uses a GitHub repo or local checkout',
     'whether a module is managed by App/CLI maintenance',
     'that module path display is refs-only and not domain truth authority',
   ]) {
@@ -2570,14 +2580,48 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (modulePathPolicy.ordinary_user_source !== 'stable_ghcr_package_channel') {
     throw new Error('App GUI module path source policy must keep ordinary users on stable GHCR package channel');
   }
-  if (modulePathPolicy.developer_override_surface !== 'Developer Mode') {
-    throw new Error('App GUI module path source policy must route repo/checkout override through Developer Mode');
+  if (modulePathPolicy.developer_override_surface !== 'Developer Profile source_channel capability') {
+    throw new Error('App GUI module path source policy must route repo/checkout override through Developer Profile source_channel');
   }
   if (modulePathPolicy.developer_override_policy !== 'explicit_opt_in_only') {
-    throw new Error('App GUI module path source policy must require explicit opt-in for Developer Mode checkout override');
+    throw new Error('App GUI module path source policy must require explicit opt-in for Developer Profile checkout override');
+  }
+  if (modulePathPolicy.developer_profile_ref !== 'developer_profile.capabilities.source_channel') {
+    throw new Error('App GUI module path source policy must link to Developer Profile source_channel');
   }
   if (!modulePathPolicy.must_not_use?.includes('raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI')) {
     throw new Error('App GUI module path source policy must not expose raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI');
+  }
+
+  const developerProfile = guiContract.developer_profile;
+  if (!developerProfile || typeof developerProfile !== 'object') {
+    throw new Error('App GUI contract must declare Developer Profile capabilities');
+  }
+  assertDeepEqualJson(
+    developerProfile.capability_axes,
+    appOwnedDeveloperProfileCapabilityAxes,
+    'App GUI Developer Profile capability axes',
+  );
+  if (
+    developerProfile.default_profile !== 'standard_user' ||
+    developerProfile.opt_in_policy !== 'explicit_opt_in_only' ||
+    developerProfile.ordinary_user_defaults?.source_channel !== 'stable_package_channel'
+  ) {
+    throw new Error('App GUI Developer Profile must preserve standard user defaults and explicit opt-in');
+  }
+  for (const axis of appOwnedDeveloperProfileCapabilityAxes) {
+    const capability = developerProfile.capabilities?.[axis];
+    if (!capability?.standard_default || !capability.developer_opt_in || !capability.display_policy) {
+      throw new Error(`App GUI Developer Profile capability ${axis} must declare defaults, opt-in, and display policy`);
+    }
+  }
+  if (
+    developerProfile.capabilities.source_channel.developer_opt_in !== 'github_repo_or_local_checkout' ||
+    developerProfile.capabilities.runtime_mutation_scope.standard_default !== 'app_action_route_only' ||
+    developerProfile.legacy_developer_mode_alias?.display_policy !== 'show_as_profile_summary_not_primary_switch' ||
+    !developerProfile.must_not_show?.includes('single Developer Mode switch as the only capability expression')
+  ) {
+    throw new Error('App GUI Developer Profile must display capabilities instead of a single Developer Mode switch');
   }
 
   for (const lane of releaseChannel.release_validation_profiles.stable.required_lanes) {
@@ -3844,7 +3888,7 @@ function validateUpdaterScenario(updater) {
   }
   for (const expected of [
     'standard updater does not update domain module packages',
-    'standard updater does not select Developer Mode checkouts',
+    'standard updater does not select Developer Profile source_channel checkouts',
     'standard updater does not install opl-flow',
   ]) {
     if (!updater.expects?.includes(expected)) {

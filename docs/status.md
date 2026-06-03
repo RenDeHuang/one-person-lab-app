@@ -78,12 +78,14 @@ assistant. Companion skill sync stays limited to the App-level packaged
 whitelist such as Superpowers, cron, the OfficeCLI family, PDF, MinerU, and
 UI/UX helpers. AionUI builtin skills remain candidate shell capabilities unless
 the App profile explicitly whitelists them. `agent_installation_contract` now
-also separates ordinary module package updates from Developer Mode checkout
+also separates ordinary module package updates from Developer Profile checkout
 overrides: ordinary users consume the stable GHCR package channel through
 Framework/App maintenance, while GitHub repo or local checkout sources are an
-explicit Developer Mode path. `opl-flow` is a Codex workflow/profile plugin and
-not a WebUI image, standard updater target, or `one-person-lab-modules/*`
-package.
+explicit `source_channel` opt-in. Settings now shows Developer Profile
+capabilities instead of a single Developer Mode switch: `source_channel`,
+`workspace_trust`, `github_authority`, `agent_automation`, and
+`runtime_mutation_scope`. `opl-flow` is a Codex workflow/profile plugin and not
+a WebUI image, standard updater target, or `one-person-lab-modules/*` package.
 pins the independent agent installation path: MAS/MAG/RCA must register through
 Codex plugin registry targets while keeping direct skill compatibility and the
 same action/stage metadata; OMA stays on the OPL-generated skill surface. The

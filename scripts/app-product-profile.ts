@@ -196,10 +196,24 @@ export type AppProductProfile = {
       primary_question: string;
     }>;
     environment_items: string[];
-    developer_mode: {
+    developer_profile: {
       label_key: string;
       description_key: string;
       hide_machine_status: boolean;
+      source: string;
+      default_profile: string;
+      opt_in_policy: string;
+      capability_axes: string[];
+      capabilities: Record<string, {
+        standard_default: string;
+        developer_opt_in: string;
+        display_policy: string;
+      }>;
+      legacy_developer_mode_alias: {
+        state_source: string;
+        display_policy: string;
+        must_not_display_as: string;
+      };
       state_keys: Record<string, string>;
     };
   };
@@ -257,6 +271,13 @@ const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((sk
   !['mas', 'mag', 'rca'].includes(skillId)
 ));
 const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced', 'about'];
+const developerProfileCapabilityAxes = [
+  'source_channel',
+  'workspace_trust',
+  'github_authority',
+  'agent_automation',
+  'runtime_mutation_scope',
+];
 const legacySettingsRouteRedirects = {
   overview: 'general',
   runtime: 'environment',
@@ -569,6 +590,42 @@ function assertProfileShape(profile: AppProductProfile): void {
     throw new Error('App product profile settings_information_architecture must describe every ordinary App settings tab');
   }
   assertStringArray(profile.settings.environment_items, 'settings.environment_items');
+  const developerProfile = profile.settings.developer_profile;
+  if (!developerProfile || typeof developerProfile !== 'object') {
+    throw new Error('App product profile settings.developer_profile must be declared');
+  }
+  if (
+    developerProfile.source !== 'app_state.developer_profile + app_state.developer_mode compatibility field + app_state.modules[].source_policy' ||
+    developerProfile.default_profile !== 'standard_user' ||
+    developerProfile.opt_in_policy !== 'explicit_opt_in_only' ||
+    developerProfile.hide_machine_status !== true
+  ) {
+    throw new Error('App product profile Developer Profile must preserve standard defaults and explicit opt-in policy');
+  }
+  if (JSON.stringify(developerProfile.capability_axes) !== JSON.stringify(developerProfileCapabilityAxes)) {
+    throw new Error('App product profile Developer Profile must declare the required capability axes');
+  }
+  for (const axis of developerProfileCapabilityAxes) {
+    const capability = developerProfile.capabilities?.[axis];
+    if (!capability || typeof capability !== 'object') {
+      throw new Error(`App product profile Developer Profile capability ${axis} must be declared`);
+    }
+    for (const field of ['standard_default', 'developer_opt_in', 'display_policy'] as const) {
+      if (typeof capability[field] !== 'string' || !capability[field].trim()) {
+        throw new Error(`App product profile Developer Profile capability ${axis}.${field} must be a non-empty string`);
+      }
+    }
+  }
+  if (
+    developerProfile.capabilities.source_channel.standard_default !== 'stable_package_channel' ||
+    developerProfile.capabilities.source_channel.developer_opt_in !== 'github_repo_or_local_checkout' ||
+    developerProfile.capabilities.runtime_mutation_scope.standard_default !== 'app_action_route_only' ||
+    developerProfile.legacy_developer_mode_alias?.state_source !== 'app_state.developer_mode' ||
+    developerProfile.legacy_developer_mode_alias.display_policy !== 'show_as_profile_summary_not_primary_switch' ||
+    developerProfile.legacy_developer_mode_alias.must_not_display_as !== 'single_global_toggle'
+  ) {
+    throw new Error('App product profile Developer Profile must replace the single Developer Mode switch with capability display');
+  }
   assertStringArray(profile.companion_payloads.tools, 'companion_payloads.tools');
   assertStringArray(profile.companion_payloads.domain_modules, 'companion_payloads.domain_modules');
   assertStringArray(

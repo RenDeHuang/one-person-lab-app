@@ -267,7 +267,7 @@
         "updater reads standard metadata",
         "Full first-install assets are excluded from update selection",
         "standard updater does not update domain module packages",
-        "standard updater does not select Developer Mode checkouts",
+        "standard updater does not select Developer Profile source_channel checkouts",
         "standard updater does not install opl-flow",
         "updates download in the background and prompt for restart only after the update is ready"
       ]

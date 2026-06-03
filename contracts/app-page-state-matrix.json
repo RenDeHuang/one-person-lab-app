@@ -701,7 +701,7 @@
         "Temporal status from app_state.provider.temporal",
         "MAS/MAG/RCA/OMA module version and source from app_state.modules",
         "module path source explanation",
-        "stable package channel vs Developer Mode checkout source",
+        "Developer Profile source_channel capability and stable package channel default",
         "section-level refresh state",
         "environment page named Local Environment, distinct from Project Progress"
       ],
@@ -1113,7 +1113,7 @@
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_advanced",
       "sections": [
-        "developer_mode",
+        "developer_profile",
         "paths",
         "logs",
         "opl_flow_context",
@@ -1121,7 +1121,7 @@
         "diagnostics"
       ],
       "state_sections": [
-        "developer_mode",
+        "developer_profile",
         "paths",
         "logs",
         "opl_flow_context",
@@ -1131,8 +1131,8 @@
         "opl_agent_codex_context"
       ],
       "must_show": [
-        "Developer Mode effective state from app_state.developer_mode",
-        "Developer Mode repo or local checkout override state",
+        "Developer Profile effective state and capabilities from app_state.developer_profile",
+        "Developer Profile explicit opt-in state for repo or local checkout source_channel",
         "workspace path from app_state.paths",
         "logs path from app_state.paths",
         "OPL Flow Context",
@@ -1141,7 +1141,8 @@
       "must_not_show": [
         "delayed developer mode flip from a shell-local cache",
         "AionUI local directory as OPL path truth",
-        "Developer Mode as ordinary first-level user setup"
+        "Developer Profile as ordinary first-level user setup",
+        "single Developer Mode switch as the only capability expression"
       ]
     }
   ],

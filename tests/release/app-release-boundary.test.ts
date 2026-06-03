@@ -127,6 +127,7 @@ const expectedSettingsPageSections = {
       'Temporal status from app_state.provider.temporal',
       'MAS/MAG/RCA/OMA module version and source from app_state.modules',
       'module path source explanation',
+      'Developer Profile source_channel capability and stable package channel default',
       'section-level refresh state',
       'environment page named Local Environment, distinct from Project Progress',
     ],
@@ -139,9 +140,10 @@ const expectedSettingsPageSections = {
   },
   settings_advanced: {
     matrixId: 'advanced',
-    sections: ['developer_mode', 'paths', 'logs', 'opl_flow_context', 'opl_agent_codex_context', 'diagnostics'],
+    sections: ['developer_profile', 'paths', 'logs', 'opl_flow_context', 'opl_agent_codex_context', 'diagnostics'],
     mustShow: [
-      'Developer Mode effective state from app_state.developer_mode',
+      'Developer Profile effective state and capabilities from app_state.developer_profile',
+      'Developer Profile explicit opt-in state for repo or local checkout source_channel',
       'workspace path from app_state.paths',
       'logs path from app_state.paths',
       'OPL Flow Context',
@@ -150,7 +152,8 @@ const expectedSettingsPageSections = {
     mustNotShow: [
       'delayed developer mode flip from a shell-local cache',
       'AionUI local directory as OPL path truth',
-      'Developer Mode as ordinary first-level user setup',
+      'Developer Profile as ordinary first-level user setup',
+      'single Developer Mode switch as the only capability expression',
     ],
   },
 };
@@ -946,6 +949,29 @@ test('App product profile owns user-facing defaults without runtime authority', 
     'advanced',
     'about',
   ]);
+  assert.deepEqual(profile.settings.developer_profile.capability_axes, [
+    'source_channel',
+    'workspace_trust',
+    'github_authority',
+    'agent_automation',
+    'runtime_mutation_scope',
+  ]);
+  assert.equal(profile.settings.developer_profile.default_profile, 'standard_user');
+  assert.equal(profile.settings.developer_profile.opt_in_policy, 'explicit_opt_in_only');
+  assert.equal(
+    profile.settings.developer_profile.capabilities.source_channel.standard_default,
+    'stable_package_channel',
+  );
+  assert.equal(
+    profile.settings.developer_profile.capabilities.source_channel.developer_opt_in,
+    'github_repo_or_local_checkout',
+  );
+  assert.equal(
+    profile.settings.developer_profile.capabilities.runtime_mutation_scope.standard_default,
+    'app_action_route_only',
+  );
+  assert.equal(profile.settings.developer_profile.legacy_developer_mode_alias.state_source, 'app_state.developer_mode');
+  assert.equal(profile.settings.developer_profile.legacy_developer_mode_alias.display_policy, 'show_as_profile_summary_not_primary_switch');
   assert.equal(profile.gui.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
   assert.ok(profile.codex.default_visible_skills.includes('superpowers'));
   assert.ok(profile.codex.default_visible_skills.includes('cron'));
@@ -1147,7 +1173,10 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.deepEqual(policy.agent_installation_contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states);
   assert.equal(policy.agent_installation_contract.may_use_developer_checkout_by_default, false);
   assert.equal(policy.agent_installation_contract.developer_checkout_override_policy, 'explicit_opt_in_only');
-  assert.equal(policy.agent_installation_contract.developer_checkout_override_surface, 'Developer Mode');
+  assert.equal(
+    policy.agent_installation_contract.developer_checkout_override_surface,
+    'Developer Profile source_channel capability',
+  );
   assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'stable_package_channel');
   assert.deepEqual(policy.agent_installation_contract.module_package_channel_agent_ids, ['mas', 'mag', 'rca', 'oma']);
   assert.deepEqual(policy.agent_installation_contract.non_module_workflow_plugin_ids, ['opl-flow']);
@@ -1247,7 +1276,7 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
     opl_flow_install_allowed: false,
   });
   assert.ok(updater.expects.includes('standard updater does not update domain module packages'));
-  assert.ok(updater.expects.includes('standard updater does not select Developer Mode checkouts'));
+  assert.ok(updater.expects.includes('standard updater does not select Developer Profile source_channel checkouts'));
   assert.ok(updater.expects.includes('standard updater does not install opl-flow'));
 
   const ecosystem = scenarioById.get('ecosystem_modules_app_cli_managed');
@@ -4526,12 +4555,28 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the bundled Full runtime payload'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the stable GHCR package channel'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from a local domain repository checkout'));
-  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a GitHub repo or checkout source is enabled by Developer Mode'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether Developer Profile source_channel uses a GitHub repo or local checkout'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module is managed by App/CLI maintenance'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('that module path display is refs-only and not domain truth authority'));
   assert.equal(guiContract.module_path_source_policy.ordinary_user_source, 'stable_ghcr_package_channel');
-  assert.equal(guiContract.module_path_source_policy.developer_override_surface, 'Developer Mode');
+  assert.equal(guiContract.module_path_source_policy.developer_override_surface, 'Developer Profile source_channel capability');
   assert.equal(guiContract.module_path_source_policy.developer_override_policy, 'explicit_opt_in_only');
+  assert.equal(guiContract.module_path_source_policy.developer_profile_ref, 'developer_profile.capabilities.source_channel');
+  assert.deepEqual(guiContract.developer_profile.capability_axes, [
+    'source_channel',
+    'workspace_trust',
+    'github_authority',
+    'agent_automation',
+    'runtime_mutation_scope',
+  ]);
+  assert.equal(guiContract.developer_profile.default_profile, 'standard_user');
+  assert.equal(guiContract.developer_profile.opt_in_policy, 'explicit_opt_in_only');
+  assert.equal(guiContract.developer_profile.ordinary_user_defaults.source_channel, 'stable_package_channel');
+  assert.equal(guiContract.developer_profile.capabilities.source_channel.developer_opt_in, 'github_repo_or_local_checkout');
+  assert.equal(guiContract.developer_profile.capabilities.workspace_trust.standard_default, 'selected_workspace_only');
+  assert.equal(guiContract.developer_profile.capabilities.github_authority.developer_opt_in, 'repo_checkout_and_remote_intent_visible');
+  assert.equal(guiContract.developer_profile.capabilities.agent_automation.standard_default, 'user_confirmed_app_actions');
+  assert.equal(guiContract.developer_profile.capabilities.runtime_mutation_scope.standard_default, 'app_action_route_only');
   assert.ok(guiContract.module_path_source_policy.must_not_use.includes('raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI'));
   assert.equal(guiContract.pages.settings_environment.module_path_source_policy_ref, 'module_path_source_policy');
   assert.ok(guiContract.pages.about.must_show.includes('OPL Framework revision'));

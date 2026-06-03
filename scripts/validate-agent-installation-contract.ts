@@ -204,6 +204,11 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
   assertArrayEqual(contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states, 'shared fail closed states');
   assertEqual(contract.may_use_developer_checkout_by_default, false, 'developer checkout default policy');
   assertEqual(contract.developer_checkout_override_policy, 'explicit_opt_in_only', 'developer checkout override policy');
+  assertEqual(
+    contract.developer_checkout_override_surface,
+    'Developer Profile source_channel capability',
+    'developer checkout override surface',
+  );
   assertEqual(contract.duplicate_bare_skill_policy, 'forbid_domain_plugin_skill_mirrors', 'duplicate bare skill policy');
   assertEqual(
     contract.plugin_registration_validation_command,
