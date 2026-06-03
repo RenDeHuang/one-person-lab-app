@@ -1333,9 +1333,34 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimeBridge.default_adapter_path, activeShellContract.shell_root);
   assert.equal(runtimeBridge.summary_command, 'opl app state --profile fast --json');
   assert.equal(runtimeBridge.refresh_command, 'opl app state --profile fast --json');
+  assert.equal(runtimeBridge.default_operator_payload, 'compact_owner_delta_projection');
   assert.equal(runtimeBridge.full_state_command, 'opl app state --profile full --json');
   assert.equal(runtimeBridge.full_state_policy, 'diagnostic_or_release_evidence_only');
   assert.equal(runtimeBridge.full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
+  assert.deepEqual(runtimeBridge.default_read_surface_policy, {
+    default_projection: 'opl_compact_owner_delta_projection',
+    source_path: 'app_state.operator.default_read_surface_policy',
+    first_screen_answers: [
+      'next_safe_action_or_none',
+      'current_owner',
+      'required_delta',
+      'accepted_return_shapes',
+      'readiness_false_flags',
+      'count_summary',
+    ],
+    full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
+    raw_refs_policy: 'raw_refs_require_explicit_full_detail',
+    full_detail_auto_poll: false,
+    shell_must_not_use_full_drilldown_as_normal_state: true,
+    shell_must_not_derive_layout_from_raw_runtime_projection: true,
+    forbidden_default_state_fields: [
+      'runtime_tray_snapshot',
+      'raw_evidence_envelope',
+      'stage_replay_packet_body',
+      'private_residue_inventory_body',
+      'provider_internal_ledger_body',
+    ],
+  });
   assert.equal(runtimeBridge.action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
   assert.equal(runtimeBridge.live_conformance_gate.mode, 'explicit_env_opt_in');
   assert.equal(runtimeBridge.live_conformance_gate.default_enforcement, 'disabled');
@@ -4331,9 +4356,19 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.match(guiContract.product_authority.shell_upgrade_policy.replacement_rule, /active-shell validation/);
   assert.equal(guiContract.framework_surfaces.canonical_state.default_command, 'opl app state --profile fast --json');
   assert.equal(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile fast --json');
+  assert.equal(guiContract.framework_surfaces.canonical_state.default_operator_payload, 'compact_owner_delta_projection');
   assert.equal(guiContract.framework_surfaces.canonical_state.default_profile, 'fast');
   assert.equal(guiContract.framework_surfaces.canonical_state.manual_refresh_profile, 'fast');
   assert.equal(guiContract.framework_surfaces.canonical_state.full_profile_policy, 'diagnostic_or_release_evidence_only');
+  assert.deepEqual(guiContract.framework_surfaces.canonical_state.default_read_surface_policy, {
+    default_projection: 'opl_compact_owner_delta_projection',
+    source_path: 'app_state.operator.default_read_surface_policy',
+    full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
+    raw_refs_policy: 'raw_refs_require_explicit_full_detail',
+    full_detail_auto_poll: false,
+    shell_must_not_use_full_drilldown_as_normal_state: true,
+    shell_must_not_derive_layout_from_raw_runtime_projection: true,
+  });
   assert.equal(
     guiContract.framework_surfaces.canonical_action.command,
     'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',

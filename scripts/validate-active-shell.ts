@@ -1829,6 +1829,7 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
   for (const [field, expected] of Object.entries({
     summary_command: 'opl app state --profile fast --json',
     refresh_command: 'opl app state --profile fast --json',
+    default_operator_payload: 'compact_owner_delta_projection',
     full_state_command: 'opl app state --profile full --json',
     full_state_policy: 'diagnostic_or_release_evidence_only',
     full_detail_command: 'opl runtime app-operator-drilldown --detail full --json',
@@ -1842,6 +1843,43 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
     const actual = field.split('.').reduce((value, key) => value?.[key], runtimeBridge);
     if (actual !== expected) {
       throw new Error(`Runtime bridge ${field} must be ${expected}`);
+    }
+  }
+  const defaultReadSurfacePolicy = runtimeBridge.default_read_surface_policy;
+  for (const [field, expected] of Object.entries({
+    default_projection: 'opl_compact_owner_delta_projection',
+    source_path: 'app_state.operator.default_read_surface_policy',
+    full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
+    raw_refs_policy: 'raw_refs_require_explicit_full_detail',
+    full_detail_auto_poll: false,
+    shell_must_not_use_full_drilldown_as_normal_state: true,
+    shell_must_not_derive_layout_from_raw_runtime_projection: true,
+  })) {
+    if (defaultReadSurfacePolicy?.[field] !== expected) {
+      throw new Error(`Runtime bridge default_read_surface_policy.${field} must be ${expected}`);
+    }
+  }
+  for (const field of [
+    'next_safe_action_or_none',
+    'current_owner',
+    'required_delta',
+    'accepted_return_shapes',
+    'readiness_false_flags',
+    'count_summary',
+  ]) {
+    if (!defaultReadSurfacePolicy?.first_screen_answers?.includes(field)) {
+      throw new Error(`Runtime bridge default_read_surface_policy.first_screen_answers must include ${field}`);
+    }
+  }
+  for (const field of [
+    'runtime_tray_snapshot',
+    'raw_evidence_envelope',
+    'stage_replay_packet_body',
+    'private_residue_inventory_body',
+    'provider_internal_ledger_body',
+  ]) {
+    if (!defaultReadSurfacePolicy?.forbidden_default_state_fields?.includes(field)) {
+      throw new Error(`Runtime bridge default_read_surface_policy.forbidden_default_state_fields must include ${field}`);
     }
   }
   validateUserTaskStatusProjectionContract(
@@ -2284,6 +2322,9 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
 
   assertCommandSurface(guiContract.framework_surfaces?.canonical_state?.default_command, 'opl app state --profile fast --json', 'App GUI default state command');
   assertCommandSurface(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile fast --json', 'App GUI refresh state command');
+  if (guiContract.framework_surfaces.canonical_state.default_operator_payload !== 'compact_owner_delta_projection') {
+    throw new Error('App GUI default operator payload must be compact_owner_delta_projection');
+  }
   if (guiContract.framework_surfaces.canonical_state.default_profile !== 'fast') {
     throw new Error('App GUI default state profile must be fast');
   }
@@ -2292,6 +2333,20 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   }
   if (guiContract.framework_surfaces.canonical_state.full_profile_policy !== 'diagnostic_or_release_evidence_only') {
     throw new Error('App GUI full state profile must be reserved for diagnostics or release evidence');
+  }
+  const guiDefaultReadPolicy = guiContract.framework_surfaces.canonical_state.default_read_surface_policy;
+  for (const [field, expected] of Object.entries({
+    default_projection: 'opl_compact_owner_delta_projection',
+    source_path: 'app_state.operator.default_read_surface_policy',
+    full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
+    raw_refs_policy: 'raw_refs_require_explicit_full_detail',
+    full_detail_auto_poll: false,
+    shell_must_not_use_full_drilldown_as_normal_state: true,
+    shell_must_not_derive_layout_from_raw_runtime_projection: true,
+  })) {
+    if (guiDefaultReadPolicy?.[field] !== expected) {
+      throw new Error(`App GUI default_read_surface_policy.${field} must be ${expected}`);
+    }
   }
   assertCommandSurface(
     guiContract.framework_surfaces.canonical_action?.command,
