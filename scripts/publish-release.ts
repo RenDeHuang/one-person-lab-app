@@ -456,8 +456,8 @@ function suggestDefaultReleaseVersion(repo, dateVersion) {
   throw new Error(`No available same-day suffix for GUI release date version ${dateVersion}.`);
 }
 
-function releaseNotesMode() {
-  const mode = (process.env.OPL_RELEASE_NOTES_MODE || 'ai').trim().toLowerCase();
+function releaseNotesMode(options = {}) {
+  const mode = (process.env.OPL_RELEASE_NOTES_MODE || (options.fullPackageOnly ? 'template' : 'ai')).trim().toLowerCase();
   if (mode !== 'ai' && mode !== 'template') {
     throw new Error(`Unsupported OPL_RELEASE_NOTES_MODE: ${process.env.OPL_RELEASE_NOTES_MODE}`);
   }
@@ -485,10 +485,10 @@ function buildReleaseNotes(version, includeFullPackage, shellRoot, fullPackageMa
   };
   const evidence = buildReleaseNotesEvidence(releaseNoteOptions);
   writeReleaseNotesEvidence(evidence);
-  const mode = releaseNotesMode();
+  const mode = releaseNotesMode(options);
   if (mode === 'template') {
-    if (!options.allowTemplate) {
-      throw new Error('OPL_RELEASE_NOTES_MODE=template is allowed only for dry-run diagnostics; published releases must use AI release notes.');
+    if (!options.allowTemplate && !options.fullPackageOnly) {
+      throw new Error('OPL_RELEASE_NOTES_MODE=template is allowed only for dry-run diagnostics and Full-only asset refreshes; standard published releases must use AI release notes.');
     }
     return {
       mode,
@@ -577,7 +577,7 @@ function main() {
     options.includeFullPackage,
     options.shellRoot,
     fullPackageManifest,
-    { allowTemplate: options.dryRun, releaseRepo: options.releaseRepo },
+    { allowTemplate: options.dryRun, fullPackageOnly: options.fullPackageOnly, releaseRepo: options.releaseRepo },
   );
   const releaseNotes = releaseNotesResult.notes;
 

@@ -194,7 +194,8 @@ const checks = [
       'OPL_RELEASE_NOTES_EVIDENCE_OUTPUT',
       'buildAiReleaseNotesDocument',
       'buildReleaseNotesEvidence',
-      'published releases must use AI release notes',
+      'standard published releases must use AI release notes',
+      'Full-only asset refreshes',
     ],
     forbidden: ['generate_release_notes: true'],
   },
@@ -268,7 +269,7 @@ const checks = [
       'standard-release-notes-evidence-${{ inputs.opl_version }}',
       'full-release-notes-evidence-${{ inputs.opl_version }}',
     ],
-    forbidden: ['OPL_RELEASE_NOTES_MODE: template'],
+    forbidden: [],
   },
   {
     id: 'remote_release_verification_workflow_uses_app_script',

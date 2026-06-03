@@ -3297,6 +3297,7 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
     version,
   ], {
     env: {
+      OPL_RELEASE_NOTES_MODE: 'ai',
       OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
     },
   });
@@ -3793,7 +3794,7 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
   assert.deepEqual(payload.skipped_existing_artifacts, []);
 });
 
-test('publish dry run generates organized English release notes for standard and Full lanes', () => {
+test('publish dry run generates deterministic English release notes for Full-only lane', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-notes-'));
   const fullPackageDir = path.join(tempRoot, 'full');
   const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
@@ -3882,10 +3883,11 @@ This release makes a clean OPL install more useful immediately by shipping refre
 
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
+  assert.equal(payload.release_notes_mode, 'template');
   const notes = payload.release_notes;
   const publicNotes = stripLocalizedReleaseNotesForTest(notes);
   assert.match(notes, /One Person Lab 26\.5\.18/);
-  assert.match(notes, /What improved/);
+  assert.match(notes, /What changed/);
   assert.match(notes, /Release scope/);
   assert.match(notes, /Standard macOS arm64 updater package plus Full clean-install DMG/);
   assert.match(notes, /OPL agents and runtime payload/);
@@ -3942,14 +3944,79 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
   assert.match(result.stderr, /components\.meta_agent\.git_commit/);
 });
 
-test('existing same-tag standard plus Full publish replaces the full release notes body', () => {
+test('Full-only release publish uses deterministic notes and does not call the AI note writer', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-full-only-template-notes-'));
+  const fullPackageDir = path.join(tempRoot, 'full');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
+  const evidencePath = path.join(tempRoot, 'full-release-notes-evidence.json');
+  const version = '26.5.20-full-only-template';
+  const manifest = {
+    generated_at: '2026-05-20T12:00:00.000Z',
+    distribution: {
+      updater_metadata_allowed: false,
+    },
+    components: {
+      opl: { git_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+      codex: { version: 'codex-cli 0.130.0' },
+      mas: { git_commit: '1111111111111111111111111111111111111111' },
+      mag: { git_commit: '2222222222222222222222222222222222222222' },
+      rca: { git_commit: '3333333333333333333333333333333333333333' },
+      meta_agent: { git_commit: '4444444444444444444444444444444444444444' },
+      officecli: { version: '1.2.3' },
+      mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
+    },
+  };
+
+  writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
+  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
+  writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
+  writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
+  fs.mkdirSync(path.dirname(fakeAi), { recursive: true });
+  fs.writeFileSync(fakeAi, '#!/usr/bin/env node\nprocess.exit(42);\n', { mode: 0o755 });
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--dry-run',
+    '--version',
+    version,
+    '--full-package-only',
+    '--include-full-package',
+    '--full-package-dir',
+    fullPackageDir,
+  ], {
+    env: {
+      OPL_RELEASE_EXISTS: '1',
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
+      OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: evidencePath,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.release_notes_mode, 'template');
+  assert.equal(payload.full_package_only, true);
+  assert.equal(payload.create_release, false);
+  assert.match(payload.release_notes, /OPL agents and runtime payload/);
+  assert.match(payload.release_notes, /MAS @ 1111111/);
+  assert.match(payload.release_notes, /MAG @ 2222222/);
+  assert.match(payload.release_notes, /RCA @ 3333333/);
+  assert.match(payload.release_notes, /OPL Meta Agent @ 4444444/);
+  assert.ok(fs.existsSync(evidencePath));
+  const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+  assert.equal(evidence.payload.include_full_package, true);
+  assert.ok(evidence.payload.bundled_refs.some((line) => line.includes('MAS @ 1111111')));
+});
+
+test('existing same-tag standard plus Full publish uses deterministic full release notes body', () => {
   const source = fs.readFileSync(path.join(appRoot, 'scripts', 'publish-release.ts'), 'utf8');
 
   assert.match(source, /else if \(options\.includeFullPackage && options\.fullPackageOnly\)/);
   assert.match(source, /replaceReleaseNotes\(options\.releaseRepo, tag, releaseNotes\)/);
   assert.match(source, /buildAiReleaseNotesDocument\(evidence\)/);
   assert.match(source, /OPL_RELEASE_NOTES_EVIDENCE_OUTPUT/);
-  assert.match(source, /OPL_RELEASE_NOTES_MODE=template is allowed only for dry-run diagnostics/);
+  assert.match(source, /options\.fullPackageOnly \? 'template' : 'ai'/);
+  assert.match(source, /Full-only asset refreshes/);
   assert.match(
     source,
     /else if \(options\.includeFullPackage\) {\s*replaceReleaseNotes\(options\.releaseRepo, tag, releaseNotes\);/

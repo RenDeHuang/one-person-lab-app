@@ -337,8 +337,10 @@ rejects vague boilerplate, Chinese text, self-referential release-note copy,
 process-first openings, missing agent names, and missing user impact before
 release publication. It also requires the opening user-benefit paragraph before
 any section heading, keeps payload evidence as normal bullets, and rejects
-role-only payload copy when concrete runtime change hints are available. Tests should use `OPL_RELEASE_NOTES_AI_COMMAND` to inject a fake provider; only dry-run
-diagnostics may set `OPL_RELEASE_NOTES_MODE=template`. GitHub release jobs pass
+role-only payload copy when concrete runtime change hints are available. Tests
+should use `OPL_RELEASE_NOTES_AI_COMMAND` to inject a fake provider. Dry-run
+diagnostics and Full-only asset refreshes may use deterministic template notes;
+standard Release creation or refresh must still use AI notes. GitHub release jobs pass
 `OPL_RELEASE_NOTES_PROVIDER=auto`, request `models: read`, use GitHub Models
 with `GITHUB_TOKEN` first, and fall back to explicit Codex provider
 configuration through `OPL_RELEASE_NOTES_CODEX_*` vars and the
