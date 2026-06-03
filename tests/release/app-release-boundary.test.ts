@@ -839,6 +839,8 @@ test('App product profile owns user-facing defaults without runtime authority', 
       'dashboard-first home',
       'explanatory landing page',
       'backend settings panel in composer',
+      'AionUI Team nav entry',
+      'AionUI Team page as ordinary App surface',
     ],
   });
   assert.deepEqual(profile.gui.ordinary_conversation, {
@@ -1336,6 +1338,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       queued_project_count: 'count queued or waiting user-visible project/task lines without claiming active worker runs',
       attention_count: 'count user-visible blockers, human gates, failed safe actions, or owner attention states',
     },
+    running_state_policy:
+      'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof',
     progress_label_policy:
       'render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names',
     diagnostic_source_policy:
@@ -1383,6 +1387,13 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       authority: 'opl_framework_refs_only_project_line_projection',
       display_policy: 'active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run',
       status_preservation_required: true,
+      project_group_expansion_policy: {
+        running_group_default: 'expanded',
+        attention_group_default: 'visible_when_nonempty',
+        inactive_group_default: 'collapsed',
+        inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
+        inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+      },
       required_fields: [
         'task_id',
         'title',
@@ -1465,6 +1476,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'dashboard-first home',
       'explanatory landing page',
       'backend settings panel in composer',
+      'AionUI Team nav entry',
+      'AionUI Team page as ordinary App surface',
     ],
   });
   assert.deepEqual(guidHomePage.home_view_model.retired_codex_models_must_not_be_exposed, [
@@ -1601,8 +1614,10 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
 
   assert.equal(
     runtimePage.machine_source,
-    'opl app state --profile fast --json + opl runtime app-operator-drilldown --json',
+    'opl app state --profile fast --json',
   );
+  assert.equal(runtimePage.default_state_source, 'opl app state --profile fast --json');
+  assert.equal(runtimePage.diagnostic_source, 'opl runtime app-operator-drilldown --json');
   assert.equal(
     runtimePage.primary_projection,
     'app_state.operator user task status projection',
@@ -1687,6 +1702,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       queued_project_count: 'count queued or waiting user-visible project/task lines without claiming active worker runs',
       attention_count: 'count user-visible blockers, human gates, failed safe actions, or owner attention states',
     },
+    running_state_policy:
+      'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof',
     progress_label_policy:
       'render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names',
     diagnostic_source_policy:
@@ -1734,6 +1751,13 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       authority: 'opl_framework_refs_only_project_line_projection',
       display_policy: 'active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run',
       status_preservation_required: true,
+      project_group_expansion_policy: {
+        running_group_default: 'expanded',
+        attention_group_default: 'visible_when_nonempty',
+        inactive_group_default: 'collapsed',
+        inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
+        inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+      },
       required_fields: [
         'task_id',
         'title',
@@ -1766,6 +1790,13 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     runtimePage.runtime_view_model.default_attention.active_project_line_policy,
     'queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run',
   );
+  assert.deepEqual(runtimePage.runtime_view_model.default_attention.project_group_expansion_policy, {
+    running_group_default: 'expanded',
+    attention_group_default: 'visible_when_nonempty',
+    inactive_group_default: 'collapsed',
+    inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
+    inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+  });
   assert.equal(
     runtimePage.runtime_view_model.progress_delta.source,
     'app_state.operator.workbench.task_drilldowns.progress_delta_classification',
@@ -1844,6 +1875,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'app_state.operator.workbench.task_drilldowns project progress refs',
     'app_state.operator.workbench.activity_center.active_projects active project lines',
     'app_state.operator.visual_ref_groups.active_project_refs',
+    'non-running waiting or stopped projects collapsed by default',
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
@@ -1873,6 +1905,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'provider readiness from app_state.provider',
     'operator summary from app_state.operator',
     'safe action refs from app_state.actions',
+    'non-running waiting or stopped projects collapsed by default',
     'summary OPL operator drilldown read model',
     'full detail lazy load',
     'safe app action dry-run/execute controls',
@@ -4210,6 +4243,13 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     guiContract.framework_surfaces.runtime_default_attention.active_project_line_policy,
     'queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run',
   );
+  assert.deepEqual(guiContract.framework_surfaces.runtime_default_attention.project_group_expansion_policy, {
+    running_group_default: 'expanded',
+    attention_group_default: 'visible_when_nonempty',
+    inactive_group_default: 'collapsed',
+    inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
+    inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+  });
   assert.equal(guiContract.executor_policy.default_executor, 'codex_cli');
   assert.equal(guiContract.executor_policy.codex_cli_fixed_executor, true);
   assert.equal(guiContract.executor_policy.codex_only_default, true);
@@ -4401,6 +4441,18 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'update',
     'theme',
   ]);
+  assert.deepEqual(guiContract.settings_navigation.ordinary_hidden_upstream_surfaces, [
+    'AionUI Team',
+    'Team nav entry',
+    'Team leader configuration',
+    'team deep link navigation',
+  ]);
+  assert.deepEqual(guiContract.settings_navigation.team_surface_policy, {
+    ordinary_visible: false,
+    route_policy: 'disabled_or_redirect_to_app_owned_home',
+    deep_link_policy: 'not_whitelisted',
+    rationale: 'upstream AionUI Team is configured around shell-local agents and is not an OPL ordinary-user capability',
+  });
   assert.equal(guiContract.settings_navigation.source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.primary_tabs.general.label_zh, '通用');

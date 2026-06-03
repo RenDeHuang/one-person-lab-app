@@ -133,8 +133,19 @@ const appOwnedHomeLayout = {
     'dashboard-first home',
     'explanatory landing page',
     'backend settings panel in composer',
+    'AionUI Team nav entry',
+    'AionUI Team page as ordinary App surface',
   ],
 };
+const appOwnedProjectGroupExpansionPolicy = {
+  running_group_default: 'expanded',
+  attention_group_default: 'visible_when_nonempty',
+  inactive_group_default: 'collapsed',
+  inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
+  inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+};
+const appOwnedRunningStatePolicy =
+  'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof';
 const appOwnedOrdinaryConversation = {
   path_id: 'ordinary_codex_conversation',
   entry_source: 'home_purpose_entry_or_new_conversation',
@@ -310,6 +321,11 @@ function validateActiveProjectLineProjectionContract(activeProjectLineProjection
   if (activeProjectLineProjection.status_preservation_required !== true) {
     throw new Error(`${label} must preserve status, active_run_id, and next_visible_step`);
   }
+  assertDeepEqualJson(
+    activeProjectLineProjection.project_group_expansion_policy,
+    appOwnedProjectGroupExpansionPolicy,
+    `${label} project_group_expansion_policy`,
+  );
   if (options.requireFields !== false) {
     assertIncludesAll(
       activeProjectLineProjection.required_fields,
@@ -412,6 +428,9 @@ function validateUserTaskStatusProjectionContract(userTaskStatus, label) {
     if (userTaskStatus.count_policies?.[field] !== expected) {
       throw new Error(`${label} count_policies.${field} must be ${expected}`);
     }
+  }
+  if (userTaskStatus.running_state_policy !== appOwnedRunningStatePolicy) {
+    throw new Error(`${label} running_state_policy must be ${appOwnedRunningStatePolicy}`);
   }
   assertDeepEqualJson(
     userTaskStatus.must_not_default_display_terms,
@@ -1000,6 +1019,13 @@ function validateActiveShellImplementation(shellPaths) {
   }
 
   const router = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Router.tsx');
+  const constants = readShellText(shellPaths, 'packages/desktop/src/common/config/constants.ts');
+  if (!constants.includes('export const TEAM_MODE_ENABLED = false')) {
+    throw new Error('Active shell ordinary GUI must disable upstream AionUI Team mode by default');
+  }
+  if (!router.includes('TEAM_MODE_ENABLED ? withRouteFallback(TeamIndex) : <Navigate to=\'/guid\' replace />')) {
+    throw new Error('Active shell router must redirect /team routes when Team mode is disabled');
+  }
   for (const [legacyId, targetId] of Object.entries(legacySettingsRouteRedirects)) {
     const expectedTarget =
       legacyId === 'skills-hub'
@@ -1011,6 +1037,18 @@ function validateActiveShellImplementation(shellPaths) {
     if (!router.includes(expectedRoute)) {
       throw new Error(`Active shell router must redirect legacy settings route ${legacyId} to ${expectedTarget}`);
     }
+  }
+  const sider = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Sider/index.tsx');
+  if (!sider.includes('{TEAM_MODE_ENABLED && (') || !sider.includes('<TeamSiderSection')) {
+    throw new Error('Active shell Sider must gate TeamSiderSection behind TEAM_MODE_ENABLED');
+  }
+  const teamRedirect = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/team/hooks/useTeamCreatedRedirect.ts');
+  if (!teamRedirect.includes('if (!TEAM_MODE_ENABLED)') || !teamRedirect.includes('return undefined')) {
+    throw new Error('Active shell Team created redirect hook must no-op when Team mode is disabled');
+  }
+  const deepLink = readShellText(shellPaths, 'packages/desktop/src/renderer/hooks/system/useDeepLink.ts');
+  if (deepLink.includes('/^\\/team\\/[^/]+$/')) {
+    throw new Error('Active shell deep links must not whitelist Team routes for ordinary OPL App');
   }
 
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
@@ -1355,6 +1393,30 @@ function validateActiveShellImplementation(shellPaths) {
   for (const expected of ['formatElapsedTime', "t('conversation.chat.processing')", 'elapsedTime']) {
     if (!thoughtDisplay.includes(expected)) {
       throw new Error(`Active shell ThoughtDisplay must expose elapsed processing feedback ${expected}`);
+    }
+  }
+
+  const runtimePage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/runtime/index.tsx');
+  for (const expected of [
+    'const userTaskDrilldown = appStateProjection',
+    'workbenchActiveProjectLines(userTaskDrilldown ?? {})',
+    'workbenchTaskDrilldowns(userTaskDrilldown ?? {})',
+    'const runningTaskCount = runningTasks.length',
+    'taskOverview.inactiveTasks.length > 0',
+    "t('common.runtime.inactiveTasks')",
+  ]) {
+    if (!runtimePage.includes(expected)) {
+      throw new Error(`Active shell Runtime page must implement user-task-first grouped display: ${expected}`);
+    }
+  }
+  for (const forbidden of [
+    '|| activity.activeExecutionCount',
+    'fallbackRunningTasks',
+    'runtimeActivityProjection',
+    '|| project.activeRunId',
+  ]) {
+    if (runtimePage.includes(forbidden)) {
+      throw new Error(`Active shell Runtime page must not derive user running tasks from provider/run fallbacks: ${forbidden}`);
     }
   }
 
@@ -2260,6 +2322,11 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     throw new Error('App GUI runtime default attention must separate active project lines from active worker runs');
   }
   assertDeepEqualJson(
+    runtimeDefaultAttention?.project_group_expansion_policy,
+    appOwnedProjectGroupExpansionPolicy,
+    'App GUI runtime default attention project_group_expansion_policy',
+  );
+  assertDeepEqualJson(
     runtimeDefaultAttention?.must_not_default_display_terms,
     ['Temporal', 'provider', 'projection', 'ref', 'stage attempt', 'ledger', 'current_control_state'],
     'App GUI runtime default attention forbidden default terms',
@@ -2401,6 +2468,21 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     ordinaryHiddenLegacySettingsTabs,
     'App GUI settings navigation ordinary hidden legacy tabs',
   );
+  assertIncludesAll(
+    guiContract.settings_navigation?.ordinary_hidden_upstream_surfaces,
+    ['AionUI Team', 'Team nav entry', 'Team leader configuration', 'team deep link navigation'],
+    'App GUI settings hidden upstream surfaces',
+  );
+  for (const [field, expected] of Object.entries({
+    ordinary_visible: false,
+    route_policy: 'disabled_or_redirect_to_app_owned_home',
+    deep_link_policy: 'not_whitelisted',
+    rationale: 'upstream AionUI Team is configured around shell-local agents and is not an OPL ordinary-user capability',
+  })) {
+    if (guiContract.settings_navigation?.team_surface_policy?.[field] !== expected) {
+      throw new Error(`App GUI settings team_surface_policy.${field} must be ${expected}`);
+    }
+  }
   if (guiContract.settings_navigation.source !== 'opl app state --profile fast --json') {
     throw new Error('App GUI settings navigation must default to fast App state');
   }
@@ -2669,6 +2751,12 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (pages.runtime_status.primary_projection !== 'app_state.operator user task status projection') {
     throw new Error('App GUI runtime status must default to the user task status projection');
   }
+  if (pages.runtime_status.default_state_source !== 'opl app state --profile fast --json') {
+    throw new Error('App GUI runtime status default source must be fast App state');
+  }
+  if (pages.runtime_status.diagnostic_source !== 'opl runtime app-operator-drilldown --json') {
+    throw new Error('App GUI runtime status diagnostic source must be operator drilldown');
+  }
   validateUserTaskStatusProjectionContract(
     pages.runtime_status.user_task_status_policy,
     'App GUI runtime status user task status policy',
@@ -2680,6 +2768,7 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     'queued project count',
     'attention count',
     'task title/status/stage/progress label/next step/owner/last progress',
+    'non-running waiting or stopped projects collapsed by default',
     'deliverable progress delta classification',
     'platform repair delta as separate infrastructure repair',
   ]) {
@@ -3140,8 +3229,14 @@ function validatePageStateMatrix(matrix, contract) {
   if (!runtimePage) {
     throw new Error('Page-state matrix is missing runtime page');
   }
-  if (runtimePage.machine_source !== 'opl app state --profile fast --json + opl runtime app-operator-drilldown --json') {
-    throw new Error(`Runtime page must consume OPL App state plus operator drilldown as the summary source, got: ${runtimePage.machine_source}`);
+  if (runtimePage.machine_source !== 'opl app state --profile fast --json') {
+    throw new Error(`Runtime page machine_source must be fast App state, got: ${runtimePage.machine_source}`);
+  }
+  if (runtimePage.default_state_source !== 'opl app state --profile fast --json') {
+    throw new Error(`Runtime page default_state_source must be fast App state, got: ${runtimePage.default_state_source}`);
+  }
+  if (runtimePage.diagnostic_source !== 'opl runtime app-operator-drilldown --json') {
+    throw new Error(`Runtime page diagnostic_source must be operator summary drilldown, got: ${runtimePage.diagnostic_source}`);
   }
   if (runtimePage.primary_projection !== 'app_state.operator user task status projection') {
     throw new Error(`Runtime page primary_projection must be user task status, got: ${runtimePage.primary_projection}`);
@@ -3249,6 +3344,11 @@ function validatePageStateMatrix(matrix, contract) {
   ) {
     throw new Error('Runtime page default attention must keep active project lines separate from active worker runs');
   }
+  assertDeepEqualJson(
+    pageDefaultAttention?.project_group_expansion_policy,
+    appOwnedProjectGroupExpansionPolicy,
+    'Runtime page default attention project_group_expansion_policy',
+  );
   if (runtimeViewModel.diagnostics?.default_visibility !== 'secondary_disclosure') {
     throw new Error('Runtime page diagnostics must be secondary disclosure, not a primary daily surface');
   }
@@ -3315,6 +3415,7 @@ function validatePageStateMatrix(matrix, contract) {
     'app_state.operator.workbench.task_drilldowns project progress refs',
     'app_state.operator.workbench.activity_center.active_projects active project lines',
     'app_state.operator.visual_ref_groups.active_project_refs',
+    'non-running waiting or stopped projects collapsed by default',
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
@@ -3347,6 +3448,7 @@ function validatePageStateMatrix(matrix, contract) {
     'provider readiness from app_state.provider',
     'operator summary from app_state.operator',
     'safe action refs from app_state.actions',
+    'non-running waiting or stopped projects collapsed by default',
     'summary OPL operator drilldown read model',
     'full detail lazy load',
     'safe app action dry-run/execute controls',

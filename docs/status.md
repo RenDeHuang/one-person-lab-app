@@ -174,6 +174,19 @@ repo/worktree diagnostics, and assistant purpose cards remain forbidden
 running-task sources. The `validate:active-shell --quick` and focused
 release-boundary/runtime-bridge tests lock this user-task-first distinction.
 
+Non-running project lines are now a separate collapsed group. Queued, pending,
+waiting, stopped, parked, checkpointed, blocked, or attention-needed project
+lines preserve their status, `active_run_id`, and next visible step, but only
+explicit `running`, `in_progress`, or `advancing` status/state contributes to
+the visible running task count. `active_run_id` alone is context, not liveness
+proof.
+
+The upstream AionUI Team surface is disabled for ordinary OPL App use. Team
+mode is off by default, the Team sidebar entry is hidden, Team-created redirects
+no-op, Team deep links are not whitelisted, and compatible `/team/*` routes
+return to the App-owned home path. This keeps the fork delta thin while avoiding
+an upstream team-leader configuration that does not map to OPL purpose routing.
+
 The App first-run screen presents that shared model in a beginner-first way:
 the primary view shows a plain readiness summary, three user-facing setup
 steps, the required Core progress, the single primary start action, and only

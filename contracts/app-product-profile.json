@@ -75,7 +75,9 @@
         "must_not_show": [
           "dashboard-first home",
           "explanatory landing page",
-          "backend settings panel in composer"
+          "backend settings panel in composer",
+          "AionUI Team nav entry",
+          "AionUI Team page as ordinary App surface"
         ]
       },
       "codex_auto_model_selection": {

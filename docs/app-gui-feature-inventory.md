@@ -201,15 +201,20 @@ secondary context，不在 composer 附近显示 compact entry。
 - 普通 page state refresh 也使用同一个 fast profile。
 - Full state 和 Operator full drilldown 只在 explicit diagnostic/release paths
   使用。
-- Runtime 页先展示 `opl runtime app-operator-drilldown --json` 的
-  `current_control_state` provider running activity，再展示 project progress
-  refs 和 detailed drilldown。
+- Runtime 页默认展示 `opl app state --profile fast --json` 的用户任务和项目线：
+  summary cards、activity center、task drilldowns 和 active project refs。Operator
+  drilldown 和 `current_control_state` 是 secondary diagnostics，不是普通运行任务
+  计数来源。
+- Running task 只由显式 `running`、`in_progress` 或 `advancing` status/state
+  产生；`active_run_id` 可显示为上下文，但不能单独证明正在运行。
 - Runtime/inspector 中的“进行中项目”来自 `opl app state --profile fast --json`
   的 `operator.workbench.activity_center.active_projects`、summary card 和
   `operator.visual_ref_groups.active_project_refs`。它表示用户视角仍在推进的
   project/paper line；`queued`、`escalated` 等 owner-handled 状态可以计入，但
   UI 必须同时展示 status、active_run_id 和 next visible step，避免误读为 active
   worker execution。
+- Queued、waiting、stopped、parked、checkpointed、blocked 或其它非运行项目线
+  默认折叠，只在 Runtime 页显示数量、状态和下一步摘要，用户展开后再看具体 refs。
 - Home 不展示 runtime activity、continue-work、needs-attention/active/recent
   refs、per-assistant running badges 或底部 feedback/favorite/web 图标；这些信息
   进入 Runtime 页、右侧 inspector、drawer 或其他 secondary context surface。
@@ -218,6 +223,9 @@ secondary context，不在 composer 附近显示 compact entry。
   Environment、Appearance、Advanced、About & Updates。
 - Agents & Capabilities 的内置技能列表和自动注入技能只展示 App packaged skill
   whitelist 中的技能；AionUI implementation helper 如 `aionui-skills` 不作为 OPL 能力展示。
+- AionUI upstream Team 入口不作为 OPL 普通能力、普通导航或 Settings tab 暴露；
+  Team sidebar section、Team 自动跳转和 Team deep link 默认禁用，兼容 route 只做
+  App-owned redirect。
 - Update state 和 release channel labels 本地化。
 - Runtime、memory、automations、files、capabilities 作为可收起 contextual
   tabs 或 inspector surfaces 展示，并 scoped 到 selected workspace/conversation。

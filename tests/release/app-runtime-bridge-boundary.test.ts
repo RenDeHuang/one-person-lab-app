@@ -123,6 +123,8 @@ test('App owns runtime bridge contract while active shell remains replaceable ad
       queued_project_count: 'count queued or waiting user-visible project/task lines without claiming active worker runs',
       attention_count: 'count user-visible blockers, human gates, failed safe actions, or owner attention states',
     },
+    running_state_policy:
+      'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof',
     progress_label_policy:
       'render framework progress classification and stage labels as human task progress labels without exposing raw projection or ledger names',
     diagnostic_source_policy: 'provider/projection/ref/ledger/current_control_state details stay secondary and are not the default page language',
@@ -180,6 +182,13 @@ test('App owns runtime bridge contract while active shell remains replaceable ad
     authority: 'opl_framework_refs_only_project_line_projection',
     display_policy: 'active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run',
     status_preservation_required: true,
+    project_group_expansion_policy: {
+      running_group_default: 'expanded',
+      attention_group_default: 'visible_when_nonempty',
+      inactive_group_default: 'collapsed',
+      inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
+      inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+    },
     required_fields: [
       'task_id',
       'title',
@@ -255,6 +264,13 @@ test('Runtime page classifies deliverable progress separately from platform repa
       authority: 'opl_framework_refs_only_project_line_projection',
       display_policy: 'active_project_line_count_can_include_queued_or_escalated_owner_handled_lines_without_active_worker_run',
       status_preservation_required: true,
+      project_group_expansion_policy: {
+        running_group_default: 'expanded',
+        attention_group_default: 'visible_when_nonempty',
+        inactive_group_default: 'collapsed',
+        inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
+        inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+      },
       required_fields: [
         'task_id',
         'title',
@@ -376,6 +392,17 @@ test('Runtime page separates user-visible active project lines from active worke
   assert.equal(
     runtimePage.runtime_view_model.default_attention.active_project_line_policy,
     'queued_or_escalated_owner_handled_project_lines_count_as_user_visible_active_projects_without_claiming_active_worker_run',
+  );
+  assert.deepEqual(runtimePage.runtime_view_model.default_attention.project_group_expansion_policy, {
+    running_group_default: 'expanded',
+    attention_group_default: 'visible_when_nonempty',
+    inactive_group_default: 'collapsed',
+    inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
+    inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+  });
+  assert.equal(
+    runtimePage.runtime_view_model.user_task_status_projection.running_state_policy,
+    'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof',
   );
   assert.ok(activeProjectSummaryCard, 'fixture must carry an active_projects summary card');
   assert.ok(ownerHandledProject, 'fixture must carry a queued or escalated active project line');

@@ -119,13 +119,19 @@ plugin registry。
 Codex App 展示 process 和 tool state。OPL App 增加 Framework-backed runtime
 和 project refs：
 
-- Runtime 页默认从 `opl runtime app-operator-drilldown --json` 读取
-  `current_control_state.summary` 和 `current_control_state.states`，先展示真实
-  active provider executions、running domains、task kinds 和 heartbeat。
-  `running_provider_attempt_count` 这类 provider ref summary 只能作为高级诊断，
-  不能直接当成用户可见的正在运行任务数。
+- Runtime 页默认从 `opl app state --profile fast --json` 读取用户任务和项目线：
+  `summary_cards`、`activity_center.active_projects`、`task_drilldowns` 和
+  `visual_ref_groups.active_project_refs`。
+- `opl runtime app-operator-drilldown --json`、`current_control_state` 和
+  `running_provider_attempt_count` 只作为高级诊断。它们可以解释底层 provider
+  activity，但不能直接当成用户可见的正在运行任务数。
+- Running task 只来自显式 `running`、`in_progress` 或 `advancing` status/state；
+  `active_run_id` 是上下文，不是 liveness proof。
+- 非运行项目线默认折叠。Queued、waiting、stopped、parked、checkpointed、
+  blocked 或 attention-needed 项只在折叠区显示 count/status/next-step 摘要，
+  展开后再看具体 refs。
 - 来自 `opl app state` 的 current project title、domain、owner/state/stage、
-  next visible step 和 blockers 作为二级 project progress refs 展示。
+  next visible step 和 blockers 作为 project progress refs 展示。
 - 基于 OPL shared progress projection classifications 展示 progress：
   deliverable progress、platform repair 和 progress delta classification。
 - 通过 dry-run-first App actions 触发 safe action routes。
@@ -136,6 +142,8 @@ Codex App 展示 process 和 tool state。OPL App 增加 Framework-backed runtim
   Runtime 页、右侧 inspector、drawer 或其他 secondary context surface。
 - `domain_lane_map.active_task_count`、`module_runtime dirty`、module readiness 和
   assistant purpose cards 不能作为 running task truth。
+- AionUI upstream Team 入口不是 OPL 普通功能；普通 GUI 隐藏 Team 侧栏入口、
+  禁用 Team 自动跳转和 Team deep link，兼容 `/team/*` 路由只回到 App-owned home。
 
 Conversation 自身的工作反馈继承 Codex App 的 expectation：用户发送消息后，
 pending/running 状态必须有可见等待反馈和秒数，而不是只依赖后台处理、console

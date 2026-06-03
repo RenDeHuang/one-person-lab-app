@@ -31,9 +31,44 @@ Settings boundary 也遵循同样拆分。普通 Settings navigation 是 General
 
 Installation exposure uses separate classes so user-facing defaults do not become install-time duplication. MAS/MAG/RCA are family domain plugin surfaces: they can be default App entries and Codex-visible plugin-packaged skills, but they must not be mirrored into duplicate bare `~/.codex/skills/{mas,mag,rca}` directories. OPL Meta Agent is an OPL-generated Codex surface and remains out of the default home assistant list. App release packaging copies only the declared App packaged skill ids: default packaged skills plus explicit-only packaged skills. The default companion set includes Superpowers, cron, the OfficeCLI family, PDF, MinerU document extraction, and UI/UX helpers. AionUI builtin skills are candidate shell capabilities, not a parallel packaging policy. OPL Framework owns plugin registry refresh and generated surface production, while App release packaging owns only the user-facing policy and payload assembly.
 
-The runtime page contract is display and routing only. It consumes `opl runtime app-operator-drilldown --json` as the default running-activity source, `opl app state --profile fast --json` as the refresh/availability/action/project-ref source, keeps `opl app state --profile full --json` for explicit full-state diagnostic or release evidence, and uses whitelisted `opl app action execute` routes for operator-selected actions. Full Framework drilldown remains an on-demand exception. Runtime truth, action execution authority, domain verdicts, memory bodies, and artifact bodies remain outside the App. `contracts/app-runtime-bridge.json#running_task_projection` binds running activity to `current_control_state.summary` plus `current_control_state.states`; `domain_lane_map.active_task_count`, `module_runtime dirty`, module readiness diagnostics, repo/worktree diagnostics, and assistant cards are forbidden running-task sources. `contracts/app-runtime-bridge.json#progress_delta_projection` binds secondary project progress display to the OPL shared progress projection classification fields: `deliverable_progress_delta`, `platform_repair_delta`, and `progress_delta_classification`. The page-state matrix mirrors those bridge-level projections. Platform repair is displayed as infrastructure repair, never as deliverable, paper, manuscript, or submission progress.
+The runtime page contract is display and routing only. Its default user view
+consumes `opl app state --profile fast --json` and builds the task/project list
+from `app_state.operator.workbench.summary_cards`,
+`activity_center.active_projects`, `task_drilldowns`, and
+`operator.visual_ref_groups.active_project_refs`. `opl runtime
+app-operator-drilldown --json` is secondary diagnostic input, and full
+Framework drilldown remains an on-demand exception. Runtime truth, action
+execution authority, domain verdicts, memory bodies, and artifact bodies remain
+outside the App. `running_provider_attempt_count` and `current_control_state`
+can help explain low-level provider activity in diagnostics, but they are not
+the user-visible running task count. `domain_lane_map.active_task_count`,
+`module_runtime dirty`, module readiness diagnostics, repo/worktree diagnostics,
+stale `active_run_id`, and assistant cards are forbidden running-task sources.
+`contracts/app-runtime-bridge.json#progress_delta_projection` binds secondary
+project progress display to the OPL shared progress projection classification
+fields: `deliverable_progress_delta`, `platform_repair_delta`, and
+`progress_delta_classification`. The page-state matrix mirrors those
+bridge-level projections. Platform repair is displayed as infrastructure
+repair, never as deliverable, paper, manuscript, or submission progress.
 
-The default Runtime page attention model is running-activity first and project refs second. The ordinary view answers whether provider attempts are actually running, which domains are active, how many attempts are visible, what task kinds are running, and when the latest heartbeat was observed. Project title, stage, next owner, blockers, progress deltas, operator summary, safe actions, refs-only evidence, and full ledger detail are secondary disclosures. A release/user-path evidence bundle can support the same App release cohort and release-owner review, but it cannot by itself promote stable/latest, prove domain readiness, or prove OPL family production readiness.
+The default Runtime page attention model is user-task-status first. The
+ordinary view answers which tasks are explicitly running or advancing, which
+projects/tasks are active or queued, what needs attention, and what the next
+visible step is. Running or attention rows stay visible; queued, waiting,
+stopped, parked, checkpointed, blocked, or otherwise non-running project lines
+are collapsed by default with count/status/next-step summary. Project title,
+stage, next owner, blockers, progress deltas, operator summary, safe actions,
+refs-only evidence, provider activity, and full ledger detail are secondary
+disclosures. A release/user-path evidence bundle can support the same App
+release cohort and release-owner review, but it cannot by itself promote
+stable/latest, prove domain readiness, or prove OPL family production readiness.
+
+The upstream AionUI Team surface is not an OPL ordinary-user capability. It is
+configured around shell-local team leaders and agents, so the active shell keeps
+Team mode disabled, hides the Team sidebar entry, rejects Team deep links, and
+redirects any compatible `/team/*` route back to the App-owned home path. Future
+shells may implement their own collaboration features only through App-owned
+contracts and page-state gates.
 
 Live bridge conformance is intentionally opt-in. `validate-active-shell.ts
 --quick` validates the App-owned bridge contract by default. When

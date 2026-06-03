@@ -193,6 +193,10 @@ Runtime display 必须 user-task-status-first 且 authority-aware。
   `app_state.operator.visual_ref_groups.active_project_refs`。`queued` 或
   `escalated` 的 owner-handled paper line 可以计入用户可见项目线，但必须保留原始
   `status`、`active_run_id` 和 next step，不能伪装成 active worker run。
+- Running 只来自显式 `running`、`in_progress` 或 `advancing` status/state；
+  `active_run_id` 是上下文，不是 liveness proof。Queued、waiting、stopped、
+  parked、checkpointed、blocked 或 attention-needed 项目默认折叠，展示数量、
+  状态和下一步摘要，展开后再看具体项目 refs。
 - 项目进度 refs 来自 `app_state.operator.workbench.task_drilldowns`，作为二级
   project progress；它可以支撑项目线和下一步展示，但不用于从 module/runtime
   dirty state 推断运行任务数。
@@ -253,6 +257,11 @@ surface 继续维护。
 Model、agent、assistants、skills-hub、tools、display、WebUI、pet 等 legacy
 或 upstream settings categories 路由到 App-owned pages 或 diagnostics。它们
 不能成为普通产品 tabs。
+
+AionUI upstream Team surface 不进入 OPL 普通路径。Team sidebar entry、Team
+leader configuration、Team 自动跳转和 Team deep link 默认隐藏或禁用；保留的
+兼容 route 只能 redirect 到 App-owned home 或明确 diagnostics，不能成为普通
+capability。
 
 Agents & Capabilities 主视图按科研、基金、演示和显式 OPL Meta Agent 组织。
 内置技能列表和自动注入技能只能显示 App product profile 的 packaged skill
