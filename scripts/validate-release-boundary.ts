@@ -94,6 +94,7 @@ const checks = [
       'npm run release:publish',
       'brew install zstd temporal || true',
       'OPL_FULL_BUN_BIN=$(command -v bun)',
+      'OPL_FULL_INCLUDE_BUN_RUNTIME',
       'OPL_FULL_TEMPORAL_CLI_BIN=$(command -v temporal)',
       'export OPL_FULL_BUN_BIN="${OPL_FULL_BUN_BIN:-$(command -v bun)}"',
       'export OPL_FULL_TEMPORAL_CLI_BIN="${OPL_FULL_TEMPORAL_CLI_BIN:-$(command -v temporal)}"',

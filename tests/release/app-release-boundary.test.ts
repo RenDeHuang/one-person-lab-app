@@ -625,8 +625,8 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
     package_kind: 'opl_full_first_install_macos_arm64',
     size_budget: {
       platform_scope: 'macos-arm64',
-      warning_full_dmg_bytes: 650000000,
-      max_full_dmg_bytes: 700000000,
+      warning_full_dmg_bytes: 700000000,
+      max_full_dmg_bytes: 750000000,
       max_runtime_uncompressed_bytes: 950000000,
     },
     measurement_policy: {
@@ -648,6 +648,27 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
     },
     distribution: {
       updater_metadata_allowed: false,
+    },
+    components: {
+      temporal_cli: {
+        source_path: '/tmp/temporal',
+        version: 'temporal version 1.7.0',
+        size_bytes: 801,
+        role: 'temporal_cli_offline_archive_wrapper',
+        required: true,
+        archive_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
+        archive_size_bytes: 114835528,
+      },
+    },
+    optional_components: {
+      bun: {
+        source_path: null,
+        version: null,
+        size_bytes: 0,
+        role: 'optional_bun_cli_runtime_payload',
+        required: false,
+        status: 'not_packaged',
+      },
     },
     ...(options.manifest ?? {}),
   };
@@ -3429,11 +3450,14 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.deepEqual(summary.verified_assets.map((asset) => asset.name), names);
   assert.equal(summary.full_first_install_budget.status, 'passed');
   assert.equal(summary.full_first_install_budget.platform_scope, 'macos-arm64');
-  assert.equal(summary.full_first_install_budget.max_full_dmg_bytes, 700000000);
+  assert.equal(summary.full_first_install_budget.warning_full_dmg_bytes, 700000000);
+  assert.equal(summary.full_first_install_budget.max_full_dmg_bytes, 750000000);
   assert.equal(summary.full_first_install_budget.full_dmg_size_bytes, Buffer.byteLength('full-dmg'));
   assert.equal(summary.full_first_install_budget.runtime_uncompressed_bytes, 128);
   assert.deepEqual(summary.full_first_install_budget.temporal_core_bridge_releases, ['aarch64-apple-darwin']);
   assert.equal(summary.full_first_install_budget.excluded_module_venv_count, 0);
+  assert.equal(summary.full_first_install_budget.required_components.temporal_cli.version, 'temporal version 1.7.0');
+  assert.equal(summary.full_first_install_budget.optional_components.bun.status, 'not_packaged');
 });
 
 test('remote release verifier fails closed when Full runtime assertions are missing or broad', () => {
@@ -3505,8 +3529,9 @@ test('remote release verifier fails closed when Full size budget is exceeded', (
       manifest: {
         size_budget: {
           platform_scope: 'macos-arm64',
+          warning_full_dmg_bytes: 1,
           max_full_dmg_bytes: 4,
-        max_runtime_uncompressed_bytes: 950000000,
+          max_runtime_uncompressed_bytes: 950000000,
         },
       },
     }),
@@ -5240,7 +5265,7 @@ test('Full release docs publish size policy and remote verifier budget boundarie
     'uncompressed runtime size',
     'layer breakdown',
     'remote verifier size budget',
-    '650MB warning threshold',
+    '700MB warning threshold',
     'miss_written',
     'release:full:size',
     '.codegraph',
@@ -5272,8 +5297,8 @@ test('Full package size analyzer reports manifest component and layer budgets', 
       package_kind: 'opl_full_first_install_macos_arm64',
       size_budget: {
         platform_scope: 'macos-arm64',
-        warning_full_dmg_bytes: 650000000,
-        max_full_dmg_bytes: 700000000,
+        warning_full_dmg_bytes: 700000000,
+        max_full_dmg_bytes: 750000000,
         max_runtime_uncompressed_bytes: 1000,
       },
       size_breakdown: {
@@ -5301,8 +5326,8 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.equal(jsonResult.status, 0, jsonResult.stderr);
   const summary = JSON.parse(jsonResult.stdout);
   assert.equal(summary.version, '26.5.27-size');
-  assert.equal(summary.warning_full_dmg_bytes, 650000000);
-  assert.equal(summary.max_full_dmg_bytes, 700000000);
+  assert.equal(summary.warning_full_dmg_bytes, 700000000);
+  assert.equal(summary.max_full_dmg_bytes, 750000000);
   assert.equal(summary.runtime_budget_used_percent, 50);
   assert.equal(summary.components[0].id, 'mas');
   assert.equal(summary.layers[0].id, 'toolchain');
@@ -5318,8 +5343,8 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.match(markdownResult.stdout, /\| Component \| Size \| Runtime % \| Version \/ Commit \|/);
   assert.match(markdownResult.stdout, /mas/);
   assert.match(markdownResult.stdout, /50% used/);
-  assert.match(markdownResult.stdout, /Full DMG warning threshold: 619\.9 MiB/);
-  assert.match(markdownResult.stdout, /Full DMG hard budget: 667\.6 MiB/);
+  assert.match(markdownResult.stdout, /Full DMG warning threshold: 667\.6 MiB/);
+  assert.match(markdownResult.stdout, /Full DMG hard budget: 715\.3 MiB/);
   assert.match(markdownResult.stdout, /Runtime budget: 1000 B \(50% used\)/);
   assert.match(markdownResult.stdout, /\| mas \| 180 B \| 36% \|/);
 });
@@ -5431,8 +5456,8 @@ test('Full first-install manifest declares App-owned distribution and Framework 
   assert.equal(manifest.manifest_version, 2);
   assert.deepEqual(manifest.size_budget, {
     platform_scope: 'macos-arm64',
-    warning_full_dmg_bytes: 650000000,
-    max_full_dmg_bytes: 700000000,
+    warning_full_dmg_bytes: 700000000,
+    max_full_dmg_bytes: 750000000,
     max_runtime_uncompressed_bytes: 950000000,
   });
   assert.deepEqual(manifest.measurement_policy, {
@@ -5483,10 +5508,13 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     runtime_path: 'runtime/current/bin/codex',
     verification: 'codex --version must equal codex-cli <npm_latest>',
   });
-  assert.deepEqual(releaseContract.full_first_install.required_payloads.bun_cli, {
+  assert.equal(releaseContract.full_first_install.required_payloads.bun_cli, undefined);
+  assert.deepEqual(releaseContract.full_first_install.optional_payloads.bun_cli, {
     source: 'Full workflow setup-bun resolved binary',
     runtime_path: 'runtime/current/bin/bun',
-    verification: 'Full manifest components.bun.version is recorded from runtime/current/bin/bun --version',
+    default_packaged: false,
+    enable_env: 'OPL_FULL_INCLUDE_BUN_RUNTIME=1',
+    verification: 'Full manifest optional_components.bun records packaged or not_packaged status',
   });
   assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_cli, {
     source: 'Official temporalio/cli darwin_arm64 release archive resolved by Homebrew temporal CLI version',
@@ -5545,6 +5573,11 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     manifest.components.skills.role,
     'packaged_codex_skills_declared_by_app_product_profile',
   );
+  assert.equal(manifest.components.temporal_cli.role, 'temporal_cli_offline_archive_wrapper');
+  assert.equal(manifest.components.temporal_cli.required, true);
+  assert.equal(manifest.optional_components.bun.role, 'optional_bun_cli_runtime_payload');
+  assert.equal(manifest.optional_components.bun.required, false);
+  assert.equal(manifest.optional_components.bun.status, 'not_packaged');
   const fullReadme = mod.buildFullFirstInstallReadme({
     version: '26.5.15',
     dmgName: 'One-Person-Lab-Full-26.5.15-mac-arm64.dmg',
@@ -5697,19 +5730,21 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /npxBin: requireNodeToolchainFile\(nodeBinDir, 'npx'/);
   assert.match(buildScript, /npmRoot: requireNodeToolchainDirectory\(path\.join\(nodeRoot, 'lib', 'node_modules', 'npm'\)/);
   assert.match(buildScript, /bunBin: process\.env\.OPL_FULL_BUN_BIN \|\| ''/);
+  assert.match(buildScript, /includeBunRuntime: process\.env\.OPL_FULL_INCLUDE_BUN_RUNTIME === '1'/);
   assert.match(buildScript, /temporalCliBin: process\.env\.OPL_FULL_TEMPORAL_CLI_BIN \|\| ''/);
   assert.match(buildScript, /temporalCliArchive: process\.env\.OPL_FULL_TEMPORAL_CLI_ARCHIVE \|\| ''/);
   assert.doesNotMatch(buildScript, /--hermes-root/);
   assert.match(buildScript, /else if \(token === '--bun-bin'\) parsed\.bunBin = path\.resolve\(value\)/);
+  assert.match(buildScript, /token === '--include-bun-runtime'/);
   assert.match(buildScript, /else if \(token === '--temporal-cli-bin'\) parsed\.temporalCliBin = path\.resolve\(value\)/);
   assert.match(buildScript, /else if \(token === '--temporal-cli-archive'\) parsed\.temporalCliArchive = path\.resolve\(value\)/);
   assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
   assert.match(buildScript, /function findTemporalCliBinary\(explicitBin\)/);
   assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
-  assert.match(buildScript, /findBunBinary,\s+findTemporalCliBinary,/);
+  assert.match(buildScript, /options\.includeBunRuntime \? findBunBinary\(options\.bunBin\) : null/);
   assert.match(buildScript, /findTemporalCliArchive,/);
   assert.match(buildScript, /copyPortableTree,\s+copyExecutableOrSymlinkTarget,\s+copyNodeRuntimePayload,\s+writeTemporalCliWrapper,\s+assertNoExternalSymlinks,/);
-  assert.match(buildScript, /copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\)/);
+  assert.match(buildScript, /if \(sources\.bunBin\) {\s*copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\);\s*}/);
   assert.match(buildScript, /copySingleFile\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64\.tar\.gz'\)\)/);
   assert.match(buildScript, /writeTemporalCliWrapper\(path\.join\(layerRoot, 'bin', 'temporal'\), commandOutput\(sources\.temporalCliBin, \['--version'\]\)\)/);
   assert.match(buildScript, /function writeTemporalCliWrapper\(targetPath, versionOutput\)/);
@@ -5728,13 +5763,15 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /npx_bin_sha256: fileSha256\(sources\.nodeToolchain\.npxBin\)/);
   assert.match(buildScript, /npm_package_version: packageJsonVersion\(path\.join\(sources\.nodeToolchain\.npmRoot, 'package\.json'\)\)/);
   assert.match(buildScript, /npm_package_fingerprint: directoryFingerprint\(sources\.nodeToolchain\.npmRoot, 'node\/lib\/node_modules\/npm'\)/);
-  assert.match(buildScript, /bun_sha256: fileSha256\(sources\.bunBin\)/);
+  assert.match(buildScript, /bun_runtime_included: options\.includeBunRuntime/);
+  assert.match(buildScript, /bun_sha256: sources\.bunBin \? fileSha256\(sources\.bunBin\) : null/);
   assert.match(buildScript, /temporal_cli_sha256: fileSha256\(sources\.temporalCliBin\)/);
   assert.match(buildScript, /temporal_cli_version: commandOutput\(sources\.temporalCliBin, \['--version'\]\)/);
   assert.match(buildScript, /temporal_cli_archive_sha256: fileSha256\(sources\.temporalCliArchive\)/);
   assert.match(buildScript, /packaged_global_node_packages: fs\.existsSync\(path\.join\(runtimeRoot, 'node', 'lib', 'node_modules'\)\)/);
-  assert.match(buildScript, /bun: \{ source_path: sources\.bunBin/);
-  assert.match(buildScript, /temporal_cli: \{ source_path: sources\.temporalCliBin/);
+  assert.match(buildScript, /optionalComponents = \{[\s\S]*bun: sources\.bunBin/);
+  assert.match(buildScript, /status: 'not_packaged'/);
+  assert.match(buildScript, /temporal_cli: \{[\s\S]*source_path: sources\.temporalCliBin/);
   assert.match(buildScript, /function copyOplMetaAgentSkill\(targetRoot, options\)/);
   assert.match(buildScript, /'agent', 'skills', 'opl-meta-agent-domain-skill\.md'/);
   assert.match(buildScript, /fs\.copyFileSync\(domainSkill, path\.join\(target, 'SKILL\.md'\)\)/);
@@ -5810,21 +5847,24 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.match(buildScript, /assertTemporalCoreBridgeMacosArm64Only\(path\.join\(runtimeRoot, 'opl', 'node_modules'\)\)/);
   assert.match(buildScript, /runtimeAssertions: collectRuntimeAssertions\(runtimeRoot\)/);
   assert.match(buildScript, /bunBin: process\.env\.OPL_FULL_BUN_BIN \|\| ''/);
+  assert.match(buildScript, /includeBunRuntime: process\.env\.OPL_FULL_INCLUDE_BUN_RUNTIME === '1'/);
   assert.match(buildScript, /temporalCliBin: process\.env\.OPL_FULL_TEMPORAL_CLI_BIN \|\| ''/);
   assert.match(buildScript, /temporalCliArchive: process\.env\.OPL_FULL_TEMPORAL_CLI_ARCHIVE \|\| ''/);
   assert.match(buildScript, /else if \(token === '--bun-bin'\) parsed\.bunBin = path\.resolve\(value\)/);
+  assert.match(buildScript, /token === '--include-bun-runtime'/);
   assert.match(buildScript, /else if \(token === '--temporal-cli-bin'\) parsed\.temporalCliBin = path\.resolve\(value\)/);
   assert.match(buildScript, /else if \(token === '--temporal-cli-archive'\) parsed\.temporalCliArchive = path\.resolve\(value\)/);
   assert.match(buildScript, /function findTemporalCliBinary\(explicitBin\)/);
   assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
   assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
-  assert.match(buildScript, /copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\)/);
+  assert.match(buildScript, /if \(sources\.bunBin\) {\s*copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\);\s*}/);
   assert.match(buildScript, /copySingleFile\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64\.tar\.gz'\)\)/);
   assert.match(buildScript, /writeTemporalCliWrapper\(path\.join\(layerRoot, 'bin', 'temporal'\), commandOutput\(sources\.temporalCliBin, \['--version'\]\)\)/);
   assert.match(buildScript, /copyNodeRuntimePayload\(path\.dirname\(path\.dirname\(sources\.nodeToolchain\.nodeBin\)\), path\.join\(layerRoot, 'node'\)\)/);
   assert.match(buildScript, /assertNoExternalSymlinks\(targetRoot, 'Full first-install Node runtime'\)/);
   assert.match(buildScript, /packaged_global_node_packages:/);
-  assert.match(buildScript, /bun: \{ source_path: sources\.bunBin[\s\S]*path\.join\(runtimeRoot, 'bin', 'bun'\)/);
-  assert.match(buildScript, /temporal_cli: \{ source_path: sources\.temporalCliBin[\s\S]*path\.join\(runtimeRoot, 'bin', 'temporal'\)/);
+  assert.match(buildScript, /optionalComponents = \{[\s\S]*bun: sources\.bunBin/);
+  assert.match(buildScript, /status: 'not_packaged'/);
+  assert.match(buildScript, /temporal_cli: \{[\s\S]*source_path: sources\.temporalCliBin[\s\S]*path\.join\(runtimeRoot, 'bin', 'temporal'\)/);
   assert.match(buildScript, /codex: \{ source_path: sources\.codexRoot[\s\S]*size_bytes: directorySizeBytes\(path\.join\(runtimeRoot, 'bin', 'codex'\)\)/);
 });

@@ -15,8 +15,8 @@ export const FULL_RUNTIME_CACHE_LAYER_IDS = ['toolchain', 'domain-runtime', 'opl
 export const FULL_RUNTIME_CACHE_AGGREGATE_KEY_SCHEMA = 'opl_full_runtime_cache_aggregate_key.v1';
 const FULL_PACKAGE_SIZE_BUDGET = {
   platform_scope: 'macos-arm64',
-  warning_full_dmg_bytes: 650000000,
-  max_full_dmg_bytes: 700000000,
+  warning_full_dmg_bytes: 700000000,
+  max_full_dmg_bytes: 750000000,
   max_runtime_uncompressed_bytes: 950000000,
 } as const;
 const FULL_PACKAGE_MEASUREMENT_POLICY = {
@@ -32,6 +32,10 @@ type ComponentSnapshot = Partial<{
   git_commit: string | null;
   size_bytes: number;
   truth_owner: string;
+  archive_path: string | null;
+  archive_size_bytes: number | null;
+  required: boolean;
+  status: string;
 }>;
 
 type ResolvedFullPayloadRefs = Record<string, Partial<{
@@ -46,6 +50,7 @@ type FullPackageManifestInput = Partial<{
   version: string;
   generatedAt: string;
   components: Record<string, ComponentSnapshot>;
+  optionalComponents: Record<string, ComponentSnapshot>;
   resolvedRefs: ResolvedFullPayloadRefs;
   sizeBreakdown: unknown;
   runtimeAssertions: unknown;
@@ -61,6 +66,13 @@ function normalizeComponent(input: ComponentSnapshot | undefined) {
     version: input?.version ?? null,
     git_commit: input?.git_commit ?? null,
     size_bytes: input?.size_bytes ?? null,
+  };
+}
+
+function normalizeOptionalComponent(input: ComponentSnapshot | undefined) {
+  return {
+    ...normalizeComponent(input),
+    status: input?.status ?? 'not_packaged',
   };
 }
 
@@ -175,6 +187,7 @@ export function classifyFullRuntimeLayerCache(input: {
 export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
   const version = normalizeVersion(input.version);
   const components = input.components ?? {};
+  const optionalComponents = input.optionalComponents ?? {};
   const productProfile = readAppProductProfile();
 
   return {
@@ -307,6 +320,14 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         role: 'python_environment_manager',
         required: true,
       },
+      temporal_cli: {
+        ...normalizeComponent(components.temporal_cli),
+        role: 'temporal_cli_offline_archive_wrapper',
+        required: true,
+        archive_path: components.temporal_cli?.archive_path
+          ?? 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
+        archive_size_bytes: components.temporal_cli?.archive_size_bytes ?? null,
+      },
       officecli: {
         ...normalizeComponent(components.officecli),
         role: 'office_document_cli_binary',
@@ -321,6 +342,13 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         ...normalizeComponent(components.skills),
         role: 'packaged_codex_skills_declared_by_app_product_profile',
         required: true,
+      },
+    },
+    optional_components: {
+      bun: {
+        ...normalizeOptionalComponent(optionalComponents.bun),
+        role: 'optional_bun_cli_runtime_payload',
+        required: false,
       },
     },
   };

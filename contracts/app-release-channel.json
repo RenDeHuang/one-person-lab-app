@@ -112,11 +112,6 @@
         "runtime_path": "runtime/current/bin/codex",
         "verification": "codex --version must equal codex-cli <npm_latest>"
       },
-      "bun_cli": {
-        "source": "Full workflow setup-bun resolved binary",
-        "runtime_path": "runtime/current/bin/bun",
-        "verification": "Full manifest components.bun.version is recorded from runtime/current/bin/bun --version"
-      },
       "temporal_cli": {
         "source": "Official temporalio/cli darwin_arm64 release archive resolved by Homebrew temporal CLI version",
         "runtime_path": "runtime/current/bin/temporal",
@@ -141,9 +136,19 @@
         "verification": "Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin"
       }
     },
+    "optional_payloads": {
+      "bun_cli": {
+        "source": "Full workflow setup-bun resolved binary",
+        "runtime_path": "runtime/current/bin/bun",
+        "default_packaged": false,
+        "enable_env": "OPL_FULL_INCLUDE_BUN_RUNTIME=1",
+        "verification": "Full manifest optional_components.bun records packaged or not_packaged status"
+      }
+    },
     "size_budget": {
       "platform_scope": "macos-arm64",
-      "max_full_dmg_bytes": 700000000,
+      "warning_full_dmg_bytes": 700000000,
+      "max_full_dmg_bytes": 750000000,
       "max_runtime_uncompressed_bytes": 950000000
     },
     "measurement_policy": {

@@ -224,6 +224,16 @@ function readFullRuntimeUncompressedBytes(manifest) {
   );
 }
 
+function assertFullComponent(manifest, componentId) {
+  const components = assertPlainObject(manifest.components, 'Full manifest components');
+  return assertPlainObject(components[componentId], `Full manifest components.${componentId}`);
+}
+
+function assertFullOptionalComponent(manifest, componentId) {
+  const optionalComponents = assertPlainObject(manifest.optional_components, 'Full manifest optional_components');
+  return assertPlainObject(optionalComponents[componentId], `Full manifest optional_components.${componentId}`);
+}
+
 function assertFullSizeBudget(manifest, fullDmgAssetSize) {
   if (manifest?.manifest_version !== 2) {
     throw new Error(`Full manifest must declare manifest_version=2; got ${manifest?.manifest_version}`);
@@ -241,6 +251,7 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
     throw new Error(`Full measurement policy runtime_uncompressed_bytes must be manifest_size_breakdown_total_runtime_uncompressed_bytes; got ${measurementPolicy.runtime_uncompressed_bytes}`);
   }
 
+  const warningFullDmgBytes = assertSafePositiveInteger(sizeBudget.warning_full_dmg_bytes, 'Full manifest size_budget.warning_full_dmg_bytes');
   const maxFullDmgBytes = assertSafePositiveInteger(sizeBudget.max_full_dmg_bytes, 'Full manifest size_budget.max_full_dmg_bytes');
   const maxRuntimeUncompressedBytes = assertSafePositiveInteger(
     sizeBudget.max_runtime_uncompressed_bytes,
@@ -264,6 +275,28 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
       `Full runtime must not package modules/*/.venv directories; count=${runtimeAssertions.excluded_module_venv_count}`,
     );
   }
+  const temporalCli = assertFullComponent(manifest, 'temporal_cli');
+  if (temporalCli.required !== true || temporalCli.role !== 'temporal_cli_offline_archive_wrapper') {
+    throw new Error('Full manifest components.temporal_cli must be a required temporal_cli_offline_archive_wrapper component.');
+  }
+  if (!String(temporalCli.version || '').startsWith('temporal version ')) {
+    throw new Error(`Full manifest components.temporal_cli.version must record temporal --version; got ${temporalCli.version}`);
+  }
+  if (temporalCli.archive_path !== 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz') {
+    throw new Error(`Full manifest components.temporal_cli.archive_path is unexpected: ${temporalCli.archive_path}`);
+  }
+  assertSafePositiveInteger(temporalCli.archive_size_bytes, 'Full manifest components.temporal_cli.archive_size_bytes');
+
+  const bun = assertFullOptionalComponent(manifest, 'bun');
+  if (bun.required !== false || bun.role !== 'optional_bun_cli_runtime_payload') {
+    throw new Error('Full manifest optional_components.bun must be optional_bun_cli_runtime_payload and not required.');
+  }
+  if (!['packaged', 'not_packaged'].includes(bun.status)) {
+    throw new Error(`Full manifest optional_components.bun.status must be packaged or not_packaged; got ${bun.status}`);
+  }
+  if (bun.status === 'packaged' && !bun.version) {
+    throw new Error('Full manifest optional_components.bun.version is required when Bun is packaged.');
+  }
 
   if (fullDmgAssetSize > maxFullDmgBytes) {
     throw new Error(`Full DMG size budget exceeded: ${fullDmgAssetSize} > ${maxFullDmgBytes}`);
@@ -277,12 +310,28 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
     platform_scope: sizeBudget.platform_scope,
     full_dmg_bytes_policy: measurementPolicy.full_dmg_bytes,
     runtime_uncompressed_bytes_policy: measurementPolicy.runtime_uncompressed_bytes,
+    warning_full_dmg_bytes: warningFullDmgBytes,
     max_full_dmg_bytes: maxFullDmgBytes,
     max_runtime_uncompressed_bytes: maxRuntimeUncompressedBytes,
     full_dmg_size_bytes: fullDmgAssetSize,
     runtime_uncompressed_bytes: runtimeUncompressedBytes,
     temporal_core_bridge_releases: runtimeAssertions.temporal_core_bridge_releases,
     excluded_module_venv_count: runtimeAssertions.excluded_module_venv_count,
+    required_components: {
+      temporal_cli: {
+        version: temporalCli.version,
+        size_bytes: temporalCli.size_bytes,
+        archive_path: temporalCli.archive_path,
+        archive_size_bytes: temporalCli.archive_size_bytes,
+      },
+    },
+    optional_components: {
+      bun: {
+        status: bun.status,
+        version: bun.version ?? null,
+        size_bytes: bun.size_bytes ?? 0,
+      },
+    },
   };
 }
 

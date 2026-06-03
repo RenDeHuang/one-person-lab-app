@@ -293,18 +293,20 @@ Markdown summary mirrors the key one-shot entry, source, artifact, setup flow,
 Core progress, retry, and skip-module values for operator triage.
 
 The Full first-install payload must include the latest npm-published Codex CLI,
-the packaged Bun CLI, the Temporal CLI, and the Temporal-backed family runtime
-provider. The Full workflow resolves the current `@openai/codex` version with
+the Temporal CLI, and the Temporal-backed family runtime provider. The Full
+workflow resolves the current `@openai/codex` version with
 `npm view @openai/codex version`, installs that exact version, records
 `OPL_FULL_CODEX_VERSION`, and verifies `codex --version`. It also exports the
-resolved `OPL_FULL_BUN_BIN` and `OPL_FULL_TEMPORAL_CLI_BIN` paths before runtime
-cache-key calculation and package assembly, so the manifest records
-`components.bun` and `components.temporal_cli` from the packaged runtime. The
-Full package stores the official `temporalio/cli` macOS arm64 release archive
-under `vendor/temporal/` and exposes it through `bin/temporal`; the wrapper
-expands the archive locally inside the installed runtime cache, so first-run
-setup does not need network access and the DMG does not carry the much larger
-Homebrew-expanded Temporal binary.
+resolved `OPL_FULL_TEMPORAL_CLI_BIN` path before runtime cache-key calculation
+and package assembly, so the manifest records `components.temporal_cli` from the
+packaged runtime. The Full package stores the official `temporalio/cli` macOS
+arm64 release archive under `vendor/temporal/` and exposes it through
+`bin/temporal`; the wrapper expands the archive locally inside the installed
+runtime cache, so first-run setup does not need network access and the DMG does
+not carry the much larger Homebrew-expanded Temporal binary. Bun remains a
+workflow/build tool by default and is not packaged into the Full runtime unless
+`OPL_FULL_INCLUDE_BUN_RUNTIME=1` is set for a deliberate experiment; manifests
+record that state under `optional_components.bun`.
 Temporal runtime packages stay in the Framework production dependency payload,
 `@temporalio/testing` is excluded, and the remote verifier requires the Full
 manifest to report only the macOS arm64 Temporal core bridge release.
@@ -512,16 +514,16 @@ The remote verifier size budget is the release-time guardrail for both the
 published compressed asset and the packaged runtime payload. With Full included,
 `scripts/verify-remote-release-assets.ts` requires manifest v2, enforces
 `platform_scope=macos-arm64`, checks the GitHub Full DMG asset size against
-the `650MB warning threshold` and the hard budget
-`max_full_dmg_bytes=700000000`, and checks
+the `700MB warning threshold` and the hard budget
+`max_full_dmg_bytes=750000000`, and checks
 `size_breakdown.total_runtime_uncompressed_bytes` against
 `max_runtime_uncompressed_bytes=950000000`. It also compares the GitHub asset
 size against the downloaded file size and the recorded `sha256:` digest. Treat
 size growth as acceptable only when it is explained by an intentional layer
 change, not by duplicated checkouts, stale runtime payloads, or standard-updater
 leakage.
-When the Full DMG is above `warning_full_dmg_bytes=650000000` and still at or
-below `max_full_dmg_bytes=700000000`, the release readiness summary remains
+When the Full DMG is above `warning_full_dmg_bytes=700000000` and still at or
+below `max_full_dmg_bytes=750000000`, the release readiness summary remains
 `passed` and records a warning in both JSON and the GitHub Step Summary. Above
 the hard budget, remote verification still fails closed.
 

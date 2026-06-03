@@ -57,6 +57,7 @@ function parseArgs(argv) {
     codexRoot: process.env.OPL_FULL_CODEX_ROOT || '',
     nodeBin: process.env.OPL_FULL_NODE_BIN || '',
     bunBin: process.env.OPL_FULL_BUN_BIN || '',
+    includeBunRuntime: process.env.OPL_FULL_INCLUDE_BUN_RUNTIME === '1',
     uvBin: process.env.OPL_FULL_UV_BIN || path.join(os.homedir(), '.local', 'bin', 'uv'),
     temporalCliBin: process.env.OPL_FULL_TEMPORAL_CLI_BIN || '',
     temporalCliArchive: process.env.OPL_FULL_TEMPORAL_CLI_ARCHIVE || '',
@@ -101,6 +102,10 @@ function parseArgs(argv) {
     }
     if (token === '--print-runtime-cache-keys') {
       parsed.printRuntimeCacheKeys = true;
+      continue;
+    }
+    if (token === '--include-bun-runtime') {
+      parsed.includeBunRuntime = true;
       continue;
     }
 
@@ -1248,7 +1253,7 @@ function resolveRuntimeSources(options) {
   const codexRoot = findCodexRoot(options.codexRoot);
   const codexBinaries = findCodexBinary(codexRoot);
   const nodeToolchain = findNodeToolchain(options.nodeBin);
-  const bunBin = findBunBinary(options.bunBin);
+  const bunBin = options.includeBunRuntime ? findBunBinary(options.bunBin) : null;
   const pythonRoot = findPythonRoot(options.pythonRoot);
   const uvBin = requirePath(options.uvBin, 'uv binary');
   const temporalCliBin = findTemporalCliBinary(options.temporalCliBin);
@@ -1296,7 +1301,8 @@ function buildRuntimeCacheKeyInputs(options, sources) {
         npx_bin_sha256: fileSha256(sources.nodeToolchain.npxBin),
         npm_package_version: packageJsonVersion(path.join(sources.nodeToolchain.npmRoot, 'package.json')),
         npm_package_fingerprint: directoryFingerprint(sources.nodeToolchain.npmRoot, 'node/lib/node_modules/npm'),
-        bun_sha256: fileSha256(sources.bunBin),
+        bun_runtime_included: options.includeBunRuntime,
+        bun_sha256: sources.bunBin ? fileSha256(sources.bunBin) : null,
         uv_sha256: fileSha256(sources.uvBin),
         temporal_cli_sha256: fileSha256(sources.temporalCliBin),
         temporal_cli_version: commandOutput(sources.temporalCliBin, ['--version']),
@@ -1446,7 +1452,9 @@ function runCachedLayer(options, layerId, key, targetRoot, builder) {
 function buildToolchainLayer(layerRoot, sources) {
   copySingleFile(sources.codexBinaries.codex, path.join(layerRoot, 'bin', 'codex'));
   copySingleFile(sources.codexBinaries.rg, path.join(layerRoot, 'bin', 'rg'));
-  copySingleFile(sources.bunBin, path.join(layerRoot, 'bin', 'bun'));
+  if (sources.bunBin) {
+    copySingleFile(sources.bunBin, path.join(layerRoot, 'bin', 'bun'));
+  }
   copySingleFile(sources.temporalCliArchive, path.join(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64.tar.gz'));
   writeTemporalCliWrapper(path.join(layerRoot, 'bin', 'temporal'), commandOutput(sources.temporalCliBin, ['--version']));
   copySingleFile(sources.officeCliBin, path.join(layerRoot, 'bin', 'officecli'));
@@ -1510,7 +1518,7 @@ function buildSkillsLayer(layerRoot, options) {
   copyPackagedSkills(path.join(layerRoot, 'skills'), options);
 }
 
-function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs) {
+function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs, optionalComponents = {}) {
   const manifestDir = path.join(runtimeRoot, 'manifest');
   const manifestPath = path.join(manifestDir, 'full-package-manifest.json');
   fs.mkdirSync(manifestDir, { recursive: true });
@@ -1519,6 +1527,7 @@ function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, 
     version: options.version,
     generatedAt: packagedAt,
     components,
+    optionalComponents,
     resolvedRefs,
     runtimeAssertions: collectRuntimeAssertions(runtimeRoot),
   });
@@ -1530,6 +1539,7 @@ function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, 
       version: options.version,
       generatedAt: packagedAt,
       components,
+      optionalComponents,
       resolvedRefs,
       runtimeAssertions: collectRuntimeAssertions(runtimeRoot),
       sizeBreakdown,
@@ -1579,17 +1589,37 @@ function prepareRuntime(options, sources) {
     rca: { source_path: options.rcaRoot, git_commit: readGitHead(options.rcaRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'rca')) },
     meta_agent: { source_path: options.metaAgentRoot, git_commit: readGitHead(options.metaAgentRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'meta-agent')) },
     node: { source_path: sources.nodeToolchain.nodeBin, version: commandOutput(path.join(runtimeRoot, 'node', 'bin', 'node'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'node')) },
-    bun: { source_path: sources.bunBin, version: commandOutput(path.join(runtimeRoot, 'bin', 'bun'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'bun')) },
     python: { source_path: sources.pythonRoot, version: commandOutput(path.join(runtimeRoot, 'python', path.basename(sources.pythonRoot), 'bin', 'python3'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'python')) },
     uv: { source_path: sources.uvBin, version: commandOutput(path.join(runtimeRoot, 'uv', 'bin', 'uv'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'uv')) },
-    temporal_cli: { source_path: sources.temporalCliBin, version: commandOutput(path.join(runtimeRoot, 'bin', 'temporal'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'temporal')) },
+    temporal_cli: {
+      source_path: sources.temporalCliBin,
+      version: commandOutput(path.join(runtimeRoot, 'bin', 'temporal'), ['--version']),
+      size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'temporal')),
+      archive_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
+      archive_size_bytes: fs.statSync(sources.temporalCliArchive).size,
+    },
     officecli: { source_path: sources.officeCliBin, version: commandOutput(path.join(runtimeRoot, 'bin', 'officecli'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'officecli')) },
     mineru_open_api: { source_path: sources.mineruOpenApiBin, version: commandOutput(sources.mineruOpenApiBin, ['version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'mineru-open-api')) },
     skills: { source_path: path.join(os.homedir(), '.codex', 'skills'), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'skills')) },
   };
+  const optionalComponents = {
+    bun: sources.bunBin
+      ? {
+          source_path: sources.bunBin,
+          version: commandOutput(path.join(runtimeRoot, 'bin', 'bun'), ['--version']),
+          size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'bun')),
+          status: 'packaged',
+        }
+      : {
+          source_path: null,
+          version: null,
+          size_bytes: 0,
+          status: 'not_packaged',
+        },
+  };
 
   const resolvedRefs = buildResolvedFullPayloadRefs(options, sources, components);
-  const manifest = writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs);
+  const manifest = writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs, optionalComponents);
 
   return {
     stagingRoot,
