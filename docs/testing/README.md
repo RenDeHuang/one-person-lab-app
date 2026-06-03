@@ -95,8 +95,8 @@ active shell validation and GUI compile proof. Run shell hygiene in the
 
 ## Installed App Smoke
 
-After a standard macOS build, replace the installed app and run the packaged GUI
-smoke against the real `/Applications` bundle:
+After a standard macOS build, run the packaged GUI smoke against the built DMG
+and write a fresh artifact directory for the release cohort under review:
 
 ```bash
 node shells/aionui/scripts/opl-first-run-vm-smoke.mjs \
@@ -107,17 +107,13 @@ node shells/aionui/scripts/opl-first-run-vm-smoke.mjs \
   --assistant-route-smoke
 ```
 
-2026-05-15 evidence: the standard 26.5.15 arm64 DMG replaced
-`/Applications/One Person Lab.app`; the previously installed 1.5G app bundle
-contained `Contents/Resources/opl-full-runtime`, and the replacement bundle was
-354M with no `opl-full-runtime`. The smoke passed with `status=passed` and
-label `opl-guid-entry`. Final evidence directory:
-`artifacts/opl-installed-smoke-20260515-204923`.
-
-Tart clean-VM smoke reached `wait_for_ssh` against
-`opl-first-run-tahoe-base`, received guest IP `192.168.64.87`, timed out before
-guest execution, and cleaned up the temporary VM. Evidence directory:
-`artifacts/opl-first-run-tart-20260515-205500`.
+Treat this as cohort-bound installed-App evidence. The smoke output can support
+release review only when the same cohort also has the contracted manifests,
+screenshots, VM summaries, remote verification, and release evidence bundle
+classification. Older local installed-smoke transcripts and absolute artifact
+paths are history/provenance, not current release proof; the 2026-05-15 example
+was archived in
+`docs/history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md`.
 
 ## Release Matrix
 
@@ -351,7 +347,7 @@ configuration through `OPL_RELEASE_NOTES_CODEX_*` vars and the
 `release-notes-evidence-<version>` JSON artifact instead of downloading large
 DMG/ZIP assets for note diagnosis.
 
-2026-05-15 Docker/WebUI evidence: `docker build -t
-one-person-lab-webui:26.5.15-smoke .` completed from `shells/aionui`, the image
-size was `1132840811` bytes, and a container on `127.0.0.1:33015` returned HTTP
-200 for `/` and `manifest.webmanifest`.
+Docker/WebUI evidence is current only when produced by the release workflow or a
+named same-cohort smoke run. Dated local image-size and port checks belong in
+history/provenance or release artifacts; the 2026-05-15 example was archived in
+`docs/history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md`.

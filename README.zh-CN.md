@@ -11,6 +11,13 @@
 <p align="center"><strong>面向复杂知识工作的 chat-first 桌面 AI 应用</strong></p>
 <p align="center">从一个应用进入研究、基金、汇报和通用任务，查看进度、继续长任务、检查交付物</p>
 
+Owner: `one-person-lab-app`<br>
+Purpose: `public_app_entry_zh_cn`<br>
+State: `active_public_entry`<br>
+Machine boundary: 人读产品入口。机器真相在 `contracts/`、源码、release
+artifacts、updater metadata、validation outputs，以及 App 消费的 OPL
+Framework/domain projections。
+
 <p align="center">
   <img src="assets/branding/opl-app-product-map.png" alt="One Person Lab App 产品打包关系图" width="100%" />
 </p>
@@ -127,6 +134,7 @@ one-person-lab-app/
 npm run ensure:shell
 bun install --cwd shells/aionui --frozen-lockfile
 bun run validate:active-shell
+npm run validate:gui-shell
 bun run i18n:types
 bun run test
 bun run build-mac
@@ -143,6 +151,7 @@ bun run validate-release -- release-assets
 
 - 活动界面：`aionui`
 - 界面目录：`shells/aionui`
+- 运行桥接合同：`contracts/app-runtime-bridge.json`
 - 上游家族：`AionUI`
 - 界面来源：`gaofeng21cn/opl-aion-shell`
 - 历史策略：外部检出，不合并进 App 默认分支

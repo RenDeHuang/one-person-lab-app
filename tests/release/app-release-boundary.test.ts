@@ -918,6 +918,19 @@ test('App product profile owns user-facing defaults without runtime authority', 
     'source',
   ]);
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection, true);
+  assert.deepEqual(profile.gui.ordinary_capability_selector_policy, {
+    scope: 'home_composer_and_ordinary_conversation',
+    authority: 'app_owned_opl_allowlist',
+    skill_source_ref: 'gui.assistant_skill_profiles.required_skills + optional_skills',
+    skill_menu_policy: 'assistant_scoped_required_checked_optional_visible',
+    conversation_loaded_skill_display_policy: 'filter_to_ordinary_skill_allowlist',
+    mcp_server_source_ref: 'gui.ordinary_capability_selector_policy.visible_mcp_server_ids',
+    mcp_menu_policy: 'empty_until_app_explicitly_whitelists_opl_mcp_servers',
+    visible_mcp_server_ids: [],
+    conversation_loaded_mcp_display_policy: 'filter_to_visible_mcp_server_ids',
+    forbidden_skill_examples: ['aionui-skills', 'aionui-webui-setup', 'skill-creator', 'cron'],
+    forbidden_mcp_policy: 'do_not_surface_user_or_aionui_mcp_servers_in_ordinary_home_without_app_profile_allowlist',
+  });
   assert.deepEqual(profile.settings.visible_tabs, [
     'general',
     'access',
@@ -4346,6 +4359,19 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'source',
   ]);
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection, true);
+  assert.deepEqual(guiContract.ordinary_capability_selector_policy, {
+    scope: 'home_composer_and_ordinary_conversation',
+    authority: 'app_owned_opl_allowlist',
+    skill_source_ref: 'assistant_skill_profiles.required_skills + optional_skills',
+    skill_menu_policy: 'assistant_scoped_required_checked_optional_visible',
+    conversation_loaded_skill_display_policy: 'filter_to_ordinary_skill_allowlist',
+    mcp_server_source_ref: 'contracts/app-product-profile.json#gui.ordinary_capability_selector_policy.visible_mcp_server_ids',
+    mcp_menu_policy: 'empty_until_app_explicitly_whitelists_opl_mcp_servers',
+    visible_mcp_server_ids: [],
+    conversation_loaded_mcp_display_policy: 'filter_to_visible_mcp_server_ids',
+    forbidden_skill_examples: ['aionui-skills', 'aionui-webui-setup', 'skill-creator', 'cron'],
+    forbidden_mcp_policy: 'do_not_surface_user_or_aionui_mcp_servers_in_ordinary_home_without_app_profile_allowlist',
+  });
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示']);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);

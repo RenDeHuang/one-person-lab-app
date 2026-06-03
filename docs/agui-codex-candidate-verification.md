@@ -183,57 +183,19 @@ Candidate 可以端到端验证而不改变当前 release。只有明确修改
 `contracts/app-shell-adapter.json` 之后，它才会成为默认 stable/nightly shell。
 在此之前，和默认 AionUI release path 的隔离是必需 invariant。
 
-## 当前证据
+## Evidence Lifecycle
 
-2026-06-02 current candidate evidence：
-
-- Candidate shell `npm run validate:candidate -- --source-only --require-profile`
-  通过。
-- Candidate shell `npm run build:renderer` 通过；Vite 仍有 node-fetch browser
-  externalization 和大 chunk warning，未导致 build failure。
-- Candidate shell `npm run validate:state-model` 通过；manifest 和
-  `src/candidateContractEvidence.json` 记录 active project line state-model
-  evidence，且不把该 evidence 写成 domain ready、production ready、clean-VM
-  ready、Full release ready 或 active-shell adoption。
-- Candidate shell `npm run package` 构建出
-  `/Users/gaofeng/workspace/opl-agui-codex-shell/out/One Person Lab AG-UI Codex Candidate.app`
-  和 `out/agui-codex-candidate-manifest.json`。
-- Package 之后重新运行 `npm run smoke:webui`，写回
-  `webui_smoke_status=passed`，并证明 `bilingual_ui_status=passed`、
-  `secondary_runtime_context_refs_status=passed`、`default_home_layout_status=passed`
-  和 `webui_parity_status=passed`。
-- Package 之后重新运行 source UI smoke：
-  `npx electron . --ui-smoke-test`。证据记录 `packaged=false`、
-  `route_label="科研本机助手/Users/gaofeng"`、`model_status="自动"`、
-  `purpose_labels=["科研","基金","演示"]`、
-  `home_stage_class_name="stage-shell without-rail without-inspector"`、
-  `home_continue_work_visible=false`、`home_runtime_activity_visible=false`、
-  `bilingual_ui_status=passed`、`locale_switch_status=passed`，并覆盖
-  expanded rail/inspector 与 Routing tab 的中文用户层文案检查；
-  `responsive_context_layer_status=passed`、`responsive_context_layer_width=998`、
-  `responsive_inspector_visible=true`、`responsive_context_tabs_visible=true`、
-  `responsive_routing_tab_visible=true`；
-  `codex_app_server_turn_status=passed` 和 `last_assistant_text="OK"`。
-- Package 之后重新运行 packaged UI smoke：
-  `./out/One Person Lab AG-UI Codex Candidate.app/Contents/MacOS/One Person Lab AG-UI Codex Candidate --ui-smoke-test`。
-  证据记录 `packaged=true`，并证明同样的 default-collapsed chat-first home、
-  中文默认 UI、英文切换、secondary runtime context refs、七类 conversation
-  events、998px 下 inspector/context tabs/Routing tab 实际可见、safe App action
-  dry-run、visible paint 和 Codex reply `OK`。
-- Candidate shell final gate
-  `npm run validate:candidate -- --require-app --require-smoke` 通过。
-- Final manifest 当前记录 `source_ui_smoke_status=passed`、
-  `packaged_ui_smoke_status=passed`、`webui_smoke_status=passed`、
-  `bilingual_ui_status=passed`、`default_home_layout_status=passed`、
-  `responsive_context_layer_status=passed`、
-  `secondary_runtime_context_refs_status=passed`、`codex_app_server_turn_status=passed`
-  和 `action_dry_run_status=passed`；普通 home 的
-  `home_runtime_activity_visible=false`、`home_continue_work_visible=false`、
-  `home_footer_quick_icons_visible=false`。
+本文只保留候选 shell 的边界、命令和最低验收。具体 source/WebUI/package smoke
+结果、manifest 字段、绝对路径和 dated pass/fail 记录属于 candidate shell artifacts、
+candidate manifests、CI logs 或 `docs/history/process/`。2026-06-02 的 smoke
+evidence 已归档到
+[AG-UI/CopilotKit candidate smoke evidence](./history/process/2026-06-02-agui-codex-candidate-smoke-evidence.md)；
+2026-06-03 active-doc cleanup 摘要归档到
+[App docs lifecycle cleanup archive](./history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md)。
 
 注意：`npm run package` 会重建 `out/` 并把 smoke 字段初始化为 pending。完整闭环
 顺序必须是先 package，再跑 WebUI smoke、source UI smoke、packaged UI smoke，最后
 跑 `npm run validate:candidate -- --require-app --require-smoke`。
 
-剩余边界是产品采纳，而不是 candidate 技术证据缺口。AionUI 仍是默认 release
-shell，直到 `contracts/app-shell-adapter.json` 在正常 release gate 下被明确提升。
+剩余边界是产品采纳，而不是在本文追加执行日志。AionUI 仍是默认 release shell，
+直到 `contracts/app-shell-adapter.json` 在正常 release gate 下被明确提升。

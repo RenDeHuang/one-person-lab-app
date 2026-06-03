@@ -2,8 +2,8 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_builtin_skill_intake_review`
-State: `active_review_note`
-Machine boundary: Human-readable intake note. App packaging truth lives in `contracts/app-product-profile.json`, Full package scripts, release manifests, and validation tests.
+State: `history_provenance`
+Machine boundary: Human-readable historical intake note. App packaging truth lives in `contracts/app-product-profile.json`, Full package scripts, release manifests, and validation tests. Current App skill packaging policy must be read from App contracts, decisions, release scripts, and validation tests, not this dated candidate snapshot.
 
 ## Product Rule
 

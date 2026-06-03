@@ -106,6 +106,10 @@ Codex App 有 skills 和 tools。OPL App 增加 App-owned skill exposure policy�
 - Settings 里的自动注入技能也必须按同一 App whitelist 过滤；AionUI
   implementation helper 如 `aionui-skills`、`aionui-webui-setup` 和
   `skill-creator` 不应作为 OPL App 普通能力显示。
+- Home/new conversation 和普通会话 loaded-capability surface 使用更窄的
+  `gui.ordinary_capability_selector_policy`：技能只来自 MAS/MAG/RCA assistant
+  profiles，MCP 默认空白名单。未被 App profile 明确列入的 AionUI helper skill、
+  auto-inject skill 或 MCP server 不进入选择器、展示或 create payload。
 - Plugin packaging 是 distribution shell；`skill` 仍是 public semantic ABI。
 - MAS/MAG/RCA 作为 plugins 打包时，不能再镜像成裸
   `~/.codex/skills/{mas,mag,rca}`。

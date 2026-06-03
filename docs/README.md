@@ -16,11 +16,15 @@ runtime, provider, or domain authority.
 
 - [`active/app-ideal-state-gap-plan.md`](active/app-ideal-state-gap-plan.md):
   App product active truth, current gaps, and next-round governance baton.
+- [`active/app-interaction-logic-command-center.md`](active/app-interaction-logic-command-center.md):
+  active interaction handoff note for App-owned GUI requirements and shell implementation.
 - [`status.md`](status.md): current App repository and active shell status.
 - [`project.md`](project.md): App product repository role and ownership boundary.
 - [`architecture.md`](architecture.md): App, shell, OPL Framework, and domain-agent ownership split.
 - [`invariants.md`](invariants.md): App repository invariants and non-ownership rules.
 - [`decisions.md`](decisions.md): still-active App product, shell, runtime bridge, release, and docs lifecycle decisions.
+- [`docs_portfolio_consolidation.md`](docs_portfolio_consolidation.md):
+  docs lifecycle governance and unique-role inventory.
 - [`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md)：
   不绑定具体 shell 的理想 GUI 交互定义，目标是 Codex App 形态的 OPL App。
 - [`app-gui-element-audit.md`](app-gui-element-audit.md)：逐项审计普通用户路径
@@ -28,12 +32,20 @@ runtime, provider, or domain authority.
 - [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)：Codex App 变成
   OPL App 时需要新增、隐藏和治理的产品增量。
 - [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md)：跨 shell 的
-  GUI 能力清单和当前候选验证参考。
+  GUI 能力清单、reference mapping 和验证类别。
+- [`agui-codex-candidate-verification.md`](agui-codex-candidate-verification.md):
+  AG-UI/CopilotKit candidate shell verification runbook; candidate evidence
+  remains in candidate manifests, shell artifacts, CI logs, release evidence, or history.
 - [`release/`](release/): App release, updater, and Full first-install notes.
 - [`testing/`](testing/): App validation and page-state test guidance.
 - [`user-guides/`](user-guides/): user-facing guide entry point.
 - [`screenshots/`](screenshots/): screenshot and visual tutorial asset entry.
 - [`history/`](history/): retired App topology and migration notes.
+
+Recent AionUI builtin skill intake and candidate smoke records are archived
+under [`history/process/`](history/process/); current skill packaging and shell
+candidate truth return to App contracts, validation scripts, and candidate
+runbooks.
 
 The App-owned product profile lives at
 [`../contracts/app-product-profile.json`](../contracts/app-product-profile.json).
@@ -83,8 +95,10 @@ runtime or domain truth into this repo.
 3. [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 定义 Codex App
    baseline 之上的 OPL 增量。
 4. [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md) 跟踪跨 shell
-   能力清单和验证预期。
-5. `contracts/` 和 page-state matrices 承载机器可读 gates。
+   能力清单、reference mapping 和验证类别。
+5. [`agui-codex-candidate-verification.md`](agui-codex-candidate-verification.md)
+   只在需要验证 AG-UI/CopilotKit candidate shell 时阅读。
+6. `contracts/` 和 page-state matrices 承载机器可读 gates。
 
 ## 文档语言
 

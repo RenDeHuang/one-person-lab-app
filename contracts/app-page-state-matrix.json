@@ -55,6 +55,7 @@
         "assistant_skill_profile_source_ref": "contracts/app-gui-product-contract.json#assistant_skill_profiles",
         "conversation_pending_feedback_policy": "elapsed_seconds_visible_while_ai_processing_or_backend_running",
         "conversation_model_status_display_policy": "same_model_status_and_selector_in_codex_conversation_composer",
+        "ordinary_capability_selector_policy_ref": "contracts/app-product-profile.json#gui.ordinary_capability_selector_policy",
         "home_layout": {
           "default_mode": "composer_first_chat_canvas",
           "first_screen_policy": "chat_first_no_dashboard_or_landing_copy",
@@ -107,6 +108,7 @@
             "rca"
           ]
         },
+        "ordinary_visible_mcp_server_ids": [],
         "home_purpose_entries": [
           {
             "id": "research",
@@ -162,6 +164,7 @@
         "selected assistant shown as a compact @ purpose tag",
         "selected assistant keeps purpose entry switcher visible",
         "assistant-scoped skill menu with required skill checked",
+        "ordinary skill selector filtered to App-owned assistant profile skill allowlist",
         "workspace selector",
         "file attachment control",
         "send action",
@@ -178,6 +181,8 @@
         "backend or permission selectors after entering an ordinary Codex conversation",
         "full assistant names as default home entry labels",
         "skills outside the App packaged skill set in home skill menu",
+        "AionUI implementation skills such as aionui-skills",
+        "unknown MCP servers without an App profile allowlist entry",
         "OPL Meta Agent as a default home assistant",
         "retired Codex model choices",
         "nested input card frames",

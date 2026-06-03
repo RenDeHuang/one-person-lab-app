@@ -90,6 +90,19 @@ export type AppProductProfile = {
       required_fields: string[];
       must_not_depend_on_visible_backend_selection: boolean;
     };
+    ordinary_capability_selector_policy: {
+      scope: string;
+      authority: string;
+      skill_source_ref: string;
+      skill_menu_policy: string;
+      conversation_loaded_skill_display_policy: string;
+      mcp_server_source_ref: string;
+      mcp_menu_policy: string;
+      visible_mcp_server_ids: string[];
+      conversation_loaded_mcp_display_policy: string;
+      forbidden_skill_examples: string[];
+      forbidden_mcp_policy: string;
+    };
     default_assistants: Array<{
       id: string;
       display_name: string;
@@ -519,6 +532,36 @@ function assertProfileShape(profile: AppProductProfile): void {
   const skillProfiles = profile.gui.assistant_skill_profiles ?? [];
   if (JSON.stringify(skillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
     throw new Error('App product profile assistant skill profiles must target MAS, MAG, and RCA');
+  }
+  const ordinarySelector = profile.gui.ordinary_capability_selector_policy;
+  if (!ordinarySelector || typeof ordinarySelector !== 'object') {
+    throw new Error('App product profile must declare ordinary_capability_selector_policy');
+  }
+  if (
+    ordinarySelector.scope !== 'home_composer_and_ordinary_conversation' ||
+    ordinarySelector.authority !== 'app_owned_opl_allowlist' ||
+    ordinarySelector.skill_source_ref !== 'gui.assistant_skill_profiles.required_skills + optional_skills' ||
+    ordinarySelector.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible' ||
+    ordinarySelector.conversation_loaded_skill_display_policy !== 'filter_to_ordinary_skill_allowlist' ||
+    ordinarySelector.mcp_server_source_ref !== 'gui.ordinary_capability_selector_policy.visible_mcp_server_ids' ||
+    ordinarySelector.mcp_menu_policy !== 'empty_until_app_explicitly_whitelists_opl_mcp_servers' ||
+    ordinarySelector.conversation_loaded_mcp_display_policy !== 'filter_to_visible_mcp_server_ids' ||
+    ordinarySelector.forbidden_mcp_policy !==
+      'do_not_surface_user_or_aionui_mcp_servers_in_ordinary_home_without_app_profile_allowlist'
+  ) {
+    throw new Error('App product profile ordinary capability selector policy must preserve OPL allowlist behavior');
+  }
+  assertStringArray(
+    ordinarySelector.forbidden_skill_examples,
+    'gui.ordinary_capability_selector_policy.forbidden_skill_examples',
+  );
+  assertIncludesAll(
+    ordinarySelector.forbidden_skill_examples,
+    ['aionui-skills', 'aionui-webui-setup', 'skill-creator', 'cron'],
+    'gui.ordinary_capability_selector_policy.forbidden_skill_examples',
+  );
+  if (!Array.isArray(ordinarySelector.visible_mcp_server_ids) || ordinarySelector.visible_mcp_server_ids.length !== 0) {
+    throw new Error('App product profile ordinary MCP selector must default to an empty App allowlist');
   }
   const requiredByAssistant = new Map(skillProfiles.map((entry) => [entry.assistant_id, entry.required_skills]));
   for (const assistantId of ['mas', 'mag', 'rca']) {

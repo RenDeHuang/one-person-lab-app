@@ -2698,6 +2698,43 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
     throw new Error('App GUI home must keep OMA out of default home entries');
   }
+  if (
+    guiContract.ordinary_capability_selector_policy?.scope !== 'home_composer_and_ordinary_conversation' ||
+    guiContract.ordinary_capability_selector_policy?.authority !== 'app_owned_opl_allowlist' ||
+    guiContract.ordinary_capability_selector_policy?.skill_source_ref !==
+      'assistant_skill_profiles.required_skills + optional_skills' ||
+    guiContract.ordinary_capability_selector_policy?.mcp_menu_policy !==
+      'empty_until_app_explicitly_whitelists_opl_mcp_servers' ||
+    guiContract.ordinary_capability_selector_policy?.conversation_loaded_skill_display_policy !==
+      'filter_to_ordinary_skill_allowlist' ||
+    guiContract.ordinary_capability_selector_policy?.conversation_loaded_mcp_display_policy !==
+      'filter_to_visible_mcp_server_ids'
+  ) {
+    throw new Error('App GUI ordinary capability selector must be an App-owned OPL allowlist');
+  }
+  assertDeepEqualJson(
+    guiContract.ordinary_capability_selector_policy.visible_mcp_server_ids,
+    [],
+    'App GUI ordinary MCP allowlist',
+  );
+  assertIncludesAll(
+    guiContract.ordinary_capability_selector_policy.forbidden_skill_examples,
+    ['aionui-skills', 'aionui-webui-setup', 'skill-creator', 'cron'],
+    'App GUI ordinary selector forbidden skills',
+  );
+  assertIncludesAll(
+    pages.guid_home.must_show,
+    ['ordinary skill selector filtered to App-owned assistant profile skill allowlist'],
+    'App GUI home ordinary selector must_show',
+  );
+  assertIncludesAll(
+    pages.guid_home.must_not_show,
+    [
+      'AionUI implementation skills such as aionui-skills',
+      'unknown MCP servers without an App profile allowlist entry',
+    ],
+    'App GUI home ordinary selector must_not_show',
+  );
   if (pages.guid_home.activity_center_policy?.source !== 'runtime page only; Home does not query running task lists') {
     throw new Error('App GUI home activity center must be suppressed on ordinary Home and routed to Runtime/secondary context');
   }
@@ -2886,6 +2923,7 @@ function validatePageStateMatrix(matrix, contract) {
     executor_policy_ref: 'contracts/app-gui-product-contract.json#executor_policy',
     assistant_source_ref: 'contracts/app-gui-product-contract.json#default_assistants',
     assistant_skill_profile_source_ref: 'contracts/app-gui-product-contract.json#assistant_skill_profiles',
+    ordinary_capability_selector_policy_ref: 'contracts/app-product-profile.json#gui.ordinary_capability_selector_policy',
     codex_only_default: true,
     codex_cli_fixed_executor: true,
     home_executor_selector_visible: false,
@@ -2915,6 +2953,7 @@ function validatePageStateMatrix(matrix, contract) {
     appOwnedHomeLayout,
     'Guid home page layout',
   );
+  assertDeepEqualJson(homeViewModel.ordinary_visible_mcp_server_ids, [], 'Guid home ordinary MCP allowlist');
   for (const assistant of ['mas', 'mag', 'rca']) {
     if (!homeViewModel.default_assistants?.includes(assistant)) {
       throw new Error(`Guid home page must include default assistant ${assistant}`);
@@ -2954,6 +2993,7 @@ function validatePageStateMatrix(matrix, contract) {
     'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA',
     'selected assistant keeps purpose entry switcher visible',
     'assistant-scoped skill menu with required skill checked',
+    'ordinary skill selector filtered to App-owned assistant profile skill allowlist',
     'workspace selector',
     'file attachment control',
     'send action',
@@ -2974,6 +3014,8 @@ function validatePageStateMatrix(matrix, contract) {
     'backend or permission selectors after entering an ordinary Codex conversation',
     'full assistant names as default home entry labels',
     'skills outside the App packaged skill set in home skill menu',
+    'AionUI implementation skills such as aionui-skills',
+    'unknown MCP servers without an App profile allowlist entry',
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',

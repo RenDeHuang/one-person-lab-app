@@ -223,6 +223,9 @@ secondary context，不在 composer 附近显示 compact entry。
   Environment、Appearance、Advanced、About & Updates。
 - Agents & Capabilities 的内置技能列表和自动注入技能只展示 App packaged skill
   whitelist 中的技能；AionUI implementation helper 如 `aionui-skills` 不作为 OPL 能力展示。
+- Home/new conversation 的普通技能/MCP 选择不使用完整 packaged skill dump 或
+  AionUI backend MCP catalog。普通技能来自 MAS/MAG/RCA assistant profile allowlist；
+  MCP 默认空白名单，只能由 App product profile 显式加入。
 - AionUI upstream Team 入口不作为 OPL 普通能力、普通导航或 Settings tab 暴露；
   Team sidebar section、Team 自动跳转和 Team deep link 默认禁用，兼容 route 只做
   App-owned redirect。
@@ -409,37 +412,22 @@ npx electron . --ui-smoke-test
 - Release replacement 保持 explicit：candidate 不会成为默认 stable/nightly
   shell，直到 `contracts/app-shell-adapter.json` 被明确修改。
 
-2026-06-02 chat-first / bilingual 技术验证 evidence：
+Candidate evidence lifecycle：
 
-- Source renderer build 在 `/Users/gaofeng/workspace/opl-agui-codex-shell` 通过；
-  Vite 仍有 node-fetch browser externalization 和大 chunk warning，未导致失败。
-- App-root candidate gate 现在要求 `/Users/gaofeng/workspace/opl-agui-codex-shell`
-  侧 `npm run validate:state-model` 通过后，才能刷新 candidate implementation
-  currentness claim；当前记录不把 state-model gate 解释为 release、domain 或
-  production readiness。
-- Candidate `.app` bundle 当前构建到
-  `/Users/gaofeng/workspace/opl-agui-codex-shell/out/One Person Lab AG-UI Codex Candidate.app`。
-- Package 后重新运行 WebUI smoke，通过同一 renderer、browser bridge 注入、
-  `window.oplCandidate` shape、Settings IA、secondary Runtime/refs surface、
-  七类 conversation events、bilingual UI 和 default-collapsed home parity。
-- Package 后重新运行 source UI smoke，普通中文 purpose entries 为 `科研`、`基金`、`演示`，
-  route label 为 `科研本机助手/Users/gaofeng`，`model_status=自动`，
-  `default_home_layout_status=passed`，stage classes 为 `without-rail` 和
-  `without-inspector`，`home_continue_work_visible=false`，
-  `home_runtime_activity_visible=false`，`bilingual_ui_status=passed`，
-  `locale_switch_status=passed`，visible paint 成功，并收到 Codex reply `OK`。
-- Package 后重新运行 packaged UI smoke，`packaged=true`，同样证明
-  default-collapsed chat-first home、中文默认 UI、英文切换、secondary runtime
-  context refs、safe App action dry-run、visible paint 和 Codex reply `OK`。
-- Final manifest 当前包含 `source_ui_smoke_status=passed`、
-  `packaged_ui_smoke_status=passed`、`webui_smoke_status=passed`、
-  `bilingual_ui_status=passed`、`default_home_layout_status=passed`、
-  `secondary_runtime_context_refs_status=passed`、
-  `runtime_summary_detail_action_bridge_status=passed`、`settings_ia_status=passed`、
-  `chat_event_rendering_status=passed`、`webui_parity_status=passed` 和
-  `action_dry_run_status=passed`。
-- Candidate shell final gate 通过：
-  `npm run validate:candidate -- --require-app --require-smoke`。
+- 本文只描述能力清单、reference mapping 和最低验证类别，不保存 dated pass/fail
+  日志、绝对 artifact 路径或 manifest 字段摘录。
+- `agui-codex` 当前性必须由 explicit adapter validation、shell-side
+  `npm run validate:state-model`、source/WebUI/package smoke、candidate manifest
+  和 App-root candidate validation 共同证明。
+- Candidate state-model、source smoke、WebUI smoke 或 packaged smoke 只能证明
+  candidate projection consumption 和 technical verification；不能写成 release、
+  domain、production、clean-VM、Full first-install 或 active-shell adoption
+  readiness。
+- 2026-06-02 chat-first/bilingual 技术验证证据已归档到
+  `docs/history/process/2026-06-02-agui-codex-candidate-smoke-evidence.md`；
+  2026-06-03 active-doc cleanup 摘要归档到
+  `docs/history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md`。
 
 当前默认 release shell 仍是 AionUI，直到该 candidate 满足
-`contracts/app-shell-candidates.json` 中的 shell replacement gate。
+`contracts/app-shell-candidates.json` 中的 shell replacement gate，并且
+`contracts/app-shell-adapter.json` 被明确修改。

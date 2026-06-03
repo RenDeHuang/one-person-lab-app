@@ -32,15 +32,18 @@ runtime activity、continue-work、needs-attention/active/recent refs、
 per-assistant running badges 或底部 feedback/favorite/web 图标。Home 只承担
 composer-first 的开始/继续对话职责。
 
-Runtime 读取 `opl runtime app-operator-drilldown --json` 的
-`current_control_state.summary` 和 `current_control_state.states`。它先展示真实
-active provider executions、running domains、task kinds 和 heartbeat。
-`running_provider_attempt_count` 可以包含 checkpointed provider refs，只能进入
-高级诊断，不能当成正在运行任务数。Project
-progress refs 读取 `app_state.operator.workbench.task_drilldowns`，但只作为二级
-project refs，不能作为 running task truth。`domain_lane_map.active_task_count`、
-`module_runtime dirty`、module readiness、repo/worktree diagnostics 和 assistant
-cards 都不能推导“正在运行的任务数”。
+Runtime 默认读取 `opl app state --profile fast --json` 的 refs-only App state。
+它先回答用户任务状态：正在运行、活跃、排队、需要注意，以及每条任务的标题、
+状态、阶段、进度、下一步、owner 和最近进展。`opl runtime
+app-operator-drilldown --json` 和 `current_control_state` 只作为 secondary
+diagnostics 或 explicit full-detail 入口。`running_provider_attempt_count` 可以
+包含 checkpointed provider refs，只能进入高级诊断，不能当成用户可见正在运行
+任务数。Project progress refs 读取
+`app_state.operator.workbench.task_drilldowns` 和 related active project refs，
+但必须保留 status、active_run_id 和 next visible step，不能单独证明 active
+worker execution。`domain_lane_map.active_task_count`、`module_runtime dirty`、
+module readiness、repo/worktree diagnostics 和 assistant cards 都不能推导“正在
+运行的任务数”。
 
 ## Settings
 

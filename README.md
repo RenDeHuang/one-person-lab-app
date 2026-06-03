@@ -11,6 +11,13 @@
 <p align="center"><strong>A chat-first desktop AI app for complex knowledge work</strong></p>
 <p align="center">Start research, grants, presentations, and general tasks from one app; track progress, resume long-running work, and inspect deliverables.</p>
 
+Owner: `one-person-lab-app`<br>
+Purpose: `public_app_entry`<br>
+State: `active_public_entry`<br>
+Machine boundary: Human-readable product overview. Machine truth lives in
+`contracts/`, source, release artifacts, updater metadata, validation outputs,
+and OPL Framework/domain projections consumed by the App.
+
 <p align="center">
   <img src="assets/branding/opl-app-product-map.png" alt="One Person Lab App product packaging map" width="100%" />
 </p>

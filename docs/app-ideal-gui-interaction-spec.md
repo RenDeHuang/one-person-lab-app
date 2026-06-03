@@ -268,6 +268,12 @@ Agents & Capabilities 主视图按科研、基金、演示和显式 OPL Meta Age
 whitelist 里的技能；`aionui-skills`、`aionui-webui-setup`、`skill-creator` 等 AionUI
 implementation helper 不进入普通能力页。
 
+Home composer 和普通会话里的技能/MCP 选择更窄：只使用 App-owned ordinary
+capability allowlist。技能从 MAS/MAG/RCA 的 `assistant_skill_profiles` 推导；
+MCP 默认空白名单，只有 App product profile 明确列入的 OPL MCP 才能进入普通
+选择器或 loaded-capability 展示。AionUI builtin-auto、用户本机 MCP 配置和 shell
+implementation helper 不直接成为 OPL App 普通会话能力。
+
 Project progress 是 runtime/work context surface，不属于 Settings
 information architecture。Local Environment 展示 Codex CLI、Temporal、
 modules、paths 和 update readiness；Advanced 展示 developer mode、raw paths、

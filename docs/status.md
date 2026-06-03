@@ -46,16 +46,16 @@ production readiness.
 
 The active shell currently tracks AionUI upstream through
 `4c775769ff68bf45929210181cc86e815a93c43d` while preserving the App-owned
-product profile. That intake is recorded in `contracts/app-shell-adapter.json`;
-the upstream code is implementation material, not product authority. The shell
-also keeps Codex ACP tool-call output display aligned with native Codex
-behavior by preserving newline-bearing `raw_output` / `stdout` / `stderr`
-content in the conversation view.
+product profile. That intake is recorded in `contracts/app-shell-adapter.json`,
+which is the active shell source of truth; the upstream code is implementation
+material, not product authority. The shell also keeps Codex ACP tool-call
+output display aligned with native Codex behavior by preserving newline-bearing
+`raw_output` / `stdout` / `stderr` content in the conversation view.
 
-2026-06-02 GUI interaction status: Home/Guid is now contract-backed as a
-composer-first Codex canvas with visible GPT-5.5（超高） model status, purpose
-entries `科研`/`基金`/`演示`, collapsed workspace/session rail, and a collapsed
-right context inspector. The element audit lives in
+GUI interaction status: Home/Guid is contract-backed as a composer-first Codex
+canvas with visible GPT-5.5（超高） model status, purpose entries `科研`/`基金`/
+`演示`, collapsed workspace/session rail, and a collapsed right context
+inspector. The element audit lives in
 `docs/app-gui-element-audit.md`; the target interaction definition lives in
 `docs/app-ideal-gui-interaction-spec.md`; machine acceptance is enforced by
 `contracts/app-gui-product-contract.json`,
@@ -86,7 +86,8 @@ capabilities instead of a single Developer Mode switch: `source_channel`,
 `workspace_trust`, `github_authority`, `agent_automation`, and
 `runtime_mutation_scope`. `opl-flow` is a Codex workflow/profile plugin and not
 a WebUI image, standard updater target, or `one-person-lab-modules/*` package.
-pins the independent agent installation path: MAS/MAG/RCA must register through
+The independent agent installation path is pinned by
+`contracts/app-install-exposure-policy.json`: MAS/MAG/RCA must register through
 Codex plugin registry targets while keeping direct skill compatibility and the
 same action/stage metadata; OMA stays on the OPL-generated skill surface. The
 machine gate is `npm run validate:agent-installation`, with optional
@@ -377,172 +378,33 @@ protocol copy on the ordinary chat surface. Default release promotion is still
 an explicit release decision: stable/nightly packaging continues to use AionUI
 until `contracts/app-shell-adapter.json` is deliberately changed.
 
-On 2026-06-02, the `agui-codex` candidate shell reached its then-current
-technical verification target. The ordinary home opened on the conversation canvas with
-`without-rail` and `without-inspector`; the workspace/session rail and
-right-side inspector remain collapsed until the user explicitly opens them. The
-candidate now renders App-owned Settings IA and refs-only secondary activity
-groups with `needs_attention`, `active_projects`, and `recent_projects`, plus
-compact conversation event refs for tool, process, diff, file, receipt,
-user-input, and permission events. Its older compact continue-work evidence is
-superseded by the current Home-minimal contract and must be refreshed before the
-candidate can be claimed current again. WebUI smoke now proves built renderer parity,
-browser bridge injection, `window.oplCandidate` shape, Settings IA, secondary
-Activity refs surface, conversation events, and default-collapsed home semantics. Source and
-packaged UI smoke both run a real Codex app-server `OK` turn, prove visible
-paint, run safe App action dry-run, and write final manifest evidence. That
-candidate final gate passed for the earlier contract; after the Home-minimal
-update, `npm run validate:shell-candidates` remains a registry/isolation gate.
-The new App-owned state-model gate must also pass before refreshing that
-currentness claim, and it remains only candidate projection-consumption evidence,
-not domain-ready, production-ready, clean-VM-ready, Full-release-ready, or
-active-shell-adopted evidence. Full candidate implementation evidence must be
-regenerated before claiming the candidate implementation is current. PilotDeck remains
-reference-only information organization for optional rail/inspector surfaces,
-not a first-screen workbench template. This is candidate evidence only; the
-default release shell remains AionUI until `contracts/app-shell-adapter.json` is
-deliberately promoted.
+Candidate and release evidence currentness is intentionally kept outside this
+status file. `agui-codex` remains an explicit technical verification candidate:
+it can be selected through
+`OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json`, but
+it is not the default release shell, not App product authority, and not
+domain-ready or production-ready evidence. Current candidate claims must be
+proved by the candidate registry, explicit adapter validation, shell-side
+state-model validation, source/WebUI/package smoke, candidate manifests, and
+App-root release isolation checks.
 
-2026-05-22 App release evidence collection now has an App-owned CLI wrapper:
-`scripts/collect-release-evidence.ts` fills `app-state-summary.json`,
-`app-state-full.json`, `drilldown-full.json`, `action-dry-run-result.json`, and,
-when explicitly requested, `action-execute-result.json` by calling the live OPL
-CLI. It then writes `evidence-manifest.json` through the existing manifest
-writer and immediately validates the bundle in `--allow-missing-evidence`
-mode. It can also attach externally produced contracted artifact files with
-`--artifact <artifact_id>=<source_path>`. On 2026-05-31 the same collector was
-extended with `--evidence-source-dir <dir>` so standard packaged/VM/remote smoke
-directories can be imported without hand-mapping every contracted artifact;
-explicit `--artifact` mappings still take precedence. Imported files are copied
-into the contract path and then validated by the same bundle validator. The
-collector also accepts `--typed-blocker <artifact_id>=<source_path>` for a
-producer run that actually happened but could not yield the required artifact.
-Typed blockers are copied under `typed-blockers/`, must name owner, blocker
-kind, reason, evidence refs, and next action, and keep
-`packaged_app_evidence=false`. Screenshot, clean first-run VM, settings smoke,
-packaged assistant route smoke, and remote Release verification artifacts remain
-required release evidence and stay marked `missing` or `blocked` until real
-artifacts exist; malformed OPL JSON, malformed attached evidence, malformed
-typed blockers, or contract drift still fails the collector. The collector is a
-user-path evidence bridge, not a packaged App release closeout.
-
-2026-05-28 OPL App/operator summary currently reads the selected App
-release/user-path cohort as refs-observed: five release/user-path evidence gates,
-zero open gates, six verified ledger receipt refs, and
-`app_release_user_path_production_user_path_ready=true`. That readout means the
-current cohort has body-free release package, screenshot/reload/user-path,
-provider linkage, and long-operator refs available to the App/operator surface.
-It remains a refs-only user-path projection from OPL runtime evidence; it is not
-an App release-ready claim, a domain readiness claim, or a family production
-readiness claim. Future release cohorts must still provide real artifacts or
-explicit artifact classifications through the release evidence bundle and OPL
-ledger before being treated as observed. The release evidence manifest uses
-`present`, `missing`, `typed_blocker`, and `not_applicable` artifact statuses;
+Release evidence collection is App-owned but cohort-bound. The collector and
+manifest validator can import OPL App state JSON, drilldown JSON, safe-action
+dry-run or execute receipts, screenshots, clean VM summaries, settings smoke,
+assistant route smoke, remote Release verification, Codex functional check
+receipts, typed blockers, and explicit artifact mappings. Each required artifact
+is classified as `present`, `missing`, `typed_blocker`, or `not_applicable`;
 only an all-present verified bundle can set `packaged_app_evidence=true`.
+Current-source or local smoke evidence does not update a published cohort, does
+not promote stable/latest, and does not prove MAS/MAG/RCA domain readiness or
+OPL family production readiness.
 
-2026-05-29 packaged GUI assistant route evidence remains open for the local
-26.5.28 Full DMG. The smoke harness now writes a fail-closed
-`assistant-route-smoke-summary.json` when MAS/MAG/RCA route controls do not meet
-the App contract. The current local run at
-`/tmp/opl-packaged-route-smoke-20260529063512-fail-summary/assistant-route-smoke-summary.json`
-failed on MAS because the installed App exposed no `preset-pill-mas/mag/rca`
-purpose-entry controls and still showed the ordinary permission selector. This
-is a release-evidence blocker for the packaged Codex path until a DMG/App smoke
-produces passed MAS/MAG/RCA route receipts with hidden ordinary selectors.
-
-Later on 2026-05-29, the current-source shell App bundle and current-source DMG
-both produced passed packaged GUI assistant route smoke evidence after the
-receipt verifier was corrected to read the backend REST `{success,data}`
-envelope. The evidence artifacts are
-`/tmp/opl-current-build-route-smoke-20260529065519/assistant-route-smoke-summary.json`
-for the `.app` bundle and
-`/tmp/opl-current-dmg-route-smoke-20260529065705/assistant-route-smoke-summary.json`
-for the DMG installed into `/tmp/opl-current-dmg-install-20260529065705`.
-Each artifact records passed MAS/MAG/RCA selection, hidden ordinary selectors,
-and persisted Codex ACP route receipts with `route_kind=builtin_capability`,
-`executor=codex_cli`, `backend=codex`, and `source=opl_app_home`. This is
-current-source evidence only; it does not change the published 26.5.28 Full DMG
-release evidence. The App release evidence contract now treats
-`artifacts/assistant-route-smoke-summary.json` and
-`artifacts/assistant-route-smoke/{mas,mag,rca}.png` as required packaged GUI
-Codex-path artifacts, so a future release cohort cannot claim packaged App
-evidence from the route summary alone. The validator also applies an
-`image_evidence_policy` to all release screenshot artifacts: minimum
-`640x360px`, at least `4096` bytes, no placeholder screenshots, and readable
-PNG/JPEG/WebP dimensions. This keeps real packaged UI evidence distinct from
-contract-only or 1x1 image fixtures.
-
-On 2026-05-31 the current-source DMG route smoke artifacts were assembled into
-`/Users/gaofeng/workspace/opl-release-evidence/app-current-source-dmg-route-smoke-20260531/evidence-manifest.json`
-through `collect-release-evidence.ts`. After the App release evidence contract
-added the packaged GUI Codex functional check summary, a same-cohort Full clean
-VM rerun at
-`codex-functional-check-vm-smoke-20260602-admin-routefix/` used the configured
-`admin` guest user and `/Users/gaofeng/.ssh/opl_first_run_tart_ed25519` key,
-passed Settings smoke, MAS/MAG/RCA route smoke, Runtime action evidence, and
-produced `artifacts/codex-functional-check-summary.json`. The refreshed bundle
-now validates with the default validator as `status=passed`,
-`packaged_app_evidence=true`, 16 contracted artifacts present, zero missing
-artifacts, and zero blocked artifacts. The bundle includes live OPL App state,
-full drilldown, action dry-run and execute JSON, Runtime screenshot, clean
-first-run VM summary, packaged first-run smoke, MAS/MAG/RCA assistant-route
-summary and screenshots, Full first-install screenshot and VM summary, Runtime
-action screenshot, remote release verification, and the passed Codex functional
-check receipt. The default validator now fails closed when a Codex functional
-check summary lacks deterministic MAS/MAG/RCA assistant route receipt coverage,
-so future cohorts cannot use a weak post-install Codex receipt as packaged GUI
-Codex-path evidence.
-
-The same-cohort standard VM run at
-`/tmp/opl-current-standard-vm-smoke-20260531-current-source-archive-1/tart-smoke-summary.json`
-passed Core first-run, Settings navigation, MAS/MAG/RCA route smoke, and
-Runtime action dry-run evidence. The Full first-install DMG at
-`/Users/gaofeng/workspace/opl-release-evidence/app-current-source-dmg-route-smoke-20260531/full-package/One-Person-Lab-Full-26.5.31-mac-arm64.dmg`
-was verified by a real Tart Full clean-VM run under
-`full-vm-smoke/tart-smoke-summary.json` with Codex wizard seen and submitted,
-Core ready before `/guid`, Settings navigation passed, MAS/MAG/RCA route smoke
-passed, and Runtime action evidence passed. Its imported
-`screenshots/full.png` is `1536x912`, `98746` bytes, SHA-256
-`7ce5bd8c2abe8245f52d1ab36fe99849818eae02e7203ea288758650715fee15`; Runtime
-action evidence is present at `screenshots/action.png` with
-`runtime-action-evidence.json` recording `dryRunCompleted=true`.
-
-The `v26.5.31` GitHub release is now non-draft and non-prerelease. Remote
-verification downloaded and verified all 11 standard and Full assets: standard
-DMG, standard ZIP, two blockmaps, `latest-mac.yml`, `latest-arm64-mac.yml`,
-Full DMG, `full-package-manifest.json`, `runtime-cache-events.json`,
-`README-Full-First-Install.txt`, and `SHA256SUMS.txt`.
-`remote-release-verification.json` reports `status=passed`,
-`verified_asset_count=11`, Full DMG size `508995657` bytes, runtime
-uncompressed bytes `632065216`, and passed Full first-install budget. This is
-cohort-bound App release evidence together with the passed local bundle; it
-does not by itself promote stable/latest, prove MAS/MAG/RCA domain readiness,
-or prove OPL family production readiness. App release-ready, domain readiness,
-and family production readiness remain separate owner decisions and evidence
-gates.
-
-Also on 2026-05-31, the active AionUI shell smoke producer was extended so
-future Full clean first-run CDP runs write the beginner-first screenshot into
-`screenshots/full.png`, and Runtime page dry-run action evidence writes
-`screenshots/action.png` plus `runtime-action-evidence.json`. It now also keeps
-Settings/page evidence and MAS/MAG/RCA assistant-route evidence independent from
-the Runtime action screenshot lane: when no safe App action route is exposed, it
-writes `runtime-action-evidence-blocker.json` and still lets the remaining
-packaged GUI smoke run. The Tart host wrapper writes a structured
-`tart-smoke-summary.json` on guest-smoke failure after artifacts are copied, so
-future bundles get a precise failure stage instead of an unstructured missing VM
-summary.
-
-2026-05-15 migration note: this local checkout is the clean App repo. It has no
-tracked `shells/aionui` source, and local `shells/aionui` points to
-`/Users/gaofeng/workspace/opl-aion-shell`. Remote migration keeps
-`gaofeng21cn/opl-aion-shell` as the history-rich shell repo and uses
-`gaofeng21cn/one-person-lab-app` as the clean App product repo.
-
-2026-05-17 release note: the stable release channel is narrowed to macOS arm64
-standard update assets plus separate macOS arm64 Full first-install assets.
-Docker/WebUI compatibility remains a validation lane, not a desktop release
-asset lane.
+Dated local smoke, candidate, current-source release, and migration notes have
+been moved to
+`docs/history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md`. New
+proof-by-proof records belong in release artifacts, candidate manifests, CI logs,
+or precise history/provenance docs; durable rules fold back into contracts,
+core docs, release/testing docs, or the active gap plan.
 
 ## Validation Entry Points
 

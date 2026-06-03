@@ -311,6 +311,24 @@
     ],
     "must_not_depend_on_visible_backend_selection": true
   },
+  "ordinary_capability_selector_policy": {
+    "scope": "home_composer_and_ordinary_conversation",
+    "authority": "app_owned_opl_allowlist",
+    "skill_source_ref": "assistant_skill_profiles.required_skills + optional_skills",
+    "skill_menu_policy": "assistant_scoped_required_checked_optional_visible",
+    "conversation_loaded_skill_display_policy": "filter_to_ordinary_skill_allowlist",
+    "mcp_server_source_ref": "contracts/app-product-profile.json#gui.ordinary_capability_selector_policy.visible_mcp_server_ids",
+    "mcp_menu_policy": "empty_until_app_explicitly_whitelists_opl_mcp_servers",
+    "visible_mcp_server_ids": [],
+    "conversation_loaded_mcp_display_policy": "filter_to_visible_mcp_server_ids",
+    "forbidden_skill_examples": [
+      "aionui-skills",
+      "aionui-webui-setup",
+      "skill-creator",
+      "cron"
+    ],
+    "forbidden_mcp_policy": "do_not_surface_user_or_aionui_mcp_servers_in_ordinary_home_without_app_profile_allowlist"
+  },
   "home_purpose_entries": [
     {
       "id": "research",
@@ -824,6 +842,7 @@
         "selected assistant shown as a compact @ purpose tag",
         "selected assistant keeps purpose entry switcher visible",
         "assistant-scoped skill menu with required skill checked",
+        "ordinary skill selector filtered to App-owned assistant profile skill allowlist",
         "workspace selector",
         "file attachment control",
         "send action",
@@ -841,6 +860,8 @@
         "OPL Meta Agent as a default home assistant",
         "selected assistant full name as the hero title",
         "skills outside the App packaged skill set in home skill menu",
+        "AionUI implementation skills such as aionui-skills",
+        "unknown MCP servers without an App profile allowlist entry",
         "retired Codex model choices",
         "nested input card frames",
         "dashboard-first home",
