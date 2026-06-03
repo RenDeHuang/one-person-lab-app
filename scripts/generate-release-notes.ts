@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { buildReleaseNotesDocument } from './release-notes.ts';
+import { buildReleaseNotesDocument, buildReleaseNotesEvidence } from './release-notes.ts';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 type Channel = 'stable' | 'nightly';
@@ -21,6 +21,7 @@ function parseArgs(argv: string[]) {
     currentAppRef: string;
     previousShellRef: string;
     currentShellRef: string;
+    evidenceOutput: string;
   } = {
     version: '',
     channel: 'stable',
@@ -35,6 +36,7 @@ function parseArgs(argv: string[]) {
     currentAppRef: '',
     previousShellRef: '',
     currentShellRef: '',
+    evidenceOutput: process.env.OPL_RELEASE_NOTES_EVIDENCE_OUTPUT?.trim() || '',
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -75,6 +77,8 @@ function parseArgs(argv: string[]) {
       parsed.previousShellRef = value;
     } else if (token === '--current-shell-ref') {
       parsed.currentShellRef = value;
+    } else if (token === '--evidence-output') {
+      parsed.evidenceOutput = path.resolve(value);
     } else {
       throw new Error(`Unknown argument: ${token}`);
     }
@@ -93,7 +97,7 @@ function main() {
   const fullPackageManifest = options.fullPackageManifestPath
     ? JSON.parse(fs.readFileSync(options.fullPackageManifestPath, 'utf8'))
     : null;
-  const notes = buildReleaseNotesDocument({
+  const releaseNoteOptions = {
     version: options.version,
     channel: options.channel,
     releaseRepo: options.releaseRepo,
@@ -106,7 +110,15 @@ function main() {
     currentAppRef: options.currentAppRef,
     previousShellRef: options.previousShellRef,
     currentShellRef: options.currentShellRef,
-  });
+  };
+  if (options.evidenceOutput) {
+    fs.mkdirSync(path.dirname(options.evidenceOutput), { recursive: true });
+    fs.writeFileSync(
+      options.evidenceOutput,
+      `${JSON.stringify(buildReleaseNotesEvidence(releaseNoteOptions), null, 2)}\n`,
+    );
+  }
+  const notes = buildReleaseNotesDocument(releaseNoteOptions);
   if (options.output) {
     fs.mkdirSync(path.dirname(options.output), { recursive: true });
     fs.writeFileSync(options.output, notes);

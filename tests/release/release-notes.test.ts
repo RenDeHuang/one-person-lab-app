@@ -116,6 +116,7 @@ test('stable release notes are English and include bundled OPL-family agent vers
 
 test('nightly release notes compare against the previous nightly and stay standard-only', () => {
   const shellRoot = createShellHistory();
+  const evidencePath = path.join(os.tmpdir(), `opl-nightly-notes-evidence-${Date.now()}.json`);
   const result = runNode([
     'scripts/generate-release-notes.ts',
     '--version',
@@ -136,9 +137,19 @@ test('nightly release notes compare against the previous nightly and stay standa
     'HEAD',
     '--current-app-ref',
     'HEAD',
+    '--evidence-output',
+    evidencePath,
   ]);
 
   assert.equal(result.status, 0, result.stderr);
+  const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+  assert.equal(evidence.schema, 'opl_app_release_notes_evidence.v1');
+  assert.equal(evidence.version, '26.5.31-nightly');
+  assert.equal(evidence.channel, 'nightly');
+  assert.equal(
+    evidence.release_scope,
+    'Standard macOS arm64 Nightly package and updater metadata; no Full clean-install DMG in the Nightly channel.',
+  );
   assert.match(result.stdout, /One Person Lab 26\.5\.31-nightly/);
   assert.match(result.stdout, /This Nightly prerelease focuses on changes since v26\.5\.30-nightly\./);
   assert.match(result.stdout, /First-run setup/);

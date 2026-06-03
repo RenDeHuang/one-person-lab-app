@@ -155,6 +155,8 @@ const checks = [
       'node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets',
       'node --experimental-strip-types scripts/validate-release.ts release-assets',
       'node --experimental-strip-types scripts/generate-release-notes.ts',
+      'OPL_RELEASE_NOTES_EVIDENCE_OUTPUT',
+      '--evidence-output "$OPL_RELEASE_NOTES_EVIDENCE_OUTPUT"',
       'webui-ghcr-publish:',
       'remote_tag_sha="$(git ls-remote --tags origin "refs/tags/${OPL_RELEASE_TAG}"',
       'git tag -f "${OPL_RELEASE_TAG}" "$GITHUB_SHA"',
