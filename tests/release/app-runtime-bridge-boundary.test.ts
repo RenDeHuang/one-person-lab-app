@@ -235,7 +235,17 @@ test('App owns runtime bridge contract while active shell remains replaceable ad
   assert.equal(runtimeBridge.authority_boundary.app_can_write_domain_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_read_artifact_body, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_read_memory_body, false);
+  assert.equal(runtimeBridge.authority_boundary.app_can_write_sqlite_sidecar, false);
+  assert.equal(runtimeBridge.authority_boundary.app_can_mutate_state_index_kernel, false);
+  assert.equal(runtimeBridge.authority_boundary.app_can_write_owner_receipt, false);
+  assert.equal(runtimeBridge.authority_boundary.app_can_authorize_readiness, false);
+  assert.equal(runtimeBridge.authority_boundary.app_can_authorize_artifact_authority, false);
   assert.equal(runtimeBridge.replacement_policy.runtime_protocol_stable_across_shell_replacement, true);
+  assert.equal(runtimeBridge.replacement_policy.direct_sqlite_sidecar_reads_are_forbidden, true);
+  assert.equal(runtimeBridge.replacement_policy.direct_state_index_kernel_writes_are_forbidden, true);
+  assert.ok(runtimeBridge.forbidden_truth_sources.includes('direct_opl_sqlite_sidecar_reads'));
+  assert.ok(runtimeBridge.forbidden_truth_sources.includes('direct_state_index_kernel_file_reads'));
+  assert.ok(runtimeBridge.forbidden_truth_sources.includes('direct_state_index_kernel_writes'));
   assert.equal(runtimePage.runtime_view_model.bridge_contract, 'contracts/app-runtime-bridge.json');
   assert.equal(adapter.runtime_bridge_contract, 'contracts/app-runtime-bridge.json');
 });
@@ -522,5 +532,116 @@ test('Runtime page consumes Stage Artifact Kernel refs without artifact bodies o
     'production_readiness',
   ]) {
     assert.equal(Object.hasOwn(artifactDrilldown, forbidden), false, `${forbidden} must not be projected`);
+  }
+});
+
+test('Runtime page consumes State Index Kernel SQLite sidecar as read-only read-model refs', () => {
+  const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
+  const pageMatrix = readJson('contracts/app-page-state-matrix.json');
+  const guiContract = readJson('contracts/app-gui-product-contract.json');
+  const fixture = readJson('contracts/fixtures/opl-app-state-fast.fixture.json');
+  const runtimePage = pageMatrix.pages.find((page) => page.id === 'runtime');
+  const bridgeProjection = runtimeBridge.state_index_sidecar_projection;
+  const pageProjection = runtimePage.runtime_view_model.state_index_sidecar;
+  const guiFrameworkProjection = guiContract.framework_surfaces.state_index_sidecar;
+  const guiRuntimePolicy = guiContract.pages.runtime_status.state_index_sidecar_policy;
+  const taskDrilldown = fixture.app_state.operator.workbench.task_drilldowns.find(
+    (task) => task.task_id === 'medautoscience',
+  );
+  const sidecarProjection = taskDrilldown.state_index_sidecar_projection;
+  const expectedStateIndexProjection = {
+    source: 'app_state.operator.workbench.task_drilldowns.state_index_sidecar_projection',
+    detail_source: 'opl runtime app-operator-drilldown --task <task_id> --json',
+    authority: 'opl_framework_state_index_kernel_sqlite_sidecar_projection',
+    kernel_owner: 'one-person-lab',
+    storage_kind: 'sqlite_sidecar_read_model_cache',
+    app_access_mode: 'read_only_projection_consumer',
+    display_policy: 'state_index_refs_only_no_sqlite_write_no_domain_truth_claims',
+    drilldown_target_policy: 'refs_drill_down_to_stage_folder_not_domain_body',
+    allowed_input_surfaces: [
+      'opl app state --profile fast --json',
+      'opl app state --profile full --json',
+      'opl runtime app-operator-drilldown --task <task_id> --json',
+    ],
+    required_ref_fields: [
+      'state_index_ref',
+      'stage_folder_ref',
+      'task_ref',
+      'owner_ref',
+      'updated_at',
+    ],
+    optional_ref_fields: [
+      'artifact_index_refs',
+      'receipt_index_refs',
+      'blocker_index_refs',
+      'readiness_false_flag_refs',
+      'cache_generation_ref',
+    ],
+    sqlite_direct_read_access: false,
+    sqlite_write_access: false,
+    sidecar_mutation_access: false,
+    domain_truth_write_access: false,
+    owner_receipt_write_access: false,
+    artifact_body_access: false,
+    readiness_authority: false,
+    artifact_authority: false,
+    quality_verdict_authority: false,
+    app_role: 'display_only_state_index_read_model_consumer',
+    forbidden_claims: [
+      'sqlite_truth_owner',
+      'sqlite_sidecar_writer',
+      'state_index_kernel_owner',
+      'domain_truth',
+      'owner_receipt_authority',
+      'artifact_body',
+      'artifact_authority',
+      'domain_readiness',
+      'quality_verdict',
+      'export_readiness',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+  };
+
+  assert.deepEqual(bridgeProjection, expectedStateIndexProjection);
+  assert.deepEqual(pageProjection, expectedStateIndexProjection);
+  assert.deepEqual(guiFrameworkProjection, expectedStateIndexProjection);
+  assert.deepEqual(guiRuntimePolicy, expectedStateIndexProjection);
+  assert.ok(sidecarProjection, 'fixture task drilldown must include State Index sidecar refs');
+  assert.equal(sidecarProjection.surface_kind, 'opl_state_index_kernel_sidecar_read_model');
+  assert.equal(sidecarProjection.sqlite_direct_read_access, false);
+  assert.equal(sidecarProjection.sqlite_write_access, false);
+  assert.equal(sidecarProjection.sidecar_mutation_access, false);
+  assert.equal(sidecarProjection.domain_truth_write_access, false);
+  assert.equal(sidecarProjection.owner_receipt_write_access, false);
+  assert.equal(sidecarProjection.artifact_body_access, false);
+  assert.equal(sidecarProjection.readiness_authority, false);
+  assert.equal(sidecarProjection.artifact_authority, false);
+  assert.equal(sidecarProjection.quality_verdict_authority, false);
+  for (const field of bridgeProjection.required_ref_fields) {
+    assert.ok(Object.hasOwn(sidecarProjection, field), `${field} must be present`);
+  }
+  for (const field of bridgeProjection.optional_ref_fields) {
+    assert.ok(Object.hasOwn(sidecarProjection, field), `${field} must be present as refs or an empty refs list`);
+  }
+  for (const forbidden of [
+    'sqlite_path',
+    'sqlite_connection_string',
+    'sqlite_write_query',
+    'state_index_kernel_mutation',
+    'domain_truth',
+    'owner_receipt_body',
+    'artifact_body',
+    'domain_artifact_body',
+    'domain_quality_verdict',
+    'quality_verdict',
+    'domain_export_readiness',
+    'export_readiness',
+    'domain_readiness',
+    'domain_ready',
+    'app_release_readiness',
+    'production_readiness',
+  ]) {
+    assert.equal(Object.hasOwn(sidecarProjection, forbidden), false, `${forbidden} must not be projected`);
   }
 });

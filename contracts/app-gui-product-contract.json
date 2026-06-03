@@ -115,6 +115,59 @@
       "command": "opl runtime app-operator-drilldown --detail full --json",
       "policy": "on_demand_only"
     },
+    "state_index_sidecar": {
+      "source": "app_state.operator.workbench.task_drilldowns.state_index_sidecar_projection",
+      "detail_source": "opl runtime app-operator-drilldown --task <task_id> --json",
+      "authority": "opl_framework_state_index_kernel_sqlite_sidecar_projection",
+      "kernel_owner": "one-person-lab",
+      "storage_kind": "sqlite_sidecar_read_model_cache",
+      "app_access_mode": "read_only_projection_consumer",
+      "display_policy": "state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
+      "drilldown_target_policy": "refs_drill_down_to_stage_folder_not_domain_body",
+      "allowed_input_surfaces": [
+        "opl app state --profile fast --json",
+        "opl app state --profile full --json",
+        "opl runtime app-operator-drilldown --task <task_id> --json"
+      ],
+      "required_ref_fields": [
+        "state_index_ref",
+        "stage_folder_ref",
+        "task_ref",
+        "owner_ref",
+        "updated_at"
+      ],
+      "optional_ref_fields": [
+        "artifact_index_refs",
+        "receipt_index_refs",
+        "blocker_index_refs",
+        "readiness_false_flag_refs",
+        "cache_generation_ref"
+      ],
+      "sqlite_direct_read_access": false,
+      "sqlite_write_access": false,
+      "sidecar_mutation_access": false,
+      "domain_truth_write_access": false,
+      "owner_receipt_write_access": false,
+      "artifact_body_access": false,
+      "readiness_authority": false,
+      "artifact_authority": false,
+      "quality_verdict_authority": false,
+      "app_role": "display_only_state_index_read_model_consumer",
+      "forbidden_claims": [
+        "sqlite_truth_owner",
+        "sqlite_sidecar_writer",
+        "state_index_kernel_owner",
+        "domain_truth",
+        "owner_receipt_authority",
+        "artifact_body",
+        "artifact_authority",
+        "domain_readiness",
+        "quality_verdict",
+        "export_readiness",
+        "app_release_readiness",
+        "family_production_readiness"
+      ]
+    },
     "artifact_native_drilldown": {
       "source": "app_state.operator.workbench.task_drilldowns.artifact_native_drilldown",
       "detail_source": "opl runtime app-operator-drilldown --task <task_id> --json",
@@ -158,7 +211,9 @@
       "direct opl family-runtime worker status page aggregation",
       "application.systemInfo as OPL path truth",
       "application.appVersions as OPL release truth",
-      "direct reads of OPL internal state files"
+      "direct reads of OPL internal state files",
+      "direct reads of OPL SQLite sidecar files",
+      "direct State Index Kernel writes"
     ],
     "runtime_default_attention": {
       "default_mode": "user_task_status_first",
@@ -1185,6 +1240,59 @@
         "platform_repair_display_treatment": "separate_infrastructure_repair_not_deliverable_progress",
         "forbidden_delivery_claim_for_platform_repair": true
       },
+      "state_index_sidecar_policy": {
+        "source": "app_state.operator.workbench.task_drilldowns.state_index_sidecar_projection",
+        "detail_source": "opl runtime app-operator-drilldown --task <task_id> --json",
+        "authority": "opl_framework_state_index_kernel_sqlite_sidecar_projection",
+        "kernel_owner": "one-person-lab",
+        "storage_kind": "sqlite_sidecar_read_model_cache",
+        "app_access_mode": "read_only_projection_consumer",
+        "display_policy": "state_index_refs_only_no_sqlite_write_no_domain_truth_claims",
+        "drilldown_target_policy": "refs_drill_down_to_stage_folder_not_domain_body",
+        "allowed_input_surfaces": [
+          "opl app state --profile fast --json",
+          "opl app state --profile full --json",
+          "opl runtime app-operator-drilldown --task <task_id> --json"
+        ],
+        "required_ref_fields": [
+          "state_index_ref",
+          "stage_folder_ref",
+          "task_ref",
+          "owner_ref",
+          "updated_at"
+        ],
+        "optional_ref_fields": [
+          "artifact_index_refs",
+          "receipt_index_refs",
+          "blocker_index_refs",
+          "readiness_false_flag_refs",
+          "cache_generation_ref"
+        ],
+        "sqlite_direct_read_access": false,
+        "sqlite_write_access": false,
+        "sidecar_mutation_access": false,
+        "domain_truth_write_access": false,
+        "owner_receipt_write_access": false,
+        "artifact_body_access": false,
+        "readiness_authority": false,
+        "artifact_authority": false,
+        "quality_verdict_authority": false,
+        "app_role": "display_only_state_index_read_model_consumer",
+        "forbidden_claims": [
+          "sqlite_truth_owner",
+          "sqlite_sidecar_writer",
+          "state_index_kernel_owner",
+          "domain_truth",
+          "owner_receipt_authority",
+          "artifact_body",
+          "artifact_authority",
+          "domain_readiness",
+          "quality_verdict",
+          "export_readiness",
+          "app_release_readiness",
+          "family_production_readiness"
+        ]
+      },
       "artifact_native_drilldown_policy": {
         "source": "app_state.operator.workbench.task_drilldowns.artifact_native_drilldown",
         "detail_source": "opl runtime app-operator-drilldown --task <task_id> --json",
@@ -1235,6 +1343,7 @@
         "next visible step when projected",
         "blocker count and user attention status",
         "progress delta rendered as user-facing labels",
+        "State Index Kernel / SQLite sidecar read-model refs",
         "artifact-native current/canonical/export/lineage/retention/conformance refs",
         "runtime diagnostics as secondary disclosure",
         "provider readiness from app_state.provider",
@@ -1243,6 +1352,7 @@
         "non-running waiting or stopped projects collapsed by default",
         "deliverable progress delta classification",
         "platform repair delta as separate infrastructure repair",
+        "State Index sidecar refs-only drilldown to Stage Folder",
         "Stage Artifact Kernel refs-only drilldown"
       ],
       "must_not_default_show": [
@@ -1262,6 +1372,8 @@
         "artifact body",
         "domain artifact body",
         "artifact authority",
+        "SQLite sidecar write authority",
+        "State Index Kernel mutation authority",
         "quality/readiness/export verdict",
         "deliverable progress truth",
         "platform repair truth",

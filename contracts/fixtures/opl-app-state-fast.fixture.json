@@ -183,6 +183,33 @@
             "next_visible_step": "Resolve missing Med Auto Science workspace ref",
             "next_owner": "opl_framework",
             "paper_route_lens_ref_count": 0,
+            "state_index_sidecar_projection": {
+              "surface_kind": "opl_state_index_kernel_sidecar_read_model",
+              "source_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].state_index_sidecar_projection",
+              "state_index_ref": "opl://state-index/medautoscience/module_runtime",
+              "stage_folder_ref": "/workspace/med-autoscience/.opl/stages/module_runtime",
+              "task_ref": "opl://task/medautoscience",
+              "owner_ref": "opl://owner/opl_framework",
+              "updated_at": "2026-06-03T00:00:00Z",
+              "artifact_index_refs": [],
+              "receipt_index_refs": [],
+              "blocker_index_refs": [
+                "opl://typed-blocker/medautoscience/module-runtime-workspace-missing"
+              ],
+              "readiness_false_flag_refs": [
+                "opl://readiness-false-flag/medautoscience/module-runtime-workspace-missing"
+              ],
+              "cache_generation_ref": "opl://state-index-cache-generation/fixture-fast-g2",
+              "sqlite_direct_read_access": false,
+              "sqlite_write_access": false,
+              "sidecar_mutation_access": false,
+              "domain_truth_write_access": false,
+              "owner_receipt_write_access": false,
+              "artifact_body_access": false,
+              "readiness_authority": false,
+              "artifact_authority": false,
+              "quality_verdict_authority": false
+            },
             "artifact_native_drilldown": {
               "surface_kind": "opl_stage_artifact_runtime_workbench",
               "source_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].artifact_native_drilldown",

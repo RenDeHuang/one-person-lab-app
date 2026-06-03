@@ -180,6 +180,15 @@ body, does not mutate artifact body, and does not declare MAS/MAG/RCA/OMA
 quality verdicts, export readiness, domain readiness, App release readiness, or
 family production readiness from those refs.
 
+Runtime task drilldown also consumes the OPL State Index Kernel / SQLite sidecar
+only through Framework-projected read-model refs. The allowed App path is
+`opl app state --profile fast --json`, explicit full App state, or task
+operator drilldown JSON; refs may drill down to the Stage Folder, but the App
+does not directly read or write the SQLite sidecar, mutate the State Index
+Kernel, write domain truth, create owner receipts, inspect artifact bodies, or
+authorize readiness, quality/export verdicts, artifact authority, App release
+readiness, or family production readiness.
+
 `running_provider_attempt_count` remains diagnostic. It may include checkpointed
 provider refs and must not be displayed as the user's running task count.
 `domain_lane_map.active_task_count`, `module_runtime dirty`, module readiness,
