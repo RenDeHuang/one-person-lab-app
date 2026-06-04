@@ -18,7 +18,6 @@ on:
         type: choice
         options:
           - app_standard
-          - modules_bundle
       opl_version:
         description: OPL version, for example 26.6.4 or 26.6.4-nightly
         required: true
@@ -138,7 +137,6 @@ jobs:
           const release = JSON.parse(fs.readFileSync(process.env.RELEASE_JSON, 'utf8'));
           const version = process.env.OPL_RELEASE_VERSION;
           const channel = process.env.OPL_HOMEBREW_CHANNEL;
-          const packageKind = process.env.OPL_HOMEBREW_PACKAGE_KIND;
           const repo = process.env.OPL_RELEASE_REPO;
           const assets = Array.isArray(release.assets) ? release.assets : [];
 
@@ -186,12 +184,8 @@ jobs:
             fail('Homebrew tap updates must not read draft GitHub Releases.');
           }
 
-          const downloadAsset = packageKind === 'modules_bundle'
-            ? assetByName(`one-person-lab-modules-${version}.tar.gz`)
-            : assetByName(`One-Person-Lab-${version}-mac-arm64.dmg`);
-          const manifestAsset = packageKind === 'modules_bundle'
-            ? assetByName('opl-modules-manifest.json')
-            : assetByName('latest-arm64-mac.yml');
+          const downloadAsset = assetByName(`One-Person-Lab-${version}-mac-arm64.dmg`);
+          const manifestAsset = assetByName('latest-arm64-mac.yml');
 
           const output = {
             download_url: urlOf(downloadAsset),
@@ -216,19 +210,15 @@ jobs:
           OPL_CHECKSUM_SHA256: ${{ steps.release-assets.outputs.checksum_sha256 }}
         run: |
           set -euo pipefail
+          if [ "$OPL_HOMEBREW_PACKAGE_KIND" != "app_standard" ]; then
+            echo "::error::Homebrew tap updates are App cask-only; agent packs are App/CLI-managed."
+            exit 1
+          fi
           target=()
-          if [ "$OPL_HOMEBREW_PACKAGE_KIND" = "modules_bundle" ]; then
-            if [ "$OPL_HOMEBREW_CHANNEL" = "nightly" ]; then
-              target=(--formula Formula/one-person-lab-modules-nightly.rb)
-            else
-              target=(--formula Formula/one-person-lab-modules.rb)
-            fi
+          if [ "$OPL_HOMEBREW_CHANNEL" = "nightly" ]; then
+            target=(--cask Casks/one-person-lab-nightly.rb)
           else
-            if [ "$OPL_HOMEBREW_CHANNEL" = "nightly" ]; then
-              target=(--cask Casks/one-person-lab-nightly.rb)
-            else
-              target=(--cask Casks/one-person-lab.rb)
-            fi
+            target=(--cask Casks/one-person-lab.rb)
           fi
 
           node --experimental-strip-types scripts/update-homebrew-tap.ts \
@@ -275,4 +265,4 @@ jobs:
             - Version: `${{ inputs.opl_version }}`
             - Release repo: `${{ inputs.release_repo }}`
 
-            Homebrew remains a transport/index. App activation and module exposure stay under `opl system initialize --json`, `opl module reconcile`, and `opl skill sync`.
+            Homebrew remains an App cask transport/index. App activation and agent-pack exposure stay under `opl system initialize --json`, `opl module reconcile`, and `opl skill sync`.

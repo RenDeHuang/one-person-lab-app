@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 type Channel = 'stable' | 'nightly';
-type PackageKind = 'app_standard' | 'modules_bundle';
+type PackageKind = 'app_standard';
 
 type Options = {
   channel: Channel;
@@ -37,8 +37,11 @@ type TapUpdateTarget = {
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultTapRoot = path.join(appRoot, 'dist', 'homebrew-tap-plan');
 const fullPayloadPattern = /One-Person-Lab-Full|one-person-lab-full|Full-/i;
-const moduleTargetPattern = /one-person-lab-modules/i;
 const sha256Pattern = /^[a-f0-9]{64}$/i;
+const appCaskTargets = new Set([
+  'Casks/one-person-lab.rb',
+  'Casks/one-person-lab-nightly.rb',
+]);
 
 function parseArgs(argv: string[]): Options {
   const parsed: Options = {
@@ -82,8 +85,8 @@ function parseArgs(argv: string[]): Options {
       }
       parsed.channel = value;
     } else if (token === '--package-kind') {
-      if (value !== 'app_standard' && value !== 'modules_bundle') {
-        throw new Error('--package-kind must be app_standard or modules_bundle.');
+      if (value !== 'app_standard') {
+        throw new Error('--package-kind must be app_standard. Homebrew tap updates are App cask-only; agent packs are App/CLI-managed.');
       }
       parsed.packageKind = value;
     } else if (token === '--version') {
@@ -129,7 +132,7 @@ function assertRelativeTapTarget(targetPath: string): void {
 
 function inferPackageKind(options: Options): PackageKind {
   if (options.packageKind) return options.packageKind;
-  return options.targets.some((targetPath) => moduleTargetPattern.test(targetPath)) ? 'modules_bundle' : 'app_standard';
+  return 'app_standard';
 }
 
 function validateOptions(options: Options): ResolvedOptions {
@@ -161,21 +164,14 @@ function validateOptions(options: Options): ResolvedOptions {
     assertRelativeTapTarget(targetPath);
     assertNoFullPayloadReference('Homebrew tap target', targetPath);
     const isNightlyTarget = /nightly/i.test(path.basename(targetPath));
-    const isModuleTarget = moduleTargetPattern.test(targetPath);
+    if (classifyTarget(targetPath) !== 'cask' || !appCaskTargets.has(targetPath)) {
+      throw new Error('Homebrew tap updates are App cask-only; agent packs are App/CLI-managed, not Homebrew formulae.');
+    }
     if (options.channel === 'nightly' && !isNightlyTarget) {
       throw new Error('Nightly Homebrew tap updates may only update nightly formula/cask targets.');
     }
     if (options.channel === 'stable' && isNightlyTarget) {
       throw new Error('Stable Homebrew tap updates must not update nightly formula/cask targets.');
-    }
-    if (packageKind === 'app_standard' && isModuleTarget) {
-      throw new Error('Standard App Homebrew tap updates must not target module bundle formulae.');
-    }
-    if (packageKind === 'modules_bundle' && !isModuleTarget) {
-      throw new Error('Module bundle Homebrew tap updates may only target module bundle formulae.');
-    }
-    if (packageKind === 'modules_bundle' && classifyTarget(targetPath) !== 'formula') {
-      throw new Error('Module bundle Homebrew distribution must use Formula targets.');
     }
   }
 
@@ -194,29 +190,17 @@ function boundaryBlock(options: ResolvedOptions): string {
     '# stable_promotion_from_nightly_allowed: false',
     '# publishes_or_pushes_remote: false',
   ];
-  if (options.packageKind === 'modules_bundle') {
-    lines.push(
-      '# cohort: opl_modules_bundle_homebrew_distribution',
-      '# modules_payload_allowed: true',
-      '# modules_activation_owner: opl_reconcile_then_skill_sync',
-      '# must_not_write_user_codex_state: true',
-      '# must_not_define_agent_semantics: true',
-    );
-  } else {
-    lines.push(
-      '# cohort: standard_desktop_homebrew_distribution',
-      '# modules_payload_allowed: false',
-    );
-  }
+  lines.push(
+    '# cohort: standard_desktop_homebrew_distribution',
+    '# modules_payload_allowed: false',
+    '# agent_pack_homebrew_allowed: false',
+    '# agent_pack_activation_owner: app_cli_managed_background_maintenance',
+    '# forbidden_module_formulae: one-person-lab-modules,one-person-lab-modules-nightly',
+    '# must_not_write_user_codex_state: true',
+    '# must_not_define_agent_semantics: true',
+  );
   lines.push('# OPL_HOMEBREW_BOUNDARY_END');
   return lines.join('\n');
-}
-
-function formulaClassName(targetPath: string): string {
-  return path.basename(targetPath, '.rb')
-    .split('-')
-    .map((part) => part[0].toUpperCase() + part.slice(1))
-    .join('');
 }
 
 function renderHomebrewDownloadUrl(targetPath: string, options: ResolvedOptions): string {
@@ -225,57 +209,13 @@ function renderHomebrewDownloadUrl(targetPath: string, options: ResolvedOptions)
     return 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v#{version}/One-Person-Lab-#{version}-mac-arm64.dmg';
   }
 
-  const modulesDownloadUrl = `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${options.version}/one-person-lab-modules-${options.version}.tar.gz`;
-  if (options.packageKind === 'modules_bundle' && options.downloadUrl === modulesDownloadUrl) {
-    return 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v#{version}/one-person-lab-modules-#{version}.tar.gz';
-  }
-
   return options.downloadUrl;
 }
 
 function skeletonContent(targetPath: string, options: ResolvedOptions): string {
   const token = path.basename(targetPath, '.rb');
   if (classifyTarget(targetPath) === 'formula') {
-    const description = options.packageKind === 'modules_bundle'
-      ? 'One Person Lab module bundle payload'
-      : 'One Person Lab CLI and standard distribution';
-    const installBlock = options.packageKind === 'modules_bundle'
-      ? [
-          '  def install',
-          '    libexec.install Dir["*"]',
-          '  end',
-          '',
-          '  def caveats',
-          '    <<~EOS',
-          '      One Person Lab module payloads are installed read-only under:',
-          '        #{opt_libexec}',
-          '',
-          '      Activation is owned by One Person Lab:',
-          '        opl module reconcile',
-          '        opl skill sync',
-          '    EOS',
-          '  end',
-        ]
-      : [
-          '  def install',
-          '    libexec.install Dir["*"]',
-          '    bin.install_symlink libexec/"bin/opl" => "opl"',
-          '  end',
-        ];
-    return [
-      `class ${formulaClassName(targetPath)} < Formula`,
-      `  desc "${description}"`,
-      '  homepage "https://github.com/gaofeng21cn/one-person-lab-app"',
-      `  url "${renderHomebrewDownloadUrl(targetPath, options)}"`,
-      `  sha256 "${options.checksumSha256}"`,
-      `  version "${options.version}"`,
-      '',
-      `  ${boundaryBlock(options).split('\n').join('\n  ')}`,
-      '',
-      ...installBlock,
-      'end',
-      '',
-    ].join('\n');
+    throw new Error('Homebrew tap updates are App cask-only; agent packs are App/CLI-managed, not Homebrew formulae.');
   }
   return [
     `cask "${token}" do`,
@@ -336,6 +276,9 @@ function updateContent(content: string, targetPath: string, options: ResolvedOpt
 
 function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOptions): void {
   assertNoFullPayloadReference('Homebrew tap content', target.content);
+  if (target.kind !== 'cask') {
+    throw new Error(`${target.path} must be an App cask target.`);
+  }
   if (!target.content.includes(options.manifestUrl)) {
     throw new Error(`${target.path} must reference the release manifest URL.`);
   }
@@ -352,19 +295,18 @@ function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOption
   if (!target.content.includes('full_first_install_allowed: false')) {
     throw new Error(`${target.path} must declare that Homebrew does not distribute Full first-install payloads.`);
   }
-  if (options.packageKind === 'modules_bundle') {
-    for (const required of [
-      'modules_payload_allowed: true',
-      'modules_activation_owner: opl_reconcile_then_skill_sync',
-      'must_not_write_user_codex_state: true',
-      'must_not_define_agent_semantics: true',
-    ]) {
-      if (!target.content.includes(required)) {
-        throw new Error(`${target.path} must declare module payload activation and semantic-authority boundaries.`);
-      }
-    }
-  } else if (!target.content.includes('modules_payload_allowed: false')) {
+  if (!target.content.includes('modules_payload_allowed: false')) {
     throw new Error(`${target.path} must declare that standard App Homebrew distribution does not carry module payloads.`);
+  }
+  for (const required of [
+    'agent_pack_homebrew_allowed: false',
+    'agent_pack_activation_owner: app_cli_managed_background_maintenance',
+    'must_not_write_user_codex_state: true',
+    'must_not_define_agent_semantics: true',
+  ]) {
+    if (!target.content.includes(required)) {
+      throw new Error(`${target.path} must declare App/CLI-managed agent-pack boundaries.`);
+    }
   }
 }
 
@@ -409,18 +351,16 @@ function buildPlan(inputOptions: Options): {
     download_url: options.downloadUrl,
     targets: targets.map(({ content: _content, ...target }) => target),
     policy: {
-      cohort: options.packageKind === 'modules_bundle'
-        ? 'opl_modules_bundle_homebrew_distribution'
-        : 'standard_desktop_homebrew_distribution',
+      cohort: 'standard_desktop_homebrew_distribution',
       manifest_required: true,
       checksum_required: true,
       nightly_targets_only_for_nightly: true,
       stable_promotion_from_nightly_allowed: false,
       full_first_install_allowed: false,
-      modules_payload_allowed: options.packageKind === 'modules_bundle',
-      modules_activation_owner: options.packageKind === 'modules_bundle'
-        ? 'opl_reconcile_then_skill_sync'
-        : 'app_cli_maintenance',
+      modules_payload_allowed: false,
+      modules_activation_owner: 'app_cli_maintenance',
+      agent_pack_homebrew_allowed: false,
+      agent_pack_activation_owner: 'app_cli_managed_background_maintenance',
       must_not_write_user_codex_state: true,
       must_not_define_agent_semantics: true,
       publishes_or_pushes_remote: false,
@@ -448,21 +388,14 @@ function runSelfCheck(): void {
     throw new Error('Homebrew stable self-check did not produce the required manifest/checksum policy.');
   }
 
-  const modulesPlan = buildPlan({
-    channel: 'stable',
-    packageKind: 'modules_bundle',
-    version: '26.6.4',
-    tapRoot: tempRoot,
-    manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-modules-manifest.json',
-    checksumSha256: digest,
-    downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/one-person-lab-modules-26.6.4.tar.gz',
-    targets: ['Formula/one-person-lab-modules.rb'],
-    write: false,
-    summaryPath: null,
-    selfCheck: false,
-  });
-  if (modulesPlan.policy.modules_payload_allowed !== true || modulesPlan.policy.modules_activation_owner !== 'opl_reconcile_then_skill_sync') {
-    throw new Error('Homebrew modules self-check did not keep module activation under OPL reconcile/sync.');
+  let rejectedModulePackageKind = false;
+  try {
+    parseArgs(['--package-kind', 'modules_bundle']);
+  } catch (error) {
+    rejectedModulePackageKind = String(error).includes('App cask-only');
+  }
+  if (!rejectedModulePackageKind) {
+    throw new Error('Homebrew self-check did not reject module-bundle package kind.');
   }
 
   const nightlyPlan = buildPlan({
@@ -502,14 +435,7 @@ function runSelfCheck(): void {
       packageKind: 'app_standard' as PackageKind,
       version: '26.6.4',
       targets: ['Formula/one-person-lab-modules.rb'],
-      message: 'Standard App Homebrew tap updates must not target module bundle formulae',
-    },
-    {
-      channel: 'stable' as Channel,
-      packageKind: 'modules_bundle' as PackageKind,
-      version: '26.6.4',
-      targets: ['Casks/one-person-lab.rb'],
-      message: 'Module bundle Homebrew tap updates may only target module bundle formulae',
+      message: 'App cask-only',
     },
     {
       channel: 'stable' as Channel,
@@ -547,7 +473,7 @@ function main(): void {
   const options = parseArgs(process.argv.slice(2));
   if (options.selfCheck) {
     runSelfCheck();
-    console.log('PASS: Homebrew tap boundary validates manifest/checksum references, module payload isolation, and cohort separation.');
+    console.log('PASS: Homebrew tap boundary validates App cask-only manifest/checksum references, agent-pack App/CLI ownership, and cohort separation.');
     return;
   }
 

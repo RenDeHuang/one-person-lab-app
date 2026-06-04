@@ -77,7 +77,7 @@ brew upgrade --cask one-person-lab
 ```
 
 Homebrew 安装的是和直接下载同一 release cohort 的标准桌面 App。安装后打开
-`One Person Lab.app`；首次启动会准备工作目录，并在后台继续 App 管理的维护。普通用户路径就是安装、打开 App、选择工作目录，然后开始工作。
+`One Person Lab.app`；首次启动会准备工作目录、Foundry Agents、skills 和运行维护。普通用户路径就是安装、打开 App、选择工作目录，然后开始工作。
 
 如果 App 提示需要设置或修复，按应用内提示操作。需要终端诊断时，可以运行：
 
@@ -123,6 +123,7 @@ One Person Lab App 是面向用户的日常 chat-first 桌面入口，也是 pur
 - 首次启动在进入 `/guid` 前完成 `ready_to_launch`：只要求工作目录、Codex CLI 和 Codex config。领域模块、family runtime provider、推荐技能、native helpers、repo sync、CLT 和生态更新属于 Full readiness 或后台维护。
 - 首次启动界面从共享的 `opl system initialize --json` 模型展示当前阶段、Core 进度、Full readiness 进度、后台维护计数、阻塞项和下一步，不为不同安装形态维护各自的进度真相。
 - Foundry Agents 只暴露一条公共语义路径：domain skill 是 ABI。Codex App 可以通过 plugin-packaged skill 暴露 MAS/MAG/RCA，CLI 和 direct Codex 仍消费同一套 skill/action/stage metadata；plugin 只是分发壳，不能生成第二套语义，也不能把 MAS/MAG/RCA 再镜像成裸 `~/.codex/skills/{mas,mag,rca}`。
+- Homebrew 只作为 App cask 的安装和更新入口。MAS/MAG/RCA/OMA agent packs 在 App 安装后由 App/CLI 维护准备，用户不需要安装单独的 `one-person-lab-modules` 或 agent 专属 Homebrew 包。
 - 把 One Person Lab 和领域智能体呈现为可直接使用的产品体验。
 
 ## 用户路径
@@ -138,7 +139,7 @@ One Person Lab App 是面向用户的日常 chat-first 桌面入口，也是 pur
 
 One Person Lab App 负责桌面产品体验：打包、发布资产、更新元数据、首次启动检查、界面状态测试、截图和用户文档。App release/user-path evidence 只证明同一 release cohort 的 App 用户路径证据，不能外推为 stable/latest promotion、MAS/MAG/RCA domain readiness 或 OPL family production readiness。
 
-App 产品默认策略由 [`contracts/app-product-profile.json`](contracts/app-product-profile.json) 声明。安装与 Codex 可见暴露策略由 [`contracts/app-install-exposure-policy.json`](contracts/app-install-exposure-policy.json) 声明：App 决定用户看到的安装形态和默认入口，OPL Framework 生产 install/sync/read-model surface，domain 仓继续持有 skill 语义。发布脚本会在标准包和 Full 包构建前把该合同同步到活动 shell，让 Codex 默认模型/推理强度、默认打包 skill 白名单、首次启动维护行为和 Settings 用户文案由 App 仓统一配置，而不是分散写死在 AionUI fork 中。
+App 产品默认策略由 [`contracts/app-product-profile.json`](contracts/app-product-profile.json) 声明。安装与 Codex 可见暴露策略由 [`contracts/app-install-exposure-policy.json`](contracts/app-install-exposure-policy.json) 声明：App 决定用户看到的安装形态和默认入口，OPL Framework 生产 install/sync/read-model surface，domain 仓继续持有 skill 语义。该合同同时固定 Homebrew App cask 边界、MAS/MAG/RCA plugin registry、OMA generated skill surface、App/CLI-managed agent-pack 维护、可选 live `~/.codex/skills` duplicate mirror 检查，以及 `npm run validate:agent-installation` 背后的 duplicate bare-skill prevention。发布脚本会在标准包和 Full 包构建前把该合同同步到活动 shell，让 Codex 默认模型/推理强度、默认打包 skill 白名单、首次启动维护行为和 Settings 用户文案由 App 仓统一配置，而不是分散写死在 AionUI fork 中。
 
 GUI 产品事实也由 App 仓拥有。默认发布界面仍由 [`contracts/app-shell-adapter.json`](contracts/app-shell-adapter.json) 指向 `shells/aionui`；技术验证界面可以通过 `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json` 显式选择，复用同一套 App 包装脚本同步 product profile，并为候选 shell 编译出可启动的 `.app` bundle 与 package manifest。候选 shell 只能通过 App-owned contract 与 validation gate 进入产品真相，不能用 shell roadmap 或 upstream 默认行为反向定义 App。
 

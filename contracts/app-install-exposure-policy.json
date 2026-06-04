@@ -254,7 +254,7 @@
   },
   "distribution_channels": {
     "homebrew": {
-      "role": "transport_and_install_index_only",
+      "role": "app_cask_transport_and_install_index_only",
       "tap": "gaofeng21cn/one-person-lab",
       "must_not_own_agent_semantics": true,
       "must_not_write_user_codex_state": true,
@@ -263,12 +263,7 @@
         "opl module reconcile",
         "opl skill sync"
       ],
-      "formulae": {
-        "cli": "one-person-lab",
-        "modules": "one-person-lab-modules",
-        "nightly_cli": "one-person-lab-nightly",
-        "nightly_modules": "one-person-lab-modules-nightly"
-      },
+      "formulae": {},
       "casks": {
         "standard_app": "one-person-lab",
         "nightly_standard_app": "one-person-lab-nightly"
@@ -277,25 +272,31 @@
         "Casks/one-person-lab.rb",
         "Casks/one-person-lab-nightly.rb"
       ],
-      "formula_targets_require_release_assets": [
-        "Formula/one-person-lab.rb",
-        "Formula/one-person-lab-nightly.rb",
-        "Formula/one-person-lab-modules.rb",
-        "Formula/one-person-lab-modules-nightly.rb"
-      ],
       "excluded_casks": {
         "full_first_install": "one-person-lab-full"
       },
-      "module_bundle": {
-        "package_kind": "opl_modules_bundle",
-        "agent_ids": [
+      "allowed_user_targets": [
+        "Casks/one-person-lab.rb",
+        "Casks/one-person-lab-nightly.rb"
+      ],
+      "forbidden_formulae": [
+        "one-person-lab-modules",
+        "one-person-lab-modules-nightly"
+      ],
+      "agent_pack_policy": {
+        "managed_agent_ids": [
           "mas",
           "mag",
           "rca",
           "oma"
         ],
-        "install_prefix_role": "read_only_payload",
-        "activation_policy": "opl_reconcile_then_skill_sync"
+        "homebrew_distribution_allowed": false,
+        "user_visible_formula_allowed": false,
+        "activation_policy": "app_cli_managed_background_maintenance",
+        "maintenance_commands": [
+          "opl module reconcile",
+          "opl skill sync"
+        ]
       }
     }
   },
@@ -356,33 +357,13 @@
     "may_use_developer_checkout_by_default": false,
     "developer_checkout_override_policy": "explicit_opt_in_only",
     "developer_checkout_override_surface": "Developer Profile source_channel capability",
-    "ordinary_user_module_source": "stable_package_channel",
+    "ordinary_user_module_source": "app_cli_managed_stable_package_channel",
     "module_package_channel_agent_ids": [
       "mas",
       "mag",
       "rca",
       "oma"
     ],
-    "module_package_distribution": {
-      "channel_id": "opl_distribution_cohort",
-      "default_transport": "homebrew_or_app_cli_managed",
-      "package_agent_ids": [
-        "mas",
-        "mag",
-        "rca",
-        "oma"
-      ],
-      "activation_commands": [
-        "opl module reconcile",
-        "opl skill sync"
-      ],
-      "homebrew_formula": "one-person-lab-modules",
-      "homebrew_nightly_formula": "one-person-lab-modules-nightly",
-      "homebrew_role": "payload_transport_only",
-      "must_not_write_user_codex_state": true,
-      "must_not_define_agent_semantics": true,
-      "cohort_manifest_required": true
-    },
     "non_module_workflow_plugin_ids": [
       "opl-flow"
     ],
@@ -455,7 +436,30 @@
         "product_entry_manifest": "family-product-entry-manifest-v2",
         "canonical_metadata_source": "opl_generated_interface_contract_pack"
       }
-    ]
+    ],
+    "managed_agent_pack_distribution": {
+      "channel_id": "opl_distribution_cohort",
+      "default_transport": "app_cli_managed_background_maintenance",
+      "package_agent_ids": [
+        "mas",
+        "mag",
+        "rca",
+        "oma"
+      ],
+      "activation_commands": [
+        "opl module reconcile",
+        "opl skill sync"
+      ],
+      "homebrew_distribution_allowed": false,
+      "homebrew_formula_allowed": false,
+      "forbidden_homebrew_formulae": [
+        "one-person-lab-modules",
+        "one-person-lab-modules-nightly"
+      ],
+      "must_not_write_user_codex_state": true,
+      "must_not_define_agent_semantics": true,
+      "cohort_manifest_required": true
+    }
   },
   "release_validation": {
     "structural_gate": "node --experimental-strip-types scripts/validate-active-shell.ts --quick",

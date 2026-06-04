@@ -83,11 +83,11 @@ brew install --cask one-person-lab
 brew install --cask one-person-lab-nightly
 ```
 
-The `one-person-lab`, `one-person-lab-nightly`,
-`one-person-lab-modules`, and `one-person-lab-modules-nightly` formula lanes
-are reserved for CLI and module-bundle release assets. They must not be published
-from the App workflow until the matching tarball and manifest assets exist in
-the release cohort.
+The live Homebrew surface is App casks only. MAS/MAG/RCA/OMA agent packs are
+not Homebrew formulae and must not be exposed as `one-person-lab-modules`,
+`one-person-lab-modules-nightly`, or agent-specific Homebrew packages. Their
+ordinary-user update path is App/CLI-managed maintenance after the App is
+installed.
 
 The post-install activation path is:
 
@@ -107,8 +107,8 @@ The tap should follow the same distribution cohorts as GitHub Releases:
 
 - Stable tap updates point at the stable `v<version>` release only after the
   release owner promotes that cohort and the required stable gates pass.
-- Nightly tap updates, if published, stay in an explicit opt-in prerelease tap or
-  formula/cask lane. They point only at Nightly standard macOS arm64 assets,
+- Nightly tap updates, if published, stay in an explicit opt-in prerelease cask
+  lane. They point only at Nightly standard macOS arm64 assets,
   preserve prerelease semantics, and are never marked as the stable/latest user
   path.
 - Full first-install assets remain GitHub Release first-install downloads. A
@@ -117,23 +117,26 @@ The tap should follow the same distribution cohorts as GitHub Releases:
   modules, runtime payloads, or Full bundled contents.
 - Standard App packages installed through Homebrew keep the same updater
   boundary as direct downloads: desktop App assets can update through the
-  standard channel; OPL modules, Framework packages, Codex skills/plugins, and
-  Developer Profile source checkouts are activated or maintained by the App/CLI.
-- The initial tap may contain only App casks. That is the correct live state
-  while the CLI formula and MAS/MAG/RCA/OMA module bundle formulae do not yet
-  have release-cohort tarball assets.
+  standard channel; OPL modules, Framework packages, Codex skills/plugins, agent
+  packs, and Developer Profile source checkouts are activated or maintained by
+  the App/CLI.
+- The tap should contain only App casks for the ordinary user path. Adding a
+  formula for MAS/MAG/RCA/OMA or `one-person-lab-modules` is a contract
+  regression unless a future App-owned decision explicitly changes this
+  boundary and updates the validators first.
 
 The default tap update path is tap-owned self-sync. The
 `gaofeng21cn/homebrew-one-person-lab` `Sync From App Releases` workflow reads
 published App GitHub Releases, resolves the App DMG asset and `sha256:` digest,
 runs `scripts/sync-cask-from-release.mjs`, validates the tap with Homebrew
-style/audit checks, and commits cask changes back to the tap. The scheduled run
+style/audit checks, and commits cask changes back to the tap. It does not read
+or publish agent-pack/module tarballs. The scheduled run
 tracks the latest published Nightly prerelease and updates only
 `one-person-lab-nightly`; stable cask updates are manual workflow dispatches
 after stable release gates and owner promotion. The App repo also keeps
 `OPL Homebrew Tap Update` as an optional release-side PR workflow using
-`OPL_HOMEBREW_TAP_TOKEN`, but Homebrew nightly freshness does not depend on that
-cross-repo secret.
+`OPL_HOMEBREW_TAP_TOKEN`; that workflow is also App cask-only, and Homebrew
+nightly freshness does not depend on that cross-repo secret.
 
 Codex and Temporal compatibility also stay anchored in the existing release
 contracts. The Full workflow records the current Codex CLI and Temporal archive

@@ -73,7 +73,11 @@
       "strategy": "retain_latest_n_versions_and_declared_rollbacks",
       "retain_stable_versions": 5,
       "retain_nightly_versions": 7,
-      "protected_tags": ["latest", "stable", "nightly"],
+      "protected_tags": [
+        "latest",
+        "stable",
+        "nightly"
+      ],
       "cleanup_execution_mode": "dry_run_first_explicit_execute_required",
       "destructive_action_requires": "package_admin_with_delete_packages_scope",
       "rule": "WebUI GHCR cleanup must retain protected moving tags, recent stable/nightly versions, and declared rollback tags; deletion is never part of ordinary release publishing."
@@ -101,12 +105,9 @@
   "homebrew_tap_distribution": {
     "owner": "one-person-lab-app",
     "tap_repo": "gaofeng21cn/homebrew-one-person-lab",
-    "role": "external_install_index_for_distribution_cohorts",
+    "role": "external_app_cask_index_for_distribution_cohorts",
     "cohort_manifest_required": true,
-    "formulae": [
-      "one-person-lab",
-      "one-person-lab-modules"
-    ],
+    "formulae": [],
     "casks": [
       "one-person-lab"
     ],
@@ -114,19 +115,10 @@
       "Casks/one-person-lab.rb",
       "Casks/one-person-lab-nightly.rb"
     ],
-    "formula_targets_require_release_assets": [
-      "Formula/one-person-lab.rb",
-      "Formula/one-person-lab-nightly.rb",
-      "Formula/one-person-lab-modules.rb",
-      "Formula/one-person-lab-modules-nightly.rb"
-    ],
     "excluded_casks": [
       "one-person-lab-full"
     ],
-    "nightly_formulae": [
-      "one-person-lab-nightly",
-      "one-person-lab-modules-nightly"
-    ],
+    "nightly_formulae": [],
     "nightly_casks": [
       "one-person-lab-nightly"
     ],
@@ -149,31 +141,39 @@
         "may_consume_nightly_directly": false
       },
       "required_manifest_fields": [
-        "cohort_id",
         "channel",
-        "artifacts",
-        "components",
+        "artifact",
         "sha256",
-        "activation_commands"
+        "manifest_url"
       ]
-    },
-    "module_payload_policy": {
-      "package_kind": "opl_modules_bundle",
-      "semantic_authority": "one-person-lab_and_domain_repositories",
-      "homebrew_role": "payload_transport_only",
-      "install_prefix_role": "read_only_payload",
-      "activation_commands": [
-        "opl module reconcile",
-        "opl skill sync"
-      ],
-      "must_not_write_user_codex_state": true,
-      "must_not_define_agent_semantics": true
     },
     "full_first_install_policy": "github_release_first_install_asset_only",
     "codex_temporal_policy": {
       "compatibility_mode": "minimum_version_plus_capability_smoke",
       "prefer_valid_newer_system_tool": true,
       "bundled_fallback_allowed": true
+    },
+    "forbidden_formulae": [
+      "one-person-lab-modules",
+      "one-person-lab-modules-nightly"
+    ],
+    "agent_pack_policy": {
+      "package_kind": "app_cli_managed_agent_packs",
+      "semantic_authority": "one-person-lab_and_domain_repositories",
+      "homebrew_role": "not_a_distribution_target",
+      "activation_owner": "app_cli_managed_background_maintenance",
+      "homebrew_distribution_allowed": false,
+      "homebrew_formula_allowed": false,
+      "forbidden_formulae": [
+        "one-person-lab-modules",
+        "one-person-lab-modules-nightly"
+      ],
+      "activation_commands": [
+        "opl module reconcile",
+        "opl skill sync"
+      ],
+      "must_not_write_user_codex_state": true,
+      "must_not_define_agent_semantics": true
     }
   },
   "full_first_install": {
