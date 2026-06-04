@@ -123,15 +123,17 @@ The tap should follow the same distribution cohorts as GitHub Releases:
   while the CLI formula and MAS/MAG/RCA/OMA module bundle formulae do not yet
   have release-cohort tarball assets.
 
-Tap updates are App-workflow generated but tap-repo reviewed. The
-`OPL Homebrew Tap Update` workflow reads the already-published GitHub Release
-asset metadata, requires a `sha256:` digest, runs
-`scripts/update-homebrew-tap.ts --write`, uploads the tap plan as a workflow
-artifact, and opens a pull request against `gaofeng21cn/homebrew-one-person-lab` using
-`OPL_HOMEBREW_TAP_TOKEN`. Nightly release automation may open a Nightly tap PR
-after remote standard asset publication. Stable tap updates are run manually
-after stable release gates and owner promotion. The planner does not push or
-publish remote state by itself.
+The default tap update path is tap-owned self-sync. The
+`gaofeng21cn/homebrew-one-person-lab` `Sync From App Releases` workflow reads
+published App GitHub Releases, resolves the App DMG asset and `sha256:` digest,
+runs `scripts/sync-cask-from-release.mjs`, validates the tap with Homebrew
+style/audit checks, and commits cask changes back to the tap. The scheduled run
+tracks the latest published Nightly prerelease and updates only
+`one-person-lab-nightly`; stable cask updates are manual workflow dispatches
+after stable release gates and owner promotion. The App repo also keeps
+`OPL Homebrew Tap Update` as an optional release-side PR workflow using
+`OPL_HOMEBREW_TAP_TOKEN`, but Homebrew nightly freshness does not depend on that
+cross-repo secret.
 
 Codex and Temporal compatibility also stay anchored in the existing release
 contracts. The Full workflow records the current Codex CLI and Temporal archive

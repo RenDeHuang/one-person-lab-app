@@ -5587,13 +5587,19 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
     'user_taps_github_homebrew_tap_repo_then_homebrew_reads_formula_or_cask',
   );
   assert.equal(homebrew.tap_update_policy.download_source, 'app_owned_github_release_asset_url');
-  assert.equal(homebrew.tap_update_policy.remote_write_path, 'github_actions_checkout_tap_repo_and_open_pull_request');
-  assert.equal(homebrew.tap_update_policy.push_owner_token, 'OPL_HOMEBREW_TAP_TOKEN');
+  assert.equal(
+    homebrew.tap_update_policy.default_remote_write_path,
+    'tap_repo_github_actions_self_sync_direct_commit_after_tap_check',
+  );
+  assert.equal(homebrew.tap_update_policy.default_workflow_repo, 'gaofeng21cn/homebrew-one-person-lab');
+  assert.equal(homebrew.tap_update_policy.default_workflow, '.github/workflows/sync-from-app-releases.yml');
+  assert.equal(homebrew.tap_update_policy.tap_sync_script, 'scripts/sync-cask-from-release.mjs');
+  assert.equal(homebrew.tap_update_policy.app_release_pr_workflow, '.github/workflows/homebrew-tap-update.yml');
+  assert.equal(homebrew.tap_update_policy.app_release_pr_token, 'OPL_HOMEBREW_TAP_TOKEN');
   assert.equal(homebrew.tap_update_policy.planner_script, 'scripts/update-homebrew-tap.ts');
-  assert.equal(homebrew.tap_update_policy.workflow, '.github/workflows/homebrew-tap-update.yml');
-  assert.equal(homebrew.tap_update_policy.nightly.mode, 'github_actions_auto_pr_nightly_only');
+  assert.equal(homebrew.tap_update_policy.nightly.mode, 'tap_repo_scheduled_self_sync_to_nightly_cask');
   assert.equal(homebrew.tap_update_policy.nightly.may_update_stable, false);
-  assert.equal(homebrew.tap_update_policy.stable.mode, 'manual_workflow_after_stable_release_gates_and_owner_promotion');
+  assert.equal(homebrew.tap_update_policy.stable.mode, 'manual_tap_repo_sync_after_stable_release_gates_and_owner_promotion');
   assert.equal(homebrew.tap_update_policy.stable.may_consume_nightly_directly, false);
   assert.deepEqual(homebrew.tap_update_policy.required_manifest_fields, [
     'cohort_id',
@@ -5643,8 +5649,13 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.match(releaseDocs, /brew install --cask gaofeng21cn\/one-person-lab\/one-person-lab/);
   assert.match(releaseDocs, /gaofeng21cn\/homebrew-one-person-lab/);
   assert.match(releaseDocs, /gaofeng21cn\/one-person-lab-app` GitHub Releases/);
+  assert.match(releaseDocs, /Sync From App Releases/);
+  assert.match(releaseDocs, /scripts\/sync-cask-from-release\.mjs/);
+  assert.match(releaseDocs, /scheduled run[\s\S]*Nightly prerelease/);
+  assert.match(releaseDocs, /stable cask updates are manual workflow dispatches/);
   assert.match(releaseDocs, /OPL Homebrew Tap Update/);
   assert.match(releaseDocs, /OPL_HOMEBREW_TAP_TOKEN/);
+  assert.match(releaseDocs, /nightly freshness does not depend on that[\s\S]*cross-repo secret/);
 });
 
 test('stable validation profile covers every user installation surface', () => {

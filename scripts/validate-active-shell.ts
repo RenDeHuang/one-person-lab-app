@@ -4093,16 +4093,19 @@ function validateReleaseChannelContract(releaseChannel) {
   if (
     homebrew.tap_update_policy?.discovery_model !== 'user_taps_github_homebrew_tap_repo_then_homebrew_reads_formula_or_cask' ||
     homebrew.tap_update_policy?.download_source !== 'app_owned_github_release_asset_url' ||
-    homebrew.tap_update_policy?.remote_write_path !== 'github_actions_checkout_tap_repo_and_open_pull_request' ||
-    homebrew.tap_update_policy?.push_owner_token !== 'OPL_HOMEBREW_TAP_TOKEN' ||
+    homebrew.tap_update_policy?.default_remote_write_path !== 'tap_repo_github_actions_self_sync_direct_commit_after_tap_check' ||
+    homebrew.tap_update_policy?.default_workflow_repo !== 'gaofeng21cn/homebrew-one-person-lab' ||
+    homebrew.tap_update_policy?.default_workflow !== '.github/workflows/sync-from-app-releases.yml' ||
+    homebrew.tap_update_policy?.tap_sync_script !== 'scripts/sync-cask-from-release.mjs' ||
+    homebrew.tap_update_policy?.app_release_pr_workflow !== '.github/workflows/homebrew-tap-update.yml' ||
+    homebrew.tap_update_policy?.app_release_pr_token !== 'OPL_HOMEBREW_TAP_TOKEN' ||
     homebrew.tap_update_policy?.planner_script !== 'scripts/update-homebrew-tap.ts' ||
-    homebrew.tap_update_policy?.workflow !== '.github/workflows/homebrew-tap-update.yml' ||
-    homebrew.tap_update_policy?.nightly?.mode !== 'github_actions_auto_pr_nightly_only' ||
+    homebrew.tap_update_policy?.nightly?.mode !== 'tap_repo_scheduled_self_sync_to_nightly_cask' ||
     homebrew.tap_update_policy?.nightly?.may_update_stable !== false ||
-    homebrew.tap_update_policy?.stable?.mode !== 'manual_workflow_after_stable_release_gates_and_owner_promotion' ||
+    homebrew.tap_update_policy?.stable?.mode !== 'manual_tap_repo_sync_after_stable_release_gates_and_owner_promotion' ||
     homebrew.tap_update_policy?.stable?.may_consume_nightly_directly !== false
   ) {
-    throw new Error('Release channel Homebrew tap update policy must use tap PRs and separate nightly automation from stable promotion');
+    throw new Error('Release channel Homebrew tap update policy must use tap self-sync and separate nightly automation from stable promotion');
   }
   assertIncludesAll(
     homebrew.tap_update_policy?.required_manifest_fields,
