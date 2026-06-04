@@ -1,0 +1,568 @@
+#!/usr/bin/env node
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+type Channel = 'stable' | 'nightly';
+type PackageKind = 'app_standard' | 'modules_bundle';
+
+type Options = {
+  channel: Channel;
+  packageKind: PackageKind | null;
+  version: string;
+  tapRoot: string;
+  manifestUrl: string;
+  checksumSha256: string;
+  downloadUrl: string;
+  targets: string[];
+  write: boolean;
+  summaryPath: string | null;
+  selfCheck: boolean;
+};
+
+type ResolvedOptions = Omit<Options, 'packageKind'> & {
+  packageKind: PackageKind;
+};
+
+type TapUpdateTarget = {
+  path: string;
+  kind: 'formula' | 'cask';
+  previous_exists: boolean;
+  changed: boolean;
+  content: string;
+};
+
+const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const defaultTapRoot = path.join(appRoot, 'dist', 'homebrew-tap-plan');
+const fullPayloadPattern = /One-Person-Lab-Full|one-person-lab-full|Full-/i;
+const moduleTargetPattern = /one-person-lab-modules/i;
+const sha256Pattern = /^[a-f0-9]{64}$/i;
+
+function parseArgs(argv: string[]): Options {
+  const parsed: Options = {
+    channel: 'stable',
+    packageKind: null,
+    version: '',
+    tapRoot: defaultTapRoot,
+    manifestUrl: '',
+    checksumSha256: '',
+    downloadUrl: '',
+    targets: [],
+    write: false,
+    summaryPath: null,
+    selfCheck: false,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (token === '--self-check') {
+      parsed.selfCheck = true;
+      continue;
+    }
+    if (token === '--write') {
+      parsed.write = true;
+      continue;
+    }
+    if (token === '--dry-run') {
+      parsed.write = false;
+      continue;
+    }
+
+    const value = argv[index + 1];
+    if (!value || value.startsWith('--')) {
+      throw new Error(`${token} requires a value.`);
+    }
+    index += 1;
+
+    if (token === '--channel') {
+      if (value !== 'stable' && value !== 'nightly') {
+        throw new Error('--channel must be stable or nightly.');
+      }
+      parsed.channel = value;
+    } else if (token === '--package-kind') {
+      if (value !== 'app_standard' && value !== 'modules_bundle') {
+        throw new Error('--package-kind must be app_standard or modules_bundle.');
+      }
+      parsed.packageKind = value;
+    } else if (token === '--version') {
+      parsed.version = value;
+    } else if (token === '--tap-root') {
+      parsed.tapRoot = path.resolve(value);
+    } else if (token === '--formula' || token === '--cask') {
+      parsed.targets.push(value);
+    } else if (token === '--manifest-url') {
+      parsed.manifestUrl = value;
+    } else if (token === '--checksum-sha256') {
+      parsed.checksumSha256 = value;
+    } else if (token === '--download-url') {
+      parsed.downloadUrl = value;
+    } else if (token === '--summary-path') {
+      parsed.summaryPath = path.resolve(value);
+    } else {
+      throw new Error(`Unknown option: ${token}`);
+    }
+  }
+
+  return parsed;
+}
+
+function classifyTarget(targetPath: string): 'formula' | 'cask' {
+  return targetPath.startsWith('Formula/') ? 'formula' : 'cask';
+}
+
+function assertNoFullPayloadReference(label: string, value: string): void {
+  if (fullPayloadPattern.test(value)) {
+    throw new Error(`${label} must not reference Full first-install payloads.`);
+  }
+}
+
+function assertRelativeTapTarget(targetPath: string): void {
+  if (path.isAbsolute(targetPath) || targetPath.split(/[\\/]/).includes('..')) {
+    throw new Error(`Homebrew tap target must be a relative path inside the tap checkout: ${targetPath}`);
+  }
+  if (!/^(Formula|Casks)\//.test(targetPath)) {
+    throw new Error(`Homebrew tap target must live under Formula/ or Casks/: ${targetPath}`);
+  }
+}
+
+function inferPackageKind(options: Options): PackageKind {
+  if (options.packageKind) return options.packageKind;
+  return options.targets.some((targetPath) => moduleTargetPattern.test(targetPath)) ? 'modules_bundle' : 'app_standard';
+}
+
+function validateOptions(options: Options): ResolvedOptions {
+  if (options.selfCheck) {
+    return { ...options, packageKind: options.packageKind ?? 'app_standard' };
+  }
+  if (!options.version) throw new Error('Missing required --version.');
+  if (!options.manifestUrl) throw new Error('Missing required --manifest-url.');
+  if (!options.downloadUrl) throw new Error('Missing required --download-url.');
+  if (!sha256Pattern.test(options.checksumSha256)) {
+    throw new Error('--checksum-sha256 must be a 64-character SHA-256 digest.');
+  }
+  if (options.targets.length === 0) {
+    throw new Error('Pass at least one --formula or --cask target.');
+  }
+
+  const packageKind = inferPackageKind(options);
+  assertNoFullPayloadReference('manifest URL', options.manifestUrl);
+  assertNoFullPayloadReference('download URL', options.downloadUrl);
+
+  if (options.channel === 'nightly' && !/nightly/i.test(options.version)) {
+    throw new Error('Nightly Homebrew tap updates must use a nightly version.');
+  }
+  if (options.channel === 'stable' && /nightly/i.test(options.version)) {
+    throw new Error('Stable Homebrew tap updates must not use a nightly version.');
+  }
+
+  for (const targetPath of options.targets) {
+    assertRelativeTapTarget(targetPath);
+    assertNoFullPayloadReference('Homebrew tap target', targetPath);
+    const isNightlyTarget = /nightly/i.test(path.basename(targetPath));
+    const isModuleTarget = moduleTargetPattern.test(targetPath);
+    if (options.channel === 'nightly' && !isNightlyTarget) {
+      throw new Error('Nightly Homebrew tap updates may only update nightly formula/cask targets.');
+    }
+    if (options.channel === 'stable' && isNightlyTarget) {
+      throw new Error('Stable Homebrew tap updates must not update nightly formula/cask targets.');
+    }
+    if (packageKind === 'app_standard' && isModuleTarget) {
+      throw new Error('Standard App Homebrew tap updates must not target module bundle formulae.');
+    }
+    if (packageKind === 'modules_bundle' && !isModuleTarget) {
+      throw new Error('Module bundle Homebrew tap updates may only target module bundle formulae.');
+    }
+    if (packageKind === 'modules_bundle' && classifyTarget(targetPath) !== 'formula') {
+      throw new Error('Module bundle Homebrew distribution must use Formula targets.');
+    }
+  }
+
+  return { ...options, packageKind };
+}
+
+function boundaryBlock(options: ResolvedOptions): string {
+  const lines = [
+    '# OPL_HOMEBREW_BOUNDARY_START',
+    `# channel: ${options.channel}`,
+    `# package_kind: ${options.packageKind}`,
+    `# version: ${options.version}`,
+    `# manifest: ${options.manifestUrl}`,
+    `# checksum: sha256:${options.checksumSha256}`,
+    '# full_first_install_allowed: false',
+    '# stable_promotion_from_nightly_allowed: false',
+    '# publishes_or_pushes_remote: false',
+  ];
+  if (options.packageKind === 'modules_bundle') {
+    lines.push(
+      '# cohort: opl_modules_bundle_homebrew_distribution',
+      '# modules_payload_allowed: true',
+      '# modules_activation_owner: opl_reconcile_then_skill_sync',
+      '# must_not_write_user_codex_state: true',
+      '# must_not_define_agent_semantics: true',
+    );
+  } else {
+    lines.push(
+      '# cohort: standard_desktop_homebrew_distribution',
+      '# modules_payload_allowed: false',
+    );
+  }
+  lines.push('# OPL_HOMEBREW_BOUNDARY_END');
+  return lines.join('\n');
+}
+
+function formulaClassName(targetPath: string): string {
+  return path.basename(targetPath, '.rb')
+    .split('-')
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join('');
+}
+
+function renderHomebrewDownloadUrl(targetPath: string, options: ResolvedOptions): string {
+  const appDownloadUrl = `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${options.version}/One-Person-Lab-${options.version}-mac-arm64.dmg`;
+  if (options.packageKind === 'app_standard' && classifyTarget(targetPath) === 'cask' && options.downloadUrl === appDownloadUrl) {
+    return 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v#{version}/One-Person-Lab-#{version}-mac-arm64.dmg';
+  }
+
+  const modulesDownloadUrl = `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${options.version}/one-person-lab-modules-${options.version}.tar.gz`;
+  if (options.packageKind === 'modules_bundle' && options.downloadUrl === modulesDownloadUrl) {
+    return 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v#{version}/one-person-lab-modules-#{version}.tar.gz';
+  }
+
+  return options.downloadUrl;
+}
+
+function skeletonContent(targetPath: string, options: ResolvedOptions): string {
+  const token = path.basename(targetPath, '.rb');
+  if (classifyTarget(targetPath) === 'formula') {
+    const description = options.packageKind === 'modules_bundle'
+      ? 'One Person Lab module bundle payload'
+      : 'One Person Lab CLI and standard distribution';
+    const installBlock = options.packageKind === 'modules_bundle'
+      ? [
+          '  def install',
+          '    libexec.install Dir["*"]',
+          '  end',
+          '',
+          '  def caveats',
+          '    <<~EOS',
+          '      One Person Lab module payloads are installed read-only under:',
+          '        #{opt_libexec}',
+          '',
+          '      Activation is owned by One Person Lab:',
+          '        opl module reconcile',
+          '        opl skill sync',
+          '    EOS',
+          '  end',
+        ]
+      : [
+          '  def install',
+          '    libexec.install Dir["*"]',
+          '    bin.install_symlink libexec/"bin/opl" => "opl"',
+          '  end',
+        ];
+    return [
+      `class ${formulaClassName(targetPath)} < Formula`,
+      `  desc "${description}"`,
+      '  homepage "https://github.com/gaofeng21cn/one-person-lab-app"',
+      `  url "${renderHomebrewDownloadUrl(targetPath, options)}"`,
+      `  sha256 "${options.checksumSha256}"`,
+      `  version "${options.version}"`,
+      '',
+      `  ${boundaryBlock(options).split('\n').join('\n  ')}`,
+      '',
+      ...installBlock,
+      'end',
+      '',
+    ].join('\n');
+  }
+  return [
+    `cask "${token}" do`,
+    `  version "${options.version}"`,
+    `  sha256 "${options.checksumSha256}"`,
+    '',
+    `  url "${renderHomebrewDownloadUrl(targetPath, options)}"`,
+    '  name "One Person Lab"',
+    '  desc "AI-first desktop research and agent orchestration app"',
+    '  homepage "https://github.com/gaofeng21cn/one-person-lab-app"',
+    '',
+    ...(options.channel === 'stable'
+      ? [
+          '  livecheck do',
+          '    url "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest"',
+          '    regex(%r{/releases/tag/v?(\\d+(?:\\.\\d+)*)}i)',
+          '  end',
+          '',
+        ]
+      : [
+          '  livecheck do',
+          '    skip "Nightly casks track prerelease cohorts through App release automation"',
+          '  end',
+          '',
+        ]),
+    '  depends_on macos: :big_sur',
+    '  depends_on arch: :arm64',
+    '',
+    `  ${boundaryBlock(options).split('\n').join('\n  ')}`,
+    '',
+    '  app "One Person Lab.app"',
+    'end',
+    '',
+  ].join('\n');
+}
+
+function replaceOrAppendBoundaryBlock(content: string, options: ResolvedOptions): string {
+  const nextBlock = boundaryBlock(options);
+  const blockPattern = /# OPL_HOMEBREW_BOUNDARY_START[\s\S]*?# OPL_HOMEBREW_BOUNDARY_END/;
+  if (blockPattern.test(content)) {
+    return content.replace(blockPattern, nextBlock);
+  }
+  return `${content.trimEnd()}\n\n${nextBlock}\n`;
+}
+
+function updateContent(content: string, targetPath: string, options: ResolvedOptions): string {
+  let next = content.includes('OPL_HOMEBREW_BOUNDARY_START')
+    ? skeletonContent(targetPath, options)
+    : content.trim()
+      ? replaceOrAppendBoundaryBlock(content, options)
+      : skeletonContent(targetPath, options);
+  next = next.replace(/(version\s+)["'][^"']+["']/, `$1"${options.version}"`);
+  next = next.replace(/(sha256\s+)["'][^"']+["']/, `$1"${options.checksumSha256}"`);
+  next = next.replace(/(url\s+)["'][^"']+["']/, `$1"${renderHomebrewDownloadUrl(targetPath, options)}"`);
+  if (!next.endsWith('\n')) next += '\n';
+  return next;
+}
+
+function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOptions): void {
+  assertNoFullPayloadReference('Homebrew tap content', target.content);
+  if (!target.content.includes(options.manifestUrl)) {
+    throw new Error(`${target.path} must reference the release manifest URL.`);
+  }
+  const expectedDownloadUrl = renderHomebrewDownloadUrl(target.path, options);
+  if (!target.content.includes(expectedDownloadUrl) && !target.content.includes(options.downloadUrl)) {
+    throw new Error(`${target.path} must reference the release download URL.`);
+  }
+  if (!target.content.includes(options.checksumSha256)) {
+    throw new Error(`${target.path} must reference the SHA-256 checksum.`);
+  }
+  if (!target.content.includes('stable_promotion_from_nightly_allowed: false')) {
+    throw new Error(`${target.path} must declare that stable promotion is not automatic from nightly.`);
+  }
+  if (!target.content.includes('full_first_install_allowed: false')) {
+    throw new Error(`${target.path} must declare that Homebrew does not distribute Full first-install payloads.`);
+  }
+  if (options.packageKind === 'modules_bundle') {
+    for (const required of [
+      'modules_payload_allowed: true',
+      'modules_activation_owner: opl_reconcile_then_skill_sync',
+      'must_not_write_user_codex_state: true',
+      'must_not_define_agent_semantics: true',
+    ]) {
+      if (!target.content.includes(required)) {
+        throw new Error(`${target.path} must declare module payload activation and semantic-authority boundaries.`);
+      }
+    }
+  } else if (!target.content.includes('modules_payload_allowed: false')) {
+    throw new Error(`${target.path} must declare that standard App Homebrew distribution does not carry module payloads.`);
+  }
+}
+
+function buildPlan(inputOptions: Options): {
+  channel: Channel;
+  package_kind: PackageKind;
+  version: string;
+  dry_run: boolean;
+  manifest_url: string;
+  checksum_sha256: string;
+  download_url: string;
+  targets: Array<Omit<TapUpdateTarget, 'content'>>;
+  policy: Record<string, boolean | string>;
+} {
+  const options = validateOptions(inputOptions);
+  const targets = options.targets.map((targetPath): TapUpdateTarget => {
+    const absolutePath = path.join(options.tapRoot, targetPath);
+    const previous = fs.existsSync(absolutePath) ? fs.readFileSync(absolutePath, 'utf8') : '';
+    const content = updateContent(previous, targetPath, options);
+    const target = {
+      path: targetPath,
+      kind: classifyTarget(targetPath),
+      previous_exists: Boolean(previous),
+      changed: previous !== content,
+      content,
+    };
+    validateUpdatedContent(target, options);
+    if (options.write) {
+      fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+      fs.writeFileSync(absolutePath, content, 'utf8');
+    }
+    return target;
+  });
+
+  return {
+    channel: options.channel,
+    package_kind: options.packageKind,
+    version: options.version,
+    dry_run: !options.write,
+    manifest_url: options.manifestUrl,
+    checksum_sha256: options.checksumSha256,
+    download_url: options.downloadUrl,
+    targets: targets.map(({ content: _content, ...target }) => target),
+    policy: {
+      cohort: options.packageKind === 'modules_bundle'
+        ? 'opl_modules_bundle_homebrew_distribution'
+        : 'standard_desktop_homebrew_distribution',
+      manifest_required: true,
+      checksum_required: true,
+      nightly_targets_only_for_nightly: true,
+      stable_promotion_from_nightly_allowed: false,
+      full_first_install_allowed: false,
+      modules_payload_allowed: options.packageKind === 'modules_bundle',
+      modules_activation_owner: options.packageKind === 'modules_bundle'
+        ? 'opl_reconcile_then_skill_sync'
+        : 'app_cli_maintenance',
+      must_not_write_user_codex_state: true,
+      must_not_define_agent_semantics: true,
+      publishes_or_pushes_remote: false,
+    },
+  };
+}
+
+function runSelfCheck(): void {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-homebrew-tap-'));
+  const digest = 'a'.repeat(64);
+  const stablePlan = buildPlan({
+    channel: 'stable',
+    packageKind: 'app_standard',
+    version: '26.6.4',
+    tapRoot: tempRoot,
+    manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/latest-arm64-mac.yml',
+    checksumSha256: digest,
+    downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-26.6.4-mac-arm64.dmg',
+    targets: ['Casks/one-person-lab.rb'],
+    write: true,
+    summaryPath: null,
+    selfCheck: false,
+  });
+  if (stablePlan.dry_run || !stablePlan.policy.manifest_required || !stablePlan.policy.checksum_required) {
+    throw new Error('Homebrew stable self-check did not produce the required manifest/checksum policy.');
+  }
+
+  const modulesPlan = buildPlan({
+    channel: 'stable',
+    packageKind: 'modules_bundle',
+    version: '26.6.4',
+    tapRoot: tempRoot,
+    manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-modules-manifest.json',
+    checksumSha256: digest,
+    downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/one-person-lab-modules-26.6.4.tar.gz',
+    targets: ['Formula/one-person-lab-modules.rb'],
+    write: false,
+    summaryPath: null,
+    selfCheck: false,
+  });
+  if (modulesPlan.policy.modules_payload_allowed !== true || modulesPlan.policy.modules_activation_owner !== 'opl_reconcile_then_skill_sync') {
+    throw new Error('Homebrew modules self-check did not keep module activation under OPL reconcile/sync.');
+  }
+
+  const nightlyPlan = buildPlan({
+    channel: 'nightly',
+    packageKind: 'app_standard',
+    version: '26.6.4-nightly',
+    tapRoot: tempRoot,
+    manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/latest-arm64-mac.yml',
+    checksumSha256: digest,
+    downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/One-Person-Lab-26.6.4-nightly-mac-arm64.dmg',
+    targets: ['Casks/one-person-lab-nightly.rb'],
+    write: false,
+    summaryPath: null,
+    selfCheck: false,
+  });
+  if (!nightlyPlan.dry_run || nightlyPlan.targets[0]?.path !== 'Casks/one-person-lab-nightly.rb') {
+    throw new Error('Homebrew nightly self-check did not stay on the nightly target.');
+  }
+
+  for (const blocked of [
+    {
+      channel: 'nightly' as Channel,
+      packageKind: 'app_standard' as PackageKind,
+      version: '26.6.4-nightly',
+      targets: ['Casks/one-person-lab.rb'],
+      message: 'nightly formula/cask',
+    },
+    {
+      channel: 'stable' as Channel,
+      packageKind: 'app_standard' as PackageKind,
+      version: '26.6.4-nightly',
+      targets: ['Casks/one-person-lab.rb'],
+      message: 'Stable Homebrew tap updates must not use a nightly version',
+    },
+    {
+      channel: 'stable' as Channel,
+      packageKind: 'app_standard' as PackageKind,
+      version: '26.6.4',
+      targets: ['Formula/one-person-lab-modules.rb'],
+      message: 'Standard App Homebrew tap updates must not target module bundle formulae',
+    },
+    {
+      channel: 'stable' as Channel,
+      packageKind: 'modules_bundle' as PackageKind,
+      version: '26.6.4',
+      targets: ['Casks/one-person-lab.rb'],
+      message: 'Module bundle Homebrew tap updates may only target module bundle formulae',
+    },
+    {
+      channel: 'stable' as Channel,
+      packageKind: 'app_standard' as PackageKind,
+      version: '26.6.4',
+      targets: ['Casks/One-Person-Lab-Full.rb'],
+      message: 'Full first-install payloads',
+    },
+  ]) {
+    let failed = false;
+    try {
+      buildPlan({
+        channel: blocked.channel,
+        packageKind: blocked.packageKind,
+        version: blocked.version,
+        tapRoot: tempRoot,
+        manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/latest-arm64-mac.yml',
+        checksumSha256: digest,
+        downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-26.6.4-mac-arm64.dmg',
+        targets: blocked.targets,
+        write: false,
+        summaryPath: null,
+        selfCheck: false,
+      });
+    } catch (error) {
+      failed = String(error).includes(blocked.message);
+    }
+    if (!failed) {
+      throw new Error(`Homebrew self-check expected rejection containing: ${blocked.message}`);
+    }
+  }
+}
+
+function main(): void {
+  const options = parseArgs(process.argv.slice(2));
+  if (options.selfCheck) {
+    runSelfCheck();
+    console.log('PASS: Homebrew tap boundary validates manifest/checksum references, module payload isolation, and cohort separation.');
+    return;
+  }
+
+  const plan = buildPlan(options);
+  const output = `${JSON.stringify(plan, null, 2)}\n`;
+  if (options.summaryPath) {
+    fs.mkdirSync(path.dirname(options.summaryPath), { recursive: true });
+    fs.writeFileSync(options.summaryPath, output, 'utf8');
+  }
+  process.stdout.write(output);
+}
+
+try {
+  main();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}

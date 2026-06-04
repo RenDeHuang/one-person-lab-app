@@ -2439,7 +2439,7 @@ function validateInstallExposurePolicy(policy) {
   );
 
   const sync = policy.sync_and_install_contract;
-  for (const command of ['opl install', 'opl system initialize --json', 'opl system startup-maintenance', 'opl skill sync']) {
+  for (const command of ['opl install', 'opl system initialize --json', 'opl system startup-maintenance', 'opl module reconcile', 'opl skill sync']) {
     if (!sync?.framework_commands?.includes(command)) {
       throw new Error(`Install exposure sync contract must include ${command}`);
     }
@@ -2470,6 +2470,84 @@ function validateInstallExposurePolicy(policy) {
       throw new Error(`Install exposure fail-closed states must include ${state}`);
     }
   }
+
+  const homebrew = policy.distribution_channels?.homebrew;
+  if (
+    homebrew?.role !== 'transport_and_install_index_only' ||
+    homebrew?.tap !== 'gaofeng21cn/one-person-lab' ||
+    homebrew?.must_not_own_agent_semantics !== true ||
+    homebrew?.must_not_write_user_codex_state !== true ||
+    homebrew?.user_state_activation_owner !== 'opl_framework'
+  ) {
+    throw new Error('Install exposure Homebrew distribution must stay transport-only and delegate activation to OPL Framework');
+  }
+  assertIncludesAll(
+    homebrew.activation_commands,
+    ['opl module reconcile', 'opl skill sync'],
+    'Install exposure Homebrew activation commands',
+  );
+  if (
+    homebrew.formulae?.cli !== 'one-person-lab' ||
+    homebrew.formulae?.modules !== 'one-person-lab-modules' ||
+    homebrew.formulae?.nightly_cli !== 'one-person-lab-nightly' ||
+    homebrew.formulae?.nightly_modules !== 'one-person-lab-modules-nightly' ||
+    homebrew.casks?.standard_app !== 'one-person-lab' ||
+    homebrew.casks?.nightly_standard_app !== 'one-person-lab-nightly' ||
+    homebrew.excluded_casks?.full_first_install !== 'one-person-lab-full'
+  ) {
+    throw new Error('Install exposure Homebrew formula/cask names must match the App distribution channel contract');
+  }
+  assertDeepEqualJson(
+    homebrew.initial_live_targets,
+    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb'],
+    'Install exposure Homebrew initial live targets',
+  );
+  assertDeepEqualJson(
+    homebrew.formula_targets_require_release_assets,
+    [
+      'Formula/one-person-lab.rb',
+      'Formula/one-person-lab-nightly.rb',
+      'Formula/one-person-lab-modules.rb',
+      'Formula/one-person-lab-modules-nightly.rb',
+    ],
+    'Install exposure Homebrew formula targets requiring release assets',
+  );
+  if (
+    homebrew.module_bundle?.package_kind !== 'opl_modules_bundle' ||
+    homebrew.module_bundle?.install_prefix_role !== 'read_only_payload' ||
+    homebrew.module_bundle?.activation_policy !== 'opl_reconcile_then_skill_sync'
+  ) {
+    throw new Error('Install exposure Homebrew module bundle must be a read-only payload activated by OPL reconcile/sync');
+  }
+  assertIncludesAll(
+    homebrew.module_bundle?.agent_ids,
+    ['mas', 'mag', 'rca', 'oma'],
+    'Install exposure Homebrew module bundle agent ids',
+  );
+
+  const modulePackageDistribution = policy.agent_installation_contract?.module_package_distribution;
+  if (
+    modulePackageDistribution?.channel_id !== 'opl_distribution_cohort' ||
+    modulePackageDistribution?.default_transport !== 'homebrew_or_app_cli_managed' ||
+    modulePackageDistribution?.homebrew_formula !== 'one-person-lab-modules' ||
+    modulePackageDistribution?.homebrew_nightly_formula !== 'one-person-lab-modules-nightly' ||
+    modulePackageDistribution?.homebrew_role !== 'payload_transport_only' ||
+    modulePackageDistribution?.must_not_write_user_codex_state !== true ||
+    modulePackageDistribution?.must_not_define_agent_semantics !== true ||
+    modulePackageDistribution?.cohort_manifest_required !== true
+  ) {
+    throw new Error('Install exposure module package distribution must use a Homebrew/App-CLI transport-only OPL distribution cohort');
+  }
+  assertIncludesAll(
+    modulePackageDistribution.package_agent_ids,
+    ['mas', 'mag', 'rca', 'oma'],
+    'Install exposure module package distribution agent ids',
+  );
+  assertIncludesAll(
+    modulePackageDistribution.activation_commands,
+    ['opl module reconcile', 'opl skill sync'],
+    'Install exposure module package distribution activation commands',
+  );
 
   const validation = policy.release_validation;
   if (validation?.structural_gate !== 'node --experimental-strip-types scripts/validate-active-shell.ts --quick') {
@@ -2929,7 +3007,8 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   }
   for (const explanation of [
     'whether a module comes from the bundled Full runtime payload',
-    'whether a module comes from the stable GHCR package channel',
+    'whether a module comes from the stable package channel through Homebrew or App/CLI maintenance',
+    'whether a module comes from the nightly Homebrew package channel',
     'whether a module comes from a local domain repository checkout',
     'whether Developer Profile source_channel uses a GitHub repo or local checkout',
     'whether a module is managed by App/CLI maintenance',
@@ -2939,8 +3018,11 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
       throw new Error(`App GUI module path source policy must explain ${explanation}`);
     }
   }
-  if (modulePathPolicy.ordinary_user_source !== 'stable_ghcr_package_channel') {
-    throw new Error('App GUI module path source policy must keep ordinary users on stable GHCR package channel');
+  if (
+    modulePathPolicy.ordinary_user_source !== 'stable_package_channel' ||
+    modulePathPolicy.ordinary_user_transport !== 'homebrew_or_app_cli_managed'
+  ) {
+    throw new Error('App GUI module path source policy must keep ordinary users on the stable package channel through Homebrew or App/CLI maintenance');
   }
   if (modulePathPolicy.developer_override_surface !== 'Developer Profile source_channel capability') {
     throw new Error('App GUI module path source policy must route repo/checkout override through Developer Profile source_channel');
@@ -3974,6 +4056,117 @@ function validatePageStateMatrix(matrix, contract) {
   }
 }
 
+function validateReleaseChannelContract(releaseChannel) {
+  const homebrew = releaseChannel.homebrew_tap_distribution;
+  if (
+    homebrew?.owner !== 'one-person-lab-app' ||
+    homebrew?.tap_repo !== 'gaofeng21cn/homebrew-one-person-lab' ||
+    homebrew?.role !== 'external_install_index_for_distribution_cohorts' ||
+    homebrew?.cohort_manifest_required !== true
+  ) {
+    throw new Error('Release channel Homebrew tap distribution must be an App-owned cohort install index');
+  }
+  assertDeepEqualJson(homebrew.formulae, ['one-person-lab', 'one-person-lab-modules'], 'Release channel Homebrew formulae');
+  assertDeepEqualJson(homebrew.casks, ['one-person-lab'], 'Release channel Homebrew casks');
+  assertDeepEqualJson(
+    homebrew.initial_live_targets,
+    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb'],
+    'Release channel Homebrew initial live targets',
+  );
+  assertDeepEqualJson(
+    homebrew.formula_targets_require_release_assets,
+    [
+      'Formula/one-person-lab.rb',
+      'Formula/one-person-lab-nightly.rb',
+      'Formula/one-person-lab-modules.rb',
+      'Formula/one-person-lab-modules-nightly.rb',
+    ],
+    'Release channel Homebrew formula targets requiring release assets',
+  );
+  assertDeepEqualJson(homebrew.excluded_casks, ['one-person-lab-full'], 'Release channel excluded Homebrew casks');
+  assertDeepEqualJson(
+    homebrew.nightly_formulae,
+    ['one-person-lab-nightly', 'one-person-lab-modules-nightly'],
+    'Release channel Homebrew nightly formulae',
+  );
+  assertDeepEqualJson(homebrew.nightly_casks, ['one-person-lab-nightly'], 'Release channel Homebrew nightly casks');
+  if (
+    homebrew.tap_update_policy?.discovery_model !== 'user_taps_github_homebrew_tap_repo_then_homebrew_reads_formula_or_cask' ||
+    homebrew.tap_update_policy?.download_source !== 'app_owned_github_release_asset_url' ||
+    homebrew.tap_update_policy?.remote_write_path !== 'github_actions_checkout_tap_repo_and_open_pull_request' ||
+    homebrew.tap_update_policy?.push_owner_token !== 'OPL_HOMEBREW_TAP_TOKEN' ||
+    homebrew.tap_update_policy?.planner_script !== 'scripts/update-homebrew-tap.ts' ||
+    homebrew.tap_update_policy?.workflow !== '.github/workflows/homebrew-tap-update.yml' ||
+    homebrew.tap_update_policy?.nightly?.mode !== 'github_actions_auto_pr_nightly_only' ||
+    homebrew.tap_update_policy?.nightly?.may_update_stable !== false ||
+    homebrew.tap_update_policy?.stable?.mode !== 'manual_workflow_after_stable_release_gates_and_owner_promotion' ||
+    homebrew.tap_update_policy?.stable?.may_consume_nightly_directly !== false
+  ) {
+    throw new Error('Release channel Homebrew tap update policy must use tap PRs and separate nightly automation from stable promotion');
+  }
+  assertIncludesAll(
+    homebrew.tap_update_policy?.required_manifest_fields,
+    ['cohort_id', 'channel', 'artifacts', 'components', 'sha256', 'activation_commands'],
+    'Release channel Homebrew cohort manifest fields',
+  );
+  if (
+    homebrew.module_payload_policy?.package_kind !== 'opl_modules_bundle' ||
+    homebrew.module_payload_policy?.semantic_authority !== 'one-person-lab_and_domain_repositories' ||
+    homebrew.module_payload_policy?.homebrew_role !== 'payload_transport_only' ||
+    homebrew.module_payload_policy?.install_prefix_role !== 'read_only_payload' ||
+    homebrew.module_payload_policy?.must_not_write_user_codex_state !== true ||
+    homebrew.module_payload_policy?.must_not_define_agent_semantics !== true ||
+    homebrew.full_first_install_policy !== 'github_release_first_install_asset_only'
+  ) {
+    throw new Error('Release channel Homebrew module payload policy must keep semantics outside Homebrew');
+  }
+  assertIncludesAll(
+    homebrew.module_payload_policy?.activation_commands,
+    ['opl module reconcile', 'opl skill sync'],
+    'Release channel Homebrew module activation commands',
+  );
+  if (
+    homebrew.codex_temporal_policy?.compatibility_mode !== 'minimum_version_plus_capability_smoke' ||
+    homebrew.codex_temporal_policy?.prefer_valid_newer_system_tool !== true ||
+    homebrew.codex_temporal_policy?.bundled_fallback_allowed !== true
+  ) {
+    throw new Error('Release channel Codex/Temporal policy must prefer compatible newer user tools with bundled fallback');
+  }
+
+  const codexCli = releaseChannel.full_first_install?.required_payloads?.codex_cli;
+  if (
+    codexCli?.compatibility_mode !== 'minimum_version_plus_capability_smoke' ||
+    codexCli?.minimum_version_source !== 'distribution cohort manifest components.codex_cli.minimum_version' ||
+    codexCli?.fallback_version_source !== 'distribution cohort manifest components.codex_cli.fallback_version' ||
+    codexCli?.fallback_runtime_path !== 'runtime/current/bin/codex' ||
+    codexCli?.must_prefer_valid_newer_user_version !== true
+  ) {
+    throw new Error('Release channel Full Codex CLI payload must be compatibility-gated with a bundled fallback');
+  }
+  assertDeepEqualJson(
+    codexCli.preferred_sources,
+    ['explicit_user_path', 'system_path', 'homebrew_formula'],
+    'Release channel Codex CLI preferred sources',
+  );
+
+  const temporalCli = releaseChannel.full_first_install?.required_payloads?.temporal_cli;
+  if (
+    temporalCli?.compatibility_mode !== 'minimum_version_plus_capability_smoke' ||
+    temporalCli?.minimum_version_source !== 'distribution cohort manifest components.temporal_cli.minimum_version' ||
+    temporalCli?.fallback_version_source !== 'distribution cohort manifest components.temporal_cli.fallback_version' ||
+    temporalCli?.fallback_runtime_path !== 'runtime/current/bin/temporal' ||
+    temporalCli?.fallback_payload_path !== 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz' ||
+    temporalCli?.must_prefer_valid_newer_user_version !== true
+  ) {
+    throw new Error('Release channel Full Temporal CLI payload must be compatibility-gated with a bundled fallback');
+  }
+  assertDeepEqualJson(
+    temporalCli.preferred_sources,
+    ['explicit_user_path', 'system_path', 'homebrew_formula'],
+    'Release channel Temporal CLI preferred sources',
+  );
+}
+
 function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix) {
   const bundle = releaseChannel.operator_evidence_bundle;
   if (bundle?.purpose !== 'runtime_page_operator_evidence_acceptance') {
@@ -4872,6 +5065,7 @@ validateAppGuiProductContract(guiProductContract, releaseChannel, installExposur
 validatePageStateMatrix(pageStateMatrix, contract);
 validateFirstRunMatrix(firstRunMatrix, contract);
 validateProductProfile(readJson(productProfilePath), installExposurePolicy);
+validateReleaseChannelContract(releaseChannel);
 validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix);
 validateActiveShellImplementation(shellPaths);
 validateLiveOplConformance(runtimeBridge);

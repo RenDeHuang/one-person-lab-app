@@ -19,6 +19,7 @@ const releaseWorkflowPaths = [
   '.github/workflows/desktop-release.yml',
   '.github/workflows/full-first-install-release.yml',
   '.github/workflows/full-runtime-cache-warmup.yml',
+  '.github/workflows/homebrew-tap-update.yml',
   '.github/workflows/nightly-standard-release.yml',
   '.github/workflows/opl-first-run-vm.yml',
   '.github/workflows/release-verify-remote.yml',
@@ -251,6 +252,67 @@ const checks = [
     forbidden: ['OPENAI_API_KEY'],
   },
   {
+    id: 'homebrew_tap_boundary_script',
+    file: 'scripts/update-homebrew-tap.ts',
+    required: [
+      'manifest_required: true',
+      'checksum_required: true',
+      'nightly_targets_only_for_nightly: true',
+      'stable_promotion_from_nightly_allowed: false',
+      'full_first_install_allowed: false',
+      'modules_payload_allowed: false',
+      'modules_payload_allowed: true',
+      'modules_activation_owner: opl_reconcile_then_skill_sync',
+      'publishes_or_pushes_remote: false',
+      'Nightly Homebrew tap updates may only update nightly formula/cask targets.',
+      'Stable Homebrew tap updates must not use a nightly version.',
+      'Standard App Homebrew tap updates must not target module bundle formulae.',
+      'Module bundle Homebrew tap updates may only target module bundle formulae.',
+      'must not reference Full first-install payloads',
+    ],
+    forbidden: [
+      "from 'node:child_process'",
+      'spawnSync(',
+      'execSync(',
+      'execFileSync(',
+    ],
+  },
+  {
+    id: 'homebrew_tap_package_scripts',
+    file: 'package.json',
+    required: [
+      '"homebrew:tap:plan": "node --experimental-strip-types scripts/update-homebrew-tap.ts"',
+      '"validate:homebrew-tap": "node --experimental-strip-types scripts/update-homebrew-tap.ts --self-check"',
+    ],
+    forbidden: [],
+  },
+  {
+    id: 'homebrew_tap_update_workflow',
+    file: '.github/workflows/homebrew-tap-update.yml',
+    required: [
+      'name: OPL Homebrew Tap Update',
+      'workflow_call:',
+      'OPL_HOMEBREW_TAP_TOKEN',
+      'gaofeng21cn/homebrew-one-person-lab',
+      'Casks/one-person-lab.rb',
+      'Casks/one-person-lab-nightly.rb',
+      'gh release view "$tag"',
+      '--json tagName,isDraft,isPrerelease,assets',
+      'GitHub Release asset ${asset.name} must expose a sha256 digest.',
+      'Homebrew tap updates must not read draft GitHub Releases.',
+      'Homebrew tap updates must read assets from gaofeng21cn/one-person-lab-app',
+      'node --experimental-strip-types scripts/update-homebrew-tap.ts',
+      'peter-evans/create-pull-request@v8',
+      'Homebrew remains a transport/index',
+    ],
+    forbidden: [
+      'One-Person-Lab-Full',
+      'git push origin main',
+      'git push origin HEAD:main',
+      'gh release upload',
+    ],
+  },
+  {
     id: 'desktop_release_ai_notes',
     file: '.github/workflows/desktop-release.yml',
     required: [
@@ -362,6 +424,21 @@ const agentInstallationValidation = spawnSync(process.execPath, [
 if (agentInstallationValidation.status !== 0) {
   if (agentInstallationValidation.stdout) process.stdout.write(agentInstallationValidation.stdout);
   if (agentInstallationValidation.stderr) process.stderr.write(agentInstallationValidation.stderr);
+  failures += 1;
+}
+
+const homebrewTapValidation = spawnSync(process.execPath, [
+  '--experimental-strip-types',
+  'scripts/update-homebrew-tap.ts',
+  '--self-check',
+], {
+  cwd: appRoot,
+  encoding: 'utf8',
+  maxBuffer: commandMaxBuffer,
+});
+if (homebrewTapValidation.status !== 0) {
+  if (homebrewTapValidation.stdout) process.stdout.write(homebrewTapValidation.stdout);
+  if (homebrewTapValidation.stderr) process.stderr.write(homebrewTapValidation.stderr);
   failures += 1;
 }
 

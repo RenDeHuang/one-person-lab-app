@@ -281,3 +281,17 @@ jobs:
           name: webui-ghcr-publish-${{ needs.resolve-nightly.outputs.version }}
           path: /tmp/opl-webui-ghcr-publish.json
           if-no-files-found: error
+
+  homebrew-tap-update:
+    name: Open Nightly Homebrew tap PR
+    needs:
+      - resolve-nightly
+      - publish-nightly
+    uses: ./.github/workflows/homebrew-tap-update.yml
+    with:
+      channel: nightly
+      package_kind: app_standard
+      opl_version: ${{ needs.resolve-nightly.outputs.version }}
+      release_repo: ${{ github.repository }}
+      tap_repo: gaofeng21cn/homebrew-one-person-lab
+    secrets: inherit

@@ -252,11 +252,59 @@
       "ecosystem_module_updates"
     ]
   },
+  "distribution_channels": {
+    "homebrew": {
+      "role": "transport_and_install_index_only",
+      "tap": "gaofeng21cn/one-person-lab",
+      "must_not_own_agent_semantics": true,
+      "must_not_write_user_codex_state": true,
+      "user_state_activation_owner": "opl_framework",
+      "activation_commands": [
+        "opl module reconcile",
+        "opl skill sync"
+      ],
+      "formulae": {
+        "cli": "one-person-lab",
+        "modules": "one-person-lab-modules",
+        "nightly_cli": "one-person-lab-nightly",
+        "nightly_modules": "one-person-lab-modules-nightly"
+      },
+      "casks": {
+        "standard_app": "one-person-lab",
+        "nightly_standard_app": "one-person-lab-nightly"
+      },
+      "initial_live_targets": [
+        "Casks/one-person-lab.rb",
+        "Casks/one-person-lab-nightly.rb"
+      ],
+      "formula_targets_require_release_assets": [
+        "Formula/one-person-lab.rb",
+        "Formula/one-person-lab-nightly.rb",
+        "Formula/one-person-lab-modules.rb",
+        "Formula/one-person-lab-modules-nightly.rb"
+      ],
+      "excluded_casks": {
+        "full_first_install": "one-person-lab-full"
+      },
+      "module_bundle": {
+        "package_kind": "opl_modules_bundle",
+        "agent_ids": [
+          "mas",
+          "mag",
+          "rca",
+          "oma"
+        ],
+        "install_prefix_role": "read_only_payload",
+        "activation_policy": "opl_reconcile_then_skill_sync"
+      }
+    }
+  },
   "sync_and_install_contract": {
     "framework_commands": [
       "opl install",
       "opl system initialize --json",
       "opl system startup-maintenance",
+      "opl module reconcile",
       "opl skill sync"
     ],
     "codex_plugin_registry_owner": "one-person-lab",
@@ -315,6 +363,26 @@
       "rca",
       "oma"
     ],
+    "module_package_distribution": {
+      "channel_id": "opl_distribution_cohort",
+      "default_transport": "homebrew_or_app_cli_managed",
+      "package_agent_ids": [
+        "mas",
+        "mag",
+        "rca",
+        "oma"
+      ],
+      "activation_commands": [
+        "opl module reconcile",
+        "opl skill sync"
+      ],
+      "homebrew_formula": "one-person-lab-modules",
+      "homebrew_nightly_formula": "one-person-lab-modules-nightly",
+      "homebrew_role": "payload_transport_only",
+      "must_not_write_user_codex_state": true,
+      "must_not_define_agent_semantics": true,
+      "cohort_manifest_required": true
+    },
     "non_module_workflow_plugin_ids": [
       "opl-flow"
     ],

@@ -1,0 +1,278 @@
+name: OPL Homebrew Tap Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Homebrew distribution channel to update
+        required: true
+        default: stable
+        type: choice
+        options:
+          - stable
+          - nightly
+      package_kind:
+        description: Package kind to write into the tap
+        required: true
+        default: app_standard
+        type: choice
+        options:
+          - app_standard
+          - modules_bundle
+      opl_version:
+        description: OPL version, for example 26.6.4 or 26.6.4-nightly
+        required: true
+        type: string
+      release_repo:
+        description: GitHub Release repository that owns the downloadable assets
+        required: false
+        default: gaofeng21cn/one-person-lab-app
+        type: string
+      tap_repo:
+        description: Homebrew tap repository to update
+        required: false
+        default: gaofeng21cn/homebrew-one-person-lab
+        type: string
+  workflow_call:
+    inputs:
+      channel:
+        description: Homebrew distribution channel to update
+        required: true
+        type: string
+      package_kind:
+        description: Package kind to write into the tap
+        required: true
+        type: string
+      opl_version:
+        description: OPL version, for example 26.6.4 or 26.6.4-nightly
+        required: true
+        type: string
+      release_repo:
+        description: GitHub Release repository that owns the downloadable assets
+        required: true
+        type: string
+      tap_repo:
+        description: Homebrew tap repository to update
+        required: true
+        type: string
+    secrets:
+      OPL_HOMEBREW_TAP_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: opl-homebrew-tap-${{ inputs.channel }}-${{ inputs.package_kind }}-${{ inputs.opl_version }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  update-tap-pr:
+    name: Plan Homebrew tap update and open PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Homebrew tap token
+        id: tap-token
+        shell: bash
+        env:
+          OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$OPL_HOMEBREW_TAP_TOKEN" ]; then
+            echo "::warning::OPL_HOMEBREW_TAP_TOKEN is not configured; skipping Homebrew tap PR."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout App repo
+        if: ${{ steps.tap-token.outputs.available == 'true' }}
+        uses: actions/checkout@v6
+
+      - name: Checkout Homebrew tap repo
+        if: ${{ steps.tap-token.outputs.available == 'true' }}
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.tap_repo }}
+          path: homebrew-tap
+          token: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+
+      - name: Setup Node.js
+        if: ${{ steps.tap-token.outputs.available == 'true' }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Resolve GitHub Release asset inputs
+        if: ${{ steps.tap-token.outputs.available == 'true' }}
+        id: release-assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPL_HOMEBREW_CHANNEL: ${{ inputs.channel }}
+          OPL_HOMEBREW_PACKAGE_KIND: ${{ inputs.package_kind }}
+          OPL_RELEASE_REPO: ${{ inputs.release_repo }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        run: |
+          set -euo pipefail
+          if [ "$OPL_RELEASE_REPO" != "gaofeng21cn/one-person-lab-app" ]; then
+            echo "::error::Homebrew tap updates must read assets from gaofeng21cn/one-person-lab-app"
+            exit 1
+          fi
+
+          tag="v${OPL_RELEASE_VERSION}"
+          release_json="$RUNNER_TEMP/homebrew-release-assets.json"
+          gh release view "$tag" \
+            --repo "$OPL_RELEASE_REPO" \
+            --json tagName,isDraft,isPrerelease,assets \
+            > "$release_json"
+
+          RELEASE_JSON="$release_json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const release = JSON.parse(fs.readFileSync(process.env.RELEASE_JSON, 'utf8'));
+          const version = process.env.OPL_RELEASE_VERSION;
+          const channel = process.env.OPL_HOMEBREW_CHANNEL;
+          const packageKind = process.env.OPL_HOMEBREW_PACKAGE_KIND;
+          const repo = process.env.OPL_RELEASE_REPO;
+          const assets = Array.isArray(release.assets) ? release.assets : [];
+
+          function fail(message) {
+            console.error(message);
+            process.exit(1);
+          }
+
+          function assetByName(name) {
+            const asset = assets.find((candidate) => candidate?.name === name);
+            if (!asset) fail(`Missing GitHub Release asset: ${name}`);
+            return asset;
+          }
+
+          function digestOf(asset) {
+            const digest = String(asset.digest || '').trim();
+            const match = digest.match(/^sha256:(?<hash>[a-f0-9]{64})$/i);
+            if (!match?.groups?.hash) fail(`GitHub Release asset ${asset.name} must expose a sha256 digest.`);
+            return match.groups.hash.toLowerCase();
+          }
+
+          function urlOf(asset) {
+            const releaseUrl = `https://github.com/${repo}/releases/download/v${version}/${encodeURIComponent(asset.name)}`;
+            const url = asset.browserDownloadUrl || asset.browser_download_url
+              || (String(asset.url || '').startsWith(`https://github.com/${repo}/releases/download/v${version}/`) ? asset.url : releaseUrl);
+            if (!String(url).startsWith(`https://github.com/${repo}/releases/download/v${version}/`)) {
+              fail(`GitHub Release asset ${asset.name} resolved outside the App release download namespace.`);
+            }
+            return url;
+          }
+
+          if (channel === 'stable' && /nightly/i.test(version)) {
+            fail('Stable Homebrew tap updates must not use a nightly version.');
+          }
+          if (channel === 'nightly' && !/nightly/i.test(version)) {
+            fail('Nightly Homebrew tap updates must use a nightly version.');
+          }
+          if (channel === 'stable' && release.isPrerelease) {
+            fail('Stable Homebrew tap updates must read a non-prerelease GitHub Release.');
+          }
+          if (channel === 'nightly' && !release.isPrerelease) {
+            fail('Nightly Homebrew tap updates must read a prerelease GitHub Release.');
+          }
+          if (release.isDraft) {
+            fail('Homebrew tap updates must not read draft GitHub Releases.');
+          }
+
+          const downloadAsset = packageKind === 'modules_bundle'
+            ? assetByName(`one-person-lab-modules-${version}.tar.gz`)
+            : assetByName(`One-Person-Lab-${version}-mac-arm64.dmg`);
+          const manifestAsset = packageKind === 'modules_bundle'
+            ? assetByName('opl-modules-manifest.json')
+            : assetByName('latest-arm64-mac.yml');
+
+          const output = {
+            download_url: urlOf(downloadAsset),
+            manifest_url: urlOf(manifestAsset),
+            checksum_sha256: digestOf(downloadAsset),
+          };
+          for (const [key, value] of Object.entries(output)) {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
+          }
+          NODE
+
+      - name: Write Homebrew tap files
+        if: ${{ steps.tap-token.outputs.available == 'true' }}
+        id: tap-plan
+        shell: bash
+        env:
+          OPL_HOMEBREW_CHANNEL: ${{ inputs.channel }}
+          OPL_HOMEBREW_PACKAGE_KIND: ${{ inputs.package_kind }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_DOWNLOAD_URL: ${{ steps.release-assets.outputs.download_url }}
+          OPL_MANIFEST_URL: ${{ steps.release-assets.outputs.manifest_url }}
+          OPL_CHECKSUM_SHA256: ${{ steps.release-assets.outputs.checksum_sha256 }}
+        run: |
+          set -euo pipefail
+          target=()
+          if [ "$OPL_HOMEBREW_PACKAGE_KIND" = "modules_bundle" ]; then
+            if [ "$OPL_HOMEBREW_CHANNEL" = "nightly" ]; then
+              target=(--formula Formula/one-person-lab-modules-nightly.rb)
+            else
+              target=(--formula Formula/one-person-lab-modules.rb)
+            fi
+          else
+            if [ "$OPL_HOMEBREW_CHANNEL" = "nightly" ]; then
+              target=(--cask Casks/one-person-lab-nightly.rb)
+            else
+              target=(--cask Casks/one-person-lab.rb)
+            fi
+          fi
+
+          node --experimental-strip-types scripts/update-homebrew-tap.ts \
+            --channel "$OPL_HOMEBREW_CHANNEL" \
+            --package-kind "$OPL_HOMEBREW_PACKAGE_KIND" \
+            --version "$OPL_RELEASE_VERSION" \
+            --tap-root homebrew-tap \
+            "${target[@]}" \
+            --manifest-url "$OPL_MANIFEST_URL" \
+            --checksum-sha256 "$OPL_CHECKSUM_SHA256" \
+            --download-url "$OPL_DOWNLOAD_URL" \
+            --summary-path "$RUNNER_TEMP/homebrew-tap-plan.json" \
+            --write
+
+          node --experimental-strip-types scripts/update-homebrew-tap.ts --self-check
+          if git -C homebrew-tap diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload Homebrew tap plan
+        if: ${{ steps.tap-token.outputs.available == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: homebrew-tap-plan-${{ inputs.channel }}-${{ inputs.package_kind }}-${{ inputs.opl_version }}
+          path: ${{ runner.temp }}/homebrew-tap-plan.json
+          if-no-files-found: error
+
+      - name: Open Homebrew tap PR
+        if: ${{ steps.tap-token.outputs.available == 'true' && steps.tap-plan.outputs.changed == 'true' }}
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+          branch: opl/${{ inputs.channel }}-${{ inputs.package_kind }}-${{ inputs.opl_version }}
+          title: "Update OPL Homebrew tap for ${{ inputs.opl_version }} ${{ inputs.package_kind }}"
+          commit-message: "Update OPL Homebrew tap for ${{ inputs.opl_version }} ${{ inputs.package_kind }}"
+          body: |
+            Updates the OPL Homebrew tap from the App-owned GitHub Release cohort.
+
+            - Channel: `${{ inputs.channel }}`
+            - Package kind: `${{ inputs.package_kind }}`
+            - Version: `${{ inputs.opl_version }}`
+            - Release repo: `${{ inputs.release_repo }}`
+
+            Homebrew remains a transport/index. App activation and module exposure stay under `opl system initialize --json`, `opl module reconcile`, and `opl skill sync`.

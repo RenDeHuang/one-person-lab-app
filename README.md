@@ -65,6 +65,23 @@ You can also download the current desktop package from the App repository releas
 
 [Download One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
 
+Homebrew distribution, when available, is the terminal transport/index for the
+same release cohort. The tap can install or upgrade indexed App files, but App
+activation still runs through One Person Lab itself: `opl system initialize
+--json` decides Core readiness, and `opl install`, `opl system
+startup-maintenance`, `opl module reconcile`, and `opl skill sync` handle
+workspace state, modules, Codex skill/plugin exposure, and maintenance. Daily
+desktop App updates remain standard App updates; Homebrew does not turn Full
+first-install payloads, modules, MAS/MAG/RCA skill semantics, Codex
+compatibility, or Temporal runtime readiness into tap-owned state.
+
+Current Homebrew desktop App path:
+
+```bash
+brew tap gaofeng21cn/one-person-lab
+brew install --cask one-person-lab
+```
+
 For a first-time macOS arm64 install, choose `One-Person-Lab-Full-<version>-mac-arm64.dmg`. The complete first-install package includes the desktop app, One Person Lab, the Research/Grant/Presentation agents, current runtime payloads, `officecli`, and recommended skill payloads.
 
 For a screenshot-based first-run walkthrough, use the primary [macOS App install slides PDF](docs/user-guides/macos-app-install-slides.pdf). The detailed long-form companion is [macOS App install detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf).

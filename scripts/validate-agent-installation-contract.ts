@@ -209,6 +209,50 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
     'Developer Profile source_channel capability',
     'developer checkout override surface',
   );
+  assertEqual(contract.ordinary_user_module_source, 'stable_package_channel', 'ordinary user module source');
+  assertArrayEqual(contract.module_package_channel_agent_ids, expectedRequiredAgentIds, 'module package channel agent ids');
+  assertEqual(contract.module_package_distribution?.channel_id, 'opl_distribution_cohort', 'module distribution channel');
+  assertEqual(
+    contract.module_package_distribution?.default_transport,
+    'homebrew_or_app_cli_managed',
+    'module distribution default transport',
+  );
+  assertArrayEqual(
+    contract.module_package_distribution?.package_agent_ids,
+    expectedRequiredAgentIds,
+    'module distribution package agent ids',
+  );
+  assertArrayEqual(
+    contract.module_package_distribution?.activation_commands,
+    ['opl module reconcile', 'opl skill sync'],
+    'module distribution activation commands',
+  );
+  assertEqual(
+    contract.module_package_distribution?.homebrew_formula,
+    'one-person-lab-modules',
+    'module distribution Homebrew formula',
+  );
+  assertEqual(
+    contract.module_package_distribution?.homebrew_nightly_formula,
+    'one-person-lab-modules-nightly',
+    'module distribution Homebrew nightly formula',
+  );
+  assertEqual(contract.module_package_distribution?.homebrew_role, 'payload_transport_only', 'module distribution Homebrew role');
+  assertEqual(
+    contract.module_package_distribution?.must_not_write_user_codex_state,
+    true,
+    'module distribution user state guard',
+  );
+  assertEqual(
+    contract.module_package_distribution?.must_not_define_agent_semantics,
+    true,
+    'module distribution semantic authority guard',
+  );
+  assertEqual(
+    contract.module_package_distribution?.cohort_manifest_required,
+    true,
+    'module distribution cohort manifest requirement',
+  );
   assertEqual(contract.duplicate_bare_skill_policy, 'forbid_domain_plugin_skill_mirrors', 'duplicate bare skill policy');
   assertEqual(
     contract.plugin_registration_validation_command,

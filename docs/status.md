@@ -79,9 +79,9 @@ whitelist such as Superpowers, cron, the OfficeCLI family, PDF, MinerU, and
 UI/UX helpers. AionUI builtin skills remain candidate shell capabilities unless
 the App profile explicitly whitelists them. `agent_installation_contract` now
 also separates ordinary module package updates from Developer Profile checkout
-overrides: ordinary users consume the stable GHCR package channel through
-Framework/App maintenance, while GitHub repo or local checkout sources are an
-explicit `source_channel` opt-in. Settings now shows Developer Profile
+overrides: ordinary users consume the stable package channel carried by
+Homebrew or App/CLI maintenance, while GitHub repo or local checkout sources
+are an explicit `source_channel` opt-in. Settings now shows Developer Profile
 capabilities instead of a single Developer Mode switch: `source_channel`,
 `workspace_trust`, `github_authority`, `agent_automation`, and
 `runtime_mutation_scope`. `opl-flow` is a Codex workflow/profile plugin and not

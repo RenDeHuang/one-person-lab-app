@@ -54,8 +54,104 @@ API notes for the background-download, `update-downloaded`, and
 updater updates desktop App assets only; it does not update OPL module packages,
 select Developer Profile `source_channel` checkouts, publish the WebUI image, or
 install `opl-flow`. Module packages stay under Framework/App maintenance through
-the stable GHCR package channel, while GitHub repo/local checkout sources are an
-explicit Developer Profile `source_channel` opt-in.
+the stable package channel carried by Homebrew or App/CLI maintenance, while
+GitHub repo/local checkout sources are an explicit Developer Profile
+`source_channel` opt-in.
+
+## Homebrew distribution boundary
+
+Homebrew is a transport and index for the same App release cohorts. It is useful
+for terminal users, CI/bootstrap scripts, and update discovery, but it is not a
+separate installer truth source. A tap formula or cask may resolve the published
+standard App package, checksum, version, and helper entry points; after the files
+are installed, user-state activation still belongs to the OPL CLI and shared
+setup model.
+
+Homebrew discovers One Person Lab through the GitHub tap repository, not by
+crawling App release assets. Users either run `brew tap gaofeng21cn/one-person-lab` or
+install with a fully qualified tap name such as
+`brew install --cask gaofeng21cn/one-person-lab/one-person-lab`. Homebrew then reads
+`Casks/*.rb` or `Formula/*.rb` from `gaofeng21cn/homebrew-one-person-lab`; those files
+hold the GitHub Release download URL and SHA-256 checksum. The actual bytes are
+downloaded from `gaofeng21cn/one-person-lab-app` GitHub Releases.
+
+The current live Homebrew targets are the standard desktop App casks:
+
+```bash
+brew tap gaofeng21cn/one-person-lab
+brew install --cask one-person-lab
+brew install --cask one-person-lab-nightly
+```
+
+The `one-person-lab`, `one-person-lab-nightly`,
+`one-person-lab-modules`, and `one-person-lab-modules-nightly` formula lanes
+are reserved for CLI and module-bundle release assets. They must not be published
+from the App workflow until the matching tarball and manifest assets exist in
+the release cohort.
+
+The post-install activation path is:
+
+```bash
+opl system initialize --json
+```
+
+When repair or setup is needed, the stable commands remain `opl install`,
+`opl system startup-maintenance`, `opl module reconcile`, and `opl skill sync`. These commands own
+workspace state, Core readiness, module/package maintenance, Codex-visible
+plugin/skill exposure, and duplicate-skill prevention. A Homebrew receipt proves
+only that the tap resolved and placed files. It does not prove `/guid` readiness,
+domain readiness, App release readiness, MAS/MAG/RCA quality, Temporal provider
+health, or the absence of user-state blockers.
+
+The tap should follow the same distribution cohorts as GitHub Releases:
+
+- Stable tap updates point at the stable `v<version>` release only after the
+  release owner promotes that cohort and the required stable gates pass.
+- Nightly tap updates, if published, stay in an explicit opt-in prerelease tap or
+  formula/cask lane. They point only at Nightly standard macOS arm64 assets,
+  preserve prerelease semantics, and are never marked as the stable/latest user
+  path.
+- Full first-install assets remain GitHub Release first-install downloads. A
+  Homebrew formula or cask must not select `One-Person-Lab-Full-*`, write Full
+  assets into standard updater metadata, or imply that `brew upgrade` updates
+  modules, runtime payloads, or Full bundled contents.
+- Standard App packages installed through Homebrew keep the same updater
+  boundary as direct downloads: desktop App assets can update through the
+  standard channel; OPL modules, Framework packages, Codex skills/plugins, and
+  Developer Profile source checkouts are activated or maintained by the App/CLI.
+- The initial tap may contain only App casks. That is the correct live state
+  while the CLI formula and MAS/MAG/RCA/OMA module bundle formulae do not yet
+  have release-cohort tarball assets.
+
+Tap updates are App-workflow generated but tap-repo reviewed. The
+`OPL Homebrew Tap Update` workflow reads the already-published GitHub Release
+asset metadata, requires a `sha256:` digest, runs
+`scripts/update-homebrew-tap.ts --write`, uploads the tap plan as a workflow
+artifact, and opens a pull request against `gaofeng21cn/homebrew-one-person-lab` using
+`OPL_HOMEBREW_TAP_TOKEN`. Nightly release automation may open a Nightly tap PR
+after remote standard asset publication. Stable tap updates are run manually
+after stable release gates and owner promotion. The planner does not push or
+publish remote state by itself.
+
+Codex and Temporal compatibility also stay anchored in the existing release
+contracts. The Full workflow records the current Codex CLI and Temporal archive
+wrapper as App-managed fallback runtime payloads, while runtime selection
+prefers explicit user paths, system paths, or Homebrew formulae when those tools
+meet the minimum version and capability smoke checks. A newer compatible user
+`codex` or `temporal` is valid; a Homebrew receipt alone is not readiness
+evidence. Compatibility is accepted only after `opl system initialize --json`
+and the relevant App/Framework diagnostics report a usable state. If Codex or
+Temporal is absent, too old, incompatible, or blocked by credentials, the result
+is an activation or diagnostics blocker for App/CLI maintenance; it is not a
+Homebrew formula/cask success or failure by itself.
+
+The MAS/MAG/RCA distribution rule is unchanged under Homebrew. The public ABI is
+the domain skill; the Codex plugin is the App distribution/capability shell.
+Homebrew must not mirror plugin-packaged MAS/MAG/RCA skills into duplicate bare
+`~/.codex/skills/{mas,mag,rca}` directories, and it must not create a second
+semantic map for domain actions or stages. Use `opl skill sync` and
+`npm run validate:agent-installation` to verify plugin roots, direct skill
+compatibility, and duplicate bare-skill prevention.
 
 Apple Command Line Tools are a system-owned installation path. The App may
 request the installer with `xcode-select --install`, but macOS presents the
@@ -292,21 +388,22 @@ step, `retry_detected`, and `skip_modules` as machine-readable fields. The
 Markdown summary mirrors the key one-shot entry, source, artifact, setup flow,
 Core progress, retry, and skip-module values for operator triage.
 
-The Full first-install payload must include the latest npm-published Codex CLI,
-the Temporal CLI, and the Temporal-backed family runtime provider. The Full
-workflow resolves the current `@openai/codex` version with
-`npm view @openai/codex version`, installs that exact version, records
-`OPL_FULL_CODEX_VERSION`, and verifies `codex --version`. It also exports the
-resolved `OPL_FULL_TEMPORAL_CLI_BIN` path before runtime cache-key calculation
-and package assembly, so the manifest records `components.temporal_cli` from the
-packaged runtime. The Full package stores the official `temporalio/cli` macOS
-arm64 release archive under `vendor/temporal/` and exposes it through
-`bin/temporal`; the wrapper expands the archive locally inside the installed
-runtime cache, so first-run setup does not need network access and the DMG does
-not carry the much larger Homebrew-expanded Temporal binary. Bun remains a
-workflow/build tool by default and is not packaged into the Full runtime unless
-`OPL_FULL_INCLUDE_BUN_RUNTIME=1` is set for a deliberate experiment; manifests
-record that state under `optional_components.bun`.
+The Full first-install payload must include App-managed fallback Codex CLI,
+Temporal CLI, and Temporal-backed family runtime provider payloads. The Full
+workflow resolves the current fallback `@openai/codex` version, records
+`OPL_FULL_CODEX_VERSION`, and verifies `codex --version`, but first-run runtime
+selection still prefers an explicit, system, or Homebrew-provided compatible
+newer Codex CLI when the minimum version and capability smoke checks pass. It
+also exports the resolved `OPL_FULL_TEMPORAL_CLI_BIN` path before runtime
+cache-key calculation and package assembly, so the manifest records
+`components.temporal_cli` from the fallback runtime. The Full package stores the
+official `temporalio/cli` macOS arm64 release archive under `vendor/temporal/`
+and exposes it through `bin/temporal`; the wrapper expands the archive locally
+inside the installed runtime cache, so first-run setup does not need network
+access and the DMG does not carry the much larger expanded Temporal binary. Bun
+remains a workflow/build tool by default and is not packaged into the Full
+runtime unless `OPL_FULL_INCLUDE_BUN_RUNTIME=1` is set for a deliberate
+experiment; manifests record that state under `optional_components.bun`.
 Temporal runtime packages stay in the Framework production dependency payload,
 `@temporalio/testing` is excluded, and the remote verifier requires the Full
 manifest to report only the macOS arm64 Temporal core bridge release.

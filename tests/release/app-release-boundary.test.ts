@@ -24,6 +24,7 @@ const releaseWorkflowPaths = [
   '.github/workflows/desktop-release.yml',
   '.github/workflows/full-first-install-release.yml',
   '.github/workflows/full-runtime-cache-warmup.yml',
+  '.github/workflows/homebrew-tap-update.yml',
   '.github/workflows/nightly-standard-release.yml',
   '.github/workflows/opl-first-run-vm.yml',
   '.github/workflows/release-verify-remote.yml',
@@ -757,6 +758,266 @@ test('release boundary guard keeps App release ownership in App repo', () => {
   assert.match(result.stdout, /App release boundary is App-owned/);
 });
 
+test('Homebrew tap updater is a local cohort-bound manifest and checksum planner', () => {
+  const tapRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-homebrew-tap-test-'));
+  const digest = 'b'.repeat(64);
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+  const boundaryScript = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-release-boundary.ts'), 'utf8');
+  const homebrewScript = fs.readFileSync(path.join(appRoot, 'scripts', 'update-homebrew-tap.ts'), 'utf8');
+
+  assert.equal(
+    packageJson.scripts['homebrew:tap:plan'],
+    'node --experimental-strip-types scripts/update-homebrew-tap.ts',
+  );
+  assert.equal(
+    packageJson.scripts['validate:homebrew-tap'],
+    'node --experimental-strip-types scripts/update-homebrew-tap.ts --self-check',
+  );
+  assert.match(boundaryScript, /scripts\/update-homebrew-tap\.ts/);
+  assert.match(boundaryScript, /--self-check/);
+  assert.match(homebrewScript, /manifest_required: true/);
+  assert.match(homebrewScript, /checksum_required: true/);
+  assert.match(homebrewScript, /nightly_targets_only_for_nightly: true/);
+  assert.match(homebrewScript, /stable_promotion_from_nightly_allowed: false/);
+  assert.match(homebrewScript, /full_first_install_allowed: false/);
+  assert.match(homebrewScript, /modules_payload_allowed: false/);
+  assert.match(homebrewScript, /modules_payload_allowed: true/);
+  assert.match(homebrewScript, /modules_activation_owner: opl_reconcile_then_skill_sync/);
+  assert.match(homebrewScript, /publishes_or_pushes_remote: false/);
+  assert.doesNotMatch(homebrewScript, /from 'node:child_process'|spawnSync\(|execSync\(|execFileSync\(/);
+
+  const stableResult = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'stable',
+    '--version',
+    '26.6.4',
+    '--tap-root',
+    tapRoot,
+    '--cask',
+    'Casks/one-person-lab.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/latest-arm64-mac.yml',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-26.6.4-mac-arm64.dmg',
+    '--write',
+  ]);
+  assert.equal(stableResult.status, 0, stableResult.stderr || stableResult.stdout);
+  const stablePlan = JSON.parse(stableResult.stdout);
+  assert.equal(stablePlan.channel, 'stable');
+  assert.equal(stablePlan.package_kind, 'app_standard');
+  assert.equal(stablePlan.policy.manifest_required, true);
+  assert.equal(stablePlan.policy.checksum_required, true);
+  assert.equal(stablePlan.policy.full_first_install_allowed, false);
+  assert.equal(stablePlan.policy.modules_payload_allowed, false);
+  assert.equal(stablePlan.policy.stable_promotion_from_nightly_allowed, false);
+  const stableCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8');
+  assert.match(stableCask, /latest-arm64-mac\.yml/);
+  assert.match(stableCask, new RegExp(digest));
+  assert.match(stableCask, /stable_promotion_from_nightly_allowed: false/);
+  assert.match(stableCask, /full_first_install_allowed: false/);
+  assert.match(stableCask, /modules_payload_allowed: false/);
+  assert.match(stableCask, /desc "AI-first desktop research and agent orchestration app"/);
+  assert.match(stableCask, /url "https:\/\/github\.com\/gaofeng21cn\/one-person-lab-app\/releases\/download\/v#\{version\}\/One-Person-Lab-#\{version\}-mac-arm64\.dmg"/);
+  assert.match(stableCask, /depends_on macos: :big_sur/);
+  assert.match(stableCask, /depends_on arch: :arm64/);
+  assert.match(stableCask, /livecheck do[\s\S]*releases\/latest[\s\S]*regex\(%r\{\/releases\/tag\/v\?\(\\d\+\(\?:\\\.\\d\+\)\*\)\}i\)/);
+  assert.match(stableCask, /app "One Person Lab\.app"/);
+  assert.ok(stableCask.indexOf('  livecheck do') < stableCask.indexOf('  depends_on macos: :big_sur'));
+
+  const stableRefresh = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'stable',
+    '--version',
+    '26.6.5',
+    '--tap-root',
+    tapRoot,
+    '--cask',
+    'Casks/one-person-lab.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.5/latest-arm64-mac.yml',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.5/One-Person-Lab-26.6.5-mac-arm64.dmg',
+    '--write',
+  ]);
+  assert.equal(stableRefresh.status, 0, stableRefresh.stderr || stableRefresh.stdout);
+  const stableRefreshedCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8');
+  assert.match(stableRefreshedCask, /desc "AI-first desktop research and agent orchestration app"/);
+  assert.match(stableRefreshedCask, /depends_on macos: :big_sur/);
+  assert.match(stableRefreshedCask, /\n  # OPL_HOMEBREW_BOUNDARY_START\n  # channel: stable/);
+
+  const modulesResult = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'stable',
+    '--package-kind',
+    'modules_bundle',
+    '--version',
+    '26.6.4',
+    '--tap-root',
+    tapRoot,
+    '--formula',
+    'Formula/one-person-lab-modules.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-modules-manifest.json',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/one-person-lab-modules-26.6.4.tar.gz',
+    '--write',
+  ]);
+  assert.equal(modulesResult.status, 0, modulesResult.stderr || modulesResult.stdout);
+  const modulesPlan = JSON.parse(modulesResult.stdout);
+  assert.equal(modulesPlan.package_kind, 'modules_bundle');
+  assert.equal(modulesPlan.policy.modules_payload_allowed, true);
+  assert.equal(modulesPlan.policy.modules_activation_owner, 'opl_reconcile_then_skill_sync');
+  assert.equal(modulesPlan.policy.must_not_write_user_codex_state, true);
+  assert.equal(modulesPlan.policy.must_not_define_agent_semantics, true);
+  const modulesFormula = fs.readFileSync(path.join(tapRoot, 'Formula', 'one-person-lab-modules.rb'), 'utf8');
+  assert.match(modulesFormula, /modules_payload_allowed: true/);
+  assert.match(modulesFormula, /modules_activation_owner: opl_reconcile_then_skill_sync/);
+  assert.match(modulesFormula, /must_not_write_user_codex_state: true/);
+  assert.match(modulesFormula, /must_not_define_agent_semantics: true/);
+  assert.match(modulesFormula, /def install[\s\S]*libexec\.install Dir\["\*"\][\s\S]*end/);
+  assert.match(modulesFormula, /def caveats[\s\S]*opl module reconcile[\s\S]*opl skill sync/);
+
+  const nightlyResult = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'nightly',
+    '--version',
+    '26.6.4-nightly',
+    '--tap-root',
+    tapRoot,
+    '--cask',
+    'Casks/one-person-lab-nightly.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/latest-arm64-mac.yml',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/One-Person-Lab-26.6.4-nightly-mac-arm64.dmg',
+    '--write',
+  ]);
+  assert.equal(nightlyResult.status, 0, nightlyResult.stderr || nightlyResult.stdout);
+  assert.equal(JSON.parse(nightlyResult.stdout).targets[0].path, 'Casks/one-person-lab-nightly.rb');
+  const nightlyPlanRootCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab-nightly.rb'), 'utf8');
+  assert.match(nightlyPlanRootCask, /livecheck do[\s\S]*skip "Nightly casks track prerelease cohorts through App release automation"/);
+
+  const nightlyToStable = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'nightly',
+    '--version',
+    '26.6.4-nightly',
+    '--tap-root',
+    tapRoot,
+    '--cask',
+    'Casks/one-person-lab.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/latest-arm64-mac.yml',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/One-Person-Lab-26.6.4-nightly-mac-arm64.dmg',
+  ]);
+  assert.notEqual(nightlyToStable.status, 0);
+  assert.match(nightlyToStable.stderr, /Nightly Homebrew tap updates may only update nightly formula\/cask targets/);
+
+  const stableNightlyPromotion = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'stable',
+    '--version',
+    '26.6.4-nightly',
+    '--tap-root',
+    tapRoot,
+    '--cask',
+    'Casks/one-person-lab.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/latest-arm64-mac.yml',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/One-Person-Lab-26.6.4-nightly-mac-arm64.dmg',
+  ]);
+  assert.notEqual(stableNightlyPromotion.status, 0);
+  assert.match(stableNightlyPromotion.stderr, /Stable Homebrew tap updates must not use a nightly version/);
+
+  const appToModules = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'stable',
+    '--package-kind',
+    'app_standard',
+    '--version',
+    '26.6.4',
+    '--tap-root',
+    tapRoot,
+    '--formula',
+    'Formula/one-person-lab-modules.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-modules-manifest.json',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/one-person-lab-modules-26.6.4.tar.gz',
+  ]);
+  assert.notEqual(appToModules.status, 0);
+  assert.match(appToModules.stderr, /Standard App Homebrew tap updates must not target module bundle formulae/);
+
+  const modulesToApp = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'stable',
+    '--package-kind',
+    'modules_bundle',
+    '--version',
+    '26.6.4',
+    '--tap-root',
+    tapRoot,
+    '--cask',
+    'Casks/one-person-lab.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/latest-arm64-mac.yml',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-26.6.4-mac-arm64.dmg',
+  ]);
+  assert.notEqual(modulesToApp.status, 0);
+  assert.match(modulesToApp.stderr, /Module bundle Homebrew tap updates may only target module bundle formulae/);
+
+  const fullTarget = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'stable',
+    '--version',
+    '26.6.4',
+    '--tap-root',
+    tapRoot,
+    '--cask',
+    'Casks/One-Person-Lab-Full.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/latest-arm64-mac.yml',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-26.6.4-mac-arm64.dmg',
+  ]);
+  assert.notEqual(fullTarget.status, 0);
+  assert.match(fullTarget.stderr, /Full first-install payloads/);
+
+  const selfCheck = runNode(['scripts/update-homebrew-tap.ts', '--self-check']);
+  assert.equal(selfCheck.status, 0, selfCheck.stderr || selfCheck.stdout);
+  assert.match(selfCheck.stdout, /module payload isolation/);
+});
+
 test('agent installation contract validator is wired into release boundary guard', () => {
   const boundaryScript = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-release-boundary.ts'), 'utf8');
   const result = runNode(['scripts/validate-agent-installation-contract.ts']);
@@ -1193,6 +1454,19 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'stable_package_channel');
   assert.deepEqual(policy.agent_installation_contract.module_package_channel_agent_ids, ['mas', 'mag', 'rca', 'oma']);
   assert.deepEqual(policy.agent_installation_contract.non_module_workflow_plugin_ids, ['opl-flow']);
+  assert.equal(policy.agent_installation_contract.module_package_distribution.channel_id, 'opl_distribution_cohort');
+  assert.equal(policy.agent_installation_contract.module_package_distribution.default_transport, 'homebrew_or_app_cli_managed');
+  assert.deepEqual(policy.agent_installation_contract.module_package_distribution.package_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.deepEqual(policy.agent_installation_contract.module_package_distribution.activation_commands, [
+    'opl module reconcile',
+    'opl skill sync',
+  ]);
+  assert.equal(policy.agent_installation_contract.module_package_distribution.homebrew_formula, 'one-person-lab-modules');
+  assert.equal(policy.agent_installation_contract.module_package_distribution.homebrew_nightly_formula, 'one-person-lab-modules-nightly');
+  assert.equal(policy.agent_installation_contract.module_package_distribution.homebrew_role, 'payload_transport_only');
+  assert.equal(policy.agent_installation_contract.module_package_distribution.must_not_write_user_codex_state, true);
+  assert.equal(policy.agent_installation_contract.module_package_distribution.must_not_define_agent_semantics, true);
+  assert.equal(policy.agent_installation_contract.module_package_distribution.cohort_manifest_required, true);
   assert.equal(policy.agent_installation_contract.duplicate_bare_skill_policy, 'forbid_domain_plugin_skill_mirrors');
   assert.equal(policy.agent_installation_contract.plugin_registration_validation_command, 'npm run validate:agent-installation');
   assert.equal(policy.agent_installation_contract.plugin_registration_validation_inputs.plugin_root_flag, '--agent-root <agent_id>=<path>');
@@ -1218,6 +1492,45 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(installAgentById.get('oma').plugin_registry_required, false);
   assert.equal(installAgentById.get('oma').preferred_distribution, 'opl_generated_skill_surface');
   assert.equal(installAgentById.get('oma').canonical_metadata_source, 'opl_generated_interface_contract_pack');
+});
+
+test('Homebrew distribution channel is transport-only and keeps OPL activation authoritative', () => {
+  const policy = readInstallExposurePolicy();
+  const homebrew = policy.distribution_channels.homebrew;
+
+  assert.equal(homebrew.role, 'transport_and_install_index_only');
+  assert.equal(homebrew.tap, 'gaofeng21cn/one-person-lab');
+  assert.equal(homebrew.must_not_own_agent_semantics, true);
+  assert.equal(homebrew.must_not_write_user_codex_state, true);
+  assert.equal(homebrew.user_state_activation_owner, 'opl_framework');
+  assert.deepEqual(homebrew.activation_commands, ['opl module reconcile', 'opl skill sync']);
+  assert.deepEqual(homebrew.formulae, {
+    cli: 'one-person-lab',
+    modules: 'one-person-lab-modules',
+    nightly_cli: 'one-person-lab-nightly',
+    nightly_modules: 'one-person-lab-modules-nightly',
+  });
+  assert.deepEqual(homebrew.casks, {
+    standard_app: 'one-person-lab',
+    nightly_standard_app: 'one-person-lab-nightly',
+  });
+  assert.deepEqual(homebrew.initial_live_targets, [
+    'Casks/one-person-lab.rb',
+    'Casks/one-person-lab-nightly.rb',
+  ]);
+  assert.deepEqual(homebrew.formula_targets_require_release_assets, [
+    'Formula/one-person-lab.rb',
+    'Formula/one-person-lab-nightly.rb',
+    'Formula/one-person-lab-modules.rb',
+    'Formula/one-person-lab-modules-nightly.rb',
+  ]);
+  assert.deepEqual(homebrew.excluded_casks, {
+    full_first_install: 'one-person-lab-full',
+  });
+  assert.equal(homebrew.module_bundle.package_kind, 'opl_modules_bundle');
+  assert.deepEqual(homebrew.module_bundle.agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.equal(homebrew.module_bundle.install_prefix_role, 'read_only_payload');
+  assert.equal(homebrew.module_bundle.activation_policy, 'opl_reconcile_then_skill_sync');
 });
 
 test('first-run matrix locks Full clean-machine and App-managed bootstrap rules', () => {
@@ -4681,12 +4994,14 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'app_state.modules[].source + app_state.modules[].path + app_state.paths',
   );
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the bundled Full runtime payload'));
-  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the stable GHCR package channel'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the stable package channel through Homebrew or App/CLI maintenance'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the nightly Homebrew package channel'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from a local domain repository checkout'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether Developer Profile source_channel uses a GitHub repo or local checkout'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module is managed by App/CLI maintenance'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('that module path display is refs-only and not domain truth authority'));
-  assert.equal(guiContract.module_path_source_policy.ordinary_user_source, 'stable_ghcr_package_channel');
+  assert.equal(guiContract.module_path_source_policy.ordinary_user_source, 'stable_package_channel');
+  assert.equal(guiContract.module_path_source_policy.ordinary_user_transport, 'homebrew_or_app_cli_managed');
   assert.equal(guiContract.module_path_source_policy.developer_override_surface, 'Developer Profile source_channel capability');
   assert.equal(guiContract.module_path_source_policy.developer_override_policy, 'explicit_opt_in_only');
   assert.equal(guiContract.module_path_source_policy.developer_profile_ref, 'developer_profile.capabilities.source_channel');
@@ -5239,6 +5554,99 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   );
 });
 
+test('Homebrew tap publication is cohort-based and separates stable from nightly', () => {
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const homebrewWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'homebrew-tap-update.yml'), 'utf8');
+  const nightlyWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'nightly-standard-release.yml'), 'utf8');
+  const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
+  const homebrew = releaseContract.homebrew_tap_distribution;
+
+  assert.equal(homebrew.owner, 'one-person-lab-app');
+  assert.equal(homebrew.tap_repo, 'gaofeng21cn/homebrew-one-person-lab');
+  assert.equal(homebrew.role, 'external_install_index_for_distribution_cohorts');
+  assert.equal(homebrew.cohort_manifest_required, true);
+  assert.deepEqual(homebrew.formulae, ['one-person-lab', 'one-person-lab-modules']);
+  assert.deepEqual(homebrew.casks, ['one-person-lab']);
+  assert.deepEqual(homebrew.initial_live_targets, [
+    'Casks/one-person-lab.rb',
+    'Casks/one-person-lab-nightly.rb',
+  ]);
+  assert.deepEqual(homebrew.formula_targets_require_release_assets, [
+    'Formula/one-person-lab.rb',
+    'Formula/one-person-lab-nightly.rb',
+    'Formula/one-person-lab-modules.rb',
+    'Formula/one-person-lab-modules-nightly.rb',
+  ]);
+  assert.deepEqual(homebrew.excluded_casks, ['one-person-lab-full']);
+  assert.deepEqual(homebrew.nightly_formulae, ['one-person-lab-nightly', 'one-person-lab-modules-nightly']);
+  assert.deepEqual(homebrew.nightly_casks, ['one-person-lab-nightly']);
+  assert.equal(
+    homebrew.tap_update_policy.discovery_model,
+    'user_taps_github_homebrew_tap_repo_then_homebrew_reads_formula_or_cask',
+  );
+  assert.equal(homebrew.tap_update_policy.download_source, 'app_owned_github_release_asset_url');
+  assert.equal(homebrew.tap_update_policy.remote_write_path, 'github_actions_checkout_tap_repo_and_open_pull_request');
+  assert.equal(homebrew.tap_update_policy.push_owner_token, 'OPL_HOMEBREW_TAP_TOKEN');
+  assert.equal(homebrew.tap_update_policy.planner_script, 'scripts/update-homebrew-tap.ts');
+  assert.equal(homebrew.tap_update_policy.workflow, '.github/workflows/homebrew-tap-update.yml');
+  assert.equal(homebrew.tap_update_policy.nightly.mode, 'github_actions_auto_pr_nightly_only');
+  assert.equal(homebrew.tap_update_policy.nightly.may_update_stable, false);
+  assert.equal(homebrew.tap_update_policy.stable.mode, 'manual_workflow_after_stable_release_gates_and_owner_promotion');
+  assert.equal(homebrew.tap_update_policy.stable.may_consume_nightly_directly, false);
+  assert.deepEqual(homebrew.tap_update_policy.required_manifest_fields, [
+    'cohort_id',
+    'channel',
+    'artifacts',
+    'components',
+    'sha256',
+    'activation_commands',
+  ]);
+  assert.equal(homebrew.module_payload_policy.package_kind, 'opl_modules_bundle');
+  assert.equal(homebrew.module_payload_policy.semantic_authority, 'one-person-lab_and_domain_repositories');
+  assert.equal(homebrew.module_payload_policy.homebrew_role, 'payload_transport_only');
+  assert.equal(homebrew.module_payload_policy.install_prefix_role, 'read_only_payload');
+  assert.equal(homebrew.module_payload_policy.must_not_write_user_codex_state, true);
+  assert.equal(homebrew.module_payload_policy.must_not_define_agent_semantics, true);
+  assert.deepEqual(homebrew.module_payload_policy.activation_commands, ['opl module reconcile', 'opl skill sync']);
+  assert.equal(homebrew.full_first_install_policy, 'github_release_first_install_asset_only');
+  assert.equal(homebrew.codex_temporal_policy.compatibility_mode, 'minimum_version_plus_capability_smoke');
+  assert.equal(homebrew.codex_temporal_policy.prefer_valid_newer_system_tool, true);
+  assert.equal(homebrew.codex_temporal_policy.bundled_fallback_allowed, true);
+
+  assert.match(homebrewWorkflow, /name: OPL Homebrew Tap Update/);
+  assert.match(homebrewWorkflow, /workflow_dispatch:/);
+  assert.match(homebrewWorkflow, /workflow_call:/);
+  assert.match(homebrewWorkflow, /OPL_HOMEBREW_TAP_TOKEN/);
+  assert.match(homebrewWorkflow, /repository: \$\{\{ inputs\.tap_repo \}\}/);
+  assert.match(homebrewWorkflow, /gh release view "\$tag"[\s\S]*--json tagName,isDraft,isPrerelease,assets/);
+  assert.match(homebrewWorkflow, /Homebrew tap updates must read assets from gaofeng21cn\/one-person-lab-app/);
+  assert.match(homebrewWorkflow, /GitHub Release asset \$\{asset\.name\} must expose a sha256 digest/);
+  assert.match(homebrewWorkflow, /Homebrew tap updates must not read draft GitHub Releases/);
+  assert.match(homebrewWorkflow, /One-Person-Lab-\$\{version\}-mac-arm64\.dmg/);
+  assert.match(homebrewWorkflow, /one-person-lab-modules-\$\{version\}\.tar\.gz/);
+  assert.match(homebrewWorkflow, /node --experimental-strip-types scripts\/update-homebrew-tap\.ts[\s\S]*--summary-path "\$RUNNER_TEMP\/homebrew-tap-plan\.json"[\s\S]*--write/);
+  assert.match(homebrewWorkflow, /peter-evans\/create-pull-request@v8/);
+  assert.match(homebrewWorkflow, /path: homebrew-tap/);
+  assert.match(homebrewWorkflow, /Homebrew remains a transport\/index/);
+  assert.doesNotMatch(homebrewWorkflow, /gh release upload/);
+  assert.doesNotMatch(homebrewWorkflow, /git push origin main|git push origin HEAD:main/);
+
+  assert.match(nightlyWorkflow, /homebrew-tap-update:/);
+  assert.match(nightlyWorkflow, /uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml/);
+  assert.match(nightlyWorkflow, /channel: nightly/);
+  assert.match(nightlyWorkflow, /package_kind: app_standard/);
+  assert.match(nightlyWorkflow, /tap_repo: gaofeng21cn\/homebrew-one-person-lab/);
+
+  assert.match(releaseDocs, /brew tap gaofeng21cn\/one-person-lab/);
+  assert.match(releaseDocs, /brew install --cask gaofeng21cn\/one-person-lab\/one-person-lab/);
+  assert.match(releaseDocs, /gaofeng21cn\/homebrew-one-person-lab/);
+  assert.match(releaseDocs, /gaofeng21cn\/one-person-lab-app` GitHub Releases/);
+  assert.match(releaseDocs, /OPL Homebrew Tap Update/);
+  assert.match(releaseDocs, /OPL_HOMEBREW_TAP_TOKEN/);
+});
+
 test('stable validation profile covers every user installation surface', () => {
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
@@ -5730,11 +6138,13 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   assert.equal(releaseContract.full_first_install.updater_metadata_allowed, false);
   assert.equal(releaseContract.full_first_install.same_tag_refresh.mode, 'github_release_upload_clobber');
   assert.deepEqual(releaseContract.full_first_install.required_payloads.codex_cli, {
-    version_source: 'npm view @openai/codex version',
-    install_rule: 'install_exact_latest_npm_version',
-    receipt_env: 'OPL_FULL_CODEX_VERSION',
-    runtime_path: 'runtime/current/bin/codex',
-    verification: 'codex --version must equal codex-cli <npm_latest>',
+    compatibility_mode: 'minimum_version_plus_capability_smoke',
+    minimum_version_source: 'distribution cohort manifest components.codex_cli.minimum_version',
+    preferred_sources: ['explicit_user_path', 'system_path', 'homebrew_formula'],
+    fallback_version_source: 'distribution cohort manifest components.codex_cli.fallback_version',
+    fallback_runtime_path: 'runtime/current/bin/codex',
+    must_prefer_valid_newer_user_version: true,
+    verification: 'codex --version must satisfy minimum_version and Codex functional smoke must pass',
   });
   assert.equal(releaseContract.full_first_install.required_payloads.bun_cli, undefined);
   assert.deepEqual(releaseContract.full_first_install.optional_payloads.bun_cli, {
@@ -5745,10 +6155,14 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     verification: 'Full manifest optional_components.bun records packaged or not_packaged status',
   });
   assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_cli, {
-    source: 'Official temporalio/cli darwin_arm64 release archive resolved by Homebrew temporal CLI version',
-    runtime_path: 'runtime/current/bin/temporal',
-    payload_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
-    verification: 'Full manifest components.temporal_cli.version is recorded from runtime/current/bin/temporal --version through the packaged archive wrapper',
+    compatibility_mode: 'minimum_version_plus_capability_smoke',
+    minimum_version_source: 'distribution cohort manifest components.temporal_cli.minimum_version',
+    preferred_sources: ['explicit_user_path', 'system_path', 'homebrew_formula'],
+    fallback_version_source: 'distribution cohort manifest components.temporal_cli.fallback_version',
+    fallback_runtime_path: 'runtime/current/bin/temporal',
+    fallback_payload_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
+    must_prefer_valid_newer_user_version: true,
+    verification: 'temporal --version must satisfy minimum_version and Temporal provider smoke must pass',
   });
   assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_runtime_provider, {
     provider_env_default: 'OPL_FAMILY_RUNTIME_PROVIDER=temporal',
