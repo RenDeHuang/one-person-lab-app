@@ -1746,12 +1746,14 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimeBridge.default_adapter_path, activeShellContract.shell_root);
   assert.equal(runtimeBridge.summary_command, 'opl app state --profile fast --json');
   assert.equal(runtimeBridge.refresh_command, 'opl app state --profile fast --json');
-  assert.equal(runtimeBridge.default_operator_payload, 'compact_owner_delta_projection');
+  assert.equal(runtimeBridge.default_operator_payload, 'current_owner_delta');
+  assert.equal(runtimeBridge.compatibility_operator_payload, 'compact_owner_delta_projection');
   assert.equal(runtimeBridge.full_state_command, 'opl app state --profile full --json');
   assert.equal(runtimeBridge.full_state_policy, 'diagnostic_or_release_evidence_only');
   assert.equal(runtimeBridge.full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.deepEqual(runtimeBridge.default_read_surface_policy, {
-    default_projection: 'opl_compact_owner_delta_projection',
+    default_projection: 'opl_current_owner_delta',
+    compatibility_projection: 'opl_compact_owner_delta_projection',
     source_path: 'app_state.operator.default_read_surface_policy',
     first_screen_answers: [
       'next_safe_action_or_none',
@@ -4798,12 +4800,14 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.match(guiContract.product_authority.shell_upgrade_policy.replacement_rule, /active-shell validation/);
   assert.equal(guiContract.framework_surfaces.canonical_state.default_command, 'opl app state --profile fast --json');
   assert.equal(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile fast --json');
-  assert.equal(guiContract.framework_surfaces.canonical_state.default_operator_payload, 'compact_owner_delta_projection');
+  assert.equal(guiContract.framework_surfaces.canonical_state.default_operator_payload, 'current_owner_delta');
+  assert.equal(guiContract.framework_surfaces.canonical_state.compatibility_operator_payload, 'compact_owner_delta_projection');
   assert.equal(guiContract.framework_surfaces.canonical_state.default_profile, 'fast');
   assert.equal(guiContract.framework_surfaces.canonical_state.manual_refresh_profile, 'fast');
   assert.equal(guiContract.framework_surfaces.canonical_state.full_profile_policy, 'diagnostic_or_release_evidence_only');
   assert.deepEqual(guiContract.framework_surfaces.canonical_state.default_read_surface_policy, {
-    default_projection: 'opl_compact_owner_delta_projection',
+    default_projection: 'opl_current_owner_delta',
+    compatibility_projection: 'opl_compact_owner_delta_projection',
     source_path: 'app_state.operator.default_read_surface_policy',
     full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
     raw_refs_policy: 'raw_refs_require_explicit_full_detail',

@@ -11,12 +11,14 @@
   "default_adapter_path": "shells/aionui",
   "summary_command": "opl app state --profile fast --json",
   "refresh_command": "opl app state --profile fast --json",
-  "default_operator_payload": "compact_owner_delta_projection",
+  "default_operator_payload": "current_owner_delta",
+  "compatibility_operator_payload": "compact_owner_delta_projection",
   "full_state_command": "opl app state --profile full --json",
   "full_state_policy": "diagnostic_or_release_evidence_only",
   "full_detail_command": "opl runtime app-operator-drilldown --detail full --json",
   "default_read_surface_policy": {
-    "default_projection": "opl_compact_owner_delta_projection",
+    "default_projection": "opl_current_owner_delta",
+    "compatibility_projection": "opl_compact_owner_delta_projection",
     "source_path": "app_state.operator.default_read_surface_policy",
     "first_screen_answers": [
       "next_safe_action_or_none",

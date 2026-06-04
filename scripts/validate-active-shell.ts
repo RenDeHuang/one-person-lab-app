@@ -2104,7 +2104,8 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
   for (const [field, expected] of Object.entries({
     summary_command: 'opl app state --profile fast --json',
     refresh_command: 'opl app state --profile fast --json',
-    default_operator_payload: 'compact_owner_delta_projection',
+    default_operator_payload: 'current_owner_delta',
+    compatibility_operator_payload: 'compact_owner_delta_projection',
     full_state_command: 'opl app state --profile full --json',
     full_state_policy: 'diagnostic_or_release_evidence_only',
     full_detail_command: 'opl runtime app-operator-drilldown --detail full --json',
@@ -2122,7 +2123,8 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
   }
   const defaultReadSurfacePolicy = runtimeBridge.default_read_surface_policy;
   for (const [field, expected] of Object.entries({
-    default_projection: 'opl_compact_owner_delta_projection',
+    default_projection: 'opl_current_owner_delta',
+    compatibility_projection: 'opl_compact_owner_delta_projection',
     source_path: 'app_state.operator.default_read_surface_policy',
     full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
     raw_refs_policy: 'raw_refs_require_explicit_full_detail',
@@ -2707,8 +2709,11 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
 
   assertCommandSurface(guiContract.framework_surfaces?.canonical_state?.default_command, 'opl app state --profile fast --json', 'App GUI default state command');
   assertCommandSurface(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile fast --json', 'App GUI refresh state command');
-  if (guiContract.framework_surfaces.canonical_state.default_operator_payload !== 'compact_owner_delta_projection') {
-    throw new Error('App GUI default operator payload must be compact_owner_delta_projection');
+  if (guiContract.framework_surfaces.canonical_state.default_operator_payload !== 'current_owner_delta') {
+    throw new Error('App GUI default operator payload must be current_owner_delta');
+  }
+  if (guiContract.framework_surfaces.canonical_state.compatibility_operator_payload !== 'compact_owner_delta_projection') {
+    throw new Error('App GUI compatibility operator payload must be compact_owner_delta_projection');
   }
   if (guiContract.framework_surfaces.canonical_state.default_profile !== 'fast') {
     throw new Error('App GUI default state profile must be fast');
@@ -2721,7 +2726,8 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   }
   const guiDefaultReadPolicy = guiContract.framework_surfaces.canonical_state.default_read_surface_policy;
   for (const [field, expected] of Object.entries({
-    default_projection: 'opl_compact_owner_delta_projection',
+    default_projection: 'opl_current_owner_delta',
+    compatibility_projection: 'opl_compact_owner_delta_projection',
     source_path: 'app_state.operator.default_read_surface_policy',
     full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
     raw_refs_policy: 'raw_refs_require_explicit_full_detail',
