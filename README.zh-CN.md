@@ -53,13 +53,52 @@ Research Foundry、Grant Foundry、Presentation Foundry 面向不同类型成果
 
 ## 下载与安装
 
-macOS 用户可以使用一键安装入口。它会准备 One Person Lab 运行环境，并安装或打开桌面应用：
+### Homebrew
+
+已经使用 Homebrew 的 macOS arm64 用户，可以走最短终端路径：
+
+```bash
+brew tap gaofeng21cn/one-person-lab
+brew install --cask one-person-lab
+open -a "One Person Lab"
+```
+
+Nightly 构建需要显式选择：
+
+```bash
+brew install --cask one-person-lab-nightly
+```
+
+更新使用标准 Homebrew 流程：
+
+```bash
+brew update
+brew upgrade --cask one-person-lab
+```
+
+Homebrew 安装的是和直接下载同一 release cohort 的标准桌面 App。安装后打开
+`One Person Lab.app`；首次启动会准备工作目录，并在后台继续 App 管理的维护。普通用户路径就是安装、打开 App、选择工作目录，然后开始工作。
+
+如果 App 提示需要设置或修复，按应用内提示操作。需要终端诊断时，可以运行：
+
+```bash
+opl system initialize --json
+```
+
+Homebrew 路径当前明确面向 macOS arm64，并要求用户已有 Homebrew。全新 Mac
+没有 Homebrew，或希望一次拿到完整首次安装载荷时，使用 Releases 里的 Full 首次安装包。
+
+### 一键安装
+
+macOS 用户也可以使用一键安装入口。它会准备 One Person Lab 运行环境，并安装或打开桌面应用：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
 ```
 
 该入口默认采用 App-first 安装，让全新 Mac 可以先打开 App，Git-backed 模块维护随后由 App 继续处理。需要从终端执行完整框架/模块安装时，可显式追加 `--complete`。
+
+### 直接下载
 
 也可以从发布页下载当前桌面包：
 
@@ -69,7 +108,7 @@ macOS arm64 新用户优先选择 `One-Person-Lab-Full-<version>-mac-arm64.dmg`�
 
 首次启动图文教程以 [macOS App install slides PDF](docs/user-guides/macos-app-install-slides.pdf) 为主入口；更详细的长文补充见 [macOS App install detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf)。
 
-日常更新由应用内更新通道完成。发布页保留标准应用包和更新元数据，完整首次安装包作为独立安装资产发布。
+日常更新由 Homebrew 或应用内更新通道完成，取决于安装方式。发布页保留标准应用包和更新元数据，完整首次安装包作为独立安装资产发布。
 
 Docker 或服务器部署请参考 [Docker/WebUI 安装说明](https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md)。
 

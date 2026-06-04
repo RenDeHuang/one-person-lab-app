@@ -53,7 +53,51 @@ The app is not just for one chat. It supports work that needs multiple rounds, b
 
 ## Download And Install
 
-macOS users can use the one-shot installer. It prepares the One Person Lab runtime environment and installs or opens the desktop App:
+### Homebrew
+
+For macOS arm64 users who already use Homebrew, this is the shortest terminal
+path:
+
+```bash
+brew tap gaofeng21cn/one-person-lab
+brew install --cask one-person-lab
+open -a "One Person Lab"
+```
+
+Nightly builds are opt-in:
+
+```bash
+brew install --cask one-person-lab-nightly
+```
+
+Update with the standard Homebrew flow:
+
+```bash
+brew update
+brew upgrade --cask one-person-lab
+```
+
+Homebrew installs the standard desktop App from the same signed GitHub Release
+assets as direct downloads. After installation, open `One Person Lab.app`; first
+launch prepares the workspace and continues App-managed maintenance in the
+background. The normal user path is install, open the App, choose a workspace,
+and start work.
+
+If the App reports that setup or repair is needed, follow the in-app prompt.
+Terminal diagnostics remain available when needed:
+
+```bash
+opl system initialize --json
+```
+
+The Homebrew path intentionally targets macOS arm64 and requires Homebrew. For a
+clean Mac without Homebrew, or when you want the complete first-install payload
+in one package, use the Full first-install package from Releases.
+
+### One-Shot Installer
+
+macOS users can also use the one-shot installer. It prepares the One Person Lab
+runtime environment and installs or opens the desktop App:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
@@ -61,32 +105,19 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 The installer defaults to an App-first setup so a clean Mac can open the App before Git-backed module maintenance finishes. Use `--complete` when you explicitly want the full framework/module install from the terminal.
 
+### Direct Download
+
 You can also download the current desktop package from the App repository releases:
 
 [Download One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
-
-Homebrew distribution, when available, is the terminal transport/index for the
-same release cohort. The tap can install or upgrade indexed App files, but App
-activation still runs through One Person Lab itself: `opl system initialize
---json` decides Core readiness, and `opl install`, `opl system
-startup-maintenance`, `opl module reconcile`, and `opl skill sync` handle
-workspace state, modules, Codex skill/plugin exposure, and maintenance. Daily
-desktop App updates remain standard App updates; Homebrew does not turn Full
-first-install payloads, modules, MAS/MAG/RCA skill semantics, Codex
-compatibility, or Temporal runtime readiness into tap-owned state.
-
-Current Homebrew desktop App path:
-
-```bash
-brew tap gaofeng21cn/one-person-lab
-brew install --cask one-person-lab
-```
 
 For a first-time macOS arm64 install, choose `One-Person-Lab-Full-<version>-mac-arm64.dmg`. The complete first-install package includes the desktop app, One Person Lab, the Research/Grant/Presentation agents, current runtime payloads, `officecli`, and recommended skill payloads.
 
 For a screenshot-based first-run walkthrough, use the primary [macOS App install slides PDF](docs/user-guides/macos-app-install-slides.pdf). The detailed long-form companion is [macOS App install detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf).
 
-Daily updates are handled by the in-app update channel. Releases also publish standard App packages, updater metadata, and separate complete first-install assets.
+Daily updates are handled by Homebrew or the in-app update channel, depending on
+how the App was installed. Releases also publish standard App packages, updater
+metadata, and separate complete first-install assets.
 
 For Docker or server deployment, see the [Docker/WebUI install guide](https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md).
 
