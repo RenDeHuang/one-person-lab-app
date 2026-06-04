@@ -236,11 +236,25 @@ standard updater metadata. The updater must not select assets whose names
 include `Full`. Standard App updates download in the background and apply after
 restart when ready; they do not block first-run Core ready. This follows the
 Electron autoUpdater background-download and download-ready restart prompt
-model. Full assets are GitHub Release first-install downloads and do not enter
+model. Full assets are available as GitHub Release first-install downloads and
+as the explicit stable `one-person-lab-full` Homebrew cask; they do not enter
 updater metadata. GitHub Release uploads, standard DMG, Full DMG, GUI smoke,
-and user tutorials are all App-owned. The Framework repo is only a
+Homebrew cask smoke, and user tutorials are all App-owned. The Framework repo is only a
 runtime/CLI/contracts payload source for Full DMG and a machine-interface
 provider for the App.
+
+Local Homebrew VM evidence on 2026-06-04 used
+`opl-first-run-homebrew-ready-base-26-6-4` with
+`brew tap gaofeng21cn/one-person-lab` and
+`brew install --cask one-person-lab`. The cask install reached
+`/Applications/One Person Lab.app`, so the tap/download/install path was
+validated. First launch did not pass: `codesign --verify --deep --strict`
+returned success, but `spctl --assess --type execute --verbose=4` returned
+`rejected` for the current release asset. Release workflows and VM smoke now
+treat `standard-gatekeeper-launch-policy.json`,
+`full-gatekeeper-launch-policy.json`, and guest
+`gatekeeper-launch-policy.json` as release-blocking evidence before App launch
+or Homebrew tap sync.
 
 Release and user-path evidence remains cohort-bound App evidence. Verified
 release bundle refs, screenshots, remote asset checks, or packaged route smoke

@@ -21,13 +21,14 @@ on:
         default: main
         type: string
       package_profile:
-        description: 'DMG profile to test.'
+        description: 'Install profile to test.'
         required: false
         default: full
         type: choice
         options:
           - full
           - standard
+          - homebrew-standard
       tart_source_vm:
         description: 'Tart clean snapshot/base VM. Empty means repository variable OPL_FIRST_RUN_TART_SOURCE.'
         required: false
@@ -75,7 +76,7 @@ on:
         default: main
         type: string
       package_profile:
-        description: 'DMG profile to test: full or standard.'
+        description: 'Install profile to test: full, standard, or homebrew-standard.'
         required: false
         default: full
         type: string
@@ -131,6 +132,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       OPL_FIRST_RUN_RUNNER_LABELS: ${{ vars.OPL_FIRST_RUN_RUNNER_LABELS }}
       OPL_FIRST_RUN_TART_SOURCE: ${{ vars.OPL_FIRST_RUN_TART_SOURCE }}
+      OPL_FIRST_RUN_HOMEBREW_TART_SOURCE: ${{ vars.OPL_FIRST_RUN_HOMEBREW_TART_SOURCE }}
       OPL_FIRST_RUN_GUEST_USER: ${{ vars.OPL_FIRST_RUN_GUEST_USER }}
       OPL_FIRST_RUN_GUEST_SSH_KEY: ${{ vars.OPL_FIRST_RUN_GUEST_SSH_KEY }}
 
@@ -140,9 +142,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          PROFILE="${{ inputs.package_profile }}"
+          if [ -z "$PROFILE" ]; then
+            PROFILE="full"
+          fi
           SOURCE_VM="${{ inputs.tart_source_vm }}"
           if [ -z "$SOURCE_VM" ]; then
-            SOURCE_VM="${OPL_FIRST_RUN_TART_SOURCE:-}"
+            if [ "$PROFILE" = "homebrew-standard" ]; then
+              SOURCE_VM="${OPL_FIRST_RUN_HOMEBREW_TART_SOURCE:-}"
+            else
+              SOURCE_VM="${OPL_FIRST_RUN_TART_SOURCE:-}"
+            fi
           fi
           if [ -z "$SOURCE_VM" ]; then
             {
@@ -150,9 +160,17 @@ jobs:
               echo
               echo "- Status: failed"
               echo "- Reason: no Tart source VM configured."
-              echo '- Configure repository variable `OPL_FIRST_RUN_TART_SOURCE` or pass workflow input `tart_source_vm`.'
+              if [ "$PROFILE" = "homebrew-standard" ]; then
+                echo '- Configure repository variable `OPL_FIRST_RUN_HOMEBREW_TART_SOURCE` with a Homebrew-ready clean VM, or pass workflow input `tart_source_vm`.'
+              else
+                echo '- Configure repository variable `OPL_FIRST_RUN_TART_SOURCE` or pass workflow input `tart_source_vm`.'
+              fi
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "::error::Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_TART_SOURCE."
+            if [ "$PROFILE" = "homebrew-standard" ]; then
+              echo "::error::Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_HOMEBREW_TART_SOURCE for package_profile=homebrew-standard."
+            else
+              echo "::error::Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_TART_SOURCE."
+            fi
             exit 1
           fi
           echo "source_vm=$SOURCE_VM" >> "$GITHUB_OUTPUT"
@@ -178,7 +196,8 @@ jobs:
         run: |
           set -euo pipefail
           NODE_BIN="$(command -v node)"
-          NODE_ROOT="$(cd "$(dirname "$NODE_BIN")/.." && pwd)"
+          NODE_BIN_REAL="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$NODE_BIN")"
+          NODE_ROOT="$(cd "$(dirname "$NODE_BIN_REAL")/.." && pwd)"
           if [ ! -x "$NODE_ROOT/bin/node" ]; then
             echo "::error::Unable to resolve host Node.js runtime root from $NODE_BIN"
             exit 1
@@ -206,11 +225,22 @@ jobs:
               echo "download_pattern=One-Person-Lab-Full-*-mac-arm64.dmg" >> "$GITHUB_OUTPUT"
               echo "find_args=-name 'One-Person-Lab-Full-*-mac-arm64.dmg'" >> "$GITHUB_OUTPUT"
               echo "runtime_profile=full" >> "$GITHUB_OUTPUT"
+              echo "install_mode=dmg" >> "$GITHUB_OUTPUT"
+              echo "homebrew_cask=" >> "$GITHUB_OUTPUT"
               ;;
             standard)
               echo "download_pattern=One-Person-Lab-*-mac-arm64.dmg" >> "$GITHUB_OUTPUT"
               echo "find_args=-name 'One-Person-Lab-*-mac-arm64.dmg' ! -name 'One-Person-Lab-Full-*'" >> "$GITHUB_OUTPUT"
               echo "runtime_profile=standard" >> "$GITHUB_OUTPUT"
+              echo "install_mode=dmg" >> "$GITHUB_OUTPUT"
+              echo "homebrew_cask=" >> "$GITHUB_OUTPUT"
+              ;;
+            homebrew-standard)
+              echo "download_pattern=" >> "$GITHUB_OUTPUT"
+              echo "find_args=" >> "$GITHUB_OUTPUT"
+              echo "runtime_profile=standard" >> "$GITHUB_OUTPUT"
+              echo "install_mode=homebrew-cask" >> "$GITHUB_OUTPUT"
+              echo "homebrew_cask=one-person-lab" >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "::error::Unsupported package_profile: $profile"
@@ -360,7 +390,9 @@ jobs:
             download_asset_with_retry "$asset_url" "$output_dir/$asset_name" "$asset_size"
           }
 
-          if [ -n "${{ inputs.release_artifact_name }}" ]; then
+          if [ "${{ steps.package_profile.outputs.install_mode }}" = "homebrew-cask" ]; then
+            echo "Using Homebrew cask install path: ${{ steps.package_profile.outputs.homebrew_cask }}"
+          elif [ -n "${{ inputs.release_artifact_name }}" ]; then
             echo "Using same-run workflow artifact: ${{ inputs.release_artifact_name }}"
           elif [ -n "${{ inputs.release_dmg_url }}" ]; then
             DMG_PATH="artifacts/release/One-Person-Lab-${{ steps.package_profile.outputs.profile }}.dmg"
@@ -377,14 +409,16 @@ jobs:
               --dir artifacts/release
           fi
 
-          if [ -n "${DMG_PATH:-}" ]; then
+          if [ "${{ steps.package_profile.outputs.install_mode }}" = "homebrew-cask" ]; then
+            DMG_PATH=""
+          elif [ -n "${DMG_PATH:-}" ]; then
             true
           elif [ "${{ steps.package_profile.outputs.profile }}" = "standard" ]; then
             DMG_PATH="$(find artifacts/release -type f -name 'One-Person-Lab-*-mac-arm64.dmg' ! -name 'One-Person-Lab-Full-*' | sort | head -n 1)"
           else
             DMG_PATH="$(find artifacts/release -type f -name 'One-Person-Lab-Full-*-mac-arm64.dmg' | sort | head -n 1)"
           fi
-          if [ -z "$DMG_PATH" ]; then
+          if [ "${{ steps.package_profile.outputs.install_mode }}" != "homebrew-cask" ] && [ -z "$DMG_PATH" ]; then
             echo "::error::No ${{ steps.package_profile.outputs.profile }} DMG artifact found for first-run VM smoke."
             exit 1
           fi
@@ -438,8 +472,10 @@ jobs:
             echo "- SSH key: $SSH_KEY_STATUS"
             echo "- Release source: $RELEASE_SOURCE"
             echo "- Package profile: \`${{ steps.package_profile.outputs.profile }}\`"
+            echo "- Install mode: \`${{ steps.package_profile.outputs.install_mode }}\`"
             echo "- Runtime profile: \`${{ steps.package_profile.outputs.runtime_profile }}\`"
             echo "- DMG artifact path: \`${{ steps.dmg.outputs.dmg_path }}\`"
+            echo "- Homebrew cask: \`${{ steps.package_profile.outputs.homebrew_cask }}\`"
             echo "- Smoke profile: \`no-clt-clean-vm\`"
             echo "- Display: \`1920x1080px\`"
             echo "- Settings smoke: enabled"
@@ -468,7 +504,6 @@ jobs:
           CMD=(
             node shells/aionui/scripts/opl-first-run-tart-smoke.mjs
             --source-vm "$SOURCE_VM"
-            --dmg "${{ steps.dmg.outputs.dmg_path }}"
             --guest-user "$GUEST_USER"
             --artifacts artifacts/opl-first-run-vm
             --timeout-ms 900000
@@ -482,6 +517,13 @@ jobs:
             --runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"
             --guest-node-root "${{ steps.host_node.outputs.node_root }}"
           )
+          if [ "${{ steps.package_profile.outputs.install_mode }}" = "homebrew-cask" ]; then
+            CMD+=(--smoke-profile homebrew-standard-cask)
+            CMD+=(--install-mode homebrew-cask)
+            CMD+=(--homebrew-cask "${{ steps.package_profile.outputs.homebrew_cask }}")
+          else
+            CMD+=(--dmg "${{ steps.dmg.outputs.dmg_path }}")
+          fi
           if [ -n "$SSH_KEY" ]; then
             CMD+=(--ssh-key "$SSH_KEY")
           fi
@@ -529,9 +571,11 @@ jobs:
             echo "## OPL GUI first-run VM"
             echo
             echo "- Package profile: ${{ steps.package_profile.outputs.profile }}"
+            echo "- Install mode: ${{ steps.package_profile.outputs.install_mode }}"
             echo "- Runtime profile: ${{ steps.package_profile.outputs.runtime_profile }}"
             echo "- Tart source VM: ${{ steps.tart_source.outputs.source_vm }}"
             echo "- DMG: ${{ steps.dmg.outputs.dmg_path }}"
+            echo "- Homebrew cask: ${{ steps.package_profile.outputs.homebrew_cask }}"
             echo "- Artifacts: artifacts/opl-first-run-vm"
             if [ -d artifacts/opl-first-run-vm/artifacts/guide-screenshots ]; then
               echo "- Guide screenshots: artifacts/opl-first-run-vm/artifacts/guide-screenshots"

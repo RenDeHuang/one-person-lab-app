@@ -69,6 +69,13 @@ Nightly 构建需要显式选择：
 brew install --cask one-person-lab-nightly
 ```
 
+需要完整首次安装载荷时：
+
+```bash
+brew install --cask one-person-lab-full
+open -a "One Person Lab"
+```
+
 更新使用标准 Homebrew 流程：
 
 ```bash
@@ -85,8 +92,9 @@ Homebrew 安装的是和直接下载同一 release cohort 的标准桌面 App。
 opl system initialize --json
 ```
 
-Homebrew 路径当前明确面向 macOS arm64，并要求用户已有 Homebrew。全新 Mac
-没有 Homebrew，或希望一次拿到完整首次安装载荷时，使用 Releases 里的 Full 首次安装包。
+Homebrew 路径当前明确面向 macOS arm64，并要求用户已有 Homebrew。希望通过
+Homebrew 一次拿到完整首次安装载荷时，使用 `one-person-lab-full`；全新 Mac
+没有 Homebrew 时，使用 Releases 里的 Full 首次安装包。
 
 ### 一键安装
 
@@ -104,7 +112,7 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 [下载 One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
 
-macOS arm64 新用户优先选择 `One-Person-Lab-Full-<version>-mac-arm64.dmg`。完整首次安装包包含桌面应用、One Person Lab、研究/基金/汇报智能体、当前运行载荷、`officecli` 和推荐技能载荷。
+没有 Homebrew 的 macOS arm64 新用户优先选择 `One-Person-Lab-Full-<version>-mac-arm64.dmg`。同一完整首次安装载荷也可以通过 `one-person-lab-full` Homebrew cask 安装。完整首次安装包包含桌面应用、One Person Lab、研究/基金/汇报智能体、当前运行载荷、`officecli` 和推荐技能载荷。
 
 首次启动图文教程以 [macOS App install slides PDF](docs/user-guides/macos-app-install-slides.pdf) 为主入口；更详细的长文补充见 [macOS App install detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf)。
 

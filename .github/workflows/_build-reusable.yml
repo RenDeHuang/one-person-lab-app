@@ -31,6 +31,10 @@ on:
         description: 'One Person Lab release version to stamp into packaged metadata'
         type: string
         default: ''
+      require_macos_gatekeeper:
+        description: 'Fail macOS release builds unless the packaged app passes codesign and Gatekeeper assessment'
+        type: boolean
+        default: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -458,8 +462,8 @@ jobs:
           rm -f /tmp/*.dmg 2>/dev/null || true
           echo "Cleanup complete"
 
-      # macOS: Build with notarization - DMG failure = CI failure, notarization failure = warning only
-      # macOS: 构建并公证 - DMG 失败 = CI 失败，公证失败 = 仅警告
+      # macOS: Build with notarization. Release callers can require Gatekeeper.
+      # macOS: 构建并公证；发布调用方可要求 Gatekeeper 通过。
       - name: Build with electron-builder (macOS)
         if: startsWith(matrix.platform, 'macos')
         id: macos-build
@@ -489,17 +493,20 @@ jobs:
           if [ "$DMG_EXISTS" = true ]; then
             # DMG exists but build failed - likely notarization issue
             if grep -qiE "notariz|staple" "${RUNNER_TEMP}/build.log"; then
-              echo "⚠️ DMG created but notarization failed"
               echo "notarization_status=failed" >> $GITHUB_OUTPUT
-              echo "::warning title=Notarization Failed::DMG was built and signed successfully, but **notarization failed**."
+              if [ "${OPL_REQUIRE_MACOS_GATEKEEPER:-false}" = "true" ]; then
+                echo "::error title=Notarization Failed::Release macOS assets must pass notarization and Gatekeeper before upload."
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "## Notarization Failure" >> $GITHUB_STEP_SUMMARY
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "Release macOS assets require notarization and Gatekeeper acceptance before upload." >> $GITHUB_STEP_SUMMARY
+                exit $BUILD_EXIT_CODE
+              fi
+              echo "::warning title=Notarization Failed::DMG was created, but notarization failed. This non-release caller did not require Gatekeeper."
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "## ⚠️ Notarization Warning" >> $GITHUB_STEP_SUMMARY
-              echo "DMG was built and signed successfully, but **notarization failed**." >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "Users may see Gatekeeper warnings when opening the app for the first time." >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "To fix: Right-click the app → Open → Open" >> $GITHUB_STEP_SUMMARY
-              exit 0  # Allow CI to continue
+              echo "## Notarization Warning" >> $GITHUB_STEP_SUMMARY
+              echo "DMG was created, but notarization failed. This caller did not require Gatekeeper." >> $GITHUB_STEP_SUMMARY
+              exit 0
             fi
           fi
 
@@ -532,6 +539,31 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           CI: true
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          OPL_REQUIRE_MACOS_GATEKEEPER: ${{ inputs.require_macos_gatekeeper }}
+
+      - name: Verify macOS Gatekeeper launch policy
+        if: startsWith(matrix.platform, 'macos') && inputs.require_macos_gatekeeper
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="$(find out -maxdepth 2 -type d -name 'One Person Lab.app' | sort | head -n 1)"
+          if [ -z "$app_path" ]; then
+            echo "::error::No packaged One Person Lab.app bundle found under shells/aionui/out."
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          spctl --assess --type execute --verbose=4 "$app_path"
+          node - "$app_path" <<'NODE'
+          const fs = require('node:fs');
+          const appPath = process.argv[2];
+          fs.writeFileSync('out/standard-gatekeeper-launch-policy.json', `${JSON.stringify({
+            schema: 'opl_gatekeeper_launch_policy.v1',
+            package_kind: 'app_standard',
+            app_path: appPath,
+            codesign_status: 'passed',
+            spctl_status: 'passed',
+          }, null, 2)}\n`);
+          NODE
 
       - name: Build with electron-builder (Linux)
         if: startsWith(matrix.platform, 'linux')
@@ -631,6 +663,7 @@ jobs:
             shells/aionui/out/*.zip
             shells/aionui/out/*.blockmap
             shells/aionui/out/*.yml
+            shells/aionui/out/standard-gatekeeper-launch-policy.json
           if-no-files-found: warn
           retention-days: 7
 

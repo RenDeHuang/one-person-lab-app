@@ -192,6 +192,41 @@
       ]
     },
     {
+      "id": "homebrew_standard_cask_clean_vm_smoke",
+      "package_type": "standard",
+      "release_gate": true,
+      "vm": {
+        "source": "clean Homebrew-ready Tart base clone",
+        "display": "1920x1080px",
+        "smoke_profile": "homebrew-standard-cask",
+        "install_mode": "homebrew-cask",
+        "homebrew_tap": "gaofeng21cn/one-person-lab",
+        "homebrew_cask": "one-person-lab",
+        "source_vm_variable": "OPL_FIRST_RUN_HOMEBREW_TART_SOURCE",
+        "settings_smoke": true,
+        "runtime_profile": "standard"
+      },
+      "expects": [
+        "Homebrew taps gaofeng21cn/one-person-lab and installs the one-person-lab cask",
+        "The cask resolves the signed standard App DMG from gaofeng21cn/one-person-lab-app GitHub Releases",
+        "One Person Lab.app is present under /Applications before first launch",
+        "Core first-launch readiness is proven through opl system initialize --json before /guid",
+        "App launches without Full-only runtime equivalence checks",
+        "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
+        "Settings pages are navigable after first-run initialization",
+        "Homebrew receipt is treated as install evidence only; activation and agent-pack exposure still come from App/CLI maintenance"
+      ],
+      "release_evidence_artifacts": [
+        "tart-smoke-summary.json",
+        "artifacts/smoke-summary.json",
+        "artifacts/system-initialize.json",
+        "artifacts/settings-smoke-summary.json",
+        "artifacts/assistant-route-smoke-summary.json",
+        "artifacts/codex-functional-check-summary.json",
+        "artifacts/first-launch.png"
+      ]
+    },
+    {
       "id": "full_dmg_clean_vm_smoke",
       "package_type": "full",
       "release_gate": true,

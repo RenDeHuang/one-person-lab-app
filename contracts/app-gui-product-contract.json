@@ -879,6 +879,7 @@
         "full_first_install_build",
         "remote_standard_and_full_release_verification",
         "standard_dmg_clean_vm_smoke",
+        "homebrew_standard_cask_clean_vm_smoke",
         "full_dmg_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "docker_webui_smoke",
@@ -900,6 +901,7 @@
       "must_not_gate": [
         "full_first_install_build",
         "standard_dmg_clean_vm_smoke",
+        "homebrew_standard_cask_clean_vm_smoke",
         "full_dmg_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "docker_webui_smoke",

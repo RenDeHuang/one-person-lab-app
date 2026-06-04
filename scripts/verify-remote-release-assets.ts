@@ -99,6 +99,7 @@ function requiredAssetNames(version, includeFullPackage) {
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
     'latest-mac.yml',
     'latest-arm64-mac.yml',
+    'standard-gatekeeper-launch-policy.json',
   ];
   if (!includeFullPackage) {
     return standard;
@@ -110,6 +111,7 @@ function requiredAssetNames(version, includeFullPackage) {
     'runtime-cache-events.json',
     'README-Full-First-Install.txt',
     'SHA256SUMS.txt',
+    'full-gatekeeper-launch-policy.json',
   ];
 }
 
@@ -183,6 +185,18 @@ function assertStandardMetadata(downloadDir, version) {
         throw new Error(`${name} does not reference ${expectedAsset}.`);
       }
     }
+  }
+}
+
+function assertGatekeeperLaunchPolicy(downloadDir, name, packageKind) {
+  const policy = JSON.parse(readText(path.join(downloadDir, name)));
+  if (
+    policy?.schema !== 'opl_gatekeeper_launch_policy.v1' ||
+    policy?.package_kind !== packageKind ||
+    policy?.codesign_status !== 'passed' ||
+    policy?.spctl_status !== 'passed'
+  ) {
+    throw new Error(`${name} must prove codesign and spctl passed for ${packageKind}.`);
   }
 }
 
@@ -338,7 +352,13 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
 function assertFullAssets(downloadDir, version, verifiedAssets) {
   const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const checksumEntries = parseSha256Sums(readText(path.join(downloadDir, 'SHA256SUMS.txt')));
-  for (const name of [fullDmgName, 'full-package-manifest.json', 'runtime-cache-events.json', 'README-Full-First-Install.txt']) {
+  for (const name of [
+    fullDmgName,
+    'full-package-manifest.json',
+    'runtime-cache-events.json',
+    'README-Full-First-Install.txt',
+    'full-gatekeeper-launch-policy.json',
+  ]) {
     const expected = checksumEntries.get(name);
     if (!expected) {
       throw new Error(`SHA256SUMS.txt is missing ${name}.`);
@@ -348,6 +368,7 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
       throw new Error(`SHA256SUMS.txt mismatch for ${name}: expected ${expected}, got ${actual}.`);
     }
   }
+  assertGatekeeperLaunchPolicy(downloadDir, 'full-gatekeeper-launch-policy.json', 'app_full_first_install');
 
   const manifest = JSON.parse(readText(path.join(downloadDir, 'full-package-manifest.json')));
   if (manifest.version !== version) {
@@ -411,6 +432,7 @@ function verifyDownloadedAssets(releaseView, options, names, downloadDir) {
   }
 
   assertStandardMetadata(downloadDir, options.version);
+  assertGatekeeperLaunchPolicy(downloadDir, 'standard-gatekeeper-launch-policy.json', 'app_standard');
   let fullFirstInstallBudget = null;
   if (options.includeFullPackage) {
     fullFirstInstallBudget = assertFullAssets(downloadDir, options.version, verified);

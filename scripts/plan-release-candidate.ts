@@ -287,6 +287,26 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       required_for: ['standard_release'],
     });
     lanes.push({
+      id: 'homebrew_standard_cask_clean_vm_smoke',
+      phase: 'installation_gate',
+      depends_on: ['publish_standard'],
+      can_run_with: options.includeFullPackage
+        ? ['full_build', 'publish_full_assets', 'one_shot_app_installer_smoke', 'docker_webui_smoke']
+        : ['one_shot_app_installer_smoke', 'docker_webui_smoke'],
+      command: [
+        'npm run test:opl-first-run-vm:tart --',
+        '--source-vm opl-first-run-homebrew-ready-base',
+        '--install-mode homebrew-cask',
+        '--homebrew-cask one-person-lab',
+        '--smoke-profile homebrew-standard-cask',
+        '--display 1920x1080px',
+        '--settings-smoke',
+        '--assistant-route-smoke',
+        '--runtime-profile standard',
+      ].join(' '),
+      required_for: ['standard_release'],
+    });
+    lanes.push({
       id: 'full_dmg_clean_vm_smoke',
       phase: 'release_gate',
       depends_on: ['remote_verify_standard_and_full'],
@@ -371,6 +391,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     depends_on: [
       'remote_verify_standard_and_full',
       ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
+      ...(options.settingsVm ? ['homebrew_standard_cask_clean_vm_smoke'] : []),
       ...(options.includeFullPackage && options.settingsVm ? ['full_dmg_clean_vm_smoke'] : []),
       'one_shot_app_installer_smoke',
       'docker_webui_smoke',
@@ -408,6 +429,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       ...(options.includeFullPackage ? ['publish_full_assets'] : []),
       'remote_verify_standard_and_full',
       ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
+      ...(options.settingsVm ? ['homebrew_standard_cask_clean_vm_smoke'] : []),
       ...(options.includeFullPackage && options.settingsVm ? ['full_dmg_clean_vm_smoke'] : []),
       'one_shot_app_installer_smoke',
       'docker_webui_smoke',

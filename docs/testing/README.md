@@ -250,6 +250,9 @@ was archived in
   base VM on the self-hosted runner; the current source VM is
   `opl-first-run-no-clt-clean-base-26-5-18`. Missing source-VM configuration is
   a failed gate because no clean first-run evidence can be produced.
+  Homebrew cask smoke uses `OPL_FIRST_RUN_HOMEBREW_TART_SOURCE`, a separate
+  clean VM with Homebrew already installed, so the test verifies the tap/cask
+  path instead of spending the gate installing Homebrew itself.
   The workflow copies the GitHub runner's Node.js runtime into the guest for
   the smoke harness, so the clean VM does not need preinstalled Node.js, CLT, or
   other developer tooling.

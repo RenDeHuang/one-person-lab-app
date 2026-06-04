@@ -266,18 +266,26 @@
       "formulae": {},
       "casks": {
         "standard_app": "one-person-lab",
-        "nightly_standard_app": "one-person-lab-nightly"
+        "nightly_standard_app": "one-person-lab-nightly",
+        "full_first_install_app": "one-person-lab-full"
       },
       "initial_live_targets": [
         "Casks/one-person-lab.rb",
-        "Casks/one-person-lab-nightly.rb"
+        "Casks/one-person-lab-nightly.rb",
+        "Casks/one-person-lab-full.rb"
       ],
-      "excluded_casks": {
-        "full_first_install": "one-person-lab-full"
+      "full_first_install_cask": {
+        "name": "one-person-lab-full",
+        "target": "Casks/one-person-lab-full.rb",
+        "asset": "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+        "manifest": "full-package-manifest.json",
+        "standard_updater_visible": false,
+        "stable_only": true
       },
       "allowed_user_targets": [
         "Casks/one-person-lab.rb",
-        "Casks/one-person-lab-nightly.rb"
+        "Casks/one-person-lab-nightly.rb",
+        "Casks/one-person-lab-full.rb"
       ],
       "forbidden_formulae": [
         "one-person-lab-modules",
@@ -465,6 +473,7 @@
     "structural_gate": "node --experimental-strip-types scripts/validate-active-shell.ts --quick",
     "stable_install_gates": [
       "standard_dmg_clean_vm_smoke",
+      "homebrew_standard_cask_clean_vm_smoke",
       "full_dmg_clean_vm_smoke",
       "one_shot_app_installer_fresh_install_smoke",
       "docker_webui_smoke"

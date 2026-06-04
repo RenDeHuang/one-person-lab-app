@@ -304,6 +304,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   const standardBuild = laneById(plan, 'standard_build');
   const fullBuild = laneById(plan, 'full_build');
   const standardVm = laneById(plan, 'standard_dmg_clean_vm_smoke');
+  const homebrewVm = laneById(plan, 'homebrew_standard_cask_clean_vm_smoke');
   const fullVm = laneById(plan, 'full_dmg_clean_vm_smoke');
   const publishStandard = laneById(plan, 'publish_standard');
   const publishFullAssets = laneById(plan, 'publish_full_assets');
@@ -329,9 +330,13 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.deepEqual(publishFullAssets.depends_on?.sort(), ['full_build', 'publish_standard'].sort());
   assert.deepEqual(remoteVerify.depends_on, ['publish_full_assets']);
   assert.deepEqual(standardVm.depends_on, ['publish_standard']);
+  assert.deepEqual(homebrewVm.depends_on, ['publish_standard']);
   assert.deepEqual(fullVm.depends_on, ['remote_verify_standard_and_full']);
   assert.ok(standardVm.can_run_with.includes('full_build'));
   assert.ok(standardVm.can_run_with.includes('publish_full_assets'));
+  assert.ok(homebrewVm.command.includes('--install-mode homebrew-cask'));
+  assert.ok(homebrewVm.command.includes('--homebrew-cask one-person-lab'));
+  assert.ok(homebrewVm.command.includes('--smoke-profile homebrew-standard-cask'));
   assert.deepEqual(fullVm.can_run_with, []);
 
   assert.deepEqual(oneShotInstaller.depends_on, ['publish_standard']);
@@ -347,6 +352,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.deepEqual(evidenceBundle.depends_on?.sort(), [
     'docker_webui_smoke',
     'full_dmg_clean_vm_smoke',
+    'homebrew_standard_cask_clean_vm_smoke',
     'one_shot_app_installer_smoke',
     'remote_verify_standard_and_full',
     'standard_dmg_clean_vm_smoke',
@@ -359,6 +365,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.deepEqual(readinessSummary.can_run_with, []);
   assert.ok(readinessSummary.depends_on?.includes('remote_verify_standard_and_full'));
   assert.ok(readinessSummary.depends_on?.includes('standard_dmg_clean_vm_smoke'));
+  assert.ok(readinessSummary.depends_on?.includes('homebrew_standard_cask_clean_vm_smoke'));
   assert.ok(readinessSummary.depends_on?.includes('full_dmg_clean_vm_smoke'));
   assert.ok(readinessSummary.depends_on?.includes('one_shot_app_installer_smoke'));
   assert.ok(readinessSummary.depends_on?.includes('docker_webui_smoke'));

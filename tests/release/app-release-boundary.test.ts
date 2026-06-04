@@ -559,6 +559,30 @@ function writeReleaseMetadata(outDir, version, assetName) {
   ].join('\n'));
 }
 
+function gatekeeperLaunchPolicy(packageKind) {
+  return `${JSON.stringify({
+    schema: 'opl_gatekeeper_launch_policy.v1',
+    package_kind: packageKind,
+    app_path: '/Applications/One Person Lab.app',
+    codesign_status: 'passed',
+    spctl_status: 'passed',
+  }, null, 2)}\n`;
+}
+
+function writeStandardGatekeeperLaunchPolicy(outDir) {
+  writeFile(
+    path.join(outDir, 'standard-gatekeeper-launch-policy.json'),
+    gatekeeperLaunchPolicy('app_standard'),
+  );
+}
+
+function writeFullGatekeeperLaunchPolicy(outDir) {
+  writeFile(
+    path.join(outDir, 'full-gatekeeper-launch-policy.json'),
+    gatekeeperLaunchPolicy('app_full_first_install'),
+  );
+}
+
 function sha256(content) {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
@@ -591,6 +615,7 @@ function standardRemoteAssetNames(version) {
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
     'latest-mac.yml',
     'latest-arm64-mac.yml',
+    'standard-gatekeeper-launch-policy.json',
   ];
 }
 
@@ -602,6 +627,7 @@ function writeStandardRemoteAssets(outDir, version, options = {}) {
   writeFile(path.join(outDir, zipName), 'standard-zip');
   writeFile(path.join(outDir, `${dmgName}.blockmap`), 'standard-dmg-blockmap');
   writeFile(path.join(outDir, `${zipName}.blockmap`), 'standard-zip-blockmap');
+  writeStandardGatekeeperLaunchPolicy(outDir);
   const metadata = [
     `version: ${version}`,
     'files:',
@@ -678,6 +704,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
   };
   writeFile(path.join(outDir, fullDmgName), options.dmgContent ?? 'full-dmg');
   writeFile(path.join(outDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFullGatekeeperLaunchPolicy(outDir);
   writeFile(
     path.join(outDir, 'runtime-cache-events.json'),
     `${JSON.stringify({
@@ -708,6 +735,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
     'full-package-manifest.json',
     'runtime-cache-events.json',
     'README-Full-First-Install.txt',
+    'full-gatekeeper-launch-policy.json',
   ];
   writeFile(
     path.join(outDir, 'SHA256SUMS.txt'),
@@ -719,6 +747,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
     'runtime-cache-events.json',
     'README-Full-First-Install.txt',
     'SHA256SUMS.txt',
+    'full-gatekeeper-launch-policy.json',
   ];
 }
 
@@ -780,6 +809,10 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(homebrewScript, /nightly_targets_only_for_nightly: true/);
   assert.match(homebrewScript, /stable_promotion_from_nightly_allowed: false/);
   assert.match(homebrewScript, /full_first_install_allowed: false/);
+  assert.match(homebrewScript, /full_first_install_allowed: true/);
+  assert.match(homebrewScript, /standard_updater_visible: false/);
+  assert.match(homebrewScript, /bundled_full_runtime_payload_allowed: true/);
+  assert.match(homebrewScript, /app_full_first_install/);
   assert.match(homebrewScript, /modules_payload_allowed: false/);
   assert.match(homebrewScript, /agent_pack_homebrew_allowed: false/);
   assert.match(homebrewScript, /agent_pack_activation_owner: app_cli_managed_background_maintenance/);
@@ -827,9 +860,52 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(stableCask, /url "https:\/\/github\.com\/gaofeng21cn\/one-person-lab-app\/releases\/download\/v#\{version\}\/One-Person-Lab-#\{version\}-mac-arm64\.dmg"/);
   assert.match(stableCask, /depends_on macos: :big_sur/);
   assert.match(stableCask, /depends_on arch: :arm64/);
+  assert.match(stableCask, /conflicts_with cask: \["one-person-lab-full", "one-person-lab-nightly"\]/);
   assert.match(stableCask, /livecheck do[\s\S]*releases\/latest[\s\S]*regex\(%r\{\/releases\/tag\/v\?\(\\d\+\(\?:\\\.\\d\+\)\*\)\}i\)/);
   assert.match(stableCask, /app "One Person Lab\.app"/);
   assert.ok(stableCask.indexOf('  livecheck do') < stableCask.indexOf('  depends_on macos: :big_sur'));
+
+  const fullResult = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'stable',
+    '--package-kind',
+    'app_full_first_install',
+    '--version',
+    '26.6.4',
+    '--tap-root',
+    tapRoot,
+    '--cask',
+    'Casks/one-person-lab-full.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/full-package-manifest.json',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-Full-26.6.4-mac-arm64.dmg',
+    '--write',
+  ]);
+  assert.equal(fullResult.status, 0, fullResult.stderr || fullResult.stdout);
+  const fullPlan = JSON.parse(fullResult.stdout);
+  assert.equal(fullPlan.channel, 'stable');
+  assert.equal(fullPlan.package_kind, 'app_full_first_install');
+  assert.equal(fullPlan.policy.full_first_install_allowed, true);
+  assert.equal(fullPlan.policy.standard_updater_visible, false);
+  assert.equal(fullPlan.policy.full_cask_install_surface, true);
+  assert.equal(fullPlan.policy.bundled_full_runtime_payload_allowed, true);
+  assert.equal(fullPlan.policy.agent_pack_homebrew_allowed, false);
+  const fullCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab-full.rb'), 'utf8');
+  assert.match(fullCask, /One-Person-Lab-Full-#\{version\}-mac-arm64\.dmg/);
+  assert.match(fullCask, /full-package-manifest\.json/);
+  assert.match(fullCask, /package_kind: app_full_first_install/);
+  assert.match(fullCask, /full_first_install_allowed: true/);
+  assert.match(fullCask, /standard_updater_visible: false/);
+  assert.match(fullCask, /cohort: full_first_install_homebrew_distribution/);
+  assert.match(fullCask, /bundled_full_runtime_payload_allowed: true/);
+  assert.match(fullCask, /agent_pack_homebrew_allowed: false/);
+  assert.match(fullCask, /conflicts_with cask: \["one-person-lab", "one-person-lab-nightly"\]/);
+  assert.match(fullCask, /Full assets stay outside standard updater metadata/);
+  assert.match(fullCask, /app "One Person Lab\.app"/);
 
   const stableRefresh = runNode([
     'scripts/update-homebrew-tap.ts',
@@ -963,7 +1039,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.notEqual(appToModules.status, 0);
   assert.match(appToModules.stderr, /Homebrew tap updates are App cask-only/);
 
-  const fullTarget = runNode([
+  const fullLeakInStandardPlan = runNode([
     'scripts/update-homebrew-tap.ts',
     '--channel',
     'stable',
@@ -972,20 +1048,64 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     '--tap-root',
     tapRoot,
     '--cask',
-    'Casks/One-Person-Lab-Full.rb',
+    'Casks/one-person-lab.rb',
     '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/latest-arm64-mac.yml',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/full-package-manifest.json',
     '--checksum-sha256',
     digest,
     '--download-url',
     'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-26.6.4-mac-arm64.dmg',
   ]);
-  assert.notEqual(fullTarget.status, 0);
-  assert.match(fullTarget.stderr, /Full first-install payloads/);
+  assert.notEqual(fullLeakInStandardPlan.status, 0);
+  assert.match(fullLeakInStandardPlan.stderr, /Full first-install payloads/);
+
+  const fullNightly = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'nightly',
+    '--package-kind',
+    'app_full_first_install',
+    '--version',
+    '26.6.4-nightly',
+    '--tap-root',
+    tapRoot,
+    '--cask',
+    'Casks/one-person-lab-full.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/full-package-manifest.json',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/One-Person-Lab-Full-26.6.4-nightly-mac-arm64.dmg',
+  ]);
+  assert.notEqual(fullNightly.status, 0);
+  assert.match(fullNightly.stderr, /Full first-install Homebrew cask updates must stay on the stable channel/);
+
+  const fullToStandard = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'stable',
+    '--package-kind',
+    'app_full_first_install',
+    '--version',
+    '26.6.4',
+    '--tap-root',
+    tapRoot,
+    '--cask',
+    'Casks/one-person-lab.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/full-package-manifest.json',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-Full-26.6.4-mac-arm64.dmg',
+  ]);
+  assert.notEqual(fullToStandard.status, 0);
+  assert.match(fullToStandard.stderr, /Full first-install Homebrew cask updates may only update Casks\/one-person-lab-full\.rb/);
 
   const selfCheck = runNode(['scripts/update-homebrew-tap.ts', '--self-check']);
   assert.equal(selfCheck.status, 0, selfCheck.stderr || selfCheck.stdout);
-  assert.match(selfCheck.stdout, /App cask-only/);
+  assert.match(selfCheck.stdout, /Full cask isolation/);
   assert.match(selfCheck.stdout, /agent-pack App\/CLI ownership/);
 });
 
@@ -1485,18 +1605,26 @@ test('Homebrew distribution channel is transport-only and keeps OPL activation a
   assert.deepEqual(homebrew.casks, {
     standard_app: 'one-person-lab',
     nightly_standard_app: 'one-person-lab-nightly',
+    full_first_install_app: 'one-person-lab-full',
   });
   assert.deepEqual(homebrew.allowed_user_targets, [
     'Casks/one-person-lab.rb',
     'Casks/one-person-lab-nightly.rb',
+    'Casks/one-person-lab-full.rb',
   ]);
   assert.deepEqual(homebrew.initial_live_targets, [
     'Casks/one-person-lab.rb',
     'Casks/one-person-lab-nightly.rb',
+    'Casks/one-person-lab-full.rb',
   ]);
   assert.deepEqual(homebrew.forbidden_formulae, ['one-person-lab-modules', 'one-person-lab-modules-nightly']);
-  assert.deepEqual(homebrew.excluded_casks, {
-    full_first_install: 'one-person-lab-full',
+  assert.deepEqual(homebrew.full_first_install_cask, {
+    name: 'one-person-lab-full',
+    target: 'Casks/one-person-lab-full.rb',
+    asset: 'One-Person-Lab-Full-<version>-mac-arm64.dmg',
+    manifest: 'full-package-manifest.json',
+    standard_updater_visible: false,
+    stable_only: true,
   });
   assert.deepEqual(homebrew.agent_pack_policy.managed_agent_ids, ['mas', 'mag', 'rca', 'oma']);
   assert.equal(homebrew.agent_pack_policy.homebrew_distribution_allowed, false);
@@ -3595,6 +3723,7 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
   writeFile(path.join(outDir, dmgName));
   writeFile(path.join(outDir, `One-Person-Lab-${version}-mac-arm64.zip`));
   writeReleaseMetadata(outDir, version, dmgName);
+  writeStandardGatekeeperLaunchPolicy(outDir);
   writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const result = runNode([
@@ -3644,6 +3773,7 @@ test('publish dry run accepts prebuilt standard release assets from GitHub Actio
   writeFile(path.join(releaseAssetsDir, `${zipName}.blockmap`));
   writeFile(path.join(releaseAssetsDir, 'latest-mac.yml'), metadata);
   writeFile(path.join(releaseAssetsDir, 'latest-arm64-mac.yml'), metadata);
+  writeStandardGatekeeperLaunchPolicy(releaseAssetsDir);
   writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const result = runNode([
@@ -3774,6 +3904,16 @@ test('release asset preparation drops stale standard assets from older OPL versi
   writeFile(path.join(artifactsDir, zipName));
   writeFile(path.join(artifactsDir, `${dmgName}.blockmap`));
   writeFile(path.join(artifactsDir, `${zipName}.blockmap`));
+  writeFile(
+    path.join(artifactsDir, 'standard-gatekeeper-launch-policy.json'),
+    `${JSON.stringify({
+      schema: 'opl_gatekeeper_launch_policy.v1',
+      package_kind: 'app_standard',
+      app_path: '/Applications/One Person Lab.app',
+      codesign_status: 'passed',
+      spctl_status: 'passed',
+    }, null, 2)}\n`,
+  );
   writeFile(path.join(artifactsDir, `One-Person-Lab-${previousVersion}-mac-arm64.dmg.blockmap`));
   writeFile(path.join(artifactsDir, `One-Person-Lab-${previousVersion}-mac-arm64.zip.blockmap`));
   writeFile(path.join(artifactsDir, 'latest-mac.yml'), metadata);
@@ -3794,6 +3934,7 @@ test('release asset preparation drops stale standard assets from older OPL versi
     `${zipName}.blockmap`,
     'latest-arm64-mac.yml',
     'latest-mac.yml',
+    'standard-gatekeeper-launch-policy.json',
   ]);
 });
 
@@ -3972,6 +4113,17 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
     && lane.command.includes('--runtime-profile standard')
   )));
   assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'homebrew_standard_cask_clean_vm_smoke'
+    && lane.phase === 'installation_gate'
+    && lane.command.includes('--install-mode homebrew-cask')
+    && lane.command.includes('--homebrew-cask one-person-lab')
+    && lane.command.includes('--smoke-profile homebrew-standard-cask')
+    && lane.command.includes('--display 1920x1080px')
+    && lane.command.includes('--settings-smoke')
+    && lane.command.includes('--assistant-route-smoke')
+    && lane.command.includes('--runtime-profile standard')
+  )));
+  assert.ok(payload.lanes.some((lane) => (
     lane.id === 'full_dmg_clean_vm_smoke'
     && lane.phase === 'release_gate'
     && lane.command.includes('One-Person-Lab-Full-26.5.19-mac-arm64.dmg')
@@ -4027,6 +4179,7 @@ test('publish dry run skips existing release assets when a resumed upload alread
   writeFile(path.join(outDir, dmgName), dmgContent);
   writeFile(path.join(outDir, zipName), zipContent);
   writeReleaseMetadata(outDir, version, dmgName);
+  writeStandardGatekeeperLaunchPolicy(outDir);
   writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const existingAssets = [
@@ -4075,6 +4228,7 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
   writeFile(path.join(outDir, dmgName), 'dmg');
   writeFile(path.join(outDir, zipName), 'zip');
   writeReleaseMetadata(outDir, version, dmgName);
+  writeStandardGatekeeperLaunchPolicy(outDir);
   writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const existingAssets = [
@@ -4131,6 +4285,7 @@ test('publish dry run generates deterministic English release notes for Full-onl
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
+  writeFullGatekeeperLaunchPolicy(fullPackageDir);
   const publicMarkdown = `One Person Lab 26.5.18
 
 This release makes a clean OPL install more useful immediately by shipping refreshed MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and packaged Codex skills together in the Full installer.
@@ -4238,6 +4393,7 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
+  writeFullGatekeeperLaunchPolicy(fullPackageDir);
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -4282,6 +4438,7 @@ test('Full-only release publish uses deterministic notes and does not call the A
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
+  writeFullGatekeeperLaunchPolicy(fullPackageDir);
   fs.mkdirSync(path.dirname(fakeAi), { recursive: true });
   fs.writeFileSync(fakeAi, '#!/usr/bin/env node\nprocess.exit(42);\n', { mode: 0o755 });
 
@@ -5215,6 +5372,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-standard-only:/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:/);
+  assert.match(workflow, /homebrew-standard-first-run-vm-smoke:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
   assert.match(workflow, /one-shot-app-installer-smoke:/);
   assert.match(workflow, /docker-webui-smoke:/);
@@ -5239,6 +5397,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /release_artifact_name: opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(workflow, /package_profile: standard/);
   assert.match(workflow, /package_profile: full/);
+  assert.match(workflow, /package_profile: homebrew-standard/);
+  assert.match(workflow, /opl-first-run-vm-homebrew-standard-\$\{\{ github\.run_id \}\}/);
   assert.match(workflow, /guide_screenshots: \$\{\{ inputs\.guide_screenshots \}\}/);
   assert.match(fullWorkflow, /workflow_call:/);
   assert.doesNotMatch(fullWorkflow, /workflow_call:[\s\S]*secrets:[\s\S]*GH_TOKEN:/);
@@ -5279,6 +5439,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /Release DMG asset download failed on attempt \$attempt/);
   assert.match(vmWorkflow, /curl -fL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 30 --max-time 1800 --continue-at -/);
   assert.match(vmWorkflow, /Resolve host Node\.js runtime for guest smoke/);
+  assert.match(vmWorkflow, /os\.path\.realpath/);
   assert.match(vmWorkflow, /--guest-node-root "\$\{\{ steps\.host_node\.outputs\.node_root \}\}"/);
   assert.match(vmWorkflow, /schedule:/);
   assert.match(vmWorkflow, /concurrency:/);
@@ -5288,9 +5449,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
   assert.match(vmWorkflow, /Resolve Tart source VM/);
   assert.match(vmWorkflow, /package_profile:/);
+  assert.match(vmWorkflow, /homebrew-standard/);
   assert.match(vmWorkflow, /guide_screenshots:/);
   assert.match(vmWorkflow, /Resolve package profile/);
   assert.match(vmWorkflow, /Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_TART_SOURCE/);
+  assert.match(vmWorkflow, /OPL_FIRST_RUN_HOMEBREW_TART_SOURCE/);
+  assert.match(vmWorkflow, /package_profile=homebrew-standard/);
   assert.match(vmWorkflow, /source_vm=\$SOURCE_VM/);
   assert.doesNotMatch(vmWorkflow, /skip_smoke=true/);
   assert.doesNotMatch(vmWorkflow, /steps\.scheduled_config\.outputs\.skip_smoke != 'true'/);
@@ -5299,6 +5463,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /!\s+-name 'One-Person-Lab-Full-\*'/);
   assert.match(vmWorkflow, /find artifacts\/release -type f -name 'One-Person-Lab-\*-mac-arm64\.dmg'/);
   assert.match(vmWorkflow, /--smoke-profile no-clt-clean-vm/);
+  assert.match(vmWorkflow, /--smoke-profile homebrew-standard-cask/);
+  assert.match(vmWorkflow, /--install-mode homebrew-cask/);
+  assert.match(vmWorkflow, /--homebrew-cask "\$\{\{ steps\.package_profile\.outputs\.homebrew_cask \}\}"/);
   assert.match(vmWorkflow, /--display 1920x1080px/);
   assert.match(vmWorkflow, /--settings-smoke/);
   assert.match(vmWorkflow, /--assistant-route-smoke/);
@@ -5410,7 +5577,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   });
   assert.deepEqual(
     releaseContract.release_acceleration.vm_gates.map((gate) => gate.id),
-    ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke'],
+    ['standard_dmg_clean_vm_smoke', 'homebrew_standard_cask_clean_vm_smoke', 'full_dmg_clean_vm_smoke'],
   );
   assert.equal(releaseContract.release_acceleration.vm_gate.gate_policy, 'deterministic_release_blocking');
   assert.equal(releaseContract.release_acceleration.vm_gate.source, 'clean no-CLT Tart base clone');
@@ -5438,6 +5605,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     [
       'remote_asset_size',
       'remote_asset_sha256_digest',
+      'gatekeeper_launch_policy',
       'standard_updater_metadata',
       'full_sha256sums',
       'full_runtime_cache_events',
@@ -5540,13 +5708,15 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.equal(homebrew.role, 'external_app_cask_index_for_distribution_cohorts');
   assert.equal(homebrew.cohort_manifest_required, true);
   assert.deepEqual(homebrew.formulae, []);
-  assert.deepEqual(homebrew.casks, ['one-person-lab']);
+  assert.deepEqual(homebrew.casks, ['one-person-lab', 'one-person-lab-full']);
   assert.deepEqual(homebrew.initial_live_targets, [
     'Casks/one-person-lab.rb',
     'Casks/one-person-lab-nightly.rb',
+    'Casks/one-person-lab-full.rb',
   ]);
   assert.deepEqual(homebrew.forbidden_formulae, ['one-person-lab-modules', 'one-person-lab-modules-nightly']);
-  assert.deepEqual(homebrew.excluded_casks, ['one-person-lab-full']);
+  assert.deepEqual(homebrew.excluded_casks, []);
+  assert.deepEqual(homebrew.full_casks, ['one-person-lab-full']);
   assert.deepEqual(homebrew.nightly_formulae, []);
   assert.deepEqual(homebrew.nightly_casks, ['one-person-lab-nightly']);
   assert.equal(
@@ -5568,11 +5738,18 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.equal(homebrew.tap_update_policy.nightly.may_update_stable, false);
   assert.equal(homebrew.tap_update_policy.stable.mode, 'manual_tap_repo_sync_after_stable_release_gates_and_owner_promotion');
   assert.equal(homebrew.tap_update_policy.stable.may_consume_nightly_directly, false);
+  assert.equal(homebrew.tap_update_policy.full.mode, 'stable_full_first_install_cask_after_full_release_gates');
+  assert.equal(homebrew.tap_update_policy.full.may_update_standard_cask, false);
+  assert.equal(homebrew.tap_update_policy.full.may_update_nightly_cask, false);
+  assert.equal(homebrew.tap_update_policy.full.manifest, 'full-package-manifest.json');
+  assert.equal(homebrew.tap_update_policy.full.asset, 'One-Person-Lab-Full-<version>-mac-arm64.dmg');
+  assert.equal(homebrew.tap_update_policy.full.standard_updater_visible, false);
   assert.deepEqual(homebrew.tap_update_policy.required_manifest_fields, [
     'channel',
     'artifact',
     'sha256',
     'manifest_url',
+    'gatekeeper_launch_policy_asset',
   ]);
   assert.equal(homebrew.agent_pack_policy.package_kind, 'app_cli_managed_agent_packs');
   assert.equal(homebrew.agent_pack_policy.semantic_authority, 'one-person-lab_and_domain_repositories');
@@ -5584,7 +5761,10 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.equal(homebrew.agent_pack_policy.must_not_write_user_codex_state, true);
   assert.equal(homebrew.agent_pack_policy.must_not_define_agent_semantics, true);
   assert.deepEqual(homebrew.agent_pack_policy.activation_commands, ['opl module reconcile', 'opl skill sync']);
-  assert.equal(homebrew.full_first_install_policy, 'github_release_first_install_asset_only');
+  assert.equal(
+    homebrew.full_first_install_policy,
+    'stable_full_cask_or_github_release_first_install_asset; never standard updater metadata',
+  );
   assert.equal(homebrew.codex_temporal_policy.compatibility_mode, 'minimum_version_plus_capability_smoke');
   assert.equal(homebrew.codex_temporal_policy.prefer_valid_newer_system_tool, true);
   assert.equal(homebrew.codex_temporal_policy.bundled_fallback_allowed, true);
@@ -5599,12 +5779,17 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.match(homebrewWorkflow, /GitHub Release asset \$\{asset\.name\} must expose a sha256 digest/);
   assert.match(homebrewWorkflow, /Homebrew tap updates must not read draft GitHub Releases/);
   assert.match(homebrewWorkflow, /One-Person-Lab-\$\{version\}-mac-arm64\.dmg/);
+  assert.match(homebrewWorkflow, /One-Person-Lab-Full-\$\{version\}-mac-arm64\.dmg/);
+  assert.match(homebrewWorkflow, /full-package-manifest\.json/);
+  assert.match(homebrewWorkflow, /Casks\/one-person-lab-full\.rb/);
+  assert.match(homebrewWorkflow, /Full first-install Homebrew cask updates must stay on the stable channel/);
   assert.match(homebrewWorkflow, /Homebrew tap updates are App cask-only; agent packs are App\/CLI-managed/);
   assert.doesNotMatch(homebrewWorkflow, /one-person-lab-modules-\$\{version\}\.tar\.gz/);
   assert.match(homebrewWorkflow, /node --experimental-strip-types scripts\/update-homebrew-tap\.ts[\s\S]*--summary-path "\$RUNNER_TEMP\/homebrew-tap-plan\.json"[\s\S]*--write/);
   assert.match(homebrewWorkflow, /peter-evans\/create-pull-request@v8/);
   assert.match(homebrewWorkflow, /path: homebrew-tap/);
   assert.match(homebrewWorkflow, /Homebrew remains an App cask transport\/index/);
+  assert.match(homebrewWorkflow, /Full cask is an explicit stable first-install surface outside standard updater metadata/);
   assert.doesNotMatch(homebrewWorkflow, /gh release upload/);
   assert.doesNotMatch(homebrewWorkflow, /git push origin main|git push origin HEAD:main/);
 
@@ -5616,12 +5801,15 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
 
   assert.match(releaseDocs, /brew tap gaofeng21cn\/one-person-lab/);
   assert.match(releaseDocs, /brew install --cask gaofeng21cn\/one-person-lab\/one-person-lab/);
+  assert.match(releaseDocs, /brew install --cask one-person-lab-full/);
   assert.match(releaseDocs, /gaofeng21cn\/homebrew-one-person-lab/);
   assert.match(releaseDocs, /gaofeng21cn\/one-person-lab-app` GitHub Releases/);
   assert.match(releaseDocs, /Sync From App Releases/);
   assert.match(releaseDocs, /scripts\/sync-cask-from-release\.mjs/);
   assert.match(releaseDocs, /scheduled run[\s\S]*Nightly prerelease/);
   assert.match(releaseDocs, /stable cask updates are manual workflow dispatches/);
+  assert.match(releaseDocs, /Full cask updates are stable[\s\S]*Full release gates pass/);
+  assert.match(releaseDocs, /explicit Full cask/);
   assert.match(releaseDocs, /OPL Homebrew Tap Update/);
   assert.match(releaseDocs, /OPL_HOMEBREW_TAP_TOKEN/);
   assert.match(releaseDocs, /nightly freshness does not depend on that[\s\S]*cross-repo secret/);
@@ -5645,6 +5833,7 @@ test('stable validation profile covers every user installation surface', () => {
   assert.ok(stable.required_lanes.indexOf('webui_ghcr_publish') > stable.required_lanes.indexOf('docker_webui_smoke'));
   assert.deepEqual(stable.required_installation_surfaces, [
     'standard_dmg_clean_vm_smoke',
+    'homebrew_standard_cask_clean_vm_smoke',
     'full_dmg_clean_vm_smoke',
     'one_shot_app_installer_fresh_install_smoke',
     'docker_webui_smoke',

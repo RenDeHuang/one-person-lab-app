@@ -58,6 +58,7 @@ jobs:
         ]}
       skip_code_quality: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_code_quality || false }}
       opl_release_version: ${{ needs.resolve-nightly.outputs.version }}
+      require_macos_gatekeeper: true
     secrets: inherit
 
   publish-nightly:

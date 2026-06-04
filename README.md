@@ -70,6 +70,13 @@ Nightly builds are opt-in:
 brew install --cask one-person-lab-nightly
 ```
 
+For the complete first-install payload:
+
+```bash
+brew install --cask one-person-lab-full
+open -a "One Person Lab"
+```
+
 Update with the standard Homebrew flow:
 
 ```bash
@@ -90,9 +97,9 @@ Terminal diagnostics remain available when needed:
 opl system initialize --json
 ```
 
-The Homebrew path intentionally targets macOS arm64 and requires Homebrew. For a
-clean Mac without Homebrew, or when you want the complete first-install payload
-in one package, use the Full first-install package from Releases.
+The Homebrew path intentionally targets macOS arm64 and requires Homebrew.
+Use `one-person-lab-full` when you want the complete first-install payload
+through Homebrew; use Releases when the Mac does not have Homebrew yet.
 
 ### One-Shot Installer
 
@@ -111,7 +118,7 @@ You can also download the current desktop package from the App repository releas
 
 [Download One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
 
-For a first-time macOS arm64 install, choose `One-Person-Lab-Full-<version>-mac-arm64.dmg`. The complete first-install package includes the desktop app, One Person Lab, the Research/Grant/Presentation agents, current runtime payloads, `officecli`, and recommended skill payloads.
+For a first-time macOS arm64 install without Homebrew, choose `One-Person-Lab-Full-<version>-mac-arm64.dmg`. The same complete first-install payload is also available as the `one-person-lab-full` Homebrew cask. It includes the desktop app, One Person Lab, the Research/Grant/Presentation agents, current runtime payloads, `officecli`, and recommended skill payloads.
 
 For a screenshot-based first-run walkthrough, use the primary [macOS App install slides PDF](docs/user-guides/macos-app-install-slides.pdf). The detailed long-form companion is [macOS App install detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf).
 

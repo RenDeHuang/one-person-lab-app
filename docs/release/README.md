@@ -63,9 +63,9 @@ GitHub repo/local checkout sources are an explicit Developer Profile
 Homebrew is a transport and index for the same App release cohorts. It is useful
 for terminal users, CI/bootstrap scripts, and update discovery, but it is not a
 separate installer truth source. A tap formula or cask may resolve the published
-standard App package, checksum, version, and helper entry points; after the files
-are installed, user-state activation still belongs to the OPL CLI and shared
-setup model.
+standard App package, the explicit Full first-install package, checksums,
+versions, and helper entry points; after the files are installed, user-state
+activation still belongs to the OPL CLI and shared setup model.
 
 Homebrew discovers One Person Lab through the GitHub tap repository, not by
 crawling App release assets. Users either run `brew tap gaofeng21cn/one-person-lab` or
@@ -75,12 +75,13 @@ install with a fully qualified tap name such as
 hold the GitHub Release download URL and SHA-256 checksum. The actual bytes are
 downloaded from `gaofeng21cn/one-person-lab-app` GitHub Releases.
 
-The current live Homebrew targets are the standard desktop App casks:
+The current live Homebrew targets are App casks:
 
 ```bash
 brew tap gaofeng21cn/one-person-lab
 brew install --cask one-person-lab
 brew install --cask one-person-lab-nightly
+brew install --cask one-person-lab-full
 ```
 
 The live Homebrew surface is App casks only. MAS/MAG/RCA/OMA agent packs are
@@ -111,9 +112,10 @@ The tap should follow the same distribution cohorts as GitHub Releases:
   lane. They point only at Nightly standard macOS arm64 assets,
   preserve prerelease semantics, and are never marked as the stable/latest user
   path.
-- Full first-install assets remain GitHub Release first-install downloads. A
-  Homebrew formula or cask must not select `One-Person-Lab-Full-*`, write Full
-  assets into standard updater metadata, or imply that `brew upgrade` updates
+- Full first-install assets can be installed through the explicit stable
+  `one-person-lab-full` cask or downloaded directly from GitHub Releases. They
+  must not be selected by the standard or Nightly casks, written into standard
+  updater metadata, or used to imply that `brew upgrade one-person-lab` updates
   modules, runtime payloads, or Full bundled contents.
 - Standard App packages installed through Homebrew keep the same updater
   boundary as direct downloads: desktop App assets can update through the
@@ -127,16 +129,18 @@ The tap should follow the same distribution cohorts as GitHub Releases:
 
 The default tap update path is tap-owned self-sync. The
 `gaofeng21cn/homebrew-one-person-lab` `Sync From App Releases` workflow reads
-published App GitHub Releases, resolves the App DMG asset and `sha256:` digest,
+published App GitHub Releases, resolves the App or Full DMG asset and `sha256:` digest,
 runs `scripts/sync-cask-from-release.mjs`, validates the tap with Homebrew
 style/audit checks, and commits cask changes back to the tap. It does not read
 or publish agent-pack/module tarballs. The scheduled run
 tracks the latest published Nightly prerelease and updates only
 `one-person-lab-nightly`; stable cask updates are manual workflow dispatches
-after stable release gates and owner promotion. The App repo also keeps
+after stable release gates and owner promotion, and Full cask updates are stable
+manual syncs after Full release gates pass. The App repo also keeps
 `OPL Homebrew Tap Update` as an optional release-side PR workflow using
-`OPL_HOMEBREW_TAP_TOKEN`; that workflow is also App cask-only, and Homebrew
-nightly freshness does not depend on that cross-repo secret.
+`OPL_HOMEBREW_TAP_TOKEN`; that workflow is also App cask-only, supports the
+explicit Full cask, and Homebrew nightly freshness does not depend on that
+cross-repo secret.
 
 Codex and Temporal compatibility also stay anchored in the existing release
 contracts. The Full workflow records the current Codex CLI and Temporal archive
@@ -316,7 +320,19 @@ builds that should run on GitHub runners instead of this Mac.
   the guest SSH user differs from `runner`, and set `OPL_FIRST_RUN_GUEST_SSH_KEY`
   only when the runner needs a non-default SSH private key. The current source
   VM logs in as `admin` with `/Users/gaofeng/.ssh/opl_first_run_tart_ed25519`
-  on the self-hosted runner.
+  on the self-hosted runner. The Homebrew VM profile uses
+  `OPL_FIRST_RUN_HOMEBREW_TART_SOURCE` instead; that source VM must already have
+  Homebrew installed, because the gate starts with `brew tap` and
+  `brew install --cask`.
+
+The Homebrew VM gate must distinguish install transport from first launch. It
+first proves that the cask installs `One Person Lab.app` under `/Applications`,
+then the guest smoke runs `codesign --verify --deep --strict` and
+`spctl --assess --type execute --verbose=4` before `open`. A `spctl` rejection
+is a release asset signing/notarization blocker, not a Homebrew tap failure.
+Standard and Full release lanes publish `standard-gatekeeper-launch-policy.json`
+and `full-gatekeeper-launch-policy.json`; Homebrew tap sync requires the
+matching launch-policy asset before updating a cask.
 
 The older automatic path is still valid for standard-only releases: pushing a
 `v<version>` tag triggers **Build and Release**. After that completes, run

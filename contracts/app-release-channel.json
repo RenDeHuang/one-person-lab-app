@@ -109,13 +109,16 @@
     "cohort_manifest_required": true,
     "formulae": [],
     "casks": [
-      "one-person-lab"
+      "one-person-lab",
+      "one-person-lab-full"
     ],
     "initial_live_targets": [
       "Casks/one-person-lab.rb",
-      "Casks/one-person-lab-nightly.rb"
+      "Casks/one-person-lab-nightly.rb",
+      "Casks/one-person-lab-full.rb"
     ],
-    "excluded_casks": [
+    "excluded_casks": [],
+    "full_casks": [
       "one-person-lab-full"
     ],
     "nightly_formulae": [],
@@ -140,14 +143,23 @@
         "mode": "manual_tap_repo_sync_after_stable_release_gates_and_owner_promotion",
         "may_consume_nightly_directly": false
       },
+      "full": {
+        "mode": "stable_full_first_install_cask_after_full_release_gates",
+        "may_update_standard_cask": false,
+        "may_update_nightly_cask": false,
+        "manifest": "full-package-manifest.json",
+        "asset": "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+        "standard_updater_visible": false
+      },
       "required_manifest_fields": [
         "channel",
         "artifact",
         "sha256",
-        "manifest_url"
+        "manifest_url",
+        "gatekeeper_launch_policy_asset"
       ]
     },
-    "full_first_install_policy": "github_release_first_install_asset_only",
+    "full_first_install_policy": "stable_full_cask_or_github_release_first_install_asset; never standard updater metadata",
     "codex_temporal_policy": {
       "compatibility_mode": "minimum_version_plus_capability_smoke",
       "prefer_valid_newer_system_tool": true,
@@ -339,18 +351,21 @@
         "One-Person-Lab-<version>-mac-arm64.dmg.blockmap",
         "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
         "latest-mac.yml",
-        "latest-arm64-mac.yml"
+        "latest-arm64-mac.yml",
+        "standard-gatekeeper-launch-policy.json"
       ],
       "full_required_assets": [
         "One-Person-Lab-Full-<version>-mac-arm64.dmg",
         "full-package-manifest.json",
         "runtime-cache-events.json",
         "README-Full-First-Install.txt",
-        "SHA256SUMS.txt"
+        "SHA256SUMS.txt",
+        "full-gatekeeper-launch-policy.json"
       ],
       "checks": [
         "remote_asset_size",
         "remote_asset_sha256_digest",
+        "gatekeeper_launch_policy",
         "standard_updater_metadata",
         "full_sha256sums",
         "full_runtime_cache_events",
@@ -374,7 +389,7 @@
       "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
       "first_run_vm_mode": "run_vm_smoke"
     },
-    "vm_gates": [
+      "vm_gates": [
       {
         "id": "standard_dmg_clean_vm_smoke",
         "source": "clean no-CLT Tart base clone",
@@ -384,11 +399,32 @@
         "settings_smoke": true,
         "runtime_profile": "standard",
         "release_blocking_readiness": [
+          "gatekeeper_launch_policy",
           "app_launch",
           "core_ready_or_app_managed_bootstrap_visible",
           "settings_navigation"
         ],
         "gate_policy": "deterministic_release_blocking"
+      },
+      {
+        "id": "homebrew_standard_cask_clean_vm_smoke",
+        "source": "clean Homebrew-ready Tart base clone",
+        "artifact": "one-person-lab Homebrew cask",
+        "smoke_profile": "homebrew-standard-cask",
+        "install_mode": "homebrew-cask",
+        "display": "1920x1080px",
+        "settings_smoke": true,
+        "runtime_profile": "standard",
+        "release_blocking_readiness": [
+          "brew_tap_and_cask_install",
+          "gatekeeper_launch_policy",
+          "app_launch",
+          "core_ready_or_app_managed_bootstrap_visible",
+          "settings_navigation"
+        ],
+        "gate_policy": "deterministic_release_blocking",
+        "precondition": "VM image already has Homebrew installed",
+        "source_vm_variable": "OPL_FIRST_RUN_HOMEBREW_TART_SOURCE"
       },
       {
         "id": "full_dmg_clean_vm_smoke",
@@ -400,6 +436,7 @@
         "runtime_profile": "full",
         "codex_config_wizard": "required_and_submitted",
         "release_blocking_readiness": [
+          "gatekeeper_launch_policy",
           "core_ready",
           "domain_modules_ready",
           "family_runtime_provider_ready"
@@ -467,6 +504,7 @@
       "forbidden_lanes": [
         "full_first_install_build",
         "standard_dmg_clean_vm_smoke",
+        "homebrew_standard_cask_clean_vm_smoke",
         "full_dmg_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "docker_webui_smoke",
@@ -485,6 +523,7 @@
         "full_first_install_build",
         "remote_standard_and_full_release_verification",
         "standard_dmg_clean_vm_smoke",
+        "homebrew_standard_cask_clean_vm_smoke",
         "full_dmg_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "docker_webui_smoke",
@@ -493,6 +532,7 @@
       ],
       "required_installation_surfaces": [
         "standard_dmg_clean_vm_smoke",
+        "homebrew_standard_cask_clean_vm_smoke",
         "full_dmg_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "docker_webui_smoke"

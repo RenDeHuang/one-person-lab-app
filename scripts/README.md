@@ -65,6 +65,7 @@ npm run release:plan -- --version <version> --include-full-package
 npm run release:full:size -- --markdown
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full
+npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-homebrew-ready-base --install-mode homebrew-cask --homebrew-cask one-person-lab --smoke-profile homebrew-standard-cask --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard
 OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --complete --skip-modules
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
@@ -109,18 +110,22 @@ runtime/user state such as `.codegraph`, `.git`, `.worktrees`, `.venv`,
 `node_modules`, `runtime`, `runtime-state`, `runs`, `sessions`, and `tests`;
 domain-specific allowlists must come from the owning domain repositories.
 
-The clean no-CLT first-install gate is wired through
+The clean first-install gates are wired through
 `.github/workflows/opl-first-run-vm.yml` and the active shell Tart smoke helper.
-It supports `package_profile=standard` and `package_profile=full`. The standard
-profile resolves `One-Person-Lab-*-mac-arm64.dmg` excluding Full assets and runs
+It supports `package_profile=standard`, `package_profile=full`, and
+`package_profile=homebrew-standard`. The standard profile resolves
+`One-Person-Lab-*-mac-arm64.dmg` excluding Full assets and runs
 `--runtime-profile standard`; the Full profile resolves
-`One-Person-Lab-Full-*-mac-arm64.dmg` and runs `--runtime-profile full`. Release
-workflows pass a same-run workflow artifact for the DMG so draft candidates do
-not depend on GitHub Release draft visibility. The release tag stays in the
-preflight summary as provenance and remote release verification remains the
-published-asset gate. Both profiles clone a clean no-CLT Tart base VM, fix the
-logical display at `1920x1080px`, sweep packaged Settings pages, and write
-profile-scoped artifacts named `opl-first-run-vm-<profile>-<run_id>`. The Full
+`One-Person-Lab-Full-*-mac-arm64.dmg` and runs `--runtime-profile full`. The
+Homebrew profile starts from a clean Homebrew-ready Tart base, runs
+`brew tap gaofeng21cn/one-person-lab && brew install --cask one-person-lab`, then
+opens `/Applications/One Person Lab.app` through the same packaged-app smoke.
+Release workflows pass a same-run workflow artifact for the DMG so draft
+candidates do not depend on GitHub Release draft visibility. The release tag
+stays in the preflight summary as provenance and remote release verification
+remains the published-asset gate. These profiles fix the logical display at
+`1920x1080px`, sweep packaged Settings pages, and write profile-scoped artifacts
+named `opl-first-run-vm-<profile>-<run_id>`. The Full
 profile uses live `opl system initialize --json` output as the pre-`/guid`
 `ready_to_launch` proof source, keeps Full runtime readiness on the
 release-blocking path, and submits the Codex/OpenAI API key configuration wizard
@@ -148,7 +153,10 @@ Use checks are non-blocking exploratory tools; release-blocking App readiness
 must live in deterministic scripts, contracts, or GitHub Actions gates.
 Scheduled GitHub Actions runs must have repository variable
 `OPL_FIRST_RUN_TART_SOURCE` set to a local Tart source VM on the self-hosted
-runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18`.
+runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18` for DMG
+profiles. The Homebrew profile must use `OPL_FIRST_RUN_HOMEBREW_TART_SOURCE`
+or an explicit `tart_source_vm` pointing at a clean VM that already has
+Homebrew installed; otherwise the gate fails before App installation.
 
 `.github/workflows/nightly-standard-release.yml` is the standard-only Nightly
 publisher. It reuses the standard build workflow, prepares and validates

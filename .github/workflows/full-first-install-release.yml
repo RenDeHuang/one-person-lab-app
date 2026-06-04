@@ -463,12 +463,12 @@ jobs:
           IDENTITY: ${{ secrets.IDENTITY }}
         run: |
           set -euo pipefail
-          echo "OPL_MAC_STRICT_SIGNING_CHECKS=false" >> "$GITHUB_ENV"
+          echo "OPL_MAC_STRICT_SIGNING_CHECKS=true" >> "$GITHUB_ENV"
           echo "OPL_FULL_PACKAGE_NOTARIZED=false" >> "$GITHUB_ENV"
 
           if [ -z "${BUILD_CERTIFICATE_BASE64:-}" ] || [ -z "${P12_PASSWORD:-}" ]; then
-            echo "::notice::No Developer ID certificate secrets configured; building the Full DMG with the same unsigned packaging mode as the current standard GitHub release."
-            exit 0
+            echo "::error::Full first-install release assets require Developer ID certificate secrets before upload or Homebrew cask sync."
+            exit 1
           fi
 
           echo "$BUILD_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
@@ -480,10 +480,10 @@ jobs:
           rm certificate.p12
 
           if [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_ID_PASSWORD:-}" ] && [ -n "${TEAM_ID:-}" ] && [ -n "${IDENTITY:-}" ]; then
-            echo "OPL_MAC_STRICT_SIGNING_CHECKS=true" >> "$GITHUB_ENV"
             echo "OPL_FULL_PACKAGE_NOTARIZED=true" >> "$GITHUB_ENV"
           else
-            echo "::notice::Developer ID certificate is available, but notarization identity secrets are incomplete; strict Gatekeeper verification will be skipped."
+            echo "::error::Full first-install release assets require APPLE_ID, APPLE_ID_PASSWORD, TEAM_ID, and IDENTITY for notarization."
+            exit 1
           fi
 
       - name: Build Full first-install package
@@ -548,16 +548,27 @@ jobs:
           set -euo pipefail
           app_path="$GITHUB_WORKSPACE/one-person-lab-app/shells/aionui/out/mac-arm64/One Person Lab.app"
           dmg_path="$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg"
-          if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" = "true" ]; then
-            codesign --verify --deep --strict --verbose=2 "$app_path"
-            spctl --assess --type execute --verbose=4 "$app_path"
-          else
-            echo "::notice::Skipping strict codesign/spctl checks because this run is matching the current unsigned standard release mode."
-            codesign --verify --deep --strict --verbose=2 "$app_path" || true
-            spctl --assess --type execute --verbose=4 "$app_path" || true
-          fi
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          spctl --assess --type execute --verbose=4 "$app_path"
+          node - "$app_path" <<'NODE'
+          const fs = require('node:fs');
+          const appPath = process.argv[2];
+          fs.writeFileSync('one-person-lab-app/dist/opl-full-release/full-gatekeeper-launch-policy.json', `${JSON.stringify({
+            schema: 'opl_gatekeeper_launch_policy.v1',
+            package_kind: 'app_full_first_install',
+            app_path: appPath,
+            codesign_status: 'passed',
+            spctl_status: 'passed',
+          }, null, 2)}\n`);
+          NODE
           hdiutil verify "$dmg_path"
-          (cd "$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release" && shasum -a 256 -c SHA256SUMS.txt)
+          (
+            cd "$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"
+            grep -v 'full-gatekeeper-launch-policy.json$' SHA256SUMS.txt > SHA256SUMS.next
+            shasum -a 256 full-gatekeeper-launch-policy.json >> SHA256SUMS.next
+            mv SHA256SUMS.next SHA256SUMS.txt
+            shasum -a 256 -c SHA256SUMS.txt
+          )
           echo "OPL_FULL_VERIFY_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Summarize Full package size
@@ -731,6 +742,7 @@ jobs:
             one-person-lab-app/dist/opl-full-release/runtime-cache-events.json
             one-person-lab-app/dist/opl-full-release/SHA256SUMS.txt
             one-person-lab-app/dist/opl-full-release/README-Full-First-Install.txt
+            one-person-lab-app/dist/opl-full-release/full-gatekeeper-launch-policy.json
           if-no-files-found: error
           retention-days: 30
 

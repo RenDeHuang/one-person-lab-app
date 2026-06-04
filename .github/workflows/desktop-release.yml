@@ -78,6 +78,7 @@ jobs:
       skip_code_quality: ${{ inputs.skip_code_quality }}
       opl_release_version: ${{ inputs.opl_version }}
       shell_ref: ${{ inputs.shell_ref }}
+      require_macos_gatekeeper: true
     secrets: inherit
 
   publish-standard:
@@ -373,6 +374,17 @@ jobs:
       shell_ref: ${{ inputs.shell_ref }}
     secrets: inherit
 
+  homebrew-standard-first-run-vm-smoke:
+    name: Run Homebrew standard first-run VM smoke
+    needs: publish-standard
+    if: ${{ inputs.run_vm_smoke }}
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_tag: v${{ inputs.opl_version }}
+      package_profile: homebrew-standard
+      shell_ref: ${{ inputs.shell_ref }}
+    secrets: inherit
+
   full-first-run-vm-smoke:
     name: Run clean Full first-run VM smoke
     needs: remote-verify-full
@@ -610,6 +622,7 @@ jobs:
       - remote-verify-full
       - standard-first-run-vm-smoke-after-standard-only
       - standard-first-run-vm-smoke-after-full
+      - homebrew-standard-first-run-vm-smoke
       - full-first-run-vm-smoke
       - one-shot-app-installer-smoke
       - docker-webui-smoke
@@ -637,6 +650,13 @@ jobs:
         with:
           name: opl-first-run-vm-standard-${{ github.run_id }}
           path: release-readiness-inputs/opl-first-run-vm-standard-${{ github.run_id }}
+
+      - name: Download Homebrew VM smoke summary
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: opl-first-run-vm-homebrew-standard-${{ github.run_id }}
+          path: release-readiness-inputs/opl-first-run-vm-homebrew-standard-${{ github.run_id }}
 
       - name: Download Full VM smoke summary
         uses: actions/download-artifact@v8

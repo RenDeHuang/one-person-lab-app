@@ -2490,18 +2490,20 @@ function validateInstallExposurePolicy(policy) {
     JSON.stringify(homebrew.formulae) !== JSON.stringify({}) ||
     homebrew.casks?.standard_app !== 'one-person-lab' ||
     homebrew.casks?.nightly_standard_app !== 'one-person-lab-nightly' ||
-    homebrew.excluded_casks?.full_first_install !== 'one-person-lab-full'
+    homebrew.casks?.full_first_install_app !== 'one-person-lab-full' ||
+    homebrew.full_first_install_cask?.name !== 'one-person-lab-full' ||
+    homebrew.full_first_install_cask?.standard_updater_visible !== false
   ) {
     throw new Error('Install exposure Homebrew cask names must match the App-only distribution channel contract');
   }
   assertDeepEqualJson(
     homebrew.allowed_user_targets,
-    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb'],
+    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb', 'Casks/one-person-lab-full.rb'],
     'Install exposure Homebrew allowed user targets',
   );
   assertDeepEqualJson(
     homebrew.initial_live_targets,
-    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb'],
+    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb', 'Casks/one-person-lab-full.rb'],
     'Install exposure Homebrew initial live targets',
   );
   assertDeepEqualJson(
@@ -2559,7 +2561,13 @@ function validateInstallExposurePolicy(policy) {
   if (validation?.structural_gate !== 'node --experimental-strip-types scripts/validate-active-shell.ts --quick') {
     throw new Error('Install exposure release validation structural gate must be validate-active-shell --quick');
   }
-  for (const gate of ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke', 'one_shot_app_installer_fresh_install_smoke', 'docker_webui_smoke']) {
+  for (const gate of [
+    'standard_dmg_clean_vm_smoke',
+    'homebrew_standard_cask_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+    'one_shot_app_installer_fresh_install_smoke',
+    'docker_webui_smoke',
+  ]) {
     if (!validation.stable_install_gates?.includes(gate)) {
       throw new Error(`Install exposure stable install gates must include ${gate}`);
     }
@@ -4073,10 +4081,10 @@ function validateReleaseChannelContract(releaseChannel) {
     throw new Error('Release channel Homebrew tap distribution must be an App-owned cask cohort install index');
   }
   assertDeepEqualJson(homebrew.formulae, [], 'Release channel Homebrew formulae');
-  assertDeepEqualJson(homebrew.casks, ['one-person-lab'], 'Release channel Homebrew casks');
+  assertDeepEqualJson(homebrew.casks, ['one-person-lab', 'one-person-lab-full'], 'Release channel Homebrew casks');
   assertDeepEqualJson(
     homebrew.initial_live_targets,
-    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb'],
+    ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb', 'Casks/one-person-lab-full.rb'],
     'Release channel Homebrew initial live targets',
   );
   assertDeepEqualJson(
@@ -4084,7 +4092,8 @@ function validateReleaseChannelContract(releaseChannel) {
     ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
     'Release channel forbidden Homebrew formulae',
   );
-  assertDeepEqualJson(homebrew.excluded_casks, ['one-person-lab-full'], 'Release channel excluded Homebrew casks');
+  assertDeepEqualJson(homebrew.excluded_casks, [], 'Release channel excluded Homebrew casks');
+  assertDeepEqualJson(homebrew.full_casks, ['one-person-lab-full'], 'Release channel Full Homebrew casks');
   assertDeepEqualJson(homebrew.nightly_formulae, [], 'Release channel Homebrew nightly formulae');
   assertDeepEqualJson(homebrew.nightly_casks, ['one-person-lab-nightly'], 'Release channel Homebrew nightly casks');
   if (
@@ -4100,13 +4109,27 @@ function validateReleaseChannelContract(releaseChannel) {
     homebrew.tap_update_policy?.nightly?.mode !== 'tap_repo_scheduled_self_sync_to_nightly_cask' ||
     homebrew.tap_update_policy?.nightly?.may_update_stable !== false ||
     homebrew.tap_update_policy?.stable?.mode !== 'manual_tap_repo_sync_after_stable_release_gates_and_owner_promotion' ||
-    homebrew.tap_update_policy?.stable?.may_consume_nightly_directly !== false
+    homebrew.tap_update_policy?.stable?.may_consume_nightly_directly !== false ||
+    homebrew.tap_update_policy?.full?.mode !== 'stable_full_first_install_cask_after_full_release_gates' ||
+    homebrew.tap_update_policy?.full?.may_update_standard_cask !== false ||
+    homebrew.tap_update_policy?.full?.may_update_nightly_cask !== false ||
+    homebrew.tap_update_policy?.full?.manifest !== 'full-package-manifest.json' ||
+    homebrew.tap_update_policy?.full?.standard_updater_visible !== false
   ) {
     throw new Error('Release channel Homebrew tap update policy must use tap self-sync and separate nightly automation from stable promotion');
   }
+  const homebrewVmGate = releaseChannel.release_acceleration?.vm_gates?.find(
+    (gate: { id?: string }) => gate.id === 'homebrew_standard_cask_clean_vm_smoke',
+  );
+  if (
+    homebrewVmGate?.install_mode !== 'homebrew-cask' ||
+    homebrewVmGate?.source_vm_variable !== 'OPL_FIRST_RUN_HOMEBREW_TART_SOURCE'
+  ) {
+    throw new Error('Release channel Homebrew VM smoke must use the dedicated Homebrew-ready Tart source variable');
+  }
   assertIncludesAll(
     homebrew.tap_update_policy?.required_manifest_fields,
-    ['channel', 'artifact', 'sha256', 'manifest_url'],
+    ['channel', 'artifact', 'sha256', 'manifest_url', 'gatekeeper_launch_policy_asset'],
     'Release channel Homebrew cohort manifest fields',
   );
   if (
@@ -4118,7 +4141,7 @@ function validateReleaseChannelContract(releaseChannel) {
     homebrew.agent_pack_policy?.homebrew_formula_allowed !== false ||
     homebrew.agent_pack_policy?.must_not_write_user_codex_state !== true ||
     homebrew.agent_pack_policy?.must_not_define_agent_semantics !== true ||
-    homebrew.full_first_install_policy !== 'github_release_first_install_asset_only'
+    homebrew.full_first_install_policy !== 'stable_full_cask_or_github_release_first_install_asset; never standard updater metadata'
   ) {
     throw new Error('Release channel Homebrew agent-pack policy must keep agent packs outside Homebrew distribution');
   }

@@ -18,6 +18,7 @@ on:
         type: choice
         options:
           - app_standard
+          - app_full_first_install
       opl_version:
         description: OPL version, for example 26.6.4 or 26.6.4-nightly
         required: true
@@ -137,6 +138,7 @@ jobs:
           const release = JSON.parse(fs.readFileSync(process.env.RELEASE_JSON, 'utf8'));
           const version = process.env.OPL_RELEASE_VERSION;
           const channel = process.env.OPL_HOMEBREW_CHANNEL;
+          const packageKind = process.env.OPL_HOMEBREW_PACKAGE_KIND;
           const repo = process.env.OPL_RELEASE_REPO;
           const assets = Array.isArray(release.assets) ? release.assets : [];
 
@@ -183,9 +185,22 @@ jobs:
           if (release.isDraft) {
             fail('Homebrew tap updates must not read draft GitHub Releases.');
           }
+          if (packageKind !== 'app_standard' && packageKind !== 'app_full_first_install') {
+            fail('Homebrew tap updates support app_standard and app_full_first_install only; agent packs are App/CLI-managed.');
+          }
+          if (packageKind === 'app_full_first_install' && channel !== 'stable') {
+            fail('Full first-install Homebrew cask updates must stay on the stable channel.');
+          }
 
-          const downloadAsset = assetByName(`One-Person-Lab-${version}-mac-arm64.dmg`);
-          const manifestAsset = assetByName('latest-arm64-mac.yml');
+          const downloadAsset = packageKind === 'app_full_first_install'
+            ? assetByName(`One-Person-Lab-Full-${version}-mac-arm64.dmg`)
+            : assetByName(`One-Person-Lab-${version}-mac-arm64.dmg`);
+          const manifestAsset = packageKind === 'app_full_first_install'
+            ? assetByName('full-package-manifest.json')
+            : assetByName('latest-arm64-mac.yml');
+          assetByName(packageKind === 'app_full_first_install'
+            ? 'full-gatekeeper-launch-policy.json'
+            : 'standard-gatekeeper-launch-policy.json');
 
           const output = {
             download_url: urlOf(downloadAsset),
@@ -210,12 +225,18 @@ jobs:
           OPL_CHECKSUM_SHA256: ${{ steps.release-assets.outputs.checksum_sha256 }}
         run: |
           set -euo pipefail
-          if [ "$OPL_HOMEBREW_PACKAGE_KIND" != "app_standard" ]; then
+          if [ "$OPL_HOMEBREW_PACKAGE_KIND" != "app_standard" ] && [ "$OPL_HOMEBREW_PACKAGE_KIND" != "app_full_first_install" ]; then
             echo "::error::Homebrew tap updates are App cask-only; agent packs are App/CLI-managed."
             exit 1
           fi
           target=()
-          if [ "$OPL_HOMEBREW_CHANNEL" = "nightly" ]; then
+          if [ "$OPL_HOMEBREW_PACKAGE_KIND" = "app_full_first_install" ]; then
+            if [ "$OPL_HOMEBREW_CHANNEL" != "stable" ]; then
+              echo "::error::Full first-install Homebrew cask updates must stay on the stable channel."
+              exit 1
+            fi
+            target=(--cask Casks/one-person-lab-full.rb)
+          elif [ "$OPL_HOMEBREW_CHANNEL" = "nightly" ]; then
             target=(--cask Casks/one-person-lab-nightly.rb)
           else
             target=(--cask Casks/one-person-lab.rb)
@@ -265,4 +286,4 @@ jobs:
             - Version: `${{ inputs.opl_version }}`
             - Release repo: `${{ inputs.release_repo }}`
 
-            Homebrew remains an App cask transport/index. App activation and agent-pack exposure stay under `opl system initialize --json`, `opl module reconcile`, and `opl skill sync`.
+            Homebrew remains an App cask transport/index. The Full cask is an explicit stable first-install surface outside standard updater metadata. App activation and agent-pack exposure stay under `opl system initialize --json`, `opl module reconcile`, and `opl skill sync`.
