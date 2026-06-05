@@ -406,8 +406,24 @@ workflow. A successful macOS release must still emit
 
 ## Unsigned local App authorization
 
-If the Developer ID material is not available yet, use an explicit local
-authorization flow for developer or internal test builds.
+If the Developer ID material is not available yet, use the free macOS installer
+path as the recommended no-Apple-fee user flow. It downloads the selected App
+DMG, mounts it, copies `One Person Lab.app` into `/Applications`, removes
+recursive quarantine, reports Gatekeeper diagnostics, and opens the App:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
+  | bash -s -- --free-macos-install --yes
+```
+
+The default free install profile is the latest Full first-install DMG. Advanced
+operators can use `--standard`, `--release-tag v<version>`, `--dmg-url <url>`,
+`--dmg-path <path>`, `--app-path <path>`, or `--no-open` when testing a specific
+asset or avoiding automatic launch.
+
+If an unsigned App has already been copied into `/Applications`, use the local
+authorization helper only:
+
 This helper is not a Stable release replacement.
 It must not be used to promote unsigned public assets.
 It reduces repeated first-launch prompts by removing the recursive

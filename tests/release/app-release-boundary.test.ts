@@ -1593,8 +1593,28 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
 
   const installerSurfaceById = new Map(policy.installer_surfaces.map((surface) => [surface.surface, surface]));
   for (const surface of policy.installer_surfaces.filter((entry) => entry.surface !== 'unsigned_local_app_authorization')) {
-    assert.equal(surface.progress_source, 'opl system initialize --json');
+    if (surface.surface !== 'free_macos_unsigned_app_install') {
+      assert.equal(surface.progress_source, 'opl system initialize --json');
+    }
   }
+  const freeMacosInstall = installerSurfaceById.get('free_macos_unsigned_app_install');
+  assert.equal(freeMacosInstall.entrypoint, 'install.sh --free-macos-install --yes');
+  assert.equal(freeMacosInstall.progress_source, 'github_release_dmg_copy_and_local_quarantine_diagnostics');
+  assert.equal(
+    freeMacosInstall.exposure_policy,
+    'one_terminal_command_download_copy_authorize_and_open_not_stable_release_gate',
+  );
+  assert.equal(freeMacosInstall.stable_release_replacement_allowed, false);
+  assert.equal(freeMacosInstall.default_package_profile, 'full');
+  assert.deepEqual(freeMacosInstall.required_commands, [
+    'curl',
+    'hdiutil attach -nobrowse -readonly',
+    'ditto',
+    'xattr -dr com.apple.quarantine',
+    'codesign --verify --deep --strict --verbose=2',
+    'spctl --assess --type execute --verbose=4',
+    'open',
+  ]);
   const unsignedLocalAuthorization = installerSurfaceById.get('unsigned_local_app_authorization');
   assert.equal(unsignedLocalAuthorization.entrypoint, 'install.sh --authorize-local-app-only');
   assert.equal(unsignedLocalAuthorization.progress_source, 'local_quarantine_and_gatekeeper_diagnostics');
@@ -1856,6 +1876,16 @@ test('one-shot App installer defaults to App-first core setup', () => {
   assert.match(script, /--skip-modules/);
   assert.match(script, /curl -fsSL "\$OPL_INSTALL_SCRIPT_URL" \| bash -s -- "\$\{INSTALL_ARGS\[@\]\}"/);
   assert.doesNotMatch(script, /bash -s -- "\$@"/);
+  assert.match(script, /--free-macos-install/);
+  assert.match(script, /FREE_MACOS_PACKAGE_PROFILE=\$\{OPL_FREE_MACOS_PACKAGE_PROFILE:-full\}/);
+  assert.match(script, /resolve_latest_release_tag\(\)/);
+  assert.match(script, /release_asset_name\(\)/);
+  assert.match(script, /download_or_use_dmg\(\)/);
+  assert.match(script, /copy_app_from_dmg\(\)/);
+  assert.match(script, /free_macos_install\(\)/);
+  assert.match(script, /hdiutil attach -nobrowse -readonly/);
+  assert.match(script, /ditto "\$source_app" "\$OPL_LOCAL_APP_PATH"/);
+  assert.match(script, /run_with_sudo_fallback/);
   assert.match(script, /--authorize-local-app-only/);
   assert.match(script, /--authorize-local-app/);
   assert.match(script, /--app-path/);
@@ -1872,6 +1902,8 @@ test('one-shot App installer defaults to App-first core setup', () => {
   assert.match(docs, /gh secret set BUILD_CERTIFICATE_BASE64/);
   assert.match(docs, /APPLE_ID_PASSWORD/);
   assert.match(docs, /Unsigned local App authorization/);
+  assert.match(docs, /--free-macos-install --yes/);
+  assert.match(docs, /latest Full first-install DMG/);
   assert.match(docs, /--authorize-local-app-only/);
   assert.match(docs, /com\.apple\.quarantine/);
   assert.match(docs, /quarantine_after=0/);

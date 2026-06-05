@@ -190,6 +190,25 @@
       "codex_exposure_owner": "app_or_cli_managed_background_maintenance"
     },
     {
+      "surface": "free_macos_unsigned_app_install",
+      "entrypoint": "install.sh --free-macos-install --yes",
+      "primary_audience": "beginner_non_technical_users_without_paid_apple_developer_id",
+      "progress_source": "github_release_dmg_copy_and_local_quarantine_diagnostics",
+      "exposure_policy": "one_terminal_command_download_copy_authorize_and_open_not_stable_release_gate",
+      "codex_exposure_owner": "app_or_cli_managed_background_maintenance",
+      "stable_release_replacement_allowed": false,
+      "default_package_profile": "full",
+      "required_commands": [
+        "curl",
+        "hdiutil attach -nobrowse -readonly",
+        "ditto",
+        "xattr -dr com.apple.quarantine",
+        "codesign --verify --deep --strict --verbose=2",
+        "spctl --assess --type execute --verbose=4",
+        "open"
+      ]
+    },
+    {
       "surface": "unsigned_local_app_authorization",
       "entrypoint": "install.sh --authorize-local-app-only",
       "primary_audience": "developer_or_internal_test_users",
