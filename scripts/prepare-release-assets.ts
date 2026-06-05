@@ -26,6 +26,16 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function preserveStandardLocalAuthorizationPolicy(): void {
+  const policyName = 'standard-local-authorization-policy.json';
+  const source = path.join(artifactsDir, policyName);
+  if (!fs.existsSync(source)) {
+    return;
+  }
+  fs.mkdirSync(outputDir, { recursive: true });
+  fs.copyFileSync(source, path.join(outputDir, policyName));
+}
+
 function readMetadataVersion(): string {
   const versions = new Set<string>();
   for (const metadataName of ['latest-mac.yml', 'latest-arm64-mac.yml']) {
@@ -62,4 +72,5 @@ function filterStandardAssetsToVersion(version: string): void {
   }
 }
 
+preserveStandardLocalAuthorizationPolicy();
 filterStandardAssetsToVersion(expectedVersion || readMetadataVersion());

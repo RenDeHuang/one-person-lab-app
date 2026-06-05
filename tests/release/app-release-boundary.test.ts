@@ -4214,6 +4214,76 @@ test('release asset preparation drops stale standard assets from older OPL versi
   ]);
 });
 
+test('release asset preparation preserves App-owned local authorization policy when shell filters assets', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-policy-preserve-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const artifactsDir = path.join(tempRoot, 'artifacts');
+  const releaseAssetsDir = path.join(tempRoot, 'release-assets');
+  const version = '26.6.5';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  const metadata = [
+    `version: ${version}`,
+    'files:',
+    `  - url: ${zipName}`,
+    '    sha512: test-zip',
+    '    size: 1',
+    `path: ${zipName}`,
+    'sha512: test-zip',
+    '',
+  ].join('\n');
+
+  writeFile(
+    path.join(shellRoot, 'scripts', 'prepare-release-assets.sh'),
+    [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      'rm -rf "$2"',
+      'mkdir -p "$2"',
+      'cp -f "$1"/*.dmg "$2"/',
+      'cp -f "$1"/*.zip "$2"/',
+      'cp -f "$1"/*.blockmap "$2"/',
+      'cp -f "$1"/*.yml "$2"/',
+      '',
+    ].join('\n'),
+  );
+  fs.chmodSync(path.join(shellRoot, 'scripts', 'prepare-release-assets.sh'), 0o755);
+
+  writeFile(path.join(artifactsDir, dmgName));
+  writeFile(path.join(artifactsDir, zipName));
+  writeFile(path.join(artifactsDir, `${dmgName}.blockmap`));
+  writeFile(path.join(artifactsDir, `${zipName}.blockmap`));
+  writeFile(path.join(artifactsDir, 'latest-mac.yml'), metadata);
+  writeFile(path.join(artifactsDir, 'latest-arm64-mac.yml'), metadata);
+  writeFile(
+    path.join(artifactsDir, 'standard-local-authorization-policy.json'),
+    `${JSON.stringify({
+      schema: 'opl_local_authorized_macos_policy.v1',
+      package_kind: 'app_standard',
+      stable_release_path: 'local_authorized_unsigned',
+      apple_developer_id_required: false,
+      gatekeeper_required: false,
+      local_authorization_required: true,
+      quarantine_removal_required: true,
+      install_entrypoint: 'install-stable.sh',
+      backing_entrypoint: 'install.sh --stable-macos-install --yes',
+      codesign_status: 'passed',
+      spctl_status: 'rejected_allowed_unsigned',
+      quarantine_status: 'absent',
+    }, null, 2)}\n`,
+  );
+
+  const result = runNode(['scripts/prepare-release-assets.ts', artifactsDir, releaseAssetsDir], {
+    env: {
+      OPL_APP_SHELL_ROOT: shellRoot,
+      OPL_RELEASE_VERSION: version,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(fs.existsSync(path.join(releaseAssetsDir, 'standard-local-authorization-policy.json')));
+});
+
 test('remote release verifier validates standard and Full assets from GitHub release view', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-'));
   const version = '26.5.19-remote';
