@@ -1971,10 +1971,17 @@ function assertAppBundleLocalAuthorization(appPath, label) {
     ].filter(Boolean).join('\n'));
   }
   if (codesign.status !== 0 || spctl.status !== 0) {
+    if (codesign.status !== 0) {
+      throw new Error([
+        `${label} codesign verification must pass even when Stable Full uses local authorization: ${appPath}`,
+        codesign.stdout?.trim() ? `codesign stdout:\n${codesign.stdout.trim()}` : '',
+        codesign.stderr?.trim() ? `codesign stderr:\n${codesign.stderr.trim()}` : '',
+      ].filter(Boolean).join('\n'));
+    }
     console.warn([
       `${label} uses Stable unsigned local authorization diagnostics: ${appPath}`,
-      `codesign_status=${codesign.status === 0 ? 'passed' : 'failed_allowed_unsigned'}`,
-      `spctl_status=${spctl.status === 0 ? 'passed' : codesign.status === 0 ? 'rejected_allowed_unsigned' : 'failed_allowed_unsigned'}`,
+      'codesign_status=passed',
+      `spctl_status=${spctl.status === 0 ? 'passed' : 'rejected_allowed_unsigned'}`,
     ].join('\n'));
   }
 }

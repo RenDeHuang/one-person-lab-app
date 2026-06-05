@@ -6865,9 +6865,10 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   const fullPackageScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
   assert.match(fullPackageScript, /verifyDmgAppBundleLocalAuthorization/);
   assert.match(fullPackageScript, /assertAppBundleLocalAuthorization/);
+  assert.match(fullPackageScript, /codesign verification must pass even when Stable Full uses local authorization/);
   assert.match(fullPackageScript, /createFullDmgFromVerifiedApp/);
   assert.match(fullPackageScript, /local_authorized_unsigned/);
-  assert.match(fullPackageScript, /failed_allowed_unsigned/);
+  assert.doesNotMatch(fullPackageScript, /codesign_status=\$\{codesign\.status === 0 \? 'passed' : 'failed_allowed_unsigned'\}/);
   assert.match(fullPackageScript, /'electron-builder'/);
   assert.match(fullPackageScript, /'--prepackaged'/);
   assert.match(fullPackageScript, /ELECTRON_BUILDER_COMPRESSION_LEVEL/);
