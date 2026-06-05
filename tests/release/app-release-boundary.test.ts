@@ -5938,7 +5938,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /concurrency:/);
   assert.match(vmWorkflow, /github\.event_name == 'schedule'/);
   assert.match(vmWorkflow, /opl-gui-first-run-vm-scheduled/);
-  assert.match(vmWorkflow, /opl-gui-first-run-vm-manual/);
+  assert.match(vmWorkflow, /format\('opl-gui-first-run-vm-\{0\}-\{1\}'/);
+  assert.match(vmWorkflow, /github\.run_id/);
+  assert.match(vmWorkflow, /inputs\.package_profile \|\| 'full'/);
+  assert.doesNotMatch(vmWorkflow, /opl-gui-first-run-vm-manual/);
   assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
   assert.match(vmWorkflow, /Resolve Tart source VM/);
   assert.match(vmWorkflow, /package_profile:/);
@@ -6471,7 +6474,8 @@ test('release CI operations policy distinguishes workflow hygiene from release e
     'actionlint is a CI gate, not an App-root package script',
   );
 
-  assert.match(vmWorkflow, /concurrency:[\s\S]*opl-gui-first-run-vm-scheduled[\s\S]*opl-gui-first-run-vm-manual/);
+  assert.match(vmWorkflow, /concurrency:[\s\S]*opl-gui-first-run-vm-scheduled[\s\S]*github\.run_id[\s\S]*inputs\.package_profile/);
+  assert.doesNotMatch(vmWorkflow, /opl-gui-first-run-vm-manual/);
   assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
   assert.match(combinedDocs, /concurrency[\s\S]*duplicate-run governance/i);
   assert.match(combinedDocs, /not release evidence|not as proof/i);

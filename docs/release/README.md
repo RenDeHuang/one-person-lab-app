@@ -310,9 +310,9 @@ builds that should run on GitHub runners instead of this Mac.
   concurrency group with `cancel-in-progress` enabled, so nightly clean-VM
   backlog collapses to the newest scheduled run instead of occupying the
   self-hosted Tart runner for stale release checks. Manual dispatches and
-  release-called VM gates use a separate serialized group and are not cancelled
-  by the scheduled queue policy; they remain the explicit operator validation
-  path.
+  release-called VM gates use run/profile-scoped groups, so a Stable release can
+  queue the standard DMG, Homebrew cask, and Full DMG VM gates without one lane
+  replacing another in GitHub's single pending concurrency slot.
 - Scheduled VM smoke requires repository variable `OPL_FIRST_RUN_TART_SOURCE`
   to name a local Tart base VM on the self-hosted runner. The current runner
   source is `opl-first-run-no-clt-clean-base-26-5-18`. Missing configuration is

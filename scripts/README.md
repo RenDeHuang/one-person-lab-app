@@ -160,6 +160,12 @@ runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18` for DMG
 profiles. The Homebrew profile must use `OPL_FIRST_RUN_HOMEBREW_TART_SOURCE`
 or an explicit `tart_source_vm` pointing at a clean VM that already has
 Homebrew installed; otherwise the gate fails before App installation.
+The VM workflow keeps scheduled runs in a shared cancel-in-progress group, while
+release-called and manual runs include the caller run id and package profile in
+their concurrency key. Do not collapse standard, Homebrew, and Full VM gates
+into one manual group; GitHub keeps only one pending job per concurrency group,
+which would cancel one Stable install lane before it can produce readiness
+evidence.
 
 `.github/workflows/nightly-standard-release.yml` is the standard-only Nightly
 publisher. It reuses the standard build workflow, prepares and validates
@@ -207,8 +213,10 @@ results and small artifacts only: remote verification JSON, VM summaries,
 one-shot installer output, Docker/WebUI smoke output, Full diagnostics, and
 `full-workflow-telemetry.json`. Do not download standard or Full DMG artifacts
 for readiness diagnosis; missing small evidence is a fail-closed release
-readiness failure. The one-shot installer section records the fixed public
-entry command, the workflow job result as bootstrap status source, the
+readiness failure. Homebrew VM smoke is a separate required gate when
+`run_vm_smoke=true`, so a cask lane cancellation or missing artifact fails the
+Stable readiness summary with a named cause. The one-shot installer section
+records the fixed public entry command, the workflow job result as bootstrap status source, the
 `opl system initialize --json` setup-flow source, artifact file names, progress
 fields, blockers, next step, retry state, and `--skip-modules` state in JSON and
 the Markdown summary.

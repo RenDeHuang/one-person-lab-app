@@ -133,9 +133,9 @@ was archived in
   operator evidence gates.
 - Stable release: `.github/workflows/desktop-release.yml` is the full user-path
   profile when `run_vm_smoke=true`. It must cover standard DMG clean-VM install,
-  Full DMG clean-VM install when Full is included, the App one-shot installer,
-  Docker/WebUI over HTTP, remote standard/Full verification, and the release
-  evidence bundle.
+  Homebrew cask clean-VM install, Full DMG clean-VM install when Full is
+  included, the App one-shot installer, Docker/WebUI over HTTP, remote
+  standard/Full verification, and the release evidence bundle.
 - Fallow production hygiene: `npm run hygiene:fallow -- --format json --summary`.
 - Active GUI shell validation: `npm run validate:gui-shell`.
 - App product profile sync: standard and Full release preparation must generate
@@ -247,7 +247,9 @@ was archived in
   --complete --skip-modules`, then runs `opl system initialize`.
 - Scheduled VM smoke backlog: the App repo VM workflow must cancel stale
   scheduled runs through GitHub Actions concurrency while keeping manual and
-  release-called validation runs serialized in a separate non-cancelling group.
+  release-called validation runs in caller-run/profile-scoped non-cancelling
+  groups. Do not collapse standard, Homebrew, and Full release VM gates into one
+  manual concurrency group; GitHub keeps only one pending job per group.
   Repository variable `OPL_FIRST_RUN_TART_SOURCE` must point to a local Tart
   base VM on the self-hosted runner; the current source VM is
   `opl-first-run-no-clt-clean-base-26-5-18`. Missing source-VM configuration is
@@ -287,6 +289,9 @@ workflow-operations hygiene:
 - GitHub Actions `concurrency` is duplicate-run governance. It collapses stale
   scheduled queues or serializes operator runs; it is not release evidence and
   does not replace remote verification, installer smoke, or VM gates.
+- Release-called first-run VM gates scope non-scheduled concurrency by caller
+  run and package profile. Standard DMG, Homebrew cask, and Full DMG install
+  lanes must queue independently and report their own readiness artifacts.
 - Machine-readable telemetry artifacts are post-release tuning inputs. Step
   summaries and ad hoc text artifacts are useful for operators, but a JSON
   telemetry artifact should be treated as the basis for later cache/matrix

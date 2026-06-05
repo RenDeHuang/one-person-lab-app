@@ -713,6 +713,7 @@ jobs:
             "remote-verify-full": "${{ needs.remote-verify-full.result }}",
             "standard-first-run-vm-smoke-after-standard-only": "${{ needs.standard-first-run-vm-smoke-after-standard-only.result }}",
             "standard-first-run-vm-smoke-after-full": "${{ needs.standard-first-run-vm-smoke-after-full.result }}",
+            "homebrew-standard-first-run-vm-smoke": "${{ needs.homebrew-standard-first-run-vm-smoke.result }}",
             "full-first-run-vm-smoke": "${{ needs.full-first-run-vm-smoke.result }}",
             "one-shot-app-installer-smoke": "${{ needs.one-shot-app-installer-smoke.result }}",
             "docker-webui-smoke": "${{ needs.docker-webui-smoke.result }}",

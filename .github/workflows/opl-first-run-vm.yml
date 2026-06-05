@@ -112,8 +112,9 @@ on:
 
 concurrency:
   # Scheduled runs collapse to the latest queued run; manual and release-called
-  # validation runs stay serialized without being cancelled by the schedule.
-  group: ${{ github.event_name == 'schedule' && 'opl-gui-first-run-vm-scheduled' || 'opl-gui-first-run-vm-manual' }}
+  # validation runs use caller-run/profile-scoped groups so stable release
+  # profiles do not replace each other in GitHub's single pending slot.
+  group: ${{ github.event_name == 'schedule' && 'opl-gui-first-run-vm-scheduled' || format('opl-gui-first-run-vm-{0}-{1}', github.run_id, inputs.package_profile || 'full') }}
   cancel-in-progress: ${{ github.event_name == 'schedule' }}
 
 permissions:

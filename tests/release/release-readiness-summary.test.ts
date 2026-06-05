@@ -49,6 +49,11 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
     runtime_profile: 'standard',
     settings_smoke: { status: 'passed', pages: ['overview'] },
   });
+  writeJson(path.join(root, `opl-first-run-vm-homebrew-standard-${runId}`, 'tart-smoke-summary.json'), {
+    status: 'passed',
+    runtime_profile: 'standard',
+    settings_smoke: { status: 'passed', pages: ['overview'] },
+  });
   writeJson(path.join(root, `opl-first-run-vm-full-${runId}`, 'tart-smoke-summary.json'), {
     status: 'passed',
     runtime_profile: 'full',
@@ -130,6 +135,7 @@ function writePassingJobResults(filePath: string) {
     'remote-verify-full': 'success',
     'standard-first-run-vm-smoke-after-standard-only': 'skipped',
     'standard-first-run-vm-smoke-after-full': 'success',
+    'homebrew-standard-first-run-vm-smoke': 'success',
     'full-first-run-vm-smoke': 'success',
     'one-shot-app-installer-smoke': 'success',
     'docker-webui-smoke': 'success',
@@ -169,6 +175,7 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
   assert.equal(summary.status, 'passed');
   assert.equal(summary.gates.standard_dmg_clean_vm.status, 'passed');
+  assert.equal(summary.gates.homebrew_standard_cask_clean_vm.status, 'passed');
   assert.equal(summary.gates.full_dmg_clean_vm.status, 'passed');
   assert.equal(summary.gates.one_shot_app_installer.status, 'passed');
   assert.deepEqual(summary.gates.one_shot_app_installer.fields, {
@@ -382,6 +389,7 @@ test('release readiness summary keeps one-shot failure diagnostics when the inst
     'remote-verify-full': 'success',
     'standard-first-run-vm-smoke-after-standard-only': 'skipped',
     'standard-first-run-vm-smoke-after-full': 'success',
+    'homebrew-standard-first-run-vm-smoke': 'success',
     'full-first-run-vm-smoke': 'success',
     'one-shot-app-installer-smoke': 'failure',
     'docker-webui-smoke': 'success',
@@ -440,6 +448,7 @@ test('release readiness summary surfaces GHCR package Actions access failures', 
     'remote-verify-full': 'success',
     'standard-first-run-vm-smoke-after-standard-only': 'skipped',
     'standard-first-run-vm-smoke-after-full': 'success',
+    'homebrew-standard-first-run-vm-smoke': 'success',
     'full-first-run-vm-smoke': 'success',
     'one-shot-app-installer-smoke': 'success',
     'docker-webui-smoke': 'success',
@@ -504,6 +513,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
     'remote-verify-full',
     'standard-first-run-vm-smoke-after-standard-only',
     'standard-first-run-vm-smoke-after-full',
+    'homebrew-standard-first-run-vm-smoke',
     'full-first-run-vm-smoke',
     'one-shot-app-installer-smoke',
     'docker-webui-smoke',
@@ -516,6 +526,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   for (const smallArtifact of [
     'remote-release-verification-${{ inputs.opl_version }}',
     'opl-first-run-vm-standard-${{ github.run_id }}',
+    'opl-first-run-vm-homebrew-standard-${{ github.run_id }}',
     'opl-first-run-vm-full-${{ github.run_id }}',
     'one-shot-app-installer-smoke-${{ inputs.opl_version }}',
     'docker-webui-smoke-${{ inputs.opl_version }}',

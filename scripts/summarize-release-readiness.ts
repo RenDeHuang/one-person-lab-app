@@ -303,6 +303,7 @@ function buildSummary(options: Options) {
   const jobResults = readJobResults(options);
   const remoteArtifactName = `remote-release-verification-${options.version}`;
   const standardVmArtifactName = `opl-first-run-vm-standard-${process.env.GITHUB_RUN_ID || 'local'}`;
+  const homebrewVmArtifactName = `opl-first-run-vm-homebrew-standard-${process.env.GITHUB_RUN_ID || 'local'}`;
   const fullVmArtifactName = `opl-first-run-vm-full-${process.env.GITHUB_RUN_ID || 'local'}`;
   const oneShotArtifactName = `one-shot-app-installer-smoke-${options.version}`;
   const dockerArtifactName = `docker-webui-smoke-${options.version}`;
@@ -511,6 +512,14 @@ function buildSummary(options: Options) {
         : missingGate(false, standardVmArtifactName, 'VM smoke disabled for this run.'),
       jobResults,
       selectedStandardVmJob,
+      options.runVmSmoke,
+    ),
+    homebrew_standard_cask_clean_vm: applyJobResult(
+      options.runVmSmoke
+        ? vmGate(homebrewVmArtifactName, 'standard', true)
+        : missingGate(false, homebrewVmArtifactName, 'VM smoke disabled for this run.'),
+      jobResults,
+      'homebrew-standard-first-run-vm-smoke',
       options.runVmSmoke,
     ),
     full_dmg_clean_vm: applyJobResult(

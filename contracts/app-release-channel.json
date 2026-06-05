@@ -404,7 +404,13 @@
       "nightly_standard_release_workflow": ".github/workflows/nightly-standard-release.yml",
       "full_first_install_workflow": ".github/workflows/full-first-install-release.yml",
       "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
-      "first_run_vm_mode": "run_vm_smoke"
+      "first_run_vm_mode": "run_vm_smoke",
+      "first_run_vm_concurrency": {
+        "scheduled_group": "opl-gui-first-run-vm-scheduled",
+        "release_called_group": "opl-gui-first-run-vm-<run_id>-<package_profile>",
+        "cancel_in_progress": "schedule_only",
+        "rule": "Scheduled VM smokes collapse stale backlog; stable release-called VM profiles must use run/profile-scoped groups so standard, Homebrew, and Full install gates cannot cancel or replace each other."
+      }
     },
     "vm_local_authorization_policy": {
       "artifact": "artifacts/gatekeeper-launch-policy.json",
