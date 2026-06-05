@@ -6085,8 +6085,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:/);
   assert.match(workflow, /stable-homebrew-tap-update:/);
   assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml[\s\S]*write_mode: direct_commit/);
-  assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs: stable-homebrew-tap-update/);
+  assert.match(workflow, /full-homebrew-tap-update:/);
+  assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*remote-verify-full/);
+  assert.match(workflow, /full-homebrew-tap-update:[\s\S]*package_kind: app_full_first_install[\s\S]*write_mode: direct_commit/);
+  assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*full-homebrew-tap-update/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs\.stable-homebrew-tap-update\.result == 'success'/);
+  assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs\.full-homebrew-tap-update\.result == 'success'/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
   assert.match(workflow, /one-shot-app-installer-smoke:/);
@@ -6114,6 +6118,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /package_profile: full/);
   assert.match(workflow, /package_profile: homebrew-standard/);
   assert.match(workflow, /opl-first-run-vm-homebrew-standard-\$\{\{ github\.run_id \}\}/);
+  assert.match(workflow, /homebrew-tap-plan-stable-app_full_first_install-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /guide_screenshots: \$\{\{ inputs\.guide_screenshots \}\}/);
   assert.match(fullWorkflow, /workflow_call:/);
   const fullWorkflowCallBlock = fullWorkflow.match(/\n  workflow_call:[\s\S]*?\npermissions:/)?.[0] ?? '';

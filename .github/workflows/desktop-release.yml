@@ -411,6 +411,23 @@ jobs:
     secrets:
       OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
 
+  full-homebrew-tap-update:
+    name: Update Full Homebrew tap
+    needs:
+      - stable-homebrew-tap-update
+      - remote-verify-full
+    if: ${{ always() && inputs.include_full_package && inputs.run_vm_smoke && inputs.release_mode != 'draft_candidate' && needs.stable-homebrew-tap-update.result == 'success' && needs.remote-verify-full.result == 'success' }}
+    uses: ./.github/workflows/homebrew-tap-update.yml
+    with:
+      channel: stable
+      package_kind: app_full_first_install
+      opl_version: ${{ inputs.opl_version }}
+      release_repo: gaofeng21cn/one-person-lab-app
+      tap_repo: gaofeng21cn/homebrew-one-person-lab
+      write_mode: direct_commit
+    secrets:
+      OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+
   standard-first-run-vm-smoke-after-standard-only:
     name: Run clean standard first-run VM smoke
     needs: remote-verify-standard
@@ -437,8 +454,10 @@ jobs:
 
   homebrew-standard-first-run-vm-smoke:
     name: Run Homebrew standard first-run VM smoke
-    needs: stable-homebrew-tap-update
-    if: ${{ always() && inputs.run_vm_smoke && inputs.release_mode != 'draft_candidate' && needs.stable-homebrew-tap-update.result == 'success' }}
+    needs:
+      - stable-homebrew-tap-update
+      - full-homebrew-tap-update
+    if: ${{ always() && inputs.run_vm_smoke && inputs.release_mode != 'draft_candidate' && needs.stable-homebrew-tap-update.result == 'success' && (!inputs.include_full_package || needs.full-homebrew-tap-update.result == 'success') }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
@@ -685,6 +704,7 @@ jobs:
       - standard-first-run-vm-smoke-after-standard-only
       - standard-first-run-vm-smoke-after-full
       - stable-homebrew-tap-update
+      - full-homebrew-tap-update
       - homebrew-standard-first-run-vm-smoke
       - full-first-run-vm-smoke
       - one-shot-app-installer-smoke
@@ -727,6 +747,14 @@ jobs:
         with:
           name: homebrew-tap-plan-stable-app_standard-${{ inputs.opl_version }}
           path: release-readiness-inputs/homebrew-tap-plan-stable-app_standard-${{ inputs.opl_version }}
+
+      - name: Download Full Homebrew tap plan
+        if: ${{ inputs.include_full_package }}
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: homebrew-tap-plan-stable-app_full_first_install-${{ inputs.opl_version }}
+          path: release-readiness-inputs/homebrew-tap-plan-stable-app_full_first_install-${{ inputs.opl_version }}
 
       - name: Download Full VM smoke summary
         uses: actions/download-artifact@v8
@@ -783,6 +811,7 @@ jobs:
             "standard-first-run-vm-smoke-after-standard-only": "${{ needs.standard-first-run-vm-smoke-after-standard-only.result }}",
             "standard-first-run-vm-smoke-after-full": "${{ needs.standard-first-run-vm-smoke-after-full.result }}",
             "stable-homebrew-tap-update": "${{ needs.stable-homebrew-tap-update.result }}",
+            "full-homebrew-tap-update": "${{ needs.full-homebrew-tap-update.result }}",
             "homebrew-standard-first-run-vm-smoke": "${{ needs.homebrew-standard-first-run-vm-smoke.result }}",
             "full-first-run-vm-smoke": "${{ needs.full-first-run-vm-smoke.result }}",
             "one-shot-app-installer-smoke": "${{ needs.one-shot-app-installer-smoke.result }}",

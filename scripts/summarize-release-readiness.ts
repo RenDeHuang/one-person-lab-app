@@ -305,6 +305,7 @@ function buildSummary(options: Options) {
   const standardVmArtifactName = `opl-first-run-vm-standard-${process.env.GITHUB_RUN_ID || 'local'}`;
   const homebrewVmArtifactName = `opl-first-run-vm-homebrew-standard-${process.env.GITHUB_RUN_ID || 'local'}`;
   const homebrewTapArtifactName = `homebrew-tap-plan-stable-app_standard-${options.version}`;
+  const fullHomebrewTapArtifactName = `homebrew-tap-plan-stable-app_full_first_install-${options.version}`;
   const fullVmArtifactName = `opl-first-run-vm-full-${process.env.GITHUB_RUN_ID || 'local'}`;
   const oneShotArtifactName = `one-shot-app-installer-smoke-${options.version}`;
   const dockerArtifactName = `docker-webui-smoke-${options.version}`;
@@ -365,6 +366,34 @@ function buildSummary(options: Options) {
       if (payload.version !== options.version) return { reason: `Homebrew tap plan version is ${statusString(payload.version) || 'unknown'}.`, fields };
       if (policy?.remote_write_mode !== 'direct_commit' || policy?.publishes_or_pushes_remote !== true) {
         return { reason: 'Stable Homebrew tap plan did not record direct_commit remote publication.', fields };
+      }
+      return { fields };
+    },
+  });
+  const fullHomebrewTapGate = jsonGate(options, {
+    required: options.includeFullPackage && options.runVmSmoke && options.releaseMode !== 'draft_candidate',
+    artifactName: fullHomebrewTapArtifactName,
+    fileName: 'homebrew-tap-plan.json',
+    validate: (payload) => {
+      const policy = objectField(payload, 'policy');
+      const fields = {
+        channel: payload.channel,
+        package_kind: payload.package_kind,
+        version: payload.version,
+        tap_repo: 'gaofeng21cn/homebrew-one-person-lab',
+        remote_write_mode: policy?.remote_write_mode ?? null,
+        publishes_or_pushes_remote: policy?.publishes_or_pushes_remote ?? null,
+        full_first_install_allowed: policy?.full_first_install_allowed ?? null,
+        standard_updater_visible: policy?.standard_updater_visible ?? null,
+      };
+      if (payload.channel !== 'stable') return { reason: `Full Homebrew tap plan channel is ${statusString(payload.channel) || 'unknown'}.`, fields };
+      if (payload.package_kind !== 'app_full_first_install') return { reason: `Full Homebrew tap plan package_kind is ${statusString(payload.package_kind) || 'unknown'}.`, fields };
+      if (payload.version !== options.version) return { reason: `Full Homebrew tap plan version is ${statusString(payload.version) || 'unknown'}.`, fields };
+      if (policy?.remote_write_mode !== 'direct_commit' || policy?.publishes_or_pushes_remote !== true) {
+        return { reason: 'Full Homebrew tap plan did not record direct_commit remote publication.', fields };
+      }
+      if (policy?.full_first_install_allowed !== true || policy?.standard_updater_visible !== false) {
+        return { reason: 'Full Homebrew tap plan did not preserve Full first-install boundary policy.', fields };
       }
       return { fields };
     },
@@ -547,6 +576,14 @@ function buildSummary(options: Options) {
       jobResults,
       'stable-homebrew-tap-update',
       stableHomebrewRequired,
+    ),
+    full_homebrew_tap_update: applyJobResult(
+      options.includeFullPackage && stableHomebrewRequired
+        ? fullHomebrewTapGate
+        : missingGate(false, fullHomebrewTapArtifactName, 'Full Homebrew tap update is not required for this run.'),
+      jobResults,
+      'full-homebrew-tap-update',
+      options.includeFullPackage && stableHomebrewRequired,
     ),
     homebrew_standard_cask_clean_vm: applyJobResult(
       stableHomebrewRequired
