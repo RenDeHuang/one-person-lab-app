@@ -125,6 +125,7 @@ const checks = [
       '--standard-artifacts-dir release-assets',
       'npm run verify-remote-release',
       'draft_candidate',
+      'pull-requests: read',
       'uses: ./.github/workflows/full-first-install-release.yml',
       'uses: ./.github/workflows/opl-first-run-vm.yml',
       'standard-first-run-vm-smoke-after-standard-only:',

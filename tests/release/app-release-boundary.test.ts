@@ -5862,6 +5862,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /default: true/);
   assert.match(workflow, /guide_screenshots:[\s\S]*Capture user-guide screenshots/);
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
+  assert.match(workflow, /permissions:[\s\S]*pull-requests: read/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-standard-only:/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:/);
   assert.match(workflow, /stable-homebrew-tap-update:/);
