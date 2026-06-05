@@ -591,6 +591,13 @@ function fileSha256(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
+function workflowStepBlock(workflow, stepName) {
+  const escaped = stepName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = workflow.match(new RegExp(`\\n\\s+- name: ${escaped}[\\s\\S]*?(?=\\n\\s+- name: |$)`));
+  assert.ok(match, `workflow must include step: ${stepName}`);
+  return match[0];
+}
+
 function buildRemoteReleaseView(assetDir, names, tagName) {
   return {
     tagName,
@@ -6036,6 +6043,11 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /payload_refs:\s+fullManifest\?\.resolved_refs/);
   assert.match(workflow, /resolved_refs:\s+fullManifest\?\.resolved_refs/);
   assert.match(workflow, /## Full Payload Resolved Refs/);
+  assert.match(workflow, /requires_distributable_assets="\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}"/);
+  assert.match(workflow, /echo "OPL_FULL_DISTRIBUTABLE_ASSETS=\$requires_distributable_assets" >> "\$GITHUB_ENV"/);
+  assert.match(workflow, /No Developer ID certificate secrets configured; continuing because this run does not publish or upload distributable Full assets\./);
+  assert.match(workflow, /if \[ "\$\{OPL_FULL_DISTRIBUTABLE_ASSETS:-false\}" = "true" \]; then[\s\S]*Strict signing was not enabled for a distributable Full asset run/);
+  assert.match(workflow, /name: Verify release upload plan[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/);
   for (const expected of [
     'gaofeng21cn/one-person-lab',
     'gaofeng21cn/med-autoscience',
@@ -6048,14 +6060,19 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   ]) {
     assert.match(`${workflow}\n${fs.readFileSync(path.join(appRoot, 'scripts', 'plan-release-candidate.ts'), 'utf8')}`, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
+  const diagnosticsStep = workflowStepBlock(workflow, 'Upload Full diagnostics artifact');
+  const gatekeeperStep = workflowStepBlock(workflow, 'Upload Full Gatekeeper launch policy');
   assert.match(workflow, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/);
-  assert.match(workflow, /Upload Full diagnostics artifact[\s\S]*full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/);
+  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/);
+  assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/);
+  assert.match(gatekeeperStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-gatekeeper-launch-policy\.json/);
   assert.match(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/);
   assert.match(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/);
   assert.match(workflow, /bash "\$GITHUB_WORKSPACE\/OfficeCLI\/install\.sh"/);
   assert.doesNotMatch(workflow, /raw\.githubusercontent\.com\/iOfficeAI\/OfficeCLI\/main\/install\.sh/);
   const warmupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-runtime-cache-warmup.yml'), 'utf8');
   assert.match(warmupWorkflow, /upload_full_package_artifact:\s+false/);
+  assert.match(warmupWorkflow, /publish_to_release:\s+false/);
   assert.match(workflow, /node -e 'const fs = require\("node:fs"\); const report = JSON\.parse\(fs\.readFileSync\(process\.argv\[1\], "utf8"\)\);/);
   assert.doesNotMatch(
     workflow,

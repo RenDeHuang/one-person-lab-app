@@ -19,6 +19,13 @@ function assertMatches(source: string, pattern: RegExp, label: string) {
   assert.match(source, pattern, `${label} must match ${pattern}`);
 }
 
+function workflowStepBlock(workflow: string, stepName: string) {
+  const escaped = stepName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = workflow.match(new RegExp(`\\n\\s+- name: ${escaped}[\\s\\S]*?(?=\\n\\s+- name: |$)`));
+  assert.ok(match, `workflow must include step: ${stepName}`);
+  return match[0];
+}
+
 function runReleasePlan(args: string[]) {
   const result = spawnSync(
     process.execPath,
@@ -180,8 +187,12 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
     assertIncludes(workflow + readRepoFile('scripts/plan-release-candidate.ts'), payloadLabel, `Full resolved refs payload ${payloadLabel}`);
   }
   assertMatches(workflow, /Upload Full workflow telemetry[\s\S]*actions\/upload-artifact@v7/, 'Full telemetry artifact upload');
-  assertMatches(workflow, /Upload Full diagnostics artifact[\s\S]*name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/, 'Full diagnostics artifact upload');
-  assertMatches(workflow, /Upload Full diagnostics artifact[\s\S]*full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
+  const diagnosticsStep = workflowStepBlock(workflow, 'Upload Full diagnostics artifact');
+  const gatekeeperStep = workflowStepBlock(workflow, 'Upload Full Gatekeeper launch policy');
+  assertMatches(diagnosticsStep, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/, 'Full diagnostics artifact upload');
+  assertMatches(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
+  assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/, 'Full diagnostics artifact must not require release-only Gatekeeper evidence');
+  assertMatches(gatekeeperStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-gatekeeper-launch-policy\.json/, 'Full Gatekeeper policy is uploaded only for distributable Full assets');
   assertMatches(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/, 'Full package artifact upload defaults on for release-call consumers');
   assertMatches(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/, 'large Full package artifact is explicitly gated');
   assertMatches(workflow, /cache:[\s\S]*full_runtime_layers/, 'Full telemetry cache fields');
