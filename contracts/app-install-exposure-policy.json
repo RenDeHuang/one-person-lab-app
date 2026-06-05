@@ -190,14 +190,18 @@
       "codex_exposure_owner": "app_or_cli_managed_background_maintenance"
     },
     {
-      "surface": "free_macos_unsigned_app_install",
-      "entrypoint": "install-free.sh",
-      "backing_entrypoint": "install.sh --free-macos-install --yes",
-      "primary_audience": "beginner_non_technical_users_without_paid_apple_developer_id",
+      "surface": "stable_local_authorized_macos_install",
+      "entrypoint": "install-stable.sh",
+      "compatibility_entrypoints": [
+        "install-free.sh"
+      ],
+      "backing_entrypoint": "install.sh --stable-macos-install --yes",
+      "compatibility_backing_entrypoint": "install.sh --free-macos-install --yes",
+      "primary_audience": "beginner_non_technical_users",
       "progress_source": "github_release_dmg_copy_and_local_quarantine_diagnostics",
-      "exposure_policy": "one_terminal_command_download_copy_authorize_and_open_not_stable_release_gate",
+      "exposure_policy": "one_terminal_command_download_copy_authorize_and_open_as_stable_release_path",
       "codex_exposure_owner": "app_or_cli_managed_background_maintenance",
-      "stable_release_replacement_allowed": false,
+      "stable_release_path": true,
       "default_package_profile": "full",
       "required_commands": [
         "curl",
@@ -214,7 +218,7 @@
       "entrypoint": "install.sh --authorize-local-app-only",
       "primary_audience": "developer_or_internal_test_users",
       "progress_source": "local_quarantine_and_gatekeeper_diagnostics",
-      "exposure_policy": "explicit_user_confirmed_quarantine_removal_not_stable_release_gate",
+      "exposure_policy": "explicit_user_confirmed_quarantine_removal_for_existing_local_app",
       "codex_exposure_owner": "not_applicable",
       "stable_release_replacement_allowed": false,
       "required_commands": [

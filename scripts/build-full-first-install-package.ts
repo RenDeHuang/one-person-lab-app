@@ -182,8 +182,7 @@ function canRunMacosSigningChecks() {
 }
 
 function strictMacosRuntimeSigningRequired() {
-  return process.env.OPL_MAC_STRICT_SIGNING_CHECKS === 'true'
-    || process.env.OPL_FULL_DISTRIBUTABLE_ASSETS === 'true';
+  return process.env.OPL_MAC_STRICT_SIGNING_CHECKS === 'true';
 }
 
 function macosSigningIdentity() {

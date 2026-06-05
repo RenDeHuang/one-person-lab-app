@@ -23,18 +23,19 @@ usage() {
   cat <<'USAGE'
 Usage:
   install.sh [--complete|--app-first] [OPL install args...]
-  install.sh --free-macos-install [--full|--standard] [--release-tag vX.Y.Z] [--yes]
+  install.sh --stable-macos-install [--full|--standard] [--release-tag vX.Y.Z] [--yes]
   install.sh --authorize-local-app-only [--app-path "/Applications/One Person Lab.app"] [--yes]
 
 Options:
   --complete                 Run complete framework/module setup from the terminal.
   --app-first                Keep the default App-first setup and defer modules.
-  --free-macos-install       Download, copy, locally authorize, and open the App without Apple paid signing.
-  --full                     Use the Full first-install DMG for --free-macos-install.
-  --standard                 Use the standard App DMG for --free-macos-install.
-  --release-tag <tag>        GitHub Release tag for --free-macos-install. Defaults to latest.
-  --dmg-url <url>            Download a specific DMG URL for --free-macos-install.
-  --dmg-path <path>          Install from a local DMG path for --free-macos-install.
+  --stable-macos-install     Download, copy, locally authorize, and open the Stable App.
+  --free-macos-install       Compatibility alias for --stable-macos-install.
+  --full                     Use the Full first-install DMG for --stable-macos-install.
+  --standard                 Use the standard App DMG for --stable-macos-install.
+  --release-tag <tag>        GitHub Release tag for --stable-macos-install. Defaults to latest.
+  --dmg-url <url>            Download a specific DMG URL for --stable-macos-install.
+  --dmg-path <path>          Install from a local DMG path for --stable-macos-install.
   --authorize-local-app      After setup, remove macOS quarantine from a local App bundle.
   --authorize-local-app-only Only run the local App authorization helper.
   --app-path <path>          App bundle path for the local authorization helper.
@@ -42,8 +43,7 @@ Options:
   --no-open                 Do not open the App after --free-macos-install.
   --yes                     Confirm local App authorization non-interactively.
 
-The local App authorization helper is for unsigned developer/local builds only.
-Stable releases still require Developer ID signing and notarization.
+The Stable macOS install path uses local authorization and does not require Apple Developer ID signing.
 USAGE
 }
 
@@ -56,7 +56,7 @@ while [ "$#" -gt 0 ]; do
     --app-first)
       COMPLETE_INSTALL=0
       ;;
-    --free-macos-install)
+    --stable-macos-install|--free-macos-install)
       FREE_MACOS_INSTALL=1
       ;;
     --full)
@@ -173,7 +173,7 @@ confirm_local_app_authorization() {
   {
     printf 'One Person Lab will remove macOS quarantine from this local App bundle:\n'
     printf '  %s\n' "$OPL_LOCAL_APP_PATH"
-    printf 'This is only for unsigned developer/local builds and does not replace Developer ID signing or notarization.\n'
+    printf 'This clears the local quarantine marker so the App and nested tools launch without repeated System Settings approval.\n'
     printf 'Type "authorize" to continue: '
   } > /dev/tty
   local reply
@@ -278,7 +278,7 @@ authorize_local_app() {
     exit 1
   fi
   if [ "$spctl_status" != "passed" ]; then
-    printf 'Gatekeeper assessment did not pass. This helper reduces repeated quarantine prompts for local builds; signed and notarized releases are still required for the smooth stable path.\n' >&2
+    printf 'Gatekeeper assessment did not pass. The Stable install path records this as an unsigned local-authorization diagnostic after quarantine removal.\n' >&2
   fi
 }
 
@@ -287,18 +287,18 @@ confirm_free_macos_install() {
     return 0
   fi
   if [ ! -r /dev/tty ]; then
-    printf 'Free macOS install needs confirmation. Re-run with --yes when using a non-interactive installer.\n' >&2
+    printf 'Stable macOS install needs confirmation. Re-run with --yes when using a non-interactive installer.\n' >&2
     exit 1
   fi
   {
-    printf 'One Person Lab will install this local App bundle without Apple paid signing:\n'
+    printf 'One Person Lab will install this Stable App bundle with local macOS authorization:\n'
     printf '  %s\n' "$OPL_LOCAL_APP_PATH"
     printf 'This may replace an existing App at that path, remove recursive quarantine, and open the App.\n'
     printf 'Type "install" to continue: '
   } > /dev/tty
   local reply
   if ! IFS= read -r reply < /dev/tty; then
-    printf 'Free macOS install needs a controlling terminal, or pass --yes for explicit non-interactive confirmation.\n' >&2
+    printf 'Stable macOS install needs a controlling terminal, or pass --yes for explicit non-interactive confirmation.\n' >&2
     exit 1
   fi
   if [ "$reply" != "install" ]; then
@@ -335,7 +335,7 @@ release_asset_name() {
       printf 'One-Person-Lab-%s-mac-arm64.dmg\n' "$version"
       ;;
     *)
-      printf 'Unsupported --free-macos-install package profile: %s\n' "$profile" >&2
+      printf 'Unsupported --stable-macos-install package profile: %s\n' "$profile" >&2
       printf 'Expected one of: full, standard\n' >&2
       exit 1
       ;;
@@ -401,9 +401,9 @@ copy_app_from_dmg() {
   hdiutil detach "$mount_dir" >/tmp/opl-free-macos-install.hdiutil-detach.log 2>&1 || true
 }
 
-free_macos_install() {
+stable_macos_install() {
   if ! is_macos; then
-    printf 'Free macOS App install is macOS-only.\n' >&2
+    printf 'Stable macOS App install is macOS-only.\n' >&2
     exit 1
   fi
   for required_command in curl hdiutil ditto find xattr; do
@@ -439,11 +439,11 @@ free_macos_install() {
       printf 'The App was installed and locally authorized, but macOS did not open it automatically. Open it manually from: %s\n' "$OPL_LOCAL_APP_PATH" >&2
     fi
   fi
-  printf 'One Person Lab free macOS install finished.\n'
+  printf 'One Person Lab Stable macOS install finished.\n'
 }
 
 if [ "$FREE_MACOS_INSTALL" = "1" ]; then
-  free_macos_install
+  stable_macos_install
   exit 0
 fi
 

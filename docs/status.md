@@ -267,21 +267,21 @@ Local Homebrew VM evidence on 2026-06-04 used
 `/Applications/One Person Lab.app`, so the tap/download/install path was
 validated. First launch did not pass: `codesign --verify --deep --strict`
 returned success, but `spctl --assess --type execute --verbose=4` returned
-`rejected` for the current release asset. Release workflows and VM smoke now
-treat `standard-gatekeeper-launch-policy.json`,
-`full-gatekeeper-launch-policy.json`, and guest
-`gatekeeper-launch-policy.json` as release-blocking evidence before App launch
-or Homebrew tap sync.
+`rejected` for the current release asset. Release workflows now treat that as
+the expected unsigned local-authorization diagnostic after quarantine removal.
+Stable release assets must publish `standard-local-authorization-policy.json`
+and `full-local-authorization-policy.json`; Homebrew tap sync requires the
+matching local authorization policy asset before updating a cask.
 
 Follow-up local install evidence showed the same trust-chain failure for the
 Full runtime `node` binary under `~/Library/Application Support/OPL/runtime`:
 `codesign -dv` reported ad-hoc signing and no TeamIdentifier, and `spctl`
 returned `rejected`. Full release packaging now treats native runtime
-executables as their own release gate. Distributable Full builds must sign the
-runtime executables, verify `node` and the pre-extracted Temporal CLI binary
-through `scripts/verify-full-runtime-native-trust.ts`, upload
-`full-runtime-native-trust.json`, and include it in `SHA256SUMS.txt` before the
-Full package can be published or consumed by the Full Homebrew cask.
+executables as their own release gate. Full builds must verify that `node` and
+the pre-extracted Temporal CLI binary are listed in
+`full-runtime-native-trust.json`, carry no `com.apple.quarantine`, and are
+included in `SHA256SUMS.txt` before the Full package can be published or
+consumed by the Full Homebrew cask. Developer ID signing remains optional.
 
 Release and user-path evidence remains cohort-bound App evidence. Verified
 release bundle refs, screenshots, remote asset checks, or packaged route smoke

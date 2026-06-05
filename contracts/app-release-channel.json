@@ -156,7 +156,7 @@
         "artifact",
         "sha256",
         "manifest_url",
-        "gatekeeper_launch_policy_asset"
+        "local_authorization_policy_asset"
       ]
     },
     "full_first_install_policy": "stable_full_cask_or_github_release_first_install_asset; never standard updater metadata",
@@ -367,7 +367,7 @@
         "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
         "latest-mac.yml",
         "latest-arm64-mac.yml",
-        "standard-gatekeeper-launch-policy.json"
+        "standard-local-authorization-policy.json"
       ],
       "full_required_assets": [
         "One-Person-Lab-Full-<version>-mac-arm64.dmg",
@@ -376,12 +376,12 @@
         "full-runtime-native-trust.json",
         "README-Full-First-Install.txt",
         "SHA256SUMS.txt",
-        "full-gatekeeper-launch-policy.json"
+        "full-local-authorization-policy.json"
       ],
       "checks": [
         "remote_asset_size",
         "remote_asset_sha256_digest",
-        "gatekeeper_launch_policy",
+        "local_authorization_policy",
         "standard_updater_metadata",
         "full_sha256sums",
         "full_runtime_cache_events",
@@ -416,7 +416,7 @@
         "settings_smoke": true,
         "runtime_profile": "standard",
         "release_blocking_readiness": [
-          "gatekeeper_launch_policy",
+          "local_authorization_policy",
           "app_launch",
           "core_ready_or_app_managed_bootstrap_visible",
           "settings_navigation"
@@ -434,7 +434,7 @@
         "runtime_profile": "standard",
         "release_blocking_readiness": [
           "brew_tap_and_cask_install",
-          "gatekeeper_launch_policy",
+          "local_authorization_policy",
           "app_launch",
           "core_ready_or_app_managed_bootstrap_visible",
           "settings_navigation"
@@ -453,7 +453,7 @@
         "runtime_profile": "full",
         "codex_config_wizard": "required_and_submitted",
         "release_blocking_readiness": [
-          "gatekeeper_launch_policy",
+          "local_authorization_policy",
           "core_ready",
           "domain_modules_ready",
           "family_runtime_provider_ready"

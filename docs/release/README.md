@@ -329,32 +329,84 @@ The Homebrew VM gate must distinguish install transport from first launch. It
 first proves that the cask installs `One Person Lab.app` under `/Applications`,
 then the guest smoke runs `codesign --verify --deep --strict` and
 `spctl --assess --type execute --verbose=4` before `open`. A `spctl` rejection
-is a release asset signing/notarization blocker, not a Homebrew tap failure.
-Standard and Full release lanes publish `standard-gatekeeper-launch-policy.json`
-and `full-gatekeeper-launch-policy.json`; Homebrew tap sync requires the
-matching launch-policy asset before updating a cask.
+is expected for the current unsigned Stable path after quarantine removal; it
+must be recorded as a local authorization diagnostic rather than blocking the
+release. Standard and Full release lanes publish
+`standard-local-authorization-policy.json` and
+`full-local-authorization-policy.json`; Homebrew tap sync requires the matching
+local authorization policy asset before updating a cask.
 
-Stable and Nightly macOS release builds require GitHub Actions secrets
-`BUILD_CERTIFICATE_BASE64`, `P12_PASSWORD`, `APPLE_ID`, `APPLE_ID_PASSWORD`,
-`TEAM_ID`, and `IDENTITY`. The standard build preflight checks these before the
-macOS packager runs, and the Full first-install workflow checks them before any
-payload checkout or runtime cache work when it is producing distributable
-assets. Missing secrets are a signing/notarization blocker. Do not refresh a
-stable release with unsigned assets, because that reintroduces first-launch
-Gatekeeper approvals for the App and packaged runtime executables.
+Stable macOS release builds do not require paid Apple Developer ID secrets. The
+standard and Full workflows default to local authorization mode: they build the
+DMG assets, remove or verify absent quarantine on the copied App path, record
+`codesign` and `spctl` diagnostics, upload `full-runtime-native-trust.json`, and
+include `full-local-authorization-policy.json` in `SHA256SUMS.txt`. Missing
+Apple secrets are not a Stable release blocker.
 
-## macOS signing material setup
+## Stable macOS local authorization
 
-Apple's Developer ID path is the release source of truth for smooth macOS
-launches outside the Mac App Store. Apple's
+The user-facing Stable install command is:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash
+```
+
+The short script delegates to `install.sh --stable-macos-install --yes`. The
+default Stable install profile is the latest Full first-install DMG. It mounts
+the selected App DMG, copies `One Person Lab.app` into `/Applications`, removes
+recursive `com.apple.quarantine`, reports `codesign_status`, `spctl_status`,
+`quarantine_before`, and `quarantine_after`, and opens the App.
+
+Release assets must include these local authorization gates:
+
+- `standard-local-authorization-policy.json` for standard App assets.
+- `full-local-authorization-policy.json` for Full first-install assets.
+- `full-runtime-native-trust.json` for native runtime executable diagnostics.
+- `SHA256SUMS.txt` entries for the Full DMG, manifest, runtime cache events,
+  native trust diagnostics, Full local authorization policy, and README.
+
+`local_authorization_policy` is the current Stable release gate. It requires
+`codesign_status=passed`, `quarantine_status=absent` or
+`removed_by_installer`, `apple_developer_id_required=false`, and
+`gatekeeper_required=false`. `spctl_status` may be `passed` or
+`rejected_allowed_unsigned`.
+
+If an App has already been copied into `/Applications`, use the local
+authorization helper only:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
+  | bash -s -- --authorize-local-app-only \
+      --app-path "/Applications/One Person Lab.app" \
+      --yes
+```
+
+The same helper can run after the App-first one-shot installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
+  | bash -s -- --authorize-local-app \
+      --app-path "/Applications/One Person Lab.app" \
+      --yes
+```
+
+`quarantine_after=0` means the App bundle and nested runtime executables no
+longer carry the browser-download quarantine marker. A failing `spctl_status`
+after that point is an unsigned-distribution diagnostic, not a request for the
+user to approve the App and each nested tool separately in System Settings.
+
+## Optional macOS signing material setup
+
+Apple's Developer ID path remains the optional smoother path for macOS launches
+outside the Mac App Store. Apple's
 [Developer ID certificates](https://developer.apple.com/help/account/certificates/create-developer-id-certificates)
 guide says Developer ID Application certificates sign Mac apps distributed
 outside the Mac App Store, and Apple's
 [notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
 says Developer ID-signed software should be submitted to Apple so Gatekeeper can
-see the notarization ticket. The App release workflows therefore require a
-Developer ID Application certificate plus Apple notarization credentials before
-publishing Stable or Nightly macOS assets.
+see the notarization ticket. Configure this only when the release owner wants
+Developer ID diagnostics in addition to the current Stable local authorization
+gate.
 
 The release owner should prepare the secrets as follows:
 
@@ -399,61 +451,9 @@ gh secret set IDENTITY --repo gaofeng21cn/one-person-lab-app
 `APPLE_ID_PASSWORD` should be the notarization credential accepted by the
 current workflow's notary tool path, typically an Apple
 [app-specific password](https://support.apple.com/en-us/102654) for the Apple
-ID on that team. After setting secrets, re-run the standard desktop release
-workflow. A successful macOS release must still emit
-`standard-gatekeeper-launch-policy.json`, and Full releases must also emit
-`full-gatekeeper-launch-policy.json` plus `full-runtime-native-trust.json`.
-
-## Unsigned local App authorization
-
-If the Developer ID material is not available yet, use the free macOS installer
-path as the recommended no-Apple-fee user flow. It downloads the selected App
-DMG, mounts it, copies `One Person Lab.app` into `/Applications`, removes
-recursive quarantine, reports Gatekeeper diagnostics, and opens the App:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-free.sh | bash
-```
-
-The short script delegates to `install.sh --free-macos-install --yes`. The
-default free install profile is the latest Full first-install DMG. Advanced
-operators can pass `--standard`, `--release-tag v<version>`, `--dmg-url <url>`,
-`--dmg-path <path>`, `--app-path <path>`, or `--no-open` after `bash -s --` when
-testing a specific asset or avoiding automatic launch.
-
-If an unsigned App has already been copied into `/Applications`, use the local
-authorization helper only:
-
-This helper is not a Stable release replacement.
-It must not be used to promote unsigned public assets.
-It reduces repeated first-launch prompts by removing the recursive
-`com.apple.quarantine` attribute from the copied App bundle and then reporting
-`codesign` and `spctl` diagnostics.
-
-After copying `One Person Lab.app` into `/Applications`, run:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
-  | bash -s -- --authorize-local-app-only \
-      --app-path "/Applications/One Person Lab.app" \
-      --yes
-```
-
-The same helper can run after the App-first one-shot installer:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
-  | bash -s -- --authorize-local-app \
-      --app-path "/Applications/One Person Lab.app" \
-      --yes
-```
-
-The helper prints `quarantine_before`, `quarantine_after`, `codesign_status`,
-and `spctl_status`. `quarantine_after=0` means the App bundle and nested runtime
-executables no longer carry the browser-download quarantine marker. A failing
-`spctl_status` still means Gatekeeper does not accept the build as a signed and
-notarized distributable release; use the signing material setup above for the
-public smooth path.
+ID on that team. After setting secrets, re-run the desktop release workflow.
+The local authorization policy assets remain required even when Developer ID
+material is present.
 
 The older automatic path is still valid for standard-only releases: pushing a
 `v<version>` tag triggers **Build and Release**. After that completes, run

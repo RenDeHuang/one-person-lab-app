@@ -192,14 +192,14 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   }
   assertMatches(workflow, /Upload Full workflow telemetry[\s\S]*actions\/upload-artifact@v7/, 'Full telemetry artifact upload');
   const diagnosticsStep = workflowStepBlock(workflow, 'Upload Full diagnostics artifact');
-  const gatekeeperStep = workflowStepBlock(workflow, 'Upload Full Gatekeeper launch policy');
-  assertMatches(workflow, /name:\s+Preflight Full release signing secrets[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/, 'Full workflow preflights signing before distributable builds');
+  const localAuthorizationStep = workflowStepBlock(workflow, 'Upload Full local authorization policy');
+  assertMatches(workflow, /name:\s+Inspect optional Full release signing secrets/, 'Full workflow inspects optional signing material');
   assertMatches(workflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/, 'Full signing preflight required secrets');
-  assertMatches(workflow, /Full first-install release signing preflight failed/, 'Full signing preflight failure message');
+  assertMatches(workflow, /Full first-install local authorization mode/, 'Full local authorization mode notice');
   assertMatches(diagnosticsStep, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/, 'Full diagnostics artifact upload');
-  assertMatches(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
+  assertMatches(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
   assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/, 'Full diagnostics artifact must not require release-only Gatekeeper evidence');
-  assertMatches(gatekeeperStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-gatekeeper-launch-policy\.json/, 'Full Gatekeeper policy is uploaded only for distributable Full assets');
+  assertMatches(localAuthorizationStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-local-authorization-policy\.json/, 'Full local authorization policy is uploaded for Stable assets');
   assertMatches(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/, 'Full package artifact upload defaults on for release-call consumers');
   assertMatches(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/, 'large Full package artifact is explicitly gated');
   assertMatches(workflow, /cache:[\s\S]*full_runtime_layers/, 'Full telemetry cache fields');

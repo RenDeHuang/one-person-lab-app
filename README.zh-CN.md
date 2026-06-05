@@ -113,12 +113,12 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 该入口默认采用 App-first 安装，让全新 Mac 可以先打开 App，Git-backed 模块维护随后由 App 继续处理。需要从终端执行完整框架/模块安装时，可显式追加 `--complete`。
 
-不走付费 Apple Developer ID 签名时，使用免费 macOS 安装入口。它会下载最新
-Full DMG、把 App 复制到 `/Applications`、递归移除 macOS quarantine 属性、输出
+稳定版 macOS 安装入口不要求付费 Apple Developer ID 签名。它会下载最新 Full
+DMG、把 App 复制到 `/Applications`、递归移除 macOS quarantine 属性、输出
 `codesign`/`spctl` 诊断，并打开 App：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-free.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash
 ```
 
 如果你已经手工复制了未签名的开发版或内部测试版到 `/Applications`，只运行本地授权助手：
@@ -130,8 +130,8 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
       --yes
 ```
 
-免费路径不是已签名、已公证稳定版 release 的替代品，但它是不用给 Apple
-付费时摩擦最小的安装方式。
+这是当前稳定版安装路径。Apple Developer ID 签名仍可作为未来进一步降低
+Gatekeeper 诊断摩擦的增强项。
 
 ### 直接下载
 

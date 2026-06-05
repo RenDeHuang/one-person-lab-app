@@ -5,6 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
+import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputDir = path.resolve(root, process.argv[2] ?? 'release-assets');
@@ -35,24 +36,16 @@ const metadataFiles = readdirSync(outputDir)
   .sort();
 
 let errors = 0;
-const gatekeeperPolicyPath = path.join(outputDir, 'standard-gatekeeper-launch-policy.json');
-if (!existsSync(gatekeeperPolicyPath)) {
-  console.error('FAIL: missing standard-gatekeeper-launch-policy.json');
+const localAuthorizationPolicyPath = path.join(outputDir, 'standard-local-authorization-policy.json');
+if (!existsSync(localAuthorizationPolicyPath)) {
+  console.error('FAIL: missing standard-local-authorization-policy.json');
   errors += 1;
 } else {
   try {
-    const policy = JSON.parse(readFileSync(gatekeeperPolicyPath, 'utf8'));
-    if (
-      policy?.schema !== 'opl_gatekeeper_launch_policy.v1' ||
-      policy?.package_kind !== 'app_standard' ||
-      policy?.codesign_status !== 'passed' ||
-      policy?.spctl_status !== 'passed'
-    ) {
-      console.error('FAIL: standard-gatekeeper-launch-policy.json must prove codesign and spctl passed for app_standard');
-      errors += 1;
-    }
+    const policy = JSON.parse(readFileSync(localAuthorizationPolicyPath, 'utf8'));
+    assertLocalAuthorizationPolicy(policy, 'app_standard', 'standard-local-authorization-policy.json');
   } catch (error) {
-    console.error(`FAIL: invalid standard-gatekeeper-launch-policy.json: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`FAIL: invalid standard-local-authorization-policy.json: ${error instanceof Error ? error.message : String(error)}`);
     errors += 1;
   }
 }
@@ -77,4 +70,4 @@ if (errors > 0) {
   process.exit(1);
 }
 
-console.log('PASS: standard updater metadata excludes Full first-install assets and Gatekeeper launch policy passed');
+console.log('PASS: standard updater metadata excludes Full first-install assets and Stable local authorization policy passed');

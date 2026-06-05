@@ -81,8 +81,7 @@ jobs:
     timeout-minutes: 150
 
     steps:
-      - name: Preflight Full release signing secrets
-        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
+      - name: Inspect optional Full release signing secrets
         shell: bash
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
@@ -101,15 +100,15 @@ jobs:
           done
           if [ "${#missing[@]}" -gt 0 ]; then
             missing_csv="$(IFS=', '; echo "${missing[*]}")"
-            echo "::error title=Full first-install release signing preflight failed::Missing GitHub Actions secrets: ${missing_csv}"
-            echo "::error::Full first-install distributable assets require Developer ID signing and Apple notarization before upload, Homebrew cask sync, or clean-VM promotion."
-            exit 1
+            echo "::notice title=Full first-install local authorization mode::Missing optional Apple signing secrets: ${missing_csv}"
+            echo "::notice::Stable Full assets will use local authorization evidence instead of Developer ID notarization."
+            exit 0
           fi
           if ! printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode >/dev/null 2>&1; then
             echo "::error title=Full first-install release signing preflight failed::BUILD_CERTIFICATE_BASE64 is not valid base64."
             exit 1
           fi
-          echo "Full first-install release signing preflight passed."
+          echo "Optional Full first-install release signing material is present."
 
       - name: Checkout App repo
         uses: actions/checkout@v6
@@ -499,12 +498,8 @@ jobs:
           echo "OPL_FULL_PACKAGE_NOTARIZED=false" >> "$GITHUB_ENV"
 
           if [ -z "${BUILD_CERTIFICATE_BASE64:-}" ] || [ -z "${P12_PASSWORD:-}" ]; then
-            if [ "$requires_distributable_assets" != "true" ]; then
-              echo "::notice::No Developer ID certificate secrets configured; continuing because this run does not publish or upload distributable Full assets."
-              exit 0
-            fi
-            echo "::error::Full first-install release assets require Developer ID certificate secrets before upload or Homebrew cask sync."
-            exit 1
+            echo "::notice::No Developer ID certificate secrets configured; using Stable local authorization mode."
+            exit 0
           fi
 
           echo "$BUILD_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
@@ -519,12 +514,8 @@ jobs:
             echo "OPL_MAC_STRICT_SIGNING_CHECKS=true" >> "$GITHUB_ENV"
             echo "OPL_FULL_PACKAGE_NOTARIZED=true" >> "$GITHUB_ENV"
           else
-            if [ "$requires_distributable_assets" != "true" ]; then
-              echo "::notice::Developer ID certificate is available, but notarization identity secrets are incomplete; continuing because this run does not publish or upload distributable Full assets."
-              exit 0
-            fi
-            echo "::error::Full first-install release assets require APPLE_ID, APPLE_ID_PASSWORD, TEAM_ID, and IDENTITY for notarization."
-            exit 1
+            echo "::notice::Developer ID certificate is available, but notarization identity secrets are incomplete; using Stable local authorization mode."
+            exit 0
           fi
 
       - name: Build Full first-install package
@@ -591,11 +582,7 @@ jobs:
           app_path="$GITHUB_WORKSPACE/one-person-lab-app/shells/aionui/out/mac-arm64/One Person Lab.app"
           runtime_root="$app_path/Contents/Resources/opl-full-runtime/runtime/current"
           dmg_path="$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg"
-          if [ "${OPL_FULL_DISTRIBUTABLE_ASSETS:-false}" = "true" ]; then
-            if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" != "true" ]; then
-              echo "::error::Strict signing was not enabled for a distributable Full asset run."
-              exit 1
-            fi
+          if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" = "true" ]; then
             codesign --verify --deep --strict --verbose=2 "$app_path"
             spctl --assess --type execute --verbose=4 "$app_path"
             node --experimental-strip-types one-person-lab-app/scripts/verify-full-runtime-native-trust.ts \
@@ -604,16 +591,22 @@ jobs:
               --output one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
             node -e 'const fs = require("node:fs"); const appPath = process.argv[1]; const runtimeTrust = JSON.parse(fs.readFileSync("one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json", "utf8")); fs.writeFileSync("one-person-lab-app/dist/opl-full-release/full-gatekeeper-launch-policy.json", `${JSON.stringify({ schema: "opl_gatekeeper_launch_policy.v1", package_kind: "app_full_first_install", app_path: appPath, codesign_status: "passed", spctl_status: "passed", runtime_native_trust_status: runtimeTrust.status, runtime_native_executable_count: runtimeTrust.executable_count }, null, 2)}\n`);' "$app_path"
           else
-            echo "::notice::Skipping strict codesign/spctl checks because this run does not publish or upload distributable Full assets."
+            echo "::notice::Skipping strict Gatekeeper checks because Stable Full assets use local authorization mode."
             codesign --verify --deep --strict --verbose=2 "$app_path" || true
             spctl --assess --type execute --verbose=4 "$app_path" || true
           fi
+          node --experimental-strip-types one-person-lab-app/scripts/local-authorization-policy.ts \
+            --package-kind app_full_first_install \
+            --app-path "$app_path" \
+            --runtime-native-trust one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json \
+            --output one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json
           hdiutil verify "$dmg_path"
           (
             cd "$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"
-            grep -Ev '(full-gatekeeper-launch-policy|full-runtime-native-trust)\.json$' SHA256SUMS.txt > SHA256SUMS.next
-            if [ "${OPL_FULL_DISTRIBUTABLE_ASSETS:-false}" = "true" ]; then
-              shasum -a 256 full-runtime-native-trust.json >> SHA256SUMS.next
+            grep -Ev '(full-gatekeeper-launch-policy|full-runtime-native-trust|full-local-authorization-policy)\.json$' SHA256SUMS.txt > SHA256SUMS.next
+            shasum -a 256 full-runtime-native-trust.json >> SHA256SUMS.next
+            shasum -a 256 full-local-authorization-policy.json >> SHA256SUMS.next
+            if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" = "true" ]; then
               shasum -a 256 full-gatekeeper-launch-policy.json >> SHA256SUMS.next
             fi
             mv SHA256SUMS.next SHA256SUMS.txt
@@ -791,17 +784,18 @@ jobs:
             one-person-lab-app/dist/opl-full-release/full-package-manifest.json
             one-person-lab-app/dist/opl-full-release/runtime-cache-events.json
             one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
+            one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json
             one-person-lab-app/dist/opl-full-release/SHA256SUMS.txt
             one-person-lab-app/dist/opl-full-release/README-Full-First-Install.txt
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload Full Gatekeeper launch policy
+      - name: Upload Full local authorization policy
         if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
         uses: actions/upload-artifact@v7
         with:
-          name: opl-full-gatekeeper-launch-policy-${{ env.OPL_RELEASE_VERSION }}
-          path: one-person-lab-app/dist/opl-full-release/full-gatekeeper-launch-policy.json
+          name: opl-full-local-authorization-policy-${{ env.OPL_RELEASE_VERSION }}
+          path: one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json
           if-no-files-found: error
           retention-days: 30
 

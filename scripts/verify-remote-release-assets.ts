@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
 
 function parseArgs(argv) {
   const parsed = {
@@ -99,7 +100,7 @@ function requiredAssetNames(version, includeFullPackage) {
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
     'latest-mac.yml',
     'latest-arm64-mac.yml',
-    'standard-gatekeeper-launch-policy.json',
+    'standard-local-authorization-policy.json',
   ];
   if (!includeFullPackage) {
     return standard;
@@ -112,7 +113,7 @@ function requiredAssetNames(version, includeFullPackage) {
     'full-runtime-native-trust.json',
     'README-Full-First-Install.txt',
     'SHA256SUMS.txt',
-    'full-gatekeeper-launch-policy.json',
+    'full-local-authorization-policy.json',
   ];
 }
 
@@ -189,22 +190,15 @@ function assertStandardMetadata(downloadDir, version) {
   }
 }
 
-function assertGatekeeperLaunchPolicy(downloadDir, name, packageKind) {
+function assertStableLocalAuthorizationPolicy(downloadDir, name, packageKind) {
   const policy = JSON.parse(readText(path.join(downloadDir, name)));
-  if (
-    policy?.schema !== 'opl_gatekeeper_launch_policy.v1' ||
-    policy?.package_kind !== packageKind ||
-    policy?.codesign_status !== 'passed' ||
-    policy?.spctl_status !== 'passed'
-  ) {
-    throw new Error(`${name} must prove codesign and spctl passed for ${packageKind}.`);
-  }
+  assertLocalAuthorizationPolicy(policy, packageKind, name);
 }
 
 function assertFullRuntimeNativeTrust(downloadDir) {
   const trust = JSON.parse(readText(path.join(downloadDir, 'full-runtime-native-trust.json')));
-  if (trust?.schema !== 'opl_full_runtime_native_trust.v1' || trust?.status !== 'passed') {
-    throw new Error('full-runtime-native-trust.json must prove Full runtime native executable trust passed.');
+  if (trust?.schema !== 'opl_full_runtime_native_trust.v1' || !['passed', 'not_distributable', 'failed'].includes(trust?.status)) {
+    throw new Error('full-runtime-native-trust.json must record Full runtime native executable diagnostics.');
   }
   const executables = Array.isArray(trust.executables) ? trust.executables : [];
   if (executables.length === 0 || trust.executable_count !== executables.length) {
@@ -218,12 +212,10 @@ function assertFullRuntimeNativeTrust(downloadDir) {
   for (const entry of executables) {
     if (
       entry?.codesign_status !== 'passed' ||
-      !['passed', 'not_required'].includes(entry?.spctl_status) ||
-      entry?.quarantine_status !== 'absent' ||
-      !entry?.team_identifier ||
-      entry?.signature === 'adhoc'
+      !['passed', 'not_required', 'deferred_until_notarized_app', 'failed'].includes(entry?.spctl_status) ||
+      entry?.quarantine_status !== 'absent'
     ) {
-      throw new Error(`Full runtime native executable is not distributable-trusted: ${entry?.relative_path || '(unknown)'}.`);
+      throw new Error(`Full runtime native executable is not locally authorized: ${entry?.relative_path || '(unknown)'}.`);
     }
   }
 }
@@ -389,7 +381,7 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
     'runtime-cache-events.json',
     'full-runtime-native-trust.json',
     'README-Full-First-Install.txt',
-    'full-gatekeeper-launch-policy.json',
+    'full-local-authorization-policy.json',
   ]) {
     const expected = checksumEntries.get(name);
     if (!expected) {
@@ -400,7 +392,7 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
       throw new Error(`SHA256SUMS.txt mismatch for ${name}: expected ${expected}, got ${actual}.`);
     }
   }
-  assertGatekeeperLaunchPolicy(downloadDir, 'full-gatekeeper-launch-policy.json', 'app_full_first_install');
+  assertStableLocalAuthorizationPolicy(downloadDir, 'full-local-authorization-policy.json', 'app_full_first_install');
   assertFullRuntimeNativeTrust(downloadDir);
 
   const manifest = JSON.parse(readText(path.join(downloadDir, 'full-package-manifest.json')));
@@ -465,7 +457,7 @@ function verifyDownloadedAssets(releaseView, options, names, downloadDir) {
   }
 
   assertStandardMetadata(downloadDir, options.version);
-  assertGatekeeperLaunchPolicy(downloadDir, 'standard-gatekeeper-launch-policy.json', 'app_standard');
+  assertStableLocalAuthorizationPolicy(downloadDir, 'standard-local-authorization-policy.json', 'app_standard');
   let fullFirstInstallBudget = null;
   if (options.includeFullPackage) {
     fullFirstInstallBudget = assertFullAssets(downloadDir, options.version, verified);

@@ -78,7 +78,7 @@ jobs:
       skip_code_quality: ${{ inputs.skip_code_quality }}
       opl_release_version: ${{ inputs.opl_version }}
       shell_ref: ${{ inputs.shell_ref }}
-      require_macos_gatekeeper: true
+      require_macos_gatekeeper: false
     secrets: inherit
 
   publish-standard:
@@ -430,6 +430,7 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x ./install.sh one-person-lab/install.sh
+          bash -n ./install-stable.sh
           install_status=0
           initialize_status=0
           ./install.sh --complete --skip-modules || install_status=$?

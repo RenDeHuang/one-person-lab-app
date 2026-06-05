@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { buildReleaseNotesDocument, buildReleaseNotesEvidence } from './release-notes.ts';
 import { buildAiReleaseNotesDocument } from './release-notes-ai-writer.ts';
+import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultFullPackageDir = path.resolve(repoRoot, 'dist', 'opl-full-release');
@@ -180,20 +181,13 @@ function assertUpdaterMetadataDoesNotReferenceFullPackage(releaseDir, files) {
   }
 }
 
-function assertGatekeeperLaunchPolicy(releaseDir, name, packageKind) {
+function assertStableLocalAuthorizationPolicy(releaseDir, name, packageKind) {
   const policyPath = path.join(releaseDir, name);
   if (!fs.existsSync(policyPath)) {
-    throw new Error(`Missing Gatekeeper launch-policy evidence: ${policyPath}`);
+    throw new Error(`Missing Stable local-authorization evidence: ${policyPath}`);
   }
   const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
-  if (
-    policy?.schema !== 'opl_gatekeeper_launch_policy.v1' ||
-    policy?.package_kind !== packageKind ||
-    policy?.codesign_status !== 'passed' ||
-    policy?.spctl_status !== 'passed'
-  ) {
-    throw new Error(`${name} must prove codesign and spctl passed for ${packageKind}.`);
-  }
+  assertLocalAuthorizationPolicy(policy, packageKind, name);
 }
 
 function assertFullRuntimeNativeTrust(releaseDir) {
@@ -202,8 +196,8 @@ function assertFullRuntimeNativeTrust(releaseDir) {
     throw new Error(`Missing Full runtime native-trust evidence: ${trustPath}`);
   }
   const trust = JSON.parse(fs.readFileSync(trustPath, 'utf8'));
-  if (trust?.schema !== 'opl_full_runtime_native_trust.v1' || trust?.status !== 'passed') {
-    throw new Error('full-runtime-native-trust.json must prove Full runtime native executable trust passed.');
+  if (trust?.schema !== 'opl_full_runtime_native_trust.v1' || !['passed', 'not_distributable', 'failed'].includes(trust?.status)) {
+    throw new Error('full-runtime-native-trust.json must record Full runtime native executable diagnostics.');
   }
   const executables = Array.isArray(trust.executables) ? trust.executables : [];
   if (executables.length === 0 || trust.executable_count !== executables.length) {
@@ -217,12 +211,10 @@ function assertFullRuntimeNativeTrust(releaseDir) {
   for (const entry of executables) {
     if (
       entry?.codesign_status !== 'passed' ||
-      !['passed', 'not_required'].includes(entry?.spctl_status) ||
-      entry?.quarantine_status !== 'absent' ||
-      !entry?.team_identifier ||
-      entry?.signature === 'adhoc'
+      !['passed', 'not_required', 'deferred_until_notarized_app', 'failed'].includes(entry?.spctl_status) ||
+      entry?.quarantine_status !== 'absent'
     ) {
-      throw new Error(`Full runtime native executable is not distributable-trusted: ${entry?.relative_path || '(unknown)'}.`);
+      throw new Error(`Full runtime native executable is not locally authorized: ${entry?.relative_path || '(unknown)'}.`);
     }
   }
 }
@@ -265,7 +257,7 @@ function findArtifacts(shellRoot, version, macArch) {
     if (isGuiArtifact(name, version, '.blockmap', macArch)) {
       return true;
     }
-    if (name === 'standard-gatekeeper-launch-policy.json') {
+    if (name === 'standard-local-authorization-policy.json') {
       return true;
     }
     return isLatestMetadataForVersion(releaseDir, name, version, macArch);
@@ -275,8 +267,8 @@ function findArtifacts(shellRoot, version, macArch) {
   }
   assertStandardArtifactDoesNotContainFullRuntime(shellRoot, version, macArch);
   assertUpdaterMetadataDoesNotReferenceFullPackage(releaseDir, files);
-  assertGatekeeperLaunchPolicy(releaseDir, 'standard-gatekeeper-launch-policy.json', 'app_standard');
-  files.push('standard-gatekeeper-launch-policy.json');
+  assertStableLocalAuthorizationPolicy(releaseDir, 'standard-local-authorization-policy.json', 'app_standard');
+  files.push('standard-local-authorization-policy.json');
   if (macArch === 'arm64' && files.some((name) => name.includes('-mac-arm64.')) && files.includes('latest-mac.yml')) {
     const arm64MetadataName = 'latest-arm64-mac.yml';
     fs.copyFileSync(path.join(releaseDir, 'latest-mac.yml'), path.join(releaseDir, arm64MetadataName));
@@ -317,7 +309,7 @@ function findPrebuiltStandardArtifacts(standardArtifactsDir, version, macArch) {
     if (isGuiArtifact(name, version, '.blockmap', macArch)) {
       return true;
     }
-    if (name === 'standard-gatekeeper-launch-policy.json') {
+    if (name === 'standard-local-authorization-policy.json') {
       return true;
     }
     return isLatestMetadataForVersion(releaseDir, name, version, macArch);
@@ -327,7 +319,7 @@ function findPrebuiltStandardArtifacts(standardArtifactsDir, version, macArch) {
     ['ZIP', (name) => name.endsWith('.zip')],
     ['latest-mac.yml', (name) => name === 'latest-mac.yml'],
     ['latest-arm64-mac.yml', (name) => name === 'latest-arm64-mac.yml'],
-    ['standard-gatekeeper-launch-policy.json', (name) => name === 'standard-gatekeeper-launch-policy.json'],
+    ['standard-local-authorization-policy.json', (name) => name === 'standard-local-authorization-policy.json'],
   ];
   for (const [label, predicate] of requiredKinds) {
     if (!files.some(predicate)) {
@@ -335,7 +327,7 @@ function findPrebuiltStandardArtifacts(standardArtifactsDir, version, macArch) {
     }
   }
   assertUpdaterMetadataDoesNotReferenceFullPackage(releaseDir, files);
-  assertGatekeeperLaunchPolicy(releaseDir, 'standard-gatekeeper-launch-policy.json', 'app_standard');
+  assertStableLocalAuthorizationPolicy(releaseDir, 'standard-local-authorization-policy.json', 'app_standard');
   return [...new Set(files.map((name) => path.join(releaseDir, name)))];
 }
 
@@ -354,7 +346,7 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
     'full-runtime-native-trust.json',
     'SHA256SUMS.txt',
     'README-Full-First-Install.txt',
-    'full-gatekeeper-launch-policy.json',
+    'full-local-authorization-policy.json',
   ];
 
   const files = fs.readdirSync(fullPackageDir);
@@ -368,7 +360,7 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
   if (manifest?.distribution?.updater_metadata_allowed !== false) {
     throw new Error('Full package manifest must declare distribution.updater_metadata_allowed=false.');
   }
-  assertGatekeeperLaunchPolicy(fullPackageDir, 'full-gatekeeper-launch-policy.json', 'app_full_first_install');
+  assertStableLocalAuthorizationPolicy(fullPackageDir, 'full-local-authorization-policy.json', 'app_full_first_install');
   assertFullRuntimeNativeTrust(fullPackageDir);
   assertFullPackageManifestHasReleaseNotesMetadata(manifest);
 

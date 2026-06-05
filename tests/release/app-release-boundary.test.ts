@@ -573,27 +573,40 @@ function writeReleaseMetadata(outDir, version, assetName) {
   ].join('\n'));
 }
 
-function gatekeeperLaunchPolicy(packageKind) {
+function localAuthorizationPolicy(packageKind) {
   return `${JSON.stringify({
-    schema: 'opl_gatekeeper_launch_policy.v1',
+    schema: 'opl_local_authorized_macos_policy.v1',
     package_kind: packageKind,
+    stable_release_path: 'local_authorized_unsigned',
+    apple_developer_id_required: false,
+    gatekeeper_required: false,
+    local_authorization_required: true,
+    quarantine_removal_required: true,
+    install_entrypoint: 'install-stable.sh',
+    compatibility_entrypoints: ['install-free.sh'],
+    backing_entrypoint: 'install.sh --stable-macos-install --yes',
+    compatibility_backing_entrypoint: 'install.sh --free-macos-install --yes',
+    default_package_profile: packageKind === 'app_full_first_install' ? 'full' : 'standard',
+    user_prompt_policy: 'one_terminal_command_no_system_settings_override_expected_after_quarantine_clear',
     app_path: '/Applications/One Person Lab.app',
     codesign_status: 'passed',
-    spctl_status: 'passed',
+    spctl_status: 'rejected_allowed_unsigned',
+    quarantine_status: 'absent',
+    quarantine_attribute_count: 0,
   }, null, 2)}\n`;
 }
 
-function writeStandardGatekeeperLaunchPolicy(outDir) {
+function writeStandardLocalAuthorizationPolicy(outDir) {
   writeFile(
-    path.join(outDir, 'standard-gatekeeper-launch-policy.json'),
-    gatekeeperLaunchPolicy('app_standard'),
+    path.join(outDir, 'standard-local-authorization-policy.json'),
+    localAuthorizationPolicy('app_standard'),
   );
 }
 
-function writeFullGatekeeperLaunchPolicy(outDir) {
+function writeFullLocalAuthorizationPolicy(outDir) {
   writeFile(
-    path.join(outDir, 'full-gatekeeper-launch-policy.json'),
-    gatekeeperLaunchPolicy('app_full_first_install'),
+    path.join(outDir, 'full-local-authorization-policy.json'),
+    localAuthorizationPolicy('app_full_first_install'),
   );
 }
 
@@ -669,7 +682,7 @@ function standardRemoteAssetNames(version) {
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
     'latest-mac.yml',
     'latest-arm64-mac.yml',
-    'standard-gatekeeper-launch-policy.json',
+    'standard-local-authorization-policy.json',
   ];
 }
 
@@ -681,7 +694,7 @@ function writeStandardRemoteAssets(outDir, version, options = {}) {
   writeFile(path.join(outDir, zipName), 'standard-zip');
   writeFile(path.join(outDir, `${dmgName}.blockmap`), 'standard-dmg-blockmap');
   writeFile(path.join(outDir, `${zipName}.blockmap`), 'standard-zip-blockmap');
-  writeStandardGatekeeperLaunchPolicy(outDir);
+  writeStandardLocalAuthorizationPolicy(outDir);
   const metadata = [
     `version: ${version}`,
     'files:',
@@ -759,7 +772,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
   };
   writeFile(path.join(outDir, fullDmgName), options.dmgContent ?? 'full-dmg');
   writeFile(path.join(outDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-  writeFullGatekeeperLaunchPolicy(outDir);
+  writeFullLocalAuthorizationPolicy(outDir);
   writeFullRuntimeNativeTrust(outDir);
   writeFile(
     path.join(outDir, 'runtime-cache-events.json'),
@@ -792,7 +805,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
     'runtime-cache-events.json',
     'full-runtime-native-trust.json',
     'README-Full-First-Install.txt',
-    'full-gatekeeper-launch-policy.json',
+    'full-local-authorization-policy.json',
   ];
   writeFile(
     path.join(outDir, 'SHA256SUMS.txt'),
@@ -805,7 +818,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
     'full-runtime-native-trust.json',
     'README-Full-First-Install.txt',
     'SHA256SUMS.txt',
-    'full-gatekeeper-launch-policy.json',
+    'full-local-authorization-policy.json',
   ];
 }
 
@@ -1593,21 +1606,23 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
 
   const installerSurfaceById = new Map(policy.installer_surfaces.map((surface) => [surface.surface, surface]));
   for (const surface of policy.installer_surfaces.filter((entry) => entry.surface !== 'unsigned_local_app_authorization')) {
-    if (surface.surface !== 'free_macos_unsigned_app_install') {
+    if (surface.surface !== 'stable_local_authorized_macos_install') {
       assert.equal(surface.progress_source, 'opl system initialize --json');
     }
   }
-  const freeMacosInstall = installerSurfaceById.get('free_macos_unsigned_app_install');
-  assert.equal(freeMacosInstall.entrypoint, 'install-free.sh');
-  assert.equal(freeMacosInstall.backing_entrypoint, 'install.sh --free-macos-install --yes');
-  assert.equal(freeMacosInstall.progress_source, 'github_release_dmg_copy_and_local_quarantine_diagnostics');
+  const stableMacosInstall = installerSurfaceById.get('stable_local_authorized_macos_install');
+  assert.equal(stableMacosInstall.entrypoint, 'install-stable.sh');
+  assert.deepEqual(stableMacosInstall.compatibility_entrypoints, ['install-free.sh']);
+  assert.equal(stableMacosInstall.backing_entrypoint, 'install.sh --stable-macos-install --yes');
+  assert.equal(stableMacosInstall.compatibility_backing_entrypoint, 'install.sh --free-macos-install --yes');
+  assert.equal(stableMacosInstall.progress_source, 'github_release_dmg_copy_and_local_quarantine_diagnostics');
   assert.equal(
-    freeMacosInstall.exposure_policy,
-    'one_terminal_command_download_copy_authorize_and_open_not_stable_release_gate',
+    stableMacosInstall.exposure_policy,
+    'one_terminal_command_download_copy_authorize_and_open_as_stable_release_path',
   );
-  assert.equal(freeMacosInstall.stable_release_replacement_allowed, false);
-  assert.equal(freeMacosInstall.default_package_profile, 'full');
-  assert.deepEqual(freeMacosInstall.required_commands, [
+  assert.equal(stableMacosInstall.stable_release_path, true);
+  assert.equal(stableMacosInstall.default_package_profile, 'full');
+  assert.deepEqual(stableMacosInstall.required_commands, [
     'curl',
     'hdiutil attach -nobrowse -readonly',
     'ditto',
@@ -1621,7 +1636,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(unsignedLocalAuthorization.progress_source, 'local_quarantine_and_gatekeeper_diagnostics');
   assert.equal(
     unsignedLocalAuthorization.exposure_policy,
-    'explicit_user_confirmed_quarantine_removal_not_stable_release_gate',
+    'explicit_user_confirmed_quarantine_removal_for_existing_local_app',
   );
   assert.equal(unsignedLocalAuthorization.stable_release_replacement_allowed, false);
   assert.deepEqual(unsignedLocalAuthorization.required_commands, [
@@ -1870,6 +1885,7 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
 
 test('one-shot App installer defaults to App-first core setup', () => {
   const script = fs.readFileSync(path.join(appRoot, 'install.sh'), 'utf8');
+  const stableScript = fs.readFileSync(path.join(appRoot, 'install-stable.sh'), 'utf8');
   const freeScript = fs.readFileSync(path.join(appRoot, 'install-free.sh'), 'utf8');
   const docs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
 
@@ -1879,12 +1895,13 @@ test('one-shot App installer defaults to App-first core setup', () => {
   assert.match(script, /curl -fsSL "\$OPL_INSTALL_SCRIPT_URL" \| bash -s -- "\$\{INSTALL_ARGS\[@\]\}"/);
   assert.doesNotMatch(script, /bash -s -- "\$@"/);
   assert.match(script, /--free-macos-install/);
+  assert.match(script, /--stable-macos-install/);
   assert.match(script, /FREE_MACOS_PACKAGE_PROFILE=\$\{OPL_FREE_MACOS_PACKAGE_PROFILE:-full\}/);
   assert.match(script, /resolve_latest_release_tag\(\)/);
   assert.match(script, /release_asset_name\(\)/);
   assert.match(script, /download_or_use_dmg\(\)/);
   assert.match(script, /copy_app_from_dmg\(\)/);
-  assert.match(script, /free_macos_install\(\)/);
+  assert.match(script, /stable_macos_install\(\)/);
   assert.match(script, /hdiutil attach -nobrowse -readonly/);
   assert.match(script, /ditto "\$source_app" "\$OPL_LOCAL_APP_PATH"/);
   assert.match(script, /run_with_sudo_fallback/);
@@ -1898,7 +1915,13 @@ test('one-shot App installer defaults to App-first core setup', () => {
   assert.match(script, /spctl --assess --type execute --verbose=4 "\$OPL_LOCAL_APP_PATH"/);
   assert.match(script, /quarantine_before/);
   assert.match(script, /quarantine_after/);
-  assert.match(script, /signed and notarized releases are still required/);
+  assert.match(script, /Stable macOS install/);
+  assert.match(stableScript, /OPL_APP_INSTALLER_URL=/);
+  assert.match(stableScript, /https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/install\.sh/);
+  assert.match(stableScript, /install\.sh/);
+  assert.match(stableScript, /--stable-macos-install/);
+  assert.match(stableScript, /--yes/);
+  assert.match(stableScript, /curl -fsSL "\$installer_url" \| bash -s -- --stable-macos-install --yes "\$@"/);
   assert.match(freeScript, /OPL_APP_INSTALLER_URL=/);
   assert.match(freeScript, /https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/install\.sh/);
   assert.match(freeScript, /install\.sh/);
@@ -1909,14 +1932,14 @@ test('one-shot App installer defaults to App-first core setup', () => {
   assert.match(docs, /Developer ID Application/);
   assert.match(docs, /gh secret set BUILD_CERTIFICATE_BASE64/);
   assert.match(docs, /APPLE_ID_PASSWORD/);
-  assert.match(docs, /Unsigned local App authorization/);
-  assert.match(docs, /install-free\.sh \| bash/);
-  assert.match(docs, /--free-macos-install --yes/);
+  assert.match(docs, /Stable macOS local authorization/);
+  assert.match(docs, /install-stable\.sh \| bash/);
+  assert.match(docs, /--stable-macos-install --yes/);
   assert.match(docs, /latest Full first-install DMG/);
   assert.match(docs, /--authorize-local-app-only/);
   assert.match(docs, /com\.apple\.quarantine/);
   assert.match(docs, /quarantine_after=0/);
-  assert.match(docs, /not a Stable release replacement/);
+  assert.match(docs, /local_authorization_policy/);
 });
 
 test('runtime page consumes OPL App/operator drilldown instead of App-owned runtime truth', () => {
@@ -3976,7 +3999,7 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
   writeFile(path.join(outDir, dmgName));
   writeFile(path.join(outDir, `One-Person-Lab-${version}-mac-arm64.zip`));
   writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardGatekeeperLaunchPolicy(outDir);
+  writeStandardLocalAuthorizationPolicy(outDir);
   writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const result = runNode([
@@ -4026,7 +4049,7 @@ test('publish dry run accepts prebuilt standard release assets from GitHub Actio
   writeFile(path.join(releaseAssetsDir, `${zipName}.blockmap`));
   writeFile(path.join(releaseAssetsDir, 'latest-mac.yml'), metadata);
   writeFile(path.join(releaseAssetsDir, 'latest-arm64-mac.yml'), metadata);
-  writeStandardGatekeeperLaunchPolicy(releaseAssetsDir);
+  writeStandardLocalAuthorizationPolicy(releaseAssetsDir);
   writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const result = runNode([
@@ -4158,9 +4181,9 @@ test('release asset preparation drops stale standard assets from older OPL versi
   writeFile(path.join(artifactsDir, `${dmgName}.blockmap`));
   writeFile(path.join(artifactsDir, `${zipName}.blockmap`));
   writeFile(
-    path.join(artifactsDir, 'standard-gatekeeper-launch-policy.json'),
+    path.join(artifactsDir, 'standard-local-authorization-policy.json'),
     `${JSON.stringify({
-      schema: 'opl_gatekeeper_launch_policy.v1',
+      schema: 'opl_local_authorized_macos_policy.v1',
       package_kind: 'app_standard',
       app_path: '/Applications/One Person Lab.app',
       codesign_status: 'passed',
@@ -4187,7 +4210,7 @@ test('release asset preparation drops stale standard assets from older OPL versi
     `${zipName}.blockmap`,
     'latest-arm64-mac.yml',
     'latest-mac.yml',
-    'standard-gatekeeper-launch-policy.json',
+    'standard-local-authorization-policy.json',
   ]);
 });
 
@@ -4432,7 +4455,7 @@ test('publish dry run skips existing release assets when a resumed upload alread
   writeFile(path.join(outDir, dmgName), dmgContent);
   writeFile(path.join(outDir, zipName), zipContent);
   writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardGatekeeperLaunchPolicy(outDir);
+  writeStandardLocalAuthorizationPolicy(outDir);
   writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const existingAssets = [
@@ -4481,7 +4504,7 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
   writeFile(path.join(outDir, dmgName), 'dmg');
   writeFile(path.join(outDir, zipName), 'zip');
   writeReleaseMetadata(outDir, version, dmgName);
-  writeStandardGatekeeperLaunchPolicy(outDir);
+  writeStandardLocalAuthorizationPolicy(outDir);
   writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const existingAssets = [
@@ -4538,7 +4561,7 @@ test('publish dry run generates deterministic English release notes for Full-onl
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
-  writeFullGatekeeperLaunchPolicy(fullPackageDir);
+  writeFullLocalAuthorizationPolicy(fullPackageDir);
   writeFullRuntimeNativeTrust(fullPackageDir);
   const publicMarkdown = `One Person Lab 26.5.18
 
@@ -4647,7 +4670,7 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
-  writeFullGatekeeperLaunchPolicy(fullPackageDir);
+  writeFullLocalAuthorizationPolicy(fullPackageDir);
   writeFullRuntimeNativeTrust(fullPackageDir);
 
   const result = runNode([
@@ -4665,10 +4688,10 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
   assert.match(result.stderr, /components\.meta_agent\.git_commit/);
 });
 
-test('publish rejects Full package native trust before Gatekeeper assessment passes', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-full-native-trust-pending-'));
+test('publish rejects Full package native trust when quarantine remains', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-full-native-trust-quarantine-'));
   const fullPackageDir = path.join(tempRoot, 'full');
-  const version = '26.5.19-native-trust-pending';
+  const version = '26.5.19-native-trust-quarantine';
   const manifest = {
     generated_at: '2026-05-19T12:00:00.000Z',
     distribution: {
@@ -4691,12 +4714,12 @@ test('publish rejects Full package native trust before Gatekeeper assessment pas
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
-  writeFullGatekeeperLaunchPolicy(fullPackageDir);
+  writeFullLocalAuthorizationPolicy(fullPackageDir);
   writeFile(
     path.join(fullPackageDir, 'full-runtime-native-trust.json'),
     `${JSON.stringify({
       schema: 'opl_full_runtime_native_trust.v1',
-      status: 'signed_pending_gatekeeper_assessment',
+      status: 'not_distributable',
       executable_count: 2,
       executables: [
         {
@@ -4706,7 +4729,7 @@ test('publish rejects Full package native trust before Gatekeeper assessment pas
           spctl_status: 'deferred_until_notarized_app',
           team_identifier: 'TESTTEAMID',
           signature: 'Developer ID Application: Test',
-          quarantine_status: 'absent',
+          quarantine_status: 'present',
         },
         {
           relative_path: 'runtime/current/vendor/temporal/cli/temporal',
@@ -4733,7 +4756,7 @@ test('publish rejects Full package native trust before Gatekeeper assessment pas
   ]);
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /full-runtime-native-trust\.json must prove Full runtime native executable trust passed/);
+  assert.match(result.stderr, /Full runtime native executable is not locally authorized/);
 });
 
 test('Full-only release publish uses deterministic notes and does not call the AI note writer', () => {
@@ -4764,7 +4787,7 @@ test('Full-only release publish uses deterministic notes and does not call the A
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
-  writeFullGatekeeperLaunchPolicy(fullPackageDir);
+  writeFullLocalAuthorizationPolicy(fullPackageDir);
   writeFullRuntimeNativeTrust(fullPackageDir);
   fs.mkdirSync(path.dirname(fakeAi), { recursive: true });
   fs.writeFileSync(fakeAi, '#!/usr/bin/env node\nprocess.exit(42);\n', { mode: 0o755 });
@@ -6005,7 +6028,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     [
       'remote_asset_size',
       'remote_asset_sha256_digest',
-      'gatekeeper_launch_policy',
+      'local_authorization_policy',
       'standard_updater_metadata',
       'full_sha256sums',
       'full_runtime_cache_events',
@@ -6150,7 +6173,7 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
     'artifact',
     'sha256',
     'manifest_url',
-    'gatekeeper_launch_policy_asset',
+    'local_authorization_policy_asset',
   ]);
   assert.equal(homebrew.agent_pack_policy.package_kind, 'app_cli_managed_agent_packs');
   assert.equal(homebrew.agent_pack_policy.semantic_authority, 'one-person-lab_and_domain_repositories');
@@ -6435,12 +6458,12 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /## Full Payload Resolved Refs/);
   assert.match(workflow, /requires_distributable_assets="\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}"/);
   assert.match(workflow, /echo "OPL_FULL_DISTRIBUTABLE_ASSETS=\$requires_distributable_assets" >> "\$GITHUB_ENV"/);
-  assert.match(workflow, /name: Preflight Full release signing secrets/);
-  assert.match(workflow, /Full first-install release signing preflight failed/);
-  assert.match(workflow, /Missing GitHub Actions secrets: \$\{missing_csv\}/);
+  assert.match(workflow, /name: Inspect optional Full release signing secrets/);
+  assert.match(workflow, /Full first-install local authorization mode/);
+  assert.match(workflow, /Missing optional Apple signing secrets: \$\{missing_csv\}/);
   assert.match(workflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/);
-  assert.match(workflow, /No Developer ID certificate secrets configured; continuing because this run does not publish or upload distributable Full assets\./);
-  assert.match(workflow, /if \[ "\$\{OPL_FULL_DISTRIBUTABLE_ASSETS:-false\}" = "true" \]; then[\s\S]*Strict signing was not enabled for a distributable Full asset run/);
+  assert.match(workflow, /Stable Full assets will use local authorization evidence instead of Developer ID notarization/);
+  assert.match(workflow, /local-authorization-policy\.ts[\s\S]*--package-kind app_full_first_install/);
   assert.match(workflow, /name: Verify release upload plan[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/);
   for (const expected of [
     'gaofeng21cn/one-person-lab',
@@ -6455,12 +6478,11 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
     assert.match(`${workflow}\n${fs.readFileSync(path.join(appRoot, 'scripts', 'plan-release-candidate.ts'), 'utf8')}`, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
   const diagnosticsStep = workflowStepBlock(workflow, 'Upload Full diagnostics artifact');
-  const gatekeeperStep = workflowStepBlock(workflow, 'Upload Full Gatekeeper launch policy');
+  const localAuthorizationStep = workflowStepBlock(workflow, 'Upload Full local authorization policy');
   assert.match(workflow, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/);
-  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*full-runtime-native-trust\.json[\s\S]*SHA256SUMS\.txt/);
+  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*full-runtime-native-trust\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/);
   assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/);
-  assert.match(gatekeeperStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-gatekeeper-launch-policy\.json/);
-  assert.match(workflow, /verify-full-runtime-native-trust\.ts[\s\S]*--require-spctl[\s\S]*full-runtime-native-trust\.json/);
+  assert.match(localAuthorizationStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-local-authorization-policy\.json/);
   assert.match(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/);
   assert.match(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/);
   assert.match(workflow, /bash "\$GITHUB_WORKSPACE\/OfficeCLI\/install\.sh"/);

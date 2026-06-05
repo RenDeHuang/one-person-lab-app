@@ -199,8 +199,8 @@ jobs:
             ? assetByName('full-package-manifest.json')
             : assetByName('latest-arm64-mac.yml');
           assetByName(packageKind === 'app_full_first_install'
-            ? 'full-gatekeeper-launch-policy.json'
-            : 'standard-gatekeeper-launch-policy.json');
+            ? 'full-local-authorization-policy.json'
+            : 'standard-local-authorization-policy.json');
 
           const output = {
             download_url: urlOf(downloadAsset),

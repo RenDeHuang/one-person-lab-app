@@ -4308,7 +4308,7 @@ function validateReleaseChannelContract(releaseChannel) {
   }
   assertIncludesAll(
     homebrew.tap_update_policy?.required_manifest_fields,
-    ['channel', 'artifact', 'sha256', 'manifest_url', 'gatekeeper_launch_policy_asset'],
+    ['channel', 'artifact', 'sha256', 'manifest_url', 'local_authorization_policy_asset'],
     'Release channel Homebrew cohort manifest fields',
   );
   if (

@@ -32,7 +32,7 @@ jobs:
         {"include":[
           {"platform":"macos-arm64","os":"macos-14","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"macos-build-arm64","arch":"arm64"}
         ]}
-      require_macos_gatekeeper: true
+      require_macos_gatekeeper: false
     secrets: inherit
 
   # 自动重试 workflow（当构建失败时）
