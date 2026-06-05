@@ -11,13 +11,13 @@ COMPLETE_INSTALL=0
 AUTHORIZE_LOCAL_APP=0
 AUTHORIZE_LOCAL_APP_ONLY=0
 AUTHORIZE_LOCAL_APP_YES=${OPL_AUTHORIZE_LOCAL_APP_YES:-0}
-FREE_MACOS_INSTALL=0
-FREE_MACOS_PACKAGE_PROFILE=${OPL_FREE_MACOS_PACKAGE_PROFILE:-full}
-FREE_MACOS_RELEASE_TAG=${OPL_FREE_MACOS_RELEASE_TAG:-}
-FREE_MACOS_DMG_URL=${OPL_FREE_MACOS_DMG_URL:-}
-FREE_MACOS_DMG_PATH=${OPL_FREE_MACOS_DMG_PATH:-}
-FREE_MACOS_OPEN=${OPL_FREE_MACOS_OPEN:-1}
-FREE_MACOS_WORK_DIR=''
+STABLE_MACOS_INSTALL=0
+STABLE_MACOS_PACKAGE_PROFILE=${OPL_STABLE_MACOS_PACKAGE_PROFILE:-full}
+STABLE_MACOS_RELEASE_TAG=${OPL_STABLE_MACOS_RELEASE_TAG:-}
+STABLE_MACOS_DMG_URL=${OPL_STABLE_MACOS_DMG_URL:-}
+STABLE_MACOS_DMG_PATH=${OPL_STABLE_MACOS_DMG_PATH:-}
+STABLE_MACOS_OPEN=${OPL_STABLE_MACOS_OPEN:-1}
+STABLE_MACOS_WORK_DIR=''
 
 usage() {
   cat <<'USAGE'
@@ -39,8 +39,8 @@ Options:
   --authorize-local-app      After setup, remove macOS quarantine from a local App bundle.
   --authorize-local-app-only Only run the local App authorization helper.
   --app-path <path>          App bundle path for the local authorization helper.
-  --open                    Open the App after --free-macos-install. This is the default.
-  --no-open                 Do not open the App after --free-macos-install.
+  --open                    Open the App after --stable-macos-install. This is the default.
+  --no-open                 Do not open the App after --stable-macos-install.
   --yes                     Confirm local App authorization non-interactively.
 
 The Stable macOS install path uses local authorization and does not require Apple Developer ID signing.
@@ -57,13 +57,13 @@ while [ "$#" -gt 0 ]; do
       COMPLETE_INSTALL=0
       ;;
     --stable-macos-install|--free-macos-install)
-      FREE_MACOS_INSTALL=1
+      STABLE_MACOS_INSTALL=1
       ;;
     --full)
-      FREE_MACOS_PACKAGE_PROFILE=full
+      STABLE_MACOS_PACKAGE_PROFILE=full
       ;;
     --standard)
-      FREE_MACOS_PACKAGE_PROFILE=standard
+      STABLE_MACOS_PACKAGE_PROFILE=standard
       ;;
     --release-tag)
       shift
@@ -71,10 +71,10 @@ while [ "$#" -gt 0 ]; do
         printf 'Missing value for --release-tag\n' >&2
         exit 1
       fi
-      FREE_MACOS_RELEASE_TAG="$1"
+      STABLE_MACOS_RELEASE_TAG="$1"
       ;;
     --release-tag=*)
-      FREE_MACOS_RELEASE_TAG="${arg#--release-tag=}"
+      STABLE_MACOS_RELEASE_TAG="${arg#--release-tag=}"
       ;;
     --dmg-url)
       shift
@@ -82,10 +82,10 @@ while [ "$#" -gt 0 ]; do
         printf 'Missing value for --dmg-url\n' >&2
         exit 1
       fi
-      FREE_MACOS_DMG_URL="$1"
+      STABLE_MACOS_DMG_URL="$1"
       ;;
     --dmg-url=*)
-      FREE_MACOS_DMG_URL="${arg#--dmg-url=}"
+      STABLE_MACOS_DMG_URL="${arg#--dmg-url=}"
       ;;
     --dmg-path)
       shift
@@ -93,10 +93,10 @@ while [ "$#" -gt 0 ]; do
         printf 'Missing value for --dmg-path\n' >&2
         exit 1
       fi
-      FREE_MACOS_DMG_PATH="$1"
+      STABLE_MACOS_DMG_PATH="$1"
       ;;
     --dmg-path=*)
-      FREE_MACOS_DMG_PATH="${arg#--dmg-path=}"
+      STABLE_MACOS_DMG_PATH="${arg#--dmg-path=}"
       ;;
     --authorize-local-app)
       AUTHORIZE_LOCAL_APP=1
@@ -120,10 +120,10 @@ while [ "$#" -gt 0 ]; do
       AUTHORIZE_LOCAL_APP_YES=1
       ;;
     --open)
-      FREE_MACOS_OPEN=1
+      STABLE_MACOS_OPEN=1
       ;;
     --no-open)
-      FREE_MACOS_OPEN=0
+      STABLE_MACOS_OPEN=0
       ;;
     --help|-h)
       usage
@@ -200,15 +200,15 @@ diagnostic_status() {
 run_with_sudo_fallback() {
   local label="$1"
   shift
-  if "$@" >/tmp/opl-free-macos-install."$label".log 2>&1; then
+  if "$@" >/tmp/opl-stable-macos-install."$label".log 2>&1; then
     return 0
   fi
   if ! command -v sudo >/dev/null 2>&1; then
-    cat /tmp/opl-free-macos-install."$label".log >&2 || true
+    cat /tmp/opl-stable-macos-install."$label".log >&2 || true
     return 1
   fi
   printf 'Retrying %s with administrator permission.\n' "$label" >&2
-  sudo "$@" >>/tmp/opl-free-macos-install."$label".log 2>&1
+  sudo "$@" >>/tmp/opl-stable-macos-install."$label".log 2>&1
 }
 
 ensure_app_target_path() {
@@ -251,7 +251,7 @@ authorize_local_app() {
   before_quarantine=$(count_quarantine_attrs "$OPL_LOCAL_APP_PATH")
   run_with_sudo_fallback xattr xattr -dr com.apple.quarantine "$OPL_LOCAL_APP_PATH" || {
     printf 'Failed to remove macOS quarantine from: %s\n' "$OPL_LOCAL_APP_PATH" >&2
-    cat /tmp/opl-free-macos-install.xattr.log >&2 || true
+    cat /tmp/opl-stable-macos-install.xattr.log >&2 || true
     exit 1
   }
   after_quarantine=$(count_quarantine_attrs "$OPL_LOCAL_APP_PATH")
@@ -282,7 +282,7 @@ authorize_local_app() {
   fi
 }
 
-confirm_free_macos_install() {
+confirm_stable_macos_install() {
   if [ "$AUTHORIZE_LOCAL_APP_YES" = "1" ]; then
     return 0
   fi
@@ -302,7 +302,7 @@ confirm_free_macos_install() {
     exit 1
   fi
   if [ "$reply" != "install" ]; then
-    printf 'Free macOS install cancelled.\n' >&2
+    printf 'Stable macOS install cancelled.\n' >&2
     exit 1
   fi
 }
@@ -345,24 +345,24 @@ release_asset_name() {
 download_or_use_dmg() {
   local work_dir="$1"
   local tag asset_name url dmg_path
-  if [ -n "$FREE_MACOS_DMG_PATH" ]; then
-    if [ ! -f "$FREE_MACOS_DMG_PATH" ]; then
-      printf 'DMG path not found: %s\n' "$FREE_MACOS_DMG_PATH" >&2
+  if [ -n "$STABLE_MACOS_DMG_PATH" ]; then
+    if [ ! -f "$STABLE_MACOS_DMG_PATH" ]; then
+      printf 'DMG path not found: %s\n' "$STABLE_MACOS_DMG_PATH" >&2
       exit 1
     fi
-    printf '%s\n' "$FREE_MACOS_DMG_PATH"
+    printf '%s\n' "$STABLE_MACOS_DMG_PATH"
     return 0
   fi
 
-  if [ -n "$FREE_MACOS_DMG_URL" ]; then
-    url="$FREE_MACOS_DMG_URL"
+  if [ -n "$STABLE_MACOS_DMG_URL" ]; then
+    url="$STABLE_MACOS_DMG_URL"
     asset_name="${url##*/}"
   else
-    tag="$FREE_MACOS_RELEASE_TAG"
+    tag="$STABLE_MACOS_RELEASE_TAG"
     if [ -z "$tag" ]; then
       tag=$(resolve_latest_release_tag)
     fi
-    asset_name=$(release_asset_name "$tag" "$FREE_MACOS_PACKAGE_PROFILE")
+    asset_name=$(release_asset_name "$tag" "$STABLE_MACOS_PACKAGE_PROFILE")
     url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
   fi
   dmg_path="$work_dir/$asset_name"
@@ -377,7 +377,7 @@ copy_app_from_dmg() {
   local mount_dir="$work_dir/mount"
   local source_app
   mkdir -p "$mount_dir"
-  hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$dmg_path" >/tmp/opl-free-macos-install.hdiutil-attach.log
+  hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$dmg_path" >/tmp/opl-stable-macos-install.hdiutil-attach.log
   source_app=$(find "$mount_dir" -maxdepth 2 -type d -name '*.app' -print -quit)
   if [ -z "$source_app" ]; then
     printf 'Mounted DMG did not contain an App bundle.\n' >&2
@@ -398,7 +398,7 @@ copy_app_from_dmg() {
     printf 'Failed to copy App bundle into: %s\n' "$OPL_LOCAL_APP_PATH" >&2
     exit 1
   }
-  hdiutil detach "$mount_dir" >/tmp/opl-free-macos-install.hdiutil-detach.log 2>&1 || true
+  hdiutil detach "$mount_dir" >/tmp/opl-stable-macos-install.hdiutil-detach.log 2>&1 || true
 }
 
 stable_macos_install() {
@@ -413,26 +413,26 @@ stable_macos_install() {
     fi
   done
   ensure_app_target_path
-  confirm_free_macos_install
+  confirm_stable_macos_install
 
   local dmg_path
-  FREE_MACOS_WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/opl-free-macos-install.XXXXXX")
-  cleanup_free_macos_install() {
-    if [ -n "$FREE_MACOS_WORK_DIR" ] && [ -d "$FREE_MACOS_WORK_DIR/mount" ]; then
-      hdiutil detach "$FREE_MACOS_WORK_DIR/mount" >/tmp/opl-free-macos-install.hdiutil-detach.log 2>&1 || true
+  STABLE_MACOS_WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/opl-stable-macos-install.XXXXXX")
+  cleanup_stable_macos_install() {
+    if [ -n "$STABLE_MACOS_WORK_DIR" ] && [ -d "$STABLE_MACOS_WORK_DIR/mount" ]; then
+      hdiutil detach "$STABLE_MACOS_WORK_DIR/mount" >/tmp/opl-stable-macos-install.hdiutil-detach.log 2>&1 || true
     fi
-    if [ -n "$FREE_MACOS_WORK_DIR" ]; then
-      rm -rf "$FREE_MACOS_WORK_DIR"
+    if [ -n "$STABLE_MACOS_WORK_DIR" ]; then
+      rm -rf "$STABLE_MACOS_WORK_DIR"
     fi
   }
-  trap cleanup_free_macos_install EXIT
+  trap cleanup_stable_macos_install EXIT
 
-  dmg_path=$(download_or_use_dmg "$FREE_MACOS_WORK_DIR")
-  copy_app_from_dmg "$dmg_path" "$FREE_MACOS_WORK_DIR"
+  dmg_path=$(download_or_use_dmg "$STABLE_MACOS_WORK_DIR")
+  copy_app_from_dmg "$dmg_path" "$STABLE_MACOS_WORK_DIR"
   AUTHORIZE_LOCAL_APP_YES=1
   authorize_local_app
 
-  if [ "$FREE_MACOS_OPEN" = "1" ]; then
+  if [ "$STABLE_MACOS_OPEN" = "1" ]; then
     if open "$OPL_LOCAL_APP_PATH"; then
       printf 'One Person Lab App opened.\n'
     else
@@ -442,7 +442,7 @@ stable_macos_install() {
   printf 'One Person Lab Stable macOS install finished.\n'
 }
 
-if [ "$FREE_MACOS_INSTALL" = "1" ]; then
+if [ "$STABLE_MACOS_INSTALL" = "1" ]; then
   stable_macos_install
   exit 0
 fi

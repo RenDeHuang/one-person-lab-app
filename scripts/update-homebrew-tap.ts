@@ -19,6 +19,7 @@ type Options = {
   targets: string[];
   write: boolean;
   summaryPath: string | null;
+  remoteWriteMode: string;
   selfCheck: boolean;
 };
 
@@ -61,6 +62,7 @@ function parseArgs(argv: string[]): Options {
     targets: [],
     write: false,
     summaryPath: null,
+    remoteWriteMode: 'none',
     selfCheck: false,
   };
 
@@ -109,6 +111,8 @@ function parseArgs(argv: string[]): Options {
       parsed.downloadUrl = value;
     } else if (token === '--summary-path') {
       parsed.summaryPath = path.resolve(value);
+    } else if (token === '--remote-write-mode') {
+      parsed.remoteWriteMode = value;
     } else {
       throw new Error(`Unknown option: ${token}`);
     }
@@ -452,7 +456,8 @@ function buildPlan(inputOptions: Options): {
       agent_pack_activation_owner: 'app_cli_managed_background_maintenance',
       must_not_write_user_codex_state: true,
       must_not_define_agent_semantics: true,
-      publishes_or_pushes_remote: false,
+      publishes_or_pushes_remote: options.remoteWriteMode === 'direct_commit',
+      remote_write_mode: options.remoteWriteMode,
     },
   };
 }

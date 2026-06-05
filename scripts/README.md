@@ -214,8 +214,10 @@ one-shot installer output, Docker/WebUI smoke output, Full diagnostics, and
 `full-workflow-telemetry.json`. Do not download standard or Full DMG artifacts
 for readiness diagnosis; missing small evidence is a fail-closed release
 readiness failure. Homebrew VM smoke is a separate required gate when
-`run_vm_smoke=true`, so a cask lane cancellation or missing artifact fails the
-Stable readiness summary with a named cause. The one-shot installer section
+`run_vm_smoke=true`; Stable releases first update the stable Homebrew tap by
+direct commit and then run the cask VM smoke. A tap update failure, cask lane
+cancellation, or missing artifact fails the Stable readiness summary with a
+named cause. The one-shot installer section
 records the fixed public entry command, the workflow job result as bootstrap status source, the
 `opl system initialize --json` setup-flow source, artifact file names, progress
 fields, blockers, next step, retry state, and `--skip-modules` state in JSON and

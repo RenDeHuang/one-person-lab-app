@@ -585,7 +585,7 @@ function localAuthorizationPolicy(packageKind) {
     install_entrypoint: 'install-stable.sh',
     compatibility_entrypoints: ['install-free.sh'],
     backing_entrypoint: 'install.sh --stable-macos-install --yes',
-    compatibility_backing_entrypoint: 'install.sh --free-macos-install --yes',
+    compatibility_backing_entrypoint: 'install.sh --stable-macos-install --yes',
     default_package_profile: packageKind === 'app_full_first_install' ? 'full' : 'standard',
     user_prompt_policy: 'one_terminal_command_no_system_settings_override_expected_after_quarantine_clear',
     app_path: '/Applications/One Person Lab.app',
@@ -1614,7 +1614,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(stableMacosInstall.entrypoint, 'install-stable.sh');
   assert.deepEqual(stableMacosInstall.compatibility_entrypoints, ['install-free.sh']);
   assert.equal(stableMacosInstall.backing_entrypoint, 'install.sh --stable-macos-install --yes');
-  assert.equal(stableMacosInstall.compatibility_backing_entrypoint, 'install.sh --free-macos-install --yes');
+  assert.equal(stableMacosInstall.compatibility_backing_entrypoint, 'install.sh --stable-macos-install --yes');
   assert.equal(stableMacosInstall.progress_source, 'github_release_dmg_copy_and_local_quarantine_diagnostics');
   assert.equal(
     stableMacosInstall.exposure_policy,
@@ -1896,7 +1896,7 @@ test('one-shot App installer defaults to App-first core setup', () => {
   assert.doesNotMatch(script, /bash -s -- "\$@"/);
   assert.match(script, /--free-macos-install/);
   assert.match(script, /--stable-macos-install/);
-  assert.match(script, /FREE_MACOS_PACKAGE_PROFILE=\$\{OPL_FREE_MACOS_PACKAGE_PROFILE:-full\}/);
+  assert.match(script, /STABLE_MACOS_PACKAGE_PROFILE=\$\{OPL_STABLE_MACOS_PACKAGE_PROFILE:-full\}/);
   assert.match(script, /resolve_latest_release_tag\(\)/);
   assert.match(script, /release_asset_name\(\)/);
   assert.match(script, /download_or_use_dmg\(\)/);
@@ -1925,9 +1925,9 @@ test('one-shot App installer defaults to App-first core setup', () => {
   assert.match(freeScript, /OPL_APP_INSTALLER_URL=/);
   assert.match(freeScript, /https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/install\.sh/);
   assert.match(freeScript, /install\.sh/);
-  assert.match(freeScript, /--free-macos-install/);
+  assert.match(freeScript, /--stable-macos-install/);
   assert.match(freeScript, /--yes/);
-  assert.match(freeScript, /curl -fsSL "\$installer_url" \| bash -s -- --free-macos-install --yes "\$@"/);
+  assert.match(freeScript, /curl -fsSL "\$installer_url" \| bash -s -- --stable-macos-install --yes "\$@"/);
   assert.match(docs, /macOS signing material setup/);
   assert.match(docs, /Developer ID Application/);
   assert.match(docs, /gh secret set BUILD_CERTIFICATE_BASE64/);
@@ -5864,6 +5864,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-standard-only:/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:/);
+  assert.match(workflow, /stable-homebrew-tap-update:/);
+  assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml[\s\S]*write_mode: direct_commit/);
+  assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs: stable-homebrew-tap-update/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
   assert.match(workflow, /one-shot-app-installer-smoke:/);
@@ -6249,10 +6252,11 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.equal(homebrew.tap_update_policy.tap_sync_script, 'scripts/sync-cask-from-release.mjs');
   assert.equal(homebrew.tap_update_policy.app_release_pr_workflow, '.github/workflows/homebrew-tap-update.yml');
   assert.equal(homebrew.tap_update_policy.app_release_pr_token, 'OPL_HOMEBREW_TAP_TOKEN');
+  assert.equal(homebrew.tap_update_policy.stable_release_workflow_write_mode, 'direct_commit_before_homebrew_vm_gate');
   assert.equal(homebrew.tap_update_policy.planner_script, 'scripts/update-homebrew-tap.ts');
   assert.equal(homebrew.tap_update_policy.nightly.mode, 'tap_repo_scheduled_self_sync_to_nightly_cask');
   assert.equal(homebrew.tap_update_policy.nightly.may_update_stable, false);
-  assert.equal(homebrew.tap_update_policy.stable.mode, 'manual_tap_repo_sync_after_stable_release_gates_and_owner_promotion');
+  assert.equal(homebrew.tap_update_policy.stable.mode, 'desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate');
   assert.equal(homebrew.tap_update_policy.stable.may_consume_nightly_directly, false);
   assert.equal(homebrew.tap_update_policy.full.mode, 'stable_full_first_install_cask_after_full_release_gates');
   assert.equal(homebrew.tap_update_policy.full.may_update_standard_cask, false);
@@ -6288,7 +6292,10 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.match(homebrewWorkflow, /name: OPL Homebrew Tap Update/);
   assert.match(homebrewWorkflow, /workflow_dispatch:/);
   assert.match(homebrewWorkflow, /workflow_call:/);
+  assert.match(homebrewWorkflow, /write_mode:/);
+  assert.match(homebrewWorkflow, /direct_commit/);
   assert.match(homebrewWorkflow, /OPL_HOMEBREW_TAP_TOKEN/);
+  assert.match(homebrewWorkflow, /OPL_HOMEBREW_TAP_TOKEN is required for direct Stable Homebrew tap updates/);
   assert.match(homebrewWorkflow, /repository: \$\{\{ inputs\.tap_repo \}\}/);
   assert.match(homebrewWorkflow, /gh release view "\$tag"[\s\S]*--json tagName,isDraft,isPrerelease,assets/);
   assert.match(homebrewWorkflow, /Homebrew tap updates must read assets from gaofeng21cn\/one-person-lab-app/);
@@ -6301,13 +6308,14 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.match(homebrewWorkflow, /Full first-install Homebrew cask updates must stay on the stable channel/);
   assert.match(homebrewWorkflow, /Homebrew tap updates are App cask-only; agent packs are App\/CLI-managed/);
   assert.doesNotMatch(homebrewWorkflow, /one-person-lab-modules-\$\{version\}\.tar\.gz/);
-  assert.match(homebrewWorkflow, /node --experimental-strip-types scripts\/update-homebrew-tap\.ts[\s\S]*--summary-path "\$RUNNER_TEMP\/homebrew-tap-plan\.json"[\s\S]*--write/);
+  assert.match(homebrewWorkflow, /node --experimental-strip-types scripts\/update-homebrew-tap\.ts[\s\S]*--summary-path "\$RUNNER_TEMP\/homebrew-tap-plan\.json"[\s\S]*--remote-write-mode "\$\{\{ inputs\.write_mode \}\}"[\s\S]*--write/);
   assert.match(homebrewWorkflow, /peter-evans\/create-pull-request@v8/);
+  assert.match(homebrewWorkflow, /inputs\.write_mode != 'direct_commit'/);
+  assert.match(homebrewWorkflow, /git -C homebrew-tap push origin HEAD:main/);
   assert.match(homebrewWorkflow, /path: homebrew-tap/);
   assert.match(homebrewWorkflow, /Homebrew remains an App cask transport\/index/);
   assert.match(homebrewWorkflow, /Full cask is an explicit stable first-install surface outside standard updater metadata/);
   assert.doesNotMatch(homebrewWorkflow, /gh release upload/);
-  assert.doesNotMatch(homebrewWorkflow, /git push origin main|git push origin HEAD:main/);
 
   assert.match(nightlyWorkflow, /homebrew-tap-update:/);
   assert.match(nightlyWorkflow, /uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml/);
@@ -6323,9 +6331,9 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.match(releaseDocs, /Sync From App Releases/);
   assert.match(releaseDocs, /scripts\/sync-cask-from-release\.mjs/);
   assert.match(releaseDocs, /scheduled run[\s\S]*Nightly prerelease/);
-  assert.match(releaseDocs, /stable cask updates are manual workflow dispatches/);
-  assert.match(releaseDocs, /Full cask updates are stable[\s\S]*Full release gates pass/);
-  assert.match(releaseDocs, /explicit Full cask/);
+  assert.match(releaseDocs, /Stable[\s\S]*direct_commit[\s\S]*Homebrew VM/);
+  assert.match(releaseDocs, /Full cask\s+updates remain explicit stable first-install updates after Full release gates\s+pass/);
+  assert.match(releaseDocs, /`one-person-lab-full`/);
   assert.match(releaseDocs, /OPL Homebrew Tap Update/);
   assert.match(releaseDocs, /OPL_HOMEBREW_TAP_TOKEN/);
   assert.match(releaseDocs, /nightly freshness does not depend on that[\s\S]*cross-repo secret/);

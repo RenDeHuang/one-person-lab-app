@@ -304,6 +304,7 @@ function buildSummary(options: Options) {
   const remoteArtifactName = `remote-release-verification-${options.version}`;
   const standardVmArtifactName = `opl-first-run-vm-standard-${process.env.GITHUB_RUN_ID || 'local'}`;
   const homebrewVmArtifactName = `opl-first-run-vm-homebrew-standard-${process.env.GITHUB_RUN_ID || 'local'}`;
+  const homebrewTapArtifactName = `homebrew-tap-plan-stable-app_standard-${options.version}`;
   const fullVmArtifactName = `opl-first-run-vm-full-${process.env.GITHUB_RUN_ID || 'local'}`;
   const oneShotArtifactName = `one-shot-app-installer-smoke-${options.version}`;
   const dockerArtifactName = `docker-webui-smoke-${options.version}`;
@@ -341,6 +342,30 @@ function buildSummary(options: Options) {
       if (payload.runtime_profile !== profile) return { reason: `Expected runtime_profile ${profile}, got ${String(payload.runtime_profile)}.`, fields };
       const settingsSmoke = payload.settings_smoke as Record<string, unknown> | undefined;
       if (!settingsSmoke || settingsSmoke.status !== 'passed') return { reason: 'VM smoke did not include passed Settings evidence.', fields };
+      return { fields };
+    },
+  });
+
+  const homebrewTapGate = jsonGate(options, {
+    required: true,
+    artifactName: homebrewTapArtifactName,
+    fileName: 'homebrew-tap-plan.json',
+    validate: (payload) => {
+      const policy = objectField(payload, 'policy');
+      const fields = {
+        channel: payload.channel,
+        package_kind: payload.package_kind,
+        version: payload.version,
+        tap_repo: 'gaofeng21cn/homebrew-one-person-lab',
+        remote_write_mode: policy?.remote_write_mode ?? null,
+        publishes_or_pushes_remote: policy?.publishes_or_pushes_remote ?? null,
+      };
+      if (payload.channel !== 'stable') return { reason: `Homebrew tap plan channel is ${statusString(payload.channel) || 'unknown'}.`, fields };
+      if (payload.package_kind !== 'app_standard') return { reason: `Homebrew tap plan package_kind is ${statusString(payload.package_kind) || 'unknown'}.`, fields };
+      if (payload.version !== options.version) return { reason: `Homebrew tap plan version is ${statusString(payload.version) || 'unknown'}.`, fields };
+      if (policy?.remote_write_mode !== 'direct_commit' || policy?.publishes_or_pushes_remote !== true) {
+        return { reason: 'Stable Homebrew tap plan did not record direct_commit remote publication.', fields };
+      }
       return { fields };
     },
   });
@@ -504,6 +529,7 @@ function buildSummary(options: Options) {
   const selectedStandardVmJob = options.includeFullPackage
     ? 'standard-first-run-vm-smoke-after-full'
     : 'standard-first-run-vm-smoke-after-standard-only';
+  const stableHomebrewRequired = options.runVmSmoke && options.releaseMode !== 'draft_candidate';
   const gates = {
     remote_release_verification: applyJobResult(remoteGate, jobResults, selectedRemoteJob, true),
     standard_dmg_clean_vm: applyJobResult(
@@ -514,13 +540,21 @@ function buildSummary(options: Options) {
       selectedStandardVmJob,
       options.runVmSmoke,
     ),
+    stable_homebrew_tap_update: applyJobResult(
+      stableHomebrewRequired
+        ? homebrewTapGate
+        : missingGate(false, homebrewTapArtifactName, 'Stable Homebrew tap update is not required for this run.'),
+      jobResults,
+      'stable-homebrew-tap-update',
+      stableHomebrewRequired,
+    ),
     homebrew_standard_cask_clean_vm: applyJobResult(
-      options.runVmSmoke
+      stableHomebrewRequired
         ? vmGate(homebrewVmArtifactName, 'standard', true)
-        : missingGate(false, homebrewVmArtifactName, 'VM smoke disabled for this run.'),
+        : missingGate(false, homebrewVmArtifactName, options.runVmSmoke ? 'Stable Homebrew VM smoke is not required for this run.' : 'VM smoke disabled for this run.'),
       jobResults,
       'homebrew-standard-first-run-vm-smoke',
-      options.runVmSmoke,
+      stableHomebrewRequired,
     ),
     full_dmg_clean_vm: applyJobResult(
       options.includeFullPackage && options.runVmSmoke

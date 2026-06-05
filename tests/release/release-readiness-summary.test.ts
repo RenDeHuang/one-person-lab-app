@@ -54,6 +54,21 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
     runtime_profile: 'standard',
     settings_smoke: { status: 'passed', pages: ['overview'] },
   });
+  writeJson(path.join(root, `homebrew-tap-plan-stable-app_standard-${version}`, 'homebrew-tap-plan.json'), {
+    channel: 'stable',
+    package_kind: 'app_standard',
+    version,
+    dry_run: false,
+    manifest_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${version}/latest-arm64-mac.yml`,
+    checksum_sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    download_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${version}/One-Person-Lab-${version}-mac-arm64.dmg`,
+    targets: [{ path: 'Casks/one-person-lab.rb', kind: 'cask', previous_exists: true, changed: true }],
+    policy: {
+      cohort: 'standard_desktop_homebrew_distribution',
+      remote_write_mode: 'direct_commit',
+      publishes_or_pushes_remote: true,
+    },
+  });
   writeJson(path.join(root, `opl-first-run-vm-full-${runId}`, 'tart-smoke-summary.json'), {
     status: 'passed',
     runtime_profile: 'full',
@@ -135,6 +150,7 @@ function writePassingJobResults(filePath: string) {
     'remote-verify-full': 'success',
     'standard-first-run-vm-smoke-after-standard-only': 'skipped',
     'standard-first-run-vm-smoke-after-full': 'success',
+    'stable-homebrew-tap-update': 'success',
     'homebrew-standard-first-run-vm-smoke': 'success',
     'full-first-run-vm-smoke': 'success',
     'one-shot-app-installer-smoke': 'success',
@@ -151,12 +167,18 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
   writePassingJobResults(jobResultsPath);
+  writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
+    status: 'published',
+    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
+    tags: ['26.5.99', 'stable', 'latest'],
+    draft_candidate_push: false,
+  });
 
   const result = runSummary([
     '--version',
     '26.5.99',
     '--release-mode',
-    'draft_candidate',
+    'refresh_existing',
     '--include-full-package',
     'true',
     '--run-vm-smoke',
@@ -175,6 +197,7 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
   assert.equal(summary.status, 'passed');
   assert.equal(summary.gates.standard_dmg_clean_vm.status, 'passed');
+  assert.equal(summary.gates.stable_homebrew_tap_update.status, 'passed');
   assert.equal(summary.gates.homebrew_standard_cask_clean_vm.status, 'passed');
   assert.equal(summary.gates.full_dmg_clean_vm.status, 'passed');
   assert.equal(summary.gates.one_shot_app_installer.status, 'passed');
@@ -389,6 +412,7 @@ test('release readiness summary keeps one-shot failure diagnostics when the inst
     'remote-verify-full': 'success',
     'standard-first-run-vm-smoke-after-standard-only': 'skipped',
     'standard-first-run-vm-smoke-after-full': 'success',
+    'stable-homebrew-tap-update': 'skipped',
     'homebrew-standard-first-run-vm-smoke': 'success',
     'full-first-run-vm-smoke': 'success',
     'one-shot-app-installer-smoke': 'failure',
@@ -448,6 +472,7 @@ test('release readiness summary surfaces GHCR package Actions access failures', 
     'remote-verify-full': 'success',
     'standard-first-run-vm-smoke-after-standard-only': 'skipped',
     'standard-first-run-vm-smoke-after-full': 'success',
+    'stable-homebrew-tap-update': 'skipped',
     'homebrew-standard-first-run-vm-smoke': 'success',
     'full-first-run-vm-smoke': 'success',
     'one-shot-app-installer-smoke': 'success',
@@ -513,6 +538,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
     'remote-verify-full',
     'standard-first-run-vm-smoke-after-standard-only',
     'standard-first-run-vm-smoke-after-full',
+    'stable-homebrew-tap-update',
     'homebrew-standard-first-run-vm-smoke',
     'full-first-run-vm-smoke',
     'one-shot-app-installer-smoke',
@@ -525,6 +551,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
 
   for (const smallArtifact of [
     'remote-release-verification-${{ inputs.opl_version }}',
+    'homebrew-tap-plan-stable-app_standard-${{ inputs.opl_version }}',
     'opl-first-run-vm-standard-${{ github.run_id }}',
     'opl-first-run-vm-homebrew-standard-${{ github.run_id }}',
     'opl-first-run-vm-full-${{ github.run_id }}',

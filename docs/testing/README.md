@@ -256,7 +256,10 @@ was archived in
   a failed gate because no clean first-run evidence can be produced.
   Homebrew cask smoke uses `OPL_FIRST_RUN_HOMEBREW_TART_SOURCE`, a separate
   clean VM with Homebrew already installed, so the test verifies the tap/cask
-  path instead of spending the gate installing Homebrew itself.
+  path instead of spending the gate installing Homebrew itself. Stable desktop
+  releases update the stable `one-person-lab` cask by direct tap commit after
+  remote asset verification and before this VM gate, so the cask smoke validates
+  the same cohort users will install.
   The workflow copies the GitHub runner's Node.js runtime into the guest for
   the smoke harness, so the clean VM does not need preinstalled Node.js, CLT, or
   other developer tooling.

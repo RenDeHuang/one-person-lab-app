@@ -134,13 +134,14 @@
       "tap_sync_script": "scripts/sync-cask-from-release.mjs",
       "app_release_pr_workflow": ".github/workflows/homebrew-tap-update.yml",
       "app_release_pr_token": "OPL_HOMEBREW_TAP_TOKEN",
+      "stable_release_workflow_write_mode": "direct_commit_before_homebrew_vm_gate",
       "planner_script": "scripts/update-homebrew-tap.ts",
       "nightly": {
         "mode": "tap_repo_scheduled_self_sync_to_nightly_cask",
         "may_update_stable": false
       },
       "stable": {
-        "mode": "manual_tap_repo_sync_after_stable_release_gates_and_owner_promotion",
+        "mode": "desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate",
         "may_consume_nightly_directly": false
       },
       "full": {

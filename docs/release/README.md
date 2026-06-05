@@ -106,8 +106,9 @@ health, or the absence of user-state blockers.
 
 The tap should follow the same distribution cohorts as GitHub Releases:
 
-- Stable tap updates point at the stable `v<version>` release only after the
-  release owner promotes that cohort and the required stable gates pass.
+- Stable tap updates point at the stable `v<version>` release after remote asset
+  verification and before the Homebrew VM gate, so the gate verifies the same
+  cask cohort users will install.
 - Nightly tap updates, if published, stay in an explicit opt-in prerelease cask
   lane. They point only at Nightly standard macOS arm64 assets,
   preserve prerelease semantics, and are never marked as the stable/latest user
@@ -132,15 +133,16 @@ The default tap update path is tap-owned self-sync. The
 published App GitHub Releases, resolves the App or Full DMG asset and `sha256:` digest,
 runs `scripts/sync-cask-from-release.mjs`, validates the tap with Homebrew
 style/audit checks, and commits cask changes back to the tap. It does not read
-or publish agent-pack/module tarballs. The scheduled run
-tracks the latest published Nightly prerelease and updates only
-`one-person-lab-nightly`; stable cask updates are manual workflow dispatches
-after stable release gates and owner promotion, and Full cask updates are stable
-manual syncs after Full release gates pass. The App repo also keeps
-`OPL Homebrew Tap Update` as an optional release-side PR workflow using
-`OPL_HOMEBREW_TAP_TOKEN`; that workflow is also App cask-only, supports the
-explicit Full cask, and Homebrew nightly freshness does not depend on that
-cross-repo secret.
+or publish agent-pack/module tarballs. The scheduled run tracks the latest
+published Nightly prerelease and updates only `one-person-lab-nightly`. Stable
+desktop releases call the App repo `OPL Homebrew Tap Update` workflow in
+`direct_commit` mode after remote asset verification and before the Homebrew VM
+gate. That makes the Homebrew gate install the same stable cohort from
+`one-person-lab` that users will install. The workflow requires
+`OPL_HOMEBREW_TAP_TOKEN` for this Stable path, remains App cask-only, and can
+still be used in pull-request mode for operator-reviewed tap changes. Full cask
+updates remain explicit stable first-install updates after Full release gates
+pass. Homebrew nightly freshness does not depend on that cross-repo secret.
 
 Codex and Temporal compatibility also stay anchored in the existing release
 contracts. The Full workflow records the current Codex CLI and Temporal archive
@@ -491,17 +493,17 @@ must carry `org.opencontainers.image.source=https://github.com/gaofeng21cn/one-p
 
 The final stable decision entry is the `release-readiness-summary` job in
 `.github/workflows/desktop-release.yml`. It runs after the selected remote
-verification, standard/Full clean-VM gates, one-shot installer smoke,
-Docker/WebUI smoke, WebUI GHCR publish, and evidence bundle validation, then writes
-`release-readiness-summary.json` plus a GitHub Step Summary. It fails closed
-when any required gate result or small evidence artifact is failed, cancelled,
-missing, or unexpectedly skipped.
+verification, Stable Homebrew tap direct update, standard/Homebrew/Full clean-VM
+gates, one-shot installer smoke, Docker/WebUI smoke, WebUI GHCR publish, and
+evidence bundle validation, then writes `release-readiness-summary.json` plus a
+GitHub Step Summary. It fails closed when any required gate result or small
+evidence artifact is failed, cancelled, missing, or unexpectedly skipped.
 
 That final summary is a diagnostic reader, not another package consumer. It
-downloads only small artifacts: remote verification JSON, VM smoke summaries,
-one-shot installer output, Docker/WebUI smoke output, WebUI GHCR publish
-summary, Full diagnostics, and `full-workflow-telemetry.json`. It must not
-download the standard DMG artifact,
+downloads only small artifacts: remote verification JSON, Stable Homebrew tap
+plan, VM smoke summaries, one-shot installer output, Docker/WebUI smoke output,
+WebUI GHCR publish summary, Full diagnostics, and
+`full-workflow-telemetry.json`. It must not download the standard DMG artifact,
 the large Full DMG workflow artifact, or published DMG assets for diagnosis.
 Full build bottleneck analysis uses `duration_seconds.full_package_build` and
 `duration_seconds.full_package_build_breakdown` from telemetry, while manifest,

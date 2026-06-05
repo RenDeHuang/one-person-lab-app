@@ -129,7 +129,7 @@ function buildPolicy(options) {
     install_entrypoint: 'install-stable.sh',
     compatibility_entrypoints: ['install-free.sh'],
     backing_entrypoint: 'install.sh --stable-macos-install --yes',
-    compatibility_backing_entrypoint: 'install.sh --free-macos-install --yes',
+    compatibility_backing_entrypoint: 'install.sh --stable-macos-install --yes',
     default_package_profile: options.packageKind === 'app_full_first_install' ? 'full' : 'standard',
     user_prompt_policy: 'one_terminal_command_no_system_settings_override_expected_after_quarantine_clear',
     app_path: options.appPath,
