@@ -4279,6 +4279,58 @@ test('release asset preparation preserves App-owned local authorization policy w
   assert.ok(fs.existsSync(path.join(releaseAssetsDir, 'standard-local-authorization-policy.json')));
 });
 
+test('release asset preparation preserves local authorization policy from GitHub artifact subdirectory', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-policy-artifact-dir-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const artifactsDir = path.join(tempRoot, 'artifacts');
+  const buildArtifactDir = path.join(artifactsDir, 'macos-build-arm64');
+  const releaseAssetsDir = path.join(tempRoot, 'release-assets');
+  const version = '26.6.5';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  const metadata = [
+    `version: ${version}`,
+    'files:',
+    `  - url: ${zipName}`,
+    '    sha512: test-zip',
+    '    size: 1',
+    `path: ${zipName}`,
+    'sha512: test-zip',
+    '',
+  ].join('\n');
+
+  writeFile(
+    path.join(shellRoot, 'scripts', 'prepare-release-assets.sh'),
+    [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      'rm -rf "$2"',
+      'mkdir -p "$2"',
+      'find "$1" -type f \\( -name "*.dmg" -o -name "*.zip" -o -name "*.blockmap" -o -name "*.yml" \\) -exec cp -f {} "$2"/ \\;',
+      '',
+    ].join('\n'),
+  );
+  fs.chmodSync(path.join(shellRoot, 'scripts', 'prepare-release-assets.sh'), 0o755);
+
+  writeFile(path.join(buildArtifactDir, dmgName));
+  writeFile(path.join(buildArtifactDir, zipName));
+  writeFile(path.join(buildArtifactDir, `${dmgName}.blockmap`));
+  writeFile(path.join(buildArtifactDir, `${zipName}.blockmap`));
+  writeFile(path.join(buildArtifactDir, 'latest-mac.yml'), metadata);
+  writeFile(path.join(buildArtifactDir, 'latest-arm64-mac.yml'), metadata);
+  writeStandardLocalAuthorizationPolicy(buildArtifactDir);
+
+  const result = runNode(['scripts/prepare-release-assets.ts', artifactsDir, releaseAssetsDir], {
+    env: {
+      OPL_APP_SHELL_ROOT: shellRoot,
+      OPL_RELEASE_VERSION: version,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(fs.existsSync(path.join(releaseAssetsDir, 'standard-local-authorization-policy.json')));
+});
+
 test('remote release verifier validates standard and Full assets from GitHub release view', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-'));
   const version = '26.5.19-remote';

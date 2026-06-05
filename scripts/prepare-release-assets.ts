@@ -26,14 +26,35 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function findFilesByName(rootDir: string, fileName: string): string[] {
+  if (!fs.existsSync(rootDir)) {
+    return [];
+  }
+  const matches: string[] = [];
+  const entries = fs.readdirSync(rootDir, { withFileTypes: true })
+    .sort((left, right) => left.name.localeCompare(right.name));
+  for (const entry of entries) {
+    const entryPath = path.join(rootDir, entry.name);
+    if (entry.isDirectory()) {
+      matches.push(...findFilesByName(entryPath, fileName));
+    } else if (entry.isFile() && entry.name === fileName) {
+      matches.push(entryPath);
+    }
+  }
+  return matches;
+}
+
 function preserveStandardLocalAuthorizationPolicy(): void {
   const policyName = 'standard-local-authorization-policy.json';
-  const source = path.join(artifactsDir, policyName);
-  if (!fs.existsSync(source)) {
+  const sources = findFilesByName(artifactsDir, policyName);
+  if (sources.length === 0) {
     return;
   }
+  if (sources.length > 1) {
+    throw new Error(`Expected one ${policyName}, found ${sources.length}: ${sources.join(', ')}`);
+  }
   fs.mkdirSync(outputDir, { recursive: true });
-  fs.copyFileSync(source, path.join(outputDir, policyName));
+  fs.copyFileSync(sources[0], path.join(outputDir, policyName));
 }
 
 function readMetadataVersion(): string {
