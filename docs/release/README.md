@@ -412,14 +412,14 @@ DMG, mounts it, copies `One Person Lab.app` into `/Applications`, removes
 recursive quarantine, reports Gatekeeper diagnostics, and opens the App:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
-  | bash -s -- --free-macos-install --yes
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-free.sh | bash
 ```
 
-The default free install profile is the latest Full first-install DMG. Advanced
-operators can use `--standard`, `--release-tag v<version>`, `--dmg-url <url>`,
-`--dmg-path <path>`, `--app-path <path>`, or `--no-open` when testing a specific
-asset or avoiding automatic launch.
+The short script delegates to `install.sh --free-macos-install --yes`. The
+default free install profile is the latest Full first-install DMG. Advanced
+operators can pass `--standard`, `--release-tag v<version>`, `--dmg-url <url>`,
+`--dmg-path <path>`, `--app-path <path>`, or `--no-open` after `bash -s --` when
+testing a specific asset or avoiding automatic launch.
 
 If an unsigned App has already been copied into `/Applications`, use the local
 authorization helper only:

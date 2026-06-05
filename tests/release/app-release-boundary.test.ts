@@ -1598,7 +1598,8 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     }
   }
   const freeMacosInstall = installerSurfaceById.get('free_macos_unsigned_app_install');
-  assert.equal(freeMacosInstall.entrypoint, 'install.sh --free-macos-install --yes');
+  assert.equal(freeMacosInstall.entrypoint, 'install-free.sh');
+  assert.equal(freeMacosInstall.backing_entrypoint, 'install.sh --free-macos-install --yes');
   assert.equal(freeMacosInstall.progress_source, 'github_release_dmg_copy_and_local_quarantine_diagnostics');
   assert.equal(
     freeMacosInstall.exposure_policy,
@@ -1869,6 +1870,7 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
 
 test('one-shot App installer defaults to App-first core setup', () => {
   const script = fs.readFileSync(path.join(appRoot, 'install.sh'), 'utf8');
+  const freeScript = fs.readFileSync(path.join(appRoot, 'install-free.sh'), 'utf8');
   const docs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
 
   assert.match(script, /OPL_APP_INSTALL_MODE=\$\{OPL_APP_INSTALL_MODE:-app-first\}/);
@@ -1897,11 +1899,18 @@ test('one-shot App installer defaults to App-first core setup', () => {
   assert.match(script, /quarantine_before/);
   assert.match(script, /quarantine_after/);
   assert.match(script, /signed and notarized releases are still required/);
+  assert.match(freeScript, /OPL_APP_INSTALLER_URL=/);
+  assert.match(freeScript, /https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/install\.sh/);
+  assert.match(freeScript, /install\.sh/);
+  assert.match(freeScript, /--free-macos-install/);
+  assert.match(freeScript, /--yes/);
+  assert.match(freeScript, /curl -fsSL "\$installer_url" \| bash -s -- --free-macos-install --yes "\$@"/);
   assert.match(docs, /macOS signing material setup/);
   assert.match(docs, /Developer ID Application/);
   assert.match(docs, /gh secret set BUILD_CERTIFICATE_BASE64/);
   assert.match(docs, /APPLE_ID_PASSWORD/);
   assert.match(docs, /Unsigned local App authorization/);
+  assert.match(docs, /install-free\.sh \| bash/);
   assert.match(docs, /--free-macos-install --yes/);
   assert.match(docs, /latest Full first-install DMG/);
   assert.match(docs, /--authorize-local-app-only/);

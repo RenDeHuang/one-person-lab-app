@@ -400,6 +400,16 @@ const checks = [
     forbidden: [],
   },
   {
+    id: 'short_free_macos_installer',
+    file: 'install-free.sh',
+    required: [
+      'OPL_APP_INSTALLER_URL=',
+      'https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh',
+      'curl -fsSL "$installer_url" | bash -s -- --free-macos-install --yes "$@"',
+    ],
+    forbidden: [],
+  },
+  {
     id: 'macos_signing_and_unsigned_authorization_docs',
     file: 'docs/release/README.md',
     required: [
@@ -411,6 +421,7 @@ const checks = [
       'standard-gatekeeper-launch-policy.json',
       'full-runtime-native-trust.json',
       '## Unsigned local App authorization',
+      'install-free.sh | bash',
       '--free-macos-install --yes',
       'latest Full first-install DMG',
       '--authorize-local-app-only',
@@ -425,7 +436,8 @@ const checks = [
     file: 'contracts/app-install-exposure-policy.json',
     required: [
       '"surface": "free_macos_unsigned_app_install"',
-      '"entrypoint": "install.sh --free-macos-install --yes"',
+      '"entrypoint": "install-free.sh"',
+      '"backing_entrypoint": "install.sh --free-macos-install --yes"',
       '"default_package_profile": "full"',
       '"hdiutil attach -nobrowse -readonly"',
       '"ditto"',

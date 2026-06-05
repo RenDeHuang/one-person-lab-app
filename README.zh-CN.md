@@ -118,8 +118,7 @@ Full DMG、把 App 复制到 `/Applications`、递归移除 macOS quarantine 属
 `codesign`/`spctl` 诊断，并打开 App：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
-  | bash -s -- --free-macos-install --yes
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-free.sh | bash
 ```
 
 如果你已经手工复制了未签名的开发版或内部测试版到 `/Applications`，只运行本地授权助手：

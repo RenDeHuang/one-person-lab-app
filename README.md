@@ -126,8 +126,7 @@ recursive macOS quarantine attributes, prints `codesign`/`spctl` diagnostics,
 and opens the App:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
-  | bash -s -- --free-macos-install --yes
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-free.sh | bash
 ```
 
 If you already copied an unsigned developer or internal test build into
