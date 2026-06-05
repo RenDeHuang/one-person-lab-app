@@ -34,6 +34,8 @@ AI is already strong at answering questions and generating content. The harder p
 
 **One Person Lab App is that entry point.** It packages One Person Lab, professional agents, and companion tools into a desktop app for complex knowledge work.
 
+It does not reduce research, grants, and presentations to a row of buttons. It brings start, resume, progress, files, and blockers into one product experience. Users do not need to know which professional agent is working behind the scenes; they need to see where the task stands, what was produced, what is missing, and how to continue.
+
 ## Core Highlights
 
 **One entry point for professional AI work**<br/>
@@ -47,6 +49,9 @@ New macOS users can start with the complete first-install package, open the App 
 
 **Professional agents with clear roles**<br/>
 Research Foundry, Grant Foundry, and Presentation Foundry focus on different deliverables. Users get one interface while each agent keeps its own professional boundary.
+
+**Professional AI keeps professional room**<br/>
+The App makes entries, progress, files, and delivery usable. Medical research, grant writing, and visual-delivery judgment remain with the corresponding professional agents.
 
 **Built for daily use and long-running work**<br/>
 The app is not just for one chat. It supports work that needs multiple rounds, background maintenance, recovery after failure, and continuing delivery.
@@ -89,6 +94,9 @@ assets as direct downloads. After installation, open `One Person Lab.app`; first
 launch prepares the workspace, Foundry Agents, skills, and runtime maintenance
 in the background. The normal user path is install, open the App, choose a
 workspace, and start work.
+The App-managed background maintenance path runs module reconciliation, Codex
+plugin/skill sync, and local Temporal provider configuration without requiring a
+second manual Codex plugin setup.
 
 If the App reports that setup or repair is needed, follow the in-app prompt.
 Terminal diagnostics remain available when needed:
@@ -130,40 +138,31 @@ For Docker or server deployment, see the [Docker/WebUI install guide](https://gi
 
 ## What The App Does
 
-One Person Lab App is the daily chat-first desktop entry point for users and the purpose-first Codex wrapper product truth:
+One Person Lab App is the daily chat-first desktop entry point for users:
 
 - Enter general work, medical research, grant writing, and presentation preparation from one desktop interface.
 - Enter Research Foundry, Grant Foundry, and Presentation Foundry.
 - View progress, files, runtime status, and recoverable work context for continuing long tasks and inspecting deliverables.
-- Consume `opl app state --profile fast --json` as the runtime page summary and refresh source, keep `opl app state --profile full --json` for explicit full-state diagnostic or release evidence, and lazy-load full Framework drilldown only on demand. The page defaults to project progress and next owner action first: next step, next owner, delta class, and blocker state appear before full evidence ledger detail. Full ledger detail is on-demand diagnostic, audit, or release evidence.
-- Display task movement only from OPL shared progress projection delta classifications. Platform repair is shown as infrastructure repair and must not be counted as deliverable, paper, manuscript, or submission progress.
-- On first launch, reach `ready_to_launch` before `/guid` from the Core checks: workspace root, Codex CLI, and Codex config. Domain modules, the family runtime provider, recommended skills, native helpers, repo sync, CLT, and ecosystem updates remain Full readiness or background maintenance.
-- Show first-launch phase, Core progress, Full readiness progress, background maintenance counts, blockers, and next steps from the shared `opl system initialize --json` model rather than installer-specific progress state.
-- Expose Foundry Agents through one public semantic path: the domain skill is the ABI. Codex App may receive MAS/MAG/RCA through plugin-packaged skills, while CLI and direct Codex use the same skill/action/stage metadata. Plugin packaging must not create a second semantic map or duplicate bare `~/.codex/skills/{mas,mag,rca}` mirrors.
-- Keep Homebrew as the App cask install/update path. MAS/MAG/RCA/OMA agent packs are prepared by App/CLI maintenance after the App is installed; users do not install separate `one-person-lab-modules` or agent-specific Homebrew packages.
-- Validate independent agent installation and Codex plugin registration through one machine gate: `npm run validate:agent-installation`. External installers and user-provided agents can pass `-- --agent-root mas=<path> --agent-root mag=<path> --agent-root rca=<path>` to verify real `.codex-plugin/plugin.json` plus `skills/<id>/SKILL.md` layouts, and `-- --codex-skills-root <path>` to fail closed when MAS/MAG/RCA are mirrored as duplicate bare skills.
+- Complete the minimum first-run setup before the user starts, then let fuller runtime and professional-agent payloads continue as background maintenance.
+- Offer Homebrew, direct download, and complete first-install package paths.
 - Present One Person Lab and domain agents as a usable product experience.
 
 ## User Path
 
 1. Download the App package from Releases.
 2. Open `One Person Lab.app`.
-3. Let first launch complete Core readiness before `/guid`: workspace root, Codex CLI, and Codex config. The visible progress bar and step list come from OPL Framework initialization state.
+3. Let first launch complete the basic setup; the app shows preparation progress and the next step.
 4. Choose a workspace directory.
 5. Start general work or enter Research, Grant, or Presentation Foundry.
 6. Use progress, files, and runtime status views to continue work and inspect deliverables.
 
 ## Product Boundaries
 
-One Person Lab App owns the desktop product experience: packaging, release assets, updater metadata, first-run checks, GUI state tests, screenshots, and user documentation. App release/user-path evidence proves only the same release cohort's App user-path evidence; it does not promote stable/latest or prove MAS/MAG/RCA domain readiness or OPL family production readiness.
+One Person Lab App owns the desktop product experience: packaging, releases, updates, first-run setup, GUI state, screenshots, and user documentation. It proves whether a user can install, open, start work, see progress, and inspect files. Medical research, grant writing, and visual-delivery quality remain with the corresponding professional agents and human decisions.
 
-App-owned product defaults are declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json). Installation and Codex-visible exposure policy is declared in [`contracts/app-install-exposure-policy.json`](contracts/app-install-exposure-policy.json): the App decides the user-facing install surfaces and default visible entries, while OPL Framework produces the install/sync/read-model surfaces and domain repos keep skill semantics. The same contract owns the Homebrew App cask boundary and the `agent_installation_contract`, which keeps MAS/MAG/RCA plugin registry entries, OMA generated skill exposure, App/CLI-managed agent-pack maintenance, optional live `~/.codex/skills` duplicate-mirror checks, and duplicate bare-skill prevention behind `npm run validate:agent-installation`. The runtime bridge is declared in [`contracts/app-runtime-bridge.json`](contracts/app-runtime-bridge.json): OPL owns the runtime/app CLI protocol, the App owns the GUI bridge contract, and `opl-aion-shell` is the current replaceable adapter implementation. Release scripts sync App-owned contracts into the active shell before standard and Full packaging so Codex defaults, visible companion skills, first-run maintenance behavior, and user-facing Settings labels are configured by the App repository instead of being scattered through the AionUI fork.
+The App decides what users see during install, first launch, task entry, and settings. One Person Lab Framework provides the runtime, initialization, and progress data behind those views, while MAS, MAG, and RCA keep their professional judgment and deliverables. The App turns those capabilities into a desktop product experience without replacing professional-agent judgment.
 
-GUI product truth is App-owned as well. The active shell implements the current renderer and package surface, but page behavior, model-selection policy, onboarding behavior, screenshots, release docs, and user-facing defaults are governed by App contracts. Future shells stay under `shells/<candidate>` until the App shell adapter, product profile sync, page-state and first-run matrices, active-shell validation, GUI package compile, and external checkout history policy all pass. A technical verification shell can be selected explicitly with `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`; that selected wrapper path must compile a launchable `.app` bundle and package manifest for the candidate. Candidate shells enter product truth only through App-owned contracts and validation gates, not shell roadmaps or upstream defaults. The default release shell remains `contracts/app-shell-adapter.json`.
-
-The GUI definition stack starts with the shell-independent ideal interaction spec in [`docs/app-ideal-gui-interaction-spec.md`](docs/app-ideal-gui-interaction-spec.md), then the Codex-to-OPL product delta in [`docs/codex-to-opl-app-delta.md`](docs/codex-to-opl-app-delta.md), then the cross-shell capability inventory in [`docs/app-gui-feature-inventory.md`](docs/app-gui-feature-inventory.md). Use them in that order when designing or reviewing a GUI shell. The target is a Codex App-shaped, chat-first OPL product; AionUI notes, `agui-codex` candidate work, and external references such as PilotDeck remain implementation or reference material rather than product authority.
-
-One Person Lab provides CLI, activation, stage control, runtime providers, queue, contracts, module discovery, skill sync, runtime snapshots, and shared progress projections. The App consumes those projections as display-only refs; MAS, MAG, and RCA carry their domain judgment, quality verdicts, stage semantics, and deliverables.
+GUI product truth is App-owned as well. AionUI, `agui-codex`, PilotDeck, and similar references are implementation or inspiration material; the user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
 
 Need framework, runtime, or contract details? Go to [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab).
 
@@ -225,8 +224,30 @@ OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run 
 
 Candidate package validation requires the manifest to declare `candidate_app_bundle_ready`, `explicit_candidate_app_bundle`, and a relative `.app` bundle path with `Contents/Info.plist` plus a `Contents/MacOS` executable. Text-only smoke artifacts are not accepted as candidate App packages.
 
-The App product profile is declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json) and generated into the active shell path declared by [`contracts/app-shell-adapter.json`](contracts/app-shell-adapter.json) during release preparation.
-
 See [`docs/status.md`](docs/status.md) for the current migration and release state.
+
+### Product And Installation Contracts
+
+App-owned product defaults are declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json). Installation and Codex-visible exposure policy is declared in [`contracts/app-install-exposure-policy.json`](contracts/app-install-exposure-policy.json): the App decides the user-facing install surfaces and default visible entries, while OPL Framework produces the install/sync/read-model surfaces and domain repos keep skill semantics. The same contract owns the Homebrew App cask boundary and the `agent_installation_contract`, which keeps MAS/MAG/RCA plugin registry entries, the OMA OPL-generated local Codex plugin surface, App/CLI-managed agent-pack maintenance, optional live `~/.codex/skills` duplicate-mirror checks, and duplicate bare-skill prevention behind `npm run validate:agent-installation`.
+
+Release scripts sync App-owned contracts into the active shell before standard and Full packaging so Codex defaults, visible companion skills, first-run maintenance behavior, and user-facing Settings labels are configured by the App repository instead of being scattered through the AionUI fork.
+
+The runtime bridge is declared in [`contracts/app-runtime-bridge.json`](contracts/app-runtime-bridge.json): OPL owns the runtime/app CLI protocol, the App owns the GUI bridge contract, and `opl-aion-shell` is the current replaceable adapter implementation. Runtime pages consume `opl app state --profile fast --json` as the summary and refresh source, keep `opl app state --profile full --json` for explicit full-state diagnostic or release evidence, and lazy-load full Framework drilldown only on demand.
+
+First launch reaches `ready_to_launch` before `/guid` from the Core checks: workspace root, Codex CLI, and Codex config. Domain modules, the family runtime provider, recommended skills, native helpers, repo sync, CLT, and ecosystem updates remain Full readiness or background maintenance. First-launch UI state comes from the shared `opl system initialize --json` model rather than installer-specific progress state.
+
+The App warms the ACP conversation before sending the first `/guid` message so slow first-run dependency unpacking becomes a retryable setup state instead of a lost prompt.
+
+Foundry Agents are exposed through one public semantic path: the domain skill is the ABI. Codex App may receive MAS/MAG/RCA through plugin-packaged skills, while CLI and direct Codex use the same skill/action/stage metadata. Plugin packaging must not create a second semantic map or duplicate bare `~/.codex/skills/{mas,mag,rca}` mirrors. Homebrew remains the App cask install/update path; MAS/MAG/RCA/OMA agent packs are prepared by App/CLI maintenance after the App is installed.
+
+Independent agent installation and Codex plugin registration are validated through one machine gate: `npm run validate:agent-installation`. External installers and user-provided agents can pass `-- --agent-root mas=<path> --agent-root mag=<path> --agent-root rca=<path>` to verify real `.codex-plugin/plugin.json` plus `skills/<id>/SKILL.md` layouts, and `-- --codex-skills-root <path>` to fail closed when MAS/MAG/RCA are mirrored as duplicate bare skills.
+
+The GUI definition stack starts with the shell-independent ideal interaction spec in [`docs/app-ideal-gui-interaction-spec.md`](docs/app-ideal-gui-interaction-spec.md), then the Codex-to-OPL product delta in [`docs/codex-to-opl-app-delta.md`](docs/codex-to-opl-app-delta.md), then the cross-shell capability inventory in [`docs/app-gui-feature-inventory.md`](docs/app-gui-feature-inventory.md). Use them in that order when designing or reviewing a GUI shell.
+
+### Agent / Framework Boundary
+
+- The App displays next steps, blockers, files, and status from OPL route and progress projections, but those views are not MAS/MAG/RCA domain verdicts.
+- Foundry Agent work still happens inside each agent's stage attempts. The App does not prescribe which tools a professional agent must use or in what order it must think.
+- Tool and skill entries are capability entries from the App's perspective. Permission, credential, write-scope, and quality-judgment boundaries remain governed by Framework and domain-agent contracts and receipts.
 
 </details>

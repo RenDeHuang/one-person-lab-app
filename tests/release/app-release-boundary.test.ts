@@ -57,8 +57,22 @@ const expectedRuntimeProjectProgressUserFields = [
   'state',
   'active_stage_label',
   'next_visible_step',
+  'artifact_or_blocker',
+  'accepted_answer_shape',
+  'next_owner',
   'blocker_ref_count',
   'last_progress_at',
+];
+const expectedOrdinaryCockpitForbiddenTerms = [
+  'Temporal',
+  'provider',
+  'ledger',
+  'projection',
+  'stage attempt',
+  'AionUI',
+  'backend selector',
+  'shell candidate',
+  'runtime implementation selector',
 ];
 const expectedHomeActivityCenterForbiddenDisplays = [
   'expanded continue-work center',
@@ -583,6 +597,39 @@ function writeFullGatekeeperLaunchPolicy(outDir) {
   );
 }
 
+function writeFullRuntimeNativeTrust(outDir) {
+  writeFile(
+    path.join(outDir, 'full-runtime-native-trust.json'),
+    `${JSON.stringify({
+      schema: 'opl_full_runtime_native_trust.v1',
+      status: 'passed',
+      executable_count: 2,
+      executables: [
+        {
+          relative_path: 'runtime/current/node/bin/node',
+          assessment_kind: 'launched_executable',
+          codesign_status: 'passed',
+          spctl_status: 'passed',
+          team_identifier: 'TESTTEAMID',
+          signature: 'Developer ID Application: Test',
+          quarantine_status: 'absent',
+          provenance_status: 'absent',
+        },
+        {
+          relative_path: 'runtime/current/vendor/temporal/cli/temporal',
+          assessment_kind: 'launched_executable',
+          codesign_status: 'passed',
+          spctl_status: 'passed',
+          team_identifier: 'TESTTEAMID',
+          signature: 'Developer ID Application: Test',
+          quarantine_status: 'absent',
+          provenance_status: 'absent',
+        },
+      ],
+    }, null, 2)}\n`,
+  );
+}
+
 function sha256(content) {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
@@ -691,8 +738,9 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
         source_path: '/tmp/temporal',
         version: 'temporal version 1.7.0',
         size_bytes: 801,
-        role: 'temporal_cli_offline_archive_wrapper',
+        role: 'temporal_cli_preextracted_binary_wrapper',
         required: true,
+        binary_path: 'runtime/current/vendor/temporal/cli/temporal',
         archive_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
         archive_size_bytes: 114835528,
       },
@@ -712,6 +760,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
   writeFile(path.join(outDir, fullDmgName), options.dmgContent ?? 'full-dmg');
   writeFile(path.join(outDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   writeFullGatekeeperLaunchPolicy(outDir);
+  writeFullRuntimeNativeTrust(outDir);
   writeFile(
     path.join(outDir, 'runtime-cache-events.json'),
     `${JSON.stringify({
@@ -741,6 +790,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
     fullDmgName,
     'full-package-manifest.json',
     'runtime-cache-events.json',
+    'full-runtime-native-trust.json',
     'README-Full-First-Install.txt',
     'full-gatekeeper-launch-policy.json',
   ];
@@ -752,6 +802,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
     fullDmgName,
     'full-package-manifest.json',
     'runtime-cache-events.json',
+    'full-runtime-native-trust.json',
     'README-Full-First-Install.txt',
     'SHA256SUMS.txt',
     'full-gatekeeper-launch-policy.json',
@@ -1145,6 +1196,30 @@ test('agent installation validator rejects duplicate bare MAS/MAG/RCA skill mirr
   assert.match(duplicateResult.stderr, /mas must not be mirrored as a bare Codex skill/);
 });
 
+test('agent installation validator accepts generated OMA local plugin roots', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-oma-plugin-'));
+  const pluginRoot = path.join(tempRoot, 'opl-meta-agent');
+  try {
+    writeFile(
+      path.join(pluginRoot, '.codex-plugin', 'plugin.json'),
+      `${JSON.stringify({ name: 'opl-meta-agent', skills: './skills/' }, null, 2)}\n`,
+    );
+    writeFile(path.join(pluginRoot, 'skills', 'opl-meta-agent', 'SKILL.md'), '# OPL Meta Agent\n');
+
+    const result = runNode([
+      'scripts/validate-agent-installation-contract.ts',
+      '--agent-root',
+      `oma=${pluginRoot}`,
+    ]);
+
+    assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    assert.match(result.stdout, /"generated_plugin_agents"/);
+    assert.match(result.stdout, /"oma":/);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('release workflows force JavaScript actions onto the Node 24 runtime', () => {
   for (const workflowPath of releaseWorkflowPaths) {
     const workflow = fs.readFileSync(path.join(appRoot, workflowPath), 'utf8');
@@ -1502,8 +1577,8 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     '~/.codex/skills/mag',
     '~/.codex/skills/rca',
   ]);
-  assert.equal(exposureClassById.get('opl_generated_skill_surfaces').sync_target, 'opl_generated_codex_surface');
-  assert.deepEqual(exposureClassById.get('opl_generated_skill_surfaces').members, ['opl-meta-agent']);
+  assert.equal(exposureClassById.get('opl_generated_plugin_surfaces').sync_target, 'opl_generated_codex_plugin_surface');
+  assert.deepEqual(exposureClassById.get('opl_generated_plugin_surfaces').members, ['opl-meta-agent']);
   assert.deepEqual(exposureClassById.get('companion_skill_sync').members, expectedDefaultCompanionSkillSyncIds);
   assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mas'), false);
   assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mag'), false);
@@ -1513,7 +1588,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(domainById.get('mas').preferred_app_distribution, 'plugin_packaged_skill');
   assert.equal(domainById.get('mag').preferred_app_distribution, 'plugin_packaged_skill');
   assert.equal(domainById.get('rca').preferred_app_distribution, 'plugin_packaged_skill');
-  assert.equal(domainById.get('oma').preferred_app_distribution, 'opl_generated_skill_surface');
+  assert.equal(domainById.get('oma').preferred_app_distribution, 'opl_generated_codex_plugin_surface');
   assert.equal(domainById.get('oma').default_home_visible, false);
 
   for (const surface of policy.installer_surfaces) {
@@ -1541,7 +1616,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.agent_installation_contract.product_entry_target, 'family-product-entry-manifest-v2');
   assert.deepEqual(policy.agent_installation_contract.required_agent_ids, ['mas', 'mag', 'rca', 'oma']);
   assert.deepEqual(policy.agent_installation_contract.default_plugin_agent_ids, ['mas', 'mag', 'rca']);
-  assert.deepEqual(policy.agent_installation_contract.generated_skill_agent_ids, ['oma']);
+  assert.deepEqual(policy.agent_installation_contract.generated_plugin_agent_ids, ['oma']);
   assert.deepEqual(policy.agent_installation_contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states);
   assert.equal(policy.agent_installation_contract.may_use_developer_checkout_by_default, false);
   assert.equal(policy.agent_installation_contract.developer_checkout_override_policy, 'explicit_opt_in_only');
@@ -1580,6 +1655,16 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'validated_plugin_roots',
     'validated_codex_skills_root',
   ]);
+  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.fallback_source_order, [
+    'bundled_full_runtime_modules',
+    'app_cli_managed_stable_package_channel',
+    'explicit_developer_checkout_override',
+  ]);
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.must_not_depend_on_single_github_packages_tag, true);
+  assert.equal(
+    policy.agent_installation_contract.managed_agent_pack_distribution.github_packages_unavailable_policy,
+    'fail_closed_with_actionable_background_maintenance_error',
+  );
 
   const installAgentById = new Map(policy.agent_installation_contract.agents.map((entry) => [entry.agent_id, entry]));
   for (const agentId of ['mas', 'mag', 'rca']) {
@@ -1593,9 +1678,30 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     assert.equal(entry.canonical_metadata_source, 'domain_action_catalog_and_stage_control_plane');
     assert.equal(entry.codex_visible_entry, agentId);
   }
-  assert.equal(installAgentById.get('oma').plugin_registry_required, false);
-  assert.equal(installAgentById.get('oma').preferred_distribution, 'opl_generated_skill_surface');
+  assert.equal(installAgentById.get('oma').plugin_registry_required, true);
+  assert.equal(installAgentById.get('oma').preferred_distribution, 'opl_generated_codex_plugin_surface');
   assert.equal(installAgentById.get('oma').canonical_metadata_source, 'opl_generated_interface_contract_pack');
+  assert.equal(policy.temporal_auto_configuration.provider_env_default, 'OPL_FAMILY_RUNTIME_PROVIDER=temporal');
+  assert.deepEqual(policy.temporal_auto_configuration.local_service_defaults, {
+    address_env: 'OPL_TEMPORAL_ADDRESS',
+    default_address: '127.0.0.1:7233',
+    namespace_env: 'OPL_TEMPORAL_NAMESPACE',
+    default_namespace: 'default',
+    task_queue_env: 'OPL_TEMPORAL_TASK_QUEUE',
+    default_task_queue: 'opl-stage-attempts',
+  });
+  assert.deepEqual(policy.temporal_auto_configuration.managed_commands, [
+    'opl family-runtime service start --provider temporal',
+    'opl family-runtime worker status --provider temporal',
+    'opl family-runtime worker start --provider temporal',
+    'opl family-runtime residency proof --provider temporal --production',
+  ]);
+  assert.equal(policy.temporal_auto_configuration.first_run_policy.ready_to_launch_blocking, false);
+  assert.equal(policy.setup_flow_contract.first_conversation_readiness.gate, 'acp_warmup_before_initial_send');
+  assert.deepEqual(policy.setup_flow_contract.first_conversation_readiness.must_wait_for, [
+    'conversation_record_ready',
+    'acp_warmup_complete',
+  ]);
 });
 
 test('Homebrew distribution channel is transport-only and keeps OPL activation authoritative', () => {
@@ -1845,6 +1951,11 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     refs_only: true,
     app_role: 'display_only_user_task_status_consumer',
   });
+  assert.deepEqual(runtimePage.runtime_view_model.must_not_default_display_terms, expectedOrdinaryCockpitForbiddenTerms);
+  assert.equal(
+    runtimePage.runtime_view_model.ordinary_cockpit_surface_budget_ref,
+    'contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget',
+  );
   assert.deepEqual(runtimeBridge.project_progress_projection, {
     source: 'app_state.operator.workbench.task_drilldowns',
     authority: 'opl_framework_shared_project_progress_projection',
@@ -2357,7 +2468,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'active project count from framework project-line projection',
     'queued project count from framework project-line projection',
     'attention count from framework blocker and owner-attention projection',
-    'task title/status/stage/progress label/next step/owner/last progress',
+    'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
     'provider/current_control_state details as diagnostics only',
     'summary OPL operator drilldown read model',
     'fast App state refresh',
@@ -2383,7 +2494,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'active project count',
     'queued project count',
     'attention count',
-    'task title/status/stage/progress label/next step/owner/last progress',
+    'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
     'project progress from app_state.operator.workbench.task_drilldowns',
     'active project line count from app_state.operator.workbench.activity_center.active_projects',
     'project title/domain/current state/current stage',
@@ -4295,6 +4406,7 @@ test('publish dry run generates deterministic English release notes for Full-onl
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   writeFullGatekeeperLaunchPolicy(fullPackageDir);
+  writeFullRuntimeNativeTrust(fullPackageDir);
   const publicMarkdown = `One Person Lab 26.5.18
 
 This release makes a clean OPL install more useful immediately by shipping refreshed MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and packaged Codex skills together in the Full installer.
@@ -4403,6 +4515,7 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   writeFullGatekeeperLaunchPolicy(fullPackageDir);
+  writeFullRuntimeNativeTrust(fullPackageDir);
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -4417,6 +4530,77 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /components\.meta_agent\.git_commit/);
+});
+
+test('publish rejects Full package native trust before Gatekeeper assessment passes', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-full-native-trust-pending-'));
+  const fullPackageDir = path.join(tempRoot, 'full');
+  const version = '26.5.19-native-trust-pending';
+  const manifest = {
+    generated_at: '2026-05-19T12:00:00.000Z',
+    distribution: {
+      updater_metadata_allowed: false,
+    },
+    components: {
+      opl: { git_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+      codex: { version: 'codex-cli 0.130.0' },
+      mas: { git_commit: '1111111111111111111111111111111111111111' },
+      mag: { git_commit: '2222222222222222222222222222222222222222' },
+      rca: { git_commit: '3333333333333333333333333333333333333333' },
+      meta_agent: { git_commit: '4444444444444444444444444444444444444444' },
+      officecli: { version: '1.2.3' },
+      mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
+    },
+  };
+
+  writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
+  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
+  writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
+  writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
+  writeFullGatekeeperLaunchPolicy(fullPackageDir);
+  writeFile(
+    path.join(fullPackageDir, 'full-runtime-native-trust.json'),
+    `${JSON.stringify({
+      schema: 'opl_full_runtime_native_trust.v1',
+      status: 'signed_pending_gatekeeper_assessment',
+      executable_count: 2,
+      executables: [
+        {
+          relative_path: 'runtime/current/node/bin/node',
+          assessment_kind: 'launched_executable',
+          codesign_status: 'passed',
+          spctl_status: 'deferred_until_notarized_app',
+          team_identifier: 'TESTTEAMID',
+          signature: 'Developer ID Application: Test',
+          quarantine_status: 'absent',
+        },
+        {
+          relative_path: 'runtime/current/vendor/temporal/cli/temporal',
+          assessment_kind: 'launched_executable',
+          codesign_status: 'passed',
+          spctl_status: 'deferred_until_notarized_app',
+          team_identifier: 'TESTTEAMID',
+          signature: 'Developer ID Application: Test',
+          quarantine_status: 'absent',
+        },
+      ],
+    }, null, 2)}\n`,
+  );
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--dry-run',
+    '--version',
+    version,
+    '--full-package-only',
+    '--include-full-package',
+    '--full-package-dir',
+    fullPackageDir,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /full-runtime-native-trust\.json must prove Full runtime native executable trust passed/);
 });
 
 test('Full-only release publish uses deterministic notes and does not call the AI note writer', () => {
@@ -4448,6 +4632,7 @@ test('Full-only release publish uses deterministic notes and does not call the A
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   writeFullGatekeeperLaunchPolicy(fullPackageDir);
+  writeFullRuntimeNativeTrust(fullPackageDir);
   fs.mkdirSync(path.dirname(fakeAi), { recursive: true });
   fs.writeFileSync(fakeAi, '#!/usr/bin/env node\nprocess.exit(42);\n', { mode: 0o755 });
 
@@ -4786,6 +4971,9 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
+  const pageStateMatrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
+  );
   const productProfile = readProductProfile();
 
   assert.equal(guiContract.owner, 'one-person-lab-app');
@@ -4846,6 +5034,56 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     inactive_group_default: 'collapsed',
     inactive_states: ['queued', 'pending', 'waiting', 'stopped', 'parked', 'checkpointed', 'blocked', 'attention_needed'],
     inactive_summary_fields: ['count', 'status', 'next_visible_step'],
+  });
+  assert.deepEqual(
+    guiContract.framework_surfaces.runtime_default_attention.must_not_default_display_terms,
+    [
+      'Temporal',
+      'provider',
+      'projection',
+      'ref',
+      'stage attempt',
+      'ledger',
+      'current_control_state',
+      'AionUI',
+      'backend selector',
+      'shell candidate',
+      'runtime implementation selector',
+    ],
+  );
+  assert.deepEqual(guiContract.ordinary_cockpit_surface_budget, {
+    surface_id: 'ordinary_app_cockpit_surface_budget',
+    purpose: 'keep Home, Runtime, and Settings focused on purpose, task status, next owner, artifact/blocker, and release facts',
+    applies_to_pages: [
+      'guid_home',
+      'runtime',
+      'settings_general',
+      'access',
+      'capabilities',
+      'environment',
+      'settings_theme',
+      'advanced',
+      'about',
+      'update',
+    ],
+    ordinary_allowed_answer_shapes: [
+      'purpose_entry',
+      'task_status',
+      'next_owner',
+      'accepted_answer_shape',
+      'artifact_or_blocker',
+      'release_fact',
+      'app_profile',
+      'access_status',
+      'agent_capability',
+      'local_environment_status',
+      'appearance_preference',
+      'advanced_diagnostic_link',
+      'about_update_fact',
+    ],
+    ordinary_must_not_default_display_terms: expectedOrdinaryCockpitForbiddenTerms,
+    diagnostics_escape_hatch: 'Advanced, release evidence, developer detail, or explicit full-detail drilldown only',
+    source_policy: 'ordinary views consume opl app state --profile fast --json and must not derive first-screen layout from raw runtime drilldown',
   });
   assert.equal(guiContract.executor_policy.default_executor, 'codex_cli');
   assert.equal(guiContract.executor_policy.codex_cli_fixed_executor, true);
@@ -5005,6 +5243,14 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.ok(guiContract.pages.settings_advanced.must_show.includes('OPL Flow Context'));
   assert.ok(guiContract.pages.settings_advanced.sections.includes('opl_agent_codex_context'));
   assert.ok(guiContract.pages.settings_advanced.legacy_state_sections.includes('opl_agent_codex_context'));
+  for (const pageId of guiContract.ordinary_cockpit_surface_budget.applies_to_pages) {
+    const matrixPage = pageStateMatrix.pages.find((page) => page.id === pageId);
+    assert.equal(
+      matrixPage.ordinary_cockpit_surface_budget_ref,
+      'contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget',
+      `${pageId} must consume the ordinary cockpit surface budget`,
+    );
+  }
   assert.deepEqual(guiContract.settings_navigation.ordinary_visible_tabs, [
     'general',
     'access',
@@ -5200,6 +5446,7 @@ test('App fallow hygiene is not the active GUI shell validation gate', () => {
 
 test('active shell validation exposes opt-in live OPL conformance without making it default', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+  const activeShellValidator = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-active-shell.ts'), 'utf8');
   const runtimeBridge = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-runtime-bridge.json'), 'utf8'),
   );
@@ -5208,6 +5455,8 @@ test('active shell validation exposes opt-in live OPL conformance without making
   const combinedDocs = `${testingDocs}\n${architectureDocs}`;
 
   assert.equal(packageJson.scripts['validate:active-shell'], 'node --experimental-strip-types scripts/validate-active-shell.ts');
+  assert.match(activeShellValidator, /useAcpInitialMessage\.ts/);
+  assert.match(activeShellValidator, /await warmupConversation\(conversation_id\)/);
   assert.equal(runtimeBridge.live_conformance_gate.mode, 'explicit_env_opt_in');
   assert.equal(runtimeBridge.live_conformance_gate.default_enforcement, 'disabled');
   assert.equal(runtimeBridge.live_conformance_gate.opl_bin, './bin/opl');
@@ -5620,6 +5869,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'standard_updater_metadata',
       'full_sha256sums',
       'full_runtime_cache_events',
+      'full_runtime_native_trust',
       'full_manifest_distribution_boundary',
       'full_manifest_size_budget',
       'full_release_asset_size_budget',
@@ -6063,9 +6313,10 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   const diagnosticsStep = workflowStepBlock(workflow, 'Upload Full diagnostics artifact');
   const gatekeeperStep = workflowStepBlock(workflow, 'Upload Full Gatekeeper launch policy');
   assert.match(workflow, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/);
-  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/);
+  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*full-runtime-native-trust\.json[\s\S]*SHA256SUMS\.txt/);
   assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/);
   assert.match(gatekeeperStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-gatekeeper-launch-policy\.json/);
+  assert.match(workflow, /verify-full-runtime-native-trust\.ts[\s\S]*--require-spctl[\s\S]*full-runtime-native-trust\.json/);
   assert.match(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/);
   assert.match(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/);
   assert.match(workflow, /bash "\$GITHUB_WORKSPACE\/OfficeCLI\/install\.sh"/);
@@ -6351,12 +6602,27 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     preferred_sources: ['explicit_user_path', 'system_path', 'homebrew_formula'],
     fallback_version_source: 'distribution cohort manifest components.temporal_cli.fallback_version',
     fallback_runtime_path: 'runtime/current/bin/temporal',
+    fallback_binary_path: 'runtime/current/vendor/temporal/cli/temporal',
     fallback_payload_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
     must_prefer_valid_newer_user_version: true,
-    verification: 'temporal --version must satisfy minimum_version and Temporal provider smoke must pass',
+    verification: 'temporal --version must satisfy minimum_version, bundled fallback must execute from the pre-extracted signed binary, and Temporal provider smoke must pass',
   });
   assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_runtime_provider, {
     provider_env_default: 'OPL_FAMILY_RUNTIME_PROVIDER=temporal',
+    local_service_defaults: {
+      address_env: 'OPL_TEMPORAL_ADDRESS',
+      default_address: '127.0.0.1:7233',
+      namespace_env: 'OPL_TEMPORAL_NAMESPACE',
+      default_namespace: 'default',
+      task_queue_env: 'OPL_TEMPORAL_TASK_QUEUE',
+      default_task_queue: 'opl-stage-attempts',
+    },
+    managed_commands: [
+      'opl family-runtime service start --provider temporal',
+      'opl family-runtime worker status --provider temporal',
+      'opl family-runtime worker start --provider temporal',
+      'opl family-runtime residency proof --provider temporal --production',
+    ],
     required_packages: [
       '@temporalio/activity',
       '@temporalio/client',
@@ -6366,7 +6632,7 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     ],
     forbidden_packages: ['@temporalio/testing'],
     native_core_bridge_releases: ['aarch64-apple-darwin'],
-    verification: 'Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin',
+    verification: 'Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin and wrapper must export local Temporal defaults',
   });
   assert.deepEqual(
     manifest.distribution.payload_boundary.app_repo_does_not_own,
@@ -6406,7 +6672,7 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     manifest.components.skills.role,
     'packaged_codex_skills_declared_by_app_product_profile',
   );
-  assert.equal(manifest.components.temporal_cli.role, 'temporal_cli_offline_archive_wrapper');
+  assert.equal(manifest.components.temporal_cli.role, 'temporal_cli_preextracted_binary_wrapper');
   assert.equal(manifest.components.temporal_cli.required, true);
   assert.equal(manifest.optional_components.bun.role, 'optional_bun_cli_runtime_payload');
   assert.equal(manifest.optional_components.bun.required, false);
@@ -6576,15 +6842,17 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
   assert.match(buildScript, /options\.includeBunRuntime \? findBunBinary\(options\.bunBin\) : null/);
   assert.match(buildScript, /findTemporalCliArchive,/);
-  assert.match(buildScript, /copyPortableTree,\s+copyExecutableOrSymlinkTarget,\s+copyNodeRuntimePayload,\s+writeTemporalCliWrapper,\s+assertNoExternalSymlinks,/);
+  assert.match(buildScript, /copyPortableTree,\s+copyExecutableOrSymlinkTarget,\s+copyNodeRuntimePayload,\s+writeTemporalCliWrapper,\s+extractTemporalCliBinary,\s+assertNoExternalSymlinks,/);
   assert.match(buildScript, /if \(sources\.bunBin\) {\s*copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\);\s*}/);
   assert.match(buildScript, /copySingleFile\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64\.tar\.gz'\)\)/);
+  assert.match(buildScript, /extractTemporalCliBinary\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'cli', 'temporal'\)\)/);
   assert.match(buildScript, /writeTemporalCliWrapper\(path\.join\(layerRoot, 'bin', 'temporal'\), commandOutput\(sources\.temporalCliBin, \['--version'\]\)\)/);
   assert.match(buildScript, /function writeTemporalCliWrapper\(targetPath, versionOutput\)/);
   assert.match(buildScript, /TEMPORAL_VERSION_OUTPUT=\$\{shellSingleQuote\(versionOutput\)\}/);
   assert.match(buildScript, /if \[\[ "\\\$\{1:-\}" == "--version" \]\]/);
-  assert.match(buildScript, /ARCHIVE="\$RUNTIME_HOME\/vendor\/temporal\/temporal_cli_darwin_arm64\.tar\.gz"/);
-  assert.match(buildScript, /tar -xzf "\$ARCHIVE" -C "\$EXTRACT_ROOT"/);
+  assert.match(buildScript, /TEMPORAL_BIN="\$RUNTIME_HOME\/vendor\/temporal\/cli\/temporal"/);
+  assert.doesNotMatch(buildScript, /ARCHIVE="\$RUNTIME_HOME\/vendor\/temporal\/temporal_cli_darwin_arm64\.tar\.gz"/);
+  assert.doesNotMatch(buildScript, /tar -xzf "\$ARCHIVE" -C "\$EXTRACT_ROOT"/);
   assert.match(buildScript, /copyNodeRuntimePayload\(path\.dirname\(path\.dirname\(sources\.nodeToolchain\.nodeBin\)\), path\.join\(layerRoot, 'node'\)\)/);
   assert.match(buildScript, /function copyNodeRuntimePayload\(nodeRoot, targetRoot\)/);
   assert.match(buildScript, /for \(const relativePath of \['bin\/node', 'bin\/npm', 'bin\/npx'\]\)/);
@@ -6638,6 +6906,17 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /guiRoot: process\.env\.OPL_FULL_GUI_ROOT \|\| resolveActiveShellPaths\(\)\.shellRoot/);
   assert.doesNotMatch(buildScript, /guiRoot: process\.env\.OPL_FULL_GUI_ROOT \|\| path\.join\(appRepoRoot, 'shells', 'aionui'\)/);
   assert.match(buildScript, /syncAppProductProfileToShell\(options\.guiRoot\)/);
+  const fullRuntimeWrapperScript = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'full-first-install-runtime-wrappers.ts'),
+    'utf8',
+  );
+  assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_MEDAUTOSCIENCE="\$RUNTIME_HOME\/modules\/mas"/);
+  assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_MEDAUTOGRANT="\$RUNTIME_HOME\/modules\/mag"/);
+  assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_REDCUBE="\$RUNTIME_HOME\/modules\/rca"/);
+  assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_OPLMETAAGENT="\$RUNTIME_HOME\/modules\/meta-agent"/);
+  assert.match(fullRuntimeWrapperScript, /OPL_TEMPORAL_ADDRESS="\\\$\{OPL_TEMPORAL_ADDRESS:-127\.0\.0\.1:7233\}"/);
+  assert.match(fullRuntimeWrapperScript, /OPL_TEMPORAL_NAMESPACE="\\\$\{OPL_TEMPORAL_NAMESPACE:-default\}"/);
+  assert.match(fullRuntimeWrapperScript, /OPL_TEMPORAL_TASK_QUEUE="\\\$\{OPL_TEMPORAL_TASK_QUEUE:-opl-stage-attempts\}"/);
   assert.match(prepareStandardScript, /syncAppProductProfileToShell\(shellPaths\.shellRoot, \{ optional: true \}\)/);
   assert.match(prepareStandardScript, /fs\.copyFileSync\(appInstallerPath, shellBootstrapInstallerPath\)/);
   assert.match(prepareStandardScript, /fs\.chmodSync\(shellBootstrapInstallerPath, 0o755\)/);
@@ -6692,12 +6971,15 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
   assert.match(buildScript, /if \(sources\.bunBin\) {\s*copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\);\s*}/);
   assert.match(buildScript, /copySingleFile\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64\.tar\.gz'\)\)/);
+  assert.match(buildScript, /extractTemporalCliBinary\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'cli', 'temporal'\)\)/);
   assert.match(buildScript, /writeTemporalCliWrapper\(path\.join\(layerRoot, 'bin', 'temporal'\), commandOutput\(sources\.temporalCliBin, \['--version'\]\)\)/);
   assert.match(buildScript, /copyNodeRuntimePayload\(path\.dirname\(path\.dirname\(sources\.nodeToolchain\.nodeBin\)\), path\.join\(layerRoot, 'node'\)\)/);
   assert.match(buildScript, /assertNoExternalSymlinks\(targetRoot, 'Full first-install Node runtime'\)/);
   assert.match(buildScript, /packaged_global_node_packages:/);
   assert.match(buildScript, /optionalComponents = \{[\s\S]*bun: sources\.bunBin/);
   assert.match(buildScript, /status: 'not_packaged'/);
-  assert.match(buildScript, /temporal_cli: \{[\s\S]*source_path: sources\.temporalCliBin[\s\S]*path\.join\(runtimeRoot, 'bin', 'temporal'\)/);
+  assert.match(buildScript, /temporal_cli: \{[\s\S]*source_path: sources\.temporalCliBin[\s\S]*binary_path: 'runtime\/current\/vendor\/temporal\/cli\/temporal'/);
+  assert.match(buildScript, /version: commandOutput\(path\.join\(runtimeRoot, 'bin', 'temporal'\), \['--version'\]\)/);
+  assert.match(buildScript, /writeJsonFile\(runtimeNativeTrustPath, prepared\.manifest\.native_trust\)/);
   assert.match(buildScript, /codex: \{ source_path: sources\.codexRoot[\s\S]*size_bytes: directorySizeBytes\(path\.join\(runtimeRoot, 'bin', 'codex'\)\)/);
 });

@@ -54,6 +54,7 @@
     "prepare-release-assets": "node --experimental-strip-types scripts/prepare-release-assets.ts",
     "validate-release": "node --experimental-strip-types scripts/validate-release.ts",
     "verify-remote-release": "node --experimental-strip-types scripts/verify-remote-release-assets.ts",
+    "verify:full-runtime-native-trust": "node --experimental-strip-types scripts/verify-full-runtime-native-trust.ts",
     "release:cleanup-drafts": "node --experimental-strip-types scripts/cleanup-draft-release-candidates.ts",
     "release:cleanup-webui-ghcr": "node --experimental-strip-types scripts/cleanup-webui-ghcr-versions.ts",
     "release:notes": "node --experimental-strip-types scripts/generate-release-notes.ts",

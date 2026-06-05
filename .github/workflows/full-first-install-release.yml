@@ -508,6 +508,7 @@ jobs:
           teamId: ${{ secrets.TEAM_ID }}
           identity: ${{ secrets.IDENTITY }}
           CSC_NAME: ${{ secrets.IDENTITY }}
+          OPL_RUNTIME_CODESIGN_IDENTITY: ${{ secrets.IDENTITY }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
           CI: true
           GH_TOKEN: ${{ github.token }}
@@ -558,6 +559,7 @@ jobs:
         run: |
           set -euo pipefail
           app_path="$GITHUB_WORKSPACE/one-person-lab-app/shells/aionui/out/mac-arm64/One Person Lab.app"
+          runtime_root="$app_path/Contents/Resources/opl-full-runtime/runtime/current"
           dmg_path="$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg"
           if [ "${OPL_FULL_DISTRIBUTABLE_ASSETS:-false}" = "true" ]; then
             if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" != "true" ]; then
@@ -566,7 +568,11 @@ jobs:
             fi
             codesign --verify --deep --strict --verbose=2 "$app_path"
             spctl --assess --type execute --verbose=4 "$app_path"
-            node -e 'const fs = require("node:fs"); const appPath = process.argv[1]; fs.writeFileSync("one-person-lab-app/dist/opl-full-release/full-gatekeeper-launch-policy.json", `${JSON.stringify({ schema: "opl_gatekeeper_launch_policy.v1", package_kind: "app_full_first_install", app_path: appPath, codesign_status: "passed", spctl_status: "passed" }, null, 2)}\n`);' "$app_path"
+            node --experimental-strip-types one-person-lab-app/scripts/verify-full-runtime-native-trust.ts \
+              --runtime-root "$runtime_root" \
+              --require-spctl \
+              --output one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
+            node -e 'const fs = require("node:fs"); const appPath = process.argv[1]; const runtimeTrust = JSON.parse(fs.readFileSync("one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json", "utf8")); fs.writeFileSync("one-person-lab-app/dist/opl-full-release/full-gatekeeper-launch-policy.json", `${JSON.stringify({ schema: "opl_gatekeeper_launch_policy.v1", package_kind: "app_full_first_install", app_path: appPath, codesign_status: "passed", spctl_status: "passed", runtime_native_trust_status: runtimeTrust.status, runtime_native_executable_count: runtimeTrust.executable_count }, null, 2)}\n`);' "$app_path"
           else
             echo "::notice::Skipping strict codesign/spctl checks because this run does not publish or upload distributable Full assets."
             codesign --verify --deep --strict --verbose=2 "$app_path" || true
@@ -575,8 +581,9 @@ jobs:
           hdiutil verify "$dmg_path"
           (
             cd "$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"
-            grep -v 'full-gatekeeper-launch-policy.json$' SHA256SUMS.txt > SHA256SUMS.next
+            grep -Ev '(full-gatekeeper-launch-policy|full-runtime-native-trust)\.json$' SHA256SUMS.txt > SHA256SUMS.next
             if [ "${OPL_FULL_DISTRIBUTABLE_ASSETS:-false}" = "true" ]; then
+              shasum -a 256 full-runtime-native-trust.json >> SHA256SUMS.next
               shasum -a 256 full-gatekeeper-launch-policy.json >> SHA256SUMS.next
             fi
             mv SHA256SUMS.next SHA256SUMS.txt
@@ -753,6 +760,7 @@ jobs:
             one-person-lab-app/dist/opl-full-release/full-package-build-timing.json
             one-person-lab-app/dist/opl-full-release/full-package-manifest.json
             one-person-lab-app/dist/opl-full-release/runtime-cache-events.json
+            one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
             one-person-lab-app/dist/opl-full-release/SHA256SUMS.txt
             one-person-lab-app/dist/opl-full-release/README-Full-First-Install.txt
           if-no-files-found: error

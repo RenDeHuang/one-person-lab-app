@@ -71,13 +71,13 @@
       ]
     },
     {
-      "id": "opl_generated_skill_surfaces",
+      "id": "opl_generated_plugin_surfaces",
       "owner": "one-person-lab",
       "members": [
         "opl-meta-agent"
       ],
       "default_app_visible": false,
-      "sync_target": "opl_generated_codex_surface",
+      "sync_target": "opl_generated_codex_plugin_surface",
       "must_not_sync_to": [
         "default_home_assistant_entry"
       ]
@@ -159,7 +159,7 @@
       "home_purpose_entry": null,
       "default_home_visible": false,
       "codex_visible_entry": "opl-meta-agent",
-      "preferred_app_distribution": "opl_generated_skill_surface",
+      "preferred_app_distribution": "opl_generated_codex_plugin_surface",
       "direct_skill_semantics_required": true,
       "canonical_metadata_source": "opl_generated_interface_contract_pack"
     }
@@ -242,6 +242,25 @@
       "codex_cli",
       "codex_config"
     ],
+    "first_conversation_readiness": {
+      "gate": "acp_warmup_before_initial_send",
+      "source_command": "opl system initialize --json",
+      "ready_to_launch_must_be_true": true,
+      "must_wait_for": [
+        "conversation_record_ready",
+        "acp_warmup_complete"
+      ],
+      "must_not_wait_for": [
+        "domain_modules",
+        "family_runtime_provider",
+        "recommended_skills",
+        "native_helpers",
+        "repo_sync",
+        "command_line_tools_install",
+        "ecosystem_module_updates"
+      ],
+      "failure_policy": "show_retryable_initial_message_error_without_losing_user_prompt"
+    },
     "full_readiness_non_blocking_items": [
       "domain_modules",
       "family_runtime_provider",
@@ -250,6 +269,52 @@
       "repo_sync",
       "command_line_tools_install",
       "ecosystem_module_updates"
+    ]
+  },
+  "temporal_auto_configuration": {
+    "owner": "one-person-lab",
+    "app_role": "configure_defaults_and_surface_readiness_not_provider_implementation",
+    "provider_env_default": "OPL_FAMILY_RUNTIME_PROVIDER=temporal",
+    "local_service_defaults": {
+      "address_env": "OPL_TEMPORAL_ADDRESS",
+      "default_address": "127.0.0.1:7233",
+      "namespace_env": "OPL_TEMPORAL_NAMESPACE",
+      "default_namespace": "default",
+      "task_queue_env": "OPL_TEMPORAL_TASK_QUEUE",
+      "default_task_queue": "opl-stage-attempts"
+    },
+    "managed_commands": [
+      "opl family-runtime service start --provider temporal",
+      "opl family-runtime worker status --provider temporal",
+      "opl family-runtime worker start --provider temporal",
+      "opl family-runtime residency proof --provider temporal --production"
+    ],
+    "first_run_policy": {
+      "ready_to_launch_blocking": false,
+      "full_readiness_item": "family_runtime_provider",
+      "background_maintenance_owner": "app_or_cli_managed_background_maintenance",
+      "required_diagnostics": [
+        "temporal_cli_version",
+        "temporal_service_lifecycle",
+        "temporal_worker_lifecycle_status",
+        "worker_dependency_health"
+      ]
+    },
+    "packaged_runtime_policy": {
+      "full_wrapper_must_export_defaults": true,
+      "must_include_temporal_cli_wrapper": true,
+      "temporal_cli_wrapper_must_execute_preextracted_signed_binary": true,
+      "must_include_temporal_node_runtime_packages": true,
+      "must_exclude_temporal_testing_package": true,
+      "native_core_bridge_target": "aarch64-apple-darwin"
+    },
+    "fail_closed_states": [
+      "missing_temporal_cli_wrapper",
+      "missing_temporal_node_runtime_package",
+      "temporal_worker_dependency_unavailable",
+      "temporal_local_service_stale_state",
+      "temporal_worker_process_exited",
+      "temporal_worker_source_stale"
     ]
   },
   "distribution_channels": {
@@ -321,7 +386,7 @@
     "companion_skill_management": "app_or_cli_managed_background_maintenance",
     "duplicate_prevention": [
       "plugin-packaged MAS/MAG/RCA skills must not be mirrored into duplicate bare skill directories",
-      "OPL Meta Agent is surfaced as an OPL-generated skill surface",
+      "OPL Meta Agent is surfaced as an OPL-generated local Codex plugin surface",
       "App visible companion skill defaults must be product profile configuration, not shell-local hardcoding"
     ],
     "fail_closed_states": [
@@ -329,7 +394,8 @@
       "ahead_or_diverged_managed_checkout",
       "missing_plugin_manifest",
       "missing_skill_entry",
-      "duplicate_codex_visible_domain_skill"
+      "duplicate_codex_visible_domain_skill",
+      "unavailable_managed_agent_pack_channel"
     ]
   },
   "agent_installation_contract": {
@@ -352,7 +418,7 @@
       "mag",
       "rca"
     ],
-    "generated_skill_agent_ids": [
+    "generated_plugin_agent_ids": [
       "oma"
     ],
     "fail_closed_states": [
@@ -360,7 +426,8 @@
       "ahead_or_diverged_managed_checkout",
       "missing_plugin_manifest",
       "missing_skill_entry",
-      "duplicate_codex_visible_domain_skill"
+      "duplicate_codex_visible_domain_skill",
+      "unavailable_managed_agent_pack_channel"
     ],
     "may_use_developer_checkout_by_default": false,
     "developer_checkout_override_policy": "explicit_opt_in_only",
@@ -433,10 +500,10 @@
       {
         "agent_id": "oma",
         "display_name": "OPL Meta Agent",
-        "preferred_distribution": "opl_generated_skill_surface",
+        "preferred_distribution": "opl_generated_codex_plugin_surface",
         "codex_visible_entry": "opl-meta-agent",
         "home_purpose_entry": null,
-        "plugin_registry_required": false,
+        "plugin_registry_required": true,
         "direct_skill_compatibility_required": true,
         "plugin_must_package_skill": false,
         "must_not_create_second_semantics": true,
@@ -458,6 +525,13 @@
         "opl module reconcile",
         "opl skill sync"
       ],
+      "fallback_source_order": [
+        "bundled_full_runtime_modules",
+        "app_cli_managed_stable_package_channel",
+        "explicit_developer_checkout_override"
+      ],
+      "must_not_depend_on_single_github_packages_tag": true,
+      "github_packages_unavailable_policy": "fail_closed_with_actionable_background_maintenance_error",
       "homebrew_distribution_allowed": false,
       "homebrew_formula_allowed": false,
       "forbidden_homebrew_formulae": [

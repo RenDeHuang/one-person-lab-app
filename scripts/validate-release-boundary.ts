@@ -106,6 +106,8 @@ const checks = [
       'Full first-install release assets require Developer ID certificate secrets before upload or Homebrew cask sync.',
       'Full first-install release assets require APPLE_ID, APPLE_ID_PASSWORD, TEAM_ID, and IDENTITY for notarization.',
       'full-gatekeeper-launch-policy.json',
+      'full-runtime-native-trust.json',
+      'verify-full-runtime-native-trust.ts',
       'spctl --assess --type execute --verbose=4 "$app_path"',
     ],
     forbidden: ['npm run gui:release', 'packages:full-release', 'repository: gaofeng21cn/one-person-lab-app'],
@@ -354,7 +356,9 @@ const checks = [
     required: [
       'standard-gatekeeper-launch-policy.json',
       'full-gatekeeper-launch-policy.json',
+      'full-runtime-native-trust.json',
       'assertGatekeeperLaunchPolicy',
+      'assertFullRuntimeNativeTrust',
       'spctl_status',
       'codesign_status',
     ],

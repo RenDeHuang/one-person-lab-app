@@ -74,7 +74,7 @@ const domainExposureEntries = [
     domain_id: 'oma',
     home_purpose_entry: null,
     codex_visible_entry: 'opl-meta-agent',
-    preferred_app_distribution: 'opl_generated_skill_surface',
+    preferred_app_distribution: 'opl_generated_codex_plugin_surface',
   },
 ];
 const forbiddenAuthorityOwners = [
@@ -1662,6 +1662,20 @@ function validateActiveShellImplementation(shellPaths) {
     }
   }
 
+  const acpInitialMessage = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/platforms/acp/useAcpInitialMessage.ts',
+  );
+  for (const expected of [
+    "import { warmupConversation } from '../../utils/warmupConversation'",
+    'await warmupConversation(conversation_id)',
+    'ipcBridge.acpConversation.sendMessage.invoke',
+  ]) {
+    if (!acpInitialMessage.includes(expected)) {
+      throw new Error(`Active shell ACP initial-message flow must warm up before first send: ${expected}`);
+    }
+  }
+
   const thoughtDisplay = readShellText(shellPaths, 'packages/desktop/src/renderer/components/chat/ThoughtDisplay.tsx');
   for (const expected of ['formatElapsedTime', "t('conversation.chat.processing')", 'elapsedTime']) {
     if (!thoughtDisplay.includes(expected)) {
@@ -2331,9 +2345,9 @@ function validateInstallExposurePolicy(policy) {
       throw new Error(`Install exposure domain plugin class must forbid ${forbiddenMirror}`);
     }
   }
-  const generatedClass = exposureClassById.get('opl_generated_skill_surfaces');
-  if (generatedClass?.sync_target !== 'opl_generated_codex_surface' || !generatedClass?.members?.includes('opl-meta-agent')) {
-    throw new Error('Install exposure generated class must route OPL Meta Agent through OPL-generated Codex surface');
+  const generatedClass = exposureClassById.get('opl_generated_plugin_surfaces');
+  if (generatedClass?.sync_target !== 'opl_generated_codex_plugin_surface' || !generatedClass?.members?.includes('opl-meta-agent')) {
+    throw new Error('Install exposure generated class must route OPL Meta Agent through OPL-generated local Codex plugin surface');
   }
   const companionClass = exposureClassById.get('companion_skill_sync');
   if (companionClass?.sync_target !== 'codex_user_skill_discovery_path') {
@@ -2439,6 +2453,78 @@ function validateInstallExposurePolicy(policy) {
     fullReadinessItems,
     'Install exposure full readiness non-blocking items',
   );
+  const firstConversation = setupFlow.first_conversation_readiness;
+  if (
+    firstConversation?.gate !== 'acp_warmup_before_initial_send' ||
+    firstConversation?.source_command !== firstRunProgressSourceCommand ||
+    firstConversation?.ready_to_launch_must_be_true !== true ||
+    firstConversation?.failure_policy !== firstConversationFailurePolicy
+  ) {
+    throw new Error('Install exposure first conversation readiness must gate initial send on ready_to_launch and ACP warmup');
+  }
+  assertIncludesAll(
+    firstConversation.must_wait_for,
+    firstConversationMustWaitFor,
+    'Install exposure first conversation wait-for items',
+  );
+  assertIncludesAll(
+    firstConversation.must_not_wait_for,
+    fullReadinessItems,
+    'Install exposure first conversation non-blocking readiness items',
+  );
+
+  const temporalAutoConfig = policy.temporal_auto_configuration;
+  if (
+    temporalAutoConfig?.owner !== 'one-person-lab' ||
+    temporalAutoConfig?.app_role !== 'configure_defaults_and_surface_readiness_not_provider_implementation' ||
+    temporalAutoConfig?.provider_env_default !== 'OPL_FAMILY_RUNTIME_PROVIDER=temporal'
+  ) {
+    throw new Error('Install exposure Temporal auto-configuration must keep OPL owner and App default configuration role');
+  }
+  assertDeepEqualJson(
+    temporalAutoConfig.local_service_defaults,
+    temporalLocalServiceDefaults,
+    'Install exposure Temporal local service defaults',
+  );
+  assertDeepEqualJson(
+    temporalAutoConfig.managed_commands,
+    temporalManagedCommands,
+    'Install exposure Temporal managed commands',
+  );
+  if (
+    temporalAutoConfig.first_run_policy?.ready_to_launch_blocking !== false ||
+    temporalAutoConfig.first_run_policy?.full_readiness_item !== 'family_runtime_provider' ||
+    temporalAutoConfig.first_run_policy?.background_maintenance_owner !== 'app_or_cli_managed_background_maintenance'
+  ) {
+    throw new Error('Install exposure Temporal first-run policy must keep provider readiness non-blocking and background-managed');
+  }
+  assertIncludesAll(
+    temporalAutoConfig.first_run_policy?.required_diagnostics,
+    ['temporal_cli_version', 'temporal_service_lifecycle', 'temporal_worker_lifecycle_status', 'worker_dependency_health'],
+    'Install exposure Temporal diagnostics',
+  );
+  if (
+    temporalAutoConfig.packaged_runtime_policy?.full_wrapper_must_export_defaults !== true ||
+    temporalAutoConfig.packaged_runtime_policy?.must_include_temporal_cli_wrapper !== true ||
+    temporalAutoConfig.packaged_runtime_policy?.temporal_cli_wrapper_must_execute_preextracted_signed_binary !== true ||
+    temporalAutoConfig.packaged_runtime_policy?.must_include_temporal_node_runtime_packages !== true ||
+    temporalAutoConfig.packaged_runtime_policy?.must_exclude_temporal_testing_package !== true ||
+    temporalAutoConfig.packaged_runtime_policy?.native_core_bridge_target !== 'aarch64-apple-darwin'
+  ) {
+    throw new Error('Install exposure Temporal packaged runtime policy must require wrapper defaults and macOS arm64 runtime payloads');
+  }
+  assertIncludesAll(
+    temporalAutoConfig.fail_closed_states,
+    [
+      'missing_temporal_cli_wrapper',
+      'missing_temporal_node_runtime_package',
+      'temporal_worker_dependency_unavailable',
+      'temporal_local_service_stale_state',
+      'temporal_worker_process_exited',
+      'temporal_worker_source_stale',
+    ],
+    'Install exposure Temporal fail-closed states',
+  );
 
   const sync = policy.sync_and_install_contract;
   for (const command of ['opl install', 'opl system initialize --json', 'opl system startup-maintenance', 'opl module reconcile', 'opl skill sync']) {
@@ -2454,7 +2540,7 @@ function validateInstallExposurePolicy(policy) {
   }
   for (const prevention of [
     'plugin-packaged MAS/MAG/RCA skills must not be mirrored into duplicate bare skill directories',
-    'OPL Meta Agent is surfaced as an OPL-generated skill surface',
+    'OPL Meta Agent is surfaced as an OPL-generated local Codex plugin surface',
     'App visible companion skill defaults must be product profile configuration, not shell-local hardcoding',
   ]) {
     if (!sync.duplicate_prevention?.includes(prevention)) {
@@ -2467,6 +2553,7 @@ function validateInstallExposurePolicy(policy) {
     'missing_plugin_manifest',
     'missing_skill_entry',
     'duplicate_codex_visible_domain_skill',
+    'unavailable_managed_agent_pack_channel',
   ]) {
     if (!sync.fail_closed_states?.includes(state)) {
       throw new Error(`Install exposure fail-closed states must include ${state}`);
@@ -2553,6 +2640,21 @@ function validateInstallExposurePolicy(policy) {
     ['opl module reconcile', 'opl skill sync'],
     'Install exposure module package distribution activation commands',
   );
+  assertDeepEqualJson(
+    modulePackageDistribution.fallback_source_order,
+    [
+      'bundled_full_runtime_modules',
+      'app_cli_managed_stable_package_channel',
+      'explicit_developer_checkout_override',
+    ],
+    'Install exposure module package distribution fallback source order',
+  );
+  if (
+    modulePackageDistribution.must_not_depend_on_single_github_packages_tag !== true ||
+    modulePackageDistribution.github_packages_unavailable_policy !== 'fail_closed_with_actionable_background_maintenance_error'
+  ) {
+    throw new Error('Install exposure managed agent-pack distribution must fail closed when GitHub Packages is unavailable');
+  }
   assertDeepEqualJson(
     modulePackageDistribution.forbidden_homebrew_formulae,
     ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
@@ -2771,7 +2873,18 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   );
   assertDeepEqualJson(
     runtimeDefaultAttention?.owner_action_fields,
-    ['task title', 'task status', 'task stage', 'progress label', 'next step', 'owner', 'last progress'],
+    [
+      'task title',
+      'task status',
+      'task stage',
+      'progress label',
+      'next step',
+      'next owner',
+      'owner',
+      'accepted answer shape',
+      'artifact or blocker',
+      'last progress',
+    ],
     'App GUI runtime default attention owner action fields',
   );
   assertIncludesAll(
@@ -2796,8 +2909,68 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   );
   assertDeepEqualJson(
     runtimeDefaultAttention?.must_not_default_display_terms,
-    ['Temporal', 'provider', 'projection', 'ref', 'stage attempt', 'ledger', 'current_control_state'],
+    [
+      'Temporal',
+      'provider',
+      'projection',
+      'ref',
+      'stage attempt',
+      'ledger',
+      'current_control_state',
+      'AionUI',
+      'backend selector',
+      'shell candidate',
+      'runtime implementation selector',
+    ],
     'App GUI runtime default attention forbidden default terms',
+  );
+  assertDeepEqualJson(
+    guiContract.ordinary_cockpit_surface_budget,
+    {
+      surface_id: 'ordinary_app_cockpit_surface_budget',
+      purpose: 'keep Home, Runtime, and Settings focused on purpose, task status, next owner, artifact/blocker, and release facts',
+      applies_to_pages: [
+        'guid_home',
+        'runtime',
+        'settings_general',
+        'access',
+        'capabilities',
+        'environment',
+        'settings_theme',
+        'advanced',
+        'about',
+        'update',
+      ],
+      ordinary_allowed_answer_shapes: [
+        'purpose_entry',
+        'task_status',
+        'next_owner',
+        'accepted_answer_shape',
+        'artifact_or_blocker',
+        'release_fact',
+        'app_profile',
+        'access_status',
+        'agent_capability',
+        'local_environment_status',
+        'appearance_preference',
+        'advanced_diagnostic_link',
+        'about_update_fact',
+      ],
+      ordinary_must_not_default_display_terms: [
+        'Temporal',
+        'provider',
+        'ledger',
+        'projection',
+        'stage attempt',
+        'AionUI',
+        'backend selector',
+        'shell candidate',
+        'runtime implementation selector',
+      ],
+      diagnostics_escape_hatch: 'Advanced, release evidence, developer detail, or explicit full-detail drilldown only',
+      source_policy: 'ordinary views consume opl app state --profile fast --json and must not derive first-screen layout from raw runtime drilldown',
+    },
+    'App GUI ordinary cockpit surface budget',
   );
   for (const forbiddenSource of [
     'direct opl modules --json page aggregation',
@@ -3320,7 +3493,7 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     'active project count',
     'queued project count',
     'attention count',
-    'task title/status/stage/progress label/next step/owner/last progress',
+    'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
     'non-running waiting or stopped projects collapsed by default',
     'deliverable progress delta classification',
     'platform repair delta as separate infrastructure repair',
@@ -3974,7 +4147,7 @@ function validatePageStateMatrix(matrix, contract) {
     'active project count from framework project-line projection',
     'queued project count from framework project-line projection',
     'attention count from framework blocker and owner-attention projection',
-    'task title/status/stage/progress label/next step/owner/last progress',
+    'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
     'provider/current_control_state details as diagnostics only',
     'summary OPL operator drilldown read model',
     'fast App state refresh',
@@ -4005,7 +4178,7 @@ function validatePageStateMatrix(matrix, contract) {
     'active project count',
     'queued project count',
     'attention count',
-    'task title/status/stage/progress label/next step/owner/last progress',
+    'task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress',
     'project progress from app_state.operator.workbench.task_drilldowns',
     'active project line count from app_state.operator.workbench.activity_center.active_projects',
     'project title/domain/current state/current stage',
@@ -4191,6 +4364,7 @@ function validateReleaseChannelContract(releaseChannel) {
     temporalCli?.minimum_version_source !== 'distribution cohort manifest components.temporal_cli.minimum_version' ||
     temporalCli?.fallback_version_source !== 'distribution cohort manifest components.temporal_cli.fallback_version' ||
     temporalCli?.fallback_runtime_path !== 'runtime/current/bin/temporal' ||
+    temporalCli?.fallback_binary_path !== 'runtime/current/vendor/temporal/cli/temporal' ||
     temporalCli?.fallback_payload_path !== 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz' ||
     temporalCli?.must_prefer_valid_newer_user_version !== true
   ) {
@@ -4201,6 +4375,42 @@ function validateReleaseChannelContract(releaseChannel) {
     ['explicit_user_path', 'system_path', 'homebrew_formula'],
     'Release channel Temporal CLI preferred sources',
   );
+
+  const temporalRuntimeProvider = releaseChannel.full_first_install?.required_payloads?.temporal_runtime_provider;
+  if (
+    temporalRuntimeProvider?.provider_env_default !== 'OPL_FAMILY_RUNTIME_PROVIDER=temporal' ||
+    temporalRuntimeProvider?.must_prefer_valid_newer_user_version === true
+  ) {
+    throw new Error('Release channel Full Temporal runtime provider must declare the Temporal provider env default');
+  }
+  assertDeepEqualJson(
+    temporalRuntimeProvider?.local_service_defaults,
+    temporalLocalServiceDefaults,
+    'Release channel Full Temporal local service defaults',
+  );
+  assertDeepEqualJson(
+    temporalRuntimeProvider?.managed_commands,
+    temporalManagedCommands,
+    'Release channel Full Temporal managed commands',
+  );
+  assertIncludesAll(
+    temporalRuntimeProvider?.required_packages,
+    ['@temporalio/activity', '@temporalio/client', '@temporalio/common', '@temporalio/worker', '@temporalio/workflow'],
+    'Release channel Full Temporal runtime packages',
+  );
+  assertDeepEqualJson(
+    temporalRuntimeProvider?.forbidden_packages,
+    ['@temporalio/testing'],
+    'Release channel Full Temporal forbidden packages',
+  );
+  assertDeepEqualJson(
+    temporalRuntimeProvider?.native_core_bridge_releases,
+    ['aarch64-apple-darwin'],
+    'Release channel Full Temporal core bridge target',
+  );
+  if (!/wrapper must export local Temporal defaults/.test(temporalRuntimeProvider?.verification ?? '')) {
+    throw new Error('Release channel Full Temporal provider verification must include wrapper default exports');
+  }
 }
 
 function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix) {
@@ -4451,6 +4661,22 @@ const firstRunProgressVisibleElements = [
   'next visible step',
 ];
 const firstRunProgressConsumerPackageTypes = ['full', 'standard', 'source_installer', 'docker_webui'];
+const temporalLocalServiceDefaults = {
+  address_env: 'OPL_TEMPORAL_ADDRESS',
+  default_address: '127.0.0.1:7233',
+  namespace_env: 'OPL_TEMPORAL_NAMESPACE',
+  default_namespace: 'default',
+  task_queue_env: 'OPL_TEMPORAL_TASK_QUEUE',
+  default_task_queue: 'opl-stage-attempts',
+};
+const temporalManagedCommands = [
+  'opl family-runtime service start --provider temporal',
+  'opl family-runtime worker status --provider temporal',
+  'opl family-runtime worker start --provider temporal',
+  'opl family-runtime residency proof --provider temporal --production',
+];
+const firstConversationMustWaitFor = ['conversation_record_ready', 'acp_warmup_complete'];
+const firstConversationFailurePolicy = 'show_retryable_initial_message_error_without_losing_user_prompt';
 
 function buildScenarioMap(matrix) {
   if (!Array.isArray(matrix.scenarios) || matrix.scenarios.length === 0) {
@@ -4499,6 +4725,9 @@ function validateFullFirstInstallScenario(fullClean) {
     if (!fullClean?.post_core_ready_background_policy?.managed_items?.includes(item)) {
       throw new Error(`Full first-install post-Core maintenance must manage ${item}`);
     }
+  }
+  if (!fullClean?.expects?.some((entry) => /family runtime provider/.test(entry) && /background maintenance/.test(entry))) {
+    throw new Error('Full first-install scenario must keep Temporal family runtime provider in background maintenance after Core ready');
   }
 }
 
@@ -4876,6 +5105,25 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
   ) {
     throw new Error('Product profile full runtime provider must stay Temporal and non-blocking for ready_to_launch');
   }
+  const firstConversation = profile.first_run?.first_conversation;
+  if (
+    firstConversation?.gate !== 'acp_warmup_before_initial_send' ||
+    firstConversation?.source_command !== firstRunProgressSourceCommand ||
+    firstConversation?.ready_to_launch_must_be_true !== true ||
+    firstConversation?.failure_policy !== firstConversationFailurePolicy
+  ) {
+    throw new Error('Product profile first conversation must gate initial send on ready_to_launch and ACP warmup');
+  }
+  assertIncludesAll(
+    firstConversation.must_wait_for,
+    firstConversationMustWaitFor,
+    'Product profile first conversation wait-for items',
+  );
+  assertIncludesAll(
+    firstConversation.must_not_wait_for,
+    fullReadinessItems,
+    'Product profile first conversation non-blocking readiness items',
+  );
   const fullFirstInstall = profile.first_run?.core_ready_policy?.full_first_install_clean_machine;
   for (const tool of requiredHostTools) {
     if (!fullFirstInstall?.missing_host_tools_allowed?.includes(tool)) {

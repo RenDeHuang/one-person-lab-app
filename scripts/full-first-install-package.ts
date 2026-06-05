@@ -32,6 +32,7 @@ type ComponentSnapshot = Partial<{
   git_commit: string | null;
   size_bytes: number;
   truth_owner: string;
+  binary_path: string | null;
   archive_path: string | null;
   archive_size_bytes: number | null;
   required: boolean;
@@ -54,6 +55,7 @@ type FullPackageManifestInput = Partial<{
   resolvedRefs: ResolvedFullPayloadRefs;
   sizeBreakdown: unknown;
   runtimeAssertions: unknown;
+  nativeTrust: unknown;
 }>;
 
 function normalizeVersion(version?: string) {
@@ -203,6 +205,12 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       excluded_module_venv_count: 0,
       packaged_global_node_packages: [],
     },
+    native_trust: input.nativeTrust ?? {
+      schema: 'opl_full_runtime_native_trust.v1',
+      status: 'not_checked',
+      executable_count: 0,
+      executables: [],
+    },
     size_breakdown: input.sizeBreakdown ?? {
       total_runtime_uncompressed_bytes: 0,
       layers: {
@@ -322,8 +330,10 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       },
       temporal_cli: {
         ...normalizeComponent(components.temporal_cli),
-        role: 'temporal_cli_offline_archive_wrapper',
+        role: 'temporal_cli_preextracted_binary_wrapper',
         required: true,
+        binary_path: components.temporal_cli?.binary_path
+          ?? 'runtime/current/vendor/temporal/cli/temporal',
         archive_path: components.temporal_cli?.archive_path
           ?? 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
         archive_size_bytes: components.temporal_cli?.archive_size_bytes ?? null,

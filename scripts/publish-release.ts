@@ -196,6 +196,37 @@ function assertGatekeeperLaunchPolicy(releaseDir, name, packageKind) {
   }
 }
 
+function assertFullRuntimeNativeTrust(releaseDir) {
+  const trustPath = path.join(releaseDir, 'full-runtime-native-trust.json');
+  if (!fs.existsSync(trustPath)) {
+    throw new Error(`Missing Full runtime native-trust evidence: ${trustPath}`);
+  }
+  const trust = JSON.parse(fs.readFileSync(trustPath, 'utf8'));
+  if (trust?.schema !== 'opl_full_runtime_native_trust.v1' || trust?.status !== 'passed') {
+    throw new Error('full-runtime-native-trust.json must prove Full runtime native executable trust passed.');
+  }
+  const executables = Array.isArray(trust.executables) ? trust.executables : [];
+  if (executables.length === 0 || trust.executable_count !== executables.length) {
+    throw new Error('full-runtime-native-trust.json must list the checked native executables.');
+  }
+  for (const required of ['runtime/current/node/bin/node', 'runtime/current/vendor/temporal/cli/temporal']) {
+    if (!executables.some((entry) => entry?.relative_path === required)) {
+      throw new Error(`full-runtime-native-trust.json is missing ${required}.`);
+    }
+  }
+  for (const entry of executables) {
+    if (
+      entry?.codesign_status !== 'passed' ||
+      !['passed', 'not_required'].includes(entry?.spctl_status) ||
+      entry?.quarantine_status !== 'absent' ||
+      !entry?.team_identifier ||
+      entry?.signature === 'adhoc'
+    ) {
+      throw new Error(`Full runtime native executable is not distributable-trusted: ${entry?.relative_path || '(unknown)'}.`);
+    }
+  }
+}
+
 function isGuiArtifact(name, version, extension, macArch) {
   const baseNames = guiArtifactPrefixes.map((prefix) => `${prefix}${version}-mac-${macArch}`);
   if (extension === '.blockmap') {
@@ -320,6 +351,7 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
     `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
     'full-package-manifest.json',
     'runtime-cache-events.json',
+    'full-runtime-native-trust.json',
     'SHA256SUMS.txt',
     'README-Full-First-Install.txt',
     'full-gatekeeper-launch-policy.json',
@@ -337,6 +369,7 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
     throw new Error('Full package manifest must declare distribution.updater_metadata_allowed=false.');
   }
   assertGatekeeperLaunchPolicy(fullPackageDir, 'full-gatekeeper-launch-policy.json', 'app_full_first_install');
+  assertFullRuntimeNativeTrust(fullPackageDir);
   assertFullPackageManifestHasReleaseNotesMetadata(manifest);
 
   return required.map((name) => path.join(fullPackageDir, name));

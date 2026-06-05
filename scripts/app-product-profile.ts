@@ -165,6 +165,14 @@ export type AppProductProfile = {
       full_readiness_provider: string;
       ready_to_launch_blocking: boolean;
     };
+    first_conversation: {
+      gate: string;
+      source_command: string;
+      ready_to_launch_must_be_true: boolean;
+      must_wait_for: string[];
+      must_not_wait_for: string[];
+      failure_policy: string;
+    };
     progress_model: {
       source_command: string;
       source_path: string;
@@ -599,8 +607,36 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertStringArray(profile.first_run.ready_to_launch_gate.must_not_require, 'first_run.ready_to_launch_gate.must_not_require');
   assertStringArray(profile.first_run.full_readiness_layers, 'first_run.full_readiness_layers');
   assertStringArray(profile.first_run.deferred_blockers, 'first_run.deferred_blockers');
+  assertStringArray(profile.first_run.first_conversation.must_wait_for, 'first_run.first_conversation.must_wait_for');
+  assertStringArray(profile.first_run.first_conversation.must_not_wait_for, 'first_run.first_conversation.must_not_wait_for');
   assertStringArray(profile.first_run.beginner_presentation.primary_steps, 'first_run.beginner_presentation.primary_steps');
   assertPostInstallAiSelfCheckEntry(profile.first_run.beginner_presentation.post_install_ai_self_check_entry);
+  if (
+    profile.first_run.first_conversation.gate !== 'acp_warmup_before_initial_send' ||
+    profile.first_run.first_conversation.source_command !== 'opl system initialize --json' ||
+    profile.first_run.first_conversation.ready_to_launch_must_be_true !== true ||
+    profile.first_run.first_conversation.failure_policy !== 'show_retryable_initial_message_error_without_losing_user_prompt'
+  ) {
+    throw new Error('App product profile first_run.first_conversation must gate initial send on ready_to_launch and ACP warmup');
+  }
+  assertIncludesAll(
+    profile.first_run.first_conversation.must_wait_for,
+    ['conversation_record_ready', 'acp_warmup_complete'],
+    'first_run.first_conversation.must_wait_for',
+  );
+  assertIncludesAll(
+    profile.first_run.first_conversation.must_not_wait_for,
+    [
+      'domain_modules',
+      'family_runtime_provider',
+      'recommended_skills',
+      'native_helpers',
+      'repo_sync',
+      'command_line_tools_install',
+      'ecosystem_module_updates',
+    ],
+    'first_run.first_conversation.must_not_wait_for',
+  );
   if (profile.first_run.progress_model.source_command !== 'opl system initialize --json') {
     throw new Error('App product profile first_run.progress_model.source_command must be opl system initialize --json');
   }

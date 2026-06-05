@@ -199,7 +199,8 @@
         "per-assistant running badges derived from module or domain lane diagnostics"
       ],
       "state_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json"
+      "refresh_source": "opl app state --profile fast --json",
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
     },
     {
       "id": "ordinary_conversation",
@@ -413,6 +414,9 @@
             "state",
             "active_stage_label",
             "next_visible_step",
+            "artifact_or_blocker",
+            "accepted_answer_shape",
+            "next_owner",
             "blocker_ref_count",
             "last_progress_at"
           ],
@@ -688,12 +692,15 @@
         "must_not_default_display_terms": [
           "Temporal",
           "provider",
-          "projection",
-          "ref",
-          "stage attempt",
           "ledger",
-          "current_control_state"
-        ]
+          "projection",
+          "stage attempt",
+          "AionUI",
+          "backend selector",
+          "shell candidate",
+          "runtime implementation selector"
+        ],
+        "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
       },
       "operator_evidence_acceptance_path": {
         "role": "runtime_page_operator_evidence_acceptance",
@@ -712,7 +719,7 @@
         "active project count from framework project-line projection",
         "queued project count from framework project-line projection",
         "attention count from framework blocker and owner-attention projection",
-        "task title/status/stage/progress label/next step/owner/last progress",
+        "task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress",
         "provider/current_control_state details as diagnostics only",
         "summary OPL operator drilldown read model",
         "fast App state refresh",
@@ -738,7 +745,7 @@
         "active project count",
         "queued project count",
         "attention count",
-        "task title/status/stage/progress label/next step/owner/last progress",
+        "task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress",
         "project progress from app_state.operator.workbench.task_drilldowns",
         "active project line count from app_state.operator.workbench.activity_center.active_projects",
         "project title/domain/current state/current stage",
@@ -796,7 +803,8 @@
         "full evidence ledger as the default Runtime page focus",
         "release/user-path evidence as family production ready"
       ],
-      "framework_operator_summary_command": "opl runtime app-operator-drilldown --json"
+      "framework_operator_summary_command": "opl runtime app-operator-drilldown --json",
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
     },
     {
       "id": "environment",
@@ -835,7 +843,8 @@
         "backend/provider selector as normal App configuration",
         "raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI",
         "project progress as a settings runtime page"
-      ]
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
     },
     {
       "id": "about",
@@ -857,7 +866,8 @@
         "AionUI version as the App version",
         "raw i18n keys",
         "raw update error codes as user-facing copy"
-      ]
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
     },
     {
       "id": "update",
@@ -876,7 +886,8 @@
       "page_contract": "update",
       "state_sections": [
         "release"
-      ]
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
     },
     {
       "id": "login",
@@ -958,7 +969,8 @@
       "page_contract": "settings_theme",
       "state_sections": [
         "theme"
-      ]
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
     },
     {
       "id": "first_launch_readiness",
@@ -1125,7 +1137,8 @@
       "must_not_show": [
         "raw OPL internal state files",
         "provider implementation internals as ordinary General settings"
-      ]
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
     },
     {
       "id": "access",
@@ -1155,7 +1168,8 @@
         "raw base URL and token paths as first-screen content",
         "backend selector as ordinary App configuration",
         "WebUI as the primary access mental model"
-      ]
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
     },
     {
       "id": "capabilities",
@@ -1209,7 +1223,8 @@
         "AG-UI as a user-visible capability concept",
         "AionUI implementation skills such as aionui-skills",
         "OPL Meta Agent as a default Home assistant"
-      ]
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
     },
     {
       "id": "advanced",
@@ -1248,7 +1263,8 @@
         "AionUI local directory as OPL path truth",
         "Developer Profile as ordinary first-level user setup",
         "single Developer Mode switch as the only capability expression"
-      ]
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
     }
   ],
   "gui_product_contract": "contracts/app-gui-product-contract.json",

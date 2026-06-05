@@ -31,6 +31,18 @@ const appRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const workspaceRoot = path.dirname(appRepoRoot);
 const MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET = 'aarch64-apple-darwin';
 const CODEX_MACOS_ARM64_TARGET = 'aarch64-apple-darwin';
+const MACOS_NATIVE_CODE_EXTENSIONS = new Set(['.dylib', '.node', '.so']);
+const MACOS_TRUSTED_EXECUTABLE_PATTERNS = [
+  /^runtime\/current\/bin\/codex$/,
+  /^runtime\/current\/bin\/rg$/,
+  /^runtime\/current\/bin\/officecli$/,
+  /^runtime\/current\/bin\/mineru-open-api$/,
+  /^runtime\/current\/bin\/bun$/,
+  /^runtime\/current\/node\/bin\/node$/,
+  /^runtime\/current\/uv\/bin\/uv$/,
+  /^runtime\/current\/vendor\/temporal\/cli\/temporal$/,
+  /^runtime\/current\/python\/[^/]+\/bin\/python3(?:\.\d+)?$/,
+];
 
 function defaultRuntimeCacheDir() {
   if (process.env.OPL_FULL_RUNTIME_CACHE_DIR?.trim()) {
@@ -165,6 +177,30 @@ function run(command, args, options = {}) {
   return result;
 }
 
+function canRunMacosSigningChecks() {
+  return process.platform === 'darwin';
+}
+
+function strictMacosRuntimeSigningRequired() {
+  return process.env.OPL_MAC_STRICT_SIGNING_CHECKS === 'true'
+    || process.env.OPL_FULL_DISTRIBUTABLE_ASSETS === 'true';
+}
+
+function macosSigningIdentity() {
+  return process.env.OPL_RUNTIME_CODESIGN_IDENTITY?.trim()
+    || process.env.identity?.trim()
+    || process.env.CSC_NAME?.trim()
+    || process.env.IDENTITY?.trim()
+    || '';
+}
+
+function runCapture(command, args) {
+  return spawnSync(command, args, {
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+}
+
 function requirePath(filePath, label) {
   if (!filePath || !fs.existsSync(filePath)) {
     throw new Error(`${label} not found: ${filePath || '(empty)'}`);
@@ -202,6 +238,193 @@ function commandOutput(command, args) {
     return null;
   }
   return [result.stdout, result.stderr].filter(Boolean).join('\n').trim() || null;
+}
+
+function relativeRuntimePath(runtimeRoot, filePath) {
+  return `runtime/current/${path.relative(runtimeRoot, filePath).split(path.sep).join('/')}`;
+}
+
+function isNativeRuntimeExecutable(relativePath, stat) {
+  if (!stat.isFile()) {
+    return false;
+  }
+  if (MACOS_NATIVE_CODE_EXTENSIONS.has(path.extname(relativePath))) {
+    return true;
+  }
+  if ((stat.mode & 0o111) === 0) {
+    return false;
+  }
+  return MACOS_TRUSTED_EXECUTABLE_PATTERNS.some((pattern) => pattern.test(relativePath));
+}
+
+function requiresGatekeeperExecutableAssessment(relativePath, stat) {
+  return stat.isFile()
+    && (stat.mode & 0o111) !== 0
+    && MACOS_TRUSTED_EXECUTABLE_PATTERNS.some((pattern) => pattern.test(relativePath));
+}
+
+function listFullRuntimeNativeExecutables(runtimeRoot) {
+  if (!fs.existsSync(runtimeRoot)) {
+    return [];
+  }
+  const results = [];
+  const stack = [runtimeRoot];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const stat = fs.lstatSync(current);
+    if (stat.isDirectory()) {
+      for (const entry of fs.readdirSync(current).sort().reverse()) {
+        stack.push(path.join(current, entry));
+      }
+      continue;
+    }
+    if (stat.isSymbolicLink()) {
+      continue;
+    }
+    const relativePath = relativeRuntimePath(runtimeRoot, current);
+    if (isNativeRuntimeExecutable(relativePath, stat)) {
+      results.push({
+        path: current,
+        relative_path: relativePath,
+        requires_spctl: requiresGatekeeperExecutableAssessment(relativePath, stat),
+      });
+    }
+  }
+  return results.sort((left, right) => left.relative_path.localeCompare(right.relative_path));
+}
+
+function hasExtendedAttribute(filePath, attributeName) {
+  const result = runCapture('xattr', ['-p', attributeName, filePath]);
+  return result.status === 0;
+}
+
+function readCodeSignature(filePath) {
+  const result = runCapture('codesign', ['-dv', '--verbose=4', filePath]);
+  const output = `${result.stdout || ''}${result.stderr || ''}`;
+  return {
+    status: result.status === 0 ? 'passed' : 'failed',
+    team_identifier: output.match(/^TeamIdentifier=(.+)$/m)?.[1]?.trim() || null,
+    signature: output.match(/^Signature=(.+)$/m)?.[1]?.trim() || null,
+    raw: output.trim(),
+  };
+}
+
+function signMacosRuntimeExecutable(filePath, identity) {
+  if (!identity) {
+    return;
+  }
+  run('codesign', [
+    '--force',
+    '--options',
+    'runtime',
+    '--timestamp',
+    '--sign',
+    identity,
+    filePath,
+  ]);
+}
+
+function verifyMacosRuntimeExecutable(filePath, options) {
+  const codesignResult = runCapture('codesign', ['--verify', '--strict', '--verbose=2', filePath]);
+  const shouldAssessSpctl = options.requiresSpctl && options.assessSpctl === true;
+  const spctlResult = shouldAssessSpctl
+    ? runCapture('spctl', ['--assess', '--type', 'execute', '--verbose=4', filePath])
+    : { status: 0, stdout: '', stderr: '' };
+  const signature = readCodeSignature(filePath);
+  const quarantinePresent = hasExtendedAttribute(filePath, 'com.apple.quarantine');
+  const provenancePresent = hasExtendedAttribute(filePath, 'com.apple.provenance');
+  const result = {
+    codesign_status: codesignResult.status === 0 ? 'passed' : 'failed',
+    spctl_status: shouldAssessSpctl
+      ? (spctlResult.status === 0 ? 'passed' : 'failed')
+      : options.requiresSpctl ? 'deferred_until_notarized_app' : 'not_required',
+    team_identifier: signature.team_identifier,
+    signature: signature.signature,
+    quarantine_status: quarantinePresent ? 'present' : 'absent',
+    provenance_status: provenancePresent ? 'present' : 'absent',
+    assessment_kind: options.requiresSpctl ? 'launched_executable' : 'loadable_native_code',
+  };
+
+  const failed = result.codesign_status !== 'passed'
+    || (shouldAssessSpctl && result.spctl_status !== 'passed')
+    || result.quarantine_status !== 'absent'
+    || !result.team_identifier
+    || result.signature === 'adhoc';
+  if (options.strict && failed) {
+    const detail = [
+      `Full runtime native executable is not trusted by Gatekeeper: ${filePath}`,
+      `codesign_status=${result.codesign_status}`,
+      `spctl_status=${result.spctl_status}`,
+      `team_identifier=${result.team_identifier ?? 'missing'}`,
+      `signature=${result.signature ?? 'missing'}`,
+      `quarantine_status=${result.quarantine_status}`,
+      `provenance_status=${result.provenance_status}`,
+      codesignResult.stderr?.trim() ? `codesign stderr:\n${codesignResult.stderr.trim()}` : '',
+      spctlResult.stderr?.trim() ? `spctl stderr:\n${spctlResult.stderr.trim()}` : '',
+    ].filter(Boolean).join('\n');
+    throw new Error(detail);
+  }
+  return result;
+}
+
+function ensureFullRuntimeNativeTrust(runtimeRoot) {
+  const executables = listFullRuntimeNativeExecutables(runtimeRoot);
+  const strict = strictMacosRuntimeSigningRequired();
+  const identity = macosSigningIdentity();
+  if (strict && !canRunMacosSigningChecks()) {
+    throw new Error('Full runtime native executable signing verification requires a macOS runner.');
+  }
+  if (strict && !identity) {
+    throw new Error('Full runtime native executable signing requires OPL_RUNTIME_CODESIGN_IDENTITY, identity, CSC_NAME, or IDENTITY.');
+  }
+
+  if (!canRunMacosSigningChecks()) {
+    return {
+      schema: 'opl_full_runtime_native_trust.v1',
+      platform: process.platform,
+      status: strict ? 'failed' : 'skipped_non_macos',
+      strict,
+      signed: false,
+      executable_count: executables.length,
+      executables: executables.map((entry) => ({
+        relative_path: entry.relative_path,
+        codesign_status: 'not_checked',
+        spctl_status: 'not_checked',
+        quarantine_status: 'not_checked',
+        provenance_status: 'not_checked',
+      })),
+    };
+  }
+
+  for (const executable of executables) {
+    if (identity) {
+      signMacosRuntimeExecutable(executable.path, identity);
+    }
+  }
+
+  const verified = executables.map((entry) => ({
+    relative_path: entry.relative_path,
+    ...verifyMacosRuntimeExecutable(entry.path, {
+      strict,
+      requiresSpctl: entry.requires_spctl,
+      assessSpctl: false,
+    }),
+  }));
+  const signed = verified.every((entry) => (
+    entry.codesign_status === 'passed'
+    && entry.quarantine_status === 'absent'
+    && entry.team_identifier
+    && entry.signature !== 'adhoc'
+  ));
+  return {
+    schema: 'opl_full_runtime_native_trust.v1',
+    platform: process.platform,
+    status: signed ? 'signed_pending_gatekeeper_assessment' : 'not_distributable',
+    strict,
+    signed: Boolean(identity),
+    executable_count: verified.length,
+    executables: verified,
+  };
 }
 
 function monotonicSeconds() {
@@ -394,6 +617,7 @@ function buildRuntimeLayerPackagerInputs() {
       copyExecutableOrSymlinkTarget,
       copyNodeRuntimePayload,
       writeTemporalCliWrapper,
+      extractTemporalCliBinary,
       assertNoExternalSymlinks,
       copyProductionNodeModules,
       pruneTemporalCoreBridgeReleases,
@@ -880,23 +1104,41 @@ if [[ "\${1:-}" == "--version" ]]; then
   exit 0
 fi
 RUNTIME_HOME="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
-ARCHIVE="$RUNTIME_HOME/vendor/temporal/temporal_cli_darwin_arm64.tar.gz"
-EXTRACT_ROOT="$RUNTIME_HOME/.runtime-cache/temporal-cli"
-TEMPORAL_BIN="$EXTRACT_ROOT/temporal"
+TEMPORAL_BIN="$RUNTIME_HOME/vendor/temporal/cli/temporal"
 if [[ ! -x "$TEMPORAL_BIN" ]]; then
-  rm -rf "$EXTRACT_ROOT"
-  mkdir -p "$EXTRACT_ROOT"
-  tar -xzf "$ARCHIVE" -C "$EXTRACT_ROOT"
-  if [[ ! -x "$TEMPORAL_BIN" ]]; then
-    candidate="$(find "$EXTRACT_ROOT" -type f -name temporal -perm -111 | head -n 1 || true)"
-    if [[ -n "$candidate" ]]; then
-      TEMPORAL_BIN="$candidate"
-    fi
-  fi
+  printf 'Packaged Temporal CLI binary is missing: %s\\n' "$TEMPORAL_BIN" >&2
+  exit 1
 fi
 exec "$TEMPORAL_BIN" "$@"
 `, 'utf8');
   fs.chmodSync(targetPath, 0o755);
+}
+
+function extractTemporalCliBinary(archivePath, targetPath) {
+  const extractRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-temporal-cli-'));
+  try {
+    run('tar', ['-xzf', archivePath, '-C', extractRoot]);
+    const candidates = [];
+    const stack = [extractRoot];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      const stat = fs.lstatSync(current);
+      if (stat.isDirectory()) {
+        for (const entry of fs.readdirSync(current)) {
+          stack.push(path.join(current, entry));
+        }
+      } else if (stat.isFile() && path.basename(current) === 'temporal' && (stat.mode & 0o111) !== 0) {
+        candidates.push(current);
+      }
+    }
+    const found = candidates.sort()[0];
+    if (!found) {
+      throw new Error(`Temporal CLI archive does not contain an executable temporal binary: ${archivePath}`);
+    }
+    copySingleFile(found, targetPath);
+  } finally {
+    fs.rmSync(extractRoot, { recursive: true, force: true });
+  }
 }
 
 function copyProductionNodeModules(sourceRoot, targetRoot) {
@@ -1456,6 +1698,7 @@ function buildToolchainLayer(layerRoot, sources) {
     copySingleFile(sources.bunBin, path.join(layerRoot, 'bin', 'bun'));
   }
   copySingleFile(sources.temporalCliArchive, path.join(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64.tar.gz'));
+  extractTemporalCliBinary(sources.temporalCliArchive, path.join(layerRoot, 'vendor', 'temporal', 'cli', 'temporal'));
   writeTemporalCliWrapper(path.join(layerRoot, 'bin', 'temporal'), commandOutput(sources.temporalCliBin, ['--version']));
   copySingleFile(sources.officeCliBin, path.join(layerRoot, 'bin', 'officecli'));
   copySingleFile(sources.mineruOpenApiBin, path.join(layerRoot, 'bin', 'mineru-open-api'));
@@ -1518,7 +1761,7 @@ function buildSkillsLayer(layerRoot, options) {
   copyPackagedSkills(path.join(layerRoot, 'skills'), options);
 }
 
-function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs, optionalComponents = {}) {
+function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs, optionalComponents = {}, nativeTrust = undefined) {
   const manifestDir = path.join(runtimeRoot, 'manifest');
   const manifestPath = path.join(manifestDir, 'full-package-manifest.json');
   fs.mkdirSync(manifestDir, { recursive: true });
@@ -1530,6 +1773,7 @@ function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, 
     optionalComponents,
     resolvedRefs,
     runtimeAssertions: collectRuntimeAssertions(runtimeRoot),
+    nativeTrust,
   });
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -1542,6 +1786,7 @@ function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, 
       optionalComponents,
       resolvedRefs,
       runtimeAssertions: collectRuntimeAssertions(runtimeRoot),
+      nativeTrust,
       sizeBreakdown,
     });
     fs.writeFileSync(manifestPath, `${JSON.stringify(nextManifest, null, 2)}\n`, 'utf8');
@@ -1580,6 +1825,7 @@ function prepareRuntime(options, sources) {
   assertOplRuntimeProductionDependencies(path.join(runtimeRoot, 'opl'));
   assertTemporalCoreBridgeMacosArm64Only(path.join(runtimeRoot, 'opl', 'node_modules'));
   writeDomainMarkers(runtimeRoot, options, packagedAt);
+  const nativeTrust = ensureFullRuntimeNativeTrust(runtimeRoot);
 
   const components = {
     opl: { source_path: options.frameworkRoot, git_commit: readGitHead(options.frameworkRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'opl')) },
@@ -1595,6 +1841,7 @@ function prepareRuntime(options, sources) {
       source_path: sources.temporalCliBin,
       version: commandOutput(path.join(runtimeRoot, 'bin', 'temporal'), ['--version']),
       size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'temporal')),
+      binary_path: 'runtime/current/vendor/temporal/cli/temporal',
       archive_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
       archive_size_bytes: fs.statSync(sources.temporalCliArchive).size,
     },
@@ -1619,7 +1866,15 @@ function prepareRuntime(options, sources) {
   };
 
   const resolvedRefs = buildResolvedFullPayloadRefs(options, sources, components);
-  const manifest = writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs, optionalComponents);
+  const manifest = writeFullRuntimeManifest(
+    runtimeRoot,
+    options,
+    packagedAt,
+    components,
+    resolvedRefs,
+    optionalComponents,
+    nativeTrust,
+  );
 
   return {
     stagingRoot,
@@ -1750,6 +2005,8 @@ function main() {
   }, 0).toFixed(3));
   const runtimeCacheEventsPath = path.join(options.outDir, artifactNames.runtimeCacheEvents);
   writeJsonFile(runtimeCacheEventsPath, prepared.runtime_cache);
+  const runtimeNativeTrustPath = path.join(options.outDir, 'full-runtime-native-trust.json');
+  writeJsonFile(runtimeNativeTrustPath, prepared.manifest.native_trust);
   const cacheEventsWrittenAt = monotonicSeconds();
   const payloadRoots = syncRuntimePayloadToBuildRoots(prepared.runtimeRoot, prepared.manifest, options.guiRoot);
   const payloadSyncedAt = monotonicSeconds();
@@ -1797,6 +2054,7 @@ function main() {
     targetDmg,
     manifestPath,
     runtimeCacheEventsPath,
+    runtimeNativeTrustPath,
     readmePath,
     ...(runtimeTar ? [runtimeTar] : []),
   ]);
@@ -1823,6 +2081,7 @@ function main() {
     runtime_tar: runtimeTar,
     manifest: manifestPath,
     runtime_cache_events: runtimeCacheEventsPath,
+    runtime_native_trust: runtimeNativeTrustPath,
     timing: timingPath,
     readme: readmePath,
     checksums: checksumPath,

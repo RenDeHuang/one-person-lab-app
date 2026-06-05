@@ -109,6 +109,7 @@ function requiredAssetNames(version, includeFullPackage) {
     `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
     'full-package-manifest.json',
     'runtime-cache-events.json',
+    'full-runtime-native-trust.json',
     'README-Full-First-Install.txt',
     'SHA256SUMS.txt',
     'full-gatekeeper-launch-policy.json',
@@ -197,6 +198,33 @@ function assertGatekeeperLaunchPolicy(downloadDir, name, packageKind) {
     policy?.spctl_status !== 'passed'
   ) {
     throw new Error(`${name} must prove codesign and spctl passed for ${packageKind}.`);
+  }
+}
+
+function assertFullRuntimeNativeTrust(downloadDir) {
+  const trust = JSON.parse(readText(path.join(downloadDir, 'full-runtime-native-trust.json')));
+  if (trust?.schema !== 'opl_full_runtime_native_trust.v1' || trust?.status !== 'passed') {
+    throw new Error('full-runtime-native-trust.json must prove Full runtime native executable trust passed.');
+  }
+  const executables = Array.isArray(trust.executables) ? trust.executables : [];
+  if (executables.length === 0 || trust.executable_count !== executables.length) {
+    throw new Error('full-runtime-native-trust.json must list the checked native executables.');
+  }
+  for (const required of ['runtime/current/node/bin/node', 'runtime/current/vendor/temporal/cli/temporal']) {
+    if (!executables.some((entry) => entry?.relative_path === required)) {
+      throw new Error(`full-runtime-native-trust.json is missing ${required}.`);
+    }
+  }
+  for (const entry of executables) {
+    if (
+      entry?.codesign_status !== 'passed' ||
+      !['passed', 'not_required'].includes(entry?.spctl_status) ||
+      entry?.quarantine_status !== 'absent' ||
+      !entry?.team_identifier ||
+      entry?.signature === 'adhoc'
+    ) {
+      throw new Error(`Full runtime native executable is not distributable-trusted: ${entry?.relative_path || '(unknown)'}.`);
+    }
   }
 }
 
@@ -290,11 +318,14 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
     );
   }
   const temporalCli = assertFullComponent(manifest, 'temporal_cli');
-  if (temporalCli.required !== true || temporalCli.role !== 'temporal_cli_offline_archive_wrapper') {
-    throw new Error('Full manifest components.temporal_cli must be a required temporal_cli_offline_archive_wrapper component.');
+  if (temporalCli.required !== true || temporalCli.role !== 'temporal_cli_preextracted_binary_wrapper') {
+    throw new Error('Full manifest components.temporal_cli must be a required temporal_cli_preextracted_binary_wrapper component.');
   }
   if (!String(temporalCli.version || '').startsWith('temporal version ')) {
     throw new Error(`Full manifest components.temporal_cli.version must record temporal --version; got ${temporalCli.version}`);
+  }
+  if (temporalCli.binary_path !== 'runtime/current/vendor/temporal/cli/temporal') {
+    throw new Error(`Full manifest components.temporal_cli.binary_path is unexpected: ${temporalCli.binary_path}`);
   }
   if (temporalCli.archive_path !== 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz') {
     throw new Error(`Full manifest components.temporal_cli.archive_path is unexpected: ${temporalCli.archive_path}`);
@@ -356,6 +387,7 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
     fullDmgName,
     'full-package-manifest.json',
     'runtime-cache-events.json',
+    'full-runtime-native-trust.json',
     'README-Full-First-Install.txt',
     'full-gatekeeper-launch-policy.json',
   ]) {
@@ -369,6 +401,7 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
     }
   }
   assertGatekeeperLaunchPolicy(downloadDir, 'full-gatekeeper-launch-policy.json', 'app_full_first_install');
+  assertFullRuntimeNativeTrust(downloadDir);
 
   const manifest = JSON.parse(readText(path.join(downloadDir, 'full-package-manifest.json')));
   if (manifest.version !== version) {

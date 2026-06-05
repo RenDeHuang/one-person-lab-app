@@ -218,12 +218,27 @@
         ],
         "fallback_version_source": "distribution cohort manifest components.temporal_cli.fallback_version",
         "fallback_runtime_path": "runtime/current/bin/temporal",
+        "fallback_binary_path": "runtime/current/vendor/temporal/cli/temporal",
         "fallback_payload_path": "runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz",
         "must_prefer_valid_newer_user_version": true,
-        "verification": "temporal --version must satisfy minimum_version and Temporal provider smoke must pass"
+        "verification": "temporal --version must satisfy minimum_version, bundled fallback must execute from the pre-extracted signed binary, and Temporal provider smoke must pass"
       },
       "temporal_runtime_provider": {
         "provider_env_default": "OPL_FAMILY_RUNTIME_PROVIDER=temporal",
+        "local_service_defaults": {
+          "address_env": "OPL_TEMPORAL_ADDRESS",
+          "default_address": "127.0.0.1:7233",
+          "namespace_env": "OPL_TEMPORAL_NAMESPACE",
+          "default_namespace": "default",
+          "task_queue_env": "OPL_TEMPORAL_TASK_QUEUE",
+          "default_task_queue": "opl-stage-attempts"
+        },
+        "managed_commands": [
+          "opl family-runtime service start --provider temporal",
+          "opl family-runtime worker status --provider temporal",
+          "opl family-runtime worker start --provider temporal",
+          "opl family-runtime residency proof --provider temporal --production"
+        ],
         "required_packages": [
           "@temporalio/activity",
           "@temporalio/client",
@@ -237,7 +252,7 @@
         "native_core_bridge_releases": [
           "aarch64-apple-darwin"
         ],
-        "verification": "Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin"
+        "verification": "Full manifest runtime_assertions.temporal_core_bridge_releases must be exactly aarch64-apple-darwin and wrapper must export local Temporal defaults"
       }
     },
     "optional_payloads": {
@@ -358,6 +373,7 @@
         "One-Person-Lab-Full-<version>-mac-arm64.dmg",
         "full-package-manifest.json",
         "runtime-cache-events.json",
+        "full-runtime-native-trust.json",
         "README-Full-First-Install.txt",
         "SHA256SUMS.txt",
         "full-gatekeeper-launch-policy.json"
@@ -369,6 +385,7 @@
         "standard_updater_metadata",
         "full_sha256sums",
         "full_runtime_cache_events",
+        "full_runtime_native_trust",
         "full_manifest_distribution_boundary",
         "full_manifest_size_budget",
         "full_release_asset_size_budget",

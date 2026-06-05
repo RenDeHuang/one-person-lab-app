@@ -89,8 +89,11 @@ a WebUI image, standard updater target, or `one-person-lab-modules/*` package.
 The independent agent installation path is pinned by
 `contracts/app-install-exposure-policy.json`: MAS/MAG/RCA must register through
 Codex plugin registry targets while keeping direct skill compatibility and the
-same action/stage metadata; OMA stays on the OPL-generated skill surface. The
-machine gate is `npm run validate:agent-installation`, with optional
+same action/stage metadata; OMA stays on the OPL-generated local Codex plugin
+surface. Managed agent-pack distribution now fails closed when a stable package
+channel is unavailable and uses bundled Full runtime modules before any explicit
+Developer Profile checkout override. The machine gate is
+`npm run validate:agent-installation`, with optional
 `--agent-root <id>=<path>` checks for real plugin roots and
 `--codex-skills-root <path>` checks that MAS/MAG/RCA are not also installed as
 duplicate bare Codex skill mirrors.
@@ -110,6 +113,20 @@ Homebrew/Node/Git first” as the first-screen terminal state. CLT requests use
 `xcode-select --install` and wait for user confirmation inside Apple's system
 installer. `officecli`, MinerU, and `opl-meta-agent` are App/CLI-managed
 ecosystem modules.
+
+First conversation readiness is now part of the App-owned setup contract. The
+active shell must warm the ACP conversation and wait for the conversation record
+before sending the initial `/guid` message. Slow first-run dependency unpacking
+therefore becomes a retryable setup/send state instead of a fixed ACP handshake
+timeout or a lost prompt. This does not make Full readiness block first launch.
+
+Temporal auto-configuration is now explicit in the install contract and release
+channel. The packaged wrapper exports `OPL_FAMILY_RUNTIME_PROVIDER=temporal`,
+`OPL_TEMPORAL_ADDRESS=127.0.0.1:7233`, `OPL_TEMPORAL_NAMESPACE=default`, and
+`OPL_TEMPORAL_TASK_QUEUE=opl-stage-attempts`; OPL Framework still owns service
+start, worker lifecycle, readiness diagnostics, residency proof, and repair
+receipts. Temporal provider readiness remains Full readiness/background
+maintenance for ordinary first launch.
 
 First-run progress is also contract-backed. The shared progress model is
 produced by `opl system initialize --json` at
@@ -255,6 +272,16 @@ treat `standard-gatekeeper-launch-policy.json`,
 `full-gatekeeper-launch-policy.json`, and guest
 `gatekeeper-launch-policy.json` as release-blocking evidence before App launch
 or Homebrew tap sync.
+
+Follow-up local install evidence showed the same trust-chain failure for the
+Full runtime `node` binary under `~/Library/Application Support/OPL/runtime`:
+`codesign -dv` reported ad-hoc signing and no TeamIdentifier, and `spctl`
+returned `rejected`. Full release packaging now treats native runtime
+executables as their own release gate. Distributable Full builds must sign the
+runtime executables, verify `node` and the pre-extracted Temporal CLI binary
+through `scripts/verify-full-runtime-native-trust.ts`, upload
+`full-runtime-native-trust.json`, and include it in `SHA256SUMS.txt` before the
+Full package can be published or consumed by the Full Homebrew cask.
 
 Release and user-path evidence remains cohort-bound App evidence. Verified
 release bundle refs, screenshots, remote asset checks, or packaged route smoke

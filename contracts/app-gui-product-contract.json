@@ -232,7 +232,10 @@
         "task stage",
         "progress label",
         "next step",
+        "next owner",
         "owner",
+        "accepted answer shape",
+        "artifact or blocker",
         "last progress"
       ],
       "active_project_line_fields": [
@@ -268,7 +271,11 @@
         "ref",
         "stage attempt",
         "ledger",
-        "current_control_state"
+        "current_control_state",
+        "AionUI",
+        "backend selector",
+        "shell candidate",
+        "runtime implementation selector"
       ],
       "diagnostics_policy": "secondary_disclosure_or_on_demand_full_detail"
     }
@@ -1342,7 +1349,7 @@
         "active project count",
         "queued project count",
         "attention count",
-        "task title/status/stage/progress label/next step/owner/last progress",
+        "task title/status/stage/progress label/next step/next owner/owner/accepted answer shape/artifact or blocker/last progress",
         "project progress from app_state.operator.workbench.task_drilldowns",
         "active project line count from app_state.operator.workbench.activity_center.active_projects",
         "project title/domain/current state/current stage",
@@ -1531,5 +1538,49 @@
         "single Developer Mode switch as the only capability expression"
       ]
     }
+  },
+  "ordinary_cockpit_surface_budget": {
+    "surface_id": "ordinary_app_cockpit_surface_budget",
+    "purpose": "keep Home, Runtime, and Settings focused on purpose, task status, next owner, artifact/blocker, and release facts",
+    "applies_to_pages": [
+      "guid_home",
+      "runtime",
+      "settings_general",
+      "access",
+      "capabilities",
+      "environment",
+      "settings_theme",
+      "advanced",
+      "about",
+      "update"
+    ],
+    "ordinary_allowed_answer_shapes": [
+      "purpose_entry",
+      "task_status",
+      "next_owner",
+      "accepted_answer_shape",
+      "artifact_or_blocker",
+      "release_fact",
+      "app_profile",
+      "access_status",
+      "agent_capability",
+      "local_environment_status",
+      "appearance_preference",
+      "advanced_diagnostic_link",
+      "about_update_fact"
+    ],
+    "ordinary_must_not_default_display_terms": [
+      "Temporal",
+      "provider",
+      "ledger",
+      "projection",
+      "stage attempt",
+      "AionUI",
+      "backend selector",
+      "shell candidate",
+      "runtime implementation selector"
+    ],
+    "diagnostics_escape_hatch": "Advanced, release evidence, developer detail, or explicit full-detail drilldown only",
+    "source_policy": "ordinary views consume opl app state --profile fast --json and must not derive first-screen layout from raw runtime drilldown"
   }
 }

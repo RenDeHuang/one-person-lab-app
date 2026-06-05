@@ -34,6 +34,7 @@ const expectedFailClosedStates = [
   'missing_plugin_manifest',
   'missing_skill_entry',
   'duplicate_codex_visible_domain_skill',
+  'unavailable_managed_agent_pack_channel',
 ];
 
 function readJson(filePath: string): any {
@@ -128,17 +129,21 @@ function findInstallAgent(contract: any, agentId: string): any {
   return entry;
 }
 
-function validatePluginRoot(agentId: string, root: string): void {
+function validatePluginRoot(agentId: string, root: string, installAgent: any): void {
+  const pluginName = installAgent.codex_visible_entry;
+  if (typeof pluginName !== 'string' || !pluginName.trim()) {
+    fail(`${agentId} installation entry is missing codex_visible_entry`);
+  }
   const pluginManifestPath = path.join(root, '.codex-plugin', 'plugin.json');
-  const skillPath = path.join(root, 'skills', agentId, 'SKILL.md');
+  const skillPath = path.join(root, 'skills', pluginName, 'SKILL.md');
   if (!fs.existsSync(pluginManifestPath)) {
     fail(`${agentId} plugin root is missing .codex-plugin/plugin.json: ${root}`);
   }
   if (!fs.existsSync(skillPath)) {
-    fail(`${agentId} plugin root is missing skills/${agentId}/SKILL.md: ${root}`);
+    fail(`${agentId} plugin root is missing skills/${pluginName}/SKILL.md: ${root}`);
   }
   const pluginManifest = readJson(pluginManifestPath);
-  assertEqual(pluginManifest.name, agentId, `${agentId} plugin manifest name`);
+  assertEqual(pluginManifest.name, pluginName, `${agentId} plugin manifest name`);
   assertEqual(pluginManifest.skills, './skills/', `${agentId} plugin manifest skills path`);
 }
 
@@ -198,7 +203,7 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
   assertEqual(contract.product_entry_target, 'family-product-entry-manifest-v2', 'product entry target');
   assertArrayEqual(contract.required_agent_ids, expectedRequiredAgentIds, 'required agent ids');
   assertArrayEqual(contract.default_plugin_agent_ids, expectedPluginAgentIds, 'default plugin agent ids');
-  assertArrayEqual(contract.generated_skill_agent_ids, expectedGeneratedAgentIds, 'generated skill agent ids');
+  assertArrayEqual(contract.generated_plugin_agent_ids, expectedGeneratedAgentIds, 'generated plugin agent ids');
   assertArrayEqual(contract.fail_closed_states, expectedFailClosedStates, 'agent contract fail closed states');
   assertArrayEqual(policy.sync_and_install_contract?.fail_closed_states, expectedFailClosedStates, 'sync fail closed states');
   assertArrayEqual(contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states, 'shared fail closed states');
@@ -226,6 +231,25 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
     contract.managed_agent_pack_distribution?.activation_commands,
     ['opl module reconcile', 'opl skill sync'],
     'agent-pack distribution activation commands',
+  );
+  assertArrayEqual(
+    contract.managed_agent_pack_distribution?.fallback_source_order,
+    [
+      'bundled_full_runtime_modules',
+      'app_cli_managed_stable_package_channel',
+      'explicit_developer_checkout_override',
+    ],
+    'agent-pack distribution fallback source order',
+  );
+  assertEqual(
+    contract.managed_agent_pack_distribution?.must_not_depend_on_single_github_packages_tag,
+    true,
+    'agent-pack GitHub Packages single-tag guard',
+  );
+  assertEqual(
+    contract.managed_agent_pack_distribution?.github_packages_unavailable_policy,
+    'fail_closed_with_actionable_background_maintenance_error',
+    'agent-pack GitHub Packages unavailable policy',
   );
   assertEqual(
     contract.managed_agent_pack_distribution?.homebrew_distribution_allowed,
@@ -293,9 +317,9 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
     '~/.codex/skills/rca',
   ], 'domain plugin forbidden sync targets');
 
-  const generatedClass = findExposureClass(policy, 'opl_generated_skill_surfaces');
-  assertArrayEqual(generatedClass.members, ['opl-meta-agent'], 'generated skill exposure members');
-  assertEqual(generatedClass.sync_target, 'opl_generated_codex_surface', 'generated skill sync target');
+  const generatedClass = findExposureClass(policy, 'opl_generated_plugin_surfaces');
+  assertArrayEqual(generatedClass.members, ['opl-meta-agent'], 'generated plugin exposure members');
+  assertEqual(generatedClass.sync_target, 'opl_generated_codex_plugin_surface', 'generated plugin sync target');
 
   const companionClass = findExposureClass(policy, 'companion_skill_sync');
   assertArrayEqual(companionClass.members, expectedCompanionSkillSyncIds, 'companion skill sync members');
@@ -349,8 +373,8 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
 
   const omaExposure = findDomainExposure(policy, 'oma');
   const omaInstallAgent = findInstallAgent(contract, 'oma');
-  assertEqual(omaExposure.preferred_app_distribution, 'opl_generated_skill_surface', 'OMA exposure distribution');
-  assertEqual(omaInstallAgent.plugin_registry_required, false, 'OMA plugin registry policy');
+  assertEqual(omaExposure.preferred_app_distribution, 'opl_generated_codex_plugin_surface', 'OMA exposure distribution');
+  assertEqual(omaInstallAgent.plugin_registry_required, true, 'OMA plugin registry policy');
   assertEqual(omaInstallAgent.plugin_must_package_skill, false, 'OMA plugin packaging policy');
   assertEqual(omaInstallAgent.codex_visible_entry, 'opl-meta-agent', 'OMA Codex visible entry');
   assertEqual(
@@ -360,10 +384,7 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
   );
 
   for (const [agentId, root] of agentRoots.entries()) {
-    if (!expectedPluginAgentIds.includes(agentId)) {
-      fail(`--agent-root is only valid for plugin-packaged agents, got ${agentId}`);
-    }
-    validatePluginRoot(agentId, root);
+    validatePluginRoot(agentId, root, findInstallAgent(contract, agentId));
   }
 }
 
@@ -376,7 +397,7 @@ console.log(JSON.stringify({
   surface_id: 'opl_app_agent_installation_contract_validation',
   checked_agents: expectedRequiredAgentIds,
   plugin_agents: expectedPluginAgentIds,
-  generated_skill_agents: expectedGeneratedAgentIds,
+  generated_plugin_agents: expectedGeneratedAgentIds,
   validated_plugin_roots: Object.fromEntries(agentRoots),
   validated_codex_skills_root: validatedCodexSkillsRoot,
 }, null, 2));
