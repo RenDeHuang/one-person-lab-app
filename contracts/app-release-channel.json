@@ -370,6 +370,8 @@
       ],
       "upload_order": "largest_assets_first_then_name",
       "upload_mode": "one_asset_per_gh_release_upload_command",
+      "upload_attempts": 3,
+      "upload_timeout_ms": 300000,
       "force_flag": "--force-upload",
       "new_release_upload_failure_cleanup": {
         "enabled": true,

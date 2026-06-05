@@ -11,6 +11,8 @@ import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultFullPackageDir = path.resolve(repoRoot, 'dist', 'opl-full-release');
+const defaultUploadAttempts = 3;
+const defaultUploadTimeoutMs = 5 * 60 * 1000;
 
 function resolveShellRootEnv() {
   return process.env.OPL_APP_SHELL_ROOT || process.env.OPL_AION_SHELL_ROOT || resolveActiveShellPaths().shellRoot;
@@ -134,10 +136,12 @@ function run(command, args, options = {}) {
     encoding: 'utf8',
     stdio: options.capture ? 'pipe' : 'inherit',
     env: process.env,
+    timeout: options.timeoutMs,
   });
   if (result.status !== 0) {
     const detail = options.capture ? `\nstdout=${result.stdout || ''}\nstderr=${result.stderr || ''}` : '';
-    throw new Error(`Command failed: ${command} ${args.join(' ')}${detail}`);
+    const timedOut = result.error?.code === 'ETIMEDOUT' ? '\nreason=timeout' : '';
+    throw new Error(`Command failed: ${command} ${args.join(' ')}${timedOut}${detail}`);
   }
   return result;
 }
@@ -577,13 +581,59 @@ function buildUploadArgs(repo, tag, artifactPath) {
   return ['release', 'upload', tag, artifactPath, '--repo', repo, '--clobber'];
 }
 
+function releaseUploadAttempts() {
+  const value = process.env.OPL_RELEASE_UPLOAD_ATTEMPTS?.trim();
+  if (!value) {
+    return defaultUploadAttempts;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`OPL_RELEASE_UPLOAD_ATTEMPTS must be a positive integer, got ${value}`);
+  }
+  return parsed;
+}
+
+function releaseUploadTimeoutMs() {
+  const value = process.env.OPL_RELEASE_UPLOAD_TIMEOUT_MS?.trim();
+  if (!value) {
+    return defaultUploadTimeoutMs;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1000) {
+    throw new Error(`OPL_RELEASE_UPLOAD_TIMEOUT_MS must be an integer >= 1000, got ${value}`);
+  }
+  return parsed;
+}
+
+function uploadReleaseArtifact(repo, tag, artifactPath, options) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= options.attempts; attempt += 1) {
+    try {
+      run('gh', buildUploadArgs(repo, tag, artifactPath), { timeoutMs: options.timeoutMs });
+      return;
+    } catch (error) {
+      lastError = error;
+      const detail = error instanceof Error ? error.message : String(error);
+      if (attempt >= options.attempts) {
+        break;
+      }
+      console.error(`Release asset upload attempt ${attempt}/${options.attempts} failed; retrying ${path.basename(artifactPath)}.\n${detail}`);
+    }
+  }
+  throw lastError;
+}
+
 function uploadReleaseArtifacts(repo, tag, artifactPaths) {
   const uploaded = [];
+  const uploadOptions = {
+    attempts: releaseUploadAttempts(),
+    timeoutMs: releaseUploadTimeoutMs(),
+  };
   for (const artifactPath of artifactPaths) {
     const name = path.basename(artifactPath);
     console.error(`Uploading release asset ${name} (${uploaded.length + 1}/${artifactPaths.length}).`);
     try {
-      run('gh', buildUploadArgs(repo, tag, artifactPath));
+      uploadReleaseArtifact(repo, tag, artifactPath, uploadOptions);
       uploaded.push(name);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);

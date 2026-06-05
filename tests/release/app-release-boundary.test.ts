@@ -4744,6 +4744,74 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
   assert.deepEqual(payload.skipped_existing_artifacts, []);
 });
 
+test('publish retries an individual release asset upload before failing the refresh', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-upload-retry-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const outDir = path.join(shellRoot, 'out');
+  const binDir = path.join(tempRoot, 'bin');
+  const fakeGh = path.join(binDir, 'gh');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
+  const logPath = path.join(tempRoot, 'gh-calls.log');
+  const version = '26.5.19-upload-retry';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+
+  writeFile(path.join(outDir, dmgName), 'dmg');
+  writeFile(path.join(outDir, zipName), 'zip');
+  writeReleaseMetadata(outDir, version, dmgName);
+  writeStandardLocalAuthorizationPolicy(outDir);
+  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
+  writeFile(
+    fakeGh,
+    [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      `echo "$*" >> ${JSON.stringify(logPath)}`,
+      'if [ "$1" = "release" ] && [ "$2" = "view" ]; then',
+      '  echo \'{"tagName":"vtest","assets":[]}\'',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "release" ] && [ "$2" = "edit" ]; then',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "release" ] && [ "$2" = "upload" ]; then',
+      '  asset="$4"',
+      '  if [[ "$asset" == *.zip ]]; then',
+      '    marker="$asset.retry-marker"',
+      '    if [ ! -f "$marker" ]; then',
+      '      touch "$marker"',
+      '      echo "simulated zip upload timeout" >&2',
+      '      exit 124',
+      '    fi',
+      '  fi',
+      '  exit 0',
+      'fi',
+      'echo "unexpected gh call: $*" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+  );
+  fs.chmodSync(fakeGh, 0o755);
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--shell-root',
+    shellRoot,
+    '--version',
+    version,
+  ], {
+    env: {
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const ghCalls = fs.readFileSync(logPath, 'utf8');
+  assert.equal((ghCalls.match(new RegExp(`${zipName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} --repo`, 'g')) ?? []).length, 2);
+});
+
 test('publish dry run generates deterministic English release notes for Full-only lane', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-notes-'));
   const fullPackageDir = path.join(tempRoot, 'full');
@@ -7227,6 +7295,8 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.deepEqual(releaseContract.release_acceleration.publish_resume.match_fields, ['asset_name', 'size', 'sha256']);
   assert.equal(releaseContract.release_acceleration.publish_resume.upload_order, 'largest_assets_first_then_name');
   assert.equal(releaseContract.release_acceleration.publish_resume.upload_mode, 'one_asset_per_gh_release_upload_command');
+  assert.equal(releaseContract.release_acceleration.publish_resume.upload_attempts, 3);
+  assert.equal(releaseContract.release_acceleration.publish_resume.upload_timeout_ms, 300000);
   assert.deepEqual(releaseContract.release_acceleration.publish_resume.new_release_upload_failure_cleanup, {
     enabled: true,
     scope: 'release created by the current publish invocation before asset upload',

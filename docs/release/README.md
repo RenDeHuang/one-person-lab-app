@@ -876,7 +876,8 @@ with `--clobber`. Pass
 all matching asset names.
 
 Uploads run one asset per `gh release upload` command, starting with the largest
-assets and then sorting by name. That keeps large DMG/ZIP failures explicit in
+assets and then sorting by name. Each asset upload gets three attempts with a
+five-minute per-attempt timeout. That keeps large DMG/ZIP failures explicit in
 operator logs and lets a retry skip any assets that already reached the release
 with matching size and digest.
 
