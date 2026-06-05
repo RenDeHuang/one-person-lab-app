@@ -5897,6 +5897,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(warmupWorkflow, /name: OPL Full Runtime Cache Warmup/);
   assert.match(warmupWorkflow, /schedule:/);
   assert.match(warmupWorkflow, /permissions:[\s\S]*contents: write/);
+  assert.match(warmupWorkflow, /permissions:[\s\S]*models: read/);
   assert.match(warmupWorkflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
   assert.match(warmupWorkflow, /publish_to_release: false/);
   assert.match(warmupWorkflow, /force_rebuild_runtime_cache:/);
