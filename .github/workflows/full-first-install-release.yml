@@ -582,8 +582,26 @@ jobs:
           app_path="$GITHUB_WORKSPACE/one-person-lab-app/shells/aionui/out/mac-arm64/One Person Lab.app"
           runtime_root="$app_path/Contents/Resources/opl-full-runtime/runtime/current"
           dmg_path="$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg"
+          mounted_app_dir="$(mktemp -d)"
+          mounted_app_path=""
+          mounted_full_dmg="false"
+          cleanup_mounted_full_dmg() {
+            if [ "$mounted_full_dmg" = "true" ]; then
+              hdiutil detach "$mounted_app_dir" >/dev/null 2>&1 || true
+            fi
+            rm -rf "$mounted_app_dir"
+          }
+          trap cleanup_mounted_full_dmg EXIT
+          hdiutil attach "$dmg_path" -nobrowse -readonly -mountpoint "$mounted_app_dir" >/dev/null
+          mounted_full_dmg="true"
+          mounted_app_path="$(find "$mounted_app_dir" -maxdepth 2 -type d -name 'One Person Lab.app' | sort | head -n 1)"
+          if [ -z "$mounted_app_path" ]; then
+            echo "::error::Full first-install DMG does not contain One Person Lab.app."
+            exit 1
+          fi
           if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" = "true" ]; then
             codesign --verify --deep --strict --verbose=2 "$app_path"
+            codesign --verify --deep --strict --verbose=2 "$mounted_app_path"
             spctl --assess --type execute --verbose=4 "$app_path"
             node --experimental-strip-types one-person-lab-app/scripts/verify-full-runtime-native-trust.ts \
               --runtime-root "$runtime_root" \
@@ -593,11 +611,12 @@ jobs:
           else
             echo "::notice::Skipping strict Gatekeeper checks because Stable Full assets use local authorization mode."
             codesign --verify --deep --strict --verbose=2 "$app_path" || true
+            codesign --verify --deep --strict --verbose=2 "$mounted_app_path"
             spctl --assess --type execute --verbose=4 "$app_path" || true
           fi
           node --experimental-strip-types one-person-lab-app/scripts/local-authorization-policy.ts \
             --package-kind app_full_first_install \
-            --app-path "$app_path" \
+            --app-path "$mounted_app_path" \
             --runtime-native-trust one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json \
             --output one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json
           hdiutil verify "$dmg_path"

@@ -5868,6 +5868,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /stable-homebrew-tap-update:/);
   assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml[\s\S]*write_mode: direct_commit/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs: stable-homebrew-tap-update/);
+  assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs\.stable-homebrew-tap-update\.result == 'success'/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
   assert.match(workflow, /one-shot-app-installer-smoke:/);
@@ -6566,6 +6567,10 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/);
   assert.match(workflow, /Stable Full assets will use local authorization evidence instead of Developer ID notarization/);
   assert.match(workflow, /local-authorization-policy\.ts[\s\S]*--package-kind app_full_first_install/);
+  assert.match(workflow, /mounted_app_path="\$\(find "\$mounted_app_dir" -maxdepth 2 -type d -name 'One Person Lab\.app'/);
+  assert.match(workflow, /codesign --verify --deep --strict --verbose=2 "\$mounted_app_path"/);
+  assert.match(workflow, /--app-path "\$mounted_app_path"/);
+  assert.match(workflow, /hdiutil detach "\$mounted_app_dir"/);
   assert.match(workflow, /name: Verify release upload plan[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/);
   for (const expected of [
     'gaofeng21cn/one-person-lab',
@@ -6598,6 +6603,11 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
     /runtime-cache-events\.json[\s\S]{0,400}<<'NODE'[\s\S]{0,400}NODE/,
     'runtime-cache-events summary must not use a nested heredoc; indented heredoc delimiters break bash on GitHub Actions',
   );
+  const fullPackageScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
+  assert.match(fullPackageScript, /verifyDmgAppBundleLocalAuthorization/);
+  assert.match(fullPackageScript, /assertAppBundleLocalAuthorization/);
+  assert.match(fullPackageScript, /createFullDmgFromVerifiedApp/);
+  assert.match(fullPackageScript, /ensureFullDmgLocalAuthorization\(options\.guiRoot, targetDmg, options\.version\)/);
 });
 
 test('Full release docs publish size policy and remote verifier budget boundaries', () => {

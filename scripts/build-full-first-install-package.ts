@@ -1928,6 +1928,101 @@ function findBuiltDmg(guiRoot, version) {
   return found;
 }
 
+function findBuiltApp(guiRoot) {
+  const outDir = resolveActiveShellPaths({ shellRoot: guiRoot }).buildOutputDir;
+  const candidates = [
+    path.join(outDir, 'mac-arm64', 'One Person Lab.app'),
+    path.join(outDir, 'mac', 'One Person Lab.app'),
+  ];
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!found) {
+    throw new Error(`Built app bundle not found under ${outDir}`);
+  }
+  return found;
+}
+
+function assertAppBundleLocalAuthorization(appPath, label) {
+  if (!canRunMacosSigningChecks()) {
+    return;
+  }
+  const codesign = runCapture('codesign', ['--verify', '--deep', '--strict', '--verbose=2', appPath]);
+  const spctl = runCapture('spctl', ['--assess', '--type', 'execute', '--verbose=4', appPath]);
+  if (codesign.status !== 0) {
+    throw new Error([
+      `${label} failed Stable local authorization codesign verification: ${appPath}`,
+      codesign.stdout?.trim() ? `codesign stdout:\n${codesign.stdout.trim()}` : '',
+      codesign.stderr?.trim() ? `codesign stderr:\n${codesign.stderr.trim()}` : '',
+      `spctl status=${spctl.status}`,
+      spctl.stdout?.trim() ? `spctl stdout:\n${spctl.stdout.trim()}` : '',
+      spctl.stderr?.trim() ? `spctl stderr:\n${spctl.stderr.trim()}` : '',
+    ].filter(Boolean).join('\n'));
+  }
+}
+
+function verifyDmgAppBundleLocalAuthorization(dmgPath, label) {
+  if (!canRunMacosSigningChecks()) {
+    return;
+  }
+  const mountPoint = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-dmg-verify-'));
+  try {
+    run('hdiutil', ['attach', dmgPath, '-nobrowse', '-readonly', '-mountpoint', mountPoint]);
+    const appPath = fs.readdirSync(mountPoint)
+      .filter((entry) => entry.endsWith('.app'))
+      .sort()
+      .map((entry) => path.join(mountPoint, entry))
+      .find((candidate) => fs.existsSync(candidate));
+    if (!appPath) {
+      throw new Error(`${label} does not contain a .app bundle: ${dmgPath}`);
+    }
+    assertAppBundleLocalAuthorization(appPath, label);
+  } finally {
+    runCapture('hdiutil', ['detach', mountPoint]);
+    fs.rmSync(mountPoint, { recursive: true, force: true });
+  }
+}
+
+function createFullDmgFromVerifiedApp(appPath, targetDmg, version) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-dmg-create-'));
+  const stagingDir = path.join(tempDir, 'dmg-root');
+  const stagingApp = path.join(stagingDir, path.basename(appPath));
+  try {
+    fs.mkdirSync(stagingDir, { recursive: true });
+    run('ditto', [appPath, stagingApp]);
+    fs.symlinkSync('/Applications', path.join(stagingDir, 'Applications'));
+    assertAppBundleLocalAuthorization(stagingApp, 'Full staging app bundle');
+    const volumeName = `One Person Lab Full ${version}`;
+    run('hdiutil', [
+      'create',
+      '-volname',
+      volumeName,
+      '-srcfolder',
+      stagingDir,
+      '-ov',
+      '-format',
+      'UDZO',
+      targetDmg,
+    ]);
+    verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version) {
+  if (!canRunMacosSigningChecks()) {
+    return;
+  }
+  try {
+    verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
+  } catch (error) {
+    const builtApp = findBuiltApp(guiRoot);
+    assertAppBundleLocalAuthorization(builtApp, 'Full built app bundle');
+    fs.rmSync(targetDmg, { force: true });
+    createFullDmgFromVerifiedApp(builtApp, targetDmg, version);
+    console.warn(`Rebuilt Full DMG after local authorization verification failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 function removeStandardGuiArtifacts(guiRoot, version) {
   const outDir = resolveActiveShellPaths({ shellRoot: guiRoot }).buildOutputDir;
   if (!fs.existsSync(outDir)) {
@@ -2035,6 +2130,7 @@ function main() {
   const sourceDmg = findBuiltDmg(options.guiRoot, options.version);
   const targetDmg = path.join(options.outDir, artifactNames.dmg);
   fs.copyFileSync(sourceDmg, targetDmg);
+  ensureFullDmgLocalAuthorization(options.guiRoot, targetDmg, options.version);
   removeStandardGuiArtifacts(options.guiRoot, options.version);
   const runtimeTar = maybeCreateRuntimeTar(options, prepared.runtimeRoot, artifactNames);
   timings.dmg_package_compression = durationSeconds(packageCompressionStartedAt, monotonicSeconds());

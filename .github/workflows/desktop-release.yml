@@ -395,7 +395,7 @@ jobs:
   homebrew-standard-first-run-vm-smoke:
     name: Run Homebrew standard first-run VM smoke
     needs: stable-homebrew-tap-update
-    if: ${{ inputs.run_vm_smoke && inputs.release_mode != 'draft_candidate' }}
+    if: ${{ always() && inputs.run_vm_smoke && inputs.release_mode != 'draft_candidate' && needs.stable-homebrew-tap-update.result == 'success' }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
