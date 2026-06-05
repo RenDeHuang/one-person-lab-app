@@ -96,6 +96,11 @@ test('stable release notes are English and include bundled OPL-family agent vers
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /One Person Lab 26\.5\.31/);
   assert.match(result.stdout, /This Stable release focuses on changes since v26\.5\.28\./);
+  assert.match(result.stdout, /## Install Stable/);
+  assert.match(
+    result.stdout,
+    /curl -fsSL https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/install-stable\.sh \| bash/,
+  );
   assert.match(result.stdout, /First-run setup/);
   assert.match(result.stdout, /Simplified the first-run setup flow/);
   assert.match(result.stdout, /OPL agent updates/);

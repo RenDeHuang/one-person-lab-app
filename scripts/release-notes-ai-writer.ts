@@ -121,6 +121,8 @@ export function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
     '- When an agent_runtime_changes entry has change_summary_hint or change_subjects, include the concrete change in user language. Do not stop at generic role descriptions such as "MAS helps research" or "RCA helps slides".',
     '- Stable compares with the previous Stable; Nightly compares with the previous Nightly.',
     '- Keep the required sections: "## What improved", "## OPL agents and runtime payload", and "## Release scope".',
+    '- For Stable releases, include a section titled exactly "## Install Stable" before "## Release scope". In that section include release_evidence.install_command exactly in inline code.',
+    '- For Nightly releases, do not include the Stable install command.',
     '- In "## What improved", start with user-facing agent and runtime workflows before mentioning release plumbing.',
     '- In "## OPL agents and runtime payload", include role-based payload bullets first, then include the release_evidence.payload.lines entries exactly enough that the payload refs, Nightly boundary, and Full runtime boundary remain auditable.',
     '- Do not format release_evidence.payload.lines as blockquotes. They must stay normal bullets.',
@@ -246,6 +248,17 @@ function validateEnglishReleaseNotesMarkdown(markdown: string, evidence: Release
   }
   if (evidence.channel === 'nightly' && !/Nightly standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin\/skill sync policy\./.test(markdown)) {
     failures.push('missing Nightly agent entry surface');
+  }
+  if (evidence.channel === 'stable') {
+    if (!markdown.includes('## Install Stable')) {
+      failures.push('missing Stable install section');
+    }
+    if (!evidence.install_command || !markdown.includes(evidence.install_command)) {
+      failures.push('missing Stable install command');
+    }
+  }
+  if (evidence.channel === 'nightly' && evidence.install_command && markdown.includes(evidence.install_command)) {
+    failures.push('Nightly release notes include Stable install command');
   }
   if (evidence.payload.include_full_package && !/Build-time payload refs:/.test(markdown)) {
     failures.push('missing Full payload refs');

@@ -199,6 +199,8 @@ process.stdout.write(${JSON.stringify(body)});
 `, { mode: 0o755 });
 }
 
+const stableInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash';
+
 function validStandardAiReleaseNotes(version) {
   const publicMarkdown = `One Person Lab ${version}
 
@@ -211,6 +213,11 @@ This release helps users upgrade the standard OPL App package with a clearer fir
 
 ## OPL agents and runtime payload
 - Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.
+
+## Install Stable
+\`${stableInstallCommand}\`
+
+This installer downloads the Stable macOS package, copies One Person Lab.app into /Applications, removes local quarantine markers, and opens the App.
 
 ## Release scope
 - Standard macOS arm64 updater package is published for this release.
@@ -226,6 +233,11 @@ This release helps users upgrade the standard OPL App package with a clearer fir
 
 ## OPL agents and runtime payload
 - Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.
+
+## Install Stable
+\`${stableInstallCommand}\`
+
+这个安装器会下载 Stable macOS 包，把 One Person Lab.app 复制到 /Applications，清理本地 quarantine 标记，然后打开 App。
 
 ## Release scope
 - Standard macOS arm64 updater package is published for this release.

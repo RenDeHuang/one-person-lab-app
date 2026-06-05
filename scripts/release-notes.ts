@@ -58,10 +58,13 @@ export type ReleaseNotesEvidence = {
   };
   agent_runtime_changes: AgentRuntimeChange[];
   release_scope: string;
+  install_command: string | null;
   full_changelog_url: string | null;
 };
 
 const bucketOrder: ChangeBucketId[] = ['first_run', 'agents', 'ui_settings', 'release', 'docs', 'quality'];
+
+const stableInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash';
 
 const bucketTitles: Record<ChangeBucketId, string> = {
   first_run: 'First-run setup',
@@ -694,6 +697,7 @@ export function buildReleaseNotesEvidence(options: ReleaseNoteOptions): ReleaseN
     },
     agent_runtime_changes: agentRuntimeChanges,
     release_scope: releaseScope,
+    install_command: options.channel === 'stable' ? stableInstallCommand : null,
     full_changelog_url: previousTag ? `https://github.com/${releaseRepo}/compare/${previousTag}...${currentTag}` : null,
   };
 }
@@ -710,9 +714,19 @@ export function buildReleaseNotesDocument(options: ReleaseNoteOptions) {
     '',
     '## OPL agents and runtime payload',
     ...evidence.payload.lines,
-    '',
-    '## What changed',
   ];
+
+  if (evidence.install_command) {
+    lines.push(
+      '',
+      '## Install Stable',
+      `\`${evidence.install_command}\``,
+      '',
+      'This installer downloads the Stable macOS package, copies One Person Lab.app into /Applications, removes local quarantine markers, and opens the App.',
+    );
+  }
+
+  lines.push('', '## What changed');
 
   if (evidence.grouped_changes.length === 0) {
     lines.push('- Rebuilt and revalidated the release artifacts without additional user-visible changes.');
