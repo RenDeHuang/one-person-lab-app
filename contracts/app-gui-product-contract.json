@@ -92,7 +92,6 @@
       "default_command": "opl app state --profile fast --json",
       "refresh_command": "opl app state --profile fast --json",
       "default_operator_payload": "current_owner_delta",
-      "compatibility_operator_payload": "compact_owner_delta_projection",
       "default_profile": "fast",
       "manual_refresh_profile": "fast",
       "page_load_policy": "fast_state_first_no_page_wide_spinner",
@@ -100,7 +99,6 @@
       "full_profile_policy": "diagnostic_or_release_evidence_only",
       "default_read_surface_policy": {
         "default_projection": "opl_current_owner_delta",
-        "compatibility_projection": "opl_compact_owner_delta_projection",
         "source_path": "app_state.operator.default_read_surface_policy",
         "full_detail_policy": "explicit_full_detail_or_lazy_diagnostic_only",
         "raw_refs_policy": "raw_refs_require_explicit_full_detail",
@@ -817,7 +815,7 @@
     ]
   },
   "developer_profile": {
-    "source": "app_state.developer_profile + app_state.developer_mode compatibility field + app_state.modules[].source_policy",
+    "source": "app_state.developer_profile + app_state.modules[].source_policy",
     "settings_pages": [
       "settings_environment",
       "settings_advanced"
@@ -864,11 +862,6 @@
         "developer_opt_in": "app_action_route_with_developer_scope",
         "display_policy": "show_mutation_scope_without_claiming_runtime_authority"
       }
-    },
-    "legacy_developer_mode_alias": {
-      "state_source": "app_state.developer_mode",
-      "display_policy": "show_as_profile_summary_not_primary_switch",
-      "must_not_display_as": "single_global_toggle"
     },
     "must_not_show": [
       "single Developer Mode switch as the only capability expression",

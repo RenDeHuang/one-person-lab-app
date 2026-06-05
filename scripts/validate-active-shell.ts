@@ -2119,7 +2119,6 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
     summary_command: 'opl app state --profile fast --json',
     refresh_command: 'opl app state --profile fast --json',
     default_operator_payload: 'current_owner_delta',
-    compatibility_operator_payload: 'compact_owner_delta_projection',
     full_state_command: 'opl app state --profile full --json',
     full_state_policy: 'diagnostic_or_release_evidence_only',
     full_detail_command: 'opl runtime app-operator-drilldown --detail full --json',
@@ -2135,10 +2134,12 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
       throw new Error(`Runtime bridge ${field} must be ${expected}`);
     }
   }
+  if ('compatibility_operator_payload' in runtimeBridge) {
+    throw new Error('Runtime bridge must not declare compatibility_operator_payload');
+  }
   const defaultReadSurfacePolicy = runtimeBridge.default_read_surface_policy;
   for (const [field, expected] of Object.entries({
     default_projection: 'opl_current_owner_delta',
-    compatibility_projection: 'opl_compact_owner_delta_projection',
     source_path: 'app_state.operator.default_read_surface_policy',
     full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
     raw_refs_policy: 'raw_refs_require_explicit_full_detail',
@@ -2149,6 +2150,9 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
     if (defaultReadSurfacePolicy?.[field] !== expected) {
       throw new Error(`Runtime bridge default_read_surface_policy.${field} must be ${expected}`);
     }
+  }
+  if (defaultReadSurfacePolicy && 'compatibility_projection' in defaultReadSurfacePolicy) {
+    throw new Error('Runtime bridge default_read_surface_policy must not declare compatibility_projection');
   }
   for (const field of [
     'next_safe_action_or_none',
@@ -2814,8 +2818,8 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (guiContract.framework_surfaces.canonical_state.default_operator_payload !== 'current_owner_delta') {
     throw new Error('App GUI default operator payload must be current_owner_delta');
   }
-  if (guiContract.framework_surfaces.canonical_state.compatibility_operator_payload !== 'compact_owner_delta_projection') {
-    throw new Error('App GUI compatibility operator payload must be compact_owner_delta_projection');
+  if ('compatibility_operator_payload' in guiContract.framework_surfaces.canonical_state) {
+    throw new Error('App GUI canonical state must not declare compatibility_operator_payload');
   }
   if (guiContract.framework_surfaces.canonical_state.default_profile !== 'fast') {
     throw new Error('App GUI default state profile must be fast');
@@ -2829,7 +2833,6 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   const guiDefaultReadPolicy = guiContract.framework_surfaces.canonical_state.default_read_surface_policy;
   for (const [field, expected] of Object.entries({
     default_projection: 'opl_current_owner_delta',
-    compatibility_projection: 'opl_compact_owner_delta_projection',
     source_path: 'app_state.operator.default_read_surface_policy',
     full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
     raw_refs_policy: 'raw_refs_require_explicit_full_detail',
@@ -2840,6 +2843,9 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     if (guiDefaultReadPolicy?.[field] !== expected) {
       throw new Error(`App GUI default_read_surface_policy.${field} must be ${expected}`);
     }
+  }
+  if (guiDefaultReadPolicy && 'compatibility_projection' in guiDefaultReadPolicy) {
+    throw new Error('App GUI default_read_surface_policy must not declare compatibility_projection');
   }
   assertCommandSurface(
     guiContract.framework_surfaces.canonical_action?.command,
@@ -3255,10 +3261,10 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (
     developerProfile.capabilities.source_channel.developer_opt_in !== 'github_repo_or_local_checkout' ||
     developerProfile.capabilities.runtime_mutation_scope.standard_default !== 'app_action_route_only' ||
-    developerProfile.legacy_developer_mode_alias?.display_policy !== 'show_as_profile_summary_not_primary_switch' ||
+    'legacy_developer_mode_alias' in developerProfile ||
     !developerProfile.must_not_show?.includes('single Developer Mode switch as the only capability expression')
   ) {
-    throw new Error('App GUI Developer Profile must display capabilities instead of a single Developer Mode switch');
+    throw new Error('App GUI Developer Profile must display capabilities without legacy Developer Mode aliases');
   }
 
   for (const lane of releaseChannel.release_validation_profiles.stable.required_lanes) {

@@ -230,11 +230,6 @@ export type AppProductProfile = {
         developer_opt_in: string;
         display_policy: string;
       }>;
-      legacy_developer_mode_alias: {
-        state_source: string;
-        display_policy: string;
-        must_not_display_as: string;
-      };
       state_keys: Record<string, string>;
     };
   };
@@ -674,7 +669,7 @@ function assertProfileShape(profile: AppProductProfile): void {
     throw new Error('App product profile settings.developer_profile must be declared');
   }
   if (
-    developerProfile.source !== 'app_state.developer_profile + app_state.developer_mode compatibility field + app_state.modules[].source_policy' ||
+    developerProfile.source !== 'app_state.developer_profile + app_state.modules[].source_policy' ||
     developerProfile.default_profile !== 'standard_user' ||
     developerProfile.opt_in_policy !== 'explicit_opt_in_only' ||
     developerProfile.hide_machine_status !== true
@@ -699,11 +694,9 @@ function assertProfileShape(profile: AppProductProfile): void {
     developerProfile.capabilities.source_channel.standard_default !== 'stable_package_channel' ||
     developerProfile.capabilities.source_channel.developer_opt_in !== 'github_repo_or_local_checkout' ||
     developerProfile.capabilities.runtime_mutation_scope.standard_default !== 'app_action_route_only' ||
-    developerProfile.legacy_developer_mode_alias?.state_source !== 'app_state.developer_mode' ||
-    developerProfile.legacy_developer_mode_alias.display_policy !== 'show_as_profile_summary_not_primary_switch' ||
-    developerProfile.legacy_developer_mode_alias.must_not_display_as !== 'single_global_toggle'
+    'legacy_developer_mode_alias' in developerProfile
   ) {
-    throw new Error('App product profile Developer Profile must replace the single Developer Mode switch with capability display');
+    throw new Error('App product profile Developer Profile must use capability display without legacy Developer Mode aliases');
   }
   assertStringArray(profile.companion_payloads.tools, 'companion_payloads.tools');
   assertStringArray(profile.companion_payloads.domain_modules, 'companion_payloads.domain_modules');

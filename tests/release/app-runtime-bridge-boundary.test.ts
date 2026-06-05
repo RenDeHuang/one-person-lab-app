@@ -27,13 +27,12 @@ test('App owns runtime bridge contract while active shell remains replaceable ad
   assert.equal(runtimeBridge.summary_command, 'opl app state --profile fast --json');
   assert.equal(runtimeBridge.refresh_command, 'opl app state --profile fast --json');
   assert.equal(runtimeBridge.default_operator_payload, 'current_owner_delta');
-  assert.equal(runtimeBridge.compatibility_operator_payload, 'compact_owner_delta_projection');
+  assert.equal('compatibility_operator_payload' in runtimeBridge, false);
   assert.equal(runtimeBridge.full_state_command, 'opl app state --profile full --json');
   assert.equal(runtimeBridge.full_state_policy, 'diagnostic_or_release_evidence_only');
   assert.equal(runtimeBridge.full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.deepEqual(runtimeBridge.default_read_surface_policy, {
     default_projection: 'opl_current_owner_delta',
-    compatibility_projection: 'opl_compact_owner_delta_projection',
     source_path: 'app_state.operator.default_read_surface_policy',
     first_screen_answers: [
       'next_safe_action_or_none',
