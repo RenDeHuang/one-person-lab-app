@@ -120,6 +120,19 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 The installer defaults to an App-first setup so a clean Mac can open the App before Git-backed module maintenance finishes. Use `--complete` when you explicitly want the full framework/module install from the terminal.
 
+For unsigned developer or internal test builds, copy `One Person Lab.app` into
+`/Applications` and run the explicit local authorization helper once:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
+  | bash -s -- --authorize-local-app-only \
+      --app-path "/Applications/One Person Lab.app" \
+      --yes
+```
+
+This removes recursive macOS quarantine attributes and prints `codesign`/`spctl`
+diagnostics. It is not a replacement for signed and notarized Stable releases.
+
 ### Direct Download
 
 You can also download the current desktop package from the App repository releases:

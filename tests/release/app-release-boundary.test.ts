@@ -1591,9 +1591,23 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(domainById.get('oma').preferred_app_distribution, 'opl_generated_codex_plugin_surface');
   assert.equal(domainById.get('oma').default_home_visible, false);
 
-  for (const surface of policy.installer_surfaces) {
+  const installerSurfaceById = new Map(policy.installer_surfaces.map((surface) => [surface.surface, surface]));
+  for (const surface of policy.installer_surfaces.filter((entry) => entry.surface !== 'unsigned_local_app_authorization')) {
     assert.equal(surface.progress_source, 'opl system initialize --json');
   }
+  const unsignedLocalAuthorization = installerSurfaceById.get('unsigned_local_app_authorization');
+  assert.equal(unsignedLocalAuthorization.entrypoint, 'install.sh --authorize-local-app-only');
+  assert.equal(unsignedLocalAuthorization.progress_source, 'local_quarantine_and_gatekeeper_diagnostics');
+  assert.equal(
+    unsignedLocalAuthorization.exposure_policy,
+    'explicit_user_confirmed_quarantine_removal_not_stable_release_gate',
+  );
+  assert.equal(unsignedLocalAuthorization.stable_release_replacement_allowed, false);
+  assert.deepEqual(unsignedLocalAuthorization.required_commands, [
+    'xattr -dr com.apple.quarantine',
+    'codesign --verify --deep --strict --verbose=2',
+    'spctl --assess --type execute --verbose=4',
+  ]);
   assert.equal(policy.first_run_user_presentation.skill_plugin_distinction_visible_by_default, false);
   assert.deepEqual(policy.setup_flow_contract.ready_to_launch_required_core_items, [
     'workspace_root',
@@ -1696,6 +1710,17 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'opl family-runtime worker start --provider temporal',
     'opl family-runtime residency proof --provider temporal --production',
   ]);
+  assert.deepEqual(policy.temporal_auto_configuration.auto_configuration_entrypoints, [
+    'opl install',
+    'opl system initialize --json',
+    'opl system startup-maintenance',
+  ]);
+  assert.deepEqual(policy.temporal_auto_configuration.startup_maintenance_policy, {
+    must_export_local_defaults_before_provider_checks: true,
+    must_surface_service_worker_and_dependency_diagnostics: true,
+    must_not_block_ready_to_launch_on_worker_residency: true,
+    must_fail_closed_when_packaged_temporal_payload_is_missing: true,
+  });
   assert.equal(policy.temporal_auto_configuration.first_run_policy.ready_to_launch_blocking, false);
   assert.equal(policy.setup_flow_contract.first_conversation_readiness.gate, 'acp_warmup_before_initial_send');
   assert.deepEqual(policy.setup_flow_contract.first_conversation_readiness.must_wait_for, [
@@ -1824,12 +1849,33 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
 
 test('one-shot App installer defaults to App-first core setup', () => {
   const script = fs.readFileSync(path.join(appRoot, 'install.sh'), 'utf8');
+  const docs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
 
   assert.match(script, /OPL_APP_INSTALL_MODE=\$\{OPL_APP_INSTALL_MODE:-app-first\}/);
   assert.match(script, /--complete/);
   assert.match(script, /--skip-modules/);
   assert.match(script, /curl -fsSL "\$OPL_INSTALL_SCRIPT_URL" \| bash -s -- "\$\{INSTALL_ARGS\[@\]\}"/);
   assert.doesNotMatch(script, /bash -s -- "\$@"/);
+  assert.match(script, /--authorize-local-app-only/);
+  assert.match(script, /--authorize-local-app/);
+  assert.match(script, /--app-path/);
+  assert.match(script, /OPL_LOCAL_APP_PATH=\$\{OPL_LOCAL_APP_PATH:-\/Applications\/One Person Lab\.app\}/);
+  assert.match(script, /Type "authorize" to continue/);
+  assert.match(script, /xattr -dr com\.apple\.quarantine "\$OPL_LOCAL_APP_PATH"/);
+  assert.match(script, /codesign --verify --deep --strict --verbose=2 "\$OPL_LOCAL_APP_PATH"/);
+  assert.match(script, /spctl --assess --type execute --verbose=4 "\$OPL_LOCAL_APP_PATH"/);
+  assert.match(script, /quarantine_before/);
+  assert.match(script, /quarantine_after/);
+  assert.match(script, /signed and notarized releases are still required/);
+  assert.match(docs, /macOS signing material setup/);
+  assert.match(docs, /Developer ID Application/);
+  assert.match(docs, /gh secret set BUILD_CERTIFICATE_BASE64/);
+  assert.match(docs, /APPLE_ID_PASSWORD/);
+  assert.match(docs, /Unsigned local App authorization/);
+  assert.match(docs, /--authorize-local-app-only/);
+  assert.match(docs, /com\.apple\.quarantine/);
+  assert.match(docs, /quarantine_after=0/);
+  assert.match(docs, /not a Stable release replacement/);
 });
 
 test('runtime page consumes OPL App/operator drilldown instead of App-owned runtime truth', () => {

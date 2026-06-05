@@ -113,6 +113,19 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 该入口默认采用 App-first 安装，让全新 Mac 可以先打开 App，Git-backed 模块维护随后由 App 继续处理。需要从终端执行完整框架/模块安装时，可显式追加 `--complete`。
 
+如果暂时只能使用未签名的开发版或内部测试版，先把 `One Person Lab.app`
+复制到 `/Applications`，再显式运行一次本地授权助手：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
+  | bash -s -- --authorize-local-app-only \
+      --app-path "/Applications/One Person Lab.app" \
+      --yes
+```
+
+这个助手会递归移除 macOS quarantine 属性，并输出 `codesign`/`spctl`
+诊断。它不是已签名、已公证稳定版 release 的替代品。
+
 ### 直接下载
 
 也可以从发布页下载当前桌面包：

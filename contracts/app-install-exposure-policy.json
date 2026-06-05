@@ -190,6 +190,20 @@
       "codex_exposure_owner": "app_or_cli_managed_background_maintenance"
     },
     {
+      "surface": "unsigned_local_app_authorization",
+      "entrypoint": "install.sh --authorize-local-app-only",
+      "primary_audience": "developer_or_internal_test_users",
+      "progress_source": "local_quarantine_and_gatekeeper_diagnostics",
+      "exposure_policy": "explicit_user_confirmed_quarantine_removal_not_stable_release_gate",
+      "codex_exposure_owner": "not_applicable",
+      "stable_release_replacement_allowed": false,
+      "required_commands": [
+        "xattr -dr com.apple.quarantine",
+        "codesign --verify --deep --strict --verbose=2",
+        "spctl --assess --type execute --verbose=4"
+      ]
+    },
+    {
       "surface": "one_shot_cli_installer",
       "entrypoint": "install.sh",
       "primary_audience": "terminal_users",
@@ -289,6 +303,17 @@
       "opl family-runtime worker start --provider temporal",
       "opl family-runtime residency proof --provider temporal --production"
     ],
+    "auto_configuration_entrypoints": [
+      "opl install",
+      "opl system initialize --json",
+      "opl system startup-maintenance"
+    ],
+    "startup_maintenance_policy": {
+      "must_export_local_defaults_before_provider_checks": true,
+      "must_surface_service_worker_and_dependency_diagnostics": true,
+      "must_not_block_ready_to_launch_on_worker_residency": true,
+      "must_fail_closed_when_packaged_temporal_payload_is_missing": true
+    },
     "first_run_policy": {
       "ready_to_launch_blocking": false,
       "full_readiness_item": "family_runtime_provider",

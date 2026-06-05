@@ -343,6 +343,102 @@ assets. Missing secrets are a signing/notarization blocker. Do not refresh a
 stable release with unsigned assets, because that reintroduces first-launch
 Gatekeeper approvals for the App and packaged runtime executables.
 
+## macOS signing material setup
+
+Apple's Developer ID path is the release source of truth for smooth macOS
+launches outside the Mac App Store. Apple's
+[Developer ID certificates](https://developer.apple.com/help/account/certificates/create-developer-id-certificates)
+guide says Developer ID Application certificates sign Mac apps distributed
+outside the Mac App Store, and Apple's
+[notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
+says Developer ID-signed software should be submitted to Apple so Gatekeeper can
+see the notarization ticket. The App release workflows therefore require a
+Developer ID Application certificate plus Apple notarization credentials before
+publishing Stable or Nightly macOS assets.
+
+The release owner should prepare the secrets as follows:
+
+1. Enroll or use an existing Apple Developer Program team with permission to
+   create Developer ID certificates.
+2. In Apple Developer `Certificates, Identifiers & Profiles`, create a
+   `Developer ID Application` certificate from a CSR generated on the Mac that
+   will hold the private key. Download the `.cer` and install it into Keychain
+   Access.
+3. In Keychain Access, open `login` / `My Certificates`, select the
+   `Developer ID Application: <Name> (<TEAM_ID>)` certificate together with its
+   private key, and export it as a password-protected `.p12`.
+4. Confirm the signing identity locally:
+
+```bash
+security find-identity -v -p codesigning
+```
+
+The expected `IDENTITY` value is the full Developer ID Application identity,
+for example:
+
+```text
+Developer ID Application: Example Org (TEAMID1234)
+```
+
+5. Store the GitHub Actions secrets without printing secret values in logs:
+
+```bash
+base64 -i DeveloperIDApplication.p12 > /tmp/opl-developer-id-application.p12.base64
+gh secret set BUILD_CERTIFICATE_BASE64 \
+  --repo gaofeng21cn/one-person-lab-app \
+  --body-file /tmp/opl-developer-id-application.p12.base64
+rm -f /tmp/opl-developer-id-application.p12.base64
+
+gh secret set P12_PASSWORD --repo gaofeng21cn/one-person-lab-app
+gh secret set APPLE_ID --repo gaofeng21cn/one-person-lab-app
+gh secret set APPLE_ID_PASSWORD --repo gaofeng21cn/one-person-lab-app
+gh secret set TEAM_ID --repo gaofeng21cn/one-person-lab-app
+gh secret set IDENTITY --repo gaofeng21cn/one-person-lab-app
+```
+
+`APPLE_ID_PASSWORD` should be the notarization credential accepted by the
+current workflow's notary tool path, typically an Apple
+[app-specific password](https://support.apple.com/en-us/102654) for the Apple
+ID on that team. After setting secrets, re-run the standard desktop release
+workflow. A successful macOS release must still emit
+`standard-gatekeeper-launch-policy.json`, and Full releases must also emit
+`full-gatekeeper-launch-policy.json` plus `full-runtime-native-trust.json`.
+
+## Unsigned local App authorization
+
+If the Developer ID material is not available yet, use an explicit local
+authorization flow for developer or internal test builds.
+This helper is not a Stable release replacement.
+It must not be used to promote unsigned public assets.
+It reduces repeated first-launch prompts by removing the recursive
+`com.apple.quarantine` attribute from the copied App bundle and then reporting
+`codesign` and `spctl` diagnostics.
+
+After copying `One Person Lab.app` into `/Applications`, run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
+  | bash -s -- --authorize-local-app-only \
+      --app-path "/Applications/One Person Lab.app" \
+      --yes
+```
+
+The same helper can run after the App-first one-shot installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
+  | bash -s -- --authorize-local-app \
+      --app-path "/Applications/One Person Lab.app" \
+      --yes
+```
+
+The helper prints `quarantine_before`, `quarantine_after`, `codesign_status`,
+and `spctl_status`. `quarantine_after=0` means the App bundle and nested runtime
+executables no longer carry the browser-download quarantine marker. A failing
+`spctl_status` still means Gatekeeper does not accept the build as a signed and
+notarized distributable release; use the signing material setup above for the
+public smooth path.
+
 The older automatic path is still valid for standard-only releases: pushing a
 `v<version>` tag triggers **Build and Release**. After that completes, run
 **OPL Full First-Install Release** with `publish_to_release=true` if the release
