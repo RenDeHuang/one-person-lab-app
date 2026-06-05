@@ -227,7 +227,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     {
       id: 'full_runtime_keys',
       phase: 'fast_candidate',
-      depends_on: ['release_boundary'],
+      depends_on: ['release_preflight', 'release_boundary'],
       can_run_with: ['active_shell_quick_validation', 'standard_build'],
       command: `npm run release:full -- --version ${options.version} --print-runtime-cache-keys`,
       required_for: ['full_first_install'],
@@ -246,7 +246,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     lanes.push({
       id: 'full_build',
       phase: 'parallel_build',
-      depends_on: ['full_runtime_keys'],
+      depends_on: ['release_preflight', 'full_runtime_keys'],
       can_run_with: ['standard_build', 'release_boundary', 'active_shell_quick_validation'],
       command: [
         'OPL_FULL_RUNTIME_CACHE_MODE=readwrite',

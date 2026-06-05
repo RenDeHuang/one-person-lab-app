@@ -4453,6 +4453,10 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
     lane.id === 'standard_build'
     && lane.depends_on.includes('release_preflight')
   )));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'full_build'
+    && lane.depends_on.includes('release_preflight')
+  )));
   assert.ok(payload.lanes.some((lane) => lane.id === 'standard_build' && lane.can_run_with.includes('full_build')));
   assert.ok(payload.lanes.some((lane) => lane.id === 'full_build' && lane.command.includes('OPL_FULL_RUNTIME_CACHE_MODE=readwrite')));
   assert.equal(payload.profile, 'stable');
@@ -5903,6 +5907,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /release-preflight-summary\.json/);
   assert.match(workflow, /release-preflight-summary\.md/);
   assert.match(workflow, /standard-build:[\s\S]*needs: release-preflight/);
+  assert.match(workflow, /full-first-install:[\s\S]*needs: release-preflight/);
   assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release[\s\S]*draft_candidate/);
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to build and verify/);

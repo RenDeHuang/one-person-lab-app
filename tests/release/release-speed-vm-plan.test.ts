@@ -340,7 +340,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.deepEqual(laneById(plan, 'release_preflight').depends_on, []);
   assert.deepEqual(releaseBoundary.depends_on, ['release_preflight']);
   assert.deepEqual(standardBuild.depends_on, ['release_preflight']);
-  assert.deepEqual(fullBuild.depends_on, ['full_runtime_keys']);
+  assert.deepEqual(fullBuild.depends_on?.sort(), ['release_preflight', 'full_runtime_keys'].sort());
   assert.ok(standardBuild.can_run_with.includes('full_build'));
   assert.ok(fullBuild.can_run_with.includes('standard_build'));
 
