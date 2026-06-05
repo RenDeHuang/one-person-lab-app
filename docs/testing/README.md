@@ -276,6 +276,12 @@ workflow-operations hygiene:
   top-level `env` so checked-in JavaScript actions run on GitHub's Node 24
   action runtime. `npm run test:release-boundary` and
   `npm run validate:release-boundary` lock this policy.
+- Reusable workflow callers must declare every permission required by the
+  called workflow. GitHub resolves that boundary before creating any job; a
+  missing caller permission can surface as `startup_failure` with no jobs,
+  check-runs, or failed logs. When a called release workflow adds a permission
+  such as `models: read`, update each caller workflow and lock the caller
+  permission in `npm run test:release-boundary`.
 - GitHub Actions `concurrency` is duplicate-run governance. It collapses stale
   scheduled queues or serializes operator runs; it is not release evidence and
   does not replace remote verification, installer smoke, or VM gates.
