@@ -585,6 +585,7 @@
         "reason",
         "typed_blocker_ref"
       ],
+      "typed_blocker_path_pattern": "typed-blockers/<artifact_id>.json",
       "not_applicable_status_requires": [
         "reason",
         "not_applicable_reason"

@@ -4455,6 +4455,9 @@ function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRun
   ) {
     throw new Error('Operator evidence bundle typed_blocker status must require reason and typed_blocker_ref');
   }
+  if (bundle.missing_evidence_policy?.typed_blocker_path_pattern !== 'typed-blockers/<artifact_id>.json') {
+    throw new Error('Operator evidence bundle typed_blocker path pattern must be typed-blockers/<artifact_id>.json');
+  }
   if (
     !Array.isArray(bundle.missing_evidence_policy?.not_applicable_status_requires) ||
     !['reason', 'not_applicable_reason'].every((field) =>

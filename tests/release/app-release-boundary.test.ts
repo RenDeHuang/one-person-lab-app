@@ -2595,6 +2595,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       'reason',
       'typed_blocker_ref',
     ],
+    typed_blocker_path_pattern: 'typed-blockers/<artifact_id>.json',
     not_applicable_status_requires: [
       'reason',
       'not_applicable_reason',
@@ -3802,6 +3803,51 @@ test('release evidence collector imports typed blockers as blocked evidence', ()
     validationPayload.blocked_artifacts[0].typed_blocker_ref,
     'typed_blocker_ref://one-person-lab-app/test/collector-first-run-vm-summary',
   );
+});
+
+test('release evidence bundle validator rejects non-canonical typed blocker paths', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-blocker-path-'));
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+  writeVmSmokeSummaryFiles(tempRoot);
+  writeAssistantRouteSmokeScreenshots(tempRoot);
+  writeFile(
+    path.join(tempRoot, 'remote-release-verification.json'),
+    '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n',
+  );
+  fs.rmSync(path.join(tempRoot, 'tart-smoke-summary.json'), { force: true });
+  writeTypedBlockerFile(tempRoot, 'first_run_vm_summary');
+
+  const generated = runNode([
+    'scripts/write-release-evidence-manifest.ts',
+    '--bundle-dir',
+    tempRoot,
+  ]);
+  assert.equal(generated.status, 0, generated.stderr || generated.stdout);
+
+  const manifestPath = path.join(tempRoot, 'evidence-manifest.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  const blockedArtifact = manifest.artifacts.find((artifact) => artifact.id === 'first_run_vm_summary');
+  const blockedEvidence = manifest.blocked_evidence.find((artifact) => artifact.id === 'first_run_vm_summary');
+  blockedArtifact.typed_blocker_path = 'typed-blockers/noncanonical-first-run-vm-summary.json';
+  blockedEvidence.typed_blocker_path = blockedArtifact.typed_blocker_path;
+  fs.copyFileSync(
+    path.join(tempRoot, 'typed-blockers', 'first_run_vm_summary.json'),
+    path.join(tempRoot, blockedArtifact.typed_blocker_path),
+  );
+  writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  const validation = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+    '--allow-missing-evidence',
+  ]);
+
+  assert.notEqual(validation.status, 0);
+  assert.match(validation.stderr, /typed_blocker_path must match typed-blockers\/<artifact_id>\.json/);
 });
 
 test('App-owned automation entrypoints are TypeScript, not JavaScript wrappers', () => {

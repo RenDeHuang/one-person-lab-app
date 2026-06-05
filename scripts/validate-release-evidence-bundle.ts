@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContractPath = path.join(appRoot, 'contracts', 'app-release-channel.json');
 const evidenceBoundary = 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority';
+const typedBlockerPathPattern = 'typed-blockers/<artifact_id>.json';
 
 type Options = {
   bundleDir: string;
@@ -36,6 +37,12 @@ type ManifestArtifact = EvidenceArtifact & {
   typed_blocker_ref?: string;
   typed_blocker_path?: string;
   not_applicable_reason?: string;
+};
+
+type TypedBlockerPolicy = {
+  root: string;
+  pathPattern: string;
+  requiredFields: string[];
 };
 
 function parseArgs(argv: string[]): Options {
@@ -480,6 +487,9 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   if (!Array.isArray(typedBlockerRequirements) || !['reason', 'typed_blocker_ref'].every((field) => typedBlockerRequirements.includes(field))) {
     throw new Error('Operator evidence bundle typed_blocker status must require reason and typed_blocker_ref.');
   }
+  if (record.missing_evidence_policy?.typed_blocker_path_pattern !== typedBlockerPathPattern) {
+    throw new Error(`Operator evidence bundle typed_blocker path pattern must be ${typedBlockerPathPattern}.`);
+  }
   const notApplicableRequirements = record.missing_evidence_policy?.not_applicable_status_requires;
   if (
     !Array.isArray(notApplicableRequirements) ||
@@ -538,6 +548,7 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
     imageEvidencePolicy,
     typedBlockerPolicy: {
       root: 'typed-blockers/',
+      pathPattern: typedBlockerPathPattern,
       requiredFields: typedBlockerRequirements as string[],
     },
   };
@@ -703,6 +714,10 @@ function validateBlockedEvidenceList(
     }
     if (!artifact.typed_blocker_path.startsWith(policy.root)) {
       throw new Error(`Blocked artifact ${artifact.id} typed_blocker_path must stay under ${policy.root}.`);
+    }
+    const expectedPath = policy.pathPattern.replace('<artifact_id>', artifact.id);
+    if (artifact.typed_blocker_path !== expectedPath) {
+      throw new Error(`Blocked artifact ${artifact.id} typed_blocker_path must match ${policy.pathPattern}.`);
     }
     if (!options.validateFiles) {
       return {
