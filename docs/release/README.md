@@ -334,6 +334,15 @@ Standard and Full release lanes publish `standard-gatekeeper-launch-policy.json`
 and `full-gatekeeper-launch-policy.json`; Homebrew tap sync requires the
 matching launch-policy asset before updating a cask.
 
+Stable and Nightly macOS release builds require GitHub Actions secrets
+`BUILD_CERTIFICATE_BASE64`, `P12_PASSWORD`, `APPLE_ID`, `APPLE_ID_PASSWORD`,
+`TEAM_ID`, and `IDENTITY`. The standard build preflight checks these before the
+macOS packager runs, and the Full first-install workflow checks them before any
+payload checkout or runtime cache work when it is producing distributable
+assets. Missing secrets are a signing/notarization blocker. Do not refresh a
+stable release with unsigned assets, because that reintroduces first-launch
+Gatekeeper approvals for the App and packaged runtime executables.
+
 The older automatic path is still valid for standard-only releases: pushing a
 `v<version>` tag triggers **Build and Release**. After that completes, run
 **OPL Full First-Install Release** with `publish_to_release=true` if the release

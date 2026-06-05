@@ -97,6 +97,9 @@ const checks = [
     required: [
       'npm --silent run release:full',
       'npm run release:publish',
+      'Preflight Full release signing secrets',
+      'Full first-install release signing preflight failed',
+      'Missing GitHub Actions secrets:',
       'brew install zstd temporal || true',
       'OPL_FULL_BUN_BIN=$(command -v bun)',
       'OPL_FULL_INCLUDE_BUN_RUNTIME',
@@ -340,6 +343,10 @@ const checks = [
     id: 'reusable_build_gatekeeper_policy',
     file: '.github/workflows/_build-reusable.yml',
     required: [
+      'macos-signing-preflight:',
+      'name: macOS release signing preflight',
+      'macOS release signing preflight failed',
+      'Missing GitHub Actions secrets:',
       'require_macos_gatekeeper:',
       'OPL_REQUIRE_MACOS_GATEKEEPER',
       'Verify macOS Gatekeeper launch policy',

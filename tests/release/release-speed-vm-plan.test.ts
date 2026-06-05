@@ -125,9 +125,13 @@ test('_build-reusable splits quality work into parallel App and active-shell job
     'typecheck',
     'release-boundary',
     'active-shell-tests',
+    'macos-signing-preflight',
   ]) {
     assertIncludes(buildNeeds, dependency, `build job needs`);
   }
+  assertMatches(workflow, /macos-signing-preflight:[\s\S]*name:\s+macOS release signing preflight/, 'macOS signing preflight job');
+  assertMatches(workflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/, 'macOS signing preflight required secrets');
+  assertMatches(workflow, /macOS release signing preflight failed/, 'macOS signing preflight failure message');
 });
 
 test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an operator summary', () => {
@@ -189,6 +193,9 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /Upload Full workflow telemetry[\s\S]*actions\/upload-artifact@v7/, 'Full telemetry artifact upload');
   const diagnosticsStep = workflowStepBlock(workflow, 'Upload Full diagnostics artifact');
   const gatekeeperStep = workflowStepBlock(workflow, 'Upload Full Gatekeeper launch policy');
+  assertMatches(workflow, /name:\s+Preflight Full release signing secrets[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/, 'Full workflow preflights signing before distributable builds');
+  assertMatches(workflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/, 'Full signing preflight required secrets');
+  assertMatches(workflow, /Full first-install release signing preflight failed/, 'Full signing preflight failure message');
   assertMatches(diagnosticsStep, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/, 'Full diagnostics artifact upload');
   assertMatches(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
   assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/, 'Full diagnostics artifact must not require release-only Gatekeeper evidence');

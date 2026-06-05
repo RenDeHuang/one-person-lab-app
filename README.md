@@ -51,7 +51,7 @@ New macOS users can start with the complete first-install package, open the App 
 Research Foundry, Grant Foundry, and Presentation Foundry focus on different deliverables. Users get one interface while each agent keeps its own professional boundary.
 
 **Professional AI keeps professional room**<br/>
-The App makes entries, progress, files, and delivery usable. Medical research, grant writing, and visual-delivery judgment remain with the corresponding professional agents.
+The App makes entries, progress, files, and delivery usable. Medical research, grant writing, and visual-delivery judgment remain with the corresponding professional agents. When work enters a professional stage, users can watch AI read material, compare options, accept review, keep revising, and produce the next deliverable version.
 
 **Built for daily use and long-running work**<br/>
 The app is not just for one chat. It supports work that needs multiple rounds, background maintenance, recovery after failure, and continuing delivery.

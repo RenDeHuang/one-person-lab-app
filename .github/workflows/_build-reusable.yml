@@ -169,6 +169,41 @@ jobs:
         working-directory: .
         run: node --experimental-strip-types scripts/run-active-shell-tests.ts --project ${{ matrix.project }} --chunk-size 8 --max-workers 2
 
+  macos-signing-preflight:
+    name: macOS release signing preflight
+    runs-on: ubuntu-latest
+    if: ${{ inputs.require_macos_gatekeeper }}
+
+    steps:
+      - name: Verify Apple signing and notarization secrets
+        shell: bash
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          IDENTITY: ${{ secrets.IDENTITY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for secret_name in BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY; do
+            if [ -z "${!secret_name:-}" ]; then
+              missing+=("$secret_name")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            missing_csv="$(IFS=', '; echo "${missing[*]}")"
+            echo "::error title=macOS release signing preflight failed::Missing GitHub Actions secrets: ${missing_csv}"
+            echo "::error::Configure Developer ID signing and Apple notarization secrets before dispatching a Gatekeeper-required macOS release build."
+            exit 1
+          fi
+          if ! printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode >/dev/null 2>&1; then
+            echo "::error title=macOS release signing preflight failed::BUILD_CERTIFICATE_BASE64 is not valid base64."
+            exit 1
+          fi
+          echo "macOS release signing preflight passed."
+
   build:
     name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
@@ -178,7 +213,8 @@ jobs:
       - typecheck
       - release-boundary
       - active-shell-tests
-    if: ${{ always() && (inputs.skip_code_quality || (needs['workflow-lint'].result == 'success' && needs['lint-format'].result == 'success' && needs.typecheck.result == 'success' && needs['release-boundary'].result == 'success' && needs['active-shell-tests'].result == 'success')) }}
+      - macos-signing-preflight
+    if: ${{ always() && (needs['macos-signing-preflight'].result == 'success' || needs['macos-signing-preflight'].result == 'skipped') && (inputs.skip_code_quality || (needs['workflow-lint'].result == 'success' && needs['lint-format'].result == 'success' && needs.typecheck.result == 'success' && needs['release-boundary'].result == 'success' && needs['active-shell-tests'].result == 'success')) }}
     defaults:
       run:
         working-directory: shells/aionui

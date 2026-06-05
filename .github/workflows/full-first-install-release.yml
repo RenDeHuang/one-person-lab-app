@@ -81,6 +81,36 @@ jobs:
     timeout-minutes: 150
 
     steps:
+      - name: Preflight Full release signing secrets
+        if: ${{ inputs.publish_to_release || inputs.upload_full_package_artifact }}
+        shell: bash
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          IDENTITY: ${{ secrets.IDENTITY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for secret_name in BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY; do
+            if [ -z "${!secret_name:-}" ]; then
+              missing+=("$secret_name")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            missing_csv="$(IFS=', '; echo "${missing[*]}")"
+            echo "::error title=Full first-install release signing preflight failed::Missing GitHub Actions secrets: ${missing_csv}"
+            echo "::error::Full first-install distributable assets require Developer ID signing and Apple notarization before upload, Homebrew cask sync, or clean-VM promotion."
+            exit 1
+          fi
+          if ! printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode >/dev/null 2>&1; then
+            echo "::error title=Full first-install release signing preflight failed::BUILD_CERTIFICATE_BASE64 is not valid base64."
+            exit 1
+          fi
+          echo "Full first-install release signing preflight passed."
+
       - name: Checkout App repo
         uses: actions/checkout@v6
         with:

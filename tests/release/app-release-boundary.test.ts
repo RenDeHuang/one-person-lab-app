@@ -5638,6 +5638,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to build and verify/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
+  const reusableWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
+  assert.match(reusableWorkflow, /macos-signing-preflight:/);
+  assert.match(reusableWorkflow, /name: macOS release signing preflight/);
+  assert.match(reusableWorkflow, /Missing GitHub Actions secrets: \$\{missing_csv\}/);
+  assert.match(reusableWorkflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/);
+  assert.match(reusableWorkflow, /build:[\s\S]*needs:[\s\S]*macos-signing-preflight/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /name: Verify standard release assets[\s\S]*OPL_RELEASE_VERSION: \$\{\{ inputs\.opl_version \}\}[\s\S]*node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
@@ -5707,7 +5713,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /opl-first-run-vm-homebrew-standard-\$\{\{ github\.run_id \}\}/);
   assert.match(workflow, /guide_screenshots: \$\{\{ inputs\.guide_screenshots \}\}/);
   assert.match(fullWorkflow, /workflow_call:/);
-  assert.doesNotMatch(fullWorkflow, /workflow_call:[\s\S]*secrets:[\s\S]*GH_TOKEN:/);
+  const fullWorkflowCallBlock = fullWorkflow.match(/\n  workflow_call:[\s\S]*?\npermissions:/)?.[0] ?? '';
+  assert.doesNotMatch(fullWorkflowCallBlock, /secrets:[\s\S]*GH_TOKEN:/);
   assert.match(fullWorkflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to bundle/);
   assert.match(fullWorkflow, /name: Checkout active shell[\s\S]*ref: \$\{\{ inputs\.shell_ref \|\| 'main' \}\}/);
   assert.match(fullWorkflow, /name: Checkout OPL Meta Agent/);
@@ -6341,6 +6348,10 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /## Full Payload Resolved Refs/);
   assert.match(workflow, /requires_distributable_assets="\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}"/);
   assert.match(workflow, /echo "OPL_FULL_DISTRIBUTABLE_ASSETS=\$requires_distributable_assets" >> "\$GITHUB_ENV"/);
+  assert.match(workflow, /name: Preflight Full release signing secrets/);
+  assert.match(workflow, /Full first-install release signing preflight failed/);
+  assert.match(workflow, /Missing GitHub Actions secrets: \$\{missing_csv\}/);
+  assert.match(workflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/);
   assert.match(workflow, /No Developer ID certificate secrets configured; continuing because this run does not publish or upload distributable Full assets\./);
   assert.match(workflow, /if \[ "\$\{OPL_FULL_DISTRIBUTABLE_ASSETS:-false\}" = "true" \]; then[\s\S]*Strict signing was not enabled for a distributable Full asset run/);
   assert.match(workflow, /name: Verify release upload plan[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/);
