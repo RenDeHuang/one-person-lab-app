@@ -88,7 +88,10 @@ Full DMG budget from the GitHub asset size and the uncompressed runtime budget
 from `full-package-manifest.json` `size_breakdown.total_runtime_uncompressed_bytes`.
 `warning_full_dmg_bytes=700000000` is a release-readiness warning threshold for
 the post-Temporal Full baseline; `max_full_dmg_bytes=750000000` remains the hard
-remote-verification budget.
+compressed DMG remote-verification budget. The uncompressed Full runtime budget
+is `max_runtime_uncompressed_bytes=1500000000`, matching the 26.6.5 Stable
+toolchain-heavy baseline while still failing closed on duplicated checkouts,
+stale payloads, or standard-updater leakage.
 `npm run release:full:size -- --markdown` prints the same component and layer
 breakdown for local review and is appended to the Full GitHub Actions summary.
 The Full workflow also uploads `full-workflow-telemetry.json`, a machine-readable

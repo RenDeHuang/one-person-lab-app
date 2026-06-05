@@ -371,6 +371,23 @@ const checks = [
     forbidden: [],
   },
   {
+    id: 'first_run_vm_local_authorization_policy',
+    file: path.relative(appRoot, path.join(shellPaths.shellRoot, 'scripts/opl-first-run-vm-smoke.mjs')),
+    required: [
+      "xattr', ['-dr', 'com.apple.quarantine', targetApp]",
+      'gatekeeper-launch-policy.json',
+      'gatekeeper_required: false',
+      'quarantine_removal_required: true',
+      'local_authorization_status: localAuthorizationStatus',
+      "'rejected_allowed_unsigned'",
+      'if (codesign.status !== 0)',
+    ],
+    forbidden: [
+      'if (codesign.status !== 0 || spctl.status !== 0)',
+      'Gatekeeper launch policy rejected the packaged app before first launch.',
+    ],
+  },
+  {
     id: 'one_shot_unsigned_local_authorization',
     file: 'install.sh',
     required: [

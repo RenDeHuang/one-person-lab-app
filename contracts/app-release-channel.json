@@ -268,7 +268,7 @@
       "platform_scope": "macos-arm64",
       "warning_full_dmg_bytes": 700000000,
       "max_full_dmg_bytes": 750000000,
-      "max_runtime_uncompressed_bytes": 950000000
+      "max_runtime_uncompressed_bytes": 1500000000
     },
     "measurement_policy": {
       "full_dmg_bytes": "github_release_asset_size_bytes",
@@ -406,7 +406,18 @@
       "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
       "first_run_vm_mode": "run_vm_smoke"
     },
-      "vm_gates": [
+    "vm_local_authorization_policy": {
+      "artifact": "artifacts/gatekeeper-launch-policy.json",
+      "quarantine_clear_command": "xattr -dr com.apple.quarantine <installed_app>",
+      "codesign_gate": "blocking_pass_required",
+      "spctl_gate": "diagnostic_only_rejected_allowed_unsigned",
+      "allowed_local_authorization_statuses": [
+        "passed",
+        "rejected_allowed_unsigned"
+      ],
+      "rule": "Stable first-run VM smokes must clear quarantine after install, record codesign and spctl diagnostics before launch, fail when codesign verification fails, and continue when spctl rejects the unsigned locally authorized App."
+    },
+    "vm_gates": [
       {
         "id": "standard_dmg_clean_vm_smoke",
         "source": "clean no-CLT Tart base clone",

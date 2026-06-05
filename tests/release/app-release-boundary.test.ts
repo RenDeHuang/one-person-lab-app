@@ -724,7 +724,7 @@ function writeFullRemoteAssets(outDir, version, options = {}) {
       platform_scope: 'macos-arm64',
       warning_full_dmg_bytes: 700000000,
       max_full_dmg_bytes: 750000000,
-      max_runtime_uncompressed_bytes: 950000000,
+      max_runtime_uncompressed_bytes: 1500000000,
     },
     measurement_policy: {
       full_dmg_bytes: 'github_release_asset_size_bytes',
@@ -4404,7 +4404,7 @@ test('remote release verifier fails closed when Full size budget is exceeded', (
           platform_scope: 'macos-arm64',
           warning_full_dmg_bytes: 1,
           max_full_dmg_bytes: 4,
-          max_runtime_uncompressed_bytes: 950000000,
+          max_runtime_uncompressed_bytes: 1500000000,
         },
       },
     }),
@@ -5966,6 +5966,17 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /deterministic release-blocking clean VM first launch/);
   assert.match(vmWorkflow, /--runtime-profile "\$\{\{ steps\.package_profile\.outputs\.runtime_profile \}\}"/);
   assert.match(vmWorkflow, /CMD\+=\(--guide-screenshots\)/);
+  const vmSmokeScript = fs.readFileSync(
+    path.join(appRoot, 'shells', 'aionui', 'scripts', 'opl-first-run-vm-smoke.mjs'),
+    'utf8',
+  );
+  assert.match(vmSmokeScript, /xattr', \['-dr', 'com\.apple\.quarantine', targetApp\]/);
+  assert.match(vmSmokeScript, /local_authorization_status: localAuthorizationStatus/);
+  assert.match(vmSmokeScript, /'rejected_allowed_unsigned'/);
+  assert.match(vmSmokeScript, /if \(codesign\.status !== 0\)/);
+  assert.doesNotMatch(vmSmokeScript, /if \(codesign\.status !== 0 \|\| spctl\.status !== 0\)/);
+  assert.match(vmSmokeScript, /gatekeeper_required: false/);
+  assert.match(vmSmokeScript, /quarantine_removal_required: true/);
   assert.equal(
     releaseContract.standard_updater.same_tag_refresh.mode,
     'github_actions_prebuilt_assets_upload_clobber',
@@ -6110,6 +6121,14 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'full_readme_english_only',
     ],
   );
+  assert.deepEqual(releaseContract.release_acceleration.vm_local_authorization_policy, {
+    artifact: 'artifacts/gatekeeper-launch-policy.json',
+    quarantine_clear_command: 'xattr -dr com.apple.quarantine <installed_app>',
+    codesign_gate: 'blocking_pass_required',
+    spctl_gate: 'diagnostic_only_rejected_allowed_unsigned',
+    allowed_local_authorization_statuses: ['passed', 'rejected_allowed_unsigned'],
+    rule: 'Stable first-run VM smokes must clear quarantine after install, record codesign and spctl diagnostics before launch, fail when codesign verification fails, and continue when spctl rejects the unsigned locally authorized App.',
+  });
 });
 
 test('Nightly release workflow publishes standard-only semver prereleases', () => {
@@ -6772,7 +6791,7 @@ test('Full first-install manifest declares App-owned distribution and Framework 
     platform_scope: 'macos-arm64',
     warning_full_dmg_bytes: 700000000,
     max_full_dmg_bytes: 750000000,
-    max_runtime_uncompressed_bytes: 950000000,
+    max_runtime_uncompressed_bytes: 1500000000,
   });
   assert.deepEqual(manifest.measurement_policy, {
     full_dmg_bytes: 'github_release_asset_size_bytes',

@@ -756,11 +756,15 @@ published compressed asset and the packaged runtime payload. With Full included,
 the `700MB warning threshold` and the hard budget
 `max_full_dmg_bytes=750000000`, and checks
 `size_breakdown.total_runtime_uncompressed_bytes` against
-`max_runtime_uncompressed_bytes=950000000`. It also compares the GitHub asset
+`max_runtime_uncompressed_bytes=1500000000`. It also compares the GitHub asset
 size against the downloaded file size and the recorded `sha256:` digest. Treat
 size growth as acceptable only when it is explained by an intentional layer
 change, not by duplicated checkouts, stale runtime payloads, or standard-updater
 leakage.
+The 26.6.5 baseline is 1,394,739,510 uncompressed runtime bytes, dominated by
+the toolchain layer: Codex CLI, Node, uv-managed Python, OfficeCLI, MinerU, and
+the pre-extracted Temporal CLI wrapper/archive needed for first-run Temporal
+defaults and Codex-visible companion tools.
 When the Full DMG is above `warning_full_dmg_bytes=700000000` and still at or
 below `max_full_dmg_bytes=750000000`, the release readiness summary remains
 `passed` and records a warning in both JSON and the GitHub Step Summary. Above

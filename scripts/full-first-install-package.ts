@@ -17,7 +17,7 @@ const FULL_PACKAGE_SIZE_BUDGET = {
   platform_scope: 'macos-arm64',
   warning_full_dmg_bytes: 700000000,
   max_full_dmg_bytes: 750000000,
-  max_runtime_uncompressed_bytes: 950000000,
+  max_runtime_uncompressed_bytes: 1500000000,
 } as const;
 const FULL_PACKAGE_MEASUREMENT_POLICY = {
   full_dmg_bytes: 'github_release_asset_size_bytes',

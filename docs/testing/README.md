@@ -218,9 +218,11 @@ was archived in
 - Full size/cache summary checks: `release-readiness-summary.json` stays
   `passed` when the Full DMG is above `warning_full_dmg_bytes=700000000` and at
   or below `max_full_dmg_bytes=750000000`, but it must include a warning in JSON
-  and markdown. The same summary must expose runtime cache `miss_written` layer
-  names and counts from `runtime-cache-events.json` for the next cache-key
-  optimization pass.
+  and markdown. Remote Full verification separately checks the manifest
+  uncompressed runtime size against `max_runtime_uncompressed_bytes=1500000000`.
+  The same summary must expose runtime cache `miss_written` layer names and
+  counts from `runtime-cache-events.json` for the next cache-key optimization
+  pass.
 - Final readiness diagnostics: the `release-readiness-summary` job is the final
   stable pass/fail entry. It reads dependency results plus only small artifacts:
   remote verification JSON, VM smoke summaries, one-shot installer output,

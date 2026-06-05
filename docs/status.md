@@ -273,6 +273,16 @@ Stable release assets must publish `standard-local-authorization-policy.json`
 and `full-local-authorization-policy.json`; Homebrew tap sync requires the
 matching local authorization policy asset before updating a cask.
 
+The 2026-06-05 Stable release path treats that local authorization behavior as
+the default Stable behavior, not a separate free edition. First-run VM smokes
+must clear recursive quarantine after installing the App, write
+`artifacts/gatekeeper-launch-policy.json`, require `codesign` verification to
+pass, and record `spctl rejected` as `rejected_allowed_unsigned` rather than
+blocking launch. The 26.6.5 Full runtime baseline is 1,394,739,510
+uncompressed bytes; the remote verifier budget is
+`max_runtime_uncompressed_bytes=1500000000` while the compressed Full DMG hard
+budget remains `max_full_dmg_bytes=750000000`.
+
 Follow-up local install evidence showed the same trust-chain failure for the
 Full runtime `node` binary under `~/Library/Application Support/OPL/runtime`:
 `codesign -dv` reported ad-hoc signing and no TeamIdentifier, and `spctl`
