@@ -1928,6 +1928,16 @@ function findBuiltDmg(guiRoot, version) {
   return found;
 }
 
+function removeBuiltDmgCandidates(guiRoot, version) {
+  const outDir = resolveActiveShellPaths({ shellRoot: guiRoot }).buildOutputDir;
+  for (const name of [
+    `One-Person-Lab-${version}-mac-arm64.dmg`,
+    `One Person Lab-${version}-mac-arm64.dmg`,
+  ]) {
+    fs.rmSync(path.join(outDir, name), { force: true });
+  }
+}
+
 function findBuiltApp(guiRoot) {
   const outDir = resolveActiveShellPaths({ shellRoot: guiRoot }).buildOutputDir;
   const candidates = [
@@ -1981,31 +1991,31 @@ function verifyDmgAppBundleLocalAuthorization(dmgPath, label) {
   }
 }
 
-function createFullDmgFromVerifiedApp(appPath, targetDmg, version) {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-dmg-create-'));
-  const stagingDir = path.join(tempDir, 'dmg-root');
-  const stagingApp = path.join(stagingDir, path.basename(appPath));
-  try {
-    fs.mkdirSync(stagingDir, { recursive: true });
-    run('ditto', [appPath, stagingApp]);
-    fs.symlinkSync('/Applications', path.join(stagingDir, 'Applications'));
-    assertAppBundleLocalAuthorization(stagingApp, 'Full staging app bundle');
-    const volumeName = `One Person Lab Full ${version}`;
-    run('hdiutil', [
-      'create',
-      '-volname',
-      volumeName,
-      '-srcfolder',
-      stagingDir,
-      '-ov',
-      '-format',
-      'UDZO',
-      targetDmg,
-    ]);
-    verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
-  } finally {
-    fs.rmSync(tempDir, { recursive: true, force: true });
-  }
+function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
+  removeBuiltDmgCandidates(guiRoot, version);
+  const compressionLevel = process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL || (process.env.CI === 'true' ? '9' : '7');
+  run('bunx', [
+    'electron-builder',
+    '--config',
+    'packages/desktop/electron-builder.yml',
+    '--mac',
+    'dmg',
+    '--arm64',
+    '--prepackaged',
+    appPath,
+    '--publish=never',
+    `--config.extraMetadata.version=${version}`,
+  ], {
+    cwd: guiRoot,
+    env: {
+      ...process.env,
+      OPL_RELEASE_VERSION: version,
+      ELECTRON_BUILDER_COMPRESSION_LEVEL: compressionLevel,
+    },
+  });
+  const rebuiltDmg = findBuiltDmg(guiRoot, version);
+  fs.copyFileSync(rebuiltDmg, targetDmg);
+  verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
 }
 
 function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version) {
@@ -2018,7 +2028,7 @@ function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version) {
     const builtApp = findBuiltApp(guiRoot);
     assertAppBundleLocalAuthorization(builtApp, 'Full built app bundle');
     fs.rmSync(targetDmg, { force: true });
-    createFullDmgFromVerifiedApp(builtApp, targetDmg, version);
+    createFullDmgFromVerifiedApp(guiRoot, builtApp, targetDmg, version);
     console.warn(`Rebuilt Full DMG after local authorization verification failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

@@ -6607,6 +6607,10 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(fullPackageScript, /verifyDmgAppBundleLocalAuthorization/);
   assert.match(fullPackageScript, /assertAppBundleLocalAuthorization/);
   assert.match(fullPackageScript, /createFullDmgFromVerifiedApp/);
+  assert.match(fullPackageScript, /'electron-builder'/);
+  assert.match(fullPackageScript, /'--prepackaged'/);
+  assert.match(fullPackageScript, /ELECTRON_BUILDER_COMPRESSION_LEVEL/);
+  assert.doesNotMatch(fullPackageScript, /'-srcfolder'/);
   assert.match(fullPackageScript, /ensureFullDmgLocalAuthorization\(options\.guiRoot, targetDmg, options\.version\)/);
 });
 
