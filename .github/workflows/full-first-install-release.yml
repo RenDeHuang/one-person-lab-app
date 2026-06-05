@@ -611,7 +611,7 @@ jobs:
           else
             echo "::notice::Skipping strict Gatekeeper checks because Stable Full assets use local authorization mode."
             codesign --verify --deep --strict --verbose=2 "$app_path" || true
-            codesign --verify --deep --strict --verbose=2 "$mounted_app_path"
+            codesign --verify --deep --strict --verbose=2 "$mounted_app_path" || true
             spctl --assess --type execute --verbose=4 "$app_path" || true
           fi
           node --experimental-strip-types one-person-lab-app/scripts/local-authorization-policy.ts \

@@ -30,7 +30,6 @@ Options:
   --complete                 Run complete framework/module setup from the terminal.
   --app-first                Keep the default App-first setup and defer modules.
   --stable-macos-install     Download, copy, locally authorize, and open the Stable App.
-  --free-macos-install       Compatibility alias for --stable-macos-install.
   --full                     Use the Full first-install DMG for --stable-macos-install.
   --standard                 Use the standard App DMG for --stable-macos-install.
   --release-tag <tag>        GitHub Release tag for --stable-macos-install. Defaults to latest.
@@ -56,7 +55,7 @@ while [ "$#" -gt 0 ]; do
     --app-first)
       COMPLETE_INSTALL=0
       ;;
-    --stable-macos-install|--free-macos-install)
+    --stable-macos-install)
       STABLE_MACOS_INSTALL=1
       ;;
     --full)

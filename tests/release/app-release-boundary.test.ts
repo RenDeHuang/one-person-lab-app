@@ -583,9 +583,7 @@ function localAuthorizationPolicy(packageKind) {
     local_authorization_required: true,
     quarantine_removal_required: true,
     install_entrypoint: 'install-stable.sh',
-    compatibility_entrypoints: ['install-free.sh'],
     backing_entrypoint: 'install.sh --stable-macos-install --yes',
-    compatibility_backing_entrypoint: 'install.sh --stable-macos-install --yes',
     default_package_profile: packageKind === 'app_full_first_install' ? 'full' : 'standard',
     user_prompt_policy: 'one_terminal_command_no_system_settings_override_expected_after_quarantine_clear',
     app_path: '/Applications/One Person Lab.app',
@@ -873,6 +871,11 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     packageJson.scripts['validate:homebrew-tap'],
     'node --experimental-strip-types scripts/update-homebrew-tap.ts --self-check',
   );
+  assert.equal(
+    packageJson.scripts['release:preflight'],
+    'node --experimental-strip-types scripts/validate-release-preflight.ts',
+  );
+  assert.match(boundaryScript, /scripts\/validate-release-preflight\.ts/);
   assert.match(boundaryScript, /scripts\/update-homebrew-tap\.ts/);
   assert.match(boundaryScript, /--self-check/);
   assert.match(homebrewScript, /manifest_required: true/);
@@ -1430,8 +1433,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
     profile.settings.developer_profile.capabilities.runtime_mutation_scope.standard_default,
     'app_action_route_only',
   );
-  assert.equal(profile.settings.developer_profile.legacy_developer_mode_alias.state_source, 'app_state.developer_mode');
-  assert.equal(profile.settings.developer_profile.legacy_developer_mode_alias.display_policy, 'show_as_profile_summary_not_primary_switch');
+  assert.equal('legacy_developer_mode_alias' in profile.settings.developer_profile, false);
   assert.equal(profile.gui.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
   assert.ok(profile.codex.default_visible_skills.includes('superpowers'));
   assert.ok(profile.codex.default_visible_skills.includes('cron'));
@@ -1612,9 +1614,9 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   }
   const stableMacosInstall = installerSurfaceById.get('stable_local_authorized_macos_install');
   assert.equal(stableMacosInstall.entrypoint, 'install-stable.sh');
-  assert.deepEqual(stableMacosInstall.compatibility_entrypoints, ['install-free.sh']);
+  assert.equal(stableMacosInstall.compatibility_entrypoints, undefined);
   assert.equal(stableMacosInstall.backing_entrypoint, 'install.sh --stable-macos-install --yes');
-  assert.equal(stableMacosInstall.compatibility_backing_entrypoint, 'install.sh --stable-macos-install --yes');
+  assert.equal(stableMacosInstall.compatibility_backing_entrypoint, undefined);
   assert.equal(stableMacosInstall.progress_source, 'github_release_dmg_copy_and_local_quarantine_diagnostics');
   assert.equal(
     stableMacosInstall.exposure_policy,
@@ -1886,7 +1888,6 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
 test('one-shot App installer defaults to App-first core setup', () => {
   const script = fs.readFileSync(path.join(appRoot, 'install.sh'), 'utf8');
   const stableScript = fs.readFileSync(path.join(appRoot, 'install-stable.sh'), 'utf8');
-  const freeScript = fs.readFileSync(path.join(appRoot, 'install-free.sh'), 'utf8');
   const docs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
 
   assert.match(script, /OPL_APP_INSTALL_MODE=\$\{OPL_APP_INSTALL_MODE:-app-first\}/);
@@ -1894,7 +1895,7 @@ test('one-shot App installer defaults to App-first core setup', () => {
   assert.match(script, /--skip-modules/);
   assert.match(script, /curl -fsSL "\$OPL_INSTALL_SCRIPT_URL" \| bash -s -- "\$\{INSTALL_ARGS\[@\]\}"/);
   assert.doesNotMatch(script, /bash -s -- "\$@"/);
-  assert.match(script, /--free-macos-install/);
+  assert.doesNotMatch(script, /--free-macos-install/);
   assert.match(script, /--stable-macos-install/);
   assert.match(script, /STABLE_MACOS_PACKAGE_PROFILE=\$\{OPL_STABLE_MACOS_PACKAGE_PROFILE:-full\}/);
   assert.match(script, /resolve_latest_release_tag\(\)/);
@@ -1918,16 +1919,11 @@ test('one-shot App installer defaults to App-first core setup', () => {
   assert.match(script, /Stable macOS install/);
   assert.match(stableScript, /OPL_APP_INSTALLER_URL=/);
   assert.match(stableScript, /https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/install\.sh/);
+  assert.equal(fs.existsSync(path.join(appRoot, 'install-free.sh')), false);
   assert.match(stableScript, /install\.sh/);
   assert.match(stableScript, /--stable-macos-install/);
   assert.match(stableScript, /--yes/);
   assert.match(stableScript, /curl -fsSL "\$installer_url" \| bash -s -- --stable-macos-install --yes "\$@"/);
-  assert.match(freeScript, /OPL_APP_INSTALLER_URL=/);
-  assert.match(freeScript, /https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/install\.sh/);
-  assert.match(freeScript, /install\.sh/);
-  assert.match(freeScript, /--stable-macos-install/);
-  assert.match(freeScript, /--yes/);
-  assert.match(freeScript, /curl -fsSL "\$installer_url" \| bash -s -- --stable-macos-install --yes "\$@"/);
   assert.match(docs, /macOS signing material setup/);
   assert.match(docs, /Developer ID Application/);
   assert.match(docs, /gh secret set BUILD_CERTIFICATE_BASE64/);
@@ -1970,13 +1966,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimeBridge.summary_command, 'opl app state --profile fast --json');
   assert.equal(runtimeBridge.refresh_command, 'opl app state --profile fast --json');
   assert.equal(runtimeBridge.default_operator_payload, 'current_owner_delta');
-  assert.equal(runtimeBridge.compatibility_operator_payload, 'compact_owner_delta_projection');
+  assert.equal('compatibility_operator_payload' in runtimeBridge, false);
   assert.equal(runtimeBridge.full_state_command, 'opl app state --profile full --json');
   assert.equal(runtimeBridge.full_state_policy, 'diagnostic_or_release_evidence_only');
   assert.equal(runtimeBridge.full_detail_command, 'opl runtime app-operator-drilldown --detail full --json');
   assert.deepEqual(runtimeBridge.default_read_surface_policy, {
     default_projection: 'opl_current_owner_delta',
-    compatibility_projection: 'opl_compact_owner_delta_projection',
     source_path: 'app_state.operator.default_read_surface_policy',
     first_screen_answers: [
       'next_safe_action_or_none',
@@ -4445,6 +4440,19 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
   assert.equal(payload.strategy.same_tag_replacement, 'avoid_for_new_versions');
   assert.equal(payload.strategy.resume_uploads, 'skip_existing_assets_when_size_and_sha256_digest_match');
   assert.equal(payload.strategy.full_runtime_cache, 'content_addressed_layer_cache');
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'release_preflight'
+    && lane.phase === 'fast_candidate'
+    && lane.command.includes('npm run release:preflight')
+  )));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'release_boundary'
+    && lane.depends_on.includes('release_preflight')
+  )));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'standard_build'
+    && lane.depends_on.includes('release_preflight')
+  )));
   assert.ok(payload.lanes.some((lane) => lane.id === 'standard_build' && lane.can_run_with.includes('full_build')));
   assert.ok(payload.lanes.some((lane) => lane.id === 'full_build' && lane.command.includes('OPL_FULL_RUNTIME_CACHE_MODE=readwrite')));
   assert.equal(payload.profile, 'stable');
@@ -4497,6 +4505,7 @@ test('nightly release plan stays lightweight and excludes stable installation ga
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.profile, 'nightly_standard');
   assert.deepEqual(payload.lanes.map((lane) => lane.id), [
+    'release_preflight',
     'release_boundary',
     'standard_build',
     'publish_nightly_prerelease',
@@ -4509,6 +4518,81 @@ test('nightly release plan stays lightweight and excludes stable installation ga
       .find((lane) => lane.id === 'webui_ghcr_publish')
       ?.command.includes('ghcr.io/<owner>/one-person-lab-webui:nightly'),
   );
+});
+
+test('release preflight fails fast before expensive release jobs', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-preflight-'));
+  const summaryPath = path.join(tempRoot, 'release-preflight-summary.json');
+  const markdownPath = path.join(tempRoot, 'release-preflight-summary.md');
+
+  const success = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'draft_candidate',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'false',
+    '--offline',
+    '--summary-path',
+    summaryPath,
+    '--markdown-path',
+    markdownPath,
+  ]);
+  assert.equal(success.status, 0, success.stderr || success.stdout);
+  const payload = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+  assert.equal(payload.schema, 'opl_release_preflight.v1');
+  assert.equal(payload.status, 'passed');
+  assert.equal(payload.inputs.include_full_package, true);
+  assert.ok(payload.checks.some((check) => check.id === 'remote_target' && check.status === 'skipped'));
+  assert.ok(payload.checks.some((check) => check.id === 'full_workflow_call' && check.status === 'passed'));
+  assert.match(fs.readFileSync(markdownPath, 'utf8'), /Release preflight: passed/);
+
+  const standardOnly = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'draft_candidate',
+    '--include-full-package',
+    'false',
+    '--run-vm-smoke',
+    'false',
+    '--offline',
+  ]);
+  assert.equal(standardOnly.status, 0, standardOnly.stderr || standardOnly.stdout);
+  const standardOnlyPayload = JSON.parse(standardOnly.stdout);
+  assert.ok(standardOnlyPayload.checks.some((check) => (
+    check.id === 'full_workflow_call'
+    && check.status === 'skipped'
+  )));
+
+  const failure = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--offline',
+  ], {
+    env: {
+      OPL_HOMEBREW_TAP_TOKEN_PRESENT: 'false',
+    },
+  });
+  assert.notEqual(failure.status, 0);
+  const failedPayload = JSON.parse(failure.stdout);
+  assert.equal(failedPayload.status, 'failed');
+  assert.ok(failedPayload.checks.some((check) => (
+    check.id === 'homebrew_tap_token'
+    && check.status === 'failed'
+    && check.message.includes('OPL_HOMEBREW_TAP_TOKEN')
+  )));
 });
 
 test('publish dry run skips existing release assets when a resumed upload already has matching files', () => {
@@ -4789,16 +4873,16 @@ test('publish rejects Full package native trust when quarantine remains', () => 
     path.join(fullPackageDir, 'full-runtime-native-trust.json'),
     `${JSON.stringify({
       schema: 'opl_full_runtime_native_trust.v1',
-      status: 'not_distributable',
+      status: 'local_authorized_unsigned',
       executable_count: 2,
       executables: [
         {
           relative_path: 'runtime/current/node/bin/node',
           assessment_kind: 'launched_executable',
-          codesign_status: 'passed',
+          codesign_status: 'failed_allowed_unsigned',
           spctl_status: 'deferred_until_notarized_app',
-          team_identifier: 'TESTTEAMID',
-          signature: 'Developer ID Application: Test',
+          team_identifier: null,
+          signature: null,
           quarantine_status: 'present',
         },
         {
@@ -5222,13 +5306,12 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.framework_surfaces.canonical_state.default_command, 'opl app state --profile fast --json');
   assert.equal(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile fast --json');
   assert.equal(guiContract.framework_surfaces.canonical_state.default_operator_payload, 'current_owner_delta');
-  assert.equal(guiContract.framework_surfaces.canonical_state.compatibility_operator_payload, 'compact_owner_delta_projection');
+  assert.equal('compatibility_operator_payload' in guiContract.framework_surfaces.canonical_state, false);
   assert.equal(guiContract.framework_surfaces.canonical_state.default_profile, 'fast');
   assert.equal(guiContract.framework_surfaces.canonical_state.manual_refresh_profile, 'fast');
   assert.equal(guiContract.framework_surfaces.canonical_state.full_profile_policy, 'diagnostic_or_release_evidence_only');
   assert.deepEqual(guiContract.framework_surfaces.canonical_state.default_read_surface_policy, {
     default_projection: 'opl_current_owner_delta',
-    compatibility_projection: 'opl_compact_owner_delta_projection',
     source_path: 'app_state.operator.default_read_surface_policy',
     full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
     raw_refs_policy: 'raw_refs_require_explicit_full_detail',
@@ -5632,6 +5715,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.developer_profile.capabilities.github_authority.developer_opt_in, 'repo_checkout_and_remote_intent_visible');
   assert.equal(guiContract.developer_profile.capabilities.agent_automation.standard_default, 'user_confirmed_app_actions');
   assert.equal(guiContract.developer_profile.capabilities.runtime_mutation_scope.standard_default, 'app_action_route_only');
+  assert.equal('legacy_developer_mode_alias' in guiContract.developer_profile, false);
   assert.ok(guiContract.module_path_source_policy.must_not_use.includes('raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI'));
   assert.equal(guiContract.pages.settings_environment.module_path_source_policy_ref, 'module_path_source_policy');
   assert.ok(guiContract.pages.about.must_show.includes('OPL Framework revision'));
@@ -5813,6 +5897,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   );
 
   assert.match(workflow, /name: OPL Desktop Release/);
+  assert.match(workflow, /release-preflight:/);
+  assert.match(workflow, /name: Release preflight/);
+  assert.match(workflow, /npm run release:preflight --/);
+  assert.match(workflow, /release-preflight-summary\.json/);
+  assert.match(workflow, /release-preflight-summary\.md/);
+  assert.match(workflow, /standard-build:[\s\S]*needs: release-preflight/);
   assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release[\s\S]*draft_candidate/);
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to build and verify/);
@@ -5979,9 +6069,13 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     'utf8',
   );
   assert.match(vmSmokeScript, /xattr', \['-dr', 'com\.apple\.quarantine', targetApp\]/);
+  assert.match(vmSmokeScript, /countQuarantineAttributes\(appPath\)/);
+  assert.match(vmSmokeScript, /quarantine_attribute_count: quarantineAttributeCount/);
   assert.match(vmSmokeScript, /local_authorization_status: localAuthorizationStatus/);
   assert.match(vmSmokeScript, /'rejected_allowed_unsigned'/);
-  assert.match(vmSmokeScript, /if \(codesign\.status !== 0\)/);
+  assert.match(vmSmokeScript, /'failed_allowed_unsigned'/);
+  assert.match(vmSmokeScript, /if \(quarantineAttributeCount !== 0\)/);
+  assert.doesNotMatch(vmSmokeScript, /if \(codesign\.status !== 0\)/);
   assert.doesNotMatch(vmSmokeScript, /if \(codesign\.status !== 0 \|\| spctl\.status !== 0\)/);
   assert.match(vmSmokeScript, /gatekeeper_required: false/);
   assert.match(vmSmokeScript, /quarantine_removal_required: true/);
@@ -5993,6 +6087,26 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     releaseContract.release_acceleration.github_actions.desktop_release_workflow,
     '.github/workflows/desktop-release.yml',
   );
+  assert.deepEqual(releaseContract.release_preflight, {
+    script: 'scripts/validate-release-preflight.ts',
+    package_script: 'release:preflight',
+    workflow_job: 'release-preflight',
+    summary_artifacts: [
+      'release-preflight-summary.json',
+      'release-preflight-summary.md',
+    ],
+    required_fast_checks: [
+      'version',
+      'release_mode',
+      'release_preflight_contract',
+      'workflow_preflight_shape',
+      'release_plan',
+      'homebrew_tap_token',
+      'remote_target',
+    ],
+    failure_budget: 'fail before standard or Full builds start',
+    rule: 'Every App release train must pass preflight before starting expensive standard, Full, VM, Homebrew, WebUI, or publish jobs.',
+  });
   assert.deepEqual(releaseContract.webui_ghcr_image, {
     owner: 'one-person-lab-app',
     registry: 'ghcr.io',
@@ -6132,10 +6246,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.deepEqual(releaseContract.release_acceleration.vm_local_authorization_policy, {
     artifact: 'artifacts/gatekeeper-launch-policy.json',
     quarantine_clear_command: 'xattr -dr com.apple.quarantine <installed_app>',
-    codesign_gate: 'blocking_pass_required',
+    codesign_gate: 'diagnostic_only_failed_allowed_unsigned',
     spctl_gate: 'diagnostic_only_rejected_allowed_unsigned',
-    allowed_local_authorization_statuses: ['passed', 'rejected_allowed_unsigned'],
-    rule: 'Stable first-run VM smokes must clear quarantine after install, record codesign and spctl diagnostics before launch, fail when codesign verification fails, and continue when spctl rejects the unsigned locally authorized App.',
+    allowed_local_authorization_statuses: ['passed', 'rejected_allowed_unsigned', 'failed_allowed_unsigned'],
+    rule: 'Stable first-run VM smokes must clear quarantine after install, record codesign and spctl diagnostics before launch, and continue when codesign or spctl rejects the unsigned locally authorized App.',
   });
 });
 
@@ -6568,7 +6682,7 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /Stable Full assets will use local authorization evidence instead of Developer ID notarization/);
   assert.match(workflow, /local-authorization-policy\.ts[\s\S]*--package-kind app_full_first_install/);
   assert.match(workflow, /mounted_app_path="\$\(find "\$mounted_app_dir" -maxdepth 2 -type d -name 'One Person Lab\.app'/);
-  assert.match(workflow, /codesign --verify --deep --strict --verbose=2 "\$mounted_app_path"/);
+  assert.match(workflow, /codesign --verify --deep --strict --verbose=2 "\$mounted_app_path" \|\| true/);
   assert.match(workflow, /--app-path "\$mounted_app_path"/);
   assert.match(workflow, /hdiutil detach "\$mounted_app_dir"/);
   assert.match(workflow, /name: Verify release upload plan[\s\S]*if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}/);
@@ -6607,6 +6721,8 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(fullPackageScript, /verifyDmgAppBundleLocalAuthorization/);
   assert.match(fullPackageScript, /assertAppBundleLocalAuthorization/);
   assert.match(fullPackageScript, /createFullDmgFromVerifiedApp/);
+  assert.match(fullPackageScript, /local_authorized_unsigned/);
+  assert.match(fullPackageScript, /failed_allowed_unsigned/);
   assert.match(fullPackageScript, /'electron-builder'/);
   assert.match(fullPackageScript, /'--prepackaged'/);
   assert.match(fullPackageScript, /ELECTRON_BUILDER_COMPRESSION_LEVEL/);

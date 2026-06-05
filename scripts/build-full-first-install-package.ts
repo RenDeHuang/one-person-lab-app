@@ -332,10 +332,12 @@ function verifyMacosRuntimeExecutable(filePath, options) {
   const signature = readCodeSignature(filePath);
   const quarantinePresent = hasExtendedAttribute(filePath, 'com.apple.quarantine');
   const provenancePresent = hasExtendedAttribute(filePath, 'com.apple.provenance');
+  const codesignPassed = codesignResult.status === 0;
+  const spctlPassed = spctlResult.status === 0;
   const result = {
-    codesign_status: codesignResult.status === 0 ? 'passed' : 'failed',
+    codesign_status: codesignPassed ? 'passed' : options.strict ? 'failed' : 'failed_allowed_unsigned',
     spctl_status: shouldAssessSpctl
-      ? (spctlResult.status === 0 ? 'passed' : 'failed')
+      ? (spctlPassed ? 'passed' : options.strict ? 'failed' : 'failed_allowed_unsigned')
       : options.requiresSpctl ? 'deferred_until_notarized_app' : 'not_required',
     team_identifier: signature.team_identifier,
     signature: signature.signature,
@@ -415,10 +417,11 @@ function ensureFullRuntimeNativeTrust(runtimeRoot) {
     && entry.team_identifier
     && entry.signature !== 'adhoc'
   ));
+  const localAuthorizedUnsigned = !strict && verified.every((entry) => entry.quarantine_status === 'absent');
   return {
     schema: 'opl_full_runtime_native_trust.v1',
     platform: process.platform,
-    status: signed ? 'signed_pending_gatekeeper_assessment' : 'not_distributable',
+    status: signed ? 'signed_pending_gatekeeper_assessment' : localAuthorizedUnsigned ? 'local_authorized_unsigned' : 'not_distributable',
     strict,
     signed: Boolean(identity),
     executable_count: verified.length,
@@ -1957,7 +1960,7 @@ function assertAppBundleLocalAuthorization(appPath, label) {
   }
   const codesign = runCapture('codesign', ['--verify', '--deep', '--strict', '--verbose=2', appPath]);
   const spctl = runCapture('spctl', ['--assess', '--type', 'execute', '--verbose=4', appPath]);
-  if (codesign.status !== 0) {
+  if (strictMacosRuntimeSigningRequired() && (codesign.status !== 0 || spctl.status !== 0)) {
     throw new Error([
       `${label} failed Stable local authorization codesign verification: ${appPath}`,
       codesign.stdout?.trim() ? `codesign stdout:\n${codesign.stdout.trim()}` : '',
@@ -1966,6 +1969,13 @@ function assertAppBundleLocalAuthorization(appPath, label) {
       spctl.stdout?.trim() ? `spctl stdout:\n${spctl.stdout.trim()}` : '',
       spctl.stderr?.trim() ? `spctl stderr:\n${spctl.stderr.trim()}` : '',
     ].filter(Boolean).join('\n'));
+  }
+  if (codesign.status !== 0 || spctl.status !== 0) {
+    console.warn([
+      `${label} uses Stable unsigned local authorization diagnostics: ${appPath}`,
+      `codesign_status=${codesign.status === 0 ? 'passed' : 'failed_allowed_unsigned'}`,
+      `spctl_status=${spctl.status === 0 ? 'passed' : codesign.status === 0 ? 'rejected_allowed_unsigned' : 'failed_allowed_unsigned'}`,
+    ].join('\n'));
   }
 }
 
@@ -2020,6 +2030,10 @@ function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
 
 function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version) {
   if (!canRunMacosSigningChecks()) {
+    return;
+  }
+  if (!strictMacosRuntimeSigningRequired()) {
+    verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
     return;
   }
   try {

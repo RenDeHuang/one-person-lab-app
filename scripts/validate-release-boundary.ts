@@ -121,6 +121,12 @@ const checks = [
     id: 'desktop_release_workflow_uses_app_scripts',
     file: '.github/workflows/desktop-release.yml',
     required: [
+      'release-preflight:',
+      'name: Release preflight',
+      'npm run release:preflight --',
+      'release-preflight-summary.json',
+      'release-preflight-summary.md',
+      'needs: release-preflight',
       'uses: ./.github/workflows/_build-reusable.yml',
       'require_macos_gatekeeper: false',
       'node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets',
@@ -316,8 +322,24 @@ const checks = [
     required: [
       '"homebrew:tap:plan": "node --experimental-strip-types scripts/update-homebrew-tap.ts"',
       '"validate:homebrew-tap": "node --experimental-strip-types scripts/update-homebrew-tap.ts --self-check"',
+      '"release:preflight": "node --experimental-strip-types scripts/validate-release-preflight.ts"',
     ],
     forbidden: [],
+  },
+  {
+    id: 'release_preflight_script',
+    file: 'scripts/validate-release-preflight.ts',
+    required: [
+      'opl_release_preflight.v1',
+      'release-preflight-summary.json',
+      'release-preflight-summary.md',
+      'OPL_HOMEBREW_TAP_TOKEN_PRESENT',
+      'refresh_existing requires GitHub Release',
+      'workflow_preflight_shape',
+      'release_plan',
+      'homebrew_tap_token',
+    ],
+    forbidden: ['TODO', 'TBD'],
   },
   {
     id: 'homebrew_tap_update_workflow',
@@ -381,6 +403,8 @@ const checks = [
       'assertFullRuntimeNativeTrust',
       'spctl_status',
       'codesign_status',
+      'failed_allowed_unsigned',
+      'local_authorized_unsigned',
     ],
     forbidden: [],
   },
@@ -394,9 +418,13 @@ const checks = [
       'quarantine_removal_required: true',
       'local_authorization_status: localAuthorizationStatus',
       "'rejected_allowed_unsigned'",
-      'if (codesign.status !== 0)',
+      "'failed_allowed_unsigned'",
+      'countQuarantineAttributes(appPath)',
+      'quarantine_attribute_count: quarantineAttributeCount',
+      'if (quarantineAttributeCount !== 0)',
     ],
     forbidden: [
+      'if (codesign.status !== 0)',
       'if (codesign.status !== 0 || spctl.status !== 0)',
       'Gatekeeper launch policy rejected the packaged app before first launch.',
     ],
@@ -405,7 +433,6 @@ const checks = [
     id: 'one_shot_unsigned_local_authorization',
     file: 'install.sh',
     required: [
-      '--free-macos-install',
       '--stable-macos-install',
       'STABLE_MACOS_PACKAGE_PROFILE=${OPL_STABLE_MACOS_PACKAGE_PROFILE:-full}',
       'resolve_latest_release_tag()',
@@ -458,6 +485,7 @@ const checks = [
       'com.apple.quarantine',
       'quarantine_after=0',
       'local_authorization_policy',
+      'failed_allowed_unsigned',
     ],
     forbidden: [],
   },
@@ -620,6 +648,37 @@ if (homebrewTapValidation.status !== 0) {
 const releaseContract = JSON.parse(
   fs.readFileSync(path.join(appRoot, 'contracts/app-release-channel.json'), 'utf8'),
 );
+const preflight = releaseContract.release_preflight;
+if (
+  preflight?.script !== 'scripts/validate-release-preflight.ts' ||
+  preflight?.package_script !== 'release:preflight' ||
+  preflight?.workflow_job !== 'release-preflight' ||
+  preflight?.failure_budget !== 'fail before standard or Full builds start'
+) {
+  console.error('FAIL release_preflight_contract: release_preflight must define script, package script, workflow job, and fast failure budget');
+  failures += 1;
+}
+for (const checkId of [
+  'version',
+  'release_mode',
+  'release_preflight_contract',
+  'workflow_preflight_shape',
+  'release_plan',
+  'homebrew_tap_token',
+  'remote_target',
+]) {
+  if (!preflight?.required_fast_checks?.includes(checkId)) {
+    console.error(`FAIL release_preflight_contract: missing required fast check ${checkId}`);
+    failures += 1;
+  }
+}
+for (const artifact of ['release-preflight-summary.json', 'release-preflight-summary.md']) {
+  if (!preflight?.summary_artifacts?.includes(artifact)) {
+    console.error(`FAIL release_preflight_contract: missing summary artifact ${artifact}`);
+    failures += 1;
+  }
+}
+
 const webuiPackage = releaseContract.webui_ghcr_image;
 if (webuiPackage?.github_package_access?.target_repository_association !== 'gaofeng21cn/one-person-lab-app') {
   console.error('FAIL webui_package_association: target repository association must be gaofeng21cn/one-person-lab-app');

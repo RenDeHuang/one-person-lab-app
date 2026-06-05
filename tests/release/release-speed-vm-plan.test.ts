@@ -337,8 +337,9 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   const publish = laneById(plan, 'publish_new_tag');
   const readinessSummary = laneById(plan, 'release_readiness_summary');
 
-  assert.deepEqual(releaseBoundary.depends_on, []);
-  assert.deepEqual(standardBuild.depends_on, []);
+  assert.deepEqual(laneById(plan, 'release_preflight').depends_on, []);
+  assert.deepEqual(releaseBoundary.depends_on, ['release_preflight']);
+  assert.deepEqual(standardBuild.depends_on, ['release_preflight']);
   assert.deepEqual(fullBuild.depends_on, ['full_runtime_keys']);
   assert.ok(standardBuild.can_run_with.includes('full_build'));
   assert.ok(fullBuild.can_run_with.includes('standard_build'));

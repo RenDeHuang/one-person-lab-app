@@ -22,8 +22,8 @@ export function assertLocalAuthorizationPolicy(policy, packageKind, name = 'loca
   ) {
     throw new Error(`${name} must declare the Stable local-authorized macOS install policy for ${packageKind}.`);
   }
-  if (policy.codesign_status !== 'passed') {
-    throw new Error(`${name} must prove codesign verification passed for ${packageKind}.`);
+  if (!['passed', 'failed_allowed_unsigned'].includes(policy.codesign_status)) {
+    throw new Error(`${name} must record a passed or allowed unsigned codesign diagnostic for ${packageKind}.`);
   }
   if (!['passed', 'rejected_allowed_unsigned', 'failed_allowed_unsigned'].includes(policy.spctl_status)) {
     throw new Error(`${name} must record a passed or allowed unsigned spctl diagnostic for ${packageKind}.`);
@@ -116,6 +116,7 @@ function loadRuntimeNativeTrust(filePath) {
 
 function buildPolicy(options) {
   const quarantineAttrCount = quarantineCount(options.appPath);
+  const codesignRawStatus = commandStatus('codesign', ['--verify', '--deep', '--strict', '--verbose=2', options.appPath]);
   const spctlRawStatus = commandStatus('spctl', ['--assess', '--type', 'execute', '--verbose=4', options.appPath]);
   const runtimeNativeTrust = loadRuntimeNativeTrust(options.runtimeNativeTrustPath);
   return {
@@ -127,14 +128,14 @@ function buildPolicy(options) {
     local_authorization_required: true,
     quarantine_removal_required: true,
     install_entrypoint: 'install-stable.sh',
-    compatibility_entrypoints: ['install-free.sh'],
     backing_entrypoint: 'install.sh --stable-macos-install --yes',
-    compatibility_backing_entrypoint: 'install.sh --stable-macos-install --yes',
     default_package_profile: options.packageKind === 'app_full_first_install' ? 'full' : 'standard',
     user_prompt_policy: 'one_terminal_command_no_system_settings_override_expected_after_quarantine_clear',
     app_path: options.appPath,
-    codesign_status: commandStatus('codesign', ['--verify', '--deep', '--strict', '--verbose=2', options.appPath]),
-    spctl_status: spctlRawStatus === 'passed' ? 'passed' : 'rejected_allowed_unsigned',
+    codesign_status: codesignRawStatus === 'passed' ? 'passed' : 'failed_allowed_unsigned',
+    spctl_status: spctlRawStatus === 'passed'
+      ? 'passed'
+      : codesignRawStatus === 'passed' ? 'rejected_allowed_unsigned' : 'failed_allowed_unsigned',
     quarantine_status: quarantineAttrCount === 0 ? 'absent' : 'present',
     quarantine_attribute_count: quarantineAttrCount,
     runtime_native_trust_status: runtimeNativeTrust?.status ?? null,

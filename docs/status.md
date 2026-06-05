@@ -274,11 +274,11 @@ and `full-local-authorization-policy.json`; Homebrew tap sync requires the
 matching local authorization policy asset before updating a cask.
 
 The 2026-06-05 Stable release path treats that local authorization behavior as
-the default Stable behavior, not a separate free edition. First-run VM smokes
-must clear recursive quarantine after installing the App, write
-`artifacts/gatekeeper-launch-policy.json`, require `codesign` verification to
-pass, and record `spctl rejected` as `rejected_allowed_unsigned` rather than
-blocking launch. The 26.6.5 Full runtime baseline is 1,394,739,510
+the default Stable behavior. First-run VM smokes must clear recursive
+quarantine after installing the App, write
+`artifacts/gatekeeper-launch-policy.json`, and record `codesign`/`spctl`
+rejections as allowed unsigned diagnostics rather than blocking launch. The
+26.6.5 Full runtime baseline is 1,394,739,510
 uncompressed bytes; the remote verifier budget is
 `max_runtime_uncompressed_bytes=1500000000` while the compressed Full DMG hard
 budget remains `max_full_dmg_bytes=750000000`.
@@ -291,7 +291,9 @@ executables as their own release gate. Full builds must verify that `node` and
 the pre-extracted Temporal CLI binary are listed in
 `full-runtime-native-trust.json`, carry no `com.apple.quarantine`, and are
 included in `SHA256SUMS.txt` before the Full package can be published or
-consumed by the Full Homebrew cask. Developer ID signing remains optional.
+consumed by the Full Homebrew cask. Without Developer ID signing, their
+`codesign` result is recorded as an allowed unsigned diagnostic; Developer ID
+signing remains optional.
 
 Release and user-path evidence remains cohort-bound App evidence. Verified
 release bundle refs, screenshots, remote asset checks, or packaged route smoke

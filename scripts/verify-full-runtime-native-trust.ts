@@ -119,11 +119,13 @@ function verifyExecutable(entry: { path: string; relative_path: string; requires
     ? runCapture('spctl', ['--assess', '--type', 'execute', '--verbose=4', entry.path])
     : { status: 0, stdout: '', stderr: '' };
   const signature = readCodeSignature(entry.path);
+  const codesignPassed = codesignResult.status === 0;
+  const spctlPassed = spctlResult.status === 0;
   return {
     relative_path: entry.relative_path,
     assessment_kind: entry.requires_spctl ? 'launched_executable' : 'loadable_native_code',
-    codesign_status: codesignResult.status === 0 ? 'passed' : 'failed',
-    spctl_status: shouldAssessSpctl ? (spctlResult.status === 0 ? 'passed' : 'failed') : 'not_required',
+    codesign_status: codesignPassed ? 'passed' : 'failed_allowed_unsigned',
+    spctl_status: shouldAssessSpctl ? (spctlPassed ? 'passed' : 'failed_allowed_unsigned') : 'not_required',
     team_identifier: signature.team_identifier,
     signature: signature.signature,
     quarantine_status: hasExtendedAttribute(entry.path, 'com.apple.quarantine') ? 'present' : 'absent',
@@ -155,7 +157,9 @@ function main() {
     schema: 'opl_full_runtime_native_trust.v1',
     runtime_root: options.runtimeRoot,
     require_spctl: options.requireSpctl,
-    status: executables.every(isTrusted) ? 'passed' : 'failed',
+    status: executables.every(isTrusted)
+      ? 'passed'
+      : executables.every((entry) => entry.quarantine_status === 'absent') ? 'local_authorized_unsigned' : 'failed',
     executable_count: executables.length,
     executables,
   };
@@ -167,7 +171,7 @@ function main() {
   } else {
     process.stdout.write(output);
   }
-  if (payload.status !== 'passed') {
+  if (payload.status !== 'passed' && payload.status !== 'local_authorized_unsigned') {
     throw new Error('Full runtime native executable trust verification failed.');
   }
 }

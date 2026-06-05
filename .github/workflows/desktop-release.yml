@@ -68,8 +68,50 @@ env:
   BUN_INSTALL_REGISTRY: 'https://registry.npmjs.org/'
 
 jobs:
+  release-preflight:
+    name: Release preflight
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run release preflight
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_HOMEBREW_TAP_TOKEN_PRESENT: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN != '' && 'true' || 'false' }}
+        run: |
+          npm run release:preflight -- \
+            --version "${{ inputs.opl_version }}" \
+            --release-mode "${{ inputs.release_mode }}" \
+            --include-full-package "${{ inputs.include_full_package }}" \
+            --run-vm-smoke "${{ inputs.run_vm_smoke }}" \
+            --framework-ref "${{ inputs.framework_ref }}" \
+            --shell-ref "${{ inputs.shell_ref }}" \
+            --summary-path release-preflight-summary.json \
+            --markdown-path release-preflight-summary.md
+          cat release-preflight-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release preflight summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-preflight-summary-${{ inputs.opl_version }}
+          path: |
+            release-preflight-summary.json
+            release-preflight-summary.md
+          if-no-files-found: error
+
   standard-build:
     name: Build standard App assets
+    needs: release-preflight
     uses: ./.github/workflows/_build-reusable.yml
     with:
       matrix: >-

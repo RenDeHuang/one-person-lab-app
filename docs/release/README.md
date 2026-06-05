@@ -11,6 +11,15 @@ The App repository owns the macOS arm64 standard desktop package, Full
 first-install DMG, updater metadata, GitHub Release uploads, release asset
 normalization, GUI smoke, and user-facing release notes.
 
+The release train is designed to fail fast before expensive work starts. Every
+desktop release workflow starts with `release-preflight`, backed by
+`npm run release:preflight` and
+[`release-train-optimization-design.md`](release-train-optimization-design.md).
+That gate checks version/mode compatibility, remote tag or release state,
+workflow shape, release plan shape, Homebrew tap token availability, and the
+App-owned preflight contract before standard, Full, VM, Homebrew, WebUI, or
+publish jobs run.
+
 First-install product policy is App-owned. The launch gate is `ready_to_launch`
 before `/guid`, and Core means workspace root, Codex CLI, and Codex config. A
 Full first-install package must reach Core ready from the bundled runtime on a
@@ -331,9 +340,9 @@ The Homebrew VM gate must distinguish install transport from first launch. It
 first proves that the cask installs `One Person Lab.app` under `/Applications`,
 then the guest smoke runs `codesign --verify --deep --strict` and
 `spctl --assess --type execute --verbose=4` before `open`. A `spctl` rejection
-is expected for the current unsigned Stable path after quarantine removal; it
-must be recorded as a local authorization diagnostic rather than blocking the
-release. Standard and Full release lanes publish
+or `codesign` rejection is expected for the current unsigned Stable path after
+quarantine removal; it must be recorded as a local authorization diagnostic
+rather than blocking the release. Standard and Full release lanes publish
 `standard-local-authorization-policy.json` and
 `full-local-authorization-policy.json`; Homebrew tap sync requires the matching
 local authorization policy asset before updating a cask.
@@ -367,11 +376,12 @@ Release assets must include these local authorization gates:
 - `SHA256SUMS.txt` entries for the Full DMG, manifest, runtime cache events,
   native trust diagnostics, Full local authorization policy, and README.
 
-`local_authorization_policy` is the current Stable release gate. It requires
-`codesign_status=passed`, `quarantine_status=absent` or
+`local_authorization_policy` is the current Stable release gate. It accepts
+`codesign_status=passed` or `failed_allowed_unsigned`, requires
+`quarantine_status=absent` or
 `removed_by_installer`, `apple_developer_id_required=false`, and
-`gatekeeper_required=false`. `spctl_status` may be `passed` or
-`rejected_allowed_unsigned`.
+`gatekeeper_required=false`. `spctl_status` may be `passed`,
+`rejected_allowed_unsigned`, or `failed_allowed_unsigned`.
 
 If an App has already been copied into `/Applications`, use the local
 authorization helper only:

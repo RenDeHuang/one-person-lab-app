@@ -138,9 +138,17 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       },
       lanes: [
         {
-          id: 'release_boundary',
+          id: 'release_preflight',
           phase: 'fast_candidate',
           depends_on: [],
+          can_run_with: [],
+          command: `npm run release:preflight -- --version ${options.version} --release-mode refresh_existing --include-full-package false --run-vm-smoke false`,
+          required_for: ['nightly_standard_release'],
+        },
+        {
+          id: 'release_boundary',
+          phase: 'fast_candidate',
+          depends_on: ['release_preflight'],
           can_run_with: ['standard_build'],
           command: 'npm run test:release-boundary',
           required_for: ['nightly_standard_release'],
@@ -148,7 +156,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
         {
           id: 'standard_build',
           phase: 'parallel_build',
-          depends_on: [],
+          depends_on: ['release_preflight'],
           can_run_with: ['release_boundary'],
           command: `npm run build-mac:arm64 && node --experimental-strip-types scripts/validate-release.ts release-assets`,
           required_for: ['nightly_standard_release'],
@@ -187,9 +195,23 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
 
   const lanes: Lane[] = [
     {
-      id: 'release_boundary',
+      id: 'release_preflight',
       phase: 'fast_candidate',
       depends_on: [],
+      can_run_with: [],
+      command: [
+        'npm run release:preflight --',
+        `--version ${options.version}`,
+        '--release-mode <refresh_existing|new_release|draft_candidate>',
+        `--include-full-package ${options.includeFullPackage ? 'true' : 'false'}`,
+        `--run-vm-smoke ${options.settingsVm ? 'true' : 'false'}`,
+      ].join(' '),
+      required_for: ['standard_release', ...(options.includeFullPackage ? ['full_first_install'] : [])],
+    },
+    {
+      id: 'release_boundary',
+      phase: 'fast_candidate',
+      depends_on: ['release_preflight'],
       can_run_with: ['standard_build', 'full_runtime_keys', 'active_shell_quick_validation'],
       command: 'npm run test:release-boundary',
       required_for: ['standard_release', 'full_first_install'],
@@ -197,7 +219,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     {
       id: 'standard_build',
       phase: 'parallel_build',
-      depends_on: [],
+      depends_on: ['release_preflight'],
       can_run_with: options.includeFullPackage ? ['full_build'] : [],
       command: `npm run build-mac:arm64 && npm run release:publish -- --dry-run --version ${options.version}`,
       required_for: ['standard_release'],
@@ -213,7 +235,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     {
       id: 'active_shell_quick_validation',
       phase: 'fast_candidate',
-      depends_on: [],
+      depends_on: ['release_preflight'],
       can_run_with: ['release_boundary', 'full_runtime_keys'],
       command: 'npm run validate:active-shell -- --quick',
       required_for: ['standard_release', 'full_first_install'],
