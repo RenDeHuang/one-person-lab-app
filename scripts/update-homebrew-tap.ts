@@ -290,8 +290,6 @@ function skeletonContent(targetPath: string, options: ResolvedOptions): string {
           '  end',
           '',
     ]),
-    '  depends_on macos: :big_sur',
-    '  depends_on arch: :arm64',
     ...(conflicts.length > 0
       ? [
           `  conflicts_with cask: ${conflicts.length === 1
@@ -299,6 +297,8 @@ function skeletonContent(targetPath: string, options: ResolvedOptions): string {
             : `[${conflicts.map((conflict) => `"${conflict}"`).join(', ')}]`}`,
         ]
       : []),
+    '  depends_on macos: :big_sur',
+    '  depends_on arch: :arm64',
     '',
     `  ${boundaryBlock(options).split('\n').join('\n  ')}`,
     '',

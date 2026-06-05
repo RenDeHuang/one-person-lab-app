@@ -937,7 +937,8 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(stableCask, /conflicts_with cask: \["one-person-lab-full", "one-person-lab-nightly"\]/);
   assert.match(stableCask, /livecheck do[\s\S]*releases\/latest[\s\S]*regex\(%r\{\/releases\/tag\/v\?\(\\d\+\(\?:\\\.\\d\+\)\*\)\}i\)/);
   assert.match(stableCask, /app "One Person Lab\.app"/);
-  assert.ok(stableCask.indexOf('  livecheck do') < stableCask.indexOf('  depends_on macos: :big_sur'));
+  assert.ok(stableCask.indexOf('  livecheck do') < stableCask.indexOf('  conflicts_with cask:'));
+  assert.ok(stableCask.indexOf('  conflicts_with cask:') < stableCask.indexOf('  depends_on macos: :big_sur'));
 
   const fullResult = runNode([
     'scripts/update-homebrew-tap.ts',
@@ -978,6 +979,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(fullCask, /bundled_full_runtime_payload_allowed: true/);
   assert.match(fullCask, /agent_pack_homebrew_allowed: false/);
   assert.match(fullCask, /conflicts_with cask: \["one-person-lab", "one-person-lab-nightly"\]/);
+  assert.ok(fullCask.indexOf('  conflicts_with cask:') < fullCask.indexOf('  depends_on macos: :big_sur'));
   assert.match(fullCask, /Full assets stay outside standard updater metadata/);
   assert.match(fullCask, /app "One Person Lab\.app"/);
 
@@ -1002,6 +1004,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.equal(stableRefresh.status, 0, stableRefresh.stderr || stableRefresh.stdout);
   const stableRefreshedCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8');
   assert.match(stableRefreshedCask, /desc "AI-first desktop research and agent orchestration app"/);
+  assert.ok(stableRefreshedCask.indexOf('  conflicts_with cask:') < stableRefreshedCask.indexOf('  depends_on macos: :big_sur'));
   assert.match(stableRefreshedCask, /depends_on macos: :big_sur/);
   assert.match(stableRefreshedCask, /\n  # OPL_HOMEBREW_BOUNDARY_START\n  # channel: stable/);
 
