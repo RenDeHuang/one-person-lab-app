@@ -11,6 +11,17 @@ function readRepoFile(relativePath: string) {
   return fs.readFileSync(path.join(appRoot, relativePath), 'utf8');
 }
 
+function readFullPackageBuilderSource() {
+  const root = path.join(appRoot, 'scripts', 'build-full-first-install-package');
+  return [
+    readRepoFile('scripts/build-full-first-install-package.ts'),
+    ...fs.readdirSync(root)
+      .filter((entry) => entry.endsWith('.ts'))
+      .sort()
+      .map((entry) => fs.readFileSync(path.join(root, entry), 'utf8')),
+  ].join('\n');
+}
+
 function assertIncludes(source: string, expected: string, label: string) {
   assert.ok(source.includes(expected), `${label} must include ${expected}`);
 }
@@ -216,7 +227,7 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assert.doesNotMatch(workflow, /raw\.githubusercontent\.com\/iOfficeAI\/OfficeCLI\/main\/install\.sh/, 'OfficeCLI install must not bypass the resolved checkout');
   assertMatches(workflow, /duration_seconds:[\s\S]*full_package_build/, 'Full telemetry duration fields');
 
-  const buildScript = readRepoFile('scripts/build-full-first-install-package.ts');
+  const buildScript = readFullPackageBuilderSource();
   assertMatches(buildScript, /reuseGuiViteOutput:\s+process\.env\.OPL_FULL_REUSE_GUI_VITE_OUTPUT === '1'/, 'Full package script reads Vite reuse flag');
   assertMatches(buildScript, /--reuse-gui-vite-output/, 'Full package script exposes Vite reuse CLI flag');
   assertMatches(buildScript, /build-mac:arm64'[\s\S]*--skip-vite/, 'Full package script passes --skip-vite to active shell build when reuse is enabled');

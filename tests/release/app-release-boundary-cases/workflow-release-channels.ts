@@ -7,6 +7,7 @@ import {
   appRoot,
   sha256,
   workflowJobBlock,
+  readFullPackageBuilderSource,
 } from './helpers.ts';
 
 test('release artifact upload preserves electron-updater blockmaps', () => {
@@ -77,7 +78,7 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
 test('manual desktop release workflow supports new releases and same-tag refreshes in GitHub Actions', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
-  const fullPackageScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
+  const fullPackageScript = readFullPackageBuilderSource();
   const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),

@@ -16,6 +16,7 @@ import {
   readProductProfile,
   matchCount,
   workflowJobBlock,
+  readFullPackageBuilderSource,
 } from './helpers.ts';
 
 test('Full first-install workflow has one MinerU checkout and keeps standalone binary build path', () => {
@@ -120,7 +121,7 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
     /runtime-cache-events\.json[\s\S]{0,400}<<'NODE'[\s\S]{0,400}NODE/,
     'runtime-cache-events summary must not use a nested heredoc; indented heredoc delimiters break bash on GitHub Actions',
   );
-  const fullPackageScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
+  const fullPackageScript = readFullPackageBuilderSource();
   assert.match(fullPackageScript, /verifyDmgAppBundleLocalAuthorization/);
   assert.match(fullPackageScript, /assertAppBundleLocalAuthorization/);
   assert.match(fullPackageScript, /codesign verification must pass even when Stable Full uses local authorization/);
@@ -514,7 +515,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
-  const buildScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
+  const buildScript = readFullPackageBuilderSource();
   const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
   const publishScript = fs.readFileSync(path.join(appRoot, 'scripts', 'publish-release.ts'), 'utf8');
   const prepareStandardScript = fs.readFileSync(path.join(appRoot, 'scripts', 'prepare-standard-release-payload.ts'), 'utf8');
@@ -757,7 +758,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
 
 test('Full runtime pruning keeps macOS arm64 launch payloads without development environments', async () => {
   const mod = await import('../../../scripts/full-first-install-package.ts');
-  const buildScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8');
+  const buildScript = readFullPackageBuilderSource();
 
   assert.equal(mod.shouldExcludeRuntimePath('modules/mas/.venv/lib/python3.12/site-packages/numpy/core.so'), true);
   assert.equal(mod.shouldExcludeRuntimePath('modules/mag/.venv/pyvenv.cfg'), true);

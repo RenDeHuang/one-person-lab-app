@@ -187,6 +187,17 @@ export function writeFile(filePath, content = 'artifact') {
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
+export function readFullPackageBuilderSource() {
+  const partsRoot = path.join(appRoot, 'scripts', 'build-full-first-install-package');
+  return [
+    fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'), 'utf8'),
+    ...fs.readdirSync(partsRoot)
+      .filter((entry) => entry.endsWith('.ts'))
+      .sort()
+      .map((entry) => fs.readFileSync(path.join(partsRoot, entry), 'utf8')),
+  ].join('\n');
+}
+
 export function writeFakeReleaseNotesAiWriter(scriptPath, body) {
   fs.mkdirSync(path.dirname(scriptPath), { recursive: true });
   fs.writeFileSync(scriptPath, `#!/usr/bin/env node
