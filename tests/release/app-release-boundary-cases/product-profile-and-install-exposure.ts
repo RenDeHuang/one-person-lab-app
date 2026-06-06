@@ -1,0 +1,572 @@
+import {
+  assert,
+  fs,
+  path,
+  test,
+  appRoot,
+  expectedDefaultCompanionSkillSyncIds,
+  expectedDefaultPackagedSkillIds,
+  readProductProfile,
+  readInstallExposurePolicy,
+} from './helpers.ts';
+
+test('App product profile owns user-facing defaults without runtime authority', () => {
+  const profile = readProductProfile();
+  const installExposurePolicy = readInstallExposurePolicy();
+
+  assert.equal(profile.owner, 'one-person-lab-app');
+  assert.equal(profile.purpose, 'app_owned_product_profile');
+  assert.equal(profile.app_repo, 'gaofeng21cn/one-person-lab-app');
+  assert.equal(profile.default_session_profile.executor, 'codex_cli');
+  assert.equal(profile.default_session_profile.model, profile.codex.default_model);
+  assert.equal(profile.default_session_profile.reasoning_effort, profile.codex.default_reasoning_effort);
+  assert.equal(profile.gui.authority, 'app_repo_owned_product_truth');
+  assert.equal(profile.gui.implementation_carrier, 'opl-aion-shell');
+  assert.equal(profile.gui.appearance.default_css_theme_id, 'default-theme');
+  assert.equal(profile.gui.appearance.codex_theme_default_enabled, false);
+  assert.equal(profile.gui.home.primary_input_surface, 'single_card');
+  assert.equal(profile.gui.home.nested_input_card_frames_allowed, false);
+  assert.equal(profile.gui.home.codex_cli_fixed_executor, true);
+  assert.equal(profile.gui.home.home_executor_selector_visible, false);
+  assert.equal(profile.gui.home.codex_model_selector_visible, true);
+  assert.equal(profile.gui.home.codex_model_list_visible, true);
+  assert.equal(profile.gui.home.codex_model_policy, 'codex_cli_latest_strongest_model_selector_visible');
+  assert.equal(profile.gui.home.codex_default_model, 'gpt-5.5');
+  assert.equal(profile.gui.home.codex_default_reasoning_effort, profile.codex.default_reasoning_effort);
+  assert.equal(profile.gui.home.codex_default_permission_mode, 'full-access');
+  assert.equal(profile.gui.home.permission_mode_selector_visible, false);
+  assert.equal(profile.gui.home.conversation_backend_selector_visible, false);
+  assert.equal(profile.gui.home.conversation_model_selector_visible, true);
+  assert.equal(profile.gui.home.conversation_permission_mode_selector_visible, false);
+  assert.equal(profile.gui.home.codex_home_model_status_label, 'GPT-5.5（超高）');
+  assert.equal(profile.gui.home.codex_home_model_status_label_en, 'GPT-5.5 (Ultra)');
+  assert.equal(profile.gui.home.codex_precise_model_display_policy, 'friendly_default_model_and_reasoning_visible');
+  assert.deepEqual(profile.gui.home.home_layout, {
+    default_mode: 'composer_first_chat_canvas',
+    first_screen_policy: 'chat_first_no_dashboard_or_landing_copy',
+    composer_position: 'pinned_bottom',
+    composer_primary: true,
+    workspace_selector_visible: true,
+    purpose_entries_visible: ['research', 'grant', 'ppt'],
+    workspace_session_rail_default_state: 'collapsed',
+    right_context_inspector_default_state: 'collapsed',
+    must_not_show: [
+      'dashboard-first home',
+      'explanatory landing page',
+      'backend settings panel in composer',
+      'AionUI Team nav entry',
+      'AionUI Team page as ordinary App surface',
+    ],
+  });
+  assert.deepEqual(profile.gui.ordinary_conversation, {
+    path_id: 'ordinary_codex_conversation',
+    entry_source: 'home_purpose_entry_or_new_conversation',
+    executor: 'codex_cli',
+    composer_position: 'pinned_bottom',
+    purpose_tag_visible: true,
+    assistant_route_receipt_required: true,
+    backend_selector_visible: false,
+    model_selector_visible: true,
+    permission_mode_selector_visible: false,
+    provider_selector_visible: false,
+    model_status_surface: 'gui.home.codex_home_model_status_label',
+    technical_details_policy: 'friendly_default_model_and_reasoning_visible',
+  });
+  assert.deepEqual(
+    profile.gui.right_context_inspector.tabs.map((tab) => tab.id),
+    ['files', 'capabilities', 'runtime', 'memory', 'automations', 'settings'],
+  );
+  assert.equal(profile.gui.right_context_inspector.placement, 'right');
+  assert.equal(profile.gui.right_context_inspector.default_state, 'collapsed');
+  assert.equal(profile.gui.right_context_inspector.opens_on_user_request_only, true);
+  assert.equal(profile.gui.right_context_inspector.chat_canvas_remains_primary, true);
+  assert.equal(profile.gui.home.codex_auto_model_selection.strategy, 'codex_cli_auto_latest_available_frontier');
+  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_override_model, true);
+  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_restore_auto, true);
+  assert.equal(profile.gui.home.codex_auto_model_selection.selection_persists_into_conversation, true);
+  assert.deepEqual(
+    profile.gui.home.codex_auto_model_selection.frontier_model_preference_order,
+    ['gpt-5.5', 'gpt-5.4', 'gpt-5.3-codex', 'gpt-5.2'],
+  );
+  assert.deepEqual(profile.gui.home.retired_codex_models_must_not_be_exposed, [
+    'gpt-5.2-codex',
+    'gpt-5.1-codex-max',
+    'gpt-5.1-codex-mini',
+  ]);
+  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
+  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示']);
+  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
+  assert.ok(profile.gui.home.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
+  assert.deepEqual(profile.gui.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca']);
+  assert.ok(profile.gui.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
+  assert.deepEqual(profile.gui.assistant_skill_profiles.map((profile) => profile.assistant_id), ['mas', 'mag', 'rca']);
+  assert.deepEqual(
+    Object.fromEntries(profile.gui.assistant_skill_profiles.map((profile) => [profile.assistant_id, profile.required_skills])),
+    { mas: ['mas'], mag: ['mag'], rca: ['rca'] },
+  );
+  assert.ok(
+    profile.gui.assistant_skill_profiles.every(
+      (profile) => profile.skill_menu_policy === 'assistant_scoped_required_checked_optional_visible',
+    ),
+  );
+  const appPackagedSkillIds = new Set(profile.companion_payloads.default_packaged_codex_skill_ids);
+  assert.ok(
+    profile.gui.assistant_skill_profiles.every((profile) =>
+      [...profile.required_skills, ...profile.optional_skills].every((skill) => appPackagedSkillIds.has(skill)),
+    ),
+  );
+  assert.ok(profile.gui.assistant_skill_profiles.every((profile) => !('hidden_home_skill_names' in profile)));
+  assert.ok(profile.gui.assistant_skill_profiles.every((profile) => !profile.optional_skills.includes('morph-ppt')));
+  assert.equal(profile.gui.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
+  assert.deepEqual(profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca']);
+  assert.equal(profile.gui.builtin_assistant_route_receipt_policy.route_kind, 'builtin_capability');
+  assert.equal(profile.gui.builtin_assistant_route_receipt_policy.executor, 'codex_cli');
+  assert.equal(profile.gui.builtin_assistant_route_receipt_policy.source, 'opl_app_home');
+  assert.deepEqual(profile.gui.builtin_assistant_route_receipt_policy.required_fields, [
+    'route_kind',
+    'executor',
+    'assistant_id',
+    'assistant_short_name',
+    'source',
+  ]);
+  assert.equal(profile.gui.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection, true);
+  assert.deepEqual(profile.gui.ordinary_capability_selector_policy, {
+    scope: 'home_composer_and_ordinary_conversation',
+    authority: 'app_owned_opl_allowlist',
+    skill_source_ref: 'gui.assistant_skill_profiles.required_skills + optional_skills',
+    skill_menu_policy: 'assistant_scoped_required_checked_optional_visible',
+    conversation_loaded_skill_display_policy: 'filter_to_ordinary_skill_allowlist',
+    mcp_server_source_ref: 'gui.ordinary_capability_selector_policy.visible_mcp_server_ids',
+    mcp_menu_policy: 'empty_until_app_explicitly_whitelists_opl_mcp_servers',
+    visible_mcp_server_ids: [],
+    conversation_loaded_mcp_display_policy: 'filter_to_visible_mcp_server_ids',
+    forbidden_skill_examples: ['aionui-skills', 'aionui-webui-setup', 'skill-creator', 'cron'],
+    forbidden_mcp_policy: 'do_not_surface_user_or_aionui_mcp_servers_in_ordinary_home_without_app_profile_allowlist',
+  });
+  assert.deepEqual(profile.settings.visible_tabs, [
+    'general',
+    'access',
+    'capabilities',
+    'environment',
+    'appearance',
+    'advanced',
+    'about',
+  ]);
+  assert.deepEqual(profile.settings.legacy_route_redirects, {
+    overview: 'general',
+    runtime: 'environment',
+    system: 'advanced',
+    model: 'environment',
+    agent: 'capabilities',
+    assistants: 'capabilities',
+    'skills-hub': 'capabilities',
+    tools: 'capabilities',
+    display: 'appearance',
+    webui: 'access',
+    pet: 'appearance',
+  });
+  assert.deepEqual(Object.keys(profile.settings.settings_information_architecture), [
+    'general',
+    'access',
+    'capabilities',
+    'environment',
+    'appearance',
+    'advanced',
+    'about',
+  ]);
+  assert.deepEqual(profile.settings.developer_profile.capability_axes, [
+    'source_channel',
+    'workspace_trust',
+    'github_authority',
+    'agent_automation',
+    'runtime_mutation_scope',
+  ]);
+  assert.equal(profile.settings.developer_profile.default_profile, 'standard_user');
+  assert.equal(profile.settings.developer_profile.opt_in_policy, 'explicit_opt_in_only');
+  assert.equal(
+    profile.settings.developer_profile.capabilities.source_channel.standard_default,
+    'stable_package_channel',
+  );
+  assert.equal(
+    profile.settings.developer_profile.capabilities.source_channel.developer_opt_in,
+    'github_repo_or_local_checkout',
+  );
+  assert.equal(
+    profile.settings.developer_profile.capabilities.runtime_mutation_scope.standard_default,
+    'app_action_route_only',
+  );
+  assert.equal('legacy_developer_mode_alias' in profile.settings.developer_profile, false);
+  assert.equal(profile.gui.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
+  assert.ok(profile.codex.default_visible_skills.includes('superpowers'));
+  assert.ok(profile.codex.default_visible_skills.includes('cron'));
+  assert.ok(profile.codex.default_visible_skills.includes('pdf'));
+  assert.ok(profile.codex.default_visible_skills.includes('mineru-document-extractor'));
+  assert.ok(profile.codex.default_visible_skills.includes('ui-ux-pro-max'));
+  assert.ok(profile.companion_payloads.default_packaged_codex_skill_ids.includes('superpowers'));
+  assert.deepEqual(profile.companion_payloads.default_packaged_codex_skill_ids, expectedDefaultPackagedSkillIds);
+  assert.ok(profile.companion_payloads.packaged_not_default_visible_codex_skill_ids.includes('opl-meta-agent'));
+  assert.ok(!profile.codex.skill_priority.includes('morph-ppt'));
+  assert.ok(!profile.companion_payloads.default_packaged_codex_skill_ids.includes('morph-ppt'));
+  assert.ok(profile.first_run.deferred_blockers.includes('domain_modules'));
+  assert.deepEqual(
+    profile.first_run.core_ready_policy.full_first_install_clean_machine.missing_host_tools_allowed,
+    ['command_line_tools', 'homebrew', 'node', 'git'],
+  );
+  assert.equal(
+    profile.first_run.core_ready_policy.full_first_install_clean_machine.initial_runtime_source,
+    'bundled_runtime',
+  );
+  assert.equal(
+    profile.first_run.core_ready_policy.full_first_install_clean_machine.core_ready_without_host_tools,
+    true,
+  );
+  assert.deepEqual(
+    profile.first_run.core_ready_policy.full_first_install_clean_machine.must_not_block_core_ready,
+    [
+      'repo_sync',
+      'module_reconcile',
+      'command_line_tools_install',
+      'native_helpers',
+      'companion_skills_install',
+      'ecosystem_module_updates',
+    ],
+  );
+  assert.deepEqual(
+    profile.first_run.core_ready_policy.full_first_install_clean_machine.post_core_ready_background_policy,
+    {
+      mode: 'best_effort_non_blocking',
+      continues_after_core_ready: true,
+      managed_items: [
+        'repo_sync',
+        'module_reconcile',
+        'command_line_tools_install',
+        'native_helpers',
+        'companion_skills_install',
+        'ecosystem_module_updates',
+      ],
+      user_confirmation_items: ['command_line_tools_install'],
+    },
+  );
+  assert.equal(profile.first_run.background_maintenance.blocks_core_ready, false);
+  assert.equal(profile.first_run.background_maintenance.mode, 'best_effort_after_core_ready');
+  assert.equal(profile.first_run.background_maintenance.continues_after_core_ready, true);
+  assert.deepEqual(
+    profile.first_run.background_maintenance.items,
+    [
+      'repo_sync',
+      'module_reconcile',
+      'command_line_tools_install',
+      'native_helpers',
+      'companion_skills_install',
+      'ecosystem_module_updates',
+    ],
+  );
+  assert.equal(profile.first_run.core_ready_policy.standard_package.bootstrap_owner, 'app_managed');
+  assert.equal(profile.first_run.core_ready_policy.standard_package.maintenance_owner, 'app_managed');
+  assert.equal(
+    profile.first_run.core_ready_policy.standard_package.user_first_screen_terminal_instruction_allowed,
+    false,
+  );
+  assert.equal(
+    profile.first_run.core_ready_policy.standard_package.manual_host_tool_install_terminal_state_allowed,
+    false,
+  );
+  assert.equal(
+    profile.first_run.core_ready_policy.standard_package.maintenance_resolution_policy,
+    'app_or_cli_managed_best_effort_until_ready',
+  );
+  assert.deepEqual(
+    profile.first_run.core_ready_policy.standard_package.forbidden_terminal_instruction_end_states,
+    ['install_homebrew_first', 'install_node_first', 'install_git_first'],
+  );
+  assert.equal(profile.first_run.command_line_tools.auto_request_installer, true);
+  assert.equal(profile.first_run.command_line_tools.installer_command, 'xcode-select --install');
+  assert.equal(profile.first_run.command_line_tools.system_installer_only, true);
+  assert.equal(profile.first_run.command_line_tools.waits_for_user_confirmation, true);
+  assert.equal(profile.first_run.command_line_tools.blocks_full_first_launch, false);
+  assert.match(
+    profile.first_run.command_line_tools.messages.join('\n'),
+    /keep using One Person Lab while that Apple installer runs/,
+  );
+  assert.doesNotMatch(profile.first_run.command_line_tools.messages.join('\n'), /retry setup/i);
+  assert.equal(
+    profile.first_run.updates.standard_channel.implementation_reference,
+    'electron_autoUpdater_background_download_update_downloaded_restart_prompt',
+  );
+  assert.deepEqual(profile.first_run.updates.standard_channel.metadata_scope, [
+    'latest-mac.yml',
+    'latest-arm64-mac.yml',
+  ]);
+  assert.equal(profile.first_run.updates.standard_channel.download_policy, 'background_download');
+  assert.equal(profile.first_run.updates.standard_channel.apply_policy, 'restart_when_ready');
+  assert.equal(profile.first_run.updates.standard_channel.ready_prompt, 'prompt_restart_after_download_ready');
+  assert.equal(profile.first_run.updates.standard_channel.full_first_install_metadata_allowed, false);
+  assert.equal(profile.first_run.updates.standard_channel.blocks_core_ready, false);
+  assert.deepEqual(profile.companion_payloads.ecosystem_modules, ['officecli', 'mineru', 'opl-meta-agent']);
+  assert.equal(profile.companion_payloads.management_authority.officecli, 'app_or_cli_managed');
+  assert.equal(profile.companion_payloads.management_authority.mineru, 'app_or_cli_managed');
+  assert.equal(profile.companion_payloads.management_authority['opl-meta-agent'], 'app_or_cli_managed');
+  assert.ok(profile.companion_payloads.domain_modules.includes('opl-meta-agent'));
+  assert.equal(profile.companion_payloads.install_exposure_policy_ref, 'contracts/app-install-exposure-policy.json');
+  assert.equal(profile.companion_payloads.public_abi.primary_semantic_entry, 'skill');
+  assert.equal(profile.companion_payloads.public_abi.plugin_must_not_create_second_semantics, true);
+  assert.equal(profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors, true);
+  assert.deepEqual(profile.companion_payloads.domain_plugin_skill_ids, ['mas', 'mag', 'rca']);
+  assert.deepEqual(profile.companion_payloads.companion_skill_sync_default_ids, expectedDefaultCompanionSkillSyncIds);
+  for (const domainPluginId of profile.companion_payloads.domain_plugin_skill_ids) {
+    assert.equal(profile.companion_payloads.companion_skill_sync_default_ids.includes(domainPluginId), false);
+  }
+  assert.equal(installExposurePolicy.public_abi.primary_semantic_entry, profile.companion_payloads.public_abi.primary_semantic_entry);
+  for (const forbiddenOwner of [
+    'runtime_truth',
+    'provider_implementation',
+    'domain_truth',
+    'domain_quality_verdict',
+    'domain_artifact_authority',
+  ]) {
+    assert.ok(profile.boundary.app_does_not_own.includes(forbiddenOwner), forbiddenOwner);
+  }
+});
+
+test('App install exposure policy keeps skill ABI and plugin distribution separate', () => {
+  const policy = readInstallExposurePolicy();
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+
+  assert.equal(policy.owner, 'one-person-lab-app');
+  assert.equal(policy.purpose, 'app_install_exposure_policy');
+  assert.equal(policy.producer_owner, 'one-person-lab');
+  assert.deepEqual(policy.canonical_metadata_sources.sources, [
+    'family_action_catalog',
+    'family_stage_control_plane',
+    'family-product-entry-manifest-v2',
+  ]);
+  assert.equal(policy.public_abi.primary_semantic_entry, 'skill');
+  assert.equal(policy.public_abi.plugin_role, 'codex_app_distribution_and_capability_bundle');
+  assert.equal(policy.public_abi.direct_skill_compatibility_required, true);
+  assert.equal(policy.public_abi.plugin_must_not_create_second_semantics, true);
+  assert.equal(policy.public_abi.app_must_not_mirror_plugin_skill_as_duplicate_bare_skill, true);
+
+  const exposureClassById = new Map(policy.exposure_classes.map((entry) => [entry.id, entry]));
+  assert.deepEqual(exposureClassById.get('family_domain_plugin_surfaces').members, ['mas', 'mag', 'rca']);
+  assert.equal(exposureClassById.get('family_domain_plugin_surfaces').sync_target, 'codex_plugin_registry');
+  assert.deepEqual(exposureClassById.get('family_domain_plugin_surfaces').must_not_sync_to, [
+    '~/.codex/skills/mas',
+    '~/.codex/skills/mag',
+    '~/.codex/skills/rca',
+  ]);
+  assert.equal(exposureClassById.get('opl_generated_plugin_surfaces').sync_target, 'opl_generated_codex_plugin_surface');
+  assert.deepEqual(exposureClassById.get('opl_generated_plugin_surfaces').members, ['opl-meta-agent']);
+  assert.deepEqual(exposureClassById.get('companion_skill_sync').members, expectedDefaultCompanionSkillSyncIds);
+  assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mas'), false);
+  assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mag'), false);
+  assert.equal(exposureClassById.get('companion_skill_sync').members.includes('rca'), false);
+
+  const domainById = new Map(policy.domain_exposure.map((entry) => [entry.domain_id, entry]));
+  assert.equal(domainById.get('mas').preferred_app_distribution, 'plugin_packaged_skill');
+  assert.equal(domainById.get('mag').preferred_app_distribution, 'plugin_packaged_skill');
+  assert.equal(domainById.get('rca').preferred_app_distribution, 'plugin_packaged_skill');
+  assert.equal(domainById.get('oma').preferred_app_distribution, 'opl_generated_codex_plugin_surface');
+  assert.equal(domainById.get('oma').default_home_visible, false);
+
+  const installerSurfaceById = new Map(policy.installer_surfaces.map((surface) => [surface.surface, surface]));
+  for (const surface of policy.installer_surfaces.filter((entry) => entry.surface !== 'unsigned_local_app_authorization')) {
+    if (surface.surface !== 'stable_local_authorized_macos_install') {
+      assert.equal(surface.progress_source, 'opl system initialize --json');
+    }
+  }
+  const stableMacosInstall = installerSurfaceById.get('stable_local_authorized_macos_install');
+  assert.equal(stableMacosInstall.entrypoint, 'install-stable.sh');
+  assert.equal(stableMacosInstall.compatibility_entrypoints, undefined);
+  assert.equal(stableMacosInstall.backing_entrypoint, 'install.sh --stable-macos-install --yes');
+  assert.equal(stableMacosInstall.compatibility_backing_entrypoint, undefined);
+  assert.equal(stableMacosInstall.progress_source, 'github_release_dmg_copy_and_local_quarantine_diagnostics');
+  assert.equal(
+    stableMacosInstall.exposure_policy,
+    'one_terminal_command_download_copy_authorize_and_open_as_stable_release_path',
+  );
+  assert.equal(stableMacosInstall.stable_release_path, true);
+  assert.equal(stableMacosInstall.default_package_profile, 'full');
+  assert.deepEqual(stableMacosInstall.required_commands, [
+    'curl',
+    'hdiutil attach -nobrowse -readonly',
+    'ditto',
+    'xattr -dr com.apple.quarantine',
+    'codesign --verify --deep --strict --verbose=2',
+    'spctl --assess --type execute --verbose=4',
+    'open',
+  ]);
+  const unsignedLocalAuthorization = installerSurfaceById.get('unsigned_local_app_authorization');
+  assert.equal(unsignedLocalAuthorization.entrypoint, 'install.sh --authorize-local-app-only');
+  assert.equal(unsignedLocalAuthorization.progress_source, 'local_quarantine_and_gatekeeper_diagnostics');
+  assert.equal(
+    unsignedLocalAuthorization.exposure_policy,
+    'explicit_user_confirmed_quarantine_removal_for_existing_local_app',
+  );
+  assert.equal(unsignedLocalAuthorization.stable_release_replacement_allowed, false);
+  assert.deepEqual(unsignedLocalAuthorization.required_commands, [
+    'xattr -dr com.apple.quarantine',
+    'codesign --verify --deep --strict --verbose=2',
+    'spctl --assess --type execute --verbose=4',
+  ]);
+  assert.equal(policy.first_run_user_presentation.skill_plugin_distinction_visible_by_default, false);
+  assert.deepEqual(policy.setup_flow_contract.ready_to_launch_required_core_items, [
+    'workspace_root',
+    'codex_cli',
+    'codex_config',
+  ]);
+
+  assert.equal(
+    packageJson.scripts['validate:agent-installation'],
+    'node --experimental-strip-types scripts/validate-agent-installation-contract.ts',
+  );
+
+  assert.equal(policy.agent_installation_contract.owner, 'one-person-lab-app');
+  assert.equal(policy.agent_installation_contract.producer_owner, 'one-person-lab');
+  assert.equal(policy.agent_installation_contract.unified_sync_command, 'opl skill sync');
+  assert.equal(policy.agent_installation_contract.managed_install_source, 'opl_managed_modules');
+  assert.equal(policy.agent_installation_contract.user_agent_installation_mode, 'consume_shared_skill_action_stage_metadata');
+  assert.equal(policy.agent_installation_contract.codex_plugin_registry_target, 'codex_plugin_registry');
+  assert.equal(policy.agent_installation_contract.direct_skill_target, 'codex_user_skill_discovery_path');
+  assert.equal(policy.agent_installation_contract.product_entry_target, 'family-product-entry-manifest-v2');
+  assert.deepEqual(policy.agent_installation_contract.required_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.deepEqual(policy.agent_installation_contract.default_plugin_agent_ids, ['mas', 'mag', 'rca']);
+  assert.deepEqual(policy.agent_installation_contract.generated_plugin_agent_ids, ['oma']);
+  assert.deepEqual(policy.agent_installation_contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states);
+  assert.equal(policy.agent_installation_contract.may_use_developer_checkout_by_default, false);
+  assert.equal(policy.agent_installation_contract.developer_checkout_override_policy, 'explicit_opt_in_only');
+  assert.equal(
+    policy.agent_installation_contract.developer_checkout_override_surface,
+    'Developer Profile source_channel capability',
+  );
+  assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'app_cli_managed_stable_package_channel');
+  assert.deepEqual(policy.agent_installation_contract.module_package_channel_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.deepEqual(policy.agent_installation_contract.non_module_workflow_plugin_ids, ['opl-flow']);
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.channel_id, 'opl_distribution_cohort');
+  assert.equal(
+    policy.agent_installation_contract.managed_agent_pack_distribution.default_transport,
+    'app_cli_managed_background_maintenance',
+  );
+  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.package_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.activation_commands, [
+    'opl module reconcile',
+    'opl skill sync',
+  ]);
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.homebrew_distribution_allowed, false);
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.homebrew_formula_allowed, false);
+  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.forbidden_homebrew_formulae, [
+    'one-person-lab-modules',
+    'one-person-lab-modules-nightly',
+  ]);
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.must_not_write_user_codex_state, true);
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.must_not_define_agent_semantics, true);
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.cohort_manifest_required, true);
+  assert.equal(policy.agent_installation_contract.duplicate_bare_skill_policy, 'forbid_domain_plugin_skill_mirrors');
+  assert.equal(policy.agent_installation_contract.plugin_registration_validation_command, 'npm run validate:agent-installation');
+  assert.equal(policy.agent_installation_contract.plugin_registration_validation_inputs.plugin_root_flag, '--agent-root <agent_id>=<path>');
+  assert.equal(policy.agent_installation_contract.plugin_registration_validation_inputs.codex_skills_root_flag, '--codex-skills-root <path>');
+  assert.equal(policy.agent_installation_contract.plugin_registration_validation_inputs.default_live_codex_skills_root, '~/.codex/skills');
+  assert.deepEqual(policy.agent_installation_contract.plugin_registration_validation_inputs.validated_output_fields, [
+    'validated_plugin_roots',
+    'validated_codex_skills_root',
+  ]);
+  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.fallback_source_order, [
+    'bundled_full_runtime_modules',
+    'app_cli_managed_stable_package_channel',
+    'explicit_developer_checkout_override',
+  ]);
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.must_not_depend_on_single_github_packages_tag, true);
+  assert.equal(
+    policy.agent_installation_contract.managed_agent_pack_distribution.github_packages_unavailable_policy,
+    'fail_closed_with_actionable_background_maintenance_error',
+  );
+
+  const installAgentById = new Map(policy.agent_installation_contract.agents.map((entry) => [entry.agent_id, entry]));
+  for (const agentId of ['mas', 'mag', 'rca']) {
+    const entry = installAgentById.get(agentId);
+    assert.equal(entry.plugin_registry_required, true);
+    assert.equal(entry.direct_skill_compatibility_required, true);
+    assert.equal(entry.plugin_must_package_skill, true);
+    assert.equal(entry.must_not_create_second_semantics, true);
+    assert.equal(entry.sync_command, 'opl skill sync');
+    assert.equal(entry.product_entry_manifest, 'family-product-entry-manifest-v2');
+    assert.equal(entry.canonical_metadata_source, 'domain_action_catalog_and_stage_control_plane');
+    assert.equal(entry.codex_visible_entry, agentId);
+  }
+  assert.equal(installAgentById.get('oma').plugin_registry_required, true);
+  assert.equal(installAgentById.get('oma').preferred_distribution, 'opl_generated_codex_plugin_surface');
+  assert.equal(installAgentById.get('oma').canonical_metadata_source, 'opl_generated_interface_contract_pack');
+  assert.equal(policy.temporal_auto_configuration.provider_env_default, 'OPL_FAMILY_RUNTIME_PROVIDER=temporal');
+  assert.deepEqual(policy.temporal_auto_configuration.local_service_defaults, {
+    address_env: 'OPL_TEMPORAL_ADDRESS',
+    default_address: '127.0.0.1:7233',
+    namespace_env: 'OPL_TEMPORAL_NAMESPACE',
+    default_namespace: 'default',
+    task_queue_env: 'OPL_TEMPORAL_TASK_QUEUE',
+    default_task_queue: 'opl-stage-attempts',
+  });
+  assert.deepEqual(policy.temporal_auto_configuration.managed_commands, [
+    'opl family-runtime service start --provider temporal',
+    'opl family-runtime worker status --provider temporal',
+    'opl family-runtime worker start --provider temporal',
+    'opl family-runtime residency proof --provider temporal --production',
+  ]);
+  assert.deepEqual(policy.temporal_auto_configuration.auto_configuration_entrypoints, [
+    'opl install',
+    'opl system initialize --json',
+    'opl system startup-maintenance',
+  ]);
+  assert.deepEqual(policy.temporal_auto_configuration.startup_maintenance_policy, {
+    must_export_local_defaults_before_provider_checks: true,
+    must_surface_service_worker_and_dependency_diagnostics: true,
+    must_not_block_ready_to_launch_on_worker_residency: true,
+    must_fail_closed_when_packaged_temporal_payload_is_missing: true,
+  });
+  assert.equal(policy.temporal_auto_configuration.first_run_policy.ready_to_launch_blocking, false);
+  assert.equal(policy.setup_flow_contract.first_conversation_readiness.gate, 'acp_warmup_before_initial_send');
+  assert.deepEqual(policy.setup_flow_contract.first_conversation_readiness.must_wait_for, [
+    'conversation_record_ready',
+    'acp_warmup_complete',
+  ]);
+});
+
+test('Homebrew distribution channel is transport-only and keeps OPL activation authoritative', () => {
+  const policy = readInstallExposurePolicy();
+  const homebrew = policy.distribution_channels.homebrew;
+
+  assert.equal(homebrew.role, 'app_cask_transport_and_install_index_only');
+  assert.equal(homebrew.tap, 'gaofeng21cn/one-person-lab');
+  assert.equal(homebrew.must_not_own_agent_semantics, true);
+  assert.equal(homebrew.must_not_write_user_codex_state, true);
+  assert.equal(homebrew.user_state_activation_owner, 'opl_framework');
+  assert.deepEqual(homebrew.activation_commands, ['opl module reconcile', 'opl skill sync']);
+  assert.deepEqual(homebrew.formulae, {});
+  assert.deepEqual(homebrew.casks, {
+    standard_app: 'one-person-lab',
+    nightly_standard_app: 'one-person-lab-nightly',
+    full_first_install_app: 'one-person-lab-full',
+  });
+  assert.deepEqual(homebrew.allowed_user_targets, [
+    'Casks/one-person-lab.rb',
+    'Casks/one-person-lab-nightly.rb',
+    'Casks/one-person-lab-full.rb',
+  ]);
+  assert.deepEqual(homebrew.initial_live_targets, [
+    'Casks/one-person-lab.rb',
+    'Casks/one-person-lab-nightly.rb',
+    'Casks/one-person-lab-full.rb',
+  ]);
+  assert.deepEqual(homebrew.forbidden_formulae, ['one-person-lab-modules', 'one-person-lab-modules-nightly']);
+  assert.deepEqual(homebrew.full_first_install_cask, {
+    name: 'one-person-lab-full',
+    target: 'Casks/one-person-lab-full.rb',
+    asset: 'One-Person-Lab-Full-<version>-mac-arm64.dmg',
+    manifest: 'full-package-manifest.json',
+    standard_updater_visible: false,
+    stable_only: true,
+  });
+  assert.deepEqual(homebrew.agent_pack_policy.managed_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.equal(homebrew.agent_pack_policy.homebrew_distribution_allowed, false);
+  assert.equal(homebrew.agent_pack_policy.user_visible_formula_allowed, false);
+  assert.equal(homebrew.agent_pack_policy.activation_policy, 'app_cli_managed_background_maintenance');
+  assert.deepEqual(homebrew.agent_pack_policy.maintenance_commands, ['opl module reconcile', 'opl skill sync']);
+});
