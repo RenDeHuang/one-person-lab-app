@@ -88,20 +88,16 @@ brew update
 brew upgrade --cask one-person-lab
 ```
 
-Homebrew 安装的是和直接下载同一 release cohort 的标准桌面 App。安装后打开
-`One Person Lab.app`；首次启动会准备工作目录、Foundry Agents、skills 和运行维护。普通用户路径就是安装、打开 App、选择工作目录，然后开始工作。
-App 管理的后台维护会继续执行模块 reconcile、Codex plugin/skill sync 和本地
-Temporal provider 配置，不要求用户再到 Codex App 里手工配置一遍插件。
-
-如果 App 提示需要设置或修复，按应用内提示操作。需要终端诊断时，可以运行：
+Homebrew 是 App cask 分发路径。安装后打开 `One Person Lab.app`；首次启动使用共享的 App 设置流程，然后由 App 在后台继续所需维护。如果 App 提示需要设置或修复，按应用内提示操作。需要终端诊断时，可以运行：
 
 ```bash
 opl system initialize --json
 ```
 
-Homebrew 路径当前明确面向 macOS arm64，并要求用户已有 Homebrew。希望通过
-Homebrew 一次拿到完整首次安装载荷时，使用 `one-person-lab-full`；全新 Mac
-没有 Homebrew 时，使用 Releases 里的 Full 首次安装包。
+希望通过 Homebrew 一次拿到完整首次安装包时，使用
+`one-person-lab-full`。release channel、updater、Full package 和 macOS trust
+细节由
+[App release guide](docs/release/README.md) 与 App contracts 维护。
 
 ### 一键安装
 
@@ -111,27 +107,15 @@ macOS 用户也可以使用一键安装入口。它会准备 One Person Lab 运�
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
 ```
 
-该入口默认采用 App-first 安装，让全新 Mac 可以先打开 App，Git-backed 模块维护随后由 App 继续处理。需要从终端执行完整框架/模块安装时，可显式追加 `--complete`。
+该入口使用同一套 App-first 设置模型，让全新 Mac 可以先打开 App，Git-backed 维护随后继续处理。需要从终端执行完整框架/模块安装时，可显式追加 `--complete`。
 
-稳定版 macOS 安装入口不要求付费 Apple Developer ID 签名。它会下载最新 Full
-DMG、把 App 复制到 `/Applications`、递归移除 macOS quarantine 属性、输出
-`codesign`/`spctl` 诊断，并打开 App：
+不使用 Homebrew 的稳定版 macOS 用户，可以使用稳定版安装助手：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash
 ```
 
-如果你已经手工复制了未签名的开发版或内部测试版到 `/Applications`，只运行本地授权助手：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
-  | bash -s -- --authorize-local-app-only \
-      --app-path "/Applications/One Person Lab.app" \
-      --yes
-```
-
-这是当前稳定版安装路径。Apple Developer ID 签名仍可作为未来进一步降低
-Gatekeeper 诊断摩擦的增强项。
+macOS trust 诊断和内部版本处理细节留在 release guide，不放在公开入口里重复维护。
 
 ### 直接下载
 
@@ -139,7 +123,9 @@ Gatekeeper 诊断摩擦的增强项。
 
 [下载 One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
 
-没有 Homebrew 的 macOS arm64 新用户优先选择 `One-Person-Lab-Full-<version>-mac-arm64.dmg`。同一完整首次安装载荷也可以通过 `one-person-lab-full` Homebrew cask 安装。完整首次安装包包含桌面应用、One Person Lab、研究/基金/汇报智能体、当前运行载荷、`officecli` 和推荐技能载荷。
+没有 Homebrew 的 macOS arm64 新用户优先选择
+`One-Person-Lab-Full-<version>-mac-arm64.dmg`。同一完整首次安装包也可以通过
+`one-person-lab-full` Homebrew cask 安装。
 
 首次启动图文教程以 [macOS App install user guide](docs/user-guides/site/index.html)
 为主入口；同一份 guide source 也会生成
@@ -147,7 +133,7 @@ Gatekeeper 诊断摩擦的增强项。
 [可转发 PPTX](docs/user-guides/macos-app-install-slides.pptx) 和
 [detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf)。
 
-日常更新由 Homebrew 或应用内更新通道完成，取决于安装方式。发布页保留标准应用包和更新元数据，完整首次安装包作为独立安装资产发布。
+日常更新由 Homebrew 或应用内更新通道完成，取决于安装方式。release asset、updater metadata 和 Full first-install 边界由 App release guide 与 contracts 维护。
 
 Docker 或服务器部署请参考 [Docker/WebUI 安装说明](https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md)。
 
@@ -240,17 +226,28 @@ OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run 
 
 ### 产品与安装合同
 
-App 产品默认策略由 [`contracts/app-product-profile.json`](contracts/app-product-profile.json) 声明。安装与 Codex 可见暴露策略由 [`contracts/app-install-exposure-policy.json`](contracts/app-install-exposure-policy.json) 声明：App 决定用户看到的安装形态和默认入口，OPL Framework 生产 install/sync/read-model surface，domain 仓继续持有 skill 语义。该合同同时固定 Homebrew App cask 边界、MAS/MAG/RCA plugin registry、OMA 由 OPL 生成的本地 Codex plugin surface、App/CLI-managed agent-pack 维护、可选 live `~/.codex/skills` duplicate mirror 检查，以及 `npm run validate:agent-installation` 背后的 duplicate bare-skill prevention。
+App 产品默认策略由
+[`contracts/app-product-profile.json`](contracts/app-product-profile.json)
+声明。安装与 Codex 可见暴露策略由
+[`contracts/app-install-exposure-policy.json`](contracts/app-install-exposure-policy.json)
+声明，运行桥接策略由
+[`contracts/app-runtime-bridge.json`](contracts/app-runtime-bridge.json)
+声明，release channel 策略由
+[`contracts/app-release-channel.json`](contracts/app-release-channel.json)
+声明。这些 contracts 维护用户可见安装面、standard 与 Full package 边界、
+updater 可见性、Homebrew cask policy、运行状态页桥接行为、App 管理的
+skill/plugin 暴露和 release validation gates。
 
-发布脚本会在标准包和 Full 包构建前把 App-owned contracts 同步到活动 shell，让 Codex 默认模型/推理强度、默认打包 skill 白名单、首次启动维护行为和 Settings 用户文案由 App 仓统一配置，而不是分散写死在 AionUI fork 中。
+OPL Framework 仍生产 install/sync/read-model surfaces、runtime state 和 action
+execution。MAS/MAG/RCA/OMA 继续持有 domain skill semantics、quality/export
+judgment、artifact authority 和 owner receipts。发布脚本会在打包前把 App-owned
+product contracts 同步到活动 shell，让 shell 消费 App truth，而不是定义 App
+truth。
 
-运行状态页以 `opl app state --profile fast --json` 作为摘要和刷新来源，`opl app state --profile full --json` 只用于显式 full-state 诊断或发布证据，并只在需要时按需加载完整 Framework drilldown。该页面默认 user-task-status first：先展示正在运行任务数、活跃项目数、排队项目数和需要关注数，再展示任务标题、状态、阶段、进度标签、下一步、owner 和最近进展；项目进度、safe actions、provider/current_control_state 诊断和完整 evidence ledger 都是二级或按需展开内容。
-
-首次启动在进入 `/guid` 前完成 `ready_to_launch`：只要求工作目录、Codex CLI 和 Codex config。领域模块、family runtime provider、推荐技能、native helpers、repo sync、CLT 和生态更新属于 Full readiness 或后台维护。首次启动界面从共享的 `opl system initialize --json` 模型展示当前阶段、Core 进度、Full readiness 进度、后台维护计数、阻塞项和下一步，不为不同安装形态维护各自的进度真相。
-
-发送首次 `/guid` 消息前先预热 ACP conversation，让首启依赖解包慢变成可重试的设置状态，而不是丢失 prompt。
-
-Foundry Agents 只暴露一条公共语义路径：domain skill 是 ABI。Codex App 可以通过 plugin-packaged skill 暴露 MAS/MAG/RCA，CLI 和 direct Codex 仍消费同一套 skill/action/stage metadata；plugin 只是分发壳，不能生成第二套语义，也不能把 MAS/MAG/RCA 再镜像成裸 `~/.codex/skills/{mas,mag,rca}`。Homebrew 只作为 App cask 的安装和更新入口；MAS/MAG/RCA/OMA agent packs 在 App 安装后由 App/CLI 维护准备，用户不需要安装单独的 `one-person-lab-modules` 或 agent 专属 Homebrew 包。
+当前 release 操作、Full package policy、macOS trust 诊断、updater metadata 和 evidence
+gates 见 [App release guide](docs/release/README.md)。当前 App 产品状态和剩余
+gap 见 [`docs/status.md`](docs/status.md) 与
+[`docs/active/app-ideal-state-gap-plan.md`](docs/active/app-ideal-state-gap-plan.md)。
 
 GUI 定义栈按顺序阅读：[`docs/app-ideal-gui-interaction-spec.md`](docs/app-ideal-gui-interaction-spec.md) 定义不绑定具体 shell 的理想交互形态，[`docs/codex-to-opl-app-delta.md`](docs/codex-to-opl-app-delta.md) 定义 Codex App 变成 OPL App 需要追加、隐藏和治理的产品增量，[`docs/app-gui-feature-inventory.md`](docs/app-gui-feature-inventory.md) 维护跨 shell 的能力清单。后续设计或评审 GUI 时先看这三份，再看 contracts 和 page-state 矩阵；AionUI、`agui-codex` 和 PilotDeck 只提供实现或参考材料，不能反过来定义 OPL App 产品事实。
 

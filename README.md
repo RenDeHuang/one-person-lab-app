@@ -89,25 +89,20 @@ brew update
 brew upgrade --cask one-person-lab
 ```
 
-Homebrew installs the standard desktop App from the same GitHub Release assets
-as direct downloads. After installation, open `One Person Lab.app`; first
-launch prepares the workspace, Foundry Agents, skills, and runtime maintenance
-in the background. The normal user path is install, open the App, choose a
-workspace, and start work.
-The App-managed background maintenance path runs module reconciliation, Codex
-plugin/skill sync, and local Temporal provider configuration without requiring a
-second manual Codex plugin setup.
-
-If the App reports that setup or repair is needed, follow the in-app prompt.
-Terminal diagnostics remain available when needed:
+Homebrew is an App cask distribution path. After installation, open
+`One Person Lab.app`; first launch uses the shared App setup flow, then the App
+continues any required maintenance in the background. If the App reports that
+setup or repair is needed, follow the in-app prompt. Terminal diagnostics remain
+available when needed:
 
 ```bash
 opl system initialize --json
 ```
 
-The Homebrew path intentionally targets macOS arm64 and requires Homebrew.
-Use `one-person-lab-full` when you want the complete first-install payload
-through Homebrew; use Releases when the Mac does not have Homebrew yet.
+Use `one-person-lab-full` when you want the complete first-install package
+through Homebrew. Release-channel, updater, Full package, and macOS trust
+details are maintained in the
+[App release guide](docs/release/README.md) and App contracts.
 
 ### One-Shot Installer
 
@@ -118,29 +113,18 @@ runtime environment and installs or opens the desktop App:
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash
 ```
 
-The installer defaults to an App-first setup so a clean Mac can open the App before Git-backed module maintenance finishes. Use `--complete` when you explicitly want the full framework/module install from the terminal.
+The installer uses the same App-first setup model: a clean Mac can open the App
+before Git-backed maintenance finishes. Use `--complete` when you explicitly
+want the full framework/module install from the terminal.
 
-The Stable macOS installer path does not require paid Apple Developer ID
-signing. It downloads the latest Full DMG, copies the App into `/Applications`,
-removes recursive macOS quarantine attributes, prints `codesign`/`spctl`
-diagnostics, and opens the App:
+Stable macOS users who do not want Homebrew can use the stable install helper:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash
 ```
 
-If you already copied an unsigned developer or internal test build into
-`/Applications`, run only the local authorization helper:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh \
-  | bash -s -- --authorize-local-app-only \
-      --app-path "/Applications/One Person Lab.app" \
-      --yes
-```
-
-This is the current Stable install path. Apple Developer ID signing remains an
-optional future enhancement for a smoother Gatekeeper verdict.
+Mac-specific trust diagnostics and internal-build handling stay in the release
+guide rather than this public entry.
 
 ### Direct Download
 
@@ -148,7 +132,9 @@ You can also download the current desktop package from the App repository releas
 
 [Download One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
 
-For a first-time macOS arm64 install without Homebrew, choose `One-Person-Lab-Full-<version>-mac-arm64.dmg`. The same complete first-install payload is also available as the `one-person-lab-full` Homebrew cask. It includes the desktop app, One Person Lab, the Research/Grant/Presentation agents, current runtime payloads, `officecli`, and recommended skill payloads.
+For a first-time macOS arm64 install without Homebrew, choose
+`One-Person-Lab-Full-<version>-mac-arm64.dmg`. The same complete first-install
+package is also available as the `one-person-lab-full` Homebrew cask.
 
 For a screenshot-based first-run walkthrough, start from the
 [macOS App install user guide](docs/user-guides/site/index.html). The same
@@ -158,8 +144,8 @@ guide source also generates the shareable
 [detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf).
 
 Daily updates are handled by Homebrew or the in-app update channel, depending on
-how the App was installed. Releases also publish standard App packages, updater
-metadata, and separate complete first-install assets.
+how the App was installed. Release asset, updater metadata, and Full
+first-install boundaries are governed by the App release guide and contracts.
 
 For Docker or server deployment, see the [Docker/WebUI install guide](https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md).
 
@@ -255,19 +241,29 @@ See [`docs/status.md`](docs/status.md) for the current migration and release sta
 
 ### Product And Installation Contracts
 
-App-owned product defaults are declared in [`contracts/app-product-profile.json`](contracts/app-product-profile.json). Installation and Codex-visible exposure policy is declared in [`contracts/app-install-exposure-policy.json`](contracts/app-install-exposure-policy.json): the App decides the user-facing install surfaces and default visible entries, while OPL Framework produces the install/sync/read-model surfaces and domain repos keep skill semantics. The same contract owns the Homebrew App cask boundary and the `agent_installation_contract`, which keeps MAS/MAG/RCA plugin registry entries, the OMA OPL-generated local Codex plugin surface, App/CLI-managed agent-pack maintenance, optional live `~/.codex/skills` duplicate-mirror checks, and duplicate bare-skill prevention behind `npm run validate:agent-installation`.
+App-owned product defaults are declared in
+[`contracts/app-product-profile.json`](contracts/app-product-profile.json).
+Installation and Codex-visible exposure policy is declared in
+[`contracts/app-install-exposure-policy.json`](contracts/app-install-exposure-policy.json),
+runtime bridge policy is declared in
+[`contracts/app-runtime-bridge.json`](contracts/app-runtime-bridge.json), and
+release-channel policy is declared in
+[`contracts/app-release-channel.json`](contracts/app-release-channel.json).
+Those contracts own user-facing install surfaces, standard versus Full package
+boundaries, updater visibility, Homebrew cask policy, Runtime page bridge
+behavior, App-managed skill/plugin exposure, and release validation gates.
 
-Release scripts sync App-owned contracts into the active shell before standard and Full packaging so Codex defaults, visible companion skills, first-run maintenance behavior, and user-facing Settings labels are configured by the App repository instead of being scattered through the AionUI fork.
+The OPL Framework still produces install/sync/read-model surfaces, runtime
+state, and action execution. MAS/MAG/RCA/OMA keep domain skill semantics,
+quality/export judgment, artifact authority, and owner receipts. Release scripts
+sync App-owned product contracts into the active shell before packaging so the
+shell consumes App truth instead of defining it.
 
-The runtime bridge is declared in [`contracts/app-runtime-bridge.json`](contracts/app-runtime-bridge.json): OPL owns the runtime/app CLI protocol, the App owns the GUI bridge contract, and `opl-aion-shell` is the current replaceable adapter implementation. Runtime pages consume `opl app state --profile fast --json` as the summary and refresh source, keep `opl app state --profile full --json` for explicit full-state diagnostic or release evidence, and lazy-load full Framework drilldown only on demand. The default Runtime view is user-task-status first: running task count, active project count, queued project count, attention count, then task rows with status, stage, progress label, next step, owner, and last progress.
-
-First launch reaches `ready_to_launch` before `/guid` from the Core checks: workspace root, Codex CLI, and Codex config. Domain modules, the family runtime provider, recommended skills, native helpers, repo sync, CLT, and ecosystem updates remain Full readiness or background maintenance. First-launch UI state comes from the shared `opl system initialize --json` model rather than installer-specific progress state.
-
-The App warms the ACP conversation before sending the first `/guid` message so slow first-run dependency unpacking becomes a retryable setup state instead of a lost prompt.
-
-Foundry Agents are exposed through one public semantic path: the domain skill is the ABI. Codex App may receive MAS/MAG/RCA through plugin-packaged skills, while CLI and direct Codex use the same skill/action/stage metadata. Plugin packaging must not create a second semantic map or duplicate bare `~/.codex/skills/{mas,mag,rca}` mirrors. Homebrew remains the App cask install/update path; MAS/MAG/RCA/OMA agent packs are prepared by App/CLI maintenance after the App is installed.
-
-Independent agent installation and Codex plugin registration are validated through one machine gate: `npm run validate:agent-installation`. External installers and user-provided agents can pass `-- --agent-root mas=<path> --agent-root mag=<path> --agent-root rca=<path>` to verify real `.codex-plugin/plugin.json` plus `skills/<id>/SKILL.md` layouts, and `-- --codex-skills-root <path>` to fail closed when MAS/MAG/RCA are mirrored as duplicate bare skills.
+For current release operations, Full package policy, macOS trust diagnostics,
+updater metadata, and evidence gates, read the
+[App release guide](docs/release/README.md). For current App product state and
+remaining gaps, read [`docs/status.md`](docs/status.md) and
+[`docs/active/app-ideal-state-gap-plan.md`](docs/active/app-ideal-state-gap-plan.md).
 
 The GUI definition stack starts with the shell-independent ideal interaction spec in [`docs/app-ideal-gui-interaction-spec.md`](docs/app-ideal-gui-interaction-spec.md), then the Codex-to-OPL product delta in [`docs/codex-to-opl-app-delta.md`](docs/codex-to-opl-app-delta.md), then the cross-shell capability inventory in [`docs/app-gui-feature-inventory.md`](docs/app-gui-feature-inventory.md). Use them in that order when designing or reviewing a GUI shell.
 
