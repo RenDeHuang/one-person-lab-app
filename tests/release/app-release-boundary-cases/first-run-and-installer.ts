@@ -12,7 +12,9 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
   );
   const scenarioById = new Map(matrix.scenarios.map((scenario) => [scenario.id, scenario]));
   const fullClean = scenarioById.get('full_first_install_clean_machine');
+  const fullDmg = scenarioById.get('full_dmg_clean_vm_smoke');
 
+  assert.ok(matrix.scenarios.every((scenario) => !('aliases' in scenario)));
   assert.deepEqual(fullClean.clean_machine_missing_tools, ['command_line_tools', 'homebrew', 'node', 'git']);
   assert.equal(fullClean.core_ready_source, 'bundled_runtime');
   assert.deepEqual(fullClean.background_maintenance, [
@@ -46,6 +48,12 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
   assert.ok(standardClean.release_evidence_artifacts.includes('artifacts/system-initialize.json'));
   assert.ok(standardClean.release_evidence_artifacts.includes('artifacts/assistant-route-smoke-summary.json'));
   assert.ok(standardClean.expects.some((entry) => /Packaged GUI route smoke selects MAS, MAG, and RCA/.test(entry)));
+
+  assert.equal(fullDmg.release_gate, true);
+  assert.equal(fullDmg.vm.runtime_profile, 'full');
+  assert.ok(fullDmg.expects.some((entry) => /Full DMG reaches Core ready from the bundled runtime/.test(entry)));
+  assert.ok(fullDmg.release_evidence_artifacts.includes('artifacts/system-initialize.json'));
+  assert.ok(fullDmg.release_evidence_artifacts.includes('artifacts/modules.json'));
 
   const homebrewStandard = scenarioById.get('homebrew_standard_cask_clean_vm_smoke');
   assert.equal(homebrewStandard.release_gate, true);

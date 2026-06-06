@@ -230,9 +230,6 @@
       "id": "full_dmg_clean_vm_smoke",
       "package_type": "full",
       "release_gate": true,
-      "aliases": [
-        "full_first_install_clean_machine"
-      ],
       "vm": {
         "source": "clean no-CLT Tart base clone",
         "display": "1920x1080px",

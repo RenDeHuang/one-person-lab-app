@@ -22,6 +22,9 @@ function buildScenarioMap(matrix) {
     if (!scenario.id || !scenario.package_type || !Array.isArray(scenario.expects) || scenario.expects.length === 0) {
       throw new Error(`Invalid first-run scenario: ${JSON.stringify(scenario)}`);
     }
+    if (Array.isArray(scenario.aliases) && scenario.aliases.length > 0) {
+      throw new Error(`First-run scenario ${scenario.id} must not declare compatibility aliases`);
+    }
     return [scenario.id, scenario];
   }));
 }
