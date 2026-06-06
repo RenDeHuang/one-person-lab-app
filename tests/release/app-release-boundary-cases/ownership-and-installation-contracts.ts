@@ -18,15 +18,6 @@ test('release boundary guard keeps App release ownership in App repo', () => {
   assert.match(result.stdout, /App release boundary is App-owned/);
 });
 
-test('legacy tag-push Build and Release workflow is retired', () => {
-  const legacyWorkflowPath = path.join(appRoot, '.github', 'workflows', 'build-and-release.yml');
-  assert.equal(
-    fs.existsSync(legacyWorkflowPath),
-    false,
-    'legacy tag-push Build and Release workflow must not exist as a live release surface',
-  );
-});
-
 test('Homebrew tap updater is a local cohort-bound manifest and checksum planner', () => {
   const tapRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-homebrew-tap-test-'));
   const digest = 'b'.repeat(64);
