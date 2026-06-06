@@ -4,6 +4,13 @@
   "purpose": "release_channel_contract",
   "state": "active",
   "release_repo": "gaofeng21cn/one-person-lab-app",
+  "github_release_name": {
+    "format": "One Person Lab v<version>",
+    "stable_example": "One Person Lab v26.6.5",
+    "nightly_example": "One Person Lab v26.6.5-nightly",
+    "tag_pattern": "v<version>",
+    "rule": "GitHub Release names use the product-prefixed v-version format for both Stable and Nightly; tags remain v<version> for updater and automation compatibility."
+  },
   "active_shell": "aionui",
   "shell_root": "shells/aionui",
   "standard_updater": {

@@ -16,7 +16,7 @@ verification can select a different linked shell repo with
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
-| `generate-release-notes.ts` | Generates English, channel-aware release notes: Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, both group changes by user purpose, and Full releases include OPL-family agent payload versions. |
+| `generate-release-notes.ts` | Generates English, channel-aware release notes: Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, release names use `One Person Lab v<version>`, both group changes by user purpose, and notes include OPL-family repo changes plus Full payload versions when available. |
 | `cleanup-draft-release-candidates.ts` | Dry-runs or deletes stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. |
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |

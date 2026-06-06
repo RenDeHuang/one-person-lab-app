@@ -111,12 +111,13 @@ export function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
     'Audience: normal OPL App users who want to know what improved and why they should upgrade.',
     '',
     'Hard requirements:',
-    `- Start the visible public Markdown first line exactly with: One Person Lab ${evidence.version}`,
+    `- Start the visible public Markdown first line exactly with: ${evidence.release_title}`,
     '- The visible public Markdown must be English only.',
     '- Write natural, concrete, user-facing English. Do not sound like a commit classifier.',
     '- The visible first paragraph must explain what a user can do more easily after installing or upgrading. Do not lead with CI, workflows, contracts, release-note generation, or audit mechanics.',
     '- Put that visible first paragraph immediately after the title, before any "##" section heading.',
     '- Explain bundled OPL agent/runtime changes in plain language: MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and Codex skills when present.',
+    '- When release_evidence.family_repo_changes is non-empty, include a concise "## OPL family updates" section that summarizes actual changes per repository. Use commit subjects, commit counts, and compare links from that evidence. Do not collapse this into App-only wording.',
     '- When release_evidence.agent_runtime_changes is non-empty, use those entries to write concise role-based bullets. Say what MAS, MAG, RCA, OPL Meta Agent, Framework, Codex CLI, OfficeCLI, or MinerU help users do; do not list refs as the main improvement.',
     '- When an agent_runtime_changes entry has change_summary_hint or change_subjects, include the concrete change in user language. Do not stop at generic role descriptions such as "MAS helps research" or "RCA helps slides".',
     '- Stable compares with the previous Stable; Nightly compares with the previous Nightly.',
@@ -238,7 +239,7 @@ function validateEnglishReleaseNotesMarkdown(markdown: string, evidence: Release
   if (/[\u3400-\u9fff]/.test(markdown)) {
     failures.push('contains Chinese text');
   }
-  if (!new RegExp(`^#?\\s*One Person Lab(?: App)? ${evidence.version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s|$)`).test(markdown)) {
+  if (!new RegExp(`^#?\\s*${escapeRegExp(evidence.release_title)}(?:\\s|$)`).test(markdown)) {
     failures.push('missing release title');
   }
   for (const required of ['## What improved', '## OPL agents and runtime payload', '## Release scope']) {
@@ -269,6 +270,16 @@ function validateEnglishReleaseNotesMarkdown(markdown: string, evidence: Release
   for (const ref of evidence.payload.bundled_refs) {
     if (!markdown.includes(ref)) {
       failures.push(`missing payload ref: ${ref}`);
+    }
+  }
+  if (evidence.family_repo_changes?.length > 0) {
+    if (!markdown.includes('## OPL family updates')) {
+      failures.push('missing OPL family updates section');
+    }
+    for (const change of evidence.family_repo_changes) {
+      if (!markdown.includes(change.label)) {
+        failures.push(`missing OPL family repo change: ${change.label}`);
+      }
     }
   }
   if (evidence.full_changelog_url && !markdown.includes(evidence.full_changelog_url)) {
@@ -327,7 +338,7 @@ function validateLocalizedReleaseNotes(markdown: string, evidence: ReleaseNotesE
       failures.push(`missing localized ${locale} block`);
       continue;
     }
-    if (!new RegExp(`^#?\\s*One Person Lab(?: App)? ${escapeRegExp(evidence.version)}(?:\\s|$)`).test(localized)) {
+    if (!new RegExp(`^#?\\s*${escapeRegExp(evidence.release_title)}(?:\\s|$)`).test(localized)) {
       failures.push(`localized ${locale} block missing release title`);
     }
     if (locale === 'en-US' && /[\u3400-\u9fff]/.test(localized)) {

@@ -191,6 +191,7 @@ const checks = [
       'name: OPL Nightly Standard Release',
       'schedule:',
       "cron: '17 18 * * *'",
+      'pull-requests: read',
       'uses: ./.github/workflows/_build-reusable.yml',
       'require_macos_gatekeeper: false',
       'node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets',
@@ -203,7 +204,8 @@ const checks = [
       'git tag -f "${OPL_RELEASE_TAG}" "$GITHUB_SHA"',
       'git push --force-with-lease="refs/tags/${OPL_RELEASE_TAG}:${remote_tag_sha}" origin "refs/tags/${OPL_RELEASE_TAG}"',
       'git push origin "refs/tags/${OPL_RELEASE_TAG}"',
-      '--title "${OPL_RELEASE_TAG}"',
+      'release_title="One Person Lab ${OPL_RELEASE_TAG}"',
+      '--title "$release_title"',
       '--prerelease',
       '--latest=false',
       'npm run verify-remote-release',
@@ -697,6 +699,16 @@ if (homebrewTapValidation.status !== 0) {
 const releaseContract = JSON.parse(
   fs.readFileSync(path.join(appRoot, 'contracts/app-release-channel.json'), 'utf8'),
 );
+const releaseName = releaseContract.github_release_name;
+if (
+  releaseName?.format !== 'One Person Lab v<version>' ||
+  releaseName?.stable_example !== 'One Person Lab v26.6.5' ||
+  releaseName?.nightly_example !== 'One Person Lab v26.6.5-nightly' ||
+  releaseName?.tag_pattern !== 'v<version>'
+) {
+  console.error('FAIL github_release_name: release names must use One Person Lab v<version> for Stable and Nightly while tags stay v<version>');
+  failures += 1;
+}
 const preflight = releaseContract.release_preflight;
 if (
   preflight?.script !== 'scripts/validate-release-preflight.ts' ||

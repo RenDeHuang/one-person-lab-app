@@ -275,9 +275,12 @@ builds that should run on GitHub runners instead of this Mac.
   as latest, excludes Full first-install assets, runs remote standard asset
   verification after upload, and publishes
   `ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>` plus the `nightly`
-  tag from the App workflow. Its release notes compare against the previous
-  Nightly and explain the main user-visible changes in grouped prose. Users only
-  see this channel after opting into prerelease/Nightly updates in the App.
+  tag from the App workflow. GitHub Release names use the same product format as
+  Stable, `One Person Lab v<version>`, while tags remain `v<version>` or
+  `v<version>-nightly` for updater and automation compatibility. Its release
+  notes compare against the previous Nightly and explain the main user-visible
+  changes in grouped prose. Users only see this channel after opting into
+  prerelease/Nightly updates in the App.
 - The VM smoke downloads the published DMG for the selected package profile,
   clones a clean no-CLT Tart base VM, fixes the logical display at
   `1920x1080px`, copies the GitHub runner's Node.js runtime into the guest for
@@ -980,9 +983,14 @@ prerelease semver tag, `--latest=false`, and no Full first-install payload.
 Both Stable and Nightly release notes are generated through
 `scripts/generate-release-notes.ts`: Stable compares with the previous Stable
 release, Nightly compares with the previous Nightly prerelease, and repeated
-channel boilerplate is excluded from the body. Public GitHub Release notes are
-English-only and must include the bundled OPL-family agent payloads when a Full
-package is published: MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, and MinerU.
+channel boilerplate is excluded from the body. Release names and the first
+public notes line must be `One Person Lab v<version>` for both Stable and
+Nightly. Public GitHub Release notes are English-only and must include the
+bundled OPL-family agent payload refs plus a concise `OPL family updates`
+section. Stable notes compare OPL-family repo changes against the previous
+Stable cohort; Nightly notes compare against the previous Nightly cohort.
+When a Full package is published, the payload section must include MAS, MAG,
+RCA, OPL Meta Agent, OfficeCLI, and MinerU.
 The same boundary guard fails closed when any release workflow drops the
 top-level `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` policy.
 

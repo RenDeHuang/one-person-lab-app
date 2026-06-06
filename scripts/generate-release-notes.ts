@@ -14,6 +14,7 @@ function parseArgs(argv: string[]) {
     shellRoot: string;
     includeFullPackage: boolean;
     fullPackageManifestPath: string;
+    previousFullPackageManifestPath: string;
     output: string;
     previousTag: string;
     currentTag: string;
@@ -29,6 +30,7 @@ function parseArgs(argv: string[]) {
     shellRoot: process.env.OPL_APP_SHELL_ROOT || process.env.OPL_AION_SHELL_ROOT || resolveActiveShellPaths().shellRoot,
     includeFullPackage: false,
     fullPackageManifestPath: '',
+    previousFullPackageManifestPath: '',
     output: '',
     previousTag: '',
     currentTag: '',
@@ -63,6 +65,8 @@ function parseArgs(argv: string[]) {
     } else if (token === '--full-package-manifest') {
       parsed.fullPackageManifestPath = path.resolve(value);
       parsed.includeFullPackage = true;
+    } else if (token === '--previous-full-package-manifest') {
+      parsed.previousFullPackageManifestPath = path.resolve(value);
     } else if (token === '--output') {
       parsed.output = path.resolve(value);
     } else if (token === '--previous-tag') {
@@ -97,6 +101,9 @@ function main() {
   const fullPackageManifest = options.fullPackageManifestPath
     ? JSON.parse(fs.readFileSync(options.fullPackageManifestPath, 'utf8'))
     : null;
+  const previousFullPackageManifest = options.previousFullPackageManifestPath
+    ? JSON.parse(fs.readFileSync(options.previousFullPackageManifestPath, 'utf8'))
+    : null;
   const releaseNoteOptions = {
     version: options.version,
     channel: options.channel,
@@ -104,6 +111,7 @@ function main() {
     shellRoot: options.shellRoot,
     includeFullPackage: options.includeFullPackage,
     fullPackageManifest,
+    previousFullPackageManifest,
     previousTag: options.previousTag,
     currentTag: options.currentTag,
     previousAppRef: options.previousAppRef,

@@ -202,7 +202,7 @@ process.stdout.write(${JSON.stringify(body)});
 const stableInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash';
 
 function validStandardAiReleaseNotes(version) {
-  const publicMarkdown = `One Person Lab ${version}
+  const publicMarkdown = `One Person Lab v${version}
 
 This release helps users upgrade the standard OPL App package with a clearer first launch path for MAS, MAG, RCA, and OPL Meta Agent entries.
 
@@ -214,6 +214,10 @@ This release helps users upgrade the standard OPL App package with a clearer fir
 ## OPL agents and runtime payload
 - Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.
 
+## OPL family updates
+- One Person Lab App: current standard package changes keep the built-in OPL entries aligned.
+- OPL Aion Shell: current shell changes keep the first-run and settings UI aligned with the App release.
+
 ## Install Stable
 \`${stableInstallCommand}\`
 
@@ -222,7 +226,7 @@ This installer downloads the Stable macOS package, copies One Person Lab.app int
 ## Release scope
 - Standard macOS arm64 updater package is published for this release.
 `;
-  return withHiddenLocalizedReleaseNotes(publicMarkdown, `One Person Lab ${version}
+  return withHiddenLocalizedReleaseNotes(publicMarkdown, `One Person Lab v${version}
 
 这次更新让用户升级标准 OPL App 包后，更容易从首次启动进入 MAS、MAG、RCA 和 OPL Meta Agent 入口。
 
@@ -233,6 +237,10 @@ This installer downloads the Stable macOS package, copies One Person Lab.app int
 
 ## OPL agents and runtime payload
 - Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.
+
+## OPL family updates
+- One Person Lab App: 当前标准包更新会让内置 OPL 入口保持一致。
+- OPL Aion Shell: 当前 shell 更新会让首次启动和设置界面与 App 发布保持一致。
 
 ## Install Stable
 \`${stableInstallCommand}\`
@@ -4997,7 +5005,7 @@ This release makes a clean OPL install more useful immediately by shipping refre
   assert.equal(payload.release_notes_mode, 'template');
   const notes = payload.release_notes;
   const publicNotes = stripLocalizedReleaseNotesForTest(notes);
-  assert.match(notes, /One Person Lab 26\.5\.18/);
+  assert.match(notes, /One Person Lab v26\.5\.18/);
   assert.match(notes, /What changed/);
   assert.match(notes, /Release scope/);
   assert.match(notes, /Standard macOS arm64 updater package plus Full clean-install DMG/);
@@ -5455,7 +5463,11 @@ test('explicit AG-UI/Codex adapter contract selects linked external candidate sh
 });
 
 test('AG-UI/Codex candidate package validation requires a real app bundle manifest', () => {
-  const source = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-shell-candidates.ts'), 'utf8');
+  const dispatcherSource = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-shell-candidates.ts'), 'utf8');
+  const packageValidationSource = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'validate-shell-candidates', 'candidate-evidence.ts'),
+    'utf8',
+  );
   const candidateAdapter = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'shell-adapters', 'agui-codex.json'), 'utf8'),
   );
@@ -5463,16 +5475,17 @@ test('AG-UI/Codex candidate package validation requires a real app bundle manife
   assert.equal(candidateAdapter.shell_contract.layout_id, 'agui_codex_app_bundle');
   assert.ok(candidateAdapter.shell_contract.capabilities.includes('candidate_app_bundle_package'));
   assert.ok(candidateAdapter.validation_commands.some((entry) => entry.id === 'candidate_app_bundle_build'));
-  assert.match(source, /validateCandidatePackageManifest/);
-  assert.match(source, /candidate_app_bundle_ready/);
-  assert.match(source, /explicit_candidate_app_bundle/);
-  assert.match(source, /\.endsWith\('\.app'\)/);
-  assert.match(source, /assertDirectory\(appBundleRoot/);
-  assert.match(source, /Contents', 'Info\.plist'/);
-  assert.match(source, /Contents', 'MacOS'/);
-  assert.match(source, /findMacAppExecutable/);
-  assert.match(source, /assertNoAbsoluteSymlinks/);
-  assert.match(source, /App-owned product profile input/);
+  assert.match(dispatcherSource, /runCandidateCommands\(candidate\)/);
+  assert.match(packageValidationSource, /validateCandidatePackageManifest/);
+  assert.match(packageValidationSource, /candidate_app_bundle_ready/);
+  assert.match(packageValidationSource, /explicit_candidate_app_bundle/);
+  assert.match(packageValidationSource, /\.endsWith\('\.app'\)/);
+  assert.match(packageValidationSource, /assertDirectory\(appBundleRoot/);
+  assert.match(packageValidationSource, /Contents', 'Info\.plist'/);
+  assert.match(packageValidationSource, /Contents', 'MacOS'/);
+  assert.match(packageValidationSource, /findMacAppExecutable/);
+  assert.match(packageValidationSource, /assertNoAbsoluteSymlinks/);
+  assert.match(packageValidationSource, /App-owned product profile input/);
   assert.doesNotMatch(JSON.stringify(candidateAdapter), /candidate_package_smoke|candidate_package_smoke_ready|\.txt/);
 });
 
@@ -6479,6 +6492,13 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     releaseContract.release_acceleration.github_actions.draft_candidate_mode,
     'draft_candidate',
   );
+  assert.deepEqual(releaseContract.github_release_name, {
+    format: 'One Person Lab v<version>',
+    stable_example: 'One Person Lab v26.6.5',
+    nightly_example: 'One Person Lab v26.6.5-nightly',
+    tag_pattern: 'v<version>',
+    rule: 'GitHub Release names use the product-prefixed v-version format for both Stable and Nightly; tags remain v<version> for updater and automation compatibility.',
+  });
   assert.equal(
     releaseContract.release_acceleration.post_publish_remote_verification.script,
     'npm run verify-remote-release -- --version <version>',
@@ -6519,6 +6539,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
 
   assert.match(workflow, /name: OPL Nightly Standard Release/);
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
+  assert.match(workflow, /permissions:[\s\S]*pull-requests: read/);
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /schedule:/);
   assert.match(workflow, /cron: '17 18 \* \* \*'/);
@@ -6539,7 +6560,8 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /git push origin "refs\/tags\/\$\{OPL_RELEASE_TAG\}"/);
   assert.match(workflow, /gh release create "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease[\s\S]*--latest=false[\s\S]*--verify-tag/);
   assert.match(workflow, /gh release edit "\$\{OPL_RELEASE_TAG\}"[\s\S]*--prerelease/);
-  assert.match(workflow, /--title "\$\{OPL_RELEASE_TAG\}"/);
+  assert.match(workflow, /release_title="One Person Lab \$\{OPL_RELEASE_TAG\}"/);
+  assert.match(workflow, /--title "\$release_title"/);
   assert.match(workflow, /gh release upload "\$\{OPL_RELEASE_TAG\}" release-assets\/\*/);
   assert.match(workflow, /npm run verify-remote-release/);
   assert.match(workflow, /webui-ghcr-publish:/);
@@ -6692,6 +6714,7 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
 
   assert.match(nightlyWorkflow, /homebrew-tap-update:/);
   assert.match(nightlyWorkflow, /uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml/);
+  assert.match(nightlyWorkflow, /permissions:[\s\S]*pull-requests: read/);
   assert.match(nightlyWorkflow, /channel: nightly/);
   assert.match(nightlyWorkflow, /package_kind: app_standard/);
   assert.match(nightlyWorkflow, /tap_repo: gaofeng21cn\/homebrew-one-person-lab/);

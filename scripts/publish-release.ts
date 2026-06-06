@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
-import { buildReleaseNotesDocument, buildReleaseNotesEvidence } from './release-notes.ts';
+import { buildReleaseNotesDocument, buildReleaseNotesEvidence, buildReleaseTitle } from './release-notes.ts';
 import { buildAiReleaseNotesDocument } from './release-notes-ai-writer.ts';
 import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
 
@@ -559,7 +559,7 @@ function buildReleaseNotes(version, includeFullPackage, shellRoot, fullPackageMa
 }
 
 function replaceReleaseNotes(repo, tag, notes) {
-  run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', notes]);
+  run('gh', ['release', 'edit', tag, '--repo', repo, '--notes', notes, '--title', buildReleaseTitle(tag)]);
 }
 
 function cleanupNewlyCreatedReleaseAfterUploadFailure(repo, tag) {
@@ -726,7 +726,7 @@ function main() {
       '--repo',
       options.releaseRepo,
       '--title',
-      `One Person Lab ${options.version}`,
+      buildReleaseTitle(options.version),
       '--notes',
       releaseNotes,
       ...(options.draft ? ['--draft'] : []),

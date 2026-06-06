@@ -14,6 +14,7 @@ on:
 permissions:
   contents: write
   actions: read
+  pull-requests: read
   packages: write
 
 concurrency:
@@ -128,6 +129,7 @@ jobs:
           OPL_RELEASE_TAG: ${{ needs.resolve-nightly.outputs.tag }}
         run: |
           set -euo pipefail
+          release_title="One Person Lab ${OPL_RELEASE_TAG}"
           git fetch --tags origin
 
           git config user.name "github-actions[bot]"
@@ -152,13 +154,13 @@ jobs:
           if gh release view "${OPL_RELEASE_TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "${OPL_RELEASE_TAG}" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "${OPL_RELEASE_TAG}" \
+              --title "$release_title" \
               --notes-file "$notes_file" \
               --prerelease
           else
             gh release create "${OPL_RELEASE_TAG}" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "${OPL_RELEASE_TAG}" \
+              --title "$release_title" \
               --notes-file "$notes_file" \
               --prerelease \
               --latest=false \

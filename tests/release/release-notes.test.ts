@@ -39,6 +39,10 @@ function commit(shellRoot, subject) {
   runGit(['commit', '-m', subject], shellRoot);
 }
 
+function commitSha(repoRoot, ref = 'HEAD') {
+  return runGit(['rev-parse', ref], repoRoot).stdout.trim();
+}
+
 function createShellHistory() {
   const shellRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-notes-shell-'));
   runGit(['init', '-b', 'main'], shellRoot);
@@ -54,19 +58,117 @@ function createShellHistory() {
   return shellRoot;
 }
 
+function createFamilyRepoHistory(subjects) {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-notes-family-repo-'));
+  runGit(['init', '-b', 'main'], repoRoot);
+  fs.writeFileSync(path.join(repoRoot, 'changes.txt'), 'base\n');
+  runGit(['add', 'changes.txt'], repoRoot);
+  runGit(['commit', '-m', 'chore: initial family baseline'], repoRoot);
+  const previousRef = commitSha(repoRoot);
+  for (const subject of subjects) {
+    commit(repoRoot, subject);
+  }
+  return {
+    repoRoot,
+    repository: repoRoot,
+    previousRef,
+    currentRef: commitSha(repoRoot),
+  };
+}
+
+function buildFullManifest(refs) {
+  const components = {};
+  const resolvedRefs = {};
+  for (const [componentKey, value] of Object.entries(refs)) {
+    components[componentKey] = {
+      source_path: value.repoRoot,
+      git_commit: value.currentRef,
+      ...(value.version ? { version: value.version } : {}),
+    };
+    resolvedRefs[value.resolvedKey] = {
+      label: value.label,
+      source_path: value.repoRoot,
+      repository: value.repository,
+      requested_ref: 'main',
+      resolved_commit: value.currentRef,
+      ...(value.version ? { version: value.version } : {}),
+    };
+  }
+  return {
+    components,
+    resolved_refs: resolvedRefs,
+  };
+}
+
 test('stable release notes are English and include bundled OPL-family agent versions', () => {
   const shellRoot = createShellHistory();
   const manifestPath = path.join(shellRoot, 'full-package-manifest.json');
-  fs.writeFileSync(manifestPath, `${JSON.stringify({
-    components: {
-      mas: { git_commit: '1111111111111111111111111111111111111111' },
-      mag: { git_commit: '2222222222222222222222222222222222222222' },
-      rca: { git_commit: '3333333333333333333333333333333333333333' },
-      meta_agent: { git_commit: '4444444444444444444444444444444444444444' },
-      officecli: { version: '1.2.3' },
-      mineru_open_api: { version: 'mineru-open-api version v0.1.3' },
+  const previousManifestPath = path.join(shellRoot, 'previous-full-package-manifest.json');
+  const mas = createFamilyRepoHistory([
+    'fix(runtime): surface currentness blockers',
+    'feat(study): route paper handoff receipts',
+  ]);
+  const mag = createFamilyRepoHistory([
+    'feat(grant): expose progress-first owner payloads',
+  ]);
+  const rca = createFamilyRepoHistory([
+    'fix(provider): record operator evidence for visual deliverables',
+  ]);
+  const metaAgent = createFamilyRepoHistory([
+    'feat(foundry): persist work-order currentness gates',
+  ]);
+  const currentManifest = buildFullManifest({
+    mas: { ...mas, resolvedKey: 'mas', label: 'MAS' },
+    mag: { ...mag, resolvedKey: 'mag', label: 'MAG' },
+    rca: { ...rca, resolvedKey: 'rca', label: 'RCA' },
+    meta_agent: { ...metaAgent, resolvedKey: 'opl_meta_agent', label: 'OPL Meta Agent' },
+    officecli: {
+      repoRoot: null,
+      repository: 'iOfficeAI/OfficeCLI',
+      previousRef: null,
+      currentRef: null,
+      resolvedKey: 'officecli',
+      label: 'OfficeCLI',
+      version: '1.2.3',
     },
+    mineru_open_api: {
+      repoRoot: null,
+      repository: 'opendatalab/MinerU-Ecosystem',
+      previousRef: null,
+      currentRef: null,
+      resolvedKey: 'mineru',
+      label: 'MinerU',
+      version: 'mineru-open-api version v0.1.3',
+    },
+  });
+  const previousManifest = buildFullManifest({
+    mas: { ...mas, currentRef: mas.previousRef, resolvedKey: 'mas', label: 'MAS' },
+    mag: { ...mag, currentRef: mag.previousRef, resolvedKey: 'mag', label: 'MAG' },
+    rca: { ...rca, currentRef: rca.previousRef, resolvedKey: 'rca', label: 'RCA' },
+    meta_agent: { ...metaAgent, currentRef: metaAgent.previousRef, resolvedKey: 'opl_meta_agent', label: 'OPL Meta Agent' },
+    officecli: {
+      repoRoot: null,
+      repository: 'iOfficeAI/OfficeCLI',
+      previousRef: null,
+      currentRef: null,
+      resolvedKey: 'officecli',
+      label: 'OfficeCLI',
+      version: '1.2.2',
+    },
+    mineru_open_api: {
+      repoRoot: null,
+      repository: 'opendatalab/MinerU-Ecosystem',
+      previousRef: null,
+      currentRef: null,
+      resolvedKey: 'mineru',
+      label: 'MinerU',
+      version: 'mineru-open-api version v0.1.2',
+    },
+  });
+  fs.writeFileSync(manifestPath, `${JSON.stringify({
+    ...currentManifest,
   }, null, 2)}\n`);
+  fs.writeFileSync(previousManifestPath, `${JSON.stringify(previousManifest, null, 2)}\n`);
 
   const result = runNode([
     'scripts/generate-release-notes.ts',
@@ -91,10 +193,16 @@ test('stable release notes are English and include bundled OPL-family agent vers
     '--include-full-package',
     '--full-package-manifest',
     manifestPath,
-  ]);
+    '--previous-full-package-manifest',
+    previousManifestPath,
+  ], {
+    env: {
+      OPL_RELEASE_NOTES_SKIP_REMOTE_FAMILY_REPOS: '1',
+    },
+  });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /One Person Lab 26\.5\.31/);
+  assert.match(result.stdout, /One Person Lab v26\.5\.31/);
   assert.match(result.stdout, /This Stable release focuses on changes since v26\.5\.28\./);
   assert.match(result.stdout, /## Install Stable/);
   assert.match(
@@ -104,12 +212,19 @@ test('stable release notes are English and include bundled OPL-family agent vers
   assert.match(result.stdout, /First-run setup/);
   assert.match(result.stdout, /Simplified the first-run setup flow/);
   assert.match(result.stdout, /OPL agent updates/);
-  assert.match(result.stdout, /MAS @ 1111111/);
-  assert.match(result.stdout, /MAG @ 2222222/);
-  assert.match(result.stdout, /RCA @ 3333333/);
-  assert.match(result.stdout, /OPL Meta Agent @ 4444444/);
+  assert.match(result.stdout, new RegExp(`MAS @ ${mas.currentRef.slice(0, 7)}`));
+  assert.match(result.stdout, new RegExp(`MAG @ ${mag.currentRef.slice(0, 7)}`));
+  assert.match(result.stdout, new RegExp(`RCA @ ${rca.currentRef.slice(0, 7)}`));
+  assert.match(result.stdout, new RegExp(`OPL Meta Agent @ ${metaAgent.currentRef.slice(0, 7)}`));
   assert.match(result.stdout, /OfficeCLI 1\.2\.3/);
   assert.match(result.stdout, /MinerU v0\.1\.3/);
+  assert.match(result.stdout, /## OPL family updates/);
+  assert.match(result.stdout, /MAS: including .*route paper handoff receipts.*surface currentness blockers/);
+  assert.match(result.stdout, /MAG: including expose progress first owner payloads/);
+  assert.match(result.stdout, /RCA: including record operator evidence for visual deliverables/);
+  assert.match(result.stdout, /OPL Meta Agent: including persist work order currentness gates/);
+  assert.match(result.stdout, /OfficeCLI: refs 1\.2\.2 -> 1\.2\.3/);
+  assert.match(result.stdout, /MinerU: refs v0\.1\.2 -> v0\.1\.3/);
   assert.match(result.stdout, /Packaging, updates, and release validation/);
   assert.match(result.stdout, /Documentation/);
   assert.doesNotMatch(result.stdout, /Release focus/);
@@ -144,18 +259,23 @@ test('nightly release notes compare against the previous nightly and stay standa
     'HEAD',
     '--evidence-output',
     evidencePath,
-  ]);
+  ], {
+    env: {
+      OPL_RELEASE_NOTES_SKIP_REMOTE_FAMILY_REPOS: '1',
+    },
+  });
 
   assert.equal(result.status, 0, result.stderr);
   const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
   assert.equal(evidence.schema, 'opl_app_release_notes_evidence.v1');
   assert.equal(evidence.version, '26.5.31-nightly');
   assert.equal(evidence.channel, 'nightly');
+  assert.equal(evidence.release_title, 'One Person Lab v26.5.31-nightly');
   assert.equal(
     evidence.release_scope,
     'Standard macOS arm64 Nightly package and updater metadata; no Full clean-install DMG in the Nightly channel.',
   );
-  assert.match(result.stdout, /One Person Lab 26\.5\.31-nightly/);
+  assert.match(result.stdout, /One Person Lab v26\.5\.31-nightly/);
   assert.match(result.stdout, /This Nightly prerelease focuses on changes since v26\.5\.30-nightly\./);
   assert.match(result.stdout, /First-run setup/);
   assert.match(result.stdout, /OPL agent updates/);
