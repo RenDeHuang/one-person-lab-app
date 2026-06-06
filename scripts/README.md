@@ -10,6 +10,7 @@ verification can select a different linked shell repo with
 | Script | Purpose |
 | --- | --- |
 | `ensure-active-shell.ts` | Clones or validates the selected external shell checkout, defaulting to `shells/aionui`. |
+| `verify.sh` | App-root verification wrapper for smoke, active-shell, release-boundary, candidate-shell, structure, and full lanes without running release packaging by default. |
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
 | `validate-shell-candidates.ts` | Validates GUI shell candidates from `contracts/app-shell-candidates.json`; selectable candidates are packageable only through an explicit adapter contract env override and must emit a real `.app` bundle manifest. |
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
@@ -26,7 +27,7 @@ verification can select a different linked shell repo with
 | `write-release-evidence-manifest.ts` | Writes `evidence-manifest.json` for a release evidence bundle and marks absent VM/remote artifacts as missing evidence. |
 | `validate-release-evidence-bundle.ts` | Validates a release evidence bundle manifest and artifact files, including real screenshot dimensions; default validation fails closed when required evidence is missing. |
 
-Stable App-root npm entries are `validate:release-boundary`,
+Stable App-root npm entries are `verify`, `validate:release-boundary`,
 `validate:gui-shell`, `release:evidence:manifest`, `release:evidence:validate`, and
 `hygiene:fallow`. These keep release boundary/evidence scripts visible as
 production entrypoints while the files remain thin App-owned wrappers around
@@ -41,6 +42,9 @@ Examples:
 
 ```bash
 node --experimental-strip-types scripts/ensure-active-shell.ts
+scripts/verify.sh
+scripts/verify.sh structure
+scripts/verify.sh release-boundary
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 node --experimental-strip-types scripts/validate-active-shell.ts --only i18n_types,i18n_check,typecheck
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets

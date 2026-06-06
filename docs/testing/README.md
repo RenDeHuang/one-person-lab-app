@@ -98,6 +98,13 @@ not GUI shell build or runtime evidence; use `npm run validate:gui-shell` for
 active shell validation and GUI compile proof. Run shell hygiene in the
 `gaofeng21cn/opl-aion-shell` repository.
 
+Line-budget or Sentrux checks are scheduled maintenance signals for daily or
+strict hygiene lanes. They must not be added to ordinary App development gates,
+default smoke checks, active-shell validation, package smoke, or release-boundary
+validation. If a maintenance lane needs hard enforcement, keep it explicit and
+separately named so normal feature, docs, and release-boundary work is not
+blocked by advisory source-size budgeting.
+
 ## Installed App Smoke
 
 After a standard macOS build, run the packaged GUI smoke against the built DMG
