@@ -30,10 +30,10 @@ surface，不是日常 workbench，也不是 upstream AionUI configuration dump�
 
 ## Home
 
-Home 必须固定 Codex CLI，并隐藏 executor/model/permission selectors。它不展示
-runtime activity、continue-work、needs-attention/active/recent refs、
-per-assistant running badges 或底部 feedback/favorite/web 图标。Home 只承担
-composer-first 的开始/继续对话职责。
+Home 必须固定 Codex CLI，并隐藏 executor、backend、provider 和 permission
+selectors；App-owned model selector/status 继续可见。它不展示 runtime activity、
+continue-work、needs-attention/active/recent refs、per-assistant running badges
+或底部 feedback/favorite/web 图标。Home 只承担 composer-first 的开始/继续对话职责。
 
 Runtime 默认读取 `opl app state --profile fast --json` 的 refs-only App state。
 它先回答用户任务状态：正在运行、活跃、排队、需要注意，以及每条任务的标题、

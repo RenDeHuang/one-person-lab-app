@@ -81,21 +81,17 @@ dashboard、settings bar 或通用 agent 控制台。
 
 ## 现有缺口
 
-1. **右侧 context inspector 需要成为普通用户可打开的辅助面。** Files、
-   Runtime/Routing、Capabilities、Memory、Automations、Settings shortcuts 已经是
-   target inventory，但 active shell 还需要完整内容而不是只有入口。
-
-2. **Workspace/session rail 需要稳定承接 session history。** Recent conversations、
+1. **Workspace/session rail 需要稳定承接 session history。** Recent conversations、
    resume、reset、running/blocked badges 应在 rail，不应回到 Home activity grid。
 
-3. **Conversation receipts 需要产品化表达。** 用户应看得出本 turn 走了 `科研`、
+2. **Conversation receipts 需要产品化表达。** 用户应看得出本 turn 走了 `科研`、
    `基金` 或 RCA/演示 route，并由 Codex CLI 执行；schema id、raw JSON、protocol name
    应在 details 或 diagnostics。
 
-4. **Runtime refs 层级需要更明显。** 用户首先关心 user task status，其次是
+3. **Runtime refs 层级需要更明显。** 用户首先关心 user task status，其次是
    project progress refs，再是 safe action，最后才是 full detail/evidence ledger。
 
-5. **空状态和恢复动作需要元素级定义。** Home、Runtime、Files、Memory、Automations、
+4. **空状态和恢复动作需要元素级定义。** Home、Runtime、Files、Memory、Automations、
    Access、Local Environment 都应展示短原因和下一步动作，不能只显示 raw command failure。
 
 ## 位置复盘

@@ -324,7 +324,7 @@ feedback/favorite/web 图标；这些信息属于 Runtime、右侧 inspector、d
 secondary context surface，必须保持 refs-only，不能变成 ordinary home first-screen
 workbench。Settings 的 General/Access/Agents &
 Capabilities/Local Environment/Appearance/Advanced/About & Updates surfaces、
-module path source explanation、stable/nightly release gates 和 OPL Agent Codex
+module path source explanation、stable/nightly release gates 和 OPL Flow
 context 都是 App-owned requirements。Upstream overview、runtime、system、model、
 agent、assistants、skills-hub、tools、display、webui、pet routes redirect 到
 App-owned pages，不是 ordinary user tabs。`/guid` quick shortcut 打开 Access，
