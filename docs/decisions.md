@@ -44,6 +44,10 @@ Machine boundary: Human-readable decision record. Machine-readable truth lives i
 
 ## Superseded Readings
 
+Rows in this table are retired interpretations kept as compact decision
+provenance. They do not define current App behavior; current truth stays in the
+`Current reading` column and the listed machine-boundary surfaces.
+
 | Superseded reading | Current reading |
 | --- | --- |
 | AionUI implementation defaults can define One Person Lab App product truth. | AionUI is implementation material; App product truth is contract-backed from this repo. |
