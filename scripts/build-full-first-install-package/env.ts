@@ -8,7 +8,7 @@ import {
 import { resolveActiveShellPaths } from '../app-shell-adapter.ts';
 import { appRepoRoot, workspaceRoot } from './paths.ts';
 
-export function defaultRuntimeCacheDir() {
+function defaultRuntimeCacheDir() {
   if (process.env.OPL_FULL_RUNTIME_CACHE_DIR?.trim()) {
     return process.env.OPL_FULL_RUNTIME_CACHE_DIR;
   }

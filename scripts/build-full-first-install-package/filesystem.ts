@@ -91,7 +91,7 @@ export function copySingleFile(sourcePath, targetPath) {
   fs.chmodSync(targetPath, fs.statSync(sourcePath).mode);
 }
 
-export function isInsidePath(root, candidate) {
+function isInsidePath(root, candidate) {
   const relative = path.relative(root, candidate);
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }

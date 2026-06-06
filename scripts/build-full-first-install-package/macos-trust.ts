@@ -11,11 +11,11 @@ export function canRunMacosSigningChecks() {
   return process.platform === 'darwin';
 }
 
-export function strictMacosRuntimeSigningRequired() {
+function strictMacosRuntimeSigningRequired() {
   return process.env.OPL_MAC_STRICT_SIGNING_CHECKS === 'true';
 }
 
-export function macosSigningIdentity() {
+function macosSigningIdentity() {
   return process.env.OPL_RUNTIME_CODESIGN_IDENTITY?.trim()
     || process.env.identity?.trim()
     || process.env.CSC_NAME?.trim()
@@ -23,11 +23,11 @@ export function macosSigningIdentity() {
     || '';
 }
 
-export function relativeRuntimePath(runtimeRoot, filePath) {
+function relativeRuntimePath(runtimeRoot, filePath) {
   return `runtime/current/${path.relative(runtimeRoot, filePath).split(path.sep).join('/')}`;
 }
 
-export function isNativeRuntimeExecutable(relativePath, stat) {
+function isNativeRuntimeExecutable(relativePath, stat) {
   if (!stat.isFile()) {
     return false;
   }
@@ -40,13 +40,13 @@ export function isNativeRuntimeExecutable(relativePath, stat) {
   return MACOS_TRUSTED_EXECUTABLE_PATTERNS.some((pattern) => pattern.test(relativePath));
 }
 
-export function requiresGatekeeperExecutableAssessment(relativePath, stat) {
+function requiresGatekeeperExecutableAssessment(relativePath, stat) {
   return stat.isFile()
     && (stat.mode & 0o111) !== 0
     && MACOS_TRUSTED_EXECUTABLE_PATTERNS.some((pattern) => pattern.test(relativePath));
 }
 
-export function listFullRuntimeNativeExecutables(runtimeRoot) {
+function listFullRuntimeNativeExecutables(runtimeRoot) {
   if (!fs.existsSync(runtimeRoot)) {
     return [];
   }
@@ -76,12 +76,12 @@ export function listFullRuntimeNativeExecutables(runtimeRoot) {
   return results.sort((left, right) => left.relative_path.localeCompare(right.relative_path));
 }
 
-export function hasExtendedAttribute(filePath, attributeName) {
+function hasExtendedAttribute(filePath, attributeName) {
   const result = runCapture('xattr', ['-p', attributeName, filePath]);
   return result.status === 0;
 }
 
-export function readCodeSignature(filePath) {
+function readCodeSignature(filePath) {
   const result = runCapture('codesign', ['-dv', '--verbose=4', filePath]);
   const output = `${result.stdout || ''}${result.stderr || ''}`;
   return {
@@ -92,7 +92,7 @@ export function readCodeSignature(filePath) {
   };
 }
 
-export function signMacosRuntimeExecutable(filePath, identity) {
+function signMacosRuntimeExecutable(filePath, identity) {
   if (!identity) {
     return;
   }
@@ -107,7 +107,7 @@ export function signMacosRuntimeExecutable(filePath, identity) {
   ]);
 }
 
-export function verifyMacosRuntimeExecutable(filePath, options) {
+function verifyMacosRuntimeExecutable(filePath, options) {
   const codesignResult = runCapture('codesign', ['--verify', '--strict', '--verbose=2', filePath]);
   const shouldAssessSpctl = options.requiresSpctl && options.assessSpctl === true;
   const spctlResult = shouldAssessSpctl

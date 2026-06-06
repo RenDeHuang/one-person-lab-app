@@ -80,7 +80,7 @@ export function buildResolvedFullPayloadRefs(options, sources, components) {
   };
 }
 
-export function directoryChildSizes(root) {
+function directoryChildSizes(root) {
   if (!fs.existsSync(root)) {
     return {};
   }
@@ -97,7 +97,7 @@ export function directoryChildSizes(root) {
   );
 }
 
-export function sizeBreakdownEntry(runtimeRoot, relativePath, children = undefined) {
+function sizeBreakdownEntry(runtimeRoot, relativePath, children = undefined) {
   const absolutePath = path.join(runtimeRoot, ...relativePath.split('/').filter(Boolean));
   return {
     relative_path: relativePath,
@@ -106,7 +106,7 @@ export function sizeBreakdownEntry(runtimeRoot, relativePath, children = undefin
   };
 }
 
-export function collectFullRuntimeSizeBreakdown(runtimeRoot) {
+function collectFullRuntimeSizeBreakdown(runtimeRoot) {
   return {
     measurement_policy: 'uncompressed_file_bytes_after_full_runtime_pruning',
     total_runtime_uncompressed_bytes: directorySizeBytes(runtimeRoot),

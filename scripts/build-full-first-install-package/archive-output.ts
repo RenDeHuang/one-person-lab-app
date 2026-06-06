@@ -10,12 +10,11 @@ import {
   assertAppBundleLocalAuthorization,
   canRunMacosSigningChecks,
   ensureAppBundleAdHocCodesign,
-  strictMacosRuntimeSigningRequired,
   verifyDmgAppBundleLocalAuthorization,
 } from './macos-trust.ts';
 import { findExecutable, run, runCapture } from './process.ts';
 
-export function createTarZst(archivePath, cwd, entries = ['.']) {
+function createTarZst(archivePath, cwd, entries = ['.']) {
   requirePath(findExecutable('zstd'), 'zstd');
   fs.mkdirSync(path.dirname(archivePath), { recursive: true });
   fs.rmSync(archivePath, { force: true });
@@ -44,7 +43,7 @@ export function extractLayer(archivePath, targetRoot) {
   }
 }
 
-export function syncRuntimePayload(runtimeRoot, manifest, payloadRoot) {
+function syncRuntimePayload(runtimeRoot, manifest, payloadRoot) {
   fs.rmSync(path.join(payloadRoot, 'runtime'), { recursive: true, force: true });
   fs.rmSync(path.join(payloadRoot, 'manifest'), { recursive: true, force: true });
   fs.mkdirSync(path.join(payloadRoot, 'runtime'), { recursive: true });
@@ -82,7 +81,7 @@ export function findBuiltDmg(guiRoot, version) {
   return found;
 }
 
-export function removeBuiltDmgCandidates(guiRoot, version) {
+function removeBuiltDmgCandidates(guiRoot, version) {
   const outDir = resolveActiveShellPaths({ shellRoot: guiRoot }).buildOutputDir;
   for (const name of [
     `One-Person-Lab-${version}-mac-arm64.dmg`,
@@ -105,7 +104,7 @@ export function findBuiltApp(guiRoot) {
   return found;
 }
 
-export function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
+function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
   removeBuiltDmgCandidates(guiRoot, version);
   ensureAppBundleAdHocCodesign(appPath, 'Full built app bundle');
   assertAppBundleLocalAuthorization(appPath, 'Full built app bundle');

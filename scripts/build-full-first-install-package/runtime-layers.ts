@@ -110,11 +110,11 @@ export function extractTemporalCliBinary(archivePath, targetPath) {
   }
 }
 
-export function temporalCoreBridgeReleasesRoot(nodeModulesRoot) {
+function temporalCoreBridgeReleasesRoot(nodeModulesRoot) {
   return path.join(nodeModulesRoot, '@temporalio', 'core-bridge', 'releases');
 }
 
-export function listTemporalCoreBridgeReleases(nodeModulesRoot) {
+function listTemporalCoreBridgeReleases(nodeModulesRoot) {
   const releasesRoot = temporalCoreBridgeReleasesRoot(nodeModulesRoot);
   if (!fs.existsSync(releasesRoot)) {
     return [];
@@ -152,7 +152,7 @@ export function assertTemporalCoreBridgeMacosArm64Only(nodeModulesRoot) {
   }
 }
 
-export function countRuntimeModuleVenvDirectories(runtimeRoot) {
+function countRuntimeModuleVenvDirectories(runtimeRoot) {
   const modulesRoot = path.join(runtimeRoot, 'modules');
   if (!fs.existsSync(modulesRoot)) {
     return 0;

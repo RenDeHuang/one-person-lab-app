@@ -71,7 +71,7 @@ import {
   skillSourceSnapshot,
 } from './skills.ts';
 
-export function buildRuntimeLayerPackagerInputs() {
+function buildRuntimeLayerPackagerInputs() {
   return {
     support_files: hashFiles(appRepoRoot, [
       'contracts/app-product-profile.json',
@@ -210,7 +210,7 @@ export function buildRuntimeCacheKeyInputs(options, sources) {
   };
 }
 
-export function buildRuntimeCacheKeys(options, sources) {
+function buildRuntimeCacheKeys(options, sources) {
   return buildRuntimeCacheKeysFromInputs(buildRuntimeCacheKeyInputs(options, sources));
 }
 
@@ -235,7 +235,7 @@ export function buildRuntimeCacheKeysFromInputs(layerInputs) {
   };
 }
 
-export function cacheLayerArchivePath(options, layerId, key) {
+function cacheLayerArchivePath(options, layerId, key) {
   return buildFullRuntimeCacheArchivePath({
     cacheDir: options.runtimeCacheDir,
     layerId,

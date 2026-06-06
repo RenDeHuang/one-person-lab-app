@@ -20,7 +20,7 @@ function findCompanionBinary(input) {
   return found;
 }
 
-export function findOfficeCliBinary(explicitBin) {
+function findOfficeCliBinary(explicitBin) {
   return findCompanionBinary({
     name: 'officecli',
     explicitBin,
@@ -30,7 +30,7 @@ export function findOfficeCliBinary(explicitBin) {
   });
 }
 
-export function findMineruOpenApiBinary(explicitBin) {
+function findMineruOpenApiBinary(explicitBin) {
   return findCompanionBinary({
     name: 'mineru-open-api',
     explicitBin,
@@ -54,7 +54,7 @@ export function findTemporalCliArchive(explicitArchive) {
   return requirePath(explicitArchive || process.env.OPL_FULL_TEMPORAL_CLI_ARCHIVE || '', 'Temporal CLI archive');
 }
 
-export function findCodexRoot(explicitRoot) {
+function findCodexRoot(explicitRoot) {
   const candidates = [
     explicitRoot,
     path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.16.0', 'lib', 'node_modules', '@openai', 'codex'),
@@ -67,7 +67,7 @@ export function findCodexRoot(explicitRoot) {
   return found;
 }
 
-export function findCodexBinary(codexRoot) {
+function findCodexBinary(codexRoot) {
   const platformVendorRoot = path.join(
     codexRoot,
     'node_modules',
@@ -115,7 +115,7 @@ function requireNodeToolchainDirectory(directoryPath) {
   return directoryPath;
 }
 
-export function findNodeToolchain(explicitNodeBin) {
+function findNodeToolchain(explicitNodeBin) {
   const candidates = [
     explicitNodeBin,
     path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.16.0', 'bin', 'node'),
@@ -149,7 +149,7 @@ export function findBunBinary(explicitBunBin) {
   return found;
 }
 
-export function findPythonRoot(explicitPythonRoot) {
+function findPythonRoot(explicitPythonRoot) {
   if (explicitPythonRoot) {
     return requirePath(explicitPythonRoot, 'Python root');
   }
