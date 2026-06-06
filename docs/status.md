@@ -155,26 +155,15 @@ view from the OPL Framework refs-only App state projection:
 `activity_center`, `task_drilldowns`, and
 `operator.visual_ref_groups.active_project_refs`.
 
-The mature product lesson is that a status page should start with the user's
-job-to-be-done, not with the implementation's telemetry nouns. Users want to
-know whether work is moving, what is queued, what needs them, and where each
-task is stuck or progressing. Provider runs, projections, refs, ledgers, stage
-attempts, and `current_control_state` are valuable evidence, but they are
-diagnostic vocabulary. They stay behind secondary disclosure, explicit full
-detail, audit, or release evidence paths. The daily Runtime page must not
-default-display the words Temporal, provider, projection, ref, stage attempt,
-ledger, or current_control_state.
-
-External status-page references checked on 2026-06-02 support the same shape.
-GitHub Actions and GitLab CI organize live execution around workflow/pipeline,
-job, stage, status, and logs; Airflow exposes task-instance state in its Grid
-view; Material Design frames progress indicators as real-time status for
-ongoing processes. For the OPL App, that translates to a user-task first
-surface: counts and task rows first, then expandable diagnostics and evidence.
-References: [GitHub Actions workflow run history](https://docs.github.com/en/actions/monitoring-and-troubleshooting-workflows/monitoring-workflows/viewing-workflow-run-history),
-[GitLab CI/CD pipelines](https://docs.gitlab.com/ci/pipelines/),
-[Apache Airflow UI overview](https://airflow.apache.org/docs/apache-airflow/stable/ui.html),
-and [Material Design progress indicators](https://m3.material.io/components/progress-indicators/overview).
+The mature product lesson is durable but simple: a status page starts with the
+user's job-to-be-done, not with implementation telemetry. Users need to know
+whether work is moving, what is queued, what needs them, and where each task is
+stuck or progressing. Provider runs, projections, refs, ledgers, stage attempts,
+and `current_control_state` are valuable evidence, but they are diagnostic
+vocabulary. They stay behind secondary disclosure, explicit full detail, audit,
+or release evidence paths. The daily Runtime page must not default-display the
+words Temporal, provider, projection, ref, stage attempt, ledger, or
+current_control_state.
 
 The user-visible counts stay display-only and refs-only. `running_task_count`
 counts tasks projected as actively running or advancing, not raw provider

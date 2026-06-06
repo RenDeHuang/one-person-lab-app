@@ -18,6 +18,9 @@ surface，不是日常 workbench，也不是 upstream AionUI configuration dump�
 - `contracts/app-gui-product-contract.json` 拥有 product IA、Home minimal command
   surface、Runtime running activity、Settings tabs 和 App/Shell authority
   boundary。
+- `contracts/app-runtime-bridge.json` 拥有 Runtime page 的 fast/full/detail/action
+  bridge、current owner delta default、refs-only display 和 forbidden authority
+  boundary。
 - `contracts/app-page-state-matrix.json` 拥有 page-state acceptance
   expectations。
 - `contracts/app-product-profile.json` 是 shell-consumed generated profile
