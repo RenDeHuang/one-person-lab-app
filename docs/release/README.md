@@ -484,14 +484,12 @@ ID on that team. After setting secrets, re-run the desktop release workflow.
 The local authorization policy assets remain required even when Developer ID
 material is present.
 
-The older tag-push **Build and Release** workflow still exists in
-`.github/workflows/build-and-release.yml`, but it is no longer the current
-release-train source of truth. It bypasses the App preflight, candidate-record,
-Homebrew, Full, VM, WebUI, and promotion gates that define the normal Stable
-path. Treat it as a legacy workflow pending retirement or emergency
-owner-approved diagnosis, not as a standard-only Stable release path. New Stable
-cohorts must use **OPL Desktop Release** with `release_mode=new_release`,
-candidate gates, and **OPL Desktop Release Promote**.
+The older tag-push **Build and Release** workflow has been retired and is no
+longer present as a live workflow surface. It bypassed the App preflight,
+candidate-record, Homebrew, Full, VM, WebUI, and promotion gates that define the
+normal Stable path. New Stable cohorts must use **OPL Desktop Release** with
+`release_mode=new_release`, candidate gates, and **OPL Desktop Release
+Promote**.
 
 Use **OPL Remote Release Verification** when an existing Release needs a fresh
 remote audit without rebuilding. It downloads the published assets, checks

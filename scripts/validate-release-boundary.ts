@@ -12,7 +12,6 @@ const commandMaxBuffer = 16 * 1024 * 1024;
 
 const releaseWorkflowPaths = [
   '.github/workflows/_build-reusable.yml',
-  '.github/workflows/build-and-release.yml',
   '.github/workflows/build-manual.yml',
   '.github/workflows/desktop-release-cleanup-drafts.yml',
   '.github/workflows/desktop-release-promote.yml',
@@ -26,6 +25,11 @@ const releaseWorkflowPaths = [
 ];
 
 const checks = [
+  {
+    id: 'retired_build_and_release_workflow_absent',
+    file: '.github/workflows/build-and-release.yml',
+    retired: true,
+  },
   {
     id: 'release_contract_repo',
     file: 'contracts/app-release-channel.json',
@@ -80,16 +84,6 @@ const checks = [
       'CMD+=(--guide-screenshots)',
     ],
     forbidden: ['--repo gaofeng21cn/one-person-lab'],
-  },
-  {
-    id: 'build_release_uses_app_publish_script',
-    file: '.github/workflows/build-and-release.yml',
-    required: [
-      'node --experimental-strip-types scripts/prepare-release-assets.ts',
-      'node --experimental-strip-types scripts/validate-release.ts',
-      'require_macos_gatekeeper: false',
-    ],
-    forbidden: ['npm run gui:release', 'packages:full-release'],
   },
   {
     id: 'full_release_workflow_uses_app_scripts',
@@ -631,6 +625,13 @@ const checks = [
 let failures = 0;
 for (const check of checks) {
   const absolutePath = path.join(appRoot, check.file);
+  if (check.retired) {
+    if (fs.existsSync(absolutePath)) {
+      console.error(`FAIL ${check.id}: ${check.file} is retired and must not exist`);
+      failures += 1;
+    }
+    continue;
+  }
   if (!fs.existsSync(absolutePath)) {
     console.error(`FAIL ${check.id}: missing ${check.file}`);
     failures += 1;

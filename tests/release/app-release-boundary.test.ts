@@ -17,7 +17,6 @@ const externalShellRoot = process.env.OPL_APP_SHELL_ROOT?.trim()
 const activeShellRoot = externalShellRoot ?? path.join(appRoot, 'shells', 'aionui');
 const releaseWorkflowPaths = [
   '.github/workflows/_build-reusable.yml',
-  '.github/workflows/build-and-release.yml',
   '.github/workflows/build-manual.yml',
   '.github/workflows/desktop-release-cleanup-drafts.yml',
   '.github/workflows/desktop-release-promote.yml',
@@ -870,10 +869,26 @@ function matchCount(source, pattern) {
   return Array.from(source.matchAll(pattern)).length;
 }
 
+function workflowJobBlock(workflow, jobName) {
+  const escaped = jobName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = workflow.match(new RegExp(`\\n  ${escaped}:\\n[\\s\\S]*?(?=\\n  [a-zA-Z0-9_-]+:\\n|\\n[^\\s]|$)`));
+  assert.ok(match, `workflow must include job: ${jobName}`);
+  return match[0];
+}
+
 test('release boundary guard keeps App release ownership in App repo', () => {
   const result = runNode(['scripts/validate-release-boundary.ts']);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /App release boundary is App-owned/);
+});
+
+test('legacy tag-push Build and Release workflow is retired', () => {
+  const legacyWorkflowPath = path.join(appRoot, '.github', 'workflows', 'build-and-release.yml');
+  assert.equal(
+    fs.existsSync(legacyWorkflowPath),
+    false,
+    'legacy tag-push Build and Release workflow must not exist as a live release surface',
+  );
 });
 
 test('Homebrew tap updater is a local cohort-bound manifest and checksum planner', () => {
@@ -6101,17 +6116,19 @@ test('release artifact upload preserves electron-updater blockmaps', () => {
 });
 
 test('stable release workflow publishes only macOS arm64 standard assets', () => {
-  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'build-and-release.yml'), 'utf8');
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
+  const standardBuild = workflowJobBlock(workflow, 'standard-build');
+  const publishStandard = workflowJobBlock(workflow, 'publish-standard');
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
 
-  assert.match(workflow, /"platform":"macos-arm64"/);
-  assert.match(workflow, /"artifact-name":"macos-build-arm64"/);
-  assert.doesNotMatch(workflow, /"platform":"windows-/);
-  assert.doesNotMatch(workflow, /"platform":"linux-/);
-  assert.doesNotMatch(workflow, /"platform":"macos-universal"/);
+  assert.match(standardBuild, /"platform":"macos-arm64"/);
+  assert.match(standardBuild, /"artifact-name":"macos-build-arm64"/);
+  assert.doesNotMatch(standardBuild, /"platform":"windows-/);
+  assert.doesNotMatch(standardBuild, /"platform":"linux-/);
+  assert.doesNotMatch(standardBuild, /"platform":"macos-universal"/);
   assert.equal(packageJson.scripts['build-mac:arm64'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-mac:arm64');
   assert.equal(packageJson.scripts['build-mac'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-mac');
   assert.equal(packageJson.scripts['build-mac:x64'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-mac:x64');
@@ -6131,32 +6148,29 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.equal(releaseContract.standard_updater.module_package_update_allowed, false);
   assert.equal(releaseContract.standard_updater.developer_checkout_selection_allowed, false);
   assert.equal(releaseContract.standard_updater.opl_flow_install_allowed, false);
-  assert.match(workflow, /release-assets\/\*\*\/\*\.dmg/);
-  assert.match(workflow, /release-assets\/\*\*\/\*\.zip/);
-  assert.match(workflow, /release-assets\/\*\*\/\*\.blockmap/);
-  assert.match(workflow, /release-assets\/\*\*\/\*\.yml/);
-  assert.match(workflow, /Install Codex release-note writer/);
-  assert.match(workflow, /npm install -g @openai\/codex@latest/);
+  assert.match(publishStandard, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
+  assert.match(publishStandard, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
+  assert.match(publishStandard, /npm run release:publish --[\s\S]*--standard-artifacts-dir release-assets/);
+  assert.match(publishStandard, /Install Codex release-note writer/);
+  assert.match(publishStandard, /npm install -g @openai\/codex@latest/);
   assert.match(workflow, /models: read/);
-  assert.match(workflow, /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_PROVIDER: auto/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_GITHUB_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_GITHUB_MODEL \|\| 'openai\/gpt-5-mini' \}\}/);
-  assert.match(workflow, /Configure Codex release-note writer/);
-  assert.match(workflow, /CODEX_HOME: \$\{\{ runner\.temp \}\}\/release-notes-codex-home/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_PROVIDER: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_PROVIDER \|\| 'gflab' \}\}/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_BASE_URL \}\}/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_CODEX_API_KEY \}\}/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_CODEX_WIRE_API: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_WIRE_API \|\| 'responses' \}\}/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_MODEL \}\}/);
-  assert.match(workflow, /node --experimental-strip-types scripts\/setup-release-notes-codex-config\.ts/);
-  assert.doesNotMatch(workflow, /OPENAI_API_KEY: \$\{\{ secrets\.OPENAI_API_KEY \}\}/);
-  assert.match(workflow, /node --experimental-strip-types scripts\/generate-release-notes\.ts[\s\S]*--ai[\s\S]*--evidence-output "\$RUNNER_TEMP\/opl-release-notes-evidence\.json"[\s\S]*--output "\$RUNNER_TEMP\/opl-release-notes\.md"/);
-  assert.match(workflow, /body_path: \$\{\{ runner\.temp \}\}\/opl-release-notes\.md/);
-  assert.match(workflow, /release-notes-evidence-\$\{\{ steps\.version\.outputs\.version \}\}/);
-  assert.doesNotMatch(workflow, /generate_release_notes: true/);
-  assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.exe/);
-  assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.msi/);
-  assert.doesNotMatch(workflow, /release-assets\/\*\*\/\*\.deb/);
+  assert.match(publishStandard, /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
+  assert.match(publishStandard, /OPL_RELEASE_NOTES_PROVIDER: auto/);
+  assert.match(publishStandard, /OPL_RELEASE_NOTES_GITHUB_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_GITHUB_MODEL \|\| 'openai\/gpt-5-mini' \}\}/);
+  assert.match(publishStandard, /Configure Codex release-note writer/);
+  assert.match(publishStandard, /CODEX_HOME: \$\{\{ runner\.temp \}\}\/release-notes-codex-home/);
+  assert.match(publishStandard, /OPL_RELEASE_NOTES_CODEX_PROVIDER: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_PROVIDER \|\| 'gflab' \}\}/);
+  assert.match(publishStandard, /OPL_RELEASE_NOTES_CODEX_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_BASE_URL \}\}/);
+  assert.match(publishStandard, /OPL_RELEASE_NOTES_CODEX_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_CODEX_API_KEY \}\}/);
+  assert.match(publishStandard, /OPL_RELEASE_NOTES_CODEX_WIRE_API: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_WIRE_API \|\| 'responses' \}\}/);
+  assert.match(publishStandard, /OPL_RELEASE_NOTES_MODEL: \$\{\{ vars\.OPL_RELEASE_NOTES_MODEL \}\}/);
+  assert.match(publishStandard, /node --experimental-strip-types scripts\/setup-release-notes-codex-config\.ts/);
+  assert.doesNotMatch(publishStandard, /OPENAI_API_KEY: \$\{\{ secrets\.OPENAI_API_KEY \}\}/);
+  assert.match(publishStandard, /standard-release-notes-evidence-\$\{\{ inputs\.opl_version \}\}/);
+  assert.doesNotMatch(publishStandard, /generate_release_notes: true/);
+  assert.doesNotMatch(publishStandard, /release-assets\/\*\*\/\*\.exe/);
+  assert.doesNotMatch(publishStandard, /release-assets\/\*\*\/\*\.msi/);
+  assert.doesNotMatch(publishStandard, /release-assets\/\*\*\/\*\.deb/);
 });
 
 test('manual desktop release workflow supports new releases and same-tag refreshes in GitHub Actions', () => {
@@ -7183,12 +7197,13 @@ test('manual build workflow keeps cross-platform builds behind an explicit switc
   assert.match(reusableWorkflow, /shells\/aionui\/out\/\*\.deb/);
 });
 
-test('release creation job runs TypeScript asset scripts under Node 22', () => {
-  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'build-and-release.yml'), 'utf8');
+test('desktop release publish job runs TypeScript asset scripts under Node 22', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
+  const publishStandard = workflowJobBlock(workflow, 'publish-standard');
 
   assert.match(
-    workflow,
-    /name: Create Release[\s\S]*name: Checkout active shell[\s\S]*repository: gaofeng21cn\/opl-aion-shell[\s\S]*path: shells\/aionui[\s\S]*name: Setup Node\.js[\s\S]*uses: actions\/setup-node@v6[\s\S]*node-version: '22'[\s\S]*node --experimental-strip-types scripts\/prepare-release-assets\.ts/,
+    publishStandard,
+    /name: Checkout active shell[\s\S]*repository: gaofeng21cn\/opl-aion-shell[\s\S]*path: shells\/aionui[\s\S]*name: Setup Node\.js[\s\S]*uses: actions\/setup-node@v6[\s\S]*node-version: '22'[\s\S]*node --experimental-strip-types scripts\/prepare-release-assets\.ts/,
   );
 });
 
