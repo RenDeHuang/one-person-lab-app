@@ -704,6 +704,30 @@ clean no-CLT VM gate, and the final publish step. Use it as the release runbook
 for new versions so standard and Full builds can run concurrently while publish
 stays serialized.
 
+Every Stable candidate must produce a single candidate record after the final
+readiness summary:
+
+```bash
+npm run release:candidate-record -- \
+  --version <version> \
+  --release-mode refresh_existing \
+  --include-full-package true \
+  --run-vm-smoke true \
+  --preflight release-preflight-summary.json \
+  --readiness release-readiness-summary.json \
+  --remote-verification remote-release-verification.json \
+  --job-results release-readiness-job-results.json \
+  --output release-candidate-record.json \
+  --markdown release-candidate-record.md
+```
+
+The record schema is `opl_release_candidate_record.v1`. Stable promotion is
+allowed only when `status=ready_to_promote`; failed gates become
+`status=blocked`; draft candidates remain `diagnostic_only`. The promote
+workflow downloads this record from the release workflow run and refuses to run
+`gh release edit --draft=false` unless the record is ready, so operators no
+longer reconstruct a release decision from many job logs.
+
 ```bash
 npm run ensure:shell
 npm run release:prepare-standard
@@ -765,7 +789,7 @@ The remote verifier size budget is the release-time guardrail for both the
 published compressed asset and the packaged runtime payload. With Full included,
 `scripts/verify-remote-release-assets.ts` requires manifest v2, enforces
 `platform_scope=macos-arm64`, checks the GitHub Full DMG asset size against
-the `700MB warning threshold` and the hard budget
+the `700MB warning threshold` and the review threshold
 `max_full_dmg_bytes=750000000`, and checks
 `size_breakdown.total_runtime_uncompressed_bytes` against
 `max_runtime_uncompressed_bytes=1500000000`. It also compares the GitHub asset
@@ -777,10 +801,12 @@ The 26.6.5 baseline is 1,394,739,510 uncompressed runtime bytes, dominated by
 the toolchain layer: Codex CLI, Node, uv-managed Python, OfficeCLI, MinerU, and
 the pre-extracted Temporal CLI wrapper/archive needed for first-run Temporal
 defaults and Codex-visible companion tools.
-When the Full DMG is above `warning_full_dmg_bytes=700000000` and still at or
-below `max_full_dmg_bytes=750000000`, the release readiness summary remains
-`passed` and records a warning in both JSON and the GitHub Step Summary. Above
-the hard budget, remote verification still fails closed.
+When the Full DMG is above `warning_full_dmg_bytes=700000000`, including above
+the `max_full_dmg_bytes=750000000` review threshold, the release readiness
+summary remains `passed` and records a warning in both JSON and the GitHub Step
+Summary. The compressed DMG size warning does not block Stable publication;
+runtime size, checksum, manifest, native-trust, local-authorization, and
+standard-updater leakage checks still fail closed.
 
 Run the local size analyzer after a Full build, or read its GitHub Actions step
 summary:

@@ -216,9 +216,9 @@ was archived in
   release-called Full builds still do because publish and VM gates consume the
   DMG.
 - Full size/cache summary checks: `release-readiness-summary.json` stays
-  `passed` when the Full DMG is above `warning_full_dmg_bytes=700000000` and at
-  or below `max_full_dmg_bytes=750000000`, but it must include a warning in JSON
-  and markdown. Remote Full verification separately checks the manifest
+  `passed` when the Full DMG is above `warning_full_dmg_bytes=700000000` or the
+  `max_full_dmg_bytes=750000000` review threshold, but it must include a warning
+  in JSON and markdown. Remote Full verification separately checks the manifest
   uncompressed runtime size against `max_runtime_uncompressed_bytes=1500000000`.
   The same summary must expose runtime cache `miss_written` layer names and
   counts from `runtime-cache-events.json` for the next cache-key optimization

@@ -425,25 +425,6 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   });
 
   lanes.push({
-    id: 'publish_new_tag',
-    phase: 'publish',
-    depends_on: [
-      'release_evidence_bundle',
-      'remote_verify_standard_and_full',
-      'publish_standard',
-      ...(options.includeFullPackage ? ['publish_full_assets'] : []),
-    ],
-    can_run_with: [],
-    command: [
-      'npm run release:publish --',
-      `--version ${options.version}`,
-      '--repo gaofeng21cn/one-person-lab-app',
-      options.includeFullPackage ? '--include-full-package' : '',
-    ].filter(Boolean).join(' '),
-    required_for: ['standard_release', ...(options.includeFullPackage ? ['full_first_install'] : [])],
-  });
-
-  lanes.push({
     id: 'release_readiness_summary',
     phase: 'release_gate',
     depends_on: [
@@ -457,10 +438,46 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       'docker_webui_smoke',
       'webui_ghcr_publish',
       'release_evidence_bundle',
-      'publish_new_tag',
     ],
     can_run_with: [],
     command: '.github/workflows/desktop-release.yml release-readiness-summary writes release-readiness-summary.json from small diagnostic artifacts and fails closed on any required gate',
+    required_for: ['stable_release'],
+  });
+
+  lanes.push({
+    id: 'release_candidate_record',
+    phase: 'release_gate',
+    depends_on: ['release_preflight', 'release_readiness_summary', 'remote_verify_standard_and_full'],
+    can_run_with: [],
+    command: 'npm run release:candidate-record -- --version <version> --preflight release-preflight-summary.json --readiness release-readiness-summary.json --remote-verification remote-release-verification.json',
+    required_for: ['stable_release_promotion'],
+  });
+
+  lanes.push({
+    id: 'publish_new_tag',
+    phase: 'publish',
+    depends_on: [
+      'release_candidate_record',
+    ],
+    can_run_with: [],
+    command: [
+      'npm run release:publish --',
+      `--version ${options.version}`,
+      '--repo gaofeng21cn/one-person-lab-app',
+      options.includeFullPackage ? '--include-full-package' : '',
+    ].filter(Boolean).join(' '),
+    required_for: ['standard_release', ...(options.includeFullPackage ? ['full_first_install'] : [])],
+  });
+
+  lanes.push({
+    id: 'release_promotion_record',
+    phase: 'release_gate',
+    depends_on: [
+      'publish_new_tag',
+      'release_candidate_record',
+    ],
+    can_run_with: [],
+    command: 'release promotion records preserve the candidate record plus final publish result for post-release audit',
     required_for: ['stable_release'],
   });
 

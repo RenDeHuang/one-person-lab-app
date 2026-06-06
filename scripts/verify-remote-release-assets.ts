@@ -335,11 +335,26 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
     throw new Error('Full manifest optional_components.bun.version is required when Bun is packaged.');
   }
 
-  if (fullDmgAssetSize > maxFullDmgBytes) {
-    throw new Error(`Full DMG size budget exceeded: ${fullDmgAssetSize} > ${maxFullDmgBytes}`);
-  }
   if (runtimeUncompressedBytes > maxRuntimeUncompressedBytes) {
     throw new Error(`Full runtime uncompressed size budget exceeded: ${runtimeUncompressedBytes} > ${maxRuntimeUncompressedBytes}`);
+  }
+
+  const warnings = [];
+  const fullDmgSizeStatus = fullDmgAssetSize >= warningFullDmgBytes ? 'warning' : 'passed';
+  if (fullDmgAssetSize > maxFullDmgBytes) {
+    warnings.push({
+      code: 'full_dmg_size_above_review_threshold',
+      message: `Full DMG size ${fullDmgAssetSize} is above review threshold ${maxFullDmgBytes}.`,
+      full_dmg_size_bytes: fullDmgAssetSize,
+      threshold_bytes: maxFullDmgBytes,
+    });
+  } else if (fullDmgAssetSize >= warningFullDmgBytes) {
+    warnings.push({
+      code: 'full_dmg_size_warning',
+      message: `Full DMG size ${fullDmgAssetSize} is above warning threshold ${warningFullDmgBytes}.`,
+      full_dmg_size_bytes: fullDmgAssetSize,
+      threshold_bytes: warningFullDmgBytes,
+    });
   }
 
   return {
@@ -351,7 +366,9 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
     max_full_dmg_bytes: maxFullDmgBytes,
     max_runtime_uncompressed_bytes: maxRuntimeUncompressedBytes,
     full_dmg_size_bytes: fullDmgAssetSize,
+    full_dmg_size_status: fullDmgSizeStatus,
     runtime_uncompressed_bytes: runtimeUncompressedBytes,
+    warnings,
     temporal_core_bridge_releases: runtimeAssertions.temporal_core_bridge_releases,
     excluded_module_venv_count: runtimeAssertions.excluded_module_venv_count,
     required_components: {

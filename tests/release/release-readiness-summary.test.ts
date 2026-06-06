@@ -29,6 +29,18 @@ function runSummary(args: string[], env: NodeJS.ProcessEnv = {}) {
   );
 }
 
+function runCandidateRecord(args: string[], env: NodeJS.ProcessEnv = {}) {
+  return spawnSync(
+    process.execPath,
+    ['--experimental-strip-types', 'scripts/write-release-candidate-record.ts', ...args],
+    {
+      cwd: appRoot,
+      encoding: 'utf8',
+      env: { ...process.env, GITHUB_RUN_ID: 'local', ...env },
+    },
+  );
+}
+
 function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local', options: {
   fullBudget?: Record<string, unknown>;
   runtimeCacheEvents?: unknown[];
@@ -255,7 +267,163 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.match(markdown, /skip_modules: true/);
 });
 
-test('release readiness summary passes with explicit Full size warning below hard budget', () => {
+test('release candidate record promotes only a complete stable cohort', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-'));
+  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
+  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
+  const jobResultsPath = path.join(tempRoot, 'release-readiness-job-results.json');
+  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
+  const markdownPath = path.join(tempRoot, 'release-candidate-record.md');
+
+  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
+  writeJson(readinessPath, {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version: '26.5.99',
+    failed_required_gates: [],
+    full_package: {
+      resolved_refs: {
+        opl_framework: { ref: 'main', commit: '1111111111111111111111111111111111111111' },
+      },
+    },
+  });
+  writeJson(remotePath, {
+    status: 'passed',
+    version: '26.5.99',
+    include_full_package: true,
+    verified_asset_count: 12,
+    full_first_install_budget: { status: 'passed', full_dmg_size_bytes: 512 },
+  });
+  writePassingJobResults(jobResultsPath);
+
+  const result = runCandidateRecord([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--app-commit',
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    '--workflow-run-id',
+    '12345',
+    '--preflight',
+    preflightPath,
+    '--readiness',
+    readinessPath,
+    '--remote-verification',
+    remotePath,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+    '--markdown',
+    markdownPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(record.schema, 'opl_release_candidate_record.v1');
+  assert.equal(record.status, 'ready_to_promote');
+  assert.equal(record.version, '26.5.99');
+  assert.equal(record.decision.can_promote, true);
+  assert.equal(record.provenance.app_commit, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+  assert.equal(record.remote_asset_summary.verified_asset_count, 12);
+  assert.equal(record.resolved_refs.opl_framework.commit, '1111111111111111111111111111111111111111');
+  const markdown = fs.readFileSync(markdownPath, 'utf8');
+  assert.match(markdown, /Release Candidate Record/);
+  assert.match(markdown, /Status: ready_to_promote/);
+});
+
+test('release candidate record blocks promotion when a required gate fails', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-blocked-'));
+  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
+  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
+  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
+
+  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
+  writeJson(readinessPath, {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'failed',
+    version: '26.5.99',
+    failed_required_gates: [
+      { id: 'one_shot_app_installer', status: 'failed', reason: 'installer exited with 1' },
+    ],
+  });
+  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 10 });
+
+  const result = runCandidateRecord([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--preflight',
+    preflightPath,
+    '--readiness',
+    readinessPath,
+    '--remote-verification',
+    remotePath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(record.status, 'blocked');
+  assert.equal(record.decision.can_promote, false);
+  assert.match(record.blocked_reasons.join('\n'), /one_shot_app_installer/);
+});
+
+test('release candidate record keeps draft candidates diagnostic only', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-draft-'));
+  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
+  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
+  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
+
+  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
+  writeJson(readinessPath, {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version: '26.5.99',
+    failed_required_gates: [],
+  });
+  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 10 });
+
+  const result = runCandidateRecord([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'draft_candidate',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--preflight',
+    preflightPath,
+    '--readiness',
+    readinessPath,
+    '--remote-verification',
+    remotePath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(record.status, 'diagnostic_only');
+  assert.equal(record.decision.can_promote, false);
+});
+
+test('release readiness summary passes with explicit Full size warning below review threshold', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-full-warning-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
   const summaryPath = path.join(tempRoot, 'summary.md');
@@ -299,6 +467,56 @@ test('release readiness summary passes with explicit Full size warning below har
   assert.deepEqual(summary.warnings.map((warning) => warning.code), ['full_dmg_size_warning']);
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /Full DMG size warning/);
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /725000000/);
+});
+
+test('release readiness summary warns without failing when Full DMG exceeds review threshold', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-full-review-threshold-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const summaryPath = path.join(tempRoot, 'summary.md');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot, '26.5.99', 'local', {
+    fullBudget: {
+      warning_full_dmg_bytes: 700000000,
+      max_full_dmg_bytes: 750000000,
+      full_dmg_size_bytes: 865000000,
+      full_dmg_size_status: 'warning',
+      warnings: [{
+        code: 'full_dmg_size_above_review_threshold',
+        message: 'Full DMG size 865000000 is above review threshold 750000000.',
+      }],
+    },
+  });
+  writePassingJobResults(jobResultsPath);
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'draft_candidate',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+    '--markdown',
+    summaryPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.full_package.size_budget.full_dmg_size_status, 'warning');
+  assert.deepEqual(summary.warnings.map((warning) => warning.code), [
+    'full_dmg_size_above_review_threshold',
+  ]);
+  assert.match(fs.readFileSync(summaryPath, 'utf8'), /Full DMG size warning/);
+  assert.match(fs.readFileSync(summaryPath, 'utf8'), /865000000/);
 });
 
 test('release readiness summary surfaces miss_written runtime cache layers', () => {
@@ -572,6 +790,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   }
 
   for (const smallArtifact of [
+    'release-preflight-summary-${{ inputs.opl_version }}',
     'remote-release-verification-${{ inputs.opl_version }}',
     'homebrew-tap-plan-stable-app_standard-${{ inputs.opl_version }}',
     'homebrew-tap-plan-stable-app_full_first_install-${{ inputs.opl_version }}',
@@ -591,8 +810,25 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.doesNotMatch(job, /name:\s+opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(job, /release-readiness-summary\.json/);
   assert.match(job, /summarize-release-readiness\.ts/);
+  assert.match(job, /write-release-candidate-record\.ts/);
+  assert.match(job, /release-candidate-record\.json/);
+  assert.match(job, /release-candidate-record\.md/);
   assert.match(job, /needs\[['"]?remote-verify-full['"]?\]\.result|needs\.remote-verify-full\.result/);
   assert.match(job, /release-readiness-job-results\.json/);
+});
+
+test('desktop promote workflow is gated by the candidate record before publishing', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-promote.yml'), 'utf8');
+  assert.match(workflow, /release_run_id:/);
+  assert.match(workflow, /Download release candidate record/);
+  assert.match(workflow, /release-candidate-record\.json/);
+  assert.match(workflow, /record\.schema !== 'opl_release_candidate_record\.v1'/);
+  assert.match(workflow, /record\.status !== 'ready_to_promote'/);
+  assert.match(workflow, /record\.decision\?\.can_promote !== true/);
+  assert.match(workflow, /Verify remote release assets/);
+  assert.match(workflow, /Publish draft release/);
+  assert.ok(workflow.indexOf('Verify release candidate record') < workflow.indexOf('Publish draft release'));
+  assert.ok(workflow.indexOf('Verify remote release assets') < workflow.indexOf('Publish draft release'));
 });
 
 test('one-shot installer smoke uploads its diagnostic artifact even when bootstrap fails', () => {

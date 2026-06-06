@@ -238,14 +238,15 @@ function summarizeFullSizeBudget(remoteGate: GateSummary) {
   if (!budget) return null;
   const fullDmgSizeBytes = numberField(budget, 'full_dmg_size_bytes');
   const warningFullDmgBytes = numberField(budget, 'warning_full_dmg_bytes') ?? 600000000;
-  const maxFullDmgBytes = numberField(budget, 'max_full_dmg_bytes');
-  const fullDmgSizeStatus = fullDmgSizeBytes !== null && warningFullDmgBytes !== null && maxFullDmgBytes !== null
-    ? fullDmgSizeBytes > maxFullDmgBytes
-      ? 'failed'
-      : fullDmgSizeBytes >= warningFullDmgBytes
+  const explicitFullDmgSizeStatus = typeof budget.full_dmg_size_status === 'string'
+    ? budget.full_dmg_size_status
+    : null;
+  const fullDmgSizeStatus = explicitFullDmgSizeStatus
+    ?? (fullDmgSizeBytes !== null && warningFullDmgBytes !== null
+      ? fullDmgSizeBytes >= warningFullDmgBytes
         ? 'warning'
         : 'passed'
-    : null;
+      : null);
   return {
     ...budget,
     warning_full_dmg_bytes: warningFullDmgBytes,
@@ -261,7 +262,7 @@ function warningsFromFullSizeBudget(sizeBudget: Record<string, unknown> | null) 
   if (sizeBudget.full_dmg_size_status !== 'warning') return [];
   return [{
     code: 'full_dmg_size_warning',
-    message: `Full DMG size ${String(sizeBudget.full_dmg_size_bytes)} is above warning threshold ${String(sizeBudget.warning_full_dmg_bytes)} and below hard budget ${String(sizeBudget.max_full_dmg_bytes)}.`,
+    message: `Full DMG size ${String(sizeBudget.full_dmg_size_bytes)} is above warning threshold ${String(sizeBudget.warning_full_dmg_bytes)}.`,
   }];
 }
 

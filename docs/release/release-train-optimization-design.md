@@ -87,10 +87,10 @@ failures such as wrong release mode, missing release target, missing Homebrew
 token for a stable VM run, deleted preflight workflow steps, and release plan
 drift.
 
-Layer 2 should split release triggering from promotion. Stable `new_release`
-should publish a draft candidate first, complete all gates, then promote the
-release. `refresh_existing` can remain a direct refresh lane, but still requires
-preflight and readiness summary.
+Layer 2 is now partially implemented: release triggering and promotion are
+joined by `opl_release_candidate_record.v1`. A Stable release can only promote
+when the record is `ready_to_promote`; blocked cohorts keep their gate reasons
+in the same record.
 
 Layer 3 should make Full package size and DMG fallback compression a local fast
 gate. The Full fallback must use electron-builder `--prepackaged`; any plain
@@ -102,10 +102,10 @@ summary artifacts and job-result JSON over repeated `gh run view` loops. The
 interactive agent should inspect failed job logs only after summary artifacts
 identify the failing gate.
 
-Layer 5 should introduce candidate promotion records. A release candidate should
-have one durable record containing version, App commit, shell commit, framework
-ref, Full payload refs, workflow run ids, release asset digest summary, and the
-final promotion decision.
+Layer 5 is now implemented as the candidate record. It stores version, App
+commit, shell/framework refs, workflow run id, preflight/readiness/remote
+verification statuses, Full resolved refs, remote asset summary, job results,
+blocked reasons, and the promotion decision.
 
 ## Validation
 

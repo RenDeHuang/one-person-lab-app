@@ -727,6 +727,13 @@ jobs:
           name: remote-release-verification-${{ inputs.opl_version }}
           path: release-readiness-inputs/remote-release-verification-${{ inputs.opl_version }}
 
+      - name: Download release preflight summary
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: release-preflight-summary-${{ inputs.opl_version }}
+          path: release-readiness-inputs/release-preflight-summary-${{ inputs.opl_version }}
+
       - name: Download standard VM smoke summary
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -839,6 +846,36 @@ jobs:
             --markdown release-readiness-summary.md
           cat release-readiness-summary.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Write release candidate record
+        if: ${{ always() }}
+        shell: bash
+        env:
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_MODE: ${{ inputs.release_mode }}
+          OPL_INCLUDE_FULL_PACKAGE: ${{ inputs.include_full_package }}
+          OPL_RUN_VM_SMOKE: ${{ inputs.run_vm_smoke }}
+          OPL_SHELL_REF: ${{ inputs.shell_ref }}
+          OPL_FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          OPL_APP_COMMIT: ${{ github.sha }}
+        run: |
+          node --experimental-strip-types scripts/write-release-candidate-record.ts \
+            --version "$OPL_RELEASE_VERSION" \
+            --release-mode "$OPL_RELEASE_MODE" \
+            --include-full-package "$OPL_INCLUDE_FULL_PACKAGE" \
+            --run-vm-smoke "$OPL_RUN_VM_SMOKE" \
+            --shell-ref "$OPL_SHELL_REF" \
+            --framework-ref "$OPL_FRAMEWORK_REF" \
+            --app-commit "$OPL_APP_COMMIT" \
+            --workflow-run-id "${{ github.run_id }}" \
+            --preflight "release-readiness-inputs/release-preflight-summary-${{ inputs.opl_version }}/release-preflight-summary.json" \
+            --readiness release-readiness-summary.json \
+            --remote-verification "release-readiness-inputs/remote-release-verification-${{ inputs.opl_version }}/remote-release-verification.json" \
+            --job-results release-readiness-job-results.json \
+            --output release-candidate-record.json \
+            --markdown release-candidate-record.md \
+            --allow-blocked
+          cat release-candidate-record.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload release readiness summary
         if: always()
         uses: actions/upload-artifact@v7
@@ -847,4 +884,6 @@ jobs:
           path: |
             release-readiness-summary.json
             release-readiness-summary.md
+            release-candidate-record.json
+            release-candidate-record.md
           if-no-files-found: error

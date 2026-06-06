@@ -184,7 +184,7 @@ function renderMarkdown(summary: ReturnType<typeof buildSummary>, top: number) {
     `- Manifest: ${summary.manifest_path}`,
     `- Runtime total: ${formatBytes(summary.total_runtime_uncompressed_bytes)}`,
     `- Full DMG warning threshold: ${formatBytes(summary.warning_full_dmg_bytes)}`,
-    `- Full DMG hard budget: ${formatBytes(summary.max_full_dmg_bytes)}`,
+    `- Full DMG review threshold: ${formatBytes(summary.max_full_dmg_bytes)}`,
     `- Runtime budget: ${formatBytes(summary.max_runtime_uncompressed_bytes)}${summary.runtime_budget_used_percent === null ? '' : ` (${summary.runtime_budget_used_percent}% used)`}`,
     '',
     '### Layers',

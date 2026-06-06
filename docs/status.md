@@ -279,9 +279,12 @@ quarantine after installing the App, write
 `artifacts/gatekeeper-launch-policy.json`, and record `codesign`/`spctl`
 rejections as allowed unsigned diagnostics rather than blocking launch. The
 26.6.5 Full runtime baseline is 1,394,739,510
-uncompressed bytes; the remote verifier budget is
-`max_runtime_uncompressed_bytes=1500000000` while the compressed Full DMG hard
-budget remains `max_full_dmg_bytes=750000000`.
+uncompressed bytes; the remote verifier keeps
+`max_runtime_uncompressed_bytes=1500000000` as the hard runtime payload gate.
+The compressed Full DMG thresholds are release review warnings, not Stable
+publication blockers, so reasonable first-install payload growth does not stop
+the release after checksum, manifest, native-trust, and local-authorization
+checks pass.
 
 Follow-up local install evidence showed the same trust-chain failure for the
 Full runtime `node` binary under `~/Library/Application Support/OPL/runtime`:

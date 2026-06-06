@@ -337,6 +337,8 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   const evidenceBundle = laneById(plan, 'release_evidence_bundle');
   const publish = laneById(plan, 'publish_new_tag');
   const readinessSummary = laneById(plan, 'release_readiness_summary');
+  const candidateRecord = laneById(plan, 'release_candidate_record');
+  const promotionRecord = laneById(plan, 'release_promotion_record');
 
   assert.deepEqual(laneById(plan, 'release_preflight').depends_on, []);
   assert.deepEqual(releaseBoundary.depends_on, ['release_preflight']);
@@ -381,11 +383,9 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
     'standard_dmg_clean_vm_smoke',
     'webui_ghcr_publish',
   ].sort());
-  assert.ok(publish.depends_on.includes('release_evidence_bundle'));
-  assert.ok(publish.depends_on.includes('publish_standard'));
-  assert.ok(publish.depends_on.includes('publish_full_assets'));
   assert.equal(readinessSummary.phase, 'release_gate');
   assert.deepEqual(readinessSummary.can_run_with, []);
+  assert.ok(readinessSummary.depends_on?.includes('release_evidence_bundle'));
   assert.ok(readinessSummary.depends_on?.includes('remote_verify_standard_and_full'));
   assert.ok(readinessSummary.depends_on?.includes('standard_dmg_clean_vm_smoke'));
   assert.ok(readinessSummary.depends_on?.includes('homebrew_standard_cask_clean_vm_smoke'));
@@ -395,7 +395,15 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.ok(readinessSummary.depends_on?.includes('webui_ghcr_publish'));
   assert.ok(readinessSummary.command.includes('release-readiness-summary'));
   assert.ok(readinessSummary.required_for.includes('stable_release'));
-  assert.equal(plan.lanes.at(-1)?.id, 'release_readiness_summary');
+  assert.deepEqual(candidateRecord.depends_on?.sort(), [
+    'release_preflight',
+    'release_readiness_summary',
+    'remote_verify_standard_and_full',
+  ].sort());
+  assert.ok(candidateRecord.command.includes('release:candidate-record'));
+  assert.deepEqual(publish.depends_on, ['release_candidate_record']);
+  assert.deepEqual(promotionRecord.depends_on?.sort(), ['publish_new_tag', 'release_candidate_record'].sort());
+  assert.equal(plan.lanes.at(-1)?.id, 'release_promotion_record');
 });
 
 test('AI exploratory release policy is locked in both machine contract and release docs', () => {

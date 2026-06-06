@@ -12,9 +12,14 @@ on:
         required: false
         default: true
         type: boolean
+      release_run_id:
+        description: Desktop release workflow run id that produced the candidate record
+        required: true
+        type: string
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: opl-desktop-release-promote-${{ inputs.opl_version }}
@@ -36,6 +41,33 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+
+      - name: Download release candidate record
+        uses: actions/download-artifact@v8
+        with:
+          name: release-readiness-summary-${{ inputs.opl_version }}
+          run-id: ${{ inputs.release_run_id }}
+          path: release-candidate-record-input
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify release candidate record
+        env:
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const record = JSON.parse(fs.readFileSync('release-candidate-record-input/release-candidate-record.json', 'utf8'));
+          const version = process.env.OPL_RELEASE_VERSION;
+          if (record.schema !== 'opl_release_candidate_record.v1') {
+            throw new Error(`Unexpected candidate record schema: ${record.schema}`);
+          }
+          if (record.version !== version) {
+            throw new Error(`Candidate record version ${record.version} does not match ${version}`);
+          }
+          if (record.status !== 'ready_to_promote' || record.decision?.can_promote !== true) {
+            throw new Error(`Release candidate is not ready_to_promote: ${record.status}; ${JSON.stringify(record.blocked_reasons ?? [])}`);
+          }
+          NODE
 
       - name: Verify remote release assets
         env:
@@ -68,5 +100,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: remote-release-verification-${{ inputs.opl_version }}
-          path: remote-release-verification.json
+          path: |
+            remote-release-verification.json
+            release-candidate-record-input/release-candidate-record.json
+            release-candidate-record-input/release-candidate-record.md
           if-no-files-found: error

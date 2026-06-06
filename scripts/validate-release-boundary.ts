@@ -327,8 +327,22 @@ const checks = [
       '"homebrew:tap:plan": "node --experimental-strip-types scripts/update-homebrew-tap.ts"',
       '"validate:homebrew-tap": "node --experimental-strip-types scripts/update-homebrew-tap.ts --self-check"',
       '"release:preflight": "node --experimental-strip-types scripts/validate-release-preflight.ts"',
+      '"release:candidate-record": "node --experimental-strip-types scripts/write-release-candidate-record.ts"',
     ],
     forbidden: [],
+  },
+  {
+    id: 'release_candidate_record_script',
+    file: 'scripts/write-release-candidate-record.ts',
+    required: [
+      'opl_release_candidate_record.v1',
+      'ready_to_promote',
+      'blocked',
+      'diagnostic_only',
+      'Only ready_to_promote candidate records may publish a Stable draft release.',
+      '--allow-blocked',
+    ],
+    forbidden: ['TODO', 'TBD'],
   },
   {
     id: 'release_preflight_script',
@@ -561,7 +575,15 @@ const checks = [
   {
     id: 'desktop_release_promote_verifies_before_publish',
     file: '.github/workflows/desktop-release-promote.yml',
-    required: ['npm run verify-remote-release', 'gh release edit "v${OPL_RELEASE_VERSION}"', '--draft=false'],
+    required: [
+      'release_run_id:',
+      'Download release candidate record',
+      'release-candidate-record.json',
+      "record.status !== 'ready_to_promote'",
+      'npm run verify-remote-release',
+      'gh release edit "v${OPL_RELEASE_VERSION}"',
+      '--draft=false',
+    ],
     forbidden: ['npm run gui:release', 'packages:full-release', 'repository: gaofeng21cn/one-person-lab-app'],
   },
   {

@@ -4426,7 +4426,9 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.full_first_install_budget.warning_full_dmg_bytes, 700000000);
   assert.equal(summary.full_first_install_budget.max_full_dmg_bytes, 750000000);
   assert.equal(summary.full_first_install_budget.full_dmg_size_bytes, Buffer.byteLength('full-dmg'));
+  assert.equal(summary.full_first_install_budget.full_dmg_size_status, 'passed');
   assert.equal(summary.full_first_install_budget.runtime_uncompressed_bytes, 128);
+  assert.deepEqual(summary.full_first_install_budget.warnings, []);
   assert.deepEqual(summary.full_first_install_budget.temporal_core_bridge_releases, ['aarch64-apple-darwin']);
   assert.equal(summary.full_first_install_budget.excluded_module_venv_count, 0);
   assert.equal(summary.full_first_install_budget.required_components.temporal_cli.version, 'temporal version 1.7.0');
@@ -4492,7 +4494,7 @@ test('remote release verifier rejects standard updater metadata that references 
   assert.match(result.stderr, /latest-mac\.yml references Full first-install assets/);
 });
 
-test('remote release verifier fails closed when Full size budget is exceeded', () => {
+test('remote release verifier warns when Full DMG review threshold is exceeded', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-budget-'));
   const version = '26.5.19-budget';
   const names = [
@@ -4510,6 +4512,7 @@ test('remote release verifier fails closed when Full size budget is exceeded', (
     }),
   ];
   const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+  const summaryPath = path.join(tempRoot, 'remote-release-verification.json');
 
   const result = runNode([
     'scripts/verify-remote-release-assets.ts',
@@ -4520,6 +4523,8 @@ test('remote release verifier fails closed when Full size budget is exceeded', (
     '--include-full-package',
     '--download-dir',
     tempRoot,
+    '--summary-path',
+    summaryPath,
     '--no-download',
   ], {
     env: {
@@ -4527,8 +4532,13 @@ test('remote release verifier fails closed when Full size budget is exceeded', (
     },
   });
 
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Full DMG size budget exceeded/);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.full_first_install_budget.full_dmg_size_status, 'warning');
+  assert.deepEqual(summary.full_first_install_budget.warnings.map((warning) => warning.code), [
+    'full_dmg_size_above_review_threshold',
+  ]);
 });
 
 test('release plan exposes parallel lanes and the serialized no-CLT VM gate', () => {
@@ -4599,6 +4609,16 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
   assert.ok(payload.lanes.some((lane) => lane.id === 'one_shot_app_installer_smoke'));
   assert.ok(payload.lanes.some((lane) => lane.id === 'docker_webui_smoke'));
   assert.ok(payload.lanes.some((lane) => lane.id === 'release_evidence_bundle'));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'release_candidate_record'
+    && lane.depends_on.includes('release_readiness_summary')
+    && lane.depends_on.includes('remote_verify_standard_and_full')
+    && lane.command.includes('npm run release:candidate-record')
+  )));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'publish_new_tag'
+    && lane.depends_on.includes('release_candidate_record')
+  )));
 });
 
 test('nightly release plan stays lightweight and excludes stable installation gates', () => {
@@ -7052,7 +7072,7 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.match(markdownResult.stdout, /mas/);
   assert.match(markdownResult.stdout, /50% used/);
   assert.match(markdownResult.stdout, /Full DMG warning threshold: 667\.6 MiB/);
-  assert.match(markdownResult.stdout, /Full DMG hard budget: 715\.3 MiB/);
+  assert.match(markdownResult.stdout, /Full DMG review threshold: 715\.3 MiB/);
   assert.match(markdownResult.stdout, /Runtime budget: 1000 B \(50% used\)/);
   assert.match(markdownResult.stdout, /\| mas \| 180 B \| 36% \|/);
 });
