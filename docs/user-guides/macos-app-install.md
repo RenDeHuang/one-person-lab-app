@@ -26,6 +26,8 @@ Machine boundary: Human-readable user guide. Release contracts, workflows, VM sm
 ![1. 下载 One Person Lab](assets/01-download-release.png)
 
 - 最新版本页面：https://github.com/gaofeng21cn/one-person-lab-app/releases/latest
+- 最简单的稳定版安装命令：`curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash`。
+- 稳定安装器会下载 latest Full DMG、复制到 Applications，并尽量清理 macOS quarantine，减少首次启动时反复授权。
 - Full 版 DMG 是首次安装资产，包含 OPL Framework runtime、MAS/MAG/RCA、officecli、mineru-open-api 与推荐 skills 等 payload。
 - 标准 mac-arm64 DMG 体积更小，适合已经安装过 One Person Lab App 的用户和后续自动更新。
 
@@ -68,7 +70,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 ## 6. 确认工作目录和运行设置
 
-在设置概览中确认工作目录、本机助手、智能体入口和访问状态。需要调整数据目录或运行设置时，从这里进入。
+在本机运行环境中确认工作目录、Codex CLI、Temporal、更新状态和智能体模块。需要调整数据目录或运行设置时，从这里进入。
 
 ![6. 确认工作目录和运行设置](assets/06-research-data-folder.png)
 
@@ -95,7 +97,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 ## 常见问题
 
 - 下载失败：换网络后重试，或请技术支持人员确认 GitHub Release 是否可访问。
-- 打不开 App：确认已拖入 Applications，并按 macOS 安全提示允许打开。
+- 打不开 App：优先使用稳定安装命令重新安装；手动安装时确认已拖入 Applications，并按 macOS 安全提示允许打开。
 - 访问权限未配置：联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。
 - 模块未就绪：在 App 的环境管理中重新检查，确认 OPL 完整安装资产与本机网络状态。
 - 数据路径看不到：确认选择的是本机可访问的专病 workspace，或能看到其中的 `raw_data/`。
@@ -103,7 +105,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 ## 截图与验证来源
 
-- 截图资产统一规范化为 3840x2160；来源包括 GitHub Release 页面、本机 26.5.28 DMG 安装窗口、26.5.28 App CDP 截图，以及 26.5.28 GitHub Actions clean VM artifact。
-- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页和 Settings 可用，Full 版额外验证访问权限配置向导和 bundled runtime readiness。首启截图和 layout gate 会验证新手首屏保持简化，技术细节默认折叠。
-- 每张截图的来源、原始尺寸和 SHA256 记录在 `macos-app-install-assets.json` 与生成后的 verification JSON 中。
+- 截图来自 v26.6.5 的中文 1080p VM guide artifact 与同一次 VM smoke 的 App CDP 截图；PNG 保留各自原始输出尺寸，不做统一画布要求。
+- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页、Settings 和 MAS/MAG/RCA 入口可用。首启截图和 layout gate 会验证新手首屏保持简化，技术细节默认折叠。
+- 每张截图的来源、尺寸和 SHA256 记录在 `macos-app-install-assets.json` 与生成后的 verification JSON 中。
 - Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。

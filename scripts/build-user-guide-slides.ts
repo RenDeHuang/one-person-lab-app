@@ -25,9 +25,7 @@ const tempDir = path.join(appRoot, 'tmp', 'pdfs', 'macos-app-install-slides');
 
 const latestReleaseUrl = 'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest';
 const assetManifest = JSON.parse(fs.readFileSync(assetManifestPath, 'utf8'));
-const screenshotReleaseTag = process.env.OPL_APP_GUIDE_SCREENSHOT_RELEASE_TAG || assetManifest.release_tag || 'v26.5.28';
-const expectedAssetWidth = Number(assetManifest.normalized_canvas_pixels?.width ?? 3840);
-const expectedAssetHeight = Number(assetManifest.normalized_canvas_pixels?.height ?? 2160);
+const screenshotReleaseTag = process.env.OPL_APP_GUIDE_SCREENSHOT_RELEASE_TAG || assetManifest.release_tag || 'unknown';
 const titleFont = 'Arial';
 const cjkFont = 'PingFang SC';
 const bodyFont = 'Arial';
@@ -45,10 +43,11 @@ const steps: Step[] = [
     asset: '01-download-release.png',
     callouts: [
       '从 GitHub Releases latest 页面下载。',
+      '最简单命令：install-stable.sh。',
       '首次安装建议使用 Full 版 DMG。',
       '标准 DMG 适合已安装用户和后续更新。',
     ],
-    notes: '打开 One Person Lab App 最新 Release 页面。首次安装或干净机器建议选择 Full 版 DMG；标准 DMG 体积更小，用于已经安装过的用户和后续自动更新。',
+    notes: '最简单的稳定版安装命令：curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash。也可以打开 One Person Lab App 最新 Release 页面下载 DMG。',
   },
   {
     title: '2. 安装 App',
@@ -94,13 +93,13 @@ const steps: Step[] = [
   },
   {
     title: '6. 确认工作目录和运行设置',
-    subtitle: '在设置概览中确认工作目录、本机助手、智能体入口和访问状态。',
+    subtitle: '在本机运行环境中确认工作目录、Codex CLI、Temporal、更新状态和智能体模块。',
     asset: '06-research-data-folder.png',
     callouts: [
       '数据目录和运行入口从 Settings 进入。',
       '患者数据需先脱敏，并遵守机构要求。',
     ],
-    notes: '在设置概览中确认工作目录、本机助手、智能体入口和访问状态。建议按一个病种或稳定研究主题建立本地 workspace，把原始或脱敏材料集中放入工作目录。',
+    notes: '在本机运行环境中确认工作目录、Codex CLI、Temporal、更新状态和智能体模块。建议按一个病种或稳定研究主题建立本地 workspace，把原始或脱敏材料集中放入工作目录。',
   },
   {
     title: '7. 发起首次科研任务',
@@ -152,6 +151,22 @@ function fileSha256(filePath: string) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
+function expectedAssetNumber(expected: Record<string, unknown>, key: string, asset: string) {
+  const value = Number(expected[key]);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`Slide screenshot provenance for ${asset} must include positive numeric ${key}`);
+  }
+  return value;
+}
+
+function expectedAssetSha256(expected: Record<string, unknown>, asset: string) {
+  const value = typeof expected.sha256 === 'string' ? expected.sha256.trim() : '';
+  if (!/^[a-f0-9]{64}$/.test(value)) {
+    throw new Error(`Slide screenshot provenance for ${asset} must include sha256`);
+  }
+  return value;
+}
+
 function assertAssets() {
   const dimensions: Record<string, { width: number; height: number }> = {};
   const assets: Record<string, Record<string, unknown>> = {};
@@ -164,11 +179,14 @@ function assertAssets() {
       throw new Error(`Missing slide screenshot provenance in ${path.relative(appRoot, assetManifestPath)}: ${step.asset}`);
     }
     const sha256 = fileSha256(filePath);
-    if (info.width !== expectedAssetWidth || info.height !== expectedAssetHeight) {
-      throw new Error(`Expected ${step.asset} to be ${expectedAssetWidth}x${expectedAssetHeight}, got ${info.width}x${info.height}`);
+    const expectedWidth = expectedAssetNumber(expected, 'width', step.asset);
+    const expectedHeight = expectedAssetNumber(expected, 'height', step.asset);
+    const expectedSha256 = expectedAssetSha256(expected, step.asset);
+    if (info.width !== expectedWidth || info.height !== expectedHeight) {
+      throw new Error(`Expected ${step.asset} to be ${expectedWidth}x${expectedHeight}, got ${info.width}x${info.height}`);
     }
-    if (sha256 !== expected.normalized_sha256) {
-      throw new Error(`Slide screenshot hash mismatch for ${step.asset}: expected ${expected.normalized_sha256}, got ${sha256}`);
+    if (sha256 !== expectedSha256) {
+      throw new Error(`Slide screenshot hash mismatch for ${step.asset}: expected ${expectedSha256}, got ${sha256}`);
     }
     dimensions[step.asset] = info;
     assets[step.asset] = {
@@ -178,7 +196,9 @@ function assertAssets() {
       source_width: expected.source_width,
       source_height: expected.source_height,
       source_sha256: expected.source_sha256,
-      normalized_sha256: sha256,
+      width: info.width,
+      height: info.height,
+      sha256,
     };
   }
   return { dimensions, assets };
@@ -346,7 +366,7 @@ function buildCoverSlide() {
     alt: 'One Person Lab 首次启动后的科研入口截图',
   });
   addShape(1, {
-    text: '中文 VM 截图 · 1920×1080 逻辑桌面 · Retina 3840×2160',
+    text: `中文 1080p VM 截图 · ${screenshotReleaseTag}`,
     x: '16.1cm',
     y: '11.65cm',
     width: '16.45cm',
@@ -359,7 +379,7 @@ function buildCoverSlide() {
     align: 'center',
     margin: '0cm',
   });
-  addNotes(1, '本教程用于 macOS App 首次安装和首启说明。截图来自中文 macOS VM，逻辑桌面 1920x1080，Retina 输出 3840x2160。');
+  addNotes(1, `本教程用于 macOS App 首次安装和首启说明。截图来自 ${screenshotReleaseTag} 的中文 1080p VM guide artifact 与同一次 VM smoke 的 App CDP 截图。`);
   addFooter(1, '1 / 10');
 }
 
@@ -391,8 +411,8 @@ function buildFinalSlide() {
     '模块未就绪：在 App 的环境管理中重新检查。',
   ];
   const right = [
-    '截图资产统一规范化为 3840×2160。',
-    '来源包括 Release 页面、本机 26.5.28 App、DMG 和 VM artifact。',
+    '截图保留 VM artifact 原始尺寸。',
+    `来源对应 ${screenshotReleaseTag} 中文 1080p VM。`,
     '真实 DMG 安装到 /Applications/One Person Lab.app。',
     'verification JSON 记录每张图的来源和 SHA。',
   ];
@@ -558,10 +578,10 @@ function main() {
       cover_title_pt: 38,
     },
     screenshot_source: {
+      source: assetManifest.screenshot_source,
       release_run_id: assetManifest.release_run?.id,
       release_run_url: assetManifest.release_run?.url,
       release_run_conclusion: assetManifest.release_run?.conclusion,
-      normalized_canvas_pixels: assetManifest.normalized_canvas_pixels,
     },
     screenshot_assets: assets,
     screenshot_dimensions: dimensions,

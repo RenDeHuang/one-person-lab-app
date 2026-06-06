@@ -1,91 +1,127 @@
 {
   "status": "active",
-  "release_tag": "v26.5.28",
-  "version": "26.5.28",
-  "normalized_canvas_pixels": {
-    "width": 3840,
-    "height": 2160
+  "release_tag": "v26.6.5",
+  "version": "26.6.5",
+  "screenshot_source": {
+    "kind": "macos_tart_vm_guide_artifact",
+    "source": "macos_tart_vm_1920x1080_zh",
+    "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.6.5",
+    "host_artifacts": "/tmp/opl-26.6.5-guide-vm-standard-clean-dmg",
+    "guide_summary": "/tmp/opl-26.6.5-guide-vm-standard-clean-dmg/artifacts/guide-screenshots-summary.json",
+    "source_vm": "opl-first-run-no-clt-clean-base-26-5-18",
+    "display": "1920x1080px",
+    "locale": "zh-CN",
+    "status": "passed"
   },
   "release_run": {
-    "id": "26581198816",
-    "url": "https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/26581198816",
+    "id": "27048682308",
+    "url": "https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/27048682308",
     "conclusion": "success"
   },
   "assets": {
     "01-download-release.png": {
-      "title": "GitHub Release v26.5.28 page",
-      "source_kind": "github_release_page_capture",
-      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.5.28",
-      "source_width": 3840,
-      "source_height": 2160,
-      "source_sha256": "d0fc8822d6efa0f78983d00e06adf2f52329e5b944e592196f763b9b6cb53a67",
-      "normalized_sha256": "19c7b2e67b15f2a983e40057ad6475c8db527a634ce4e1ec3afbc46e268df1c3"
+      "title": "GitHub Release v26.6.5 page",
+      "source_kind": "macos_tart_vm_release_page_screencapture",
+      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.6.5",
+      "source_width": 1920,
+      "source_height": 1080,
+      "source_sha256": "3f273e45cd9cd5b90f4eb918332d18da9d7735c66b5c85f7231be9eb25aa04a4",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "3f273e45cd9cd5b90f4eb918332d18da9d7735c66b5c85f7231be9eb25aa04a4",
+      "vm_artifact_status": "captured",
+      "vm_artifact_source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest"
     },
     "02-install-dmg.png": {
       "title": "Standard DMG Finder install window",
-      "source_kind": "local_dmg_finder_capture",
-      "source": "/private/tmp/opl-standard-release-assets-26.5.28/One-Person-Lab-26.5.28-mac-arm64.dmg",
-      "source_width": 2144,
-      "source_height": 1304,
-      "source_sha256": "af4d75b32dba26ab7b4f403a31b2b03b5d9ea1655647b9731b38300d8d1b5124",
-      "normalized_sha256": "222457ddb37d4cc8c96ebded5920105007ad9cc10306391d7dd0ee6a6997602e"
+      "source_kind": "macos_tart_vm_dmg_finder_screencapture",
+      "source": "/Volumes/One Person Lab 26.6.5-arm64 from /tmp/opl-26.6.5-dmg-download/One-Person-Lab-26.6.5-mac-arm64.dmg",
+      "source_width": 1920,
+      "source_height": 1080,
+      "source_sha256": "7fbfc51c3865abbe32d7867c663f14b53a6af7a251dc6e5c762da287cd9e3f63",
+      "width": 1920,
+      "height": 1080,
+      "sha256": "7fbfc51c3865abbe32d7867c663f14b53a6af7a251dc6e5c762da287cd9e3f63",
+      "vm_artifact_status": "captured",
+      "vm_artifact_source": "/Volumes/One Person Lab 26.6.5-arm64"
     },
     "03-codex-config-needed.png": {
       "title": "First-run access setup screen",
-      "source_kind": "local_guide_first_run_render",
-      "source": "shell FirstRun real component render, codex/beginner-first-run-zh, blocked access fixture",
-      "source_width": 3840,
-      "source_height": 2160,
-      "source_sha256": "5c8fd81d72cd3b684303c463e7ef2d447a02b49277db092888736b9e98cc3d14",
-      "normalized_sha256": "5c8fd81d72cd3b684303c463e7ef2d447a02b49277db092888736b9e98cc3d14"
+      "source_kind": "macos_tart_vm_app_cdp_capture",
+      "source": "artifacts/first-run-beginner.png from standard VM smoke",
+      "source_width": 1536,
+      "source_height": 912,
+      "source_sha256": "7ea229893bddb9bc6238e2946427b4855e20b6b1b86a57172c18983ed057a196",
+      "width": 1536,
+      "height": 912,
+      "sha256": "7ea229893bddb9bc6238e2946427b4855e20b6b1b86a57172c18983ed057a196",
+      "vm_artifact_status": "copied",
+      "vm_artifact_source": "/tmp/opl-first-run-smoke/artifacts/first-run-beginner.png"
     },
     "04-first-run-checking.png": {
       "title": "First-run beginner readiness screen",
-      "source_kind": "local_guide_first_run_render",
-      "source": "shell FirstRun real component render, codex/beginner-first-run-zh, ready fixture",
-      "source_width": 3840,
-      "source_height": 2160,
-      "source_sha256": "017a9c40dda70fdaca89dafa8df125fc096ea78c81b27466797b0f6949b8aa3c",
-      "normalized_sha256": "017a9c40dda70fdaca89dafa8df125fc096ea78c81b27466797b0f6949b8aa3c"
-    },
-    "05-opl-ready-research-entry.png": {
-      "title": "Current 26.5.28 App Research/MAS GUID entry crop",
-      "source_kind": "local_app_cdp_capture",
-      "source": "OnePersonLab/26.5.28 CDP #/guid",
-      "source_width": 6144,
-      "source_height": 2850,
-      "source_sha256": "27f25b8176a209863bc1a84df38e90f1ed49b57d92786e8c782d950a6032c92f",
-      "normalized_sha256": "167f82af9238c5465d07e98077675f9807452d2f7a763dea0bd55926fc82f725",
-      "normalized_crop": "2300x1294+2350+850"
-    },
-    "06-research-data-folder.png": {
-      "title": "Settings overview with workspace root entry",
-      "source_kind": "github_actions_vm_artifact",
-      "source": "opl-first-run-vm-standard-26581198816/artifacts/settings-pages/overview.png",
+      "source_kind": "macos_tart_vm_app_cdp_capture",
+      "source": "artifacts/first-run-beginner.png from standard VM smoke",
       "source_width": 1536,
       "source_height": 912,
-      "source_sha256": "0c84429d7e2c80602da0ecb481c468339c10dfce96b70ac7c9f3f24a797246fa",
-      "normalized_sha256": "73e89629266d0a7d433b48bcd8fb1ed6fc14eac7c920b2919d3767a5262d678d"
+      "source_sha256": "7ea229893bddb9bc6238e2946427b4855e20b6b1b86a57172c18983ed057a196",
+      "width": 1536,
+      "height": 912,
+      "sha256": "7ea229893bddb9bc6238e2946427b4855e20b6b1b86a57172c18983ed057a196",
+      "vm_artifact_status": "copied",
+      "vm_artifact_source": "/tmp/opl-first-run-smoke/artifacts/first-run-beginner.png"
+    },
+    "05-opl-ready-research-entry.png": {
+      "title": "Research/MAS entry screen",
+      "source_kind": "macos_tart_vm_app_cdp_capture",
+      "source": "artifacts/assistant-route-smoke/mas.png from standard VM smoke",
+      "source_width": 1536,
+      "source_height": 912,
+      "source_sha256": "49adbd3077811cf334ba4afa7756b506e87dfec67ba14ad6a042c92caed422b1",
+      "width": 1536,
+      "height": 912,
+      "sha256": "49adbd3077811cf334ba4afa7756b506e87dfec67ba14ad6a042c92caed422b1",
+      "vm_artifact_status": "copied",
+      "vm_artifact_source": "/tmp/opl-first-run-smoke/artifacts/assistant-route-smoke/mas.png"
+    },
+    "06-research-data-folder.png": {
+      "title": "Local runtime environment settings screen",
+      "source_kind": "macos_tart_vm_app_cdp_capture",
+      "source": "artifacts/settings-pages/environment.png from standard VM smoke",
+      "source_width": 1536,
+      "source_height": 912,
+      "source_sha256": "3482f82130f619b5ab668e3769b27dc1ae513b08b86f8e692f5927dd2211e724",
+      "width": 1536,
+      "height": 912,
+      "sha256": "3482f82130f619b5ab668e3769b27dc1ae513b08b86f8e692f5927dd2211e724",
+      "vm_artifact_status": "copied",
+      "vm_artifact_source": "/tmp/opl-first-run-smoke/artifacts/settings-pages/environment.png"
     },
     "07-first-research-entry.png": {
-      "title": "Current 26.5.28 App Research/MAS GUID prompt input crop",
-      "source_kind": "local_app_cdp_capture",
-      "source": "OnePersonLab/26.5.28 CDP #/guid",
-      "source_width": 6144,
-      "source_height": 2850,
-      "source_sha256": "a939b836482fb4f0942d4201a2bf9ed18a64265f8bbf9b696db63af40591274b",
-      "normalized_sha256": "bd046e92a7544acd1dc961b9c661fb6fc28ddaf6713f5e62e3d57217cfce911c",
-      "normalized_crop": "2300x1294+2350+850"
+      "title": "First MAS research prompt entry screen",
+      "source_kind": "macos_tart_vm_app_cdp_capture",
+      "source": "artifacts/assistant-route-smoke/mas.png from standard VM smoke",
+      "source_width": 1536,
+      "source_height": 912,
+      "source_sha256": "49adbd3077811cf334ba4afa7756b506e87dfec67ba14ad6a042c92caed422b1",
+      "width": 1536,
+      "height": 912,
+      "sha256": "49adbd3077811cf334ba4afa7756b506e87dfec67ba14ad6a042c92caed422b1",
+      "vm_artifact_status": "copied",
+      "vm_artifact_source": "/tmp/opl-first-run-smoke/artifacts/assistant-route-smoke/mas.png"
     },
     "08-opl-runtime-status.png": {
-      "title": "Current 26.5.28 App runtime/status page crop",
-      "source_kind": "local_app_cdp_capture",
-      "source": "OnePersonLab/26.5.28 CDP #/runtime",
-      "source_width": 6144,
-      "source_height": 2850,
-      "source_sha256": "bc4dfb55cf3ae4e9057e7c2b0a82987b677c2e175793befb742036b22bc94043",
-      "normalized_sha256": "1895414cf026cf8e944653d0732d35d9575a0da3dc7dd735768a4605ea5ee75c",
-      "normalized_crop": "3500x1850+1700+180"
+      "title": "Runtime status screen",
+      "source_kind": "macos_tart_vm_app_cdp_capture",
+      "source": "artifacts/settings-pages/runtime-status.png from standard VM smoke",
+      "source_width": 1536,
+      "source_height": 912,
+      "source_sha256": "a75d42d058a50172307cb828146858c162a75b95ee1e76a5b23716158332087b",
+      "width": 1536,
+      "height": 912,
+      "sha256": "a75d42d058a50172307cb828146858c162a75b95ee1e76a5b23716158332087b",
+      "vm_artifact_status": "copied",
+      "vm_artifact_source": "/tmp/opl-first-run-smoke/artifacts/settings-pages/runtime-status.png"
     }
   }
 }

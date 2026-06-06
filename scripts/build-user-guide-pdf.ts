@@ -18,9 +18,7 @@ const tempMarkdownPath = path.join(tempDir, 'macos-app-install.pandoc.md');
 
 const latestReleaseUrl = 'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest';
 const assetManifest = JSON.parse(fs.readFileSync(assetManifestPath, 'utf8'));
-const screenshotReleaseTag = process.env.OPL_APP_GUIDE_SCREENSHOT_RELEASE_TAG || assetManifest.release_tag || 'v26.5.28';
-const expectedAssetWidth = Number(assetManifest.normalized_canvas_pixels?.width ?? 3840);
-const expectedAssetHeight = Number(assetManifest.normalized_canvas_pixels?.height ?? 2160);
+const screenshotReleaseTag = process.env.OPL_APP_GUIDE_SCREENSHOT_RELEASE_TAG || assetManifest.release_tag || 'unknown';
 
 const steps = [
   {
@@ -29,6 +27,8 @@ const steps = [
     asset: '01-download-release.png',
     notes: [
       `最新版本页面：${latestReleaseUrl}`,
+      '最简单的稳定版安装命令：`curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash`。',
+      '稳定安装器会下载 latest Full DMG、复制到 Applications，并尽量清理 macOS quarantine，减少首次启动时反复授权。',
       'Full 版 DMG 是首次安装资产，包含 OPL Framework runtime、MAS/MAG/RCA、officecli、mineru-open-api 与推荐 skills 等 payload。',
       '标准 mac-arm64 DMG 体积更小，适合已经安装过 One Person Lab App 的用户和后续自动更新。',
     ],
@@ -63,7 +63,7 @@ const steps = [
   },
   {
     title: '6. 确认工作目录和运行设置',
-    body: '在设置概览中确认工作目录、本机助手、智能体入口和访问状态。需要调整数据目录或运行设置时，从这里进入。',
+    body: '在本机运行环境中确认工作目录、Codex CLI、Temporal、更新状态和智能体模块。需要调整数据目录或运行设置时，从这里进入。',
     asset: '06-research-data-folder.png',
     notes: ['建议按一个病种或稳定研究主题建立本地 workspace，再把原始或脱敏材料集中放入工作目录。', '患者数据需先脱敏，并遵守本机构数据管理要求。'],
   },
@@ -111,6 +111,22 @@ function fileSha256(filePath: string) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
+function expectedAssetNumber(expected: Record<string, unknown>, key: string, asset: string) {
+  const value = Number(expected[key]);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`Guide screenshot provenance for ${asset} must include positive numeric ${key}`);
+  }
+  return value;
+}
+
+function expectedAssetSha256(expected: Record<string, unknown>, asset: string) {
+  const value = typeof expected.sha256 === 'string' ? expected.sha256.trim() : '';
+  if (!/^[a-f0-9]{64}$/.test(value)) {
+    throw new Error(`Guide screenshot provenance for ${asset} must include sha256`);
+  }
+  return value;
+}
+
 function assertAssets() {
   const missing = steps
     .map((step) => step.asset)
@@ -129,12 +145,15 @@ function assertAssets() {
       throw new Error(`Missing guide screenshot provenance in ${path.relative(appRoot, assetManifestPath)}: ${step.asset}`);
     }
     const sha256 = fileSha256(filePath);
+    const expectedWidth = expectedAssetNumber(expected, 'width', step.asset);
+    const expectedHeight = expectedAssetNumber(expected, 'height', step.asset);
+    const expectedSha256 = expectedAssetSha256(expected, step.asset);
     dimensions[step.asset] = info;
-    if (info.width !== expectedAssetWidth || info.height !== expectedAssetHeight) {
-      throw new Error(`Expected ${step.asset} to be ${expectedAssetWidth}x${expectedAssetHeight}, got ${info.width}x${info.height}`);
+    if (info.width !== expectedWidth || info.height !== expectedHeight) {
+      throw new Error(`Expected ${step.asset} to be ${expectedWidth}x${expectedHeight}, got ${info.width}x${info.height}`);
     }
-    if (sha256 !== expected.normalized_sha256) {
-      throw new Error(`Guide screenshot hash mismatch for ${step.asset}: expected ${expected.normalized_sha256}, got ${sha256}`);
+    if (sha256 !== expectedSha256) {
+      throw new Error(`Guide screenshot hash mismatch for ${step.asset}: expected ${expectedSha256}, got ${sha256}`);
     }
     assets[step.asset] = {
       title: expected.title,
@@ -143,7 +162,9 @@ function assertAssets() {
       source_width: expected.source_width,
       source_height: expected.source_height,
       source_sha256: expected.source_sha256,
-      normalized_sha256: sha256,
+      width: info.width,
+      height: info.height,
+      sha256,
     };
   }
   return { dimensions, assets };
@@ -193,7 +214,7 @@ function buildMarkdown(options: { pandocPageBreaks?: boolean } = {}) {
     '## 常见问题',
     '',
     '- 下载失败：换网络后重试，或请技术支持人员确认 GitHub Release 是否可访问。',
-    '- 打不开 App：确认已拖入 Applications，并按 macOS 安全提示允许打开。',
+    '- 打不开 App：优先使用稳定安装命令重新安装；手动安装时确认已拖入 Applications，并按 macOS 安全提示允许打开。',
     '- 访问权限未配置：联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。',
     '- 模块未就绪：在 App 的环境管理中重新检查，确认 OPL 完整安装资产与本机网络状态。',
     '- 数据路径看不到：确认选择的是本机可访问的专病 workspace，或能看到其中的 `raw_data/`。',
@@ -201,9 +222,9 @@ function buildMarkdown(options: { pandocPageBreaks?: boolean } = {}) {
     '',
     '## 截图与验证来源',
     '',
-    '- 截图资产统一规范化为 3840x2160；来源包括 GitHub Release 页面、本机 26.5.28 DMG 安装窗口、26.5.28 App CDP 截图，以及 26.5.28 GitHub Actions clean VM artifact。',
-    '- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页和 Settings 可用，Full 版额外验证访问权限配置向导和 bundled runtime readiness。首启截图和 layout gate 会验证新手首屏保持简化，技术细节默认折叠。',
-    '- 每张截图的来源、原始尺寸和 SHA256 记录在 `macos-app-install-assets.json` 与生成后的 verification JSON 中。',
+    `- 截图来自 ${screenshotReleaseTag} 的中文 1080p VM guide artifact 与同一次 VM smoke 的 App CDP 截图；PNG 保留各自原始输出尺寸，不做统一画布要求。`,
+    '- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页、Settings 和 MAS/MAG/RCA 入口可用。首启截图和 layout gate 会验证新手首屏保持简化，技术细节默认折叠。',
+    '- 每张截图的来源、尺寸和 SHA256 记录在 `macos-app-install-assets.json` 与生成后的 verification JSON 中。',
     '- Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。',
     '',
   );
@@ -293,10 +314,10 @@ function main() {
     source_markdown: path.relative(appRoot, markdownPath),
     output_pdf: path.relative(appRoot, pdfPath),
     screenshot_source: {
+      source: assetManifest.screenshot_source,
       release_run_id: assetManifest.release_run?.id,
       release_run_url: assetManifest.release_run?.url,
       release_run_conclusion: assetManifest.release_run?.conclusion,
-      normalized_canvas_pixels: assetManifest.normalized_canvas_pixels,
     },
     screenshot_assets: assets,
     screenshot_dimensions: dimensions,

@@ -26,10 +26,11 @@ Editable and detailed companion artifacts:
 
 Update flow:
 
-1. Refresh screenshots under `docs/user-guides/assets/`, then update
-   `macos-app-install-assets.json` with each screenshot source, source size,
-   source SHA256, and normalized SHA256. The guide generators fail if the PNGs
-   do not match this manifest.
+1. Refresh screenshots from the Chinese 1080p macOS VM guide artifact under
+   `docs/user-guides/assets/`, then update `macos-app-install-assets.json` with
+   each screenshot source, width, height, and SHA256. The guide generators fail
+   if the PNGs do not match this manifest. Do not force a shared canvas size;
+   keep the VM/CDP output dimensions recorded per image.
 2. Update `macos-app-install.md` and the slide copy in
    `scripts/build-user-guide-slides.ts` when the user flow changes.
 3. Run `npm run docs:macos-guide` to refresh the primary slide PDF, editable
