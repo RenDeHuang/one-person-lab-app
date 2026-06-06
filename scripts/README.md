@@ -20,6 +20,7 @@ verification can select a different linked shell repo with
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
 | `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates. |
+| `validate-release-candidate-record.ts` | Validates or summarizes `release-candidate-record.json`; promotion requires schema `opl_release_candidate_record.v1`, matching version, `status=ready_to_promote`, and `decision.can_promote=true`. |
 | `analyze-full-package-size.ts` | Reads `full-package-manifest.json` and reports Full runtime component/layer size, budget use, and optional runtime-root top entries. |
 | `collect-release-evidence.ts` | Collects live OPL runtime snapshot, App/operator drilldown, selected safe-action dry-run/execute JSON, and standard smoke source-dir artifacts into a release evidence bundle, writes the manifest, and validates the bundle in missing-evidence mode without claiming absent screenshot, VM, settings, or remote evidence. |
 | `write-release-evidence-manifest.ts` | Writes `evidence-manifest.json` for a release evidence bundle and marks absent VM/remote artifacts as missing evidence. |
@@ -62,6 +63,8 @@ npm run validate:gui-shell
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 npm run release:plan -- --version <version> --profile nightly
 npm run release:plan -- --version <version> --include-full-package
+npm run release:candidate-record:validate -- --version <version> --record release-candidate-record.json
+npm run release:candidate-record:status -- --record release-candidate-record.json --format json
 npm run release:full:size -- --markdown
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full

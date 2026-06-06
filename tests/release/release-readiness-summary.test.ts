@@ -41,6 +41,18 @@ function runCandidateRecord(args: string[], env: NodeJS.ProcessEnv = {}) {
   );
 }
 
+function runCandidateRecordValidator(args: string[], env: NodeJS.ProcessEnv = {}) {
+  return spawnSync(
+    process.execPath,
+    ['--experimental-strip-types', 'scripts/validate-release-candidate-record.ts', ...args],
+    {
+      cwd: appRoot,
+      encoding: 'utf8',
+      env: { ...process.env, ...env },
+    },
+  );
+}
+
 function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local', options: {
   fullBudget?: Record<string, unknown>;
   runtimeCacheEvents?: unknown[];
@@ -455,6 +467,18 @@ test('release candidate record promotes only a complete stable cohort', () => {
   const markdown = fs.readFileSync(markdownPath, 'utf8');
   assert.match(markdown, /Release Candidate Record/);
   assert.match(markdown, /Status: ready_to_promote/);
+
+  const validateResult = runCandidateRecordValidator([
+    '--promote-ready',
+    '--version',
+    '26.5.99',
+    '--record',
+    outputPath,
+  ]);
+  assert.equal(validateResult.status, 0, validateResult.stderr || validateResult.stdout);
+  const validation = JSON.parse(validateResult.stdout);
+  assert.equal(validation.promote_ready, true);
+  assert.equal(validation.status, 'ready_to_promote');
 });
 
 test('release candidate record blocks promotion when a required gate fails', () => {
@@ -499,6 +523,55 @@ test('release candidate record blocks promotion when a required gate fails', () 
   assert.equal(record.status, 'blocked');
   assert.equal(record.decision.can_promote, false);
   assert.match(record.blocked_reasons.join('\n'), /one_shot_app_installer/);
+
+  const statusResult = runCandidateRecordValidator([
+    '--status',
+    '--version',
+    '26.5.99',
+    '--record',
+    outputPath,
+  ]);
+  assert.equal(statusResult.status, 0, statusResult.stderr || statusResult.stdout);
+  const status = JSON.parse(statusResult.stdout);
+  assert.equal(status.promote_ready, false);
+  assert.match(status.blocked_reasons.join('\n'), /one_shot_app_installer/);
+
+  const validateResult = runCandidateRecordValidator([
+    '--promote-ready',
+    '--version',
+    '26.5.99',
+    '--record',
+    outputPath,
+  ]);
+  assert.notEqual(validateResult.status, 0);
+  assert.match(`${validateResult.stdout}\n${validateResult.stderr}`, /blocked_reasons/);
+});
+
+test('release candidate record validator rejects version mismatch', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-version-mismatch-'));
+  const recordPath = path.join(tempRoot, 'release-candidate-record.json');
+  writeJson(recordPath, {
+    schema: 'opl_release_candidate_record.v1',
+    version: '26.5.99',
+    status: 'ready_to_promote',
+    blocked_reasons: [],
+    decision: {
+      can_promote: true,
+      promote_command: 'gh release edit v26.5.99 --draft=false --latest',
+    },
+  });
+
+  const result = runCandidateRecordValidator([
+    '--promote-ready',
+    '--version',
+    '26.5.100',
+    '--record',
+    recordPath,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout, /Candidate record version 26\.5\.99 does not match 26\.5\.100/);
+  assert.match(result.stderr, /not promote-ready/);
 });
 
 test('release candidate record keeps draft candidates diagnostic only', () => {
@@ -949,9 +1022,9 @@ test('desktop promote workflow is gated by the candidate record before publishin
   assert.match(workflow, /Download release candidate record/);
   assert.match(workflow, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /release-candidate-record\.json/);
-  assert.match(workflow, /record\.schema !== 'opl_release_candidate_record\.v1'/);
-  assert.match(workflow, /record\.status !== 'ready_to_promote'/);
-  assert.match(workflow, /record\.decision\?\.can_promote !== true/);
+  assert.match(workflow, /npm run release:candidate-record:validate/);
+  assert.match(workflow, /--record release-candidate-record-input\/release-candidate-record\.json/);
+  assert.doesNotMatch(workflow, /node <<'NODE'/);
   assert.match(workflow, /Verify remote release assets/);
   assert.match(workflow, /Publish draft release/);
   assert.ok(workflow.indexOf('Verify release candidate record') < workflow.indexOf('Publish draft release'));

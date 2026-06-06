@@ -53,21 +53,7 @@ jobs:
       - name: Verify release candidate record
         env:
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
-        run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const record = JSON.parse(fs.readFileSync('release-candidate-record-input/release-candidate-record.json', 'utf8'));
-          const version = process.env.OPL_RELEASE_VERSION;
-          if (record.schema !== 'opl_release_candidate_record.v1') {
-            throw new Error(`Unexpected candidate record schema: ${record.schema}`);
-          }
-          if (record.version !== version) {
-            throw new Error(`Candidate record version ${record.version} does not match ${version}`);
-          }
-          if (record.status !== 'ready_to_promote' || record.decision?.can_promote !== true) {
-            throw new Error(`Release candidate is not ready_to_promote: ${record.status}; ${JSON.stringify(record.blocked_reasons ?? [])}`);
-          }
-          NODE
+        run: npm run release:candidate-record:validate -- --record release-candidate-record-input/release-candidate-record.json
 
       - name: Verify remote release assets
         env:
