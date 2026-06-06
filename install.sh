@@ -5,6 +5,7 @@ OPL_INSTALL_SCRIPT_URL=${OPL_INSTALL_SCRIPT_URL:-https://raw.githubusercontent.c
 OPL_APP_INSTALL_MODE=${OPL_APP_INSTALL_MODE:-app-first}
 OPL_LOCAL_APP_PATH=${OPL_LOCAL_APP_PATH:-/Applications/One Person Lab.app}
 OPL_APP_RELEASE_REPO=${OPL_APP_RELEASE_REPO:-gaofeng21cn/one-person-lab-app}
+OPL_APP_DOCS_REF=${OPL_APP_DOCS_REF:-main}
 
 INSTALL_ARGS=()
 COMPLETE_INSTALL=0
@@ -194,6 +195,24 @@ diagnostic_status() {
   else
     printf 'failed\n'
   fi
+}
+
+print_stable_macos_next_steps() {
+  local repo_url="https://github.com/$OPL_APP_RELEASE_REPO"
+  local docs_url="$repo_url/blob/$OPL_APP_DOCS_REF/docs/user-guides/site/index.html"
+  local pdf_url="$repo_url/blob/$OPL_APP_DOCS_REF/docs/user-guides/macos-app-install-slides.pdf"
+  local pptx_url="$repo_url/blob/$OPL_APP_DOCS_REF/docs/user-guides/macos-app-install-slides.pptx"
+  local releases_url="$repo_url/releases/latest"
+
+  printf 'Next steps:\n'
+  printf '  1. If the App is not already open, open: %s\n' "$OPL_LOCAL_APP_PATH"
+  printf '  2. Follow the first-run screen until One Person Lab is ready to launch.\n'
+  printf '  3. User guide: %s\n' "$docs_url"
+  printf '  4. Shareable PDF: %s\n' "$pdf_url"
+  printf '  5. Shareable PPTX: %s\n' "$pptx_url"
+  printf '  6. Latest release assets: %s\n' "$releases_url"
+  printf 'If macOS still asks for repeated approval, re-run:\n'
+  printf '  curl -fsSL https://raw.githubusercontent.com/%s/%s/install.sh | bash -s -- --authorize-local-app-only --app-path "%s" --yes\n' "$OPL_APP_RELEASE_REPO" "$OPL_APP_DOCS_REF" "$OPL_LOCAL_APP_PATH"
 }
 
 run_with_sudo_fallback() {
@@ -439,6 +458,7 @@ stable_macos_install() {
     fi
   fi
   printf 'One Person Lab Stable macOS install finished.\n'
+  print_stable_macos_next_steps
 }
 
 if [ "$STABLE_MACOS_INSTALL" = "1" ]; then

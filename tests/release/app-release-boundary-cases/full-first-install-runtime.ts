@@ -559,6 +559,10 @@ test('Full first-install cache and release acceleration contract are explicit', 
 
   assert.equal(packageJson.scripts['release:plan'], 'node --experimental-strip-types scripts/plan-release-candidate.ts');
   assert.equal(
+    packageJson.scripts['release:readiness-summary'],
+    'node --experimental-strip-types scripts/summarize-release-readiness.ts',
+  );
+  assert.equal(
     packageJson.scripts['release:full:size'],
     'node --experimental-strip-types scripts/analyze-full-package-size.ts',
   );

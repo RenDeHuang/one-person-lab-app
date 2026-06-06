@@ -330,6 +330,7 @@ const checks = [
       '"homebrew:tap:plan": "node --experimental-strip-types scripts/update-homebrew-tap.ts"',
       '"validate:homebrew-tap": "node --experimental-strip-types scripts/update-homebrew-tap.ts --self-check"',
       '"release:preflight": "node --experimental-strip-types scripts/validate-release-preflight.ts"',
+      '"release:readiness-summary": "node --experimental-strip-types scripts/summarize-release-readiness.ts"',
       '"release:candidate-record": "node --experimental-strip-types scripts/write-release-candidate-record.ts"',
       '"release:candidate-record:validate": "node --experimental-strip-types scripts/validate-release-candidate-record.ts --promote-ready"',
       '"release:candidate-record:status": "node --experimental-strip-types scripts/validate-release-candidate-record.ts --status"',

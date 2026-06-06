@@ -31,7 +31,7 @@ Generated reading artifacts:
 Source and verification files:
 
 - [`macos-app-install.guide.json`](macos-app-install.guide.json): canonical
-  user-guide content source for HTML, share slides, Markdown, and detailed PDF.
+  user-guide content source for HTML, slides, Markdown, and detailed PDF.
 - [`macos-app-install-assets.json`](macos-app-install-assets.json): screenshot
   provenance, dimensions, and SHA256 manifest.
 - `macos-app-install-html-verification.json`,

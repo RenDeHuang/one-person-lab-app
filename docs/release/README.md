@@ -728,6 +728,54 @@ need the actual DMG.
 
 ## Local commands
 
+Operator quick path for a new Stable candidate:
+
+```bash
+npm run release:preflight -- \
+  --version <version> \
+  --release-mode new_release \
+  --include-full-package true \
+  --run-vm-smoke false \
+  --offline
+
+npm run release:plan -- --version <version> --include-full-package
+
+npm run release:readiness-summary -- \
+  --version <version> \
+  --release-mode new_release \
+  --include-full-package true \
+  --run-vm-smoke true \
+  --artifacts-dir <downloaded-small-artifacts-dir> \
+  --job-results release-readiness-job-results.json \
+  --output release-readiness-summary.json \
+  --markdown release-readiness-summary.md
+
+npm run release:candidate-record -- \
+  --version <version> \
+  --release-mode new_release \
+  --include-full-package true \
+  --run-vm-smoke true \
+  --preflight release-preflight-summary.json \
+  --readiness release-readiness-summary.json \
+  --remote-verification remote-release-verification.json \
+  --job-results release-readiness-job-results.json \
+  --output release-candidate-record.json \
+  --markdown release-candidate-record.md
+
+npm run release:candidate-record:status -- \
+  --record release-candidate-record.json \
+  --format json
+```
+
+The offline preflight command is a fast local shape check. The complete Stable
+workflow still runs with `run_vm_smoke=true` on GitHub Actions, where the
+Homebrew tap token and clean-VM gates are available. Use
+`release-readiness-summary.json` and then
+`release-candidate-record.json` as the operator decision surfaces. For a blocked
+run, report the candidate record `blocked_reasons` first, then inspect the named
+gate artifact or job log that the record identifies. Do not reconstruct a
+promotion decision from scattered job logs.
+
 Release candidate plan:
 
 ```bash
@@ -784,7 +832,7 @@ Stop conditions for a Stable train:
 - Use `refresh_existing` only as an emergency repair/replace lane for an
   existing published release. Do not use it as the normal Stable publish path.
 - Run user-guide screenshot/docs refresh after promotion, then run
-  `npm run docs:macos-guide` and check the HTML, share PDF/PPTX, slides, and
+  `npm run docs:macos-guide` and check the HTML, slides PDF/PPTX, and
   detailed PDF verification JSON files. If it fails, record a post-release docs
   blocker or follow-up; do not reopen the release candidate decision unless the
   screenshot work exposes a deterministic release gate regression.
