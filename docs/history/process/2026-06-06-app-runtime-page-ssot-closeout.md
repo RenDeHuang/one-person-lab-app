@@ -35,6 +35,7 @@ Human-doc owners:
   - owns App interaction handoff requirements for active shell work.
 - `docs/decisions.md`, `docs/invariants.md`, `docs/project.md`, and `README*`
   - own durable policy summaries and public/operator pointers, not the runtime bridge contract itself.
+  - must mirror user-task-status-first ordering rather than the old project-progress / owner-action-first summary.
 
 ## Peer Docs Classification
 
@@ -46,12 +47,16 @@ Human-doc owners:
 | `docs/active/app-interaction-logic-command-center.md` / Source Of Truth | `more_specific_detail` | Added `contracts/app-runtime-bridge.json` so the active interaction handoff points to the actual Runtime bridge owner instead of only GUI/page-state contracts. |
 | `docs/status.md` / Runtime progress display | `history_or_provenance` mixed into current status | Compressed the dated external status-page reference list into a compact current product principle. Status now keeps the current rule, while one-time research provenance stays out of active truth. |
 | `docs/active/app-ideal-state-gap-plan.md` / Runtime owner-action default and evidence | `covered_by_ssot` active plan | Already points to bridge/page-state/product contracts and separates test/evidence gaps from landed behavior. No edit. |
-| `docs/decisions.md`, `docs/invariants.md`, `docs/project.md`, `README*`, `docs/release/README.md` | `covered_by_ssot` durable/public support | Already keep Runtime page display-only, refs-only, user-task-first, no runtime/domain/artifact authority, and release evidence boundaries. No edit. |
+| `README.md` / Runtime bridge summary | `more_specific_detail` public entry | Added the four default Runtime counts and task-row fields so the public summary mirrors the machine contract. |
+| `README.zh-CN.md` / 运行状态页 summary | `conflicts_with_ssot` | Replaced the old project-progress / owner-action-first summary with user-task-status-first wording and secondary diagnostics. |
+| `docs/project.md` / Runtime page summary | `conflicts_with_ssot` | Replaced the old running-activity/project-progress summary with the contract-owned count-first and task-row ordering. |
+| `docs/decisions.md`, `docs/invariants.md`, `docs/release/README.md` | `covered_by_ssot` durable/operator support | Already keep Runtime page display-only, refs-only, user-task-first, no runtime/domain/artifact authority, and release evidence boundaries. No edit. |
 
 ## Content-Level Consolidation
 
 - Runtime page current truth is contract/test-owned, not prose-owned.
 - The default page answers user task status first: running, active, queued, attention, next step, next owner, progress, and blocker state.
+- Public/core summaries now mirror that ordering and no longer make project progress or owner action the default Runtime first-screen anchor.
 - Provider runs, Temporal, projections, refs, ledger, stage attempts, and `current_control_state` remain secondary diagnostic terms.
 - Full App state and full Operator drilldown are explicit diagnostic/audit/release-evidence paths, not ordinary Runtime page state.
 - Stage Artifact and State Index sidecar data are refs-only read-model projections. The App does not read artifact bodies, mutate sidecars, create owner receipts, or declare domain quality/export/readiness.
@@ -62,7 +67,7 @@ Commands run from `/Users/gaofeng/workspace/one-person-lab-app` after this edit:
 
 ```bash
 rtk git diff --check
-rtk rg -n "^(<<<<<<<|=======|>>>>>>>)" docs/status.md docs/active/app-interaction-logic-command-center.md docs/history/process contracts/app-runtime-bridge.json contracts/app-page-state-matrix.json contracts/app-gui-product-contract.json tests/release/app-runtime-bridge-boundary.test.ts tests/release/app-release-boundary.test.ts
+rtk rg -n "^(<<<<<<<|=======|>>>>>>>)" README.md README.zh-CN.md docs/project.md docs/status.md docs/active/app-interaction-logic-command-center.md docs/history/process contracts/app-runtime-bridge.json contracts/app-page-state-matrix.json contracts/app-gui-product-contract.json tests/release/app-runtime-bridge-boundary.test.ts tests/release/app-release-boundary.test.ts
 rtk /Users/gaofeng/.local/bin/opl-doc-doctor doctor . --format json
 rtk npm run test:release-boundary -- --runInBand
 ```

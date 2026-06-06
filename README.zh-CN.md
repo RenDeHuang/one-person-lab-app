@@ -244,7 +244,7 @@ App 产品默认策略由 [`contracts/app-product-profile.json`](contracts/app-p
 
 发布脚本会在标准包和 Full 包构建前把 App-owned contracts 同步到活动 shell，让 Codex 默认模型/推理强度、默认打包 skill 白名单、首次启动维护行为和 Settings 用户文案由 App 仓统一配置，而不是分散写死在 AionUI fork 中。
 
-运行状态页以 `opl app state --profile fast --json` 作为摘要和刷新来源，`opl app state --profile full --json` 只用于显式 full-state 诊断或发布证据，并只在需要时按需加载完整 Framework drilldown。该页面默认先展示项目进展和下一步 owner action：下一步、下一 owner、delta 类型和 blocker 状态先于完整 evidence ledger；完整 ledger 只作为按需诊断、审计或发布证据。
+运行状态页以 `opl app state --profile fast --json` 作为摘要和刷新来源，`opl app state --profile full --json` 只用于显式 full-state 诊断或发布证据，并只在需要时按需加载完整 Framework drilldown。该页面默认 user-task-status first：先展示正在运行任务数、活跃项目数、排队项目数和需要关注数，再展示任务标题、状态、阶段、进度标签、下一步、owner 和最近进展；项目进度、safe actions、provider/current_control_state 诊断和完整 evidence ledger 都是二级或按需展开内容。
 
 首次启动在进入 `/guid` 前完成 `ready_to_launch`：只要求工作目录、Codex CLI 和 Codex config。领域模块、family runtime provider、推荐技能、native helpers、repo sync、CLT 和生态更新属于 Full readiness 或后台维护。首次启动界面从共享的 `opl system initialize --json` 模型展示当前阶段、Core 进度、Full readiness 进度、后台维护计数、阻塞项和下一步，不为不同安装形态维护各自的进度真相。
 
