@@ -155,7 +155,7 @@ const expectedSettingsPageSections = {
   },
   settings_advanced: {
     matrixId: 'advanced',
-    sections: ['developer_profile', 'paths', 'logs', 'opl_flow_context', 'opl_agent_codex_context', 'diagnostics'],
+    sections: ['developer_profile', 'paths', 'logs', 'opl_flow_context', 'diagnostics'],
     mustShow: [
       'Developer Profile effective state and capabilities from app_state.developer_profile',
       'Developer Profile explicit opt-in state for repo or local checkout source_channel',
@@ -5790,8 +5790,8 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.ok(guiContract.pages.guid_home.activity_center_policy.must_not_display.includes('domain artifact body'));
   assert.ok(guiContract.pages.guid_home.activity_center_policy.must_not_display.includes('memory body'));
   assert.ok(guiContract.pages.settings_advanced.must_show.includes('OPL Flow Context'));
-  assert.ok(guiContract.pages.settings_advanced.sections.includes('opl_agent_codex_context'));
-  assert.ok(guiContract.pages.settings_advanced.legacy_state_sections.includes('opl_agent_codex_context'));
+  assert.ok(!guiContract.pages.settings_advanced.sections.includes('opl_agent_codex_context'));
+  assert.ok(!('legacy_state_sections' in guiContract.pages.settings_advanced));
   for (const pageId of guiContract.ordinary_cockpit_surface_budget.applies_to_pages) {
     const matrixPage = pageStateMatrix.pages.find((page) => page.id === pageId);
     assert.equal(

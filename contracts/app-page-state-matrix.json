@@ -1237,18 +1237,13 @@
         "paths",
         "logs",
         "opl_flow_context",
-        "opl_agent_codex_context",
         "diagnostics"
       ],
       "state_sections": [
         "developer_profile",
         "paths",
         "logs",
-        "opl_flow_context",
-        "opl_agent_codex_context"
-      ],
-      "legacy_state_sections": [
-        "opl_agent_codex_context"
+        "opl_flow_context"
       ],
       "must_show": [
         "Developer Profile effective state and capabilities from app_state.developer_profile",

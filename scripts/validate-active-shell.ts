@@ -252,7 +252,7 @@ const settingsPageExpectations = {
   },
   settings_advanced: {
     matrix_id: 'advanced',
-    sections: ['developer_profile', 'paths', 'logs', 'opl_flow_context', 'opl_agent_codex_context', 'diagnostics'],
+    sections: ['developer_profile', 'paths', 'logs', 'opl_flow_context', 'diagnostics'],
     must_show: [
       'Developer Profile effective state and capabilities from app_state.developer_profile',
       'Developer Profile explicit opt-in state for repo or local checkout source_channel',
@@ -1170,7 +1170,6 @@ function validateActiveShellImplementation(shellPaths) {
     'selected_path',
     'logs_dir',
     'opl_flow_context',
-    'opl_agent_codex_context',
     'settings.oplFlowContext',
   ]) {
     if (!systemSettings.includes(expected)) {
@@ -3574,8 +3573,11 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   if (!pages.settings_advanced.sections?.includes('opl_flow_context')) {
     throw new Error('Settings Advanced sections must include opl_flow_context');
   }
-  if (!pages.settings_advanced.legacy_state_sections?.includes('opl_agent_codex_context')) {
-    throw new Error('Settings Advanced must retain legacy opl_agent_codex_context compatibility');
+  if (pages.settings_advanced.sections?.includes('opl_agent_codex_context')) {
+    throw new Error('Settings Advanced must not retain legacy opl_agent_codex_context as an active section');
+  }
+  if ((pages.settings_advanced.legacy_state_sections ?? []).length > 0) {
+    throw new Error('Settings Advanced legacy state sections must be retired');
   }
   if (!pages.settings_advanced.must_show?.includes('OPL Flow Context')) {
     throw new Error('Settings Advanced must show OPL Flow Context');
@@ -3951,17 +3953,17 @@ function validatePageStateMatrix(matrix, contract) {
   if (!advancedPage?.state_sections?.includes('opl_flow_context')) {
     throw new Error('Advanced page state_sections must include opl_flow_context');
   }
-  if (!advancedPage?.legacy_state_sections?.includes('opl_agent_codex_context')) {
-    throw new Error('Advanced page must retain legacy opl_agent_codex_context compatibility');
+  if (advancedPage?.state_sections?.includes('opl_agent_codex_context')) {
+    throw new Error('Advanced page state_sections must not retain opl_agent_codex_context');
+  }
+  if ((advancedPage?.legacy_state_sections ?? []).length > 0) {
+    throw new Error('Advanced page legacy_state_sections must be retired');
   }
   if (!advancedPage?.must_show?.includes('OPL Flow Context')) {
     throw new Error('Advanced page must show OPL Flow Context');
   }
   if (!environmentPage.must_not_show?.includes('Med Deep Scientist as a default module')) {
     throw new Error('Environment page must keep MDS out of default module display');
-  }
-  if (!advancedPage?.state_sections?.includes('opl_agent_codex_context')) {
-    throw new Error('Advanced page state_sections must retain opl_agent_codex_context');
   }
   const aboutPage = (matrix.pages ?? []).find((page) => page.id === 'about');
   if (!aboutPage?.must_show?.includes('Stable or Nightly channel')) {

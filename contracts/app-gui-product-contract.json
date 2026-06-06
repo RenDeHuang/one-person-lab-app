@@ -1520,11 +1520,7 @@
         "paths",
         "logs",
         "opl_flow_context",
-        "opl_agent_codex_context",
         "diagnostics"
-      ],
-      "legacy_state_sections": [
-        "opl_agent_codex_context"
       ],
       "must_show": [
         "Developer Profile effective state and capabilities from app_state.developer_profile",
