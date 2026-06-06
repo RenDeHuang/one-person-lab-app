@@ -7,11 +7,13 @@
   "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
   "stable_install_command_present": true,
   "generated_artifacts": {
+    "share_pdf": "docs/user-guides/macos-app-install-share.pdf",
+    "share_pptx": "docs/user-guides/macos-app-install-share.pptx",
     "slides_pdf": "docs/user-guides/macos-app-install-slides.pdf",
     "slides_pptx": "docs/user-guides/macos-app-install-slides.pptx",
     "detailed_pdf": "docs/user-guides/macos-app-install-detailed-guide.pdf"
   },
-  "html_bytes": 20515,
+  "html_bytes": 21149,
   "guide_steps": 8,
   "image_references": 9,
   "screenshot_source": {

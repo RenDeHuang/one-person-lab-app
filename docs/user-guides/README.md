@@ -18,8 +18,13 @@ Primary user guide entry:
 
 Generated reading artifacts:
 
+- [macOS App install share PDF](macos-app-install-share.pdf): generated 16:9
+  screenshot walkthrough for forwarding to users who will follow the guide on a
+  computer.
+- [macOS App install share PPTX](macos-app-install-share.pptx): generated
+  editable 16:9 sharing deck from the same guide source.
 - [macOS App install slides PDF](macos-app-install-slides.pdf): generated
-  screenshot walkthrough with larger type and one task per slide.
+  compatibility filename for the same generated screenshot walkthrough.
 - [macOS App install detailed PDF](macos-app-install-detailed-guide.pdf):
   generated long-form companion.
 - [macOS App install Markdown](macos-app-install.md): generated long-form text
@@ -31,7 +36,7 @@ Generated reading artifacts:
 Source and verification files:
 
 - [`macos-app-install.guide.json`](macos-app-install.guide.json): canonical
-  user-guide content source for HTML, slides, Markdown, and detailed PDF.
+  user-guide content source for HTML, share slides, Markdown, and detailed PDF.
 - [`macos-app-install-assets.json`](macos-app-install-assets.json): screenshot
   provenance, dimensions, and SHA256 manifest.
 - `macos-app-install-html-verification.json`,
@@ -48,9 +53,9 @@ Update flow:
 2. Update `macos-app-install.guide.json` when the user flow, copy, FAQ,
    artifact links, or step ordering changes. Do not edit generated Markdown or
    slide copy as a second source of truth.
-3. Run `npm run docs:macos-guide` to refresh the HTML guide, primary slide PDF,
-   editable PPTX, detailed companion PDF, generated Markdown, and all
-   verification JSON files.
+3. Run `npm run docs:macos-guide` to refresh the HTML guide, share PDF/PPTX,
+   compatibility slide PDF/PPTX, detailed companion PDF, generated Markdown,
+   and all verification JSON files.
 4. For targeted regeneration, run `npm run docs:macos-guide:html`,
    `npm run docs:macos-guide:slides`, or `npm run docs:macos-guide:pdf`.
 5. Verify `macos-app-install-html-verification.json`,

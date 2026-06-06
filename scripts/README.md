@@ -189,7 +189,8 @@ For normal Stable trains, use `npm run release:plan -- --version <version>
 --include-full-package` as the operator plan: it models
 `new_release -> draft candidate -> gates -> candidate record -> promote` and keeps the
 `docs/user-guides` entry, screenshots, guide source, and generated artifacts refresh in a
-post-release lane. Run `npm run docs:macos-guide` for that docs refresh.
+post-release lane. Run `npm run docs:macos-guide` for that docs refresh; it
+updates the HTML guide plus the shareable PDF/PPTX and detailed PDF artifacts.
 `refresh_existing` is the
 emergency repair/replace lane for an already published release, not the default
 new Stable path. Once a candidate record, readiness summary, remote verification

@@ -143,7 +143,8 @@ Gatekeeper 诊断摩擦的增强项。
 
 首次启动图文教程以 [macOS App install user guide](docs/user-guides/site/index.html)
 为主入口；同一份 guide source 也会生成
-[slides PDF](docs/user-guides/macos-app-install-slides.pdf) 和
+[可转发 PDF](docs/user-guides/macos-app-install-share.pdf)、
+[可转发 PPTX](docs/user-guides/macos-app-install-share.pptx) 和
 [detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf)。
 
 日常更新由 Homebrew 或应用内更新通道完成，取决于安装方式。发布页保留标准应用包和更新元数据，完整首次安装包作为独立安装资产发布。

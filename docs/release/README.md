@@ -779,10 +779,10 @@ Stop conditions for a Stable train:
 - Use `refresh_existing` only as an emergency repair/replace lane for an
   existing published release. Do not use it as the normal Stable publish path.
 - Run user-guide screenshot/docs refresh after promotion, then run
-  `npm run docs:macos-guide` and check the HTML, slides, and detailed PDF
-  verification JSON files. If it fails, record a post-release docs blocker or
-  follow-up; do not reopen the release candidate decision unless the screenshot
-  work exposes a deterministic release gate regression.
+  `npm run docs:macos-guide` and check the HTML, share PDF/PPTX, slides, and
+  detailed PDF verification JSON files. If it fails, record a post-release docs
+  blocker or follow-up; do not reopen the release candidate decision unless the
+  screenshot work exposes a deterministic release gate regression.
 
 ```bash
 npm run ensure:shell

@@ -6,6 +6,8 @@
   "screenshot_asset_manifest": "docs/user-guides/macos-app-install-assets.json",
   "output_pptx": "docs/user-guides/macos-app-install-slides.pptx",
   "output_pdf": "docs/user-guides/macos-app-install-slides.pdf",
+  "share_output_pptx": "docs/user-guides/macos-app-install-share.pptx",
+  "share_output_pdf": "docs/user-guides/macos-app-install-share.pdf",
   "slide_layout": "16:9",
   "slides": 10,
   "pdf_pages": 10,

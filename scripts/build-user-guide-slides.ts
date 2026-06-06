@@ -17,6 +17,8 @@ import {
   relativeToApp,
   run,
   scanTextForSecrets,
+  sharePdfPath,
+  sharePptxPath,
   screenshotReleaseTag,
   screenshotSourceVerification,
   slidePdfPath,
@@ -261,16 +263,16 @@ function buildFinalSlide() {
     x: '1.25cm',
     y: '4.55cm',
     width: '14.8cm',
-    height: '7.7cm',
+    height: '12.15cm',
     geometry: 'roundRect',
     fill: panelFill,
     line: border,
     lineWidth: '1pt',
     font: bodyFont,
     'font.ea': cjkFont,
-    size: 19,
+    size: 16.3,
     color: primary,
-    lineSpacing: '1.15x',
+    lineSpacing: '1.1x',
     margin: '0.42cm',
   });
   addShape(slide, {
@@ -292,29 +294,17 @@ function buildFinalSlide() {
     x: '17.25cm',
     y: '4.55cm',
     width: '14.8cm',
-    height: '7.7cm',
+    height: '12.15cm',
     geometry: 'roundRect',
     fill: softAccent,
     line: accent,
     lineWidth: '1pt',
     font: bodyFont,
     'font.ea': cjkFont,
-    size: 19,
+    size: 16.8,
     color: primary,
-    lineSpacing: '1.15x',
+    lineSpacing: '1.1x',
     margin: '0.42cm',
-  });
-  addPicture(slide, {
-    src: path.join(assetDir, '08-opl-runtime-status.png'),
-    x: '9.0cm',
-    y: '13.05cm',
-    width: '15.8cm',
-    height: '4.45cm',
-    cropTop: 18,
-    cropBottom: 20,
-    cropLeft: 5,
-    cropRight: 5,
-    alt: 'OPL 运行状态截图裁切预览',
   });
   addNotes(slide, expandList(guide.provenance_notes, guide, assetManifest).join(' '));
   addFooter(slide, `${slide} / ${totalSlides}`);
@@ -332,6 +322,8 @@ function buildPptx() {
 
   fs.rmSync(slidePptxPath, { force: true });
   fs.rmSync(slidePdfPath, { force: true });
+  fs.rmSync(sharePptxPath, { force: true });
+  fs.rmSync(sharePdfPath, { force: true });
   run('officecli', ['create', slidePptxPath, '--force']);
   run('officecli', ['set', slidePptxPath, '/', '--prop', `title=${guide.title}`, '--prop', `author=${guide.owner}`, '--prop', 'subject=macOS App first-run slide guide']);
   buildCoverSlide();
@@ -358,6 +350,11 @@ function exportSlidePdf() {
   fs.renameSync(generatedPdfPath, slidePdfPath);
 }
 
+function writeShareArtifacts() {
+  fs.copyFileSync(slidePptxPath, sharePptxPath);
+  fs.copyFileSync(slidePdfPath, sharePdfPath);
+}
+
 function renderPdf() {
   const renderDir = path.join(tempDir, 'rendered');
   fs.rmSync(renderDir, { recursive: true, force: true });
@@ -379,6 +376,7 @@ function main() {
   const { dimensions, assets } = assertGuideAssets('Slide', guide, assetManifest);
   buildPptx();
   exportSlidePdf();
+  writeShareArtifacts();
   const render = renderPdf();
   const info = pdfInfo();
   const pages = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] ?? 0);
@@ -400,6 +398,8 @@ function main() {
     screenshot_asset_manifest: relativeToApp(assetManifestPath),
     output_pptx: relativeToApp(slidePptxPath),
     output_pdf: relativeToApp(slidePdfPath),
+    share_output_pptx: relativeToApp(sharePptxPath),
+    share_output_pdf: relativeToApp(sharePdfPath),
     slide_layout: '16:9',
     slides,
     pdf_pages: pages,

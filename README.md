@@ -152,8 +152,10 @@ For a first-time macOS arm64 install without Homebrew, choose `One-Person-Lab-Fu
 
 For a screenshot-based first-run walkthrough, start from the
 [macOS App install user guide](docs/user-guides/site/index.html). The same
-guide source also generates the [slides PDF](docs/user-guides/macos-app-install-slides.pdf)
-and [detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf).
+guide source also generates the shareable
+[PDF](docs/user-guides/macos-app-install-share.pdf) and
+[PPTX](docs/user-guides/macos-app-install-share.pptx), plus a
+[detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf).
 
 Daily updates are handled by Homebrew or the in-app update channel, depending on
 how the App was installed. Releases also publish standard App packages, updater
