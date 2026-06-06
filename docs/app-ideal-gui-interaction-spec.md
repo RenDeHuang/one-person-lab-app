@@ -222,8 +222,9 @@ OPL purposes 是固定 Codex executor 上的 App-owned defaults：
 Purpose selection 改变 route context 和 assistant skill profile；它不是
 backend selection。每个 routed conversation 必须带 App-owned receipt，记录
 route kind、executor、assistant id、assistant short name 和 source。
-当前底层 route id 仍可保留 `ppt` 以兼容既有 product profile；普通中文 UI
-显示 `演示`，不要把 `PPT` 当作中文 chrome 主标签。
+`ppt` 是 App contracts、product profile 和 page-state matrix 当前稳定的内部
+purpose id，路由到 RCA；普通中文 UI 显示 `演示`，不要把 `PPT` 当作中文
+chrome 主标签。
 
 OMA 保持 explicit 或 settings-only，直到单独产品决策把它提升为默认可见。
 

@@ -90,8 +90,8 @@ orchestration。
 
 每个 purpose 改变 assistant context、prompt rules、skill profile、route
 receipt 和 domain-specific contextual surfaces。它不改变 executor 或 backend。
-底层 product profile 可继续使用 `ppt` route id 和历史 `PPT` compatibility label；
-普通中文界面显示 `演示`，避免把英文缩写放进中文 first screen chrome。
+`ppt` 是 App contracts、product profile 和 page-state matrix 当前稳定的内部
+purpose id，路由到 RCA；普通中文界面显示 `演示`，避免把 `PPT` 放进普通用户界面。
 
 OMA 保持 explicit 或 Settings-only，直到单独 App 产品决策让它进入普通 home。
 

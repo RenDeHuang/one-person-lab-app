@@ -189,8 +189,9 @@ secondary context，不在 composer 附近显示 compact entry。
 
 - `科研` 路由到 MAS。
 - `基金` 路由到 MAG。
-- `演示` 路由到 RCA，用于 PPT、汇报和视觉交付物。底层 route id 可继续是 `ppt`
-  以兼容既有 profile。
+- `演示` 路由到 RCA，用于 PPT、汇报和视觉交付物。`ppt` 是 App contracts、
+  product profile 和 page-state matrix 当前稳定的内部 purpose id，只在机器合同
+  和 route receipt 语境使用，不进入普通中文 chrome。
 - OMA 保持 explicit 或 settings-only，直到产品决策让它默认可见。
 - Assistant-scoped skills 来自 App-owned packaged skill profiles，而不是
   shell-local discovery。
