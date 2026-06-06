@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `app_interaction_logic_command_center`
-State: `active_plan`
+State: `active_support`
 Machine boundary: 本文记录 App-owned 交互要求和 active shell implementation 的交接
 规则。Contracts 和 validation scripts 仍是机器真相来源。
 
