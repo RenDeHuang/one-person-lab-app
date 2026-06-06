@@ -100,6 +100,7 @@
       "default_read_surface_policy": {
         "default_projection": "opl_current_owner_delta",
         "source_path": "app_state.operator.default_read_surface_policy",
+        "stage_run_cockpit_projection_ref": "contracts/app-runtime-bridge.json#stage_run_cockpit_projection",
         "full_detail_policy": "explicit_full_detail_or_lazy_diagnostic_only",
         "raw_refs_policy": "raw_refs_require_explicit_full_detail",
         "full_detail_auto_poll": false,
@@ -204,6 +205,15 @@
         "app_release_readiness",
         "family_production_readiness"
       ]
+    },
+    "stage_run_cockpit": {
+      "projection_ref": "contracts/app-runtime-bridge.json#stage_run_cockpit_projection",
+      "source": "app_state.operator.workbench.task_drilldowns.stage_run_cockpit + app_state.operator.workbench.task_drilldowns.stage_run_cockpit_summary",
+      "equivalent_source": "app_state.operator.workbench.task_drilldowns.stage_run_current_owner_delta",
+      "derived_from": "current_owner_delta",
+      "display_policy": "refs_only_stage_run_cockpit_display_guard_no_runtime_truth_claims",
+      "ordinary_fast_state_required": true,
+      "app_role": "display_only_stage_run_cockpit_consumer"
     },
     "forbidden_gui_truth_sources": [
       "direct opl modules --json page aggregation",
@@ -1535,6 +1545,8 @@
   "ordinary_cockpit_surface_budget": {
     "surface_id": "ordinary_app_cockpit_surface_budget",
     "purpose": "keep Home, Runtime, and Settings focused on purpose, task status, next owner, artifact/blocker, and release facts",
+    "stage_run_cockpit_projection_ref": "contracts/app-runtime-bridge.json#stage_run_cockpit_projection",
+    "stage_run_consumption_policy": "ordinary fast App state must consume refs-only stage_run_cockpit, stage_run_cockpit_summary, or equivalent stage_run_current_owner_delta derived from current_owner_delta as display guard only",
     "applies_to_pages": [
       "guid_home",
       "runtime",

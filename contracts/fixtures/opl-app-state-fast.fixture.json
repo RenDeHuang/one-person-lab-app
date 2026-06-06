@@ -183,6 +183,34 @@
             "next_visible_step": "Resolve missing Med Auto Science workspace ref",
             "next_owner": "opl_framework",
             "paper_route_lens_ref_count": 0,
+            "stage_run_cockpit": {
+              "surface_kind": "opl_stage_run_cockpit_refs",
+              "source_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].stage_run_cockpit",
+              "derived_from": "current_owner_delta",
+              "task_id": "medautoscience",
+              "stage_id": "module_runtime",
+              "owner": "opl_framework",
+              "next_visible_step": "Resolve missing Med Auto Science workspace ref",
+              "accepted_return_shapes": [
+                "owner_receipt_ref",
+                "typed_blocker_ref"
+              ],
+              "readiness_false_flag_refs": [
+                "opl://readiness-false-flag/medautoscience/module-runtime-workspace-missing"
+              ],
+              "artifact_or_blocker_refs": [
+                "opl://typed-blocker/medautoscience/module-runtime-workspace-missing"
+              ],
+              "refs_only": true
+            },
+            "stage_run_cockpit_summary": {
+              "current_owner": "opl_framework",
+              "required_delta": "workspace_ref_repair_or_typed_blocker",
+              "next_safe_action_ref": null,
+              "artifact_or_blocker_refs": [
+                "opl://typed-blocker/medautoscience/module-runtime-workspace-missing"
+              ]
+            },
             "state_index_sidecar_projection": {
               "surface_kind": "opl_state_index_kernel_sidecar_read_model",
               "source_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].state_index_sidecar_projection",

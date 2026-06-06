@@ -574,6 +574,105 @@ function validateArtifactNativeDrilldownFixture(projection, label) {
   }
 }
 
+function validateStageRunCockpitProjectionContract(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.task_drilldowns.stage_run_cockpit + app_state.operator.workbench.task_drilldowns.stage_run_cockpit_summary',
+    equivalent_source: 'app_state.operator.workbench.task_drilldowns.stage_run_current_owner_delta',
+    derived_from: 'current_owner_delta',
+    authority: 'opl_framework_current_owner_delta_refs_projection',
+    display_policy: 'refs_only_stage_run_cockpit_display_guard_no_runtime_truth_claims',
+    app_role: 'display_only_stage_run_cockpit_consumer',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    projection.accepted_fast_state_fields,
+    ['stage_run_cockpit', 'stage_run_cockpit_summary', 'stage_run_current_owner_delta'],
+    `${label} accepted_fast_state_fields`,
+  );
+  assertIncludesAll(
+    projection.required_ref_fields,
+    ['task_id', 'stage_id', 'owner', 'next_visible_step', 'accepted_return_shapes', 'readiness_false_flag_refs'],
+    `${label} required_ref_fields`,
+  );
+  assertIncludesAll(
+    projection.summary_fields,
+    ['current_owner', 'required_delta', 'next_safe_action_ref', 'artifact_or_blocker_refs'],
+    `${label} summary_fields`,
+  );
+  if (projection.refs_only !== true) {
+    throw new Error(`${label} refs_only must be true`);
+  }
+  assertIncludesAll(
+    projection.forbidden_claims,
+    [
+      'runtime_truth',
+      'domain_truth',
+      'owner_receipt_authority',
+      'typed_blocker_authority',
+      'artifact_authority',
+      'domain_readiness',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+    `${label} forbidden_claims`,
+  );
+}
+
+function validateStageRunCockpitFixture(task, label) {
+  if (!task || typeof task !== 'object') {
+    throw new Error(`${label} task must be declared`);
+  }
+  const cockpit = task.stage_run_cockpit ?? task.stage_run_current_owner_delta;
+  if (!cockpit || typeof cockpit !== 'object') {
+    throw new Error(`${label} must include stage_run_cockpit or stage_run_current_owner_delta`);
+  }
+  if (!task.stage_run_cockpit_summary || typeof task.stage_run_cockpit_summary !== 'object') {
+    throw new Error(`${label} must include stage_run_cockpit_summary`);
+  }
+  if (cockpit.derived_from !== 'current_owner_delta') {
+    throw new Error(`${label} must derive from current_owner_delta`);
+  }
+  for (const field of ['task_id', 'stage_id', 'owner', 'next_visible_step', 'accepted_return_shapes', 'readiness_false_flag_refs']) {
+    if (!Object.hasOwn(cockpit, field)) {
+      throw new Error(`${label} cockpit must include ${field}`);
+    }
+  }
+  for (const field of ['current_owner', 'required_delta', 'next_safe_action_ref', 'artifact_or_blocker_refs']) {
+    if (!Object.hasOwn(task.stage_run_cockpit_summary, field)) {
+      throw new Error(`${label} summary must include ${field}`);
+    }
+  }
+  if (cockpit.refs_only !== true) {
+    throw new Error(`${label} cockpit refs_only must be true`);
+  }
+  for (const forbidden of [
+    'runtime_truth',
+    'domain_truth',
+    'owner_receipt_body',
+    'owner_receipt_authority',
+    'typed_blocker_body',
+    'typed_blocker_authority',
+    'artifact_body',
+    'artifact_authority',
+    'domain_ready',
+    'domain_readiness',
+    'app_release_ready',
+    'app_release_readiness',
+    'production_ready',
+    'production_readiness',
+  ]) {
+    if (Object.hasOwn(cockpit, forbidden) || Object.hasOwn(task.stage_run_cockpit_summary, forbidden)) {
+      throw new Error(`${label} must not project ${forbidden}`);
+    }
+  }
+}
+
 function validateActiveProjectLineProjectionContract(activeProjectLineProjection, label, options = {}) {
   if (!activeProjectLineProjection || typeof activeProjectLineProjection !== 'object') {
     throw new Error(`${label} must be declared`);
@@ -1986,6 +2085,16 @@ function validateGoldenAppStateFixture(gate) {
     artifactNativeDrilldownExample.artifact_native_drilldown,
     'OPL App state golden fixture Stage Artifact drilldown',
   );
+  const stageRunCockpitExample = taskDrilldowns.find(
+    (task) => task?.stage_run_cockpit || task?.stage_run_current_owner_delta,
+  );
+  if (!stageRunCockpitExample) {
+    throw new Error('OPL App state golden fixture must include a refs-only StageRun cockpit projection example.');
+  }
+  validateStageRunCockpitFixture(
+    stageRunCockpitExample,
+    'OPL App state golden fixture StageRun cockpit projection',
+  );
   const activeProjectSummaryCard = (lookupPath(fixture, 'app_state.operator.workbench.summary_cards') ?? []).find(
     (card) => card?.card_id === 'active_projects',
   );
@@ -2219,6 +2328,10 @@ function validateRuntimeBridgeContract(runtimeBridge, contract) {
   validateArtifactNativeDrilldownProjectionContract(
     runtimeBridge.artifact_native_drilldown_projection,
     'Runtime bridge Stage Artifact drilldown projection',
+  );
+  validateStageRunCockpitProjectionContract(
+    runtimeBridge.stage_run_cockpit_projection,
+    'Runtime bridge StageRun cockpit projection',
   );
   for (const [field, expected] of Object.entries({
     shell_adapter_can_own_runtime_truth: false,
@@ -2834,6 +2947,7 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
   for (const [field, expected] of Object.entries({
     default_projection: 'opl_current_owner_delta',
     source_path: 'app_state.operator.default_read_surface_policy',
+    stage_run_cockpit_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
     full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
     raw_refs_policy: 'raw_refs_require_explicit_full_detail',
     full_detail_auto_poll: false,
@@ -2868,6 +2982,20 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     guiContract.framework_surfaces.artifact_native_drilldown,
     'App GUI Stage Artifact drilldown framework surface',
   );
+  const guiStageRunCockpit = guiContract.framework_surfaces.stage_run_cockpit;
+  for (const [field, expected] of Object.entries({
+    projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
+    source: 'app_state.operator.workbench.task_drilldowns.stage_run_cockpit + app_state.operator.workbench.task_drilldowns.stage_run_cockpit_summary',
+    equivalent_source: 'app_state.operator.workbench.task_drilldowns.stage_run_current_owner_delta',
+    derived_from: 'current_owner_delta',
+    display_policy: 'refs_only_stage_run_cockpit_display_guard_no_runtime_truth_claims',
+    ordinary_fast_state_required: true,
+    app_role: 'display_only_stage_run_cockpit_consumer',
+  })) {
+    if (guiStageRunCockpit?.[field] !== expected) {
+      throw new Error(`App GUI StageRun cockpit ${field} must be ${expected}`);
+    }
+  }
   const runtimeDefaultAttention = guiContract.framework_surfaces.runtime_default_attention;
   if (runtimeDefaultAttention?.default_mode !== 'user_task_status_first') {
     throw new Error('App GUI runtime default attention must be user_task_status_first');
@@ -2935,6 +3063,8 @@ function validateAppGuiProductContract(guiContract, releaseChannel, installExpos
     {
       surface_id: 'ordinary_app_cockpit_surface_budget',
       purpose: 'keep Home, Runtime, and Settings focused on purpose, task status, next owner, artifact/blocker, and release facts',
+      stage_run_cockpit_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
+      stage_run_consumption_policy: 'ordinary fast App state must consume refs-only stage_run_cockpit, stage_run_cockpit_summary, or equivalent stage_run_current_owner_delta derived from current_owner_delta as display guard only',
       applies_to_pages: [
         'guid_home',
         'runtime',

@@ -2138,6 +2138,44 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'module readiness diagnostics',
     ],
   });
+  assert.deepEqual(runtimeBridge.stage_run_cockpit_projection, {
+    source: 'app_state.operator.workbench.task_drilldowns.stage_run_cockpit + app_state.operator.workbench.task_drilldowns.stage_run_cockpit_summary',
+    equivalent_source: 'app_state.operator.workbench.task_drilldowns.stage_run_current_owner_delta',
+    derived_from: 'current_owner_delta',
+    authority: 'opl_framework_current_owner_delta_refs_projection',
+    display_policy: 'refs_only_stage_run_cockpit_display_guard_no_runtime_truth_claims',
+    accepted_fast_state_fields: [
+      'stage_run_cockpit',
+      'stage_run_cockpit_summary',
+      'stage_run_current_owner_delta',
+    ],
+    required_ref_fields: [
+      'task_id',
+      'stage_id',
+      'owner',
+      'next_visible_step',
+      'accepted_return_shapes',
+      'readiness_false_flag_refs',
+    ],
+    summary_fields: [
+      'current_owner',
+      'required_delta',
+      'next_safe_action_ref',
+      'artifact_or_blocker_refs',
+    ],
+    refs_only: true,
+    app_role: 'display_only_stage_run_cockpit_consumer',
+    forbidden_claims: [
+      'runtime_truth',
+      'domain_truth',
+      'owner_receipt_authority',
+      'typed_blocker_authority',
+      'artifact_authority',
+      'domain_readiness',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+  });
   assert.deepEqual(runtimePage.runtime_view_model.project_progress.user_display_fields, expectedRuntimeProjectProgressUserFields);
   assert.equal(runtimeBridge.authority_boundary.shell_adapter_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_own_runtime_truth, false);
@@ -5452,6 +5490,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.framework_surfaces.canonical_state.default_read_surface_policy, {
     default_projection: 'opl_current_owner_delta',
     source_path: 'app_state.operator.default_read_surface_policy',
+    stage_run_cockpit_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
     full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
     raw_refs_policy: 'raw_refs_require_explicit_full_detail',
     full_detail_auto_poll: false,
@@ -5467,6 +5506,15 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'opl runtime app-operator-drilldown --detail full --json',
   );
   assert.equal(guiContract.framework_surfaces.runtime_full_drilldown.policy, 'on_demand_only');
+  assert.deepEqual(guiContract.framework_surfaces.stage_run_cockpit, {
+    projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
+    source: 'app_state.operator.workbench.task_drilldowns.stage_run_cockpit + app_state.operator.workbench.task_drilldowns.stage_run_cockpit_summary',
+    equivalent_source: 'app_state.operator.workbench.task_drilldowns.stage_run_current_owner_delta',
+    derived_from: 'current_owner_delta',
+    display_policy: 'refs_only_stage_run_cockpit_display_guard_no_runtime_truth_claims',
+    ordinary_fast_state_required: true,
+    app_role: 'display_only_stage_run_cockpit_consumer',
+  });
   assert.deepEqual(guiContract.framework_surfaces.runtime_default_attention.active_project_line_fields, [
     'app_state.operator.workbench.summary_cards[active_projects]',
     'app_state.operator.workbench.activity_center.active_projects',
@@ -5502,6 +5550,8 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.ordinary_cockpit_surface_budget, {
     surface_id: 'ordinary_app_cockpit_surface_budget',
     purpose: 'keep Home, Runtime, and Settings focused on purpose, task status, next owner, artifact/blocker, and release facts',
+    stage_run_cockpit_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
+    stage_run_consumption_policy: 'ordinary fast App state must consume refs-only stage_run_cockpit, stage_run_cockpit_summary, or equivalent stage_run_current_owner_delta derived from current_owner_delta as display guard only',
     applies_to_pages: [
       'guid_home',
       'runtime',
@@ -5939,6 +5989,30 @@ test('active shell validation exposes opt-in live OPL conformance without making
     fixture.app_state.operator.workbench.performance_policy.shell_must_not_derive_layout_from_raw_runtime_projection,
     true,
   );
+  const fixtureTaskDrilldowns = fixture.app_state.operator.workbench.task_drilldowns;
+  const stageRunCockpitExample = fixtureTaskDrilldowns.find(
+    (task) => task.stage_run_cockpit || task.stage_run_current_owner_delta,
+  );
+  assert.ok(stageRunCockpitExample, 'fast App state fixture must include a StageRun cockpit projection');
+  assert.equal(stageRunCockpitExample.stage_run_cockpit.derived_from, 'current_owner_delta');
+  assert.equal(stageRunCockpitExample.stage_run_cockpit.refs_only, true);
+  assert.deepEqual(
+    Object.keys(stageRunCockpitExample.stage_run_cockpit_summary),
+    ['current_owner', 'required_delta', 'next_safe_action_ref', 'artifact_or_blocker_refs'],
+  );
+  for (const forbidden of [
+    'runtime_truth',
+    'domain_truth',
+    'owner_receipt_authority',
+    'typed_blocker_authority',
+    'artifact_authority',
+    'domain_ready',
+    'app_release_ready',
+    'production_ready',
+  ]) {
+    assert.equal(forbidden in stageRunCockpitExample.stage_run_cockpit, false);
+    assert.equal(forbidden in stageRunCockpitExample.stage_run_cockpit_summary, false);
+  }
 
   const defaultResult = runNode(['scripts/validate-active-shell.ts', '--quick'], {
     env: {
