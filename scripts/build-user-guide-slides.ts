@@ -32,15 +32,18 @@ const tempDir = path.join(appRoot, 'tmp', 'pdfs', 'macos-app-install-slides');
 const guide = loadGuide();
 const assetManifest = loadAssetManifest();
 const screenshotTag = screenshotReleaseTag(assetManifest);
-const titleFont = 'Arial';
-const cjkFont = 'PingFang SC';
-const bodyFont = 'Arial';
+const titleFont = 'Noto Sans CJK SC';
+const cjkFont = 'Noto Sans CJK SC';
+const bodyFont = 'Noto Sans CJK SC';
+const monoFont = 'Menlo';
 const primary = '111827';
 const muted = '5B6574';
 const accent = '0F766E';
+const accentStrong = '0B5F59';
 const softAccent = 'E6F4F1';
 const panelFill = 'F8FAFC';
 const border = 'D6DEE8';
+const warnSoft = 'FFF7E6';
 const totalSlides = guide.steps.length + 2;
 
 function addSlide(background = 'FFFFFF') {
@@ -71,12 +74,12 @@ function addTitle(slide: number, title: string, subtitle?: string) {
   addShape(slide, {
     text: title,
     x: '1.25cm',
-    y: '0.62cm',
+    y: '1.35cm',
     width: '30.8cm',
-    height: '1.25cm',
+    height: '1.08cm',
     font: titleFont,
     'font.ea': cjkFont,
-    size: 34,
+    size: 31,
     bold: true,
     color: primary,
     fill: 'none',
@@ -86,7 +89,7 @@ function addTitle(slide: number, title: string, subtitle?: string) {
     addShape(slide, {
       text: expandTemplate(subtitle, guide, assetManifest),
       x: '1.28cm',
-      y: '1.95cm',
+      y: '2.55cm',
       width: '30.2cm',
       height: '0.9cm',
       font: bodyFont,
@@ -116,11 +119,47 @@ function addFooter(slide: number, indexText: string) {
   });
 }
 
+function plainGuideText(text: string) {
+  return expandTemplate(text, guide, assetManifest)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1');
+}
+
+function addBrandHeader(slide: number, eyebrow = 'macOS 首次安装与首启') {
+  addShape(slide, {
+    text: 'One Person Lab App',
+    x: '1.25cm',
+    y: '0.62cm',
+    width: '8.8cm',
+    height: '0.55cm',
+    font: bodyFont,
+    'font.ea': cjkFont,
+    size: 13,
+    bold: true,
+    color: accentStrong,
+    fill: 'none',
+    margin: '0cm',
+  });
+  addShape(slide, {
+    text: eyebrow,
+    x: '10.15cm',
+    y: '0.62cm',
+    width: '11.8cm',
+    height: '0.55cm',
+    font: bodyFont,
+    'font.ea': cjkFont,
+    size: 12,
+    color: muted,
+    fill: 'none',
+    margin: '0cm',
+  });
+}
+
 function addCalloutPanel(slide: number, callouts: string[]) {
   addShape(slide, {
     text: '本页重点',
-    x: '25.9cm',
-    y: '3.2cm',
+    x: '25.95cm',
+    y: '3.65cm',
     width: '6.4cm',
     height: '0.75cm',
     font: titleFont,
@@ -132,91 +171,137 @@ function addCalloutPanel(slide: number, callouts: string[]) {
     margin: '0cm',
   });
   addShape(slide, {
-    text: expandList(callouts, guide, assetManifest).map((item) => `• ${item}`).join('\n'),
-    x: '25.75cm',
-    y: '4.18cm',
+    text: expandList(callouts, guide, assetManifest).map((item) => `• ${plainGuideText(item)}`).join('\n'),
+    x: '25.65cm',
+    y: '4.6cm',
     width: '6.72cm',
-    height: '8.1cm',
+    height: '7.7cm',
     geometry: 'roundRect',
     fill: panelFill,
     line: border,
     lineWidth: '1pt',
     font: bodyFont,
     'font.ea': cjkFont,
-    size: 17,
+    size: 16.2,
     color: primary,
     lineSpacing: '1.12x',
     margin: '0.35cm',
   });
+  addShape(slide, {
+    text: '截图来自 v26.6.5 中文 1080p VM 验证。',
+    x: '25.65cm',
+    y: '12.85cm',
+    width: '6.72cm',
+    height: '1.0cm',
+    font: bodyFont,
+    'font.ea': cjkFont,
+    size: 11,
+    color: muted,
+    fill: 'none',
+    margin: '0cm',
+  });
 }
 
 function buildCoverSlide() {
-  addSlide('F8FAFC');
+  addSlide(panelFill);
+  addBrandHeader(1);
   addShape(1, {
-    text: guide.title,
-    x: '1.35cm',
-    y: '2.25cm',
-    width: '14.2cm',
-    height: '4.35cm',
+    text: guide.title.replace('App ', 'App\n'),
+    x: '1.25cm',
+    y: '2.0cm',
+    width: '14.9cm',
+    height: '2.75cm',
     font: titleFont,
     'font.ea': cjkFont,
-    size: 38,
+    size: 34,
     bold: true,
     color: primary,
     fill: 'none',
+    lineSpacing: '1.02x',
     margin: '0cm',
   });
   addShape(1, {
     text: guide.cover.description,
-    x: '1.4cm',
-    y: '6.85cm',
-    width: '13.5cm',
-    height: '2.75cm',
+    x: '1.25cm',
+    y: '4.95cm',
+    width: '14.7cm',
+    height: '1.6cm',
     font: bodyFont,
     'font.ea': cjkFont,
-    size: 22,
+    size: 20,
     color: muted,
     fill: 'none',
     lineSpacing: '1.08x',
     margin: '0cm',
   });
   addShape(1, {
-    text: `下载最新版本\n${guide.download.latest_release_url}`,
-    x: '1.45cm',
-    y: '10.85cm',
-    width: '13.3cm',
-    height: '2.8cm',
+    text: `稳定版安装命令\n${guide.download.stable_install_command}`,
+    x: '1.25cm',
+    y: '7.25cm',
+    width: '14.7cm',
+    height: '3.0cm',
     geometry: 'roundRect',
-    fill: softAccent,
-    line: accent,
+    fill: primary,
+    line: primary,
     lineWidth: '1pt',
+    font: monoFont,
+    'font.ea': cjkFont,
+    size: 12.5,
+    color: 'FFFFFF',
+    lineSpacing: '1.05x',
+    margin: '0.35cm',
+  });
+  addShape(1, {
+    text: `下载最新版本：${guide.download.latest_release_url}`,
+    x: '1.25cm',
+    y: '10.75cm',
+    width: '14.7cm',
+    height: '1.05cm',
     font: bodyFont,
     'font.ea': cjkFont,
-    size: 18,
-    color: primary,
-    margin: '0.35cm',
+    size: 14,
+    color: muted,
+    fill: 'none',
+    margin: '0cm',
   });
   addPicture(1, {
     src: path.join(assetDir, guide.cover.image_asset),
-    x: '16.1cm',
-    y: '2.0cm',
-    width: '16.5cm',
-    height: '9.28cm',
+    x: '16.45cm',
+    y: '2.1cm',
+    width: '16.05cm',
+    height: '9.55cm',
     alt: 'One Person Lab 首次启动后的科研入口截图',
   });
   addShape(1, {
-    text: `中文 1080p VM 截图 · ${screenshotTag}`,
-    x: '16.1cm',
-    y: '11.65cm',
-    width: '16.45cm',
-    height: '0.8cm',
+    text: `中文 1080p VM 截图 · ${screenshotTag} · 同源生成 HTML / PDF / PPTX`,
+    x: '16.45cm',
+    y: '12.05cm',
+    width: '16.05cm',
+    height: '0.7cm',
     font: bodyFont,
     'font.ea': cjkFont,
-    size: 16,
+    size: 12.5,
     color: muted,
     fill: 'none',
     align: 'center',
     margin: '0cm',
+  });
+  addShape(1, {
+    text: expandList(guide.prepare_checklist.slice(0, 4), guide, assetManifest).map((item) => `• ${plainGuideText(item)}`).join('\n'),
+    x: '1.25cm',
+    y: '13.45cm',
+    width: '31.25cm',
+    height: '3.6cm',
+    geometry: 'roundRect',
+    fill: softAccent,
+    line: 'B9DED7',
+    lineWidth: '1pt',
+    font: bodyFont,
+    'font.ea': cjkFont,
+    size: 15.5,
+    color: primary,
+    lineSpacing: '1.1x',
+    margin: '0.35cm',
   });
   addNotes(1, `本教程用于 macOS App 首次安装和首启说明。截图来自 ${screenshotTag} 的中文 1080p VM guide artifact 与同一次 VM smoke 的 App CDP 截图。`);
   addFooter(1, `1 / ${totalSlides}`);
@@ -225,14 +310,28 @@ function buildCoverSlide() {
 function buildStepSlide(step: GuideStep, index: number) {
   const slide = index + 2;
   addSlide('FFFFFF');
+  addBrandHeader(slide);
   addTitle(slide, step.title, step.subtitle);
   addPicture(slide, {
     src: path.join(assetDir, step.asset),
     x: '1.25cm',
-    y: '3.15cm',
-    width: '23.65cm',
-    height: '13.3cm',
+    y: '3.75cm',
+    width: '22.85cm',
+    height: '12.85cm',
     alt: step.title,
+  });
+  addShape(slide, {
+    text: plainGuideText(step.body),
+    x: '1.25cm',
+    y: '16.9cm',
+    width: '22.85cm',
+    height: '0.8cm',
+    font: bodyFont,
+    'font.ea': cjkFont,
+    size: 13,
+    color: muted,
+    fill: 'none',
+    margin: '0cm',
   });
   addCalloutPanel(slide, step.callouts);
   addNotes(slide, expandTemplate(step.speaker_notes, guide, assetManifest));
@@ -241,13 +340,14 @@ function buildStepSlide(step: GuideStep, index: number) {
 
 function buildFinalSlide() {
   const slide = totalSlides;
-  addSlide('FFFFFF');
+  addSlide(panelFill);
+  addBrandHeader(slide);
   addTitle(slide, '常见问题与验证来源', '遇到下载、权限、模块、数据路径问题时，先按界面提示和本页检查。');
 
   addShape(slide, {
     text: '常见问题',
     x: '1.3cm',
-    y: '3.25cm',
+    y: '4.1cm',
     width: '14.7cm',
     height: '0.95cm',
     font: titleFont,
@@ -259,11 +359,11 @@ function buildFinalSlide() {
     margin: '0cm',
   });
   addShape(slide, {
-    text: expandList(guide.faqs.slice(0, 4), guide, assetManifest).map((item) => `• ${item}`).join('\n'),
+    text: expandList(guide.faqs.slice(0, 4), guide, assetManifest).map((item) => `• ${plainGuideText(item)}`).join('\n'),
     x: '1.25cm',
-    y: '4.55cm',
+    y: '5.25cm',
     width: '14.8cm',
-    height: '12.15cm',
+    height: '10.75cm',
     geometry: 'roundRect',
     fill: panelFill,
     line: border,
@@ -278,7 +378,7 @@ function buildFinalSlide() {
   addShape(slide, {
     text: '验证来源',
     x: '17.3cm',
-    y: '3.25cm',
+    y: '4.1cm',
     width: '14.7cm',
     height: '0.95cm',
     font: titleFont,
@@ -290,11 +390,11 @@ function buildFinalSlide() {
     margin: '0cm',
   });
   addShape(slide, {
-    text: expandList(guide.verification_callouts, guide, assetManifest).map((item) => `• ${item}`).join('\n'),
+    text: expandList(guide.verification_callouts, guide, assetManifest).map((item) => `• ${plainGuideText(item)}`).join('\n'),
     x: '17.25cm',
-    y: '4.55cm',
+    y: '5.25cm',
     width: '14.8cm',
-    height: '12.15cm',
+    height: '10.75cm',
     geometry: 'roundRect',
     fill: softAccent,
     line: accent,
@@ -305,6 +405,22 @@ function buildFinalSlide() {
     color: primary,
     lineSpacing: '1.1x',
     margin: '0.42cm',
+  });
+  addShape(slide, {
+    text: guide.security_notice,
+    x: '1.25cm',
+    y: '16.65cm',
+    width: '30.8cm',
+    height: '0.9cm',
+    geometry: 'roundRect',
+    fill: warnSoft,
+    line: 'F3D08F',
+    lineWidth: '1pt',
+    font: bodyFont,
+    'font.ea': cjkFont,
+    size: 13,
+    color: primary,
+    margin: '0.22cm',
   });
   addNotes(slide, expandList(guide.provenance_notes, guide, assetManifest).join(' '));
   addFooter(slide, `${slide} / ${totalSlides}`);
@@ -408,9 +524,12 @@ function main() {
       height: pageHeight,
     },
     typography: {
-      title_pt: 34,
-      body_pt: '17-22',
-      cover_title_pt: 38,
+      font_family: titleFont,
+      step_title_pt: 31,
+      step_subtitle_pt: 20,
+      step_body_pt: 13,
+      callout_pt: '16.2-18',
+      cover_title_pt: 34,
     },
     screenshot_source: screenshotSourceVerification(assetManifest),
     screenshot_assets: assets,

@@ -16,9 +16,12 @@
     "height": 540
   },
   "typography": {
-    "title_pt": 34,
-    "body_pt": "17-22",
-    "cover_title_pt": 38
+    "font_family": "Noto Sans CJK SC",
+    "step_title_pt": 31,
+    "step_subtitle_pt": 20,
+    "step_body_pt": 13,
+    "callout_pt": "16.2-18",
+    "cover_title_pt": 34
   },
   "screenshot_source": {
     "source": {

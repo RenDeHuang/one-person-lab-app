@@ -43,6 +43,12 @@ Source and verification files:
   `macos-app-install-slides-verification.json`, and
   `macos-app-install-verification.json`: generated verification records.
 
+Read generated Markdown, PDFs, PPTX, and HTML as artifacts derived from the
+guide source and screenshot manifest. If their embedded metadata or titles look
+source-like, the canonical edit path still starts from `macos-app-install.guide.json`
+and regeneration; do not hand-edit generated artifacts as a second content
+source.
+
 Update flow:
 
 1. Refresh screenshots from the Chinese 1080p macOS VM guide artifact under

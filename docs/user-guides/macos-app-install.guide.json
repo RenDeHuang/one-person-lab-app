@@ -1,7 +1,7 @@
 {
   "schema": "opl_user_guide.v1",
   "id": "macos-app-install",
-  "title": "OPL + MAS 新手首次启动图文教程",
+  "title": "One Person Lab App 首次安装图文教程",
   "short_title": "macOS App 首次安装",
   "owner": "one-person-lab-app",
   "purpose": "macos_app_install_user_guide_source",
@@ -17,7 +17,7 @@
   },
   "cover": {
     "image_asset": "05-opl-ready-research-entry.png",
-    "description": "按首次安装、配置、进入科研入口、发起任务和查看进度的顺序演示。"
+    "description": "按下载安装、首次配置、环境检查、科研入口和进度查看的顺序演示。"
   },
   "prepare_checklist": [
     "一台 Apple Silicon Mac 或可运行 macOS App 的 Mac。",

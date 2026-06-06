@@ -1,4 +1,4 @@
-# OPL + MAS 新手首次启动图文教程
+# One Person Lab App 首次安装图文教程
 
 Owner: `one-person-lab-app`
 Purpose: `macos_app_install_user_guide_pdf_source`
