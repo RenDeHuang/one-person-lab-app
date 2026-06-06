@@ -45,10 +45,24 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
   fullBudget?: Record<string, unknown>;
   runtimeCacheEvents?: unknown[];
 } = {}) {
+  const standardDmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   writeJson(path.join(root, `remote-release-verification-${version}`, 'remote-release-verification.json'), {
     status: 'passed',
     include_full_package: true,
     verified_asset_count: 10,
+    verified_assets: [
+      {
+        name: standardDmgName,
+        size: 512,
+        sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      },
+      {
+        name: fullDmgName,
+        size: 1024,
+        sha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      },
+    ],
     full_first_install_budget: {
       status: 'passed',
       full_dmg_size_bytes: 512,
@@ -73,7 +87,7 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
     dry_run: false,
     manifest_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${version}/latest-arm64-mac.yml`,
     checksum_sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    download_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${version}/One-Person-Lab-${version}-mac-arm64.dmg`,
+    download_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${version}/${standardDmgName}`,
     targets: [{ path: 'Casks/one-person-lab.rb', kind: 'cask', previous_exists: true, changed: true }],
     policy: {
       cohort: 'standard_desktop_homebrew_distribution',
@@ -88,7 +102,7 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
     dry_run: false,
     manifest_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${version}/full-package-manifest.json`,
     checksum_sha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-    download_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${version}/One-Person-Lab-Full-${version}-mac-arm64.dmg`,
+    download_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${version}/${fullDmgName}`,
     targets: [{ path: 'Casks/one-person-lab-full.rb', kind: 'cask', previous_exists: true, changed: true }],
     policy: {
       cohort: 'full_first_install_homebrew_distribution',
@@ -170,6 +184,24 @@ function writePassingArtifacts(root: string, version = '26.5.99', runId = 'local
     events: options.runtimeCacheEvents ?? [{ layer_id: 'toolchain', status: 'hit' }],
   });
   writeFile(path.join(root, `opl-full-diagnostics-${version}`, 'SHA256SUMS.txt'), 'checksum evidence\n');
+  writeJson(path.join(root, `release-evidence-bundle-${version}`, 'evidence-validation-summary.json'), {
+    schema: 'opl_release_evidence_bundle_validation.v1',
+    status: 'passed',
+    bundle_dir: `release-evidence/${version}`,
+    manifest_path: 'evidence-manifest.json',
+    verified_artifact_count: 16,
+    missing_artifact_count: 0,
+    blocked_artifact_count: 0,
+    packaged_app_evidence: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    forbidden_authority: [
+      'runtime_truth',
+      'provider_implementation',
+      'domain_truth',
+      'domain_quality_verdict',
+      'domain_artifact_authority',
+    ],
+  });
 }
 
 function writePassingJobResults(filePath: string) {
@@ -186,6 +218,7 @@ function writePassingJobResults(filePath: string) {
     'one-shot-app-installer-smoke': 'success',
     'docker-webui-smoke': 'success',
     'webui-ghcr-publish': 'success',
+    'operator-evidence-bundle-validation': 'success',
   });
 }
 
@@ -228,7 +261,9 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(summary.status, 'passed');
   assert.equal(summary.gates.standard_dmg_clean_vm.status, 'passed');
   assert.equal(summary.gates.stable_homebrew_tap_update.status, 'passed');
+  assert.equal(summary.gates.stable_homebrew_tap_update.fields.remote_asset_sha256, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
   assert.equal(summary.gates.full_homebrew_tap_update.status, 'passed');
+  assert.equal(summary.gates.full_homebrew_tap_update.fields.remote_asset_sha256, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
   assert.equal(summary.gates.homebrew_standard_cask_clean_vm.status, 'passed');
   assert.equal(summary.gates.full_dmg_clean_vm.status, 'passed');
   assert.equal(summary.gates.one_shot_app_installer.status, 'passed');
@@ -251,6 +286,10 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(summary.gates.docker_webui.status, 'passed');
   assert.equal(summary.gates.webui_ghcr_publish.status, 'passed');
   assert.deepEqual(summary.gates.webui_ghcr_publish.fields.tags, ['26.5.99', 'stable', 'latest']);
+  assert.equal(summary.gates.operator_evidence_bundle.status, 'passed');
+  assert.equal(summary.gates.operator_evidence_bundle.fields.packaged_app_evidence, true);
+  assert.equal(summary.gate_profile, 'stable');
+  assert.equal(summary.gate_profile_schema, 'app_release_validation_profiles.v1');
   assert.equal(summary.gates.remote_release_verification.status, 'passed');
   assert.equal(summary.gates.full_size_cache_timing.status, 'passed');
   assert.equal(summary.full_package.duration_seconds.full_package_build, 380);
@@ -265,6 +304,86 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.match(markdown, /core: 3\/3/);
   assert.match(markdown, /retry: false/);
   assert.match(markdown, /skip_modules: true/);
+});
+
+test('release readiness summary fails closed without a same-cohort operator evidence bundle', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-missing-evidence-bundle-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot);
+  writePassingJobResults(jobResultsPath);
+  fs.rmSync(path.join(artifactsRoot, 'release-evidence-bundle-26.5.99'), { recursive: true, force: true });
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'stable',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.notEqual(result.status, 0, result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'failed');
+  assert.equal(summary.gates.operator_evidence_bundle.status, 'failed');
+  assert.match(summary.gates.operator_evidence_bundle.reason, /Missing evidence-validation-summary\.json/);
+});
+
+test('release readiness summary rejects Homebrew checksum drift from remote release digest', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-homebrew-digest-drift-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot);
+  writePassingJobResults(jobResultsPath);
+  writeJson(path.join(artifactsRoot, 'homebrew-tap-plan-stable-app_standard-26.5.99', 'homebrew-tap-plan.json'), {
+    channel: 'stable',
+    package_kind: 'app_standard',
+    version: '26.5.99',
+    dry_run: false,
+    manifest_url: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.5.99/latest-arm64-mac.yml',
+    checksum_sha256: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    download_url: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.5.99/One-Person-Lab-26.5.99-mac-arm64.dmg',
+    targets: [{ path: 'Casks/one-person-lab.rb', kind: 'cask', previous_exists: true, changed: true }],
+    policy: {
+      cohort: 'standard_desktop_homebrew_distribution',
+      remote_write_mode: 'direct_commit',
+      publishes_or_pushes_remote: true,
+    },
+  });
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'stable',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.notEqual(result.status, 0, result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'failed');
+  assert.equal(summary.gates.stable_homebrew_tap_update.status, 'failed');
+  assert.match(summary.gates.stable_homebrew_tap_update.reason, /Homebrew checksum ccccc/);
 });
 
 test('release candidate record promotes only a complete stable cohort', () => {
@@ -656,6 +775,7 @@ test('release readiness summary keeps one-shot failure diagnostics when the inst
     'one-shot-app-installer-smoke': 'failure',
     'docker-webui-smoke': 'success',
     'webui-ghcr-publish': 'success',
+    'operator-evidence-bundle-validation': 'success',
   });
   writeJson(path.join(artifactsRoot, 'one-shot-app-installer-smoke-26.5.99', 'opl-one-shot-system-initialize.json'), {
     status: 'failed',
@@ -717,6 +837,7 @@ test('release readiness summary surfaces GHCR package Actions access failures', 
     'one-shot-app-installer-smoke': 'success',
     'docker-webui-smoke': 'success',
     'webui-ghcr-publish': 'failure',
+    'operator-evidence-bundle-validation': 'success',
   });
   writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
     status: 'failed',
@@ -784,6 +905,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
     'one-shot-app-installer-smoke',
     'docker-webui-smoke',
     'webui-ghcr-publish',
+    'operator-evidence-bundle-validation',
     'full-first-install',
   ]) {
     assert.match(job, new RegExp(dependency), `readiness job must depend on ${dependency}`);
@@ -802,6 +924,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
     'webui-ghcr-publish-${{ inputs.opl_version }}',
     'opl-full-workflow-telemetry-${{ inputs.opl_version }}',
     'opl-full-diagnostics-${{ inputs.opl_version }}',
+    'release-evidence-bundle-${{ inputs.opl_version }}',
   ]) {
     assert.ok(job.includes(smallArtifact), `readiness job must download ${smallArtifact}`);
   }
@@ -809,6 +932,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.doesNotMatch(job, /name:\s+macos-build-arm64/);
   assert.doesNotMatch(job, /name:\s+opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(job, /release-readiness-summary\.json/);
+  assert.match(job, /operator-evidence-bundle-validation/);
   assert.match(job, /summarize-release-readiness\.ts/);
   assert.match(job, /write-release-candidate-record\.ts/);
   assert.match(job, /Upload release candidate record/);

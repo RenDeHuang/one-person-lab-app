@@ -902,11 +902,20 @@ function validateBundle(bundleDir: string, options: Options) {
   }
 
   return {
+    schema: 'opl_release_evidence_bundle_validation.v1',
     status: blocked.length > 0 ? 'blocked_evidence' : missing.length > 0 ? 'missing_evidence' : 'passed',
     bundle_dir: bundleDir,
     manifest_path: contract.manifestPath,
     packaged_app_evidence: missing.length === 0 && blocked.length === 0,
     evidence_boundary: evidenceBoundary,
+    authority_boundary: evidenceBoundary,
+    forbidden_authority: [
+      'runtime_truth',
+      'provider_implementation',
+      'domain_truth',
+      'domain_quality_verdict',
+      'domain_artifact_authority',
+    ],
     verified_artifact_count: verified.length,
     verified_artifacts: verified.map((artifact) => ({
       id: artifact.id,

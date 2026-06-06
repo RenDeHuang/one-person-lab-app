@@ -300,6 +300,53 @@ function arrayOrEmpty(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
+function stringField(record: Record<string, unknown> | null | undefined, key: string) {
+  const value = record?.[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function basenameFromUrl(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const parsed = new URL(value);
+    const name = path.basename(parsed.pathname);
+    return name || null;
+  } catch {
+    const name = path.basename(value);
+    return name || null;
+  }
+}
+
+function remoteAssetDigestByName(remoteGate: GateSummary, assetName: string | null) {
+  if (!assetName) return null;
+  const verifiedAssets = arrayField(remoteGate.fields ?? null, 'verified_assets')
+    .filter((asset) => asset && typeof asset === 'object' && !Array.isArray(asset)) as Record<string, unknown>[];
+  const matched = verifiedAssets.find((asset) => asset.name === assetName);
+  return stringField(matched, 'sha256');
+}
+
+function validateHomebrewDigestCoherence(
+  payload: Record<string, unknown>,
+  remoteGate: GateSummary,
+  fields: Record<string, unknown>,
+) {
+  const assetName = basenameFromUrl(payload.download_url);
+  const checksumSha256 = stringField(payload, 'checksum_sha256');
+  const remoteAssetSha256 = remoteAssetDigestByName(remoteGate, assetName);
+  fields.download_url = payload.download_url ?? null;
+  fields.download_asset_name = assetName;
+  fields.checksum_sha256 = checksumSha256;
+  fields.remote_asset_sha256 = remoteAssetSha256;
+  if (!assetName) return 'Homebrew tap plan is missing a release asset download_url.';
+  if (!checksumSha256) return 'Homebrew tap plan is missing checksum_sha256.';
+  if (!/^[a-f0-9]{64}$/i.test(checksumSha256)) return `Homebrew checksum ${checksumSha256} is not a 64-character SHA-256 digest.`;
+  if (!remoteAssetSha256) return `Remote verification did not include asset ${assetName} with sha256 evidence.`;
+  if (checksumSha256.toLowerCase() !== remoteAssetSha256.toLowerCase()) {
+    return `Homebrew checksum ${checksumSha256} does not match remote release digest ${remoteAssetSha256} for ${assetName}.`;
+  }
+  return null;
+}
+
 function buildSummary(options: Options) {
   const jobResults = readJobResults(options);
   const remoteArtifactName = `remote-release-verification-${options.version}`;
@@ -323,6 +370,7 @@ function buildSummary(options: Options) {
       const fields = {
         include_full_package: payload.include_full_package,
         verified_asset_count: payload.verified_asset_count,
+        verified_assets: payload.verified_assets ?? [],
         full_first_install_budget: payload.full_first_install_budget ?? null,
       };
       if (payload.status !== 'passed') return { reason: `Remote verification status is ${statusString(payload.status) || 'unknown'}.`, fields };
@@ -354,7 +402,7 @@ function buildSummary(options: Options) {
     fileName: 'homebrew-tap-plan.json',
     validate: (payload) => {
       const policy = objectField(payload, 'policy');
-      const fields = {
+      const fields: Record<string, unknown> = {
         channel: payload.channel,
         package_kind: payload.package_kind,
         version: payload.version,
@@ -368,6 +416,8 @@ function buildSummary(options: Options) {
       if (policy?.remote_write_mode !== 'direct_commit' || policy?.publishes_or_pushes_remote !== true) {
         return { reason: 'Stable Homebrew tap plan did not record direct_commit remote publication.', fields };
       }
+      const digestReason = validateHomebrewDigestCoherence(payload, remoteGate, fields);
+      if (digestReason) return { reason: digestReason, fields };
       return { fields };
     },
   });
@@ -377,7 +427,7 @@ function buildSummary(options: Options) {
     fileName: 'homebrew-tap-plan.json',
     validate: (payload) => {
       const policy = objectField(payload, 'policy');
-      const fields = {
+      const fields: Record<string, unknown> = {
         channel: payload.channel,
         package_kind: payload.package_kind,
         version: payload.version,
@@ -395,6 +445,47 @@ function buildSummary(options: Options) {
       }
       if (policy?.full_first_install_allowed !== true || policy?.standard_updater_visible !== false) {
         return { reason: 'Full Homebrew tap plan did not preserve Full first-install boundary policy.', fields };
+      }
+      const digestReason = validateHomebrewDigestCoherence(payload, remoteGate, fields);
+      if (digestReason) return { reason: digestReason, fields };
+      return { fields };
+    },
+  });
+
+  const operatorEvidenceBundleArtifactName = `release-evidence-bundle-${options.version}`;
+  const operatorEvidenceBundleGate = jsonGate(options, {
+    required: true,
+    artifactName: operatorEvidenceBundleArtifactName,
+    fileName: 'evidence-validation-summary.json',
+    validate: (payload) => {
+      const forbiddenAuthority = arrayOrEmpty(payload.forbidden_authority);
+      const fields = {
+        bundle_dir: payload.bundle_dir ?? null,
+        manifest_path: payload.manifest_path ?? null,
+        packaged_app_evidence: payload.packaged_app_evidence ?? null,
+        authority_boundary: payload.authority_boundary ?? payload.evidence_boundary ?? null,
+        verified_artifact_count: payload.verified_artifact_count ?? null,
+        missing_artifact_count: payload.missing_artifact_count ?? null,
+        blocked_artifact_count: payload.blocked_artifact_count ?? null,
+      };
+      if (payload.status !== 'passed') return { reason: `Operator evidence bundle status is ${statusString(payload.status) || 'unknown'}.`, fields };
+      if (payload.packaged_app_evidence !== true) return { reason: 'Operator evidence bundle did not claim packaged_app_evidence=true.', fields };
+      if ((payload.authority_boundary ?? payload.evidence_boundary) !== 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority') {
+        return { reason: 'Operator evidence bundle did not preserve refs-only authority boundary.', fields };
+      }
+      if (Number(payload.missing_artifact_count) !== 0 || Number(payload.blocked_artifact_count) !== 0) {
+        return { reason: 'Operator evidence bundle has missing or blocked artifacts.', fields };
+      }
+      for (const forbidden of [
+        'runtime_truth',
+        'provider_implementation',
+        'domain_truth',
+        'domain_quality_verdict',
+        'domain_artifact_authority',
+      ]) {
+        if (!forbiddenAuthority.includes(forbidden)) {
+          return { reason: `Operator evidence bundle is missing forbidden authority marker ${forbidden}.`, fields };
+        }
       }
       return { fields };
     },
@@ -606,6 +697,7 @@ function buildSummary(options: Options) {
     docker_webui: applyJobResult(dockerGate, jobResults, 'docker-webui-smoke', true),
     webui_ghcr_publish: applyJobResult(webuiGhcrGate, jobResults, 'webui-ghcr-publish', true),
     full_size_cache_timing: applyJobResult(fullSizeCacheTimingGate, jobResults, 'full-first-install', options.includeFullPackage),
+    operator_evidence_bundle: applyJobResult(operatorEvidenceBundleGate, jobResults, 'operator-evidence-bundle-validation', true),
   };
 
   const failedRequired = Object.entries(gates)
@@ -620,6 +712,8 @@ function buildSummary(options: Options) {
 
   return {
     schema: 'opl_release_readiness_summary.v1',
+    gate_profile_schema: 'app_release_validation_profiles.v1',
+    gate_profile: options.releaseMode === 'nightly' || options.releaseMode === 'nightly_standard' ? 'nightly_standard' : 'stable',
     status: failedRequired.length === 0 ? 'passed' : 'failed',
     version: options.version,
     release_mode: options.releaseMode,

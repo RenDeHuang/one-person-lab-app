@@ -505,14 +505,19 @@ The final stable decision entry is the `release-readiness-summary` job in
 `.github/workflows/desktop-release.yml`. It runs after the selected remote
 verification, Stable Homebrew tap direct update, standard/Homebrew/Full clean-VM
 gates, one-shot installer smoke, Docker/WebUI smoke, WebUI GHCR publish, and
-evidence bundle validation, then writes `release-readiness-summary.json` plus a
+operator evidence bundle validation, then writes `release-readiness-summary.json` plus a
 GitHub Step Summary. It fails closed when any required gate result or small
 evidence artifact is failed, cancelled, missing, or unexpectedly skipped.
+The JSON summary carries `gate_profile_schema=app_release_validation_profiles.v1`
+and the selected `gate_profile`, so an older cohort summary cannot stand in for
+the current Stable gate set. Stable and Full Homebrew tap gates also compare the
+tap plan `checksum_sha256` with the same GitHub Release asset digest recorded by
+remote verification.
 
 That final summary is a diagnostic reader, not another package consumer. It
 downloads only small artifacts: remote verification JSON, Stable Homebrew tap
 plan, VM smoke summaries, one-shot installer output, Docker/WebUI smoke output,
-WebUI GHCR publish summary, Full diagnostics, and
+WebUI GHCR publish summary, operator evidence bundle validation summary, Full diagnostics, and
 `full-workflow-telemetry.json`. It must not download the standard DMG artifact,
 the large Full DMG workflow artifact, or published DMG assets for diagnosis.
 Full build bottleneck analysis uses `duration_seconds.full_package_build` and
@@ -594,6 +599,14 @@ Each release evidence bundle should follow
 - `artifacts/codex-functional-check-summary.json`.
 - Optional diagnostic: `artifacts/codex-ai-self-check-summary.json`.
 - `remote-release-verification.json`.
+
+The desktop release workflow expects a same-cohort artifact named
+`release-evidence-<version>` and validates it in
+`operator-evidence-bundle-validation`. The validation job uploads
+`release-evidence-bundle-<version>/evidence-validation-summary.json`, and the
+final readiness summary treats that validation summary as a required small
+artifact. Missing, blocked, or non-packaged evidence fails the Stable readiness
+summary instead of being inferred from clean VM or remote release success alone.
 
 Generate or refresh the manifest after collecting available artifacts:
 

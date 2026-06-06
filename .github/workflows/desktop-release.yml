@@ -693,6 +693,124 @@ jobs:
           path: /tmp/opl-webui-ghcr-publish.json
           if-no-files-found: error
 
+  operator-evidence-bundle-validation:
+    name: Validate operator evidence bundle
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs:
+      - remote-verify-standard
+      - remote-verify-full
+      - standard-first-run-vm-smoke-after-standard-only
+      - standard-first-run-vm-smoke-after-full
+      - full-first-run-vm-smoke
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Download operator release evidence bundle
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: release-evidence-${{ inputs.opl_version }}
+          path: release-evidence/${{ inputs.opl_version }}
+
+      - name: Download remote verification summary
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: remote-release-verification-${{ inputs.opl_version }}
+          path: release-evidence-inputs/remote-release-verification-${{ inputs.opl_version }}
+
+      - name: Download standard VM smoke summary
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: opl-first-run-vm-standard-${{ github.run_id }}
+          path: release-evidence-inputs/opl-first-run-vm-standard-${{ github.run_id }}
+
+      - name: Download Full VM smoke summary
+        if: ${{ inputs.include_full_package }}
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: opl-first-run-vm-full-${{ github.run_id }}
+          path: release-evidence-inputs/opl-first-run-vm-full-${{ github.run_id }}
+
+      - name: Attach same-cohort summary artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle_dir="release-evidence/${{ inputs.opl_version }}"
+          mkdir -p "$bundle_dir"
+          if [ -f "release-evidence-inputs/remote-release-verification-${{ inputs.opl_version }}/remote-release-verification.json" ] && [ ! -f "$bundle_dir/remote-release-verification.json" ]; then
+            cp "release-evidence-inputs/remote-release-verification-${{ inputs.opl_version }}/remote-release-verification.json" "$bundle_dir/remote-release-verification.json"
+          fi
+          if [ -f "release-evidence-inputs/opl-first-run-vm-full-${{ github.run_id }}/tart-smoke-summary.json" ] && [ ! -f "$bundle_dir/tart-smoke-summary.json" ]; then
+            cp "release-evidence-inputs/opl-first-run-vm-full-${{ github.run_id }}/tart-smoke-summary.json" "$bundle_dir/tart-smoke-summary.json"
+          elif [ -f "release-evidence-inputs/opl-first-run-vm-standard-${{ github.run_id }}/tart-smoke-summary.json" ] && [ ! -f "$bundle_dir/tart-smoke-summary.json" ]; then
+            cp "release-evidence-inputs/opl-first-run-vm-standard-${{ github.run_id }}/tart-smoke-summary.json" "$bundle_dir/tart-smoke-summary.json"
+          fi
+          if [ ! -f "$bundle_dir/evidence-manifest.json" ]; then
+            npm run release:evidence:manifest -- --bundle-dir "$bundle_dir" --overwrite
+          fi
+
+      - name: Validate operator evidence bundle
+        id: validate_operator_evidence
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          npm run release:evidence:validate -- \
+            --bundle-dir "release-evidence/${{ inputs.opl_version }}" \
+            > evidence-validation-summary.json
+
+      - name: Write failed operator evidence summary
+        if: ${{ steps.validate_operator_evidence.outcome != 'success' }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const summary = {
+            schema: 'opl_release_evidence_bundle_validation.v1',
+            status: 'failed',
+            bundle_dir: 'release-evidence/${{ inputs.opl_version }}',
+            manifest_path: 'evidence-manifest.json',
+            packaged_app_evidence: false,
+            authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+            forbidden_authority: [
+              'runtime_truth',
+              'provider_implementation',
+              'domain_truth',
+              'domain_quality_verdict',
+              'domain_artifact_authority',
+            ],
+            verified_artifact_count: 0,
+            missing_artifact_count: null,
+            blocked_artifact_count: null,
+            reason: 'operator evidence bundle validation failed; inspect release-evidence-bundle artifact',
+          };
+          fs.writeFileSync('evidence-validation-summary.json', JSON.stringify(summary, null, 2) + '\n');
+          NODE
+
+      - name: Upload operator evidence validation summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-evidence-bundle-${{ inputs.opl_version }}
+          path: evidence-validation-summary.json
+          if-no-files-found: error
+
+      - name: Fail when operator evidence is incomplete
+        if: ${{ steps.validate_operator_evidence.outcome != 'success' }}
+        shell: bash
+        run: exit 1
+
   release-readiness-summary:
     name: Summarize release readiness
     runs-on: ubuntu-latest
@@ -710,6 +828,7 @@ jobs:
       - one-shot-app-installer-smoke
       - docker-webui-smoke
       - webui-ghcr-publish
+      - operator-evidence-bundle-validation
 
     steps:
       - name: Checkout App repo
@@ -791,6 +910,13 @@ jobs:
           name: webui-ghcr-publish-${{ inputs.opl_version }}
           path: release-readiness-inputs/webui-ghcr-publish-${{ inputs.opl_version }}
 
+      - name: Download operator evidence validation summary
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: release-evidence-bundle-${{ inputs.opl_version }}
+          path: release-readiness-inputs/release-evidence-bundle-${{ inputs.opl_version }}
+
       - name: Download Full workflow telemetry
         if: ${{ inputs.include_full_package }}
         uses: actions/download-artifact@v8
@@ -823,7 +949,8 @@ jobs:
             "full-first-run-vm-smoke": "${{ needs.full-first-run-vm-smoke.result }}",
             "one-shot-app-installer-smoke": "${{ needs.one-shot-app-installer-smoke.result }}",
             "docker-webui-smoke": "${{ needs.docker-webui-smoke.result }}",
-            "webui-ghcr-publish": "${{ needs.webui-ghcr-publish.result }}"
+            "webui-ghcr-publish": "${{ needs.webui-ghcr-publish.result }}",
+            "operator-evidence-bundle-validation": "${{ needs.operator-evidence-bundle-validation.result }}"
           }
           JSON
 

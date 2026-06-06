@@ -80,11 +80,13 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(workflow, /full-first-run-vm-smoke:[\s\S]*?needs:\s+remote-verify-full/, 'Full VM smoke job');
   assertMatches(workflow, /one-shot-app-installer-smoke:[\s\S]*?needs:\s+publish-standard/, 'one-shot installer smoke');
   assertMatches(workflow, /docker-webui-smoke:[\s\S]*?needs:\s+publish-standard/, 'Docker WebUI smoke');
+  assertMatches(workflow, /operator-evidence-bundle-validation:[\s\S]*?npm run release:evidence:validate --/, 'operator evidence validation job');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/, 'final release readiness summary job');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?remote-verify-full[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?stable-homebrew-tap-update[\s\S]*?full-homebrew-tap-update[\s\S]*?homebrew-standard-first-run-vm-smoke[\s\S]*?full-first-run-vm-smoke[\s\S]*?one-shot-app-installer-smoke[\s\S]*?docker-webui-smoke/, 'final release readiness dependencies');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?remote-verify-full[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?stable-homebrew-tap-update[\s\S]*?full-homebrew-tap-update[\s\S]*?homebrew-standard-first-run-vm-smoke[\s\S]*?full-first-run-vm-smoke[\s\S]*?one-shot-app-installer-smoke[\s\S]*?docker-webui-smoke[\s\S]*?operator-evidence-bundle-validation/, 'final release readiness dependencies');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-release-verification-\$\{\{ inputs\.opl_version \}\}/, 'remote verification small artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?homebrew-tap-plan-stable-app_standard-\$\{\{ inputs\.opl_version \}\}/, 'Stable Homebrew tap plan small artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?homebrew-tap-plan-stable-app_full_first_install-\$\{\{ inputs\.opl_version \}\}/, 'Full Homebrew tap plan small artifact');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?release-evidence-bundle-\$\{\{ inputs\.opl_version \}\}/, 'operator evidence validation small artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?opl-full-workflow-telemetry-\$\{\{ inputs\.opl_version \}\}/, 'Full telemetry small artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?opl-full-diagnostics-\$\{\{ inputs\.opl_version \}\}/, 'Full diagnostics small artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?release-readiness-summary\.json/, 'machine-readable release readiness summary');
