@@ -51,9 +51,11 @@ The App GUI product contract is declared in
 `contracts/app-gui-product-contract.json`; `validate-active-shell.ts --quick`
 checks the Codex CLI fixed executor, purpose-first Research/Grant/Presentation
 home entries routed to MAS/MAG/RCA, hidden home-path executor/provider/permission
-selectors with App-owned Codex model selector/status, home prompt, Settings System/Runtime/About/Update/Theme coverage,
-module path source explanation, stable/nightly release gating, MDS non-default
-display, and OPL Flow context before shell validation runs.
+selectors with App-owned Codex model selector/status, home prompt, App-owned
+ordinary Settings navigation for General, Access, Agents & Capabilities, Local
+Environment, Appearance, Advanced, and About & Updates, legacy upstream route
+redirects, module path source explanation, stable/nightly release gating, MDS
+non-default display, and OPL Flow context before shell validation runs.
 The App product profile is declared in
 `contracts/app-product-profile.json`; `validate-active-shell.ts --quick` and
 `npm run test:release-boundary` verify that the profile still owns only
