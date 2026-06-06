@@ -17,8 +17,6 @@ import {
   loadGuide,
   relativeToApp,
   scanTextForSecrets,
-  sharePdfPath,
-  sharePptxPath,
   screenshotReleaseTag,
   screenshotSourceVerification,
   slidePdfPath,
@@ -361,8 +359,8 @@ function buildHtml() {
             <p class="lede">${escapeHtml(guide.audience)}${escapeHtml(guide.intro)}</p>
             <div class="cta-row">
               <a class="button" href="${escapeHtml(guide.download.latest_release_url)}">下载最新版本</a>
-              <a class="button secondary" href="../macos-app-install-share.pdf">分享 PDF</a>
-              <a class="button secondary" href="../macos-app-install-share.pptx">分享 PPTX</a>
+              <a class="button secondary" href="../macos-app-install-slides.pdf">图文 PDF</a>
+              <a class="button secondary" href="../macos-app-install-slides.pptx">图文 PPTX</a>
               <a class="button secondary" href="../macos-app-install-detailed-guide.pdf">查看详细 PDF</a>
             </div>
             <div class="command" aria-label="稳定版一行安装命令"><code>${escapeHtml(guide.download.stable_install_command)}</code></div>
@@ -388,24 +386,16 @@ function buildHtml() {
           <h2>下载附件</h2>
           <div class="artifact-grid">
             <div class="artifact">
-              <h3><a href="../macos-app-install-share.pdf">分享 PDF</a></h3>
-              <p>HTML 以外的默认转发附件，16:9 图文教程，适合发给需要在电脑上照着安装的新用户。</p>
-            </div>
-            <div class="artifact">
-              <h3><a href="../macos-app-install-share.pptx">分享 PPTX</a></h3>
-              <p>同一 guide source 派生的可编辑分享版本，便于转发、演示和后续维护。</p>
-            </div>
-            <div class="artifact">
               <h3><a href="../macos-app-install-slides.pdf">图文 PDF</a></h3>
-              <p>与分享 PDF 同源同版的兼容文件名，供既有 release note 和 onboarding 链接继续使用。</p>
+              <p>HTML 以外的默认转发附件，16:9 图文教程，适合发给需要在电脑上照着安装的新用户。</p>
             </div>
             <div class="artifact">
               <h3><a href="../macos-app-install-detailed-guide.pdf">详细 PDF</a></h3>
               <p>从同一 guide source 派生的长文说明。</p>
             </div>
             <div class="artifact">
-              <h3><a href="../macos-app-install-slides.pptx">可编辑 PPTX</a></h3>
-              <p>用于内部维护和演示编辑，不作为默认用户入口。</p>
+              <h3><a href="../macos-app-install-slides.pptx">图文 PPTX</a></h3>
+              <p>同一 guide source 派生的可编辑 16:9 教程，便于转发、演示和后续维护。</p>
             </div>
           </div>
         </section>
@@ -446,8 +436,6 @@ function main() {
     download_url: guide.download.latest_release_url,
     stable_install_command_present: html.includes(guide.download.stable_install_command),
     generated_artifacts: {
-      share_pdf: relativeToApp(sharePdfPath),
-      share_pptx: relativeToApp(sharePptxPath),
       slides_pdf: relativeToApp(slidePdfPath),
       slides_pptx: relativeToApp(slidePptxPath),
       detailed_pdf: relativeToApp(detailedPdfPath),

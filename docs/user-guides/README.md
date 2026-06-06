@@ -18,20 +18,15 @@ Primary user guide entry:
 
 Generated reading artifacts:
 
-- [macOS App install share PDF](macos-app-install-share.pdf): generated 16:9
+- [macOS App install slides PDF](macos-app-install-slides.pdf): generated 16:9
   screenshot walkthrough for forwarding to users who will follow the guide on a
   computer.
-- [macOS App install share PPTX](macos-app-install-share.pptx): generated
+- [macOS App install slides PPTX](macos-app-install-slides.pptx): generated
   editable 16:9 sharing deck from the same guide source.
-- [macOS App install slides PDF](macos-app-install-slides.pdf): generated
-  compatibility filename for the same generated screenshot walkthrough.
 - [macOS App install detailed PDF](macos-app-install-detailed-guide.pdf):
   generated long-form companion.
 - [macOS App install Markdown](macos-app-install.md): generated long-form text
   source for the detailed PDF. It is not the public onboarding entry.
-- [macOS App install slides PPTX](macos-app-install-slides.pptx): generated
-  editable slide source for internal maintenance and presentation edits. It is
-  not the public onboarding entry.
 
 Source and verification files:
 
@@ -59,9 +54,8 @@ Update flow:
 2. Update `macos-app-install.guide.json` when the user flow, copy, FAQ,
    artifact links, or step ordering changes. Do not edit generated Markdown or
    slide copy as a second source of truth.
-3. Run `npm run docs:macos-guide` to refresh the HTML guide, share PDF/PPTX,
-   compatibility slide PDF/PPTX, detailed companion PDF, generated Markdown,
-   and all verification JSON files.
+3. Run `npm run docs:macos-guide` to refresh the HTML guide, slides PDF/PPTX,
+   detailed companion PDF, generated Markdown, and all verification JSON files.
 4. For targeted regeneration, run `npm run docs:macos-guide:html`,
    `npm run docs:macos-guide:slides`, or `npm run docs:macos-guide:pdf`.
 5. Verify `macos-app-install-html-verification.json`,

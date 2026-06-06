@@ -36,7 +36,7 @@ Machine boundary: Human-readable closeout ledger. Current user-guide source trut
 - `scripts/build-user-guide-slides.ts`
 - `scripts/build-user-guide-pdf.ts`
 - `package.json#scripts.docs:macos-guide*`
-  - own generation commands for HTML, share PDF/PPTX, compatibility slide PDF/PPTX, detailed PDF, generated Markdown, and verification JSON.
+  - own generation commands for HTML, slides PDF/PPTX, detailed PDF, generated Markdown, and verification JSON.
 
 ## Peer Docs Classification
 
@@ -57,8 +57,9 @@ No conflicts with SSOT were found. The main risk was a direct reader treating ge
 - Updated `docs/user-guides/README.md` to state that generated Markdown, PDFs, PPTX, and HTML are derived artifacts and must not be hand-edited as a second source.
 - Audited the same-surface guide-source / generated-artifact / slide-generator changes against the guide source and screenshot manifest.
 - Updated `docs/user-guides/macos-app-install.guide.json` so the canonical guide title and cover copy use the current One Person Lab App first-install wording instead of the older OPL + MAS starter wording.
-- Updated `scripts/build-user-guide-slides.ts` so share PDF/PPTX and compatibility slide PDF/PPTX use the current App guide visual language, current stable install command, and rendered v26.6.5 screenshot provenance.
-- Ran the repo-native guide generators so `macos-app-install.md`, HTML, detailed PDF, slides PDF/PPTX, share PDF/PPTX, and verification JSON are regenerated from the SSOT inputs.
+- Updated `scripts/build-user-guide-slides.ts` so slides PDF/PPTX use the current App guide visual language, current stable install command, and rendered v26.6.5 screenshot provenance.
+- Removed the duplicate `macos-app-install-share.pdf` and `macos-app-install-share.pptx` aliases. The tutorial attachments now have one file-name family: `macos-app-install-slides.pdf` and `macos-app-install-slides.pptx`.
+- Ran the repo-native guide generators so `macos-app-install.md`, HTML, detailed PDF, slides PDF/PPTX, and verification JSON are regenerated from the SSOT inputs.
 - Updated `scripts/build-user-guide-slides.ts` verification metadata so its recorded typography matches the current Noto Sans CJK SC slide layout.
 - Added this closeout under `docs/history/process/`.
 - Updated `docs/history/process/README.md` to index this closeout.
@@ -76,9 +77,10 @@ rtk rg -n "macos_app_install_user_guide_pdf_source|generated Markdown|guide sour
 rtk rg -n "OPL \+ MAS|MAS 新手|macos-app-install-mobile|9:16|手机分享|竖版|v26\.5|26\.5" docs/user-guides scripts/build-user-guide-html.ts scripts/build-user-guide-slides.ts scripts/build-user-guide-pdf.ts scripts/user-guide-data.ts
 rtk npm run docs:macos-guide
 rtk npm run docs:macos-guide:slides
-rtk pdfinfo docs/user-guides/macos-app-install-share.pdf
-rtk officecli view docs/user-guides/macos-app-install-share.pptx stats
-rtk shasum -a 256 docs/user-guides/macos-app-install-share.pdf docs/user-guides/macos-app-install-slides.pdf docs/user-guides/macos-app-install-share.pptx docs/user-guides/macos-app-install-slides.pptx
+rtk pdfinfo docs/user-guides/macos-app-install-slides.pdf
+rtk officecli view docs/user-guides/macos-app-install-slides.pptx stats
+rtk rg -n "macos-app-install-share\\.(pdf|pptx)|share_output|sharePdfPath|sharePptxPath" docs/user-guides scripts README.md README.zh-CN.md package.json
+rtk zsh -lc 'test ! -e docs/user-guides/macos-app-install-share.pdf && test ! -e docs/user-guides/macos-app-install-share.pptx'
 rtk /Users/gaofeng/.local/bin/opl-doc-doctor doctor . --format json
 ```
 
@@ -90,9 +92,10 @@ Result:
 - Old-title/mobile-layout scan: no matches for old `OPL + MAS` / `MAS 新手` title or mobile/portrait guide artifacts in current guide outputs and guide generators.
 - `npm run docs:macos-guide`: pass. HTML, slides, and detailed PDF generators reported ready output from `docs/user-guides/macos-app-install.guide.json` plus `docs/user-guides/macos-app-install-assets.json`; screenshot SHA256 and dimensions matched the manifest; generated PDFs rendered as 10 landscape pages.
 - `npm run docs:macos-guide:slides`: pass after aligning slide typography verification metadata; slides verification records `Noto Sans CJK SC`, 10 slides, 10 PDF pages, 16:9 layout, and the same screenshot manifest.
-- `pdfinfo`: share PDF title is `One Person Lab App 首次安装图文教程`, 10 pages, 16:9 landscape.
-- `officecli view ... stats`: share PPTX has 10 slides, 9 pictures, 0 pictures without alt text, and uses `Noto Sans CJK SC` plus `Menlo`.
-- SHA256 check: `macos-app-install-share.pdf` equals `macos-app-install-slides.pdf`, and `macos-app-install-share.pptx` equals `macos-app-install-slides.pptx`; the share and compatibility names are the same rendered content.
+- `pdfinfo`: slides PDF title is `One Person Lab App 首次安装图文教程`, 10 pages, 16:9 landscape.
+- `officecli view ... stats`: slides PPTX has 10 slides, 9 pictures, 0 pictures without alt text, and uses `Noto Sans CJK SC` plus `Menlo`.
+- Duplicate-alias scan: no remaining `macos-app-install-share.pdf`, `macos-app-install-share.pptx`, `share_output`, `sharePdfPath`, or `sharePptxPath` references in current user-guide docs, scripts, READMEs, or package metadata.
+- File existence check: `macos-app-install-share.pdf` and `macos-app-install-share.pptx` are absent.
 - Visual inspection: rendered slide pages 1, 3, and 10 under `tmp/pdfs/macos-app-install-slides/rendered/` show the current One Person Lab App title, current stable install command, v26.6.5 provenance, and no title/image/panel overlap.
 - `opl-doc-doctor`: pass, `finding_count = 0`, active truth owner `docs/active/app-ideal-state-gap-plan.md`, `markdown_doc_count = 27`.
 

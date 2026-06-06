@@ -17,8 +17,6 @@ import {
   relativeToApp,
   run,
   scanTextForSecrets,
-  sharePdfPath,
-  sharePptxPath,
   screenshotReleaseTag,
   screenshotSourceVerification,
   slidePdfPath,
@@ -438,8 +436,6 @@ function buildPptx() {
 
   fs.rmSync(slidePptxPath, { force: true });
   fs.rmSync(slidePdfPath, { force: true });
-  fs.rmSync(sharePptxPath, { force: true });
-  fs.rmSync(sharePdfPath, { force: true });
   run('officecli', ['create', slidePptxPath, '--force']);
   run('officecli', ['set', slidePptxPath, '/', '--prop', `title=${guide.title}`, '--prop', `author=${guide.owner}`, '--prop', 'subject=macOS App first-run slide guide']);
   buildCoverSlide();
@@ -466,11 +462,6 @@ function exportSlidePdf() {
   fs.renameSync(generatedPdfPath, slidePdfPath);
 }
 
-function writeShareArtifacts() {
-  fs.copyFileSync(slidePptxPath, sharePptxPath);
-  fs.copyFileSync(slidePdfPath, sharePdfPath);
-}
-
 function renderPdf() {
   const renderDir = path.join(tempDir, 'rendered');
   fs.rmSync(renderDir, { recursive: true, force: true });
@@ -492,7 +483,6 @@ function main() {
   const { dimensions, assets } = assertGuideAssets('Slide', guide, assetManifest);
   buildPptx();
   exportSlidePdf();
-  writeShareArtifacts();
   const render = renderPdf();
   const info = pdfInfo();
   const pages = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] ?? 0);
@@ -514,8 +504,6 @@ function main() {
     screenshot_asset_manifest: relativeToApp(assetManifestPath),
     output_pptx: relativeToApp(slidePptxPath),
     output_pdf: relativeToApp(slidePdfPath),
-    share_output_pptx: relativeToApp(sharePptxPath),
-    share_output_pdf: relativeToApp(sharePdfPath),
     slide_layout: '16:9',
     slides,
     pdf_pages: pages,
