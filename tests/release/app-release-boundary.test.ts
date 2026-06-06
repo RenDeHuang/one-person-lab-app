@@ -6950,6 +6950,11 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(fullPackageScript, /ELECTRON_BUILDER_COMPRESSION_LEVEL/);
   assert.doesNotMatch(fullPackageScript, /'-srcfolder'/);
   assert.match(fullPackageScript, /ensureFullDmgLocalAuthorization\(options\.guiRoot, targetDmg, options\.version\)/);
+  assert.doesNotMatch(
+    fullPackageScript,
+    /if \(!strictMacosRuntimeSigningRequired\(\)\) \{[\s\S]*?verifyDmgAppBundleLocalAuthorization\(targetDmg, 'Full first-install DMG'\);[\s\S]*?return;[\s\S]*?\}/,
+    'Stable local authorization mode must rebuild and reverify a bad Full DMG instead of exiting before the recovery path',
+  );
 });
 
 test('Full release docs publish size policy and remote verifier budget boundaries', () => {

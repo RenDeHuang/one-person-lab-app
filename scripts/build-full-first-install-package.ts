@@ -2061,10 +2061,6 @@ function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version) {
   if (!canRunMacosSigningChecks()) {
     return;
   }
-  if (!strictMacosRuntimeSigningRequired()) {
-    verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
-    return;
-  }
   try {
     verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
   } catch (error) {
