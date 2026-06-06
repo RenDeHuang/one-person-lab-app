@@ -614,6 +614,9 @@ Each release evidence bundle should follow
 - `artifacts/smoke-summary.json`.
 - `artifacts/assistant-route-smoke-summary.json`.
 - `artifacts/codex-functional-check-summary.json`.
+- `artifacts/assistant-route-smoke/mas.png`.
+- `artifacts/assistant-route-smoke/mag.png`.
+- `artifacts/assistant-route-smoke/rca.png`.
 - Optional diagnostic: `artifacts/codex-ai-self-check-summary.json`.
 - `remote-release-verification.json`.
 
