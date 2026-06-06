@@ -6945,10 +6945,15 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(fullPackageScript, /createFullDmgFromVerifiedApp/);
   assert.match(fullPackageScript, /local_authorized_unsigned/);
   assert.doesNotMatch(fullPackageScript, /codesign_status=\$\{codesign\.status === 0 \? 'passed' : 'failed_allowed_unsigned'\}/);
-  assert.match(fullPackageScript, /'electron-builder'/);
-  assert.match(fullPackageScript, /'--prepackaged'/);
+  assert.match(fullPackageScript, /'ditto'/);
+  assert.match(fullPackageScript, /'hdiutil'/);
+  assert.match(fullPackageScript, /'-srcfolder'/);
   assert.match(fullPackageScript, /ELECTRON_BUILDER_COMPRESSION_LEVEL/);
-  assert.doesNotMatch(fullPackageScript, /'-srcfolder'/);
+  assert.doesNotMatch(
+    fullPackageScript,
+    /'--prepackaged'/,
+    'Full recovery DMG must be created directly from the verified App bundle; electron-builder prepackaged DMG can drop nested framework signatures',
+  );
   assert.match(fullPackageScript, /ensureFullDmgLocalAuthorization\(options\.guiRoot, targetDmg, options\.version\)/);
   assert.doesNotMatch(
     fullPackageScript,

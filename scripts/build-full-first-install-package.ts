@@ -2033,27 +2033,28 @@ function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
   ensureAppBundleAdHocCodesign(appPath, 'Full built app bundle');
   assertAppBundleLocalAuthorization(appPath, 'Full built app bundle');
   const compressionLevel = process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL || (process.env.CI === 'true' ? '9' : '7');
-  run('bunx', [
-    'electron-builder',
-    '--config',
-    'packages/desktop/electron-builder.yml',
-    '--mac',
-    'dmg',
-    '--arm64',
-    '--prepackaged',
-    appPath,
-    '--publish=never',
-    `--config.extraMetadata.version=${version}`,
-  ], {
-    cwd: guiRoot,
-    env: {
-      ...process.env,
-      OPL_RELEASE_VERSION: version,
-      ELECTRON_BUILDER_COMPRESSION_LEVEL: compressionLevel,
-    },
-  });
-  const rebuiltDmg = findBuiltDmg(guiRoot, version);
-  fs.copyFileSync(rebuiltDmg, targetDmg);
+  const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-dmg-stage-'));
+  try {
+    const stagedApp = path.join(stagingRoot, 'One Person Lab.app');
+    run('ditto', [appPath, stagedApp]);
+    assertAppBundleLocalAuthorization(stagedApp, 'Full staged app bundle');
+    fs.symlinkSync('/Applications', path.join(stagingRoot, 'Applications'));
+    run('hdiutil', [
+      'create',
+      targetDmg,
+      '-volname',
+      `One Person Lab ${version}`,
+      '-srcfolder',
+      stagingRoot,
+      '-format',
+      'UDZO',
+      '-ov',
+      '-imagekey',
+      `zlib-level=${compressionLevel}`,
+    ]);
+  } finally {
+    fs.rmSync(stagingRoot, { recursive: true, force: true });
+  }
   verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
 }
 
