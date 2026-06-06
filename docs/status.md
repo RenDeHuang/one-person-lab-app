@@ -344,13 +344,12 @@ Experimental shell candidate work is separated from the active release adapter.
 `OPL_APP_SHELL_ADAPTER_CONTRACT` so the same App wrapper syncs the product
 profile and builds the candidate launchable `.app` bundle. Default
 stable/nightly release packaging still resolves `contracts/app-shell-adapter.json`
-and the active `aionui` shell. Candidate validation now requires fixed Codex
-home behavior, purpose-first MAS/MAG/RCA entries, CopilotKit visible UI,
-AG-UI internal event mapping, `opl app state/action` consumption, active project
-line state-model validation, first-run/page-state mapping, shared
-Electron/WebUI renderer, Web transport bridge, WebUI smoke, explicit `.app`
-packaging with `Contents/Info.plist` and a `Contents/MacOS` executable, and
-release isolation without changing the active release shell.
+and the active `aionui` shell. Candidate validation remains contract/runbook
+owned: fixed Codex home behavior, purpose routing, state/action consumption,
+shared Electron/WebUI rendering, package evidence, smoke evidence, and release
+isolation are checked through the candidate registry, candidate adapter,
+candidate runbook, validators, tests, artifacts, manifests, and CI logs rather
+than this status file.
 
 Candidate shell work enters App product truth only through App-owned contract
 updates and validation gates. Shell implementation roadmaps, upstream GUI
@@ -384,42 +383,16 @@ gateway, runtime, memory, router, always-on store, provider model list, and
 WorkSpace state model remain excluded unless a separate license and
 candidate-adoption decision is made.
 
-The candidate command surface is explicit. App-root guard and packaging use:
-
-```bash
-node --experimental-strip-types scripts/validate-active-shell.ts --quick
-npm run validate:shell-candidates
-OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json node --experimental-strip-types scripts/validate-active-shell.ts --quick
-OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
-```
-
-Candidate-shell source and smoke checks use:
-
-```bash
-cd shells/agui-codex
-npm install
-npm run validate:adapter-events
-npm run validate:state-model
-npm run validate:candidate
-npm run build:renderer
-npm run smoke:webui
-npx electron . --ui-smoke-test
-'./out/One Person Lab AG-UI Codex Candidate.app/Contents/MacOS/One Person Lab AG-UI Codex Candidate' --ui-smoke-test
-```
-
-Minimum candidate acceptance is App-root AionUI release guard still passing,
-candidate registry validation, explicit adapter selection only, App-owned
-generated product profile consumption, shell-side `npm run validate:state-model`
-proof that the candidate consumes active project line projection from `opl app
-state --profile fast --json`, source renderer build, shared Electron/WebUI
-renderer proof, WebUI smoke, PilotDeck-informed reference-only information
-organization proof, source and packaged visible-pixel UI smoke against a real Codex
-app-server `OK` turn, a launchable `.app` bundle with `Contents/Info.plist` and
-`Contents/MacOS`, page-state/first-run matrix mapping, runtime summary plus
-explicit full drilldown, safe App action dry-run receipts, and no AG-UI/debug
-protocol copy on the ordinary chat surface. Default release promotion is still
-an explicit release decision: stable/nightly packaging continues to use AionUI
-until `contracts/app-shell-adapter.json` is deliberately changed.
+The candidate command surface stays with the candidate runbook rather than this
+status file. `docs/agui-codex-candidate-verification.md` owns App-root
+candidate commands, shell-local smoke commands, minimum acceptance, and package
+validation order. Machine gates remain in `contracts/app-shell-candidates.json`,
+`contracts/shell-adapters/agui-codex.json`,
+`scripts/validate-shell-candidates.ts`, active-shell validation, candidate
+manifests, shell artifacts, CI logs, and release-boundary tests. Default release
+promotion is still an explicit release decision: stable/nightly packaging
+continues to use AionUI until `contracts/app-shell-adapter.json` is deliberately
+changed.
 
 Candidate and release evidence currentness is intentionally kept outside this
 status file. `agui-codex` remains an explicit technical verification candidate:
@@ -460,7 +433,6 @@ npm run validate:release-boundary
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
 npm run validate:shell-candidates
-OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 bun run i18n:types
 bun run test
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
