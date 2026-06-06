@@ -1873,6 +1873,14 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
   assert.ok(standardClean.release_evidence_artifacts.includes('artifacts/assistant-route-smoke-summary.json'));
   assert.ok(standardClean.expects.some((entry) => /Packaged GUI route smoke selects MAS, MAG, and RCA/.test(entry)));
 
+  const homebrewStandard = scenarioById.get('homebrew_standard_cask_clean_vm_smoke');
+  assert.equal(homebrewStandard.release_gate, true);
+  assert.equal(homebrewStandard.vm.install_mode, 'homebrew-cask');
+  assert.equal(homebrewStandard.vm.homebrew_cask, 'one-person-lab');
+  assert.ok(homebrewStandard.expects.some((entry) => /standard App DMG from gaofeng21cn\/one-person-lab-app GitHub Releases/.test(entry)));
+  assert.ok(homebrewStandard.expects.some((entry) => /Homebrew receipt is treated as install evidence only/.test(entry)));
+  assert.ok(homebrewStandard.expects.every((entry) => !/signed standard App DMG/.test(entry)));
+
   const standardBootstrap = scenarioById.get('standard_app_managed_bootstrap');
   assert.equal(standardBootstrap.bootstrap_owner, 'app_managed');
   assert.equal(

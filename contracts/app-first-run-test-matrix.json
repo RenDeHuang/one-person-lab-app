@@ -208,7 +208,7 @@
       },
       "expects": [
         "Homebrew taps gaofeng21cn/one-person-lab and installs the one-person-lab cask",
-        "The cask resolves the signed standard App DMG from gaofeng21cn/one-person-lab-app GitHub Releases",
+        "The cask resolves the standard App DMG from gaofeng21cn/one-person-lab-app GitHub Releases",
         "One Person Lab.app is present under /Applications before first launch",
         "Core first-launch readiness is proven through opl system initialize --json before /guid",
         "App launches without Full-only runtime equivalence checks",

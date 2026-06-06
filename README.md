@@ -89,8 +89,8 @@ brew update
 brew upgrade --cask one-person-lab
 ```
 
-Homebrew installs the standard desktop App from the same signed GitHub Release
-assets as direct downloads. After installation, open `One Person Lab.app`; first
+Homebrew installs the standard desktop App from the same GitHub Release assets
+as direct downloads. After installation, open `One Person Lab.app`; first
 launch prepares the workspace, Foundry Agents, skills, and runtime maintenance
 in the background. The normal user path is install, open the App, choose a
 workspace, and start work.
