@@ -67,7 +67,7 @@
       ],
       "opl_mapping": [
         "OPL ordinary home keeps the chat canvas as the visual center",
-        "OPL composer uses purpose chips, attach, and send controls without backend/model/provider selectors or runtime summaries",
+        "OPL composer uses purpose chips, attach, and send controls without backend/provider/permission selectors or runtime summaries while model control stays App-owned",
         "OPL context details remain in collapsible inspector tabs rather than first-screen panels",
         "OPL visual tokens prefer gray tonal surfaces, 1px outlines, restrained shadows, and cards with radius no larger than 8px"
       ],
@@ -457,7 +457,7 @@
           "ordinary home does not expose runtime activity, continue-work, per-agent running badges, or footer quick icons; Runtime and secondary context surfaces carry refs-only activity details",
           "tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs",
           "WebUI parity evidence proves the same React/CopilotKit renderer and product semantics as Electron",
-          "home and ordinary conversation keep backend, model, and permission selectors hidden"
+          "home and ordinary conversation keep backend/provider/permission selectors hidden while preserving the App-owned Codex model selector/status"
         ]
       },
       "must_not_own": [
@@ -476,7 +476,7 @@
         "Aion CLI backend choice",
         "Claude Code backend choice",
         "generic backend selector",
-        "Codex model override selector",
+        "non-App-owned model override selector",
         "permission mode selector"
       ],
       "validation_commands": [

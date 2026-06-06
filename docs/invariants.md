@@ -12,7 +12,7 @@ Machine boundary: Human-readable invariants. Machine-readable truth lives in `co
   `docs/app-ideal-gui-interaction-spec.md` 定义交互模型，
   `docs/codex-to-opl-app-delta.md` 定义 OPL 产品增量，
   `docs/app-gui-feature-inventory.md` 维护跨 shell 能力清单。
-- The App ordinary path is a Codex CLI fixed-executor experience with built-in MAS/MAG/RCA purpose entries. It must not expose Aion CLI, Claude Code, generic backend switching, home or conversation model override lists, or permission-mode selectors as normal user choices.
+- The App ordinary path is a Codex CLI fixed-executor experience with built-in MAS/MAG/RCA purpose entries. It must not expose Aion CLI, Claude Code, generic backend/provider switching, or permission-mode selectors as normal user choices; model control stays in the App-owned Codex model selector/status.
 - The App home assistant entries are not backend selectors. MAS, MAG, and RCA route to Codex with assistant-scoped skill profiles, each default entry must require its matching Codex skill by default, and each created conversation must carry an App-owned route receipt.
 - Ordinary Settings navigation 由 App 拥有。General、Access、Agents & Capabilities、Local Environment、Appearance、Advanced、About & Updates 是 visible tabs；legacy overview/runtime/system/model/agent/assistants/skills-hub/tools/display/webui/pet routes 必须 redirect 到 App-owned pages，不能成为 normal user paths。
 - GUI behavior changes must land first in App-owned contracts, docs, page-state tests, and release gates. Shell implementation follows those App-owned boundaries.

@@ -146,7 +146,7 @@ export function validateCandidate(candidate: ShellCandidate): void {
     'Aion CLI backend choice',
     'Claude Code backend choice',
     'generic backend selector',
-    'Codex model override selector',
+    'non-App-owned model override selector',
     'permission mode selector',
   ], `${candidate.id}.forbidden_home_controls`);
   assertStringArrayIncludes(candidate.non_goals, [
