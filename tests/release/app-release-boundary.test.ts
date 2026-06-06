@@ -6774,6 +6774,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   const cleanupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-cleanup-drafts.yml'), 'utf8');
   const cleanupScript = fs.readFileSync(path.join(appRoot, 'scripts', 'cleanup-draft-release-candidates.ts'), 'utf8');
   const webuiCleanupScript = fs.readFileSync(path.join(appRoot, 'scripts', 'cleanup-webui-ghcr-versions.ts'), 'utf8');
+  const candidateRecordValidator = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-release-candidate-record.ts'), 'utf8');
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
   const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
@@ -6800,9 +6801,15 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(promoteWorkflow, /release_run_id:/);
   assert.match(promoteWorkflow, /Download release candidate record/);
   assert.match(promoteWorkflow, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
-  assert.match(promoteWorkflow, /record\.schema !== 'opl_release_candidate_record\.v1'/);
-  assert.match(promoteWorkflow, /record\.status !== 'ready_to_promote'/);
-  assert.match(promoteWorkflow, /record\.decision\?\.can_promote !== true/);
+  assert.match(promoteWorkflow, /npm run release:candidate-record:validate/);
+  assert.match(promoteWorkflow, /release-candidate-record-input\/release-candidate-record\.json/);
+  assert.equal(
+    packageJson.scripts['release:candidate-record:validate'],
+    'node --experimental-strip-types scripts/validate-release-candidate-record.ts --promote-ready',
+  );
+  assert.match(candidateRecordValidator, /record\.schema !== expectedSchema/);
+  assert.match(candidateRecordValidator, /record\.status !== readyStatus/);
+  assert.match(candidateRecordValidator, /decision\?\.can_promote !== true/);
   assert.match(promoteWorkflow, /npm run verify-remote-release/);
   assert.match(promoteWorkflow, /gh release edit "v\$\{OPL_RELEASE_VERSION\}"/);
   assert.match(promoteWorkflow, /--draft=false/);
