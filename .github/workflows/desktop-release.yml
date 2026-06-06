@@ -884,6 +884,14 @@ jobs:
           path: |
             release-readiness-summary.json
             release-readiness-summary.md
+          if-no-files-found: error
+
+      - name: Upload release candidate record
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-candidate-record-${{ inputs.opl_version }}
+          path: |
             release-candidate-record.json
             release-candidate-record.md
           if-no-files-found: error

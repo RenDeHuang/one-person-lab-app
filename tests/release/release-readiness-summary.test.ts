@@ -811,6 +811,8 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.match(job, /release-readiness-summary\.json/);
   assert.match(job, /summarize-release-readiness\.ts/);
   assert.match(job, /write-release-candidate-record\.ts/);
+  assert.match(job, /Upload release candidate record/);
+  assert.match(job, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(job, /release-candidate-record\.json/);
   assert.match(job, /release-candidate-record\.md/);
   assert.match(job, /needs\[['"]?remote-verify-full['"]?\]\.result|needs\.remote-verify-full\.result/);
@@ -821,6 +823,7 @@ test('desktop promote workflow is gated by the candidate record before publishin
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-promote.yml'), 'utf8');
   assert.match(workflow, /release_run_id:/);
   assert.match(workflow, /Download release candidate record/);
+  assert.match(workflow, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /release-candidate-record\.json/);
   assert.match(workflow, /record\.schema !== 'opl_release_candidate_record\.v1'/);
   assert.match(workflow, /record\.status !== 'ready_to_promote'/);

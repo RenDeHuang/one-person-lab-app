@@ -724,9 +724,12 @@ npm run release:candidate-record -- \
 The record schema is `opl_release_candidate_record.v1`. Stable promotion is
 allowed only when `status=ready_to_promote`; failed gates become
 `status=blocked`; draft candidates remain `diagnostic_only`. The promote
-workflow downloads this record from the release workflow run and refuses to run
-`gh release edit --draft=false` unless the record is ready, so operators no
-longer reconstruct a release decision from many job logs.
+workflow downloads the `release-candidate-record-<version>` artifact from the
+release workflow run and refuses to run `gh release edit --draft=false` unless
+the record is ready, so operators no longer reconstruct a release decision from
+many job logs. The candidate record is uploaded as a separate artifact from the
+readiness summary so blocked runs still preserve their decision record even when
+the readiness summary itself failed before producing JSON.
 
 ```bash
 npm run ensure:shell

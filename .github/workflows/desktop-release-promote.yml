@@ -45,7 +45,7 @@ jobs:
       - name: Download release candidate record
         uses: actions/download-artifact@v8
         with:
-          name: release-readiness-summary-${{ inputs.opl_version }}
+          name: release-candidate-record-${{ inputs.opl_version }}
           run-id: ${{ inputs.release_run_id }}
           path: release-candidate-record-input
           github-token: ${{ secrets.GITHUB_TOKEN }}

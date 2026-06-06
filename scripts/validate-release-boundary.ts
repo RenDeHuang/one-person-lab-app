@@ -578,6 +578,7 @@ const checks = [
     required: [
       'release_run_id:',
       'Download release candidate record',
+      'release-candidate-record-${{ inputs.opl_version }}',
       'release-candidate-record.json',
       "record.status !== 'ready_to_promote'",
       'npm run verify-remote-release',
