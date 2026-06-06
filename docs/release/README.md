@@ -225,21 +225,24 @@ through their own App/CLI-managed path.
 Use **OPL Desktop Release** from the GitHub Actions tab for App-owned release
 builds that should run on GitHub runners instead of this Mac.
 
-- `release_mode=refresh_existing` rebuilds standard macOS arm64 assets, validates
-  updater metadata, uploads them to the existing `v<opl_version>` release with
-  clobber semantics, then optionally builds and publishes the Full first-install
-  assets.
 - `release_mode=new_release` builds the same assets, creates and pushes the
   `v<opl_version>` tag from the workflow commit, and creates a draft GitHub
-  Release candidate. It does not publish Stable directly; use **OPL Desktop
-  Release Promote** with the release workflow run id after the candidate record
-  is `ready_to_promote`.
+  Release candidate. This is the normal Stable path for a new version. It does
+  not publish Stable directly; use **OPL Desktop Release Promote** with the
+  release workflow run id after the candidate record is `ready_to_promote`.
 - `release_mode=draft_candidate` builds the same assets into a draft
-  `v<opl_version>` Release. Use **OPL Desktop Release Promote** after reviewing
-  the draft assets and verification summary.
-- `release_mode=refresh_existing` is the same-tag emergency repair lane for an
-  already existing release. Prefer `new_release` plus candidate promotion for
-  normal Stable trains.
+  `v<opl_version>` Release for diagnostic candidate evidence. Its candidate
+  record remains `diagnostic_only`; do not use it for Stable promotion.
+- `release_mode=refresh_existing` is the emergency repair/replace lane for an
+  already published `v<opl_version>` release. It rebuilds standard macOS arm64
+  assets, validates updater metadata, uploads with clobber semantics, then
+  optionally rebuilds and publishes Full first-install assets. Use it only after
+  the release owner decides to repair an existing Stable cohort in place.
+- **OPL Desktop Release Promote** downloads the
+  `release-candidate-record-<version>` artifact from the release workflow run
+  and treats that record as the only promotion source. It must not promote from
+  ad-hoc inspection of job logs, local notes, or partially reconstructed gate
+  state.
 - **OPL Desktop Release Cleanup Drafts** removes stale candidate Releases after
   the stable `v<opl_version>` Release has been published. It only inspects
   GitHub Release metadata, defaults to dry-run, and deletes matching
@@ -322,6 +325,12 @@ builds that should run on GitHub runners instead of this Mac.
   exploratory triage; if they reveal release-relevant behavior, the finding
   must be captured as a deterministic contract, workflow, or script gate before
   it can block promotion or be used to clear a release.
+- User-guide screenshot refresh is a post-promotion documentation lane. A Stable
+  release can capture release evidence screenshots during VM gates, but
+  refreshing `docs/user-guides` screenshots or generated guide PDFs belongs
+  after the candidate record has been promoted. Screenshot/docs drift should
+  open a post-release docs task; it must not be mixed into release publish
+  repairs or used as a pre-promotion gate.
 - Scheduled **OPL GUI First-Run VM** runs use a dedicated GitHub Actions
   concurrency group with `cancel-in-progress` enabled, so nightly clean-VM
   backlog collapses to the newest scheduled run instead of occupying the
@@ -718,9 +727,11 @@ npm run release:plan -- --version <version> --include-full-package
 ```
 
 The plan output separates fast candidate checks, parallel build lanes, the
-clean no-CLT VM gate, and the final publish step. Use it as the release runbook
-for new versions so standard and Full builds can run concurrently while publish
-stays serialized.
+clean no-CLT VM gate, candidate record, Stable promotion, and the post-release
+user-guide screenshot/docs lane. Use it as the release runbook for new Stable
+versions: draft candidate first, gates second, candidate record third, promote
+from that record fourth. Standard and Full builds can run concurrently while
+promotion stays serialized.
 
 Every Stable candidate must produce a single candidate record after the final
 readiness summary:
@@ -728,7 +739,7 @@ readiness summary:
 ```bash
 npm run release:candidate-record -- \
   --version <version> \
-  --release-mode refresh_existing \
+  --release-mode new_release \
   --include-full-package true \
   --run-vm-smoke true \
   --preflight release-preflight-summary.json \
@@ -748,6 +759,26 @@ the record is ready, so operators no longer reconstruct a release decision from
 many job logs. The candidate record is uploaded as a separate artifact from the
 readiness summary so blocked runs still preserve their decision record even when
 the readiness summary itself failed before producing JSON.
+
+Stop conditions for a Stable train:
+
+- Promote when the candidate record for the intended version is
+  `ready_to_promote` and names the expected App commit, shell/framework refs,
+  remote verification, readiness summary, and job results.
+- Stop as blocked when the record is `blocked`, a required small artifact is
+  missing, a gate is failed/cancelled/unexpectedly skipped, or the workflow
+  cannot write a candidate record.
+- Do not keep chasing scattered logs from long-running runs such as `019e9556`
+  once the candidate record, readiness summary, remote verification JSON, or a
+  named gate result has established the stop condition. Inspect a failed job log
+  only after those structured artifacts identify the gate that needs owner
+  action.
+- Use `refresh_existing` only as an emergency repair/replace lane for an
+  existing published release. Do not use it as the normal Stable publish path.
+- Run user-guide screenshot/docs refresh after promotion. If it fails, record a
+  post-release docs blocker or follow-up; do not reopen the release candidate
+  decision unless the screenshot work exposes a deterministic release gate
+  regression.
 
 ```bash
 npm run ensure:shell

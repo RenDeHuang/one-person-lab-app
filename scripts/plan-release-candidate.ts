@@ -7,7 +7,7 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 type Lane = {
   id: string;
-  phase: 'fast_candidate' | 'parallel_build' | 'remote_gate' | 'installation_gate' | 'release_gate' | 'publish';
+  phase: 'fast_candidate' | 'parallel_build' | 'remote_gate' | 'installation_gate' | 'release_gate' | 'publish' | 'post_release';
   depends_on: string[];
   can_run_with: string[];
   command: string;
@@ -202,7 +202,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       command: [
         'npm run release:preflight --',
         `--version ${options.version}`,
-        '--release-mode <refresh_existing|new_release|draft_candidate>',
+        '--release-mode new_release',
         `--include-full-package ${options.includeFullPackage ? 'true' : 'false'}`,
         `--run-vm-smoke ${options.settingsVm ? 'true' : 'false'}`,
       ].join(' '),
@@ -262,7 +262,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     phase: 'publish',
     depends_on: ['standard_build', 'release_boundary', 'active_shell_quick_validation'],
     can_run_with: options.includeFullPackage ? ['full_build'] : [],
-    command: `.github/workflows/desktop-release.yml publishes standard assets for v${options.version}`,
+    command: `.github/workflows/desktop-release.yml release_mode=new_release publishes standard assets to draft v${options.version}`,
     required_for: ['standard_release'],
   });
 
@@ -454,18 +454,19 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   });
 
   lanes.push({
-    id: 'publish_new_tag',
+    id: 'promote_stable_release',
     phase: 'publish',
     depends_on: [
       'release_candidate_record',
     ],
     can_run_with: [],
     command: [
-      'npm run release:publish --',
+      '.github/workflows/desktop-release-promote.yml',
       `--version ${options.version}`,
-      '--repo gaofeng21cn/one-person-lab-app',
-      options.includeFullPackage ? '--include-full-package' : '',
-    ].filter(Boolean).join(' '),
+      'reads only release-candidate-record.json',
+      'requires status=ready_to_promote',
+      'runs gh release edit --draft=false --latest',
+    ].join(' '),
     required_for: ['standard_release', ...(options.includeFullPackage ? ['full_first_install'] : [])],
   });
 
@@ -473,12 +474,21 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     id: 'release_promotion_record',
     phase: 'release_gate',
     depends_on: [
-      'publish_new_tag',
+      'promote_stable_release',
       'release_candidate_record',
     ],
     can_run_with: [],
     command: 'release promotion records preserve the candidate record plus final publish result for post-release audit',
     required_for: ['stable_release'],
+  });
+
+  lanes.push({
+    id: 'post_release_user_guide_screenshots',
+    phase: 'post_release',
+    depends_on: ['release_promotion_record'],
+    can_run_with: [],
+    command: 'npm run docs:macos-guide after promotion, using published stable release screenshots/provenance; never a pre-promotion gate',
+    required_for: ['post_release_docs_refresh'],
   });
 
   return {
@@ -488,6 +498,10 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     release_repo: 'gaofeng21cn/one-person-lab-app',
     full_payload_ref_audit: FULL_PAYLOAD_REF_AUDIT,
     strategy: {
+      normal_stable_path: 'new_release_draft_gates_candidate_record_promote',
+      candidate_record_promotion_source: 'only_source_for_stable_promotion',
+      refresh_existing: 'emergency_repair_or_replace_existing_release_only',
+      post_release_user_guide_screenshots: 'after_promotion_not_pre_promotion_gate',
       same_tag_replacement: 'avoid_for_new_versions',
       resume_uploads: 'skip_existing_assets_when_size_and_sha256_digest_match',
       full_runtime_cache: 'content_addressed_layer_cache',

@@ -4552,6 +4552,10 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.version, '26.5.19');
+  assert.equal(payload.strategy.normal_stable_path, 'new_release_draft_gates_candidate_record_promote');
+  assert.equal(payload.strategy.candidate_record_promotion_source, 'only_source_for_stable_promotion');
+  assert.equal(payload.strategy.refresh_existing, 'emergency_repair_or_replace_existing_release_only');
+  assert.equal(payload.strategy.post_release_user_guide_screenshots, 'after_promotion_not_pre_promotion_gate');
   assert.equal(payload.strategy.same_tag_replacement, 'avoid_for_new_versions');
   assert.equal(payload.strategy.resume_uploads, 'skip_existing_assets_when_size_and_sha256_digest_match');
   assert.equal(payload.strategy.full_runtime_cache, 'content_addressed_layer_cache');
@@ -4616,8 +4620,22 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
     && lane.command.includes('npm run release:candidate-record')
   )));
   assert.ok(payload.lanes.some((lane) => (
-    lane.id === 'publish_new_tag'
+    lane.id === 'promote_stable_release'
     && lane.depends_on.includes('release_candidate_record')
+    && lane.command.includes('desktop-release-promote.yml')
+    && lane.command.includes('reads only release-candidate-record.json')
+    && lane.command.includes('status=ready_to_promote')
+  )));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'release_promotion_record'
+    && lane.depends_on.includes('promote_stable_release')
+    && lane.depends_on.includes('release_candidate_record')
+  )));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'post_release_user_guide_screenshots'
+    && lane.phase === 'post_release'
+    && lane.depends_on.includes('release_promotion_record')
+    && lane.command.includes('never a pre-promotion gate')
   )));
 });
 

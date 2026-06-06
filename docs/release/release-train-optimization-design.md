@@ -20,11 +20,13 @@ The target operator experience is:
 
 1. Run or trigger one preflight.
 2. Build standard and Full lanes in parallel only after preflight passes.
-3. Publish to a draft or existing release according to the requested mode.
+3. Publish every normal Stable attempt to a draft candidate.
 4. Verify remote assets and checksums before user-path gates.
 5. Update Homebrew only after remote asset verification.
 6. Run clean installation gates against the same cohort users will install.
-7. Publish or promote only from a complete readiness summary.
+7. Write the candidate record from the complete readiness summary.
+8. Promote the Stable Release only from that candidate record.
+9. Refresh user-guide screenshots and docs after promotion.
 
 ## External Lessons
 
@@ -58,6 +60,14 @@ writes `release-preflight-summary.json` and `release-preflight-summary.md`.
 parallelism. Expensive lanes depend on `release_preflight`, and serialized
 promotion gates depend on the exact published cohort.
 
+The normal Stable path is `new_release -> draft candidate -> gates -> candidate
+record -> promote`. The candidate record is the only promotion source. Operators should
+not reconstruct promotion readiness from scattered job logs, local notes, or a
+long-running run page. `refresh_existing` is reserved for emergency repair or
+replacement of an already published release cohort, such as replacing a broken
+asset after owner approval; it is not the ordinary path for a new Stable
+version.
+
 `standard_build` and `full_build` are build lanes. They create artifacts and
 diagnostics only. They do not decide release readiness.
 
@@ -80,6 +90,10 @@ by the summary.
 diagnostic artifacts and fails closed when required gates are missing, failed,
 or inconsistent.
 
+`post_release_user_guide_screenshots` is a post-promotion documentation lane. It
+may capture and refresh user-guide screenshots from the promoted Stable cohort,
+but it must not become a pre-promotion gate or a release readiness substitute.
+
 ## Implementation Layers
 
 Layer 1 is now implemented: App-owned preflight. It prevents common late
@@ -88,9 +102,10 @@ token for a stable VM run, deleted preflight workflow steps, and release plan
 drift.
 
 Layer 2 is now partially implemented: release triggering and promotion are
-joined by `opl_release_candidate_record.v1`. A Stable release can only promote
-when the record is `ready_to_promote`; blocked cohorts keep their gate reasons
-in the same record.
+joined by `opl_release_candidate_record.v1`. The intended Stable path creates a
+draft candidate first, runs the gates against that cohort, writes the candidate
+record, and promotes only when the record is `ready_to_promote`; blocked cohorts
+keep their gate reasons in the same record.
 
 Layer 3 should make Full package size and DMG fallback compression a local fast
 gate. The Full fallback must use electron-builder `--prepackaged`; any plain
@@ -100,7 +115,10 @@ authorization while exceeding the Full DMG size budget.
 Layer 4 should reduce CI polling cost. Release triage should prefer downloaded
 summary artifacts and job-result JSON over repeated `gh run view` loops. The
 interactive agent should inspect failed job logs only after summary artifacts
-identify the failing gate.
+identify the failing gate. For long-running runs such as `019e9556`, stop at the
+candidate record, readiness summary, remote verification JSON, or named blocked
+gate. Do not keep chasing scattered job logs after the structured artifacts have
+already identified the stop condition.
 
 Layer 5 is now implemented as the candidate record. It stores version, App
 commit, shell/framework refs, workflow run id, preflight/readiness/remote
@@ -112,7 +130,7 @@ blocked reasons, and the promotion decision.
 The minimum local validation for release-train changes is:
 
 ```bash
-npm run release:preflight -- --version <version> --release-mode draft_candidate --include-full-package true --run-vm-smoke false --offline
+npm run release:preflight -- --version <version> --release-mode new_release --include-full-package true --run-vm-smoke false --offline
 npm run validate:release-boundary
 npm run test:release-boundary
 ```
@@ -120,6 +138,20 @@ npm run test:release-boundary
 Before a real Stable release with VM smoke, preflight must run without
 `--offline` and must have `OPL_HOMEBREW_TAP_TOKEN_PRESENT=true` in the workflow
 environment. GitHub Actions sets that from `secrets.OPL_HOMEBREW_TAP_TOKEN`.
+
+Operator stop conditions:
+
+- Promote only when `release-candidate-record.json` has
+  `status=ready_to_promote` for the intended version, App commit, shell ref,
+  Full refs, remote verification, readiness summary, and job results.
+- Stop as blocked when the candidate record is `blocked`, a required small
+  artifact is missing, a gate is failed/cancelled/skipped unexpectedly, or the
+  release workflow cannot produce a candidate record.
+- Use `refresh_existing` only for an owner-approved emergency repair or replace
+  lane against an already published release.
+- Run user-guide screenshot/docs refresh only after Stable promotion; screenshot
+  refresh failure creates a post-release docs task, not a pre-promotion release
+  blocker.
 
 ## Non-Goals
 

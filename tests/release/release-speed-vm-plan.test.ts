@@ -305,6 +305,10 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   const plan = runReleasePlan(['--version', '26.5.27', '--include-full-package']);
 
   assert.equal(plan.profile, 'stable');
+  assert.equal(plan.strategy.normal_stable_path, 'new_release_draft_gates_candidate_record_promote');
+  assert.equal(plan.strategy.candidate_record_promotion_source, 'only_source_for_stable_promotion');
+  assert.equal(plan.strategy.refresh_existing, 'emergency_repair_or_replace_existing_release_only');
+  assert.equal(plan.strategy.post_release_user_guide_screenshots, 'after_promotion_not_pre_promotion_gate');
   assert.equal(plan.strategy.vm_policy, 'clone_clean_no_clt_base_for_release_gate');
   assert.equal(plan.full_payload_ref_audit.schema, 'opl_full_payload_ref_audit_plan.v1');
   assert.equal(plan.full_payload_ref_audit.record_path, 'dist/opl-full-release/full-package-manifest.json#resolved_refs');
@@ -337,10 +341,11 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   const webuiGhcrPublish = laneById(plan, 'webui_ghcr_publish');
   const oneShotInstaller = laneById(plan, 'one_shot_app_installer_smoke');
   const evidenceBundle = laneById(plan, 'release_evidence_bundle');
-  const publish = laneById(plan, 'publish_new_tag');
+  const promote = laneById(plan, 'promote_stable_release');
   const readinessSummary = laneById(plan, 'release_readiness_summary');
   const candidateRecord = laneById(plan, 'release_candidate_record');
   const promotionRecord = laneById(plan, 'release_promotion_record');
+  const postReleaseScreenshots = laneById(plan, 'post_release_user_guide_screenshots');
 
   assert.deepEqual(laneById(plan, 'release_preflight').depends_on, []);
   assert.deepEqual(releaseBoundary.depends_on, ['release_preflight']);
@@ -354,6 +359,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
     'release_boundary',
     'standard_build',
   ].sort());
+  assert.ok(publishStandard.command.includes('release_mode=new_release'));
   assert.deepEqual(publishFullAssets.depends_on?.sort(), ['full_build', 'publish_standard'].sort());
   assert.deepEqual(remoteVerify.depends_on, ['publish_full_assets']);
   assert.deepEqual(standardVm.depends_on, ['publish_standard']);
@@ -403,9 +409,17 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
     'remote_verify_standard_and_full',
   ].sort());
   assert.ok(candidateRecord.command.includes('release:candidate-record'));
-  assert.deepEqual(publish.depends_on, ['release_candidate_record']);
-  assert.deepEqual(promotionRecord.depends_on?.sort(), ['publish_new_tag', 'release_candidate_record'].sort());
-  assert.equal(plan.lanes.at(-1)?.id, 'release_promotion_record');
+  assert.equal(promote.phase, 'publish');
+  assert.deepEqual(promote.depends_on, ['release_candidate_record']);
+  assert.ok(promote.command.includes('desktop-release-promote.yml'));
+  assert.ok(promote.command.includes('reads only release-candidate-record.json'));
+  assert.ok(promote.command.includes('status=ready_to_promote'));
+  assert.deepEqual(promotionRecord.depends_on?.sort(), ['promote_stable_release', 'release_candidate_record'].sort());
+  assert.equal(postReleaseScreenshots.phase, 'post_release');
+  assert.deepEqual(postReleaseScreenshots.depends_on, ['release_promotion_record']);
+  assert.ok(postReleaseScreenshots.command.includes('after promotion'));
+  assert.ok(postReleaseScreenshots.command.includes('never a pre-promotion gate'));
+  assert.equal(plan.lanes.at(-1)?.id, 'post_release_user_guide_screenshots');
 });
 
 test('AI exploratory release policy is locked in both machine contract and release docs', () => {
