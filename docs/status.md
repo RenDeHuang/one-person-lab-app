@@ -249,43 +249,22 @@ Homebrew cask smoke, and user tutorials are all App-owned. The Framework repo is
 runtime/CLI/contracts payload source for Full DMG and a machine-interface
 provider for the App.
 
-Local Homebrew VM evidence on 2026-06-04 used
-`opl-first-run-homebrew-ready-base-26-6-4` with
-`brew tap gaofeng21cn/one-person-lab` and
-`brew install --cask one-person-lab`. The cask install reached
-`/Applications/One Person Lab.app`, so the tap/download/install path was
-validated. First launch did not pass: `codesign --verify --deep --strict`
-returned success, but `spctl --assess --type execute --verbose=4` returned
-`rejected` for the current release asset. Release workflows now treat that as
-the expected unsigned local-authorization diagnostic after quarantine removal.
+Stable macOS releases currently use local authorization policy assets rather
+than requiring paid Apple Developer ID signing. First-run VM smokes must clear
+quarantine after installing the App, write
+`artifacts/gatekeeper-launch-policy.json`, and record `codesign` / `spctl`
+diagnostics as the local-authorization evidence for the same release cohort.
 Stable release assets must publish `standard-local-authorization-policy.json`
 and `full-local-authorization-policy.json`; Homebrew tap sync requires the
-matching local authorization policy asset before updating a cask.
+matching policy asset before updating a cask.
 
-The 2026-06-05 Stable release path treats that local authorization behavior as
-the default Stable behavior. First-run VM smokes must clear recursive
-quarantine after installing the App, write
-`artifacts/gatekeeper-launch-policy.json`, and record `codesign`/`spctl`
-rejections as allowed unsigned diagnostics rather than blocking launch. The
-26.6.5 Full runtime baseline is 1,394,739,510
-uncompressed bytes; the remote verifier keeps
-`max_runtime_uncompressed_bytes=1500000000` as the hard runtime payload gate.
-The compressed Full DMG thresholds are release review warnings, not Stable
-publication blockers, so reasonable first-install payload growth does not stop
-the release after checksum, manifest, native-trust, and local-authorization
-checks pass.
-
-Follow-up local install evidence showed the same trust-chain failure for the
-Full runtime `node` binary under `~/Library/Application Support/OPL/runtime`:
-`codesign -dv` reported ad-hoc signing and no TeamIdentifier, and `spctl`
-returned `rejected`. Full release packaging now treats native runtime
-executables as their own release gate. Full builds must verify that `node` and
-the pre-extracted Temporal CLI binary are listed in
-`full-runtime-native-trust.json`, carry no `com.apple.quarantine`, and are
-included in `SHA256SUMS.txt` before the Full package can be published or
-consumed by the Full Homebrew cask. Without Developer ID signing, their
-`codesign` result is recorded as an allowed unsigned diagnostic; Developer ID
-signing remains optional.
+Full release packaging also treats native runtime executable trust as a release
+gate. Full builds must publish `full-runtime-native-trust.json`, include that
+file and `full-local-authorization-policy.json` in `SHA256SUMS.txt`, and keep
+the remote verifier's runtime-size hard gate in the release contract. Full DMG
+compressed-size thresholds are release-review warnings, while checksum,
+manifest, native-trust, remote verification, VM, and local-authorization gates
+remain the release truth.
 
 Release and user-path evidence remains cohort-bound App evidence. Verified
 release bundle refs, screenshots, remote asset checks, or packaged route smoke
