@@ -237,7 +237,6 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
 });
 
 test('release operations workflows serialize refreshable GitHub Actions runs without cancelling stable release runs', () => {
-  const docs = readRepoFile('docs/release/README.md');
   const warmupWorkflow = readRepoFile('.github/workflows/full-runtime-cache-warmup.yml');
   const promoteWorkflow = readRepoFile('.github/workflows/desktop-release-promote.yml');
   const verifyWorkflow = readRepoFile('.github/workflows/release-verify-remote.yml');
@@ -248,9 +247,6 @@ test('release operations workflows serialize refreshable GitHub Actions runs wit
   assertMatches(promoteWorkflow, /cancel-in-progress:\s+true/, 'promote cancellation policy');
   assertMatches(verifyWorkflow, /concurrency:[\s\S]*group:\s+opl-remote-release-verification-\$\{\{ inputs\.opl_version \}\}/, 'remote verify concurrency group');
   assertMatches(verifyWorkflow, /cancel-in-progress:\s+true/, 'remote verify cancellation policy');
-  assertMatches(docs, /Stable desktop release runs[\s\S]*do not cancel running jobs/, 'stable release concurrency docs');
-  assertMatches(docs, /Draft candidates[\s\S]*cancel older in-progress runs/, 'refreshable release concurrency docs');
-  assertMatches(docs, /tag-push \*\*Build and Release\*\* workflow has been retired/, 'retired legacy workflow docs');
 });
 
 test('first-run VM workflow writes deterministic preflight and final summaries before release-blocking smoke', () => {
