@@ -74,14 +74,25 @@ Evidence read before edit:
 - `scripts/validate-active-shell/page-state-matrix-validator.ts`
 - `contracts/app-page-state-matrix.json#guid_home.home_view_model.home_purpose_entries`
 
-Follow-up validation for this docs-only lane should run:
+Validation run for this docs-only lane:
 
 ```bash
 rtk git diff --check
 rtk rg -n 'compatibility label|兼容既有 product profile|以兼容既有 profile|历史 `PPT`|PPT compatibility' docs/codex-to-opl-app-delta.md docs/app-ideal-gui-interaction-spec.md docs/app-gui-feature-inventory.md
 rtk rg -n "^(<<<<<<<|=======|>>>>>>>)" docs/codex-to-opl-app-delta.md docs/app-ideal-gui-interaction-spec.md docs/app-gui-feature-inventory.md docs/history/process/2026-06-06-app-ppt-purpose-id-ssot-closeout.md
 rtk opl-doc-doctor doctor . --format json
+rtk node --experimental-strip-types scripts/validate-active-shell.ts --quick
+rtk npm run test:release-boundary -- --runInBand
 ```
+
+Results:
+
+- `git diff --check` passed.
+- Targeted stale compatibility wording scan returned no matches in current design docs.
+- Conflict-marker scan returned no matches.
+- App doctor returned `finding_count=0`.
+- Active-shell quick validation passed.
+- Release-boundary tests passed.
 
 ## Residual Scope
 
