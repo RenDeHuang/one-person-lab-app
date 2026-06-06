@@ -150,7 +150,10 @@ You can also download the current desktop package from the App repository releas
 
 For a first-time macOS arm64 install without Homebrew, choose `One-Person-Lab-Full-<version>-mac-arm64.dmg`. The same complete first-install payload is also available as the `one-person-lab-full` Homebrew cask. It includes the desktop app, One Person Lab, the Research/Grant/Presentation agents, current runtime payloads, `officecli`, and recommended skill payloads.
 
-For a screenshot-based first-run walkthrough, use the primary [macOS App install slides PDF](docs/user-guides/macos-app-install-slides.pdf). The detailed long-form companion is [macOS App install detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf).
+For a screenshot-based first-run walkthrough, start from the
+[macOS App install user guide](docs/user-guides/site/index.html). The same
+guide source also generates the [slides PDF](docs/user-guides/macos-app-install-slides.pdf)
+and [detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf).
 
 Daily updates are handled by Homebrew or the in-app update channel, depending on
 how the App was installed. Releases also publish standard App packages, updater

@@ -141,7 +141,10 @@ Gatekeeper 诊断摩擦的增强项。
 
 没有 Homebrew 的 macOS arm64 新用户优先选择 `One-Person-Lab-Full-<version>-mac-arm64.dmg`。同一完整首次安装载荷也可以通过 `one-person-lab-full` Homebrew cask 安装。完整首次安装包包含桌面应用、One Person Lab、研究/基金/汇报智能体、当前运行载荷、`officecli` 和推荐技能载荷。
 
-首次启动图文教程以 [macOS App install slides PDF](docs/user-guides/macos-app-install-slides.pdf) 为主入口；更详细的长文补充见 [macOS App install detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf)。
+首次启动图文教程以 [macOS App install user guide](docs/user-guides/site/index.html)
+为主入口；同一份 guide source 也会生成
+[slides PDF](docs/user-guides/macos-app-install-slides.pdf) 和
+[detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf)。
 
 日常更新由 Homebrew 或应用内更新通道完成，取决于安装方式。发布页保留标准应用包和更新元数据，完整首次安装包作为独立安装资产发布。
 

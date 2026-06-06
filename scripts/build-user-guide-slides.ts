@@ -1,31 +1,35 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
-import crypto from 'node:crypto';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import type { GuideStep } from './user-guide-data.ts';
+import {
+  appRoot,
+  assetDir,
+  assetManifestPath,
+  assertGuideAssets,
+  expandList,
+  expandTemplate,
+  guideDir,
+  guideSourcePath,
+  loadAssetManifest,
+  loadGuide,
+  relativeToApp,
+  run,
+  scanTextForSecrets,
+  screenshotReleaseTag,
+  screenshotSourceVerification,
+  slidePdfPath,
+  slidePptxPath,
+  slideVerificationPath,
+  writeJson,
+} from './user-guide-data.ts';
 
-type Step = {
-  title: string;
-  subtitle: string;
-  asset: string;
-  callouts: string[];
-  notes: string;
-};
-
-const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const guideDir = path.join(appRoot, 'docs', 'user-guides');
-const assetDir = path.join(guideDir, 'assets');
-const assetManifestPath = path.join(guideDir, 'macos-app-install-assets.json');
-const pptxPath = path.join(guideDir, 'macos-app-install-slides.pptx');
-const slidePdfPath = path.join(guideDir, 'macos-app-install-slides.pdf');
-const verificationPath = path.join(guideDir, 'macos-app-install-slides-verification.json');
 const tempDir = path.join(appRoot, 'tmp', 'pdfs', 'macos-app-install-slides');
 
-const latestReleaseUrl = 'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest';
-const assetManifest = JSON.parse(fs.readFileSync(assetManifestPath, 'utf8'));
-const screenshotReleaseTag = process.env.OPL_APP_GUIDE_SCREENSHOT_RELEASE_TAG || assetManifest.release_tag || 'unknown';
+const guide = loadGuide();
+const assetManifest = loadAssetManifest();
+const screenshotTag = screenshotReleaseTag(assetManifest);
 const titleFont = 'Arial';
 const cjkFont = 'PingFang SC';
 const bodyFont = 'Arial';
@@ -35,177 +39,10 @@ const accent = '0F766E';
 const softAccent = 'E6F4F1';
 const panelFill = 'F8FAFC';
 const border = 'D6DEE8';
-
-const steps: Step[] = [
-  {
-    title: '1. 下载 One Person Lab',
-    subtitle: '从 App repo 的最新 Release 下载 macOS Apple Silicon DMG。',
-    asset: '01-download-release.png',
-    callouts: [
-      '从 GitHub Releases latest 页面下载。',
-      '最简单命令：install-stable.sh。',
-      '首次安装建议使用 Full 版 DMG。',
-      '标准 DMG 适合已安装用户和后续更新。',
-    ],
-    notes: '最简单的稳定版安装命令：curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash。也可以打开 One Person Lab App 最新 Release 页面下载 DMG。',
-  },
-  {
-    title: '2. 安装 App',
-    subtitle: '打开 DMG，把 One Person Lab 拖入 Applications。',
-    asset: '02-install-dmg.png',
-    callouts: [
-      '安装完成后从 Applications 启动。',
-      '不要长期在 DMG 挂载窗口中运行 App。',
-    ],
-    notes: '打开下载的 DMG，将 One Person Lab.app 拖入 Applications。首次打开如出现 macOS 安全提示，按系统提示确认。',
-  },
-  {
-    title: '3. 配置访问权限',
-    subtitle: '如果首启页面提示访问权限未配置，请联系 gflabtoken 管理员获取访问密钥。',
-    asset: '03-codex-config-needed.png',
-    callouts: [
-      '管理员开通后，在页面输入访问密钥。',
-      '点击完成配置后继续首启检查。',
-      '不要截图、转发或保存密钥到研究目录。',
-    ],
-    notes: '涉及访问权限配置时，请联系 gflabtoken 管理员获取访问密钥。不要自行购买、复制来源不明的密钥，或把密钥写入研究数据目录。',
-  },
-  {
-    title: '4. 等待首次环境检查',
-    subtitle: '首屏只显示准备状态、三步进度、下一步和进入 OPL 的主按钮。',
-    asset: '04-first-run-checking.png',
-    callouts: [
-      '先检查工作目录、本机助手和访问权限。',
-      '技术 phase、刷新和原始错误默认收在技术细节里。',
-      '遇到阻塞时先阅读界面提示。',
-    ],
-    notes: 'OPL 会先检查开始使用所需的关键项：工作目录、本机助手和访问权限。首屏只显示“正在准备 / 可以开始 / 需要处理”的简短状态、三步准备进度、下一步，以及进入 OPL 的主按钮。模块、skills、运行底座和本机工具属于后台维护，技术细节默认折叠。',
-  },
-  {
-    title: '5. 进入科研入口',
-    subtitle: '准备完成后，在主界面选择科研入口。',
-    asset: '05-opl-ready-research-entry.png',
-    callouts: [
-      '通过 Research Foundry / Med Auto Science 进入 MAS。',
-      '用户不需要另行获取 MAS 分发资产。',
-    ],
-    notes: '准备完成后，在主界面选择科研入口，进入 Research Foundry / Med Auto Science 工作流。MAS 通过 OPL 内的入口使用。',
-  },
-  {
-    title: '6. 确认工作目录和运行设置',
-    subtitle: '在本机运行环境中确认工作目录、Codex CLI、Temporal、更新状态和智能体模块。',
-    asset: '06-research-data-folder.png',
-    callouts: [
-      '数据目录和运行入口从 Settings 进入。',
-      '患者数据需先脱敏，并遵守机构要求。',
-    ],
-    notes: '在本机运行环境中确认工作目录、Codex CLI、Temporal、更新状态和智能体模块。建议按一个病种或稳定研究主题建立本地 workspace，把原始或脱敏材料集中放入工作目录。',
-  },
-  {
-    title: '7. 发起首次科研任务',
-    subtitle: '用自然语言描述数据、workspace 和目标，让 MAS 先判断下一步。',
-    asset: '07-first-research-entry.png',
-    callouts: [
-      '写清数据类型、专病 workspace、目标产物。',
-      '让 MAS 先判断研究方向和证据缺口。',
-    ],
-    notes: '示例提示词：我有一批肺结节随访数据，专病 workspace 在“肺结节真实世界研究”，原始材料在 raw_data/，请先判断最值得推进的研究问题，并说明还缺哪些证据，目标是形成一篇可投稿论文。',
-  },
-  {
-    title: '8. 查看进度与结果',
-    subtitle: '任务启动后，重点查看当前阶段、阻塞项、下一步和产物位置。',
-    asset: '08-opl-runtime-status.png',
-    callouts: [
-      '看到人工确认项时，由研究者或 PI 判断。',
-      '投稿前科学判断、伦理合规和署名仍由团队负责。',
-    ],
-    notes: '任务启动后，重点查看当前阶段、阻塞项、下一步和产物位置。投稿前最终科学判断、伦理合规和署名安排仍由研究团队负责。',
-  },
-];
-
-function run(command: string, args: string[], options: { cwd?: string } = {}) {
-  const result = spawnSync(command, args, {
-    cwd: options.cwd ?? appRoot,
-    encoding: 'utf8',
-    stdio: 'pipe',
-    env: process.env,
-  });
-  if (result.status !== 0) {
-    throw new Error([
-      `Command failed: ${command} ${args.join(' ')}`,
-      result.stdout,
-      result.stderr,
-    ].filter(Boolean).join('\n'));
-  }
-  return result;
-}
-
-function imageInfo(filePath: string) {
-  const result = run('sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', filePath]);
-  const width = Number(result.stdout.match(/pixelWidth:\s+(\d+)/)?.[1] ?? 0);
-  const height = Number(result.stdout.match(/pixelHeight:\s+(\d+)/)?.[1] ?? 0);
-  return { width, height };
-}
-
-function fileSha256(filePath: string) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
-}
-
-function expectedAssetNumber(expected: Record<string, unknown>, key: string, asset: string) {
-  const value = Number(expected[key]);
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`Slide screenshot provenance for ${asset} must include positive numeric ${key}`);
-  }
-  return value;
-}
-
-function expectedAssetSha256(expected: Record<string, unknown>, asset: string) {
-  const value = typeof expected.sha256 === 'string' ? expected.sha256.trim() : '';
-  if (!/^[a-f0-9]{64}$/.test(value)) {
-    throw new Error(`Slide screenshot provenance for ${asset} must include sha256`);
-  }
-  return value;
-}
-
-function assertAssets() {
-  const dimensions: Record<string, { width: number; height: number }> = {};
-  const assets: Record<string, Record<string, unknown>> = {};
-  for (const step of steps) {
-    const filePath = path.join(assetDir, step.asset);
-    if (!fs.existsSync(filePath)) throw new Error(`Missing slide screenshot asset: ${step.asset}`);
-    const info = imageInfo(filePath);
-    const expected = assetManifest.assets?.[step.asset];
-    if (!expected) {
-      throw new Error(`Missing slide screenshot provenance in ${path.relative(appRoot, assetManifestPath)}: ${step.asset}`);
-    }
-    const sha256 = fileSha256(filePath);
-    const expectedWidth = expectedAssetNumber(expected, 'width', step.asset);
-    const expectedHeight = expectedAssetNumber(expected, 'height', step.asset);
-    const expectedSha256 = expectedAssetSha256(expected, step.asset);
-    if (info.width !== expectedWidth || info.height !== expectedHeight) {
-      throw new Error(`Expected ${step.asset} to be ${expectedWidth}x${expectedHeight}, got ${info.width}x${info.height}`);
-    }
-    if (sha256 !== expectedSha256) {
-      throw new Error(`Slide screenshot hash mismatch for ${step.asset}: expected ${expectedSha256}, got ${sha256}`);
-    }
-    dimensions[step.asset] = info;
-    assets[step.asset] = {
-      title: expected.title,
-      source_kind: expected.source_kind,
-      source: expected.source,
-      source_width: expected.source_width,
-      source_height: expected.source_height,
-      source_sha256: expected.source_sha256,
-      width: info.width,
-      height: info.height,
-      sha256,
-    };
-  }
-  return { dimensions, assets };
-}
+const totalSlides = guide.steps.length + 2;
 
 function addSlide(background = 'FFFFFF') {
-  run('officecli', ['add', pptxPath, '/', '--type', 'slide', '--prop', 'layout=blank', '--prop', `background=${background}`]);
+  run('officecli', ['add', slidePptxPath, '/', '--type', 'slide', '--prop', 'layout=blank', '--prop', `background=${background}`]);
 }
 
 function prop(key: string, value: string | number | boolean) {
@@ -213,19 +50,19 @@ function prop(key: string, value: string | number | boolean) {
 }
 
 function addShape(slide: number, props: Record<string, string | number | boolean>) {
-  const args = ['add', pptxPath, `/slide[${slide}]`, '--type', 'shape'];
+  const args = ['add', slidePptxPath, `/slide[${slide}]`, '--type', 'shape'];
   for (const [key, value] of Object.entries(props)) args.push(...prop(key, value));
   run('officecli', args);
 }
 
 function addPicture(slide: number, props: Record<string, string | number | boolean>) {
-  const args = ['add', pptxPath, `/slide[${slide}]`, '--type', 'picture'];
+  const args = ['add', slidePptxPath, `/slide[${slide}]`, '--type', 'picture'];
   for (const [key, value] of Object.entries(props)) args.push(...prop(key, value));
   run('officecli', args);
 }
 
 function addNotes(slide: number, text: string) {
-  run('officecli', ['add', pptxPath, `/slide[${slide}]`, '--type', 'notes', '--prop', `text=${text}`]);
+  run('officecli', ['add', slidePptxPath, `/slide[${slide}]`, '--type', 'notes', '--prop', `text=${text}`]);
 }
 
 function addTitle(slide: number, title: string, subtitle?: string) {
@@ -245,7 +82,7 @@ function addTitle(slide: number, title: string, subtitle?: string) {
   });
   if (subtitle) {
     addShape(slide, {
-      text: subtitle,
+      text: expandTemplate(subtitle, guide, assetManifest),
       x: '1.28cm',
       y: '1.95cm',
       width: '30.2cm',
@@ -293,7 +130,7 @@ function addCalloutPanel(slide: number, callouts: string[]) {
     margin: '0cm',
   });
   addShape(slide, {
-    text: callouts.map((item) => `• ${item}`).join('\n'),
+    text: expandList(callouts, guide, assetManifest).map((item) => `• ${item}`).join('\n'),
     x: '25.75cm',
     y: '4.18cm',
     width: '6.72cm',
@@ -314,7 +151,7 @@ function addCalloutPanel(slide: number, callouts: string[]) {
 function buildCoverSlide() {
   addSlide('F8FAFC');
   addShape(1, {
-    text: 'OPL + MAS\n新手首次启动图文教程',
+    text: guide.title,
     x: '1.35cm',
     y: '2.25cm',
     width: '14.2cm',
@@ -328,7 +165,7 @@ function buildCoverSlide() {
     margin: '0cm',
   });
   addShape(1, {
-    text: '面向医生、PI、课题负责人。按首次安装、配置、进入科研入口、发起任务和查看进度的顺序演示。',
+    text: guide.cover.description,
     x: '1.4cm',
     y: '6.85cm',
     width: '13.5cm',
@@ -342,7 +179,7 @@ function buildCoverSlide() {
     margin: '0cm',
   });
   addShape(1, {
-    text: `下载最新版本\n${latestReleaseUrl}`,
+    text: `下载最新版本\n${guide.download.latest_release_url}`,
     x: '1.45cm',
     y: '10.85cm',
     width: '13.3cm',
@@ -358,7 +195,7 @@ function buildCoverSlide() {
     margin: '0.35cm',
   });
   addPicture(1, {
-    src: path.join(assetDir, '05-opl-ready-research-entry.png'),
+    src: path.join(assetDir, guide.cover.image_asset),
     x: '16.1cm',
     y: '2.0cm',
     width: '16.5cm',
@@ -366,7 +203,7 @@ function buildCoverSlide() {
     alt: 'One Person Lab 首次启动后的科研入口截图',
   });
   addShape(1, {
-    text: `中文 1080p VM 截图 · ${screenshotReleaseTag}`,
+    text: `中文 1080p VM 截图 · ${screenshotTag}`,
     x: '16.1cm',
     y: '11.65cm',
     width: '16.45cm',
@@ -379,11 +216,11 @@ function buildCoverSlide() {
     align: 'center',
     margin: '0cm',
   });
-  addNotes(1, `本教程用于 macOS App 首次安装和首启说明。截图来自 ${screenshotReleaseTag} 的中文 1080p VM guide artifact 与同一次 VM smoke 的 App CDP 截图。`);
-  addFooter(1, '1 / 10');
+  addNotes(1, `本教程用于 macOS App 首次安装和首启说明。截图来自 ${screenshotTag} 的中文 1080p VM guide artifact 与同一次 VM smoke 的 App CDP 截图。`);
+  addFooter(1, `1 / ${totalSlides}`);
 }
 
-function buildStepSlide(step: Step, index: number) {
+function buildStepSlide(step: GuideStep, index: number) {
   const slide = index + 2;
   addSlide('FFFFFF');
   addTitle(slide, step.title, step.subtitle);
@@ -396,28 +233,16 @@ function buildStepSlide(step: Step, index: number) {
     alt: step.title,
   });
   addCalloutPanel(slide, step.callouts);
-  addNotes(slide, step.notes);
-  addFooter(slide, `${slide} / 10`);
+  addNotes(slide, expandTemplate(step.speaker_notes, guide, assetManifest));
+  addFooter(slide, `${slide} / ${totalSlides}`);
 }
 
 function buildFinalSlide() {
+  const slide = totalSlides;
   addSlide('FFFFFF');
-  addTitle(10, '常见问题与验证来源', '遇到下载、权限、模块、数据路径问题时，先按界面提示和本页检查。');
+  addTitle(slide, '常见问题与验证来源', '遇到下载、权限、模块、数据路径问题时，先按界面提示和本页检查。');
 
-  const left = [
-    '下载失败：换网络后重试，或确认 GitHub Release 可访问。',
-    '打不开 App：确认已拖入 Applications，并按 macOS 安全提示允许打开。',
-    '访问权限未配置：联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。',
-    '模块未就绪：在 App 的环境管理中重新检查。',
-  ];
-  const right = [
-    '截图保留 VM artifact 原始尺寸。',
-    `来源对应 ${screenshotReleaseTag} 中文 1080p VM。`,
-    '真实 DMG 安装到 /Applications/One Person Lab.app。',
-    'verification JSON 记录每张图的来源和 SHA。',
-  ];
-
-  addShape(10, {
+  addShape(slide, {
     text: '常见问题',
     x: '1.3cm',
     y: '3.25cm',
@@ -431,8 +256,8 @@ function buildFinalSlide() {
     fill: 'none',
     margin: '0cm',
   });
-  addShape(10, {
-    text: left.map((item) => `• ${item}`).join('\n'),
+  addShape(slide, {
+    text: expandList(guide.faqs.slice(0, 4), guide, assetManifest).map((item) => `• ${item}`).join('\n'),
     x: '1.25cm',
     y: '4.55cm',
     width: '14.8cm',
@@ -448,7 +273,7 @@ function buildFinalSlide() {
     lineSpacing: '1.15x',
     margin: '0.42cm',
   });
-  addShape(10, {
+  addShape(slide, {
     text: '验证来源',
     x: '17.3cm',
     y: '3.25cm',
@@ -462,8 +287,8 @@ function buildFinalSlide() {
     fill: 'none',
     margin: '0cm',
   });
-  addShape(10, {
-    text: right.map((item) => `• ${item}`).join('\n'),
+  addShape(slide, {
+    text: expandList(guide.verification_callouts, guide, assetManifest).map((item) => `• ${item}`).join('\n'),
     x: '17.25cm',
     y: '4.55cm',
     width: '14.8cm',
@@ -479,7 +304,7 @@ function buildFinalSlide() {
     lineSpacing: '1.15x',
     margin: '0.42cm',
   });
-  addPicture(10, {
+  addPicture(slide, {
     src: path.join(assetDir, '08-opl-runtime-status.png'),
     x: '9.0cm',
     y: '13.05cm',
@@ -491,25 +316,34 @@ function buildFinalSlide() {
     cropRight: 5,
     alt: 'OPL 运行状态截图裁切预览',
   });
-  addNotes(10, '本页用于快速排查首次安装和首启问题。Release、DMG、首启日志和模块状态以 App repo contracts、workflow、VM smoke artifacts 为机器真相。');
-  addFooter(10, '10 / 10');
+  addNotes(slide, expandList(guide.provenance_notes, guide, assetManifest).join(' '));
+  addFooter(slide, `${slide} / ${totalSlides}`);
 }
 
 function buildPptx() {
-  fs.rmSync(pptxPath, { force: true });
+  const slideText = [
+    guide.title,
+    guide.cover.description,
+    ...guide.steps.flatMap((step) => [step.title, step.subtitle, step.body, ...step.callouts, step.speaker_notes, ...step.notes]),
+    ...guide.faqs,
+    ...guide.provenance_notes,
+  ].map((text) => expandTemplate(text, guide, assetManifest)).join('\n');
+  scanTextForSecrets(slideText);
+
+  fs.rmSync(slidePptxPath, { force: true });
   fs.rmSync(slidePdfPath, { force: true });
-  run('officecli', ['create', pptxPath, '--force']);
-  run('officecli', ['set', pptxPath, '/', '--prop', 'title=OPL + MAS 新手首次启动图文教程', '--prop', 'author=one-person-lab-app', '--prop', 'subject=macOS App first-run slide guide']);
+  run('officecli', ['create', slidePptxPath, '--force']);
+  run('officecli', ['set', slidePptxPath, '/', '--prop', `title=${guide.title}`, '--prop', `author=${guide.owner}`, '--prop', 'subject=macOS App first-run slide guide']);
   buildCoverSlide();
-  steps.forEach(buildStepSlide);
+  guide.steps.forEach(buildStepSlide);
   buildFinalSlide();
-  run('officecli', ['close', pptxPath]);
-  run('officecli', ['validate', pptxPath]);
+  run('officecli', ['close', slidePptxPath]);
+  run('officecli', ['validate', slidePptxPath]);
 }
 
 function exportSlidePdf() {
   const soffice = process.env.SOFFICE_BIN || 'soffice';
-  const generatedPdfPath = path.join(guideDir, `${path.basename(pptxPath, '.pptx')}.pdf`);
+  const generatedPdfPath = path.join(guideDir, `${path.basename(slidePptxPath, '.pptx')}.pdf`);
   fs.rmSync(generatedPdfPath, { force: true });
   fs.rmSync(slidePdfPath, { force: true });
   run(soffice, [
@@ -518,7 +352,7 @@ function exportSlidePdf() {
     'pdf',
     '--outdir',
     guideDir,
-    pptxPath,
+    slidePptxPath,
   ]);
   if (!fs.existsSync(generatedPdfPath)) throw new Error(`Expected LibreOffice PDF output at ${generatedPdfPath}`);
   fs.renameSync(generatedPdfPath, slidePdfPath);
@@ -538,11 +372,11 @@ function pdfInfo() {
 }
 
 function pptxStats() {
-  return run('officecli', ['view', pptxPath, 'stats']).stdout;
+  return run('officecli', ['view', slidePptxPath, 'stats']).stdout;
 }
 
 function main() {
-  const { dimensions, assets } = assertAssets();
+  const { dimensions, assets } = assertGuideAssets('Slide', guide, assetManifest);
   buildPptx();
   exportSlidePdf();
   const render = renderPdf();
@@ -551,20 +385,21 @@ function main() {
   const pageSizeMatch = info.match(/^Page size:\s+([\d.]+)\s+x\s+([\d.]+)\s+pts/m);
   const pageWidth = Number(pageSizeMatch?.[1] ?? 0);
   const pageHeight = Number(pageSizeMatch?.[2] ?? 0);
-  if (pages !== 10) throw new Error(`Expected 10 slide PDF pages, got ${pages}`);
+  if (pages !== totalSlides) throw new Error(`Expected ${totalSlides} slide PDF pages, got ${pages}`);
   if (pageWidth <= pageHeight) throw new Error(`Expected landscape slide PDF, got ${pageWidth}x${pageHeight} pts`);
 
   const stats = pptxStats();
   const slideMatch = stats.match(/Slides:\s+(\d+)/i) ?? stats.match(/totalSlides:\s+(\d+)/i);
-  const slides = Number(slideMatch?.[1] ?? 10);
+  const slides = Number(slideMatch?.[1] ?? totalSlides);
 
   const verification = {
     status: 'macos_app_install_slides_ready',
-    download_url: latestReleaseUrl,
-    screenshot_release_tag: screenshotReleaseTag,
-    screenshot_asset_manifest: path.relative(appRoot, assetManifestPath),
-    output_pptx: path.relative(appRoot, pptxPath),
-    output_pdf: path.relative(appRoot, slidePdfPath),
+    download_url: guide.download.latest_release_url,
+    screenshot_release_tag: screenshotTag,
+    guide_source: relativeToApp(guideSourcePath),
+    screenshot_asset_manifest: relativeToApp(assetManifestPath),
+    output_pptx: relativeToApp(slidePptxPath),
+    output_pdf: relativeToApp(slidePdfPath),
     slide_layout: '16:9',
     slides,
     pdf_pages: pages,
@@ -577,18 +412,13 @@ function main() {
       body_pt: '17-22',
       cover_title_pt: 38,
     },
-    screenshot_source: {
-      source: assetManifest.screenshot_source,
-      release_run_id: assetManifest.release_run?.id,
-      release_run_url: assetManifest.release_run?.url,
-      release_run_conclusion: assetManifest.release_run?.conclusion,
-    },
+    screenshot_source: screenshotSourceVerification(assetManifest),
     screenshot_assets: assets,
     screenshot_dimensions: dimensions,
     rendered_pages: render.pages.length,
-    rendered_dir: path.relative(appRoot, render.renderDir),
+    rendered_dir: relativeToApp(render.renderDir),
   };
-  fs.writeFileSync(verificationPath, `${JSON.stringify(verification, null, 2)}\n`, 'utf8');
+  writeJson(slideVerificationPath, verification);
   console.log(JSON.stringify(verification, null, 2));
 }
 

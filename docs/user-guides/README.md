@@ -9,20 +9,34 @@ This directory is the entry point for end-user installation, first-run, update,
 and troubleshooting guides. Framework developer docs remain in
 `gaofeng21cn/one-person-lab`.
 
-Primary user artifact:
+Primary user guide entry:
 
-- [macOS App install slides PDF](macos-app-install-slides.pdf): primary
-  user-facing screenshot tutorial. Use this in release notes and onboarding
-  links.
+- [macOS App install HTML guide](site/index.html): primary user-facing
+  walkthrough. Use this in release notes and onboarding links because it gives
+  users a navigable page, generated attachments, FAQ, and screenshot provenance
+  in one place.
 
-Editable and detailed companion artifacts:
+Generated reading artifacts:
 
-- [macOS App install slides PPTX](macos-app-install-slides.pptx): editable
-  16:9 slide source with larger type and one task per slide.
+- [macOS App install slides PDF](macos-app-install-slides.pdf): generated
+  screenshot walkthrough with larger type and one task per slide.
 - [macOS App install detailed PDF](macos-app-install-detailed-guide.pdf):
-  detailed long-form companion generated from the Markdown source with Pandoc.
-- [macOS App install Markdown](macos-app-install.md): canonical text source for
-  the detailed guide and the content checklist.
+  generated long-form companion.
+- [macOS App install Markdown](macos-app-install.md): generated long-form text
+  source for the detailed PDF. It is not the public onboarding entry.
+- [macOS App install slides PPTX](macos-app-install-slides.pptx): generated
+  editable slide source for internal maintenance and presentation edits. It is
+  not the public onboarding entry.
+
+Source and verification files:
+
+- [`macos-app-install.guide.json`](macos-app-install.guide.json): canonical
+  user-guide content source for HTML, slides, Markdown, and detailed PDF.
+- [`macos-app-install-assets.json`](macos-app-install-assets.json): screenshot
+  provenance, dimensions, and SHA256 manifest.
+- `macos-app-install-html-verification.json`,
+  `macos-app-install-slides-verification.json`, and
+  `macos-app-install-verification.json`: generated verification records.
 
 Update flow:
 
@@ -31,11 +45,14 @@ Update flow:
    each screenshot source, width, height, and SHA256. The guide generators fail
    if the PNGs do not match this manifest. Do not force a shared canvas size;
    keep the VM/CDP output dimensions recorded per image.
-2. Update `macos-app-install.md` and the slide copy in
-   `scripts/build-user-guide-slides.ts` when the user flow changes.
-3. Run `npm run docs:macos-guide` to refresh the primary slide PDF, editable
-   PPTX, and detailed companion PDF together.
-4. For targeted regeneration, run `npm run docs:macos-guide:slides` or
-   `npm run docs:macos-guide:pdf`.
-5. Verify `macos-app-install-slides-verification.json` and
+2. Update `macos-app-install.guide.json` when the user flow, copy, FAQ,
+   artifact links, or step ordering changes. Do not edit generated Markdown or
+   slide copy as a second source of truth.
+3. Run `npm run docs:macos-guide` to refresh the HTML guide, primary slide PDF,
+   editable PPTX, detailed companion PDF, generated Markdown, and all
+   verification JSON files.
+4. For targeted regeneration, run `npm run docs:macos-guide:html`,
+   `npm run docs:macos-guide:slides`, or `npm run docs:macos-guide:pdf`.
+5. Verify `macos-app-install-html-verification.json`,
+   `macos-app-install-slides-verification.json`, and
    `macos-app-install-verification.json` before publishing.

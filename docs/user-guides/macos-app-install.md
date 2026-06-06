@@ -3,7 +3,7 @@
 Owner: `one-person-lab-app`
 Purpose: `macos_app_install_user_guide_pdf_source`
 State: `active`
-Machine boundary: Human-readable user guide. Release contracts, workflows, VM smoke artifacts, and App release metadata remain the machine truth.
+Machine boundary: Human-readable user guide. Release contracts, workflows, VM smoke artifacts, screenshot manifest, and App release metadata remain the machine truth.
 
 适用对象：医生、PI、课题负责人；不要求计算机基础。本文以 macOS App 首次启动为主线，说明如何下载、安装、配置 One Person Lab，并通过 Research Foundry / Med Auto Science 发起首次科研任务。
 

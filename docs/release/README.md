@@ -330,10 +330,10 @@ builds that should run on GitHub runners instead of this Mac.
   it can block promotion or be used to clear a release.
 - User-guide screenshot refresh is a post-promotion documentation lane. A Stable
   release can capture release evidence screenshots during VM gates, but
-  refreshing `docs/user-guides` screenshots or generated guide PDFs belongs
-  after the candidate record has been promoted. Screenshot/docs drift should
-  open a post-release docs task; it must not be mixed into release publish
-  repairs or used as a pre-promotion gate.
+  refreshing the `docs/user-guides` entry page, screenshots, guide source, and
+  generated HTML/PDF/PPTX artifacts belongs after the candidate record has been
+  promoted. Screenshot/docs drift should open a post-release docs task; it must
+  not be mixed into release publish repairs or used as a pre-promotion gate.
 - Scheduled **OPL GUI First-Run VM** runs use a dedicated GitHub Actions
   concurrency group with `cancel-in-progress` enabled, so nightly clean-VM
   backlog collapses to the newest scheduled run instead of occupying the
@@ -778,10 +778,11 @@ Stop conditions for a Stable train:
   action.
 - Use `refresh_existing` only as an emergency repair/replace lane for an
   existing published release. Do not use it as the normal Stable publish path.
-- Run user-guide screenshot/docs refresh after promotion. If it fails, record a
-  post-release docs blocker or follow-up; do not reopen the release candidate
-  decision unless the screenshot work exposes a deterministic release gate
-  regression.
+- Run user-guide screenshot/docs refresh after promotion, then run
+  `npm run docs:macos-guide` and check the HTML, slides, and detailed PDF
+  verification JSON files. If it fails, record a post-release docs blocker or
+  follow-up; do not reopen the release candidate decision unless the screenshot
+  work exposes a deterministic release gate regression.
 
 ```bash
 npm run ensure:shell

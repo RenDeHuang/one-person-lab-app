@@ -1,23 +1,19 @@
 {
-  "status": "macos_app_install_slides_ready",
-  "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
-  "screenshot_release_tag": "v26.6.5",
+  "status": "macos_app_install_html_ready",
+  "output_html": "docs/user-guides/site/index.html",
   "guide_source": "docs/user-guides/macos-app-install.guide.json",
+  "screenshot_release_tag": "v26.6.5",
   "screenshot_asset_manifest": "docs/user-guides/macos-app-install-assets.json",
-  "output_pptx": "docs/user-guides/macos-app-install-slides.pptx",
-  "output_pdf": "docs/user-guides/macos-app-install-slides.pdf",
-  "slide_layout": "16:9",
-  "slides": 10,
-  "pdf_pages": 10,
-  "pdf_page_size_pts": {
-    "width": 960.009,
-    "height": 540
+  "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
+  "stable_install_command_present": true,
+  "generated_artifacts": {
+    "slides_pdf": "docs/user-guides/macos-app-install-slides.pdf",
+    "slides_pptx": "docs/user-guides/macos-app-install-slides.pptx",
+    "detailed_pdf": "docs/user-guides/macos-app-install-detailed-guide.pdf"
   },
-  "typography": {
-    "title_pt": 34,
-    "body_pt": "17-22",
-    "cover_title_pt": 38
-  },
+  "html_bytes": 20515,
+  "guide_steps": 8,
+  "image_references": 9,
   "screenshot_source": {
     "source": {
       "kind": "macos_tart_vm_guide_artifact",
@@ -157,7 +153,5 @@
       "width": 1536,
       "height": 912
     }
-  },
-  "rendered_pages": 10,
-  "rendered_dir": "tmp/pdfs/macos-app-install-slides/rendered"
+  }
 }

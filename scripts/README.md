@@ -20,7 +20,7 @@ verification can select a different linked shell repo with
 | `cleanup-draft-release-candidates.ts` | Dry-runs or deletes stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. |
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
-| `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates, Stable candidate-record promotion, and post-release user-guide screenshot/docs refresh. |
+| `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates, Stable candidate-record promotion, and post-release `docs/user-guides` screenshot/source/artifact refresh with `npm run docs:macos-guide`. |
 | `validate-release-candidate-record.ts` | Validates or summarizes `release-candidate-record.json`; promotion requires schema `opl_release_candidate_record.v1`, matching version, `status=ready_to_promote`, and `decision.can_promote=true`. |
 | `analyze-full-package-size.ts` | Reads `full-package-manifest.json` and reports Full runtime component/layer size, budget use, and optional runtime-root top entries. |
 | `collect-release-evidence.ts` | Collects live OPL runtime snapshot, App/operator drilldown, selected safe-action dry-run/execute JSON, and standard smoke source-dir artifacts into a release evidence bundle, writes the manifest, and validates the bundle in missing-evidence mode without claiming absent screenshot, VM, settings, or remote evidence. |
@@ -187,8 +187,10 @@ one-shot App installer, Docker/WebUI, remote verification, and release evidence
 bundle validation can identify the exact user installation path that failed.
 For normal Stable trains, use `npm run release:plan -- --version <version>
 --include-full-package` as the operator plan: it models
-`new_release -> draft candidate -> gates -> candidate record -> promote` and keeps user-guide
-screenshot/docs refresh in a post-release lane. `refresh_existing` is the
+`new_release -> draft candidate -> gates -> candidate record -> promote` and keeps the
+`docs/user-guides` entry, screenshots, guide source, and generated artifacts refresh in a
+post-release lane. Run `npm run docs:macos-guide` for that docs refresh.
+`refresh_existing` is the
 emergency repair/replace lane for an already published release, not the default
 new Stable path. Once a candidate record, readiness summary, remote verification
 JSON, or named gate result establishes a blocked stop condition, do not continue
