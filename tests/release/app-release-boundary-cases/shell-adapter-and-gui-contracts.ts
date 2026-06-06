@@ -789,6 +789,10 @@ test('App fallow hygiene is not the active GUI shell validation gate', () => {
 test('active shell validation exposes opt-in live OPL conformance without making it default', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const activeShellValidator = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-active-shell.ts'), 'utf8');
+  const shellImplementationValidator = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'validate-active-shell', 'shell-implementation-validator.ts'),
+    'utf8',
+  );
   const runtimeBridge = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-runtime-bridge.json'), 'utf8'),
   );
@@ -797,8 +801,9 @@ test('active shell validation exposes opt-in live OPL conformance without making
   const combinedDocs = `${testingDocs}\n${architectureDocs}`;
 
   assert.equal(packageJson.scripts['validate:active-shell'], 'node --experimental-strip-types scripts/validate-active-shell.ts');
-  assert.match(activeShellValidator, /useAcpInitialMessage\.ts/);
-  assert.match(activeShellValidator, /await warmupConversation\(conversation_id\)/);
+  assert.match(activeShellValidator, /validateLiveOplConformance\(runtimeBridge\)/);
+  assert.match(shellImplementationValidator, /useAcpInitialMessage\.ts/);
+  assert.match(shellImplementationValidator, /await warmupConversation\(conversation_id\)/);
   assert.equal(runtimeBridge.live_conformance_gate.mode, 'explicit_env_opt_in');
   assert.equal(runtimeBridge.live_conformance_gate.default_enforcement, 'disabled');
   assert.equal(runtimeBridge.live_conformance_gate.opl_bin, './bin/opl');
