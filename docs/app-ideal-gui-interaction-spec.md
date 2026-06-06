@@ -276,8 +276,8 @@ implementation helper 不直接成为 OPL App 普通会话能力。
 
 Project progress 是 runtime/work context surface，不属于 Settings
 information architecture。Local Environment 展示 Codex CLI、Temporal、
-modules、paths 和 update readiness；Advanced 展示 developer mode、raw paths、
-logs 和 diagnostics。
+modules、paths 和 update readiness；Advanced 展示 Developer Profile
+capabilities、raw paths、logs 和 developer diagnostics。
 
 ## WebUI
 

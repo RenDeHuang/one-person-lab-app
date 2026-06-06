@@ -67,8 +67,8 @@ Legacy routes 只作为兼容 redirect：
 
 Access 优先回答 App 现在能否工作。Capabilities 先按 purpose 和 agent domain
 分组，再展示 Skills 或 MCP/tool details。Local Environment 拥有 Codex CLI、
-Temporal、modules、paths 和 release readiness。Advanced 拥有 developer mode、
-raw refs、logs、diagnostics 和 OPL Flow context。
+Temporal、modules、paths 和 release readiness。Advanced 拥有 Developer
+Profile capabilities、raw refs、logs、developer diagnostics 和 OPL Flow context。
 
 ## Shell 协作
 

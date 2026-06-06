@@ -681,7 +681,7 @@
         "label_zh": "高级",
         "label_en": "Advanced",
         "role": "developer_and_diagnostic_controls",
-        "primary_question": "Which raw paths, logs, developer mode, and diagnostics are exposed?"
+        "primary_question": "Which Developer Profile capabilities, raw paths, logs, and developer diagnostics are exposed?"
       },
       "about": {
         "label_zh": "关于与更新",
