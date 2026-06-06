@@ -422,12 +422,12 @@ This release makes a clean OPL install more useful immediately by shipping refre
 - The release keeps standard DMG, Full DMG, one-shot installer, and Docker/WebUI validation as separate install surfaces, so a failed gate points to the user path that needs attention.
 
 ## OPL agents and runtime payload
-- Full clean-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
+- Full first-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
 - Build-time payload refs: OPL Framework @ aaaaaaa; Codex CLI 0.130.0; MAS @ 1111111; MAG @ 2222222; RCA @ 3333333; OPL Meta Agent @ 4444444; OfficeCLI 1.2.3; MinerU v0.1.3.
 - Payload updates since previous Stable: OPL Framework de72385 -> aaaaaaa; Codex CLI 0.129.0 -> 0.130.0; MAS 29369d4 -> 1111111; MAG 36ce5a9 -> 2222222; RCA c4af4b3 -> 3333333; OPL Meta Agent added at 4444444; OfficeCLI 1.0.93 -> 1.2.3; MinerU added at v0.1.3.
 
 ## Release scope
-- Standard macOS arm64 updater package plus Full clean-install DMG.
+- Standard macOS arm64 updater package plus Full first-install DMG.
 
 **Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.5.17...v26.5.18
 `;
@@ -444,12 +444,12 @@ This release makes a clean OPL install more useful immediately by shipping refre
 - 标准 DMG、Full DMG、一键安装器和 Docker/WebUI 验证继续分开，失败时可以定位到具体用户路径。
 
 ## OPL agents and runtime payload
-- Full clean-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
+- Full first-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
 - Build-time payload refs: OPL Framework @ aaaaaaa; Codex CLI 0.130.0; MAS @ 1111111; MAG @ 2222222; RCA @ 3333333; OPL Meta Agent @ 4444444; OfficeCLI 1.2.3; MinerU v0.1.3.
 - Payload updates since previous Stable: OPL Framework de72385 -> aaaaaaa; Codex CLI 0.129.0 -> 0.130.0; MAS 29369d4 -> 1111111; MAG 36ce5a9 -> 2222222; RCA c4af4b3 -> 3333333; OPL Meta Agent added at 4444444; OfficeCLI 1.0.93 -> 1.2.3; MinerU added at v0.1.3.
 
 ## Release scope
-- Standard macOS arm64 updater package plus Full clean-install DMG.
+- Standard macOS arm64 updater package plus Full first-install DMG.
 
 **Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.5.17...v26.5.18
 `));
@@ -477,7 +477,7 @@ This release makes a clean OPL install more useful immediately by shipping refre
   assert.match(notes, /One Person Lab v26\.5\.18/);
   assert.match(notes, /What changed/);
   assert.match(notes, /Release scope/);
-  assert.match(notes, /Standard macOS arm64 updater package plus Full clean-install DMG/);
+  assert.match(notes, /Standard macOS arm64 updater package plus Full first-install DMG/);
   assert.match(notes, /OPL agents and runtime payload/);
   assert.match(notes, /MAS @ 1111111/);
   assert.match(notes, /MAG @ 2222222/);
@@ -487,7 +487,7 @@ This release makes a clean OPL install more useful immediately by shipping refre
   assert.match(notes, /MinerU v0\.1\.3/);
   assert.doesNotMatch(notes, /Release focus/);
   assert.doesNotMatch(notes, /Update channel guidance/);
-  assert.doesNotMatch(notes, /Full first-install package/);
+  assert.doesNotMatch(notes, /Full clean-install/);
   assert.doesNotMatch(publicNotes, /[\u3400-\u9fff]/);
 });
 

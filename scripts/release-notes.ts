@@ -101,9 +101,9 @@ export function buildReleaseNotesEvidence(options: ReleaseNoteOptions): ReleaseN
   appendAgentChangeSummary(buckets, Boolean(options.includeFullPackage));
   const oplPayloadLines = buildOplPayloadLines(options, bundledVersions, payloadUpdates);
   const releaseScope = options.channel === 'nightly'
-    ? 'Standard macOS arm64 Nightly package and updater metadata; no Full clean-install DMG in the Nightly channel.'
+    ? 'Standard macOS arm64 Nightly package and updater metadata; no Full first-install DMG in the Nightly channel.'
     : options.includeFullPackage
-      ? 'Standard macOS arm64 updater package plus Full clean-install DMG.'
+      ? 'Standard macOS arm64 updater package plus Full first-install DMG.'
       : 'Standard macOS arm64 updater package is published for this release.';
   return {
     schema: 'opl_app_release_notes_evidence.v1',

@@ -108,12 +108,12 @@ function buildFullPayloadDescription(bundledVersions: string[]) {
     && labels.includes('OPL Meta Agent')
     && labels.includes('OfficeCLI')
     && labels.includes('MinerU')) {
-    return 'Full clean-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.';
+    return 'Full first-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.';
   }
   const payloads = labels.length > 0
     ? labels.join(', ')
     : 'the components recorded in full-package-manifest.json';
-  return `Full clean-install DMG payload recorded in this release manifest: ${payloads}, plus packaged Codex skills where present.`;
+  return `Full first-install DMG payload recorded in this release manifest: ${payloads}, plus packaged Codex skills where present.`;
 }
 
 export function buildPayloadUpdateLines(currentManifest: any, previousManifest: any) {
@@ -217,13 +217,13 @@ export function buildOplPayloadLines(options: ReleaseNoteOptions, bundledVersion
   }
   if (options.channel === 'nightly') {
     return [
-      '- Standard macOS arm64 Nightly package and updater metadata only; Full clean-install assets stay out of the Nightly channel.',
+      '- Standard macOS arm64 Nightly package and updater metadata only; Full first-install assets stay out of the Nightly channel.',
       '- Nightly standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.',
       '- Full runtime payloads for MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, and MinerU stay out of the Nightly channel and remain Stable/Full-release material.',
     ];
   }
   return [
     '- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.',
-    '- Domain runtime payload versions are published only when the release also includes the Full clean-install DMG manifest.',
+    '- Domain runtime payload versions are published only when the release also includes the Full first-install DMG manifest.',
   ];
 }
