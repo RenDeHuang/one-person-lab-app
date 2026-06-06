@@ -6866,6 +6866,8 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(fullPackageScript, /verifyDmgAppBundleLocalAuthorization/);
   assert.match(fullPackageScript, /assertAppBundleLocalAuthorization/);
   assert.match(fullPackageScript, /codesign verification must pass even when Stable Full uses local authorization/);
+  assert.match(fullPackageScript, /ensureAppBundleAdHocCodesign/);
+  assert.match(fullPackageScript, /'--sign', '-'/);
   assert.match(fullPackageScript, /createFullDmgFromVerifiedApp/);
   assert.match(fullPackageScript, /local_authorized_unsigned/);
   assert.doesNotMatch(fullPackageScript, /codesign_status=\$\{codesign\.status === 0 \? 'passed' : 'failed_allowed_unsigned'\}/);

@@ -1954,6 +1954,26 @@ function findBuiltApp(guiRoot) {
   return found;
 }
 
+function ensureAppBundleAdHocCodesign(appPath, label) {
+  if (!canRunMacosSigningChecks()) {
+    return;
+  }
+  const initial = runCapture('codesign', ['--verify', '--deep', '--strict', '--verbose=2', appPath]);
+  if (initial.status === 0) {
+    return;
+  }
+  run('codesign', ['--force', '--deep', '--sign', '-', appPath]);
+  const verified = runCapture('codesign', ['--verify', '--deep', '--strict', '--verbose=2', appPath]);
+  if (verified.status !== 0) {
+    throw new Error([
+      `${label} ad-hoc codesign did not produce a verifiable App bundle: ${appPath}`,
+      initial.stderr?.trim() ? `initial codesign stderr:\n${initial.stderr.trim()}` : '',
+      verified.stdout?.trim() ? `verified codesign stdout:\n${verified.stdout.trim()}` : '',
+      verified.stderr?.trim() ? `verified codesign stderr:\n${verified.stderr.trim()}` : '',
+    ].filter(Boolean).join('\n'));
+  }
+}
+
 function assertAppBundleLocalAuthorization(appPath, label) {
   if (!canRunMacosSigningChecks()) {
     return;
@@ -2010,6 +2030,8 @@ function verifyDmgAppBundleLocalAuthorization(dmgPath, label) {
 
 function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
   removeBuiltDmgCandidates(guiRoot, version);
+  ensureAppBundleAdHocCodesign(appPath, 'Full built app bundle');
+  assertAppBundleLocalAuthorization(appPath, 'Full built app bundle');
   const compressionLevel = process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL || (process.env.CI === 'true' ? '9' : '7');
   run('bunx', [
     'electron-builder',
@@ -2047,6 +2069,7 @@ function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version) {
     verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
   } catch (error) {
     const builtApp = findBuiltApp(guiRoot);
+    ensureAppBundleAdHocCodesign(builtApp, 'Full built app bundle');
     assertAppBundleLocalAuthorization(builtApp, 'Full built app bundle');
     fs.rmSync(targetDmg, { force: true });
     createFullDmgFromVerifiedApp(guiRoot, builtApp, targetDmg, version);
@@ -2158,6 +2181,7 @@ function main() {
   }
 
   const packageCompressionStartedAt = monotonicSeconds();
+  ensureAppBundleAdHocCodesign(findBuiltApp(options.guiRoot), 'Full built app bundle');
   const sourceDmg = findBuiltDmg(options.guiRoot, options.version);
   const targetDmg = path.join(options.outDir, artifactNames.dmg);
   fs.copyFileSync(sourceDmg, targetDmg);
