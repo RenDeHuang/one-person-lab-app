@@ -824,11 +824,10 @@ Stop conditions for a Stable train:
 - Stop as blocked when the record is `blocked`, a required small artifact is
   missing, a gate is failed/cancelled/unexpectedly skipped, or the workflow
   cannot write a candidate record.
-- Do not keep chasing scattered logs from long-running runs such as `019e9556`
-  once the candidate record, readiness summary, remote verification JSON, or a
-  named gate result has established the stop condition. Inspect a failed job log
-  only after those structured artifacts identify the gate that needs owner
-  action.
+- Do not keep chasing scattered logs from long-running release runs once the
+  candidate record, readiness summary, remote verification JSON, or a named gate
+  result has established the stop condition. Inspect a failed job log only after
+  those structured artifacts identify the gate that needs owner action.
 - Use `refresh_existing` only as an emergency repair/replace lane for an
   existing published release. Do not use it as the normal Stable publish path.
 - Run user-guide screenshot/docs refresh after promotion, then run
@@ -1077,26 +1076,27 @@ in the background and prompt for restart after the update is ready; Full
 first-install assets remain separate release downloads and are not updater
 metadata.
 
-2026-06-01 release policy: the App release channel owns WebUI GHCR publishing.
-Stable desktop release workflows publish
-`ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>`, `stable`, and
-`latest` after Docker/WebUI HTTP smoke passes. Nightly publishes
+The App release channel owns WebUI GHCR publishing through
+`contracts/app-release-channel.json#webui_ghcr_image`. Stable desktop release
+workflows publish `ghcr.io/<owner>/one-person-lab-webui:<app_or_opl_version>`,
+`stable`, and `latest` after Docker/WebUI HTTP smoke passes. Nightly publishes
 `<app_or_opl_version>` and `nightly`. Both lanes label the image source as
-`https://github.com/gaofeng21cn/one-person-lab-app`. The Framework only references this image
-coordinate. Full DMG payload assembly must not include the WebUI GHCR image, and
-standard updater metadata remains restricted to standard macOS arm64 App assets.
-The existing `one-person-lab-webui` GHCR package must separately grant write
-Actions access to `gaofeng21cn/one-person-lab-app` from the package settings
-page and should be connected to `gaofeng21cn/one-person-lab-app` so the GitHub
-Packages page no longer presents the WebUI package as Framework-owned. If the
-write gate is missing, the WebUI GHCR publish artifact records
-`ghcr_write_package_denied`; fix the package settings gate and rerun the Nightly
-or stable workflow rather than moving publishing back to the Framework. WebUI
-GHCR retention keeps `latest`, `stable`, `nightly`, the recent stable/nightly
-version windows declared in `contracts/app-release-channel.json`, and declared
-rollback tags. Deleting package versions is a separate dry-run-first admin
-operation with package admin / `delete:packages` permission; it is not part of
-ordinary App release publishing.
+`https://github.com/gaofeng21cn/one-person-lab-app`. The Framework only
+references this image coordinate. Full DMG payload assembly must not include the
+WebUI GHCR image, and standard updater metadata remains restricted to standard
+macOS arm64 App assets.
+
+The `one-person-lab-webui` GHCR package access and retention rules are
+contract-owned. Its GitHub package settings must grant write Actions access to
+`gaofeng21cn/one-person-lab-app` through `Manage Actions access`; package
+repository association should also point at `gaofeng21cn/one-person-lab-app`
+when an admin can update the package settings UI. If the write gate is missing,
+the WebUI GHCR publish artifact records `ghcr_write_package_denied`, usually
+after `permission_denied: write_package`; fix the package settings gate and
+rerun the Nightly or stable workflow rather than moving publishing back to the
+Framework. WebUI GHCR cleanup follows the retention policy in the release
+contract, keeps protected moving tags and recent stable/nightly windows, and
+requires a dry-run-first package-admin operation with `delete:packages`.
 
 When the GitHub Packages page is filtered by `repo_name=one-person-lab`, a
 historical package association can still show `one-person-lab-webui` beside

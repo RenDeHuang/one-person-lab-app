@@ -115,7 +115,7 @@ authorization while exceeding the Full DMG size budget.
 Layer 4 should reduce CI polling cost. Release triage should prefer downloaded
 summary artifacts and job-result JSON over repeated `gh run view` loops. The
 interactive agent should inspect failed job logs only after summary artifacts
-identify the failing gate. For long-running runs such as `019e9556`, stop at the
+identify the failing gate. For any long-running release run, stop at the
 candidate record, readiness summary, remote verification JSON, or named blocked
 gate. Do not keep chasing scattered job logs after the structured artifacts have
 already identified the stop condition.

@@ -197,7 +197,7 @@ updates the HTML guide plus the shareable PDF/PPTX and detailed PDF artifacts.
 emergency repair/replace lane for an already published release, not the default
 new Stable path. Once a candidate record, readiness summary, remote verification
 JSON, or named gate result establishes a blocked stop condition, do not continue
-polling scattered logs from long-running runs such as `019e9556`.
+polling scattered logs from long-running release runs.
 
 ## Release CI operations notes
 
