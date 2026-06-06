@@ -6171,7 +6171,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /full-release-notes-evidence-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /git tag "\$tag" "\$GITHUB_SHA"/);
   assert.match(workflow, /--standard-artifacts-dir release-assets/);
-  assert.match(workflow, /publish_args\+=\(--draft\)/);
+  assert.match(workflow, /if \[ "\$RELEASE_MODE" = "new_release" \] \|\| \[ "\$RELEASE_MODE" = "draft_candidate" \]; then[\s\S]*publish_args\+=\(--draft\)/);
   assert.match(workflow, /remote-verify-standard:/);
   assert.match(workflow, /remote-verify-full:/);
   assert.match(workflow, /npm run verify-remote-release/);
@@ -6779,6 +6779,12 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.doesNotMatch(warmupWorkflow, /secrets: inherit/);
 
   assert.match(promoteWorkflow, /name: OPL Desktop Release Promote/);
+  assert.match(promoteWorkflow, /release_run_id:/);
+  assert.match(promoteWorkflow, /Download release candidate record/);
+  assert.match(promoteWorkflow, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(promoteWorkflow, /record\.schema !== 'opl_release_candidate_record\.v1'/);
+  assert.match(promoteWorkflow, /record\.status !== 'ready_to_promote'/);
+  assert.match(promoteWorkflow, /record\.decision\?\.can_promote !== true/);
   assert.match(promoteWorkflow, /npm run verify-remote-release/);
   assert.match(promoteWorkflow, /gh release edit "v\$\{OPL_RELEASE_VERSION\}"/);
   assert.match(promoteWorkflow, /--draft=false/);

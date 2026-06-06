@@ -240,7 +240,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY"
             --standard-artifacts-dir release-assets
           )
-          if [ "$RELEASE_MODE" = "draft_candidate" ]; then
+          if [ "$RELEASE_MODE" = "new_release" ] || [ "$RELEASE_MODE" = "draft_candidate" ]; then
             publish_args+=(--draft)
           fi
           "${publish_args[@]}"

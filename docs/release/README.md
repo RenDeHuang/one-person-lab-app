@@ -230,11 +230,16 @@ builds that should run on GitHub runners instead of this Mac.
   clobber semantics, then optionally builds and publishes the Full first-install
   assets.
 - `release_mode=new_release` builds the same assets, creates and pushes the
-  `v<opl_version>` tag from the workflow commit, creates the GitHub Release, and
-  optionally adds the Full first-install assets after the standard release exists.
+  `v<opl_version>` tag from the workflow commit, and creates a draft GitHub
+  Release candidate. It does not publish Stable directly; use **OPL Desktop
+  Release Promote** with the release workflow run id after the candidate record
+  is `ready_to_promote`.
 - `release_mode=draft_candidate` builds the same assets into a draft
   `v<opl_version>` Release. Use **OPL Desktop Release Promote** after reviewing
   the draft assets and verification summary.
+- `release_mode=refresh_existing` is the same-tag emergency repair lane for an
+  already existing release. Prefer `new_release` plus candidate promotion for
+  normal Stable trains.
 - **OPL Desktop Release Cleanup Drafts** removes stale candidate Releases after
   the stable `v<opl_version>` Release has been published. It only inspects
   GitHub Release metadata, defaults to dry-run, and deletes matching

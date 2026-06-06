@@ -132,6 +132,7 @@ const checks = [
       'node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets',
       'node --experimental-strip-types scripts/validate-release.ts release-assets',
       '--standard-artifacts-dir release-assets',
+      'if [ "$RELEASE_MODE" = "new_release" ] || [ "$RELEASE_MODE" = "draft_candidate" ]; then',
       'npm run verify-remote-release',
       'draft_candidate',
       'pull-requests: read',
