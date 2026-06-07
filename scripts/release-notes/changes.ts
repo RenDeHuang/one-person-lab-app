@@ -1,8 +1,8 @@
 import type { ChangeBucket, ChangeBucketId } from './types.ts';
 
-export const bucketOrder: ChangeBucketId[] = ['first_run', 'agents', 'ui_settings', 'release', 'docs', 'quality'];
+const bucketOrder: ChangeBucketId[] = ['first_run', 'agents', 'ui_settings', 'release', 'docs', 'quality'];
 
-export const bucketTitles: Record<ChangeBucketId, string> = {
+const bucketTitles: Record<ChangeBucketId, string> = {
   first_run: 'First-run setup',
   agents: 'OPL agent updates',
   ui_settings: 'App UI and runtime status',
@@ -19,7 +19,7 @@ export function normalizedSubject(subject: string) {
     .toLowerCase();
 }
 
-export function addUnique(target: string[], value: string) {
+function addUnique(target: string[], value: string) {
   if (!target.includes(value)) {
     target.push(value);
   }

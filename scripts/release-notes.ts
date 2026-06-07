@@ -38,7 +38,7 @@ export { buildReleaseTitle } from './release-notes/tags.ts';
 
 const stableInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash';
 
-export const releaseNotesAgentRuntimeEvidenceBoundary = {
+const releaseNotesAgentRuntimeEvidenceBoundary = {
   collectComponentChangeSubjects,
   roles: [
     'research automation and study workflow agent',

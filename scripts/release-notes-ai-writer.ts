@@ -75,7 +75,7 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export function extractLocalizedReleaseNotes(markdown: string, locale: ReleaseNotesLocale) {
+function extractLocalizedReleaseNotes(markdown: string, locale: ReleaseNotesLocale) {
   const escapedLocale = escapeRegExp(locale);
   const hiddenBlock = markdown.match(
     new RegExp(`<!--\\s*OPL_RELEASE_NOTES:${escapedLocale}\\s*\\n([\\s\\S]*?)\\n?-->`, 'i')
@@ -96,14 +96,14 @@ export function extractLocalizedReleaseNotes(markdown: string, locale: ReleaseNo
   return '';
 }
 
-export function stripLocalizedReleaseNotes(markdown: string) {
+function stripLocalizedReleaseNotes(markdown: string) {
   return `${markdown
     .replace(/<!--\s*OPL_RELEASE_NOTES:[A-Za-z-]+\s*\n[\s\S]*?\n?-->\s*/g, '')
     .replace(/<!--\s*OPL_RELEASE_NOTES:[A-Za-z-]+\s*-->[\s\S]*?<!--\s*\/OPL_RELEASE_NOTES:[A-Za-z-]+\s*-->\s*/g, '')
     .trimEnd()}\n`;
 }
 
-export function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
+function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
   return [
     'Write the public GitHub Release notes for One Person Lab App.',
     '',
@@ -356,7 +356,7 @@ function validateLocalizedReleaseNotes(markdown: string, evidence: ReleaseNotesE
   }
 }
 
-export function validateAiReleaseNotes(markdown: string, evidence: ReleaseNotesEvidence) {
+function validateAiReleaseNotes(markdown: string, evidence: ReleaseNotesEvidence) {
   validateEnglishReleaseNotesMarkdown(stripLocalizedReleaseNotes(markdown), evidence);
   validateLocalizedReleaseNotes(markdown, evidence);
 }

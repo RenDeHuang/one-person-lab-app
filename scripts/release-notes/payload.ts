@@ -4,7 +4,7 @@ import { collectCommitSubjects, gitRefExists } from './command.ts';
 import { buildChangeSummaryHint } from './changes.ts';
 import type { AgentRuntimeChange, ReleaseNoteOptions } from './types.ts';
 
-export const payloadComponentSpecs = [
+const payloadComponentSpecs = [
   {
     label: 'OPL Framework',
     key: 'opl',

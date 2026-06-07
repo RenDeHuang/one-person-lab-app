@@ -3,7 +3,7 @@ import path from 'node:path';
 import { commandOutput, gitOutput, gitRefExists } from './command.ts';
 import type { ReleaseChannel, ReleaseNoteOptions } from './types.ts';
 
-export function normalizeReleaseVersion(versionOrTag: string) {
+function normalizeReleaseVersion(versionOrTag: string) {
   return versionOrTag.startsWith('v') ? versionOrTag.slice(1) : versionOrTag;
 }
 
