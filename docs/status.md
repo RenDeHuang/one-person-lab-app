@@ -248,13 +248,17 @@ Electron autoUpdater background-download and download-ready restart prompt
 model. Standard updater ZIP assets must also pass
 `standard_updater_zip_app_bundle_trust`: the published ZIP is extracted on a
 macOS runner, the embedded `One Person Lab.app` version is checked, `codesign`
-and Gatekeeper assessment must pass, `Signature=adhoc` is rejected, and
-`TeamIdentifier` must be present. Full assets are available as GitHub Release
-first-install downloads and as the explicit stable `one-person-lab-full`
-Homebrew cask; they do not enter updater metadata. GitHub Release uploads,
-standard DMG, Full DMG, GUI smoke, Homebrew cask smoke, and user tutorials are
-all App-owned. The Framework repo is only a runtime/CLI/contracts payload source
-for Full DMG and a machine-interface provider for the App.
+diagnostics are recorded, Gatekeeper rejection is accepted only as
+`rejected_allowed_unsigned` under the Stable local authorization policy, and
+the release evidence must publish `standard-local-authorization-policy.json`.
+Paid Apple Developer ID signing, notarization, and `TeamIdentifier` are optional
+diagnostics for this lane, not release requirements. Full assets are available
+as GitHub Release first-install downloads and as the explicit stable
+`one-person-lab-full` Homebrew cask; they do not enter updater metadata. GitHub
+Release uploads, standard DMG, Full DMG, GUI smoke, Homebrew cask smoke, and
+user tutorials are all App-owned. The Framework repo is only a
+runtime/CLI/contracts payload source for Full DMG and a machine-interface
+provider for the App.
 
 Stable macOS standard updater releases use App-managed local authorization, not
 paid Apple Developer ID signing or notarization. First-run VM smokes still clear
