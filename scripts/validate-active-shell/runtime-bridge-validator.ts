@@ -10,6 +10,7 @@ import {
   validateActiveProjectLineProjectionContract,
   validateArtifactNativeDrilldownFixture,
   validateArtifactNativeDrilldownProjectionContract,
+  validateProviderReadinessRepairProjectionContract,
   validateProjectProgressDisplayContract,
   validateStageRunCockpitFixture,
   validateStageRunCockpitProjectionContract,
@@ -410,6 +411,10 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
     }
   }
   validateProjectProgressDisplayContract(runtimeBridge.project_progress_projection, 'Runtime bridge project progress projection');
+  validateProviderReadinessRepairProjectionContract(
+    runtimeBridge.provider_readiness_repair_projection,
+    'Runtime bridge provider readiness repair projection',
+  );
   validateStateIndexSidecarProjectionContract(
     runtimeBridge.state_index_sidecar_projection,
     'Runtime bridge State Index sidecar projection',

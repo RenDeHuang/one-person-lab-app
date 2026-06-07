@@ -131,6 +131,17 @@ start, worker lifecycle, readiness diagnostics, residency proof, and repair
 receipts. Temporal provider readiness remains Full readiness/background
 maintenance for ordinary first launch.
 
+The App/operator readout now keeps provider readiness repair actionable without
+turning it into domain progress. When OPL App state reports Temporal worker
+`worker_not_ready`, the Runtime page must surface
+`opl family-runtime worker start --provider temporal` or the corresponding OPL
+safe-action route as provider liveness repair. When Temporal Search Attributes
+are missing, it must surface
+`opl family-runtime provider repair --provider temporal` as provider visibility
+repair. Both are infrastructure readiness paths only: they do not declare
+domain ready, do not authorize owner receipts or typed blockers, and do not
+replace `current_owner_delta` as the default owner-action payload.
+
 First-run progress is also contract-backed. The shared progress model is
 produced by `opl system initialize --json` at
 `system_initialize.setup_flow`; App, CLI one-shot install, and Docker/WebUI

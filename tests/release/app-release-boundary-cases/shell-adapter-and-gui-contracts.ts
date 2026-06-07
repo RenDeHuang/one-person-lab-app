@@ -421,6 +421,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
       'appearance_preference',
       'advanced_diagnostic_link',
       'about_update_fact',
+      'provider_readiness_repair',
     ],
     ordinary_must_not_default_display_terms: expectedOrdinaryCockpitForbiddenTerms,
     diagnostics_escape_hatch: 'Advanced, release evidence, developer detail, or explicit full-detail drilldown only',

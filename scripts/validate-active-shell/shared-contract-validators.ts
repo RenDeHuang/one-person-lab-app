@@ -29,6 +29,80 @@ export function validateProgressDeltaDisplayContract(progressDelta, label) {
   }
 }
 
+export function validateProviderReadinessRepairProjectionContract(projection, label, options = {}) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.provider + app_state.actions + app_state.operator.default_read_surface_policy',
+    authority: 'opl_framework_provider_readiness_refs_projection',
+    display_policy: 'provider_readiness_repair_secondary_without_current_owner_delta_override',
+    provider_kind: 'temporal',
+    current_owner_delta_policy: 'never_replace_default_operator_payload_or_owner_delta_show_as_provider_readiness_repair_only',
+    app_role: 'display_only_provider_repair_path_consumer',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  if (options.requireProjectionRef && projection.projection_ref !== 'contracts/app-runtime-bridge.json#provider_readiness_repair_projection') {
+    throw new Error(`${label} projection_ref must point at app-runtime-bridge provider readiness repair projection`);
+  }
+  if (projection.domain_readiness_authority !== false) {
+    throw new Error(`${label} domain_readiness_authority must be false`);
+  }
+  if (projection.provider_readiness_authority !== false) {
+    throw new Error(`${label} provider_readiness_authority must be false`);
+  }
+  const cases = projection.repair_cases ?? [];
+  const workerNotReady = cases.find((repairCase) => repairCase?.blocker === 'worker_not_ready');
+  if (!workerNotReady) {
+    throw new Error(`${label} must declare worker_not_ready repair case`);
+  }
+  for (const [field, expected] of Object.entries({
+    source_status: 'temporal_worker_readiness.readiness_status=worker_not_ready',
+    display_state: 'provider_worker_not_ready',
+    next_repair_command: 'opl family-runtime worker start --provider temporal',
+    safe_action_id: 'provider_worker_start',
+    runtime_action_id: 'provider-worker:temporal:start',
+    command_role: 'provider_liveness_repair_only',
+  })) {
+    if (workerNotReady[field] !== expected) {
+      throw new Error(`${label} worker_not_ready.${field} must be ${expected}`);
+    }
+  }
+  const searchAttributesMissing = cases.find((repairCase) => repairCase?.blocker === 'missing_search_attributes');
+  if (!searchAttributesMissing) {
+    throw new Error(`${label} must declare missing_search_attributes repair case`);
+  }
+  for (const [field, expected] of Object.entries({
+    source_status: 'temporal_visibility_readiness.readiness_status=missing_search_attributes',
+    display_state: 'temporal_search_attributes_missing',
+    next_repair_command: 'opl family-runtime provider repair --provider temporal',
+    command_role: 'provider_visibility_repair_only',
+  })) {
+    if (searchAttributesMissing[field] !== expected) {
+      throw new Error(`${label} missing_search_attributes.${field} must be ${expected}`);
+    }
+  }
+  if (searchAttributesMissing.safe_action_id !== null || searchAttributesMissing.runtime_action_id !== null) {
+    throw new Error(`${label} missing_search_attributes must be surfaced as a repair command, not a shell-owned safe action`);
+  }
+  assertIncludesAll(
+    projection.forbidden_claims,
+    [
+      'domain_ready',
+      'domain_readiness',
+      'owner_receipt_authority',
+      'typed_blocker_authority',
+      'current_owner_delta_override',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+    `${label} forbidden_claims`,
+  );
+}
+
 export function validateStateIndexSidecarProjectionContract(projection, label) {
   if (!projection || typeof projection !== 'object') {
     throw new Error(`${label} must be declared`);

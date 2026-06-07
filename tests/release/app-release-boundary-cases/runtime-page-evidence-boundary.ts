@@ -233,6 +233,45 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'family_production_readiness',
     ],
   });
+  assert.deepEqual(runtimeBridge.provider_readiness_repair_projection, {
+    source: 'app_state.provider + app_state.actions + app_state.operator.default_read_surface_policy',
+    authority: 'opl_framework_provider_readiness_refs_projection',
+    display_policy: 'provider_readiness_repair_secondary_without_current_owner_delta_override',
+    provider_kind: 'temporal',
+    repair_cases: [
+      {
+        blocker: 'worker_not_ready',
+        source_status: 'temporal_worker_readiness.readiness_status=worker_not_ready',
+        display_state: 'provider_worker_not_ready',
+        next_repair_command: 'opl family-runtime worker start --provider temporal',
+        safe_action_id: 'provider_worker_start',
+        runtime_action_id: 'provider-worker:temporal:start',
+        command_role: 'provider_liveness_repair_only',
+      },
+      {
+        blocker: 'missing_search_attributes',
+        source_status: 'temporal_visibility_readiness.readiness_status=missing_search_attributes',
+        display_state: 'temporal_search_attributes_missing',
+        next_repair_command: 'opl family-runtime provider repair --provider temporal',
+        safe_action_id: null,
+        runtime_action_id: null,
+        command_role: 'provider_visibility_repair_only',
+      },
+    ],
+    current_owner_delta_policy: 'never_replace_default_operator_payload_or_owner_delta_show_as_provider_readiness_repair_only',
+    domain_readiness_authority: false,
+    provider_readiness_authority: false,
+    app_role: 'display_only_provider_repair_path_consumer',
+    forbidden_claims: [
+      'domain_ready',
+      'domain_readiness',
+      'owner_receipt_authority',
+      'typed_blocker_authority',
+      'current_owner_delta_override',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+  });
   assert.deepEqual(runtimePage.runtime_view_model.project_progress.user_display_fields, expectedRuntimeProjectProgressUserFields);
   assert.equal(runtimeBridge.authority_boundary.shell_adapter_can_own_runtime_truth, false);
   assert.equal(runtimeBridge.authority_boundary.app_can_own_runtime_truth, false);
@@ -639,6 +678,18 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'separate_infrastructure_repair_not_deliverable_progress',
   );
   assert.equal(runtimePage.runtime_view_model.progress_delta.forbidden_delivery_claim_for_platform_repair, true);
+  assert.deepEqual(runtimePage.runtime_view_model.provider_readiness_repair, {
+    source: 'app_state.provider + app_state.actions + app_state.operator.default_read_surface_policy',
+    authority: 'opl_framework_provider_readiness_refs_projection',
+    display_policy: 'provider_readiness_repair_secondary_without_current_owner_delta_override',
+    provider_kind: 'temporal',
+    repair_cases: runtimeBridge.provider_readiness_repair_projection.repair_cases,
+    current_owner_delta_policy: 'never_replace_default_operator_payload_or_owner_delta_show_as_provider_readiness_repair_only',
+    domain_readiness_authority: false,
+    provider_readiness_authority: false,
+    app_role: 'display_only_provider_repair_path_consumer',
+    forbidden_claims: runtimeBridge.provider_readiness_repair_projection.forbidden_claims,
+  });
   assert.equal(runtimePage.runtime_view_model.primary_state_source, 'opl app state --profile fast --json');
   assert.equal(runtimePage.runtime_view_model.refresh_state_source, 'opl app state --profile fast --json');
   assert.equal(runtimePage.runtime_view_model.summary_source, 'opl runtime app-operator-drilldown --json');
@@ -694,6 +745,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
+    'provider readiness repair path for worker_not_ready and missing Temporal Search Attributes',
+    'current_owner_delta remains the default owner action while provider repair stays infrastructure-only',
     'app_state.actions safe action refs',
     'refs-only non-authority boundary',
     'safe app action dry-run',
@@ -718,6 +771,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'progress delta rendered as user-facing labels',
     'runtime diagnostics as secondary disclosure',
     'provider readiness from app_state.provider',
+    'repair command for provider worker not ready',
+    'repair command for missing Temporal Search Attributes',
+    'provider readiness repair does not override current_owner_delta',
     'operator summary from app_state.operator',
     'safe action refs from app_state.actions',
     'non-running waiting or stopped projects collapsed by default',

@@ -26,6 +26,7 @@ import {
   validateArtifactNativeDrilldownProjectionContract,
   validateBeginnerFirstRunPresentation,
   validateOplFlowContext,
+  validateProviderReadinessRepairProjectionContract,
   validateProgressDeltaDisplayContract,
   validateStateIndexSidecarProjectionContract,
   validateUserTaskStatusProjectionContract,
@@ -232,6 +233,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       throw new Error(`App GUI StageRun cockpit ${field} must be ${expected}`);
     }
   }
+  validateProviderReadinessRepairProjectionContract(
+    guiContract.framework_surfaces.provider_readiness_repair,
+    'App GUI provider readiness repair framework surface',
+    { requireProjectionRef: true },
+  );
   const runtimeDefaultAttention = guiContract.framework_surfaces.runtime_default_attention;
   if (runtimeDefaultAttention?.default_mode !== 'user_task_status_first') {
     throw new Error('App GUI runtime default attention must be user_task_status_first');
@@ -327,6 +333,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
         'appearance_preference',
         'advanced_diagnostic_link',
         'about_update_fact',
+        'provider_readiness_repair',
       ],
       ordinary_must_not_default_display_terms: [
         'Temporal',

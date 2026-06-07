@@ -21,6 +21,7 @@ import {
 import {
   validateArtifactNativeDrilldownProjectionContract,
   validateBeginnerFirstRunPresentation,
+  validateProviderReadinessRepairProjectionContract,
   validateProgressDeltaDisplayContract,
   validateProjectProgressDisplayContract,
   validateStateIndexSidecarProjectionContract,
@@ -569,6 +570,10 @@ export function validatePageStateMatrix(matrix, contract) {
     runtimeViewModel.artifact_native_drilldown,
     'Runtime page Stage Artifact drilldown projection',
   );
+  validateProviderReadinessRepairProjectionContract(
+    runtimeViewModel.provider_readiness_repair,
+    'Runtime page provider readiness repair projection',
+  );
   const pageDefaultAttention = runtimeViewModel.default_attention;
   if (pageDefaultAttention?.mode !== 'user_task_status_first') {
     throw new Error('Runtime page default attention must be user_task_status_first');
@@ -670,6 +675,8 @@ export function validatePageStateMatrix(matrix, contract) {
     'full detail lazy load',
     'app_state.operator.summary refs',
     'app_state.provider readiness refs',
+    'provider readiness repair path for worker_not_ready and missing Temporal Search Attributes',
+    'current_owner_delta remains the default owner action while provider repair stays infrastructure-only',
     'app_state.actions safe action refs',
     'refs-only non-authority boundary',
     'safe app action dry-run',
@@ -699,6 +706,9 @@ export function validatePageStateMatrix(matrix, contract) {
     'artifact-native current/canonical/export/lineage/retention/conformance refs',
     'runtime diagnostics as secondary disclosure',
     'provider readiness from app_state.provider',
+    'repair command for provider worker not ready',
+    'repair command for missing Temporal Search Attributes',
+    'provider readiness repair does not override current_owner_delta',
     'operator summary from app_state.operator',
     'safe action refs from app_state.actions',
     'non-running waiting or stopped projects collapsed by default',
