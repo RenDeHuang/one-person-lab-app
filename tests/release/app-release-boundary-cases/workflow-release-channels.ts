@@ -141,14 +141,14 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /default: true/);
   assert.match(workflow, /guide_screenshots:[\s\S]*Capture user-guide screenshots/);
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
-  assert.match(workflow, /permissions:[\s\S]*pull-requests: read/);
+  assert.doesNotMatch(workflow, /pull-requests: read/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-standard-only:/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:/);
   assert.match(workflow, /stable-homebrew-tap-update:/);
-  assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml[\s\S]*write_mode: direct_commit/);
+  assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml/);
   assert.match(workflow, /full-homebrew-tap-update:/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*remote-verify-full/);
-  assert.match(workflow, /full-homebrew-tap-update:[\s\S]*package_kind: app_full_first_install[\s\S]*write_mode: direct_commit/);
+  assert.match(workflow, /full-homebrew-tap-update:[\s\S]*package_kind: app_full_first_install/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*full-homebrew-tap-update/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs\.stable-homebrew-tap-update\.result == 'success'/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs\.full-homebrew-tap-update\.result == 'success'/);
@@ -418,7 +418,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
 
   assert.match(workflow, /name: OPL Nightly Standard Release/);
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
-  assert.match(workflow, /permissions:[\s\S]*pull-requests: read/);
+  assert.doesNotMatch(workflow, /pull-requests: read/);
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /schedule:/);
   assert.match(workflow, /cron: '17 18 \* \* \*'/);
@@ -455,6 +455,8 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /"\$\{ghcr_image\}:nightly"/);
   assert.doesNotMatch(workflow, /full-first-install-release\.yml/);
   assert.doesNotMatch(workflow, /include_full_package/);
+  assert.doesNotMatch(workflow, /homebrew-tap-update:/);
+  assert.doesNotMatch(workflow, /uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml/);
   assert.doesNotMatch(workflow, /One-Person-Lab-Full/);
   assert.doesNotMatch(workflow, /nightly\.\$\{stamp\}/);
   assert.doesNotMatch(workflow, /One Person Lab Nightly \$\{OPL_RELEASE_VERSION\}/);
@@ -523,8 +525,12 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.equal(homebrew.tap_update_policy.default_workflow_repo, 'gaofeng21cn/homebrew-one-person-lab');
   assert.equal(homebrew.tap_update_policy.default_workflow, '.github/workflows/sync-from-app-releases.yml');
   assert.equal(homebrew.tap_update_policy.tap_sync_script, 'scripts/sync-cask-from-release.mjs');
-  assert.equal(homebrew.tap_update_policy.app_release_pr_workflow, '.github/workflows/homebrew-tap-update.yml');
-  assert.equal(homebrew.tap_update_policy.app_release_pr_token, 'OPL_HOMEBREW_TAP_TOKEN');
+  assert.equal(homebrew.tap_update_policy.app_release_direct_workflow, '.github/workflows/homebrew-tap-update.yml');
+  assert.equal(homebrew.tap_update_policy.app_release_direct_token, 'OPL_HOMEBREW_TAP_TOKEN');
+  assert.equal(homebrew.tap_update_policy.app_release_pull_request_allowed, false);
+  assert.equal(homebrew.tap_update_policy.app_release_workflow_write_mode, 'direct_commit_only');
+  assert.equal('app_release_pr_workflow' in homebrew.tap_update_policy, false);
+  assert.equal('app_release_pr_token' in homebrew.tap_update_policy, false);
   assert.equal(homebrew.tap_update_policy.stable_release_workflow_write_mode, 'direct_commit_before_homebrew_vm_gate');
   assert.equal(homebrew.tap_update_policy.planner_script, 'scripts/update-homebrew-tap.ts');
   assert.equal(homebrew.tap_update_policy.nightly.mode, 'tap_repo_scheduled_self_sync_to_nightly_cask');
@@ -565,10 +571,11 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.match(homebrewWorkflow, /name: OPL Homebrew Tap Update/);
   assert.match(homebrewWorkflow, /workflow_dispatch:/);
   assert.match(homebrewWorkflow, /workflow_call:/);
-  assert.match(homebrewWorkflow, /write_mode:/);
-  assert.match(homebrewWorkflow, /direct_commit/);
+  assert.doesNotMatch(homebrewWorkflow, /write_mode:/);
+  assert.doesNotMatch(homebrewWorkflow, /pull-requests: read/);
+  assert.doesNotMatch(homebrewWorkflow, /pull_request/);
   assert.match(homebrewWorkflow, /OPL_HOMEBREW_TAP_TOKEN/);
-  assert.match(homebrewWorkflow, /OPL_HOMEBREW_TAP_TOKEN is required for direct Stable Homebrew tap updates/);
+  assert.match(homebrewWorkflow, /OPL_HOMEBREW_TAP_TOKEN is required for Homebrew tap direct commits/);
   assert.match(homebrewWorkflow, /repository: \$\{\{ inputs\.tap_repo \}\}/);
   assert.match(homebrewWorkflow, /gh release view "\$tag"[\s\S]*--json tagName,isDraft,isPrerelease,assets/);
   assert.match(homebrewWorkflow, /Homebrew tap updates must read assets from gaofeng21cn\/one-person-lab-app/);
@@ -581,21 +588,16 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.match(homebrewWorkflow, /Full first-install Homebrew cask updates must stay on the stable channel/);
   assert.match(homebrewWorkflow, /Homebrew tap updates are App cask-only; agent packs are App\/CLI-managed/);
   assert.doesNotMatch(homebrewWorkflow, /one-person-lab-modules-\$\{version\}\.tar\.gz/);
-  assert.match(homebrewWorkflow, /node --experimental-strip-types scripts\/update-homebrew-tap\.ts[\s\S]*--summary-path "\$RUNNER_TEMP\/homebrew-tap-plan\.json"[\s\S]*--remote-write-mode "\$\{\{ inputs\.write_mode \}\}"[\s\S]*--write/);
-  assert.match(homebrewWorkflow, /peter-evans\/create-pull-request@v8/);
-  assert.match(homebrewWorkflow, /inputs\.write_mode != 'direct_commit'/);
+  assert.match(homebrewWorkflow, /node --experimental-strip-types scripts\/update-homebrew-tap\.ts[\s\S]*--summary-path "\$RUNNER_TEMP\/homebrew-tap-plan\.json"[\s\S]*--remote-write-mode "direct_commit"[\s\S]*--write/);
+  assert.doesNotMatch(homebrewWorkflow, /peter-evans\/create-pull-request@v8/);
+  assert.doesNotMatch(homebrewWorkflow, /inputs\.write_mode/);
   assert.match(homebrewWorkflow, /git -C homebrew-tap push origin HEAD:main/);
   assert.match(homebrewWorkflow, /path: homebrew-tap/);
-  assert.match(homebrewWorkflow, /Homebrew remains an App cask transport\/index/);
-  assert.match(homebrewWorkflow, /Full cask is an explicit stable first-install surface outside standard updater metadata/);
   assert.doesNotMatch(homebrewWorkflow, /gh release upload/);
 
-  assert.match(nightlyWorkflow, /homebrew-tap-update:/);
-  assert.match(nightlyWorkflow, /uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml/);
-  assert.match(nightlyWorkflow, /permissions:[\s\S]*pull-requests: read/);
-  assert.match(nightlyWorkflow, /channel: nightly/);
-  assert.match(nightlyWorkflow, /package_kind: app_standard/);
-  assert.match(nightlyWorkflow, /tap_repo: gaofeng21cn\/homebrew-one-person-lab/);
+  assert.doesNotMatch(nightlyWorkflow, /homebrew-tap-update:/);
+  assert.doesNotMatch(nightlyWorkflow, /uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml/);
+  assert.doesNotMatch(nightlyWorkflow, /pull-requests: read/);
 });
 
 test('stable validation profile covers every user installation surface', () => {

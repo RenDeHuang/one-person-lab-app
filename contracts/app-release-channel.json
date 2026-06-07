@@ -139,8 +139,10 @@
       "default_workflow_repo": "gaofeng21cn/homebrew-one-person-lab",
       "default_workflow": ".github/workflows/sync-from-app-releases.yml",
       "tap_sync_script": "scripts/sync-cask-from-release.mjs",
-      "app_release_pr_workflow": ".github/workflows/homebrew-tap-update.yml",
-      "app_release_pr_token": "OPL_HOMEBREW_TAP_TOKEN",
+      "app_release_direct_workflow": ".github/workflows/homebrew-tap-update.yml",
+      "app_release_direct_token": "OPL_HOMEBREW_TAP_TOKEN",
+      "app_release_pull_request_allowed": false,
+      "app_release_workflow_write_mode": "direct_commit_only",
       "stable_release_workflow_write_mode": "direct_commit_before_homebrew_vm_gate",
       "planner_script": "scripts/update-homebrew-tap.ts",
       "nightly": {

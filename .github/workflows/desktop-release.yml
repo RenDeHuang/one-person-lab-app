@@ -55,7 +55,6 @@ on:
 permissions:
   contents: write
   actions: read
-  pull-requests: read
   models: read
   packages: write
 
@@ -407,7 +406,6 @@ jobs:
       opl_version: ${{ inputs.opl_version }}
       release_repo: gaofeng21cn/one-person-lab-app
       tap_repo: gaofeng21cn/homebrew-one-person-lab
-      write_mode: direct_commit
     secrets:
       OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
 
@@ -424,7 +422,6 @@ jobs:
       opl_version: ${{ inputs.opl_version }}
       release_repo: gaofeng21cn/one-person-lab-app
       tap_repo: gaofeng21cn/homebrew-one-person-lab
-      write_mode: direct_commit
     secrets:
       OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
 

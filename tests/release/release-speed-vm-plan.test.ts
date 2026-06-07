@@ -86,7 +86,11 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     /standard-first-run-vm-smoke-after-full:[\s\S]*?needs:\s+publish-standard/,
     'standard VM smoke after Full job',
   );
-  assertMatches(workflow, /stable-homebrew-tap-update:[\s\S]*?write_mode:\s+direct_commit/, 'Stable Homebrew tap update job');
+  assertMatches(
+    workflow,
+    /stable-homebrew-tap-update:[\s\S]*?uses:\s+\.\/\.github\/workflows\/homebrew-tap-update\.yml/,
+    'Stable Homebrew tap update job',
+  );
   assertMatches(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*?needs:[\s\S]*?stable-homebrew-tap-update[\s\S]*?full-homebrew-tap-update/, 'Homebrew VM smoke job');
   assertMatches(workflow, /full-first-run-vm-smoke:[\s\S]*?needs:\s+remote-verify-full/, 'Full VM smoke job');
   assertMatches(workflow, /one-shot-app-installer-smoke:[\s\S]*?needs:\s+publish-standard/, 'one-shot installer smoke');

@@ -143,15 +143,16 @@ published App GitHub Releases, resolves the App or Full DMG asset and `sha256:` 
 runs `scripts/sync-cask-from-release.mjs`, validates the tap with Homebrew
 style/audit checks, and commits cask changes back to the tap. It does not read
 or publish agent-pack/module tarballs. The scheduled run tracks the latest
-published Nightly prerelease and updates only `one-person-lab-nightly`. Stable
-desktop releases call the App repo `OPL Homebrew Tap Update` workflow in
-`direct_commit` mode after remote asset verification and before the Homebrew VM
-gate. That makes the Homebrew gate install the same stable cohort from
-`one-person-lab` that users will install. The workflow requires
-`OPL_HOMEBREW_TAP_TOKEN` for this Stable path, remains App cask-only, and can
-still be used in pull-request mode for operator-reviewed tap changes. Full cask
-updates remain explicit stable first-install updates after Full release gates
-pass. Homebrew nightly freshness does not depend on that cross-repo secret.
+published Nightly prerelease and updates only `one-person-lab-nightly`; App
+Nightly release workflows do not open tap pull requests. Stable desktop
+releases call the App repo `OPL Homebrew Tap Update` workflow after remote asset
+verification and before the Homebrew VM gate, and that reusable workflow commits
+directly to the App-owned tap. That makes the Homebrew gate install the same
+stable cohort from `one-person-lab` that users will install. The workflow
+requires `OPL_HOMEBREW_TAP_TOKEN`, remains App cask-only, and no longer supports
+pull-request write mode. Full cask updates remain explicit stable first-install
+updates after Full release gates pass. Homebrew nightly freshness does not
+depend on that cross-repo secret.
 
 Codex and Temporal compatibility also stay anchored in the existing release
 contracts. The Full workflow records the current Codex CLI and Temporal archive

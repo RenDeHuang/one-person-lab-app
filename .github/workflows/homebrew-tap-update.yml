@@ -33,14 +33,6 @@ on:
         required: false
         default: gaofeng21cn/homebrew-one-person-lab
         type: string
-      write_mode:
-        description: How to write tap changes
-        required: false
-        default: pull_request
-        type: choice
-        options:
-          - pull_request
-          - direct_commit
   workflow_call:
     inputs:
       channel:
@@ -63,18 +55,12 @@ on:
         description: Homebrew tap repository to update
         required: true
         type: string
-      write_mode:
-        description: How to write tap changes
-        required: false
-        default: pull_request
-        type: string
     secrets:
       OPL_HOMEBREW_TAP_TOKEN:
-        required: false
+        required: true
 
 permissions:
   contents: read
-  pull-requests: read
 
 concurrency:
   group: opl-homebrew-tap-${{ inputs.channel }}-${{ inputs.package_kind }}-${{ inputs.opl_version }}
@@ -84,8 +70,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  update-tap-pr:
-    name: Plan Homebrew tap update and open PR
+  update-tap-direct:
+    name: Plan and commit Homebrew tap update
     runs-on: ubuntu-latest
 
     steps:
@@ -94,19 +80,13 @@ jobs:
         shell: bash
         env:
           OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
-          OPL_HOMEBREW_WRITE_MODE: ${{ inputs.write_mode }}
         run: |
           set -euo pipefail
           if [ -z "$OPL_HOMEBREW_TAP_TOKEN" ]; then
-            if [ "$OPL_HOMEBREW_WRITE_MODE" = "direct_commit" ]; then
-              echo "::error::OPL_HOMEBREW_TAP_TOKEN is required for direct Stable Homebrew tap updates."
-              exit 1
-            fi
-            echo "::warning::OPL_HOMEBREW_TAP_TOKEN is not configured; skipping Homebrew tap PR."
-            echo "available=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "::error::OPL_HOMEBREW_TAP_TOKEN is required for Homebrew tap direct commits."
+            exit 1
           fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Checkout App repo
         if: ${{ steps.tap-token.outputs.available == 'true' }}
@@ -272,7 +252,7 @@ jobs:
             --checksum-sha256 "$OPL_CHECKSUM_SHA256" \
             --download-url "$OPL_DOWNLOAD_URL" \
             --summary-path "$RUNNER_TEMP/homebrew-tap-plan.json" \
-            --remote-write-mode "${{ inputs.write_mode }}" \
+            --remote-write-mode "direct_commit" \
             --write
 
           node --experimental-strip-types scripts/update-homebrew-tap.ts --self-check
@@ -290,27 +270,8 @@ jobs:
           path: ${{ runner.temp }}/homebrew-tap-plan.json
           if-no-files-found: error
 
-      - name: Open Homebrew tap PR
-        if: ${{ steps.tap-token.outputs.available == 'true' && inputs.write_mode != 'direct_commit' && steps.tap-plan.outputs.changed == 'true' }}
-        uses: peter-evans/create-pull-request@v8
-        with:
-          token: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
-          path: homebrew-tap
-          branch: opl/${{ inputs.channel }}-${{ inputs.package_kind }}-${{ inputs.opl_version }}
-          title: "Update OPL Homebrew tap for ${{ inputs.opl_version }} ${{ inputs.package_kind }}"
-          commit-message: "Update OPL Homebrew tap for ${{ inputs.opl_version }} ${{ inputs.package_kind }}"
-          body: |
-            Updates the OPL Homebrew tap from the App-owned GitHub Release cohort.
-
-            - Channel: `${{ inputs.channel }}`
-            - Package kind: `${{ inputs.package_kind }}`
-            - Version: `${{ inputs.opl_version }}`
-            - Release repo: `${{ inputs.release_repo }}`
-
-            Homebrew remains an App cask transport/index. The Full cask is an explicit stable first-install surface outside standard updater metadata. App activation and agent-pack exposure stay under `opl system initialize --json`, `opl module reconcile`, and `opl skill sync`.
-
       - name: Commit Homebrew tap update directly
-        if: ${{ steps.tap-token.outputs.available == 'true' && inputs.write_mode == 'direct_commit' && steps.tap-plan.outputs.changed == 'true' }}
+        if: ${{ steps.tap-token.outputs.available == 'true' && steps.tap-plan.outputs.changed == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -321,7 +282,7 @@ jobs:
           git -C homebrew-tap push origin HEAD:main
 
       - name: Summarize unchanged direct Homebrew tap update
-        if: ${{ steps.tap-token.outputs.available == 'true' && inputs.write_mode == 'direct_commit' && steps.tap-plan.outputs.changed == 'false' }}
+        if: ${{ steps.tap-token.outputs.available == 'true' && steps.tap-plan.outputs.changed == 'false' }}
         shell: bash
         run: |
           echo "Homebrew tap already matches ${{ inputs.opl_version }} ${{ inputs.package_kind }}."

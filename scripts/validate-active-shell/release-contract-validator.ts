@@ -34,8 +34,10 @@ export function validateReleaseChannelContract(releaseChannel) {
     homebrew.tap_update_policy?.default_workflow_repo !== 'gaofeng21cn/homebrew-one-person-lab' ||
     homebrew.tap_update_policy?.default_workflow !== '.github/workflows/sync-from-app-releases.yml' ||
     homebrew.tap_update_policy?.tap_sync_script !== 'scripts/sync-cask-from-release.mjs' ||
-    homebrew.tap_update_policy?.app_release_pr_workflow !== '.github/workflows/homebrew-tap-update.yml' ||
-    homebrew.tap_update_policy?.app_release_pr_token !== 'OPL_HOMEBREW_TAP_TOKEN' ||
+    homebrew.tap_update_policy?.app_release_direct_workflow !== '.github/workflows/homebrew-tap-update.yml' ||
+    homebrew.tap_update_policy?.app_release_direct_token !== 'OPL_HOMEBREW_TAP_TOKEN' ||
+    homebrew.tap_update_policy?.app_release_pull_request_allowed !== false ||
+    homebrew.tap_update_policy?.app_release_workflow_write_mode !== 'direct_commit_only' ||
     homebrew.tap_update_policy?.stable_release_workflow_write_mode !== 'direct_commit_before_homebrew_vm_gate' ||
     homebrew.tap_update_policy?.planner_script !== 'scripts/update-homebrew-tap.ts' ||
     homebrew.tap_update_policy?.nightly?.mode !== 'tap_repo_scheduled_self_sync_to_nightly_cask' ||
