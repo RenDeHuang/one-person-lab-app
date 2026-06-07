@@ -63,7 +63,7 @@ export const htmlDir = path.join(guideDir, 'site');
 export const htmlPath = path.join(htmlDir, 'index.html');
 export const htmlVerificationPath = path.join(guideDir, 'macos-app-install-html-verification.json');
 
-export const forbiddenPatterns = [
+const forbiddenPatterns = [
   /sk-[A-Za-z0-9_-]+/,
   /OPENAI_API_KEY/,
   /CODEX_API_KEY/,
@@ -87,7 +87,7 @@ export function run(command: string, args: string[], options: { cwd?: string } =
   return result;
 }
 
-export function loadJson<T>(filePath: string): T {
+function loadJson<T>(filePath: string): T {
   return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T;
 }
 
@@ -116,14 +116,14 @@ export function expandList(items: string[], guide: GuideDocument, assetManifest 
   return items.map((item) => expandTemplate(item, guide, assetManifest));
 }
 
-export function imageInfo(filePath: string) {
+function imageInfo(filePath: string) {
   const result = run('sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', filePath]);
   const width = Number(result.stdout.match(/pixelWidth:\s+(\d+)/)?.[1] ?? 0);
   const height = Number(result.stdout.match(/pixelHeight:\s+(\d+)/)?.[1] ?? 0);
   return { width, height };
 }
 
-export function fileSha256(filePath: string) {
+function fileSha256(filePath: string) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
