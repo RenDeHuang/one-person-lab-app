@@ -138,7 +138,7 @@ test('active shell adapter keeps GUI authority and replacement gates in the App 
     action_command: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
     full_drilldown_exception: 'opl runtime app-operator-drilldown --detail full --json',
     forbidden_gui_truth_sources: [
-      'direct opl modules --json page aggregation',
+      'direct opl connect modules --json page aggregation',
       'direct opl system developer-supervisor page aggregation',
       'direct opl family-runtime worker status page aggregation',
       'application.systemInfo as OPL path truth',

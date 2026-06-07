@@ -191,7 +191,7 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
   }
   assertEqual(contract.owner, 'one-person-lab-app', 'agent contract owner');
   assertEqual(contract.producer_owner, 'one-person-lab', 'agent contract producer owner');
-  assertEqual(contract.unified_sync_command, 'opl skill sync', 'agent contract unified sync command');
+  assertEqual(contract.unified_sync_command, 'opl connect sync-skills', 'agent contract unified sync command');
   assertEqual(contract.managed_install_source, 'opl_managed_modules', 'agent contract managed source');
   assertEqual(
     contract.user_agent_installation_mode,
@@ -229,7 +229,7 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
   );
   assertArrayEqual(
     contract.managed_agent_pack_distribution?.activation_commands,
-    ['opl module reconcile', 'opl skill sync'],
+    ['opl connect reconcile-modules', 'opl connect sync-skills'],
     'agent-pack distribution activation commands',
   );
   assertArrayEqual(

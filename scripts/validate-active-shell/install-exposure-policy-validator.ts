@@ -274,7 +274,7 @@ export function validateInstallExposurePolicy(policy) {
   );
 
   const sync = policy.sync_and_install_contract;
-  for (const command of ['opl install', 'opl system initialize --json', 'opl system startup-maintenance', 'opl module reconcile', 'opl skill sync']) {
+  for (const command of ['opl install', 'opl system initialize --json', 'opl system startup-maintenance', 'opl connect reconcile-modules', 'opl connect sync-skills']) {
     if (!sync?.framework_commands?.includes(command)) {
       throw new Error(`Install exposure sync contract must include ${command}`);
     }
@@ -319,7 +319,7 @@ export function validateInstallExposurePolicy(policy) {
   }
   assertIncludesAll(
     homebrew.activation_commands,
-    ['opl module reconcile', 'opl skill sync'],
+    ['opl connect reconcile-modules', 'opl connect sync-skills'],
     'Install exposure Homebrew activation commands',
   );
   if (
@@ -361,7 +361,7 @@ export function validateInstallExposurePolicy(policy) {
   );
   assertIncludesAll(
     homebrew.agent_pack_policy?.maintenance_commands,
-    ['opl module reconcile', 'opl skill sync'],
+    ['opl connect reconcile-modules', 'opl connect sync-skills'],
     'Install exposure Homebrew agent maintenance commands',
   );
 
@@ -384,7 +384,7 @@ export function validateInstallExposurePolicy(policy) {
   );
   assertIncludesAll(
     modulePackageDistribution.activation_commands,
-    ['opl module reconcile', 'opl skill sync'],
+    ['opl connect reconcile-modules', 'opl connect sync-skills'],
     'Install exposure module package distribution activation commands',
   );
   assertDeepEqualJson(

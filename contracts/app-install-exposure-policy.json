@@ -370,8 +370,8 @@
       "must_not_write_user_codex_state": true,
       "user_state_activation_owner": "opl_framework",
       "activation_commands": [
-        "opl module reconcile",
-        "opl skill sync"
+        "opl connect reconcile-modules",
+        "opl connect sync-skills"
       ],
       "formulae": {},
       "casks": {
@@ -412,8 +412,8 @@
         "user_visible_formula_allowed": false,
         "activation_policy": "app_cli_managed_background_maintenance",
         "maintenance_commands": [
-          "opl module reconcile",
-          "opl skill sync"
+          "opl connect reconcile-modules",
+          "opl connect sync-skills"
         ]
       }
     }
@@ -423,8 +423,8 @@
       "opl install",
       "opl system initialize --json",
       "opl system startup-maintenance",
-      "opl module reconcile",
-      "opl skill sync"
+      "opl connect reconcile-modules",
+      "opl connect sync-skills"
     ],
     "codex_plugin_registry_owner": "one-person-lab",
     "app_release_payload_owner": "one-person-lab-app",
@@ -446,7 +446,7 @@
   "agent_installation_contract": {
     "owner": "one-person-lab-app",
     "producer_owner": "one-person-lab",
-    "unified_sync_command": "opl skill sync",
+    "unified_sync_command": "opl connect sync-skills",
     "managed_install_source": "opl_managed_modules",
     "user_agent_installation_mode": "consume_shared_skill_action_stage_metadata",
     "codex_plugin_registry_target": "codex_plugin_registry",
@@ -510,7 +510,7 @@
         "direct_skill_compatibility_required": true,
         "plugin_must_package_skill": true,
         "must_not_create_second_semantics": true,
-        "sync_command": "opl skill sync",
+        "sync_command": "opl connect sync-skills",
         "product_entry_manifest": "family-product-entry-manifest-v2",
         "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
       },
@@ -524,7 +524,7 @@
         "direct_skill_compatibility_required": true,
         "plugin_must_package_skill": true,
         "must_not_create_second_semantics": true,
-        "sync_command": "opl skill sync",
+        "sync_command": "opl connect sync-skills",
         "product_entry_manifest": "family-product-entry-manifest-v2",
         "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
       },
@@ -538,7 +538,7 @@
         "direct_skill_compatibility_required": true,
         "plugin_must_package_skill": true,
         "must_not_create_second_semantics": true,
-        "sync_command": "opl skill sync",
+        "sync_command": "opl connect sync-skills",
         "product_entry_manifest": "family-product-entry-manifest-v2",
         "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
       },
@@ -552,7 +552,7 @@
         "direct_skill_compatibility_required": true,
         "plugin_must_package_skill": false,
         "must_not_create_second_semantics": true,
-        "sync_command": "opl skill sync",
+        "sync_command": "opl connect sync-skills",
         "product_entry_manifest": "family-product-entry-manifest-v2",
         "canonical_metadata_source": "opl_generated_interface_contract_pack"
       }
@@ -567,8 +567,8 @@
         "oma"
       ],
       "activation_commands": [
-        "opl module reconcile",
-        "opl skill sync"
+        "opl connect reconcile-modules",
+        "opl connect sync-skills"
       ],
       "fallback_source_order": [
         "bundled_full_runtime_modules",

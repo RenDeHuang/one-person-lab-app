@@ -567,7 +567,7 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.deepEqual(homebrew.agent_pack_policy.forbidden_formulae, ['one-person-lab-modules', 'one-person-lab-modules-nightly']);
   assert.equal(homebrew.agent_pack_policy.must_not_write_user_codex_state, true);
   assert.equal(homebrew.agent_pack_policy.must_not_define_agent_semantics, true);
-  assert.deepEqual(homebrew.agent_pack_policy.activation_commands, ['opl module reconcile', 'opl skill sync']);
+  assert.deepEqual(homebrew.agent_pack_policy.activation_commands, ['opl connect reconcile-modules', 'opl connect sync-skills']);
   assert.equal(
     homebrew.full_first_install_policy,
     'stable_full_cask_or_github_release_first_install_asset; never standard updater metadata',

@@ -422,7 +422,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
 
   assert.equal(policy.agent_installation_contract.owner, 'one-person-lab-app');
   assert.equal(policy.agent_installation_contract.producer_owner, 'one-person-lab');
-  assert.equal(policy.agent_installation_contract.unified_sync_command, 'opl skill sync');
+  assert.equal(policy.agent_installation_contract.unified_sync_command, 'opl connect sync-skills');
   assert.equal(policy.agent_installation_contract.managed_install_source, 'opl_managed_modules');
   assert.equal(policy.agent_installation_contract.user_agent_installation_mode, 'consume_shared_skill_action_stage_metadata');
   assert.equal(policy.agent_installation_contract.codex_plugin_registry_target, 'codex_plugin_registry');
@@ -448,8 +448,8 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   );
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.package_agent_ids, ['mas', 'mag', 'rca', 'oma']);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.activation_commands, [
-    'opl module reconcile',
-    'opl skill sync',
+    'opl connect reconcile-modules',
+    'opl connect sync-skills',
   ]);
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.homebrew_distribution_allowed, false);
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.homebrew_formula_allowed, false);
@@ -487,7 +487,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     assert.equal(entry.direct_skill_compatibility_required, true);
     assert.equal(entry.plugin_must_package_skill, true);
     assert.equal(entry.must_not_create_second_semantics, true);
-    assert.equal(entry.sync_command, 'opl skill sync');
+    assert.equal(entry.sync_command, 'opl connect sync-skills');
     assert.equal(entry.product_entry_manifest, 'family-product-entry-manifest-v2');
     assert.equal(entry.canonical_metadata_source, 'domain_action_catalog_and_stage_control_plane');
     assert.equal(entry.codex_visible_entry, agentId);
@@ -538,7 +538,7 @@ test('Homebrew distribution channel is transport-only and keeps OPL activation a
   assert.equal(homebrew.must_not_own_agent_semantics, true);
   assert.equal(homebrew.must_not_write_user_codex_state, true);
   assert.equal(homebrew.user_state_activation_owner, 'opl_framework');
-  assert.deepEqual(homebrew.activation_commands, ['opl module reconcile', 'opl skill sync']);
+  assert.deepEqual(homebrew.activation_commands, ['opl connect reconcile-modules', 'opl connect sync-skills']);
   assert.deepEqual(homebrew.formulae, {});
   assert.deepEqual(homebrew.casks, {
     standard_app: 'one-person-lab',
@@ -568,5 +568,5 @@ test('Homebrew distribution channel is transport-only and keeps OPL activation a
   assert.equal(homebrew.agent_pack_policy.homebrew_distribution_allowed, false);
   assert.equal(homebrew.agent_pack_policy.user_visible_formula_allowed, false);
   assert.equal(homebrew.agent_pack_policy.activation_policy, 'app_cli_managed_background_maintenance');
-  assert.deepEqual(homebrew.agent_pack_policy.maintenance_commands, ['opl module reconcile', 'opl skill sync']);
+  assert.deepEqual(homebrew.agent_pack_policy.maintenance_commands, ['opl connect reconcile-modules', 'opl connect sync-skills']);
 });

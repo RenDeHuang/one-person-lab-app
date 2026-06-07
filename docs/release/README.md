@@ -113,7 +113,7 @@ opl system initialize --json
 ```
 
 When repair or setup is needed, the stable commands remain `opl install`,
-`opl system startup-maintenance`, `opl module reconcile`, and `opl skill sync`. These commands own
+`opl system startup-maintenance`, `opl connect reconcile-modules`, and `opl connect sync-skills`. These commands own
 workspace state, Core readiness, module/package maintenance, Codex-visible
 plugin/skill exposure, and duplicate-skill prevention. A Homebrew receipt proves
 only that the tap resolved and placed files. It does not prove `/guid` readiness,
@@ -177,7 +177,7 @@ The MAS/MAG/RCA distribution rule is unchanged under Homebrew. The public ABI is
 the domain skill; the Codex plugin is the App distribution/capability shell.
 Homebrew must not mirror plugin-packaged MAS/MAG/RCA skills into duplicate bare
 `~/.codex/skills/{mas,mag,rca}` directories, and it must not create a second
-semantic map for domain actions or stages. Use `opl skill sync` and
+semantic map for domain actions or stages. Use `opl connect sync-skills` and
 `npm run validate:agent-installation` to verify plugin roots, direct skill
 compatibility, and duplicate bare-skill prevention.
 

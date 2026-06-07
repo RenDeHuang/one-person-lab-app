@@ -114,7 +114,7 @@ Codex App 有 skills 和 tools。OPL App 增加 App-owned skill exposure policy�
 - MAS/MAG/RCA 作为 plugins 打包时，不能再镜像成裸
   `~/.codex/skills/{mas,mag,rca}`。
 - OMA 是 OPL-generated local Codex plugin surface，在提升前保持 explicit。
-- Fresh install 后由 App/CLI 管理 `opl module reconcile`、`opl skill sync`、
+- Fresh install 后由 App/CLI 管理 `opl connect reconcile-modules`、`opl connect sync-skills`、
   OMA local plugin generation 和 Codex plugin registry 写入；用户不需要在
   Codex App 里重复手工安装 OPL 全部插件。
 - 本地 Temporal provider 的默认地址、namespace 和 task queue 由 packaged

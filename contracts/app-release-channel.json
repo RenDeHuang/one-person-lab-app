@@ -204,8 +204,8 @@
         "one-person-lab-modules-nightly"
       ],
       "activation_commands": [
-        "opl module reconcile",
-        "opl skill sync"
+        "opl connect reconcile-modules",
+        "opl connect sync-skills"
       ],
       "must_not_write_user_codex_state": true,
       "must_not_define_agent_semantics": true

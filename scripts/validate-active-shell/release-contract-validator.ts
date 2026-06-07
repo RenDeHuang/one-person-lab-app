@@ -81,7 +81,7 @@ export function validateReleaseChannelContract(releaseChannel) {
   }
   assertIncludesAll(
     homebrew.agent_pack_policy?.activation_commands,
-    ['opl module reconcile', 'opl skill sync'],
+    ['opl connect reconcile-modules', 'opl connect sync-skills'],
     'Release channel Homebrew agent-pack activation commands',
   );
   assertDeepEqualJson(

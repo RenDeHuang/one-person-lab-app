@@ -149,7 +149,7 @@ export function validateContractShape(contract) {
     }
   }
   for (const forbiddenSource of [
-    'direct opl modules --json page aggregation',
+    'direct opl connect modules --json page aggregation',
     'direct opl system developer-supervisor page aggregation',
     'direct opl family-runtime worker status page aggregation',
     'application.systemInfo as OPL path truth',
