@@ -705,10 +705,21 @@ jobs:
       - name: Checkout App repo
         uses: actions/checkout@v6
 
+      - name: Checkout OPL Framework
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ inputs.framework_ref || 'main' }}
+          path: one-person-lab
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+
+      - name: Install OPL Framework dependencies
+        working-directory: one-person-lab
+        run: npm ci
 
       - name: Download operator release evidence bundle
         uses: actions/download-artifact@v8
@@ -739,25 +750,51 @@ jobs:
           name: opl-first-run-vm-full-${{ github.run_id }}
           path: release-evidence-inputs/opl-first-run-vm-full-${{ github.run_id }}
 
-      - name: Attach same-cohort summary artifacts
+      - name: Collect same-cohort operator evidence
+        id: collect_operator_evidence
+        continue-on-error: true
         shell: bash
+        env:
+          OPL_SKIP_SKILL_SYNC: '1'
         run: |
           set -euo pipefail
           bundle_dir="release-evidence/${{ inputs.opl_version }}"
-          mkdir -p "$bundle_dir"
-          if [ -f "release-evidence-inputs/remote-release-verification-${{ inputs.opl_version }}/remote-release-verification.json" ] && [ ! -f "$bundle_dir/remote-release-verification.json" ]; then
-            cp "release-evidence-inputs/remote-release-verification-${{ inputs.opl_version }}/remote-release-verification.json" "$bundle_dir/remote-release-verification.json"
+          full_source_dir="release-evidence-inputs/opl-first-run-vm-full-${{ github.run_id }}"
+          standard_source_dir="release-evidence-inputs/opl-first-run-vm-standard-${{ github.run_id }}"
+          remote_source_dir="release-evidence-inputs/remote-release-verification-${{ inputs.opl_version }}"
+          collector_args=(
+            --bundle-dir "$bundle_dir"
+            --action-id developer_supervisor_refresh
+            --execute-action
+            --overwrite
+            --opl-bin "$GITHUB_WORKSPACE/one-person-lab/bin/opl"
+          )
+          if [ -d "$full_source_dir" ]; then
+            collector_args+=(--evidence-source-dir "$full_source_dir")
+            if [ -d "$full_source_dir/artifacts" ]; then
+              collector_args+=(--evidence-source-dir "$full_source_dir/artifacts")
+            fi
+            if [ -f "$full_source_dir/artifacts/settings-pages/runtime-status.png" ]; then
+              collector_args+=(--artifact "runtime_screenshot=$full_source_dir/artifacts/settings-pages/runtime-status.png")
+            fi
           fi
-          if [ -f "release-evidence-inputs/opl-first-run-vm-full-${{ github.run_id }}/tart-smoke-summary.json" ] && [ ! -f "$bundle_dir/tart-smoke-summary.json" ]; then
-            cp "release-evidence-inputs/opl-first-run-vm-full-${{ github.run_id }}/tart-smoke-summary.json" "$bundle_dir/tart-smoke-summary.json"
-          elif [ -f "release-evidence-inputs/opl-first-run-vm-standard-${{ github.run_id }}/tart-smoke-summary.json" ] && [ ! -f "$bundle_dir/tart-smoke-summary.json" ]; then
-            cp "release-evidence-inputs/opl-first-run-vm-standard-${{ github.run_id }}/tart-smoke-summary.json" "$bundle_dir/tart-smoke-summary.json"
+          if [ -d "$standard_source_dir" ]; then
+            collector_args+=(--evidence-source-dir "$standard_source_dir")
+            if [ -d "$standard_source_dir/artifacts" ]; then
+              collector_args+=(--evidence-source-dir "$standard_source_dir/artifacts")
+            fi
+            if [ ! -f "$full_source_dir/artifacts/settings-pages/runtime-status.png" ] && [ -f "$standard_source_dir/artifacts/settings-pages/runtime-status.png" ]; then
+              collector_args+=(--artifact "runtime_screenshot=$standard_source_dir/artifacts/settings-pages/runtime-status.png")
+            fi
           fi
-          if [ ! -f "$bundle_dir/evidence-manifest.json" ]; then
-            npm run release:evidence:manifest -- --bundle-dir "$bundle_dir" --overwrite
+          if [ -d "$remote_source_dir" ]; then
+            collector_args+=(--evidence-source-dir "$remote_source_dir")
           fi
+          npm run release:collect-evidence -- "${collector_args[@]}" > evidence-collection-summary.json
+          npm run release:evidence:manifest -- --bundle-dir "$bundle_dir" --overwrite
 
       - name: Validate operator evidence bundle
+        if: ${{ steps.collect_operator_evidence.outcome == 'success' }}
         id: validate_operator_evidence
         shell: bash
         continue-on-error: true
@@ -768,7 +805,7 @@ jobs:
             > evidence-validation-summary.json
 
       - name: Write failed operator evidence summary
-        if: ${{ steps.validate_operator_evidence.outcome != 'success' }}
+        if: ${{ steps.collect_operator_evidence.outcome != 'success' || steps.validate_operator_evidence.outcome != 'success' }}
         shell: bash
         run: |
           node <<'NODE'
@@ -790,7 +827,9 @@ jobs:
             verified_artifact_count: 0,
             missing_artifact_count: null,
             blocked_artifact_count: null,
-            reason: 'operator evidence bundle validation failed; inspect release-evidence-bundle artifact',
+            collection_outcome: '${{ steps.collect_operator_evidence.outcome }}',
+            validation_outcome: '${{ steps.validate_operator_evidence.outcome }}',
+            reason: 'operator evidence bundle collection or validation failed; inspect release-evidence-bundle artifact',
           };
           fs.writeFileSync('evidence-validation-summary.json', JSON.stringify(summary, null, 2) + '\n');
           NODE
@@ -800,11 +839,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: release-evidence-bundle-${{ inputs.opl_version }}
-          path: evidence-validation-summary.json
+          path: |
+            evidence-validation-summary.json
+            evidence-collection-summary.json
+            release-evidence/${{ inputs.opl_version }}
           if-no-files-found: error
 
       - name: Fail when operator evidence is incomplete
-        if: ${{ steps.validate_operator_evidence.outcome != 'success' }}
+        if: ${{ steps.collect_operator_evidence.outcome != 'success' || steps.validate_operator_evidence.outcome != 'success' }}
         shell: bash
         run: exit 1
 

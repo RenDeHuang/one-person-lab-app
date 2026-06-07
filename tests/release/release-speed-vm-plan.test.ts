@@ -111,6 +111,26 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(workflow, /one-shot-app-installer-smoke:[\s\S]*?needs:\s+publish-standard/, 'one-shot installer smoke');
   assertMatches(workflow, /docker-webui-smoke:[\s\S]*?needs:\s+publish-standard/, 'Docker WebUI smoke');
   assertMatches(workflow, /operator-evidence-bundle-validation:[\s\S]*?npm run release:evidence:validate --/, 'operator evidence validation job');
+  assertMatches(
+    workflow,
+    /operator-evidence-bundle-validation:[\s\S]*?repository:\s+gaofeng21cn\/one-person-lab[\s\S]*?ref:\s+\$\{\{ inputs\.framework_ref \|\| 'main' \}\}[\s\S]*?npm ci[\s\S]*?npm run release:collect-evidence --/,
+    'operator evidence validation must collect OPL runtime evidence through the Framework CLI',
+  );
+  assertMatches(
+    workflow,
+    /operator-evidence-bundle-validation:[\s\S]*?--action-id\s+developer_supervisor_refresh[\s\S]*?--execute-action/,
+    'operator evidence collector must use the stable payload-free release evidence action fixture',
+  );
+  assertMatches(
+    workflow,
+    /operator-evidence-bundle-validation:[\s\S]*?full_source_dir="release-evidence-inputs\/opl-first-run-vm-full-\$\{\{ github\.run_id \}\}"[\s\S]*?standard_source_dir="release-evidence-inputs\/opl-first-run-vm-standard-\$\{\{ github\.run_id \}\}"[\s\S]*?remote_source_dir="release-evidence-inputs\/remote-release-verification-\$\{\{ inputs\.opl_version \}\}"[\s\S]*?--evidence-source-dir "\$full_source_dir"[\s\S]*?--evidence-source-dir "\$standard_source_dir"[\s\S]*?--evidence-source-dir "\$remote_source_dir"/,
+    'operator evidence collector must import same-cohort Full VM, standard VM, and remote verification artifacts',
+  );
+  assertMatches(
+    workflow,
+    /operator-evidence-bundle-validation:[\s\S]*?full_source_dir="release-evidence-inputs\/opl-first-run-vm-full-\$\{\{ github\.run_id \}\}"[\s\S]*?runtime_screenshot=\$full_source_dir\/artifacts\/settings-pages\/runtime-status\.png/,
+    'operator evidence collector must map the packaged Runtime page screenshot from the Full VM artifact',
+  );
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/, 'final release readiness summary job');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?remote-verify-full[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?full-first-run-vm-smoke[\s\S]*?one-shot-app-installer-smoke[\s\S]*?docker-webui-smoke[\s\S]*?operator-evidence-bundle-validation/, 'final release readiness dependencies');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-release-verification-\$\{\{ inputs\.opl_version \}\}/, 'remote verification small artifact');
