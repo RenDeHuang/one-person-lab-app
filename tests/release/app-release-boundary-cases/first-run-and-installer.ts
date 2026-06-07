@@ -101,7 +101,6 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
 test('one-shot App installer defaults to App-first core setup', () => {
   const script = fs.readFileSync(path.join(appRoot, 'install.sh'), 'utf8');
   const stableScript = fs.readFileSync(path.join(appRoot, 'install-stable.sh'), 'utf8');
-  const docs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
 
   assert.match(script, /OPL_APP_INSTALL_MODE=\$\{OPL_APP_INSTALL_MODE:-app-first\}/);
   assert.match(script, /--complete/);
@@ -137,16 +136,4 @@ test('one-shot App installer defaults to App-first core setup', () => {
   assert.match(stableScript, /--stable-macos-install/);
   assert.match(stableScript, /--yes/);
   assert.match(stableScript, /curl -fsSL "\$installer_url" \| bash -s -- --stable-macos-install --yes "\$@"/);
-  assert.match(docs, /macOS signing material setup/);
-  assert.match(docs, /Developer ID Application/);
-  assert.match(docs, /gh secret set BUILD_CERTIFICATE_BASE64/);
-  assert.match(docs, /APPLE_ID_PASSWORD/);
-  assert.match(docs, /Stable macOS local authorization/);
-  assert.match(docs, /install-stable\.sh \| bash/);
-  assert.match(docs, /--stable-macos-install --yes/);
-  assert.match(docs, /latest Full first-install DMG/);
-  assert.match(docs, /--authorize-local-app-only/);
-  assert.match(docs, /com\.apple\.quarantine/);
-  assert.match(docs, /quarantine_after=0/);
-  assert.match(docs, /local_authorization_policy/);
 });

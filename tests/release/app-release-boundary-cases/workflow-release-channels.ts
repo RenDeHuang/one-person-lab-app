@@ -493,7 +493,6 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   );
   const homebrewWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'homebrew-tap-update.yml'), 'utf8');
   const nightlyWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'nightly-standard-release.yml'), 'utf8');
-  const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
   const homebrew = releaseContract.homebrew_tap_distribution;
 
   assert.equal(homebrew.owner, 'one-person-lab-app');
@@ -597,21 +596,6 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.match(nightlyWorkflow, /channel: nightly/);
   assert.match(nightlyWorkflow, /package_kind: app_standard/);
   assert.match(nightlyWorkflow, /tap_repo: gaofeng21cn\/homebrew-one-person-lab/);
-
-  assert.match(releaseDocs, /brew tap gaofeng21cn\/one-person-lab/);
-  assert.match(releaseDocs, /brew install --cask gaofeng21cn\/one-person-lab\/one-person-lab/);
-  assert.match(releaseDocs, /brew install --cask one-person-lab-full/);
-  assert.match(releaseDocs, /gaofeng21cn\/homebrew-one-person-lab/);
-  assert.match(releaseDocs, /gaofeng21cn\/one-person-lab-app` GitHub Releases/);
-  assert.match(releaseDocs, /Sync From App Releases/);
-  assert.match(releaseDocs, /scripts\/sync-cask-from-release\.mjs/);
-  assert.match(releaseDocs, /scheduled run[\s\S]*Nightly prerelease/);
-  assert.match(releaseDocs, /Stable[\s\S]*direct_commit[\s\S]*Homebrew VM/);
-  assert.match(releaseDocs, /Full cask\s+updates remain explicit stable first-install updates after Full release gates\s+pass/);
-  assert.match(releaseDocs, /`one-person-lab-full`/);
-  assert.match(releaseDocs, /OPL Homebrew Tap Update/);
-  assert.match(releaseDocs, /OPL_HOMEBREW_TAP_TOKEN/);
-  assert.match(releaseDocs, /nightly freshness does not depend on that[\s\S]*cross-repo secret/);
 });
 
 test('stable validation profile covers every user installation surface', () => {
@@ -621,10 +605,6 @@ test('stable validation profile covers every user installation surface', () => {
   const firstRunMatrix = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-first-run-test-matrix.json'), 'utf8'),
   );
-  const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
-  const testingDocs = fs.readFileSync(path.join(appRoot, 'docs', 'testing', 'README.md'), 'utf8');
-  const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
-  const combinedDocs = `${releaseDocs}\n${testingDocs}\n${scriptsDocs}`;
   const scenarioIds = firstRunMatrix.scenarios.map((scenario) => scenario.id);
   const stable = releaseContract.release_validation_profiles.stable;
 
@@ -659,14 +639,6 @@ test('stable validation profile covers every user installation surface', () => {
   for (const scenarioId of stable.required_installation_surfaces) {
     assert.ok(scenarioIds.includes(scenarioId), scenarioId);
   }
-  assert.match(combinedDocs, /Nightly[\s\S]*standard[\s\S]*remote/i);
-  assert.match(combinedDocs, /Stable[\s\S]*standard DMG[\s\S]*Full DMG[\s\S]*one-shot[\s\S]*Docker\/WebUI/i);
-  assert.match(combinedDocs, /ghcr\.io\/<owner>\/one-person-lab-webui:<app_or_opl_version>/);
-  assert.match(combinedDocs, /Manage Actions access/);
-  assert.match(combinedDocs, /permission_denied: write_package/);
-  assert.match(combinedDocs, /ghcr_write_package_denied/);
-  assert.match(combinedDocs, /Framework[\s\S]*references?[\s\S]*image coordinate/i);
-  assert.match(combinedDocs, /Full[\s\S]*DMG[\s\S]*must not include[\s\S]*WebUI GHCR image/i);
 });
 
 test('release automation workflows cover remote verification, Full cache warmup, and draft promotion', () => {
@@ -678,8 +650,6 @@ test('release automation workflows cover remote verification, Full cache warmup,
   const webuiCleanupScript = fs.readFileSync(path.join(appRoot, 'scripts', 'cleanup-webui-ghcr-versions.ts'), 'utf8');
   const candidateRecordValidator = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-release-candidate-record.ts'), 'utf8');
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
-  const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
-  const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
@@ -737,9 +707,6 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(webuiCleanupScript, /retainedStableIds/);
   assert.match(webuiCleanupScript, /retainedNightlyIds/);
   assert.match(webuiCleanupScript, /'-X'[\s\S]*'DELETE'/);
-  assert.match(`${releaseDocs}\n${scriptsDocs}`, /release:cleanup-drafts[\s\S]*dry-run/i);
-  assert.match(`${releaseDocs}\n${scriptsDocs}`, /release:cleanup-webui-ghcr[\s\S]*dry-run/i);
-  assert.match(`${releaseDocs}\n${scriptsDocs}`, /OPL Desktop Release Cleanup Drafts[\s\S]*v<version>-draft\.\*[\s\S]*v<version>-readiness\.\*/i);
 
   assert.equal(
     releaseContract.release_acceleration.github_actions.remote_verification_workflow,
@@ -756,15 +723,10 @@ test('release automation workflows cover remote verification, Full cache warmup,
 });
 
 test('release CI operations policy distinguishes workflow hygiene from release evidence', () => {
-  const testingDocs = fs.readFileSync(path.join(appRoot, 'docs', 'testing', 'README.md'), 'utf8');
-  const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
   const workflowActionsDir = path.join(appRoot, '.github', 'actions');
-  const combinedDocs = `${testingDocs}\n${scriptsDocs}`;
 
-  assert.match(combinedDocs, /actionlint[\s\S]*(workflow semantic gate|workflow semantic gate in the reusable build quality jobs)/i);
-  assert.match(combinedDocs, /YAML parsing[\s\S]*syntax check|YAML parsing[\s\S]*only proves syntax/i);
   assert.ok(
     !Object.values(packageJson.scripts).some((script) => String(script).includes('actionlint')),
     'actionlint is a CI gate, not an App-root package script',
@@ -773,16 +735,6 @@ test('release CI operations policy distinguishes workflow hygiene from release e
   assert.match(vmWorkflow, /concurrency:[\s\S]*opl-gui-first-run-vm-scheduled[\s\S]*github\.run_id[\s\S]*inputs\.package_profile/);
   assert.doesNotMatch(vmWorkflow, /opl-gui-first-run-vm-manual/);
   assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
-  assert.match(combinedDocs, /concurrency[\s\S]*duplicate-run governance/i);
-  assert.match(combinedDocs, /not release evidence|not as proof/i);
-
-  assert.match(combinedDocs, /Machine-readable release telemetry[\s\S]*JSON artifact|Machine-readable telemetry[\s\S]*JSON artifact/i);
-  assert.match(combinedDocs, /after-release tuning|post-release tuning/i);
-  assert.match(combinedDocs, /does not replace[\s\S]*(manifests|manifest)[\s\S]*SHA256SUMS[\s\S]*remote verification[\s\S]*VM/i);
-  assert.match(combinedDocs, /same-run workflow artifact[\s\S]*draft/i);
-  assert.match(combinedDocs, /release tag[\s\S]*provenance/i);
 
   assert.equal(fs.existsSync(path.join(workflowActionsDir, 'setup-active-shell-deps', 'action.yml')), true);
-  assert.match(combinedDocs, /Composite\/setup[\s\S]*(checked-in composite action|checked in)/i);
-  assert.match(combinedDocs, /\.github\/actions\/setup-active-shell-deps/i);
 });

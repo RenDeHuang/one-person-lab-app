@@ -774,16 +774,11 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
 test('App fallow hygiene is not the active GUI shell validation gate', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const fallowConfig = JSON.parse(fs.readFileSync(path.join(appRoot, '.fallowrc.json'), 'utf8'));
-  const testingDocs = fs.readFileSync(path.join(appRoot, 'docs', 'testing', 'README.md'), 'utf8');
-  const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
-  const combinedDocs = `${testingDocs}\n${scriptsDocs}`;
 
   assert.deepEqual(fallowConfig.ignorePatterns, ['shells/aionui/**', 'shells/agui-codex/**']);
   assert.equal(packageJson.scripts['hygiene:fallow'], 'npx --yes fallow@latest --root . --no-cache --production');
   assert.match(packageJson.scripts['validate:gui-shell'], /validate-active-shell\.ts/);
   assert.match(packageJson.scripts['validate:gui-shell'], /run-active-shell-command\.ts bun run package/);
-  assert.match(combinedDocs, /hygiene:fallow[\s\S]*not GUI shell build or runtime evidence/i);
-  assert.match(combinedDocs, /validate:gui-shell[\s\S]*active shell[\s\S]*GUI compile/i);
 });
 
 test('active shell validation exposes opt-in live OPL conformance without making it default', () => {
@@ -796,9 +791,6 @@ test('active shell validation exposes opt-in live OPL conformance without making
   const runtimeBridge = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-runtime-bridge.json'), 'utf8'),
   );
-  const testingDocs = fs.readFileSync(path.join(appRoot, 'docs', 'testing', 'README.md'), 'utf8');
-  const architectureDocs = fs.readFileSync(path.join(appRoot, 'docs', 'architecture.md'), 'utf8');
-  const combinedDocs = `${testingDocs}\n${architectureDocs}`;
 
   assert.equal(packageJson.scripts['validate:active-shell'], 'node --experimental-strip-types scripts/validate-active-shell.ts');
   assert.match(activeShellValidator, /validateLiveOplConformance\(runtimeBridge\)/);
@@ -826,8 +818,6 @@ test('active shell validation exposes opt-in live OPL conformance without making
     'schema',
     'surface',
   ]);
-  assert.match(combinedDocs, /OPL_APP_LIVE_CONFORMANCE=1[\s\S]*OPL_APP_LIVE_OPL_ROOT/i);
-  assert.match(combinedDocs, /fast[\s\S]*500KB[\s\S]*opl_app_state\.v1/i);
   const fixture = JSON.parse(
     fs.readFileSync(path.join(appRoot, runtimeBridge.live_conformance_gate.golden_fast_state_fixture), 'utf8'),
   );

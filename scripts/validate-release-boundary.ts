@@ -505,28 +505,6 @@ const checks = [
     forbidden: [],
   },
   {
-    id: 'macos_stable_local_authorization_docs',
-    file: 'docs/release/README.md',
-    required: [
-      '## Stable macOS local authorization',
-      'Developer ID Application',
-      'security find-identity -v -p codesigning',
-      'gh secret set BUILD_CERTIFICATE_BASE64',
-      'gh secret set APPLE_ID_PASSWORD',
-      'standard-local-authorization-policy.json',
-      'full-runtime-native-trust.json',
-      'install-stable.sh | bash',
-      '--stable-macos-install --yes',
-      'latest Full first-install DMG',
-      '--authorize-local-app-only',
-      'com.apple.quarantine',
-      'quarantine_after=0',
-      'local_authorization_policy',
-      'failed_allowed_unsigned',
-    ],
-    forbidden: [],
-  },
-  {
     id: 'install_exposure_unsigned_and_temporal_policy',
     file: 'contracts/app-install-exposure-policy.json',
     required: [

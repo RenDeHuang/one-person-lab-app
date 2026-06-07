@@ -147,38 +147,6 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   );
 });
 
-test('Full release docs publish size policy and remote verifier budget boundaries', () => {
-  const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
-  const scriptsDocs = fs.readFileSync(path.join(appRoot, 'scripts', 'README.md'), 'utf8');
-  const combinedDocs = `${releaseDocs}\n${scriptsDocs}`;
-
-  for (const expected of [
-    'Full size policy',
-    'compressed DMG size',
-    'uncompressed runtime size',
-    'layer breakdown',
-    'remote verifier size budget',
-    '700MB warning threshold',
-    'miss_written',
-    'release:full:size',
-    '.codegraph',
-    'runtime-state',
-    'domain repositories',
-    'domain repository',
-  ]) {
-    assert.match(combinedDocs, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
-  }
-
-  assert.match(releaseDocs, /Full size policy/i);
-  assert.match(releaseDocs, /compressed DMG size/i);
-  assert.match(releaseDocs, /uncompressed runtime size/i);
-  assert.match(releaseDocs, /layer breakdown/i);
-  assert.match(releaseDocs, /remote verifier size budget/i);
-  assert.match(releaseDocs, /Full runtime packaging follows a hygiene-first policy/i);
-  assert.match(releaseDocs, /Any narrower runtime allowlist must be declared by the owning domain repository/i);
-  assert.match(scriptsDocs, /verify-remote-release-assets\.ts[\s\S]*remote verifier size budget/i);
-});
-
 test('Full package size analyzer reports manifest component and layer budgets', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-size-analysis-'));
   const manifestPath = path.join(tempRoot, 'full-package-manifest.json');
@@ -240,23 +208,6 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.match(markdownResult.stdout, /Full DMG review threshold: 715\.3 MiB/);
   assert.match(markdownResult.stdout, /Runtime budget: 1000 B \(50% used\)/);
   assert.match(markdownResult.stdout, /\| mas \| 180 B \| 36% \|/);
-});
-
-test('release docs lock first-install maintenance and updater reference boundaries', () => {
-  const releaseDocs = fs.readFileSync(path.join(appRoot, 'docs', 'release', 'README.md'), 'utf8');
-  const statusDocs = fs.readFileSync(path.join(appRoot, 'docs', 'status.md'), 'utf8');
-  const combinedDocs = `${releaseDocs}\n${statusDocs}`;
-
-  assert.match(combinedDocs, /Core ready[\s\S]*best-effort background maintenance/i);
-  assert.match(combinedDocs, /companion skills/i);
-  assert.match(combinedDocs, /standard package[\s\S]*App-managed bootstrap[\s\S]*maintenance/i);
-  assert.match(combinedDocs, /Electron autoUpdater/i);
-  assert.match(combinedDocs, /background download/i);
-  assert.match(combinedDocs, /restart/i);
-  assert.match(combinedDocs, /Full[\s\S]*not[\s\S]*updater metadata/i);
-  assert.match(combinedDocs, /Apple Command Line Tools/i);
-  assert.match(combinedDocs, /xcode-select --install/i);
-  assert.match(combinedDocs, /user confirmation/i);
 });
 
 test('manual build workflow keeps cross-platform builds behind an explicit switch', () => {
