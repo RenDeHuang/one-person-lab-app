@@ -91,16 +91,29 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     /stable-homebrew-tap-update:[\s\S]*?uses:\s+\.\/\.github\/workflows\/homebrew-tap-update\.yml/,
     'Stable Homebrew tap update job',
   );
+  assertMatches(
+    workflow,
+    /stable-homebrew-tap-update:[\s\S]*?inputs\.release_mode == 'refresh_existing'/,
+    'Stable Homebrew tap update must stay on published-release refresh path inside desktop release',
+  );
+  assertMatches(
+    workflow,
+    /full-homebrew-tap-update:[\s\S]*?inputs\.release_mode == 'refresh_existing'/,
+    'Full Homebrew tap update must stay on published-release refresh path inside desktop release',
+  );
   assertMatches(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*?needs:[\s\S]*?stable-homebrew-tap-update[\s\S]*?full-homebrew-tap-update/, 'Homebrew VM smoke job');
+  assertMatches(
+    workflow,
+    /homebrew-standard-first-run-vm-smoke:[\s\S]*?inputs\.release_mode == 'refresh_existing'/,
+    'Homebrew VM smoke must stay on published-release refresh path inside desktop release',
+  );
   assertMatches(workflow, /full-first-run-vm-smoke:[\s\S]*?needs:\s+remote-verify-full/, 'Full VM smoke job');
   assertMatches(workflow, /one-shot-app-installer-smoke:[\s\S]*?needs:\s+publish-standard/, 'one-shot installer smoke');
   assertMatches(workflow, /docker-webui-smoke:[\s\S]*?needs:\s+publish-standard/, 'Docker WebUI smoke');
   assertMatches(workflow, /operator-evidence-bundle-validation:[\s\S]*?npm run release:evidence:validate --/, 'operator evidence validation job');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/, 'final release readiness summary job');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?remote-verify-full[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?stable-homebrew-tap-update[\s\S]*?full-homebrew-tap-update[\s\S]*?homebrew-standard-first-run-vm-smoke[\s\S]*?full-first-run-vm-smoke[\s\S]*?one-shot-app-installer-smoke[\s\S]*?docker-webui-smoke[\s\S]*?operator-evidence-bundle-validation/, 'final release readiness dependencies');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?remote-verify-full[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?full-first-run-vm-smoke[\s\S]*?one-shot-app-installer-smoke[\s\S]*?docker-webui-smoke[\s\S]*?operator-evidence-bundle-validation/, 'final release readiness dependencies');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-release-verification-\$\{\{ inputs\.opl_version \}\}/, 'remote verification small artifact');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?homebrew-tap-plan-stable-app_standard-\$\{\{ inputs\.opl_version \}\}/, 'Stable Homebrew tap plan small artifact');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?homebrew-tap-plan-stable-app_full_first_install-\$\{\{ inputs\.opl_version \}\}/, 'Full Homebrew tap plan small artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?release-evidence-bundle-\$\{\{ inputs\.opl_version \}\}/, 'operator evidence validation small artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?opl-full-workflow-telemetry-\$\{\{ inputs\.opl_version \}\}/, 'Full telemetry small artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?opl-full-diagnostics-\$\{\{ inputs\.opl_version \}\}/, 'Full diagnostics small artifact');
@@ -331,6 +344,8 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   const oneShotInstaller = laneById(plan, 'one_shot_app_installer_smoke');
   const evidenceBundle = laneById(plan, 'release_evidence_bundle');
   const promote = laneById(plan, 'promote_stable_release');
+  const stableHomebrewTap = laneById(plan, 'stable_homebrew_tap_update');
+  const fullHomebrewTap = laneById(plan, 'full_homebrew_tap_update');
   const readinessSummary = laneById(plan, 'release_readiness_summary');
   const candidateRecord = laneById(plan, 'release_candidate_record');
   const promotionRecord = laneById(plan, 'release_promotion_record');
@@ -352,7 +367,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.deepEqual(publishFullAssets.depends_on?.sort(), ['full_build', 'publish_standard'].sort());
   assert.deepEqual(remoteVerify.depends_on, ['publish_full_assets']);
   assert.deepEqual(standardVm.depends_on, ['publish_standard']);
-  assert.deepEqual(homebrewVm.depends_on, ['publish_standard']);
+  assert.deepEqual(homebrewVm.depends_on?.sort(), ['full_homebrew_tap_update', 'stable_homebrew_tap_update'].sort());
   assert.deepEqual(fullVm.depends_on, ['remote_verify_standard_and_full']);
   assert.ok(standardVm.can_run_with.includes('full_build'));
   assert.ok(standardVm.can_run_with.includes('publish_full_assets'));
@@ -374,7 +389,6 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.deepEqual(evidenceBundle.depends_on?.sort(), [
     'docker_webui_smoke',
     'full_dmg_clean_vm_smoke',
-    'homebrew_standard_cask_clean_vm_smoke',
     'one_shot_app_installer_smoke',
     'remote_verify_standard_and_full',
     'standard_dmg_clean_vm_smoke',
@@ -385,7 +399,6 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.ok(readinessSummary.depends_on?.includes('release_evidence_bundle'));
   assert.ok(readinessSummary.depends_on?.includes('remote_verify_standard_and_full'));
   assert.ok(readinessSummary.depends_on?.includes('standard_dmg_clean_vm_smoke'));
-  assert.ok(readinessSummary.depends_on?.includes('homebrew_standard_cask_clean_vm_smoke'));
   assert.ok(readinessSummary.depends_on?.includes('full_dmg_clean_vm_smoke'));
   assert.ok(readinessSummary.depends_on?.includes('one_shot_app_installer_smoke'));
   assert.ok(readinessSummary.depends_on?.includes('docker_webui_smoke'));
@@ -403,7 +416,21 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.ok(promote.command.includes('desktop-release-promote.yml'));
   assert.ok(promote.command.includes('reads only release-candidate-record.json'));
   assert.ok(promote.command.includes('status=ready_to_promote'));
-  assert.deepEqual(promotionRecord.depends_on?.sort(), ['promote_stable_release', 'release_candidate_record'].sort());
+  assert.deepEqual(stableHomebrewTap.depends_on, ['promote_stable_release']);
+  assert.ok(stableHomebrewTap.command.includes('homebrew-tap-update.yml'));
+  assert.ok(stableHomebrewTap.command.includes('--package-kind app_standard'));
+  assert.deepEqual(fullHomebrewTap.depends_on?.sort(), [
+    'promote_stable_release',
+    'stable_homebrew_tap_update',
+  ].sort());
+  assert.ok(fullHomebrewTap.command.includes('--package-kind app_full_first_install'));
+  assert.deepEqual(promotionRecord.depends_on?.sort(), [
+    'full_homebrew_tap_update',
+    'homebrew_standard_cask_clean_vm_smoke',
+    'promote_stable_release',
+    'release_candidate_record',
+    'stable_homebrew_tap_update',
+  ].sort());
   assert.equal(postReleaseScreenshots.phase, 'post_release');
   assert.deepEqual(postReleaseScreenshots.depends_on, ['release_promotion_record']);
   assert.ok(postReleaseScreenshots.command.includes('after promotion'));

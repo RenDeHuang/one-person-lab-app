@@ -15,9 +15,6 @@ test('desktop release workflow has a final readiness aggregation job that downlo
     'remote-verify-full',
     'standard-first-run-vm-smoke-after-standard-only',
     'standard-first-run-vm-smoke-after-full',
-    'stable-homebrew-tap-update',
-    'full-homebrew-tap-update',
-    'homebrew-standard-first-run-vm-smoke',
     'full-first-run-vm-smoke',
     'one-shot-app-installer-smoke',
     'docker-webui-smoke',
@@ -31,10 +28,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   for (const smallArtifact of [
     'release-preflight-summary-${{ inputs.opl_version }}',
     'remote-release-verification-${{ inputs.opl_version }}',
-    'homebrew-tap-plan-stable-app_standard-${{ inputs.opl_version }}',
-    'homebrew-tap-plan-stable-app_full_first_install-${{ inputs.opl_version }}',
     'opl-first-run-vm-standard-${{ github.run_id }}',
-    'opl-first-run-vm-homebrew-standard-${{ github.run_id }}',
     'opl-first-run-vm-full-${{ github.run_id }}',
     'one-shot-app-installer-smoke-${{ inputs.opl_version }}',
     'docker-webui-smoke-${{ inputs.opl_version }}',
@@ -71,8 +65,16 @@ test('desktop promote workflow is gated by the candidate record before publishin
   assert.doesNotMatch(workflow, /node <<'NODE'/);
   assert.match(workflow, /Verify remote release assets/);
   assert.match(workflow, /Publish draft release/);
+  assert.match(workflow, /Update Stable Homebrew tap/);
+  assert.match(workflow, /Update Full Homebrew tap/);
+  assert.match(workflow, /Run Homebrew standard first-run VM smoke/);
+  assert.match(workflow, /uses:\s+\.\/\.github\/workflows\/homebrew-tap-update\.yml/);
+  assert.match(workflow, /uses:\s+\.\/\.github\/workflows\/opl-first-run-vm\.yml/);
+  assert.match(workflow, /needs:\s+promote/);
+  assert.match(workflow, /package_profile:\s+homebrew-standard/);
   assert.ok(workflow.indexOf('Verify release candidate record') < workflow.indexOf('Publish draft release'));
   assert.ok(workflow.indexOf('Verify remote release assets') < workflow.indexOf('Publish draft release'));
+  assert.ok(workflow.indexOf('Publish draft release') < workflow.indexOf('Update Stable Homebrew tap'));
 });
 
 test('one-shot installer smoke uploads its diagnostic artifact even when bootstrap fails', () => {

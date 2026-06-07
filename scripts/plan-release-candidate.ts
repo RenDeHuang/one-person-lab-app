@@ -309,26 +309,6 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       required_for: ['standard_release'],
     });
     lanes.push({
-      id: 'homebrew_standard_cask_clean_vm_smoke',
-      phase: 'installation_gate',
-      depends_on: ['publish_standard'],
-      can_run_with: options.includeFullPackage
-        ? ['full_build', 'publish_full_assets', 'one_shot_app_installer_smoke', 'docker_webui_smoke']
-        : ['one_shot_app_installer_smoke', 'docker_webui_smoke'],
-      command: [
-        'npm run test:opl-first-run-vm:tart --',
-        '--source-vm opl-first-run-homebrew-ready-base',
-        '--install-mode homebrew-cask',
-        '--homebrew-cask one-person-lab',
-        '--smoke-profile homebrew-standard-cask',
-        '--display 1920x1080px',
-        '--settings-smoke',
-        '--assistant-route-smoke',
-        '--runtime-profile standard',
-      ].join(' '),
-      required_for: ['standard_release'],
-    });
-    lanes.push({
       id: 'full_dmg_clean_vm_smoke',
       phase: 'release_gate',
       depends_on: ['remote_verify_standard_and_full'],
@@ -413,7 +393,6 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     depends_on: [
       'remote_verify_standard_and_full',
       ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
-      ...(options.settingsVm ? ['homebrew_standard_cask_clean_vm_smoke'] : []),
       ...(options.includeFullPackage && options.settingsVm ? ['full_dmg_clean_vm_smoke'] : []),
       'one_shot_app_installer_smoke',
       'docker_webui_smoke',
@@ -432,7 +411,6 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       ...(options.includeFullPackage ? ['publish_full_assets'] : []),
       'remote_verify_standard_and_full',
       ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
-      ...(options.settingsVm ? ['homebrew_standard_cask_clean_vm_smoke'] : []),
       ...(options.includeFullPackage && options.settingsVm ? ['full_dmg_clean_vm_smoke'] : []),
       'one_shot_app_installer_smoke',
       'docker_webui_smoke',
@@ -471,10 +449,69 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   });
 
   lanes.push({
+    id: 'stable_homebrew_tap_update',
+    phase: 'publish',
+    depends_on: ['promote_stable_release'],
+    can_run_with: [],
+    command: [
+      '.github/workflows/desktop-release-promote.yml',
+      'calls homebrew-tap-update.yml',
+      '--channel stable',
+      '--package-kind app_standard',
+      'after gh release edit --draft=false',
+    ].join(' '),
+    required_for: ['stable_release'],
+  });
+
+  if (options.includeFullPackage) {
+    lanes.push({
+      id: 'full_homebrew_tap_update',
+      phase: 'publish',
+      depends_on: ['promote_stable_release', 'stable_homebrew_tap_update'],
+      can_run_with: [],
+      command: [
+        '.github/workflows/desktop-release-promote.yml',
+        'calls homebrew-tap-update.yml',
+        '--channel stable',
+        '--package-kind app_full_first_install',
+        'after gh release edit --draft=false',
+      ].join(' '),
+      required_for: ['full_first_install', 'stable_release'],
+    });
+  }
+
+  if (options.settingsVm) {
+    lanes.push({
+      id: 'homebrew_standard_cask_clean_vm_smoke',
+      phase: 'installation_gate',
+      depends_on: [
+        'stable_homebrew_tap_update',
+        ...(options.includeFullPackage ? ['full_homebrew_tap_update'] : []),
+      ],
+      can_run_with: [],
+      command: [
+        'npm run test:opl-first-run-vm:tart --',
+        '--source-vm opl-first-run-homebrew-ready-base',
+        '--install-mode homebrew-cask',
+        '--homebrew-cask one-person-lab',
+        '--smoke-profile homebrew-standard-cask',
+        '--display 1920x1080px',
+        '--settings-smoke',
+        '--assistant-route-smoke',
+        '--runtime-profile standard',
+      ].join(' '),
+      required_for: ['stable_release'],
+    });
+  }
+
+  lanes.push({
     id: 'release_promotion_record',
     phase: 'release_gate',
     depends_on: [
       'promote_stable_release',
+      'stable_homebrew_tap_update',
+      ...(options.includeFullPackage ? ['full_homebrew_tap_update'] : []),
+      ...(options.settingsVm ? ['homebrew_standard_cask_clean_vm_smoke'] : []),
       'release_candidate_record',
     ],
     can_run_with: [],

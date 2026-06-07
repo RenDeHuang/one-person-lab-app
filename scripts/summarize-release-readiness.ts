@@ -650,7 +650,7 @@ function buildSummary(options: Options) {
   const selectedStandardVmJob = options.includeFullPackage
     ? 'standard-first-run-vm-smoke-after-full'
     : 'standard-first-run-vm-smoke-after-standard-only';
-  const stableHomebrewRequired = options.runVmSmoke && options.releaseMode !== 'draft_candidate';
+  const stableHomebrewRequired = options.runVmSmoke && options.releaseMode === 'refresh_existing';
   const gates = {
     remote_release_verification: applyJobResult(remoteGate, jobResults, selectedRemoteJob, true),
     standard_dmg_clean_vm: applyJobResult(

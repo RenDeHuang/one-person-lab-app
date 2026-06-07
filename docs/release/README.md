@@ -122,9 +122,12 @@ health, or the absence of user-state blockers.
 
 The tap should follow the same distribution cohorts as GitHub Releases:
 
-- Stable tap updates point at the stable `v<version>` release after remote asset
-  verification and before the Homebrew VM gate, so the gate verifies the same
-  cask cohort users will install.
+- Stable tap updates point at the published stable `v<version>` release. For a
+  new stable release, the App first produces a promote-ready draft cohort, then
+  the promote workflow publishes the release, updates the stable tap by direct
+  commit, and runs the Homebrew VM gate against the published cask. For an
+  existing published release refresh, the desktop release workflow may update
+  the tap after remote asset verification and before the Homebrew VM gate.
 - Nightly tap updates, if published, stay in an explicit opt-in prerelease cask
   lane. They point only at Nightly standard macOS arm64 assets,
   preserve prerelease semantics, and are never marked as the stable/latest user
@@ -151,15 +154,17 @@ runs `scripts/sync-cask-from-release.mjs`, validates the tap with Homebrew
 style/audit checks, and commits cask changes back to the tap. It does not read
 or publish agent-pack/module tarballs. The scheduled run tracks the latest
 published Nightly prerelease and updates only `one-person-lab-nightly`; App
-Nightly release workflows do not open tap pull requests. Stable desktop
-releases call the App repo `OPL Homebrew Tap Update` workflow after remote asset
-verification and before the Homebrew VM gate, and that reusable workflow commits
-directly to the App-owned tap. That makes the Homebrew gate install the same
-stable cohort from `one-person-lab` that users will install. The workflow
-requires `OPL_HOMEBREW_TAP_TOKEN`, remains App cask-only, and no longer supports
-pull-request write mode. Full cask updates remain explicit stable first-install
-updates after Full release gates pass. Homebrew nightly freshness does not
-depend on that cross-repo secret.
+Nightly release workflows do not open tap pull requests. New stable desktop
+releases call the App repo `OPL Homebrew Tap Update` workflow from the promote
+workflow after the draft release has been published. Existing published release
+refreshes may call the same reusable workflow from the desktop release workflow
+after remote asset verification. In both paths the reusable workflow commits
+directly to the App-owned tap before the Homebrew VM gate, so the gate installs
+the same stable cohort from `one-person-lab` that users will install. The
+workflow requires `OPL_HOMEBREW_TAP_TOKEN`, remains App cask-only, and no longer
+supports pull-request write mode. Full cask updates remain explicit stable
+first-install updates after Full release gates pass. Homebrew nightly freshness
+does not depend on that cross-repo secret.
 
 Codex and Temporal compatibility also stay anchored in the existing release
 contracts. The Full workflow records the current Codex CLI and Temporal archive
@@ -543,13 +548,16 @@ Docker/WebUI evidence as separate installation surfaces, then publishes the
 WebUI image from the App workflow after HTTP smoke passes. The published image
 must carry `org.opencontainers.image.source=https://github.com/gaofeng21cn/one-person-lab-app`.
 
-The final stable decision entry is the `release-readiness-summary` job in
+The draft-cohort stable decision entry is the `release-readiness-summary` job in
 `.github/workflows/desktop-release.yml`. It runs after the selected remote
-verification, Stable Homebrew tap direct update, standard/Homebrew/Full clean-VM
-gates, one-shot installer smoke, Docker/WebUI smoke, WebUI GHCR publish, and
-operator evidence bundle validation, then writes `release-readiness-summary.json` plus a
-GitHub Step Summary. It fails closed when any required gate result or small
-evidence artifact is failed, cancelled, missing, or unexpectedly skipped.
+verification, standard/Full clean-VM gates, one-shot installer smoke,
+Docker/WebUI smoke, WebUI GHCR publish, and operator evidence bundle validation,
+then writes `release-readiness-summary.json` plus a GitHub Step Summary. It
+fails closed when any required draft-cohort gate result or small evidence
+artifact is failed, cancelled, missing, or unexpectedly skipped. Homebrew tap
+updates and the Homebrew clean-VM gate run after publication in
+`.github/workflows/desktop-release-promote.yml` for new stable releases; they
+remain part of Stable release closure rather than draft promotion proof.
 The JSON summary carries `gate_profile_schema=app_release_validation_profiles.v1`
 and the selected `gate_profile`, so an older cohort summary cannot stand in for
 the current Stable gate set. Stable and Full Homebrew tap gates also compare the
@@ -557,11 +565,13 @@ tap plan `checksum_sha256` with the same GitHub Release asset digest recorded by
 remote verification.
 
 That final summary is a diagnostic reader, not another package consumer. It
-downloads only small artifacts: remote verification JSON, Stable Homebrew tap
-plan, VM smoke summaries, one-shot installer output, Docker/WebUI smoke output,
-WebUI GHCR publish summary, operator evidence bundle validation summary, Full diagnostics, and
-`full-workflow-telemetry.json`. It must not download the standard DMG artifact,
-the large Full DMG workflow artifact, or published DMG assets for diagnosis.
+downloads only small artifacts: remote verification JSON, VM smoke summaries,
+one-shot installer output, Docker/WebUI smoke output, WebUI GHCR publish
+summary, operator evidence bundle validation summary, Full diagnostics, and
+`full-workflow-telemetry.json`. For `refresh_existing` published-release repairs
+it also reads Stable and Full Homebrew tap plans plus the Homebrew VM summary.
+It must not download the standard DMG artifact, the large Full DMG workflow
+artifact, or published DMG assets for diagnosis.
 Full build bottleneck analysis uses `duration_seconds.full_package_build` and
 `duration_seconds.full_package_build_breakdown` from telemetry, while manifest,
 SHA256SUMS, remote verification, and VM gates remain release truth.

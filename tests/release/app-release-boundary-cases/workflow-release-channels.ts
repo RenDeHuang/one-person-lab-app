@@ -539,11 +539,17 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.equal(homebrew.tap_update_policy.app_release_workflow_write_mode, 'direct_commit_only');
   assert.equal('app_release_pr_workflow' in homebrew.tap_update_policy, false);
   assert.equal('app_release_pr_token' in homebrew.tap_update_policy, false);
-  assert.equal(homebrew.tap_update_policy.stable_release_workflow_write_mode, 'direct_commit_before_homebrew_vm_gate');
+  assert.equal(
+    homebrew.tap_update_policy.stable_release_workflow_write_mode,
+    'new_release_promote_direct_commit_after_publish_before_homebrew_vm_gate; refresh_existing_direct_commit_after_remote_verification_before_homebrew_vm_gate',
+  );
   assert.equal(homebrew.tap_update_policy.planner_script, 'scripts/update-homebrew-tap.ts');
   assert.equal(homebrew.tap_update_policy.nightly.mode, 'tap_repo_scheduled_self_sync_to_nightly_cask');
   assert.equal(homebrew.tap_update_policy.nightly.may_update_stable, false);
-  assert.equal(homebrew.tap_update_policy.stable.mode, 'desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate');
+  assert.equal(
+    homebrew.tap_update_policy.stable.mode,
+    'new_release_desktop_promote_direct_commit_after_published_release_before_homebrew_vm_gate; refresh_existing_desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate',
+  );
   assert.equal(homebrew.tap_update_policy.stable.may_consume_nightly_directly, false);
   assert.equal(homebrew.tap_update_policy.full.mode, 'stable_full_first_install_cask_after_full_release_gates');
   assert.equal(homebrew.tap_update_policy.full.may_update_standard_cask, false);
