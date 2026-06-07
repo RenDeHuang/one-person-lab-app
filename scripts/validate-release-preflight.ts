@@ -16,6 +16,23 @@ type Check = {
   message: string;
 };
 
+type ReleaseTarget = {
+  tag: string;
+  kind: 'offline_unknown' | 'unused' | 'published_release' | 'draft_release' | 'prerelease_release';
+  release_exists: boolean | null;
+  tag_exists: boolean | null;
+  is_draft: boolean | null;
+  is_prerelease: boolean | null;
+  published_at: string | null;
+};
+
+type HomebrewPreflight = {
+  tap_update_required: boolean;
+  tap_token_required: boolean;
+  tap_update_owner: string;
+  reason: string;
+};
+
 type Options = {
   version: string;
   releaseMode: string;
@@ -125,6 +142,17 @@ function run(command: string, args: string[], options: { allowFailure?: boolean 
   return result;
 }
 
+function objectOrNull(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function parseReleasePayload(stdout: string) {
+  if (!stdout.trim()) return null;
+  return objectOrNull(JSON.parse(stdout));
+}
+
 function checkVersion(options: Options, checks: Check[]) {
   if (!/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$/.test(options.version)) {
     addCheck(checks, 'version', 'failed', `Invalid release version: ${options.version}`);
@@ -141,42 +169,77 @@ function checkReleaseMode(options: Options, checks: Check[]) {
   addCheck(checks, 'release_mode', 'passed', `Release mode ${options.releaseMode} is supported.`);
 }
 
-function checkRemoteTarget(options: Options, checks: Check[]) {
+function resolveReleaseTarget(options: Options): ReleaseTarget {
+  const tag = `v${options.version}`;
+  if (options.offline) {
+    return {
+      tag,
+      kind: 'offline_unknown',
+      release_exists: null,
+      tag_exists: null,
+      is_draft: null,
+      is_prerelease: null,
+      published_at: null,
+    };
+  }
+
+  const release = run('gh', ['release', 'view', tag, '--repo', releaseRepo, '--json', 'tagName,isDraft,isPrerelease,publishedAt'], {
+    allowFailure: true,
+  });
+  const releaseExists = release.status === 0;
+  const releasePayload = releaseExists ? parseReleasePayload(release.stdout) : null;
+  const tagLookup = run('git', ['ls-remote', '--tags', `https://github.com/${releaseRepo}.git`, `refs/tags/${tag}`], {
+    allowFailure: true,
+  });
+  const tagExists = tagLookup.status === 0 && tagLookup.stdout.trim().length > 0;
+  const isDraft = releaseExists && typeof releasePayload?.isDraft === 'boolean' ? releasePayload.isDraft : null;
+  const isPrerelease = releaseExists && typeof releasePayload?.isPrerelease === 'boolean' ? releasePayload.isPrerelease : null;
+  const publishedAt = typeof releasePayload?.publishedAt === 'string' ? releasePayload.publishedAt : null;
+  const kind = !releaseExists
+    ? 'unused'
+    : isDraft === true
+      ? 'draft_release'
+      : isPrerelease === true
+        ? 'prerelease_release'
+        : 'published_release';
+
+  return {
+    tag,
+    kind,
+    release_exists: releaseExists,
+    tag_exists: tagExists,
+    is_draft: isDraft,
+    is_prerelease: isPrerelease,
+    published_at: publishedAt,
+  };
+}
+
+function checkRemoteTarget(options: Options, checks: Check[], target: ReleaseTarget) {
   if (options.offline) {
     addCheck(checks, 'remote_target', 'skipped', 'Offline mode skipped GitHub tag and release lookup.');
     return;
   }
 
-  const tag = `v${options.version}`;
-  const release = run('gh', ['release', 'view', tag, '--repo', releaseRepo, '--json', 'tagName,isDraft,isPrerelease'], {
-    allowFailure: true,
-  });
-  const releaseExists = release.status === 0;
-  const tagLookup = run('git', ['ls-remote', '--tags', `https://github.com/${releaseRepo}.git`, `refs/tags/${tag}`], {
-    allowFailure: true,
-  });
-  const tagExists = tagLookup.status === 0 && tagLookup.stdout.trim().length > 0;
-
   if (options.releaseMode === 'refresh_existing') {
-    if (!releaseExists) {
-      addCheck(checks, 'remote_target', 'failed', `refresh_existing requires GitHub Release ${tag} to exist.`);
+    if (!target.release_exists) {
+      addCheck(checks, 'remote_target', 'failed', `refresh_existing requires GitHub Release ${target.tag} to exist.`);
       return;
     }
-    addCheck(checks, 'remote_target', 'passed', `GitHub Release ${tag} exists for refresh_existing.`);
+    addCheck(checks, 'remote_target', 'passed', `GitHub Release ${target.tag} exists for refresh_existing as ${target.kind}.`);
     return;
   }
 
-  if (releaseExists || tagExists) {
+  if (target.release_exists || target.tag_exists) {
     addCheck(
       checks,
       'remote_target',
       'failed',
-      `${options.releaseMode} requires ${tag} to be unused; release_exists=${releaseExists}, tag_exists=${tagExists}.`,
+      `${options.releaseMode} requires ${target.tag} to be unused; release_exists=${target.release_exists}, tag_exists=${target.tag_exists}.`,
     );
     return;
   }
 
-  addCheck(checks, 'remote_target', 'passed', `${tag} is unused for ${options.releaseMode}.`);
+  addCheck(checks, 'remote_target', 'passed', `${target.tag} is unused for ${options.releaseMode}.`);
 }
 
 function checkWorkflowShape(options: Options, checks: Check[]) {
@@ -241,8 +304,42 @@ function checkReleasePlan(options: Options, checks: Check[]) {
   addCheck(checks, 'release_plan', 'passed', `release plan exposes ${requiredLanes.length} required lanes.`);
 }
 
-function checkHomebrewToken(options: Options, checks: Check[]) {
-  if (!options.runVmSmoke || options.releaseMode === 'draft_candidate') {
+function buildHomebrewPreflight(options: Options, target: ReleaseTarget): HomebrewPreflight {
+  const tapTokenRequired = options.runVmSmoke && options.releaseMode !== 'draft_candidate';
+  if (!options.runVmSmoke) {
+    return {
+      tap_update_required: false,
+      tap_token_required: false,
+      tap_update_owner: 'not_required_vm_smoke_disabled',
+      reason: 'VM smoke is disabled for this run.',
+    };
+  }
+  if (options.releaseMode === 'draft_candidate') {
+    return {
+      tap_update_required: false,
+      tap_token_required: false,
+      tap_update_owner: 'not_required_diagnostic_draft_candidate',
+      reason: 'Diagnostic draft candidates do not update Stable Homebrew.',
+    };
+  }
+  if (options.releaseMode === 'refresh_existing' && (target.kind === 'published_release' || target.kind === 'offline_unknown')) {
+    return {
+      tap_update_required: true,
+      tap_token_required: tapTokenRequired,
+      tap_update_owner: 'desktop_release_after_remote_verification',
+      reason: 'Published-release refreshes update Homebrew in desktop-release after remote verification.',
+    };
+  }
+  return {
+    tap_update_required: false,
+    tap_token_required: tapTokenRequired,
+    tap_update_owner: 'desktop_release_promote_after_publish',
+    reason: 'Release target is a draft; Homebrew tap updates can read it only after promote publishes the draft.',
+  };
+}
+
+function checkHomebrewToken(homebrew: HomebrewPreflight, checks: Check[]) {
+  if (!homebrew.tap_token_required) {
     addCheck(checks, 'homebrew_tap_token', 'skipped', 'Stable Homebrew tap update is not required for this run.');
     return;
   }
@@ -296,7 +393,22 @@ function checkContract(options: Options, checks: Check[]) {
   addCheck(checks, 'release_preflight_contract', 'passed', 'Release contract defines the fast preflight boundary.');
 }
 
-function writeOutputs(options: Options, checks: Check[]) {
+function appendGithubOutput(summary: {
+  release_target: ReleaseTarget;
+  homebrew: HomebrewPreflight;
+}) {
+  const outputPath = process.env.GITHUB_OUTPUT;
+  if (!outputPath) return;
+  fs.appendFileSync(outputPath, [
+    `release_target_kind=${summary.release_target.kind}`,
+    `homebrew_tap_update_required=${String(summary.homebrew.tap_update_required)}`,
+    `homebrew_tap_token_required=${String(summary.homebrew.tap_token_required)}`,
+    `homebrew_tap_update_owner=${summary.homebrew.tap_update_owner}`,
+    '',
+  ].join('\n'));
+}
+
+function writeSummary(options: Options, checks: Check[], releaseTarget: ReleaseTarget, homebrew: HomebrewPreflight) {
   const status = checks.some((check) => check.status === 'failed') ? 'failed' : 'passed';
   const summary = {
     schema: 'opl_release_preflight.v1',
@@ -312,6 +424,8 @@ function writeOutputs(options: Options, checks: Check[]) {
       framework_ref: options.frameworkRef,
       offline: options.offline,
     },
+    release_target: releaseTarget,
+    homebrew,
     checks,
   };
 
@@ -338,6 +452,7 @@ function writeOutputs(options: Options, checks: Check[]) {
   }
 
   console.log(`${JSON.stringify(summary, null, 2)}\n`);
+  appendGithubOutput(summary);
   if (status === 'failed') {
     process.exit(1);
   }
@@ -350,7 +465,9 @@ checkReleaseMode(options, checks);
 checkContract(options, checks);
 checkWorkflowShape(options, checks);
 checkReleasePlan(options, checks);
-checkHomebrewToken(options, checks);
+const releaseTarget = resolveReleaseTarget(options);
+checkRemoteTarget(options, checks, releaseTarget);
+const homebrew = buildHomebrewPreflight(options, releaseTarget);
+checkHomebrewToken(homebrew, checks);
 checkMacosLocalAuthorization(checks);
-checkRemoteTarget(options, checks);
-writeOutputs(options, checks);
+writeSummary(options, checks, releaseTarget, homebrew);

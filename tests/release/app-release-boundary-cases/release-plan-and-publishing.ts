@@ -15,6 +15,7 @@ import {
   writeStandardLocalAuthorizationPolicy,
   writeFullLocalAuthorizationPolicy,
   writeFullRuntimeNativeTrust,
+  writeExecutable,
   sha256,
 } from './helpers.ts';
 
@@ -191,6 +192,57 @@ test('release preflight fails fast before expensive release jobs', () => {
   assert.ok(standardOnlyPayload.checks.some((check) => (
     check.id === 'full_workflow_call'
     && check.status === 'skipped'
+  )));
+
+  const fakeBin = path.join(tempRoot, 'bin');
+  writeExecutable(path.join(fakeBin, 'gh'), `#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args.join(' ').startsWith('release view')) {
+  process.stdout.write(JSON.stringify({
+    tagName: 'v26.5.19',
+    isDraft: true,
+    isPrerelease: false,
+    publishedAt: null
+  }) + '\\n');
+  process.exit(0);
+}
+console.error('unexpected gh args: ' + JSON.stringify(args));
+process.exit(2);
+`);
+  writeExecutable(path.join(fakeBin, 'git'), `#!/usr/bin/env bash
+set -euo pipefail
+if [ "$1" = "ls-remote" ]; then
+  echo "1111111111111111111111111111111111111111 refs/tags/v26.5.19"
+  exit 0
+fi
+echo "unexpected git args: $*" >&2
+exit 2
+`);
+
+  const draftRefresh = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+  ], {
+    env: {
+      PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`,
+      OPL_HOMEBREW_TAP_TOKEN_PRESENT: 'true',
+    },
+  });
+  assert.equal(draftRefresh.status, 0, draftRefresh.stderr || draftRefresh.stdout);
+  const draftRefreshPayload = JSON.parse(draftRefresh.stdout);
+  assert.equal(draftRefreshPayload.release_target.kind, 'draft_release');
+  assert.equal(draftRefreshPayload.homebrew.tap_update_required, false);
+  assert.equal(draftRefreshPayload.homebrew.tap_update_owner, 'desktop_release_promote_after_publish');
+  assert.ok(draftRefreshPayload.checks.some((check) => (
+    check.id === 'homebrew_tap_token'
+    && check.status === 'passed'
   )));
 
   const failure = runNode([

@@ -557,7 +557,11 @@ fails closed when any required draft-cohort gate result or small evidence
 artifact is failed, cancelled, missing, or unexpectedly skipped. Homebrew tap
 updates and the Homebrew clean-VM gate run after publication in
 `.github/workflows/desktop-release-promote.yml` for new stable releases; they
-remain part of Stable release closure rather than draft promotion proof.
+remain part of Stable release closure rather than draft promotion proof. If a
+same-version `refresh_existing` run targets a draft release, the release
+preflight summary must set `release_target.kind=draft_release` and
+`homebrew.tap_update_required=false`; only a published-release refresh may run
+Homebrew tap updates inside `.github/workflows/desktop-release.yml`.
 The JSON summary carries `gate_profile_schema=app_release_validation_profiles.v1`
 and the selected `gate_profile`, so an older cohort summary cannot stand in for
 the current Stable gate set. Stable and Full Homebrew tap gates also compare the
@@ -565,11 +569,13 @@ tap plan `checksum_sha256` with the same GitHub Release asset digest recorded by
 remote verification.
 
 That final summary is a diagnostic reader, not another package consumer. It
-downloads only small artifacts: remote verification JSON, VM smoke summaries,
-one-shot installer output, Docker/WebUI smoke output, WebUI GHCR publish
-summary, operator evidence bundle validation summary, Full diagnostics, and
-`full-workflow-telemetry.json`. For `refresh_existing` published-release repairs
-it also reads Stable and Full Homebrew tap plans plus the Homebrew VM summary.
+downloads only small artifacts: release preflight JSON, remote verification
+JSON, VM smoke summaries, one-shot installer output, Docker/WebUI smoke output,
+WebUI GHCR publish summary, operator evidence bundle validation summary, Full
+diagnostics, and `full-workflow-telemetry.json`. For `refresh_existing`
+published-release repairs it also reads Stable and Full Homebrew tap plans plus
+the Homebrew VM summary. For `refresh_existing` draft refreshes, those Homebrew
+artifacts stay post-promote gates owned by the promote workflow.
 It must not download the standard DMG artifact, the large Full DMG workflow
 artifact, or published DMG assets for diagnosis.
 Full build bottleneck analysis uses `duration_seconds.full_package_build` and

@@ -218,6 +218,11 @@ function statusString(value: unknown) {
   return typeof value === 'string' ? value : '';
 }
 
+function statusOf(record: Record<string, unknown> | null) {
+  if (!record) return 'missing';
+  return typeof record.status === 'string' ? record.status : 'unknown';
+}
+
 function numberField(record: Record<string, unknown> | null | undefined, key: string) {
   const value = record?.[key];
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -347,8 +352,50 @@ function validateHomebrewDigestCoherence(
   return null;
 }
 
+function readPreflightSummary(options: Options) {
+  const artifactName = `release-preflight-summary-${options.version}`;
+  const preflightPath = findFile(artifactDir(options, artifactName), 'release-preflight-summary.json');
+  if (!preflightPath) return { artifactName, path: null, summary: null };
+  const summary = readJson(preflightPath);
+  return {
+    artifactName,
+    path: path.relative(options.artifactsDir, preflightPath),
+    summary: objectField(summary, 'homebrew') ? summary as Record<string, unknown> : null,
+  };
+}
+
+function summarizeHomebrewReadiness(options: Options, preflightSummary: Record<string, unknown> | null) {
+  const homebrew = objectField(preflightSummary, 'homebrew');
+  const releaseTarget = objectField(preflightSummary, 'release_target');
+  const fallbackRequired = options.runVmSmoke && options.releaseMode === 'refresh_existing';
+  if (!homebrew) {
+    return {
+      tap_update_required: fallbackRequired,
+      tap_token_required: fallbackRequired,
+      tap_update_owner: fallbackRequired
+        ? 'desktop_release_after_remote_verification'
+        : 'not_required_for_this_run',
+      reason: fallbackRequired
+        ? 'Preflight summary was unavailable; falling back to published-release refresh Homebrew requirement.'
+        : 'Preflight summary was unavailable; Homebrew is not required for this run.',
+      source: 'fallback_release_mode',
+      release_target_kind: null,
+    };
+  }
+  return {
+    tap_update_required: homebrew.tap_update_required === true,
+    tap_token_required: homebrew.tap_token_required === true,
+    tap_update_owner: typeof homebrew.tap_update_owner === 'string' ? homebrew.tap_update_owner : null,
+    reason: typeof homebrew.reason === 'string' ? homebrew.reason : null,
+    source: 'release_preflight',
+    release_target_kind: typeof releaseTarget?.kind === 'string' ? releaseTarget.kind : null,
+  };
+}
+
 function buildSummary(options: Options) {
   const jobResults = readJobResults(options);
+  const preflight = readPreflightSummary(options);
+  const homebrewReadiness = summarizeHomebrewReadiness(options, preflight.summary);
   const remoteArtifactName = `remote-release-verification-${options.version}`;
   const standardVmArtifactName = `opl-first-run-vm-standard-${process.env.GITHUB_RUN_ID || 'local'}`;
   const homebrewVmArtifactName = `opl-first-run-vm-homebrew-standard-${process.env.GITHUB_RUN_ID || 'local'}`;
@@ -650,7 +697,7 @@ function buildSummary(options: Options) {
   const selectedStandardVmJob = options.includeFullPackage
     ? 'standard-first-run-vm-smoke-after-full'
     : 'standard-first-run-vm-smoke-after-standard-only';
-  const stableHomebrewRequired = options.runVmSmoke && options.releaseMode === 'refresh_existing';
+  const stableHomebrewRequired = homebrewReadiness.tap_update_required === true;
   const gates = {
     remote_release_verification: applyJobResult(remoteGate, jobResults, selectedRemoteJob, true),
     standard_dmg_clean_vm: applyJobResult(
@@ -664,7 +711,7 @@ function buildSummary(options: Options) {
     stable_homebrew_tap_update: applyJobResult(
       stableHomebrewRequired
         ? homebrewTapGate
-        : missingGate(false, homebrewTapArtifactName, 'Stable Homebrew tap update is not required for this run.'),
+        : missingGate(false, homebrewTapArtifactName, homebrewReadiness.reason || 'Stable Homebrew tap update is not required for this run.'),
       jobResults,
       'stable-homebrew-tap-update',
       stableHomebrewRequired,
@@ -672,7 +719,7 @@ function buildSummary(options: Options) {
     full_homebrew_tap_update: applyJobResult(
       options.includeFullPackage && stableHomebrewRequired
         ? fullHomebrewTapGate
-        : missingGate(false, fullHomebrewTapArtifactName, 'Full Homebrew tap update is not required for this run.'),
+        : missingGate(false, fullHomebrewTapArtifactName, homebrewReadiness.reason || 'Full Homebrew tap update is not required for this run.'),
       jobResults,
       'full-homebrew-tap-update',
       options.includeFullPackage && stableHomebrewRequired,
@@ -680,7 +727,7 @@ function buildSummary(options: Options) {
     homebrew_standard_cask_clean_vm: applyJobResult(
       stableHomebrewRequired
         ? vmGate(homebrewVmArtifactName, 'standard', true)
-        : missingGate(false, homebrewVmArtifactName, options.runVmSmoke ? 'Stable Homebrew VM smoke is not required for this run.' : 'VM smoke disabled for this run.'),
+        : missingGate(false, homebrewVmArtifactName, options.runVmSmoke ? homebrewReadiness.reason || 'Stable Homebrew VM smoke is not required for this run.' : 'VM smoke disabled for this run.'),
       jobResults,
       'homebrew-standard-first-run-vm-smoke',
       stableHomebrewRequired,
@@ -725,6 +772,12 @@ function buildSummary(options: Options) {
       rule: 'readiness aggregation downloads only small diagnostic artifacts and summaries; DMG assets are validated by remote verification and VM jobs.',
     },
     job_results: jobResults,
+    preflight: {
+      artifact_name: preflight.artifactName,
+      artifact_path: preflight.path,
+      status: statusOf(preflight.summary),
+    },
+    homebrew: homebrewReadiness,
     warnings,
     gates,
     failed_required_gates: failedRequired,

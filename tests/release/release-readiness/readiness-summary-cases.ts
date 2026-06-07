@@ -174,6 +174,83 @@ test('release readiness summary rejects Homebrew checksum drift from remote rele
   assert.match(summary.gates.stable_homebrew_tap_update.reason, /Homebrew checksum ccccc/);
 });
 
+test('release readiness summary defers Homebrew gates for refresh_existing draft release targets', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-draft-refresh-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot);
+  writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
+    status: 'published',
+    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
+    tags: ['26.5.99', 'stable', 'latest'],
+    draft_candidate_push: false,
+  });
+  fs.rmSync(path.join(artifactsRoot, 'homebrew-tap-plan-stable-app_standard-26.5.99'), { recursive: true, force: true });
+  fs.rmSync(path.join(artifactsRoot, 'homebrew-tap-plan-stable-app_full_first_install-26.5.99'), { recursive: true, force: true });
+  fs.rmSync(path.join(artifactsRoot, 'opl-first-run-vm-homebrew-standard-local'), { recursive: true, force: true });
+  writeJson(path.join(artifactsRoot, 'release-preflight-summary-26.5.99', 'release-preflight-summary.json'), {
+    schema: 'opl_release_preflight.v1',
+    status: 'passed',
+    release_target: {
+      tag: 'v26.5.99',
+      kind: 'draft_release',
+      release_exists: true,
+      tag_exists: true,
+      is_draft: true,
+      is_prerelease: false,
+      published_at: null,
+    },
+    homebrew: {
+      tap_update_required: false,
+      tap_update_owner: 'desktop_release_promote_after_publish',
+      reason: 'Release target is a draft; Homebrew tap updates can read it only after promote publishes the draft.',
+    },
+  });
+  writeJson(jobResultsPath, {
+    'full-first-install': 'success',
+    'remote-verify-standard': 'skipped',
+    'remote-verify-full': 'success',
+    'standard-first-run-vm-smoke-after-standard-only': 'skipped',
+    'standard-first-run-vm-smoke-after-full': 'success',
+    'stable-homebrew-tap-update': 'skipped',
+    'full-homebrew-tap-update': 'skipped',
+    'homebrew-standard-first-run-vm-smoke': 'skipped',
+    'full-first-run-vm-smoke': 'success',
+    'one-shot-app-installer-smoke': 'success',
+    'docker-webui-smoke': 'success',
+    'webui-ghcr-publish': 'success',
+    'operator-evidence-bundle-validation': 'success',
+  });
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.homebrew.tap_update_required, false);
+  assert.equal(summary.homebrew.tap_update_owner, 'desktop_release_promote_after_publish');
+  assert.equal(summary.gates.stable_homebrew_tap_update.required, false);
+  assert.equal(summary.gates.stable_homebrew_tap_update.status, 'skipped');
+  assert.equal(summary.gates.full_homebrew_tap_update.required, false);
+  assert.equal(summary.gates.homebrew_standard_cask_clean_vm.required, false);
+});
+
 test('release readiness summary passes with explicit Full size warning below review threshold', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-full-warning-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');

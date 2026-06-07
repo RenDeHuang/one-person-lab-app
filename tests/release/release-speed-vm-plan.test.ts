@@ -93,8 +93,8 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   );
   assertMatches(
     workflow,
-    /stable-homebrew-tap-update:[\s\S]*?inputs\.release_mode == 'refresh_existing'/,
-    'Stable Homebrew tap update must stay on published-release refresh path inside desktop release',
+    /stable-homebrew-tap-update:[\s\S]*?needs\.release-preflight\.outputs\.homebrew_tap_update_required == 'true'/,
+    'Stable Homebrew tap update must follow preflight target classification inside desktop release',
   );
   assertMatches(
     workflow,

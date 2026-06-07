@@ -70,6 +70,11 @@ jobs:
   release-preflight:
     name: Release preflight
     runs-on: ubuntu-latest
+    outputs:
+      release_target_kind: ${{ steps.release-preflight.outputs.release_target_kind }}
+      homebrew_tap_update_required: ${{ steps.release-preflight.outputs.homebrew_tap_update_required }}
+      homebrew_tap_token_required: ${{ steps.release-preflight.outputs.homebrew_tap_token_required }}
+      homebrew_tap_update_owner: ${{ steps.release-preflight.outputs.homebrew_tap_update_owner }}
 
     steps:
       - name: Checkout App repo
@@ -83,6 +88,7 @@ jobs:
           node-version: '22'
 
       - name: Run release preflight
+        id: release-preflight
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_HOMEBREW_TAP_TOKEN_PRESENT: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN != '' && 'true' || 'false' }}
@@ -396,9 +402,10 @@ jobs:
   stable-homebrew-tap-update:
     name: Update Stable Homebrew tap
     needs:
+      - release-preflight
       - remote-verify-standard
       - remote-verify-full
-    if: ${{ always() && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && (needs.remote-verify-standard.result == 'success' || needs.remote-verify-full.result == 'success') }}
+    if: ${{ always() && needs.release-preflight.outputs.homebrew_tap_update_required == 'true' && (needs.remote-verify-standard.result == 'success' || needs.remote-verify-full.result == 'success') }}
     uses: ./.github/workflows/homebrew-tap-update.yml
     with:
       channel: stable
