@@ -345,6 +345,7 @@
       "workflow_preflight_shape",
       "release_plan",
       "homebrew_tap_token",
+      "macos_signing_secrets",
       "remote_target"
     ],
     "failure_budget": "fail before standard or Full builds start",

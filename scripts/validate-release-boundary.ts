@@ -382,10 +382,12 @@ const checks = [
       'release-preflight-summary.json',
       'release-preflight-summary.md',
       'OPL_HOMEBREW_TAP_TOKEN_PRESENT',
+      'OPL_BUILD_CERTIFICATE_BASE64_PRESENT',
       'refresh_existing requires GitHub Release',
       'workflow_preflight_shape',
       'release_plan',
       'homebrew_tap_token',
+      'macos_signing_secrets',
     ],
     forbidden: ['TODO', 'TBD'],
   },
@@ -726,6 +728,7 @@ for (const checkId of [
   'workflow_preflight_shape',
   'release_plan',
   'homebrew_tap_token',
+  'macos_signing_secrets',
   'remote_target',
 ]) {
   if (!preflight?.required_fast_checks?.includes(checkId)) {

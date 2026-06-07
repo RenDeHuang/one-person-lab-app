@@ -91,6 +91,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /npm run release:preflight --/);
   assert.match(workflow, /release-preflight-summary\.json/);
   assert.match(workflow, /release-preflight-summary\.md/);
+  assert.match(workflow, /OPL_MACOS_SIGNING_REQUIRED:\s+'true'/);
+  assert.match(workflow, /OPL_BUILD_CERTIFICATE_BASE64_PRESENT: \$\{\{ secrets\.BUILD_CERTIFICATE_BASE64 != '' && 'true' \|\| 'false' \}\}/);
+  assert.match(workflow, /OPL_IDENTITY_PRESENT: \$\{\{ secrets\.IDENTITY != '' && 'true' \|\| 'false' \}\}/);
   assert.match(workflow, /standard-build:[\s\S]*needs: release-preflight/);
   assert.match(workflow, /full-first-install:[\s\S]*needs: release-preflight/);
   assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release[\s\S]*draft_candidate/);
@@ -300,6 +303,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'workflow_preflight_shape',
       'release_plan',
       'homebrew_tap_token',
+      'macos_signing_secrets',
       'remote_target',
     ],
     failure_budget: 'fail before standard or Full builds start',

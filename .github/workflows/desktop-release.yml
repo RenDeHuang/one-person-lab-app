@@ -86,6 +86,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_HOMEBREW_TAP_TOKEN_PRESENT: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN != '' && 'true' || 'false' }}
+          OPL_MACOS_SIGNING_REQUIRED: 'true'
+          OPL_BUILD_CERTIFICATE_BASE64_PRESENT: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && 'true' || 'false' }}
+          OPL_P12_PASSWORD_PRESENT: ${{ secrets.P12_PASSWORD != '' && 'true' || 'false' }}
+          OPL_APPLE_ID_PRESENT: ${{ secrets.APPLE_ID != '' && 'true' || 'false' }}
+          OPL_APPLE_ID_PASSWORD_PRESENT: ${{ secrets.APPLE_ID_PASSWORD != '' && 'true' || 'false' }}
+          OPL_TEAM_ID_PRESENT: ${{ secrets.TEAM_ID != '' && 'true' || 'false' }}
+          OPL_IDENTITY_PRESENT: ${{ secrets.IDENTITY != '' && 'true' || 'false' }}
         run: |
           npm run release:preflight -- \
             --version "${{ inputs.opl_version }}" \

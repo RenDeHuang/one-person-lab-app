@@ -217,6 +217,32 @@ test('release preflight fails fast before expensive release jobs', () => {
     && check.status === 'failed'
     && check.message.includes('OPL_HOMEBREW_TAP_TOKEN')
   )));
+
+  const missingSigningSecrets = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'false',
+    '--run-vm-smoke',
+    'false',
+    '--offline',
+  ], {
+    env: {
+      OPL_MACOS_SIGNING_REQUIRED: 'true',
+    },
+  });
+  assert.notEqual(missingSigningSecrets.status, 0);
+  const missingSigningPayload = JSON.parse(missingSigningSecrets.stdout);
+  assert.equal(missingSigningPayload.status, 'failed');
+  assert.ok(missingSigningPayload.checks.some((check) => (
+    check.id === 'macos_signing_secrets'
+    && check.status === 'failed'
+    && check.message.includes('BUILD_CERTIFICATE_BASE64')
+    && check.message.includes('IDENTITY')
+  )));
 });
 
 test('publish dry run skips existing release assets when a resumed upload already has matching files', () => {
