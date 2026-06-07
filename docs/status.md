@@ -45,12 +45,14 @@ owner-receipt authority, artifact authority, memory body, or OPL family
 production readiness.
 
 The active shell currently tracks AionUI upstream through
-`82262a3f6cfe479bef7f7f464c3208e28db57ce8` while preserving the App-owned
+`c7956710cc464addac69ee66e11107b87ccec170` while preserving the App-owned
 product profile. That intake is recorded in `contracts/app-shell-adapter.json`,
 which is the active shell source of truth; the upstream code is implementation
 material, not product authority. The shell also keeps Codex ACP tool-call
 output display aligned with native Codex behavior by preserving newline-bearing
-`raw_output` / `stdout` / `stderr` content in the conversation view.
+`raw_output` / `stdout` / `stderr` content in the conversation view and records
+`install-not-applied` updater diagnostics when a downloaded update remains
+unapplied after `quitAndInstall`.
 
 GUI interaction status: Home/Guid is contract-backed as a composer-first Codex
 canvas with visible GPT-5.5（超高） model status, purpose entries `科研`/`基金`/
