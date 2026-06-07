@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { assertAppRootBoundary } from './app-root-boundary.ts';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { readJson } from './validate-active-shell/assertions.ts';
 import { validateContractShape } from './validate-active-shell/active-shell-contract.ts';
@@ -29,6 +30,7 @@ import {
   runtimeBridgePath,
 } from './validate-active-shell/validation-config.ts';
 
+assertAppRootBoundary({ phase: 'active shell validation' });
 const args = parseArgs(process.argv);
 const contract = readAppShellAdapterContract();
 const shellPaths = resolveActiveShellPaths({ contract });

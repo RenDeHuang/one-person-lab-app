@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertAppRootBoundary } from './app-root-boundary.ts';
 import { syncAppProductProfileToShell } from './app-product-profile.ts';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
@@ -13,6 +14,7 @@ const shellPaths = resolveActiveShellPaths();
 const shellRuntimeRoot = shellPaths.packagedRuntimeRoot;
 const shellBootstrapInstallerPath = path.join(shellPaths.shellRoot, 'resources', 'opl-install.sh');
 
+assertAppRootBoundary({ phase: 'before standard payload preparation' });
 fs.rmSync(path.join(runtimeRoot, 'runtime'), { recursive: true, force: true });
 fs.rmSync(path.join(runtimeRoot, 'manifest'), { recursive: true, force: true });
 fs.mkdirSync(runtimeRoot, { recursive: true });
@@ -22,6 +24,7 @@ const profileSync = syncAppProductProfileToShell(shellPaths.shellRoot, { optiona
 fs.mkdirSync(path.dirname(shellBootstrapInstallerPath), { recursive: true });
 fs.copyFileSync(appInstallerPath, shellBootstrapInstallerPath);
 fs.chmodSync(shellBootstrapInstallerPath, 0o755);
+assertAppRootBoundary({ phase: 'after standard payload preparation' });
 
 console.log(JSON.stringify({
   status: 'standard_release_payload_ready',

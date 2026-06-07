@@ -70,6 +70,7 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
     /name: Verify packaged bundled bun assets[\s\S]*working-directory: \$\{\{ github\.workspace \}\}[\s\S]*run: bun run validate:opl-package/,
   );
   assert.equal(packageJson.scripts['test:packaged:bun'], 'node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:opl-package');
+  assert.equal(packageJson.scripts['validate:app-root-boundary'], 'node --experimental-strip-types scripts/app-root-boundary.ts');
   assert.equal(packageJson.scripts['install:shell'], 'node --experimental-strip-types scripts/run-active-shell-command.ts bun install --frozen-lockfile');
   assert.equal(
     packageJson.scripts['validate:gui-shell'],

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
+import { assertAppRootBoundary } from './app-root-boundary.ts';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const OPL_RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
@@ -26,6 +27,7 @@ if (args.length === 0) {
 }
 
 const shellPaths = resolveActiveShellPaths();
+assertAppRootBoundary({ phase: 'before active shell command' });
 const result = spawnSync(args[0], args.slice(1), {
   cwd: shellPaths.shellRoot,
   stdio: 'inherit',
@@ -34,5 +36,12 @@ const result = spawnSync(args[0], args.slice(1), {
     OPL_RELEASE_VERSION: resolveOplReleaseVersion(),
   },
 });
+
+try {
+  assertAppRootBoundary({ phase: 'after active shell command' });
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
 
 process.exit(result.status ?? 1);

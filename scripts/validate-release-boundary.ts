@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { assertAppRootBoundary } from './app-root-boundary.ts';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -626,6 +627,13 @@ const checks = [
 ];
 
 let failures = 0;
+try {
+  assertAppRootBoundary({ phase: 'release boundary validation' });
+} catch (error) {
+  console.error(`FAIL app_root_boundary: ${error instanceof Error ? error.message : String(error)}`);
+  failures += 1;
+}
+
 for (const check of checks) {
   const absolutePath = path.join(appRoot, check.file);
   if (check.retired) {

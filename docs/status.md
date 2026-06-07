@@ -299,6 +299,10 @@ family production readiness.
 Current release validation is App-root first: root wrappers call the active shell
 build/release scripts, then the produced standard package can replace
 `/Applications/One Person Lab.app` for a real local GUI startup smoke.
+`npm run validate:app-root-boundary` is the fail-closed guard for this boundary:
+the App root `package.json` must remain the product wrapper and shell build
+outputs such as `index.js` or `out/main/index.js` must stay under the active
+shell checkout, not in the App root.
 `hygiene:fallow` is only the App-root wrapper hygiene gate and does not replace
 active shell validation or GUI compile evidence. Use `npm run
 validate:gui-shell` when the change must prove the active shell still validates

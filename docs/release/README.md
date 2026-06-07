@@ -210,7 +210,11 @@ the source of truth for those two gates.
 
 The active shell source is `gaofeng21cn/opl-aion-shell`. It is consumed as an
 external checkout at `shells/aionui` and is not tracked in the clean App repo
-history.
+history. App-root release wrappers run `scripts/app-root-boundary.ts` before and
+after shell commands so a shell package manifest or compiled bundle cannot
+silently replace the App root product wrapper. A boundary failure means the root
+must be restored before continuing the release path; shell build output belongs
+under `shells/aionui/out/`.
 
 `contracts/app-product-profile.json` is the release-time source of App-owned
 desktop defaults. Standard release preparation and Full first-install assembly

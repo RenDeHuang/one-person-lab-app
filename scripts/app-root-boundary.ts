@@ -1,0 +1,106 @@
+#!/usr/bin/env node
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+type BoundaryOptions = {
+  root?: string;
+  phase?: string;
+  reportPass?: boolean;
+};
+
+const defaultAppRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+const forbiddenRootPackageFields = [
+  'aioncoreVersion',
+  'dependencies',
+  'devDependencies',
+  'electronRebuild',
+  'engines',
+  'lint-staged',
+  'main',
+  'optionalDependencies',
+  'overrides',
+  'patchedDependencies',
+  'productName',
+  'resolutions',
+  'workspaces',
+];
+
+const requiredRootScripts = {
+  'validate:app-root-boundary': 'node --experimental-strip-types scripts/app-root-boundary.ts',
+  'validate:active-shell': 'node --experimental-strip-types scripts/validate-active-shell.ts',
+  'validate:release-boundary': 'node --experimental-strip-types scripts/validate-release-boundary.ts',
+  'release:prepare-standard': 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts',
+  'build-mac:arm64': 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-mac:arm64',
+};
+
+const forbiddenRootBuildArtifacts = [
+  'index.js',
+  path.join('out', 'main', 'index.js'),
+  path.join('out', 'preload', 'index.js'),
+  path.join('out', 'renderer', 'index.html'),
+];
+
+function readJson(filePath: string): any {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function formatPhase(phase: string | undefined): string {
+  return phase ? ` (${phase})` : '';
+}
+
+export function assertAppRootBoundary(options: BoundaryOptions = {}): void {
+  const appRoot = path.resolve(options.root ?? defaultAppRoot);
+  const packageJsonPath = path.join(appRoot, 'package.json');
+  const failures: string[] = [];
+
+  if (!fs.existsSync(packageJsonPath)) {
+    failures.push('missing App root package.json');
+  } else {
+    const packageJson = readJson(packageJsonPath);
+    if (packageJson.name !== 'one-person-lab-app') {
+      failures.push(`package.json name must stay one-person-lab-app, got ${JSON.stringify(packageJson.name)}`);
+    }
+    if (packageJson.private !== true) {
+      failures.push('package.json private must stay true for the App product wrapper');
+    }
+    if (packageJson.type !== 'module') {
+      failures.push(`package.json type must stay module, got ${JSON.stringify(packageJson.type)}`);
+    }
+    if (!packageJson.scripts || typeof packageJson.scripts !== 'object') {
+      failures.push('package.json must expose App root wrapper scripts');
+    } else {
+      for (const [scriptName, expectedCommand] of Object.entries(requiredRootScripts)) {
+        if (packageJson.scripts[scriptName] !== expectedCommand) {
+          failures.push(`package.json script ${scriptName} must stay ${expectedCommand}`);
+        }
+      }
+    }
+    for (const field of forbiddenRootPackageFields) {
+      if (Object.hasOwn(packageJson, field)) {
+        failures.push(`package.json must not contain shell package field ${field}`);
+      }
+    }
+  }
+
+  for (const artifact of forbiddenRootBuildArtifacts) {
+    const absolutePath = path.join(appRoot, artifact);
+    if (fs.existsSync(absolutePath)) {
+      failures.push(`shell build artifact must not exist at App root: ${artifact}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`App root boundary violation${formatPhase(options.phase)}:\n- ${failures.join('\n- ')}`);
+  }
+
+  if (options.reportPass) {
+    console.log('PASS: App root package wrapper and shell build artifact boundary are intact');
+  }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  assertAppRootBoundary({ reportPass: true });
+}

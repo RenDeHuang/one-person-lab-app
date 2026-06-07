@@ -1,4 +1,5 @@
 import './app-release-boundary-cases/ownership-and-installation-contracts.ts';
+import './app-release-boundary-cases/app-root-boundary.ts';
 import './app-release-boundary-cases/product-profile-and-install-exposure.ts';
 import './app-release-boundary-cases/first-run-and-installer.ts';
 import './app-release-boundary-cases/runtime-page-evidence-boundary.ts';

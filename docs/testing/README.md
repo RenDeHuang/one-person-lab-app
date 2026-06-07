@@ -34,6 +34,7 @@ through the shell `bun run package` entry.
 
 ```bash
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
+npm run validate:app-root-boundary
 npm run test:release-boundary
 npm run validate:release-boundary
 node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir release-evidence/<version> --action-id <opl-runtime-safe-action-id> --execute-action --overwrite --evidence-source-dir artifacts/opl-first-run-vm --artifact runtime_screenshot=/path/to/runtime.png

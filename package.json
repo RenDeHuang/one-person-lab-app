@@ -35,6 +35,7 @@
     "format:check": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run format:check",
     "validate:packaged-runtime": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:packaged-runtime",
     "validate:opl-package": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:opl-package",
+    "validate:app-root-boundary": "node --experimental-strip-types scripts/app-root-boundary.ts",
     "validate:active-shell": "node --experimental-strip-types scripts/validate-active-shell.ts",
     "validate:agent-installation": "node --experimental-strip-types scripts/validate-agent-installation-contract.ts",
     "validate:shell-candidates": "node --experimental-strip-types scripts/validate-shell-candidates.ts",
