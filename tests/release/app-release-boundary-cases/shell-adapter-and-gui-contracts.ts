@@ -60,7 +60,7 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   assert.equal(adapterContract.shell_contract.layout_id, 'aionui_v2_workspace');
   assert.equal(adapterContract.shell_contract.paths.product_profile_target, 'packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json');
   assert.equal(adapterContract.shell_contract.paths.electron_builder_config, 'packages/desktop/electron-builder.yml');
-  assert.equal(adapterContract.shell_source.upstream_ref, '06593c00dab72f995b9bf42d7c6a2924c5dafe84');
+  assert.equal(adapterContract.shell_source.upstream_ref, 'fb74068bc5b35dc7d17e2f405b1f63b2866fa96d');
   assert.match(
     workflow,
     /name: Prepare standard App payload[\s\S]*working-directory: \$\{\{ github\.workspace \}\}[\s\S]*run: node --experimental-strip-types scripts\/prepare-standard-release-payload\.ts/,
