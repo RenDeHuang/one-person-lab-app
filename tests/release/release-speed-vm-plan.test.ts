@@ -110,10 +110,14 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(workflow, /full-first-run-vm-smoke:[\s\S]*?needs:\s+remote-verify-full/, 'Full VM smoke job');
   assertMatches(workflow, /one-shot-app-installer-smoke:[\s\S]*?needs:\s+publish-standard/, 'one-shot installer smoke');
   assertMatches(workflow, /docker-webui-smoke:[\s\S]*?needs:\s+publish-standard/, 'Docker WebUI smoke');
-  assertMatches(workflow, /operator-evidence-bundle-validation:[\s\S]*?npm run release:evidence:validate --/, 'operator evidence validation job');
   assertMatches(
     workflow,
-    /operator-evidence-bundle-validation:[\s\S]*?repository:\s+gaofeng21cn\/one-person-lab[\s\S]*?ref:\s+\$\{\{ inputs\.framework_ref \|\| 'main' \}\}[\s\S]*?npm ci[\s\S]*?npm run release:collect-evidence --/,
+    /operator-evidence-bundle-validation:[\s\S]*?node --experimental-strip-types scripts\/validate-release-evidence-bundle\.ts[\s\S]*?> evidence-validation-summary\.json/,
+    'operator evidence validation must write strict JSON without npm run banner output',
+  );
+  assertMatches(
+    workflow,
+    /operator-evidence-bundle-validation:[\s\S]*?repository:\s+gaofeng21cn\/one-person-lab[\s\S]*?ref:\s+\$\{\{ inputs\.framework_ref \|\| 'main' \}\}[\s\S]*?npm ci[\s\S]*?node --experimental-strip-types scripts\/collect-release-evidence\.ts/,
     'operator evidence validation must collect OPL runtime evidence through the Framework CLI',
   );
   assertMatches(
@@ -131,6 +135,13 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     /operator-evidence-bundle-validation:[\s\S]*?full_source_dir="release-evidence-inputs\/opl-first-run-vm-full-\$\{\{ github\.run_id \}\}"[\s\S]*?runtime_screenshot=\$full_source_dir\/artifacts\/settings-pages\/runtime-status\.png/,
     'operator evidence collector must map the packaged Runtime page screenshot from the Full VM artifact',
   );
+  assertMatches(
+    workflow,
+    /operator-evidence-bundle-validation:[\s\S]*?node --experimental-strip-types scripts\/write-release-evidence-manifest\.ts --bundle-dir "\$bundle_dir" --overwrite/,
+    'operator evidence manifest must use the direct script when producing machine artifacts',
+  );
+  const operatorEvidenceJob = workflow.match(/\n  operator-evidence-bundle-validation:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assert.doesNotMatch(operatorEvidenceJob, /npm run [^\n]*> evidence-(?:collection|validation)-summary\.json/);
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/, 'final release readiness summary job');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?remote-verify-full[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?full-first-run-vm-smoke[\s\S]*?one-shot-app-installer-smoke[\s\S]*?docker-webui-smoke[\s\S]*?operator-evidence-bundle-validation/, 'final release readiness dependencies');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-release-verification-\$\{\{ inputs\.opl_version \}\}/, 'remote verification small artifact');

@@ -797,8 +797,8 @@ jobs:
           if [ -d "$remote_source_dir" ]; then
             collector_args+=(--evidence-source-dir "$remote_source_dir")
           fi
-          npm run release:collect-evidence -- "${collector_args[@]}" > evidence-collection-summary.json
-          npm run release:evidence:manifest -- --bundle-dir "$bundle_dir" --overwrite
+          node --experimental-strip-types scripts/collect-release-evidence.ts "${collector_args[@]}" > evidence-collection-summary.json
+          node --experimental-strip-types scripts/write-release-evidence-manifest.ts --bundle-dir "$bundle_dir" --overwrite
 
       - name: Validate operator evidence bundle
         if: ${{ steps.collect_operator_evidence.outcome == 'success' }}
@@ -807,7 +807,7 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          npm run release:evidence:validate -- \
+          node --experimental-strip-types scripts/validate-release-evidence-bundle.ts \
             --bundle-dir "release-evidence/${{ inputs.opl_version }}" \
             > evidence-validation-summary.json
 
