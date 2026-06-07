@@ -76,6 +76,15 @@ function run(command, args, options = {}) {
   return result;
 }
 
+function runCapture(command, args, options = {}) {
+  return spawnSync(command, args, {
+    cwd: options.cwd,
+    encoding: 'utf8',
+    stdio: 'pipe',
+    env: process.env,
+  });
+}
+
 function readReleaseView(repo, tag) {
   if (process.env.OPL_REMOTE_RELEASE_VIEW_JSON?.trim()) {
     return JSON.parse(process.env.OPL_REMOTE_RELEASE_VIEW_JSON);
@@ -193,6 +202,111 @@ function assertStandardMetadata(downloadDir, version) {
 function assertStableLocalAuthorizationPolicy(downloadDir, name, packageKind) {
   const policy = JSON.parse(readText(path.join(downloadDir, name)));
   assertLocalAuthorizationPolicy(policy, packageKind, name);
+}
+
+function readCodeSignature(filePath) {
+  const result = runCapture('codesign', ['-dv', '--verbose=4', filePath]);
+  const output = `${result.stdout || ''}${result.stderr || ''}`;
+  return {
+    signature: output.match(/^Signature=(.+)$/m)?.[1]?.trim() || null,
+    team_identifier: output.match(/^TeamIdentifier=(.+)$/m)?.[1]?.trim() || null,
+  };
+}
+
+function findStandardAppBundle(rootDir) {
+  const matches = [];
+  const stack = [rootDir];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const stat = fs.lstatSync(current);
+    if (!stat.isDirectory()) {
+      continue;
+    }
+    if (path.basename(current) === 'One Person Lab.app') {
+      matches.push(current);
+      continue;
+    }
+    for (const entry of fs.readdirSync(current).sort().reverse()) {
+      stack.push(path.join(current, entry));
+    }
+  }
+  if (matches.length !== 1) {
+    throw new Error(`standard updater ZIP must contain exactly one One Person Lab.app bundle; found ${matches.length}.`);
+  }
+  return matches[0];
+}
+
+function decodeXmlText(value) {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+}
+
+function readPlistStringValue(plistPath, key) {
+  const plistBuddy = '/usr/libexec/PlistBuddy';
+  if (fs.existsSync(plistBuddy)) {
+    const result = runCapture(plistBuddy, ['-c', `Print :${key}`, plistPath]);
+    if (result.status === 0 && result.stdout.trim()) {
+      return result.stdout.trim();
+    }
+  }
+  const text = readText(plistPath);
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = text.match(new RegExp(`<key>\\s*${escapedKey}\\s*</key>\\s*<string>([^<]*)</string>`));
+  return match?.[1] ? decodeXmlText(match[1].trim()) : '';
+}
+
+function assertStandardUpdaterAppBundleTrust(downloadDir, version) {
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  const zipPath = path.join(downloadDir, zipName);
+  const unzipDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-updater-app-'));
+  try {
+    run('unzip', ['-q', zipPath, '-d', unzipDir], { capture: true });
+    const appPath = findStandardAppBundle(unzipDir);
+    const infoPlistPath = path.join(appPath, 'Contents', 'Info.plist');
+    if (!fs.existsSync(infoPlistPath)) {
+      throw new Error('standard updater ZIP App bundle is missing Contents/Info.plist.');
+    }
+    const shortVersion = readPlistStringValue(infoPlistPath, 'CFBundleShortVersionString');
+    const bundleVersion = readPlistStringValue(infoPlistPath, 'CFBundleVersion');
+    if (shortVersion !== version && bundleVersion !== version) {
+      throw new Error(`standard updater ZIP App bundle version mismatch: expected ${version}, got CFBundleShortVersionString=${shortVersion || '(empty)'} CFBundleVersion=${bundleVersion || '(empty)'}.`);
+    }
+
+    const codesignResult = runCapture('codesign', ['--verify', '--deep', '--strict', '--verbose=2', appPath]);
+    if (codesignResult.status !== 0) {
+      throw new Error(`standard updater ZIP App bundle failed codesign verification: ${codesignResult.stderr || codesignResult.stdout || '(no output)'}`);
+    }
+    const signature = readCodeSignature(appPath);
+    if (
+      !signature.team_identifier
+      || signature.team_identifier === 'not set'
+      || !signature.signature
+      || signature.signature === 'adhoc'
+    ) {
+      throw new Error(`standard updater ZIP App bundle must be Developer ID signed; signature=${signature.signature || '(empty)'} team_identifier=${signature.team_identifier || '(empty)'}.`);
+    }
+    const spctlResult = runCapture('spctl', ['--assess', '--type', 'execute', '--verbose=4', appPath]);
+    if (spctlResult.status !== 0) {
+      throw new Error(`standard updater ZIP App bundle failed Gatekeeper assessment: ${spctlResult.stderr || spctlResult.stdout || '(no output)'}`);
+    }
+    return {
+      status: 'passed',
+      asset: zipName,
+      version,
+      bundle_version: bundleVersion || null,
+      short_version: shortVersion || null,
+      signature: signature.signature,
+      team_identifier: signature.team_identifier,
+      codesign_status: 'passed',
+      spctl_status: 'passed',
+    };
+  } finally {
+    fs.rmSync(unzipDir, { recursive: true, force: true });
+  }
 }
 
 function assertFullRuntimeNativeTrust(downloadDir) {
@@ -475,12 +589,14 @@ function verifyDownloadedAssets(releaseView, options, names, downloadDir) {
 
   assertStandardMetadata(downloadDir, options.version);
   assertStableLocalAuthorizationPolicy(downloadDir, 'standard-local-authorization-policy.json', 'app_standard');
+  const standardUpdaterAppBundleTrust = assertStandardUpdaterAppBundleTrust(downloadDir, options.version);
   let fullFirstInstallBudget = null;
   if (options.includeFullPackage) {
     fullFirstInstallBudget = assertFullAssets(downloadDir, options.version, verified);
   }
   return {
     verified,
+    standardUpdaterAppBundleTrust,
     fullFirstInstallBudget,
   };
 }
@@ -514,6 +630,7 @@ function main() {
     download_dir: options.keepDownload || options.noDownload ? downloadDir : null,
     verified_asset_count: verification.verified.length,
     verified_assets: verification.verified,
+    standard_updater_app_bundle_trust: verification.standardUpdaterAppBundleTrust,
     ...(verification.fullFirstInstallBudget
       ? { full_first_install_budget: verification.fullFirstInstallBudget }
       : {}),

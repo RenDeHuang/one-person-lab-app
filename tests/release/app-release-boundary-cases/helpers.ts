@@ -187,6 +187,11 @@ export function writeFile(filePath, content = 'artifact') {
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
+export function writeExecutable(filePath, content) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content, { encoding: 'utf8', mode: 0o755 });
+}
+
 export function readFullPackageBuilderSource() {
   const partsRoot = path.join(appRoot, 'scripts', 'build-full-first-install-package');
   return [
@@ -681,6 +686,28 @@ export function fileSha256(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
+export function writeFakeMacosTrustCommands(binDir, options = {}) {
+  const teamIdentifier = options.teamIdentifier ?? 'TESTTEAMID';
+  const signature = options.signature ?? 'Developer ID Application: Test (TESTTEAMID)';
+  writeExecutable(path.join(binDir, 'codesign'), [
+    '#!/usr/bin/env bash',
+    'set -euo pipefail',
+    'if [ "$1" = "-dv" ]; then',
+    `  echo ${JSON.stringify(`Signature=${signature}`)} >&2`,
+    `  echo ${JSON.stringify(`TeamIdentifier=${teamIdentifier}`)} >&2`,
+    '  exit 0',
+    'fi',
+    'exit 0',
+    '',
+  ].join('\n'));
+  writeExecutable(path.join(binDir, 'spctl'), [
+    '#!/usr/bin/env bash',
+    'set -euo pipefail',
+    'exit 0',
+    '',
+  ].join('\n'));
+}
+
 export function workflowStepBlock(workflow, stepName) {
   const escaped = stepName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = workflow.match(new RegExp(`\\n\\s+- name: ${escaped}[\\s\\S]*?(?=\\n\\s+- name: |$)`));
@@ -716,12 +743,52 @@ export function standardRemoteAssetNames(version) {
   ];
 }
 
+function writeMinimalMacosAppBundle(appRoot, version) {
+  const contentsDir = path.join(appRoot, 'Contents');
+  const macosDir = path.join(contentsDir, 'MacOS');
+  writeFile(path.join(contentsDir, 'Info.plist'), [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    '<plist version="1.0">',
+    '<dict>',
+    '  <key>CFBundleExecutable</key>',
+    '  <string>One Person Lab</string>',
+    '  <key>CFBundleIdentifier</key>',
+    '  <string>com.onepersonlab.app</string>',
+    '  <key>CFBundleShortVersionString</key>',
+    `  <string>${version}</string>`,
+    '  <key>CFBundleVersion</key>',
+    `  <string>${version}</string>`,
+    '</dict>',
+    '</plist>',
+    '',
+  ].join('\n'));
+  writeExecutable(path.join(macosDir, 'One Person Lab'), '#!/usr/bin/env bash\nexit 0\n');
+}
+
+function writeStandardUpdaterZip(zipPath, version) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-updater-zip-'));
+  try {
+    writeMinimalMacosAppBundle(path.join(tempRoot, 'One Person Lab.app'), version);
+    const result = spawnSync('zip', ['-qry', zipPath, 'One Person Lab.app'], {
+      cwd: tempRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    });
+    if (result.status !== 0) {
+      throw new Error(`zip failed: ${result.stderr || result.stdout}`);
+    }
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
 export function writeStandardRemoteAssets(outDir, version, options = {}) {
   const names = standardRemoteAssetNames(version);
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
   writeFile(path.join(outDir, dmgName), 'standard-dmg');
-  writeFile(path.join(outDir, zipName), 'standard-zip');
+  writeStandardUpdaterZip(path.join(outDir, zipName), version);
   writeFile(path.join(outDir, `${dmgName}.blockmap`), 'standard-dmg-blockmap');
   writeFile(path.join(outDir, `${zipName}.blockmap`), 'standard-zip-blockmap');
   writeStandardLocalAuthorizationPolicy(outDir);

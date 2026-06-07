@@ -602,6 +602,21 @@ jobs:
           NODE
 
       - name: Write macOS Stable local authorization policy
+        if: startsWith(matrix.platform, 'macos') && inputs.require_macos_gatekeeper
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="$(find out -maxdepth 2 -type d -name 'One Person Lab.app' | sort | head -n 1)"
+          if [ -z "$app_path" ]; then
+            echo "::error::No packaged One Person Lab.app bundle found under shells/aionui/out."
+            exit 1
+          fi
+          node --experimental-strip-types ../../scripts/local-authorization-policy.ts \
+            --package-kind app_standard \
+            --app-path "$app_path" \
+            --output out/standard-local-authorization-policy.json
+
+      - name: Write macOS Stable local authorization policy
         if: startsWith(matrix.platform, 'macos') && !inputs.require_macos_gatekeeper
         shell: bash
         run: |
@@ -715,6 +730,7 @@ jobs:
             shells/aionui/out/*.blockmap
             shells/aionui/out/*.yml
             shells/aionui/out/standard-local-authorization-policy.json
+            shells/aionui/out/standard-gatekeeper-launch-policy.json
           if-no-files-found: warn
           retention-days: 7
 

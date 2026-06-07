@@ -31,7 +31,18 @@
     "module_package_update_allowed": false,
     "developer_checkout_selection_allowed": false,
     "opl_flow_install_allowed": false,
-    "rule": "standard updater metadata must never point to Full first-install assets",
+    "macos_app_bundle_trust": {
+      "required": true,
+      "zip_asset": "One-Person-Lab-<version>-mac-arm64.zip",
+      "version_gate": "CFBundleShortVersionString_or_CFBundleVersion_equals_release_version",
+      "codesign_gate": "passed",
+      "spctl_gate": "passed",
+      "signature_gate": "non_adhoc",
+      "team_identifier_required": true,
+      "verification": "npm run verify-remote-release on macos-14 downloads the published ZIP, extracts One Person Lab.app, verifies codesign, verifies Gatekeeper assessment, rejects Signature=adhoc, and requires a non-empty TeamIdentifier before Stable or Nightly updater assets are accepted",
+      "rule": "standard updater replacement must be proven by a Developer ID signed App bundle in the updater ZIP; local authorization only proves first-install/manual-launch authorization and must not be used as updater replacement evidence"
+    },
+    "rule": "standard updater metadata must never point to Full first-install assets, and standard updater ZIP assets must contain a Developer ID signed One Person Lab.app bundle",
     "same_tag_refresh": {
       "allowed": true,
       "mode": "github_actions_prebuilt_assets_upload_clobber",
@@ -414,6 +425,7 @@
         "remote_asset_size",
         "remote_asset_sha256_digest",
         "local_authorization_policy",
+        "standard_updater_zip_app_bundle_trust",
         "standard_updater_metadata",
         "full_sha256sums",
         "full_runtime_cache_events",

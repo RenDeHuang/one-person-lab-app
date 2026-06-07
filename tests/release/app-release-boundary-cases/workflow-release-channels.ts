@@ -77,6 +77,7 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
 
 test('manual desktop release workflow supports new releases and same-tag refreshes in GitHub Actions', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
+  const standardBuild = workflowJobBlock(workflow, 'standard-build');
   const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
   const fullPackageScript = readFullPackageBuilderSource();
   const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
@@ -97,6 +98,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to build and verify/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
+  assert.match(standardBuild, /require_macos_gatekeeper:\s+true/);
   const reusableWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
   assert.match(reusableWorkflow, /macos-signing-preflight:/);
   assert.match(reusableWorkflow, /name: macOS release signing preflight/);
@@ -129,6 +131,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /if \[ "\$RELEASE_MODE" = "new_release" \] \|\| \[ "\$RELEASE_MODE" = "draft_candidate" \]; then[\s\S]*publish_args\+=\(--draft\)/);
   assert.match(workflow, /remote-verify-standard:/);
   assert.match(workflow, /remote-verify-full:/);
+  assert.match(workflowJobBlock(workflow, 'remote-verify-standard'), /runs-on: macos-14/);
+  assert.match(workflowJobBlock(workflow, 'remote-verify-full'), /runs-on: macos-14/);
   assert.match(workflow, /npm run verify-remote-release/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
@@ -388,6 +392,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'remote_asset_size',
       'remote_asset_sha256_digest',
       'local_authorization_policy',
+      'standard_updater_zip_app_bundle_trust',
       'standard_updater_metadata',
       'full_sha256sums',
       'full_runtime_cache_events',
@@ -428,6 +433,8 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /tag="v\$\{version\}"/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
   assert.match(workflow, /opl_release_version: \$\{\{ needs\.resolve-nightly\.outputs\.version \}\}/);
+  assert.match(workflowJobBlock(workflow, 'standard-build'), /require_macos_gatekeeper:\s+true/);
+  assert.match(workflowJobBlock(workflow, 'publish-nightly'), /runs-on: macos-14/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/generate-release-notes\.ts[\s\S]*--channel nightly/);
@@ -657,6 +664,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   );
 
   assert.match(verifyWorkflow, /name: OPL Remote Release Verification/);
+  assert.match(verifyWorkflow, /runs-on: macos-14/);
   assert.match(verifyWorkflow, /npm run verify-remote-release/);
   assert.match(verifyWorkflow, /--summary-path remote-release-verification\.json/);
   assert.match(verifyWorkflow, /verify_args\+=\(--include-full-package\)/);
@@ -672,6 +680,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.doesNotMatch(warmupWorkflow, /secrets: inherit/);
 
   assert.match(promoteWorkflow, /name: OPL Desktop Release Promote/);
+  assert.match(promoteWorkflow, /runs-on: macos-14/);
   assert.match(promoteWorkflow, /release_run_id:/);
   assert.match(promoteWorkflow, /Download release candidate record/);
   assert.match(promoteWorkflow, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);

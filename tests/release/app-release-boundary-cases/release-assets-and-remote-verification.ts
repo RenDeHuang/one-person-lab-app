@@ -12,6 +12,7 @@ import {
   validStandardAiReleaseNotes,
   writeReleaseMetadata,
   writeStandardLocalAuthorizationPolicy,
+  writeFakeMacosTrustCommands,
   buildRemoteReleaseView,
   writeStandardRemoteAssets,
   writeFullRemoteAssets,
@@ -396,6 +397,7 @@ test('release asset preparation preserves local authorization policy from GitHub
 
 test('remote release verifier validates standard and Full assets from GitHub release view', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-'));
+  const binDir = path.join(tempRoot, 'bin');
   const version = '26.5.19-remote';
   const names = [
     ...writeStandardRemoteAssets(tempRoot, version),
@@ -403,6 +405,7 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   ];
   const summaryPath = path.join(tempRoot, 'remote-release-verification.json');
   const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+  writeFakeMacosTrustCommands(binDir);
 
   const result = runNode([
     'scripts/verify-remote-release-assets.ts',
@@ -419,6 +422,7 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   ], {
     env: {
       OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
     },
   });
 
@@ -431,6 +435,10 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.download_dir, tempRoot);
   assert.equal(summary.verified_asset_count, names.length);
   assert.deepEqual(summary.verified_assets.map((asset) => asset.name), names);
+  assert.equal(summary.standard_updater_app_bundle_trust.status, 'passed');
+  assert.equal(summary.standard_updater_app_bundle_trust.version, version);
+  assert.equal(summary.standard_updater_app_bundle_trust.team_identifier, 'TESTTEAMID');
+  assert.equal(summary.standard_updater_app_bundle_trust.signature, 'Developer ID Application: Test (TESTTEAMID)');
   assert.equal(summary.full_first_install_budget.status, 'passed');
   assert.equal(summary.full_first_install_budget.platform_scope, 'macos-arm64');
   assert.equal(summary.full_first_install_budget.warning_full_dmg_bytes, 700000000);
@@ -445,8 +453,37 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.full_first_install_budget.optional_components.bun.status, 'not_packaged');
 });
 
+test('remote release verifier rejects ad-hoc signed standard updater app zips', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-adhoc-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const version = '26.5.19-adhoc';
+  const names = writeStandardRemoteAssets(tempRoot, version);
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+  writeFakeMacosTrustCommands(binDir, { teamIdentifier: 'not set', signature: 'adhoc' });
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version',
+    version,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--download-dir',
+    tempRoot,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /standard updater ZIP App bundle must be Developer ID signed/);
+});
+
 test('remote release verifier fails closed when Full runtime assertions are missing or broad', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-runtime-assertions-'));
+  const binDir = path.join(tempRoot, 'bin');
   const version = '26.5.19-runtime-assertions';
   const names = writeStandardRemoteAssets(tempRoot, version);
   names.push(...writeFullRemoteAssets(tempRoot, version, {
@@ -458,6 +495,7 @@ test('remote release verifier fails closed when Full runtime assertions are miss
     },
   }));
   const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+  writeFakeMacosTrustCommands(binDir);
 
   const result = runNode([
     'scripts/verify-remote-release-assets.ts',
@@ -472,6 +510,7 @@ test('remote release verifier fails closed when Full runtime assertions are miss
   ], {
     env: {
       OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
     },
   });
 
@@ -506,6 +545,7 @@ test('remote release verifier rejects standard updater metadata that references 
 
 test('remote release verifier warns when Full DMG review threshold is exceeded', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-budget-'));
+  const binDir = path.join(tempRoot, 'bin');
   const version = '26.5.19-budget';
   const names = [
     ...writeStandardRemoteAssets(tempRoot, version),
@@ -523,6 +563,7 @@ test('remote release verifier warns when Full DMG review threshold is exceeded',
   ];
   const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
   const summaryPath = path.join(tempRoot, 'remote-release-verification.json');
+  writeFakeMacosTrustCommands(binDir);
 
   const result = runNode([
     'scripts/verify-remote-release-assets.ts',
@@ -539,6 +580,7 @@ test('remote release verifier warns when Full DMG review threshold is exceeded',
   ], {
     env: {
       OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
     },
   });
 

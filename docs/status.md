@@ -242,21 +242,26 @@ standard updater metadata. The updater must not select assets whose names
 include `Full`. Standard App updates download in the background and apply after
 restart when ready; they do not block first-run Core ready. This follows the
 Electron autoUpdater background-download and download-ready restart prompt
-model. Full assets are available as GitHub Release first-install downloads and
-as the explicit stable `one-person-lab-full` Homebrew cask; they do not enter
-updater metadata. GitHub Release uploads, standard DMG, Full DMG, GUI smoke,
-Homebrew cask smoke, and user tutorials are all App-owned. The Framework repo is only a
-runtime/CLI/contracts payload source for Full DMG and a machine-interface
-provider for the App.
+model. Standard updater ZIP assets must also pass
+`standard_updater_zip_app_bundle_trust`: the published ZIP is extracted on a
+macOS runner, the embedded `One Person Lab.app` version is checked, `codesign`
+and Gatekeeper assessment must pass, `Signature=adhoc` is rejected, and
+`TeamIdentifier` must be present. Full assets are available as GitHub Release
+first-install downloads and as the explicit stable `one-person-lab-full`
+Homebrew cask; they do not enter updater metadata. GitHub Release uploads,
+standard DMG, Full DMG, GUI smoke, Homebrew cask smoke, and user tutorials are
+all App-owned. The Framework repo is only a runtime/CLI/contracts payload source
+for Full DMG and a machine-interface provider for the App.
 
-Stable macOS releases currently use local authorization policy assets rather
-than requiring paid Apple Developer ID signing. First-run VM smokes must clear
-quarantine after installing the App, write
-`artifacts/gatekeeper-launch-policy.json`, and record `codesign` / `spctl`
-diagnostics as the local-authorization evidence for the same release cohort.
-Stable release assets must publish `standard-local-authorization-policy.json`
-and `full-local-authorization-policy.json`; Homebrew tap sync requires the
-matching policy asset before updating a cask.
+Stable macOS standard updater releases now require Developer ID signing and
+Gatekeeper acceptance. First-run VM smokes still clear quarantine after
+installing the App, write `artifacts/gatekeeper-launch-policy.json`, and record
+`codesign` / `spctl` diagnostics as local-authorization evidence for first
+install and Homebrew/manual launch paths. Stable release assets must publish
+`standard-local-authorization-policy.json` and
+`full-local-authorization-policy.json`; Homebrew tap sync requires the matching
+policy asset before updating a cask. Local authorization evidence does not prove
+that Squirrel can replace an installed app bundle through the in-app updater.
 
 Full release packaging also treats native runtime executable trust as a release
 gate. Full builds must publish `full-runtime-native-trust.json`, include that

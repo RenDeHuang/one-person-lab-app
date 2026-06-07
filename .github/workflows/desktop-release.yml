@@ -120,7 +120,7 @@ jobs:
       skip_code_quality: ${{ inputs.skip_code_quality }}
       opl_release_version: ${{ inputs.opl_version }}
       shell_ref: ${{ inputs.shell_ref }}
-      require_macos_gatekeeper: false
+      require_macos_gatekeeper: true
     secrets: inherit
 
   publish-standard:
@@ -332,7 +332,7 @@ jobs:
     name: Verify remote standard release assets
     needs: publish-standard
     if: ${{ !inputs.include_full_package }}
-    runs-on: ubuntu-latest
+    runs-on: macos-14
 
     steps:
       - name: Checkout App repo
@@ -364,7 +364,7 @@ jobs:
     name: Verify remote standard and Full release assets
     needs: publish-full-assets
     if: ${{ inputs.include_full_package }}
-    runs-on: ubuntu-latest
+    runs-on: macos-14
 
     steps:
       - name: Checkout App repo

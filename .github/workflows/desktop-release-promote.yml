@@ -31,7 +31,7 @@ env:
 jobs:
   promote:
     name: Verify and publish draft release
-    runs-on: ubuntu-latest
+    runs-on: macos-14
 
     steps:
       - name: Checkout App repo

@@ -62,10 +62,17 @@ API notes for the background-download, `update-downloaded`, and
 `latest*.yml` updater metadata and are not an updater target. The standard
 updater updates desktop App assets only; it does not update OPL module packages,
 select Developer Profile `source_channel` checkouts, publish the WebUI image, or
-install `opl-flow`. Module packages stay under Framework/App maintenance through
-the stable package channel carried by Homebrew or App/CLI maintenance, while
-GitHub repo/local checkout sources are an explicit Developer Profile
-`source_channel` opt-in.
+install `opl-flow`. The updater ZIP must contain a Developer ID signed
+`One Person Lab.app` bundle: remote verification extracts
+`One-Person-Lab-<version>-mac-arm64.zip` on a macOS runner, checks the bundle
+version, requires `codesign --verify --deep --strict`, requires
+`spctl --assess --type execute`, rejects `Signature=adhoc`, and requires a
+non-empty `TeamIdentifier`. Downloaded metadata, matching hashes, and
+`standard-local-authorization-policy.json` are necessary but do not prove that
+Squirrel can replace the installed app bundle. Module packages stay under
+Framework/App maintenance through the stable package channel carried by
+Homebrew or App/CLI maintenance, while GitHub repo/local checkout sources are an
+explicit Developer Profile `source_channel` opt-in.
 
 ## Homebrew distribution boundary
 
@@ -365,12 +372,15 @@ rather than blocking the release. Standard and Full release lanes publish
 `full-local-authorization-policy.json`; Homebrew tap sync requires the matching
 local authorization policy asset before updating a cask.
 
-Stable macOS release builds do not require paid Apple Developer ID secrets. The
-standard and Full workflows default to local authorization mode: they build the
-DMG assets, remove or verify absent quarantine on the copied App path, record
-`codesign` and `spctl` diagnostics, upload `full-runtime-native-trust.json`, and
-include `full-local-authorization-policy.json` in `SHA256SUMS.txt`. Missing
-Apple secrets are not a Stable release blocker.
+Stable macOS standard updater builds require Apple Developer ID signing and
+Gatekeeper acceptance before the release assets are accepted. The standard build
+workflow fails preflight when the signing/notarization secrets are missing, and
+remote verification runs on `macos-14` so the published ZIP can be checked with
+`codesign` and `spctl`. Full first-install and manual local authorization remain
+local-authorization surfaces: they remove or verify absent quarantine on the
+copied App path, record `codesign` and `spctl` diagnostics, upload
+`full-runtime-native-trust.json`, and include
+`full-local-authorization-policy.json` in `SHA256SUMS.txt`.
 
 ## Stable macOS local authorization
 
@@ -400,6 +410,12 @@ Release assets must include these local authorization gates:
 `removed_by_installer`, `apple_developer_id_required=false`, and
 `gatekeeper_required=false`. `spctl_status` may be `passed`,
 `rejected_allowed_unsigned`, or `failed_allowed_unsigned`.
+
+This local authorization gate is scoped to first install, Homebrew cask install,
+and manual launch repair. It is not updater replacement evidence. Standard
+updater replacement evidence is
+`standard_updater_zip_app_bundle_trust` from `npm run verify-remote-release`,
+which must be produced on macOS from the published ZIP asset.
 
 If an App has already been copied into `/Applications`, use the local
 authorization helper only:
@@ -495,8 +511,9 @@ Promote**.
 Use **OPL Remote Release Verification** when an existing Release needs a fresh
 remote audit without rebuilding. It downloads the published assets, checks
 GitHub asset size and `sha256:` digest, validates standard updater metadata,
-and, when Full is included, checks `SHA256SUMS.txt`, the Full manifest boundary,
-and English-only Full companion text.
+extracts the standard updater ZIP on macOS to verify the signed App bundle, and,
+when Full is included, checks `SHA256SUMS.txt`, the Full manifest boundary, and
+English-only Full companion text.
 
 ## Purpose-based release validation
 
