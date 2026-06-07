@@ -134,6 +134,9 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(fullPackageScript, /'hdiutil'/);
   assert.match(fullPackageScript, /'-srcfolder'/);
   assert.match(fullPackageScript, /ELECTRON_BUILDER_COMPRESSION_LEVEL/);
+  const macosTrustScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package', 'macos-trust.ts'), 'utf8');
+  assert.match(macosTrustScript, /import os from 'node:os';/);
+  assert.match(macosTrustScript, /fs\.mkdtempSync\(path\.join\(os\.tmpdir\(\), 'opl-full-dmg-verify-'\)\)/);
   assert.doesNotMatch(
     fullPackageScript,
     /'--prepackaged'/,
