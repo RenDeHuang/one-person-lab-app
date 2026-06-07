@@ -319,6 +319,16 @@
       "gpt-5.3-codex",
       "gpt-5.2"
     ],
+    "model_display_options_policy": {
+      "source": "contracts/app-product-profile.json#gui.home.codex_model_display_options",
+      "display_policy": "friendly_model_name_and_reasoning_for_every_visible_option",
+      "raw_model_id_visible_in_ordinary_ui": false,
+      "reasoning_effort_visible_for_every_option": true,
+      "auto_option_label_policy": "auto_recommended_with_current_model_reasoning_and_latest_strongest_description",
+      "fixed_option_label_policy": "friendly_model_name_plus_reasoning_with_fixed_model_description",
+      "visible_models_must_match_frontier_preference_order": true,
+      "ordinary_home_and_conversation_must_share_formatter": true
+    },
     "send_after_model_display_policy": "must_not_require_model_or_executor_choice_before_send"
   },
   "home_layout": {

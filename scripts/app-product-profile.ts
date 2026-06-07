@@ -61,6 +61,33 @@ export type AppProductProfile = {
         selection_persists_into_conversation: boolean;
         frontier_model_preference_order: string[];
       };
+      codex_model_display_options: {
+        display_policy: string;
+        raw_model_id_visible_in_ordinary_ui: boolean;
+        reasoning_effort_visible_for_every_option: boolean;
+        default_reasoning_effort: string;
+        auto_option: {
+          id: string;
+          label_zh: string;
+          label_en: string;
+          description_zh: string;
+          description_en: string;
+          resolved_model: string;
+          resolved_model_label_zh: string;
+          resolved_model_label_en: string;
+          resolved_reasoning_effort: string;
+          follows_latest_strongest: boolean;
+        };
+        fixed_model_description_zh: string;
+        fixed_model_description_en: string;
+        reasoning_labels: Record<string, { zh: string; en: string }>;
+        visible_models: Array<{
+          id: string;
+          label_zh: string;
+          label_en: string;
+          reasoning_effort: string;
+        }>;
+      };
       home_purpose_entries: Array<{
         id: string;
         primary_label: string;
@@ -324,6 +351,55 @@ function assertIncludesAll(actual: string[], expected: string[], label: string):
   }
 }
 
+function assertCodexModelDisplayOptions(profile: AppProductProfile): void {
+  const displayOptions = profile.gui.home.codex_model_display_options;
+  if (
+    displayOptions?.display_policy !== 'friendly_model_name_and_reasoning_for_every_visible_option' ||
+    displayOptions.raw_model_id_visible_in_ordinary_ui !== false ||
+    displayOptions.reasoning_effort_visible_for_every_option !== true ||
+    displayOptions.default_reasoning_effort !== profile.codex.default_reasoning_effort ||
+    displayOptions.fixed_model_description_zh !== '固定此模型' ||
+    displayOptions.fixed_model_description_en !== 'Use this model'
+  ) {
+    throw new Error('App product profile Codex model display options must expose friendly model names and reasoning');
+  }
+
+  const auto = displayOptions.auto_option;
+  if (
+    auto?.id !== '__auto' ||
+    auto.label_zh !== '自动（推荐）' ||
+    auto.label_en !== 'Auto (recommended)' ||
+    auto.resolved_model !== profile.codex.default_model ||
+    auto.resolved_reasoning_effort !== profile.codex.default_reasoning_effort ||
+    auto.follows_latest_strongest !== true ||
+    !auto.description_zh.includes('推理超高') ||
+    !auto.description_en.includes('Ultra reasoning')
+  ) {
+    throw new Error('App product profile Codex auto model option must describe latest strongest default reasoning');
+  }
+
+  if (
+    displayOptions.reasoning_labels?.xhigh?.zh !== '推理超高' ||
+    displayOptions.reasoning_labels?.xhigh?.en !== 'Ultra reasoning'
+  ) {
+    throw new Error('App product profile Codex model display options must label xhigh reasoning');
+  }
+
+  const expectedModels = profile.gui.home.codex_auto_model_selection.frontier_model_preference_order;
+  const visibleModels = displayOptions.visible_models ?? [];
+  if (JSON.stringify(visibleModels.map((model) => model.id)) !== JSON.stringify(expectedModels)) {
+    throw new Error('App product profile Codex visible model display options must match frontier preference order');
+  }
+  for (const model of visibleModels) {
+    if (!model.label_zh || !model.label_en || model.reasoning_effort !== profile.codex.default_reasoning_effort) {
+      throw new Error(`App product profile Codex visible model ${model.id} must carry labels and default reasoning`);
+    }
+    if (model.label_zh === model.id || model.label_en === model.id) {
+      throw new Error(`App product profile Codex visible model ${model.id} must not expose raw model ids as ordinary labels`);
+    }
+  }
+}
+
 function assertPostInstallAiSelfCheckEntry(
   entry: AppProductProfile['first_run']['beginner_presentation']['post_install_ai_self_check_entry'],
 ): void {
@@ -443,6 +519,7 @@ function assertProfileShape(profile: AppProductProfile): void {
     profile.gui.home.codex_auto_model_selection.frontier_model_preference_order,
     'gui.home.codex_auto_model_selection.frontier_model_preference_order',
   );
+  assertCodexModelDisplayOptions(profile);
   const purposeEntries = profile.gui.home.home_purpose_entries ?? [];
   if (JSON.stringify(purposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
     throw new Error('App product profile GUI home must expose exactly research, grant, and ppt purpose entries');

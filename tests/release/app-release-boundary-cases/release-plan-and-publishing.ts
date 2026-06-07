@@ -229,19 +229,14 @@ test('release preflight fails fast before expensive release jobs', () => {
     '--run-vm-smoke',
     'false',
     '--offline',
-  ], {
-    env: {
-      OPL_MACOS_SIGNING_REQUIRED: 'true',
-    },
-  });
-  assert.notEqual(missingSigningSecrets.status, 0);
+  ]);
+  assert.equal(missingSigningSecrets.status, 0, missingSigningSecrets.stderr || missingSigningSecrets.stdout);
   const missingSigningPayload = JSON.parse(missingSigningSecrets.stdout);
-  assert.equal(missingSigningPayload.status, 'failed');
+  assert.equal(missingSigningPayload.status, 'passed');
   assert.ok(missingSigningPayload.checks.some((check) => (
-    check.id === 'macos_signing_secrets'
-    && check.status === 'failed'
-    && check.message.includes('BUILD_CERTIFICATE_BASE64')
-    && check.message.includes('IDENTITY')
+    check.id === 'macos_local_authorization'
+    && check.status === 'passed'
+    && check.message.includes('Developer ID signing/notarization secrets are optional')
   )));
 });
 

@@ -91,9 +91,6 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /npm run release:preflight --/);
   assert.match(workflow, /release-preflight-summary\.json/);
   assert.match(workflow, /release-preflight-summary\.md/);
-  assert.match(workflow, /OPL_MACOS_SIGNING_REQUIRED:\s+'true'/);
-  assert.match(workflow, /OPL_BUILD_CERTIFICATE_BASE64_PRESENT: \$\{\{ secrets\.BUILD_CERTIFICATE_BASE64 != '' && 'true' \|\| 'false' \}\}/);
-  assert.match(workflow, /OPL_IDENTITY_PRESENT: \$\{\{ secrets\.IDENTITY != '' && 'true' \|\| 'false' \}\}/);
   assert.match(workflow, /standard-build:[\s\S]*needs: release-preflight/);
   assert.match(workflow, /full-first-install:[\s\S]*needs: release-preflight/);
   assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release[\s\S]*draft_candidate/);
@@ -101,7 +98,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to build and verify/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
-  assert.match(standardBuild, /require_macos_gatekeeper:\s+true/);
+  assert.match(standardBuild, /require_macos_gatekeeper:\s+false/);
   const reusableWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
   assert.match(reusableWorkflow, /macos-signing-preflight:/);
   assert.match(reusableWorkflow, /name: macOS release signing preflight/);
@@ -303,7 +300,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'workflow_preflight_shape',
       'release_plan',
       'homebrew_tap_token',
-      'macos_signing_secrets',
+      'macos_local_authorization',
       'remote_target',
     ],
     failure_budget: 'fail before standard or Full builds start',
@@ -437,7 +434,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /tag="v\$\{version\}"/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
   assert.match(workflow, /opl_release_version: \$\{\{ needs\.resolve-nightly\.outputs\.version \}\}/);
-  assert.match(workflowJobBlock(workflow, 'standard-build'), /require_macos_gatekeeper:\s+true/);
+  assert.match(workflowJobBlock(workflow, 'standard-build'), /require_macos_gatekeeper:\s+false/);
   assert.match(workflowJobBlock(workflow, 'publish-nightly'), /runs-on: macos-14/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);

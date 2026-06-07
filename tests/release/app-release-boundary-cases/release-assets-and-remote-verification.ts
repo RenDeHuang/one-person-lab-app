@@ -439,6 +439,9 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.standard_updater_app_bundle_trust.version, version);
   assert.equal(summary.standard_updater_app_bundle_trust.team_identifier, 'TESTTEAMID');
   assert.equal(summary.standard_updater_app_bundle_trust.signature, 'Developer ID Application: Test (TESTTEAMID)');
+  assert.equal(summary.standard_updater_app_bundle_trust.local_authorization_policy, 'standard-local-authorization-policy.json');
+  assert.equal(summary.standard_updater_app_bundle_trust.apple_developer_id_required, false);
+  assert.equal(summary.standard_updater_app_bundle_trust.gatekeeper_required, false);
   assert.equal(summary.full_first_install_budget.status, 'passed');
   assert.equal(summary.full_first_install_budget.platform_scope, 'macos-arm64');
   assert.equal(summary.full_first_install_budget.warning_full_dmg_bytes, 700000000);
@@ -453,7 +456,7 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.full_first_install_budget.optional_components.bun.status, 'not_packaged');
 });
 
-test('remote release verifier rejects ad-hoc signed standard updater app zips', () => {
+test('remote release verifier accepts ad-hoc signed standard updater app zips under local authorization policy', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-adhoc-'));
   const binDir = path.join(tempRoot, 'bin');
   const version = '26.5.19-adhoc';
@@ -477,8 +480,12 @@ test('remote release verifier rejects ad-hoc signed standard updater app zips', 
     },
   });
 
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /standard updater ZIP App bundle must be Developer ID signed/);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.standard_updater_app_bundle_trust.status, 'local_authorized_unsigned');
+  assert.equal(summary.standard_updater_app_bundle_trust.signature, 'adhoc');
+  assert.equal(summary.standard_updater_app_bundle_trust.team_identifier, 'not set');
 });
 
 test('remote release verifier fails closed when Full runtime assertions are missing or broad', () => {

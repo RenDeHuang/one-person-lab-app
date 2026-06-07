@@ -57,19 +57,19 @@ standard assets use background download, the App prompts for restart only after
 the update is downloaded, and the restart/install step is user visible. See
 Electron's [Updating Applications](https://www.electronjs.org/docs/latest/tutorial/updates)
 guide and [`autoUpdater`](https://www.electronjs.org/docs/latest/api/auto-updater)
-API notes for the background-download, `update-downloaded`, and
-`quitAndInstall()` flow. Full first-install assets are never written into
-`latest*.yml` updater metadata and are not an updater target. The standard
-updater updates desktop App assets only; it does not update OPL module packages,
-select Developer Profile `source_channel` checkouts, publish the WebUI image, or
-install `opl-flow`. The updater ZIP must contain a Developer ID signed
-`One Person Lab.app` bundle: remote verification extracts
-`One-Person-Lab-<version>-mac-arm64.zip` on a macOS runner, checks the bundle
-version, requires `codesign --verify --deep --strict`, requires
-`spctl --assess --type execute`, rejects `Signature=adhoc`, and requires a
-non-empty `TeamIdentifier`. Downloaded metadata, matching hashes, and
-`standard-local-authorization-policy.json` are necessary but do not prove that
-Squirrel can replace the installed app bundle. Module packages stay under
+API notes for the background-download and `update-downloaded` flow. Full
+first-install assets are never written into `latest*.yml` updater metadata and
+are not an updater target. The standard updater updates desktop App assets only;
+it does not update OPL module packages, select Developer Profile
+`source_channel` checkouts, publish the WebUI image, or install `opl-flow`. The
+current macOS updater install path is App-managed local authorization: the
+updater ZIP must contain the expected `One Person Lab.app` bundle, the installer
+replaces the local App bundle, clears recursive quarantine, records
+`codesign` / `spctl` / signature diagnostics, and reopens the App. Remote
+verification extracts `One-Person-Lab-<version>-mac-arm64.zip` on a macOS
+runner, checks the bundle version, records trust diagnostics, and accepts
+ad-hoc or unsigned bundles only when `standard-local-authorization-policy.json`
+declares the Stable local authorization policy. Module packages stay under
 Framework/App maintenance through the stable package channel carried by
 Homebrew or App/CLI maintenance, while GitHub repo/local checkout sources are an
 explicit Developer Profile `source_channel` opt-in.
@@ -372,14 +372,14 @@ rather than blocking the release. Standard and Full release lanes publish
 `full-local-authorization-policy.json`; Homebrew tap sync requires the matching
 local authorization policy asset before updating a cask.
 
-Stable macOS standard updater builds require Apple Developer ID signing and
-Gatekeeper acceptance before the release assets are accepted. The standard build
-workflow fails preflight when the signing/notarization secrets are missing, and
-remote verification runs on `macos-14` so the published ZIP can be checked with
-`codesign` and `spctl`. Full first-install and manual local authorization remain
-local-authorization surfaces: they remove or verify absent quarantine on the
-copied App path, record `codesign` and `spctl` diagnostics, upload
-`full-runtime-native-trust.json`, and include
+Stable macOS standard updater builds do not require paid Apple Developer ID
+signing or notarization. The standard build workflow publishes
+`standard-local-authorization-policy.json`, and remote verification runs on
+`macos-14` so the published ZIP can be checked for the expected App bundle,
+version, hashes, and local authorization diagnostics. Full first-install and
+manual local authorization use the same trust model: they remove or verify
+absent quarantine on the copied App path, record `codesign` and `spctl`
+diagnostics, upload `full-runtime-native-trust.json`, and include
 `full-local-authorization-policy.json` in `SHA256SUMS.txt`.
 
 ## Stable macOS local authorization
@@ -511,9 +511,10 @@ Promote**.
 Use **OPL Remote Release Verification** when an existing Release needs a fresh
 remote audit without rebuilding. It downloads the published assets, checks
 GitHub asset size and `sha256:` digest, validates standard updater metadata,
-extracts the standard updater ZIP on macOS to verify the signed App bundle, and,
-when Full is included, checks `SHA256SUMS.txt`, the Full manifest boundary, and
-English-only Full companion text.
+extracts the standard updater ZIP on macOS to verify the expected App bundle and
+record local authorization diagnostics, and, when Full is included, checks
+`SHA256SUMS.txt`, the Full manifest boundary, and English-only Full companion
+text.
 
 ## Purpose-based release validation
 

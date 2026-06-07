@@ -13,6 +13,15 @@ export function readShellText(shellPaths, relativePath) {
   return readFileSync(filePath, 'utf8');
 }
 
+function readShellJson(shellPaths, relativePath, label) {
+  const text = readShellText(shellPaths, relativePath);
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error(`Active shell ${label} must be valid JSON: ${error.message}`);
+  }
+}
+
 function assertShellTextIncludes(shellPaths, relativePath, expected, label) {
   const text = readShellText(shellPaths, relativePath);
   if (!text.includes(expected)) {
@@ -501,6 +510,22 @@ export function validateActiveShellImplementation(shellPaths) {
     shellPaths,
     'packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json',
   );
+  const productProfileJson = readShellJson(
+    shellPaths,
+    'packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json',
+    'product profile',
+  );
+  const frontierModelPreferenceOrder =
+    productProfileJson?.gui?.home?.codex_auto_model_selection?.frontier_model_preference_order;
+  const expectedFrontierModelPreferenceOrder = ['gpt-5.5', 'gpt-5.4', 'gpt-5.3-codex', 'gpt-5.2'];
+  if (
+    JSON.stringify(frontierModelPreferenceOrder) !==
+      JSON.stringify(expectedFrontierModelPreferenceOrder)
+  ) {
+    throw new Error(
+      `Active shell product profile must carry App Codex default frontier_model_preference_order=${JSON.stringify(expectedFrontierModelPreferenceOrder)}`,
+    );
+  }
   for (const expected of [
     '"default_model": "gpt-5.5"',
     '"default_reasoning_effort": "xhigh"',
@@ -516,7 +541,12 @@ export function validateActiveShellImplementation(shellPaths) {
     '"strategy": "codex_cli_auto_latest_available_frontier"',
     '"user_can_override_model": true',
     '"user_can_restore_auto": true',
-    '"frontier_model_preference_order": ["gpt-5.5", "gpt-5.4", "gpt-5.3-codex", "gpt-5.2"]',
+    '"display_policy": "friendly_model_name_and_reasoning_for_every_visible_option"',
+    '"raw_model_id_visible_in_ordinary_ui": false',
+    '"reasoning_effort_visible_for_every_option": true',
+    '"label_zh": "自动（推荐）"',
+    '"description_zh": "当前 GPT-5.5 · 推理超高 · 跟随最新最强"',
+    '"label_zh": "GPT-5.3 Codex"',
     '"id": "mas"',
     '"id": "mag"',
     '"id": "rca"',

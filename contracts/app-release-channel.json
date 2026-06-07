@@ -35,14 +35,16 @@
       "required": true,
       "zip_asset": "One-Person-Lab-<version>-mac-arm64.zip",
       "version_gate": "CFBundleShortVersionString_or_CFBundleVersion_equals_release_version",
-      "codesign_gate": "passed",
-      "spctl_gate": "passed",
-      "signature_gate": "non_adhoc",
-      "team_identifier_required": true,
-      "verification": "npm run verify-remote-release on macos-14 downloads the published ZIP, extracts One Person Lab.app, verifies codesign, verifies Gatekeeper assessment, rejects Signature=adhoc, and requires a non-empty TeamIdentifier before Stable or Nightly updater assets are accepted",
-      "rule": "standard updater replacement must be proven by a Developer ID signed App bundle in the updater ZIP; local authorization only proves first-install/manual-launch authorization and must not be used as updater replacement evidence"
+      "codesign_gate": "passed_or_failed_allowed_unsigned",
+      "spctl_gate": "passed_or_rejected_allowed_unsigned",
+      "signature_gate": "diagnostic_only",
+      "team_identifier_required": false,
+      "local_authorization_policy_asset": "standard-local-authorization-policy.json",
+      "replacement_mode": "app_managed_local_authorized_replace",
+      "verification": "npm run verify-remote-release on macos-14 downloads the published ZIP, extracts One Person Lab.app, verifies the bundle version, records codesign/spctl/signature diagnostics, and accepts ad-hoc or unsigned bundles only when standard-local-authorization-policy.json declares Stable local authorization with quarantine removal required",
+      "rule": "standard updater replacement is App-managed local authorization: the updater ZIP must contain the expected One Person Lab.app bundle, and release evidence must include the standard local authorization policy rather than requiring paid Apple Developer ID signing"
     },
-    "rule": "standard updater metadata must never point to Full first-install assets, and standard updater ZIP assets must contain a Developer ID signed One Person Lab.app bundle",
+    "rule": "standard updater metadata must never point to Full first-install assets, and standard updater ZIP assets must contain the expected One Person Lab.app bundle plus local authorization evidence",
     "same_tag_refresh": {
       "allowed": true,
       "mode": "github_actions_prebuilt_assets_upload_clobber",
@@ -345,7 +347,7 @@
       "workflow_preflight_shape",
       "release_plan",
       "homebrew_tap_token",
-      "macos_signing_secrets",
+      "macos_local_authorization",
       "remote_target"
     ],
     "failure_budget": "fail before standard or Full builds start",

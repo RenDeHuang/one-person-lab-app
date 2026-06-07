@@ -133,6 +133,37 @@ function validateProductProfileCodexDefaults(profile) {
   ) {
     throw new Error('Product profile GUI home must expose App-owned Codex model selection on the home path');
   }
+  const modelDisplayOptions = profile.gui.home.codex_model_display_options;
+  const frontierModelPreferenceOrder = profile.gui.home.codex_auto_model_selection.frontier_model_preference_order;
+  if (
+    modelDisplayOptions?.display_policy !== 'friendly_model_name_and_reasoning_for_every_visible_option' ||
+    modelDisplayOptions.raw_model_id_visible_in_ordinary_ui !== false ||
+    modelDisplayOptions.reasoning_effort_visible_for_every_option !== true ||
+    modelDisplayOptions.default_reasoning_effort !== profile.codex.default_reasoning_effort ||
+    modelDisplayOptions.auto_option?.label_zh !== '自动（推荐）' ||
+    modelDisplayOptions.auto_option?.label_en !== 'Auto (recommended)' ||
+    modelDisplayOptions.auto_option?.resolved_model !== profile.codex.default_model ||
+    modelDisplayOptions.auto_option?.resolved_reasoning_effort !== profile.codex.default_reasoning_effort ||
+    modelDisplayOptions.auto_option?.follows_latest_strongest !== true ||
+    modelDisplayOptions.fixed_model_description_zh !== '固定此模型' ||
+    modelDisplayOptions.fixed_model_description_en !== 'Use this model' ||
+    modelDisplayOptions.reasoning_labels?.xhigh?.zh !== '推理超高' ||
+    modelDisplayOptions.reasoning_labels?.xhigh?.en !== 'Ultra reasoning' ||
+    JSON.stringify((modelDisplayOptions.visible_models ?? []).map((model) => model.id)) !== JSON.stringify(frontierModelPreferenceOrder)
+  ) {
+    throw new Error('Product profile GUI home must expose friendly Codex model display options with reasoning labels');
+  }
+  for (const model of modelDisplayOptions.visible_models ?? []) {
+    if (
+      typeof model.label_zh !== 'string' ||
+      typeof model.label_en !== 'string' ||
+      model.label_zh === model.id ||
+      model.label_en === model.id ||
+      model.reasoning_effort !== profile.codex.default_reasoning_effort
+    ) {
+      throw new Error(`Product profile GUI home Codex model ${model.id} must use friendly labels and default reasoning`);
+    }
+  }
   if (
     profile.gui.builtin_assistant_route_receipt_policy?.scope !== 'home_purpose_entry_to_conversation' ||
     profile.gui.builtin_assistant_route_receipt_policy.route_kind !== 'builtin_capability' ||

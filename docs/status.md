@@ -255,15 +255,16 @@ standard DMG, Full DMG, GUI smoke, Homebrew cask smoke, and user tutorials are
 all App-owned. The Framework repo is only a runtime/CLI/contracts payload source
 for Full DMG and a machine-interface provider for the App.
 
-Stable macOS standard updater releases now require Developer ID signing and
-Gatekeeper acceptance. First-run VM smokes still clear quarantine after
-installing the App, write `artifacts/gatekeeper-launch-policy.json`, and record
-`codesign` / `spctl` diagnostics as local-authorization evidence for first
-install and Homebrew/manual launch paths. Stable release assets must publish
-`standard-local-authorization-policy.json` and
+Stable macOS standard updater releases use App-managed local authorization, not
+paid Apple Developer ID signing or notarization. First-run VM smokes still clear
+quarantine after installing the App, write `artifacts/gatekeeper-launch-policy.json`,
+and record `codesign` / `spctl` diagnostics as local-authorization evidence for
+first install and Homebrew/manual launch paths. Stable release assets must
+publish `standard-local-authorization-policy.json` and
 `full-local-authorization-policy.json`; Homebrew tap sync requires the matching
-policy asset before updating a cask. Local authorization evidence does not prove
-that Squirrel can replace an installed app bundle through the in-app updater.
+policy asset before updating a cask. The in-app updater must replace the local
+App bundle itself, clear quarantine, record diagnostics, and relaunch the new
+bundle instead of relying on paid Gatekeeper credentials.
 
 Full release packaging also treats native runtime executable trust as a release
 gate. Full builds must publish `full-runtime-native-trust.json`, include that

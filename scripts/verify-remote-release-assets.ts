@@ -202,6 +202,7 @@ function assertStandardMetadata(downloadDir, version) {
 function assertStableLocalAuthorizationPolicy(downloadDir, name, packageKind) {
   const policy = JSON.parse(readText(path.join(downloadDir, name)));
   assertLocalAuthorizationPolicy(policy, packageKind, name);
+  return policy;
 }
 
 function readCodeSignature(filePath) {
@@ -259,7 +260,7 @@ function readPlistStringValue(plistPath, key) {
   return match?.[1] ? decodeXmlText(match[1].trim()) : '';
 }
 
-function assertStandardUpdaterAppBundleTrust(downloadDir, version) {
+function assertStandardUpdaterAppBundleTrust(downloadDir, version, localAuthorizationPolicy) {
   const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
   const zipPath = path.join(downloadDir, zipName);
   const unzipDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-updater-app-'));
@@ -277,32 +278,29 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, version) {
     }
 
     const codesignResult = runCapture('codesign', ['--verify', '--deep', '--strict', '--verbose=2', appPath]);
-    if (codesignResult.status !== 0) {
-      throw new Error(`standard updater ZIP App bundle failed codesign verification: ${codesignResult.stderr || codesignResult.stdout || '(no output)'}`);
-    }
     const signature = readCodeSignature(appPath);
-    if (
-      !signature.team_identifier
-      || signature.team_identifier === 'not set'
-      || !signature.signature
-      || signature.signature === 'adhoc'
-    ) {
-      throw new Error(`standard updater ZIP App bundle must be Developer ID signed; signature=${signature.signature || '(empty)'} team_identifier=${signature.team_identifier || '(empty)'}.`);
-    }
     const spctlResult = runCapture('spctl', ['--assess', '--type', 'execute', '--verbose=4', appPath]);
-    if (spctlResult.status !== 0) {
-      throw new Error(`standard updater ZIP App bundle failed Gatekeeper assessment: ${spctlResult.stderr || spctlResult.stdout || '(no output)'}`);
-    }
+    const codesignPassed = codesignResult.status === 0;
+    const spctlPassed = spctlResult.status === 0;
+    const hasDeveloperIdSignature = Boolean(
+      signature.team_identifier
+      && signature.team_identifier !== 'not set'
+      && signature.signature
+      && signature.signature !== 'adhoc'
+    );
     return {
-      status: 'passed',
+      status: hasDeveloperIdSignature && codesignPassed && spctlPassed ? 'passed' : 'local_authorized_unsigned',
       asset: zipName,
       version,
       bundle_version: bundleVersion || null,
       short_version: shortVersion || null,
       signature: signature.signature,
       team_identifier: signature.team_identifier,
-      codesign_status: 'passed',
-      spctl_status: 'passed',
+      codesign_status: codesignPassed ? 'passed' : 'failed_allowed_unsigned',
+      spctl_status: spctlPassed ? 'passed' : codesignPassed ? 'rejected_allowed_unsigned' : 'failed_allowed_unsigned',
+      apple_developer_id_required: localAuthorizationPolicy.apple_developer_id_required,
+      gatekeeper_required: localAuthorizationPolicy.gatekeeper_required,
+      local_authorization_policy: 'standard-local-authorization-policy.json',
     };
   } finally {
     fs.rmSync(unzipDir, { recursive: true, force: true });
@@ -588,8 +586,8 @@ function verifyDownloadedAssets(releaseView, options, names, downloadDir) {
   }
 
   assertStandardMetadata(downloadDir, options.version);
-  assertStableLocalAuthorizationPolicy(downloadDir, 'standard-local-authorization-policy.json', 'app_standard');
-  const standardUpdaterAppBundleTrust = assertStandardUpdaterAppBundleTrust(downloadDir, options.version);
+  const standardLocalAuthorizationPolicy = assertStableLocalAuthorizationPolicy(downloadDir, 'standard-local-authorization-policy.json', 'app_standard');
+  const standardUpdaterAppBundleTrust = assertStandardUpdaterAppBundleTrust(downloadDir, options.version, standardLocalAuthorizationPolicy);
   let fullFirstInstallBudget = null;
   if (options.includeFullPackage) {
     fullFirstInstallBudget = assertFullAssets(downloadDir, options.version, verified);

@@ -7,22 +7,6 @@ import { fileURLToPath } from 'node:url';
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseRepo = 'gaofeng21cn/one-person-lab-app';
 const allowedReleaseModes = ['refresh_existing', 'new_release', 'draft_candidate'] as const;
-const requiredMacosSigningSecrets = [
-  'BUILD_CERTIFICATE_BASE64',
-  'P12_PASSWORD',
-  'APPLE_ID',
-  'APPLE_ID_PASSWORD',
-  'TEAM_ID',
-  'IDENTITY',
-] as const;
-const macosSigningSecretPresenceEnv: Record<(typeof requiredMacosSigningSecrets)[number], string> = {
-  BUILD_CERTIFICATE_BASE64: 'OPL_BUILD_CERTIFICATE_BASE64_PRESENT',
-  P12_PASSWORD: 'OPL_P12_PASSWORD_PRESENT',
-  APPLE_ID: 'OPL_APPLE_ID_PRESENT',
-  APPLE_ID_PASSWORD: 'OPL_APPLE_ID_PASSWORD_PRESENT',
-  TEAM_ID: 'OPL_TEAM_ID_PRESENT',
-  IDENTITY: 'OPL_IDENTITY_PRESENT',
-};
 
 type CheckStatus = 'passed' | 'failed' | 'warning' | 'skipped';
 
@@ -274,24 +258,13 @@ function checkHomebrewToken(options: Options, checks: Check[]) {
   addCheck(checks, 'homebrew_tap_token', 'passed', 'Stable Homebrew tap token is present for direct tap update.');
 }
 
-function checkMacosSigningSecrets(checks: Check[]) {
-  if (process.env.OPL_MACOS_SIGNING_REQUIRED !== 'true') {
-    addCheck(checks, 'macos_signing_secrets', 'skipped', 'macOS Developer ID signing secret check is not required for this local preflight.');
-    return;
-  }
-
-  const missing = requiredMacosSigningSecrets.filter((secretName) => process.env[macosSigningSecretPresenceEnv[secretName]] !== 'true');
-  if (missing.length > 0) {
-    addCheck(
-      checks,
-      'macos_signing_secrets',
-      'failed',
-      `Gatekeeper-required standard updater release requires Apple Developer ID signing/notarization secrets: ${missing.join(', ')}.`,
-    );
-    return;
-  }
-
-  addCheck(checks, 'macos_signing_secrets', 'passed', 'Apple Developer ID signing and notarization secrets are present for the standard updater release.');
+function checkMacosLocalAuthorization(checks: Check[]) {
+  addCheck(
+    checks,
+    'macos_local_authorization',
+    'passed',
+    'Developer ID signing/notarization secrets are optional; Stable standard macOS releases use App-managed local authorization and quarantine-clear evidence.',
+  );
 }
 
 function checkContract(options: Options, checks: Check[]) {
@@ -309,7 +282,7 @@ function checkContract(options: Options, checks: Check[]) {
     'workflow_preflight_shape',
     'release_plan',
     'homebrew_tap_token',
-    'macos_signing_secrets',
+    'macos_local_authorization',
   ];
   const missing = expected.filter((id) => !required?.includes(id));
   if (missing.length > 0) {
@@ -378,6 +351,6 @@ checkContract(options, checks);
 checkWorkflowShape(options, checks);
 checkReleasePlan(options, checks);
 checkHomebrewToken(options, checks);
-checkMacosSigningSecrets(checks);
+checkMacosLocalAuthorization(checks);
 checkRemoteTarget(options, checks);
 writeOutputs(options, checks);
