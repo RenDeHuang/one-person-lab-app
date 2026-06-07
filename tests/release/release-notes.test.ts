@@ -203,7 +203,7 @@ test('stable release notes are English and include bundled OPL-family agent vers
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /One Person Lab v26\.5\.31/);
-  assert.match(result.stdout, /This Stable release focuses on changes since v26\.5\.28\./);
+  assert.match(result.stdout, /This Stable release makes a new or upgraded OPL App install useful sooner/);
   assert.match(result.stdout, /## Install Stable/);
   assert.match(
     result.stdout,
@@ -276,7 +276,7 @@ test('nightly release notes compare against the previous nightly and stay standa
     'Standard macOS arm64 Nightly package and updater metadata; no Full first-install DMG in the Nightly channel.',
   );
   assert.match(result.stdout, /One Person Lab v26\.5\.31-nightly/);
-  assert.match(result.stdout, /This Nightly prerelease focuses on changes since v26\.5\.30-nightly\./);
+  assert.match(result.stdout, /This Nightly prerelease lets users try the current standard App shell/);
   assert.match(result.stdout, /First-run setup/);
   assert.match(result.stdout, /OPL agent updates/);
   assert.match(result.stdout, /Standard macOS arm64 Nightly package and updater metadata only/);

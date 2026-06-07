@@ -28,7 +28,6 @@ on:
 
 permissions:
   contents: write
-  models: read
 
 concurrency:
   group: opl-full-runtime-cache-warmup-${{ github.event_name == 'workflow_dispatch' && inputs.opl_version || 'scheduled' }}-${{ github.event_name == 'workflow_dispatch' && inputs.framework_ref || 'main' }}

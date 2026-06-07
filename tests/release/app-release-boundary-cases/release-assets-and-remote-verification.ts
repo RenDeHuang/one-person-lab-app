@@ -87,7 +87,6 @@ test('publish dry run defaults to the App GitHub Release repo', () => {
 test('publish dry run accepts prebuilt standard release assets from GitHub Actions', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-prebuilt-release-'));
   const releaseAssetsDir = path.join(tempRoot, 'release-assets');
-  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
   const version = '26.5.15-test';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
@@ -109,7 +108,6 @@ test('publish dry run accepts prebuilt standard release assets from GitHub Actio
   writeFile(path.join(releaseAssetsDir, 'latest-mac.yml'), metadata);
   writeFile(path.join(releaseAssetsDir, 'latest-arm64-mac.yml'), metadata);
   writeStandardLocalAuthorizationPolicy(releaseAssetsDir);
-  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -122,14 +120,13 @@ test('publish dry run accepts prebuilt standard release assets from GitHub Actio
   ], {
     env: {
       OPL_RELEASE_EXISTS: '0',
-      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
     },
   });
 
   assert.equal(result.status, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.standard_artifacts_dir, releaseAssetsDir);
-  assert.equal(payload.release_notes_mode, 'ai');
+  assert.equal(payload.release_notes_mode, 'template');
   assert.ok(payload.standard_artifacts.some((artifact) => artifact.endsWith(dmgName)));
   assert.ok(payload.standard_artifacts.some((artifact) => artifact.endsWith('latest-arm64-mac.yml')));
   assert.ok(payload.upload_command.includes('--clobber'));

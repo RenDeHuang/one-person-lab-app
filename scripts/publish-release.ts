@@ -514,7 +514,7 @@ function suggestDefaultReleaseVersion(repo, dateVersion) {
 }
 
 function releaseNotesMode(options = {}) {
-  const mode = (process.env.OPL_RELEASE_NOTES_MODE || (options.fullPackageOnly ? 'template' : 'ai')).trim().toLowerCase();
+  const mode = (process.env.OPL_RELEASE_NOTES_MODE || 'template').trim().toLowerCase();
   if (mode !== 'ai' && mode !== 'template') {
     throw new Error(`Unsupported OPL_RELEASE_NOTES_MODE: ${process.env.OPL_RELEASE_NOTES_MODE}`);
   }
@@ -544,9 +544,6 @@ function buildReleaseNotes(version, includeFullPackage, shellRoot, fullPackageMa
   writeReleaseNotesEvidence(evidence);
   const mode = releaseNotesMode(options);
   if (mode === 'template') {
-    if (!options.allowTemplate && !options.fullPackageOnly) {
-      throw new Error('OPL_RELEASE_NOTES_MODE=template is allowed only for dry-run diagnostics and Full-only asset refreshes; standard published releases must use AI release notes.');
-    }
     return {
       mode,
       notes: buildReleaseNotesDocument(releaseNoteOptions),

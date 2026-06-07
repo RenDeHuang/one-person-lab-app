@@ -86,21 +86,6 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install Codex release-note writer
-        shell: bash
-        run: npm install -g @openai/codex@latest
-
-      - name: Configure Codex release-note writer
-        shell: bash
-        env:
-          CODEX_HOME: ${{ runner.temp }}/release-notes-codex-home
-          OPL_RELEASE_NOTES_CODEX_PROVIDER: ${{ vars.OPL_RELEASE_NOTES_CODEX_PROVIDER || 'gflab' }}
-          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
-          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
-          OPL_RELEASE_NOTES_CODEX_WIRE_API: ${{ vars.OPL_RELEASE_NOTES_CODEX_WIRE_API || 'responses' }}
-          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
-        run: node --experimental-strip-types scripts/setup-release-notes-codex-config.ts
-
       - name: Download standard build artifacts
         uses: actions/download-artifact@v8
         with:
@@ -121,8 +106,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_NOTES_PROVIDER: auto
-          OPL_RELEASE_NOTES_GITHUB_MODEL: ${{ vars.OPL_RELEASE_NOTES_GITHUB_MODEL || 'openai/gpt-5-mini' }}
           OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/opl-nightly-notes-evidence.json
           OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
           OPL_RELEASE_TAG: ${{ needs.resolve-nightly.outputs.tag }}

@@ -357,7 +357,7 @@ This keeps the full validation plan fast and usable:
   deterministic gate.
 
 Release-note validation is part of the same boundary. Public GitHub Release
-notes are AI-first English prose generated from deterministic evidence JSON:
+notes are deterministic English prose rendered from release evidence JSON:
 Stable compares with the previous Stable, Nightly compares with the previous
 Nightly, and the primary story is the OPL App package carrying or exposing OPL
 agents and runtime payloads. Stable/Full notes must include exact payload refs
@@ -366,22 +366,11 @@ describe the standard App-managed MAS/MAG/RCA/OPL Meta Agent entry surface and
 Codex plugin/skill sync policy while stating that Full runtime payloads are not
 in Nightly. When Full manifests expose local component `source_path` repos, the
 evidence must include concrete `agent_runtime_changes` commit summaries so the
-note can explain agent/runtime improvements before audit refs. The quality gate
-rejects vague boilerplate, Chinese text, self-referential release-note copy,
-process-first openings, missing agent names, and missing user impact before
-release publication. It also requires the opening user-benefit paragraph before
-any section heading, keeps payload evidence as normal bullets, and rejects
-role-only payload copy when concrete runtime change hints are available. Tests
-should use `OPL_RELEASE_NOTES_AI_COMMAND` to inject a fake provider. Dry-run
-diagnostics and Full-only asset refreshes may use deterministic template notes;
-standard Release creation or refresh must still use AI notes. GitHub release jobs pass
-`OPL_RELEASE_NOTES_PROVIDER=auto`, request `models: read`, use GitHub Models
-with `GITHUB_TOKEN` first, and fall back to explicit Codex provider
-configuration through `OPL_RELEASE_NOTES_CODEX_*` vars and the
-`OPL_RELEASE_NOTES_CODEX_API_KEY` secret. They generate a temporary
-`CODEX_HOME/config.toml` for that fallback and upload the small
-`release-notes-evidence-<version>` JSON artifact instead of downloading large
-DMG/ZIP assets for note diagnosis.
+note can explain agent/runtime improvements before audit refs. Release workflows
+must not depend on GitHub Models, Codex, `models: read`, or provider secrets to
+publish notes; those tools are optional diagnostics only. The workflows upload
+the small `release-notes-evidence-<version>` JSON artifact instead of
+downloading large DMG/ZIP assets for note diagnosis.
 
 Docker/WebUI evidence is current only when produced by the release workflow or a
 named same-cohort smoke run. Dated local image-size and port checks belong in
