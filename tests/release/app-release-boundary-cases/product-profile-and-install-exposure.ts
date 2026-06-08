@@ -529,6 +529,53 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   ]);
 });
 
+test('runtime toolchain auto-update stays silent and does not mutate global tools', () => {
+  const policy = readInstallExposurePolicy();
+  const runtimeUpdate = policy.runtime_toolchain_auto_update;
+
+  assert.equal(runtimeUpdate.owner, 'one-person-lab-app');
+  assert.equal(runtimeUpdate.producer_owner, 'one-person-lab');
+  assert.equal(runtimeUpdate.framework_role, 'apply_verified_staged_runtime_during_startup_maintenance');
+  assert.equal(runtimeUpdate.entrypoint, 'opl system startup-maintenance');
+  assert.equal(runtimeUpdate.ready_to_launch_blocking, false);
+  assert.deepEqual(runtimeUpdate.default_policy, {
+    auto_check: true,
+    download: 'silent_background',
+    stage: 'verify_then_stage_app_owned_runtime',
+    apply: 'next_app_restart',
+    rollback: 'previous_runtime_pointer_on_startup_smoke_failure',
+  });
+  assert.deepEqual(runtimeUpdate.managed_components, [
+    'codex_cli_fallback',
+    'temporal_cli_archive',
+    'node_runtime',
+    'python_runtime',
+    'uv_runtime',
+    'officecli',
+    'mineru_open_api',
+    'companion_skills',
+    'opl_framework_runtime',
+    'domain_module_payloads',
+  ]);
+  assert.deepEqual(runtimeUpdate.user_global_tool_policy, {
+    prefer_compatible_newer_system_tool: true,
+    silent_homebrew_upgrade_allowed: false,
+    silent_system_tool_mutation_allowed: false,
+    opt_in_global_upgrade_surface: 'Developer Profile explicit maintenance action',
+  });
+  assert.deepEqual(runtimeUpdate.clean_machine_requirement, {
+    full_first_install_must_remain_self_contained: true,
+    required_release_smoke: 'full_dmg_clean_vm_smoke',
+    standard_core_ready_must_not_require_homebrew_node_git_or_clt: true,
+  });
+  assert.deepEqual(runtimeUpdate.fail_closed_states, [
+    'runtime_update_manifest_invalid',
+    'runtime_update_asset_sha256_mismatch',
+    'runtime_update_capability_smoke_failed',
+    'runtime_update_startup_smoke_failed',
+  ]);
+});
+
 test('Homebrew distribution channel is transport-only and keeps OPL activation authoritative', () => {
   const policy = readInstallExposurePolicy();
   const homebrew = policy.distribution_channels.homebrew;

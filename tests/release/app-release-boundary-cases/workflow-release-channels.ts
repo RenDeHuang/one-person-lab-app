@@ -68,6 +68,52 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.doesNotMatch(publishStandard, /release-assets\/\*\*\/\*\.deb/);
 });
 
+test('runtime toolchain updater is a separate silent App-owned channel', () => {
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const runtimeUpdater = releaseContract.runtime_toolchain_updater;
+
+  assert.equal(runtimeUpdater.owner, 'one-person-lab-app');
+  assert.equal(runtimeUpdater.role, 'app_owned_runtime_fallback_and_toolchain_layer_updates');
+  assert.equal(runtimeUpdater.channel_manifest_asset, 'app-runtime-update-channel.json');
+  assert.equal(runtimeUpdater.standard_updater_metadata_allowed, false);
+  assert.equal(runtimeUpdater.standard_updater_latest_yml_allowed, false);
+  assert.equal(runtimeUpdater.homebrew_tap_write_allowed, false);
+  assert.equal(runtimeUpdater.default_policy.auto_check, true);
+  assert.equal(runtimeUpdater.default_policy.download, 'silent_background');
+  assert.equal(runtimeUpdater.default_policy.apply, 'stage_verified_payload_and_apply_on_next_app_restart');
+  assert.equal(runtimeUpdater.default_policy.restart_prompt, 'none_until_user_restarts_app');
+  assert.equal(runtimeUpdater.default_policy.user_blocking, false);
+  assert.deepEqual(runtimeUpdater.system_tool_policy.preferred_sources, [
+    'explicit_user_path',
+    'system_path',
+    'homebrew_formula',
+    'app_owned_runtime_fallback',
+  ]);
+  assert.equal(runtimeUpdater.system_tool_policy.prefer_valid_newer_system_tool, true);
+  assert.equal(runtimeUpdater.system_tool_policy.silent_global_mutation_allowed, false);
+  assert.equal(runtimeUpdater.system_tool_policy.homebrew_upgrade_allowed_by_default, false);
+  assert.deepEqual(runtimeUpdater.managed_components, [
+    'codex_cli_fallback',
+    'temporal_cli_archive',
+    'node_runtime',
+    'python_runtime',
+    'uv_runtime',
+    'officecli',
+    'mineru_open_api',
+    'companion_skills',
+    'opl_framework_runtime',
+    'domain_module_payloads',
+  ]);
+  assert.equal(runtimeUpdater.layering.activation, 'swap_current_pointer_on_app_restart_after_startup_smoke');
+  assert.equal(runtimeUpdater.rollback_policy.rollback_on_startup_smoke_failure, true);
+  assert.equal(runtimeUpdater.rollback_policy.rollback_must_not_mutate_user_global_tools, true);
+  assert.ok(runtimeUpdater.verification.required_before_release.includes('full_dmg_clean_vm_smoke'));
+  assert.ok(runtimeUpdater.verification.required_before_release.includes('homebrew_standard_cask_clean_vm_smoke'));
+  assert.ok(runtimeUpdater.verification.clean_machine_installability_must_not_regress);
+});
+
 test('manual desktop release workflow supports new releases and same-tag refreshes in GitHub Actions', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const standardBuild = workflowJobBlock(workflow, 'standard-build');

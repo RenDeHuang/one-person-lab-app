@@ -74,6 +74,20 @@ Framework/App maintenance through the stable package channel carried by
 Homebrew or App/CLI maintenance, while GitHub repo/local checkout sources are an
 explicit Developer Profile `source_channel` opt-in.
 
+Runtime and toolchain updates use a separate App-owned channel. Codex CLI,
+Temporal CLI archive fallback, Node/Python/uv, OfficeCLI, MinerU, companion
+skills, OPL Framework runtime, and managed domain-module payloads are not
+written into Electron `latest*.yml` metadata and are not silently upgraded
+through Homebrew. The default novice path is: check in the background, download
+quietly, verify manifest and SHA-256 plus component capability smokes, stage the
+new runtime under `~/Library/Application Support/OPL/runtime/staged/`, then
+apply it by swapping the runtime `current.json` pointer on the next App restart.
+The previous runtime is retained for rollback if startup smoke fails. Runtime
+selection may still prefer a compatible newer explicit/system/Homebrew
+`codex` or `temporal`, but the App must not silently mutate the user's global
+Homebrew or system tools unless the user has explicitly opted into that kind of
+global tool upgrade.
+
 ## Homebrew distribution boundary
 
 Homebrew is a transport and index for the same App release cohorts. It is useful
@@ -177,6 +191,14 @@ and the relevant App/Framework diagnostics report a usable state. If Codex or
 Temporal is absent, too old, incompatible, or blocked by credentials, the result
 is an activation or diagnostics blocker for App/CLI maintenance; it is not a
 Homebrew formula/cask success or failure by itself.
+
+Current App installs therefore do not treat Codex CLI or Temporal as
+Homebrew-owned dependencies. Homebrew can supply a compatible system copy, but
+the clean-machine guarantee comes from the App-owned fallback runtime in Full
+and from App/CLI-managed maintenance after install. Updating an already
+published stable Full package must rebuild and refresh the Full assets, re-run
+remote release verification, and keep the Full clean-VM smoke gate in scope so
+size reductions do not weaken first-installability.
 
 The MAS/MAG/RCA distribution rule is unchanged under Homebrew. The public ABI is
 the domain skill; the Codex plugin is the App distribution/capability shell.

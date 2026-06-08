@@ -51,6 +51,90 @@
       "scope": "standard App DMG, ZIP, blockmaps, and updater metadata for an existing release"
     }
   },
+  "runtime_toolchain_updater": {
+    "owner": "one-person-lab-app",
+    "role": "app_owned_runtime_fallback_and_toolchain_layer_updates",
+    "channel_manifest_asset": "app-runtime-update-channel.json",
+    "transport": "app_owned_github_release_assets",
+    "standard_updater_metadata_allowed": false,
+    "standard_updater_latest_yml_allowed": false,
+    "homebrew_tap_write_allowed": false,
+    "scope": "App-owned installed runtime fallback, toolchain layers, companion tools, skills, and managed module payloads only",
+    "default_policy": {
+      "auto_check": true,
+      "check_schedule": "on_startup_and_daily_background",
+      "download": "silent_background",
+      "verify_before_stage": true,
+      "apply": "stage_verified_payload_and_apply_on_next_app_restart",
+      "restart_prompt": "none_until_user_restarts_app",
+      "user_blocking": false
+    },
+    "managed_components": [
+      "codex_cli_fallback",
+      "temporal_cli_archive",
+      "node_runtime",
+      "python_runtime",
+      "uv_runtime",
+      "officecli",
+      "mineru_open_api",
+      "companion_skills",
+      "opl_framework_runtime",
+      "domain_module_payloads"
+    ],
+    "layering": {
+      "runtime_root": "~/Library/Application Support/OPL/runtime",
+      "current_pointer": "~/Library/Application Support/OPL/runtime/current.json",
+      "staged_root_template": "~/Library/Application Support/OPL/runtime/staged/<runtime_version>",
+      "previous_runtime_retention": 1,
+      "activation": "swap_current_pointer_on_app_restart_after_startup_smoke",
+      "rollback": "restore_previous_pointer_when_startup_smoke_fails"
+    },
+    "system_tool_policy": {
+      "preferred_sources": [
+        "explicit_user_path",
+        "system_path",
+        "homebrew_formula",
+        "app_owned_runtime_fallback"
+      ],
+      "prefer_valid_newer_system_tool": true,
+      "silent_global_mutation_allowed": false,
+      "homebrew_upgrade_allowed_by_default": false,
+      "user_opt_in_global_upgrade_allowed": true,
+      "rule": "App may detect and prefer compatible newer system or Homebrew Codex/Temporal tools, but the default background updater must update only the App-owned runtime fallback."
+    },
+    "manifest_required_fields": [
+      "schema_version",
+      "channel",
+      "runtime_version",
+      "components",
+      "assets",
+      "sha256",
+      "minimum_versions",
+      "apply_policy",
+      "rollback_policy"
+    ],
+    "verification": {
+      "required_before_stage": [
+        "manifest_schema",
+        "asset_sha256",
+        "minimum_version",
+        "component_capability_smoke"
+      ],
+      "required_before_release": [
+        "standard_dmg_clean_vm_smoke",
+        "full_dmg_clean_vm_smoke",
+        "homebrew_standard_cask_clean_vm_smoke",
+        "remote_release_verification"
+      ],
+      "clean_machine_installability_must_not_regress": true
+    },
+    "rollback_policy": {
+      "keep_previous_runtime": true,
+      "rollback_on_startup_smoke_failure": true,
+      "rollback_must_not_mutate_user_global_tools": true
+    },
+    "rule": "Runtime/toolchain updates are App/CLI-managed runtime updates, not Electron standard updater assets and not Homebrew formula upgrades. The default novice experience is silent download and verified staging, with application on the next App restart."
+  },
   "nightly_standard": {
     "prerelease": true,
     "full_first_install_allowed": false,
