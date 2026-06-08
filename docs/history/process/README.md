@@ -35,6 +35,50 @@ Machine boundary: Human-readable process history index. Machine truth stays in `
 
 ## Coverage Snapshot
 
+2026-06-08 App GUI command-center support doc retirement tranche:
+
+- Theme / SSOT: App GUI interaction requirements, Home/Runtime/Settings
+  placement, shell coordination, and thin-shell implementation boundary.
+  Current human SSOT is the GUI definition stack:
+  `docs/app-ideal-gui-interaction-spec.md`,
+  `docs/codex-to-opl-app-delta.md`, `docs/app-gui-feature-inventory.md`, and
+  `docs/app-gui-element-audit.md`. Machine SSOT is
+  `contracts/app-gui-product-contract.json`,
+  `contracts/app-runtime-bridge.json`, `contracts/app-page-state-matrix.json`,
+  `contracts/app-product-profile.json`, `scripts/validate-active-shell.ts`, and
+  focused release-boundary / shell tests.
+- Reviewed: `AGENTS.md`, `TASTE.md`, `README.md`, `README.zh-CN.md`,
+  `docs/README.md`, `docs/docs_portfolio_consolidation.md`,
+  `docs/active/app-ideal-state-gap-plan.md`,
+  `docs/active/app-interaction-logic-command-center.md`,
+  `docs/app-ideal-gui-interaction-spec.md`,
+  `docs/codex-to-opl-app-delta.md`, `docs/app-gui-feature-inventory.md`,
+  `docs/app-gui-element-audit.md`, `docs/agui-codex-candidate-verification.md`,
+  `docs/status.md`, `docs/project.md`, `docs/architecture.md`,
+  `docs/invariants.md`, `docs/decisions.md`, `docs/user-guides/README.md`,
+  `docs/screenshots/README.md`, `docs/testing/README.md`, this process index,
+  `docs/history/process/retired-surface-provenance.md`, App GUI/runtime
+  contracts, package scripts, and references to the retired handoff doc.
+- Edited: `docs/README.md`, `docs/docs_portfolio_consolidation.md`, this
+  process index, and `docs/history/process/retired-surface-provenance.md`.
+  Deleted: `docs/active/app-interaction-logic-command-center.md`.
+- Coverage result: the retired command-center support doc contained a parallel
+  summary of Home, Runtime, Settings, Source of Truth, shell coordination, and
+  validation guidance already owned by the GUI definition stack and App
+  contracts. No machine caller or source/test reference depended on the Markdown
+  path; only docs navigation and portfolio inventory linked it.
+- Retired / guarded: do not recreate `docs/active/app-interaction-logic-command-center.md`
+  or another active support doc that summarizes the same GUI requirements.
+  Future GUI requirement changes must update the specific definition owner,
+  App contract, page-state matrix, validator, release-boundary test, or shell
+  test directly.
+- Remaining App unreviewed scope under the parent OPL series goal: full
+  line-by-line App non-process docs audit remains open for install exposure,
+  release cohort evidence, future candidate adoption, and any GUI definition
+  paragraph not covered by this retirement tranche.
+- Next write scope: continue after fresh intake with install exposure or
+  release cohort evidence, or move to a clean sibling repo lane.
+
 2026-06-08 App runtime-page operator evidence lifecycle tranche:
 
 - Theme / SSOT: Runtime page user-task status, operator evidence acceptance,

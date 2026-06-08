@@ -20,7 +20,6 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 | `README.md`, `README.zh-CN.md` | Public bilingual App entry and install/product overview | Human-readable product docs; release readiness comes from artifacts, manifests, and validation outputs |
 | `docs/README.md` | Docs entry and App docs index | Navigation only |
 | `docs/active/app-ideal-state-gap-plan.md` | Single Active Truth owner for current progress, gaps, and next-round Agent prompt | Human-readable active plan; contracts/tests/artifacts prove machine claims |
-| `docs/active/app-interaction-logic-command-center.md` | Active interaction handoff note for App-owned GUI requirements and shell implementation coordination | Human-readable support note; contracts/page-state matrices/validation scripts decide acceptance |
 | `docs/status.md` | Current App repository, shell, release, runtime-page, and validation state | Human-readable status; no runtime/provider/domain authority |
 | `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md` | Product boundary, architecture split, non-ownership rules, and still-active App decisions | Durable human-readable current truth; machine decisions use contracts/source/tests |
 | `docs/app-ideal-gui-interaction-spec.md`, `docs/codex-to-opl-app-delta.md`, `docs/app-gui-feature-inventory.md` | GUI 定义栈：理想 Codex App 形态交互、OPL 专用产品增量、跨 shell 能力清单和 reference mapping | 人读 design/product definitions；implementation claims 由 App contracts、page-state matrices、package manifests、UI smoke 和 release evidence 证明 |

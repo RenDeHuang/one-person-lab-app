@@ -16,8 +16,6 @@ runtime, provider, or domain authority.
 
 - [`active/app-ideal-state-gap-plan.md`](active/app-ideal-state-gap-plan.md):
   App product active truth, current gaps, and next-round governance baton.
-- [`active/app-interaction-logic-command-center.md`](active/app-interaction-logic-command-center.md):
-  active interaction handoff note for App-owned GUI requirements and shell implementation.
 - [`status.md`](status.md): current App repository and active shell status.
 - [`project.md`](project.md): App product repository role and ownership boundary.
 - [`architecture.md`](architecture.md): App, shell, OPL Framework, and domain-agent ownership split.
