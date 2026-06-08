@@ -44,6 +44,14 @@ source-like, the canonical edit path still starts from `macos-app-install.guide.
 and regeneration; do not hand-edit generated artifacts as a second content
 source.
 
+Release evidence screenshots have a separate owner. The `screenshots/runtime.png`,
+`screenshots/full.png`, and `screenshots/action.png` paths belong to the
+release evidence bundle defined by `contracts/app-release-channel.json` and
+validated by the release evidence scripts. User-guide screenshots and generated
+guide verification prove guide artifact integrity only; they are post-promotion
+documentation assets, not App release-ready, runtime-ready, domain-ready, or
+family production-ready proof.
+
 Update flow:
 
 1. Refresh screenshots from the Chinese 1080p macOS VM guide artifact under

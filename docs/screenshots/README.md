@@ -5,12 +5,18 @@ Purpose: `app_screenshots`
 State: `active`
 Machine boundary: Human-readable visual guide index.
 
-Screenshots and visual tutorials for the App belong here. Shell-specific
-source screenshots used by tests may remain under `shells/aionui/tests/` or the
-test artifact output directories.
+This directory is a human-readable index for App visual tutorial material. The
+current macOS install guide screenshot source and provenance live under
+`docs/user-guides/` in the guide source JSON, asset manifest, generated
+verification JSON, and generated reading artifacts. Do not hand-edit generated
+guide outputs or copy their content here as a second source of truth.
+
+Shell-specific source screenshots used by tests may remain under
+`shells/aionui/tests/` or the test artifact output directories.
 
 Release evidence screenshots are recorded by the release evidence bundle rather
-than treated as runtime truth. The required bundle screenshot paths are:
+than treated as `docs/screenshots` content or runtime truth. The required bundle
+screenshot paths are:
 
 - `screenshots/runtime.png`: Runtime page operator evidence acceptance view.
 - `screenshots/full.png`: Full first-install release path.

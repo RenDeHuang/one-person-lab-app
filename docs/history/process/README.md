@@ -35,6 +35,41 @@ Machine boundary: Human-readable process history index. Machine truth stays in `
 
 ## Coverage Snapshot
 
+2026-06-08 App user-guide/screenshot evidence lifecycle tranche:
+
+- Theme / SSOT: macOS user-guide screenshots versus release evidence
+  screenshots. User-guide content and screenshot provenance are owned by
+  `docs/user-guides/macos-app-install.guide.json`,
+  `docs/user-guides/macos-app-install-assets.json`, generated verification JSON,
+  and guide build scripts. Release evidence screenshot truth is owned by
+  `contracts/app-release-channel.json#operator_evidence_bundle`, release
+  evidence collectors/validators, release workflows, and same-cohort release
+  evidence artifacts.
+- Reviewed: `AGENTS.md`, `TASTE.md`, `docs/active/app-ideal-state-gap-plan.md`,
+  `docs/docs_portfolio_consolidation.md`, `docs/release/README.md`,
+  `docs/user-guides/README.md`, `docs/screenshots/README.md`, this process
+  index, `docs/history/process/retired-surface-provenance.md`,
+  `scripts/user-guide-data.ts`, release evidence validators, release workflows,
+  guide source/asset manifests, and generated guide verification JSON.
+- Edited: `docs/user-guides/README.md`, `docs/screenshots/README.md`, and this
+  file.
+- Coverage result: user-guide generated artifacts now point back to the guide
+  JSON and screenshot manifest as their edit source; `docs/screenshots/README.md`
+  is an index, not a release evidence or runtime truth owner. Release evidence
+  screenshots remain same-cohort bundle artifacts under release contracts and
+  validators.
+- Retired / guarded: no contract, workflow, script, generated guide artifact,
+  or screenshot file was retired. The guarded stale surface is only the implied
+  ability to use generated guide screenshots or `docs/screenshots` as release
+  readiness proof; do not recreate that as a compatibility proof path.
+- Remaining App unreviewed scope under the parent OPL series goal: full
+  line-by-line App non-process docs audit remains open for non-guide themes such
+  as runtime-page operator evidence, install exposure, release cohort evidence,
+  and candidate adoption.
+- Next write scope: continue after fresh intake with another disjoint App theme
+  or a clean sibling repo lane. Avoid `one-person-lab` and `med-autoscience`
+  writes while their concurrent dirty write sets remain active.
+
 2026-06-08 App AG-UI/CopilotKit candidate docs owner split tranche:
 
 - Theme / SSOT: AG-UI/CopilotKit candidate capability inventory versus candidate verification runbook. Current SSOT for verification commands and minimum acceptance is `docs/agui-codex-candidate-verification.md`, `contracts/app-shell-candidates.json`, `contracts/shell-adapters/agui-codex.json`, `scripts/validate-shell-candidates.ts`, and `scripts/validate-active-shell.ts`; `docs/app-gui-feature-inventory.md` remains a GUI capability/reference mapping owner.
