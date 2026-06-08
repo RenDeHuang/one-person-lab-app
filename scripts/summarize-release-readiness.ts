@@ -3,6 +3,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  buildAppReleaseL5EvidenceReadout,
+  readAppReleaseL5ReadoutContract,
+} from './app-release-l5-readout.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -514,6 +518,7 @@ function buildSummary(options: Options) {
         verified_artifact_count: payload.verified_artifact_count ?? null,
         missing_artifact_count: payload.missing_artifact_count ?? null,
         blocked_artifact_count: payload.blocked_artifact_count ?? null,
+        l5_evidence_readout: payload.l5_evidence_readout ?? null,
       };
       if (payload.status !== 'passed') return { reason: `Operator evidence bundle status is ${statusString(payload.status) || 'unknown'}.`, fields };
       if (payload.packaged_app_evidence !== true) return { reason: 'Operator evidence bundle did not claim packaged_app_evidence=true.', fields };
@@ -756,6 +761,15 @@ function buildSummary(options: Options) {
   const runtimeCacheEvents = runtimeCacheEventsPath ? readJson(runtimeCacheEventsPath) : null;
   const sizeBudget = summarizeFullSizeBudget(gates.remote_release_verification);
   const warnings = warningsFromFullSizeBudget(sizeBudget);
+  const operatorEvidenceReadout = objectField(
+    gates.operator_evidence_bundle.fields ?? null,
+    'l5_evidence_readout',
+  );
+  const l5EvidenceReadout = buildAppReleaseL5EvidenceReadout({
+    contract: readAppReleaseL5ReadoutContract(appRoot),
+    gates,
+    upstreamReadout: operatorEvidenceReadout,
+  });
 
   return {
     schema: 'opl_release_readiness_summary.v1',
@@ -781,6 +795,7 @@ function buildSummary(options: Options) {
     warnings,
     gates,
     failed_required_gates: failedRequired,
+    l5_evidence_readout: l5EvidenceReadout,
     full_package: {
       duration_seconds: fullPackage?.duration_seconds ?? null,
       cache: fullPackage?.cache ?? null,

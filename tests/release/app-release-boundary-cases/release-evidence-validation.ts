@@ -361,6 +361,133 @@ test('release evidence bundle validator classifies typed blockers and not-applic
   );
 });
 
+test('release evidence bundle validator emits App-scoped L5 evidence readout for current cohort gaps', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-l5-readout-'));
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const missingArtifactIds = new Set([
+    'guest_smoke_summary',
+    'assistant_route_smoke_summary',
+    'codex_functional_check_summary',
+    'assistant_route_smoke_mas_screenshot',
+    'assistant_route_smoke_mag_screenshot',
+    'assistant_route_smoke_rca_screenshot',
+    'remote_release_verification',
+  ]);
+  const artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => {
+    if (artifact.id === 'first_run_vm_summary') {
+      return {
+        ...artifact,
+        status: 'typed_blocker',
+        reason: 'clean VM host is unavailable for this cohort',
+        typed_blocker_ref: 'typed_blocker_ref://one-person-lab-app/test/first-run-vm',
+        typed_blocker_path: 'typed-blockers/first_run_vm_summary.json',
+      };
+    }
+    if (missingArtifactIds.has(artifact.id)) {
+      return {
+        ...artifact,
+        status: 'missing',
+        missing_reason: `${artifact.producer} was not generated for this cohort`,
+      };
+    }
+    return {
+      ...artifact,
+      status: 'present',
+    };
+  });
+  writeFile(path.join(tempRoot, 'typed-blockers', 'first_run_vm_summary.json'), `${JSON.stringify({
+    artifact_id: 'first_run_vm_summary',
+    typed_blocker_ref: 'typed_blocker_ref://one-person-lab-app/test/first-run-vm',
+    owner: 'one-person-lab-app release owner',
+    blocker_kind: 'clean_vm_evidence_unavailable',
+    reason: 'clean VM host is unavailable for this cohort',
+    evidence_refs: ['github-actions:opl-first-run-vm#blocked-no-runner'],
+    next_action: 'rerun clean first-run VM smoke on an available macOS VM host',
+  }, null, 2)}\n`);
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'blocked_evidence',
+    packaged_app_evidence: false,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts,
+    missing_evidence: artifacts
+      .filter((artifact) => artifact.status === 'missing')
+      .map((artifact) => ({
+        id: artifact.id,
+        path: artifact.path,
+        status: artifact.status,
+        reason: artifact.missing_reason,
+      })),
+    blocked_evidence: [
+      {
+        id: 'first_run_vm_summary',
+        path: 'tart-smoke-summary.json',
+        typed_blocker_path: 'typed-blockers/first_run_vm_summary.json',
+      },
+    ],
+  }, null, 2)}\n`);
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+
+  const allowed = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+    '--allow-missing-evidence',
+  ]);
+
+  assert.equal(allowed.status, 0, allowed.stderr || allowed.stdout);
+  const payload = JSON.parse(allowed.stdout);
+  assert.equal(payload.status, 'blocked_evidence');
+  assert.equal(payload.packaged_app_evidence, false);
+  assert.equal(payload.l5_evidence_readout.schema, 'opl_app_release_l5_evidence_readout.v1');
+  assert.equal(payload.l5_evidence_readout.scope, 'app_release_user_path_evidence_for_opl_console_l5_input');
+  assert.equal(payload.l5_evidence_readout.release_ready_claim, false);
+  assert.equal(payload.l5_evidence_readout.family_l5_claim, false);
+  assert.equal(payload.l5_evidence_readout.ordinary_cockpit_excluded, true);
+  assert.equal(
+    payload.l5_evidence_readout.ordinary_cockpit_policy_ref,
+    'contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget',
+  );
+  assert.deepEqual(payload.l5_evidence_readout.forbidden_default_surfaces, [
+    'guid_home',
+    'ordinary_conversation',
+    'runtime_default_cockpit',
+    'settings_general',
+  ]);
+  assert.deepEqual(
+    payload.l5_evidence_readout.accepted_ref_shapes_by_class.live_user_path,
+    ['user_path_evidence_ref', 'operator_evidence_ref', 'typed_blocker_ref'],
+  );
+  const classById = new Map(
+    payload.l5_evidence_readout.evidence_classes.map((entry) => [entry.class_id, entry]),
+  );
+  assert.equal(classById.get('live_user_path').status, 'blocked_evidence');
+  assert.deepEqual(classById.get('live_user_path').blocked_artifact_ids, ['first_run_vm_summary']);
+  assert.ok(classById.get('live_user_path').missing_artifact_ids.includes('guest_smoke_summary'));
+  assert.equal(classById.get('cross_agent_scaleout').status, 'missing_evidence');
+  assert.equal(classById.get('owner_acceptance').status, 'owner_acceptance_ref_required');
+  assert.deepEqual(classById.get('owner_acceptance').accepted_ref_shapes, [
+    'owner_acceptance_ref',
+    'owner_receipt_ref',
+    'typed_blocker_ref',
+    'human_gate_ref',
+  ]);
+  assert.ok(
+    payload.l5_evidence_readout.missing_current_cohort_evidence.some((entry) =>
+      entry.class_id === 'owner_acceptance' && entry.closeable_by.includes('owner_receipt_ref')
+    ),
+  );
+});
+
 test('release evidence manifest generator applies explicit artifact classifications', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-classified-generated-'));
   const classificationPath = path.join(tempRoot, 'artifact-classifications.json');
@@ -397,8 +524,12 @@ test('release evidence manifest generator applies explicit artifact classificati
   const generatedPayload = JSON.parse(generated.stdout);
   assert.equal(generatedPayload.status, 'missing_evidence');
   assert.equal(generatedPayload.packaged_app_evidence, false);
+  assert.equal(generatedPayload.l5_evidence_readout.schema, 'opl_app_release_l5_evidence_readout.v1');
+  assert.equal(generatedPayload.l5_evidence_readout.release_ready_claim, false);
 
   const manifest = JSON.parse(fs.readFileSync(path.join(tempRoot, 'evidence-manifest.json'), 'utf8'));
+  assert.equal(manifest.l5_evidence_readout.schema, 'opl_app_release_l5_evidence_readout.v1');
+  assert.equal(manifest.l5_evidence_readout.ordinary_cockpit_excluded, true);
   assert.deepEqual(
     manifest.missing_evidence.map((artifact) => [artifact.id, artifact.status]),
     [
@@ -474,12 +605,14 @@ test('release evidence bundle validator rejects undersized WebP screenshot evide
   const tempAppRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-webp-contract-'));
   const tempRoot = path.join(tempAppRoot, 'release-evidence');
   const tempScriptPath = path.join(tempAppRoot, 'scripts', 'validate-release-evidence-bundle.ts');
+  const tempReadoutScriptPath = path.join(tempAppRoot, 'scripts', 'app-release-l5-readout.ts');
   const tempContractPath = path.join(tempAppRoot, 'contracts', 'app-release-channel.json');
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
   fs.mkdirSync(path.dirname(tempScriptPath), { recursive: true });
   fs.copyFileSync(path.join(appRoot, 'scripts', 'validate-release-evidence-bundle.ts'), tempScriptPath);
+  fs.copyFileSync(path.join(appRoot, 'scripts', 'app-release-l5-readout.ts'), tempReadoutScriptPath);
   releaseContract.operator_evidence_bundle.required_artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => (
     artifact.id === 'runtime_screenshot'
       ? { ...artifact, path: 'screenshots/runtime.webp', status: 'present' }
@@ -527,12 +660,14 @@ test('release evidence bundle validator rejects image policy without image scope
   const tempAppRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-image-policy-'));
   const tempRoot = path.join(tempAppRoot, 'release-evidence');
   const tempScriptPath = path.join(tempAppRoot, 'scripts', 'validate-release-evidence-bundle.ts');
+  const tempReadoutScriptPath = path.join(tempAppRoot, 'scripts', 'app-release-l5-readout.ts');
   const tempContractPath = path.join(tempAppRoot, 'contracts', 'app-release-channel.json');
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
   fs.mkdirSync(path.dirname(tempScriptPath), { recursive: true });
   fs.copyFileSync(path.join(appRoot, 'scripts', 'validate-release-evidence-bundle.ts'), tempScriptPath);
+  fs.copyFileSync(path.join(appRoot, 'scripts', 'app-release-l5-readout.ts'), tempReadoutScriptPath);
   releaseContract.operator_evidence_bundle.image_evidence_policy.applies_to_kind = 'json';
   writeFile(tempContractPath, `${JSON.stringify(releaseContract, null, 2)}\n`);
   writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
@@ -605,6 +740,8 @@ test('release evidence manifest generator records missing artifacts without clai
   const manifest = JSON.parse(fs.readFileSync(path.join(tempRoot, 'evidence-manifest.json'), 'utf8'));
   assert.equal(manifest.status, 'missing_evidence');
   assert.equal(manifest.packaged_app_evidence, false);
+  assert.equal(manifest.l5_evidence_readout.schema, 'opl_app_release_l5_evidence_readout.v1');
+  assert.equal(manifest.l5_evidence_readout.release_ready_claim, false);
   assert.deepEqual(manifest.diagnostics, []);
   assert.deepEqual(manifest.missing_evidence.map((artifact) => artifact.id), [
     'first_run_vm_summary',

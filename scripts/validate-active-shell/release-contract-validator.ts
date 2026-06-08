@@ -1,5 +1,6 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { temporalLocalServiceDefaults, temporalManagedCommands } from './app-contract-constants.ts';
+import { validateAppReleaseL5ReadoutContract } from '../app-release-l5-readout.ts';
 
 export function validateReleaseChannelContract(releaseChannel) {
   const runtimeUpdater = releaseChannel.runtime_toolchain_updater;
@@ -329,6 +330,7 @@ export function validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, f
   ) {
     throw new Error('Operator evidence bundle image policy must reject placeholder screenshots');
   }
+  validateAppReleaseL5ReadoutContract(bundle.l5_evidence_readout);
 
   const artifactById = new Map((bundle.required_artifacts ?? []).map((artifact) => [artifact.id, artifact]));
   const requiredArtifacts = {

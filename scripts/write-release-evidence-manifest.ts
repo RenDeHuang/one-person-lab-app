@@ -3,6 +3,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  buildAppReleaseL5EvidenceReadout,
+  validateAppReleaseL5ReadoutContract,
+} from './app-release-l5-readout.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContractPath = path.join(appRoot, 'contracts', 'app-release-channel.json');
@@ -172,6 +176,7 @@ function main() {
   if (!Array.isArray(bundle.required_artifacts)) {
     throw new Error('Release evidence bundle contract must declare required_artifacts.');
   }
+  validateAppReleaseL5ReadoutContract(bundle.l5_evidence_readout);
   const optionalDiagnosticArtifacts = Array.isArray(bundle.optional_diagnostic_artifacts)
     ? bundle.optional_diagnostic_artifacts
     : [];
@@ -274,6 +279,10 @@ function main() {
     diagnostics,
     missing_evidence: missingEvidence,
     blocked_evidence: blockedEvidence,
+    l5_evidence_readout: buildAppReleaseL5EvidenceReadout({
+      contract: bundle.l5_evidence_readout,
+      artifacts,
+    }),
   };
 
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
@@ -286,6 +295,7 @@ function main() {
     blocked_artifacts: blockedEvidence,
     missing_artifact_count: missingEvidence.length,
     missing_artifacts: missingEvidence,
+    l5_evidence_readout: manifest.l5_evidence_readout,
   }, null, 2));
 }
 

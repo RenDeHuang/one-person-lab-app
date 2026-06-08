@@ -3,6 +3,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  buildAppReleaseL5EvidenceReadout,
+  validateAppReleaseL5ReadoutContract,
+} from './app-release-l5-readout.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContractPath = path.join(appRoot, 'contracts', 'app-release-channel.json');
@@ -28,6 +32,7 @@ type EvidenceContract = {
   optionalDiagnostics: EvidenceArtifact[];
   imageEvidencePolicy: ImageEvidencePolicy;
   typedBlockerPolicy: TypedBlockerPolicy;
+  l5ReadoutContract: unknown;
 };
 
 type ManifestArtifact = EvidenceArtifact & {
@@ -503,6 +508,7 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   if (!Array.isArray(record.required_artifacts) || record.required_artifacts.length === 0) {
     throw new Error('Operator evidence bundle must declare required artifacts.');
   }
+  validateAppReleaseL5ReadoutContract(record.l5_evidence_readout);
   const optionalDiagnostics = record.optional_diagnostic_artifacts;
   if (optionalDiagnostics !== undefined && !Array.isArray(optionalDiagnostics)) {
     throw new Error('Operator evidence bundle optional diagnostic artifacts must be an array.');
@@ -551,6 +557,7 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
       pathPattern: typedBlockerPathPattern,
       requiredFields: typedBlockerRequirements as string[],
     },
+    l5ReadoutContract: record.l5_evidence_readout,
   };
 }
 
@@ -805,6 +812,7 @@ function validateBundle(bundleDir: string, options: Options) {
   const missing: ManifestArtifact[] = [];
   const blocked: ManifestArtifact[] = [];
   const deferredPresent: ManifestArtifact[] = [];
+  const allArtifactStates: ManifestArtifact[] = [];
   let blockedEvidence: ReturnType<typeof validateBlockedEvidenceList> = [];
 
   for (const expected of contract.artifacts) {
@@ -813,6 +821,7 @@ function validateBundle(bundleDir: string, options: Options) {
       throw new Error(`Evidence manifest is missing artifact ${expected.id}`);
     }
     const artifact = validateManifestArtifact(entry, expected);
+    allArtifactStates.push(artifact);
     if (artifact.status === 'typed_blocker' && typeof artifact.typed_blocker_path === 'string') {
       blocked.push(artifact);
       continue;
@@ -901,6 +910,19 @@ function validateBundle(bundleDir: string, options: Options) {
     validateBlockedEvidenceList(bundleDir, manifest, [], contract.typedBlockerPolicy);
   }
 
+  const artifactStates = [
+    ...allArtifactStates,
+    ...blockedEvidence,
+  ].map((artifact) => ({
+    id: artifact.id,
+    status: artifact.status,
+    ...(artifact.typed_blocker_ref ? { typed_blocker_ref: artifact.typed_blocker_ref } : {}),
+  }));
+  const l5EvidenceReadout = buildAppReleaseL5EvidenceReadout({
+    contract: contract.l5ReadoutContract,
+    artifacts: artifactStates,
+  });
+
   return {
     schema: 'opl_release_evidence_bundle_validation.v1',
     status: blocked.length > 0 ? 'blocked_evidence' : missing.length > 0 ? 'missing_evidence' : 'passed',
@@ -955,6 +977,7 @@ function validateBundle(bundleDir: string, options: Options) {
     })),
     blocked_artifact_count: blocked.length,
     blocked_artifacts: blockedEvidence,
+    l5_evidence_readout: l5EvidenceReadout,
   };
 }
 

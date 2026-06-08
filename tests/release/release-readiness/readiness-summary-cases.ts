@@ -127,6 +127,129 @@ test('release readiness summary fails closed without a same-cohort operator evid
   assert.match(summary.gates.operator_evidence_bundle.reason, /Missing evidence-validation-summary\.json/);
 });
 
+test('release readiness summary includes App L5 readout for current cohort evidence gaps', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-l5-gaps-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot);
+  writePassingJobResults(jobResultsPath);
+  fs.rmSync(path.join(artifactsRoot, 'opl-first-run-vm-homebrew-standard-local'), { recursive: true, force: true });
+  writeJson(path.join(artifactsRoot, 'release-evidence-bundle-26.5.99', 'evidence-validation-summary.json'), {
+    schema: 'opl_release_evidence_bundle_validation.v1',
+    status: 'blocked_evidence',
+    bundle_dir: 'release-evidence/26.5.99',
+    manifest_path: 'evidence-manifest.json',
+    verified_artifact_count: 14,
+    missing_artifact_count: 1,
+    blocked_artifact_count: 1,
+    packaged_app_evidence: false,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    forbidden_authority: [
+      'runtime_truth',
+      'provider_implementation',
+      'domain_truth',
+      'domain_quality_verdict',
+      'domain_artifact_authority',
+    ],
+    l5_evidence_readout: {
+      schema: 'opl_app_release_l5_evidence_readout.v1',
+      scope: 'app_release_user_path_evidence_for_opl_console_l5_input',
+      ordinary_cockpit_excluded: true,
+      release_ready_claim: false,
+      family_l5_claim: false,
+      evidence_classes: [
+        {
+          class_id: 'live_user_path',
+          status: 'blocked_evidence',
+          accepted_ref_shapes: ['user_path_evidence_ref', 'operator_evidence_ref', 'typed_blocker_ref'],
+          missing_artifact_ids: ['guest_smoke_summary'],
+          blocked_artifact_ids: ['first_run_vm_summary'],
+        },
+        {
+          class_id: 'owner_acceptance',
+          status: 'owner_acceptance_ref_required',
+          accepted_ref_shapes: ['owner_acceptance_ref', 'owner_receipt_ref', 'typed_blocker_ref', 'human_gate_ref'],
+          missing_artifact_ids: [],
+          blocked_artifact_ids: [],
+        },
+      ],
+      missing_current_cohort_evidence: [
+        {
+          class_id: 'live_user_path',
+          status: 'blocked_evidence',
+          missing_artifact_ids: ['guest_smoke_summary'],
+          blocked_artifact_ids: ['first_run_vm_summary'],
+          closeable_by: ['user_path_evidence_ref', 'operator_evidence_ref', 'typed_blocker_ref'],
+        },
+        {
+          class_id: 'owner_acceptance',
+          status: 'owner_acceptance_ref_required',
+          missing_artifact_ids: [],
+          blocked_artifact_ids: [],
+          closeable_by: ['owner_acceptance_ref', 'owner_receipt_ref', 'typed_blocker_ref', 'human_gate_ref'],
+        },
+      ],
+    },
+  });
+  writeJson(jobResultsPath, {
+    'full-first-install': 'success',
+    'remote-verify-standard': 'skipped',
+    'remote-verify-full': 'success',
+    'standard-first-run-vm-smoke-after-standard-only': 'skipped',
+    'standard-first-run-vm-smoke-after-full': 'success',
+    'stable-homebrew-tap-update': 'success',
+    'full-homebrew-tap-update': 'success',
+    'homebrew-standard-first-run-vm-smoke': 'failure',
+    'full-first-run-vm-smoke': 'success',
+    'one-shot-app-installer-smoke': 'success',
+    'docker-webui-smoke': 'success',
+    'webui-ghcr-publish': 'success',
+    'operator-evidence-bundle-validation': 'success',
+  });
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.notEqual(result.status, 0, result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'failed');
+  assert.equal(summary.l5_evidence_readout.schema, 'opl_app_release_l5_evidence_readout.v1');
+  assert.equal(summary.l5_evidence_readout.scope, 'app_release_user_path_evidence_for_opl_console_l5_input');
+  assert.equal(summary.l5_evidence_readout.release_ready_claim, false);
+  assert.equal(summary.l5_evidence_readout.family_l5_claim, false);
+  assert.equal(summary.l5_evidence_readout.ordinary_cockpit_excluded, true);
+  assert.ok(summary.l5_evidence_readout.failed_required_gate_ids.includes('homebrew_standard_cask_clean_vm'));
+  assert.ok(summary.l5_evidence_readout.failed_required_gate_ids.includes('operator_evidence_bundle'));
+  const classById = new Map(
+    summary.l5_evidence_readout.evidence_classes.map((entry) => [entry.class_id, entry]),
+  );
+  assert.equal(classById.get('release_install_evidence').status, 'missing_evidence');
+  assert.ok(classById.get('release_install_evidence').missing_gate_ids.includes('homebrew_standard_cask_clean_vm'));
+  assert.equal(classById.get('live_user_path').status, 'blocked_evidence');
+  assert.deepEqual(classById.get('live_user_path').blocked_artifact_ids, ['first_run_vm_summary']);
+  assert.ok(classById.get('owner_acceptance').closeable_by.includes('owner_receipt_ref'));
+  assert.ok(
+    summary.l5_evidence_readout.missing_current_cohort_evidence.some((entry) =>
+      entry.class_id === 'release_install_evidence' && entry.closeable_by.includes('install_evidence_ref')
+    ),
+  );
+});
+
 test('release readiness summary rejects Homebrew checksum drift from remote release digest', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-homebrew-digest-drift-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');

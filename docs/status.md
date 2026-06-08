@@ -296,6 +296,14 @@ can support release-owner review for the same App cohort, but they do not
 promote stable/latest by themselves and do not prove domain readiness or OPL
 family production readiness.
 
+The release evidence bundle and readiness summary now emit
+`l5_evidence_readout` as a machine-readable App release/user-path input for the
+OPL Console L5 evidence matrix. That readout classifies current-cohort gaps
+against OPL L5 evidence classes and accepted ref shapes, including typed
+blocker, receipt, user-path, install, and owner-acceptance refs, while keeping
+release details out of the ordinary cockpit and keeping release-ready/latest
+promotion as an explicit release-owner decision.
+
 Current release validation is App-root first: root wrappers call the active shell
 build/release scripts, then the produced standard package can replace
 `/Applications/One Person Lab.app` for a real local GUI startup smoke.
