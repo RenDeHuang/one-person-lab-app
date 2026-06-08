@@ -35,6 +35,16 @@ Machine boundary: Human-readable process history index. Machine truth stays in `
 
 ## Coverage Snapshot
 
+2026-06-08 App release-workflow retirement SSOT tranche:
+
+- Theme / SSOT: release workflow lifecycle and the retired tag-push **Build and Release** surface. Machine SSOT is `.github/workflows/`, `contracts/app-release-channel.json#release_acceleration.github_actions`, `scripts/validate-release-boundary.ts`, and `tests/release/app-release-boundary-cases/workflow-release-channels.ts`; docs are human projections only.
+- Reviewed: all App `README*.md`, `docs/README.md`, every `docs/*.md`, every `docs/active/*.md`, every `docs/history/*.md`, every `docs/history/process/*.md`, every `docs/release/*.md`, every `docs/testing/*.md`, every `docs/user-guides/*.md`, `scripts/README.md`, `.github/workflows/*.yml`, `contracts/app-release-channel.json`, `package.json`, `scripts/validate-release-boundary.ts`, `scripts/validate-active-shell/release-contract-validator.ts`, and release-boundary tests touching workflow ownership.
+- Edited: `tests/release/app-release-boundary-cases/workflow-release-channels.ts`, this file, and `docs/history/process/retired-surface-provenance.md`.
+- Retired / guarded: legacy `.github/workflows/build-and-release.yml` remains absent and now has an explicit release-boundary test proving there is no live workflow file, no contract pointer, and no same-name workflow title. The current replacement stays Desktop Release / Desktop Release Promote / Full First-Install / Nightly Standard workflows plus candidate records and release-boundary validation.
+- Coverage result: App README/docs are covered for this release-workflow retirement theme. No App doc outside history claims the old workflow as live truth; `docs/release/README.md` keeps the operator explanation, and no-resurrection provenance points back to machine owners.
+- Remaining App unreviewed scope under the parent OPL series goal: full line-by-line semantic audit for non-release themes such as GUI definition stack, user guides/screenshots, candidate-shell adoption, runtime-page operator evidence, and install exposure. Remaining functional/evidence gaps stay in `docs/active/app-ideal-state-gap-plan.md`.
+- Next write scope: continue with another clean sibling repo or another disjoint App theme only after fresh intake; do not return to `one-person-lab` or `med-autoscience` writes while their concurrent dirty write sets remain active.
+
 2026-06-08 App process-history compression tranche:
 
 - Reviewed: `AGENTS.md`, fallback `~/.codex/TASTE.md`, `README*`, `docs/README.md`, `docs/project.md`, `docs/status.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md`, `docs/docs_portfolio_consolidation.md`, `docs/active/app-ideal-state-gap-plan.md`, `docs/history/README.md`, previous `docs/history/process/*.md`, `docs/agui-codex-candidate-verification.md`, `docs/app-gui-feature-inventory.md`, `docs/testing/README.md`, `package.json`, and exact contract/source/test/workflow references to dated process paths.

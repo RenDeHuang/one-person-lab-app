@@ -114,6 +114,36 @@ test('runtime toolchain updater is a separate silent App-owned channel', () => {
   assert.ok(runtimeUpdater.verification.clean_machine_installability_must_not_regress);
 });
 
+test('retired tag-push Build and Release workflow has no live or compatibility surface', () => {
+  const workflowsDir = path.join(appRoot, '.github', 'workflows');
+  const workflowNames = fs.readdirSync(workflowsDir).filter((name) => name.endsWith('.yml')).sort();
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const boundaryScript = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-release-boundary.ts'), 'utf8');
+  const retiredWorkflowPath = path.join(workflowsDir, 'build-and-release.yml');
+
+  assert.equal(fs.existsSync(retiredWorkflowPath), false);
+  assert.equal(workflowNames.includes('build-and-release.yml'), false);
+  assert.match(boundaryScript, /retired_build_and_release_workflow_absent/);
+  assert.match(boundaryScript, /\.github\/workflows\/build-and-release\.yml/);
+
+  const releaseWorkflows = releaseContract.release_acceleration.github_actions;
+  assert.equal(releaseWorkflows.desktop_release_workflow, '.github/workflows/desktop-release.yml');
+  assert.equal(releaseWorkflows.promote_workflow, '.github/workflows/desktop-release-promote.yml');
+  assert.equal(releaseWorkflows.full_first_install_workflow, '.github/workflows/full-first-install-release.yml');
+  assert.equal(releaseWorkflows.nightly_standard_release_workflow, '.github/workflows/nightly-standard-release.yml');
+  assert.equal(
+    Object.values(releaseWorkflows).some((value) => value === '.github/workflows/build-and-release.yml'),
+    false,
+  );
+
+  for (const workflowName of workflowNames) {
+    const workflow = fs.readFileSync(path.join(workflowsDir, workflowName), 'utf8');
+    assert.doesNotMatch(workflow, /^name:\s*Build and Release\s*$/m, workflowName);
+  }
+});
+
 test('manual desktop release workflow supports new releases and same-tag refreshes in GitHub Actions', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const standardBuild = workflowJobBlock(workflow, 'standard-build');
