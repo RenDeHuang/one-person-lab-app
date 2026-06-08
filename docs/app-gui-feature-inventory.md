@@ -350,85 +350,21 @@ material。
 - Candidate UI smoke 必须保持 AG-UI 作为内部 event boundary，并拒绝 ordinary
   chat surface 上出现用户可见 AG-UI/debug dashboard copy。
 
-## AG-UI/CopilotKit Candidate 验证
+## AG-UI/CopilotKit Candidate 验证 Owner
 
-Candidate 只能通过 explicit adapter contract 选择：
+本文只保留 AG-UI/CopilotKit candidate 的 GUI 能力清单、reference mapping 和
+产品语义投影。候选 shell 的命令、最低验收、evidence lifecycle 和 release
+replacement gate 由下列 owner 承接：
 
-```bash
-OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json
-```
+| 验证主题 | Current owner |
+| --- | --- |
+| Candidate runbook、命令顺序、最低验收、evidence lifecycle | `docs/agui-codex-candidate-verification.md` |
+| Candidate registry、explicit adapter participation、replacement gate、reference implementations | `contracts/app-shell-candidates.json` |
+| Explicit adapter selection and shell root | `contracts/shell-adapters/agui-codex.json` |
+| Candidate registry validation | `scripts/validate-shell-candidates.ts` and `npm run validate:shell-candidates` |
+| Default active-shell guard | `contracts/app-shell-adapter.json` and `scripts/validate-active-shell.ts --quick` |
+| Candidate evidence | candidate manifests, shell artifacts, CI logs, source/WebUI/package smoke, and App-root validation output |
 
-App-root verification 和 packaging commands：
-
-```bash
-node --experimental-strip-types scripts/validate-active-shell.ts --quick
-npm run validate:shell-candidates
-OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json node --experimental-strip-types scripts/validate-active-shell.ts --quick
-OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
-```
-
-Candidate-shell verification commands：
-
-```bash
-cd shells/agui-codex
-npm install
-npm run validate:adapter-events
-npm run validate:state-model
-npm run validate:candidate
-npm run build:renderer
-npm run smoke:webui
-npx electron . --ui-smoke-test
-'./out/One Person Lab AG-UI Codex Candidate.app/Contents/MacOS/One Person Lab AG-UI Codex Candidate' --ui-smoke-test
-```
-
-该 candidate 的最低验收：
-
-- App-root active-shell validation 仍把默认 release shell 解析为 AionUI。
-- Candidate registry validation 通过，并确认只有 explicit candidate build
-  participation。
-- Generated product profile 由 App 拥有，并包含 Codex fixed executor、
-  MAS/MAG/RCA purpose entries 和 hidden ordinary selectors。
-- Candidate state-model validation 通过，并覆盖 active project line
-  `status`、`active_run_id`、`next_visible_step`、
-  `progress_delta_classification`、`deliverable_progress_delta`、
-  `platform_repair_delta` 和 `next_forced_delta`；该证据不能写成 domain ready、
-  production ready、clean-VM ready、Full release ready 或 active-shell adoption。
-- Source renderer build 成功。
-- WebUI smoke 通过，使用同一 renderer、browser `window.oplCandidate` bridge、
-  HTTP action routes 和 SSE Codex event stream。
-- Source UI smoke 在默认 chat-first home 上绘制 visible pixels，展示 purpose
-  entries，启动真实 Codex app-server turn，收到 `OK`，并证明 workspace/session
-  rail 和 inspector 默认收起，首页不显示 runtime activity、continue-work 或
-  Activity/refs grid；refs 只在 Runtime/secondary context 出现。
-- UI 把 lightweight workspace/session rail 和右侧可收起 Files、Skills、Routing、
-  Memory、Always-On inspector tabs 暴露为 optional context surfaces，不采用
-  PilotDeck runtime authority，也不把它们做成 first-screen panels。
-- Candidate packaging 产出带 `Contents/Info.plist` 和 `Contents/MacOS`
-  executable 的可启动 `.app`。
-- Packaged UI smoke 针对 `.app` bundle 通过，ordinary chat surface 不出现
-  AG-UI/debug protocol copy，并证明同样 default-collapsed chat-first home。
-- Page-state、first-run、runtime summary/full-drilldown 和 safe App action
-  dry-run evidence 由 candidate smoke 记录，并由 App-root candidate validation
-  检查。
-- Release replacement 保持 explicit：candidate 不会成为默认 stable/nightly
-  shell，直到 `contracts/app-shell-adapter.json` 被明确修改。
-
-Candidate evidence lifecycle：
-
-- 本文只描述能力清单、reference mapping 和最低验证类别，不保存 dated pass/fail
-  日志、绝对 artifact 路径或 manifest 字段摘录。
-- `agui-codex` 当前性必须由 explicit adapter validation、shell-side
-  `npm run validate:state-model`、source/WebUI/package smoke、candidate manifest
-  和 App-root candidate validation 共同证明。
-- Candidate state-model、source smoke、WebUI smoke 或 packaged smoke 只能证明
-  candidate projection consumption 和 technical verification；不能写成 release、
-  domain、production、clean-VM、Full first-install 或 active-shell adoption
-  readiness。
-- 旧的 chat-first/bilingual 技术验证和 active-doc cleanup 过程记录已压缩到
-  `docs/history/process/retired-surface-provenance.md`；当前 candidate claims
-  仍必须由 explicit adapter validation、candidate manifests、shell artifacts、
-  CI logs、source/WebUI/package smoke 和 App-root validation 证明。
-
-当前默认 release shell 仍是 AionUI，直到该 candidate 满足
-`contracts/app-shell-candidates.json` 中的 shell replacement gate，并且
-`contracts/app-shell-adapter.json` 被明确修改。
+`agui-codex` 当前仍是 technical verification candidate。默认 release shell 仍是
+AionUI；candidate 只有在 `contracts/app-shell-adapter.json` 被明确修改并通过正常
+release gates 后，才会进入默认 stable/nightly release path。

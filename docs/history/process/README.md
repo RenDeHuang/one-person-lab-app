@@ -35,6 +35,16 @@ Machine boundary: Human-readable process history index. Machine truth stays in `
 
 ## Coverage Snapshot
 
+2026-06-08 App AG-UI/CopilotKit candidate docs owner split tranche:
+
+- Theme / SSOT: AG-UI/CopilotKit candidate capability inventory versus candidate verification runbook. Current SSOT for verification commands and minimum acceptance is `docs/agui-codex-candidate-verification.md`, `contracts/app-shell-candidates.json`, `contracts/shell-adapters/agui-codex.json`, `scripts/validate-shell-candidates.ts`, and `scripts/validate-active-shell.ts`; `docs/app-gui-feature-inventory.md` remains a GUI capability/reference mapping owner.
+- Reviewed: `AGENTS.md`, `TASTE.md`, `docs/README.md`, `docs/project.md`, `docs/status.md`, `docs/docs_portfolio_consolidation.md`, `docs/active/app-ideal-state-gap-plan.md`, `docs/agui-codex-candidate-verification.md`, `docs/app-gui-feature-inventory.md`, this process index, `contracts/app-shell-candidates.json`, and `scripts/validate-shell-candidates.ts`.
+- Edited: `docs/app-gui-feature-inventory.md` and this file.
+- Coverage result: duplicated candidate verification commands and detailed acceptance bullets were removed from the GUI feature inventory and replaced with an explicit owner map. The candidate runbook remains the human command/acceptance owner; candidate contracts and validation scripts remain machine owners. `agui-codex` stays a technical verification candidate and is not promoted to the default release shell.
+- Retired / guarded: no candidate contract, shell adapter, workflow, or source file was retired. The retired surface is only the duplicate verification checklist inside the feature inventory; do not recreate it as a parallel current checklist or use the inventory as release/adoption proof.
+- Remaining App unreviewed scope under the parent OPL series goal: full line-by-line App non-process docs audit remains open for non-candidate themes such as user guides/screenshots, runtime-page operator evidence, install exposure, and release cohort evidence.
+- Next write scope: continue with a concrete SSOT theme after fresh intake; likely candidates are user-guide/screenshot evidence lifecycle or runtime-page operator evidence docs. Avoid `one-person-lab` and `med-autoscience` writes while their concurrent dirty write sets remain active.
+
 2026-06-08 App release-evidence seed artifact retirement tranche:
 
 - Theme / SSOT: same-cohort release evidence bundle generation and the retired optional `release-evidence-<version>` seed artifact download. Machine SSOT is `.github/workflows/desktop-release.yml`, `scripts/validate-release-boundary.ts`, `docs/release/README.md`, release evidence validators, release artifacts, and CI logs; docs are human projections only.
