@@ -35,6 +35,16 @@ Machine boundary: Human-readable process history index. Machine truth stays in `
 
 ## Coverage Snapshot
 
+2026-06-08 App release-evidence seed artifact retirement tranche:
+
+- Theme / SSOT: same-cohort release evidence bundle generation and the retired optional `release-evidence-<version>` seed artifact download. Machine SSOT is `.github/workflows/desktop-release.yml`, `scripts/validate-release-boundary.ts`, `docs/release/README.md`, release evidence validators, release artifacts, and CI logs; docs are human projections only.
+- Reviewed: `AGENTS.md`, `TASTE.md`, `docs/active/app-ideal-state-gap-plan.md`, this process index, `docs/history/process/retired-surface-provenance.md`, `.github/workflows/desktop-release.yml`, `docs/release/README.md`, `scripts/validate-release-boundary.ts`, release-boundary tests and package scripts touching release evidence ownership.
+- Edited: this file and `docs/history/process/retired-surface-provenance.md`.
+- Retired / guarded: the desktop release workflow no longer downloads optional `release-evidence-<version>` before validation. The workflow regenerates the evidence bundle in `operator-evidence-bundle-validation` from current clean VM smoke summaries, remote verification summary, and live OPL operator drilldown, uploads `release-evidence-bundle-<version>`, and the release-boundary validator forbids `name: release-evidence-${{ inputs.opl_version }}` from returning.
+- Coverage result: App release docs now explain regenerated in-place evidence and the missing-seed annotation hazard; active workflow/validator truth matches that explanation. A missing old seed is not a release evidence condition, not an App release-ready blocker, and not a reason to add a compatibility download step.
+- Remaining App unreviewed scope under the parent OPL series goal: non-release App docs and unrelated App evidence gates remain open in `docs/active/app-ideal-state-gap-plan.md`.
+- Next write scope: another disjoint clean App release/evidence theme or a clean sibling repo semantic lane after fresh intake; do not return to `one-person-lab` or `med-autoscience` writes while their concurrent dirty write sets remain active.
+
 2026-06-08 App release-workflow retirement SSOT tranche:
 
 - Theme / SSOT: release workflow lifecycle and the retired tag-push **Build and Release** surface. Machine SSOT is `.github/workflows/`, `contracts/app-release-channel.json#release_acceleration.github_actions`, `scripts/validate-release-boundary.ts`, and `tests/release/app-release-boundary-cases/workflow-release-channels.ts`; docs are human projections only.
