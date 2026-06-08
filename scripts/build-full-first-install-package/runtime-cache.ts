@@ -43,7 +43,6 @@ import {
   buildOplLayer,
   buildSkillsLayer,
   buildToolchainLayer,
-  extractTemporalCliBinary,
   pruneTemporalCoreBridgeReleases,
   writeTemporalCliWrapper,
 } from './runtime-layers.ts';
@@ -128,7 +127,6 @@ function buildRuntimeLayerPackagerInputs() {
       copyExecutableOrSymlinkTarget,
       copyNodeRuntimePayload,
       writeTemporalCliWrapper,
-      extractTemporalCliBinary,
       assertNoExternalSymlinks,
       copyProductionNodeModules,
       pruneTemporalCoreBridgeReleases,

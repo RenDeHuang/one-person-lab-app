@@ -17,7 +17,7 @@ const FULL_PACKAGE_SIZE_BUDGET = {
   platform_scope: 'macos-arm64',
   warning_full_dmg_bytes: 700000000,
   max_full_dmg_bytes: 750000000,
-  max_runtime_uncompressed_bytes: 1500000000,
+  max_runtime_uncompressed_bytes: 1000000000,
 } as const;
 const FULL_PACKAGE_MEASUREMENT_POLICY = {
   full_dmg_bytes: 'github_release_asset_size_bytes',
@@ -330,10 +330,9 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       },
       temporal_cli: {
         ...normalizeComponent(components.temporal_cli),
-        role: 'temporal_cli_preextracted_binary_wrapper',
+        role: 'temporal_cli_offline_archive_wrapper',
         required: true,
-        binary_path: components.temporal_cli?.binary_path
-          ?? 'runtime/current/vendor/temporal/cli/temporal',
+        binary_path: components.temporal_cli?.binary_path ?? null,
         archive_path: components.temporal_cli?.archive_path
           ?? 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
         archive_size_bytes: components.temporal_cli?.archive_size_bytes ?? null,

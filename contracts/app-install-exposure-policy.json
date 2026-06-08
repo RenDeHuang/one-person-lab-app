@@ -348,7 +348,7 @@
     "packaged_runtime_policy": {
       "full_wrapper_must_export_defaults": true,
       "must_include_temporal_cli_wrapper": true,
-      "temporal_cli_wrapper_must_execute_preextracted_signed_binary": true,
+      "temporal_cli_wrapper_must_execute_offline_archive": true,
       "must_include_temporal_node_runtime_packages": true,
       "must_exclude_temporal_testing_package": true,
       "native_core_bridge_target": "aarch64-apple-darwin"

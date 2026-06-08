@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import {
@@ -73,41 +72,31 @@ if [[ "\${1:-}" == "--version" ]]; then
   exit 0
 fi
 RUNTIME_HOME="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
-TEMPORAL_BIN="$RUNTIME_HOME/vendor/temporal/cli/temporal"
+ARCHIVE="$RUNTIME_HOME/vendor/temporal/temporal_cli_darwin_arm64.tar.gz"
+EXTRACT_ROOT="$RUNTIME_HOME/.runtime-cache/temporal-cli"
+TEMPORAL_BIN="$EXTRACT_ROOT/temporal"
 if [[ ! -x "$TEMPORAL_BIN" ]]; then
-  printf 'Packaged Temporal CLI binary is missing: %s\\n' "$TEMPORAL_BIN" >&2
+  if [[ ! -f "$ARCHIVE" ]]; then
+    printf 'Packaged Temporal CLI archive is missing: %s\\n' "$ARCHIVE" >&2
+    exit 1
+  fi
+  rm -rf "$EXTRACT_ROOT"
+  mkdir -p "$EXTRACT_ROOT"
+  tar -xzf "$ARCHIVE" -C "$EXTRACT_ROOT"
+  if [[ ! -x "$TEMPORAL_BIN" ]]; then
+    candidate="$(find "$EXTRACT_ROOT" -type f -name temporal -perm -111 | head -n 1 || true)"
+    if [[ -n "$candidate" ]]; then
+      TEMPORAL_BIN="$candidate"
+    fi
+  fi
+fi
+if [[ ! -x "$TEMPORAL_BIN" ]]; then
+  printf 'Packaged Temporal CLI archive did not contain an executable temporal binary: %s\\n' "$ARCHIVE" >&2
   exit 1
 fi
 exec "$TEMPORAL_BIN" "$@"
 `, 'utf8');
   fs.chmodSync(targetPath, 0o755);
-}
-
-export function extractTemporalCliBinary(archivePath, targetPath) {
-  const extractRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-temporal-cli-'));
-  try {
-    run('tar', ['-xzf', archivePath, '-C', extractRoot]);
-    const candidates = [];
-    const stack = [extractRoot];
-    while (stack.length > 0) {
-      const current = stack.pop();
-      const stat = fs.lstatSync(current);
-      if (stat.isDirectory()) {
-        for (const entry of fs.readdirSync(current)) {
-          stack.push(path.join(current, entry));
-        }
-      } else if (stat.isFile() && path.basename(current) === 'temporal' && (stat.mode & 0o111) !== 0) {
-        candidates.push(current);
-      }
-    }
-    const found = candidates.sort()[0];
-    if (!found) {
-      throw new Error(`Temporal CLI archive does not contain an executable temporal binary: ${archivePath}`);
-    }
-    copySingleFile(found, targetPath);
-  } finally {
-    fs.rmSync(extractRoot, { recursive: true, force: true });
-  }
 }
 
 function temporalCoreBridgeReleasesRoot(nodeModulesRoot) {
@@ -187,7 +176,6 @@ export function buildToolchainLayer(layerRoot, sources) {
     copySingleFile(sources.bunBin, path.join(layerRoot, 'bin', 'bun'));
   }
   copySingleFile(sources.temporalCliArchive, path.join(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64.tar.gz'));
-  extractTemporalCliBinary(sources.temporalCliArchive, path.join(layerRoot, 'vendor', 'temporal', 'cli', 'temporal'));
   writeTemporalCliWrapper(path.join(layerRoot, 'bin', 'temporal'), commandOutput(sources.temporalCliBin, ['--version']));
   copySingleFile(sources.officeCliBin, path.join(layerRoot, 'bin', 'officecli'));
   copySingleFile(sources.mineruOpenApiBin, path.join(layerRoot, 'bin', 'mineru-open-api'));

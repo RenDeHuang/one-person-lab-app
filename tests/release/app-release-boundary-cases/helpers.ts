@@ -651,20 +651,10 @@ export function writeFullRuntimeNativeTrust(outDir) {
     `${JSON.stringify({
       schema: 'opl_full_runtime_native_trust.v1',
       status: 'passed',
-      executable_count: 2,
+      executable_count: 1,
       executables: [
         {
           relative_path: 'runtime/current/node/bin/node',
-          assessment_kind: 'launched_executable',
-          codesign_status: 'passed',
-          spctl_status: 'passed',
-          team_identifier: 'TESTTEAMID',
-          signature: 'Developer ID Application: Test',
-          quarantine_status: 'absent',
-          provenance_status: 'absent',
-        },
-        {
-          relative_path: 'runtime/current/vendor/temporal/cli/temporal',
           assessment_kind: 'launched_executable',
           codesign_status: 'passed',
           spctl_status: 'passed',
@@ -821,7 +811,7 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
       platform_scope: 'macos-arm64',
       warning_full_dmg_bytes: 700000000,
       max_full_dmg_bytes: 750000000,
-      max_runtime_uncompressed_bytes: 1500000000,
+      max_runtime_uncompressed_bytes: 1000000000,
     },
     measurement_policy: {
       full_dmg_bytes: 'github_release_asset_size_bytes',
@@ -848,9 +838,9 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
         source_path: '/tmp/temporal',
         version: 'temporal version 1.7.0',
         size_bytes: 801,
-        role: 'temporal_cli_preextracted_binary_wrapper',
+        role: 'temporal_cli_offline_archive_wrapper',
         required: true,
-        binary_path: 'runtime/current/vendor/temporal/cli/temporal',
+        binary_path: null,
         archive_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
         archive_size_bytes: 114835528,
       },

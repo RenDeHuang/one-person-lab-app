@@ -112,6 +112,33 @@ function layerEntries(manifest: Record<string, any>) {
   return [...explicit, ...missing].sort((left, right) => (right.size_bytes ?? -1) - (left.size_bytes ?? -1));
 }
 
+function collectManifestSizeHotspots(manifest: Record<string, any>, top: number) {
+  const layers = manifest.size_breakdown?.layers ?? {};
+  const entries: Array<{ path: string; size_bytes: number }> = [];
+
+  const visit = (prefix: string, node: any) => {
+    const entryPath = prefix.replace(/^\/+/, '');
+    if (Number.isFinite(node?.size_bytes) && entryPath) {
+      entries.push({
+        path: entryPath,
+        size_bytes: node.size_bytes,
+      });
+    }
+    const children = node?.children && typeof node.children === 'object' ? node.children : {};
+    for (const [childId, child] of Object.entries(children)) {
+      visit(entryPath ? `${entryPath}/${childId}` : childId, child);
+    }
+  };
+
+  for (const [layerId, layer] of Object.entries(layers)) {
+    visit(layerId, layer);
+  }
+
+  return entries
+    .sort((left, right) => right.size_bytes - left.size_bytes)
+    .slice(0, top);
+}
+
 function runtimeRootEntries(runtimeRoot: string, top: number) {
   if (!runtimeRoot || !fs.existsSync(runtimeRoot)) return [];
   return fs.readdirSync(runtimeRoot)
@@ -163,6 +190,7 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
         ? percent(layer.size_bytes as number, totalRuntimeBytes)
         : null,
     })),
+    manifest_size_hotspots: collectManifestSizeHotspots(manifest, options.top),
     runtime_root: options.runtimeRoot || null,
     runtime_root_top_entries: runtimeRootEntries(options.runtimeRoot, options.top),
   };
@@ -210,6 +238,18 @@ function renderMarkdown(summary: ReturnType<typeof buildSummary>, top: number) {
       ]),
     ),
   ];
+
+  if (summary.manifest_size_hotspots.length > 0) {
+    lines.push(
+      '',
+      '### Manifest Size Hotspots',
+      '',
+      renderTable(
+        ['Path', 'Size'],
+        summary.manifest_size_hotspots.map((entry) => [entry.path, formatBytes(entry.size_bytes)]),
+      ),
+    );
+  }
 
   if (summary.runtime_root_top_entries.length > 0) {
     lines.push(

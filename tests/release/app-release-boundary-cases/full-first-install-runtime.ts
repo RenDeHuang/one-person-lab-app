@@ -168,7 +168,17 @@ test('Full package size analyzer reports manifest component and layer budgets', 
       size_breakdown: {
         total_runtime_uncompressed_bytes: 500,
         layers: {
-          toolchain: { size_bytes: 200 },
+          toolchain: {
+            size_bytes: 200,
+            children: {
+              vendor: {
+                size_bytes: 150,
+                children: {
+                  temporal: { size_bytes: 150 },
+                },
+              },
+            },
+          },
           'domain-runtime': { size_bytes: 180 },
           'opl-runtime': { size_bytes: 100 },
           skills: { size_bytes: 20 },
@@ -195,6 +205,8 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.equal(summary.runtime_budget_used_percent, 50);
   assert.equal(summary.components[0].id, 'mas');
   assert.equal(summary.layers[0].id, 'toolchain');
+  assert.equal(summary.manifest_size_hotspots[2].path, 'toolchain/vendor');
+  assert.equal(summary.manifest_size_hotspots[3].path, 'toolchain/vendor/temporal');
 
   const markdownResult = runNode([
     'scripts/analyze-full-package-size.ts',
@@ -211,6 +223,8 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.match(markdownResult.stdout, /Full DMG review threshold: 715\.3 MiB/);
   assert.match(markdownResult.stdout, /Runtime budget: 1000 B \(50% used\)/);
   assert.match(markdownResult.stdout, /\| mas \| 180 B \| 36% \|/);
+  assert.match(markdownResult.stdout, /### Manifest Size Hotspots/);
+  assert.match(markdownResult.stdout, /\| toolchain\/vendor\/temporal \| 150 B \|/);
 });
 
 test('manual build workflow keeps cross-platform builds behind an explicit switch', () => {
@@ -306,7 +320,7 @@ test('Full first-install manifest declares App-owned distribution and Framework 
     platform_scope: 'macos-arm64',
     warning_full_dmg_bytes: 700000000,
     max_full_dmg_bytes: 750000000,
-    max_runtime_uncompressed_bytes: 1500000000,
+    max_runtime_uncompressed_bytes: 1000000000,
   });
   assert.deepEqual(manifest.measurement_policy, {
     full_dmg_bytes: 'github_release_asset_size_bytes',
@@ -372,10 +386,9 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     preferred_sources: ['explicit_user_path', 'system_path', 'homebrew_formula'],
     fallback_version_source: 'distribution cohort manifest components.temporal_cli.fallback_version',
     fallback_runtime_path: 'runtime/current/bin/temporal',
-    fallback_binary_path: 'runtime/current/vendor/temporal/cli/temporal',
     fallback_payload_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
     must_prefer_valid_newer_user_version: true,
-    verification: 'temporal --version must satisfy minimum_version, bundled fallback must execute from the pre-extracted signed binary, and Temporal provider smoke must pass',
+    verification: 'temporal --version must satisfy minimum_version, bundled fallback must execute offline from the packaged archive wrapper, and Temporal provider smoke must pass',
   });
   assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_runtime_provider, {
     provider_env_default: 'OPL_FAMILY_RUNTIME_PROVIDER=temporal',
@@ -442,7 +455,7 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     manifest.components.skills.role,
     'packaged_codex_skills_declared_by_app_product_profile',
   );
-  assert.equal(manifest.components.temporal_cli.role, 'temporal_cli_preextracted_binary_wrapper');
+  assert.equal(manifest.components.temporal_cli.role, 'temporal_cli_offline_archive_wrapper');
   assert.equal(manifest.components.temporal_cli.required, true);
   assert.equal(manifest.optional_components.bun.role, 'optional_bun_cli_runtime_payload');
   assert.equal(manifest.optional_components.bun.required, false);
@@ -618,17 +631,18 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
   assert.match(buildScript, /options\.includeBunRuntime \? findBunBinary\(options\.bunBin\) : null/);
   assert.match(buildScript, /findTemporalCliArchive,/);
-  assert.match(buildScript, /copyPortableTree,\s+copyExecutableOrSymlinkTarget,\s+copyNodeRuntimePayload,\s+writeTemporalCliWrapper,\s+extractTemporalCliBinary,\s+assertNoExternalSymlinks,/);
+  assert.match(buildScript, /copyPortableTree,\s+copyExecutableOrSymlinkTarget,\s+copyNodeRuntimePayload,\s+writeTemporalCliWrapper,\s+assertNoExternalSymlinks,/);
   assert.match(buildScript, /if \(sources\.bunBin\) {\s*copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\);\s*}/);
   assert.match(buildScript, /copySingleFile\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64\.tar\.gz'\)\)/);
-  assert.match(buildScript, /extractTemporalCliBinary\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'cli', 'temporal'\)\)/);
+  assert.doesNotMatch(buildScript, /extractTemporalCliBinary\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'cli', 'temporal'\)\)/);
+  assert.doesNotMatch(buildScript, /function extractTemporalCliBinary/);
   assert.match(buildScript, /writeTemporalCliWrapper\(path\.join\(layerRoot, 'bin', 'temporal'\), commandOutput\(sources\.temporalCliBin, \['--version'\]\)\)/);
   assert.match(buildScript, /function writeTemporalCliWrapper\(targetPath, versionOutput\)/);
   assert.match(buildScript, /TEMPORAL_VERSION_OUTPUT=\$\{shellSingleQuote\(versionOutput\)\}/);
   assert.match(buildScript, /if \[\[ "\\\$\{1:-\}" == "--version" \]\]/);
-  assert.match(buildScript, /TEMPORAL_BIN="\$RUNTIME_HOME\/vendor\/temporal\/cli\/temporal"/);
-  assert.doesNotMatch(buildScript, /ARCHIVE="\$RUNTIME_HOME\/vendor\/temporal\/temporal_cli_darwin_arm64\.tar\.gz"/);
-  assert.doesNotMatch(buildScript, /tar -xzf "\$ARCHIVE" -C "\$EXTRACT_ROOT"/);
+  assert.match(buildScript, /ARCHIVE="\$RUNTIME_HOME\/vendor\/temporal\/temporal_cli_darwin_arm64\.tar\.gz"/);
+  assert.match(buildScript, /TEMPORAL_BIN="\$EXTRACT_ROOT\/temporal"/);
+  assert.match(buildScript, /tar -xzf "\$ARCHIVE" -C "\$EXTRACT_ROOT"/);
   assert.match(buildScript, /copyNodeRuntimePayload\(path\.dirname\(path\.dirname\(sources\.nodeToolchain\.nodeBin\)\), path\.join\(layerRoot, 'node'\)\)/);
   assert.match(buildScript, /function copyNodeRuntimePayload\(nodeRoot, targetRoot\)/);
   assert.match(buildScript, /for \(const relativePath of \['bin\/node', 'bin\/npm', 'bin\/npx'\]\)/);
@@ -747,14 +761,15 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
   assert.match(buildScript, /if \(sources\.bunBin\) {\s*copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\);\s*}/);
   assert.match(buildScript, /copySingleFile\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64\.tar\.gz'\)\)/);
-  assert.match(buildScript, /extractTemporalCliBinary\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'cli', 'temporal'\)\)/);
+  assert.doesNotMatch(buildScript, /extractTemporalCliBinary\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'cli', 'temporal'\)\)/);
+  assert.doesNotMatch(buildScript, /function extractTemporalCliBinary/);
   assert.match(buildScript, /writeTemporalCliWrapper\(path\.join\(layerRoot, 'bin', 'temporal'\), commandOutput\(sources\.temporalCliBin, \['--version'\]\)\)/);
   assert.match(buildScript, /copyNodeRuntimePayload\(path\.dirname\(path\.dirname\(sources\.nodeToolchain\.nodeBin\)\), path\.join\(layerRoot, 'node'\)\)/);
   assert.match(buildScript, /assertNoExternalSymlinks\(targetRoot, 'Full first-install Node runtime'\)/);
   assert.match(buildScript, /packaged_global_node_packages:/);
   assert.match(buildScript, /optionalComponents = \{[\s\S]*bun: sources\.bunBin/);
   assert.match(buildScript, /status: 'not_packaged'/);
-  assert.match(buildScript, /temporal_cli: \{[\s\S]*source_path: sources\.temporalCliBin[\s\S]*binary_path: 'runtime\/current\/vendor\/temporal\/cli\/temporal'/);
+  assert.doesNotMatch(buildScript, /binary_path: 'runtime\/current\/vendor\/temporal\/cli\/temporal'/);
   assert.match(buildScript, /version: commandOutput\(path\.join\(runtimeRoot, 'bin', 'temporal'\), \['--version'\]\)/);
   assert.match(buildScript, /writeJsonFile\(runtimeNativeTrustPath, prepared\.manifest\.native_trust\)/);
   assert.match(buildScript, /codex: \{ source_path: sources\.codexRoot[\s\S]*size_bytes: directorySizeBytes\(path\.join\(runtimeRoot, 'bin', 'codex'\)\)/);

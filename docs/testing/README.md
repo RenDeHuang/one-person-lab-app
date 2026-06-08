@@ -229,7 +229,7 @@ was archived in
   `passed` when the Full DMG is above `warning_full_dmg_bytes=700000000` or the
   `max_full_dmg_bytes=750000000` review threshold, but it must include a warning
   in JSON and markdown. Remote Full verification separately checks the manifest
-  uncompressed runtime size against `max_runtime_uncompressed_bytes=1500000000`.
+  uncompressed runtime size against `max_runtime_uncompressed_bytes=1000000000`.
   The same summary must expose runtime cache `miss_written` layer names and
   counts from `runtime-cache-events.json` for the next cache-key optimization
   pass.

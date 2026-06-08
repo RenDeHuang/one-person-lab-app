@@ -98,11 +98,12 @@ from `full-package-manifest.json` `size_breakdown.total_runtime_uncompressed_byt
 `warning_full_dmg_bytes=700000000` is a release-readiness warning threshold for
 the post-Temporal Full baseline; `max_full_dmg_bytes=750000000` is a review
 threshold that records a warning without blocking Stable publication. The
-uncompressed Full runtime budget is `max_runtime_uncompressed_bytes=1500000000`,
-matching the 26.6.5 Stable toolchain-heavy baseline while still failing closed
-on duplicated checkouts, stale payloads, or standard-updater leakage.
+uncompressed Full runtime budget is `max_runtime_uncompressed_bytes=1000000000`;
+this fails closed on the 26.6.5/26.6.7 Temporal expanded-binary regression,
+duplicated checkouts, stale payloads, or standard-updater leakage.
 `npm run release:full:size -- --markdown` prints the same component and layer
-breakdown for local review and is appended to the Full GitHub Actions summary.
+breakdown plus manifest size hotspots for local review and is appended to the
+Full GitHub Actions summary.
 The Full workflow also uploads `full-workflow-telemetry.json`, a machine-readable
 cache/timing artifact for post-release bottleneck review; use it as tuning input,
 not as release truth.

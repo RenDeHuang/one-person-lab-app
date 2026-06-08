@@ -66,7 +66,6 @@ export function prepareRuntime(options, sources) {
       source_path: sources.temporalCliBin,
       version: commandOutput(path.join(runtimeRoot, 'bin', 'temporal'), ['--version']),
       size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'temporal')),
-      binary_path: 'runtime/current/vendor/temporal/cli/temporal',
       archive_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
       archive_size_bytes: fs.statSync(sources.temporalCliArchive).size,
     },

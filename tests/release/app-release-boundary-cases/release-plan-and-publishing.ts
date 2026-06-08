@@ -684,7 +684,7 @@ test('publish rejects Full package native trust when quarantine remains', () => 
     `${JSON.stringify({
       schema: 'opl_full_runtime_native_trust.v1',
       status: 'local_authorized_unsigned',
-      executable_count: 2,
+      executable_count: 1,
       executables: [
         {
           relative_path: 'runtime/current/node/bin/node',
@@ -694,15 +694,6 @@ test('publish rejects Full package native trust when quarantine remains', () => 
           team_identifier: null,
           signature: null,
           quarantine_status: 'present',
-        },
-        {
-          relative_path: 'runtime/current/vendor/temporal/cli/temporal',
-          assessment_kind: 'launched_executable',
-          codesign_status: 'passed',
-          spctl_status: 'deferred_until_notarized_app',
-          team_identifier: 'TESTTEAMID',
-          signature: 'Developer ID Application: Test',
-          quarantine_status: 'absent',
         },
       ],
     }, null, 2)}\n`,

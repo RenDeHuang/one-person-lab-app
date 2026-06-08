@@ -253,7 +253,7 @@ export function validateInstallExposurePolicy(policy) {
   if (
     temporalAutoConfig.packaged_runtime_policy?.full_wrapper_must_export_defaults !== true ||
     temporalAutoConfig.packaged_runtime_policy?.must_include_temporal_cli_wrapper !== true ||
-    temporalAutoConfig.packaged_runtime_policy?.temporal_cli_wrapper_must_execute_preextracted_signed_binary !== true ||
+    temporalAutoConfig.packaged_runtime_policy?.temporal_cli_wrapper_must_execute_offline_archive !== true ||
     temporalAutoConfig.packaged_runtime_policy?.must_include_temporal_node_runtime_packages !== true ||
     temporalAutoConfig.packaged_runtime_policy?.must_exclude_temporal_testing_package !== true ||
     temporalAutoConfig.packaged_runtime_policy?.native_core_bridge_target !== 'aarch64-apple-darwin'

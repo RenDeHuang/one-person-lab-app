@@ -119,11 +119,11 @@ export function validateReleaseChannelContract(releaseChannel) {
     temporalCli?.minimum_version_source !== 'distribution cohort manifest components.temporal_cli.minimum_version' ||
     temporalCli?.fallback_version_source !== 'distribution cohort manifest components.temporal_cli.fallback_version' ||
     temporalCli?.fallback_runtime_path !== 'runtime/current/bin/temporal' ||
-    temporalCli?.fallback_binary_path !== 'runtime/current/vendor/temporal/cli/temporal' ||
     temporalCli?.fallback_payload_path !== 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz' ||
-    temporalCli?.must_prefer_valid_newer_user_version !== true
+    temporalCli?.must_prefer_valid_newer_user_version !== true ||
+    !/offline from the packaged archive wrapper/.test(temporalCli?.verification ?? '')
   ) {
-    throw new Error('Release channel Full Temporal CLI payload must be compatibility-gated with a bundled fallback');
+    throw new Error('Release channel Full Temporal CLI payload must be compatibility-gated with an offline archive-wrapper fallback');
   }
   assertDeepEqualJson(
     temporalCli.preferred_sources,

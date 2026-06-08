@@ -307,7 +307,17 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, version, localAuthoriz
   }
 }
 
-function assertFullRuntimeNativeTrust(downloadDir) {
+function requiredFullRuntimeNativeTrustPaths(manifest) {
+  const temporalBinaryPath = manifest?.components?.temporal_cli?.binary_path;
+  return [
+    'runtime/current/node/bin/node',
+    ...(typeof temporalBinaryPath === 'string' && temporalBinaryPath
+      ? [temporalBinaryPath]
+      : []),
+  ];
+}
+
+function assertFullRuntimeNativeTrust(downloadDir, manifest) {
   const trust = JSON.parse(readText(path.join(downloadDir, 'full-runtime-native-trust.json')));
   if (trust?.schema !== 'opl_full_runtime_native_trust.v1' || !['passed', 'local_authorized_unsigned', 'not_distributable', 'failed'].includes(trust?.status)) {
     throw new Error('full-runtime-native-trust.json must record Full runtime native executable diagnostics.');
@@ -316,7 +326,7 @@ function assertFullRuntimeNativeTrust(downloadDir) {
   if (executables.length === 0 || trust.executable_count !== executables.length) {
     throw new Error('full-runtime-native-trust.json must list the checked native executables.');
   }
-  for (const required of ['runtime/current/node/bin/node', 'runtime/current/vendor/temporal/cli/temporal']) {
+  for (const required of requiredFullRuntimeNativeTrustPaths(manifest)) {
     if (!executables.some((entry) => entry?.relative_path === required)) {
       throw new Error(`full-runtime-native-trust.json is missing ${required}.`);
     }
@@ -422,14 +432,14 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
     );
   }
   const temporalCli = assertFullComponent(manifest, 'temporal_cli');
-  if (temporalCli.required !== true || temporalCli.role !== 'temporal_cli_preextracted_binary_wrapper') {
-    throw new Error('Full manifest components.temporal_cli must be a required temporal_cli_preextracted_binary_wrapper component.');
+  if (temporalCli.required !== true || temporalCli.role !== 'temporal_cli_offline_archive_wrapper') {
+    throw new Error('Full manifest components.temporal_cli must be a required temporal_cli_offline_archive_wrapper component.');
   }
   if (!String(temporalCli.version || '').startsWith('temporal version ')) {
     throw new Error(`Full manifest components.temporal_cli.version must record temporal --version; got ${temporalCli.version}`);
   }
-  if (temporalCli.binary_path !== 'runtime/current/vendor/temporal/cli/temporal') {
-    throw new Error(`Full manifest components.temporal_cli.binary_path is unexpected: ${temporalCli.binary_path}`);
+  if (temporalCli.binary_path !== null) {
+    throw new Error(`Full manifest components.temporal_cli.binary_path must be null for archive-only packaging; got ${temporalCli.binary_path}`);
   }
   if (temporalCli.archive_path !== 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz') {
     throw new Error(`Full manifest components.temporal_cli.archive_path is unexpected: ${temporalCli.archive_path}`);
@@ -521,9 +531,6 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
       throw new Error(`SHA256SUMS.txt mismatch for ${name}: expected ${expected}, got ${actual}.`);
     }
   }
-  assertStableLocalAuthorizationPolicy(downloadDir, 'full-local-authorization-policy.json', 'app_full_first_install');
-  assertFullRuntimeNativeTrust(downloadDir);
-
   const manifest = JSON.parse(readText(path.join(downloadDir, 'full-package-manifest.json')));
   if (manifest.version !== version) {
     throw new Error(`Full manifest version mismatch: expected ${version}, got ${manifest.version}`);
@@ -534,6 +541,8 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
   if (manifest?.package_kind !== 'opl_full_first_install_macos_arm64') {
     throw new Error(`Unexpected Full manifest package_kind: ${manifest?.package_kind}`);
   }
+  assertStableLocalAuthorizationPolicy(downloadDir, 'full-local-authorization-policy.json', 'app_full_first_install');
+  assertFullRuntimeNativeTrust(downloadDir, manifest);
 
   const runtimeCacheEvents = JSON.parse(readText(path.join(downloadDir, 'runtime-cache-events.json')));
   if (!Array.isArray(runtimeCacheEvents?.events) || runtimeCacheEvents.events.length === 0) {

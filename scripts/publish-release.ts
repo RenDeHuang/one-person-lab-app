@@ -194,7 +194,17 @@ function assertStableLocalAuthorizationPolicy(releaseDir, name, packageKind) {
   assertLocalAuthorizationPolicy(policy, packageKind, name);
 }
 
-function assertFullRuntimeNativeTrust(releaseDir) {
+function requiredFullRuntimeNativeTrustPaths(manifest) {
+  const temporalBinaryPath = manifest?.components?.temporal_cli?.binary_path;
+  return [
+    'runtime/current/node/bin/node',
+    ...(typeof temporalBinaryPath === 'string' && temporalBinaryPath
+      ? [temporalBinaryPath]
+      : []),
+  ];
+}
+
+function assertFullRuntimeNativeTrust(releaseDir, manifest) {
   const trustPath = path.join(releaseDir, 'full-runtime-native-trust.json');
   if (!fs.existsSync(trustPath)) {
     throw new Error(`Missing Full runtime native-trust evidence: ${trustPath}`);
@@ -207,7 +217,7 @@ function assertFullRuntimeNativeTrust(releaseDir) {
   if (executables.length === 0 || trust.executable_count !== executables.length) {
     throw new Error('full-runtime-native-trust.json must list the checked native executables.');
   }
-  for (const required of ['runtime/current/node/bin/node', 'runtime/current/vendor/temporal/cli/temporal']) {
+  for (const required of requiredFullRuntimeNativeTrustPaths(manifest)) {
     if (!executables.some((entry) => entry?.relative_path === required)) {
       throw new Error(`full-runtime-native-trust.json is missing ${required}.`);
     }
@@ -365,7 +375,7 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
     throw new Error('Full package manifest must declare distribution.updater_metadata_allowed=false.');
   }
   assertStableLocalAuthorizationPolicy(fullPackageDir, 'full-local-authorization-policy.json', 'app_full_first_install');
-  assertFullRuntimeNativeTrust(fullPackageDir);
+  assertFullRuntimeNativeTrust(fullPackageDir, manifest);
   assertFullPackageManifestHasReleaseNotesMetadata(manifest);
 
   return required.map((name) => path.join(fullPackageDir, name));
