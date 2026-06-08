@@ -187,11 +187,11 @@ Candidate 可以端到端验证而不改变当前 release。只有明确修改
 
 本文只保留候选 shell 的边界、命令和最低验收。具体 source/WebUI/package smoke
 结果、manifest 字段、绝对路径和 dated pass/fail 记录属于 candidate shell artifacts、
-candidate manifests、CI logs 或 `docs/history/process/`。2026-06-02 的 smoke
-evidence 已归档到
-[AG-UI/CopilotKit candidate smoke evidence](./history/process/2026-06-02-agui-codex-candidate-smoke-evidence.md)；
-2026-06-03 active-doc cleanup 摘要归档到
-[App docs lifecycle cleanup archive](./history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md)。
+candidate manifests、CI logs 或 `docs/history/process/`。旧的 2026-06-02
+candidate smoke 和 2026-06-03 active-doc cleanup 过程记录已压缩到
+[App retired surface provenance](./history/process/retired-surface-provenance.md)；
+当前 candidate 边界和命令仍以本文、candidate contracts、candidate manifests、
+shell artifacts、CI logs 和 App-root validation 为准。
 
 注意：`npm run package` 会重建 `out/` 并把 smoke 字段初始化为 pending。完整闭环
 顺序必须是先 package，再跑 WebUI smoke、source UI smoke、packaged UI smoke，最后

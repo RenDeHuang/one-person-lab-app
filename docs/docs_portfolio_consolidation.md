@@ -30,8 +30,8 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 | `docs/testing/` | Validation and test guidance | Tests and scripts are authoritative |
 | `docs/user-guides/`, `docs/screenshots/` | User-facing guides and visual tutorial assets | User docs; not production/readiness proof |
 | `docs/history/` | Retired topology, process provenance, and archived dated evidence | Historical only; not active product/runtime truth |
-| `docs/history/process/2026-06-02-aionui-builtin-skill-intake.md` | Dated AionUI builtin skill candidate intake and whitelist rationale | Historical provenance only; current packaging policy is App contracts and decisions |
-| `docs/history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md` | Dated release/candidate/local-smoke evidence classes removed from active docs | Historical provenance only; durable rules fold back into active governance, core docs, active gap plan, contracts, source, tests, release evidence artifacts, or validation scripts |
+| `docs/history/process/README.md` | Compressed process-history index and coverage snapshot | Historical archive index only; current truth stays in active/core docs, contracts, source, tests, artifacts, manifests, workflows, validators, or CI logs |
+| `docs/history/process/retired-surface-provenance.md` | Retired surface, stale evidence, duplicate test, workflow, route, alias, and docs-prose no-resurrection provenance | Historical provenance only; current owner refs are contracts, source, validation scripts, release-boundary tests, workflows, artifacts, candidate manifests, and owner docs |
 | `scripts/README.md` | App wrapper and release script guide | Scripts/tests/contracts determine behavior |
 
 ## Governance Rules
@@ -45,6 +45,6 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 
 ## Coverage Ledger Foldback
 
-Dated coverage entries that previously lived in this active governance document are archived in [App docs portfolio coverage ledger archive](./history/process/2026-06-02-app-docs-portfolio-coverage-ledger-archive.md). Dated evidence and current-source notes removed during the 2026-06-03 lifecycle cleanup are archived in [App docs lifecycle cleanup archive](./history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md).
+Dated coverage entries, closeout ledgers, candidate smoke notes, local release/source evidence, and stale-surface retirement notes that previously lived as per-tranche files are compressed under [App process history](./history/process/README.md), with durable no-resurrection rules in [App retired surface provenance](./history/process/retired-surface-provenance.md).
 
 This file now keeps only current lifecycle rules, directory responsibilities, governance rules, and reopening conditions. Do not append future release/candidate evidence logs, VM smoke transcripts, screenshot logs, branch/worktree closeout, or proof-by-proof tranches here. New dated coverage belongs under `docs/history/process/`, release artifacts, evidence manifests, CI logs, or another precise history/provenance owner; durable conclusions must be folded back into the core docs, active gap plan, App contracts, source, tests, or release validation docs.

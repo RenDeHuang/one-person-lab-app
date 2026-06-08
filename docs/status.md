@@ -443,12 +443,12 @@ Current-source or local smoke evidence does not update a published cohort, does
 not promote stable/latest, and does not prove MAS/MAG/RCA domain readiness or
 OPL family production readiness.
 
-Dated local smoke, candidate, current-source release, and migration notes have
-been moved to
-`docs/history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md`. New
-proof-by-proof records belong in release artifacts, candidate manifests, CI logs,
-or precise history/provenance docs; durable rules fold back into contracts,
-core docs, release/testing docs, or the active gap plan.
+Dated local smoke, candidate, current-source release, and migration notes are
+compressed under `docs/history/process/`, with no-resurrection rules in
+`docs/history/process/retired-surface-provenance.md`. New proof-by-proof records
+belong in release artifacts, candidate manifests, CI logs, or precise
+history/provenance docs; durable rules fold back into contracts, core docs,
+release/testing docs, or the active gap plan.
 
 ## Validation Entry Points
 

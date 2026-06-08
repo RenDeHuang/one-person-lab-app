@@ -424,10 +424,10 @@ Candidate evidence lifecycle：
   candidate projection consumption 和 technical verification；不能写成 release、
   domain、production、clean-VM、Full first-install 或 active-shell adoption
   readiness。
-- 2026-06-02 chat-first/bilingual 技术验证证据已归档到
-  `docs/history/process/2026-06-02-agui-codex-candidate-smoke-evidence.md`；
-  2026-06-03 active-doc cleanup 摘要归档到
-  `docs/history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md`。
+- 旧的 chat-first/bilingual 技术验证和 active-doc cleanup 过程记录已压缩到
+  `docs/history/process/retired-surface-provenance.md`；当前 candidate claims
+  仍必须由 explicit adapter validation、candidate manifests、shell artifacts、
+  CI logs、source/WebUI/package smoke 和 App-root validation 证明。
 
 当前默认 release shell 仍是 AionUI，直到该 candidate 满足
 `contracts/app-shell-candidates.json` 中的 shell replacement gate，并且

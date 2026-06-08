@@ -126,9 +126,9 @@ Treat this as cohort-bound installed-App evidence. The smoke output can support
 release review only when the same cohort also has the contracted manifests,
 screenshots, VM summaries, remote verification, and release evidence bundle
 classification. Older local installed-smoke transcripts and absolute artifact
-paths are history/provenance, not current release proof; the 2026-05-15 example
-was archived in
-`docs/history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md`.
+paths are history/provenance, not current release proof; the old local-smoke
+examples are compressed under
+`docs/history/process/retired-surface-provenance.md`.
 
 ## Release Matrix
 
@@ -374,5 +374,5 @@ downloading large DMG/ZIP assets for note diagnosis.
 
 Docker/WebUI evidence is current only when produced by the release workflow or a
 named same-cohort smoke run. Dated local image-size and port checks belong in
-history/provenance or release artifacts; the 2026-05-15 example was archived in
-`docs/history/process/2026-06-03-app-docs-lifecycle-cleanup-archive.md`.
+history/provenance or release artifacts; old local examples are compressed under
+`docs/history/process/retired-surface-provenance.md`.
