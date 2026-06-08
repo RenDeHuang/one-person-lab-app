@@ -4,9 +4,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-export const LOCAL_AUTHORIZATION_POLICY_SCHEMA = 'opl_local_authorized_macos_policy.v1';
-export const STANDARD_LOCAL_AUTHORIZATION_POLICY = 'standard-local-authorization-policy.json';
-export const FULL_LOCAL_AUTHORIZATION_POLICY = 'full-local-authorization-policy.json';
+const LOCAL_AUTHORIZATION_POLICY_SCHEMA = 'opl_local_authorized_macos_policy.v1';
 
 export function assertLocalAuthorizationPolicy(policy, packageKind, name = 'local authorization policy') {
   if (
