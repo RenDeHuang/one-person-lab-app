@@ -91,6 +91,84 @@ function removeBuiltDmgCandidates(guiRoot, version) {
   }
 }
 
+const HDIUTIL_CREATE_ATTEMPTS = 3;
+const HDIUTIL_RESOURCE_BUSY_RETRY_MS = 5000;
+
+function sleepMs(milliseconds) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function hdiutilInfo() {
+  const result = runCapture('hdiutil', ['info']);
+  return result.status === 0 ? [result.stdout, result.stderr].filter(Boolean).join('\n') : '';
+}
+
+function detachMountedImageDevices(imagePath) {
+  const normalizedImagePath = path.resolve(imagePath);
+  const devices = new Set();
+  let currentDevice = null;
+  let currentImagePath = null;
+  const flushCurrentDevice = () => {
+    if (currentDevice && currentImagePath === normalizedImagePath) {
+      devices.add(currentDevice);
+    }
+  };
+
+  for (const rawLine of hdiutilInfo().split(/\r?\n/)) {
+    const line = rawLine.trim();
+    const deviceMatch = line.match(/^(\/dev\/disk\d+)\b/);
+    if (deviceMatch) {
+      flushCurrentDevice();
+      currentDevice = deviceMatch[1];
+      currentImagePath = null;
+      continue;
+    }
+    const imagePathMatch = line.match(/^image-path\s*:\s*(.+)$/);
+    if (imagePathMatch) {
+      currentImagePath = path.resolve(imagePathMatch[1]);
+    }
+  }
+  flushCurrentDevice();
+
+  for (const device of devices) {
+    const detach = runCapture('hdiutil', ['detach', device]);
+    if (detach.status !== 0) {
+      runCapture('hdiutil', ['detach', '-force', device]);
+    }
+  }
+}
+
+function formatCommandFailure(command, args, result) {
+  return [
+    `Command failed: ${command} ${args.join(' ')}`,
+    result.stdout?.trim() ? `stdout:\n${result.stdout.trim()}` : '',
+    result.stderr?.trim() ? `stderr:\n${result.stderr.trim()}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+function createDmgWithResourceBusyRetry(targetDmg, args) {
+  let lastResult = null;
+  for (let attempt = 1; attempt <= HDIUTIL_CREATE_ATTEMPTS; attempt += 1) {
+    detachMountedImageDevices(targetDmg);
+    fs.rmSync(targetDmg, { force: true });
+    const result = runCapture('hdiutil', args);
+    if (result.status === 0) {
+      return;
+    }
+
+    lastResult = result;
+    const combinedOutput = [result.stdout, result.stderr].filter(Boolean).join('\n');
+    if (!/Resource busy/i.test(combinedOutput) || attempt === HDIUTIL_CREATE_ATTEMPTS) {
+      break;
+    }
+
+    console.warn(`hdiutil create returned Resource busy; retrying Full DMG create attempt ${attempt + 1}/${HDIUTIL_CREATE_ATTEMPTS} after ${HDIUTIL_RESOURCE_BUSY_RETRY_MS}ms.`);
+    sleepMs(HDIUTIL_RESOURCE_BUSY_RETRY_MS);
+  }
+
+  throw new Error(formatCommandFailure('hdiutil', args, lastResult));
+}
+
 export function findBuiltApp(guiRoot) {
   const outDir = resolveActiveShellPaths({ shellRoot: guiRoot }).buildOutputDir;
   const candidates = [
@@ -115,7 +193,7 @@ function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
     run('ditto', [appPath, stagedApp]);
     assertAppBundleLocalAuthorization(stagedApp, 'Full staged app bundle');
     fs.symlinkSync('/Applications', path.join(stagingRoot, 'Applications'));
-    run('hdiutil', [
+    const hdiutilCreateArgs = [
       'create',
       targetDmg,
       '-volname',
@@ -127,7 +205,8 @@ function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
       '-ov',
       '-imagekey',
       `zlib-level=${compressionLevel}`,
-    ]);
+    ];
+    createDmgWithResourceBusyRetry(targetDmg, hdiutilCreateArgs);
   } finally {
     fs.rmSync(stagingRoot, { recursive: true, force: true });
   }
