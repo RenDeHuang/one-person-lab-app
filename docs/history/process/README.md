@@ -35,6 +35,54 @@ Machine boundary: Human-readable process history index. Machine truth stays in `
 
 ## Coverage Snapshot
 
+2026-06-08 App runtime-page operator evidence lifecycle tranche:
+
+- Theme / SSOT: Runtime page user-task status, operator evidence acceptance,
+  provider readiness repair and artifact/native drilldown. Machine SSOT is
+  `contracts/app-runtime-bridge.json`, `contracts/app-page-state-matrix.json`,
+  `contracts/app-gui-product-contract.json`,
+  `contracts/app-release-channel.json#operator_evidence_bundle`,
+  `scripts/validate-active-shell/**`, release evidence validators, and
+  `tests/release/app-release-boundary-cases/runtime-page-evidence-boundary.ts`.
+  Human current readout stays in `docs/status.md`, `docs/architecture.md`,
+  `docs/decisions.md`, `docs/testing/README.md`, `docs/release/README.md`, and
+  `docs/active/app-ideal-state-gap-plan.md`.
+- Reviewed: `AGENTS.md`, `TASTE.md`, `docs/docs_portfolio_consolidation.md`,
+  `docs/status.md`, `docs/architecture.md`, `docs/decisions.md`,
+  `docs/testing/README.md`, `docs/release/README.md`,
+  `docs/screenshots/README.md`, `docs/user-guides/README.md`,
+  `docs/active/app-ideal-state-gap-plan.md`, this process index,
+  `contracts/app-runtime-bridge.json`, `contracts/app-page-state-matrix.json`,
+  `contracts/app-gui-product-contract.json`,
+  `tests/release/app-release-boundary-cases/runtime-page-evidence-boundary.ts`,
+  and runtime-page/operator-evidence scans across docs, contracts, scripts and
+  tests.
+- Edited: this file only.
+- Coverage result: Runtime page docs already point to the App-owned contract
+  and validation owners. The default page remains user-task-status first:
+  running, active, queued, attention, next visible step, owner, safe action and
+  compact evidence refs before full diagnostic detail. Provider readiness repair
+  stays secondary and actionable without overriding `current_owner_delta`.
+  State Index and Stage Artifact Kernel data are refs-only drilldowns, not
+  SQLite access, artifact-body access, artifact authority, domain readiness,
+  quality/export verdict, App release readiness or family production readiness.
+- Retired / guarded: no contract, source module, test, workflow, screenshot, or
+  runtime-page doc was retired in this tranche. The guarded stale surfaces are
+  raw provider/current-control telemetry as default page language, full
+  drilldown JSON as normal App state, direct SQLite sidecar reads, artifact body
+  reads, release evidence screenshots as product readiness proof, and any
+  App-owned runtime/domain/owner-receipt authority wording.
+- Remaining App unreviewed scope under the parent OPL series goal: install
+  exposure, release cohort evidence, GUI definition stack paragraphs not covered
+  by accepted candidate/runtime/user-guide tranches, and any future shell
+  adoption or release-evidence body changes remain open unless covered by
+  another accepted tranche.
+- Next write scope: continue with a concrete SSOT theme after fresh intake,
+  likely install exposure, release cohort evidence, GUI definition stack
+  paragraph governance, or a clean sibling repo lane. Do not use this
+  runtime-page review as proof that every App non-process docs paragraph has
+  been line-reviewed.
+
 2026-06-08 App user-guide/screenshot evidence lifecycle tranche:
 
 - Theme / SSOT: macOS user-guide screenshots versus release evidence
