@@ -683,9 +683,12 @@ Each release evidence bundle should follow
 - Optional diagnostic: `artifacts/codex-ai-self-check-summary.json`.
 - `remote-release-verification.json`.
 
-The desktop release workflow expects a same-cohort artifact named
-`release-evidence-<version>` and validates it in
-`operator-evidence-bundle-validation`. The validation job uploads
+The desktop release workflow builds the same-cohort release evidence bundle
+inside `operator-evidence-bundle-validation` from the current release's clean VM
+smoke summaries, remote verification summary, and live OPL operator drilldown.
+It does not download an optional `release-evidence-<version>` seed artifact; the
+bundle is regenerated in place so a missing seed cannot create a misleading
+GitHub Actions error annotation. The validation job uploads
 `release-evidence-bundle-<version>/evidence-validation-summary.json`, and the
 final readiness summary treats that validation summary as a required small
 artifact. Missing, blocked, or non-packaged evidence fails the Stable readiness

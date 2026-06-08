@@ -693,13 +693,6 @@ jobs:
         working-directory: one-person-lab
         run: npm ci
 
-      - name: Download operator release evidence bundle
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          name: release-evidence-${{ inputs.opl_version }}
-          path: release-evidence/${{ inputs.opl_version }}
-
       - name: Download remote verification summary
         uses: actions/download-artifact@v8
         continue-on-error: true

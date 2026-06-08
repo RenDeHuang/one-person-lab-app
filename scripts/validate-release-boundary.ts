@@ -149,7 +149,6 @@ const checks = [
       'docker-webui-smoke:',
       'webui-ghcr-publish:',
       'operator-evidence-bundle-validation:',
-      'release-evidence-${{ inputs.opl_version }}',
       'release-evidence-bundle-${{ inputs.opl_version }}',
       'repository: gaofeng21cn/one-person-lab',
       'npm ci',
@@ -198,6 +197,7 @@ const checks = [
       'write_mode: direct_commit',
       'peter-evans/create-pull-request',
       'pull-requests: read',
+      'name: release-evidence-${{ inputs.opl_version }}',
     ],
   },
   {
