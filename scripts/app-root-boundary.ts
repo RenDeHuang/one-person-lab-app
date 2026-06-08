@@ -51,46 +51,61 @@ function formatPhase(phase: string | undefined): string {
   return phase ? ` (${phase})` : '';
 }
 
-export function assertAppRootBoundary(options: BoundaryOptions = {}): void {
-  const appRoot = path.resolve(options.root ?? defaultAppRoot);
-  const packageJsonPath = path.join(appRoot, 'package.json');
-  const failures: string[] = [];
-
-  if (!fs.existsSync(packageJsonPath)) {
-    failures.push('missing App root package.json');
-  } else {
-    const packageJson = readJson(packageJsonPath);
-    if (packageJson.name !== 'one-person-lab-app') {
-      failures.push(`package.json name must stay one-person-lab-app, got ${JSON.stringify(packageJson.name)}`);
-    }
-    if (packageJson.private !== true) {
-      failures.push('package.json private must stay true for the App product wrapper');
-    }
-    if (packageJson.type !== 'module') {
-      failures.push(`package.json type must stay module, got ${JSON.stringify(packageJson.type)}`);
-    }
-    if (!packageJson.scripts || typeof packageJson.scripts !== 'object') {
-      failures.push('package.json must expose App root wrapper scripts');
-    } else {
-      for (const [scriptName, expectedCommand] of Object.entries(requiredRootScripts)) {
-        if (packageJson.scripts[scriptName] !== expectedCommand) {
-          failures.push(`package.json script ${scriptName} must stay ${expectedCommand}`);
-        }
-      }
-    }
-    for (const field of forbiddenRootPackageFields) {
-      if (Object.hasOwn(packageJson, field)) {
-        failures.push(`package.json must not contain shell package field ${field}`);
-      }
-    }
+function assertRootScripts(packageJson: any, failures: string[]): void {
+  if (!packageJson.scripts || typeof packageJson.scripts !== 'object') {
+    failures.push('package.json must expose App root wrapper scripts');
+    return;
   }
 
+  for (const [scriptName, expectedCommand] of Object.entries(requiredRootScripts)) {
+    if (packageJson.scripts[scriptName] !== expectedCommand) {
+      failures.push(`package.json script ${scriptName} must stay ${expectedCommand}`);
+    }
+  }
+}
+
+function assertRootPackageJson(packageJsonPath: string, failures: string[]): void {
+  if (!fs.existsSync(packageJsonPath)) {
+    failures.push('missing App root package.json');
+    return;
+  }
+
+  const packageJson = readJson(packageJsonPath);
+  if (packageJson.name !== 'one-person-lab-app') {
+    failures.push(`package.json name must stay one-person-lab-app, got ${JSON.stringify(packageJson.name)}`);
+  }
+  if (packageJson.private !== true) {
+    failures.push('package.json private must stay true for the App product wrapper');
+  }
+  if (packageJson.type !== 'module') {
+    failures.push(`package.json type must stay module, got ${JSON.stringify(packageJson.type)}`);
+  }
+
+  assertRootScripts(packageJson, failures);
+
+  for (const field of forbiddenRootPackageFields) {
+    if (Object.hasOwn(packageJson, field)) {
+      failures.push(`package.json must not contain shell package field ${field}`);
+    }
+  }
+}
+
+function assertRootBuildArtifacts(appRoot: string, failures: string[]): void {
   for (const artifact of forbiddenRootBuildArtifacts) {
     const absolutePath = path.join(appRoot, artifact);
     if (fs.existsSync(absolutePath)) {
       failures.push(`shell build artifact must not exist at App root: ${artifact}`);
     }
   }
+}
+
+export function assertAppRootBoundary(options: BoundaryOptions = {}): void {
+  const appRoot = path.resolve(options.root ?? defaultAppRoot);
+  const packageJsonPath = path.join(appRoot, 'package.json');
+  const failures: string[] = [];
+
+  assertRootPackageJson(packageJsonPath, failures);
+  assertRootBuildArtifacts(appRoot, failures);
 
   if (failures.length > 0) {
     throw new Error(`App root boundary violation${formatPhase(options.phase)}:\n- ${failures.join('\n- ')}`);
