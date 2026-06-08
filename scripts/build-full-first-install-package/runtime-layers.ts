@@ -7,7 +7,10 @@ import {
   listFullRuntimeProductionNodeModulePaths,
 } from '../full-first-install-package.ts';
 import { writeRuntimeWrappers } from '../full-first-install-runtime-wrappers.ts';
-import { MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET } from './paths.ts';
+import {
+  CODEX_MACOS_ARM64_TARGET,
+  MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET,
+} from './paths.ts';
 import {
   copyNodeRuntimePayload,
   copyProductionNodeModules,

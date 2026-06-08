@@ -735,6 +735,10 @@ test('Full first-install cache and release acceleration contract are explicit', 
 test('Full runtime pruning keeps macOS arm64 launch payloads without development environments', async () => {
   const mod = await import('../../../scripts/full-first-install-package.ts');
   const buildScript = readFullPackageBuilderSource();
+  const runtimeLayersScript = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'build-full-first-install-package', 'runtime-layers.ts'),
+    'utf8',
+  );
 
   assert.equal(mod.shouldExcludeRuntimePath('modules/mas/.venv/lib/python3.12/site-packages/numpy/core.so'), true);
   assert.equal(mod.shouldExcludeRuntimePath('modules/mag/.venv/pyvenv.cfg'), true);
@@ -767,6 +771,8 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.match(buildScript, /function findTemporalCliBinary\(explicitBin\)/);
   assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
   assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
+  assert.match(runtimeLayersScript, /CODEX_MACOS_ARM64_TARGET,[\s\S]*MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET,[\s\S]*from '\.\/paths\.ts'/);
+  assert.match(runtimeLayersScript, /CODEX_TARGET="\$\{CODEX_MACOS_ARM64_TARGET\}"/);
   assert.match(buildScript, /if \(sources\.bunBin\) {\s*copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\);\s*}/);
   assert.match(buildScript, /createCodexCliArchive\(\s*path\.join\(layerRoot, 'vendor', 'codex', 'codex_cli_darwin_arm64\.tar\.gz'\),\s*sources\.codexBinaries\.vendorRoot,\s*\)/);
   assert.match(buildScript, /writeCodexCliWrapper\(path\.join\(layerRoot, 'bin', 'codex'\), commandOutput\(sources\.codexBinaries\.codex, \['--version'\]\)\)/);
