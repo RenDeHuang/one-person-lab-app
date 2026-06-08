@@ -834,6 +834,16 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
       updater_metadata_allowed: false,
     },
     components: {
+      codex: {
+        source_path: '/tmp/codex',
+        version: 'codex-cli 0.137.0',
+        size_bytes: 801,
+        role: 'default_agent_cli_offline_archive_wrapper',
+        required: true,
+        binary_path: null,
+        archive_path: 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz',
+        archive_size_bytes: 83978603,
+      },
       temporal_cli: {
         source_path: '/tmp/temporal',
         version: 'temporal version 1.7.0',

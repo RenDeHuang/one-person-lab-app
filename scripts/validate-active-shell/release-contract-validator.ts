@@ -197,9 +197,11 @@ export function validateReleaseChannelContract(releaseChannel) {
     codexCli?.minimum_version_source !== 'distribution cohort manifest components.codex_cli.minimum_version' ||
     codexCli?.fallback_version_source !== 'distribution cohort manifest components.codex_cli.fallback_version' ||
     codexCli?.fallback_runtime_path !== 'runtime/current/bin/codex' ||
-    codexCli?.must_prefer_valid_newer_user_version !== true
+    codexCli?.fallback_payload_path !== 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz' ||
+    codexCli?.must_prefer_valid_newer_user_version !== true ||
+    !/offline from the packaged archive wrapper/.test(codexCli?.verification ?? '')
   ) {
-    throw new Error('Release channel Full Codex CLI payload must be compatibility-gated with a bundled fallback');
+    throw new Error('Release channel Full Codex CLI payload must be compatibility-gated with an offline archive-wrapper fallback');
   }
   assertDeepEqualJson(
     codexCli.preferred_sources,

@@ -431,6 +431,21 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
       `Full runtime must not package modules/*/.venv directories; count=${runtimeAssertions.excluded_module_venv_count}`,
     );
   }
+  const codex = assertFullComponent(manifest, 'codex');
+  if (codex.required !== true || codex.role !== 'default_agent_cli_offline_archive_wrapper') {
+    throw new Error('Full manifest components.codex must be a required default_agent_cli_offline_archive_wrapper component.');
+  }
+  if (!String(codex.version || '').startsWith('codex-cli ')) {
+    throw new Error(`Full manifest components.codex.version must record codex --version; got ${codex.version}`);
+  }
+  if (codex.binary_path !== null) {
+    throw new Error(`Full manifest components.codex.binary_path must be null for archive-only packaging; got ${codex.binary_path}`);
+  }
+  if (codex.archive_path !== 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz') {
+    throw new Error(`Full manifest components.codex.archive_path is unexpected: ${codex.archive_path}`);
+  }
+  assertSafePositiveInteger(codex.archive_size_bytes, 'Full manifest components.codex.archive_size_bytes');
+
   const temporalCli = assertFullComponent(manifest, 'temporal_cli');
   if (temporalCli.required !== true || temporalCli.role !== 'temporal_cli_offline_archive_wrapper') {
     throw new Error('Full manifest components.temporal_cli must be a required temporal_cli_offline_archive_wrapper component.');

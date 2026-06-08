@@ -99,6 +99,55 @@ exec "$TEMPORAL_BIN" "$@"
   fs.chmodSync(targetPath, 0o755);
 }
 
+export function writeCodexCliWrapper(targetPath, versionOutput) {
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.writeFileSync(targetPath, `#!/bin/bash
+set -euo pipefail
+CODEX_VERSION_OUTPUT=${shellSingleQuote(versionOutput)}
+if [[ "\${1:-}" == "--version" ]]; then
+  printf '%s\\n' "$CODEX_VERSION_OUTPUT"
+  exit 0
+fi
+RUNTIME_HOME="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
+ARCHIVE="$RUNTIME_HOME/vendor/codex/codex_cli_darwin_arm64.tar.gz"
+EXTRACT_ROOT="$RUNTIME_HOME/.runtime-cache/codex-cli"
+CODEX_TARGET="${CODEX_MACOS_ARM64_TARGET}"
+CODEX_BIN="$EXTRACT_ROOT/$CODEX_TARGET/bin/codex"
+CODEX_PATH_DIR="$EXTRACT_ROOT/$CODEX_TARGET/codex-path"
+if [[ ! -x "$CODEX_BIN" ]]; then
+  if [[ ! -f "$ARCHIVE" ]]; then
+    printf 'Packaged Codex CLI archive is missing: %s\\n' "$ARCHIVE" >&2
+    exit 1
+  fi
+  rm -rf "$EXTRACT_ROOT"
+  mkdir -p "$EXTRACT_ROOT"
+  tar -xzf "$ARCHIVE" -C "$EXTRACT_ROOT"
+  if [[ ! -x "$CODEX_BIN" ]]; then
+    candidate="$(find "$EXTRACT_ROOT" -type f -path '*/bin/codex' -perm -111 | head -n 1 || true)"
+    if [[ -n "$candidate" ]]; then
+      CODEX_BIN="$candidate"
+      CODEX_PATH_DIR="$(cd "$(dirname "$candidate")/.." && pwd)/codex-path"
+    fi
+  fi
+fi
+if [[ ! -x "$CODEX_BIN" ]]; then
+  printf 'Packaged Codex CLI archive did not contain an executable codex binary: %s\\n' "$ARCHIVE" >&2
+  exit 1
+fi
+if [[ -d "$CODEX_PATH_DIR" ]]; then
+  export PATH="$CODEX_PATH_DIR:$PATH"
+fi
+exec "$CODEX_BIN" "$@"
+`, 'utf8');
+  fs.chmodSync(targetPath, 0o755);
+}
+
+export function createCodexCliArchive(archivePath, vendorRoot) {
+  fs.mkdirSync(path.dirname(archivePath), { recursive: true });
+  fs.rmSync(archivePath, { force: true });
+  run('tar', ['-czf', archivePath, '-C', path.dirname(vendorRoot), path.basename(vendorRoot)]);
+}
+
 function temporalCoreBridgeReleasesRoot(nodeModulesRoot) {
   return path.join(nodeModulesRoot, '@temporalio', 'core-bridge', 'releases');
 }
@@ -170,7 +219,11 @@ function writePackagedModuleMarker(moduleRoot, marker) {
 }
 
 export function buildToolchainLayer(layerRoot, sources) {
-  copySingleFile(sources.codexBinaries.codex, path.join(layerRoot, 'bin', 'codex'));
+  createCodexCliArchive(
+    path.join(layerRoot, 'vendor', 'codex', 'codex_cli_darwin_arm64.tar.gz'),
+    sources.codexBinaries.vendorRoot,
+  );
+  writeCodexCliWrapper(path.join(layerRoot, 'bin', 'codex'), commandOutput(sources.codexBinaries.codex, ['--version']));
   copySingleFile(sources.codexBinaries.rg, path.join(layerRoot, 'bin', 'rg'));
   if (sources.bunBin) {
     copySingleFile(sources.bunBin, path.join(layerRoot, 'bin', 'bun'));

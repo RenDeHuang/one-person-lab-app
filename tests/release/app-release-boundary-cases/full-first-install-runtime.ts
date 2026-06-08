@@ -369,8 +369,9 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     preferred_sources: ['explicit_user_path', 'system_path', 'homebrew_formula'],
     fallback_version_source: 'distribution cohort manifest components.codex_cli.fallback_version',
     fallback_runtime_path: 'runtime/current/bin/codex',
+    fallback_payload_path: 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz',
     must_prefer_valid_newer_user_version: true,
-    verification: 'codex --version must satisfy minimum_version and Codex functional smoke must pass',
+    verification: 'codex --version must satisfy minimum_version, bundled fallback must execute offline from the packaged archive wrapper, and Codex functional smoke must pass',
   });
   assert.equal(releaseContract.full_first_install.required_payloads.bun_cli, undefined);
   assert.deepEqual(releaseContract.full_first_install.optional_payloads.bun_cli, {
@@ -454,6 +455,13 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   assert.equal(
     manifest.components.skills.role,
     'packaged_codex_skills_declared_by_app_product_profile',
+  );
+  assert.equal(manifest.components.codex.role, 'default_agent_cli_offline_archive_wrapper');
+  assert.equal(manifest.components.codex.required, true);
+  assert.equal(manifest.components.codex.binary_path, null);
+  assert.equal(
+    manifest.components.codex.archive_path,
+    'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz',
   );
   assert.equal(manifest.components.temporal_cli.role, 'temporal_cli_offline_archive_wrapper');
   assert.equal(manifest.components.temporal_cli.required, true);
@@ -607,12 +615,12 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /Library', 'Caches', 'One Person Lab', 'full-runtime-layers'/);
   assert.match(buildScript, /runtimeCacheMode: process\.env\.OPL_FULL_RUNTIME_CACHE_MODE \|\| 'readwrite'/);
   assert.match(buildScript, /CODEX_MACOS_ARM64_TARGET = 'aarch64-apple-darwin'/);
-  assert.match(buildScript, /path\.join\(platformVendorRoot, 'bin', 'codex'\)/);
-  assert.match(buildScript, /path\.join\(localVendorRoot, 'bin', 'codex'\)/);
-  assert.match(buildScript, /path\.join\(platformVendorRoot, 'codex-path', 'rg'\)/);
-  assert.match(buildScript, /path\.join\(localVendorRoot, 'codex-path', 'rg'\)/);
-  assert.match(buildScript, /path\.join\(platformVendorRoot, 'codex', 'codex'\)/);
-  assert.match(buildScript, /path\.join\(platformVendorRoot, 'path', 'rg'\)/);
+  assert.match(buildScript, /siblingPlatformVendorRoot/);
+  assert.match(buildScript, /const vendorRoots = \[siblingPlatformVendorRoot, platformVendorRoot, localVendorRoot\]/);
+  assert.match(buildScript, /codexCandidatesForVendorRoot/);
+  assert.match(buildScript, /rgCandidatesForVendorRoot/);
+  assert.match(buildScript, /const vendorRoot = requireFirstVendorRoot\(\)/);
+  assert.match(buildScript, /return \{\s*vendorRoot,/);
   assert.match(buildScript, /function findNodeToolchain\(explicitNodeBin\)/);
   assert.match(buildScript, /npmBin: requireNodeToolchainFile\(nodeBinDir, 'npm'/);
   assert.match(buildScript, /npxBin: requireNodeToolchainFile\(nodeBinDir, 'npx'/);
@@ -631,7 +639,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
   assert.match(buildScript, /options\.includeBunRuntime \? findBunBinary\(options\.bunBin\) : null/);
   assert.match(buildScript, /findTemporalCliArchive,/);
-  assert.match(buildScript, /copyPortableTree,\s+copyExecutableOrSymlinkTarget,\s+copyNodeRuntimePayload,\s+writeTemporalCliWrapper,\s+assertNoExternalSymlinks,/);
+  assert.match(buildScript, /copyPortableTree,\s+copyExecutableOrSymlinkTarget,\s+copyNodeRuntimePayload,\s+writeCodexCliWrapper,\s+createCodexCliArchive,\s+writeTemporalCliWrapper,\s+assertNoExternalSymlinks,/);
   assert.match(buildScript, /if \(sources\.bunBin\) {\s*copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\);\s*}/);
   assert.match(buildScript, /copySingleFile\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64\.tar\.gz'\)\)/);
   assert.doesNotMatch(buildScript, /extractTemporalCliBinary\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'cli', 'temporal'\)\)/);
@@ -760,6 +768,8 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
   assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
   assert.match(buildScript, /if \(sources\.bunBin\) {\s*copySingleFile\(sources\.bunBin, path\.join\(layerRoot, 'bin', 'bun'\)\);\s*}/);
+  assert.match(buildScript, /createCodexCliArchive\(\s*path\.join\(layerRoot, 'vendor', 'codex', 'codex_cli_darwin_arm64\.tar\.gz'\),\s*sources\.codexBinaries\.vendorRoot,\s*\)/);
+  assert.match(buildScript, /writeCodexCliWrapper\(path\.join\(layerRoot, 'bin', 'codex'\), commandOutput\(sources\.codexBinaries\.codex, \['--version'\]\)\)/);
   assert.match(buildScript, /copySingleFile\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64\.tar\.gz'\)\)/);
   assert.doesNotMatch(buildScript, /extractTemporalCliBinary\(sources\.temporalCliArchive, path\.join\(layerRoot, 'vendor', 'temporal', 'cli', 'temporal'\)\)/);
   assert.doesNotMatch(buildScript, /function extractTemporalCliBinary/);
@@ -772,5 +782,5 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.doesNotMatch(buildScript, /binary_path: 'runtime\/current\/vendor\/temporal\/cli\/temporal'/);
   assert.match(buildScript, /version: commandOutput\(path\.join\(runtimeRoot, 'bin', 'temporal'\), \['--version'\]\)/);
   assert.match(buildScript, /writeJsonFile\(runtimeNativeTrustPath, prepared\.manifest\.native_trust\)/);
-  assert.match(buildScript, /codex: \{ source_path: sources\.codexRoot[\s\S]*size_bytes: directorySizeBytes\(path\.join\(runtimeRoot, 'bin', 'codex'\)\)/);
+  assert.match(buildScript, /codex: \{[\s\S]*source_path: sources\.codexRoot[\s\S]*size_bytes: directorySizeBytes\(path\.join\(runtimeRoot, 'bin', 'codex'\)\)[\s\S]*archive_path: 'runtime\/current\/vendor\/codex\/codex_cli_darwin_arm64\.tar\.gz'/);
 });

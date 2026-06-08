@@ -969,12 +969,14 @@ leakage.
 The 26.6.5 and 26.6.7 baselines exposed a size regression: the uncompressed
 runtime reached roughly 1.3 GiB because the toolchain layer carried both the
 official Temporal CLI archive and a pre-extracted Temporal binary. The
-`vendor/temporal` subtree alone was about 690 MB, while Codex CLI, Node,
-uv-managed Python, OfficeCLI, and MinerU were much smaller individual
-contributors. Current Full packaging keeps the official Temporal CLI archive
-and uses an offline archive wrapper, so clean-machine first launch still does
-not need network access while the DMG no longer carries the expanded Temporal
-binary.
+`vendor/temporal` subtree alone was about 690 MB. Current Full packaging keeps
+the official Temporal CLI archive and uses an offline archive wrapper, so
+clean-machine first launch still does not need network access while the DMG no
+longer carries the expanded Temporal binary. The Codex fallback uses the same
+archive-wrapper pattern: `runtime/current/bin/codex` is a small wrapper and the
+macOS arm64 vendor payload lives under
+`runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz`, extracting into
+the installed runtime cache only when real Codex execution is needed.
 When the Full DMG is above `warning_full_dmg_bytes=700000000`, including above
 the `max_full_dmg_bytes=750000000` review threshold, the release readiness
 summary remains `passed` and records a warning in both JSON and the GitHub Step

@@ -284,8 +284,12 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       },
       codex: {
         ...normalizeComponent(components.codex),
-        role: 'default_agent_cli',
+        role: 'default_agent_cli_offline_archive_wrapper',
         required: true,
+        binary_path: components.codex?.binary_path ?? null,
+        archive_path: components.codex?.archive_path
+          ?? 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz',
+        archive_size_bytes: components.codex?.archive_size_bytes ?? null,
       },
       mas: {
         ...normalizeComponent(components.mas),

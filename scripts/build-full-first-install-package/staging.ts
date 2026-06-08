@@ -54,7 +54,14 @@ export function prepareRuntime(options, sources) {
 
   const components = {
     opl: { source_path: options.frameworkRoot, git_commit: readGitHead(options.frameworkRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'opl')) },
-    codex: { source_path: sources.codexRoot, version: commandOutput(path.join(runtimeRoot, 'bin', 'codex'), ['--version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'codex')) },
+    codex: {
+      source_path: sources.codexRoot,
+      version: commandOutput(path.join(runtimeRoot, 'bin', 'codex'), ['--version']),
+      size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'codex')),
+      binary_path: null,
+      archive_path: 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz',
+      archive_size_bytes: fs.statSync(path.join(runtimeRoot, 'vendor', 'codex', 'codex_cli_darwin_arm64.tar.gz')).size,
+    },
     mas: { source_path: options.masRoot, git_commit: readGitHead(options.masRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mas')) },
     mag: { source_path: options.magRoot, git_commit: readGitHead(options.magRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mag')) },
     rca: { source_path: options.rcaRoot, git_commit: readGitHead(options.rcaRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'rca')) },

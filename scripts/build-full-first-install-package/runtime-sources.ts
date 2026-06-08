@@ -68,6 +68,13 @@ function findCodexRoot(explicitRoot) {
 }
 
 function findCodexBinary(codexRoot) {
+  const scopedPackageRoot = path.dirname(codexRoot);
+  const siblingPlatformVendorRoot = path.join(
+    scopedPackageRoot,
+    'codex-darwin-arm64',
+    'vendor',
+    CODEX_MACOS_ARM64_TARGET,
+  );
   const platformVendorRoot = path.join(
     codexRoot,
     'node_modules',
@@ -77,6 +84,7 @@ function findCodexBinary(codexRoot) {
     CODEX_MACOS_ARM64_TARGET,
   );
   const localVendorRoot = path.join(codexRoot, 'vendor', CODEX_MACOS_ARM64_TARGET);
+  const vendorRoots = [siblingPlatformVendorRoot, platformVendorRoot, localVendorRoot];
   const requireFirstPath = (candidates, label) => {
     const found = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
     if (!found) {
@@ -84,19 +92,30 @@ function findCodexBinary(codexRoot) {
     }
     return found;
   };
+  const codexCandidatesForVendorRoot = (vendorRoot) => [
+    path.join(vendorRoot, 'bin', 'codex'),
+    path.join(vendorRoot, 'codex', 'codex'),
+  ];
+  const rgCandidatesForVendorRoot = (vendorRoot) => [
+    path.join(vendorRoot, 'codex-path', 'rg'),
+    path.join(vendorRoot, 'path', 'rg'),
+  ];
+  const hasAnyFile = (candidates) => candidates.some((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+  const requireFirstVendorRoot = () => {
+    const found = vendorRoots.find((vendorRoot) => {
+      return hasAnyFile(codexCandidatesForVendorRoot(vendorRoot))
+        && hasAnyFile(rgCandidatesForVendorRoot(vendorRoot));
+    });
+    if (!found) {
+      throw new Error(`Codex darwin-arm64 vendor root not found. Checked:\n${vendorRoots.map((candidate) => `  - ${candidate}`).join('\n')}`);
+    }
+    return found;
+  };
+  const vendorRoot = requireFirstVendorRoot();
   return {
-    codex: requireFirstPath([
-      path.join(platformVendorRoot, 'bin', 'codex'),
-      path.join(localVendorRoot, 'bin', 'codex'),
-      path.join(platformVendorRoot, 'codex', 'codex'),
-      path.join(localVendorRoot, 'codex', 'codex'),
-    ], 'Codex darwin-arm64 binary'),
-    rg: requireFirstPath([
-      path.join(platformVendorRoot, 'codex-path', 'rg'),
-      path.join(localVendorRoot, 'codex-path', 'rg'),
-      path.join(platformVendorRoot, 'path', 'rg'),
-      path.join(localVendorRoot, 'path', 'rg'),
-    ], 'Codex bundled rg'),
+    vendorRoot,
+    codex: requireFirstPath(codexCandidatesForVendorRoot(vendorRoot), 'Codex darwin-arm64 binary'),
+    rg: requireFirstPath(rgCandidatesForVendorRoot(vendorRoot), 'Codex bundled rg'),
   };
 }
 

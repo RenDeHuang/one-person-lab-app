@@ -43,7 +43,9 @@ import {
   buildOplLayer,
   buildSkillsLayer,
   buildToolchainLayer,
+  createCodexCliArchive,
   pruneTemporalCoreBridgeReleases,
+  writeCodexCliWrapper,
   writeTemporalCliWrapper,
 } from './runtime-layers.ts';
 import {
@@ -126,6 +128,8 @@ function buildRuntimeLayerPackagerInputs() {
       copyPortableTree,
       copyExecutableOrSymlinkTarget,
       copyNodeRuntimePayload,
+      writeCodexCliWrapper,
+      createCodexCliArchive,
       writeTemporalCliWrapper,
       assertNoExternalSymlinks,
       copyProductionNodeModules,
