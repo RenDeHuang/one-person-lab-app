@@ -44,6 +44,17 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 
 ## Coverage Ledger Foldback
 
-Dated coverage entries, closeout ledgers, candidate smoke notes, local release/source evidence, and stale-surface retirement notes that previously lived as per-tranche files are compressed under [App process history](./history/process/README.md), with durable no-resurrection rules in [App retired surface provenance](./history/process/retired-surface-provenance.md).
+Dated coverage entries, closeout ledgers, candidate smoke notes, local release/source evidence, and stale-surface retirement notes are compressed under [App process history](./history/process/README.md), with durable no-resurrection rules in [App retired surface provenance](./history/process/retired-surface-provenance.md).
 
-This file now keeps only current lifecycle rules, directory responsibilities, governance rules, and reopening conditions. Do not append future release/candidate evidence logs, VM smoke transcripts, screenshot logs, branch/worktree closeout, or proof-by-proof tranches here. New dated coverage belongs under `docs/history/process/`, release artifacts, evidence manifests, CI logs, or another precise history/provenance owner; durable conclusions must be folded back into the core docs, active gap plan, App contracts, source, tests, or release validation docs.
+The current process index is topic-level only: it records SSOT owners, compressed provenance groups, a coverage snapshot, remaining unreviewed scope, and next write scope. It must not grow back into per-tranche release/candidate evidence logs, VM smoke transcripts, screenshot logs, branch/worktree closeout, or proof-by-proof tranches.
+
+Future coverage belongs in the narrowest owner:
+
+| Future evidence | Owner |
+| --- | --- |
+| Durable App product or release rule | Core docs, active gap plan, App contracts, source, tests, or release validation docs |
+| Release proof, remote checks, VM smoke, packaged route receipts | Release artifacts, evidence manifests, CI logs, or release history/provenance |
+| Candidate shell smoke or adoption evidence | Candidate manifests, shell artifacts, validation scripts, focused tests, or candidate history/provenance |
+| Docs lifecycle tranche closeout | `docs/history/process/README.md` as a compressed theme row, not a dated proof ledger |
+
+This tranche does not close the parent OPL series docs-governance goal. The App remaining scope is explicitly carried in the process index and active gap plan.
