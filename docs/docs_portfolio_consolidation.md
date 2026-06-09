@@ -53,9 +53,16 @@ Future coverage belongs in the narrowest owner:
 | Future evidence | Owner |
 | --- | --- |
 | Durable App product or release rule | Core docs, active gap plan, App contracts, source, tests, or release validation docs |
+| Install exposure / Codex-visible domain skill rule | `contracts/app-install-exposure-policy.json`, product profile, status/decisions/active plan and `validate:agent-installation`; README/release/user docs may only point to that owner |
 | Release proof, remote checks, VM smoke, packaged route receipts | Release artifacts, evidence manifests, CI logs, or release history/provenance |
 | Candidate shell technical smoke, adoption gate, or replacement decision | Candidate manifests, shell artifacts, validation scripts, focused tests, or candidate history/provenance; default-shell replacement requires `contracts/app-shell-adapter.json` and release gates |
+| GUI definition / interaction target | `docs/app-ideal-gui-interaction-spec.md`, `docs/codex-to-opl-app-delta.md`, `docs/app-gui-feature-inventory.md`, `docs/app-gui-element-audit.md`, App GUI/page-state/first-run contracts and active-shell validation |
 | Docs lifecycle tranche closeout | `docs/history/process/README.md` as a compressed theme row, not a dated proof ledger |
 | Testing-doc release evidence guidance | `docs/testing/README.md` for command entry and evidence classification only; release cohort policy stays in `docs/release/README.md`, `contracts/app-release-channel.json`, workflows, validators and release-boundary tests |
 
-This tranche does not close the parent OPL series docs-governance goal. The App remaining scope is explicitly carried in the process index and active gap plan.
+The current App process index records the 2026-06-09 remaining-theme SSOT
+tranche. At that snapshot, App `README*` and `docs/**/*.md` have no unreviewed
+docs-governance theme remaining; open App work is implementation/evidence-tail
+work under the owners above. This App coverage does not close the parent OPL
+series docs-governance goal, because the six-repo goal remains open until every
+repo ledger has no unreviewed docs or unresolved stale/retire candidates.
