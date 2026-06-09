@@ -130,249 +130,47 @@ paths are history/provenance, not current release proof; the old local-smoke
 examples are compressed under
 `docs/history/process/retired-surface-provenance.md`.
 
-## Release Matrix
+## Release Validation Matrix
 
-- Contracts/unit: `npm run test:release-boundary`.
-- Standard release metadata: `node --experimental-strip-types scripts/validate-release.ts release-assets`.
-- App-owned release boundary: `npm run validate:release-boundary`.
-- Nightly standard release: `.github/workflows/nightly-standard-release.yml`
-  is the lightweight profile. It publishes standard macOS arm64 prerelease
-  assets only; `npm run test:release-boundary` locks the semver prerelease tag,
-  `--latest=false`, remote standard verification, and no-Full boundary. It does
-  not run Full packaging, VM install gates, one-shot installer, Docker/WebUI, or
-  operator evidence gates.
-- Stable release: `.github/workflows/desktop-release.yml` is the full user-path
-  profile when `run_vm_smoke=true`. It must cover standard DMG clean-VM install,
-  Homebrew cask clean-VM install, Full DMG clean-VM install when Full is
-  included, the App one-shot installer, Docker/WebUI over HTTP, remote
-  standard/Full verification, and the release evidence bundle.
-- Fallow production hygiene: `npm run hygiene:fallow -- --format json --summary`.
-- Active GUI shell validation: `npm run validate:gui-shell`.
-- App product profile sync: standard and Full release preparation must generate
-  the active shell `shell_contract.paths.product_profile_target` declared in
-  `contracts/app-shell-adapter.json`.
-- Full first-install package: `npm run release:full -- --version <version>`.
-- GUI smoke: installed `/Applications/One Person Lab.app` smoke or the App repo
-  VM workflow. The standard DMG gate uses `--runtime-profile standard` to prove
-  launch, App-managed bootstrap/readiness, and Settings navigation. The Full DMG
-  gate uses `--runtime-profile full` to add bundled runtime materialization and
-  Full readiness checks after `ready_to_launch`. The Full gate proves the
-  pre-`/guid` Core launch gate through `opl system initialize --json`; the gate
-  requires only workspace root, Codex CLI, and Codex config. If the Codex/OpenAI
-  API key wizard appears during first launch, the smoke submits it and records
-  that path, but Full release readiness is based on Codex config readiness rather
-  than requiring the wizard UI to be shown. Domain modules, the family runtime
-  provider, recommended skills, native helpers, CLT, git, managed repo sync, and
-  ecosystem updates are Full readiness or deferred maintenance and must not
-  block `ready_to_launch`. First-run progress evidence must map visible phase,
-  Core progress, Full readiness progress, background maintenance counts,
-  blockers, and next step back to `opl system initialize --json` /
-  `system_initialize.setup_flow`; release tests must not accept a separate
-  installer-local progress authority. VM smoke evidence must also include a
-  first-run screenshot/layout gate proving the beginner-first default: the
-  visible first screen is limited to the simplified readiness summary, three
-  setup steps, Core progress, the primary entry action, and the next visible
-  user step, while technical phase labels, refresh, runtime settings, raw
-  errors, and maintenance actions are folded under technical details by
-  default. When `--codex-functional-check` is enabled, the same VM smoke writes
-  `codex-functional-check-summary.json` as a post-install functional receipt for
-  Codex behavior: UI language, App-managed `opl-flow` context expectation,
-  user `AGENTS.md` policy, Codex CLI detection, MAS/MAG/RCA route receipts, and
-  skill/plugin visibility. The App-managed context is session-scoped preset
-  context, localized from the current UI language, and must not write or
-  overwrite a user's workspace `AGENTS.md`. The receipt is deterministic and
-  does not call an external LLM; missing credentials are recorded as diagnostic
-  skipped rather than a network gate. When `--codex-ai-self-check` is enabled,
-  the VM smoke runs a second, non-blocking AI-first stage after the deterministic
-  receipt: Codex CLI receives the target installed OPL working mode and the
-  collected evidence, then writes `codex-ai-self-check-summary.json` with a
-  structured judgment and recommended actions. The default `diagnose` mode is
-  read-only and must not overwrite user `AGENTS.md`; any future fix mode remains
-  explicit. Product UI exposes the same principle after setup: real first-run
-  completion or the ready entry opens `/guid` with a localized Codex CLI task
-  that asks the user-facing Codex session to verify the installed working mode
-  against the target state. That App entry remains diagnosis-first; repair
-  commands or file mutations require explicit user confirmation. The App repo
-  VM workflow is the deterministic release-blocking gate
-  for first-run GUI evidence; Codex App or Computer Use sessions may explore UI
-  behavior during triage, but those exploratory checks are non-blocking and
-  cannot replace the Tart VM gate. Any exploratory finding that should affect
-  release readiness must be converted into a deterministic contract, workflow,
-  or script gate before it can block or clear a release.
-- Release tuning evidence: Full workflow cache hits and step timings are stored
-  in `full-workflow-telemetry.json` artifacts, including
-  `duration_seconds.full_package_build` and
-  `duration_seconds.full_package_build_breakdown`. These artifacts help compare
-  build speed across runs; they do not replace release manifests, checksums,
-  remote verification, VM smoke artifacts, or evidence bundle validation.
-  `cache.shell_vite_output` records whether the Full workflow reused the
-  active-shell Vite output. When it is `true`, the Full shell build skips Vite
-  bundling and still repackages/signs/verifies the Full DMG after runtime
-  payload sync; when it is `false`, the workflow runs the normal full shell
-  build and saves Vite output for later runs. The Vite cache key is scoped to
-  the release version and renderer/main/preload inputs because the shell build
-  injects the release version into the bundled output. Packager-only script or
-  Electron Builder config changes should not invalidate the Vite cache. The same
-  telemetry includes `cache.electron_artifacts` for Electron/Electron Builder
-  download cache hits.
-  Full workflows also upload `opl-full-diagnostics-<version>`, a small
-  diagnostics artifact with telemetry, `full-package-build-timing.json`,
-  `full-package-manifest.json`, `runtime-cache-events.json`, `SHA256SUMS.txt`,
-  and the Full README so cache and hash checks do not require downloading the
-  large Full DMG. `runtime-cache-events.json` includes per-layer cache keys and
-  key inputs so operators can see whether a miss came from payload refs,
-  toolchain versions, skill source fingerprints, packager inputs, or the runtime
-  exclusion policy. Warmup runs do not upload the large Full package artifact;
-  release-called Full builds still do because publish and VM gates consume the
-  DMG.
-- Full size/cache summary checks: `release-readiness-summary.json` stays
-  `passed` when the Full DMG is above `warning_full_dmg_bytes=700000000` or the
-  `max_full_dmg_bytes=750000000` review threshold, but it must include a warning
-  in JSON and markdown. Remote Full verification separately checks the manifest
-  uncompressed runtime size against `max_runtime_uncompressed_bytes=1000000000`.
-  The same summary must expose runtime cache `miss_written` layer names and
-  counts from `runtime-cache-events.json` for the next cache-key optimization
-  pass.
-- Final readiness diagnostics: the `release-readiness-summary` job is the final
-  stable pass/fail entry. It reads dependency results plus only small artifacts:
-  remote verification JSON, VM smoke summaries, one-shot installer output,
-  Docker/WebUI smoke output, Full diagnostics, and telemetry. It fails closed
-  when a required remote, VM, one-shot, Docker/WebUI, or Full timing gate is
-  failed, cancelled, missing, or unexpectedly skipped. It must not download the
-  standard DMG, the large Full DMG workflow artifact, or published DMG assets
-  for diagnosis. The one-shot fields are diagnostic machine fields derived from
-  the public installer entry, the job result, and
-  `opl-one-shot-system-initialize.json`; they expose setup-flow status/source,
-  progress, blockers, next step, retry, and skip-module state without creating a
-  separate installer-local readiness authority.
-- Standard DMG clean VM smoke: the packaged App must run its bundled
-  `opl-install.sh` bootstrap carrier if `opl` is missing, reach
-  `ready_to_launch` through `opl system initialize --json`, and only then enter
-  `/guid`. The smoke keeps Full-only runtime equivalence out of the standard
-  profile but still uploads `system-initialize.json` as the core readiness
-  proof.
-- One-shot installer: the App root `install.sh` remains the public entrypoint.
-  Stable verification runs it against a checked-out Framework installer with
-  `OPL_INSTALL_SCRIPT_URL=file://.../one-person-lab/install.sh ./install.sh
-  --complete --skip-modules`, then runs `opl system initialize`.
-- Scheduled VM smoke backlog: the App repo VM workflow must cancel stale
-  scheduled runs through GitHub Actions concurrency while keeping manual and
-  release-called validation runs in caller-run/profile-scoped non-cancelling
-  groups. Do not collapse standard, Homebrew, and Full release VM gates into one
-  manual concurrency group; GitHub keeps only one pending job per group.
-  Repository variable `OPL_FIRST_RUN_TART_SOURCE` must point to a local Tart
-  base VM on the self-hosted runner; the current source VM is
-  `opl-first-run-no-clt-clean-base-26-5-18`. Missing source-VM configuration is
-  a failed gate because no clean first-run evidence can be produced.
-  Homebrew cask smoke uses `OPL_FIRST_RUN_HOMEBREW_TART_SOURCE`, a separate
-  clean VM with Homebrew already installed, so the test verifies the tap/cask
-  path instead of spending the gate installing Homebrew itself. Stable desktop
-  releases update the stable `one-person-lab` cask by direct tap commit after
-  remote asset verification and before this VM gate, so the cask smoke validates
-  the same cohort users will install.
-  The workflow copies the GitHub runner's Node.js runtime into the guest for
-  the smoke harness, so the clean VM does not need preinstalled Node.js, CLT, or
-  other developer tooling.
-  `npm run test:release-boundary` locks this workflow policy.
-- Docker/WebUI: build from `shells/aionui/Dockerfile`, run the container, and
-  verify HTTP 200 for `/` and `/manifest.webmanifest`.
-- Release-called VM smokes consume the same-run standard or Full DMG workflow
-  artifact for draft candidates, while keeping the release tag as provenance.
-  Remote verification remains responsible for proving that the published
-  GitHub Release assets match the release manifest and checksums.
+This file lists the testing entry points. Release policy, gate membership,
+Homebrew sequencing, Full first-install scope, VM profiles, release notes,
+candidate records, and promotion rules are owned by
+[`docs/release/README.md`](../release/README.md),
+`contracts/app-release-channel.json`, release workflows, release validators, and
+release-boundary tests.
 
-## Release CI Operations Boundaries
+| Surface | Testing entry point | What it proves |
+| --- | --- | --- |
+| Contract and release-boundary unit gates | `npm run test:release-boundary` | App contracts, workflow shape, release evidence policy, updater/Full separation, and release-note rules remain aligned. |
+| App-owned release boundary | `npm run validate:release-boundary` | Workflows, scripts, release assets, and checked-in release contracts match the App-owned release surface. |
+| Standard release assets | `node --experimental-strip-types scripts/validate-release.ts release-assets` | Local release assets and updater metadata have the expected App shape before publish. |
+| Active GUI shell validation | `npm run validate:gui-shell` | App-owned product profile and release payload sync into the active shell, and the shell validates/compiles through the App wrapper. |
+| Full first-install package | `npm run release:full -- --version <version>` | The Full package builder can assemble declared runtime payloads and manifests for the selected cohort. |
+| Evidence bundle | `npm run release:evidence:manifest` and `npm run release:evidence:validate` | The current cohort's artifacts are classified as `present`, `missing`, `typed_blocker`, or `not_applicable`; only all-present verified bundles become packaged App evidence. |
+| Root wrapper hygiene | `npm run hygiene:fallow -- --format json --summary` | App-root wrappers, contracts, and docs are free of scoped production hygiene findings; this is not shell build or release evidence. |
 
-The release-speed work keeps packaging and installation proof separate from
-workflow-operations hygiene:
+Nightly, Stable, refresh, Homebrew, Full, WebUI, one-shot installer, VM smoke,
+and promote flows use different release profiles. Treat the release guide and
+contract as the SSOT for those profiles; this testing guide should not duplicate
+their full workflow policy.
 
-- `actionlint` is the workflow semantic gate in the reusable build quality
-  jobs. YAML parsing only proves syntax; `actionlint` is the check that should
-  fail semantic GitHub Actions mistakes.
-- Release workflows must set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true` in
-  top-level `env` so checked-in JavaScript actions run on GitHub's Node 24
-  action runtime. `npm run test:release-boundary` and
-  `npm run validate:release-boundary` lock this policy.
-- Reusable workflow callers must declare every permission required by the
-  called workflow. GitHub resolves that boundary before creating any job; a
-  missing caller permission can surface as `startup_failure` with no jobs,
-  check-runs, or failed logs. When a called release workflow adds a permission
-  such as `models: read`, update each caller workflow and lock the caller
-  permission in `npm run test:release-boundary`.
-- GitHub Actions `concurrency` is duplicate-run governance. It collapses stale
-  scheduled queues or serializes operator runs; it is not release evidence and
-  does not replace remote verification, installer smoke, or VM gates.
-- Release-called first-run VM gates scope non-scheduled concurrency by caller
-  run and package profile. Standard DMG, Homebrew cask, and Full DMG install
-  lanes must queue independently and report their own readiness artifacts.
-- Machine-readable telemetry artifacts are post-release tuning inputs. Step
-  summaries and ad hoc text artifacts are useful for operators, but a JSON
-  telemetry artifact should be treated as the basis for later cache/matrix
-  tuning, not as the source of release truth.
-- Full package tuning reads both `full-workflow-telemetry.json` and
-  `runtime-cache-events.json`; the first captures workflow-level cache and
-  timing surfaces, and the second records per-layer Full runtime cache status.
-  Prefer `opl-full-diagnostics-<version>` for remote tuning because it contains
-  those files plus manifest and checksum evidence without the large DMG.
-- Composite/setup reuse is allowed only when the shared action is checked in
-  and release-boundary tests lock its behavior. The current active-shell
-  checkout/setup/cache reuse lives in `.github/actions/setup-active-shell-deps`.
+## Release Cohort Evidence Boundary
 
-## VM and AI-first testing boundary
+Release evidence is current only for the named App cohort that produced it.
+Remote verification, VM smoke, screenshots, assistant route smoke,
+`release-readiness-summary.json`, `release-candidate-record.json`, Homebrew VM
+summaries, Docker/WebUI smoke, Full diagnostics, telemetry, and release notes are
+release artifacts or CI outputs, not durable truth in this testing guide.
 
-Stable release installation proof uses deterministic automation as the blocking
-gate. The VM lane downloads the published DMG, clones the configured clean
-no-CLT Tart base VM, fixes the display size, installs the App, launches it, and
-collects first-run/settings artifacts and assistant route smoke evidence,
-including screenshots, layout checks for the first-run view, MAS/MAG/RCA Codex
-route receipts, and the Codex functional check receipt when
-`--codex-functional-check` is present. That receipt freezes installed-App Codex
-behavior in machine-readable form while keeping actual AI/LLM exploration
-non-blocking until it is converted into deterministic evidence. When
-`--codex-ai-self-check` is present, the same VM lane also writes a structured
-Codex CLI AI self-check receipt. This is the intended AI-first layer: after
-normal initialization succeeds, Codex reads the target state and evidence and
-decides whether the App-owned working mode really matches expectation. It is a
-diagnostic receipt, separate from Computer Use, and does not clear or block a
-stable release by itself. That lane is the source of release
-readiness for standard DMG and Full DMG installation because it is repeatable,
-time-bounded, and produces comparable logs.
+Local testing lanes can validate shape and collect partial evidence. When a lane
+cannot produce clean VM summaries, screenshots, remote verification, or packaged
+route receipts, leave the artifact classified as `missing`, `typed_blocker`, or
+`not_applicable`. `--allow-missing-evidence` reports those gaps only; it does not
+prove App release readiness, Stable/latest promotion, Full clean-machine
+installability, domain readiness, or family production readiness.
 
-Codex App or Computer Use based UI exploration is useful, but it is not the
-blocking release gate by itself. Use AI-first exploration for pre-release user
-journeys that are hard to script yet: visual regressions, unclear first-run
-copy, unexpected modal ordering, long waits, or accessibility of Settings
-paths. The output of that lane should be screenshots, operation notes, and
-candidate regressions. Once a finding is stable, convert it into the VM smoke,
-Playwright, contract, or shell test surface before it becomes release-blocking.
-
-This keeps the full validation plan fast and usable:
-
-- PR/local: contract and release-boundary checks.
-- Nightly: standard package build and remote standard asset verification.
-- Stable: standard DMG VM, Full DMG VM, one-shot installer, Docker/WebUI,
-  remote standard/Full verification, and evidence bundle validation.
-- Codex CLI AI self-check: non-blocking post-install diagnostic receipt.
-- Exploratory Computer Use: non-blocking unless its findings are converted into a
-  deterministic gate.
-
-Release-note validation is part of the same boundary. Public GitHub Release
-notes are deterministic English prose rendered from release evidence JSON:
-Stable compares with the previous Stable, Nightly compares with the previous
-Nightly, and the primary story is the OPL App package carrying or exposing OPL
-agents and runtime payloads. Stable/Full notes must include exact payload refs
-and payload deltas from `full-package-manifest.json`; Nightly notes must
-describe the standard App-managed MAS/MAG/RCA/OPL Meta Agent entry surface and
-Codex plugin/skill sync policy while stating that Full runtime payloads are not
-in Nightly. When Full manifests expose local component `source_path` repos, the
-evidence must include concrete `agent_runtime_changes` commit summaries so the
-note can explain agent/runtime improvements before audit refs. Release workflows
-must not depend on GitHub Models, Codex, `models: read`, or provider secrets to
-publish notes; those tools are optional diagnostics only. The workflows upload
-the small `release-notes-evidence-<version>` JSON artifact instead of
-downloading large DMG/ZIP assets for note diagnosis.
-
-Docker/WebUI evidence is current only when produced by the release workflow or a
-named same-cohort smoke run. Dated local image-size and port checks belong in
-history/provenance or release artifacts; old local examples are compressed under
-`docs/history/process/retired-surface-provenance.md`.
+Deterministic VM automation is the blocking installed-App release proof once a
+Stable cohort enters the release workflow. Codex App, Computer Use, and Codex
+CLI AI self-checks are diagnostic or exploratory until their findings are
+converted into contract, workflow, VM, Playwright, shell, or release-boundary
+tests.

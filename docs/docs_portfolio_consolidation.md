@@ -26,7 +26,7 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 | `docs/app-gui-element-audit.md` | Human review of ordinary user GUI elements, placement, gaps, and interaction logic | Review note only; machine acceptance stays in contracts/page-state matrices/tests |
 | `docs/agui-codex-candidate-verification.md` | Candidate shell verification runbook for AG-UI/CopilotKit explicit adapter builds | Candidate evidence stays in candidate manifests, shell artifacts, CI logs, release evidence, or history |
 | `docs/release/` | Release, updater, Full first-install, and release-evidence notes | Release truth stays in produced assets, updater metadata, evidence manifests, CI/logs, and validation commands |
-| `docs/testing/` | Validation and test guidance | Tests and scripts are authoritative |
+| `docs/testing/` | Validation command entry, release evidence classification guidance, and test-surface orientation | Tests, scripts, contracts, workflows and release artifacts are authoritative; release policy itself stays in `docs/release/` and `contracts/app-release-channel.json` |
 | `docs/user-guides/`, `docs/screenshots/` | User-facing guides and visual tutorial assets | User docs; not production/readiness proof |
 | `docs/history/` | Retired topology, process provenance, and archived dated evidence | Historical only; not active product/runtime truth |
 | `docs/history/process/README.md` | Compressed process-history index and coverage snapshot | Historical archive index only; current truth stays in active/core docs, contracts, source, tests, artifacts, manifests, workflows, validators, or CI logs |
@@ -56,5 +56,6 @@ Future coverage belongs in the narrowest owner:
 | Release proof, remote checks, VM smoke, packaged route receipts | Release artifacts, evidence manifests, CI logs, or release history/provenance |
 | Candidate shell smoke or adoption evidence | Candidate manifests, shell artifacts, validation scripts, focused tests, or candidate history/provenance |
 | Docs lifecycle tranche closeout | `docs/history/process/README.md` as a compressed theme row, not a dated proof ledger |
+| Testing-doc release evidence guidance | `docs/testing/README.md` for command entry and evidence classification only; release cohort policy stays in `docs/release/README.md`, `contracts/app-release-channel.json`, workflows, validators and release-boundary tests |
 
 This tranche does not close the parent OPL series docs-governance goal. The App remaining scope is explicitly carried in the process index and active gap plan.

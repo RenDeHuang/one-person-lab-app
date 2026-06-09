@@ -35,6 +35,14 @@ Machine boundary: Human-readable process history index. Machine truth stays in `
 
 ## Coverage Snapshot
 
+2026-06-09 release cohort evidence testing-doc SSOT tranche:
+
+- Scope reviewed: `docs/testing/README.md` release matrix / installed smoke / release CI operations / VM and AI-first testing sections, plus peer owner surfaces `docs/release/README.md`, `docs/status.md`, `docs/decisions.md`, `docs/active/app-ideal-state-gap-plan.md`, `docs/docs_portfolio_consolidation.md`, `contracts/app-release-channel.json`, package scripts, release validators and release-boundary tests.
+- SSOT decision: release cohort policy, gate membership, Homebrew sequencing, Full first-install scope, VM profiles, release notes, candidate records and promotion rules stay in `docs/release/README.md`, `contracts/app-release-channel.json`, release workflows, release validators and release-boundary tests. `docs/testing/README.md` owns only testing entry points and evidence classification guidance.
+- Content-level consolidation: `docs/testing/README.md` no longer repeats the detailed release workflow, Homebrew, VM, Full cache/size, readiness-summary, actionlint/concurrency and release-note policy. It now keeps a testing-facing release validation matrix and cohort evidence boundary, with pointers back to release owners.
+- Retired / guarded: do not regrow testing docs into a second release policy owner or current proof ledger. Same-cohort release artifacts, VM output, Homebrew summaries, release notes evidence and candidate records remain release artifacts / CI outputs, not durable current truth in testing docs.
+- Remaining App scope under the parent OPL series goal: install exposure paragraphs, future shell adoption wording, GUI definition paragraphs, and candidate promotion/adoption wording still need fresh semantic passes before the App docs portfolio can be called fully covered.
+
 2026-06-09 OPL Doc series tranche:
 
 - Scope reviewed: root `README*`, `docs/*.md`, `docs/active/*.md`, `docs/history/*.md`, `docs/history/process/*.md`, `docs/release/*.md`, `docs/testing/*.md`, `docs/user-guides/*.md`, `docs/screenshots/*.md`, App contracts and package-script surfaces that define App docs truth.
