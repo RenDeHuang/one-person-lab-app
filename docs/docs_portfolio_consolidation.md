@@ -29,7 +29,7 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 | `docs/testing/` | Validation command entry, release evidence classification guidance, and test-surface orientation | Tests, scripts, contracts, workflows and release artifacts are authoritative; release policy itself stays in `docs/release/` and `contracts/app-release-channel.json` |
 | `docs/user-guides/`, `docs/screenshots/` | User-facing guides and visual tutorial assets | User docs; not production/readiness proof |
 | `docs/history/` | Retired topology, process provenance, and archived dated evidence | Historical only; not active product/runtime truth |
-| `docs/history/process/README.md` | Compressed process-history index and coverage snapshot | Historical archive index only; current truth stays in active/core docs, contracts, source, tests, artifacts, manifests, workflows, validators, or CI logs |
+| `docs/history/process/README.md` | Compressed process-history index and coverage summary | Historical archive index only; current truth stays in active/core docs, contracts, source, tests, artifacts, manifests, workflows, validators, or CI logs |
 | `docs/history/process/retired-surface-provenance.md` | Retired surface, stale evidence, duplicate test, workflow, route, alias, and docs-prose no-resurrection provenance | Historical provenance only; current owner refs are contracts, source, validation scripts, release-boundary tests, workflows, artifacts, candidate manifests, and owner docs |
 | `scripts/README.md` | App wrapper and release script guide | Scripts/tests/contracts determine behavior |
 
@@ -46,7 +46,7 @@ This repository intentionally uses a lighter docs taxonomy than the framework an
 
 Dated coverage entries, closeout ledgers, candidate smoke notes, local release/source evidence, and stale-surface retirement notes are compressed under [App process history](./history/process/README.md), with durable no-resurrection rules in [App retired surface provenance](./history/process/retired-surface-provenance.md).
 
-The current process index is topic-level only: it records SSOT owners, compressed provenance groups, a coverage snapshot, remaining unreviewed scope, and next write scope. It must not grow back into per-tranche release/candidate evidence logs, VM smoke transcripts, screenshot logs, branch/worktree closeout, or proof-by-proof tranches.
+The current process index is topic-level only: it records SSOT owners, compressed provenance groups, coverage summary, remaining unreviewed scope, and next write scope. It must not grow back into per-tranche release/candidate evidence logs, VM smoke transcripts, screenshot logs, branch/worktree closeout, or proof-by-proof tranches.
 
 Future coverage belongs in the narrowest owner:
 
@@ -60,9 +60,10 @@ Future coverage belongs in the narrowest owner:
 | Docs lifecycle tranche closeout | `docs/history/process/README.md` as a compressed theme row, not a dated proof ledger |
 | Testing-doc release evidence guidance | `docs/testing/README.md` for command entry and evidence classification only; release cohort policy stays in `docs/release/README.md`, `contracts/app-release-channel.json`, workflows, validators and release-boundary tests |
 
-The current App process index records the 2026-06-09 remaining-theme SSOT
-tranche. At that snapshot, App `README*` and `docs/**/*.md` have no unreviewed
-docs-governance theme remaining; open App work is implementation/evidence-tail
-work under the owners above. This App coverage does not close the parent OPL
-series docs-governance goal, because the six-repo goal remains open until every
-repo ledger has no unreviewed docs or unresolved stale/retire candidates.
+The current App process index keeps topic-level App docs-governance coverage.
+App `README*` and `docs/**/*.md` have no tracked unreviewed docs-governance
+theme remaining in the App process ledger; open App work is
+implementation/evidence-tail work under the owners above. This App coverage
+does not close the parent OPL series docs-governance goal, because the six-repo
+goal remains open until every repo ledger has no unreviewed docs or unresolved
+stale/retire candidates.
