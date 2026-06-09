@@ -120,7 +120,7 @@ jobs:
     with:
       matrix: >-
         {"include":[
-          {"platform":"macos-arm64","os":"macos-14","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"macos-build-arm64","arch":"arm64"}
+          {"platform":"macos-arm64","os":"macos-latest","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"macos-build-arm64","arch":"arm64"}
         ]}
       skip_code_quality: ${{ inputs.skip_code_quality }}
       opl_release_version: ${{ inputs.opl_version }}
@@ -233,7 +233,7 @@ jobs:
           "${publish_args[@]}"
 
       - name: Upload standard release-note evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: standard-release-notes-evidence-${{ inputs.opl_version }}
           path: ${{ runner.temp }}/standard-release-notes-evidence.json
@@ -293,7 +293,7 @@ jobs:
             --full-package-dir full-package-artifacts
 
       - name: Upload Full release-note evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: full-release-notes-evidence-${{ inputs.opl_version }}
           path: ${{ runner.temp }}/full-release-notes-evidence.json
@@ -303,7 +303,7 @@ jobs:
     name: Verify remote standard release assets
     needs: publish-standard
     if: ${{ !inputs.include_full_package }}
-    runs-on: macos-14
+    runs-on: macos-latest
 
     steps:
       - name: Checkout App repo
@@ -335,7 +335,7 @@ jobs:
     name: Verify remote standard and Full release assets
     needs: publish-full-assets
     if: ${{ inputs.include_full_package }}
-    runs-on: macos-14
+    runs-on: macos-latest
 
     steps:
       - name: Checkout App repo
@@ -451,7 +451,7 @@ jobs:
     name: Run one-shot App installer smoke
     needs: publish-standard
     if: ${{ inputs.run_vm_smoke }}
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 45
 
     steps:

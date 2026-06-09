@@ -26,7 +26,7 @@ env:
 jobs:
   verify-remote-release:
     name: Verify remote GitHub Release assets
-    runs-on: macos-14
+    runs-on: macos-latest
 
     steps:
       - name: Checkout App repo

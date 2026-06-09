@@ -54,7 +54,7 @@ jobs:
     with:
       matrix: >-
         {"include":[
-          {"platform":"macos-arm64","os":"macos-14","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"macos-build-arm64","arch":"arm64"}
+          {"platform":"macos-arm64","os":"macos-latest","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"macos-build-arm64","arch":"arm64"}
         ]}
       skip_code_quality: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_code_quality || false }}
       opl_release_version: ${{ needs.resolve-nightly.outputs.version }}
@@ -63,7 +63,7 @@ jobs:
 
   publish-nightly:
     name: Publish standard Nightly prerelease
-    runs-on: macos-14
+    runs-on: macos-latest
     needs:
       - resolve-nightly
       - standard-build
@@ -154,7 +154,7 @@ jobs:
             --clobber
 
       - name: Upload Nightly release-note evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-notes-evidence-${{ needs.resolve-nightly.outputs.version }}
           path: ${{ runner.temp }}/opl-nightly-notes-evidence.json
