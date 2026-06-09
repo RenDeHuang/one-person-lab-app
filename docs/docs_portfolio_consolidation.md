@@ -54,7 +54,7 @@ Future coverage belongs in the narrowest owner:
 | --- | --- |
 | Durable App product or release rule | Core docs, active gap plan, App contracts, source, tests, or release validation docs |
 | Release proof, remote checks, VM smoke, packaged route receipts | Release artifacts, evidence manifests, CI logs, or release history/provenance |
-| Candidate shell smoke or adoption evidence | Candidate manifests, shell artifacts, validation scripts, focused tests, or candidate history/provenance |
+| Candidate shell technical smoke, adoption gate, or replacement decision | Candidate manifests, shell artifacts, validation scripts, focused tests, or candidate history/provenance; default-shell replacement requires `contracts/app-shell-adapter.json` and release gates |
 | Docs lifecycle tranche closeout | `docs/history/process/README.md` as a compressed theme row, not a dated proof ledger |
 | Testing-doc release evidence guidance | `docs/testing/README.md` for command entry and evidence classification only; release cohort policy stays in `docs/release/README.md`, `contracts/app-release-channel.json`, workflows, validators and release-boundary tests |
 

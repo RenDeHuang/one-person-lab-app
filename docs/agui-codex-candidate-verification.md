@@ -30,6 +30,25 @@ State-model validation 也是 App-owned gate material。候选 shell 必须运�
 `opl app state --profile fast --json` 的 OPL Framework active project line
 projection，而不拥有 runtime truth、domain truth 或 readiness verdict。
 
+## SSOT 分工
+
+本文只拥有候选 shell 的人读验证 runbook：边界、命令顺序、最低验收和
+evidence lifecycle。候选 registry、adoption gate、forbidden entry routes 和
+reference implementation 清单的机器 SSOT 是
+`contracts/app-shell-candidates.json`；显式 adapter 选择和 candidate shell root
+的机器 SSOT 是 `contracts/shell-adapters/agui-codex.json`；默认 stable/nightly
+release shell 的机器 SSOT 是 `contracts/app-shell-adapter.json`。
+
+因此，candidate package、source/WebUI/package smoke、state-model validation 或
+candidate manifest 只能证明 technical verification。它们不能把 `agui-codex`
+提升为默认 release shell，不能改变 App product truth，也不能证明 App release
+ready、domain ready、family production ready、clean-VM ready、Full release ready
+或 active-shell adopted。若要采纳为默认 release shell，先改
+`contracts/app-shell-adapter.json` 并通过 App-owned product contracts、
+page-state / first-run matrices、active-shell validation、GUI package compile、
+release isolation 和外部 checkout history policy；不要通过追加本文执行日志、
+候选 smoke 摘要或设计说明来表达采纳。
+
 ## 分层
 
 用户可见产品目标是 Codex App-like OPL chat surface：
