@@ -106,7 +106,7 @@ jobs:
         if: ${{ steps.tap-token.outputs.available == 'true' }}
         uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Resolve GitHub Release asset inputs
         if: ${{ steps.tap-token.outputs.available == 'true' }}
