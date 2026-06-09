@@ -11,12 +11,12 @@
 <p align="center"><strong>面向复杂知识工作的 chat-first 桌面 AI 应用</strong></p>
 <p align="center">从一个应用进入研究、基金、汇报和通用任务，查看进度、继续长任务、检查交付物</p>
 
-Owner: `one-person-lab-app`<br>
-Purpose: `public_app_entry_zh_cn`<br>
-State: `active_public_entry`<br>
-Machine boundary: 人读产品入口。机器真相在 `contracts/`、源码、release
-artifacts、updater metadata、validation outputs，以及 App 消费的 OPL
-Framework/domain projections。
+<!--
+Owner: `one-person-lab-app`
+Purpose: `public_app_entry_zh_cn`
+State: `active_public_entry`
+Machine boundary: 人读产品入口。机器真相在 `contracts/`、源码、release artifacts、updater metadata、validation outputs，以及 App 消费的 OPL Framework/domain projections。
+-->
 
 <p align="center">
   <img src="assets/branding/opl-app-product-map.png" alt="One Person Lab App 产品打包关系图" width="100%" />
