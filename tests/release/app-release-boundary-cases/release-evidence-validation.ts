@@ -13,6 +13,8 @@ import {
   writeAssistantRouteSmokeScreenshots,
   writeRuntimeEvidenceJsonFiles,
   writeVmSmokeSummaryFiles,
+  releaseEvidenceCohort,
+  writeRemoteReleaseVerificationSummary,
 } from './helpers.ts';
 
 test('release evidence bundle validator accepts the declared Runtime page artifact set', () => {
@@ -26,6 +28,8 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
     purpose: 'app_release_evidence_bundle',
     status: 'passed',
     packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
     acceptance_path: 'Runtime page',
     runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
     refs_only: true,
@@ -37,7 +41,7 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
   writeRuntimeEvidenceJsonFiles(tempRoot);
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeRemoteReleaseVerificationSummary(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
@@ -55,6 +59,10 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
   assert.equal(payload.bundle_dir, tempRoot);
   assert.equal(payload.manifest_path, 'evidence-manifest.json');
   assert.equal(payload.packaged_app_evidence, true);
+  assert.deepEqual(payload.release_cohort, releaseEvidenceCohort());
+  assert.equal(payload.current_cohort_evidence, true);
+  assert.deepEqual(payload.l5_evidence_readout.release_cohort, releaseEvidenceCohort());
+  assert.equal(payload.l5_evidence_readout.current_cohort_evidence, true);
   assert.equal(
     payload.evidence_boundary,
     'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
@@ -96,6 +104,8 @@ test('release evidence bundle validator rejects Codex functional checks without 
     purpose: 'app_release_evidence_bundle',
     status: 'passed',
     packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
     acceptance_path: 'Runtime page',
     runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
     refs_only: true,
@@ -119,7 +129,7 @@ test('release evidence bundle validator rejects Codex functional checks without 
       },
     })}\n`,
   );
-  writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeRemoteReleaseVerificationSummary(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
@@ -146,6 +156,8 @@ test('release evidence bundle validator accepts optional Codex AI self-check dia
     purpose: 'app_release_evidence_bundle',
     status: 'passed',
     packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
     acceptance_path: 'Runtime page',
     runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
     refs_only: true,
@@ -158,7 +170,7 @@ test('release evidence bundle validator accepts optional Codex AI self-check dia
   writeRuntimeEvidenceJsonFiles(tempRoot);
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeRemoteReleaseVerificationSummary(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
@@ -316,7 +328,7 @@ test('release evidence bundle validator classifies typed blockers and not-applic
   }, null, 2)}\n`);
   writeRuntimeEvidenceJsonFiles(tempRoot);
   writeVmSmokeSummaryFiles(tempRoot);
-  writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeRemoteReleaseVerificationSummary(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
@@ -563,6 +575,8 @@ test('release evidence bundle validator rejects contract-only runtime JSON place
     purpose: 'app_release_evidence_bundle',
     status: 'passed',
     packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
     acceptance_path: 'Runtime page',
     runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
     refs_only: true,
@@ -601,6 +615,86 @@ test('release evidence bundle validator rejects contract-only runtime JSON place
   assert.match(result.stderr, /app_state_summary\.app_state/);
 });
 
+test('release evidence bundle validator requires known release cohort before packaged evidence', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-missing-cohort-'));
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'passed',
+    packaged_app_evidence: true,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts: releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => ({
+      ...artifact,
+      status: 'present',
+    })),
+    missing_evidence: [],
+    blocked_evidence: [],
+  }, null, 2)}\n`);
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeVmSmokeSummaryFiles(tempRoot);
+  writeAssistantRouteSmokeScreenshots(tempRoot);
+  writeRemoteReleaseVerificationSummary(tempRoot);
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+
+  const result = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /release_cohort is required for packaged App evidence/);
+});
+
+test('release evidence bundle validator rejects remote verification from a different release cohort', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-cohort-mismatch-'));
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'passed',
+    packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort('26.6.5'),
+    current_cohort_evidence: true,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts: releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => ({
+      ...artifact,
+      status: 'present',
+    })),
+    missing_evidence: [],
+    blocked_evidence: [],
+  }, null, 2)}\n`);
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeVmSmokeSummaryFiles(tempRoot);
+  writeAssistantRouteSmokeScreenshots(tempRoot);
+  writeRemoteReleaseVerificationSummary(tempRoot, '26.6.4');
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+
+  const result = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /release cohort mismatch/);
+});
+
 test('release evidence bundle validator rejects undersized WebP screenshot evidence', () => {
   const tempAppRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-webp-contract-'));
   const tempRoot = path.join(tempAppRoot, 'release-evidence');
@@ -613,6 +707,7 @@ test('release evidence bundle validator rejects undersized WebP screenshot evide
   fs.mkdirSync(path.dirname(tempScriptPath), { recursive: true });
   fs.copyFileSync(path.join(appRoot, 'scripts', 'validate-release-evidence-bundle.ts'), tempScriptPath);
   fs.copyFileSync(path.join(appRoot, 'scripts', 'app-release-l5-readout.ts'), tempReadoutScriptPath);
+  fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-cohort.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-cohort.ts'));
   releaseContract.operator_evidence_bundle.required_artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => (
     artifact.id === 'runtime_screenshot'
       ? { ...artifact, path: 'screenshots/runtime.webp', status: 'present' }
@@ -625,6 +720,8 @@ test('release evidence bundle validator rejects undersized WebP screenshot evide
     purpose: 'app_release_evidence_bundle',
     status: 'passed',
     packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
     acceptance_path: 'Runtime page',
     runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
     refs_only: true,
@@ -636,7 +733,7 @@ test('release evidence bundle validator rejects undersized WebP screenshot evide
   writeRuntimeEvidenceJsonFiles(tempRoot);
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeFile(path.join(tempRoot, 'remote-release-verification.json'), '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n');
+  writeRemoteReleaseVerificationSummary(tempRoot);
   writeWebpVp8x(path.join(tempRoot, 'screenshots', 'runtime.webp'), 1, 1);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
@@ -668,6 +765,7 @@ test('release evidence bundle validator rejects image policy without image scope
   fs.mkdirSync(path.dirname(tempScriptPath), { recursive: true });
   fs.copyFileSync(path.join(appRoot, 'scripts', 'validate-release-evidence-bundle.ts'), tempScriptPath);
   fs.copyFileSync(path.join(appRoot, 'scripts', 'app-release-l5-readout.ts'), tempReadoutScriptPath);
+  fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-cohort.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-cohort.ts'));
   releaseContract.operator_evidence_bundle.image_evidence_policy.applies_to_kind = 'json';
   writeFile(tempContractPath, `${JSON.stringify(releaseContract, null, 2)}\n`);
   writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({

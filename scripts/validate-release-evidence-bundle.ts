@@ -7,6 +7,12 @@ import {
   buildAppReleaseL5EvidenceReadout,
   validateAppReleaseL5ReadoutContract,
 } from './app-release-l5-readout.ts';
+import {
+  assertRemoteReleaseCohortMatches,
+  normalizeReleaseEvidenceCohort,
+  unknownReleaseEvidenceCohort,
+} from './release-evidence-cohort.ts';
+import type { ReleaseEvidenceCohort, UnknownReleaseEvidenceCohort } from './release-evidence-cohort.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContractPath = path.join(appRoot, 'contracts', 'app-release-channel.json');
@@ -49,6 +55,8 @@ type TypedBlockerPolicy = {
   pathPattern: string;
   requiredFields: string[];
 };
+
+type KnownOrUnknownReleaseCohort = ReleaseEvidenceCohort | UnknownReleaseEvidenceCohort;
 
 function parseArgs(argv: string[]): Options {
   const parsed = {
@@ -345,7 +353,11 @@ function validateCodexFunctionalCheckSummary(record: Record<string, unknown>) {
   }
 }
 
-function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown) {
+function validateJsonEvidenceShape(
+  artifact: EvidenceArtifact,
+  payload: unknown,
+  releaseCohort: KnownOrUnknownReleaseCohort,
+) {
   const record = asRecord(payload, artifact.id);
   if (artifact.id === 'app_state_summary' || artifact.id === 'app_state_full') {
     const appState = asRecord(record.app_state, `${artifact.id}.app_state`);
@@ -436,6 +448,9 @@ function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown)
     if (record.status !== 'passed') {
       throw new Error('remote_release_verification must be a passed remote release verification summary.');
     }
+    if (releaseCohort.current_cohort_evidence === true) {
+      assertRemoteReleaseCohortMatches(releaseCohort, record);
+    }
     if (record.include_full_package !== true) {
       throw new Error('remote_release_verification must include the Full first-install package check.');
     }
@@ -448,6 +463,41 @@ function validateJsonEvidenceShape(artifact: EvidenceArtifact, payload: unknown)
   }
 }
 
+function validateManifestReleaseCohort(
+  manifest: Record<string, unknown>,
+  options: { requireKnown: boolean },
+): KnownOrUnknownReleaseCohort {
+  if (manifest.release_cohort === undefined) {
+    if (options.requireKnown) {
+      throw new Error('Evidence manifest release_cohort is required for packaged App evidence.');
+    }
+    return unknownReleaseEvidenceCohort('release_cohort was not declared in this partial evidence bundle');
+  }
+  const record = asRecord(manifest.release_cohort, 'evidence manifest release_cohort');
+  let cohort: KnownOrUnknownReleaseCohort;
+  if (record.status === 'unknown') {
+    if (record.schema !== 'opl_app_release_evidence_cohort.v1') {
+      throw new Error('release_cohort.schema must be opl_app_release_evidence_cohort.v1.');
+    }
+    if (record.current_cohort_evidence !== false) {
+      throw new Error('unknown release_cohort must set current_cohort_evidence=false.');
+    }
+    if (typeof record.reason !== 'string' || !record.reason.trim()) {
+      throw new Error('unknown release_cohort must include reason.');
+    }
+    cohort = unknownReleaseEvidenceCohort(record.reason);
+  } else {
+    cohort = normalizeReleaseEvidenceCohort(record, 'evidence manifest release_cohort');
+  }
+  if (manifest.current_cohort_evidence !== undefined && manifest.current_cohort_evidence !== cohort.current_cohort_evidence) {
+    throw new Error('Evidence manifest current_cohort_evidence must match release_cohort.current_cohort_evidence.');
+  }
+  if (options.requireKnown && cohort.current_cohort_evidence !== true) {
+    throw new Error('Evidence manifest must declare a known current release_cohort before claiming packaged App evidence.');
+  }
+  return cohort;
+}
+
 function validateContractBoundary(bundle: unknown): EvidenceContract {
   const record = bundle as {
     purpose?: unknown;
@@ -457,6 +507,7 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
     required_artifacts?: unknown;
     optional_diagnostic_artifacts?: unknown;
     forbidden_authority?: unknown;
+    release_cohort?: Record<string, unknown>;
     missing_evidence_policy?: Record<string, unknown>;
     image_evidence_policy?: ImageEvidencePolicy;
   };
@@ -471,6 +522,26 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   }
   if (record.refs_only !== true) {
     throw new Error('Operator evidence bundle must be refs-only.');
+  }
+  if (record.release_cohort?.schema !== 'opl_app_release_evidence_cohort_contract.v1') {
+    throw new Error('Operator evidence bundle must declare release_cohort contract.');
+  }
+  if (record.release_cohort?.packaged_app_evidence_requires_current_cohort !== true) {
+    throw new Error('Operator evidence bundle must require current release cohort before packaged App evidence.');
+  }
+  const cohortFields = record.release_cohort?.required_manifest_fields;
+  if (
+    !Array.isArray(cohortFields) ||
+    !['version', 'tag', 'channel', 'source', 'current_cohort_evidence'].every((field) => cohortFields.includes(field))
+  ) {
+    throw new Error('Operator evidence bundle release_cohort contract must require version, tag, channel, source, and current_cohort_evidence.');
+  }
+  const sameCohortChecks = record.release_cohort?.same_cohort_checks;
+  if (
+    !Array.isArray(sameCohortChecks) ||
+    !sameCohortChecks.includes('remote_release_verification.version_tag_match')
+  ) {
+    throw new Error('Operator evidence bundle release_cohort contract must require remote release version/tag matching.');
   }
   if (record.missing_evidence_policy?.default_validation !== 'fail_closed') {
     throw new Error('Operator evidence bundle missing evidence policy must fail closed by default.');
@@ -814,6 +885,9 @@ function validateBundle(bundleDir: string, options: Options) {
   const deferredPresent: ManifestArtifact[] = [];
   const allArtifactStates: ManifestArtifact[] = [];
   let blockedEvidence: ReturnType<typeof validateBlockedEvidenceList> = [];
+  const releaseCohort = validateManifestReleaseCohort(manifest, {
+    requireKnown: manifest.status === 'passed' || manifest.packaged_app_evidence === true,
+  });
 
   for (const expected of contract.artifacts) {
     const entry = manifestArtifacts.get(expected.id);
@@ -837,7 +911,7 @@ function validateBundle(bundleDir: string, options: Options) {
 
     const filePath = resolveBundlePath(bundleDir, artifact.path);
     if (artifact.kind === 'json') {
-      validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id));
+      validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id), releaseCohort);
     } else if (artifact.kind === 'image') {
       assertImageFile(filePath, artifact.id, contract.imageEvidencePolicy);
     } else if (artifact.kind === 'log') {
@@ -856,7 +930,7 @@ function validateBundle(bundleDir: string, options: Options) {
     const artifact = validateDiagnosticArtifact(entry, expected);
     const filePath = resolveBundlePath(bundleDir, artifact.path);
     if (artifact.kind === 'json') {
-      validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id));
+      validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id), releaseCohort);
     } else if (artifact.kind === 'image') {
       assertImageFile(filePath, artifact.id, contract.imageEvidencePolicy);
     } else if (artifact.kind === 'log') {
@@ -888,7 +962,7 @@ function validateBundle(bundleDir: string, options: Options) {
     for (const artifact of deferredPresent) {
       const filePath = resolveBundlePath(bundleDir, artifact.path);
       if (artifact.kind === 'json') {
-        validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id));
+        validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id), releaseCohort);
       } else if (artifact.kind === 'image') {
         assertImageFile(filePath, artifact.id, contract.imageEvidencePolicy);
       } else if (artifact.kind === 'log') {
@@ -921,6 +995,7 @@ function validateBundle(bundleDir: string, options: Options) {
   const l5EvidenceReadout = buildAppReleaseL5EvidenceReadout({
     contract: contract.l5ReadoutContract,
     artifacts: artifactStates,
+    releaseCohort,
   });
 
   return {
@@ -929,6 +1004,8 @@ function validateBundle(bundleDir: string, options: Options) {
     bundle_dir: bundleDir,
     manifest_path: contract.manifestPath,
     packaged_app_evidence: missing.length === 0 && blocked.length === 0,
+    release_cohort: releaseCohort,
+    current_cohort_evidence: releaseCohort.current_cohort_evidence === true,
     evidence_boundary: evidenceBoundary,
     authority_boundary: evidenceBoundary,
     forbidden_authority: [

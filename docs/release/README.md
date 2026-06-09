@@ -406,7 +406,7 @@ local authorization policy asset before updating a cask.
 Stable macOS standard updater builds do not require paid Apple Developer ID
 signing or notarization. The standard build workflow publishes
 `standard-local-authorization-policy.json`, and remote verification runs on
-`macos-14` so the published ZIP can be checked for the expected App bundle,
+`macos-latest` so the published ZIP can be checked for the expected App bundle,
 version, hashes, and local authorization diagnostics. Full first-install and
 manual local authorization use the same trust model: they remove or verify
 absent quarantine on the copied App path, record `codesign` and `spctl`

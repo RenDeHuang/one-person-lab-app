@@ -41,7 +41,7 @@
       "team_identifier_required": false,
       "local_authorization_policy_asset": "standard-local-authorization-policy.json",
       "replacement_mode": "app_managed_local_authorized_replace",
-      "verification": "npm run verify-remote-release on macos-14 downloads the published ZIP, extracts One Person Lab.app, verifies the bundle version, records codesign/spctl/signature diagnostics, and accepts ad-hoc or unsigned bundles only when standard-local-authorization-policy.json declares Stable local authorization with quarantine removal required",
+      "verification": "npm run verify-remote-release on macos-latest downloads the published ZIP, extracts One Person Lab.app, verifies the bundle version, records codesign/spctl/signature diagnostics, and accepts ad-hoc or unsigned bundles only when standard-local-authorization-policy.json declares Stable local authorization with quarantine removal required",
       "rule": "standard updater replacement is App-managed local authorization: the updater ZIP must contain the expected One Person Lab.app bundle, and release evidence must include the standard local authorization policy rather than requiring paid Apple Developer ID signing"
     },
     "rule": "standard updater metadata must never point to Full first-install assets, and standard updater ZIP assets must contain the expected One Person Lab.app bundle plus local authorization evidence",
@@ -720,6 +720,22 @@
     "acceptance_path": "Runtime page",
     "runtime_page_contract": "contracts/app-page-state-matrix.json#runtime",
     "refs_only": true,
+    "release_cohort": {
+      "schema": "opl_app_release_evidence_cohort_contract.v1",
+      "required_manifest_fields": [
+        "version",
+        "tag",
+        "channel",
+        "source",
+        "current_cohort_evidence"
+      ],
+      "same_cohort_checks": [
+        "remote_release_verification.version_tag_match"
+      ],
+      "packaged_app_evidence_requires_current_cohort": true,
+      "unknown_allowed_only_for_incomplete_or_blocked_readout": true,
+      "rule": "A release evidence bundle can support packaged App evidence only when every artifact belongs to the same App release cohort. Partial readouts may preserve an unknown cohort, but passed bundles must declare release_cohort and the remote verification artifact must match its version/tag."
+    },
     "missing_evidence_policy": {
       "default_validation": "fail_closed",
       "allow_missing_evidence_flag": "--allow-missing-evidence",

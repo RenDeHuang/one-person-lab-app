@@ -193,8 +193,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /if \[ "\$RELEASE_MODE" = "new_release" \] \|\| \[ "\$RELEASE_MODE" = "draft_candidate" \]; then[\s\S]*publish_args\+=\(--draft\)/);
   assert.match(workflow, /remote-verify-standard:/);
   assert.match(workflow, /remote-verify-full:/);
-  assert.match(workflowJobBlock(workflow, 'remote-verify-standard'), /runs-on: macos-14/);
-  assert.match(workflowJobBlock(workflow, 'remote-verify-full'), /runs-on: macos-14/);
+  assert.match(workflowJobBlock(workflow, 'remote-verify-standard'), /runs-on: macos-latest/);
+  assert.match(workflowJobBlock(workflow, 'remote-verify-full'), /runs-on: macos-latest/);
   assert.match(workflow, /npm run verify-remote-release/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
@@ -497,7 +497,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
   assert.match(workflow, /opl_release_version: \$\{\{ needs\.resolve-nightly\.outputs\.version \}\}/);
   assert.match(workflowJobBlock(workflow, 'standard-build'), /require_macos_gatekeeper:\s+false/);
-  assert.match(workflowJobBlock(workflow, 'publish-nightly'), /runs-on: macos-14/);
+  assert.match(workflowJobBlock(workflow, 'publish-nightly'), /runs-on: macos-latest/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/generate-release-notes\.ts[\s\S]*--channel nightly/);
@@ -733,7 +733,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   );
 
   assert.match(verifyWorkflow, /name: OPL Remote Release Verification/);
-  assert.match(verifyWorkflow, /runs-on: macos-14/);
+  assert.match(verifyWorkflow, /runs-on: macos-latest/);
   assert.match(verifyWorkflow, /npm run verify-remote-release/);
   assert.match(verifyWorkflow, /--summary-path remote-release-verification\.json/);
   assert.match(verifyWorkflow, /verify_args\+=\(--include-full-package\)/);
@@ -749,7 +749,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.doesNotMatch(warmupWorkflow, /secrets: inherit/);
 
   assert.match(promoteWorkflow, /name: OPL Desktop Release Promote/);
-  assert.match(promoteWorkflow, /runs-on: macos-14/);
+  assert.match(promoteWorkflow, /runs-on: macos-latest/);
   assert.match(promoteWorkflow, /release_run_id:/);
   assert.match(promoteWorkflow, /Download release candidate record/);
   assert.match(promoteWorkflow, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);

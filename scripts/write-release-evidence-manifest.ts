@@ -7,6 +7,11 @@ import {
   buildAppReleaseL5EvidenceReadout,
   validateAppReleaseL5ReadoutContract,
 } from './app-release-l5-readout.ts';
+import {
+  buildReleaseEvidenceCohort,
+  releaseCohortFromRemoteVerification,
+  unknownReleaseEvidenceCohort,
+} from './release-evidence-cohort.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContractPath = path.join(appRoot, 'contracts', 'app-release-channel.json');
@@ -16,6 +21,8 @@ function parseArgs(argv) {
   const parsed = {
     bundleDir: process.env.OPL_RELEASE_EVIDENCE_BUNDLE_DIR || '',
     classificationPath: process.env.OPL_RELEASE_EVIDENCE_CLASSIFICATION || '',
+    version: process.env.OPL_RELEASE_VERSION || '',
+    tag: process.env.OPL_RELEASE_TAG || '',
     overwrite: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -41,6 +48,22 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (token === '--version') {
+      if (!value || value.startsWith('--')) {
+        throw new Error('Missing value for --version');
+      }
+      parsed.version = value;
+      index += 1;
+      continue;
+    }
+    if (token === '--tag') {
+      if (!value || value.startsWith('--')) {
+        throw new Error('Missing value for --tag');
+      }
+      parsed.tag = value;
+      index += 1;
+      continue;
+    }
     throw new Error(`Unknown argument: ${token}`);
   }
   if (!parsed.bundleDir.trim()) {
@@ -51,6 +74,8 @@ function parseArgs(argv) {
     classificationPath: parsed.classificationPath.trim()
       ? path.resolve(parsed.classificationPath)
       : '',
+    version: parsed.version.trim(),
+    tag: parsed.tag.trim(),
     overwrite: parsed.overwrite,
   };
 }
@@ -166,6 +191,27 @@ function readTypedBlocker(bundleDir, artifact) {
   };
 }
 
+function inferReleaseCohort(bundleDir, options) {
+  if (options.version) {
+    return buildReleaseEvidenceCohort({
+      version: options.version,
+      tag: options.tag,
+      source: 'write-release-evidence-manifest',
+    });
+  }
+  const remoteVerificationPath = resolveBundlePath(bundleDir, 'remote-release-verification.json');
+  if (fs.existsSync(remoteVerificationPath)) {
+    const remoteCohort = releaseCohortFromRemoteVerification(
+      readJson(remoteVerificationPath),
+      'remote_release_verification',
+    );
+    if (remoteCohort) {
+      return remoteCohort;
+    }
+  }
+  return unknownReleaseEvidenceCohort('release version was not provided and remote release verification has no version/tag yet');
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const releaseContract = readJson(releaseContractPath);
@@ -266,9 +312,12 @@ function main() {
       source_kind: artifact.source_kind,
       status: 'present',
     }));
+  const releaseCohort = inferReleaseCohort(options.bundleDir, options);
   const manifest = {
     schema_version: 1,
     purpose: 'app_release_evidence_bundle',
+    release_cohort: releaseCohort,
+    current_cohort_evidence: releaseCohort.current_cohort_evidence === true,
     status: blockedEvidence.length > 0 ? 'blocked_evidence' : missingEvidence.length > 0 ? 'missing_evidence' : 'passed',
     packaged_app_evidence: missingEvidence.length === 0 && blockedEvidence.length === 0,
     acceptance_path: bundle.acceptance_path,
@@ -282,6 +331,7 @@ function main() {
     l5_evidence_readout: buildAppReleaseL5EvidenceReadout({
       contract: bundle.l5_evidence_readout,
       artifacts,
+      releaseCohort,
     }),
   };
 
@@ -291,6 +341,8 @@ function main() {
     bundle_dir: options.bundleDir,
     manifest_path: path.relative(options.bundleDir, manifestPath),
     packaged_app_evidence: manifest.packaged_app_evidence,
+    release_cohort: manifest.release_cohort,
+    current_cohort_evidence: manifest.current_cohort_evidence,
     blocked_artifact_count: blockedEvidence.length,
     blocked_artifacts: blockedEvidence,
     missing_artifact_count: missingEvidence.length,

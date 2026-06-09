@@ -254,13 +254,13 @@ test('manual build workflow keeps cross-platform builds behind an explicit switc
   assert.match(reusableWorkflow, /shells\/aionui\/out\/\*\.deb/);
 });
 
-test('desktop release publish job runs TypeScript asset scripts under Node 22', () => {
+test('desktop release publish job runs TypeScript asset scripts under Node 24', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const publishStandard = workflowJobBlock(workflow, 'publish-standard');
 
   assert.match(
     publishStandard,
-    /name: Checkout active shell[\s\S]*repository: gaofeng21cn\/opl-aion-shell[\s\S]*path: shells\/aionui[\s\S]*name: Setup Node\.js[\s\S]*uses: actions\/setup-node@v6[\s\S]*node-version: '22'[\s\S]*node --experimental-strip-types scripts\/prepare-release-assets\.ts/,
+    /name: Checkout active shell[\s\S]*repository: gaofeng21cn\/opl-aion-shell[\s\S]*path: shells\/aionui[\s\S]*name: Setup Node\.js[\s\S]*uses: actions\/setup-node@v6[\s\S]*node-version: '24'[\s\S]*node --experimental-strip-types scripts\/prepare-release-assets\.ts/,
   );
 });
 

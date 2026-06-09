@@ -597,6 +597,39 @@ export function writeTypedBlockerFile(tempRoot, artifactId, fields = {}) {
   );
 }
 
+export function releaseEvidenceCohort(version = '26.6.5') {
+  return {
+    schema: 'opl_app_release_evidence_cohort.v1',
+    version,
+    tag: `v${version}`,
+    channel: /nightly/i.test(version) ? 'nightly' : 'stable',
+    source: 'test_fixture',
+    current_cohort_evidence: true,
+  };
+}
+
+export function remoteReleaseVerificationSummary(version = '26.6.5', fields = {}) {
+  return {
+    status: 'passed',
+    repo: 'gaofeng21cn/one-person-lab-app',
+    tag: `v${version}`,
+    version,
+    include_full_package: true,
+    verified_asset_count: 10,
+    full_first_install_budget: {
+      status: 'passed',
+    },
+    ...fields,
+  };
+}
+
+export function writeRemoteReleaseVerificationSummary(tempRoot, version = '26.6.5', fields = {}) {
+  writeFile(
+    path.join(tempRoot, 'remote-release-verification.json'),
+    `${JSON.stringify(remoteReleaseVerificationSummary(version, fields))}\n`,
+  );
+}
+
 export function writeReleaseMetadata(outDir, version, assetName) {
   writeFile(path.join(outDir, 'latest-mac.yml'), [
     `version: ${version}`,

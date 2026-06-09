@@ -294,7 +294,11 @@ Release and user-path evidence remains cohort-bound App evidence. Verified
 release bundle refs, screenshots, remote asset checks, or packaged route smoke
 can support release-owner review for the same App cohort, but they do not
 promote stable/latest by themselves and do not prove domain readiness or OPL
-family production readiness.
+family production readiness. The evidence manifest now carries
+`release_cohort` and `current_cohort_evidence`: complete packaged App evidence
+must name the App release version/tag/channel and the remote release
+verification artifact must match that cohort. Partial, missing, or blocked
+readouts may preserve an unknown cohort only as a gap signal.
 
 The release evidence bundle and readiness summary now emit
 `l5_evidence_readout` as a machine-readable App release/user-path input for the

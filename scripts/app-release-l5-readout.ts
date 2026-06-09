@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import type { ReleaseEvidenceCohort, UnknownReleaseEvidenceCohort } from './release-evidence-cohort.ts';
 
 type RefShape = string;
 
@@ -50,6 +51,7 @@ type BuildOptions = {
   artifacts?: ArtifactState[];
   gates?: Record<string, GateState>;
   upstreamReadout?: Record<string, unknown> | null;
+  releaseCohort?: ReleaseEvidenceCohort | UnknownReleaseEvidenceCohort;
 };
 
 function asRecord(value: unknown, label: string): Record<string, unknown> {
@@ -249,6 +251,8 @@ export function buildAppReleaseL5EvidenceReadout(options: BuildOptions) {
     ordinary_cockpit_excluded: contract.ordinary_cockpit_excluded,
     ordinary_cockpit_policy_ref: contract.ordinary_cockpit_policy_ref,
     forbidden_default_surfaces: contract.forbidden_default_surfaces,
+    release_cohort: options.releaseCohort,
+    current_cohort_evidence: options.releaseCohort?.current_cohort_evidence === true,
     failed_required_gate_ids: failedRequiredGateIds,
     accepted_ref_shapes_by_class: Object.fromEntries(
       contract.evidence_classes.map((entry) => [entry.class_id, entry.accepted_ref_shapes]),

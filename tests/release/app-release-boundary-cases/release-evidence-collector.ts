@@ -13,6 +13,8 @@ import {
   writeCollectorFakeOpl,
   writeVmSmokeSummaryFiles,
   writeTypedBlockerFile,
+  releaseEvidenceCohort,
+  writeRemoteReleaseVerificationSummary,
   fileSha256,
 } from './helpers.ts';
 
@@ -280,10 +282,7 @@ process.exit(2);
   writeScreenshotPng(path.join(externalEvidence, 'action.png'));
   writeVmSmokeSummaryFiles(externalEvidence);
   writeAssistantRouteSmokeScreenshots(externalEvidence);
-  writeFile(
-    path.join(externalEvidence, 'remote-release-verification.json'),
-    '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n',
-  );
+  writeRemoteReleaseVerificationSummary(externalEvidence);
 
   const collected = runNode([
     'scripts/collect-release-evidence.ts',
@@ -293,6 +292,8 @@ process.exit(2);
     'provider-scheduler:temporal:trigger',
     '--overwrite',
     '--execute-action',
+    '--version',
+    '26.6.5',
     '--artifact',
     `runtime_screenshot=${path.join(externalEvidence, 'runtime.png')}`,
     '--artifact',
@@ -325,6 +326,11 @@ process.exit(2);
   const payload = JSON.parse(collected.stdout);
   assert.equal(payload.status, 'passed');
   assert.equal(payload.packaged_app_evidence, true);
+  assert.deepEqual(payload.release_cohort, {
+    ...releaseEvidenceCohort(),
+    source: 'write-release-evidence-manifest',
+  });
+  assert.equal(payload.current_cohort_evidence, true);
   assert.equal(payload.missing_artifact_count, 0);
   assert.deepEqual(payload.attached_artifacts, [
     'runtime_screenshot',
@@ -368,10 +374,7 @@ test('release evidence collector imports standard smoke source directories witho
   writeScreenshotPng(path.join(sourceDir, 'first-run-beginner.png'));
   writeScreenshotPng(path.join(sourceDir, 'action.png'));
   writeScreenshotPng(path.join(sourceDir, 'settings-pages', 'runtime.png'), 1, 1);
-  writeFile(
-    path.join(sourceDir, 'remote-release-verification.json'),
-    '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n',
-  );
+  writeRemoteReleaseVerificationSummary(sourceDir);
   writeScreenshotPng(path.join(overrideEvidence, 'runtime.png'));
 
   const collected = runNode([
@@ -382,6 +385,8 @@ test('release evidence collector imports standard smoke source directories witho
     'provider-scheduler:temporal:trigger',
     '--overwrite',
     '--execute-action',
+    '--version',
+    '26.6.5',
     '--evidence-source-dir',
     sourceDir,
     '--artifact',
@@ -394,6 +399,11 @@ test('release evidence collector imports standard smoke source directories witho
   const payload = JSON.parse(collected.stdout);
   assert.equal(payload.status, 'passed');
   assert.equal(payload.packaged_app_evidence, true);
+  assert.deepEqual(payload.release_cohort, {
+    ...releaseEvidenceCohort(),
+    source: 'write-release-evidence-manifest',
+  });
+  assert.equal(payload.current_cohort_evidence, true);
   assert.equal(payload.missing_artifact_count, 0);
   assert.deepEqual(payload.attached_artifacts, [
     'runtime_screenshot',
@@ -441,10 +451,7 @@ test('release evidence collector imports typed blockers as blocked evidence', ()
   writeScreenshotPng(path.join(sourceDir, 'action.png'));
   writeVmSmokeSummaryFiles(sourceDir);
   writeAssistantRouteSmokeScreenshots(sourceDir);
-  writeFile(
-    path.join(sourceDir, 'remote-release-verification.json'),
-    '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n',
-  );
+  writeRemoteReleaseVerificationSummary(sourceDir);
   fs.rmSync(path.join(sourceDir, 'tart-smoke-summary.json'), { force: true });
   writeTypedBlockerFile(blockerRoot, 'first_run_vm_summary', {
     typed_blocker_ref: 'typed_blocker_ref://one-person-lab-app/test/collector-first-run-vm-summary',
@@ -513,10 +520,7 @@ test('release evidence bundle validator rejects non-canonical typed blocker path
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
-  writeFile(
-    path.join(tempRoot, 'remote-release-verification.json'),
-    '{"status":"passed","include_full_package":true,"verified_asset_count":10,"full_first_install_budget":{"status":"passed"}}\n',
-  );
+  writeRemoteReleaseVerificationSummary(tempRoot);
   fs.rmSync(path.join(tempRoot, 'tart-smoke-summary.json'), { force: true });
   writeTypedBlockerFile(tempRoot, 'first_run_vm_summary');
 

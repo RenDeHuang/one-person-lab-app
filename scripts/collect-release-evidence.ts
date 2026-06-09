@@ -11,6 +11,8 @@ const commandMaxBuffer = 128 * 1024 * 1024;
 type Options = {
   bundleDir: string;
   actionId: string;
+  version: string;
+  tag: string;
   artifacts: Record<string, string>;
   evidenceSourceDirs: string[];
   typedBlockers: Record<string, string>;
@@ -40,6 +42,8 @@ function parseArgs(argv: string[]): Options {
   const parsed: Options = {
     bundleDir: process.env.OPL_RELEASE_EVIDENCE_BUNDLE_DIR || '',
       actionId: process.env.OPL_RELEASE_EVIDENCE_ACTION_ID || '',
+      version: process.env.OPL_RELEASE_VERSION || '',
+      tag: process.env.OPL_RELEASE_TAG || '',
       artifacts: {},
       evidenceSourceDirs: [],
       typedBlockers: {},
@@ -72,6 +76,22 @@ function parseArgs(argv: string[]): Options {
         throw new Error('Missing value for --action-id');
       }
       parsed.actionId = value;
+      index += 1;
+      continue;
+    }
+    if (token === '--version') {
+      if (!value || value.startsWith('--')) {
+        throw new Error('Missing value for --version');
+      }
+      parsed.version = value;
+      index += 1;
+      continue;
+    }
+    if (token === '--tag') {
+      if (!value || value.startsWith('--')) {
+        throw new Error('Missing value for --tag');
+      }
+      parsed.tag = value;
       index += 1;
       continue;
     }
@@ -440,9 +460,13 @@ function main(): void {
     '--bundle-dir',
     options.bundleDir,
     '--overwrite',
+    ...(options.version ? ['--version', options.version] : []),
+    ...(options.tag ? ['--tag', options.tag] : []),
   ]) as {
     status: string;
     packaged_app_evidence: boolean;
+    release_cohort?: unknown;
+    current_cohort_evidence?: boolean;
   };
   validateGeneratedBundle(options);
   const manifestJson = JSON.parse(
@@ -462,6 +486,8 @@ function main(): void {
     bundle_dir: options.bundleDir,
     manifest_path: 'evidence-manifest.json',
     packaged_app_evidence: manifest.packaged_app_evidence,
+    release_cohort: manifest.release_cohort,
+    current_cohort_evidence: manifest.current_cohort_evidence === true,
     refs_only: true,
     action_id: options.actionId,
     action_execute_collected: options.executeAction,
