@@ -23,7 +23,7 @@ function asRecord(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-export function inferReleaseChannel(version: string): 'stable' | 'nightly' {
+function inferReleaseChannel(version: string): 'stable' | 'nightly' {
   return /nightly/i.test(version) ? 'nightly' : 'stable';
 }
 

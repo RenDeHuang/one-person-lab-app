@@ -122,7 +122,7 @@ function assertStringArray(value: unknown, label: string): asserts value is stri
   }
 }
 
-export function resolveAdapterContractPath(): string {
+function resolveAdapterContractPath(): string {
   const override = process.env.OPL_APP_SHELL_ADAPTER_CONTRACT?.trim();
   if (!override) {
     return contractPath;

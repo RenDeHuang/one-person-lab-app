@@ -45,7 +45,7 @@ export function runCandidateCommands(candidate: ShellCandidate): void {
   validateCandidateImplementationEvidence(candidate);
 }
 
-export function validateCandidatePackageManifest(candidate: ShellCandidate, options: { requireSmoke?: boolean } = { requireSmoke: true }): void {
+function validateCandidatePackageManifest(candidate: ShellCandidate, options: { requireSmoke?: boolean } = { requireSmoke: true }): void {
   const manifestPath = path.join(root, candidate.candidate_root, 'out', 'agui-codex-candidate-manifest.json');
   assertFile(manifestPath, `${candidate.id} package manifest`);
   const manifest = readJson<{
@@ -156,7 +156,7 @@ export function validateCandidatePackageManifest(candidate: ShellCandidate, opti
   );
 }
 
-export function validateCandidateImplementationEvidence(candidate: ShellCandidate): void {
+function validateCandidateImplementationEvidence(candidate: ShellCandidate): void {
   const evidencePath = path.join(root, candidate.candidate_root, 'src', 'candidateContractEvidence.json');
   assertFile(evidencePath, `${candidate.id} contract evidence`);
   const evidence = readJson<{

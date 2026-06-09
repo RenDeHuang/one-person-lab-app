@@ -110,13 +110,13 @@ export const requiredSeriesProgressFields = [
   'platform_repair_delta',
   'next_forced_delta',
 ];
-export const requiredActiveProjectLineFields = [
+const requiredActiveProjectLineFields = [
   'status',
   'active_run_id',
   'next_visible_step',
   ...requiredSeriesProgressFields,
 ];
-export const forbiddenStateModelClaims = [
+const forbiddenStateModelClaims = [
   'domain_ready',
   'production_ready',
   'clean_vm_ready',

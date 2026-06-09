@@ -104,7 +104,7 @@ export const legacySettingsRouteRedirects = {
   pet: 'appearance',
 };
 export const ordinaryHiddenLegacySettingsTabs = Object.keys(legacySettingsRouteRedirects);
-export const homeActivityCenterItemFields = [
+const homeActivityCenterItemFields = [
   'task_id',
   'title',
   'domain_label',
@@ -137,7 +137,7 @@ export const appOwnedHomeLayout = {
     'AionUI Team page as ordinary App surface',
   ],
 };
-export const appOwnedOrdinaryConversation = {
+const appOwnedOrdinaryConversation = {
   path_id: 'ordinary_codex_conversation',
   entry_source: 'home_purpose_entry_or_new_conversation',
   executor: 'codex_cli',

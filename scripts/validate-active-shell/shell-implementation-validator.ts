@@ -7,7 +7,7 @@ import {
   legacySettingsRouteRedirects,
 } from './app-contract-constants.ts';
 
-export function readShellText(shellPaths, relativePath) {
+function readShellText(shellPaths, relativePath) {
   const filePath = path.join(shellPaths.shellRoot, relativePath);
   assertFile(filePath, `active shell implementation file ${relativePath}`);
   return readFileSync(filePath, 'utf8');

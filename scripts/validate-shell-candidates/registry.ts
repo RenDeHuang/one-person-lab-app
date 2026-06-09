@@ -70,7 +70,7 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   validateDesignReferences(registry);
 }
 
-export function validateDesignReferences(registry: ShellCandidateRegistry): void {
+function validateDesignReferences(registry: ShellCandidateRegistry): void {
   const policy = registry.design_reference_policy;
   if (!policy) {
     throw new Error('candidate registry must declare design_reference_policy');

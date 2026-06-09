@@ -19,7 +19,7 @@ import {
   validateActiveProjectLineStateModel,
 } from './shared.ts';
 
-export function assertCandidateFileContains(candidate: ShellCandidate, relativePath: string, snippets: string[], label: string): void {
+function assertCandidateFileContains(candidate: ShellCandidate, relativePath: string, snippets: string[], label: string): void {
   const filePath = path.join(root, candidate.candidate_root, relativePath);
   assertFile(filePath, `${candidate.id} ${label}`);
   const source = fs.readFileSync(filePath, 'utf8');
@@ -216,7 +216,7 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
   ], 'WebUI gateway');
 }
 
-export function validateCandidateChatTarget(candidate: ShellCandidate): void {
+function validateCandidateChatTarget(candidate: ShellCandidate): void {
   const target = candidate.codex_app_like_chat_target;
   if (!target) {
     throw new Error(`${candidate.id} must declare codex_app_like_chat_target`);
@@ -250,7 +250,7 @@ export function validateCandidateChatTarget(candidate: ShellCandidate): void {
   assertStringArrayIncludes(pilotdeckTarget.required_testids, requiredContextTestIds, `${candidate.id}.pilotdeck_information_architecture_target.required_testids`);
 }
 
-export function validateCandidateWebUiTransport(candidate: ShellCandidate): void {
+function validateCandidateWebUiTransport(candidate: ShellCandidate): void {
   const transport = candidate.webui_transport;
   if (!transport) {
     throw new Error(`${candidate.id} must declare webui_transport`);

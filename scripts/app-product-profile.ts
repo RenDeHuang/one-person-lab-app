@@ -867,7 +867,7 @@ export function readAppProductProfile(profilePath = appProductProfilePath): AppP
   return profile;
 }
 
-export function formatCodexProfileLabel(profile = readAppProductProfile()): string {
+function formatCodexProfileLabel(profile = readAppProductProfile()): string {
   return `${profile.codex.default_model} / ${profile.codex.default_reasoning_effort}`;
 }
 
