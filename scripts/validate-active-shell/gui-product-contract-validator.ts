@@ -184,6 +184,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   for (const [field, expected] of Object.entries({
     default_projection: 'opl_current_owner_delta',
     source_path: 'app_state.operator.default_read_surface_policy',
+    foundry_agent_os_cockpit_policy: 'first_screen_current_owner_delta_only_raw_worklist_evidence_provider_trace_drilldown_only',
+    default_next_action_source: 'current_owner_delta',
+    raw_worklist_generates_default_next_action: false,
+    release_evidence_counts_as_release_ready: false,
     stage_run_cockpit_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
     full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
     raw_refs_policy: 'raw_refs_require_explicit_full_detail',
@@ -197,6 +201,29 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (guiDefaultReadPolicy && 'compatibility_projection' in guiDefaultReadPolicy) {
     throw new Error('App GUI default_read_surface_policy must not declare compatibility_projection');
+  }
+  for (const field of [
+    'next_safe_action_or_none',
+    'current_owner',
+    'required_delta',
+    'accepted_return_shapes',
+    'readiness_false_flags',
+    'count_summary',
+  ]) {
+    if (!guiDefaultReadPolicy?.first_screen_answers?.includes(field)) {
+      throw new Error(`App GUI default_read_surface_policy.first_screen_answers must include ${field}`);
+    }
+  }
+  for (const field of [
+    'runtime_tray_snapshot',
+    'raw_evidence_envelope',
+    'stage_replay_packet_body',
+    'private_residue_inventory_body',
+    'provider_internal_ledger_body',
+  ]) {
+    if (!guiDefaultReadPolicy?.forbidden_default_state_fields?.includes(field)) {
+      throw new Error(`App GUI default_read_surface_policy.forbidden_default_state_fields must include ${field}`);
+    }
   }
   assertCommandSurface(
     guiContract.framework_surfaces.canonical_action?.command,
@@ -307,6 +334,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       purpose: 'keep Home, Runtime, and Settings focused on purpose, task status, next owner, artifact/blocker, and release facts',
       stage_run_cockpit_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
       stage_run_consumption_policy: 'ordinary fast App state must consume refs-only stage_run_cockpit, stage_run_cockpit_summary, or equivalent stage_run_current_owner_delta derived from current_owner_delta as display guard only',
+      foundry_agent_os_cockpit_policy: 'first_screen_current_owner_delta_only_raw_worklist_evidence_provider_trace_drilldown_only',
+      default_next_action_source: 'current_owner_delta',
+      raw_worklist_generates_default_next_action: false,
+      release_evidence_counts_as_release_ready: false,
       applies_to_pages: [
         'guid_home',
         'runtime',

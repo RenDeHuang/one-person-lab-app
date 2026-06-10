@@ -141,6 +141,7 @@ function validateGoldenAppStateFixture(gate) {
   if (lookupPath(fixture, 'app_state.operator.workbench.performance_policy.shell_must_not_derive_layout_from_raw_runtime_projection') !== true) {
     throw new Error('OPL App state golden fixture must forbid shell-side layout derivation from raw runtime projection.');
   }
+  validateCurrentOwnerDeltaCockpitFixture(fixture);
   const taskDrilldowns = lookupPath(fixture, 'app_state.operator.workbench.task_drilldowns') ?? [];
   const platformRepairExample = taskDrilldowns.find(
     (task) => task?.progress_delta_classification === 'platform_repair',
@@ -225,6 +226,92 @@ function validateGoldenAppStateFixture(gate) {
     const value = lookupPath(fixture, pathName);
     if (!Array.isArray(value) || value.length === 0) {
       throw new Error(`OPL App state golden fixture must include ${label}.`);
+    }
+  }
+}
+
+function validateCurrentOwnerDeltaCockpitFixture(fixture) {
+  const label = 'OPL App state golden fixture current_owner_delta cockpit';
+  const defaultReadSurfacePolicy = lookupPath(fixture, 'app_state.operator.default_read_surface_policy');
+  const currentOwnerDelta = lookupPath(fixture, 'app_state.operator.current_owner_delta');
+  const currentOwnerDeltaNextAction = lookupPath(fixture, 'app_state.operator.current_owner_delta_next_action');
+  const ordinaryCockpit = lookupPath(fixture, 'app_state.operator.ordinary_cockpit');
+
+  if (!defaultReadSurfacePolicy || typeof defaultReadSurfacePolicy !== 'object') {
+    throw new Error(`${label} must include app_state.operator.default_read_surface_policy`);
+  }
+  if (!currentOwnerDelta || typeof currentOwnerDelta !== 'object') {
+    throw new Error(`${label} must include app_state.operator.current_owner_delta`);
+  }
+  if (!currentOwnerDeltaNextAction || typeof currentOwnerDeltaNextAction !== 'object') {
+    throw new Error(`${label} must include app_state.operator.current_owner_delta_next_action`);
+  }
+  if (!ordinaryCockpit || typeof ordinaryCockpit !== 'object') {
+    throw new Error(`${label} must include app_state.operator.ordinary_cockpit`);
+  }
+
+  for (const [pathName, expected] of Object.entries({
+    'app_state.operator.operator_next_action_source': 'current_owner_delta',
+    'app_state.operator.default_read_surface_policy.default_operator_payload': 'ordinary_cockpit',
+    'app_state.operator.default_read_surface_policy.default_planning_root': 'current_owner_delta',
+    'app_state.operator.default_read_surface_policy.authority_boundary.raw_worklist_can_generate_default_next_action': false,
+    'app_state.operator.default_read_surface_policy.authority_boundary.raw_evidence_can_generate_default_next_action': false,
+    'app_state.operator.default_read_surface_policy.authority_boundary.can_claim_app_release_ready': false,
+    'app_state.operator.default_read_surface_policy.authority_boundary.can_claim_production_ready': false,
+    'app_state.operator.current_owner_delta.default_planning_root': 'current_owner_delta',
+    'app_state.operator.current_owner_delta.ordinary_progress_spine.default_next_action_derives_from': 'current_owner_delta',
+    'app_state.operator.current_owner_delta.ordinary_progress_spine.raw_worklist_can_generate_default_next_action': false,
+    'app_state.operator.current_owner_delta.authority_boundary.raw_worklist_can_drive_default_planning': false,
+    'app_state.operator.current_owner_delta.authority_boundary.can_claim_production_ready': false,
+    'app_state.operator.current_owner_delta_next_action.derivation_source': 'current_owner_delta',
+    'app_state.operator.current_owner_delta_next_action.default_planning_root': 'current_owner_delta',
+    'app_state.operator.current_owner_delta_next_action.raw_worklist_can_drive_default_planning': false,
+    'app_state.operator.current_owner_delta_next_action.can_claim_domain_ready': false,
+    'app_state.operator.current_owner_delta_next_action.can_claim_production_ready': false,
+    'app_state.operator.current_owner_delta_next_action.worklist_item_is_completion_claim': false,
+    'app_state.operator.ordinary_cockpit.surface_kind': 'opl_app_ordinary_cockpit',
+    'app_state.operator.ordinary_cockpit.display_payload_policy': 'purpose_task_current_owner_next_action_artifact_or_blocker_only',
+    'app_state.operator.ordinary_cockpit.ordinary_progress_spine.default_next_action_derives_from': 'current_owner_delta',
+    'app_state.operator.ordinary_cockpit.ordinary_progress_spine.raw_worklist_can_generate_default_next_action': false,
+    'app_state.operator.ordinary_cockpit.display_payload.next_action.source_ref': 'app_state.operator.current_owner_delta',
+    'app_state.operator.ordinary_cockpit.display_payload.artifact_or_blocker.content_policy': 'refs_only_no_artifact_or_receipt_body',
+    'app_state.operator.ordinary_cockpit.authority_boundary.default_planning_root': 'current_owner_delta',
+    'app_state.operator.ordinary_cockpit.authority_boundary.default_next_action_derives_from': 'derive_default_next_action_only_from_current_owner_delta',
+    'app_state.operator.ordinary_cockpit.authority_boundary.can_claim_app_release_ready': false,
+    'app_state.operator.ordinary_cockpit.authority_boundary.can_claim_production_ready': false,
+  })) {
+    const actual = lookupPath(fixture, pathName);
+    if (actual !== expected) {
+      throw new Error(`${label} ${pathName} must be ${expected}`);
+    }
+  }
+
+  assertIncludesAll(
+    currentOwnerDelta.ordinary_progress_spine?.default_next_action_must_not_derive_from,
+    ['raw_worklist', 'raw_evidence', 'provider_trace', 'replay_packet', 'typed_blocker_group', 'private_residue_inventory', 'audit_sidecar'],
+    `${label} current owner delta forbidden next-action sources`,
+  );
+  assertIncludesAll(
+    ordinaryCockpit.display_payload_fields,
+    ['purpose', 'task', 'current_owner', 'next_action', 'artifact_or_blocker'],
+    `${label} ordinary cockpit display payload fields`,
+  );
+  assertIncludesAll(
+    ordinaryCockpit.developer_full_drilldown_only,
+    ['provider', 'ledger', 'worklist', 'mcp_tool_catalog', 'raw_receipts', 'release_evidence'],
+    `${label} ordinary cockpit drilldown-only fields`,
+  );
+  for (const forbidden of [
+    'raw_worklist',
+    'raw_evidence',
+    'provider_trace',
+    'release_evidence',
+    'app_release_ready',
+    'production_ready',
+    'domain_ready',
+  ]) {
+    if (Object.hasOwn(ordinaryCockpit.display_payload ?? {}, forbidden)) {
+      throw new Error(`${label} ordinary cockpit display_payload must not include ${forbidden}`);
     }
   }
 }
@@ -340,6 +427,11 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   for (const [field, expected] of Object.entries({
     default_projection: 'opl_current_owner_delta',
     source_path: 'app_state.operator.default_read_surface_policy',
+    foundry_agent_os_cockpit_policy: 'first_screen_current_owner_delta_only_raw_worklist_evidence_provider_trace_drilldown_only',
+    default_next_action_source: 'current_owner_delta',
+    raw_worklist_generates_default_next_action: false,
+    release_evidence_counts_as_release_ready: false,
+    stage_run_cockpit_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
     full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
     raw_refs_policy: 'raw_refs_require_explicit_full_detail',
     full_detail_auto_poll: false,

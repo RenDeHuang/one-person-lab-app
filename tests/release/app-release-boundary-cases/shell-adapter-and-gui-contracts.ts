@@ -334,12 +334,31 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.framework_surfaces.canonical_state.default_read_surface_policy, {
     default_projection: 'opl_current_owner_delta',
     source_path: 'app_state.operator.default_read_surface_policy',
+    foundry_agent_os_cockpit_policy: 'first_screen_current_owner_delta_only_raw_worklist_evidence_provider_trace_drilldown_only',
+    default_next_action_source: 'current_owner_delta',
+    raw_worklist_generates_default_next_action: false,
+    release_evidence_counts_as_release_ready: false,
     stage_run_cockpit_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
+    first_screen_answers: [
+      'next_safe_action_or_none',
+      'current_owner',
+      'required_delta',
+      'accepted_return_shapes',
+      'readiness_false_flags',
+      'count_summary',
+    ],
     full_detail_policy: 'explicit_full_detail_or_lazy_diagnostic_only',
     raw_refs_policy: 'raw_refs_require_explicit_full_detail',
     full_detail_auto_poll: false,
     shell_must_not_use_full_drilldown_as_normal_state: true,
     shell_must_not_derive_layout_from_raw_runtime_projection: true,
+    forbidden_default_state_fields: [
+      'runtime_tray_snapshot',
+      'raw_evidence_envelope',
+      'stage_replay_packet_body',
+      'private_residue_inventory_body',
+      'provider_internal_ledger_body',
+    ],
   });
   assert.equal(
     guiContract.framework_surfaces.canonical_action.command,
@@ -396,6 +415,10 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     purpose: 'keep Home, Runtime, and Settings focused on purpose, task status, next owner, artifact/blocker, and release facts',
     stage_run_cockpit_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
     stage_run_consumption_policy: 'ordinary fast App state must consume refs-only stage_run_cockpit, stage_run_cockpit_summary, or equivalent stage_run_current_owner_delta derived from current_owner_delta as display guard only',
+    foundry_agent_os_cockpit_policy: 'first_screen_current_owner_delta_only_raw_worklist_evidence_provider_trace_drilldown_only',
+    default_next_action_source: 'current_owner_delta',
+    raw_worklist_generates_default_next_action: false,
+    release_evidence_counts_as_release_ready: false,
     applies_to_pages: [
       'guid_home',
       'runtime',

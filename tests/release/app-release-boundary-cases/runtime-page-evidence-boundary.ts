@@ -17,8 +17,14 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   const runtimeBridge = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-runtime-bridge.json'), 'utf8'),
   );
+  const guiProductContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-gui-product-contract.json'), 'utf8'),
+  );
   const pageStateMatrix = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
+  );
+  const fastStateFixture = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'fixtures', 'opl-app-state-fast.fixture.json'), 'utf8'),
   );
   const guidHomePage = pageStateMatrix.pages.find((page) => page.id === 'guid_home');
   const runtimePage = pageStateMatrix.pages.find((page) => page.id === 'runtime');
@@ -45,6 +51,11 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.deepEqual(runtimeBridge.default_read_surface_policy, {
     default_projection: 'opl_current_owner_delta',
     source_path: 'app_state.operator.default_read_surface_policy',
+    foundry_agent_os_cockpit_policy: 'first_screen_current_owner_delta_only_raw_worklist_evidence_provider_trace_drilldown_only',
+    default_next_action_source: 'current_owner_delta',
+    raw_worklist_generates_default_next_action: false,
+    release_evidence_counts_as_release_ready: false,
+    stage_run_cockpit_projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
     first_screen_answers: [
       'next_safe_action_or_none',
       'current_owner',
@@ -66,6 +77,31 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'provider_internal_ledger_body',
     ],
   });
+  assert.deepEqual(guiProductContract.framework_surfaces.canonical_state.default_read_surface_policy, runtimeBridge.default_read_surface_policy);
+  assert.equal(
+    guiProductContract.ordinary_cockpit_surface_budget.foundry_agent_os_cockpit_policy,
+    runtimeBridge.default_read_surface_policy.foundry_agent_os_cockpit_policy,
+  );
+  assert.equal(guiProductContract.ordinary_cockpit_surface_budget.default_next_action_source, 'current_owner_delta');
+  assert.equal(guiProductContract.ordinary_cockpit_surface_budget.raw_worklist_generates_default_next_action, false);
+  assert.equal(guiProductContract.ordinary_cockpit_surface_budget.release_evidence_counts_as_release_ready, false);
+
+  const fastOperator = fastStateFixture.app_state.operator;
+  assert.equal(fastOperator.operator_next_action_source, 'current_owner_delta');
+  assert.equal(fastOperator.current_owner_delta_next_action.derivation_source, 'current_owner_delta');
+  assert.equal(fastOperator.current_owner_delta_next_action.default_planning_root, 'current_owner_delta');
+  assert.equal(fastOperator.current_owner_delta_next_action.raw_worklist_can_drive_default_planning, false);
+  assert.equal(fastOperator.current_owner_delta_next_action.can_claim_production_ready, false);
+  assert.equal(fastOperator.current_owner_delta.ordinary_progress_spine.raw_worklist_can_generate_default_next_action, false);
+  assert.equal(fastOperator.current_owner_delta.ordinary_progress_spine.default_next_action_derives_from, 'current_owner_delta');
+  assert.ok(fastOperator.ordinary_cockpit.developer_full_drilldown_only.includes('release_evidence'));
+  assert.equal(fastOperator.ordinary_cockpit.authority_boundary.default_planning_root, 'current_owner_delta');
+  assert.equal(
+    fastOperator.ordinary_cockpit.authority_boundary.default_next_action_derives_from,
+    'derive_default_next_action_only_from_current_owner_delta',
+  );
+  assert.equal(fastOperator.ordinary_cockpit.authority_boundary.can_claim_app_release_ready, false);
+  assert.equal(fastOperator.ordinary_cockpit.authority_boundary.can_claim_production_ready, false);
   assert.equal(runtimeBridge.action_command, 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json');
   assert.equal(runtimeBridge.live_conformance_gate.mode, 'explicit_env_opt_in');
   assert.equal(runtimeBridge.live_conformance_gate.default_enforcement, 'disabled');
