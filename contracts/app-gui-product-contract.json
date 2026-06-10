@@ -874,14 +874,14 @@
     "settings_page": "settings_environment",
     "must_explain": [
       "whether a module comes from the bundled Full runtime payload",
-      "whether a module comes from the App/CLI-managed stable package channel",
-      "whether a module comes from the App/CLI-managed nightly package channel",
+      "whether a module comes from the App/CLI-managed GHCR agent package channel",
+      "whether a module comes from the App/CLI-managed GHCR agent package channel moving tags",
       "whether a module comes from a local domain repository checkout",
       "whether Developer Profile source_channel uses a GitHub repo or local checkout",
       "whether a module is managed by App/CLI maintenance",
       "that module path display is refs-only and not domain truth authority"
     ],
-    "ordinary_user_source": "app_cli_managed_stable_package_channel",
+    "ordinary_user_source": "app_cli_managed_ghcr_agent_package_channel",
     "ordinary_user_transport": "app_cli_managed",
     "developer_override_surface": "Developer Profile source_channel capability",
     "developer_override_policy": "explicit_opt_in_only",
@@ -902,10 +902,10 @@
     "default_profile": "standard_user",
     "opt_in_policy": "explicit_opt_in_only",
     "ordinary_user_defaults": {
-      "source_channel": "stable_package_channel",
+      "source_channel": "agent_latest_package_channel",
       "workspace_trust": "selected_workspace_only",
       "github_authority": "read_only_or_user_confirmed",
-      "agent_automation": "user_confirmed_app_actions",
+      "agent_automation": "silent_background_agent_package_updates",
       "runtime_mutation_scope": "app_action_route_only"
     },
     "capability_axes": [
@@ -917,7 +917,7 @@
     ],
     "capabilities": {
       "source_channel": {
-        "standard_default": "stable_package_channel",
+        "standard_default": "agent_latest_package_channel",
         "developer_opt_in": "github_repo_or_local_checkout",
         "display_policy": "show_package_channel_first_then_checkout_override"
       },
@@ -932,7 +932,7 @@
         "display_policy": "show_repo_authority_without_hiding_user_confirmation"
       },
       "agent_automation": {
-        "standard_default": "user_confirmed_app_actions",
+        "standard_default": "silent_background_agent_package_updates",
         "developer_opt_in": "developer_enabled_agent_automation",
         "display_policy": "show_automation_scope_and_confirmation_policy"
       },
@@ -1573,7 +1573,7 @@
         "Temporal status from app_state.provider.temporal",
         "MAS/MAG/RCA/OMA module version and source from app_state.modules",
         "module path source explanation",
-        "Developer Profile source_channel capability and stable package channel default",
+        "Developer Profile source_channel capability and managed GHCR agent package channel default",
         "section-level refresh state",
         "environment page named Local Environment, distinct from Project Progress"
       ],

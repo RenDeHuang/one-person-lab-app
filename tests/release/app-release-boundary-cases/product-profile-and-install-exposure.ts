@@ -185,7 +185,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.settings.developer_profile.opt_in_policy, 'explicit_opt_in_only');
   assert.equal(
     profile.settings.developer_profile.capabilities.source_channel.standard_default,
-    'stable_package_channel',
+    'agent_latest_package_channel',
   );
   assert.equal(
     profile.settings.developer_profile.capabilities.source_channel.developer_opt_in,
@@ -438,7 +438,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     policy.agent_installation_contract.developer_checkout_override_surface,
     'Developer Profile source_channel capability',
   );
-  assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'app_cli_managed_stable_package_channel');
+  assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'app_cli_managed_ghcr_agent_package_channel');
   assert.deepEqual(policy.agent_installation_contract.module_package_channel_agent_ids, ['mas', 'mag', 'rca', 'oma']);
   assert.deepEqual(policy.agent_installation_contract.non_module_workflow_plugin_ids, ['opl-flow']);
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.channel_id, 'opl_distribution_cohort');
@@ -446,6 +446,13 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     policy.agent_installation_contract.managed_agent_pack_distribution.default_transport,
     'app_cli_managed_background_maintenance',
   );
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.default_update_mode, 'silent_background');
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.default_manifest_tag, 'latest');
+  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.post_update_sync_required, [
+    'codex_plugin_registry',
+    'plugin_packaged_skills',
+    'opl_generated_plugin_surface',
+  ]);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.package_agent_ids, ['mas', 'mag', 'rca', 'oma']);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.activation_commands, [
     'opl connect reconcile-modules',
@@ -471,10 +478,10 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   ]);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.fallback_source_order, [
     'bundled_full_runtime_modules',
-    'app_cli_managed_stable_package_channel',
+    'app_cli_managed_ghcr_agent_package_channel',
     'explicit_developer_checkout_override',
   ]);
-  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.must_not_depend_on_single_github_packages_tag, true);
+  assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.must_not_depend_on_fixed_version_tag_by_default, true);
   assert.equal(
     policy.agent_installation_contract.managed_agent_pack_distribution.github_packages_unavailable_policy,
     'fail_closed_with_actionable_background_maintenance_error',

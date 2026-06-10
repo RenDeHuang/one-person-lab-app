@@ -143,7 +143,7 @@ export const expectedSettingsPageSections = {
       'Temporal status from app_state.provider.temporal',
       'MAS/MAG/RCA/OMA module version and source from app_state.modules',
       'module path source explanation',
-      'Developer Profile source_channel capability and stable package channel default',
+      'Developer Profile source_channel capability and managed GHCR agent package channel default',
       'section-level refresh state',
       'environment page named Local Environment, distinct from Project Progress',
     ],

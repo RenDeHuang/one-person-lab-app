@@ -630,6 +630,13 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.equal(homebrew.agent_pack_policy.semantic_authority, 'one-person-lab_and_domain_repositories');
   assert.equal(homebrew.agent_pack_policy.homebrew_role, 'not_a_distribution_target');
   assert.equal(homebrew.agent_pack_policy.activation_owner, 'app_cli_managed_background_maintenance');
+  assert.equal(homebrew.agent_pack_policy.default_update_mode, 'silent_background');
+  assert.equal(homebrew.agent_pack_policy.default_manifest_tag, 'latest');
+  assert.deepEqual(homebrew.agent_pack_policy.post_update_sync_required, [
+    'codex_plugin_registry',
+    'plugin_packaged_skills',
+    'opl_generated_plugin_surface',
+  ]);
   assert.equal(homebrew.agent_pack_policy.homebrew_distribution_allowed, false);
   assert.equal(homebrew.agent_pack_policy.homebrew_formula_allowed, false);
   assert.deepEqual(homebrew.agent_pack_policy.forbidden_formulae, ['one-person-lab-modules', 'one-person-lab-modules-nightly']);

@@ -276,12 +276,19 @@
       "one-person-lab-modules",
       "one-person-lab-modules-nightly"
     ],
-    "agent_pack_policy": {
-      "package_kind": "app_cli_managed_agent_packs",
-      "semantic_authority": "one-person-lab_and_domain_repositories",
-      "homebrew_role": "not_a_distribution_target",
-      "activation_owner": "app_cli_managed_background_maintenance",
-      "homebrew_distribution_allowed": false,
+      "agent_pack_policy": {
+        "package_kind": "app_cli_managed_agent_packs",
+        "semantic_authority": "one-person-lab_and_domain_repositories",
+        "homebrew_role": "not_a_distribution_target",
+        "activation_owner": "app_cli_managed_background_maintenance",
+        "default_update_mode": "silent_background",
+        "default_manifest_tag": "latest",
+        "post_update_sync_required": [
+          "codex_plugin_registry",
+          "plugin_packaged_skills",
+          "opl_generated_plugin_surface"
+        ],
+        "homebrew_distribution_allowed": false,
       "homebrew_formula_allowed": false,
       "forbidden_formulae": [
         "one-person-lab-modules",

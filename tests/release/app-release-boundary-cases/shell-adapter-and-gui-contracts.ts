@@ -746,13 +746,13 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'app_state.modules[].source + app_state.modules[].path + app_state.paths',
   );
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the bundled Full runtime payload'));
-  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed stable package channel'));
-  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed nightly package channel'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed GHCR agent package channel'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed GHCR agent package channel moving tags'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from a local domain repository checkout'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether Developer Profile source_channel uses a GitHub repo or local checkout'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module is managed by App/CLI maintenance'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('that module path display is refs-only and not domain truth authority'));
-  assert.equal(guiContract.module_path_source_policy.ordinary_user_source, 'app_cli_managed_stable_package_channel');
+  assert.equal(guiContract.module_path_source_policy.ordinary_user_source, 'app_cli_managed_ghcr_agent_package_channel');
   assert.equal(guiContract.module_path_source_policy.ordinary_user_transport, 'app_cli_managed');
   assert.equal(guiContract.module_path_source_policy.developer_override_surface, 'Developer Profile source_channel capability');
   assert.equal(guiContract.module_path_source_policy.developer_override_policy, 'explicit_opt_in_only');
@@ -766,11 +766,12 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   ]);
   assert.equal(guiContract.developer_profile.default_profile, 'standard_user');
   assert.equal(guiContract.developer_profile.opt_in_policy, 'explicit_opt_in_only');
-  assert.equal(guiContract.developer_profile.ordinary_user_defaults.source_channel, 'stable_package_channel');
+  assert.equal(guiContract.developer_profile.ordinary_user_defaults.source_channel, 'agent_latest_package_channel');
+  assert.equal(guiContract.developer_profile.ordinary_user_defaults.agent_automation, 'silent_background_agent_package_updates');
   assert.equal(guiContract.developer_profile.capabilities.source_channel.developer_opt_in, 'github_repo_or_local_checkout');
   assert.equal(guiContract.developer_profile.capabilities.workspace_trust.standard_default, 'selected_workspace_only');
   assert.equal(guiContract.developer_profile.capabilities.github_authority.developer_opt_in, 'repo_checkout_and_remote_intent_visible');
-  assert.equal(guiContract.developer_profile.capabilities.agent_automation.standard_default, 'user_confirmed_app_actions');
+  assert.equal(guiContract.developer_profile.capabilities.agent_automation.standard_default, 'silent_background_agent_package_updates');
   assert.equal(guiContract.developer_profile.capabilities.runtime_mutation_scope.standard_default, 'app_action_route_only');
   assert.equal('legacy_developer_mode_alias' in guiContract.developer_profile, false);
   assert.ok(guiContract.module_path_source_policy.must_not_use.includes('raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI'));

@@ -426,6 +426,8 @@ export function validateInstallExposurePolicy(policy) {
   if (
     modulePackageDistribution?.channel_id !== 'opl_distribution_cohort' ||
     modulePackageDistribution?.default_transport !== 'app_cli_managed_background_maintenance' ||
+    modulePackageDistribution?.default_update_mode !== 'silent_background' ||
+    modulePackageDistribution?.default_manifest_tag !== 'latest' ||
     modulePackageDistribution?.homebrew_distribution_allowed !== false ||
     modulePackageDistribution?.homebrew_formula_allowed !== false ||
     modulePackageDistribution?.must_not_write_user_codex_state !== true ||
@@ -434,6 +436,11 @@ export function validateInstallExposurePolicy(policy) {
   ) {
     throw new Error('Install exposure managed agent-pack distribution must use an App/CLI-managed OPL distribution cohort');
   }
+  assertIncludesAll(
+    modulePackageDistribution.post_update_sync_required,
+    ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface'],
+    'Install exposure module package distribution post-update sync requirements',
+  );
   assertIncludesAll(
     modulePackageDistribution.package_agent_ids,
     ['mas', 'mag', 'rca', 'oma'],
@@ -448,13 +455,13 @@ export function validateInstallExposurePolicy(policy) {
     modulePackageDistribution.fallback_source_order,
     [
       'bundled_full_runtime_modules',
-      'app_cli_managed_stable_package_channel',
+      'app_cli_managed_ghcr_agent_package_channel',
       'explicit_developer_checkout_override',
     ],
     'Install exposure module package distribution fallback source order',
   );
   if (
-    modulePackageDistribution.must_not_depend_on_single_github_packages_tag !== true ||
+    modulePackageDistribution.must_not_depend_on_fixed_version_tag_by_default !== true ||
     modulePackageDistribution.github_packages_unavailable_policy !== 'fail_closed_with_actionable_background_maintenance_error'
   ) {
     throw new Error('Install exposure managed agent-pack distribution must fail closed when GitHub Packages is unavailable');

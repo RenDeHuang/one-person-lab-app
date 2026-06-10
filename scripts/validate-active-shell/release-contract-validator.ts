@@ -166,6 +166,8 @@ export function validateReleaseChannelContract(releaseChannel) {
     homebrew.agent_pack_policy?.semantic_authority !== 'one-person-lab_and_domain_repositories' ||
     homebrew.agent_pack_policy?.homebrew_role !== 'not_a_distribution_target' ||
     homebrew.agent_pack_policy?.activation_owner !== 'app_cli_managed_background_maintenance' ||
+    homebrew.agent_pack_policy?.default_update_mode !== 'silent_background' ||
+    homebrew.agent_pack_policy?.default_manifest_tag !== 'latest' ||
     homebrew.agent_pack_policy?.homebrew_distribution_allowed !== false ||
     homebrew.agent_pack_policy?.homebrew_formula_allowed !== false ||
     homebrew.agent_pack_policy?.must_not_write_user_codex_state !== true ||
@@ -174,6 +176,11 @@ export function validateReleaseChannelContract(releaseChannel) {
   ) {
     throw new Error('Release channel Homebrew agent-pack policy must keep agent packs outside Homebrew distribution');
   }
+  assertIncludesAll(
+    homebrew.agent_pack_policy?.post_update_sync_required,
+    ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface'],
+    'Release channel Homebrew agent-pack post-update sync requirements',
+  );
   assertIncludesAll(
     homebrew.agent_pack_policy?.activation_commands,
     ['opl connect reconcile-modules', 'opl connect sync-skills'],

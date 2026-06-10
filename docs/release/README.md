@@ -70,9 +70,17 @@ verification extracts `One-Person-Lab-<version>-mac-arm64.zip` on a macOS
 runner, checks the bundle version, records trust diagnostics, and accepts
 ad-hoc or unsigned bundles only when `standard-local-authorization-policy.json`
 declares the Stable local authorization policy. Module packages stay under
-Framework/App maintenance through the stable package channel carried by
-Homebrew or App/CLI maintenance, while GitHub repo/local checkout sources are an
+Framework/App maintenance through the managed GHCR agent package channel.
+Homebrew and App installs trigger activation and maintenance; they do not carry
+or define the agent package source. GitHub repo/local checkout sources are an
 explicit Developer Profile `source_channel` opt-in.
+
+The GHCR agent package channel is the ordinary non-development update source for
+MAS/MAG/RCA/OMA. Nightly package publication is the automation cadence for that
+channel, not a developer checkout path. Clean managed package-channel modules
+may update silently during App/CLI background maintenance, and each update must
+refresh the Codex plugin registry, plugin-packaged skills, and generated OMA
+plugin surface before the App reports the plugin cache as freshened.
 
 Runtime and toolchain updates use a separate App-owned channel. Codex CLI,
 Temporal CLI archive fallback, Node/Python/uv, OfficeCLI, MinerU, companion

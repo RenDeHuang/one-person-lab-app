@@ -214,13 +214,28 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
     'Developer Profile source_channel capability',
     'developer checkout override surface',
   );
-  assertEqual(contract.ordinary_user_module_source, 'app_cli_managed_stable_package_channel', 'ordinary user module source');
+  assertEqual(contract.ordinary_user_module_source, 'app_cli_managed_ghcr_agent_package_channel', 'ordinary user module source');
   assertArrayEqual(contract.module_package_channel_agent_ids, expectedRequiredAgentIds, 'module package channel agent ids');
   assertEqual(contract.managed_agent_pack_distribution?.channel_id, 'opl_distribution_cohort', 'agent-pack distribution channel');
   assertEqual(
     contract.managed_agent_pack_distribution?.default_transport,
     'app_cli_managed_background_maintenance',
     'agent-pack distribution default transport',
+  );
+  assertEqual(
+    contract.managed_agent_pack_distribution?.default_update_mode,
+    'silent_background',
+    'agent-pack distribution default update mode',
+  );
+  assertEqual(
+    contract.managed_agent_pack_distribution?.default_manifest_tag,
+    'latest',
+    'agent-pack distribution default manifest tag',
+  );
+  assertArrayEqual(
+    contract.managed_agent_pack_distribution?.post_update_sync_required,
+    ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface'],
+    'agent-pack post-update sync requirements',
   );
   assertArrayEqual(
     contract.managed_agent_pack_distribution?.package_agent_ids,
@@ -236,15 +251,15 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
     contract.managed_agent_pack_distribution?.fallback_source_order,
     [
       'bundled_full_runtime_modules',
-      'app_cli_managed_stable_package_channel',
+      'app_cli_managed_ghcr_agent_package_channel',
       'explicit_developer_checkout_override',
     ],
     'agent-pack distribution fallback source order',
   );
   assertEqual(
-    contract.managed_agent_pack_distribution?.must_not_depend_on_single_github_packages_tag,
+    contract.managed_agent_pack_distribution?.must_not_depend_on_fixed_version_tag_by_default,
     true,
-    'agent-pack GitHub Packages single-tag guard',
+    'agent-pack GitHub Packages fixed-version default guard',
   );
   assertEqual(
     contract.managed_agent_pack_distribution?.github_packages_unavailable_policy,
