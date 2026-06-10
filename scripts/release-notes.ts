@@ -25,11 +25,6 @@ import { renderReleaseNotesDocument } from './release-notes/document.ts';
 import type { ReleaseNoteOptions, ReleaseNotesEvidence } from './release-notes/types.ts';
 
 export type {
-  AgentRuntimeChange,
-  ChangeBucket,
-  ChangeBucketId,
-  FamilyRepoChange,
-  ReleaseChannel,
   ReleaseNoteOptions,
   ReleaseNotesEvidence,
 } from './release-notes/types.ts';
