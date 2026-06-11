@@ -547,12 +547,11 @@ ID on that team. After setting secrets, re-run the desktop release workflow.
 The local authorization policy assets remain required even when Developer ID
 material is present.
 
-The older tag-push **Build and Release** workflow has been retired and is no
-longer present as a live workflow surface. It bypassed the App preflight,
-candidate-record, Homebrew, Full, VM, WebUI, and promotion gates that define the
-normal Stable path. New Stable cohorts must use **OPL Desktop Release** with
+New Stable cohorts use **OPL Desktop Release** with
 `release_mode=new_release`, candidate gates, and **OPL Desktop Release
-Promote**.
+Promote**. Retired release workflow provenance and no-resurrection rules live in
+`docs/history/process/retired-surface-provenance.md`; live absence is enforced by
+`scripts/validate-release-boundary.ts` and the release-boundary workflow tests.
 
 Use **OPL Remote Release Verification** when an existing Release needs a fresh
 remote audit without rebuilding. It downloads the published assets, checks
