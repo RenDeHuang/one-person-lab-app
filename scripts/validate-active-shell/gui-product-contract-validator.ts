@@ -32,6 +32,59 @@ import {
   validateUserTaskStatusProjectionContract,
 } from './shared-contract-validators.ts';
 
+const managedUpdateMustShow = [
+  'App binary standard updater status',
+  'runtime/toolchain managed updater status',
+  'agent package channel managed updater status',
+  'capability exposure sync status',
+  'conditions and repair actions from App state or opl update status',
+];
+
+const managedUpdateMustNotShow = [
+  'Full first-install asset as a standard updater target',
+  'Developer Profile checkout as a silent update target',
+  'dirty checkout overwrite as a repair action',
+  'domain truth write controls',
+  'owner receipt mutation controls',
+  'quality/export verdict controls',
+  'Homebrew/global tool silent upgrade controls',
+  'artifact bodies',
+];
+
+function validateManagedUpdatePageSurface(page, label) {
+  if (page?.status_source !== 'opl update status --json') {
+    throw new Error(`${label} must expose opl update status --json as the explicit status source`);
+  }
+  assertDeepEqualJson(
+    page?.sections,
+    ['app_binary', 'runtime_toolchain', 'agent_packages', 'capability_exposure'],
+    `${label} sections`,
+  );
+  assertIncludesAll(page?.must_show, managedUpdateMustShow, `${label} must_show`);
+  assertIncludesAll(page?.must_not_show, managedUpdateMustNotShow, `${label} must_not_show`);
+  const plane = page?.managed_update_plane;
+  if (
+    plane?.page_id !== 'updates_and_maintenance' ||
+    plane?.source_ref !== 'contracts/app-release-channel.json#managed_update_plane' ||
+    plane?.app_role !== 'status_conditions_repair_actions_consumer_only' ||
+    plane?.framework_role !== 'managed_update_kernel_owner' ||
+    plane?.status_consumption_policy !==
+      'show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth'
+  ) {
+    throw new Error(`${label} must bind to the App managed update plane as a status/action consumer`);
+  }
+  assertDeepEqualJson(
+    plane?.state_sources,
+    ['opl app state --profile fast --json#managed_update_plane', 'opl update status --json'],
+    `${label} state sources`,
+  );
+  assertDeepEqualJson(
+    plane?.display_planes,
+    ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure'],
+    `${label} display planes`,
+  );
+}
+
 export function validateAppGuiProductContract(guiContract, releaseChannel, installExposurePolicy) {
   if (guiContract.owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected App GUI product contract owner: ${guiContract.owner}`);
@@ -161,6 +214,24 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (installExposure.duplicate_skill_policy !== 'plugin_packaged_domain_skills_must_not_be_mirrored_as_duplicate_bare_skills') {
     throw new Error('App GUI install exposure must reject duplicate bare skill mirrors');
+  }
+
+  const managedUpdateSurface = guiContract.framework_surfaces?.managed_update_plane;
+  if (
+    managedUpdateSurface?.contract !== 'contracts/app-release-channel.json#managed_update_plane' ||
+    managedUpdateSurface?.status_command !== 'opl update status --json' ||
+    managedUpdateSurface?.app_state_source !== 'opl app state --profile fast --json#managed_update_plane' ||
+    managedUpdateSurface?.app_role !== 'status_conditions_repair_actions_consumer_only' ||
+    managedUpdateSurface?.framework_role !== 'managed_update_kernel_owner' ||
+    managedUpdateSurface?.artifact_body_access !== false ||
+    managedUpdateSurface?.domain_truth_write_access !== false ||
+    managedUpdateSurface?.owner_receipt_write_access !== false ||
+    managedUpdateSurface?.quality_verdict_authority !== false ||
+    managedUpdateSurface?.export_verdict_authority !== false ||
+    managedUpdateSurface?.global_tool_mutation_allowed !== false ||
+    managedUpdateSurface?.developer_checkout_mutation_allowed !== false
+  ) {
+    throw new Error('App GUI contract must expose the managed update plane without kernel, artifact, domain, verdict, global tool, or checkout authority');
   }
 
   assertCommandSurface(guiContract.framework_surfaces?.canonical_state?.default_command, 'opl app state --profile fast --json', 'App GUI default state command');
@@ -868,12 +939,19 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.settings_environment.must_not_show?.includes('Med Deep Scientist as a default module')) {
     throw new Error('Settings Environment must keep MDS out of default module display');
   }
+  if (pages.settings_environment.managed_update_plane_ref !== 'managed_update_plane') {
+    throw new Error('Settings Environment must reference the managed update plane');
+  }
   if (!pages.about.must_show?.includes('Stable or Nightly channel')) {
     throw new Error('About page must show Stable or Nightly channel');
   }
-  if (!pages.update.must_show?.includes('Stable channel update state') || !pages.update.must_show?.includes('Nightly opt-in update state when enabled')) {
-    throw new Error('Update page must show stable and nightly update states');
+  if (!pages.about.must_show?.includes('Updates & Maintenance entry on About & Updates')) {
+    throw new Error('About page must link to Updates & Maintenance');
   }
+  if (pages.about.managed_update_plane_ref !== 'managed_update_plane') {
+    throw new Error('About page must reference the managed update plane');
+  }
+  validateManagedUpdatePageSurface(pages.update, 'App GUI Updates & Maintenance page');
   if (!pages.settings_theme.must_show?.includes('Default theme option') || !pages.settings_theme.must_show?.includes('Codex theme option')) {
     throw new Error('Settings theme page must show default and Codex theme options');
   }

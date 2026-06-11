@@ -860,7 +860,10 @@
         "module path source explanation",
         "Developer Profile source_channel capability and managed GHCR agent package channel default",
         "section-level refresh state",
-        "environment page named Local Environment, distinct from Project Progress"
+        "environment page named Local Environment, distinct from Project Progress",
+        "runtime/toolchain managed updater status from App state or opl update status",
+        "agent package channel status and post-update sync status",
+        "capability exposure sync status"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
@@ -870,14 +873,16 @@
         "provider.temporal",
         "modules",
         "paths",
-        "release"
+        "release",
+        "managed_update_plane"
       ],
       "state_sections": [
         "core.codex",
         "provider.temporal",
         "modules",
         "assistants",
-        "release"
+        "release",
+        "managed_update_plane"
       ],
       "module_path_source_policy_ref": "contracts/app-gui-product-contract.json#module_path_source_policy",
       "must_not_show": [
@@ -886,9 +891,13 @@
         "GUI-owned Temporal restart judgment",
         "backend/provider selector as normal App configuration",
         "raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI",
-        "project progress as a settings runtime page"
+        "project progress as a settings runtime page",
+        "Developer Profile checkout as a silent update target",
+        "dirty checkout overwrite as a repair action",
+        "Homebrew/global tool silent upgrade controls"
       ],
-      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "managed_update_plane_ref": "contracts/app-release-channel.json#managed_update_plane"
     },
     {
       "id": "about",
@@ -898,40 +907,102 @@
         "GUI shell version",
         "OPL Framework revision",
         "Stable or Nightly channel",
-        "localized update status"
+        "localized update status",
+        "Updates & Maintenance entry on About & Updates"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "about",
       "state_sections": [
-        "release"
+        "release",
+        "managed_update_plane"
       ],
       "must_not_show": [
         "AionUI version as the App version",
         "raw i18n keys",
-        "raw update error codes as user-facing copy"
+        "raw update error codes as user-facing copy",
+        "developer checkout as a silent update target"
       ],
-      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "sections": [
+        "release",
+        "updates_and_maintenance"
+      ],
+      "managed_update_plane_ref": "contracts/app-release-channel.json#managed_update_plane"
     },
     {
       "id": "update",
-      "expected_source": "OPL App state projection",
+      "expected_source": "OPL App managed update plane projection",
       "must_show": [
-        "Stable channel update state",
-        "Nightly opt-in update state when enabled",
-        "localized GitHub release check failure"
+        "App binary standard updater status",
+        "runtime/toolchain managed updater status",
+        "agent package channel managed updater status",
+        "capability exposure sync status",
+        "conditions and repair actions from App state or opl update status"
       ],
       "must_not_show": [
         "Full first-install asset as a standard updater target",
-        "English update labels in Chinese UI"
+        "Developer Profile checkout as a silent update target",
+        "dirty checkout overwrite as a repair action",
+        "domain truth write controls",
+        "owner receipt mutation controls",
+        "quality/export verdict controls",
+        "Homebrew/global tool silent upgrade controls",
+        "artifact bodies"
       ],
-      "machine_source": "opl app state --profile fast --json",
+      "machine_source": "opl app state --profile fast --json#managed_update_plane or opl update status --json",
       "refresh_source": "opl app state --profile fast --json",
-      "page_contract": "update",
+      "page_contract": "updates_and_maintenance",
       "state_sections": [
-        "release"
+        "release",
+        "managed_update_plane"
       ],
-      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "status_source": "opl update status --json",
+      "sections": [
+        "app_binary",
+        "runtime_toolchain",
+        "agent_packages",
+        "capability_exposure"
+      ],
+      "managed_update_plane": {
+        "page_id": "updates_and_maintenance",
+        "label_en": "Updates & Maintenance",
+        "label_zh": "更新与维护",
+        "source_ref": "contracts/app-release-channel.json#managed_update_plane",
+        "state_sources": [
+          "opl app state --profile fast --json#managed_update_plane",
+          "opl update status --json"
+        ],
+        "action_source": "app_state.actions",
+        "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
+        "display_planes": [
+          "app_binary",
+          "runtime_toolchain",
+          "agent_package_channel",
+          "capability_exposure"
+        ],
+        "app_role": "status_conditions_repair_actions_consumer_only",
+        "framework_role": "managed_update_kernel_owner",
+        "status_consumption_policy": "show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth",
+        "must_show": [
+          "App binary standard updater status",
+          "runtime/toolchain managed updater status",
+          "agent package channel managed updater status",
+          "capability exposure sync status",
+          "conditions and repair actions from App state or opl update status"
+        ],
+        "must_not_show": [
+          "Full first-install asset as a standard updater target",
+          "Developer Profile checkout as a silent update target",
+          "dirty checkout overwrite as a repair action",
+          "domain truth write controls",
+          "owner receipt mutation controls",
+          "quality/export verdict controls",
+          "Homebrew/global tool silent upgrade controls",
+          "artifact bodies"
+        ]
+      }
     },
     {
       "id": "login",

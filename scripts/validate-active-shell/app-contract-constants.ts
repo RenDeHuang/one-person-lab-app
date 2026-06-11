@@ -217,7 +217,7 @@ export const settingsPageExpectations = {
   },
   settings_environment: {
     matrix_id: 'environment',
-    sections: ['core.codex', 'provider.temporal', 'modules', 'paths', 'release'],
+    sections: ['core.codex', 'provider.temporal', 'modules', 'paths', 'release', 'managed_update_plane'],
     must_show: [
       'Codex CLI version and default profile from app_state.core',
       'Temporal status from app_state.provider.temporal',
@@ -226,12 +226,18 @@ export const settingsPageExpectations = {
       'Developer Profile source_channel capability and managed GHCR agent package channel default',
       'section-level refresh state',
       'environment page named Local Environment, distinct from Project Progress',
+      'runtime/toolchain managed updater status from App state or opl update status',
+      'agent package channel status and post-update sync status',
+      'capability exposure sync status',
     ],
     must_not_show: [
       'Med Deep Scientist as a default module',
       'page-wide spinner while one section refreshes',
       'GUI-owned Temporal restart judgment',
       'project progress as a settings runtime page',
+      'Developer Profile checkout as a silent update target',
+      'dirty checkout overwrite as a repair action',
+      'Homebrew/global tool silent upgrade controls',
     ],
   },
   settings_advanced: {

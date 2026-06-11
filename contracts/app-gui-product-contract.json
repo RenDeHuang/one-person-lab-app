@@ -345,6 +345,22 @@
         "runtime implementation selector"
       ],
       "diagnostics_policy": "secondary_disclosure_or_on_demand_full_detail"
+    },
+    "managed_update_plane": {
+      "contract": "contracts/app-release-channel.json#managed_update_plane",
+      "status_command": "opl update status --json",
+      "app_state_source": "opl app state --profile fast --json#managed_update_plane",
+      "action_command": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
+      "app_role": "status_conditions_repair_actions_consumer_only",
+      "framework_role": "managed_update_kernel_owner",
+      "display_policy": "Updates & Maintenance shows App binary, runtime/toolchain, agent packages, and capability exposure from status projections only",
+      "artifact_body_access": false,
+      "domain_truth_write_access": false,
+      "owner_receipt_write_access": false,
+      "quality_verdict_authority": false,
+      "export_verdict_authority": false,
+      "global_tool_mutation_allowed": false,
+      "developer_checkout_mutation_allowed": false
     }
   },
   "executor_policy": {
@@ -714,7 +730,7 @@
     },
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "Settings is an App-owned information architecture, not an upstream AionUI configuration dump. Ordinary navigation uses General, Access, Agents & Capabilities, Local Environment, Appearance, Advanced, and About & Updates. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation. Pages answer user readiness questions first, with raw implementation details behind secondary disclosure.",
+    "policy": "Settings is an App-owned information architecture, not an upstream AionUI configuration dump. Ordinary navigation uses General, Access, Agents & Capabilities, Local Environment, Appearance, Advanced, and About & Updates. About & Updates contains the Updates & Maintenance plane for App binary, runtime/toolchain, agent packages, and capability exposure. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation. Pages answer user readiness questions first, with raw implementation details behind secondary disclosure.",
     "primary_tabs": {
       "general": {
         "label_zh": "通用",
@@ -755,8 +771,8 @@
       "about": {
         "label_zh": "关于与更新",
         "label_en": "About & Updates",
-        "role": "version_channel_update_status",
-        "primary_question": "What version and release channel is this App running?"
+        "role": "version_channel_updates_and_maintenance",
+        "primary_question": "What version is running, what needs maintenance, and which repair actions are safe?"
       }
     }
   },
@@ -1137,7 +1153,7 @@
       "refresh_source": "opl app state --profile fast --json",
       "sections": [
         "release",
-        "update"
+        "updates_and_maintenance"
       ],
       "must_show": [
         "One Person Lab App version",
@@ -1145,28 +1161,80 @@
         "OPL Framework revision",
         "Stable or Nightly channel",
         "localized update status",
-        "update check entry on About & Updates"
+        "Updates & Maintenance entry on About & Updates"
       ],
       "must_not_show": [
         "AionUI version as the App version",
         "raw i18n keys",
-        "raw update error codes as user-facing copy"
-      ]
+        "raw update error codes as user-facing copy",
+        "developer checkout as a silent update target"
+      ],
+      "managed_update_plane_ref": "managed_update_plane"
     },
     "update": {
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
+      "status_source": "opl update status --json",
       "sections": [
-        "release"
+        "app_binary",
+        "runtime_toolchain",
+        "agent_packages",
+        "capability_exposure"
       ],
+      "managed_update_plane": {
+        "page_id": "updates_and_maintenance",
+        "label_en": "Updates & Maintenance",
+        "label_zh": "更新与维护",
+        "source_ref": "contracts/app-release-channel.json#managed_update_plane",
+        "state_sources": [
+          "opl app state --profile fast --json#managed_update_plane",
+          "opl update status --json"
+        ],
+        "action_source": "app_state.actions",
+        "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
+        "display_planes": [
+          "app_binary",
+          "runtime_toolchain",
+          "agent_package_channel",
+          "capability_exposure"
+        ],
+        "app_role": "status_conditions_repair_actions_consumer_only",
+        "framework_role": "managed_update_kernel_owner",
+        "status_consumption_policy": "show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth",
+        "must_show": [
+          "App binary standard updater status",
+          "runtime/toolchain managed updater status",
+          "agent package channel managed updater status",
+          "capability exposure sync status",
+          "conditions and repair actions from App state or opl update status"
+        ],
+        "must_not_show": [
+          "Full first-install asset as a standard updater target",
+          "Developer Profile checkout as a silent update target",
+          "dirty checkout overwrite as a repair action",
+          "domain truth write controls",
+          "owner receipt mutation controls",
+          "quality/export verdict controls",
+          "Homebrew/global tool silent upgrade controls",
+          "artifact bodies"
+        ]
+      },
       "must_show": [
-        "Stable channel update state",
-        "Nightly opt-in update state when enabled",
-        "localized GitHub release check failure"
+        "App binary standard updater status",
+        "runtime/toolchain managed updater status",
+        "agent package channel managed updater status",
+        "capability exposure sync status",
+        "conditions and repair actions from App state or opl update status"
       ],
       "must_not_show": [
         "Full first-install asset as a standard updater target",
-        "English update labels in Chinese UI"
+        "Developer Profile checkout as a silent update target",
+        "dirty checkout overwrite as a repair action",
+        "domain truth write controls",
+        "owner receipt mutation controls",
+        "quality/export verdict controls",
+        "Homebrew/global tool silent upgrade controls",
+        "artifact bodies"
       ]
     },
     "settings_theme": {
@@ -1565,7 +1633,8 @@
         "provider.temporal",
         "modules",
         "paths",
-        "release"
+        "release",
+        "managed_update_plane"
       ],
       "module_path_source_policy_ref": "module_path_source_policy",
       "must_show": [
@@ -1575,14 +1644,21 @@
         "module path source explanation",
         "Developer Profile source_channel capability and managed GHCR agent package channel default",
         "section-level refresh state",
-        "environment page named Local Environment, distinct from Project Progress"
+        "environment page named Local Environment, distinct from Project Progress",
+        "runtime/toolchain managed updater status from App state or opl update status",
+        "agent package channel status and post-update sync status",
+        "capability exposure sync status"
       ],
       "must_not_show": [
         "Med Deep Scientist as a default module",
         "page-wide spinner while one section refreshes",
         "GUI-owned Temporal restart judgment",
-        "project progress as a settings runtime page"
-      ]
+        "project progress as a settings runtime page",
+        "Developer Profile checkout as a silent update target",
+        "dirty checkout overwrite as a repair action",
+        "Homebrew/global tool silent upgrade controls"
+      ],
+      "managed_update_plane_ref": "managed_update_plane"
     },
     "settings_advanced": {
       "state_source": "opl app state --profile fast --json",

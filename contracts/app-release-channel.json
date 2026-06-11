@@ -49,7 +49,15 @@
       "allowed": true,
       "mode": "github_actions_prebuilt_assets_upload_clobber",
       "scope": "standard App DMG, ZIP, blockmaps, and updater metadata for an existing release"
-    }
+    },
+    "managed_update_plane": "app_binary_only",
+    "forbidden_managed_update_targets": [
+      "runtime_toolchain",
+      "agent_package_channel",
+      "capability_exposure",
+      "developer_checkout_selection",
+      "homebrew_or_global_tool_upgrade"
+    ]
   },
   "runtime_toolchain_updater": {
     "owner": "one-person-lab-app",
@@ -133,7 +141,26 @@
       "rollback_on_startup_smoke_failure": true,
       "rollback_must_not_mutate_user_global_tools": true
     },
-    "rule": "Runtime/toolchain updates are App/CLI-managed runtime updates, not Electron standard updater assets and not Homebrew formula upgrades. The default novice experience is silent download and verified staging, with application on the next App restart."
+    "rule": "Runtime/toolchain updates are App/CLI-managed runtime updates, not Electron standard updater assets and not Homebrew formula upgrades. The default novice experience is silent download and verified staging, with application on the next App restart.",
+    "managed_update_plane": "runtime_toolchain",
+    "kernel": "opl_managed_updater_kernel",
+    "adapter": "runtime_pointer_layer_adapter",
+    "policy": "silent_background_verified_stage_apply_on_next_restart",
+    "post_apply": "startup_smoke_then_swap_runtime_current_pointer_with_rollback",
+    "status_sources": [
+      "opl app state --profile fast --json#managed_update_plane.runtime_toolchain",
+      "opl update status --json#runtime_toolchain"
+    ],
+    "app_role": "status_conditions_repair_actions_consumer_only",
+    "forbidden_silent_overwrite_scope": [
+      "Developer Profile checkout",
+      "dirty checkout",
+      "domain truth",
+      "owner receipt",
+      "quality verdict",
+      "export verdict",
+      "Homebrew/global tools"
+    ]
   },
   "nightly_standard": {
     "prerelease": true,
@@ -276,19 +303,19 @@
       "one-person-lab-modules",
       "one-person-lab-modules-nightly"
     ],
-      "agent_pack_policy": {
-        "package_kind": "app_cli_managed_agent_packs",
-        "semantic_authority": "one-person-lab_and_domain_repositories",
-        "homebrew_role": "not_a_distribution_target",
-        "activation_owner": "app_cli_managed_background_maintenance",
-        "default_update_mode": "silent_background",
-        "default_manifest_tag": "latest",
-        "post_update_sync_required": [
-          "codex_plugin_registry",
-          "plugin_packaged_skills",
-          "opl_generated_plugin_surface"
-        ],
-        "homebrew_distribution_allowed": false,
+    "agent_pack_policy": {
+      "package_kind": "app_cli_managed_agent_packs",
+      "semantic_authority": "one-person-lab_and_domain_repositories",
+      "homebrew_role": "not_a_distribution_target",
+      "activation_owner": "app_cli_managed_background_maintenance",
+      "default_update_mode": "silent_background",
+      "default_manifest_tag": "latest",
+      "post_update_sync_required": [
+        "codex_plugin_registry",
+        "plugin_packaged_skills",
+        "opl_generated_plugin_surface"
+      ],
+      "homebrew_distribution_allowed": false,
       "homebrew_formula_allowed": false,
       "forbidden_formulae": [
         "one-person-lab-modules",
@@ -299,7 +326,30 @@
         "opl connect sync-skills"
       ],
       "must_not_write_user_codex_state": true,
-      "must_not_define_agent_semantics": true
+      "must_not_define_agent_semantics": true,
+      "managed_update_plane": "agent_package_channel",
+      "kernel": "opl_managed_updater_kernel",
+      "source_role": "ordinary_user_non_development_agent_update_source",
+      "registry": "ghcr.io",
+      "adapter": "agent_package_channel_adapter",
+      "policy": "ordinary_user_non_development_silent_background",
+      "post_apply": "sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface",
+      "managed_agent_ids": [
+        "mas",
+        "mag",
+        "rca",
+        "oma"
+      ],
+      "developer_checkout_override_policy": "explicit_developer_profile_source_channel_only",
+      "forbidden_silent_overwrite_scope": [
+        "Developer Profile checkout",
+        "dirty checkout",
+        "domain truth",
+        "owner receipt",
+        "quality verdict",
+        "export verdict",
+        "Homebrew/global tools"
+      ]
     }
   },
   "full_first_install": {
@@ -317,12 +367,12 @@
           "system_path",
           "homebrew_formula"
         ],
-      "fallback_version_source": "distribution cohort manifest components.codex_cli.fallback_version",
-      "fallback_runtime_path": "runtime/current/bin/codex",
-      "fallback_payload_path": "runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz",
-      "must_prefer_valid_newer_user_version": true,
-      "verification": "codex --version must satisfy minimum_version, bundled fallback must execute offline from the packaged archive wrapper, and Codex functional smoke must pass"
-    },
+        "fallback_version_source": "distribution cohort manifest components.codex_cli.fallback_version",
+        "fallback_runtime_path": "runtime/current/bin/codex",
+        "fallback_payload_path": "runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz",
+        "must_prefer_valid_newer_user_version": true,
+        "verification": "codex --version must satisfy minimum_version, bundled fallback must execute offline from the packaged archive wrapper, and Codex functional smoke must pass"
+      },
       "temporal_cli": {
         "compatibility_mode": "minimum_version_plus_capability_smoke",
         "minimum_version_source": "distribution cohort manifest components.temporal_cli.minimum_version",
@@ -1056,5 +1106,202 @@
     }
   },
   "normalization_command": "node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets",
-  "validation_command": "node --experimental-strip-types scripts/validate-release.ts release-assets"
+  "validation_command": "node --experimental-strip-types scripts/validate-release.ts release-assets",
+  "managed_update_plane": {
+    "owner": "one-person-lab-app",
+    "producer_owner": "one-person-lab",
+    "product_role": "define_app_update_ux_contract_release_boundary_and_status_consumption",
+    "framework_role": "own_managed_update_kernel_status_conditions_repair_actions_and_apply_execution",
+    "ui_page": "Updates & Maintenance",
+    "status_source_priority": [
+      "opl app state --profile fast --json#managed_update_plane",
+      "opl update status --json"
+    ],
+    "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
+    "status_consumption_policy": "App consumes status, conditions, progress refs, and repair action refs only; App does not read artifact bodies, write domain truth, or implement the Framework update kernel.",
+    "standard_updater_boundary": {
+      "plane": "desktop_app_binary",
+      "owned_by": "one-person-lab-app",
+      "updater": "electron_standard_updater",
+      "scope": "desktop_app_assets_only",
+      "allowed_metadata": [
+        "latest-mac.yml",
+        "latest-arm64-mac.yml"
+      ],
+      "allowed_assets": [
+        "One-Person-Lab-*-mac-arm64.dmg",
+        "One-Person-Lab-*-mac-arm64.zip",
+        "One-Person-Lab-*-mac-arm64.dmg.blockmap",
+        "One-Person-Lab-*-mac-arm64.zip.blockmap"
+      ],
+      "forbidden_targets": [
+        "runtime_toolchain",
+        "agent_package_channel",
+        "capability_exposure",
+        "developer_checkout_selection",
+        "homebrew_or_global_tool_upgrade",
+        "domain_truth"
+      ]
+    },
+    "managed_kernel": {
+      "id": "opl_managed_updater_kernel",
+      "owner": "one-person-lab",
+      "app_role": "status_action_projection_consumer",
+      "channels_share": [
+        "status_schema",
+        "condition_model",
+        "download_verify_stage_apply_lifecycle",
+        "repair_action_refs",
+        "rollback_receipts"
+      ],
+      "app_must_not_implement_kernel": true,
+      "app_must_not_bypass_action_route": true
+    },
+    "planes": [
+      {
+        "id": "app_binary",
+        "display_group": "App binary",
+        "updater_kind": "standard_updater",
+        "source": "GitHub Release standard macOS arm64 updater assets",
+        "adapter": "electron_standard_updater",
+        "policy": "user_visible_release_channel_check",
+        "post_apply": "replace_desktop_app_bundle",
+        "default_update_mode": "user_visible_standard_update",
+        "status_fields": [
+          "installed_version",
+          "available_version",
+          "channel",
+          "download_progress",
+          "restart_required"
+        ],
+        "repair_action_scope": "app_release_check_or_download_retry_only"
+      },
+      {
+        "id": "runtime_toolchain",
+        "display_group": "Runtime/toolchain",
+        "updater_kind": "managed_updater_kernel",
+        "source": "app-runtime-update-channel.json",
+        "adapter": "runtime_pointer_layer_adapter",
+        "policy": "silent_background_verified_stage_apply_on_next_restart",
+        "post_apply": "startup_smoke_then_swap_runtime_current_pointer_with_rollback",
+        "default_update_mode": "silent_background",
+        "status_fields": [
+          "runtime_version",
+          "components",
+          "conditions",
+          "staged_version",
+          "restart_required",
+          "repair_actions"
+        ],
+        "repair_action_scope": "runtime_toolchain_repair_only"
+      },
+      {
+        "id": "agent_package_channel",
+        "display_group": "Agent packages",
+        "updater_kind": "managed_updater_kernel",
+        "source": "GHCR OPL agent packages",
+        "adapter": "agent_package_channel_adapter",
+        "policy": "ordinary_user_non_development_silent_background",
+        "post_apply": "sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface",
+        "default_update_mode": "silent_background",
+        "package_agent_ids": [
+          "mas",
+          "mag",
+          "rca",
+          "oma"
+        ],
+        "status_fields": [
+          "agent_id",
+          "package_tag",
+          "version",
+          "source",
+          "conditions",
+          "repair_actions",
+          "post_update_sync_status"
+        ],
+        "repair_action_scope": "agent_package_reconcile_and_skill_sync_only"
+      },
+      {
+        "id": "capability_exposure",
+        "display_group": "Capability exposure",
+        "updater_kind": "managed_visibility_projection",
+        "source": "OPL App state capability exposure projection",
+        "adapter": "codex_exposure_status_adapter",
+        "policy": "display_visibility_and_repair_actions_without_duplicate_semantics",
+        "post_apply": "none_display_only_until_framework_action_executes_sync",
+        "default_update_mode": "status_projection",
+        "status_fields": [
+          "codex_plugin_registry",
+          "plugin_packaged_skills",
+          "opl_generated_plugin_surface",
+          "conditions",
+          "repair_actions"
+        ],
+        "repair_action_scope": "codex_exposure_repair_only"
+      }
+    ],
+    "channel_differences": {
+      "runtime_toolchain": {
+        "adapter": "runtime_pointer_layer_adapter",
+        "policy": "verify_stage_apply_on_next_app_restart",
+        "post_apply": "component_capability_smoke_and_runtime_pointer_swap"
+      },
+      "agent_package_channel": {
+        "adapter": "agent_package_channel_adapter",
+        "policy": "ordinary_user_non_development_silent_background",
+        "post_apply": "reconcile_modules_sync_skills_sync_plugin_registry_and_oma_generated_plugin_surface"
+      }
+    },
+    "agent_package_channel": {
+      "registry": "ghcr.io",
+      "source_role": "ordinary_user_non_development_agent_update_source",
+      "default_update_mode": "silent_background",
+      "default_manifest_tag": "latest",
+      "package_agent_ids": [
+        "mas",
+        "mag",
+        "rca",
+        "oma"
+      ],
+      "post_update_sync_required": [
+        "codex_plugin_registry",
+        "plugin_packaged_skills",
+        "opl_generated_plugin_surface"
+      ],
+      "activation_commands": [
+        "opl connect reconcile-modules",
+        "opl connect sync-skills"
+      ],
+      "must_not_write_user_codex_state_directly": true,
+      "must_not_define_agent_semantics": true,
+      "developer_checkout_override_policy": "explicit_developer_profile_source_channel_only"
+    },
+    "forbidden_silent_overwrite_scope": [
+      "Developer Profile checkout",
+      "dirty checkout",
+      "domain truth",
+      "owner receipt",
+      "quality verdict",
+      "export verdict",
+      "Homebrew/global tools"
+    ],
+    "forbidden_app_authority": [
+      "framework_update_kernel_implementation",
+      "runtime_truth",
+      "domain_truth",
+      "owner_receipt_authority",
+      "domain_quality_verdict",
+      "domain_export_verdict",
+      "artifact_body",
+      "homebrew_global_tool_mutation",
+      "developer_checkout_mutation"
+    ],
+    "release_boundary_required_cases": [
+      "standard_updater_desktop_assets_only",
+      "runtime_toolchain_uses_managed_kernel_not_standard_updater",
+      "agent_package_channel_uses_managed_kernel_and_post_update_sync",
+      "capability_exposure_status_is_projection_only",
+      "forbidden_silent_overwrite_scope_fail_closed"
+    ]
+  }
 }

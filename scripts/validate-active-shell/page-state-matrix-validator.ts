@@ -28,6 +28,54 @@ import {
   validateUserTaskStatusProjectionContract,
 } from './shared-contract-validators.ts';
 
+const managedUpdateMustShow = [
+  'App binary standard updater status',
+  'runtime/toolchain managed updater status',
+  'agent package channel managed updater status',
+  'capability exposure sync status',
+  'conditions and repair actions from App state or opl update status',
+];
+
+const managedUpdateMustNotShow = [
+  'Full first-install asset as a standard updater target',
+  'Developer Profile checkout as a silent update target',
+  'dirty checkout overwrite as a repair action',
+  'domain truth write controls',
+  'owner receipt mutation controls',
+  'quality/export verdict controls',
+  'Homebrew/global tool silent upgrade controls',
+  'artifact bodies',
+];
+
+function validateManagedUpdatePageState(page, label) {
+  if (page?.page_contract !== 'updates_and_maintenance') {
+    throw new Error(`${label} page_contract must be updates_and_maintenance`);
+  }
+  if (page?.status_source !== 'opl update status --json') {
+    throw new Error(`${label} must expose opl update status --json as the explicit status source`);
+  }
+  assertDeepEqualJson(
+    page?.sections,
+    ['app_binary', 'runtime_toolchain', 'agent_packages', 'capability_exposure'],
+    `${label} sections`,
+  );
+  assertIncludesAll(page?.must_show, managedUpdateMustShow, `${label} must_show`);
+  assertIncludesAll(page?.must_not_show, managedUpdateMustNotShow, `${label} must_not_show`);
+  const plane = page?.managed_update_plane;
+  if (
+    plane?.source_ref !== 'contracts/app-release-channel.json#managed_update_plane' ||
+    plane?.app_role !== 'status_conditions_repair_actions_consumer_only' ||
+    plane?.framework_role !== 'managed_update_kernel_owner'
+  ) {
+    throw new Error(`${label} must bind to the App managed update plane`);
+  }
+  assertDeepEqualJson(
+    plane?.display_planes,
+    ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure'],
+    `${label} display planes`,
+  );
+}
+
 export function validatePageStateMatrix(matrix, contract) {
   if (isDefaultReleaseAdapter(contract) && (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root)) {
     throw new Error('Page-state matrix must target the active shell contract');
@@ -283,7 +331,7 @@ export function validatePageStateMatrix(matrix, contract) {
     }
   }
 
-  const appStatePages = ['settings_general', 'access', 'environment', 'advanced', 'about', 'update', 'settings_theme'];
+  const appStatePages = ['settings_general', 'access', 'environment', 'advanced', 'about', 'settings_theme'];
   for (const pageId of appStatePages) {
     const page = (matrix.pages ?? []).find((entry) => entry.id === pageId);
     if (!page) {
@@ -338,14 +386,21 @@ export function validatePageStateMatrix(matrix, contract) {
   if (!environmentPage.must_not_show?.includes('Med Deep Scientist as a default module')) {
     throw new Error('Environment page must keep MDS out of default module display');
   }
+  if (environmentPage?.managed_update_plane_ref !== 'contracts/app-release-channel.json#managed_update_plane') {
+    throw new Error('Environment page must reference the App release managed update plane');
+  }
   const aboutPage = (matrix.pages ?? []).find((page) => page.id === 'about');
   if (!aboutPage?.must_show?.includes('Stable or Nightly channel')) {
     throw new Error('About page must show Stable or Nightly channel');
   }
-  const updatePage = (matrix.pages ?? []).find((page) => page.id === 'update');
-  if (!updatePage?.must_show?.includes('Stable channel update state') || !updatePage.must_show.includes('Nightly opt-in update state when enabled')) {
-    throw new Error('Update page must show stable and nightly update states');
+  if (!aboutPage?.must_show?.includes('Updates & Maintenance entry on About & Updates')) {
+    throw new Error('About page must link to Updates & Maintenance');
   }
+  if (aboutPage?.managed_update_plane_ref !== 'contracts/app-release-channel.json#managed_update_plane') {
+    throw new Error('About page must reference the App release managed update plane');
+  }
+  const updatePage = (matrix.pages ?? []).find((page) => page.id === 'update');
+  validateManagedUpdatePageState(updatePage, 'Update page');
   const settingsThemePage = (matrix.pages ?? []).find((page) => page.id === 'settings_theme');
   for (const signal of [
     'Default theme option',

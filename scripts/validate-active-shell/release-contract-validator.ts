@@ -3,6 +3,128 @@ import { temporalLocalServiceDefaults, temporalManagedCommands } from './app-con
 import { validateAppReleaseL5ReadoutContract } from '../app-release-l5-readout.ts';
 
 export function validateReleaseChannelContract(releaseChannel) {
+  const managedUpdatePlane = releaseChannel.managed_update_plane;
+  if (
+    managedUpdatePlane?.owner !== 'one-person-lab-app' ||
+    managedUpdatePlane?.producer_owner !== 'one-person-lab' ||
+    managedUpdatePlane?.ui_page !== 'Updates & Maintenance' ||
+    managedUpdatePlane?.framework_role !== 'own_managed_update_kernel_status_conditions_repair_actions_and_apply_execution' ||
+    managedUpdatePlane?.managed_kernel?.id !== 'opl_managed_updater_kernel' ||
+    managedUpdatePlane?.managed_kernel?.owner !== 'one-person-lab' ||
+    managedUpdatePlane?.managed_kernel?.app_role !== 'status_action_projection_consumer' ||
+    managedUpdatePlane?.managed_kernel?.app_must_not_implement_kernel !== true ||
+    managedUpdatePlane?.managed_kernel?.app_must_not_bypass_action_route !== true ||
+    managedUpdatePlane?.status_consumption_policy !==
+      'App consumes status, conditions, progress refs, and repair action refs only; App does not read artifact bodies, write domain truth, or implement the Framework update kernel.'
+  ) {
+    throw new Error('Release channel must declare the App-owned managed update plane as a Framework-kernel status/action consumer');
+  }
+  assertDeepEqualJson(
+    managedUpdatePlane.status_source_priority,
+    ['opl app state --profile fast --json#managed_update_plane', 'opl update status --json'],
+    'Managed update plane status source priority',
+  );
+  assertIncludesAll(
+    managedUpdatePlane.managed_kernel?.channels_share,
+    ['status_schema', 'condition_model', 'download_verify_stage_apply_lifecycle', 'repair_action_refs', 'rollback_receipts'],
+    'Managed update plane shared kernel contract',
+  );
+  assertIncludesAll(
+    managedUpdatePlane.forbidden_silent_overwrite_scope,
+    [
+      'Developer Profile checkout',
+      'dirty checkout',
+      'domain truth',
+      'owner receipt',
+      'quality verdict',
+      'export verdict',
+      'Homebrew/global tools',
+    ],
+    'Managed update plane forbidden silent overwrite scope',
+  );
+  assertIncludesAll(
+    managedUpdatePlane.forbidden_app_authority,
+    [
+      'framework_update_kernel_implementation',
+      'runtime_truth',
+      'domain_truth',
+      'owner_receipt_authority',
+      'domain_quality_verdict',
+      'domain_export_verdict',
+      'artifact_body',
+      'homebrew_global_tool_mutation',
+      'developer_checkout_mutation',
+    ],
+    'Managed update plane forbidden App authority',
+  );
+  assertIncludesAll(
+    managedUpdatePlane.release_boundary_required_cases,
+    [
+      'standard_updater_desktop_assets_only',
+      'runtime_toolchain_uses_managed_kernel_not_standard_updater',
+      'agent_package_channel_uses_managed_kernel_and_post_update_sync',
+      'capability_exposure_status_is_projection_only',
+      'forbidden_silent_overwrite_scope_fail_closed',
+    ],
+    'Managed update plane release-boundary cases',
+  );
+
+  const planeById = new Map((managedUpdatePlane.planes ?? []).map((plane) => [plane.id, plane]));
+  const appBinaryPlane = planeById.get('app_binary');
+  if (
+    appBinaryPlane?.updater_kind !== 'standard_updater' ||
+    appBinaryPlane?.adapter !== 'electron_standard_updater' ||
+    appBinaryPlane?.source !== 'GitHub Release standard macOS arm64 updater assets' ||
+    appBinaryPlane?.repair_action_scope !== 'app_release_check_or_download_retry_only'
+  ) {
+    throw new Error('Managed update plane App binary lane must remain the standard desktop updater only');
+  }
+  const runtimePlane = planeById.get('runtime_toolchain');
+  const agentPlane = planeById.get('agent_package_channel');
+  if (
+    runtimePlane?.updater_kind !== 'managed_updater_kernel' ||
+    runtimePlane?.adapter !== 'runtime_pointer_layer_adapter' ||
+    runtimePlane?.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
+    runtimePlane?.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
+    agentPlane?.updater_kind !== 'managed_updater_kernel' ||
+    agentPlane?.adapter !== 'agent_package_channel_adapter' ||
+    agentPlane?.policy !== 'ordinary_user_non_development_silent_background' ||
+    agentPlane?.post_apply !== 'sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface'
+  ) {
+    throw new Error('Managed update plane runtime/toolchain and agent package lanes must share the managed kernel but differ by adapter/policy/post_apply');
+  }
+  assertDeepEqualJson(
+    agentPlane.package_agent_ids,
+    ['mas', 'mag', 'rca', 'oma'],
+    'Managed update plane agent package ids',
+  );
+  const capabilityPlane = planeById.get('capability_exposure');
+  if (
+    capabilityPlane?.updater_kind !== 'managed_visibility_projection' ||
+    capabilityPlane?.adapter !== 'codex_exposure_status_adapter' ||
+    capabilityPlane?.policy !== 'display_visibility_and_repair_actions_without_duplicate_semantics'
+  ) {
+    throw new Error('Managed update plane capability exposure lane must be a status projection only');
+  }
+  assertIncludesAll(
+    managedUpdatePlane.standard_updater_boundary?.forbidden_targets,
+    [
+      'runtime_toolchain',
+      'agent_package_channel',
+      'capability_exposure',
+      'developer_checkout_selection',
+      'homebrew_or_global_tool_upgrade',
+      'domain_truth',
+    ],
+    'Managed update plane standard updater forbidden targets',
+  );
+  if (
+    managedUpdatePlane.standard_updater_boundary?.scope !== 'desktop_app_assets_only' ||
+    managedUpdatePlane.standard_updater_boundary?.updater !== 'electron_standard_updater'
+  ) {
+    throw new Error('Managed update plane standard updater boundary must remain desktop App assets only');
+  }
+
   const runtimeUpdater = releaseChannel.runtime_toolchain_updater;
   if (
     runtimeUpdater?.owner !== 'one-person-lab-app' ||
@@ -96,6 +218,29 @@ export function validateReleaseChannelContract(releaseChannel) {
   ) {
     throw new Error('Release channel runtime/toolchain updater must preserve clean-machine installability and rollback without global tool mutation');
   }
+  if (
+    runtimeUpdater.managed_update_plane !== 'runtime_toolchain' ||
+    runtimeUpdater.kernel !== 'opl_managed_updater_kernel' ||
+    runtimeUpdater.adapter !== 'runtime_pointer_layer_adapter' ||
+    runtimeUpdater.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
+    runtimeUpdater.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
+    runtimeUpdater.app_role !== 'status_conditions_repair_actions_consumer_only'
+  ) {
+    throw new Error('Release channel runtime/toolchain updater must bind to the managed update plane runtime lane');
+  }
+  assertDeepEqualJson(
+    runtimeUpdater.status_sources,
+    [
+      'opl app state --profile fast --json#managed_update_plane.runtime_toolchain',
+      'opl update status --json#runtime_toolchain',
+    ],
+    'Release channel runtime updater status sources',
+  );
+  assertIncludesAll(
+    runtimeUpdater.forbidden_silent_overwrite_scope,
+    managedUpdatePlane.forbidden_silent_overwrite_scope,
+    'Release channel runtime updater forbidden silent overwrite scope',
+  );
 
   const homebrew = releaseChannel.homebrew_tap_distribution;
   if (
@@ -176,6 +321,28 @@ export function validateReleaseChannelContract(releaseChannel) {
   ) {
     throw new Error('Release channel Homebrew agent-pack policy must keep agent packs outside Homebrew distribution');
   }
+  if (
+    homebrew.agent_pack_policy?.managed_update_plane !== 'agent_package_channel' ||
+    homebrew.agent_pack_policy?.kernel !== 'opl_managed_updater_kernel' ||
+    homebrew.agent_pack_policy?.source_role !== 'ordinary_user_non_development_agent_update_source' ||
+    homebrew.agent_pack_policy?.registry !== 'ghcr.io' ||
+    homebrew.agent_pack_policy?.adapter !== 'agent_package_channel_adapter' ||
+    homebrew.agent_pack_policy?.policy !== 'ordinary_user_non_development_silent_background' ||
+    homebrew.agent_pack_policy?.post_apply !== 'sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface' ||
+    homebrew.agent_pack_policy?.developer_checkout_override_policy !== 'explicit_developer_profile_source_channel_only'
+  ) {
+    throw new Error('Release channel agent-pack policy must bind GHCR agent packages to the managed update plane');
+  }
+  assertDeepEqualJson(
+    homebrew.agent_pack_policy?.managed_agent_ids,
+    ['mas', 'mag', 'rca', 'oma'],
+    'Release channel managed update agent ids',
+  );
+  assertIncludesAll(
+    homebrew.agent_pack_policy?.forbidden_silent_overwrite_scope,
+    managedUpdatePlane.forbidden_silent_overwrite_scope,
+    'Release channel agent-pack forbidden silent overwrite scope',
+  );
   assertIncludesAll(
     homebrew.agent_pack_policy?.post_update_sync_required,
     ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface'],

@@ -114,6 +114,175 @@ test('runtime toolchain updater is a separate silent App-owned channel', () => {
   assert.ok(runtimeUpdater.verification.clean_machine_installability_must_not_regress);
 });
 
+test('managed update plane unifies updater status while preserving adapter authority boundaries', () => {
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const guiContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-gui-product-contract.json'), 'utf8'),
+  );
+  const pageStateMatrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
+  );
+  const plane = releaseContract.managed_update_plane;
+  const lanes = new Map(plane.planes.map((entry) => [entry.id, entry]));
+  const agentPolicy = releaseContract.homebrew_tap_distribution.agent_pack_policy;
+  const updatePage = pageStateMatrix.pages.find((page) => page.id === 'update');
+  const environmentPage = pageStateMatrix.pages.find((page) => page.id === 'environment');
+  const aboutPage = pageStateMatrix.pages.find((page) => page.id === 'about');
+
+  assert.equal(plane.owner, 'one-person-lab-app');
+  assert.equal(plane.producer_owner, 'one-person-lab');
+  assert.equal(plane.ui_page, 'Updates & Maintenance');
+  assert.equal(plane.managed_kernel.id, 'opl_managed_updater_kernel');
+  assert.equal(plane.managed_kernel.owner, 'one-person-lab');
+  assert.equal(plane.managed_kernel.app_role, 'status_action_projection_consumer');
+  assert.equal(plane.managed_kernel.app_must_not_implement_kernel, true);
+  assert.equal(plane.managed_kernel.app_must_not_bypass_action_route, true);
+  assert.deepEqual(plane.status_source_priority, [
+    'opl app state --profile fast --json#managed_update_plane',
+    'opl update status --json',
+  ]);
+  assert.deepEqual(plane.managed_kernel.channels_share, [
+    'status_schema',
+    'condition_model',
+    'download_verify_stage_apply_lifecycle',
+    'repair_action_refs',
+    'rollback_receipts',
+  ]);
+
+  assert.equal(lanes.get('app_binary').updater_kind, 'standard_updater');
+  assert.equal(lanes.get('app_binary').adapter, 'electron_standard_updater');
+  assert.equal(lanes.get('app_binary').repair_action_scope, 'app_release_check_or_download_retry_only');
+  assert.equal(releaseContract.standard_updater.scope, 'desktop_app_assets_only');
+  assert.equal(releaseContract.standard_updater.managed_update_plane, 'app_binary_only');
+  assert.equal(releaseContract.standard_updater.module_package_update_allowed, false);
+  assert.equal(releaseContract.standard_updater.developer_checkout_selection_allowed, false);
+  assert.deepEqual(releaseContract.standard_updater.forbidden_managed_update_targets, [
+    'runtime_toolchain',
+    'agent_package_channel',
+    'capability_exposure',
+    'developer_checkout_selection',
+    'homebrew_or_global_tool_upgrade',
+  ]);
+
+  assert.equal(lanes.get('runtime_toolchain').updater_kind, 'managed_updater_kernel');
+  assert.equal(lanes.get('runtime_toolchain').adapter, 'runtime_pointer_layer_adapter');
+  assert.equal(lanes.get('runtime_toolchain').policy, 'silent_background_verified_stage_apply_on_next_restart');
+  assert.equal(lanes.get('runtime_toolchain').post_apply, 'startup_smoke_then_swap_runtime_current_pointer_with_rollback');
+  assert.equal(releaseContract.runtime_toolchain_updater.kernel, 'opl_managed_updater_kernel');
+  assert.equal(releaseContract.runtime_toolchain_updater.standard_updater_metadata_allowed, false);
+  assert.equal(releaseContract.runtime_toolchain_updater.standard_updater_latest_yml_allowed, false);
+  assert.equal(releaseContract.runtime_toolchain_updater.homebrew_tap_write_allowed, false);
+
+  assert.equal(lanes.get('agent_package_channel').updater_kind, 'managed_updater_kernel');
+  assert.equal(lanes.get('agent_package_channel').adapter, 'agent_package_channel_adapter');
+  assert.equal(lanes.get('agent_package_channel').policy, 'ordinary_user_non_development_silent_background');
+  assert.equal(
+    lanes.get('agent_package_channel').post_apply,
+    'sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface',
+  );
+  assert.equal(lanes.get('capability_exposure').updater_kind, 'managed_visibility_projection');
+  assert.equal(lanes.get('capability_exposure').adapter, 'codex_exposure_status_adapter');
+  assert.equal(
+    lanes.get('capability_exposure').policy,
+    'display_visibility_and_repair_actions_without_duplicate_semantics',
+  );
+
+  assert.deepEqual(lanes.get('agent_package_channel').package_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.equal(agentPolicy.registry, 'ghcr.io');
+  assert.equal(agentPolicy.source_role, 'ordinary_user_non_development_agent_update_source');
+  assert.equal(agentPolicy.default_update_mode, 'silent_background');
+  assert.deepEqual(agentPolicy.managed_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.deepEqual(plane.agent_package_channel.post_update_sync_required, [
+    'codex_plugin_registry',
+    'plugin_packaged_skills',
+    'opl_generated_plugin_surface',
+  ]);
+  assert.deepEqual(plane.agent_package_channel.activation_commands, [
+    'opl connect reconcile-modules',
+    'opl connect sync-skills',
+  ]);
+  assert.deepEqual(agentPolicy.post_update_sync_required, plane.agent_package_channel.post_update_sync_required);
+  assert.equal(agentPolicy.developer_checkout_override_policy, 'explicit_developer_profile_source_channel_only');
+  assert.equal(agentPolicy.homebrew_distribution_allowed, false);
+  assert.equal(agentPolicy.homebrew_formula_allowed, false);
+  assert.equal(agentPolicy.must_not_define_agent_semantics, true);
+
+  for (const forbidden of [
+    'runtime_toolchain',
+    'agent_package_channel',
+    'capability_exposure',
+    'developer_checkout_selection',
+    'homebrew_or_global_tool_upgrade',
+    'domain_truth',
+  ]) {
+    assert.ok(plane.standard_updater_boundary.forbidden_targets.includes(forbidden));
+  }
+  for (const forbidden of [
+    'Developer Profile checkout',
+    'dirty checkout',
+    'domain truth',
+    'owner receipt',
+    'quality verdict',
+    'export verdict',
+    'Homebrew/global tools',
+  ]) {
+    assert.ok(plane.forbidden_silent_overwrite_scope.includes(forbidden));
+  }
+  for (const forbidden of [
+    'framework_update_kernel_implementation',
+    'runtime_truth',
+    'domain_truth',
+    'owner_receipt_authority',
+    'domain_quality_verdict',
+    'domain_export_verdict',
+    'artifact_body',
+    'homebrew_global_tool_mutation',
+    'developer_checkout_mutation',
+  ]) {
+    assert.ok(plane.forbidden_app_authority.includes(forbidden));
+  }
+  assert.deepEqual(agentPolicy.forbidden_silent_overwrite_scope, plane.forbidden_silent_overwrite_scope);
+  assert.deepEqual(releaseContract.runtime_toolchain_updater.forbidden_silent_overwrite_scope, plane.forbidden_silent_overwrite_scope);
+
+  assert.equal(guiContract.framework_surfaces.managed_update_plane.contract, 'contracts/app-release-channel.json#managed_update_plane');
+  assert.equal(guiContract.framework_surfaces.managed_update_plane.status_command, 'opl update status --json');
+  assert.equal(guiContract.framework_surfaces.managed_update_plane.app_role, 'status_conditions_repair_actions_consumer_only');
+  assert.equal(guiContract.framework_surfaces.managed_update_plane.artifact_body_access, false);
+  assert.equal(guiContract.framework_surfaces.managed_update_plane.domain_truth_write_access, false);
+  assert.equal(guiContract.framework_surfaces.managed_update_plane.owner_receipt_write_access, false);
+  assert.equal(guiContract.framework_surfaces.managed_update_plane.quality_verdict_authority, false);
+  assert.equal(guiContract.framework_surfaces.managed_update_plane.global_tool_mutation_allowed, false);
+  assert.equal(guiContract.framework_surfaces.managed_update_plane.developer_checkout_mutation_allowed, false);
+
+  assert.equal(guiContract.pages.update.status_source, 'opl update status --json');
+  assert.deepEqual(guiContract.pages.update.sections, [
+    'app_binary',
+    'runtime_toolchain',
+    'agent_packages',
+    'capability_exposure',
+  ]);
+  assert.deepEqual(guiContract.pages.update.managed_update_plane.display_planes, [
+    'app_binary',
+    'runtime_toolchain',
+    'agent_package_channel',
+    'capability_exposure',
+  ]);
+  assert.deepEqual(updatePage.sections, guiContract.pages.update.sections);
+  assert.equal(updatePage.page_contract, 'updates_and_maintenance');
+  assert.equal(updatePage.status_source, 'opl update status --json');
+  assert.ok(updatePage.must_show.includes('agent package channel managed updater status'));
+  assert.ok(updatePage.must_not_show.includes('dirty checkout overwrite as a repair action'));
+  assert.ok(updatePage.must_not_show.includes('quality/export verdict controls'));
+  assert.ok(updatePage.must_not_show.includes('Homebrew/global tool silent upgrade controls'));
+  assert.equal(environmentPage.managed_update_plane_ref, 'contracts/app-release-channel.json#managed_update_plane');
+  assert.ok(environmentPage.must_show.includes('agent package channel status and post-update sync status'));
+  assert.ok(environmentPage.must_not_show.includes('Developer Profile checkout as a silent update target'));
+  assert.equal(aboutPage.managed_update_plane_ref, 'contracts/app-release-channel.json#managed_update_plane');
+  assert.ok(aboutPage.must_show.includes('Updates & Maintenance entry on About & Updates'));
+});
+
 test('retired tag-push Build and Release workflow has no live or compatibility surface', () => {
   const workflowsDir = path.join(appRoot, '.github', 'workflows');
   const workflowNames = fs.readdirSync(workflowsDir).filter((name) => name.endsWith('.yml')).sort();
