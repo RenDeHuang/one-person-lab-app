@@ -589,7 +589,6 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.equal(readonlyMiss.write_archive, false);
   assert.equal(disabled.status, 'disabled');
   assert.equal(disabled.archive_path, null);
-  assert.equal(mod.FULL_RUNTIME_CACHE_AGGREGATE_KEY_SCHEMA, 'opl_full_runtime_cache_aggregate_key.v1');
   assert.deepEqual(
     mod.buildFullRuntimeAggregateCacheKeyInput({
       layers: {
