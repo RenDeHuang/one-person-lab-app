@@ -150,6 +150,49 @@ test('managed update plane unifies updater status while preserving adapter autho
     'repair_action_refs',
     'rollback_receipts',
   ]);
+  assert.deepEqual(plane.managed_kernel.lifecycle, [
+    'read_manifest',
+    'read_current_state',
+    'diff_plan',
+    'fetch_artifacts',
+    'verify',
+    'stage',
+    'activate',
+    'post_apply',
+    'write_receipt',
+    'report_status_or_repair',
+  ]);
+  assert.deepEqual(plane.managed_kernel.state_vocabulary, [
+    'current',
+    'update_available',
+    'staged',
+    'needs_restart',
+    'needs_reload',
+    'failed_with_repair',
+    'skipped_manual_required',
+  ]);
+  assert.equal(plane.managed_kernel.idempotency_lock.lock_id, 'opl_managed_updater_kernel.global');
+  assert.deepEqual(plane.managed_kernel.idempotency_lock.exclusive_operations, ['apply', 'repair', 'rollback']);
+  assert.equal(
+    plane.managed_kernel.idempotency_lock.contention_policy,
+    'report_in_progress_or_skip_without_parallel_stage_or_plugin_sync',
+  );
+  assert.equal(
+    plane.managed_kernel.component_receipt_shape.schema_version,
+    'opl_managed_update_component_receipt.v1',
+  );
+  assert.deepEqual(plane.managed_kernel.component_receipt_shape.required_fields, [
+    'source_manifest_ref',
+    'from_version',
+    'from_digest',
+    'to_version',
+    'to_digest',
+    'verify_result',
+    'activated_at',
+    'post_apply_hooks',
+    'rollback_ref',
+    'repair_action',
+  ]);
 
   assert.equal(lanes.get('app_binary').updater_kind, 'standard_updater');
   assert.equal(lanes.get('app_binary').adapter, 'electron_standard_updater');
@@ -167,10 +210,11 @@ test('managed update plane unifies updater status while preserving adapter autho
   ]);
 
   assert.equal(lanes.get('runtime_toolchain').updater_kind, 'managed_updater_kernel');
-  assert.equal(lanes.get('runtime_toolchain').adapter, 'runtime_pointer_layer_adapter');
+  assert.equal(lanes.get('runtime_toolchain').adapter, 'runtime_toolchain_adapter');
   assert.equal(lanes.get('runtime_toolchain').policy, 'silent_background_verified_stage_apply_on_next_restart');
   assert.equal(lanes.get('runtime_toolchain').post_apply, 'startup_smoke_then_swap_runtime_current_pointer_with_rollback');
   assert.equal(releaseContract.runtime_toolchain_updater.kernel, 'opl_managed_updater_kernel');
+  assert.equal(releaseContract.runtime_toolchain_updater.adapter, 'runtime_toolchain_adapter');
   assert.equal(releaseContract.runtime_toolchain_updater.standard_updater_metadata_allowed, false);
   assert.equal(releaseContract.runtime_toolchain_updater.standard_updater_latest_yml_allowed, false);
   assert.equal(releaseContract.runtime_toolchain_updater.homebrew_tap_write_allowed, false);

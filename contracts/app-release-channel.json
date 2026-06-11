@@ -144,7 +144,7 @@
     "rule": "Runtime/toolchain updates are App/CLI-managed runtime updates, not Electron standard updater assets and not Homebrew formula upgrades. The default novice experience is silent download and verified staging, with application on the next App restart.",
     "managed_update_plane": "runtime_toolchain",
     "kernel": "opl_managed_updater_kernel",
-    "adapter": "runtime_pointer_layer_adapter",
+    "adapter": "runtime_toolchain_adapter",
     "policy": "silent_background_verified_stage_apply_on_next_restart",
     "post_apply": "startup_smoke_then_swap_runtime_current_pointer_with_rollback",
     "status_sources": [
@@ -1147,6 +1147,27 @@
       "id": "opl_managed_updater_kernel",
       "owner": "one-person-lab",
       "app_role": "status_action_projection_consumer",
+      "lifecycle": [
+        "read_manifest",
+        "read_current_state",
+        "diff_plan",
+        "fetch_artifacts",
+        "verify",
+        "stage",
+        "activate",
+        "post_apply",
+        "write_receipt",
+        "report_status_or_repair"
+      ],
+      "state_vocabulary": [
+        "current",
+        "update_available",
+        "staged",
+        "needs_restart",
+        "needs_reload",
+        "failed_with_repair",
+        "skipped_manual_required"
+      ],
       "channels_share": [
         "status_schema",
         "condition_model",
@@ -1154,6 +1175,37 @@
         "repair_action_refs",
         "rollback_receipts"
       ],
+      "idempotency_lock": {
+        "lock_id": "opl_managed_updater_kernel.global",
+        "lock_scope": "single_writer_for_fetch_verify_stage_activate_post_apply_write_receipt",
+        "read_operations": [
+          "status",
+          "check",
+          "plan"
+        ],
+        "exclusive_operations": [
+          "apply",
+          "repair",
+          "rollback"
+        ],
+        "stale_after_seconds": 1800,
+        "contention_policy": "report_in_progress_or_skip_without_parallel_stage_or_plugin_sync"
+      },
+      "component_receipt_shape": {
+        "schema_version": "opl_managed_update_component_receipt.v1",
+        "required_fields": [
+          "source_manifest_ref",
+          "from_version",
+          "from_digest",
+          "to_version",
+          "to_digest",
+          "verify_result",
+          "activated_at",
+          "post_apply_hooks",
+          "rollback_ref",
+          "repair_action"
+        ]
+      },
       "app_must_not_implement_kernel": true,
       "app_must_not_bypass_action_route": true
     },
@@ -1181,7 +1233,7 @@
         "display_group": "Runtime/toolchain",
         "updater_kind": "managed_updater_kernel",
         "source": "app-runtime-update-channel.json",
-        "adapter": "runtime_pointer_layer_adapter",
+        "adapter": "runtime_toolchain_adapter",
         "policy": "silent_background_verified_stage_apply_on_next_restart",
         "post_apply": "startup_smoke_then_swap_runtime_current_pointer_with_rollback",
         "default_update_mode": "silent_background",
@@ -1242,7 +1294,7 @@
     ],
     "channel_differences": {
       "runtime_toolchain": {
-        "adapter": "runtime_pointer_layer_adapter",
+        "adapter": "runtime_toolchain_adapter",
         "policy": "verify_stage_apply_on_next_app_restart",
         "post_apply": "component_capability_smoke_and_runtime_pointer_swap"
       },

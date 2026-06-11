@@ -29,6 +29,69 @@ export function validateReleaseChannelContract(releaseChannel) {
     ['status_schema', 'condition_model', 'download_verify_stage_apply_lifecycle', 'repair_action_refs', 'rollback_receipts'],
     'Managed update plane shared kernel contract',
   );
+  assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.lifecycle,
+    [
+      'read_manifest',
+      'read_current_state',
+      'diff_plan',
+      'fetch_artifacts',
+      'verify',
+      'stage',
+      'activate',
+      'post_apply',
+      'write_receipt',
+      'report_status_or_repair',
+    ],
+    'Managed update plane lifecycle',
+  );
+  assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.state_vocabulary,
+    [
+      'current',
+      'update_available',
+      'staged',
+      'needs_restart',
+      'needs_reload',
+      'failed_with_repair',
+      'skipped_manual_required',
+    ],
+    'Managed update plane state vocabulary',
+  );
+  if (
+    managedUpdatePlane.managed_kernel?.idempotency_lock?.lock_id !== 'opl_managed_updater_kernel.global' ||
+    managedUpdatePlane.managed_kernel?.idempotency_lock?.lock_scope !==
+      'single_writer_for_fetch_verify_stage_activate_post_apply_write_receipt' ||
+    managedUpdatePlane.managed_kernel?.idempotency_lock?.stale_after_seconds !== 1800 ||
+    managedUpdatePlane.managed_kernel?.idempotency_lock?.contention_policy !==
+      'report_in_progress_or_skip_without_parallel_stage_or_plugin_sync'
+  ) {
+    throw new Error('Managed update plane must declare the Framework updater idempotency lock contract');
+  }
+  assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.idempotency_lock?.exclusive_operations,
+    ['apply', 'repair', 'rollback'],
+    'Managed update plane exclusive lock operations',
+  );
+  if (managedUpdatePlane.managed_kernel?.component_receipt_shape?.schema_version !== 'opl_managed_update_component_receipt.v1') {
+    throw new Error('Managed update plane must declare the component receipt schema version');
+  }
+  assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.component_receipt_shape?.required_fields,
+    [
+      'source_manifest_ref',
+      'from_version',
+      'from_digest',
+      'to_version',
+      'to_digest',
+      'verify_result',
+      'activated_at',
+      'post_apply_hooks',
+      'rollback_ref',
+      'repair_action',
+    ],
+    'Managed update plane component receipt required fields',
+  );
   assertIncludesAll(
     managedUpdatePlane.forbidden_silent_overwrite_scope,
     [
@@ -83,7 +146,7 @@ export function validateReleaseChannelContract(releaseChannel) {
   const agentPlane = planeById.get('agent_package_channel');
   if (
     runtimePlane?.updater_kind !== 'managed_updater_kernel' ||
-    runtimePlane?.adapter !== 'runtime_pointer_layer_adapter' ||
+    runtimePlane?.adapter !== 'runtime_toolchain_adapter' ||
     runtimePlane?.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
     runtimePlane?.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
     agentPlane?.updater_kind !== 'managed_updater_kernel' ||
@@ -221,7 +284,7 @@ export function validateReleaseChannelContract(releaseChannel) {
   if (
     runtimeUpdater.managed_update_plane !== 'runtime_toolchain' ||
     runtimeUpdater.kernel !== 'opl_managed_updater_kernel' ||
-    runtimeUpdater.adapter !== 'runtime_pointer_layer_adapter' ||
+    runtimeUpdater.adapter !== 'runtime_toolchain_adapter' ||
     runtimeUpdater.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
     runtimeUpdater.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
     runtimeUpdater.app_role !== 'status_conditions_repair_actions_consumer_only'
