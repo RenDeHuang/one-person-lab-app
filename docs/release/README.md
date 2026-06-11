@@ -78,9 +78,13 @@ explicit Developer Profile `source_channel` opt-in.
 The GHCR agent package channel is the ordinary non-development update source for
 MAS/MAG/RCA/OMA. Nightly package publication is the automation cadence for that
 channel, not a developer checkout path. Clean managed package-channel modules
-may update silently during App/CLI background maintenance, and each update must
-refresh the Codex plugin registry, plugin-packaged skills, and generated OMA
-plugin surface before the App reports the plugin cache as freshened.
+may update silently through the Framework managed updater runner during App/CLI
+background maintenance. Each apply/repair result must expose component receipt
+refs, lock/runner status, repair status, post-apply sync status, and guidance to
+reload the App/Codex plugin cache when visible plugin or skill surfaces changed.
+Post-apply sync must cover module reconcile, skill sync, Codex plugin registry,
+plugin-packaged skills, and generated OMA plugin surfaces before the App reports
+the plugin cache as freshened.
 
 Runtime and toolchain updates use a separate App-owned channel. Codex CLI,
 Temporal CLI archive fallback, Node/Python/uv, OfficeCLI, MinerU, companion
@@ -89,9 +93,12 @@ written into Electron `latest*.yml` metadata and are not silently upgraded
 through Homebrew. The default novice path is: check in the background, download
 quietly, verify manifest and SHA-256 plus component capability smokes, stage the
 new runtime under `~/Library/Application Support/OPL/runtime/staged/`, then
-apply it by swapping the runtime `current.json` pointer on the next App restart.
-The previous runtime is retained for rollback if startup smoke fails. Runtime
-selection may still prefer a compatible newer explicit/system/Homebrew
+apply it through the Framework managed updater runner by swapping the runtime
+`current.json` pointer on the next App restart. The App must consume the runner's
+component receipt ref, lock/runner status, repair status, rollback status, and
+startup-smoke rollback guidance; it must not implement the kernel itself or read
+runtime artifact bodies. The previous runtime is retained for rollback if startup
+smoke fails. Runtime selection may still prefer a compatible newer explicit/system/Homebrew
 `codex` or `temporal`, but the App must not silently mutate the user's global
 Homebrew or system tools unless the user has explicitly opted into that kind of
 global tool upgrade.

@@ -290,6 +290,17 @@ compressed-size thresholds are release-review warnings, while checksum,
 manifest, native-trust, remote verification, VM, and local-authorization gates
 remain the release truth.
 
+The managed update plane now describes App consumption of the Framework
+apply/repair/rollback runner, not only a status projection. The App release
+contract expects `opl update status/check/plan --json` for read-only projections
+and `opl update apply/repair/rollback --json` for controlled runner results.
+The App consumes component receipt refs, lock/runner status, repair status,
+rollback status, post-apply sync status, and reload guidance for runtime
+toolchain, managed agent packages, and Codex capability exposure. The App still
+does not implement the kernel, read managed artifact bodies, write runtime or
+domain truth, create owner receipts, mutate dirty/developer checkouts, silently
+upgrade Homebrew/global tools, or claim MAS/MAG/RCA quality/export verdicts.
+
 Release and user-path evidence remains cohort-bound App evidence. Verified
 release bundle refs, screenshots, remote asset checks, or packaged route smoke
 can support release-owner review for the same App cohort, but they do not

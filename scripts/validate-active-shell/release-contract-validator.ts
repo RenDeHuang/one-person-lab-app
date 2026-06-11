@@ -77,6 +77,74 @@ export function validateReleaseChannelContract(releaseChannel) {
     throw new Error('Managed update plane must declare the component receipt schema version');
   }
   assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.public_cli_surfaces,
+    [
+      'opl update status --json',
+      'opl update check --json',
+      'opl update plan --json',
+      'opl update apply --component <component_id> --json',
+      'opl update repair --receipt <receipt_id> --json',
+      'opl update rollback --component <component_id> --json',
+    ],
+    'Managed update plane public CLI surfaces',
+  );
+  assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.operation_modes,
+    {
+      status: 'read_only_projection',
+      check: 'read_only_projection',
+      plan: 'read_only_projection',
+      apply: 'controlled_apply',
+      repair: 'controlled_repair',
+      rollback: 'controlled_rollback',
+    },
+    'Managed update plane operation modes',
+  );
+  assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.receipt_write_policy,
+    {
+      status: 'read_only',
+      check: 'read_only',
+      plan: 'read_only',
+      apply: 'recorded_component_receipt',
+      repair: 'recorded_component_receipt',
+      rollback: 'recorded_component_receipt',
+    },
+    'Managed update plane receipt write policy',
+  );
+  assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.status_projection_required_fields,
+    [
+      'operation',
+      'operation_mode',
+      'update_channel',
+      'idempotency_lock.status',
+      'summary',
+      'components',
+      'repair_actions',
+      'receipts.write_policy',
+      'authority_boundary',
+    ],
+    'Managed update plane status projection required fields',
+  );
+  assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.runner_result_required_fields,
+    [
+      'operation',
+      'operation_mode',
+      'execution.status',
+      'idempotency_lock.status',
+      'component_id',
+      'components[].receipt.last_receipt_ref',
+      'components[].receipt.repair_action',
+      'components[].receipt.rollback_ref',
+      'components[].receipt.post_apply_hooks',
+      'execution.receipt_record.receipt_refs',
+      'reload_guidance',
+    ],
+    'Managed update plane runner result required fields',
+  );
+  assertDeepEqualJson(
     managedUpdatePlane.managed_kernel?.component_receipt_shape?.required_fields,
     [
       'source_manifest_ref',
@@ -92,6 +160,35 @@ export function validateReleaseChannelContract(releaseChannel) {
     ],
     'Managed update plane component receipt required fields',
   );
+  assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.component_receipt_shape?.identity_fields,
+    [
+      'digest',
+      'sha256',
+      'source_fingerprint',
+      'git_head_sha',
+      'runtime_version',
+      'current_pointer',
+      'staged_root',
+      'plugin_manifest_hash',
+      'skill_pack_hash',
+      'generated_surface_hash',
+    ],
+    'Managed update plane component receipt identity fields',
+  );
+  assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.condition_shape?.required_fields,
+    ['type', 'status', 'reason', 'message', 'observed_generation'],
+    'Managed update plane condition required fields',
+  );
+  assertDeepEqualJson(
+    managedUpdatePlane.managed_kernel?.condition_shape?.status_values,
+    ['True', 'False', 'Unknown'],
+    'Managed update plane condition status values',
+  );
+  if (managedUpdatePlane.managed_kernel?.condition_shape?.style !== 'kubernetes_status_conditions') {
+    throw new Error('Managed update plane condition shape must use Kubernetes-style status conditions');
+  }
   assertIncludesAll(
     managedUpdatePlane.forbidden_silent_overwrite_scope,
     [
@@ -157,6 +254,66 @@ export function validateReleaseChannelContract(releaseChannel) {
     throw new Error('Managed update plane runtime/toolchain and agent package lanes must share the managed kernel but differ by adapter/policy/post_apply');
   }
   assertDeepEqualJson(
+    runtimePlane.status_fields,
+    [
+      'runtime_version',
+      'components',
+      'conditions',
+      'staged_version',
+      'restart_required',
+      'repair_actions',
+      'idempotency_lock.status',
+      'execution.status',
+      'components[].receipt.last_receipt_ref',
+      'components[].receipt.rollback_ref',
+      'components[].receipt.repair_action',
+    ],
+    'Managed update plane runtime lane status fields',
+  );
+  assertDeepEqualJson(
+    runtimePlane.component_receipt_identity_fields,
+    ['runtime_version', 'current_pointer', 'staged_root', 'sha256'],
+    'Managed update plane runtime lane receipt identity fields',
+  );
+  if (
+    runtimePlane.rollback_status_source !== 'opl update rollback --component runtime_toolchain --json#managed_update.execution.status' ||
+    runtimePlane.repair_status_source !== 'opl update repair --receipt <receipt_id> --json#managed_update.execution.status'
+  ) {
+    throw new Error('Managed update plane runtime lane must consume Framework rollback and repair runner status fields');
+  }
+  assertDeepEqualJson(
+    agentPlane.status_fields,
+    [
+      'agent_id',
+      'package_tag',
+      'version',
+      'source',
+      'conditions',
+      'repair_actions',
+      'components[].receipt.post_apply_hooks',
+      'idempotency_lock.status',
+      'execution.status',
+      'components[].receipt.last_receipt_ref',
+      'components[].receipt.repair_action',
+    ],
+    'Managed update plane agent package lane status fields',
+  );
+  assertDeepEqualJson(
+    agentPlane.post_apply_sync,
+    {
+      status_field: 'components[].receipt.post_apply_hooks',
+      required_hooks: [
+        'reconcile_modules',
+        'sync_skills',
+        'sync_plugin_registry',
+        'sync_plugin_packaged_skills',
+        'sync_oma_generated_plugin_surface',
+      ],
+      reload_guidance: 'reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface',
+    },
+    'Managed update plane agent package post-apply sync guidance',
+  );
+  assertDeepEqualJson(
     agentPlane.package_agent_ids,
     ['mas', 'mag', 'rca', 'oma'],
     'Managed update plane agent package ids',
@@ -168,6 +325,26 @@ export function validateReleaseChannelContract(releaseChannel) {
     capabilityPlane?.policy !== 'display_visibility_and_repair_actions_without_duplicate_semantics'
   ) {
     throw new Error('Managed update plane capability exposure lane must be a status projection only');
+  }
+  assertDeepEqualJson(
+    capabilityPlane.status_fields,
+    [
+      'codex_plugin_registry',
+      'plugin_packaged_skills',
+      'opl_generated_plugin_surface',
+      'conditions',
+      'repair_actions',
+      'components[].receipt.post_apply_hooks',
+      'reload_required',
+      'reload_guidance',
+    ],
+    'Managed update plane capability exposure status fields',
+  );
+  if (
+    capabilityPlane.reload_guidance !==
+    'manual_reload_only_after_framework_reports_needs_reload_or_post_apply_sync_changed_cached_capability_surface'
+  ) {
+    throw new Error('Managed update plane capability exposure lane must declare post-apply reload guidance');
   }
   assertIncludesAll(
     managedUpdatePlane.standard_updater_boundary?.forbidden_targets,

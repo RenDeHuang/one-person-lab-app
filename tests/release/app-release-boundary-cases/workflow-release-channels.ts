@@ -181,6 +181,54 @@ test('managed update plane unifies updater status while preserving adapter autho
     plane.managed_kernel.component_receipt_shape.schema_version,
     'opl_managed_update_component_receipt.v1',
   );
+  assert.deepEqual(plane.managed_kernel.public_cli_surfaces, [
+    'opl update status --json',
+    'opl update check --json',
+    'opl update plan --json',
+    'opl update apply --component <component_id> --json',
+    'opl update repair --receipt <receipt_id> --json',
+    'opl update rollback --component <component_id> --json',
+  ]);
+  assert.deepEqual(plane.managed_kernel.operation_modes, {
+    status: 'read_only_projection',
+    check: 'read_only_projection',
+    plan: 'read_only_projection',
+    apply: 'controlled_apply',
+    repair: 'controlled_repair',
+    rollback: 'controlled_rollback',
+  });
+  assert.deepEqual(plane.managed_kernel.receipt_write_policy, {
+    status: 'read_only',
+    check: 'read_only',
+    plan: 'read_only',
+    apply: 'recorded_component_receipt',
+    repair: 'recorded_component_receipt',
+    rollback: 'recorded_component_receipt',
+  });
+  assert.deepEqual(plane.managed_kernel.status_projection_required_fields, [
+    'operation',
+    'operation_mode',
+    'update_channel',
+    'idempotency_lock.status',
+    'summary',
+    'components',
+    'repair_actions',
+    'receipts.write_policy',
+    'authority_boundary',
+  ]);
+  assert.deepEqual(plane.managed_kernel.runner_result_required_fields, [
+    'operation',
+    'operation_mode',
+    'execution.status',
+    'idempotency_lock.status',
+    'component_id',
+    'components[].receipt.last_receipt_ref',
+    'components[].receipt.repair_action',
+    'components[].receipt.rollback_ref',
+    'components[].receipt.post_apply_hooks',
+    'execution.receipt_record.receipt_refs',
+    'reload_guidance',
+  ]);
   assert.deepEqual(plane.managed_kernel.component_receipt_shape.required_fields, [
     'source_manifest_ref',
     'from_version',
@@ -193,6 +241,26 @@ test('managed update plane unifies updater status while preserving adapter autho
     'rollback_ref',
     'repair_action',
   ]);
+  assert.deepEqual(plane.managed_kernel.component_receipt_shape.identity_fields, [
+    'digest',
+    'sha256',
+    'source_fingerprint',
+    'git_head_sha',
+    'runtime_version',
+    'current_pointer',
+    'staged_root',
+    'plugin_manifest_hash',
+    'skill_pack_hash',
+    'generated_surface_hash',
+  ]);
+  assert.deepEqual(plane.managed_kernel.condition_shape.required_fields, [
+    'type',
+    'status',
+    'reason',
+    'message',
+    'observed_generation',
+  ]);
+  assert.deepEqual(plane.managed_kernel.condition_shape.status_values, ['True', 'False', 'Unknown']);
 
   assert.equal(lanes.get('app_binary').updater_kind, 'standard_updater');
   assert.equal(lanes.get('app_binary').adapter, 'electron_standard_updater');
@@ -213,6 +281,33 @@ test('managed update plane unifies updater status while preserving adapter autho
   assert.equal(lanes.get('runtime_toolchain').adapter, 'runtime_toolchain_adapter');
   assert.equal(lanes.get('runtime_toolchain').policy, 'silent_background_verified_stage_apply_on_next_restart');
   assert.equal(lanes.get('runtime_toolchain').post_apply, 'startup_smoke_then_swap_runtime_current_pointer_with_rollback');
+  assert.deepEqual(lanes.get('runtime_toolchain').status_fields, [
+    'runtime_version',
+    'components',
+    'conditions',
+    'staged_version',
+    'restart_required',
+    'repair_actions',
+    'idempotency_lock.status',
+    'execution.status',
+    'components[].receipt.last_receipt_ref',
+    'components[].receipt.rollback_ref',
+    'components[].receipt.repair_action',
+  ]);
+  assert.deepEqual(lanes.get('runtime_toolchain').component_receipt_identity_fields, [
+    'runtime_version',
+    'current_pointer',
+    'staged_root',
+    'sha256',
+  ]);
+  assert.equal(
+    lanes.get('runtime_toolchain').rollback_status_source,
+    'opl update rollback --component runtime_toolchain --json#managed_update.execution.status',
+  );
+  assert.equal(
+    lanes.get('runtime_toolchain').repair_status_source,
+    'opl update repair --receipt <receipt_id> --json#managed_update.execution.status',
+  );
   assert.equal(releaseContract.runtime_toolchain_updater.kernel, 'opl_managed_updater_kernel');
   assert.equal(releaseContract.runtime_toolchain_updater.adapter, 'runtime_toolchain_adapter');
   assert.equal(releaseContract.runtime_toolchain_updater.standard_updater_metadata_allowed, false);
@@ -226,11 +321,49 @@ test('managed update plane unifies updater status while preserving adapter autho
     lanes.get('agent_package_channel').post_apply,
     'sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface',
   );
+  assert.deepEqual(lanes.get('agent_package_channel').status_fields, [
+    'agent_id',
+    'package_tag',
+    'version',
+    'source',
+    'conditions',
+    'repair_actions',
+    'components[].receipt.post_apply_hooks',
+    'idempotency_lock.status',
+    'execution.status',
+    'components[].receipt.last_receipt_ref',
+    'components[].receipt.repair_action',
+  ]);
+  assert.deepEqual(lanes.get('agent_package_channel').post_apply_sync, {
+    status_field: 'components[].receipt.post_apply_hooks',
+    required_hooks: [
+      'reconcile_modules',
+      'sync_skills',
+      'sync_plugin_registry',
+      'sync_plugin_packaged_skills',
+      'sync_oma_generated_plugin_surface',
+    ],
+    reload_guidance: 'reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface',
+  });
   assert.equal(lanes.get('capability_exposure').updater_kind, 'managed_visibility_projection');
   assert.equal(lanes.get('capability_exposure').adapter, 'codex_exposure_status_adapter');
   assert.equal(
     lanes.get('capability_exposure').policy,
     'display_visibility_and_repair_actions_without_duplicate_semantics',
+  );
+  assert.deepEqual(lanes.get('capability_exposure').status_fields, [
+    'codex_plugin_registry',
+    'plugin_packaged_skills',
+    'opl_generated_plugin_surface',
+    'conditions',
+    'repair_actions',
+    'components[].receipt.post_apply_hooks',
+    'reload_required',
+    'reload_guidance',
+  ]);
+  assert.equal(
+    lanes.get('capability_exposure').reload_guidance,
+    'manual_reload_only_after_framework_reports_needs_reload_or_post_apply_sync_changed_cached_capability_surface',
   );
 
   assert.deepEqual(lanes.get('agent_package_channel').package_agent_ids, ['mas', 'mag', 'rca', 'oma']);
