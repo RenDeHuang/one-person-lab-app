@@ -1270,6 +1270,41 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.equal(ownerBlocker.release_owner_receipt_ref, null);
   assert.equal(ownerBlocker.downloaded_artifact_readback.release_candidate_validator_promote_ready, false);
   assert.equal(ownerBlocker.downloaded_artifact_readback.release_owner_resolution_ref_present, false);
+
+  const ownerReceipt = JSON.parse(
+    fs.readFileSync(
+      path.join(appRoot, 'docs', 'release', 'records', 'v26.6.12-release-owner-receipt.json'),
+      'utf8',
+    ),
+  );
+  assert.equal(ownerReceipt.schema, 'opl_app_release_owner_receipt_record.v1');
+  assert.equal(ownerReceipt.version, '26.6.12');
+  assert.equal(ownerReceipt.tag, 'v26.6.12');
+  assert.equal(ownerReceipt.status, 'release_owner_receipt_recorded');
+  assert.equal(
+    ownerReceipt.release_owner_receipt_ref,
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.12/receipt-20260612-owner-verdict',
+  );
+  assert.equal(
+    ownerReceipt.supersedes_typed_blocker_ref,
+    'typed_blocker_ref://one-person-lab-app/release-owner/v26.6.12/verdict-pending',
+  );
+  assert.equal(ownerReceipt.release_candidate_promote_ready, true);
+  assert.equal(ownerReceipt.release_ready_claim, false);
+  assert.equal(ownerReceipt.stable_latest_promotion_claim, false);
+  assert.equal(ownerReceipt.family_production_ready_claim, false);
+  assert.equal(ownerReceipt.can_close_opl_app_release_user_path, true);
+  assert.equal(ownerReceipt.source_artifact_readback.source_run_id, '27415765472');
+  assert.equal(ownerReceipt.source_artifact_readback.release_readiness_failed_required_gate_count, 0);
+  assert.equal(ownerReceipt.source_artifact_readback.remote_verified_asset_count, 14);
+  assert.equal(ownerReceipt.source_artifact_readback.full_first_install_budget_status, 'passed');
+  assert.equal(ownerReceipt.owner_resolution_validation.release_candidate_validator_promote_ready, true);
+  assert.equal(ownerReceipt.owner_resolution_validation.release_owner_verdict_status, 'release_owner_receipt_recorded');
+  assert.equal(ownerReceipt.owner_resolution_validation.release_owner_resolution_ref_present, true);
+  assert.deepEqual(ownerReceipt.owner_resolution_validation.validator_errors, []);
+  assert.equal(ownerReceipt.authority_boundary.can_claim_family_production_ready, false);
+  assert.equal(ownerReceipt.authority_boundary.can_claim_domain_ready, false);
+  assert.equal(ownerReceipt.authority_boundary.can_claim_quality_or_export_ready, false);
   assert.match(promoteWorkflow, /npm run verify-remote-release/);
   assert.match(promoteWorkflow, /gh release edit "v\$\{OPL_RELEASE_VERSION\}"/);
   assert.match(promoteWorkflow, /--draft=false/);

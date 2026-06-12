@@ -228,6 +228,14 @@ stable promotion still requires a same-cohort `release_owner_verdict_ref` or
 human-gate refs do not authorize release-ready, stable/latest promotion, domain
 readiness, or OPL family production readiness.
 
+For `v26.6.12`, the App release owner resolved the pending release-owner gate
+with
+`release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.12/receipt-20260612-owner-verdict`,
+recorded in `docs/release/records/v26.6.12-release-owner-receipt.json`. The
+receipt closes the App release-owner verdict path for that cohort only; it does
+not claim OPL family production readiness, domain readiness, or MAS/MAG/RCA
+quality/export verdicts.
+
 Current release validation is App-root first. Root wrappers prepare App-owned
 payloads and call active-shell build/release scripts; `validate:app-root-boundary`
 guards that the App root remains the product wrapper and shell build outputs

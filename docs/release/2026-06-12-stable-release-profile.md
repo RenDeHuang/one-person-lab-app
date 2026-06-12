@@ -55,9 +55,10 @@ both stable Homebrew tap targets, passed Standard, Full, and Homebrew clean-VM
 smoke gates, published the WebUI GHCR image, and produced a ready candidate
 record: `status=ready_to_promote`, `decision.can_promote=true`,
 `source_status.preflight=passed`, `source_status.readiness=passed`, and
-`source_status.remote_verification=passed`. The release-owner readout remains
-`release_owner_verdict_pending` by contract, so this document records release
-evidence and artifact truth rather than an App release-owner sign-off.
+`source_status.remote_verification=passed`. The original release-owner readout
+remained `release_owner_verdict_pending` by contract, so this document first
+recorded release evidence and artifact truth rather than an App release-owner
+sign-off.
 
 Fresh owner-record readback downloaded `release-candidate-record-26.6.12` and
 `release-readiness-summary-26.6.12` from run `27415765472`. The candidate
@@ -71,6 +72,17 @@ tracked in
 `docs/release/records/v26.6.12-release-owner-verdict-pending.json`. This is a
 non-ready owner verdict state; it preserves the passed release/install evidence
 without turning it into App release-owner sign-off.
+
+App release-owner review has now resolved that pending gate with:
+`release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.12/receipt-20260612-owner-verdict`,
+tracked in
+`docs/release/records/v26.6.12-release-owner-receipt.json`. Rebuilding the
+candidate record from the same run artifacts with that receipt ref makes the
+owner-aware validator return `promote_ready=true` and
+`release_owner_verdict_status=release_owner_receipt_recorded`. This closes the
+App release-owner verdict path for `v26.6.12`; it does not claim OPL family
+production readiness, domain readiness, or any MAS/MAG/RCA quality/export
+verdict.
 
 ## Assets
 
