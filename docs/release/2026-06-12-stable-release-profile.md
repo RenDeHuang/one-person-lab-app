@@ -13,6 +13,8 @@ Machine boundary: Human-readable release profiling and optimization notes for `v
 - Published at: `2026-06-12T03:01:39Z`
 - Main release run: `27390375446`, `https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/27390375446`
 - Promote run: `27391621253`, `https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/27391621253`
+- Post-fix Homebrew standard VM gate run: `27393124605`,
+  `https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/27393124605`
 
 ## Outcome
 
@@ -22,9 +24,15 @@ The main release run completed successfully and produced a ready candidate recor
 `source_status.remote_verification=passed`.
 
 The promote workflow published `v26.6.12` and updated both stable Homebrew tap
-targets. The post-promote Homebrew standard first-run VM gate then failed at
-`failure_stage=homebrew_cask_install` before App first launch. The VM failure was
-not an App runtime, first-run, or packaged GUI failure.
+targets. The initial post-promote Homebrew standard first-run VM gate failed at
+`failure_stage=homebrew_cask_install` before App first launch. The failure was
+an App-owned release gate policy gap around Homebrew cask trust refs, not an App
+runtime, first-run, or packaged GUI failure.
+
+The release gate was repaired in App release contracts/workflow expectations and
+in the active shell smoke implementation. Post-fix rerun `27393124605` completed
+successfully against App `main` `a5fedf89fe63eae0adf09c3e38ee23de49a95ee1` and
+shell `main` `f11e5f047efacf831f77ee5f9c029b10fef032a2`.
 
 ## Assets
 
@@ -56,6 +64,12 @@ optimization target.
 - Stable Homebrew tap update: `12s`
 - Full Homebrew tap update: `13s`
 - Failed Homebrew VM gate elapsed before failure: about `1m42s`
+- Post-fix Homebrew standard VM gate wall time: `7m29s`
+- Post-fix Homebrew standard VM smoke step: `6m13s`
+- Post-fix Homebrew stage timings from `tart-smoke-events.jsonl`:
+  clone/config/start to SSH `15s`, guest prep and input copy `6s`,
+  Homebrew cask install `2m13s`, packaged guest smoke `3m36s`, artifact copy and
+  summary under `1s`, artifact upload `5s`
 
 ## Failure Chain
 
@@ -90,6 +104,23 @@ policy is to explicitly trust the standard cask plus its sibling cask refs:
 `one-person-lab`, `one-person-lab-full`, and `one-person-lab-nightly`. The gate
 must not trust the whole tap.
 
+Final rerun `27393124605` used the repaired App workflow and active shell smoke
+implementation. It checked out App `main`
+`a5fedf89fe63eae0adf09c3e38ee23de49a95ee1`, checked out shell `main`
+`f11e5f047efacf831f77ee5f9c029b10fef032a2`, passed
+`--homebrew-cask gaofeng21cn/one-person-lab/one-person-lab`, and completed
+`status=passed` with `smoke_profile=homebrew-standard-cask`.
+
+The final artifact `tart-smoke-summary.json` recorded:
+
+- packaged first launch `status=passed`
+- settings smoke `status=passed` across general, environment, capabilities,
+  access, appearance, advanced, about, and runtime-status pages
+- assistant route smoke `status=passed` for MAS, MAG, and RCA
+- deterministic Codex functional check `status=passed`
+- Codex AI self-check `skipped_missing_codex_config`, marked
+  `blocking_release_gate=false`
+
 ## Optimization Notes
 
 - Full DMG build is the dominant build-stage cost at about `21m`, and the Full
@@ -98,6 +129,10 @@ must not trust the whole tap.
 - Clean VM gates are expensive but high-signal. Keep them release-blocking for
   stable, and improve early preflight checks so environment-policy failures
   surface before the VM spends time cloning and booting.
+- The Homebrew clean-VM path is now profiled enough to split optimization work:
+  cask install is about `2m13s`, packaged guest smoke is about `3m36s`, and VM
+  startup/prep is about `23s`. Future efficiency work should first target
+  Homebrew install/cache behavior and guest smoke phase visibility.
 - Standard quality gates are already split and are not the current bottleneck.
   Further gains should target active shell DOM test cost only if it preserves
   release-boundary signal.
