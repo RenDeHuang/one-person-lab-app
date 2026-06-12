@@ -493,6 +493,14 @@ export function validateReleaseChannelContract(releaseChannel) {
   }
   assertDeepEqualJson(homebrew.formulae, [], 'Release channel Homebrew formulae');
   assertDeepEqualJson(homebrew.casks, ['one-person-lab', 'one-person-lab-full'], 'Release channel Homebrew casks');
+  if (
+    homebrew.cask_install_policy?.standard_cask !== 'one-person-lab' ||
+    homebrew.cask_install_policy?.standard_cask_install_ref !== 'gaofeng21cn/one-person-lab/one-person-lab' ||
+    homebrew.cask_install_policy?.fully_qualified_cask_install !== true ||
+    homebrew.cask_install_policy?.trust_scope !== 'explicit_fully_qualified_cask_ref_not_whole_tap'
+  ) {
+    throw new Error('Release channel Homebrew installs must use the fully qualified standard cask ref without broadly trusting the tap');
+  }
   assertDeepEqualJson(
     homebrew.initial_live_targets,
     ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb', 'Casks/one-person-lab-full.rb'],
@@ -537,9 +545,11 @@ export function validateReleaseChannelContract(releaseChannel) {
   );
   if (
     homebrewVmGate?.install_mode !== 'homebrew-cask' ||
+    homebrewVmGate?.homebrew_cask_install_ref !== 'gaofeng21cn/one-person-lab/one-person-lab' ||
+    homebrewVmGate?.homebrew_trust_scope !== 'explicit_fully_qualified_cask_ref_not_whole_tap' ||
     homebrewVmGate?.source_vm_variable !== 'OPL_FIRST_RUN_HOMEBREW_TART_SOURCE'
   ) {
-    throw new Error('Release channel Homebrew VM smoke must use the dedicated Homebrew-ready Tart source variable');
+    throw new Error('Release channel Homebrew VM smoke must use the fully qualified cask ref and dedicated Homebrew-ready Tart source variable');
   }
   assertIncludesAll(
     homebrew.tap_update_policy?.required_manifest_fields,

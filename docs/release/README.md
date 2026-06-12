@@ -91,6 +91,16 @@ The App may display component receipt refs, lock/runner status, repair status, r
 
 Homebrew is cask transport and index only. It points terminal users and automation at the same App release cohorts through `one-person-lab`, `one-person-lab-nightly`, and explicit stable `one-person-lab-full` casks.
 
+Stable standard cask installs use the fully qualified cask ref:
+
+```bash
+brew install --cask gaofeng21cn/one-person-lab/one-person-lab
+```
+
+This is the user and CI install path under current Homebrew tap trust behavior.
+It makes the cask selection explicit without broad `brew trust` approval for
+the entire tap.
+
 Homebrew does not own App activation, user workspace state, module readiness, agent-pack distribution, skill/plugin semantics, updater policy, stable/latest promotion, or domain readiness. After Homebrew install or upgrade, activation and user-state setup still come from OPL/App surfaces such as:
 
 ```bash

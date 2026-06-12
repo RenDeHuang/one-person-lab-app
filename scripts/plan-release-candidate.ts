@@ -493,7 +493,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
         'npm run test:opl-first-run-vm:tart --',
         '--source-vm opl-first-run-homebrew-ready-base',
         '--install-mode homebrew-cask',
-        '--homebrew-cask one-person-lab',
+        '--homebrew-cask gaofeng21cn/one-person-lab/one-person-lab',
         '--smoke-profile homebrew-standard-cask',
         '--display 1920x1080px',
         '--settings-smoke',

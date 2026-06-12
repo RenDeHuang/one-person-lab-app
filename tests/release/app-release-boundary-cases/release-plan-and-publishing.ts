@@ -72,7 +72,7 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
     lane.id === 'homebrew_standard_cask_clean_vm_smoke'
     && lane.phase === 'installation_gate'
     && lane.command.includes('--install-mode homebrew-cask')
-    && lane.command.includes('--homebrew-cask one-person-lab')
+    && lane.command.includes('--homebrew-cask gaofeng21cn/one-person-lab/one-person-lab')
     && lane.command.includes('--smoke-profile homebrew-standard-cask')
     && lane.command.includes('--display 1920x1080px')
     && lane.command.includes('--settings-smoke')

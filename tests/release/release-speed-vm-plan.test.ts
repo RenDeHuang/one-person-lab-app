@@ -403,7 +403,7 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.ok(standardVm.can_run_with.includes('full_build'));
   assert.ok(standardVm.can_run_with.includes('publish_full_assets'));
   assert.ok(homebrewVm.command.includes('--install-mode homebrew-cask'));
-  assert.ok(homebrewVm.command.includes('--homebrew-cask one-person-lab'));
+  assert.ok(homebrewVm.command.includes('--homebrew-cask gaofeng21cn/one-person-lab/one-person-lab'));
   assert.ok(homebrewVm.command.includes('--smoke-profile homebrew-standard-cask'));
   assert.deepEqual(fullVm.can_run_with, []);
 

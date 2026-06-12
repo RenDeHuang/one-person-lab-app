@@ -241,7 +241,7 @@ jobs:
               echo "find_args=" >> "$GITHUB_OUTPUT"
               echo "runtime_profile=standard" >> "$GITHUB_OUTPUT"
               echo "install_mode=homebrew-cask" >> "$GITHUB_OUTPUT"
-              echo "homebrew_cask=one-person-lab" >> "$GITHUB_OUTPUT"
+              echo "homebrew_cask=gaofeng21cn/one-person-lab/one-person-lab" >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "::error::Unsupported package_profile: $profile"

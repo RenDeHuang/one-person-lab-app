@@ -243,6 +243,13 @@
       "one-person-lab",
       "one-person-lab-full"
     ],
+    "cask_install_policy": {
+      "standard_cask": "one-person-lab",
+      "standard_cask_install_ref": "gaofeng21cn/one-person-lab/one-person-lab",
+      "fully_qualified_cask_install": true,
+      "trust_scope": "explicit_fully_qualified_cask_ref_not_whole_tap",
+      "rule": "Homebrew user and CI installs use the fully qualified standard cask ref so the install is explicit without granting broad trust to the whole tap."
+    },
     "initial_live_targets": [
       "Casks/one-person-lab.rb",
       "Casks/one-person-lab-nightly.rb",
@@ -632,9 +639,11 @@
       {
         "id": "homebrew_standard_cask_clean_vm_smoke",
         "source": "clean Homebrew-ready Tart base clone",
-        "artifact": "one-person-lab Homebrew cask",
+        "artifact": "gaofeng21cn/one-person-lab/one-person-lab Homebrew cask",
         "smoke_profile": "homebrew-standard-cask",
         "install_mode": "homebrew-cask",
+        "homebrew_cask_install_ref": "gaofeng21cn/one-person-lab/one-person-lab",
+        "homebrew_trust_scope": "explicit_fully_qualified_cask_ref_not_whole_tap",
         "display": "1920x1080px",
         "settings_smoke": true,
         "runtime_profile": "standard",

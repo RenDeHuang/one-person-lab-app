@@ -59,6 +59,8 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
   assert.equal(homebrewStandard.release_gate, true);
   assert.equal(homebrewStandard.vm.install_mode, 'homebrew-cask');
   assert.equal(homebrewStandard.vm.homebrew_cask, 'one-person-lab');
+  assert.equal(homebrewStandard.vm.homebrew_cask_install_ref, 'gaofeng21cn/one-person-lab/one-person-lab');
+  assert.equal(homebrewStandard.vm.homebrew_trust_scope, 'explicit_fully_qualified_cask_ref_not_whole_tap');
   assert.ok(homebrewStandard.expects.some((entry) => /standard App DMG from gaofeng21cn\/one-person-lab-app GitHub Releases/.test(entry)));
   assert.ok(homebrewStandard.expects.some((entry) => /Homebrew receipt is treated as install evidence only/.test(entry)));
   assert.ok(homebrewStandard.expects.every((entry) => !/signed standard App DMG/.test(entry)));

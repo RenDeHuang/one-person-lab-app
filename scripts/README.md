@@ -74,7 +74,7 @@ npm run release:candidate-record:status -- --record release-candidate-record.jso
 npm run release:full:size -- --markdown
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full
-npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-homebrew-ready-base --install-mode homebrew-cask --homebrew-cask one-person-lab --smoke-profile homebrew-standard-cask --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard
+npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-homebrew-ready-base --install-mode homebrew-cask --homebrew-cask gaofeng21cn/one-person-lab/one-person-lab --smoke-profile homebrew-standard-cask --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard
 OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --complete --skip-modules
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
@@ -131,8 +131,10 @@ It supports `package_profile=standard`, `package_profile=full`, and
 `--runtime-profile standard`; the Full profile resolves
 `One-Person-Lab-Full-*-mac-arm64.dmg` and runs `--runtime-profile full`. The
 Homebrew profile starts from a clean Homebrew-ready Tart base, runs
-`brew tap gaofeng21cn/one-person-lab && brew install --cask one-person-lab`, then
-opens `/Applications/One Person Lab.app` through the same packaged-app smoke.
+`brew install --cask gaofeng21cn/one-person-lab/one-person-lab`, then opens
+`/Applications/One Person Lab.app` through the same packaged-app smoke. The
+fully qualified cask ref is the trust-scoped CI/user install path; do not
+replace it with broad tap trust or a bare cask token in release gates.
 Release workflows pass a same-run workflow artifact for the DMG so draft
 candidates do not depend on GitHub Release draft visibility. The release tag
 stays in the preflight summary as provenance and remote release verification
