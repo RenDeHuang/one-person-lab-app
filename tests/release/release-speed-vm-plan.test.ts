@@ -269,7 +269,13 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/, 'Full package artifact upload defaults on for release-call consumers');
   assertMatches(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/, 'large Full package artifact is explicitly gated');
   assertMatches(workflow, /cache:[\s\S]*full_runtime_layers/, 'Full telemetry cache fields');
+  assertMatches(workflow, /OPL_FULL_DMG_COMPRESSION_LEVEL:\s+'1'/, 'Full workflow uses explicit fast fallback DMG compression');
+  assertMatches(workflow, /dmg_compression_level:\s+fullBuildTiming\?\.dmg_compression_level/, 'Full telemetry records the fallback DMG compression level');
   assertMatches(workflow, /Restore Full toolchain runtime cache[\s\S]*Restore Full domain runtime cache[\s\S]*Restore Full OPL runtime cache[\s\S]*Restore Full skills runtime cache/, 'per-layer Full runtime cache restore');
+  assertMatches(workflow, /restore-keys:[\s\S]*opl-full-runtime-layer-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-full-runtime-v1-toolchain-/, 'Full toolchain runtime cache has a stable restore prefix');
+  assertMatches(workflow, /restore-keys:[\s\S]*opl-full-runtime-layer-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-full-runtime-v1-domain-runtime-/, 'Full domain runtime cache has a stable restore prefix');
+  assertMatches(workflow, /restore-keys:[\s\S]*opl-full-runtime-layer-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-full-runtime-v1-opl-runtime-/, 'Full OPL runtime cache has a stable restore prefix');
+  assertMatches(workflow, /restore-keys:[\s\S]*opl-full-runtime-layer-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-full-runtime-v1-skills-/, 'Full skills runtime cache has a stable restore prefix');
   assertMatches(workflow, /Save Full toolchain runtime cache[\s\S]*Save Full domain runtime cache[\s\S]*Save Full OPL runtime cache[\s\S]*Save Full skills runtime cache/, 'per-layer Full runtime cache save');
   assertMatches(workflow, /git -C "\$GITHUB_WORKSPACE\/MinerU-Ecosystem" show -s --format=%cI HEAD/, 'MinerU build metadata is source-commit stable');
   assertMatches(workflow, /bash "\$GITHUB_WORKSPACE\/OfficeCLI\/install\.sh"/, 'OfficeCLI install uses the resolved checkout');
@@ -280,9 +286,22 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(buildScript, /reuseGuiViteOutput:\s+process\.env\.OPL_FULL_REUSE_GUI_VITE_OUTPUT === '1'/, 'Full package script reads Vite reuse flag');
   assertMatches(buildScript, /--reuse-gui-vite-output/, 'Full package script exposes Vite reuse CLI flag');
   assertMatches(buildScript, /build-mac:arm64'[\s\S]*--skip-vite/, 'Full package script passes --skip-vite to active shell build when reuse is enabled');
+  assertMatches(buildScript, /build-mac:arm64'[\s\S]*--dir-only/, 'Full package script asks the active shell for an app bundle only');
 
   const warmupWorkflow = readRepoFile('.github/workflows/full-runtime-cache-warmup.yml');
   assertMatches(warmupWorkflow, /upload_full_package_artifact:\s+false/, 'Full warmup must avoid uploading the large Full DMG artifact');
+  assertMatches(warmupWorkflow, /default:\s+main[\s\S]*shell_ref/, 'Full warmup defaults to main refs used by Stable release refreshes');
+});
+
+test('release profile separates GitHub Actions wall time from agent orchestration time', () => {
+  const profile = readRepoFile('docs/release/2026-06-12-stable-release-profile.md');
+  const readme = readRepoFile('docs/release/README.md');
+
+  assertIncludes(profile, 'GitHub Actions workflow wall time', 'stable release profile timing boundary');
+  assertIncludes(profile, 'Agent orchestration wall time', 'stable release profile timing boundary');
+  assertIncludes(profile, '2h48m55s', 'stable release profile timing boundary');
+  assertIncludes(profile, '39m27s', 'stable release profile timing boundary');
+  assertIncludes(readme, 'Do not compare agent orchestration wall time to GitHub Actions workflow wall time', 'release README timing boundary');
 });
 
 test('release operations workflows serialize refreshable GitHub Actions runs without cancelling stable release runs', () => {

@@ -210,6 +210,12 @@ artifact. It includes `full-package-size-summary.json` and
 `release-readiness-summary.json` for final gate review without downloading the
 Full DMG. Full workflow telemetry is bottleneck tuning input, not release truth.
 
+Timing review must keep two clocks separate. Do not compare agent orchestration wall time to GitHub Actions workflow wall time.
+GitHub Actions workflow wall time is the release execution KPI; agent
+orchestration wall time includes waiting on runs, artifact downloads, local
+readback, documentation, validation, commit/push/cleanup, and tool/model round
+trips.
+
 ## Purpose-Based Release Validation
 
 Stable is the complete user-install proof lane. Before a stable App Release is treated as smooth, each required artifact must be classified as `present`, `missing`, `typed_blocker`, or `not_applicable`. Only an all-present verified bundle can set `packaged_app_evidence=true`.

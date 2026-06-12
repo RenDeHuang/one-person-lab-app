@@ -136,6 +136,9 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(fullPackageScript, /'hdiutil'/);
   assert.match(fullPackageScript, /'-srcfolder'/);
   assert.match(fullPackageScript, /ELECTRON_BUILDER_COMPRESSION_LEVEL/);
+  assert.match(fullPackageScript, /build-mac:arm64'[\s\S]*--dir-only/);
+  assert.doesNotMatch(fullPackageScript, /const sourceDmg = findBuiltDmg/);
+  assert.doesNotMatch(fullPackageScript, /fs\.copyFileSync\(sourceDmg, targetDmg\)/);
   const macosTrustScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package', 'macos-trust.ts'), 'utf8');
   assert.match(macosTrustScript, /import os from 'node:os';/);
   assert.match(macosTrustScript, /fs\.mkdtempSync\(path\.join\(os\.tmpdir\(\), 'opl-full-dmg-verify-'\)\)/);
@@ -558,6 +561,18 @@ test('Full first-install cache and release acceleration contract are explicit', 
   );
   assert.equal(releaseContract.release_acceleration.full_runtime_cache.enabled_by_default, true);
   assert.deepEqual(releaseContract.release_acceleration.full_runtime_cache.layer_ids, mod.FULL_RUNTIME_CACHE_LAYER_IDS);
+  assert.deepEqual(releaseContract.release_acceleration.full_runtime_cache.restore_prefixes, {
+    toolchain: 'opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-toolchain-',
+    'domain-runtime': 'opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-domain-runtime-',
+    'opl-runtime': 'opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-opl-runtime-',
+    skills: 'opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-skills-',
+  });
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_cache.key_scope,
+    'layer_content_only_not_release_or_dmg_wrapper_scripts',
+  );
+  assert.equal(releaseContract.release_acceleration.full_dmg_compression.default_ci_level, '1');
+  assert.equal(releaseContract.release_acceleration.full_dmg_compression.telemetry_field, 'dmg_compression_level');
   assert.deepEqual(releaseContract.release_acceleration.full_runtime_packaging_hygiene.local_state_excluded, [
     '.codegraph',
     '.git',
@@ -713,7 +728,13 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /pdf_skill_source: skillSourceSnapshot\(appCompanionSkillCandidates\('pdf'\), 'skills\/pdf'\)/);
   assert.match(buildScript, /mineru_document_extractor_source: skillSourceSnapshot\(mineruDocumentExtractorSkillCandidates\(options\), 'skills\/mineru-document-extractor'\)/);
   assert.match(buildScript, /runtime_layer_builder_source_hash: functionSourceSha256/);
+  assert.match(buildScript, /support_files:\s+hashFiles\(appRepoRoot,[\s\S]*'contracts\/app-product-profile\.json'[\s\S]*'scripts\/build-full-first-install-package\/runtime-cache\.ts'[\s\S]*'scripts\/build-full-first-install-package\/runtime-layers\.ts'[\s\S]*'scripts\/build-full-first-install-package\/runtime-sources\.ts'[\s\S]*'scripts\/build-full-first-install-package\/skills\.ts'/);
+  assert.doesNotMatch(buildScript, /support_files:[\s\S]{0,1200}'scripts\/build-full-first-install-package\.ts'/);
+  assert.doesNotMatch(buildScript, /support_files:[\s\S]{0,1200}'scripts\/build-full-first-install-package\/archive-output\.ts'/);
+  assert.doesNotMatch(buildScript, /support_files:[\s\S]{0,1200}'scripts\/build-full-first-install-package\/manifest-checksum\.ts'/);
   assert.match(buildScript, /key_inputs: cacheKeyInputs/);
+  assert.match(buildScript, /resolveFullDmgCompressionLevel\(\)/);
+  assert.match(buildScript, /dmg_compression_level: process\.env\.ELECTRON_BUILDER_COMPRESSION_LEVEL/);
   assert.match(buildScript, /guiRoot: process\.env\.OPL_FULL_GUI_ROOT \|\| resolveActiveShellPaths\(\)\.shellRoot/);
   assert.doesNotMatch(buildScript, /guiRoot: process\.env\.OPL_FULL_GUI_ROOT \|\| path\.join\(appRepoRoot, 'shells', 'aionui'\)/);
   assert.match(buildScript, /syncAppProductProfileToShell\(options\.guiRoot\)/);

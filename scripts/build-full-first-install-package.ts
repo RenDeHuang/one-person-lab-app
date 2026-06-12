@@ -8,11 +8,12 @@ import {
   buildFullPackageArtifactNames,
 } from './full-first-install-package.ts';
 import {
+  createFullDmgFromVerifiedApp,
   ensureFullDmgLocalAuthorization,
   findBuiltApp,
-  findBuiltDmg,
   maybeCreateRuntimeTar,
   removeStandardGuiArtifacts,
+  resolveFullDmgCompressionLevel,
   syncRuntimePayloadToBuildRoots,
 } from './build-full-first-install-package/archive-output.ts';
 import { parseArgs } from './build-full-first-install-package/env.ts';
@@ -71,9 +72,9 @@ function main() {
 
   if (!options.skipGuiBuild) {
     const shellBuildStartedAt = monotonicSeconds();
-    const shellBuildArgs = ['run', 'build-mac:arm64'];
+    const shellBuildArgs = ['run', 'build-mac:arm64', '--', '--dir-only'];
     if (options.reuseGuiViteOutput) {
-      shellBuildArgs.push('--', '--skip-vite');
+      shellBuildArgs.push('--skip-vite');
     }
     run('npm', shellBuildArgs, {
       cwd: options.guiRoot,
@@ -89,10 +90,11 @@ function main() {
   }
 
   const packageCompressionStartedAt = monotonicSeconds();
-  ensureAppBundleAdHocCodesign(findBuiltApp(options.guiRoot), 'Full built app bundle');
-  const sourceDmg = findBuiltDmg(options.guiRoot, options.version);
+  process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL = resolveFullDmgCompressionLevel();
+  const builtApp = findBuiltApp(options.guiRoot);
+  ensureAppBundleAdHocCodesign(builtApp, 'Full built app bundle');
   const targetDmg = path.join(options.outDir, artifactNames.dmg);
-  fs.copyFileSync(sourceDmg, targetDmg);
+  createFullDmgFromVerifiedApp(options.guiRoot, builtApp, targetDmg, options.version);
   ensureFullDmgLocalAuthorization(options.guiRoot, targetDmg, options.version);
   removeStandardGuiArtifacts(options.guiRoot, options.version);
   const runtimeTar = maybeCreateRuntimeTar(options, prepared.runtimeRoot, artifactNames);
@@ -122,6 +124,7 @@ function main() {
   writeJsonFile(timingPath, {
     schema: 'opl_full_package_build_timing.v1',
     version: options.version,
+    dmg_compression_level: process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL,
     duration_seconds: {
       full_package_build: durationSeconds(buildStartedAt, buildFinishedAt),
       full_package_build_breakdown: timings,
@@ -132,6 +135,7 @@ function main() {
   console.log(JSON.stringify({
     status: 'completed',
     version: options.version,
+    dmg_compression_level: process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL,
     out_dir: options.outDir,
     app_repo_root: appRepoRoot,
     framework_root: options.frameworkRoot,

@@ -123,6 +123,15 @@ Same-tag refresh run `27410553079` ran from `2026-06-12T10:38:58Z` to
 `27408169428`, which took `42m22s` and was built from the earlier
 `f1a74d2686b6138b689f83a272d4c46d7a353d18` App commit.
 
+Timing boundary: `39m27s` is GitHub Actions workflow wall time for the final
+same-tag refresh run. The surrounding agent orchestration wall time observed in
+the Codex conversation was `2h48m55s`; it includes the superseded refresh,
+waiting for the final run, downloading and reading artifacts, writing this
+profile, local validation, commit/push/cleanup work, and model/tool round-trip
+latency. Treat those as separate metrics: GitHub Actions workflow wall time is
+the release execution KPI, while Agent orchestration wall time is the
+end-to-end operator loop KPI.
+
 - Release preflight: `9s`
 - Standard quality gates: lint `48s`, typecheck `51s`, release boundary `42s`,
   Node tests `1m13s`, DOM tests `3m30s`, workflow lint `23s`
@@ -221,6 +230,13 @@ The final artifact `tart-smoke-summary.json` recorded:
 
 ## Optimization Notes
 
+- Implemented follow-up on `2026-06-12`: Full runtime layer cache keys were
+  tightened so release wrapper, manifest, and DMG helper edits do not invalidate
+  all layer archives when the layer content itself is unchanged; layer restore
+  keys now include stable layer prefixes. Full fallback DMG compression in CI is
+  explicitly set to zlib level `1` and recorded as `dmg_compression_level` in
+  Full workflow telemetry, so the next refresh can measure the tradeoff between
+  `dmg_package_compression` time and compressed asset size.
 - Full DMG build remains the dominant build-stage cost, but the latest-main
   refresh reduced the Full job from `21m39s` in `27408169428` to `18m22s` in
   `27410553079`. The inner packager dropped from `12m59s` to `10m46s`, mostly

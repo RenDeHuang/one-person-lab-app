@@ -519,7 +519,19 @@
         "domain-runtime",
         "opl-runtime",
         "skills"
-      ]
+      ],
+      "restore_prefixes": {
+        "toolchain": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-toolchain-",
+        "domain-runtime": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-domain-runtime-",
+        "opl-runtime": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-opl-runtime-",
+        "skills": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-skills-"
+      },
+      "key_scope": "layer_content_only_not_release_or_dmg_wrapper_scripts"
+    },
+    "full_dmg_compression": {
+      "default_ci_level": "1",
+      "telemetry_field": "dmg_compression_level",
+      "rule": "Stable Full CI uses an explicit fast zlib compression level for the App-owned fallback/rebuilt DMG path; release readiness still records compressed Full DMG size from the published GitHub asset and does not use compression tuning to bypass size review."
     },
     "full_runtime_packaging_hygiene": {
       "local_state_excluded": [

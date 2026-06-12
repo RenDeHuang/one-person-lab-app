@@ -182,11 +182,11 @@ export function findBuiltApp(guiRoot) {
   return found;
 }
 
-function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
+export function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
   removeBuiltDmgCandidates(guiRoot, version);
   ensureAppBundleAdHocCodesign(appPath, 'Full built app bundle');
   assertAppBundleLocalAuthorization(appPath, 'Full built app bundle');
-  const compressionLevel = process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL || (process.env.CI === 'true' ? '9' : '7');
+  const compressionLevel = resolveFullDmgCompressionLevel();
   const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-dmg-stage-'));
   try {
     const stagedApp = path.join(stagingRoot, 'One Person Lab.app');
@@ -211,6 +211,12 @@ function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
     fs.rmSync(stagingRoot, { recursive: true, force: true });
   }
   verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
+}
+
+export function resolveFullDmgCompressionLevel() {
+  return process.env.OPL_FULL_DMG_COMPRESSION_LEVEL
+    || process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL
+    || (process.env.CI === 'true' ? '1' : '7');
 }
 
 export function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version) {

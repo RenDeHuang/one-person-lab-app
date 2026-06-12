@@ -446,6 +446,8 @@ jobs:
         with:
           path: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_key }}
+          restore-keys: |
+            opl-full-runtime-layer-${{ runner.os }}-${{ runner.arch }}-full-runtime-v1-toolchain-
 
       - name: Restore Full domain runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
@@ -454,6 +456,8 @@ jobs:
         with:
           path: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_key }}
+          restore-keys: |
+            opl-full-runtime-layer-${{ runner.os }}-${{ runner.arch }}-full-runtime-v1-domain-runtime-
 
       - name: Restore Full OPL runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
@@ -462,6 +466,8 @@ jobs:
         with:
           path: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_key }}
+          restore-keys: |
+            opl-full-runtime-layer-${{ runner.os }}-${{ runner.arch }}-full-runtime-v1-opl-runtime-
 
       - name: Restore Full skills runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
@@ -470,6 +476,8 @@ jobs:
         with:
           path: ${{ steps.runtime-cache-keys.outputs.skills_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.skills_cache_key }}
+          restore-keys: |
+            opl-full-runtime-layer-${{ runner.os }}-${{ runner.arch }}-full-runtime-v1-skills-
 
       - name: Reset Full runtime layer cache when forced
         if: ${{ inputs.force_rebuild_runtime_cache }}
@@ -537,6 +545,7 @@ jobs:
           ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
           npm_config_electron_builder_binaries_mirror: https://github.com/electron-userland/electron-builder-binaries/releases/download/
           ELECTRON_MIRROR: ''
+          OPL_FULL_DMG_COMPRESSION_LEVEL: '1'
           npm_config_disturl: https://electronjs.org/headers
           npm_config_runtime: electron
           npm_config_target: ${{ steps.shell-electron-version.outputs.version }}
@@ -721,6 +730,7 @@ jobs:
               full_runtime_layer_keys: readJson('runtime-cache-events.json')?.keys ?? null,
               full_runtime_layer_key_inputs: readJson('runtime-cache-events.json')?.key_inputs ?? null,
             },
+            dmg_compression_level: fullBuildTiming?.dmg_compression_level ?? null,
             duration_seconds: {
               toolchain_install: duration(env.OPL_FULL_WORKFLOW_STARTED_AT, env.OPL_FULL_TOOLCHAIN_READY_AT),
               framework_npm_ci: duration(env.OPL_FULL_TOOLCHAIN_READY_AT, env.OPL_FULL_FRAMEWORK_DEPS_READY_AT),
