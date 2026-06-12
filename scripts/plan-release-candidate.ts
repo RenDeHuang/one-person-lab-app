@@ -427,7 +427,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     phase: 'release_gate',
     depends_on: ['release_preflight', 'release_readiness_summary', 'remote_verify_standard_and_full'],
     can_run_with: [],
-    command: 'npm run release:candidate-record -- --version <version> --preflight release-preflight-summary.json --readiness release-readiness-summary.json --remote-verification remote-release-verification.json',
+    command: 'npm run release:candidate-record -- --version <version> --preflight release-preflight-summary.json --readiness release-readiness-summary.json --remote-verification remote-release-verification.json --release-owner-receipt-ref <release_owner_receipt_ref>',
     required_for: ['stable_release_promotion'],
   });
 

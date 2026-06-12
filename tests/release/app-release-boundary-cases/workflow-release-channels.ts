@@ -1229,9 +1229,19 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(candidateRecordValidator, /decision\?\.can_promote !== true/);
   assert.match(candidateRecordValidator, /release_owner_verdict/);
   assert.match(candidateRecordValidator, /release_ready_claim !== false/);
+  assert.match(candidateRecordValidator, /release_owner_receipt_recorded/);
   assert.equal(
     releaseContract.operator_evidence_bundle.release_owner_verdict.pending_ref_template,
     'typed_blocker_ref://one-person-lab-app/release-owner/<tag>/verdict-pending',
+  );
+  assert.deepEqual(
+    releaseContract.operator_evidence_bundle.release_owner_verdict.owner_resolution_ref_shapes,
+    ['release_owner_verdict_ref', 'release_owner_receipt_ref'],
+  );
+  assert.ok(
+    releaseContract.operator_evidence_bundle.release_owner_verdict.evidence_input_ref_shapes.includes(
+      'install_evidence_ref',
+    ),
   );
   assert.equal(
     releaseContract.operator_evidence_bundle.release_owner_verdict.evidence_only_can_close_opl_app_release_user_path,

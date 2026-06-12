@@ -51,6 +51,26 @@ on:
         required: false
         default: false
         type: boolean
+      release_owner_verdict_ref:
+        description: Same-cohort App release owner verdict ref required before stable promotion
+        required: false
+        default: ''
+        type: string
+      release_owner_receipt_ref:
+        description: Same-cohort App release owner receipt ref required before stable promotion
+        required: false
+        default: ''
+        type: string
+      release_owner_typed_blocker_ref:
+        description: Same-cohort App release owner typed blocker ref when release-ready cannot be authorized
+        required: false
+        default: ''
+        type: string
+      release_owner_human_gate_ref:
+        description: Same-cohort App release owner human gate ref when promotion needs manual approval
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -988,6 +1008,10 @@ jobs:
           OPL_SHELL_REF: ${{ inputs.shell_ref }}
           OPL_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           OPL_APP_COMMIT: ${{ github.sha }}
+          OPL_RELEASE_OWNER_VERDICT_REF: ${{ inputs.release_owner_verdict_ref }}
+          OPL_RELEASE_OWNER_RECEIPT_REF: ${{ inputs.release_owner_receipt_ref }}
+          OPL_RELEASE_OWNER_TYPED_BLOCKER_REF: ${{ inputs.release_owner_typed_blocker_ref }}
+          OPL_RELEASE_OWNER_HUMAN_GATE_REF: ${{ inputs.release_owner_human_gate_ref }}
         run: |
           node --experimental-strip-types scripts/write-release-candidate-record.ts \
             --version "$OPL_RELEASE_VERSION" \

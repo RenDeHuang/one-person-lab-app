@@ -1009,18 +1009,31 @@
         "release_owner_verdict_ref",
         "release_owner_receipt_ref",
         "release_owner_typed_blocker_ref",
+        "install_evidence_ref",
         "typed_blocker_ref",
         "human_gate_ref"
+      ],
+      "owner_resolution_ref_shapes": [
+        "release_owner_verdict_ref",
+        "release_owner_receipt_ref"
+      ],
+      "evidence_input_ref_shapes": [
+        "install_evidence_ref",
+        "operator_evidence_bundle_ref",
+        "remote_release_verification_ref",
+        "release_readiness_summary_ref"
       ],
       "pending_status": "release_owner_verdict_pending",
       "typed_blocker_status": "release_owner_typed_blocker_required",
       "pending_ref_template": "typed_blocker_ref://one-person-lab-app/release-owner/<tag>/verdict-pending",
       "release_owner_verdict_ref_template": "release_owner_verdict_ref://one-person-lab-app/release-owner/<tag>/<decision_id>",
+      "release_owner_receipt_ref_template": "release_owner_receipt_ref://one-person-lab-app/release-owner/<tag>/<receipt_id>",
+      "install_evidence_ref_template": "install_evidence_ref://one-person-lab-app/release-owner/<tag>/install-evidence",
       "release_ready_claim_allowed": false,
       "stable_latest_promotion_claim_allowed": false,
       "family_production_ready_claim_allowed": false,
       "evidence_only_can_close_opl_app_release_user_path": false,
-      "next_owner_action": "record release_owner_verdict_ref, release_owner_receipt_ref, release_owner_typed_blocker_ref, typed_blocker_ref, or human_gate_ref for the same App release cohort",
+      "next_owner_action": "record release_owner_verdict_ref or release_owner_receipt_ref for the same App release cohort, or record release_owner_typed_blocker_ref, typed_blocker_ref, or human_gate_ref when release-ready cannot be authorized",
       "authority_boundary": {
         "can_claim_app_release_ready_from_evidence": false,
         "can_claim_stable_latest_from_evidence": false,
@@ -1028,7 +1041,7 @@
         "can_write_domain_truth": false,
         "can_sign_domain_owner_receipt": false
       },
-      "rule": "Same-cohort release/user-path evidence can feed the App release owner review, but until the owner records a verdict, receipt, typed blocker, or human gate ref, OPL operating-maturity must keep app_release_user_path at evidence_recorded_not_release_ready_claim."
+      "rule": "Same-cohort release/user-path evidence can feed the App release owner review, but until the owner records release_owner_verdict_ref or release_owner_receipt_ref, OPL operating-maturity must keep app_release_user_path at evidence_recorded_not_release_ready_claim. Pending verdicts, install evidence refs, typed blockers, and human gate refs are explicit non-ready release-owner states."
     },
     "l5_evidence_readout": {
       "schema": "opl_app_release_l5_evidence_readout_contract.v1",

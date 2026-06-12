@@ -90,10 +90,20 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(summary.release_owner_verdict.stable_latest_promotion_claim, false);
   assert.equal(summary.release_owner_verdict.family_production_ready_claim, false);
   assert.equal(summary.release_owner_verdict.release_owner_verdict_ref, null);
+  assert.equal(summary.release_owner_verdict.release_owner_receipt_ref, null);
+  assert.equal(
+    summary.release_owner_verdict.install_evidence_ref,
+    'install_evidence_ref://one-person-lab-app/release-owner/v26.5.99/install-evidence',
+  );
   assert.equal(
     summary.release_owner_verdict.release_owner_typed_blocker_ref,
     'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending',
   );
+  assert.deepEqual(summary.release_owner_verdict.owner_resolution_ref_shapes, [
+    'release_owner_verdict_ref',
+    'release_owner_receipt_ref',
+  ]);
+  assert.ok(summary.release_owner_verdict.promotion_blocking_until_owner_resolution_ref);
   assert.equal(summary.release_owner_verdict.can_close_opl_app_release_user_path, false);
   assert.equal(summary.gate_profile, 'stable');
   assert.equal(summary.gate_profile_schema, 'app_release_validation_profiles.v1');

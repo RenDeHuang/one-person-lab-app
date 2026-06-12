@@ -20,6 +20,9 @@ function releaseOwnerVerdict(status = 'release_owner_verdict_pending') {
     stable_latest_promotion_claim: false,
     family_production_ready_claim: false,
     release_owner_verdict_ref: null,
+    release_owner_receipt_ref: null,
+    install_evidence_ref:
+      'install_evidence_ref://one-person-lab-app/release-owner/v26.5.99/install-evidence',
     release_owner_typed_blocker_ref:
       'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending',
     typed_blocker_ref:
@@ -27,7 +30,7 @@ function releaseOwnerVerdict(status = 'release_owner_verdict_pending') {
   };
 }
 
-test('release candidate record promotes only a complete stable cohort', () => {
+test('release candidate record blocks complete evidence until release owner records a receipt or verdict', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-'));
   const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
   const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
@@ -85,23 +88,114 @@ test('release candidate record promotes only a complete stable cohort', () => {
     markdownPath,
   ]);
 
-  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.notEqual(result.status, 0);
   const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
   assert.equal(record.schema, 'opl_release_candidate_record.v1');
-  assert.equal(record.status, 'ready_to_promote');
+  assert.equal(record.status, 'blocked');
   assert.equal(record.version, '26.5.99');
-  assert.equal(record.decision.can_promote, true);
+  assert.equal(record.decision.can_promote, false);
   assert.equal(record.provenance.app_commit, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
   assert.equal(record.remote_asset_summary.verified_asset_count, 12);
   assert.equal(record.resolved_refs.opl_framework.commit, '1111111111111111111111111111111111111111');
   assert.equal(record.release_owner_verdict.status, 'release_owner_verdict_pending');
   assert.equal(
+    record.release_owner_verdict.install_evidence_ref,
+    'install_evidence_ref://one-person-lab-app/release-owner/v26.5.99/install-evidence',
+  );
+  assert.equal(
     record.release_owner_verdict.release_owner_typed_blocker_ref,
     'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending',
   );
+  assert.match(record.blocked_reasons.join('\n'), /pending/);
+  assert.match(record.blocked_reasons.join('\n'), /missing owner resolution ref/);
   const markdown = fs.readFileSync(markdownPath, 'utf8');
   assert.match(markdown, /Release Candidate Record/);
-  assert.match(markdown, /Status: ready_to_promote/);
+  assert.match(markdown, /Status: blocked/);
+
+  const validateResult = runCandidateRecordValidator([
+    '--promote-ready',
+    '--version',
+    '26.5.99',
+    '--record',
+    outputPath,
+  ]);
+  assert.notEqual(validateResult.status, 0);
+  const validation = JSON.parse(validateResult.stdout);
+  assert.equal(validation.promote_ready, false);
+  assert.equal(validation.status, 'blocked');
+  assert.equal(validation.release_owner_verdict_status, 'release_owner_verdict_pending');
+  assert.equal(
+    validation.release_owner_typed_blocker_ref,
+    'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending',
+  );
+});
+
+test('release candidate record promotes only after same-cohort release owner receipt', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-owner-receipt-'));
+  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
+  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
+  const jobResultsPath = path.join(tempRoot, 'release-readiness-job-results.json');
+  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
+
+  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
+  writeJson(readinessPath, {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version: '26.5.99',
+    failed_required_gates: [],
+    release_owner_verdict: releaseOwnerVerdict(),
+    full_package: {
+      resolved_refs: {
+        opl_framework: { ref: 'main', commit: '1111111111111111111111111111111111111111' },
+      },
+    },
+  });
+  writeJson(remotePath, {
+    status: 'passed',
+    version: '26.5.99',
+    include_full_package: true,
+    verified_asset_count: 12,
+    full_first_install_budget: { status: 'passed', full_dmg_size_bytes: 512 },
+  });
+  writePassingJobResults(jobResultsPath);
+
+  const result = runCandidateRecord([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--app-commit',
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    '--workflow-run-id',
+    '12345',
+    '--preflight',
+    preflightPath,
+    '--readiness',
+    readinessPath,
+    '--remote-verification',
+    remotePath,
+    '--job-results',
+    jobResultsPath,
+    '--release-owner-receipt-ref',
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-20260612',
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(record.status, 'ready_to_promote');
+  assert.equal(record.decision.can_promote, true);
+  assert.equal(record.release_owner_verdict.status, 'release_owner_receipt_recorded');
+  assert.equal(
+    record.release_owner_verdict.release_owner_receipt_ref,
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-20260612',
+  );
 
   const validateResult = runCandidateRecordValidator([
     '--promote-ready',
@@ -113,11 +207,10 @@ test('release candidate record promotes only a complete stable cohort', () => {
   assert.equal(validateResult.status, 0, validateResult.stderr || validateResult.stdout);
   const validation = JSON.parse(validateResult.stdout);
   assert.equal(validation.promote_ready, true);
-  assert.equal(validation.status, 'ready_to_promote');
-  assert.equal(validation.release_owner_verdict_status, 'release_owner_verdict_pending');
+  assert.equal(validation.release_owner_verdict_status, 'release_owner_receipt_recorded');
   assert.equal(
-    validation.release_owner_typed_blocker_ref,
-    'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending',
+    validation.release_owner_receipt_ref,
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-20260612',
   );
 });
 

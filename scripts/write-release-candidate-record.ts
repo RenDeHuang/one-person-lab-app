@@ -4,10 +4,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import {
+  readAppReleaseOwnerVerdictContract,
+  validateAppReleaseOwnerVerdictContract,
+} from './app-release-owner-verdict.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseRepo = 'gaofeng21cn/one-person-lab-app';
 const allowedStatuses = ['ready_to_promote', 'blocked', 'diagnostic_only'] as const;
+const releaseOwnerVerdictContract = validateAppReleaseOwnerVerdictContract(
+  readAppReleaseOwnerVerdictContract(appRoot),
+);
 
 type Options = {
   version: string;
@@ -25,6 +32,10 @@ type Options = {
   output: string;
   markdown: string;
   promotionMode: string;
+  releaseOwnerVerdictRef: string;
+  releaseOwnerReceiptRef: string;
+  releaseOwnerTypedBlockerRef: string;
+  humanGateRef: string;
   allowBlocked: boolean;
 };
 
@@ -52,6 +63,10 @@ function parseArgs(argv: string[]): Options {
     output: process.env.OPL_RELEASE_CANDIDATE_RECORD || '',
     markdown: process.env.OPL_RELEASE_CANDIDATE_MARKDOWN || '',
     promotionMode: process.env.OPL_RELEASE_PROMOTION_MODE || 'candidate_then_promote',
+    releaseOwnerVerdictRef: process.env.OPL_RELEASE_OWNER_VERDICT_REF || '',
+    releaseOwnerReceiptRef: process.env.OPL_RELEASE_OWNER_RECEIPT_REF || '',
+    releaseOwnerTypedBlockerRef: process.env.OPL_RELEASE_OWNER_TYPED_BLOCKER_REF || '',
+    humanGateRef: process.env.OPL_RELEASE_OWNER_HUMAN_GATE_REF || '',
     allowBlocked: false,
   };
 
@@ -84,6 +99,10 @@ function parseArgs(argv: string[]): Options {
     else if (token === '--output') parsed.output = value;
     else if (token === '--markdown') parsed.markdown = value;
     else if (token === '--promotion-mode') parsed.promotionMode = value;
+    else if (token === '--release-owner-verdict-ref') parsed.releaseOwnerVerdictRef = value;
+    else if (token === '--release-owner-receipt-ref') parsed.releaseOwnerReceiptRef = value;
+    else if (token === '--release-owner-typed-blocker-ref') parsed.releaseOwnerTypedBlockerRef = value;
+    else if (token === '--release-owner-human-gate-ref') parsed.humanGateRef = value;
     else throw new Error(`Unknown argument: ${token}`);
     index += 1;
   }
@@ -160,8 +179,31 @@ function extractResolvedRefs(readiness: Record<string, unknown> | null) {
   return objectOrNull(fullPackage?.resolved_refs);
 }
 
-function collectReleaseOwnerVerdictReasons(readiness: Record<string, unknown> | null) {
+function withReleaseOwnerResolution(readiness: Record<string, unknown> | null, options: Options) {
   const verdict = objectOrNull(readiness?.release_owner_verdict);
+  if (!verdict) return null;
+  const next = { ...verdict };
+  if (options.releaseOwnerVerdictRef) {
+    next.status = 'release_owner_verdict_recorded';
+    next.release_owner_verdict_ref = options.releaseOwnerVerdictRef;
+  }
+  if (options.releaseOwnerReceiptRef) {
+    next.status = 'release_owner_receipt_recorded';
+    next.release_owner_receipt_ref = options.releaseOwnerReceiptRef;
+  }
+  if (options.releaseOwnerTypedBlockerRef) {
+    next.status = releaseOwnerVerdictContract.typed_blocker_status;
+    next.release_owner_typed_blocker_ref = options.releaseOwnerTypedBlockerRef;
+    next.typed_blocker_ref = options.releaseOwnerTypedBlockerRef;
+  }
+  if (options.humanGateRef) {
+    next.status = 'release_owner_human_gate_required';
+    next.human_gate_ref = options.humanGateRef;
+  }
+  return next;
+}
+
+function collectReleaseOwnerVerdictReasons(verdict: Record<string, unknown> | null) {
   const reasons: string[] = [];
   if (!verdict) {
     return ['readiness summary is missing release_owner_verdict'];
@@ -175,17 +217,45 @@ function collectReleaseOwnerVerdictReasons(readiness: Record<string, unknown> | 
   if (
     verdict.status !== 'release_owner_verdict_pending'
     && verdict.status !== 'release_owner_typed_blocker_required'
+    && verdict.status !== 'release_owner_verdict_recorded'
+    && verdict.status !== 'release_owner_receipt_recorded'
+    && verdict.status !== 'release_owner_human_gate_required'
   ) {
     reasons.push(`release_owner_verdict status is ${String(verdict.status)}`);
   }
   if (verdict.status === 'release_owner_typed_blocker_required') {
     reasons.push('release_owner_verdict requires a release owner typed blocker before promotion');
   }
+  if (verdict.status === 'release_owner_verdict_pending') {
+    reasons.push('release_owner_verdict is pending; promotion requires release_owner_verdict_ref or release_owner_receipt_ref');
+  }
   if (
     verdict.status === 'release_owner_verdict_pending'
     && typeof verdict.release_owner_typed_blocker_ref !== 'string'
   ) {
     reasons.push('release_owner_verdict pending status must include release_owner_typed_blocker_ref');
+  }
+  if (verdict.release_owner_verdict_ref !== null && typeof verdict.release_owner_verdict_ref !== 'string') {
+    reasons.push('release_owner_verdict_ref must be a string or null');
+  }
+  if (verdict.release_owner_receipt_ref !== null && typeof verdict.release_owner_receipt_ref !== 'string') {
+    reasons.push('release_owner_receipt_ref must be a string or null');
+  }
+  const hasOwnerResolution = releaseOwnerVerdictContract.owner_resolution_ref_shapes.some((shape) => {
+    const value = verdict[shape];
+    return typeof value === 'string' && value.trim().length > 0;
+  });
+  const installEvidenceRef = verdict.install_evidence_ref;
+  if (installEvidenceRef !== null && installEvidenceRef !== undefined && typeof installEvidenceRef !== 'string') {
+    reasons.push('install_evidence_ref must be a string or null');
+  }
+  if (!hasOwnerResolution) {
+    reasons.push(
+      `release_owner_verdict is missing owner resolution ref (${releaseOwnerVerdictContract.owner_resolution_ref_shapes.join(' or ')})`,
+    );
+  }
+  if (verdict.status === 'release_owner_human_gate_required') {
+    reasons.push('release_owner_verdict is waiting on a human gate before promotion');
   }
   return reasons;
 }
@@ -195,8 +265,9 @@ function buildRecord(options: Options) {
   const readiness = objectOrNull(readJsonIfExists(options.readinessPath));
   const remote = objectOrNull(readJsonIfExists(options.remoteVerificationPath));
   const jobResults = objectOrNull(readJsonIfExists(options.jobResultsPath)) ?? {};
+  const releaseOwnerVerdict = withReleaseOwnerResolution(readiness, options);
   const blockedReasons = collectBlockedReasons(options, { preflight, readiness, remote });
-  blockedReasons.push(...collectReleaseOwnerVerdictReasons(readiness));
+  blockedReasons.push(...collectReleaseOwnerVerdictReasons(releaseOwnerVerdict));
   const status = options.releaseMode === 'draft_candidate'
     ? 'diagnostic_only'
     : blockedReasons.length === 0 ? 'ready_to_promote' : 'blocked';
@@ -237,7 +308,7 @@ function buildRecord(options: Options) {
       include_full_package: remote.include_full_package ?? null,
       full_first_install_budget: remote.full_first_install_budget ?? null,
     } : null,
-    release_owner_verdict: objectOrNull(readiness?.release_owner_verdict),
+    release_owner_verdict: releaseOwnerVerdict,
     job_results: jobResults,
     decision: {
       can_promote: status === 'ready_to_promote',

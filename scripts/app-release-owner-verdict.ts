@@ -10,10 +10,14 @@ type ReleaseOwnerVerdictContract = {
   release_cohort_required: boolean;
   ordinary_cockpit_excluded: boolean;
   accepted_output_ref_shapes: string[];
+  owner_resolution_ref_shapes: string[];
+  evidence_input_ref_shapes: string[];
   pending_status: string;
   typed_blocker_status: string;
   pending_ref_template: string;
   release_owner_verdict_ref_template: string;
+  release_owner_receipt_ref_template: string;
+  install_evidence_ref_template: string;
   release_ready_claim_allowed: boolean;
   stable_latest_promotion_claim_allowed: boolean;
   family_production_ready_claim_allowed: boolean;
@@ -63,11 +67,35 @@ export function validateAppReleaseOwnerVerdictContract(contract: unknown): Relea
     'release_owner_verdict_ref',
     'release_owner_receipt_ref',
     'release_owner_typed_blocker_ref',
+    'install_evidence_ref',
     'typed_blocker_ref',
     'human_gate_ref',
   ]) {
     if (!acceptedOutputRefShapes.includes(shape)) {
       throw new Error(`App release owner verdict accepted output ref shapes must include ${shape}`);
+    }
+  }
+  const ownerResolutionRefShapes = stringArray(
+    record.owner_resolution_ref_shapes,
+    'release_owner_verdict.owner_resolution_ref_shapes',
+  );
+  for (const shape of ['release_owner_verdict_ref', 'release_owner_receipt_ref']) {
+    if (!ownerResolutionRefShapes.includes(shape)) {
+      throw new Error(`App release owner verdict owner resolution ref shapes must include ${shape}`);
+    }
+  }
+  const evidenceInputRefShapes = stringArray(
+    record.evidence_input_ref_shapes,
+    'release_owner_verdict.evidence_input_ref_shapes',
+  );
+  for (const shape of [
+    'install_evidence_ref',
+    'operator_evidence_bundle_ref',
+    'remote_release_verification_ref',
+    'release_readiness_summary_ref',
+  ]) {
+    if (!evidenceInputRefShapes.includes(shape)) {
+      throw new Error(`App release owner verdict evidence input ref shapes must include ${shape}`);
     }
   }
   if (record.pending_status !== 'release_owner_verdict_pending') {
@@ -81,6 +109,12 @@ export function validateAppReleaseOwnerVerdictContract(contract: unknown): Relea
   }
   if (record.release_owner_verdict_ref_template !== 'release_owner_verdict_ref://one-person-lab-app/release-owner/<tag>/<decision_id>') {
     throw new Error('App release owner verdict ref template must include tag and decision id placeholders');
+  }
+  if (record.release_owner_receipt_ref_template !== 'release_owner_receipt_ref://one-person-lab-app/release-owner/<tag>/<receipt_id>') {
+    throw new Error('App release owner receipt ref template must include tag and receipt id placeholders');
+  }
+  if (record.install_evidence_ref_template !== 'install_evidence_ref://one-person-lab-app/release-owner/<tag>/install-evidence') {
+    throw new Error('App release owner install evidence ref template must include the stable tag placeholder');
   }
   if (
     record.release_ready_claim_allowed !== false
@@ -112,10 +146,14 @@ export function validateAppReleaseOwnerVerdictContract(contract: unknown): Relea
     release_cohort_required: record.release_cohort_required as boolean,
     ordinary_cockpit_excluded: record.ordinary_cockpit_excluded as boolean,
     accepted_output_ref_shapes: acceptedOutputRefShapes,
+    owner_resolution_ref_shapes: ownerResolutionRefShapes,
+    evidence_input_ref_shapes: evidenceInputRefShapes,
     pending_status: record.pending_status as string,
     typed_blocker_status: record.typed_blocker_status as string,
     pending_ref_template: record.pending_ref_template as string,
     release_owner_verdict_ref_template: record.release_owner_verdict_ref_template as string,
+    release_owner_receipt_ref_template: record.release_owner_receipt_ref_template as string,
+    install_evidence_ref_template: record.install_evidence_ref_template as string,
     release_ready_claim_allowed: record.release_ready_claim_allowed as boolean,
     stable_latest_promotion_claim_allowed: record.stable_latest_promotion_claim_allowed as boolean,
     family_production_ready_claim_allowed: record.family_production_ready_claim_allowed as boolean,
@@ -137,11 +175,13 @@ export function buildAppReleaseOwnerVerdictReadout(options: BuildOptions) {
     ? contract.pending_status
     : contract.typed_blocker_status;
   const releaseOwnerTypedBlockerRef = renderTemplate(contract.pending_ref_template, options.releaseCohort);
+  const installEvidenceRef = renderTemplate(contract.install_evidence_ref_template, options.releaseCohort);
   const evidenceRefs = options.releaseCohort.current_cohort_evidence === true
     ? [
         `release_readiness_summary_ref://one-person-lab-app/${options.releaseCohort.tag}`,
         `operator_evidence_bundle_ref://one-person-lab-app/${options.releaseCohort.tag}`,
         `remote_release_verification_ref://one-person-lab-app/${options.releaseCohort.tag}`,
+        installEvidenceRef,
       ]
     : ['release_readiness_summary_ref://one-person-lab-app/unknown-cohort'];
 
@@ -158,6 +198,8 @@ export function buildAppReleaseOwnerVerdictReadout(options: BuildOptions) {
     stable_latest_promotion_claim: false,
     family_production_ready_claim: false,
     release_owner_verdict_ref: null,
+    release_owner_receipt_ref: null,
+    install_evidence_ref: options.releaseCohort.current_cohort_evidence === true ? installEvidenceRef : null,
     release_owner_typed_blocker_ref: releaseOwnerTypedBlockerRef,
     typed_blocker_ref: releaseOwnerTypedBlockerRef,
     blocker_kind: sameCohortEvidencePassed
@@ -169,6 +211,9 @@ export function buildAppReleaseOwnerVerdictReadout(options: BuildOptions) {
     evidence_refs: evidenceRefs,
     blocked_by_required_gate_ids: options.failedRequiredGates.map((gate) => gate.id),
     accepted_ref_shapes: contract.accepted_output_ref_shapes,
+    owner_resolution_ref_shapes: contract.owner_resolution_ref_shapes,
+    evidence_input_ref_shapes: contract.evidence_input_ref_shapes,
+    promotion_blocking_until_owner_resolution_ref: true,
     next_owner_action: contract.next_owner_action,
     can_close_opl_app_release_user_path: false,
     authority_boundary: contract.authority_boundary,
