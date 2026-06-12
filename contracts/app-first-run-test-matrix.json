@@ -203,13 +203,18 @@
         "homebrew_tap": "gaofeng21cn/one-person-lab",
         "homebrew_cask": "one-person-lab",
         "homebrew_cask_install_ref": "gaofeng21cn/one-person-lab/one-person-lab",
-        "homebrew_trust_scope": "explicit_fully_qualified_cask_ref_not_whole_tap",
+        "homebrew_trusted_cask_refs": [
+          "gaofeng21cn/one-person-lab/one-person-lab",
+          "gaofeng21cn/one-person-lab/one-person-lab-full",
+          "gaofeng21cn/one-person-lab/one-person-lab-nightly"
+        ],
+        "homebrew_trust_scope": "explicit_standard_and_conflicting_cask_refs_not_whole_tap",
         "source_vm_variable": "OPL_FIRST_RUN_HOMEBREW_TART_SOURCE",
         "settings_smoke": true,
         "runtime_profile": "standard"
       },
       "expects": [
-        "Homebrew installs the standard cask through the fully qualified gaofeng21cn/one-person-lab/one-person-lab ref",
+        "Homebrew installs the standard cask through the fully qualified gaofeng21cn/one-person-lab/one-person-lab ref and trusts only the standard plus conflicts_with sibling cask refs",
         "The cask resolves the standard App DMG from gaofeng21cn/one-person-lab-app GitHub Releases",
         "One Person Lab.app is present under /Applications before first launch",
         "Core first-launch readiness is proven through opl system initialize --json before /guid",

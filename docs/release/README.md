@@ -98,8 +98,10 @@ brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 ```
 
 This is the user and CI install path under current Homebrew tap trust behavior.
-It makes the cask selection explicit without broad `brew trust` approval for
-the entire tap.
+The release VM gate also trusts the standard cask's `conflicts_with` sibling
+cask refs, `one-person-lab-full` and `one-person-lab-nightly`, because Homebrew
+may load those casks while resolving conflicts. It does not grant broad
+`brew trust` approval for the entire tap.
 
 Homebrew does not own App activation, user workspace state, module readiness, agent-pack distribution, skill/plugin semantics, updater policy, stable/latest promotion, or domain readiness. After Homebrew install or upgrade, activation and user-state setup still come from OPL/App surfaces such as:
 

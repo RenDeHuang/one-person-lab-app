@@ -497,10 +497,19 @@ export function validateReleaseChannelContract(releaseChannel) {
     homebrew.cask_install_policy?.standard_cask !== 'one-person-lab' ||
     homebrew.cask_install_policy?.standard_cask_install_ref !== 'gaofeng21cn/one-person-lab/one-person-lab' ||
     homebrew.cask_install_policy?.fully_qualified_cask_install !== true ||
-    homebrew.cask_install_policy?.trust_scope !== 'explicit_fully_qualified_cask_ref_not_whole_tap'
+    homebrew.cask_install_policy?.trust_scope !== 'explicit_standard_and_conflicting_cask_refs_not_whole_tap'
   ) {
-    throw new Error('Release channel Homebrew installs must use the fully qualified standard cask ref without broadly trusting the tap');
+    throw new Error('Release channel Homebrew installs must use fully qualified cask refs without broadly trusting the tap');
   }
+  assertDeepEqualJson(
+    homebrew.cask_install_policy?.standard_install_trusted_cask_refs,
+    [
+      'gaofeng21cn/one-person-lab/one-person-lab',
+      'gaofeng21cn/one-person-lab/one-person-lab-full',
+      'gaofeng21cn/one-person-lab/one-person-lab-nightly',
+    ],
+    'Release channel Homebrew trusted cask refs',
+  );
   assertDeepEqualJson(
     homebrew.initial_live_targets,
     ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb', 'Casks/one-person-lab-full.rb'],
@@ -546,11 +555,20 @@ export function validateReleaseChannelContract(releaseChannel) {
   if (
     homebrewVmGate?.install_mode !== 'homebrew-cask' ||
     homebrewVmGate?.homebrew_cask_install_ref !== 'gaofeng21cn/one-person-lab/one-person-lab' ||
-    homebrewVmGate?.homebrew_trust_scope !== 'explicit_fully_qualified_cask_ref_not_whole_tap' ||
+    homebrewVmGate?.homebrew_trust_scope !== 'explicit_standard_and_conflicting_cask_refs_not_whole_tap' ||
     homebrewVmGate?.source_vm_variable !== 'OPL_FIRST_RUN_HOMEBREW_TART_SOURCE'
   ) {
-    throw new Error('Release channel Homebrew VM smoke must use the fully qualified cask ref and dedicated Homebrew-ready Tart source variable');
+    throw new Error('Release channel Homebrew VM smoke must use explicit cask trust refs and the dedicated Homebrew-ready Tart source variable');
   }
+  assertDeepEqualJson(
+    homebrewVmGate?.homebrew_trusted_cask_refs,
+    [
+      'gaofeng21cn/one-person-lab/one-person-lab',
+      'gaofeng21cn/one-person-lab/one-person-lab-full',
+      'gaofeng21cn/one-person-lab/one-person-lab-nightly',
+    ],
+    'Release channel Homebrew VM trusted cask refs',
+  );
   assertIncludesAll(
     homebrew.tap_update_policy?.required_manifest_fields,
     ['channel', 'artifact', 'sha256', 'manifest_url', 'local_authorization_policy_asset'],

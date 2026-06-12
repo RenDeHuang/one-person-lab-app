@@ -80,6 +80,16 @@ brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 This keeps the install explicit without broad `brew trust` approval for the
 whole tap.
 
+Follow-up rerun `27392430848` confirmed the workflow passed the fully qualified
+standard cask ref to the VM and Homebrew trusted
+`gaofeng21cn/one-person-lab/one-person-lab`. The next failure was still at
+`homebrew_cask_install`, but the refused cask changed to
+`gaofeng21cn/one-person-lab/one-person-lab-full`. Homebrew loads
+`conflicts_with` sibling casks while resolving the install, so the final gate
+policy is to explicitly trust the standard cask plus its sibling cask refs:
+`one-person-lab`, `one-person-lab-full`, and `one-person-lab-nightly`. The gate
+must not trust the whole tap.
+
 ## Optimization Notes
 
 - Full DMG build is the dominant build-stage cost at about `21m`, and the Full
@@ -96,4 +106,5 @@ whole tap.
   boundaries and artifact summaries.
 - Homebrew trust behavior is now part of the release contract and VM gate input:
   the standard cask install ref is
-  `gaofeng21cn/one-person-lab/one-person-lab`.
+  `gaofeng21cn/one-person-lab/one-person-lab`, and the VM gate trusts only the
+  standard plus `conflicts_with` sibling cask refs.
