@@ -13,7 +13,7 @@
     "default_ref": "main",
     "checkout_path": "shells/aionui",
     "history_policy": "external_checkout_not_merged_into_app_default_branch",
-    "upstream_ref": "d84bc80ab5af441cf73e41f36ea98c47c9cd8b02"
+    "upstream_ref": "70974c59a275e565e8fc2bd7ecaf2dcac74227f0"
   },
   "app_remote": {
     "name": "origin",
@@ -179,5 +179,122 @@
       "application.appVersions as OPL release truth",
       "direct reads of OPL internal state files"
     ]
+  },
+  "upstream_intake": {
+    "classification_policy": "classify_each_upstream_feature_before_app_release",
+    "allowed_classifications": [
+      "accepted",
+      "rejected",
+      "redirected",
+      "requires_app_contract"
+    ],
+    "required_feature_record_fields": [
+      "id",
+      "upstream_surface",
+      "classification",
+      "app_contract_ref",
+      "release_gate"
+    ],
+    "feature_classifications": [
+      {
+        "id": "aionui_team",
+        "upstream_surface": "Team mode, /team routes, Team sidebar, Team-created redirects, and Team MCP snapshots",
+        "classification": "rejected",
+        "ordinary_surface": "forbidden",
+        "app_contract_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
+        "release_gate": "implementation_probes.aionui_team_disabled_surface"
+      }
+    ]
+  },
+  "implementation_probes": {
+    "aionui_team_disabled_surface": {
+      "source": "app_shell_upgrade_architecture_hardening",
+      "policy": "fail_closed_required_for_active_shell_upgrade",
+      "probes": [
+        {
+          "id": "team_mode_disabled",
+          "source_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
+          "required": true,
+          "required_evidence": [
+            "Team mode flag is false for ordinary App builds",
+            "Team mode cannot be enabled from ordinary Settings"
+          ]
+        },
+        {
+          "id": "team_route_redirect",
+          "source_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
+          "required": true,
+          "required_evidence": [
+            "/team and /team/* routes redirect to the App-owned home path",
+            "redirect does not create a Team conversation or Team workspace state"
+          ]
+        },
+        {
+          "id": "team_sidebar_gate",
+          "source_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
+          "required": true,
+          "required_evidence": [
+            "Team sidebar entry is not rendered for ordinary App users",
+            "Team navigation cannot be reached through the ordinary sidebar model"
+          ]
+        },
+        {
+          "id": "team_created_redirect_noop",
+          "source_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
+          "required": true,
+          "required_evidence": [
+            "Team-created redirect events are no-ops in ordinary App mode",
+            "Team-created redirects do not mutate the current conversation route"
+          ]
+        },
+        {
+          "id": "ordinary_conversation_team_snapshot_scrub",
+          "source_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
+          "required": true,
+          "required_evidence": [
+            "disabled Team MCP state is removed before ordinary conversation rendering",
+            "disabled Team MCP state is removed before ordinary conversation inheritance"
+          ]
+        },
+        {
+          "id": "agent_switching_drops_team_mcp",
+          "source_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
+          "required": true,
+          "required_evidence": [
+            "agent switching keeps App profile MCP allowlist empty unless explicitly whitelisted",
+            "agent switching does not inherit Team MCP from prior snapshots"
+          ]
+        },
+        {
+          "id": "team_deep_link_not_whitelisted",
+          "source_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
+          "required": true,
+          "required_evidence": [
+            "Team deep links are absent from App route whitelist",
+            "Team deep links resolve through disabled-or-redirect handling"
+          ]
+        },
+        {
+          "id": "team_bridge_mutation_gate",
+          "source_ref": "contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy",
+          "required": true,
+          "required_evidence": [
+            "Team create/add/remove/session mutations are rejected before HTTP when Team mode is disabled",
+            "ordinary App mode cannot create or rebuild Team sessions through the IPC bridge"
+          ]
+        }
+      ]
+    }
+  },
+  "disabled_feature_policy": {
+    "aionui_team": {
+      "state": "disabled",
+      "ordinary_surface": "rejected",
+      "route_policy": "redirect_to_app_home",
+      "mutation_policy": "team_created_redirect_noop",
+      "deep_link_policy": "not_whitelisted",
+      "capability_snapshot_policy": "scrub_before_render_or_inherit",
+      "agent_switching_policy": "must_not_inherit_team_mcp"
+    }
   }
 }

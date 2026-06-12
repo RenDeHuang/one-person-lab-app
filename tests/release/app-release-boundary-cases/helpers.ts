@@ -85,6 +85,38 @@ export const expectedHomeActivityCenterForbiddenDisplays = [
   'quality verdict body',
   'provider implementation details',
 ];
+export const expectedOrdinaryForbiddenCapabilityPolicy = {
+  forbidden_mcp_matchers: {
+    exact: ['aionui-team'],
+    prefixes: ['team_', 'mcp__aionui-team'],
+    contains: ['aionui-team'],
+  },
+  scrub_extra_keys: [
+    'team_mcp_stdio_config',
+    'team_id',
+    'teamId',
+    'team_lead_team_id',
+    'team_lead_team_slot_id',
+    'team_lead_conversation_id',
+    'tl',
+  ],
+};
+export const expectedOrdinaryRequiredScrubTargets = [
+  'mcp_servers entries matching forbidden_mcp_matchers',
+  'mcp_statuses entries matching forbidden_mcp_matchers',
+  'session_mcp_servers entries matching forbidden_mcp_matchers',
+  'scrub_extra_keys',
+];
+export const expectedAionuiTeamProbeIds = [
+  'team_mode_disabled',
+  'team_route_redirect',
+  'team_sidebar_gate',
+  'team_created_redirect_noop',
+  'ordinary_conversation_team_snapshot_scrub',
+  'agent_switching_drops_team_mcp',
+  'team_deep_link_not_whitelisted',
+  'team_bridge_mutation_gate',
+];
 export const expectedSettingsPageSections = {
   settings_general: {
     matrixId: 'settings_general',

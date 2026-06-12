@@ -5,6 +5,7 @@ import {
   path,
   test,
   appRoot,
+  activeShellRoot,
   sha256,
   workflowJobBlock,
   readFullPackageBuilderSource,
@@ -769,7 +770,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /--runtime-profile "\$\{\{ steps\.package_profile\.outputs\.runtime_profile \}\}"/);
   assert.match(vmWorkflow, /CMD\+=\(--guide-screenshots\)/);
   const vmSmokeScript = fs.readFileSync(
-    path.join(appRoot, 'shells', 'aionui', 'scripts', 'opl-first-run-vm-smoke.mjs'),
+    path.join(activeShellRoot, 'scripts', 'opl-first-run-vm-smoke.mjs'),
     'utf8',
   );
   assert.match(vmSmokeScript, /xattr', \['-dr', 'com\.apple\.quarantine', targetApp\]/);

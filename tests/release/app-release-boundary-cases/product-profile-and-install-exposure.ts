@@ -6,6 +6,8 @@ import {
   appRoot,
   expectedDefaultCompanionSkillSyncIds,
   expectedDefaultPackagedSkillIds,
+  expectedOrdinaryForbiddenCapabilityPolicy,
+  expectedOrdinaryRequiredScrubTargets,
   readProductProfile,
   readInstallExposurePolicy,
 } from './helpers.ts';
@@ -143,6 +145,8 @@ test('App product profile owns user-facing defaults without runtime authority', 
     forbidden_skill_examples: ['aionui-skills', 'aionui-webui-setup', 'skill-creator', 'cron'],
     forbidden_mcp_policy: 'do_not_surface_user_or_aionui_mcp_servers_in_ordinary_home_without_app_profile_allowlist',
     forbidden_mcp_examples: ['aionui-team', 'team_*', 'mcp__aionui-team*', 'team_mcp_stdio_config', 'team_id/teamId'],
+    ...expectedOrdinaryForbiddenCapabilityPolicy,
+    required_scrub_targets: expectedOrdinaryRequiredScrubTargets,
     conversation_snapshot_policy: 'scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations',
   });
   assert.deepEqual(profile.settings.visible_tabs, [

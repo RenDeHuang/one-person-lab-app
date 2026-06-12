@@ -1,4 +1,4 @@
-import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
+import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedDeveloperProfileCapabilityAxes,
   appOwnedGuiContractOrdinaryConversation,
@@ -38,6 +38,34 @@ const managedUpdateMustShow = [
   'agent package channel managed updater status',
   'capability exposure sync status',
   'conditions and repair actions from App state or opl update status',
+];
+
+const ordinaryForbiddenCapabilityPolicy = {
+  forbidden_mcp_matchers: {
+    exact: ['aionui-team'],
+    prefixes: ['team_', 'mcp__aionui-team'],
+    contains: ['aionui-team'],
+  },
+  scrub_extra_keys: [
+    'team_mcp_stdio_config',
+    'team_id',
+    'teamId',
+    'team_lead_team_id',
+    'team_lead_team_slot_id',
+    'team_lead_conversation_id',
+    'tl',
+  ],
+};
+
+const aionuiTeamProbeIds = [
+  'team_mode_disabled',
+  'team_route_redirect',
+  'team_sidebar_gate',
+  'team_created_redirect_noop',
+  'ordinary_conversation_team_snapshot_scrub',
+  'agent_switching_drops_team_mcp',
+  'team_deep_link_not_whitelisted',
+  'team_bridge_mutation_gate',
 ];
 
 const managedUpdateMustNotShow = [
@@ -677,6 +705,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       throw new Error(`App GUI settings team_surface_policy.${field} must be ${expected}`);
     }
   }
+  assertDeepEqualJson(
+    guiContract.settings_navigation.team_surface_policy.required_probes,
+    aionuiTeamProbeIds,
+    'App GUI Team surface required probes',
+  );
   if (guiContract.settings_navigation.source !== 'opl app state --profile fast --json') {
     throw new Error('App GUI settings navigation must default to fast App state');
   }
@@ -916,6 +949,21 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     guiContract.ordinary_capability_selector_policy.forbidden_mcp_examples,
     ['aionui-team', 'team_*', 'mcp__aionui-team*', 'team_mcp_stdio_config', 'team_id/teamId'],
     'App GUI ordinary selector forbidden MCP examples',
+  );
+  assertForbiddenCapabilityPolicy(
+    guiContract.ordinary_capability_selector_policy,
+    ordinaryForbiddenCapabilityPolicy,
+    'App GUI ordinary selector forbidden MCP policy',
+  );
+  assertDeepEqualJson(
+    guiContract.ordinary_capability_selector_policy.required_scrub_targets,
+    [
+      'mcp_servers entries matching forbidden_mcp_matchers',
+      'mcp_statuses entries matching forbidden_mcp_matchers',
+      'session_mcp_servers entries matching forbidden_mcp_matchers',
+      'scrub_extra_keys',
+    ],
+    'App GUI ordinary selector Team scrub targets',
   );
   if (
     guiContract.ordinary_capability_selector_policy.conversation_snapshot_policy !==

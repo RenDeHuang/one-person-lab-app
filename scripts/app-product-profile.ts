@@ -129,6 +129,15 @@ export type AppProductProfile = {
       conversation_loaded_mcp_display_policy: string;
       forbidden_skill_examples: string[];
       forbidden_mcp_policy: string;
+      forbidden_mcp_examples: string[];
+      conversation_snapshot_policy: string;
+      forbidden_mcp_matchers: {
+        exact: string[];
+        prefixes: string[];
+        contains: string[];
+      };
+      scrub_extra_keys: string[];
+      required_scrub_targets: string[];
     };
     default_assistants: Array<{
       id: string;
@@ -645,6 +654,41 @@ function assertProfileShape(profile: AppProductProfile): void {
     ['aionui-team', 'team_*', 'mcp__aionui-team*', 'team_mcp_stdio_config', 'team_id/teamId'],
     'gui.ordinary_capability_selector_policy.forbidden_mcp_examples',
   );
+  if (
+    JSON.stringify(ordinarySelector.forbidden_mcp_matchers) !==
+    JSON.stringify({
+      exact: ['aionui-team'],
+      prefixes: ['team_', 'mcp__aionui-team'],
+      contains: ['aionui-team'],
+    })
+  ) {
+    throw new Error('App product profile ordinary selector must carry Team MCP forbidden matchers');
+  }
+  if (
+    JSON.stringify(ordinarySelector.scrub_extra_keys) !==
+    JSON.stringify([
+      'team_mcp_stdio_config',
+      'team_id',
+      'teamId',
+      'team_lead_team_id',
+      'team_lead_team_slot_id',
+      'team_lead_conversation_id',
+      'tl',
+    ])
+  ) {
+    throw new Error('App product profile ordinary selector must carry Team extra scrub keys');
+  }
+  if (
+    JSON.stringify(ordinarySelector.required_scrub_targets) !==
+    JSON.stringify([
+      'mcp_servers entries matching forbidden_mcp_matchers',
+      'mcp_statuses entries matching forbidden_mcp_matchers',
+      'session_mcp_servers entries matching forbidden_mcp_matchers',
+      'scrub_extra_keys',
+    ])
+  ) {
+    throw new Error('App product profile ordinary selector must carry executable Team scrub targets');
+  }
   if (
     ordinarySelector.conversation_snapshot_policy !==
     'scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations'

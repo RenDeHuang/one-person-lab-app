@@ -45,7 +45,7 @@ owner-receipt authority, artifact authority, memory body, or OPL family
 production readiness.
 
 The active shell currently tracks AionUI upstream through
-`d84bc80ab5af441cf73e41f36ea98c47c9cd8b02` while preserving the App-owned
+`70974c59a275e565e8fc2bd7ecaf2dcac74227f0` while preserving the App-owned
 product profile. That intake is recorded in `contracts/app-shell-adapter.json`,
 which is the active shell source of truth; the upstream code is implementation
 material, not product authority. The shell also keeps Codex ACP tool-call
@@ -54,6 +54,16 @@ output display aligned with native Codex behavior by preserving newline-bearing
 now selects the macOS ZIP for in-app updates, uses an App-managed local
 authorization installer to replace the local App bundle, clears quarantine,
 records diagnostics, and relaunches the updated App.
+
+Active shell upgrade hardening is now App-owned and machine-checked. The adapter
+contract records upstream feature classifications and required implementation
+probes before release. AionUI Team is classified as rejected for ordinary App
+surfaces; Team route redirects, sidebar gating, Team-created redirect no-op,
+ordinary conversation MCP snapshot scrub, agent switching without Team MCP
+inheritance, Team deep-link rejection, and the IPC bridge mutation gate are
+required probes. Ordinary MCP filtering is represented as executable
+`forbidden_mcp_matchers` plus `scrub_extra_keys` data in both the GUI contract
+and product profile.
 
 GUI interaction status: Home/Guid is contract-backed as a composer-first Codex
 canvas with visible GPT-5.5（超高） model status, purpose entries `科研`/`基金`/

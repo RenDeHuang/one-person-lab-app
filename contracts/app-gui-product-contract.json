@@ -564,7 +564,34 @@
       "team_mcp_stdio_config",
       "team_id/teamId"
     ],
-    "conversation_snapshot_policy": "scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations"
+    "conversation_snapshot_policy": "scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations",
+    "forbidden_mcp_matchers": {
+      "exact": [
+        "aionui-team"
+      ],
+      "prefixes": [
+        "team_",
+        "mcp__aionui-team"
+      ],
+      "contains": [
+        "aionui-team"
+      ]
+    },
+    "scrub_extra_keys": [
+      "team_mcp_stdio_config",
+      "team_id",
+      "teamId",
+      "team_lead_team_id",
+      "team_lead_team_slot_id",
+      "team_lead_conversation_id",
+      "tl"
+    ],
+    "required_scrub_targets": [
+      "mcp_servers entries matching forbidden_mcp_matchers",
+      "mcp_statuses entries matching forbidden_mcp_matchers",
+      "session_mcp_servers entries matching forbidden_mcp_matchers",
+      "scrub_extra_keys"
+    ]
   },
   "home_purpose_entries": [
     {
@@ -759,7 +786,17 @@
       "ordinary_visible": false,
       "route_policy": "disabled_or_redirect_to_app_owned_home",
       "deep_link_policy": "not_whitelisted",
-      "rationale": "upstream AionUI Team is configured around shell-local agents and is not an OPL ordinary-user capability"
+      "rationale": "upstream AionUI Team is configured around shell-local agents and is not an OPL ordinary-user capability",
+      "required_probes": [
+        "team_mode_disabled",
+        "team_route_redirect",
+        "team_sidebar_gate",
+        "team_created_redirect_noop",
+        "ordinary_conversation_team_snapshot_scrub",
+        "agent_switching_drops_team_mcp",
+        "team_deep_link_not_whitelisted",
+        "team_bridge_mutation_gate"
+      ]
     },
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",

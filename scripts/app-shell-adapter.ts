@@ -40,6 +40,30 @@ export type ShellAdapterContract = {
     shell_must_not_own: string[];
     upstream_intake_policy: string;
   };
+  upstream_intake?: {
+    classification_policy: string;
+    allowed_classifications: string[];
+    required_feature_record_fields: string[];
+    feature_classifications: Array<{
+      id: string;
+      upstream_surface: string;
+      classification: string;
+      ordinary_surface?: string;
+      app_contract_ref: string;
+      release_gate: string;
+    }>;
+  };
+  implementation_probes?: Record<string, {
+    source: string;
+    policy: string;
+    probes: Array<{
+      id: string;
+      source_ref: string;
+      required: boolean;
+      required_evidence: string[];
+    }>;
+  }>;
+  disabled_feature_policy?: Record<string, Record<string, string>>;
   shell_replacement_policy: {
     candidate_root_pattern: string;
     candidate_state: string;
@@ -161,6 +185,24 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
   assertStringArray(contract.gui_authority.shell_must_not_own, 'gui_authority.shell_must_not_own');
   if (contract.gui_authority.upstream_intake_policy !== 'check_against_app_owned_gui_contracts_before_acceptance') {
     throw new Error(`Unexpected GUI upstream intake policy: ${contract.gui_authority.upstream_intake_policy}`);
+  }
+  if (contract.active_shell === 'aionui') {
+    if (contract.upstream_intake?.classification_policy !== 'classify_each_upstream_feature_before_app_release') {
+      throw new Error('active shell upstream intake must classify upstream features before release');
+    }
+    if (!contract.upstream_intake.feature_classifications?.some((entry) => (
+      entry.id === 'aionui_team' &&
+      entry.classification === 'rejected' &&
+      entry.ordinary_surface === 'forbidden'
+    ))) {
+      throw new Error('active shell upstream intake must reject AionUI Team for ordinary surfaces');
+    }
+    if (contract.implementation_probes?.aionui_team_disabled_surface?.policy !== 'fail_closed_required_for_active_shell_upgrade') {
+      throw new Error('active shell must declare fail-closed AionUI Team implementation probes');
+    }
+    if (contract.disabled_feature_policy?.aionui_team?.agent_switching_policy !== 'must_not_inherit_team_mcp') {
+      throw new Error('active shell disabled Team policy must prevent Team MCP inheritance during agent switching');
+    }
   }
   if (contract.shell_replacement_policy?.candidate_root_pattern !== 'shells/<candidate>') {
     throw new Error('active shell replacement policy must keep candidates under shells/<candidate>');

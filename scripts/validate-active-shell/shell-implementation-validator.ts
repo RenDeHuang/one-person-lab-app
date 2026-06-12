@@ -349,18 +349,39 @@ export function validateActiveShellImplementation(shellPaths) {
   }
   const oplProductProfile = readShellText(shellPaths, 'packages/desktop/src/common/config/oplProductProfile/index.ts');
   for (const expected of [
+    'REQUIRED_ORDINARY_FORBIDDEN_CAPABILITY_POLICY',
+    'getOplOrdinaryForbiddenCapabilityPolicy',
     'isOplForbiddenTeamMcpName',
-    "normalized === 'aionui-team'",
-    "normalized.startsWith('team_')",
-    "normalized.startsWith('mcp__aionui-team')",
+    "exact: ['aionui-team']",
+    "prefixes: ['team_', 'mcp__aionui-team']",
+    "contains: ['aionui-team']",
+    "'team_mcp_stdio_config'",
+    "'team_lead_conversation_id'",
     'sanitizeOplOrdinaryConversationExtra',
-    'delete sanitized.team_mcp_stdio_config',
-    'delete sanitized.team_id',
-    'delete sanitized.teamId',
+    'for (const key of getOplOrdinaryForbiddenCapabilityPolicy().extra_keys)',
     'filterOplOrdinarySessionMcpServers',
   ]) {
     if (!oplProductProfile.includes(expected)) {
       throw new Error(`Active shell ordinary capability filter must scrub disabled Team MCP state: ${expected}`);
+    }
+  }
+  const ipcBridge = readShellText(shellPaths, 'packages/desktop/src/common/adapter/ipcBridge.ts');
+  for (const expected of [
+    'import { TEAM_MODE_ENABLED }',
+    'function disabledTeamMutation',
+    'Team mode is disabled for ordinary OPL App',
+    'create: disabledTeamMutation(',
+    'remove: disabledTeamMutation(',
+    'addAgent: disabledTeamMutation(',
+    'removeAgent: disabledTeamMutation(',
+    'stop: disabledTeamMutation(',
+    'ensureSession: disabledTeamMutation(',
+    'renameAgent: disabledTeamMutation(',
+    'renameTeam: disabledTeamMutation(',
+    'setSessionMode: disabledTeamMutation(',
+  ]) {
+    if (!ipcBridge.includes(expected)) {
+      throw new Error(`Active shell Team IPC bridge must reject disabled Team mutations before HTTP: ${expected}`);
     }
   }
   const ordinaryChatConversation = readShellText(

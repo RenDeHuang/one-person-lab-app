@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
+import { assertDeepEqualJson, assertForbiddenCapabilityPolicy, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedSettingsTabs,
   defaultCompanionSkillSyncIds,
@@ -30,6 +30,23 @@ import {
   assertFile,
 } from './validation-config.ts';
 import { validateBeginnerFirstRunPresentation, validateOplFlowContext } from './shared-contract-validators.ts';
+
+const ordinaryForbiddenCapabilityPolicy = {
+  forbidden_mcp_matchers: {
+    exact: ['aionui-team'],
+    prefixes: ['team_', 'mcp__aionui-team'],
+    contains: ['aionui-team'],
+  },
+  scrub_extra_keys: [
+    'team_mcp_stdio_config',
+    'team_id',
+    'teamId',
+    'team_lead_team_id',
+    'team_lead_team_slot_id',
+    'team_lead_conversation_id',
+    'tl',
+  ],
+};
 
 function validateProductProfileIdentity(profile) {
   if (profile.owner !== 'one-person-lab-app') {
@@ -277,6 +294,40 @@ function validateProductProfileCodexDefaults(profile) {
     profile.companion_payloads.packaged_not_default_visible_codex_skill_ids.includes('morph-ppt')
   ) {
     throw new Error('Product profile must not include retired morph-ppt skill wiring');
+  }
+  validateOrdinaryCapabilitySelectorPolicy(profile);
+}
+
+function validateOrdinaryCapabilitySelectorPolicy(profile) {
+  const policy = profile.gui?.ordinary_capability_selector_policy;
+  if (
+    policy?.scope !== 'home_composer_and_ordinary_conversation' ||
+    policy?.authority !== 'app_owned_opl_allowlist' ||
+    policy?.skill_source_ref !== 'gui.assistant_skill_profiles.required_skills + optional_skills' ||
+    policy?.mcp_server_source_ref !== 'gui.ordinary_capability_selector_policy.visible_mcp_server_ids' ||
+    policy?.mcp_menu_policy !== 'empty_until_app_explicitly_whitelists_opl_mcp_servers' ||
+    policy?.conversation_loaded_mcp_display_policy !== 'filter_to_visible_mcp_server_ids'
+  ) {
+    throw new Error('Product profile ordinary capability selector must be an App-owned OPL allowlist');
+  }
+  assertDeepEqualJson(policy.visible_mcp_server_ids, [], 'Product profile ordinary MCP allowlist');
+  assertForbiddenCapabilityPolicy(
+    policy,
+    ordinaryForbiddenCapabilityPolicy,
+    'Product profile ordinary forbidden MCP policy',
+  );
+  assertDeepEqualJson(
+    policy.required_scrub_targets,
+    [
+      'mcp_servers entries matching forbidden_mcp_matchers',
+      'mcp_statuses entries matching forbidden_mcp_matchers',
+      'session_mcp_servers entries matching forbidden_mcp_matchers',
+      'scrub_extra_keys',
+    ],
+    'Product profile ordinary Team scrub targets',
+  );
+  if (policy.conversation_snapshot_policy !== 'scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations') {
+    throw new Error('Product profile ordinary selector must scrub disabled Team MCP snapshots');
   }
 }
 

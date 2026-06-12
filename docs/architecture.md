@@ -65,6 +65,18 @@ redirects any compatible `/team/*` route back to the App-owned home path. Future
 shells may implement their own collaboration features only through App-owned
 contracts and page-state gates.
 
+Active shell upgrades now carry an App-owned upstream intake ledger in
+`contracts/app-shell-adapter.json#upstream_intake`. Each upstream feature must be
+classified as `accepted`, `rejected`, `redirected`, or `requires_app_contract`
+before it can ride a release. AionUI Team is classified `rejected` for ordinary
+surfaces. The corresponding `implementation_probes` are required release gates:
+Team mode disabled, `/team` route redirect, sidebar gate, Team-created redirect
+no-op, ordinary conversation Team MCP snapshot scrub, agent switching without
+Team MCP inheritance, Team deep-link rejection, and IPC bridge mutation
+rejection before HTTP. Ordinary capability MCP filtering is executable data in
+the GUI contract and product profile through `forbidden_mcp_matchers` and
+`scrub_extra_keys`, not example text.
+
 Live bridge conformance is intentionally opt-in. `validate-active-shell.ts
 --quick` validates the App-owned bridge contract by default. When
 `OPL_APP_LIVE_CONFORMANCE=1`, `OPL_APP_LIVE_OPL_ROOT` points at a local OPL

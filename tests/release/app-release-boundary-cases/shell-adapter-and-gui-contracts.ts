@@ -5,7 +5,10 @@ import {
   test,
   appRoot,
   activeShellRoot,
+  expectedAionuiTeamProbeIds,
   expectedOrdinaryCockpitForbiddenTerms,
+  expectedOrdinaryForbiddenCapabilityPolicy,
+  expectedOrdinaryRequiredScrubTargets,
   expectedSettingsPageSections,
   runNode,
   readProductProfile,
@@ -60,7 +63,7 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   assert.equal(adapterContract.shell_contract.layout_id, 'aionui_v2_workspace');
   assert.equal(adapterContract.shell_contract.paths.product_profile_target, 'packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json');
   assert.equal(adapterContract.shell_contract.paths.electron_builder_config, 'packages/desktop/electron-builder.yml');
-  assert.equal(adapterContract.shell_source.upstream_ref, 'd84bc80ab5af441cf73e41f36ea98c47c9cd8b02');
+  assert.equal(adapterContract.shell_source.upstream_ref, '70974c59a275e565e8fc2bd7ecaf2dcac74227f0');
   assert.match(
     workflow,
     /name: Prepare standard App payload[\s\S]*working-directory: \$\{\{ github\.workspace \}\}[\s\S]*run: node --experimental-strip-types scripts\/prepare-standard-release-payload\.ts/,
@@ -121,6 +124,54 @@ test('active shell adapter keeps GUI authority and replacement gates in the App 
   assert.equal(
     adapterContract.gui_authority.upstream_intake_policy,
     'check_against_app_owned_gui_contracts_before_acceptance',
+  );
+  assert.equal(adapterContract.upstream_intake.classification_policy, 'classify_each_upstream_feature_before_app_release');
+  assert.deepEqual(adapterContract.upstream_intake.allowed_classifications, [
+    'accepted',
+    'rejected',
+    'redirected',
+    'requires_app_contract',
+  ]);
+  assert.deepEqual(adapterContract.upstream_intake.required_feature_record_fields, [
+    'id',
+    'upstream_surface',
+    'classification',
+    'app_contract_ref',
+    'release_gate',
+  ]);
+  const teamIntake = adapterContract.upstream_intake.feature_classifications.find((entry) => entry.id === 'aionui_team');
+  assert.deepEqual(teamIntake, {
+    id: 'aionui_team',
+    upstream_surface: 'Team mode, /team routes, Team sidebar, Team-created redirects, and Team MCP snapshots',
+    classification: 'rejected',
+    ordinary_surface: 'forbidden',
+    app_contract_ref: 'contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy',
+    release_gate: 'implementation_probes.aionui_team_disabled_surface',
+  });
+  assert.deepEqual(adapterContract.disabled_feature_policy.aionui_team, {
+    state: 'disabled',
+    ordinary_surface: 'rejected',
+    route_policy: 'redirect_to_app_home',
+    mutation_policy: 'team_created_redirect_noop',
+    deep_link_policy: 'not_whitelisted',
+    capability_snapshot_policy: 'scrub_before_render_or_inherit',
+    agent_switching_policy: 'must_not_inherit_team_mcp',
+  });
+  assert.deepEqual(
+    adapterContract.implementation_probes.aionui_team_disabled_surface.probes.map((probe) => probe.id),
+    expectedAionuiTeamProbeIds,
+  );
+  assert.ok(
+    adapterContract.implementation_probes.aionui_team_disabled_surface.probes.every((probe) => (
+      probe.source_ref === 'contracts/app-gui-product-contract.json#settings_navigation.team_surface_policy'
+      && probe.required === true
+    )),
+  );
+  assert.ok(
+    adapterContract.implementation_probes.aionui_team_disabled_surface.probes.some((probe) => (
+      probe.id === 'ordinary_conversation_team_snapshot_scrub'
+      && probe.required_evidence.includes('disabled Team MCP state is removed before ordinary conversation rendering')
+    )),
   );
   assert.equal(adapterContract.gui_product_contract, 'contracts/app-gui-product-contract.json');
   assert.deepEqual(adapterContract.gui_product_contract_policy, {
@@ -531,8 +582,15 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     forbidden_skill_examples: ['aionui-skills', 'aionui-webui-setup', 'skill-creator', 'cron'],
     forbidden_mcp_policy: 'do_not_surface_user_or_aionui_mcp_servers_in_ordinary_home_without_app_profile_allowlist',
     forbidden_mcp_examples: ['aionui-team', 'team_*', 'mcp__aionui-team*', 'team_mcp_stdio_config', 'team_id/teamId'],
+    ...expectedOrdinaryForbiddenCapabilityPolicy,
+    required_scrub_targets: expectedOrdinaryRequiredScrubTargets,
     conversation_snapshot_policy: 'scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations',
   });
+  assert.deepEqual(
+    guiContract.ordinary_capability_selector_policy.required_scrub_targets,
+    expectedOrdinaryRequiredScrubTargets,
+  );
+  assert.deepEqual(guiContract.settings_navigation.team_surface_policy.required_probes, expectedAionuiTeamProbeIds);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示']);
   assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
@@ -676,6 +734,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     route_policy: 'disabled_or_redirect_to_app_owned_home',
     deep_link_policy: 'not_whitelisted',
     rationale: 'upstream AionUI Team is configured around shell-local agents and is not an OPL ordinary-user capability',
+    required_probes: expectedAionuiTeamProbeIds,
   });
   assert.equal(guiContract.settings_navigation.source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
