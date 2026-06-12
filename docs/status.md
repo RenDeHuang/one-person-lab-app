@@ -295,11 +295,12 @@ apply/repair/rollback runner, not only a status projection. The App release
 contract expects `opl update status/check/plan --json` for read-only projections
 and `opl update apply/repair/rollback --json` for controlled runner results.
 The App consumes component receipt refs, lock/runner status, repair status,
-rollback status, post-apply sync status, and reload guidance for runtime
-toolchain, managed agent packages, and Codex capability exposure. The App still
-does not implement the kernel, read managed artifact bodies, write runtime or
-domain truth, create owner receipts, mutate dirty/developer checkouts, silently
-upgrade Homebrew/global tools, or claim MAS/MAG/RCA quality/export verdicts.
+rollback status, post-apply sync status, recent background actions, skip reasons,
+and reload guidance for runtime toolchain, managed agent packages, and Codex
+capability exposure. The App still does not implement the kernel, read managed
+artifact bodies, write runtime or domain truth, create owner receipts, mutate
+dirty/developer checkouts, silently upgrade Homebrew/global tools, or claim
+MAS/MAG/RCA quality/export verdicts.
 
 2026-06-12 follow-through: the App contract now also makes the active shell
 integration executable. `contracts/app-release-channel.json#managed_update_plane`
@@ -307,8 +308,11 @@ requires `opl-runtime.get-managed-update-status/check/plan` and
 `opl-runtime.run-managed-update-apply/repair/rollback` IPC surfaces, backed by
 the same `opl update` runner commands. The Updates & Maintenance page must show
 background-maintenance `last_run_at`, `next_run_at`, `last_failure`, lock
-status, and execution status, with startup, daily, and manual-check triggers
-using Framework lock/backoff semantics. Shell implementations remain forbidden
+status, execution status, recent actions, skip reasons, and reload guidance,
+with startup, daily, and manual-check triggers using Framework lock/backoff
+semantics. Clean managed agent packages and capability exposure may auto-apply
+in the background after check/plan; App binary and runtime/toolchain components
+must stay visible or restart/stage based. Shell implementations remain forbidden
 from reading artifact bodies, writing domain truth, creating owner receipts,
 mutating dirty/developer checkouts, mutating Homebrew/system tools, or bypassing
 the Framework update kernel.

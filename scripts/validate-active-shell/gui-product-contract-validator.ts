@@ -66,6 +66,9 @@ const managedUpdateBackgroundFields = [
   'last_failure',
   'idempotency_lock.status',
   'execution.status',
+  'recent_actions',
+  'skipped_reasons',
+  'reload_guidance',
 ];
 
 const managedUpdateScheduler = {
@@ -74,6 +77,10 @@ const managedUpdateScheduler = {
   backoff_policy: 'bounded_retry_with_last_failure_projection',
   user_blocking: false,
   must_project_last_run_and_next_run: true,
+  auto_apply_policy: 'auto_apply_clean_managed_agent_package_and_capability_exposure_only',
+  auto_apply_components: ['agent_package_channel', 'capability_exposure'],
+  never_auto_apply_components: ['app_binary', 'runtime_toolchain'],
+  must_project_recent_actions_and_skip_reasons: true,
 };
 
 const managedUpdateUiActions = {

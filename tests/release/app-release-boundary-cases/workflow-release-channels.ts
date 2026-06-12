@@ -199,6 +199,10 @@ test('managed update plane unifies updater status while preserving adapter autho
     backoff_policy: 'bounded_retry_with_last_failure_projection',
     user_blocking: false,
     must_project_last_run_and_next_run: true,
+    auto_apply_policy: 'auto_apply_clean_managed_agent_package_and_capability_exposure_only',
+    auto_apply_components: ['agent_package_channel', 'capability_exposure'],
+    never_auto_apply_components: ['app_binary', 'runtime_toolchain'],
+    must_project_recent_actions_and_skip_reasons: true,
   });
   assert.deepEqual(plane.shell_integration.ui_actions, {
     refresh: 'opl update status --json',
@@ -267,6 +271,8 @@ test('managed update plane unifies updater status while preserving adapter autho
     'components[].receipt.post_apply_hooks',
     'execution.receipt_record.receipt_refs',
     'reload_guidance',
+    'recent_actions',
+    'skipped_reasons',
   ]);
   assert.deepEqual(plane.managed_kernel.component_receipt_shape.required_fields, [
     'source_manifest_ref',
@@ -383,6 +389,14 @@ test('managed update plane unifies updater status while preserving adapter autho
       'sync_oma_generated_plugin_surface',
     ],
     reload_guidance: 'reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface',
+    auto_apply_eligibility: 'clean_managed_module_roots_only',
+    auto_apply_denial_reasons: [
+      'dirty_checkout',
+      'developer_profile_checkout',
+      'manual_required_condition',
+      'idempotency_lock_in_progress',
+      'verification_failed',
+    ],
   });
   assert.equal(lanes.get('capability_exposure').updater_kind, 'managed_visibility_projection');
   assert.equal(lanes.get('capability_exposure').adapter, 'codex_exposure_status_adapter');
@@ -418,6 +432,18 @@ test('managed update plane unifies updater status while preserving adapter autho
   assert.deepEqual(plane.agent_package_channel.activation_commands, [
     'opl connect reconcile-modules',
     'opl connect sync-skills',
+  ]);
+  assert.equal(
+    plane.agent_package_channel.background_apply_policy,
+    'apply_after_check_or_plan_when_all_agent_package_components_are_clean_managed_and_update_available',
+  );
+  assert.deepEqual(plane.agent_package_channel.background_apply_must_record, [
+    'last_auto_apply_at',
+    'last_auto_apply_component_ids',
+    'last_auto_apply_receipt_refs',
+    'last_auto_apply_post_apply_hooks',
+    'last_auto_apply_skip_reasons',
+    'reload_guidance',
   ]);
   assert.deepEqual(agentPolicy.post_update_sync_required, plane.agent_package_channel.post_update_sync_required);
   assert.equal(agentPolicy.developer_checkout_override_policy, 'explicit_developer_profile_source_channel_only');
@@ -492,6 +518,9 @@ test('managed update plane unifies updater status while preserving adapter autho
     'last_failure',
     'idempotency_lock.status',
     'execution.status',
+    'recent_actions',
+    'skipped_reasons',
+    'reload_guidance',
   ]);
   assert.deepEqual(guiContract.pages.update.sections, [
     'app_binary',
@@ -514,6 +543,9 @@ test('managed update plane unifies updater status while preserving adapter autho
     'last_failure',
     'idempotency_lock.status',
     'execution.status',
+    'recent_actions',
+    'skipped_reasons',
+    'reload_guidance',
   ]);
   assert.ok(updatePage.must_show.includes('agent package channel managed updater status'));
   assert.ok(updatePage.must_not_show.includes('dirty checkout overwrite as a repair action'));

@@ -98,6 +98,10 @@ export function validateReleaseChannelContract(releaseChannel) {
       backoff_policy: 'bounded_retry_with_last_failure_projection',
       user_blocking: false,
       must_project_last_run_and_next_run: true,
+      auto_apply_policy: 'auto_apply_clean_managed_agent_package_and_capability_exposure_only',
+      auto_apply_components: ['agent_package_channel', 'capability_exposure'],
+      never_auto_apply_components: ['app_binary', 'runtime_toolchain'],
+      must_project_recent_actions_and_skip_reasons: true,
     },
     'Managed update plane shell background scheduler',
   );
@@ -193,6 +197,8 @@ export function validateReleaseChannelContract(releaseChannel) {
       'components[].receipt.post_apply_hooks',
       'execution.receipt_record.receipt_refs',
       'reload_guidance',
+      'recent_actions',
+      'skipped_reasons',
     ],
     'Managed update plane runner result required fields',
   );
@@ -362,6 +368,14 @@ export function validateReleaseChannelContract(releaseChannel) {
         'sync_oma_generated_plugin_surface',
       ],
       reload_guidance: 'reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface',
+      auto_apply_eligibility: 'clean_managed_module_roots_only',
+      auto_apply_denial_reasons: [
+        'dirty_checkout',
+        'developer_profile_checkout',
+        'manual_required_condition',
+        'idempotency_lock_in_progress',
+        'verification_failed',
+      ],
     },
     'Managed update plane agent package post-apply sync guidance',
   );
@@ -369,6 +383,24 @@ export function validateReleaseChannelContract(releaseChannel) {
     agentPlane.package_agent_ids,
     ['mas', 'mag', 'rca', 'oma'],
     'Managed update plane agent package ids',
+  );
+  if (
+    managedUpdatePlane.agent_package_channel?.background_apply_policy !==
+    'apply_after_check_or_plan_when_all_agent_package_components_are_clean_managed_and_update_available'
+  ) {
+    throw new Error('Managed update plane agent package channel must declare clean managed background auto-apply policy');
+  }
+  assertDeepEqualJson(
+    managedUpdatePlane.agent_package_channel?.background_apply_must_record,
+    [
+      'last_auto_apply_at',
+      'last_auto_apply_component_ids',
+      'last_auto_apply_receipt_refs',
+      'last_auto_apply_post_apply_hooks',
+      'last_auto_apply_skip_reasons',
+      'reload_guidance',
+    ],
+    'Managed update plane agent package channel background auto-apply receipt projection',
   );
   const capabilityPlane = planeById.get('capability_exposure');
   if (

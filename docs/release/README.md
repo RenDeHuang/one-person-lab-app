@@ -113,8 +113,19 @@ surfaces are `opl-runtime.get-managed-update-status`,
 Background maintenance runs after App Core is ready, during daily background
 maintenance, and when the user manually checks updates. It must respect the
 Framework idempotency lock, use bounded retry/backoff, and project `last_run_at`,
-`next_run_at`, `last_failure`, lock status, and execution status into the
-Updates & Maintenance surface.
+`next_run_at`, `last_failure`, lock status, execution status, recent actions,
+skip reasons, and reload guidance into the Updates & Maintenance surface.
+
+For ordinary users, clean managed agent packages and capability exposure are the
+only background auto-apply targets. If `opl update check` or `opl update plan`
+reports `agent_package_channel` / `capability_exposure` as clean managed and
+updateable, the shell may call the Framework runner to apply those components
+and then display the recorded receipt refs, post-apply hooks, skill/plugin sync
+result, and reload guidance. Desktop App binary updates and runtime/toolchain
+updates remain conservative: they can be checked, staged, repaired, or shown as
+requiring restart, but the shell must not silently replace the App bundle,
+switch runtime pointers, upgrade Homebrew/system tools, or mutate developer /
+dirty checkouts.
 
 The App may display component receipt refs, lock/runner status, repair status,
 rollback status, post-apply sync status, and reload guidance. It must not read

@@ -1257,7 +1257,9 @@
         "components[].receipt.rollback_ref",
         "components[].receipt.post_apply_hooks",
         "execution.receipt_record.receipt_refs",
-        "reload_guidance"
+        "reload_guidance",
+        "recent_actions",
+        "skipped_reasons"
       ],
       "component_receipt_shape": {
         "schema_version": "opl_managed_update_component_receipt.v1",
@@ -1392,7 +1394,15 @@
             "sync_plugin_packaged_skills",
             "sync_oma_generated_plugin_surface"
           ],
-          "reload_guidance": "reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface"
+          "reload_guidance": "reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface",
+          "auto_apply_eligibility": "clean_managed_module_roots_only",
+          "auto_apply_denial_reasons": [
+            "dirty_checkout",
+            "developer_profile_checkout",
+            "manual_required_condition",
+            "idempotency_lock_in_progress",
+            "verification_failed"
+          ]
         },
         "repair_action_scope": "agent_package_reconcile_and_skill_sync_only"
       },
@@ -1451,6 +1461,15 @@
         "opl connect reconcile-modules",
         "opl connect sync-skills"
       ],
+      "background_apply_policy": "apply_after_check_or_plan_when_all_agent_package_components_are_clean_managed_and_update_available",
+      "background_apply_must_record": [
+        "last_auto_apply_at",
+        "last_auto_apply_component_ids",
+        "last_auto_apply_receipt_refs",
+        "last_auto_apply_post_apply_hooks",
+        "last_auto_apply_skip_reasons",
+        "reload_guidance"
+      ],
       "must_not_write_user_codex_state_directly": true,
       "must_not_define_agent_semantics": true,
       "developer_checkout_override_policy": "explicit_developer_profile_source_channel_only"
@@ -1508,7 +1527,17 @@
         "lock_source": "managed_update.idempotency_lock.status",
         "backoff_policy": "bounded_retry_with_last_failure_projection",
         "user_blocking": false,
-        "must_project_last_run_and_next_run": true
+        "must_project_last_run_and_next_run": true,
+        "auto_apply_policy": "auto_apply_clean_managed_agent_package_and_capability_exposure_only",
+        "auto_apply_components": [
+          "agent_package_channel",
+          "capability_exposure"
+        ],
+        "never_auto_apply_components": [
+          "app_binary",
+          "runtime_toolchain"
+        ],
+        "must_project_recent_actions_and_skip_reasons": true
       },
       "ui_actions": {
         "refresh": "opl update status --json",
