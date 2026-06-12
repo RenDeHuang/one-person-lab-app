@@ -410,71 +410,29 @@ and `validate:active-shell --quick` plus the focused release-boundary GUI tests
 fail closed if the contract and matrix drift.
 
 Experimental shell candidate work is separated from the active release adapter.
-`contracts/app-shell-candidates.json` now declares `agui-codex` under
-`shells/agui-codex/` as a linked external repo for a thinner AG-UI/Codex shell.
-`contracts/shell-adapters/agui-codex.json` can be selected with
-`OPL_APP_SHELL_ADAPTER_CONTRACT` so the same App wrapper syncs the product
-profile and builds the candidate launchable `.app` bundle. Default
-stable/nightly release packaging still resolves `contracts/app-shell-adapter.json`
-and the active `aionui` shell. Candidate validation remains contract/runbook
-owned: fixed Codex home behavior, purpose routing, state/action consumption,
-shared Electron/WebUI rendering, package evidence, smoke evidence, and release
-isolation are checked through the candidate registry, candidate adapter,
-candidate runbook, validators, tests, artifacts, manifests, and CI logs rather
-than this status file.
+`contracts/app-shell-candidates.json` declares `agui-codex` as an explicit
+candidate, `contracts/shell-adapters/agui-codex.json` owns its selectable adapter
+contract, and `docs/agui-codex-candidate-verification.md` owns candidate command
+order, smoke expectations, minimum acceptance, and evidence lifecycle. Default
+stable/nightly packaging continues to resolve `contracts/app-shell-adapter.json`
+and the active `aionui` shell until an explicit release-owner decision changes
+that contract.
 
-Candidate shell work enters App product truth only through App-owned contract
-updates and validation gates. Shell implementation roadmaps, upstream GUI
-defaults, and candidate package evidence remain technical verification until a
-separate active-shell adoption decision changes the default adapter contract.
+The current candidate read is technical verification only: `agui-codex` targets
+the Codex App-like OPL chat-first inventory described by the GUI definition
+stack and `docs/app-gui-feature-inventory.md`; CopilotKit is the visible
+UI/runtime layer, AG-UI is the internal event/protocol boundary, WebUI uses the
+same candidate bridge shape, and PilotDeck remains reference-only information
+organization input with no source, runtime, provider, memory, router, or
+WorkSpace authority transfer.
 
-The `agui-codex` target is the Codex App-like OPL chat-first inventory, not an
-AionUI patch list or full workbench first screen. The intended first-class
-experience is workspace-aware conversation, fixed Codex execution, MAS/MAG/RCA
-purpose routing, lightweight workspace/session rail, right-side collapsible
-Files/Skills/Routing/Memory/Always-On context tabs, compact runtime/status refs,
-App-owned Settings, WebUI delivery from the same renderer, and packaged `.app`
-verification through the App wrapper. CopilotKit is the
-visible UI/runtime layer for chat, sidebar, popup, and agent runtime binding.
-AG-UI is the internal event/protocol layer between that renderer runtime and
-Codex app-server or ACP compatibility adapters; AG-UI protocol naming and debug
-dashboards are not ordinary user concepts. WebUI uses the same
-`window.oplCandidate` bridge shape through local HTTP actions and SSE Codex
-events, not a separate product state source.
-
-OpenBMB PilotDeck has been recorded as a design reference for information
-organization, not as a source, runtime dependency, or first-screen product
-template. The useful reference is its polished lightweight workspace/project
-rail, nested conversations, chat-first main pane, grouped Files, Skills,
-Routing, Memory, and Always-On context, and compact composer controls. OPL maps
-those ideas to App-owned conversation, Files, Capabilities, Runtime/cost refs,
-Memory refs, Automations, and Settings as right-side collapsible inspector
-surfaces while keeping Codex app-server as the primary backend and `opl app
-state/action` as the runtime bridge. PilotDeck is AGPL-3.0, so its code,
-gateway, runtime, memory, router, always-on store, provider model list, and
-WorkSpace state model remain excluded unless a separate license and
-candidate-adoption decision is made.
-
-The candidate command surface stays with the candidate runbook rather than this
-status file. `docs/agui-codex-candidate-verification.md` owns App-root
-candidate commands, shell-local smoke commands, minimum acceptance, and package
-validation order. Machine gates remain in `contracts/app-shell-candidates.json`,
-`contracts/shell-adapters/agui-codex.json`,
-`scripts/validate-shell-candidates.ts`, active-shell validation, candidate
-manifests, shell artifacts, CI logs, and release-boundary tests. Default release
-promotion is still an explicit release decision: stable/nightly packaging
-continues to use AionUI until `contracts/app-shell-adapter.json` is deliberately
-changed.
-
-Candidate and release evidence currentness is intentionally kept outside this
-status file. `agui-codex` remains an explicit technical verification candidate:
-it can be selected through
-`OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json`, but
-it is not the default release shell, not App product authority, and not
-domain-ready or production-ready evidence. Current candidate claims must be
-proved by the candidate registry, explicit adapter validation, shell-side
-state-model validation, source/WebUI/package smoke, candidate manifests, and
-App-root release isolation checks.
+Candidate adoption and evidence currentness stay outside this status file.
+Candidate smoke, manifests, package evidence, shell roadmaps, and upstream GUI
+defaults prove only technical verification unless App-owned contracts,
+validators, release-boundary tests, release artifacts, and release-owner
+decision update the default adapter. `agui-codex` is not the default release
+shell, not App product authority, and not domain-ready, clean-VM-ready,
+Full-release-ready, App-production-ready, or family-production-ready evidence.
 
 Release evidence collection is App-owned but cohort-bound. The collector and
 manifest validator can import OPL App state JSON, drilldown JSON, safe-action
