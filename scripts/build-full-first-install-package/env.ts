@@ -15,8 +15,8 @@ function defaultRuntimeCacheDir() {
   return path.join(os.homedir(), 'Library', 'Caches', 'One Person Lab', 'full-runtime-layers');
 }
 
-export function parseArgs(argv) {
-  const parsed = {
+function defaultOptions() {
+  return {
     version: process.env.OPL_RELEASE_VERSION || '26.5.1',
     outDir: process.env.CI === 'true'
       ? path.join(appRepoRoot, FULL_RELEASE_OUTPUT_DIR)
@@ -61,60 +61,72 @@ export function parseArgs(argv) {
     mineruRef: process.env.OPL_FULL_MINERU_REF || 'main',
     uiUxProMaxRef: process.env.OPL_FULL_UI_UX_PRO_MAX_REF || 'main',
   };
+}
+
+function applyBooleanOption(parsed, token) {
+  if (token === '--skip-gui-build') {
+    parsed.skipGuiBuild = true;
+  } else if (token === '--split-runtime') {
+    parsed.splitRuntime = true;
+  } else if (token === '--reuse-gui-vite-output') {
+    parsed.reuseGuiViteOutput = true;
+  } else if (token === '--print-runtime-cache-keys') {
+    parsed.printRuntimeCacheKeys = true;
+  } else if (token === '--include-bun-runtime') {
+    parsed.includeBunRuntime = true;
+  } else {
+    return false;
+  }
+  return true;
+}
+
+function valueAfter(argv, index, token) {
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`Missing value for ${token}`);
+  }
+  return value;
+}
+
+function applyValueOption(parsed, token, value) {
+  if (token === '--version') parsed.version = value;
+  else if (token === '--out-dir') parsed.outDir = path.resolve(value);
+  else if (token === '--framework-root' || token === '--opl-root') parsed.frameworkRoot = path.resolve(value);
+  else if (token === '--gui-root') parsed.guiRoot = path.resolve(value);
+  else if (token === '--mas-root') parsed.masRoot = path.resolve(value);
+  else if (token === '--mag-root') parsed.magRoot = path.resolve(value);
+  else if (token === '--rca-root') parsed.rcaRoot = path.resolve(value);
+  else if (token === '--meta-agent-root') parsed.metaAgentRoot = path.resolve(value);
+  else if (token === '--superpowers-root') parsed.superpowersRoot = path.resolve(value);
+  else if (token === '--codex-root') parsed.codexRoot = path.resolve(value);
+  else if (token === '--node-bin') parsed.nodeBin = path.resolve(value);
+  else if (token === '--bun-bin') parsed.bunBin = path.resolve(value);
+  else if (token === '--uv-bin') parsed.uvBin = path.resolve(value);
+  else if (token === '--temporal-cli-bin') parsed.temporalCliBin = path.resolve(value);
+  else if (token === '--temporal-cli-archive') parsed.temporalCliArchive = path.resolve(value);
+  else if (token === '--python-root') parsed.pythonRoot = path.resolve(value);
+  else if (token === '--officecli-bin') parsed.officeCliBin = path.resolve(value);
+  else if (token === '--officecli-root') parsed.officeCliRoot = path.resolve(value);
+  else if (token === '--mineru-open-api-bin') parsed.mineruOpenApiBin = path.resolve(value);
+  else if (token === '--mineru-root') parsed.mineruRoot = path.resolve(value);
+  else if (token === '--mineru-document-extractor-root') parsed.mineruDocumentExtractorRoot = path.resolve(value);
+  else if (token === '--ui-ux-pro-max-root') parsed.uiUxProMaxRoot = path.resolve(value);
+  else if (token === '--runtime-cache-dir') parsed.runtimeCacheDir = path.resolve(value);
+  else if (token === '--runtime-cache-mode') parsed.runtimeCacheMode = value;
+  else throw new Error(`Unknown argument: ${token}`);
+}
+
+export function parseArgs(argv) {
+  const parsed = defaultOptions();
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
-    if (token === '--skip-gui-build') {
-      parsed.skipGuiBuild = true;
-      continue;
-    }
-    if (token === '--split-runtime') {
-      parsed.splitRuntime = true;
-      continue;
-    }
-    if (token === '--reuse-gui-vite-output') {
-      parsed.reuseGuiViteOutput = true;
-      continue;
-    }
-    if (token === '--print-runtime-cache-keys') {
-      parsed.printRuntimeCacheKeys = true;
-      continue;
-    }
-    if (token === '--include-bun-runtime') {
-      parsed.includeBunRuntime = true;
+    if (applyBooleanOption(parsed, token)) {
       continue;
     }
 
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`Missing value for ${token}`);
-    }
+    applyValueOption(parsed, token, valueAfter(argv, index, token));
     index += 1;
-    if (token === '--version') parsed.version = value;
-    else if (token === '--out-dir') parsed.outDir = path.resolve(value);
-    else if (token === '--framework-root' || token === '--opl-root') parsed.frameworkRoot = path.resolve(value);
-    else if (token === '--gui-root') parsed.guiRoot = path.resolve(value);
-    else if (token === '--mas-root') parsed.masRoot = path.resolve(value);
-    else if (token === '--mag-root') parsed.magRoot = path.resolve(value);
-    else if (token === '--rca-root') parsed.rcaRoot = path.resolve(value);
-    else if (token === '--meta-agent-root') parsed.metaAgentRoot = path.resolve(value);
-    else if (token === '--superpowers-root') parsed.superpowersRoot = path.resolve(value);
-    else if (token === '--codex-root') parsed.codexRoot = path.resolve(value);
-    else if (token === '--node-bin') parsed.nodeBin = path.resolve(value);
-    else if (token === '--bun-bin') parsed.bunBin = path.resolve(value);
-    else if (token === '--uv-bin') parsed.uvBin = path.resolve(value);
-    else if (token === '--temporal-cli-bin') parsed.temporalCliBin = path.resolve(value);
-    else if (token === '--temporal-cli-archive') parsed.temporalCliArchive = path.resolve(value);
-    else if (token === '--python-root') parsed.pythonRoot = path.resolve(value);
-    else if (token === '--officecli-bin') parsed.officeCliBin = path.resolve(value);
-    else if (token === '--officecli-root') parsed.officeCliRoot = path.resolve(value);
-    else if (token === '--mineru-open-api-bin') parsed.mineruOpenApiBin = path.resolve(value);
-    else if (token === '--mineru-root') parsed.mineruRoot = path.resolve(value);
-    else if (token === '--mineru-document-extractor-root') parsed.mineruDocumentExtractorRoot = path.resolve(value);
-    else if (token === '--ui-ux-pro-max-root') parsed.uiUxProMaxRoot = path.resolve(value);
-    else if (token === '--runtime-cache-dir') parsed.runtimeCacheDir = path.resolve(value);
-    else if (token === '--runtime-cache-mode') parsed.runtimeCacheMode = value;
-    else throw new Error(`Unknown argument: ${token}`);
   }
 
   if (!['readwrite', 'readonly', 'off'].includes(parsed.runtimeCacheMode)) {
