@@ -149,3 +149,7 @@ The final artifact `tart-smoke-summary.json` recorded:
   before VM startup if the install ref, explicit trusted standard/full/nightly
   cask refs, or `explicit_standard_and_conflicting_cask_refs_not_whole_tap`
   scope drift.
+- The active shell Tart host smoke summary now records `stage_timing` directly
+  in `tart-smoke-summary.json` for passed, failed, and interrupted runs. Future
+  release profiling can consume per-stage durations and slowest stages from the
+  small summary artifact instead of reconstructing timings from JSONL logs.
