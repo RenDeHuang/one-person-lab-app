@@ -290,7 +290,15 @@
         "skill-creator",
         "cron"
       ],
-      "forbidden_mcp_policy": "do_not_surface_user_or_aionui_mcp_servers_in_ordinary_home_without_app_profile_allowlist"
+      "forbidden_mcp_policy": "do_not_surface_user_or_aionui_mcp_servers_in_ordinary_home_without_app_profile_allowlist",
+      "forbidden_mcp_examples": [
+        "aionui-team",
+        "team_*",
+        "mcp__aionui-team*",
+        "team_mcp_stdio_config",
+        "team_id/teamId"
+      ],
+      "conversation_snapshot_policy": "scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations"
     },
     "default_assistants": [
       {

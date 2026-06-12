@@ -640,6 +640,17 @@ function assertProfileShape(profile: AppProductProfile): void {
     ['aionui-skills', 'aionui-webui-setup', 'skill-creator', 'cron'],
     'gui.ordinary_capability_selector_policy.forbidden_skill_examples',
   );
+  assertIncludesAll(
+    ordinarySelector.forbidden_mcp_examples,
+    ['aionui-team', 'team_*', 'mcp__aionui-team*', 'team_mcp_stdio_config', 'team_id/teamId'],
+    'gui.ordinary_capability_selector_policy.forbidden_mcp_examples',
+  );
+  if (
+    ordinarySelector.conversation_snapshot_policy !==
+    'scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations'
+  ) {
+    throw new Error('App product profile ordinary capability selector must scrub disabled Team MCP snapshots');
+  }
   if (!Array.isArray(ordinarySelector.visible_mcp_server_ids) || ordinarySelector.visible_mcp_server_ids.length !== 0) {
     throw new Error('App product profile ordinary MCP selector must default to an empty App allowlist');
   }

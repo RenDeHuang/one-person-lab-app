@@ -272,6 +272,7 @@ export function validatePageStateMatrix(matrix, contract) {
     'skills outside the App packaged skill set in home skill menu',
     'AionUI implementation skills such as aionui-skills',
     'unknown MCP servers without an App profile allowlist entry',
+    'AionUI Team MCP tools such as team_members, team_list_models, and team_spawn_agent',
     'OPL Meta Agent as a default home assistant',
     'retired Codex model choices',
     'nested input card frames',

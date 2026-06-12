@@ -45,7 +45,7 @@ owner-receipt authority, artifact authority, memory body, or OPL family
 production readiness.
 
 The active shell currently tracks AionUI upstream through
-`19bc89cca3114af9856d09886362aed615dfa1e2` while preserving the App-owned
+`d84bc80ab5af441cf73e41f36ea98c47c9cd8b02` while preserving the App-owned
 product profile. That intake is recorded in `contracts/app-shell-adapter.json`,
 which is the active shell source of truth; the upstream code is implementation
 material, not product authority. The shell also keeps Codex ACP tool-call
@@ -226,8 +226,13 @@ proof.
 The upstream AionUI Team surface is disabled for ordinary OPL App use. Team
 mode is off by default, the Team sidebar entry is hidden, Team-created redirects
 no-op, Team deep links are not whitelisted, and compatible `/team/*` routes
-return to the App-owned home path. This keeps the fork delta thin while avoiding
-an upstream team-leader configuration that does not map to OPL purpose routing.
+return to the App-owned home path. User feedback showed a separate exposure path:
+ordinary conversations could inherit historical Team MCP snapshots such as
+`aionui-team`, `team_members`, `team_list_models`, and `team_spawn_agent`. The
+active shell now also scrubs Team MCP names and Team metadata from ordinary
+conversation snapshots before rendering loaded MCP state or creating derived
+ACP conversations. This keeps the fork delta thin while avoiding an upstream
+team-leader configuration that does not map to OPL purpose routing.
 
 The App first-run screen presents that shared model in a beginner-first way:
 the primary view shows a plain readiness summary, three user-facing setup

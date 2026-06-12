@@ -301,7 +301,7 @@ export function validateActiveShellImplementation(shellPaths) {
     '<RuntimeSettings withWrapper={false} />',
     '<CapabilitiesSettingsContent activeTab={capabilitiesTab} onTabChange={setCapabilitiesTab} />',
     '<AccessSettingsContent />',
-    '<DisplayModalContent />',
+    '<AppearanceModalContent />',
   ]) {
     if (!settingsModal.includes(expected)) {
       throw new Error(`Active shell settings modal must implement App-owned settings partition: ${expected}`);
@@ -346,6 +346,47 @@ export function validateActiveShellImplementation(shellPaths) {
   const teamRedirect = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/team/hooks/useTeamCreatedRedirect.ts');
   if (!teamRedirect.includes('if (!TEAM_MODE_ENABLED)') || !teamRedirect.includes('return undefined')) {
     throw new Error('Active shell Team created redirect hook must no-op when Team mode is disabled');
+  }
+  const oplProductProfile = readShellText(shellPaths, 'packages/desktop/src/common/config/oplProductProfile/index.ts');
+  for (const expected of [
+    'isOplForbiddenTeamMcpName',
+    "normalized === 'aionui-team'",
+    "normalized.startsWith('team_')",
+    "normalized.startsWith('mcp__aionui-team')",
+    'sanitizeOplOrdinaryConversationExtra',
+    'delete sanitized.team_mcp_stdio_config',
+    'delete sanitized.team_id',
+    'delete sanitized.teamId',
+    'filterOplOrdinarySessionMcpServers',
+  ]) {
+    if (!oplProductProfile.includes(expected)) {
+      throw new Error(`Active shell ordinary capability filter must scrub disabled Team MCP state: ${expected}`);
+    }
+  }
+  const ordinaryChatConversation = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/components/ChatConversation.tsx',
+  );
+  for (const expected of [
+    'sanitizeOplOrdinaryConversationExtra',
+    'extra: sanitizeOplOrdinaryConversationExtra(sourceExtra)',
+    'loadedMcpServers={(ordinaryExtra as { mcp_servers?: string[] } | undefined)?.mcp_servers}',
+    'loadedMcpStatuses={(ordinaryExtra as { mcp_statuses?: IConversationMcpStatus[] } | undefined)?.mcp_statuses}',
+  ]) {
+    if (!ordinaryChatConversation.includes(expected)) {
+      throw new Error(`Active shell ordinary conversations must not pass Team MCP snapshots through: ${expected}`);
+    }
+  }
+  const agentSetupCard = readShellText(shellPaths, 'packages/desktop/src/renderer/components/agent/AgentSetupCard.tsx');
+  for (const expected of [
+    'sanitizeOplOrdinaryConversationExtra',
+    'filterOplOrdinarySessionMcpServers',
+    'selected_mcp_server_ids: undefined',
+    'selected_session_mcp_servers: sessionMcpServers?.length ? sessionMcpServers : undefined',
+  ]) {
+    if (!agentSetupCard.includes(expected)) {
+      throw new Error(`Active shell agent switching must not inherit disabled Team MCP state: ${expected}`);
+    }
   }
   const deepLink = readShellText(shellPaths, 'packages/desktop/src/renderer/hooks/system/useDeepLink.ts');
   if (deepLink.includes('/^\\/team\\/[^/]+$/')) {
@@ -774,7 +815,7 @@ export function validateActiveShellImplementation(shellPaths) {
     }
   }
 
-  const presets = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/DisplaySettings/presets.ts');
+  const presets = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/AppearanceSettings/presets.ts');
   if (!presets.includes("export const CODEX_THEME_ID = 'codex'")) {
     throw new Error('Active shell theme presets must expose CODEX_THEME_ID=codex.');
   }
@@ -783,7 +824,7 @@ export function validateActiveShellImplementation(shellPaths) {
   }
   const codexCss = readShellText(
     shellPaths,
-    'packages/desktop/src/renderer/pages/settings/DisplaySettings/presets/opl-codex.css',
+    'packages/desktop/src/renderer/pages/settings/AppearanceSettings/presets/opl-codex.css',
   );
   for (const expected of ['--opl-codex-sidebar-bg', '--opl-codex-surface', '--opl-codex-focus-ring']) {
     if (!codexCss.includes(expected)) {

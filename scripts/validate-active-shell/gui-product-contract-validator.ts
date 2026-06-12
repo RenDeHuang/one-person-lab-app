@@ -913,6 +913,17 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'App GUI ordinary selector forbidden skills',
   );
   assertIncludesAll(
+    guiContract.ordinary_capability_selector_policy.forbidden_mcp_examples,
+    ['aionui-team', 'team_*', 'mcp__aionui-team*', 'team_mcp_stdio_config', 'team_id/teamId'],
+    'App GUI ordinary selector forbidden MCP examples',
+  );
+  if (
+    guiContract.ordinary_capability_selector_policy.conversation_snapshot_policy !==
+    'scrub_disabled_team_mcp_and_team_metadata_before_rendering_or_inheriting_ordinary_conversations'
+  ) {
+    throw new Error('App GUI ordinary selector must scrub disabled Team MCP snapshots from ordinary conversations');
+  }
+  assertIncludesAll(
     pages.guid_home.must_show,
     ['ordinary skill selector filtered to App-owned assistant profile skill allowlist'],
     'App GUI home ordinary selector must_show',
@@ -922,6 +933,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     [
       'AionUI implementation skills such as aionui-skills',
       'unknown MCP servers without an App profile allowlist entry',
+      'AionUI Team MCP tools such as team_members, team_list_models, and team_spawn_agent',
     ],
     'App GUI home ordinary selector must_not_show',
   );
