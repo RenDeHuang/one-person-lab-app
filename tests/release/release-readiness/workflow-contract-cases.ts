@@ -47,6 +47,10 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.match(job, /operator-evidence-bundle-validation/);
   assert.match(job, /summarize-release-readiness\.ts/);
   assert.match(job, /write-release-candidate-record\.ts/);
+  assert.match(workflow, /release_owner_receipt_ref:/);
+  assert.match(job, /OPL_RELEASE_OWNER_RECEIPT_REF/);
+  assert.match(job, /OPL_RELEASE_OWNER_VERDICT_REF/);
+  assert.match(job, /OPL_RELEASE_OWNER_TYPED_BLOCKER_REF/);
   assert.match(job, /Upload release candidate record/);
   assert.match(job, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(job, /release-candidate-record\.json/);

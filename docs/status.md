@@ -221,9 +221,12 @@ classify required artifacts as `present`, `missing`, `typed_blocker`, or
 `packaged_app_evidence=true`. `l5_evidence_readout` and
 `release_owner_verdict` are App release-owner inputs for the same cohort:
 passing evidence yields `release_owner_verdict_pending`, missing or blocked
-required evidence yields `release_owner_typed_blocker_required`, and neither
-state authorizes release-ready, stable/latest promotion, domain readiness, or
-OPL family production readiness.
+required evidence yields `release_owner_typed_blocker_required`. The pending
+readout includes `install_evidence_ref` and `release_owner_typed_blocker_ref`;
+stable promotion still requires a same-cohort `release_owner_verdict_ref` or
+`release_owner_receipt_ref`. Pending, typed-blocker, install-evidence, and
+human-gate refs do not authorize release-ready, stable/latest promotion, domain
+readiness, or OPL family production readiness.
 
 Current release validation is App-root first. Root wrappers prepare App-owned
 payloads and call active-shell build/release scripts; `validate:app-root-boundary`

@@ -224,9 +224,12 @@ Same-cohort release/user-path refs can support release-owner review. They do not
 
 The release readiness summary must carry `release_owner_verdict` for the same
 cohort. Passing evidence produces `status=release_owner_verdict_pending` and a
-`release_owner_typed_blocker_ref` that the App release owner can consume; missing
-or blocked evidence produces `status=release_owner_typed_blocker_required`.
-Neither status is a release-ready claim.
+`release_owner_typed_blocker_ref` plus `install_evidence_ref` that the App
+release owner can consume; missing or blocked evidence produces
+`status=release_owner_typed_blocker_required`. Stable promotion requires the
+candidate record to carry a same-cohort `release_owner_verdict_ref` or
+`release_owner_receipt_ref`; pending, typed-blocker, install-evidence, and
+human-gate refs are explicit non-ready states.
 
 AI exploratory release checks are non-blocking. They can provide exploratory triage, summaries, risk hints, or follow-up suggestions, but they are not a release gate and must not block standard, Full, Homebrew, WebUI, updater, or promotion lanes.
 

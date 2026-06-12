@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const expectedSchema = 'opl_release_candidate_record.v1';
 const readyStatus = 'ready_to_promote';
+const ownerResolutionRefShapes = ['release_owner_verdict_ref', 'release_owner_receipt_ref'];
 
 type Options = {
   mode: 'validate' | 'status';
@@ -104,6 +105,19 @@ function evaluateRecord(record: Record<string, unknown>, options: Options) {
         `Release owner verdict stable_latest_promotion_claim is ${String(releaseOwnerVerdict.stable_latest_promotion_claim)}`,
       );
     }
+    if (
+      releaseOwnerVerdict.status !== 'release_owner_verdict_recorded'
+      && releaseOwnerVerdict.status !== 'release_owner_receipt_recorded'
+    ) {
+      errors.push(`Release owner verdict status is ${String(releaseOwnerVerdict.status)}; expected recorded owner verdict or receipt`);
+    }
+    const hasOwnerResolution = ownerResolutionRefShapes.some((shape) => {
+      const value = releaseOwnerVerdict[shape];
+      return typeof value === 'string' && value.trim().length > 0;
+    });
+    if (!hasOwnerResolution) {
+      errors.push(`Release owner verdict is missing ${ownerResolutionRefShapes.join(' or ')}`);
+    }
   }
 
   return {
@@ -120,6 +134,12 @@ function evaluateRecord(record: Record<string, unknown>, options: Options) {
     release_owner_typed_blocker_ref: typeof releaseOwnerVerdict?.release_owner_typed_blocker_ref === 'string'
       ? releaseOwnerVerdict.release_owner_typed_blocker_ref
       : null,
+    release_owner_verdict_ref: typeof releaseOwnerVerdict?.release_owner_verdict_ref === 'string'
+      ? releaseOwnerVerdict.release_owner_verdict_ref
+      : null,
+    release_owner_receipt_ref: typeof releaseOwnerVerdict?.release_owner_receipt_ref === 'string'
+      ? releaseOwnerVerdict.release_owner_receipt_ref
+      : null,
     blocked_reasons: blockedReasons,
     errors,
   };
@@ -135,6 +155,8 @@ function formatMarkdown(summary: ReturnType<typeof evaluateRecord>) {
     `- Can promote: ${summary.can_promote}`,
     `- Promote ready: ${summary.promote_ready}`,
     `- Release owner verdict: ${String(summary.release_owner_verdict_status)}`,
+    `- Release owner verdict ref: ${String(summary.release_owner_verdict_ref)}`,
+    `- Release owner receipt ref: ${String(summary.release_owner_receipt_ref)}`,
   ];
   if (summary.blocked_reasons.length > 0) {
     lines.push('', '### Blocked reasons', '');
