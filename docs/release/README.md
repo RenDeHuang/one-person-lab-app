@@ -43,7 +43,24 @@ Every release starts with `release-preflight`, backed by:
 npm run release:preflight
 ```
 
-The preflight checks version/mode compatibility, remote tag or release state, workflow shape, release plan shape, Homebrew tap token availability, and the App-owned release contract. A failing preflight stops the release before standard, Full, VM, Homebrew, WebUI, or publish jobs run.
+The preflight checks version/mode compatibility, remote tag or release state,
+workflow shape, release plan shape, Homebrew tap token availability, the
+Homebrew VM static trust policy, and the App-owned release contract. A failing
+preflight stops the release before standard, Full, VM, Homebrew, WebUI, or
+publish jobs run.
+
+For the Homebrew standard VM gate, the static policy is:
+
+- Install ref: `gaofeng21cn/one-person-lab/one-person-lab`
+- Trusted cask refs: `gaofeng21cn/one-person-lab/one-person-lab`,
+  `gaofeng21cn/one-person-lab/one-person-lab-full`, and
+  `gaofeng21cn/one-person-lab/one-person-lab-nightly`
+- Trust scope:
+  `explicit_standard_and_conflicting_cask_refs_not_whole_tap`
+
+The preflight and release-boundary gates fail if the install path falls back to
+an unqualified cask, omits a sibling `conflicts_with` cask ref, or trusts the
+whole tap.
 
 ## GitHub Actions Release Path
 

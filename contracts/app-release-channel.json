@@ -499,6 +499,7 @@
       "release_preflight_contract",
       "workflow_preflight_shape",
       "release_plan",
+      "homebrew_vm_gate_static_policy",
       "homebrew_tap_token",
       "macos_local_authorization",
       "remote_target"

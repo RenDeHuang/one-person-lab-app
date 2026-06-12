@@ -174,6 +174,35 @@ test('release preflight fails fast before expensive release jobs', () => {
   assert.equal(payload.inputs.include_full_package, true);
   assert.ok(payload.checks.some((check) => check.id === 'remote_target' && check.status === 'skipped'));
   assert.ok(payload.checks.some((check) => check.id === 'full_workflow_call' && check.status === 'passed'));
+  assert.ok(payload.checks.some((check) => (
+    check.id === 'homebrew_vm_gate_static_policy'
+    && check.status === 'passed'
+  )));
+  assert.deepEqual(payload.homebrew.vm_gate_static_policy, {
+    profile: 'homebrew-standard',
+    install_ref: 'gaofeng21cn/one-person-lab/one-person-lab',
+    trusted_cask_refs: [
+      'gaofeng21cn/one-person-lab/one-person-lab',
+      'gaofeng21cn/one-person-lab/one-person-lab-full',
+      'gaofeng21cn/one-person-lab/one-person-lab-nightly',
+    ],
+    trust_scope: 'explicit_standard_and_conflicting_cask_refs_not_whole_tap',
+    contract_install_ref: 'gaofeng21cn/one-person-lab/one-person-lab',
+    contract_trusted_cask_refs: [
+      'gaofeng21cn/one-person-lab/one-person-lab',
+      'gaofeng21cn/one-person-lab/one-person-lab-full',
+      'gaofeng21cn/one-person-lab/one-person-lab-nightly',
+    ],
+    contract_trust_scope: 'explicit_standard_and_conflicting_cask_refs_not_whole_tap',
+    required_install_ref: 'gaofeng21cn/one-person-lab/one-person-lab',
+    required_trusted_cask_refs: [
+      'gaofeng21cn/one-person-lab/one-person-lab',
+      'gaofeng21cn/one-person-lab/one-person-lab-full',
+      'gaofeng21cn/one-person-lab/one-person-lab-nightly',
+    ],
+    required_trust_scope: 'explicit_standard_and_conflicting_cask_refs_not_whole_tap',
+    whole_tap_trust_allowed: false,
+  });
   assert.match(fs.readFileSync(markdownPath, 'utf8'), /Release preflight: passed/);
 
   const standardOnly = runNode([

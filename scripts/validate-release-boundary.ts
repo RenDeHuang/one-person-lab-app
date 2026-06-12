@@ -722,6 +722,9 @@ if (homebrewTapValidation.status !== 0) {
 const releaseContract = JSON.parse(
   fs.readFileSync(path.join(appRoot, 'contracts/app-release-channel.json'), 'utf8'),
 );
+const firstRunMatrix = JSON.parse(
+  fs.readFileSync(path.join(appRoot, 'contracts/app-first-run-test-matrix.json'), 'utf8'),
+);
 const releaseName = releaseContract.github_release_name;
 if (
   releaseName?.format !== 'One Person Lab v<version>' ||
@@ -748,6 +751,7 @@ for (const checkId of [
   'release_preflight_contract',
   'workflow_preflight_shape',
   'release_plan',
+  'homebrew_vm_gate_static_policy',
   'homebrew_tap_token',
   'macos_local_authorization',
   'remote_target',
@@ -762,6 +766,60 @@ for (const artifact of ['release-preflight-summary.json', 'release-preflight-sum
     console.error(`FAIL release_preflight_contract: missing summary artifact ${artifact}`);
     failures += 1;
   }
+}
+
+const requiredHomebrewStandardCaskRef = 'gaofeng21cn/one-person-lab/one-person-lab';
+const requiredHomebrewTrustedCaskRefs = [
+  'gaofeng21cn/one-person-lab/one-person-lab',
+  'gaofeng21cn/one-person-lab/one-person-lab-full',
+  'gaofeng21cn/one-person-lab/one-person-lab-nightly',
+];
+const requiredHomebrewTrustScope = 'explicit_standard_and_conflicting_cask_refs_not_whole_tap';
+const homebrewVmScenario = Array.isArray(firstRunMatrix.scenarios)
+  ? firstRunMatrix.scenarios.find((scenario) => scenario.id === 'homebrew_standard_cask_clean_vm_smoke')
+  : null;
+const homebrewVm = homebrewVmScenario?.vm;
+const homebrewPolicy = releaseContract.homebrew_tap_distribution?.cask_install_policy;
+const workflowVmText = fs.readFileSync(path.join(appRoot, '.github/workflows/opl-first-run-vm.yml'), 'utf8');
+const releasePlanText = fs.readFileSync(path.join(appRoot, 'scripts/plan-release-candidate.ts'), 'utf8');
+const preflightText = fs.readFileSync(path.join(appRoot, 'scripts/validate-release-preflight.ts'), 'utf8');
+const sameStringSet = (actual: unknown, expected: string[]) => (
+  Array.isArray(actual)
+  && actual.length === expected.length
+  && expected.every((entry) => actual.includes(entry))
+);
+if (
+  homebrewVm?.homebrew_cask_install_ref !== requiredHomebrewStandardCaskRef ||
+  homebrewPolicy?.standard_cask_install_ref !== requiredHomebrewStandardCaskRef ||
+  !workflowVmText.includes(`homebrew_cask=${requiredHomebrewStandardCaskRef}`) ||
+  !releasePlanText.includes(`--homebrew-cask ${requiredHomebrewStandardCaskRef}`) ||
+  !preflightText.includes(`const requiredHomebrewStandardCaskRef = '${requiredHomebrewStandardCaskRef}'`)
+) {
+  console.error('FAIL homebrew_vm_gate_static_policy: standard Homebrew VM gate must install the fully qualified App cask ref');
+  failures += 1;
+}
+if (
+  !sameStringSet(homebrewVm?.homebrew_trusted_cask_refs, requiredHomebrewTrustedCaskRefs) ||
+  !sameStringSet(homebrewPolicy?.standard_install_trusted_cask_refs, requiredHomebrewTrustedCaskRefs) ||
+  !preflightText.includes('const requiredHomebrewTrustedCaskRefs = [')
+) {
+  console.error('FAIL homebrew_vm_gate_static_policy: trusted refs must cover explicit standard/full/nightly cask refs');
+  failures += 1;
+}
+if (
+  homebrewVm?.homebrew_trust_scope !== requiredHomebrewTrustScope ||
+  homebrewPolicy?.trust_scope !== requiredHomebrewTrustScope ||
+  !preflightText.includes(`const requiredHomebrewTrustScope = '${requiredHomebrewTrustScope}'`)
+) {
+  console.error('FAIL homebrew_vm_gate_static_policy: trust scope must stay explicit cask refs, not whole tap');
+  failures += 1;
+}
+if (
+  homebrewVm?.homebrew_trusted_cask_refs?.includes('gaofeng21cn/one-person-lab') ||
+  homebrewPolicy?.standard_install_trusted_cask_refs?.includes('gaofeng21cn/one-person-lab')
+) {
+  console.error('FAIL homebrew_vm_gate_static_policy: whole tap trust is not allowed');
+  failures += 1;
 }
 
 const webuiPackage = releaseContract.webui_ghcr_image;

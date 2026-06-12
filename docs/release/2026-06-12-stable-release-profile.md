@@ -143,3 +143,9 @@ The final artifact `tart-smoke-summary.json` recorded:
   the standard cask install ref is
   `gaofeng21cn/one-person-lab/one-person-lab`, and the VM gate trusts only the
   standard plus `conflicts_with` sibling cask refs.
+- The same Homebrew rule is now a static preflight/release-boundary gate:
+  `release-preflight-summary.json` includes
+  `homebrew.vm_gate_static_policy`, and `homebrew_vm_gate_static_policy` fails
+  before VM startup if the install ref, explicit trusted standard/full/nightly
+  cask refs, or `explicit_standard_and_conflicting_cask_refs_not_whole_tap`
+  scope drift.

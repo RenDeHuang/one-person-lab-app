@@ -7,6 +7,13 @@ import { fileURLToPath } from 'node:url';
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseRepo = 'gaofeng21cn/one-person-lab-app';
 const allowedReleaseModes = ['refresh_existing', 'new_release', 'draft_candidate'] as const;
+const requiredHomebrewStandardCaskRef = 'gaofeng21cn/one-person-lab/one-person-lab';
+const requiredHomebrewTrustedCaskRefs = [
+  'gaofeng21cn/one-person-lab/one-person-lab',
+  'gaofeng21cn/one-person-lab/one-person-lab-full',
+  'gaofeng21cn/one-person-lab/one-person-lab-nightly',
+];
+const requiredHomebrewTrustScope = 'explicit_standard_and_conflicting_cask_refs_not_whole_tap';
 
 type CheckStatus = 'passed' | 'failed' | 'warning' | 'skipped';
 
@@ -31,6 +38,21 @@ type HomebrewPreflight = {
   tap_token_required: boolean;
   tap_update_owner: string;
   reason: string;
+  vm_gate_static_policy: HomebrewVmGateStaticPolicy;
+};
+
+type HomebrewVmGateStaticPolicy = {
+  profile: 'homebrew-standard';
+  install_ref: string | null;
+  trusted_cask_refs: string[];
+  trust_scope: string | null;
+  contract_install_ref: string | null;
+  contract_trusted_cask_refs: string[];
+  contract_trust_scope: string | null;
+  required_install_ref: string;
+  required_trusted_cask_refs: string[];
+  required_trust_scope: string;
+  whole_tap_trust_allowed: false;
 };
 
 type Options = {
@@ -146,6 +168,16 @@ function objectOrNull(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : null;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+    ? value
+    : [];
+}
+
+function sameStringSet(actual: string[], expected: string[]) {
+  return actual.length === expected.length && expected.every((entry) => actual.includes(entry));
 }
 
 function parseReleasePayload(stdout: string) {
@@ -304,7 +336,73 @@ function checkReleasePlan(options: Options, checks: Check[]) {
   addCheck(checks, 'release_plan', 'passed', `release plan exposes ${requiredLanes.length} required lanes.`);
 }
 
-function buildHomebrewPreflight(options: Options, target: ReleaseTarget): HomebrewPreflight {
+function buildHomebrewVmGateStaticPolicy(): HomebrewVmGateStaticPolicy {
+  const contract = JSON.parse(readText('contracts/app-release-channel.json'));
+  const firstRunMatrix = JSON.parse(readText('contracts/app-first-run-test-matrix.json'));
+  const scenario = Array.isArray(firstRunMatrix.scenarios)
+    ? firstRunMatrix.scenarios.find((entry: { id?: string }) => entry.id === 'homebrew_standard_cask_clean_vm_smoke')
+    : null;
+  const vm = objectOrNull(scenario?.vm);
+  const installPolicy = objectOrNull(contract.homebrew_tap_distribution?.cask_install_policy);
+
+  return {
+    profile: 'homebrew-standard',
+    install_ref: typeof vm?.homebrew_cask_install_ref === 'string' ? vm.homebrew_cask_install_ref : null,
+    trusted_cask_refs: stringArray(vm?.homebrew_trusted_cask_refs),
+    trust_scope: typeof vm?.homebrew_trust_scope === 'string' ? vm.homebrew_trust_scope : null,
+    contract_install_ref: typeof installPolicy?.standard_cask_install_ref === 'string'
+      ? installPolicy.standard_cask_install_ref
+      : null,
+    contract_trusted_cask_refs: stringArray(installPolicy?.standard_install_trusted_cask_refs),
+    contract_trust_scope: typeof installPolicy?.trust_scope === 'string' ? installPolicy.trust_scope : null,
+    required_install_ref: requiredHomebrewStandardCaskRef,
+    required_trusted_cask_refs: requiredHomebrewTrustedCaskRefs,
+    required_trust_scope: requiredHomebrewTrustScope,
+    whole_tap_trust_allowed: false,
+  };
+}
+
+function checkHomebrewVmGateStaticPolicy(policy: HomebrewVmGateStaticPolicy, checks: Check[]) {
+  const wholeTapRef = 'gaofeng21cn/one-person-lab';
+  const failures: string[] = [];
+  if (policy.install_ref !== policy.required_install_ref) {
+    failures.push(`first-run matrix install_ref=${policy.install_ref ?? 'missing'}`);
+  }
+  if (policy.contract_install_ref !== policy.required_install_ref) {
+    failures.push(`contract install_ref=${policy.contract_install_ref ?? 'missing'}`);
+  }
+  if (!sameStringSet(policy.trusted_cask_refs, policy.required_trusted_cask_refs)) {
+    failures.push(`first-run matrix trusted_cask_refs=${policy.trusted_cask_refs.join(',') || 'missing'}`);
+  }
+  if (!sameStringSet(policy.contract_trusted_cask_refs, policy.required_trusted_cask_refs)) {
+    failures.push(`contract trusted_cask_refs=${policy.contract_trusted_cask_refs.join(',') || 'missing'}`);
+  }
+  if (policy.trust_scope !== policy.required_trust_scope) {
+    failures.push(`first-run matrix trust_scope=${policy.trust_scope ?? 'missing'}`);
+  }
+  if (policy.contract_trust_scope !== policy.required_trust_scope) {
+    failures.push(`contract trust_scope=${policy.contract_trust_scope ?? 'missing'}`);
+  }
+  if (policy.trusted_cask_refs.includes(wholeTapRef) || policy.contract_trusted_cask_refs.includes(wholeTapRef)) {
+    failures.push('whole tap trust is not allowed');
+  }
+  if (failures.length > 0) {
+    addCheck(checks, 'homebrew_vm_gate_static_policy', 'failed', failures.join('; '));
+    return;
+  }
+  addCheck(
+    checks,
+    'homebrew_vm_gate_static_policy',
+    'passed',
+    'Homebrew VM gate installs the fully qualified standard cask and trusts only explicit standard/full/nightly cask refs.',
+  );
+}
+
+function buildHomebrewPreflight(
+  options: Options,
+  target: ReleaseTarget,
+  vmGateStaticPolicy: HomebrewVmGateStaticPolicy,
+): HomebrewPreflight {
   const tapTokenRequired = options.runVmSmoke && options.releaseMode !== 'draft_candidate';
   if (!options.runVmSmoke) {
     return {
@@ -312,6 +410,7 @@ function buildHomebrewPreflight(options: Options, target: ReleaseTarget): Homebr
       tap_token_required: false,
       tap_update_owner: 'not_required_vm_smoke_disabled',
       reason: 'VM smoke is disabled for this run.',
+      vm_gate_static_policy: vmGateStaticPolicy,
     };
   }
   if (options.releaseMode === 'draft_candidate') {
@@ -320,6 +419,7 @@ function buildHomebrewPreflight(options: Options, target: ReleaseTarget): Homebr
       tap_token_required: false,
       tap_update_owner: 'not_required_diagnostic_draft_candidate',
       reason: 'Diagnostic draft candidates do not update Stable Homebrew.',
+      vm_gate_static_policy: vmGateStaticPolicy,
     };
   }
   if (options.releaseMode === 'refresh_existing' && (target.kind === 'published_release' || target.kind === 'offline_unknown')) {
@@ -328,6 +428,7 @@ function buildHomebrewPreflight(options: Options, target: ReleaseTarget): Homebr
       tap_token_required: tapTokenRequired,
       tap_update_owner: 'desktop_release_after_remote_verification',
       reason: 'Published-release refreshes update Homebrew in desktop-release after remote verification.',
+      vm_gate_static_policy: vmGateStaticPolicy,
     };
   }
   return {
@@ -335,6 +436,7 @@ function buildHomebrewPreflight(options: Options, target: ReleaseTarget): Homebr
     tap_token_required: tapTokenRequired,
     tap_update_owner: 'desktop_release_promote_after_publish',
     reason: 'Release target is a draft; Homebrew tap updates can read it only after promote publishes the draft.',
+    vm_gate_static_policy: vmGateStaticPolicy,
   };
 }
 
@@ -378,6 +480,7 @@ function checkContract(options: Options, checks: Check[]) {
     'remote_target',
     'workflow_preflight_shape',
     'release_plan',
+    'homebrew_vm_gate_static_policy',
     'homebrew_tap_token',
     'macos_local_authorization',
   ];
@@ -465,9 +568,11 @@ checkReleaseMode(options, checks);
 checkContract(options, checks);
 checkWorkflowShape(options, checks);
 checkReleasePlan(options, checks);
+const homebrewVmGateStaticPolicy = buildHomebrewVmGateStaticPolicy();
+checkHomebrewVmGateStaticPolicy(homebrewVmGateStaticPolicy, checks);
 const releaseTarget = resolveReleaseTarget(options);
 checkRemoteTarget(options, checks, releaseTarget);
-const homebrew = buildHomebrewPreflight(options, releaseTarget);
+const homebrew = buildHomebrewPreflight(options, releaseTarget, homebrewVmGateStaticPolicy);
 checkHomebrewToken(homebrew, checks);
 checkMacosLocalAuthorization(checks);
 writeSummary(options, checks, releaseTarget, homebrew);

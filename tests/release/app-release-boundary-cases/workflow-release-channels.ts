@@ -773,6 +773,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'release_preflight_contract',
       'workflow_preflight_shape',
       'release_plan',
+      'homebrew_vm_gate_static_policy',
       'homebrew_tap_token',
       'macos_local_authorization',
       'remote_target',
@@ -995,6 +996,18 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.deepEqual(homebrew.full_casks, ['one-person-lab-full']);
   assert.deepEqual(homebrew.nightly_formulae, []);
   assert.deepEqual(homebrew.nightly_casks, ['one-person-lab-nightly']);
+  assert.deepEqual(homebrew.cask_install_policy, {
+    standard_cask: 'one-person-lab',
+    standard_cask_install_ref: 'gaofeng21cn/one-person-lab/one-person-lab',
+    standard_install_trusted_cask_refs: [
+      'gaofeng21cn/one-person-lab/one-person-lab',
+      'gaofeng21cn/one-person-lab/one-person-lab-full',
+      'gaofeng21cn/one-person-lab/one-person-lab-nightly',
+    ],
+    fully_qualified_cask_install: true,
+    trust_scope: 'explicit_standard_and_conflicting_cask_refs_not_whole_tap',
+    rule: 'Homebrew user and CI installs use the fully qualified standard cask ref and trust only the standard plus conflicts_with sibling cask refs so installation stays explicit without granting broad trust to the whole tap.',
+  });
   assert.equal(
     homebrew.tap_update_policy.discovery_model,
     'user_taps_github_homebrew_tap_repo_then_homebrew_reads_formula_or_cask',
