@@ -4,7 +4,7 @@ Owner: `one-person-lab-app`
 Purpose: `app_ideal_state_gap_plan`
 State: `active_plan`
 Machine boundary: Human-readable active truth and gap plan. Machine-readable truth lives in `contracts/`, source, release artifacts, updater metadata, and test results.
-Date: `2026-05-30`
+Last reviewed: `2026-06-12`
 
 ## Current Completion Progress
 
