@@ -21,7 +21,7 @@ export function assertDeepEqualJson(actual, expected, label) {
   }
 }
 
-export function assertStringArrayExact(actual, expected, label) {
+function assertStringArrayExact(actual, expected, label) {
   assertDeepEqualJson(actual, expected, label);
   if (!Array.isArray(actual) || actual.some((entry) => typeof entry !== 'string' || !entry.trim())) {
     throw new Error(`${label} must be a non-empty string array`);
