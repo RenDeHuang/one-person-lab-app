@@ -68,19 +68,6 @@ export function syncRuntimePayloadToBuildRoots(runtimeRoot, manifest, guiRoot) {
   return { appPayloadRoot, shellPayloadRoot };
 }
 
-export function findBuiltDmg(guiRoot, version) {
-  const outDir = resolveActiveShellPaths({ shellRoot: guiRoot }).buildOutputDir;
-  const candidates = [
-    `One-Person-Lab-${version}-mac-arm64.dmg`,
-    `One Person Lab-${version}-mac-arm64.dmg`,
-  ].map((name) => path.join(outDir, name));
-  const found = candidates.find((candidate) => fs.existsSync(candidate));
-  if (!found) {
-    throw new Error(`Built arm64 DMG not found under ${outDir} for version ${version}`);
-  }
-  return found;
-}
-
 function removeBuiltDmgCandidates(guiRoot, version) {
   const outDir = resolveActiveShellPaths({ shellRoot: guiRoot }).buildOutputDir;
   for (const name of [
