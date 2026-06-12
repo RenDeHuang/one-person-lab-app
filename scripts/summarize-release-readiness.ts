@@ -299,6 +299,85 @@ function summarizeRuntimeCacheEvents(payload: Record<string, unknown> | null) {
   };
 }
 
+function percent(part: number, total: number) {
+  if (!total) return null;
+  return Number(((part / total) * 100).toFixed(1));
+}
+
+function budgetStatus(value: number | null, limit: number | null, mode: 'warning_at_or_above' | 'fail_above' | 'review_above') {
+  if (!Number.isFinite(value) || !Number.isFinite(limit)) return 'unavailable';
+  if (mode === 'warning_at_or_above') return (value as number) >= (limit as number) ? 'warning' : 'passed';
+  if (mode === 'review_above') return (value as number) > (limit as number) ? 'above_review_threshold' : 'within_review_threshold';
+  return (value as number) > (limit as number) ? 'failed' : 'passed';
+}
+
+function fullSizeEntries(source: unknown, totalRuntimeBytes: number | null, limit = 8) {
+  const record = recordOrNull(source);
+  return Object.entries(record ?? {})
+    .map(([id, value]) => {
+      const entry = recordOrNull(value);
+      const sizeBytes = numberField(entry, 'size_bytes');
+      return {
+        id,
+        size_bytes: sizeBytes,
+        runtime_percent: sizeBytes !== null && totalRuntimeBytes !== null ? percent(sizeBytes, totalRuntimeBytes) : null,
+      };
+    })
+    .filter((entry) => entry.size_bytes !== null)
+    .sort((left, right) => Number(right.size_bytes) - Number(left.size_bytes))
+    .slice(0, limit)
+    .map((entry, index) => ({ rank: index + 1, ...entry }));
+}
+
+function buildManifestSizeAnalysis(
+  manifest: Record<string, unknown> | null,
+  sizeBudget: Record<string, unknown> | null,
+) {
+  if (!manifest) return null;
+  const sizeBreakdown = objectField(manifest, 'size_breakdown');
+  const budget = objectField(manifest, 'size_budget');
+  const totalRuntimeBytes = numberField(sizeBreakdown, 'total_runtime_uncompressed_bytes');
+  const maxRuntimeBytes = numberField(budget, 'max_runtime_uncompressed_bytes');
+  const warningFullDmgBytes = numberField(sizeBudget, 'warning_full_dmg_bytes') ?? numberField(budget, 'warning_full_dmg_bytes');
+  const maxFullDmgBytes = numberField(sizeBudget, 'max_full_dmg_bytes') ?? numberField(budget, 'max_full_dmg_bytes');
+  const fullDmgSizeBytes = numberField(sizeBudget, 'full_dmg_size_bytes');
+  const layers = fullSizeEntries(objectField(sizeBreakdown, 'layers'), totalRuntimeBytes);
+  const components = fullSizeEntries(objectField(manifest, 'components'), totalRuntimeBytes);
+  const candidates = [...layers.map((entry) => ({ kind: 'layer', reason: 'largest_runtime_layer', ...entry })), ...components.map((entry) => ({ kind: 'component', reason: 'largest_packaged_component', ...entry }))]
+    .sort((left, right) => Number(right.size_bytes) - Number(left.size_bytes))
+    .slice(0, 8)
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+  return {
+    schema: 'opl_full_package_size_summary.v1',
+    source: 'derived_from_full_package_manifest',
+    budget: {
+      compressed_full_dmg: {
+        measurement_source: 'remote_release_verification_asset_size_bytes',
+        full_dmg_size_bytes: fullDmgSizeBytes,
+        warning_full_dmg_bytes: warningFullDmgBytes,
+        max_full_dmg_bytes: maxFullDmgBytes,
+        warning_status: budgetStatus(fullDmgSizeBytes, warningFullDmgBytes, 'warning_at_or_above'),
+        review_threshold_status: budgetStatus(fullDmgSizeBytes, maxFullDmgBytes, 'review_above'),
+        release_blocking: false,
+      },
+      runtime_uncompressed: {
+        measurement_source: 'full-package-manifest.json#size_breakdown.total_runtime_uncompressed_bytes',
+        total_runtime_uncompressed_bytes: totalRuntimeBytes,
+        max_runtime_uncompressed_bytes: maxRuntimeBytes,
+        status: budgetStatus(totalRuntimeBytes, maxRuntimeBytes, 'fail_above'),
+        used_percent: totalRuntimeBytes !== null && maxRuntimeBytes !== null ? percent(totalRuntimeBytes, maxRuntimeBytes) : null,
+        release_blocking: true,
+      },
+    },
+    top_contributors: {
+      layers,
+      components,
+      manifest_size_hotspots: [],
+    },
+    optimization_candidates: candidates,
+  };
+}
+
 function recordOrNull(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -654,6 +733,7 @@ function buildSummary(options: Options) {
 
   const fullDiagnosticsRoot = artifactDir(options, fullDiagnosticsArtifactName);
   const manifestPath = findFile(fullDiagnosticsRoot, 'full-package-manifest.json');
+  const sizeSummaryPath = findFile(fullDiagnosticsRoot, 'full-package-size-summary.json');
   const runtimeCacheEventsPath = findFile(fullDiagnosticsRoot, 'runtime-cache-events.json');
   const checksumPath = findFile(fullDiagnosticsRoot, 'SHA256SUMS.txt');
   const fullDiagnosticsGate: GateSummary = !options.includeFullPackage
@@ -665,11 +745,13 @@ function buildSummary(options: Options) {
           artifact_name: fullDiagnosticsArtifactName,
           artifact_path: [
             path.relative(options.artifactsDir, manifestPath),
+            ...(sizeSummaryPath ? [path.relative(options.artifactsDir, sizeSummaryPath)] : []),
             path.relative(options.artifactsDir, runtimeCacheEventsPath),
             path.relative(options.artifactsDir, checksumPath),
           ].join(', '),
           fields: {
             full_package_manifest: readJson(manifestPath),
+            full_package_size_summary: sizeSummaryPath ? readJson(sizeSummaryPath) : null,
             runtime_cache_events: readJson(runtimeCacheEventsPath),
           },
         }
@@ -760,6 +842,12 @@ function buildSummary(options: Options) {
   const manifest = manifestPath ? readJson(manifestPath) : null;
   const runtimeCacheEvents = runtimeCacheEventsPath ? readJson(runtimeCacheEventsPath) : null;
   const sizeBudget = summarizeFullSizeBudget(gates.remote_release_verification);
+  const sizeAnalysis = sizeSummaryPath
+    ? {
+        ...readJson(sizeSummaryPath),
+        source: 'full_package_size_summary_artifact',
+      }
+    : buildManifestSizeAnalysis(manifest, sizeBudget);
   const warnings = warningsFromFullSizeBudget(sizeBudget);
   const operatorEvidenceReadout = objectField(
     gates.operator_evidence_bundle.fields ?? null,
@@ -801,6 +889,7 @@ function buildSummary(options: Options) {
       cache: fullPackage?.cache ?? null,
       runtime_cache: summarizeRuntimeCacheEvents(runtimeCacheEvents),
       size_budget: sizeBudget,
+      size_analysis: sizeAnalysis,
       resolved_refs: fullPackage?.resolved_refs ?? manifest?.resolved_refs ?? null,
       size_breakdown: manifest?.size_breakdown ?? null,
     },
@@ -857,6 +946,42 @@ function writeMarkdown(filePath: string, summary: ReturnType<typeof buildSummary
     for (const warning of summary.warnings) {
       const record = warning as Record<string, unknown>;
       lines.push(`- Full DMG size warning: ${String(record.message ?? record.code ?? 'warning')}`);
+    }
+  }
+  const sizeAnalysis = summary.full_package.size_analysis as Record<string, unknown> | null | undefined;
+  const topContributors = objectField(sizeAnalysis, 'top_contributors');
+  const topLayers = arrayField(topContributors, 'layers').slice(0, 5) as Record<string, unknown>[];
+  const topComponents = arrayField(topContributors, 'components').slice(0, 5) as Record<string, unknown>[];
+  const optimizationCandidates = arrayField(sizeAnalysis, 'optimization_candidates').slice(0, 8) as Record<string, unknown>[];
+  if (sizeAnalysis) {
+    const budget = objectField(sizeAnalysis, 'budget');
+    const compressedFullDmg = objectField(budget, 'compressed_full_dmg');
+    const runtimeUncompressed = objectField(budget, 'runtime_uncompressed');
+    lines.push(
+      '',
+      '### Full package size analysis',
+      '',
+      `- Source: ${String(sizeAnalysis.source ?? 'unknown')}`,
+      `- Full DMG: ${String(compressedFullDmg?.full_dmg_size_bytes ?? 'n/a')} bytes; warning=${String(compressedFullDmg?.warning_status ?? 'n/a')}; review=${String(compressedFullDmg?.review_threshold_status ?? 'n/a')}; release_blocking=${String(compressedFullDmg?.release_blocking ?? false)}`,
+      `- Runtime uncompressed: ${String(runtimeUncompressed?.total_runtime_uncompressed_bytes ?? 'n/a')} bytes; budget_status=${String(runtimeUncompressed?.status ?? 'n/a')}; used=${String(runtimeUncompressed?.used_percent ?? 'n/a')}%`,
+    );
+  }
+  if (topLayers.length > 0) {
+    lines.push('', '| Top Full runtime layer | Size bytes | Runtime % |', '| --- | ---: | ---: |');
+    for (const entry of topLayers) {
+      lines.push(`| ${String(entry.id)} | ${String(entry.size_bytes ?? 'n/a')} | ${String(entry.runtime_percent ?? 'n/a')} |`);
+    }
+  }
+  if (topComponents.length > 0) {
+    lines.push('', '| Top Full component | Size bytes | Runtime % |', '| --- | ---: | ---: |');
+    for (const entry of topComponents) {
+      lines.push(`| ${String(entry.id)} | ${String(entry.size_bytes ?? 'n/a')} | ${String(entry.runtime_percent ?? 'n/a')} |`);
+    }
+  }
+  if (optimizationCandidates.length > 0) {
+    lines.push('', '| Full size optimization candidate | Kind | Size bytes | Reason |', '| --- | --- | ---: | --- |');
+    for (const entry of optimizationCandidates) {
+      lines.push(`| ${String(entry.id)} | ${String(entry.kind)} | ${String(entry.size_bytes ?? 'n/a')} | ${String(entry.reason ?? '')} |`);
     }
   }
   if (summary.full_package.runtime_cache?.miss_written_count > 0) {

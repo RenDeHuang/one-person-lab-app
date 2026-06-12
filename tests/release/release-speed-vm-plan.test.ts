@@ -256,13 +256,14 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
     assertIncludes(workflow + readRepoFile('scripts/plan-release-candidate.ts'), payloadLabel, `Full resolved refs payload ${payloadLabel}`);
   }
   assertMatches(workflow, /Upload Full workflow telemetry[\s\S]*actions\/upload-artifact@v7/, 'Full telemetry artifact upload');
+  assertMatches(workflow, /npm --silent run release:full:size[\s\S]*--full-dmg-size-bytes[\s\S]*full-package-size-summary\.json[\s\S]*full-package-size-summary\.md/, 'Full workflow emits machine-readable size summary');
   const diagnosticsStep = workflowStepBlock(workflow, 'Upload Full diagnostics artifact');
   const localAuthorizationStep = workflowStepBlock(workflow, 'Upload Full local authorization policy');
   assertMatches(workflow, /name:\s+Inspect optional Full release signing secrets/, 'Full workflow inspects optional signing material');
   assertMatches(workflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/, 'Full signing preflight required secrets');
   assertMatches(workflow, /Full first-install local authorization mode/, 'Full local authorization mode notice');
   assertMatches(diagnosticsStep, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/, 'Full diagnostics artifact upload');
-  assertMatches(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
+  assertMatches(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*full-package-size-summary\.json[\s\S]*full-package-size-summary\.md[\s\S]*runtime-cache-events\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
   assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/, 'Full diagnostics artifact must not require release-only Gatekeeper evidence');
   assertMatches(localAuthorizationStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-local-authorization-policy\.json/, 'Full local authorization policy is uploaded for Stable assets');
   assertMatches(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/, 'Full package artifact upload defaults on for release-call consumers');

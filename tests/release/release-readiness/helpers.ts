@@ -56,6 +56,15 @@ export function writePassingArtifacts(root: string, version = '26.5.99', runId =
 } = {}) {
   const standardDmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const fullDmgSizeBytes = typeof options.fullBudget?.full_dmg_size_bytes === 'number'
+    ? options.fullBudget.full_dmg_size_bytes
+    : 512;
+  const warningFullDmgBytes = typeof options.fullBudget?.warning_full_dmg_bytes === 'number'
+    ? options.fullBudget.warning_full_dmg_bytes
+    : 700000000;
+  const maxFullDmgBytes = typeof options.fullBudget?.max_full_dmg_bytes === 'number'
+    ? options.fullBudget.max_full_dmg_bytes
+    : 750000000;
   writeJson(path.join(root, `remote-release-verification-${version}`, 'remote-release-verification.json'), {
     status: 'passed',
     include_full_package: true,
@@ -177,6 +186,12 @@ export function writePassingArtifacts(root: string, version = '26.5.99', runId =
     manifest_version: 2,
     version: '26.5.99',
     package_kind: 'opl_full_first_install_macos_arm64',
+    size_budget: {
+      platform_scope: 'macos-arm64',
+      warning_full_dmg_bytes: 700000000,
+      max_full_dmg_bytes: 750000000,
+      max_runtime_uncompressed_bytes: 1000000000,
+    },
     resolved_refs: {
       opl_framework: { ref: 'main', commit: '1111111111111111111111111111111111111111' },
       mas: { ref: 'main', commit: '2222222222222222222222222222222222222222' },
@@ -187,7 +202,58 @@ export function writePassingArtifacts(root: string, version = '26.5.99', runId =
       mineru: { ref: 'main', commit: '7777777777777777777777777777777777777777' },
       ui_ux_skill: { ref: 'main', commit: '8888888888888888888888888888888888888888' },
     },
-    size_breakdown: { total_runtime_uncompressed_bytes: 1024 },
+    size_breakdown: {
+      total_runtime_uncompressed_bytes: 1024,
+      layers: {
+        toolchain: { size_bytes: 512 },
+        'domain-runtime': { size_bytes: 256 },
+        'opl-runtime': { size_bytes: 192 },
+        skills: { size_bytes: 64 },
+      },
+    },
+    components: {
+      codex: { size_bytes: 384, version: 'codex-cli 0.130.0' },
+      mas: { size_bytes: 256, git_commit: '2222222222222222222222222222222222222222' },
+      opl: { size_bytes: 192, git_commit: '1111111111111111111111111111111111111111' },
+    },
+  });
+  writeJson(path.join(root, `opl-full-diagnostics-${version}`, 'full-package-size-summary.json'), {
+    schema: 'opl_full_package_size_summary.v1',
+    source: 'test_fixture',
+    budget: {
+      compressed_full_dmg: {
+        measurement_source: 'remote_release_verification_asset_size_bytes',
+        full_dmg_size_bytes: fullDmgSizeBytes,
+        warning_full_dmg_bytes: warningFullDmgBytes,
+        max_full_dmg_bytes: maxFullDmgBytes,
+        warning_status: fullDmgSizeBytes >= warningFullDmgBytes ? 'warning' : 'passed',
+        review_threshold_status: fullDmgSizeBytes > maxFullDmgBytes ? 'above_review_threshold' : 'within_review_threshold',
+        release_blocking: false,
+      },
+      runtime_uncompressed: {
+        measurement_source: 'full-package-manifest.json#size_breakdown.total_runtime_uncompressed_bytes',
+        total_runtime_uncompressed_bytes: 1024,
+        max_runtime_uncompressed_bytes: 1000000000,
+        status: 'passed',
+        used_percent: 0,
+        release_blocking: true,
+      },
+    },
+    top_contributors: {
+      layers: [
+        { rank: 1, id: 'toolchain', size_bytes: 512, runtime_percent: 50 },
+        { rank: 2, id: 'domain-runtime', size_bytes: 256, runtime_percent: 25 },
+      ],
+      components: [
+        { rank: 1, id: 'codex', size_bytes: 384, runtime_percent: 37.5 },
+        { rank: 2, id: 'mas', size_bytes: 256, runtime_percent: 25 },
+      ],
+      manifest_size_hotspots: [],
+    },
+    optimization_candidates: [
+      { rank: 1, kind: 'layer', id: 'toolchain', size_bytes: 512, runtime_percent: 50, reason: 'largest_runtime_layer' },
+      { rank: 2, kind: 'component', id: 'codex', size_bytes: 384, runtime_percent: 37.5, reason: 'largest_packaged_component' },
+    ],
   });
   writeJson(path.join(root, `opl-full-diagnostics-${version}`, 'runtime-cache-events.json'), {
     events: options.runtimeCacheEvents ?? [{ layer_id: 'toolchain', status: 'hit' }],

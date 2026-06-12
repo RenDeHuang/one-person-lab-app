@@ -15,6 +15,7 @@ function parseArgs(argv: string[]) {
   const parsed = {
     manifestPath: defaultManifestPath,
     runtimeRoot: '',
+    fullDmgSizeBytes: null as number | null,
     top: 12,
     markdown: false,
   };
@@ -29,6 +30,10 @@ function parseArgs(argv: string[]) {
     } else if (token === '--runtime-root') {
       if (!value) throw new Error('--runtime-root requires a path.');
       parsed.runtimeRoot = path.resolve(value);
+      index += 1;
+    } else if (token === '--full-dmg-size-bytes') {
+      if (!value || !/^\d+$/.test(value)) throw new Error('--full-dmg-size-bytes requires a non-negative integer.');
+      parsed.fullDmgSizeBytes = Number(value);
       index += 1;
     } else if (token === '--top') {
       if (!value || !/^\d+$/.test(value)) throw new Error('--top requires a positive integer.');
@@ -86,6 +91,13 @@ function formatBytes(bytes: number | null | undefined) {
 function percent(part: number, total: number) {
   if (!total) return null;
   return Number(((part / total) * 100).toFixed(1));
+}
+
+function budgetStatus(value: number | null, limit: number | null, mode: 'warning_at_or_above' | 'fail_above' | 'review_above') {
+  if (!Number.isFinite(value) || !Number.isFinite(limit)) return 'unavailable';
+  if (mode === 'warning_at_or_above') return (value as number) >= (limit as number) ? 'warning' : 'passed';
+  if (mode === 'review_above') return (value as number) > (limit as number) ? 'above_review_threshold' : 'within_review_threshold';
+  return (value as number) > (limit as number) ? 'failed' : 'passed';
 }
 
 function componentEntries(manifest: Record<string, any>) {
@@ -153,6 +165,65 @@ function runtimeRootEntries(runtimeRoot: string, top: number) {
     .slice(0, top);
 }
 
+function ranked<T extends { size_bytes: number | null }>(entries: T[], totalBytes: number | null, top: number) {
+  return entries
+    .filter((entry) => Number.isFinite(entry.size_bytes))
+    .slice(0, top)
+    .map((entry, index) => ({
+      rank: index + 1,
+      ...entry,
+      runtime_percent: Number.isFinite(entry.size_bytes) && Number.isFinite(totalBytes)
+        ? percent(entry.size_bytes as number, totalBytes as number)
+        : null,
+    }));
+}
+
+function optimizationCandidates(args: {
+  components: ReturnType<typeof componentEntries>;
+  layers: ReturnType<typeof layerEntries>;
+  hotspots: Array<{ path: string; size_bytes: number }>;
+  totalRuntimeBytes: number | null;
+  top: number;
+}) {
+  const candidates: Array<Record<string, unknown>> = [];
+  for (const layer of ranked(args.layers, args.totalRuntimeBytes, Math.min(args.top, 5))) {
+    candidates.push({
+      kind: 'layer',
+      id: layer.id,
+      size_bytes: layer.size_bytes,
+      runtime_percent: layer.runtime_percent,
+      reason: 'largest_runtime_layer',
+    });
+  }
+  for (const component of ranked(args.components, args.totalRuntimeBytes, Math.min(args.top, 5))) {
+    candidates.push({
+      kind: 'component',
+      id: component.id,
+      size_bytes: component.size_bytes,
+      runtime_percent: component.runtime_percent,
+      reason: 'largest_packaged_component',
+    });
+  }
+  for (const hotspot of args.hotspots.slice(0, Math.min(args.top, 5))) {
+    candidates.push({
+      kind: 'manifest_path',
+      id: hotspot.path,
+      size_bytes: hotspot.size_bytes,
+      runtime_percent: Number.isFinite(args.totalRuntimeBytes)
+        ? percent(hotspot.size_bytes, args.totalRuntimeBytes as number)
+        : null,
+      reason: 'largest_manifest_hotspot',
+    });
+  }
+  return candidates
+    .sort((left, right) => Number(right.size_bytes ?? -1) - Number(left.size_bytes ?? -1))
+    .slice(0, args.top)
+    .map((candidate, index) => ({
+      rank: index + 1,
+      ...candidate,
+    }));
+}
+
 function buildSummary(options: ReturnType<typeof parseArgs>) {
   if (!fs.existsSync(options.manifestPath)) {
     throw new Error(`Full package manifest not found: ${options.manifestPath}`);
@@ -167,13 +238,41 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
     : null;
   const components = componentEntries(manifest);
   const layers = layerEntries(manifest);
+  const manifestSizeHotspots = collectManifestSizeHotspots(manifest, options.top);
+  const fullDmgWarningStatus = budgetStatus(options.fullDmgSizeBytes, warningFullDmgBytes, 'warning_at_or_above');
+  const fullDmgReviewThresholdStatus = budgetStatus(options.fullDmgSizeBytes, maxFullDmgBytes, 'review_above');
+  const runtimeUncompressedStatus = budgetStatus(totalRuntimeBytes, maxRuntimeBytes, 'fail_above');
+  const topComponents = ranked(components, totalRuntimeBytes, options.top);
+  const topLayers = ranked(layers, totalRuntimeBytes, options.top);
 
   return {
+    schema: 'opl_full_package_size_summary.v1',
     manifest_path: options.manifestPath,
     manifest_version: manifest.manifest_version ?? null,
     version: manifest.version ?? null,
     package_kind: manifest.package_kind ?? null,
+    budget: {
+      status: runtimeUncompressedStatus === 'failed' ? 'failed' : 'passed',
+      compressed_full_dmg: {
+        measurement_source: options.fullDmgSizeBytes === null ? 'not_provided' : 'local_full_dmg_file_size_bytes',
+        full_dmg_size_bytes: options.fullDmgSizeBytes,
+        warning_full_dmg_bytes: warningFullDmgBytes,
+        max_full_dmg_bytes: maxFullDmgBytes,
+        warning_status: fullDmgWarningStatus,
+        review_threshold_status: fullDmgReviewThresholdStatus,
+        release_blocking: false,
+      },
+      runtime_uncompressed: {
+        measurement_source: 'full-package-manifest.json#size_breakdown.total_runtime_uncompressed_bytes',
+        total_runtime_uncompressed_bytes: totalRuntimeBytes,
+        max_runtime_uncompressed_bytes: maxRuntimeBytes,
+        status: runtimeUncompressedStatus,
+        used_percent: budgetPercent,
+        release_blocking: true,
+      },
+    },
     total_runtime_uncompressed_bytes: totalRuntimeBytes,
+    full_dmg_size_bytes: options.fullDmgSizeBytes,
     warning_full_dmg_bytes: warningFullDmgBytes,
     max_full_dmg_bytes: maxFullDmgBytes,
     max_runtime_uncompressed_bytes: maxRuntimeBytes,
@@ -190,7 +289,25 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
         ? percent(layer.size_bytes as number, totalRuntimeBytes)
         : null,
     })),
-    manifest_size_hotspots: collectManifestSizeHotspots(manifest, options.top),
+    top_contributors: {
+      components: topComponents,
+      layers: topLayers,
+      manifest_size_hotspots: manifestSizeHotspots.map((entry, index) => ({
+        rank: index + 1,
+        ...entry,
+        runtime_percent: Number.isFinite(totalRuntimeBytes)
+          ? percent(entry.size_bytes, totalRuntimeBytes as number)
+          : null,
+      })),
+    },
+    optimization_candidates: optimizationCandidates({
+      components,
+      layers,
+      hotspots: manifestSizeHotspots,
+      totalRuntimeBytes,
+      top: options.top,
+    }),
+    manifest_size_hotspots: manifestSizeHotspots,
     runtime_root: options.runtimeRoot || null,
     runtime_root_top_entries: runtimeRootEntries(options.runtimeRoot, options.top),
   };
@@ -210,10 +327,11 @@ function renderMarkdown(summary: ReturnType<typeof buildSummary>, top: number) {
     '',
     `- Version: ${summary.version ?? 'unknown'}`,
     `- Manifest: ${summary.manifest_path}`,
+    `- Full DMG size: ${formatBytes(summary.full_dmg_size_bytes)} (${summary.budget.compressed_full_dmg.warning_status})`,
     `- Runtime total: ${formatBytes(summary.total_runtime_uncompressed_bytes)}`,
     `- Full DMG warning threshold: ${formatBytes(summary.warning_full_dmg_bytes)}`,
     `- Full DMG review threshold: ${formatBytes(summary.max_full_dmg_bytes)}`,
-    `- Runtime budget: ${formatBytes(summary.max_runtime_uncompressed_bytes)}${summary.runtime_budget_used_percent === null ? '' : ` (${summary.runtime_budget_used_percent}% used)`}`,
+    `- Runtime budget: ${formatBytes(summary.max_runtime_uncompressed_bytes)}${summary.runtime_budget_used_percent === null ? '' : ` (${summary.runtime_budget_used_percent}% used, ${summary.budget.runtime_uncompressed.status})`}`,
     '',
     '### Layers',
     '',
@@ -259,6 +377,25 @@ function renderMarkdown(summary: ReturnType<typeof buildSummary>, top: number) {
       renderTable(
         ['Path', 'Size'],
         summary.runtime_root_top_entries.map((entry) => [entry.path, formatBytes(entry.size_bytes)]),
+      ),
+    );
+  }
+
+  if (summary.optimization_candidates.length > 0) {
+    lines.push(
+      '',
+      '### Optimization Candidates',
+      '',
+      renderTable(
+        ['Rank', 'Kind', 'ID', 'Size', 'Runtime %', 'Reason'],
+        summary.optimization_candidates.map((candidate) => [
+          String(candidate.rank),
+          String(candidate.kind),
+          String(candidate.id),
+          formatBytes(candidate.size_bytes as number),
+          candidate.runtime_percent === null ? 'n/a' : `${String(candidate.runtime_percent)}%`,
+          String(candidate.reason),
+        ]),
       ),
     );
   }

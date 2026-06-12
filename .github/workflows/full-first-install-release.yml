@@ -637,7 +637,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm run release:full:size -- --markdown >> "$GITHUB_STEP_SUMMARY"
+          dmg_path="$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg"
+          dmg_size_bytes="$(stat -f%z "$dmg_path")"
+          npm --silent run release:full:size -- \
+            --full-dmg-size-bytes "$dmg_size_bytes" \
+            --json > dist/opl-full-release/full-package-size-summary.json
+          npm --silent run release:full:size -- \
+            --full-dmg-size-bytes "$dmg_size_bytes" \
+            --markdown > dist/opl-full-release/full-package-size-summary.md
+          cat dist/opl-full-release/full-package-size-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Summarize Full caches and timings
         shell: bash
@@ -800,6 +808,8 @@ jobs:
             one-person-lab-app/dist/opl-full-release/full-workflow-telemetry.json
             one-person-lab-app/dist/opl-full-release/full-package-build-timing.json
             one-person-lab-app/dist/opl-full-release/full-package-manifest.json
+            one-person-lab-app/dist/opl-full-release/full-package-size-summary.json
+            one-person-lab-app/dist/opl-full-release/full-package-size-summary.md
             one-person-lab-app/dist/opl-full-release/runtime-cache-events.json
             one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
             one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json

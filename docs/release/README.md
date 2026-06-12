@@ -175,7 +175,11 @@ Full assets are GitHub Release first-install downloads and explicit stable `one-
 
 ## Full Size Policy
 
-Release review records compressed DMG size, uncompressed runtime size, and layer breakdown. The remote verifier enforces the compressed Full DMG budget from the GitHub asset size and the uncompressed runtime budget from `full-package-manifest.json` `size_breakdown.total_runtime_uncompressed_bytes`.
+Release review records compressed DMG size, uncompressed runtime size, top
+component/layer contributors, and optimization candidates. The remote verifier
+enforces the compressed Full DMG budget from the GitHub asset size and the
+uncompressed runtime budget from `full-package-manifest.json`
+`size_breakdown.total_runtime_uncompressed_bytes`.
 
 Current policy values:
 
@@ -189,7 +193,11 @@ Local review:
 npm run release:full:size -- --markdown
 ```
 
-Remote diagnosis should prefer the small `opl-full-diagnostics-<version>` artifact. Full workflow telemetry is bottleneck tuning input, not release truth.
+Remote diagnosis should prefer the small `opl-full-diagnostics-<version>`
+artifact. It includes `full-package-size-summary.json` and
+`full-package-size-summary.md`; consume `full_package.size_analysis` in
+`release-readiness-summary.json` for final gate review without downloading the
+Full DMG. Full workflow telemetry is bottleneck tuning input, not release truth.
 
 ## Purpose-Based Release Validation
 

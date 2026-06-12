@@ -415,9 +415,17 @@ test('release readiness summary passes with explicit Full size warning below rev
   assert.equal(summary.full_package.size_budget.full_dmg_size_status, 'warning');
   assert.equal(summary.full_package.size_budget.warning_full_dmg_bytes, 700000000);
   assert.equal(summary.full_package.size_budget.max_full_dmg_bytes, 750000000);
+  assert.equal(summary.full_package.size_analysis.source, 'full_package_size_summary_artifact');
+  assert.equal(summary.full_package.size_analysis.budget.compressed_full_dmg.warning_status, 'warning');
+  assert.equal(summary.full_package.size_analysis.budget.compressed_full_dmg.review_threshold_status, 'within_review_threshold');
+  assert.equal(summary.full_package.size_analysis.budget.compressed_full_dmg.release_blocking, false);
+  assert.equal(summary.full_package.size_analysis.top_contributors.layers[0].id, 'toolchain');
+  assert.equal(summary.full_package.size_analysis.optimization_candidates[0].id, 'toolchain');
   assert.deepEqual(summary.warnings.map((warning) => warning.code), ['full_dmg_size_warning']);
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /Full DMG size warning/);
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /725000000/);
+  assert.match(fs.readFileSync(summaryPath, 'utf8'), /Full package size analysis/);
+  assert.match(fs.readFileSync(summaryPath, 'utf8'), /Top Full runtime layer/);
 });
 
 test('release readiness summary warns without failing when Full DMG exceeds review threshold', () => {
@@ -463,6 +471,8 @@ test('release readiness summary warns without failing when Full DMG exceeds revi
   const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
   assert.equal(summary.status, 'passed');
   assert.equal(summary.full_package.size_budget.full_dmg_size_status, 'warning');
+  assert.equal(summary.full_package.size_analysis.budget.compressed_full_dmg.review_threshold_status, 'above_review_threshold');
+  assert.equal(summary.full_package.size_analysis.budget.compressed_full_dmg.release_blocking, false);
   assert.deepEqual(summary.warnings.map((warning) => warning.code), [
     'full_dmg_size_above_review_threshold',
   ]);

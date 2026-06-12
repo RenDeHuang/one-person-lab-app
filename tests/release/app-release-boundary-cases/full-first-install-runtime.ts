@@ -42,7 +42,9 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.commit=\$mineru_commit/);
   assert.match(workflow, /github\.com\/opendatalab\/MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.date=\$mineru_built_at/);
   assert.match(workflow, /name: Summarize Full package size/);
-  assert.match(workflow, /npm run release:full:size -- --markdown >> "\$GITHUB_STEP_SUMMARY"/);
+  assert.match(workflow, /npm --silent run release:full:size[\s\S]*--full-dmg-size-bytes "\$dmg_size_bytes"[\s\S]*full-package-size-summary\.json/);
+  assert.match(workflow, /npm --silent run release:full:size[\s\S]*--full-dmg-size-bytes "\$dmg_size_bytes"[\s\S]*full-package-size-summary\.md/);
+  assert.match(workflow, /cat dist\/opl-full-release\/full-package-size-summary\.md >> "\$GITHUB_STEP_SUMMARY"/);
   assert.match(workflow, /name: Summarize Full caches and timings/);
   assert.match(workflow, /name: Cache Electron artifacts[\s\S]*id: electron-cache/);
   assert.match(workflow, /full-electron-cache-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}/);
@@ -105,7 +107,7 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   const diagnosticsStep = workflowStepBlock(workflow, 'Upload Full diagnostics artifact');
   const localAuthorizationStep = workflowStepBlock(workflow, 'Upload Full local authorization policy');
   assert.match(workflow, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/);
-  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*runtime-cache-events\.json[\s\S]*full-runtime-native-trust\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/);
+  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*full-package-size-summary\.json[\s\S]*full-package-size-summary\.md[\s\S]*runtime-cache-events\.json[\s\S]*full-runtime-native-trust\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/);
   assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/);
   assert.match(localAuthorizationStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-local-authorization-policy\.json/);
   assert.match(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/);
@@ -199,12 +201,20 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   ]);
   assert.equal(jsonResult.status, 0, jsonResult.stderr);
   const summary = JSON.parse(jsonResult.stdout);
+  assert.equal(summary.schema, 'opl_full_package_size_summary.v1');
   assert.equal(summary.version, '26.5.27-size');
+  assert.equal(summary.budget.compressed_full_dmg.measurement_source, 'not_provided');
+  assert.equal(summary.budget.compressed_full_dmg.release_blocking, false);
+  assert.equal(summary.budget.runtime_uncompressed.status, 'passed');
+  assert.equal(summary.budget.runtime_uncompressed.release_blocking, true);
   assert.equal(summary.warning_full_dmg_bytes, 700000000);
   assert.equal(summary.max_full_dmg_bytes, 750000000);
   assert.equal(summary.runtime_budget_used_percent, 50);
   assert.equal(summary.components[0].id, 'mas');
   assert.equal(summary.layers[0].id, 'toolchain');
+  assert.equal(summary.top_contributors.components[0].id, 'mas');
+  assert.equal(summary.top_contributors.layers[0].id, 'toolchain');
+  assert.equal(summary.optimization_candidates[0].id, 'toolchain');
   assert.equal(summary.manifest_size_hotspots[2].path, 'toolchain/vendor');
   assert.equal(summary.manifest_size_hotspots[3].path, 'toolchain/vendor/temporal');
 
@@ -212,19 +222,23 @@ test('Full package size analyzer reports manifest component and layer budgets', 
     'scripts/analyze-full-package-size.ts',
     '--manifest',
     manifestPath,
+    '--full-dmg-size-bytes',
+    '725000000',
     '--markdown',
   ]);
   assert.equal(markdownResult.status, 0, markdownResult.stderr);
   assert.match(markdownResult.stdout, /## Full Package Size/);
+  assert.match(markdownResult.stdout, /Full DMG size: 691\.4 MiB \(warning\)/);
   assert.match(markdownResult.stdout, /\| Component \| Size \| Runtime % \| Version \/ Commit \|/);
   assert.match(markdownResult.stdout, /mas/);
   assert.match(markdownResult.stdout, /50% used/);
   assert.match(markdownResult.stdout, /Full DMG warning threshold: 667\.6 MiB/);
   assert.match(markdownResult.stdout, /Full DMG review threshold: 715\.3 MiB/);
-  assert.match(markdownResult.stdout, /Runtime budget: 1000 B \(50% used\)/);
+  assert.match(markdownResult.stdout, /Runtime budget: 1000 B \(50% used, passed\)/);
   assert.match(markdownResult.stdout, /\| mas \| 180 B \| 36% \|/);
   assert.match(markdownResult.stdout, /### Manifest Size Hotspots/);
   assert.match(markdownResult.stdout, /\| toolchain\/vendor\/temporal \| 150 B \|/);
+  assert.match(markdownResult.stdout, /### Optimization Candidates/);
 });
 
 test('manual build workflow keeps cross-platform builds behind an explicit switch', () => {

@@ -43,6 +43,7 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.doesNotMatch(job, /name:\s+macos-build-arm64/);
   assert.doesNotMatch(job, /name:\s+opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(job, /release-readiness-summary\.json/);
+  assert.match(job, /opl-full-diagnostics-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(job, /operator-evidence-bundle-validation/);
   assert.match(job, /summarize-release-readiness\.ts/);
   assert.match(job, /write-release-candidate-record\.ts/);
