@@ -2,8 +2,8 @@
 
 Owner: `one-person-lab-app`
 Purpose: `stable_release_profile`
-State: `active_evidence_note`
-Machine boundary: Human-readable release profiling and optimization notes for `v26.6.12`. Machine truth remains in GitHub Actions runs, release artifacts, Homebrew tap plans, contracts, scripts, and validation output.
+State: `historical_release_provenance`
+Machine boundary: Human-readable release profiling and optimization provenance for the `v26.6.12` cohort. Current machine truth remains in GitHub Actions runs, release artifacts, Homebrew tap plans, contracts, scripts, owner records, and validation output.
 
 ## Release
 

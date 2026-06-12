@@ -8,6 +8,9 @@ Machine boundary: Human-readable release guide. Machine decisions stay in `contr
 ## Read This First
 
 This guide is the release operator map, not a proof ledger. It states the release lanes, stop conditions, required machine surfaces, and verification commands. Dated run ids, branch closeouts, VM transcripts, package-size investigations, candidate smoke logs, GHCR diagnostics, screenshots, and release-by-release evidence belong in release artifacts, CI logs, candidate manifests, or `docs/history/process/`.
+The `v26.6.12` same-tag refresh and timing profile is archived at
+`docs/history/process/2026-06-12-stable-release-profile.md`; use it as
+provenance only, not as current release authority.
 
 The App repository owns desktop packaging, release assets, updater metadata, release evidence validation, user-facing release notes, GUI smoke, and App-owned release gates. OPL Framework owns runtime/update kernel behavior and module maintenance. MAS/MAG/RCA/OMA own domain truth, artifact authority, quality/export verdicts, owner receipts, and typed blockers.
 

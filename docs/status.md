@@ -236,6 +236,11 @@ receipt closes the App release-owner verdict path for that cohort only; it does
 not claim OPL family production readiness, domain readiness, or MAS/MAG/RCA
 quality/export verdicts.
 
+The detailed `v26.6.12` run/timing/asset profile is historical provenance under
+`docs/history/process/2026-06-12-stable-release-profile.md`. Current release
+status stays on the owner receipt, release artifacts, release records,
+contracts, workflows, validators, and CI outputs rather than the dated profile.
+
 Current release validation is App-root first. Root wrappers prepare App-owned
 payloads and call active-shell build/release scripts; `validate:app-root-boundary`
 guards that the App root remains the product wrapper and shell build outputs
