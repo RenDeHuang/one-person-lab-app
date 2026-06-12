@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ReleaseEvidenceCohort, UnknownReleaseEvidenceCohort } from './release-evidence-cohort.ts';
+import { asRecord, stringArray } from './release-json-helpers.ts';
 
 type RefShape = string;
 
@@ -53,20 +54,6 @@ type BuildOptions = {
   upstreamReadout?: Record<string, unknown> | null;
   releaseCohort?: ReleaseEvidenceCohort | UnknownReleaseEvidenceCohort;
 };
-
-function asRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object.`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function stringArray(value: unknown, label: string) {
-  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string' || !entry.trim())) {
-    throw new Error(`${label} must be a non-empty string array.`);
-  }
-  return value as string[];
-}
 
 export function readAppReleaseL5ReadoutContract(appRoot: string) {
   const releaseContract = JSON.parse(

@@ -1,3 +1,5 @@
+import { asRecord } from './release-json-helpers.ts';
+
 export type ReleaseEvidenceCohort = {
   schema: 'opl_app_release_evidence_cohort.v1';
   version: string;
@@ -15,13 +17,6 @@ export type UnknownReleaseEvidenceCohort = {
 };
 
 const versionPattern = /^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$/;
-
-function asRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object.`);
-  }
-  return value as Record<string, unknown>;
-}
 
 function inferReleaseChannel(version: string): 'stable' | 'nightly' {
   return /nightly/i.test(version) ? 'nightly' : 'stable';
