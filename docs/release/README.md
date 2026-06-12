@@ -80,12 +80,30 @@ opl update plan --json
 Controlled execution stays in Framework runner outputs:
 
 ```bash
-opl update apply --json
-opl update repair --json
-opl update rollback --json
+opl update apply --component <component_id> --json
+opl update repair --receipt <receipt_id> --json
+opl update rollback --component <component_id> --json
 ```
 
-The App may display component receipt refs, lock/runner status, repair status, rollback status, post-apply sync status, and reload guidance. It must not read managed artifact bodies, write runtime/domain truth, create owner receipts, mutate dirty/developer checkouts, or claim MAS/MAG/RCA quality/export verdicts.
+The active shell must expose these commands through the OPL runtime bridge, not
+through direct file reads or shell-local update logic. The required bridge
+surfaces are `opl-runtime.get-managed-update-status`,
+`opl-runtime.get-managed-update-check`, `opl-runtime.get-managed-update-plan`,
+`opl-runtime.run-managed-update-apply`,
+`opl-runtime.run-managed-update-repair`, and
+`opl-runtime.run-managed-update-rollback`.
+
+Background maintenance runs after App Core is ready, during daily background
+maintenance, and when the user manually checks updates. It must respect the
+Framework idempotency lock, use bounded retry/backoff, and project `last_run_at`,
+`next_run_at`, `last_failure`, lock status, and execution status into the
+Updates & Maintenance surface.
+
+The App may display component receipt refs, lock/runner status, repair status,
+rollback status, post-apply sync status, and reload guidance. It must not read
+managed artifact bodies, write runtime/domain truth, create owner receipts,
+mutate dirty/developer checkouts, bypass the Framework update kernel, silently
+mutate Homebrew/system tools, or claim MAS/MAG/RCA quality/export verdicts.
 
 ## Homebrew Distribution Boundary
 

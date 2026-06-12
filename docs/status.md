@@ -301,6 +301,18 @@ does not implement the kernel, read managed artifact bodies, write runtime or
 domain truth, create owner receipts, mutate dirty/developer checkouts, silently
 upgrade Homebrew/global tools, or claim MAS/MAG/RCA quality/export verdicts.
 
+2026-06-12 follow-through: the App contract now also makes the active shell
+integration executable. `contracts/app-release-channel.json#managed_update_plane`
+requires `opl-runtime.get-managed-update-status/check/plan` and
+`opl-runtime.run-managed-update-apply/repair/rollback` IPC surfaces, backed by
+the same `opl update` runner commands. The Updates & Maintenance page must show
+background-maintenance `last_run_at`, `next_run_at`, `last_failure`, lock
+status, and execution status, with startup, daily, and manual-check triggers
+using Framework lock/backoff semantics. Shell implementations remain forbidden
+from reading artifact bodies, writing domain truth, creating owner receipts,
+mutating dirty/developer checkouts, mutating Homebrew/system tools, or bypassing
+the Framework update kernel.
+
 Release and user-path evidence remains cohort-bound App evidence. Verified
 release bundle refs, screenshots, remote asset checks, or packaged route smoke
 can support release-owner review for the same App cohort, but they do not

@@ -47,6 +47,40 @@ const managedUpdateMustNotShow = [
   'artifact bodies',
 ];
 
+const managedUpdateIpcSurfaces = [
+  'opl-runtime.get-managed-update-status',
+  'opl-runtime.get-managed-update-check',
+  'opl-runtime.get-managed-update-plan',
+  'opl-runtime.run-managed-update-apply',
+  'opl-runtime.run-managed-update-repair',
+  'opl-runtime.run-managed-update-rollback',
+];
+
+const managedUpdateBackgroundFields = [
+  'last_run_at',
+  'next_run_at',
+  'last_failure',
+  'idempotency_lock.status',
+  'execution.status',
+];
+
+const managedUpdateScheduler = {
+  triggers: ['app_startup_after_core_ready', 'daily_background_maintenance', 'manual_check_updates'],
+  lock_source: 'managed_update.idempotency_lock.status',
+  backoff_policy: 'bounded_retry_with_last_failure_projection',
+  user_blocking: false,
+  must_project_last_run_and_next_run: true,
+};
+
+const managedUpdateUiActions = {
+  refresh: 'opl update status --json',
+  check: 'opl update check --json',
+  plan: 'opl update plan --json',
+  apply_component: 'opl update apply --component <component_id> --json',
+  repair_receipt: 'opl update repair --receipt <receipt_id> --json',
+  rollback_component: 'opl update rollback --component <component_id> --json',
+};
+
 function validateManagedUpdatePageState(page, label) {
   if (page?.page_contract !== 'updates_and_maintenance') {
     throw new Error(`${label} page_contract must be updates_and_maintenance`);
@@ -54,6 +88,14 @@ function validateManagedUpdatePageState(page, label) {
   if (page?.status_source !== 'opl update status --json') {
     throw new Error(`${label} must expose opl update status --json as the explicit status source`);
   }
+  if (page?.action_source !== 'opl update apply/repair/rollback --json through shell IPC') {
+    throw new Error(`${label} must expose managed update actions through shell IPC`);
+  }
+  assertDeepEqualJson(
+    page?.background_maintenance_status_fields,
+    managedUpdateBackgroundFields,
+    `${label} background maintenance status fields`,
+  );
   assertDeepEqualJson(
     page?.sections,
     ['app_binary', 'runtime_toolchain', 'agent_packages', 'capability_exposure'],
@@ -74,6 +116,9 @@ function validateManagedUpdatePageState(page, label) {
     ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure'],
     `${label} display planes`,
   );
+  assertDeepEqualJson(plane?.background_scheduler, managedUpdateScheduler, `${label} background scheduler`);
+  assertDeepEqualJson(plane?.ui_actions, managedUpdateUiActions, `${label} UI actions`);
+  assertDeepEqualJson(plane?.ipc_bridge_required, managedUpdateIpcSurfaces, `${label} IPC bridge`);
 }
 
 export function validatePageStateMatrix(matrix, contract) {

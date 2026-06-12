@@ -177,6 +177,45 @@ test('managed update plane unifies updater status while preserving adapter autho
     plane.managed_kernel.idempotency_lock.contention_policy,
     'report_in_progress_or_skip_without_parallel_stage_or_plugin_sync',
   );
+  assert.deepEqual(plane.shell_integration.required_ipc_surfaces, [
+    'opl-runtime.get-managed-update-status',
+    'opl-runtime.get-managed-update-check',
+    'opl-runtime.get-managed-update-plan',
+    'opl-runtime.run-managed-update-apply',
+    'opl-runtime.run-managed-update-repair',
+    'opl-runtime.run-managed-update-rollback',
+  ]);
+  assert.deepEqual(plane.shell_integration.allowed_cli_commands, [
+    'opl update status --json',
+    'opl update check --json',
+    'opl update plan --json',
+    'opl update apply --component <component_id> --json',
+    'opl update repair --receipt <receipt_id> --json',
+    'opl update rollback --component <component_id> --json',
+  ]);
+  assert.deepEqual(plane.shell_integration.background_scheduler, {
+    triggers: ['app_startup_after_core_ready', 'daily_background_maintenance', 'manual_check_updates'],
+    lock_source: 'managed_update.idempotency_lock.status',
+    backoff_policy: 'bounded_retry_with_last_failure_projection',
+    user_blocking: false,
+    must_project_last_run_and_next_run: true,
+  });
+  assert.deepEqual(plane.shell_integration.ui_actions, {
+    refresh: 'opl update status --json',
+    check: 'opl update check --json',
+    plan: 'opl update plan --json',
+    apply_component: 'opl update apply --component <component_id> --json',
+    repair_receipt: 'opl update repair --receipt <receipt_id> --json',
+    rollback_component: 'opl update rollback --component <component_id> --json',
+  });
+  assert.deepEqual(plane.shell_integration.forbidden_shell_behaviors, [
+    'read_artifact_body',
+    'read_or_write_domain_truth',
+    'write_owner_receipt',
+    'mutate_dirty_or_developer_checkout',
+    'mutate_homebrew_or_system_tools',
+    'bypass_framework_update_kernel',
+  ]);
   assert.equal(
     plane.managed_kernel.component_receipt_shape.schema_version,
     'opl_managed_update_component_receipt.v1',
@@ -425,6 +464,18 @@ test('managed update plane unifies updater status while preserving adapter autho
 
   assert.equal(guiContract.framework_surfaces.managed_update_plane.contract, 'contracts/app-release-channel.json#managed_update_plane');
   assert.equal(guiContract.framework_surfaces.managed_update_plane.status_command, 'opl update status --json');
+  assert.deepEqual(guiContract.framework_surfaces.managed_update_plane.ipc_bridge_required, [
+    'opl-runtime.get-managed-update-status',
+    'opl-runtime.get-managed-update-check',
+    'opl-runtime.get-managed-update-plan',
+    'opl-runtime.run-managed-update-apply',
+    'opl-runtime.run-managed-update-repair',
+    'opl-runtime.run-managed-update-rollback',
+  ]);
+  assert.equal(
+    guiContract.framework_surfaces.managed_update_plane.background_scheduler_required,
+    'startup_daily_and_manual_check_with_lock_and_backoff',
+  );
   assert.equal(guiContract.framework_surfaces.managed_update_plane.app_role, 'status_conditions_repair_actions_consumer_only');
   assert.equal(guiContract.framework_surfaces.managed_update_plane.artifact_body_access, false);
   assert.equal(guiContract.framework_surfaces.managed_update_plane.domain_truth_write_access, false);
@@ -434,6 +485,14 @@ test('managed update plane unifies updater status while preserving adapter autho
   assert.equal(guiContract.framework_surfaces.managed_update_plane.developer_checkout_mutation_allowed, false);
 
   assert.equal(guiContract.pages.update.status_source, 'opl update status --json');
+  assert.equal(guiContract.pages.update.action_source, 'opl update apply/repair/rollback --json through shell IPC');
+  assert.deepEqual(guiContract.pages.update.background_maintenance_status_fields, [
+    'last_run_at',
+    'next_run_at',
+    'last_failure',
+    'idempotency_lock.status',
+    'execution.status',
+  ]);
   assert.deepEqual(guiContract.pages.update.sections, [
     'app_binary',
     'runtime_toolchain',
@@ -449,6 +508,13 @@ test('managed update plane unifies updater status while preserving adapter autho
   assert.deepEqual(updatePage.sections, guiContract.pages.update.sections);
   assert.equal(updatePage.page_contract, 'updates_and_maintenance');
   assert.equal(updatePage.status_source, 'opl update status --json');
+  assert.deepEqual(updatePage.background_maintenance_status_fields, [
+    'last_run_at',
+    'next_run_at',
+    'last_failure',
+    'idempotency_lock.status',
+    'execution.status',
+  ]);
   assert.ok(updatePage.must_show.includes('agent package channel managed updater status'));
   assert.ok(updatePage.must_not_show.includes('dirty checkout overwrite as a repair action'));
   assert.ok(updatePage.must_not_show.includes('quality/export verdict controls'));

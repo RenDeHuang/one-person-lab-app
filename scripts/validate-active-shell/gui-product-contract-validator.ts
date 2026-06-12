@@ -51,10 +51,52 @@ const managedUpdateMustNotShow = [
   'artifact bodies',
 ];
 
+const managedUpdateIpcSurfaces = [
+  'opl-runtime.get-managed-update-status',
+  'opl-runtime.get-managed-update-check',
+  'opl-runtime.get-managed-update-plan',
+  'opl-runtime.run-managed-update-apply',
+  'opl-runtime.run-managed-update-repair',
+  'opl-runtime.run-managed-update-rollback',
+];
+
+const managedUpdateBackgroundFields = [
+  'last_run_at',
+  'next_run_at',
+  'last_failure',
+  'idempotency_lock.status',
+  'execution.status',
+];
+
+const managedUpdateScheduler = {
+  triggers: ['app_startup_after_core_ready', 'daily_background_maintenance', 'manual_check_updates'],
+  lock_source: 'managed_update.idempotency_lock.status',
+  backoff_policy: 'bounded_retry_with_last_failure_projection',
+  user_blocking: false,
+  must_project_last_run_and_next_run: true,
+};
+
+const managedUpdateUiActions = {
+  refresh: 'opl update status --json',
+  check: 'opl update check --json',
+  plan: 'opl update plan --json',
+  apply_component: 'opl update apply --component <component_id> --json',
+  repair_receipt: 'opl update repair --receipt <receipt_id> --json',
+  rollback_component: 'opl update rollback --component <component_id> --json',
+};
+
 function validateManagedUpdatePageSurface(page, label) {
   if (page?.status_source !== 'opl update status --json') {
     throw new Error(`${label} must expose opl update status --json as the explicit status source`);
   }
+  if (page?.action_source !== 'opl update apply/repair/rollback --json through shell IPC') {
+    throw new Error(`${label} must expose managed update actions through the shell IPC bridge`);
+  }
+  assertDeepEqualJson(
+    page?.background_maintenance_status_fields,
+    managedUpdateBackgroundFields,
+    `${label} background maintenance status fields`,
+  );
   assertDeepEqualJson(
     page?.sections,
     ['app_binary', 'runtime_toolchain', 'agent_packages', 'capability_exposure'],
@@ -83,6 +125,9 @@ function validateManagedUpdatePageSurface(page, label) {
     ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure'],
     `${label} display planes`,
   );
+  assertDeepEqualJson(plane?.background_scheduler, managedUpdateScheduler, `${label} background scheduler`);
+  assertDeepEqualJson(plane?.ui_actions, managedUpdateUiActions, `${label} UI actions`);
+  assertDeepEqualJson(plane?.ipc_bridge_required, managedUpdateIpcSurfaces, `${label} IPC bridge`);
 }
 
 export function validateAppGuiProductContract(guiContract, releaseChannel, installExposurePolicy) {
@@ -233,6 +278,24 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('App GUI contract must expose the managed update plane without kernel, artifact, domain, verdict, global tool, or checkout authority');
   }
+  assertDeepEqualJson(
+    managedUpdateSurface.ipc_bridge_required,
+    managedUpdateIpcSurfaces,
+    'App GUI managed update IPC bridge',
+  );
+  if (managedUpdateSurface.background_scheduler_required !== 'startup_daily_and_manual_check_with_lock_and_backoff') {
+    throw new Error('App GUI managed update surface must require startup/daily/manual scheduling with lock/backoff');
+  }
+  assertDeepEqualJson(
+    managedUpdateSurface.allowed_cli_commands,
+    releaseChannel.managed_update_plane.shell_integration.allowed_cli_commands,
+    'App GUI managed update allowed CLI commands',
+  );
+  assertDeepEqualJson(
+    managedUpdateSurface.forbidden_shell_behaviors,
+    releaseChannel.managed_update_plane.shell_integration.forbidden_shell_behaviors,
+    'App GUI managed update forbidden shell behaviors',
+  );
 
   assertCommandSurface(guiContract.framework_surfaces?.canonical_state?.default_command, 'opl app state --profile fast --json', 'App GUI default state command');
   assertCommandSurface(guiContract.framework_surfaces.canonical_state.refresh_command, 'opl app state --profile fast --json', 'App GUI refresh state command');

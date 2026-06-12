@@ -1001,8 +1001,43 @@
           "quality/export verdict controls",
           "Homebrew/global tool silent upgrade controls",
           "artifact bodies"
+        ],
+        "background_scheduler": {
+          "triggers": [
+            "app_startup_after_core_ready",
+            "daily_background_maintenance",
+            "manual_check_updates"
+          ],
+          "lock_source": "managed_update.idempotency_lock.status",
+          "backoff_policy": "bounded_retry_with_last_failure_projection",
+          "user_blocking": false,
+          "must_project_last_run_and_next_run": true
+        },
+        "ui_actions": {
+          "refresh": "opl update status --json",
+          "check": "opl update check --json",
+          "plan": "opl update plan --json",
+          "apply_component": "opl update apply --component <component_id> --json",
+          "repair_receipt": "opl update repair --receipt <receipt_id> --json",
+          "rollback_component": "opl update rollback --component <component_id> --json"
+        },
+        "ipc_bridge_required": [
+          "opl-runtime.get-managed-update-status",
+          "opl-runtime.get-managed-update-check",
+          "opl-runtime.get-managed-update-plan",
+          "opl-runtime.run-managed-update-apply",
+          "opl-runtime.run-managed-update-repair",
+          "opl-runtime.run-managed-update-rollback"
         ]
-      }
+      },
+      "action_source": "opl update apply/repair/rollback --json through shell IPC",
+      "background_maintenance_status_fields": [
+        "last_run_at",
+        "next_run_at",
+        "last_failure",
+        "idempotency_lock.status",
+        "execution.status"
+      ]
     },
     {
       "id": "login",

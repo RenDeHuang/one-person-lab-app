@@ -73,6 +73,58 @@ export function validateReleaseChannelContract(releaseChannel) {
     ['apply', 'repair', 'rollback'],
     'Managed update plane exclusive lock operations',
   );
+  assertDeepEqualJson(
+    managedUpdatePlane.shell_integration?.required_ipc_surfaces,
+    [
+      'opl-runtime.get-managed-update-status',
+      'opl-runtime.get-managed-update-check',
+      'opl-runtime.get-managed-update-plan',
+      'opl-runtime.run-managed-update-apply',
+      'opl-runtime.run-managed-update-repair',
+      'opl-runtime.run-managed-update-rollback',
+    ],
+    'Managed update plane shell IPC surfaces',
+  );
+  assertDeepEqualJson(
+    managedUpdatePlane.shell_integration?.allowed_cli_commands,
+    managedUpdatePlane.managed_kernel?.public_cli_surfaces,
+    'Managed update plane shell allowed CLI commands',
+  );
+  assertDeepEqualJson(
+    managedUpdatePlane.shell_integration?.background_scheduler,
+    {
+      triggers: ['app_startup_after_core_ready', 'daily_background_maintenance', 'manual_check_updates'],
+      lock_source: 'managed_update.idempotency_lock.status',
+      backoff_policy: 'bounded_retry_with_last_failure_projection',
+      user_blocking: false,
+      must_project_last_run_and_next_run: true,
+    },
+    'Managed update plane shell background scheduler',
+  );
+  assertDeepEqualJson(
+    managedUpdatePlane.shell_integration?.ui_actions,
+    {
+      refresh: 'opl update status --json',
+      check: 'opl update check --json',
+      plan: 'opl update plan --json',
+      apply_component: 'opl update apply --component <component_id> --json',
+      repair_receipt: 'opl update repair --receipt <receipt_id> --json',
+      rollback_component: 'opl update rollback --component <component_id> --json',
+    },
+    'Managed update plane shell UI actions',
+  );
+  assertDeepEqualJson(
+    managedUpdatePlane.shell_integration?.forbidden_shell_behaviors,
+    [
+      'read_artifact_body',
+      'read_or_write_domain_truth',
+      'write_owner_receipt',
+      'mutate_dirty_or_developer_checkout',
+      'mutate_homebrew_or_system_tools',
+      'bypass_framework_update_kernel',
+    ],
+    'Managed update plane forbidden shell behaviors',
+  );
   if (managedUpdatePlane.managed_kernel?.component_receipt_shape?.schema_version !== 'opl_managed_update_component_receipt.v1') {
     throw new Error('Managed update plane must declare the component receipt schema version');
   }
