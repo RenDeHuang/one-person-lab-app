@@ -6,24 +6,26 @@ import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
 type Channel = 'stable' | 'nightly';
 
-function parseArgs(argv: string[]) {
-  const parsed: {
-    version: string;
-    channel: Channel;
-    releaseRepo: string;
-    shellRoot: string;
-    includeFullPackage: boolean;
-    fullPackageManifestPath: string;
-    previousFullPackageManifestPath: string;
-    output: string;
-    previousTag: string;
-    currentTag: string;
-    previousAppRef: string;
-    currentAppRef: string;
-    previousShellRef: string;
-    currentShellRef: string;
-    evidenceOutput: string;
-  } = {
+type ReleaseNotesCliOptions = {
+  version: string;
+  channel: Channel;
+  releaseRepo: string;
+  shellRoot: string;
+  includeFullPackage: boolean;
+  fullPackageManifestPath: string;
+  previousFullPackageManifestPath: string;
+  output: string;
+  previousTag: string;
+  currentTag: string;
+  previousAppRef: string;
+  currentAppRef: string;
+  previousShellRef: string;
+  currentShellRef: string;
+  evidenceOutput: string;
+};
+
+function defaultOptions(): ReleaseNotesCliOptions {
+  return {
     version: '',
     channel: 'stable',
     releaseRepo: process.env.OPL_RELEASE_REPO || 'gaofeng21cn/one-person-lab-app',
@@ -40,6 +42,56 @@ function parseArgs(argv: string[]) {
     currentShellRef: '',
     evidenceOutput: process.env.OPL_RELEASE_NOTES_EVIDENCE_OUTPUT?.trim() || '',
   };
+}
+
+function valueAfter(argv: string[], index: number, token: string) {
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`Missing value for ${token}`);
+  }
+  return value;
+}
+
+function applyValueOption(parsed: ReleaseNotesCliOptions, token: string, value: string) {
+  if (token === '--version') {
+    parsed.version = value;
+  } else if (token === '--channel') {
+    if (value !== 'stable' && value !== 'nightly') {
+      throw new Error(`Unsupported release note channel: ${value}`);
+    }
+    parsed.channel = value;
+  } else if (token === '--repo') {
+    parsed.releaseRepo = value;
+  } else if (token === '--shell-root') {
+    parsed.shellRoot = path.resolve(value);
+  } else if (token === '--full-package-manifest') {
+    parsed.fullPackageManifestPath = path.resolve(value);
+    parsed.includeFullPackage = true;
+  } else if (token === '--previous-full-package-manifest') {
+    parsed.previousFullPackageManifestPath = path.resolve(value);
+  } else if (token === '--output') {
+    parsed.output = path.resolve(value);
+  } else if (token === '--previous-tag') {
+    parsed.previousTag = value;
+  } else if (token === '--current-tag') {
+    parsed.currentTag = value;
+  } else if (token === '--previous-app-ref') {
+    parsed.previousAppRef = value;
+  } else if (token === '--current-app-ref') {
+    parsed.currentAppRef = value;
+  } else if (token === '--previous-shell-ref') {
+    parsed.previousShellRef = value;
+  } else if (token === '--current-shell-ref') {
+    parsed.currentShellRef = value;
+  } else if (token === '--evidence-output') {
+    parsed.evidenceOutput = path.resolve(value);
+  } else {
+    throw new Error(`Unknown argument: ${token}`);
+  }
+}
+
+function parseArgs(argv: string[]) {
+  const parsed = defaultOptions();
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -47,45 +99,7 @@ function parseArgs(argv: string[]) {
       parsed.includeFullPackage = true;
       continue;
     }
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`Missing value for ${token}`);
-    }
-    if (token === '--version') {
-      parsed.version = value;
-    } else if (token === '--channel') {
-      if (value !== 'stable' && value !== 'nightly') {
-        throw new Error(`Unsupported release note channel: ${value}`);
-      }
-      parsed.channel = value;
-    } else if (token === '--repo') {
-      parsed.releaseRepo = value;
-    } else if (token === '--shell-root') {
-      parsed.shellRoot = path.resolve(value);
-    } else if (token === '--full-package-manifest') {
-      parsed.fullPackageManifestPath = path.resolve(value);
-      parsed.includeFullPackage = true;
-    } else if (token === '--previous-full-package-manifest') {
-      parsed.previousFullPackageManifestPath = path.resolve(value);
-    } else if (token === '--output') {
-      parsed.output = path.resolve(value);
-    } else if (token === '--previous-tag') {
-      parsed.previousTag = value;
-    } else if (token === '--current-tag') {
-      parsed.currentTag = value;
-    } else if (token === '--previous-app-ref') {
-      parsed.previousAppRef = value;
-    } else if (token === '--current-app-ref') {
-      parsed.currentAppRef = value;
-    } else if (token === '--previous-shell-ref') {
-      parsed.previousShellRef = value;
-    } else if (token === '--current-shell-ref') {
-      parsed.currentShellRef = value;
-    } else if (token === '--evidence-output') {
-      parsed.evidenceOutput = path.resolve(value);
-    } else {
-      throw new Error(`Unknown argument: ${token}`);
-    }
+    applyValueOption(parsed, token, valueAfter(argv, index, token));
     index += 1;
   }
 
