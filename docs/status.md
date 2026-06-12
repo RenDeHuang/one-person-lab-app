@@ -257,110 +257,39 @@ full diagnostics in collapsed technical details.
 
 Standard App release assets and updater metadata are App-owned and currently
 macOS arm64-only. Full first-install assets remain explicitly separate from
-standard updater metadata. The updater must not select assets whose names
-include `Full`. Standard App updates download in the background and apply after
-restart when ready; they do not block first-run Core ready. This follows the
-Electron autoUpdater background-download and download-ready restart prompt
-model. Standard updater ZIP assets must also pass
-`standard_updater_zip_app_bundle_trust`: the published ZIP is extracted on a
-macOS runner, the embedded `One Person Lab.app` version is checked, `codesign`
-diagnostics are recorded, Gatekeeper rejection is accepted only as
-`rejected_allowed_unsigned` under the Stable local authorization policy, and
-the release evidence must publish `standard-local-authorization-policy.json`.
-Paid Apple Developer ID signing, notarization, and `TeamIdentifier` are optional
-diagnostics for this lane, not release requirements. Full assets are available
-as GitHub Release first-install downloads and as the explicit stable
-`one-person-lab-full` Homebrew cask; they do not enter updater metadata. GitHub
-Release uploads, standard DMG, Full DMG, GUI smoke, Homebrew cask smoke, and
-user tutorials are all App-owned. The Framework repo is only a
-runtime/CLI/contracts payload source for Full DMG and a machine-interface
-provider for the App.
+standard updater metadata. The standard updater is desktop-App-assets only; Full
+assets stay as GitHub Release first-install downloads and the explicit stable
+`one-person-lab-full` Homebrew cask. Standard updater ZIP trust, App-managed
+local authorization, Full native-runtime trust, size budgets, Homebrew tap
+policy, and release workflow sequencing are governed by
+`contracts/app-release-channel.json`, `docs/release/README.md`, release
+workflows, validators, and release artifacts.
 
-Stable macOS standard updater releases use App-managed local authorization, not
-paid Apple Developer ID signing or notarization. First-run VM smokes still clear
-quarantine after installing the App, write `artifacts/gatekeeper-launch-policy.json`,
-and record `codesign` / `spctl` diagnostics as local-authorization evidence for
-first install and Homebrew/manual launch paths. Stable release assets must
-publish `standard-local-authorization-policy.json` and
-`full-local-authorization-policy.json`; Homebrew tap sync requires the matching
-policy asset before updating a cask. The in-app updater must replace the local
-App bundle itself, clear quarantine, record diagnostics, and relaunch the new
-bundle instead of relying on paid Gatekeeper credentials.
-
-Full release packaging also treats native runtime executable trust as a release
-gate. Full builds must publish `full-runtime-native-trust.json`, include that
-file and `full-local-authorization-policy.json` in `SHA256SUMS.txt`, and keep
-the remote verifier's runtime-size hard gate in the release contract. Full DMG
-compressed-size thresholds are release-review warnings, while checksum,
-manifest, native-trust, remote verification, VM, and local-authorization gates
-remain the release truth.
-
-The managed update plane now describes App consumption of the Framework
-apply/repair/rollback runner, not only a status projection. The App release
-contract expects `opl update status/check/plan --json` for read-only projections
-and `opl update apply/repair/rollback --json` for controlled runner results.
-The App consumes component receipt refs, lock/runner status, repair status,
-rollback status, post-apply sync status, recent background actions, skip reasons,
-and reload guidance for runtime toolchain, managed agent packages, and Codex
-capability exposure. The App still does not implement the kernel, read managed
+The managed update plane is now App consumption of the OPL Framework update
+runner: status/check/plan are read surfaces, and apply/repair/rollback stay
+Framework runner results. The App may display component receipt refs,
+lock/runner status, post-apply sync state, skip reasons, reload guidance and
+safe update actions; it still does not implement the update kernel, read managed
 artifact bodies, write runtime or domain truth, create owner receipts, mutate
-dirty/developer checkouts, silently upgrade Homebrew/global tools, or claim
+dirty/developer checkouts, silently upgrade Homebrew/system tools, or claim
 MAS/MAG/RCA quality/export verdicts.
 
-2026-06-12 follow-through: the App contract now also makes the active shell
-integration executable. `contracts/app-release-channel.json#managed_update_plane`
-requires `opl-runtime.get-managed-update-status/check/plan` and
-`opl-runtime.run-managed-update-apply/repair/rollback` IPC surfaces, backed by
-the same `opl update` runner commands. The Updates & Maintenance page must show
-background-maintenance `last_run_at`, `next_run_at`, `last_failure`, lock
-status, execution status, recent actions, skip reasons, and reload guidance,
-with startup, daily, and manual-check triggers using Framework lock/backoff
-semantics. Clean managed agent packages and capability exposure may auto-apply
-in the background after check/plan; App binary and runtime/toolchain components
-must stay visible or restart/stage based. Shell implementations remain forbidden
-from reading artifact bodies, writing domain truth, creating owner receipts,
-mutating dirty/developer checkouts, mutating Homebrew/system tools, or bypassing
-the Framework update kernel.
+Release and user-path evidence remains cohort-bound. Evidence manifests
+classify required artifacts as `present`, `missing`, `typed_blocker`, or
+`not_applicable`; only all-present verified bundles can set
+`packaged_app_evidence=true`. `l5_evidence_readout` and
+`release_owner_verdict` are App release-owner inputs for the same cohort:
+passing evidence yields `release_owner_verdict_pending`, missing or blocked
+required evidence yields `release_owner_typed_blocker_required`, and neither
+state authorizes release-ready, stable/latest promotion, domain readiness, or
+OPL family production readiness.
 
-Release and user-path evidence remains cohort-bound App evidence. Verified
-release bundle refs, screenshots, remote asset checks, or packaged route smoke
-can support release-owner review for the same App cohort, but they do not
-promote stable/latest by themselves and do not prove domain readiness or OPL
-family production readiness. The evidence manifest now carries
-`release_cohort` and `current_cohort_evidence`: complete packaged App evidence
-must name the App release version/tag/channel and the remote release
-verification artifact must match that cohort. Partial, missing, or blocked
-readouts may preserve an unknown cohort only as a gap signal.
-
-The release evidence bundle and readiness summary now emit
-`l5_evidence_readout` as a machine-readable App release/user-path input for the
-OPL Console L5 evidence matrix. That readout classifies current-cohort gaps
-against OPL L5 evidence classes and accepted ref shapes, including typed
-blocker, receipt, user-path, install, and owner-acceptance refs, while keeping
-release details out of the ordinary cockpit and keeping release-ready/latest
-promotion as an explicit release-owner decision.
-
-The readiness summary and release candidate record now also emit
-`release_owner_verdict` for the same release cohort. A fully passing cohort gets
-`status=release_owner_verdict_pending` plus a stable
-`release_owner_typed_blocker_ref` shaped as
-`typed_blocker_ref://one-person-lab-app/release-owner/<tag>/verdict-pending`.
-If required same-cohort evidence is missing or blocked, the readout becomes
-`release_owner_typed_blocker_required`. Both states are App release owner inputs
-only: they do not authorize release-ready, stable/latest promotion, domain
-readiness, or OPL family production readiness.
-
-Current release validation is App-root first: root wrappers call the active shell
-build/release scripts, then the produced standard package can replace
-`/Applications/One Person Lab.app` for a real local GUI startup smoke.
-`npm run validate:app-root-boundary` is the fail-closed guard for this boundary:
-the App root `package.json` must remain the product wrapper and shell build
-outputs such as `index.js` or `out/main/index.js` must stay under the active
-shell checkout, not in the App root.
-`hygiene:fallow` is only the App-root wrapper hygiene gate and does not replace
-active shell validation or GUI compile evidence. Use `npm run
-validate:gui-shell` when the change must prove the active shell still validates
-and compiles through the App wrapper path.
+Current release validation is App-root first. Root wrappers prepare App-owned
+payloads and call active-shell build/release scripts; `validate:app-root-boundary`
+guards that the App root remains the product wrapper and shell build outputs
+stay under the active shell checkout. Use `validate:gui-shell` when a change
+must prove active-shell validation and GUI compile evidence through the App
+wrapper path.
 
 Runtime page evidence path is declared in
 `contracts/app-page-state-matrix.json`: the active shell reads default task
