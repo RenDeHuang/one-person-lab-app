@@ -30,15 +30,32 @@ test('tag-triggered release workflow stamps package metadata from tag version', 
 test('active shell command wrapper injects App release version for local builds', () => {
   const today = new Date();
   const expectedDefaultVersion = `${String(today.getUTCFullYear()).slice(-2)}.${today.getUTCMonth() + 1}.${today.getUTCDate()}`;
-  const printVersion = ['scripts/run-active-shell-command.ts', process.execPath, '-e', 'process.stdout.write(process.env.OPL_RELEASE_VERSION || "")'];
+  const expectedDefaultIconPath = path.join(appRoot, 'shells', 'aionui', 'resources', 'app.icns');
+  const printReleaseEnv = [
+    'scripts/run-active-shell-command.ts',
+    process.execPath,
+    '-e',
+    'process.stdout.write(JSON.stringify({ version: process.env.OPL_RELEASE_VERSION || "", icon: process.env.OPL_APP_RELEASE_ICON_ICNS || "" }))',
+  ];
 
-  const defaultResult = runNode(printVersion, { env: { OPL_RELEASE_VERSION: '' } });
+  const defaultResult = runNode(printReleaseEnv, { env: { OPL_RELEASE_VERSION: '', OPL_APP_RELEASE_ICON_ICNS: '' } });
   assert.equal(defaultResult.status, 0, defaultResult.stderr || defaultResult.stdout);
-  assert.equal(defaultResult.stdout, expectedDefaultVersion);
+  assert.deepEqual(JSON.parse(defaultResult.stdout), {
+    version: expectedDefaultVersion,
+    icon: expectedDefaultIconPath,
+  });
 
-  const explicitResult = runNode(printVersion, { env: { OPL_RELEASE_VERSION: '30.1.2-test.3' } });
+  const explicitResult = runNode(printReleaseEnv, {
+    env: {
+      OPL_RELEASE_VERSION: '30.1.2-test.3',
+      OPL_APP_RELEASE_ICON_ICNS: '/tmp/custom-opl-release-icon.icns',
+    },
+  });
   assert.equal(explicitResult.status, 0, explicitResult.stderr || explicitResult.stdout);
-  assert.equal(explicitResult.stdout, '30.1.2-test.3');
+  assert.deepEqual(JSON.parse(explicitResult.stdout), {
+    version: '30.1.2-test.3',
+    icon: '/tmp/custom-opl-release-icon.icns',
+  });
 });
 
 test('release code-quality uses App active-shell test runner', () => {

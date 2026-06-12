@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { assertAppRootBoundary } from './app-root-boundary.ts';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 
@@ -27,12 +28,15 @@ if (args.length === 0) {
 }
 
 const shellPaths = resolveActiveShellPaths();
+const releaseIconPath = process.env.OPL_APP_RELEASE_ICON_ICNS
+  || fileURLToPath(new URL('../shells/aionui/resources/app.icns', import.meta.url));
 assertAppRootBoundary({ phase: 'before active shell command' });
 const result = spawnSync(args[0], args.slice(1), {
   cwd: shellPaths.shellRoot,
   stdio: 'inherit',
   env: {
     ...process.env,
+    OPL_APP_RELEASE_ICON_ICNS: releaseIconPath,
     OPL_RELEASE_VERSION: resolveOplReleaseVersion(),
   },
 });
