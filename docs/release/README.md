@@ -216,6 +216,12 @@ Stable is the complete user-install proof lane. Before a stable App Release is t
 
 Same-cohort release/user-path refs can support release-owner review. They do not promote stable/latest by themselves, prove domain readiness, prove OPL family production readiness, close MAS/MAG/RCA/OMA owner receipts, or replace App release-owner decision.
 
+The release readiness summary must carry `release_owner_verdict` for the same
+cohort. Passing evidence produces `status=release_owner_verdict_pending` and a
+`release_owner_typed_blocker_ref` that the App release owner can consume; missing
+or blocked evidence produces `status=release_owner_typed_blocker_required`.
+Neither status is a release-ready claim.
+
 AI exploratory release checks are non-blocking. They can provide exploratory triage, summaries, risk hints, or follow-up suggestions, but they are not a release gate and must not block standard, Full, Homebrew, WebUI, updater, or promotion lanes.
 
 ## Candidate Shells

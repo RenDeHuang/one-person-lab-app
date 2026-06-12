@@ -76,6 +76,25 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.deepEqual(summary.gates.webui_ghcr_publish.fields.tags, ['26.5.99', 'stable', 'latest']);
   assert.equal(summary.gates.operator_evidence_bundle.status, 'passed');
   assert.equal(summary.gates.operator_evidence_bundle.fields.packaged_app_evidence, true);
+  assert.deepEqual(summary.release_cohort, {
+    schema: 'opl_app_release_evidence_cohort.v1',
+    version: '26.5.99',
+    tag: 'v26.5.99',
+    channel: 'stable',
+    source: 'release_readiness_summary',
+    current_cohort_evidence: true,
+  });
+  assert.equal(summary.release_owner_verdict.schema, 'opl_app_release_owner_verdict_readout.v1');
+  assert.equal(summary.release_owner_verdict.status, 'release_owner_verdict_pending');
+  assert.equal(summary.release_owner_verdict.release_ready_claim, false);
+  assert.equal(summary.release_owner_verdict.stable_latest_promotion_claim, false);
+  assert.equal(summary.release_owner_verdict.family_production_ready_claim, false);
+  assert.equal(summary.release_owner_verdict.release_owner_verdict_ref, null);
+  assert.equal(
+    summary.release_owner_verdict.release_owner_typed_blocker_ref,
+    'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending',
+  );
+  assert.equal(summary.release_owner_verdict.can_close_opl_app_release_user_path, false);
   assert.equal(summary.gate_profile, 'stable');
   assert.equal(summary.gate_profile_schema, 'app_release_validation_profiles.v1');
   assert.equal(summary.gates.remote_release_verification.status, 'passed');
@@ -125,6 +144,13 @@ test('release readiness summary fails closed without a same-cohort operator evid
   assert.equal(summary.status, 'failed');
   assert.equal(summary.gates.operator_evidence_bundle.status, 'failed');
   assert.match(summary.gates.operator_evidence_bundle.reason, /Missing evidence-validation-summary\.json/);
+  assert.equal(summary.release_owner_verdict.status, 'release_owner_typed_blocker_required');
+  assert.equal(
+    summary.release_owner_verdict.release_owner_typed_blocker_ref,
+    'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending',
+  );
+  assert.ok(summary.release_owner_verdict.blocked_by_required_gate_ids.includes('operator_evidence_bundle'));
+  assert.equal(summary.release_owner_verdict.release_ready_claim, false);
 });
 
 test('release readiness summary includes App L5 readout for current cohort evidence gaps', () => {

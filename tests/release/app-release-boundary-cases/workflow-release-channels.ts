@@ -1226,6 +1226,16 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(candidateRecordValidator, /record\.schema !== expectedSchema/);
   assert.match(candidateRecordValidator, /record\.status !== readyStatus/);
   assert.match(candidateRecordValidator, /decision\?\.can_promote !== true/);
+  assert.match(candidateRecordValidator, /release_owner_verdict/);
+  assert.match(candidateRecordValidator, /release_ready_claim !== false/);
+  assert.equal(
+    releaseContract.operator_evidence_bundle.release_owner_verdict.pending_ref_template,
+    'typed_blocker_ref://one-person-lab-app/release-owner/<tag>/verdict-pending',
+  );
+  assert.equal(
+    releaseContract.operator_evidence_bundle.release_owner_verdict.evidence_only_can_close_opl_app_release_user_path,
+    false,
+  );
   assert.match(promoteWorkflow, /npm run verify-remote-release/);
   assert.match(promoteWorkflow, /gh release edit "v\$\{OPL_RELEASE_VERSION\}"/);
   assert.match(promoteWorkflow, /--draft=false/);

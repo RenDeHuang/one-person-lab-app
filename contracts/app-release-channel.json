@@ -987,6 +987,37 @@
         "domain quality/export verdict"
       ]
     },
+    "release_owner_verdict": {
+      "schema": "opl_app_release_owner_verdict_contract.v1",
+      "scope": "same_cohort_app_release_user_path_owner_verdict",
+      "owner": "one-person-lab-app release owner",
+      "release_cohort_required": true,
+      "ordinary_cockpit_excluded": true,
+      "accepted_output_ref_shapes": [
+        "release_owner_verdict_ref",
+        "release_owner_receipt_ref",
+        "release_owner_typed_blocker_ref",
+        "typed_blocker_ref",
+        "human_gate_ref"
+      ],
+      "pending_status": "release_owner_verdict_pending",
+      "typed_blocker_status": "release_owner_typed_blocker_required",
+      "pending_ref_template": "typed_blocker_ref://one-person-lab-app/release-owner/<tag>/verdict-pending",
+      "release_owner_verdict_ref_template": "release_owner_verdict_ref://one-person-lab-app/release-owner/<tag>/<decision_id>",
+      "release_ready_claim_allowed": false,
+      "stable_latest_promotion_claim_allowed": false,
+      "family_production_ready_claim_allowed": false,
+      "evidence_only_can_close_opl_app_release_user_path": false,
+      "next_owner_action": "record release_owner_verdict_ref, release_owner_receipt_ref, release_owner_typed_blocker_ref, typed_blocker_ref, or human_gate_ref for the same App release cohort",
+      "authority_boundary": {
+        "can_claim_app_release_ready_from_evidence": false,
+        "can_claim_stable_latest_from_evidence": false,
+        "can_claim_family_production_ready": false,
+        "can_write_domain_truth": false,
+        "can_sign_domain_owner_receipt": false
+      },
+      "rule": "Same-cohort release/user-path evidence can feed the App release owner review, but until the owner records a verdict, receipt, typed blocker, or human gate ref, OPL operating-maturity must keep app_release_user_path at evidence_recorded_not_release_ready_claim."
+    },
     "l5_evidence_readout": {
       "schema": "opl_app_release_l5_evidence_readout_contract.v1",
       "scope": "app_release_user_path_evidence_for_opl_console_l5_input",

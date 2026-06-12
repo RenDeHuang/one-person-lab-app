@@ -160,12 +160,43 @@ function extractResolvedRefs(readiness: Record<string, unknown> | null) {
   return objectOrNull(fullPackage?.resolved_refs);
 }
 
+function collectReleaseOwnerVerdictReasons(readiness: Record<string, unknown> | null) {
+  const verdict = objectOrNull(readiness?.release_owner_verdict);
+  const reasons: string[] = [];
+  if (!verdict) {
+    return ['readiness summary is missing release_owner_verdict'];
+  }
+  if (verdict.schema !== 'opl_app_release_owner_verdict_readout.v1') {
+    reasons.push(`release_owner_verdict schema is ${String(verdict.schema)}`);
+  }
+  if (verdict.release_ready_claim !== false || verdict.stable_latest_promotion_claim !== false) {
+    reasons.push('release_owner_verdict must not claim release ready or stable/latest promotion');
+  }
+  if (
+    verdict.status !== 'release_owner_verdict_pending'
+    && verdict.status !== 'release_owner_typed_blocker_required'
+  ) {
+    reasons.push(`release_owner_verdict status is ${String(verdict.status)}`);
+  }
+  if (verdict.status === 'release_owner_typed_blocker_required') {
+    reasons.push('release_owner_verdict requires a release owner typed blocker before promotion');
+  }
+  if (
+    verdict.status === 'release_owner_verdict_pending'
+    && typeof verdict.release_owner_typed_blocker_ref !== 'string'
+  ) {
+    reasons.push('release_owner_verdict pending status must include release_owner_typed_blocker_ref');
+  }
+  return reasons;
+}
+
 function buildRecord(options: Options) {
   const preflight = objectOrNull(readJsonIfExists(options.preflightPath));
   const readiness = objectOrNull(readJsonIfExists(options.readinessPath));
   const remote = objectOrNull(readJsonIfExists(options.remoteVerificationPath));
   const jobResults = objectOrNull(readJsonIfExists(options.jobResultsPath)) ?? {};
   const blockedReasons = collectBlockedReasons(options, { preflight, readiness, remote });
+  blockedReasons.push(...collectReleaseOwnerVerdictReasons(readiness));
   const status = options.releaseMode === 'draft_candidate'
     ? 'diagnostic_only'
     : blockedReasons.length === 0 ? 'ready_to_promote' : 'blocked';
@@ -206,6 +237,7 @@ function buildRecord(options: Options) {
       include_full_package: remote.include_full_package ?? null,
       full_first_install_budget: remote.full_first_install_budget ?? null,
     } : null,
+    release_owner_verdict: objectOrNull(readiness?.release_owner_verdict),
     job_results: jobResults,
     decision: {
       can_promote: status === 'ready_to_promote',

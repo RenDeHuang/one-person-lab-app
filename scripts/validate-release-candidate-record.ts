@@ -73,6 +73,7 @@ function readRecord(filePath: string) {
 
 function evaluateRecord(record: Record<string, unknown>, options: Options) {
   const decision = objectOrNull(record.decision);
+  const releaseOwnerVerdict = objectOrNull(record.release_owner_verdict);
   const blockedReasons = stringArray(record.blocked_reasons);
   const errors: string[] = [];
 
@@ -89,6 +90,21 @@ function evaluateRecord(record: Record<string, unknown>, options: Options) {
   if (decision?.can_promote !== true) {
     errors.push(`Release candidate decision.can_promote is ${String(decision?.can_promote)}`);
   }
+  if (!releaseOwnerVerdict) {
+    errors.push('Release candidate record is missing release_owner_verdict');
+  } else {
+    if (releaseOwnerVerdict.schema !== 'opl_app_release_owner_verdict_readout.v1') {
+      errors.push(`Release owner verdict schema is ${String(releaseOwnerVerdict.schema)}`);
+    }
+    if (releaseOwnerVerdict.release_ready_claim !== false) {
+      errors.push(`Release owner verdict release_ready_claim is ${String(releaseOwnerVerdict.release_ready_claim)}`);
+    }
+    if (releaseOwnerVerdict.stable_latest_promotion_claim !== false) {
+      errors.push(
+        `Release owner verdict stable_latest_promotion_claim is ${String(releaseOwnerVerdict.stable_latest_promotion_claim)}`,
+      );
+    }
+  }
 
   return {
     schema: record.schema ?? null,
@@ -98,6 +114,12 @@ function evaluateRecord(record: Record<string, unknown>, options: Options) {
     can_promote: decision?.can_promote === true,
     promote_command: typeof decision?.promote_command === 'string' ? decision.promote_command : null,
     promote_ready: errors.length === 0,
+    release_owner_verdict_status: typeof releaseOwnerVerdict?.status === 'string'
+      ? releaseOwnerVerdict.status
+      : null,
+    release_owner_typed_blocker_ref: typeof releaseOwnerVerdict?.release_owner_typed_blocker_ref === 'string'
+      ? releaseOwnerVerdict.release_owner_typed_blocker_ref
+      : null,
     blocked_reasons: blockedReasons,
     errors,
   };
@@ -112,6 +134,7 @@ function formatMarkdown(summary: ReturnType<typeof evaluateRecord>) {
     `- Status: ${String(summary.status)}`,
     `- Can promote: ${summary.can_promote}`,
     `- Promote ready: ${summary.promote_ready}`,
+    `- Release owner verdict: ${String(summary.release_owner_verdict_status)}`,
   ];
   if (summary.blocked_reasons.length > 0) {
     lines.push('', '### Blocked reasons', '');

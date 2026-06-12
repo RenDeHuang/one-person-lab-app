@@ -7,6 +7,11 @@ import {
   buildAppReleaseL5EvidenceReadout,
   readAppReleaseL5ReadoutContract,
 } from './app-release-l5-readout.ts';
+import {
+  buildAppReleaseOwnerVerdictReadout,
+  readAppReleaseOwnerVerdictContract,
+} from './app-release-owner-verdict.ts';
+import { buildReleaseEvidenceCohort } from './release-evidence-cohort.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -853,10 +858,21 @@ function buildSummary(options: Options) {
     gates.operator_evidence_bundle.fields ?? null,
     'l5_evidence_readout',
   );
+  const releaseCohort = buildReleaseEvidenceCohort({
+    version: options.version,
+    source: 'release_readiness_summary',
+  });
   const l5EvidenceReadout = buildAppReleaseL5EvidenceReadout({
     contract: readAppReleaseL5ReadoutContract(appRoot),
     gates,
     upstreamReadout: operatorEvidenceReadout,
+    releaseCohort,
+  });
+  const releaseOwnerVerdict = buildAppReleaseOwnerVerdictReadout({
+    contract: readAppReleaseOwnerVerdictContract(appRoot),
+    releaseCohort,
+    summaryStatus: failedRequired.length === 0 ? 'passed' : 'failed',
+    failedRequiredGates: failedRequired,
   });
 
   return {
@@ -883,7 +899,9 @@ function buildSummary(options: Options) {
     warnings,
     gates,
     failed_required_gates: failedRequired,
+    release_cohort: releaseCohort,
     l5_evidence_readout: l5EvidenceReadout,
+    release_owner_verdict: releaseOwnerVerdict,
     full_package: {
       duration_seconds: fullPackage?.duration_seconds ?? null,
       cache: fullPackage?.cache ?? null,

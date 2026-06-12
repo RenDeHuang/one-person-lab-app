@@ -340,6 +340,16 @@ blocker, receipt, user-path, install, and owner-acceptance refs, while keeping
 release details out of the ordinary cockpit and keeping release-ready/latest
 promotion as an explicit release-owner decision.
 
+The readiness summary and release candidate record now also emit
+`release_owner_verdict` for the same release cohort. A fully passing cohort gets
+`status=release_owner_verdict_pending` plus a stable
+`release_owner_typed_blocker_ref` shaped as
+`typed_blocker_ref://one-person-lab-app/release-owner/<tag>/verdict-pending`.
+If required same-cohort evidence is missing or blocked, the readout becomes
+`release_owner_typed_blocker_required`. Both states are App release owner inputs
+only: they do not authorize release-ready, stable/latest promotion, domain
+readiness, or OPL family production readiness.
+
 Current release validation is App-root first: root wrappers call the active shell
 build/release scripts, then the produced standard package can replace
 `/Applications/One Person Lab.app` for a real local GUI startup smoke.
