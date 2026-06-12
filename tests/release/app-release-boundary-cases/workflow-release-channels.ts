@@ -1247,6 +1247,29 @@ test('release automation workflows cover remote verification, Full cache warmup,
     releaseContract.operator_evidence_bundle.release_owner_verdict.evidence_only_can_close_opl_app_release_user_path,
     false,
   );
+
+  const ownerBlocker = JSON.parse(
+    fs.readFileSync(
+      path.join(appRoot, 'docs', 'release', 'records', 'v26.6.12-release-owner-verdict-pending.json'),
+      'utf8',
+    ),
+  );
+  assert.equal(ownerBlocker.schema, 'opl_app_release_owner_typed_blocker_record.v1');
+  assert.equal(ownerBlocker.version, '26.6.12');
+  assert.equal(ownerBlocker.tag, 'v26.6.12');
+  assert.equal(ownerBlocker.status, releaseContract.operator_evidence_bundle.release_owner_verdict.typed_blocker_status);
+  assert.equal(
+    ownerBlocker.typed_blocker_ref,
+    'typed_blocker_ref://one-person-lab-app/release-owner/v26.6.12/verdict-pending',
+  );
+  assert.equal(ownerBlocker.release_ready_claim, false);
+  assert.equal(ownerBlocker.stable_latest_promotion_claim, false);
+  assert.equal(ownerBlocker.family_production_ready_claim, false);
+  assert.equal(ownerBlocker.can_close_opl_app_release_user_path, false);
+  assert.equal(ownerBlocker.release_owner_verdict_ref, null);
+  assert.equal(ownerBlocker.release_owner_receipt_ref, null);
+  assert.equal(ownerBlocker.downloaded_artifact_readback.release_candidate_validator_promote_ready, false);
+  assert.equal(ownerBlocker.downloaded_artifact_readback.release_owner_resolution_ref_present, false);
   assert.match(promoteWorkflow, /npm run verify-remote-release/);
   assert.match(promoteWorkflow, /gh release edit "v\$\{OPL_RELEASE_VERSION\}"/);
   assert.match(promoteWorkflow, /--draft=false/);

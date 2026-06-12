@@ -59,6 +59,19 @@ record: `status=ready_to_promote`, `decision.can_promote=true`,
 `release_owner_verdict_pending` by contract, so this document records release
 evidence and artifact truth rather than an App release-owner sign-off.
 
+Fresh owner-record readback downloaded `release-candidate-record-26.6.12` and
+`release-readiness-summary-26.6.12` from run `27415765472`. The candidate
+artifact says `status=ready_to_promote`, but the current owner-aware validator
+returns `promote_ready=false` because the embedded release-owner verdict is
+still `release_owner_verdict_pending` and carries neither
+`release_owner_verdict_ref` nor `release_owner_receipt_ref`. The App owner-native
+blocker for OPL consumption is:
+`typed_blocker_ref://one-person-lab-app/release-owner/v26.6.12/verdict-pending`,
+tracked in
+`docs/release/records/v26.6.12-release-owner-verdict-pending.json`. This is a
+non-ready owner verdict state; it preserves the passed release/install evidence
+without turning it into App release-owner sign-off.
+
 ## Assets
 
 - Current Standard DMG: `One-Person-Lab-26.6.12-mac-arm64.dmg`, `440433398`
