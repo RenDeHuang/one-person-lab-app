@@ -131,97 +131,28 @@ start, worker lifecycle, readiness diagnostics, residency proof, and repair
 receipts. Temporal provider readiness remains Full readiness/background
 maintenance for ordinary first launch.
 
-The App/operator readout now keeps provider readiness repair actionable without
-turning it into domain progress. When OPL App state reports Temporal worker
-`worker_not_ready`, the Runtime page must surface
-`opl family-runtime worker start --provider temporal` or the corresponding OPL
-safe-action route as provider liveness repair. When Temporal Search Attributes
-are missing, it must surface
-`opl family-runtime provider repair --provider temporal` as provider visibility
-repair. Both are infrastructure readiness paths only: they do not declare
-domain ready, do not authorize owner receipts or typed blockers, and do not
-replace `current_owner_delta` as the default owner-action payload.
+First-run and Runtime readouts are contract-backed App consumers of OPL
+Framework surfaces. First-run progress derives from `opl system initialize
+--json#system_initialize.setup_flow`, and the Runtime page defaults to
+`opl app state --profile fast --json`; explicit full App state and
+`opl runtime app-operator-drilldown --detail full --json` remain on-demand
+diagnostic or release-evidence surfaces. Runtime bridge command resolution,
+provider readiness repair commands, user-task counts, project progress
+classification, State Index refs and Stage Artifact refs are owned by
+`contracts/app-runtime-bridge.json`, `contracts/app-page-state-matrix.json`,
+`contracts/app-gui-product-contract.json`, `docs/architecture.md`,
+`docs/decisions.md`, `scripts/validate-active-shell.ts`, and focused
+release-boundary tests.
 
-First-run progress is also contract-backed. The shared progress model is
-produced by `opl system initialize --json` at
-`system_initialize.setup_flow`; App, CLI one-shot install, and Docker/WebUI
-surfaces must derive phase, Core progress, Full readiness progress, background
-maintenance counts, blockers, and next visible steps from that model instead of
-maintaining separate installer-specific progress truth. The active shell renders
-this model only and does not own private first-run progress state.
-
-Runtime bridge command resolution is part of the App-owned runtime contract.
-The active shell may prefer an App-managed `opl` only when that shim resolves to
-an existing CLI payload. If a stale managed Node shim points at a removed
-temporary install or missing `dist/cli.js`, the adapter must skip it and fall
-through to a healthy system `opl` such as `/opt/homebrew/bin/opl`. A damaged
-managed shim must not make first-run display `0/0` progress or override
-`opl system initialize --json` when the framework CLI is otherwise available.
-
-Runtime progress display is contract-backed separately from first-run progress.
-The Runtime page is now user-task-status first. Its first screen answers four
-ordinary user questions before showing any technical runtime evidence: how many
-tasks are running, how many projects/tasks are active, how many are queued, and
-how many need attention. Each visible task line must then show title, status,
-stage, progress label, next step, owner, and last progress. The App derives that
-view from the OPL Framework refs-only App state projection:
-`app_state.operator.workbench.summary_cards`,
-`activity_center`, `task_drilldowns`, and
-`operator.visual_ref_groups.active_project_refs`.
-
-The mature product lesson is durable but simple: a status page starts with the
-user's job-to-be-done, not with implementation telemetry. Users need to know
-whether work is moving, what is queued, what needs them, and where each task is
-stuck or progressing. Provider runs, projections, refs, ledgers, stage attempts,
-and `current_control_state` are valuable evidence, but they are diagnostic
-vocabulary. They stay behind secondary disclosure, explicit full detail, audit,
-or release evidence paths. The daily Runtime page must not default-display the
-words Temporal, provider, projection, ref, stage attempt, ledger, or
-current_control_state.
-
-The user-visible counts stay display-only and refs-only. `running_task_count`
-counts tasks projected as actively running or advancing, not raw provider
-attempts. `active_project_count` and `queued_project_count` come from
-framework-owned project/task line projections and preserve status, active run
-presence, and next step without claiming worker execution. `attention_count`
-comes from projected blockers, human gates, failed safe actions, or owner
-attention states. Project progress still classifies
-`deliverable_progress_delta` separately from `platform_repair_delta`; platform
-repair is shown as infrastructure repair and cannot be presented as substantive
-deliverable, paper, manuscript, or submission progress.
-
-Runtime task drilldown now also consumes the OPL Stage Artifact Kernel workbench
-projection as artifact-native refs. The App may display current pointer,
-canonical artifact refs, export artifact refs, lineage refs, retention policy
-ref, conformance summary ref, and related manifest/hash/receipt/blocker refs
-from `app_state.operator.workbench.task_drilldowns.artifact_native_drilldown`.
-This remains a refs-only read model: the App does not read domain artifact
-body, does not mutate artifact body, and does not declare MAS/MAG/RCA/OMA
-quality verdicts, export readiness, domain readiness, App release readiness, or
-family production readiness from those refs.
-
-Runtime task drilldown also consumes the OPL State Index Kernel / SQLite sidecar
-only through Framework-projected read-model refs. The allowed App path is
-`opl app state --profile fast --json`, explicit full App state, or task
-operator drilldown JSON; refs may drill down to the Stage Folder, but the App
-does not directly read or write the SQLite sidecar, mutate the State Index
-Kernel, write domain truth, create owner receipts, inspect artifact bodies, or
-authorize readiness, quality/export verdicts, artifact authority, App release
-readiness, or family production readiness.
-
-`running_provider_attempt_count` remains diagnostic. It may include checkpointed
-provider refs and must not be displayed as the user's running task count.
-`domain_lane_map.active_task_count`, `module_runtime dirty`, module readiness,
-repo/worktree diagnostics, and assistant purpose cards remain forbidden
-running-task sources. The `validate:active-shell --quick` and focused
-release-boundary/runtime-bridge tests lock this user-task-first distinction.
-
-Non-running project lines are now a separate collapsed group. Queued, pending,
-waiting, stopped, parked, checkpointed, blocked, or attention-needed project
-lines preserve their status, `active_run_id`, and next visible step, but only
-explicit `running`, `in_progress`, or `advancing` status/state contributes to
-the visible running task count. `active_run_id` alone is context, not liveness
-proof.
+The current Runtime product rule is user-task-status first: the first screen
+answers running, active, queued, attention, and each task's next visible step
+before exposing provider or ledger diagnostics. Provider readiness repair stays
+infrastructure-only; `running_provider_attempt_count`, raw provider refs,
+State Index / SQLite sidecar refs, Stage Artifact refs, active run ids and
+full drilldown fields remain secondary or on-demand evidence. The App displays
+refs-only projections and never owns runtime truth, provider implementation,
+domain truth, artifact body, owner receipts, typed blockers, domain verdicts,
+App release readiness, or family production readiness.
 
 The upstream AionUI Team surface is disabled for ordinary OPL App use. Team
 mode is off by default, the Team sidebar entry is hidden, Team-created redirects
