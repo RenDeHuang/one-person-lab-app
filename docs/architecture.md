@@ -32,30 +32,19 @@ Settings boundary 也遵循同样拆分。普通 Settings navigation 是 General
 Installation exposure uses separate classes so user-facing defaults do not become install-time duplication. MAS/MAG/RCA are family domain plugin surfaces: they can be default App entries and Codex-visible plugin-packaged skills, but they must not be mirrored into duplicate bare `~/.codex/skills/{mas,mag,rca}` directories. OPL Meta Agent is an OPL-generated Codex surface and remains out of the default home assistant list. Homebrew is only the App cask transport; MAS/MAG/RCA/OMA agent packs are App/CLI-managed maintenance surfaces, not Homebrew formulae. App release packaging copies only the declared App packaged skill ids: default packaged skills plus explicit-only packaged skills. The default companion set includes Superpowers, cron, the OfficeCLI family, PDF, MinerU document extraction, and UI/UX helpers. AionUI builtin skills are candidate shell capabilities, not a parallel packaging policy. OPL Framework owns plugin registry refresh and generated surface production, while App release packaging owns only the user-facing policy and payload assembly.
 
 The runtime page contract is display and routing only. Its default user view
-consumes `opl app state --profile fast --json` and builds the task/project list
-from `app_state.operator.workbench.summary_cards`,
-`activity_center.active_projects`, `task_drilldowns`, and
-`operator.visual_ref_groups.active_project_refs`. `opl runtime
-app-operator-drilldown --json` is secondary diagnostic input, and full
-Framework drilldown remains an on-demand exception. Runtime truth, action
-execution authority, domain verdicts, memory bodies, and artifact bodies remain
-outside the App. `running_provider_attempt_count` and `current_control_state`
-can help explain low-level provider activity in diagnostics, but they are not
-the user-visible running task count. `domain_lane_map.active_task_count`,
-`module_runtime dirty`, module readiness diagnostics, repo/worktree diagnostics,
-stale `active_run_id`, and assistant cards are forbidden running-task sources.
-`contracts/app-runtime-bridge.json#progress_delta_projection` binds secondary
-project progress display to the OPL shared progress projection classification
-fields: `deliverable_progress_delta`, `platform_repair_delta`, and
-`progress_delta_classification`. The page-state matrix mirrors those
-bridge-level projections. Platform repair is displayed as infrastructure
-repair, never as deliverable, paper, manuscript, or submission progress.
-`contracts/app-runtime-bridge.json#artifact_native_drilldown_projection` binds
-task drilldown to the OPL Stage Artifact Kernel workbench projection. The App
-consumes current/canonical/export/lineage/retention/conformance refs and
-related manifest/hash/receipt/blocker refs only; it does not read artifact
-body, own artifact authority, or turn those refs into domain quality, export,
-readiness, App release, or family production claims.
+consumes `opl app state --profile fast --json`; OPL Framework owns the
+task/project projection, action execution, provider diagnostics and full
+drilldown surfaces. App architecture keeps only the boundary: user-visible
+running, active, queued and attention counts come from framework-projected user
+task status, while provider activity, module diagnostics, repo/worktree
+diagnostics, stale run ids and assistant cards stay diagnostic-only and cannot
+become default running-task sources. Progress and artifact-native drilldown
+mapping is owned by `contracts/app-runtime-bridge.json`,
+`contracts/app-page-state-matrix.json`, `contracts/app-gui-product-contract.json`,
+active-shell validation and release-boundary tests. The App displays refs-only
+runtime projections and cannot read artifact bodies, own artifact authority, or
+turn runtime refs into domain quality, export, readiness, App release or family
+production claims.
 
 The default Runtime page attention model is user-task-status first. The
 ordinary view answers which tasks are explicitly running or advancing, which
