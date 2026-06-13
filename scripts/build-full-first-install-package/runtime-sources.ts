@@ -6,14 +6,22 @@ import { CODEX_MACOS_ARM64_TARGET } from './paths.ts';
 import { requirePath } from './filesystem.ts';
 import { findExecutable } from './process.ts';
 
+function existingFile(candidate) {
+  return fs.existsSync(candidate) && fs.statSync(candidate).isFile();
+}
+
+function firstExistingFile(candidates) {
+  return candidates.filter(Boolean).find((candidate) => existingFile(candidate));
+}
+
 function findCompanionBinary(input) {
   const candidates = [
     input.explicitBin,
     input.envBin,
     findExecutable(input.name) || '',
     path.join(os.homedir(), '.local', 'bin', input.name),
-  ].filter(Boolean);
-  const found = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+  ];
+  const found = firstExistingFile(candidates);
   if (!found) {
     throw new Error(`${input.name} binary not found. Install ${input.name} or pass ${input.flagName} / set ${input.envName}.`);
   }
@@ -86,7 +94,7 @@ function findCodexBinary(codexRoot) {
   const localVendorRoot = path.join(codexRoot, 'vendor', CODEX_MACOS_ARM64_TARGET);
   const vendorRoots = [siblingPlatformVendorRoot, platformVendorRoot, localVendorRoot];
   const requireFirstPath = (candidates, label) => {
-    const found = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+    const found = firstExistingFile(candidates);
     if (!found) {
       throw new Error(`${label} not found. Checked:\n${candidates.map((candidate) => `  - ${candidate}`).join('\n')}`);
     }
@@ -100,7 +108,7 @@ function findCodexBinary(codexRoot) {
     path.join(vendorRoot, 'codex-path', 'rg'),
     path.join(vendorRoot, 'path', 'rg'),
   ];
-  const hasAnyFile = (candidates) => candidates.some((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+  const hasAnyFile = (candidates) => firstExistingFile(candidates) !== undefined;
   const requireFirstVendorRoot = () => {
     const found = vendorRoots.find((vendorRoot) => {
       return hasAnyFile(codexCandidatesForVendorRoot(vendorRoot))
@@ -139,8 +147,8 @@ function findNodeToolchain(explicitNodeBin) {
     explicitNodeBin,
     path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.16.0', 'bin', 'node'),
     process.execPath,
-  ].filter(Boolean);
-  const found = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+  ];
+  const found = firstExistingFile(candidates);
   if (!found) {
     throw new Error('Node binary not found. Pass --node-bin or set OPL_FULL_NODE_BIN.');
   }
@@ -160,8 +168,8 @@ export function findBunBinary(explicitBunBin) {
     explicitBunBin,
     findExecutable('bun') || '',
     path.join(os.homedir(), '.bun', 'bin', 'bun'),
-  ].filter(Boolean);
-  const found = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+  ];
+  const found = firstExistingFile(candidates);
   if (!found) {
     throw new Error('Bun binary not found. Pass --bun-bin or set OPL_FULL_BUN_BIN.');
   }
