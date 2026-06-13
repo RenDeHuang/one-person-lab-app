@@ -333,6 +333,10 @@ App-owned workspace actions，但产品语义保持一致。
 Codex App-like 是视觉与交互主目标。Google Stitch、PilotDeck、CopilotKit demos
 和 AG-UI demos 都只能作为工具或参考输入，用来校准美术风格、比例、字体和组件
 细节；它们不能替代 Codex App-like chat-first 目标，也不能定义 App product truth。
+后续视觉迭代不能默认延续某一次 Stitch 生成稿。Stitch 可以反复使用来试字体、
+间距、圆角和色阶，但每次实现都必须回到 Codex App 的普通交互结构验收：轻量
+top chrome、中心 conversation reading lane、底部多行任务 composer、默认收起的
+workspace rail 和 inspector。
 
 2026-06-02 的 Google Stitch `One Person Lab` 设计稿可作为视觉参考输入：
 采用 Quiet Utility 风格、灰阶 tonal layers、1px outline、圆润但克制的控件、
@@ -360,6 +364,8 @@ Codex-like Composer 的最低视觉要求：
 
 - 输入 surface 默认高度足以容纳至少 2 行正文，textarea line-height 和 placeholder
   也必须按多行任务输入设计，不能只靠外层高度制造“假多行”。
+- 输入 surface 不能像独立舞台卡片一样压过 conversation。它应贴近 Codex App
+  的底部任务输入：轻 outline、克制 shadow、单层白色 surface、工具行低调但可点。
 - Composer 和 message reading lane 采用同一宽度节奏，桌面首屏目标宽度约
   780-820px；宽屏不能把输入框做得过窄，窄屏再响应式收缩。
 - 顶部 chrome、workspace、model 和 status 信息保持轻权重；字体、字号和字重

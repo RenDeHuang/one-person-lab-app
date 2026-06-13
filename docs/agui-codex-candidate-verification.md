@@ -94,6 +94,9 @@ Codex App-like chat-first 是 candidate 的主目标。Google Stitch 只是可�
 的在线设计工具和视觉参考输入，可用于生成草图、校准字体、比例、圆角、留白和
 层级；它不是唯一参考，也不是 product truth。若 Stitch、PilotDeck、CopilotKit
 demo 或 AG-UI demo 的形态与 Codex App-like 目标冲突，以 Codex App-like 为准。
+验证时不能把上一轮 Stitch 生成稿当成目标稿继续优化。Stitch 可以继续用于设计
+探索，但 candidate acceptance 只看它是否更接近 Codex App：chat-first、轻 chrome、
+中心 reading lane、底部多行 composer、workspace rail 和 inspector 默认收起。
 
 Google Stitch `One Person Lab` 设计稿只作为视觉参考。可借鉴的是 Quiet Utility
 风格、灰阶 tonal layers、1px outline、约 780-820px fixed reading lane、底部
@@ -134,6 +137,11 @@ shells/agui-codex/out/One Person Lab AG-UI Codex Candidate.app
 shells/agui-codex/out/agui-codex-candidate-manifest.json
 ```
 
+注意：App wrapper package 会重建 renderer 并重写
+`out/agui-codex-candidate-manifest.json`，因此会把 smoke 证据字段重新置为
+`pending`。最终 `--require-smoke` 验收必须在 package 之后重新运行 WebUI smoke
+和 packaged UI smoke，让 manifest 记录新的 renderer/package 证据。
+
 ## Candidate-Shell 命令
 
 在 `shells/agui-codex` 运行。该路径是 maintainer Mac 上
@@ -148,8 +156,13 @@ npm run build:renderer
 npm run smoke:webui
 npx electron . --ui-smoke-test
 './out/One Person Lab AG-UI Codex Candidate.app/Contents/MacOS/One Person Lab AG-UI Codex Candidate' --ui-smoke-test
+npm run smoke:webui
 npm run validate:candidate -- --require-app --require-smoke
 ```
+
+若刚刚通过 App repo 执行过 `npm run package`，以 package 后的顺序为准：
+先跑 packaged executable UI smoke，再跑 `npm run smoke:webui`，最后跑
+`npm run validate:candidate -- --require-app --require-smoke`。
 
 UI smoke 会通过真实 Codex app-server thread/turn 发送 `只回复 OK`，并要求
 assistant reply 可见为 `OK`。

@@ -142,6 +142,11 @@ workspace/session rail 和右侧 inspector。Google Stitch 可以持续作为在
 更不是 product truth。任何 Stitch、PilotDeck、CopilotKit 或 AG-UI demo 的输出
 都必须回到 Codex App-like 目标上评估。
 
+这里的目标不是持续沿用某一次 Google Stitch 设计稿，而是持续逼近 Codex App
+的一比一普通交互。Stitch 只是设计工具：可以用它生成新的视觉建议、比较比例或
+检查美术风格，但不能把生成稿里的信息架构、demo 数据、默认 inspector、工作台
+密度或组件层级当成 OPL App 的验收标准。
+
 Google Stitch 生成的 `One Person Lab` 设计稿可作为 `agui-codex` 和未来 shell
 的 visual reference。它的价值是美术风格、视觉比例和组件语言，不是源码采纳：
 
@@ -165,6 +170,8 @@ Google Stitch 生成的 `One Person Lab` 设计稿可作为 `agui-codex` 和未�
   一组 shadow 和统一圆角裁剪；不能在圆角输入框背后露出白色矩形底板。Purpose、
   workspace、send/stop 和 context controls 使用 pill/circle 形态，避免 4-10px
   随机小圆角造成的方块感。
+- Composer 不能被做成过度装饰的大卡片。它应该像 Codex App 的任务输入区：
+  底部固定、可多行、轻 outline、克制 shadow、工具行可见但不抢主输入焦点。
 - Composer 默认必须像 Codex App 一样能承载多行任务描述：桌面默认 surface 高度
   至少约 100px，内部 textarea 至少约 60px，字号约 16px，line-height 约 22-24px；
   不能让用户感觉只能打一行字。
