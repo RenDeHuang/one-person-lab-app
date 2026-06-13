@@ -105,10 +105,11 @@ Codex events。WebUI 是同一 chat-first surface 的 delivery surface，不是�
 
 PilotDeck 可作为 interaction 和 visual reference 来学习 information
 organization，但不能作为 source code、runtime authority 或第一屏 workbench
-template。2026-05-30 的 review 使用
-`OpenBMB/PilotDeck@33394d1069c3528052c3f12eb1d905060b34cc2f` 和 public demo。
-PilotDeck 是 AGPL-3.0，而本 App repo 是 Apache-2.0；没有明确 license 决策前，
-OPL 不能复制或 vendoring PilotDeck 代码。可复用经验是信息组织方式：
+template。PilotDeck 的 evaluated ref、license、reference value 和 forbidden
+reuse 由 `contracts/app-shell-candidates.json#design_references` 持有；本文只保留
+App-owned feature mapping。PilotDeck 是 AGPL-3.0，而本 App repo 是 Apache-2.0；
+没有明确 license 决策前，OPL 不能复制或 vendoring PilotDeck 代码。可复用经验是
+信息组织方式：
 
 - 轻量 left rail 按 workspace 或 project 分组，再按 conversation 分组，但不
   成为 primary UI。
@@ -147,8 +148,11 @@ workspace/session rail 和右侧 inspector。Google Stitch 可以持续作为在
 检查美术风格，但不能把生成稿里的信息架构、demo 数据、默认 inspector、工作台
 密度或组件层级当成 OPL App 的验收标准。
 
-Google Stitch 生成的 `One Person Lab` 设计稿可作为 `agui-codex` 和未来 shell
-的 visual reference。它的价值是美术风格、视觉比例和组件语言，不是源码采纳：
+Google Stitch reference 的 source URL、本地 artifact、evaluated state、
+reference value 和 forbidden reuse 由
+`contracts/app-shell-candidates.json#design_references` 持有。本文只保留对
+`agui-codex` 和未来 shell 仍有效的 visual-token mapping：美术风格、视觉比例和
+组件语言可以参考，源码和 demo 语义不能采纳：
 
 - 主屏保持 chat-first，使用约 780-820px fixed reading lane，避免大面积居中卡片。
 - Bottom composer 是第一屏视觉锚点，位于底部渐隐层上，带目的 chips、attach
@@ -337,19 +341,22 @@ AG-UI/CopilotKit candidate 应使用：
   tonal layers、1px outline、760px reading lane、底部 pinned composer、窄 rail
   和右侧 inspector。它不能成为源码或 runtime authority。
 
-2026-05-29 的调研结论是：还没有成熟公开项目可以直接作为完整 Codex ACP
-adapter 到 AG-UI/CopilotKit desktop shell。可复用部分是分散的：Codex
-app-server 提供 native Codex GUI protocol，codex-acp style adapters 提供 ACP
-compatibility，AG-UI 加 CopilotKit 提供 visible event/UI layer。因此 OPL 保留
-一个 normalized adapter contract，把 Codex 或 ACP session events 映射到 AG-UI
-events。
+AG-UI/CopilotKit reference inventory、research conclusion、adapter policy 和
+candidate adoption gate 由 `contracts/app-shell-candidates.json` 持有。当前产品
+读法是：还没有成熟公开项目可以直接作为完整 Codex ACP adapter 到
+AG-UI/CopilotKit desktop shell；可复用部分仍是分散的。Codex app-server 提供
+native Codex GUI protocol，codex-acp style adapters 提供 ACP compatibility，
+AG-UI 加 CopilotKit 提供 visible event/UI layer。因此 OPL 保留 normalized
+adapter contract，把 Codex 或 ACP session events 映射到 AG-UI events。
 
 AG-UI 不是普通 App path 的用户可见产品概念。用户应该看到 OPL chat surface、
 purpose entries、conversation state、receipts 和 runtime status。Protocol names、
 event frames、debug dashboards 只属于 diagnostics 或 developer verification
 material。
 
-当前 candidate proof path：
+当前 candidate proof path 的命令、最低验收和 evidence lifecycle 由
+`docs/agui-codex-candidate-verification.md`、candidate manifest、shell artifacts、
+CI logs 和 App-root validation output 持有。本文只保留 feature-level target shape：
 
 - Electron thin shell 加载 generated App product profile。
 - Renderer 使用 CopilotKit React v2 chat primitives 和紧凑 OPL frame；形态来自
