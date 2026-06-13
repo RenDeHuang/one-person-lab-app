@@ -141,6 +141,8 @@ App 应优先 summary-first rendering。长内容可展开，或打开 context p
 Composer 是紧凑的 Codex-style command surface：
 
 - 没有 blocking prompt 时，文本输入始终可用。
+- 默认视觉必须像 Codex App 的多行 command box，而不是普通单行 input：
+  首屏空状态也要能看出它可以承载一段完整任务描述。
 - 选中的 purpose route 以紧凑 tag 显示。
 - File/folder attach、mention/ref insertion、context usage、send、stop 都是
   直接控件。
@@ -328,16 +330,22 @@ App-owned workspace actions，但产品语义保持一致。
 - 窄桌面/WebUI 下，inspector 打开后用 overlay/drawer 保持可读宽度；context
   tabs 和 Routing panel 必须可见，不能为了保留 chat-first 而让二级层按钮不可用。
 
+Codex App-like 是视觉与交互主目标。Google Stitch、PilotDeck、CopilotKit demos
+和 AG-UI demos 都只能作为工具或参考输入，用来校准美术风格、比例、字体和组件
+细节；它们不能替代 Codex App-like chat-first 目标，也不能定义 App product truth。
+
 2026-06-02 的 Google Stitch `One Person Lab` 设计稿可作为视觉参考输入：
 采用 Quiet Utility 风格、灰阶 tonal layers、1px outline、圆润但克制的控件、
-760px 左右 fixed reading lane、底部渐隐 pinned composer、窄 icon rail 和
+760-820px fixed reading lane、底部渐隐 pinned composer、窄 icon rail 和
 右侧 inspector。该 Stitch 产物只提供视觉 token 和布局比例参考，不成为源码、
-runtime、产品 truth 或 license authority。
+runtime、产品 truth 或 license authority。若 Stitch 输出与 Codex App-like
+chat-first 目标冲突，以 Codex App-like 为准；尤其不能把 Stitch 的默认 inspector、
+表格化工作台或 demo data 带入普通 home。
 
 可吸收的视觉 token 是：`#f8f9fa` canvas、`#ffffff` active surface、
 `#e1e3e4/#c6c6cd` outline、`#111827/#191c1d` primary text/action、Inter 主字体、
 JetBrains Mono 技术文本、4px spacing base、pill chips、圆形 icon controls、
-约 28-32px radius 的 composer input sheet、轻 outline 而非重 shadow。普通 home
+约 32-36px radius 的 composer input sheet、轻 outline 而非重 shadow。普通 home
 的视觉锚点应该是 conversation reading lane 和 composer，而不是大卡片容器。
 
 Composer 必须呈现为一个完整的底部 command surface。若 shell 使用 CopilotKit、
@@ -347,6 +355,17 @@ AG-UI 或其他第三方输入组件，外层 adapter/container 必须是透明�
 叠加的状态。Composer 相关 chips、send/stop、workspace 和 context icon controls
 使用 pill/circle 形态；右侧 inspector 内部的小型 cards 可保持紧凑，但不应出现
 4-8px 随机小圆角造成的方块感。
+
+Codex-like Composer 的最低视觉要求：
+
+- 输入 surface 默认高度足以容纳至少 2 行正文，textarea line-height 和 placeholder
+  也必须按多行任务输入设计，不能只靠外层高度制造“假多行”。
+- Composer 和 message reading lane 采用同一宽度节奏，桌面首屏目标宽度约
+  780-820px；宽屏不能把输入框做得过窄，窄屏再响应式收缩。
+- 顶部 chrome、workspace、model 和 status 信息保持轻权重；字体、字号和字重
+  不应比 composer input 或 conversation 正文更抢眼。
+- Send/stop 按圆形主动作处理，attach/context/workspace/purpose controls 用 pill
+  或圆形，所有交互尺寸稳定，hover/focus 不改变布局。
 
 视觉优化同样遵守 fork delta budget：优先用 CSS tokens、局部组件组合、profile
 driven labels 和现有 layout primitives 完成；只有当 App contract 明确需要新
@@ -378,5 +397,7 @@ renderer 结构变化。
   per-assistant running badges 或底部 feedback/favorite/web 图标。
 - Composer 是单一圆润 command surface；外层 adapter 容器透明，内层输入 surface
   负责背景、outline、shadow 和 overflow clipping，不能露出矩形白底。
+- Composer 必须是可见多行 command box：桌面默认高度至少约 100px，内部 textarea
+  至少约 60px，line-height 约 22-24px，不能退化成单行输入体验。
 - Nav、topbar、composer、chips、icon buttons 和 inspector controls 使用统一
   radius tokens；普通控件呈 pill/circle，避免随机 4-10px 小圆角带来的方块感。

@@ -90,11 +90,16 @@ PilotDeck 的 AGPL-3.0 source、gateway、runtime、memory、router、always-on
 store、provider list 和 WorkSpace state model 不进入本 App repo，也不转移到
 candidate runtime authority。
 
+Codex App-like chat-first 是 candidate 的主目标。Google Stitch 只是可持续使用
+的在线设计工具和视觉参考输入，可用于生成草图、校准字体、比例、圆角、留白和
+层级；它不是唯一参考，也不是 product truth。若 Stitch、PilotDeck、CopilotKit
+demo 或 AG-UI demo 的形态与 Codex App-like 目标冲突，以 Codex App-like 为准。
+
 Google Stitch `One Person Lab` 设计稿只作为视觉参考。可借鉴的是 Quiet Utility
-风格、灰阶 tonal layers、1px outline、固定 reading lane、底部 pinned composer、
-窄 icon rail 和右侧 inspector 组件比例。不可复制 Stitch 生成源码或 demo data；
-不可把 Stitch 中的 local inference、model/VRAM 或 inspector 默认展开语义提升为
-OPL App 产品真相。
+风格、灰阶 tonal layers、1px outline、约 780-820px fixed reading lane、底部
+pinned multiline composer、窄 icon rail 和右侧 inspector 组件比例。不可复制
+Stitch 生成源码或 demo data；不可把 Stitch 中的 local inference、model/VRAM、
+表格化工作台或 inspector 默认展开语义提升为 OPL App 产品真相。
 
 ## App-Root 命令
 
@@ -184,10 +189,12 @@ assistant reply 可见为 `OK`。
   layer：workspace/session rail 与 inspector 仍是默认收起的二级层，但显式打开后
   inspector、context tabs 和 Routing tab 必须有真实可见尺寸。
 - Source 和 packaged UI smoke 还必须验证 chat-first visual polish：composer
-  只有一层可见圆润输入 surface，radius 至少 28px，overflow clipping 生效，
-  外层 CopilotKit/adapter container 透明，内部 layout 子层无额外白底或阴影；
-  send、workspace、purpose 和 icon controls 使用 pill/circle 半径，不能回退到
-  方块式 4-10px 随机圆角。
+  只有一层可见圆润输入 surface，radius 至少 32px，surface 默认高度至少约
+  100px，textarea 至少约 60px 且 line-height/placeholder 按多行任务输入设计；
+  overflow clipping 生效，外层 CopilotKit/adapter container 透明，内部 layout
+  子层无额外白底或阴影；send、workspace、purpose 和 icon controls 使用
+  pill/circle 半径，不能回退到方块式 4-10px 随机圆角，也不能让输入体验退化成
+  单行文本框。
 - App-wrapper packaging 产出可启动 `.app`，包含 `Contents/Info.plist` 和
   `Contents/MacOS` executable。
 - Packaged UI smoke 针对 `.app` bundle 通过，并证明同样的 default-collapsed

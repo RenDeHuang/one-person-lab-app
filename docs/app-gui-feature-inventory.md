@@ -133,12 +133,19 @@ gateway、agent runtime、memory store、router、always-on store、provider mod
 list 和 WorkSpace state model 只是可研究的 implementation material，不是 App
 authority。
 
-## Stitch 启发的视觉语言
+## Codex App-like 视觉目标与 Stitch 工具边界
+
+`agui-codex` 和未来 shell 的主目标是 Codex App-like chat-first surface：
+中心对话、底部多行 composer、轻量顶部 chrome、窄 icon rail，以及默认收起的
+workspace/session rail 和右侧 inspector。Google Stitch 可以持续作为在线设计
+工具，用来生成草图、校准比例、字体、圆角、留白和视觉层次；它不是唯一参考，
+更不是 product truth。任何 Stitch、PilotDeck、CopilotKit 或 AG-UI demo 的输出
+都必须回到 Codex App-like 目标上评估。
 
 Google Stitch 生成的 `One Person Lab` 设计稿可作为 `agui-codex` 和未来 shell
 的 visual reference。它的价值是美术风格、视觉比例和组件语言，不是源码采纳：
 
-- 主屏保持 chat-first，使用约 760px fixed reading lane，避免大面积居中卡片。
+- 主屏保持 chat-first，使用约 780-820px fixed reading lane，避免大面积居中卡片。
 - Bottom composer 是第一屏视觉锚点，位于底部渐隐层上，带目的 chips、attach
   和 send 控件。
 - Nav rail 是窄 icon rail，active state 用浅灰 tonal fill，不用高饱和色块。
@@ -146,7 +153,7 @@ Google Stitch 生成的 `One Person Lab` 设计稿可作为 `agui-codex` 和未�
   Automations 等 tabs 组织信息。
 - 视觉系统采用 Quiet Utility：`#f8f9fa` canvas、`#ffffff` active surface、
   `#e1e3e4/#c6c6cd` outline、`#111827/#191c1d` primary text/action、4px spacing
-  base、pill/circle controls、约 28-32px radius 的 composer sheet、轻 outline
+  base、pill/circle controls、约 32-36px radius 的 composer sheet、轻 outline
   替代重 shadow。
 - Typography 使用 Inter 为主，JetBrains Mono 仅用于 code、receipt、process 和
   technical refs。
@@ -158,6 +165,9 @@ Google Stitch 生成的 `One Person Lab` 设计稿可作为 `agui-codex` 和未�
   一组 shadow 和统一圆角裁剪；不能在圆角输入框背后露出白色矩形底板。Purpose、
   workspace、send/stop 和 context controls 使用 pill/circle 形态，避免 4-10px
   随机小圆角造成的方块感。
+- Composer 默认必须像 Codex App 一样能承载多行任务描述：桌面默认 surface 高度
+  至少约 100px，内部 textarea 至少约 60px，字号约 16px，line-height 约 22-24px；
+  不能让用户感觉只能打一行字。
 - 双语界面中，中文 first screen 主标签使用 `科研`、`基金`、`演示`、`本机助手`
   和 `自动`，英文界面使用 `Research`、`Grant`、`Presentation`、
   `Local assistant` 和 `Auto`；`Codex CLI`、`MAS/MAG/RCA` 等技术标签进入
@@ -167,7 +177,9 @@ OPL adaptation 必须比 Stitch 窄：不要复制 Stitch HTML、Tailwind class 
 源码；不要采用其中的 local inference、model/VRAM 或 demo data 语义；不要让
 示范 inspector 默认打开。App-owned 规则仍是 ordinary home 默认 chat-first，
 workspace rail 和 inspector 默认收起，运行与 continue-work 信息进入 Runtime 或
-secondary context，不在 composer 附近显示 compact entry。
+secondary context，不在 composer 附近显示 compact entry。若 Stitch 生成稿偏向
+workbench、表格化 dashboard 或默认右侧 inspector，应只吸收视觉 token，不吸收
+信息架构。
 
 ## Core Conversation 功能
 
@@ -359,9 +371,9 @@ material。
 - Candidate UI smoke 必须包含 pixel-visible paint check，避免 DOM-only pass
   掩盖视觉空白窗口。
 - Candidate UI smoke 必须包含 chat-first visual polish gate：composer 内层输入
-  surface 至少 28px radius、overflow clipping 生效、外层 Copilot/adapter 容器
-  透明、内部 layout 子层无额外白底/阴影，send/chip controls 达到 pill/circle
-  半径要求。
+  surface 至少 32px radius、默认高度至少约 100px、textarea 至少约 60px 且呈
+  多行输入体验；overflow clipping 生效、外层 Copilot/adapter 容器透明、内部
+  layout 子层无额外白底/阴影，send/chip controls 达到 pill/circle 半径要求。
 - Candidate UI smoke 必须保持 AG-UI 作为内部 event boundary，并拒绝 ordinary
   chat surface 上出现用户可见 AG-UI/debug dashboard copy。
 
