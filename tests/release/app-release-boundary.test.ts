@@ -10,3 +10,4 @@ import './app-release-boundary-cases/release-plan-and-publishing.ts';
 import './app-release-boundary-cases/shell-adapter-and-gui-contracts.ts';
 import './app-release-boundary-cases/workflow-release-channels.ts';
 import './app-release-boundary-cases/full-first-install-runtime.ts';
+import './app-release-boundary-cases/full-first-install-args.ts';

@@ -63,20 +63,50 @@ function defaultOptions() {
   };
 }
 
+const booleanOptionSetters = new Map([
+  ['--skip-gui-build', (parsed) => { parsed.skipGuiBuild = true; }],
+  ['--split-runtime', (parsed) => { parsed.splitRuntime = true; }],
+  ['--reuse-gui-vite-output', (parsed) => { parsed.reuseGuiViteOutput = true; }],
+  ['--print-runtime-cache-keys', (parsed) => { parsed.printRuntimeCacheKeys = true; }],
+  ['--include-bun-runtime', (parsed) => { parsed.includeBunRuntime = true; }],
+]);
+
+const valueOptionSetters = new Map([
+  ['--version', (parsed, value) => { parsed.version = value; }],
+  ['--out-dir', (parsed, value) => { parsed.outDir = path.resolve(value); }],
+  ['--framework-root', (parsed, value) => { parsed.frameworkRoot = path.resolve(value); }],
+  ['--opl-root', (parsed, value) => { parsed.frameworkRoot = path.resolve(value); }],
+  ['--gui-root', (parsed, value) => { parsed.guiRoot = path.resolve(value); }],
+  ['--mas-root', (parsed, value) => { parsed.masRoot = path.resolve(value); }],
+  ['--mag-root', (parsed, value) => { parsed.magRoot = path.resolve(value); }],
+  ['--rca-root', (parsed, value) => { parsed.rcaRoot = path.resolve(value); }],
+  ['--meta-agent-root', (parsed, value) => { parsed.metaAgentRoot = path.resolve(value); }],
+  ['--superpowers-root', (parsed, value) => { parsed.superpowersRoot = path.resolve(value); }],
+  ['--codex-root', (parsed, value) => { parsed.codexRoot = path.resolve(value); }],
+  ['--node-bin', (parsed, value) => { parsed.nodeBin = path.resolve(value); }],
+  ['--bun-bin', (parsed, value) => { parsed.bunBin = path.resolve(value); }],
+  ['--uv-bin', (parsed, value) => { parsed.uvBin = path.resolve(value); }],
+  ['--temporal-cli-bin', (parsed, value) => { parsed.temporalCliBin = path.resolve(value); }],
+  ['--temporal-cli-archive', (parsed, value) => { parsed.temporalCliArchive = path.resolve(value); }],
+  ['--python-root', (parsed, value) => { parsed.pythonRoot = path.resolve(value); }],
+  ['--officecli-bin', (parsed, value) => { parsed.officeCliBin = path.resolve(value); }],
+  ['--officecli-root', (parsed, value) => { parsed.officeCliRoot = path.resolve(value); }],
+  ['--mineru-open-api-bin', (parsed, value) => { parsed.mineruOpenApiBin = path.resolve(value); }],
+  ['--mineru-root', (parsed, value) => { parsed.mineruRoot = path.resolve(value); }],
+  ['--mineru-document-extractor-root', (parsed, value) => {
+    parsed.mineruDocumentExtractorRoot = path.resolve(value);
+  }],
+  ['--ui-ux-pro-max-root', (parsed, value) => { parsed.uiUxProMaxRoot = path.resolve(value); }],
+  ['--runtime-cache-dir', (parsed, value) => { parsed.runtimeCacheDir = path.resolve(value); }],
+  ['--runtime-cache-mode', (parsed, value) => { parsed.runtimeCacheMode = value; }],
+]);
+
 function applyBooleanOption(parsed, token) {
-  if (token === '--skip-gui-build') {
-    parsed.skipGuiBuild = true;
-  } else if (token === '--split-runtime') {
-    parsed.splitRuntime = true;
-  } else if (token === '--reuse-gui-vite-output') {
-    parsed.reuseGuiViteOutput = true;
-  } else if (token === '--print-runtime-cache-keys') {
-    parsed.printRuntimeCacheKeys = true;
-  } else if (token === '--include-bun-runtime') {
-    parsed.includeBunRuntime = true;
-  } else {
+  const apply = booleanOptionSetters.get(token);
+  if (!apply) {
     return false;
   }
+  apply(parsed);
   return true;
 }
 
@@ -89,31 +119,11 @@ function valueAfter(argv, index, token) {
 }
 
 function applyValueOption(parsed, token, value) {
-  if (token === '--version') parsed.version = value;
-  else if (token === '--out-dir') parsed.outDir = path.resolve(value);
-  else if (token === '--framework-root' || token === '--opl-root') parsed.frameworkRoot = path.resolve(value);
-  else if (token === '--gui-root') parsed.guiRoot = path.resolve(value);
-  else if (token === '--mas-root') parsed.masRoot = path.resolve(value);
-  else if (token === '--mag-root') parsed.magRoot = path.resolve(value);
-  else if (token === '--rca-root') parsed.rcaRoot = path.resolve(value);
-  else if (token === '--meta-agent-root') parsed.metaAgentRoot = path.resolve(value);
-  else if (token === '--superpowers-root') parsed.superpowersRoot = path.resolve(value);
-  else if (token === '--codex-root') parsed.codexRoot = path.resolve(value);
-  else if (token === '--node-bin') parsed.nodeBin = path.resolve(value);
-  else if (token === '--bun-bin') parsed.bunBin = path.resolve(value);
-  else if (token === '--uv-bin') parsed.uvBin = path.resolve(value);
-  else if (token === '--temporal-cli-bin') parsed.temporalCliBin = path.resolve(value);
-  else if (token === '--temporal-cli-archive') parsed.temporalCliArchive = path.resolve(value);
-  else if (token === '--python-root') parsed.pythonRoot = path.resolve(value);
-  else if (token === '--officecli-bin') parsed.officeCliBin = path.resolve(value);
-  else if (token === '--officecli-root') parsed.officeCliRoot = path.resolve(value);
-  else if (token === '--mineru-open-api-bin') parsed.mineruOpenApiBin = path.resolve(value);
-  else if (token === '--mineru-root') parsed.mineruRoot = path.resolve(value);
-  else if (token === '--mineru-document-extractor-root') parsed.mineruDocumentExtractorRoot = path.resolve(value);
-  else if (token === '--ui-ux-pro-max-root') parsed.uiUxProMaxRoot = path.resolve(value);
-  else if (token === '--runtime-cache-dir') parsed.runtimeCacheDir = path.resolve(value);
-  else if (token === '--runtime-cache-mode') parsed.runtimeCacheMode = value;
-  else throw new Error(`Unknown argument: ${token}`);
+  const apply = valueOptionSetters.get(token);
+  if (!apply) {
+    throw new Error(`Unknown argument: ${token}`);
+  }
+  apply(parsed, value);
 }
 
 export function parseArgs(argv) {

@@ -19,6 +19,56 @@ import {
   readFullPackageBuilderSource,
 } from './helpers.ts';
 
+function escapedPattern(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function assertFullFirstInstallOptionTables(buildScript: string) {
+  assert.match(buildScript, /const booleanOptionSetters = new Map\(\[/);
+  for (const option of [
+    '--skip-gui-build',
+    '--split-runtime',
+    '--reuse-gui-vite-output',
+    '--print-runtime-cache-keys',
+    '--include-bun-runtime',
+  ]) {
+    assert.match(buildScript, new RegExp(`\\['${escapedPattern(option)}', \\(parsed\\) =>`));
+  }
+  assert.match(buildScript, /const valueOptionSetters = new Map\(\[/);
+  for (const option of [
+    '--version',
+    '--out-dir',
+    '--framework-root',
+    '--opl-root',
+    '--gui-root',
+    '--mas-root',
+    '--mag-root',
+    '--rca-root',
+    '--meta-agent-root',
+    '--superpowers-root',
+    '--codex-root',
+    '--node-bin',
+    '--bun-bin',
+    '--uv-bin',
+    '--temporal-cli-bin',
+    '--temporal-cli-archive',
+    '--python-root',
+    '--officecli-bin',
+    '--officecli-root',
+    '--mineru-open-api-bin',
+    '--mineru-root',
+    '--mineru-document-extractor-root',
+    '--ui-ux-pro-max-root',
+    '--runtime-cache-dir',
+    '--runtime-cache-mode',
+  ]) {
+    assert.match(buildScript, new RegExp(`\\['${escapedPattern(option)}', \\(parsed, value\\) =>`));
+  }
+  assert.match(buildScript, /const apply = booleanOptionSetters\.get\(token\)/);
+  assert.match(buildScript, /const apply = valueOptionSetters\.get\(token\)/);
+  assert.match(buildScript, /throw new Error\(`Unknown argument: \$\{token\}`\)/);
+}
+
 test('Full first-install workflow has one MinerU checkout and keeps standalone binary build path', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
 
@@ -658,10 +708,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /temporalCliBin: process\.env\.OPL_FULL_TEMPORAL_CLI_BIN \|\| ''/);
   assert.match(buildScript, /temporalCliArchive: process\.env\.OPL_FULL_TEMPORAL_CLI_ARCHIVE \|\| ''/);
   assert.doesNotMatch(buildScript, /--hermes-root/);
-  assert.match(buildScript, /else if \(token === '--bun-bin'\) parsed\.bunBin = path\.resolve\(value\)/);
-  assert.match(buildScript, /token === '--include-bun-runtime'/);
-  assert.match(buildScript, /else if \(token === '--temporal-cli-bin'\) parsed\.temporalCliBin = path\.resolve\(value\)/);
-  assert.match(buildScript, /else if \(token === '--temporal-cli-archive'\) parsed\.temporalCliArchive = path\.resolve\(value\)/);
+  assertFullFirstInstallOptionTables(buildScript);
   assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
   assert.match(buildScript, /function findTemporalCliBinary\(explicitBin\)/);
   assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
@@ -798,10 +845,7 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.match(buildScript, /includeBunRuntime: process\.env\.OPL_FULL_INCLUDE_BUN_RUNTIME === '1'/);
   assert.match(buildScript, /temporalCliBin: process\.env\.OPL_FULL_TEMPORAL_CLI_BIN \|\| ''/);
   assert.match(buildScript, /temporalCliArchive: process\.env\.OPL_FULL_TEMPORAL_CLI_ARCHIVE \|\| ''/);
-  assert.match(buildScript, /else if \(token === '--bun-bin'\) parsed\.bunBin = path\.resolve\(value\)/);
-  assert.match(buildScript, /token === '--include-bun-runtime'/);
-  assert.match(buildScript, /else if \(token === '--temporal-cli-bin'\) parsed\.temporalCliBin = path\.resolve\(value\)/);
-  assert.match(buildScript, /else if \(token === '--temporal-cli-archive'\) parsed\.temporalCliArchive = path\.resolve\(value\)/);
+  assertFullFirstInstallOptionTables(buildScript);
   assert.match(buildScript, /function findTemporalCliBinary\(explicitBin\)/);
   assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
   assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
