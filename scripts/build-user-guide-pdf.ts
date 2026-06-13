@@ -15,7 +15,9 @@ import {
   loadAssetManifest,
   loadGuide,
   markdownPath,
+  readPdfInfo,
   relativeToApp,
+  renderPdfPages,
   run,
   scanTextForSecrets,
   screenshotReleaseTag,
@@ -114,25 +116,11 @@ function buildPdf() {
   ]);
 }
 
-function renderPdf() {
-  const renderDir = path.join(tempDir, 'rendered');
-  fs.rmSync(renderDir, { recursive: true, force: true });
-  fs.mkdirSync(renderDir, { recursive: true });
-  run('pdftoppm', ['-png', '-r', '120', detailedPdfPath, path.join(renderDir, 'page')]);
-  const pages = fs.readdirSync(renderDir).filter((name) => name.endsWith('.png')).sort();
-  return { renderDir, pages };
-}
-
-function pdfInfo() {
-  const result = run('pdfinfo', [detailedPdfPath]);
-  return result.stdout;
-}
-
 function main() {
   const { dimensions, assets } = assertGuideAssets('Guide', guide, assetManifest);
   buildPdf();
-  const render = renderPdf();
-  const info = pdfInfo();
+  const render = renderPdfPages({ tempDir, pdfPath: detailedPdfPath, pagePrefix: 'page' });
+  const info = readPdfInfo(detailedPdfPath);
   const pageMatch = info.match(/^Pages:\s+(\d+)/m);
   const pages = Number(pageMatch?.[1] ?? 0);
   if (pages < 10) {

@@ -14,7 +14,9 @@ import {
   guideSourcePath,
   loadAssetManifest,
   loadGuide,
+  readPdfInfo,
   relativeToApp,
+  renderPdfPages,
   run,
   scanTextForSecrets,
   screenshotReleaseTag,
@@ -462,19 +464,6 @@ function exportSlidePdf() {
   fs.renameSync(generatedPdfPath, slidePdfPath);
 }
 
-function renderPdf() {
-  const renderDir = path.join(tempDir, 'rendered');
-  fs.rmSync(renderDir, { recursive: true, force: true });
-  fs.mkdirSync(renderDir, { recursive: true });
-  run('pdftoppm', ['-png', '-r', '120', slidePdfPath, path.join(renderDir, 'slide')]);
-  const pages = fs.readdirSync(renderDir).filter((name) => name.endsWith('.png')).sort();
-  return { renderDir, pages };
-}
-
-function pdfInfo() {
-  return run('pdfinfo', [slidePdfPath]).stdout;
-}
-
 function pptxStats() {
   return run('officecli', ['view', slidePptxPath, 'stats']).stdout;
 }
@@ -483,8 +472,8 @@ function main() {
   const { dimensions, assets } = assertGuideAssets('Slide', guide, assetManifest);
   buildPptx();
   exportSlidePdf();
-  const render = renderPdf();
-  const info = pdfInfo();
+  const render = renderPdfPages({ tempDir, pdfPath: slidePdfPath, pagePrefix: 'slide' });
+  const info = readPdfInfo(slidePdfPath);
   const pages = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] ?? 0);
   const pageSizeMatch = info.match(/^Page size:\s+([\d.]+)\s+x\s+([\d.]+)\s+pts/m);
   const pageWidth = Number(pageSizeMatch?.[1] ?? 0);

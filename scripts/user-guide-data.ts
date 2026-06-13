@@ -190,6 +190,19 @@ export function relativeToApp(filePath: string) {
   return path.relative(appRoot, filePath);
 }
 
+export function renderPdfPages(options: { tempDir: string; pdfPath: string; pagePrefix: string }) {
+  const renderDir = path.join(options.tempDir, 'rendered');
+  fs.rmSync(renderDir, { recursive: true, force: true });
+  fs.mkdirSync(renderDir, { recursive: true });
+  run('pdftoppm', ['-png', '-r', '120', options.pdfPath, path.join(renderDir, options.pagePrefix)]);
+  const pages = fs.readdirSync(renderDir).filter((name) => name.endsWith('.png')).sort();
+  return { renderDir, pages };
+}
+
+export function readPdfInfo(pdfPath: string) {
+  return run('pdfinfo', [pdfPath]).stdout;
+}
+
 export function writeJson(filePath: string, value: unknown) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
