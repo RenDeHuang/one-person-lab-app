@@ -107,6 +107,13 @@ function signMacosRuntimeExecutable(filePath, identity) {
   ]);
 }
 
+function codesignOutputLines(codesign, prefix = 'codesign') {
+  return [
+    codesign.stdout?.trim() ? `${prefix} stdout:\n${codesign.stdout.trim()}` : '',
+    codesign.stderr?.trim() ? `${prefix} stderr:\n${codesign.stderr.trim()}` : '',
+  ];
+}
+
 function verifyMacosRuntimeExecutable(filePath, options) {
   const codesignResult = runCapture('codesign', ['--verify', '--strict', '--verbose=2', filePath]);
   const shouldAssessSpctl = options.requiresSpctl && options.assessSpctl === true;
@@ -144,7 +151,7 @@ function verifyMacosRuntimeExecutable(filePath, options) {
       `signature=${result.signature ?? 'missing'}`,
       `quarantine_status=${result.quarantine_status}`,
       `provenance_status=${result.provenance_status}`,
-      codesignResult.stderr?.trim() ? `codesign stderr:\n${codesignResult.stderr.trim()}` : '',
+      ...codesignOutputLines(codesignResult).filter((line) => line.startsWith('codesign stderr:')),
       spctlResult.stderr?.trim() ? `spctl stderr:\n${spctlResult.stderr.trim()}` : '',
     ].filter(Boolean).join('\n');
     throw new Error(detail);
@@ -242,8 +249,7 @@ export function assertAppBundleLocalAuthorization(appPath, label) {
   if (strictMacosRuntimeSigningRequired() && (codesign.status !== 0 || spctl.status !== 0)) {
     throw new Error([
       `${label} failed Stable local authorization codesign verification: ${appPath}`,
-      codesign.stdout?.trim() ? `codesign stdout:\n${codesign.stdout.trim()}` : '',
-      codesign.stderr?.trim() ? `codesign stderr:\n${codesign.stderr.trim()}` : '',
+      ...codesignOutputLines(codesign),
       `spctl status=${spctl.status}`,
       spctl.stdout?.trim() ? `spctl stdout:\n${spctl.stdout.trim()}` : '',
       spctl.stderr?.trim() ? `spctl stderr:\n${spctl.stderr.trim()}` : '',
@@ -253,8 +259,7 @@ export function assertAppBundleLocalAuthorization(appPath, label) {
     if (codesign.status !== 0) {
       throw new Error([
         `${label} codesign verification must pass even when Stable Full uses local authorization: ${appPath}`,
-        codesign.stdout?.trim() ? `codesign stdout:\n${codesign.stdout.trim()}` : '',
-        codesign.stderr?.trim() ? `codesign stderr:\n${codesign.stderr.trim()}` : '',
+        ...codesignOutputLines(codesign),
       ].filter(Boolean).join('\n'));
     }
     console.warn([
