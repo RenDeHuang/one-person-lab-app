@@ -75,7 +75,7 @@ test('release closeout separates workflow wall time from Agent orchestration wal
     status: 'completed',
     conclusion: 'success',
     createdAt: '2026-06-12T10:38:58Z',
-    runStartedAt: '2026-06-12T10:46:45Z',
+    startedAt: '2026-06-12T10:38:58Z',
     updatedAt: '2026-06-12T11:18:25Z',
     workflowName: 'OPL Desktop Release',
     displayTitle: 'v26.5.99 stable release',
@@ -122,7 +122,9 @@ test('release closeout separates workflow wall time from Agent orchestration wal
   const summary = JSON.parse(fs.readFileSync(path.join(outDir, 'release-closeout.json'), 'utf8'));
   assert.equal(summary.schema, 'opl_release_closeout_summary.v1');
   assert.equal(summary.run.timing.workflow_wall_time_seconds, 2367);
-  assert.equal(summary.run.timing.queue_or_admission_seconds, 467);
+  assert.equal(summary.run.timing.queue_or_admission_seconds, 662);
+  assert.equal(summary.run.timing.first_job_started_at, '2026-06-12T10:50:00.000Z');
+  assert.equal(summary.run.timing.runner_execution_seconds, 1705);
   assert.equal(summary.clock_boundary.agent_orchestration_wall_time_seconds, 7603);
   assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
   assert.equal(summary.decision.next_action, 'promote_from_candidate_record');
@@ -164,7 +166,7 @@ test('release closeout stops at readiness failed gates before raw log inspection
     status: 'completed',
     conclusion: 'success',
     createdAt: '2026-06-12T10:00:00Z',
-    runStartedAt: '2026-06-12T10:00:10Z',
+    startedAt: '2026-06-12T10:00:00Z',
     updatedAt: '2026-06-12T10:10:00Z',
   });
 

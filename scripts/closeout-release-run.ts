@@ -227,7 +227,7 @@ function fetchRun(options: Options): JsonRecord {
       'conclusion',
       'createdAt',
       'updatedAt',
-      'runStartedAt',
+      'startedAt',
       'headSha',
       'headBranch',
       'workflowName',
@@ -389,7 +389,10 @@ function summarizeJobs(jobs: JsonRecord[]) {
 
 function summarizeRunTiming(run: JsonRecord, jobs: JsonRecord[]) {
   const createdAt = stringField(run, 'createdAt') ?? stringField(run, 'created_at');
-  const startedAt = stringField(run, 'runStartedAt') ?? stringField(run, 'run_started_at');
+  const startedAt = stringField(run, 'runStartedAt')
+    ?? stringField(run, 'run_started_at')
+    ?? stringField(run, 'startedAt')
+    ?? stringField(run, 'started_at');
   const updatedAt = stringField(run, 'updatedAt') ?? stringField(run, 'updated_at');
   const jobStarts = jobs
     .map((job) => parseDateMs(job.startedAt ?? job.started_at))
@@ -400,13 +403,20 @@ function summarizeRunTiming(run: JsonRecord, jobs: JsonRecord[]) {
   const firstJobStartMs = jobStarts.length > 0 ? Math.min(...jobStarts) : null;
   const lastJobEndMs = jobEnds.length > 0 ? Math.max(...jobEnds) : null;
   const createdMs = parseDateMs(createdAt);
+  const updatedMs = parseDateMs(updatedAt);
+  const firstJobStartedAt = firstJobStartMs !== null ? new Date(firstJobStartMs).toISOString() : null;
   return {
     created_at: createdAt,
     run_started_at: startedAt,
+    first_job_started_at: firstJobStartedAt,
     updated_at: updatedAt,
     workflow_wall_time_seconds: secondsBetween(createdAt, updatedAt),
-    queue_or_admission_seconds: secondsBetween(createdAt, startedAt),
-    runner_execution_seconds: secondsBetween(startedAt, updatedAt),
+    queue_or_admission_seconds: createdMs !== null && firstJobStartMs !== null
+      ? Math.round((firstJobStartMs - createdMs) / 1000)
+      : secondsBetween(createdAt, startedAt),
+    runner_execution_seconds: firstJobStartMs !== null && updatedMs !== null && updatedMs >= firstJobStartMs
+      ? Math.round((updatedMs - firstJobStartMs) / 1000)
+      : secondsBetween(startedAt, updatedAt),
     first_job_delay_seconds: createdMs !== null && firstJobStartMs !== null
       ? Math.round((firstJobStartMs - createdMs) / 1000)
       : null,
