@@ -3,6 +3,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
+import { assertDefaultCodexSessionProfile } from './app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from './app-product-profile-identity.ts';
 
 export type AppProductProfile = {
@@ -440,21 +441,7 @@ function assertPostInstallAiSelfCheckEntry(
 
 function assertProfileShape(profile: AppProductProfile): void {
   assertAppProductProfileIdentity(profile);
-  if (profile.default_session_profile.executor !== 'codex_cli') {
-    throw new Error(`Unexpected App product profile executor: ${profile.default_session_profile.executor}`);
-  }
-  if (profile.default_session_profile.provider !== 'gflab') {
-    throw new Error(`Unexpected App product profile provider: ${profile.default_session_profile.provider}`);
-  }
-  if (profile.default_session_profile.base_url !== 'https://gflabtoken.cn/v1') {
-    throw new Error(`Unexpected App product profile base URL: ${profile.default_session_profile.base_url}`);
-  }
-  if (profile.default_session_profile.model !== profile.codex.default_model) {
-    throw new Error('App product profile Codex default model is inconsistent');
-  }
-  if (profile.default_session_profile.reasoning_effort !== profile.codex.default_reasoning_effort) {
-    throw new Error('App product profile Codex reasoning effort is inconsistent');
-  }
+  assertDefaultCodexSessionProfile(profile);
   if (
     profile.codex.opl_flow_context?.flow_id !== 'opl-flow' ||
     profile.codex.opl_flow_context.delivery !== 'session_scoped_preset_context' ||

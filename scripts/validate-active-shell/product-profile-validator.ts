@@ -30,6 +30,7 @@ import {
   assertFile,
 } from './validation-config.ts';
 import { validateBeginnerFirstRunPresentation, validateOplFlowContext } from './shared-contract-validators.ts';
+import { assertDefaultCodexSessionProfile } from '../app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from '../app-product-profile-identity.ts';
 
 const ordinaryForbiddenCapabilityPolicy = {
@@ -82,27 +83,7 @@ function validateProductProfileCodexDefaults(profile) {
   ) {
     throw new Error('Product profile must declare localized OPL Flow session context');
   }
-  if (profile.default_session_profile?.provider !== 'gflab') {
-    throw new Error(`Unexpected product profile provider: ${profile.default_session_profile?.provider}`);
-  }
-  if (profile.default_session_profile?.base_url !== 'https://gflabtoken.cn/v1') {
-    throw new Error(`Unexpected product profile base URL: ${profile.default_session_profile?.base_url}`);
-  }
-  if (profile.default_session_profile?.executor !== 'codex_cli') {
-    throw new Error(`Unexpected product profile executor: ${profile.default_session_profile?.executor}`);
-  }
-  if (profile.default_session_profile?.model !== 'gpt-5.5') {
-    throw new Error(`Unexpected product profile model: ${profile.default_session_profile?.model}`);
-  }
-  if (profile.default_session_profile?.reasoning_effort !== 'xhigh') {
-    throw new Error(`Unexpected product profile reasoning effort: ${profile.default_session_profile?.reasoning_effort}`);
-  }
-  if (profile.default_session_profile?.model !== profile.codex?.default_model) {
-    throw new Error('Product profile default_session_profile.model must match codex.default_model');
-  }
-  if (profile.default_session_profile?.reasoning_effort !== profile.codex?.default_reasoning_effort) {
-    throw new Error('Product profile default_session_profile.reasoning_effort must match codex.default_reasoning_effort');
-  }
+  assertDefaultCodexSessionProfile(profile, { label: 'product profile', requireLiteralDefaults: true });
   if (profile.gui?.authority !== 'app_repo_owned_product_truth') {
     throw new Error('Product profile GUI authority must be App-owned');
   }
