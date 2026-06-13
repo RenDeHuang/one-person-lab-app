@@ -65,17 +65,13 @@ export function copyTreeFiltered(sourceRoot, targetRoot, runtimePrefix) {
         return;
       }
       if (realStat.isFile()) {
-        fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-        fs.copyFileSync(realPath, targetPath);
-        fs.chmodSync(targetPath, realStat.mode);
+        copyFileWithMode(realPath, targetPath, realStat);
       }
       return;
     }
 
     if (stat.isFile()) {
-      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-      fs.copyFileSync(sourcePath, targetPath);
-      fs.chmodSync(targetPath, stat.mode);
+      copyFileWithMode(sourcePath, targetPath, stat);
     }
   };
 
@@ -85,14 +81,18 @@ export function copyTreeFiltered(sourceRoot, targetRoot, runtimePrefix) {
 }
 
 export function copySingleFile(sourcePath, targetPath) {
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.copyFileSync(sourcePath, targetPath);
-  fs.chmodSync(targetPath, fs.statSync(sourcePath).mode);
+  copyFileWithMode(sourcePath, targetPath);
 }
 
 function isInsidePath(root, candidate) {
   const relative = path.relative(root, candidate);
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function copyFileWithMode(sourcePath, targetPath, stat = fs.statSync(sourcePath)) {
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.copyFileSync(sourcePath, targetPath);
+  fs.chmodSync(targetPath, stat.mode);
 }
 
 export function copyPortableTree(sourceRoot, targetRoot) {
@@ -127,16 +127,12 @@ export function copyPortableTree(sourceRoot, targetRoot) {
         copyPortableTree(resolvedSourceTarget, targetPath);
         return;
       }
-      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-      fs.copyFileSync(resolvedSourceTarget, targetPath);
-      fs.chmodSync(targetPath, realStat.mode);
+      copyFileWithMode(resolvedSourceTarget, targetPath, realStat);
       return;
     }
 
     if (stat.isFile()) {
-      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-      fs.copyFileSync(sourcePath, targetPath);
-      fs.chmodSync(targetPath, stat.mode);
+      copyFileWithMode(sourcePath, targetPath, stat);
     }
   };
 
@@ -187,9 +183,7 @@ export function copyExecutableOrSymlinkTarget(sourceRoot, relativePath, targetRo
   if (stat.isSymbolicLink()) {
     const resolved = fs.realpathSync(sourcePath);
     const realStat = fs.statSync(resolved);
-    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-    fs.copyFileSync(resolved, targetPath);
-    fs.chmodSync(targetPath, realStat.mode);
+    copyFileWithMode(resolved, targetPath, realStat);
     return;
   }
   copySingleFile(sourcePath, targetPath);
