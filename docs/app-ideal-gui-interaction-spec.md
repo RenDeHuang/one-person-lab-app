@@ -366,6 +366,9 @@ Codex-like Composer 的最低视觉要求：
   不应比 composer input 或 conversation 正文更抢眼。
 - Send/stop 按圆形主动作处理，attach/context/workspace/purpose controls 用 pill
   或圆形，所有交互尺寸稳定，hover/focus 不改变布局。
+- Workspace、purpose、attach 和 context controls 如果收进 composer sheet，必须
+  在视觉和 hit-test 上位于输入 surface 上层，保持可读、可点；不能被第三方输入
+  容器、渐隐层或 overlay 压低到近乎不可见。
 
 视觉优化同样遵守 fork delta budget：优先用 CSS tokens、局部组件组合、profile
 driven labels 和现有 layout primitives 完成；只有当 App contract 明确需要新
