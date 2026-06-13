@@ -59,6 +59,8 @@ release isolation 和外部 checkout history policy；不要通过追加本文�
 - 固定 Codex executor 和 automatic model status；
 - MAS/MAG/RCA purpose entries 和 compact purpose tags；
 - chat-first conversation surface；
+- conversation 内的 live run artifact，用于当前 turn 的 running、event refs、
+  action receipt 和 failure recovery；
 - chat canvas 旁边的右侧可收起 Files、Skills/Capabilities、
   Routing/runtime refs、Memory refs、Always-On/Automations inspector tabs；
 - secondary context panel；
@@ -171,6 +173,9 @@ assistant reply 可见为 `OK`。
   收到 Codex app-server 的 `OK`。当前 App contract 要求普通 home 不显示 runtime
   activity、continue-work、per-agent running badges 或 footer quick icons；refs
   只能进入 Runtime 或 secondary context。
+- Source UI smoke 必须证明当前 turn 的运行证据以 conversation live artifact 或
+  compact event refs 呈现，而不是常驻工作台：idle home 没有 runtime/activity block，
+  发送消息后出现 running/receipt refs，完成后保留 turn-level summary。
 - Source UI smoke 还必须打开 workspace/session rail、右侧 inspector 和 Routing
   tab，证明普通用户层 chrome 在中文状态下仍使用 `科研`、`基金`、`演示`、`本机助手`、
   `本机能力`、`自动`、`状态摘要` 等用户层文案，不显示 `PPT`、`Codex CLI`、`MAS`、

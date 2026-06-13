@@ -159,6 +159,13 @@ Conversation 自身的工作反馈继承 Codex App 的 expectation：用户发�
 pending/running 状态必须有可见等待反馈和秒数，而不是只依赖后台处理、console
 trace 或 raw event stream。
 
+OPL 的 runtime/project refs 不应把首页改造成工作台。跨项目、跨会话的
+needs-attention、active、recent、queued 和 Always-On 信息进入 Runtime 页、
+右侧 inspector、drawer 或其他 secondary context；只有当前 conversation turn 的
+执行证据进入 chat timeline。推荐形态是 live run artifact：最近事件、tool/process
+refs、permission/action receipt 和失败恢复动作随 turn 展开，完成后折叠为摘要。
+这样既保留 Codex App 的即时反馈，又避免把 OPL 专用运行信息堆满普通 home。
+
 GUI 应让当前工作可理解，但不能声称 domain truth。例如 platform repair 显示为
 infrastructure repair，而不是 manuscript 或 deliverable progress。
 

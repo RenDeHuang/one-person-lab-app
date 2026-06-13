@@ -52,6 +52,7 @@
     "release:prepare-standard": "node --experimental-strip-types scripts/prepare-standard-release-payload.ts",
     "release:preflight": "node --experimental-strip-types scripts/validate-release-preflight.ts",
     "release:plan": "node --experimental-strip-types scripts/plan-release-candidate.ts",
+    "release:closeout": "node --experimental-strip-types scripts/closeout-release-run.ts",
     "release:readiness-summary": "node --experimental-strip-types scripts/summarize-release-readiness.ts",
     "release:candidate-record": "node --experimental-strip-types scripts/write-release-candidate-record.ts",
     "release:candidate-record:validate": "node --experimental-strip-types scripts/validate-release-candidate-record.ts --promote-ready",

@@ -27,6 +27,11 @@ App 应该像一个聚焦的工作界面，而不是门户、dashboard、launche
 agent 控制台。OPL 的专用能力来自默认设置、领域上下文、receipt 和次级
 inspector，而不是把普通第一屏做得很密很重。
 
+理想第一屏也不应退化成“工作台首页”。Workspace、Runtime、Files、Memory、
+Routing、Always-On 都是重要能力，但它们的默认位置是按需 context surface，
+不是压在 chat 之前的常驻信息墙。用户打开 App 后第一件事应当是继续或发起
+Codex 对话，而不是先读一组面板说明。
+
 ## 默认第一屏
 
 普通 home 状态应该是：
@@ -50,6 +55,12 @@ project refs、per-assistant running badges 或底部 feedback/favorite/web 图�
 来自 OPL Framework projection 的运行与项目 refs 属于 Runtime 页、右侧
 inspector、drawer 或其他次级 context surface。Home 的职责是保持 composer-first，
 让用户直接开始或继续对话。
+
+当前 turn 的执行状态例外：用户发出消息后，chat timeline 内可以出现 live run
+artifact，用紧凑方式展示 running、tool/process/file/diff/receipt refs、permission
+prompt、safe action receipt 和失败恢复动作。这个 artifact 属于当前对话流，不是
+全局 runtime dashboard；turn 结束后保留摘要，长列表和跨项目状态进入 inspector
+或 Runtime surface。
 
 ## Frame 结构
 
@@ -112,6 +123,9 @@ Chat canvas 是产品重心。
 - 用户和 assistant bubble 不能把长任务状态藏进 raw logs。
 - Tool call、command、diff、file、receipt、process output 作为紧凑对话事件
   或可展开 refs 出现。
+- 当前 turn 运行时，chat timeline 内必须有 live run artifact：展示等待秒数、
+  最近事件、必要的 action/permission 状态和结果摘要。它的视觉权重低于用户
+  消息和 composer，高于隐藏的 diagnostics。
 - Error 出现在失败 turn 内，并在存在 App-owned action 时暴露恢复动作。
 - Permission 和 user-input prompt 留在 conversation flow 中。
 - Assistant 正在处理时必须有可见等待反馈，并显示已经等待的秒数；即使

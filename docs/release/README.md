@@ -219,6 +219,19 @@ orchestration wall time includes waiting on runs, artifact downloads, local
 readback, documentation, validation, commit/push/cleanup, and tool/model round
 trips.
 
+Use the closeout command to collapse release monitoring, small-artifact readback,
+and next-action selection into one local step:
+
+```bash
+npm run release:closeout -- --version <version> --run-id <github-actions-run-id> --artifact-profile diagnostics --agent-wall-time <duration>
+```
+
+The command writes ignored local outputs under
+`artifacts/release-closeout/v<version>-<run_id>/`, downloads only final summary
+and diagnostic artifacts, refuses standard/Full package artifacts, and points the
+operator at `ready_to_promote`, candidate blockers, failed readiness gates, or
+raw log inspection only after structured evidence is missing.
+
 ## Purpose-Based Release Validation
 
 Stable is the complete user-install proof lane. Before a stable App Release is treated as smooth, each required artifact must be classified as `present`, `missing`, `typed_blocker`, or `not_applicable`. Only an all-present verified bundle can set `packaged_app_evidence=true`.

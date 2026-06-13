@@ -87,6 +87,9 @@ App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent da
   conversation flows；model selector 只能作为 App-owned Codex 模型控制出现。
 - Codex conversation composer 仍要显示同一个 App-owned model selector/status，
   并在 pending/running 时显示已经等待的秒数。
+- 当前 turn 的运行状态应作为 conversation live artifact 呈现，包含 elapsed time、
+  最近 tool/process/file/diff/receipt refs、permission/action 状态和完成/失败摘要。
+  它不是全局 workbench 面板；跨项目 runtime refs 仍进入 Runtime 页或 inspector。
 - Desktop Electron 和 WebUI surfaces 使用同一套 App product truth。
 - 窄桌面和 WebUI 宽度下，二级 context 不变成首页工作台；用户打开后必须以
   overlay/drawer/右侧浮层形式可见，至少保证 `opl-context-tabs` 和
@@ -167,6 +170,8 @@ secondary context，不在 composer 附近显示 compact entry。
 - 向 Codex 发送 text instruction。
 - Shell 支持 native file picking 时，可以 attach files 或 folders。
 - Codex 运行中展示 streaming 或 pending assistant state。
+- 当前 turn 运行中展示 live run artifact；完成后保留 compact receipt，必要时可
+  展开查看事件 refs。
 - Assistant replies 保持在可读 chat thread 中。
 - 不离开 conversation 也可以切换 purpose routing。
 - 选中的 purpose route 以普通语言标签保留；`@MAS`、`@MAG`、`@RCA` 只作为

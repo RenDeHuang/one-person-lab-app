@@ -112,13 +112,17 @@ gate. The Full fallback must use electron-builder `--prepackaged`; any plain
 `hdiutil -srcfolder` fallback is a release regression because it can pass local
 authorization while exceeding the Full DMG size budget.
 
-Layer 4 should reduce CI polling cost. Release triage should prefer downloaded
-summary artifacts and job-result JSON over repeated `gh run view` loops. The
-interactive agent should inspect failed job logs only after summary artifacts
-identify the failing gate. For any long-running release run, stop at the
-candidate record, readiness summary, remote verification JSON, or named blocked
-gate. Do not keep chasing scattered job logs after the structured artifacts have
-already identified the stop condition.
+Layer 4 is now implemented for the operator loop by `npm run release:closeout`.
+Release triage should prefer downloaded summary artifacts and job-result JSON
+over repeated `gh run view` loops. The closeout command downloads only final
+small summary/diagnostic artifacts by default, refuses standard/Full package
+artifacts, records GitHub Actions workflow wall time separately from Agent
+orchestration wall time, and points the operator at promotion, candidate
+blockers, failed readiness gates, or raw log inspection only after structured
+evidence is missing. For any long-running release run, stop at the candidate
+record, readiness summary, remote verification JSON, or named blocked gate. Do
+not keep chasing scattered job logs after the structured artifacts have already
+identified the stop condition.
 
 Layer 5 is now implemented as the candidate record. It stores version, App
 commit, shell/framework refs, workflow run id, preflight/readiness/remote
