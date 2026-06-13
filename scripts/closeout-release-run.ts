@@ -41,8 +41,8 @@ const forbiddenLargeArtifactPatterns = [
   /^opl-full-first-install-\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?-mac-arm64$/,
 ];
 
-function parseArgs(argv: string[]): Options {
-  const parsed: Options = {
+function defaultOptions(): Options {
+  return {
     version: process.env.OPL_RELEASE_VERSION || '',
     runId: process.env.OPL_RELEASE_RUN_ID || '',
     repo: process.env.OPL_RELEASE_REPO || defaultRepo,
@@ -59,34 +59,48 @@ function parseArgs(argv: string[]): Options {
     agentFinishedAt: process.env.OPL_AGENT_FINISHED_AT || '',
     agentWallTime: process.env.OPL_AGENT_WALL_TIME || '',
   };
+}
 
+function readArgValue(argv: string[], index: number, token: string): string {
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
+  return value;
+}
+
+function parseArtifactProfile(value: string): ArtifactProfile {
+  if (value === 'primary' || value === 'diagnostics' || value === 'readiness-inputs') {
+    return value;
+  }
+  throw new Error('--artifact-profile must be primary, diagnostics, or readiness-inputs.');
+}
+
+function applyOption(parsed: Options, token: string, value: string): void {
+  if (token === '--version') parsed.version = value;
+  else if (token === '--run-id') parsed.runId = value;
+  else if (token === '--repo') parsed.repo = value;
+  else if (token === '--out-dir') parsed.outDir = value;
+  else if (token === '--output') parsed.output = value;
+  else if (token === '--markdown') parsed.markdown = value;
+  else if (token === '--run-json') parsed.runJsonPath = value;
+  else if (token === '--jobs-json') parsed.jobsJsonPath = value;
+  else if (token === '--artifacts-json') parsed.artifactsJsonPath = value;
+  else if (token === '--artifacts-dir') parsed.artifactsDir = value;
+  else if (token === '--artifact-profile') parsed.artifactProfile = parseArtifactProfile(value);
+  else if (token === '--agent-started-at') parsed.agentStartedAt = value;
+  else if (token === '--agent-finished-at') parsed.agentFinishedAt = value;
+  else if (token === '--agent-wall-time') parsed.agentWallTime = value;
+  else throw new Error(`Unknown argument: ${token}`);
+}
+
+function parseArgs(argv: string[]): Options {
+  const parsed = defaultOptions();
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === '--no-download') {
       parsed.noDownload = true;
       continue;
     }
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
-    if (token === '--version') parsed.version = value;
-    else if (token === '--run-id') parsed.runId = value;
-    else if (token === '--repo') parsed.repo = value;
-    else if (token === '--out-dir') parsed.outDir = value;
-    else if (token === '--output') parsed.output = value;
-    else if (token === '--markdown') parsed.markdown = value;
-    else if (token === '--run-json') parsed.runJsonPath = value;
-    else if (token === '--jobs-json') parsed.jobsJsonPath = value;
-    else if (token === '--artifacts-json') parsed.artifactsJsonPath = value;
-    else if (token === '--artifacts-dir') parsed.artifactsDir = value;
-    else if (token === '--artifact-profile') {
-      if (value !== 'primary' && value !== 'diagnostics' && value !== 'readiness-inputs') {
-        throw new Error('--artifact-profile must be primary, diagnostics, or readiness-inputs.');
-      }
-      parsed.artifactProfile = value;
-    } else if (token === '--agent-started-at') parsed.agentStartedAt = value;
-    else if (token === '--agent-finished-at') parsed.agentFinishedAt = value;
-    else if (token === '--agent-wall-time') parsed.agentWallTime = value;
-    else throw new Error(`Unknown argument: ${token}`);
+    applyOption(parsed, token, readArgValue(argv, index, token));
     index += 1;
   }
 
