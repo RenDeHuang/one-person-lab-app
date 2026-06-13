@@ -1,7 +1,18 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "scripts/setup-release-notes-codex-config.ts"
+  ],
   "ignorePatterns": [
     "shells/aionui/**",
     "shells/agui-codex/**"
+  ],
+  "ignoreExports": [
+    {
+      "file": "scripts/validate-active-shell/shared-contract-validators.ts",
+      "exports": [
+        "validateActiveProjectLineProjectionContract"
+      ]
+    }
   ]
 }
