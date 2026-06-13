@@ -7,6 +7,7 @@ import {
   FULL_RELEASE_OUTPUT_DIR,
   FULL_RUNTIME_CACHE_LAYER_IDS,
 } from './full-first-install-package.ts';
+import { budgetStatus, percent } from './release-size-reporting.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultManifestPath = path.join(appRoot, FULL_RELEASE_OUTPUT_DIR, 'full-package-manifest.json');
@@ -86,18 +87,6 @@ function formatBytes(bytes: number | null | undefined) {
     unitIndex += 1;
   }
   return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-}
-
-function percent(part: number, total: number) {
-  if (!total) return null;
-  return Number(((part / total) * 100).toFixed(1));
-}
-
-function budgetStatus(value: number | null, limit: number | null, mode: 'warning_at_or_above' | 'fail_above' | 'review_above') {
-  if (!Number.isFinite(value) || !Number.isFinite(limit)) return 'unavailable';
-  if (mode === 'warning_at_or_above') return (value as number) >= (limit as number) ? 'warning' : 'passed';
-  if (mode === 'review_above') return (value as number) > (limit as number) ? 'above_review_threshold' : 'within_review_threshold';
-  return (value as number) > (limit as number) ? 'failed' : 'passed';
 }
 
 function componentEntries(manifest: Record<string, any>) {

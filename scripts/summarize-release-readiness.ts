@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { budgetStatus, percent } from './release-size-reporting.ts';
 import {
   buildAppReleaseL5EvidenceReadout,
   readAppReleaseL5ReadoutContract,
@@ -302,18 +303,6 @@ function summarizeRuntimeCacheEvents(payload: Record<string, unknown> | null) {
     written_layers: writtenLayers,
     written_layer_count: writtenLayers.length,
   };
-}
-
-function percent(part: number, total: number) {
-  if (!total) return null;
-  return Number(((part / total) * 100).toFixed(1));
-}
-
-function budgetStatus(value: number | null, limit: number | null, mode: 'warning_at_or_above' | 'fail_above' | 'review_above') {
-  if (!Number.isFinite(value) || !Number.isFinite(limit)) return 'unavailable';
-  if (mode === 'warning_at_or_above') return (value as number) >= (limit as number) ? 'warning' : 'passed';
-  if (mode === 'review_above') return (value as number) > (limit as number) ? 'above_review_threshold' : 'within_review_threshold';
-  return (value as number) > (limit as number) ? 'failed' : 'passed';
 }
 
 function fullSizeEntries(source: unknown, totalRuntimeBytes: number | null, limit = 8) {
