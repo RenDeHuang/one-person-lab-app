@@ -95,6 +95,13 @@ function copyFileWithMode(sourcePath, targetPath, stat = fs.statSync(sourcePath)
   fs.chmodSync(targetPath, stat.mode);
 }
 
+function copyDirectoryEntries(sourcePath, targetPath, copyEntry) {
+  fs.mkdirSync(targetPath, { recursive: true });
+  for (const entry of fs.readdirSync(sourcePath)) {
+    copyEntry(path.join(sourcePath, entry), path.join(targetPath, entry));
+  }
+}
+
 export function copyPortableTree(sourceRoot, targetRoot) {
   fs.rmSync(targetRoot, { recursive: true, force: true });
   const sourceBase = path.resolve(sourceRoot);
@@ -103,10 +110,7 @@ export function copyPortableTree(sourceRoot, targetRoot) {
   const copyEntry = (sourcePath, targetPath) => {
     const stat = fs.lstatSync(sourcePath);
     if (stat.isDirectory()) {
-      fs.mkdirSync(targetPath, { recursive: true });
-      for (const entry of fs.readdirSync(sourcePath)) {
-        copyEntry(path.join(sourcePath, entry), path.join(targetPath, entry));
-      }
+      copyDirectoryEntries(sourcePath, targetPath, copyEntry);
       return;
     }
 
