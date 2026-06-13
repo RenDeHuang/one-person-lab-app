@@ -3,18 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const MACOS_NATIVE_CODE_EXTENSIONS = new Set(['.dylib', '.node', '.so']);
-const MACOS_TRUSTED_EXECUTABLE_PATTERNS = [
-  /^runtime\/current\/bin\/codex$/,
-  /^runtime\/current\/bin\/rg$/,
-  /^runtime\/current\/bin\/officecli$/,
-  /^runtime\/current\/bin\/mineru-open-api$/,
-  /^runtime\/current\/bin\/bun$/,
-  /^runtime\/current\/node\/bin\/node$/,
-  /^runtime\/current\/uv\/bin\/uv$/,
-  /^runtime\/current\/vendor\/temporal\/cli\/temporal$/,
-  /^runtime\/current\/python\/[^/]+\/bin\/python3(?:\.\d+)?$/,
-];
+import { listFullRuntimeNativeExecutables } from './build-full-first-install-package/macos-trust.ts';
 
 function parseArgs(argv: string[]) {
   const parsed = {
@@ -50,53 +39,6 @@ function runCapture(command: string, args: string[]) {
     encoding: 'utf8',
     stdio: 'pipe',
   });
-}
-
-function relativeRuntimePath(runtimeRoot: string, filePath: string) {
-  return `runtime/current/${path.relative(runtimeRoot, filePath).split(path.sep).join('/')}`;
-}
-
-function requiresGatekeeperExecutableAssessment(relativePath: string, stat: fs.Stats) {
-  return stat.isFile()
-    && (stat.mode & 0o111) !== 0
-    && MACOS_TRUSTED_EXECUTABLE_PATTERNS.some((pattern) => pattern.test(relativePath));
-}
-
-function isNativeRuntimeExecutable(relativePath: string, stat: fs.Stats) {
-  if (!stat.isFile()) {
-    return false;
-  }
-  if (MACOS_NATIVE_CODE_EXTENSIONS.has(path.extname(relativePath))) {
-    return true;
-  }
-  return requiresGatekeeperExecutableAssessment(relativePath, stat);
-}
-
-function listFullRuntimeNativeExecutables(runtimeRoot: string) {
-  const results: Array<{ path: string; relative_path: string; requires_spctl: boolean }> = [];
-  const stack = [runtimeRoot];
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    const stat = fs.lstatSync(current);
-    if (stat.isDirectory()) {
-      for (const entry of fs.readdirSync(current).sort().reverse()) {
-        stack.push(path.join(current, entry));
-      }
-      continue;
-    }
-    if (stat.isSymbolicLink()) {
-      continue;
-    }
-    const relativePath = relativeRuntimePath(runtimeRoot, current);
-    if (isNativeRuntimeExecutable(relativePath, stat)) {
-      results.push({
-        path: current,
-        relative_path: relativePath,
-        requires_spctl: requiresGatekeeperExecutableAssessment(relativePath, stat),
-      });
-    }
-  }
-  return results.sort((left, right) => left.relative_path.localeCompare(right.relative_path));
 }
 
 function hasExtendedAttribute(filePath: string, attributeName: string) {

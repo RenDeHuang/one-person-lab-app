@@ -47,7 +47,7 @@ function requiresGatekeeperExecutableAssessment(relativePath, stat) {
     && MACOS_TRUSTED_EXECUTABLE_PATTERNS.some((pattern) => pattern.test(relativePath));
 }
 
-function listFullRuntimeNativeExecutables(runtimeRoot) {
+export function listFullRuntimeNativeExecutables(runtimeRoot) {
   if (!fs.existsSync(runtimeRoot)) {
     return [];
   }
