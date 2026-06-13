@@ -3,6 +3,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
+import { assertAppProductProfileIdentity } from './app-product-profile-identity.ts';
 
 export type AppProductProfile = {
   schema_version: number;
@@ -438,15 +439,7 @@ function assertPostInstallAiSelfCheckEntry(
 }
 
 function assertProfileShape(profile: AppProductProfile): void {
-  if (profile.owner !== 'one-person-lab-app') {
-    throw new Error(`Unexpected App product profile owner: ${profile.owner}`);
-  }
-  if (profile.purpose !== 'app_owned_product_profile') {
-    throw new Error(`Unexpected App product profile purpose: ${profile.purpose}`);
-  }
-  if (profile.app_repo !== 'gaofeng21cn/one-person-lab-app') {
-    throw new Error(`Unexpected App product profile repo: ${profile.app_repo}`);
-  }
+  assertAppProductProfileIdentity(profile);
   if (profile.default_session_profile.executor !== 'codex_cli') {
     throw new Error(`Unexpected App product profile executor: ${profile.default_session_profile.executor}`);
   }

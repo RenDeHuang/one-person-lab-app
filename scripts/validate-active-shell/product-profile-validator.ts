@@ -30,6 +30,7 @@ import {
   assertFile,
 } from './validation-config.ts';
 import { validateBeginnerFirstRunPresentation, validateOplFlowContext } from './shared-contract-validators.ts';
+import { assertAppProductProfileIdentity } from '../app-product-profile-identity.ts';
 
 const ordinaryForbiddenCapabilityPolicy = {
   forbidden_mcp_matchers: {
@@ -49,15 +50,7 @@ const ordinaryForbiddenCapabilityPolicy = {
 };
 
 function validateProductProfileIdentity(profile) {
-  if (profile.owner !== 'one-person-lab-app') {
-    throw new Error(`Unexpected product profile owner: ${profile.owner}`);
-  }
-  if (profile.purpose !== 'app_owned_product_profile') {
-    throw new Error(`Unexpected product profile purpose: ${profile.purpose}`);
-  }
-  if (profile.app_repo !== 'gaofeng21cn/one-person-lab-app') {
-    throw new Error(`Unexpected product profile repo: ${profile.app_repo}`);
-  }
+  assertAppProductProfileIdentity(profile, 'product profile');
 }
 
 function validateProductProfileContractRefs(profile) {
