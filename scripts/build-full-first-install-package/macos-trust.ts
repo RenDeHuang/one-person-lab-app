@@ -7,6 +7,7 @@ import {
   MACOS_TRUSTED_EXECUTABLE_PATTERNS,
 } from './paths.ts';
 import { run, runCapture } from './process.ts';
+import { pushDirectoryEntries } from '../filesystem-walk.ts';
 
 export function canRunMacosSigningChecks() {
   return process.platform === 'darwin';
@@ -57,9 +58,7 @@ export function listFullRuntimeNativeExecutables(runtimeRoot) {
     const current = stack.pop();
     const stat = fs.lstatSync(current);
     if (stat.isDirectory()) {
-      for (const entry of fs.readdirSync(current).sort().reverse()) {
-        stack.push(path.join(current, entry));
-      }
+      pushDirectoryEntries(stack, current);
       continue;
     }
     if (stat.isSymbolicLink()) {
