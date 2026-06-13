@@ -1031,6 +1031,61 @@ jobs:
             --allow-blocked
           cat release-candidate-record.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Build release closeout summary
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_RUN_ID: ${{ github.run_id }}
+          OPL_RELEASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          closeout_inputs="release-closeout-inputs"
+          mkdir -p \
+            "$closeout_inputs/release-candidate-record-${OPL_RELEASE_VERSION}" \
+            "$closeout_inputs/release-readiness-summary-${OPL_RELEASE_VERSION}" \
+            "$closeout_inputs/release-preflight-summary-${OPL_RELEASE_VERSION}" \
+            "$closeout_inputs/remote-release-verification-${OPL_RELEASE_VERSION}" \
+            "$closeout_inputs/opl-full-workflow-telemetry-${OPL_RELEASE_VERSION}" \
+            "$closeout_inputs/opl-full-diagnostics-${OPL_RELEASE_VERSION}"
+
+          candidate_source="release-candidate-record.json"
+          readiness_source="release-readiness-summary.json"
+          preflight_source="release-readiness-inputs/release-preflight-summary-${OPL_RELEASE_VERSION}/release-preflight-summary.json"
+          remote_source="release-readiness-inputs/remote-release-verification-${OPL_RELEASE_VERSION}/remote-release-verification.json"
+          telemetry_source="release-readiness-inputs/opl-full-workflow-telemetry-${OPL_RELEASE_VERSION}/full-workflow-telemetry.json"
+          diagnostics_source="release-readiness-inputs/opl-full-diagnostics-${OPL_RELEASE_VERSION}/runtime-cache-events.json"
+
+          if [ -f "$candidate_source" ]; then
+            cp "$candidate_source" "$closeout_inputs/release-candidate-record-${OPL_RELEASE_VERSION}/release-candidate-record.json"
+          fi
+          if [ -f "$readiness_source" ]; then
+            cp "$readiness_source" "$closeout_inputs/release-readiness-summary-${OPL_RELEASE_VERSION}/release-readiness-summary.json"
+          fi
+          if [ -f "$preflight_source" ]; then
+            cp "$preflight_source" "$closeout_inputs/release-preflight-summary-${OPL_RELEASE_VERSION}/release-preflight-summary.json"
+          fi
+          if [ -f "$remote_source" ]; then
+            cp "$remote_source" "$closeout_inputs/remote-release-verification-${OPL_RELEASE_VERSION}/remote-release-verification.json"
+          fi
+          if [ -f "$telemetry_source" ]; then
+            cp "$telemetry_source" "$closeout_inputs/opl-full-workflow-telemetry-${OPL_RELEASE_VERSION}/full-workflow-telemetry.json"
+          fi
+          if [ -f "$diagnostics_source" ]; then
+            cp "$diagnostics_source" "$closeout_inputs/opl-full-diagnostics-${OPL_RELEASE_VERSION}/runtime-cache-events.json"
+          fi
+
+          npm run release:closeout -- \
+            --version "$OPL_RELEASE_VERSION" \
+            --run-id "$OPL_RELEASE_RUN_ID" \
+            --repo "$OPL_RELEASE_REPO" \
+            --artifacts-dir "$closeout_inputs" \
+            --out-dir release-closeout \
+            --artifact-profile diagnostics \
+            --no-download
+          cat release-closeout/release-closeout.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload release readiness summary
         if: always()
         uses: actions/upload-artifact@v7
@@ -1049,4 +1104,14 @@ jobs:
           path: |
             release-candidate-record.json
             release-candidate-record.md
+          if-no-files-found: error
+
+      - name: Upload release closeout summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-closeout-${{ inputs.opl_version }}
+          path: |
+            release-closeout/release-closeout.json
+            release-closeout/release-closeout.md
           if-no-files-found: error

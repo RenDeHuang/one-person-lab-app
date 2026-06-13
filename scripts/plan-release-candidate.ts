@@ -418,7 +418,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       'release_evidence_bundle',
     ],
     can_run_with: [],
-    command: '.github/workflows/desktop-release.yml release-readiness-summary writes release-readiness-summary.json from small diagnostic artifacts and fails closed on any required gate',
+    command: '.github/workflows/desktop-release.yml release-readiness-summary writes release-readiness-summary.json, release-candidate-record.json, and default release-closeout.json from small diagnostic artifacts; fails closed on any required gate',
     required_for: ['stable_release'],
   });
 

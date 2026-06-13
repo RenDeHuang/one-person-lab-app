@@ -55,6 +55,14 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.match(job, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(job, /release-candidate-record\.json/);
   assert.match(job, /release-candidate-record\.md/);
+  assert.match(job, /Build release closeout summary/);
+  assert.match(job, /npm run release:closeout --/);
+  assert.match(job, /--no-download/);
+  assert.match(job, /release-closeout-inputs/);
+  assert.match(job, /release-closeout\/release-closeout\.json/);
+  assert.match(job, /release-closeout\/release-closeout\.md/);
+  assert.match(job, /Upload release closeout summary/);
+  assert.match(job, /release-closeout-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(job, /needs\[['"]?remote-verify-full['"]?\]\.result|needs\.remote-verify-full\.result/);
   assert.match(job, /release-readiness-job-results\.json/);
 });

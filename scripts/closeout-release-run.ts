@@ -484,13 +484,6 @@ function buildDecision(inputs: {
   const readinessStatus = sourceStatus(inputs.readiness);
   const tag = `v${inputs.options.version}`;
 
-  if (runStatus !== 'completed') {
-    return {
-      next_action: 'wait_for_release_run_completion',
-      reason: `Release run status is ${runStatus}.`,
-      command: `npm run release:closeout -- --version ${inputs.options.version} --run-id ${inputs.options.runId}`,
-    };
-  }
   if (candidateStatus === 'ready_to_promote') {
     const candidateDecision = asRecord(inputs.candidate?.decision);
     return {
@@ -512,6 +505,13 @@ function buildDecision(inputs: {
       next_action: 'resolve_readiness_failed_gates',
       reason: 'Readiness summary failed; inspect failed_required_gates before job logs.',
       command: `jq '.failed_required_gates' ${path.join(inputs.options.artifactsDir, `release-readiness-summary-${inputs.options.version}`, 'release-readiness-summary.json')}`,
+    };
+  }
+  if (runStatus !== 'completed') {
+    return {
+      next_action: 'wait_for_release_run_completion',
+      reason: `Release run status is ${runStatus}; structured promotion or blocker evidence is not complete yet.`,
+      command: `npm run release:closeout -- --version ${inputs.options.version} --run-id ${inputs.options.runId}`,
     };
   }
   if (inputs.jobs.failed_jobs.length > 0 || conclusion !== 'success') {
@@ -617,7 +617,8 @@ function buildSummary(options: Options) {
     jobs: jobSummary,
     decision,
     operator_loop_optimization: {
-      implemented_by: 'npm run release:closeout',
+      implemented_by: 'desktop-release.yml default release closeout artifact and npm run release:closeout rerun',
+      workflow_default_release_summary: 'release-readiness-summary job uploads release-closeout-<version> after the candidate record is written',
       reduced_manual_steps: [
         'repeated gh run watch / gh run view polling',
         'manual small-artifact selection and download',

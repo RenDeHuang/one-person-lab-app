@@ -195,3 +195,60 @@ test('release closeout stops at readiness failed gates before raw log inspection
     },
   ]);
 });
+
+test('release closeout uses candidate record inside an in-progress workflow job', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-closeout-default-'));
+  const artifactsRoot = path.join(tempRoot, 'release-closeout-inputs');
+  const outDir = path.join(tempRoot, 'release-closeout');
+  const runPath = path.join(tempRoot, 'run.json');
+  const jobsPath = path.join(tempRoot, 'jobs.json');
+  writeCloseoutArtifacts(artifactsRoot);
+  writeJson(runPath, {
+    databaseId: 12345,
+    status: 'in_progress',
+    conclusion: null,
+    createdAt: '2026-06-12T10:38:58Z',
+    startedAt: '2026-06-12T10:38:58Z',
+    updatedAt: '2026-06-12T11:18:25Z',
+    workflowName: 'OPL Desktop Release',
+    url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
+  });
+  writeJson(jobsPath, {
+    jobs: [
+      {
+        name: 'Summarize release readiness',
+        status: 'in_progress',
+        conclusion: null,
+        startedAt: '2026-06-12T11:17:00Z',
+        completedAt: null,
+      },
+    ],
+  });
+
+  const result = runCloseout([
+    '--version',
+    '26.5.99',
+    '--run-json',
+    runPath,
+    '--jobs-json',
+    jobsPath,
+    '--artifacts-dir',
+    artifactsRoot,
+    '--out-dir',
+    outDir,
+    '--artifact-profile',
+    'diagnostics',
+    '--no-download',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(path.join(outDir, 'release-closeout.json'), 'utf8'));
+  assert.equal(summary.run.status, 'in_progress');
+  assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
+  assert.equal(summary.decision.next_action, 'promote_from_candidate_record');
+  assert.doesNotMatch(summary.decision.reason, /not complete|wait/i);
+  assert.equal(summary.artifact_policy.downloads_large_artifacts, false);
+  assert.deepEqual(summary.artifact_policy.downloaded_artifacts, []);
+  assert.match(summary.operator_loop_optimization.implemented_by, /desktop-release\.yml default release closeout artifact/);
+  assert.match(summary.operator_loop_optimization.workflow_default_release_summary, /release-readiness-summary job uploads/);
+});

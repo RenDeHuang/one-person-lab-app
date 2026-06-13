@@ -219,18 +219,26 @@ orchestration wall time includes waiting on runs, artifact downloads, local
 readback, documentation, validation, commit/push/cleanup, and tool/model round
 trips.
 
-Use the closeout command to collapse release monitoring, small-artifact readback,
-and next-action selection into one local step:
+Every desktop release run now produces the closeout by default in the final
+`release-readiness-summary` job. That job writes and uploads
+`release-closeout-<version>` with `release-closeout.json` and
+`release-closeout.md` after `release-candidate-record.json` is written. It reads
+the same local small artifacts already used by readiness, runs with
+`--no-download`, refuses standard/Full package artifacts, and points the
+operator at `ready_to_promote`, candidate blockers, failed readiness gates, or
+raw log inspection only after structured evidence is missing.
+
+The local command is the rerun/debug path for the same logic, not a separate
+release step:
 
 ```bash
 npm run release:closeout -- --version <version> --run-id <github-actions-run-id> --artifact-profile diagnostics --agent-wall-time <duration>
 ```
 
-The command writes ignored local outputs under
+When run locally, the command writes ignored outputs under
 `artifacts/release-closeout/v<version>-<run_id>/`, downloads only final summary
-and diagnostic artifacts, refuses standard/Full package artifacts, and points the
-operator at `ready_to_promote`, candidate blockers, failed readiness gates, or
-raw log inspection only after structured evidence is missing.
+and diagnostic artifacts unless `--no-download` is passed, and can record the
+Agent orchestration wall time with `--agent-wall-time <duration>`.
 
 ## Purpose-Based Release Validation
 

@@ -21,7 +21,7 @@ verification can select a different linked shell repo with
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
 | `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates, Stable candidate-record promotion, and post-release `docs/user-guides` screenshot/source/artifact refresh with `npm run docs:macos-guide`. |
-| `closeout-release-run.ts` | Downloads only final small release summaries from a GitHub Actions run, writes `release-closeout.json/md`, separates GitHub Actions workflow wall time from Agent orchestration wall time, and points the operator at candidate blockers, failed gates, promotion, or log inspection. |
+| `closeout-release-run.ts` | Powers the default desktop release `release-closeout-<version>` artifact and local reruns; reads only final small release summaries, writes `release-closeout.json/md`, separates GitHub Actions workflow wall time from Agent orchestration wall time, and points the operator at candidate blockers, failed gates, promotion, or log inspection. |
 | `summarize-release-readiness.ts` | Aggregates small Stable gate artifacts and job results into `release-readiness-summary.json` and Markdown without downloading large DMG artifacts. |
 | `validate-release-candidate-record.ts` | Validates or summarizes `release-candidate-record.json`; promotion requires schema `opl_release_candidate_record.v1`, matching version, `status=ready_to_promote`, and `decision.can_promote=true`. |
 | `analyze-full-package-size.ts` | Reads `full-package-manifest.json` and reports Full runtime component/layer size, budget use, and optional runtime-root top entries. |
@@ -232,17 +232,21 @@ artifacts. Full remote tuning should read the small
 `opl-full-diagnostics-<version>` artifact before downloading any large package
 artifact.
 
-`release:closeout` is the operator-loop closeout entry for a completed or
-in-progress GitHub Actions release run. By default it writes ignored local output
-under `artifacts/release-closeout/v<version>-<run_id>/`, downloads only primary
-small artifacts (`release-candidate-record`, `release-readiness-summary`,
-`release-preflight-summary`, and `remote-release-verification`), and refuses the
-standard build and Full package workflow artifacts. Use
-`--artifact-profile diagnostics` to also fetch Full workflow telemetry and
-diagnostics, or `--artifact-profile readiness-inputs` when rebuilding the full
-readiness diagnosis locally. Pass `--agent-wall-time <duration>` only for the
-operator loop clock; GitHub Actions workflow wall time is always computed from
-run timestamps.
+`release:closeout` is wired into the desktop release workflow by default. The
+final `release-readiness-summary` job builds `release-closeout-<version>` after
+the candidate record, using the already downloaded small artifacts and
+`--no-download`; it does not fetch standard build or Full package workflow
+artifacts. The same npm script is the local rerun/debug entry for completed or
+in-progress GitHub Actions release runs. Local reruns write ignored output under
+`artifacts/release-closeout/v<version>-<run_id>/`, download only primary small
+artifacts (`release-candidate-record`, `release-readiness-summary`,
+`release-preflight-summary`, and `remote-release-verification`) unless
+`--no-download` is passed, and refuse the standard build and Full package
+workflow artifacts. Use `--artifact-profile diagnostics` to also fetch Full
+workflow telemetry and diagnostics, or `--artifact-profile readiness-inputs`
+when rebuilding the full readiness diagnosis locally. Pass
+`--agent-wall-time <duration>` only for the operator loop clock; GitHub Actions
+workflow wall time is always computed from run timestamps.
 
 The final stable release decision is `release-readiness-summary.json`, produced
 by `.github/workflows/desktop-release.yml` through
