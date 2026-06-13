@@ -146,12 +146,18 @@ Google Stitch 生成的 `One Person Lab` 设计稿可作为 `agui-codex` 和未�
   Automations 等 tabs 组织信息。
 - 视觉系统采用 Quiet Utility：`#f8f9fa` canvas、`#ffffff` active surface、
   `#e1e3e4/#c6c6cd` outline、`#111827/#191c1d` primary text/action、4px spacing
-  base、8px 以内 radius、轻 outline 替代重 shadow。
+  base、pill/circle controls、约 28-32px radius 的 composer sheet、轻 outline
+  替代重 shadow。
 - Typography 使用 Inter 为主，JetBrains Mono 仅用于 code、receipt、process 和
   technical refs。
 - Header route line、model status 和 composer status 必须保持辅助权重；主视觉
   锚点是 conversation reading lane 和 composer input。右侧 inspector 打开后要用
   spacing、outline 和清晰标题分层，避免所有 cards 同权重堆叠成 workbench。
+- Composer 是底部唯一主 action surface。第三方 chat input 的外层 adapter
+  container 必须透明，真正可见的输入 pill/sheet 只能有一层背景、一层 outline、
+  一组 shadow 和统一圆角裁剪；不能在圆角输入框背后露出白色矩形底板。Purpose、
+  workspace、send/stop 和 context controls 使用 pill/circle 形态，避免 4-10px
+  随机小圆角造成的方块感。
 - 双语界面中，中文 first screen 主标签使用 `科研`、`基金`、`演示`、`本机助手`
   和 `自动`，英文界面使用 `Research`、`Grant`、`Presentation`、
   `Local assistant` 和 `Auto`；`Codex CLI`、`MAS/MAG/RCA` 等技术标签进入
@@ -352,6 +358,10 @@ material。
   HTTP action routes 和 SSE event stream。
 - Candidate UI smoke 必须包含 pixel-visible paint check，避免 DOM-only pass
   掩盖视觉空白窗口。
+- Candidate UI smoke 必须包含 chat-first visual polish gate：composer 内层输入
+  surface 至少 28px radius、overflow clipping 生效、外层 Copilot/adapter 容器
+  透明、内部 layout 子层无额外白底/阴影，send/chip controls 达到 pill/circle
+  半径要求。
 - Candidate UI smoke 必须保持 AG-UI 作为内部 event boundary，并拒绝 ordinary
   chat surface 上出现用户可见 AG-UI/debug dashboard copy。
 

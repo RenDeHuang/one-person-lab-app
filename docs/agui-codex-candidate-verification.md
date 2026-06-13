@@ -183,6 +183,11 @@ assistant reply 可见为 `OK`。
 - Source 和 packaged UI smoke 还必须把窗口压到窄桌面/WebUI 宽度验证 context
   layer：workspace/session rail 与 inspector 仍是默认收起的二级层，但显式打开后
   inspector、context tabs 和 Routing tab 必须有真实可见尺寸。
+- Source 和 packaged UI smoke 还必须验证 chat-first visual polish：composer
+  只有一层可见圆润输入 surface，radius 至少 28px，overflow clipping 生效，
+  外层 CopilotKit/adapter container 透明，内部 layout 子层无额外白底或阴影；
+  send、workspace、purpose 和 icon controls 使用 pill/circle 半径，不能回退到
+  方块式 4-10px 随机圆角。
 - App-wrapper packaging 产出可启动 `.app`，包含 `Contents/Info.plist` 和
   `Contents/MacOS` executable。
 - Packaged UI smoke 针对 `.app` bundle 通过，并证明同样的 default-collapsed

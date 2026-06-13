@@ -329,16 +329,24 @@ App-owned workspace actions，但产品语义保持一致。
   tabs 和 Routing panel 必须可见，不能为了保留 chat-first 而让二级层按钮不可用。
 
 2026-06-02 的 Google Stitch `One Person Lab` 设计稿可作为视觉参考输入：
-采用 Quiet Utility 风格、灰阶 tonal layers、1px outline、8px 以内圆角、
+采用 Quiet Utility 风格、灰阶 tonal layers、1px outline、圆润但克制的控件、
 760px 左右 fixed reading lane、底部渐隐 pinned composer、窄 icon rail 和
 右侧 inspector。该 Stitch 产物只提供视觉 token 和布局比例参考，不成为源码、
 runtime、产品 truth 或 license authority。
 
 可吸收的视觉 token 是：`#f8f9fa` canvas、`#ffffff` active surface、
 `#e1e3e4/#c6c6cd` outline、`#111827/#191c1d` primary text/action、Inter 主字体、
-JetBrains Mono 技术文本、4px spacing base、cards 最大 8px radius、按钮和输入框
-轻 outline 而非重 shadow。普通 home 的视觉锚点应该是 conversation reading
-lane 和 composer，而不是大卡片容器。
+JetBrains Mono 技术文本、4px spacing base、pill chips、圆形 icon controls、
+约 28-32px radius 的 composer input sheet、轻 outline 而非重 shadow。普通 home
+的视觉锚点应该是 conversation reading lane 和 composer，而不是大卡片容器。
+
+Composer 必须呈现为一个完整的底部 command surface。若 shell 使用 CopilotKit、
+AG-UI 或其他第三方输入组件，外层 adapter/container 必须是透明布局容器，真正
+可见的输入 pill/sheet 只能有一层白色 surface、一个阴影层和统一圆角裁剪。不能
+出现圆角输入框背后露出白色矩形容器、双层卡片、未裁剪内部背景、或多个 shadow
+叠加的状态。Composer 相关 chips、send/stop、workspace 和 context icon controls
+使用 pill/circle 形态；右侧 inspector 内部的小型 cards 可保持紧凑，但不应出现
+4-8px 随机小圆角造成的方块感。
 
 视觉优化同样遵守 fork delta budget：优先用 CSS tokens、局部组件组合、profile
 driven labels 和现有 layout primitives 完成；只有当 App contract 明确需要新
@@ -368,3 +376,7 @@ renderer 结构变化。
   model selector 只作为 App-owned Codex 模型控制出现。
 - 普通 home 不显示 runtime activity、continue-work、activity refs grid、
   per-assistant running badges 或底部 feedback/favorite/web 图标。
+- Composer 是单一圆润 command surface；外层 adapter 容器透明，内层输入 surface
+  负责背景、outline、shadow 和 overflow clipping，不能露出矩形白底。
+- Nav、topbar、composer、chips、icon buttons 和 inspector controls 使用统一
+  radius tokens；普通控件呈 pill/circle，避免随机 4-10px 小圆角带来的方块感。

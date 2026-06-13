@@ -18,6 +18,16 @@ import {
   fileSha256,
 } from './helpers.ts';
 
+test('release evidence collector preserves argument error boundaries', () => {
+  const unknown = runNode(['scripts/collect-release-evidence.ts', '--unknown']);
+  assert.notEqual(unknown.status, 0);
+  assert.match(unknown.stderr, /Unknown argument: --unknown/);
+
+  const missingValue = runNode(['scripts/collect-release-evidence.ts', '--bundle-dir']);
+  assert.notEqual(missingValue.status, 0);
+  assert.match(missingValue.stderr, /Missing value for --bundle-dir/);
+});
+
 test('release evidence collector captures live OPL runtime refs and keeps missing App evidence explicit', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-collector-'));
   const fakeBin = path.join(tempRoot, 'bin');

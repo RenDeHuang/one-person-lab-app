@@ -38,18 +38,38 @@ type EvidenceArtifact = {
   path: string;
 };
 
+function readArgValue(argv: string[], index: number, token: string): string {
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`Missing value for ${token}`);
+  }
+  return value;
+}
+
+function setUniquePathOption(target: Record<string, string>, token: '--artifact' | '--typed-blocker', value: string): void {
+  const separatorIndex = value.indexOf('=');
+  if (separatorIndex <= 0 || separatorIndex === value.length - 1) {
+    throw new Error(`${token} must use <artifact_id>=<source_path>.`);
+  }
+  const artifactId = value.slice(0, separatorIndex);
+  if (Object.hasOwn(target, artifactId)) {
+    throw new Error(`Duplicate ${token} entry: ${artifactId}`);
+  }
+  target[artifactId] = path.resolve(value.slice(separatorIndex + 1));
+}
+
 function parseArgs(argv: string[]): Options {
   const parsed: Options = {
     bundleDir: process.env.OPL_RELEASE_EVIDENCE_BUNDLE_DIR || '',
-      actionId: process.env.OPL_RELEASE_EVIDENCE_ACTION_ID || '',
-      version: process.env.OPL_RELEASE_VERSION || '',
-      tag: process.env.OPL_RELEASE_TAG || '',
-      artifacts: {},
-      evidenceSourceDirs: [],
-      typedBlockers: {},
-      executeAction: false,
-      overwrite: false,
-      oplBin: process.env.OPL_BIN || 'opl',
+    actionId: process.env.OPL_RELEASE_EVIDENCE_ACTION_ID || '',
+    version: process.env.OPL_RELEASE_VERSION || '',
+    tag: process.env.OPL_RELEASE_TAG || '',
+    artifacts: {},
+    evidenceSourceDirs: [],
+    typedBlockers: {},
+    executeAction: false,
+    overwrite: false,
+    oplBin: process.env.OPL_BIN || 'opl',
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -62,88 +82,59 @@ function parseArgs(argv: string[]): Options {
       parsed.overwrite = true;
       continue;
     }
-    const value = argv[index + 1];
+    if (![
+      '--bundle-dir',
+      '--action-id',
+      '--version',
+      '--tag',
+      '--artifact',
+      '--evidence-source-dir',
+      '--typed-blocker',
+      '--opl-bin',
+    ].includes(token)) {
+      throw new Error(`Unknown argument: ${token}`);
+    }
+    const value = readArgValue(argv, index, token);
     if (token === '--bundle-dir') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --bundle-dir');
-      }
       parsed.bundleDir = value;
       index += 1;
       continue;
     }
     if (token === '--action-id') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --action-id');
-      }
       parsed.actionId = value;
       index += 1;
       continue;
     }
     if (token === '--version') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --version');
-      }
       parsed.version = value;
       index += 1;
       continue;
     }
     if (token === '--tag') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --tag');
-      }
       parsed.tag = value;
       index += 1;
       continue;
     }
     if (token === '--artifact') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --artifact');
-      }
-      const separatorIndex = value.indexOf('=');
-      if (separatorIndex <= 0 || separatorIndex === value.length - 1) {
-        throw new Error('--artifact must use <artifact_id>=<source_path>.');
-      }
-      const artifactId = value.slice(0, separatorIndex);
-      if (Object.hasOwn(parsed.artifacts, artifactId)) {
-        throw new Error(`Duplicate --artifact entry: ${artifactId}`);
-      }
-      parsed.artifacts[artifactId] = path.resolve(value.slice(separatorIndex + 1));
+      setUniquePathOption(parsed.artifacts, '--artifact', value);
       index += 1;
       continue;
     }
     if (token === '--evidence-source-dir') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --evidence-source-dir');
-      }
       parsed.evidenceSourceDirs.push(path.resolve(value));
       index += 1;
       continue;
     }
     if (token === '--typed-blocker') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --typed-blocker');
-      }
-      const separatorIndex = value.indexOf('=');
-      if (separatorIndex <= 0 || separatorIndex === value.length - 1) {
-        throw new Error('--typed-blocker must use <artifact_id>=<source_path>.');
-      }
-      const artifactId = value.slice(0, separatorIndex);
-      if (Object.hasOwn(parsed.typedBlockers, artifactId)) {
-        throw new Error(`Duplicate --typed-blocker entry: ${artifactId}`);
-      }
-      parsed.typedBlockers[artifactId] = path.resolve(value.slice(separatorIndex + 1));
+      setUniquePathOption(parsed.typedBlockers, '--typed-blocker', value);
       index += 1;
       continue;
     }
     if (token === '--opl-bin') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --opl-bin');
-      }
       parsed.oplBin = value;
       index += 1;
       continue;
     }
-    throw new Error(`Unknown argument: ${token}`);
   }
 
   if (!parsed.bundleDir.trim()) {
