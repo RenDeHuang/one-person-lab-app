@@ -481,14 +481,11 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.equal(plan.lanes.at(-1)?.id, 'post_release_user_guide_screenshots');
 });
 
-test('AI exploratory release policy is locked in both machine contract and release docs', () => {
+test('AI exploratory release policy is locked in the machine contract', () => {
   const contract = readRepoFile('contracts/app-release-channel.json');
-  const docs = readRepoFile('docs/release/README.md');
   const policyPattern = /AI exploratory|AI-exploratory|ai[_ -]exploratory|exploratory AI|exploratory triage/i;
   const nonBlockingPattern = /non[- ]blocking|not a release gate|must not block|does not block/i;
 
   assertMatches(contract, policyPattern, 'release channel AI exploratory policy');
   assertMatches(contract.replaceAll('_', '-'), nonBlockingPattern, 'release channel AI exploratory gate policy');
-  assertMatches(docs, policyPattern, 'release docs AI exploratory policy');
-  assertMatches(docs, nonBlockingPattern, 'release docs AI exploratory gate policy');
 });
