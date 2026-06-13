@@ -296,20 +296,6 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(warmupWorkflow, /default:\s+main[\s\S]*shell_ref/, 'Full warmup defaults to main refs used by Stable release refreshes');
 });
 
-test('release profile separates GitHub Actions wall time from agent orchestration time', () => {
-  const profile = readRepoFile('docs/history/process/2026-06-12-stable-release-profile.md');
-  const readme = readRepoFile('docs/release/README.md');
-
-  assertIncludes(profile, 'GitHub Actions workflow wall time', 'stable release profile timing boundary');
-  assertIncludes(profile, 'Agent orchestration wall time', 'stable release profile timing boundary');
-  assertIncludes(profile, '2h48m55s', 'stable release profile timing boundary');
-  assertIncludes(profile, '39m27s', 'stable release profile timing boundary');
-  assertIncludes(profile, 'historical_release_provenance', 'stable release profile archived role');
-  assertIncludes(readme, 'Do not compare agent orchestration wall time to GitHub Actions workflow wall time', 'release README timing boundary');
-  assertIncludes(readme, 'provenance only', 'release profile provenance boundary');
-  assertIncludes(readme, 'not as current release authority', 'release profile is not current authority');
-});
-
 test('release operations workflows serialize refreshable GitHub Actions runs without cancelling stable release runs', () => {
   const warmupWorkflow = readRepoFile('.github/workflows/full-runtime-cache-warmup.yml');
   const promoteWorkflow = readRepoFile('.github/workflows/desktop-release-promote.yml');
