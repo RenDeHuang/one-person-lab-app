@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertRepositoryRelativePath } from '../repository-relative-path.ts';
 import type { ActiveProjectLineStateModel } from './types.ts';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -148,12 +149,10 @@ export function assertDirectory(filePath: string, label: string): void {
 }
 
 export function assertRelativePath(value: unknown, label: string): asserts value is string {
-  if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`${label} must be a non-empty relative path`);
-  }
-  if (path.isAbsolute(value) || value.split(/[\\/]+/).includes('..')) {
-    throw new Error(`${label} must stay relative to the candidate shell root`);
-  }
+  assertRepositoryRelativePath(value, {
+    empty: `${label} must be a non-empty relative path`,
+    unsafe: `${label} must stay relative to the candidate shell root`,
+  });
 }
 
 export function findMacAppExecutable(macOsDir: string, candidateId: string): string {

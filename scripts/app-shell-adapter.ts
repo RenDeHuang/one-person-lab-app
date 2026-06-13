@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertRepositoryRelativePath } from './repository-relative-path.ts';
 
 export type ShellPathContract = {
   package_manifest: string;
@@ -127,12 +128,10 @@ function readJson(filePath: string): unknown {
 }
 
 function assertRelativePath(value: unknown, label: string): asserts value is string {
-  if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`Invalid active shell ${label}: expected non-empty relative path`);
-  }
-  if (path.isAbsolute(value) || value.split(/[\\/]+/).includes('..')) {
-    throw new Error(`Invalid active shell ${label}: must be a repository-relative path`);
-  }
+  assertRepositoryRelativePath(value, {
+    empty: `Invalid active shell ${label}: expected non-empty relative path`,
+    unsafe: `Invalid active shell ${label}: must be a repository-relative path`,
+  });
 }
 
 function resolveRepoRelativePath(value: string, label: string): string {
