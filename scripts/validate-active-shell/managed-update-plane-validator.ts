@@ -195,6 +195,15 @@ export function validateReleaseManagedUpdatePlaneLanes(managedUpdatePlane) {
 }
 
 export function validateReleaseRuntimeToolchainUpdater(runtimeUpdater, managedUpdatePlane) {
+  validateReleaseRuntimeToolchainChannelPolicy(runtimeUpdater);
+  validateReleaseRuntimeToolchainManagedComponents(runtimeUpdater);
+  validateReleaseRuntimeToolchainLayering(runtimeUpdater);
+  validateReleaseRuntimeToolchainSystemPolicy(runtimeUpdater);
+  validateReleaseRuntimeToolchainVerification(runtimeUpdater);
+  validateReleaseRuntimeToolchainPlaneBinding(runtimeUpdater, managedUpdatePlane);
+}
+
+function validateReleaseRuntimeToolchainChannelPolicy(runtimeUpdater) {
   if (
     runtimeUpdater?.owner !== 'one-person-lab-app' ||
     runtimeUpdater?.role !== 'app_owned_runtime_fallback_and_toolchain_layer_updates' ||
@@ -211,8 +220,11 @@ export function validateReleaseRuntimeToolchainUpdater(runtimeUpdater, managedUp
   ) {
     throw new Error('Release channel runtime/toolchain updater must be a silent App-owned runtime fallback channel separate from standard updater and Homebrew');
   }
+}
+
+function validateReleaseRuntimeToolchainManagedComponents(runtimeUpdater) {
   assertIncludesAll(
-    runtimeUpdater.managed_components,
+    runtimeUpdater?.managed_components,
     [
       'codex_cli_fallback',
       'temporal_cli_archive',
@@ -227,28 +239,32 @@ export function validateReleaseRuntimeToolchainUpdater(runtimeUpdater, managedUp
     ],
     'Release channel runtime/toolchain updater managed components',
   );
+}
+
+function validateReleaseRuntimeToolchainLayering(runtimeUpdater) {
   if (
-    runtimeUpdater.layering?.runtime_root !== '~/Library/Application Support/OPL/runtime' ||
-    runtimeUpdater.layering?.current_pointer !== '~/Library/Application Support/OPL/runtime/current.json' ||
-    runtimeUpdater.layering?.activation !== 'swap_current_pointer_on_app_restart_after_startup_smoke' ||
-    runtimeUpdater.layering?.rollback !== 'restore_previous_pointer_when_startup_smoke_fails'
+    runtimeUpdater?.layering?.runtime_root !== '~/Library/Application Support/OPL/runtime' ||
+    runtimeUpdater?.layering?.current_pointer !== '~/Library/Application Support/OPL/runtime/current.json' ||
+    runtimeUpdater?.layering?.activation !== 'swap_current_pointer_on_app_restart_after_startup_smoke' ||
+    runtimeUpdater?.layering?.rollback !== 'restore_previous_pointer_when_startup_smoke_fails'
   ) {
     throw new Error('Release channel runtime/toolchain updater must stage runtime layers and atomically activate through the runtime current pointer');
   }
-  validateReleaseRuntimeToolchainSystemPolicy(runtimeUpdater);
-  validateReleaseRuntimeToolchainVerification(runtimeUpdater);
+}
+
+function validateReleaseRuntimeToolchainPlaneBinding(runtimeUpdater, managedUpdatePlane) {
   if (
-    runtimeUpdater.managed_update_plane !== 'runtime_toolchain' ||
-    runtimeUpdater.kernel !== 'opl_managed_updater_kernel' ||
-    runtimeUpdater.adapter !== 'runtime_toolchain_adapter' ||
-    runtimeUpdater.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
-    runtimeUpdater.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
-    runtimeUpdater.app_role !== 'status_conditions_repair_actions_consumer_only'
+    runtimeUpdater?.managed_update_plane !== 'runtime_toolchain' ||
+    runtimeUpdater?.kernel !== 'opl_managed_updater_kernel' ||
+    runtimeUpdater?.adapter !== 'runtime_toolchain_adapter' ||
+    runtimeUpdater?.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
+    runtimeUpdater?.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
+    runtimeUpdater?.app_role !== 'status_conditions_repair_actions_consumer_only'
   ) {
     throw new Error('Release channel runtime/toolchain updater must bind to the managed update plane runtime lane');
   }
   assertDeepEqualJson(
-    runtimeUpdater.status_sources,
+    runtimeUpdater?.status_sources,
     [
       'opl app state --profile fast --json#managed_update_plane.runtime_toolchain',
       'opl update status --json#runtime_toolchain',
@@ -256,7 +272,7 @@ export function validateReleaseRuntimeToolchainUpdater(runtimeUpdater, managedUp
     'Release channel runtime updater status sources',
   );
   assertIncludesAll(
-    runtimeUpdater.forbidden_silent_overwrite_scope,
+    runtimeUpdater?.forbidden_silent_overwrite_scope,
     managedUpdatePlane?.forbidden_silent_overwrite_scope,
     'Release channel runtime updater forbidden silent overwrite scope',
   );

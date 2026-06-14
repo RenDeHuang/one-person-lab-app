@@ -120,6 +120,14 @@ function validateGoldenAppStateFixture(gate) {
   assertFile(fixturePath, 'OPL App state golden fixture');
   const fixtureText = readFileSync(fixturePath, 'utf8');
   const fixture = JSON.parse(fixtureText);
+  validateGoldenAppStateFixtureBasics(fixtureText, fixture, gate);
+  validateCurrentOwnerDeltaCockpitFixture(fixture);
+  validateGoldenAppStateTaskDrilldowns(fixture);
+  validateGoldenAppStateActiveProjects(fixture);
+  validateGoldenAppStateRequiredCollections(fixture);
+}
+
+function validateGoldenAppStateFixtureBasics(fixtureText, fixture, gate) {
   if (Buffer.byteLength(fixtureText, 'utf8') >= gate.fast_state_max_bytes) {
     throw new Error(`OPL App state golden fixture must stay below ${gate.fast_state_max_bytes} bytes.`);
   }
@@ -141,7 +149,9 @@ function validateGoldenAppStateFixture(gate) {
   if (lookupPath(fixture, 'app_state.operator.workbench.performance_policy.shell_must_not_derive_layout_from_raw_runtime_projection') !== true) {
     throw new Error('OPL App state golden fixture must forbid shell-side layout derivation from raw runtime projection.');
   }
-  validateCurrentOwnerDeltaCockpitFixture(fixture);
+}
+
+function validateGoldenAppStateTaskDrilldowns(fixture) {
   const taskDrilldowns = lookupPath(fixture, 'app_state.operator.workbench.task_drilldowns') ?? [];
   const platformRepairExample = taskDrilldowns.find(
     (task) => task?.progress_delta_classification === 'platform_repair',
@@ -186,6 +196,9 @@ function validateGoldenAppStateFixture(gate) {
     stageRunCockpitExample,
     'OPL App state golden fixture StageRun cockpit projection',
   );
+}
+
+function validateGoldenAppStateActiveProjects(fixture) {
   const activeProjectSummaryCard = (lookupPath(fixture, 'app_state.operator.workbench.summary_cards') ?? []).find(
     (card) => card?.card_id === 'active_projects',
   );
@@ -212,6 +225,9 @@ function validateGoldenAppStateFixture(gate) {
   if (queuedOrEscalatedProject.active_worker_run === true || queuedOrEscalatedProject.provider_execution_running === true) {
     throw new Error('OPL App state active project line must not claim an active worker run.');
   }
+}
+
+function validateGoldenAppStateRequiredCollections(fixture) {
   for (const [pathName, label] of Object.entries({
     'app_state.operator.workbench.summary_cards': 'summary cards',
     'app_state.operator.workbench.sections': 'sections',
