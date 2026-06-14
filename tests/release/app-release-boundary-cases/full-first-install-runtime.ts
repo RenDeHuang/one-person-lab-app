@@ -703,10 +703,10 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /npmBin: requireNodeToolchainFile\(nodeBinDir, 'npm'/);
   assert.match(buildScript, /npxBin: requireNodeToolchainFile\(nodeBinDir, 'npx'/);
   assert.match(buildScript, /npmRoot: requireNodeToolchainDirectory\(path\.join\(nodeRoot, 'lib', 'node_modules', 'npm'\)/);
-  assert.match(buildScript, /bunBin: process\.env\.OPL_FULL_BUN_BIN \|\| ''/);
+  assert.match(buildScript, /bunBin: envValue\('OPL_FULL_BUN_BIN', ''\)/);
   assert.match(buildScript, /includeBunRuntime: process\.env\.OPL_FULL_INCLUDE_BUN_RUNTIME === '1'/);
-  assert.match(buildScript, /temporalCliBin: process\.env\.OPL_FULL_TEMPORAL_CLI_BIN \|\| ''/);
-  assert.match(buildScript, /temporalCliArchive: process\.env\.OPL_FULL_TEMPORAL_CLI_ARCHIVE \|\| ''/);
+  assert.match(buildScript, /temporalCliBin: envValue\('OPL_FULL_TEMPORAL_CLI_BIN', ''\)/);
+  assert.match(buildScript, /temporalCliArchive: envValue\('OPL_FULL_TEMPORAL_CLI_ARCHIVE', ''\)/);
   assert.doesNotMatch(buildScript, /--hermes-root/);
   assertFullFirstInstallOptionTables(buildScript);
   assert.match(buildScript, /function findBunBinary\(explicitBunBin\)/);
@@ -782,7 +782,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /key_inputs: cacheKeyInputs/);
   assert.match(buildScript, /resolveFullDmgCompressionLevel\(\)/);
   assert.match(buildScript, /dmg_compression_level: process\.env\.ELECTRON_BUILDER_COMPRESSION_LEVEL/);
-  assert.match(buildScript, /guiRoot: process\.env\.OPL_FULL_GUI_ROOT \|\| resolveActiveShellPaths\(\)\.shellRoot/);
+  assert.match(buildScript, /guiRoot: envValue\('OPL_FULL_GUI_ROOT', resolveActiveShellPaths\(\)\.shellRoot\)/);
   assert.doesNotMatch(buildScript, /guiRoot: process\.env\.OPL_FULL_GUI_ROOT \|\| path\.join\(appRepoRoot, 'shells', 'aionui'\)/);
   assert.match(buildScript, /syncAppProductProfileToShell\(options\.guiRoot\)/);
   const fullRuntimeWrapperScript = fs.readFileSync(
@@ -841,10 +841,10 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.match(buildScript, /pruneTemporalCoreBridgeReleases\(path\.join\(targetRoot, 'node_modules'\)\)/);
   assert.match(buildScript, /assertTemporalCoreBridgeMacosArm64Only\(path\.join\(runtimeRoot, 'opl', 'node_modules'\)\)/);
   assert.match(buildScript, /runtimeAssertions: collectRuntimeAssertions\(runtimeRoot\)/);
-  assert.match(buildScript, /bunBin: process\.env\.OPL_FULL_BUN_BIN \|\| ''/);
+  assert.match(buildScript, /bunBin: envValue\('OPL_FULL_BUN_BIN', ''\)/);
   assert.match(buildScript, /includeBunRuntime: process\.env\.OPL_FULL_INCLUDE_BUN_RUNTIME === '1'/);
-  assert.match(buildScript, /temporalCliBin: process\.env\.OPL_FULL_TEMPORAL_CLI_BIN \|\| ''/);
-  assert.match(buildScript, /temporalCliArchive: process\.env\.OPL_FULL_TEMPORAL_CLI_ARCHIVE \|\| ''/);
+  assert.match(buildScript, /temporalCliBin: envValue\('OPL_FULL_TEMPORAL_CLI_BIN', ''\)/);
+  assert.match(buildScript, /temporalCliArchive: envValue\('OPL_FULL_TEMPORAL_CLI_ARCHIVE', ''\)/);
   assertFullFirstInstallOptionTables(buildScript);
   assert.match(buildScript, /function findTemporalCliBinary\(explicitBin\)/);
   assert.match(buildScript, /function findTemporalCliArchive\(explicitArchive\)/);
