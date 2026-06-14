@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  validateGuiProductContractPolicyFields,
+  validateValidationCommandShape,
+} from './app-shell-adapter-contract-validators.ts';
 import { assertRepositoryRelativePath } from './repository-relative-path.ts';
 
 export type ShellPathContract = {
@@ -251,27 +255,7 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
       throw new Error(`active shell capabilities must include ${capability}`);
     }
   }
-  if (contract.gui_product_contract !== 'contracts/app-gui-product-contract.json') {
-    throw new Error(`Unexpected active shell gui_product_contract: ${contract.gui_product_contract}`);
-  }
-  if (contract.gui_product_contract_policy?.must_implement !== true) {
-    throw new Error('active shell must implement the App GUI product contract');
-  }
-  if (contract.gui_product_contract_policy.source_of_truth !== 'one-person-lab-app') {
-    throw new Error('active shell GUI product contract source of truth must stay in one-person-lab-app');
-  }
-  if (contract.gui_product_contract_policy.upstream_override_allowed !== false) {
-    throw new Error('AionUI upstream must not override App GUI product truth');
-  }
-  if (contract.gui_product_contract_policy.upstream_family_role !== 'implementation_material_only') {
-    throw new Error(`Unexpected upstream GUI role: ${contract.gui_product_contract_policy.upstream_family_role}`);
-  }
-  if (
-    contract.gui_product_contract_policy.upstream_must_not_override_app_truth !== true
-    && contract.gui_product_contract_policy.aionui_upstream_must_not_override_app_truth !== true
-  ) {
-    throw new Error('active shell must declare that upstream GUI behavior cannot override App truth');
-  }
+  validateGuiProductContractPolicyFields(contract);
   const stateSurface = contract.state_surface_contract;
   if (stateSurface?.primary_read_command !== 'opl app state --profile fast --json') {
     throw new Error(`Unexpected active shell primary state read command: ${stateSurface?.primary_read_command}`);
@@ -292,13 +276,7 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
     throw new Error(`Unexpected active shell full drilldown exception: ${stateSurface.full_drilldown_exception}`);
   }
   assertStringArray(stateSurface.forbidden_gui_truth_sources, 'state_surface_contract.forbidden_gui_truth_sources');
-  if (!Array.isArray(contract.validation_commands) || contract.validation_commands.length === 0) {
-    throw new Error('validation_commands must be a non-empty array');
-  }
-  for (const entry of contract.validation_commands) {
-    if (!entry.id || !entry.cwd || !entry.command) {
-      throw new Error(`Invalid validation command entry: ${JSON.stringify(entry)}`);
-    }
+  for (const entry of validateValidationCommandShape(contract)) {
     assertRelativePath(entry.cwd, `validation_commands.${entry.id}.cwd`);
   }
   return contract;
