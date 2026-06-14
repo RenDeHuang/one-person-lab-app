@@ -93,18 +93,15 @@ relative `.app` bundle path whose bundle contains `Contents/Info.plist` and a
 shell resources as `opl-install.sh`, which is the packaged standard DMG
 bootstrap carrier used when clean first launch cannot find `opl`.
 
-Full size policy lives in `docs/release/README.md`: release review records the
-compressed DMG size, uncompressed runtime size, and layer breakdown, then uses
-`verify-remote-release-assets.ts` as the remote verifier size budget check for
-published GitHub Release assets. The remote verifier enforces the compressed
-Full DMG budget from the GitHub asset size and the uncompressed runtime budget
-from `full-package-manifest.json` `size_breakdown.total_runtime_uncompressed_bytes`.
-`warning_full_dmg_bytes=700000000` is a release-readiness warning threshold for
-the post-Temporal Full baseline; `max_full_dmg_bytes=750000000` is a review
-threshold that records a warning without blocking Stable publication. The
-uncompressed Full runtime budget is `max_runtime_uncompressed_bytes=1000000000`;
-this fails closed on the 26.6.5/26.6.7 Temporal expanded-binary regression,
-duplicated checkouts, stale payloads, or standard-updater leakage.
+Full size policy lives in
+`contracts/app-release-channel.json#full_first_install.size_budget` and the Full
+manifest `size_budget`; `docs/release/README.md` is the operator map. Release
+review records the compressed DMG size, uncompressed runtime size, and layer
+breakdown, then uses `verify-remote-release-assets.ts` as the remote verifier
+size budget check for published GitHub Release assets. The remote verifier
+enforces the compressed Full DMG budget from the GitHub asset size and the
+uncompressed runtime budget from `full-package-manifest.json`
+`size_breakdown.total_runtime_uncompressed_bytes`.
 `npm run release:full:size -- --markdown` prints the same component and layer
 breakdown plus manifest size hotspots for local review and is appended to the
 Full GitHub Actions summary.

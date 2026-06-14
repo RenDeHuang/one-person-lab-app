@@ -21,7 +21,7 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 | Release channel policy, standard/Full separation, updater metadata, managed update plane, release evidence requirements | `contracts/app-release-channel.json` |
 | Release workflow shape and publish/promote sequencing | `.github/workflows/desktop-release*.yml`, `.github/workflows/homebrew-tap-update.yml`, release scripts |
 | Release evidence classification and boundary validation | `scripts/validate-release-boundary.ts`, `scripts/validate-release.ts`, release-boundary tests |
-| Full payload and size budgets | `scripts/verify-remote-release-assets.ts`, `scripts/release-full-size-report.ts`, `contracts/app-release-channel.json`, this guide's Full size policy |
+| Full payload and size budgets | `contracts/app-release-channel.json#full_first_install.size_budget`, Full manifest `size_budget`, `scripts/verify-remote-release-assets.ts`, `scripts/release-full-size-report.ts` |
 | App/root shell boundary | `contracts/app-shell-adapter.json`, `scripts/app-root-boundary.ts`, `scripts/validate-active-shell.ts` |
 | Install exposure and managed agent package visibility | `contracts/app-install-exposure-policy.json`, `npm run validate:agent-installation` |
 | Runtime/toolchain managed update execution | OPL Framework `opl update status/check/plan/apply/repair/rollback --json` runner outputs |
@@ -197,11 +197,11 @@ enforces the compressed Full DMG budget from the GitHub asset size and the
 uncompressed runtime budget from `full-package-manifest.json`
 `size_breakdown.total_runtime_uncompressed_bytes`.
 
-Current policy values:
-
-- `warning_full_dmg_bytes=700000000` is a release-readiness warning threshold.
-- `max_full_dmg_bytes=750000000` is a review threshold that records a warning without blocking Stable publication.
-- `max_runtime_uncompressed_bytes=1000000000` fails closed for expanded-binary regressions, duplicated checkouts, stale payloads, or standard-updater leakage.
+Current policy values live in
+`contracts/app-release-channel.json#full_first_install.size_budget` and are
+copied into the Full manifest `size_budget`. Treat the contract and manifest as
+the source for warning/review/runtime thresholds; this guide only records the
+operator path and measurement boundary.
 
 Local review:
 
