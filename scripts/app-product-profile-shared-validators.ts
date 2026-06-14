@@ -127,24 +127,25 @@ export function assertAppProductProfileCodexModelDisplayOptions(
   const auto = displayOptions?.auto_option;
   const visibleModels = displayOptions?.visible_models ?? [];
   const frontierOrder = profile.gui?.home?.codex_auto_model_selection?.frontier_model_preference_order;
-  if (
-    displayOptions?.display_policy !== 'friendly_model_name_and_reasoning_for_every_visible_option' ||
-    displayOptions.raw_model_id_visible_in_ordinary_ui !== false ||
-    displayOptions.reasoning_effort_visible_for_every_option !== true ||
-    displayOptions.default_reasoning_effort !== profile.codex?.default_reasoning_effort ||
-    auto?.label_zh !== '自动（推荐）' ||
-    auto?.label_en !== 'Auto (recommended)' ||
-    auto?.resolved_model !== profile.codex?.default_model ||
-    auto?.resolved_reasoning_effort !== profile.codex?.default_reasoning_effort ||
-    auto?.follows_latest_strongest !== true ||
-    displayOptions.fixed_model_description_zh !== '固定此模型' ||
-    displayOptions.fixed_model_description_en !== 'Use this model' ||
-    displayOptions.reasoning_labels?.xhigh?.zh !== '推理超高' ||
-    displayOptions.reasoning_labels?.xhigh?.en !== 'Ultra reasoning' ||
-    JSON.stringify(visibleModels.map((model) => model.id)) !== JSON.stringify(frontierOrder)
-  ) {
-    throw new Error(`${label} GUI home must expose friendly Codex model display options with reasoning labels`);
-  }
+  assertExpectedFields(
+    [
+      { actual: displayOptions?.display_policy, expected: 'friendly_model_name_and_reasoning_for_every_visible_option' },
+      { actual: displayOptions?.raw_model_id_visible_in_ordinary_ui, expected: false },
+      { actual: displayOptions?.reasoning_effort_visible_for_every_option, expected: true },
+      { actual: displayOptions?.default_reasoning_effort, expected: profile.codex?.default_reasoning_effort },
+      { actual: auto?.label_zh, expected: '自动（推荐）' },
+      { actual: auto?.label_en, expected: 'Auto (recommended)' },
+      { actual: auto?.resolved_model, expected: profile.codex?.default_model },
+      { actual: auto?.resolved_reasoning_effort, expected: profile.codex?.default_reasoning_effort },
+      { actual: auto?.follows_latest_strongest, expected: true },
+      { actual: displayOptions?.fixed_model_description_zh, expected: '固定此模型' },
+      { actual: displayOptions?.fixed_model_description_en, expected: 'Use this model' },
+      { actual: displayOptions?.reasoning_labels?.xhigh?.zh, expected: '推理超高' },
+      { actual: displayOptions?.reasoning_labels?.xhigh?.en, expected: 'Ultra reasoning' },
+      { actual: JSON.stringify(visibleModels.map((model) => model.id)), expected: JSON.stringify(frontierOrder) },
+    ],
+    `${label} GUI home must expose friendly Codex model display options with reasoning labels`,
+  );
   if (
     options.requireAutoIdAndDescriptions &&
     (
