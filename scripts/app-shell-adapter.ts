@@ -162,6 +162,18 @@ function resolveAdapterContractPath(): string {
 
 export function readAppShellAdapterContract(filePath = resolveAdapterContractPath()): ShellAdapterContract {
   const contract = readJson(filePath) as ShellAdapterContract;
+  assertAdapterContractIdentity(contract);
+  assertAdapterGuiAuthority(contract);
+  assertActiveShellSpecificPolicy(contract);
+  assertShellReplacementPolicy(contract);
+  assertShellContractPathsAndCapabilities(contract);
+  validateGuiProductContractPolicyFields(contract);
+  assertStateSurfaceContract(contract);
+  assertValidationCommandPaths(contract);
+  return contract;
+}
+
+function assertAdapterContractIdentity(contract: ShellAdapterContract): void {
   if (contract.owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected active shell owner: ${contract.owner}`);
   }
@@ -177,6 +189,9 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
   if (contract.shell_source?.history_policy !== 'external_checkout_not_merged_into_app_default_branch') {
     throw new Error(`Unexpected shell history policy: ${contract.shell_source?.history_policy}`);
   }
+}
+
+function assertAdapterGuiAuthority(contract: ShellAdapterContract): void {
   if (contract.gui_authority?.source_of_truth !== 'one-person-lab-app') {
     throw new Error('active shell GUI authority must stay in one-person-lab-app');
   }
@@ -189,6 +204,9 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
   if (contract.gui_authority.upstream_intake_policy !== 'check_against_app_owned_gui_contracts_before_acceptance') {
     throw new Error(`Unexpected GUI upstream intake policy: ${contract.gui_authority.upstream_intake_policy}`);
   }
+}
+
+function assertActiveShellSpecificPolicy(contract: ShellAdapterContract): void {
   if (contract.active_shell === 'aionui') {
     if (contract.upstream_intake?.classification_policy !== 'classify_each_upstream_feature_before_app_release') {
       throw new Error('active shell upstream intake must classify upstream features before release');
@@ -207,6 +225,9 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
       throw new Error('active shell disabled Team policy must prevent Team MCP inheritance during agent switching');
     }
   }
+}
+
+function assertShellReplacementPolicy(contract: ShellAdapterContract): void {
   if (contract.shell_replacement_policy?.candidate_root_pattern !== 'shells/<candidate>') {
     throw new Error('active shell replacement policy must keep candidates under shells/<candidate>');
   }
@@ -223,6 +244,9 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
   if (contract.shell_replacement_policy.adoption_gate.includes('declare candidate in contracts/app-shell-adapter.json')) {
     throw new Error('active shell replacement policy must not declare candidates inside contracts/app-shell-adapter.json');
   }
+}
+
+function assertShellContractPathsAndCapabilities(contract: ShellAdapterContract): void {
   assertRelativePath(contract.shell_root, 'shell_root');
   assertRelativePath(contract.runtime_bridge_contract, 'runtime_bridge_contract');
   assertRelativePath(contract.shell_source?.checkout_path, 'shell_source.checkout_path');
@@ -255,7 +279,9 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
       throw new Error(`active shell capabilities must include ${capability}`);
     }
   }
-  validateGuiProductContractPolicyFields(contract);
+}
+
+function assertStateSurfaceContract(contract: ShellAdapterContract): void {
   const stateSurface = contract.state_surface_contract;
   if (stateSurface?.primary_read_command !== 'opl app state --profile fast --json') {
     throw new Error(`Unexpected active shell primary state read command: ${stateSurface?.primary_read_command}`);
@@ -276,10 +302,12 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
     throw new Error(`Unexpected active shell full drilldown exception: ${stateSurface.full_drilldown_exception}`);
   }
   assertStringArray(stateSurface.forbidden_gui_truth_sources, 'state_surface_contract.forbidden_gui_truth_sources');
+}
+
+function assertValidationCommandPaths(contract: ShellAdapterContract): void {
   for (const entry of validateValidationCommandShape(contract)) {
     assertRelativePath(entry.cwd, `validation_commands.${entry.id}.cwd`);
   }
-  return contract;
 }
 
 function resolveActiveShellRoot(contract = readAppShellAdapterContract()): string {
