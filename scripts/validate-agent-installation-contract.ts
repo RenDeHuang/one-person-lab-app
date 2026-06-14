@@ -68,6 +68,24 @@ function assertIncludesAll(actual: unknown, expected: string[], label: string): 
   }
 }
 
+function assertFieldsEqual(actual: any, expectedFields: Record<string, unknown>, label: string): void {
+  for (const [field, expected] of Object.entries(expectedFields)) {
+    assertEqual(actual?.[field], expected, `${label}.${field}`);
+  }
+}
+
+function assertArrayFieldsEqual(actual: any, expectedFields: Record<string, string[]>, label: string): void {
+  for (const [field, expected] of Object.entries(expectedFields)) {
+    assertArrayEqual(actual?.[field], expected, `${label}.${field}`);
+  }
+}
+
+function assertArrayFieldsInclude(actual: any, expectedFields: Record<string, string[]>, label: string): void {
+  for (const [field, expected] of Object.entries(expectedFields)) {
+    assertIncludesAll(actual?.[field], expected, `${label}.${field}`);
+  }
+}
+
 type ParsedArgs = {
   agentRoots: AgentRootMap;
   codexSkillsRoot: string | null;
@@ -164,165 +182,107 @@ function validateNoDuplicateBareDomainSkills(root: string | null): string | null
 }
 
 function validateContract(policy: any, profile: any, packageJson: any, agentRoots: AgentRootMap): void {
-  assertEqual(policy.owner, 'one-person-lab-app', 'policy.owner');
-  assertEqual(policy.producer_owner, 'one-person-lab', 'policy.producer_owner');
-  assertEqual(policy.public_abi?.primary_semantic_entry, 'skill', 'public ABI primary semantic entry');
-  assertEqual(
-    policy.public_abi?.plugin_role,
-    'codex_app_distribution_and_capability_bundle',
-    'public ABI plugin role',
-  );
-  assertEqual(policy.public_abi?.direct_skill_compatibility_required, true, 'direct skill compatibility');
-  assertEqual(policy.public_abi?.plugin_must_not_create_second_semantics, true, 'plugin second semantics guard');
-  assertEqual(
-    policy.public_abi?.app_must_not_mirror_plugin_skill_as_duplicate_bare_skill,
-    true,
-    'duplicate bare skill guard',
-  );
+  validatePublicAbi(policy, packageJson);
+  const contract = validateAgentInstallationContract(policy);
+  validateManagedAgentPackDistribution(contract);
+  validatePluginRegistrationInputs(contract);
+  validateExposureClasses(policy, contract);
+  validateProfileCompanionPayloads(profile);
+  validateAgentInstallEntries(policy, contract, agentRoots);
+}
+
+function validatePublicAbi(policy: any, packageJson: any): void {
+  assertFieldsEqual(policy, {
+    owner: 'one-person-lab-app',
+    producer_owner: 'one-person-lab',
+  }, 'policy');
+  assertFieldsEqual(policy.public_abi, {
+    primary_semantic_entry: 'skill',
+    plugin_role: 'codex_app_distribution_and_capability_bundle',
+    direct_skill_compatibility_required: true,
+    plugin_must_not_create_second_semantics: true,
+    app_must_not_mirror_plugin_skill_as_duplicate_bare_skill: true,
+  }, 'public ABI');
   assertEqual(
     packageJson.scripts?.['validate:agent-installation'],
     'node --experimental-strip-types scripts/validate-agent-installation-contract.ts',
     'package validate:agent-installation script',
   );
+}
 
+function validateAgentInstallationContract(policy: any): any {
   const contract = policy.agent_installation_contract;
   if (!contract) {
     fail('missing agent_installation_contract');
   }
-  assertEqual(contract.owner, 'one-person-lab-app', 'agent contract owner');
-  assertEqual(contract.producer_owner, 'one-person-lab', 'agent contract producer owner');
-  assertEqual(contract.unified_sync_command, 'opl connect sync-skills', 'agent contract unified sync command');
-  assertEqual(contract.managed_install_source, 'opl_managed_modules', 'agent contract managed source');
-  assertEqual(
-    contract.user_agent_installation_mode,
-    'consume_shared_skill_action_stage_metadata',
-    'agent contract user installation mode',
-  );
-  assertEqual(contract.codex_plugin_registry_target, 'codex_plugin_registry', 'plugin registry target');
-  assertEqual(contract.direct_skill_target, 'codex_user_skill_discovery_path', 'direct skill target');
-  assertEqual(contract.product_entry_target, 'family-product-entry-manifest-v2', 'product entry target');
+  assertFieldsEqual(contract, {
+    owner: 'one-person-lab-app',
+    producer_owner: 'one-person-lab',
+    unified_sync_command: 'opl connect sync-skills',
+    managed_install_source: 'opl_managed_modules',
+    user_agent_installation_mode: 'consume_shared_skill_action_stage_metadata',
+    codex_plugin_registry_target: 'codex_plugin_registry',
+    direct_skill_target: 'codex_user_skill_discovery_path',
+    product_entry_target: 'family-product-entry-manifest-v2',
+    may_use_developer_checkout_by_default: false,
+    developer_checkout_override_policy: 'explicit_opt_in_only',
+    developer_checkout_override_surface: 'Developer Profile source_channel capability',
+    ordinary_user_module_source: 'app_cli_managed_ghcr_agent_package_channel',
+    duplicate_bare_skill_policy: 'forbid_domain_plugin_skill_mirrors',
+  }, 'agent contract');
   assertArrayEqual(contract.required_agent_ids, expectedRequiredAgentIds, 'required agent ids');
   assertArrayEqual(contract.default_plugin_agent_ids, expectedPluginAgentIds, 'default plugin agent ids');
   assertArrayEqual(contract.generated_plugin_agent_ids, expectedGeneratedAgentIds, 'generated plugin agent ids');
   assertArrayEqual(contract.fail_closed_states, expectedFailClosedStates, 'agent contract fail closed states');
   assertArrayEqual(policy.sync_and_install_contract?.fail_closed_states, expectedFailClosedStates, 'sync fail closed states');
   assertArrayEqual(contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states, 'shared fail closed states');
-  assertEqual(contract.may_use_developer_checkout_by_default, false, 'developer checkout default policy');
-  assertEqual(contract.developer_checkout_override_policy, 'explicit_opt_in_only', 'developer checkout override policy');
-  assertEqual(
-    contract.developer_checkout_override_surface,
-    'Developer Profile source_channel capability',
-    'developer checkout override surface',
-  );
-  assertEqual(contract.ordinary_user_module_source, 'app_cli_managed_ghcr_agent_package_channel', 'ordinary user module source');
   assertArrayEqual(contract.module_package_channel_agent_ids, expectedRequiredAgentIds, 'module package channel agent ids');
-  assertEqual(contract.managed_agent_pack_distribution?.channel_id, 'opl_distribution_cohort', 'agent-pack distribution channel');
-  assertEqual(
-    contract.managed_agent_pack_distribution?.default_transport,
-    'app_cli_managed_background_maintenance',
-    'agent-pack distribution default transport',
-  );
-  assertEqual(
-    contract.managed_agent_pack_distribution?.default_update_mode,
-    'silent_background',
-    'agent-pack distribution default update mode',
-  );
-  assertEqual(
-    contract.managed_agent_pack_distribution?.default_manifest_tag,
-    'latest',
-    'agent-pack distribution default manifest tag',
-  );
-  assertArrayEqual(
-    contract.managed_agent_pack_distribution?.post_update_sync_required,
-    ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface'],
-    'agent-pack post-update sync requirements',
-  );
-  assertArrayEqual(
-    contract.managed_agent_pack_distribution?.package_agent_ids,
-    expectedRequiredAgentIds,
-    'agent-pack distribution package agent ids',
-  );
-  assertArrayEqual(
-    contract.managed_agent_pack_distribution?.activation_commands,
-    ['opl connect reconcile-modules', 'opl connect sync-skills'],
-    'agent-pack distribution activation commands',
-  );
-  assertArrayEqual(
-    contract.managed_agent_pack_distribution?.fallback_source_order,
-    [
+  return contract;
+}
+
+function validateManagedAgentPackDistribution(contract: any): void {
+  const distribution = contract.managed_agent_pack_distribution;
+  assertFieldsEqual(distribution, {
+    channel_id: 'opl_distribution_cohort',
+    default_transport: 'app_cli_managed_background_maintenance',
+    default_update_mode: 'silent_background',
+    default_manifest_tag: 'latest',
+    must_not_depend_on_fixed_version_tag_by_default: true,
+    github_packages_unavailable_policy: 'fail_closed_with_actionable_background_maintenance_error',
+    homebrew_distribution_allowed: false,
+    homebrew_formula_allowed: false,
+    must_not_write_user_codex_state: true,
+    must_not_define_agent_semantics: true,
+    cohort_manifest_required: true,
+  }, 'agent-pack distribution');
+  assertArrayFieldsEqual(distribution, {
+    post_update_sync_required: ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface'],
+    package_agent_ids: expectedRequiredAgentIds,
+    activation_commands: ['opl connect reconcile-modules', 'opl connect sync-skills'],
+    fallback_source_order: [
       'bundled_full_runtime_modules',
       'app_cli_managed_ghcr_agent_package_channel',
       'explicit_developer_checkout_override',
     ],
-    'agent-pack distribution fallback source order',
-  );
-  assertEqual(
-    contract.managed_agent_pack_distribution?.must_not_depend_on_fixed_version_tag_by_default,
-    true,
-    'agent-pack GitHub Packages fixed-version default guard',
-  );
-  assertEqual(
-    contract.managed_agent_pack_distribution?.github_packages_unavailable_policy,
-    'fail_closed_with_actionable_background_maintenance_error',
-    'agent-pack GitHub Packages unavailable policy',
-  );
-  assertEqual(
-    contract.managed_agent_pack_distribution?.homebrew_distribution_allowed,
-    false,
-    'agent-pack Homebrew distribution guard',
-  );
-  assertEqual(
-    contract.managed_agent_pack_distribution?.homebrew_formula_allowed,
-    false,
-    'agent-pack Homebrew formula guard',
-  );
-  assertArrayEqual(
-    contract.managed_agent_pack_distribution?.forbidden_homebrew_formulae,
-    ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
-    'agent-pack forbidden Homebrew formulae',
-  );
-  assertEqual(
-    contract.managed_agent_pack_distribution?.must_not_write_user_codex_state,
-    true,
-    'agent-pack distribution user state guard',
-  );
-  assertEqual(
-    contract.managed_agent_pack_distribution?.must_not_define_agent_semantics,
-    true,
-    'agent-pack distribution semantic authority guard',
-  );
-  assertEqual(
-    contract.managed_agent_pack_distribution?.cohort_manifest_required,
-    true,
-    'agent-pack distribution cohort manifest requirement',
-  );
-  assertEqual(contract.duplicate_bare_skill_policy, 'forbid_domain_plugin_skill_mirrors', 'duplicate bare skill policy');
-  assertEqual(
-    contract.plugin_registration_validation_command,
-    'npm run validate:agent-installation',
-    'agent validation command',
-  );
-  assertEqual(
-    contract.plugin_registration_validation_inputs?.plugin_root_flag,
-    '--agent-root <agent_id>=<path>',
-    'agent validation plugin root flag',
-  );
-  assertEqual(
-    contract.plugin_registration_validation_inputs?.codex_skills_root_flag,
-    '--codex-skills-root <path>',
-    'agent validation Codex skills root flag',
-  );
-  assertEqual(
-    contract.plugin_registration_validation_inputs?.default_live_codex_skills_root,
-    '~/.codex/skills',
-    'agent validation default Codex skills root',
-  );
+    forbidden_homebrew_formulae: ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
+  }, 'agent-pack distribution');
+}
+
+function validatePluginRegistrationInputs(contract: any): void {
+  assertEqual(contract.plugin_registration_validation_command, 'npm run validate:agent-installation', 'agent validation command');
+  assertFieldsEqual(contract.plugin_registration_validation_inputs, {
+    plugin_root_flag: '--agent-root <agent_id>=<path>',
+    codex_skills_root_flag: '--codex-skills-root <path>',
+    default_live_codex_skills_root: '~/.codex/skills',
+  }, 'agent validation inputs');
   assertArrayEqual(
     contract.plugin_registration_validation_inputs?.validated_output_fields,
     ['validated_plugin_roots', 'validated_codex_skills_root'],
     'agent validation output fields',
   );
+}
 
+function validateExposureClasses(policy: any, contract: any): void {
   const domainPluginClass = findExposureClass(policy, 'family_domain_plugin_surfaces');
   assertArrayEqual(domainPluginClass.members, expectedPluginAgentIds, 'domain plugin exposure members');
   assertEqual(domainPluginClass.sync_target, contract.codex_plugin_registry_target, 'domain plugin sync target');
@@ -343,29 +303,22 @@ function validateContract(policy: any, profile: any, packageJson: any, agentRoot
       fail(`companion skill sync must not include domain plugin ${agentId}`);
     }
   }
+}
 
-  assertArrayEqual(profile.companion_payloads?.domain_plugin_skill_ids, expectedPluginAgentIds, 'profile domain plugin ids');
-  assertArrayEqual(
-    profile.companion_payloads?.companion_skill_sync_default_ids,
-    expectedCompanionSkillSyncIds,
-    'profile companion skill sync ids',
-  );
-  assertEqual(
-    profile.companion_payloads?.domain_plugin_skills_must_not_be_companion_mirrors,
-    true,
-    'profile domain plugin mirror guard',
-  );
-  assertIncludesAll(
-    profile.companion_payloads?.default_packaged_codex_skill_ids,
-    expectedPluginAgentIds,
-    'profile default packaged skill ids',
-  );
-  assertIncludesAll(
-    profile.companion_payloads?.packaged_not_default_visible_codex_skill_ids,
-    ['opl-meta-agent'],
-    'profile explicit packaged skill ids',
-  );
+function validateProfileCompanionPayloads(profile: any): void {
+  const companionPayloads = profile.companion_payloads;
+  assertArrayFieldsEqual(companionPayloads, {
+    domain_plugin_skill_ids: expectedPluginAgentIds,
+    companion_skill_sync_default_ids: expectedCompanionSkillSyncIds,
+  }, 'profile companion payloads');
+  assertEqual(companionPayloads?.domain_plugin_skills_must_not_be_companion_mirrors, true, 'profile domain plugin mirror guard');
+  assertArrayFieldsInclude(companionPayloads, {
+    default_packaged_codex_skill_ids: expectedPluginAgentIds,
+    packaged_not_default_visible_codex_skill_ids: ['opl-meta-agent'],
+  }, 'profile companion payloads');
+}
 
+function validateAgentInstallEntries(policy: any, contract: any, agentRoots: AgentRootMap): void {
   for (const agentId of expectedPluginAgentIds) {
     const exposure = findDomainExposure(policy, agentId);
     const installAgent = findInstallAgent(contract, agentId);
