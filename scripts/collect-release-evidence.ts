@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { resolveEvidenceBundlePath } from './release-evidence-paths.ts';
 import { readJsonFile } from './release-json-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -152,12 +153,7 @@ function parseArgs(argv: string[]): Options {
 }
 
 function resolveBundlePath(bundleDir: string, artifactPath: string): string {
-  const resolved = path.resolve(bundleDir, artifactPath);
-  const relative = path.relative(bundleDir, resolved);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
-    throw new Error(`Evidence artifact path escapes bundle root: ${artifactPath}`);
-  }
-  return resolved;
+  return resolveEvidenceBundlePath(bundleDir, artifactPath, { allowAbsoluteArtifactPath: true });
 }
 
 function writeJsonArtifact(bundleDir: string, artifactPath: string, payload: unknown): void {

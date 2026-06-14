@@ -707,6 +707,7 @@ test('release evidence bundle validator rejects undersized WebP screenshot evide
   fs.mkdirSync(path.dirname(tempScriptPath), { recursive: true });
   fs.copyFileSync(path.join(appRoot, 'scripts', 'validate-release-evidence-bundle.ts'), tempScriptPath);
   fs.copyFileSync(path.join(appRoot, 'scripts', 'app-release-l5-readout.ts'), tempReadoutScriptPath);
+  fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-paths.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-paths.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-json-helpers.ts'), path.join(tempAppRoot, 'scripts', 'release-json-helpers.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-cohort.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-cohort.ts'));
   releaseContract.operator_evidence_bundle.required_artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => (
@@ -766,6 +767,7 @@ test('release evidence bundle validator rejects image policy without image scope
   fs.mkdirSync(path.dirname(tempScriptPath), { recursive: true });
   fs.copyFileSync(path.join(appRoot, 'scripts', 'validate-release-evidence-bundle.ts'), tempScriptPath);
   fs.copyFileSync(path.join(appRoot, 'scripts', 'app-release-l5-readout.ts'), tempReadoutScriptPath);
+  fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-paths.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-paths.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-json-helpers.ts'), path.join(tempAppRoot, 'scripts', 'release-json-helpers.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-cohort.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-cohort.ts'));
   releaseContract.operator_evidence_bundle.image_evidence_policy.applies_to_kind = 'json';

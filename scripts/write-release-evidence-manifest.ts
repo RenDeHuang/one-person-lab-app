@@ -12,6 +12,7 @@ import {
   releaseCohortFromRemoteVerification,
   unknownReleaseEvidenceCohort,
 } from './release-evidence-cohort.ts';
+import { resolveEvidenceBundlePath as resolveBundlePath } from './release-evidence-paths.ts';
 import { readJsonFile } from './release-json-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -79,18 +80,6 @@ function parseArgs(argv) {
     tag: parsed.tag.trim(),
     overwrite: parsed.overwrite,
   };
-}
-
-function resolveBundlePath(bundleDir, artifactPath) {
-  if (path.isAbsolute(artifactPath)) {
-    throw new Error(`Evidence artifact path must be relative: ${artifactPath}`);
-  }
-  const resolved = path.resolve(bundleDir, artifactPath);
-  const relative = path.relative(bundleDir, resolved);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
-    throw new Error(`Evidence artifact path escapes bundle root: ${artifactPath}`);
-  }
-  return resolved;
 }
 
 function missingReasonFor(artifact) {

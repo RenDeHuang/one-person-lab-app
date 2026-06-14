@@ -7,6 +7,7 @@ import {
   buildAppReleaseL5EvidenceReadout,
   validateAppReleaseL5ReadoutContract,
 } from './app-release-l5-readout.ts';
+import { resolveEvidenceBundlePath as resolveBundlePath } from './release-evidence-paths.ts';
 import { asRecord, readJsonFile } from './release-json-helpers.ts';
 import {
   assertRemoteReleaseCohortMatches,
@@ -218,18 +219,6 @@ function assertLogFile(filePath: string, label: string) {
   if (!fs.readFileSync(filePath, 'utf8').trim()) {
     throw new Error(`${label} must not be empty: ${filePath}`);
   }
-}
-
-function resolveBundlePath(bundleDir: string, artifactPath: string) {
-  if (path.isAbsolute(artifactPath)) {
-    throw new Error(`Evidence artifact path must be relative: ${artifactPath}`);
-  }
-  const resolved = path.resolve(bundleDir, artifactPath);
-  const relative = path.relative(bundleDir, resolved);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
-    throw new Error(`Evidence artifact path escapes bundle root: ${artifactPath}`);
-  }
-  return resolved;
 }
 
 function validateVmSummary(artifact: EvidenceArtifact, payload: unknown) {
