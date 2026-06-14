@@ -249,6 +249,13 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
     profile.first_run?.beginner_presentation,
     'Product profile first-run beginner presentation',
   );
+  validateReadyToLaunchGate(profile);
+  validateFirstConversationPolicy(profile);
+  validateFullFirstInstallBackgroundPolicy(profile);
+  validateFirstRunProgressModel(profile);
+}
+
+function validateReadyToLaunchGate(profile) {
   const launchGate = profile.first_run?.ready_to_launch_gate;
   if (launchGate?.id !== 'ready_to_launch' || launchGate?.ui_order !== 'before_guid') {
     throw new Error('Product profile ready_to_launch gate must run before /guid');
@@ -272,6 +279,9 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
   ) {
     throw new Error('Product profile full runtime provider must stay Temporal and non-blocking for ready_to_launch');
   }
+}
+
+function validateFirstConversationPolicy(profile) {
   const firstConversation = profile.first_run?.first_conversation;
   if (
     firstConversation?.gate !== 'acp_warmup_before_initial_send' ||
@@ -291,6 +301,9 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
     fullReadinessItems,
     'Product profile first conversation non-blocking readiness items',
   );
+}
+
+function validateFullFirstInstallBackgroundPolicy(profile) {
   const fullFirstInstall = profile.first_run?.core_ready_policy?.full_first_install_clean_machine;
   for (const tool of requiredHostTools) {
     if (!fullFirstInstall?.missing_host_tools_allowed?.includes(tool)) {
@@ -328,6 +341,9 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
       throw new Error(`Product profile Full first-install post-Core maintenance must manage ${blocker}`);
     }
   }
+}
+
+function validateFirstRunProgressModel(profile) {
   const progressModel = profile.first_run?.progress_model;
   if (progressModel?.source_command !== firstRunProgressSourceCommand) {
     throw new Error('Product profile first-run progress model must use opl system initialize --json');
