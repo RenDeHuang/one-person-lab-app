@@ -4,7 +4,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { resolveEvidenceBundlePath } from './release-evidence-paths.ts';
+import {
+  applyReleaseEvidenceBundleDirArg,
+  defaultReleaseEvidenceBundleDir,
+  resolveEvidenceBundlePath,
+  resolveRequiredReleaseEvidenceBundleDir,
+} from './release-evidence-paths.ts';
 import { readJsonFile } from './release-json-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -62,7 +67,7 @@ function setUniquePathOption(target: Record<string, string>, token: '--artifact'
 
 function parseArgs(argv: string[]): Options {
   const parsed: Options = {
-    bundleDir: process.env.OPL_RELEASE_EVIDENCE_BUNDLE_DIR || '',
+    bundleDir: defaultReleaseEvidenceBundleDir(),
     actionId: process.env.OPL_RELEASE_EVIDENCE_ACTION_ID || '',
     version: process.env.OPL_RELEASE_VERSION || '',
     tag: process.env.OPL_RELEASE_TAG || '',
@@ -96,12 +101,15 @@ function parseArgs(argv: string[]): Options {
     ].includes(token)) {
       throw new Error(`Unknown argument: ${token}`);
     }
-    const value = readArgValue(argv, index, token);
     if (token === '--bundle-dir') {
-      parsed.bundleDir = value;
-      index += 1;
+      const optionIndex = applyReleaseEvidenceBundleDirArg(argv, index, (value) => {
+        parsed.bundleDir = value;
+      });
+      if (optionIndex === null) throw new Error(`Unknown argument: ${token}`);
+      index = optionIndex;
       continue;
     }
+    const value = readArgValue(argv, index, token);
     if (token === '--action-id') {
       parsed.actionId = value;
       index += 1;
@@ -139,16 +147,13 @@ function parseArgs(argv: string[]): Options {
     }
   }
 
-  if (!parsed.bundleDir.trim()) {
-    throw new Error('Pass --bundle-dir <release-evidence-dir> or set OPL_RELEASE_EVIDENCE_BUNDLE_DIR.');
-  }
   if (!parsed.actionId.trim()) {
     throw new Error('Pass --action-id <opl-runtime-safe-action-id> or set OPL_RELEASE_EVIDENCE_ACTION_ID.');
   }
 
   return {
     ...parsed,
-    bundleDir: path.resolve(parsed.bundleDir),
+    bundleDir: resolveRequiredReleaseEvidenceBundleDir(parsed.bundleDir),
   };
 }
 

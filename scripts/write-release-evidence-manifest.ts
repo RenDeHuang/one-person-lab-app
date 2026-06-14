@@ -12,7 +12,12 @@ import {
   releaseCohortFromRemoteVerification,
   unknownReleaseEvidenceCohort,
 } from './release-evidence-cohort.ts';
-import { resolveEvidenceBundlePath as resolveBundlePath } from './release-evidence-paths.ts';
+import {
+  applyReleaseEvidenceBundleDirArg,
+  defaultReleaseEvidenceBundleDir,
+  resolveEvidenceBundlePath as resolveBundlePath,
+  resolveRequiredReleaseEvidenceBundleDir,
+} from './release-evidence-paths.ts';
 import { readJsonFile } from './release-json-helpers.ts';
 import { applyStringOptionArg } from './release-readiness-args.ts';
 
@@ -22,7 +27,7 @@ const evidenceBoundary = 'refs_only_no_runtime_truth_domain_truth_artifact_or_qu
 
 function parseArgs(argv) {
   const parsed = {
-    bundleDir: process.env.OPL_RELEASE_EVIDENCE_BUNDLE_DIR || '',
+    bundleDir: defaultReleaseEvidenceBundleDir(),
     classificationPath: process.env.OPL_RELEASE_EVIDENCE_CLASSIFICATION || '',
     version: process.env.OPL_RELEASE_VERSION || '',
     tag: process.env.OPL_RELEASE_TAG || '',
@@ -34,8 +39,14 @@ function parseArgs(argv) {
       parsed.overwrite = true;
       continue;
     }
+    const bundleDirIndex = applyReleaseEvidenceBundleDirArg(argv, index, (value) => {
+      parsed.bundleDir = value;
+    });
+    if (bundleDirIndex !== null) {
+      index = bundleDirIndex;
+      continue;
+    }
     const optionIndex = applyStringOptionArg(argv, index, {
-      '--bundle-dir': (value) => { parsed.bundleDir = value; },
       '--classification': (value) => { parsed.classificationPath = value; },
       '--version': (value) => { parsed.version = value; },
       '--tag': (value) => { parsed.tag = value; },
@@ -46,11 +57,8 @@ function parseArgs(argv) {
     }
     throw new Error(`Unknown argument: ${token}`);
   }
-  if (!parsed.bundleDir.trim()) {
-    throw new Error('Pass --bundle-dir <release-evidence-dir> or set OPL_RELEASE_EVIDENCE_BUNDLE_DIR.');
-  }
   return {
-    bundleDir: path.resolve(parsed.bundleDir),
+    bundleDir: resolveRequiredReleaseEvidenceBundleDir(parsed.bundleDir),
     classificationPath: parsed.classificationPath.trim()
       ? path.resolve(parsed.classificationPath)
       : '',

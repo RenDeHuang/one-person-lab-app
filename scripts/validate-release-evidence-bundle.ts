@@ -7,7 +7,12 @@ import {
   buildAppReleaseL5EvidenceReadout,
   validateAppReleaseL5ReadoutContract,
 } from './app-release-l5-readout.ts';
-import { resolveEvidenceBundlePath as resolveBundlePath } from './release-evidence-paths.ts';
+import {
+  applyReleaseEvidenceBundleDirArg,
+  defaultReleaseEvidenceBundleDir,
+  resolveEvidenceBundlePath as resolveBundlePath,
+  resolveRequiredReleaseEvidenceBundleDir,
+} from './release-evidence-paths.ts';
 import { asRecord, readJsonFile } from './release-json-helpers.ts';
 import {
   assertRemoteReleaseCohortMatches,
@@ -15,7 +20,6 @@ import {
   unknownReleaseEvidenceCohort,
 } from './release-evidence-cohort.ts';
 import { assertImageEvidenceFile } from './release-image-evidence.ts';
-import { applyStringOptionArg } from './release-readiness-args.ts';
 import type { ReleaseEvidenceCohort, UnknownReleaseEvidenceCohort } from './release-evidence-cohort.ts';
 import type { ImageEvidencePolicy } from './release-image-evidence.ts';
 
@@ -65,7 +69,7 @@ type KnownOrUnknownReleaseCohort = ReleaseEvidenceCohort | UnknownReleaseEvidenc
 
 function parseArgs(argv: string[]): Options {
   const parsed = {
-    bundleDir: process.env.OPL_RELEASE_EVIDENCE_BUNDLE_DIR || '',
+    bundleDir: defaultReleaseEvidenceBundleDir(),
     allowMissingEvidence: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -74,8 +78,8 @@ function parseArgs(argv: string[]): Options {
       parsed.allowMissingEvidence = true;
       continue;
     }
-    const optionIndex = applyStringOptionArg(argv, index, {
-      '--bundle-dir': (value) => { parsed.bundleDir = value; },
+    const optionIndex = applyReleaseEvidenceBundleDirArg(argv, index, (value) => {
+      parsed.bundleDir = value;
     });
     if (optionIndex !== null) {
       index = optionIndex;
@@ -83,11 +87,8 @@ function parseArgs(argv: string[]): Options {
     }
     throw new Error(`Unknown argument: ${token}`);
   }
-  if (!parsed.bundleDir.trim()) {
-    throw new Error('Pass --bundle-dir <release-evidence-dir> or set OPL_RELEASE_EVIDENCE_BUNDLE_DIR.');
-  }
   return {
-    bundleDir: path.resolve(parsed.bundleDir),
+    bundleDir: resolveRequiredReleaseEvidenceBundleDir(parsed.bundleDir),
     allowMissingEvidence: parsed.allowMissingEvidence,
   };
 }
