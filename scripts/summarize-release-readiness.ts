@@ -15,6 +15,11 @@ import {
 import { buildReleaseEvidenceCohort } from './release-evidence-cohort.ts';
 import { findFileByName, writeLinesFile } from './release-file-helpers.ts';
 import { arrayOrEmpty, recordOrNull } from './release-json-helpers.ts';
+import {
+  applySharedReleaseReadinessArg,
+  assertSharedReleaseReadinessOptions,
+  buildSharedReleaseReadinessOptions,
+} from './release-readiness-args.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -49,10 +54,7 @@ function parseBoolean(value: string | undefined, fallback = false) {
 
 function parseArgs(argv: string[]): Options {
   const parsed: Options = {
-    version: process.env.OPL_RELEASE_VERSION || '',
-    releaseMode: process.env.OPL_RELEASE_MODE || '',
-    includeFullPackage: parseBoolean(process.env.OPL_INCLUDE_FULL_PACKAGE),
-    runVmSmoke: parseBoolean(process.env.OPL_RUN_VM_SMOKE),
+    ...buildSharedReleaseReadinessOptions(parseBoolean),
     artifactsDir: process.env.OPL_RELEASE_READINESS_ARTIFACTS_DIR || '',
     jobResultsPath: process.env.OPL_RELEASE_READINESS_JOB_RESULTS || '',
     output: process.env.OPL_RELEASE_READINESS_OUTPUT || '',
@@ -61,12 +63,9 @@ function parseArgs(argv: string[]): Options {
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
-    if (token === '--include-full-package' || token === '--run-vm-smoke') {
-      const value = argv[index + 1];
-      if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
-      if (token === '--include-full-package') parsed.includeFullPackage = parseBoolean(value);
-      else parsed.runVmSmoke = parseBoolean(value);
-      index += 1;
+    const sharedIndex = applySharedReleaseReadinessArg(argv, index, parsed, parseBoolean);
+    if (sharedIndex !== null) {
+      index = sharedIndex;
       continue;
     }
     const value = argv[index + 1];
@@ -81,8 +80,7 @@ function parseArgs(argv: string[]): Options {
     index += 1;
   }
 
-  if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');
-  if (!parsed.releaseMode.trim()) throw new Error('Pass --release-mode <mode> or set OPL_RELEASE_MODE.');
+  assertSharedReleaseReadinessOptions(parsed);
   if (!parsed.artifactsDir.trim()) throw new Error('Pass --artifacts-dir <dir> or set OPL_RELEASE_READINESS_ARTIFACTS_DIR.');
   return {
     ...parsed,

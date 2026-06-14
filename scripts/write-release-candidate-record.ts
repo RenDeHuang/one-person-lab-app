@@ -10,6 +10,11 @@ import {
 } from './app-release-owner-verdict.ts';
 import { writeLinesFile } from './release-file-helpers.ts';
 import { arrayOrEmpty, recordOrNull } from './release-json-helpers.ts';
+import {
+  applySharedReleaseReadinessArg,
+  assertSharedReleaseReadinessOptions,
+  buildSharedReleaseReadinessOptions,
+} from './release-readiness-args.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseRepo = 'gaofeng21cn/one-person-lab-app';
@@ -50,10 +55,7 @@ function parseBoolean(value: string | undefined, fallback = false) {
 
 function parseArgs(argv: string[]): Options {
   const parsed: Options = {
-    version: process.env.OPL_RELEASE_VERSION || '',
-    releaseMode: process.env.OPL_RELEASE_MODE || '',
-    includeFullPackage: parseBoolean(process.env.OPL_INCLUDE_FULL_PACKAGE),
-    runVmSmoke: parseBoolean(process.env.OPL_RUN_VM_SMOKE),
+    ...buildSharedReleaseReadinessOptions(parseBoolean),
     appCommit: process.env.OPL_APP_COMMIT || process.env.GITHUB_SHA || '',
     shellRef: process.env.OPL_SHELL_REF || 'main',
     frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
@@ -78,12 +80,9 @@ function parseArgs(argv: string[]): Options {
       parsed.allowBlocked = true;
       continue;
     }
-    if (token === '--include-full-package' || token === '--run-vm-smoke') {
-      const value = argv[index + 1];
-      if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
-      if (token === '--include-full-package') parsed.includeFullPackage = parseBoolean(value);
-      else parsed.runVmSmoke = parseBoolean(value);
-      index += 1;
+    const sharedIndex = applySharedReleaseReadinessArg(argv, index, parsed, parseBoolean);
+    if (sharedIndex !== null) {
+      index = sharedIndex;
       continue;
     }
     const value = argv[index + 1];
@@ -109,8 +108,7 @@ function parseArgs(argv: string[]): Options {
     index += 1;
   }
 
-  if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');
-  if (!parsed.releaseMode.trim()) throw new Error('Pass --release-mode <mode> or set OPL_RELEASE_MODE.');
+  assertSharedReleaseReadinessOptions(parsed);
   if (!parsed.appCommit.trim()) parsed.appCommit = gitValue(['rev-parse', 'HEAD']);
   return {
     ...parsed,
