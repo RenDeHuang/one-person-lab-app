@@ -67,6 +67,20 @@ type TypedBlockerPolicy = {
 
 type KnownOrUnknownReleaseCohort = ReleaseEvidenceCohort | UnknownReleaseEvidenceCohort;
 
+type OperatorEvidenceBundleContract = {
+  purpose?: unknown;
+  manifest_path?: unknown;
+  acceptance_path?: unknown;
+  refs_only?: unknown;
+  required_artifacts?: unknown;
+  optional_diagnostic_artifacts?: unknown;
+  forbidden_authority?: unknown;
+  release_cohort?: Record<string, unknown>;
+  missing_evidence_policy?: Record<string, unknown>;
+  image_evidence_policy?: ImageEvidencePolicy;
+  l5_evidence_readout?: unknown;
+};
+
 function parseArgs(argv: string[]): Options {
   const parsed = {
     bundleDir: defaultReleaseEvidenceBundleDir(),
@@ -160,19 +174,7 @@ function validateManifestReleaseCohort(
   return cohort;
 }
 
-function validateContractBoundary(bundle: unknown): EvidenceContract {
-  const record = bundle as {
-    purpose?: unknown;
-    manifest_path?: unknown;
-    acceptance_path?: unknown;
-    refs_only?: unknown;
-    required_artifacts?: unknown;
-    optional_diagnostic_artifacts?: unknown;
-    forbidden_authority?: unknown;
-    release_cohort?: Record<string, unknown>;
-    missing_evidence_policy?: Record<string, unknown>;
-    image_evidence_policy?: ImageEvidencePolicy;
-  };
+function validateOperatorEvidenceBundleHeader(record: OperatorEvidenceBundleContract) {
   if (record.purpose !== 'runtime_page_operator_evidence_acceptance') {
     throw new Error(`Unexpected operator evidence bundle purpose: ${String(record.purpose)}`);
   }
@@ -185,6 +187,9 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   if (record.refs_only !== true) {
     throw new Error('Operator evidence bundle must be refs-only.');
   }
+}
+
+function validateReleaseCohortContract(record: OperatorEvidenceBundleContract) {
   if (record.release_cohort?.schema !== 'opl_app_release_evidence_cohort_contract.v1') {
     throw new Error('Operator evidence bundle must declare release_cohort contract.');
   }
@@ -205,6 +210,9 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   ) {
     throw new Error('Operator evidence bundle release_cohort contract must require remote release version/tag matching.');
   }
+}
+
+function validateMissingEvidencePolicyContract(record: OperatorEvidenceBundleContract): string[] {
   if (record.missing_evidence_policy?.default_validation !== 'fail_closed') {
     throw new Error('Operator evidence bundle missing evidence policy must fail closed by default.');
   }
@@ -238,14 +246,10 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   if (record.missing_evidence_policy?.packaged_app_evidence_requires !== 'all_required_artifacts_present_and_verified') {
     throw new Error('Operator evidence bundle must require all artifacts before claiming packaged App evidence.');
   }
-  if (!Array.isArray(record.required_artifacts) || record.required_artifacts.length === 0) {
-    throw new Error('Operator evidence bundle must declare required artifacts.');
-  }
-  validateAppReleaseL5ReadoutContract(record.l5_evidence_readout);
-  const optionalDiagnostics = record.optional_diagnostic_artifacts;
-  if (optionalDiagnostics !== undefined && !Array.isArray(optionalDiagnostics)) {
-    throw new Error('Operator evidence bundle optional diagnostic artifacts must be an array.');
-  }
+  return typedBlockerRequirements as string[];
+}
+
+function validateImageEvidencePolicyContract(record: OperatorEvidenceBundleContract): ImageEvidencePolicy {
   const imageEvidencePolicy = asRecord(record.image_evidence_policy, 'operator evidence image_evidence_policy') as unknown as ImageEvidencePolicy;
   if (imageEvidencePolicy.applies_to_kind !== 'image') {
     throw new Error('Operator evidence bundle image evidence policy must apply to image artifacts.');
@@ -258,6 +262,10 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   ) {
     throw new Error('Operator evidence bundle image evidence policy must reject placeholder screenshots.');
   }
+  return imageEvidencePolicy;
+}
+
+function validateForbiddenAuthority(record: OperatorEvidenceBundleContract) {
   const forbiddenAuthority = Array.isArray(record.forbidden_authority) ? record.forbidden_authority : [];
   for (const forbidden of [
     'runtime_truth',
@@ -270,15 +278,34 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
       throw new Error(`Operator evidence bundle must exclude ${forbidden}`);
     }
   }
+}
+
+function validateEvidenceArtifactContractFields(artifact: EvidenceArtifact, errorLabel: string) {
+  if (!artifact.id || !artifact.path || !artifact.kind || !artifact.producer || !artifact.source_kind) {
+    throw new Error(`${errorLabel}: ${JSON.stringify(artifact)}`);
+  }
+}
+
+function validateContractBoundary(bundle: unknown): EvidenceContract {
+  const record = bundle as OperatorEvidenceBundleContract;
+  validateOperatorEvidenceBundleHeader(record);
+  validateReleaseCohortContract(record);
+  const typedBlockerRequirements = validateMissingEvidencePolicyContract(record);
+  if (!Array.isArray(record.required_artifacts) || record.required_artifacts.length === 0) {
+    throw new Error('Operator evidence bundle must declare required artifacts.');
+  }
+  validateAppReleaseL5ReadoutContract(record.l5_evidence_readout);
+  const optionalDiagnostics = record.optional_diagnostic_artifacts;
+  if (optionalDiagnostics !== undefined && !Array.isArray(optionalDiagnostics)) {
+    throw new Error('Operator evidence bundle optional diagnostic artifacts must be an array.');
+  }
+  const imageEvidencePolicy = validateImageEvidencePolicyContract(record);
+  validateForbiddenAuthority(record);
   for (const artifact of record.required_artifacts as EvidenceArtifact[]) {
-    if (!artifact.id || !artifact.path || !artifact.kind || !artifact.producer || !artifact.source_kind) {
-      throw new Error(`Invalid operator evidence artifact contract: ${JSON.stringify(artifact)}`);
-    }
+    validateEvidenceArtifactContractFields(artifact, 'Invalid operator evidence artifact contract');
   }
   for (const artifact of (optionalDiagnostics ?? []) as EvidenceArtifact[]) {
-    if (!artifact.id || !artifact.path || !artifact.kind || !artifact.producer || !artifact.source_kind) {
-      throw new Error(`Invalid optional operator evidence diagnostic artifact contract: ${JSON.stringify(artifact)}`);
-    }
+    validateEvidenceArtifactContractFields(artifact, 'Invalid optional operator evidence diagnostic artifact contract');
   }
   return {
     manifestPath: record.manifest_path,
