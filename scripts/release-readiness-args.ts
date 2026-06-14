@@ -7,6 +7,13 @@ type SharedReleaseReadinessOptions = {
 
 type BooleanParser = (value: string | undefined, fallback?: boolean) => boolean;
 
+export function parseStrictBoolean(value: string | undefined, fallback = false): boolean {
+  if (value === undefined || value === '') return fallback;
+  if (value === 'true' || value === '1') return true;
+  if (value === 'false' || value === '0') return false;
+  throw new Error(`Boolean value must be true or false, got ${value}`);
+}
+
 export function buildSharedReleaseReadinessOptions(parseBoolean: BooleanParser): SharedReleaseReadinessOptions {
   return {
     version: process.env.OPL_RELEASE_VERSION || '',
@@ -57,7 +64,7 @@ export function assertSharedReleaseReadinessOptions(parsed: SharedReleaseReadine
   if (!parsed.releaseMode.trim()) throw new Error('Pass --release-mode <mode> or set OPL_RELEASE_MODE.');
 }
 
-function requiredOptionValue(argv: string[], index: number, token: string): string {
+export function requiredOptionValue(argv: string[], index: number, token: string): string {
   const value = argv[index + 1];
   if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
   return value;

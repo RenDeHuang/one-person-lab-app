@@ -15,6 +15,7 @@ import {
   applyStringOptionArg,
   assertSharedReleaseReadinessOptions,
   buildSharedReleaseReadinessOptions,
+  parseStrictBoolean,
 } from './release-readiness-args.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -47,16 +48,9 @@ type Options = {
   allowBlocked: boolean;
 };
 
-function parseBoolean(value: string | undefined, fallback = false) {
-  if (value === undefined || value === '') return fallback;
-  if (value === 'true' || value === '1') return true;
-  if (value === 'false' || value === '0') return false;
-  throw new Error(`Boolean value must be true or false, got ${value}`);
-}
-
 function parseArgs(argv: string[]): Options {
   const parsed: Options = {
-    ...buildSharedReleaseReadinessOptions(parseBoolean),
+    ...buildSharedReleaseReadinessOptions(parseStrictBoolean),
     appCommit: process.env.OPL_APP_COMMIT || process.env.GITHUB_SHA || '',
     shellRef: process.env.OPL_SHELL_REF || 'main',
     frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
@@ -81,7 +75,7 @@ function parseArgs(argv: string[]): Options {
       parsed.allowBlocked = true;
       continue;
     }
-    const sharedIndex = applySharedReleaseReadinessArg(argv, index, parsed, parseBoolean);
+    const sharedIndex = applySharedReleaseReadinessArg(argv, index, parsed, parseStrictBoolean);
     if (sharedIndex !== null) {
       index = sharedIndex;
       continue;

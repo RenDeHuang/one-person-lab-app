@@ -6,6 +6,10 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { fileSha256, findFileByName } from './release-file-helpers.ts';
 import { asRecord, readJsonFile } from './release-json-helpers.ts';
+import {
+  parseStrictBoolean,
+  requiredOptionValue,
+} from './release-readiness-args.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -19,19 +23,6 @@ type Options = {
   runVmSmoke: boolean;
 };
 
-function parseBoolean(value: string | undefined, fallback = false) {
-  if (value === undefined || value === '') return fallback;
-  if (value === 'true' || value === '1') return true;
-  if (value === 'false' || value === '0') return false;
-  throw new Error(`Boolean value must be true or false, got ${value}`);
-}
-
-function requiredOptionValue(argv: string[], index: number, token: string) {
-  const value = argv[index + 1];
-  if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
-  return value;
-}
-
 function parseArgs(argv: string[]): Options {
   const parsed: Options = {
     version: process.env.OPL_RELEASE_VERSION || '',
@@ -39,8 +30,8 @@ function parseArgs(argv: string[]): Options {
     artifactsDir: process.env.OPL_RELEASE_ARTIFACTS_DIR || '',
     outputDir: process.env.OPL_RELEASE_OWNER_VALIDATION_DIR || '',
     releaseMode: process.env.OPL_RELEASE_MODE || 'refresh_existing',
-    includeFullPackage: parseBoolean(process.env.OPL_INCLUDE_FULL_PACKAGE, true),
-    runVmSmoke: parseBoolean(process.env.OPL_RUN_VM_SMOKE, true),
+    includeFullPackage: parseStrictBoolean(process.env.OPL_INCLUDE_FULL_PACKAGE, true),
+    runVmSmoke: parseStrictBoolean(process.env.OPL_RUN_VM_SMOKE, true),
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -51,9 +42,9 @@ function parseArgs(argv: string[]): Options {
     else if (token === '--output-dir') parsed.outputDir = requiredOptionValue(argv, index, token);
     else if (token === '--release-mode') parsed.releaseMode = requiredOptionValue(argv, index, token);
     else if (token === '--include-full-package') {
-      parsed.includeFullPackage = parseBoolean(requiredOptionValue(argv, index, token));
+      parsed.includeFullPackage = parseStrictBoolean(requiredOptionValue(argv, index, token));
     } else if (token === '--run-vm-smoke') {
-      parsed.runVmSmoke = parseBoolean(requiredOptionValue(argv, index, token));
+      parsed.runVmSmoke = parseStrictBoolean(requiredOptionValue(argv, index, token));
     } else {
       throw new Error(`Unknown argument: ${token}`);
     }
