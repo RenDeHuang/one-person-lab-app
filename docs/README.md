@@ -32,8 +32,9 @@ runtime, provider, or domain authority.
 - [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md)：跨 shell 的
   GUI 能力清单、reference mapping 和验证类别。
 - [`agui-codex-candidate-verification.md`](agui-codex-candidate-verification.md):
-  AG-UI/CopilotKit candidate shell verification runbook; candidate evidence
-  remains in candidate manifests, shell artifacts, CI logs, release evidence, or history.
+  AG-UI/CopilotKit candidate shell verification runbook; executable acceptance
+  stays in candidate contracts, validators, manifests, shell artifacts, CI logs,
+  release evidence, or history.
 - [`release/`](release/): App release, updater, and Full first-install notes.
 - [`testing/`](testing/): App validation and page-state test guidance.
 - [`user-guides/`](user-guides/): user-facing guide entry point.
@@ -62,7 +63,8 @@ Framework read-model output consumed by the App.
 4. [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md) 跟踪跨 shell
    能力清单、reference mapping 和验证类别。
 5. [`agui-codex-candidate-verification.md`](agui-codex-candidate-verification.md)
-   只在需要验证 AG-UI/CopilotKit candidate shell 时阅读。
+   只在需要验证 AG-UI/CopilotKit candidate shell 命令顺序和 false-authority
+   边界时阅读。
 6. `contracts/` 和 page-state matrices 承载机器可读 gates。
 
 ## 文档语言

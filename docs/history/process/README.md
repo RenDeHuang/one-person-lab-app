@@ -54,15 +54,15 @@ claim for the parent six-repo goal.
 | Testing docs release guidance | Testing docs own command entry points and evidence classification guidance only. They do not duplicate release workflow policy or serve as current proof ledger. | `docs/testing/README.md`, package scripts, validators, release-boundary tests |
 | GUI definition stack | GUI target shape, OPL delta, element audit, feature inventory, and shell candidate runbook remain separate owner docs. Shell implementation, active-shell adoption, and product acceptance require contracts, adapter selection, validation, and release gates. | GUI definition docs, App GUI/page-state/first-run contracts, active-shell validation |
 | GUI external-reference foldback | The feature inventory now keeps only current App-owned feature mappings for PilotDeck, Stitch, AG-UI and CopilotKit. Evaluated refs, source URLs, reference inventories, adoption gates, candidate proof commands and dated research/proof details stay with candidate contracts, the candidate runbook, manifests, artifacts, CI logs or history/provenance. | `docs/app-gui-feature-inventory.md`, `contracts/app-shell-candidates.json`, `docs/agui-codex-candidate-verification.md` |
-| Candidate shell adoption | Candidate registry/adoption policy and design-reference policy are contract-owned; explicit AG-UI adapter selection is separate from default active shell. Candidate target shape, command order and evidence lifecycle live in the GUI inventory and candidate runbook; status only keeps the current non-adoption boundary. Candidate smoke, manifests and runbook prose prove technical verification only. | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/agui-codex.json`, `contracts/app-shell-adapter.json`, candidate manifests, validation scripts, `docs/app-gui-feature-inventory.md`, `docs/agui-codex-candidate-verification.md` |
+| Candidate shell adoption | Candidate registry/adoption policy, design-reference policy, executable acceptance fields and explicit AG-UI adapter selection are contract/validator-owned. The candidate runbook now keeps command order and false-authority boundaries only; status keeps the current non-adoption boundary. Candidate smoke, manifests and runbook prose prove technical verification only. | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/agui-codex.json`, `contracts/app-shell-adapter.json`, `scripts/validate-shell-candidates/*`, candidate manifests, validation scripts, `docs/app-gui-feature-inventory.md`, `docs/agui-codex-candidate-verification.md` |
 | User guide and screenshots | Generated guides derive from guide JSON and asset manifests. User-guide screenshots and visual docs are documentation artifacts, not release-ready, runtime-ready, domain-ready, or family-production proof. | `docs/user-guides/README.md`, guide source JSON, screenshot manifests, generated verification records, `docs/screenshots/README.md` |
 | Retired App surfaces | No-resurrection rules are compressed in retired-surface provenance. | `retired-surface-provenance.md`, current owner contracts/source/tests/validators |
 
 Current recheck scope: process-history and docs-lifecycle wording was rechecked
 against the active plan, docs portfolio governance, status, release/testing/user
-guide/screenshot indexes, package scripts, and retired-surface provenance. No
-source, contract, workflow, package, shell, or test surface changed in this
-docs-only tranche.
+guide/screenshot indexes, package scripts, candidate registry/adapters,
+candidate validators, and retired-surface provenance. No source, contract,
+workflow, package, shell, or test surface changed in this docs-only tranche.
 
 Remaining unreviewed docs-governance scope for App: none currently carried in
 the App process ledger for tracked `README*` / `docs/**/*.md` owner-route themes.

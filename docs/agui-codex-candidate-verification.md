@@ -32,10 +32,11 @@ projection，而不拥有 runtime truth、domain truth 或 readiness verdict。
 
 ## SSOT 分工
 
-本文只拥有候选 shell 的人读验证 runbook：边界、命令顺序、最低验收和
-evidence lifecycle。候选 registry、adoption gate、forbidden entry routes 和
-reference implementation 清单的机器 SSOT 是
-`contracts/app-shell-candidates.json`；显式 adapter 选择和 candidate shell root
+本文只拥有候选 shell 的人读验证 runbook：边界、命令顺序和 evidence
+lifecycle。候选 registry、adoption gate、forbidden entry routes、reference
+implementation 清单、最低验收字段和 package manifest 断言的机器 SSOT 是
+`contracts/app-shell-candidates.json` 与
+`scripts/validate-shell-candidates/*`；显式 adapter 选择和 candidate shell root
 的机器 SSOT 是 `contracts/shell-adapters/agui-codex.json`；默认 stable/nightly
 release shell 的机器 SSOT 是 `contracts/app-shell-adapter.json`。
 
@@ -169,62 +170,22 @@ assistant reply 可见为 `OK`。
 
 ## 最低验收
 
-- 默认 App release adapter validation 仍解析到 `aionui`。
-- `npm run validate:shell-candidates` 通过，并报告 candidate 只参与 explicit
-  candidate build。
-- 只有设置 `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json`
-  时 candidate adapter validation 才参与。
-- Candidate 消费 App-owned generated product profile。
-- Candidate `npm run validate:state-model` 通过，并证明 active project line
-  projection/state model 来自 `opl app state --profile fast --json`，覆盖
-  `status`、`active_run_id`、`next_visible_step`、
-  `progress_delta_classification`、`deliverable_progress_delta`、
-  `platform_repair_delta` 和 `next_forced_delta`；该证据不能写成 domain ready、
-  production ready、clean-VM ready、Full release ready 或 active-shell adoption。
-- Source renderer build 通过。
-- Electron 和 WebUI 共享同一个 renderer。
-- WebUI smoke 证明 browser `window.oplCandidate`、HTTP action routes、
-  SSE Codex app-server events、Settings IA、secondary activity refs surface、
-  conversation event rendering 和 default-collapsed home parity。
-- Source UI smoke 把普通 home 绘制为 chat-first canvas，stage class 同时包含
-  `without-rail` 和 `without-inspector`，展示 `科研`/`基金`/`演示` purpose entries，并
-  收到 Codex app-server 的 `OK`。当前 App contract 要求普通 home 不显示 runtime
-  activity、continue-work、per-agent running badges 或 footer quick icons；refs
-  只能进入 Runtime 或 secondary context。
-- Source UI smoke 必须证明当前 turn 的运行证据以 conversation live artifact 或
-  compact event refs 呈现，而不是常驻工作台：idle home 没有 runtime/activity block，
-  发送消息后出现 running/receipt refs，完成后保留 turn-level summary。
-- Source UI smoke 还必须打开 workspace/session rail、右侧 inspector 和 Routing
-  tab，证明普通用户层 chrome 在中文状态下仍使用 `科研`、`基金`、`演示`、`本机助手`、
-  `本机能力`、`自动`、`状态摘要` 等用户层文案，不显示 `PPT`、`Codex CLI`、`MAS`、
-  `MAG`、`RCA`、`app_state.actions`、`opl_app_state.v1`、AG-UI/ACP/app-server 等技术标签。
-- Source 和 packaged UI smoke 还必须把窗口压到窄桌面/WebUI 宽度验证 context
-  layer：workspace/session rail 与 inspector 仍是默认收起的二级层，但显式打开后
-  inspector、context tabs 和 Routing tab 必须有真实可见尺寸。
-- Source 和 packaged UI smoke 还必须验证 chat-first visual polish：composer
-  只有一层可见圆润输入 surface，radius 至少 32px，surface 默认高度至少约
-  100px，textarea 至少约 60px 且 line-height/placeholder 按多行任务输入设计；
-  overflow clipping 生效，外层 CopilotKit/adapter container 透明，内部 layout
-  子层无额外白底或阴影；send、workspace、purpose 和 icon controls 使用
-  pill/circle 半径，不能回退到方块式 4-10px 随机圆角，也不能让输入体验退化成
-  单行文本框。
-- App-wrapper packaging 产出可启动 `.app`，包含 `Contents/Info.plist` 和
-  `Contents/MacOS` executable。
-- Packaged UI smoke 针对 `.app` bundle 通过，并证明同样的 default-collapsed
-  chat-first home。
-- PilotDeck-informed information organization 以 OPL-owned UI 形式出现：optional
-  lightweight workspace/session rail、session list、context tabs，以及右侧可收起
-  Files、Skills、Routing、Memory、Always-On inspector surfaces；这些 surface 在
-  ordinary home 中默认关闭。
-- Page-state matrix mapping、first-run matrix mapping、runtime summary/full
-  drilldown 和 safe App action dry-run evidence 写入 candidate smoke evidence 和
-  package manifest。
-- Ordinary chat UI 展示 OPL chat surface 和 CopilotKit-backed chat surface，不显示
-  AG-UI protocol/debug dashboard copy。`Codex CLI`、`MAS`、`MAG`、`RCA` 和命令/schema
-  id 只进入 route receipt、diagnostics、developer evidence 或原始详情，不作为普通
-  chrome 的主要文案。
-- Backend 和 permission selectors 不进入 ordinary home 和 conversation paths；
-  model selector/status 只能作为 App-owned Codex model control 出现。
+最低验收不在本文逐项维护。当前可执行 owner 是：
+
+| 验收主题 | SSOT / gate |
+| --- | --- |
+| candidate registry、adoption gate、design reference policy、release isolation | `contracts/app-shell-candidates.json` + `npm run validate:shell-candidates` |
+| explicit adapter 选择、candidate shell root、package capability | `contracts/shell-adapters/agui-codex.json` + `scripts/validate-shell-candidates/candidate-contract.ts` |
+| 默认 stable/nightly release shell 不变 | `contracts/app-shell-adapter.json` + `scripts/validate-shell-candidates/registry.ts` |
+| App product profile、page-state、first-run、runtime bridge、App action/state 边界 | App contracts、candidate manifest、candidate smoke evidence 和 `scripts/validate-shell-candidates/candidate-evidence.ts` |
+| source/WebUI/package smoke、UI polish、context layer、Codex app-server `OK` turn | candidate shell artifacts、candidate manifest、CI logs 和 `npm run validate:candidate -- --require-app --require-smoke` |
+
+本 runbook 只保留命令顺序和 false-authority 边界：candidate package、
+state-model validation、source/WebUI/package smoke 或 manifest 只能证明
+technical verification。它们不能写成 default release shell adoption、App release
+ready、domain ready、family production ready、clean-VM ready 或 Full release
+ready。若验收字段变化，先改 contract / validator / manifest owner，再更新本文的
+命令入口。
 
 ## Release Promotion
 
@@ -234,10 +195,11 @@ Candidate 可以端到端验证而不改变当前 release。只有明确修改
 
 ## Evidence Lifecycle
 
-本文只保留候选 shell 的边界、命令和最低验收。具体 source/WebUI/package smoke
-结果、manifest 字段、绝对路径和 dated pass/fail 记录属于 candidate shell artifacts、
-candidate manifests、CI logs 或 `docs/history/process/`。旧的 2026-06-02
-candidate smoke 和 2026-06-03 active-doc cleanup 过程记录已压缩到
+本文只保留候选 shell 的边界、命令顺序和 evidence lifecycle。具体
+source/WebUI/package smoke 结果、manifest 字段、绝对路径和 dated pass/fail 记录
+属于 candidate shell artifacts、candidate manifests、CI logs 或
+`docs/history/process/`。旧的 2026-06-02 candidate smoke 和 2026-06-03
+active-doc cleanup 过程记录已压缩到
 [App retired surface provenance](./history/process/retired-surface-provenance.md)；
 当前 candidate 边界和命令仍以本文、candidate contracts、candidate manifests、
 shell artifacts、CI logs 和 App-root validation 为准。
