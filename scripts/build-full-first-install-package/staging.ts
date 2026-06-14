@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { directorySizeBytes } from './filesystem.ts';
 import { readGitHead } from './git.ts';
-import { ensureFullRuntimeNativeTrust } from './macos-trust.ts';
+import { ensureFullRuntimeNativeTrust } from './runtime-native-trust.ts';
 import {
   buildResolvedFullPayloadRefs,
   writeFullRuntimeManifest,

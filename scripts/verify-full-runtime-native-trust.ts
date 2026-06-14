@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { listFullRuntimeNativeExecutables } from './build-full-first-install-package/macos-trust.ts';
+import { listFullRuntimeNativeExecutables } from './build-full-first-install-package/runtime-native-trust.ts';
 
 function parseArgs(argv: string[]) {
   const parsed = {
