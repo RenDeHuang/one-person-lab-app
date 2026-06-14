@@ -44,11 +44,11 @@ visible as built-in purpose entries; it does not own domain readiness,
 owner-receipt authority, artifact authority, memory body, or OPL family
 production readiness.
 
-The active shell currently tracks AionUI upstream through
-`70974c59a275e565e8fc2bd7ecaf2dcac74227f0` while preserving the App-owned
-product profile. That intake is recorded in `contracts/app-shell-adapter.json`,
-which is the active shell source of truth; the upstream code is implementation
-material, not product authority. The shell also keeps Codex ACP tool-call
+The active shell upstream intake ref is recorded in
+`contracts/app-shell-adapter.json#shell_source.upstream_ref` while preserving
+the App-owned product profile. That contract is the active shell source of
+truth; the upstream code is implementation material, not product authority. The
+shell also keeps Codex ACP tool-call
 output display aligned with native Codex behavior by preserving newline-bearing
 `raw_output` / `stdout` / `stderr` content in the conversation view. The updater
 now selects the macOS ZIP for in-app updates, uses an App-managed local
