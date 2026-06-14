@@ -20,6 +20,7 @@ import {
   applyStringOptionArg,
   assertSharedReleaseReadinessOptions,
   buildSharedReleaseReadinessOptions,
+  parseStrictBoolean,
 } from './release-readiness-args.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,14 +49,9 @@ type Options = {
   markdown: string;
 };
 
-function parseBoolean(value: string | undefined, fallback = false) {
-  if (value === undefined || value === '') return fallback;
-  return value === 'true' || value === '1';
-}
-
 function parseArgs(argv: string[]): Options {
   const parsed: Options = {
-    ...buildSharedReleaseReadinessOptions(parseBoolean),
+    ...buildSharedReleaseReadinessOptions(parseStrictBoolean),
     artifactsDir: process.env.OPL_RELEASE_READINESS_ARTIFACTS_DIR || '',
     jobResultsPath: process.env.OPL_RELEASE_READINESS_JOB_RESULTS || '',
     output: process.env.OPL_RELEASE_READINESS_OUTPUT || '',
@@ -64,7 +60,7 @@ function parseArgs(argv: string[]): Options {
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
-    const sharedIndex = applySharedReleaseReadinessArg(argv, index, parsed, parseBoolean);
+    const sharedIndex = applySharedReleaseReadinessArg(argv, index, parsed, parseStrictBoolean);
     if (sharedIndex !== null) {
       index = sharedIndex;
       continue;

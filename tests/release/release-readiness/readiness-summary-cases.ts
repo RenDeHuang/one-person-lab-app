@@ -764,3 +764,27 @@ test('release readiness summary surfaces GHCR package Actions access failures', 
     'gaofeng21cn/one-person-lab-app',
   );
 });
+
+test('release readiness summary rejects non-boolean shared release args', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-bool-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'maybe',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    tempRoot,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.notEqual(result.status, 0, result.stdout);
+  assert.match(result.stderr, /Boolean value must be true or false, got maybe/);
+  assert.equal(fs.existsSync(outputPath), false);
+});
