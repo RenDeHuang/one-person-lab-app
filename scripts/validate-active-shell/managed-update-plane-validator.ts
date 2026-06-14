@@ -194,6 +194,132 @@ export function validateReleaseManagedUpdatePlaneLanes(managedUpdatePlane) {
   validateManagedUpdateStandardUpdaterBoundary(managedUpdatePlane?.standard_updater_boundary);
 }
 
+export function validateReleaseRuntimeToolchainUpdater(runtimeUpdater, managedUpdatePlane) {
+  if (
+    runtimeUpdater?.owner !== 'one-person-lab-app' ||
+    runtimeUpdater?.role !== 'app_owned_runtime_fallback_and_toolchain_layer_updates' ||
+    runtimeUpdater?.channel_manifest_asset !== 'app-runtime-update-channel.json' ||
+    runtimeUpdater?.transport !== 'app_owned_github_release_assets' ||
+    runtimeUpdater?.standard_updater_metadata_allowed !== false ||
+    runtimeUpdater?.standard_updater_latest_yml_allowed !== false ||
+    runtimeUpdater?.homebrew_tap_write_allowed !== false ||
+    runtimeUpdater?.default_policy?.auto_check !== true ||
+    runtimeUpdater?.default_policy?.download !== 'silent_background' ||
+    runtimeUpdater?.default_policy?.apply !== 'stage_verified_payload_and_apply_on_next_app_restart' ||
+    runtimeUpdater?.default_policy?.restart_prompt !== 'none_until_user_restarts_app' ||
+    runtimeUpdater?.default_policy?.user_blocking !== false
+  ) {
+    throw new Error('Release channel runtime/toolchain updater must be a silent App-owned runtime fallback channel separate from standard updater and Homebrew');
+  }
+  assertIncludesAll(
+    runtimeUpdater.managed_components,
+    [
+      'codex_cli_fallback',
+      'temporal_cli_archive',
+      'node_runtime',
+      'python_runtime',
+      'uv_runtime',
+      'officecli',
+      'mineru_open_api',
+      'companion_skills',
+      'opl_framework_runtime',
+      'domain_module_payloads',
+    ],
+    'Release channel runtime/toolchain updater managed components',
+  );
+  if (
+    runtimeUpdater.layering?.runtime_root !== '~/Library/Application Support/OPL/runtime' ||
+    runtimeUpdater.layering?.current_pointer !== '~/Library/Application Support/OPL/runtime/current.json' ||
+    runtimeUpdater.layering?.activation !== 'swap_current_pointer_on_app_restart_after_startup_smoke' ||
+    runtimeUpdater.layering?.rollback !== 'restore_previous_pointer_when_startup_smoke_fails'
+  ) {
+    throw new Error('Release channel runtime/toolchain updater must stage runtime layers and atomically activate through the runtime current pointer');
+  }
+  validateReleaseRuntimeToolchainSystemPolicy(runtimeUpdater);
+  validateReleaseRuntimeToolchainVerification(runtimeUpdater);
+  if (
+    runtimeUpdater.managed_update_plane !== 'runtime_toolchain' ||
+    runtimeUpdater.kernel !== 'opl_managed_updater_kernel' ||
+    runtimeUpdater.adapter !== 'runtime_toolchain_adapter' ||
+    runtimeUpdater.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
+    runtimeUpdater.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
+    runtimeUpdater.app_role !== 'status_conditions_repair_actions_consumer_only'
+  ) {
+    throw new Error('Release channel runtime/toolchain updater must bind to the managed update plane runtime lane');
+  }
+  assertDeepEqualJson(
+    runtimeUpdater.status_sources,
+    [
+      'opl app state --profile fast --json#managed_update_plane.runtime_toolchain',
+      'opl update status --json#runtime_toolchain',
+    ],
+    'Release channel runtime updater status sources',
+  );
+  assertIncludesAll(
+    runtimeUpdater.forbidden_silent_overwrite_scope,
+    managedUpdatePlane?.forbidden_silent_overwrite_scope,
+    'Release channel runtime updater forbidden silent overwrite scope',
+  );
+}
+
+function validateReleaseRuntimeToolchainSystemPolicy(runtimeUpdater) {
+  assertDeepEqualJson(
+    runtimeUpdater.system_tool_policy?.preferred_sources,
+    ['explicit_user_path', 'system_path', 'homebrew_formula', 'app_owned_runtime_fallback'],
+    'Release channel runtime/toolchain updater preferred sources',
+  );
+  if (
+    runtimeUpdater.system_tool_policy?.prefer_valid_newer_system_tool !== true ||
+    runtimeUpdater.system_tool_policy?.silent_global_mutation_allowed !== false ||
+    runtimeUpdater.system_tool_policy?.homebrew_upgrade_allowed_by_default !== false ||
+    runtimeUpdater.system_tool_policy?.user_opt_in_global_upgrade_allowed !== true
+  ) {
+    throw new Error('Release channel runtime/toolchain updater must detect compatible system tools without silently mutating global Homebrew or system installs');
+  }
+  assertIncludesAll(
+    runtimeUpdater.manifest_required_fields,
+    [
+      'schema_version',
+      'channel',
+      'runtime_version',
+      'components',
+      'assets',
+      'sha256',
+      'minimum_versions',
+      'apply_policy',
+      'rollback_policy',
+    ],
+    'Release channel runtime/toolchain updater manifest fields',
+  );
+}
+
+function validateReleaseRuntimeToolchainVerification(runtimeUpdater) {
+  assertIncludesAll(
+    runtimeUpdater.verification?.required_before_stage,
+    ['manifest_schema', 'asset_sha256', 'minimum_version', 'component_capability_smoke'],
+    'Release channel runtime/toolchain updater stage checks',
+  );
+  assertIncludesAll(
+    runtimeUpdater.verification?.required_before_release,
+    [
+      'standard_dmg_clean_vm_smoke',
+      'full_dmg_clean_vm_smoke',
+      'homebrew_standard_cask_clean_vm_smoke',
+      'remote_release_verification',
+    ],
+    'Release channel runtime/toolchain updater release checks',
+  );
+  if (
+    runtimeUpdater.verification?.clean_machine_installability_must_not_regress !== true ||
+    runtimeUpdater.rollback_policy?.keep_previous_runtime !== true ||
+    runtimeUpdater.rollback_policy?.rollback_on_startup_smoke_failure !== true ||
+    runtimeUpdater.rollback_policy?.rollback_must_not_mutate_user_global_tools !== true ||
+    !/silent download and verified staging/.test(runtimeUpdater.rule ?? '')
+  ) {
+    throw new Error('Release channel runtime/toolchain updater must preserve clean-machine installability and rollback without global tool mutation');
+  }
+}
+
 function validateManagedUpdateAppBinaryLane(appBinaryPlane) {
   if (
     appBinaryPlane?.updater_kind !== 'standard_updater' ||
