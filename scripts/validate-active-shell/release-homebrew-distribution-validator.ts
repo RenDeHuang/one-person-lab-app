@@ -1,9 +1,5 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
-
-type ExpectedField = {
-  actual: unknown;
-  expected: unknown;
-};
+import { assertExpectedFields } from '../expected-field-assertions.ts';
 
 export function validateReleaseHomebrewDistribution(releaseChannel, managedUpdatePlane) {
   const homebrew = releaseChannel.homebrew_tap_distribution;
@@ -22,12 +18,6 @@ export function validateReleaseHomebrewDistribution(releaseChannel, managedUpdat
   validateReleaseHomebrewVmGate(releaseChannel);
   validateReleaseHomebrewAgentPackPolicy(homebrew, managedUpdatePlane);
   validateReleaseHomebrewCodexTemporalPolicy(homebrew);
-}
-
-function assertExpectedFields(checks: readonly ExpectedField[], message: string): void {
-  if (checks.some(({ actual, expected }) => actual !== expected)) {
-    throw new Error(message);
-  }
 }
 
 function validateReleaseHomebrewCaskInstallPolicy(homebrew) {

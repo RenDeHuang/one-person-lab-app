@@ -1,3 +1,4 @@
+import { assertExpectedFields } from './expected-field-assertions.ts';
 import { assertStringArrayIncludes } from './string-array-assertions.ts';
 
 type ProductProfileLike = {
@@ -36,17 +37,6 @@ type ModelDisplayOptions = {
 type RouteReceiptOptions = {
   requireExactAssistants?: boolean;
 };
-
-type ExpectedField = {
-  actual: unknown;
-  expected: unknown;
-};
-
-function assertExpectedFields(checks: readonly ExpectedField[], message: string): void {
-  if (checks.some(({ actual, expected }) => actual !== expected)) {
-    throw new Error(message);
-  }
-}
 
 function assertExactStringArray(actual: unknown, expected: string[], label: string): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
