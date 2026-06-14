@@ -5,21 +5,12 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
+import { runCommand } from './release-cleanup-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    cwd: options.cwd ?? appRoot,
-    stdio: options.capture ? 'pipe' : 'inherit',
-    encoding: 'utf8',
-    env: process.env,
-  });
-  if (result.status !== 0) {
-    const detail = options.capture ? `\nstdout=${result.stdout || ''}\nstderr=${result.stderr || ''}` : '';
-    throw new Error(`Command failed: ${command} ${args.join(' ')}${detail}`);
-  }
-  return result;
+function run(command: string, args: string[], options: { capture?: boolean; cwd?: string } = {}) {
+  return runCommand(command, args, { ...options, cwd: options.cwd ?? appRoot });
 }
 
 function parseArgs(argv) {
