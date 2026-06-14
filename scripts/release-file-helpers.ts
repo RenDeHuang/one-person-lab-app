@@ -16,6 +16,11 @@ export function findFileByName(root: string, name: string): string | null {
   return null;
 }
 
+export function writeLinesFile(filePath: string, lines: string[]): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
+}
+
 export function fileSha256(filePath: string): string {
   const hash = crypto.createHash('sha256');
   const buffer = Buffer.allocUnsafe(1024 * 1024);

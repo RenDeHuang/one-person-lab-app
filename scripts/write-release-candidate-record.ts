@@ -8,6 +8,8 @@ import {
   readAppReleaseOwnerVerdictContract,
   validateAppReleaseOwnerVerdictContract,
 } from './app-release-owner-verdict.ts';
+import { writeLinesFile } from './release-file-helpers.ts';
+import { arrayOrEmpty, recordOrNull } from './release-json-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseRepo = 'gaofeng21cn/one-person-lab-app';
@@ -131,16 +133,6 @@ function readJsonIfExists(filePath: string) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
-function objectOrNull(value: unknown) {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
-}
-
-function arrayOrEmpty(value: unknown) {
-  return Array.isArray(value) ? value : [];
-}
-
 function statusOf(record: Record<string, unknown> | null) {
   return typeof record?.status === 'string' ? record.status : 'missing';
 }
@@ -168,19 +160,19 @@ function collectBlockedReasons(options: Options, inputs: {
   }
   const failedGates = arrayOrEmpty(inputs.readiness?.failed_required_gates);
   for (const gate of failedGates) {
-    const record = objectOrNull(gate);
+    const record = recordOrNull(gate);
     if (record) reasons.push(`required gate ${String(record.id ?? 'unknown')} ${String(record.status ?? 'failed')}: ${String(record.reason ?? 'no reason')}`);
   }
   return reasons;
 }
 
 function extractResolvedRefs(readiness: Record<string, unknown> | null) {
-  const fullPackage = objectOrNull(readiness?.full_package);
-  return objectOrNull(fullPackage?.resolved_refs);
+  const fullPackage = recordOrNull(readiness?.full_package);
+  return recordOrNull(fullPackage?.resolved_refs);
 }
 
 function withReleaseOwnerResolution(readiness: Record<string, unknown> | null, options: Options) {
-  const verdict = objectOrNull(readiness?.release_owner_verdict);
+  const verdict = recordOrNull(readiness?.release_owner_verdict);
   if (!verdict) return null;
   const next = { ...verdict };
   if (options.releaseOwnerVerdictRef) {
@@ -261,10 +253,10 @@ function collectReleaseOwnerVerdictReasons(verdict: Record<string, unknown> | nu
 }
 
 function buildRecord(options: Options) {
-  const preflight = objectOrNull(readJsonIfExists(options.preflightPath));
-  const readiness = objectOrNull(readJsonIfExists(options.readinessPath));
-  const remote = objectOrNull(readJsonIfExists(options.remoteVerificationPath));
-  const jobResults = objectOrNull(readJsonIfExists(options.jobResultsPath)) ?? {};
+  const preflight = recordOrNull(readJsonIfExists(options.preflightPath));
+  const readiness = recordOrNull(readJsonIfExists(options.readinessPath));
+  const remote = recordOrNull(readJsonIfExists(options.remoteVerificationPath));
+  const jobResults = recordOrNull(readJsonIfExists(options.jobResultsPath)) ?? {};
   const releaseOwnerVerdict = withReleaseOwnerResolution(readiness, options);
   const blockedReasons = collectBlockedReasons(options, { preflight, readiness, remote });
   blockedReasons.push(...collectReleaseOwnerVerdictReasons(releaseOwnerVerdict));
@@ -348,8 +340,7 @@ function writeMarkdown(filePath: string, record: ReturnType<typeof buildRecord>)
     for (const reason of record.blocked_reasons) lines.push(`- ${reason}`);
   }
   lines.push('');
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
+  writeLinesFile(filePath, lines);
 }
 
 try {

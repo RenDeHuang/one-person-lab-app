@@ -13,7 +13,8 @@ import {
   readAppReleaseOwnerVerdictContract,
 } from './app-release-owner-verdict.ts';
 import { buildReleaseEvidenceCohort } from './release-evidence-cohort.ts';
-import { findFileByName } from './release-file-helpers.ts';
+import { findFileByName, writeLinesFile } from './release-file-helpers.ts';
+import { arrayOrEmpty, recordOrNull } from './release-json-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -357,16 +358,6 @@ function buildManifestSizeAnalysis(
     },
     optimization_candidates: candidates,
   };
-}
-
-function recordOrNull(value: unknown) {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
-}
-
-function arrayOrEmpty(value: unknown) {
-  return Array.isArray(value) ? value : [];
 }
 
 function stringField(record: Record<string, unknown> | null | undefined, key: string) {
@@ -985,8 +976,7 @@ function writeMarkdown(filePath: string, summary: ReturnType<typeof buildSummary
     );
   }
   lines.push('');
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
+  writeLinesFile(filePath, lines);
 }
 
 try {
