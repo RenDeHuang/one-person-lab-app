@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseStrictBoolean } from './release-readiness-args.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseRepo = 'gaofeng21cn/one-person-lab-app';
@@ -67,18 +68,12 @@ type Options = {
   markdownPath: string | null;
 };
 
-function parseBoolean(value: string, name: string) {
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  throw new Error(`${name} must be true or false, got ${value}`);
-}
-
 function parseArgs(argv: string[]): Options {
   const options: Options = {
     version: process.env.OPL_RELEASE_VERSION || '',
     releaseMode: process.env.OPL_RELEASE_MODE || 'refresh_existing',
-    includeFullPackage: process.env.OPL_INCLUDE_FULL_PACKAGE === 'true',
-    runVmSmoke: process.env.OPL_RUN_VM_SMOKE !== 'false',
+    includeFullPackage: parseStrictBoolean(process.env.OPL_INCLUDE_FULL_PACKAGE, false),
+    runVmSmoke: parseStrictBoolean(process.env.OPL_RUN_VM_SMOKE, true),
     shellRef: process.env.OPL_SHELL_REF || 'main',
     frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
     offline: false,
@@ -107,12 +102,12 @@ function parseArgs(argv: string[]): Options {
       continue;
     }
     if (token === '--include-full-package') {
-      options.includeFullPackage = parseBoolean(value, token);
+      options.includeFullPackage = parseStrictBoolean(value);
       index += 1;
       continue;
     }
     if (token === '--run-vm-smoke') {
-      options.runVmSmoke = parseBoolean(value, token);
+      options.runVmSmoke = parseStrictBoolean(value);
       index += 1;
       continue;
     }

@@ -224,6 +224,21 @@ test('release preflight fails fast before expensive release jobs', () => {
     && check.status === 'skipped'
   )));
 
+  const invalidBooleanEnv = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'draft_candidate',
+    '--offline',
+  ], {
+    env: {
+      OPL_INCLUDE_FULL_PACKAGE: 'maybe',
+    },
+  });
+  assert.notEqual(invalidBooleanEnv.status, 0);
+  assert.match(invalidBooleanEnv.stderr, /Boolean value must be true or false, got maybe/);
+
   const fakeBin = path.join(tempRoot, 'bin');
   writeExecutable(path.join(fakeBin, 'gh'), `#!/usr/bin/env node
 const args = process.argv.slice(2);
