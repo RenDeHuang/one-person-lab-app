@@ -14,6 +14,14 @@ export function arrayOrEmpty(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
+export function objectField(record: Record<string, unknown> | null | undefined, key: string) {
+  return recordOrNull(record?.[key]);
+}
+
+export function arrayField(record: Record<string, unknown> | null | undefined, key: string) {
+  return arrayOrEmpty(record?.[key]);
+}
+
 export function asRecord(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${label} must be an object.`);
