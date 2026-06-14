@@ -2,8 +2,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseJsonLines, runGh, writeJsonSummary } from './release-cleanup-helpers.ts';
 
 type GhcrVersion = {
   id?: number;
@@ -65,19 +65,6 @@ function parseArgs(argv: string[]): Options {
   return parsed;
 }
 
-function runGh(args: string[], options: { capture?: boolean } = {}) {
-  const result = spawnSync('gh', args, {
-    encoding: 'utf8',
-    stdio: options.capture ? 'pipe' : 'inherit',
-    env: process.env,
-  });
-  if (result.status !== 0) {
-    const detail = options.capture ? `\nstdout=${result.stdout || ''}\nstderr=${result.stderr || ''}` : '';
-    throw new Error(`Command failed: gh ${args.join(' ')}${detail}`);
-  }
-  return result;
-}
-
 function encodedPackageName(packageName: string) {
   return packageName.replaceAll('/', '%2F');
 }
@@ -92,11 +79,7 @@ function readPackageVersions(options: Options) {
     '--jq',
     '.[] | @json',
   ], { capture: true });
-  return result.stdout
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as GhcrVersion);
+  return parseJsonLines<GhcrVersion>(result.stdout);
 }
 
 function versionTags(version: GhcrVersion) {
@@ -128,12 +111,6 @@ function summarizeVersion(version: GhcrVersion) {
     updated_at: version.updated_at ?? null,
     html_url: version.html_url ?? null,
   };
-}
-
-function writeSummary(summaryPath: string, payload: unknown) {
-  if (!summaryPath) return;
-  fs.mkdirSync(path.dirname(summaryPath), { recursive: true });
-  fs.writeFileSync(summaryPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
 
 function cleanup(options: Options) {
@@ -199,7 +176,7 @@ function cleanup(options: Options) {
     candidates,
     deleted_version_ids: deletedVersionIds,
   };
-  writeSummary(options.summaryPath, summary);
+  writeJsonSummary(options.summaryPath, summary);
   console.log(JSON.stringify(summary, null, 2));
 }
 

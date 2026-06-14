@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
+import { runCommand } from './release-cleanup-helpers.ts';
 
 function parseArgs(argv) {
   const parsed = {
@@ -62,20 +63,6 @@ function parseArgs(argv) {
   return parsed;
 }
 
-function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    cwd: options.cwd,
-    encoding: 'utf8',
-    stdio: options.capture ? 'pipe' : 'inherit',
-    env: process.env,
-  });
-  if (result.status !== 0) {
-    const detail = options.capture ? `\nstdout=${result.stdout || ''}\nstderr=${result.stderr || ''}` : '';
-    throw new Error(`Command failed: ${command} ${args.join(' ')}${detail}`);
-  }
-  return result;
-}
-
 function runCapture(command, args, options = {}) {
   return spawnSync(command, args, {
     cwd: options.cwd,
@@ -89,7 +76,7 @@ function readReleaseView(repo, tag) {
   if (process.env.OPL_REMOTE_RELEASE_VIEW_JSON?.trim()) {
     return JSON.parse(process.env.OPL_REMOTE_RELEASE_VIEW_JSON);
   }
-  const result = run('gh', [
+  const result = runCommand('gh', [
     'release',
     'view',
     tag,
@@ -158,7 +145,7 @@ function downloadAssets(options, names, downloadDir) {
     return;
   }
   for (const name of names) {
-    run('gh', [
+    runCommand('gh', [
       'release',
       'download',
       options.tag,
@@ -265,7 +252,7 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, version, localAuthoriz
   const zipPath = path.join(downloadDir, zipName);
   const unzipDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-updater-app-'));
   try {
-    run('unzip', ['-q', zipPath, '-d', unzipDir], { capture: true });
+    runCommand('unzip', ['-q', zipPath, '-d', unzipDir], { capture: true });
     const appPath = findStandardAppBundle(unzipDir);
     const infoPlistPath = path.join(appPath, 'Contents', 'Info.plist');
     if (!fs.existsSync(infoPlistPath)) {

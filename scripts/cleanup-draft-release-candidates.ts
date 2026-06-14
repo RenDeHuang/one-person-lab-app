@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { parseJsonLines, runGh, writeJsonSummary } from './release-cleanup-helpers.ts';
 
 type ReleaseAsset = {
   name?: string;
@@ -68,19 +67,6 @@ function parseArgs(argv: string[]): Options {
   return parsed;
 }
 
-function run(command: string, args: string[], options: { capture?: boolean } = {}) {
-  const result = spawnSync(command, args, {
-    encoding: 'utf8',
-    stdio: options.capture ? 'pipe' : 'inherit',
-    env: process.env,
-  });
-  if (result.status !== 0) {
-    const detail = options.capture ? `\nstdout=${result.stdout || ''}\nstderr=${result.stderr || ''}` : '';
-    throw new Error(`Command failed: ${command} ${args.join(' ')}${detail}`);
-  }
-  return result;
-}
-
 function releaseTag(release: ReleaseView) {
   return release.tag_name || release.tagName || '';
 }
@@ -95,7 +81,7 @@ function releasePrerelease(release: ReleaseView) {
 
 function readStableRelease(options: Options) {
   const tag = `v${options.version}`;
-  const result = run('gh', [
+  const result = runGh([
     'release',
     'view',
     tag,
@@ -112,18 +98,14 @@ function readStableRelease(options: Options) {
 }
 
 function readAllReleases(options: Options) {
-  const result = run('gh', [
+  const result = runGh([
     'api',
     `repos/${options.repo}/releases`,
     '--paginate',
     '--jq',
     '.[] | {id,tag_name,name,draft,prerelease,created_at,published_at,html_url,assets:[.assets[]? | {name,size}]}',
   ], { capture: true });
-  return result.stdout
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as ReleaseView);
+  return parseJsonLines<ReleaseView>(result.stdout);
 }
 
 function candidateTagPattern(version: string) {
@@ -153,14 +135,6 @@ function summarizeCandidate(release: ReleaseView) {
   };
 }
 
-function writeSummary(summaryPath: string, payload: unknown) {
-  if (!summaryPath) {
-    return;
-  }
-  fs.mkdirSync(path.dirname(summaryPath), { recursive: true });
-  fs.writeFileSync(summaryPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
-}
-
 function cleanup(options: Options) {
   const stable = readStableRelease(options);
   const releases = readAllReleases(options);
@@ -169,7 +143,7 @@ function cleanup(options: Options) {
 
   if (options.execute) {
     for (const candidate of candidates) {
-      run('gh', [
+      runGh([
         'release',
         'delete',
         candidate.tag_name,
@@ -197,7 +171,7 @@ function cleanup(options: Options) {
     candidates,
     deleted_tags: deletedTags,
   };
-  writeSummary(options.summaryPath, summary);
+  writeJsonSummary(options.summaryPath, summary);
   console.log(JSON.stringify(summary, null, 2));
 }
 
