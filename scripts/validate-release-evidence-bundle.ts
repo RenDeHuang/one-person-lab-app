@@ -516,12 +516,10 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
 }
 
 function validateManifestArtifact(manifestArtifact: unknown, expected: EvidenceArtifact): ManifestArtifact {
-  const artifact = asRecord(manifestArtifact, `manifest artifact ${expected.id}`);
-  for (const key of ['id', 'path', 'kind', 'producer', 'source_kind'] as const) {
-    if (artifact[key] !== expected[key]) {
-      throw new Error(`Manifest artifact ${expected.id}.${key} must match release contract.`);
-    }
-  }
+  const artifact = validateArtifactContractFields(manifestArtifact, expected, {
+    recordLabel: 'manifest artifact',
+    errorLabel: 'Manifest artifact',
+  });
   if (
     artifact.status !== 'present' &&
     artifact.status !== 'missing' &&
@@ -553,16 +551,28 @@ function validateManifestArtifact(manifestArtifact: unknown, expected: EvidenceA
 }
 
 function validateDiagnosticArtifact(manifestArtifact: unknown, expected: EvidenceArtifact): ManifestArtifact {
-  const artifact = asRecord(manifestArtifact, `diagnostic artifact ${expected.id}`);
-  for (const key of ['id', 'path', 'kind', 'producer', 'source_kind'] as const) {
-    if (artifact[key] !== expected[key]) {
-      throw new Error(`Diagnostic artifact ${expected.id}.${key} must match release contract.`);
-    }
-  }
+  const artifact = validateArtifactContractFields(manifestArtifact, expected, {
+    recordLabel: 'diagnostic artifact',
+    errorLabel: 'Diagnostic artifact',
+  });
   if (artifact.status !== 'present') {
     throw new Error(`Diagnostic artifact ${expected.id}.status must be present when declared.`);
   }
   return artifact as ManifestArtifact;
+}
+
+function validateArtifactContractFields(
+  manifestArtifact: unknown,
+  expected: EvidenceArtifact,
+  labels: { recordLabel: string; errorLabel: string },
+): Record<string, unknown> {
+  const artifact = asRecord(manifestArtifact, `${labels.recordLabel} ${expected.id}`);
+  for (const key of ['id', 'path', 'kind', 'producer', 'source_kind'] as const) {
+    if (artifact[key] !== expected[key]) {
+      throw new Error(`${labels.errorLabel} ${expected.id}.${key} must match release contract.`);
+    }
+  }
+  return artifact;
 }
 
 function validateMissingEvidenceList(manifest: Record<string, unknown>, missingArtifacts: ManifestArtifact[]) {
