@@ -94,6 +94,14 @@ function validateProductProfileCodexDefaults(profile) {
   assertAppProductProfileHomeCodexPolicy(profile, 'Product profile');
   assertAppProductProfileCodexModelDisplayOptions(profile, 'Product profile');
   assertAppProductProfileRouteReceiptPolicy(profile, 'Product profile');
+  validateHomeAssistantDefaults(profile);
+  validateProductProfileSettings(profile);
+  validateAssistantSkillProfiles(profile);
+  validateProductProfileCodexSkills(profile);
+  validateOrdinaryCapabilitySelectorPolicy(profile);
+}
+
+function validateHomeAssistantDefaults(profile) {
   const homePurposeEntries = profile.gui.home.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
     throw new Error('Product profile GUI home must expose research, grant, and ppt purpose entries');
@@ -104,6 +112,23 @@ function validateProductProfileCodexDefaults(profile) {
   if (JSON.stringify((profile.gui.default_assistants ?? []).map((assistant) => assistant.id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
     throw new Error('Product profile default assistants must be MAS, MAG, and RCA only');
   }
+  for (const assistant of profile.gui.default_assistants ?? []) {
+    if (assistant.home_entry_policy !== 'purpose_entry_target' || assistant.home_entry_display_policy !== 'purpose_first') {
+      throw new Error(`Product profile default assistant ${assistant.id} must be a purpose-first entry target`);
+    }
+  }
+  const oma = (profile.gui.non_default_assistants ?? []).find((assistant) => assistant.id === 'oma');
+  if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
+    throw new Error('Product profile must keep OMA available but out of default home entries');
+  }
+  for (const retiredModel of ['gpt-5.2-codex', 'gpt-5.1-codex-max', 'gpt-5.1-codex-mini']) {
+    if (!profile.gui.home?.retired_codex_models_must_not_be_exposed?.includes(retiredModel)) {
+      throw new Error(`Product profile GUI home must ban retired Codex model ${retiredModel}`);
+    }
+  }
+}
+
+function validateProductProfileSettings(profile) {
   assertDeepEqualJson(
     profile.settings?.visible_tabs,
     appOwnedSettingsTabs,
@@ -114,6 +139,9 @@ function validateProductProfileCodexDefaults(profile) {
     legacySettingsRouteRedirects,
     'Product profile legacy settings route redirects',
   );
+}
+
+function validateAssistantSkillProfiles(profile) {
   const productSkillProfiles = profile.gui.assistant_skill_profiles ?? [];
   if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
     throw new Error('Product profile assistant skill profiles must target MAS, MAG, and RCA');
@@ -140,20 +168,9 @@ function validateProductProfileCodexDefaults(profile) {
       );
     }
   }
-  for (const assistant of profile.gui.default_assistants ?? []) {
-    if (assistant.home_entry_policy !== 'purpose_entry_target' || assistant.home_entry_display_policy !== 'purpose_first') {
-      throw new Error(`Product profile default assistant ${assistant.id} must be a purpose-first entry target`);
-    }
-  }
-  const oma = (profile.gui.non_default_assistants ?? []).find((assistant) => assistant.id === 'oma');
-  if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
-    throw new Error('Product profile must keep OMA available but out of default home entries');
-  }
-  for (const retiredModel of ['gpt-5.2-codex', 'gpt-5.1-codex-max', 'gpt-5.1-codex-mini']) {
-    if (!profile.gui.home?.retired_codex_models_must_not_be_exposed?.includes(retiredModel)) {
-      throw new Error(`Product profile GUI home must ban retired Codex model ${retiredModel}`);
-    }
-  }
+}
+
+function validateProductProfileCodexSkills(profile) {
   if (!Array.isArray(profile.codex?.default_visible_skills) || !profile.codex.default_visible_skills.includes('mineru-document-extractor')) {
     throw new Error('Product profile must include mineru-document-extractor as a default visible skill');
   }
@@ -189,7 +206,6 @@ function validateProductProfileCodexDefaults(profile) {
   ) {
     throw new Error('Product profile must not include retired morph-ppt skill wiring');
   }
-  validateOrdinaryCapabilitySelectorPolicy(profile);
 }
 
 function validateOrdinaryCapabilitySelectorPolicy(profile) {
