@@ -1,6 +1,9 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { temporalLocalServiceDefaults, temporalManagedCommands } from './app-contract-constants.ts';
-import { validateReleaseManagedUpdateKernelSurface } from './managed-update-plane-validator.ts';
+import {
+  validateReleaseManagedUpdateKernelSurface,
+  validateReleaseManagedUpdatePlaneLanes,
+} from './managed-update-plane-validator.ts';
 import { validateAppReleaseL5ReadoutContract } from '../app-release-l5-readout.ts';
 import { validateAppReleaseOwnerVerdictContract } from '../app-release-owner-verdict.ts';
 
@@ -72,167 +75,7 @@ export function validateReleaseChannelContract(releaseChannel) {
     'Managed update plane release-boundary cases',
   );
 
-  const planeById = new Map((managedUpdatePlane.planes ?? []).map((plane) => [plane.id, plane]));
-  const appBinaryPlane = planeById.get('app_binary');
-  if (
-    appBinaryPlane?.updater_kind !== 'standard_updater' ||
-    appBinaryPlane?.adapter !== 'electron_standard_updater' ||
-    appBinaryPlane?.source !== 'GitHub Release standard macOS arm64 updater assets' ||
-    appBinaryPlane?.repair_action_scope !== 'app_release_check_or_download_retry_only'
-  ) {
-    throw new Error('Managed update plane App binary lane must remain the standard desktop updater only');
-  }
-  const runtimePlane = planeById.get('runtime_toolchain');
-  const agentPlane = planeById.get('agent_package_channel');
-  if (
-    runtimePlane?.updater_kind !== 'managed_updater_kernel' ||
-    runtimePlane?.adapter !== 'runtime_toolchain_adapter' ||
-    runtimePlane?.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
-    runtimePlane?.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
-    agentPlane?.updater_kind !== 'managed_updater_kernel' ||
-    agentPlane?.adapter !== 'agent_package_channel_adapter' ||
-    agentPlane?.policy !== 'ordinary_user_non_development_silent_background' ||
-    agentPlane?.post_apply !== 'sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface'
-  ) {
-    throw new Error('Managed update plane runtime/toolchain and agent package lanes must share the managed kernel but differ by adapter/policy/post_apply');
-  }
-  assertDeepEqualJson(
-    runtimePlane.status_fields,
-    [
-      'runtime_version',
-      'components',
-      'conditions',
-      'staged_version',
-      'restart_required',
-      'repair_actions',
-      'idempotency_lock.status',
-      'execution.status',
-      'components[].receipt.last_receipt_ref',
-      'components[].receipt.rollback_ref',
-      'components[].receipt.repair_action',
-    ],
-    'Managed update plane runtime lane status fields',
-  );
-  assertDeepEqualJson(
-    runtimePlane.component_receipt_identity_fields,
-    ['runtime_version', 'current_pointer', 'staged_root', 'sha256'],
-    'Managed update plane runtime lane receipt identity fields',
-  );
-  if (
-    runtimePlane.rollback_status_source !== 'opl update rollback --component runtime_toolchain --json#managed_update.execution.status' ||
-    runtimePlane.repair_status_source !== 'opl update repair --receipt <receipt_id> --json#managed_update.execution.status'
-  ) {
-    throw new Error('Managed update plane runtime lane must consume Framework rollback and repair runner status fields');
-  }
-  assertDeepEqualJson(
-    agentPlane.status_fields,
-    [
-      'agent_id',
-      'package_tag',
-      'version',
-      'source',
-      'conditions',
-      'repair_actions',
-      'components[].receipt.post_apply_hooks',
-      'idempotency_lock.status',
-      'execution.status',
-      'components[].receipt.last_receipt_ref',
-      'components[].receipt.repair_action',
-    ],
-    'Managed update plane agent package lane status fields',
-  );
-  assertDeepEqualJson(
-    agentPlane.post_apply_sync,
-    {
-      status_field: 'components[].receipt.post_apply_hooks',
-      required_hooks: [
-        'reconcile_modules',
-        'sync_skills',
-        'sync_plugin_registry',
-        'sync_plugin_packaged_skills',
-        'sync_oma_generated_plugin_surface',
-      ],
-      reload_guidance: 'reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface',
-      auto_apply_eligibility: 'clean_managed_module_roots_only',
-      auto_apply_denial_reasons: [
-        'dirty_checkout',
-        'developer_profile_checkout',
-        'manual_required_condition',
-        'idempotency_lock_in_progress',
-        'verification_failed',
-      ],
-    },
-    'Managed update plane agent package post-apply sync guidance',
-  );
-  assertDeepEqualJson(
-    agentPlane.package_agent_ids,
-    ['mas', 'mag', 'rca', 'oma'],
-    'Managed update plane agent package ids',
-  );
-  if (
-    managedUpdatePlane.agent_package_channel?.background_apply_policy !==
-    'apply_after_check_or_plan_when_all_agent_package_components_are_clean_managed_and_update_available'
-  ) {
-    throw new Error('Managed update plane agent package channel must declare clean managed background auto-apply policy');
-  }
-  assertDeepEqualJson(
-    managedUpdatePlane.agent_package_channel?.background_apply_must_record,
-    [
-      'last_auto_apply_at',
-      'last_auto_apply_component_ids',
-      'last_auto_apply_receipt_refs',
-      'last_auto_apply_post_apply_hooks',
-      'last_auto_apply_skip_reasons',
-      'reload_guidance',
-    ],
-    'Managed update plane agent package channel background auto-apply receipt projection',
-  );
-  const capabilityPlane = planeById.get('capability_exposure');
-  if (
-    capabilityPlane?.updater_kind !== 'managed_visibility_projection' ||
-    capabilityPlane?.adapter !== 'codex_exposure_status_adapter' ||
-    capabilityPlane?.policy !== 'display_visibility_and_repair_actions_without_duplicate_semantics'
-  ) {
-    throw new Error('Managed update plane capability exposure lane must be a status projection only');
-  }
-  assertDeepEqualJson(
-    capabilityPlane.status_fields,
-    [
-      'codex_plugin_registry',
-      'plugin_packaged_skills',
-      'opl_generated_plugin_surface',
-      'conditions',
-      'repair_actions',
-      'components[].receipt.post_apply_hooks',
-      'reload_required',
-      'reload_guidance',
-    ],
-    'Managed update plane capability exposure status fields',
-  );
-  if (
-    capabilityPlane.reload_guidance !==
-    'manual_reload_only_after_framework_reports_needs_reload_or_post_apply_sync_changed_cached_capability_surface'
-  ) {
-    throw new Error('Managed update plane capability exposure lane must declare post-apply reload guidance');
-  }
-  assertIncludesAll(
-    managedUpdatePlane.standard_updater_boundary?.forbidden_targets,
-    [
-      'runtime_toolchain',
-      'agent_package_channel',
-      'capability_exposure',
-      'developer_checkout_selection',
-      'homebrew_or_global_tool_upgrade',
-      'domain_truth',
-    ],
-    'Managed update plane standard updater forbidden targets',
-  );
-  if (
-    managedUpdatePlane.standard_updater_boundary?.scope !== 'desktop_app_assets_only' ||
-    managedUpdatePlane.standard_updater_boundary?.updater !== 'electron_standard_updater'
-  ) {
-    throw new Error('Managed update plane standard updater boundary must remain desktop App assets only');
-  }
+  validateReleaseManagedUpdatePlaneLanes(managedUpdatePlane);
 
   const runtimeUpdater = releaseChannel.runtime_toolchain_updater;
   if (
