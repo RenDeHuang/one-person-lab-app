@@ -514,6 +514,19 @@ function validatePresentEvidenceArtifactFile(
   }
 }
 
+function manifestEntriesById(entries: unknown[], label: string): Map<unknown, unknown> {
+  return new Map(
+    entries.map((entry) => {
+      const record = asRecord(entry, label);
+      return [record.id, entry];
+    }),
+  );
+}
+
+function unexpectedManifestIds(entries: Map<unknown, unknown>, expected: EvidenceArtifact[]): unknown[] {
+  return [...entries.keys()].filter((id) => !expected.some((artifact) => artifact.id === id));
+}
+
 function validateBundle(bundleDir: string, options: Options) {
   const releaseContract = readJsonFile(releaseContractPath);
   const contract = validateContractBoundary(releaseContract.operator_evidence_bundle);
@@ -545,26 +558,14 @@ function validateBundle(bundleDir: string, options: Options) {
     throw new Error('Evidence manifest diagnostics must be an array when present.');
   }
 
-  const manifestArtifacts = new Map(
-    manifest.artifacts.map((entry) => {
-      const record = asRecord(entry, 'evidence manifest artifact');
-      return [record.id, entry];
-    }),
-  );
-  const unexpectedIds = [...manifestArtifacts.keys()].filter((id) => !contract.artifacts.some((artifact) => artifact.id === id));
+  const manifestArtifacts = manifestEntriesById(manifest.artifacts, 'evidence manifest artifact');
+  const unexpectedIds = unexpectedManifestIds(manifestArtifacts, contract.artifacts);
   if (unexpectedIds.length > 0) {
     throw new Error(`Evidence manifest declares unknown artifact(s): ${unexpectedIds.join(', ')}`);
   }
   const diagnostics = Array.isArray(manifest.diagnostics) ? manifest.diagnostics : [];
-  const diagnosticArtifacts = new Map(
-    diagnostics.map((entry) => {
-      const record = asRecord(entry, 'evidence manifest diagnostic artifact');
-      return [record.id, entry];
-    }),
-  );
-  const unexpectedDiagnosticIds = [...diagnosticArtifacts.keys()].filter(
-    (id) => !contract.optionalDiagnostics.some((artifact) => artifact.id === id),
-  );
+  const diagnosticArtifacts = manifestEntriesById(diagnostics, 'evidence manifest diagnostic artifact');
+  const unexpectedDiagnosticIds = unexpectedManifestIds(diagnosticArtifacts, contract.optionalDiagnostics);
   if (unexpectedDiagnosticIds.length > 0) {
     throw new Error(`Evidence manifest declares unknown diagnostic artifact(s): ${unexpectedDiagnosticIds.join(', ')}`);
   }
