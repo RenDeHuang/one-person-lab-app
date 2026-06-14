@@ -706,6 +706,25 @@ function validateBlockedEvidenceList(
   });
 }
 
+function validatePresentEvidenceArtifactFile(
+  bundleDir: string,
+  artifact: ManifestArtifact,
+  releaseCohort: KnownOrUnknownReleaseCohort,
+  imageEvidencePolicy: ImageEvidencePolicy,
+  unsupportedKindLabel: string,
+) {
+  const filePath = resolveBundlePath(bundleDir, artifact.path);
+  if (artifact.kind === 'json') {
+    validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id), releaseCohort);
+  } else if (artifact.kind === 'image') {
+    assertImageFile(filePath, artifact.id, imageEvidencePolicy);
+  } else if (artifact.kind === 'log') {
+    assertLogFile(filePath, artifact.id);
+  } else {
+    throw new Error(`Unsupported ${unsupportedKindLabel} kind: ${artifact.kind}`);
+  }
+}
+
 function validateBundle(bundleDir: string, options: Options) {
   const releaseContract = readJsonFile(releaseContractPath);
   const contract = validateContractBoundary(releaseContract.operator_evidence_bundle);
@@ -792,16 +811,13 @@ function validateBundle(bundleDir: string, options: Options) {
       continue;
     }
 
-    const filePath = resolveBundlePath(bundleDir, artifact.path);
-    if (artifact.kind === 'json') {
-      validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id), releaseCohort);
-    } else if (artifact.kind === 'image') {
-      assertImageFile(filePath, artifact.id, contract.imageEvidencePolicy);
-    } else if (artifact.kind === 'log') {
-      assertLogFile(filePath, artifact.id);
-    } else {
-      throw new Error(`Unsupported operator evidence artifact kind: ${artifact.kind}`);
-    }
+    validatePresentEvidenceArtifactFile(
+      bundleDir,
+      artifact,
+      releaseCohort,
+      contract.imageEvidencePolicy,
+      'operator evidence artifact',
+    );
     verified.push(artifact);
   }
 
@@ -811,16 +827,13 @@ function validateBundle(bundleDir: string, options: Options) {
       continue;
     }
     const artifact = validateDiagnosticArtifact(entry, expected);
-    const filePath = resolveBundlePath(bundleDir, artifact.path);
-    if (artifact.kind === 'json') {
-      validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id), releaseCohort);
-    } else if (artifact.kind === 'image') {
-      assertImageFile(filePath, artifact.id, contract.imageEvidencePolicy);
-    } else if (artifact.kind === 'log') {
-      assertLogFile(filePath, artifact.id);
-    } else {
-      throw new Error(`Unsupported operator evidence diagnostic artifact kind: ${artifact.kind}`);
-    }
+    validatePresentEvidenceArtifactFile(
+      bundleDir,
+      artifact,
+      releaseCohort,
+      contract.imageEvidencePolicy,
+      'operator evidence diagnostic artifact',
+    );
     verifiedDiagnostics.push(artifact);
   }
 
@@ -843,16 +856,13 @@ function validateBundle(bundleDir: string, options: Options) {
       );
     }
     for (const artifact of deferredPresent) {
-      const filePath = resolveBundlePath(bundleDir, artifact.path);
-      if (artifact.kind === 'json') {
-        validateJsonEvidenceShape(artifact, assertJsonFile(filePath, artifact.id), releaseCohort);
-      } else if (artifact.kind === 'image') {
-        assertImageFile(filePath, artifact.id, contract.imageEvidencePolicy);
-      } else if (artifact.kind === 'log') {
-        assertLogFile(filePath, artifact.id);
-      } else {
-        throw new Error(`Unsupported operator evidence artifact kind: ${artifact.kind}`);
-      }
+      validatePresentEvidenceArtifactFile(
+        bundleDir,
+        artifact,
+        releaseCohort,
+        contract.imageEvidencePolicy,
+        'operator evidence artifact',
+      );
       verified.push(artifact);
     }
     blockedEvidence = validateBlockedEvidenceList(bundleDir, manifest, blocked, contract.typedBlockerPolicy);
