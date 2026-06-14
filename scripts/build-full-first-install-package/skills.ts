@@ -53,15 +53,27 @@ export function masSkillCandidates(options) {
   ];
 }
 
-export function metaAgentSkillSnapshot(options) {
+function metaAgentDomainSkillSource(options) {
   const domainSkill = path.join(options.metaAgentRoot, 'agent', 'skills', 'opl-meta-agent-domain-skill.md');
   const agentRoot = path.join(options.metaAgentRoot, 'agent');
-  if (fs.existsSync(domainSkill) && fs.existsSync(agentRoot)) {
+  if (!fs.existsSync(domainSkill) || !fs.existsSync(agentRoot)) {
+    return null;
+  }
+  return {
+    sourcePath: options.metaAgentRoot,
+    domainSkill,
+    agentRoot,
+  };
+}
+
+export function metaAgentSkillSnapshot(options) {
+  const source = metaAgentDomainSkillSource(options);
+  if (source) {
     return {
-      source_path: options.metaAgentRoot,
-      git_commit: readGitHead(options.metaAgentRoot),
-      domain_skill_sha256: fileSha256(domainSkill),
-      agent_payload_fingerprint: directoryFingerprint(agentRoot, 'skills/opl-meta-agent'),
+      source_path: source.sourcePath,
+      git_commit: readGitHead(source.sourcePath),
+      domain_skill_sha256: fileSha256(source.domainSkill),
+      agent_payload_fingerprint: directoryFingerprint(source.agentRoot, 'skills/opl-meta-agent'),
     };
   }
   return skillSourceSnapshot([
@@ -130,9 +142,9 @@ export function appCompanionSkillCandidates(skillId) {
 
 export function copyOplMetaAgentSkill(targetRoot, options) {
   const target = path.join(targetRoot, 'opl-meta-agent');
-  const domainSkill = path.join(options.metaAgentRoot, 'agent', 'skills', 'opl-meta-agent-domain-skill.md');
-  const agentRoot = path.join(options.metaAgentRoot, 'agent');
-  if (fs.existsSync(domainSkill) && fs.existsSync(agentRoot)) {
+  const source = metaAgentDomainSkillSource(options);
+  if (source) {
+    const { domainSkill, agentRoot } = source;
     fs.rmSync(target, { recursive: true, force: true });
     fs.mkdirSync(target, { recursive: true });
     fs.copyFileSync(domainSkill, path.join(target, 'SKILL.md'));
@@ -142,7 +154,7 @@ export function copyOplMetaAgentSkill(targetRoot, options) {
         copyTreeFiltered(source, path.join(target, entry), `skills/opl-meta-agent/${entry}`);
       }
     }
-    return options.metaAgentRoot;
+    return source.sourcePath;
   }
   return copyFirstSkillSource('opl-meta-agent', targetRoot, [
     path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'),
