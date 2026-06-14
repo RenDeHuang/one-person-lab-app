@@ -554,12 +554,7 @@ function unexpectedManifestIds(entries: Map<unknown, unknown>, expected: Evidenc
   return [...entries.keys()].filter((id) => !expected.some((artifact) => artifact.id === id));
 }
 
-function validateBundle(bundleDir: string, options: Options) {
-  const releaseContract = readJsonFile(releaseContractPath);
-  const contract = validateContractBoundary(releaseContract.operator_evidence_bundle);
-  const manifestPath = resolveBundlePath(bundleDir, contract.manifestPath);
-  const manifest = asRecord(assertJsonFile(manifestPath, 'evidence-manifest'), 'evidence-manifest');
-
+function validateEvidenceManifestHeader(manifest: Record<string, unknown>) {
   if (manifest.schema_version !== 1) {
     throw new Error(`Evidence manifest schema_version must be 1; got ${String(manifest.schema_version)}`);
   }
@@ -578,12 +573,24 @@ function validateBundle(bundleDir: string, options: Options) {
   if (manifest.authority_boundary !== evidenceBoundary) {
     throw new Error(`Evidence manifest authority_boundary must be ${evidenceBoundary}.`);
   }
+}
+
+function validateEvidenceManifestCollections(manifest: Record<string, unknown>) {
   if (!Array.isArray(manifest.artifacts)) {
     throw new Error('Evidence manifest must declare artifacts array.');
   }
   if (manifest.diagnostics !== undefined && !Array.isArray(manifest.diagnostics)) {
     throw new Error('Evidence manifest diagnostics must be an array when present.');
   }
+}
+
+function validateBundle(bundleDir: string, options: Options) {
+  const releaseContract = readJsonFile(releaseContractPath);
+  const contract = validateContractBoundary(releaseContract.operator_evidence_bundle);
+  const manifestPath = resolveBundlePath(bundleDir, contract.manifestPath);
+  const manifest = asRecord(assertJsonFile(manifestPath, 'evidence-manifest'), 'evidence-manifest');
+  validateEvidenceManifestHeader(manifest);
+  validateEvidenceManifestCollections(manifest);
 
   const manifestArtifacts = manifestEntriesById(manifest.artifacts, 'evidence manifest artifact');
   const unexpectedIds = unexpectedManifestIds(manifestArtifacts, contract.artifacts);
