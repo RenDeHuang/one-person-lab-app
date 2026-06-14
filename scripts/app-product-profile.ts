@@ -5,6 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { assertDefaultCodexSessionProfile } from './app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from './app-product-profile-identity.ts';
+import {
+  assertAppProductProfileCodexModelDisplayOptions,
+  assertAppProductProfileGuiAuthority,
+  assertAppProductProfileHomeCodexPolicy,
+  assertAppProductProfileRouteReceiptPolicy,
+} from './app-product-profile-shared-validators.ts';
 
 export type AppProductProfile = {
   schema_version: number;
@@ -362,55 +368,6 @@ function assertIncludesAll(actual: string[], expected: string[], label: string):
   }
 }
 
-function assertCodexModelDisplayOptions(profile: AppProductProfile): void {
-  const displayOptions = profile.gui.home.codex_model_display_options;
-  if (
-    displayOptions?.display_policy !== 'friendly_model_name_and_reasoning_for_every_visible_option' ||
-    displayOptions.raw_model_id_visible_in_ordinary_ui !== false ||
-    displayOptions.reasoning_effort_visible_for_every_option !== true ||
-    displayOptions.default_reasoning_effort !== profile.codex.default_reasoning_effort ||
-    displayOptions.fixed_model_description_zh !== '固定此模型' ||
-    displayOptions.fixed_model_description_en !== 'Use this model'
-  ) {
-    throw new Error('App product profile Codex model display options must expose friendly model names and reasoning');
-  }
-
-  const auto = displayOptions.auto_option;
-  if (
-    auto?.id !== '__auto' ||
-    auto.label_zh !== '自动（推荐）' ||
-    auto.label_en !== 'Auto (recommended)' ||
-    auto.resolved_model !== profile.codex.default_model ||
-    auto.resolved_reasoning_effort !== profile.codex.default_reasoning_effort ||
-    auto.follows_latest_strongest !== true ||
-    !auto.description_zh.includes('推理超高') ||
-    !auto.description_en.includes('Ultra reasoning')
-  ) {
-    throw new Error('App product profile Codex auto model option must describe latest strongest default reasoning');
-  }
-
-  if (
-    displayOptions.reasoning_labels?.xhigh?.zh !== '推理超高' ||
-    displayOptions.reasoning_labels?.xhigh?.en !== 'Ultra reasoning'
-  ) {
-    throw new Error('App product profile Codex model display options must label xhigh reasoning');
-  }
-
-  const expectedModels = profile.gui.home.codex_auto_model_selection.frontier_model_preference_order;
-  const visibleModels = displayOptions.visible_models ?? [];
-  if (JSON.stringify(visibleModels.map((model) => model.id)) !== JSON.stringify(expectedModels)) {
-    throw new Error('App product profile Codex visible model display options must match frontier preference order');
-  }
-  for (const model of visibleModels) {
-    if (!model.label_zh || !model.label_en || model.reasoning_effort !== profile.codex.default_reasoning_effort) {
-      throw new Error(`App product profile Codex visible model ${model.id} must carry labels and default reasoning`);
-    }
-    if (model.label_zh === model.id || model.label_en === model.id) {
-      throw new Error(`App product profile Codex visible model ${model.id} must not expose raw model ids as ordinary labels`);
-    }
-  }
-}
-
 function assertPostInstallAiSelfCheckEntry(
   entry: AppProductProfile['first_run']['beginner_presentation']['post_install_ai_self_check_entry'],
 ): void {
@@ -458,57 +415,18 @@ function assertProfileShape(profile: AppProductProfile): void {
   ) {
     throw new Error('App product profile must declare localized OPL Flow session context');
   }
-  if (profile.gui?.authority !== 'app_repo_owned_product_truth') {
-    throw new Error('App product profile must declare App-owned GUI authority');
-  }
-  if (profile.gui?.implementation_carrier !== 'opl-aion-shell') {
-    throw new Error('App product profile GUI implementation carrier must be opl-aion-shell');
-  }
-  if (profile.gui.appearance?.default_css_theme_id !== 'default-theme') {
-    throw new Error('App product profile GUI must default to the default CSS theme');
-  }
-  if (profile.gui.appearance?.codex_theme_default_enabled !== false) {
-    throw new Error('App product profile GUI must not default to the Codex CSS theme');
-  }
-  if (
-    profile.gui.home?.primary_input_surface !== 'single_card' ||
-    profile.gui.home?.nested_input_card_frames_allowed !== false ||
-    profile.gui.home?.codex_cli_fixed_executor !== true ||
-    profile.gui.home?.home_executor_selector_visible !== false ||
-    profile.gui.home?.codex_model_selector_visible !== true ||
-    profile.gui.home?.codex_model_list_visible !== true ||
-    profile.gui.home?.codex_model_policy !== 'codex_cli_latest_strongest_model_selector_visible' ||
-    profile.gui.home?.codex_model_auto_option_visible !== true ||
-    profile.gui.home?.permission_mode_selector_visible !== false ||
-    profile.gui.home?.conversation_backend_selector_visible !== false ||
-    profile.gui.home?.conversation_model_selector_visible !== true ||
-    profile.gui.home?.conversation_permission_mode_selector_visible !== false
-  ) {
-    throw new Error('App product profile GUI home contract must keep Codex CLI fixed while exposing App-owned model selectors');
-  }
-  if (
-    profile.gui.home.codex_default_model !== profile.codex.default_model ||
-    profile.gui.home.codex_default_reasoning_effort !== profile.codex.default_reasoning_effort ||
-    profile.gui.home.codex_default_permission_mode !== 'full-access' ||
-    profile.gui.home.codex_home_model_status_label !== 'GPT-5.5（超高）' ||
-    profile.gui.home.codex_home_model_status_label_en !== 'GPT-5.5 (Ultra)' ||
-    profile.gui.home.codex_precise_model_display_policy !== 'friendly_default_model_and_reasoning_visible'
-  ) {
-    throw new Error('App product profile GUI home Codex defaults must show GPT-5.5 ultra status and full-access mode');
-  }
-  if (
-    profile.gui.home.codex_auto_model_selection?.strategy !== 'codex_cli_auto_latest_available_frontier' ||
-    profile.gui.home.codex_auto_model_selection.user_can_override_model !== true ||
-    profile.gui.home.codex_auto_model_selection.user_can_restore_auto !== true ||
-    profile.gui.home.codex_auto_model_selection.selection_persists_into_conversation !== true
-  ) {
-    throw new Error('App product profile GUI home Codex model policy must expose App-owned model selection');
-  }
+  assertAppProductProfileGuiAuthority(profile);
+  assertAppProductProfileHomeCodexPolicy(profile, 'App product profile', {
+    requireEnglishStatusLabel: true,
+    requireSelectionPersistence: true,
+  });
   assertStringArray(
     profile.gui.home.codex_auto_model_selection.frontier_model_preference_order,
     'gui.home.codex_auto_model_selection.frontier_model_preference_order',
   );
-  assertCodexModelDisplayOptions(profile);
+  assertAppProductProfileCodexModelDisplayOptions(profile, 'App product profile', {
+    requireAutoIdAndDescriptions: true,
+  });
   const purposeEntries = profile.gui.home.home_purpose_entries ?? [];
   if (JSON.stringify(purposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
     throw new Error('App product profile GUI home must expose exactly research, grant, and ppt purpose entries');
@@ -555,26 +473,9 @@ function assertProfileShape(profile: AppProductProfile): void {
     ],
     'gui.home.activity_center_policy.must_not_display',
   );
-  if (
-    profile.gui.builtin_assistant_route_receipt_policy?.scope !== 'home_purpose_entry_to_conversation' ||
-    profile.gui.builtin_assistant_route_receipt_policy.route_kind !== 'builtin_capability' ||
-    profile.gui.builtin_assistant_route_receipt_policy.executor !== 'codex_cli' ||
-    profile.gui.builtin_assistant_route_receipt_policy.source !== 'opl_app_home' ||
-    profile.gui.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection !== true
-  ) {
-    throw new Error('App product profile built-in assistant routes must emit Codex CLI route receipts without visible backend selection');
-  }
-  if (
-    JSON.stringify(profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants) !==
-    JSON.stringify(['mas', 'mag', 'rca'])
-  ) {
-    throw new Error('App product profile route receipt policy must cover MAS, MAG, and RCA');
-  }
-  assertIncludesAll(
-    profile.gui.builtin_assistant_route_receipt_policy.required_fields,
-    ['route_kind', 'executor', 'assistant_id', 'assistant_short_name', 'source'],
-    'gui.builtin_assistant_route_receipt_policy.required_fields',
-  );
+  assertAppProductProfileRouteReceiptPolicy(profile, 'App product profile', {
+    requireExactAssistants: true,
+  });
   const defaultAssistantIds = profile.gui.default_assistants?.map((assistant) => assistant.id) ?? [];
   if (JSON.stringify(defaultAssistantIds) !== JSON.stringify(['mas', 'mag', 'rca'])) {
     throw new Error('App product profile default home assistants must be MAS, MAG, and RCA only');

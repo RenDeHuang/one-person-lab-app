@@ -32,6 +32,12 @@ import {
 import { validateBeginnerFirstRunPresentation, validateOplFlowContext } from './shared-contract-validators.ts';
 import { assertDefaultCodexSessionProfile } from '../app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from '../app-product-profile-identity.ts';
+import {
+  assertAppProductProfileCodexModelDisplayOptions,
+  assertAppProductProfileGuiAuthority,
+  assertAppProductProfileHomeCodexPolicy,
+  assertAppProductProfileRouteReceiptPolicy,
+} from '../app-product-profile-shared-validators.ts';
 
 const ordinaryForbiddenCapabilityPolicy = {
   forbidden_mcp_matchers: {
@@ -84,96 +90,10 @@ function validateProductProfileCodexDefaults(profile) {
     throw new Error('Product profile must declare localized OPL Flow session context');
   }
   assertDefaultCodexSessionProfile(profile, { label: 'product profile', requireLiteralDefaults: true });
-  if (profile.gui?.authority !== 'app_repo_owned_product_truth') {
-    throw new Error('Product profile GUI authority must be App-owned');
-  }
-  if (profile.gui?.implementation_carrier !== 'opl-aion-shell') {
-    throw new Error('Product profile GUI implementation carrier must be opl-aion-shell');
-  }
-  if (
-    profile.gui.appearance?.default_css_theme_id !== 'default-theme' ||
-    profile.gui.appearance?.codex_theme_default_enabled !== false
-  ) {
-    throw new Error('Product profile GUI appearance must default to the default theme');
-  }
-  if (
-    profile.gui.home?.primary_input_surface !== 'single_card' ||
-    profile.gui.home?.nested_input_card_frames_allowed !== false ||
-    profile.gui.home?.codex_cli_fixed_executor !== true ||
-    profile.gui.home?.home_executor_selector_visible !== false ||
-    profile.gui.home?.codex_model_selector_visible !== true ||
-    profile.gui.home?.codex_model_list_visible !== true ||
-    profile.gui.home?.codex_model_policy !== 'codex_cli_latest_strongest_model_selector_visible' ||
-    profile.gui.home?.codex_model_auto_option_visible !== true ||
-    profile.gui.home?.codex_default_model !== profile.codex?.default_model ||
-    profile.gui.home?.codex_default_reasoning_effort !== profile.codex?.default_reasoning_effort ||
-    profile.gui.home?.codex_default_permission_mode !== 'full-access' ||
-    profile.gui.home?.permission_mode_selector_visible !== false ||
-    profile.gui.home?.conversation_backend_selector_visible !== false ||
-    profile.gui.home?.conversation_model_selector_visible !== true ||
-    profile.gui.home?.conversation_permission_mode_selector_visible !== false ||
-    profile.gui.home?.codex_home_model_status_label !== 'GPT-5.5（超高）' ||
-    profile.gui.home?.codex_precise_model_display_policy !== 'friendly_default_model_and_reasoning_visible'
-  ) {
-    throw new Error('Product profile GUI home must keep Codex CLI fixed while exposing App-owned model selectors');
-  }
-  if (
-    profile.gui.home.codex_auto_model_selection?.strategy !== 'codex_cli_auto_latest_available_frontier' ||
-    profile.gui.home.codex_auto_model_selection.user_can_override_model !== true ||
-    profile.gui.home.codex_auto_model_selection.user_can_restore_auto !== true
-  ) {
-    throw new Error('Product profile GUI home must expose App-owned Codex model selection on the home path');
-  }
-  const modelDisplayOptions = profile.gui.home.codex_model_display_options;
-  const frontierModelPreferenceOrder = profile.gui.home.codex_auto_model_selection.frontier_model_preference_order;
-  if (
-    modelDisplayOptions?.display_policy !== 'friendly_model_name_and_reasoning_for_every_visible_option' ||
-    modelDisplayOptions.raw_model_id_visible_in_ordinary_ui !== false ||
-    modelDisplayOptions.reasoning_effort_visible_for_every_option !== true ||
-    modelDisplayOptions.default_reasoning_effort !== profile.codex.default_reasoning_effort ||
-    modelDisplayOptions.auto_option?.label_zh !== '自动（推荐）' ||
-    modelDisplayOptions.auto_option?.label_en !== 'Auto (recommended)' ||
-    modelDisplayOptions.auto_option?.resolved_model !== profile.codex.default_model ||
-    modelDisplayOptions.auto_option?.resolved_reasoning_effort !== profile.codex.default_reasoning_effort ||
-    modelDisplayOptions.auto_option?.follows_latest_strongest !== true ||
-    modelDisplayOptions.fixed_model_description_zh !== '固定此模型' ||
-    modelDisplayOptions.fixed_model_description_en !== 'Use this model' ||
-    modelDisplayOptions.reasoning_labels?.xhigh?.zh !== '推理超高' ||
-    modelDisplayOptions.reasoning_labels?.xhigh?.en !== 'Ultra reasoning' ||
-    JSON.stringify((modelDisplayOptions.visible_models ?? []).map((model) => model.id)) !== JSON.stringify(frontierModelPreferenceOrder)
-  ) {
-    throw new Error('Product profile GUI home must expose friendly Codex model display options with reasoning labels');
-  }
-  for (const model of modelDisplayOptions.visible_models ?? []) {
-    if (
-      typeof model.label_zh !== 'string' ||
-      typeof model.label_en !== 'string' ||
-      model.label_zh === model.id ||
-      model.label_en === model.id ||
-      model.reasoning_effort !== profile.codex.default_reasoning_effort
-    ) {
-      throw new Error(`Product profile GUI home Codex model ${model.id} must use friendly labels and default reasoning`);
-    }
-  }
-  if (
-    profile.gui.builtin_assistant_route_receipt_policy?.scope !== 'home_purpose_entry_to_conversation' ||
-    profile.gui.builtin_assistant_route_receipt_policy.route_kind !== 'builtin_capability' ||
-    profile.gui.builtin_assistant_route_receipt_policy.executor !== 'codex_cli' ||
-    profile.gui.builtin_assistant_route_receipt_policy.source !== 'opl_app_home' ||
-    profile.gui.builtin_assistant_route_receipt_policy.must_not_depend_on_visible_backend_selection !== true
-  ) {
-    throw new Error('Product profile must require built-in assistant Codex CLI route receipts');
-  }
-  assertIncludesAll(
-    profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants,
-    ['mas', 'mag', 'rca'],
-    'Product profile route receipt assistants',
-  );
-  assertIncludesAll(
-    profile.gui.builtin_assistant_route_receipt_policy.required_fields,
-    ['route_kind', 'executor', 'assistant_id', 'assistant_short_name', 'source'],
-    'Product profile route receipt fields',
-  );
+  assertAppProductProfileGuiAuthority(profile, 'Product profile');
+  assertAppProductProfileHomeCodexPolicy(profile, 'Product profile');
+  assertAppProductProfileCodexModelDisplayOptions(profile, 'Product profile');
+  assertAppProductProfileRouteReceiptPolicy(profile, 'Product profile');
   const homePurposeEntries = profile.gui.home.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
     throw new Error('Product profile GUI home must expose research, grant, and ppt purpose entries');
