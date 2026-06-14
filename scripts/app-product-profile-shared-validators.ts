@@ -37,6 +37,17 @@ type RouteReceiptOptions = {
   requireExactAssistants?: boolean;
 };
 
+type ExpectedField = {
+  actual: unknown;
+  expected: unknown;
+};
+
+function assertExpectedFields(checks: readonly ExpectedField[], message: string): void {
+  if (checks.some(({ actual, expected }) => actual !== expected)) {
+    throw new Error(message);
+  }
+}
+
 function assertExactStringArray(actual: unknown, expected: string[], label: string): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(`${label} must be ${JSON.stringify(expected)}`);
@@ -67,40 +78,42 @@ export function assertAppProductProfileHomeCodexPolicy(
   options: HomePolicyOptions = {},
 ): void {
   const home = profile.gui?.home;
-  if (
-    home?.primary_input_surface !== 'single_card' ||
-    home?.nested_input_card_frames_allowed !== false ||
-    home?.codex_cli_fixed_executor !== true ||
-    home?.home_executor_selector_visible !== false ||
-    home?.codex_model_selector_visible !== true ||
-    home?.codex_model_list_visible !== true ||
-    home?.codex_model_policy !== 'codex_cli_latest_strongest_model_selector_visible' ||
-    home?.codex_model_auto_option_visible !== true ||
-    home?.codex_default_model !== profile.codex?.default_model ||
-    home?.codex_default_reasoning_effort !== profile.codex?.default_reasoning_effort ||
-    home?.codex_default_permission_mode !== 'full-access' ||
-    home?.permission_mode_selector_visible !== false ||
-    home?.conversation_backend_selector_visible !== false ||
-    home?.conversation_model_selector_visible !== true ||
-    home?.conversation_permission_mode_selector_visible !== false ||
-    home?.codex_home_model_status_label !== 'GPT-5.5（超高）' ||
-    home?.codex_precise_model_display_policy !== 'friendly_default_model_and_reasoning_visible'
-  ) {
-    throw new Error(`${label} GUI home must keep Codex CLI fixed while exposing App-owned model selectors`);
-  }
+  assertExpectedFields(
+    [
+      { actual: home?.primary_input_surface, expected: 'single_card' },
+      { actual: home?.nested_input_card_frames_allowed, expected: false },
+      { actual: home?.codex_cli_fixed_executor, expected: true },
+      { actual: home?.home_executor_selector_visible, expected: false },
+      { actual: home?.codex_model_selector_visible, expected: true },
+      { actual: home?.codex_model_list_visible, expected: true },
+      { actual: home?.codex_model_policy, expected: 'codex_cli_latest_strongest_model_selector_visible' },
+      { actual: home?.codex_model_auto_option_visible, expected: true },
+      { actual: home?.codex_default_model, expected: profile.codex?.default_model },
+      { actual: home?.codex_default_reasoning_effort, expected: profile.codex?.default_reasoning_effort },
+      { actual: home?.codex_default_permission_mode, expected: 'full-access' },
+      { actual: home?.permission_mode_selector_visible, expected: false },
+      { actual: home?.conversation_backend_selector_visible, expected: false },
+      { actual: home?.conversation_model_selector_visible, expected: true },
+      { actual: home?.conversation_permission_mode_selector_visible, expected: false },
+      { actual: home?.codex_home_model_status_label, expected: 'GPT-5.5（超高）' },
+      { actual: home?.codex_precise_model_display_policy, expected: 'friendly_default_model_and_reasoning_visible' },
+    ],
+    `${label} GUI home must keep Codex CLI fixed while exposing App-owned model selectors`,
+  );
   if (options.requireEnglishStatusLabel && home?.codex_home_model_status_label_en !== 'GPT-5.5 (Ultra)') {
     throw new Error(`${label} GUI home must expose the English GPT-5.5 ultra status label`);
   }
 
-  const autoSelection = home.codex_auto_model_selection;
-  if (
-    autoSelection?.strategy !== 'codex_cli_auto_latest_available_frontier' ||
-    autoSelection.user_can_override_model !== true ||
-    autoSelection.user_can_restore_auto !== true
-  ) {
-    throw new Error(`${label} GUI home must expose App-owned Codex model selection on the home path`);
-  }
-  if (options.requireSelectionPersistence && autoSelection.selection_persists_into_conversation !== true) {
+  const autoSelection = home?.codex_auto_model_selection;
+  assertExpectedFields(
+    [
+      { actual: autoSelection?.strategy, expected: 'codex_cli_auto_latest_available_frontier' },
+      { actual: autoSelection?.user_can_override_model, expected: true },
+      { actual: autoSelection?.user_can_restore_auto, expected: true },
+    ],
+    `${label} GUI home must expose App-owned Codex model selection on the home path`,
+  );
+  if (options.requireSelectionPersistence && autoSelection?.selection_persists_into_conversation !== true) {
     throw new Error(`${label} GUI home Codex model selection must persist into conversation`);
   }
 }

@@ -11,10 +11,8 @@ import { validateFirstRunMatrix } from './validate-active-shell/first-run-matrix
 import { validateInstallExposurePolicy } from './validate-active-shell/install-exposure-policy-validator.ts';
 import { validatePageStateMatrix } from './validate-active-shell/page-state-matrix-validator.ts';
 import { validateProductProfile } from './validate-active-shell/product-profile-validator.ts';
-import {
-  validateReleaseChannelContract,
-  validateReleaseEvidenceBundle,
-} from './validate-active-shell/release-contract-validator.ts';
+import { validateReleaseChannelContract } from './validate-active-shell/release-contract-validator.ts';
+import { validateReleaseEvidenceBundle } from './validate-active-shell/release-evidence-bundle-validator.ts';
 import {
   validateLiveOplConformance,
   validateRuntimeBridgeContract,
