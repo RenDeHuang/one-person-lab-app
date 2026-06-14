@@ -325,10 +325,30 @@ function validateManagedUpdateAppBinaryLane(appBinaryPlane) {
     appBinaryPlane?.updater_kind !== 'standard_updater' ||
     appBinaryPlane?.adapter !== 'electron_standard_updater' ||
     appBinaryPlane?.source !== 'GitHub Release standard macOS arm64 updater assets' ||
-    appBinaryPlane?.repair_action_scope !== 'app_release_check_or_download_retry_only'
+    appBinaryPlane?.policy !== 'user_visible_release_channel_check' ||
+    appBinaryPlane?.post_apply !== 'verify_running_version_after_restart_or_report_recovery' ||
+    appBinaryPlane?.repair_action_scope !== 'app_release_check_download_retry_or_install_downloaded_update_only'
   ) {
     throw new Error('Managed update plane App binary lane must remain the standard desktop updater only');
   }
+  assertDeepEqualJson(
+    appBinaryPlane?.status_fields,
+    [
+      'installed_version',
+      'available_version',
+      'channel',
+      'downloaded_version',
+      'download_progress',
+      'restart_required',
+      'apply_started',
+      'applied_version',
+      'running_version_switched',
+      'install_not_applied_reason',
+      'cached_update_path',
+      'repair_actions',
+    ],
+    'Managed update plane App binary lane status fields',
+  );
 }
 
 function validateManagedUpdateRuntimeAndAgentLanes(runtimePlane, agentPlane, agentPackageChannel) {
@@ -486,9 +506,14 @@ function validateManagedUpdateStandardUpdaterBoundary(standardUpdaterBoundary) {
   );
   if (
     standardUpdaterBoundary?.scope !== 'desktop_app_assets_only' ||
-    standardUpdaterBoundary?.updater !== 'electron_standard_updater'
+    standardUpdaterBoundary?.updater !== 'electron_standard_updater' ||
+    standardUpdaterBoundary?.apply_lifecycle?.downloaded_state_is_not_success !== true ||
+    standardUpdaterBoundary?.apply_lifecycle?.apply_started_receipt !== 'auto-update-diagnostics.json#quit-and-install' ||
+    standardUpdaterBoundary?.apply_lifecycle?.post_restart_version_gate !== 'running_app_version_must_be_gte_downloaded_target_version' ||
+    standardUpdaterBoundary?.apply_lifecycle?.failure_state !== 'install-not-applied' ||
+    standardUpdaterBoundary?.apply_lifecycle?.recovery_action !== 'install_downloaded_update_now'
   ) {
-    throw new Error('Managed update plane standard updater boundary must remain desktop App assets only');
+    throw new Error('Managed update plane standard updater boundary must verify apply after restart and expose recovery');
   }
 }
 

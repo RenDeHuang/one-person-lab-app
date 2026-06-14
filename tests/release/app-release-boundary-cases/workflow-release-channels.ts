@@ -48,6 +48,26 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
     'One-Person-Lab-*-mac-arm64.zip.blockmap',
   ]);
   assert.equal(releaseContract.standard_updater.scope, 'desktop_app_assets_only');
+  assert.deepEqual(releaseContract.standard_updater.apply_lifecycle, {
+    downloaded_state_is_not_success: true,
+    states: [
+      'update_available',
+      'update_download_started',
+      'update_downloaded',
+      'update_apply_started',
+      'update_apply_completed',
+      'running_version_switched',
+      'apply_failed_recovery_available',
+    ],
+    apply_started_receipt: 'auto-update-diagnostics.json#quit-and-install',
+    post_restart_version_gate: 'running_app_version_must_be_gte_downloaded_target_version',
+    failure_state: 'install-not-applied',
+    recovery: {
+      cache_policy: 'keep_downloaded_zip_for_retry_or_reveal',
+      primary_action: 'install_downloaded_update_now',
+      diagnostic_ref: 'auto-update-diagnostics.json#install-not-applied',
+    },
+  });
   assert.equal(releaseContract.standard_updater.module_package_update_allowed, false);
   assert.equal(releaseContract.standard_updater.developer_checkout_selection_allowed, false);
   assert.equal(releaseContract.standard_updater.opl_flow_install_allowed, false);
@@ -310,7 +330,25 @@ test('managed update plane unifies updater status while preserving adapter autho
 
   assert.equal(lanes.get('app_binary').updater_kind, 'standard_updater');
   assert.equal(lanes.get('app_binary').adapter, 'electron_standard_updater');
-  assert.equal(lanes.get('app_binary').repair_action_scope, 'app_release_check_or_download_retry_only');
+  assert.equal(lanes.get('app_binary').post_apply, 'verify_running_version_after_restart_or_report_recovery');
+  assert.deepEqual(lanes.get('app_binary').status_fields, [
+    'installed_version',
+    'available_version',
+    'channel',
+    'downloaded_version',
+    'download_progress',
+    'restart_required',
+    'apply_started',
+    'applied_version',
+    'running_version_switched',
+    'install_not_applied_reason',
+    'cached_update_path',
+    'repair_actions',
+  ]);
+  assert.equal(
+    lanes.get('app_binary').repair_action_scope,
+    'app_release_check_download_retry_or_install_downloaded_update_only',
+  );
   assert.equal(releaseContract.standard_updater.scope, 'desktop_app_assets_only');
   assert.equal(releaseContract.standard_updater.managed_update_plane, 'app_binary_only');
   assert.equal(releaseContract.standard_updater.module_package_update_allowed, false);
@@ -462,6 +500,13 @@ test('managed update plane unifies updater status while preserving adapter autho
   ]) {
     assert.ok(plane.standard_updater_boundary.forbidden_targets.includes(forbidden));
   }
+  assert.deepEqual(plane.standard_updater_boundary.apply_lifecycle, {
+    downloaded_state_is_not_success: true,
+    apply_started_receipt: 'auto-update-diagnostics.json#quit-and-install',
+    post_restart_version_gate: 'running_app_version_must_be_gte_downloaded_target_version',
+    failure_state: 'install-not-applied',
+    recovery_action: 'install_downloaded_update_now',
+  });
   for (const forbidden of [
     'Developer Profile checkout',
     'dirty checkout',

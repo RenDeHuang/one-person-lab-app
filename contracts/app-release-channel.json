@@ -51,6 +51,26 @@
       "scope": "standard App DMG, ZIP, blockmaps, and updater metadata for an existing release"
     },
     "managed_update_plane": "app_binary_only",
+    "apply_lifecycle": {
+      "downloaded_state_is_not_success": true,
+      "states": [
+        "update_available",
+        "update_download_started",
+        "update_downloaded",
+        "update_apply_started",
+        "update_apply_completed",
+        "running_version_switched",
+        "apply_failed_recovery_available"
+      ],
+      "apply_started_receipt": "auto-update-diagnostics.json#quit-and-install",
+      "post_restart_version_gate": "running_app_version_must_be_gte_downloaded_target_version",
+      "failure_state": "install-not-applied",
+      "recovery": {
+        "cache_policy": "keep_downloaded_zip_for_retry_or_reveal",
+        "primary_action": "install_downloaded_update_now",
+        "diagnostic_ref": "auto-update-diagnostics.json#install-not-applied"
+      }
+    },
     "forbidden_managed_update_targets": [
       "runtime_toolchain",
       "agent_package_channel",
@@ -1210,6 +1230,13 @@
         "One-Person-Lab-*-mac-arm64.dmg.blockmap",
         "One-Person-Lab-*-mac-arm64.zip.blockmap"
       ],
+      "apply_lifecycle": {
+        "downloaded_state_is_not_success": true,
+        "apply_started_receipt": "auto-update-diagnostics.json#quit-and-install",
+        "post_restart_version_gate": "running_app_version_must_be_gte_downloaded_target_version",
+        "failure_state": "install-not-applied",
+        "recovery_action": "install_downloaded_update_now"
+      },
       "forbidden_targets": [
         "runtime_toolchain",
         "agent_package_channel",
@@ -1370,16 +1397,23 @@
         "source": "GitHub Release standard macOS arm64 updater assets",
         "adapter": "electron_standard_updater",
         "policy": "user_visible_release_channel_check",
-        "post_apply": "replace_desktop_app_bundle",
+        "post_apply": "verify_running_version_after_restart_or_report_recovery",
         "default_update_mode": "user_visible_standard_update",
         "status_fields": [
           "installed_version",
           "available_version",
           "channel",
+          "downloaded_version",
           "download_progress",
-          "restart_required"
+          "restart_required",
+          "apply_started",
+          "applied_version",
+          "running_version_switched",
+          "install_not_applied_reason",
+          "cached_update_path",
+          "repair_actions"
         ],
-        "repair_action_scope": "app_release_check_or_download_retry_only"
+        "repair_action_scope": "app_release_check_download_retry_or_install_downloaded_update_only"
       },
       {
         "id": "runtime_toolchain",
@@ -1552,6 +1586,7 @@
     ],
     "release_boundary_required_cases": [
       "standard_updater_desktop_assets_only",
+      "standard_updater_apply_verification_and_recovery",
       "runtime_toolchain_uses_managed_kernel_not_standard_updater",
       "agent_package_channel_uses_managed_kernel_and_post_update_sync",
       "capability_exposure_status_is_projection_only",

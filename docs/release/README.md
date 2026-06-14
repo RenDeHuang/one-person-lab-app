@@ -83,7 +83,9 @@ Nightly and candidate flows follow the same SSOT contract but do not imply stabl
 
 Standard updater metadata is restricted to macOS arm64 standard assets. Full assets must never be written into `latest*.yml`, and assets whose names include `Full` are not updater targets.
 
-The standard updater follows Electron's background-download plus visible restart/install model. The current macOS install path is App-managed local authorization: the ZIP must contain the expected `One Person Lab.app` bundle, the installer replaces the local App bundle, clears quarantine, records `codesign` / `spctl` diagnostics, and relaunches the App.
+The standard updater follows Electron's background-download plus visible restart/install model. Download completion is not installation success. The release contract tracks `update_downloaded`, `update_apply_started`, `update_apply_completed`, and `running_version_switched` separately. After restart, the running App version must be greater than or equal to the downloaded target version; otherwise the shell records `auto-update-diagnostics.json#install-not-applied` and exposes a recovery action to install the downloaded update again or reveal the cached package.
+
+The current macOS install path is App-managed local authorization: the ZIP must contain the expected `One Person Lab.app` bundle, the installer replaces the local App bundle, clears quarantine, records `codesign` / `spctl` diagnostics, and relaunches the App. The active-shell gate requires both the local authorized installer path and the post-restart `quit-and-install` / `install-not-applied` diagnostics so a release cannot regress to a download-only success claim.
 
 The standard updater updates desktop App assets only. It does not update OPL module packages, select Developer Profile checkout sources, publish WebUI images, install `opl-flow`, mutate global Homebrew/system Codex, or claim domain readiness.
 

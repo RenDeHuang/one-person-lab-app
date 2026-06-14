@@ -206,6 +206,16 @@ policy, and release workflow sequencing are governed by
 `contracts/app-release-channel.json`, `docs/release/README.md`, release
 workflows, validators, and release artifacts.
 
+The standard updater now treats downloaded and applied as separate states.
+`update_downloaded` only proves that the package is cached. Installation success
+requires `update_apply_started`, a post-restart running-version switch to the
+downloaded target version, and either an applied-version receipt or an explicit
+`install-not-applied` recovery state. Active-shell validation checks the
+App-managed local authorized macOS installer plus
+`auto-update-diagnostics.json#quit-and-install` /
+`auto-update-diagnostics.json#install-not-applied`, so a failed replacement is
+visible and retryable instead of being mistaken for a completed update.
+
 The managed update plane is now App consumption of the OPL Framework update
 runner: status/check/plan are read surfaces, and apply/repair/rollback stay
 Framework runner results. The App may display component receipt refs,
