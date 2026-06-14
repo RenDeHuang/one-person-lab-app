@@ -105,15 +105,11 @@ function validateRuntimeToolchainAutoUpdate(runtimeUpdate) {
     runtimeUpdate?.producer_owner !== 'one-person-lab' ||
     runtimeUpdate?.framework_role !== 'apply_verified_staged_runtime_during_startup_maintenance' ||
     runtimeUpdate?.entrypoint !== 'opl system startup-maintenance' ||
-    runtimeUpdate?.ready_to_launch_blocking !== false ||
-    runtimeUpdate?.default_policy?.auto_check !== true ||
-    runtimeUpdate?.default_policy?.download !== 'silent_background' ||
-    runtimeUpdate?.default_policy?.stage !== 'verify_then_stage_app_owned_runtime' ||
-    runtimeUpdate?.default_policy?.apply !== 'next_app_restart' ||
-    runtimeUpdate?.default_policy?.rollback !== 'previous_runtime_pointer_on_startup_smoke_failure'
+    runtimeUpdate?.ready_to_launch_blocking !== false
   ) {
     throw new Error('Install exposure runtime/toolchain auto update must be App-owned, silent, staged, and applied through startup maintenance');
   }
+  validateRuntimeToolchainDefaultPolicy(runtimeUpdate.default_policy);
   assertIncludesAll(
     runtimeUpdate.managed_components,
     [
@@ -130,21 +126,8 @@ function validateRuntimeToolchainAutoUpdate(runtimeUpdate) {
     ],
     'Install exposure runtime/toolchain managed components',
   );
-  if (
-    runtimeUpdate.user_global_tool_policy?.prefer_compatible_newer_system_tool !== true ||
-    runtimeUpdate.user_global_tool_policy?.silent_homebrew_upgrade_allowed !== false ||
-    runtimeUpdate.user_global_tool_policy?.silent_system_tool_mutation_allowed !== false ||
-    runtimeUpdate.user_global_tool_policy?.opt_in_global_upgrade_surface !== 'Developer Profile explicit maintenance action'
-  ) {
-    throw new Error('Install exposure runtime/toolchain auto update must not silently mutate Homebrew or system tools');
-  }
-  if (
-    runtimeUpdate.clean_machine_requirement?.full_first_install_must_remain_self_contained !== true ||
-    runtimeUpdate.clean_machine_requirement?.required_release_smoke !== 'full_dmg_clean_vm_smoke' ||
-    runtimeUpdate.clean_machine_requirement?.standard_core_ready_must_not_require_homebrew_node_git_or_clt !== true
-  ) {
-    throw new Error('Install exposure runtime/toolchain auto update must preserve clean-machine installability');
-  }
+  validateRuntimeToolchainUserGlobalPolicy(runtimeUpdate.user_global_tool_policy);
+  validateRuntimeToolchainCleanMachineRequirement(runtimeUpdate.clean_machine_requirement);
   assertIncludesAll(
     runtimeUpdate.fail_closed_states,
     [
@@ -155,6 +138,39 @@ function validateRuntimeToolchainAutoUpdate(runtimeUpdate) {
     ],
     'Install exposure runtime/toolchain fail-closed states',
   );
+}
+
+function validateRuntimeToolchainDefaultPolicy(defaultPolicy) {
+  if (
+    defaultPolicy?.auto_check !== true ||
+    defaultPolicy?.download !== 'silent_background' ||
+    defaultPolicy?.stage !== 'verify_then_stage_app_owned_runtime' ||
+    defaultPolicy?.apply !== 'next_app_restart' ||
+    defaultPolicy?.rollback !== 'previous_runtime_pointer_on_startup_smoke_failure'
+  ) {
+    throw new Error('Install exposure runtime/toolchain auto update must be App-owned, silent, staged, and applied through startup maintenance');
+  }
+}
+
+function validateRuntimeToolchainUserGlobalPolicy(userGlobalToolPolicy) {
+  if (
+    userGlobalToolPolicy?.prefer_compatible_newer_system_tool !== true ||
+    userGlobalToolPolicy?.silent_homebrew_upgrade_allowed !== false ||
+    userGlobalToolPolicy?.silent_system_tool_mutation_allowed !== false ||
+    userGlobalToolPolicy?.opt_in_global_upgrade_surface !== 'Developer Profile explicit maintenance action'
+  ) {
+    throw new Error('Install exposure runtime/toolchain auto update must not silently mutate Homebrew or system tools');
+  }
+}
+
+function validateRuntimeToolchainCleanMachineRequirement(cleanMachineRequirement) {
+  if (
+    cleanMachineRequirement?.full_first_install_must_remain_self_contained !== true ||
+    cleanMachineRequirement?.required_release_smoke !== 'full_dmg_clean_vm_smoke' ||
+    cleanMachineRequirement?.standard_core_ready_must_not_require_homebrew_node_git_or_clt !== true
+  ) {
+    throw new Error('Install exposure runtime/toolchain auto update must preserve clean-machine installability');
+  }
 }
 
 function validateHomebrewDistribution(homebrew) {
