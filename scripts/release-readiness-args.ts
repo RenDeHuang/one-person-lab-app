@@ -1,3 +1,5 @@
+import { requiredOptionValue } from './cli-option-args.ts';
+
 type SharedReleaseReadinessOptions = {
   version: string;
   releaseMode: string;
@@ -47,25 +49,7 @@ export function applySharedReleaseReadinessArg(
   return null;
 }
 
-export function applyStringOptionArg(
-  argv: string[],
-  index: number,
-  handlers: Record<string, (value: string) => void>,
-): number | null {
-  const token = argv[index];
-  const handler = handlers[token];
-  if (!handler) return null;
-  handler(requiredOptionValue(argv, index, token));
-  return index + 1;
-}
-
 export function assertSharedReleaseReadinessOptions(parsed: SharedReleaseReadinessOptions): void {
   if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');
   if (!parsed.releaseMode.trim()) throw new Error('Pass --release-mode <mode> or set OPL_RELEASE_MODE.');
-}
-
-export function requiredOptionValue(argv: string[], index: number, token: string): string {
-  const value = argv[index + 1];
-  if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
-  return value;
 }

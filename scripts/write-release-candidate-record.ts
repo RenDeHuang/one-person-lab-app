@@ -9,10 +9,10 @@ import {
   validateAppReleaseOwnerVerdictContract,
 } from './app-release-owner-verdict.ts';
 import { writeLinesFile } from './release-file-helpers.ts';
+import { applyStringOptionArg } from './cli-option-args.ts';
 import { arrayOrEmpty, recordOrNull } from './release-json-helpers.ts';
 import {
   applySharedReleaseReadinessArg,
-  applyStringOptionArg,
   assertSharedReleaseReadinessOptions,
   buildSharedReleaseReadinessOptions,
   parseStrictBoolean,

@@ -14,10 +14,10 @@ import {
 } from './app-release-owner-verdict.ts';
 import { buildReleaseEvidenceCohort } from './release-evidence-cohort.ts';
 import { findFileByName, writeLinesFile } from './release-file-helpers.ts';
+import { applyStringOptionArg } from './cli-option-args.ts';
 import { arrayOrEmpty, recordOrNull } from './release-json-helpers.ts';
 import {
   applySharedReleaseReadinessArg,
-  applyStringOptionArg,
   assertSharedReleaseReadinessOptions,
   buildSharedReleaseReadinessOptions,
   parseStrictBoolean,

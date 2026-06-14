@@ -18,8 +18,8 @@ import {
   resolveEvidenceBundlePath as resolveBundlePath,
   resolveRequiredReleaseEvidenceBundleDir,
 } from './release-evidence-paths.ts';
+import { applyStringOptionArg } from './cli-option-args.ts';
 import { readJsonFile } from './release-json-helpers.ts';
-import { applyStringOptionArg } from './release-readiness-args.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContractPath = path.join(appRoot, 'contracts', 'app-release-channel.json');

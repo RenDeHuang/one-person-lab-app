@@ -5,11 +5,9 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { fileSha256, findFileByName } from './release-file-helpers.ts';
+import { requiredOptionValue } from './cli-option-args.ts';
 import { asRecord, readJsonFile } from './release-json-helpers.ts';
-import {
-  parseStrictBoolean,
-  requiredOptionValue,
-} from './release-readiness-args.ts';
+import { parseStrictBoolean } from './release-readiness-args.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
