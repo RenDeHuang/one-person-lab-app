@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ShellCandidate } from './types.ts';
+import type { ShellCandidate, ValidationCommand } from './types.ts';
 import {
   activeAdapterPath,
   assertFile,
@@ -30,7 +30,16 @@ function assertCandidateFileContains(candidate: ShellCandidate, relativePath: st
   }
 }
 
-export function validateCandidate(candidate: ShellCandidate): void {
+type CandidateAdapterContract = {
+  active_shell: string;
+  shell_root: string;
+  shell_source: { owner_repo: string; history_policy: string; checkout_path: string };
+  release_role: string;
+  shell_contract: { source_topology: string; capabilities: string[] };
+  validation_commands: ValidationCommand[];
+};
+
+function validateCandidateRegistryEntry(candidate: ShellCandidate): void {
   if (!candidate.id || !candidate.candidate_root) {
     throw new Error(`Invalid candidate entry: ${JSON.stringify(candidate)}`);
   }
@@ -46,15 +55,14 @@ export function validateCandidate(candidate: ShellCandidate): void {
   if (candidate.source_topology !== 'external_checkout_linked_shell_repo') {
     throw new Error(`${candidate.id} must declare external_checkout_linked_shell_repo topology`);
   }
+}
+
+function readCandidateAdapterContract(candidate: ShellCandidate): CandidateAdapterContract {
   assertFile(path.join(root, candidate.adapter_contract), `${candidate.id} adapter contract`);
-  const adapterContract = readJson<{
-    active_shell: string;
-    shell_root: string;
-    shell_source: { owner_repo: string; history_policy: string; checkout_path: string };
-    release_role: string;
-    shell_contract: { source_topology: string; capabilities: string[] };
-    validation_commands: ValidationCommand[];
-  }>(path.join(root, candidate.adapter_contract));
+  return readJson<CandidateAdapterContract>(path.join(root, candidate.adapter_contract));
+}
+
+function validateCandidateAdapterContract(candidate: ShellCandidate, adapterContract: CandidateAdapterContract): void {
   if (adapterContract.active_shell !== candidate.id || adapterContract.shell_root !== candidate.candidate_root) {
     throw new Error(`${candidate.id} adapter contract must point at ${candidate.candidate_root}`);
   }
@@ -76,14 +84,18 @@ export function validateCandidate(candidate: ShellCandidate): void {
   if (!adapterContract.validation_commands.some((entry) => entry.id === 'candidate_app_bundle_build')) {
     throw new Error(`${candidate.id} adapter validation_commands must include candidate_app_bundle_build`);
   }
+}
+
+function validateCandidateImplementationBasis(candidate: ShellCandidate): void {
   assertStringArrayIncludes(candidate.implementation_basis, [
     'AG-UI event model',
     'shared React/CopilotKit renderer for Electron and WebUI',
     'OPL App-owned product profile',
     'OPL Framework app state/action CLI protocol',
   ], `${candidate.id}.implementation_basis`);
-  validateCandidateChatTarget(candidate);
-  validateCandidateWebUiTransport(candidate);
+}
+
+function validateCandidateTargetProductShape(candidate: ShellCandidate): void {
   if (
     candidate.target_product_shape.codex_cli_fixed_executor !== true ||
     candidate.target_product_shape.home_executor_selector_visible !== false ||
@@ -99,6 +111,9 @@ export function validateCandidate(candidate: ShellCandidate): void {
   if (candidate.target_product_shape.settings_policy !== 'app_state_refs_only') {
     throw new Error(`${candidate.id}.target_product_shape.settings_policy must keep Settings App-owned and refs-only`);
   }
+}
+
+function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
   assertStringArrayIncludes(candidate.technical_verification?.minimum_acceptance ?? [], [
     'candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims',
     'ordinary Settings uses General, Access, Agents & Capabilities, Local Environment, Appearance, Advanced, and About & Updates',
@@ -106,11 +121,17 @@ export function validateCandidate(candidate: ShellCandidate): void {
     'tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs',
     'WebUI parity evidence proves the same React/CopilotKit renderer and product semantics as Electron',
   ], `${candidate.id}.technical_verification.minimum_acceptance`);
+}
+
+function validateCandidateFrameworkSurfaces(candidate: ShellCandidate): void {
   for (const [surface, expected] of Object.entries(expectedFrameworkSurfaces)) {
     if (candidate.framework_surfaces[surface] !== expected) {
       throw new Error(`${candidate.id}.framework_surfaces.${surface} must be ${expected}`);
     }
   }
+}
+
+function validateCandidateStateModelCommand(candidate: ShellCandidate): void {
   validateActiveProjectLineStateModel(candidate.active_project_line_state_model, `${candidate.id}.active_project_line_state_model`);
   const stateModelTechnicalCommand = candidate.technical_verification?.candidate_shell_commands?.find((entry) => entry.id === 'state_model');
   if (
@@ -120,6 +141,9 @@ export function validateCandidate(candidate: ShellCandidate): void {
   ) {
     throw new Error(`${candidate.id}.technical_verification.candidate_shell_commands must include state_model running npm run validate:state-model from ${candidate.candidate_root}`);
   }
+}
+
+function validateCandidateSeriesDisplayContract(candidate: ShellCandidate): void {
   const seriesDisplay = candidate.foundry_agent_series_display_contract;
   if (!seriesDisplay) {
     throw new Error(`${candidate.id} must declare foundry_agent_series_display_contract`);
@@ -140,6 +164,9 @@ export function validateCandidate(candidate: ShellCandidate): void {
     forbiddenSeriesDomainFields,
     `${candidate.id}.foundry_agent_series_display_contract.forbidden_domain_fields`,
   );
+}
+
+function validateCandidateAuthorityBoundaries(candidate: ShellCandidate): void {
   assertStringArrayIncludes(candidate.required_capabilities, requiredCapabilities, `${candidate.id}.required_capabilities`);
   assertStringArrayIncludes(candidate.must_not_own, forbiddenAuthority, `${candidate.id}.must_not_own`);
   assertStringArrayIncludes(candidate.forbidden_home_controls, [
@@ -154,6 +181,9 @@ export function validateCandidate(candidate: ShellCandidate): void {
     'do not enter default stable or nightly release packaging',
     'do not introduce runtime or domain truth into the App repo',
   ], `${candidate.id}.non_goals`);
+}
+
+function validateCandidateValidationCommands(candidate: ShellCandidate): void {
   for (const entry of candidate.validation_commands) {
     if (!entry.id || !entry.cwd || !entry.command) {
       throw new Error(`${candidate.id} has invalid validation command ${JSON.stringify(entry)}`);
@@ -184,6 +214,9 @@ export function validateCandidate(candidate: ShellCandidate): void {
   ) {
     throw new Error(`${candidate.id} candidate_app_bundle_build must run App-root npm package with the candidate adapter contract`);
   }
+}
+
+function validateCandidatePackageScriptSurfaces(candidate: ShellCandidate): void {
   assertFile(path.join(root, candidate.candidate_root, 'scripts', 'validate-agui-codex-candidate.ts'), `${candidate.id} self-check`);
   assertCandidateFileContains(candidate, 'package.json', [
     '"build:webui"',
@@ -191,6 +224,23 @@ export function validateCandidate(candidate: ShellCandidate): void {
     '"smoke:webui"',
     '"validate:state-model"',
   ], 'package scripts for WebUI');
+}
+
+export function validateCandidate(candidate: ShellCandidate): void {
+  validateCandidateRegistryEntry(candidate);
+  const adapterContract = readCandidateAdapterContract(candidate);
+  validateCandidateAdapterContract(candidate, adapterContract);
+  validateCandidateImplementationBasis(candidate);
+  validateCandidateChatTarget(candidate);
+  validateCandidateWebUiTransport(candidate);
+  validateCandidateTargetProductShape(candidate);
+  validateCandidateMinimumAcceptance(candidate);
+  validateCandidateFrameworkSurfaces(candidate);
+  validateCandidateStateModelCommand(candidate);
+  validateCandidateSeriesDisplayContract(candidate);
+  validateCandidateAuthorityBoundaries(candidate);
+  validateCandidateValidationCommands(candidate);
+  validateCandidatePackageScriptSurfaces(candidate);
 }
 
 export function validateCandidateImplementationFiles(candidate: ShellCandidate): void {
