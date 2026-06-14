@@ -22,6 +22,7 @@ import {
 } from './app-contract-constants.ts';
 import { validateGuiFrameworkSurfaces } from './gui-framework-surfaces-validator.ts';
 import { validateGuiProductAuthority } from './gui-product-authority-validator.ts';
+import { assertCommandSurface } from './value-helpers.ts';
 import {
   validateManagedUpdatePageBasics,
   validateManagedUpdatePlaneBinding,
