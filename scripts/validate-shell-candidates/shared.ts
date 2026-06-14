@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertRepositoryRelativePath } from '../repository-relative-path.ts';
+import { assertStringArrayIncludes } from '../string-array-assertions.ts';
 import type { ActiveProjectLineStateModel } from './types.ts';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -184,16 +185,8 @@ export function assertNoAbsoluteSymlinks(directoryPath: string, candidateId: str
   }
 }
 
-export function assertStringArrayIncludes(actual: string[], expected: string[], label: string): void {
-  if (!Array.isArray(actual)) {
-    throw new Error(`${label} must be an array`);
-  }
-  for (const item of expected) {
-    if (!actual.includes(item)) {
-      throw new Error(`${label} must include ${item}`);
-    }
-  }
-}
+export { assertStringArrayIncludes };
+
 
 export function validateActiveProjectLineStateModel(stateModel: ActiveProjectLineStateModel | undefined, label: string): void {
   if (!stateModel) {

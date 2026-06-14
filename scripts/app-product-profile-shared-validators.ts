@@ -1,3 +1,5 @@
+import { assertStringArrayIncludes } from './string-array-assertions.ts';
+
 type ProductProfileLike = {
   codex?: {
     default_model?: unknown;
@@ -34,17 +36,6 @@ type ModelDisplayOptions = {
 type RouteReceiptOptions = {
   requireExactAssistants?: boolean;
 };
-
-function assertIncludesAll(actual: unknown, expected: string[], label: string): void {
-  if (!Array.isArray(actual)) {
-    throw new Error(`${label} must be an array`);
-  }
-  for (const item of expected) {
-    if (!actual.includes(item)) {
-      throw new Error(`${label} must include ${item}`);
-    }
-  }
-}
 
 function assertExactStringArray(actual: unknown, expected: string[], label: string): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -184,9 +175,9 @@ export function assertAppProductProfileRouteReceiptPolicy(
   if (options.requireExactAssistants) {
     assertExactStringArray(policy.required_for_assistants, ['mas', 'mag', 'rca'], `${label} route receipt assistants`);
   } else {
-    assertIncludesAll(policy.required_for_assistants, ['mas', 'mag', 'rca'], `${label} route receipt assistants`);
+    assertStringArrayIncludes(policy.required_for_assistants, ['mas', 'mag', 'rca'], `${label} route receipt assistants`);
   }
-  assertIncludesAll(
+  assertStringArrayIncludes(
     policy.required_fields,
     ['route_kind', 'executor', 'assistant_id', 'assistant_short_name', 'source'],
     `${label} route receipt fields`,
