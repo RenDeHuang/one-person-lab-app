@@ -12,6 +12,7 @@ import { writeLinesFile } from './release-file-helpers.ts';
 import { arrayOrEmpty, recordOrNull } from './release-json-helpers.ts';
 import {
   applySharedReleaseReadinessArg,
+  applyStringOptionArg,
   assertSharedReleaseReadinessOptions,
   buildSharedReleaseReadinessOptions,
 } from './release-readiness-args.ts';
@@ -85,27 +86,28 @@ function parseArgs(argv: string[]): Options {
       index = sharedIndex;
       continue;
     }
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
-    if (token === '--version') parsed.version = value;
-    else if (token === '--release-mode') parsed.releaseMode = value;
-    else if (token === '--app-commit') parsed.appCommit = value;
-    else if (token === '--shell-ref') parsed.shellRef = value;
-    else if (token === '--framework-ref') parsed.frameworkRef = value;
-    else if (token === '--workflow-run-id') parsed.workflowRunId = value;
-    else if (token === '--preflight') parsed.preflightPath = value;
-    else if (token === '--readiness') parsed.readinessPath = value;
-    else if (token === '--remote-verification') parsed.remoteVerificationPath = value;
-    else if (token === '--job-results') parsed.jobResultsPath = value;
-    else if (token === '--output') parsed.output = value;
-    else if (token === '--markdown') parsed.markdown = value;
-    else if (token === '--promotion-mode') parsed.promotionMode = value;
-    else if (token === '--release-owner-verdict-ref') parsed.releaseOwnerVerdictRef = value;
-    else if (token === '--release-owner-receipt-ref') parsed.releaseOwnerReceiptRef = value;
-    else if (token === '--release-owner-typed-blocker-ref') parsed.releaseOwnerTypedBlockerRef = value;
-    else if (token === '--release-owner-human-gate-ref') parsed.humanGateRef = value;
-    else throw new Error(`Unknown argument: ${token}`);
-    index += 1;
+    const optionIndex = applyStringOptionArg(argv, index, {
+      '--app-commit': (value) => { parsed.appCommit = value; },
+      '--shell-ref': (value) => { parsed.shellRef = value; },
+      '--framework-ref': (value) => { parsed.frameworkRef = value; },
+      '--workflow-run-id': (value) => { parsed.workflowRunId = value; },
+      '--preflight': (value) => { parsed.preflightPath = value; },
+      '--readiness': (value) => { parsed.readinessPath = value; },
+      '--remote-verification': (value) => { parsed.remoteVerificationPath = value; },
+      '--job-results': (value) => { parsed.jobResultsPath = value; },
+      '--output': (value) => { parsed.output = value; },
+      '--markdown': (value) => { parsed.markdown = value; },
+      '--promotion-mode': (value) => { parsed.promotionMode = value; },
+      '--release-owner-verdict-ref': (value) => { parsed.releaseOwnerVerdictRef = value; },
+      '--release-owner-receipt-ref': (value) => { parsed.releaseOwnerReceiptRef = value; },
+      '--release-owner-typed-blocker-ref': (value) => { parsed.releaseOwnerTypedBlockerRef = value; },
+      '--release-owner-human-gate-ref': (value) => { parsed.humanGateRef = value; },
+    });
+    if (optionIndex !== null) {
+      index = optionIndex;
+      continue;
+    }
+    throw new Error(`Unknown argument: ${token}`);
   }
 
   assertSharedReleaseReadinessOptions(parsed);

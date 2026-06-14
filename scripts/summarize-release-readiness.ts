@@ -17,6 +17,7 @@ import { findFileByName, writeLinesFile } from './release-file-helpers.ts';
 import { arrayOrEmpty, recordOrNull } from './release-json-helpers.ts';
 import {
   applySharedReleaseReadinessArg,
+  applyStringOptionArg,
   assertSharedReleaseReadinessOptions,
   buildSharedReleaseReadinessOptions,
 } from './release-readiness-args.ts';
@@ -68,16 +69,17 @@ function parseArgs(argv: string[]): Options {
       index = sharedIndex;
       continue;
     }
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
-    if (token === '--version') parsed.version = value;
-    else if (token === '--release-mode') parsed.releaseMode = value;
-    else if (token === '--artifacts-dir') parsed.artifactsDir = value;
-    else if (token === '--job-results') parsed.jobResultsPath = value;
-    else if (token === '--output') parsed.output = value;
-    else if (token === '--markdown') parsed.markdown = value;
-    else throw new Error(`Unknown argument: ${token}`);
-    index += 1;
+    const optionIndex = applyStringOptionArg(argv, index, {
+      '--artifacts-dir': (value) => { parsed.artifactsDir = value; },
+      '--job-results': (value) => { parsed.jobResultsPath = value; },
+      '--output': (value) => { parsed.output = value; },
+      '--markdown': (value) => { parsed.markdown = value; },
+    });
+    if (optionIndex !== null) {
+      index = optionIndex;
+      continue;
+    }
+    throw new Error(`Unknown argument: ${token}`);
   }
 
   assertSharedReleaseReadinessOptions(parsed);
