@@ -1,18 +1,12 @@
 import { readFileSync } from 'node:fs';
+import { assertStringArrayIncludes } from '../string-array-assertions.ts';
 
 export function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
 }
 
 export function assertIncludesAll(actual, expected, label) {
-  if (!Array.isArray(actual)) {
-    throw new Error(`${label} must be an array`);
-  }
-  for (const item of expected) {
-    if (!actual.includes(item)) {
-      throw new Error(`${label} must include ${item}`);
-    }
-  }
+  assertStringArrayIncludes(actual, expected, label);
 }
 
 export function assertDeepEqualJson(actual, expected, label) {
