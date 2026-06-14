@@ -1,61 +1,14 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { commandMaxBuffer, assertFile } from './validation-config.ts';
 import {
   beginnerFirstRunTestIds,
   legacySettingsRouteRedirects,
 } from './app-contract-constants.ts';
-
-function readShellText(shellPaths, relativePath) {
-  const filePath = path.join(shellPaths.shellRoot, relativePath);
-  assertFile(filePath, `active shell implementation file ${relativePath}`);
-  return readFileSync(filePath, 'utf8');
-}
-
-function readShellJson(shellPaths, relativePath, label) {
-  const text = readShellText(shellPaths, relativePath);
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    throw new Error(`Active shell ${label} must be valid JSON: ${error.message}`);
-  }
-}
-
-function assertShellTextIncludes(shellPaths, relativePath, expected, label) {
-  const text = readShellText(shellPaths, relativePath);
-  if (!text.includes(expected)) {
-    throw new Error(`Active shell ${label} must include ${expected} in ${relativePath}`);
-  }
-  return text;
-}
-
-function assertShellTextExcludes(shellPaths, relativePath, forbidden, label) {
-  const text = readShellText(shellPaths, relativePath);
-  if (text.includes(forbidden)) {
-    throw new Error(`Active shell ${label} must not include ${forbidden} in ${relativePath}`);
-  }
-  return text;
-}
-
-function assertShellFileHash(shellPaths, relativePath, expectedHash, label) {
-  const filePath = path.join(shellPaths.shellRoot, relativePath);
-  assertFile(filePath, label);
-  const result = spawnSync('shasum', ['-a', '256', filePath], {
-    encoding: 'utf8',
-    maxBuffer: commandMaxBuffer,
-  });
-  if (result.error) {
-    throw new Error(`Failed to hash ${label}: ${result.error.message}`);
-  }
-  if (result.status !== 0) {
-    throw new Error(`Failed to hash ${label}: ${result.stderr.trim()}`);
-  }
-  const actualHash = result.stdout.trim().split(/\s+/)[0];
-  if (actualHash !== expectedHash) {
-    throw new Error(`Active shell ${label} hash must be ${expectedHash}; got ${actualHash}`);
-  }
-}
+import {
+  assertShellFileHash,
+  assertShellTextIncludes,
+  readShellJson,
+  readShellText,
+} from './shell-implementation-helpers.ts';
+import { validateStandardUpdaterImplementation } from './shell-standard-updater-validator.ts';
 
 export function validateActiveShellImplementation(shellPaths) {
   if (shellPaths.contract.shell_contract?.implementation_validation === 'contract_paths_only') {
@@ -414,49 +367,7 @@ export function validateActiveShellImplementation(shellPaths) {
     throw new Error('Active shell deep links must not whitelist Team routes for ordinary OPL App');
   }
 
-  const autoUpdaterService = readShellText(shellPaths, 'packages/desktop/src/process/services/autoUpdaterService.ts');
-  for (const expected of [
-    'recordAutoUpdateInstallNotAppliedIfNeeded',
-    'recordAutoUpdateQuitAndInstall',
-    'recordAutoUpdateStatus',
-    'resolveLocalAuthorizedMacosUpdatePlan',
-    'launchLocalAuthorizedMacosInstaller(plan)',
-    'params?.file_path',
-    'autoUpdater.quitAndInstall(true, true)',
-  ]) {
-    if (!autoUpdaterService.includes(expected)) {
-      throw new Error(`Active shell standard updater must distinguish downloaded/apply/applied states: ${expected}`);
-    }
-  }
-  const autoUpdateDiagnostics = readShellText(shellPaths, 'packages/desktop/src/process/services/autoUpdateDiagnostics.ts');
-  for (const expected of [
-    "'quit-and-install'",
-    "'install-not-applied'",
-    'current_version_lower_than_downloaded_after_quit_and_install',
-    'semver.gte(normalizedCurrent, normalizedTarget)',
-  ]) {
-    if (!autoUpdateDiagnostics.includes(expected)) {
-      throw new Error(`Active shell updater diagnostics must detect failed post-restart version switch: ${expected}`);
-    }
-  }
-  const localAuthorizedUpdater = readShellText(
-    shellPaths,
-    'packages/desktop/src/process/services/localAuthorizedMacosUpdater.ts',
-  );
-  for (const expected of [
-    'local-authorized-updater',
-    'local-authorized-updater-diagnostics.json',
-    'unzip -q "$update_zip_path"',
-    'find "$staging_root" -maxdepth 3 -type d -name "One Person Lab.app"',
-    'ditto "$source_app" "$app_path"',
-    'xattr -dr com.apple.quarantine "$app_path"',
-    'write_diagnostics "installed"',
-    'open "$app_path"',
-  ]) {
-    if (!localAuthorizedUpdater.includes(expected)) {
-      throw new Error(`Active shell macOS updater recovery must use the downloaded ZIP to replace the App bundle: ${expected}`);
-    }
-  }
+  validateStandardUpdaterImplementation(shellPaths);
 
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
   for (const expected of [
