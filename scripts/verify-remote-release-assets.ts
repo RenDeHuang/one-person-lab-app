@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
 import { fileSha256 } from './release-file-helpers.ts';
 import { runCommand } from './release-cleanup-helpers.ts';
+import { assertFullRuntimeNativeTrustFile } from './full-runtime-native-trust.ts';
 
 function parseArgs(argv) {
   const parsed = {
@@ -276,39 +277,8 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, version, localAuthoriz
   }
 }
 
-function requiredFullRuntimeNativeTrustPaths(manifest) {
-  const temporalBinaryPath = manifest?.components?.temporal_cli?.binary_path;
-  return [
-    'runtime/current/node/bin/node',
-    ...(typeof temporalBinaryPath === 'string' && temporalBinaryPath
-      ? [temporalBinaryPath]
-      : []),
-  ];
-}
-
 function assertFullRuntimeNativeTrust(downloadDir, manifest) {
-  const trust = JSON.parse(readText(path.join(downloadDir, 'full-runtime-native-trust.json')));
-  if (trust?.schema !== 'opl_full_runtime_native_trust.v1' || !['passed', 'local_authorized_unsigned', 'not_distributable', 'failed'].includes(trust?.status)) {
-    throw new Error('full-runtime-native-trust.json must record Full runtime native executable diagnostics.');
-  }
-  const executables = Array.isArray(trust.executables) ? trust.executables : [];
-  if (executables.length === 0 || trust.executable_count !== executables.length) {
-    throw new Error('full-runtime-native-trust.json must list the checked native executables.');
-  }
-  for (const required of requiredFullRuntimeNativeTrustPaths(manifest)) {
-    if (!executables.some((entry) => entry?.relative_path === required)) {
-      throw new Error(`full-runtime-native-trust.json is missing ${required}.`);
-    }
-  }
-  for (const entry of executables) {
-    if (
-      !['passed', 'failed_allowed_unsigned'].includes(entry?.codesign_status) ||
-      !['passed', 'not_required', 'deferred_until_notarized_app', 'failed_allowed_unsigned'].includes(entry?.spctl_status) ||
-      entry?.quarantine_status !== 'absent'
-    ) {
-      throw new Error(`Full runtime native executable is not locally authorized: ${entry?.relative_path || '(unknown)'}.`);
-    }
-  }
+  assertFullRuntimeNativeTrustFile(path.join(downloadDir, 'full-runtime-native-trust.json'), manifest);
 }
 
 function assertPlainObject(value, label) {
