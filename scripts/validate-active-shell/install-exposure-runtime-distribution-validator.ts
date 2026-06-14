@@ -174,6 +174,13 @@ function validateRuntimeToolchainCleanMachineRequirement(cleanMachineRequirement
 }
 
 function validateHomebrewDistribution(homebrew) {
+  validateHomebrewTransportBoundary(homebrew);
+  validateHomebrewCaskNames(homebrew);
+  validateHomebrewUserTargets(homebrew);
+  validateHomebrewAgentPackPolicy(homebrew);
+}
+
+function validateHomebrewTransportBoundary(homebrew) {
   if (
     homebrew?.role !== 'app_cask_transport_and_install_index_only' ||
     homebrew?.tap !== 'gaofeng21cn/one-person-lab' ||
@@ -188,6 +195,9 @@ function validateHomebrewDistribution(homebrew) {
     ['opl connect reconcile-modules', 'opl connect sync-skills'],
     'Install exposure Homebrew activation commands',
   );
+}
+
+function validateHomebrewCaskNames(homebrew) {
   if (
     JSON.stringify(homebrew.formulae) !== JSON.stringify({}) ||
     homebrew.casks?.standard_app !== 'one-person-lab' ||
@@ -198,6 +208,9 @@ function validateHomebrewDistribution(homebrew) {
   ) {
     throw new Error('Install exposure Homebrew cask names must match the App-only distribution channel contract');
   }
+}
+
+function validateHomebrewUserTargets(homebrew) {
   assertDeepEqualJson(
     homebrew.allowed_user_targets,
     ['Casks/one-person-lab.rb', 'Casks/one-person-lab-nightly.rb', 'Casks/one-person-lab-full.rb'],
@@ -213,6 +226,9 @@ function validateHomebrewDistribution(homebrew) {
     ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
     'Install exposure Homebrew forbidden formulae',
   );
+}
+
+function validateHomebrewAgentPackPolicy(homebrew) {
   if (
     homebrew.agent_pack_policy?.homebrew_distribution_allowed !== false ||
     homebrew.agent_pack_policy?.user_visible_formula_allowed !== false ||
