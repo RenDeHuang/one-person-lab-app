@@ -45,6 +45,16 @@ type EvidenceArtifact = {
   path: string;
 };
 
+const valueOptionTokens = [
+  '--action-id',
+  '--version',
+  '--tag',
+  '--artifact',
+  '--evidence-source-dir',
+  '--typed-blocker',
+  '--opl-bin',
+];
+
 function readArgValue(argv: string[], index: number, token: string): string {
   const value = argv[index + 1];
   if (!value || value.startsWith('--')) {
@@ -63,6 +73,40 @@ function setUniquePathOption(target: Record<string, string>, token: '--artifact'
     throw new Error(`Duplicate ${token} entry: ${artifactId}`);
   }
   target[artifactId] = path.resolve(value.slice(separatorIndex + 1));
+}
+
+function isValueOptionToken(token: string): boolean {
+  return valueOptionTokens.includes(token);
+}
+
+function applyValueOption(parsed: Options, token: string, value: string): void {
+  if (token === '--action-id') {
+    parsed.actionId = value;
+    return;
+  }
+  if (token === '--version') {
+    parsed.version = value;
+    return;
+  }
+  if (token === '--tag') {
+    parsed.tag = value;
+    return;
+  }
+  if (token === '--artifact') {
+    setUniquePathOption(parsed.artifacts, '--artifact', value);
+    return;
+  }
+  if (token === '--evidence-source-dir') {
+    parsed.evidenceSourceDirs.push(path.resolve(value));
+    return;
+  }
+  if (token === '--typed-blocker') {
+    setUniquePathOption(parsed.typedBlockers, '--typed-blocker', value);
+    return;
+  }
+  if (token === '--opl-bin') {
+    parsed.oplBin = value;
+  }
 }
 
 function parseArgs(argv: string[]): Options {
@@ -89,18 +133,6 @@ function parseArgs(argv: string[]): Options {
       parsed.overwrite = true;
       continue;
     }
-    if (![
-      '--bundle-dir',
-      '--action-id',
-      '--version',
-      '--tag',
-      '--artifact',
-      '--evidence-source-dir',
-      '--typed-blocker',
-      '--opl-bin',
-    ].includes(token)) {
-      throw new Error(`Unknown argument: ${token}`);
-    }
     if (token === '--bundle-dir') {
       const optionIndex = applyReleaseEvidenceBundleDirArg(argv, index, (value) => {
         parsed.bundleDir = value;
@@ -109,42 +141,12 @@ function parseArgs(argv: string[]): Options {
       index = optionIndex;
       continue;
     }
+    if (!isValueOptionToken(token)) {
+      throw new Error(`Unknown argument: ${token}`);
+    }
     const value = readArgValue(argv, index, token);
-    if (token === '--action-id') {
-      parsed.actionId = value;
-      index += 1;
-      continue;
-    }
-    if (token === '--version') {
-      parsed.version = value;
-      index += 1;
-      continue;
-    }
-    if (token === '--tag') {
-      parsed.tag = value;
-      index += 1;
-      continue;
-    }
-    if (token === '--artifact') {
-      setUniquePathOption(parsed.artifacts, '--artifact', value);
-      index += 1;
-      continue;
-    }
-    if (token === '--evidence-source-dir') {
-      parsed.evidenceSourceDirs.push(path.resolve(value));
-      index += 1;
-      continue;
-    }
-    if (token === '--typed-blocker') {
-      setUniquePathOption(parsed.typedBlockers, '--typed-blocker', value);
-      index += 1;
-      continue;
-    }
-    if (token === '--opl-bin') {
-      parsed.oplBin = value;
-      index += 1;
-      continue;
-    }
+    applyValueOption(parsed, token, value);
+    index += 1;
   }
 
   if (!parsed.actionId.trim()) {
