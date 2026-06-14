@@ -60,11 +60,242 @@ const managedUpdateUiActions = {
   rollback_component: 'opl update rollback --component <component_id> --json',
 };
 
+const managedKernelLifecycle = [
+  'read_manifest',
+  'read_current_state',
+  'diff_plan',
+  'fetch_artifacts',
+  'verify',
+  'stage',
+  'activate',
+  'post_apply',
+  'write_receipt',
+  'report_status_or_repair',
+];
+
+const managedKernelStateVocabulary = [
+  'current',
+  'update_available',
+  'staged',
+  'needs_restart',
+  'needs_reload',
+  'failed_with_repair',
+  'skipped_manual_required',
+];
+
+const managedKernelPublicCliSurfaces = [
+  'opl update status --json',
+  'opl update check --json',
+  'opl update plan --json',
+  'opl update apply --component <component_id> --json',
+  'opl update repair --receipt <receipt_id> --json',
+  'opl update rollback --component <component_id> --json',
+];
+
+const managedKernelOperationModes = {
+  status: 'read_only_projection',
+  check: 'read_only_projection',
+  plan: 'read_only_projection',
+  apply: 'controlled_apply',
+  repair: 'controlled_repair',
+  rollback: 'controlled_rollback',
+};
+
+const managedKernelReceiptWritePolicy = {
+  status: 'read_only',
+  check: 'read_only',
+  plan: 'read_only',
+  apply: 'recorded_component_receipt',
+  repair: 'recorded_component_receipt',
+  rollback: 'recorded_component_receipt',
+};
+
+const managedKernelStatusProjectionRequiredFields = [
+  'operation',
+  'operation_mode',
+  'update_channel',
+  'idempotency_lock.status',
+  'summary',
+  'components',
+  'repair_actions',
+  'receipts.write_policy',
+  'authority_boundary',
+];
+
+const managedKernelRunnerResultRequiredFields = [
+  'operation',
+  'operation_mode',
+  'execution.status',
+  'idempotency_lock.status',
+  'component_id',
+  'components[].receipt.last_receipt_ref',
+  'components[].receipt.repair_action',
+  'components[].receipt.rollback_ref',
+  'components[].receipt.post_apply_hooks',
+  'execution.receipt_record.receipt_refs',
+  'reload_guidance',
+  'recent_actions',
+  'skipped_reasons',
+];
+
+const managedKernelComponentReceiptRequiredFields = [
+  'source_manifest_ref',
+  'from_version',
+  'from_digest',
+  'to_version',
+  'to_digest',
+  'verify_result',
+  'activated_at',
+  'post_apply_hooks',
+  'rollback_ref',
+  'repair_action',
+];
+
+const managedKernelComponentReceiptIdentityFields = [
+  'digest',
+  'sha256',
+  'source_fingerprint',
+  'git_head_sha',
+  'runtime_version',
+  'current_pointer',
+  'staged_root',
+  'plugin_manifest_hash',
+  'skill_pack_hash',
+  'generated_surface_hash',
+];
+
 const managedUpdateSections = ['app_binary', 'runtime_toolchain', 'agent_packages', 'capability_exposure'];
 const managedUpdateDisplayPlanes = ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure'];
 const managedUpdateStateSources = ['opl app state --profile fast --json#managed_update_plane', 'opl update status --json'];
 const managedUpdateStatusConsumptionPolicy =
   'show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth';
+
+export function validateReleaseManagedUpdateKernelSurface(managedUpdatePlane) {
+  const managedKernel = managedUpdatePlane?.managed_kernel;
+
+  validateManagedKernelLifecycle(managedKernel);
+  validateManagedKernelIdempotencyLock(managedKernel);
+  validateManagedKernelShellIntegration(managedUpdatePlane, managedKernel);
+  validateManagedKernelCommandAndReceiptPolicy(managedKernel);
+  validateManagedKernelProjectionAndResultFields(managedKernel);
+  validateManagedKernelReceiptAndConditionShapes(managedKernel);
+}
+
+function validateManagedKernelLifecycle(managedKernel) {
+  assertDeepEqualJson(managedKernel?.lifecycle, managedKernelLifecycle, 'Managed update plane lifecycle');
+  assertDeepEqualJson(
+    managedKernel?.state_vocabulary,
+    managedKernelStateVocabulary,
+    'Managed update plane state vocabulary',
+  );
+}
+
+function validateManagedKernelIdempotencyLock(managedKernel) {
+  if (
+    managedKernel?.idempotency_lock?.lock_id !== 'opl_managed_updater_kernel.global' ||
+    managedKernel?.idempotency_lock?.lock_scope !==
+      'single_writer_for_fetch_verify_stage_activate_post_apply_write_receipt' ||
+    managedKernel?.idempotency_lock?.stale_after_seconds !== 1800 ||
+    managedKernel?.idempotency_lock?.contention_policy !==
+      'report_in_progress_or_skip_without_parallel_stage_or_plugin_sync'
+  ) {
+    throw new Error('Managed update plane must declare the Framework updater idempotency lock contract');
+  }
+  assertDeepEqualJson(
+    managedKernel?.idempotency_lock?.exclusive_operations,
+    ['apply', 'repair', 'rollback'],
+    'Managed update plane exclusive lock operations',
+  );
+}
+
+function validateManagedKernelShellIntegration(managedUpdatePlane, managedKernel) {
+  const shellIntegration = managedUpdatePlane?.shell_integration;
+
+  assertDeepEqualJson(
+    shellIntegration?.required_ipc_surfaces,
+    managedUpdateIpcSurfaces,
+    'Managed update plane shell IPC surfaces',
+  );
+  assertDeepEqualJson(
+    shellIntegration?.allowed_cli_commands,
+    managedKernel?.public_cli_surfaces,
+    'Managed update plane shell allowed CLI commands',
+  );
+  assertDeepEqualJson(
+    shellIntegration?.background_scheduler,
+    managedUpdateScheduler,
+    'Managed update plane shell background scheduler',
+  );
+  assertDeepEqualJson(shellIntegration?.ui_actions, managedUpdateUiActions, 'Managed update plane shell UI actions');
+  assertDeepEqualJson(
+    shellIntegration?.forbidden_shell_behaviors,
+    [
+      'read_artifact_body',
+      'read_or_write_domain_truth',
+      'write_owner_receipt',
+      'mutate_dirty_or_developer_checkout',
+      'mutate_homebrew_or_system_tools',
+      'bypass_framework_update_kernel',
+    ],
+    'Managed update plane forbidden shell behaviors',
+  );
+}
+
+function validateManagedKernelCommandAndReceiptPolicy(managedKernel) {
+  if (managedKernel?.component_receipt_shape?.schema_version !== 'opl_managed_update_component_receipt.v1') {
+    throw new Error('Managed update plane must declare the component receipt schema version');
+  }
+  assertDeepEqualJson(
+    managedKernel?.public_cli_surfaces,
+    managedKernelPublicCliSurfaces,
+    'Managed update plane public CLI surfaces',
+  );
+  assertDeepEqualJson(managedKernel?.operation_modes, managedKernelOperationModes, 'Managed update plane operation modes');
+  assertDeepEqualJson(
+    managedKernel?.receipt_write_policy,
+    managedKernelReceiptWritePolicy,
+    'Managed update plane receipt write policy',
+  );
+}
+
+function validateManagedKernelProjectionAndResultFields(managedKernel) {
+  assertDeepEqualJson(
+    managedKernel?.status_projection_required_fields,
+    managedKernelStatusProjectionRequiredFields,
+    'Managed update plane status projection required fields',
+  );
+  assertDeepEqualJson(
+    managedKernel?.runner_result_required_fields,
+    managedKernelRunnerResultRequiredFields,
+    'Managed update plane runner result required fields',
+  );
+}
+
+function validateManagedKernelReceiptAndConditionShapes(managedKernel) {
+  assertDeepEqualJson(
+    managedKernel?.component_receipt_shape?.required_fields,
+    managedKernelComponentReceiptRequiredFields,
+    'Managed update plane component receipt required fields',
+  );
+  assertDeepEqualJson(
+    managedKernel?.component_receipt_shape?.identity_fields,
+    managedKernelComponentReceiptIdentityFields,
+    'Managed update plane component receipt identity fields',
+  );
+  assertDeepEqualJson(
+    managedKernel?.condition_shape?.required_fields,
+    ['type', 'status', 'reason', 'message', 'observed_generation'],
+    'Managed update plane condition required fields',
+  );
+  assertDeepEqualJson(
+    managedKernel?.condition_shape?.status_values,
+    ['True', 'False', 'Unknown'],
+    'Managed update plane condition status values',
+  );
+  if (managedKernel?.condition_shape?.style !== 'kubernetes_status_conditions') {
+    throw new Error('Managed update plane condition shape must use Kubernetes-style status conditions');
+  }
+}
 
 export function validateManagedUpdatePageBasics(page, label, options = {}) {
   if (options.requirePageContract && page?.page_contract !== 'updates_and_maintenance') {
