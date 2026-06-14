@@ -55,28 +55,24 @@ now selects the macOS ZIP for in-app updates, uses an App-managed local
 authorization installer to replace the local App bundle, clears quarantine,
 records diagnostics, and relaunches the updated App.
 
-Active shell upgrade hardening is now App-owned and machine-checked. The adapter
-contract records upstream feature classifications and required implementation
-probes before release. AionUI Team is classified as rejected for ordinary App
-surfaces; Team route redirects, sidebar gating, Team-created redirect no-op,
-ordinary conversation MCP snapshot scrub, agent switching without Team MCP
-inheritance, Team deep-link rejection, and the IPC bridge mutation gate are
-required probes. Ordinary MCP filtering is represented as executable
-`forbidden_mcp_matchers` plus `scrub_extra_keys` data in both the GUI contract
-and product profile.
+Active shell upgrade hardening is App-owned and machine-checked. The adapter and
+GUI contracts own upstream feature classification, ordinary capability filtering,
+Team-surface rejection policy, and required implementation probes; this status
+file keeps only the current boundary. Use
+`contracts/app-shell-adapter.json`, `contracts/app-gui-product-contract.json`,
+`contracts/app-product-profile.json`, `scripts/validate-active-shell.ts`, and
+the focused release-boundary GUI tests for executable Team and MCP-filtering
+truth.
 
-GUI interaction status: Home/Guid is contract-backed as a composer-first Codex
-canvas with visible GPT-5.5（超高） model status, purpose entries `科研`/`基金`/
-`演示`, collapsed workspace/session rail, and a collapsed right context
-inspector. The element audit lives in
+GUI interaction status is contract-backed as a composer-first Codex canvas with
+purpose entries, App-owned model status, collapsed contextual surfaces, and
+secondary inspector/detail views. The element audit lives in
 `docs/app-gui-element-audit.md`; the target interaction definition lives in
 `docs/app-ideal-gui-interaction-spec.md`; machine acceptance is enforced by
 `contracts/app-gui-product-contract.json`,
 `contracts/app-page-state-matrix.json`,
 `contracts/app-product-profile.json`, `scripts/validate-active-shell.ts`, and
-focused release-boundary tests. The active shell implements the right inspector
-as a user-opened auxiliary surface with Files, Capabilities, Routing/runtime,
-Memory, Automations, and Settings tabs while keeping runtime truth, domain
+focused release-boundary tests. The active shell keeps runtime truth, domain
 truth, memory body, and artifact body outside shell authority.
 
 Install/exposure policy is now contract-backed in
@@ -164,16 +160,11 @@ refs-only projections and never owns runtime truth, provider implementation,
 domain truth, artifact body, owner receipts, typed blockers, domain verdicts,
 App release readiness, or family production readiness.
 
-The upstream AionUI Team surface is disabled for ordinary OPL App use. Team
-mode is off by default, the Team sidebar entry is hidden, Team-created redirects
-no-op, Team deep links are not whitelisted, and compatible `/team/*` routes
-return to the App-owned home path. User feedback showed a separate exposure path:
-ordinary conversations could inherit historical Team MCP snapshots such as
-`aionui-team`, `team_members`, `team_list_models`, and `team_spawn_agent`. The
-active shell now also scrubs Team MCP names and Team metadata from ordinary
-conversation snapshots before rendering loaded MCP state or creating derived
-ACP conversations. This keeps the fork delta thin while avoiding an upstream
-team-leader configuration that does not map to OPL purpose routing.
+The upstream AionUI Team surface is disabled for ordinary OPL App use. The
+current owner for the exact redirect, sidebar, deep-link, Team MCP scrub,
+agent-switching, and IPC mutation gates is the App GUI / shell adapter contract
+set plus active-shell validation. This status file does not freeze the probe
+list, test names, or historical snapshot examples.
 
 The App first-run screen presents that shared model in a beginner-first way:
 the primary view shows a plain readiness summary, three user-facing setup
@@ -225,18 +216,13 @@ artifact bodies, write runtime or domain truth, create owner receipts, mutate
 dirty/developer checkouts, silently upgrade Homebrew/system tools, or claim
 MAS/MAG/RCA quality/export verdicts.
 
-Release and user-path evidence remains cohort-bound. Evidence manifests
-classify required artifacts as `present`, `missing`, `typed_blocker`, or
-`not_applicable`; only all-present verified bundles can set
-`packaged_app_evidence=true`. `l5_evidence_readout` and
-`release_owner_verdict` are App release-owner inputs for the same cohort:
-passing evidence yields `release_owner_verdict_pending`, missing or blocked
-required evidence yields `release_owner_typed_blocker_required`. The pending
-readout includes `install_evidence_ref` and `release_owner_typed_blocker_ref`;
-stable promotion still requires a same-cohort `release_owner_verdict_ref` or
-`release_owner_receipt_ref`. Pending, typed-blocker, install-evidence, and
-human-gate refs do not authorize release-ready, stable/latest promotion, domain
-readiness, or OPL family production readiness.
+Release and user-path evidence remains cohort-bound. Evidence manifests,
+release-owner records, validators, release artifacts, and workflow outputs own
+the artifact classification fields, package-evidence flags, owner-verdict refs,
+typed-blocker refs, and install-evidence refs for each cohort. Pending,
+typed-blocker, install-evidence, and human-gate refs do not authorize
+release-ready, stable/latest promotion, domain readiness, or OPL family
+production readiness.
 
 App release-owner receipt records live in `docs/release/records/` and are
 validated through `npm run release:owner-candidate-record:verify`. A recorded
@@ -270,84 +256,42 @@ controls. Execution refreshes the App state projection so receipt/count fields
 stay framework-owned; MAS/MAG/RCA verdicts and artifact authority remain
 domain-owned refs.
 
-Current GUI product truth 现在有明确的人读定义栈：
-`docs/app-ideal-gui-interaction-spec.md` 定义 Codex App 形态、chat-first 的交互
-目标；`docs/codex-to-opl-app-delta.md` 定义 Codex App 之上的 OPL 产品增量；
-`docs/app-gui-feature-inventory.md` 跟踪跨 shell 能力清单和参考模式。机器可读
-GUI truth 声明在 `contracts/app-gui-product-contract.json`：the default executor experience is
-fixed to Codex CLI on the ordinary App path; the home screen exposes three
-beginner-facing purpose entries: 科研, 基金, and 演示. Those entries route to
-MAS, MAG, and RCA respectively, and the selected entry is presented as a compact
-`@` purpose tag instead of a full agent-title hero. The home input does not
-expose Aion CLI, Claude Code, backend switching, provider lists, or permission
-mode controls; ordinary Codex conversations must not reintroduce those selector
-surfaces after send. Built-in MAS/MAG/RCA sends must persist a route receipt
-showing `builtin_capability`, `codex_cli`, the assistant id, the assistant short
-name, and `opl_app_home`, so the route is observable beyond the visible badge.
-It shows a compact Codex model selector/status derived from the App product
-profile, currently `GPT-5.5（超高）`, on Home and ordinary Codex conversation
-composer surfaces; this remains App-owned and must not become backend or
-permission selection. Conversation pending/running state now shows elapsed seconds so users
-can see the App is working while a Codex response is still in progress.
-Each default purpose entry also owns an assistant-scoped skill profile: MAS
-requires `mas`, MAG requires `mag`, and RCA requires `rca`; optional companion
-skills are selected from that assistant profile after passing the App packaged
-skill set boundary；Settings auto-injected skills are filtered through the same
-App packaged whitelist, so AionUI helper skills such as `aionui-skills` do not
-surface as OPL App capabilities。Home surface 不显示 runtime activity、continue-work、
-needs-attention/active/recent refs、per-assistant running badges 或底部
-feedback/favorite/web 图标；这些信息属于 Runtime、右侧 inspector、drawer 或其他
-secondary context surface，必须保持 refs-only，不能变成 ordinary home first-screen
-workbench。Settings 的 General/Access/Agents &
-Capabilities/Local Environment/Appearance/Advanced/About & Updates surfaces、
-module path source explanation、stable/nightly release gates 和 OPL Flow
-context 都是 App-owned requirements。Upstream overview、runtime、system、model、
-agent、assistants、skills-hub、tools、display、webui、pet routes redirect 到
-App-owned pages，不是 ordinary user tabs。`/guid` quick shortcut 打开 Access，
-而不是 WebUI-branded entry。OPL Meta Agent 仍是 App/CLI-managed ecosystem
-module，不是 default home assistant entry。MDS 不是 default GUI module，只保留
-historical 或 explicit-reference。`contracts/app-shell-adapter.json` 要求 active
-shell 实现该 App contract，并保持 upstream AionUI 只是 implementation material，
-不是 product authority。Home runtime suppression、secondary runtime refs、
-forbidden display fields 和 Settings page sections now have matching page-state matrix entries,
-and `validate:active-shell --quick` plus the focused release-boundary GUI tests
-fail closed if the contract and matrix drift.
+Current GUI product truth has a compact owner stack: human-readable intent lives
+in `docs/app-ideal-gui-interaction-spec.md`,
+`docs/codex-to-opl-app-delta.md`, and `docs/app-gui-feature-inventory.md`;
+machine-readable GUI truth lives in
+`contracts/app-gui-product-contract.json`,
+`contracts/app-page-state-matrix.json`, `contracts/app-product-profile.json`,
+and `contracts/app-shell-adapter.json`. These owners define the ordinary Codex
+CLI path, purpose entries, route receipts, model-status surface, Settings
+partition, forbidden selectors, secondary runtime refs, OMA/MDS visibility, and
+legacy-route redirects. This status file does not duplicate field-level GUI
+requirements, literal labels, forbidden-display lists, or test matrices.
 
 Experimental shell candidate work is separated from the active release adapter.
-`contracts/app-shell-candidates.json` declares `agui-codex` as an explicit
-candidate, `contracts/shell-adapters/agui-codex.json` owns its selectable adapter
-contract, and `docs/agui-codex-candidate-verification.md` owns candidate command
-order, smoke expectations, minimum acceptance, and evidence lifecycle. Default
+`contracts/app-shell-candidates.json` owns the candidate registry,
+`contracts/shell-adapters/agui-codex.json` owns the selectable adapter, and
+`docs/agui-codex-candidate-verification.md` owns the candidate runbook. Default
 stable/nightly packaging continues to resolve `contracts/app-shell-adapter.json`
 and the active `aionui` shell until an explicit release-owner decision changes
 that contract.
 
-The current candidate read is technical verification only: `agui-codex` targets
-the Codex App-like OPL chat-first inventory described by the GUI definition
-stack and `docs/app-gui-feature-inventory.md`; CopilotKit is the visible
-UI/runtime layer, AG-UI is the internal event/protocol boundary, WebUI uses the
-same candidate bridge shape, and PilotDeck remains reference-only information
-organization input with no source, runtime, provider, memory, router, or
-WorkSpace authority transfer.
+The current candidate read is technical verification only. Candidate smoke,
+manifests, package evidence, shell roadmaps, upstream GUI defaults, and external
+reference material do not become App product truth, active-shell adoption, release
+readiness, clean-VM readiness, domain readiness, or family production readiness.
 
 Candidate adoption and evidence currentness stay outside this status file.
-Candidate smoke, manifests, package evidence, shell roadmaps, and upstream GUI
-defaults prove only technical verification unless App-owned contracts,
-validators, release-boundary tests, release artifacts, and release-owner
-decision update the default adapter. `agui-codex` is not the default release
-shell, not App product authority, and not domain-ready, clean-VM-ready,
-Full-release-ready, App-production-ready, or family-production-ready evidence.
+Adoption requires deliberate App-owned contract changes plus validators,
+release-boundary tests, release artifacts, and release-owner decision for the
+default adapter.
 
-Release evidence collection is App-owned but cohort-bound. The collector and
-manifest validator can import OPL App state JSON, drilldown JSON, safe-action
-dry-run or execute receipts, screenshots, clean VM summaries, settings smoke,
-assistant route smoke, remote Release verification, Codex functional check
-receipts, typed blockers, and explicit artifact mappings. Each required artifact
-is classified as `present`, `missing`, `typed_blocker`, or `not_applicable`;
-only an all-present verified bundle can set `packaged_app_evidence=true`.
-Current-source or local smoke evidence does not update a published cohort, does
-not promote stable/latest, and does not prove MAS/MAG/RCA domain readiness or
-OPL family production readiness.
+Release evidence collection is App-owned but cohort-bound. The collector,
+manifest validator, release artifacts, release owner records, and release
+workflow outputs own the artifact classes and evidence fields for each cohort.
+This status file keeps only the authority boundary: current-source or local smoke
+evidence does not update a published cohort, does not promote stable/latest, and
+does not prove MAS/MAG/RCA domain readiness or OPL family production readiness.
 
 Dated local smoke, candidate, current-source release, and migration notes are
 compressed under `docs/history/process/`, with no-resurrection rules in
