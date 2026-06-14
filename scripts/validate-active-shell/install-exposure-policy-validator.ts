@@ -12,7 +12,7 @@ import {
 import { expectedDomainExposureEntryMap } from './domain-exposure-validator.ts';
 import { validateInstallExposureRuntimeAndDistribution } from './install-exposure-runtime-distribution-validator.ts';
 
-export function validateInstallExposurePolicy(policy) {
+function validateInstallExposureHeader(policy) {
   if (policy.owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected install exposure policy owner: ${policy.owner}`);
   }
@@ -33,8 +33,9 @@ export function validateInstallExposurePolicy(policy) {
       throw new Error(`Install exposure policy must exclude ${forbidden}`);
     }
   }
+}
 
-  const canonical = policy.canonical_metadata_sources;
+function validateCanonicalMetadataSources(canonical) {
   if (canonical?.owner !== 'one-person-lab') {
     throw new Error('Install exposure canonical metadata owner must be one-person-lab');
   }
@@ -51,8 +52,9 @@ export function validateInstallExposurePolicy(policy) {
       throw new Error(`Install exposure canonical metadata derived surfaces must include ${surface}`);
     }
   }
+}
 
-  const abi = policy.public_abi;
+function validatePublicAbi(abi) {
   for (const [field, expected] of Object.entries({
     primary_semantic_entry: 'skill',
     skill_role: 'public_codex_semantic_entry_and_prompt_contract',
@@ -75,7 +77,9 @@ export function validateInstallExposurePolicy(policy) {
       throw new Error(`Install exposure public_abi.${field} must be ${expected}`);
     }
   }
+}
 
+function validateExposureClasses(policy) {
   const exposureClassById = new Map((policy.exposure_classes ?? []).map((entry) => [entry.id, entry]));
   const domainPluginClass = exposureClassById.get('family_domain_plugin_surfaces');
   if (domainPluginClass?.sync_target !== 'codex_plugin_registry') {
@@ -116,7 +120,9 @@ export function validateInstallExposurePolicy(policy) {
   if (!packagedRuntimeClass?.must_not_sync_to?.includes('implicit_user_codex_skill_install_without_managed_sync')) {
     throw new Error('Install exposure packaged Full runtime payloads must not imply user skill install without managed sync');
   }
+}
 
+function validateDomainExposure(policy) {
   const expectedDomainExposures = expectedDomainExposureEntryMap(
     policy.domain_exposure,
     (domainId) => `Install exposure policy missing domain ${domainId}`,
@@ -139,7 +145,9 @@ export function validateInstallExposurePolicy(policy) {
   if (expectedDomainExposures.find(({ expected }) => expected.domain_id === 'oma')?.entry.default_home_visible !== false) {
     throw new Error('Install exposure policy must keep OMA out of the default home path');
   }
+}
 
+function validateInstallerSurfaces(policy) {
   const installerSurfaces = new Map((policy.installer_surfaces ?? []).map((entry) => [entry.surface, entry]));
   for (const surface of ['app_first_run', 'full_first_install_dmg', 'standard_dmg', 'one_shot_cli_installer', 'docker_webui']) {
     const entry = installerSurfaces.get(surface);
@@ -153,8 +161,9 @@ export function validateInstallExposurePolicy(policy) {
   if (installerSurfaces.get('app_first_run')?.exposure_policy !== 'hide_skill_plugin_packaging_mechanics_by_default') {
     throw new Error('App first-run install exposure must hide skill/plugin packaging mechanics by default');
   }
+}
 
-  const presentation = policy.first_run_user_presentation;
+function validateFirstRunUserPresentation(presentation) {
   if (presentation?.default_mode !== 'beginner_first') {
     throw new Error('Install exposure first-run presentation must be beginner_first');
   }
@@ -174,8 +183,9 @@ export function validateInstallExposurePolicy(policy) {
   if (presentation.technical_detail_policy !== 'hidden_until_expanded_or_error') {
     throw new Error('Install exposure technical details must be hidden until expanded or error');
   }
+}
 
-  const setupFlow = policy.setup_flow_contract;
+function validateSetupFlowContract(setupFlow) {
   if (setupFlow?.source_command !== firstRunProgressSourceCommand) {
     throw new Error('Install exposure setup flow must use opl system initialize --json');
   }
@@ -217,6 +227,17 @@ export function validateInstallExposurePolicy(policy) {
     fullReadinessItems,
     'Install exposure first conversation non-blocking readiness items',
   );
+}
+
+export function validateInstallExposurePolicy(policy) {
+  validateInstallExposureHeader(policy);
+  validateCanonicalMetadataSources(policy.canonical_metadata_sources);
+  validatePublicAbi(policy.public_abi);
+  validateExposureClasses(policy);
+  validateDomainExposure(policy);
+  validateInstallerSurfaces(policy);
+  validateFirstRunUserPresentation(policy.first_run_user_presentation);
+  validateSetupFlowContract(policy.setup_flow_contract);
 
   validateInstallExposureRuntimeAndDistribution(policy);
 }
