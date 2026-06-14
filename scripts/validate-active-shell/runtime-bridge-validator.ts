@@ -389,7 +389,7 @@ export function validateLiveOplConformance(runtimeBridge) {
   console.log('Live OPL App state/action conformance passed.');
 }
 
-export function validateRuntimeBridgeContract(runtimeBridge, contract) {
+function validateRuntimeBridgeIdentity(runtimeBridge, contract) {
   if (runtimeBridge.owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected runtime bridge owner: ${runtimeBridge.owner}`);
   }
@@ -417,6 +417,9 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   if (isDefaultReleaseAdapter(contract) && runtimeBridge.default_adapter_path !== contract.shell_root) {
     throw new Error(`Runtime bridge adapter path must match active shell root: ${runtimeBridge.default_adapter_path}`);
   }
+}
+
+function validateRuntimeBridgeDeclaredSurfaces(runtimeBridge) {
   for (const [field, expected] of Object.entries({
     summary_command: 'opl app state --profile fast --json',
     refresh_command: 'opl app state --profile fast --json',
@@ -439,6 +442,9 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   if ('compatibility_operator_payload' in runtimeBridge) {
     throw new Error('Runtime bridge must not declare compatibility_operator_payload');
   }
+}
+
+function validateRuntimeBridgeDefaultReadSurfacePolicy(runtimeBridge) {
   const defaultReadSurfacePolicy = runtimeBridge.default_read_surface_policy;
   for (const [field, expected] of Object.entries({
     default_projection: 'opl_current_owner_delta',
@@ -484,6 +490,9 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
       throw new Error(`Runtime bridge default_read_surface_policy.forbidden_default_state_fields must include ${field}`);
     }
   }
+}
+
+function validateRuntimeBridgeUserTaskStatus(runtimeBridge) {
   validateUserTaskStatusProjectionContract(
     runtimeBridge.user_task_status_projection,
     'Runtime bridge user task status projection',
@@ -491,6 +500,9 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   if (runtimeBridge.user_task_status_projection?.app_role !== 'display_only_user_task_status_consumer') {
     throw new Error('Runtime bridge user task status projection must be a display-only consumer');
   }
+}
+
+function validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge) {
   const commandResolutionPolicy = runtimeBridge.command_resolution_policy;
   if (commandResolutionPolicy?.owner !== 'one-person-lab-app') {
     throw new Error('Runtime bridge command resolution policy must be App-owned');
@@ -518,6 +530,9 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
       throw new Error(`Runtime bridge command resolution policy must forbid: ${forbidden}`);
     }
   }
+}
+
+function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
   validateProjectProgressDisplayContract(runtimeBridge.project_progress_projection, 'Runtime bridge project progress projection');
   validateProviderReadinessRepairProjectionContract(
     runtimeBridge.provider_readiness_repair_projection,
@@ -535,6 +550,9 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
     runtimeBridge.stage_run_cockpit_projection,
     'Runtime bridge StageRun cockpit projection',
   );
+}
+
+function validateRuntimeBridgeAuthorityBoundary(runtimeBridge) {
   for (const [field, expected] of Object.entries({
     shell_adapter_can_own_runtime_truth: false,
     app_can_own_runtime_truth: false,
@@ -554,6 +572,9 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
       throw new Error(`Runtime bridge authority_boundary.${field} must be ${expected}`);
     }
   }
+}
+
+function validateRuntimeBridgeReplacementPolicy(runtimeBridge) {
   for (const [field, expected] of Object.entries({
     runtime_protocol_stable_across_shell_replacement: true,
     shell_adapter_must_call_declared_opl_cli_surfaces: true,
@@ -567,6 +588,9 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
       throw new Error(`Runtime bridge replacement_policy.${field} must be ${expected}`);
     }
   }
+}
+
+function validateRuntimeBridgeForbiddenTruthSources(runtimeBridge) {
   for (const forbidden of [
     'direct_domain_repo_reads',
     'direct_runtime_state_file_reads',
@@ -582,5 +606,17 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
       throw new Error(`Runtime bridge must forbid ${forbidden}`);
     }
   }
+}
+
+export function validateRuntimeBridgeContract(runtimeBridge, contract) {
+  validateRuntimeBridgeIdentity(runtimeBridge, contract);
+  validateRuntimeBridgeDeclaredSurfaces(runtimeBridge);
+  validateRuntimeBridgeDefaultReadSurfacePolicy(runtimeBridge);
+  validateRuntimeBridgeUserTaskStatus(runtimeBridge);
+  validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge);
+  validateRuntimeBridgeProjectionContracts(runtimeBridge);
+  validateRuntimeBridgeAuthorityBoundary(runtimeBridge);
+  validateRuntimeBridgeReplacementPolicy(runtimeBridge);
+  validateRuntimeBridgeForbiddenTruthSources(runtimeBridge);
   validateLiveConformanceContract(runtimeBridge.live_conformance_gate);
 }
