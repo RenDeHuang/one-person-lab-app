@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import path from 'node:path';
-import { applyCleanupArg, parseJsonLines, runGh, writeJsonSummary } from './release-cleanup-helpers.ts';
+import { applyCleanupArg, emitJsonSummary, parseJsonLines, runCleanupScript, runGh } from './release-cleanup-helpers.ts';
 
 type ReleaseAsset = {
   name?: string;
@@ -168,13 +168,9 @@ function cleanup(options: Options) {
     candidates,
     deleted_tags: deletedTags,
   };
-  writeJsonSummary(options.summaryPath, summary);
-  console.log(JSON.stringify(summary, null, 2));
+  emitJsonSummary(options.summaryPath, summary);
 }
 
-try {
-  cleanup(parseArgs(process.argv.slice(2)));
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-}
+runCleanupScript((argv) => {
+  cleanup(parseArgs(argv));
+});

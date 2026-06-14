@@ -28,10 +28,24 @@ export function parseJsonLines<T>(stdout: string): T[] {
     .map((line) => JSON.parse(line) as T);
 }
 
-export function writeJsonSummary(summaryPath: string, payload: unknown) {
+function writeJsonSummary(summaryPath: string, payload: unknown) {
   if (!summaryPath) return;
   fs.mkdirSync(path.dirname(summaryPath), { recursive: true });
   fs.writeFileSync(summaryPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+}
+
+export function emitJsonSummary(summaryPath: string, payload: unknown) {
+  writeJsonSummary(summaryPath, payload);
+  console.log(JSON.stringify(payload, null, 2));
+}
+
+export function runCleanupScript(run: (argv: string[]) => void) {
+  try {
+    run(process.argv.slice(2));
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 }
 
 type CleanupArgHandlers = {

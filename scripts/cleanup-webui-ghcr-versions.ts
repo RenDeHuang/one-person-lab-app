@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyCleanupArg, parseJsonLines, runGh, writeJsonSummary } from './release-cleanup-helpers.ts';
+import { applyCleanupArg, emitJsonSummary, parseJsonLines, runCleanupScript, runGh } from './release-cleanup-helpers.ts';
 
 type GhcrVersion = {
   id?: number;
@@ -175,13 +175,9 @@ function cleanup(options: Options) {
     candidates,
     deleted_version_ids: deletedVersionIds,
   };
-  writeJsonSummary(options.summaryPath, summary);
-  console.log(JSON.stringify(summary, null, 2));
+  emitJsonSummary(options.summaryPath, summary);
 }
 
-try {
-  cleanup(parseArgs(process.argv.slice(2)));
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-}
+runCleanupScript((argv) => {
+  cleanup(parseArgs(argv));
+});
