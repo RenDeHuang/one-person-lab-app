@@ -4,7 +4,6 @@ import {
   appOwnedSettingsTabs,
   defaultCompanionSkillSyncIds,
   deferredMaintenanceItems,
-  domainExposureEntries,
   ecosystemModuleIds,
   firstConversationFailurePolicy,
   firstConversationMustWaitFor,
@@ -38,6 +37,7 @@ import {
   assertAppProductProfileHomeCodexPolicy,
   assertAppProductProfileRouteReceiptPolicy,
 } from '../app-product-profile-shared-validators.ts';
+import { expectedDomainExposureEntryMap } from './domain-exposure-validator.ts';
 
 const ordinaryForbiddenCapabilityPolicy = {
   forbidden_mcp_matchers: {
@@ -432,12 +432,10 @@ function validateCompanionPayloadAuthority(profile, installExposurePolicy) {
       throw new Error(`Product profile companion skill sync defaults must not include domain plugin ${domainPluginId}`);
     }
   }
-  const exposureById = new Map((profile.companion_payloads?.domain_exposure ?? []).map((entry) => [entry.domain_id, entry]));
-  for (const expected of domainExposureEntries) {
-    const entry = exposureById.get(expected.domain_id);
-    if (!entry) {
-      throw new Error(`Product profile companion payloads missing domain exposure ${expected.domain_id}`);
-    }
+  for (const { expected, entry } of expectedDomainExposureEntryMap(
+    profile.companion_payloads?.domain_exposure,
+    (domainId) => `Product profile companion payloads missing domain exposure ${domainId}`,
+  )) {
     if (entry.codex_visible_entry !== expected.codex_visible_entry) {
       throw new Error(`Product profile domain exposure ${expected.domain_id}.codex_visible_entry must be ${expected.codex_visible_entry}`);
     }

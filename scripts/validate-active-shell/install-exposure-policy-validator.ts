@@ -1,7 +1,6 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   defaultCompanionSkillSyncIds,
-  domainExposureEntries,
   firstConversationFailurePolicy,
   firstConversationMustWaitFor,
   firstRunCoreItems,
@@ -12,6 +11,7 @@ import {
   temporalLocalServiceDefaults,
   temporalManagedCommands,
 } from './app-contract-constants.ts';
+import { expectedDomainExposureEntryMap } from './domain-exposure-validator.ts';
 
 export function validateInstallExposurePolicy(policy) {
   if (policy.owner !== 'one-person-lab-app') {
@@ -118,12 +118,11 @@ export function validateInstallExposurePolicy(policy) {
     throw new Error('Install exposure packaged Full runtime payloads must not imply user skill install without managed sync');
   }
 
-  const exposureById = new Map((policy.domain_exposure ?? []).map((entry) => [entry.domain_id, entry]));
-  for (const expected of domainExposureEntries) {
-    const entry = exposureById.get(expected.domain_id);
-    if (!entry) {
-      throw new Error(`Install exposure policy missing domain ${expected.domain_id}`);
-    }
+  const expectedDomainExposures = expectedDomainExposureEntryMap(
+    policy.domain_exposure,
+    (domainId) => `Install exposure policy missing domain ${domainId}`,
+  );
+  for (const { expected, entry } of expectedDomainExposures) {
     for (const [field, expectedValue] of Object.entries(expected)) {
       if (entry[field] !== expectedValue) {
         throw new Error(`Install exposure domain ${expected.domain_id}.${field} must be ${expectedValue}`);
@@ -134,11 +133,11 @@ export function validateInstallExposurePolicy(policy) {
     }
   }
   for (const domainId of ['mas', 'mag', 'rca']) {
-    if (exposureById.get(domainId)?.default_home_visible !== true) {
+    if (expectedDomainExposures.find(({ expected }) => expected.domain_id === domainId)?.entry.default_home_visible !== true) {
       throw new Error(`Install exposure domain ${domainId} must be visible on the default home path`);
     }
   }
-  if (exposureById.get('oma')?.default_home_visible !== false) {
+  if (expectedDomainExposures.find(({ expected }) => expected.domain_id === 'oma')?.entry.default_home_visible !== false) {
     throw new Error('Install exposure policy must keep OMA out of the default home path');
   }
 
