@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
+  appRoot,
   runCandidateRecord,
   runCandidateRecordValidator,
   writeJson,
@@ -28,6 +30,14 @@ function releaseOwnerVerdict(status = 'release_owner_verdict_pending') {
     typed_blocker_ref:
       'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending',
   };
+}
+
+function runReleaseOwnerCandidateVerifier(args: string[]) {
+  return spawnSync(
+    process.execPath,
+    ['--experimental-strip-types', 'scripts/verify-release-owner-candidate-record.ts', ...args],
+    { cwd: appRoot, encoding: 'utf8', env: { ...process.env } },
+  );
 }
 
 test('release candidate record blocks complete evidence until release owner records a receipt or verdict', () => {
@@ -211,6 +221,95 @@ test('release candidate record promotes only after same-cohort release owner rec
   assert.equal(
     validation.release_owner_receipt_ref,
     'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-20260612',
+  );
+});
+
+test('release owner receipt verification rebuilds a promote-ready candidate record from small artifacts', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-owner-candidate-verify-'));
+  const artifactsDir = path.join(tempRoot, 'artifacts');
+  const outputDir = path.join(tempRoot, 'owner-validation');
+  const ownerRecordPath = path.join(tempRoot, 'v26.5.99-release-owner-receipt.json');
+
+  writeJson(path.join(artifactsDir, 'release-preflight-summary.json'), {
+    schema: 'opl_release_preflight.v1',
+    status: 'passed',
+  });
+  writeJson(path.join(artifactsDir, 'release-readiness-summary.json'), {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version: '26.5.99',
+    failed_required_gates: [],
+    release_owner_verdict: releaseOwnerVerdict(),
+    full_package: {
+      resolved_refs: {
+        opl_framework: { ref: 'main', commit: '1111111111111111111111111111111111111111' },
+      },
+    },
+  });
+  writeJson(path.join(artifactsDir, 'remote-release-verification.json'), {
+    status: 'passed',
+    version: '26.5.99',
+    include_full_package: true,
+    verified_asset_count: 12,
+    full_first_install_budget: { status: 'passed', full_dmg_size_bytes: 512 },
+  });
+  writeJson(ownerRecordPath, {
+    schema: 'opl_app_release_owner_receipt_record.v1',
+    owner: 'one-person-lab-app release owner',
+    scope: 'same_cohort_app_release_user_path_owner_verdict',
+    status: 'release_owner_receipt_recorded',
+    version: '26.5.99',
+    tag: 'v26.5.99',
+    channel: 'stable',
+    release_owner_receipt_ref:
+      'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-test',
+    release_owner_verdict_ref: null,
+    release_candidate_promote_ready: true,
+    release_ready_claim: false,
+    stable_latest_promotion_claim: false,
+    family_production_ready_claim: false,
+    can_close_opl_app_release_user_path: true,
+    source_artifact_readback: {
+      source_run_id: '12345',
+      app_commit: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      include_full_package: true,
+    },
+    authority_boundary: {
+      can_claim_app_release_ready_from_evidence: false,
+      can_claim_stable_latest_from_evidence: false,
+      can_claim_family_production_ready: false,
+    },
+  });
+
+  const result = runReleaseOwnerCandidateVerifier([
+    '--version',
+    '26.5.99',
+    '--owner-record',
+    ownerRecordPath,
+    '--artifacts-dir',
+    artifactsDir,
+    '--output-dir',
+    outputDir,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.schema, 'opl_release_owner_candidate_record_verification.v1');
+  assert.equal(summary.status, 'verified');
+  assert.equal(summary.version, '26.5.99');
+  assert.equal(summary.source_run_id, '12345');
+  assert.equal(summary.validator.promote_ready, true);
+  assert.equal(summary.validator.release_owner_verdict_status, 'release_owner_receipt_recorded');
+  assert.equal(
+    summary.validator.release_owner_receipt_ref,
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-test',
+  );
+  assert.equal(summary.authority_boundary.can_claim_app_release_ready_from_evidence, false);
+  assert.equal(summary.authority_boundary.can_claim_family_production_ready, false);
+  assert.equal(fs.existsSync(summary.output_candidate_record), true);
+  assert.equal(
+    JSON.parse(fs.readFileSync(summary.output_candidate_record, 'utf8')).status,
+    'ready_to_promote',
   );
 });
 

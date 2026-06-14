@@ -74,6 +74,7 @@ npm run release:readiness-summary -- --version <version> --release-mode new_rele
 npm run release:candidate-record -- --version <version> --release-mode new_release --preflight release-preflight-summary.json --readiness release-readiness-summary.json --remote-verification remote-release-verification.json --release-owner-receipt-ref <release_owner_receipt_ref>
 npm run release:candidate-record:validate -- --version <version> --record release-candidate-record.json
 npm run release:candidate-record:status -- --record release-candidate-record.json --format json
+npm run release:owner-candidate-record:verify -- --version <version> --owner-record docs/release/records/v<version>-release-owner-receipt.json --artifacts-dir artifacts/release-closeout/v<version>-<run-id>/artifacts
 npm run release:full:size -- --markdown
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full
@@ -261,8 +262,17 @@ been published. For existing published release refreshes with
 `run_vm_smoke=true`, the desktop release workflow may update the stable
 Homebrew tap by direct commit and then run the cask VM smoke. A tap update
 failure, cask lane cancellation, or missing artifact fails the matching stable
-closure gate with a named cause. The one-shot installer section
-records the fixed public entry command, the workflow job result as bootstrap status source, the
+closure gate with a named cause.
+
+`release:owner-candidate-record:verify` command is the post-owner receipt
+readback path: it takes the App release-owner receipt record and the ignored
+small release artifacts, rebuilds `release-candidate-record.json`, and runs the
+same promote-ready validator. Its output is a verification artifact only; it
+does not publish a release, mutate updater metadata, claim App release ready, or
+claim OPL family production ready.
+
+The one-shot installer section records the fixed public entry command, the
+workflow job result as bootstrap status source, the
 `opl system initialize --json` setup-flow source, artifact file names, progress
 fields, blockers, next step, retry state, and `--skip-modules` state in JSON and
 the Markdown summary.

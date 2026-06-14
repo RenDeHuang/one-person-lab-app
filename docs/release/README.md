@@ -257,6 +257,13 @@ candidate record to carry a same-cohort `release_owner_verdict_ref` or
 `release_owner_receipt_ref`; pending, typed-blocker, install-evidence, and
 human-gate refs are explicit non-ready states.
 
+After an App release-owner receipt is recorded, use
+`npm run release:owner-candidate-record:verify` with the ignored small
+release-closeout artifacts to rebuild and validate the post-owner candidate
+record. This verifies the owner-resolution ref path only; it does not publish
+the release, mutate updater metadata, or claim App release ready / OPL family
+production ready.
+
 AI exploratory release checks are non-blocking. They can provide exploratory triage, summaries, risk hints, or follow-up suggestions, but they are not a release gate and must not block standard, Full, Homebrew, WebUI, updater, or promotion lanes.
 
 ## Candidate Shells
