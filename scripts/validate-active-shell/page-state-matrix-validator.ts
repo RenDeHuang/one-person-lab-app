@@ -12,7 +12,6 @@ import {
   firstRunRendererTruthPolicy,
   firstRunSetupFlowFields,
   fullReadinessItems,
-  settingsPageExpectations,
 } from './app-contract-constants.ts';
 import {
   validateArtifactNativeDrilldownProjectionContract,
@@ -24,15 +23,9 @@ import {
   validateUserTaskStatusProjectionContract,
 } from './shared-contract-validators.ts';
 import {
-  validateManagedUpdatePageBasics,
-  validateManagedUpdatePlaneBinding,
-} from './managed-update-plane-validator.ts';
+  validateAppSettingsPages,
+} from './page-state-app-settings-validator.ts';
 import { validatePrimaryInteractionPages } from './page-state-primary-interaction-validator.ts';
-
-function validateManagedUpdatePageState(page, label) {
-  validateManagedUpdatePageBasics(page, label, { requirePageContract: true });
-  validateManagedUpdatePlaneBinding(page?.managed_update_plane, label);
-}
 
 export function validatePageStateMatrix(matrix, contract) {
   if (isDefaultReleaseAdapter(contract) && (matrix.active_shell !== contract.active_shell || matrix.shell_root !== contract.shell_root)) {
@@ -66,88 +59,7 @@ export function validatePageStateMatrix(matrix, contract) {
   }
 
   validatePrimaryInteractionPages(matrix);
-
-  const appStatePages = ['settings_general', 'access', 'environment', 'advanced', 'about', 'settings_theme'];
-  for (const pageId of appStatePages) {
-    const page = (matrix.pages ?? []).find((entry) => entry.id === pageId);
-    if (!page) {
-      throw new Error(`Page-state matrix is missing ${pageId}`);
-    }
-    if (page.machine_source !== 'opl app state --profile fast --json') {
-      throw new Error(`${pageId} must default to opl app state --profile fast --json`);
-    }
-    if (page.refresh_source !== 'opl app state --profile fast --json') {
-      throw new Error(`${pageId} must refresh through opl app state --profile fast --json`);
-    }
-  }
-  for (const [contractPageId, expected] of Object.entries(settingsPageExpectations)) {
-    const page = (matrix.pages ?? []).find((entry) => entry.id === expected.matrix_id);
-    if (!page) {
-      throw new Error(`Page-state matrix is missing ${expected.matrix_id}`);
-    }
-    if (page.page_contract !== contractPageId) {
-      throw new Error(`${expected.matrix_id} page_contract must be ${contractPageId}`);
-    }
-    assertDeepEqualJson(page.sections, expected.sections, `${expected.matrix_id} sections`);
-    assertIncludesAll(page.must_show, expected.must_show, `${expected.matrix_id} must_show`);
-    assertIncludesAll(page.must_not_show, expected.must_not_show, `${expected.matrix_id} must_not_show`);
-  }
-  const capabilitiesPage = (matrix.pages ?? []).find((page) => page.id === 'capabilities');
-  if (capabilitiesPage?.refresh_source !== 'opl app state --profile fast --json') {
-    throw new Error('Capabilities page must refresh through opl app state --profile fast --json');
-  }
-  if (capabilitiesPage?.machine_source !== 'contracts/app-gui-product-contract.json#default_assistants + opl app state --profile fast --json') {
-    throw new Error('Capabilities page must combine App-owned assistant profile truth with OPL App state readiness refs');
-  }
-  const environmentPage = (matrix.pages ?? []).find((page) => page.id === 'environment');
-  if (environmentPage?.module_path_source_policy_ref !== 'contracts/app-gui-product-contract.json#module_path_source_policy') {
-    throw new Error('Environment page must reference the App GUI module path source policy');
-  }
-  if (!environmentPage.must_show?.includes('module path source explanation')) {
-    throw new Error('Environment page must show module path source explanation');
-  }
-  const advancedPage = (matrix.pages ?? []).find((page) => page.id === 'advanced');
-  if (!advancedPage?.state_sections?.includes('opl_flow_context')) {
-    throw new Error('Advanced page state_sections must include opl_flow_context');
-  }
-  if (advancedPage?.state_sections?.includes('opl_agent_codex_context')) {
-    throw new Error('Advanced page state_sections must not retain opl_agent_codex_context');
-  }
-  if ((advancedPage?.legacy_state_sections ?? []).length > 0) {
-    throw new Error('Advanced page legacy_state_sections must be retired');
-  }
-  if (!advancedPage?.must_show?.includes('OPL Flow Context')) {
-    throw new Error('Advanced page must show OPL Flow Context');
-  }
-  if (!environmentPage.must_not_show?.includes('Med Deep Scientist as a default module')) {
-    throw new Error('Environment page must keep MDS out of default module display');
-  }
-  if (environmentPage?.managed_update_plane_ref !== 'contracts/app-release-channel.json#managed_update_plane') {
-    throw new Error('Environment page must reference the App release managed update plane');
-  }
-  const aboutPage = (matrix.pages ?? []).find((page) => page.id === 'about');
-  if (!aboutPage?.must_show?.includes('Stable or Nightly channel')) {
-    throw new Error('About page must show Stable or Nightly channel');
-  }
-  if (!aboutPage?.must_show?.includes('Updates & Maintenance entry on About & Updates')) {
-    throw new Error('About page must link to Updates & Maintenance');
-  }
-  if (aboutPage?.managed_update_plane_ref !== 'contracts/app-release-channel.json#managed_update_plane') {
-    throw new Error('About page must reference the App release managed update plane');
-  }
-  const updatePage = (matrix.pages ?? []).find((page) => page.id === 'update');
-  validateManagedUpdatePageState(updatePage, 'Update page');
-  const settingsThemePage = (matrix.pages ?? []).find((page) => page.id === 'settings_theme');
-  for (const signal of [
-    'Default theme option',
-    'Codex theme option',
-    'current theme from app_state.settings.theme',
-    'theme choice as App product preference',
-  ]) {
-    if (!settingsThemePage?.must_show?.includes(signal)) {
-      throw new Error(`Settings theme page must show ${signal}`);
-    }
-  }
+  validateAppSettingsPages(matrix);
 
   const firstLaunchPage = (matrix.pages ?? []).find((page) => page.id === 'first_launch_readiness');
   if (!firstLaunchPage) {
