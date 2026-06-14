@@ -38,6 +38,10 @@ type RouteReceiptOptions = {
   requireExactAssistants?: boolean;
 };
 
+type GuiLike = NonNullable<ProductProfileLike['gui']>;
+type HomeLike = GuiLike['home'];
+type CodexModelDisplayOptionsLike = NonNullable<NonNullable<HomeLike>['codex_model_display_options']>;
+
 function assertExactStringArray(actual: unknown, expected: string[], label: string): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(`${label} must be ${JSON.stringify(expected)}`);
@@ -68,6 +72,16 @@ export function assertAppProductProfileHomeCodexPolicy(
   options: HomePolicyOptions = {},
 ): void {
   const home = profile.gui?.home;
+  assertHomeCodexFixedExecutorFields(profile, home, label);
+  assertHomeCodexEnglishStatusLabel(home, label, options);
+  assertHomeCodexAutoSelectionPolicy(home, label, options);
+}
+
+function assertHomeCodexFixedExecutorFields(
+  profile: ProductProfileLike,
+  home: HomeLike,
+  label: string,
+): void {
   assertExpectedFields(
     [
       { actual: home?.primary_input_surface, expected: 'single_card' },
@@ -90,10 +104,23 @@ export function assertAppProductProfileHomeCodexPolicy(
     ],
     `${label} GUI home must keep Codex CLI fixed while exposing App-owned model selectors`,
   );
+}
+
+function assertHomeCodexEnglishStatusLabel(
+  home: HomeLike,
+  label: string,
+  options: HomePolicyOptions,
+): void {
   if (options.requireEnglishStatusLabel && home?.codex_home_model_status_label_en !== 'GPT-5.5 (Ultra)') {
     throw new Error(`${label} GUI home must expose the English GPT-5.5 ultra status label`);
   }
+}
 
+function assertHomeCodexAutoSelectionPolicy(
+  home: HomeLike,
+  label: string,
+  options: HomePolicyOptions,
+): void {
   const autoSelection = home?.codex_auto_model_selection;
   assertExpectedFields(
     [
@@ -114,9 +141,20 @@ export function assertAppProductProfileCodexModelDisplayOptions(
   options: ModelDisplayOptions = {},
 ): void {
   const displayOptions = profile.gui?.home?.codex_model_display_options;
+  const frontierOrder = profile.gui?.home?.codex_auto_model_selection?.frontier_model_preference_order;
+  assertCodexModelDisplayShape(profile, displayOptions, frontierOrder, label);
+  assertCodexAutoModelOptionDescription(displayOptions?.auto_option, label, options);
+  assertVisibleCodexModelsUseFriendlyDefaults(displayOptions?.visible_models ?? [], profile, label);
+}
+
+function assertCodexModelDisplayShape(
+  profile: ProductProfileLike,
+  displayOptions: CodexModelDisplayOptionsLike | undefined,
+  frontierOrder: unknown,
+  label: string,
+): void {
   const auto = displayOptions?.auto_option;
   const visibleModels = displayOptions?.visible_models ?? [];
-  const frontierOrder = profile.gui?.home?.codex_auto_model_selection?.frontier_model_preference_order;
   assertExpectedFields(
     [
       { actual: displayOptions?.display_policy, expected: 'friendly_model_name_and_reasoning_for_every_visible_option' },
@@ -136,18 +174,32 @@ export function assertAppProductProfileCodexModelDisplayOptions(
     ],
     `${label} GUI home must expose friendly Codex model display options with reasoning labels`,
   );
+}
+
+function assertCodexAutoModelOptionDescription(
+  auto: CodexModelDisplayOptionsLike['auto_option'] | undefined,
+  label: string,
+  options: ModelDisplayOptions,
+): void {
   if (
     options.requireAutoIdAndDescriptions &&
     (
-      auto.id !== '__auto' ||
-      typeof auto.description_zh !== 'string' ||
-      !auto.description_zh.includes('推理超高') ||
-      typeof auto.description_en !== 'string' ||
-      !auto.description_en.includes('Ultra reasoning')
+      auto!.id !== '__auto' ||
+      typeof auto!.description_zh !== 'string' ||
+      !auto!.description_zh.includes('推理超高') ||
+      typeof auto!.description_en !== 'string' ||
+      !auto!.description_en.includes('Ultra reasoning')
     )
   ) {
     throw new Error(`${label} Codex auto model option must describe latest strongest default reasoning`);
   }
+}
+
+function assertVisibleCodexModelsUseFriendlyDefaults(
+  visibleModels: NonNullable<CodexModelDisplayOptionsLike['visible_models']>,
+  profile: ProductProfileLike,
+  label: string,
+): void {
   for (const model of visibleModels) {
     if (
       typeof model.label_zh !== 'string' ||
