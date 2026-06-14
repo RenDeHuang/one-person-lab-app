@@ -14,6 +14,7 @@ import {
 } from './release-evidence-cohort.ts';
 import { resolveEvidenceBundlePath as resolveBundlePath } from './release-evidence-paths.ts';
 import { readJsonFile } from './release-json-helpers.ts';
+import { applyStringOptionArg } from './release-readiness-args.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContractPath = path.join(appRoot, 'contracts', 'app-release-channel.json');
@@ -33,37 +34,14 @@ function parseArgs(argv) {
       parsed.overwrite = true;
       continue;
     }
-    const value = argv[index + 1];
-    if (token === '--bundle-dir') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --bundle-dir');
-      }
-      parsed.bundleDir = value;
-      index += 1;
-      continue;
-    }
-    if (token === '--classification') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --classification');
-      }
-      parsed.classificationPath = value;
-      index += 1;
-      continue;
-    }
-    if (token === '--version') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --version');
-      }
-      parsed.version = value;
-      index += 1;
-      continue;
-    }
-    if (token === '--tag') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --tag');
-      }
-      parsed.tag = value;
-      index += 1;
+    const optionIndex = applyStringOptionArg(argv, index, {
+      '--bundle-dir': (value) => { parsed.bundleDir = value; },
+      '--classification': (value) => { parsed.classificationPath = value; },
+      '--version': (value) => { parsed.version = value; },
+      '--tag': (value) => { parsed.tag = value; },
+    });
+    if (optionIndex !== null) {
+      index = optionIndex;
       continue;
     }
     throw new Error(`Unknown argument: ${token}`);

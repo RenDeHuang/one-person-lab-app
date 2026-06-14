@@ -15,6 +15,7 @@ import {
   unknownReleaseEvidenceCohort,
 } from './release-evidence-cohort.ts';
 import { assertImageEvidenceFile } from './release-image-evidence.ts';
+import { applyStringOptionArg } from './release-readiness-args.ts';
 import type { ReleaseEvidenceCohort, UnknownReleaseEvidenceCohort } from './release-evidence-cohort.ts';
 import type { ImageEvidencePolicy } from './release-image-evidence.ts';
 
@@ -73,13 +74,11 @@ function parseArgs(argv: string[]): Options {
       parsed.allowMissingEvidence = true;
       continue;
     }
-    const value = argv[index + 1];
-    if (token === '--bundle-dir') {
-      if (!value || value.startsWith('--')) {
-        throw new Error('Missing value for --bundle-dir');
-      }
-      parsed.bundleDir = value;
-      index += 1;
+    const optionIndex = applyStringOptionArg(argv, index, {
+      '--bundle-dir': (value) => { parsed.bundleDir = value; },
+    });
+    if (optionIndex !== null) {
+      index = optionIndex;
       continue;
     }
     throw new Error(`Unknown argument: ${token}`);

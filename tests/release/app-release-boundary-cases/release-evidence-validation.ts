@@ -711,6 +711,7 @@ test('release evidence bundle validator rejects undersized WebP screenshot evide
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-paths.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-paths.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-json-helpers.ts'), path.join(tempAppRoot, 'scripts', 'release-json-helpers.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-cohort.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-cohort.ts'));
+  fs.copyFileSync(path.join(appRoot, 'scripts', 'release-readiness-args.ts'), path.join(tempAppRoot, 'scripts', 'release-readiness-args.ts'));
   releaseContract.operator_evidence_bundle.required_artifacts = releaseContract.operator_evidence_bundle.required_artifacts.map((artifact) => (
     artifact.id === 'runtime_screenshot'
       ? { ...artifact, path: 'screenshots/runtime.webp', status: 'present' }
@@ -772,6 +773,7 @@ test('release evidence bundle validator rejects image policy without image scope
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-paths.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-paths.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-json-helpers.ts'), path.join(tempAppRoot, 'scripts', 'release-json-helpers.ts'));
   fs.copyFileSync(path.join(appRoot, 'scripts', 'release-evidence-cohort.ts'), path.join(tempAppRoot, 'scripts', 'release-evidence-cohort.ts'));
+  fs.copyFileSync(path.join(appRoot, 'scripts', 'release-readiness-args.ts'), path.join(tempAppRoot, 'scripts', 'release-readiness-args.ts'));
   releaseContract.operator_evidence_bundle.image_evidence_policy.applies_to_kind = 'json';
   writeFile(tempContractPath, `${JSON.stringify(releaseContract, null, 2)}\n`);
   writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
