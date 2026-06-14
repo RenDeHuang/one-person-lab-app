@@ -13,6 +13,7 @@ import {
   readAppReleaseOwnerVerdictContract,
 } from './app-release-owner-verdict.ts';
 import { buildReleaseEvidenceCohort } from './release-evidence-cohort.ts';
+import { findFileByName } from './release-file-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -95,20 +96,6 @@ function readJson(filePath: string) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
-function findFile(root: string, name: string) {
-  if (!fs.existsSync(root)) return null;
-  const pending = [root];
-  while (pending.length > 0) {
-    const current = pending.pop() as string;
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const entryPath = path.join(current, entry.name);
-      if (entry.isDirectory()) pending.push(entryPath);
-      else if (entry.isFile() && entry.name === name) return entryPath;
-    }
-  }
-  return null;
-}
-
 function artifactDir(options: Options, artifactName: string) {
   return path.join(options.artifactsDir, artifactName);
 }
@@ -160,7 +147,7 @@ function jsonGate(options: Options, gate: {
   validate: (payload: Record<string, unknown>) => { fields?: Record<string, unknown>; reason?: string };
 }): GateSummary {
   const root = artifactDir(options, gate.artifactName);
-  const filePath = findFile(root, gate.fileName);
+  const filePath = findFileByName(root, gate.fileName);
   if (!filePath) {
     return missingGate(gate.required, gate.artifactName, `Missing ${gate.fileName} in ${gate.artifactName}.`);
   }
@@ -205,7 +192,7 @@ function textArtifactGate(options: Options, gate: {
   files: string[];
 }): GateSummary {
   const root = artifactDir(options, gate.artifactName);
-  const foundFiles = gate.files.map((fileName) => findFile(root, fileName));
+  const foundFiles = gate.files.map((fileName) => findFileByName(root, fileName));
   const missing = gate.files.filter((_, index) => !foundFiles[index]);
   if (missing.length > 0) {
     return missingGate(gate.required, gate.artifactName, `Missing ${missing.join(', ')} in ${gate.artifactName}.`);
@@ -216,7 +203,7 @@ function textArtifactGate(options: Options, gate: {
     status: 'passed',
     required: gate.required,
     artifact_name: gate.artifactName,
-    artifact_path: gate.files.map((fileName) => path.relative(options.artifactsDir, findFile(root, fileName) as string)).join(', '),
+    artifact_path: foundFiles.map((filePath) => path.relative(options.artifactsDir, filePath as string)).join(', '),
     fields: {
       files: gate.files,
       image_size_bytes: Number.isFinite(imageSizeBytes) ? imageSizeBytes : null,
@@ -431,7 +418,7 @@ function validateHomebrewDigestCoherence(
 
 function readPreflightSummary(options: Options) {
   const artifactName = `release-preflight-summary-${options.version}`;
-  const preflightPath = findFile(artifactDir(options, artifactName), 'release-preflight-summary.json');
+  const preflightPath = findFileByName(artifactDir(options, artifactName), 'release-preflight-summary.json');
   if (!preflightPath) return { artifactName, path: null, summary: null };
   const summary = readJson(preflightPath);
   return {
@@ -726,10 +713,10 @@ function buildSummary(options: Options) {
   });
 
   const fullDiagnosticsRoot = artifactDir(options, fullDiagnosticsArtifactName);
-  const manifestPath = findFile(fullDiagnosticsRoot, 'full-package-manifest.json');
-  const sizeSummaryPath = findFile(fullDiagnosticsRoot, 'full-package-size-summary.json');
-  const runtimeCacheEventsPath = findFile(fullDiagnosticsRoot, 'runtime-cache-events.json');
-  const checksumPath = findFile(fullDiagnosticsRoot, 'SHA256SUMS.txt');
+  const manifestPath = findFileByName(fullDiagnosticsRoot, 'full-package-manifest.json');
+  const sizeSummaryPath = findFileByName(fullDiagnosticsRoot, 'full-package-size-summary.json');
+  const runtimeCacheEventsPath = findFileByName(fullDiagnosticsRoot, 'runtime-cache-events.json');
+  const checksumPath = findFileByName(fullDiagnosticsRoot, 'SHA256SUMS.txt');
   const fullDiagnosticsGate: GateSummary = !options.includeFullPackage
     ? missingGate(false, fullDiagnosticsArtifactName, 'Full package is not included.')
     : manifestPath && runtimeCacheEventsPath && checksumPath
@@ -831,7 +818,7 @@ function buildSummary(options: Options) {
   const failedRequired = Object.entries(gates)
     .filter(([, gate]) => gate.required && gate.status !== 'passed')
     .map(([id, gate]) => ({ id, status: gate.status, reason: gate.reason || 'gate did not pass' }));
-  const telemetryPath = findFile(artifactDir(options, fullTelemetryArtifactName), 'full-workflow-telemetry.json');
+  const telemetryPath = findFileByName(artifactDir(options, fullTelemetryArtifactName), 'full-workflow-telemetry.json');
   const fullPackage = telemetryPath ? readJson(telemetryPath) : null;
   const manifest = manifestPath ? readJson(manifestPath) : null;
   const runtimeCacheEvents = runtimeCacheEventsPath ? readJson(runtimeCacheEventsPath) : null;

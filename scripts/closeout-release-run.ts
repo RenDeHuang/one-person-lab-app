@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { findFileByName } from './release-file-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultRepo = 'gaofeng21cn/one-person-lab-app';
@@ -345,26 +346,12 @@ function downloadArtifacts(options: Options, artifacts: JsonRecord[]): Downloade
   return downloaded;
 }
 
-function findFile(root: string, name: string): string | null {
-  if (!fs.existsSync(root)) return null;
-  const pending = [root];
-  while (pending.length > 0) {
-    const current = pending.pop() as string;
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const entryPath = path.join(current, entry.name);
-      if (entry.isDirectory()) pending.push(entryPath);
-      else if (entry.isFile() && entry.name === name) return entryPath;
-    }
-  }
-  return null;
-}
-
 function readArtifactJson(options: Options, artifactName: string, fileName: string): {
   path: string | null;
   payload: JsonRecord | null;
 } {
   const root = path.join(options.artifactsDir, artifactName);
-  const filePath = findFile(root, fileName);
+  const filePath = findFileByName(root, fileName);
   if (!filePath) return { path: null, payload: null };
   return {
     path: path.relative(options.outDir, filePath),

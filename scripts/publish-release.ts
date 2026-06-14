@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolveActiveShellPaths } from './app-shell-adapter.ts';
 import { buildReleaseNotesDocument, buildReleaseNotesEvidence, buildReleaseTitle } from './release-notes.ts';
 import { buildAiReleaseNotesDocument } from './release-notes-ai-writer.ts';
 import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
+import { fileSha256 } from './release-file-helpers.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultFullPackageDir = path.resolve(repoRoot, 'dist', 'opl-full-release');
@@ -453,21 +453,7 @@ function assetDigestMatches(asset, filePath) {
   if (!match?.groups?.hash) {
     return false;
   }
-  const hash = crypto.createHash('sha256');
-  const buffer = Buffer.allocUnsafe(1024 * 1024);
-  const fd = fs.openSync(filePath, 'r');
-  try {
-    let bytesRead = 0;
-    do {
-      bytesRead = fs.readSync(fd, buffer, 0, buffer.length, null);
-      if (bytesRead > 0) {
-        hash.update(buffer.subarray(0, bytesRead));
-      }
-    } while (bytesRead > 0);
-  } finally {
-    fs.closeSync(fd);
-  }
-  const local = hash.digest('hex');
+  const local = fileSha256(filePath);
   return local.toLowerCase() === match.groups.hash.toLowerCase();
 }
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
+import { fileSha256 } from './release-file-helpers.ts';
 import { runCommand } from './release-cleanup-helpers.ts';
 
 function parseArgs(argv) {
@@ -111,24 +111,6 @@ function requiredAssetNames(version, includeFullPackage) {
     'SHA256SUMS.txt',
     'full-local-authorization-policy.json',
   ];
-}
-
-function fileSha256(filePath) {
-  const hash = crypto.createHash('sha256');
-  const buffer = Buffer.allocUnsafe(1024 * 1024);
-  const fd = fs.openSync(filePath, 'r');
-  try {
-    let bytesRead = 0;
-    do {
-      bytesRead = fs.readSync(fd, buffer, 0, buffer.length, null);
-      if (bytesRead > 0) {
-        hash.update(buffer.subarray(0, bytesRead));
-      }
-    } while (bytesRead > 0);
-  } finally {
-    fs.closeSync(fd);
-  }
-  return hash.digest('hex');
 }
 
 function normalizeDigest(digest) {
