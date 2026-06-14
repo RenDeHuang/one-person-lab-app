@@ -22,17 +22,27 @@ function pageById(matrix, id, label) {
 
 function validateGuidHomePage(matrix) {
   const guidHomePage = pageById(matrix, 'guid_home', 'guid_home');
+  validateGuidHomePageSource(guidHomePage);
+  const homeViewModel = guidHomePage.home_view_model;
+  validateGuidHomeViewModelFields(homeViewModel);
+  validateGuidHomeLayout(homeViewModel);
+  validateGuidHomeDefaultAssistants(homeViewModel);
+  validateGuidHomeRouteAndPurpose(homeViewModel);
+  validateGuidHomeVisibleSignals(guidHomePage);
+  validateGuidHomeHiddenSignals(guidHomePage);
+  validateGuidHomeActivityCenter(homeViewModel);
+}
+
+function validateGuidHomePageSource(guidHomePage) {
   if (guidHomePage.machine_source !== 'contracts/app-gui-product-contract.json#pages.guid_home + opl app state --profile fast --json') {
     throw new Error(`Guid home page must consume the App GUI product contract and OPL App state, got: ${guidHomePage.machine_source}`);
   }
-  const homeViewModel = guidHomePage.home_view_model;
-  if (homeViewModel?.authority !== 'app_repo_owned_product_truth') {
-    throw new Error('Guid home page must declare App-owned GUI authority');
-  }
-  if (homeViewModel.implementation_carrier !== 'opl-aion-shell') {
-    throw new Error('Guid home page implementation carrier must be opl-aion-shell');
-  }
-  for (const [field, expected] of Object.entries({
+}
+
+function validateGuidHomeViewModelFields(homeViewModel) {
+  const expectedFields = {
+    authority: 'app_repo_owned_product_truth',
+    implementation_carrier: 'opl-aion-shell',
     state_source: 'opl app state --profile fast --json',
     refresh_source: 'opl app state --profile fast --json',
     executor_policy_ref: 'contracts/app-gui-product-contract.json#executor_policy',
@@ -58,37 +68,44 @@ function validateGuidHomePage(matrix) {
     conversation_backend_selector_visible: false,
     conversation_model_selector_visible: true,
     conversation_permission_mode_selector_visible: false,
-  })) {
-    if (homeViewModel[field] !== expected) {
-      throw new Error(`Guid home page ${field} must be ${expected}`);
-    }
-  }
+  };
+  assertDeepEqualJson(fieldsFrom(homeViewModel, expectedFields), expectedFields, 'Guid home page view model fields');
+}
+
+function validateGuidHomeLayout(homeViewModel) {
   assertDeepEqualJson(
     homeViewModel.home_layout,
     appOwnedHomeLayout,
     'Guid home page layout',
   );
   assertDeepEqualJson(homeViewModel.ordinary_visible_mcp_server_ids, [], 'Guid home ordinary MCP allowlist');
-  for (const assistant of ['mas', 'mag', 'rca']) {
-    if (!homeViewModel.default_assistants?.includes(assistant)) {
-      throw new Error(`Guid home page must include default assistant ${assistant}`);
-    }
-  }
+}
+
+function validateGuidHomeDefaultAssistants(homeViewModel) {
+  assertIncludesAll(homeViewModel.default_assistants, ['mas', 'mag', 'rca'], 'Guid home page default assistants');
   if (homeViewModel.default_assistants?.includes('oma')) {
     throw new Error('Guid home page must not include OMA as a default assistant');
   }
   const requiredSkills = homeViewModel.default_assistant_required_skills ?? {};
-  for (const assistant of ['mas', 'mag', 'rca']) {
-    if (JSON.stringify(requiredSkills[assistant]) !== JSON.stringify([assistant])) {
-      throw new Error(`Guid home page must require ${assistant} skill for ${assistant}`);
-    }
-  }
-  if (homeViewModel.purpose_entry_source_ref !== 'contracts/app-gui-product-contract.json#home_purpose_entries') {
-    throw new Error('Guid home page must reference App-owned purpose entries');
-  }
-  if (homeViewModel.route_receipt_source_ref !== 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy') {
-    throw new Error('Guid home page must reference App-owned built-in assistant route receipt policy');
-  }
+  assertDeepEqualJson(
+    ['mas', 'mag', 'rca'].map((assistant) => requiredSkills[assistant]),
+    [['mas'], ['mag'], ['rca']],
+    'Guid home page required assistant skills',
+  );
+}
+
+function validateGuidHomeRouteAndPurpose(homeViewModel) {
+  assertDeepEqualJson(
+    fieldsFrom(homeViewModel, {
+      purpose_entry_source_ref: 'contracts/app-gui-product-contract.json#home_purpose_entries',
+      route_receipt_source_ref: 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
+    }),
+    {
+      purpose_entry_source_ref: 'contracts/app-gui-product-contract.json#home_purpose_entries',
+      route_receipt_source_ref: 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
+    },
+    'Guid home page route and purpose source refs',
+  );
   assertIncludesAll(
     homeViewModel.route_receipt_required_fields,
     ['route_kind', 'executor', 'assistant_id', 'assistant_short_name', 'source'],
@@ -101,7 +118,10 @@ function validateGuidHomePage(matrix) {
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
     throw new Error('Guid home page purpose entries must target MAS, MAG, and RCA');
   }
-  for (const visibleSignal of [
+}
+
+function validateGuidHomeVisibleSignals(guidHomePage) {
+  assertIncludesAll(guidHomePage.must_show, [
     'Codex CLI fixed executor experience',
     'Codex model selector defaulting to GPT-5.5（超高）',
     'default model and reasoning status GPT-5.5（超高）',
@@ -116,12 +136,11 @@ function validateGuidHomePage(matrix) {
     'workspace/session rail collapsed by default',
     'right context inspector collapsed by default',
     'runtime/task progress available from Runtime page, not Home activity grid',
-  ]) {
-    if (!guidHomePage.must_show.includes(visibleSignal)) {
-      throw new Error(`Guid home page must show ${visibleSignal}`);
-    }
-  }
-  for (const hiddenSignal of [
+  ], 'Guid home page visible signals');
+}
+
+function validateGuidHomeHiddenSignals(guidHomePage) {
+  assertIncludesAll(guidHomePage.must_not_show, [
     'executor selector on the home input',
     'Aion CLI or Claude Code backend choices on the home input',
     'retired Codex model choices on the home input',
@@ -146,19 +165,21 @@ function validateGuidHomePage(matrix) {
     'Home footer favorite/star icon',
     'Home footer web/access globe icon',
     'per-assistant running badges derived from module or domain lane diagnostics',
-  ]) {
-    if (!guidHomePage.must_not_show?.includes(hiddenSignal)) {
-      throw new Error(`Guid home page must not show ${hiddenSignal}`);
-    }
-  }
-  if (
-    homeViewModel.activity_center?.authority !== 'app_owned_home_minimal_command_surface' ||
-    homeViewModel.activity_center?.source !== 'not_rendered_on_ordinary_home' ||
-    homeViewModel.activity_center?.default_placement !== 'not_rendered_on_ordinary_home' ||
-    homeViewModel.activity_center?.home_surface_policy !== 'ordinary_home_must_not_render_activity_center_or_continue_work_grid'
-  ) {
-    throw new Error('Guid home page activity center must be suppressed on ordinary Home and routed to Runtime/secondary context');
-  }
+  ], 'Guid home page hidden signals');
+}
+
+function validateGuidHomeActivityCenter(homeViewModel) {
+  const expectedFields = {
+    authority: 'app_owned_home_minimal_command_surface',
+    source: 'not_rendered_on_ordinary_home',
+    default_placement: 'not_rendered_on_ordinary_home',
+    home_surface_policy: 'ordinary_home_must_not_render_activity_center_or_continue_work_grid',
+  };
+  assertDeepEqualJson(
+    fieldsFrom(homeViewModel.activity_center, expectedFields),
+    expectedFields,
+    'Guid home page activity center',
+  );
   assertDeepEqualJson(
     homeViewModel.activity_center.allowed_home_runtime_context,
     [],
@@ -171,6 +192,10 @@ function validateGuidHomePage(matrix) {
   );
 }
 
+function fieldsFrom(record, expectedFields) {
+  return Object.fromEntries(Object.keys(expectedFields).map((field) => [field, record?.[field]]));
+}
+
 function validateOrdinaryConversationPage(matrix) {
   const ordinaryConversationPage = pageById(matrix, 'ordinary_conversation', 'ordinary_conversation');
   if (ordinaryConversationPage.page_contract !== 'ordinary_codex_conversation') {
@@ -181,26 +206,18 @@ function validateOrdinaryConversationPage(matrix) {
     appOwnedPageStateOrdinaryConversation,
     'Ordinary conversation view model',
   );
-  for (const visibleSignal of [
+  assertIncludesAll(ordinaryConversationPage.must_show, [
     'Codex CLI ordinary conversation',
     'pinned composer',
     'compact purpose tag',
     'assistant route receipt',
     'Codex default model and reasoning status',
-  ]) {
-    if (!ordinaryConversationPage.must_show?.includes(visibleSignal)) {
-      throw new Error(`Ordinary conversation page must show ${visibleSignal}`);
-    }
-  }
-  for (const hiddenSignal of [
+  ], 'Ordinary conversation page visible signals');
+  assertIncludesAll(ordinaryConversationPage.must_not_show, [
     'backend selector as normal conversation control',
     'permission mode selector as normal conversation control',
     'provider selector as normal conversation control',
-  ]) {
-    if (!ordinaryConversationPage.must_not_show?.includes(hiddenSignal)) {
-      throw new Error(`Ordinary conversation page must not show ${hiddenSignal}`);
-    }
-  }
+  ], 'Ordinary conversation page hidden signals');
 }
 
 function validateRightContextInspectorPage(matrix) {
@@ -211,18 +228,19 @@ function validateRightContextInspectorPage(matrix) {
     appOwnedRightContextInspectorTabIds,
     'Right context inspector tabs',
   );
-  for (const [field, expected] of Object.entries({
+  const expectedFields = {
     placement: 'right',
     default_state: 'collapsed',
     opens_on_user_request_only: true,
     chat_canvas_remains_primary: true,
     scope: 'selected_workspace_and_conversation',
-  })) {
-    if (inspectorViewModel?.[field] !== expected) {
-      throw new Error(`Right context inspector ${field} must be ${expected}`);
-    }
-  }
-  for (const visibleSignal of [
+  };
+  assertDeepEqualJson(
+    fieldsFrom(inspectorViewModel, expectedFields),
+    expectedFields,
+    'Right context inspector fields',
+  );
+  assertIncludesAll(rightContextInspectorPage.must_show, [
     'right-side collapsible inspector',
     'Files refs tab',
     'Capabilities tab',
@@ -230,14 +248,10 @@ function validateRightContextInspectorPage(matrix) {
     'Memory refs tab',
     'Always-On/Automations tab',
     'Settings tab',
-  ]) {
-    if (!rightContextInspectorPage.must_show?.includes(visibleSignal)) {
-      throw new Error(`Right context inspector page must show ${visibleSignal}`);
-    }
-  }
-  for (const forbiddenOwner of ['runtime truth', 'domain truth', 'artifact body', 'memory body', 'backend selection authority']) {
-    if (!rightContextInspectorPage.must_not_own?.includes(forbiddenOwner)) {
-      throw new Error(`Right context inspector page must not own ${forbiddenOwner}`);
-    }
-  }
+  ], 'Right context inspector page visible signals');
+  assertIncludesAll(
+    rightContextInspectorPage.must_not_own,
+    ['runtime truth', 'domain truth', 'artifact body', 'memory body', 'backend selection authority'],
+    'Right context inspector forbidden owners',
+  );
 }
