@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseJsonLines, runGh, writeJsonSummary } from './release-cleanup-helpers.ts';
+import { applyCleanupArg, parseJsonLines, runGh, writeJsonSummary } from './release-cleanup-helpers.ts';
 
 type GhcrVersion = {
   id?: number;
@@ -40,26 +40,25 @@ function parseArgs(argv: string[]): Options {
   };
 
   for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--execute') {
-      parsed.execute = true;
-      continue;
-    }
-    if (token === '--dry-run') {
-      parsed.execute = false;
-      continue;
-    }
-
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`Missing value for ${token}`);
-    }
-    index += 1;
-    if (token === '--owner') parsed.owner = value;
-    else if (token === '--package') parsed.packageName = value;
-    else if (token === '--summary-path') parsed.summaryPath = path.resolve(value);
-    else if (token === '--rollback-tag') parsed.rollbackTags.push(value);
-    else throw new Error(`Unknown argument: ${token}`);
+    index = applyCleanupArg(argv, index, {
+      setExecute: (execute) => {
+        parsed.execute = execute;
+      },
+      valueHandlers: {
+        '--owner': (value) => {
+          parsed.owner = value;
+        },
+        '--package': (value) => {
+          parsed.packageName = value;
+        },
+        '--summary-path': (value) => {
+          parsed.summaryPath = path.resolve(value);
+        },
+        '--rollback-tag': (value) => {
+          parsed.rollbackTags.push(value);
+        },
+      },
+    });
   }
 
   return parsed;

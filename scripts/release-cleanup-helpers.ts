@@ -33,3 +33,31 @@ export function writeJsonSummary(summaryPath: string, payload: unknown) {
   fs.mkdirSync(path.dirname(summaryPath), { recursive: true });
   fs.writeFileSync(summaryPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
+
+type CleanupArgHandlers = {
+  setExecute: (execute: boolean) => void;
+  valueHandlers: Record<string, (value: string) => void>;
+};
+
+export function applyCleanupArg(argv: string[], index: number, handlers: CleanupArgHandlers): number {
+  const token = argv[index];
+  if (token === '--execute') {
+    handlers.setExecute(true);
+    return index;
+  }
+  if (token === '--dry-run') {
+    handlers.setExecute(false);
+    return index;
+  }
+
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`Missing value for ${token}`);
+  }
+  const handler = handlers.valueHandlers[token];
+  if (!handler) {
+    throw new Error(`Unknown argument: ${token}`);
+  }
+  handler(value);
+  return index + 1;
+}

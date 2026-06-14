@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import path from 'node:path';
-import { parseJsonLines, runGh, writeJsonSummary } from './release-cleanup-helpers.ts';
+import { applyCleanupArg, parseJsonLines, runGh, writeJsonSummary } from './release-cleanup-helpers.ts';
 
 type ReleaseAsset = {
   name?: string;
@@ -40,25 +40,22 @@ function parseArgs(argv: string[]): Options {
   };
 
   for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index];
-    if (token === '--execute') {
-      parsed.execute = true;
-      continue;
-    }
-    if (token === '--dry-run') {
-      parsed.execute = false;
-      continue;
-    }
-
-    const value = argv[index + 1];
-    if (!value || value.startsWith('--')) {
-      throw new Error(`Missing value for ${token}`);
-    }
-    index += 1;
-    if (token === '--repo') parsed.repo = value;
-    else if (token === '--version') parsed.version = value;
-    else if (token === '--summary-path') parsed.summaryPath = path.resolve(value);
-    else throw new Error(`Unknown argument: ${token}`);
+    index = applyCleanupArg(argv, index, {
+      setExecute: (execute) => {
+        parsed.execute = execute;
+      },
+      valueHandlers: {
+        '--repo': (value) => {
+          parsed.repo = value;
+        },
+        '--version': (value) => {
+          parsed.version = value;
+        },
+        '--summary-path': (value) => {
+          parsed.summaryPath = path.resolve(value);
+        },
+      },
+    });
   }
 
   if (!/^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$/.test(parsed.version)) {
