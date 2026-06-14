@@ -223,6 +223,28 @@ function isLatestMetadataForVersion(releaseDir, name, version, macArch) {
     && metadataMatchesMacArch(metadata, macArch);
 }
 
+function isStandardReleaseAssetName(releaseDir, name, version, macArch) {
+  if (isGuiArtifact(name, version, '.dmg', macArch)) {
+    return true;
+  }
+  if (isGuiArtifact(name, version, '.zip', macArch)) {
+    return true;
+  }
+  if (isGuiArtifact(name, version, '.blockmap', macArch)) {
+    return true;
+  }
+  if (name === 'standard-local-authorization-policy.json') {
+    return true;
+  }
+  return isLatestMetadataForVersion(releaseDir, name, version, macArch);
+}
+
+function listStandardReleaseAssetNames(releaseDir, version, macArch) {
+  return fs.readdirSync(releaseDir).filter((name) => (
+    isStandardReleaseAssetName(releaseDir, name, version, macArch)
+  ));
+}
+
 function findArtifacts(shellRoot, version, macArch) {
   const shellPaths = resolveActiveShellPaths({ shellRoot });
   const releaseDir = [path.join(shellRoot, 'release'), shellPaths.buildOutputDir]
@@ -230,21 +252,7 @@ function findArtifacts(shellRoot, version, macArch) {
   if (!releaseDir) {
     throw new Error(`Missing GUI artifact directory: expected ${path.join(shellRoot, 'release')} or ${shellPaths.buildOutputDir}`);
   }
-  const files = fs.readdirSync(releaseDir).filter((name) => {
-    if (isGuiArtifact(name, version, '.dmg', macArch)) {
-      return true;
-    }
-    if (isGuiArtifact(name, version, '.zip', macArch)) {
-      return true;
-    }
-    if (isGuiArtifact(name, version, '.blockmap', macArch)) {
-      return true;
-    }
-    if (name === 'standard-local-authorization-policy.json') {
-      return true;
-    }
-    return isLatestMetadataForVersion(releaseDir, name, version, macArch);
-  });
+  const files = listStandardReleaseAssetNames(releaseDir, version, macArch);
   if (!files.some((name) => name.endsWith('.dmg'))) {
     throw new Error(`No One Person Lab ${version} ${macArch} DMG found under ${releaseDir}`);
   }
@@ -282,21 +290,7 @@ function findPrebuiltStandardArtifacts(standardArtifactsDir, version, macArch) {
   if (!fs.existsSync(releaseDir)) {
     throw new Error(`Missing prebuilt standard release asset directory: ${releaseDir}`);
   }
-  const files = fs.readdirSync(releaseDir).filter((name) => {
-    if (isGuiArtifact(name, version, '.dmg', macArch)) {
-      return true;
-    }
-    if (isGuiArtifact(name, version, '.zip', macArch)) {
-      return true;
-    }
-    if (isGuiArtifact(name, version, '.blockmap', macArch)) {
-      return true;
-    }
-    if (name === 'standard-local-authorization-policy.json') {
-      return true;
-    }
-    return isLatestMetadataForVersion(releaseDir, name, version, macArch);
-  });
+  const files = listStandardReleaseAssetNames(releaseDir, version, macArch);
   const requiredKinds = [
     ['DMG', (name) => name.endsWith('.dmg')],
     ['ZIP', (name) => name.endsWith('.zip')],
