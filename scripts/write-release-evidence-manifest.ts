@@ -12,6 +12,7 @@ import {
   releaseCohortFromRemoteVerification,
   unknownReleaseEvidenceCohort,
 } from './release-evidence-cohort.ts';
+import { readJsonFile } from './release-json-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContractPath = path.join(appRoot, 'contracts', 'app-release-channel.json');
@@ -80,10 +81,6 @@ function parseArgs(argv) {
   };
 }
 
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
 function resolveBundlePath(bundleDir, artifactPath) {
   if (path.isAbsolute(artifactPath)) {
     throw new Error(`Evidence artifact path must be relative: ${artifactPath}`);
@@ -116,7 +113,7 @@ function readArtifactClassifications(classificationPath) {
   if (!classificationPath) {
     return new Map();
   }
-  const payload = readJson(classificationPath);
+  const payload = readJsonFile(classificationPath);
   const records = Array.isArray(payload?.artifact_classifications)
     ? payload.artifact_classifications
     : Array.isArray(payload?.artifacts)
@@ -174,7 +171,7 @@ function readTypedBlocker(bundleDir, artifact) {
   if (!fs.existsSync(blockerPath)) {
     return null;
   }
-  const blocker = readJson(blockerPath);
+  const blocker = readJsonFile(blockerPath);
   if (!blocker || typeof blocker !== 'object' || Array.isArray(blocker)) {
     throw new Error(`Typed blocker ${artifact.id} must be a JSON object.`);
   }
@@ -202,7 +199,7 @@ function inferReleaseCohort(bundleDir, options) {
   const remoteVerificationPath = resolveBundlePath(bundleDir, 'remote-release-verification.json');
   if (fs.existsSync(remoteVerificationPath)) {
     const remoteCohort = releaseCohortFromRemoteVerification(
-      readJson(remoteVerificationPath),
+      readJsonFile(remoteVerificationPath),
       'remote_release_verification',
     );
     if (remoteCohort) {
@@ -214,7 +211,7 @@ function inferReleaseCohort(bundleDir, options) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
-  const releaseContract = readJson(releaseContractPath);
+  const releaseContract = readJsonFile(releaseContractPath);
   const bundle = releaseContract.operator_evidence_bundle;
   if (bundle?.manifest_path !== 'evidence-manifest.json') {
     throw new Error(`Unexpected release evidence manifest path: ${bundle?.manifest_path}`);

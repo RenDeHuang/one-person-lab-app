@@ -1,3 +1,9 @@
+import fs from 'node:fs';
+
+export function readJsonFile<T = unknown>(filePath: string): T {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T;
+}
+
 export function asRecord(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${label} must be an object.`);

@@ -7,6 +7,7 @@ import {
   buildAppReleaseL5EvidenceReadout,
   validateAppReleaseL5ReadoutContract,
 } from './app-release-l5-readout.ts';
+import { asRecord, readJsonFile } from './release-json-helpers.ts';
 import {
   assertRemoteReleaseCohortMatches,
   normalizeReleaseEvidenceCohort,
@@ -89,17 +90,6 @@ function parseArgs(argv: string[]): Options {
   };
 }
 
-function readJson(filePath: string) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
-function asRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} must be an object.`);
-  }
-  return value as Record<string, unknown>;
-}
-
 function assertFile(filePath: string, label: string) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Missing ${label}: ${filePath}`);
@@ -113,7 +103,7 @@ function assertFile(filePath: string, label: string) {
 function assertJsonFile(filePath: string, label: string) {
   assertFile(filePath, label);
   try {
-    return readJson(filePath);
+    return readJsonFile(filePath);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`${label} must be valid JSON: ${message}`);
@@ -824,7 +814,7 @@ function validateBlockedEvidenceList(
 }
 
 function validateBundle(bundleDir: string, options: Options) {
-  const releaseContract = readJson(releaseContractPath);
+  const releaseContract = readJsonFile(releaseContractPath);
   const contract = validateContractBoundary(releaseContract.operator_evidence_bundle);
   const manifestPath = resolveBundlePath(bundleDir, contract.manifestPath);
   const manifest = asRecord(assertJsonFile(manifestPath, 'evidence-manifest'), 'evidence-manifest');

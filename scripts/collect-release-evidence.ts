@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { readJsonFile } from './release-json-helpers.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const commandMaxBuffer = 128 * 1024 * 1024;
@@ -166,12 +167,12 @@ function writeJsonArtifact(bundleDir: string, artifactPath: string, payload: unk
 }
 
 function readReleaseEvidenceArtifacts(): EvidenceArtifact[] {
-  const releaseContract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8')) as {
+  const releaseContract = readJsonFile<{
     operator_evidence_bundle?: {
       required_artifacts?: EvidenceArtifact[];
       optional_diagnostic_artifacts?: EvidenceArtifact[];
     };
-  };
+  }>(path.join(appRoot, 'contracts', 'app-release-channel.json'));
   const requiredArtifacts = releaseContract.operator_evidence_bundle?.required_artifacts;
   if (!Array.isArray(requiredArtifacts)) {
     throw new Error('Release evidence bundle contract must declare required_artifacts.');
