@@ -1,4 +1,3 @@
-import { legacySettingsRouteRedirects } from './app-contract-constants.ts';
 import {
   assertShellTextIncludes,
   readShellText,
@@ -9,6 +8,7 @@ import {
 } from './shell-branding-validator.ts';
 import { validateFirstRunImplementation } from './shell-first-run-validator.ts';
 import { validateShellOrdinaryExperienceImplementation } from './shell-ordinary-experience-validator.ts';
+import { validateShellSettingsAndTeamImplementation } from './shell-settings-and-team-validator.ts';
 import { validateStandardUpdaterImplementation } from './shell-standard-updater-validator.ts';
 
 export function validateActiveShellImplementation(shellPaths) {
@@ -201,146 +201,10 @@ export function validateActiveShellImplementation(shellPaths) {
     }
   }
 
-  const settingsNav = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/sections/settingsNav.tsx');
-  for (const expected of [
-    'getOplGuiSettingsVisibleTabs',
-    'getOplGuiLegacySettingsRouteRedirects',
-    'SETTINGS_DEFAULT_ROUTE = \'/settings/general\'',
-    "if (legacyId === 'skills-hub') return '/settings/capabilities?tab=skills'",
-    "if (legacyId === 'tools') return '/settings/capabilities?tab=tools'",
-    'LEGACY_SETTINGS_ROUTE_REDIRECTS',
-    'LEGACY_ANCHOR_REMAP',
-  ]) {
-    if (!settingsNav.includes(expected)) {
-      throw new Error(`Active shell settings navigation must derive App-owned settings partition: ${expected}`);
-    }
-  }
-
-  const settingsModal = readShellText(shellPaths, 'packages/desktop/src/renderer/components/settings/SettingsModal/index.tsx');
-  for (const expected of [
-    'getOplGuiSettingsVisibleTabs',
-    'getOplGuiLegacySettingsRouteRedirects',
-    "defaultTab = 'general'",
-    '<OverviewSettings withWrapper={false} />',
-    '<RuntimeSettings withWrapper={false} />',
-    '<CapabilitiesSettingsContent activeTab={capabilitiesTab} onTabChange={setCapabilitiesTab} />',
-    '<AccessSettingsContent />',
-    '<AppearanceModalContent />',
-  ]) {
-    if (!settingsModal.includes(expected)) {
-      throw new Error(`Active shell settings modal must implement App-owned settings partition: ${expected}`);
-    }
-  }
-  for (const forbidden of [
-    'ModelModalContent',
-    'AgentModalContent',
-    "label: t('settings.model')",
-    "label: t('settings.tools')",
-    "label: t('settings.webui')",
-  ]) {
-    if (settingsModal.includes(forbidden)) {
-      throw new Error(`Active shell settings modal must not expose legacy ordinary settings entry ${forbidden}`);
-    }
-  }
-
-  const router = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Router.tsx');
-  const constants = readShellText(shellPaths, 'packages/desktop/src/common/config/constants.ts');
-  if (!constants.includes('export const TEAM_MODE_ENABLED = false')) {
-    throw new Error('Active shell ordinary GUI must disable upstream AionUI Team mode by default');
-  }
-  if (!router.includes('TEAM_MODE_ENABLED ? withRouteFallback(TeamIndex) : <Navigate to=\'/guid\' replace />')) {
-    throw new Error('Active shell router must redirect /team routes when Team mode is disabled');
-  }
-  for (const [legacyId, targetId] of Object.entries(legacySettingsRouteRedirects)) {
-    const expectedTarget =
-      legacyId === 'skills-hub'
-        ? '/settings/capabilities?tab=skills'
-        : legacyId === 'tools'
-          ? '/settings/capabilities?tab=tools'
-          : `/settings/${targetId}`;
-    const expectedRoute = `path='/settings/${legacyId}' element={<Navigate to='${expectedTarget}' replace />}`;
-    if (!router.includes(expectedRoute)) {
-      throw new Error(`Active shell router must redirect legacy settings route ${legacyId} to ${expectedTarget}`);
-    }
-  }
-  const sider = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Sider/index.tsx');
-  if (!sider.includes('{TEAM_MODE_ENABLED && (') || !sider.includes('<TeamSiderSection')) {
-    throw new Error('Active shell Sider must gate TeamSiderSection behind TEAM_MODE_ENABLED');
-  }
-  const teamRedirect = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/team/hooks/useTeamCreatedRedirect.ts');
-  if (!teamRedirect.includes('if (!TEAM_MODE_ENABLED)') || !teamRedirect.includes('return undefined')) {
-    throw new Error('Active shell Team created redirect hook must no-op when Team mode is disabled');
-  }
-  const oplProductProfile = readShellText(shellPaths, 'packages/desktop/src/common/config/oplProductProfile/index.ts');
-  for (const expected of [
-    'REQUIRED_ORDINARY_FORBIDDEN_CAPABILITY_POLICY',
-    'getOplOrdinaryForbiddenCapabilityPolicy',
-    'isOplForbiddenTeamMcpName',
-    "exact: ['aionui-team']",
-    "prefixes: ['team_', 'mcp__aionui-team']",
-    "contains: ['aionui-team']",
-    "'team_mcp_stdio_config'",
-    "'team_lead_conversation_id'",
-    'sanitizeOplOrdinaryConversationExtra',
-    'for (const key of getOplOrdinaryForbiddenCapabilityPolicy().extra_keys)',
-    'filterOplOrdinarySessionMcpServers',
-  ]) {
-    if (!oplProductProfile.includes(expected)) {
-      throw new Error(`Active shell ordinary capability filter must scrub disabled Team MCP state: ${expected}`);
-    }
-  }
-  const ipcBridge = readShellText(shellPaths, 'packages/desktop/src/common/adapter/ipcBridge.ts');
-  for (const expected of [
-    'import { TEAM_MODE_ENABLED }',
-    'function disabledTeamMutation',
-    'Team mode is disabled for ordinary OPL App',
-    'create: disabledTeamMutation(',
-    'remove: disabledTeamMutation(',
-    'addAgent: disabledTeamMutation(',
-    'removeAgent: disabledTeamMutation(',
-    'stop: disabledTeamMutation(',
-    'ensureSession: disabledTeamMutation(',
-    'renameAgent: disabledTeamMutation(',
-    'renameTeam: disabledTeamMutation(',
-    'setSessionMode: disabledTeamMutation(',
-  ]) {
-    if (!ipcBridge.includes(expected)) {
-      throw new Error(`Active shell Team IPC bridge must reject disabled Team mutations before HTTP: ${expected}`);
-    }
-  }
-  const ordinaryChatConversation = readShellText(
-    shellPaths,
-    'packages/desktop/src/renderer/pages/conversation/components/ChatConversation.tsx',
-  );
-  for (const expected of [
-    'sanitizeOplOrdinaryConversationExtra',
-    'extra: sanitizeOplOrdinaryConversationExtra(sourceExtra)',
-    'loadedMcpServers={(ordinaryExtra as { mcp_servers?: string[] } | undefined)?.mcp_servers}',
-    'loadedMcpStatuses={(ordinaryExtra as { mcp_statuses?: IConversationMcpStatus[] } | undefined)?.mcp_statuses}',
-  ]) {
-    if (!ordinaryChatConversation.includes(expected)) {
-      throw new Error(`Active shell ordinary conversations must not pass Team MCP snapshots through: ${expected}`);
-    }
-  }
-  const agentSetupCard = readShellText(shellPaths, 'packages/desktop/src/renderer/components/agent/AgentSetupCard.tsx');
-  for (const expected of [
-    'sanitizeOplOrdinaryConversationExtra',
-    'filterOplOrdinarySessionMcpServers',
-    'selected_mcp_server_ids: undefined',
-    'selected_session_mcp_servers: sessionMcpServers?.length ? sessionMcpServers : undefined',
-  ]) {
-    if (!agentSetupCard.includes(expected)) {
-      throw new Error(`Active shell agent switching must not inherit disabled Team MCP state: ${expected}`);
-    }
-  }
-  const deepLink = readShellText(shellPaths, 'packages/desktop/src/renderer/hooks/system/useDeepLink.ts');
-  if (deepLink.includes('/^\\/team\\/[^/]+$/')) {
-    throw new Error('Active shell deep links must not whitelist Team routes for ordinary OPL App');
-  }
-
   validateStandardUpdaterImplementation(shellPaths);
   validateFirstRunImplementation(shellPaths);
   validateShellOrdinaryExperienceImplementation(shellPaths);
+  validateShellSettingsAndTeamImplementation(shellPaths);
 
   const presets = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/AppearanceSettings/presets.ts');
   if (!presets.includes("export const CODEX_THEME_ID = 'codex'")) {
