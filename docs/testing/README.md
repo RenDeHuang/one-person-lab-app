@@ -12,17 +12,25 @@ artifacts are the executable truth.
 bun install --cwd shells/aionui --frozen-lockfile
 bun run --cwd shells/aionui i18n:types
 cd shells/aionui && node scripts/check-i18n.js
-bun run test
+npm run test:smoke
+npm run test:full
 bun run --cwd shells/aionui lint
 bun run --cwd shells/aionui validate:opl-package
 npm run validate:gui-shell
 ```
 
-`bun run test` is the App-level stable runner. It reads
+`npm test` and `npm run test:smoke` are the default App development test path.
+They run the App-owned active-shell quick validator only; this catches contract,
+page-state, product-profile, release-channel, and active shell structural drift
+without running the full shell Vitest portfolio.
+
+`npm run test:full` is the App-level full active-shell Vitest runner. It reads
 `contracts/app-shell-adapter.json`, enumerates the active shell Vitest suites,
-and runs them as isolated sequential `node` / `dom` chunks. The upstream shell
-entrypoint remains available as `bun run --cwd shells/aionui test` for direct
-AionUI intake work.
+and runs them as isolated sequential `node` / `dom` chunks. The active-shell
+validation contract uses this explicit full entry so `validate:gui-shell` and
+`scripts/verify.sh full` keep their terminal evidence even though `npm test` is
+lighter. The upstream shell entrypoint remains available as
+`bun run --cwd shells/aionui test` for direct AionUI intake work.
 
 `validate:gui-shell` is the App-root gate for active shell health plus GUI
 compile evidence. It runs the full active shell validation list from
@@ -107,6 +115,13 @@ default smoke checks, active-shell validation, package smoke, or release-boundar
 validation. If a maintenance lane needs hard enforcement, keep it explicit and
 separately named so normal feature, docs, and release-boundary work is not
 blocked by advisory source-size budgeting.
+
+DOM-heavy, E2E, packaged-runtime, and VM checks stay on explicit lanes:
+`npm run test:full`, `npm run test:e2e`, `npm run test:opl-first-run-vm`,
+`npm run test:opl-first-run-vm:tart`, release evidence validation, and release
+workflow gates. Do not move those lanes behind default `npm test` or
+`scripts/verify.sh smoke`; use them when the change touches renderer behavior,
+packaging, release evidence, or clean-install acceptance.
 
 ## Installed App Smoke
 

@@ -15,7 +15,7 @@ Lanes:
   release-boundary  App release-boundary validator and release boundary tests.
   candidate-shell   Shell candidate registry and package-command contract check.
   structure         Active shell and App release-boundary static checks without release packaging.
-  full              active-shell + release-boundary + candidate-shell + root shell tests.
+  full              active-shell + release-boundary + candidate-shell + full root shell tests.
 
 This wrapper intentionally does not build DMGs, publish releases, or run VM smoke
 tests. Use the explicit release:* and test:opl-first-run-vm:* commands for those
@@ -52,7 +52,7 @@ run_lane() {
       run_lane active-shell
       run_lane release-boundary
       run_lane candidate-shell
-      npm test
+      npm run test:full
       ;;
     -h|--help|help)
       usage

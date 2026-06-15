@@ -30,10 +30,14 @@ verification can select a different linked shell repo with
 | `validate-release-evidence-bundle.ts` | Validates a release evidence bundle manifest and artifact files, including real screenshot dimensions; default validation fails closed when required evidence is missing. |
 
 Stable App-root npm entries are `verify`, `validate:release-boundary`,
-`validate:gui-shell`, `release:evidence:manifest`, `release:evidence:validate`, and
-`hygiene:fallow`. These keep release boundary/evidence scripts visible as
-production entrypoints while the files remain thin App-owned wrappers around
-contracts and release artifacts. App-root fallow config excludes
+`validate:gui-shell`, `test:smoke`, `test:full`, `release:evidence:manifest`,
+`release:evidence:validate`, and `hygiene:fallow`. `npm test` aliases the smoke
+entry so ordinary development does not run the full active-shell DOM portfolio;
+full shell Vitest evidence remains explicit through `npm run test:full`,
+`scripts/verify.sh full`, and the active-shell validation contract. These keep
+release boundary/evidence scripts visible as production entrypoints while the
+files remain thin App-owned wrappers around contracts and release artifacts.
+App-root fallow config excludes
 `shells/aionui/**` and `shells/agui-codex/**` because those paths are ignored
 external shell checkouts.
 `hygiene:fallow` is not GUI shell build or runtime evidence; `validate:gui-shell`
@@ -47,6 +51,8 @@ node --experimental-strip-types scripts/ensure-active-shell.ts
 scripts/verify.sh
 scripts/verify.sh structure
 scripts/verify.sh release-boundary
+npm run test:smoke
+npm run test:full
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 node --experimental-strip-types scripts/validate-active-shell.ts --only i18n_types,i18n_check,typecheck
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets

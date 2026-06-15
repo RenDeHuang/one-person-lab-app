@@ -60,9 +60,19 @@ test('active shell command wrapper injects App release version for local builds'
 
 test('release code-quality uses App active-shell test runner', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+  const adapterContract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'));
 
   assert.match(workflow, /node --experimental-strip-types scripts\/run-active-shell-tests\.ts/);
   assert.doesNotMatch(workflow, /run:\s*bunx vitest run/);
+  assert.equal(packageJson.scripts.test, 'npm run test:smoke');
+  assert.equal(packageJson.scripts['test:smoke'], 'node --experimental-strip-types scripts/validate-active-shell.ts --quick');
+  assert.equal(packageJson.scripts['test:full'], 'node --experimental-strip-types scripts/run-active-shell-tests.ts');
+  assert.ok(adapterContract.validation_commands.some((entry) => (
+    entry.id === 'test'
+    && entry.cwd === '.'
+    && entry.command === 'bun run test:full'
+  )));
 });
 
 test('release build uses App wrappers for cross-shell active-shell commands', () => {
