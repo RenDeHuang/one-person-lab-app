@@ -22,7 +22,14 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   const tapRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-homebrew-tap-test-'));
   const digest = 'b'.repeat(64);
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
-  const boundaryScript = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-release-boundary.ts'), 'utf8');
+  const boundaryScriptDeps = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'validate-release-boundary', 'script-dependencies.ts'),
+    'utf8',
+  );
+  const boundaryReleaseChecks = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'validate-release-boundary', 'release-checks.ts'),
+    'utf8',
+  );
   const homebrewScript = fs.readFileSync(path.join(appRoot, 'scripts', 'update-homebrew-tap.ts'), 'utf8');
 
   assert.equal(
@@ -37,9 +44,9 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     packageJson.scripts['release:preflight'],
     'node --experimental-strip-types scripts/validate-release-preflight.ts',
   );
-  assert.match(boundaryScript, /scripts\/validate-release-preflight\.ts/);
-  assert.match(boundaryScript, /scripts\/update-homebrew-tap\.ts/);
-  assert.match(boundaryScript, /--self-check/);
+  assert.match(boundaryReleaseChecks, /release_preflight_script/);
+  assert.match(boundaryScriptDeps, /scripts\/update-homebrew-tap\.ts/);
+  assert.match(boundaryScriptDeps, /--self-check/);
   assert.match(homebrewScript, /manifest_required: true/);
   assert.match(homebrewScript, /checksum_required: true/);
   assert.match(homebrewScript, /nightly_targets_only_for_nightly: true/);
@@ -349,12 +356,15 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
 });
 
 test('agent installation contract validator is wired into release boundary guard', () => {
-  const boundaryScript = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-release-boundary.ts'), 'utf8');
+  const boundaryScriptDeps = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'validate-release-boundary', 'script-dependencies.ts'),
+    'utf8',
+  );
   const result = runNode(['scripts/validate-agent-installation-contract.ts']);
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /App agent installation contract is consistent/);
-  assert.match(boundaryScript, /validate-agent-installation-contract\.ts/);
+  assert.match(boundaryScriptDeps, /validate-agent-installation-contract\.ts/);
 });
 
 test('agent installation validator rejects duplicate bare MAS/MAG/RCA skill mirrors', () => {

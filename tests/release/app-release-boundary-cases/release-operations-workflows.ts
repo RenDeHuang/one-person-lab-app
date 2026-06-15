@@ -9,7 +9,10 @@ import {
 
 test('Nightly release workflow publishes standard-only semver prereleases', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'nightly-standard-release.yml'), 'utf8');
-  const boundaryScript = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-release-boundary.ts'), 'utf8');
+  const boundaryReleaseChecks = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'validate-release-boundary', 'release-checks.ts'),
+    'utf8',
+  );
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
@@ -63,7 +66,7 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.doesNotMatch(workflow, /This prerelease is for users who opt into prerelease\/Nightly updates/);
   assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:latest"/);
   assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:stable"/);
-  assert.match(boundaryScript, /nightly_standard_release_workflow/);
+  assert.match(boundaryReleaseChecks, /nightly_standard_release_workflow/);
   assert.equal(
     releaseContract.release_acceleration.github_actions.nightly_standard_release_workflow,
     '.github/workflows/nightly-standard-release.yml',
