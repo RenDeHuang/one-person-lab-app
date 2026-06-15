@@ -18,7 +18,35 @@ function runCloseout(args: string[]) {
   );
 }
 
-function writeCloseoutArtifacts(root: string, version = '26.5.99') {
+function releaseOwnerVerdict(version = '26.5.99', options: {
+  status?: string;
+  releaseOwnerVerdictRef?: string | null;
+  releaseOwnerReceiptRef?: string | null;
+} = {}) {
+  const status = options.status ?? 'release_owner_receipt_recorded';
+  const typedBlockerRef = `typed_blocker_ref://one-person-lab-app/release-owner/v${version}/verdict-pending`;
+  return {
+    schema: 'opl_app_release_owner_verdict_readout.v1',
+    scope: 'same_cohort_app_release_user_path_owner_verdict',
+    owner: 'one-person-lab-app release owner',
+    status,
+    release_ready_claim: false,
+    stable_latest_promotion_claim: false,
+    family_production_ready_claim: false,
+    release_owner_verdict_ref: options.releaseOwnerVerdictRef ?? null,
+    release_owner_receipt_ref: options.releaseOwnerReceiptRef
+      ?? (status === 'release_owner_receipt_recorded'
+        ? `release_owner_receipt_ref://one-person-lab-app/release-owner/v${version}/receipt-test`
+        : null),
+    install_evidence_ref: `install_evidence_ref://one-person-lab-app/release-owner/v${version}/install-evidence`,
+    release_owner_typed_blocker_ref: typedBlockerRef,
+    typed_blocker_ref: typedBlockerRef,
+  };
+}
+
+function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
+  releaseOwnerVerdict?: Record<string, unknown>;
+} = {}) {
   writeJson(path.join(root, `release-preflight-summary-${version}`, 'release-preflight-summary.json'), {
     schema: 'opl_release_preflight.v1',
     status: 'passed',
@@ -57,6 +85,7 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99') {
     version,
     blocked_reasons: [],
     required_gate_failures: [],
+    release_owner_verdict: options.releaseOwnerVerdict ?? releaseOwnerVerdict(version),
     decision: {
       can_promote: true,
       promote_command: `gh release edit v${version} --repo gaofeng21cn/one-person-lab-app --draft=false --latest`,
@@ -251,4 +280,51 @@ test('release closeout uses candidate record inside an in-progress workflow job'
   assert.deepEqual(summary.artifact_policy.downloaded_artifacts, []);
   assert.match(summary.operator_loop_optimization.implemented_by, /desktop-release\.yml default release closeout artifact/);
   assert.match(summary.operator_loop_optimization.workflow_default_release_summary, /release-readiness-summary job uploads/);
+});
+
+test('release closeout requires owner-resolution validation before promote', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-closeout-owner-needed-'));
+  const artifactsRoot = path.join(tempRoot, 'release-closeout-inputs');
+  const outDir = path.join(tempRoot, 'release-closeout');
+  const runPath = path.join(tempRoot, 'run.json');
+  writeCloseoutArtifacts(artifactsRoot, '26.5.99', {
+    releaseOwnerVerdict: releaseOwnerVerdict('26.5.99', {
+      status: 'release_owner_verdict_pending',
+      releaseOwnerReceiptRef: null,
+    }),
+  });
+  writeJson(runPath, {
+    databaseId: 12345,
+    status: 'in_progress',
+    conclusion: null,
+    createdAt: '2026-06-12T10:38:58Z',
+    startedAt: '2026-06-12T10:38:58Z',
+    updatedAt: '2026-06-12T11:18:25Z',
+    workflowName: 'OPL Desktop Release',
+    url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
+  });
+
+  const result = runCloseout([
+    '--version',
+    '26.5.99',
+    '--run-json',
+    runPath,
+    '--artifacts-dir',
+    artifactsRoot,
+    '--out-dir',
+    outDir,
+    '--no-download',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const stdout = JSON.parse(result.stdout);
+  const summary = JSON.parse(fs.readFileSync(path.join(outDir, 'release-closeout.json'), 'utf8'));
+  assert.equal(summary.source_status.candidate_record, 'ready_to_promote');
+  assert.equal(summary.decision.next_action, 'owner_needed_release_owner_resolution');
+  assert.match(summary.decision.reason, /Release owner verdict status is release_owner_verdict_pending/);
+  assert.match(summary.decision.reason, /missing release_owner_verdict_ref or release_owner_receipt_ref/);
+  assert.match(summary.decision.command, /validate-release-candidate-record\.ts --promote-ready/);
+  assert.match(summary.decision.owner_resolution.typed_blocker_ref, /typed_blocker_ref:\/\/one-person-lab-app\/release-owner\/v26\.5\.99\/verdict-pending/);
+  assert.equal(stdout.status, 'owner_needed_release_owner_resolution');
+  assert.equal(stdout.next_action, 'owner_needed_release_owner_resolution');
 });

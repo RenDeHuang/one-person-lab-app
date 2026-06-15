@@ -37,6 +37,20 @@ type DownloadedArtifact = {
 
 type JsonRecord = Record<string, unknown>;
 
+type ArtifactJson = {
+  path: string | null;
+  absolutePath: string | null;
+  payload: JsonRecord | null;
+};
+
+type CandidatePromotionValidation = {
+  command: string;
+  exit_status: number | null;
+  promote_ready: boolean;
+  summary: JsonRecord | null;
+  errors: string[];
+};
+
 const forbiddenLargeArtifactPatterns = [
   /^macos-build-/,
   /^opl-full-first-install-\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?-mac-arm64$/,
@@ -346,15 +360,13 @@ function downloadArtifacts(options: Options, artifacts: JsonRecord[]): Downloade
   return downloaded;
 }
 
-function readArtifactJson(options: Options, artifactName: string, fileName: string): {
-  path: string | null;
-  payload: JsonRecord | null;
-} {
+function readArtifactJson(options: Options, artifactName: string, fileName: string): ArtifactJson {
   const root = path.join(options.artifactsDir, artifactName);
   const filePath = findFileByName(root, fileName);
-  if (!filePath) return { path: null, payload: null };
+  if (!filePath) return { path: null, absolutePath: null, payload: null };
   return {
     path: path.relative(options.outDir, filePath),
+    absolutePath: filePath,
     payload: asRecord(readJson(filePath)),
   };
 }
@@ -458,10 +470,96 @@ function fullPackageTuning(readiness: JsonRecord | null, telemetry: JsonRecord |
   };
 }
 
+function shellArg(value: string): string {
+  if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) return value;
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function validatorCommand(options: Options, candidatePath: string): string {
+  return [
+    'node',
+    '--experimental-strip-types',
+    'scripts/validate-release-candidate-record.ts',
+    '--promote-ready',
+    '--version',
+    options.version,
+    '--record',
+    candidatePath,
+  ].map(shellArg).join(' ');
+}
+
+function validateCandidatePromotion(options: Options, candidatePath: string | null): CandidatePromotionValidation {
+  const command = candidatePath
+    ? validatorCommand(options, candidatePath)
+    : `npm run release:candidate-record:validate -- --version ${options.version} --record <release-candidate-record.json>`;
+  if (!candidatePath) {
+    return {
+      command,
+      exit_status: 1,
+      promote_ready: false,
+      summary: null,
+      errors: ['Release candidate record path is missing.'],
+    };
+  }
+
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    'scripts/validate-release-candidate-record.ts',
+    '--promote-ready',
+    '--version',
+    options.version,
+    '--record',
+    candidatePath,
+  ], {
+    cwd: appRoot,
+    encoding: 'utf8',
+    maxBuffer: commandMaxBuffer,
+  });
+  const summary = asRecord(result.stdout.trim() ? JSON.parse(result.stdout) : null);
+  const summaryErrors = asArray(summary?.errors).map((entry) => String(entry));
+  const stderr = result.stderr.trim();
+  const errors = summaryErrors.length > 0
+    ? summaryErrors
+    : stderr ? [stderr] : [];
+  return {
+    command,
+    exit_status: result.status,
+    promote_ready: result.status === 0 && summary?.promote_ready === true,
+    summary,
+    errors,
+  };
+}
+
+function ownerResolutionDecision(validation: CandidatePromotionValidation) {
+  const releaseOwnerVerdictStatus = stringField(validation.summary, 'release_owner_verdict_status');
+  const typedBlockerRef = stringField(validation.summary, 'release_owner_typed_blocker_ref');
+  return {
+    next_action: 'owner_needed_release_owner_resolution',
+    reason: [
+      'Candidate record is not promote-ready until the App release owner records a same-cohort owner-resolution ref.',
+      ...validation.errors,
+    ].join(' '),
+    command: validation.command,
+    owner_resolution: {
+      promote_ready: validation.promote_ready,
+      validator_exit_status: validation.exit_status,
+      release_owner_verdict_status: releaseOwnerVerdictStatus,
+      release_owner_verdict_ref: stringField(validation.summary, 'release_owner_verdict_ref'),
+      release_owner_receipt_ref: stringField(validation.summary, 'release_owner_receipt_ref'),
+      typed_blocker_ref: typedBlockerRef,
+      errors: validation.errors,
+      next_owner_action: typedBlockerRef
+        ? `Resolve ${typedBlockerRef} by recording a same-cohort release_owner_verdict_ref or release_owner_receipt_ref.`
+        : 'Record a same-cohort release_owner_verdict_ref or release_owner_receipt_ref before promotion.',
+    },
+  };
+}
+
 function buildDecision(inputs: {
   options: Options;
   run: JsonRecord;
   candidate: JsonRecord | null;
+  candidatePath: string | null;
   readiness: JsonRecord | null;
   jobs: ReturnType<typeof summarizeJobs>;
 }) {
@@ -472,12 +570,23 @@ function buildDecision(inputs: {
   const tag = `v${inputs.options.version}`;
 
   if (candidateStatus === 'ready_to_promote') {
+    const validation = validateCandidatePromotion(inputs.options, inputs.candidatePath);
+    if (!validation.promote_ready) {
+      return ownerResolutionDecision(validation);
+    }
     const candidateDecision = asRecord(inputs.candidate?.decision);
     return {
       next_action: 'promote_from_candidate_record',
-      reason: 'Candidate record is ready_to_promote.',
+      reason: 'Candidate record is ready_to_promote and passed owner-resolution validation.',
       command: stringField(candidateDecision, 'promote_command')
         ?? `gh workflow run desktop-release-promote.yml --repo ${inputs.options.repo} --field opl_version=${inputs.options.version} --field release_run_id=${inputs.options.runId}`,
+      owner_resolution: {
+        promote_ready: true,
+        validator_exit_status: validation.exit_status,
+        release_owner_verdict_status: stringField(validation.summary, 'release_owner_verdict_status'),
+        release_owner_verdict_ref: stringField(validation.summary, 'release_owner_verdict_ref'),
+        release_owner_receipt_ref: stringField(validation.summary, 'release_owner_receipt_ref'),
+      },
     };
   }
   if (candidateStatus === 'blocked') {
@@ -536,6 +645,7 @@ function buildSummary(options: Options) {
     options,
     run,
     candidate: candidateArtifact.payload,
+    candidatePath: candidateArtifact.absolutePath,
     readiness: readinessArtifact.payload,
     jobs: jobSummary,
   });
@@ -589,6 +699,7 @@ function buildSummary(options: Options) {
       status: sourceStatus(candidateArtifact.payload),
       blocked_reasons: asArray(candidateArtifact.payload.blocked_reasons),
       required_gate_failures: asArray(candidateArtifact.payload.required_gate_failures),
+      release_owner_verdict: asRecord(candidateArtifact.payload.release_owner_verdict),
       decision: asRecord(candidateArtifact.payload.decision),
     } : null,
     readiness: readinessArtifact.payload ? {
@@ -692,7 +803,9 @@ function main() {
   writeJson(options.output, summary);
   writeMarkdown(options.markdown, summary);
   console.log(JSON.stringify({
-    status: summary.source_status.candidate_record === 'ready_to_promote' ? 'ready_to_promote' : summary.decision.next_action,
+    status: summary.decision.next_action === 'promote_from_candidate_record'
+      ? 'ready_to_promote'
+      : summary.decision.next_action,
     output: path.relative(appRoot, options.output),
     markdown: path.relative(appRoot, options.markdown),
     next_action: summary.decision.next_action,

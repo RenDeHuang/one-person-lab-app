@@ -227,8 +227,13 @@ Every desktop release run now produces the closeout by default in the final
 `release-closeout.md` after `release-candidate-record.json` is written. It reads
 the same local small artifacts already used by readiness, runs with
 `--no-download`, refuses standard/Full package artifacts, and points the
-operator at `ready_to_promote`, candidate blockers, failed readiness gates, or
-raw log inspection only after structured evidence is missing.
+operator at promotion only after the candidate record passes
+`scripts/validate-release-candidate-record.ts --promote-ready`. A candidate
+`status=ready_to_promote` without a same-cohort `release_owner_verdict_ref` or
+`release_owner_receipt_ref` remains owner-needed: closeout reports the
+release-owner typed blocker / owner-resolution action instead of
+`promote_from_candidate_record`. Candidate blockers, failed readiness gates, or
+raw log inspection are used only after structured evidence is missing or failed.
 
 The local command is the rerun/debug path for the same logic, not a separate
 release step:
