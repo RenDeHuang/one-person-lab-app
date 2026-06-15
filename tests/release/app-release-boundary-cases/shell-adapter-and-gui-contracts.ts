@@ -892,14 +892,19 @@ test('active shell validation exposes opt-in live OPL conformance without making
     path.join(appRoot, 'scripts', 'validate-active-shell', 'shell-implementation-validator.ts'),
     'utf8',
   );
+  const shellOrdinaryExperienceValidator = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'validate-active-shell', 'shell-ordinary-experience-validator.ts'),
+    'utf8',
+  );
+  const shellImplementationValidationSources = `${shellImplementationValidator}\n${shellOrdinaryExperienceValidator}`;
   const runtimeBridge = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-runtime-bridge.json'), 'utf8'),
   );
 
   assert.equal(packageJson.scripts['validate:active-shell'], 'node --experimental-strip-types scripts/validate-active-shell.ts');
   assert.match(activeShellValidator, /validateLiveOplConformance\(runtimeBridge\)/);
-  assert.match(shellImplementationValidator, /useAcpInitialMessage\.ts/);
-  assert.match(shellImplementationValidator, /await warmupConversation\(conversation_id\)/);
+  assert.match(shellImplementationValidationSources, /useAcpInitialMessage\.ts/);
+  assert.match(shellImplementationValidationSources, /await warmupConversation\(conversation_id\)/);
   assert.equal(runtimeBridge.live_conformance_gate.mode, 'explicit_env_opt_in');
   assert.equal(runtimeBridge.live_conformance_gate.default_enforcement, 'disabled');
   assert.equal(runtimeBridge.live_conformance_gate.opl_bin, './bin/opl');

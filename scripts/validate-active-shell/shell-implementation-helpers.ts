@@ -26,6 +26,34 @@ export function assertShellTextIncludes(shellPaths, relativePath, expected, labe
   return text;
 }
 
+export function assertTextIncludesAll(text, expectedValues, label) {
+  for (const expected of expectedValues) {
+    if (!text.includes(expected)) {
+      throw new Error(`${label} must include ${expected}`);
+    }
+  }
+}
+
+export function assertTextExcludesAll(text, forbiddenValues, label) {
+  for (const forbidden of forbiddenValues) {
+    if (text.includes(forbidden)) {
+      throw new Error(`${label} must not include ${forbidden}`);
+    }
+  }
+}
+
+export function assertTextDoesNotMatch(text, pattern, label) {
+  if (pattern.test(text)) {
+    throw new Error(label);
+  }
+}
+
+export function assertShellTextIncludesAll(shellPaths, relativePath, expectedValues, label) {
+  const text = readShellText(shellPaths, relativePath);
+  assertTextIncludesAll(text, expectedValues, `${label} in ${relativePath}`);
+  return text;
+}
+
 export function assertShellFileHash(shellPaths, relativePath, expectedHash, label) {
   const filePath = path.join(shellPaths.shellRoot, relativePath);
   assertFile(filePath, label);
