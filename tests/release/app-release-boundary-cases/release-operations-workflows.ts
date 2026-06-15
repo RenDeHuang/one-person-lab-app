@@ -351,9 +351,16 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.equal(ownerBlocker.family_production_ready_claim, false);
   assert.equal(ownerBlocker.can_close_opl_app_release_user_path, false);
   assert.equal(ownerBlocker.release_owner_verdict_ref, null);
-  assert.equal(ownerBlocker.release_owner_receipt_ref, null);
-  assert.equal(ownerBlocker.downloaded_artifact_readback.release_candidate_validator_promote_ready, false);
-  assert.equal(ownerBlocker.downloaded_artifact_readback.release_owner_resolution_ref_present, false);
+  assert.equal(
+    ownerBlocker.release_owner_receipt_ref,
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.12/receipt-20260612-owner-verdict',
+  );
+  assert.equal(ownerBlocker.release_owner_acceptance_recorded, true);
+  assert.equal(ownerBlocker.stable_latest_recorded, true);
+  assert.equal(ownerBlocker.release_candidate_promote_ready, true);
+  assert.equal(ownerBlocker.downloaded_artifact_readback.release_candidate_validator_promote_ready, true);
+  assert.equal(ownerBlocker.downloaded_artifact_readback.release_owner_verdict_status, 'release_owner_receipt_recorded');
+  assert.equal(ownerBlocker.downloaded_artifact_readback.release_owner_resolution_ref_present, true);
 
   const ownerReceipt = JSON.parse(
     fs.readFileSync(

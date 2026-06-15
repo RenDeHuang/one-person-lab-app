@@ -3,22 +3,27 @@
   "owner": "one-person-lab-app release owner",
   "scope": "same_cohort_app_release_user_path_owner_verdict",
   "status": "release_owner_typed_blocker_required",
-  "blocker_kind": "release_owner_verdict_required",
+  "blocker_kind": "release_owner_non_ready_verdict_required",
   "version": "26.6.12",
   "tag": "v26.6.12",
   "channel": "stable",
   "typed_blocker_ref": "typed_blocker_ref://one-person-lab-app/release-owner/v26.6.12/verdict-pending",
   "release_owner_typed_blocker_ref": "typed_blocker_ref://one-person-lab-app/release-owner/v26.6.12/verdict-pending",
   "release_owner_verdict_ref": null,
-  "release_owner_receipt_ref": null,
+  "release_owner_receipt_ref": "release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.12/receipt-20260612-owner-verdict",
+  "release_owner_acceptance_recorded": true,
+  "stable_latest_recorded": true,
+  "stable_latest_record_ref": "github_release_ref://gaofeng21cn/one-person-lab-app/releases/tag/v26.6.12#latest",
+  "release_candidate_promote_ready": true,
   "release_ready_claim": false,
   "stable_latest_promotion_claim": false,
   "family_production_ready_claim": false,
   "can_close_opl_app_release_user_path": false,
-  "reason": "Same-cohort v26.6.12 release, install, remote verification, Homebrew, Full, WebUI, and clean-VM evidence is present, but no non-forgeable App release-owner verdict or receipt ref exists in the owner-native release record.",
+  "reason": "v26.6.12 is recorded as the latest Stable App release and the App release owner receipt and owner acceptance are recorded, but that receipt only validates the release-owner resolution path for candidate promotion. App release-ready and OPL family production-ready remain false until a release-owner non-ready verdict typed blocker or stronger same-cohort owner decision records the next action.",
   "evidence_refs": [
     "github_actions_run_ref://gaofeng21cn/one-person-lab-app/actions/runs/27415765472",
     "github_release_ref://gaofeng21cn/one-person-lab-app/releases/tag/v26.6.12",
+    "release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.12/receipt-20260612-owner-verdict",
     "release_readiness_summary_ref://one-person-lab-app/v26.6.12",
     "operator_evidence_bundle_ref://one-person-lab-app/v26.6.12",
     "remote_release_verification_ref://one-person-lab-app/v26.6.12",
@@ -29,20 +34,19 @@
     "release_candidate_record_artifact": "release-candidate-record-26.6.12",
     "release_readiness_summary_artifact": "release-readiness-summary-26.6.12",
     "release_candidate_status": "ready_to_promote",
-    "release_candidate_validator_promote_ready": false,
-    "release_owner_verdict_status": "release_owner_verdict_pending",
-    "release_owner_resolution_ref_present": false,
-    "validator_errors": [
-      "Release owner verdict status is release_owner_verdict_pending; expected recorded owner verdict or receipt",
-      "Release owner verdict is missing release_owner_verdict_ref or release_owner_receipt_ref"
-    ]
+    "release_candidate_validator_promote_ready": true,
+    "release_owner_verdict_status": "release_owner_receipt_recorded",
+    "release_owner_resolution_ref_present": true,
+    "validator_errors": []
   },
-  "next_owner_action": "Record a same-cohort release_owner_verdict_ref or release_owner_receipt_ref if App release-owner sign-off exists; otherwise keep v26.6.12 non-ready for owner-verdict consumption.",
+  "next_owner_action": "Record a release-owner non-ready verdict or typed blocker that states why App release-ready and OPL family production-ready remain false, or record a stronger same-cohort owner decision that explicitly authorizes a different state.",
   "authority_boundary": {
     "can_claim_app_release_ready_from_evidence": false,
     "can_claim_stable_latest_from_evidence": false,
     "can_claim_family_production_ready": false,
     "can_write_domain_truth": false,
-    "can_sign_domain_owner_receipt": false
+    "can_sign_domain_owner_receipt": false,
+    "can_claim_domain_ready": false,
+    "can_claim_quality_or_export_ready": false
   }
 }
