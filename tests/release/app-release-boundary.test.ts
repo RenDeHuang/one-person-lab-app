@@ -3,6 +3,7 @@ import './app-release-boundary-cases/app-root-boundary.ts';
 import './app-release-boundary-cases/product-profile-and-install-exposure.ts';
 import './app-release-boundary-cases/first-run-and-installer.ts';
 import './app-release-boundary-cases/runtime-page-evidence-boundary.ts';
+import './app-release-boundary-cases/runtime-page-release-evidence.ts';
 import './app-release-boundary-cases/release-evidence-validation.ts';
 import './app-release-boundary-cases/release-evidence-collector.ts';
 import './app-release-boundary-cases/release-assets-and-remote-verification.ts';
