@@ -1,0 +1,172 @@
+import { assertDeepEqualJson } from './assertions.ts';
+import {
+  appOwnedGuiContractOrdinaryConversation,
+  appOwnedHomeLayout,
+  appOwnedRightContextInspectorTabIds,
+} from './app-contract-constants.ts';
+import { validateGuiProductAuthority } from './gui-product-authority-validator.ts';
+
+const defaultAssistantIds = ['mas', 'mag', 'rca'];
+const purposeEntryIds = ['research', 'grant', 'ppt'];
+const rightInspectorExpected = {
+  placement: 'right',
+  default_state: 'collapsed',
+  opens_on_user_request_only: true,
+  chat_canvas_remains_primary: true,
+  scope: 'selected_workspace_and_conversation',
+};
+const rightInspectorForbiddenOwners = [
+  'runtime truth',
+  'domain truth',
+  'artifact body',
+  'memory body',
+  'backend selection authority',
+];
+
+function validateGuiProductIdentity(guiContract) {
+  if (guiContract.owner !== 'one-person-lab-app') {
+    throw new Error(`Unexpected App GUI product contract owner: ${guiContract.owner}`);
+  }
+  if (guiContract.purpose !== 'app_owned_gui_product_contract') {
+    throw new Error(`Unexpected App GUI product contract purpose: ${guiContract.purpose}`);
+  }
+  if (guiContract.state !== 'active') {
+    throw new Error(`Unexpected App GUI product contract state: ${guiContract.state}`);
+  }
+  if (guiContract.product_authority?.source_of_truth !== 'one-person-lab-app') {
+    throw new Error('App GUI product contract source of truth must be one-person-lab-app');
+  }
+  if (guiContract.product_authority.active_shell_role !== 'implementation_carrier') {
+    throw new Error('App GUI product contract must treat the active shell as implementation carrier');
+  }
+  if (guiContract.product_authority.upstream_gui_role !== 'implementation_material_only') {
+    throw new Error('App GUI product contract must keep upstream GUI behavior as implementation material only');
+  }
+  if (guiContract.product_authority.upstream_behavior_acceptance_policy !== 'must_match_app_owned_gui_product_contract_before_release') {
+    throw new Error('App GUI product contract must gate upstream behavior against App-owned GUI requirements');
+  }
+  validateGuiProductAuthority(guiContract.product_authority);
+}
+
+function validateExecutorPolicy(guiContract) {
+  if (guiContract.executor_policy?.default_executor !== 'codex_cli') {
+    throw new Error('App GUI default executor must be Codex CLI');
+  }
+  if (guiContract.executor_policy.codex_only_default !== true) {
+    throw new Error('App GUI default executor policy must be Codex-only');
+  }
+  if (guiContract.executor_policy.executor_tab_visible_when_single_executor !== false) {
+    throw new Error('App GUI must hide executor tab when Codex CLI is the only executor');
+  }
+}
+
+function validateHomeLayout(guiContract) {
+  assertDeepEqualJson(guiContract.home_layout, appOwnedHomeLayout, 'App GUI home layout');
+  assertDeepEqualJson(
+    guiContract.ordinary_conversation,
+    appOwnedGuiContractOrdinaryConversation,
+    'App GUI ordinary conversation contract',
+  );
+}
+
+function validateRightContextInspector(guiContract) {
+  assertDeepEqualJson(
+    (guiContract.right_context_inspector?.tabs ?? []).map((tab) => tab.id),
+    appOwnedRightContextInspectorTabIds,
+    'App GUI right context inspector tabs',
+  );
+  for (const [field, expected] of Object.entries(rightInspectorExpected)) {
+    if (guiContract.right_context_inspector?.[field] !== expected) {
+      throw new Error(`App GUI right context inspector ${field} must be ${expected}`);
+    }
+  }
+  for (const forbiddenOwner of rightInspectorForbiddenOwners) {
+    if (!guiContract.right_context_inspector?.must_not_own?.includes(forbiddenOwner)) {
+      throw new Error(`App GUI right context inspector must not own ${forbiddenOwner}`);
+    }
+  }
+}
+
+function validateDefaultAssistants(guiContract) {
+  const assistants = new Map((guiContract.default_assistants ?? []).map((assistant) => [assistant.id, assistant]));
+  for (const assistantId of defaultAssistantIds) {
+    const assistant = assistants.get(assistantId);
+    if (!assistant) {
+      throw new Error(`App GUI contract missing default assistant ${assistantId}`);
+    }
+    if (assistant.home_entry_policy !== 'purpose_entry_target' || assistant.home_entry_display_policy !== 'purpose_first') {
+      throw new Error(`Default assistant ${assistantId} must be a purpose-first entry target`);
+    }
+  }
+  if (assistants.has('oma')) {
+    throw new Error('OMA must not be a default App GUI assistant');
+  }
+  if (assistants.has('mds')) {
+    throw new Error('MDS must not be a default App GUI assistant');
+  }
+}
+
+function validateAssistantSkillProfiles(guiContract) {
+  const skillProfiles = guiContract.assistant_skill_profiles ?? [];
+  assertDeepEqualJson(
+    skillProfiles.map((profile) => profile.assistant_id),
+    defaultAssistantIds,
+    'App GUI contract assistant skill profiles',
+  );
+  for (const profile of skillProfiles) {
+    if (JSON.stringify(profile.required_skills) !== JSON.stringify([profile.assistant_id])) {
+      throw new Error(`App GUI assistant ${profile.assistant_id} must require its matching skill`);
+    }
+    if (
+      profile.required_skill_policy !== 'checked_locked' ||
+      profile.optional_skill_policy !== 'unchecked_user_selectable' ||
+      profile.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
+    ) {
+      throw new Error(`App GUI assistant ${profile.assistant_id} has invalid home skill policy`);
+    }
+    if ('hidden_home_skill_names' in profile) {
+      throw new Error(`App GUI assistant ${profile.assistant_id} must not carry UI hiding policy`);
+    }
+  }
+}
+
+function validatePurposeEntries(guiContract) {
+  const purposeEntries = guiContract.home_purpose_entries ?? [];
+  assertDeepEqualJson(
+    purposeEntries.map((entry) => entry.id),
+    purposeEntryIds,
+    'App GUI contract purpose entries',
+  );
+  assertDeepEqualJson(
+    purposeEntries.map((entry) => entry.target_assistant_id),
+    defaultAssistantIds,
+    'App GUI contract purpose entry targets',
+  );
+  for (const entry of purposeEntries) {
+    if (entry.display_policy !== 'purpose_first' || entry.home_entry_policy !== 'visible_click_to_start') {
+      throw new Error(`App GUI purpose entry ${entry.id} must be purpose-first and click-to-start`);
+    }
+  }
+}
+
+function validateNonDefaultAndRetiredAssistants(guiContract) {
+  const oma = (guiContract.non_default_assistants ?? []).find((assistant) => assistant.id === 'oma');
+  if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
+    throw new Error('App GUI contract must keep OMA available but out of default home entries');
+  }
+  const retiredMds = (guiContract.retired_domain_agents ?? []).find((agent) => agent.id === 'mds');
+  if (retiredMds?.default_display_allowed !== false) {
+    throw new Error('App GUI contract must mark MDS as not default-displayed');
+  }
+}
+
+export function validateGuiProductHomeContract(guiContract) {
+  validateGuiProductIdentity(guiContract);
+  validateExecutorPolicy(guiContract);
+  validateHomeLayout(guiContract);
+  validateRightContextInspector(guiContract);
+  validateDefaultAssistants(guiContract);
+  validateAssistantSkillProfiles(guiContract);
+  validatePurposeEntries(guiContract);
+  validateNonDefaultAndRetiredAssistants(guiContract);
+}
