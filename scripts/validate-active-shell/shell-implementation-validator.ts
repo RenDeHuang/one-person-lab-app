@@ -1,5 +1,4 @@
 import {
-  assertShellTextIncludes,
   readShellText,
 } from './shell-implementation-helpers.ts';
 import {
@@ -9,6 +8,7 @@ import {
 import { validateFirstRunImplementation } from './shell-first-run-validator.ts';
 import { validateShellOrdinaryExperienceImplementation } from './shell-ordinary-experience-validator.ts';
 import { validateShellSettingsAndTeamImplementation } from './shell-settings-and-team-validator.ts';
+import { validateShellSubstrateImplementation } from './shell-substrate-validator.ts';
 import { validateStandardUpdaterImplementation } from './shell-standard-updater-validator.ts';
 
 export function validateActiveShellImplementation(shellPaths) {
@@ -23,184 +23,10 @@ export function validateActiveShellImplementation(shellPaths) {
     ? i18nConfig.supportedLanguages.filter((language) => typeof language === 'string')
     : [];
   const requiresLocale = (language) => supportedLanguages.includes(language);
-  const appStateHook = assertShellTextIncludes(
-    shellPaths,
-    'packages/desktop/src/renderer/hooks/system/useOplAppState.ts',
-    'ipcBridge.oplRuntime.getAppState.invoke({ profile })',
-    'OPL App state hook',
-  );
-  for (const forbidden of ['shell.runOplCommand', 'application.systemInfo']) {
-    if (appStateHook.includes(forbidden)) {
-      throw new Error(`Active shell OPL App state hook must not use ${forbidden}`);
-    }
-  }
-
-  const runtimeBridge = readShellText(shellPaths, 'packages/desktop/src/process/bridge/oplRuntimeBridge.ts');
-  for (const expected of [
-    "args: ['app', 'state', '--profile', profile, '--json']",
-    "args: ['runtime', 'app-operator-drilldown', '--json']",
-    "args: ['runtime', 'app-operator-drilldown', '--detail', 'full', '--json']",
-    "['app', 'action', 'execute', '--action', assertActionId(request.actionId)]",
-  ]) {
-    if (!runtimeBridge.includes(expected)) {
-      throw new Error(`Active shell runtime bridge must implement canonical surface: ${expected}`);
-    }
-  }
-
-  const systemSettings = readShellText(
-    shellPaths,
-    'packages/desktop/src/renderer/components/settings/SettingsModal/contents/SystemModalContent/index.tsx',
-  );
-  for (const expected of [
-    "useOplAppState('fast')",
-    "actionId: 'workspace_root_set'",
-    'workspace_root_path',
-    'selected_path',
-    'logs_dir',
-    'opl_flow_context',
-    'settings.oplFlowContext',
-  ]) {
-    if (!systemSettings.includes(expected)) {
-      throw new Error(`Active shell System settings must implement ${expected}`);
-    }
-  }
-  for (const forbidden of [
-    'application.updateSystemInfo.invoke',
-    'shell.runOplCommand.invoke',
-  ]) {
-    if (systemSettings.includes(forbidden)) {
-      throw new Error(`Active shell System settings must not use legacy OPL truth/action source ${forbidden}`);
-    }
-  }
-  for (const expected of [
-    'const appPaths = oplRecord(appState.paths)',
-    'oplString(appPaths.workspace_root_path)',
-    'oplPathString(appPaths.workspace_root)',
-    'oplString(appPaths.logs_dir)',
-  ]) {
-    if (!systemSettings.includes(expected)) {
-      throw new Error(`Active shell System settings must derive visible OPL paths from app_state.paths: ${expected}`);
-    }
-  }
 
   validateShellVisibleBranding(shellPaths, requiresLocale);
 
-  const zhCnFirstRun = readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-CN/settings.json');
-  for (const [locale, text] of [
-    ['zh-CN', zhCnFirstRun],
-    ...(requiresLocale('zh-TW')
-      ? [
-          [
-            'zh-TW',
-            readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-TW/settings.json'),
-          ],
-        ]
-      : []),
-  ]) {
-    for (const expected of ['"firstRun"', 'One Person Lab', 'Codex']) {
-      if (!text.includes(expected)) {
-        throw new Error(`Active shell ${locale} first-run locale must include ${expected}`);
-      }
-    }
-    const settingsLocale = JSON.parse(text);
-    const firstRunLocaleText = JSON.stringify(settingsLocale.firstRun ?? {});
-    const firstLaunchLocaleText = JSON.stringify(settingsLocale.oplFirstLaunch ?? {});
-    const firstRunSetupText = `${firstRunLocaleText}\n${firstLaunchLocaleText}`;
-    for (const forbidden of [
-      '"title": "Prepare One Person Lab"',
-      '"wizardTitle": "Prepare One Person Lab"',
-      'Checking the essentials',
-      'Ready to start',
-      'Codex API 配置',
-      'Codex API Key',
-      'Codex API Configuration',
-      'Needs setup',
-    ]) {
-      if (firstRunSetupText.includes(forbidden)) {
-        throw new Error(`Active shell ${locale} first-run locale must not expose English fallback ${forbidden}`);
-      }
-    }
-  }
-
-  const zhCnUpdate = readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-CN/update.json');
-  for (const [locale, text] of [
-    ['zh-CN', zhCnUpdate],
-    ...(requiresLocale('zh-TW')
-      ? [
-          [
-            'zh-TW',
-            readShellText(shellPaths, 'packages/desktop/src/renderer/services/i18n/locales/zh-TW/update.json'),
-          ],
-        ]
-      : []),
-  ]) {
-    if (!text.includes('GitHub API')) {
-      throw new Error(`Active shell ${locale} update locale must keep GitHub API error context localized.`);
-    }
-    for (const forbidden of [
-      'GitHub API request failed',
-      'GitHub API response was not a release list',
-      'Update check returned no result',
-    ]) {
-      if (text.includes(forbidden)) {
-        throw new Error(`Active shell ${locale} update locale must not expose English update fallback ${forbidden}`);
-      }
-    }
-  }
-
-  const runtimeSettings = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/settings/RuntimeSettings/index.tsx');
-  for (const expected of [
-    "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })",
-    "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'full' })",
-    "ipcBridge.oplRuntime.getDrilldown.invoke({ detail: 'full' })",
-    'normalizeRuntimeProjection',
-    'payloadRefsOnlyJson',
-  ]) {
-    if (!runtimeSettings.includes(expected)) {
-      throw new Error(`Active shell Runtime settings must implement ${expected}`);
-    }
-  }
-  if (/med[-_ ]?deep[-_ ]?scientist|module_id['"]?\s*:\s*['"]mds['"]/i.test(runtimeSettings)) {
-    throw new Error('Active shell Runtime settings must not default-display Med Deep Scientist/MDS.');
-  }
-
-  const trayStartup = readShellText(shellPaths, 'packages/desktop/src/process/startup/trayStartup.ts');
-  for (const expected of [
-    'export async function initializeTrayForDesktopMode',
-    'deps.createOrUpdateTray()',
-    'deps.destroyTray()',
-    'deps.setCloseToTrayEnabled(false)',
-  ]) {
-    if (!trayStartup.includes(expected)) {
-      throw new Error(`Active shell desktop tray startup must implement App-owned tray policy: ${expected}`);
-    }
-  }
-  if (trayStartup.includes('if (deps.getCloseToTrayEnabled())') || trayStartup.includes('if (getCloseToTrayEnabled())')) {
-    throw new Error('Active shell desktop tray visibility must not be gated on close-to-tray setting.');
-  }
-
-  const desktopMain = readShellText(shellPaths, 'packages/desktop/src/index.ts');
-  for (const expected of [
-    'initializeTrayForDesktopMode',
-    'readCloseToTray: readCloseToTraySetting',
-    'createOrUpdateTray',
-    'destroyTray',
-  ]) {
-    if (!desktopMain.includes(expected)) {
-      throw new Error(`Active shell desktop startup must wire App-owned tray policy: ${expected}`);
-    }
-  }
-  const closeToTraySetting = readShellText(shellPaths, 'packages/desktop/src/process/utils/closeToTraySetting.ts');
-  for (const expected of [
-    "const CLOSE_TO_TRAY_CONFIG_KEY = 'system.closeToTray'",
-    'await ProcessConfig.get(CLOSE_TO_TRAY_CONFIG_KEY)',
-    'await ProcessConfig.set(CLOSE_TO_TRAY_CONFIG_KEY, enabled)',
-  ]) {
-    if (!closeToTraySetting.includes(expected)) {
-      throw new Error(`Active shell close-to-tray settings bridge must preserve App-owned tray preference key: ${expected}`);
-    }
-  }
-
+  validateShellSubstrateImplementation(shellPaths, requiresLocale);
   validateStandardUpdaterImplementation(shellPaths);
   validateFirstRunImplementation(shellPaths);
   validateShellOrdinaryExperienceImplementation(shellPaths);
