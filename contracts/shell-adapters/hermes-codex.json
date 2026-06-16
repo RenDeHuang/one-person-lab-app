@@ -27,6 +27,10 @@
       "opl_candidate_branding",
       "chinese_and_english_copy_via_hermes_i18n",
       "opl_icon_and_bundle_metadata",
+      "macos_icon_safe_margin",
+      "opl_app_managed_bootstrap_for_first_run",
+      "model_access_api_key_configuration",
+      "renderer_safe_profile_config_bootstrap_routes",
       "opl_defaults_seed_for_codex_runtime_and_domain_skills",
       "app_root_explicit_candidate_packaging"
     ],
@@ -108,16 +112,71 @@
       "opl_branding_and_icon_replaced",
       "official_hermes_backend_preserved",
       "opl_defaults_seed_for_codex_runtime_and_domain_skills",
-      "codex_bridge_scope_guard_reference",
+      "codex_app_server_backed_hermes_gateway_adapter",
       "app_owned_gui_product_contract",
       "app_owned_runtime_bridge_contract",
       "app_gui_release_channel_gating",
       "official_hermes_desktop_baseline_first",
       "minimal_opl_branding_i18n_icon_packaging_delta",
+      "opl_app_managed_bootstrap_for_first_run",
+      "model_access_api_key_configuration",
+      "opl_first_run_initialization_owner",
+      "macos_icon_safe_margin",
+      "renderer_safe_profile_config_bootstrap_routes",
       "codex_mas_route_extension_not_backend_replacement",
       "codex_app_wrapper_user_experience_target",
       "hermes_i18n_bilingual_ui",
       "future_webui_same_renderer"
+    ]
+  },
+  "first_run_contract": {
+    "owner": "opl_app_cli",
+    "ui_reuse_policy": "reuse_hermes_onboarding_module_and_progress_ui_only",
+    "forbidden_default_action": "download_or_execute_hermes_agent_installer",
+    "initialization_sequence": [
+      "opl-cli-check",
+      "codex-cli-check",
+      "opl-initialize",
+      "opl-core-setup",
+      "opl-post-setup-check",
+      "opl-model-access",
+      "opl-codex-adapter",
+      "opl-maintenance-schedule",
+      "opl system initialize --json",
+      "opl install --skip-gui-open --skip-modules --skip-native-helper-repair --json",
+      "opl system configure-codex --api-key-stdin --json"
+    ],
+    "deferred_after_adapter_ready_sequence": [
+      "opl system startup-maintenance --json",
+      "opl system reconcile-modules --json"
+    ],
+    "api_key_provider": "gflabtoken",
+    "api_key_command": "opl system configure-codex --api-key-stdin --json",
+    "provider_base_url": "https://gflabtoken.cn/v1",
+    "default_model": "gpt-5.5",
+    "api_key_env": "OPENAI_API_KEY",
+    "api_key_missing_behavior": "show_opl_model_access_onboarding_without_running_hermes_agent_install",
+    "api_key_present_behavior": "auto_continue_to_opl_codex_adapter_without_waiting_for_setup_runtime_check_or_api_key_form",
+    "ready_check": "opl system initialize --json system_initialize.setup_flow.ready_to_launch and core_engines.codex.api_key_present",
+    "packaged_smoke_must_prove": [
+      "no install.sh or install.ps1 fetch or execution",
+      "OPL bootstrap events are emitted",
+      "OPL Codex adapter starts",
+      "missing API key routes to model access onboarding instead of Hermes Agent install",
+      "existing Codex model access configuration auto-skips onboarding",
+      "official Hermes OAuth provider route returns an empty renderer-safe provider list"
+    ]
+  },
+  "icon_contract": {
+    "source": "OPL/AionUI official icon asset family",
+    "macos_safe_margin_required": true,
+    "max_alpha_bounds_px": 900,
+    "current_expected_alpha_bounds_px": "840x840+92+92",
+    "applies_to": [
+      "assets/icon.png",
+      "assets/icon.icns",
+      "public/apple-touch-icon.png",
+      "packaged .app Contents/Resources icon"
     ]
   },
   "validation_commands": [

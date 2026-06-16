@@ -83,6 +83,28 @@ export type ShellAdapterContract = {
     paths: ShellPathContract;
     capabilities: string[];
   };
+  first_run_contract?: {
+    owner: string;
+    ui_reuse_policy: string;
+    forbidden_default_action: string;
+    initialization_sequence: string[];
+    deferred_after_adapter_ready_sequence: string[];
+    api_key_provider: string;
+    api_key_command: string;
+    provider_base_url: string;
+    default_model: string;
+    api_key_env: string;
+    api_key_missing_behavior: string;
+    ready_check: string;
+    packaged_smoke_must_prove: string[];
+  };
+  icon_contract?: {
+    source: string;
+    macos_safe_margin_required: boolean;
+    max_alpha_bounds_px: number;
+    current_expected_alpha_bounds_px: string;
+    applies_to: string[];
+  };
   gui_product_contract: string;
   gui_product_contract_policy: {
     must_implement: boolean;

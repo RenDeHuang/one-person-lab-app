@@ -20,7 +20,8 @@ focused tests 证明行为。不要把产品 IA、runtime truth、model/provider
 `hermes-codex` 是当前最高优先级 Codex-like GUI candidate。它的外部来源是
 `NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；当前路线是
 先回官方 Hermes Desktop 功能基线，再做最小 OPL delta：候选 branding、中文/英文
-copy、图标、bundle metadata、Codex executor adapter 和 explicit candidate package。
+copy、图标、bundle metadata、OPL App-managed first-run、模型访问 API key
+配置、Codex executor adapter 和 explicit candidate package。
 Codex 与 MAS 只作为 executor/agent route 扩展点接入，不全量替换 Hermes backend，
 也不把 OPL runtime truth 搬进 App repo。App state/action、page-state、first-run、
 Full runtime、WebUI parity 等面必须先经过 Hermes 功能对比和 App-owned adoption
@@ -37,6 +38,19 @@ purpose route、中文/英文 copy、图标和打包是薄 delta；provider/back
 概念在普通路径隐藏或收窄。每一项深层改造都必须先回答 upstream 已有什么、OPL 要
 保留/隐藏/替换什么、source of truth 属于谁，以及是否触发 App-owned page-state、
 first-run、runtime bridge 或 release gate。
+
+首次启动属于普通用户路径，不能被视为后置技术细节。Hermes candidate 的理想
+first-run 是：展示 OPL 初始化进度、检查本机 OPL/Codex CLI，并把需要用户输入的
+模型访问 API key 放到最后的访问配置屏。初始化页只展示三项阻塞首启步骤：
+初始化 OPL、检查 OPL 核心组件、配置模型访问；startup maintenance 和 module
+reconcile 在 adapter ready 后后台执行，不进入首启进度。系统语言为中文时，首启
+初始化和访问配置默认显示中文。具体 API key 可来自 gflabtoken，但 UI 主标题使用
+通用“模型访问”，保存时调用 `opl system configure-codex --api-key-stdin --json`。
+这一路径允许沿用 Hermes onboarding 组件的视觉和交互，但不沿用 Hermes Agent 安装
+语义。首次启动完成后应尽快进入 chat-first 主界面；API key 已存在时不得再阻塞在
+provider 选择、模型访问表单、`setup.runtime_check` 超时或 Hermes Agent 安装页。
+`setup.status` 已明确 `provider_configured=true` 时，onboarding 必须自动完成；runtime
+detail 只作为诊断信息，不得作为普通用户首启的阻塞主文案。
 
 ## 产品原则
 
@@ -385,6 +399,10 @@ Codex event stream 和 native-only affordance 的等价状态，但 renderer、i
 - Dark mode 和 light mode 作为成对产品 surface 设计，而不是后期反色。
 - Header route、model status、workspace path、composer status 都是辅助信息，
   视觉权重必须低于 conversation 和 composer input。
+- macOS Dock 图标必须使用 OPL/AionUI 官方图标族并保留安全边距；候选包不得直接
+  使用满幅 Hermes logo 或任何在 Dock 中显著大于其他应用的图标资源。当前
+  `hermes-codex` contract 要求 1024px 图标的 alpha bounds 不超过 900px，
+  当前目标为 `840x840+92+92`。
 - 右侧 inspector 打开后应有清晰分层：session summary、run state、context tabs、
   first-run/runtime/settings/detail cards 之间用 spacing、outline 和标题层级区分。
   它不应像一组同权重 dashboard cards。

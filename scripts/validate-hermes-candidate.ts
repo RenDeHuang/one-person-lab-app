@@ -16,7 +16,10 @@ const requiredWrapperFiles = [
   'UPSTREAM_README.md',
   'electron/main.cjs',
   'electron/opl-defaults.cjs',
+  'electron/opl-bootstrap-runner.cjs',
   'electron/opl-codex-gateway.cjs',
+  'electron/opl-bootstrap-runner.test.cjs',
+  'electron/opl-codex-gateway.test.cjs',
   'scripts/package-opl-candidate-app.cjs',
   'scripts/validate-hermes-codex-candidate.cjs',
 ];
@@ -91,17 +94,26 @@ function main(): void {
   for (const capability of [
     'official_hermes_backend_preserved',
     'opl_defaults_seed_for_codex_runtime_and_domain_skills',
-    'codex_bridge_scope_guard_reference',
+    'codex_app_server_backed_hermes_gateway_adapter',
+    'opl_app_managed_bootstrap_for_first_run',
+    'model_access_api_key_configuration',
+    'opl_first_run_initialization_owner',
+    'macos_icon_safe_margin',
+    'renderer_safe_profile_config_bootstrap_routes',
   ]) {
     if (!adapter.shell_contract.capabilities.includes(capability)) {
       throw new Error(`Hermes adapter must declare ${capability}`);
     }
   }
+  validateFirstRunAndIconContracts(candidate, adapter);
   if (!adapter.deferred_until_feature_comparison?.surfaces?.includes('opl_app_state_action_bridge')) {
     throw new Error('Hermes adapter must defer OPL app state/action bridge until Hermes feature comparison is recorded');
   }
 
   const checkout = resolveHermesCheckout();
+  if (checkout.status === 'available') {
+    validateHermesImplementation(checkout.path);
+  }
   console.log(JSON.stringify({
     status: checkout.status === 'available' ? 'hermes_candidate_contract_valid' : 'hermes_candidate_blocked',
     candidate: candidate.id,
@@ -115,6 +127,143 @@ function main(): void {
     checkout_path: checkout.status === 'available' ? checkout.path : checkout.checkoutPath,
     blockers: checkout.status === 'blocked' ? checkout.blockers : [],
   }, null, 2));
+}
+
+function validateFirstRunAndIconContracts(candidate: ShellCandidateRegistry['candidates'][number], adapter: ReturnType<typeof readAppShellAdapterContract>): void {
+  const expectedSequence = [
+    'opl system initialize --json',
+    'opl install --skip-gui-open --skip-modules --skip-native-helper-repair --json',
+    'opl system configure-codex --api-key-stdin --json',
+  ];
+  const expectedDeferredSequence = [
+    'opl system startup-maintenance --json',
+    'opl system reconcile-modules --json',
+  ];
+  for (const [label, contract] of [
+    ['candidate.first_run_contract', candidate.first_run_contract],
+    ['adapter.first_run_contract', adapter.first_run_contract],
+  ] as const) {
+    if (!contract) throw new Error(`Hermes ${label} must be declared`);
+    if (contract.owner !== 'opl_app_cli') throw new Error(`Hermes ${label}.owner must be opl_app_cli`);
+    if (contract.ui_reuse_policy !== 'reuse_hermes_onboarding_module_and_progress_ui_only') {
+      throw new Error(`Hermes ${label}.ui_reuse_policy must reuse only the Hermes onboarding UI`);
+    }
+    if (contract.forbidden_default_action !== 'download_or_execute_hermes_agent_installer') {
+      throw new Error(`Hermes ${label}.forbidden_default_action must forbid the Hermes Agent installer`);
+    }
+    for (const command of expectedSequence) {
+      if (!contract.initialization_sequence.includes(command)) {
+        throw new Error(`Hermes ${label}.initialization_sequence must include ${command}`);
+      }
+    }
+    for (const command of expectedDeferredSequence) {
+      if (!contract.deferred_after_adapter_ready_sequence.includes(command)) {
+        throw new Error(`Hermes ${label}.deferred_after_adapter_ready_sequence must include ${command}`);
+      }
+    }
+    if (
+      contract.api_key_provider !== 'gflabtoken'
+      || contract.api_key_command !== 'opl system configure-codex --api-key-stdin --json'
+      || contract.provider_base_url !== 'https://gflabtoken.cn/v1'
+      || contract.default_model !== 'gpt-5.5'
+      || contract.api_key_env !== 'OPENAI_API_KEY'
+    ) {
+      throw new Error(`Hermes ${label} must define gflabtoken-backed OpenAI-compatible Codex model access`);
+    }
+    if (contract.api_key_present_behavior !== 'auto_continue_to_opl_codex_adapter_without_waiting_for_setup_runtime_check_or_api_key_form') {
+      throw new Error(`Hermes ${label}.api_key_present_behavior must auto-skip onboarding when Codex model access already exists`);
+    }
+    for (const evidence of [
+      'no install.sh or install.ps1 fetch or execution',
+      'OPL bootstrap events are emitted',
+      'OPL Codex adapter starts',
+      'missing API key routes to model access onboarding instead of Hermes Agent install',
+      'existing Codex model access configuration auto-skips onboarding',
+      'official Hermes OAuth provider route returns an empty renderer-safe provider list',
+    ]) {
+      if (!contract.packaged_smoke_must_prove.includes(evidence)) {
+        throw new Error(`Hermes ${label}.packaged_smoke_must_prove must include ${evidence}`);
+      }
+    }
+  }
+
+  for (const [label, contract] of [
+    ['candidate.icon_contract', candidate.icon_contract],
+    ['adapter.icon_contract', adapter.icon_contract],
+  ] as const) {
+    if (!contract) throw new Error(`Hermes ${label} must be declared`);
+    if (contract.macos_safe_margin_required !== true) throw new Error(`Hermes ${label}.macos_safe_margin_required must be true`);
+    if (contract.max_alpha_bounds_px !== 900) throw new Error(`Hermes ${label}.max_alpha_bounds_px must be 900`);
+    if (contract.current_expected_alpha_bounds_px !== '840x840+92+92') {
+      throw new Error(`Hermes ${label}.current_expected_alpha_bounds_px must be 840x840+92+92`);
+    }
+  }
+}
+
+function readCheckoutFile(checkoutPath: string, relativePath: string): string {
+  const filePath = path.resolve(root, checkoutPath, relativePath);
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+function validateHermesImplementation(checkoutPath: string): void {
+  const mainProcess = readCheckoutFile(checkoutPath, 'electron/main.cjs');
+  const bootstrapRunner = readCheckoutFile(checkoutPath, 'electron/opl-bootstrap-runner.cjs');
+  const gateway = readCheckoutFile(checkoutPath, 'electron/opl-codex-gateway.cjs');
+  const validator = readCheckoutFile(checkoutPath, 'scripts/validate-hermes-codex-candidate.cjs');
+
+  for (const snippet of [
+    'runOplBootstrap',
+    "backend.kind === 'bootstrap-needed'",
+    'OPL App initialization instead of Hermes Agent install',
+    'createOplCodexGateway',
+  ]) {
+    if (!mainProcess.includes(snippet)) {
+      throw new Error(`Hermes main process must include ${snippet}`);
+    }
+  }
+  const oplBootstrapCall = mainProcess.indexOf('await runOplBootstrap');
+  const upstreamBootstrapCall = mainProcess.indexOf('await runBootstrap');
+  if (oplBootstrapCall === -1 || upstreamBootstrapCall === -1 || oplBootstrapCall > upstreamBootstrapCall) {
+    throw new Error('Hermes main process must intercept OPL bootstrap before upstream runBootstrap is used');
+  }
+  for (const snippet of [
+    "'system', 'initialize', '--json'",
+    "'install', '--skip-gui-open', '--skip-modules', '--skip-native-helper-repair', '--json'",
+    "'system', 'startup-maintenance', '--json'",
+    "'system', 'reconcile-modules', '--json'",
+    'maintenanceDeferred',
+    'opl-model-access',
+    'api_key_present',
+  ]) {
+    if (!bootstrapRunner.includes(snippet)) {
+      throw new Error(`Hermes OPL bootstrap runner must include ${snippet}`);
+    }
+  }
+  for (const snippet of [
+    "'system', 'configure-codex', '--api-key-stdin', '--json'",
+    'https://gflabtoken.cn/v1',
+    'gpt-5.5',
+    'OPENAI_API_KEY',
+    "'/api/profiles'",
+    "'/api/config'",
+    'setup.runtime_check',
+  ]) {
+    if (!gateway.includes(snippet)) {
+      throw new Error(`Hermes OPL Codex gateway must include ${snippet}`);
+    }
+  }
+  for (const snippet of [
+    "'magick', ['assets/icon.png', '-alpha', 'extract', '-format', '%@', 'info:']",
+    'icon content must keep macOS Dock safe margin',
+    'maxWidth: 900',
+    'maxHeight: 900',
+    'electron/opl-bootstrap-runner.cjs',
+    'startOplMaintenanceInBackground',
+  ]) {
+    if (!validator.includes(snippet)) {
+      throw new Error(`Hermes candidate validator must include ${snippet}`);
+    }
+  }
 }
 
 try {

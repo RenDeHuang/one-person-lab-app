@@ -562,6 +562,10 @@
           "One Person Lab App candidate branding",
           "Chinese and English copy through Hermes i18n",
           "OPL icon and bundle metadata",
+          "macOS Dock-safe icon margin",
+          "OPL App-managed first-run initialization",
+          "model access API key configuration",
+          "renderer-safe profile and config bootstrap routes",
           "OPL defaults seed for Codex app-server runtime and MAS/MAG/RCA skill dirs",
           "explicit App-root candidate packaging"
         ],
@@ -585,6 +589,56 @@
         "sibling_checkout_command": "OPL_APP_SHELL_ROOT=../opl-hermes-shell OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package"
       },
       "candidate_stage": "upstream_feature_comparison_minimal_opl_adapter",
+      "first_run_contract": {
+        "owner": "opl_app_cli",
+        "ui_reuse_policy": "reuse_hermes_onboarding_module_and_progress_ui_only",
+        "forbidden_default_action": "download_or_execute_hermes_agent_installer",
+        "initialization_sequence": [
+          "opl-cli-check",
+          "codex-cli-check",
+          "opl-initialize",
+          "opl-core-setup",
+          "opl-post-setup-check",
+          "opl-model-access",
+          "opl-codex-adapter",
+          "opl-maintenance-schedule",
+          "opl system initialize --json",
+          "opl install --skip-gui-open --skip-modules --skip-native-helper-repair --json",
+          "opl system configure-codex --api-key-stdin --json"
+        ],
+        "deferred_after_adapter_ready_sequence": [
+          "opl system startup-maintenance --json",
+          "opl system reconcile-modules --json"
+        ],
+        "api_key_provider": "gflabtoken",
+        "api_key_command": "opl system configure-codex --api-key-stdin --json",
+        "provider_base_url": "https://gflabtoken.cn/v1",
+        "default_model": "gpt-5.5",
+        "api_key_env": "OPENAI_API_KEY",
+        "api_key_missing_behavior": "show_opl_model_access_onboarding_without_running_hermes_agent_install",
+        "api_key_present_behavior": "auto_continue_to_opl_codex_adapter_without_waiting_for_setup_runtime_check_or_api_key_form",
+        "ready_check": "opl system initialize --json system_initialize.setup_flow.ready_to_launch and core_engines.codex.api_key_present",
+        "packaged_smoke_must_prove": [
+          "no install.sh or install.ps1 fetch or execution",
+          "OPL bootstrap events are emitted",
+          "OPL Codex adapter starts",
+          "missing API key routes to model access onboarding instead of Hermes Agent install",
+          "existing Codex model access configuration auto-skips onboarding",
+          "official Hermes OAuth provider route returns an empty renderer-safe provider list"
+        ]
+      },
+      "icon_contract": {
+        "source": "OPL/AionUI official icon asset family",
+        "macos_safe_margin_required": true,
+        "max_alpha_bounds_px": 900,
+        "current_expected_alpha_bounds_px": "840x840+92+92",
+        "applies_to": [
+          "assets/icon.png",
+          "assets/icon.icns",
+          "public/apple-touch-icon.png",
+          "packaged .app Contents/Resources icon"
+        ]
+      },
       "target_product_shape": {
         "codex_cli_fixed_executor": true,
         "workspace_directory_picker": true,
@@ -615,12 +669,17 @@
         "opl_branding_and_icon_replaced",
         "official_hermes_backend_preserved",
         "opl_defaults_seed_for_codex_runtime_and_domain_skills",
-        "codex_bridge_scope_guard_reference",
+        "codex_app_server_backed_hermes_gateway_adapter",
         "chat_first_codex_app_surface",
         "release_isolation",
         "candidate_app_bundle_package",
         "official_hermes_desktop_baseline_first",
         "minimal_opl_branding_i18n_icon_packaging_delta",
+        "opl_app_managed_bootstrap_for_first_run",
+        "model_access_api_key_configuration",
+        "opl_first_run_initialization_owner",
+        "macos_icon_safe_margin",
+        "renderer_safe_profile_config_bootstrap_routes",
         "codex_mas_route_extension_not_backend_replacement",
         "codex_app_wrapper_user_experience_target",
         "hermes_i18n_bilingual_ui",
@@ -680,6 +739,11 @@
           "Hermes candidate reports blocked_missing_checkout when neither shells/hermes nor ../opl-hermes-shell exists, or reports missing_wrapper_file blockers when a checkout lacks the minimal candidate files",
           "Hermes candidate preserves upstream Hermes Desktop feature baseline unless a feature comparison explicitly justifies replacement",
           "Hermes candidate replaces upstream branding with One Person Lab App candidate branding before any package acceptance claim",
+          "Hermes candidate first-run reuses Hermes onboarding UI but runs OPL App initialization instead of downloading or executing the Hermes Agent installer",
+          "Hermes candidate writes model access through opl system configure-codex --api-key-stdin --json and does not invent a provider truth store",
+          "Hermes candidate icon uses the official OPL/AionUI icon family with macOS Dock-safe alpha bounds no larger than 900px",
+          "Hermes candidate serves renderer-safe /api/profiles, /api/profiles/active, /api/profiles/sessions, /api/config, /api/config/defaults, and /api/config/schema shapes so the official Hermes UI does not blank on startup",
+          "packaged smoke proves no install.sh or install.ps1 fetch or execution, OPL bootstrap events, OPL Codex adapter startup, and model access onboarding when the API key is missing",
           "Hermes candidate preserves the official Hermes backend and only seeds Codex app-server plus OPL domain skill defaults before any OPL App state/action, page-state, first-run, packaged-runtime, WebUI, or stable release adoption claim",
           "candidate evidence must not claim release-ready, active-shell-adopted, production-ready, or full-release-ready from contract-only validation"
         ]

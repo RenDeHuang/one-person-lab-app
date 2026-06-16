@@ -74,7 +74,10 @@ function candidateBlockers(candidate: { id: string }): Array<{ candidate: string
     'README.md',
     'UPSTREAM_README.md',
     'electron/main.cjs',
+    'electron/opl-bootstrap-runner.cjs',
     'electron/opl-codex-gateway.cjs',
+    'electron/opl-bootstrap-runner.test.cjs',
+    'electron/opl-codex-gateway.test.cjs',
     'scripts/package-opl-candidate-app.cjs',
     'scripts/validate-hermes-codex-candidate.cjs',
   ].filter((relativePath) => !fs.existsSync(path.resolve(root, checkoutPath, relativePath)));

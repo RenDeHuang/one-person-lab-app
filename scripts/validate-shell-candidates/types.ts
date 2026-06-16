@@ -27,6 +27,13 @@ export type ShellCandidate = {
   };
   priority?: string;
   required_replacements?: string[];
+  architecture_policy?: {
+    baseline_order: string[];
+    minimal_delta: string[];
+    extension_points: Record<string, string>;
+    ordinary_user_experience: string;
+    webui_strategy: string;
+  };
   checkout_policy?: {
     primary_path: string;
     accepted_alternate_path: string;
@@ -38,6 +45,29 @@ export type ShellCandidate = {
     missing_checkout_blocker_allowed: boolean;
   };
   candidate_stage?: string;
+  first_run_contract?: {
+    owner: string;
+    ui_reuse_policy: string;
+    forbidden_default_action: string;
+    initialization_sequence: string[];
+    deferred_after_adapter_ready_sequence: string[];
+    api_key_provider: string;
+    api_key_command: string;
+    provider_base_url: string;
+    default_model: string;
+    api_key_env: string;
+    api_key_missing_behavior: string;
+    api_key_present_behavior: string;
+    ready_check: string;
+    packaged_smoke_must_prove: string[];
+  };
+  icon_contract?: {
+    source: string;
+    macos_safe_margin_required: boolean;
+    max_alpha_bounds_px: number;
+    current_expected_alpha_bounds_px: string;
+    applies_to: string[];
+  };
   deferred_until_feature_comparison?: string[];
   codex_app_like_chat_target?: {
     scope: string;

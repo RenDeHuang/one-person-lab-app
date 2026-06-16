@@ -183,10 +183,11 @@ function validateCandidateAuthorityBoundaries(candidate: ShellCandidate): void {
       'opl_branding_and_icon_replaced',
       'official_hermes_backend_preserved',
       'opl_defaults_seed_for_codex_runtime_and_domain_skills',
-      'codex_bridge_scope_guard_reference',
+      'codex_app_server_backed_hermes_gateway_adapter',
       'chat_first_codex_app_surface',
       'release_isolation',
       'candidate_app_bundle_package',
+      'renderer_safe_profile_config_bootstrap_routes',
     ], `${candidate.id}.required_capabilities`);
     assertStringArrayIncludes(candidate.deferred_until_feature_comparison ?? [], [
       'app_product_profile_mapping',
@@ -330,7 +331,13 @@ function validateHermesCandidateContract(candidate: ShellCandidate): void {
     'replace upstream Hermes branding with One Person Lab App candidate branding',
     'seed Codex app-server and OPL domain skill defaults without taking Hermes or OPL runtime authority',
     'use explicit candidate packaging without entering stable release packaging',
+    'keep bilingual copy in the Hermes i18n catalog instead of shell-local mixed-language labels',
   ], `${candidate.id}.required_replacements`);
+  assertStringArrayIncludes(candidate.architecture_policy?.minimal_delta ?? [], [
+    'macOS Dock-safe icon margin',
+    'OPL App-managed first-run initialization',
+    'model access API key configuration',
+  ], `${candidate.id}.architecture_policy.minimal_delta`);
   if (candidate.candidate_stage !== 'upstream_feature_comparison_minimal_opl_adapter') {
     throw new Error(`${candidate.id}.candidate_stage must stay upstream_feature_comparison_minimal_opl_adapter`);
   }
@@ -348,6 +355,83 @@ function validateHermesCandidateContract(candidate: ShellCandidate): void {
   ) {
     throw new Error(`${candidate.id}.build_wrapper must route through the App-root explicit adapter and allow missing-checkout blocker reporting`);
   }
+  validateHermesFirstRunContract(candidate);
+  validateHermesIconContract(candidate);
+}
+
+function validateHermesFirstRunContract(candidate: ShellCandidate): void {
+  const contract = candidate.first_run_contract;
+  if (!contract) {
+    throw new Error(`${candidate.id}.first_run_contract must be declared`);
+  }
+  if (contract.owner !== 'opl_app_cli') {
+    throw new Error(`${candidate.id}.first_run_contract.owner must be opl_app_cli`);
+  }
+  if (contract.ui_reuse_policy !== 'reuse_hermes_onboarding_module_and_progress_ui_only') {
+    throw new Error(`${candidate.id}.first_run_contract.ui_reuse_policy must reuse only the Hermes onboarding UI`);
+  }
+  if (contract.forbidden_default_action !== 'download_or_execute_hermes_agent_installer') {
+    throw new Error(`${candidate.id}.first_run_contract.forbidden_default_action must forbid Hermes Agent installer execution`);
+  }
+  assertStringArrayIncludes(contract.initialization_sequence, [
+    'opl-cli-check',
+    'codex-cli-check',
+    'opl-initialize',
+    'opl-core-setup',
+    'opl-post-setup-check',
+    'opl-model-access',
+    'opl-codex-adapter',
+    'opl-maintenance-schedule',
+    'opl system initialize --json',
+    'opl install --skip-gui-open --skip-modules --skip-native-helper-repair --json',
+    'opl system configure-codex --api-key-stdin --json',
+  ], `${candidate.id}.first_run_contract.initialization_sequence`);
+  assertStringArrayIncludes(contract.deferred_after_adapter_ready_sequence, [
+    'opl system startup-maintenance --json',
+    'opl system reconcile-modules --json',
+  ], `${candidate.id}.first_run_contract.deferred_after_adapter_ready_sequence`);
+  if (
+    contract.api_key_provider !== 'gflabtoken'
+    || contract.api_key_command !== 'opl system configure-codex --api-key-stdin --json'
+    || contract.provider_base_url !== 'https://gflabtoken.cn/v1'
+    || contract.default_model !== 'gpt-5.5'
+    || contract.api_key_env !== 'OPENAI_API_KEY'
+  ) {
+    throw new Error(`${candidate.id}.first_run_contract must define gflabtoken-backed OpenAI-compatible Codex model access`);
+  }
+  if (contract.api_key_present_behavior !== 'auto_continue_to_opl_codex_adapter_without_waiting_for_setup_runtime_check_or_api_key_form') {
+    throw new Error(`${candidate.id}.first_run_contract.api_key_present_behavior must auto-skip onboarding when Codex model access already exists`);
+  }
+  assertStringArrayIncludes(contract.packaged_smoke_must_prove, [
+    'no install.sh or install.ps1 fetch or execution',
+    'OPL bootstrap events are emitted',
+    'OPL Codex adapter starts',
+    'missing API key routes to model access onboarding instead of Hermes Agent install',
+    'existing Codex model access configuration auto-skips onboarding',
+    'official Hermes OAuth provider route returns an empty renderer-safe provider list',
+  ], `${candidate.id}.first_run_contract.packaged_smoke_must_prove`);
+}
+
+function validateHermesIconContract(candidate: ShellCandidate): void {
+  const contract = candidate.icon_contract;
+  if (!contract) {
+    throw new Error(`${candidate.id}.icon_contract must be declared`);
+  }
+  if (contract.source !== 'OPL/AionUI official icon asset family') {
+    throw new Error(`${candidate.id}.icon_contract.source must use the OPL/AionUI official icon asset family`);
+  }
+  if (contract.macos_safe_margin_required !== true) {
+    throw new Error(`${candidate.id}.icon_contract.macos_safe_margin_required must be true`);
+  }
+  if (contract.max_alpha_bounds_px !== 900 || contract.current_expected_alpha_bounds_px !== '840x840+92+92') {
+    throw new Error(`${candidate.id}.icon_contract must require 840x840+92+92 current alpha bounds and max 900px`);
+  }
+  assertStringArrayIncludes(contract.applies_to, [
+    'assets/icon.png',
+    'assets/icon.icns',
+    'public/apple-touch-icon.png',
+    'packaged .app Contents/Resources icon',
+  ], `${candidate.id}.icon_contract.applies_to`);
 }
 
 export function validateCandidateImplementationFiles(candidate: ShellCandidate): void {

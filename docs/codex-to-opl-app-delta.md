@@ -316,13 +316,30 @@ Hermes 不进入默认 stable/nightly release path。
 Hermes 的长期方向是 upstream-first OPL customization：先回官方 Hermes Desktop
 功能基线，以 `apps/desktop` 为明确参考系，跟随其成熟 GUI、Electron packaging、
 files/previews/tool output/settings、i18n 等能力，再把 OPL 的品牌、中文/英文
-copy、图标、Codex executor route、MAS/MAG/RCA purpose routing、runtime refs 和
-release 边界作为薄 delta 接入。Hermes 第一版只做 minimal adapter：
+copy、图标、OPL App-managed first-run、模型访问 API key 配置、Codex executor
+route、MAS/MAG/RCA purpose routing、runtime refs 和 release 边界作为薄 delta 接入。
+Hermes 第一版只做 minimal adapter：
 
 - Branding：用 One Person Lab App candidate 产品名、bundle id 和图标替换上游
   Hermes branding。
 - Bilingual copy：跟随 Hermes i18n catalog 管理中文/英文普通 UI，不在 wrapper
   层硬编码混合语言标签。
+- First-run：复用 Hermes onboarding/progress UI module，但把行为 owner 改成
+  OPL App/OPL CLI。首次启动运行 `opl system initialize --json`，必要时运行
+  `opl install --skip-gui-open --skip-modules --skip-native-helper-repair --json`；
+  模型访问 API key 通过 `opl system configure-codex --api-key-stdin --json`
+  写入，具体 key 可来自 gflabtoken，但 UI 主标题使用通用“模型访问”；
+  API key 已存在时直接进入 OPL Codex adapter，startup maintenance 和 module
+  reconcile 在 adapter ready 后后台执行。这里明确禁止默认下载或执行 Hermes
+  Agent installer，也禁止用维护命令阻塞首次主界面。系统语言为中文时，首启
+  初始化和访问配置默认显示中文。
+- Icon：使用 OPL/AionUI 官方图标族，并生成带 macOS Dock safe margin 的资源；
+  当前 contract 要求 1024px 图标 alpha bounds 不超过 900px，目标为
+  `840x840+92+92`。
+- Renderer bootstrap：fallback Codex adapter 要提供官方 Hermes renderer 启动需要的
+  profile/config/session-list/cron-list 基础 JSON 形状，避免首页、侧栏和 settings
+  空白；这只是默认 profile/config/empty automation 投影，不代表替换完整 Hermes
+  backend。
 - Executor/route adapter：新增 Codex CLI executor route，并把 MAS/MAG/RCA 作为
   Codex conversation 上的 purpose/agent route 扩展点；不全量替换 Hermes backend，
   也不接管 Hermes runtime 或 OPL runtime/domain truth。
@@ -340,6 +357,9 @@ App product profile generated config、`opl app state/action` bridge、
 page-state/first-run matrix mapping、Full packaged runtime、stable release asset
 normalization/verification、WebUI parity 都是 deferred surfaces；必须先完成 Hermes
 原生功能对比，明确保留、替换或隐藏的理由，再进入 App-owned adoption gate。
+但 first-run 的 owner 修正不是 deferred surface：候选包能启动进入 OPL 主界面前，
+必须已经阻断 upstream Hermes Agent installer 路径，并能把缺失 API key 导向
+模型访问 onboarding。
 
 Hermes 的 WebUI parity 目标不是复制一份新前端，而是把 upstream Hermes Desktop 的
 同一套 React/Vite renderer 提供给浏览器访问。Electron desktop 继续通过 preload/IPC
@@ -370,6 +390,9 @@ Hermes WebUI TODO：
   settings、onboarding、i18n、packaging 能力优先保留。
 - **品牌化/命名收敛：** 产品名、图标、bundle id、普通文案和 OPL purpose labels
   由 App repo 定义。
+- **首启初始化：** 使用 Hermes onboarding UI 作为承载，但动作序列来自 OPL CLI；
+  不安装 Hermes Agent，不把 API key 存到 shell 私有 provider truth，不把
+  startup maintenance/reconcile 放在进入主界面前同步等待。
 - **隐藏普通路径不需要的概念：** provider/backend/permission/Hermes runtime 细节
   可进入 diagnostics 或 explicit mode，但不抢占 OPL 普通 home/chat。
 - **必要桥接：** Codex CLI、route receipt、App state/action、runtime refs 等只有

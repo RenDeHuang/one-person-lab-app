@@ -333,7 +333,8 @@ Hermes 的候选策略是 upstream-first，而不是 blank-slate。它应该先�
 Desktop 功能基线，把官方 `apps/desktop` 当成可升级参考系：后续跟随 upstream 时
 记录 ref，对比 `apps/desktop` 和 shared package 变化，再重放 OPL 最小 delta。
 最小 delta 只包括 OPL candidate branding、中文/英文 copy、图标、bundle metadata、
-Codex executor route、MAS/MAG/RCA purpose route 和 explicit candidate wrapper。
+OPL App-managed first-run、模型访问 API key 配置、Codex app-server-backed
+Hermes gateway adapter、MAS/MAG/RCA purpose route 和 explicit candidate wrapper。
 除这些面外，任何新增 OPL surface 都要先说明 upstream 已有能力、OPL 需要保留/隐藏/
 替换什么、truth owner 是谁，以及是否触发 App-owned adoption gate。
 
@@ -351,9 +352,30 @@ Hermes 第一版只替换最小几类上游面，才能声称 minimal candidate 
 
 - Branding：替换为 One Person Lab App candidate 产品名、bundle id 和图标。
 - Bilingual copy：通过 Hermes i18n catalog 管理中文/英文普通 UI。
-- Executor/route adapter：新增 Codex CLI candidate executor route；MAS/MAG/RCA
-  作为 Codex conversation 上的 purpose/agent route 扩展点，而不是独立 backend
-  choices。
+- First-run：复用 Hermes onboarding/progress UI，但实际初始化由 OPL CLI 执行；
+  不下载或执行 Hermes Agent installer。初始化页展示更细的 8 个阶段：
+  检查 One Person Lab CLI、检查 Codex CLI、读取 One Person Lab 状态、准备
+  One Person Lab 核心组件、验证 One Person Lab 初始化结果、检查模型访问、准备
+  Codex desktop adapter、安排后台维护；系统语言为中文时首屏默认中文。
+  缺模型访问 API key 时显示通用的“模型访问”配置，具体 key 可来自 gflabtoken；
+  保存时调用 `opl system configure-codex --api-key-stdin --json`。startup
+  maintenance 和 module reconcile 在 adapter ready 后后台执行，不进入首启进度，
+  也不阻塞主界面。
+- Renderer bootstrap routes：fallback Codex adapter 必须提供 `/api/profiles`、
+  `/api/profiles/active`、`/api/profiles/sessions`、`/api/config`、
+  `/api/config/defaults`、`/api/config/schema` 和 `/api/cron/jobs` 的
+  renderer-safe 形状，避免复用官方 Hermes UI 时首页、侧栏或 settings 因基础数据
+  缺失而空白。这些 route 只提供默认 profile/config/empty automation 投影，不接管
+  完整 Hermes profile/runtime/cron authority。
+- Icon：使用 OPL/AionUI 官方图标族，1024px 资源必须保留 macOS Dock safe margin；
+  当前候选要求 alpha bounds 不超过 900px，目标为 `840x840+92+92`。
+- Executor/route adapter：新增 Hermes-compatible Codex app-server adapter；
+  Hermes UI 继续调用 `session.create` / `prompt.submit`，adapter 内部启动
+  `codex app-server --listen stdio://`，并将 `session.create` 映射到
+  `thread/start`、`prompt.submit` 映射到 `turn/start`、`item/agentMessage/delta`
+  映射成 Hermes `message.delta`、`turn/completed` 映射成 Hermes `message.complete`。
+  MAS/MAG/RCA 作为 Codex conversation 上的 purpose/agent route 扩展点，而不是
+  独立 backend choices。
 - Candidate package wrapper：使用 explicit adapter packaging，不能进入默认
   stable/nightly release packaging。
 
@@ -376,6 +398,10 @@ route 和必要 refs；Hermes backend/runtime/provider 细节只在 Advanced、d
 
 当前 Hermes contract/build wrapper/docs 第一版只表达 candidate 接入和明确 blocker；
 它不表示 release-ready、active-shell-adopted、production-ready 或 full-release-ready。
+但候选包的“能启动并进入 OPL App”必须包含 first-run owner 修正：packaged smoke
+需要证明没有 fetch/execute `install.sh` 或 `install.ps1`，有 OPL bootstrap events，
+有 OPL Codex adapter startup，并且缺 key 时进入模型访问 onboarding；维护命令
+只能作为 adapter ready 后的后台动作。
 
 Hermes WebUI parity TODO：
 
@@ -396,8 +422,10 @@ Hermes 后续 OPL 定制的优先级：
   settings/onboarding、i18n 和 native packaging，只要不冲突。
 - **品牌化/双语：** 产品名、bundle id、图标、普通文案和 OPL purpose labels；
   中文/英文 copy 跟随 Hermes i18n。
-- **桥接：** Codex CLI executor、route receipt、App state/action 和 runtime refs，
-  但必须等对应 App contract/gate 明确。
+- **首启初始化：** 复用 Hermes onboarding UI 承载 OPL 初始化和模型访问配置；
+  不让 Hermes Agent installer 成为默认路径，也不让维护命令阻塞首次进入 chat。
+- **桥接：** Codex app-server adapter、route receipt、App state/action 和
+  runtime refs，但必须等对应 App contract/gate 明确。
 - **WebUI：** 通过同源 React/Vite renderer 加 browser transport adapter 提供
   Docker/WebUI，不复制第二套 UI。
 - **隐藏/收窄：** 普通 OPL 路径不展示 provider/backend/permission/Hermes runtime
