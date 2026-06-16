@@ -17,6 +17,12 @@ thin adapter delta 表达：读取 generated profile、复用 existing primitive
 validation 证明。这样后续跟随 AionUI upstream 或替换为其他 shell 时，迁移的是
 contract implementation，而不是 fork-local 产品逻辑。
 
+对 `hermes-codex` 这样的成熟 upstream candidate，清单里的能力也不应解释为
+“从零设计并重写 Hermes”。Hermes Desktop 已经拥有 chat、文件/预览、工具输出、
+settings、onboarding 和原生打包能力；OPL 的目标是在这条成熟基线上做品牌化、
+Codex CLI 后端桥接、普通路径收窄、必要 OPL 功能接入和 release isolation。能力
+提升前先做 Hermes 原生功能对比，明确哪些保留、隐藏、重命名、替换或延后。
+
 本文是能力清单，不是完整交互细则。理想且不绑定具体 shell 的交互模型看
 [`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md)；
 Codex App 变成 OPL App 的产品增量看
@@ -101,6 +107,13 @@ Web transport bridge 暴露同样 App-owned API shape，使用 HTTP actions 和 
 Codex events。WebUI 是同一 chat-first surface 的 delivery surface，不是拥有
 独立 state 或 authority 的第二个产品。
 
+Hermes Desktop candidate 的 WebUI 要求遵循同源 UI 原则。Hermes upstream renderer
+已经是 React/Vite Web 技术栈；OPL 不应为 Docker/WebUI 另写一套相似界面。正确做法是
+保留同一 renderer 和 App product profile，只把 Electron preload/IPC adapter 替换为
+browser shim + Web server transport。Docker/WebUI 的 server 负责连接 Codex CLI、
+OPL CLI、workspace volume、HTTP/WebSocket/SSE events 和 file/preview APIs；浏览器
+只消费 bridge，不取得 runtime truth 或宿主机任意文件系统 authority。
+
 ## PilotDeck 启发的信息组织
 
 PilotDeck 可作为 interaction 和 visual reference 来学习 information
@@ -136,7 +149,7 @@ authority。
 
 ## Codex App-like 视觉目标与 Stitch 工具边界
 
-`agui-codex` 和未来 shell 的主目标是 Codex App-like chat-first surface：
+`hermes-codex`、`agui-codex` 和未来 shell 的主目标是 Codex App-like chat-first surface：
 中心对话、底部多行 composer、轻量顶部 chrome、窄 icon rail，以及默认收起的
 workspace/session rail 和右侧 inspector。Google Stitch 可以持续作为在线设计
 工具，用来生成草图、校准比例、字体、圆角、留白和视觉层次；它不是唯一参考，
@@ -309,6 +322,78 @@ workbench、表格化 dashboard 或默认右侧 inspector，应只吸收视觉 t
 - 修改 primary chat surface 时，用 visible pixels 证明 source 和 packaged UI
   smoke。
 
+## Hermes Desktop Candidate 投影
+
+`hermes-codex` 是当前最高优先级 Codex-like GUI candidate。它的来源是
+`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT。Hermes 的价值
+在于它比通用 agent dashboard 更接近 Codex-like desktop 形态；但它仍必须通过
+App-owned contracts、adapter 和验证脚本进入 OPL App，不能直接成为 product truth。
+
+Hermes 的候选策略是 upstream-first，而不是 blank-slate。它应该把官方 Hermes
+Desktop 当成可升级参考系：后续跟随 upstream 时记录 ref，对比 `apps/desktop` 和
+shared package 变化，再重放 OPL 最小 delta。除 branding、Codex adapter 和 candidate
+wrapper 外，任何新增 OPL surface 都要先说明 upstream 已有能力、OPL 需要保留/隐藏/
+替换什么、truth owner 是谁，以及是否触发 App-owned adoption gate。
+
+Hermes 第一版接入边界：
+
+- Candidate registry：`contracts/app-shell-candidates.json` 中的 `hermes-codex`。
+- Explicit adapter：`contracts/shell-adapters/hermes-codex.json`。
+- Source checkout：优先 `shells/hermes`；可接受同级外部 checkout
+  `../opl-hermes-shell`；两者都不存在时，验证报告 `blocked_missing_checkout`。
+- Build wrapper：
+  `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package`。
+- Active shell：仍为 AionUI；Hermes 不进入默认 stable/nightly release packaging。
+
+Hermes 第一版只替换最小三类上游面，才能声称 minimal candidate package acceptance：
+
+- Branding：替换为 One Person Lab App candidate 产品名、bundle id 和图标。
+- Backend adapter：新增 Codex CLI candidate adapter，但不接管 Hermes runtime 或
+  OPL runtime authority。
+- Candidate package wrapper：使用 explicit adapter packaging，不能进入默认
+  stable/nightly release packaging。
+
+以下面必须先做 Hermes 原生功能对比，再决定是否进入候选：
+
+- App product profile generated config。
+- `opl app state/action` bridge。
+- App page-state / first-run matrix mapping。
+- Full packaged runtime。
+- Stable release asset normalization / verification。
+- WebUI parity wrapper。
+- 自定义 workspace/session rail、right inspector、Runtime、Memory、Always-On 或
+  其它 workbench-like surface。
+
+当前 Hermes contract/build wrapper/docs 第一版只表达 candidate 接入和明确 blocker；
+它不表示 release-ready、active-shell-adopted、production-ready 或 full-release-ready。
+
+Hermes WebUI parity TODO：
+
+- 盘点 renderer 依赖的 `window.hermesDesktop` 方法，划分 desktop-only、web-equivalent
+  和 unavailable/diagnostic 三类。
+- 定义 browser bridge：保持 App-owned bridge shape，使用 HTTP actions、
+  WebSocket/SSE event stream 和 workspace volume APIs。
+- 实现 Docker/WebUI server wrapper：静态托管同一 renderer，启动/代理 Codex CLI 与
+  OPL state/action，不引入第二 runtime truth。
+- 建立 WebUI smoke：同一 renderer paint、bridge init、Codex turn、workspace/file
+  access、preview/tool output 和 settings 基本路径。
+- 通过 App-owned Docker/WebUI release gates 后，再把 `webui_parity` 从 deferred
+  surfaces 提升为 Hermes candidate capability。
+
+Hermes 后续 OPL 定制的优先级：
+
+- **保留：** upstream Hermes chat-first frame、files/previews、tool output、
+  settings/onboarding 和 native packaging，只要不冲突。
+- **品牌化：** 产品名、bundle id、图标、普通文案和 OPL purpose labels。
+- **桥接：** Codex CLI executor、route receipt、App state/action 和 runtime refs，
+  但必须等对应 App contract/gate 明确。
+- **WebUI：** 通过同源 React/Vite renderer 加 browser transport adapter 提供
+  Docker/WebUI，不复制第二套 UI。
+- **隐藏/收窄：** 普通 OPL 路径不展示 provider/backend/permission/Hermes runtime
+  细节；必要时留在 diagnostics、Advanced 或 explicit mode。
+- **替换：** 只有 upstream 功能与 App-owned truth 冲突，或不能满足 Codex/OPL
+  必需语义时才替换。
+
 ## AG-UI/CopilotKit Candidate 投影
 
 AG-UI/CopilotKit candidate 应使用：
@@ -401,7 +486,7 @@ replacement gate 由下列 owner 承接：
 | --- | --- |
 | Candidate runbook、命令顺序、最低验收、evidence lifecycle | `docs/agui-codex-candidate-verification.md` |
 | Candidate registry、explicit adapter participation、replacement gate、reference implementations | `contracts/app-shell-candidates.json` |
-| Explicit adapter selection and shell root | `contracts/shell-adapters/agui-codex.json` |
+| Explicit adapter selection and shell root | `contracts/shell-adapters/agui-codex.json`; Hermes uses `contracts/shell-adapters/hermes-codex.json` |
 | Candidate registry validation | `scripts/validate-shell-candidates.ts` and `npm run validate:shell-candidates` |
 | Default active-shell guard | `contracts/app-shell-adapter.json` and `scripts/validate-active-shell.ts --quick` |
 | Candidate evidence | candidate manifests, shell artifacts, CI logs, source/WebUI/package smoke, and App-root validation output |
@@ -409,3 +494,8 @@ replacement gate 由下列 owner 承接：
 `agui-codex` 当前仍是 technical verification candidate。默认 release shell 仍是
 AionUI；candidate 只有在 `contracts/app-shell-adapter.json` 被明确修改并通过正常
 release gates 后，才会进入默认 stable/nightly release path。
+
+`hermes-codex` 同样仍是 technical verification candidate，并且当前优先级高于
+AG-UI/CopilotKit candidate。Hermes 缺 checkout 时，验证结果应停在明确 blocker；
+补齐 `shells/hermes` 或 `../opl-hermes-shell` 后，才能继续做 branding/runtime
+bridge/build wrapper 替换和后续 smoke evidence。

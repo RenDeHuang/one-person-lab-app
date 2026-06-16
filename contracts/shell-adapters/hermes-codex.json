@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "owner": "one-person-lab-app",
+  "purpose": "active_shell_adapter",
+  "state": "active",
+  "app_repo": "gaofeng21cn/one-person-lab-app",
+  "active_shell": "hermes-codex",
+  "shell_root": "shells/hermes",
+  "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
+  "upstream_family": "Hermes Agent/Codex",
+  "shell_source": {
+    "owner_repo": "NousResearch/hermes-agent",
+    "default_ref": "main",
+    "checkout_path": "shells/hermes",
+    "history_policy": "external_checkout_not_merged_into_app_default_branch",
+    "upstream_ref": "apps/desktop"
+  },
+  "release_role": "experimental_candidate_shell",
+  "candidate_stage": "upstream_feature_comparison_minimal_opl_adapter",
+  "gui_authority": {
+    "source_of_truth": "one-person-lab-app",
+    "implementation_role": "active_shell_implementation_carrier",
+    "product_contracts": [
+      "contracts/app-gui-product-contract.json",
+      "contracts/app-runtime-bridge.json",
+      "contracts/app-product-profile.json",
+      "contracts/app-install-exposure-policy.json",
+      "contracts/app-page-state-matrix.json",
+      "contracts/app-first-run-test-matrix.json",
+      "contracts/app-release-channel.json"
+    ],
+    "shell_may_own": [
+      "concrete renderer implementation",
+      "process and preload implementation",
+      "shell package metadata",
+      "shell tests and release hooks",
+      "Hermes desktop implementation experiments",
+      "shell-local implementation details",
+      "shell-local tests that prove App contracts are implemented"
+    ],
+    "shell_must_not_own": [
+      "App GUI product truth",
+      "App user-facing page-state authority",
+      "App model-selection policy",
+      "App onboarding policy",
+      "App release/user documentation authority",
+      "App release gate policy",
+      "OPL runtime truth",
+      "domain truth",
+      "provider implementation"
+    ],
+    "upstream_intake_policy": "check_against_app_owned_gui_contracts_before_acceptance"
+  },
+  "shell_replacement_policy": {
+    "candidate_root_pattern": "shells/<candidate>",
+    "candidate_state": "candidate_until_contracts_and_tests_complete",
+    "authority_transfer_allowed": false,
+    "adoption_gate": [
+      "declare candidate in contracts/app-shell-candidates.json",
+      "implement contracts/app-gui-product-contract.json",
+      "sync App product profile into the candidate shell target",
+      "pass App page-state and first-run matrices",
+      "pass App-root active shell validation",
+      "pass GUI package compile through App wrapper",
+      "preserve external checkout history policy"
+    ]
+  },
+  "shell_contract": {
+    "layout_id": "hermes_codex_desktop_bundle",
+    "source_topology": "external_checkout_linked_shell_repo",
+    "implementation_validation": "minimal_opl_branding_and_codex_adapter",
+    "paths": {
+      "package_manifest": "package.json",
+      "agents_guide": "AGENTS.md",
+      "vitest_config": "package.json",
+      "electron_builder_config": "package.json",
+      "build_output_dir": "out",
+      "product_profile_target": "package.json",
+      "packaged_runtime_root": "package.json",
+      "packaged_runtime_validator": "scripts/validate-hermes-codex-candidate.cjs",
+      "release_prepare_script": "scripts/package-opl-candidate-app.cjs",
+      "release_verify_script": "scripts/validate-hermes-codex-candidate.cjs"
+    },
+    "capabilities": [
+      "upstream_hermes_desktop_feature_baseline_preserved",
+      "candidate_app_bundle_package",
+      "opl_branding_and_icon_replaced",
+      "codex_cli_candidate_backend_adapter",
+      "app_owned_gui_product_contract",
+      "app_owned_runtime_bridge_contract",
+      "app_gui_release_channel_gating"
+    ]
+  },
+  "validation_commands": [
+    {
+      "id": "candidate_contract",
+      "cwd": ".",
+      "command": "node --experimental-strip-types scripts/validate-hermes-candidate.ts"
+    },
+    {
+      "id": "candidate_app_bundle_build",
+      "cwd": ".",
+      "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package"
+    }
+  ],
+  "gui_product_contract": "contracts/app-gui-product-contract.json",
+  "gui_product_contract_policy": {
+    "must_implement": true,
+    "source_of_truth": "one-person-lab-app",
+    "upstream_override_allowed": false,
+    "upstream_family_role": "implementation_material_only",
+    "upstream_must_not_override_app_truth": true
+  },
+  "state_surface_contract": {
+    "primary_read_command": "opl app state --profile fast --json",
+    "refresh_read_command": "opl app state --profile fast --json",
+    "full_state_read_command": "opl app state --profile full --json",
+    "full_state_policy": "diagnostic_or_release_evidence_only",
+    "action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+    "full_drilldown_exception": "opl runtime app-operator-drilldown --detail full --json",
+    "forbidden_gui_truth_sources": [
+      "direct opl connect modules --json page aggregation",
+      "direct opl system developer-supervisor page aggregation",
+      "direct opl family-runtime worker status page aggregation",
+      "application.systemInfo as OPL path truth",
+      "application.appVersions as OPL release truth",
+      "direct reads of OPL internal state files"
+    ]
+  },
+  "deferred_until_feature_comparison": {
+    "policy": "do_not_port_old_aionui_or_agui_stable_surfaces_until_hermes_native_feature_comparison_is_recorded",
+    "surfaces": [
+      "opl_app_state_action_bridge",
+      "app_product_profile_generated_config",
+      "page_state_matrix_mapping",
+      "first_run_matrix_mapping",
+      "packaged_full_runtime",
+      "standard_release_asset_normalization",
+      "standard_release_asset_verification",
+      "webui_parity"
+    ]
+  }
+}

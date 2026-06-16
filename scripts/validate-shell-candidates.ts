@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { validateCandidate } from './validate-shell-candidates/candidate-contract.ts';
 import { runCandidateCommands } from './validate-shell-candidates/candidate-evidence.ts';
 import { validateActiveShellUnaffected, validateRegistryShape } from './validate-shell-candidates/registry.ts';
-import { readJson, registryPath } from './validate-shell-candidates/shared.ts';
+import { readJson, registryPath, root } from './validate-shell-candidates/shared.ts';
 import type { ShellCandidateRegistry } from './validate-shell-candidates/types.ts';
 
 export function parseArgs(argv: string[]): { candidate?: string; runCandidateCommands: boolean } {
@@ -48,8 +50,40 @@ function main(): void {
     active_shell_unchanged: registry.active_shell_unchanged,
     candidate_count: candidates.length,
     candidates: candidates.map((candidate) => candidate.id),
+    candidate_blockers: candidates.flatMap(candidateBlockers),
     release_participation: 'explicit_candidate_build_only_until_adopted',
   }, null, 2));
+}
+
+function candidateBlockers(candidate: { id: string }): Array<{ candidate: string; blockers: string[] }> {
+  if (candidate.id !== 'hermes-codex') {
+    return [];
+  }
+  const checkoutPath = ['shells/hermes', '../opl-hermes-shell'].find((entry) => fs.existsSync(path.resolve(root, entry)));
+  if (!checkoutPath) {
+    return [{
+      candidate: candidate.id,
+      blockers: [
+        'missing_shell_checkout:shells/hermes',
+        'missing_shell_checkout:../opl-hermes-shell',
+      ],
+    }];
+  }
+  const missing = [
+    'AGENTS.md',
+    'README.md',
+    'UPSTREAM_README.md',
+    'electron/main.cjs',
+    'electron/opl-codex-gateway.cjs',
+    'scripts/package-opl-candidate-app.cjs',
+    'scripts/validate-hermes-codex-candidate.cjs',
+  ].filter((relativePath) => !fs.existsSync(path.resolve(root, checkoutPath, relativePath)));
+  return missing.length === 0
+    ? []
+    : [{
+      candidate: candidate.id,
+      blockers: missing.map((relativePath) => `missing_wrapper_file:${checkoutPath}/${relativePath}`),
+    }];
 }
 
 try {

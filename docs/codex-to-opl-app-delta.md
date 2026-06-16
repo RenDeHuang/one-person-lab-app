@@ -26,8 +26,15 @@ OPL App 应保留这些预期。下面的增量把 Codex App 专门化为 OPL fa
 
 这些增量属于 App 产品层，不属于 AionUI fork 的永久产品分叉。落地顺序是：
 先在 App contract/profile/matrix 中定义增量，再让 active shell 做薄适配。
-如果以后改用 `agui-codex` 或其他 carrier，同一增量应通过 adapter/profile 迁移，
+如果以后改用 `hermes-codex`、`agui-codex` 或其他 carrier，同一增量应通过 adapter/profile 迁移，
 而不是搬运 AionUI-specific product code。
+
+当 carrier 是 Hermes Desktop 这类成熟通用桌面 Agent GUI 时，迁移策略要更保守：
+先保留 upstream 的成熟功能基线，再把 OPL 增量压成清晰的定制层。OPL 不应一开始
+把 Hermes 改造成一套从零设计的 App，也不应把旧 AionUI/AGUI 稳定线能力直接套上。
+每个新增、隐藏或替换都要先做 Hermes 原生功能对比，并说明这个增量是 branding、
+backend bridge、ordinary UI hiding、App-owned contract adoption，还是 release/runtime
+gate 提升。
 
 ## 增量摘要
 
@@ -77,6 +84,12 @@ OPL App 隐藏或重构通用 agent app 控件：
 
 这样用户看到的是 research、grant、presentation 工作，而不是 backend
 orchestration。
+
+对 Hermes Desktop 这类 upstream shell，优先级是“隐藏或收窄普通路径”，不是删除
+全部上游能力。Provider、模型、Hermes Agent runtime、voice、file preview、settings、
+updater 等功能如果对 OPL 普通路径不合适，先判断它们应被保留在 diagnostics /
+Advanced / explicit mode、被重命名为 OPL 语义，还是暂时隐藏。只有当功能与 Codex
+CLI 固定执行器、App-owned runtime truth 或 release gate 冲突时，才替换实现。
 
 ## OPL Purpose Entries
 
@@ -278,6 +291,8 @@ OPL-specific GUI modules：
 - 证明 page-state 和 first-run matrices。
 - 证明 source 和 packaged UI smoke。
 - 声称 WebUI 时证明 WebUI parity。
+- 声称 Docker/WebUI 时，复用 desktop 同一套 renderer 和 App product profile；
+  只允许 transport adapter 不同，不允许另做第二套 Web UI。
 - 声称 WebUI 或窄桌面可用时，证明 context inspector 打开后不是隐藏 DOM：
   context tabs 与 Routing summary 必须实际可见。
 - 在 adoption 前保持 App release shell selection explicit。
@@ -288,6 +303,74 @@ OPL-specific GUI modules：
 
 一个 shell 只有在 `contracts/app-shell-adapter.json` 被明确提升，且所有
 App-owned gates 通过后，才能成为默认 release shell。
+
+## Hermes Candidate 增量入口
+
+`hermes-codex` 是当前最高优先级 Codex-like GUI candidate。它参考
+`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；App repo 只把
+它作为 technical verification candidate 登记在
+`contracts/app-shell-candidates.json` 和
+`contracts/shell-adapters/hermes-codex.json`。当前 active shell 仍是 AionUI，
+Hermes 不进入默认 stable/nightly release path。
+
+Hermes 的长期方向是 upstream-first OPL customization：以官方 Hermes Desktop 为
+明确参考系，跟随其成熟 GUI、Electron packaging、files/previews/tool output/settings
+等能力，再把 OPL 的品牌、Codex executor、purpose routing、runtime refs 和 release
+边界作为薄 delta 接入。Hermes 第一版只做 minimal adapter：
+
+- Branding：用 One Person Lab App candidate 产品名、bundle id 和图标替换上游
+  Hermes branding。
+- Backend adapter：新增 Codex CLI adapter，但不接管 Hermes runtime 或 OPL
+  runtime/domain truth。
+- Build wrapper：通过
+  `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package`
+  走 App-root explicit candidate packaging，不进入默认 stable/nightly release
+  path。
+
+App product profile generated config、`opl app state/action` bridge、
+page-state/first-run matrix mapping、Full packaged runtime、stable release asset
+normalization/verification、WebUI parity 都是 deferred surfaces；必须先完成 Hermes
+原生功能对比，明确保留、替换或隐藏的理由，再进入 App-owned adoption gate。
+
+Hermes 的 WebUI parity 目标不是复制一份新前端，而是把 upstream Hermes Desktop 的
+同一套 React/Vite renderer 提供给浏览器访问。Electron desktop 继续通过 preload/IPC
+提供 native bridge；Docker/WebUI 需要新增 browser shim 和 Web server，把同等 bridge
+映射到 HTTP/WebSocket/SSE、Codex CLI、OPL CLI 和 workspace volume。功能一致指的是
+OPL 产品工作流一致：chat、workspace、files/previews、tool output、settings、route
+refs 和 runtime refs 语义一致；native file picker、OS notification、window control、
+desktop self-update 等 OS affordance 可以映射为 Web 等价或明确不可用状态。
+
+Hermes WebUI TODO：
+
+- 记录 Hermes renderer 对 `window.hermesDesktop` 的依赖清单，并定义 App-owned
+  browser bridge 兼容层。
+- 实现容器内 Web server：静态托管 renderer，代理 Codex/Hermes gateway 请求，
+  提供 Codex events stream，并连接 OPL state/action。
+- 用 Docker volume/path allowlist 表达 workspace access；WebUI 不直接假设宿主机
+  任意路径可访问。
+- 建立 WebUI smoke：浏览器打开同一 renderer、bridge 初始化、Codex turn、workspace
+  file list/preview、tool output 和核心 settings 均通过。
+- 通过 App release Docker/WebUI gates 后，才能把 Hermes WebUI parity 从 deferred
+  提升为候选能力。
+
+后续任何 Hermes 能力提升都按以下顺序判断：
+
+- **保留 upstream：** Hermes 已有且不冲突的 chat、files、preview、tool output、
+  settings、onboarding、packaging 能力优先保留。
+- **品牌化/命名收敛：** 产品名、图标、bundle id、普通文案和 OPL purpose labels
+  由 App repo 定义。
+- **隐藏普通路径不需要的概念：** provider/backend/permission/Hermes runtime 细节
+  可进入 diagnostics 或 explicit mode，但不抢占 OPL 普通 home/chat。
+- **必要桥接：** Codex CLI、route receipt、App state/action、runtime refs 等只有
+  在对应 App contract/gate 明确后接入。
+- **同源 WebUI：** 复用 Hermes React/Vite renderer，通过 browser transport adapter
+  提供 Docker/WebUI，而不是新建第二套 Web 前端。
+- **替换实现：** 仅当 upstream 功能与 App-owned truth 冲突，或不能满足 Codex/OPL
+  必需语义时才替换。
+
+如果 `shells/hermes` 或 `../opl-hermes-shell` 不存在，Hermes candidate validation
+应报告 `blocked_missing_checkout`，而不是把 contract-only evidence 说成
+release-ready。
 
 ## Non-Goals
 

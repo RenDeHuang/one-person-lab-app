@@ -103,6 +103,8 @@ shells/aionui
 shells/aionui/
 shells/agui-codex
 shells/agui-codex/
+shells/hermes
+shells/hermes/
 !shells/.gitkeep
 
 # IDE and Editor files

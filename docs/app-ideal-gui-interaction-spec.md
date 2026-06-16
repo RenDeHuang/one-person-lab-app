@@ -7,7 +7,7 @@ Machine boundary: 本文是人读交互定义。机器可读 GUI 真相在 `cont
 page-state 矩阵、adapter contracts、源码、发布产物和测试输出中。
 
 本文定义 One Person Lab App 的理想用户交互模型。它不绑定具体 shell。
-AionUI、`agui-codex` 和未来 GUI carrier 都实现这份 App-owned 产品定义，
+AionUI、`agui-codex`、`hermes-codex` 和未来 GUI carrier 都实现这份 App-owned 产品定义，
 不能反过来重新定义它。
 
 当前 active shell 是 AionUI fork。为了后续跟随 upstream 或替换 shell，本文的
@@ -16,6 +16,24 @@ AionUI、`agui-codex` 和未来 GUI carrier 都实现这份 App-owned 产品定�
 routes、组合已有 renderer primitives、调用 App state/action bridge，并用
 focused tests 证明行为。不要把产品 IA、runtime truth、model/provider policy
 或 first-run gates 写成 fork-local authority。
+
+`hermes-codex` 是当前最高优先级 Codex-like GUI candidate。它的外部来源是
+`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；当前只允许做
+minimal adapter：保留 Hermes Desktop 原生功能基线，替换候选 branding，增加
+Codex CLI adapter，并通过 explicit candidate package 产出 `.app`。App
+state/action、page-state、first-run、Full runtime、WebUI parity 等面必须先经过
+Hermes 功能对比和 App-owned adoption gate，不能按旧 AionUI/AGUI 稳定路径直接
+搬运。Hermes candidate 不改变当前 AionUI 默认 release shell，也不表达
+release-ready。
+
+Hermes 路线的产品假设和 AG-UI spike 不同：Hermes Desktop 已经是完整通用桌面
+Agent GUI，具备 chat、workspace/files、preview、tool output、settings、onboarding
+和 native packaging 等基础能力。因此 OPL 对 Hermes 的默认策略不是重新设计一个
+GUI，而是在 upstream 功能基线之上做收敛定制：品牌化、Codex CLI 后端适配、隐藏
+普通用户不需要的 provider/backend/runtime 概念、把必要的 OPL purpose/runtime refs
+接到 App-owned contracts。每一项深层改造都必须先回答 upstream 已有什么、OPL 要
+保留/隐藏/替换什么、source of truth 属于谁，以及是否触发 App-owned page-state、
+first-run、runtime bridge 或 release gate。
 
 ## 产品原则
 
@@ -31,6 +49,12 @@ inspector，而不是把普通第一屏做得很密很重。
 Routing、Always-On 都是重要能力，但它们的默认位置是按需 context surface，
 不是压在 chat 之前的常驻信息墙。用户打开 App 后第一件事应当是继续或发起
 Codex 对话，而不是先读一组面板说明。
+
+对成熟 upstream shell，产品原则还有一条反向约束：能沿用 upstream 的成熟
+chat-first 结构、视觉系统和原生桌面能力时，不从零重写。OPL 定制应该优先表现为
+更窄的普通路径、更清楚的品牌和执行器、更少不必要选择项，以及 App-owned
+contracts 约束下的必要能力增量。只有 upstream 原生功能与 OPL 产品目标冲突，
+或缺少 Codex/OPL 必需语义时，才进入替换或新增。
 
 ## 默认第一屏
 
@@ -310,6 +334,28 @@ WebUI 是同一产品的另一种 delivery surface。
 Desktop 可以使用 native directory picking。WebUI 可以使用显式 path input 或
 App-owned workspace actions，但产品语义保持一致。
 
+Hermes Desktop 路线的 WebUI 设计要求是同源 UI，而不是另做一套 Web app。Hermes
+renderer 本身是 Web 技术栈，Electron 只是 desktop delivery wrapper；因此
+`hermes-codex` 声称 WebUI parity 时，必须复用同一套 React/Vite renderer 和
+App-owned product profile。差异只能在 transport adapter：desktop 通过 Electron
+preload/IPC 暴露 bridge，Docker/WebUI 通过 browser shim 加 HTTP/WebSocket/SSE
+server 暴露同等 bridge。
+
+同源 WebUI 的 TODO：
+
+- 抽象 Hermes renderer 当前依赖的 `window.hermesDesktop` / OPL bridge shape，形成
+  desktop IPC adapter 和 browser transport adapter。
+- WebUI server 在容器内连接 Codex CLI、OPL CLI 和 workspace volume，不在浏览器端
+  直接拥有 runtime 或文件系统 truth。
+- Browser shim 暴露与 desktop 等价的 bridge 方法；native file picker、OS
+  notification、window control、desktop self-update 等 native-only affordance 必须
+  映射成 Web 等价能力、diagnostic 状态或明确不可用状态。
+- Workspace 通过 Docker volume / path allowlist 进入 WebUI；WebUI 不读取未挂载的
+  host path，也不绕过 App-owned workspace policy。
+- WebUI smoke 必须证明同一 renderer、同一 product semantics、bridge 可用、
+  Codex turn 可跑、workspace/files/tool-output 核心路径可用，且没有第二套 product
+  profile、runtime truth 或 release channel。
+
 ## 视觉交互标准
 
 视觉标准是安静、高效的 AI work app：
@@ -386,6 +432,10 @@ renderer 结构变化。
 - 构建通用 multi-agent launcher。
 - 把 AG-UI、ACP 或 app-server protocol frames 暴露成普通产品概念。
 - 让 PilotDeck、AionUI 或任何外部 GUI 成为 product truth。
+- 在 Hermes Desktop 已有成熟功能时，从零重写等价 GUI surface。
+- 未完成 Hermes upstream 功能对比前，把 AionUI/AGUI 稳定线 wrapper、
+  page-state、first-run、Full runtime 或 WebUI parity 迁入 Hermes。
+- 把 Hermes WebUI 做成第二套 renderer、第二套产品信息架构或仅相似外观的 Web app。
 - 在没有 license 和 authority 决策前复制外部源码到 App repo。
 - 默认把 runtime、memory、files 或 automations 变成第一屏 panels。
 - 让 WebUI 定义第二套 App 产品。

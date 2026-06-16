@@ -518,6 +518,177 @@
         "implementation_roadmap_role": "candidate_shell_private_execution_plan_only",
         "adoption_policy": "no_default_release_authority_until_contracts_app_shell_adapter_changes"
       }
+    },
+    {
+      "id": "hermes-codex",
+      "state": "technical_verification",
+      "candidate_root": "shells/hermes",
+      "adapter_contract": "contracts/shell-adapters/hermes-codex.json",
+      "source_topology": "external_checkout_linked_shell_repo",
+      "release_participation": "selectable_for_explicit_candidate_build",
+      "priority": "highest_codex_like_gui_candidate",
+      "source_upstream": {
+        "repo": "NousResearch/hermes-agent",
+        "app_path": "apps/desktop",
+        "license": "MIT"
+      },
+      "implementation_basis": [
+        "Codex-like chat-first desktop target",
+        "NousResearch/hermes-agent apps/desktop",
+        "MIT licensed implementation basis",
+        "Upstream Hermes Desktop feature baseline",
+        "minimal OPL branding and Codex CLI adapter"
+      ],
+      "required_replacements": [
+        "replace upstream Hermes branding with One Person Lab App candidate branding",
+        "add a Codex CLI backend adapter without taking Hermes or OPL runtime authority",
+        "use explicit candidate packaging without entering stable release packaging"
+      ],
+      "checkout_policy": {
+        "primary_path": "shells/hermes",
+        "accepted_alternate_path": "../opl-hermes-shell",
+        "missing_checkout_status": "blocked_missing_checkout"
+      },
+      "build_wrapper": {
+        "adapter_contract": "contracts/shell-adapters/hermes-codex.json",
+        "app_root_command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package",
+        "missing_checkout_blocker_allowed": true,
+        "sibling_checkout_command": "OPL_APP_SHELL_ROOT=../opl-hermes-shell OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package"
+      },
+      "candidate_stage": "upstream_feature_comparison_minimal_opl_adapter",
+      "target_product_shape": {
+        "codex_cli_fixed_executor": true,
+        "workspace_directory_picker": true,
+        "new_conversation_resets_codex_thread": true,
+        "home_executor_selector_visible": false,
+        "home_backend_selector_visible": false,
+        "home_model_selector_visible": true,
+        "permission_mode_selector_visible": false,
+        "workspace_session_rail_default_visible": false,
+        "inspector_default_visible": false,
+        "purpose_entries": [
+          "research",
+          "grant",
+          "ppt"
+        ],
+        "runtime_page_policy": "summary_first_full_detail_on_demand",
+        "settings_policy": "app_state_refs_only"
+      },
+      "framework_surfaces": {
+        "state": "opl app state --profile fast --json",
+        "refresh": "opl app state --profile fast --json",
+        "full_state": "opl app state --profile full --json",
+        "full_drilldown": "opl runtime app-operator-drilldown --detail full --json",
+        "action": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json"
+      },
+      "required_capabilities": [
+        "upstream_hermes_desktop_feature_baseline_preserved",
+        "opl_branding_and_icon_replaced",
+        "codex_cli_candidate_backend_adapter",
+        "chat_first_codex_app_surface",
+        "release_isolation",
+        "candidate_app_bundle_package"
+      ],
+      "deferred_until_feature_comparison": [
+        "app_product_profile_mapping",
+        "opl_app_state_bridge",
+        "opl_app_action_bridge",
+        "page_state_matrix_mapping",
+        "first_run_matrix_mapping",
+        "packaged_full_runtime",
+        "standard_release_asset_normalization",
+        "webui_parity"
+      ],
+      "technical_verification": {
+        "app_root_commands": [
+          {
+            "id": "default_release_shell_guard",
+            "cwd": ".",
+            "command": "node --experimental-strip-types scripts/validate-active-shell.ts --quick"
+          },
+          {
+            "id": "candidate_registry",
+            "cwd": ".",
+            "command": "npm run validate:shell-candidates -- --candidate hermes-codex"
+          },
+          {
+            "id": "candidate_contract_or_blocker",
+            "cwd": ".",
+            "command": "node --experimental-strip-types scripts/validate-hermes-candidate.ts"
+          },
+          {
+            "id": "candidate_app_bundle_build",
+            "cwd": ".",
+            "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package"
+          }
+        ],
+        "candidate_shell_commands": [
+          {
+            "id": "install",
+            "cwd": "shells/hermes",
+            "command": "npm install"
+          },
+          {
+            "id": "source_renderer_build",
+            "cwd": "shells/hermes",
+            "command": "npm run build"
+          }
+        ],
+        "minimum_acceptance": [
+          "default App release adapter still validates as aionui",
+          "candidate registry validates without changing release_shell_contract",
+          "candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT",
+          "Hermes candidate source is NousResearch/hermes-agent apps/desktop under MIT",
+          "Hermes candidate is the highest-priority Codex-like GUI candidate while it remains technical verification only",
+          "Hermes candidate reports blocked_missing_checkout when neither shells/hermes nor ../opl-hermes-shell exists, or reports missing_wrapper_file blockers when a checkout lacks the minimal candidate files",
+          "Hermes candidate preserves upstream Hermes Desktop feature baseline unless a feature comparison explicitly justifies replacement",
+          "Hermes candidate replaces upstream branding with One Person Lab App candidate branding before any package acceptance claim",
+          "Hermes candidate provides a Codex CLI adapter without claiming OPL App state/action, page-state, first-run, packaged-runtime, WebUI, or stable release adoption",
+          "candidate evidence must not claim release-ready, active-shell-adopted, production-ready, or full-release-ready from contract-only validation"
+        ]
+      },
+      "must_not_own": [
+        "App GUI product truth",
+        "App model-selection policy",
+        "App release gate policy",
+        "OPL runtime truth",
+        "provider implementation",
+        "domain truth",
+        "domain quality verdict",
+        "memory body",
+        "artifact body",
+        "artifact authority"
+      ],
+      "forbidden_home_controls": [
+        "generic backend selector",
+        "non-App-owned model override selector",
+        "permission mode selector"
+      ],
+      "validation_commands": [
+        {
+          "id": "candidate_contract",
+          "cwd": ".",
+          "command": "node --experimental-strip-types scripts/validate-hermes-candidate.ts"
+        },
+        {
+          "id": "candidate_app_bundle_build",
+          "cwd": ".",
+          "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package"
+        }
+      ],
+      "non_goals": [
+        "do not switch active_shell away from aionui",
+        "do not enter default stable or nightly release packaging",
+        "do not introduce runtime or domain truth into the App repo",
+        "do not port AionUI/AGUI stable surfaces into Hermes before Hermes feature comparison",
+        "do not claim release-ready from contract-only evidence"
+      ],
+      "product_truth_policy": {
+        "entry_route": "contracts/app-shell-candidates.json plus selectable adapter contract plus validation gates",
+        "ordinary_product_copy_source": "contracts/app-gui-product-contract.json",
+        "implementation_roadmap_role": "candidate_shell_private_execution_plan_only",
+        "adoption_policy": "no_default_release_authority_until_contracts_app_shell_adapter_changes"
+      }
     }
   ]
 }

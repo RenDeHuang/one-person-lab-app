@@ -49,8 +49,10 @@ export function validateContractShape(contract) {
   assertFile(shellPaths.shellRoot, 'active shell root');
   assertFile(shellPaths.packageManifestPath, 'active shell package.json');
   assertFile(shellPaths.agentsGuidePath, 'active shell AGENTS.md');
-  assertFile(shellPaths.vitestConfigPath, 'active shell vitest config');
-  assertFile(shellPaths.electronBuilderConfigPath, 'active shell electron-builder config');
+  if (defaultReleaseAdapter) {
+    assertFile(shellPaths.vitestConfigPath, 'active shell vitest config');
+    assertFile(shellPaths.electronBuilderConfigPath, 'active shell electron-builder config');
+  }
 
   validateValidationCommands(contract, shellPaths, resolveValidationCwd);
 }

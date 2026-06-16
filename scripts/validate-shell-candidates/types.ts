@@ -20,6 +20,25 @@ export type ShellCandidate = {
   source_topology: string;
   release_participation: string;
   implementation_basis: string[];
+  source_upstream?: {
+    repo: string;
+    app_path: string;
+    license: string;
+  };
+  priority?: string;
+  required_replacements?: string[];
+  checkout_policy?: {
+    primary_path: string;
+    accepted_alternate_path: string;
+    missing_checkout_status: string;
+  };
+  build_wrapper?: {
+    adapter_contract: string;
+    app_root_command: string;
+    missing_checkout_blocker_allowed: boolean;
+  };
+  candidate_stage?: string;
+  deferred_until_feature_comparison?: string[];
   codex_app_like_chat_target?: {
     scope: string;
     primary_user_flow: string;

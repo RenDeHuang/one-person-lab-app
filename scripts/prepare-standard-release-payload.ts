@@ -15,6 +15,14 @@ const shellRuntimeRoot = shellPaths.packagedRuntimeRoot;
 const shellBootstrapInstallerPath = path.join(shellPaths.shellRoot, 'resources', 'opl-install.sh');
 
 assertAppRootBoundary({ phase: 'before standard payload preparation' });
+if (shellPaths.contract.active_shell === 'hermes-codex' && shellPaths.contract.release_role === 'experimental_candidate_shell') {
+  console.log(JSON.stringify({
+    status: 'standard_release_payload_skipped_for_hermes_candidate',
+    reason: 'Hermes candidate preserves upstream feature baseline and does not consume AionUI stable payload preparation',
+    shell_root: shellPaths.shellRootForDisplay,
+  }, null, 2));
+  process.exit(0);
+}
 fs.rmSync(path.join(runtimeRoot, 'runtime'), { recursive: true, force: true });
 fs.rmSync(path.join(runtimeRoot, 'manifest'), { recursive: true, force: true });
 fs.mkdirSync(runtimeRoot, { recursive: true });

@@ -87,6 +87,16 @@ function validateCandidateAdapterContract(candidate: ShellCandidate, adapterCont
 }
 
 function validateCandidateImplementationBasis(candidate: ShellCandidate): void {
+  if (candidate.id === 'hermes-codex') {
+    assertStringArrayIncludes(candidate.implementation_basis, [
+      'Codex-like chat-first desktop target',
+      'NousResearch/hermes-agent apps/desktop',
+      'MIT licensed implementation basis',
+      'Upstream Hermes Desktop feature baseline',
+      'minimal OPL branding and Codex CLI adapter',
+    ], `${candidate.id}.implementation_basis`);
+    return;
+  }
   assertStringArrayIncludes(candidate.implementation_basis, [
     'AG-UI event model',
     'shared React/CopilotKit renderer for Electron and WebUI',
@@ -167,6 +177,39 @@ function validateCandidateSeriesDisplayContract(candidate: ShellCandidate): void
 }
 
 function validateCandidateAuthorityBoundaries(candidate: ShellCandidate): void {
+  if (candidate.id === 'hermes-codex') {
+    assertStringArrayIncludes(candidate.required_capabilities, [
+      'upstream_hermes_desktop_feature_baseline_preserved',
+      'opl_branding_and_icon_replaced',
+      'codex_cli_candidate_backend_adapter',
+      'chat_first_codex_app_surface',
+      'release_isolation',
+      'candidate_app_bundle_package',
+    ], `${candidate.id}.required_capabilities`);
+    assertStringArrayIncludes(candidate.deferred_until_feature_comparison ?? [], [
+      'app_product_profile_mapping',
+      'opl_app_state_bridge',
+      'opl_app_action_bridge',
+      'page_state_matrix_mapping',
+      'first_run_matrix_mapping',
+      'packaged_full_runtime',
+      'standard_release_asset_normalization',
+      'webui_parity',
+    ], `${candidate.id}.deferred_until_feature_comparison`);
+    assertStringArrayIncludes(candidate.must_not_own, forbiddenAuthority, `${candidate.id}.must_not_own`);
+    assertStringArrayIncludes(candidate.forbidden_home_controls, [
+      'generic backend selector',
+      'non-App-owned model override selector',
+      'permission mode selector',
+    ], `${candidate.id}.forbidden_home_controls`);
+    assertStringArrayIncludes(candidate.non_goals, [
+      'do not switch active_shell away from aionui',
+      'do not enter default stable or nightly release packaging',
+      'do not introduce runtime or domain truth into the App repo',
+      'do not claim release-ready from contract-only evidence',
+    ], `${candidate.id}.non_goals`);
+    return;
+  }
   assertStringArrayIncludes(candidate.required_capabilities, requiredCapabilities, `${candidate.id}.required_capabilities`);
   assertStringArrayIncludes(candidate.must_not_own, forbiddenAuthority, `${candidate.id}.must_not_own`);
   assertStringArrayIncludes(candidate.forbidden_home_controls, [
@@ -194,6 +237,23 @@ function validateCandidateValidationCommands(candidate: ShellCandidate): void {
   if (!bundleCommand) {
     throw new Error(`${candidate.id} validation_commands must include candidate_app_bundle_build`);
   }
+  if (candidate.id === 'hermes-codex') {
+    if (
+      bundleCommand.cwd !== '.'
+      || !bundleCommand.command.includes(`OPL_APP_SHELL_ADAPTER_CONTRACT=${candidate.adapter_contract} npm run package`)
+    ) {
+      throw new Error(`${candidate.id} candidate_app_bundle_build must run App-root npm package with the Hermes adapter contract`);
+    }
+    const contractCommand = candidate.validation_commands.find((entry) => entry.id === 'candidate_contract');
+    if (
+      !contractCommand
+      || contractCommand.cwd !== '.'
+      || contractCommand.command !== 'node --experimental-strip-types scripts/validate-hermes-candidate.ts'
+    ) {
+      throw new Error(`${candidate.id} validation_commands must include candidate_contract running scripts/validate-hermes-candidate.ts`);
+    }
+    return;
+  }
   const webUiSmokeCommand = candidate.validation_commands.find((entry) => entry.id === 'candidate_webui_smoke');
   if (!webUiSmokeCommand) {
     throw new Error(`${candidate.id} validation_commands must include candidate_webui_smoke`);
@@ -217,6 +277,9 @@ function validateCandidateValidationCommands(candidate: ShellCandidate): void {
 }
 
 function validateCandidatePackageScriptSurfaces(candidate: ShellCandidate): void {
+  if (candidate.id === 'hermes-codex') {
+    return;
+  }
   assertFile(path.join(root, candidate.candidate_root, 'scripts', 'validate-agui-codex-candidate.ts'), `${candidate.id} self-check`);
   assertCandidateFileContains(candidate, 'package.json', [
     '"build:webui"',
@@ -231,6 +294,13 @@ export function validateCandidate(candidate: ShellCandidate): void {
   const adapterContract = readCandidateAdapterContract(candidate);
   validateCandidateAdapterContract(candidate, adapterContract);
   validateCandidateImplementationBasis(candidate);
+  if (candidate.id === 'hermes-codex') {
+    validateHermesCandidateContract(candidate);
+    validateCandidateFrameworkSurfaces(candidate);
+    validateCandidateAuthorityBoundaries(candidate);
+    validateCandidateValidationCommands(candidate);
+    return;
+  }
   validateCandidateChatTarget(candidate);
   validateCandidateWebUiTransport(candidate);
   validateCandidateTargetProductShape(candidate);
@@ -241,6 +311,41 @@ export function validateCandidate(candidate: ShellCandidate): void {
   validateCandidateAuthorityBoundaries(candidate);
   validateCandidateValidationCommands(candidate);
   validateCandidatePackageScriptSurfaces(candidate);
+}
+
+function validateHermesCandidateContract(candidate: ShellCandidate): void {
+  if (candidate.priority !== 'highest_codex_like_gui_candidate') {
+    throw new Error(`${candidate.id}.priority must be highest_codex_like_gui_candidate`);
+  }
+  if (
+    candidate.source_upstream?.repo !== 'NousResearch/hermes-agent'
+    || candidate.source_upstream.app_path !== 'apps/desktop'
+    || candidate.source_upstream.license !== 'MIT'
+  ) {
+    throw new Error(`${candidate.id}.source_upstream must point to NousResearch/hermes-agent apps/desktop under MIT`);
+  }
+  assertStringArrayIncludes(candidate.required_replacements ?? [], [
+    'replace upstream Hermes branding with One Person Lab App candidate branding',
+    'add a Codex CLI backend adapter without taking Hermes or OPL runtime authority',
+    'use explicit candidate packaging without entering stable release packaging',
+  ], `${candidate.id}.required_replacements`);
+  if (candidate.candidate_stage !== 'upstream_feature_comparison_minimal_opl_adapter') {
+    throw new Error(`${candidate.id}.candidate_stage must stay upstream_feature_comparison_minimal_opl_adapter`);
+  }
+  if (
+    candidate.checkout_policy?.primary_path !== 'shells/hermes'
+    || candidate.checkout_policy.accepted_alternate_path !== '../opl-hermes-shell'
+    || candidate.checkout_policy.missing_checkout_status !== 'blocked_missing_checkout'
+  ) {
+    throw new Error(`${candidate.id}.checkout_policy must accept shells/hermes or ../opl-hermes-shell and report blocked_missing_checkout`);
+  }
+  if (
+    candidate.build_wrapper?.adapter_contract !== candidate.adapter_contract
+    || candidate.build_wrapper.app_root_command !== `OPL_APP_SHELL_ADAPTER_CONTRACT=${candidate.adapter_contract} npm run package`
+    || candidate.build_wrapper.missing_checkout_blocker_allowed !== true
+  ) {
+    throw new Error(`${candidate.id}.build_wrapper must route through the App-root explicit adapter and allow missing-checkout blocker reporting`);
+  }
 }
 
 export function validateCandidateImplementationFiles(candidate: ShellCandidate): void {

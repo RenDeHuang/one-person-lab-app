@@ -30,6 +30,7 @@ export type ShellAdapterContract = {
   shell_root: string;
   runtime_bridge_contract: string;
   upstream_family: string;
+  candidate_stage?: string;
   shell_source: {
     owner_repo: string;
     default_ref: string;
@@ -99,6 +100,10 @@ export type ShellAdapterContract = {
     action_command: string;
     full_drilldown_exception: string;
     forbidden_gui_truth_sources: string[];
+  };
+  deferred_until_feature_comparison?: {
+    policy: string;
+    surfaces: string[];
   };
   validation_commands: Array<{
     id: string;
@@ -262,6 +267,18 @@ function assertShellContractPathsAndCapabilities(contract: ShellAdapterContract)
     assertRelativePath(value, `shell_contract.paths.${label}`);
   }
   assertStringArray(contract.shell_contract.capabilities, 'shell_contract.capabilities');
+  if (contract.release_role === 'experimental_candidate_shell') {
+    if (!contract.shell_contract.capabilities.includes('candidate_app_bundle_package')) {
+      throw new Error('candidate shell capabilities must include candidate_app_bundle_package');
+    }
+    if (!contract.shell_contract.capabilities.includes('app_owned_gui_product_contract')) {
+      throw new Error('candidate shell capabilities must keep app_owned_gui_product_contract boundary');
+    }
+    if (!contract.shell_contract.capabilities.includes('app_owned_runtime_bridge_contract')) {
+      throw new Error('candidate shell capabilities must keep app_owned_runtime_bridge_contract boundary');
+    }
+    return;
+  }
   if (!contract.shell_contract.capabilities.includes('app_product_profile_generated_config')) {
     throw new Error('active shell capabilities must include app_product_profile_generated_config');
   }

@@ -89,6 +89,19 @@ export function validateShellReplacementPolicy(contract) {
 }
 
 export function validateShellContractCapabilities(contract) {
+  if (contract.release_role === 'experimental_candidate_shell') {
+    for (const capability of [
+      'candidate_app_bundle_package',
+      'app_owned_gui_product_contract',
+      'app_owned_runtime_bridge_contract',
+      'app_gui_release_channel_gating',
+    ]) {
+      if (!contract.shell_contract.capabilities?.includes(capability)) {
+        throw new Error(`Candidate shell capability missing ${capability}`);
+      }
+    }
+    return;
+  }
   for (const capability of [
     'app_owned_gui_product_contract',
     'app_owned_runtime_bridge_contract',
