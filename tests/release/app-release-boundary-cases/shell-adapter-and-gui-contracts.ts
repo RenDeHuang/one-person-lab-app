@@ -1,6 +1,7 @@
 import {
   assert,
   fs,
+  os,
   path,
   test,
   appRoot,
@@ -12,6 +13,7 @@ import {
   expectedSettingsPageSections,
   runNode,
   readProductProfile,
+  writeExecutable,
 } from './helpers.ts';
 
 test('tag-triggered release workflow stamps package metadata from tag version', () => {
@@ -73,6 +75,82 @@ test('release code-quality uses App active-shell test runner', () => {
     && entry.cwd === '.'
     && entry.command === 'bun run test:full'
   )));
+});
+
+test('active shell test runner opts into shell project test lanes', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-active-shell-tests-'));
+  const shellRoot = path.join(tempRoot, 'shell');
+  const binRoot = path.join(tempRoot, 'bin');
+  const capturePath = path.join(tempRoot, 'bunx-calls.jsonl');
+
+  fs.mkdirSync(path.join(shellRoot, 'tests', 'unit'), { recursive: true });
+  fs.mkdirSync(path.join(shellRoot, 'tests', 'integration'), { recursive: true });
+  fs.writeFileSync(path.join(shellRoot, 'vitest.config.ts'), 'export default {};\n');
+  fs.writeFileSync(path.join(shellRoot, 'tests', 'unit', 'node-example.test.ts'), 'export {};\n');
+  fs.writeFileSync(path.join(shellRoot, 'tests', 'unit', 'dom-example.dom.test.tsx'), 'export {};\n');
+  fs.writeFileSync(path.join(shellRoot, 'tests', 'integration', 'integration-example.test.ts'), 'export {};\n');
+  const realShellRoot = fs.realpathSync(shellRoot);
+  writeExecutable(path.join(binRoot, 'bunx'), `#!/usr/bin/env node
+const fs = require('node:fs');
+fs.appendFileSync(process.env.OPL_ACTIVE_SHELL_TEST_ENV_CAPTURE, JSON.stringify({
+  cwd: process.cwd(),
+  args: process.argv.slice(2),
+  env: {
+    VITEST_INCLUDE_DOM: process.env.VITEST_INCLUDE_DOM || '',
+    VITEST_INCLUDE_INTEGRATION: process.env.VITEST_INCLUDE_INTEGRATION || '',
+  },
+}) + '\\n');
+`);
+
+  const baseEnv = {
+    OPL_APP_SHELL_ROOT: shellRoot,
+    OPL_ACTIVE_SHELL_TEST_ENV_CAPTURE: capturePath,
+    PATH: `${binRoot}${path.delimiter}${process.env.PATH ?? ''}`,
+    VITEST_INCLUDE_DOM: '',
+    VITEST_INCLUDE_INTEGRATION: '',
+  };
+
+  const domResult = runNode([
+    'scripts/run-active-shell-tests.ts',
+    '--project',
+    'dom',
+    '--chunk-size',
+    '8',
+    '--max-workers',
+    '2',
+  ], { env: baseEnv });
+  assert.equal(domResult.status, 0, domResult.stderr || domResult.stdout);
+
+  const [domCall] = fs.readFileSync(capturePath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  assert.equal(domCall.cwd, realShellRoot);
+  assert.deepEqual(domCall.env, {
+    VITEST_INCLUDE_DOM: '1',
+    VITEST_INCLUDE_INTEGRATION: '',
+  });
+  assert.deepEqual(domCall.args.slice(0, 4), ['vitest', 'run', '--project', 'dom']);
+  assert.ok(domCall.args.includes('tests/unit/dom-example.dom.test.tsx'));
+
+  fs.writeFileSync(capturePath, '');
+  const nodeResult = runNode([
+    'scripts/run-active-shell-tests.ts',
+    '--project',
+    'node',
+    '--chunk-size',
+    '8',
+    '--max-workers',
+    '2',
+  ], { env: baseEnv });
+  assert.equal(nodeResult.status, 0, nodeResult.stderr || nodeResult.stdout);
+
+  const [nodeCall] = fs.readFileSync(capturePath, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+  assert.equal(nodeCall.cwd, realShellRoot);
+  assert.deepEqual(nodeCall.env, {
+    VITEST_INCLUDE_DOM: '',
+    VITEST_INCLUDE_INTEGRATION: '1',
+  });
+  assert.deepEqual(nodeCall.args.slice(0, 4), ['vitest', 'run', '--project', 'node']);
+  assert.ok(nodeCall.args.includes('tests/unit/node-example.test.ts'));
+  assert.ok(nodeCall.args.includes('tests/integration/integration-example.test.ts'));
 });
 
 test('release build uses App wrappers for cross-shell active-shell commands', () => {

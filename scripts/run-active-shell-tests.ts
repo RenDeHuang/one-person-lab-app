@@ -129,12 +129,23 @@ function runVitestChunk({ shellRoot, project, files, chunkIndex, chunkCount, fil
   const result = spawnSync('bunx', args, {
     cwd: shellRoot,
     stdio: 'inherit',
-    env: process.env,
+    env: vitestProjectEnv(project),
   });
 
   if (result.status !== 0) {
     throw new Error(`${project} chunk ${chunkIndex + 1}/${chunkCount} failed`);
   }
+}
+
+function vitestProjectEnv(project) {
+  const env = { ...process.env };
+  if (project === 'dom') {
+    env.VITEST_INCLUDE_DOM = '1';
+  }
+  if (project === 'node') {
+    env.VITEST_INCLUDE_INTEGRATION = '1';
+  }
+  return env;
 }
 
 function runProject({ shellRoot, project, files, chunkSize, fileParallelism, maxWorkers, passThrough }) {
