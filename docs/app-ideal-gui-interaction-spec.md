@@ -18,20 +18,23 @@ focused tests 证明行为。不要把产品 IA、runtime truth、model/provider
 或 first-run gates 写成 fork-local authority。
 
 `hermes-codex` 是当前最高优先级 Codex-like GUI candidate。它的外部来源是
-`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；当前只允许做
-minimal adapter：保留 Hermes Desktop 原生功能基线，替换候选 branding，增加
-Codex CLI adapter，并通过 explicit candidate package 产出 `.app`。App
-state/action、page-state、first-run、Full runtime、WebUI parity 等面必须先经过
-Hermes 功能对比和 App-owned adoption gate，不能按旧 AionUI/AGUI 稳定路径直接
-搬运。Hermes candidate 不改变当前 AionUI 默认 release shell，也不表达
-release-ready。
+`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；当前路线是
+先回官方 Hermes Desktop 功能基线，再做最小 OPL delta：候选 branding、中文/英文
+copy、图标、bundle metadata、Codex executor adapter 和 explicit candidate package。
+Codex 与 MAS 只作为 executor/agent route 扩展点接入，不全量替换 Hermes backend，
+也不把 OPL runtime truth 搬进 App repo。App state/action、page-state、first-run、
+Full runtime、WebUI parity 等面必须先经过 Hermes 功能对比和 App-owned adoption
+gate，不能按旧 AionUI/AGUI 稳定路径直接搬运。Hermes candidate 不改变当前 AionUI
+默认 release shell，也不表达 release-ready。
 
 Hermes 路线的产品假设和 AG-UI spike 不同：Hermes Desktop 已经是完整通用桌面
 Agent GUI，具备 chat、workspace/files、preview、tool output、settings、onboarding
 和 native packaging 等基础能力。因此 OPL 对 Hermes 的默认策略不是重新设计一个
-GUI，而是在 upstream 功能基线之上做收敛定制：品牌化、Codex CLI 后端适配、隐藏
-普通用户不需要的 provider/backend/runtime 概念、把必要的 OPL purpose/runtime refs
-接到 App-owned contracts。每一项深层改造都必须先回答 upstream 已有什么、OPL 要
+GUI，而是在 upstream 功能基线之上做收敛定制：普通用户最终体验应像一个套壳
+Codex App，打开 workspace 后直接进行 Codex conversation；Hermes 的通用 agent
+能力留作实现基线和高级/诊断能力。品牌化、Codex CLI executor route、MAS/MAG/RCA
+purpose route、中文/英文 copy、图标和打包是薄 delta；provider/backend/runtime
+概念在普通路径隐藏或收窄。每一项深层改造都必须先回答 upstream 已有什么、OPL 要
 保留/隐藏/替换什么、source of truth 属于谁，以及是否触发 App-owned page-state、
 first-run、runtime bridge 或 release gate。
 
@@ -117,6 +120,13 @@ DOM 已挂载，但 inspector 因响应式 CSS 被隐藏或压成 0 宽的状态
 OPL App 普通界面必须支持中文和英文两套 UI copy。默认语言可以按产品发行策略或
 系统语言选择，但同一屏普通 UI 必须单一语言呈现，不能把中文按钮、英文面板标题和
 英文状态随机混在一起。
+
+Hermes candidate 的双语策略跟随 Hermes i18n 系统。OPL 不应在 adapter、CSS 或
+局部 wrapper 中硬编码一套混合语言 copy；新增中文/英文标签、route names、empty
+states、settings copy 和 diagnostic copy 都应进入 Hermes i18n catalog 或其等价
+translation surface。普通中文界面可以保留 `OPL`、`Codex` 等产品/执行器品牌，但
+不能把 `Codex CLI`、`MAS`、`MAG`、`RCA` 当作普通路径按钮文案；这些缩写只进入
+receipt、technical refs 或 diagnostics。
 
 语言切换是 App frame 的轻量全局控制，不应该变成首页设置条或 first-screen panel。
 切换语言只改变 UI labels、aria labels、empty states、状态文案和普通产品提示，不
@@ -341,6 +351,11 @@ App-owned product profile。差异只能在 transport adapter：desktop 通过 E
 preload/IPC 暴露 bridge，Docker/WebUI 通过 browser shim 加 HTTP/WebSocket/SSE
 server 暴露同等 bridge。
 
+WebUI 的长期目标是 Hermes Desktop renderer 的另一种 delivery surface，不是第二个
+产品或第二套前端。OPL 允许 WebUI transport 处理容器路径、workspace volume、
+Codex event stream 和 native-only affordance 的等价状态，但 renderer、i18n、普通
+信息架构和 App-owned product profile 必须与 desktop 同源。
+
 同源 WebUI 的 TODO：
 
 - 抽象 Hermes renderer 当前依赖的 `window.hermesDesktop` / OPL bridge shape，形成
@@ -433,6 +448,7 @@ renderer 结构变化。
 - 把 AG-UI、ACP 或 app-server protocol frames 暴露成普通产品概念。
 - 让 PilotDeck、AionUI 或任何外部 GUI 成为 product truth。
 - 在 Hermes Desktop 已有成熟功能时，从零重写等价 GUI surface。
+- 把 Codex/MAS 接入解释成全量替换 Hermes backend。
 - 未完成 Hermes upstream 功能对比前，把 AionUI/AGUI 稳定线 wrapper、
   page-state、first-run、Full runtime 或 WebUI parity 迁入 Hermes。
 - 把 Hermes WebUI 做成第二套 renderer、第二套产品信息架构或仅相似外观的 Web app。

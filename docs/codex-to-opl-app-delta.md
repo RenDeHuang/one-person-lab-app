@@ -313,19 +313,28 @@ App-owned gates 通过后，才能成为默认 release shell。
 `contracts/shell-adapters/hermes-codex.json`。当前 active shell 仍是 AionUI，
 Hermes 不进入默认 stable/nightly release path。
 
-Hermes 的长期方向是 upstream-first OPL customization：以官方 Hermes Desktop 为
-明确参考系，跟随其成熟 GUI、Electron packaging、files/previews/tool output/settings
-等能力，再把 OPL 的品牌、Codex executor、purpose routing、runtime refs 和 release
-边界作为薄 delta 接入。Hermes 第一版只做 minimal adapter：
+Hermes 的长期方向是 upstream-first OPL customization：先回官方 Hermes Desktop
+功能基线，以 `apps/desktop` 为明确参考系，跟随其成熟 GUI、Electron packaging、
+files/previews/tool output/settings、i18n 等能力，再把 OPL 的品牌、中文/英文
+copy、图标、Codex executor route、MAS/MAG/RCA purpose routing、runtime refs 和
+release 边界作为薄 delta 接入。Hermes 第一版只做 minimal adapter：
 
 - Branding：用 One Person Lab App candidate 产品名、bundle id 和图标替换上游
   Hermes branding。
-- Backend adapter：新增 Codex CLI adapter，但不接管 Hermes runtime 或 OPL
-  runtime/domain truth。
+- Bilingual copy：跟随 Hermes i18n catalog 管理中文/英文普通 UI，不在 wrapper
+  层硬编码混合语言标签。
+- Executor/route adapter：新增 Codex CLI executor route，并把 MAS/MAG/RCA 作为
+  Codex conversation 上的 purpose/agent route 扩展点；不全量替换 Hermes backend，
+  也不接管 Hermes runtime 或 OPL runtime/domain truth。
 - Build wrapper：通过
   `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package`
   走 App-root explicit candidate packaging，不进入默认 stable/nightly release
   path。
+
+普通用户目标不是暴露一个完整 Hermes 多后端工作台，而是得到一个套壳 Codex App：
+打开 workspace、开始或继续 Codex conversation、按 `科研`/`基金`/`演示` route 工作。
+Hermes 的通用 agent/backend/provider 能力可以保留为 upstream 基线、Advanced 或
+diagnostics，但不能抢占普通 home/chat。
 
 App product profile generated config、`opl app state/action` bridge、
 page-state/first-run matrix mapping、Full packaged runtime、stable release asset
@@ -335,10 +344,12 @@ normalization/verification、WebUI parity 都是 deferred surfaces；必须先�
 Hermes 的 WebUI parity 目标不是复制一份新前端，而是把 upstream Hermes Desktop 的
 同一套 React/Vite renderer 提供给浏览器访问。Electron desktop 继续通过 preload/IPC
 提供 native bridge；Docker/WebUI 需要新增 browser shim 和 Web server，把同等 bridge
-映射到 HTTP/WebSocket/SSE、Codex CLI、OPL CLI 和 workspace volume。功能一致指的是
-OPL 产品工作流一致：chat、workspace、files/previews、tool output、settings、route
-refs 和 runtime refs 语义一致；native file picker、OS notification、window control、
-desktop self-update 等 OS affordance 可以映射为 Web 等价或明确不可用状态。
+映射到 HTTP/WebSocket/SSE、Codex CLI、OPL CLI 和 workspace volume。renderer、
+i18n、普通信息架构和 App product profile 必须同源；差异只允许存在于 transport 和
+native-only affordance 映射。功能一致指的是 OPL 产品工作流一致：chat、workspace、
+files/previews、tool output、settings、route refs 和 runtime refs 语义一致；native
+file picker、OS notification、window control、desktop self-update 等 OS affordance
+可以映射为 Web 等价或明确不可用状态。
 
 Hermes WebUI TODO：
 
@@ -356,13 +367,16 @@ Hermes WebUI TODO：
 后续任何 Hermes 能力提升都按以下顺序判断：
 
 - **保留 upstream：** Hermes 已有且不冲突的 chat、files、preview、tool output、
-  settings、onboarding、packaging 能力优先保留。
+  settings、onboarding、i18n、packaging 能力优先保留。
 - **品牌化/命名收敛：** 产品名、图标、bundle id、普通文案和 OPL purpose labels
   由 App repo 定义。
 - **隐藏普通路径不需要的概念：** provider/backend/permission/Hermes runtime 细节
   可进入 diagnostics 或 explicit mode，但不抢占 OPL 普通 home/chat。
 - **必要桥接：** Codex CLI、route receipt、App state/action、runtime refs 等只有
   在对应 App contract/gate 明确后接入。
+- **路由扩展而非 backend 替换：** Codex 是普通 executor route；MAS/MAG/RCA 是
+  Codex 之上的 purpose/agent route，不是独立 backend choices，也不是重写 Hermes
+  runtime 的理由。
 - **同源 WebUI：** 复用 Hermes React/Vite renderer，通过 browser transport adapter
   提供 Docker/WebUI，而不是新建第二套 Web 前端。
 - **替换实现：** 仅当 upstream 功能与 App-owned truth 冲突，或不能满足 Codex/OPL
@@ -377,6 +391,7 @@ release-ready。
 - 重建 Codex App 本身。
 - 替换 Codex CLI 作为普通 executor。
 - 让 MAS/MAG/RCA 成为独立 backend choices。
+- 全量替换 Hermes backend 来承载 Codex/MAS。
 - 把 OPL runtime/domain truth 移入 App repo。
 - 把 WebUI 提升成第二个产品。
 - 把外部 GUI demo 当成 source/runtime authority。

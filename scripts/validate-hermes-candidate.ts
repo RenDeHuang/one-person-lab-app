@@ -15,6 +15,7 @@ const requiredWrapperFiles = [
   'README.md',
   'UPSTREAM_README.md',
   'electron/main.cjs',
+  'electron/opl-defaults.cjs',
   'electron/opl-codex-gateway.cjs',
   'scripts/package-opl-candidate-app.cjs',
   'scripts/validate-hermes-codex-candidate.cjs',
@@ -87,8 +88,14 @@ function main(): void {
   if (!adapter.shell_contract.capabilities.includes('upstream_hermes_desktop_feature_baseline_preserved')) {
     throw new Error('Hermes adapter must declare upstream Hermes Desktop feature baseline preservation');
   }
-  if (!adapter.shell_contract.capabilities.includes('codex_cli_candidate_backend_adapter')) {
-    throw new Error('Hermes adapter must declare the Codex CLI candidate backend adapter');
+  for (const capability of [
+    'official_hermes_backend_preserved',
+    'opl_defaults_seed_for_codex_runtime_and_domain_skills',
+    'codex_bridge_scope_guard_reference',
+  ]) {
+    if (!adapter.shell_contract.capabilities.includes(capability)) {
+      throw new Error(`Hermes adapter must declare ${capability}`);
+    }
   }
   if (!adapter.deferred_until_feature_comparison?.surfaces?.includes('opl_app_state_action_bridge')) {
     throw new Error('Hermes adapter must defer OPL app state/action bridge until Hermes feature comparison is recorded');

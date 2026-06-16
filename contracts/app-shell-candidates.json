@@ -537,13 +537,42 @@
         "NousResearch/hermes-agent apps/desktop",
         "MIT licensed implementation basis",
         "Upstream Hermes Desktop feature baseline",
-        "minimal OPL branding and Codex CLI adapter"
+        "minimal OPL branding and official Hermes backend defaults seed",
+        "Official Hermes Desktop feature baseline first",
+        "OPL branding, bilingual copy, icon, and packaging as the minimal delta",
+        "Codex and MAS as executor and agent route extension points, not a full Hermes backend replacement",
+        "ordinary user target is a Codex App wrapper experience",
+        "Hermes i18n-backed bilingual UI",
+        "future WebUI from the same Hermes renderer"
       ],
       "required_replacements": [
         "replace upstream Hermes branding with One Person Lab App candidate branding",
-        "add a Codex CLI backend adapter without taking Hermes or OPL runtime authority",
-        "use explicit candidate packaging without entering stable release packaging"
+        "seed Codex app-server and OPL domain skill defaults without taking Hermes or OPL runtime authority",
+        "use explicit candidate packaging without entering stable release packaging",
+        "route Codex and MAS through extension points instead of replacing the Hermes backend wholesale",
+        "keep bilingual copy in the Hermes i18n catalog instead of shell-local mixed-language labels"
       ],
+      "architecture_policy": {
+        "baseline_order": [
+          "restore or rebase onto the official Hermes Desktop apps/desktop feature baseline first",
+          "record the Hermes-native feature comparison before adding OPL-specific surfaces",
+          "apply only the minimal OPL delta after the baseline is observable"
+        ],
+        "minimal_delta": [
+          "One Person Lab App candidate branding",
+          "Chinese and English copy through Hermes i18n",
+          "OPL icon and bundle metadata",
+          "OPL defaults seed for Codex app-server runtime and MAS/MAG/RCA skill dirs",
+          "explicit App-root candidate packaging"
+        ],
+        "extension_points": {
+          "codex": "fixed ordinary executor route through Hermes openai-codex plus codex_app_server defaults",
+          "mas": "agent/purpose route extension through Hermes skills.external_dirs and later App-owned route receipts",
+          "policy": "do not replace the full Hermes backend or runtime to host OPL-specific authority"
+        },
+        "ordinary_user_experience": "wrapped Codex App experience on top of Hermes Desktop, not a generic Hermes workbench with exposed backend choices",
+        "webui_strategy": "future Docker/WebUI uses the same Hermes React/Vite renderer with a browser transport adapter"
+      },
       "checkout_policy": {
         "primary_path": "shells/hermes",
         "accepted_alternate_path": "../opl-hermes-shell",
@@ -584,10 +613,18 @@
       "required_capabilities": [
         "upstream_hermes_desktop_feature_baseline_preserved",
         "opl_branding_and_icon_replaced",
-        "codex_cli_candidate_backend_adapter",
+        "official_hermes_backend_preserved",
+        "opl_defaults_seed_for_codex_runtime_and_domain_skills",
+        "codex_bridge_scope_guard_reference",
         "chat_first_codex_app_surface",
         "release_isolation",
-        "candidate_app_bundle_package"
+        "candidate_app_bundle_package",
+        "official_hermes_desktop_baseline_first",
+        "minimal_opl_branding_i18n_icon_packaging_delta",
+        "codex_mas_route_extension_not_backend_replacement",
+        "codex_app_wrapper_user_experience_target",
+        "hermes_i18n_bilingual_ui",
+        "future_webui_same_renderer"
       ],
       "deferred_until_feature_comparison": [
         "app_product_profile_mapping",
@@ -643,7 +680,7 @@
           "Hermes candidate reports blocked_missing_checkout when neither shells/hermes nor ../opl-hermes-shell exists, or reports missing_wrapper_file blockers when a checkout lacks the minimal candidate files",
           "Hermes candidate preserves upstream Hermes Desktop feature baseline unless a feature comparison explicitly justifies replacement",
           "Hermes candidate replaces upstream branding with One Person Lab App candidate branding before any package acceptance claim",
-          "Hermes candidate provides a Codex CLI adapter without claiming OPL App state/action, page-state, first-run, packaged-runtime, WebUI, or stable release adoption",
+          "Hermes candidate preserves the official Hermes backend and only seeds Codex app-server plus OPL domain skill defaults before any OPL App state/action, page-state, first-run, packaged-runtime, WebUI, or stable release adoption claim",
           "candidate evidence must not claim release-ready, active-shell-adopted, production-ready, or full-release-ready from contract-only validation"
         ]
       },
@@ -681,6 +718,8 @@
         "do not enter default stable or nightly release packaging",
         "do not introduce runtime or domain truth into the App repo",
         "do not port AionUI/AGUI stable surfaces into Hermes before Hermes feature comparison",
+        "do not full-replace the Hermes backend to host Codex or MAS",
+        "do not create a second renderer for WebUI",
         "do not claim release-ready from contract-only evidence"
       ],
       "product_truth_policy": {

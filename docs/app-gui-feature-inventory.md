@@ -329,10 +329,12 @@ workbench、表格化 dashboard 或默认右侧 inspector，应只吸收视觉 t
 在于它比通用 agent dashboard 更接近 Codex-like desktop 形态；但它仍必须通过
 App-owned contracts、adapter 和验证脚本进入 OPL App，不能直接成为 product truth。
 
-Hermes 的候选策略是 upstream-first，而不是 blank-slate。它应该把官方 Hermes
-Desktop 当成可升级参考系：后续跟随 upstream 时记录 ref，对比 `apps/desktop` 和
-shared package 变化，再重放 OPL 最小 delta。除 branding、Codex adapter 和 candidate
-wrapper 外，任何新增 OPL surface 都要先说明 upstream 已有能力、OPL 需要保留/隐藏/
+Hermes 的候选策略是 upstream-first，而不是 blank-slate。它应该先回官方 Hermes
+Desktop 功能基线，把官方 `apps/desktop` 当成可升级参考系：后续跟随 upstream 时
+记录 ref，对比 `apps/desktop` 和 shared package 变化，再重放 OPL 最小 delta。
+最小 delta 只包括 OPL candidate branding、中文/英文 copy、图标、bundle metadata、
+Codex executor route、MAS/MAG/RCA purpose route 和 explicit candidate wrapper。
+除这些面外，任何新增 OPL surface 都要先说明 upstream 已有能力、OPL 需要保留/隐藏/
 替换什么、truth owner 是谁，以及是否触发 App-owned adoption gate。
 
 Hermes 第一版接入边界：
@@ -345,13 +347,21 @@ Hermes 第一版接入边界：
   `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package`。
 - Active shell：仍为 AionUI；Hermes 不进入默认 stable/nightly release packaging。
 
-Hermes 第一版只替换最小三类上游面，才能声称 minimal candidate package acceptance：
+Hermes 第一版只替换最小几类上游面，才能声称 minimal candidate package acceptance：
 
 - Branding：替换为 One Person Lab App candidate 产品名、bundle id 和图标。
-- Backend adapter：新增 Codex CLI candidate adapter，但不接管 Hermes runtime 或
-  OPL runtime authority。
+- Bilingual copy：通过 Hermes i18n catalog 管理中文/英文普通 UI。
+- Executor/route adapter：新增 Codex CLI candidate executor route；MAS/MAG/RCA
+  作为 Codex conversation 上的 purpose/agent route 扩展点，而不是独立 backend
+  choices。
 - Candidate package wrapper：使用 explicit adapter packaging，不能进入默认
   stable/nightly release packaging。
+
+普通用户体验目标是套壳 Codex App，而不是把 Hermes 的通用 backend/provider 工作台
+暴露为 OPL home。用户应看到 workspace-aware chat、Codex conversation、purpose
+route 和必要 refs；Hermes backend/runtime/provider 细节只在 Advanced、diagnostics
+或明确 technical refs 中出现。Codex/MAS 接入是 route/agent extension，不是全量
+替换 Hermes backend。
 
 以下面必须先做 Hermes 原生功能对比，再决定是否进入候选：
 
@@ -383,14 +393,17 @@ Hermes WebUI parity TODO：
 Hermes 后续 OPL 定制的优先级：
 
 - **保留：** upstream Hermes chat-first frame、files/previews、tool output、
-  settings/onboarding 和 native packaging，只要不冲突。
-- **品牌化：** 产品名、bundle id、图标、普通文案和 OPL purpose labels。
+  settings/onboarding、i18n 和 native packaging，只要不冲突。
+- **品牌化/双语：** 产品名、bundle id、图标、普通文案和 OPL purpose labels；
+  中文/英文 copy 跟随 Hermes i18n。
 - **桥接：** Codex CLI executor、route receipt、App state/action 和 runtime refs，
   但必须等对应 App contract/gate 明确。
 - **WebUI：** 通过同源 React/Vite renderer 加 browser transport adapter 提供
   Docker/WebUI，不复制第二套 UI。
 - **隐藏/收窄：** 普通 OPL 路径不展示 provider/backend/permission/Hermes runtime
   细节；必要时留在 diagnostics、Advanced 或 explicit mode。
+- **不替换 backend：** Codex 和 MAS/MAG/RCA 是 executor/purpose/agent route
+  extension，不是重写 Hermes runtime 或拥有 OPL authority 的新 backend。
 - **替换：** 只有 upstream 功能与 App-owned truth 冲突，或不能满足 Codex/OPL
   必需语义时才替换。
 

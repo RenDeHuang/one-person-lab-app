@@ -17,6 +17,27 @@
   },
   "release_role": "experimental_candidate_shell",
   "candidate_stage": "upstream_feature_comparison_minimal_opl_adapter",
+  "architecture_policy": {
+    "baseline_order": [
+      "official_hermes_desktop_feature_baseline_first",
+      "hermes_native_feature_comparison_recorded_before_opl_surface_growth",
+      "minimal_opl_delta_applied_after_baseline_is_observable"
+    ],
+    "minimal_delta": [
+      "opl_candidate_branding",
+      "chinese_and_english_copy_via_hermes_i18n",
+      "opl_icon_and_bundle_metadata",
+      "opl_defaults_seed_for_codex_runtime_and_domain_skills",
+      "app_root_explicit_candidate_packaging"
+    ],
+    "extension_points": {
+      "codex": "fixed ordinary executor route through Hermes openai-codex plus codex_app_server defaults",
+      "mas": "agent and purpose route extension through Hermes skills.external_dirs and later App-owned route receipts",
+      "policy": "extension points must not replace the complete Hermes backend or own OPL runtime truth"
+    },
+    "ordinary_user_experience": "wrapped Codex App experience on top of Hermes Desktop",
+    "webui_strategy": "same Hermes React/Vite renderer with desktop IPC and browser transport adapters"
+  },
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",
     "implementation_role": "active_shell_implementation_carrier",
@@ -68,7 +89,7 @@
   "shell_contract": {
     "layout_id": "hermes_codex_desktop_bundle",
     "source_topology": "external_checkout_linked_shell_repo",
-    "implementation_validation": "minimal_opl_branding_and_codex_adapter",
+    "implementation_validation": "minimal_opl_branding_official_backend_and_defaults_seed",
     "paths": {
       "package_manifest": "package.json",
       "agents_guide": "AGENTS.md",
@@ -85,10 +106,18 @@
       "upstream_hermes_desktop_feature_baseline_preserved",
       "candidate_app_bundle_package",
       "opl_branding_and_icon_replaced",
-      "codex_cli_candidate_backend_adapter",
+      "official_hermes_backend_preserved",
+      "opl_defaults_seed_for_codex_runtime_and_domain_skills",
+      "codex_bridge_scope_guard_reference",
       "app_owned_gui_product_contract",
       "app_owned_runtime_bridge_contract",
-      "app_gui_release_channel_gating"
+      "app_gui_release_channel_gating",
+      "official_hermes_desktop_baseline_first",
+      "minimal_opl_branding_i18n_icon_packaging_delta",
+      "codex_mas_route_extension_not_backend_replacement",
+      "codex_app_wrapper_user_experience_target",
+      "hermes_i18n_bilingual_ui",
+      "future_webui_same_renderer"
     ]
   },
   "validation_commands": [

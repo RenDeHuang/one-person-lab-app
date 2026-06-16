@@ -93,7 +93,7 @@ function validateCandidateImplementationBasis(candidate: ShellCandidate): void {
       'NousResearch/hermes-agent apps/desktop',
       'MIT licensed implementation basis',
       'Upstream Hermes Desktop feature baseline',
-      'minimal OPL branding and Codex CLI adapter',
+      'minimal OPL branding and official Hermes backend defaults seed',
     ], `${candidate.id}.implementation_basis`);
     return;
   }
@@ -181,7 +181,9 @@ function validateCandidateAuthorityBoundaries(candidate: ShellCandidate): void {
     assertStringArrayIncludes(candidate.required_capabilities, [
       'upstream_hermes_desktop_feature_baseline_preserved',
       'opl_branding_and_icon_replaced',
-      'codex_cli_candidate_backend_adapter',
+      'official_hermes_backend_preserved',
+      'opl_defaults_seed_for_codex_runtime_and_domain_skills',
+      'codex_bridge_scope_guard_reference',
       'chat_first_codex_app_surface',
       'release_isolation',
       'candidate_app_bundle_package',
@@ -326,7 +328,7 @@ function validateHermesCandidateContract(candidate: ShellCandidate): void {
   }
   assertStringArrayIncludes(candidate.required_replacements ?? [], [
     'replace upstream Hermes branding with One Person Lab App candidate branding',
-    'add a Codex CLI backend adapter without taking Hermes or OPL runtime authority',
+    'seed Codex app-server and OPL domain skill defaults without taking Hermes or OPL runtime authority',
     'use explicit candidate packaging without entering stable release packaging',
   ], `${candidate.id}.required_replacements`);
   if (candidate.candidate_stage !== 'upstream_feature_comparison_minimal_opl_adapter') {
