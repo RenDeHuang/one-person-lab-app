@@ -1,0 +1,87 @@
+{
+  "schema": "opl_app_release_owner_receipt_record.v1",
+  "owner": "one-person-lab-app release owner",
+  "scope": "same_cohort_app_release_user_path_owner_verdict",
+  "status": "release_owner_receipt_recorded",
+  "version": "26.6.16",
+  "tag": "v26.6.16",
+  "channel": "stable",
+  "release_owner_receipt_ref": "release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.16/receipt-20260616-owner-verdict",
+  "release_owner_verdict_ref": null,
+  "supersedes_typed_blocker_ref": "typed_blocker_ref://one-person-lab-app/release-owner/v26.6.16/verdict-pending",
+  "release_candidate_promote_ready": true,
+  "release_ready_claim": false,
+  "stable_latest_promotion_claim": false,
+  "family_production_ready_claim": false,
+  "can_close_opl_app_release_user_path": true,
+  "reason": "App release owner reviewed same-cohort v26.6.16 release, install, remote verification, Standard clean-VM, Full clean-VM, WebUI, and operator evidence from GitHub Actions refresh run 27613954912 and recorded an owner receipt for the release-owner gate. This receipt authorizes the App release-owner resolution ref path for candidate promotion validation; it does not claim App release-ready, stable/latest publication, OPL family production readiness, or any domain readiness.",
+  "evidence_refs": [
+    "github_actions_run_ref://gaofeng21cn/one-person-lab-app/actions/runs/27613954912",
+    "github_actions_run_ref://gaofeng21cn/one-person-lab-app/actions/runs/27615808579",
+    "github_release_ref://gaofeng21cn/one-person-lab-app/releases/tag/v26.6.16",
+    "release_candidate_record_ref://one-person-lab-app/v26.6.16/run/27613954912",
+    "release_readiness_summary_ref://one-person-lab-app/v26.6.16/run/27613954912",
+    "release_preflight_summary_ref://one-person-lab-app/v26.6.16/run/27613954912",
+    "remote_release_verification_ref://one-person-lab-app/v26.6.16/run/27613954912",
+    "remote_release_verification_ref://one-person-lab-app/v26.6.16/run/27615808579",
+    "homebrew_tap_plan_ref://one-person-lab-app/v26.6.16/promote/27615808579",
+    "install_evidence_ref://one-person-lab-app/release-owner/v26.6.16/install-evidence",
+    "operator_evidence_bundle_ref://one-person-lab-app/v26.6.16"
+  ],
+  "source_artifact_readback": {
+    "source_run_id": "27613954912",
+    "app_commit": "c564597fd5b95f6e63faa24d092cf8dce49fa420",
+    "release_candidate_record_artifact": "release-candidate-record-26.6.16",
+    "release_readiness_summary_artifact": "release-readiness-summary-26.6.16",
+    "release_preflight_summary_artifact": "release-preflight-summary-26.6.16",
+    "remote_release_verification_artifact": "remote-release-verification-26.6.16",
+    "source_sha256": {
+      "release_candidate_record_json": "61166d2b56ab12db03aa127cf1d61a05a2f99dd20e59d828934b694e0f108882",
+      "release_readiness_summary_json": "b7b70e61920579b1b190aec2a6f43c885c69f0a1a05f6549824863d5a17aff5e",
+      "remote_release_verification_json": "7ec348e228297fb4db12b7d01609fd09c7f1fb57cac306ce501e1d0ef29df818"
+    },
+    "source_status": {
+      "preflight": "passed",
+      "readiness": "passed",
+      "remote_verification": "passed"
+    },
+    "release_readiness_failed_required_gate_count": 0,
+    "remote_verified_asset_count": 14,
+    "include_full_package": true,
+    "standard_clean_vm_status": "passed",
+    "full_clean_vm_status": "passed",
+    "full_first_install_budget_status": "passed",
+    "full_dmg_size_status": "warning",
+    "full_dmg_size_bytes": 1108165270,
+    "runtime_uncompressed_bytes": 728207810
+  },
+  "owner_resolution_validation": {
+    "release_candidate_record_sha256": "61166d2b56ab12db03aa127cf1d61a05a2f99dd20e59d828934b694e0f108882",
+    "validator_command": "npm run release:candidate-record:validate -- --record artifacts/release-profiles/v26.6.16/refresh-27613954912/release-candidate-record-26.6.16/release-candidate-record.json --promote-ready --format json",
+    "release_candidate_status": "ready_to_promote",
+    "release_candidate_validator_promote_ready": true,
+    "release_owner_verdict_status": "release_owner_receipt_recorded",
+    "release_owner_resolution_ref_present": true,
+    "validator_errors": []
+  },
+  "promotion_readback": {
+    "promote_run_id": "27615808579",
+    "published_at": "2026-06-16T11:58:50Z",
+    "release_is_draft": false,
+    "release_is_prerelease": false,
+    "promote_run_conclusion": "success",
+    "homebrew_tap_head": "cfca5f62bf78fd6018714571fb70bde359d41b72",
+    "homebrew_standard_clean_vm_status": "passed",
+    "post_promote_remote_verification_sha256": "7ec348e228297fb4db12b7d01609fd09c7f1fb57cac306ce501e1d0ef29df818"
+  },
+  "candidate_record_rebuild_command": "node --experimental-strip-types scripts/write-release-candidate-record.ts --version 26.6.16 --release-mode refresh_existing --include-full-package true --run-vm-smoke true --app-commit c564597fd5b95f6e63faa24d092cf8dce49fa420 --workflow-run-id 27613954912 --preflight <release-preflight-summary.json> --readiness <release-readiness-summary.json> --remote-verification <remote-release-verification.json> --release-owner-receipt-ref release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.16/receipt-20260616-owner-verdict --output <release-candidate-record.json>",
+  "authority_boundary": {
+    "can_claim_app_release_ready_from_evidence": false,
+    "can_claim_stable_latest_from_evidence": false,
+    "can_claim_family_production_ready": false,
+    "can_write_domain_truth": false,
+    "can_sign_domain_owner_receipt": false,
+    "can_claim_domain_ready": false,
+    "can_claim_quality_or_export_ready": false
+  }
+}
