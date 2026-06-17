@@ -130,14 +130,27 @@ function main(): void {
 }
 
 function validateFirstRunAndIconContracts(candidate: ShellCandidateRegistry['candidates'][number], adapter: ReturnType<typeof readAppShellAdapterContract>): void {
-  const expectedSequence = [
-    'opl system initialize --json',
-    'opl install --skip-gui-open --skip-modules --skip-native-helper-repair --json',
-    'opl system configure-codex --api-key-stdin --json',
+  const expectedStartupSequence = [
+    'check-opl-app-initialization-marker',
+    'check-one-person-lab-cli',
+    'check-codex-cli',
+    'check-gflabtoken-model-access',
+    'check-codex-adapter-startup',
   ];
-  const expectedDeferredSequence = [
+  const expectedOneTimeSequence = [
+    'opl-cli-check',
+    'codex-cli-check',
+    'prepare-local-directories-and-config',
+    'opl-core-readiness-check',
+    'opl-core-install-or-repair-when-needed',
+    'write-opl-app-initialization-marker',
+  ];
+  const expectedBackgroundSequence = [
+    'opl system initialize --json',
     'opl system startup-maintenance --json',
     'opl system reconcile-modules --json',
+    'mas_mag_rca_status_refresh',
+    'contracts_diagnostics_refresh',
   ];
   for (const [label, contract] of [
     ['candidate.first_run_contract', candidate.first_run_contract],
@@ -151,33 +164,61 @@ function validateFirstRunAndIconContracts(candidate: ShellCandidateRegistry['can
     if (contract.forbidden_default_action !== 'download_or_execute_hermes_agent_installer') {
       throw new Error(`Hermes ${label}.forbidden_default_action must forbid the Hermes Agent installer`);
     }
-    for (const command of expectedSequence) {
-      if (!contract.initialization_sequence.includes(command)) {
-        throw new Error(`Hermes ${label}.initialization_sequence must include ${command}`);
+    if (contract.startup_model !== 'lightweight_startup_check_then_chat_first') {
+      throw new Error(`Hermes ${label}.startup_model must be lightweight_startup_check_then_chat_first`);
+    }
+    for (const step of expectedStartupSequence) {
+      if (!contract.startup_check_sequence.includes(step)) {
+        throw new Error(`Hermes ${label}.startup_check_sequence must include ${step}`);
       }
     }
-    for (const command of expectedDeferredSequence) {
-      if (!contract.deferred_after_adapter_ready_sequence.includes(command)) {
-        throw new Error(`Hermes ${label}.deferred_after_adapter_ready_sequence must include ${command}`);
+    for (const step of [
+      'missing-opl-app-initialization-marker',
+      'stale-opl-app-initialization-marker',
+      'missing-one-person-lab-core-components',
+    ]) {
+      if (!contract.one_time_initialization_trigger.includes(step)) {
+        throw new Error(`Hermes ${label}.one_time_initialization_trigger must include ${step}`);
+      }
+    }
+    for (const step of expectedOneTimeSequence) {
+      if (!contract.one_time_initialization_sequence.includes(step)) {
+        throw new Error(`Hermes ${label}.one_time_initialization_sequence must include ${step}`);
+      }
+    }
+    for (const step of expectedBackgroundSequence) {
+      if (!contract.background_refresh_sequence.includes(step)) {
+        throw new Error(`Hermes ${label}.background_refresh_sequence must include ${step}`);
       }
     }
     if (
-      contract.api_key_provider !== 'gflabtoken'
-      || contract.api_key_command !== 'opl system configure-codex --api-key-stdin --json'
-      || contract.provider_base_url !== 'https://gflabtoken.cn/v1'
-      || contract.default_model !== 'gpt-5.5'
-      || contract.api_key_env !== 'OPENAI_API_KEY'
+      contract.model_access_wizard?.trigger !== 'missing_or_invalid_gflabtoken_api_key_or_model_access_unavailable'
+      || contract.model_access_wizard.api_key_provider !== 'gflabtoken'
+      || contract.model_access_wizard.api_key_command !== 'opl system configure-codex --api-key-stdin --json'
+      || contract.model_access_wizard.provider_base_url !== 'https://gflabtoken.cn/v1'
+      || contract.model_access_wizard.default_model !== 'gpt-5.5'
+      || contract.model_access_wizard.api_key_env !== 'OPENAI_API_KEY'
+      || contract.model_access_wizard.ordinary_ui_policy !== 'show_only_model_access_api_key_no_base_url_provider_marketplace_or_oauth_accounts'
     ) {
-      throw new Error(`Hermes ${label} must define gflabtoken-backed OpenAI-compatible Codex model access`);
+      throw new Error(`Hermes ${label}.model_access_wizard must define gflabtoken-only Codex model access`);
+    }
+    if (contract.blocking_policy !== 'full_opl_initialize_and_module_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes') {
+      throw new Error(`Hermes ${label}.blocking_policy must keep full initialize out of hot launch`);
     }
     if (contract.api_key_present_behavior !== 'auto_continue_to_opl_codex_adapter_without_waiting_for_setup_runtime_check_or_api_key_form') {
       throw new Error(`Hermes ${label}.api_key_present_behavior must auto-skip onboarding when Codex model access already exists`);
     }
+    if (contract.ready_check !== 'lightweight startup check: initialization marker fresh, core components discoverable, Codex CLI available, model access configured, Codex adapter startable') {
+      throw new Error(`Hermes ${label}.ready_check must describe the lightweight startup check`);
+    }
     for (const evidence of [
       'no install.sh or install.ps1 fetch or execution',
-      'OPL bootstrap events are emitted',
+      'hot launch with fresh marker and model access does not run blocking full opl system initialize',
+      'missing or stale marker routes to the OPL one-time initialization checklist',
+      'one-time initialization writes or refreshes the OPL App initialization marker',
+      'missing API key routes to model access wizard without showing the installation checklist',
+      'background OPL status refresh starts only after the main chat surface is visible',
       'OPL Codex adapter starts',
-      'missing API key routes to model access onboarding instead of Hermes Agent install',
       'existing Codex model access configuration auto-skips onboarding',
       'official Hermes OAuth provider route returns an empty renderer-safe provider list',
     ]) {
@@ -232,7 +273,7 @@ function validateHermesImplementation(checkoutPath: string): void {
     "'system', 'startup-maintenance', '--json'",
     "'system', 'reconcile-modules', '--json'",
     'maintenanceDeferred',
-    'opl-model-access',
+    "route: 'model-access'",
     'api_key_present',
   ]) {
     if (!bootstrapRunner.includes(snippet)) {

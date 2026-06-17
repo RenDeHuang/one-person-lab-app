@@ -39,18 +39,19 @@ purpose route、中文/英文 copy、图标和打包是薄 delta；provider/back
 保留/隐藏/替换什么、source of truth 属于谁，以及是否触发 App-owned page-state、
 first-run、runtime bridge 或 release gate。
 
-首次启动属于普通用户路径，不能被视为后置技术细节。Hermes candidate 的理想
-first-run 是：展示 OPL 初始化进度、检查本机 OPL/Codex CLI，并把需要用户输入的
-模型访问 API key 放到最后的访问配置屏。初始化页只展示三项阻塞首启步骤：
-初始化 OPL、检查 OPL 核心组件、配置模型访问；startup maintenance 和 module
-reconcile 在 adapter ready 后后台执行，不进入首启进度。系统语言为中文时，首启
-初始化和访问配置默认显示中文。具体 API key 可来自 gflabtoken，但 UI 主标题使用
-通用“模型访问”，保存时调用 `opl system configure-codex --api-key-stdin --json`。
-这一路径允许沿用 Hermes onboarding 组件的视觉和交互，但不沿用 Hermes Agent 安装
-语义。首次启动完成后应尽快进入 chat-first 主界面；API key 已存在时不得再阻塞在
-provider 选择、模型访问表单、`setup.runtime_check` 超时或 Hermes Agent 安装页。
-`setup.status` 已明确 `provider_configured=true` 时，onboarding 必须自动完成；runtime
-detail 只作为诊断信息，不得作为普通用户首启的阻塞主文案。
+启动与首启属于普通用户路径，不能被视为后置技术细节。Hermes candidate 的理想
+路径拆成四条线：每次启动只做轻量启动检查；只有 marker 缺失、marker 过旧或核心
+组件缺失时才进入一次性本机初始化 checklist；缺少或无法验证 gflabtoken API key
+时进入单独的“模型访问”配置向导；`opl system initialize --json`、module scan、
+MAS/MAG/RCA 状态和 contract diagnostics 在主界面打开后后台异步刷新。系统语言为
+中文时，首启初始化和访问配置默认显示中文。具体 API key 可来自 gflabtoken，但 UI
+主标题使用通用“模型访问”，保存时调用
+`opl system configure-codex --api-key-stdin --json`。这一路径允许沿用 Hermes
+onboarding/checklist 组件的视觉和交互，但不沿用 Hermes Agent 安装语义，也不把
+full OPL 状态审计当作热启动首页 gate。轻量检查通过且 API key 已存在时必须直接
+进入 chat-first 主界面；缺 key 时不得显示本机安装 checklist；`setup.status` 已明确
+`provider_configured=true` 时，onboarding 必须自动完成；runtime detail 只作为诊断
+信息，不得作为普通用户首启的阻塞主文案。
 
 ## 产品原则
 

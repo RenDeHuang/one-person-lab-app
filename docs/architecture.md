@@ -93,16 +93,17 @@ Future shell candidates are intentionally separated from the default release ada
 
 Hermes 的 first-run 是一个例外的最低可用性要求：可以复用 Hermes Desktop 的
 onboarding/progress UI module，但行为 owner 必须是 OPL App/OPL CLI，不能默认
-下载或执行 Hermes Agent installer。候选包首次启动时应先运行
-`opl system initialize --json`，必要时运行
-`opl install --skip-gui-open --skip-modules --skip-native-helper-repair --json`，
-再通过 `opl system configure-codex --api-key-stdin --json` 写入模型访问 API key；
-具体 key 可来自 gflabtoken，但 UI 主名称使用“模型访问”。`opl system startup-maintenance --json` 和
-`opl system reconcile-modules --json` 在 OPL Codex adapter ready 后后台执行，不能
-阻塞首次进入主界面。缺少 API key 时进入模型访问 onboarding，
-而不是安装 Hermes Agent；如果 `setup.status` 已显示 Codex 模型访问配置存在，
-则直接进入 OPL Codex adapter，不等待 `setup.runtime_check`，也不把 runtime 超时
-作为普通用户首启主错误。Hermes candidate 的 macOS 图标也属于最低可用性边界：
+下载或执行 Hermes Agent installer。候选包启动路径必须分成四条线：每次 launch
+只做轻量检查 marker、One Person Lab CLI、Codex CLI、gflabtoken 模型访问和 Codex
+adapter startup；只有 marker 缺失、marker 过旧或核心组件缺失时才进入一次性本机
+初始化 checklist；缺少 API key 时进入“模型访问”向导，通过
+`opl system configure-codex --api-key-stdin --json` 写入模型访问 API key，具体 key
+可来自 gflabtoken，但 UI 主名称使用“模型访问”；`opl system initialize --json`、
+`opl system startup-maintenance --json`、`opl system reconcile-modules --json`、
+MAS/MAG/RCA 状态和 contract diagnostics 在 OPL Codex adapter ready、主界面可见后
+后台异步执行，不能阻塞热启动进入主界面。如果 `setup.status` 已显示 Codex 模型访问
+配置存在，则直接进入 OPL Codex adapter，不等待 `setup.runtime_check`，也不把
+runtime 超时作为普通用户首启主错误。Hermes candidate 的 macOS 图标也属于最低可用性边界：
 Dock 中必须使用 OPL/AionUI 官方图标族，并保留安全边距，当前 contract 要求 alpha
 bounds 不超过 900px，目标资源为 `840x840+92+92`。
 

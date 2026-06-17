@@ -352,15 +352,15 @@ Hermes 第一版只替换最小几类上游面，才能声称 minimal candidate 
 
 - Branding：替换为 One Person Lab App candidate 产品名、bundle id 和图标。
 - Bilingual copy：通过 Hermes i18n catalog 管理中文/英文普通 UI。
-- First-run：复用 Hermes onboarding/progress UI，但实际初始化由 OPL CLI 执行；
-  不下载或执行 Hermes Agent installer。初始化页展示更细的 8 个阶段：
-  检查 One Person Lab CLI、检查 Codex CLI、读取 One Person Lab 状态、准备
-  One Person Lab 核心组件、验证 One Person Lab 初始化结果、检查模型访问、准备
-  Codex desktop adapter、安排后台维护；系统语言为中文时首屏默认中文。
-  缺模型访问 API key 时显示通用的“模型访问”配置，具体 key 可来自 gflabtoken；
-  保存时调用 `opl system configure-codex --api-key-stdin --json`。startup
-  maintenance 和 module reconcile 在 adapter ready 后后台执行，不进入首启进度，
-  也不阻塞主界面。
+- First-run / startup：复用 Hermes onboarding/progress UI，但实际行为由 OPL CLI
+  和 App-owned startup contract 执行，不下载或执行 Hermes Agent installer。启动
+  分成四条线：每次启动轻量检查 marker、One Person Lab CLI、Codex CLI、gflabtoken
+  模型访问和 Codex adapter startup；marker 缺失、过旧或核心组件缺失时才显示
+  一次性本机初始化 checklist；缺模型访问 API key 时显示单独的“模型访问”配置，
+  具体 key 可来自 gflabtoken，保存时调用
+  `opl system configure-codex --api-key-stdin --json`；`opl system initialize --json`、
+  startup maintenance、module reconcile、MAS/MAG/RCA 状态和 contract diagnostics
+  在 adapter ready、主界面可见后后台异步刷新，不进入热启动阻塞路径。
 - Renderer bootstrap routes：fallback Codex adapter 必须提供 `/api/profiles`、
   `/api/profiles/active`、`/api/profiles/sessions`、`/api/config`、
   `/api/config/defaults`、`/api/config/schema` 和 `/api/cron/jobs` 的
@@ -422,8 +422,8 @@ Hermes 后续 OPL 定制的优先级：
   settings/onboarding、i18n 和 native packaging，只要不冲突。
 - **品牌化/双语：** 产品名、bundle id、图标、普通文案和 OPL purpose labels；
   中文/英文 copy 跟随 Hermes i18n。
-- **首启初始化：** 复用 Hermes onboarding UI 承载 OPL 初始化和模型访问配置；
-  不让 Hermes Agent installer 成为默认路径，也不让维护命令阻塞首次进入 chat。
+- **启动与首启：** 复用 Hermes onboarding/checklist UI 承载 OPL 一次性本机准备；
+  模型访问是独立向导，热启动只做轻量检查，维护和 full status refresh 不阻塞进入 chat。
 - **桥接：** Codex app-server adapter、route receipt、App state/action 和
   runtime refs，但必须等对应 App contract/gate 明确。
 - **WebUI：** 通过同源 React/Vite renderer 加 browser transport adapter 提供

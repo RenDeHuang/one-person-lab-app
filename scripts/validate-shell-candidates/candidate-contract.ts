@@ -373,40 +373,64 @@ function validateHermesFirstRunContract(candidate: ShellCandidate): void {
   if (contract.forbidden_default_action !== 'download_or_execute_hermes_agent_installer') {
     throw new Error(`${candidate.id}.first_run_contract.forbidden_default_action must forbid Hermes Agent installer execution`);
   }
-  assertStringArrayIncludes(contract.initialization_sequence, [
+  if (contract.startup_model !== 'lightweight_startup_check_then_chat_first') {
+    throw new Error(`${candidate.id}.first_run_contract.startup_model must be lightweight_startup_check_then_chat_first`);
+  }
+  assertStringArrayIncludes(contract.startup_check_sequence, [
+    'check-opl-app-initialization-marker',
+    'check-one-person-lab-cli',
+    'check-codex-cli',
+    'check-gflabtoken-model-access',
+    'check-codex-adapter-startup',
+  ], `${candidate.id}.first_run_contract.startup_check_sequence`);
+  assertStringArrayIncludes(contract.one_time_initialization_trigger, [
+    'missing-opl-app-initialization-marker',
+    'stale-opl-app-initialization-marker',
+    'missing-one-person-lab-core-components',
+  ], `${candidate.id}.first_run_contract.one_time_initialization_trigger`);
+  assertStringArrayIncludes(contract.one_time_initialization_sequence, [
     'opl-cli-check',
     'codex-cli-check',
-    'opl-initialize',
-    'opl-core-setup',
-    'opl-post-setup-check',
-    'opl-model-access',
-    'opl-codex-adapter',
-    'opl-maintenance-schedule',
+    'prepare-local-directories-and-config',
+    'opl-core-readiness-check',
+    'opl-core-install-or-repair-when-needed',
+    'write-opl-app-initialization-marker',
+  ], `${candidate.id}.first_run_contract.one_time_initialization_sequence`);
+  assertStringArrayIncludes(contract.background_refresh_sequence, [
     'opl system initialize --json',
-    'opl install --skip-gui-open --skip-modules --skip-native-helper-repair --json',
-    'opl system configure-codex --api-key-stdin --json',
-  ], `${candidate.id}.first_run_contract.initialization_sequence`);
-  assertStringArrayIncludes(contract.deferred_after_adapter_ready_sequence, [
     'opl system startup-maintenance --json',
     'opl system reconcile-modules --json',
-  ], `${candidate.id}.first_run_contract.deferred_after_adapter_ready_sequence`);
+    'mas_mag_rca_status_refresh',
+    'contracts_diagnostics_refresh',
+  ], `${candidate.id}.first_run_contract.background_refresh_sequence`);
   if (
-    contract.api_key_provider !== 'gflabtoken'
-    || contract.api_key_command !== 'opl system configure-codex --api-key-stdin --json'
-    || contract.provider_base_url !== 'https://gflabtoken.cn/v1'
-    || contract.default_model !== 'gpt-5.5'
-    || contract.api_key_env !== 'OPENAI_API_KEY'
+    contract.model_access_wizard?.trigger !== 'missing_or_invalid_gflabtoken_api_key_or_model_access_unavailable'
+    || contract.model_access_wizard.api_key_provider !== 'gflabtoken'
+    || contract.model_access_wizard.api_key_command !== 'opl system configure-codex --api-key-stdin --json'
+    || contract.model_access_wizard.provider_base_url !== 'https://gflabtoken.cn/v1'
+    || contract.model_access_wizard.default_model !== 'gpt-5.5'
+    || contract.model_access_wizard.api_key_env !== 'OPENAI_API_KEY'
+    || contract.model_access_wizard.ordinary_ui_policy !== 'show_only_model_access_api_key_no_base_url_provider_marketplace_or_oauth_accounts'
   ) {
-    throw new Error(`${candidate.id}.first_run_contract must define gflabtoken-backed OpenAI-compatible Codex model access`);
+    throw new Error(`${candidate.id}.first_run_contract.model_access_wizard must define gflabtoken-only Codex model access`);
+  }
+  if (contract.blocking_policy !== 'full_opl_initialize_and_module_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes') {
+    throw new Error(`${candidate.id}.first_run_contract.blocking_policy must keep full initialize and module refresh out of hot-launch blocking path`);
   }
   if (contract.api_key_present_behavior !== 'auto_continue_to_opl_codex_adapter_without_waiting_for_setup_runtime_check_or_api_key_form') {
     throw new Error(`${candidate.id}.first_run_contract.api_key_present_behavior must auto-skip onboarding when Codex model access already exists`);
   }
+  if (contract.ready_check !== 'lightweight startup check: initialization marker fresh, core components discoverable, Codex CLI available, model access configured, Codex adapter startable') {
+    throw new Error(`${candidate.id}.first_run_contract.ready_check must describe the lightweight startup check`);
+  }
   assertStringArrayIncludes(contract.packaged_smoke_must_prove, [
     'no install.sh or install.ps1 fetch or execution',
-    'OPL bootstrap events are emitted',
+    'hot launch with fresh marker and model access does not run blocking full opl system initialize',
+    'missing or stale marker routes to the OPL one-time initialization checklist',
+    'one-time initialization writes or refreshes the OPL App initialization marker',
+    'missing API key routes to model access wizard without showing the installation checklist',
+    'background OPL status refresh starts only after the main chat surface is visible',
     'OPL Codex adapter starts',
-    'missing API key routes to model access onboarding instead of Hermes Agent install',
     'existing Codex model access configuration auto-skips onboarding',
     'official Hermes OAuth provider route returns an empty renderer-safe provider list',
   ], `${candidate.id}.first_run_contract.packaged_smoke_must_prove`);

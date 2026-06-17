@@ -324,15 +324,18 @@ Hermes 第一版只做 minimal adapter：
   Hermes branding。
 - Bilingual copy：跟随 Hermes i18n catalog 管理中文/英文普通 UI，不在 wrapper
   层硬编码混合语言标签。
-- First-run：复用 Hermes onboarding/progress UI module，但把行为 owner 改成
-  OPL App/OPL CLI。首次启动运行 `opl system initialize --json`，必要时运行
-  `opl install --skip-gui-open --skip-modules --skip-native-helper-repair --json`；
-  模型访问 API key 通过 `opl system configure-codex --api-key-stdin --json`
-  写入，具体 key 可来自 gflabtoken，但 UI 主标题使用通用“模型访问”；
-  API key 已存在时直接进入 OPL Codex adapter，startup maintenance 和 module
-  reconcile 在 adapter ready 后后台执行。这里明确禁止默认下载或执行 Hermes
-  Agent installer，也禁止用维护命令阻塞首次主界面。系统语言为中文时，首启
-  初始化和访问配置默认显示中文。
+- First-run / startup：复用 Hermes onboarding/progress UI module，但把行为 owner
+  改成 OPL App/OPL CLI，并拆成四条线。每次启动只做轻量检查：初始化 marker、
+  One Person Lab CLI、Codex CLI、gflabtoken 模型访问和 Codex adapter startup。
+  只有 marker 缺失、marker 过旧或核心组件缺失时才进入一次性本机初始化 checklist；
+  该 checklist 检查 One Person Lab CLI、Codex CLI、准备本机目录和配置、检查/
+  安装或修复 OPL core，并写入初始化 marker。缺模型访问时进入单独“模型访问”向导，
+  API key 通过 `opl system configure-codex --api-key-stdin --json` 写入，具体 key
+  可来自 gflabtoken，但 UI 主标题使用通用“模型访问”。`opl system initialize --json`、
+  startup maintenance、module reconcile、MAS/MAG/RCA 状态和 contract diagnostics
+  在主界面可见、Codex adapter ready 后后台异步刷新。这里明确禁止默认下载或执行
+  Hermes Agent installer，也禁止用 full initialize 或维护命令阻塞热启动主界面。
+  系统语言为中文时，启动检查、首启初始化和访问配置默认显示中文。
 - Icon：使用 OPL/AionUI 官方图标族，并生成带 macOS Dock safe margin 的资源；
   当前 contract 要求 1024px 图标 alpha bounds 不超过 900px，目标为
   `840x840+92+92`。
@@ -390,9 +393,9 @@ Hermes WebUI TODO：
   settings、onboarding、i18n、packaging 能力优先保留。
 - **品牌化/命名收敛：** 产品名、图标、bundle id、普通文案和 OPL purpose labels
   由 App repo 定义。
-- **首启初始化：** 使用 Hermes onboarding UI 作为承载，但动作序列来自 OPL CLI；
-  不安装 Hermes Agent，不把 API key 存到 shell 私有 provider truth，不把
-  startup maintenance/reconcile 放在进入主界面前同步等待。
+- **启动与首启：** 使用 Hermes onboarding/checklist UI 承载真正需要等待的一次性
+  本机准备；每次启动只做轻量检查，缺 key 进入单独模型访问向导，full initialize、
+  startup maintenance 和 reconcile 在主界面打开后后台刷新。
 - **隐藏普通路径不需要的概念：** provider/backend/permission/Hermes runtime 细节
   可进入 diagnostics 或 explicit mode，但不抢占 OPL 普通 home/chat。
 - **必要桥接：** Codex CLI、route receipt、App state/action、runtime refs 等只有
