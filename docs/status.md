@@ -270,11 +270,25 @@ requirements, literal labels, forbidden-display lists, or test matrices.
 
 Experimental shell candidate work is separated from the active release adapter.
 `contracts/app-shell-candidates.json` owns the candidate registry,
-`contracts/shell-adapters/agui-codex.json` owns the selectable adapter, and
-`docs/agui-codex-candidate-verification.md` owns the candidate runbook. Default
-stable/nightly packaging continues to resolve `contracts/app-shell-adapter.json`
-and the active `aionui` shell until an explicit release-owner decision changes
-that contract.
+`contracts/shell-adapters/agui-codex.json` and
+`contracts/shell-adapters/hermes-codex.json` own selectable adapters, and
+candidate-specific docs own human runbooks and target plans:
+`docs/agui-codex-candidate-verification.md`,
+`docs/opl-hermes-gui-adaptation-plan.md`, and
+`docs/opl-hermes-first-run-flow.md`. Default stable/nightly packaging continues
+to resolve `contracts/app-shell-adapter.json` and the active `aionui` shell
+until an explicit release-owner decision changes that contract.
+
+The latest local candidate read after syncing the App, OPL Framework, AionUI
+shell, and Hermes shell repos to their GitHub `main` branches is:
+`hermes-codex` validates at the App contract/registry level with no candidate
+blockers, while remaining an explicit technical verification candidate. The
+Hermes shell's bootstrap/gateway focused tests pass, but package/runtime/visual
+acceptance is not complete: shell `npm run validate:candidate` currently needs
+the `magick` binary for icon alpha validation, and a focused model-settings UI
+test still fails on the auxiliary "use main model" rows. Therefore the current
+state is contract-valid and partially source-tested, not packaged-App usable,
+release-ready, active-shell-adopted, or production-ready.
 
 The current candidate read is technical verification only. Candidate smoke,
 manifests, package evidence, shell roadmaps, upstream GUI defaults, and external

@@ -32,7 +32,7 @@ runtime, provider, or domain authority.
 - [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md)：跨 shell 的
   GUI 能力清单、reference mapping 和验证类别。
 - [`opl-hermes-gui-adaptation-plan.md`](opl-hermes-gui-adaptation-plan.md)：
-  Hermes Desktop candidate 的 OPL GUI 改造方案、设置页收敛和候选验收口径。
+  Hermes Desktop candidate 的 OPL GUI 改造方案、完成度清单、设置页收敛和候选验收口径。
 - [`opl-hermes-first-run-flow.md`](opl-hermes-first-run-flow.md)：
   Hermes candidate 的首启初始化、模型访问向导、启动轻量检查和后台刷新验收草案。
 - [`agui-codex-candidate-verification.md`](agui-codex-candidate-verification.md):
@@ -67,8 +67,8 @@ Framework read-model output consumed by the App.
 4. [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md) 跟踪跨 shell
    能力清单、reference mapping 和验证类别。
 5. [`opl-hermes-gui-adaptation-plan.md`](opl-hermes-gui-adaptation-plan.md)
-   只在需要推进 Hermes Desktop candidate 的 GUI 定制、Settings 收敛和
-   candidate 可用性验收时阅读。
+   只在需要推进 Hermes Desktop candidate 的 GUI 定制、完成度复核、Settings 收敛
+   和 candidate 可用性验收时阅读。
 6. [`opl-hermes-first-run-flow.md`](opl-hermes-first-run-flow.md)
    只在需要检查 Hermes candidate 启动分流、首启初始化、模型访问配置和 VM smoke
    验收口径时阅读。
