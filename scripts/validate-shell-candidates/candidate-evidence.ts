@@ -29,6 +29,9 @@ import {
 
 export function runCandidateCommands(candidate: ShellCandidate): void {
   for (const entry of candidate.validation_commands) {
+    if (entry.optional) {
+      continue;
+    }
     const result = spawnSync(entry.command, {
       cwd: path.join(root, entry.cwd),
       shell: true,

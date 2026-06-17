@@ -41,6 +41,7 @@
     "validate:active-shell": "node --experimental-strip-types scripts/validate-active-shell.ts",
     "validate:agent-installation": "node --experimental-strip-types scripts/validate-agent-installation-contract.ts",
     "validate:shell-candidates": "node --experimental-strip-types scripts/validate-shell-candidates.ts",
+    "smoke:hermes-candidate:tart": "node --experimental-strip-types scripts/smoke-hermes-candidate-tart.ts",
     "validate:gui-shell": "node --experimental-strip-types scripts/validate-active-shell.ts && node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run package",
     "validate:release-boundary": "node --experimental-strip-types scripts/validate-release-boundary.ts",
     "homebrew:tap:plan": "node --experimental-strip-types scripts/update-homebrew-tap.ts",

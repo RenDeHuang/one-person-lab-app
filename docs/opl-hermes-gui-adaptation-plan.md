@@ -59,10 +59,12 @@ Hermes candidate 的 App-owned 目标态已经由本仓固化，而不是由
 Last checked: `2026-06-17`
 
 本清单只按当前仓库和 linked checkout 的 fresh evidence 计完成度。contract、source
-tests 和 packaged smoke 可以证明候选边界、adapter shape、packaged app 基础启动、
-fixture Codex turn 和 MAS route receipt；不能单独证明真实模型服务可用、VM clean
-install、视觉不低于 AionUI、release promotion、MAS/MAG/RCA domain ready、artifact ready
-或 quality verdict。完整完成度见本文末尾“完成度清单”。
+tests、packaged smoke、Settings visual smoke、Tart clean-VM smoke 和本机 live Codex
+app-server smoke 可以证明候选边界、adapter shape、packaged app 基础启动、fixture
+Codex turn、真实本机 Codex app-server 一轮回合、MAS route receipt、MAG/RCA 显式 route
+blocker readback、关键 Settings 页面非空和 clean-VM 候选包行为；不能单独证明视觉不低于
+AionUI、release promotion、MAS/MAG/RCA domain ready、artifact ready 或 quality verdict。
+完整完成度见本文末尾“完成度清单”。
 
 ## 目标体验
 
@@ -170,7 +172,22 @@ Codex App-like 心智重命名和收窄：
   所记录的缺 key、缺 key 热启动、已配置、已配置热启动和 fast probe fallback 场景。
   已配置场景会启动真实 packaged `.app`、连接 Codex app-server fixture、创建 session、
   发送 turn、收到 `message.complete` 与 `fixture codex response`，并记录 MAS
-  `route_readback_ready` 回执。
+  `route_readback_ready` 回执，以及 MAG/RCA 的 `route_readback_with_blockers` 显式 readback。
+- 候选包 packaged Settings visual smoke 已进入 App repo 的 candidate command chain：
+  `/Users/gaofeng/workspace/opl-hermes-shell/out/smoke-settings-visual/settings-visual-summary.json`
+  记录 home、模型访问、智能体与能力、关于页面截图，并断言 gflabtoken-only、禁止
+  provider/Base URL/OAuth 普通控件、Agents/Capabilities 可见和品牌文案可见。
+- Tart clean-VM smoke 已通过：
+  `artifacts/hermes-candidate-tart-20260617T104000Z/summary.json` 记录从
+  `opl-first-run-no-clt-clean-base-26-5-18` 克隆出的 guest 内启动 packaged `.app`，
+  并跑完同一组 first-run 场景。该证据证明候选包能在 clean VM 中执行 packaged
+  fixture smoke；它不是 release shell clean-VM readiness，也不证明真实外部模型服务。
+- 本机 live Codex app-server smoke 已通过：主会话直接实例化 Hermes gateway 的
+  `CodexAppServerClient`，调用本机 `codex app-server --listen stdio://`，完成
+  `thread/start -> turn/start -> item/agentMessage/delta -> turn/completed`，并得到
+  `OPL Hermes live Codex smoke ok`。该证据证明 Hermes adapter 采用的 app-server client
+  能连通本机真实 Codex CLI；它仍不是 packaged GUI 人工验收、release readiness 或
+  MAS/MAG/RCA domain readiness。
 - 这些证据仍不能证明 domain runtime ready、artifact ready 或 quality verdict。相关结论
   必须继续来自 OPL Framework、MAS/MAG/RCA domain repo 和它们的 owner receipt/readback。
 
@@ -234,11 +251,11 @@ contract-only 写成 100%。
 | App-owned Hermes 目标态 | done | 100% | `contracts/app-shell-candidates.json` 与 `contracts/shell-adapters/hermes-codex.json` 通过候选 contract 校验。 | 后续若目标态变化，先改 App-owned contract/docs，再改 shell。 |
 | 默认 release shell 仍是 AionUI | done | 100% | `scripts/validate-shell-candidates.ts` 读取 `contracts/app-shell-adapter.json`、runtime bridge 和 GUI contract，确认 active shell 仍为 AionUI。 | 无；Hermes promotion 需单独 adoption decision。 |
 | Candidate app bundle identity | done | 100% | `npm run validate:candidate -- --require-app` 与 App-root manifest validator 证明 `CFBundleExecutable` 和 `Contents/MacOS` executable 都是 `One Person Lab Hermes Candidate`，且旧 `Electron` executable 不存在。 | 后续若改回 electron-builder，要保留同等 bundle identity check。 |
-| Codex app-server gateway 目标 | done | 95% | Contract 声明 app-server gateway 和事件流；Hermes source/unit tests 证明 `session.create`、`prompt.submit`、delta、complete、tool/approval/error bridge；packaged smoke 证明真实 `.app` 内 session/turn/delta/complete 可用。 | 仍需真实 Codex CLI 非 fixture 的人工/环境 smoke，不能从 fixture 推导模型服务可用性。 |
-| gflabtoken-only 模型访问 | partial | 90% | Contract 声明 gflabtoken、`OPENAI_API_KEY`、禁用 Base URL/provider marketplace；Hermes renderer tests 证明 Settings/onboarding 不展示其它 provider 和 legacy Base URL；packaged smoke 覆盖缺 key与已配置状态分流。 | 仍需真实 GUI 截图/人工保存 API key 路径；当前 smoke 使用 fixture 配置命令。 |
-| MAS/MAG/RCA agent routes | partial | 90% | Contract 声明 purpose routes 和 forbidden claims；Hermes source/unit tests 证明 route catalog、OPL dry-run/readback receipt、conversation route receipt/error tool event 和 Codex prompt receipt 注入；packaged smoke 证明 MAS route receipt 进入真实 `.app` conversation stream。 | 仍需 live OPL/MAS/MAG/RCA domain readback；不能声称 domain ready、artifact ready 或 quality verdict。 |
-| Settings OPL 化 | partial | 70% | Contract/docs 已定义 ordinary IA；Hermes renderer tests 证明普通导航隐藏 Gateway/Tools & Keys，显示“智能体与能力”和模型访问。 | 仍需 packaged Settings 全页 smoke/screenshot；长期还需把 remaining Hermes config sections 进一步 OPL 化。 |
-| 首启四线模型 | partial | 90% | First-run contract 和矩阵区分轻量检查、一次性初始化、模型访问、后台刷新；Hermes source tests 覆盖 provider catalog、localEndpoint 不回退 Base URL、configured key auto-skip；packaged smoke 覆盖缺 key、缺 key hot launch、已配置、已配置 hot launch 与 fast probe fallback。 | VM clean install 未完成；当前是本机隔离 packaged smoke。 |
+| Codex app-server gateway 目标 | done | 98% | Contract 声明 app-server gateway 和事件流；Hermes source/unit tests 证明 `session.create`、`prompt.submit`、delta、complete、tool/approval/error bridge；packaged smoke 证明真实 `.app` 内 session/turn/delta/complete 可用；本机 live smoke 证明 `CodexAppServerClient` 能驱动真实 `codex app-server` 完成一轮回合。 | 仍需 packaged GUI 人工验收和长期稳定性证据；不能从一次 live smoke 推导 release readiness。 |
+| gflabtoken-only 模型访问 | partial | 95% | Contract 声明 gflabtoken、`OPENAI_API_KEY`、禁用 Base URL/provider marketplace；Hermes renderer tests 证明 Settings/onboarding 不展示其它 provider 和 legacy Base URL；packaged smoke 覆盖缺 key 与已配置状态分流；Settings visual smoke 证明模型访问页只暴露 gflabtoken/API key 普通入口。 | 仍需真实用户在 packaged GUI 中保存 API key 并完成真实模型访问验证；当前自动 smoke 使用 fixture 配置命令。 |
+| MAS/MAG/RCA agent routes | partial | 92% | Contract 声明 purpose routes 和 forbidden claims；Hermes source/unit tests 证明 route catalog、OPL dry-run/readback receipt、conversation route receipt/error tool event 和 Codex prompt receipt 注入；packaged smoke 与 VM smoke 证明 MAS `route_readback_ready` 进入真实 `.app` conversation stream，并证明 MAG/RCA 返回 `route_readback_with_blockers` 而非静默失效。 | 仍需 live OPL/MAS/MAG/RCA domain readback；不能声称 domain ready、artifact ready 或 quality verdict。 |
+| Settings OPL 化 | partial | 85% | Contract/docs 已定义 ordinary IA；Hermes renderer tests 证明普通导航隐藏 Gateway/Tools & Keys，显示“智能体与能力”和模型访问；packaged Settings visual smoke 证明 home、模型访问、智能体与能力、关于页面非空，且隐藏 forbidden provider controls。 | 长期还需把 remaining Hermes config sections 进一步 OPL 化，并做 AionUI baseline 视觉比较。 |
+| 首启四线模型 | partial | 95% | First-run contract 和矩阵区分轻量检查、一次性初始化、模型访问、后台刷新；Hermes source tests 覆盖 provider catalog、localEndpoint 不回退 Base URL、configured key auto-skip；packaged smoke 与 Tart clean-VM smoke 覆盖缺 key、缺 key hot launch、已配置、已配置 hot launch 与 fast probe fallback。 | 仍需真实模型访问和非 fixture Codex turn；候选 VM smoke 不是 release shell clean-VM readiness。 |
 | 视觉不低于 AionUI | partial | 20% | 方向和门槛已写入 contract/docs；Hermes upstream UI 基线和普通导航降噪已保留。 | 需要 AionUI baseline 与 Hermes candidate 的 desktop、Settings、首启 packaged screenshot 对比。 |
-| Tart/VM clean smoke | blocked | 40% | 已确认本机存在 Tart 和 `opl-first-run-no-clt-clean-base-26-5-18` source VM；短 SSH probe 能拿到 guest IP，但 `runner`、`admin`、`gaofeng` 用户均无法完成 SSH 登录。 | 本轮 VM 被 guest SSH 拒绝阻塞，证据在 `artifacts/hermes-tart-smoke-20260617T092442Z/blocker.txt`、`ssh-probe.log` 和 `artifacts/hermes-ssh-probe-20260617T094948Z/ssh-probe.log`；需要修复 guest SSH/base image 或新增 Hermes DMG/Tart wrapper 后重跑。 |
+| Tart/VM clean smoke | done | 95% | `npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts artifacts/hermes-candidate-tart-20260617T104000Z --timeout-ms 600000` 已通过；summary 记录 guest IP、source VM、packaged `.app` 路径、缺 key/热启动/已配置/fallback 场景、fixture Codex turn、MAS ready 和 MAG/RCA explicit blocker readbacks。 | 该证据证明候选包 clean-VM fixture smoke 通过；仍不等同于 release shell clean-VM readiness、真实模型服务或 AionUI 视觉验收。 |
 | Hermes release promotion | not_started | 0% | 需要 active shell contract 切换、page-state、first-run、product profile、runtime bridge、packaged smoke、WebUI 和 release gates 全部通过。 | 本轮明确不 promotion。 |

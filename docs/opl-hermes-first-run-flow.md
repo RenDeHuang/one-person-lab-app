@@ -131,18 +131,24 @@ Hermes checkout 执行 `npm run smoke:opl-first-run`，最后读取
 - `missing_key_hot_launch`：marker 新鲜但仍缺 key，预期不跑 full initialize gate。
 - `configured_key`：模型访问已配置，预期进入 Codex adapter ready 路径，并在真实
   packaged `.app` 内通过 Codex app-server fixture 完成一轮 session/turn/delta/complete；
-  同时验证 MAS route receipt 可进入 conversation stream。
+  同时验证 MAS `route_readback_ready` 可进入 conversation stream，并验证 MAG/RCA
+  `route_readback_with_blockers` 作为显式 readback 返回，而不是静默失效。
 - `configured_key_hot_launch`：marker 新鲜且 key 存在时，即使后台出现
   `system initialize --json`，也必须发生在 `OPL Codex adapter is ready` 之后。
 - `fast_probe_not_ready_first_run`：fast probe 不能证明 readiness 时，允许走一次性初始化
   checklist，再进入 adapter。
 
-这仍不是 VM clean install 证据。2026-06-17 的 Tart 尝试已拿到
-`opl-first-run-no-clt-clean-base-26-5-18` guest IP，但 guest SSH 关闭连接而未能进入
-guest smoke；阻塞证据保存在
-`artifacts/hermes-tart-smoke-20260617T092442Z/blocker.txt` 和同目录
-`ssh-probe.log`。因此当前只能把 VM 项标记为 blocked/partial，不能把本机隔离
-packaged smoke 包装成 VM 通过。
+2026-06-17 已补上 Tart clean-VM 候选包证据：
+`npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts
+artifacts/hermes-candidate-tart-20260617T104000Z --timeout-ms 600000` 通过。该命令从
+`opl-first-run-no-clt-clean-base-26-5-18` 克隆临时 VM，把当前 packaged
+`One Person Lab Hermes Candidate.app` 和 smoke 脚本传入 guest，在 guest 内执行同一组
+first-run smoke，并把 summary 与 guest artifacts 拷回
+`artifacts/hermes-candidate-tart-20260617T104000Z/summary.json`。
+
+这条 VM 证据只证明 Hermes candidate packaged fixture smoke 能在 clean VM 中运行；它不
+证明正式 release shell、真实外部模型服务、AionUI 视觉 parity、MAS/MAG/RCA domain ready、
+artifact ready 或 quality verdict。
 
 ## 证据分级
 
@@ -152,15 +158,14 @@ packaged smoke 包装成 VM 通过。
 | --- | --- | --- |
 | active shell 仍是 AionUI | 可以。验证脚本读取 active adapter、runtime bridge 和 GUI contract。 | 不需要打包；除非声称 release artifact fresh。 |
 | Hermes 有 app-server adapter 目标 | 可以。contract 能声明 gateway route、事件流和禁用 backend。 | 需要 package/source smoke 证明 adapter 真能启动、创建 session、发送 turn、展示 response。 |
-| 模型访问单一 | 可以。contract 能声明 gflabtoken-only、禁用 Base URL/provider marketplace。 | 需要 UI smoke 证明 onboarding 和 Settings 没暴露其它 provider 控件，且保存路径可用。 |
-| 首启四线语义 | 可以。contract 能声明四条流程、触发条件和阻塞关系。 | 需要热启动、缺 key、无 marker、全新安装/VM smoke 的阶段日志和耗时。 |
-| MAS/MAG/RCA route declaration | 可以。contract 能声明普通入口和 forbidden claims。 | 需要 runtime route receipt、domain readback 或 packaged turn evidence 才能声称智能体调用可用。 |
+| 模型访问单一 | 可以。contract 能声明 gflabtoken-only、禁用 Base URL/provider marketplace。 | packaged Settings visual smoke 已证明模型访问页不暴露 forbidden provider controls；真实保存 API key 和真实模型访问仍需 live/人工证据。 |
+| 首启四线语义 | 可以。contract 能声明四条流程、触发条件和阻塞关系。 | packaged smoke 和 Tart clean-VM smoke 已覆盖热启动、缺 key、已配置、无 marker fallback；真实模型访问仍需 live evidence。 |
+| MAS/MAG/RCA route declaration | 可以。contract 能声明普通入口和 forbidden claims。 | packaged smoke 和 VM smoke 已证明 MAS ready receipt 与 MAG/RCA explicit blocker readback；domain ready、artifact ready 和质量结论仍需 domain owner evidence。 |
 | 视觉不低于 AionUI | 不可以。docs/contract 只能定义门槛。 | 必须有 AionUI baseline 与 Hermes packaged candidate 的截图或视觉 smoke 对比。 |
 
 当前 source 级实现还补了一条首启防回归证据：即使旧 Hermes local endpoint 触发状态进入
 onboarding，普通 OPL 模型访问页也只能显示 gflabtoken API key，不能预选或展示
-`OPENAI_BASE_URL`。这条证据来自 renderer test；它仍需要 packaged UI/VM smoke 复核真实
-窗口行为。
+`OPENAI_BASE_URL`。这条证据已由 renderer test 和 packaged Settings visual smoke 双重覆盖。
 
 ## 实施注意
 

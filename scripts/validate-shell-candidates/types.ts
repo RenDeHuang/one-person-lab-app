@@ -2,6 +2,7 @@ export type ValidationCommand = {
   id: string;
   cwd: string;
   command: string;
+  optional?: boolean;
 };
 
 export type ActiveProjectLineStateModel = {
@@ -164,6 +165,7 @@ export type ShellCandidate = {
   technical_verification?: {
     app_root_commands?: ValidationCommand[];
     candidate_shell_commands?: ValidationCommand[];
+    manual_verification_commands?: ValidationCommand[];
     minimum_acceptance?: string[];
   };
   framework_surfaces: Record<string, string>;

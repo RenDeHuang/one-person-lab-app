@@ -21,6 +21,7 @@ const requiredWrapperFiles = [
   'electron/opl-bootstrap-runner.test.cjs',
   'electron/opl-codex-gateway.test.cjs',
   'scripts/package-opl-candidate-app.cjs',
+  'scripts/smoke-settings-visual.cjs',
   'scripts/validate-hermes-codex-candidate.cjs',
 ];
 
@@ -423,6 +424,9 @@ function validateHermesImplementation(checkoutPath: string): void {
   }
   for (const snippet of [
     "'magick', ['assets/icon.png', '-alpha', 'extract', '-format', '%@', 'info:']",
+    'scripts/smoke-settings-visual.cjs',
+    'smoke:settings-visual',
+    'packaged Settings visual smoke',
     'icon content must keep macOS Dock safe margin',
     'maxWidth: 900',
     'maxHeight: 900',

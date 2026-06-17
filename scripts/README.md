@@ -28,6 +28,7 @@ verification can select a different linked shell repo with
 | `collect-release-evidence.ts` | Collects live OPL runtime snapshot, App/operator drilldown, selected safe-action dry-run/execute JSON, and standard smoke source-dir artifacts into a release evidence bundle, writes the manifest, and validates the bundle in missing-evidence mode without claiming absent screenshot, VM, settings, or remote evidence. |
 | `write-release-evidence-manifest.ts` | Writes `evidence-manifest.json` for a release evidence bundle and marks absent VM/remote artifacts as missing evidence. |
 | `validate-release-evidence-bundle.ts` | Validates a release evidence bundle manifest and artifact files, including real screenshot dimensions; default validation fails closed when required evidence is missing. |
+| `smoke-hermes-candidate-tart.ts` | Runs the packaged `One Person Lab Hermes Candidate.app` first-run fixture smoke inside a Tart clean VM, copying guest artifacts back to the App repo. This is candidate technical verification only and does not promote Hermes to the release shell. |
 
 Stable App-root npm entries are `verify`, `validate:release-boundary`,
 `validate:gui-shell`, `test:smoke`, `test:full`, `release:evidence:manifest`,
@@ -73,6 +74,10 @@ npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package
+npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands
+npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts artifacts/hermes-candidate-tart-<timestamp> --timeout-ms 600000
+(cd ../opl-hermes-shell && npm run smoke:settings-visual -- --out out/smoke-settings-visual)
 npm run release:plan -- --version <version> --profile nightly
 npm run release:plan -- --version <version> --include-full-package
 npm run release:closeout -- --version <version> --run-id <github-actions-run-id> --artifact-profile diagnostics --agent-wall-time <duration>

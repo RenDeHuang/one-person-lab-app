@@ -285,20 +285,31 @@ explicit technical verification candidate. The App-root candidate chain
 `npm run validate:shell-candidates -- --candidate hermes-codex
 --run-candidate-commands` builds `One Person Lab Hermes Candidate.app` through
 the explicit Hermes adapter and then runs the sibling Hermes packaged first-run
-smoke. The smoke launches the real `.app`, verifies the branded macOS
-executable, covers missing-key/configured/hot-launch/fallback startup paths,
-streams a fixture Codex app-server turn, and records a MAS
-`route_readback_ready` receipt. Package/runtime/visual acceptance is still not
-complete: VM clean smoke is currently blocked by guest SSH unavailability, the
-Codex turn is fixture-backed rather than a real model call, and AionUI-vs-Hermes
-visual screenshot parity has not been accepted. Therefore the current state is
-packaged technical verification candidate, not release-ready,
-active-shell-adopted, clean-VM-ready, domain-ready, or production-ready.
+smoke and packaged Settings visual smoke. The smoke launches the real `.app`,
+verifies the branded macOS executable, covers missing-key/configured/hot-launch/
+fallback startup paths, streams a fixture Codex app-server turn, records a MAS
+`route_readback_ready` receipt, records MAG/RCA
+`route_readback_with_blockers`, and proves the home/model-access/
+agents-capabilities/about Settings surfaces are nonblank without forbidden
+provider controls. The Tart clean-VM wrapper
+`npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts
+artifacts/hermes-candidate-tart-20260617T104000Z --timeout-ms 600000` also
+passed on `opl-first-run-no-clt-clean-base-26-5-18`, using the same packaged
+candidate fixture smoke inside the guest. A direct local live smoke of the
+Hermes `CodexAppServerClient` against `codex app-server --listen stdio://` also
+completed `thread/start`, `turn/start`, streamed deltas, and finished with
+`turn/completed` on `gpt-5.5`. Package/runtime/visual acceptance is still not
+complete: AionUI-vs-Hermes visual screenshot parity has not been accepted, the
+live Codex smoke is not packaged GUI acceptance, and this does not promote
+Hermes to the release shell. Therefore the current state is packaged technical
+verification candidate with clean-VM fixture smoke and local live Codex
+app-server smoke evidence, not release-ready, active-shell-adopted,
+domain-ready, or production-ready.
 
 The current candidate read is technical verification only. Candidate smoke,
 manifests, package evidence, shell roadmaps, upstream GUI defaults, and external
 reference material do not become App product truth, active-shell adoption, release
-readiness, clean-VM readiness, domain readiness, or family production readiness.
+readiness, domain readiness, or family production readiness.
 
 Candidate adoption and evidence currentness stay outside this status file.
 Adoption requires deliberate App-owned contract changes plus validators,

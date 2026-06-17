@@ -238,7 +238,10 @@ function validateCandidateAuthorityBoundaries(candidate: ShellCandidate): void {
 }
 
 function validateCandidateValidationCommands(candidate: ShellCandidate): void {
-  for (const entry of candidate.validation_commands) {
+  for (const entry of [
+    ...candidate.validation_commands,
+    ...(candidate.technical_verification?.manual_verification_commands ?? []),
+  ]) {
     if (!entry.id || !entry.cwd || !entry.command) {
       throw new Error(`${candidate.id} has invalid validation command ${JSON.stringify(entry)}`);
     }
@@ -270,6 +273,22 @@ function validateCandidateValidationCommands(candidate: ShellCandidate): void {
       || packagedSmokeCommand.command !== 'cd ../opl-hermes-shell && npm run smoke:opl-first-run'
     ) {
       throw new Error(`${candidate.id} validation_commands must include packaged first-run smoke for the sibling Hermes checkout`);
+    }
+    const settingsVisualCommand = candidate.validation_commands.find((entry) => entry.id === 'candidate_packaged_settings_visual_smoke');
+    if (
+      !settingsVisualCommand ||
+      settingsVisualCommand.cwd !== '.' ||
+      settingsVisualCommand.command !== 'cd ../opl-hermes-shell && npm run smoke:settings-visual -- --out out/smoke-settings-visual'
+    ) {
+      throw new Error(`${candidate.id} validation_commands must include packaged Settings visual smoke for the sibling Hermes checkout`);
+    }
+    const tartSmokeCommand = candidate.technical_verification?.manual_verification_commands?.find((entry) => entry.id === 'candidate_tart_clean_vm_smoke');
+    if (
+      !tartSmokeCommand ||
+      tartSmokeCommand.cwd !== '.' ||
+      tartSmokeCommand.command !== 'npm run smoke:hermes-candidate:tart -- --no-graphics'
+    ) {
+      throw new Error(`${candidate.id}.technical_verification.manual_verification_commands must include the explicit Tart clean-VM smoke`);
     }
     return;
   }
