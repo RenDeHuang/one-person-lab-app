@@ -141,12 +141,38 @@
             "app-wrapper-smoke.stdout.log",
             "app-wrapper-smoke.stderr.log"
           ],
+          "current_install_asset_artifacts": [
+            "codex-package-preflight.json",
+            "codex-package-registry-response.json",
+            "codex-package-tarballs/openai-codex.tgz"
+          ],
+          "current_cache_dirs": [
+            "codex-npm-cache"
+          ],
           "required_preflight_fields": [
             "host.node",
             "host.npm",
             "host.curl",
             "host.npm_registry",
-            "host.codex_package_metadata"
+            "host.codex_package_metadata",
+            "host.codex_package_preflight",
+            "artifact_paths.codex_package_preflight",
+            "artifact_paths.codex_package_registry_response",
+            "artifact_paths.codex_package_tarball",
+            "artifact_paths.codex_npm_cache_dir",
+            "codex_install.install_asset_preseed"
+          ],
+          "required_codex_package_preflight_fields": [
+            "status",
+            "registry.status_code",
+            "package.version",
+            "package.tarball_url",
+            "package.tarball_url_host",
+            "tarball.sha256",
+            "tarball.size_bytes",
+            "timings.elapsed_ms",
+            "cache.npm_cache_dir",
+            "truth_boundary"
           ],
           "required_timeout_fields": [
             "job_timeout_minutes",
@@ -159,6 +185,20 @@
         "codex_install": {
           "current_app_scope": "required_from_tart_smoke_summary_or_shell_companion_diagnostics",
           "shell_interface_status": "implemented_opl_aion_shell_phase_options",
+          "install_asset_preseed": {
+            "mode": "host_prefetch_cache_preseed",
+            "shell_arguments": [
+              "--codex-package-tarball",
+              "--codex-npm-cache-dir"
+            ],
+            "required_artifacts": [
+              "codex-package-preflight.json",
+              "codex-package-registry-response.json",
+              "codex-package-tarballs/openai-codex.tgz",
+              "codex-npm-cache"
+            ],
+            "truth_boundary": "install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt"
+          },
           "allowed_sources": [
             "tart-smoke-summary.json",
             "artifacts/codex-install-diagnostics.json"
@@ -223,12 +263,38 @@
             "app-wrapper-smoke.stdout.log",
             "app-wrapper-smoke.stderr.log"
           ],
+          "current_install_asset_artifacts": [
+            "codex-package-preflight.json",
+            "codex-package-registry-response.json",
+            "codex-package-tarballs/openai-codex.tgz"
+          ],
+          "current_cache_dirs": [
+            "codex-npm-cache"
+          ],
           "required_preflight_fields": [
             "host.node",
             "host.npm",
             "host.curl",
             "host.npm_registry",
-            "host.codex_package_metadata"
+            "host.codex_package_metadata",
+            "host.codex_package_preflight",
+            "artifact_paths.codex_package_preflight",
+            "artifact_paths.codex_package_registry_response",
+            "artifact_paths.codex_package_tarball",
+            "artifact_paths.codex_npm_cache_dir",
+            "codex_install.install_asset_preseed"
+          ],
+          "required_codex_package_preflight_fields": [
+            "status",
+            "registry.status_code",
+            "package.version",
+            "package.tarball_url",
+            "package.tarball_url_host",
+            "tarball.sha256",
+            "tarball.size_bytes",
+            "timings.elapsed_ms",
+            "cache.npm_cache_dir",
+            "truth_boundary"
           ],
           "required_timeout_fields": [
             "job_timeout_minutes",
@@ -241,6 +307,20 @@
         "codex_install": {
           "current_app_scope": "required_from_tart_smoke_summary_or_shell_companion_diagnostics",
           "shell_interface_status": "implemented_opl_aion_shell_phase_options",
+          "install_asset_preseed": {
+            "mode": "host_prefetch_cache_preseed",
+            "shell_arguments": [
+              "--codex-package-tarball",
+              "--codex-npm-cache-dir"
+            ],
+            "required_artifacts": [
+              "codex-package-preflight.json",
+              "codex-package-registry-response.json",
+              "codex-package-tarballs/openai-codex.tgz",
+              "codex-npm-cache"
+            ],
+            "truth_boundary": "install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt"
+          },
           "allowed_sources": [
             "tart-smoke-summary.json",
             "artifacts/codex-install-diagnostics.json"
@@ -268,6 +348,10 @@
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",
         "app-wrapper-preflight.log",
+        "codex-package-preflight.json",
+        "codex-package-registry-response.json",
+        "codex-package-tarballs/openai-codex.tgz",
+        "codex-npm-cache",
         "app-wrapper-smoke-command-preview.txt",
         "app-wrapper-smoke.stdout.log",
         "app-wrapper-smoke.stderr.log",
@@ -313,12 +397,38 @@
             "app-wrapper-smoke.stdout.log",
             "app-wrapper-smoke.stderr.log"
           ],
+          "current_install_asset_artifacts": [
+            "codex-package-preflight.json",
+            "codex-package-registry-response.json",
+            "codex-package-tarballs/openai-codex.tgz"
+          ],
+          "current_cache_dirs": [
+            "codex-npm-cache"
+          ],
           "required_preflight_fields": [
             "host.node",
             "host.npm",
             "host.curl",
             "host.npm_registry",
-            "host.codex_package_metadata"
+            "host.codex_package_metadata",
+            "host.codex_package_preflight",
+            "artifact_paths.codex_package_preflight",
+            "artifact_paths.codex_package_registry_response",
+            "artifact_paths.codex_package_tarball",
+            "artifact_paths.codex_npm_cache_dir",
+            "codex_install.install_asset_preseed"
+          ],
+          "required_codex_package_preflight_fields": [
+            "status",
+            "registry.status_code",
+            "package.version",
+            "package.tarball_url",
+            "package.tarball_url_host",
+            "tarball.sha256",
+            "tarball.size_bytes",
+            "timings.elapsed_ms",
+            "cache.npm_cache_dir",
+            "truth_boundary"
           ],
           "required_timeout_fields": [
             "job_timeout_minutes",
@@ -331,6 +441,20 @@
         "codex_install": {
           "current_app_scope": "required_from_tart_smoke_summary_or_shell_companion_diagnostics",
           "shell_interface_status": "implemented_opl_aion_shell_phase_options",
+          "install_asset_preseed": {
+            "mode": "host_prefetch_cache_preseed",
+            "shell_arguments": [
+              "--codex-package-tarball",
+              "--codex-npm-cache-dir"
+            ],
+            "required_artifacts": [
+              "codex-package-preflight.json",
+              "codex-package-registry-response.json",
+              "codex-package-tarballs/openai-codex.tgz",
+              "codex-npm-cache"
+            ],
+            "truth_boundary": "install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt"
+          },
           "allowed_sources": [
             "tart-smoke-summary.json",
             "artifacts/codex-install-diagnostics.json"
@@ -359,6 +483,10 @@
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",
         "app-wrapper-preflight.log",
+        "codex-package-preflight.json",
+        "codex-package-registry-response.json",
+        "codex-package-tarballs/openai-codex.tgz",
+        "codex-npm-cache",
         "app-wrapper-smoke-command-preview.txt",
         "app-wrapper-smoke.stdout.log",
         "app-wrapper-smoke.stderr.log",
@@ -390,12 +518,38 @@
             "app-wrapper-smoke.stdout.log",
             "app-wrapper-smoke.stderr.log"
           ],
+          "current_install_asset_artifacts": [
+            "codex-package-preflight.json",
+            "codex-package-registry-response.json",
+            "codex-package-tarballs/openai-codex.tgz"
+          ],
+          "current_cache_dirs": [
+            "codex-npm-cache"
+          ],
           "required_preflight_fields": [
             "host.node",
             "host.npm",
             "host.curl",
             "host.npm_registry",
-            "host.codex_package_metadata"
+            "host.codex_package_metadata",
+            "host.codex_package_preflight",
+            "artifact_paths.codex_package_preflight",
+            "artifact_paths.codex_package_registry_response",
+            "artifact_paths.codex_package_tarball",
+            "artifact_paths.codex_npm_cache_dir",
+            "codex_install.install_asset_preseed"
+          ],
+          "required_codex_package_preflight_fields": [
+            "status",
+            "registry.status_code",
+            "package.version",
+            "package.tarball_url",
+            "package.tarball_url_host",
+            "tarball.sha256",
+            "tarball.size_bytes",
+            "timings.elapsed_ms",
+            "cache.npm_cache_dir",
+            "truth_boundary"
           ],
           "required_timeout_fields": [
             "job_timeout_minutes",
@@ -408,6 +562,20 @@
         "codex_install": {
           "current_app_scope": "required_from_tart_smoke_summary_or_shell_companion_diagnostics",
           "shell_interface_status": "implemented_opl_aion_shell_phase_options",
+          "install_asset_preseed": {
+            "mode": "host_prefetch_cache_preseed",
+            "shell_arguments": [
+              "--codex-package-tarball",
+              "--codex-npm-cache-dir"
+            ],
+            "required_artifacts": [
+              "codex-package-preflight.json",
+              "codex-package-registry-response.json",
+              "codex-package-tarballs/openai-codex.tgz",
+              "codex-npm-cache"
+            ],
+            "truth_boundary": "install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt"
+          },
           "allowed_sources": [
             "tart-smoke-summary.json",
             "artifacts/codex-install-diagnostics.json"
@@ -434,6 +602,10 @@
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",
         "app-wrapper-preflight.log",
+        "codex-package-preflight.json",
+        "codex-package-registry-response.json",
+        "codex-package-tarballs/openai-codex.tgz",
+        "codex-npm-cache",
         "app-wrapper-smoke-command-preview.txt",
         "app-wrapper-smoke.stdout.log",
         "app-wrapper-smoke.stderr.log",

@@ -379,20 +379,35 @@ const EXCLUDED_RUNTIME_PATH_SEGMENTS: readonly string[] = [
   '.git',
   '.codegraph',
   '.codex',
+  '.github',
   '.omx',
   '.worktrees',
+  '.cache',
   '.mypy_cache',
+  '.next',
+  '.nyc_output',
   '.pytest_cache',
   '.ruff_cache',
+  '.storybook',
+  '.turbo',
   '.tox',
   '__pycache__',
+  '__snapshots__',
   'coverage',
+  'storybook-static',
   'target',
   '.DS_Store',
 ] as const;
 
 const EXCLUDED_RUNTIME_BASENAMES: readonly string[] = ['.DS_Store', 'state.db'];
-const EXCLUDED_RUNTIME_BASENAME_SUFFIXES: readonly string[] = ['.pyc', '.pyo', '.tsbuildinfo'];
+const EXCLUDED_RUNTIME_BASENAME_SUFFIXES: readonly string[] = [
+  '.coverage',
+  '.js.map',
+  '.map',
+  '.pyc',
+  '.pyo',
+  '.tsbuildinfo',
+];
 
 const EXCLUDED_RUNTIME_PATH_PATTERNS = [
   /^hermes\/(?:web|ui|frontend)(?:\/|$)/,
@@ -401,10 +416,11 @@ const EXCLUDED_RUNTIME_PATH_PATTERNS = [
   /^modules\/[^/]+\/\.venv(?:\/|$)/,
   /^modules\/[^/]+\/node_modules(?:\/|$)/,
   /^modules\/[^/]+\/tests?(?:\/|$)/,
-  /^modules\/[^/]+\/(?:htmlcov|docs\/_build|notebooks|runtime|runtime-state|runs|sessions|\.ds)(?:\/|$)/,
+  /^modules\/[^/]+\/(?:build|dist|htmlcov|docs\/_build|notebooks|playwright-report|runtime|runtime-state|runs|sessions|test-results|\.ds)(?:\/|$)/,
   /^opl\/node_modules(?:\/|$)/,
   /^opl\/.*\/\.venv(?:\/|$)/,
   /^opl\/dist(?:\/|$)/,
+  /^opl\/(?:build|playwright-report|test-results)(?:\/|$)/,
 ] as const;
 
 const INCLUDED_RUNTIME_PATH_PATTERNS = [
@@ -444,6 +460,21 @@ export function shouldExcludeRuntimePath(relativePathInput: string) {
   return hasExcludedRuntimePathSegment(relativePath)
     || isExcludedRuntimeBaseName(baseName)
     || matchesExcludedRuntimePathPattern(lower);
+}
+
+const EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERNS = [
+  /(?:^|\/)(?:__fixtures__|__mocks__|__snapshots__|benchmarks?|coverage|docs?|examples?|fixtures?|playwright-report|storybook-static|test-results|tests?)(?:\/|$)/,
+  /(?:^|\/)(?:\.cache|\.github|\.nyc_output|\.pytest_cache|\.turbo)(?:\/|$)/,
+] as const;
+
+export function shouldExcludeProductionNodeModulePath(relativePathInput: string) {
+  const relativePath = normalizeRuntimeRelativePath(relativePathInput);
+  if (!relativePath || relativePath === '.') return false;
+  const lower = relativePath.toLowerCase();
+  const baseName = path.posix.basename(relativePath);
+  return isExcludedRuntimeBaseName(baseName)
+    || EXCLUDED_RUNTIME_BASENAME_SUFFIXES.some((suffix) => baseName.endsWith(suffix))
+    || EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERNS.some((pattern) => pattern.test(lower));
 }
 
 export type PackageLockLike = {

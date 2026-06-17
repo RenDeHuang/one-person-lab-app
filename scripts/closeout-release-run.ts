@@ -19,6 +19,8 @@ type Options = {
   outDir: string;
   output: string;
   markdown: string;
+  monitor: string;
+  notification: string;
   runJsonPath: string;
   jobsJsonPath: string;
   artifactsJsonPath: string;
@@ -64,6 +66,8 @@ function defaultOptions(): Options {
     outDir: process.env.OPL_RELEASE_CLOSEOUT_DIR || '',
     output: process.env.OPL_RELEASE_CLOSEOUT_OUTPUT || '',
     markdown: process.env.OPL_RELEASE_CLOSEOUT_MARKDOWN || '',
+    monitor: process.env.OPL_RELEASE_MONITOR_OUTPUT || '',
+    notification: process.env.OPL_RELEASE_NOTIFICATION_OUTPUT || '',
     runJsonPath: process.env.OPL_RELEASE_CLOSEOUT_RUN_JSON || '',
     jobsJsonPath: process.env.OPL_RELEASE_CLOSEOUT_JOBS_JSON || '',
     artifactsJsonPath: process.env.OPL_RELEASE_CLOSEOUT_ARTIFACTS_JSON || '',
@@ -96,6 +100,8 @@ function applyOption(parsed: Options, token: string, value: string): void {
   else if (token === '--out-dir') parsed.outDir = value;
   else if (token === '--output') parsed.output = value;
   else if (token === '--markdown') parsed.markdown = value;
+  else if (token === '--monitor') parsed.monitor = value;
+  else if (token === '--notification') parsed.notification = value;
   else if (token === '--run-json') parsed.runJsonPath = value;
   else if (token === '--jobs-json') parsed.jobsJsonPath = value;
   else if (token === '--artifacts-json') parsed.artifactsJsonPath = value;
@@ -133,6 +139,8 @@ function parseArgs(argv: string[]): Options {
     outDir,
     output: parsed.output ? path.resolve(parsed.output) : path.join(outDir, 'release-closeout.json'),
     markdown: parsed.markdown ? path.resolve(parsed.markdown) : path.join(outDir, 'release-closeout.md'),
+    monitor: parsed.monitor ? path.resolve(parsed.monitor) : path.join(outDir, 'release-monitor.json'),
+    notification: parsed.notification ? path.resolve(parsed.notification) : path.join(outDir, 'release-notification.json'),
     runJsonPath: parsed.runJsonPath ? path.resolve(parsed.runJsonPath) : '',
     jobsJsonPath: parsed.jobsJsonPath ? path.resolve(parsed.jobsJsonPath) : '',
     artifactsJsonPath: parsed.artifactsJsonPath ? path.resolve(parsed.artifactsJsonPath) : '',
@@ -826,6 +834,15 @@ function ownerResolutionDecision(validation: CandidatePromotionValidation) {
   };
 }
 
+function remoteReleaseLooksPublished(remote: JsonRecord | null, preflight: JsonRecord | null) {
+  const releaseTarget = asRecord(preflight?.release_target);
+  if (stringField(releaseTarget, 'kind') === 'published_release') return true;
+  if (!remote || stringField(remote, 'status') !== 'passed') return false;
+  if (stringField(remote, 'publishedAt') || stringField(remote, 'published_at')) return true;
+  if (remote.isDraft === false || remote.is_draft === false || remote.draft === false) return true;
+  return false;
+}
+
 function buildDecision(inputs: {
   options: Options;
   run: JsonRecord;
@@ -893,6 +910,33 @@ function buildDecision(inputs: {
     reason: `Run ${tag} completed but release-candidate-record is ${candidateStatus}.`,
     command: `gh run download ${inputs.options.runId} --repo ${inputs.options.repo} --name release-candidate-record-${inputs.options.version} --dir ${inputs.options.artifactsDir}`,
   };
+}
+
+function monitorState(input: {
+  run: { status: string | null; conclusion: string | null };
+  decision: JsonRecord;
+  jobs: ReturnType<typeof summarizeJobs>;
+  remote: JsonRecord | null;
+  preflight: JsonRecord | null;
+}) {
+  const runStatus = input.run.status ?? 'unknown';
+  const conclusion = input.run.conclusion ?? 'unknown';
+  const nextAction = stringField(input.decision, 'next_action') ?? 'unknown';
+  if (remoteReleaseLooksPublished(input.remote, input.preflight)) return 'published';
+  if (nextAction === 'promote_from_candidate_record') return 'ready_to_promote';
+  if (nextAction === 'wait_for_release_run_completion') return 'running';
+  if (
+    nextAction === 'owner_needed_release_owner_resolution'
+    || nextAction === 'resolve_candidate_record_blockers'
+    || nextAction === 'resolve_readiness_failed_gates'
+    || nextAction === 'inspect_failed_jobs'
+    || input.jobs.failed_jobs.length > 0
+  ) {
+    return 'failed';
+  }
+  if (runStatus !== 'completed') return 'running';
+  if (conclusion !== 'success') return 'failed';
+  return 'failed';
 }
 
 function buildSummary(options: Options) {
@@ -992,6 +1036,8 @@ function buildSummary(options: Options) {
       release_owner_verdict: asRecord(candidateArtifact.payload.release_owner_verdict),
       decision: asRecord(candidateArtifact.payload.decision),
     } : null,
+    release_preflight_summary: preflightArtifact.payload,
+    remote_release_verification: remoteArtifact.payload,
     readiness: readinessArtifact.payload ? {
       status: sourceStatus(readinessArtifact.payload),
       failed_required_gates: failedGateSummaries(readinessArtifact.payload),
@@ -1024,12 +1070,77 @@ function buildSummary(options: Options) {
   };
 }
 
+function buildMonitorSummary(summary: ReturnType<typeof buildSummary>) {
+  const state = monitorState({
+    run: summary.run,
+    decision: summary.decision,
+    jobs: summary.jobs,
+    remote: summary.remote_release_verification,
+    preflight: summary.release_preflight_summary,
+  });
+  const nextAction = stringField(summary.decision, 'next_action') ?? 'unknown';
+  return {
+    schema: 'opl_release_run_monitor.v1',
+    version: summary.version,
+    generated_at: summary.generated_at,
+    repo: summary.release_repo,
+    run: {
+      id: summary.run.id,
+      status: summary.run.status,
+      conclusion: summary.run.conclusion,
+      url: summary.run.url,
+      workflow_name: summary.run.workflow_name,
+      head_branch: summary.run.head_branch,
+      head_sha: summary.run.head_sha,
+      workflow_wall_time_seconds: summary.run.timing.workflow_wall_time_seconds,
+    },
+    state,
+    next_action: nextAction,
+    recommended_next_action: {
+      action: nextAction,
+      reason: summary.decision.reason,
+      command: summary.decision.command,
+    },
+    failed_gate_count: summary.readiness?.failed_required_gates.length ?? null,
+    failed_job_count: summary.jobs.failed_jobs.length,
+    source_status: summary.source_status,
+    promote_ready: nextAction === 'promote_from_candidate_record',
+    published: state === 'published',
+    no_watch_instructions: [
+      `gh run view ${summary.run.id} --repo ${summary.release_repo} --json status,conclusion,url,updatedAt`,
+      `gh run download ${summary.run.id} --repo ${summary.release_repo} --name release-closeout-${summary.version} --dir artifacts/release-closeout/v${summary.version}-${summary.run.id}`,
+      `jq '.state,.recommended_next_action' artifacts/release-closeout/v${summary.version}-${summary.run.id}/release-monitor.json`,
+    ],
+    artifact_policy: {
+      downloads_large_artifacts: false,
+      read_small_artifact: `release-closeout-${summary.version}/release-monitor.json`,
+    },
+  };
+}
+
+function buildNotificationPayload(summary: ReturnType<typeof buildSummary>, monitor: ReturnType<typeof buildMonitorSummary>) {
+  return {
+    schema: 'opl_release_run_notification.v1',
+    topic: 'opl_release_run_monitor',
+    version: summary.version,
+    state: monitor.state,
+    title: `OPL release v${summary.version}: ${monitor.state}`,
+    body: `${monitor.next_action}: ${summary.decision.reason}`,
+    next_action: monitor.recommended_next_action,
+    run_url: summary.run.url,
+    artifact: `release-closeout-${summary.version}`,
+    machine_payload: 'release-monitor.json',
+  };
+}
+
 function writeMarkdown(filePath: string, summary: ReturnType<typeof buildSummary>) {
+  const monitor = buildMonitorSummary(summary);
   const lines = [
     '## Release Closeout',
     '',
     `- Version: ${summary.version}`,
     `- Run: ${summary.run.id}`,
+    `- Monitor state: ${monitor.state}`,
     `- Status: ${String(summary.run.status ?? 'unknown')}`,
     `- Conclusion: ${String(summary.run.conclusion ?? 'unknown')}`,
     `- Workflow wall time: ${formatDuration(summary.run.timing.workflow_wall_time_seconds)}`,
@@ -1042,6 +1153,10 @@ function writeMarkdown(filePath: string, summary: ReturnType<typeof buildSummary
     `Next action: ${summary.decision.next_action}`,
     `Reason: ${summary.decision.reason}`,
     `Command: \`${summary.decision.command}\``,
+    '',
+    'No-watch monitor:',
+    `- Artifact: release-closeout-${summary.version}/release-monitor.json`,
+    `- Read: \`jq '.state,.recommended_next_action' release-monitor.json\``,
     '',
     '| Source | Status | Path |',
     '| --- | --- | --- |',
@@ -1149,14 +1264,23 @@ function main() {
   const options = parseArgs(process.argv.slice(2));
   fs.mkdirSync(options.outDir, { recursive: true });
   const summary = buildSummary(options);
+  const monitor = buildMonitorSummary(summary);
+  const notification = buildNotificationPayload(summary, monitor);
+  summary.monitor = monitor;
+  summary.notification_payload = notification;
   writeJson(options.output, summary);
+  writeJson(options.monitor, monitor);
+  writeJson(options.notification, notification);
   writeMarkdown(options.markdown, summary);
   console.log(JSON.stringify({
     status: summary.decision.next_action === 'promote_from_candidate_record'
       ? 'ready_to_promote'
       : summary.decision.next_action,
+    monitor_state: monitor.state,
     output: path.relative(appRoot, options.output),
     markdown: path.relative(appRoot, options.markdown),
+    monitor: path.relative(appRoot, options.monitor),
+    notification: path.relative(appRoot, options.notification),
     next_action: summary.decision.next_action,
   }, null, 2));
 }

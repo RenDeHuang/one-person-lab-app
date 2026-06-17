@@ -152,6 +152,7 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?summarize-release-readiness\.ts/, 'scripted release readiness aggregation');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?Build release closeout summary[\s\S]*?npm run release:closeout --[\s\S]*?--no-download/, 'default release closeout must run inside the final readiness job');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?release-closeout-inputs[\s\S]*?release-closeout\/release-closeout\.json[\s\S]*?release-closeout\/release-closeout\.md/, 'default release closeout must use local small artifacts and write machine-readable outputs');
+  assertMatches(workflow, /Upload release closeout summary[\s\S]*?release-closeout\/release-monitor\.json[\s\S]*?release-closeout\/release-notification\.json/, 'default release closeout artifact must include monitor and notification payloads');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?Upload release closeout summary[\s\S]*?release-closeout-\$\{\{ inputs\.opl_version \}\}/, 'default release closeout artifact');
   const readinessJob = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   assert.doesNotMatch(readinessJob, /name:\s+macos-build-arm64/);

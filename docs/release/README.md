@@ -83,21 +83,35 @@ Nightly and candidate flows follow the same SSOT contract but do not imply stabl
 
 The clean first-run VM gate uploads App-wrapper diagnostics alongside the shell
 smoke artifacts. The wrapper records host `node`, `npm`, `curl`, npm registry,
-`@openai/codex` package metadata, the resolved job/run/smoke timeout settings,
-the smoke command preview, and wrapper stdout/stderr logs in
-`app-wrapper-diagnostics.json` plus companion `app-wrapper-*.log` files.
+`@openai/codex` package metadata, Codex install asset preflight/cache details,
+the resolved job/run/smoke timeout settings, the smoke command preview, and
+wrapper stdout/stderr logs in `app-wrapper-diagnostics.json` plus companion
+`app-wrapper-*.log` files.
+
+Before launching the clean VM, the workflow performs a host-side Codex npm
+package preflight. It reads `@openai/codex@latest` metadata, records the npm
+registry response status, package version, tarball URL host, tarball sha256,
+tarball size, and elapsed time in `codex-package-preflight.json`, stores the
+raw registry response as `codex-package-registry-response.json`, downloads the
+tarball to `codex-package-tarballs/openai-codex.tgz`, and materializes
+`codex-npm-cache`. GitHub Actions cache restores and saves those install assets
+to reduce registry dependency, but the clean VM install smoke still runs and
+must prove first-run behavior. This is an install asset preseed/cache surface;
+it is not App readiness truth, release-owner receipt, runtime truth, or a
+replacement for `tart-smoke-summary.json` and shell Codex install diagnostics.
 
 `run_timeout_ms` and `smoke_timeout_ms` are workflow inputs and are passed to
 `opl-first-run-tart-smoke.mjs` as `--timeout-ms` and `--smoke-timeout-ms`.
 `codex_install_phase_timeout_ms` and `codex_readiness_phase_timeout_ms` are
 workflow inputs that default to `smoke_timeout_ms` and are passed through as
 `--codex-install-phase-timeout-ms` and
-`--codex-readiness-phase-timeout-ms`. Enforcement lives in the active
-`opl-aion-shell` smoke scripts; the App wrapper owns validating, forwarding,
-and recording the configured values. The App first-run matrix requires Codex
-install command preview, stdout, stderr, exit code, phase timings, and the shell
-summary timeout fields from `tart-smoke-summary.json` or a shell companion
-diagnostics artifact.
+`--codex-readiness-phase-timeout-ms`. The Codex install preseed paths are passed
+as `--codex-package-tarball` and `--codex-npm-cache-dir`. Enforcement lives in
+the active `opl-aion-shell` smoke scripts; the App wrapper owns validating,
+forwarding, and recording the configured values. The App first-run matrix
+requires Codex install command preview, stdout, stderr, exit code, phase
+timings, shell summary timeout fields, and install asset preseed diagnostics
+from `tart-smoke-summary.json` or a shell companion diagnostics artifact.
 
 ## Standard Updater
 
@@ -244,9 +258,13 @@ trips.
 Every desktop release run now produces the closeout by default in the final
 `release-readiness-summary` job. That job writes and uploads
 `release-closeout-<version>` with `release-closeout.json` and
-`release-closeout.md` after `release-candidate-record.json` is written. It reads
-the same local small artifacts already used by readiness, runs with
-`--no-download`, refuses standard/Full package artifacts, and points the
+`release-closeout.md` after `release-candidate-record.json` is written. The same
+artifact also carries `release-monitor.json` and `release-notification.json`.
+Use `release-monitor.json#state` (`running`, `failed`, `ready_to_promote`, or
+`published`) plus `recommended_next_action` as the no-watch operator surface
+instead of leaving a terminal in `gh run watch`. It reads the same local small
+artifacts already used by readiness, runs with `--no-download`, refuses
+standard/Full package artifacts, and points the
 operator at promotion only after the candidate record passes
 `scripts/validate-release-candidate-record.ts --promote-ready`. A candidate
 `status=ready_to_promote` without a same-cohort `release_owner_verdict_ref` or
@@ -266,6 +284,18 @@ When run locally, the command writes ignored outputs under
 `artifacts/release-closeout/v<version>-<run_id>/`, downloads only final summary
 and diagnostic artifacts unless `--no-download` is passed, and can record the
 Agent orchestration wall time with `--agent-wall-time <duration>`.
+
+No-watch readback:
+
+```bash
+gh run view <github-actions-run-id> --repo gaofeng21cn/one-person-lab-app --json status,conclusion,url,updatedAt
+gh run download <github-actions-run-id> --repo gaofeng21cn/one-person-lab-app --name release-closeout-<version> --dir artifacts/release-closeout/v<version>-<github-actions-run-id>
+jq '.state,.recommended_next_action' artifacts/release-closeout/v<version>-<github-actions-run-id>/release-monitor.json
+```
+
+`release-notification.json` is a repo-native notification payload for automation
+consumers. It is not a fake push notification service; it mirrors the monitor
+state, run URL, artifact name, and recommended next action in a small JSON file.
 
 ## Purpose-Based Release Validation
 

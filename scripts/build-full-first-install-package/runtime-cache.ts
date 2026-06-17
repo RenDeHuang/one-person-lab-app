@@ -8,6 +8,7 @@ import {
   buildFullRuntimeCacheArchivePath,
   buildFullRuntimeCacheKey,
   classifyFullRuntimeLayerCache,
+  shouldExcludeProductionNodeModulePath,
   shouldExcludeRuntimePath,
 } from '../full-first-install-package.ts';
 import { archiveLayer, extractLayer } from './archive-output.ts';
@@ -130,9 +131,16 @@ function buildRuntimeLayerPackagerInputs() {
   };
 }
 
+function buildRuntimeExcludePolicyHash() {
+  return stringSha256([
+    shouldExcludeRuntimePath.toString(),
+    shouldExcludeProductionNodeModulePath.toString(),
+  ].join('\n\n'));
+}
+
 export function buildRuntimeCacheKeyInputs(options, sources) {
   const packagerInputs = buildRuntimeLayerPackagerInputs();
-  const excludePolicyHash = stringSha256(shouldExcludeRuntimePath.toString());
+  const excludePolicyHash = buildRuntimeExcludePolicyHash();
 
   return {
     toolchain: {

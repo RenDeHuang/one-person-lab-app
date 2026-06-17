@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import {
   listFullRuntimeProductionNodeModulePaths,
+  shouldExcludeProductionNodeModulePath,
   shouldExcludeRuntimePath,
 } from '../full-first-install-package.ts';
 import { pushDirectoryEntries } from '../filesystem-walk.ts';
@@ -222,10 +223,46 @@ export function copyProductionNodeModules(sourceRoot, targetRoot) {
       continue;
     }
     const targetPath = path.join(targetRoot, relativePath);
-    fs.cpSync(sourcePath, targetPath, {
-      recursive: true,
-      dereference: true,
-      preserveTimestamps: true,
-    });
+    copyProductionNodeModule(sourcePath, targetPath);
   }
+}
+
+function copyProductionNodeModule(sourceRoot, targetRoot) {
+  fs.rmSync(targetRoot, { recursive: true, force: true });
+  const sourceBase = path.resolve(sourceRoot);
+
+  const copyEntry = (sourcePath, targetPath) => {
+    const relativePath = path.relative(sourceBase, sourcePath).split(path.sep).join('/');
+    if (relativePath && shouldExcludeProductionNodeModulePath(relativePath)) {
+      return;
+    }
+    const stat = fs.lstatSync(sourcePath);
+    if (stat.isDirectory()) {
+      fs.mkdirSync(targetPath, { recursive: true });
+      for (const entry of fs.readdirSync(sourcePath)) {
+        copyEntry(path.join(sourcePath, entry), path.join(targetPath, entry));
+      }
+      return;
+    }
+    if (stat.isSymbolicLink()) {
+      const realPath = fs.realpathSync(sourcePath);
+      const realStat = fs.statSync(realPath);
+      if (realStat.isDirectory()) {
+        fs.mkdirSync(targetPath, { recursive: true });
+        for (const entry of fs.readdirSync(realPath)) {
+          copyEntry(path.join(realPath, entry), path.join(targetPath, entry));
+        }
+        return;
+      }
+      if (realStat.isFile()) {
+        copyFileWithMode(realPath, targetPath, realStat);
+      }
+      return;
+    }
+    if (stat.isFile()) {
+      copyFileWithMode(sourcePath, targetPath, stat);
+    }
+  };
+
+  copyEntry(sourceBase, targetRoot);
 }

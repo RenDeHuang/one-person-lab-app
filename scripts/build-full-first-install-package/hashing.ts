@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import {
   listFullRuntimeProductionNodeModulePaths,
+  shouldExcludeProductionNodeModulePath,
   shouldExcludeRuntimePath,
 } from '../full-first-install-package.ts';
 
@@ -73,7 +74,31 @@ export function productionNodeModulesFingerprint(sourceRoot) {
   for (const relativePath of productionPaths) {
     const absolutePath = path.join(sourceRoot, relativePath);
     hash.update(relativePath);
-    hash.update(fs.existsSync(absolutePath) ? directoryFingerprint(absolutePath, relativePath) : 'missing');
+    hash.update(fs.existsSync(absolutePath) ? productionNodeModuleFingerprint(absolutePath) : 'missing');
+  }
+  return hash.digest('hex');
+}
+
+function productionNodeModuleFingerprint(root) {
+  const hash = crypto.createHash('sha256');
+  const stack = [['', root]];
+  while (stack.length > 0) {
+    const [relative, current] = stack.pop();
+    if (relative && shouldExcludeProductionNodeModulePath(relative.split(path.sep).join('/'))) {
+      continue;
+    }
+    const stat = fs.lstatSync(current);
+    hash.update(relative);
+    hash.update(stat.isDirectory() ? 'dir' : stat.isSymbolicLink() ? 'symlink' : 'file');
+    if (stat.isDirectory()) {
+      for (const entry of fs.readdirSync(current).sort().reverse()) {
+        stack.push([path.join(relative, entry), path.join(current, entry)]);
+      }
+    } else if (stat.isSymbolicLink()) {
+      hash.update(fs.readlinkSync(current));
+    } else if (stat.isFile()) {
+      hash.update(fs.readFileSync(current));
+    }
   }
   return hash.digest('hex');
 }

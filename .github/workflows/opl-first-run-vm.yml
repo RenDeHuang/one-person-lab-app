@@ -337,6 +337,17 @@ jobs:
           echo "codex_install_phase_timeout_ms=$CODEX_INSTALL_PHASE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
           echo "codex_readiness_phase_timeout_ms=$CODEX_READINESS_PHASE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
 
+      - name: Restore Codex install asset cache
+        id: codex_install_asset_cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            artifacts/opl-first-run-vm/codex-npm-cache
+            artifacts/opl-first-run-vm/codex-package-tarballs
+          key: opl-first-run-codex-install-assets-${{ runner.os }}-${{ runner.arch }}-latest
+          restore-keys: |
+            opl-first-run-codex-install-assets-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Download release DMG artifact
         if: ${{ inputs.release_artifact_name != '' }}
         uses: actions/download-artifact@v8
@@ -513,6 +524,287 @@ jobs:
           echo "dmg_path=$DMG_PATH" >> "$GITHUB_OUTPUT"
           echo "Using DMG: $DMG_PATH"
 
+      - name: Prefetch Codex package install assets
+        id: codex_package_preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/opl-first-run-vm/codex-npm-cache
+          mkdir -p artifacts/opl-first-run-vm/codex-package-tarballs
+
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { spawnSync } = require('node:child_process');
+
+          const startedAt = new Date();
+          const artifactRoot = 'artifacts/opl-first-run-vm';
+          const npmCacheDir = path.join(artifactRoot, 'codex-npm-cache');
+          const tarballPath = path.join(artifactRoot, 'codex-package-tarballs', 'openai-codex.tgz');
+          const registryResponsePath = path.join(artifactRoot, 'codex-package-registry-response.json');
+          const preflightPath = path.join(artifactRoot, 'codex-package-preflight.json');
+          const packageName = '@openai/codex';
+          const packageSpec = `${packageName}@latest`;
+
+          function run(command, args = [], options = {}) {
+            const started = new Date();
+            const result = spawnSync(command, args, {
+              encoding: 'utf8',
+              timeout: options.timeout || 120000,
+              maxBuffer: 64 * 1024 * 1024,
+            });
+            const ended = new Date();
+            return {
+              command: [command, ...args].join(' '),
+              available: result.error?.code !== 'ENOENT',
+              exit_code: typeof result.status === 'number' ? result.status : null,
+              signal: result.signal || null,
+              error: result.error ? String(result.error.message || result.error) : null,
+              stdout: (result.stdout || '').trim(),
+              stderr: (result.stderr || '').trim(),
+              started_at: started.toISOString(),
+              ended_at: ended.toISOString(),
+              duration_ms: ended.getTime() - started.getTime(),
+            };
+          }
+
+          function normalizeRegistryUrl(rawRegistry) {
+            const registry = (rawRegistry || 'https://registry.npmjs.org/').trim();
+            return registry.endsWith('/') ? registry : `${registry}/`;
+          }
+
+          function registryPackageMetadataUrl(registryUrl) {
+            return new URL('@openai%2fcodex', registryUrl).toString();
+          }
+
+          function parseJson(stdout, label, failures) {
+            try {
+              return JSON.parse(stdout);
+            } catch (error) {
+              failures.push(`${label} did not return valid JSON: ${error.message}`);
+              return null;
+            }
+          }
+
+          function sha256File(filePath) {
+            const hash = crypto.createHash('sha256');
+            hash.update(fs.readFileSync(filePath));
+            return hash.digest('hex');
+          }
+
+          const failures = [];
+          const npmRegistry = run('npm', ['config', 'get', 'registry']);
+          if (npmRegistry.exit_code !== 0 || npmRegistry.error) {
+            failures.push('npm config get registry failed');
+          }
+          const registryUrl = normalizeRegistryUrl(npmRegistry.stdout);
+          const registryMetadataUrl = registryPackageMetadataUrl(registryUrl);
+          const registryResponse = run('curl', [
+            '-sS',
+            '-L',
+            '--connect-timeout',
+            '30',
+            '--max-time',
+            '180',
+            '-o',
+            registryResponsePath,
+            '-w',
+            '%{http_code}',
+            registryMetadataUrl,
+          ], { timeout: 240000 });
+          const registryStatusCode = Number(registryResponse.stdout);
+          if (registryResponse.exit_code !== 0 || registryResponse.error) {
+            failures.push('registry package metadata request failed');
+          }
+          if (registryStatusCode !== 200) {
+            failures.push(`registry package metadata returned status ${registryResponse.stdout || 'unknown'}`);
+          }
+
+          const npmView = run('npm', [
+            'view',
+            packageSpec,
+            'version',
+            'dist.tarball',
+            'dist.integrity',
+            '--json',
+          ], { timeout: 240000 });
+          if (npmView.exit_code !== 0 || npmView.error) {
+            failures.push('npm view @openai/codex@latest version dist.tarball failed');
+          }
+          const metadata = npmView.stdout ? parseJson(npmView.stdout, 'npm view @openai/codex@latest', failures) : null;
+          const version = metadata?.version || null;
+          const tarballUrl = metadata?.['dist.tarball'] || metadata?.dist?.tarball || null;
+          const distIntegrity = metadata?.['dist.integrity'] || metadata?.dist?.integrity || null;
+          let tarballUrlHost = null;
+          if (!version) {
+            failures.push('npm package metadata did not include version');
+          }
+          if (!tarballUrl) {
+            failures.push('npm package metadata did not include dist.tarball');
+          } else {
+            try {
+              tarballUrlHost = new URL(tarballUrl).host;
+            } catch (error) {
+              failures.push(`dist.tarball is not a valid URL: ${error.message}`);
+            }
+          }
+
+          let tarballDownload = null;
+          let tarballStatusCode = null;
+          let tarballSha256 = null;
+          let tarballSizeBytes = null;
+          if (tarballUrl && tarballUrlHost) {
+            const partialTarballPath = `${tarballPath}.part`;
+            fs.rmSync(partialTarballPath, { force: true });
+            tarballDownload = run('curl', [
+              '-sS',
+              '-fL',
+              '--retry',
+              '5',
+              '--retry-all-errors',
+              '--retry-delay',
+              '10',
+              '--connect-timeout',
+              '30',
+              '--max-time',
+              '900',
+              '-o',
+              partialTarballPath,
+              '-w',
+              '%{http_code}',
+              tarballUrl,
+            ], { timeout: 960000 });
+            tarballStatusCode = Number(tarballDownload.stdout);
+            if (tarballDownload.exit_code === 0 && tarballStatusCode === 200) {
+              fs.renameSync(partialTarballPath, tarballPath);
+              const stat = fs.statSync(tarballPath);
+              tarballSizeBytes = stat.size;
+              tarballSha256 = sha256File(tarballPath);
+              if (tarballSizeBytes <= 0) {
+                failures.push('downloaded Codex package tarball is empty');
+              }
+            } else {
+              fs.rmSync(partialTarballPath, { force: true });
+              failures.push(`Codex package tarball download failed with status ${tarballDownload.stdout || 'unknown'}`);
+            }
+          }
+
+          let npmCacheAdd = null;
+          if (fs.existsSync(tarballPath)) {
+            npmCacheAdd = run('npm', [
+              'cache',
+              'add',
+              tarballPath,
+              '--cache',
+              npmCacheDir,
+            ], { timeout: 300000 });
+            if (npmCacheAdd.exit_code !== 0 || npmCacheAdd.error) {
+              failures.push('npm cache add for Codex package tarball failed');
+            }
+          }
+
+          const endedAt = new Date();
+          const cacheKeyPrefix = process.env.CACHE_KEY_PREFIX || 'opl-first-run-codex-install-assets';
+          const cacheKey = version && tarballSha256
+            ? `${cacheKeyPrefix}-${version}-${tarballSha256.slice(0, 16)}-${process.env.GITHUB_RUN_ID || 'local'}-${process.env.GITHUB_RUN_ATTEMPT || '1'}`
+            : '';
+          const preflight = {
+            schema_version: 1,
+            owner: 'one-person-lab-app',
+            purpose: 'codex_install_asset_cache_preseed',
+            status: failures.length === 0 ? 'ok' : 'failed',
+            generated_at: endedAt.toISOString(),
+            package: {
+              name: packageName,
+              requested_spec: packageSpec,
+              version,
+              tarball_url: tarballUrl,
+              tarball_url_host: tarballUrlHost,
+              dist_integrity: distIntegrity,
+            },
+            registry: {
+              npm_registry: registryUrl,
+              package_metadata_url: registryMetadataUrl,
+              status_code: Number.isFinite(registryStatusCode) ? registryStatusCode : null,
+              response_path: 'codex-package-registry-response.json',
+              npm_view,
+              metadata_request: registryResponse,
+            },
+            tarball: {
+              path: 'codex-package-tarballs/openai-codex.tgz',
+              workflow_path: tarballPath,
+              url_host: tarballUrlHost,
+              response_status_code: Number.isFinite(tarballStatusCode) ? tarballStatusCode : null,
+              sha256: tarballSha256,
+              size_bytes: tarballSizeBytes,
+              download: tarballDownload,
+            },
+            cache: {
+              npm_cache_dir: 'codex-npm-cache',
+              workflow_npm_cache_dir: npmCacheDir,
+              workflow_cache_key: cacheKey,
+              restore: {
+                cache_hit: process.env.CODEX_CACHE_RESTORE_HIT || '',
+                primary_key: process.env.CODEX_CACHE_RESTORE_PRIMARY_KEY || '',
+                matched_key: process.env.CODEX_CACHE_RESTORE_MATCHED_KEY || '',
+              },
+              npm_cache_add: npmCacheAdd,
+            },
+            timings: {
+              started_at: startedAt.toISOString(),
+              ended_at: endedAt.toISOString(),
+              elapsed_ms: endedAt.getTime() - startedAt.getTime(),
+            },
+            truth_boundary: 'install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt',
+            failures,
+          };
+
+          fs.writeFileSync(preflightPath, `${JSON.stringify(preflight, null, 2)}\n`);
+          if (process.env.GITHUB_OUTPUT) {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, [
+              `preflight_json=${preflightPath}`,
+              `tarball_path=${tarballPath}`,
+              `npm_cache_dir=${npmCacheDir}`,
+              `package_version=${version || ''}`,
+              `cache_key=${cacheKey}`,
+            ].join('\n') + '\n');
+          }
+
+          console.log(JSON.stringify({
+            preflight: preflightPath,
+            status: preflight.status,
+            package_version: version,
+            tarball_host: tarballUrlHost,
+            tarball_sha256: tarballSha256,
+            tarball_size_bytes: tarballSizeBytes,
+            elapsed_ms: preflight.timings.elapsed_ms,
+          }, null, 2));
+
+          if (failures.length > 0) {
+            console.error('Codex package install asset preflight failed:');
+            for (const failure of failures) {
+              console.error(`- ${failure}`);
+            }
+            process.exit(1);
+          }
+          NODE
+        env:
+          CACHE_KEY_PREFIX: opl-first-run-codex-install-assets-${{ runner.os }}-${{ runner.arch }}
+          CODEX_CACHE_RESTORE_HIT: ${{ steps.codex_install_asset_cache.outputs.cache-hit }}
+          CODEX_CACHE_RESTORE_PRIMARY_KEY: ${{ steps.codex_install_asset_cache.outputs.cache-primary-key }}
+          CODEX_CACHE_RESTORE_MATCHED_KEY: ${{ steps.codex_install_asset_cache.outputs.cache-matched-key }}
+
+      - name: Save Codex install asset cache
+        if: ${{ steps.codex_package_preflight.outputs.cache_key != '' }}
+        uses: actions/cache/save@v5
+        continue-on-error: true
+        with:
+          path: |
+            artifacts/opl-first-run-vm/codex-npm-cache
+            artifacts/opl-first-run-vm/codex-package-tarballs
+          key: ${{ steps.codex_package_preflight.outputs.cache_key }}
+
       - name: Write first-run VM preflight summary
         shell: bash
         run: |
@@ -564,6 +856,10 @@ jobs:
             echo "- Runtime profile: \`${{ steps.package_profile.outputs.runtime_profile }}\`"
             echo "- DMG artifact path: \`${{ steps.dmg.outputs.dmg_path }}\`"
             echo "- Homebrew cask: \`${{ steps.package_profile.outputs.homebrew_cask }}\`"
+            echo "- Codex package version: \`${{ steps.codex_package_preflight.outputs.package_version }}\`"
+            echo "- Codex package preflight: \`${{ steps.codex_package_preflight.outputs.preflight_json }}\`"
+            echo "- Codex package tarball: \`${{ steps.codex_package_preflight.outputs.tarball_path }}\`"
+            echo "- Codex npm cache dir: \`${{ steps.codex_package_preflight.outputs.npm_cache_dir }}\`"
             echo "- Smoke profile: \`no-clt-clean-vm\`"
             echo "- Display: \`1920x1080px\`"
             echo "- Settings smoke: enabled"
@@ -613,6 +909,36 @@ jobs:
           const npmVersion = run('npm', ['--version']);
           const curlVersion = run('curl', ['--version']);
           const npmRegistry = run('npm', ['config', 'get', 'registry']);
+          const codexPackagePreflight = (() => {
+            const artifactPath = process.env.CODEX_PACKAGE_PREFLIGHT_JSON;
+            if (!artifactPath) {
+              return {
+                path: '',
+                available: false,
+                parsed: false,
+                exit_code: 1,
+                error: 'CODEX_PACKAGE_PREFLIGHT_JSON is not configured',
+              };
+            }
+            try {
+              const available = fs.existsSync(artifactPath);
+              return {
+                path: artifactPath,
+                available,
+                parsed: true,
+                exit_code: available ? 0 : 1,
+                data: JSON.parse(fs.readFileSync(artifactPath, 'utf8')),
+              };
+            } catch (error) {
+              return {
+                path: artifactPath,
+                available: fs.existsSync(artifactPath),
+                parsed: false,
+                exit_code: 1,
+                error: String(error.message || error),
+              };
+            }
+          })();
           const codexPackageMetadata = run('npm', [
             'view',
             '@openai/codex@latest',
@@ -672,11 +998,16 @@ jobs:
               npm: npmVersion,
               curl: curlVersion,
               npm_registry: npmRegistry,
+              codex_package_preflight: codexPackagePreflight,
               codex_package_metadata: codexPackageMetadata,
             },
             artifact_paths: {
               diagnostics: 'app-wrapper-diagnostics.json',
               preflight_log: 'app-wrapper-preflight.log',
+              codex_package_preflight: 'codex-package-preflight.json',
+              codex_package_registry_response: 'codex-package-registry-response.json',
+              codex_package_tarball: 'codex-package-tarballs/openai-codex.tgz',
+              codex_npm_cache_dir: 'codex-npm-cache',
               smoke_command_preview: 'app-wrapper-smoke-command-preview.txt',
               smoke_stdout: 'app-wrapper-smoke.stdout.log',
               smoke_stderr: 'app-wrapper-smoke.stderr.log',
@@ -692,6 +1023,12 @@ jobs:
             codex_install: {
               current_app_scope: 'required_from_tart_smoke_summary_or_shell_companion_diagnostics',
               shell_interface_status: 'implemented_opl_aion_shell_phase_options',
+              install_asset_preseed: {
+                preflight_json: process.env.CODEX_PACKAGE_PREFLIGHT_JSON,
+                tarball_path: process.env.CODEX_PACKAGE_TARBALL,
+                npm_cache_dir: process.env.CODEX_NPM_CACHE_DIR,
+                truth_boundary: 'install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt',
+              },
               required_fields: ['command_preview', 'stdout', 'stderr', 'exit_code', 'phase_timings'],
             },
           };
@@ -708,8 +1045,9 @@ jobs:
             ['npm --version', npmVersion],
             ['curl --version', curlVersion],
             ['npm config get registry', npmRegistry],
+            ['codex-package-preflight.json', codexPackagePreflight],
             ['npm view @openai/codex@latest', codexPackageMetadata],
-          ].filter(([, result]) => result.exit_code !== 0 || result.error);
+          ].filter(([, result]) => result.exit_code !== 0 || result.error || result.parsed === false || result.available === false);
 
           if (requiredFailures.length > 0) {
             console.error('Required first-run VM wrapper diagnostics failed:');
@@ -738,6 +1076,9 @@ jobs:
           RELEASE_DMG_URL_CONFIGURED: ${{ inputs.release_dmg_url != '' && 'true' || 'false' }}
           RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
           SHELL_REF: ${{ inputs.shell_ref || 'main' }}
+          CODEX_PACKAGE_PREFLIGHT_JSON: ${{ steps.codex_package_preflight.outputs.preflight_json }}
+          CODEX_PACKAGE_TARBALL: ${{ steps.codex_package_preflight.outputs.tarball_path }}
+          CODEX_NPM_CACHE_DIR: ${{ steps.codex_package_preflight.outputs.npm_cache_dir }}
 
       - name: Run clean VM first launch smoke
         shell: bash
@@ -765,6 +1106,8 @@ jobs:
             --smoke-timeout-ms "${{ steps.vm_timeouts.outputs.smoke_timeout_ms }}"
             --codex-install-phase-timeout-ms "${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms }}"
             --codex-readiness-phase-timeout-ms "${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms }}"
+            --codex-package-tarball "${{ steps.codex_package_preflight.outputs.tarball_path }}"
+            --codex-npm-cache-dir "${{ steps.codex_package_preflight.outputs.npm_cache_dir }}"
             --smoke-profile no-clt-clean-vm
             --display 1920x1080px
             --settings-smoke
@@ -889,6 +1232,9 @@ jobs:
             echo "- Smoke timeout: ${{ steps.vm_timeouts.outputs.smoke_timeout_ms }} ms"
             echo "- Codex install phase timeout: ${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms }} ms"
             echo "- Codex readiness phase timeout: ${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms }} ms"
+            echo "- Codex package preflight: ${{ steps.codex_package_preflight.outputs.preflight_json }}"
+            echo "- Codex package tarball: ${{ steps.codex_package_preflight.outputs.tarball_path }}"
+            echo "- Codex npm cache dir: ${{ steps.codex_package_preflight.outputs.npm_cache_dir }}"
             echo "- Wrapper diagnostics: artifacts/opl-first-run-vm/app-wrapper-diagnostics.json"
             echo "- Wrapper smoke logs: artifacts/opl-first-run-vm/app-wrapper-smoke.stdout.log, artifacts/opl-first-run-vm/app-wrapper-smoke.stderr.log"
             if [ -d artifacts/opl-first-run-vm/artifacts/guide-screenshots ]; then

@@ -1114,4 +1114,6 @@ jobs:
           path: |
             release-closeout/release-closeout.json
             release-closeout/release-closeout.md
+            release-closeout/release-monitor.json
+            release-closeout/release-notification.json
           if-no-files-found: error

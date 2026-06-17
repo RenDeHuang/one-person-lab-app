@@ -82,9 +82,9 @@ npm run release:candidate-record:validate -- --version <version> --record releas
 npm run release:candidate-record:status -- --record release-candidate-record.json --format json
 npm run release:owner-candidate-record:verify -- --version <version> --owner-record docs/release/records/v<version>-release-owner-receipt.json --artifacts-dir artifacts/release-closeout/v<version>-<run-id>/artifacts
 npm run release:full:size -- --markdown
-npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard
-npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full
-npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-homebrew-ready-base --install-mode homebrew-cask --homebrew-cask gaofeng21cn/one-person-lab/one-person-lab --smoke-profile homebrew-standard-cask --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard
+npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
+npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
+npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-homebrew-ready-base --install-mode homebrew-cask --homebrew-cask gaofeng21cn/one-person-lab/one-person-lab --smoke-profile homebrew-standard-cask --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
 OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --complete --skip-modules
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
@@ -127,8 +127,14 @@ names in `release-readiness-summary.json`, making fresh cache writes visible in
 the final release summary.
 Full packaging excludes local development indexes, dependency caches, tests, and
 runtime/user state such as `.codegraph`, `.git`, `.worktrees`, `.venv`,
-`node_modules`, `runtime`, `runtime-state`, `runs`, `sessions`, and `tests`;
-domain-specific allowlists must come from the owning domain repositories.
+`node_modules`, `runtime`, `runtime-state`, `runs`, `sessions`, and `tests`.
+It also prunes non-runtime build and report output such as `.github`, `.next`,
+`.turbo`, `storybook-static`, `playwright-report`, `test-results`, coverage
+directories, and source maps. Production `opl/node_modules` packages are copied
+through a narrower filter that removes package tests/docs/fixtures/examples,
+snapshots, reports, caches, and `*.map` files while keeping runtime JS, schemas,
+assets, and native binaries. Domain-specific allowlists must come from the
+owning domain repositories.
 
 The clean first-install gates are wired through
 `.github/workflows/opl-first-run-vm.yml` and the active shell Tart smoke helper.
@@ -170,9 +176,17 @@ evidence. Default mode is read-only `diagnose`; it verifies intended behavior
 and recommends next actions without replacing deterministic initialization or
 the VM gate. The workflow writes a preflight summary
 with runner labels, source VM, guest user, package/runtime profile, DMG path,
-display, and artifact output before executing the smoke. Codex App and Computer
-Use checks are non-blocking exploratory tools; release-blocking App readiness
-must live in deterministic scripts, contracts, or GitHub Actions gates.
+display, Codex package preflight path, Codex tarball path, Codex npm cache dir,
+and artifact output before executing the smoke. The VM artifact includes
+`codex-package-preflight.json`, `codex-package-registry-response.json`,
+`codex-package-tarballs/openai-codex.tgz`, and `codex-npm-cache`; the active
+shell helper receives those install assets through `--codex-package-tarball`
+and `--codex-npm-cache-dir`. This preseed/cache surface reduces live registry
+dependency during Codex install, but it is not readiness truth, runtime truth,
+or release-owner receipt, and it never replaces the clean VM install smoke.
+Codex App and Computer Use checks are non-blocking exploratory tools;
+release-blocking App readiness must live in deterministic scripts, contracts,
+or GitHub Actions gates.
 Scheduled GitHub Actions runs must have repository variable
 `OPL_FIRST_RUN_TART_SOURCE` set to a local Tart source VM on the self-hosted
 runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18` for DMG
@@ -240,8 +254,14 @@ artifact.
 final `release-readiness-summary` job builds `release-closeout-<version>` after
 the candidate record, using the already downloaded small artifacts and
 `--no-download`; it does not fetch standard build or Full package workflow
-artifacts. The same npm script is the local rerun/debug entry for completed or
-in-progress GitHub Actions release runs. Local reruns write ignored output under
+artifacts. The artifact includes `release-closeout.json`,
+`release-closeout.md`, `release-monitor.json`, and `release-notification.json`.
+Read `release-monitor.json#state` plus `recommended_next_action` to replace long
+`gh run watch` loops; states are `running`, `failed`, `ready_to_promote`, and
+`published`. The notification JSON is a small repo-native payload for automation
+consumers, not an external push channel. The same npm script is the local
+rerun/debug entry for completed or in-progress GitHub Actions release runs.
+Local reruns write ignored output under
 `artifacts/release-closeout/v<version>-<run_id>/`, download only primary small
 artifacts (`release-candidate-record`, `release-readiness-summary`,
 `release-preflight-summary`, and `remote-release-verification`) unless
@@ -251,6 +271,14 @@ workflow telemetry and diagnostics, or `--artifact-profile readiness-inputs`
 when rebuilding the full readiness diagnosis locally. Pass
 `--agent-wall-time <duration>` only for the operator loop clock; GitHub Actions
 workflow wall time is always computed from run timestamps.
+
+No-watch readback:
+
+```bash
+gh run view <run-id> --repo gaofeng21cn/one-person-lab-app --json status,conclusion,url,updatedAt
+gh run download <run-id> --repo gaofeng21cn/one-person-lab-app --name release-closeout-<version> --dir artifacts/release-closeout/v<version>-<run-id>
+jq '.state,.recommended_next_action' artifacts/release-closeout/v<version>-<run-id>/release-monitor.json
+```
 
 The final stable release decision is `release-readiness-summary.json`, produced
 by `.github/workflows/desktop-release.yml` through

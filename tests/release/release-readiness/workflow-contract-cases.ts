@@ -123,6 +123,24 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.match(job, /Record first-run VM wrapper diagnostics/);
   assert.match(job, /app-wrapper-diagnostics\.json/);
   assert.match(job, /app-wrapper-preflight\.log/);
+  assert.match(job, /Restore Codex install asset cache/);
+  assert.match(job, /actions\/cache\/restore@v5/);
+  assert.match(job, /Save Codex install asset cache/);
+  assert.match(job, /actions\/cache\/save@v5/);
+  assert.match(job, /continue-on-error:\s+true/);
+  assert.match(job, /Prefetch Codex package install assets/);
+  assert.match(job, /codex-package-preflight\.json/);
+  assert.match(job, /codex-package-registry-response\.json/);
+  assert.match(job, /codex-package-tarballs\/openai-codex\.tgz/);
+  assert.match(job, /codex-npm-cache/);
+  assert.match(job, /npm[\s\S]*view[\s\S]*@openai\/codex@latest[\s\S]*version[\s\S]*dist\.tarball/);
+  assert.match(job, /registry[\s\S]*status_code/);
+  assert.match(job, /package[\s\S]*version/);
+  assert.match(job, /tarball_url_host/);
+  assert.match(job, /tarball[\s\S]*sha256/);
+  assert.match(job, /tarball[\s\S]*size_bytes/);
+  assert.match(job, /elapsed_ms/);
+  assert.match(job, /install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt/);
   assert.match(job, /npm[\s\S]*config[\s\S]*get[\s\S]*registry/);
   assert.match(job, /@openai\/codex/);
   assert.match(job, /curl[\s\S]*--version/);
@@ -140,6 +158,8 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
     job,
     /--codex-readiness-phase-timeout-ms "\$\{\{ steps\.vm_timeouts\.outputs\.codex_readiness_phase_timeout_ms \}\}"/,
   );
+  assert.match(job, /--codex-package-tarball "\$\{\{ steps\.codex_package_preflight\.outputs\.tarball_path \}\}"/);
+  assert.match(job, /--codex-npm-cache-dir "\$\{\{ steps\.codex_package_preflight\.outputs\.npm_cache_dir \}\}"/);
   assert.match(job, /codex_phase_timeout_interface: 'opl_aion_shell_phase_options'/);
   assert.match(job, /shell_interface_status: 'implemented_opl_aion_shell_phase_options'/);
   assert.doesNotMatch(job, /shell interface pending/);
@@ -151,7 +171,14 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.match(job, /phase_timings/);
   assert.match(job, /Upload first-run VM artifacts[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/);
 
+  const vmArtifactScenarioIds = new Set([
+    'standard_dmg_clean_vm_smoke',
+    'homebrew_standard_cask_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+  ]);
+
   for (const scenarioId of [
+    'full_first_install_clean_machine',
     'standard_dmg_clean_vm_smoke',
     'homebrew_standard_cask_clean_vm_smoke',
     'full_dmg_clean_vm_smoke',
@@ -162,7 +189,53 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       scenario.release_evidence_artifacts.includes('app-wrapper-diagnostics.json'),
       `${scenarioId} must require App wrapper diagnostics`,
     );
+    if (vmArtifactScenarioIds.has(scenarioId)) {
+      for (const artifact of [
+        'codex-package-preflight.json',
+        'codex-package-registry-response.json',
+        'codex-package-tarballs/openai-codex.tgz',
+        'codex-npm-cache',
+      ]) {
+        assert.ok(
+          scenario.release_evidence_artifacts.includes(artifact),
+          `${scenarioId} must require Codex install asset evidence ${artifact}`,
+        );
+      }
+    }
     assert.equal(scenario.diagnostics_contract.app_wrapper.current_artifact, 'app-wrapper-diagnostics.json');
+    assert.deepEqual(scenario.diagnostics_contract.app_wrapper.current_install_asset_artifacts, [
+      'codex-package-preflight.json',
+      'codex-package-registry-response.json',
+      'codex-package-tarballs/openai-codex.tgz',
+    ]);
+    assert.deepEqual(scenario.diagnostics_contract.app_wrapper.current_cache_dirs, [
+      'codex-npm-cache',
+    ]);
+    assert.deepEqual(scenario.diagnostics_contract.app_wrapper.required_preflight_fields, [
+      'host.node',
+      'host.npm',
+      'host.curl',
+      'host.npm_registry',
+      'host.codex_package_metadata',
+      'host.codex_package_preflight',
+      'artifact_paths.codex_package_preflight',
+      'artifact_paths.codex_package_registry_response',
+      'artifact_paths.codex_package_tarball',
+      'artifact_paths.codex_npm_cache_dir',
+      'codex_install.install_asset_preseed',
+    ]);
+    assert.deepEqual(scenario.diagnostics_contract.app_wrapper.required_codex_package_preflight_fields, [
+      'status',
+      'registry.status_code',
+      'package.version',
+      'package.tarball_url',
+      'package.tarball_url_host',
+      'tarball.sha256',
+      'tarball.size_bytes',
+      'timings.elapsed_ms',
+      'cache.npm_cache_dir',
+      'truth_boundary',
+    ]);
     assert.deepEqual(scenario.diagnostics_contract.app_wrapper.required_timeout_fields, [
       'job_timeout_minutes',
       'run_timeout_ms',
@@ -170,6 +243,20 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       'codex_install_phase_timeout_ms',
       'codex_readiness_phase_timeout_ms',
     ]);
+    assert.deepEqual(scenario.diagnostics_contract.codex_install.install_asset_preseed, {
+      mode: 'host_prefetch_cache_preseed',
+      shell_arguments: [
+        '--codex-package-tarball',
+        '--codex-npm-cache-dir',
+      ],
+      required_artifacts: [
+        'codex-package-preflight.json',
+        'codex-package-registry-response.json',
+        'codex-package-tarballs/openai-codex.tgz',
+        'codex-npm-cache',
+      ],
+      truth_boundary: 'install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt',
+    });
     assert.deepEqual(scenario.diagnostics_contract.codex_install.required_fields, [
       'command_preview',
       'stdout',
