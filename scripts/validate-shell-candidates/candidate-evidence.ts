@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { ActiveProjectLineStateModel, ShellCandidate } from './types.ts';
@@ -40,12 +41,24 @@ export function runCandidateCommands(candidate: ShellCandidate): void {
     if (entry.id === 'candidate_app_bundle_build') {
       validateCandidatePackageManifest(candidate, { requireSmoke: false });
     }
+    if (entry.id === 'candidate_packaged_first_run_smoke') {
+      validateCandidatePackageManifest(candidate, { requireSmoke: true });
+    }
   }
   validateCandidateImplementationFiles(candidate);
-  validateCandidateImplementationEvidence(candidate);
+  if (candidate.id === 'hermes-codex') {
+    validateHermesCandidateSourceReceipt(candidate);
+  } else {
+    validateCandidateImplementationEvidence(candidate);
+  }
 }
 
 function validateCandidatePackageManifest(candidate: ShellCandidate, options: { requireSmoke?: boolean } = { requireSmoke: true }): void {
+  if (candidate.id === 'hermes-codex') {
+    validateHermesCandidatePackageManifest(candidate, options);
+    return;
+  }
+
   const manifestPath = path.join(root, candidate.candidate_root, 'out', 'agui-codex-candidate-manifest.json');
   assertFile(manifestPath, `${candidate.id} package manifest`);
   const manifest = readJson<{
@@ -154,6 +167,218 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
     requiredCapabilities,
     `${candidate.id} package manifest implemented capabilities`,
   );
+}
+
+function validateHermesCandidatePackageManifest(candidate: ShellCandidate, options: { requireSmoke?: boolean } = { requireSmoke: true }): void {
+  const manifestPath = path.join(root, candidate.candidate_root, 'out', 'hermes-codex-candidate-manifest.json');
+  assertFile(manifestPath, `${candidate.id} package manifest`);
+  const manifest = readJson<{
+    status: string;
+    package_kind: string;
+    app_bundle_path: string;
+    app_bundle_executable?: string;
+    default_release_shell_unchanged: boolean;
+    active_shell_adopted: boolean;
+    hermes_runtime_authority_transfer: boolean;
+    official_hermes_backend_preserved: boolean;
+    official_hermes_desktop_ui_reused: boolean;
+    backend_bridge?: {
+      codex_runtime_reference?: string;
+      protocol_mapping?: Record<string, string>;
+    };
+    implemented_capabilities?: string[];
+    deferred_until_feature_comparison?: string[];
+  }>(manifestPath);
+  if (manifest.status !== 'candidate_app_bundle_ready') {
+    throw new Error(`${candidate.id} package manifest must declare candidate_app_bundle_ready`);
+  }
+  if (manifest.package_kind !== 'explicit_candidate_app_bundle') {
+    throw new Error(`${candidate.id} package manifest must declare explicit_candidate_app_bundle`);
+  }
+  if (!manifest.app_bundle_path || !manifest.app_bundle_path.endsWith('.app')) {
+    throw new Error(`${candidate.id} package manifest must point at a .app bundle`);
+  }
+  assertRelativePath(manifest.app_bundle_path, `${candidate.id} package manifest app_bundle_path`);
+  const appBundleRoot = path.join(root, candidate.candidate_root, manifest.app_bundle_path);
+  assertDirectory(appBundleRoot, `${candidate.id} .app bundle`);
+  assertFile(path.join(appBundleRoot, 'Contents', 'Info.plist'), `${candidate.id} .app Info.plist`);
+  const macOsDir = path.join(appBundleRoot, 'Contents', 'MacOS');
+  assertDirectory(macOsDir, `${candidate.id} .app Contents/MacOS`);
+  const executable = findMacAppExecutable(macOsDir, candidate.id);
+  if (manifest.app_bundle_executable !== 'One Person Lab Hermes Candidate' || executable !== manifest.app_bundle_executable) {
+    throw new Error(`${candidate.id} .app bundle must use the OPL branded executable name`);
+  }
+  if (fs.existsSync(path.join(macOsDir, 'Electron'))) {
+    throw new Error(`${candidate.id} .app bundle must not expose the legacy Electron executable name`);
+  }
+  assertNoAbsoluteSymlinks(appBundleRoot, candidate.id);
+  if (options.requireSmoke !== false) {
+    validateHermesPackagedSmoke(candidate);
+  }
+  for (const [field, expected] of Object.entries({
+    default_release_shell_unchanged: true,
+    active_shell_adopted: false,
+    hermes_runtime_authority_transfer: false,
+    official_hermes_backend_preserved: true,
+    official_hermes_desktop_ui_reused: true,
+  })) {
+    if ((manifest as Record<string, unknown>)[field] !== expected) {
+      throw new Error(`${candidate.id} package manifest ${field} must be ${String(expected)}`);
+    }
+  }
+  if (manifest.backend_bridge?.codex_runtime_reference !== 'codex app-server --listen stdio://') {
+    throw new Error(`${candidate.id} package manifest must prove the Codex app-server runtime reference`);
+  }
+  for (const [hermesMethod, codexEvent] of Object.entries({
+    'session.create': 'thread/start',
+    'prompt.submit': 'turn/start',
+    'item/agentMessage/delta': 'message.delta',
+    'turn/completed': 'message.complete',
+  })) {
+    if (manifest.backend_bridge?.protocol_mapping?.[hermesMethod] !== codexEvent) {
+      throw new Error(`${candidate.id} package manifest protocol_mapping.${hermesMethod} must be ${codexEvent}`);
+    }
+  }
+  assertStringArrayIncludes(
+    manifest.implemented_capabilities ?? [],
+    [
+      'official_hermes_desktop_ui_reused',
+      'official_hermes_backend_preserved',
+      'opl_defaults_seed_for_codex_runtime_and_domain_skills',
+      'codex_app_server_backed_hermes_gateway_adapter',
+      'opl_branding_and_icon_replaced',
+      'candidate_app_bundle_package',
+    ],
+    `${candidate.id} package manifest implemented capabilities`,
+  );
+  assertStringArrayIncludes(
+    manifest.deferred_until_feature_comparison ?? [],
+    [
+      'opl_app_state_action_bridge',
+      'app_product_profile_mapping',
+      'page_state_matrix_mapping',
+      'first_run_matrix_mapping',
+      'packaged_full_runtime',
+      'stable_release_asset_normalization',
+    ],
+    `${candidate.id} package manifest deferred_until_feature_comparison`,
+  );
+}
+
+function validateHermesPackagedSmoke(candidate: ShellCandidate): void {
+  const summaryPath = path.join(root, candidate.candidate_root, 'out', 'smoke-opl-first-run', 'summary.json');
+  assertFile(summaryPath, `${candidate.id} packaged first-run smoke summary`);
+  const summary = readJson<{
+    status: string;
+    executable_path: string;
+    cases?: Record<string, {
+      calls?: string[];
+      copiedLogPath?: string;
+      copiedCallsPath?: string;
+      gateway?: {
+        purpose_route_count?: number;
+        status?: {
+          backend?: string;
+          provider_configured?: boolean;
+        };
+      };
+      chatEvidence?: {
+        message_complete?: boolean;
+        assistant_delta?: string;
+        route_event_type?: string | null;
+        route_status?: string | null;
+      } | null;
+    }>;
+  }>(summaryPath);
+  if (summary.status !== 'opl_hermes_packaged_first_run_smoke_passed') {
+    throw new Error(`${candidate.id} packaged first-run smoke summary must pass`);
+  }
+  if (!summary.executable_path?.endsWith('/Contents/MacOS/One Person Lab Hermes Candidate')) {
+    throw new Error(`${candidate.id} packaged smoke must run the OPL branded executable`);
+  }
+  const requiredCases = [
+    'missing_key',
+    'missing_key_hot_launch',
+    'configured_key',
+    'configured_key_hot_launch',
+    'fast_probe_not_ready_first_run',
+  ];
+  for (const caseId of requiredCases) {
+    const smokeCase = summary.cases?.[caseId];
+    if (!smokeCase) {
+      throw new Error(`${candidate.id} packaged smoke missing case ${caseId}`);
+    }
+    if (smokeCase.gateway?.status?.backend !== 'codex-app-server-adapter') {
+      throw new Error(`${candidate.id} packaged smoke ${caseId} must prove Codex app-server adapter backend`);
+    }
+    if (Number(smokeCase.gateway?.purpose_route_count ?? 0) < 4) {
+      throw new Error(`${candidate.id} packaged smoke ${caseId} must expose MAS/MAG/RCA/OPL purpose routes`);
+    }
+    if (smokeCase.copiedLogPath) {
+      assertFile(resolveHermesSmokePath(candidate, smokeCase.copiedLogPath), `${candidate.id} packaged smoke ${caseId} copied log`);
+    }
+  }
+  const configured = summary.cases?.configured_key;
+  if (configured?.gateway?.status?.provider_configured !== true) {
+    throw new Error(`${candidate.id} configured packaged smoke must prove model access is configured`);
+  }
+  if (
+    configured?.chatEvidence?.message_complete !== true ||
+    !configured.chatEvidence.assistant_delta?.includes('fixture codex response') ||
+    configured.chatEvidence.route_event_type !== 'route.receipt' ||
+    configured.chatEvidence.route_status !== 'route_readback_ready'
+  ) {
+    throw new Error(`${candidate.id} configured packaged smoke must prove Codex turn plus MAS route receipt`);
+  }
+  const missing = summary.cases?.missing_key;
+  if (missing?.gateway?.status?.provider_configured !== false) {
+    throw new Error(`${candidate.id} missing-key packaged smoke must prove model access is not configured`);
+  }
+  const configuredCalls = summary.cases?.configured_key_hot_launch?.calls ?? [];
+  if (configuredCalls.includes('system initialize --json')) {
+    const logPath = summary.cases?.configured_key_hot_launch?.copiedLogPath;
+    const log = logPath && fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
+    const adapterReadyIndex = log.indexOf('OPL Codex adapter is ready. Finalizing desktop startup');
+    const backgroundIndex = log.indexOf('starting deferred OPL startup maintenance after adapter readiness');
+    if (adapterReadyIndex < 0 || backgroundIndex <= adapterReadyIndex) {
+      throw new Error(`${candidate.id} hot-launch full initialize must be deferred until after adapter readiness`);
+    }
+  }
+}
+
+function resolveHermesSmokePath(candidate: ShellCandidate, filePath: string): string {
+  if (path.isAbsolute(filePath)) return filePath;
+  return path.join(root, candidate.candidate_root, filePath);
+}
+
+function validateHermesCandidateSourceReceipt(candidate: ShellCandidate): void {
+  const receiptPath = path.join(root, candidate.candidate_root, 'out', 'hermes-codex-source-receipt.json');
+  assertFile(receiptPath, `${candidate.id} source receipt`);
+  const receipt = readJson<{
+    shell: string;
+    source_repo: string;
+    source_path: string;
+    license: string;
+    active_shell_adopted: boolean;
+    hermes_runtime_authority_transfer: boolean;
+    backend_bridge?: { codex_runtime_reference?: string };
+  }>(receiptPath);
+  if (receipt.shell !== candidate.id) {
+    throw new Error(`${candidate.id} source receipt must match the candidate id`);
+  }
+  if (
+    receipt.source_repo !== 'https://github.com/NousResearch/hermes-agent' ||
+    receipt.source_path !== 'apps/desktop' ||
+    receipt.license !== 'MIT'
+  ) {
+    throw new Error(`${candidate.id} source receipt must prove the MIT Hermes Desktop source basis`);
+  }
+  if (receipt.active_shell_adopted !== false || receipt.hermes_runtime_authority_transfer !== false) {
+    throw new Error(`${candidate.id} source receipt must keep Hermes as a non-adopted candidate without runtime authority transfer`);
+  }
+  if (receipt.backend_bridge?.codex_runtime_reference !== 'codex app-server --listen stdio://') {
+    throw new Error(`${candidate.id} source receipt must prove Codex app-server adapter intent`);
+  }
 }
 
 function validateCandidateImplementationEvidence(candidate: ShellCandidate): void {

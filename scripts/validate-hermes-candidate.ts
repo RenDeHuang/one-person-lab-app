@@ -2,7 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { readAppShellAdapterContract } from './app-shell-adapter.ts';
+import { readAppShellAdapterContract, type HermesTargetStateContract } from './app-shell-adapter.ts';
 import { readJson, registryPath, root } from './validate-shell-candidates/shared.ts';
 import type { ShellCandidateRegistry } from './validate-shell-candidates/types.ts';
 
@@ -109,6 +109,8 @@ function main(): void {
   if (!adapter.deferred_until_feature_comparison?.surfaces?.includes('opl_app_state_action_bridge')) {
     throw new Error('Hermes adapter must defer OPL app state/action bridge until Hermes feature comparison is recorded');
   }
+  validateTargetStateContracts('candidate', candidate);
+  validateTargetStateContracts('adapter', adapter);
 
   const checkout = resolveHermesCheckout();
   if (checkout.status === 'available') {
@@ -127,6 +129,129 @@ function main(): void {
     checkout_path: checkout.status === 'available' ? checkout.path : checkout.checkoutPath,
     blockers: checkout.status === 'blocked' ? checkout.blockers : [],
   }, null, 2));
+}
+
+function assertIncludes(values: string[] | undefined, expected: string[], label: string): void {
+  for (const entry of expected) {
+    if (!values?.includes(entry)) {
+      throw new Error(`Hermes ${label} must include ${entry}`);
+    }
+  }
+}
+
+function validateTargetStateContracts(label: string, target: HermesTargetStateContract): void {
+  const appServer = target.app_server_adapter_contract;
+  if (
+    appServer?.owner !== 'one-person-lab-app'
+    || appServer.gateway_route !== 'codex app-server --listen stdio://'
+    || appServer.ordinary_chat_route !== 'Hermes chat turn -> OPL Codex gateway -> Codex app-server thread/start turn/start event stream'
+  ) {
+    throw new Error(`Hermes ${label}.app_server_adapter_contract must route ordinary chat through Codex app-server`);
+  }
+  assertIncludes(appServer.required_events, [
+    'thread/start',
+    'turn/start',
+    'item/agentMessage/delta',
+    'turn/completed',
+  ], `${label}.app_server_adapter_contract.required_events`);
+  assertIncludes(appServer.forbidden_backends, [
+    'Hermes Agent installer as ordinary executor',
+    'provider-selected backend',
+    'AionUI release shell backend',
+  ], `${label}.app_server_adapter_contract.forbidden_backends`);
+
+  const modelAccess = target.model_access_policy;
+  if (
+    modelAccess?.ordinary_provider !== 'gflabtoken'
+    || modelAccess.api_key_env !== 'OPENAI_API_KEY'
+    || modelAccess.provider_base_url !== 'https://gflabtoken.cn/v1'
+    || modelAccess.default_model !== 'gpt-5.5'
+    || modelAccess.reasoning_effort !== 'xhigh'
+  ) {
+    throw new Error(`Hermes ${label}.model_access_policy must be gflabtoken-only GPT-5.5 xhigh access`);
+  }
+  assertIncludes(modelAccess.ordinary_ui_surfaces, [
+    'model access wizard',
+    'Settings Access tab',
+  ], `${label}.model_access_policy.ordinary_ui_surfaces`);
+  assertIncludes(modelAccess.forbidden_ordinary_controls, [
+    'OPENAI_BASE_URL',
+    'provider marketplace',
+    'OAuth provider accounts',
+    'custom provider key',
+    'second Auto model id',
+  ], `${label}.model_access_policy.forbidden_ordinary_controls`);
+
+  const routes = target.agent_route_contract;
+  if (
+    routes?.owner !== 'one-person-lab-app'
+    || routes.route_authority !== 'App-owned purpose route declaration only; runtime and domain truth remain in OPL Framework and domain repos'
+    || routes.required_surface !== 'composer purpose entries plus conversation route receipt/error events plus Settings Agents & Capabilities summaries'
+  ) {
+    throw new Error(`Hermes ${label}.agent_route_contract must declare App-owned purpose route entries`);
+  }
+  for (const [id, route, authority] of [
+    ['mas', 'purpose:research', 'med-autoscience'],
+    ['mag', 'purpose:grant', 'med-auto-grant'],
+    ['rca', 'purpose:ppt', 'redcube-ai'],
+  ] as const) {
+    const entry = routes.ordinary_entries.find((candidateRoute) => candidateRoute.id === id);
+    if (!entry || entry.route !== route || entry.authority !== authority) {
+      throw new Error(`Hermes ${label}.agent_route_contract must declare ${id} -> ${route}`);
+    }
+  }
+  assertIncludes(routes.forbidden_claims, [
+    'domain_ready',
+    'agent_runtime_authority',
+    'artifact_authority',
+    'quality_verdict',
+  ], `${label}.agent_route_contract.forbidden_claims`);
+
+  const settings = target.settings_information_architecture;
+  assertIncludes(settings?.ordinary_tabs, [
+    'General',
+    'Access',
+    'Agents & Capabilities',
+    'Local Environment',
+    'Appearance',
+    'Advanced',
+    'About & Updates',
+  ], `${label}.settings_information_architecture.ordinary_tabs`);
+  assertIncludes(settings?.opl_semantics, [
+    '模型策略',
+    '模型访问',
+    '智能体与能力',
+    '本机环境',
+    '外观与语言',
+    '高级与诊断',
+    '关于与更新',
+  ], `${label}.settings_information_architecture.opl_semantics`);
+  assertIncludes(settings?.hidden_or_advanced, [
+    'Hermes backend selection',
+    'provider marketplace',
+    'OAuth provider accounts',
+    'custom Base URL',
+    'remote terminal backend',
+    'Hermes memory provider',
+    'raw JSON-RPC gateway state',
+  ], `${label}.settings_information_architecture.hidden_or_advanced`);
+  if (settings?.ordinary_access_policy !== 'show_only_gflabtoken_api_key_and_current_codex_model_access_status') {
+    throw new Error(`Hermes ${label}.settings_information_architecture.ordinary_access_policy must be gflabtoken-only`);
+  }
+
+  const visual = target.visual_parity_contract;
+  if (
+    visual?.comparison_baseline !== 'AionUI active release shell'
+    || visual.minimum_bar !== 'not_lower_than_aionui_for_chat_first_reading_composer_settings_and_packaged_smoke_visual_quality'
+    || visual.docs_or_contract_only_completion_allowed !== false
+  ) {
+    throw new Error(`Hermes ${label}.visual_parity_contract must require AionUI-or-better visual evidence`);
+  }
+  assertIncludes(visual.required_evidence, [
+    'desktop screenshot comparison against AionUI baseline',
+    'settings screenshot comparison against AionUI baseline',
+    'packaged app screenshot or VM smoke artifact',
+  ], `${label}.visual_parity_contract.required_evidence`);
 }
 
 function validateFirstRunAndIconContracts(candidate: ShellCandidateRegistry['candidates'][number], adapter: ReturnType<typeof readAppShellAdapterContract>): void {

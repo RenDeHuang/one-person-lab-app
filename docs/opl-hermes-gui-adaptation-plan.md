@@ -21,31 +21,48 @@ i18n 和 native packaging；OPL 只在普通路径上收窄 provider/backend/run
 概念，并补上 Codex CLI、模型访问、first-run、品牌化、简体中文/英文双语和后续 purpose route。
 AionUI 仍是 release shell；Hermes 仍是 explicit technical verification candidate。
 
-## 当前完成度清单
+## App-owned 目标态
+
+Hermes candidate 的 App-owned 目标态已经由本仓固化，而不是由
+`/Users/gaofeng/workspace/opl-hermes-shell` 或 upstream Hermes roadmap 定义：
+
+- 默认发布 shell 仍是 AionUI。Hermes 只通过
+  `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json`
+  进入 explicit candidate build；不修改 `contracts/app-shell-adapter.json` 前不能成为
+  stable/nightly release shell。
+- 普通体验是 chat-first Codex App-like shell。第一屏以 workspace-aware chat、
+  conversation timeline 和 composer 为中心；workspace rail、runtime refs、files、
+  capabilities、memory、automations 和 diagnostics 都是可收起上下文，不回到 dashboard。
+- 普通 executor 只走 Codex app-server gateway。App-owned adapter contract 要能表达
+  `codex app-server --listen stdio://`、`thread/start`、`turn/start`、
+  `item/agentMessage/delta`、`turn/completed`，并禁止把 Hermes Agent installer、
+  provider-selected backend 或 AionUI backend 当成普通 chat executor。
+- 模型访问只用 gflabtoken API key。普通 UI 只暴露模型访问状态和 API key；底层可继续
+  写 `OPENAI_API_KEY` 兼容 Codex/OpenAI-compatible 配置，但普通 UI 不暴露
+  `OPENAI_BASE_URL`、OAuth provider accounts、provider marketplace、自定义 provider key
+  或第二个 `auto` 模型 id。
+- MAS/MAG/RCA 是 App-owned purpose route 声明：`mas -> purpose:research`、
+  `mag -> purpose:grant`、`rca -> purpose:ppt`。Hermes 普通界面可以展示 composer
+  purpose entries 和 Settings 的“智能体与能力”摘要，但 runtime truth、domain truth、
+  artifact authority 和 quality verdict 仍归 OPL Framework 与各 domain repo。
+- Settings 必须 OPL 化。普通 tab 收敛为 General、Access、Agents & Capabilities、
+  Local Environment、Appearance、Advanced、About & Updates，并对应“模型策略、模型访问、
+  智能体与能力、本机环境、外观与语言、高级与诊断、关于与更新”。Hermes backend、
+  provider marketplace、OAuth accounts、custom Base URL、remote backend、Hermes memory
+  provider 和 raw gateway state 只能进 Advanced/Diagnostics 或隐藏。
+- 视觉门槛不低于 AionUI active release shell。Hermes 不能只因为用了 Codex app-server
+  或 contract 通过就算 GUI 可用；chat reading lane、composer、Settings、首启和 packaged
+  smoke 截图至少要与 AionUI baseline 对比，且不能出现明显更低的可读性、密度、层级或空白页。
+
+## 当前完成度口径
 
 Last checked: `2026-06-17`
 
-本清单只按当前仓库和 linked checkout 的 fresh evidence 计完成度。合同和源码检查可以
-证明候选边界、adapter shape 和部分实现约束；不能单独证明 packaged `.app` 可用、
-真实热启动耗时、VM smoke、视觉状态、用户可发送 Codex turn 或 release promotion。
-
-| 规划项 | 完成度 | 状态 | Fresh evidence | 缺口 / 下一步 |
-| --- | ---: | --- | --- | --- |
-| 默认 release shell 仍为 AionUI，Hermes 只做 explicit candidate | 100% | `done` | `node --experimental-strip-types scripts/validate-active-shell.ts --quick` 通过；`npm run validate:shell-candidates -- --candidate hermes-codex` 返回 `active_shell_unchanged=aionui`、`release_participation=explicit_candidate_build_only_until_adopted`。 | 无；后续 adoption 必须显式改 `contracts/app-shell-adapter.json`。 |
-| Hermes candidate registry / adapter contract | 100% | `done` | `node --experimental-strip-types scripts/validate-hermes-candidate.ts` 返回 `hermes_candidate_contract_valid`、`checkout_path=../opl-hermes-shell`、`blockers=[]`。 | 无；保持 App contract 和 shell checkout 同步。 |
-| 相关本地 repo 同步到最新 GitHub main | 100% | `done` | `one-person-lab-app`、`one-person-lab`、`opl-aion-shell`、`opl-hermes-shell` 均为 `main...origin/main` 且 clean；`one-person-lab` 和 `opl-hermes-shell` 已 fast-forward 到最新远端。 | 无；继续避免跨 repo dirty state 被误当成候选状态。 |
-| Upstream-first OPL customization 边界 | 90% | `partial` | App contract 声明 `NousResearch/hermes-agent apps/desktop`、MIT、official backend preserved、minimal OPL delta；App validator 通过；shell source 包含 OPL defaults、Codex gateway 和 upstream README receipt。 | 还缺 Hermes-native feature comparison artifact；不能开始搬运 AionUI/AGUI stable surface。 |
-| OPL 品牌、图标和 macOS safe margin | 85% | `partial` | App validator 通过；独立 PNG alpha readback 得到 `840x840+92+92`，满足 `max_alpha_bounds_px=900`。 | `opl-hermes-shell` 的 `npm run validate:candidate` 依赖 `magick`，当前本机缺该二进制导致 validator 报 `.stdout.trim()` TypeError；需要安装/声明 ImageMagick 或让 validator fail closed with diagnostic 后重跑。 |
-| Chat-first Codex app-server adapter | 75% | `partial` | `node --test electron/opl-bootstrap-runner.test.cjs electron/opl-codex-gateway.test.cjs` 在 `opl-hermes-shell` 通过 26/26；gateway tests 覆盖 `thread/start`、`turn/start`、`item/agentMessage/delta`、renderer-safe config/RPC shapes 和 no `exec --json` shim。 | 还缺 packaged `.app` 启动、创建 session、发送 Codex turn、展示 assistant response 的 smoke evidence。 |
-| 首启/启动四流程：轻量检查、本机初始化、模型访问、后台刷新 | 70% | `partial` | shell bootstrap tests 覆盖 marker missing fast probe、one-time fallback、current marker lightweight startup、missing key route、deferred maintenance 和 core missing rerun。 | 还缺 source/packaged/VM smoke 记录各阶段 started/finished/duration，尤其热启动不阻塞 full initialize 的 runtime evidence。 |
-| 模型访问：只暴露 gflabtoken API key | 75% | `partial` | gateway tests 覆盖 missing model access、`configure-codex` 保存路径、ordinary catalog 只暴露 gflabtoken API key、拒绝 non-bootstrap official Hermes backend endpoints。 | 还缺 UI 截图或 packaged smoke 证明没有 Base URL、OAuth accounts、provider marketplace 或其它 provider key。 |
-| 主模型显示：Auto 策略 + 当前有效模型 | 55% | `partial` | `npm run typecheck` 在 `opl-hermes-shell` 通过；相关 model preset/source 已存在。 | Focused UI test `src/app/settings/model-settings.test.tsx` 当前失败 1 项：期望 `auto · use main model` 的 auxiliary task rows 未出现。需要先判定是实现缺口还是测试口径过期，再补 UI evidence。 |
-| Settings 信息架构收窄 | 55% | `partial` | providers/settings 相关 focused suite 中除上面的 model settings 用例外整体可加载；gateway config schema/RPC shape tests 通过，说明关键 Settings 不应因 bootstrap shape 缺失而空白。 | 还缺 Settings 视觉/交互 smoke；model settings failing test 必须解决后才能提高完成度。 |
-| 简体中文/英文双语；不维护繁体中文/日文 | 75% | `partial` | `opl-hermes-shell` 最新 main 删除 `src/i18n/ja.ts` 和 `src/i18n/zh-hant.ts`；focused UI suite 中语言/i18n tests 未失败。 | 还缺真实系统 locale 或 renderer screenshot 证明中文系统普通 UI 默认简体中文且新增 copy 全部来自 catalog。 |
-| 隐藏 provider/backend/runtime 工作台心智 | 60% | `partial` | contracts 和 source tests 覆盖 gflabtoken-only model access、renderer-safe OAuth providers empty、non-bootstrap Hermes backend endpoints refused。 | 还缺首页/Settings visual smoke 证明 provider marketplace、OAuth provider accounts、自定义 Base URL、backend/runtime selector、remote backend 等未出现在普通路径。 |
-| 视觉与交互向 Codex App-like 收敛 | 35% | `partial` | 计划和 source 已有 model pill / composer / settings 调整入口，typecheck 通过。 | 未跑 Playwright/截图/packaged visual QA；不能声明界面已达到目标形态。 |
-| App-root explicit candidate wrapper 打包 `.app` | 0% | `not_started` | 本轮未运行 `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package`。 | 需要先让 shell validator 依赖和 focused UI failure 收敛，再跑 App-root package 和 packaged validator。 |
-| MAS/MAG/RCA purpose route、OPL App state/action、WebUI parity、Full runtime、stable release gates | 0% | `deferred` | contracts 明确列入 `deferred_until_feature_comparison`。 | 先完成 Hermes-native feature comparison 和 minimal candidate smoke；不能按旧 AionUI/AGUI 稳定线直接搬入。 |
+本清单只按当前仓库和 linked checkout 的 fresh evidence 计完成度。contract、source
+tests 和 packaged smoke 可以证明候选边界、adapter shape、packaged app 基础启动、
+fixture Codex turn 和 MAS route receipt；不能单独证明真实模型服务可用、VM clean
+install、视觉不低于 AionUI、release promotion、MAS/MAG/RCA domain ready、artifact ready
+或 quality verdict。完整完成度见本文末尾“完成度清单”。
 
 ## 目标体验
 
@@ -140,12 +157,29 @@ Codex App-like 心智重命名和收窄：
 - Executor：普通 chat route 接 Codex app-server adapter，而不是 Hermes Agent 默认后端。
 - 模型访问：从 provider/OAuth 心智替换为 One Person Lab 模型访问。
 
-**延后提升：**
+**已接入并已有 packaged smoke 证据的能力：**
 
-- MAS/MAG/RCA purpose route、route receipt、runtime refs、OPL App state/action、
-  WebUI parity、Full packaged runtime、stable release gates。
-- 这些能力必须先有 Hermes 原生功能对比和 App-owned contract/gate，不能按旧
-  AionUI/AGUI 稳定线直接搬进 Hermes。
+- MAS/MAG/RCA 的 ordinary route catalog、conversation route receipt/error 事件和
+  Settings“智能体与能力”摘要已经进入 App-owned 目标态。Hermes shell 的 source/unit
+  evidence 可以证明 route declaration、OPL owner-surface dry-run/readback、Codex prompt
+  receipt 注入和 UI tool-event 映射存在。
+- 候选包 packaged smoke 已从 App repo 的 `validate:shell-candidates -- --candidate
+  hermes-codex --run-candidate-commands` 链路执行：先打包
+  `One Person Lab Hermes Candidate.app`，再运行
+  `/Users/gaofeng/workspace/opl-hermes-shell/out/smoke-opl-first-run/summary.json`
+  所记录的缺 key、缺 key 热启动、已配置、已配置热启动和 fast probe fallback 场景。
+  已配置场景会启动真实 packaged `.app`、连接 Codex app-server fixture、创建 session、
+  发送 turn、收到 `message.complete` 与 `fixture codex response`，并记录 MAS
+  `route_readback_ready` 回执。
+- 这些证据仍不能证明 domain runtime ready、artifact ready 或 quality verdict。相关结论
+  必须继续来自 OPL Framework、MAS/MAG/RCA domain repo 和它们的 owner receipt/readback。
+
+**仍然延后提升：**
+
+- Runtime refs 的完整展示、OPL App state/action 全量 bridge、WebUI parity、Full packaged
+  runtime、stable release gates。
+- 这些能力必须有 Hermes 原生功能对比、App-owned contract/gate 和 runtime/packaged evidence，
+  不能按旧 AionUI/AGUI 稳定线直接搬进 Hermes。
 
 ## 视觉与交互方向
 
@@ -180,7 +214,31 @@ Hermes candidate 只能在以下证据齐备时声称“基本可用”：
 - Settings 关键页面不因 adapter 缺少 renderer-safe shape 而空白。
 - 中文系统普通 UI 使用中文，新增 copy 来自 i18n catalog。
 - App-root explicit candidate wrapper 能打包候选 `.app`；默认 AionUI release shell 不变。
+- macOS candidate bundle 必须使用 OPL branded executable：
+  `Contents/MacOS/One Person Lab Hermes Candidate`，不能继续暴露
+  `Contents/MacOS/Electron`。这一点由 Hermes 自身
+  `npm run validate:candidate -- --require-app` 和 App root candidate manifest validator
+  同时检查。
 
 这不是 release promotion。Hermes 成为默认 release shell 仍必须更新
 `contracts/app-shell-adapter.json`，并通过 page-state、first-run、product profile、
 runtime bridge、packaged smoke、WebUI claim 和 release gates。
+
+## 完成度清单
+
+本文和 contract 只固化目标态；完成度必须按证据分层计算，不能把 docs-only 或
+contract-only 写成 100%。
+
+| 条目 | 当前状态 | 完成度 | 新鲜证据要求 | 缺口/后续动作 |
+| --- | --- | --- | --- | --- |
+| App-owned Hermes 目标态 | done | 100% | `contracts/app-shell-candidates.json` 与 `contracts/shell-adapters/hermes-codex.json` 通过候选 contract 校验。 | 后续若目标态变化，先改 App-owned contract/docs，再改 shell。 |
+| 默认 release shell 仍是 AionUI | done | 100% | `scripts/validate-shell-candidates.ts` 读取 `contracts/app-shell-adapter.json`、runtime bridge 和 GUI contract，确认 active shell 仍为 AionUI。 | 无；Hermes promotion 需单独 adoption decision。 |
+| Candidate app bundle identity | done | 100% | `npm run validate:candidate -- --require-app` 与 App-root manifest validator 证明 `CFBundleExecutable` 和 `Contents/MacOS` executable 都是 `One Person Lab Hermes Candidate`，且旧 `Electron` executable 不存在。 | 后续若改回 electron-builder，要保留同等 bundle identity check。 |
+| Codex app-server gateway 目标 | done | 95% | Contract 声明 app-server gateway 和事件流；Hermes source/unit tests 证明 `session.create`、`prompt.submit`、delta、complete、tool/approval/error bridge；packaged smoke 证明真实 `.app` 内 session/turn/delta/complete 可用。 | 仍需真实 Codex CLI 非 fixture 的人工/环境 smoke，不能从 fixture 推导模型服务可用性。 |
+| gflabtoken-only 模型访问 | partial | 90% | Contract 声明 gflabtoken、`OPENAI_API_KEY`、禁用 Base URL/provider marketplace；Hermes renderer tests 证明 Settings/onboarding 不展示其它 provider 和 legacy Base URL；packaged smoke 覆盖缺 key与已配置状态分流。 | 仍需真实 GUI 截图/人工保存 API key 路径；当前 smoke 使用 fixture 配置命令。 |
+| MAS/MAG/RCA agent routes | partial | 90% | Contract 声明 purpose routes 和 forbidden claims；Hermes source/unit tests 证明 route catalog、OPL dry-run/readback receipt、conversation route receipt/error tool event 和 Codex prompt receipt 注入；packaged smoke 证明 MAS route receipt 进入真实 `.app` conversation stream。 | 仍需 live OPL/MAS/MAG/RCA domain readback；不能声称 domain ready、artifact ready 或 quality verdict。 |
+| Settings OPL 化 | partial | 70% | Contract/docs 已定义 ordinary IA；Hermes renderer tests 证明普通导航隐藏 Gateway/Tools & Keys，显示“智能体与能力”和模型访问。 | 仍需 packaged Settings 全页 smoke/screenshot；长期还需把 remaining Hermes config sections 进一步 OPL 化。 |
+| 首启四线模型 | partial | 90% | First-run contract 和矩阵区分轻量检查、一次性初始化、模型访问、后台刷新；Hermes source tests 覆盖 provider catalog、localEndpoint 不回退 Base URL、configured key auto-skip；packaged smoke 覆盖缺 key、缺 key hot launch、已配置、已配置 hot launch 与 fast probe fallback。 | VM clean install 未完成；当前是本机隔离 packaged smoke。 |
+| 视觉不低于 AionUI | partial | 20% | 方向和门槛已写入 contract/docs；Hermes upstream UI 基线和普通导航降噪已保留。 | 需要 AionUI baseline 与 Hermes candidate 的 desktop、Settings、首启 packaged screenshot 对比。 |
+| Tart/VM clean smoke | blocked | 40% | 已确认本机存在 Tart 和 `opl-first-run-no-clt-clean-base-26-5-18` source VM，并尝试复制 Hermes `.app` 与 smoke 脚本进入 guest。 | 本轮 VM 被 guest SSH 拒绝阻塞，证据在 `artifacts/hermes-tart-smoke-20260617T092442Z/blocker.txt` 与 `ssh-probe.log`；需要修复 guest SSH/base image 或新增 Hermes DMG/Tart wrapper 后重跑。 |
+| Hermes release promotion | not_started | 0% | 需要 active shell contract 切换、page-state、first-run、product profile、runtime bridge、packaged smoke、WebUI 和 release gates 全部通过。 | 本轮明确不 promotion。 |

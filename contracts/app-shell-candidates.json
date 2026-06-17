@@ -577,6 +577,111 @@
         "ordinary_user_experience": "wrapped Codex App experience on top of Hermes Desktop, not a generic Hermes workbench with exposed backend choices",
         "webui_strategy": "future Docker/WebUI uses the same Hermes React/Vite renderer with a browser transport adapter"
       },
+      "app_server_adapter_contract": {
+        "owner": "one-person-lab-app",
+        "gateway_route": "codex app-server --listen stdio://",
+        "ordinary_chat_route": "Hermes chat turn -> OPL Codex gateway -> Codex app-server thread/start turn/start event stream",
+        "required_events": [
+          "thread/start",
+          "turn/start",
+          "item/agentMessage/delta",
+          "turn/completed"
+        ],
+        "forbidden_backends": [
+          "Hermes Agent installer as ordinary executor",
+          "provider-selected backend",
+          "AionUI release shell backend"
+        ]
+      },
+      "model_access_policy": {
+        "ordinary_provider": "gflabtoken",
+        "api_key_env": "OPENAI_API_KEY",
+        "provider_base_url": "https://gflabtoken.cn/v1",
+        "default_model": "gpt-5.5",
+        "reasoning_effort": "xhigh",
+        "ordinary_ui_surfaces": [
+          "model access wizard",
+          "Settings Access tab"
+        ],
+        "forbidden_ordinary_controls": [
+          "OPENAI_BASE_URL",
+          "provider marketplace",
+          "OAuth provider accounts",
+          "custom provider key",
+          "second Auto model id"
+        ]
+      },
+      "agent_route_contract": {
+        "owner": "one-person-lab-app",
+        "route_authority": "App-owned purpose route declaration only; runtime and domain truth remain in OPL Framework and domain repos",
+        "ordinary_entries": [
+          {
+            "id": "mas",
+            "label": "科研",
+            "route": "purpose:research",
+            "authority": "med-autoscience"
+          },
+          {
+            "id": "mag",
+            "label": "基金",
+            "route": "purpose:grant",
+            "authority": "med-auto-grant"
+          },
+          {
+            "id": "rca",
+            "label": "演示",
+            "route": "purpose:ppt",
+            "authority": "redcube-ai"
+          }
+        ],
+        "required_surface": "composer purpose entries plus conversation route receipt/error events plus Settings Agents & Capabilities summaries",
+        "forbidden_claims": [
+          "domain_ready",
+          "agent_runtime_authority",
+          "artifact_authority",
+          "quality_verdict"
+        ]
+      },
+      "settings_information_architecture": {
+        "ordinary_tabs": [
+          "General",
+          "Access",
+          "Agents & Capabilities",
+          "Local Environment",
+          "Appearance",
+          "Advanced",
+          "About & Updates"
+        ],
+        "opl_semantics": [
+          "模型策略",
+          "模型访问",
+          "智能体与能力",
+          "本机环境",
+          "外观与语言",
+          "高级与诊断",
+          "关于与更新"
+        ],
+        "hidden_or_advanced": [
+          "Hermes backend selection",
+          "provider marketplace",
+          "OAuth provider accounts",
+          "custom Base URL",
+          "remote terminal backend",
+          "Hermes memory provider",
+          "raw JSON-RPC gateway state"
+        ],
+        "ordinary_access_policy": "show_only_gflabtoken_api_key_and_current_codex_model_access_status"
+      },
+      "visual_parity_contract": {
+        "comparison_baseline": "AionUI active release shell",
+        "minimum_bar": "not_lower_than_aionui_for_chat_first_reading_composer_settings_and_packaged_smoke_visual_quality",
+        "required_evidence": [
+          "desktop screenshot comparison against AionUI baseline",
+          "settings screenshot comparison against AionUI baseline",
+          "packaged app screenshot or VM smoke artifact"
+        ],
+        "docs_or_contract_only_completion_allowed": false
+      },
       "checkout_policy": {
         "primary_path": "shells/hermes",
         "accepted_alternate_path": "../opl-hermes-shell",
@@ -736,6 +841,11 @@
             "id": "candidate_app_bundle_build",
             "cwd": ".",
             "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package"
+          },
+          {
+            "id": "candidate_packaged_first_run_smoke",
+            "cwd": ".",
+            "command": "cd ../opl-hermes-shell && npm run smoke:opl-first-run"
           }
         ],
         "candidate_shell_commands": [
@@ -795,6 +905,11 @@
           "id": "candidate_app_bundle_build",
           "cwd": ".",
           "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package"
+        },
+        {
+          "id": "candidate_packaged_first_run_smoke",
+          "cwd": ".",
+          "command": "cd ../opl-hermes-shell && npm run smoke:opl-first-run"
         }
       ],
       "non_goals": [

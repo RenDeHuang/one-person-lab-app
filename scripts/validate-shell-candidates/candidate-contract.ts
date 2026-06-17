@@ -37,6 +37,11 @@ type CandidateAdapterContract = {
   release_role: string;
   shell_contract: { source_topology: string; capabilities: string[] };
   validation_commands: ValidationCommand[];
+  app_server_adapter_contract?: ShellCandidate['app_server_adapter_contract'];
+  model_access_policy?: ShellCandidate['model_access_policy'];
+  agent_route_contract?: ShellCandidate['agent_route_contract'];
+  settings_information_architecture?: ShellCandidate['settings_information_architecture'];
+  visual_parity_contract?: ShellCandidate['visual_parity_contract'];
 };
 
 function validateCandidateRegistryEntry(candidate: ShellCandidate): void {
@@ -83,6 +88,9 @@ function validateCandidateAdapterContract(candidate: ShellCandidate, adapterCont
   }
   if (!adapterContract.validation_commands.some((entry) => entry.id === 'candidate_app_bundle_build')) {
     throw new Error(`${candidate.id} adapter validation_commands must include candidate_app_bundle_build`);
+  }
+  if (candidate.id === 'hermes-codex') {
+    validateHermesTargetStateContracts(candidate, adapterContract);
   }
 }
 
@@ -255,6 +263,14 @@ function validateCandidateValidationCommands(candidate: ShellCandidate): void {
     ) {
       throw new Error(`${candidate.id} validation_commands must include candidate_contract running scripts/validate-hermes-candidate.ts`);
     }
+    const packagedSmokeCommand = candidate.validation_commands.find((entry) => entry.id === 'candidate_packaged_first_run_smoke');
+    if (
+      !packagedSmokeCommand
+      || packagedSmokeCommand.cwd !== '.'
+      || packagedSmokeCommand.command !== 'cd ../opl-hermes-shell && npm run smoke:opl-first-run'
+    ) {
+      throw new Error(`${candidate.id} validation_commands must include packaged first-run smoke for the sibling Hermes checkout`);
+    }
     return;
   }
   const webUiSmokeCommand = candidate.validation_commands.find((entry) => entry.id === 'candidate_webui_smoke');
@@ -356,7 +372,141 @@ function validateHermesCandidateContract(candidate: ShellCandidate): void {
     throw new Error(`${candidate.id}.build_wrapper must route through the App-root explicit adapter and allow missing-checkout blocker reporting`);
   }
   validateHermesFirstRunContract(candidate);
+  validateHermesTargetStateContracts(candidate, candidate);
   validateHermesIconContract(candidate);
+}
+
+function validateHermesTargetStateContracts(
+  candidate: ShellCandidate,
+  target: Pick<ShellCandidate, 'app_server_adapter_contract' | 'model_access_policy' | 'agent_route_contract' | 'settings_information_architecture' | 'visual_parity_contract'>,
+): void {
+  const appServer = target.app_server_adapter_contract;
+  if (!appServer) {
+    throw new Error(`${candidate.id}.app_server_adapter_contract must be declared`);
+  }
+  if (
+    appServer.owner !== 'one-person-lab-app'
+    || appServer.gateway_route !== 'codex app-server --listen stdio://'
+    || appServer.ordinary_chat_route !== 'Hermes chat turn -> OPL Codex gateway -> Codex app-server thread/start turn/start event stream'
+  ) {
+    throw new Error(`${candidate.id}.app_server_adapter_contract must route ordinary chat through the Codex app-server gateway`);
+  }
+  assertStringArrayIncludes(appServer.required_events, [
+    'thread/start',
+    'turn/start',
+    'item/agentMessage/delta',
+    'turn/completed',
+  ], `${candidate.id}.app_server_adapter_contract.required_events`);
+  assertStringArrayIncludes(appServer.forbidden_backends, [
+    'Hermes Agent installer as ordinary executor',
+    'provider-selected backend',
+    'AionUI release shell backend',
+  ], `${candidate.id}.app_server_adapter_contract.forbidden_backends`);
+
+  const modelAccess = target.model_access_policy;
+  if (!modelAccess) {
+    throw new Error(`${candidate.id}.model_access_policy must be declared`);
+  }
+  if (
+    modelAccess.ordinary_provider !== 'gflabtoken'
+    || modelAccess.api_key_env !== 'OPENAI_API_KEY'
+    || modelAccess.provider_base_url !== 'https://gflabtoken.cn/v1'
+    || modelAccess.default_model !== 'gpt-5.5'
+    || modelAccess.reasoning_effort !== 'xhigh'
+  ) {
+    throw new Error(`${candidate.id}.model_access_policy must define gflabtoken-only GPT-5.5 xhigh access`);
+  }
+  assertStringArrayIncludes(modelAccess.ordinary_ui_surfaces, [
+    'model access wizard',
+    'Settings Access tab',
+  ], `${candidate.id}.model_access_policy.ordinary_ui_surfaces`);
+  assertStringArrayIncludes(modelAccess.forbidden_ordinary_controls, [
+    'OPENAI_BASE_URL',
+    'provider marketplace',
+    'OAuth provider accounts',
+    'custom provider key',
+    'second Auto model id',
+  ], `${candidate.id}.model_access_policy.forbidden_ordinary_controls`);
+
+  const routes = target.agent_route_contract;
+  if (!routes) {
+    throw new Error(`${candidate.id}.agent_route_contract must be declared`);
+  }
+  if (
+    routes.owner !== 'one-person-lab-app'
+    || routes.route_authority !== 'App-owned purpose route declaration only; runtime and domain truth remain in OPL Framework and domain repos'
+    || routes.required_surface !== 'composer purpose entries plus conversation route receipt/error events plus Settings Agents & Capabilities summaries'
+  ) {
+    throw new Error(`${candidate.id}.agent_route_contract must keep route truth App-owned without taking runtime or domain authority`);
+  }
+  for (const [id, route, authority] of [
+    ['mas', 'purpose:research', 'med-autoscience'],
+    ['mag', 'purpose:grant', 'med-auto-grant'],
+    ['rca', 'purpose:ppt', 'redcube-ai'],
+  ] as const) {
+    const entry = routes.ordinary_entries.find((candidateRoute) => candidateRoute.id === id);
+    if (!entry || entry.route !== route || entry.authority !== authority) {
+      throw new Error(`${candidate.id}.agent_route_contract.ordinary_entries must declare ${id} -> ${route}`);
+    }
+  }
+  assertStringArrayIncludes(routes.forbidden_claims, [
+    'domain_ready',
+    'agent_runtime_authority',
+    'artifact_authority',
+    'quality_verdict',
+  ], `${candidate.id}.agent_route_contract.forbidden_claims`);
+
+  const settings = target.settings_information_architecture;
+  if (!settings) {
+    throw new Error(`${candidate.id}.settings_information_architecture must be declared`);
+  }
+  assertStringArrayIncludes(settings.ordinary_tabs, [
+    'General',
+    'Access',
+    'Agents & Capabilities',
+    'Local Environment',
+    'Appearance',
+    'Advanced',
+    'About & Updates',
+  ], `${candidate.id}.settings_information_architecture.ordinary_tabs`);
+  assertStringArrayIncludes(settings.opl_semantics, [
+    '模型策略',
+    '模型访问',
+    '智能体与能力',
+    '本机环境',
+    '外观与语言',
+    '高级与诊断',
+    '关于与更新',
+  ], `${candidate.id}.settings_information_architecture.opl_semantics`);
+  assertStringArrayIncludes(settings.hidden_or_advanced, [
+    'Hermes backend selection',
+    'provider marketplace',
+    'OAuth provider accounts',
+    'custom Base URL',
+    'remote terminal backend',
+    'Hermes memory provider',
+    'raw JSON-RPC gateway state',
+  ], `${candidate.id}.settings_information_architecture.hidden_or_advanced`);
+  if (settings.ordinary_access_policy !== 'show_only_gflabtoken_api_key_and_current_codex_model_access_status') {
+    throw new Error(`${candidate.id}.settings_information_architecture.ordinary_access_policy must be gflabtoken-only`);
+  }
+
+  const visual = target.visual_parity_contract;
+  if (!visual) {
+    throw new Error(`${candidate.id}.visual_parity_contract must be declared`);
+  }
+  if (
+    visual.comparison_baseline !== 'AionUI active release shell'
+    || visual.minimum_bar !== 'not_lower_than_aionui_for_chat_first_reading_composer_settings_and_packaged_smoke_visual_quality'
+    || visual.docs_or_contract_only_completion_allowed !== false
+  ) {
+    throw new Error(`${candidate.id}.visual_parity_contract must require AionUI-or-better visual evidence and forbid docs-only completion`);
+  }
+  assertStringArrayIncludes(visual.required_evidence, [
+    'desktop screenshot comparison against AionUI baseline',
+    'settings screenshot comparison against AionUI baseline',
+    'packaged app screenshot or VM smoke artifact',
+  ], `${candidate.id}.visual_parity_contract.required_evidence`);
 }
 
 function validateHermesFirstRunContract(candidate: ShellCandidate): void {
@@ -460,6 +610,55 @@ function validateHermesIconContract(candidate: ShellCandidate): void {
 }
 
 export function validateCandidateImplementationFiles(candidate: ShellCandidate): void {
+  if (candidate.id === 'hermes-codex') {
+    assertCandidateFileContains(candidate, 'src/app/desktop-controller.tsx', [
+      'DesktopOnboardingOverlay',
+      'useMessageStream',
+      "navigate(`${SETTINGS_ROUTE}?tab=providers`)",
+    ], 'official Hermes desktop controller reuse with OPL model access entry');
+    assertCandidateFileContains(candidate, 'src/app/session/hooks/use-message-stream.ts', [
+      'routeEventToToolPayload',
+      "event.type === 'route.selected'",
+      "event.type === 'route.receipt'",
+      "event.type === 'route.error'",
+    ], 'conversation route receipt/error renderer mapping');
+    assertCandidateFileContains(candidate, 'src/lib/opl-route-events.ts', [
+      'routeEventToToolPayload',
+      "name: 'opl_route'",
+      "tool_id: `opl-route:${purposeId}`",
+    ], 'OPL route event tool payload mapping');
+    assertCandidateFileContains(candidate, 'src/app/settings/index.tsx', [
+      'AgentsCapabilitiesSettings',
+      "'providers'",
+      "'agents'",
+      "'mcp'",
+    ], 'OPL ordinary Settings navigation');
+    assertCandidateFileContains(candidate, 'src/app/settings/agents-capabilities-settings.tsx', [
+      'getOplPurposeRoutes',
+      'authority',
+      'noDomainTruth',
+    ], 'OPL agents and capabilities Settings page');
+    assertCandidateFileContains(candidate, 'src/components/desktop-onboarding-overlay.tsx', [
+      'One Person Lab 模型访问',
+      'OPENAI_API_KEY',
+      'return API_KEY_OPTIONS',
+    ], 'gflabtoken-only onboarding model access');
+    assertCandidateFileContains(candidate, 'electron/opl-codex-gateway.cjs', [
+      "'app-server', '--listen', 'stdio://'",
+      'purpose.route.resolve',
+      'route.receipt',
+      'route.error',
+      'tool.event',
+      'approval.event',
+    ], 'Codex app-server backed Hermes gateway');
+    assertCandidateFileContains(candidate, 'scripts/validate-hermes-codex-candidate.cjs', [
+      'purpose.route.resolve',
+      "tab: 'agents'",
+      'src/app/settings/agents-capabilities-settings.tsx',
+    ], 'Hermes candidate self-validator');
+    return;
+  }
+
   assertCandidateFileContains(candidate, 'src/renderer/App.jsx', [
     'data-testid="opl-workspace-rail"',
     'data-testid="opl-session-list"',

@@ -20,6 +20,49 @@ export type ShellPathContract = {
   release_verify_script: string;
 };
 
+export type HermesTargetStateContract = {
+  app_server_adapter_contract?: {
+    owner: string;
+    gateway_route: string;
+    ordinary_chat_route: string;
+    required_events: string[];
+    forbidden_backends: string[];
+  };
+  model_access_policy?: {
+    ordinary_provider: string;
+    api_key_env: string;
+    provider_base_url: string;
+    default_model: string;
+    reasoning_effort: string;
+    ordinary_ui_surfaces: string[];
+    forbidden_ordinary_controls: string[];
+  };
+  agent_route_contract?: {
+    owner: string;
+    route_authority: string;
+    ordinary_entries: Array<{
+      id: string;
+      label: string;
+      route: string;
+      authority: string;
+    }>;
+    required_surface: string;
+    forbidden_claims: string[];
+  };
+  settings_information_architecture?: {
+    ordinary_tabs: string[];
+    opl_semantics: string[];
+    hidden_or_advanced: string[];
+    ordinary_access_policy: string;
+  };
+  visual_parity_contract?: {
+    comparison_baseline: string;
+    minimum_bar: string;
+    required_evidence: string[];
+    docs_or_contract_only_completion_allowed: boolean;
+  };
+};
+
 export type ShellAdapterContract = {
   schema_version: number;
   owner: string;
@@ -141,7 +184,7 @@ export type ShellAdapterContract = {
     cwd: string;
     command: string;
   }>;
-};
+} & HermesTargetStateContract;
 
 export type ActiveShellPaths = {
   contract: ShellAdapterContract;

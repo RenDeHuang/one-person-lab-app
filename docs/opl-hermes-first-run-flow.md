@@ -13,6 +13,27 @@ adapter contract、packaged smoke、timing artifact 和 release gate 仍以
 最新要求修正过宽的 first-run 说法：Hermes checklist UI 只承载真正需要等待的本机
 准备，不承载每次启动的 full `opl system initialize --json`。
 
+## App-owned 启动合同
+
+Hermes candidate 的首启与启动目标态由 App repo 持有，并映射到
+`contracts/app-shell-candidates.json` 和
+`contracts/shell-adapters/hermes-codex.json`：
+
+- 每次启动轻量检查是独立路径，必须能被日志或 smoke artifact 单独计时。它可以读取
+  marker、CLI、fast app state、gflabtoken 模型访问和 Codex adapter startup，但不能默认
+  运行 full initialize 作为进入 chat 的阻塞 gate。
+- 一次性本机初始化只在轻量 readiness 不能证明可进入 App、marker 缺失/过旧后 fast probe
+  失败，或核心组件缺失时出现。Hermes checklist UI 只复用 progress 组件，不复用 Hermes
+  Agent installer 语义。
+- 模型访问是单独配置路径，只配置 gflabtoken API key。它可以写入 `OPENAI_API_KEY`
+  兼容 Codex，但普通 UI 不暴露 `OPENAI_BASE_URL`、provider marketplace、OAuth accounts
+  或其它 provider key。
+- 后台 OPL 状态刷新只能在 Codex adapter ready 和主 chat 可见后异步运行。失败时进入
+  Runtime/Diagnostics，不回退成首启安装失败。
+- App-owned validation 必须能发现默认 active shell 仍是 AionUI、Hermes candidate 有
+  app-server adapter contract、模型访问是单一路径、首启四线语义齐全、MAS/MAG/RCA
+  route declaration 已声明。
+
 ## 术语边界
 
 **首启初始化** 指一次性本机准备。它回答“这台机器是否具备启动 OPL App 的核心条件”。
@@ -93,6 +114,53 @@ Hermes checklist/progress UI 只用于“用户必须等待且 App 不能安全�
 | 核心缺失 | marker 存在但核心组件缺失、不可发现或版本不满足 Core launch readiness。 | 显示本机初始化 checklist 并修复/准备核心；如果 key 已存在，初始化完成后不再要求模型访问。 | 核心缺失诊断、修复阶段耗时、初始化后 adapter startup 证据。 |
 | 全新安装 / VM smoke | 干净机器或隔离 VM，无 marker，可能无 key。 | 记录轻量检查、本机初始化、模型访问、adapter startup、后台 OPL status refresh 各阶段耗时；Full maintenance 保持后台。 | smoke artifact 中包含每阶段 started/finished/duration、阻塞/非阻塞分类、最终路由结果。 |
 | 后台刷新失败 | 主界面已进入，full OPL status refresh 或 maintenance readback 失败。 | 主 chat 不被关闭；Runtime/Diagnostics 显示可恢复状态或重试入口；不回退成首启安装失败。 | 后台刷新错误事件、非阻塞 UI 状态、仍可发送或恢复 conversation 的证据。 |
+
+## 当前 packaged smoke 证据
+
+当前 Hermes candidate 已把 packaged first-run smoke 纳入 App-root candidate
+validation：`npm run validate:shell-candidates -- --candidate hermes-codex
+--run-candidate-commands` 会先通过 App wrapper 打包候选 `.app`，再进入 sibling
+Hermes checkout 执行 `npm run smoke:opl-first-run`，最后读取
+`/Users/gaofeng/workspace/opl-hermes-shell/out/smoke-opl-first-run/summary.json`
+作为行为证据。
+
+该 smoke 覆盖以下场景：
+
+- `missing_key`：marker 缺失但 fast app state 证明核心可用、缺 gflabtoken API key，
+  预期进入模型访问路径，不进入 Hermes Agent installer。
+- `missing_key_hot_launch`：marker 新鲜但仍缺 key，预期不跑 full initialize gate。
+- `configured_key`：模型访问已配置，预期进入 Codex adapter ready 路径，并在真实
+  packaged `.app` 内通过 Codex app-server fixture 完成一轮 session/turn/delta/complete；
+  同时验证 MAS route receipt 可进入 conversation stream。
+- `configured_key_hot_launch`：marker 新鲜且 key 存在时，即使后台出现
+  `system initialize --json`，也必须发生在 `OPL Codex adapter is ready` 之后。
+- `fast_probe_not_ready_first_run`：fast probe 不能证明 readiness 时，允许走一次性初始化
+  checklist，再进入 adapter。
+
+这仍不是 VM clean install 证据。2026-06-17 的 Tart 尝试已拿到
+`opl-first-run-no-clt-clean-base-26-5-18` guest IP，但 guest SSH 关闭连接而未能进入
+guest smoke；阻塞证据保存在
+`artifacts/hermes-tart-smoke-20260617T092442Z/blocker.txt` 和同目录
+`ssh-probe.log`。因此当前只能把 VM 项标记为 blocked/partial，不能把本机隔离
+packaged smoke 包装成 VM 通过。
+
+## 证据分级
+
+以下清单用于避免把文档或 contract 当成 runtime 完成：
+
+| 主张 | 可由 contract/docs 支撑 | 还需要 packaged/VM evidence 的部分 |
+| --- | --- | --- |
+| active shell 仍是 AionUI | 可以。验证脚本读取 active adapter、runtime bridge 和 GUI contract。 | 不需要打包；除非声称 release artifact fresh。 |
+| Hermes 有 app-server adapter 目标 | 可以。contract 能声明 gateway route、事件流和禁用 backend。 | 需要 package/source smoke 证明 adapter 真能启动、创建 session、发送 turn、展示 response。 |
+| 模型访问单一 | 可以。contract 能声明 gflabtoken-only、禁用 Base URL/provider marketplace。 | 需要 UI smoke 证明 onboarding 和 Settings 没暴露其它 provider 控件，且保存路径可用。 |
+| 首启四线语义 | 可以。contract 能声明四条流程、触发条件和阻塞关系。 | 需要热启动、缺 key、无 marker、全新安装/VM smoke 的阶段日志和耗时。 |
+| MAS/MAG/RCA route declaration | 可以。contract 能声明普通入口和 forbidden claims。 | 需要 runtime route receipt、domain readback 或 packaged turn evidence 才能声称智能体调用可用。 |
+| 视觉不低于 AionUI | 不可以。docs/contract 只能定义门槛。 | 必须有 AionUI baseline 与 Hermes packaged candidate 的截图或视觉 smoke 对比。 |
+
+当前 source 级实现还补了一条首启防回归证据：即使旧 Hermes local endpoint 触发状态进入
+onboarding，普通 OPL 模型访问页也只能显示 gflabtoken API key，不能预选或展示
+`OPENAI_BASE_URL`。这条证据来自 renderer test；它仍需要 packaged UI/VM smoke 复核真实
+窗口行为。
 
 ## 实施注意
 

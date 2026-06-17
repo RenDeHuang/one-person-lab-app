@@ -279,16 +279,21 @@ candidate-specific docs own human runbooks and target plans:
 to resolve `contracts/app-shell-adapter.json` and the active `aionui` shell
 until an explicit release-owner decision changes that contract.
 
-The latest local candidate read after syncing the App, OPL Framework, AionUI
-shell, and Hermes shell repos to their GitHub `main` branches is:
-`hermes-codex` validates at the App contract/registry level with no candidate
-blockers, while remaining an explicit technical verification candidate. The
-Hermes shell's bootstrap/gateway focused tests pass, but package/runtime/visual
-acceptance is not complete: shell `npm run validate:candidate` currently needs
-the `magick` binary for icon alpha validation, and a focused model-settings UI
-test still fails on the auxiliary "use main model" rows. Therefore the current
-state is contract-valid and partially source-tested, not packaged-App usable,
-release-ready, active-shell-adopted, or production-ready.
+The latest local candidate read on `2026-06-17` is: `hermes-codex` validates at
+the App contract/registry level with no candidate blockers, while remaining an
+explicit technical verification candidate. The App-root candidate chain
+`npm run validate:shell-candidates -- --candidate hermes-codex
+--run-candidate-commands` builds `One Person Lab Hermes Candidate.app` through
+the explicit Hermes adapter and then runs the sibling Hermes packaged first-run
+smoke. The smoke launches the real `.app`, verifies the branded macOS
+executable, covers missing-key/configured/hot-launch/fallback startup paths,
+streams a fixture Codex app-server turn, and records a MAS
+`route_readback_ready` receipt. Package/runtime/visual acceptance is still not
+complete: VM clean smoke is currently blocked by guest SSH unavailability, the
+Codex turn is fixture-backed rather than a real model call, and AionUI-vs-Hermes
+visual screenshot parity has not been accepted. Therefore the current state is
+packaged technical verification candidate, not release-ready,
+active-shell-adopted, clean-VM-ready, domain-ready, or production-ready.
 
 The current candidate read is technical verification only. Candidate smoke,
 manifests, package evidence, shell roadmaps, upstream GUI defaults, and external
