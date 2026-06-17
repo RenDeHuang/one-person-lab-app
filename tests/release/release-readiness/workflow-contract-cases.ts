@@ -135,6 +135,15 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.match(job, /codex_readiness_phase_timeout_ms/);
   assert.match(job, /--timeout-ms "\$\{\{ steps\.vm_timeouts\.outputs\.run_timeout_ms \}\}"/);
   assert.match(job, /--smoke-timeout-ms "\$\{\{ steps\.vm_timeouts\.outputs\.smoke_timeout_ms \}\}"/);
+  assert.match(job, /--codex-install-phase-timeout-ms "\$\{\{ steps\.vm_timeouts\.outputs\.codex_install_phase_timeout_ms \}\}"/);
+  assert.match(
+    job,
+    /--codex-readiness-phase-timeout-ms "\$\{\{ steps\.vm_timeouts\.outputs\.codex_readiness_phase_timeout_ms \}\}"/,
+  );
+  assert.match(job, /codex_phase_timeout_interface: 'opl_aion_shell_phase_options'/);
+  assert.match(job, /shell_interface_status: 'implemented_opl_aion_shell_phase_options'/);
+  assert.doesNotMatch(job, /shell interface pending/);
+  assert.doesNotMatch(job, /pending_opl_aion_shell/);
   assert.match(job, /app-wrapper-smoke-command-preview\.txt/);
   assert.match(job, /app-wrapper-smoke\.stdout\.log/);
   assert.match(job, /app-wrapper-smoke\.stderr\.log/);
@@ -167,12 +176,14 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       'stderr',
       'exit_code',
       'phase_timings',
+      'timeouts.codex_install_phase_ms',
+      'timeouts.codex_readiness_phase_ms',
     ]);
     assert.deepEqual(scenario.diagnostics_contract.codex_install.allowed_sources, [
       'tart-smoke-summary.json',
       'artifacts/codex-install-diagnostics.json',
     ]);
     assert.equal(scenario.diagnostics_contract.codex_install.current_app_scope, 'required_from_tart_smoke_summary_or_shell_companion_diagnostics');
-    assert.equal(scenario.diagnostics_contract.codex_install.shell_interface_status, 'pending_opl_aion_shell_parameter_or_summary_fields');
+    assert.equal(scenario.diagnostics_contract.codex_install.shell_interface_status, 'implemented_opl_aion_shell_phase_options');
   }
 });

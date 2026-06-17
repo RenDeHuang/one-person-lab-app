@@ -67,11 +67,11 @@ on:
         default: '900000'
         type: string
       codex_install_phase_timeout_ms:
-        description: 'Diagnostic-only requested Codex install phase timeout until the shell smoke exposes a matching option.'
+        description: 'Codex install/setup phase timeout passed through to the active shell smoke. Empty inherits smoke_timeout_ms.'
         required: false
         type: string
       codex_readiness_phase_timeout_ms:
-        description: 'Diagnostic-only requested Codex readiness phase timeout until the shell smoke exposes a matching option.'
+        description: 'Codex readiness/initialize phase timeout passed through to the active shell smoke. Empty inherits smoke_timeout_ms.'
         required: false
         type: string
   workflow_call:
@@ -136,11 +136,11 @@ on:
         default: '900000'
         type: string
       codex_install_phase_timeout_ms:
-        description: 'Diagnostic-only requested Codex install phase timeout until the shell smoke exposes a matching option.'
+        description: 'Codex install/setup phase timeout passed through to the active shell smoke. Empty inherits smoke_timeout_ms.'
         required: false
         type: string
       codex_readiness_phase_timeout_ms:
-        description: 'Diagnostic-only requested Codex readiness phase timeout until the shell smoke exposes a matching option.'
+        description: 'Codex readiness/initialize phase timeout passed through to the active shell smoke. Empty inherits smoke_timeout_ms.'
         required: false
         type: string
   schedule:
@@ -320,11 +320,17 @@ jobs:
           if [ -z "$SMOKE_TIMEOUT_MS" ]; then
             SMOKE_TIMEOUT_MS="900000"
           fi
+          if [ -z "$CODEX_INSTALL_PHASE_TIMEOUT_MS" ]; then
+            CODEX_INSTALL_PHASE_TIMEOUT_MS="$SMOKE_TIMEOUT_MS"
+          fi
+          if [ -z "$CODEX_READINESS_PHASE_TIMEOUT_MS" ]; then
+            CODEX_READINESS_PHASE_TIMEOUT_MS="$SMOKE_TIMEOUT_MS"
+          fi
 
           positive_integer "run_timeout_ms" "$RUN_TIMEOUT_MS"
           positive_integer "smoke_timeout_ms" "$SMOKE_TIMEOUT_MS"
-          optional_positive_integer "codex_install_phase_timeout_ms" "$CODEX_INSTALL_PHASE_TIMEOUT_MS"
-          optional_positive_integer "codex_readiness_phase_timeout_ms" "$CODEX_READINESS_PHASE_TIMEOUT_MS"
+          positive_integer "codex_install_phase_timeout_ms" "$CODEX_INSTALL_PHASE_TIMEOUT_MS"
+          positive_integer "codex_readiness_phase_timeout_ms" "$CODEX_READINESS_PHASE_TIMEOUT_MS"
 
           echo "run_timeout_ms=$RUN_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
           echo "smoke_timeout_ms=$SMOKE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
@@ -657,9 +663,9 @@ jobs:
               job_timeout_minutes: 90,
               run_timeout_ms: Number(process.env.RUN_TIMEOUT_MS),
               smoke_timeout_ms: Number(process.env.SMOKE_TIMEOUT_MS),
-              codex_install_phase_timeout_ms: process.env.CODEX_INSTALL_PHASE_TIMEOUT_MS ? Number(process.env.CODEX_INSTALL_PHASE_TIMEOUT_MS) : null,
-              codex_readiness_phase_timeout_ms: process.env.CODEX_READINESS_PHASE_TIMEOUT_MS ? Number(process.env.CODEX_READINESS_PHASE_TIMEOUT_MS) : null,
-              codex_phase_timeout_interface: 'pending_opl_aion_shell_parameter_or_summary_fields',
+              codex_install_phase_timeout_ms: Number(process.env.CODEX_INSTALL_PHASE_TIMEOUT_MS),
+              codex_readiness_phase_timeout_ms: Number(process.env.CODEX_READINESS_PHASE_TIMEOUT_MS),
+              codex_phase_timeout_interface: 'opl_aion_shell_phase_options',
             },
             host: {
               node: nodeVersion,
@@ -685,7 +691,7 @@ jobs:
             },
             codex_install: {
               current_app_scope: 'required_from_tart_smoke_summary_or_shell_companion_diagnostics',
-              shell_interface_status: 'pending_opl_aion_shell_parameter_or_summary_fields',
+              shell_interface_status: 'implemented_opl_aion_shell_phase_options',
               required_fields: ['command_preview', 'stdout', 'stderr', 'exit_code', 'phase_timings'],
             },
           };
@@ -757,6 +763,8 @@ jobs:
             --artifacts artifacts/opl-first-run-vm
             --timeout-ms "${{ steps.vm_timeouts.outputs.run_timeout_ms }}"
             --smoke-timeout-ms "${{ steps.vm_timeouts.outputs.smoke_timeout_ms }}"
+            --codex-install-phase-timeout-ms "${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms }}"
+            --codex-readiness-phase-timeout-ms "${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms }}"
             --smoke-profile no-clt-clean-vm
             --display 1920x1080px
             --settings-smoke
@@ -879,8 +887,8 @@ jobs:
             echo "- Job timeout: 90 minutes"
             echo "- Run timeout: ${{ steps.vm_timeouts.outputs.run_timeout_ms }} ms"
             echo "- Smoke timeout: ${{ steps.vm_timeouts.outputs.smoke_timeout_ms }} ms"
-            echo "- Codex install phase timeout: ${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms || 'not configured; shell interface pending' }}"
-            echo "- Codex readiness phase timeout: ${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms || 'not configured; shell interface pending' }}"
+            echo "- Codex install phase timeout: ${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms }} ms"
+            echo "- Codex readiness phase timeout: ${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms }} ms"
             echo "- Wrapper diagnostics: artifacts/opl-first-run-vm/app-wrapper-diagnostics.json"
             echo "- Wrapper smoke logs: artifacts/opl-first-run-vm/app-wrapper-smoke.stdout.log, artifacts/opl-first-run-vm/app-wrapper-smoke.stderr.log"
             if [ -d artifacts/opl-first-run-vm/artifacts/guide-screenshots ]; then

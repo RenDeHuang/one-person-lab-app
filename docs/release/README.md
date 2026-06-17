@@ -90,12 +90,14 @@ the smoke command preview, and wrapper stdout/stderr logs in
 `run_timeout_ms` and `smoke_timeout_ms` are workflow inputs and are passed to
 `opl-first-run-tart-smoke.mjs` as `--timeout-ms` and `--smoke-timeout-ms`.
 `codex_install_phase_timeout_ms` and `codex_readiness_phase_timeout_ms` are
-diagnostic-only App inputs until the external `opl-aion-shell` smoke script
-exposes matching phase options or summary fields. The App first-run matrix
-therefore requires Codex install command preview, stdout, stderr, exit code, and
-phase timings from `tart-smoke-summary.json` or a shell companion diagnostics
-artifact, but this repository must not claim that shell-side phase timeout
-enforcement is implemented by the App wrapper alone.
+workflow inputs that default to `smoke_timeout_ms` and are passed through as
+`--codex-install-phase-timeout-ms` and
+`--codex-readiness-phase-timeout-ms`. Enforcement lives in the active
+`opl-aion-shell` smoke scripts; the App wrapper owns validating, forwarding,
+and recording the configured values. The App first-run matrix requires Codex
+install command preview, stdout, stderr, exit code, phase timings, and the shell
+summary timeout fields from `tart-smoke-summary.json` or a shell companion
+diagnostics artifact.
 
 ## Standard Updater
 

@@ -158,7 +158,7 @@
         },
         "codex_install": {
           "current_app_scope": "required_from_tart_smoke_summary_or_shell_companion_diagnostics",
-          "shell_interface_status": "pending_opl_aion_shell_parameter_or_summary_fields",
+          "shell_interface_status": "implemented_opl_aion_shell_phase_options",
           "allowed_sources": [
             "tart-smoke-summary.json",
             "artifacts/codex-install-diagnostics.json"
@@ -168,7 +168,9 @@
             "stdout",
             "stderr",
             "exit_code",
-            "phase_timings"
+            "phase_timings",
+            "timeouts.codex_install_phase_ms",
+            "timeouts.codex_readiness_phase_ms"
           ]
         }
       },
@@ -238,7 +240,7 @@
         },
         "codex_install": {
           "current_app_scope": "required_from_tart_smoke_summary_or_shell_companion_diagnostics",
-          "shell_interface_status": "pending_opl_aion_shell_parameter_or_summary_fields",
+          "shell_interface_status": "implemented_opl_aion_shell_phase_options",
           "allowed_sources": [
             "tart-smoke-summary.json",
             "artifacts/codex-install-diagnostics.json"
@@ -248,7 +250,9 @@
             "stdout",
             "stderr",
             "exit_code",
-            "phase_timings"
+            "phase_timings",
+            "timeouts.codex_install_phase_ms",
+            "timeouts.codex_readiness_phase_ms"
           ]
         }
       },
@@ -326,7 +330,7 @@
         },
         "codex_install": {
           "current_app_scope": "required_from_tart_smoke_summary_or_shell_companion_diagnostics",
-          "shell_interface_status": "pending_opl_aion_shell_parameter_or_summary_fields",
+          "shell_interface_status": "implemented_opl_aion_shell_phase_options",
           "allowed_sources": [
             "tart-smoke-summary.json",
             "artifacts/codex-install-diagnostics.json"
@@ -336,7 +340,9 @@
             "stdout",
             "stderr",
             "exit_code",
-            "phase_timings"
+            "phase_timings",
+            "timeouts.codex_install_phase_ms",
+            "timeouts.codex_readiness_phase_ms"
           ]
         }
       },
@@ -401,7 +407,7 @@
         },
         "codex_install": {
           "current_app_scope": "required_from_tart_smoke_summary_or_shell_companion_diagnostics",
-          "shell_interface_status": "pending_opl_aion_shell_parameter_or_summary_fields",
+          "shell_interface_status": "implemented_opl_aion_shell_phase_options",
           "allowed_sources": [
             "tart-smoke-summary.json",
             "artifacts/codex-install-diagnostics.json"
@@ -411,7 +417,9 @@
             "stdout",
             "stderr",
             "exit_code",
-            "phase_timings"
+            "phase_timings",
+            "timeouts.codex_install_phase_ms",
+            "timeouts.codex_readiness_phase_ms"
           ]
         }
       },
