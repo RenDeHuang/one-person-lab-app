@@ -56,6 +56,24 @@ on:
         required: false
         type: boolean
         default: false
+      run_timeout_ms:
+        description: 'Outer Tart run timeout passed to opl-first-run-tart-smoke.mjs.'
+        required: false
+        default: '900000'
+        type: string
+      smoke_timeout_ms:
+        description: 'Guest smoke timeout passed to opl-first-run-tart-smoke.mjs.'
+        required: false
+        default: '900000'
+        type: string
+      codex_install_phase_timeout_ms:
+        description: 'Diagnostic-only requested Codex install phase timeout until the shell smoke exposes a matching option.'
+        required: false
+        type: string
+      codex_readiness_phase_timeout_ms:
+        description: 'Diagnostic-only requested Codex readiness phase timeout until the shell smoke exposes a matching option.'
+        required: false
+        type: string
   workflow_call:
     inputs:
       release_tag:
@@ -107,6 +125,24 @@ on:
         required: false
         type: boolean
         default: false
+      run_timeout_ms:
+        description: 'Outer Tart run timeout passed to opl-first-run-tart-smoke.mjs.'
+        required: false
+        default: '900000'
+        type: string
+      smoke_timeout_ms:
+        description: 'Guest smoke timeout passed to opl-first-run-tart-smoke.mjs.'
+        required: false
+        default: '900000'
+        type: string
+      codex_install_phase_timeout_ms:
+        description: 'Diagnostic-only requested Codex install phase timeout until the shell smoke exposes a matching option.'
+        required: false
+        type: string
+      codex_readiness_phase_timeout_ms:
+        description: 'Diagnostic-only requested Codex readiness phase timeout until the shell smoke exposes a matching option.'
+        required: false
+        type: string
   schedule:
     - cron: '0 18 * * *'
 
@@ -249,6 +285,51 @@ jobs:
               ;;
           esac
           echo "profile=$profile" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve first-run VM timeouts
+        id: vm_timeouts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          positive_integer() {
+            local name="$1"
+            local value="$2"
+            if [[ ! "$value" =~ ^[1-9][0-9]*$ ]]; then
+              echo "::error::$name must be a positive integer number of milliseconds."
+              exit 1
+            fi
+          }
+
+          optional_positive_integer() {
+            local name="$1"
+            local value="$2"
+            if [ -n "$value" ]; then
+              positive_integer "$name" "$value"
+            fi
+          }
+
+          RUN_TIMEOUT_MS="${{ inputs.run_timeout_ms }}"
+          SMOKE_TIMEOUT_MS="${{ inputs.smoke_timeout_ms }}"
+          CODEX_INSTALL_PHASE_TIMEOUT_MS="${{ inputs.codex_install_phase_timeout_ms }}"
+          CODEX_READINESS_PHASE_TIMEOUT_MS="${{ inputs.codex_readiness_phase_timeout_ms }}"
+
+          if [ -z "$RUN_TIMEOUT_MS" ]; then
+            RUN_TIMEOUT_MS="900000"
+          fi
+          if [ -z "$SMOKE_TIMEOUT_MS" ]; then
+            SMOKE_TIMEOUT_MS="900000"
+          fi
+
+          positive_integer "run_timeout_ms" "$RUN_TIMEOUT_MS"
+          positive_integer "smoke_timeout_ms" "$SMOKE_TIMEOUT_MS"
+          optional_positive_integer "codex_install_phase_timeout_ms" "$CODEX_INSTALL_PHASE_TIMEOUT_MS"
+          optional_positive_integer "codex_readiness_phase_timeout_ms" "$CODEX_READINESS_PHASE_TIMEOUT_MS"
+
+          echo "run_timeout_ms=$RUN_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
+          echo "smoke_timeout_ms=$SMOKE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
+          echo "codex_install_phase_timeout_ms=$CODEX_INSTALL_PHASE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
+          echo "codex_readiness_phase_timeout_ms=$CODEX_READINESS_PHASE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
 
       - name: Download release DMG artifact
         if: ${{ inputs.release_artifact_name != '' }}
@@ -485,6 +566,173 @@ jobs:
             echo "- Temporary VM retention: ${{ inputs.keep_vm && 'keep for debugging' || 'clean up after run' }}"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Record first-run VM wrapper diagnostics
+        id: wrapper_diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/opl-first-run-vm
+          DIAGNOSTICS_JSON="artifacts/opl-first-run-vm/app-wrapper-diagnostics.json"
+          PREFLIGHT_LOG="artifacts/opl-first-run-vm/app-wrapper-preflight.log"
+
+          node <<'NODE' 2>&1 | tee "$PREFLIGHT_LOG"
+          const fs = require('node:fs');
+          const { spawnSync } = require('node:child_process');
+
+          const diagnosticsPath = 'artifacts/opl-first-run-vm/app-wrapper-diagnostics.json';
+          const startedAt = new Date();
+
+          function run(command, args = []) {
+            const started = new Date();
+            const result = spawnSync(command, args, {
+              encoding: 'utf8',
+              timeout: 120000,
+            });
+            const ended = new Date();
+            return {
+              command: [command, ...args].join(' '),
+              available: result.error?.code !== 'ENOENT',
+              exit_code: typeof result.status === 'number' ? result.status : null,
+              signal: result.signal || null,
+              error: result.error ? String(result.error.message || result.error) : null,
+              stdout: (result.stdout || '').trim(),
+              stderr: (result.stderr || '').trim(),
+              started_at: started.toISOString(),
+              ended_at: ended.toISOString(),
+              duration_ms: ended.getTime() - started.getTime(),
+            };
+          }
+
+          const nodeVersion = run('node', ['--version']);
+          const npmVersion = run('npm', ['--version']);
+          const curlVersion = run('curl', ['--version']);
+          const npmRegistry = run('npm', ['config', 'get', 'registry']);
+          const codexPackageMetadata = run('npm', [
+            'view',
+            '@openai/codex@latest',
+            'name',
+            'version',
+            'dist-tags',
+            'dist.tarball',
+            'dist.integrity',
+            'bin',
+            'engines',
+            '--json',
+          ]);
+
+          const endedAt = new Date();
+          const diagnostics = {
+            schema_version: 1,
+            owner: 'one-person-lab-app',
+            purpose: 'first_run_vm_app_wrapper_diagnostics',
+            generated_at: endedAt.toISOString(),
+            workflow: {
+              name: 'OPL GUI First-Run VM',
+              job: 'clean-vm-first-run',
+              run_id: process.env.GITHUB_RUN_ID || null,
+              run_attempt: process.env.GITHUB_RUN_ATTEMPT || null,
+              repository: process.env.GITHUB_REPOSITORY || null,
+              ref: process.env.GITHUB_REF || null,
+              sha: process.env.GITHUB_SHA || null,
+            },
+            release_inputs: {
+              package_profile: process.env.PACKAGE_PROFILE,
+              install_mode: process.env.INSTALL_MODE,
+              runtime_profile: process.env.RUNTIME_PROFILE,
+              release_tag: process.env.RELEASE_TAG || '',
+              release_dmg_url_configured: process.env.RELEASE_DMG_URL_CONFIGURED === 'true',
+              release_artifact_name: process.env.RELEASE_ARTIFACT_NAME || '',
+              shell_ref: process.env.SHELL_REF || 'main',
+            },
+            vm: {
+              source_vm: process.env.SOURCE_VM,
+              guest_user: process.env.GUEST_USER,
+              ssh_key_configured: process.env.SSH_KEY_CONFIGURED === 'true',
+              runner_labels: process.env.RUNNER_LABELS,
+              no_graphics: process.env.NO_GRAPHICS === 'true',
+              keep_vm: process.env.KEEP_VM === 'true',
+              guide_screenshots: process.env.GUIDE_SCREENSHOTS === 'true',
+            },
+            timeouts: {
+              job_timeout_minutes: 90,
+              run_timeout_ms: Number(process.env.RUN_TIMEOUT_MS),
+              smoke_timeout_ms: Number(process.env.SMOKE_TIMEOUT_MS),
+              codex_install_phase_timeout_ms: process.env.CODEX_INSTALL_PHASE_TIMEOUT_MS ? Number(process.env.CODEX_INSTALL_PHASE_TIMEOUT_MS) : null,
+              codex_readiness_phase_timeout_ms: process.env.CODEX_READINESS_PHASE_TIMEOUT_MS ? Number(process.env.CODEX_READINESS_PHASE_TIMEOUT_MS) : null,
+              codex_phase_timeout_interface: 'pending_opl_aion_shell_parameter_or_summary_fields',
+            },
+            host: {
+              node: nodeVersion,
+              npm: npmVersion,
+              curl: curlVersion,
+              npm_registry: npmRegistry,
+              codex_package_metadata: codexPackageMetadata,
+            },
+            artifact_paths: {
+              diagnostics: 'app-wrapper-diagnostics.json',
+              preflight_log: 'app-wrapper-preflight.log',
+              smoke_command_preview: 'app-wrapper-smoke-command-preview.txt',
+              smoke_stdout: 'app-wrapper-smoke.stdout.log',
+              smoke_stderr: 'app-wrapper-smoke.stderr.log',
+              tart_smoke_summary: 'tart-smoke-summary.json',
+            },
+            phase_timings: {
+              app_wrapper_preflight: {
+                started_at: startedAt.toISOString(),
+                ended_at: endedAt.toISOString(),
+                duration_ms: endedAt.getTime() - startedAt.getTime(),
+              },
+            },
+            codex_install: {
+              current_app_scope: 'required_from_tart_smoke_summary_or_shell_companion_diagnostics',
+              shell_interface_status: 'pending_opl_aion_shell_parameter_or_summary_fields',
+              required_fields: ['command_preview', 'stdout', 'stderr', 'exit_code', 'phase_timings'],
+            },
+          };
+
+          fs.writeFileSync(diagnosticsPath, `${JSON.stringify(diagnostics, null, 2)}\n`);
+          console.log(JSON.stringify({
+            diagnostics: diagnosticsPath,
+            npm_registry_exit_code: npmRegistry.exit_code,
+            codex_package_metadata_exit_code: codexPackageMetadata.exit_code,
+          }, null, 2));
+
+          const requiredFailures = [
+            ['node --version', nodeVersion],
+            ['npm --version', npmVersion],
+            ['curl --version', curlVersion],
+            ['npm config get registry', npmRegistry],
+            ['npm view @openai/codex@latest', codexPackageMetadata],
+          ].filter(([, result]) => result.exit_code !== 0 || result.error);
+
+          if (requiredFailures.length > 0) {
+            console.error('Required first-run VM wrapper diagnostics failed:');
+            for (const [label, result] of requiredFailures) {
+              console.error(`- ${label}: exit=${result.exit_code} error=${result.error || ''}`);
+            }
+            process.exit(1);
+          }
+          NODE
+        env:
+          PACKAGE_PROFILE: ${{ steps.package_profile.outputs.profile }}
+          INSTALL_MODE: ${{ steps.package_profile.outputs.install_mode }}
+          RUNTIME_PROFILE: ${{ steps.package_profile.outputs.runtime_profile }}
+          SOURCE_VM: ${{ steps.tart_source.outputs.source_vm }}
+          GUEST_USER: ${{ inputs.guest_user || vars.OPL_FIRST_RUN_GUEST_USER || 'runner' }}
+          SSH_KEY_CONFIGURED: ${{ (inputs.guest_ssh_key_path != '' || vars.OPL_FIRST_RUN_GUEST_SSH_KEY != '') && 'true' || 'false' }}
+          RUNNER_LABELS: ${{ vars.OPL_FIRST_RUN_RUNNER_LABELS || '["self-hosted","macOS","opl-gui-vm"]' }}
+          NO_GRAPHICS: ${{ inputs.no_graphics && 'true' || 'false' }}
+          KEEP_VM: ${{ inputs.keep_vm && 'true' || 'false' }}
+          GUIDE_SCREENSHOTS: ${{ inputs.guide_screenshots && 'true' || 'false' }}
+          RUN_TIMEOUT_MS: ${{ steps.vm_timeouts.outputs.run_timeout_ms }}
+          SMOKE_TIMEOUT_MS: ${{ steps.vm_timeouts.outputs.smoke_timeout_ms }}
+          CODEX_INSTALL_PHASE_TIMEOUT_MS: ${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms }}
+          CODEX_READINESS_PHASE_TIMEOUT_MS: ${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_DMG_URL_CONFIGURED: ${{ inputs.release_dmg_url != '' && 'true' || 'false' }}
+          RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
+          SHELL_REF: ${{ inputs.shell_ref || 'main' }}
+
       - name: Run clean VM first launch smoke
         shell: bash
         run: |
@@ -507,8 +755,8 @@ jobs:
             --source-vm "$SOURCE_VM"
             --guest-user "$GUEST_USER"
             --artifacts artifacts/opl-first-run-vm
-            --timeout-ms 900000
-            --smoke-timeout-ms 900000
+            --timeout-ms "${{ steps.vm_timeouts.outputs.run_timeout_ms }}"
+            --smoke-timeout-ms "${{ steps.vm_timeouts.outputs.smoke_timeout_ms }}"
             --smoke-profile no-clt-clean-vm
             --display 1920x1080px
             --settings-smoke
@@ -538,10 +786,60 @@ jobs:
             CMD+=(--guide-screenshots)
           fi
 
-          "${CMD[@]}"
+          mkdir -p artifacts/opl-first-run-vm
+          COMMAND_PREVIEW="artifacts/opl-first-run-vm/app-wrapper-smoke-command-preview.txt"
+          STDOUT_LOG="artifacts/opl-first-run-vm/app-wrapper-smoke.stdout.log"
+          STDERR_LOG="artifacts/opl-first-run-vm/app-wrapper-smoke.stderr.log"
+          printf '%q ' "${CMD[@]}" > "$COMMAND_PREVIEW"
+          printf '\n' >> "$COMMAND_PREVIEW"
+
+          SMOKE_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SMOKE_STARTED_SECONDS="$(date +%s)"
+          set +e
+          "${CMD[@]}" > >(tee "$STDOUT_LOG") 2> >(tee "$STDERR_LOG" >&2)
+          SMOKE_STATUS="$?"
+          set -e
+          SMOKE_ENDED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SMOKE_ENDED_SECONDS="$(date +%s)"
+          SMOKE_DURATION_MS="$(((SMOKE_ENDED_SECONDS - SMOKE_STARTED_SECONDS) * 1000))"
+
+          DIAGNOSTICS_JSON="artifacts/opl-first-run-vm/app-wrapper-diagnostics.json"
+          if [ -f "$DIAGNOSTICS_JSON" ]; then
+            SMOKE_STATUS="$SMOKE_STATUS" \
+            SMOKE_STARTED_AT="$SMOKE_STARTED_AT" \
+            SMOKE_ENDED_AT="$SMOKE_ENDED_AT" \
+            SMOKE_DURATION_MS="$SMOKE_DURATION_MS" \
+            COMMAND_PREVIEW="$COMMAND_PREVIEW" \
+            STDOUT_LOG="$STDOUT_LOG" \
+            STDERR_LOG="$STDERR_LOG" \
+            node <<'NODE'
+          const fs = require('node:fs');
+          const diagnosticsPath = 'artifacts/opl-first-run-vm/app-wrapper-diagnostics.json';
+          const diagnostics = JSON.parse(fs.readFileSync(diagnosticsPath, 'utf8'));
+          diagnostics.smoke_command = {
+            command_preview_path: process.env.COMMAND_PREVIEW,
+            command_preview: fs.readFileSync(process.env.COMMAND_PREVIEW, 'utf8').trim(),
+            stdout_path: process.env.STDOUT_LOG,
+            stderr_path: process.env.STDERR_LOG,
+            exit_code: Number(process.env.SMOKE_STATUS),
+          };
+          diagnostics.phase_timings = {
+            ...(diagnostics.phase_timings || {}),
+            app_wrapper_smoke: {
+              started_at: process.env.SMOKE_STARTED_AT,
+              ended_at: process.env.SMOKE_ENDED_AT,
+              duration_ms: Number(process.env.SMOKE_DURATION_MS),
+              exit_code: Number(process.env.SMOKE_STATUS),
+            },
+          };
+          fs.writeFileSync(diagnosticsPath, `${JSON.stringify(diagnostics, null, 2)}\n`);
+          NODE
+          fi
+
+          exit "$SMOKE_STATUS"
 
       - name: Upload first-run VM artifacts
-        if: always()
+        if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
           name: opl-first-run-vm-${{ steps.package_profile.outputs.profile }}-${{ github.run_id }}
@@ -578,6 +876,13 @@ jobs:
             echo "- DMG: ${{ steps.dmg.outputs.dmg_path }}"
             echo "- Homebrew cask: ${{ steps.package_profile.outputs.homebrew_cask }}"
             echo "- Artifacts: artifacts/opl-first-run-vm"
+            echo "- Job timeout: 90 minutes"
+            echo "- Run timeout: ${{ steps.vm_timeouts.outputs.run_timeout_ms }} ms"
+            echo "- Smoke timeout: ${{ steps.vm_timeouts.outputs.smoke_timeout_ms }} ms"
+            echo "- Codex install phase timeout: ${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms || 'not configured; shell interface pending' }}"
+            echo "- Codex readiness phase timeout: ${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms || 'not configured; shell interface pending' }}"
+            echo "- Wrapper diagnostics: artifacts/opl-first-run-vm/app-wrapper-diagnostics.json"
+            echo "- Wrapper smoke logs: artifacts/opl-first-run-vm/app-wrapper-smoke.stdout.log, artifacts/opl-first-run-vm/app-wrapper-smoke.stderr.log"
             if [ -d artifacts/opl-first-run-vm/artifacts/guide-screenshots ]; then
               echo "- Guide screenshots: artifacts/opl-first-run-vm/artifacts/guide-screenshots"
             fi

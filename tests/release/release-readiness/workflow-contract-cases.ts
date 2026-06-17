@@ -107,3 +107,72 @@ test('one-shot installer smoke uploads its diagnostic artifact even when bootstr
   assert.match(job, /Upload one-shot installer smoke artifact[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/);
   assert.match(job, /path: \/tmp\/opl-one-shot-system-initialize\.json/);
 });
+
+test('first-run VM workflow preserves App-side diagnostics and visible timeout contract', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
+  const matrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-first-run-test-matrix.json'), 'utf8'),
+  );
+  const match = workflow.match(/\n  clean-vm-first-run:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/);
+  assert.ok(match, 'first-run VM workflow must include clean-vm-first-run job');
+  const job = match[0];
+
+  assert.match(workflow, /run_timeout_ms:[\s\S]*default: '900000'/);
+  assert.match(workflow, /smoke_timeout_ms:[\s\S]*default: '900000'/);
+  assert.match(job, /Resolve first-run VM timeouts/);
+  assert.match(job, /Record first-run VM wrapper diagnostics/);
+  assert.match(job, /app-wrapper-diagnostics\.json/);
+  assert.match(job, /app-wrapper-preflight\.log/);
+  assert.match(job, /npm[\s\S]*config[\s\S]*get[\s\S]*registry/);
+  assert.match(job, /@openai\/codex/);
+  assert.match(job, /curl[\s\S]*--version/);
+  assert.match(job, /node[\s\S]*--version/);
+  assert.match(job, /npm[\s\S]*--version/);
+  assert.match(job, /job_timeout_minutes/);
+  assert.match(job, /run_timeout_ms/);
+  assert.match(job, /smoke_timeout_ms/);
+  assert.match(job, /codex_install_phase_timeout_ms/);
+  assert.match(job, /codex_readiness_phase_timeout_ms/);
+  assert.match(job, /--timeout-ms "\$\{\{ steps\.vm_timeouts\.outputs\.run_timeout_ms \}\}"/);
+  assert.match(job, /--smoke-timeout-ms "\$\{\{ steps\.vm_timeouts\.outputs\.smoke_timeout_ms \}\}"/);
+  assert.match(job, /app-wrapper-smoke-command-preview\.txt/);
+  assert.match(job, /app-wrapper-smoke\.stdout\.log/);
+  assert.match(job, /app-wrapper-smoke\.stderr\.log/);
+  assert.match(job, /exit_code/);
+  assert.match(job, /phase_timings/);
+  assert.match(job, /Upload first-run VM artifacts[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/);
+
+  for (const scenarioId of [
+    'standard_dmg_clean_vm_smoke',
+    'homebrew_standard_cask_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+  ]) {
+    const scenario = matrix.scenarios.find((candidate) => candidate.id === scenarioId);
+    assert.ok(scenario, `first-run matrix must include ${scenarioId}`);
+    assert.ok(
+      scenario.release_evidence_artifacts.includes('app-wrapper-diagnostics.json'),
+      `${scenarioId} must require App wrapper diagnostics`,
+    );
+    assert.equal(scenario.diagnostics_contract.app_wrapper.current_artifact, 'app-wrapper-diagnostics.json');
+    assert.deepEqual(scenario.diagnostics_contract.app_wrapper.required_timeout_fields, [
+      'job_timeout_minutes',
+      'run_timeout_ms',
+      'smoke_timeout_ms',
+      'codex_install_phase_timeout_ms',
+      'codex_readiness_phase_timeout_ms',
+    ]);
+    assert.deepEqual(scenario.diagnostics_contract.codex_install.required_fields, [
+      'command_preview',
+      'stdout',
+      'stderr',
+      'exit_code',
+      'phase_timings',
+    ]);
+    assert.deepEqual(scenario.diagnostics_contract.codex_install.allowed_sources, [
+      'tart-smoke-summary.json',
+      'artifacts/codex-install-diagnostics.json',
+    ]);
+    assert.equal(scenario.diagnostics_contract.codex_install.current_app_scope, 'required_from_tart_smoke_summary_or_shell_companion_diagnostics');
+    assert.equal(scenario.diagnostics_contract.codex_install.shell_interface_status, 'pending_opl_aion_shell_parameter_or_summary_fields');
+  }
+});
