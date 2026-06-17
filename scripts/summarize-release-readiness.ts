@@ -352,6 +352,145 @@ function buildManifestSizeAnalysis(
   };
 }
 
+function durationBreakdownEntries(duration: Record<string, unknown> | null) {
+  const breakdown = objectField(duration, 'full_package_build_breakdown');
+  const totalSeconds = numberField(duration, 'full_package_build');
+  return Object.entries(breakdown ?? {})
+    .map(([id, value]) => ({
+      id,
+      duration_seconds: typeof value === 'number' && Number.isFinite(value) ? value : null,
+    }))
+    .filter((entry): entry is { id: string; duration_seconds: number } => entry.duration_seconds !== null)
+    .sort((left, right) => right.duration_seconds - left.duration_seconds)
+    .map((entry, index) => ({
+      rank: index + 1,
+      category: 'full_build_segment',
+      source: 'full-workflow-telemetry.json#duration_seconds.full_package_build_breakdown',
+      ...entry,
+      full_package_build_percent: totalSeconds !== null ? percent(entry.duration_seconds, totalSeconds) : null,
+      reason: index === 0 ? 'slowest_full_build_segment' : 'full_build_segment_time',
+    }));
+}
+
+function sizeOptimizationCandidates(sizeAnalysis: Record<string, unknown> | null, limit = 8) {
+  return arrayField(sizeAnalysis, 'optimization_candidates')
+    .map((entry) => recordOrNull(entry))
+    .filter((entry): entry is Record<string, unknown> => entry !== null)
+    .slice(0, limit);
+}
+
+function fullDmgSizeBottleneck(
+  sizeAnalysis: Record<string, unknown> | null,
+  sizeBudget: Record<string, unknown> | null,
+) {
+  const budget = objectField(sizeAnalysis, 'budget');
+  const compressedFullDmg = objectField(budget, 'compressed_full_dmg');
+  const fullDmgSizeBytes = numberField(compressedFullDmg, 'full_dmg_size_bytes') ?? numberField(sizeBudget, 'full_dmg_size_bytes');
+  const warningStatus = stringField(compressedFullDmg, 'warning_status')
+    ?? stringField(sizeBudget, 'full_dmg_size_status');
+  const reviewStatus = stringField(compressedFullDmg, 'review_threshold_status');
+  if (fullDmgSizeBytes === null) return null;
+  if (warningStatus !== 'warning' && reviewStatus !== 'above_review_threshold') return null;
+  return {
+    id: 'full_dmg_size',
+    category: 'full_package_size',
+    source: 'remote-release-verification.json#full_first_install_budget and full-package-size-summary.json',
+    size_bytes: fullDmgSizeBytes,
+    warning_status: warningStatus,
+    review_threshold_status: reviewStatus,
+    reason: reviewStatus === 'above_review_threshold'
+      ? 'full_dmg_above_review_threshold'
+      : 'full_dmg_above_warning_threshold',
+    release_blocking: compressedFullDmg?.release_blocking === true,
+  };
+}
+
+function runtimeCacheBottleneck(runtimeCache: Record<string, unknown> | null) {
+  const missWrittenCount = numberField(runtimeCache, 'miss_written_count') ?? 0;
+  if (missWrittenCount <= 0) return null;
+  return {
+    id: 'runtime_cache_miss_written',
+    category: 'full_runtime_cache',
+    source: 'runtime-cache-events.json',
+    miss_written_count: missWrittenCount,
+    miss_written_layers: arrayField(runtimeCache, 'miss_written_layers').map((entry) => String(entry)),
+    reason: 'runtime_cache_layers_written_during_release_build',
+  };
+}
+
+function buildReadinessBottlenecks(inputs: {
+  duration: Record<string, unknown> | null;
+  runtimeCache: Record<string, unknown> | null;
+  sizeBudget: Record<string, unknown> | null;
+  sizeAnalysis: Record<string, unknown> | null;
+}) {
+  const durationEntries = durationBreakdownEntries(inputs.duration).slice(0, 8);
+  const sizeBottleneck = fullDmgSizeBottleneck(inputs.sizeAnalysis, inputs.sizeBudget);
+  const cacheBottleneck = runtimeCacheBottleneck(inputs.runtimeCache);
+  return [
+    ...durationEntries,
+    ...(sizeBottleneck ? [sizeBottleneck] : []),
+    ...(cacheBottleneck ? [cacheBottleneck] : []),
+  ];
+}
+
+function buildReadinessOptimizationRecommendations(inputs: {
+  duration: Record<string, unknown> | null;
+  runtimeCache: Record<string, unknown> | null;
+  sizeAnalysis: Record<string, unknown> | null;
+  bottlenecks: Record<string, unknown>[];
+}) {
+  const recommendations: Record<string, unknown>[] = [];
+  const durationEntries = durationBreakdownEntries(inputs.duration);
+  const topDuration = durationEntries[0];
+  const dmgCompression = durationEntries.find((entry) => entry.id === 'dmg_package_compression');
+  const candidates = sizeOptimizationCandidates(inputs.sizeAnalysis, 5);
+  const sizeBottleneck = inputs.bottlenecks.find((entry) => entry.id === 'full_dmg_size');
+  const cacheBottleneck = inputs.bottlenecks.find((entry) => entry.id === 'runtime_cache_miss_written');
+
+  if (topDuration) {
+    recommendations.push({
+      id: 'profile_slowest_full_build_segment',
+      category: 'full_build_time',
+      source: topDuration.source,
+      reason: `${topDuration.id} is the slowest measured Full build segment in this readiness input.`,
+      target: topDuration,
+    });
+  }
+
+  if (dmgCompression) {
+    recommendations.push({
+      id: 'reduce_dmg_package_compression_time',
+      category: 'full_build_time',
+      source: dmgCompression.source,
+      reason: 'DMG compression has explicit Full build timing evidence and should stay visible in release profiling.',
+      target: dmgCompression,
+    });
+  }
+
+  if (sizeBottleneck && candidates.length > 0) {
+    recommendations.push({
+      id: 'review_full_size_optimization_candidates',
+      category: 'full_package_size',
+      source: 'full-package-size-summary.json#optimization_candidates',
+      reason: 'Full DMG size crossed a recorded warning or review threshold; inspect the largest packaged contributors first.',
+      targets: candidates,
+    });
+  }
+
+  if (cacheBottleneck) {
+    recommendations.push({
+      id: 'seed_full_runtime_cache',
+      category: 'full_runtime_cache',
+      source: 'runtime-cache-events.json',
+      reason: 'One or more Full runtime layers were written during this build instead of being cache hits.',
+      target: cacheBottleneck,
+    });
+  }
+
+  return recommendations;
+}
+
 function stringField(record: Record<string, unknown> | null | undefined, key: string) {
   const value = record?.[key];
   return typeof value === 'string' ? value : null;
@@ -813,6 +952,20 @@ function buildSummary(options: Options) {
       }
     : buildManifestSizeAnalysis(manifest, sizeBudget);
   const warnings = warningsFromFullSizeBudget(sizeBudget);
+  const fullPackageDuration = recordOrNull(fullPackage?.duration_seconds);
+  const runtimeCache = summarizeRuntimeCacheEvents(runtimeCacheEvents);
+  const bottlenecks = buildReadinessBottlenecks({
+    duration: fullPackageDuration,
+    runtimeCache,
+    sizeBudget,
+    sizeAnalysis: recordOrNull(sizeAnalysis),
+  });
+  const optimizationRecommendations = buildReadinessOptimizationRecommendations({
+    duration: fullPackageDuration,
+    runtimeCache,
+    sizeAnalysis: recordOrNull(sizeAnalysis),
+    bottlenecks,
+  });
   const operatorEvidenceReadout = objectField(
     gates.operator_evidence_bundle.fields ?? null,
     'l5_evidence_readout',
@@ -858,13 +1011,15 @@ function buildSummary(options: Options) {
     warnings,
     gates,
     failed_required_gates: failedRequired,
+    bottlenecks,
+    optimization_recommendations: optimizationRecommendations,
     release_cohort: releaseCohort,
     l5_evidence_readout: l5EvidenceReadout,
     release_owner_verdict: releaseOwnerVerdict,
     full_package: {
       duration_seconds: fullPackage?.duration_seconds ?? null,
       cache: fullPackage?.cache ?? null,
-      runtime_cache: summarizeRuntimeCacheEvents(runtimeCacheEvents),
+      runtime_cache: runtimeCache,
       size_budget: sizeBudget,
       size_analysis: sizeAnalysis,
       resolved_refs: fullPackage?.resolved_refs ?? manifest?.resolved_refs ?? null,

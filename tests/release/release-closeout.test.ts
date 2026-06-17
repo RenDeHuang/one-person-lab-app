@@ -77,6 +77,37 @@ function writeCloseoutArtifacts(root: string, version = '26.5.99', options: {
       cache: {
         full_runtime_layers: 'toolchain:true;domain-runtime:true;opl-runtime:true;skills:true',
       },
+      runtime_cache: {
+        layer_status_counts: { hit: 2, miss_written: 1 },
+        miss_written_layers: ['domain-runtime'],
+        miss_written_count: 1,
+        written_layers: ['domain-runtime'],
+        written_layer_count: 1,
+      },
+      size_budget: {
+        full_dmg_size_bytes: 865000000,
+        warning_full_dmg_bytes: 700000000,
+        max_full_dmg_bytes: 750000000,
+        full_dmg_size_status: 'warning',
+      },
+      size_analysis: {
+        schema: 'opl_full_package_size_summary.v1',
+        source: 'test_fixture',
+        budget: {
+          compressed_full_dmg: {
+            full_dmg_size_bytes: 865000000,
+            warning_full_dmg_bytes: 700000000,
+            max_full_dmg_bytes: 750000000,
+            warning_status: 'warning',
+            review_threshold_status: 'above_review_threshold',
+            release_blocking: false,
+          },
+        },
+        optimization_candidates: [
+          { rank: 1, kind: 'layer', id: 'toolchain', size_bytes: 512000000, reason: 'largest_runtime_layer' },
+          { rank: 2, kind: 'component', id: 'codex', size_bytes: 384000000, reason: 'largest_packaged_component' },
+        ],
+      },
     },
   });
   writeJson(path.join(root, `release-candidate-record-${version}`, 'release-candidate-record.json'), {
@@ -111,6 +142,16 @@ test('release closeout separates workflow wall time from Agent orchestration wal
     headBranch: 'main',
     headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12345',
+    previous_runs: [
+      {
+        id: '12222',
+        status: 'completed',
+        conclusion: 'failure',
+        createdAt: '2026-06-12T09:00:00Z',
+        updatedAt: '2026-06-12T09:31:01Z',
+        url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/12222',
+      },
+    ],
   });
   writeJson(jobsPath, {
     jobs: [
@@ -168,10 +209,25 @@ test('release closeout separates workflow wall time from Agent orchestration wal
     /repeated gh run watch/,
   );
   assert.equal(summary.jobs.slowest_jobs[0].name, 'Build Full first-install assets');
+  assert.equal(summary.failed_rerun_tax.failed_rerun_tax_seconds, 1861);
+  assert.equal(summary.failed_rerun_tax.previous_failed_run_count, 1);
+  assert.ok(summary.bottlenecks.some((entry) => entry.id === 'failed_rerun_tax'));
+  assert.ok(summary.bottlenecks.some((entry) => entry.id === 'Build Full first-install assets'));
+  assert.ok(summary.bottlenecks.some((entry) => entry.id === 'dmg_package_compression'));
+  assert.ok(summary.bottlenecks.some((entry) => entry.id === 'full_dmg_size'));
+  assert.ok(summary.bottlenecks.some((entry) => entry.id === 'runtime_cache_miss_written'));
+  assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'profile_slowest_github_actions_job'));
+  assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'reduce_failed_rerun_tax'));
+  assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'review_full_size_optimization_candidates'));
+  assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'seed_full_runtime_cache'));
   const markdown = fs.readFileSync(path.join(outDir, 'release-closeout.md'), 'utf8');
   assert.match(markdown, /GitHub Actions workflow wall time is the release execution KPI/);
   assert.match(markdown, /Agent orchestration wall time/);
   assert.match(markdown, /Full Package Timing/);
+  assert.match(markdown, /Failed Rerun Tax/);
+  assert.match(markdown, /Optimization Recommendations/);
+  assert.match(markdown, /Full Size Optimization Candidates/);
+  assert.match(markdown, /Runtime cache miss_written layers: domain-runtime/);
 });
 
 test('release closeout stops at readiness failed gates before raw log inspection', () => {

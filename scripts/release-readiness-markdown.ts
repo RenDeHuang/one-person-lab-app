@@ -16,6 +16,8 @@ type ReleaseReadinessMarkdownSummary = {
   include_full_package: boolean;
   run_vm_smoke: boolean;
   warnings: unknown[];
+  bottlenecks?: unknown[];
+  optimization_recommendations?: unknown[];
   gates: Record<string, MarkdownGateSummary>;
   full_package: {
     duration_seconds?: {
@@ -44,6 +46,12 @@ function requiredText(required: boolean) {
 function progressText(progress: Record<string, unknown> | null) {
   if (!progress) return 'unknown';
   return `${recordText(progress, 'completed', '?')}/${recordText(progress, 'total', '?')}`;
+}
+
+function recordArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry)) as Record<string, unknown>[]
+    : [];
 }
 
 function headerMarkdown(summary: ReleaseReadinessMarkdownSummary) {
@@ -150,6 +158,39 @@ function pushOptimizationCandidateTable(lines: string[], entries: Record<string,
   );
 }
 
+function pushBottleneckTable(lines: string[], entries: Record<string, unknown>[]) {
+  if (entries.length === 0) return;
+  lines.push(
+    '',
+    '### Bottlenecks',
+    '',
+    '| Bottleneck | Category | Evidence | Signal | Reason |',
+    '| --- | --- | --- | --- | --- |',
+    ...entries.map((entry) => {
+      const signal = [
+        recordText(entry, 'duration_seconds'),
+        recordText(entry, 'size_bytes'),
+        recordText(entry, 'miss_written_count'),
+      ].find((value) => value !== '') ?? '';
+      return `| ${recordText(entry, 'id')} | ${recordText(entry, 'category')} | ${recordText(entry, 'source')} | ${signal} | ${recordText(entry, 'reason')} |`;
+    }),
+  );
+}
+
+function pushOptimizationRecommendationTable(lines: string[], entries: Record<string, unknown>[]) {
+  if (entries.length === 0) return;
+  lines.push(
+    '',
+    '### Optimization recommendations',
+    '',
+    '| Recommendation | Category | Evidence | Reason |',
+    '| --- | --- | --- | --- |',
+    ...entries.map((entry) => (
+      `| ${recordText(entry, 'id')} | ${recordText(entry, 'category')} | ${recordText(entry, 'source')} | ${recordText(entry, 'reason')} |`
+    )),
+  );
+}
+
 function pushFullPackageSizeAnalysisMarkdown(lines: string[], summary: ReleaseReadinessMarkdownSummary) {
   const sizeAnalysis = summary.full_package.size_analysis;
   const topContributors = objectField(sizeAnalysis, 'top_contributors');
@@ -179,6 +220,8 @@ export function writeReleaseReadinessMarkdown(
   pushOneShotInstallerMarkdown(lines, summary);
   pushFullBuildSegmentMarkdown(lines, summary);
   pushWarningMarkdown(lines, summary);
+  pushBottleneckTable(lines, recordArray(summary.bottlenecks));
+  pushOptimizationRecommendationTable(lines, recordArray(summary.optimization_recommendations));
   pushFullPackageSizeAnalysisMarkdown(lines, summary);
   pushRuntimeCacheMarkdown(lines, summary);
   lines.push('');

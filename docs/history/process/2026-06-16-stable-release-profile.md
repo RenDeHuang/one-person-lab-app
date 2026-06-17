@@ -155,6 +155,33 @@ documentation.
   Homebrew distribution evidence belongs to the promote workflow after the
   draft is published.
 
+## Reusable Profiling Runbook
+
+This release exposed three timing classes that should be separated in future
+closeout evidence instead of reconstructed from chat notes:
+
+- GitHub Actions workflow wall time: derive from the run `createdAt`/`updatedAt`
+  timestamps and job `startedAt`/`completedAt` spans.
+- Failed rerun tax: derive from failed prior run metadata when it is supplied to
+  closeout, or from the current failed run/job spans when the current run did
+  not reach a promote-ready structured summary.
+- Operator orchestration wall time: record only when the operator supplies
+  `--agent-wall-time` or explicit start/finish timestamps; do not compare it
+  directly with workflow wall time.
+
+The current reusable machine surfaces are
+`release-readiness-summary.json#bottlenecks`,
+`release-readiness-summary.json#optimization_recommendations`,
+`release-closeout.json#failed_rerun_tax`,
+`release-closeout.json#bottlenecks`, and
+`release-closeout.json#optimization_recommendations`. Full package optimization
+should start from `full_package.size_analysis.optimization_candidates`,
+`full_package.duration_seconds.full_package_build_breakdown`,
+`full_package.runtime_cache.miss_written_layers`, and the Full DMG warning or
+review-threshold status. Those fields are derived from small telemetry,
+diagnostics, remote verification, readiness, and job artifacts; the historical
+`v26.6.16` numbers above are provenance, not script defaults.
+
 ## Evidence
 
 - Candidate record sha256:

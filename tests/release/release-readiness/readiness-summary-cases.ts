@@ -112,6 +112,11 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(summary.full_package.duration_seconds.full_package_build, 380);
   assert.equal(summary.full_package.duration_seconds.full_package_build_breakdown.shell_build, 4);
   assert.equal(summary.full_package.resolved_refs.opl_framework.commit, '1111111111111111111111111111111111111111');
+  assert.equal(summary.bottlenecks[0].id, 'manifest_checksum');
+  assert.equal(summary.bottlenecks[0].category, 'full_build_segment');
+  assert.ok(summary.bottlenecks.some((entry) => entry.id === 'dmg_package_compression'));
+  assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'profile_slowest_full_build_segment'));
+  assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'reduce_dmg_package_compression_time'));
   const markdown = fs.readFileSync(summaryPath, 'utf8');
   assert.match(markdown, /Release Readiness Summary/);
   assert.match(markdown, /One-shot installer/);
@@ -121,6 +126,8 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.match(markdown, /core: 3\/3/);
   assert.match(markdown, /retry: false/);
   assert.match(markdown, /skip_modules: true/);
+  assert.match(markdown, /Bottlenecks/);
+  assert.match(markdown, /Optimization recommendations/);
 });
 
 test('release readiness summary fails closed without a same-cohort operator evidence bundle', () => {
@@ -457,11 +464,14 @@ test('release readiness summary passes with explicit Full size warning below rev
   assert.equal(summary.full_package.size_analysis.budget.compressed_full_dmg.release_blocking, false);
   assert.equal(summary.full_package.size_analysis.top_contributors.layers[0].id, 'toolchain');
   assert.equal(summary.full_package.size_analysis.optimization_candidates[0].id, 'toolchain');
+  assert.ok(summary.bottlenecks.some((entry) => entry.id === 'full_dmg_size'));
+  assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'review_full_size_optimization_candidates'));
   assert.deepEqual(summary.warnings.map((warning) => warning.code), ['full_dmg_size_warning']);
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /Full DMG size warning/);
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /725000000/);
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /Full package size analysis/);
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /Top Full runtime layer/);
+  assert.match(fs.readFileSync(summaryPath, 'utf8'), /review_full_size_optimization_candidates/);
 });
 
 test('release readiness summary warns without failing when Full DMG exceeds review threshold', () => {
@@ -559,8 +569,11 @@ test('release readiness summary surfaces miss_written runtime cache layers', () 
   assert.deepEqual(summary.full_package.runtime_cache.miss_written_layers, ['domain-runtime', 'opl-runtime']);
   assert.equal(summary.full_package.runtime_cache.miss_written_count, 2);
   assert.equal(summary.full_package.runtime_cache.written_layer_count, 2);
+  assert.ok(summary.bottlenecks.some((entry) => entry.id === 'runtime_cache_miss_written'));
+  assert.ok(summary.optimization_recommendations.some((entry) => entry.id === 'seed_full_runtime_cache'));
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /Runtime cache miss_written layers/);
   assert.match(fs.readFileSync(summaryPath, 'utf8'), /domain-runtime, opl-runtime/);
+  assert.match(fs.readFileSync(summaryPath, 'utf8'), /seed_full_runtime_cache/);
 });
 
 test('release readiness summary fails closed when a stable-required gate is missing', () => {
