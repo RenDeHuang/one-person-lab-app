@@ -47,10 +47,13 @@ Hermes candidate 复用 upstream checklist/onboarding 组件，但不复用 upst
 Agent installer 语义，也不把所有启动工作合并成一个 first-run gate。当前口径按
 [`opl-hermes-first-run-flow.md`](opl-hermes-first-run-flow.md) 拆成四条流程：
 
-- 每次启动轻量检查：每次 launch 只做 marker、核心组件、Codex/OPL CLI 和模型访问
-  路由检查；热启动不能同步跑 full `opl system initialize --json` 阻塞主界面。
-- 一次性本机初始化：只在 marker 缺失、marker 过旧或核心组件缺失时显示 Hermes
-  checklist UI，并只等待 Core launch readiness。
+- 每次启动轻量检查：每次 launch 只做 marker、核心组件、Codex/OPL CLI、`opl app state
+  --profile fast --json` 模型访问探测和 adapter startup 路由检查；热启动不能同步跑
+  full `opl system initialize --json` 阻塞主界面。
+- 一次性本机初始化：只在 fast app state 不能证明 Codex/模型访问状态、marker 过旧且
+  探测失败、或核心组件缺失时显示 Hermes checklist UI，并只等待 Core launch
+  readiness。marker 缺失本身不等于要进入初始化页；已安装机器应先轻量探测，成功后
+  补写 marker 并进入主界面。
 - 模型访问配置：作为单独“模型访问”向导，只处理 gflabtoken API key / 模型访问；
   它不是本机初始化 checklist 的一个安装 stage。
 - 后台 OPL 状态刷新：full OPL status/readback 在 Codex adapter ready 和主界面可见
@@ -64,7 +67,7 @@ Agent installer 语义，也不把所有启动工作合并成一个 first-run ga
 | 模型设置 | 模型策略 | 只展示当前 OPL/Codex 有效模型和推理强度。辅助任务默认跟随主模型，不提供独立 provider 槽位作为普通能力。 |
 | Provider 设置 | 模型访问 | 改名为“模型访问”。只显示 gflabtoken API key。 |
 | `/api/env` | 模型访问目录 | 普通路径只返回 `OPENAI_API_KEY`。拒绝 `OPENAI_BASE_URL` 和其它 provider key 写入。 |
-| 启动流程 | OPL 启动分流 | 轻量检查每次运行；本机初始化只在 marker 缺失/过旧/核心缺失时使用 checklist；模型访问配置单独处理 gflabtoken API key；full OPL status refresh 后台异步。 |
+| 启动流程 | OPL 启动分流 | 轻量检查每次运行；marker 缺失/过旧先做 fast app state readiness probe，只有 probe 失败或核心缺失才使用本机初始化 checklist；模型访问配置单独处理 gflabtoken API key；full OPL status refresh 后台异步。 |
 | 语言 | 双语 UI | 中文系统默认简体中文；普通 UI 同屏不混用中英文。新增 copy 进入 Hermes i18n catalog；繁体中文和日文不维护。 |
 
 ## Settings 信息架构
@@ -105,7 +108,9 @@ Codex App-like 心智重命名和收窄：
 **必要替换：**
 
 - 启动行为 owner：从 Hermes Agent installer 替换为 OPL 启动分流；每次启动轻量
-  检查、本机初始化 checklist、模型访问向导和后台 OPL 状态刷新分别处理。
+  检查、本机初始化 checklist、模型访问向导和后台 OPL 状态刷新分别处理。marker
+  缺失或过旧不能单独触发 full initialize；必须先用 fast app state probe 判断是否
+  已经可进入主界面。
 - Executor：普通 chat route 接 Codex app-server adapter，而不是 Hermes Agent 默认后端。
 - 模型访问：从 provider/OAuth 心智替换为 One Person Lab 模型访问。
 
@@ -137,7 +142,10 @@ Hermes candidate 只能在以下证据齐备时声称“基本可用”：
 - 热启动不跑 full initialize 作为阻塞 gate；已配置 API key、marker 新鲜且核心存在时
   自动进入主界面。
 - 缺 key 时进入 OPL 模型访问 onboarding，不显示本机安装 checklist。
-- marker 缺失、marker 过旧或核心组件缺失时才显示 OPL 本机初始化 checklist。
+- marker 缺失但 fast app state 已证明 Codex/模型访问可用时，不显示 OPL 本机初始化
+  checklist，只补写 marker 并进入主界面。
+- marker 过旧且 fast app state 无法证明 readiness，或核心组件缺失时，才显示 OPL
+  本机初始化 checklist。
 - 全新安装或 VM smoke 记录轻量检查、本机初始化、模型访问、adapter startup 和后台
   OPL status refresh 的阶段耗时。
 - 主界面可创建 session、发送 Codex turn，并展示 assistant response。

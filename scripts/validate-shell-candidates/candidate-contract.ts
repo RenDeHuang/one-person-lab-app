@@ -380,12 +380,12 @@ function validateHermesFirstRunContract(candidate: ShellCandidate): void {
     'check-opl-app-initialization-marker',
     'check-one-person-lab-cli',
     'check-codex-cli',
+    'check-opl-app-state-fast-readiness',
     'check-gflabtoken-model-access',
     'check-codex-adapter-startup',
   ], `${candidate.id}.first_run_contract.startup_check_sequence`);
   assertStringArrayIncludes(contract.one_time_initialization_trigger, [
-    'missing-opl-app-initialization-marker',
-    'stale-opl-app-initialization-marker',
+    'failed-lightweight-readiness-probe-after-missing-or-stale-marker',
     'missing-one-person-lab-core-components',
   ], `${candidate.id}.first_run_contract.one_time_initialization_trigger`);
   assertStringArrayIncludes(contract.one_time_initialization_sequence, [
@@ -420,13 +420,14 @@ function validateHermesFirstRunContract(candidate: ShellCandidate): void {
   if (contract.api_key_present_behavior !== 'auto_continue_to_opl_codex_adapter_without_waiting_for_setup_runtime_check_or_api_key_form') {
     throw new Error(`${candidate.id}.first_run_contract.api_key_present_behavior must auto-skip onboarding when Codex model access already exists`);
   }
-  if (contract.ready_check !== 'lightweight startup check: initialization marker fresh, core components discoverable, Codex CLI available, model access configured, Codex adapter startable') {
+  if (contract.ready_check !== 'lightweight startup check: CLI available, fast app state proves Codex installed and model access status, core components discoverable when required, Codex adapter startable; missing or stale marker alone refreshes marker after successful fast probe and does not trigger full initialize') {
     throw new Error(`${candidate.id}.first_run_contract.ready_check must describe the lightweight startup check`);
   }
   assertStringArrayIncludes(contract.packaged_smoke_must_prove, [
     'no install.sh or install.ps1 fetch or execution',
     'hot launch with fresh marker and model access does not run blocking full opl system initialize',
-    'missing or stale marker routes to the OPL one-time initialization checklist',
+    'first launch with missing marker and usable fast app state does not run blocking full opl system initialize or show installation checklist',
+    'missing or stale marker routes to the OPL one-time initialization checklist only when lightweight fast state probe cannot prove readiness',
     'one-time initialization writes or refreshes the OPL App initialization marker',
     'missing API key routes to model access wizard without showing the installation checklist',
     'background OPL status refresh starts only after the main chat surface is visible',

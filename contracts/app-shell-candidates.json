@@ -598,12 +598,12 @@
           "check-opl-app-initialization-marker",
           "check-one-person-lab-cli",
           "check-codex-cli",
+          "check-opl-app-state-fast-readiness",
           "check-gflabtoken-model-access",
           "check-codex-adapter-startup"
         ],
         "one_time_initialization_trigger": [
-          "missing-opl-app-initialization-marker",
-          "stale-opl-app-initialization-marker",
+          "failed-lightweight-readiness-probe-after-missing-or-stale-marker",
           "missing-one-person-lab-core-components"
         ],
         "one_time_initialization_sequence": [
@@ -633,11 +633,12 @@
         "blocking_policy": "full_opl_initialize_and_module_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes",
         "api_key_missing_behavior": "show_opl_model_access_onboarding_without_running_hermes_agent_install",
         "api_key_present_behavior": "auto_continue_to_opl_codex_adapter_without_waiting_for_setup_runtime_check_or_api_key_form",
-        "ready_check": "lightweight startup check: initialization marker fresh, core components discoverable, Codex CLI available, model access configured, Codex adapter startable",
+        "ready_check": "lightweight startup check: CLI available, fast app state proves Codex installed and model access status, core components discoverable when required, Codex adapter startable; missing or stale marker alone refreshes marker after successful fast probe and does not trigger full initialize",
         "packaged_smoke_must_prove": [
           "no install.sh or install.ps1 fetch or execution",
           "hot launch with fresh marker and model access does not run blocking full opl system initialize",
-          "missing or stale marker routes to the OPL one-time initialization checklist",
+          "first launch with missing marker and usable fast app state does not run blocking full opl system initialize or show installation checklist",
+          "missing or stale marker routes to the OPL one-time initialization checklist only when lightweight fast state probe cannot prove readiness",
           "one-time initialization writes or refreshes the OPL App initialization marker",
           "missing API key routes to model access wizard without showing the installation checklist",
           "background OPL status refresh starts only after the main chat surface is visible",
