@@ -224,6 +224,150 @@ test('release candidate record promotes only after same-cohort release owner rec
   );
 });
 
+test('new release candidate record is promote-ready when initial run carries same-cohort owner receipt', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-new-release-owner-receipt-'));
+  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
+  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
+  const jobResultsPath = path.join(tempRoot, 'release-readiness-job-results.json');
+  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
+
+  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
+  writeJson(readinessPath, {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version: '26.5.99',
+    failed_required_gates: [],
+    release_owner_verdict: releaseOwnerVerdict(),
+  });
+  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 10 });
+  writePassingJobResults(jobResultsPath);
+
+  const result = runCandidateRecord([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'new_release',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--preflight',
+    preflightPath,
+    '--readiness',
+    readinessPath,
+    '--remote-verification',
+    remotePath,
+    '--job-results',
+    jobResultsPath,
+    '--release-owner-receipt-ref',
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-initial-owner-verdict',
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(record.status, 'ready_to_promote');
+  assert.equal(record.decision.can_promote, true);
+  assert.equal(record.release_owner_verdict.status, 'release_owner_receipt_recorded');
+  assert.equal(
+    record.release_owner_verdict.release_owner_receipt_ref,
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-initial-owner-verdict',
+  );
+});
+
+test('new release candidate record remains blocked without owner receipt or verdict ref', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-new-release-missing-owner-'));
+  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
+  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
+  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
+
+  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
+  writeJson(readinessPath, {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version: '26.5.99',
+    failed_required_gates: [],
+    release_owner_verdict: releaseOwnerVerdict(),
+  });
+  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 10 });
+
+  const result = runCandidateRecord([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'new_release',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--preflight',
+    preflightPath,
+    '--readiness',
+    readinessPath,
+    '--remote-verification',
+    remotePath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(record.status, 'blocked');
+  assert.equal(record.decision.can_promote, false);
+  assert.match(
+    record.blocked_reasons.join('\n'),
+    /promotion requires release_owner_verdict_ref or release_owner_receipt_ref/,
+  );
+});
+
+test('candidate record rejects cross-cohort owner receipt ref as blocked', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-cross-cohort-owner-receipt-'));
+  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
+  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
+  const outputPath = path.join(tempRoot, 'release-candidate-record.json');
+
+  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
+  writeJson(readinessPath, {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version: '26.5.99',
+    failed_required_gates: [],
+    release_owner_verdict: releaseOwnerVerdict(),
+  });
+  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 10 });
+
+  const result = runCandidateRecord([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'new_release',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--preflight',
+    preflightPath,
+    '--readiness',
+    readinessPath,
+    '--remote-verification',
+    remotePath,
+    '--release-owner-receipt-ref',
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.98/receipt-previous-cohort',
+    '--output',
+    outputPath,
+  ]);
+
+  assert.notEqual(result.status, 0);
+  const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(record.status, 'blocked');
+  assert.equal(record.decision.can_promote, false);
+  assert.match(record.blocked_reasons.join('\n'), /same cohort v26\.5\.99/);
+});
+
 test('release owner receipt verification rebuilds a promote-ready candidate record from small artifacts', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-owner-candidate-verify-'));
   const artifactsDir = path.join(tempRoot, 'artifacts');
@@ -408,7 +552,7 @@ test('release candidate record validator rejects version mismatch', () => {
   assert.match(result.stderr, /not promote-ready/);
 });
 
-test('release candidate record keeps draft candidates diagnostic only', () => {
+test('release candidate record keeps draft candidates diagnostic only even with same-cohort owner receipt', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-draft-'));
   const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
   const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
@@ -440,6 +584,8 @@ test('release candidate record keeps draft candidates diagnostic only', () => {
     readinessPath,
     '--remote-verification',
     remotePath,
+    '--release-owner-receipt-ref',
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-draft-owner-verdict',
     '--output',
     outputPath,
   ]);
@@ -448,6 +594,7 @@ test('release candidate record keeps draft candidates diagnostic only', () => {
   const record = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
   assert.equal(record.status, 'diagnostic_only');
   assert.equal(record.decision.can_promote, false);
+  assert.equal(record.release_owner_verdict.status, 'release_owner_receipt_recorded');
 });
 
 test('release candidate record blocks when readiness omits release owner verdict readout', () => {

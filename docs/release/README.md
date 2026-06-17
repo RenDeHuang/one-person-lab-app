@@ -262,6 +262,23 @@ candidate record to carry a same-cohort `release_owner_verdict_ref` or
 `release_owner_receipt_ref`; pending, typed-blocker, install-evidence, and
 human-gate refs are explicit non-ready states.
 
+For `new_release` and `refresh_existing` runs, the workflow dispatch inputs
+`release_owner_verdict_ref` and `release_owner_receipt_ref` are the front-door
+owner-resolution path. When the App release owner has already recorded a
+same-cohort decision or receipt, pass that ref on the initial run so the final
+candidate record can be written as `ready_to_promote` without a separate
+refresh. The ref must target the same `v<version>` cohort under
+`one-person-lab-app/release-owner/`; cross-cohort refs and missing owner
+resolution refs keep the candidate `blocked` with an actionable reason.
+`draft_candidate` runs still produce diagnostic-only candidate records even when
+they carry owner refs.
+
+The App release workflow only consumes these explicit refs and records them in
+the candidate readout. It does not create, infer, or backfill App release owner
+receipts, and the readout continues to keep `release_ready_claim=false`,
+`stable_latest_promotion_claim=false`, and `family_production_ready_claim=false`
+until the promote workflow consumes a valid `ready_to_promote` candidate record.
+
 After an App release-owner receipt is recorded, use
 `npm run release:owner-candidate-record:verify` with the ignored small
 release-closeout artifacts to rebuild and validate the post-owner candidate

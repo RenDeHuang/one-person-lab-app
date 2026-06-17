@@ -48,6 +48,14 @@ type Options = {
   allowBlocked: boolean;
 };
 
+type ReleaseOwnerRefs = {
+  releaseOwnerVerdictRef: string;
+  releaseOwnerReceiptRef: string;
+  releaseOwnerTypedBlockerRef: string;
+  humanGateRef: string;
+  blockedReasons: string[];
+};
+
 function parseArgs(argv: string[]): Options {
   const parsed: Options = {
     ...buildSharedReleaseReadinessOptions(parseStrictBoolean),
@@ -165,26 +173,75 @@ function extractResolvedRefs(readiness: Record<string, unknown> | null) {
   return recordOrNull(fullPackage?.resolved_refs);
 }
 
-function withReleaseOwnerResolution(readiness: Record<string, unknown> | null, options: Options) {
+function ownerRefPrefix(template: string, tag: string, placeholder: string) {
+  return template.replace('<tag>', tag).split(`<${placeholder}>`)[0];
+}
+
+function sameCohortOwnerRefReason(label: string, value: string, expectedPrefix: string) {
+  if (!value) return null;
+  if (value.startsWith(expectedPrefix) && value.length > expectedPrefix.length) return null;
+  return `${label} must be an explicit same cohort ${expectedPrefix.split('/').at(-2)} owner ref with prefix ${expectedPrefix}`;
+}
+
+function releaseOwnerRefs(options: Options): ReleaseOwnerRefs {
+  const tag = `v${options.version}`;
+  const verdictPrefix = ownerRefPrefix(
+    releaseOwnerVerdictContract.release_owner_verdict_ref_template,
+    tag,
+    'decision_id',
+  );
+  const receiptPrefix = ownerRefPrefix(
+    releaseOwnerVerdictContract.release_owner_receipt_ref_template,
+    tag,
+    'receipt_id',
+  );
+  const typedBlockerPrefix = `typed_blocker_ref://one-person-lab-app/release-owner/${tag}/`;
+  const humanGatePrefix = `human_gate_ref://one-person-lab-app/release-owner/${tag}/`;
+  const checks = [
+    ['release_owner_verdict_ref', options.releaseOwnerVerdictRef.trim(), verdictPrefix],
+    ['release_owner_receipt_ref', options.releaseOwnerReceiptRef.trim(), receiptPrefix],
+    ['release_owner_typed_blocker_ref', options.releaseOwnerTypedBlockerRef.trim(), typedBlockerPrefix],
+    ['release_owner_human_gate_ref', options.humanGateRef.trim(), humanGatePrefix],
+  ] as const;
+  const blockedReasons = checks.flatMap(([label, value, expectedPrefix]) => {
+    const reason = sameCohortOwnerRefReason(label, value, expectedPrefix);
+    return reason ? [reason] : [];
+  });
+  const valid = new Map(
+    checks.map(([label, value, expectedPrefix]) => [
+      label,
+      value && !sameCohortOwnerRefReason(label, value, expectedPrefix) ? value : '',
+    ]),
+  );
+  return {
+    releaseOwnerVerdictRef: valid.get('release_owner_verdict_ref') ?? '',
+    releaseOwnerReceiptRef: valid.get('release_owner_receipt_ref') ?? '',
+    releaseOwnerTypedBlockerRef: valid.get('release_owner_typed_blocker_ref') ?? '',
+    humanGateRef: valid.get('release_owner_human_gate_ref') ?? '',
+    blockedReasons,
+  };
+}
+
+function withReleaseOwnerResolution(readiness: Record<string, unknown> | null, refs: ReleaseOwnerRefs) {
   const verdict = recordOrNull(readiness?.release_owner_verdict);
   if (!verdict) return null;
   const next = { ...verdict };
-  if (options.releaseOwnerVerdictRef) {
+  if (refs.releaseOwnerVerdictRef) {
     next.status = 'release_owner_verdict_recorded';
-    next.release_owner_verdict_ref = options.releaseOwnerVerdictRef;
+    next.release_owner_verdict_ref = refs.releaseOwnerVerdictRef;
   }
-  if (options.releaseOwnerReceiptRef) {
+  if (refs.releaseOwnerReceiptRef) {
     next.status = 'release_owner_receipt_recorded';
-    next.release_owner_receipt_ref = options.releaseOwnerReceiptRef;
+    next.release_owner_receipt_ref = refs.releaseOwnerReceiptRef;
   }
-  if (options.releaseOwnerTypedBlockerRef) {
+  if (refs.releaseOwnerTypedBlockerRef) {
     next.status = releaseOwnerVerdictContract.typed_blocker_status;
-    next.release_owner_typed_blocker_ref = options.releaseOwnerTypedBlockerRef;
-    next.typed_blocker_ref = options.releaseOwnerTypedBlockerRef;
+    next.release_owner_typed_blocker_ref = refs.releaseOwnerTypedBlockerRef;
+    next.typed_blocker_ref = refs.releaseOwnerTypedBlockerRef;
   }
-  if (options.humanGateRef) {
+  if (refs.humanGateRef) {
     next.status = 'release_owner_human_gate_required';
-    next.human_gate_ref = options.humanGateRef;
+    next.human_gate_ref = refs.humanGateRef;
   }
   return next;
 }
@@ -251,8 +308,10 @@ function buildRecord(options: Options) {
   const readiness = recordOrNull(readJsonIfExists(options.readinessPath));
   const remote = recordOrNull(readJsonIfExists(options.remoteVerificationPath));
   const jobResults = recordOrNull(readJsonIfExists(options.jobResultsPath)) ?? {};
-  const releaseOwnerVerdict = withReleaseOwnerResolution(readiness, options);
+  const ownerRefs = releaseOwnerRefs(options);
+  const releaseOwnerVerdict = withReleaseOwnerResolution(readiness, ownerRefs);
   const blockedReasons = collectBlockedReasons(options, { preflight, readiness, remote });
+  blockedReasons.push(...ownerRefs.blockedReasons);
   blockedReasons.push(...collectReleaseOwnerVerdictReasons(releaseOwnerVerdict));
   const status = options.releaseMode === 'draft_candidate'
     ? 'diagnostic_only'
