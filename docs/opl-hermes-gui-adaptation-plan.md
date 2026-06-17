@@ -43,8 +43,11 @@ Hermes candidate 的 App-owned 目标态已经由本仓固化，而不是由
   或第二个 `auto` 模型 id。
 - MAS/MAG/RCA 是 App-owned purpose route 声明：`mas -> purpose:research`、
   `mag -> purpose:grant`、`rca -> purpose:ppt`。Hermes 普通界面可以展示 composer
-  purpose entries 和 Settings 的“智能体与能力”摘要，但 runtime truth、domain truth、
-  artifact authority 和 quality verdict 仍归 OPL Framework 与各 domain repo。
+  purpose entries 和 Settings 的“智能体与能力”摘要，但不能只藏在 Settings。chat-first
+  home 必须可见 One Person Lab 品牌，并以轻量 chip 露出科研/MAS、基金/MAG、
+  演示/RCA 入口；点击入口应能把对应 purpose route 写入下一条普通 prompt。runtime
+  truth、domain truth、artifact authority 和 quality verdict 仍归 OPL Framework 与
+  各 domain repo。
 - Settings 必须 OPL 化。普通 tab 收敛为 General、Access、Agents & Capabilities、
   Local Environment、Appearance、Advanced、About & Updates，并对应“模型策略、模型访问、
   智能体与能力、本机环境、外观与语言、高级与诊断、关于与更新”。Hermes backend、
@@ -112,6 +115,8 @@ Agent installer 语义，也不把所有启动工作合并成一个 first-run ga
 | 模型设置 | 模型策略 | 只展示当前 OPL/Codex 有效模型和推理强度。辅助任务默认跟随主模型，不提供独立 provider 槽位作为普通能力。 |
 | Provider 设置 | 模型访问 | 改名为“模型访问”。只显示 gflabtoken API key。 |
 | `/api/env` | 模型访问目录 | 普通路径只返回 `OPENAI_API_KEY`。拒绝 `OPENAI_BASE_URL` 和其它 provider key 写入。 |
+| Home wordmark | 品牌化 | 首屏 wordmark 必须是 `One Person Lab`，不能显示 `HERMES AGENT` 或其它 upstream 产品名。 |
+| Home purpose chips | 智能体入口 | 第一屏在 intro/composer 附近显示轻量 `科研/MAS`、`基金/MAG`、`演示/RCA` route chips。点击 chip 将 route prompt 插入 composer，让普通用户能直接启动内置智能体路径。 |
 | 启动流程 | OPL 启动分流 | 轻量检查每次运行；marker 缺失/过旧先做 fast app state readiness probe，只有 probe 失败或核心缺失才使用本机初始化 checklist；模型访问配置单独处理 gflabtoken API key；full OPL status refresh 后台异步。 |
 | 语言 | 双语 UI | 中文系统默认简体中文；普通 UI 同屏不混用中英文。新增 copy 进入 Hermes i18n catalog；繁体中文和日文不维护。 |
 
@@ -164,7 +169,10 @@ Codex App-like 心智重命名和收窄：
 - MAS/MAG/RCA 的 ordinary route catalog、conversation route receipt/error 事件和
   Settings“智能体与能力”摘要已经进入 App-owned 目标态。Hermes shell 的 source/unit
   evidence 可以证明 route declaration、OPL owner-surface dry-run/readback、Codex prompt
-  receipt 注入和 UI tool-event 映射存在。
+  receipt 注入和 UI tool-event 映射存在。最新 packaged Settings visual smoke 还证明
+  home 首屏显示 `One Person Lab`，不再显示 `HERMES AGENT`，并且 `科研/MAS`、
+  `基金/MAG`、`演示/RCA` route chips 可见；点击 MAS chip 会把 `科研 / MAS` 插入
+  composer。
 - 候选包 packaged smoke 已从 App repo 的 `validate:shell-candidates -- --candidate
   hermes-codex --run-candidate-commands` 链路执行：先打包
   `One Person Lab Hermes Candidate.app`，再运行
@@ -177,6 +185,10 @@ Codex App-like 心智重命名和收窄：
   `/Users/gaofeng/workspace/opl-hermes-shell/out/smoke-settings-visual/settings-visual-summary.json`
   记录 home、模型访问、智能体与能力、关于页面截图，并断言 gflabtoken-only、禁止
   provider/Base URL/OAuth 普通控件、Agents/Capabilities 可见和品牌文案可见。
+  当前补充 smoke artifact：
+  `/Users/gaofeng/workspace/opl-hermes-shell/out/smoke-settings-visual-home-routes/settings-visual-summary.json`，
+  截图：
+  `/Users/gaofeng/workspace/opl-hermes-shell/out/smoke-settings-visual-home-routes/desktop-home.png`。
 - Tart clean-VM smoke 已通过：
   `artifacts/hermes-candidate-tart-20260617T104000Z/summary.json` 记录从
   `opl-first-run-no-clt-clean-base-26-5-18` 克隆出的 guest 内启动 packaged `.app`，
@@ -203,6 +215,8 @@ Codex App-like 心智重命名和收窄：
 Hermes candidate 后续视觉优化要继续逼近 Codex App，而不是重新做工作台：
 
 - 第一屏保持中心 chat reading lane 和底部多行 composer，默认不打开复杂 inspector。
+- 第一屏 intro 只允许轻量品牌和 route chips；MAS/MAG/RCA 入口必须靠近 composer，
+  但不能扩展成 dashboard、工作台或解释性 landing page。
 - Composer 是主视觉锚点：多行、高度充足、轻 outline、统一圆角，不出现圆角输入框
   后面又露出白色矩形底板。
 - 控件比例、间距和字体按 macOS / Codex App-like quiet utility 方向收敛：更少方块、
@@ -226,6 +240,8 @@ Hermes candidate 只能在以下证据齐备时声称“基本可用”：
 - 全新安装或 VM smoke 记录轻量检查、本机初始化、模型访问、adapter startup 和后台
   OPL status refresh 的阶段耗时。
 - 主界面可创建 session、发送 Codex turn，并展示 assistant response。
+- 主界面首屏 wordmark 是 `One Person Lab`，不得显示 `HERMES AGENT`；科研/MAS、
+  基金/MAG、演示/RCA chips 必须可见且点击后能写入 composer route prompt。
 - 主模型列表不包含 `auto` 模型 id；Auto 只作为策略显示。
 - Settings 的“模型访问”只显示 gflabtoken API key，且拒绝 Base URL / 其它 provider key。
 - Settings 关键页面不因 adapter 缺少 renderer-safe shape 而空白。
@@ -253,7 +269,7 @@ contract-only 写成 100%。
 | Candidate app bundle identity | done | 100% | `npm run validate:candidate -- --require-app` 与 App-root manifest validator 证明 `CFBundleExecutable` 和 `Contents/MacOS` executable 都是 `One Person Lab Hermes Candidate`，且旧 `Electron` executable 不存在。 | 后续若改回 electron-builder，要保留同等 bundle identity check。 |
 | Codex app-server gateway 目标 | done | 98% | Contract 声明 app-server gateway 和事件流；Hermes source/unit tests 证明 `session.create`、`prompt.submit`、delta、complete、tool/approval/error bridge；packaged smoke 证明真实 `.app` 内 session/turn/delta/complete 可用；本机 live smoke 证明 `CodexAppServerClient` 能驱动真实 `codex app-server` 完成一轮回合。 | 仍需 packaged GUI 人工验收和长期稳定性证据；不能从一次 live smoke 推导 release readiness。 |
 | gflabtoken-only 模型访问 | partial | 95% | Contract 声明 gflabtoken、`OPENAI_API_KEY`、禁用 Base URL/provider marketplace；Hermes renderer tests 证明 Settings/onboarding 不展示其它 provider 和 legacy Base URL；packaged smoke 覆盖缺 key 与已配置状态分流；Settings visual smoke 证明模型访问页只暴露 gflabtoken/API key 普通入口。 | 仍需真实用户在 packaged GUI 中保存 API key 并完成真实模型访问验证；当前自动 smoke 使用 fixture 配置命令。 |
-| MAS/MAG/RCA agent routes | partial | 92% | Contract 声明 purpose routes 和 forbidden claims；Hermes source/unit tests 证明 route catalog、OPL dry-run/readback receipt、conversation route receipt/error tool event 和 Codex prompt receipt 注入；packaged smoke 与 VM smoke 证明 MAS `route_readback_ready` 进入真实 `.app` conversation stream，并证明 MAG/RCA 返回 `route_readback_with_blockers` 而非静默失效。 | 仍需 live OPL/MAS/MAG/RCA domain readback；不能声称 domain ready、artifact ready 或 quality verdict。 |
+| MAS/MAG/RCA agent routes | partial | 94% | Contract 声明 purpose routes 和 forbidden claims；Hermes source/unit tests 证明 route catalog、OPL dry-run/readback receipt、conversation route receipt/error tool event 和 Codex prompt receipt 注入；packaged smoke 与 VM smoke 证明 MAS `route_readback_ready` 进入真实 `.app` conversation stream，并证明 MAG/RCA 返回 `route_readback_with_blockers` 而非静默失效；packaged visual smoke 证明 home 可见 `科研/MAS`、`基金/MAG`、`演示/RCA` chips，且 MAS chip 可把 route prompt 插入 composer。 | 仍需 live OPL/MAS/MAG/RCA domain readback；不能声称 domain ready、artifact ready 或 quality verdict。 |
 | Settings OPL 化 | partial | 85% | Contract/docs 已定义 ordinary IA；Hermes renderer tests 证明普通导航隐藏 Gateway/Tools & Keys，显示“智能体与能力”和模型访问；packaged Settings visual smoke 证明 home、模型访问、智能体与能力、关于页面非空，且隐藏 forbidden provider controls。 | 长期还需把 remaining Hermes config sections 进一步 OPL 化，并做 AionUI baseline 视觉比较。 |
 | 首启四线模型 | partial | 95% | First-run contract 和矩阵区分轻量检查、一次性初始化、模型访问、后台刷新；Hermes source tests 覆盖 provider catalog、localEndpoint 不回退 Base URL、configured key auto-skip；packaged smoke 与 Tart clean-VM smoke 覆盖缺 key、缺 key hot launch、已配置、已配置 hot launch 与 fast probe fallback。 | 仍需真实模型访问和非 fixture Codex turn；候选 VM smoke 不是 release shell clean-VM readiness。 |
 | 视觉不低于 AionUI | partial | 20% | 方向和门槛已写入 contract/docs；Hermes upstream UI 基线和普通导航降噪已保留。 | 需要 AionUI baseline 与 Hermes candidate 的 desktop、Settings、首启 packaged screenshot 对比。 |
