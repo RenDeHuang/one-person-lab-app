@@ -126,6 +126,11 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
     ],
   );
   assert.deepEqual(fullFirstRun.release_evidence_artifacts, [
+    'app-wrapper-diagnostics.json',
+    'app-wrapper-preflight.log',
+    'app-wrapper-smoke-command-preview.txt',
+    'app-wrapper-smoke.stdout.log',
+    'app-wrapper-smoke.stderr.log',
     'tart-smoke-summary.json',
     'artifacts/smoke-summary.json',
     'artifacts/system-initialize.json',
