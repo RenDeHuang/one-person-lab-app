@@ -60,6 +60,25 @@ Hermes checklist/progress UI 只用于“用户必须等待且 App 不能安全�
 - Hermes Agent installer、provider marketplace、OAuth provider accounts、自定义
   Base URL 或其它 provider key。
 
+## 当前候选实现映射
+
+当前 `opl-hermes-shell` 的初始化 checklist 使用 7 个可见 stage。它们不是每次启动
+都跑完；热启动只会快速通过 CLI 检查，然后把一次性初始化 stage 标为 `skipped`。
+
+| Stage | 显示含义 | 运行条件 | 预期耗时 |
+| --- | --- | --- | --- |
+| `opl-cli-check` | 检查 One Person Lab CLI。 | 每次启动。 | 通常小于 1 秒。 |
+| `codex-cli-check` | 检查 Codex CLI。 | 每次启动。 | 通常小于 1 秒。 |
+| `opl-initialize` | 读取一次性本机初始化状态。 | marker 缺失、过旧或核心组件缺失时阻塞运行；marker 新鲜时跳过。 | 热启动为跳过；真正初始化通常数秒到几十秒。 |
+| `opl-core-setup` | 准备或修复 One Person Lab 核心组件。 | 只有 Core launch readiness 不满足且不是单纯缺模型访问时运行。 | 已安装机器通常跳过；需要修复时可能几十秒或更长。 |
+| `opl-post-setup-check` | 复核初始化结果。 | `opl-core-setup` 运行后才需要。 | 通常数秒到几十秒。 |
+| `opl-codex-adapter` | 准备 Codex desktop adapter。 | CLI 和本机初始化路由完成后运行。 | 目标为 1-2 秒内。 |
+| `opl-maintenance-schedule` | 安排后台维护。 | 模型访问已配置时标为完成；缺 key 时跳过，并在保存 key 后再启动后台维护。 | 只安排任务，通常小于 1 秒。 |
+
+因此用户在热启动时不应该再看到第三步长时间卡住。若第三步仍耗时十几秒，说明
+marker 没有命中、核心缺失检查触发了重初始化，或实现回退到了 full initialize gate；
+这必须按启动日志和 packaged smoke 作为 bug 处理。
+
 ## 验收清单
 
 | 场景 | 初始状态 | 预期结果 | 必需证据 |
