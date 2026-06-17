@@ -331,7 +331,7 @@ function validateHermesCandidateContract(candidate: ShellCandidate): void {
     'replace upstream Hermes branding with One Person Lab App candidate branding',
     'seed Codex app-server and OPL domain skill defaults without taking Hermes or OPL runtime authority',
     'use explicit candidate packaging without entering stable release packaging',
-    'keep bilingual copy in the Hermes i18n catalog instead of shell-local mixed-language labels',
+    'keep Simplified Chinese and English copy in the Hermes i18n catalog instead of shell-local mixed-language labels',
   ], `${candidate.id}.required_replacements`);
   assertStringArrayIncludes(candidate.architecture_policy?.minimal_delta ?? [], [
     'macOS Dock-safe icon margin',

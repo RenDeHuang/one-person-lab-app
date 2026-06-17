@@ -18,7 +18,7 @@ packaged artifact 和测试输出为准。
 当前结论：Hermes 路线继续采用 upstream-first OPL customization。先保留官方
 Hermes Desktop 的 chat、files、preview、tool output、settings、onboarding、
 i18n 和 native packaging；OPL 只在普通路径上收窄 provider/backend/runtime
-概念，并补上 Codex CLI、模型访问、first-run、品牌化、双语和后续 purpose route。
+概念，并补上 Codex CLI、模型访问、first-run、品牌化、简体中文/英文双语和后续 purpose route。
 AionUI 仍是 release shell；Hermes 仍是 explicit technical verification candidate。
 
 ## 目标体验
@@ -65,7 +65,7 @@ Agent installer 语义，也不把所有启动工作合并成一个 first-run ga
 | Provider 设置 | 模型访问 | 改名为“模型访问”。只显示 gflabtoken API key。 |
 | `/api/env` | 模型访问目录 | 普通路径只返回 `OPENAI_API_KEY`。拒绝 `OPENAI_BASE_URL` 和其它 provider key 写入。 |
 | 启动流程 | OPL 启动分流 | 轻量检查每次运行；本机初始化只在 marker 缺失/过旧/核心缺失时使用 checklist；模型访问配置单独处理 gflabtoken API key；full OPL status refresh 后台异步。 |
-| 语言 | 双语 UI | 中文系统默认中文；普通 UI 同屏不混用中英文。新增 copy 进入 Hermes i18n catalog。 |
+| 语言 | 双语 UI | 中文系统默认简体中文；普通 UI 同屏不混用中英文。新增 copy 进入 Hermes i18n catalog；繁体中文和日文不维护。 |
 
 ## Settings 信息架构
 
@@ -76,7 +76,7 @@ Codex App-like 心智重命名和收窄：
 | --- | --- | --- |
 | 模型策略 | 保留并收窄 | 表达 Auto 策略、当前模型和推理强度。当前不开放多 provider 自由切换。 |
 | 对话 | 保留 | 只保留与 chat 行为有关的显示、reasoning、image input 等。避免露出 backend 概念。 |
-| 外观与语言 | 保留 | 作为双语、主题和视觉密度入口。 |
+| 外观与语言 | 保留 | 作为简体中文/英文切换、主题和视觉密度入口。 |
 | 工作区/终端 | 保留但降噪 | 普通路径只展示 cwd、本机执行和必要 limits；Docker/SSH/Modal/Daytona 等 remote backend 默认隐藏或进 Advanced。 |
 | 安全/审批 | 保留但用 OPL 文案 | 解释为本机执行权限、审批提示和安全约束，不作为普通 composer 控件。 |
 | 记忆与上下文 | 延后提升 | 只有接入 OPL memory refs 后再作为普通能力；Hermes memory provider 不作为 OPL authority。 |

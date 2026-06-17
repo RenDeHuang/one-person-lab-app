@@ -25,7 +25,7 @@
     ],
     "minimal_delta": [
       "opl_candidate_branding",
-      "chinese_and_english_copy_via_hermes_i18n",
+      "simplified_chinese_and_english_copy_via_hermes_i18n",
       "opl_icon_and_bundle_metadata",
       "macos_icon_safe_margin",
       "opl_app_managed_bootstrap_for_first_run",
@@ -125,7 +125,7 @@
       "renderer_safe_profile_config_bootstrap_routes",
       "codex_mas_route_extension_not_backend_replacement",
       "codex_app_wrapper_user_experience_target",
-      "hermes_i18n_bilingual_ui",
+      "hermes_i18n_zh_en_ui",
       "future_webui_same_renderer"
     ]
   },

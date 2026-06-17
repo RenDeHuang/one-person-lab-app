@@ -248,7 +248,7 @@ Continue-work 详细列表也属于次级 surface。OPL App 可以让用户从 c
   "Local Environment"、"Appearance"、"Advanced"、"About & Updates"。
 - 普通 UI 文案避免 AG-UI、ACP、provider、backend、app-server、route id 或
   raw schema names。
-- 普通 UI 支持中文/英文两套界面 copy。同一屏用户层 chrome 必须使用同一语言。
+- 普通 UI 支持简体中文/英文两套界面 copy。同一屏用户层 chrome 必须使用同一语言。
   `OPL` 和 `Codex` 可作为产品/执行器品牌保留；`Codex CLI`、`MAS`、`MAG`、
   `RCA`、命令、receipt id、路径和用户原文进入二级详情、diagnostics 或原文输出，
   不应让中文普通首页、composer、workspace rail、context inspector 或 routing
@@ -315,15 +315,15 @@ Hermes 不进入默认 stable/nightly release path。
 
 Hermes 的长期方向是 upstream-first OPL customization：先回官方 Hermes Desktop
 功能基线，以 `apps/desktop` 为明确参考系，跟随其成熟 GUI、Electron packaging、
-files/previews/tool output/settings、i18n 等能力，再把 OPL 的品牌、中文/英文
+files/previews/tool output/settings、i18n 等能力，再把 OPL 的品牌、简体中文/英文
 copy、图标、OPL App-managed first-run、模型访问 API key 配置、Codex executor
 route、MAS/MAG/RCA purpose routing、runtime refs 和 release 边界作为薄 delta 接入。
 Hermes 第一版只做 minimal adapter：
 
 - Branding：用 One Person Lab App candidate 产品名、bundle id 和图标替换上游
   Hermes branding。
-- Bilingual copy：跟随 Hermes i18n catalog 管理中文/英文普通 UI，不在 wrapper
-  层硬编码混合语言标签。
+- Bilingual copy：跟随 Hermes i18n catalog 管理简体中文/英文普通 UI，不在 wrapper
+  层硬编码混合语言标签；繁体中文和日文不进入 OPL App 普通维护范围。
 - First-run / startup：复用 Hermes onboarding/progress UI module，但把行为 owner
   改成 OPL App/OPL CLI，并拆成四条线。每次启动只做轻量检查：初始化 marker、
   One Person Lab CLI、Codex CLI、gflabtoken 模型访问和 Codex adapter startup。

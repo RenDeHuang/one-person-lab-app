@@ -539,10 +539,10 @@
         "Upstream Hermes Desktop feature baseline",
         "minimal OPL branding and official Hermes backend defaults seed",
         "Official Hermes Desktop feature baseline first",
-        "OPL branding, bilingual copy, icon, and packaging as the minimal delta",
+        "OPL branding, Simplified Chinese and English copy, icon, and packaging as the minimal delta",
         "Codex and MAS as executor and agent route extension points, not a full Hermes backend replacement",
         "ordinary user target is a Codex App wrapper experience",
-        "Hermes i18n-backed bilingual UI",
+        "Hermes i18n-backed Simplified Chinese and English UI",
         "future WebUI from the same Hermes renderer"
       ],
       "required_replacements": [
@@ -550,7 +550,7 @@
         "seed Codex app-server and OPL domain skill defaults without taking Hermes or OPL runtime authority",
         "use explicit candidate packaging without entering stable release packaging",
         "route Codex and MAS through extension points instead of replacing the Hermes backend wholesale",
-        "keep bilingual copy in the Hermes i18n catalog instead of shell-local mixed-language labels"
+        "keep Simplified Chinese and English copy in the Hermes i18n catalog instead of shell-local mixed-language labels"
       ],
       "architecture_policy": {
         "baseline_order": [
@@ -560,7 +560,7 @@
         ],
         "minimal_delta": [
           "One Person Lab App candidate branding",
-          "Chinese and English copy through Hermes i18n",
+          "Simplified Chinese and English copy through Hermes i18n",
           "OPL icon and bundle metadata",
           "macOS Dock-safe icon margin",
           "OPL App-managed first-run initialization",
@@ -701,7 +701,7 @@
         "renderer_safe_profile_config_bootstrap_routes",
         "codex_mas_route_extension_not_backend_replacement",
         "codex_app_wrapper_user_experience_target",
-        "hermes_i18n_bilingual_ui",
+        "hermes_i18n_zh_en_ui",
         "future_webui_same_renderer"
       ],
       "deferred_until_feature_comparison": [

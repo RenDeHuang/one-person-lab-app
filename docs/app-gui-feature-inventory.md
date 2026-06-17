@@ -45,7 +45,8 @@ Codex App 变成 OPL App 的产品增量看
   area 和可收起右侧 context panel。
 - Backend 和 permission choices 不进入普通 home 和 conversation flow；模型选择器
   可以进入普通路径，但必须服从 App-owned 默认与退休模型过滤策略。
-- 支持中文/英文双语 UI；普通界面同屏单一语言呈现，不随机中英混排。
+- 支持简体中文/英文双语 UI；普通界面同屏单一语言呈现，不随机中英混排。繁体中文
+  和日文不进入 OPL App 普通维护范围。
 
 这份清单描述的是 App 总目标，不是当前 AionUI shell 的改动列表。合格 shell
 应该像一个专门服务 OPL 工作的 Codex App：workspace-aware、chat-first、
@@ -83,7 +84,7 @@ App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent da
   `科研`、`基金`、`演示` 或 `Research`、`Grant`、`Presentation`，route receipts
   和 technical refs 再记录 MAS/MAG/RCA，不把它们当 separate backend choices。
 - UI labels、empty states、button titles、aria labels、first-run、runtime、
-  activity 和 settings copy 有中文/英文两套显示；切换语言不改变 runtime truth、
+  activity 和 settings copy 有简体中文/英文两套显示；切换语言不改变 runtime truth、
   route receipt 或 workspace/thread state。
 - Workspace/session rail、context inspector、context tabs 和 routing summary
   是普通用户层 chrome，必须按当前语言完整渲染；隐藏 DOM 或 raw details 可以
@@ -307,7 +308,7 @@ workbench、表格化 dashboard 或默认右侧 inspector，应只吸收视觉 t
 - 通过 App wrapper 编译为可启动 `.app`。
 - 用 thin-shell delta 实现 OPL product behavior：profile consumer、route
   redirects、bridge calls、局部 renderer 组合、CSS/i18n 和 focused tests。
-- 实现 App-owned bilingual copy policy：普通 UI 在中文/英文下分别一致呈现，
+- 实现 App-owned bilingual copy policy：普通 UI 在简体中文/英文下分别一致呈现，
   中文普通首页不混入 `Med Auto Science`、`Med Auto Grant`、`RedCube AI`、
   `PPT`、`Codex CLI`、`Local assistant` 这类英文技术/产品文案；workspace rail、composer、
   context inspector 和 routing summary 也不得混入 `MAS`、`MAG`、`RCA`、
@@ -351,7 +352,8 @@ Hermes 第一版接入边界：
 Hermes 第一版只替换最小几类上游面，才能声称 minimal candidate package acceptance：
 
 - Branding：替换为 One Person Lab App candidate 产品名、bundle id 和图标。
-- Bilingual copy：通过 Hermes i18n catalog 管理中文/英文普通 UI。
+- Bilingual copy：通过 Hermes i18n catalog 管理简体中文/英文普通 UI；不维护
+  繁体中文或日文 locale。
 - First-run / startup：复用 Hermes onboarding/progress UI，但实际行为由 OPL CLI
   和 App-owned startup contract 执行，不下载或执行 Hermes Agent installer。启动
   分成四条线：每次启动轻量检查 marker、One Person Lab CLI、Codex CLI、gflabtoken
@@ -421,7 +423,7 @@ Hermes 后续 OPL 定制的优先级：
 - **保留：** upstream Hermes chat-first frame、files/previews、tool output、
   settings/onboarding、i18n 和 native packaging，只要不冲突。
 - **品牌化/双语：** 产品名、bundle id、图标、普通文案和 OPL purpose labels；
-  中文/英文 copy 跟随 Hermes i18n。
+  简体中文/英文 copy 跟随 Hermes i18n。
 - **启动与首启：** 复用 Hermes onboarding/checklist UI 承载 OPL 一次性本机准备；
   模型访问是独立向导，热启动只做轻量检查，维护和 full status refresh 不阻塞进入 chat。
 - **桥接：** Codex app-server adapter、route receipt、App state/action 和
