@@ -81,12 +81,40 @@
   },
   "local_data_lifecycle": {
     "owner": "one-person-lab-app",
-    "policy_surface": "Settings / Updates & Maintenance",
+    "policy_surface": "Settings / Storage and Settings / Updates & Maintenance",
     "user_data_silent_delete_allowed": false,
+    "external_practice_basis": {
+      "docker_system_prune": "unused_only_prompted_and_volume_opt_in",
+      "pnpm_store_prune": "unreferenced_packages_only",
+      "hugging_face_cache": "scan_dry_run_delete_unreferenced_revisions",
+      "electron_app_paths": "separate_userData_cache_sessionData_logs_paths"
+    },
+    "storage_inventory": {
+      "surface": "Settings / Storage",
+      "implementation": "shells/aionui/packages/desktop/src/process/services/localDataLifecycle/index.ts",
+      "execution_mode": "scan_dry_run_first",
+      "sections": [
+        "updater_cache",
+        "conversation_artifacts",
+        "runtime_toolchain",
+        "logs"
+      ],
+      "required_fields": [
+        "path",
+        "exists",
+        "bytes",
+        "cleanup_mode",
+        "silent_delete_allowed"
+      ],
+      "rule": "Storage inventory must show App-managed local data roots and cleanup modes before any destructive action. It is the required readback surface before archive, prune, rotation, or cache cleanup execution."
+    },
     "updater_cache": {
       "owner": "active_shell",
       "implementation": "shells/aionui/packages/desktop/src/process/services/autoUpdateCacheCleanup.ts",
       "cache_dir": "~/Library/Caches/one-person-lab-aion-shell-updater",
+      "retired_cache_dirs": [
+        "~/Library/Caches/aionui-updater"
+      ],
       "auto_cleanup": "startup_and_before_install",
       "keep": [
         "pending/update-info.json",
@@ -97,23 +125,79 @@
         "stale pending/*.zip",
         "stale platform installer packages"
       ],
-      "rule": "Updater cache cleanup may delete stale downloaded installer packages, but must preserve pending recovery metadata and the currently selected update package until install is applied or replaced."
+      "receipt_required": true,
+      "rule": "Updater cache cleanup may delete stale downloaded installer packages, but must preserve pending recovery metadata and the currently selected update package until install is applied or replaced. Retired updater cache roots are no longer active install roots and may remove downloaded installer packages while preserving recovery metadata and non-package files."
     },
     "conversation_artifacts": {
       "default_policy": "retain_until_user_cleanup_or_archive",
       "silent_delete_allowed": false,
-      "future_safe_cleanup_surface": "Settings / Storage",
-      "rule": "Conversation work directories, results, papers, baselines, reports, and narrative/intermediate deliverables are user artifacts. The App must not silently delete them before a user-visible archive or cleanup action exists."
+      "cleanup_execution": "archive_then_explicit_user_confirmed_delete",
+      "archive_required_before_cleanup": true,
+      "restore_proof_required": true,
+      "inventory_mode": "scan_only_until_storage_ui_archive_restore_exists",
+      "cleanup_surface": "Settings / Storage",
+      "archive_receipt_required_fields": [
+        "conversation_id",
+        "source_paths",
+        "archive_path",
+        "archive_sha256",
+        "manifest_path",
+        "restore_probe_path",
+        "created_at"
+      ],
+      "delete_receipt_required_fields": [
+        "conversation_id",
+        "deleted_paths",
+        "archive_receipt_path",
+        "confirmed_at",
+        "created_at"
+      ],
+      "rule": "Conversation work directories, results, papers, baselines, reports, and narrative/intermediate deliverables are user artifacts. The App must not silently delete them; cleanup requires inventory, archive/export, restore-proof, and explicit user confirmation."
     },
     "runtime_toolchain": {
       "default_policy": "retain_current_and_declared_rollback_runtime",
       "owner_ref": "contracts/app-release-channel.json#runtime_toolchain_updater",
-      "rule": "Runtime/toolchain cleanup follows the managed runtime pointer and rollback policy, not the Electron standard updater cache policy."
+      "cleanup_execution": "pointer_based_dry_run_first_explicit_execute_required",
+      "protected_refs": {
+        "current_pointer": "~/Library/Application Support/OPL/runtime/current.json",
+        "current_root": "~/Library/Application Support/OPL/runtime/current",
+        "rollback_pointer": "~/Library/Application Support/OPL/runtime/rollback.json",
+        "staged_root_template": "~/Library/Application Support/OPL/runtime/staged/<runtime_version>"
+      },
+      "prune_candidate_policy": "unreferenced_runtime_roots_only",
+      "dry_run_receipt_required": true,
+      "execute_receipt_required_fields": [
+        "runtime_root",
+        "dry_run_plan_id",
+        "protected_paths",
+        "deleted_paths",
+        "deleted_bytes",
+        "created_at"
+      ],
+      "rule": "Runtime/toolchain cleanup follows the managed runtime pointer and rollback policy, not the Electron standard updater cache policy. Prune must start as a dry-run plan and may only target runtime roots not referenced by current or rollback pointers."
     },
     "logs": {
       "default_policy": "bounded_rotation_or_user_cleanup",
       "silent_delete_allowed": false,
-      "rule": "Logs may be bounded or cleaned through a user-visible maintenance action, but log cleanup must not be used as proof that user artifacts were retained or removed."
+      "cleanup_execution": "bounded_rotation_dry_run_first",
+      "paths": [
+        "app.getPath('logs')",
+        "app.getPath('logs')/logs"
+      ],
+      "retention": {
+        "retain_days": 30,
+        "retain_files_minimum": 7,
+        "max_file_bytes": 10485760
+      },
+      "dry_run_receipt_required": true,
+      "execute_receipt_required_fields": [
+        "logs_root",
+        "dry_run_plan_id",
+        "deleted_paths",
+        "deleted_bytes",
+        "created_at"
+      ],
+      "rule": "Logs may be bounded or cleaned through a user-visible maintenance action, but log cleanup must not be used as proof that user artifacts were retained, archived, or removed."
     }
   },
   "runtime_toolchain_updater": {

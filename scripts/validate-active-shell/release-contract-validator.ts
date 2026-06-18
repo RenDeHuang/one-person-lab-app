@@ -19,11 +19,21 @@ export function validateReleaseChannelContract(releaseChannel) {
 function validateLocalDataLifecycle(lifecycle) {
   if (
     lifecycle?.owner !== 'one-person-lab-app' ||
-    lifecycle?.policy_surface !== 'Settings / Updates & Maintenance' ||
+    lifecycle?.policy_surface !== 'Settings / Storage and Settings / Updates & Maintenance' ||
     lifecycle?.user_data_silent_delete_allowed !== false
   ) {
     throw new Error('Release channel must declare App-owned local data lifecycle without silent user-data deletion');
   }
+  assertDeepEqualJson(
+    lifecycle.external_practice_basis,
+    {
+      docker_system_prune: 'unused_only_prompted_and_volume_opt_in',
+      pnpm_store_prune: 'unreferenced_packages_only',
+      hugging_face_cache: 'scan_dry_run_delete_unreferenced_revisions',
+      electron_app_paths: 'separate_userData_cache_sessionData_logs_paths',
+    },
+    'Local data lifecycle external practice basis',
+  );
   if (
     lifecycle.updater_cache?.owner !== 'active_shell' ||
     lifecycle.updater_cache?.implementation !==
@@ -43,16 +53,72 @@ function validateLocalDataLifecycle(lifecycle) {
     ['stale update.zip', 'stale pending/*.zip', 'stale platform installer packages'],
     'Local data lifecycle updater cache delete set',
   );
+  assertDeepEqualJson(
+    lifecycle.updater_cache?.retired_cache_dirs,
+    ['~/Library/Caches/aionui-updater'],
+    'Local data lifecycle retired updater cache roots',
+  );
+  assertIncludesAll(
+    lifecycle.storage_inventory?.sections,
+    ['updater_cache', 'conversation_artifacts', 'runtime_toolchain', 'logs'],
+    'Local data lifecycle storage inventory sections',
+  );
+  assertIncludesAll(
+    lifecycle.storage_inventory?.required_fields,
+    ['path', 'exists', 'bytes', 'cleanup_mode', 'silent_delete_allowed'],
+    'Local data lifecycle storage inventory required fields',
+  );
   if (
+    lifecycle.storage_inventory?.surface !== 'Settings / Storage' ||
+    lifecycle.storage_inventory?.execution_mode !== 'scan_dry_run_first' ||
+    lifecycle.storage_inventory?.implementation !==
+      'shells/aionui/packages/desktop/src/process/services/localDataLifecycle/index.ts' ||
+    lifecycle.updater_cache?.receipt_required !== true ||
     lifecycle.conversation_artifacts?.default_policy !== 'retain_until_user_cleanup_or_archive' ||
     lifecycle.conversation_artifacts?.silent_delete_allowed !== false ||
+    lifecycle.conversation_artifacts?.cleanup_execution !== 'archive_then_explicit_user_confirmed_delete' ||
+    lifecycle.conversation_artifacts?.archive_required_before_cleanup !== true ||
+    lifecycle.conversation_artifacts?.restore_proof_required !== true ||
+    lifecycle.conversation_artifacts?.cleanup_surface !== 'Settings / Storage' ||
     lifecycle.runtime_toolchain?.default_policy !== 'retain_current_and_declared_rollback_runtime' ||
     lifecycle.runtime_toolchain?.owner_ref !== 'contracts/app-release-channel.json#runtime_toolchain_updater' ||
+    lifecycle.runtime_toolchain?.cleanup_execution !== 'pointer_based_dry_run_first_explicit_execute_required' ||
+    lifecycle.runtime_toolchain?.protected_refs?.current_pointer !==
+      '~/Library/Application Support/OPL/runtime/current.json' ||
+    lifecycle.runtime_toolchain?.protected_refs?.current_root !==
+      '~/Library/Application Support/OPL/runtime/current' ||
+    lifecycle.runtime_toolchain?.prune_candidate_policy !== 'unreferenced_runtime_roots_only' ||
+    lifecycle.runtime_toolchain?.dry_run_receipt_required !== true ||
     lifecycle.logs?.default_policy !== 'bounded_rotation_or_user_cleanup' ||
-    lifecycle.logs?.silent_delete_allowed !== false
+    lifecycle.logs?.silent_delete_allowed !== false ||
+    lifecycle.logs?.cleanup_execution !== 'bounded_rotation_dry_run_first' ||
+    lifecycle.logs?.dry_run_receipt_required !== true ||
+    lifecycle.logs?.retention?.retain_days !== 30 ||
+    lifecycle.logs?.retention?.retain_files_minimum !== 7 ||
+    lifecycle.logs?.retention?.max_file_bytes !== 10485760
   ) {
     throw new Error('Local data lifecycle must retain user artifacts and bind runtime/log cleanup to explicit policy surfaces');
   }
+  assertDeepEqualJson(
+    lifecycle.conversation_artifacts?.archive_receipt_required_fields,
+    ['conversation_id', 'source_paths', 'archive_path', 'archive_sha256', 'manifest_path', 'restore_probe_path', 'created_at'],
+    'Local data lifecycle conversation archive receipt fields',
+  );
+  assertDeepEqualJson(
+    lifecycle.conversation_artifacts?.delete_receipt_required_fields,
+    ['conversation_id', 'deleted_paths', 'archive_receipt_path', 'confirmed_at', 'created_at'],
+    'Local data lifecycle conversation delete receipt fields',
+  );
+  assertDeepEqualJson(
+    lifecycle.runtime_toolchain?.execute_receipt_required_fields,
+    ['runtime_root', 'dry_run_plan_id', 'protected_paths', 'deleted_paths', 'deleted_bytes', 'created_at'],
+    'Local data lifecycle runtime prune execute receipt fields',
+  );
+  assertDeepEqualJson(
+    lifecycle.logs?.execute_receipt_required_fields,
+    ['logs_root', 'dry_run_plan_id', 'deleted_paths', 'deleted_bytes', 'created_at'],
+    'Local data lifecycle log rotation execute receipt fields',
+  );
 }
 
 function validateManagedUpdatePlane(managedUpdatePlane) {

@@ -858,6 +858,7 @@
       "access",
       "capabilities",
       "environment",
+      "storage",
       "appearance",
       "advanced",
       "about"
@@ -957,6 +958,12 @@
         "label_en": "Local Environment",
         "role": "local_runtime_foundation",
         "primary_question": "Are Codex CLI, Temporal, modules, paths, and updates ready?"
+      },
+      "storage": {
+        "label_zh": "存储",
+        "label_en": "Storage",
+        "role": "local_data_lifecycle_inventory_and_cleanup",
+        "primary_question": "Which local data roots are using space, and which cleanup actions are safe?"
       },
       "appearance": {
         "label_zh": "外观",

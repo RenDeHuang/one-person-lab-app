@@ -86,7 +86,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       throw new Error(`App GUI theme list must include ${themeId}`);
     }
   }
-  for (const section of ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced', 'about', 'update', 'theme']) {
+  for (const section of ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about', 'update', 'theme']) {
     if (!guiContract.settings_navigation?.required_sections?.includes(section)) {
       throw new Error(`App GUI settings navigation must include ${section}`);
     }
@@ -487,6 +487,15 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (pages.settings_environment.managed_update_plane_ref !== 'managed_update_plane') {
     throw new Error('Settings Environment must reference the managed update plane');
+  }
+  if (pages.settings_storage.release_contract_ref !== 'contracts/app-release-channel.json#local_data_lifecycle') {
+    throw new Error('Settings Storage must reference the App local data lifecycle contract');
+  }
+  if (
+    pages.settings_storage.state_source !==
+      'active shell local data lifecycle service + contracts/app-release-channel.json#local_data_lifecycle'
+  ) {
+    throw new Error('Settings Storage must consume the active shell local data lifecycle service and App release lifecycle contract');
   }
   if (!pages.about.must_show?.includes('Stable or Nightly channel')) {
     throw new Error('About page must show Stable or Nightly channel');

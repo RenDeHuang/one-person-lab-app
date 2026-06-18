@@ -49,7 +49,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
     composer_position: 'pinned_bottom',
     composer_primary: true,
     workspace_selector_visible: true,
-    purpose_entries_visible: ['research', 'grant', 'ppt'],
+    purpose_entries_visible: ['research', 'grant', 'ppt', 'book'],
     workspace_session_rail_default_state: 'collapsed',
     right_context_inspector_default_state: 'collapsed',
     must_not_show: [
@@ -95,16 +95,16 @@ test('App product profile owns user-facing defaults without runtime authority', 
     'gpt-5.1-codex-max',
     'gpt-5.1-codex-mini',
   ]);
-  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
-  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示']);
-  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
+  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt', 'book']);
+  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示', '写书']);
+  assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca', 'bookforge']);
   assert.ok(profile.gui.home.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
-  assert.deepEqual(profile.gui.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca']);
+  assert.deepEqual(profile.gui.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca', 'bookforge']);
   assert.ok(profile.gui.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
-  assert.deepEqual(profile.gui.assistant_skill_profiles.map((profile) => profile.assistant_id), ['mas', 'mag', 'rca']);
+  assert.deepEqual(profile.gui.assistant_skill_profiles.map((profile) => profile.assistant_id), ['mas', 'mag', 'rca', 'bookforge']);
   assert.deepEqual(
     Object.fromEntries(profile.gui.assistant_skill_profiles.map((profile) => [profile.assistant_id, profile.required_skills])),
-    { mas: ['mas'], mag: ['mag'], rca: ['rca'] },
+    { mas: ['mas'], mag: ['mag'], rca: ['rca'], bookforge: ['opl-bookforge'] },
   );
   assert.ok(
     profile.gui.assistant_skill_profiles.every(
@@ -120,7 +120,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.ok(profile.gui.assistant_skill_profiles.every((profile) => !('hidden_home_skill_names' in profile)));
   assert.ok(profile.gui.assistant_skill_profiles.every((profile) => !profile.optional_skills.includes('morph-ppt')));
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
-  assert.deepEqual(profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca']);
+  assert.deepEqual(profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca', 'bookforge']);
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.route_kind, 'builtin_capability');
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.executor, 'codex_cli');
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.source, 'opl_app_home');
@@ -154,6 +154,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
     'access',
     'capabilities',
     'environment',
+    'storage',
     'appearance',
     'advanced',
     'about',
@@ -176,10 +177,17 @@ test('App product profile owns user-facing defaults without runtime authority', 
     'access',
     'capabilities',
     'environment',
+    'storage',
     'appearance',
     'advanced',
     'about',
   ]);
+  assert.deepEqual(profile.settings.settings_information_architecture.storage, {
+    label_zh: '存储',
+    label_en: 'Storage',
+    role: 'local_data_lifecycle_inventory_and_cleanup',
+    primary_question: 'Which local data roots are using space, and which cleanup actions are safe?',
+  });
   assert.deepEqual(profile.settings.developer_profile.capability_axes, [
     'source_channel',
     'workspace_trust',
@@ -308,16 +316,17 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.first_run.updates.standard_channel.ready_prompt, 'prompt_restart_after_download_ready');
   assert.equal(profile.first_run.updates.standard_channel.full_first_install_metadata_allowed, false);
   assert.equal(profile.first_run.updates.standard_channel.blocks_core_ready, false);
-  assert.deepEqual(profile.companion_payloads.ecosystem_modules, ['officecli', 'mineru', 'opl-meta-agent']);
+  assert.deepEqual(profile.companion_payloads.ecosystem_modules, ['officecli', 'mineru', 'opl-meta-agent', 'opl-bookforge']);
   assert.equal(profile.companion_payloads.management_authority.officecli, 'app_or_cli_managed');
   assert.equal(profile.companion_payloads.management_authority.mineru, 'app_or_cli_managed');
   assert.equal(profile.companion_payloads.management_authority['opl-meta-agent'], 'app_or_cli_managed');
+  assert.equal(profile.companion_payloads.management_authority['opl-bookforge'], 'app_or_cli_managed');
   assert.ok(profile.companion_payloads.domain_modules.includes('opl-meta-agent'));
   assert.equal(profile.companion_payloads.install_exposure_policy_ref, 'contracts/app-install-exposure-policy.json');
   assert.equal(profile.companion_payloads.public_abi.primary_semantic_entry, 'skill');
   assert.equal(profile.companion_payloads.public_abi.plugin_must_not_create_second_semantics, true);
   assert.equal(profile.companion_payloads.domain_plugin_skills_must_not_be_companion_mirrors, true);
-  assert.deepEqual(profile.companion_payloads.domain_plugin_skill_ids, ['mas', 'mag', 'rca']);
+  assert.deepEqual(profile.companion_payloads.domain_plugin_skill_ids, ['mas', 'mag', 'rca', 'opl-bookforge']);
   assert.deepEqual(profile.companion_payloads.companion_skill_sync_default_ids, expectedDefaultCompanionSkillSyncIds);
   for (const domainPluginId of profile.companion_payloads.domain_plugin_skill_ids) {
     assert.equal(profile.companion_payloads.companion_skill_sync_default_ids.includes(domainPluginId), false);
@@ -353,15 +362,16 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.public_abi.app_must_not_mirror_plugin_skill_as_duplicate_bare_skill, true);
 
   const exposureClassById = new Map(policy.exposure_classes.map((entry) => [entry.id, entry]));
-  assert.deepEqual(exposureClassById.get('family_domain_plugin_surfaces').members, ['mas', 'mag', 'rca']);
+  assert.deepEqual(exposureClassById.get('family_domain_plugin_surfaces').members, ['mas', 'mag', 'rca', 'opl-bookforge']);
   assert.equal(exposureClassById.get('family_domain_plugin_surfaces').sync_target, 'codex_plugin_registry');
   assert.deepEqual(exposureClassById.get('family_domain_plugin_surfaces').must_not_sync_to, [
     '~/.codex/skills/mas',
     '~/.codex/skills/mag',
     '~/.codex/skills/rca',
+    '~/.codex/skills/opl-bookforge',
   ]);
   assert.equal(exposureClassById.get('opl_generated_plugin_surfaces').sync_target, 'opl_generated_codex_plugin_surface');
-  assert.deepEqual(exposureClassById.get('opl_generated_plugin_surfaces').members, ['opl-meta-agent']);
+  assert.deepEqual(exposureClassById.get('opl_generated_plugin_surfaces').members, ['opl-meta-agent', 'opl-bookforge']);
   assert.deepEqual(exposureClassById.get('companion_skill_sync').members, expectedDefaultCompanionSkillSyncIds);
   assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mas'), false);
   assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mag'), false);
@@ -434,9 +444,9 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.agent_installation_contract.codex_plugin_registry_target, 'codex_plugin_registry');
   assert.equal(policy.agent_installation_contract.direct_skill_target, 'codex_user_skill_discovery_path');
   assert.equal(policy.agent_installation_contract.product_entry_target, 'family-product-entry-manifest-v2');
-  assert.deepEqual(policy.agent_installation_contract.required_agent_ids, ['mas', 'mag', 'rca', 'oma']);
-  assert.deepEqual(policy.agent_installation_contract.default_plugin_agent_ids, ['mas', 'mag', 'rca']);
-  assert.deepEqual(policy.agent_installation_contract.generated_plugin_agent_ids, ['oma']);
+  assert.deepEqual(policy.agent_installation_contract.required_agent_ids, ['mas', 'mag', 'rca', 'oma', 'bookforge']);
+  assert.deepEqual(policy.agent_installation_contract.default_plugin_agent_ids, ['mas', 'mag', 'rca', 'bookforge']);
+  assert.deepEqual(policy.agent_installation_contract.generated_plugin_agent_ids, ['oma', 'bookforge']);
   assert.deepEqual(policy.agent_installation_contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states);
   assert.equal(policy.agent_installation_contract.may_use_developer_checkout_by_default, false);
   assert.equal(policy.agent_installation_contract.developer_checkout_override_policy, 'explicit_opt_in_only');
@@ -445,7 +455,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'Developer Profile source_channel capability',
   );
   assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'app_cli_managed_ghcr_agent_package_channel');
-  assert.deepEqual(policy.agent_installation_contract.module_package_channel_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.deepEqual(policy.agent_installation_contract.module_package_channel_agent_ids, ['mas', 'mag', 'rca', 'oma', 'bookforge']);
   assert.deepEqual(policy.agent_installation_contract.non_module_workflow_plugin_ids, ['opl-flow']);
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.channel_id, 'opl_distribution_cohort');
   assert.equal(
@@ -459,7 +469,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'plugin_packaged_skills',
     'opl_generated_plugin_surface',
   ]);
-  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.package_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.package_agent_ids, ['mas', 'mag', 'rca', 'oma', 'bookforge']);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.activation_commands, [
     'opl connect reconcile-modules',
     'opl connect sync-skills',
@@ -508,6 +518,9 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(installAgentById.get('oma').plugin_registry_required, true);
   assert.equal(installAgentById.get('oma').preferred_distribution, 'opl_generated_codex_plugin_surface');
   assert.equal(installAgentById.get('oma').canonical_metadata_source, 'opl_generated_interface_contract_pack');
+  assert.equal(installAgentById.get('bookforge').plugin_registry_required, true);
+  assert.equal(installAgentById.get('bookforge').preferred_distribution, 'opl_generated_codex_plugin_surface');
+  assert.equal(installAgentById.get('bookforge').canonical_metadata_source, 'opl_generated_interface_contract_pack');
   assert.equal(policy.temporal_auto_configuration.provider_env_default, 'OPL_FAMILY_RUNTIME_PROVIDER=temporal');
   assert.deepEqual(policy.temporal_auto_configuration.local_service_defaults, {
     address_env: 'OPL_TEMPORAL_ADDRESS',

@@ -915,6 +915,39 @@
       "managed_update_plane_ref": "contracts/app-release-channel.json#managed_update_plane"
     },
     {
+      "id": "storage",
+      "expected_source": "active shell local data lifecycle service and App release lifecycle contract",
+      "must_show": [
+        "storage inventory for updater cache, conversation artifacts, runtime/toolchain, and logs",
+        "path, exists, bytes, cleanup_mode, and silent_delete_allowed for each local data root",
+        "conversation archive/export receipt and restore proof before delete can execute",
+        "runtime pointer-prune dry-run plan before execute can remove unreferenced runtime roots",
+        "log rotation dry-run candidates by age, count, and size before execute can remove logs",
+        "updater cache cleanup scoped to stale installer packages only"
+      ],
+      "machine_source": "active shell local data lifecycle service",
+      "refresh_source": "Settings / Storage refresh inventory",
+      "page_contract": "settings_storage",
+      "sections": [
+        "updater_cache",
+        "conversation_artifacts",
+        "runtime_toolchain",
+        "logs"
+      ],
+      "state_sections": [
+        "local_data_lifecycle"
+      ],
+      "local_data_lifecycle_ref": "contracts/app-release-channel.json#local_data_lifecycle",
+      "must_not_show": [
+        "silent conversation workdir deletion",
+        "runtime/toolchain cleanup without current or rollback pointer protection",
+        "log cleanup as proof that user artifacts were archived or deleted",
+        "Homebrew/global tool silent cleanup controls",
+        "domain artifact bodies"
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
+    },
+    {
       "id": "about",
       "expected_source": "OPL App state projection",
       "must_show": [

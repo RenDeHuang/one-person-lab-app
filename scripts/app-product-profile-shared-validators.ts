@@ -229,9 +229,9 @@ export function assertAppProductProfileRouteReceiptPolicy(
     throw new Error(`${label} must require built-in assistant Codex CLI route receipts`);
   }
   if (options.requireExactAssistants) {
-    assertExactStringArray(policy.required_for_assistants, ['mas', 'mag', 'rca'], `${label} route receipt assistants`);
+    assertExactStringArray(policy.required_for_assistants, ['mas', 'mag', 'rca', 'bookforge'], `${label} route receipt assistants`);
   } else {
-    assertStringArrayIncludes(policy.required_for_assistants, ['mas', 'mag', 'rca'], `${label} route receipt assistants`);
+    assertStringArrayIncludes(policy.required_for_assistants, ['mas', 'mag', 'rca', 'bookforge'], `${label} route receipt assistants`);
   }
   assertStringArrayIncludes(
     policy.required_fields,

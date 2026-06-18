@@ -641,12 +641,12 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'gpt-5.3-codex',
     'gpt-5.2',
   ]);
-  assert.deepEqual(guiContract.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca']);
+  assert.deepEqual(guiContract.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca', 'bookforge']);
   assert.ok(guiContract.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
-  assert.deepEqual(guiContract.assistant_skill_profiles.map((profile) => profile.assistant_id), ['mas', 'mag', 'rca']);
+  assert.deepEqual(guiContract.assistant_skill_profiles.map((profile) => profile.assistant_id), ['mas', 'mag', 'rca', 'bookforge']);
   assert.deepEqual(
     Object.fromEntries(guiContract.assistant_skill_profiles.map((profile) => [profile.assistant_id, profile.required_skills])),
-    { mas: ['mas'], mag: ['mag'], rca: ['rca'] },
+    { mas: ['mas'], mag: ['mag'], rca: ['rca'], bookforge: ['opl-bookforge'] },
   );
   assert.ok(
     guiContract.assistant_skill_profiles.every(
@@ -662,7 +662,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.ok(guiContract.assistant_skill_profiles.every((profile) => !('hidden_home_skill_names' in profile)));
   assert.ok(guiContract.assistant_skill_profiles.every((profile) => !profile.optional_skills.includes('morph-ppt')));
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
-  assert.deepEqual(guiContract.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca']);
+  assert.deepEqual(guiContract.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca', 'bookforge']);
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.route_kind, 'builtin_capability');
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.executor, 'codex_cli');
   assert.equal(guiContract.builtin_assistant_route_receipt_policy.source, 'opl_app_home');
@@ -696,9 +696,9 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     expectedOrdinaryRequiredScrubTargets,
   );
   assert.deepEqual(guiContract.settings_navigation.team_surface_policy.required_probes, expectedAionuiTeamProbeIds);
-  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
-  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示']);
-  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
+  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt', 'book']);
+  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示', '写书']);
+  assert.deepEqual(guiContract.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca', 'bookforge']);
   assert.ok(guiContract.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   assert.equal(guiContract.non_default_assistants.find((assistant) => assistant.id === 'oma').home_default_visible, false);
   assert.equal(guiContract.retired_domain_agents.find((agent) => agent.id === 'mds').default_display_allowed, false);
@@ -730,7 +730,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     guiContract.product_authority.shell_upgrade_policy.fork_delta_budget.replacement_rule,
     'a candidate shell should implement the same App contracts by swapping adapters/profile consumers, not by inheriting AionUI-specific product logic',
   );
-  assert.equal(guiContract.pages.guid_home.hero_prompt, '把研究、基金和汇报交给 One Person Lab 自动推进');
+  assert.equal(guiContract.pages.guid_home.hero_prompt, '把研究、基金、汇报和写书交给 One Person Lab 自动推进');
   assert.equal(guiContract.pages.guid_home.model_status.display_value, 'GPT-5.5（超高）');
   assert.equal(guiContract.pages.guid_home.model_status.selector_visible, true);
   assert.equal(
@@ -787,6 +787,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'access',
     'capabilities',
     'environment',
+    'storage',
     'appearance',
     'advanced',
     'about',
@@ -822,6 +823,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'access',
     'capabilities',
     'environment',
+    'storage',
     'appearance',
     'advanced',
     'about',
@@ -845,6 +847,20 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.primary_tabs.general.label_zh, '通用');
   assert.equal(guiContract.settings_navigation.primary_tabs.environment.label_en, 'Local Environment');
+  assert.deepEqual(guiContract.settings_navigation.primary_tabs.storage, {
+    label_zh: '存储',
+    label_en: 'Storage',
+    role: 'local_data_lifecycle_inventory_and_cleanup',
+    primary_question: 'Which local data roots are using space, and which cleanup actions are safe?',
+  });
+  assert.equal(
+    guiContract.pages.settings_storage.release_contract_ref,
+    'contracts/app-release-channel.json#local_data_lifecycle',
+  );
+  assert.equal(
+    guiContract.pages.settings_storage.state_source,
+    'active shell local data lifecycle service + contracts/app-release-channel.json#local_data_lifecycle',
+  );
   for (const [pageId, expected] of Object.entries(expectedSettingsPageSections)) {
     assert.deepEqual(guiContract.pages[pageId].sections, expected.sections);
     for (const item of expected.mustShow) {

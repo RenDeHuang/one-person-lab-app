@@ -30,9 +30,9 @@ const requiredDefaultPackagedSkillIds = [
   'ui-ux-pro-max',
 ];
 const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((skillId) => (
-  !['mas', 'mag', 'rca'].includes(skillId)
+  !['mas', 'mag', 'rca', 'opl-bookforge'].includes(skillId)
 ));
-const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced', 'about'];
+const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about'];
 const developerProfileCapabilityAxes = [
   'source_channel',
   'workspace_trust',
@@ -489,8 +489,8 @@ function assertAssistantSkillProfiles(
   profile: AppProductProfile,
 ): AppProductProfile['gui']['assistant_skill_profiles'] {
   const skillProfiles = profile.gui.assistant_skill_profiles ?? [];
-  if (JSON.stringify(skillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
-    throw new Error('App product profile assistant skill profiles must target MAS, MAG, and RCA');
+  if (JSON.stringify(skillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+    throw new Error('App product profile assistant skill profiles must target MAS, MAG, RCA, and BookForge');
   }
   const requiredByAssistant = new Map(skillProfiles.map((entry) => [entry.assistant_id, entry.required_skills]));
   for (const assistantId of ['mas', 'mag', 'rca']) {
@@ -498,6 +498,9 @@ function assertAssistantSkillProfiles(
     if (JSON.stringify(requiredSkills) !== JSON.stringify([assistantId])) {
       throw new Error(`App product profile assistant ${assistantId} must require its matching Codex skill`);
     }
+  }
+  if (JSON.stringify(requiredByAssistant.get('bookforge')) !== JSON.stringify(['opl-bookforge'])) {
+    throw new Error('App product profile assistant bookforge must require the opl-bookforge Codex skill');
   }
   for (const entry of skillProfiles) {
     assertStringArray(entry.required_skills, `gui.assistant_skill_profiles.${entry.assistant_id}.required_skills`);

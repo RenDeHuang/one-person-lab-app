@@ -768,6 +768,7 @@
       "access",
       "capabilities",
       "environment",
+      "storage",
       "appearance",
       "advanced",
       "about"
@@ -803,6 +804,7 @@
       "access",
       "capabilities",
       "environment",
+      "storage",
       "appearance",
       "advanced",
       "about",
@@ -833,7 +835,7 @@
     },
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "Settings is an App-owned information architecture, not an upstream AionUI configuration dump. Ordinary navigation uses General, Access, Agents & Capabilities, Local Environment, Appearance, Advanced, and About & Updates. About & Updates contains the Updates & Maintenance plane for App binary, runtime/toolchain, agent packages, and capability exposure. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation. Pages answer user readiness questions first, with raw implementation details behind secondary disclosure.",
+    "policy": "Settings is an App-owned information architecture, not an upstream AionUI configuration dump. Ordinary navigation uses General, Access, Agents & Capabilities, Local Environment, Storage, Appearance, Advanced, and About & Updates. Storage owns local data lifecycle inventory, archive/restore proof, runtime pointer prune, and bounded log rotation controls. About & Updates contains the Updates & Maintenance plane for App binary, runtime/toolchain, agent packages, and capability exposure. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation. Pages answer user readiness questions first, with raw implementation details behind secondary disclosure.",
     "primary_tabs": {
       "general": {
         "label_zh": "通用",
@@ -858,6 +860,12 @@
         "label_en": "Local Environment",
         "role": "local_runtime_foundation",
         "primary_question": "Are Codex CLI, Temporal, modules, paths, and updates ready?"
+      },
+      "storage": {
+        "label_zh": "存储",
+        "label_en": "Storage",
+        "role": "local_data_lifecycle_inventory_and_cleanup",
+        "primary_question": "Which local data roots are using space, and which cleanup actions are safe?"
       },
       "appearance": {
         "label_zh": "外观",
@@ -1811,6 +1819,32 @@
         "Homebrew/global tool silent upgrade controls"
       ],
       "managed_update_plane_ref": "managed_update_plane"
+    },
+    "settings_storage": {
+      "state_source": "active shell local data lifecycle service + contracts/app-release-channel.json#local_data_lifecycle",
+      "refresh_source": "Settings / Storage refresh inventory",
+      "sections": [
+        "updater_cache",
+        "conversation_artifacts",
+        "runtime_toolchain",
+        "logs"
+      ],
+      "release_contract_ref": "contracts/app-release-channel.json#local_data_lifecycle",
+      "must_show": [
+        "storage inventory for updater cache, conversation artifacts, runtime/toolchain, and logs",
+        "path, exists, bytes, cleanup_mode, and silent_delete_allowed for each local data root",
+        "conversation archive/export receipt and restore proof before delete can execute",
+        "runtime pointer-prune dry-run plan before execute can remove unreferenced runtime roots",
+        "log rotation dry-run candidates by age, count, and size before execute can remove logs",
+        "updater cache cleanup scoped to stale installer packages only"
+      ],
+      "must_not_show": [
+        "silent conversation workdir deletion",
+        "runtime/toolchain cleanup without current or rollback pointer protection",
+        "log cleanup as proof that user artifacts were archived or deleted",
+        "Homebrew/global tool silent cleanup controls",
+        "domain artifact bodies"
+      ]
     },
     "settings_advanced": {
       "state_source": "opl app state --profile fast --json",

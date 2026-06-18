@@ -64,10 +64,17 @@ test('local data lifecycle separates updater cache cleanup from user artifact re
   const lifecycle = releaseContract.local_data_lifecycle;
 
   assert.equal(lifecycle.owner, 'one-person-lab-app');
-  assert.equal(lifecycle.policy_surface, 'Settings / Updates & Maintenance');
+  assert.equal(lifecycle.policy_surface, 'Settings / Storage and Settings / Updates & Maintenance');
   assert.equal(lifecycle.user_data_silent_delete_allowed, false);
+  assert.deepEqual(lifecycle.external_practice_basis, {
+    docker_system_prune: 'unused_only_prompted_and_volume_opt_in',
+    pnpm_store_prune: 'unreferenced_packages_only',
+    hugging_face_cache: 'scan_dry_run_delete_unreferenced_revisions',
+    electron_app_paths: 'separate_userData_cache_sessionData_logs_paths',
+  });
   assert.equal(lifecycle.updater_cache.owner, 'active_shell');
   assert.equal(lifecycle.updater_cache.cache_dir, '~/Library/Caches/one-person-lab-aion-shell-updater');
+  assert.deepEqual(lifecycle.updater_cache.retired_cache_dirs, ['~/Library/Caches/aionui-updater']);
   assert.equal(lifecycle.updater_cache.auto_cleanup, 'startup_and_before_install');
   assert.deepEqual(lifecycle.updater_cache.keep, [
     'pending/update-info.json',
@@ -78,10 +85,71 @@ test('local data lifecycle separates updater cache cleanup from user artifact re
     'stale pending/*.zip',
     'stale platform installer packages',
   ]);
+  assert.equal(lifecycle.updater_cache.receipt_required, true);
+  assert.equal(lifecycle.storage_inventory.surface, 'Settings / Storage');
+  assert.equal(
+    lifecycle.storage_inventory.implementation,
+    'shells/aionui/packages/desktop/src/process/services/localDataLifecycle/index.ts',
+  );
+  assert.equal(lifecycle.storage_inventory.execution_mode, 'scan_dry_run_first');
+  assert.deepEqual(lifecycle.storage_inventory.sections, [
+    'updater_cache',
+    'conversation_artifacts',
+    'runtime_toolchain',
+    'logs',
+  ]);
+  assert.deepEqual(lifecycle.storage_inventory.required_fields, [
+    'path',
+    'exists',
+    'bytes',
+    'cleanup_mode',
+    'silent_delete_allowed',
+  ]);
   assert.equal(lifecycle.conversation_artifacts.default_policy, 'retain_until_user_cleanup_or_archive');
   assert.equal(lifecycle.conversation_artifacts.silent_delete_allowed, false);
+  assert.equal(lifecycle.conversation_artifacts.cleanup_execution, 'archive_then_explicit_user_confirmed_delete');
+  assert.equal(lifecycle.conversation_artifacts.archive_required_before_cleanup, true);
+  assert.equal(lifecycle.conversation_artifacts.restore_proof_required, true);
+  assert.equal(lifecycle.conversation_artifacts.cleanup_surface, 'Settings / Storage');
+  assert.deepEqual(lifecycle.conversation_artifacts.archive_receipt_required_fields, [
+    'conversation_id',
+    'source_paths',
+    'archive_path',
+    'archive_sha256',
+    'manifest_path',
+    'restore_probe_path',
+    'created_at',
+  ]);
+  assert.deepEqual(lifecycle.conversation_artifacts.delete_receipt_required_fields, [
+    'conversation_id',
+    'deleted_paths',
+    'archive_receipt_path',
+    'confirmed_at',
+    'created_at',
+  ]);
   assert.equal(lifecycle.runtime_toolchain.default_policy, 'retain_current_and_declared_rollback_runtime');
+  assert.equal(lifecycle.runtime_toolchain.cleanup_execution, 'pointer_based_dry_run_first_explicit_execute_required');
+  assert.equal(lifecycle.runtime_toolchain.prune_candidate_policy, 'unreferenced_runtime_roots_only');
+  assert.equal(lifecycle.runtime_toolchain.dry_run_receipt_required, true);
+  assert.deepEqual(lifecycle.runtime_toolchain.execute_receipt_required_fields, [
+    'runtime_root',
+    'dry_run_plan_id',
+    'protected_paths',
+    'deleted_paths',
+    'deleted_bytes',
+    'created_at',
+  ]);
   assert.equal(lifecycle.logs.default_policy, 'bounded_rotation_or_user_cleanup');
+  assert.equal(lifecycle.logs.cleanup_execution, 'bounded_rotation_dry_run_first');
+  assert.equal(lifecycle.logs.dry_run_receipt_required, true);
+  assert.equal(lifecycle.logs.retention.retain_days, 30);
+  assert.deepEqual(lifecycle.logs.execute_receipt_required_fields, [
+    'logs_root',
+    'dry_run_plan_id',
+    'deleted_paths',
+    'deleted_bytes',
+    'created_at',
+  ]);
 });
 
 test('managed update plane unifies updater status while preserving adapter authority boundaries', () => {

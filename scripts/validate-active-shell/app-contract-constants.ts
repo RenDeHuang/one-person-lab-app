@@ -88,7 +88,7 @@ export const beginnerFirstRunTestIds = [
   'opl-first-run-primary-action',
   'opl-first-run-technical-details-toggle',
 ];
-export const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced', 'about'];
+export const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about'];
 export const appOwnedDeveloperProfileCapabilityAxes = [
   'source_channel',
   'workspace_trust',
@@ -244,6 +244,25 @@ export const settingsPageExpectations = {
       'Developer Profile checkout as a silent update target',
       'dirty checkout overwrite as a repair action',
       'Homebrew/global tool silent upgrade controls',
+    ],
+  },
+  settings_storage: {
+    matrix_id: 'storage',
+    sections: ['updater_cache', 'conversation_artifacts', 'runtime_toolchain', 'logs'],
+    must_show: [
+      'storage inventory for updater cache, conversation artifacts, runtime/toolchain, and logs',
+      'path, exists, bytes, cleanup_mode, and silent_delete_allowed for each local data root',
+      'conversation archive/export receipt and restore proof before delete can execute',
+      'runtime pointer-prune dry-run plan before execute can remove unreferenced runtime roots',
+      'log rotation dry-run candidates by age, count, and size before execute can remove logs',
+      'updater cache cleanup scoped to stale installer packages only',
+    ],
+    must_not_show: [
+      'silent conversation workdir deletion',
+      'runtime/toolchain cleanup without current or rollback pointer protection',
+      'log cleanup as proof that user artifacts were archived or deleted',
+      'Homebrew/global tool silent cleanup controls',
+      'domain artifact bodies',
     ],
   },
   settings_advanced: {

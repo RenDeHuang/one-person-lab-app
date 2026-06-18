@@ -145,7 +145,7 @@ function validateCandidateTargetProductShape(candidate: ShellCandidate): void {
 function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
   assertStringArrayIncludes(candidate.technical_verification?.minimum_acceptance ?? [], [
     'candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims',
-    'ordinary Settings uses General, Access, Agents & Capabilities, Local Environment, Appearance, Advanced, and About & Updates',
+    'ordinary Settings uses General, Access, Agents & Capabilities, Local Environment, Storage, Appearance, Advanced, and About & Updates',
     'ordinary home does not expose runtime activity, continue-work, per-agent running badges, or footer quick icons; Runtime and secondary context surfaces carry refs-only activity details',
     'tool/process/diff/file/receipt/user-input/permission events render as compact conversation events or expandable refs',
     'WebUI parity evidence proves the same React/CopilotKit renderer and product semantics as Electron',
