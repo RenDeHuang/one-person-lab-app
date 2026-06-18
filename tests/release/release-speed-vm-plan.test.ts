@@ -88,6 +88,11 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   );
   assertMatches(
     workflow,
+    /release_artifact_name:\s+macos-build-arm64-dmg/,
+    'standard VM smoke uses the DMG-only artifact',
+  );
+  assertMatches(
+    workflow,
     /stable-homebrew-tap-update:[\s\S]*?uses:\s+\.\/\.github\/workflows\/homebrew-tap-update\.yml/,
     'Stable Homebrew tap update job',
   );
@@ -110,6 +115,9 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(workflow, /full-first-run-vm-smoke:[\s\S]*?needs:\s+remote-verify-full/, 'Full VM smoke job');
   assertMatches(workflow, /one-shot-app-installer-smoke:[\s\S]*?needs:\s+publish-standard/, 'one-shot installer smoke');
   assertMatches(workflow, /docker-webui-smoke:[\s\S]*?needs:\s+publish-standard/, 'Docker WebUI smoke');
+  assertMatches(workflow, /same_job_after_docker_webui_smoke/, 'WebUI GHCR publish reuses the smoked image build');
+  assertMatches(workflow, /repeated_docker_build: false/, 'WebUI publish summary records avoided rebuild');
+  assertMatches(workflow, /webui-ghcr-publish:[\s\S]*Download WebUI GHCR publish summary[\s\S]*Verify WebUI GHCR publish summary/, 'WebUI GHCR gate verifies the publish summary without rebuilding');
   assertMatches(
     workflow,
     /operator-evidence-bundle-validation:[\s\S]*?node --experimental-strip-types scripts\/validate-release-evidence-bundle\.ts[\s\S]*?> evidence-validation-summary\.json/,
@@ -345,6 +353,7 @@ test('Docker WebUI smoke records image size as a release-speed artifact', () => 
   assertMatches(workflow, /image[-_]size|size_bytes|Size/, 'Docker image size field');
   assertMatches(workflow, /\/tmp\/opl-webui-image-size[-\w]*\.(json|txt)|artifacts\/docker-webui-image-size/, 'Docker image size artifact path');
   assertMatches(workflow, /Upload Docker WebUI smoke artifacts[\s\S]*opl-webui-image-size/, 'Docker image size upload');
+  assert.equal((workflow.match(/docker build/g) ?? []).length, 1, 'stable WebUI release path should build the image once');
 });
 
 test('release plan exposes depends_on and can_run_with for parallel speed lanes and serialized gates', () => {

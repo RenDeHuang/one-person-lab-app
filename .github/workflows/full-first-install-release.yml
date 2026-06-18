@@ -924,6 +924,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Upload Full DMG-only workflow artifact
+        if: ${{ inputs.upload_full_package_artifact }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
+          path: one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${{ env.OPL_RELEASE_VERSION }}-mac-arm64.dmg
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Publish GitHub Release assets
         if: ${{ inputs.publish_to_release }}
         working-directory: one-person-lab-app

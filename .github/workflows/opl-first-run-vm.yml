@@ -221,6 +221,8 @@ jobs:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ inputs.shell_ref || 'main' }}
           path: shells/aionui
+          fetch-depth: 1
+          sparse-checkout: scripts
 
       - name: Setup Node.js
         uses: actions/setup-node@v6

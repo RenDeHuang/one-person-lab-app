@@ -23,6 +23,11 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
     image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
     tags: ['26.5.99', 'stable', 'latest'],
     draft_candidate_push: false,
+    build_reuse: {
+      mode: 'same_job_after_docker_webui_smoke',
+      source_gate: 'docker-webui-smoke',
+      repeated_docker_build: false,
+    },
   });
 
   const result = runSummary([
@@ -74,6 +79,7 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(summary.gates.docker_webui.status, 'passed');
   assert.equal(summary.gates.webui_ghcr_publish.status, 'passed');
   assert.deepEqual(summary.gates.webui_ghcr_publish.fields.tags, ['26.5.99', 'stable', 'latest']);
+  assert.equal(summary.gates.webui_ghcr_publish.fields.build_reuse.repeated_docker_build, false);
   assert.equal(summary.gates.operator_evidence_bundle.status, 'passed');
   assert.equal(summary.gates.operator_evidence_bundle.fields.packaged_app_evidence, true);
   assert.deepEqual(summary.release_cohort, {

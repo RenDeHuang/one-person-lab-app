@@ -175,6 +175,8 @@ One Person Lab App owns the desktop product experience: packaging, releases, upd
 
 The App decides what users see during install, first launch, task entry, and settings. One Person Lab Framework provides the runtime, initialization, and progress data behind those views, while MAS, MAG, and RCA keep their professional judgment and deliverables. The App turns those capabilities into a desktop product experience without replacing professional-agent judgment.
 
+New OPL series agents such as OPL BookForge remain explicit repo/framework surfaces until App-owned contracts, release evidence, and product-owner decisions admit them into default App entries.
+
 GUI product truth is App-owned as well. AionUI, `agui-codex`, PilotDeck, and similar references are implementation or inspiration material; the user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
 
 Need framework, runtime, or contract details? Go to [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab).

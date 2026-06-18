@@ -13,3 +13,4 @@ Historical references to `opl-aion-shell` belong here or inside
 
 - [Process history index](./process/README.md)
 - [v26.6.12 stable release profile](./process/2026-06-12-stable-release-profile.md)
+- [v26.6.18 stable release profile](./process/2026-06-18-stable-release-profile.md)

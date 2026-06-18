@@ -74,6 +74,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(reusableWorkflow, /Missing GitHub Actions secrets: \$\{missing_csv\}/);
   assert.match(reusableWorkflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/);
   assert.match(reusableWorkflow, /build:[\s\S]*needs:[\s\S]*macos-signing-preflight/);
+  assert.match(reusableWorkflow, /Upload macOS DMG-only artifact[\s\S]*format\('\{0\}-dmg', matrix\.artifact-name\)[\s\S]*shells\/aionui\/out\/\*\.dmg/);
+  assert.match(workflowJobBlock(workflow, 'publish-standard'), /Download standard build artifacts[\s\S]*name:\s+macos-build-arm64[\s\S]*path:\s+build-artifacts/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /name: Verify standard release assets[\s\S]*OPL_RELEASE_VERSION: \$\{\{ inputs\.opl_version \}\}[\s\S]*node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
@@ -127,6 +129,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /\.\/install\.sh --complete --skip-modules/);
   assert.match(workflow, /docker build[\s\S]*--label "org\.opencontainers\.image\.source=https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"[\s\S]*-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"[\s\S]*shells\/aionui/);
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
+  assert.match(workflow, /same_job_after_docker_webui_smoke/);
+  assert.match(workflow, /repeated_docker_build: false/);
+  assert.match(workflow, /webui-ghcr-publish:[\s\S]*Download WebUI GHCR publish summary[\s\S]*Verify WebUI GHCR publish summary/);
+  assert.equal((workflow.match(/docker build/g) ?? []).length, 1);
   assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
   assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
   assert.match(workflow, /write_publish_summary "failed" "ghcr_write_package_denied"/);
@@ -139,8 +145,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
-  assert.match(workflow, /release_artifact_name: macos-build-arm64/);
-  assert.match(workflow, /release_artifact_name: opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
+  assert.match(workflow, /release_artifact_name: macos-build-arm64-dmg/);
+  assert.match(workflow, /release_artifact_name: opl-full-first-install-dmg-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(workflow, /package_profile: standard/);
   assert.match(workflow, /package_profile: full/);
   assert.match(workflow, /package_profile: homebrew-standard/);

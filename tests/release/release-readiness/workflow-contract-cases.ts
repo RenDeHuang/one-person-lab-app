@@ -69,6 +69,10 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.match(job, /release-closeout-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(job, /needs\[['"]?remote-verify-full['"]?\]\.result|needs\.remote-verify-full\.result/);
   assert.match(job, /release-readiness-job-results\.json/);
+  assert.match(workflow, /release_artifact_name:\s+macos-build-arm64-dmg/);
+  assert.match(workflow, /release_artifact_name:\s+opl-full-first-install-dmg-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
+  assert.match(workflow, /same_job_after_docker_webui_smoke/);
+  assert.match(workflow, /webui-ghcr-publish:[\s\S]*Verify WebUI GHCR publish summary/);
 });
 
 test('desktop promote workflow is gated by the candidate record before publishing', () => {

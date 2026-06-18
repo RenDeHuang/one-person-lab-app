@@ -156,6 +156,11 @@ export function writePassingArtifacts(root: string, version = '26.5.99', runId =
     image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
     tags: [version, 'stable', 'latest'],
     draft_candidate_push: false,
+    build_reuse: {
+      mode: 'same_job_after_docker_webui_smoke',
+      source_gate: 'docker-webui-smoke',
+      repeated_docker_build: false,
+    },
   });
   writeJson(path.join(root, `opl-full-workflow-telemetry-${version}`, 'full-workflow-telemetry.json'), {
     schema: 'opl_full_workflow_telemetry.v1',
