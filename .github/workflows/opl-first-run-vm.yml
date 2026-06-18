@@ -595,10 +595,11 @@ jobs:
             return hash.digest('hex');
           }
 
-          const failures = [];
+          const diagnostics = [];
+          const blockingFailures = [];
           const npmRegistry = run('npm', ['config', 'get', 'registry']);
           if (npmRegistry.exit_code !== 0 || npmRegistry.error) {
-            failures.push('npm config get registry failed');
+            blockingFailures.push('npm config get registry failed');
           }
           const registryUrl = normalizeRegistryUrl(npmRegistry.stdout);
           const registryMetadataUrl = registryPackageMetadataUrl(registryUrl);
@@ -617,10 +618,10 @@ jobs:
           ], { timeout: 240000 });
           const registryStatusCode = Number(registryResponse.stdout);
           if (registryResponse.exit_code !== 0 || registryResponse.error) {
-            failures.push('registry package metadata request failed');
+            diagnostics.push('registry package metadata request failed');
           }
           if (registryStatusCode !== 200) {
-            failures.push(`registry package metadata returned status ${registryResponse.stdout || 'unknown'}`);
+            diagnostics.push(`registry package metadata returned status ${registryResponse.stdout || 'unknown'}`);
           }
 
           const npmView = run('npm', [
@@ -632,23 +633,23 @@ jobs:
             '--json',
           ], { timeout: 240000 });
           if (npmView.exit_code !== 0 || npmView.error) {
-            failures.push('npm view @openai/codex@latest version dist.tarball failed');
+            blockingFailures.push('npm view @openai/codex@latest version dist.tarball failed');
           }
-          const metadata = npmView.stdout ? parseJson(npmView.stdout, 'npm view @openai/codex@latest', failures) : null;
+          const metadata = npmView.stdout ? parseJson(npmView.stdout, 'npm view @openai/codex@latest', blockingFailures) : null;
           const version = metadata?.version || null;
           const tarballUrl = metadata?.['dist.tarball'] || metadata?.dist?.tarball || null;
           const distIntegrity = metadata?.['dist.integrity'] || metadata?.dist?.integrity || null;
           let tarballUrlHost = null;
           if (!version) {
-            failures.push('npm package metadata did not include version');
+            blockingFailures.push('npm package metadata did not include version');
           }
           if (!tarballUrl) {
-            failures.push('npm package metadata did not include dist.tarball');
+            blockingFailures.push('npm package metadata did not include dist.tarball');
           } else {
             try {
               tarballUrlHost = new URL(tarballUrl).host;
             } catch (error) {
-              failures.push(`dist.tarball is not a valid URL: ${error.message}`);
+              blockingFailures.push(`dist.tarball is not a valid URL: ${error.message}`);
             }
           }
 
@@ -684,11 +685,11 @@ jobs:
               tarballSizeBytes = stat.size;
               tarballSha256 = sha256File(tarballPath);
               if (tarballSizeBytes <= 0) {
-                failures.push('downloaded Codex package tarball is empty');
+                blockingFailures.push('downloaded Codex package tarball is empty');
               }
             } else {
               fs.rmSync(partialTarballPath, { force: true });
-              failures.push(`Codex package tarball download failed with status ${tarballDownload.stdout || 'unknown'}`);
+              blockingFailures.push(`Codex package tarball download failed with status ${tarballDownload.stdout || 'unknown'}`);
             }
           }
 
@@ -702,7 +703,7 @@ jobs:
               npmCacheDir,
             ], { timeout: 300000 });
             if (npmCacheAdd.exit_code !== 0 || npmCacheAdd.error) {
-              failures.push('npm cache add for Codex package tarball failed');
+              blockingFailures.push('npm cache add for Codex package tarball failed');
             }
           }
 
@@ -715,7 +716,7 @@ jobs:
             schema_version: 1,
             owner: 'one-person-lab-app',
             purpose: 'codex_install_asset_cache_preseed',
-            status: failures.length === 0 ? 'ok' : 'failed',
+            status: blockingFailures.length === 0 ? 'ok' : 'failed',
             generated_at: endedAt.toISOString(),
             package: {
               name: packageName,
@@ -759,7 +760,10 @@ jobs:
               elapsed_ms: endedAt.getTime() - startedAt.getTime(),
             },
             truth_boundary: 'install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt',
-            failures,
+            diagnostics,
+            blocking_failures: blockingFailures,
+            warnings: diagnostics,
+            failures: blockingFailures,
           };
 
           fs.writeFileSync(preflightPath, `${JSON.stringify(preflight, null, 2)}\n`);
@@ -783,9 +787,13 @@ jobs:
             elapsed_ms: preflight.timings.elapsed_ms,
           }, null, 2));
 
-          if (failures.length > 0) {
+          for (const diagnostic of diagnostics) {
+            console.error(`Codex package install asset diagnostic warning: ${diagnostic}`);
+          }
+
+          if (blockingFailures.length > 0) {
             console.error('Codex package install asset preflight failed:');
-            for (const failure of failures) {
+            for (const failure of blockingFailures) {
               console.error(`- ${failure}`);
             }
             process.exit(1);

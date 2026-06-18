@@ -146,6 +146,16 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.match(job, /tarball[\s\S]*sha256/);
   assert.match(job, /tarball[\s\S]*size_bytes/);
   assert.match(job, /elapsed_ms/);
+  assert.match(job, /const diagnostics = \[\]/);
+  assert.match(job, /const blockingFailures = \[\]/);
+  assert.match(job, /registry package metadata request failed/);
+  assert.match(job, /diagnostics\.push\('registry package metadata request failed'\)/);
+  assert.match(job, /status: blockingFailures\.length === 0 \? 'ok' : 'failed'/);
+  assert.match(job, /blocking_failures: blockingFailures/);
+  assert.match(job, /warnings: diagnostics/);
+  assert.match(job, /failures: blockingFailures/);
+  assert.match(job, /Codex package install asset diagnostic warning/);
+  assert.match(job, /if \(blockingFailures\.length > 0\)/);
   assert.match(job, /install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt/);
   assert.match(job, /npm[\s\S]*config[\s\S]*get[\s\S]*registry/);
   assert.match(job, /@openai\/codex/);
@@ -240,6 +250,8 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       'tarball.size_bytes',
       'timings.elapsed_ms',
       'cache.npm_cache_dir',
+      'blocking_failures',
+      'warnings',
       'truth_boundary',
     ]);
     assert.deepEqual(scenario.diagnostics_contract.app_wrapper.required_timeout_fields, [

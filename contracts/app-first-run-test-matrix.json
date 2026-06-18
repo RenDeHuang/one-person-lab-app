@@ -172,6 +172,8 @@
             "tarball.size_bytes",
             "timings.elapsed_ms",
             "cache.npm_cache_dir",
+            "blocking_failures",
+            "warnings",
             "truth_boundary"
           ],
           "required_timeout_fields": [
@@ -294,6 +296,8 @@
             "tarball.size_bytes",
             "timings.elapsed_ms",
             "cache.npm_cache_dir",
+            "blocking_failures",
+            "warnings",
             "truth_boundary"
           ],
           "required_timeout_fields": [
@@ -428,6 +432,8 @@
             "tarball.size_bytes",
             "timings.elapsed_ms",
             "cache.npm_cache_dir",
+            "blocking_failures",
+            "warnings",
             "truth_boundary"
           ],
           "required_timeout_fields": [
@@ -549,6 +555,8 @@
             "tarball.size_bytes",
             "timings.elapsed_ms",
             "cache.npm_cache_dir",
+            "blocking_failures",
+            "warnings",
             "truth_boundary"
           ],
           "required_timeout_fields": [

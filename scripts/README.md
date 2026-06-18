@@ -199,8 +199,12 @@ and artifact output before executing the smoke. The VM artifact includes
 `codex-package-tarballs/openai-codex.tgz`, and `codex-npm-cache`; the active
 shell helper receives those install assets through `--codex-package-tarball`
 and `--codex-npm-cache-dir`. This preseed/cache surface reduces live registry
-dependency during Codex install, but it is not readiness truth, runtime truth,
-or release-owner receipt, and it never replaces the clean VM install smoke.
+dependency during Codex install. The preflight artifact separates blocking
+failures from diagnostic warnings: npm metadata, tarball download, and npm cache
+add failures block the gate, while a registry metadata mirror download timeout
+is recorded as a warning when the exact tarball and npm cache preseed are still
+valid. This surface is not readiness truth, runtime truth, or release-owner
+receipt, and it never replaces the clean VM install smoke.
 Codex App and Computer Use checks are non-blocking exploratory tools;
 release-blocking App readiness must live in deterministic scripts, contracts,
 or GitHub Actions gates.
