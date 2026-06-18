@@ -330,14 +330,14 @@
     {
       "id": "candidate_packaged_first_run_smoke",
       "cwd": ".",
-      "command": "cd ../opl-hermes-shell && npm run smoke:opl-first-run"
+      "command": "npm --prefix shells/hermes run smoke:opl-first-run"
     }
   ],
   "manual_verification_commands": [
     {
       "id": "candidate_packaged_settings_visual_smoke",
       "cwd": ".",
-      "command": "cd ../opl-hermes-shell && npm run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual",
+      "command": "npm --prefix shells/hermes run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual",
       "policy": "manual_or_vm_foreground_only"
     }
   ],

@@ -279,34 +279,34 @@ candidate-specific docs own human runbooks and target plans:
 to resolve `contracts/app-shell-adapter.json` and the active `aionui` shell
 until an explicit release-owner decision changes that contract.
 
-The latest local candidate read on `2026-06-18` is: `hermes-codex` validates at
-the App contract/registry level with no candidate blockers, while remaining an
-explicit technical verification candidate. The App-root candidate chain
-`npm run validate:shell-candidates -- --candidate hermes-codex
---run-candidate-commands` builds `One Person Lab Hermes Candidate.app` through
-the explicit Hermes adapter and then runs the sibling Hermes packaged first-run
-smoke in non-foreground mode. The default smoke must not focus or open UI on the
-maintainer's active desktop. It verifies the branded macOS executable, covers
-missing-key/configured/hot-launch/fallback startup paths, streams a fixture
-Codex app-server turn, proves `$mas` reaches Codex as structured Skill input,
-proves long `prompt.submit` calls ack before turn completion, and proves legacy
-`Opl route` / route receipt wrappers are stripped before Codex receives prompt
-text. Packaged Settings visual smoke is now manual/VM foreground evidence only
-and requires `--allow-foreground`; it must not be inferred from the default
-candidate command chain. The Tart clean-VM wrapper
-`npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts
-artifacts/hermes-candidate-tart-20260617T104000Z --timeout-ms 600000` also
-passed on `opl-first-run-no-clt-clean-base-26-5-18`, using the same packaged
-candidate fixture smoke inside the guest. A direct local live smoke of the
-Hermes `CodexAppServerClient` against `codex app-server --listen stdio://` also
-completed `thread/start`, `turn/start`, streamed deltas, and finished with
-`turn/completed` on `gpt-5.5`. Package/runtime/visual acceptance is still not
-complete: AionUI-vs-Hermes visual screenshot parity has not been accepted, the
-live Codex smoke is not packaged GUI acceptance, and this does not promote
-Hermes to the release shell. Therefore the current state is packaged technical
-verification candidate with clean-VM fixture smoke and local live Codex
-app-server smoke evidence, not release-ready, active-shell-adopted,
-domain-ready, or production-ready.
+Hermes candidate now follows a three-phase route. Phase 1 is the compatibility
+firewall: keep the App-facing experience close to Codex App, implement adapter
+gaps that affect ordinary chat, adapt Hermes surfaces only when their semantics
+match OPL/Codex, move useful raw backend detail to Advanced/Diagnostics, and
+hide full-Hermes features that would otherwise look like working OPL App
+features. Phase 2 presents OPL branded Codex features such as MAS/MAG/RCA,
+model access, first-run, and capability status as ordinary product surfaces.
+Phase 3 is the full OPL product profile and possible active-shell adoption
+decision. None of these phases changes the active release shell by itself.
+
+The current `hermes-codex` state is Phase 1 implementation and technical
+verification. Current local evidence shows the candidate adapter can build and
+exercise a fixture Codex app-server path, and the `2026-06-18` Tart VM smoke
+for `artifacts/hermes-candidate-tart-20260618T120035Z/summary.json` proves the
+current packaged candidate fixture path in a clean VM cohort
+(`opl-hermes-candidate-2026-06-18T12-00-35-801Z`, guest IP `192.168.64.3`).
+MAS/MAG/RCA are Codex
+Skill/Plugin entries: ordinary users invoke them through composer slash
+shortcuts such as `/mas` or explicit `$mas` prompt text, while Settings may show
+read-only status and diagnostics. The GUI must not recreate a purpose-route
+truth source, directly run domain CLIs, or turn MCP/Profile/Cron/Toolset
+management into ordinary App capability.
+
+Package/runtime/visual acceptance is still not complete: AionUI-vs-Hermes visual
+screenshot parity has not been accepted, packaged GUI acceptance is separate
+from local live app-server smoke, and this does not promote Hermes to the
+release shell. Therefore the current state is technical verification candidate
+work, not release-ready, active-shell-adopted, domain-ready, or production-ready.
 
 The current candidate read is technical verification only. Candidate smoke,
 manifests, package evidence, shell roadmaps, upstream GUI defaults, and external

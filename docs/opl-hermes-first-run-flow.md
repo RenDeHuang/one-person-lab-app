@@ -173,13 +173,18 @@ Hermes checkout 执行 `npm run smoke:opl-first-run`，最后读取
 - `fast_probe_not_ready_first_run`：fast probe 不能证明 readiness 时，允许走一次性初始化
   checklist，再进入 adapter。
 
-2026-06-17 已补上 Tart clean-VM 候选包证据：
-`npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts
-artifacts/hermes-candidate-tart-20260617T104000Z --timeout-ms 600000` 通过。该命令从
+2026-06-18 已刷新 Tart clean-VM 候选包证据：
+`npm run smoke:hermes-candidate:tart -- --no-graphics --shell-root
+/Users/gaofeng/workspace/opl-hermes-shell --artifacts
+artifacts/hermes-candidate-tart-20260618T120035Z --timeout-ms 600000` 通过。该命令从
 `opl-first-run-no-clt-clean-base-26-5-18` 克隆临时 VM，把当前 packaged
 `One Person Lab Hermes Candidate.app` 和 smoke 脚本传入 guest，在 guest 内执行同一组
 first-run smoke，并把 summary 与 guest artifacts 拷回
-`artifacts/hermes-candidate-tart-20260617T104000Z/summary.json`。
+`artifacts/hermes-candidate-tart-20260618T120035Z/summary.json`。该 summary 记录
+guest VM `opl-hermes-candidate-2026-06-18T12-00-35-801Z`、guest IP `192.168.64.3`，覆盖
+missing key、missing key hot launch、configured key、configured key hot launch、
+fast probe fallback 和 user-deferred first-run，并记录 `$mas` structured Skill input、
+long-turn immediate ack 和 legacy route strip。
 
 这条 VM 证据只证明 Hermes candidate packaged fixture smoke 能在 clean VM 中运行；它不
 证明正式 release shell、真实外部模型服务、AionUI 视觉 parity、MAS/MAG/RCA domain ready、

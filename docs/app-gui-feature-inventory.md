@@ -335,7 +335,7 @@ Desktop 功能基线，把官方 `apps/desktop` 当成可升级参考系：后�
 记录 ref，对比 `apps/desktop` 和 shared package 变化，再重放 OPL 最小 delta。
 最小 delta 只包括 OPL candidate branding、中文/英文 copy、图标、bundle metadata、
 OPL App-managed first-run、模型访问 API key 配置、Codex app-server-backed
-Hermes gateway adapter、MAS/MAG/RCA purpose route 和 explicit candidate wrapper。
+Hermes gateway adapter、MAS/MAG/RCA Codex Skill 入口和 explicit candidate wrapper。
 除这些面外，任何新增 OPL surface 都要先说明 upstream 已有能力、OPL 需要保留/隐藏/
 替换什么、truth owner 是谁，以及是否触发 App-owned adoption gate。
 
@@ -348,6 +348,15 @@ Hermes 第一版接入边界：
 - Build wrapper：
   `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package`。
 - Active shell：仍为 AionUI；Hermes 不进入默认 stable/nightly release packaging。
+
+Hermes 第一版按三阶段路线推进。当前 Phase 1 不是“实现所有 Hermes Desktop
+功能”，而是 compatibility firewall：每个 upstream 前端依赖必须被分类为
+`implement`、`adapt`、`diagnostic_only` 或 `hide_or_remove`。能自然映射到 Codex
+App-like OPL 普通路径的能力才实现；能帮助排障但不应给普通用户管理感的能力进入
+Advanced/Diagnostics；Profiles、Cron mutations、Skills/Toolsets、Messaging/Handoff、
+provider marketplace、update/restart、audio/media remote helpers 等 full-Hermes
+backend 面默认从普通入口隐藏或降为诊断。Phase 2 才把 OPL 品牌化能力做成更自然的
+产品入口；Phase 3 才评估完整 App product profile 和 active-shell adoption。
 
 Hermes 第一版只替换最小几类上游面，才能声称 minimal candidate package acceptance：
 
@@ -368,24 +377,27 @@ Hermes 第一版只替换最小几类上游面，才能声称 minimal candidate 
   `/api/config/defaults`、`/api/config/schema` 和 `/api/cron/jobs` 的
   renderer-safe 形状，避免复用官方 Hermes UI 时首页、侧栏或 settings 因基础数据
   缺失而空白。这些 route 只提供默认 profile/config/empty automation 投影，不接管
-  完整 Hermes profile/runtime/cron authority。
+  完整 Hermes profile/runtime/cron authority；Cron mutation 不能在普通 UI 中显示成
+  已有真实 scheduler。
 - Icon：使用 OPL/AionUI 官方图标族，1024px 资源必须保留 macOS Dock safe margin；
   当前候选要求 alpha bounds 不超过 900px，目标为 `840x840+92+92`。
-- Executor/route adapter：新增 Hermes-compatible Codex app-server adapter；
+- Executor/Skill adapter：新增 Hermes-compatible Codex app-server adapter；
   Hermes UI 继续调用 `session.create` / `prompt.submit`，adapter 内部启动
   `codex app-server --listen stdio://`，并将 `session.create` 映射到
   `thread/start`、`prompt.submit` 映射到 `turn/start`、`item/agentMessage/delta`
   映射成 Hermes `message.delta`、`turn/completed` 映射成 Hermes `message.complete`。
-  MAS/MAG/RCA 作为 Codex conversation 上的 purpose/agent route 扩展点，而不是
-  独立 backend choices。
+  MAS/MAG/RCA 作为 Codex Skill/Plugin 调用入口，由 GUI slash shortcut 转成显式
+  `$mas` / `$mag` / `$rca` prompt，并由 Codex app-server 的 structured skill input
+  与本机 Skill/Plugin/MCP registry 决定实际加载；GUI 不做关键词 route，不直接执行
+  domain CLI，也不拥有 runtime/domain truth。
 - Candidate package wrapper：使用 explicit adapter packaging，不能进入默认
   stable/nightly release packaging。
 
 普通用户体验目标是套壳 Codex App，而不是把 Hermes 的通用 backend/provider 工作台
-暴露为 OPL home。用户应看到 workspace-aware chat、Codex conversation、purpose
-route 和必要 refs；Hermes backend/runtime/provider 细节只在 Advanced、diagnostics
-或明确 technical refs 中出现。Codex/MAS 接入是 route/agent extension，不是全量
-替换 Hermes backend。
+暴露为 OPL home。用户应看到 workspace-aware chat、Codex conversation、Skill
+shortcuts 和必要 refs；Hermes backend/runtime/provider 细节只在 Advanced、diagnostics
+或明确 technical refs 中出现。Codex/MAS/MAG/RCA 接入是 Skill/Plugin extension，
+不是全量替换 Hermes backend。
 
 以下面必须先做 Hermes 原生功能对比，再决定是否进入候选：
 

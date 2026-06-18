@@ -97,7 +97,7 @@ function validateCandidateAdapterContract(candidate: ShellCandidate, adapterCont
     const adapterVisualCommand = adapterContract.manual_verification_commands?.find((entry) => entry.id === 'candidate_packaged_settings_visual_smoke');
     if (
       !adapterVisualCommand ||
-      adapterVisualCommand.command !== 'cd ../opl-hermes-shell && npm run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual'
+      adapterVisualCommand.command !== 'npm --prefix shells/hermes run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual'
     ) {
       throw new Error(`${candidate.id} adapter manual_verification_commands must include explicit Settings visual smoke with --allow-foreground`);
     }
@@ -281,9 +281,9 @@ function validateCandidateValidationCommands(candidate: ShellCandidate): void {
     if (
       !packagedSmokeCommand
       || packagedSmokeCommand.cwd !== '.'
-      || packagedSmokeCommand.command !== 'cd ../opl-hermes-shell && npm run smoke:opl-first-run'
+      || packagedSmokeCommand.command !== 'npm --prefix shells/hermes run smoke:opl-first-run'
     ) {
-      throw new Error(`${candidate.id} validation_commands must include packaged first-run smoke for the sibling Hermes checkout`);
+      throw new Error(`${candidate.id} validation_commands must include packaged first-run smoke for the primary Hermes checkout`);
     }
     if (candidate.validation_commands.some((entry) => entry.id === 'candidate_packaged_settings_visual_smoke')) {
       throw new Error(`${candidate.id} validation_commands must keep Settings visual smoke out of the default local command chain`);
@@ -295,7 +295,7 @@ function validateCandidateValidationCommands(candidate: ShellCandidate): void {
     if (
       !settingsVisualCommand ||
       settingsVisualCommand.cwd !== '.' ||
-      settingsVisualCommand.command !== 'cd ../opl-hermes-shell && npm run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual'
+      settingsVisualCommand.command !== 'npm --prefix shells/hermes run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual'
     ) {
       throw new Error(`${candidate.id}.technical_verification.manual_verification_commands must include the explicit packaged Settings visual smoke with --allow-foreground`);
     }

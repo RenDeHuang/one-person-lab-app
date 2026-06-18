@@ -317,8 +317,10 @@ Hermes 的长期方向是 upstream-first OPL customization：先回官方 Hermes
 功能基线，以 `apps/desktop` 为明确参考系，跟随其成熟 GUI、Electron packaging、
 files/previews/tool output/settings、i18n 等能力，再把 OPL 的品牌、简体中文/英文
 copy、图标、OPL App-managed first-run、模型访问 API key 配置、Codex executor
-route、MAS/MAG/RCA purpose routing、runtime refs 和 release 边界作为薄 delta 接入。
-Hermes 第一版只做 minimal adapter：
+route、MAS/MAG/RCA Codex Skill 入口、runtime refs 和 release 边界作为薄 delta 接入。
+Hermes 采用三阶段路线：Phase 1 做 compatibility firewall，Phase 2 做 OPL branded
+Codex experience，Phase 3 才做 full OPL product profile 和 adoption 评估。Hermes
+第一版只做 minimal adapter：
 
 - Branding：用 One Person Lab App candidate 产品名、bundle id 和图标替换上游
   Hermes branding。
@@ -342,19 +344,23 @@ Hermes 第一版只做 minimal adapter：
 - Renderer bootstrap：fallback Codex adapter 要提供官方 Hermes renderer 启动需要的
   profile/config/session-list/cron-list 基础 JSON 形状，避免首页、侧栏和 settings
   空白；这只是默认 profile/config/empty automation 投影，不代表替换完整 Hermes
-  backend。
-- Executor/route adapter：新增 Codex CLI executor route，并把 MAS/MAG/RCA 作为
-  Codex conversation 上的 purpose/agent route 扩展点；不全量替换 Hermes backend，
-  也不接管 Hermes runtime 或 OPL runtime/domain truth。
+  backend。Cron mutation、Profiles mutation、Messaging/Handoff、Skills/Toolsets、
+  provider marketplace、update/restart 和 raw MCP management 不得作为普通可用功能
+  呈现，除非进入 `implement` 或 `adapt` 分类并有 fresh source/package evidence。
+- Executor/Skill adapter：新增 Codex CLI executor route，并把 MAS/MAG/RCA 作为
+  Codex conversation 上的 Skill/Plugin 扩展点。`/mas`、`/mag`、`/rca` 是 GUI slash
+  shortcut，执行后生成显式 `$mas`、`$mag`、`$rca` prompt；Codex app-server 再根据
+  本机 Skill/Plugin/MCP registry 转成 structured skill input。GUI 不做关键词 route，
+  不全量替换 Hermes backend，也不接管 Hermes runtime 或 OPL runtime/domain truth。
 - Build wrapper：通过
   `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package`
   走 App-root explicit candidate packaging，不进入默认 stable/nightly release
   path。
 
 普通用户目标不是暴露一个完整 Hermes 多后端工作台，而是得到一个套壳 Codex App：
-打开 workspace、开始或继续 Codex conversation、按 `科研`/`基金`/`演示` route 工作。
-Hermes 的通用 agent/backend/provider 能力可以保留为 upstream 基线、Advanced 或
-diagnostics，但不能抢占普通 home/chat。
+打开 workspace、开始或继续 Codex conversation、按 `科研`/`基金`/`演示` Skill
+入口工作。Hermes 的通用 agent/backend/provider 能力可以保留为 upstream 基线、
+Advanced 或 diagnostics，但不能抢占普通 home/chat。
 
 App product profile generated config、`opl app state/action` bridge、
 page-state/first-run matrix mapping、Full packaged runtime、stable release asset

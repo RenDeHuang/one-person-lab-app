@@ -77,7 +77,7 @@ OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run 
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package
 npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands
 npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts artifacts/hermes-candidate-tart-<timestamp> --timeout-ms 600000
-(cd ../opl-hermes-shell && npm run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual)
+npm --prefix shells/hermes run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual
 npm run release:plan -- --version <version> --profile nightly
 npm run release:plan -- --version <version> --include-full-package
 npm run release:closeout -- --version <version> --run-id <github-actions-run-id> --artifact-profile diagnostics --agent-wall-time <duration>
