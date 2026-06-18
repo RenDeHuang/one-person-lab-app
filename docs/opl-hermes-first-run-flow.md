@@ -165,8 +165,9 @@ Hermes checkout 执行 `npm run smoke:opl-first-run`，最后读取
 - `missing_key_hot_launch`：marker 新鲜但仍缺 key，预期不跑 full initialize gate。
 - `configured_key`：模型访问已配置，预期进入 Codex adapter ready 路径，并在真实
   packaged `.app` 内通过 Codex app-server fixture 完成一轮 session/turn/delta/complete；
-  同时验证 MAS `route_readback_ready` 可进入 conversation stream，并验证 MAG/RCA
-  `route_readback_with_blockers` 作为显式 readback 返回，而不是静默失效。
+  同时验证 `$mas` 通过 Codex app-server `skills/list` 解析为 structured Skill input，
+  交给 `turn/start`，不产生 GUI 侧 route receipt/error，也不直接执行 MAS/MAG/RCA CLI。
+  长回复 smoke 还必须证明 `prompt.submit` 先 ack，后续通过事件流返回 complete。
 - `configured_key_hot_launch`：marker 新鲜且 key 存在时，即使后台出现
   `system initialize --json`，也必须发生在 `OPL Codex adapter is ready` 之后。
 - `fast_probe_not_ready_first_run`：fast probe 不能证明 readiness 时，允许走一次性初始化
@@ -192,14 +193,14 @@ artifact ready 或 quality verdict。
 | --- | --- | --- |
 | active shell 仍是 AionUI | 可以。验证脚本读取 active adapter、runtime bridge 和 GUI contract。 | 不需要打包；除非声称 release artifact fresh。 |
 | Hermes 有 app-server adapter 目标 | 可以。contract 能声明 gateway route、事件流和禁用 backend。 | 需要 package/source smoke 证明 adapter 真能启动、创建 session、发送 turn、展示 response。 |
-| 模型访问单一 | 可以。contract 能声明 gflabtoken-only、禁用 Base URL/provider marketplace。 | packaged Settings visual smoke 已证明模型访问页不暴露 forbidden provider controls；真实保存 API key 和真实模型访问仍需 live/人工证据。 |
+| 模型访问单一 | 可以。contract 能声明 gflabtoken-only、禁用 Base URL/provider marketplace。 | 手动/VM packaged Settings visual smoke 已证明模型访问页不暴露 forbidden provider controls；真实保存 API key 和真实模型访问仍需 live/人工证据。 |
 | 首启四线语义 | 可以。contract 能声明四条流程、触发条件和阻塞关系。 | packaged smoke 和 Tart clean-VM smoke 已覆盖热启动、缺 key、已配置、无 marker fallback；真实模型访问仍需 live evidence。 |
 | MAS/MAG/RCA Codex Skill declaration | 可以。contract 能声明普通入口、Codex Skill invocation 和 forbidden claims。 | packaged smoke 已证明 MAS/MAG/RCA Skill catalog 可见、MAS chip 可写入 `$mas`、显式 `$mas` 会作为 Codex app-server `turn/start` 的 structured skill input 转交给 Codex，且没有 GUI 侧 route receipt/error；domain ready、artifact ready 和质量结论仍需 domain owner evidence。 |
 | 视觉不低于 AionUI | 不可以。docs/contract 只能定义门槛。 | 必须有 AionUI baseline 与 Hermes packaged candidate 的截图或视觉 smoke 对比。 |
 
 当前 source 级实现还补了一条首启防回归证据：即使旧 Hermes local endpoint 触发状态进入
 onboarding，普通 OPL 模型访问页也只能显示 gflabtoken API key，不能预选或展示
-`OPENAI_BASE_URL`。这条证据已由 renderer test 和 packaged Settings visual smoke 双重覆盖。
+`OPENAI_BASE_URL`。这条证据已由 renderer test 和手动/VM packaged Settings visual smoke 双重覆盖。
 
 ## 实施注意
 

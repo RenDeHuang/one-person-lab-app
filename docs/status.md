@@ -279,19 +279,21 @@ candidate-specific docs own human runbooks and target plans:
 to resolve `contracts/app-shell-adapter.json` and the active `aionui` shell
 until an explicit release-owner decision changes that contract.
 
-The latest local candidate read on `2026-06-17` is: `hermes-codex` validates at
+The latest local candidate read on `2026-06-18` is: `hermes-codex` validates at
 the App contract/registry level with no candidate blockers, while remaining an
 explicit technical verification candidate. The App-root candidate chain
 `npm run validate:shell-candidates -- --candidate hermes-codex
 --run-candidate-commands` builds `One Person Lab Hermes Candidate.app` through
 the explicit Hermes adapter and then runs the sibling Hermes packaged first-run
-smoke and packaged Settings visual smoke. The smoke launches the real `.app`,
-verifies the branded macOS executable, covers missing-key/configured/hot-launch/
-fallback startup paths, streams a fixture Codex app-server turn, records a MAS
-`route_readback_ready` receipt, records MAG/RCA
-`route_readback_with_blockers`, and proves the home/model-access/
-agents-capabilities/about Settings surfaces are nonblank without forbidden
-provider controls. The Tart clean-VM wrapper
+smoke in non-foreground mode. The default smoke must not focus or open UI on the
+maintainer's active desktop. It verifies the branded macOS executable, covers
+missing-key/configured/hot-launch/fallback startup paths, streams a fixture
+Codex app-server turn, proves `$mas` reaches Codex as structured Skill input,
+proves long `prompt.submit` calls ack before turn completion, and proves legacy
+`Opl route` / route receipt wrappers are stripped before Codex receives prompt
+text. Packaged Settings visual smoke is now manual/VM foreground evidence only
+and requires `--allow-foreground`; it must not be inferred from the default
+candidate command chain. The Tart clean-VM wrapper
 `npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts
 artifacts/hermes-candidate-tart-20260617T104000Z --timeout-ms 600000` also
 passed on `opl-first-run-no-clt-clean-base-26-5-18`, using the same packaged

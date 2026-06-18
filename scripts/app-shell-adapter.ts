@@ -189,6 +189,12 @@ export type ShellAdapterContract = {
     cwd: string;
     command: string;
   }>;
+  manual_verification_commands?: Array<{
+    id: string;
+    cwd: string;
+    command: string;
+    policy?: string;
+  }>;
 } & HermesTargetStateContract;
 
 export type ActiveShellPaths = {

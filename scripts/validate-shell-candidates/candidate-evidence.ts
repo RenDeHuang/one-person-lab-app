@@ -291,7 +291,7 @@ function validateHermesPackagedSmoke(candidate: ShellCandidate): void {
         };
         skip?: {
           clicked?: boolean;
-          renderer_main_visible_after_skip?: boolean;
+          renderer_main_ready_after_skip?: boolean;
         } | null;
         status?: {
           backend?: string;
@@ -364,7 +364,7 @@ function validateHermesPackagedSmoke(candidate: ShellCandidate): void {
   }
   if (
     userDeferred.gateway?.skip?.clicked !== true ||
-    userDeferred.gateway?.skip?.renderer_main_visible_after_skip !== true ||
+    userDeferred.gateway?.skip?.renderer_main_ready_after_skip !== true ||
     userDeferred.gateway?.setupStatus?.onboarding_deferred !== true ||
     userDeferred.gateway?.setupStatus?.provider_configured !== false ||
     userDeferred.gateway?.env?.openai_api_key_is_set !== false

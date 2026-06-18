@@ -77,7 +77,7 @@ OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run 
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package
 npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands
 npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts artifacts/hermes-candidate-tart-<timestamp> --timeout-ms 600000
-(cd ../opl-hermes-shell && npm run smoke:settings-visual -- --out out/smoke-settings-visual)
+(cd ../opl-hermes-shell && npm run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual)
 npm run release:plan -- --version <version> --profile nightly
 npm run release:plan -- --version <version> --include-full-package
 npm run release:closeout -- --version <version> --run-id <github-actions-run-id> --artifact-profile diagnostics --agent-wall-time <duration>
@@ -99,6 +99,12 @@ expects the selected package command to produce `out/agui-codex-candidate-manife
 with `candidate_app_bundle_ready`, `explicit_candidate_app_bundle`, and a
 relative `.app` bundle path whose bundle contains `Contents/Info.plist` and a
 `Contents/MacOS` executable. A `.txt` smoke output is intentionally rejected.
+Hermes candidate validation is non-foreground by default: the App-root
+candidate command chain may build the `.app` and run packaged first-run smoke,
+but it must not run screenshot capture or focus the user's active desktop.
+Packaged Settings visual smoke is manual/VM evidence only and requires
+`--allow-foreground`; prefer Tart/VM for that command when the maintainer is
+using the Mac.
 
 `release:prepare-standard` also copies the App root installer into the active
 shell resources as `opl-install.sh`, which is the packaged standard DMG

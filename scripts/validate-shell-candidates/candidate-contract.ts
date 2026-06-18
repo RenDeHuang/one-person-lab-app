@@ -37,6 +37,7 @@ type CandidateAdapterContract = {
   release_role: string;
   shell_contract: { source_topology: string; capabilities: string[] };
   validation_commands: ValidationCommand[];
+  manual_verification_commands?: ValidationCommand[];
   app_server_adapter_contract?: ShellCandidate['app_server_adapter_contract'];
   model_access_policy?: ShellCandidate['model_access_policy'];
   agent_route_contract?: ShellCandidate['agent_route_contract'];
@@ -90,6 +91,16 @@ function validateCandidateAdapterContract(candidate: ShellCandidate, adapterCont
     throw new Error(`${candidate.id} adapter validation_commands must include candidate_app_bundle_build`);
   }
   if (candidate.id === 'hermes-codex') {
+    if (adapterContract.validation_commands.some((entry) => entry.id === 'candidate_packaged_settings_visual_smoke')) {
+      throw new Error(`${candidate.id} adapter validation_commands must keep Settings visual smoke out of the default active-shell command chain`);
+    }
+    const adapterVisualCommand = adapterContract.manual_verification_commands?.find((entry) => entry.id === 'candidate_packaged_settings_visual_smoke');
+    if (
+      !adapterVisualCommand ||
+      adapterVisualCommand.command !== 'cd ../opl-hermes-shell && npm run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual'
+    ) {
+      throw new Error(`${candidate.id} adapter manual_verification_commands must include explicit Settings visual smoke with --allow-foreground`);
+    }
     validateHermesTargetStateContracts(candidate, adapterContract);
   }
 }
@@ -274,13 +285,19 @@ function validateCandidateValidationCommands(candidate: ShellCandidate): void {
     ) {
       throw new Error(`${candidate.id} validation_commands must include packaged first-run smoke for the sibling Hermes checkout`);
     }
-    const settingsVisualCommand = candidate.validation_commands.find((entry) => entry.id === 'candidate_packaged_settings_visual_smoke');
+    if (candidate.validation_commands.some((entry) => entry.id === 'candidate_packaged_settings_visual_smoke')) {
+      throw new Error(`${candidate.id} validation_commands must keep Settings visual smoke out of the default local command chain`);
+    }
+    if (candidate.technical_verification?.app_root_commands?.some((entry) => entry.id === 'candidate_packaged_settings_visual_smoke')) {
+      throw new Error(`${candidate.id}.technical_verification.app_root_commands must keep Settings visual smoke out of the default local command list`);
+    }
+    const settingsVisualCommand = candidate.technical_verification?.manual_verification_commands?.find((entry) => entry.id === 'candidate_packaged_settings_visual_smoke');
     if (
       !settingsVisualCommand ||
       settingsVisualCommand.cwd !== '.' ||
-      settingsVisualCommand.command !== 'cd ../opl-hermes-shell && npm run smoke:settings-visual -- --out out/smoke-settings-visual'
+      settingsVisualCommand.command !== 'cd ../opl-hermes-shell && npm run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual'
     ) {
-      throw new Error(`${candidate.id} validation_commands must include packaged Settings visual smoke for the sibling Hermes checkout`);
+      throw new Error(`${candidate.id}.technical_verification.manual_verification_commands must include the explicit packaged Settings visual smoke with --allow-foreground`);
     }
     const tartSmokeCommand = candidate.technical_verification?.manual_verification_commands?.find((entry) => entry.id === 'candidate_tart_clean_vm_smoke');
     if (
@@ -657,9 +674,23 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
     ], 'OPL ordinary Settings navigation');
     assertCandidateFileContains(candidate, 'src/app/settings/agents-capabilities-settings.tsx', [
       'getOplCodexSkills',
-      'codex_skill_name',
+      'chatInvocation',
+      'executionDesc',
+      'slashAvailable',
+      'noDomainTruth',
       'available',
     ], 'OPL agents and capabilities Settings page');
+    assertCandidateFileContains(candidate, 'src/lib/desktop-slash-commands.ts', [
+      "'/mas'",
+      "'/mag'",
+      "'/rca'",
+      "action('opl-skill')",
+    ], 'OPL Skill slash shortcuts');
+    assertCandidateFileContains(candidate, 'src/app/session/hooks/use-prompt-actions.ts', [
+      "'opl-skill': async",
+      'const prompt = `$${skill}',
+      'submitPromptText(prompt)',
+    ], 'OPL Skill slash action handler');
     assertCandidateFileContains(candidate, 'src/components/desktop-onboarding-overlay.tsx', [
       'One Person Lab 模型访问',
       'OPENAI_API_KEY',
