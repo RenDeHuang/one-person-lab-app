@@ -728,7 +728,7 @@ jobs:
               package_metadata_url: registryMetadataUrl,
               status_code: Number.isFinite(registryStatusCode) ? registryStatusCode : null,
               response_path: 'codex-package-registry-response.json',
-              npm_view,
+              npm_view: npmView,
               metadata_request: registryResponse,
             },
             tarball: {

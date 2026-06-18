@@ -135,6 +135,8 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.match(job, /codex-npm-cache/);
   assert.match(job, /npm[\s\S]*view[\s\S]*@openai\/codex@latest[\s\S]*version[\s\S]*dist\.tarball/);
   assert.match(job, /registry[\s\S]*status_code/);
+  assert.match(job, /npm_view:\s+npmView/);
+  assert.doesNotMatch(job, /\bnpm_view,/);
   assert.match(job, /package[\s\S]*version/);
   assert.match(job, /tarball_url_host/);
   assert.match(job, /tarball[\s\S]*sha256/);
