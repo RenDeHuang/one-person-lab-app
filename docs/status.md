@@ -292,9 +292,9 @@ decision. None of these phases changes the active release shell by itself.
 The current `hermes-codex` state is Phase 1 implementation and technical
 verification. Current local evidence shows the candidate adapter can build and
 exercise a fixture Codex app-server path, and the `2026-06-18` Tart VM smoke
-for `artifacts/hermes-candidate-tart-20260618T120035Z/summary.json` proves the
+for `artifacts/hermes-candidate-tart-20260618T123825Z/summary.json` proves the
 current packaged candidate fixture path in a clean VM cohort
-(`opl-hermes-candidate-2026-06-18T12-00-35-801Z`, guest IP `192.168.64.3`).
+(`opl-hermes-candidate-2026-06-18T12-38-37-375Z`, guest IP `192.168.64.4`).
 MAS/MAG/RCA are Codex
 Skill/Plugin entries: ordinary users invoke them through composer slash
 shortcuts such as `/mas` or explicit `$mas` prompt text, while Settings may show
