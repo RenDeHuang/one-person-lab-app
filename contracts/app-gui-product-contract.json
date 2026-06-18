@@ -440,7 +440,8 @@
     "purpose_entries_visible": [
       "research",
       "grant",
-      "ppt"
+      "ppt",
+      "book"
     ],
     "workspace_session_rail_default_state": "collapsed",
     "right_context_inspector_default_state": "collapsed",
@@ -526,7 +527,8 @@
     "required_for_assistants": [
       "mas",
       "mag",
-      "rca"
+      "rca",
+      "bookforge"
     ],
     "route_kind": "builtin_capability",
     "executor": "codex_cli",
@@ -617,6 +619,14 @@
       "target_assistant_short_name": "RCA",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start"
+    },
+    {
+      "id": "book",
+      "primary_label": "写书",
+      "target_assistant_id": "bookforge",
+      "target_assistant_short_name": "BookForge",
+      "display_policy": "purpose_first",
+      "home_entry_policy": "visible_click_to_start"
     }
   ],
   "default_assistants": [
@@ -645,6 +655,15 @@
       "home_purpose_label": "演示",
       "home_entry_display_policy": "purpose_first",
       "role": "presentation_and_visual_deliverable_agent",
+      "home_entry_policy": "purpose_entry_target"
+    },
+    {
+      "id": "bookforge",
+      "display_name": "OPL BookForge",
+      "short_name": "BookForge",
+      "home_purpose_label": "写书",
+      "home_entry_display_policy": "purpose_first",
+      "role": "book_authoring_agent",
       "home_entry_policy": "purpose_entry_target"
     }
   ],
@@ -685,6 +704,20 @@
       "optional_skills": [
         "officecli-pptx",
         "ui-ux-pro-max"
+      ],
+      "required_skill_policy": "checked_locked",
+      "optional_skill_policy": "unchecked_user_selectable",
+      "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
+    },
+    {
+      "assistant_id": "bookforge",
+      "required_skills": [
+        "opl-bookforge"
+      ],
+      "optional_skills": [
+        "officecli-docx",
+        "pdf",
+        "mineru-document-extractor"
       ],
       "required_skill_policy": "checked_locked",
       "optional_skill_policy": "unchecked_user_selectable",
@@ -1094,7 +1127,7 @@
       "assistant_source_ref": "default_assistants",
       "purpose_entry_source_ref": "home_purpose_entries",
       "assistant_skill_profile_source_ref": "assistant_skill_profiles",
-      "hero_prompt": "把研究、基金和汇报交给 One Person Lab 自动推进",
+      "hero_prompt": "把研究、基金、汇报和写书交给 One Person Lab 自动推进",
       "model_status": {
         "value_source": "default_session_profile.model + default_session_profile.reasoning_effort",
         "display_value": "GPT-5.5（超高）",
@@ -1111,7 +1144,7 @@
         "Codex model selector defaults to GPT-5.5（超高）",
         "default model and reasoning status GPT-5.5（超高）",
         "conversation pending elapsed seconds while Codex is working",
-        "purpose-first assistants Research/Grant/Presentation as click-to-start entries",
+        "purpose-first assistants Research/Grant/Presentation/Book as click-to-start entries",
         "selected assistant shown as a compact @ purpose tag",
         "selected assistant keeps purpose entry switcher visible",
         "assistant-scoped skill menu with required skill checked",

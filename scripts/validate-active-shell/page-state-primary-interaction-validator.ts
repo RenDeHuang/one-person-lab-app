@@ -82,14 +82,14 @@ function validateGuidHomeLayout(homeViewModel) {
 }
 
 function validateGuidHomeDefaultAssistants(homeViewModel) {
-  assertIncludesAll(homeViewModel.default_assistants, ['mas', 'mag', 'rca'], 'Guid home page default assistants');
+  assertIncludesAll(homeViewModel.default_assistants, ['mas', 'mag', 'rca', 'bookforge'], 'Guid home page default assistants');
   if (homeViewModel.default_assistants?.includes('oma')) {
     throw new Error('Guid home page must not include OMA as a default assistant');
   }
   const requiredSkills = homeViewModel.default_assistant_required_skills ?? {};
   assertDeepEqualJson(
-    ['mas', 'mag', 'rca'].map((assistant) => requiredSkills[assistant]),
-    [['mas'], ['mag'], ['rca']],
+    ['mas', 'mag', 'rca', 'bookforge'].map((assistant) => requiredSkills[assistant]),
+    [['mas'], ['mag'], ['rca'], ['opl-bookforge']],
     'Guid home page required assistant skills',
   );
 }
@@ -112,11 +112,11 @@ function validateGuidHomeRouteAndPurpose(homeViewModel) {
     'Guid home page route receipt fields',
   );
   const homePurposeEntries = homeViewModel.home_purpose_entries ?? [];
-  if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
-    throw new Error('Guid home page must expose research, grant, and ppt purpose entries');
+  if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
+    throw new Error('Guid home page must expose research, grant, ppt, and book purpose entries');
   }
-  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
-    throw new Error('Guid home page purpose entries must target MAS, MAG, and RCA');
+  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+    throw new Error('Guid home page purpose entries must target MAS, MAG, RCA, and BookForge');
   }
 }
 
@@ -125,7 +125,7 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'Codex CLI fixed executor experience',
     'Codex model selector defaulting to GPT-5.5（超高）',
     'default model and reasoning status GPT-5.5（超高）',
-    'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA',
+    'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/BookForge',
     'selected assistant keeps purpose entry switcher visible',
     'assistant-scoped skill menu with required skill checked',
     'ordinary skill selector filtered to App-owned assistant profile skill allowlist',

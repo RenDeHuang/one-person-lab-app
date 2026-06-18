@@ -64,6 +64,12 @@ export const domainExposureEntries = [
     preferred_app_distribution: 'plugin_packaged_skill',
   },
   {
+    domain_id: 'bookforge',
+    home_purpose_entry: 'book',
+    codex_visible_entry: 'opl-bookforge',
+    preferred_app_distribution: 'opl_generated_codex_plugin_surface',
+  },
+  {
     domain_id: 'oma',
     home_purpose_entry: null,
     codex_visible_entry: 'opl-meta-agent',
@@ -126,7 +132,7 @@ export const appOwnedHomeLayout = {
   composer_position: 'pinned_bottom',
   composer_primary: true,
   workspace_selector_visible: true,
-  purpose_entries_visible: ['research', 'grant', 'ppt'],
+  purpose_entries_visible: ['research', 'grant', 'ppt', 'book'],
   workspace_session_rail_default_state: 'collapsed',
   right_context_inspector_default_state: 'collapsed',
   must_not_show: [

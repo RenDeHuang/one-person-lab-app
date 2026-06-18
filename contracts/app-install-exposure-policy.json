@@ -60,21 +60,24 @@
       "members": [
         "mas",
         "mag",
-        "rca"
+        "rca",
+        "opl-bookforge"
       ],
       "default_app_visible": true,
       "sync_target": "codex_plugin_registry",
       "must_not_sync_to": [
         "~/.codex/skills/mas",
         "~/.codex/skills/mag",
-        "~/.codex/skills/rca"
+        "~/.codex/skills/rca",
+        "~/.codex/skills/opl-bookforge"
       ]
     },
     {
       "id": "opl_generated_plugin_surfaces",
       "owner": "one-person-lab",
       "members": [
-        "opl-meta-agent"
+        "opl-meta-agent",
+        "opl-bookforge"
       ],
       "default_app_visible": false,
       "sync_target": "opl_generated_codex_plugin_surface",
@@ -152,6 +155,16 @@
       "preferred_app_distribution": "plugin_packaged_skill",
       "direct_skill_semantics_required": true,
       "canonical_metadata_source": "domain_action_catalog_and_stage_control_plane"
+    },
+    {
+      "domain_id": "bookforge",
+      "display_name": "OPL BookForge",
+      "home_purpose_entry": "book",
+      "default_home_visible": true,
+      "codex_visible_entry": "opl-bookforge",
+      "preferred_app_distribution": "opl_generated_codex_plugin_surface",
+      "direct_skill_semantics_required": true,
+      "canonical_metadata_source": "opl_generated_interface_contract_pack"
     },
     {
       "domain_id": "oma",
@@ -500,15 +513,18 @@
       "mas",
       "mag",
       "rca",
-      "oma"
+      "oma",
+      "bookforge"
     ],
     "default_plugin_agent_ids": [
       "mas",
       "mag",
-      "rca"
+      "rca",
+      "bookforge"
     ],
     "generated_plugin_agent_ids": [
-      "oma"
+      "oma",
+      "bookforge"
     ],
     "fail_closed_states": [
       "dirty_managed_checkout",
@@ -526,7 +542,8 @@
       "mas",
       "mag",
       "rca",
-      "oma"
+      "oma",
+      "bookforge"
     ],
     "non_module_workflow_plugin_ids": [
       "opl-flow"
@@ -541,7 +558,7 @@
         "validated_plugin_roots",
         "validated_codex_skills_root"
       ],
-      "codex_skills_root_validation_scope": "fail if mas, mag, or rca exists as a bare Codex skill mirror at <codex_skills_root>/<agent_id>/SKILL.md"
+      "codex_skills_root_validation_scope": "fail if mas, mag, rca, or opl-bookforge exists as a bare Codex skill mirror at <codex_skills_root>/<codex_visible_entry>/SKILL.md"
     },
     "agents": [
       {
@@ -599,23 +616,41 @@
         "sync_command": "opl connect sync-skills",
         "product_entry_manifest": "family-product-entry-manifest-v2",
         "canonical_metadata_source": "opl_generated_interface_contract_pack"
+      },
+      {
+        "agent_id": "bookforge",
+        "display_name": "OPL BookForge",
+        "default_home_visible": true,
+        "preferred_distribution": "opl_generated_codex_plugin_surface",
+        "codex_visible_entry": "opl-bookforge",
+        "module_id": "oplbookforge",
+        "repo_name": "opl-bookforge",
+        "plugin_registry_required": true,
+        "direct_skill_compatibility_required": true,
+        "plugin_must_package_skill": false,
+        "must_not_create_second_semantics": true,
+        "sync_command": "opl connect sync-skills",
+        "product_entry_manifest": "family-product-entry-manifest-v2",
+        "canonical_metadata_source": "opl_generated_interface_contract_pack",
+        "authority_boundary": "bookforge_owns_book_truth_quality_export_publication_and_owner_receipts; app_and_opl_generated_surfaces_must_not_claim_production_ready"
       }
     ],
-      "managed_agent_pack_distribution": {
-        "channel_id": "opl_distribution_cohort",
-        "default_transport": "app_cli_managed_background_maintenance",
-        "default_update_mode": "silent_background",
-        "default_manifest_tag": "latest",
-        "post_update_sync_required": [
-          "codex_plugin_registry",
-          "plugin_packaged_skills",
-          "opl_generated_plugin_surface"
-        ],
-        "package_agent_ids": [
-          "mas",
-          "mag",
+    "managed_agent_pack_distribution": {
+      "channel_id": "opl_distribution_cohort",
+      "default_transport": "app_cli_managed_background_maintenance",
+      "default_update_mode": "silent_background",
+      "default_manifest_tag": "latest",
+      "post_update_sync_required": [
+        "codex_plugin_registry",
+        "plugin_packaged_skills",
+        "opl_generated_plugin_surface"
+      ],
+      "package_agent_ids": [
+        "mas",
+        "mag",
         "rca",
-        "oma"
+        "oma",
+        "bookforge"
       ],
       "activation_commands": [
         "opl connect reconcile-modules",

@@ -310,8 +310,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     assertCommandSurface(pages[pageId].state_source, 'opl app state --profile fast --json', `App GUI ${pageId} state source`);
     assertCommandSurface(pages[pageId].refresh_source, 'opl app state --profile fast --json', `App GUI ${pageId} refresh source`);
   }
-  if (!pages.guid_home.must_show?.includes('purpose-first assistants Research/Grant/Presentation as click-to-start entries')) {
-    throw new Error('App GUI home must show purpose-first Research/Grant/Presentation entries');
+  if (!pages.guid_home.must_show?.includes('purpose-first assistants Research/Grant/Presentation/Book as click-to-start entries')) {
+    throw new Error('App GUI home must show purpose-first Research/Grant/Presentation/Book entries');
   }
   if (!pages.guid_home.must_show?.includes('selected assistant shown as a compact @ purpose tag')) {
     throw new Error('App GUI home must show selected assistant as a compact @ purpose tag');

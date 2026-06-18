@@ -58,8 +58,8 @@ The App page-state matrix is declared in
 `contracts/app-first-run-test-matrix.json`.
 The App GUI product contract is declared in
 `contracts/app-gui-product-contract.json`; `validate-active-shell.ts --quick`
-checks the Codex CLI fixed executor, purpose-first Research/Grant/Presentation
-home entries routed to MAS/MAG/RCA, hidden home-path executor/provider/permission
+checks the Codex CLI fixed executor, purpose-first Research/Grant/Presentation/Book
+home entries routed to MAS/MAG/RCA/BookForge, hidden home-path executor/provider/permission
 selectors with App-owned Codex model selector/status, home prompt, App-owned
 ordinary Settings navigation for General, Access, Agents & Capabilities, Local
 Environment, Appearance, Advanced, and About & Updates, legacy upstream route

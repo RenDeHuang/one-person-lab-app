@@ -103,14 +103,14 @@ function validateProductProfileCodexDefaults(profile) {
 
 function validateHomeAssistantDefaults(profile) {
   const homePurposeEntries = profile.gui.home.home_purpose_entries ?? [];
-  if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
-    throw new Error('Product profile GUI home must expose research, grant, and ppt purpose entries');
+  if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
+    throw new Error('Product profile GUI home must expose research, grant, ppt, and book purpose entries');
   }
-  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
-    throw new Error('Product profile GUI home purpose entries must target MAS, MAG, and RCA');
+  if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+    throw new Error('Product profile GUI home purpose entries must target MAS, MAG, RCA, and BookForge');
   }
-  if (JSON.stringify((profile.gui.default_assistants ?? []).map((assistant) => assistant.id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
-    throw new Error('Product profile default assistants must be MAS, MAG, and RCA only');
+  if (JSON.stringify((profile.gui.default_assistants ?? []).map((assistant) => assistant.id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+    throw new Error('Product profile default assistants must be MAS, MAG, RCA, and BookForge');
   }
   for (const assistant of profile.gui.default_assistants ?? []) {
     if (assistant.home_entry_policy !== 'purpose_entry_target' || assistant.home_entry_display_policy !== 'purpose_first') {
@@ -143,13 +143,20 @@ function validateProductProfileSettings(profile) {
 
 function validateAssistantSkillProfiles(profile) {
   const productSkillProfiles = profile.gui.assistant_skill_profiles ?? [];
-  if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
-    throw new Error('Product profile assistant skill profiles must target MAS, MAG, and RCA');
+  if (JSON.stringify(productSkillProfiles.map((entry) => entry.assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+    throw new Error('Product profile assistant skill profiles must target MAS, MAG, RCA, and BookForge');
   }
   const defaultPackagedSkillIds = new Set(profile.companion_payloads?.default_packaged_codex_skill_ids ?? []);
+  const requiredSkillByAssistantId = {
+    mas: 'mas',
+    mag: 'mag',
+    rca: 'rca',
+    bookforge: 'opl-bookforge',
+  };
   for (const entry of productSkillProfiles) {
-    if (JSON.stringify(entry.required_skills) !== JSON.stringify([entry.assistant_id])) {
-      throw new Error(`Product profile assistant ${entry.assistant_id} must require its matching skill`);
+    const requiredSkill = requiredSkillByAssistantId[entry.assistant_id];
+    if (!requiredSkill || JSON.stringify(entry.required_skills) !== JSON.stringify([requiredSkill])) {
+      throw new Error(`Product profile assistant ${entry.assistant_id} must require its App-declared matching skill`);
     }
     if (entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible') {
       throw new Error(`Product profile assistant ${entry.assistant_id} has invalid home skill menu policy`);

@@ -854,7 +854,7 @@
       "forbidden_inferences": [
         "stable/latest promotion from draft evidence bundle alone",
         "family production readiness from App release/user-path evidence",
-        "MAS/MAG/RCA domain readiness from App release/user-path evidence",
+        "MAS/MAG/RCA/BookForge domain readiness from App release/user-path evidence",
         "runtime truth from App UI rendering"
       ]
     }

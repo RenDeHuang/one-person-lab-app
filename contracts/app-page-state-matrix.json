@@ -65,7 +65,8 @@
           "purpose_entries_visible": [
             "research",
             "grant",
-            "ppt"
+            "ppt",
+            "book"
           ],
           "workspace_session_rail_default_state": "collapsed",
           "right_context_inspector_default_state": "collapsed",
@@ -90,12 +91,14 @@
         "default_assistants": [
           "mas",
           "mag",
-          "rca"
+          "rca",
+          "bookforge"
         ],
         "default_assistant_purpose_labels": {
           "mas": "科研",
           "mag": "基金",
-          "rca": "演示"
+          "rca": "演示",
+          "bookforge": "写书"
         },
         "default_assistant_required_skills": {
           "mas": [
@@ -106,6 +109,9 @@
           ],
           "rca": [
             "rca"
+          ],
+          "bookforge": [
+            "opl-bookforge"
           ]
         },
         "ordinary_visible_mcp_server_ids": [],
@@ -133,9 +139,17 @@
             "target_assistant_short_name": "RCA",
             "display_policy": "purpose_first",
             "home_entry_policy": "visible_click_to_start"
+          },
+          {
+            "id": "book",
+            "primary_label": "写书",
+            "target_assistant_id": "bookforge",
+            "target_assistant_short_name": "BookForge",
+            "display_policy": "purpose_first",
+            "home_entry_policy": "visible_click_to_start"
           }
         ],
-        "hero_prompt": "把研究、基金和汇报交给 One Person Lab 自动推进",
+        "hero_prompt": "把研究、基金、汇报和写书交给 One Person Lab 自动推进",
         "activity_center": {
           "authority": "app_owned_home_minimal_command_surface",
           "source": "not_rendered_on_ordinary_home",
@@ -160,7 +174,7 @@
         "Codex model selector defaulting to GPT-5.5（超高）",
         "default model and reasoning status GPT-5.5（超高）",
         "conversation pending elapsed seconds while Codex is working",
-        "purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA",
+        "purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/BookForge",
         "selected assistant shown as a compact @ purpose tag",
         "selected assistant keeps purpose entry switcher visible",
         "assistant-scoped skill menu with required skill checked",

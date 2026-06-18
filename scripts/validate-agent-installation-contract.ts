@@ -10,9 +10,12 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const policyPath = path.join(appRoot, 'contracts', 'app-install-exposure-policy.json');
 const profilePath = path.join(appRoot, 'contracts', 'app-product-profile.json');
 const packageJsonPath = path.join(appRoot, 'package.json');
-const expectedPluginAgentIds = ['mas', 'mag', 'rca'];
-const expectedGeneratedAgentIds = ['oma'];
-const expectedRequiredAgentIds = [...expectedPluginAgentIds, ...expectedGeneratedAgentIds];
+const expectedDefaultPluginAgentIds = ['mas', 'mag', 'rca', 'bookforge'];
+const expectedRepoPackagedPluginAgentIds = ['mas', 'mag', 'rca'];
+const expectedGeneratedAgentIds = ['oma', 'bookforge'];
+const expectedRequiredAgentIds = ['mas', 'mag', 'rca', 'oma', 'bookforge'];
+const expectedDefaultVisibleDomainSkillIds = ['mas', 'mag', 'rca', 'opl-bookforge'];
+const expectedGeneratedPluginSkillIds = ['opl-meta-agent', 'opl-bookforge'];
 const expectedCompanionSkillSyncIds = [
   'superpowers',
   'cron',
@@ -172,10 +175,10 @@ function validateNoDuplicateBareDomainSkills(root: string | null): string | null
   if (!fs.existsSync(root)) {
     fail(`Codex skills root does not exist: ${root}`);
   }
-  for (const agentId of expectedPluginAgentIds) {
-    const skillPath = path.join(root, agentId, 'SKILL.md');
+  for (const skillId of expectedDefaultVisibleDomainSkillIds) {
+    const skillPath = path.join(root, skillId, 'SKILL.md');
     if (fs.existsSync(skillPath)) {
-      fail(`${agentId} must not be mirrored as a bare Codex skill at ${skillPath}`);
+      fail(`${skillId} must not be mirrored as a bare Codex skill at ${skillPath}`);
     }
   }
   return root;
@@ -231,7 +234,7 @@ function validateAgentInstallationContract(policy: any): any {
     duplicate_bare_skill_policy: 'forbid_domain_plugin_skill_mirrors',
   }, 'agent contract');
   assertArrayEqual(contract.required_agent_ids, expectedRequiredAgentIds, 'required agent ids');
-  assertArrayEqual(contract.default_plugin_agent_ids, expectedPluginAgentIds, 'default plugin agent ids');
+  assertArrayEqual(contract.default_plugin_agent_ids, expectedDefaultPluginAgentIds, 'default plugin agent ids');
   assertArrayEqual(contract.generated_plugin_agent_ids, expectedGeneratedAgentIds, 'generated plugin agent ids');
   assertArrayEqual(contract.fail_closed_states, expectedFailClosedStates, 'agent contract fail closed states');
   assertArrayEqual(policy.sync_and_install_contract?.fail_closed_states, expectedFailClosedStates, 'sync fail closed states');
@@ -274,6 +277,7 @@ function validatePluginRegistrationInputs(contract: any): void {
     plugin_root_flag: '--agent-root <agent_id>=<path>',
     codex_skills_root_flag: '--codex-skills-root <path>',
     default_live_codex_skills_root: '~/.codex/skills',
+    codex_skills_root_validation_scope: 'fail if mas, mag, rca, or opl-bookforge exists as a bare Codex skill mirror at <codex_skills_root>/<codex_visible_entry>/SKILL.md',
   }, 'agent validation inputs');
   assertArrayEqual(
     contract.plugin_registration_validation_inputs?.validated_output_fields,
@@ -284,21 +288,22 @@ function validatePluginRegistrationInputs(contract: any): void {
 
 function validateExposureClasses(policy: any, contract: any): void {
   const domainPluginClass = findExposureClass(policy, 'family_domain_plugin_surfaces');
-  assertArrayEqual(domainPluginClass.members, expectedPluginAgentIds, 'domain plugin exposure members');
+  assertArrayEqual(domainPluginClass.members, expectedDefaultVisibleDomainSkillIds, 'domain plugin exposure members');
   assertEqual(domainPluginClass.sync_target, contract.codex_plugin_registry_target, 'domain plugin sync target');
   assertArrayEqual(domainPluginClass.must_not_sync_to, [
     '~/.codex/skills/mas',
     '~/.codex/skills/mag',
     '~/.codex/skills/rca',
+    '~/.codex/skills/opl-bookforge',
   ], 'domain plugin forbidden sync targets');
 
   const generatedClass = findExposureClass(policy, 'opl_generated_plugin_surfaces');
-  assertArrayEqual(generatedClass.members, ['opl-meta-agent'], 'generated plugin exposure members');
+  assertArrayEqual(generatedClass.members, expectedGeneratedPluginSkillIds, 'generated plugin exposure members');
   assertEqual(generatedClass.sync_target, 'opl_generated_codex_plugin_surface', 'generated plugin sync target');
 
   const companionClass = findExposureClass(policy, 'companion_skill_sync');
   assertArrayEqual(companionClass.members, expectedCompanionSkillSyncIds, 'companion skill sync members');
-  for (const agentId of expectedPluginAgentIds) {
+  for (const agentId of expectedRepoPackagedPluginAgentIds) {
     if (companionClass.members.includes(agentId)) {
       fail(`companion skill sync must not include domain plugin ${agentId}`);
     }
@@ -308,18 +313,18 @@ function validateExposureClasses(policy: any, contract: any): void {
 function validateProfileCompanionPayloads(profile: any): void {
   const companionPayloads = profile.companion_payloads;
   assertArrayFieldsEqual(companionPayloads, {
-    domain_plugin_skill_ids: expectedPluginAgentIds,
+    domain_plugin_skill_ids: expectedDefaultVisibleDomainSkillIds,
     companion_skill_sync_default_ids: expectedCompanionSkillSyncIds,
   }, 'profile companion payloads');
   assertEqual(companionPayloads?.domain_plugin_skills_must_not_be_companion_mirrors, true, 'profile domain plugin mirror guard');
   assertArrayFieldsInclude(companionPayloads, {
-    default_packaged_codex_skill_ids: expectedPluginAgentIds,
+    default_packaged_codex_skill_ids: expectedDefaultVisibleDomainSkillIds,
     packaged_not_default_visible_codex_skill_ids: ['opl-meta-agent'],
   }, 'profile companion payloads');
 }
 
 function validateAgentInstallEntries(policy: any, contract: any, agentRoots: AgentRootMap): void {
-  for (const agentId of expectedPluginAgentIds) {
+  for (const agentId of expectedRepoPackagedPluginAgentIds) {
     const exposure = findDomainExposure(policy, agentId);
     const installAgent = findInstallAgent(contract, agentId);
     assertEqual(exposure.preferred_app_distribution, 'plugin_packaged_skill', `${agentId} exposure distribution`);
@@ -338,6 +343,22 @@ function validateAgentInstallEntries(policy: any, contract: any, agentRoots: Age
       `${agentId} canonical metadata source`,
     );
   }
+
+  const bookforgeExposure = findDomainExposure(policy, 'bookforge');
+  const bookforgeInstallAgent = findInstallAgent(contract, 'bookforge');
+  assertEqual(bookforgeExposure.default_home_visible, true, 'BookForge default visibility');
+  assertEqual(bookforgeExposure.preferred_app_distribution, 'opl_generated_codex_plugin_surface', 'BookForge exposure distribution');
+  assertEqual(bookforgeExposure.codex_visible_entry, 'opl-bookforge', 'BookForge Codex visible entry');
+  assertEqual(bookforgeInstallAgent.preferred_distribution, 'opl_generated_codex_plugin_surface', 'BookForge install distribution');
+  assertEqual(bookforgeInstallAgent.module_id, 'oplbookforge', 'BookForge module id');
+  assertEqual(bookforgeInstallAgent.plugin_registry_required, true, 'BookForge plugin registry policy');
+  assertEqual(bookforgeInstallAgent.plugin_must_package_skill, false, 'BookForge plugin packaging policy');
+  assertEqual(bookforgeInstallAgent.codex_visible_entry, 'opl-bookforge', 'BookForge Codex visible entry');
+  assertEqual(
+    bookforgeInstallAgent.canonical_metadata_source,
+    'opl_generated_interface_contract_pack',
+    'BookForge canonical metadata source',
+  );
 
   const omaExposure = findDomainExposure(policy, 'oma');
   const omaInstallAgent = findInstallAgent(contract, 'oma');
@@ -364,8 +385,10 @@ console.log(JSON.stringify({
   status: 'passed',
   surface_id: 'opl_app_agent_installation_contract_validation',
   checked_agents: expectedRequiredAgentIds,
-  plugin_agents: expectedPluginAgentIds,
+  plugin_agents: expectedDefaultPluginAgentIds,
+  default_visible_domain_skills: expectedDefaultVisibleDomainSkillIds,
   generated_plugin_agents: expectedGeneratedAgentIds,
+  generated_plugin_skills: expectedGeneratedPluginSkillIds,
   validated_plugin_roots: Object.fromEntries(agentRoots),
   validated_codex_skills_root: validatedCodexSkillsRoot,
 }, null, 2));

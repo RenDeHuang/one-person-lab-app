@@ -187,7 +187,7 @@ infrastructure repair，而不是 manuscript 或 deliverable progress。
 OPL App 增加普通 Codex App 不需要的证据要求：
 
 - Built-in assistant selection 创建 route receipts。
-- Packaged GUI route smoke 必须证明 MAS/MAG/RCA entries 和 receipts。
+- Packaged GUI route smoke 必须证明 MAS/MAG/RCA/BookForge entries 和 receipts。
 - Release evidence 必须保持 cohort-bound。
 - First-run evidence 必须区分 Core launch readiness 与 Full maintenance。
 - Screenshot evidence 只证明产品 evidence，不证明 domain readiness。
@@ -269,7 +269,7 @@ OPL-specific GUI modules：
 
 | Module | App 角色 | Authority owner |
 | --- | --- | --- |
-| Purpose router | MAS/MAG/RCA purpose selection 和 route receipts | App contract 消费 Framework/domain ids |
+| Purpose router | MAS/MAG/RCA/BookForge purpose selection 和 route receipts | App contract 消费 Framework/domain ids |
 | Chat bridge | Codex turns、streaming、prompts 和 refs | App contract 下的 Codex/App shell implementation |
 | Runtime panel | Summary、progress、blockers、safe actions | OPL Framework read models/actions |
 | Capability panel | Purpose skill profiles 和 packaged companion skills | App install/exposure contract 加 domain skills |
@@ -317,7 +317,7 @@ Hermes 的长期方向是 upstream-first OPL customization：先回官方 Hermes
 功能基线，以 `apps/desktop` 为明确参考系，跟随其成熟 GUI、Electron packaging、
 files/previews/tool output/settings、i18n 等能力，再把 OPL 的品牌、简体中文/英文
 copy、图标、OPL App-managed first-run、模型访问 API key 配置、Codex executor
-route、MAS/MAG/RCA Codex Skill 入口、runtime refs 和 release 边界作为薄 delta 接入。
+route、MAS/MAG/RCA/BookForge purpose routing、runtime refs 和 release 边界作为薄 delta 接入。
 Hermes 采用三阶段路线：Phase 1 做 compatibility firewall，Phase 2 做 OPL branded
 Codex experience，Phase 3 才做 full OPL product profile 和 adoption 评估。Hermes
 第一版只做 minimal adapter：

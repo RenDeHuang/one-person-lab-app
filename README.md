@@ -9,7 +9,7 @@
 <h1 align="center">One Person Lab App</h1>
 
 <p align="center"><strong>A chat-first desktop AI app for complex knowledge work</strong></p>
-<p align="center">Start research, grants, presentations, and general tasks from one app; track progress, resume long-running work, and inspect deliverables.</p>
+<p align="center">Start research, grants, presentations, books, and general tasks from one app; track progress, resume long-running work, and inspect deliverables.</p>
 
 <!--
 Owner: `one-person-lab-app`
@@ -30,16 +30,16 @@ AI is already strong at answering questions and generating content. The harder p
 - How far did the previous task get?
 - Which files were produced, and what still needs review?
 - Is the background work still running, and where did it stop if it failed?
-- Can research, grant, and presentation agents live behind one clear entry point?
+- Can research, grant, presentation, and book-writing agents live behind one clear entry point?
 
 **One Person Lab App is that entry point.** It packages One Person Lab, professional agents, and companion tools into a desktop app for complex knowledge work.
 
-It does not reduce research, grants, and presentations to a row of buttons. It brings start, resume, progress, files, and blockers into one product experience. Users do not need to know which professional agent is working behind the scenes; they need to see where the task stands, what was produced, what is missing, and how to continue.
+It does not reduce research, grants, presentations, and books to a row of buttons. It brings start, resume, progress, files, and blockers into one product experience. Users do not need to know which professional agent is working behind the scenes; they need to see where the task stands, what was produced, what is missing, and how to continue.
 
 ## Core Highlights
 
 **One entry point for professional AI work**<br/>
-Enter general work, medical research, grant writing, and presentation preparation from the desktop app instead of jumping across commands, repositories, and tools.
+Enter general work, medical research, grant writing, presentation preparation, and book writing from the desktop app instead of jumping across commands, repositories, and tools.
 
 **Visible progress for long tasks**<br/>
 The app shows task progress, files, runtime status, and recoverable work context. When you come back, you can see what happened, what was produced, and whether anything needs human attention.
@@ -48,10 +48,10 @@ The app shows task progress, files, runtime status, and recoverable work context
 New macOS users can start with the complete first-install package, open the App first, and let background maintenance prepare the framework, professional agents, skills, and tool payloads.
 
 **Professional agents with clear roles**<br/>
-Research Foundry, Grant Foundry, and Presentation Foundry focus on different deliverables. Users get one interface while each agent keeps its own professional boundary.
+Research Foundry, Grant Foundry, Presentation Foundry, and Book Foundry focus on different deliverables. Users get one interface while each agent keeps its own professional boundary.
 
 **Professional AI keeps professional room**<br/>
-The App makes entries, progress, files, and delivery usable. Medical research, grant writing, and visual-delivery judgment remain with the corresponding professional agents. When work enters a professional stage, users can watch AI read material, compare options, accept review, keep revising, and produce the next deliverable version.
+The App makes entries, progress, files, and delivery usable. Medical research, grant writing, visual-delivery, and book-writing judgment remain with the corresponding professional agents. When work enters a professional stage, users can watch AI read material, compare options, accept review, keep revising, and produce the next deliverable version.
 
 **Built for daily use and long-running work**<br/>
 The app is not just for one chat. It supports work that needs multiple rounds, background maintenance, recovery after failure, and continuing delivery.
@@ -153,8 +153,8 @@ For Docker or server deployment, see the [Docker/WebUI install guide](https://gi
 
 One Person Lab App is the daily chat-first desktop entry point for users:
 
-- Enter general work, medical research, grant writing, and presentation preparation from one desktop interface.
-- Enter Research Foundry, Grant Foundry, and Presentation Foundry.
+- Enter general work, medical research, grant writing, presentation preparation, and book writing from one desktop interface.
+- Enter Research Foundry, Grant Foundry, Presentation Foundry, and Book Foundry.
 - View progress, files, runtime status, and recoverable work context for continuing long tasks and inspecting deliverables.
 - Complete the minimum first-run setup before the user starts, then let fuller runtime and professional-agent payloads continue as background maintenance.
 - Offer Homebrew, direct download, and complete first-install package paths.
@@ -166,16 +166,16 @@ One Person Lab App is the daily chat-first desktop entry point for users:
 2. Open `One Person Lab.app`.
 3. Let first launch complete the basic setup; the app shows preparation progress and the next step.
 4. Choose a workspace directory.
-5. Start general work or enter Research, Grant, or Presentation Foundry.
+5. Start general work or enter Research, Grant, Presentation, or Book Foundry.
 6. Use progress, files, and runtime status views to continue work and inspect deliverables.
 
 ## Product Boundaries
 
-One Person Lab App owns the desktop product experience: packaging, releases, updates, first-run setup, GUI state, screenshots, and user documentation. It proves whether a user can install, open, start work, see progress, and inspect files. Medical research, grant writing, and visual-delivery quality remain with the corresponding professional agents and human decisions.
+One Person Lab App owns the desktop product experience: packaging, releases, updates, first-run setup, GUI state, screenshots, and user documentation. It proves whether a user can install, open, start work, see progress, and inspect files. Medical research, grant writing, visual-delivery quality, and book-writing quality remain with the corresponding professional agents and human decisions.
 
-The App decides what users see during install, first launch, task entry, and settings. One Person Lab Framework provides the runtime, initialization, and progress data behind those views, while MAS, MAG, and RCA keep their professional judgment and deliverables. The App turns those capabilities into a desktop product experience without replacing professional-agent judgment.
+The App decides what users see during install, first launch, task entry, and settings. One Person Lab Framework provides the runtime, initialization, and progress data behind those views, while MAS, MAG, RCA, and BookForge keep their professional judgment and deliverables. The App turns those capabilities into a desktop product experience without replacing professional-agent judgment.
 
-New OPL series agents such as OPL BookForge remain explicit repo/framework surfaces until App-owned contracts, release evidence, and product-owner decisions admit them into default App entries.
+OPL BookForge is admitted into the App-owned default Home and Codex-visible skill surface through product contracts and active-shell validation. That default visibility supports the user entry point; it does not authorize production-ready book-writing, publication approval, owner acceptance, or hosted runtime parity claims.
 
 GUI product truth is App-owned as well. AionUI, `agui-codex`, PilotDeck, and similar references are implementation or inspiration material; the user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
 
@@ -256,8 +256,8 @@ boundaries, updater visibility, Homebrew cask policy, Runtime page bridge
 behavior, App-managed skill/plugin exposure, and release validation gates.
 
 The OPL Framework still produces install/sync/read-model surfaces, runtime
-state, and action execution. MAS/MAG/RCA/OMA keep domain skill semantics,
-quality/export judgment, artifact authority, and owner receipts. Release scripts
+state, and action execution. MAS/MAG/RCA/BookForge/OMA keep domain skill semantics,
+quality/export/publication judgment, artifact authority, and owner receipts. Release scripts
 sync App-owned product contracts into the active shell before packaging so the
 shell consumes App truth instead of defining it.
 
@@ -271,7 +271,7 @@ The GUI definition stack starts with the shell-independent ideal interaction spe
 
 ### Agent / Framework Boundary
 
-- The App displays next steps, blockers, files, and status from OPL route and progress projections, but those views are not MAS/MAG/RCA domain verdicts.
+- The App displays next steps, blockers, files, and status from OPL route and progress projections, but those views are not MAS/MAG/RCA/BookForge domain verdicts.
 - Foundry Agent work still happens inside each agent's stage attempts. The App does not prescribe which tools a professional agent must use or in what order it must think.
 - Tool and skill entries are capability entries from the App's perspective. Permission, credential, write-scope, and quality-judgment boundaries remain governed by Framework and domain-agent contracts and receipts.
 

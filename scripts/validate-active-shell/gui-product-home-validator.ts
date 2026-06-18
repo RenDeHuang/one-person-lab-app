@@ -6,8 +6,14 @@ import {
 } from './app-contract-constants.ts';
 import { validateGuiProductAuthority } from './gui-product-authority-validator.ts';
 
-const defaultAssistantIds = ['mas', 'mag', 'rca'];
-const purposeEntryIds = ['research', 'grant', 'ppt'];
+const defaultAssistantIds = ['mas', 'mag', 'rca', 'bookforge'];
+const purposeEntryIds = ['research', 'grant', 'ppt', 'book'];
+const requiredSkillByAssistantId = {
+  mas: 'mas',
+  mag: 'mag',
+  rca: 'rca',
+  bookforge: 'opl-bookforge',
+};
 const rightInspectorExpected = {
   placement: 'right',
   default_state: 'collapsed',
@@ -114,8 +120,9 @@ function validateAssistantSkillProfiles(guiContract) {
     'App GUI contract assistant skill profiles',
   );
   for (const profile of skillProfiles) {
-    if (JSON.stringify(profile.required_skills) !== JSON.stringify([profile.assistant_id])) {
-      throw new Error(`App GUI assistant ${profile.assistant_id} must require its matching skill`);
+    const requiredSkill = requiredSkillByAssistantId[profile.assistant_id];
+    if (!requiredSkill || JSON.stringify(profile.required_skills) !== JSON.stringify([requiredSkill])) {
+      throw new Error(`App GUI assistant ${profile.assistant_id} must require its App-declared matching skill`);
     }
     if (
       profile.required_skill_policy !== 'checked_locked' ||

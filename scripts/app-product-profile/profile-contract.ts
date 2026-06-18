@@ -14,6 +14,7 @@ const requiredDefaultPackagedSkillIds = [
   'mas',
   'mag',
   'rca',
+  'opl-bookforge',
   'superpowers',
   'cron',
   'officecli',
@@ -329,14 +330,14 @@ function assertHomeCodexProfileShape(profile: AppProductProfile): void {
 
 function assertHomePurposeEntries(profile: AppProductProfile): void {
   const purposeEntries = profile.gui.home.home_purpose_entries ?? [];
-  if (JSON.stringify(purposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt'])) {
-    throw new Error('App product profile GUI home must expose exactly research, grant, and ppt purpose entries');
+  if (JSON.stringify(purposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
+    throw new Error('App product profile GUI home must expose exactly research, grant, ppt, and book purpose entries');
   }
-  if (JSON.stringify(purposeEntries.map((entry) => entry.primary_label)) !== JSON.stringify(['科研', '基金', '演示'])) {
-    throw new Error('App product profile GUI home purpose labels must be 科研, 基金, 演示');
+  if (JSON.stringify(purposeEntries.map((entry) => entry.primary_label)) !== JSON.stringify(['科研', '基金', '演示', '写书'])) {
+    throw new Error('App product profile GUI home purpose labels must be 科研, 基金, 演示, 写书');
   }
-  if (JSON.stringify(purposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca'])) {
-    throw new Error('App product profile GUI home purpose entries must route to MAS, MAG, and RCA');
+  if (JSON.stringify(purposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+    throw new Error('App product profile GUI home purpose entries must route to MAS, MAG, RCA, and BookForge');
   }
   for (const entry of purposeEntries) {
     if (entry.display_policy !== 'purpose_first' || entry.home_entry_policy !== 'visible_click_to_start') {
@@ -381,14 +382,14 @@ function assertHomeActivityCenterPolicy(profile: AppProductProfile): void {
 
 function assertDefaultAssistantProfileShape(profile: AppProductProfile): void {
   const defaultAssistantIds = profile.gui.default_assistants?.map((assistant) => assistant.id) ?? [];
-  if (JSON.stringify(defaultAssistantIds) !== JSON.stringify(['mas', 'mag', 'rca'])) {
-    throw new Error('App product profile default home assistants must be MAS, MAG, and RCA only');
+  if (JSON.stringify(defaultAssistantIds) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+    throw new Error('App product profile default home assistants must be MAS, MAG, RCA, and BookForge');
   }
   const purposeLabels = profile.gui.default_assistants?.map((assistant) => assistant.home_purpose_label) ?? [];
-  if (JSON.stringify(purposeLabels) !== JSON.stringify(['科研', '基金', '演示'])) {
+  if (JSON.stringify(purposeLabels) !== JSON.stringify(['科研', '基金', '演示', '写书'])) {
     throw new Error('App product profile default assistants must expose purpose-first home labels');
   }
-  for (const assistantId of ['mas', 'mag', 'rca']) {
+  for (const assistantId of ['mas', 'mag', 'rca', 'bookforge']) {
     if (!defaultAssistantIds.includes(assistantId)) {
       throw new Error(`App product profile missing default assistant ${assistantId}`);
     }
@@ -553,4 +554,3 @@ export function readAppProductProfile(profilePath = appProductProfilePath): AppP
   assertProfileShape(profile);
   return profile;
 }
-

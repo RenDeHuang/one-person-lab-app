@@ -323,7 +323,7 @@ manifest validator, release artifacts, release owner records, and release
 workflow outputs own the artifact classes and evidence fields for each cohort.
 This status file keeps only the authority boundary: current-source or local smoke
 evidence does not update a published cohort, does not promote stable/latest, and
-does not prove MAS/MAG/RCA domain readiness or OPL family production readiness.
+does not prove MAS/MAG/RCA/BookForge domain readiness or OPL family production readiness.
 
 Dated local smoke, candidate, current-source release, and migration notes are
 compressed under `docs/history/process/`, with no-resurrection rules in
