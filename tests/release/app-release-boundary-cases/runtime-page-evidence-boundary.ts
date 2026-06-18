@@ -359,7 +359,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     composer_position: 'pinned_bottom',
     composer_primary: true,
     workspace_selector_visible: true,
-    purpose_entries_visible: ['research', 'grant', 'ppt'],
+    purpose_entries_visible: ['research', 'grant', 'ppt', 'book'],
     workspace_session_rail_default_state: 'collapsed',
     right_context_inspector_default_state: 'collapsed',
     must_not_show: [
@@ -405,15 +405,31 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'assistant_short_name',
     'source',
   ]);
-  assert.deepEqual(guidHomePage.home_view_model.default_assistants, ['mas', 'mag', 'rca']);
+  assert.deepEqual(guidHomePage.home_view_model.default_assistants, ['mas', 'mag', 'rca', 'bookforge']);
   assert.deepEqual(guidHomePage.home_view_model.default_assistant_required_skills, {
     mas: ['mas'],
     mag: ['mag'],
     rca: ['rca'],
+    bookforge: ['opl-bookforge'],
   });
-  assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt']);
-  assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示']);
-  assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca']);
+  assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.id), [
+    'research',
+    'grant',
+    'ppt',
+    'book',
+  ]);
+  assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.primary_label), [
+    '科研',
+    '基金',
+    '演示',
+    '写书',
+  ]);
+  assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.target_assistant_id), [
+    'mas',
+    'mag',
+    'rca',
+    'bookforge',
+  ]);
   assert.ok(guidHomePage.home_view_model.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
   assert.equal(guidHomePage.home_view_model.activity_center.authority, 'app_owned_home_minimal_command_surface');
   assert.equal(guidHomePage.home_view_model.activity_center.source, 'not_rendered_on_ordinary_home');
@@ -433,7 +449,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'Codex model selector defaulting to GPT-5.5（超高）',
     'default model and reasoning status GPT-5.5（超高）',
     'conversation pending elapsed seconds while Codex is working',
-    'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA',
+    'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/BookForge',
     'selected assistant keeps purpose entry switcher visible',
     'assistant-scoped skill menu with required skill checked',
     'workspace selector',
