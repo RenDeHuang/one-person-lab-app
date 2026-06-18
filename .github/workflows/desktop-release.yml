@@ -176,6 +176,7 @@ jobs:
       - name: Download standard build artifacts
         uses: actions/download-artifact@v8
         with:
+          name: macos-build-arm64
           path: build-artifacts
 
       - name: Prepare standard release assets
@@ -424,7 +425,7 @@ jobs:
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
-      release_artifact_name: macos-build-arm64
+      release_artifact_name: macos-build-arm64-dmg
       package_profile: standard
       shell_ref: ${{ inputs.shell_ref }}
     secrets: inherit
@@ -436,7 +437,7 @@ jobs:
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
-      release_artifact_name: macos-build-arm64
+      release_artifact_name: macos-build-arm64-dmg
       package_profile: standard
       shell_ref: ${{ inputs.shell_ref }}
     secrets: inherit
@@ -461,7 +462,7 @@ jobs:
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
-      release_artifact_name: opl-full-first-install-${{ inputs.opl_version }}-mac-arm64
+      release_artifact_name: opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64
       package_profile: full
       shell_ref: ${{ inputs.shell_ref }}
       guide_screenshots: ${{ inputs.guide_screenshots }}
@@ -542,7 +543,7 @@ jobs:
           if-no-files-found: error
 
   docker-webui-smoke:
-    name: Run Docker WebUI smoke
+    name: Run Docker WebUI smoke and stage GHCR publish
     needs: publish-standard
     if: ${{ inputs.run_vm_smoke }}
     runs-on: ubuntu-latest
@@ -559,59 +560,7 @@ jobs:
           ref: ${{ inputs.shell_ref || 'main' }}
           path: shells/aionui
 
-      - name: Build and verify Docker WebUI
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker build \
-            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
-            -t "one-person-lab-webui:${{ inputs.opl_version }}" \
-            shells/aionui
-          docker image inspect "one-person-lab-webui:${{ inputs.opl_version }}" \
-            --format '{{.Size}}' > /tmp/opl-webui-image-size-bytes.txt
-          container="$(docker run --rm -d -p 127.0.0.1::3000 "one-person-lab-webui:${{ inputs.opl_version }}")"
-          cleanup() {
-            docker rm -f "$container" >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-          port="$(docker port "$container" 3000/tcp | sed -E 's/.*:([0-9]+)$/\1/')"
-          for attempt in $(seq 1 60); do
-            if curl -fsS "http://127.0.0.1:${port}/" >/tmp/opl-webui-index.html; then
-              break
-            fi
-            sleep 2
-          done
-          curl -fsS "http://127.0.0.1:${port}/manifest.webmanifest" >/tmp/opl-webui-manifest.webmanifest
-
-      - name: Upload Docker WebUI smoke artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: docker-webui-smoke-${{ inputs.opl_version }}
-          path: |
-            /tmp/opl-webui-index.html
-            /tmp/opl-webui-manifest.webmanifest
-            /tmp/opl-webui-image-size-bytes.txt
-          if-no-files-found: error
-
-  webui-ghcr-publish:
-    name: Publish WebUI GHCR image
-    needs: docker-webui-smoke
-    if: ${{ inputs.run_vm_smoke }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-
-    steps:
-      - name: Checkout App repo
-        uses: actions/checkout@v6
-
-      - name: Checkout active shell
-        uses: actions/checkout@v6
-        with:
-          repository: gaofeng21cn/opl-aion-shell
-          ref: ${{ inputs.shell_ref || 'main' }}
-          path: shells/aionui
-
-      - name: Build and publish WebUI image
+      - name: Build, verify, and publish Docker WebUI
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -632,6 +581,11 @@ jobs:
             tags: ['${{ inputs.opl_version }}', 'stable', 'latest'],
             draft_candidate_push: false,
             source_repository: 'https://github.com/${GITHUB_REPOSITORY}',
+            build_reuse: {
+              mode: 'same_job_after_docker_webui_smoke',
+              source_gate: 'docker-webui-smoke',
+              repeated_docker_build: false,
+            },
             package_access_required: {
               package_url: 'https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui/settings',
               required_actions_access_repository: 'gaofeng21cn/one-person-lab-app',
@@ -650,6 +604,22 @@ jobs:
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             -t "one-person-lab-webui:${{ inputs.opl_version }}" \
             shells/aionui
+          docker image inspect "one-person-lab-webui:${{ inputs.opl_version }}" \
+            --format '{{.Size}}' > /tmp/opl-webui-image-size-bytes.txt
+          container="$(docker run --rm -d -p 127.0.0.1::3000 "one-person-lab-webui:${{ inputs.opl_version }}")"
+          cleanup() {
+            docker rm -f "$container" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          port="$(docker port "$container" 3000/tcp | sed -E 's/.*:([0-9]+)$/\1/')"
+          for attempt in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:${port}/" >/tmp/opl-webui-index.html; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS "http://127.0.0.1:${port}/manifest.webmanifest" >/tmp/opl-webui-manifest.webmanifest
+
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:${{ inputs.opl_version }}"
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:stable"
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:latest"
@@ -659,20 +629,33 @@ jobs:
             exit 0
           fi
 
-          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          if ! printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin; then
+            write_publish_summary "failed" "ghcr_login_failed" "GHCR login failed before pushing one-person-lab-webui tags."
+            exit 0
+          fi
           if ! docker push "${ghcr_image}:${{ inputs.opl_version }}"; then
             write_publish_summary "failed" "ghcr_write_package_denied" "GHCR push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
-            exit 1
+            exit 0
           fi
           if ! docker push "${ghcr_image}:stable"; then
             write_publish_summary "failed" "ghcr_write_package_denied" "GHCR stable tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
-            exit 1
+            exit 0
           fi
           if ! docker push "${ghcr_image}:latest"; then
             write_publish_summary "failed" "ghcr_write_package_denied" "GHCR latest tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
-            exit 1
+            exit 0
           fi
           write_publish_summary "published"
+
+      - name: Upload Docker WebUI smoke artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-webui-smoke-${{ inputs.opl_version }}
+          path: |
+            /tmp/opl-webui-index.html
+            /tmp/opl-webui-manifest.webmanifest
+            /tmp/opl-webui-image-size-bytes.txt
+          if-no-files-found: error
 
       - name: Upload WebUI GHCR publish summary
         if: ${{ always() }}
@@ -681,6 +664,45 @@ jobs:
           name: webui-ghcr-publish-${{ inputs.opl_version }}
           path: /tmp/opl-webui-ghcr-publish.json
           if-no-files-found: error
+
+  webui-ghcr-publish:
+    name: Verify WebUI GHCR publish
+    needs: docker-webui-smoke
+    if: ${{ inputs.run_vm_smoke }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Download WebUI GHCR publish summary
+        uses: actions/download-artifact@v8
+        with:
+          name: webui-ghcr-publish-${{ inputs.opl_version }}
+          path: webui-ghcr-publish
+
+      - name: Verify WebUI GHCR publish summary
+        shell: bash
+        env:
+          RELEASE_MODE: ${{ inputs.release_mode }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const summary = JSON.parse(fs.readFileSync('webui-ghcr-publish/opl-webui-ghcr-publish.json', 'utf8'));
+          const releaseMode = process.env.RELEASE_MODE;
+          if (releaseMode === 'draft_candidate') {
+            if (summary.status !== 'draft_not_pushed' || summary.draft_candidate_push !== false) {
+              throw new Error(`Draft WebUI GHCR publish summary is invalid: ${summary.status}`);
+            }
+            process.exit(0);
+          }
+          if (summary.status !== 'published') {
+            const message = summary.error?.message || `WebUI GHCR publish status is ${summary.status}`;
+            throw new Error(message);
+          }
+          NODE
 
   operator-evidence-bundle-validation:
     name: Validate operator evidence bundle

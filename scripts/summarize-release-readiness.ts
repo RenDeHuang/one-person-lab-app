@@ -781,6 +781,7 @@ function buildSummary(options: Options) {
         image: payload.image,
         tags,
         draft_candidate_push: payload.draft_candidate_push ?? null,
+        build_reuse: payload.build_reuse ?? null,
         package_access_required: payload.package_access_required ?? null,
         error: payload.error ?? null,
       };

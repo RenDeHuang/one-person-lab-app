@@ -89,6 +89,7 @@ jobs:
       - name: Download standard build artifacts
         uses: actions/download-artifact@v8
         with:
+          name: macos-build-arm64
           path: build-artifacts
 
       - name: Prepare standard release assets

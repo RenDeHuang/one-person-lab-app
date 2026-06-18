@@ -11,6 +11,9 @@ This guide is the release operator map, not a proof ledger. It states the releas
 The `v26.6.12` same-tag refresh and timing profile is archived at
 `docs/history/process/2026-06-12-stable-release-profile.md`; use it as
 provenance only, not as current release authority.
+The `v26.6.18` candidate/promote timing profile is archived at
+`docs/history/process/2026-06-18-stable-release-profile.md`; use it as
+post-release tuning provenance only, not as current release authority.
 
 The App repository owns desktop packaging, release assets, updater metadata, release evidence validation, user-facing release notes, GUI smoke, and App-owned release gates. OPL Framework owns runtime/update kernel behavior and module maintenance. MAS/MAG/RCA/OMA own domain truth, artifact authority, quality/export verdicts, owner receipts, and typed blockers.
 
@@ -37,6 +40,11 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 | Homebrew | Cask transport and index for standard and explicit Full first-install packages. | Published release assets, matching local authorization policy asset, tap update output, Homebrew VM smoke where required. |
 | WebUI/GHCR | App-owned image publication lane when release contract enables it. | OCI source label, package access, publish output, image smoke/evidence artifacts. |
 | Managed runtime/toolchain update | Framework-runner channel for runtime toolchain and managed agent packages. | OPL update runner receipts, lock/runner status, repair/rollback status, post-apply sync status. |
+
+The Stable WebUI path builds the image once in the Docker smoke lane, verifies
+the image locally, publishes that same image to GHCR, and leaves the GHCR lane
+as a summary-verifier gate. Do not add a second Stable Docker build just to
+separate smoke and publish reporting.
 
 ## Preflight
 
@@ -112,6 +120,16 @@ forwarding, and recording the configured values. The App first-run matrix
 requires Codex install command preview, stdout, stderr, exit code, phase
 timings, shell summary timeout fields, and install asset preseed diagnostics
 from `tart-smoke-summary.json` or a shell companion diagnostics artifact.
+The VM wrapper performs a shallow sparse checkout of the active shell `scripts/`
+directory because it executes only the host Tart smoke helper and its
+same-directory guest smoke helper. If the active shell smoke depends on other
+shell files, widen the checkout and update release-boundary validation in the
+same commit.
+Stable release VM gates consume same-run DMG-only artifacts
+(`macos-build-arm64-dmg` and
+`opl-full-first-install-dmg-<version>-mac-arm64`) while publish jobs keep using
+the complete build/package artifacts. Do not route Full or Standard publish
+through the DMG-only handoff artifact.
 
 ## Standard Updater
 

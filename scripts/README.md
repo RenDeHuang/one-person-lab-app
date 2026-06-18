@@ -22,6 +22,7 @@ verification can select a different linked shell repo with
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
 | `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates, Stable candidate-record promotion, and post-release `docs/user-guides` screenshot/source/artifact refresh with `npm run docs:macos-guide`. |
 | `closeout-release-run.ts` | Powers the default desktop release `release-closeout-<version>` artifact and local reruns; reads only final small release summaries, writes `release-closeout.json/md`, separates GitHub Actions workflow wall time from Agent orchestration wall time, and points the operator at candidate blockers, failed gates, promotion, or log inspection. |
+| `summarize-github-actions-timing.ts` | Profiles one or more `gh run view --json ...jobs` payloads, including multi-run span, failed/canceled run tax, slow jobs, slow steps, and the operator-loop gap when an Agent wall-time clock is supplied. |
 | `summarize-release-readiness.ts` | Aggregates small Stable gate artifacts and job results into `release-readiness-summary.json` and Markdown without downloading large DMG artifacts. |
 | `validate-release-candidate-record.ts` | Validates or summarizes `release-candidate-record.json`; promotion requires schema `opl_release_candidate_record.v1`, matching version, `status=ready_to_promote`, and `decision.can_promote=true`. |
 | `analyze-full-package-size.ts` | Reads `full-package-manifest.json` and reports Full runtime component/layer size, budget use, and optional runtime-root top entries. |
@@ -81,6 +82,7 @@ npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts artifacts/herme
 npm run release:plan -- --version <version> --profile nightly
 npm run release:plan -- --version <version> --include-full-package
 npm run release:closeout -- --version <version> --run-id <github-actions-run-id> --artifact-profile diagnostics --agent-wall-time <duration>
+npm run release:actions-timing -- --run-id <github-actions-run-id> --run-id <promote-run-id> --agent-wall-time <duration> --output actions-timing.json --markdown actions-timing.md
 npm run release:readiness-summary -- --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --artifacts-dir <downloaded-small-artifacts-dir> --job-results release-readiness-job-results.json --output release-readiness-summary.json --markdown release-readiness-summary.md
 npm run release:candidate-record -- --version <version> --release-mode new_release --preflight release-preflight-summary.json --readiness release-readiness-summary.json --remote-verification remote-release-verification.json --release-owner-receipt-ref <release_owner_receipt_ref>
 npm run release:candidate-record:validate -- --version <version> --record release-candidate-record.json
@@ -162,7 +164,11 @@ replace it with broad tap trust or a bare cask token in release gates.
 Release workflows pass a same-run workflow artifact for the DMG so draft
 candidates do not depend on GitHub Release draft visibility. The release tag
 stays in the preflight summary as provenance and remote release verification
-remains the published-asset gate. These profiles fix the logical display at
+remains the published-asset gate. Stable release workflows pass DMG-only
+same-run artifacts (`macos-build-arm64-dmg` and
+`opl-full-first-install-dmg-<version>-mac-arm64`) into VM gates while retaining
+the complete standard and Full artifacts for publish jobs. These profiles fix
+the logical display at
 `1920x1080px`, sweep packaged Settings pages, and write profile-scoped artifacts
 named `opl-first-run-vm-<profile>-<run_id>`. The Full
 profile uses live `opl system initialize --json` output as the pre-`/guid`
@@ -210,6 +216,11 @@ their concurrency key. Do not collapse standard, Homebrew, and Full VM gates
 into one manual group; GitHub keeps only one pending job per concurrency group,
 which would cancel one Stable install lane before it can produce readiness
 evidence.
+The VM workflow checks out only the active shell `scripts/` directory with a
+shallow checkout, because the App wrapper calls only
+`scripts/opl-first-run-tart-smoke.mjs` and its same-directory guest smoke
+helper. If that smoke helper starts depending on other shell paths, update the
+workflow checkout and the release-boundary check in the same change.
 
 `.github/workflows/nightly-standard-release.yml` is the standard-only Nightly
 publisher. It reuses the standard build workflow, prepares and validates
@@ -282,6 +293,14 @@ workflow telemetry and diagnostics, or `--artifact-profile readiness-inputs`
 when rebuilding the full readiness diagnosis locally. Pass
 `--agent-wall-time <duration>` only for the operator loop clock; GitHub Actions
 workflow wall time is always computed from run timestamps.
+
+Use `release:actions-timing` when the question is release efficiency across
+multiple failed, canceled, and successful GitHub Actions runs. It reads
+`gh run view --json ...jobs` output, reports total multi-run span,
+failed/canceled run tax, top jobs, top steps, and the operator-loop gap outside
+the Actions span when `--agent-wall-time` is supplied. It is a profiling tool;
+it does not replace release readiness, candidate records, owner receipts, or
+published asset verification.
 
 No-watch readback:
 
