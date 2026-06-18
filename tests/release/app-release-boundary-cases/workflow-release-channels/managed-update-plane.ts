@@ -57,6 +57,33 @@ test('runtime toolchain updater is a separate silent App-owned channel', () => {
   assert.ok(runtimeUpdater.verification.clean_machine_installability_must_not_regress);
 });
 
+test('local data lifecycle separates updater cache cleanup from user artifact retention', () => {
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const lifecycle = releaseContract.local_data_lifecycle;
+
+  assert.equal(lifecycle.owner, 'one-person-lab-app');
+  assert.equal(lifecycle.policy_surface, 'Settings / Updates & Maintenance');
+  assert.equal(lifecycle.user_data_silent_delete_allowed, false);
+  assert.equal(lifecycle.updater_cache.owner, 'active_shell');
+  assert.equal(lifecycle.updater_cache.cache_dir, '~/Library/Caches/one-person-lab-aion-shell-updater');
+  assert.equal(lifecycle.updater_cache.auto_cleanup, 'startup_and_before_install');
+  assert.deepEqual(lifecycle.updater_cache.keep, [
+    'pending/update-info.json',
+    'currently_selected_update_package',
+  ]);
+  assert.deepEqual(lifecycle.updater_cache.delete, [
+    'stale update.zip',
+    'stale pending/*.zip',
+    'stale platform installer packages',
+  ]);
+  assert.equal(lifecycle.conversation_artifacts.default_policy, 'retain_until_user_cleanup_or_archive');
+  assert.equal(lifecycle.conversation_artifacts.silent_delete_allowed, false);
+  assert.equal(lifecycle.runtime_toolchain.default_policy, 'retain_current_and_declared_rollback_runtime');
+  assert.equal(lifecycle.logs.default_policy, 'bounded_rotation_or_user_cleanup');
+});
+
 test('managed update plane unifies updater status while preserving adapter authority boundaries', () => {
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),

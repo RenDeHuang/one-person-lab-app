@@ -79,6 +79,43 @@
       "homebrew_or_global_tool_upgrade"
     ]
   },
+  "local_data_lifecycle": {
+    "owner": "one-person-lab-app",
+    "policy_surface": "Settings / Updates & Maintenance",
+    "user_data_silent_delete_allowed": false,
+    "updater_cache": {
+      "owner": "active_shell",
+      "implementation": "shells/aionui/packages/desktop/src/process/services/autoUpdateCacheCleanup.ts",
+      "cache_dir": "~/Library/Caches/one-person-lab-aion-shell-updater",
+      "auto_cleanup": "startup_and_before_install",
+      "keep": [
+        "pending/update-info.json",
+        "currently_selected_update_package"
+      ],
+      "delete": [
+        "stale update.zip",
+        "stale pending/*.zip",
+        "stale platform installer packages"
+      ],
+      "rule": "Updater cache cleanup may delete stale downloaded installer packages, but must preserve pending recovery metadata and the currently selected update package until install is applied or replaced."
+    },
+    "conversation_artifacts": {
+      "default_policy": "retain_until_user_cleanup_or_archive",
+      "silent_delete_allowed": false,
+      "future_safe_cleanup_surface": "Settings / Storage",
+      "rule": "Conversation work directories, results, papers, baselines, reports, and narrative/intermediate deliverables are user artifacts. The App must not silently delete them before a user-visible archive or cleanup action exists."
+    },
+    "runtime_toolchain": {
+      "default_policy": "retain_current_and_declared_rollback_runtime",
+      "owner_ref": "contracts/app-release-channel.json#runtime_toolchain_updater",
+      "rule": "Runtime/toolchain cleanup follows the managed runtime pointer and rollback policy, not the Electron standard updater cache policy."
+    },
+    "logs": {
+      "default_policy": "bounded_rotation_or_user_cleanup",
+      "silent_delete_allowed": false,
+      "rule": "Logs may be bounded or cleaned through a user-visible maintenance action, but log cleanup must not be used as proof that user artifacts were retained or removed."
+    }
+  },
   "runtime_toolchain_updater": {
     "owner": "one-person-lab-app",
     "role": "app_owned_runtime_fallback_and_toolchain_layer_updates",

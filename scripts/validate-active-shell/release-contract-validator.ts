@@ -9,10 +9,50 @@ import {
 
 export function validateReleaseChannelContract(releaseChannel) {
   const managedUpdatePlane = releaseChannel.managed_update_plane;
+  validateLocalDataLifecycle(releaseChannel.local_data_lifecycle);
   validateManagedUpdatePlane(managedUpdatePlane);
   validateReleaseRuntimeToolchainUpdater(releaseChannel.runtime_toolchain_updater, managedUpdatePlane);
   validateReleaseHomebrewDistribution(releaseChannel, managedUpdatePlane);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
+}
+
+function validateLocalDataLifecycle(lifecycle) {
+  if (
+    lifecycle?.owner !== 'one-person-lab-app' ||
+    lifecycle?.policy_surface !== 'Settings / Updates & Maintenance' ||
+    lifecycle?.user_data_silent_delete_allowed !== false
+  ) {
+    throw new Error('Release channel must declare App-owned local data lifecycle without silent user-data deletion');
+  }
+  if (
+    lifecycle.updater_cache?.owner !== 'active_shell' ||
+    lifecycle.updater_cache?.implementation !==
+      'shells/aionui/packages/desktop/src/process/services/autoUpdateCacheCleanup.ts' ||
+    lifecycle.updater_cache?.cache_dir !== '~/Library/Caches/one-person-lab-aion-shell-updater' ||
+    lifecycle.updater_cache?.auto_cleanup !== 'startup_and_before_install'
+  ) {
+    throw new Error('Local data lifecycle must bind updater cache cleanup to the active shell implementation');
+  }
+  assertDeepEqualJson(
+    lifecycle.updater_cache?.keep,
+    ['pending/update-info.json', 'currently_selected_update_package'],
+    'Local data lifecycle updater cache keep set',
+  );
+  assertDeepEqualJson(
+    lifecycle.updater_cache?.delete,
+    ['stale update.zip', 'stale pending/*.zip', 'stale platform installer packages'],
+    'Local data lifecycle updater cache delete set',
+  );
+  if (
+    lifecycle.conversation_artifacts?.default_policy !== 'retain_until_user_cleanup_or_archive' ||
+    lifecycle.conversation_artifacts?.silent_delete_allowed !== false ||
+    lifecycle.runtime_toolchain?.default_policy !== 'retain_current_and_declared_rollback_runtime' ||
+    lifecycle.runtime_toolchain?.owner_ref !== 'contracts/app-release-channel.json#runtime_toolchain_updater' ||
+    lifecycle.logs?.default_policy !== 'bounded_rotation_or_user_cleanup' ||
+    lifecycle.logs?.silent_delete_allowed !== false
+  ) {
+    throw new Error('Local data lifecycle must retain user artifacts and bind runtime/log cleanup to explicit policy surfaces');
+  }
 }
 
 function validateManagedUpdatePlane(managedUpdatePlane) {
