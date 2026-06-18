@@ -46,6 +46,13 @@ export function buildResolvedFullPayloadRefs(options, sources, components) {
       requested_ref: options.metaAgentRef,
       resolved_commit: components.meta_agent?.git_commit ?? readGitHead(options.metaAgentRoot),
     },
+    opl_bookforge: {
+      label: 'OPL BookForge',
+      source_path: options.bookforgeRoot,
+      repository: readGitOriginUrl(options.bookforgeRoot) || 'gaofeng21cn/opl-bookforge',
+      requested_ref: options.bookforgeRef,
+      resolved_commit: components.bookforge?.git_commit ?? readGitHead(options.bookforgeRoot),
+    },
     superpowers: {
       label: 'Superpowers',
       source_path: options.superpowersRoot,

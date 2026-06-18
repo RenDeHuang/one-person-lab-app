@@ -255,6 +255,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         truth_sources: {
           framework_runtime_contracts: 'gaofeng21cn/one-person-lab',
           foundry_agent_domain_truth: 'gaofeng21cn/opl-meta-agent',
+          book_domain_truth: 'gaofeng21cn/opl-bookforge',
           research_domain_truth: 'gaofeng21cn/med-autoscience',
           grant_domain_truth: 'gaofeng21cn/med-autogrant',
           visual_deliverable_domain_truth: 'gaofeng21cn/redcube-ai',
@@ -314,6 +315,13 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         ...normalizeComponent(components.meta_agent),
         role: 'independent_foundry_domain_module',
         truth_owner: components.meta_agent?.truth_owner ?? 'gaofeng21cn/opl-meta-agent',
+        required: true,
+        visible_in_first_run_ui: true,
+      },
+      bookforge: {
+        ...normalizeComponent(components.bookforge),
+        role: 'book_domain_module',
+        truth_owner: components.bookforge?.truth_owner ?? 'gaofeng21cn/opl-bookforge',
         required: true,
         visible_in_first_run_ui: true,
       },

@@ -250,6 +250,7 @@ export function buildDomainLayer(layerRoot, options) {
   copyTreeFiltered(options.magRoot, path.join(layerRoot, 'modules', 'mag'), 'modules/mag');
   copyTreeFiltered(options.rcaRoot, path.join(layerRoot, 'modules', 'rca'), 'modules/rca');
   copyTreeFiltered(options.metaAgentRoot, path.join(layerRoot, 'modules', 'meta-agent'), 'modules/meta-agent');
+  copyTreeFiltered(options.bookforgeRoot, path.join(layerRoot, 'modules', 'bookforge'), 'modules/bookforge');
 }
 
 export function writeDomainMarkers(runtimeRoot, options, packagedAt) {
@@ -279,6 +280,13 @@ export function writeDomainMarkers(runtimeRoot, options, packagedAt) {
     repoName: 'opl-meta-agent',
     sourcePath: options.metaAgentRoot,
     headSha: readGitHead(options.metaAgentRoot),
+    packagedAt,
+  }));
+  writePackagedModuleMarker(path.join(runtimeRoot, 'modules', 'bookforge'), buildPackagedModuleMarker({
+    moduleId: 'oplbookforge',
+    repoName: 'opl-bookforge',
+    sourcePath: options.bookforgeRoot,
+    headSha: readGitHead(options.bookforgeRoot),
     packagedAt,
   }));
 }

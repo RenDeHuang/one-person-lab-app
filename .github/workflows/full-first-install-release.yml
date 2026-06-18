@@ -156,6 +156,13 @@ jobs:
           ref: main
           path: opl-meta-agent
 
+      - name: Checkout OPL BookForge
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-bookforge
+          ref: main
+          path: opl-bookforge
+
       - name: Checkout OfficeCLI
         uses: actions/checkout@v6
         with:
@@ -391,6 +398,7 @@ jobs:
           export OPL_FULL_MAG_ROOT="$GITHUB_WORKSPACE/med-autogrant"
           export OPL_FULL_RCA_ROOT="$GITHUB_WORKSPACE/redcube-ai"
           export OPL_FULL_META_AGENT_ROOT="$GITHUB_WORKSPACE/opl-meta-agent"
+          export OPL_FULL_BOOKFORGE_ROOT="$GITHUB_WORKSPACE/opl-bookforge"
           export OPL_FULL_OFFICECLI_ROOT="$GITHUB_WORKSPACE/OfficeCLI"
           export OPL_FULL_MINERU_ROOT="$GITHUB_WORKSPACE/MinerU-Ecosystem"
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"
@@ -563,6 +571,7 @@ jobs:
           export OPL_FULL_MAG_ROOT="$GITHUB_WORKSPACE/med-autogrant"
           export OPL_FULL_RCA_ROOT="$GITHUB_WORKSPACE/redcube-ai"
           export OPL_FULL_META_AGENT_ROOT="$GITHUB_WORKSPACE/opl-meta-agent"
+          export OPL_FULL_BOOKFORGE_ROOT="$GITHUB_WORKSPACE/opl-bookforge"
           export OPL_FULL_OFFICECLI_ROOT="$GITHUB_WORKSPACE/OfficeCLI"
           export OPL_FULL_MINERU_ROOT="$GITHUB_WORKSPACE/MinerU-Ecosystem"
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"

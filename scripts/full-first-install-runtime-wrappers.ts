@@ -25,6 +25,7 @@ export OPL_MODULE_PATH_MEDAUTOSCIENCE="$RUNTIME_HOME/modules/mas"
 export OPL_MODULE_PATH_MEDAUTOGRANT="$RUNTIME_HOME/modules/mag"
 export OPL_MODULE_PATH_REDCUBE="$RUNTIME_HOME/modules/rca"
 export OPL_MODULE_PATH_OPLMETAAGENT="$RUNTIME_HOME/modules/meta-agent"
+export OPL_MODULE_PATH_OPLBOOKFORGE="$RUNTIME_HOME/modules/bookforge"
 if [[ -n "$PYTHON_BIN" ]]; then
   export PATH="$RUNTIME_HOME/bin:$RUNTIME_HOME/node/bin:$RUNTIME_HOME/uv/bin:$PYTHON_BIN:$PATH"
 else

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 import { readAppProductProfile } from '../app-product-profile.ts';
 import { appRepoRoot } from './paths.ts';
@@ -66,6 +67,17 @@ function metaAgentDomainSkillSource(options) {
   };
 }
 
+function generatedBookforgeSkillSource(options) {
+  const frameworkEntry = path.join(options.frameworkRoot, 'src', 'opl-skills.ts');
+  if (!fs.existsSync(frameworkEntry)) {
+    return null;
+  }
+  return {
+    sourcePath: options.bookforgeRoot,
+    frameworkEntry,
+  };
+}
+
 export function metaAgentSkillSnapshot(options) {
   const source = metaAgentDomainSkillSource(options);
   if (source) {
@@ -80,6 +92,21 @@ export function metaAgentSkillSnapshot(options) {
     path.join(options.metaAgentRoot, 'plugins', 'opl-meta-agent', 'skills', 'opl-meta-agent'),
     path.join(os.homedir(), '.codex', 'skills', 'opl-meta-agent'),
   ], 'skills/opl-meta-agent');
+}
+
+export function bookforgeSkillSnapshot(options) {
+  const source = generatedBookforgeSkillSource(options);
+  if (source) {
+    return {
+      source_path: source.sourcePath,
+      git_commit: readGitHead(source.sourcePath),
+      framework_generator_sha256: fileSha256(source.frameworkEntry),
+    };
+  }
+  return skillSourceSnapshot([
+    path.join(options.bookforgeRoot, 'plugins', 'opl-bookforge', 'skills', 'opl-bookforge'),
+    path.join(os.homedir(), '.codex', 'skills', 'opl-bookforge'),
+  ], 'skills/opl-bookforge');
 }
 
 export function officeCliCoreSkillSnapshot(options) {
@@ -162,6 +189,44 @@ export function copyOplMetaAgentSkill(targetRoot, options) {
   ]);
 }
 
+export function copyOplBookforgeSkill(targetRoot, options) {
+  const generated = generatedBookforgeSkillSource(options);
+  if (generated) {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-bookforge-skill-'));
+    try {
+      const script = `
+        const mod = await import(${JSON.stringify(path.join(options.frameworkRoot, 'src', 'opl-skills.ts'))});
+        const result = mod.syncFamilySkillPackFromRepoRoot('oplbookforge', ${JSON.stringify(options.bookforgeRoot)}, {
+          home: ${JSON.stringify(home)},
+          registerPlugin: false,
+        });
+        process.stdout.write(JSON.stringify(result));
+      `;
+      const generatedResult = spawnSync(
+        process.execPath,
+        ['--experimental-strip-types', '--input-type=module', '--eval', script],
+        { encoding: 'utf8' },
+      );
+      if (generatedResult.status !== 0) {
+        throw new Error(`Failed to generate OPL BookForge skill surface: ${generatedResult.stderr || generatedResult.stdout}`);
+      }
+      const result = JSON.parse(generatedResult.stdout);
+      const generatedSkillPath = result?.installer_result?.generated_codex_plugin?.skill_entry_path;
+      if (!generatedSkillPath || !fs.existsSync(generatedSkillPath)) {
+        throw new Error(`OPL BookForge generated skill surface not found: ${generatedSkillPath ?? 'missing skill_entry_path'}`);
+      }
+      copySkillDirectory(path.dirname(generatedSkillPath), path.join(targetRoot, 'opl-bookforge'), 'opl-bookforge');
+      return generated.sourcePath;
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  }
+  return copyFirstSkillSource('opl-bookforge', targetRoot, [
+    path.join(options.bookforgeRoot, 'plugins', 'opl-bookforge', 'skills', 'opl-bookforge'),
+    path.join(os.homedir(), '.codex', 'skills', 'opl-bookforge'),
+  ]);
+}
+
 export function copySuperpowersBundle(targetRoot, options) {
   const sourceRoot = options.superpowersRoot;
   const skillsRoot = path.join(sourceRoot, 'skills');
@@ -213,6 +278,7 @@ export const packagedSkillCopyHandlers = {
   mas: (targetRoot, options) => copyFirstSkillSource('mas', targetRoot, masSkillCandidates(options)),
   mag: (targetRoot, options) => copyFirstSkillSource('mag', targetRoot, magSkillCandidates(options)),
   rca: (targetRoot, options) => copyFirstSkillSource('rca', targetRoot, rcaSkillCandidates(options)),
+  'opl-bookforge': (targetRoot, options) => copyOplBookforgeSkill(targetRoot, options),
   superpowers: (targetRoot, options) => copySuperpowersBundle(targetRoot, options),
   cron: (targetRoot) => copyFirstSkillSource('cron', targetRoot, appCompanionSkillCandidates('cron')),
   'opl-meta-agent': (targetRoot, options) => copyOplMetaAgentSkill(targetRoot, options),

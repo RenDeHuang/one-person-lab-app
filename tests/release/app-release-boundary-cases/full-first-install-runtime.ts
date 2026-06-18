@@ -45,6 +45,7 @@ function assertFullFirstInstallOptionTables(buildScript: string) {
     '--mag-root',
     '--rca-root',
     '--meta-agent-root',
+    '--bookforge-root',
     '--superpowers-root',
     '--codex-root',
     '--node-bin',
@@ -148,6 +149,7 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
     'gaofeng21cn/med-autogrant',
     'gaofeng21cn/redcube-ai',
     'gaofeng21cn/opl-meta-agent',
+    'gaofeng21cn/opl-bookforge',
     'iOfficeAI/OfficeCLI',
     'opendatalab/MinerU-Ecosystem',
     'nextlevelbuilder/ui-ux-pro-max-skill',
@@ -512,6 +514,10 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     'gaofeng21cn/opl-meta-agent',
   );
   assert.equal(
+    manifest.distribution.payload_boundary.truth_sources.book_domain_truth,
+    'gaofeng21cn/opl-bookforge',
+  );
+  assert.equal(
     manifest.distribution.payload_boundary.truth_sources.grant_domain_truth,
     'gaofeng21cn/med-autogrant',
   );
@@ -751,10 +757,15 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /'agent', 'skills', 'opl-meta-agent-domain-skill\.md'/);
   assert.match(buildScript, /fs\.copyFileSync\(domainSkill, path\.join\(target, 'SKILL\.md'\)\)/);
   assert.match(buildScript, /\['knowledge', 'prompts', 'quality_gates', 'skills', 'stages'\]/);
+  assert.match(buildScript, /function copyOplBookforgeSkill\(targetRoot, options\)/);
+  assert.match(buildScript, /syncFamilySkillPackFromRepoRoot\('oplbookforge'/);
+  assert.match(buildScript, /options\.bookforgeRoot/);
+  assert.match(buildScript, /copySkillDirectory\(path\.dirname\(generatedSkillPath\), path\.join\(targetRoot, 'opl-bookforge'\), 'opl-bookforge'\)/);
   assert.match(buildScript, /function copySuperpowersBundle\(targetRoot, options\)/);
   assert.match(buildScript, /path\.join\(sourceRoot, 'skills'\)/);
   assert.match(buildScript, /path\.join\(skillsRoot, 'using-superpowers', 'SKILL\.md'\)/);
   assert.match(buildScript, /superpowers: \(targetRoot, options\) => copySuperpowersBundle\(targetRoot, options\)/);
+  assert.match(buildScript, /'opl-bookforge': \(targetRoot, options\) => copyOplBookforgeSkill\(targetRoot, options\)/);
   assert.match(buildScript, /superpowers_fingerprint: directoryFingerprint\(options\.superpowersRoot, 'skills\/superpowers'\)/);
   assert.match(fullWorkflow, /repository: obra\/superpowers/);
   assert.match(fullWorkflow, /path: superpowers/);
@@ -772,6 +783,8 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(buildScript, /function masSkillCandidates\(options\)[\s\S]*options\.masRoot[\s\S]*\.codex', 'skills', 'mas'/);
   assert.match(buildScript, /copyFirstSkillSource\('mas', targetRoot, masSkillCandidates\(options\)\)/);
   assert.match(buildScript, /meta_agent_skill_source: metaAgentSkillSnapshot\(options\)/);
+  assert.match(buildScript, /bookforge_skill_source: bookforgeSkillSnapshot\(options\)/);
+  assert.match(buildScript, /bookforge_commit: readGitHead\(options\.bookforgeRoot\)/);
   assert.match(buildScript, /cron_skill_source: skillSourceSnapshot\(appCompanionSkillCandidates\('cron'\), 'skills\/cron'\)/);
   assert.match(buildScript, /pdf_skill_source: skillSourceSnapshot\(appCompanionSkillCandidates\('pdf'\), 'skills\/pdf'\)/);
   assert.match(buildScript, /mineru_document_extractor_source: skillSourceSnapshot\(mineruDocumentExtractorSkillCandidates\(options\), 'skills\/mineru-document-extractor'\)/);
@@ -794,6 +807,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_MEDAUTOGRANT="\$RUNTIME_HOME\/modules\/mag"/);
   assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_REDCUBE="\$RUNTIME_HOME\/modules\/rca"/);
   assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_OPLMETAAGENT="\$RUNTIME_HOME\/modules\/meta-agent"/);
+  assert.match(fullRuntimeWrapperScript, /OPL_MODULE_PATH_OPLBOOKFORGE="\$RUNTIME_HOME\/modules\/bookforge"/);
   assert.match(fullRuntimeWrapperScript, /OPL_TEMPORAL_ADDRESS="\\\$\{OPL_TEMPORAL_ADDRESS:-127\.0\.0\.1:7233\}"/);
   assert.match(fullRuntimeWrapperScript, /OPL_TEMPORAL_NAMESPACE="\\\$\{OPL_TEMPORAL_NAMESPACE:-default\}"/);
   assert.match(fullRuntimeWrapperScript, /OPL_TEMPORAL_TASK_QUEUE="\\\$\{OPL_TEMPORAL_TASK_QUEUE:-opl-stage-attempts\}"/);

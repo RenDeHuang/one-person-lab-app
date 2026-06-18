@@ -161,6 +161,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(fullWorkflow, /name: Checkout OPL Meta Agent/);
   assert.match(fullWorkflow, /repository: gaofeng21cn\/opl-meta-agent/);
   assert.match(fullWorkflow, /path: opl-meta-agent/);
+  assert.match(fullWorkflow, /name: Checkout OPL BookForge/);
+  assert.match(fullWorkflow, /repository: gaofeng21cn\/opl-bookforge/);
+  assert.match(fullWorkflow, /path: opl-bookforge/);
   assert.match(fullWorkflow, /name: Checkout MinerU Ecosystem/);
   assert.match(fullWorkflow, /repository: opendatalab\/MinerU-Ecosystem/);
   assert.match(fullWorkflow, /path: MinerU-Ecosystem/);
@@ -171,6 +174,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(fullWorkflow, /MinerU-Ecosystem\/cli\/mineru-open-api\/cmd\.version=\$mineru_version/);
   assert.match(fullWorkflow, /echo "\$HOME\/go\/bin" >> "\$GITHUB_PATH"/);
   assert.match(fullWorkflow, /OPL_FULL_META_AGENT_ROOT="\$GITHUB_WORKSPACE\/opl-meta-agent"/);
+  assert.match(fullWorkflow, /OPL_FULL_BOOKFORGE_ROOT="\$GITHUB_WORKSPACE\/opl-bookforge"/);
   assert.match(fullWorkflow, /OPL_FULL_MINERU_OPEN_API_BIN/);
   assert.match(fullWorkflow, /assets\/companion-skills\/mineru-document-extractor/);
   assert.match(fullPackageScript, /assets', 'companion-skills', 'mineru-document-extractor/);

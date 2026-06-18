@@ -41,6 +41,7 @@ function main() {
     ['MAG root', options.magRoot],
     ['RCA root', options.rcaRoot],
     ['OPL Meta Agent root', options.metaAgentRoot],
+    ['OPL BookForge root', options.bookforgeRoot],
     ['Superpowers root', options.superpowersRoot],
   ]) {
     requirePath(source, label);
