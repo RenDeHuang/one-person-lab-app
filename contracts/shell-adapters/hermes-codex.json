@@ -36,7 +36,7 @@
     ],
     "extension_points": {
       "codex": "fixed ordinary executor route through Hermes openai-codex plus codex_app_server defaults",
-      "mas": "agent and purpose route extension through Hermes skills.external_dirs and later App-owned route receipts",
+      "mas": "Codex Skill/Plugin/MCP extension through Hermes skills.external_dirs and Codex app-server structured skill input",
       "policy": "extension points must not replace the complete Hermes backend or own OPL runtime truth"
     },
     "ordinary_user_experience": "wrapped Codex App experience on top of Hermes Desktop",
@@ -78,28 +78,28 @@
   },
   "agent_route_contract": {
     "owner": "one-person-lab-app",
-    "route_authority": "App-owned purpose route declaration only; runtime and domain truth remain in OPL Framework and domain repos",
+    "route_authority": "App-owned Codex Skill declaration only; Codex remains the invocation authority and runtime/domain truth remain in OPL Framework and domain repos",
     "ordinary_entries": [
       {
         "id": "mas",
         "label": "科研",
-        "route": "purpose:research",
+        "route": "codex-skill:mas",
         "authority": "med-autoscience"
       },
       {
         "id": "mag",
         "label": "基金",
-        "route": "purpose:grant",
+        "route": "codex-skill:mag",
         "authority": "med-auto-grant"
       },
       {
         "id": "rca",
         "label": "演示",
-        "route": "purpose:ppt",
+        "route": "codex-skill:rca",
         "authority": "redcube-ai"
       }
     ],
-    "required_surface": "composer purpose entries plus conversation route receipt/error events plus Settings Agents & Capabilities summaries",
+    "required_surface": "composer Codex Skill entries plus structured Codex skill input plus Settings Agents & Capabilities summaries",
     "forbidden_claims": [
       "domain_ready",
       "agent_runtime_authority",
@@ -276,6 +276,16 @@
       "contracts_diagnostics_refresh"
     ],
     "blocking_policy": "full_opl_initialize_and_module_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes",
+    "skip_to_chat_policy": {
+      "trigger": "user_may_skip_non_core_or_slow_first_run_preparation_when_codex_adapter_can_start",
+      "marker_state": "user_deferred",
+      "must_not_claim": [
+        "gflabtoken_api_key_configured",
+        "module_reconcile_complete",
+        "mas_mag_rca_domain_ready",
+        "full_opl_readiness"
+      ]
+    },
     "api_key_missing_behavior": "show_opl_model_access_onboarding_without_running_hermes_agent_install",
     "api_key_present_behavior": "auto_continue_to_opl_codex_adapter_without_waiting_for_setup_runtime_check_or_api_key_form",
     "ready_check": "lightweight startup check: CLI available, fast app state proves Codex installed and model access status, core components discoverable when required, Codex adapter startable; missing or stale marker alone refreshes marker after successful fast probe and does not trigger full initialize",
@@ -286,6 +296,8 @@
       "missing or stale marker routes to the OPL one-time initialization checklist only when lightweight fast state probe cannot prove readiness",
       "one-time initialization writes or refreshes the OPL App initialization marker",
       "missing API key routes to model access wizard without showing the installation checklist",
+      "user skip on first-run checklist closes the overlay and starts the Codex adapter",
+      "user-deferred setup.status reports onboarding_deferred without marking gflabtoken API key configured",
       "background OPL status refresh starts only after the main chat surface is visible",
       "OPL Codex adapter starts",
       "existing Codex model access configuration auto-skips onboarding",

@@ -453,15 +453,15 @@ function validateHermesTargetStateContracts(
   }
   if (
     routes.owner !== 'one-person-lab-app'
-    || routes.route_authority !== 'App-owned purpose route declaration only; runtime and domain truth remain in OPL Framework and domain repos'
-    || routes.required_surface !== 'composer purpose entries plus conversation route receipt/error events plus Settings Agents & Capabilities summaries'
+    || routes.route_authority !== 'App-owned Codex Skill declaration only; Codex remains the invocation authority and runtime/domain truth remain in OPL Framework and domain repos'
+    || routes.required_surface !== 'composer Codex Skill entries plus structured Codex skill input plus Settings Agents & Capabilities summaries'
   ) {
-    throw new Error(`${candidate.id}.agent_route_contract must keep route truth App-owned without taking runtime or domain authority`);
+    throw new Error(`${candidate.id}.agent_route_contract must keep Codex Skill declaration App-owned without taking invocation, runtime, or domain authority`);
   }
   for (const [id, route, authority] of [
-    ['mas', 'purpose:research', 'med-autoscience'],
-    ['mag', 'purpose:grant', 'med-auto-grant'],
-    ['rca', 'purpose:ppt', 'redcube-ai'],
+    ['mas', 'codex-skill:mas', 'med-autoscience'],
+    ['mag', 'codex-skill:mag', 'med-auto-grant'],
+    ['rca', 'codex-skill:rca', 'redcube-ai'],
   ] as const) {
     const entry = routes.ordinary_entries.find((candidateRoute) => candidateRoute.id === id);
     if (!entry || entry.route !== route || entry.authority !== authority) {
@@ -586,6 +586,18 @@ function validateHermesFirstRunContract(candidate: ShellCandidate): void {
   if (contract.blocking_policy !== 'full_opl_initialize_and_module_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes') {
     throw new Error(`${candidate.id}.first_run_contract.blocking_policy must keep full initialize and module refresh out of hot-launch blocking path`);
   }
+  if (
+    contract.skip_to_chat_policy?.trigger !== 'user_may_skip_non_core_or_slow_first_run_preparation_when_codex_adapter_can_start'
+    || contract.skip_to_chat_policy.marker_state !== 'user_deferred'
+  ) {
+    throw new Error(`${candidate.id}.first_run_contract.skip_to_chat_policy must define the user_deferred skip-to-chat route`);
+  }
+  assertStringArrayIncludes(contract.skip_to_chat_policy.must_not_claim, [
+    'gflabtoken_api_key_configured',
+    'module_reconcile_complete',
+    'mas_mag_rca_domain_ready',
+    'full_opl_readiness',
+  ], `${candidate.id}.first_run_contract.skip_to_chat_policy.must_not_claim`);
   if (contract.api_key_present_behavior !== 'auto_continue_to_opl_codex_adapter_without_waiting_for_setup_runtime_check_or_api_key_form') {
     throw new Error(`${candidate.id}.first_run_contract.api_key_present_behavior must auto-skip onboarding when Codex model access already exists`);
   }
@@ -599,6 +611,8 @@ function validateHermesFirstRunContract(candidate: ShellCandidate): void {
     'missing or stale marker routes to the OPL one-time initialization checklist only when lightweight fast state probe cannot prove readiness',
     'one-time initialization writes or refreshes the OPL App initialization marker',
     'missing API key routes to model access wizard without showing the installation checklist',
+    'user skip on first-run checklist closes the overlay and starts the Codex adapter',
+    'user-deferred setup.status reports onboarding_deferred without marking gflabtoken API key configured',
     'background OPL status refresh starts only after the main chat surface is visible',
     'OPL Codex adapter starts',
     'existing Codex model access configuration auto-skips onboarding',
@@ -635,17 +649,6 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
       'useMessageStream',
       "navigate(`${SETTINGS_ROUTE}?tab=providers`)",
     ], 'official Hermes desktop controller reuse with OPL model access entry');
-    assertCandidateFileContains(candidate, 'src/app/session/hooks/use-message-stream.ts', [
-      'routeEventToToolPayload',
-      "event.type === 'route.selected'",
-      "event.type === 'route.receipt'",
-      "event.type === 'route.error'",
-    ], 'conversation route receipt/error renderer mapping');
-    assertCandidateFileContains(candidate, 'src/lib/opl-route-events.ts', [
-      'routeEventToToolPayload',
-      "name: 'opl_route'",
-      "tool_id: `opl-route:${purposeId}`",
-    ], 'OPL route event tool payload mapping');
     assertCandidateFileContains(candidate, 'src/app/settings/index.tsx', [
       'AgentsCapabilitiesSettings',
       "'providers'",
@@ -653,9 +656,9 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
       "'mcp'",
     ], 'OPL ordinary Settings navigation');
     assertCandidateFileContains(candidate, 'src/app/settings/agents-capabilities-settings.tsx', [
-      'getOplPurposeRoutes',
-      'authority',
-      'noDomainTruth',
+      'getOplCodexSkills',
+      'codex_skill_name',
+      'available',
     ], 'OPL agents and capabilities Settings page');
     assertCandidateFileContains(candidate, 'src/components/desktop-onboarding-overlay.tsx', [
       'One Person Lab 模型访问',
@@ -664,14 +667,17 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
     ], 'gflabtoken-only onboarding model access');
     assertCandidateFileContains(candidate, 'electron/opl-codex-gateway.cjs', [
       "'app-server', '--listen', 'stdio://'",
-      'purpose.route.resolve',
-      'route.receipt',
-      'route.error',
+      "'/api/opl/codex-skills'",
+      'codex.skills',
+      'requestedCodexSkillIds',
+      "type: 'skill'",
       'tool.event',
       'approval.event',
     ], 'Codex app-server backed Hermes gateway');
     assertCandidateFileContains(candidate, 'scripts/validate-hermes-codex-candidate.cjs', [
-      'purpose.route.resolve',
+      'codex.skills',
+      "'/api/opl/codex-skills'",
+      '!oplCodexGateway.includes("purpose.route.resolve")',
       "tab: 'agents'",
       'src/app/settings/agents-capabilities-settings.tsx',
     ], 'Hermes candidate self-validator');

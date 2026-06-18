@@ -145,6 +145,11 @@ export type ShellAdapterContract = {
     };
     background_refresh_sequence: string[];
     blocking_policy: string;
+    skip_to_chat_policy?: {
+      trigger: string;
+      marker_state: string;
+      must_not_claim: string[];
+    };
     api_key_missing_behavior: string;
     api_key_present_behavior: string;
     ready_check: string;

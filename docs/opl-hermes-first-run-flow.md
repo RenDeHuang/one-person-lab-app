@@ -13,6 +13,12 @@ adapter contract、packaged smoke、timing artifact 和 release gate 仍以
 最新要求修正过宽的 first-run 说法：Hermes checklist UI 只承载真正需要等待的本机
 准备，不承载每次启动的 full `opl system initialize --json`。
 
+2026-06-18 更新：Hermes candidate 的 checklist 形态本身可以保留，且比纯后台
+初始化更容易让用户理解“现在发生了什么”。但它必须遵守 Codex App 套壳下限：
+只要 Codex CLI / Codex app-server 能启动，用户就应该可以跳过剩余 One Person Lab
+准备并进入 chat-first 主界面。被跳过的模块同步、完整状态刷新、网络依赖检查和
+诊断刷新必须变成显式 deferred/background 状态，不能用首启页继续挡住入口。
+
 ## App-owned 启动合同
 
 Hermes candidate 的首启与启动目标态由 App repo 持有，并映射到
@@ -30,6 +36,9 @@ Hermes candidate 的首启与启动目标态由 App repo 持有，并映射到
   或其它 provider key。
 - 后台 OPL 状态刷新只能在 Codex adapter ready 和主 chat 可见后异步运行。失败时进入
   Runtime/Diagnostics，不回退成首启安装失败。
+- 首启 checklist 可以继续承载本机准备任务，但必须提供“跳过并进入对话”动作。该动作
+  只代表用户选择先进入 Codex chat，不代表 OPL 完整初始化、模型访问、MAS/MAG/RCA
+  domain runtime、module reconcile 或 Full readiness 已完成。
 - App-owned validation 必须能发现默认 active shell 仍是 AionUI、Hermes candidate 有
   app-server adapter contract、模型访问是单一路径、首启四线语义齐全、MAS/MAG/RCA
   route declaration 已声明。
@@ -60,6 +69,30 @@ fast --json` 已经证明 Codex CLI 与模型访问可用时，应补写 marker 
 | 一次性本机初始化 | fast app state 不能证明 Codex/模型访问 readiness、核心组件缺失、核心启动依赖不可用，或显式 fresh install / VM smoke。 | 复用 Hermes checklist/progress UI，但文案是 OPL 本机准备，不是 Hermes Agent 安装。 | 可以阻塞进入主 chat，直到 Core launch readiness 足以启动 App。它不等待 Full maintenance、module reconcile 或完整 OPL status refresh。完成后按模型访问状态继续分流。 | 已有安装修复通常为数秒到几十秒；全新安装或 VM smoke 可能更长。必须记录阶段耗时。 |
 | 模型访问配置 | gflabtoken API key 缺失、无效、不可读取，或用户主动进入 Access 设置更新 key。 | “模型访问”配置向导或 Access Settings。只显示 gflabtoken API key / 模型访问，不显示 provider marketplace、自定义 Base URL 或其它 provider key。 | 阻塞发送 Codex turn 和需要模型的 assistant 工作；不代表本机初始化失败。保存成功后进入主界面或恢复原会话。 | 用户输入时间不固定；保存和验证目标为数秒级。 |
 | 后台 OPL 状态刷新 | Codex adapter ready、主界面可显示之后启动；也可由用户在 Runtime/Diagnostics 显式刷新。 | Header connected-state、Runtime/Diagnostics surface 或后台 activity indicator。不得使用首启 checklist。 | 非阻塞。刷新结果只更新 runtime refs、diagnostics、维护提示或后续 action，不阻塞首次进入 chat。失败时显示可恢复状态，不回退成启动失败。 | 取决于 full OPL status/readback 成本；必须异步运行并记录耗时。 |
+
+## 可跳过首启准备
+
+Hermes candidate 的首启页允许继续显示多条真实准备任务，但必须把任务分成两类：
+
+- **进入 chat 的核心条件**：One Person Lab CLI 可发现、Codex CLI 可发现、Codex adapter
+  能启动。核心条件不可用时，可以停在首启页并给出明确错误。
+- **可延后准备**：完整 `opl system initialize --json`、`startup-maintenance`、
+  `reconcile-modules`、MAS/MAG/RCA 状态刷新、contracts diagnostics、网络下载、
+  agent pack/channel 检查、模块同步、推荐 skill/plugin 刷新。这些任务可以在首启页展示
+  进度，但用户必须能跳过进入主界面。
+
+跳过动作的语义是 `user_deferred`：
+
+- 写入本机启动 marker 作为“用户选择先进入 chat”的路由证据。
+- 不把 `api_key_present`、module readiness、domain readiness 或 Full readiness 标成完成。
+- 不执行 Hermes Agent installer，也不创建 OPL domain truth、owner receipt 或 typed blocker。
+- Settings/Diagnostics 继续显示模型访问和后台维护的真实状态。
+- 后续启动不应因为同一 deferred marker 反复弹出首启 checklist；用户可从 Settings 或诊断页
+  重新运行维护/修复。
+
+AionUI 主线可借鉴这个模式：首启页可以保留准备任务的可见进度，但 Core/Codex 已可用时
+不要用后台任务或网络慢任务挡住 Home。AionUI 行为变更仍需单独通过 active shell contract、
+first-run matrix 和 release shell 验证，不能由 Hermes candidate 实现自动推广。
 
 ## Checklist UI 使用规则
 
@@ -108,6 +141,7 @@ Hermes checklist/progress UI 只用于“用户必须等待且 App 不能安全�
 | 场景 | 初始状态 | 预期结果 | 必需证据 |
 | --- | --- | --- | --- |
 | 热启动 | marker 新鲜、核心组件存在、Codex/OPL CLI 可用、gflabtoken API key 可用。 | 不运行 full initialize 作为阻塞 gate；不显示安装 checklist；直接进入 chat-first 主界面；full OPL status refresh 后台异步。 | 启动日志或 smoke artifact 证明没有 launch-gate full `opl system initialize --json`，并记录轻量检查耗时、主界面可见时间、后台刷新开始时间。 |
+| 用户跳过首启准备 | Codex CLI 可用，但 checklist 中的非核心 OPL 准备耗时、网络不可用或用户选择先进入 App。 | 关闭首启页并进入 chat-first 主界面；写入 `user_deferred` marker；Settings/Diagnostics 继续显示模型访问、模块同步和维护状态；下次启动不因同一 deferred marker 反复挡住入口。 | packaged smoke 或单元测试证明 `deferred` 事件关闭 overlay、gateway `setup.status` 返回 `onboarding_deferred`、`/api/env` 不把 API key 伪装成已配置。 |
 | 无 key | marker 新鲜、核心组件存在，但 gflabtoken API key 缺失或不可用。 | 进入“模型访问”配置向导；不显示本机安装 checklist；不暴露 provider marketplace、Base URL 或其它 provider key。 | UI smoke 截图或事件记录证明模型访问页可见；保存路径调用 `opl system configure-codex --api-key-stdin --json`。 |
 | 无 marker 但已安装 | 初始化 marker 缺失或过旧，但 fast app state 能证明 Codex CLI 与模型访问状态可用。 | 不显示 OPL 本机初始化 checklist；不运行 launch-gate full initialize；补写 marker 后进入模型访问或主界面；full OPL status refresh 后台异步。 | 启动日志或 smoke artifact 证明 `opl app state --profile fast --json` 通过、没有 checklist manifest、没有 adapter ready 前的 `opl system initialize --json`。 |
 | 无 marker 且 readiness 不明 | 初始化 marker 缺失或过旧，且 fast app state 不能证明 readiness，或核心组件需要准备。 | 显示 OPL 本机初始化 checklist；只等待 Core launch readiness；完成后按 key 状态进入模型访问或主界面。 | checklist stage 事件、阶段耗时、marker 写入/刷新证据、无 Hermes Agent installer 执行证据。 |
@@ -160,7 +194,7 @@ artifact ready 或 quality verdict。
 | Hermes 有 app-server adapter 目标 | 可以。contract 能声明 gateway route、事件流和禁用 backend。 | 需要 package/source smoke 证明 adapter 真能启动、创建 session、发送 turn、展示 response。 |
 | 模型访问单一 | 可以。contract 能声明 gflabtoken-only、禁用 Base URL/provider marketplace。 | packaged Settings visual smoke 已证明模型访问页不暴露 forbidden provider controls；真实保存 API key 和真实模型访问仍需 live/人工证据。 |
 | 首启四线语义 | 可以。contract 能声明四条流程、触发条件和阻塞关系。 | packaged smoke 和 Tart clean-VM smoke 已覆盖热启动、缺 key、已配置、无 marker fallback；真实模型访问仍需 live evidence。 |
-| MAS/MAG/RCA route declaration | 可以。contract 能声明普通入口和 forbidden claims。 | packaged smoke 和 VM smoke 已证明 MAS ready receipt 与 MAG/RCA explicit blocker readback；domain ready、artifact ready 和质量结论仍需 domain owner evidence。 |
+| MAS/MAG/RCA Codex Skill declaration | 可以。contract 能声明普通入口、Codex Skill invocation 和 forbidden claims。 | packaged smoke 已证明 MAS/MAG/RCA Skill catalog 可见、MAS chip 可写入 `$mas`、显式 `$mas` 会作为 Codex app-server `turn/start` 的 structured skill input 转交给 Codex，且没有 GUI 侧 route receipt/error；domain ready、artifact ready 和质量结论仍需 domain owner evidence。 |
 | 视觉不低于 AionUI | 不可以。docs/contract 只能定义门槛。 | 必须有 AionUI baseline 与 Hermes packaged candidate 的截图或视觉 smoke 对比。 |
 
 当前 source 级实现还补了一条首启防回归证据：即使旧 Hermes local endpoint 触发状态进入

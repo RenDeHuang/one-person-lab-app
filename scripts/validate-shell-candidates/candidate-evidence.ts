@@ -279,7 +279,20 @@ function validateHermesPackagedSmoke(candidate: ShellCandidate): void {
       copiedLogPath?: string;
       copiedCallsPath?: string;
       gateway?: {
-        purpose_route_count?: number;
+        codex_skill_available_count?: number;
+        codex_skill_count?: number;
+        codex_skills_available?: string[];
+        env?: {
+          openai_api_key_is_set?: boolean;
+        };
+        setupStatus?: {
+          onboarding_deferred?: boolean;
+          provider_configured?: boolean;
+        };
+        skip?: {
+          clicked?: boolean;
+          renderer_main_visible_after_skip?: boolean;
+        } | null;
         status?: {
           backend?: string;
           provider_configured?: boolean;
@@ -289,7 +302,7 @@ function validateHermesPackagedSmoke(candidate: ShellCandidate): void {
         message_complete?: boolean;
         assistant_delta?: string;
         route_event_type?: string | null;
-        route_status?: string | null;
+        skill_input_forwarded?: boolean;
       } | null;
     }>;
   }>(summaryPath);
@@ -314,8 +327,16 @@ function validateHermesPackagedSmoke(candidate: ShellCandidate): void {
     if (smokeCase.gateway?.status?.backend !== 'codex-app-server-adapter') {
       throw new Error(`${candidate.id} packaged smoke ${caseId} must prove Codex app-server adapter backend`);
     }
-    if (Number(smokeCase.gateway?.purpose_route_count ?? 0) < 4) {
-      throw new Error(`${candidate.id} packaged smoke ${caseId} must expose MAS/MAG/RCA/OPL purpose routes`);
+    if (Number(smokeCase.gateway?.codex_skill_count ?? 0) < 4) {
+      throw new Error(`${candidate.id} packaged smoke ${caseId} must expose MAS/MAG/RCA/OPL Codex Skill catalog entries`);
+    }
+    assertStringArrayIncludes(
+      smokeCase.gateway?.codex_skills_available ?? [],
+      ['mas', 'mag', 'rca'],
+      `${candidate.id} packaged smoke ${caseId} available Codex Skills`,
+    );
+    if (Number(smokeCase.gateway?.codex_skill_available_count ?? 0) < 3) {
+      throw new Error(`${candidate.id} packaged smoke ${caseId} must prove MAS/MAG/RCA Codex Skills are available`);
     }
     if (smokeCase.copiedLogPath) {
       assertFile(resolveHermesSmokePath(candidate, smokeCase.copiedLogPath), `${candidate.id} packaged smoke ${caseId} copied log`);
@@ -328,14 +349,27 @@ function validateHermesPackagedSmoke(candidate: ShellCandidate): void {
   if (
     configured?.chatEvidence?.message_complete !== true ||
     !configured.chatEvidence.assistant_delta?.includes('fixture codex response') ||
-    configured.chatEvidence.route_event_type !== 'route.receipt' ||
-    configured.chatEvidence.route_status !== 'route_readback_ready'
+    configured.chatEvidence.route_event_type !== null ||
+    configured.chatEvidence.skill_input_forwarded !== true
   ) {
-    throw new Error(`${candidate.id} configured packaged smoke must prove Codex turn plus MAS route receipt`);
+    throw new Error(`${candidate.id} configured packaged smoke must prove Codex turn plus MAS structured skill input without GUI route receipt`);
   }
   const missing = summary.cases?.missing_key;
   if (missing?.gateway?.status?.provider_configured !== false) {
     throw new Error(`${candidate.id} missing-key packaged smoke must prove model access is not configured`);
+  }
+  const userDeferred = summary.cases?.user_deferred_first_run;
+  if (!userDeferred) {
+    throw new Error(`${candidate.id} packaged smoke must include user_deferred_first_run`);
+  }
+  if (
+    userDeferred.gateway?.skip?.clicked !== true ||
+    userDeferred.gateway?.skip?.renderer_main_visible_after_skip !== true ||
+    userDeferred.gateway?.setupStatus?.onboarding_deferred !== true ||
+    userDeferred.gateway?.setupStatus?.provider_configured !== false ||
+    userDeferred.gateway?.env?.openai_api_key_is_set !== false
+  ) {
+    throw new Error(`${candidate.id} user-deferred packaged smoke must prove skip-to-chat without pretending model access is configured`);
   }
   const configuredCalls = summary.cases?.configured_key_hot_launch?.calls ?? [];
   if (configuredCalls.includes('system initialize --json')) {

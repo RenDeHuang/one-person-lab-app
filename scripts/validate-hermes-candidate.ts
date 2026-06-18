@@ -186,15 +186,15 @@ function validateTargetStateContracts(label: string, target: HermesTargetStateCo
   const routes = target.agent_route_contract;
   if (
     routes?.owner !== 'one-person-lab-app'
-    || routes.route_authority !== 'App-owned purpose route declaration only; runtime and domain truth remain in OPL Framework and domain repos'
-    || routes.required_surface !== 'composer purpose entries plus conversation route receipt/error events plus Settings Agents & Capabilities summaries'
+    || routes.route_authority !== 'App-owned Codex Skill declaration only; Codex remains the invocation authority and runtime/domain truth remain in OPL Framework and domain repos'
+    || routes.required_surface !== 'composer Codex Skill entries plus structured Codex skill input plus Settings Agents & Capabilities summaries'
   ) {
-    throw new Error(`Hermes ${label}.agent_route_contract must declare App-owned purpose route entries`);
+    throw new Error(`Hermes ${label}.agent_route_contract must declare App-owned Codex Skill entries`);
   }
   for (const [id, route, authority] of [
-    ['mas', 'purpose:research', 'med-autoscience'],
-    ['mag', 'purpose:grant', 'med-auto-grant'],
-    ['rca', 'purpose:ppt', 'redcube-ai'],
+    ['mas', 'codex-skill:mas', 'med-autoscience'],
+    ['mag', 'codex-skill:mag', 'med-auto-grant'],
+    ['rca', 'codex-skill:rca', 'redcube-ai'],
   ] as const) {
     const entry = routes.ordinary_entries.find((candidateRoute) => candidateRoute.id === id);
     if (!entry || entry.route !== route || entry.authority !== authority) {
@@ -331,6 +331,22 @@ function validateFirstRunAndIconContracts(candidate: ShellCandidateRegistry['can
     if (contract.blocking_policy !== 'full_opl_initialize_and_module_refresh_must_not_block_hot_launch_or_chat_after_light_check_passes') {
       throw new Error(`Hermes ${label}.blocking_policy must keep full initialize out of hot launch`);
     }
+    if (
+      contract.skip_to_chat_policy?.trigger !== 'user_may_skip_non_core_or_slow_first_run_preparation_when_codex_adapter_can_start'
+      || contract.skip_to_chat_policy.marker_state !== 'user_deferred'
+    ) {
+      throw new Error(`Hermes ${label}.skip_to_chat_policy must define the user_deferred skip-to-chat route`);
+    }
+    for (const claim of [
+      'gflabtoken_api_key_configured',
+      'module_reconcile_complete',
+      'mas_mag_rca_domain_ready',
+      'full_opl_readiness',
+    ]) {
+      if (!contract.skip_to_chat_policy.must_not_claim.includes(claim)) {
+        throw new Error(`Hermes ${label}.skip_to_chat_policy.must_not_claim must include ${claim}`);
+      }
+    }
     if (contract.api_key_present_behavior !== 'auto_continue_to_opl_codex_adapter_without_waiting_for_setup_runtime_check_or_api_key_form') {
       throw new Error(`Hermes ${label}.api_key_present_behavior must auto-skip onboarding when Codex model access already exists`);
     }
@@ -344,6 +360,8 @@ function validateFirstRunAndIconContracts(candidate: ShellCandidateRegistry['can
       'missing or stale marker routes to the OPL one-time initialization checklist only when lightweight fast state probe cannot prove readiness',
       'one-time initialization writes or refreshes the OPL App initialization marker',
       'missing API key routes to model access wizard without showing the installation checklist',
+      'user skip on first-run checklist closes the overlay and starts the Codex adapter',
+      'user-deferred setup.status reports onboarding_deferred without marking gflabtoken API key configured',
       'background OPL status refresh starts only after the main chat surface is visible',
       'OPL Codex adapter starts',
       'existing Codex model access configuration auto-skips onboarding',
@@ -402,6 +420,7 @@ function validateHermesImplementation(checkoutPath: string): void {
     "'system', 'startup-maintenance', '--json'",
     "'system', 'reconcile-modules', '--json'",
     'maintenanceDeferred',
+    'user_deferred',
     "route: 'model-access'",
     'api_key_present',
   ]) {
@@ -417,6 +436,7 @@ function validateHermesImplementation(checkoutPath: string): void {
     "'/api/profiles'",
     "'/api/config'",
     'setup.runtime_check',
+    'onboarding_deferred',
   ]) {
     if (!gateway.includes(snippet)) {
       throw new Error(`Hermes OPL Codex gateway must include ${snippet}`);
