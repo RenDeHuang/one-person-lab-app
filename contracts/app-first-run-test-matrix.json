@@ -144,7 +144,8 @@
           "current_install_asset_artifacts": [
             "codex-package-preflight.json",
             "codex-package-registry-response.json",
-            "codex-package-tarballs/openai-codex.tgz"
+            "codex-package-tarballs/openai-codex.tgz",
+            "codex-package-tarballs/openai-codex-darwin-arm64.tgz"
           ],
           "current_cache_dirs": [
             "codex-npm-cache"
@@ -159,6 +160,7 @@
             "artifact_paths.codex_package_preflight",
             "artifact_paths.codex_package_registry_response",
             "artifact_paths.codex_package_tarball",
+            "artifact_paths.codex_platform_package_tarball",
             "artifact_paths.codex_npm_cache_dir",
             "codex_install.install_asset_preseed"
           ],
@@ -168,8 +170,13 @@
             "package.version",
             "package.tarball_url",
             "package.tarball_url_host",
+            "package.platform_version",
+            "package.platform_tarball_url",
+            "package.platform_tarball_url_host",
             "tarball.sha256",
             "tarball.size_bytes",
+            "platform_tarball.sha256",
+            "platform_tarball.size_bytes",
             "timings.elapsed_ms",
             "cache.npm_cache_dir",
             "blocking_failures",
@@ -191,12 +198,14 @@
             "mode": "host_prefetch_cache_preseed",
             "shell_arguments": [
               "--codex-package-tarball",
+              "--codex-platform-package-tarball",
               "--codex-npm-cache-dir"
             ],
             "required_artifacts": [
               "codex-package-preflight.json",
               "codex-package-registry-response.json",
               "codex-package-tarballs/openai-codex.tgz",
+              "codex-package-tarballs/openai-codex-darwin-arm64.tgz",
               "codex-npm-cache"
             ],
             "truth_boundary": "install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt"
@@ -268,7 +277,8 @@
           "current_install_asset_artifacts": [
             "codex-package-preflight.json",
             "codex-package-registry-response.json",
-            "codex-package-tarballs/openai-codex.tgz"
+            "codex-package-tarballs/openai-codex.tgz",
+            "codex-package-tarballs/openai-codex-darwin-arm64.tgz"
           ],
           "current_cache_dirs": [
             "codex-npm-cache"
@@ -283,6 +293,7 @@
             "artifact_paths.codex_package_preflight",
             "artifact_paths.codex_package_registry_response",
             "artifact_paths.codex_package_tarball",
+            "artifact_paths.codex_platform_package_tarball",
             "artifact_paths.codex_npm_cache_dir",
             "codex_install.install_asset_preseed"
           ],
@@ -292,8 +303,13 @@
             "package.version",
             "package.tarball_url",
             "package.tarball_url_host",
+            "package.platform_version",
+            "package.platform_tarball_url",
+            "package.platform_tarball_url_host",
             "tarball.sha256",
             "tarball.size_bytes",
+            "platform_tarball.sha256",
+            "platform_tarball.size_bytes",
             "timings.elapsed_ms",
             "cache.npm_cache_dir",
             "blocking_failures",
@@ -315,12 +331,14 @@
             "mode": "host_prefetch_cache_preseed",
             "shell_arguments": [
               "--codex-package-tarball",
+              "--codex-platform-package-tarball",
               "--codex-npm-cache-dir"
             ],
             "required_artifacts": [
               "codex-package-preflight.json",
               "codex-package-registry-response.json",
               "codex-package-tarballs/openai-codex.tgz",
+              "codex-package-tarballs/openai-codex-darwin-arm64.tgz",
               "codex-npm-cache"
             ],
             "truth_boundary": "install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt"
@@ -355,6 +373,7 @@
         "codex-package-preflight.json",
         "codex-package-registry-response.json",
         "codex-package-tarballs/openai-codex.tgz",
+        "codex-package-tarballs/openai-codex-darwin-arm64.tgz",
         "codex-npm-cache",
         "app-wrapper-smoke-command-preview.txt",
         "app-wrapper-smoke.stdout.log",
@@ -404,7 +423,8 @@
           "current_install_asset_artifacts": [
             "codex-package-preflight.json",
             "codex-package-registry-response.json",
-            "codex-package-tarballs/openai-codex.tgz"
+            "codex-package-tarballs/openai-codex.tgz",
+            "codex-package-tarballs/openai-codex-darwin-arm64.tgz"
           ],
           "current_cache_dirs": [
             "codex-npm-cache"
@@ -419,6 +439,7 @@
             "artifact_paths.codex_package_preflight",
             "artifact_paths.codex_package_registry_response",
             "artifact_paths.codex_package_tarball",
+            "artifact_paths.codex_platform_package_tarball",
             "artifact_paths.codex_npm_cache_dir",
             "codex_install.install_asset_preseed"
           ],
@@ -428,8 +449,13 @@
             "package.version",
             "package.tarball_url",
             "package.tarball_url_host",
+            "package.platform_version",
+            "package.platform_tarball_url",
+            "package.platform_tarball_url_host",
             "tarball.sha256",
             "tarball.size_bytes",
+            "platform_tarball.sha256",
+            "platform_tarball.size_bytes",
             "timings.elapsed_ms",
             "cache.npm_cache_dir",
             "blocking_failures",
@@ -451,12 +477,14 @@
             "mode": "host_prefetch_cache_preseed",
             "shell_arguments": [
               "--codex-package-tarball",
+              "--codex-platform-package-tarball",
               "--codex-npm-cache-dir"
             ],
             "required_artifacts": [
               "codex-package-preflight.json",
               "codex-package-registry-response.json",
               "codex-package-tarballs/openai-codex.tgz",
+              "codex-package-tarballs/openai-codex-darwin-arm64.tgz",
               "codex-npm-cache"
             ],
             "truth_boundary": "install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt"
@@ -492,6 +520,7 @@
         "codex-package-preflight.json",
         "codex-package-registry-response.json",
         "codex-package-tarballs/openai-codex.tgz",
+        "codex-package-tarballs/openai-codex-darwin-arm64.tgz",
         "codex-npm-cache",
         "app-wrapper-smoke-command-preview.txt",
         "app-wrapper-smoke.stdout.log",
@@ -527,7 +556,8 @@
           "current_install_asset_artifacts": [
             "codex-package-preflight.json",
             "codex-package-registry-response.json",
-            "codex-package-tarballs/openai-codex.tgz"
+            "codex-package-tarballs/openai-codex.tgz",
+            "codex-package-tarballs/openai-codex-darwin-arm64.tgz"
           ],
           "current_cache_dirs": [
             "codex-npm-cache"
@@ -542,6 +572,7 @@
             "artifact_paths.codex_package_preflight",
             "artifact_paths.codex_package_registry_response",
             "artifact_paths.codex_package_tarball",
+            "artifact_paths.codex_platform_package_tarball",
             "artifact_paths.codex_npm_cache_dir",
             "codex_install.install_asset_preseed"
           ],
@@ -551,8 +582,13 @@
             "package.version",
             "package.tarball_url",
             "package.tarball_url_host",
+            "package.platform_version",
+            "package.platform_tarball_url",
+            "package.platform_tarball_url_host",
             "tarball.sha256",
             "tarball.size_bytes",
+            "platform_tarball.sha256",
+            "platform_tarball.size_bytes",
             "timings.elapsed_ms",
             "cache.npm_cache_dir",
             "blocking_failures",
@@ -574,12 +610,14 @@
             "mode": "host_prefetch_cache_preseed",
             "shell_arguments": [
               "--codex-package-tarball",
+              "--codex-platform-package-tarball",
               "--codex-npm-cache-dir"
             ],
             "required_artifacts": [
               "codex-package-preflight.json",
               "codex-package-registry-response.json",
               "codex-package-tarballs/openai-codex.tgz",
+              "codex-package-tarballs/openai-codex-darwin-arm64.tgz",
               "codex-npm-cache"
             ],
             "truth_boundary": "install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt"
@@ -613,6 +651,7 @@
         "codex-package-preflight.json",
         "codex-package-registry-response.json",
         "codex-package-tarballs/openai-codex.tgz",
+        "codex-package-tarballs/openai-codex-darwin-arm64.tgz",
         "codex-npm-cache",
         "app-wrapper-smoke-command-preview.txt",
         "app-wrapper-smoke.stdout.log",

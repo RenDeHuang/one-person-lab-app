@@ -89,9 +89,9 @@ npm run release:candidate-record:validate -- --version <version> --record releas
 npm run release:candidate-record:status -- --record release-candidate-record.json --format json
 npm run release:owner-candidate-record:verify -- --version <version> --owner-record docs/release/records/v<version>-release-owner-receipt.json --artifacts-dir artifacts/release-closeout/v<version>-<run-id>/artifacts
 npm run release:full:size -- --markdown
-npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
-npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
-npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-homebrew-ready-base --install-mode homebrew-cask --homebrew-cask gaofeng21cn/one-person-lab/one-person-lab --smoke-profile homebrew-standard-cask --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
+npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
+npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
+npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-homebrew-ready-base --install-mode homebrew-cask --homebrew-cask gaofeng21cn/one-person-lab/one-person-lab --smoke-profile homebrew-standard-cask --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
 OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --complete --skip-modules
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
@@ -196,10 +196,16 @@ with runner labels, source VM, guest user, package/runtime profile, DMG path,
 display, Codex package preflight path, Codex tarball path, Codex npm cache dir,
 and artifact output before executing the smoke. The VM artifact includes
 `codex-package-preflight.json`, `codex-package-registry-response.json`,
-`codex-package-tarballs/openai-codex.tgz`, and `codex-npm-cache`; the active
-shell helper receives those install assets through `--codex-package-tarball`
-and `--codex-npm-cache-dir`. This preseed/cache surface reduces live registry
-dependency during Codex install. The preflight artifact separates blocking
+`codex-package-tarballs/openai-codex.tgz`,
+`codex-package-tarballs/openai-codex-darwin-arm64.tgz`, and `codex-npm-cache`;
+the active shell helper receives those install assets through
+`--codex-package-tarball`, `--codex-platform-package-tarball`, and
+`--codex-npm-cache-dir`. The root package tarball and the macOS platform binary
+package tarball are both install assets; the platform tarball is explicitly
+passed so the Framework runtime installer can materialize the native Codex
+binary without relying on npm optional dependency resolution in offline guest
+state. This preseed/cache surface reduces live registry dependency during Codex
+install. The preflight artifact separates blocking
 failures from diagnostic warnings: npm metadata, tarball download, and npm cache
 add failures block the gate, while a registry metadata mirror download timeout
 is recorded as a warning when the exact tarball and npm cache preseed are still

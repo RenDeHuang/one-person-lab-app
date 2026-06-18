@@ -136,8 +136,13 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.match(job, /codex-package-preflight\.json/);
   assert.match(job, /codex-package-registry-response\.json/);
   assert.match(job, /codex-package-tarballs\/openai-codex\.tgz/);
+  assert.match(job, /codex-package-tarballs\/openai-codex-darwin-arm64\.tgz/);
   assert.match(job, /codex-npm-cache/);
   assert.match(job, /npm[\s\S]*view[\s\S]*@openai\/codex@latest[\s\S]*version[\s\S]*dist\.tarball/);
+  assert.match(job, /platformPackageSpec/);
+  assert.match(job, /platform_tarball_path/);
+  assert.match(job, /platform_tarball[\s\S]*sha256/);
+  assert.match(job, /platform_tarball[\s\S]*size_bytes/);
   assert.match(job, /registry[\s\S]*status_code/);
   assert.match(job, /npm_view:\s+npmView/);
   assert.doesNotMatch(job, /\bnpm_view,/);
@@ -175,6 +180,10 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
     /--codex-readiness-phase-timeout-ms "\$\{\{ steps\.vm_timeouts\.outputs\.codex_readiness_phase_timeout_ms \}\}"/,
   );
   assert.match(job, /--codex-package-tarball "\$\{\{ steps\.codex_package_preflight\.outputs\.tarball_path \}\}"/);
+  assert.match(
+    job,
+    /--codex-platform-package-tarball "\$\{\{ steps\.codex_package_preflight\.outputs\.platform_tarball_path \}\}"/,
+  );
   assert.match(job, /--codex-npm-cache-dir "\$\{\{ steps\.codex_package_preflight\.outputs\.npm_cache_dir \}\}"/);
   assert.match(job, /codex_phase_timeout_interface: 'opl_aion_shell_phase_options'/);
   assert.match(job, /shell_interface_status: 'implemented_opl_aion_shell_phase_options'/);
@@ -210,6 +219,7 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
         'codex-package-preflight.json',
         'codex-package-registry-response.json',
         'codex-package-tarballs/openai-codex.tgz',
+        'codex-package-tarballs/openai-codex-darwin-arm64.tgz',
         'codex-npm-cache',
       ]) {
         assert.ok(
@@ -223,6 +233,7 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       'codex-package-preflight.json',
       'codex-package-registry-response.json',
       'codex-package-tarballs/openai-codex.tgz',
+      'codex-package-tarballs/openai-codex-darwin-arm64.tgz',
     ]);
     assert.deepEqual(scenario.diagnostics_contract.app_wrapper.current_cache_dirs, [
       'codex-npm-cache',
@@ -237,6 +248,7 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       'artifact_paths.codex_package_preflight',
       'artifact_paths.codex_package_registry_response',
       'artifact_paths.codex_package_tarball',
+      'artifact_paths.codex_platform_package_tarball',
       'artifact_paths.codex_npm_cache_dir',
       'codex_install.install_asset_preseed',
     ]);
@@ -246,8 +258,13 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       'package.version',
       'package.tarball_url',
       'package.tarball_url_host',
+      'package.platform_version',
+      'package.platform_tarball_url',
+      'package.platform_tarball_url_host',
       'tarball.sha256',
       'tarball.size_bytes',
+      'platform_tarball.sha256',
+      'platform_tarball.size_bytes',
       'timings.elapsed_ms',
       'cache.npm_cache_dir',
       'blocking_failures',
@@ -265,12 +282,14 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       mode: 'host_prefetch_cache_preseed',
       shell_arguments: [
         '--codex-package-tarball',
+        '--codex-platform-package-tarball',
         '--codex-npm-cache-dir',
       ],
       required_artifacts: [
         'codex-package-preflight.json',
         'codex-package-registry-response.json',
         'codex-package-tarballs/openai-codex.tgz',
+        'codex-package-tarballs/openai-codex-darwin-arm64.tgz',
         'codex-npm-cache',
       ],
       truth_boundary: 'install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt',

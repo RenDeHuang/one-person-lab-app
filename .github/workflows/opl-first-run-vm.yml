@@ -544,6 +544,7 @@ jobs:
           const artifactRoot = 'artifacts/opl-first-run-vm';
           const npmCacheDir = path.join(artifactRoot, 'codex-npm-cache');
           const tarballPath = path.join(artifactRoot, 'codex-package-tarballs', 'openai-codex.tgz');
+          const platformTarballPath = path.join(artifactRoot, 'codex-package-tarballs', 'openai-codex-darwin-arm64.tgz');
           const registryResponsePath = path.join(artifactRoot, 'codex-package-registry-response.json');
           const preflightPath = path.join(artifactRoot, 'codex-package-preflight.json');
           const packageName = '@openai/codex';
@@ -639,6 +640,14 @@ jobs:
           const version = metadata?.version || null;
           const tarballUrl = metadata?.['dist.tarball'] || metadata?.dist?.tarball || null;
           const distIntegrity = metadata?.['dist.integrity'] || metadata?.dist?.integrity || null;
+          const platformPackageSpec = version ? `${packageName}@${version}-darwin-arm64` : null;
+          const platformPackageLabel = platformPackageSpec || '@openai/codex@<version>-darwin-arm64';
+          let platformNpmView = null;
+          let platformMetadata = null;
+          let platformVersion = null;
+          let platformTarballUrl = null;
+          let platformDistIntegrity = null;
+          let platformTarballUrlHost = null;
           let tarballUrlHost = null;
           if (!version) {
             blockingFailures.push('npm package metadata did not include version');
@@ -653,10 +662,45 @@ jobs:
             }
           }
 
+          if (platformPackageSpec) {
+            platformNpmView = run('npm', [
+              'view',
+              platformPackageSpec,
+              'name',
+              'version',
+              'dist.tarball',
+              'dist.integrity',
+              '--json',
+            ], { timeout: 240000 });
+            if (platformNpmView.exit_code !== 0 || platformNpmView.error) {
+              blockingFailures.push(`npm view ${platformPackageSpec} name version dist.tarball failed`);
+            }
+            platformMetadata = platformNpmView.stdout ? parseJson(platformNpmView.stdout, `npm view ${platformPackageSpec}`, blockingFailures) : null;
+            platformVersion = platformMetadata?.version || null;
+            platformTarballUrl = platformMetadata?.['dist.tarball'] || platformMetadata?.dist?.tarball || null;
+            platformDistIntegrity = platformMetadata?.['dist.integrity'] || platformMetadata?.dist?.integrity || null;
+            if (!platformVersion) {
+              blockingFailures.push('npm platform package metadata did not include version');
+            }
+            if (!platformTarballUrl) {
+              blockingFailures.push('npm platform package metadata did not include dist.tarball');
+            } else {
+              try {
+                platformTarballUrlHost = new URL(platformTarballUrl).host;
+              } catch (error) {
+                blockingFailures.push(`platform dist.tarball is not a valid URL: ${error.message}`);
+              }
+            }
+          }
+
           let tarballDownload = null;
           let tarballStatusCode = null;
           let tarballSha256 = null;
           let tarballSizeBytes = null;
+          let platformTarballDownload = null;
+          let platformTarballStatusCode = null;
+          let platformTarballSha256 = null;
+          let platformTarballSizeBytes = null;
           if (tarballUrl && tarballUrlHost) {
             const partialTarballPath = `${tarballPath}.part`;
             fs.rmSync(partialTarballPath, { force: true });
@@ -692,6 +736,41 @@ jobs:
               blockingFailures.push(`Codex package tarball download failed with status ${tarballDownload.stdout || 'unknown'}`);
             }
           }
+          if (platformTarballUrl && platformTarballUrlHost) {
+            const partialPlatformTarballPath = `${platformTarballPath}.part`;
+            fs.rmSync(partialPlatformTarballPath, { force: true });
+            platformTarballDownload = run('curl', [
+              '-sS',
+              '-fL',
+              '--retry',
+              '5',
+              '--retry-all-errors',
+              '--retry-delay',
+              '10',
+              '--connect-timeout',
+              '30',
+              '--max-time',
+              '900',
+              '-o',
+              partialPlatformTarballPath,
+              '-w',
+              '%{http_code}',
+              platformTarballUrl,
+            ], { timeout: 960000 });
+            platformTarballStatusCode = Number(platformTarballDownload.stdout);
+            if (platformTarballDownload.exit_code === 0 && platformTarballStatusCode === 200) {
+              fs.renameSync(partialPlatformTarballPath, platformTarballPath);
+              const stat = fs.statSync(platformTarballPath);
+              platformTarballSizeBytes = stat.size;
+              platformTarballSha256 = sha256File(platformTarballPath);
+              if (platformTarballSizeBytes <= 0) {
+                blockingFailures.push('downloaded Codex platform package tarball is empty');
+              }
+            } else {
+              fs.rmSync(partialPlatformTarballPath, { force: true });
+              blockingFailures.push(`Codex platform package tarball download failed with status ${platformTarballDownload.stdout || 'unknown'}`);
+            }
+          }
 
           let npmCacheAdd = null;
           if (fs.existsSync(tarballPath)) {
@@ -706,11 +785,24 @@ jobs:
               blockingFailures.push('npm cache add for Codex package tarball failed');
             }
           }
+          let platformNpmCacheAdd = null;
+          if (fs.existsSync(platformTarballPath)) {
+            platformNpmCacheAdd = run('npm', [
+              'cache',
+              'add',
+              platformTarballPath,
+              '--cache',
+              npmCacheDir,
+            ], { timeout: 300000 });
+            if (platformNpmCacheAdd.exit_code !== 0 || platformNpmCacheAdd.error) {
+              blockingFailures.push('npm cache add for Codex platform package tarball failed');
+            }
+          }
 
           const endedAt = new Date();
           const cacheKeyPrefix = process.env.CACHE_KEY_PREFIX || 'opl-first-run-codex-install-assets';
-          const cacheKey = version && tarballSha256
-            ? `${cacheKeyPrefix}-${version}-${tarballSha256.slice(0, 16)}-${process.env.GITHUB_RUN_ID || 'local'}-${process.env.GITHUB_RUN_ATTEMPT || '1'}`
+          const cacheKey = version && tarballSha256 && platformTarballSha256
+            ? `${cacheKeyPrefix}-${version}-${tarballSha256.slice(0, 8)}-${platformTarballSha256.slice(0, 8)}-${process.env.GITHUB_RUN_ID || 'local'}-${process.env.GITHUB_RUN_ATTEMPT || '1'}`
             : '';
           const preflight = {
             schema_version: 1,
@@ -725,6 +817,11 @@ jobs:
               tarball_url: tarballUrl,
               tarball_url_host: tarballUrlHost,
               dist_integrity: distIntegrity,
+              platform_spec: platformPackageSpec,
+              platform_version: platformVersion,
+              platform_tarball_url: platformTarballUrl,
+              platform_tarball_url_host: platformTarballUrlHost,
+              platform_dist_integrity: platformDistIntegrity,
             },
             registry: {
               npm_registry: registryUrl,
@@ -732,6 +829,7 @@ jobs:
               status_code: Number.isFinite(registryStatusCode) ? registryStatusCode : null,
               response_path: 'codex-package-registry-response.json',
               npm_view: npmView,
+              platform_npm_view: platformNpmView,
               metadata_request: registryResponse,
             },
             tarball: {
@@ -743,6 +841,17 @@ jobs:
               size_bytes: tarballSizeBytes,
               download: tarballDownload,
             },
+            platform_tarball: {
+              path: 'codex-package-tarballs/openai-codex-darwin-arm64.tgz',
+              workflow_path: platformTarballPath,
+              requested_spec: platformPackageLabel,
+              version: platformVersion,
+              url_host: platformTarballUrlHost,
+              response_status_code: Number.isFinite(platformTarballStatusCode) ? platformTarballStatusCode : null,
+              sha256: platformTarballSha256,
+              size_bytes: platformTarballSizeBytes,
+              download: platformTarballDownload,
+            },
             cache: {
               npm_cache_dir: 'codex-npm-cache',
               workflow_npm_cache_dir: npmCacheDir,
@@ -753,6 +862,7 @@ jobs:
                 matched_key: process.env.CODEX_CACHE_RESTORE_MATCHED_KEY || '',
               },
               npm_cache_add: npmCacheAdd,
+              platform_npm_cache_add: platformNpmCacheAdd,
             },
             timings: {
               started_at: startedAt.toISOString(),
@@ -771,6 +881,7 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, [
               `preflight_json=${preflightPath}`,
               `tarball_path=${tarballPath}`,
+              `platform_tarball_path=${platformTarballPath}`,
               `npm_cache_dir=${npmCacheDir}`,
               `package_version=${version || ''}`,
               `cache_key=${cacheKey}`,
@@ -784,6 +895,10 @@ jobs:
             tarball_host: tarballUrlHost,
             tarball_sha256: tarballSha256,
             tarball_size_bytes: tarballSizeBytes,
+            platform_package_version: platformVersion,
+            platform_tarball_host: platformTarballUrlHost,
+            platform_tarball_sha256: platformTarballSha256,
+            platform_tarball_size_bytes: platformTarballSizeBytes,
             elapsed_ms: preflight.timings.elapsed_ms,
           }, null, 2));
 
@@ -869,6 +984,7 @@ jobs:
             echo "- Codex package version: \`${{ steps.codex_package_preflight.outputs.package_version }}\`"
             echo "- Codex package preflight: \`${{ steps.codex_package_preflight.outputs.preflight_json }}\`"
             echo "- Codex package tarball: \`${{ steps.codex_package_preflight.outputs.tarball_path }}\`"
+            echo "- Codex platform package tarball: \`${{ steps.codex_package_preflight.outputs.platform_tarball_path }}\`"
             echo "- Codex npm cache dir: \`${{ steps.codex_package_preflight.outputs.npm_cache_dir }}\`"
             echo "- Smoke profile: \`no-clt-clean-vm\`"
             echo "- Display: \`1920x1080px\`"
@@ -1017,6 +1133,7 @@ jobs:
               codex_package_preflight: 'codex-package-preflight.json',
               codex_package_registry_response: 'codex-package-registry-response.json',
               codex_package_tarball: 'codex-package-tarballs/openai-codex.tgz',
+              codex_platform_package_tarball: 'codex-package-tarballs/openai-codex-darwin-arm64.tgz',
               codex_npm_cache_dir: 'codex-npm-cache',
               smoke_command_preview: 'app-wrapper-smoke-command-preview.txt',
               smoke_stdout: 'app-wrapper-smoke.stdout.log',
@@ -1036,6 +1153,7 @@ jobs:
               install_asset_preseed: {
                 preflight_json: process.env.CODEX_PACKAGE_PREFLIGHT_JSON,
                 tarball_path: process.env.CODEX_PACKAGE_TARBALL,
+                platform_tarball_path: process.env.CODEX_PLATFORM_PACKAGE_TARBALL,
                 npm_cache_dir: process.env.CODEX_NPM_CACHE_DIR,
                 truth_boundary: 'install_asset_cache_preseed_not_app_readiness_truth_or_owner_receipt',
               },
@@ -1088,6 +1206,7 @@ jobs:
           SHELL_REF: ${{ inputs.shell_ref || 'main' }}
           CODEX_PACKAGE_PREFLIGHT_JSON: ${{ steps.codex_package_preflight.outputs.preflight_json }}
           CODEX_PACKAGE_TARBALL: ${{ steps.codex_package_preflight.outputs.tarball_path }}
+          CODEX_PLATFORM_PACKAGE_TARBALL: ${{ steps.codex_package_preflight.outputs.platform_tarball_path }}
           CODEX_NPM_CACHE_DIR: ${{ steps.codex_package_preflight.outputs.npm_cache_dir }}
 
       - name: Run clean VM first launch smoke
@@ -1117,6 +1236,7 @@ jobs:
             --codex-install-phase-timeout-ms "${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms }}"
             --codex-readiness-phase-timeout-ms "${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms }}"
             --codex-package-tarball "${{ steps.codex_package_preflight.outputs.tarball_path }}"
+            --codex-platform-package-tarball "${{ steps.codex_package_preflight.outputs.platform_tarball_path }}"
             --codex-npm-cache-dir "${{ steps.codex_package_preflight.outputs.npm_cache_dir }}"
             --smoke-profile no-clt-clean-vm
             --display 1920x1080px
@@ -1244,6 +1364,7 @@ jobs:
             echo "- Codex readiness phase timeout: ${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms }} ms"
             echo "- Codex package preflight: ${{ steps.codex_package_preflight.outputs.preflight_json }}"
             echo "- Codex package tarball: ${{ steps.codex_package_preflight.outputs.tarball_path }}"
+            echo "- Codex platform package tarball: ${{ steps.codex_package_preflight.outputs.platform_tarball_path }}"
             echo "- Codex npm cache dir: ${{ steps.codex_package_preflight.outputs.npm_cache_dir }}"
             echo "- Wrapper diagnostics: artifacts/opl-first-run-vm/app-wrapper-diagnostics.json"
             echo "- Wrapper smoke logs: artifacts/opl-first-run-vm/app-wrapper-smoke.stdout.log, artifacts/opl-first-run-vm/app-wrapper-smoke.stderr.log"
