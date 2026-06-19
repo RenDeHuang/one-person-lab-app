@@ -106,7 +106,9 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     /full-homebrew-tap-update:[\s\S]*?inputs\.release_mode == 'refresh_existing'/,
     'Full Homebrew tap update must stay on published-release refresh path inside desktop release',
   );
-  assertMatches(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*?needs:[\s\S]*?stable-homebrew-tap-update[\s\S]*?full-homebrew-tap-update/, 'Homebrew VM smoke job');
+  assertMatches(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*?needs:[\s\S]*?stable-homebrew-tap-update/, 'Homebrew VM smoke job');
+  const homebrewVmJob = workflow.match(/\n  homebrew-standard-first-run-vm-smoke:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assert.doesNotMatch(homebrewVmJob, /full-homebrew-tap-update/, 'standard Homebrew VM smoke must not wait for the unrelated Full cask tap update');
   assertMatches(
     workflow,
     /homebrew-standard-first-run-vm-smoke:[\s\S]*?inputs\.release_mode == 'refresh_existing'/,
@@ -162,6 +164,8 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?release-closeout-inputs[\s\S]*?release-closeout\/release-closeout\.json[\s\S]*?release-closeout\/release-closeout\.md/, 'default release closeout must use local small artifacts and write machine-readable outputs');
   assertMatches(workflow, /Upload release closeout summary[\s\S]*?release-closeout\/release-monitor\.json[\s\S]*?release-closeout\/release-notification\.json/, 'default release closeout artifact must include monitor and notification payloads');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?Upload release closeout summary[\s\S]*?release-closeout-\$\{\{ inputs\.opl_version \}\}/, 'default release closeout artifact');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?Build GitHub Actions timing summary[\s\S]*?npm run release:actions-timing --[\s\S]*?release-actions-timing\.json[\s\S]*?release-actions-timing\.md/, 'default release timing summary must run inside the final readiness job');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?Upload GitHub Actions timing summary[\s\S]*?release-actions-timing-\$\{\{ inputs\.opl_version \}\}/, 'default release timing summary artifact');
   const readinessJob = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   assert.doesNotMatch(readinessJob, /name:\s+macos-build-arm64/);
   assert.doesNotMatch(readinessJob, /name:\s+opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);

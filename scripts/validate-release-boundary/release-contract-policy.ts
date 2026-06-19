@@ -53,6 +53,8 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     'release_preflight_contract',
     'workflow_preflight_shape',
     'release_plan',
+    'release_refs',
+    'codex_package_metadata',
     'homebrew_vm_gate_static_policy',
     'homebrew_tap_token',
     'macos_local_authorization',

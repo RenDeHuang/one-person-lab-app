@@ -67,6 +67,11 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.match(job, /release-closeout\/release-closeout\.md/);
   assert.match(job, /Upload release closeout summary/);
   assert.match(job, /release-closeout-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(job, /Build GitHub Actions timing summary/);
+  assert.match(job, /npm run release:actions-timing --/);
+  assert.match(job, /release-actions-timing\.json/);
+  assert.match(job, /release-actions-timing\.md/);
+  assert.match(job, /release-actions-timing-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(job, /needs\[['"]?remote-verify-full['"]?\]\.result|needs\.remote-verify-full\.result/);
   assert.match(job, /release-readiness-job-results\.json/);
   assert.match(workflow, /release_artifact_name:\s+macos-build-arm64-dmg/);

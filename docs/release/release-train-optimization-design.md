@@ -133,6 +133,52 @@ commit, shell/framework refs, workflow run id, preflight/readiness/remote
 verification statuses, Full resolved refs, remote asset summary, job results,
 blocked reasons, and the promotion decision.
 
+Layer 6 is now implemented as first-run failure-tax reduction. The 2026-06-18
+`v26.6.18` stable refresh took `4h2m50s` of Agent/operator wall time, but the
+successful final workflow was `48m32s`. The extra cost came from failed release
+runs that exposed problems only after expensive jobs had already started:
+
+- `27766301877` failed after the Full package lane and operator-evidence
+  summary had already run.
+- `27768289724` failed in the Homebrew standard VM lane during Codex package
+  asset prefetch.
+- `27771471126` failed in standard clean VM readiness and later in active-shell
+  checkout for the Homebrew VM lane.
+
+The release preflight therefore owns fast external availability checks for
+`shell_ref`, `framework_ref`, and the Codex CLI plus Darwin arm64 platform
+package metadata whenever VM smoke is requested. These checks do not replace
+builds, VM smokes, tarball download, or release readback evidence; they only
+move common release-blocking failures from the 30-50 minute mark to the first
+preflight job.
+
+Layer 7 is now implemented as a default GitHub Actions timing artifact. Every
+desktop release run writes `release-actions-timing.json` and
+`release-actions-timing.md` from the final readiness job. This artifact records
+workflow wall time, failed/cancelled run tax when multiple run IDs are supplied
+manually, slow jobs, and slow steps. Operators should use it before opening raw
+job logs so performance tuning starts from measured bottlenecks rather than
+long `gh run watch` output.
+
+Layer 8 is now implemented as standard/Homebrew critical-path decoupling. The
+Homebrew standard VM smoke waits for the stable standard cask tap update only.
+It no longer waits for the Full cask tap update, because the standard Homebrew
+install gate tests the standard cask and standard release assets. The Full tap
+update remains an independent required readiness gate when the Full package is
+included.
+
+Next optimization candidates must preserve release authority boundaries:
+
+- Split standard, Full, Homebrew, WebUI, and owner-evidence gates into resumable
+  candidate records so an unchanged successful gate can be reused only when its
+  source commit, shell ref, release asset digest, and contract cohort match.
+- Reduce clean VM latency by baking stable Node/Codex installer prerequisites
+  into the Tart source images while keeping first-run App readiness checks
+  untouched.
+- Keep `refresh_existing` as an emergency repair path; ordinary Stable should
+  prefer draft candidate promotion so failed attempts do not overwrite the
+  already published stable asset set.
+
 ## Validation
 
 The minimum local validation for release-train changes is:

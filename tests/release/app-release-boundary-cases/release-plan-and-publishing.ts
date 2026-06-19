@@ -173,6 +173,8 @@ test('release preflight fails fast before expensive release jobs', () => {
   assert.equal(payload.status, 'passed');
   assert.equal(payload.inputs.include_full_package, true);
   assert.ok(payload.checks.some((check) => check.id === 'remote_target' && check.status === 'skipped'));
+  assert.ok(payload.checks.some((check) => check.id === 'release_refs' && check.status === 'skipped'));
+  assert.ok(payload.checks.some((check) => check.id === 'codex_package_metadata' && check.status === 'skipped'));
   assert.ok(payload.checks.some((check) => check.id === 'full_workflow_call' && check.status === 'passed'));
   assert.ok(payload.checks.some((check) => (
     check.id === 'homebrew_vm_gate_static_policy'
@@ -251,7 +253,34 @@ if (args.join(' ').startsWith('release view')) {
   }) + '\\n');
   process.exit(0);
 }
+if (args.join(' ') === 'api repos/gaofeng21cn/opl-aion-shell/commits/main --jq .sha') {
+  process.stdout.write('2222222222222222222222222222222222222222\\n');
+  process.exit(0);
+}
+if (args.join(' ') === 'api repos/gaofeng21cn/one-person-lab/commits/main --jq .sha') {
+  process.stdout.write('3333333333333333333333333333333333333333\\n');
+  process.exit(0);
+}
 console.error('unexpected gh args: ' + JSON.stringify(args));
+process.exit(2);
+`);
+  writeExecutable(path.join(fakeBin, 'npm'), `#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args.join(' ') === 'view @openai/codex@latest version dist.tarball --json') {
+  process.stdout.write(JSON.stringify({
+    version: '0.141.0',
+    dist: { tarball: 'https://registry.npmjs.org/@openai/codex/-/codex-0.141.0.tgz' }
+  }) + '\\n');
+  process.exit(0);
+}
+if (args.join(' ') === 'view @openai/codex@0.141.0-darwin-arm64 version dist.tarball --json') {
+  process.stdout.write(JSON.stringify({
+    version: '0.141.0-darwin-arm64',
+    dist: { tarball: 'https://registry.npmjs.org/@openai/codex/-/codex-0.141.0-darwin-arm64.tgz' }
+  }) + '\\n');
+  process.exit(0);
+}
+console.error('unexpected npm args: ' + JSON.stringify(args));
 process.exit(2);
 `);
   writeExecutable(path.join(fakeBin, 'git'), `#!/usr/bin/env bash

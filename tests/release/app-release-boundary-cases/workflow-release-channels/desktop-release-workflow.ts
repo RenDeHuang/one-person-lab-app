@@ -117,9 +117,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /full-homebrew-tap-update:/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*remote-verify-full/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*package_kind: app_full_first_install/);
-  assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*full-homebrew-tap-update/);
+  assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs\.stable-homebrew-tap-update\.result == 'success'/);
-  assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs\.full-homebrew-tap-update\.result == 'success'/);
+  const homebrewStandardVmJob = workflow.match(/\n  homebrew-standard-first-run-vm-smoke:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assert.doesNotMatch(homebrewStandardVmJob, /full-homebrew-tap-update/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
   assert.match(workflow, /one-shot-app-installer-smoke:/);
@@ -271,6 +272,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'release_preflight_contract',
       'workflow_preflight_shape',
       'release_plan',
+      'release_refs',
+      'codex_package_metadata',
       'homebrew_vm_gate_static_policy',
       'homebrew_tap_token',
       'macos_local_authorization',

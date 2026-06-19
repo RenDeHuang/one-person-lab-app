@@ -42,6 +42,24 @@ type HomebrewPreflight = {
   vm_gate_static_policy: HomebrewVmGateStaticPolicy;
 };
 
+type RefPreflight = {
+  ref: string;
+  status: 'ok' | 'skipped' | 'failed';
+  repository: string;
+  resolved_sha: string | null;
+  reason: string;
+};
+
+type CodexPackagePreflight = {
+  status: 'ok' | 'skipped' | 'failed';
+  requested_spec: string;
+  version: string | null;
+  platform_spec: string | null;
+  package_tarball_host: string | null;
+  platform_tarball_host: string | null;
+  reason: string;
+};
+
 type HomebrewVmGateStaticPolicy = {
   profile: 'homebrew-standard';
   install_ref: string | null;
@@ -159,6 +177,10 @@ function run(command: string, args: string[], options: { allowFailure?: boolean 
   return result;
 }
 
+function stdoutLine(result: ReturnType<typeof run>) {
+  return result.stdout.trim().split(/\r?\n/).find((line) => line.trim())?.trim() ?? '';
+}
+
 function objectOrNull(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -267,6 +289,75 @@ function checkRemoteTarget(options: Options, checks: Check[], target: ReleaseTar
   }
 
   addCheck(checks, 'remote_target', 'passed', `${target.tag} is unused for ${options.releaseMode}.`);
+}
+
+function resolveGitHubRef(repository: string, ref: string, offline: boolean): RefPreflight {
+  const normalizedRef = ref.trim() || 'main';
+  if (offline) {
+    return {
+      repository,
+      ref: normalizedRef,
+      status: 'skipped',
+      resolved_sha: null,
+      reason: 'Offline mode skipped remote ref lookup.',
+    };
+  }
+
+  const result = run('gh', ['api', `repos/${repository}/commits/${normalizedRef}`, '--jq', '.sha'], {
+    allowFailure: true,
+  });
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout).trim().replace(/\s+/g, ' ');
+    return {
+      repository,
+      ref: normalizedRef,
+      status: 'failed',
+      resolved_sha: null,
+      reason: `Unable to resolve ${repository}@${normalizedRef}${detail ? `: ${detail}` : ''}`,
+    };
+  }
+  const sha = stdoutLine(result);
+  if (!/^[a-f0-9]{40}$/i.test(sha)) {
+    return {
+      repository,
+      ref: normalizedRef,
+      status: 'failed',
+      resolved_sha: null,
+      reason: `GitHub returned an invalid commit sha for ${repository}@${normalizedRef}.`,
+    };
+  }
+  return {
+    repository,
+    ref: normalizedRef,
+    status: 'ok',
+    resolved_sha: sha,
+    reason: `${repository}@${normalizedRef} resolves before expensive release jobs.`,
+  };
+}
+
+function checkReleaseRefs(options: Options, checks: Check[]) {
+  const refs = [
+    resolveGitHubRef('gaofeng21cn/opl-aion-shell', options.shellRef, options.offline),
+  ];
+  if (options.includeFullPackage) {
+    refs.push(resolveGitHubRef('gaofeng21cn/one-person-lab', options.frameworkRef, options.offline));
+  }
+  const failed = refs.filter((entry) => entry.status === 'failed');
+  if (failed.length > 0) {
+    addCheck(checks, 'release_refs', 'failed', failed.map((entry) => entry.reason).join('; '));
+    return refs;
+  }
+  if (refs.every((entry) => entry.status === 'skipped')) {
+    addCheck(checks, 'release_refs', 'skipped', 'Offline mode skipped shell/framework ref lookups.');
+    return refs;
+  }
+  addCheck(
+    checks,
+    'release_refs',
+    'passed',
+    refs.map((entry) => `${entry.repository}@${entry.ref}=${entry.resolved_sha?.slice(0, 12) ?? 'skipped'}`).join(', '),
+  );
+  return refs;
 }
 
 function checkWorkflowShape(options: Options, checks: Check[]) {
@@ -461,6 +552,121 @@ function checkMacosLocalAuthorization(checks: Check[]) {
   );
 }
 
+function parseNpmViewJson(stdout: string): Record<string, unknown> | null {
+  if (!stdout.trim()) return null;
+  const parsed = JSON.parse(stdout);
+  return objectOrNull(parsed);
+}
+
+function hostOf(rawUrl: unknown): string | null {
+  if (typeof rawUrl !== 'string' || !rawUrl.trim()) return null;
+  try {
+    return new URL(rawUrl).host;
+  } catch {
+    return null;
+  }
+}
+
+function checkCodexPackageMetadata(options: Options, checks: Check[]): CodexPackagePreflight {
+  const skipped: CodexPackagePreflight = {
+    status: 'skipped',
+    requested_spec: '@openai/codex@latest',
+    version: null,
+    platform_spec: null,
+    package_tarball_host: null,
+    platform_tarball_host: null,
+    reason: 'VM smoke is disabled; Codex install asset metadata is not required for this run.',
+  };
+  if (!options.runVmSmoke) {
+    addCheck(checks, 'codex_package_metadata', 'skipped', skipped.reason);
+    return skipped;
+  }
+  if (options.offline) {
+    const offlineSkipped = {
+      ...skipped,
+      reason: 'Offline mode skipped npm registry metadata lookup.',
+    };
+    addCheck(checks, 'codex_package_metadata', 'skipped', offlineSkipped.reason);
+    return offlineSkipped;
+  }
+
+  const requestedSpec = '@openai/codex@latest';
+  const npmView = run('npm', ['view', requestedSpec, 'version', 'dist.tarball', '--json'], {
+    allowFailure: true,
+  });
+  if (npmView.status !== 0) {
+    const reason = `npm registry metadata lookup failed for ${requestedSpec}: ${(npmView.stderr || npmView.stdout).trim()}`;
+    addCheck(checks, 'codex_package_metadata', 'failed', reason);
+    return {
+      ...skipped,
+      status: 'failed',
+      reason,
+    };
+  }
+
+  const metadata = parseNpmViewJson(npmView.stdout);
+  const version = typeof metadata?.version === 'string' ? metadata.version : null;
+  const packageTarballHost = hostOf(metadata?.['dist.tarball'] ?? objectOrNull(metadata?.dist)?.tarball);
+  const platformSpec = version ? `@openai/codex@${version}-darwin-arm64` : null;
+  if (!version || !packageTarballHost || !platformSpec) {
+    const reason = `${requestedSpec} metadata is missing version or tarball URL.`;
+    addCheck(checks, 'codex_package_metadata', 'failed', reason);
+    return {
+      ...skipped,
+      status: 'failed',
+      version,
+      platform_spec: platformSpec,
+      package_tarball_host: packageTarballHost,
+      reason,
+    };
+  }
+
+  const platformView = run('npm', ['view', platformSpec, 'version', 'dist.tarball', '--json'], {
+    allowFailure: true,
+  });
+  if (platformView.status !== 0) {
+    const reason = `npm registry metadata lookup failed for ${platformSpec}: ${(platformView.stderr || platformView.stdout).trim()}`;
+    addCheck(checks, 'codex_package_metadata', 'failed', reason);
+    return {
+      ...skipped,
+      status: 'failed',
+      version,
+      platform_spec: platformSpec,
+      package_tarball_host: packageTarballHost,
+      reason,
+    };
+  }
+
+  const platformMetadata = parseNpmViewJson(platformView.stdout);
+  const platformVersion = typeof platformMetadata?.version === 'string' ? platformMetadata.version : null;
+  const platformTarballHost = hostOf(platformMetadata?.['dist.tarball'] ?? objectOrNull(platformMetadata?.dist)?.tarball);
+  if (!platformVersion || !platformTarballHost) {
+    const reason = `${platformSpec} metadata is missing version or tarball URL.`;
+    addCheck(checks, 'codex_package_metadata', 'failed', reason);
+    return {
+      ...skipped,
+      status: 'failed',
+      version,
+      platform_spec: platformSpec,
+      package_tarball_host: packageTarballHost,
+      platform_tarball_host: platformTarballHost,
+      reason,
+    };
+  }
+
+  const preflight: CodexPackagePreflight = {
+    status: 'ok',
+    requested_spec: requestedSpec,
+    version,
+    platform_spec: platformSpec,
+    package_tarball_host: packageTarballHost,
+    platform_tarball_host: platformTarballHost,
+    reason: `${requestedSpec} and ${platformSpec} registry metadata resolved before VM gates.`,
+  };
+  addCheck(checks, 'codex_package_metadata', 'passed', preflight.reason);
+  return preflight;
+}
+
 function checkContract(options: Options, checks: Check[]) {
   const contract = JSON.parse(readText('contracts/app-release-channel.json'));
   if (contract.release_preflight?.script !== 'scripts/validate-release-preflight.ts') {
@@ -473,6 +679,8 @@ function checkContract(options: Options, checks: Check[]) {
     'release_mode',
     'release_preflight_contract',
     'remote_target',
+    'release_refs',
+    'codex_package_metadata',
     'workflow_preflight_shape',
     'release_plan',
     'homebrew_vm_gate_static_policy',
@@ -523,6 +731,8 @@ function writeSummary(options: Options, checks: Check[], releaseTarget: ReleaseT
       offline: options.offline,
     },
     release_target: releaseTarget,
+    release_refs: releaseRefs,
+    codex_package_metadata: codexPackageMetadata,
     homebrew,
     checks,
   };
@@ -567,6 +777,8 @@ const homebrewVmGateStaticPolicy = buildHomebrewVmGateStaticPolicy();
 checkHomebrewVmGateStaticPolicy(homebrewVmGateStaticPolicy, checks);
 const releaseTarget = resolveReleaseTarget(options);
 checkRemoteTarget(options, checks, releaseTarget);
+const releaseRefs = checkReleaseRefs(options, checks);
+const codexPackageMetadata = checkCodexPackageMetadata(options, checks);
 const homebrew = buildHomebrewPreflight(options, releaseTarget, homebrewVmGateStaticPolicy);
 checkHomebrewToken(homebrew, checks);
 checkMacosLocalAuthorization(checks);

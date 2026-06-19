@@ -55,10 +55,11 @@ npm run release:preflight
 ```
 
 The preflight checks version/mode compatibility, remote tag or release state,
-workflow shape, release plan shape, Homebrew tap token availability, the
-Homebrew VM static trust policy, and the App-owned release contract. A failing
-preflight stops the release before standard, Full, VM, Homebrew, WebUI, or
-publish jobs run.
+workflow shape, release plan shape, shell/framework ref availability, Codex CLI
+plus Darwin arm64 package metadata for VM-smoke runs, Homebrew tap token
+availability, the Homebrew VM static trust policy, and the App-owned release
+contract. A failing preflight stops the release before standard, Full, VM,
+Homebrew, WebUI, or publish jobs run.
 
 For the Homebrew standard VM gate, the static policy is:
 
@@ -86,6 +87,10 @@ Stable release flow:
 7. Run post-release user-guide/screenshots only after promotion; they are never pre-promotion gates.
 
 Nightly and candidate flows follow the same SSOT contract but do not imply stable/latest promotion.
+
+Every desktop release run also uploads `release-actions-timing-<version>`. Use
+that artifact to inspect workflow wall time, failed/canceled run tax, slow jobs,
+and slow steps before opening raw job logs.
 
 ## Clean VM Diagnostics
 

@@ -446,8 +446,7 @@ jobs:
     name: Run Homebrew standard first-run VM smoke
     needs:
       - stable-homebrew-tap-update
-      - full-homebrew-tap-update
-    if: ${{ always() && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' && (!inputs.include_full_package || needs.full-homebrew-tap-update.result == 'success') }}
+    if: ${{ always() && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
@@ -1108,6 +1107,21 @@ jobs:
             --no-download
           cat release-closeout/release-closeout.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Build GitHub Actions timing summary
+        if: ${{ always() }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_RUN_ID: ${{ github.run_id }}
+          OPL_RELEASE_REPO: ${{ github.repository }}
+        run: |
+          npm run release:actions-timing -- \
+            --repo "$OPL_RELEASE_REPO" \
+            --run-id "$OPL_RELEASE_RUN_ID" \
+            --output release-actions-timing.json \
+            --markdown release-actions-timing.md
+          cat release-actions-timing.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload release readiness summary
         if: always()
         uses: actions/upload-artifact@v7
@@ -1138,4 +1152,14 @@ jobs:
             release-closeout/release-closeout.md
             release-closeout/release-monitor.json
             release-closeout/release-notification.json
+          if-no-files-found: error
+
+      - name: Upload GitHub Actions timing summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-actions-timing-${{ inputs.opl_version }}
+          path: |
+            release-actions-timing.json
+            release-actions-timing.md
           if-no-files-found: error
