@@ -57,6 +57,7 @@
     "release:plan": "node --experimental-strip-types scripts/plan-release-candidate.ts",
     "release:closeout": "node --experimental-strip-types scripts/closeout-release-run.ts",
     "release:actions-timing": "node --experimental-strip-types scripts/summarize-github-actions-timing.ts",
+    "release:gate-reuse-plan": "node --experimental-strip-types scripts/plan-release-gate-reuse.ts",
     "release:readiness-summary": "node --experimental-strip-types scripts/summarize-release-readiness.ts",
     "release:candidate-record": "node --experimental-strip-types scripts/write-release-candidate-record.ts",
     "release:candidate-record:validate": "node --experimental-strip-types scripts/validate-release-candidate-record.ts --promote-ready",

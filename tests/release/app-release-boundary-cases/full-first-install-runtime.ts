@@ -616,6 +616,65 @@ test('Full first-install cache and release acceleration contract are explicit', 
     packageJson.scripts['release:full:size'],
     'node --experimental-strip-types scripts/analyze-full-package-size.ts',
   );
+  assert.equal(
+    packageJson.scripts['release:gate-reuse-plan'],
+    'node --experimental-strip-types scripts/plan-release-gate-reuse.ts',
+  );
+  assert.equal(releaseContract.release_acceleration.gate_reuse.schema, 'opl_release_gate_reuse_plan.v1');
+  assert.deepEqual(releaseContract.release_acceleration.gate_reuse.eligible_gate_ids, [
+    'remote_release_verification',
+    'standard_dmg_clean_vm',
+    'stable_homebrew_tap_update',
+    'full_homebrew_tap_update',
+    'homebrew_standard_cask_clean_vm',
+    'full_dmg_clean_vm',
+    'one_shot_app_installer',
+    'docker_webui',
+    'webui_ghcr_publish',
+    'full_size_cache_timing',
+    'operator_evidence_bundle',
+  ]);
+  assert.deepEqual(releaseContract.release_acceleration.gate_reuse.required_match_fields, [
+    'cohort',
+    'version',
+    'release_mode',
+    'include_full_package',
+    'run_vm_smoke',
+    'app_commit',
+    'shell_ref',
+    'framework_ref',
+    'resolved_ref_sha',
+    'remote_asset_name_size_sha256',
+    'previous_gate_status_passed',
+    'previous_candidate_status_ready_to_promote',
+    'reuse_digest',
+  ]);
+  assert.equal(releaseContract.release_acceleration.gate_reuse.digest_field, 'reuse_digest');
+  assert.equal(
+    releaseContract.release_acceleration.gate_reuse.workflow_consumption_status,
+    'artifact_available_not_consumed_for_gate_skip',
+  );
+  assert.match(releaseContract.release_acceleration.gate_reuse.authority_boundary, /cannot claim release-ready/);
+  assert.match(releaseContract.release_acceleration.gate_reuse.authority_boundary, /workflow explicitly consumes/);
+  assert.equal(releaseContract.release_acceleration.tart_base_prebake.status, 'contracted_not_claimed_current');
+  assert.equal(releaseContract.release_acceleration.tart_base_prebake.standard_source_vm_variable, 'OPL_FIRST_RUN_TART_SOURCE');
+  assert.equal(releaseContract.release_acceleration.tart_base_prebake.homebrew_source_vm_variable, 'OPL_FIRST_RUN_HOMEBREW_TART_SOURCE');
+  assert.ok(releaseContract.release_acceleration.tart_base_prebake.allowed_prebaked_layers.includes('node_runtime_prerequisites'));
+  assert.ok(releaseContract.release_acceleration.tart_base_prebake.allowed_prebaked_layers.includes('codex_install_asset_cache_seed'));
+  assert.ok(releaseContract.release_acceleration.tart_base_prebake.forbidden_prebaked_layers.includes('One Person Lab.app'));
+  assert.ok(releaseContract.release_acceleration.tart_base_prebake.forbidden_prebaked_layers.includes('release_homebrew_cask'));
+  assert.ok(releaseContract.release_acceleration.tart_base_prebake.forbidden_prebaked_layers.includes('runtime_truth'));
+  assert.deepEqual(releaseContract.release_acceleration.tart_base_prebake.required_receipt_fields, [
+    'source_vm',
+    'image_id_or_digest',
+    'created_at',
+    'profile',
+    'prebaked_layers',
+    'truth_boundary',
+    'validation_command',
+  ]);
+  assert.match(releaseContract.release_acceleration.tart_base_prebake.truth_boundary, /host setup latency only/);
+  assert.match(releaseContract.release_acceleration.tart_base_prebake.truth_boundary, /VM smoke artifact/);
   assert.equal(releaseContract.release_acceleration.full_runtime_cache.enabled_by_default, true);
   assert.deepEqual(releaseContract.release_acceleration.full_runtime_cache.layer_ids, mod.FULL_RUNTIME_CACHE_LAYER_IDS);
   assert.deepEqual(releaseContract.release_acceleration.full_runtime_cache.restore_prefixes, {

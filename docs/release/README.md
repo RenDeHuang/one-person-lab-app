@@ -308,6 +308,44 @@ When run locally, the command writes ignored outputs under
 and diagnostic artifacts unless `--no-download` is passed, and can record the
 Agent orchestration wall time with `--agent-wall-time <duration>`.
 
+## Gate Reuse And VM Base Acceleration
+
+Successful release gates can be considered for reuse only through a small,
+auditable decision artifact:
+
+```bash
+npm run release:gate-reuse-plan -- --version <version> --release-mode refresh_existing --include-full-package true --run-vm-smoke true --app-commit <sha> --shell-ref <ref> --framework-ref <ref> --current-preflight release-preflight-summary.json --current-remote-verification remote-release-verification.json --previous-candidate-record previous-release-candidate-record.json --previous-readiness previous-release-readiness-summary.json --previous-remote-verification previous-remote-release-verification.json --output release-gate-reuse-plan.json --markdown release-gate-reuse-plan.md
+```
+
+The command writes `opl_release_gate_reuse_plan.v1`. A gate becomes
+`reuse_allowed` only when the cohort matches on version, release mode,
+`include_full_package`, VM-smoke intent, App commit, shell/framework refs,
+resolved ref sha, previous promote-ready candidate status, previous passed gate
+status, and the remote release asset `{name,size,sha256}` set. It also writes a
+stable `reuse_digest` for the exact reuse cohort and evidence inputs.
+
+This artifact does not publish a release, claim release-ready, write runtime
+truth, or skip a workflow gate by itself. It is the reviewable input a future
+workflow can explicitly consume. Until a workflow has that explicit consumption
+step and a real release validates it, unchanged gates may be reported as
+reusable but still run.
+
+The same boundary applies to Tart base acceleration. `contracts/app-release-channel.json`
+allows pre-baking only host setup layers such as GUI session readiness,
+Homebrew prerequisites for the Homebrew profile, Node runtime prerequisites,
+and Codex install asset cache seeds. A prebaked image must carry a receipt with
+source VM, image digest, profile, prebaked layers, truth boundary, and
+validation command. It must not contain `One Person Lab.app`, release DMGs,
+Homebrew casks, user workspace state, runtime truth, domain artifact truth, or
+owner receipts. The clean App install, first launch, Settings smoke, assistant
+route smoke, and release readiness still come from the VM smoke artifact.
+
+This follows the same operational shape used by mature cleanup/cache systems:
+Docker prune scopes removal to unused objects, pnpm store prune scopes removal
+to unreferenced packages, Hugging Face cache management exposes scan/delete
+flows, and Electron separates app data, cache/session, and logs paths instead
+of treating all local files as one removable bucket.
+
 No-watch readback:
 
 ```bash

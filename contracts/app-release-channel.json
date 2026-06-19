@@ -652,6 +652,71 @@
   },
   "release_acceleration": {
     "plan_command": "npm run release:plan -- --version <version> --include-full-package",
+    "gate_reuse": {
+      "plan_command": "npm run release:gate-reuse-plan -- --version <version> --release-mode <mode> --include-full-package true --run-vm-smoke true",
+      "schema": "opl_release_gate_reuse_plan.v1",
+      "eligible_gate_ids": [
+        "remote_release_verification",
+        "standard_dmg_clean_vm",
+        "stable_homebrew_tap_update",
+        "full_homebrew_tap_update",
+        "homebrew_standard_cask_clean_vm",
+        "full_dmg_clean_vm",
+        "one_shot_app_installer",
+        "docker_webui",
+        "webui_ghcr_publish",
+        "full_size_cache_timing",
+        "operator_evidence_bundle"
+      ],
+      "required_match_fields": [
+        "cohort",
+        "version",
+        "release_mode",
+        "include_full_package",
+        "run_vm_smoke",
+        "app_commit",
+        "shell_ref",
+        "framework_ref",
+        "resolved_ref_sha",
+        "remote_asset_name_size_sha256",
+        "previous_gate_status_passed",
+        "previous_candidate_status_ready_to_promote",
+        "reuse_digest"
+      ],
+      "digest_field": "reuse_digest",
+      "workflow_consumption_status": "artifact_available_not_consumed_for_gate_skip",
+      "authority_boundary": "reuse plan is a decision artifact only; it cannot claim release-ready, publish a release, write runtime truth, or skip a workflow gate unless a workflow explicitly consumes a reuse_allowed decision"
+    },
+    "tart_base_prebake": {
+      "status": "contracted_not_claimed_current",
+      "standard_source_vm_variable": "OPL_FIRST_RUN_TART_SOURCE",
+      "homebrew_source_vm_variable": "OPL_FIRST_RUN_HOMEBREW_TART_SOURCE",
+      "allowed_prebaked_layers": [
+        "macos_gui_session_ready",
+        "homebrew_for_homebrew_profile",
+        "node_runtime_prerequisites",
+        "codex_install_asset_cache_seed"
+      ],
+      "forbidden_prebaked_layers": [
+        "One Person Lab.app",
+        "release_dmg",
+        "release_homebrew_cask",
+        "user_workspace_state",
+        "runtime_truth",
+        "domain_artifact_truth",
+        "owner_receipt"
+      ],
+      "required_receipt_fields": [
+        "source_vm",
+        "image_id_or_digest",
+        "created_at",
+        "profile",
+        "prebaked_layers",
+        "truth_boundary",
+        "validation_command"
+      ],
+      "truth_boundary": "prebaked Tart base can reduce host setup latency only; clean App install, first launch, Settings smoke, assistant route smoke, and release readiness still come from the VM smoke artifact"
+    },
     "full_runtime_cache": {
       "enabled_by_default": true,
       "mode_env": "OPL_FULL_RUNTIME_CACHE_MODE",

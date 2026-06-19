@@ -8,6 +8,43 @@ const requiredHomebrewTrustedCaskRefs = [
   'gaofeng21cn/one-person-lab/one-person-lab-nightly',
 ];
 const requiredHomebrewTrustScope = 'explicit_standard_and_conflicting_cask_refs_not_whole_tap';
+const requiredReusableGateIds = [
+  'remote_release_verification',
+  'standard_dmg_clean_vm',
+  'stable_homebrew_tap_update',
+  'full_homebrew_tap_update',
+  'homebrew_standard_cask_clean_vm',
+  'full_dmg_clean_vm',
+  'one_shot_app_installer',
+  'docker_webui',
+  'webui_ghcr_publish',
+  'full_size_cache_timing',
+  'operator_evidence_bundle',
+];
+const requiredGateReuseMatchFields = [
+  'cohort',
+  'version',
+  'release_mode',
+  'include_full_package',
+  'run_vm_smoke',
+  'app_commit',
+  'shell_ref',
+  'framework_ref',
+  'resolved_ref_sha',
+  'remote_asset_name_size_sha256',
+  'previous_gate_status_passed',
+  'previous_candidate_status_ready_to_promote',
+  'reuse_digest',
+];
+const requiredTartPrebakeReceiptFields = [
+  'source_vm',
+  'image_id_or_digest',
+  'created_at',
+  'profile',
+  'prebaked_layers',
+  'truth_boundary',
+  'validation_command',
+];
 
 function readJson(appRoot: string, relativePath: string) {
   return JSON.parse(fs.readFileSync(path.join(appRoot, relativePath), 'utf8'));
@@ -148,6 +185,74 @@ function validateWebuiPackagePolicy(releaseContract: Record<string, any>): numbe
   return failures;
 }
 
+function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>): number {
+  let failures = 0;
+  const acceleration = releaseContract.release_acceleration;
+  const gateReuse = acceleration?.gate_reuse;
+  const tartBasePrebake = acceleration?.tart_base_prebake;
+
+  if (
+    gateReuse?.plan_command !== 'npm run release:gate-reuse-plan -- --version <version> --release-mode <mode> --include-full-package true --run-vm-smoke true' ||
+    gateReuse?.schema !== 'opl_release_gate_reuse_plan.v1' ||
+    gateReuse?.digest_field !== 'reuse_digest' ||
+    gateReuse?.workflow_consumption_status !== 'artifact_available_not_consumed_for_gate_skip'
+  ) {
+    console.error('FAIL release_gate_reuse_policy: gate reuse must expose the script, schema, digest field, and non-consumed workflow status');
+    failures += 1;
+  }
+  if (!sameStringSet(gateReuse?.eligible_gate_ids, requiredReusableGateIds)) {
+    console.error('FAIL release_gate_reuse_policy: eligible gates must match the reusable release gate list');
+    failures += 1;
+  }
+  if (!sameStringSet(gateReuse?.required_match_fields, requiredGateReuseMatchFields)) {
+    console.error('FAIL release_gate_reuse_policy: required match fields must include cohort, refs, remote asset digests, previous statuses, and reuse_digest');
+    failures += 1;
+  }
+  if (
+    typeof gateReuse?.authority_boundary !== 'string' ||
+    !gateReuse.authority_boundary.includes('cannot claim release-ready') ||
+    !gateReuse.authority_boundary.includes('skip a workflow gate unless a workflow explicitly consumes a reuse_allowed decision')
+  ) {
+    console.error('FAIL release_gate_reuse_policy: authority boundary must prevent implicit release-ready or gate-skip claims');
+    failures += 1;
+  }
+
+  if (
+    tartBasePrebake?.status !== 'contracted_not_claimed_current' ||
+    tartBasePrebake?.standard_source_vm_variable !== 'OPL_FIRST_RUN_TART_SOURCE' ||
+    tartBasePrebake?.homebrew_source_vm_variable !== 'OPL_FIRST_RUN_HOMEBREW_TART_SOURCE'
+  ) {
+    console.error('FAIL tart_base_prebake_policy: prebake must be contracted but not claimed current and must name source VM variables');
+    failures += 1;
+  }
+  for (const layer of ['macos_gui_session_ready', 'homebrew_for_homebrew_profile', 'node_runtime_prerequisites', 'codex_install_asset_cache_seed']) {
+    if (!tartBasePrebake?.allowed_prebaked_layers?.includes(layer)) {
+      console.error(`FAIL tart_base_prebake_policy: missing allowed prebaked layer ${layer}`);
+      failures += 1;
+    }
+  }
+  for (const layer of ['One Person Lab.app', 'release_dmg', 'release_homebrew_cask', 'runtime_truth', 'domain_artifact_truth', 'owner_receipt']) {
+    if (!tartBasePrebake?.forbidden_prebaked_layers?.includes(layer)) {
+      console.error(`FAIL tart_base_prebake_policy: missing forbidden prebaked layer ${layer}`);
+      failures += 1;
+    }
+  }
+  if (!sameStringSet(tartBasePrebake?.required_receipt_fields, requiredTartPrebakeReceiptFields)) {
+    console.error('FAIL tart_base_prebake_policy: prebake receipt fields must identify source image, layers, boundary, and validation command');
+    failures += 1;
+  }
+  if (
+    typeof tartBasePrebake?.truth_boundary !== 'string' ||
+    !tartBasePrebake.truth_boundary.includes('prebaked Tart base can reduce host setup latency only') ||
+    !tartBasePrebake.truth_boundary.includes('VM smoke artifact')
+  ) {
+    console.error('FAIL tart_base_prebake_policy: truth boundary must keep App readiness in VM smoke artifacts');
+    failures += 1;
+  }
+
+  return failures;
+}
+
 export function validateReleaseContractPolicies(appRoot: string): number {
   const releaseContract = readJson(appRoot, 'contracts/app-release-channel.json');
   const firstRunMatrix = readJson(appRoot, 'contracts/app-first-run-test-matrix.json');
@@ -157,6 +262,7 @@ export function validateReleaseContractPolicies(appRoot: string): number {
   failures += validateReleasePreflightContract(releaseContract);
   failures += validateHomebrewVmGateStaticPolicy(appRoot, releaseContract, firstRunMatrix);
   failures += validateWebuiPackagePolicy(releaseContract);
+  failures += validateReleaseAccelerationPolicy(releaseContract);
 
   return failures;
 }

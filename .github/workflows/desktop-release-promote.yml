@@ -130,8 +130,7 @@ jobs:
     name: Run Homebrew standard first-run VM smoke
     needs:
       - stable-homebrew-tap-update
-      - full-homebrew-tap-update
-    if: ${{ always() && needs.stable-homebrew-tap-update.result == 'success' && (!inputs.include_full_package || needs.full-homebrew-tap-update.result == 'success') }}
+    if: ${{ always() && needs.stable-homebrew-tap-update.result == 'success' }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}

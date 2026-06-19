@@ -40,6 +40,150 @@ function runReleaseOwnerCandidateVerifier(args: string[]) {
   );
 }
 
+function runGateReusePlan(args: string[]) {
+  return spawnSync(
+    process.execPath,
+    ['--experimental-strip-types', 'scripts/plan-release-gate-reuse.ts', ...args],
+    { cwd: appRoot, encoding: 'utf8', env: { ...process.env } },
+  );
+}
+
+function gateReuseFixture(root: string, options: { currentAssetSha?: string } = {}) {
+  const version = '26.5.99';
+  const currentPreflightPath = path.join(root, 'current-preflight.json');
+  const currentRemotePath = path.join(root, 'current-remote-verification.json');
+  const previousCandidatePath = path.join(root, 'previous-candidate-record.json');
+  const previousReadinessPath = path.join(root, 'previous-readiness-summary.json');
+  const previousRemotePath = path.join(root, 'previous-remote-verification.json');
+  const outputPath = path.join(root, 'release-gate-reuse-plan.json');
+  const markdownPath = path.join(root, 'release-gate-reuse-plan.md');
+  const appCommit = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  const standardAsset = {
+    name: `One-Person-Lab-${version}-mac-arm64.dmg`,
+    size: 512,
+    sha256: options.currentAssetSha ?? 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  };
+  const previousStandardAsset = {
+    ...standardAsset,
+    sha256: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  };
+  const gates = Object.fromEntries([
+    'remote_release_verification',
+    'standard_dmg_clean_vm',
+    'stable_homebrew_tap_update',
+    'full_homebrew_tap_update',
+    'homebrew_standard_cask_clean_vm',
+    'full_dmg_clean_vm',
+    'one_shot_app_installer',
+    'docker_webui',
+    'webui_ghcr_publish',
+    'full_size_cache_timing',
+    'operator_evidence_bundle',
+  ].map((gateId) => [gateId, {
+    status: 'passed',
+    required: true,
+    artifact_name: `${gateId}-${version}`,
+    artifact_path: `${gateId}-${version}/summary.json`,
+  }]));
+
+  writeJson(currentPreflightPath, {
+    schema: 'opl_release_preflight.v1',
+    status: 'passed',
+    release_refs: [
+      {
+        repository: 'gaofeng21cn/opl-aion-shell',
+        ref: 'main',
+        resolved_sha: '1111111111111111111111111111111111111111',
+      },
+      {
+        repository: 'gaofeng21cn/one-person-lab',
+        ref: 'main',
+        resolved_sha: '2222222222222222222222222222222222222222',
+      },
+    ],
+  });
+  writeJson(currentRemotePath, {
+    schema: 'opl_remote_release_verification.v1',
+    status: 'passed',
+    version,
+    verified_assets: [standardAsset],
+  });
+  writeJson(previousCandidatePath, {
+    schema: 'opl_release_candidate_record.v1',
+    status: 'ready_to_promote',
+    version,
+    release_mode: 'refresh_existing',
+    inputs: {
+      include_full_package: true,
+      run_vm_smoke: true,
+      shell_ref: 'main',
+      framework_ref: 'main',
+    },
+    provenance: { app_commit: appCommit },
+    resolved_refs: {
+      opl_framework: { ref: 'main', commit: '2222222222222222222222222222222222222222' },
+    },
+    decision: { can_promote: true },
+  });
+  writeJson(previousReadinessPath, {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version,
+    gates,
+  });
+  writeJson(previousRemotePath, {
+    schema: 'opl_remote_release_verification.v1',
+    status: 'passed',
+    version,
+    verified_assets: [previousStandardAsset],
+  });
+
+  return {
+    version,
+    appCommit,
+    currentPreflightPath,
+    currentRemotePath,
+    previousCandidatePath,
+    previousReadinessPath,
+    previousRemotePath,
+    outputPath,
+    markdownPath,
+  };
+}
+
+function runGateReuseFixture(fixture: ReturnType<typeof gateReuseFixture>) {
+  return runGateReusePlan([
+    '--version',
+    fixture.version,
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--app-commit',
+    fixture.appCommit,
+    '--shell-ref',
+    'main',
+    '--framework-ref',
+    'main',
+    '--current-preflight',
+    fixture.currentPreflightPath,
+    '--current-remote-verification',
+    fixture.currentRemotePath,
+    '--previous-candidate-record',
+    fixture.previousCandidatePath,
+    '--previous-readiness',
+    fixture.previousReadinessPath,
+    '--previous-remote-verification',
+    fixture.previousRemotePath,
+    '--output',
+    fixture.outputPath,
+    '--markdown',
+    fixture.markdownPath,
+  ]);
+}
+
 test('release candidate record blocks complete evidence until release owner records a receipt or verdict', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-candidate-record-'));
   const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
@@ -222,6 +366,50 @@ test('release candidate record promotes only after same-cohort release owner rec
     validation.release_owner_receipt_ref,
     'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-20260612',
   );
+});
+
+test('release gate reuse plan allows same cohort gates with matching remote asset digests', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-gate-reuse-'));
+  const fixture = gateReuseFixture(tempRoot);
+  const result = runGateReuseFixture(fixture);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const plan = JSON.parse(fs.readFileSync(fixture.outputPath, 'utf8'));
+  assert.equal(plan.schema, 'opl_release_gate_reuse_plan.v1');
+  assert.equal(plan.status, 'reuse_available');
+  assert.equal(plan.reuse_allowed_count, 11);
+  assert.equal(plan.must_run_count, 0);
+  assert.match(plan.reuse_digest, /^[a-f0-9]{64}$/);
+  assert.equal(plan.cohort.version, fixture.version);
+  assert.equal(plan.cohort.app_commit, fixture.appCommit);
+  assert.equal(plan.cohort.remote_asset_name_size_sha256[0].sha256, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+  assert.equal(plan.authority_boundary.reuse_plan_can_skip_release_gate_by_itself, false);
+  assert.equal(plan.authority_boundary.workflow_must_explicitly_consume_reuse_allowed_decision, true);
+  assert.ok(plan.decisions.every((decision: { status: string }) => decision.status === 'reuse_allowed'));
+  const markdown = fs.readFileSync(fixture.markdownPath, 'utf8');
+  assert.match(markdown, /Release Gate Reuse Plan/);
+  assert.match(markdown, /Reuse allowed: 11/);
+});
+
+test('release gate reuse plan forces gates to rerun when remote asset digest changes', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-gate-reuse-digest-mismatch-'));
+  const fixture = gateReuseFixture(tempRoot, {
+    currentAssetSha: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+  });
+  const result = runGateReuseFixture(fixture);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const plan = JSON.parse(fs.readFileSync(fixture.outputPath, 'utf8'));
+  assert.equal(plan.schema, 'opl_release_gate_reuse_plan.v1');
+  assert.equal(plan.status, 'partial_or_blocked');
+  assert.equal(plan.reuse_allowed_count, 0);
+  assert.equal(plan.must_run_count, 11);
+  assert.ok(plan.global_blockers.includes('remote verified asset name/size/sha256 set changed'));
+  assert.ok(plan.decisions.every((decision: { status: string; reason: string }) => (
+    decision.status === 'must_run' && decision.reason.includes('remote verified asset name/size/sha256 set changed')
+  )));
+  assert.equal(plan.authority_boundary.reuse_plan_can_claim_release_ready, false);
+  assert.equal(plan.authority_boundary.reuse_plan_can_publish_release, false);
 });
 
 test('new release candidate record is promote-ready when initial run carries same-cohort owner receipt', () => {

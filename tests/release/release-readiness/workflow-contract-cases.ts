@@ -98,6 +98,9 @@ test('desktop promote workflow is gated by the candidate record before publishin
   assert.match(workflow, /uses:\s+\.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /needs:\s+promote/);
   assert.match(workflow, /package_profile:\s+homebrew-standard/);
+  const homebrewStandardVmJob = workflow.match(/\n  homebrew-standard-first-run-vm-smoke:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assert.match(homebrewStandardVmJob, /stable-homebrew-tap-update/);
+  assert.doesNotMatch(homebrewStandardVmJob, /full-homebrew-tap-update/);
   assert.ok(workflow.indexOf('Verify release candidate record') < workflow.indexOf('Publish draft release'));
   assert.ok(workflow.indexOf('Verify remote release assets') < workflow.indexOf('Publish draft release'));
   assert.ok(workflow.indexOf('Publish draft release') < workflow.indexOf('Update Stable Homebrew tap'));

@@ -167,14 +167,36 @@ install gate tests the standard cask and standard release assets. The Full tap
 update remains an independent required readiness gate when the Full package is
 included.
 
+Layer 9 is now implemented as a gate-reuse decision artifact. The
+`npm run release:gate-reuse-plan` command compares the current cohort against a
+previous promote-ready candidate record, previous readiness summary, and
+previous remote verification artifact. It emits
+`opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run`
+decisions, the matched cohort fields, and a stable `reuse_digest`. The command
+requires matching version, release mode, Full/VM-smoke intent, App commit,
+shell/framework refs, resolved framework sha, previous gate status, previous
+candidate status, and remote asset `{name,size,sha256}` set. This is not yet an
+automatic workflow skip; workflows must explicitly consume the artifact before
+any gate can be skipped.
+
+Layer 10 is now contracted as a Tart base prebake boundary, not claimed as a
+current image. The release contract names the standard and Homebrew source VM
+variables and allows only host setup layers such as GUI session readiness,
+Homebrew prerequisites, Node runtime prerequisites, and Codex install asset
+cache seed. It forbids prebaking the App, release DMGs, release Homebrew casks,
+workspace state, runtime truth, domain artifact truth, or owner receipts. A real
+prebaked base still needs an image receipt with source VM, image digest,
+profile, prebaked layers, truth boundary, and validation command before it can
+be considered current release infrastructure.
+
 Next optimization candidates must preserve release authority boundaries:
 
-- Split standard, Full, Homebrew, WebUI, and owner-evidence gates into resumable
-  candidate records so an unchanged successful gate can be reused only when its
-  source commit, shell ref, release asset digest, and contract cohort match.
-- Reduce clean VM latency by baking stable Node/Codex installer prerequisites
-  into the Tart source images while keeping first-run App readiness checks
-  untouched.
+- Teach the release workflows to explicitly consume
+  `opl_release_gate_reuse_plan.v1` for selected gates after one real release
+  validates the artifact shape and stop conditions.
+- Produce and validate actual Tart prebake image receipts for the standard and
+  Homebrew profiles, then switch VM source variables only with fresh image
+  digest evidence.
 - Keep `refresh_existing` as an emergency repair path; ordinary Stable should
   prefer draft candidate promotion so failed attempts do not overwrite the
   already published stable asset set.
