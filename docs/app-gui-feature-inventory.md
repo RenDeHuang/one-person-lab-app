@@ -102,11 +102,12 @@ App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent da
   overlay/drawer/右侧浮层形式可见，至少保证 `opl-context-tabs` 和
   `opl-routing-panel` 实际显示。
 
-WebUI 目标与 Electron candidate 共享同一个 React/CopilotKit renderer。Electron
-通过 native preload/IPC 提供 `window.oplCandidate`；browser mode 通过 local
-Web transport bridge 暴露同样 App-owned API shape，使用 HTTP actions 和 SSE
-Codex events。WebUI 是同一 chat-first surface 的 delivery surface，不是拥有
-独立 state 或 authority 的第二个产品。
+WebUI 目标与 foreground alternative shell 共享同一个 renderer。对已归档 AGUI
+proof，Electron 与 WebUI 曾共享 React/CopilotKit renderer；这只作为 explicit replay
+边界保留。Electron 通过 native preload/IPC 提供 `window.oplCandidate`；browser
+mode 通过 local Web transport bridge 暴露同样 App-owned API shape，使用 HTTP
+actions 和 SSE Codex events。WebUI 是同一 chat-first surface 的 delivery surface，
+不是拥有独立 state 或 authority 的第二个产品。
 
 Hermes Desktop candidate 的 WebUI 要求遵循同源 UI 原则。Hermes upstream renderer
 已经是 React/Vite Web 技术栈；OPL 不应为 Docker/WebUI 另写一套相似界面。正确做法是
@@ -487,7 +488,7 @@ AG-UI/CopilotKit proof 使用：
   和右侧 inspector。它不能成为源码或 runtime authority。
 
 AG-UI/CopilotKit reference inventory、research conclusion、adapter policy 和
-candidate adoption gate 由 `contracts/app-shell-candidates.json` 持有。当前产品
+explicit replay gate 由 `contracts/app-shell-candidates.json` 持有。当前产品
 读法是：还没有成熟公开项目可以直接作为完整 Codex ACP adapter 到
 AG-UI/CopilotKit desktop shell；可复用部分仍是分散的。Codex app-server 提供
 native Codex GUI protocol，codex-acp style adapters 提供 ACP compatibility，

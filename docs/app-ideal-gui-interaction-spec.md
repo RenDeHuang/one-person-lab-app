@@ -6,9 +6,11 @@ State: `active_definition`
 Machine boundary: 本文是人读交互定义。机器可读 GUI 真相在 `contracts/`、
 page-state 矩阵、adapter contracts、源码、发布产物和测试输出中。
 
-本文定义 One Person Lab App 的理想用户交互模型。它不绑定具体 shell。
-AionUI、`agui-codex`、`hermes-codex` 和未来 GUI carrier 都实现这份 App-owned 产品定义，
-不能反过来重新定义它。
+本文定义 One Person Lab App 的理想用户交互模型。它不绑定具体 shell。当前 GUI
+主线是 AionUI；Hermes Desktop / `hermes-codex` 是唯一 foreground alternative；
+`agui-codex` 只作为 AG-UI/CopilotKit archived technical proof 在用户明确要求
+AGUI replay 时读取。任何 shell 都只能实现这份 App-owned 产品定义，不能反过来
+重新定义它。
 
 当前 active shell 是 AionUI fork。为了后续跟随 upstream 或替换 shell，本文的
 要求应通过 App-owned contracts、generated product profile、page-state matrix
@@ -17,7 +19,7 @@ routes、组合已有 renderer primitives、调用 App state/action bridge，并
 focused tests 证明行为。不要把产品 IA、runtime truth、model/provider policy
 或 first-run gates 写成 fork-local authority。
 
-`hermes-codex` 是当前最高优先级 Codex-like GUI candidate。它的外部来源是
+`hermes-codex` 是当前唯一 foreground alternative GUI candidate。它的外部来源是
 `NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；当前路线是
 先回官方 Hermes Desktop 功能基线，再做最小 OPL delta：候选 branding、简体中文/英文
 copy、图标、bundle metadata、OPL App-managed first-run、模型访问 API key
@@ -25,8 +27,9 @@ copy、图标、bundle metadata、OPL App-managed first-run、模型访问 API k
 Codex 与 MAS 只作为 executor/agent route 扩展点接入，不全量替换 Hermes backend，
 也不把 OPL runtime truth 搬进 App repo。App state/action、page-state、first-run、
 Full runtime、WebUI parity 等面必须先经过 Hermes 功能对比和 App-owned adoption
-gate，不能按旧 AionUI/AGUI 稳定路径直接搬运。Hermes candidate 不改变当前 AionUI
-默认 release shell，也不表达 release-ready。
+gate，不能按 AionUI 主线或 AGUI archived proof 路径直接搬运。Hermes candidate
+不改变当前 AionUI 默认 release shell，也不表达 release-ready。除非用户明确要求
+AGUI，本交互细则后续默认不再推动 AG-UI/CopilotKit 路线的更新、完善或抛光。
 
 Hermes 路线的产品假设和 AG-UI spike 不同：Hermes Desktop 已经是完整通用桌面
 Agent GUI，具备 chat、workspace/files、preview、tool output、settings、onboarding
@@ -469,7 +472,7 @@ renderer 结构变化。
 - 让 PilotDeck、AionUI 或任何外部 GUI 成为 product truth。
 - 在 Hermes Desktop 已有成熟功能时，从零重写等价 GUI surface。
 - 把 Codex/MAS 接入解释成全量替换 Hermes backend。
-- 未完成 Hermes upstream 功能对比前，把 AionUI/AGUI 稳定线 wrapper、
+- 未完成 Hermes upstream 功能对比前，把 AionUI 主线 wrapper 或 AGUI archived proof 的
   page-state、first-run、Full runtime 或 WebUI parity 迁入 Hermes。
 - 把 Hermes WebUI 做成第二套 renderer、第二套产品信息架构或仅相似外观的 Web app。
 - 在没有 license 和 authority 决策前复制外部源码到 App repo。

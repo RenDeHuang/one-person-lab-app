@@ -26,12 +26,15 @@ OPL App 应保留这些预期。下面的增量把 Codex App 专门化为 OPL fa
 
 这些增量属于 App 产品层，不属于 AionUI fork 的永久产品分叉。落地顺序是：
 先在 App contract/profile/matrix 中定义增量，再让 active shell 做薄适配。
-如果以后改用 `hermes-codex`、`agui-codex` 或其他 carrier，同一增量应通过 adapter/profile 迁移，
-而不是搬运 AionUI-specific product code。
+如果以后切换到 `hermes-codex` 或其他经 App owner 明确打开的 carrier，同一增量应
+通过 adapter/profile 迁移，而不是搬运 AionUI-specific product code。`agui-codex`
+当前只是 AG-UI/CopilotKit archived technical proof；除非用户明确要求 AGUI replay，
+不作为未来 carrier 或普通迁移目标推进。
 
 当 carrier 是 Hermes Desktop 这类成熟通用桌面 Agent GUI 时，迁移策略要更保守：
 先保留 upstream 的成熟功能基线，再把 OPL 增量压成清晰的定制层。OPL 不应一开始
-把 Hermes 改造成一套从零设计的 App，也不应把旧 AionUI/AGUI 稳定线能力直接套上。
+把 Hermes 改造成一套从零设计的 App，也不应把 AionUI 主线能力或 AGUI archived
+proof 直接套上。
 每个新增、隐藏或替换都要先做 Hermes 原生功能对比，并说明这个增量是 branding、
 backend bridge、ordinary UI hiding、App-owned contract adoption，还是 release/runtime
 gate 提升。

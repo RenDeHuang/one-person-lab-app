@@ -3,9 +3,12 @@
 The root `scripts/` directory exposes App-level wrappers. The active Electron
 shell implementation is checked out from `gaofeng21cn/opl-aion-shell` and
 exposes its shell-specific helpers under `shells/aionui/scripts/`.
-By default wrappers read `contracts/app-shell-adapter.json`. Technical
+By default wrappers read `contracts/app-shell-adapter.json`. AionUI is the
+mainline GUI carrier, Hermes Desktop / `hermes-codex` is the only foreground
+alternative, and AGUI / `agui-codex` is archived technical proof. Technical
 verification can select a different linked shell repo with
-`OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`.
+`OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`;
+AGUI selection should happen only when AGUI replay is explicitly requested.
 
 | Script | Purpose |
 | --- | --- |
@@ -75,10 +78,11 @@ node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
+npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package
+# Explicit AGUI replay only:
 npm run validate:shell-candidates -- --candidate agui-codex
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
-npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands
 npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts artifacts/hermes-candidate-tart-<timestamp> --timeout-ms 600000
 npm --prefix shells/hermes run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual
 npm run release:plan -- --version <version> --profile nightly

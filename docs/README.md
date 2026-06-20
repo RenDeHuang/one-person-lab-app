@@ -36,9 +36,9 @@ runtime, provider, or domain authority.
 - [`opl-hermes-first-run-flow.md`](opl-hermes-first-run-flow.md)：
   Hermes candidate 的首启初始化、模型访问向导、启动轻量检查和后台刷新验收草案。
 - [`agui-codex-candidate-verification.md`](agui-codex-candidate-verification.md):
-  AG-UI/CopilotKit candidate shell verification runbook; executable acceptance
-  stays in candidate contracts, validators, manifests, shell artifacts, CI logs,
-  release evidence, or history.
+  AG-UI/CopilotKit archived technical-proof replay runbook; executable replay
+  checks stay in candidate contracts, validators, manifests, shell artifacts,
+  CI logs, release evidence, or history.
 - [`release/`](release/): App release, updater, and Full first-install notes.
 - [`testing/`](testing/): App validation and page-state test guidance.
 - [`user-guides/`](user-guides/): user-facing guide entry point.
@@ -73,8 +73,8 @@ Framework read-model output consumed by the App.
    只在需要检查 Hermes candidate 启动分流、首启初始化、模型访问配置和 VM smoke
    验收口径时阅读。
 7. [`agui-codex-candidate-verification.md`](agui-codex-candidate-verification.md)
-   只在需要验证 AG-UI/CopilotKit candidate shell 命令顺序和 false-authority
-   边界时阅读。
+   只在用户明确要求 AGUI replay，或需要审计 AG-UI/CopilotKit archived proof
+   命令顺序和 false-authority 边界时阅读。
 8. `contracts/` 和 page-state matrices 承载机器可读 gates。
 
 ## 文档语言

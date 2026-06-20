@@ -276,7 +276,7 @@ Codex App-like 心智重命名和收窄：
 - Runtime refs 的完整展示、OPL App state/action 全量 bridge、WebUI parity、Full packaged
   runtime、stable release gates。
 - 这些能力必须有 Hermes 原生功能对比、App-owned contract/gate 和 runtime/packaged evidence，
-  不能按旧 AionUI/AGUI 稳定线直接搬进 Hermes。
+  不能把 AionUI 主线能力或 AGUI archived proof 直接搬进 Hermes。
 
 ## 视觉与交互方向
 

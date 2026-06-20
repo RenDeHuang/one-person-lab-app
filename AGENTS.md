@@ -24,8 +24,10 @@ source truth.
 - The App repo must not merge or vendor the AionUI Git history into its default
   branch. Keep AionUI upstream intake and shell implementation commits in the
   shell repository.
-- Future GUI candidates belong under `shells/<candidate>/` until their contracts
-  and tests are complete.
+- Current GUI direction is fixed: AionUI is the mainline implementation carrier,
+  Hermes Desktop / `hermes-codex` is the only foreground alternative, and
+  AGUI / `agui-codex` is archived technical proof. Do not update or polish AGUI
+  unless the user explicitly requests AGUI replay work.
 
 Root `docs/`, `contracts/`, and `scripts/` describe the App product layer.
 AionUI-specific source, package metadata, tests, shell release hooks, and
