@@ -3,8 +3,27 @@
   "owner": "one-person-lab-app",
   "purpose": "app_shell_candidate_registry",
   "state": "active_experimental",
-  "machine_boundary": "GUI shell candidate registry. Candidates stay out of default release packaging, but a candidate with an adapter contract can be selected explicitly through OPL_APP_SHELL_ADAPTER_CONTRACT for launchable .app technical verification builds.",
+  "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. Hermes Desktop is the only foreground alternative candidate. Archived technical-proof entries stay selectable only when explicitly requested and must not be improved by default.",
   "active_shell_unchanged": "aionui",
+  "active_gui_mainline": {
+    "shell": "aionui",
+    "shell_root": "shells/aionui",
+    "source_repo": "gaofeng21cn/opl-aion-shell",
+    "role": "stable_app_gui_mainline",
+    "product_truth_owner": "one-person-lab-app"
+  },
+  "alternative_gui_policy": {
+    "only_foreground_alternative": "hermes-codex",
+    "basis": "Hermes Desktop",
+    "default_candidate_validation_scope": [
+      "hermes-codex"
+    ],
+    "archived_technical_proofs": [
+      "agui-codex"
+    ],
+    "archived_proof_policy": "do_not_update_or_improve_unless_user_explicitly_requests_agui",
+    "active_shell_switch_policy": "only_contracts/app-shell-adapter.json_can_switch_default_release_shell"
+  },
   "release_shell_contract": "contracts/app-shell-adapter.json",
   "gui_product_contract": "contracts/app-gui-product-contract.json",
   "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
@@ -13,13 +32,14 @@
   "first_run_matrix": "contracts/app-first-run-test-matrix.json",
   "candidate_policy": {
     "candidate_root_pattern": "shells/<candidate>",
-    "candidate_state": "candidate_until_contracts_and_tests_complete",
+    "candidate_state": "foreground_alternative_or_archived_technical_proof",
     "release_participation_until_adopted": "explicit_candidate_build_only",
     "authority_transfer_allowed": false,
     "release_scripts_must_use_active_shell_adapter": true,
     "candidate_validation_script": "scripts/validate-shell-candidates.ts",
     "adoption_gate": [
       "candidate is declared in contracts/app-shell-candidates.json",
+      "candidate is the foreground alternative declared by alternative_gui_policy.only_foreground_alternative",
       "candidate implements contracts/app-gui-product-contract.json",
       "candidate uses one shared React/CopilotKit renderer for Electron and WebUI surfaces",
       "candidate provides a Web transport bridge that exposes the same App-owned window.oplCandidate API without taking runtime authority",
@@ -35,6 +55,8 @@
       "candidate enters App product truth only through App-owned contract updates and validation gates",
       "candidate evidence remains technical verification until explicit active-shell adoption decision"
     ],
+    "default_validation_scope": "foreground_alternative_only",
+    "archived_technical_proof_policy": "explicit_user_request_only",
     "entry_route": "App_contract_gate_only",
     "forbidden_entry_routes": [
       "shell implementation roadmap copied into App truth",
@@ -111,11 +133,13 @@
   "candidates": [
     {
       "id": "agui-codex",
-      "state": "technical_verification",
+      "state": "archived_technical_proof",
+      "archived_reason": "AG-UI/CopilotKit work served its technical verification purpose. AionUI is the App GUI mainline and Hermes Desktop is the only foreground alternative.",
+      "default_update_policy": "do_not_update_or_improve_unless_user_explicitly_requests_agui",
       "candidate_root": "shells/agui-codex",
       "adapter_contract": "contracts/shell-adapters/agui-codex.json",
       "source_topology": "external_checkout_linked_shell_repo",
-      "release_participation": "selectable_for_explicit_candidate_build",
+      "release_participation": "explicit_user_requested_technical_replay_only",
       "implementation_basis": [
         "Codex App-like chat-first desktop target",
         "AG-UI event model",

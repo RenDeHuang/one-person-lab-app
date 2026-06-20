@@ -35,9 +35,9 @@ function main(): void {
 
   const candidates = args.candidate
     ? registry.candidates.filter((candidate) => candidate.id === args.candidate)
-    : registry.candidates;
+    : registry.candidates.filter((candidate) => registry.alternative_gui_policy?.default_candidate_validation_scope.includes(candidate.id));
   if (candidates.length === 0) {
-    throw new Error(`No shell candidate matched ${args.candidate}`);
+    throw new Error(`No shell candidate matched ${args.candidate ?? 'default foreground alternative scope'}`);
   }
   for (const candidate of candidates) {
     validateCandidate(candidate);
@@ -50,6 +50,7 @@ function main(): void {
     active_shell_unchanged: registry.active_shell_unchanged,
     candidate_count: candidates.length,
     candidates: candidates.map((candidate) => candidate.id),
+    default_validation_scope: args.candidate ? 'explicit_candidate' : 'foreground_alternative_only',
     candidate_blockers: candidates.flatMap(candidateBlockers),
     release_participation: 'explicit_candidate_build_only_until_adopted',
   }, null, 2));

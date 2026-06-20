@@ -177,7 +177,7 @@ The App decides what users see during install, first launch, task entry, and set
 
 OPL BookForge is admitted into the App-owned default Home and Codex-visible skill surface through product contracts and active-shell validation. That default visibility supports the user entry point; it does not authorize production-ready book-writing, publication approval, owner acceptance, or hosted runtime parity claims.
 
-GUI product truth is App-owned as well. AionUI, `agui-codex`, PilotDeck, and similar references are implementation or inspiration material; the user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
+GUI product truth is App-owned as well. The current GUI mainline is the OPL-branded AionUI shell. Hermes Desktop is the only foreground alternative candidate. `agui-codex`, PilotDeck, and similar references are technical verification or inspiration material; the user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
 
 Need framework, runtime, or contract details? Go to [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab).
 
@@ -198,7 +198,7 @@ one-person-lab-app/
     aionui/             External checkout of gaofeng21cn/opl-aion-shell
 ```
 
-`shells/aionui/` is intentionally not tracked by this repository. It is checked out from `gaofeng21cn/opl-aion-shell` for builds and validation, keeping AionUI history and contributors outside the clean App product repository. Candidate shells follow the same external-checkout rule; for example, `shells/agui-codex/` links to `gaofeng21cn/opl-agui-codex-shell` and is selected only for explicit technical verification builds.
+`shells/aionui/` is intentionally not tracked by this repository. It is checked out from `gaofeng21cn/opl-aion-shell` for builds and validation, keeping AionUI history and contributors outside the clean App product repository. Hermes Desktop follows the same external-checkout rule as the only foreground alternative candidate. `shells/agui-codex/` remains an archived technical-proof link to `gaofeng21cn/opl-agui-codex-shell` and is selected only when AGUI replay is explicitly requested.
 
 ### Validation Commands
 
@@ -231,7 +231,13 @@ The active shell is declared in [`contracts/app-shell-adapter.json`](contracts/a
 - shell source: `gaofeng21cn/opl-aion-shell`
 - shell history policy: external checkout, not merged into App default branch
 
-An experimental shell can be selected without changing the default release adapter:
+The Hermes Desktop alternative can be selected without changing the default release adapter:
+
+```bash
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package
+```
+
+The archived AGUI technical proof remains replayable only when explicitly requested:
 
 ```bash
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package

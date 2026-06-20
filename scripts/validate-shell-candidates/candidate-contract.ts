@@ -49,13 +49,25 @@ function validateCandidateRegistryEntry(candidate: ShellCandidate): void {
   if (!candidate.id || !candidate.candidate_root) {
     throw new Error(`Invalid candidate entry: ${JSON.stringify(candidate)}`);
   }
-  if (candidate.state !== 'technical_verification') {
+  const expectedState = candidate.id === 'agui-codex' ? 'archived_technical_proof' : 'technical_verification';
+  if (candidate.state !== expectedState) {
     throw new Error(`${candidate.id} must stay in technical_verification until adopted`);
+  }
+  if (candidate.id === 'agui-codex') {
+    if (!candidate.archived_reason?.includes('AG-UI/CopilotKit work served its technical verification purpose')) {
+      throw new Error('agui-codex archived technical proof must record why it is no longer a foreground alternative');
+    }
+    if (candidate.default_update_policy !== 'do_not_update_or_improve_unless_user_explicitly_requests_agui') {
+      throw new Error('agui-codex must not be updated or improved unless the user explicitly requests AGUI work');
+    }
   }
   if (!candidate.candidate_root.startsWith('shells/') || candidate.candidate_root.split(/[\\/]+/).includes('..')) {
     throw new Error(`${candidate.id} candidate_root must be under shells/<candidate>`);
   }
-  if (candidate.release_participation !== 'selectable_for_explicit_candidate_build') {
+  const expectedReleaseParticipation = candidate.id === 'agui-codex'
+    ? 'explicit_user_requested_technical_replay_only'
+    : 'selectable_for_explicit_candidate_build';
+  if (candidate.release_participation !== expectedReleaseParticipation) {
     throw new Error(`${candidate.id} must only participate in explicit candidate builds`);
   }
   if (candidate.source_topology !== 'external_checkout_linked_shell_repo') {
@@ -78,8 +90,11 @@ function validateCandidateAdapterContract(candidate: ShellCandidate, adapterCont
   if (adapterContract.shell_source.history_policy !== 'external_checkout_not_merged_into_app_default_branch') {
     throw new Error(`${candidate.id} adapter must keep external checkout history policy`);
   }
-  if (adapterContract.release_role !== 'experimental_candidate_shell') {
-    throw new Error(`${candidate.id} adapter release_role must be experimental_candidate_shell`);
+  const expectedRole = candidate.id === 'agui-codex'
+    ? 'archived_technical_verification_shell'
+    : 'experimental_candidate_shell';
+  if (adapterContract.release_role !== expectedRole) {
+    throw new Error(`${candidate.id} adapter release_role must be ${expectedRole}`);
   }
   if (adapterContract.shell_contract.source_topology !== candidate.source_topology) {
     throw new Error(`${candidate.id} adapter source_topology must match candidate registry`);

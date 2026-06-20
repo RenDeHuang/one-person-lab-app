@@ -12,7 +12,7 @@ verification can select a different linked shell repo with
 | `ensure-active-shell.ts` | Clones or validates the selected external shell checkout, defaulting to `shells/aionui`. |
 | `verify.sh` | App-root verification wrapper for smoke, active-shell, release-boundary, candidate-shell, structure, and full lanes without running release packaging by default. |
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
-| `validate-shell-candidates.ts` | Validates GUI shell candidates from `contracts/app-shell-candidates.json`; selectable candidates are packageable only through an explicit adapter contract env override and must emit a real `.app` bundle manifest. |
+| `validate-shell-candidates.ts` | Validates the foreground GUI alternative from `contracts/app-shell-candidates.json` by default. Hermes Desktop is the only foreground alternative; archived AGUI proof is checked only with `--candidate agui-codex`. Selectable candidates are packageable only through an explicit adapter contract env override and must emit a real `.app` bundle manifest. |
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
@@ -75,8 +75,9 @@ node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
-OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package
+npm run validate:shell-candidates -- --candidate agui-codex
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands
 npm run smoke:hermes-candidate:tart -- --no-graphics --artifacts artifacts/hermes-candidate-tart-<timestamp> --timeout-ms 600000
 npm --prefix shells/hermes run smoke:settings-visual -- --allow-foreground --out out/smoke-settings-visual
@@ -98,11 +99,15 @@ OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
 
-For candidate shells, `npm run validate:shell-candidates -- --run-candidate-commands`
-expects the selected package command to produce `out/agui-codex-candidate-manifest.json`
-with `candidate_app_bundle_ready`, `explicit_candidate_app_bundle`, and a
-relative `.app` bundle path whose bundle contains `Contents/Info.plist` and a
-`Contents/MacOS` executable. A `.txt` smoke output is intentionally rejected.
+For candidate shells, `npm run validate:shell-candidates` covers the foreground
+Hermes Desktop alternative by default. `agui-codex` is archived technical proof
+and is validated only with `--candidate agui-codex`. When AGUI replay is
+explicitly requested, `npm run validate:shell-candidates -- --candidate agui-codex --run-candidate-commands`
+expects the selected package command to produce
+`out/agui-codex-candidate-manifest.json` with `candidate_app_bundle_ready`,
+`explicit_candidate_app_bundle`, and a relative `.app` bundle path whose bundle
+contains `Contents/Info.plist` and a `Contents/MacOS` executable. A `.txt` smoke
+output is intentionally rejected.
 Hermes candidate validation is non-foreground by default: the App-root
 candidate command chain may build the `.app` and run packaged first-run smoke,
 but it must not run screenshot capture or focus the user's active desktop.

@@ -1,16 +1,18 @@
-# AG-UI/CopilotKit Codex 候选 Shell 验证
+# AG-UI/CopilotKit Codex 技术验证回放
 
 Owner: `one-person-lab-app`
-Purpose: `candidate_shell_verification_runbook`
-State: `active_experimental`
-Machine boundary: 本文是人读验证 runbook。机器可读候选策略在
+Purpose: `archived_candidate_shell_verification_replay`
+State: `archived_technical_proof`
+Machine boundary: 本文是人读技术验证回放 runbook。机器可读候选策略在
 `contracts/app-shell-candidates.json` 和
 `contracts/shell-adapters/agui-codex.json` 中。
 
 ## 边界
 
-`agui-codex` 是面向 Codex App-like OPL chat-first desktop/WebUI 的实验性
-shell candidate。它不是默认 release shell，也不是 AionUI 修改清单。
+`agui-codex` 是已归档的 AG-UI/CopilotKit 技术验证。它不是默认 release
+shell，不是当前 foreground alternative candidate，也不是 AionUI 修改清单。当前
+App GUI 主线是 AionUI；唯一 foreground alternative 是 Hermes Desktop /
+`hermes-codex`。除非用户明确要求 AGUI，不再更新、完善或抛光本路线。
 
 默认 stable/nightly release path 继续使用 `contracts/app-shell-adapter.json`，
 其中 `active_shell` 仍是 `aionui`。只有显式设置下面的 adapter contract 时，
@@ -32,7 +34,7 @@ projection，而不拥有 runtime truth、domain truth 或 readiness verdict。
 
 ## SSOT 分工
 
-本文只拥有候选 shell 的人读验证 runbook：边界、命令顺序和 evidence
+本文只拥有 archived technical proof 的人读回放 runbook：边界、命令顺序和 evidence
 lifecycle。候选 registry、adoption gate、forbidden entry routes、reference
 implementation 清单、最低验收字段和 package manifest 断言的机器 SSOT 是
 `contracts/app-shell-candidates.json` 与
@@ -40,8 +42,8 @@ implementation 清单、最低验收字段和 package manifest 断言的机器 S
 的机器 SSOT 是 `contracts/shell-adapters/agui-codex.json`；默认 stable/nightly
 release shell 的机器 SSOT 是 `contracts/app-shell-adapter.json`。
 
-因此，candidate package、source/WebUI/package smoke、state-model validation 或
-candidate manifest 只能证明 technical verification。它们不能把 `agui-codex`
+因此，AGUI package、source/WebUI/package smoke、state-model validation 或
+candidate manifest 只能证明 archived technical verification。它们不能把 `agui-codex`
 提升为默认 release shell，不能改变 App product truth，也不能证明 App release
 ready、domain ready、family production ready、clean-VM ready、Full release ready
 或 active-shell adopted。若要采纳为默认 release shell，先改
@@ -113,10 +115,16 @@ Stitch 生成源码或 demo data；不可把 Stitch 中的 local inference、mod
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 ```
 
-验证 candidate registry：
+验证 foreground candidate registry 默认只覆盖 Hermes Desktop alternative：
 
 ```bash
 npm run validate:shell-candidates
+```
+
+显式回放 AGUI archived technical proof：
+
+```bash
+npm run validate:shell-candidates -- --candidate agui-codex
 ```
 
 显式选择 candidate adapter 做 active-shell quick validation：
@@ -189,24 +197,27 @@ ready。若验收字段变化，先改 contract / validator / manifest owner，�
 
 ## Release Promotion
 
-Candidate 可以端到端验证而不改变当前 release。只有明确修改
+Archived AGUI proof 可以在明确请求时端到端回放而不改变当前 release。只有明确修改
 `contracts/app-shell-adapter.json` 之后，它才会成为默认 stable/nightly shell。
-在此之前，和默认 AionUI release path 的隔离是必需 invariant。
+在此之前，和默认 AionUI release path 的隔离是必需 invariant。当前可推进的备选
+路线不是 AGUI，而是 Hermes Desktop / `hermes-codex`。
 
 ## Evidence Lifecycle
 
-本文只保留候选 shell 的边界、命令顺序和 evidence lifecycle。具体
+本文只保留 AGUI archived proof 的边界、命令顺序和 evidence lifecycle。具体
 source/WebUI/package smoke 结果、manifest 字段、绝对路径和 dated pass/fail 记录
 属于 candidate shell artifacts、candidate manifests、CI logs 或
 `docs/history/process/`。旧的 2026-06-02 candidate smoke 和 2026-06-03
 active-doc cleanup 过程记录已压缩到
 [App retired surface provenance](./history/process/retired-surface-provenance.md)；
-当前 candidate 边界和命令仍以本文、candidate contracts、candidate manifests、
-shell artifacts、CI logs 和 App-root validation 为准。
+当前 AGUI replay 边界和命令仍以本文、candidate contracts、candidate manifests、
+shell artifacts、CI logs 和 App-root validation 为准；默认候选推进边界以
+Hermes Desktop / `hermes-codex` 文档和合同为准。
 
 注意：`npm run package` 会重建 `out/` 并把 smoke 字段初始化为 pending。完整闭环
 顺序必须是先 package，再跑 WebUI smoke、source UI smoke、packaged UI smoke，最后
 跑 `npm run validate:candidate -- --require-app --require-smoke`。
 
-剩余边界是产品采纳，而不是在本文追加执行日志。AionUI 仍是默认 release shell，
-直到 `contracts/app-shell-adapter.json` 在正常 release gate 下被明确提升。
+剩余边界是历史技术验证回放，而不是在本文追加执行日志。AionUI 仍是默认 release
+shell；Hermes Desktop 是唯一 foreground alternative；AGUI 只有在用户明确要求时
+才重新进入执行队列。

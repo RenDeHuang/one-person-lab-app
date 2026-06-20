@@ -61,6 +61,8 @@ export type HermesVisualParityContract = {
 export type ShellCandidate = {
   id: string;
   state: string;
+  archived_reason?: string;
+  default_update_policy?: string;
   candidate_root: string;
   adapter_contract: string;
   source_topology: string;
@@ -194,6 +196,21 @@ export type ShellCandidateRegistry = {
   purpose: string;
   state: string;
   active_shell_unchanged: string;
+  active_gui_mainline?: {
+    shell: string;
+    shell_root: string;
+    source_repo: string;
+    role: string;
+    product_truth_owner: string;
+  };
+  alternative_gui_policy?: {
+    only_foreground_alternative: string;
+    basis: string;
+    default_candidate_validation_scope: string[];
+    archived_technical_proofs: string[];
+    archived_proof_policy: string;
+    active_shell_switch_policy: string;
+  };
   release_shell_contract: string;
   gui_product_contract: string;
   runtime_bridge_contract: string;
@@ -208,6 +225,8 @@ export type ShellCandidateRegistry = {
     release_scripts_must_use_active_shell_adapter: boolean;
     candidate_validation_script: string;
     adoption_gate: string[];
+    default_validation_scope?: string;
+    archived_technical_proof_policy?: string;
   };
   design_reference_policy?: {
     purpose: string;

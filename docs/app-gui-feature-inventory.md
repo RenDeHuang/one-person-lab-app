@@ -150,7 +150,7 @@ authority。
 
 ## Codex App-like 视觉目标与 Stitch 工具边界
 
-`hermes-codex`、`agui-codex` 和未来 shell 的主目标是 Codex App-like chat-first surface：
+`hermes-codex` 和未来 foreground shell 的主目标是 Codex App-like chat-first surface：
 中心对话、底部多行 composer、轻量顶部 chrome、窄 icon rail，以及默认收起的
 workspace/session rail 和右侧 inspector。Google Stitch 可以持续作为在线设计
 工具，用来生成草图、校准比例、字体、圆角、留白和视觉层次；它不是唯一参考，
@@ -164,8 +164,8 @@ workspace/session rail 和右侧 inspector。Google Stitch 可以持续作为在
 
 Google Stitch reference 的 source URL、本地 artifact、evaluated state、
 reference value 和 forbidden reuse 由
-`contracts/app-shell-candidates.json#design_references` 持有。本文只保留对
-`agui-codex` 和未来 shell 仍有效的 visual-token mapping：美术风格、视觉比例和
+`contracts/app-shell-candidates.json#design_references` 持有。本文只保留对未来
+foreground shell 仍有效的 visual-token mapping：美术风格、视觉比例和
 组件语言可以参考，源码和 demo 语义不能采纳：
 
 - 主屏保持 chat-first，使用约 780-820px fixed reading lane，避免大面积居中卡片。
@@ -449,9 +449,14 @@ Hermes 后续 OPL 定制的优先级：
 - **替换：** 只有 upstream 功能与 App-owned truth 冲突，或不能满足 Codex/OPL
   必需语义时才替换。
 
-## AG-UI/CopilotKit Candidate 投影
+## AG-UI/CopilotKit Archived Proof 投影
 
-AG-UI/CopilotKit candidate 应使用：
+AG-UI/CopilotKit 已从 foreground candidate 降为 archived technical proof。以下内容
+只用于回放历史技术验证或在用户明确要求 AGUI 时恢复上下文；默认 GUI 完善路线不再
+更新 AGUI。当前 App GUI 主线是 AionUI，唯一 foreground alternative 是 Hermes
+Desktop / `hermes-codex`。
+
+AG-UI/CopilotKit proof 使用：
 
 - CopilotKit React v2 作为用户可见 UI/runtime layer，承载 chat、popup、
   sidebar 和 agent runtime binding。
@@ -494,7 +499,7 @@ purpose entries、conversation state、receipts 和 runtime status。Protocol na
 event frames、debug dashboards 只属于 diagnostics 或 developer verification
 material。
 
-当前 candidate proof path 的命令、最低验收和 evidence lifecycle 由
+当前 archived proof path 的命令、最低验收和 evidence lifecycle 由
 `docs/agui-codex-candidate-verification.md`、candidate manifest、shell artifacts、
 CI logs 和 App-root validation output 持有。本文只保留 feature-level target shape：
 
@@ -506,7 +511,7 @@ CI logs 和 App-root validation output 持有。本文只保留 feature-level ta
 - Main process 拥有 Codex app-server JSON-RPC over stdio。
 - WebUI gateway 拥有 local HTTP action routes 和 SSE Codex event stream，同时
   继续消费 App-owned `opl app state/action` 和 Codex app-server surfaces。
-- Candidate 必须通过 shell-side `npm run validate:state-model`，证明 active
+- Explicit replay 必须通过 shell-side `npm run validate:state-model`，证明 active
   project line projection/state model 来自 `opl app state --profile fast --json`，
   且只作为 refs/projection consumption 使用。
 - Codex `thread/start`、`turn/start`、`item/agentMessage/delta` events 映射到
@@ -518,39 +523,40 @@ CI logs 和 App-root validation output 持有。本文只保留 feature-level ta
   Files/Skills/Routing/Memory/Always-On inspector tabs；信息组织参考 PilotDeck。
 - Continue-work refs 和运行活动只能进入 Runtime 或 secondary context，
   不能在 ordinary home 第一屏显示为 compact entry 或 Activity/refs grid。
-- Candidate packaging 必须产出可启动 `.app`，并通过真实 Codex backend 的 source
+- Explicit replay packaging 必须产出可启动 `.app`，并通过真实 Codex backend 的 source
   与 packaged UI smoke。
-- Candidate WebUI smoke 必须证明 shared renderer、browser transport bridge、
+- Explicit replay WebUI smoke 必须证明 shared renderer、browser transport bridge、
   HTTP action routes 和 SSE event stream。
-- Candidate UI smoke 必须包含 pixel-visible paint check，避免 DOM-only pass
+- Explicit replay UI smoke 必须包含 pixel-visible paint check，避免 DOM-only pass
   掩盖视觉空白窗口。
-- Candidate UI smoke 必须包含 chat-first visual polish gate：composer 内层输入
+- Explicit replay UI smoke 必须包含 chat-first visual polish gate：composer 内层输入
   surface 至少 32px radius、默认高度至少约 100px、textarea 至少约 60px 且呈
   多行输入体验；overflow clipping 生效、外层 Copilot/adapter 容器透明、内部
   layout 子层无额外白底/阴影，send/chip controls 达到 pill/circle 半径要求。
-- Candidate UI smoke 必须保持 AG-UI 作为内部 event boundary，并拒绝 ordinary
+- Explicit replay UI smoke 必须保持 AG-UI 作为内部 event boundary，并拒绝 ordinary
   chat surface 上出现用户可见 AG-UI/debug dashboard copy。
 
-## AG-UI/CopilotKit Candidate 验证 Owner
+## AG-UI/CopilotKit Archived Proof 验证 Owner
 
-本文只保留 AG-UI/CopilotKit candidate 的 GUI 能力清单、reference mapping 和
-产品语义投影。候选 shell 的命令、最低验收、evidence lifecycle 和 release
+本文只保留 AG-UI/CopilotKit archived proof 的 GUI 能力清单、reference mapping 和
+产品语义投影。回放 shell 的命令、最低验收、evidence lifecycle 和 release
 replacement gate 由下列 owner 承接：
 
 | 验证主题 | Current owner |
 | --- | --- |
-| Candidate runbook、命令顺序、最低验收、evidence lifecycle | `docs/agui-codex-candidate-verification.md` |
-| Candidate registry、explicit adapter participation、replacement gate、reference implementations | `contracts/app-shell-candidates.json` |
+| Archived proof runbook、命令顺序、最低验收、evidence lifecycle | `docs/agui-codex-candidate-verification.md` |
+| Archived proof registry、explicit adapter participation、replacement gate、reference implementations | `contracts/app-shell-candidates.json` |
 | Explicit adapter selection and shell root | `contracts/shell-adapters/agui-codex.json`; Hermes uses `contracts/shell-adapters/hermes-codex.json` |
-| Candidate registry validation | `scripts/validate-shell-candidates.ts` and `npm run validate:shell-candidates` |
+| Archived proof registry validation | `scripts/validate-shell-candidates.ts` and `npm run validate:shell-candidates -- --candidate agui-codex` |
 | Default active-shell guard | `contracts/app-shell-adapter.json` and `scripts/validate-active-shell.ts --quick` |
-| Candidate evidence | candidate manifests, shell artifacts, CI logs, source/WebUI/package smoke, and App-root validation output |
+| Archived proof evidence | candidate manifests, shell artifacts, CI logs, source/WebUI/package smoke, and App-root validation output |
 
-`agui-codex` 当前仍是 technical verification candidate。默认 release shell 仍是
-AionUI；candidate 只有在 `contracts/app-shell-adapter.json` 被明确修改并通过正常
-release gates 后，才会进入默认 stable/nightly release path。
+`agui-codex` 当前是 archived technical proof。默认 release shell 仍是 AionUI；
+除非用户明确要求 AGUI，否则不再更新、完善或作为默认 candidate 验证。AGUI 只有在
+`contracts/app-shell-adapter.json` 被明确修改并通过正常 release gates 后，才可能进入
+默认 stable/nightly release path。
 
-`hermes-codex` 同样仍是 technical verification candidate，并且当前优先级高于
-AG-UI/CopilotKit candidate。Hermes 缺 checkout 时，验证结果应停在明确 blocker；
+`hermes-codex` 是唯一 foreground alternative candidate。Hermes 缺 checkout 时，
+验证结果应停在明确 blocker；
 补齐 `shells/hermes` 或 `../opl-hermes-shell` 后，才能继续做 branding/runtime
 bridge/build wrapper 替换和后续 smoke evidence。

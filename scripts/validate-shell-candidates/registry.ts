@@ -23,6 +23,27 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   if (registry.active_shell_unchanged !== 'aionui') {
     throw new Error('candidate registry must not change active shell away from aionui');
   }
+  const mainline = registry.active_gui_mainline;
+  if (
+    mainline?.shell !== 'aionui' ||
+    mainline.shell_root !== 'shells/aionui' ||
+    mainline.source_repo !== 'gaofeng21cn/opl-aion-shell' ||
+    mainline.role !== 'stable_app_gui_mainline' ||
+    mainline.product_truth_owner !== 'one-person-lab-app'
+  ) {
+    throw new Error('candidate registry must declare AionUI as the stable App GUI mainline');
+  }
+  const alternative = registry.alternative_gui_policy;
+  if (
+    alternative?.only_foreground_alternative !== 'hermes-codex' ||
+    alternative.basis !== 'Hermes Desktop' ||
+    alternative.archived_proof_policy !== 'do_not_update_or_improve_unless_user_explicitly_requests_agui' ||
+    alternative.active_shell_switch_policy !== 'only_contracts/app-shell-adapter.json_can_switch_default_release_shell'
+  ) {
+    throw new Error('candidate registry must keep Hermes Desktop as the only foreground alternative and AGUI as explicit-only archived proof');
+  }
+  assertStringArrayIncludes(alternative.default_candidate_validation_scope, ['hermes-codex'], 'alternative_gui_policy.default_candidate_validation_scope');
+  assertStringArrayIncludes(alternative.archived_technical_proofs, ['agui-codex'], 'alternative_gui_policy.archived_technical_proofs');
   for (const [label, expected] of Object.entries({
     release_shell_contract: 'contracts/app-shell-adapter.json',
     gui_product_contract: 'contracts/app-gui-product-contract.json',
@@ -40,7 +61,7 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   if (policy.candidate_root_pattern !== 'shells/<candidate>') {
     throw new Error('candidate roots must stay under shells/<candidate>');
   }
-  if (policy.candidate_state !== 'candidate_until_contracts_and_tests_complete') {
+  if (policy.candidate_state !== 'foreground_alternative_or_archived_technical_proof') {
     throw new Error(`Unexpected candidate policy state: ${policy.candidate_state}`);
   }
   if (policy.release_participation_until_adopted !== 'explicit_candidate_build_only') {
@@ -57,6 +78,7 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   }
   assertStringArrayIncludes(policy.adoption_gate, [
     'candidate is declared in contracts/app-shell-candidates.json',
+    'candidate is the foreground alternative declared by alternative_gui_policy.only_foreground_alternative',
     'candidate implements contracts/app-gui-product-contract.json',
     'candidate uses one shared React/CopilotKit renderer for Electron and WebUI surfaces',
     'candidate provides a Web transport bridge that exposes the same App-owned window.oplCandidate API without taking runtime authority',
@@ -67,6 +89,12 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
     'candidate passes App-root candidate validation',
     'contracts/app-shell-adapter.json is changed only when candidate becomes active release shell',
   ], 'candidate_policy.adoption_gate');
+  if (policy.default_validation_scope !== 'foreground_alternative_only') {
+    throw new Error('candidate policy default validation scope must stay foreground_alternative_only');
+  }
+  if (policy.archived_technical_proof_policy !== 'explicit_user_request_only') {
+    throw new Error('candidate policy archived technical proof validation must be explicit_user_request_only');
+  }
   validateDesignReferences(registry);
 }
 

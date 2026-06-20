@@ -18,6 +18,8 @@ installation evidence.
 - Active shell: `aionui`.
 - Active shell root: `shells/aionui` as an external checkout.
 - Active shell source repo: `gaofeng21cn/opl-aion-shell`.
+- Foreground alternative GUI candidate: `hermes-codex`, based on Hermes Desktop.
+- Archived technical GUI proof: `agui-codex`; do not update or improve it unless AGUI is explicitly requested.
 - App product profile: `contracts/app-product-profile.json`.
 - Framework dependency: `gaofeng21cn/one-person-lab`.
 - Local App repo path on the maintainer Mac:
@@ -28,6 +30,12 @@ installation evidence.
 The App repo must not merge AionUI history into its default branch. AionUI
 upstream-following work stays in `opl-aion-shell`; App product release and user
 docs stay in `one-person-lab-app`.
+
+Current GUI development follows one mainline and one alternative: AionUI is the
+stable App GUI mainline, and Hermes Desktop is the only foreground alternative
+candidate. The previous AG-UI/CopilotKit work remains useful as technical
+verification provenance and explicit replay material, but it is not a default
+candidate lane and should not receive routine updates or polish work.
 
 The App product profile is the current owner for desktop session defaults and
 user-facing product policy: Codex default model/reasoning, default visible

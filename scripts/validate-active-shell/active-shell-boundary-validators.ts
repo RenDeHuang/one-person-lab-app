@@ -9,8 +9,11 @@ export function validateGuiAuthority(contract, isDefaultReleaseAdapter) {
   if (contract.gui_authority?.source_of_truth !== 'one-person-lab-app') {
     throw new Error('Active shell GUI authority must stay in one-person-lab-app');
   }
-  if (contract.gui_authority.implementation_role !== 'active_shell_implementation_carrier') {
-    throw new Error('Active shell GUI implementation role must be active_shell_implementation_carrier');
+  const expectedImplementationRole = contract.release_role === 'archived_technical_verification_shell'
+    ? 'archived_technical_proof_replay_carrier'
+    : 'active_shell_implementation_carrier';
+  if (contract.gui_authority.implementation_role !== expectedImplementationRole) {
+    throw new Error(`Active shell GUI implementation role must be ${expectedImplementationRole}`);
   }
   const requiredProductContracts = [
     'contracts/app-gui-product-contract.json',
@@ -64,7 +67,10 @@ export function validateShellReplacementPolicy(contract) {
   if (contract.shell_replacement_policy?.candidate_root_pattern !== 'shells/<candidate>') {
     throw new Error('Shell replacement policy must keep candidates under shells/<candidate>');
   }
-  if (contract.shell_replacement_policy.candidate_state !== 'candidate_until_contracts_and_tests_complete') {
+  const expectedCandidateState = contract.release_role === 'archived_technical_verification_shell'
+    ? 'archived_technical_proof_replay_only'
+    : 'candidate_until_contracts_and_tests_complete';
+  if (contract.shell_replacement_policy.candidate_state !== expectedCandidateState) {
     throw new Error(`Unexpected shell candidate state: ${contract.shell_replacement_policy.candidate_state}`);
   }
   if (contract.shell_replacement_policy.authority_transfer_allowed !== false) {
@@ -89,7 +95,7 @@ export function validateShellReplacementPolicy(contract) {
 }
 
 export function validateShellContractCapabilities(contract) {
-  if (contract.release_role === 'experimental_candidate_shell') {
+  if (['experimental_candidate_shell', 'archived_technical_verification_shell'].includes(contract.release_role)) {
     for (const capability of [
       'candidate_app_bundle_package',
       'app_owned_gui_product_contract',

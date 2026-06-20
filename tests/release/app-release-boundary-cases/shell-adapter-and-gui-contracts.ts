@@ -346,22 +346,35 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   assert.equal(candidateRegistry.purpose, 'app_shell_candidate_registry');
   assert.equal(candidateRegistry.state, 'active_experimental');
   assert.equal(candidateRegistry.active_shell_unchanged, adapterContract.active_shell);
+  assert.equal(candidateRegistry.active_gui_mainline.shell, 'aionui');
+  assert.equal(candidateRegistry.active_gui_mainline.shell_root, 'shells/aionui');
+  assert.equal(candidateRegistry.active_gui_mainline.source_repo, 'gaofeng21cn/opl-aion-shell');
+  assert.equal(candidateRegistry.active_gui_mainline.role, 'stable_app_gui_mainline');
+  assert.equal(candidateRegistry.alternative_gui_policy.only_foreground_alternative, 'hermes-codex');
+  assert.equal(candidateRegistry.alternative_gui_policy.basis, 'Hermes Desktop');
+  assert.deepEqual(candidateRegistry.alternative_gui_policy.default_candidate_validation_scope, ['hermes-codex']);
+  assert.deepEqual(candidateRegistry.alternative_gui_policy.archived_technical_proofs, ['agui-codex']);
+  assert.equal(candidateRegistry.alternative_gui_policy.archived_proof_policy, 'do_not_update_or_improve_unless_user_explicitly_requests_agui');
   assert.equal(candidateRegistry.release_shell_contract, 'contracts/app-shell-adapter.json');
   assert.equal(candidateRegistry.candidate_policy.release_participation_until_adopted, 'explicit_candidate_build_only');
+  assert.equal(candidateRegistry.candidate_policy.default_validation_scope, 'foreground_alternative_only');
+  assert.equal(candidateRegistry.candidate_policy.archived_technical_proof_policy, 'explicit_user_request_only');
   assert.equal(candidateRegistry.candidate_policy.release_scripts_must_use_active_shell_adapter, true);
   assert.equal(candidateRegistry.candidate_policy.authority_transfer_allowed, false);
   assert.ok(candidateRegistry.candidate_policy.adoption_gate.includes('candidate is declared in contracts/app-shell-candidates.json'));
+  assert.ok(candidateRegistry.candidate_policy.adoption_gate.includes('candidate is the foreground alternative declared by alternative_gui_policy.only_foreground_alternative'));
   assert.ok(
     candidateRegistry.candidate_policy.adoption_gate.includes(
       'contracts/app-shell-adapter.json is changed only when candidate becomes active release shell',
     ),
   );
   assert.ok(aguiCandidate);
-  assert.equal(aguiCandidate.state, 'technical_verification');
+  assert.equal(aguiCandidate.state, 'archived_technical_proof');
+  assert.equal(aguiCandidate.default_update_policy, 'do_not_update_or_improve_unless_user_explicitly_requests_agui');
   assert.equal(aguiCandidate.candidate_root, 'shells/agui-codex');
   assert.equal(aguiCandidate.adapter_contract, 'contracts/shell-adapters/agui-codex.json');
   assert.equal(aguiCandidate.source_topology, 'external_checkout_linked_shell_repo');
-  assert.equal(aguiCandidate.release_participation, 'selectable_for_explicit_candidate_build');
+  assert.equal(aguiCandidate.release_participation, 'explicit_user_requested_technical_replay_only');
   assert.equal(aguiCandidate.target_product_shape.codex_cli_fixed_executor, true);
   assert.equal(aguiCandidate.target_product_shape.home_executor_selector_visible, false);
   assert.equal(aguiCandidate.target_product_shape.home_backend_selector_visible, false);
@@ -386,6 +399,8 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   assert.ok(aguiCandidate.non_goals.includes('do not switch active_shell away from aionui'));
   assert.ok(aguiCandidate.non_goals.includes('do not enter default stable or nightly release packaging'));
   assert.ok(hermesCandidate);
+  assert.equal(hermesCandidate.state, 'technical_verification');
+  assert.equal(hermesCandidate.priority, 'highest_codex_like_gui_candidate');
   assert.ok(hermesCandidate.settings_information_architecture.ordinary_tabs.includes('Storage'));
   assert.ok(hermesCandidate.settings_information_architecture.opl_semantics.includes('存储'));
   assert.ok(hermesAdapter.settings_information_architecture.ordinary_tabs.includes('Storage'));
@@ -412,7 +427,12 @@ test('explicit AG-UI/Codex adapter contract selects linked external candidate sh
   assert.equal(resolved.shell_root, 'shells/agui-codex');
   assert.equal(resolved.shell_root_for_display, 'shells/agui-codex');
   assert.match(resolved.product_profile_target, /shells\/agui-codex\/src\/generated\/oplProductProfile\.generated\.json$/);
-  assert.equal(resolved.release_role, 'experimental_candidate_shell');
+  assert.equal(resolved.release_role, 'archived_technical_verification_shell');
+  const aguiAdapter = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'shell-adapters', 'agui-codex.json'), 'utf8'),
+  );
+  assert.equal(aguiAdapter.gui_authority.implementation_role, 'archived_technical_proof_replay_carrier');
+  assert.equal(aguiAdapter.shell_replacement_policy.candidate_state, 'archived_technical_proof_replay_only');
 });
 
 test('AG-UI/Codex candidate package validation requires a real app bundle manifest', () => {

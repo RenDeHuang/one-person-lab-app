@@ -250,9 +250,13 @@ function resolveAdapterContractPath(): string {
   return resolveRepoRelativePath(override, 'OPL_APP_SHELL_ADAPTER_CONTRACT');
 }
 
+function isExplicitAdapterOverride(filePath: string): boolean {
+  return path.resolve(filePath) !== path.resolve(contractPath);
+}
+
 export function readAppShellAdapterContract(filePath = resolveAdapterContractPath()): ShellAdapterContract {
   const contract = readJson(filePath) as ShellAdapterContract;
-  assertAdapterContractIdentity(contract);
+  assertAdapterContractIdentity(contract, { explicitOverride: isExplicitAdapterOverride(filePath) });
   assertAdapterGuiAuthority(contract);
   assertActiveShellSpecificPolicy(contract);
   assertShellReplacementPolicy(contract);
@@ -263,14 +267,15 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
   return contract;
 }
 
-function assertAdapterContractIdentity(contract: ShellAdapterContract): void {
+function assertAdapterContractIdentity(contract: ShellAdapterContract, options: { explicitOverride: boolean }): void {
   if (contract.owner !== 'one-person-lab-app') {
     throw new Error(`Unexpected active shell owner: ${contract.owner}`);
   }
   if (contract.purpose !== 'active_shell_adapter') {
     throw new Error(`Unexpected active shell purpose: ${contract.purpose}`);
   }
-  if (contract.state !== 'active') {
+  const allowedStates = options.explicitOverride ? ['active', 'archived_technical_proof'] : ['active'];
+  if (!allowedStates.includes(contract.state)) {
     throw new Error(`Unexpected active shell state: ${contract.state}`);
   }
   if (contract.app_repo !== 'gaofeng21cn/one-person-lab-app') {
@@ -285,8 +290,11 @@ function assertAdapterGuiAuthority(contract: ShellAdapterContract): void {
   if (contract.gui_authority?.source_of_truth !== 'one-person-lab-app') {
     throw new Error('active shell GUI authority must stay in one-person-lab-app');
   }
-  if (contract.gui_authority.implementation_role !== 'active_shell_implementation_carrier') {
-    throw new Error('active shell GUI implementation role must be active_shell_implementation_carrier');
+  const expectedImplementationRole = contract.release_role === 'archived_technical_verification_shell'
+    ? 'archived_technical_proof_replay_carrier'
+    : 'active_shell_implementation_carrier';
+  if (contract.gui_authority.implementation_role !== expectedImplementationRole) {
+    throw new Error(`active shell GUI implementation role must be ${expectedImplementationRole}`);
   }
   assertStringArray(contract.gui_authority.product_contracts, 'gui_authority.product_contracts');
   assertStringArray(contract.gui_authority.shell_may_own, 'gui_authority.shell_may_own');
@@ -321,7 +329,10 @@ function assertShellReplacementPolicy(contract: ShellAdapterContract): void {
   if (contract.shell_replacement_policy?.candidate_root_pattern !== 'shells/<candidate>') {
     throw new Error('active shell replacement policy must keep candidates under shells/<candidate>');
   }
-  if (contract.shell_replacement_policy.candidate_state !== 'candidate_until_contracts_and_tests_complete') {
+  const allowedCandidateStates = contract.release_role === 'archived_technical_verification_shell'
+    ? ['archived_technical_proof_replay_only']
+    : ['candidate_until_contracts_and_tests_complete', 'foreground_alternative_or_archived_technical_proof'];
+  if (!allowedCandidateStates.includes(contract.shell_replacement_policy.candidate_state)) {
     throw new Error(`Unexpected shell candidate state: ${contract.shell_replacement_policy.candidate_state}`);
   }
   if (contract.shell_replacement_policy.authority_transfer_allowed !== false) {
@@ -352,7 +363,7 @@ function assertShellContractPathsAndCapabilities(contract: ShellAdapterContract)
     assertRelativePath(value, `shell_contract.paths.${label}`);
   }
   assertStringArray(contract.shell_contract.capabilities, 'shell_contract.capabilities');
-  if (contract.release_role === 'experimental_candidate_shell') {
+  if (['experimental_candidate_shell', 'archived_technical_verification_shell'].includes(contract.release_role)) {
     if (!contract.shell_contract.capabilities.includes('candidate_app_bundle_package')) {
       throw new Error('candidate shell capabilities must include candidate_app_bundle_package');
     }
