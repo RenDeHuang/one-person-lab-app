@@ -109,7 +109,20 @@ bounds 不超过 900px，目标资源为 `840x840+92+92`。
 
 A candidate enters App product truth only through App-owned contract updates and validation gates; implementation roadmaps and candidate package evidence remain technical verification until an explicit active-shell adoption decision changes `contracts/app-shell-adapter.json`. A candidate becomes the default release shell only when `contracts/app-shell-adapter.json` is updated deliberately and the runtime bridge remains satisfied, App product profile syncs into its configured target, App page-state and first-run matrices pass, shared desktop/WebUI evidence passes when claimed, App-root active-shell validation passes, GUI package compile succeeds through the App wrapper, and the external checkout history policy is preserved.
 
-WebUI is a delivery surface for the same chat-first App UI, not a second product authority. A candidate that claims WebUI support must reuse the same React/CopilotKit renderer as Electron, preserve the App-owned `window.oplCandidate` API shape, and route browser actions/events through a local transport bridge to Codex app-server and `opl app state/action`. Electron may use native preload/IPC and native directory picking; browser WebUI may use HTTP actions and SSE event streams. Neither path may introduce a separate product profile, runtime truth source, provider selector, memory body store, artifact authority, release channel, or full workbench first screen; ordinary WebUI home uses the same default-collapsed chat canvas as desktop.
+WebUI is a delivery surface for the same chat-first App UI, not a second product
+authority. A candidate that claims WebUI support must use the same App-owned
+product semantics as its desktop shell, preserve the App-owned
+`window.oplCandidate` API shape or an explicitly equivalent browser bridge, and
+route browser actions/events through a local transport bridge to Codex app-server
+and `opl app state/action`. Renderer technology is candidate-specific: AGUI's
+React/CopilotKit shared renderer belongs only to explicit AGUI archived-proof
+replay, while Hermes WebUI support must be claimed and validated through the
+Hermes candidate route before it can count as foreground-alternative evidence.
+Electron may use native preload/IPC and native directory picking; browser WebUI
+may use HTTP actions and SSE event streams. Neither path may introduce a
+separate product profile, runtime truth source, provider selector, memory body
+store, artifact authority, release channel, or full workbench first screen;
+ordinary WebUI home uses the same default-collapsed chat canvas as desktop.
 
 External agent UI projects can also be recorded as design references without
 becoming shell candidates or first-screen product templates. OpenBMB PilotDeck is
