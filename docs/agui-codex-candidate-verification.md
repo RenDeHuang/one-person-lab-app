@@ -39,7 +39,7 @@ projection，而不拥有 runtime truth、domain truth 或 readiness verdict。
 ## SSOT 分工
 
 本文只拥有 archived technical proof 的人读回放 runbook：边界、命令顺序和 evidence
-lifecycle。shell registry、adoption gate、forbidden entry routes、reference
+lifecycle。shell registry、explicit replay gate、forbidden entry routes、reference
 implementation 清单、最低验收字段和 package manifest 断言的机器 SSOT 是
 `contracts/app-shell-candidates.json` 与
 `scripts/validate-shell-candidates/*`；显式 adapter 选择和 replay shell root
@@ -186,7 +186,7 @@ assistant reply 可见为 `OK`。
 
 | 验收主题 | SSOT / gate |
 | --- | --- |
-| shell registry、adoption gate、design reference policy、release isolation | `contracts/app-shell-candidates.json` + `npm run validate:shell-candidates` |
+| shell registry、explicit replay gate、design reference policy、release isolation | `contracts/app-shell-candidates.json` + `npm run validate:shell-candidates` |
 | explicit adapter 选择、replay shell root、package capability | `contracts/shell-adapters/agui-codex.json` + `scripts/validate-shell-candidates/candidate-contract.ts` |
 | 默认 stable/nightly release shell 不变 | `contracts/app-shell-adapter.json` + `scripts/validate-shell-candidates/registry.ts` |
 | App product profile、page-state、first-run、runtime bridge、App action/state 边界 | App contracts、replay manifest、replay smoke evidence 和 `scripts/validate-shell-candidates/candidate-evidence.ts` |
@@ -199,12 +199,13 @@ ready、domain ready、family production ready、clean-VM ready 或 Full release
 ready。若验收字段变化，先改 contract / validator / manifest owner，再更新本文的
 命令入口。
 
-## Release Promotion
+## Release Isolation
 
-Archived AGUI proof 可以在明确请求时端到端回放而不改变当前 release。只有明确修改
-`contracts/app-shell-adapter.json` 之后，它才会成为默认 stable/nightly shell。
-在此之前，和默认 AionUI release path 的隔离是必需 invariant。当前可推进的备选
-路线不是 AGUI，而是 Hermes Desktop / `hermes-codex`。
+Archived AGUI proof 可以在明确请求时端到端回放而不改变当前 release。它不维护
+默认 stable/nightly shell 的提升路径；除非 App owner 未来重新打开 AGUI 并先改写
+GUI route policy、active-shell contract 和 release gates，否则 AGUI replay 只能证明
+历史技术验证可回放。当前可推进的备选路线不是 AGUI，而是 Hermes Desktop /
+`hermes-codex`。
 
 ## Evidence Lifecycle
 

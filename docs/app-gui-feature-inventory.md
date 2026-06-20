@@ -541,21 +541,22 @@ CI logs 和 App-root validation output 持有。本文只保留 feature-level ta
 
 本文只保留 AG-UI/CopilotKit archived proof 的 GUI 能力清单、reference mapping 和
 产品语义投影。回放 shell 的命令、最低验收、evidence lifecycle 和 release
-replacement gate 由下列 owner 承接：
+isolation gate 由下列 owner 承接：
 
 | 验证主题 | Current owner |
 | --- | --- |
 | Archived proof runbook、命令顺序、最低验收、evidence lifecycle | `docs/agui-codex-candidate-verification.md` |
-| Archived proof registry、explicit adapter participation、replacement gate、reference implementations | `contracts/app-shell-candidates.json` |
+| Archived proof registry、explicit adapter participation、explicit replay gate、reference implementations | `contracts/app-shell-candidates.json` |
 | Explicit adapter selection and shell root | `contracts/shell-adapters/agui-codex.json`; Hermes uses `contracts/shell-adapters/hermes-codex.json` |
 | Archived proof registry validation | `scripts/validate-shell-candidates.ts` and `npm run validate:shell-candidates -- --candidate agui-codex` |
 | Default active-shell guard | `contracts/app-shell-adapter.json` and `scripts/validate-active-shell.ts --quick` |
 | Archived proof evidence | candidate manifests, shell artifacts, CI logs, source/WebUI/package smoke, and App-root validation output |
 
 `agui-codex` 当前是 archived technical proof。默认 release shell 仍是 AionUI；
-除非用户明确要求 AGUI，否则不再更新、完善或作为默认验证路线。AGUI 只有在
-`contracts/app-shell-adapter.json` 被明确修改并通过正常 release gates 后，才可能进入
-默认 stable/nightly release path。
+除非用户明确要求 AGUI，否则不再更新、完善或作为默认验证路线。本文不维护
+AGUI 的 active-shell adoption 路径；若 App owner 未来重新打开 AGUI，必须先改写
+GUI route policy、active-shell contract 和 release gates，而不是从 archived replay
+证据直接推导默认 stable/nightly release path。
 
 `hermes-codex` 是唯一 foreground alternative candidate。Hermes 缺 checkout 时，
 验证结果应停在明确 blocker；

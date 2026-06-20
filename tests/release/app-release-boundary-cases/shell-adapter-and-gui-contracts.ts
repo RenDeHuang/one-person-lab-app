@@ -460,6 +460,24 @@ test('explicit AG-UI/Codex adapter contract selects linked external candidate sh
   );
   assert.equal(aguiAdapter.gui_authority.implementation_role, 'archived_technical_proof_replay_carrier');
   assert.equal(aguiAdapter.shell_replacement_policy.candidate_state, 'archived_technical_proof_replay_only');
+  for (const gate of [
+    'declare archived replay surface in contracts/app-shell-candidates.json',
+    'consume contracts/app-gui-product-contract.json as replay acceptance input only',
+    'sync App product profile into the archived replay shell target',
+    'preserve archived page-state and first-run replay boundaries without default release claims',
+    'pass App-root explicit adapter validation only when AGUI replay is requested',
+    'pass explicit AGUI replay package compile through App wrapper',
+    'preserve external checkout history policy and release isolation',
+  ]) {
+    assert.ok(aguiAdapter.shell_replacement_policy.adoption_gate.includes(gate), gate);
+  }
+  for (const oldAdoptionGate of [
+    'implement contracts/app-gui-product-contract.json',
+    'pass App-root active shell validation',
+    'pass GUI package compile through App wrapper',
+  ]) {
+    assert.ok(!aguiAdapter.shell_replacement_policy.adoption_gate.includes(oldAdoptionGate), oldAdoptionGate);
+  }
 });
 
 test('AG-UI/Codex candidate package validation requires a real app bundle manifest', () => {

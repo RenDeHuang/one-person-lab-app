@@ -56,13 +56,13 @@
     "candidate_state": "archived_technical_proof_replay_only",
     "authority_transfer_allowed": false,
     "adoption_gate": [
-      "declare candidate in contracts/app-shell-candidates.json",
-      "implement contracts/app-gui-product-contract.json",
-      "sync App product profile into the candidate shell target",
-      "pass App page-state and first-run matrices",
-      "pass App-root active shell validation",
-      "pass GUI package compile through App wrapper",
-      "preserve external checkout history policy"
+      "declare archived replay surface in contracts/app-shell-candidates.json",
+      "consume contracts/app-gui-product-contract.json as replay acceptance input only",
+      "sync App product profile into the archived replay shell target",
+      "preserve archived page-state and first-run replay boundaries without default release claims",
+      "pass App-root explicit adapter validation only when AGUI replay is requested",
+      "pass explicit AGUI replay package compile through App wrapper",
+      "preserve external checkout history policy and release isolation"
     ]
   },
   "shell_contract": {

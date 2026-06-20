@@ -76,17 +76,28 @@ export function validateShellReplacementPolicy(contract) {
   if (contract.shell_replacement_policy.authority_transfer_allowed !== false) {
     throw new Error('Shell replacement must not transfer App GUI authority');
   }
-  for (const gate of [
-    'declare candidate in contracts/app-shell-candidates.json',
-    'implement contracts/app-gui-product-contract.json',
-    'sync App product profile into the candidate shell target',
-    'pass App page-state and first-run matrices',
-    'pass App-root active shell validation',
-    'pass GUI package compile through App wrapper',
-    'preserve external checkout history policy',
-  ]) {
+  const requiredGates = contract.release_role === 'archived_technical_verification_shell'
+    ? [
+      'declare archived replay surface in contracts/app-shell-candidates.json',
+      'consume contracts/app-gui-product-contract.json as replay acceptance input only',
+      'sync App product profile into the archived replay shell target',
+      'preserve archived page-state and first-run replay boundaries without default release claims',
+      'pass App-root explicit adapter validation only when AGUI replay is requested',
+      'pass explicit AGUI replay package compile through App wrapper',
+      'preserve external checkout history policy and release isolation',
+    ]
+    : [
+      'declare candidate in contracts/app-shell-candidates.json',
+      'implement contracts/app-gui-product-contract.json',
+      'sync App product profile into the candidate shell target',
+      'pass App page-state and first-run matrices',
+      'pass App-root active shell validation',
+      'pass GUI package compile through App wrapper',
+      'preserve external checkout history policy',
+    ];
+  for (const gate of requiredGates) {
     if (!contract.shell_replacement_policy.adoption_gate?.includes(gate)) {
-      throw new Error(`Shell replacement policy missing adoption gate ${gate}`);
+      throw new Error(`Shell replacement policy missing gate ${gate}`);
     }
   }
   if (contract.shell_replacement_policy.adoption_gate.includes('declare candidate in contracts/app-shell-adapter.json')) {
