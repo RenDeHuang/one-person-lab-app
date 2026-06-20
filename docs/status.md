@@ -276,16 +276,16 @@ partition, forbidden selectors, secondary runtime refs, OMA/MDS visibility, and
 legacy-route redirects. This status file does not duplicate field-level GUI
 requirements, literal labels, forbidden-display lists, or test matrices.
 
-Experimental shell candidate work is separated from the active release adapter.
-`contracts/app-shell-candidates.json` owns the candidate registry,
-`contracts/shell-adapters/agui-codex.json` and
-`contracts/shell-adapters/hermes-codex.json` own selectable adapters, and
-candidate-specific docs own human runbooks and target plans:
-`docs/agui-codex-candidate-verification.md`,
-`docs/opl-hermes-gui-adaptation-plan.md`, and
-`docs/opl-hermes-first-run-flow.md`. Default stable/nightly packaging continues
-to resolve `contracts/app-shell-adapter.json` and the active `aionui` shell
-until an explicit release-owner decision changes that contract.
+Shell alternative work is separated from the active release adapter.
+`contracts/app-shell-candidates.json` owns the registry,
+`contracts/shell-adapters/hermes-codex.json` owns the only foreground alternative
+adapter, and `contracts/shell-adapters/agui-codex.json` remains explicit replay
+only. Hermes docs own the active alternative target plan:
+`docs/opl-hermes-gui-adaptation-plan.md` and
+`docs/opl-hermes-first-run-flow.md`. `docs/agui-codex-candidate-verification.md`
+is read only for explicit AGUI replay or historical audit. Default stable/nightly
+packaging continues to resolve `contracts/app-shell-adapter.json` and the active
+`aionui` shell until an explicit release-owner decision changes that contract.
 
 Hermes candidate now follows a three-phase route. Phase 1 is the compatibility
 firewall: keep the App-facing experience close to Codex App, implement adapter

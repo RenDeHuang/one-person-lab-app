@@ -553,7 +553,7 @@ replacement gate 由下列 owner 承接：
 | Archived proof evidence | candidate manifests, shell artifacts, CI logs, source/WebUI/package smoke, and App-root validation output |
 
 `agui-codex` 当前是 archived technical proof。默认 release shell 仍是 AionUI；
-除非用户明确要求 AGUI，否则不再更新、完善或作为默认 candidate 验证。AGUI 只有在
+除非用户明确要求 AGUI，否则不再更新、完善或作为默认验证路线。AGUI 只有在
 `contracts/app-shell-adapter.json` 被明确修改并通过正常 release gates 后，才可能进入
 默认 stable/nightly release path。
 

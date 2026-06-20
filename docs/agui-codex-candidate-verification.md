@@ -1,9 +1,9 @@
 # AG-UI/CopilotKit Codex 技术验证回放
 
 Owner: `one-person-lab-app`
-Purpose: `archived_candidate_shell_verification_replay`
+Purpose: `archived_agui_technical_proof_replay`
 State: `archived_technical_proof`
-Machine boundary: 本文是人读技术验证回放 runbook。机器可读候选策略在
+Machine boundary: 本文是人读技术验证回放 runbook。机器可读 shell registry / adapter 策略在
 `contracts/app-shell-candidates.json` 和
 `contracts/shell-adapters/agui-codex.json` 中。
 
@@ -16,18 +16,18 @@ App GUI 主线是 AionUI；唯一 foreground alternative 是 Hermes Desktop /
 
 默认 stable/nightly release path 继续使用 `contracts/app-shell-adapter.json`，
 其中 `active_shell` 仍是 `aionui`。只有显式设置下面的 adapter contract 时，
-App wrapper 才会选择该候选 shell：
+App wrapper 才会回放该 AGUI 技术验证 shell：
 
 ```bash
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json
 ```
 
 App repo 继续拥有 product truth、GUI requirements、page-state expectations、
-first-run policy、release gates 和 generated product profile。链接进来的候选
-shell 只拥有 shell-local implementation、candidate packaging 和
-candidate-specific smoke validation。
+first-run policy、release gates 和 generated product profile。链接进来的 AGUI
+proof shell 只拥有 shell-local implementation、explicit replay packaging 和
+replay-specific smoke validation。
 
-State-model validation 也是 App-owned gate material。候选 shell 必须运行
+State-model validation 也是 App-owned gate material。AGUI replay shell 必须运行
 `npm run validate:state-model`，并证明它消费来自
 `opl app state --profile fast --json` 的 OPL Framework active project line
 projection，而不拥有 runtime truth、domain truth 或 readiness verdict。
@@ -35,10 +35,10 @@ projection，而不拥有 runtime truth、domain truth 或 readiness verdict。
 ## SSOT 分工
 
 本文只拥有 archived technical proof 的人读回放 runbook：边界、命令顺序和 evidence
-lifecycle。候选 registry、adoption gate、forbidden entry routes、reference
+lifecycle。shell registry、adoption gate、forbidden entry routes、reference
 implementation 清单、最低验收字段和 package manifest 断言的机器 SSOT 是
 `contracts/app-shell-candidates.json` 与
-`scripts/validate-shell-candidates/*`；显式 adapter 选择和 candidate shell root
+`scripts/validate-shell-candidates/*`；显式 adapter 选择和 replay shell root
 的机器 SSOT 是 `contracts/shell-adapters/agui-codex.json`；默认 stable/nightly
 release shell 的机器 SSOT 是 `contracts/app-shell-adapter.json`。
 
@@ -50,7 +50,7 @@ ready、domain ready、family production ready、clean-VM ready、Full release r
 `contracts/app-shell-adapter.json` 并通过 App-owned product contracts、
 page-state / first-run matrices、active-shell validation、GUI package compile、
 release isolation 和外部 checkout history policy；不要通过追加本文执行日志、
-候选 smoke 摘要或设计说明来表达采纳。
+replay smoke 摘要或设计说明来表达采纳。
 
 ## 分层
 
@@ -91,15 +91,15 @@ PilotDeck 只作为信息组织参考。可借鉴的是 workspace rail、project
 list、chat-first main pane、Files、Skills、Routing、Memory、Always-On grouping。
 PilotDeck 的 AGPL-3.0 source、gateway、runtime、memory、router、always-on
 store、provider list 和 WorkSpace state model 不进入本 App repo，也不转移到
-candidate runtime authority。
+replay runtime authority。
 
-Codex App-like chat-first 是 candidate 的主目标。Google Stitch 只是可持续使用
+Codex App-like chat-first 是 archived proof 的原始验证目标。Google Stitch 只是可持续使用
 的在线设计工具和视觉参考输入，可用于生成草图、校准字体、比例、圆角、留白和
 层级；它不是唯一参考，也不是 product truth。若 Stitch、PilotDeck、CopilotKit
 demo 或 AG-UI demo 的形态与 Codex App-like 目标冲突，以 Codex App-like 为准。
 验证时不能把上一轮 Stitch 生成稿当成目标稿继续优化。Stitch 可以继续用于设计
-探索，但 candidate acceptance 只看它是否更接近 Codex App：chat-first、轻 chrome、
-中心 reading lane、底部多行 composer、workspace rail 和 inspector 默认收起。
+探索，但 AGUI replay acceptance 只看它是否复现既有技术验证边界，不能把 AGUI
+重新打开为日常候选路线。
 
 Google Stitch `One Person Lab` 设计稿只作为视觉参考。可借鉴的是 Quiet Utility
 风格、灰阶 tonal layers、1px outline、约 780-820px fixed reading lane、底部
@@ -115,7 +115,7 @@ Stitch 生成源码或 demo data；不可把 Stitch 中的 local inference、mod
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 ```
 
-验证 foreground candidate registry 默认只覆盖 Hermes Desktop alternative：
+验证 foreground alternative registry 默认只覆盖 Hermes Desktop：
 
 ```bash
 npm run validate:shell-candidates
@@ -127,13 +127,13 @@ npm run validate:shell-candidates
 npm run validate:shell-candidates -- --candidate agui-codex
 ```
 
-显式选择 candidate adapter 做 active-shell quick validation：
+显式选择 AGUI replay adapter 做 active-shell quick validation：
 
 ```bash
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json node --experimental-strip-types scripts/validate-active-shell.ts --quick
 ```
 
-通过 App wrapper 构建 candidate `.app`：
+通过 App wrapper 构建 replay `.app`：
 
 ```bash
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
@@ -151,7 +151,7 @@ shells/agui-codex/out/agui-codex-candidate-manifest.json
 `pending`。最终 `--require-smoke` 验收必须在 package 之后重新运行 WebUI smoke
 和 packaged UI smoke，让 manifest 记录新的 renderer/package 证据。
 
-## Candidate-Shell 命令
+## Replay Shell 命令
 
 在 `shells/agui-codex` 运行。该路径是 maintainer Mac 上
 `/Users/gaofeng/workspace/opl-agui-codex-shell` 的 linked external checkout。
@@ -182,13 +182,13 @@ assistant reply 可见为 `OK`。
 
 | 验收主题 | SSOT / gate |
 | --- | --- |
-| candidate registry、adoption gate、design reference policy、release isolation | `contracts/app-shell-candidates.json` + `npm run validate:shell-candidates` |
-| explicit adapter 选择、candidate shell root、package capability | `contracts/shell-adapters/agui-codex.json` + `scripts/validate-shell-candidates/candidate-contract.ts` |
+| shell registry、adoption gate、design reference policy、release isolation | `contracts/app-shell-candidates.json` + `npm run validate:shell-candidates` |
+| explicit adapter 选择、replay shell root、package capability | `contracts/shell-adapters/agui-codex.json` + `scripts/validate-shell-candidates/candidate-contract.ts` |
 | 默认 stable/nightly release shell 不变 | `contracts/app-shell-adapter.json` + `scripts/validate-shell-candidates/registry.ts` |
-| App product profile、page-state、first-run、runtime bridge、App action/state 边界 | App contracts、candidate manifest、candidate smoke evidence 和 `scripts/validate-shell-candidates/candidate-evidence.ts` |
-| source/WebUI/package smoke、UI polish、context layer、Codex app-server `OK` turn | candidate shell artifacts、candidate manifest、CI logs 和 `npm run validate:candidate -- --require-app --require-smoke` |
+| App product profile、page-state、first-run、runtime bridge、App action/state 边界 | App contracts、replay manifest、replay smoke evidence 和 `scripts/validate-shell-candidates/candidate-evidence.ts` |
+| source/WebUI/package smoke、UI polish、context layer、Codex app-server `OK` turn | replay shell artifacts、replay manifest、CI logs 和 `npm run validate:candidate -- --require-app --require-smoke` |
 
-本 runbook 只保留命令顺序和 false-authority 边界：candidate package、
+本 runbook 只保留命令顺序和 false-authority 边界：explicit replay package、
 state-model validation、source/WebUI/package smoke 或 manifest 只能证明
 technical verification。它们不能写成 default release shell adoption、App release
 ready、domain ready、family production ready、clean-VM ready 或 Full release
@@ -206,11 +206,11 @@ Archived AGUI proof 可以在明确请求时端到端回放而不改变当前 re
 
 本文只保留 AGUI archived proof 的边界、命令顺序和 evidence lifecycle。具体
 source/WebUI/package smoke 结果、manifest 字段、绝对路径和 dated pass/fail 记录
-属于 candidate shell artifacts、candidate manifests、CI logs 或
-`docs/history/process/`。旧的 2026-06-02 candidate smoke 和 2026-06-03
+属于 replay shell artifacts、replay manifests、CI logs 或
+`docs/history/process/`。旧的 2026-06-02 AGUI smoke 和 2026-06-03
 active-doc cleanup 过程记录已压缩到
 [App retired surface provenance](./history/process/retired-surface-provenance.md)；
-当前 AGUI replay 边界和命令仍以本文、candidate contracts、candidate manifests、
+当前 AGUI replay 边界和命令仍以本文、registry / adapter contracts、replay manifests、
 shell artifacts、CI logs 和 App-root validation 为准；默认候选推进边界以
 Hermes Desktop / `hermes-codex` 文档和合同为准。
 

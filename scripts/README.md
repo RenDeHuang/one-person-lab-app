@@ -5,7 +5,8 @@ shell implementation is checked out from `gaofeng21cn/opl-aion-shell` and
 exposes its shell-specific helpers under `shells/aionui/scripts/`.
 By default wrappers read `contracts/app-shell-adapter.json`. AionUI is the
 mainline GUI carrier, Hermes Desktop / `hermes-codex` is the only foreground
-alternative, and AGUI / `agui-codex` is archived technical proof. Technical
+alternative, and AGUI / `agui-codex` is archived technical proof rather than a
+routine implementation, validation, or polish lane. Technical
 verification can select a different linked shell repo with
 `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`;
 AGUI selection should happen only when AGUI replay is explicitly requested.
@@ -103,7 +104,7 @@ OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
 
-For candidate shells, `npm run validate:shell-candidates` covers the foreground
+For shell alternatives, `npm run validate:shell-candidates` covers the foreground
 Hermes Desktop alternative by default. `agui-codex` is archived technical proof
 and is validated only with `--candidate agui-codex`. When AGUI replay is
 explicitly requested, `npm run validate:shell-candidates -- --candidate agui-codex --run-candidate-commands`

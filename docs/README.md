@@ -47,11 +47,11 @@ runtime, provider, or domain authority.
 - [`history/`](history/): retired App topology and migration notes.
 
 Recent AionUI builtin skill intake, archived AGUI proof smoke records, Hermes
-candidate provenance, and docs-governance closeouts are archived under
+alternative provenance, and docs-governance closeouts are archived under
 [`history/process/`](history/process/).
 
 This file is the docs entry and navigation index. Current App product profile,
-install/exposure policy, active shell, candidate shell, release, runtime bridge,
+install/exposure policy, active shell, shell alternatives, release, runtime bridge,
 and live-conformance truth stays in the linked owner docs, `contracts/`,
 validation scripts, tests, release artifacts, updater metadata, and OPL
 Framework read-model output consumed by the App.
@@ -69,11 +69,11 @@ Framework read-model output consumed by the App.
 4. [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md) 跟踪跨 shell
    能力清单、reference mapping 和验证类别。
 5. [`opl-hermes-gui-adaptation-plan.md`](opl-hermes-gui-adaptation-plan.md)
-   只在需要推进 Hermes Desktop candidate 的 GUI 定制、完成度复核、Settings 收敛
-   和 candidate 可用性验收时阅读。
+   只在需要推进 Hermes Desktop foreground alternative 的 GUI 定制、完成度复核、
+   Settings 收敛和可用性验收时阅读。
 6. [`opl-hermes-first-run-flow.md`](opl-hermes-first-run-flow.md)
-   只在需要检查 Hermes candidate 启动分流、首启初始化、模型访问配置和 VM smoke
-   验收口径时阅读。
+   只在需要检查 Hermes foreground alternative 启动分流、首启初始化、模型访问配置
+   和 VM smoke 验收口径时阅读。
 7. [`agui-codex-candidate-verification.md`](agui-codex-candidate-verification.md)
    只在用户明确要求 AGUI replay，或需要审计 AG-UI/CopilotKit archived proof
    命令顺序和 false-authority 边界时阅读。

@@ -177,7 +177,7 @@ The App decides what users see during install, first launch, task entry, and set
 
 OPL BookForge is admitted into the App-owned default Home and Codex-visible skill surface through product contracts and active-shell validation. That default visibility supports the user entry point; it does not authorize production-ready book-writing, publication approval, owner acceptance, or hosted runtime parity claims.
 
-GUI product truth is App-owned as well. The current GUI mainline is the OPL-branded AionUI shell. Hermes Desktop is the only foreground alternative candidate. `agui-codex`, PilotDeck, and similar references are technical verification or inspiration material; the user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
+GUI product truth is App-owned as well. The current GUI mainline is the OPL-branded AionUI shell. Hermes Desktop is the only foreground alternative candidate. `agui-codex`, PilotDeck, and similar references are archived technical verification or inspiration material; they are not routine implementation, validation, or polish lanes. The user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
 
 Need framework, runtime, or contract details? Go to [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab).
 
@@ -237,13 +237,13 @@ The Hermes Desktop alternative can be selected without changing the default rele
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package
 ```
 
-The archived AGUI technical proof remains replayable only when explicitly requested:
+The archived AGUI technical proof remains replayable only when explicitly requested; it is not part of the normal GUI development path:
 
 ```bash
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 ```
 
-Candidate package validation requires the manifest to declare `candidate_app_bundle_ready`, `explicit_candidate_app_bundle`, and a relative `.app` bundle path with `Contents/Info.plist` plus a `Contents/MacOS` executable. Text-only smoke artifacts are not accepted as candidate App packages.
+Explicit replay package validation requires the manifest to declare `candidate_app_bundle_ready`, `explicit_candidate_app_bundle`, and a relative `.app` bundle path with `Contents/Info.plist` plus a `Contents/MacOS` executable. Text-only smoke artifacts are not accepted as replayable App packages.
 
 See [`docs/status.md`](docs/status.md) for the current migration and release state.
 

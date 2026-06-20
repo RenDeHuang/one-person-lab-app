@@ -415,9 +415,9 @@ failed gates, invent owner receipts, or bypass candidate-record validation.
 
 AI exploratory release checks are non-blocking. They can provide exploratory triage, summaries, risk hints, or follow-up suggestions, but they are not a release gate and must not block standard, Full, Homebrew, WebUI, updater, or promotion lanes.
 
-## Candidate Shells
+## GUI Shell Alternatives
 
-Candidate shell work stays outside the default release adapter until the App release owner deliberately changes `contracts/app-shell-adapter.json`. AionUI is the active GUI mainline, and Hermes Desktop / `hermes-codex` is the only foreground alternative. AGUI / `agui-codex` is archived technical proof and is replayed only when AGUI is explicitly requested. Use `contracts/app-shell-candidates.json`, `contracts/shell-adapters/<candidate>.json`, candidate runbooks, shell artifacts, manifests, and validation scripts for technical proof.
+Shell alternative work stays outside the default release adapter until the App release owner deliberately changes `contracts/app-shell-adapter.json`. AionUI is the active GUI mainline, and Hermes Desktop / `hermes-codex` is the only foreground alternative. AGUI / `agui-codex` is archived technical proof and is replayed only when AGUI is explicitly requested; it is not a routine validation or polish lane. Use `contracts/app-shell-candidates.json`, `contracts/shell-adapters/<candidate>.json`, replay runbooks, shell artifacts, manifests, and validation scripts for technical proof.
 
 Default release packaging continues to use the active adapter. Foreground alternative validation covers Hermes by default:
 
@@ -425,14 +425,14 @@ Default release packaging continues to use the active adapter. Foreground altern
 npm run validate:shell-candidates
 ```
 
-Explicit AGUI replay requires both an explicit candidate selection and an explicit adapter override:
+Explicit AGUI replay requires both an explicit registry selection and an explicit adapter override:
 
 ```bash
 npm run validate:shell-candidates -- --candidate agui-codex
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 ```
 
-Candidate smoke does not imply active-shell adoption, domain readiness, clean-VM readiness, Full-release readiness, or production readiness.
+Shell alternative or replay smoke does not imply active-shell adoption, domain readiness, clean-VM readiness, Full-release readiness, or production readiness.
 
 ## Local Commands
 
