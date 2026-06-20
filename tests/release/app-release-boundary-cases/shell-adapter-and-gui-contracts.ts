@@ -400,7 +400,7 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   assert.ok(aguiCandidate.non_goals.includes('do not enter default stable or nightly release packaging'));
   assert.ok(hermesCandidate);
   assert.equal(hermesCandidate.state, 'technical_verification');
-  assert.equal(hermesCandidate.priority, 'highest_codex_like_gui_candidate');
+  assert.equal(hermesCandidate.foreground_alternative_role, 'only_foreground_alternative');
   assert.ok(hermesCandidate.settings_information_architecture.ordinary_tabs.includes('Storage'));
   assert.ok(hermesCandidate.settings_information_architecture.opl_semantics.includes('存储'));
   assert.ok(hermesAdapter.settings_information_architecture.ordinary_tabs.includes('Storage'));

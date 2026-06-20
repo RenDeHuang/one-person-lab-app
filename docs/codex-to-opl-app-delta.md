@@ -309,7 +309,7 @@ App-owned gates 通过后，才能成为默认 release shell。
 
 ## Hermes Candidate 增量入口
 
-`hermes-codex` 是当前最高优先级 Codex-like GUI candidate。它参考
+`hermes-codex` 是当前唯一 foreground alternative GUI route。它参考
 `NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；App repo 只把
 它作为 technical verification candidate 登记在
 `contracts/app-shell-candidates.json` 和

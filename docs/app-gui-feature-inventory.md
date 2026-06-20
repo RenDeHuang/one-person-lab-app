@@ -326,7 +326,7 @@ workbench、表格化 dashboard 或默认右侧 inspector，应只吸收视觉 t
 
 ## Hermes Desktop Candidate 投影
 
-`hermes-codex` 是当前最高优先级 Codex-like GUI candidate。它的来源是
+`hermes-codex` 是当前唯一 foreground alternative GUI route。它的来源是
 `NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT。Hermes 的价值
 在于它比通用 agent dashboard 更接近 Codex-like desktop 形态；但它仍必须通过
 App-owned contracts、adapter 和验证脚本进入 OPL App，不能直接成为 product truth。

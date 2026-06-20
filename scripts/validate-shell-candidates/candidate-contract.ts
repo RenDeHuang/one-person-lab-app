@@ -420,8 +420,8 @@ export function validateCandidate(candidate: ShellCandidate, policy: CandidateVa
 }
 
 function validateHermesCandidateContract(candidate: ShellCandidate): void {
-  if (candidate.priority !== 'highest_codex_like_gui_candidate') {
-    throw new Error(`${candidate.id}.priority must be highest_codex_like_gui_candidate`);
+  if (candidate.foreground_alternative_role !== 'only_foreground_alternative') {
+    throw new Error(`${candidate.id}.foreground_alternative_role must be only_foreground_alternative`);
   }
   if (
     candidate.source_upstream?.repo !== 'NousResearch/hermes-agent'

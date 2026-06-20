@@ -73,7 +73,7 @@ export type ShellCandidate = {
     app_path: string;
     license: string;
   };
-  priority?: string;
+  foreground_alternative_role?: string;
   required_replacements?: string[];
   architecture_policy?: {
     baseline_order: string[];

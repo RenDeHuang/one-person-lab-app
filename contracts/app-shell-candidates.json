@@ -550,7 +550,7 @@
       "adapter_contract": "contracts/shell-adapters/hermes-codex.json",
       "source_topology": "external_checkout_linked_shell_repo",
       "release_participation": "selectable_for_explicit_candidate_build",
-      "priority": "highest_codex_like_gui_candidate",
+      "foreground_alternative_role": "only_foreground_alternative",
       "source_upstream": {
         "repo": "NousResearch/hermes-agent",
         "app_path": "apps/desktop",
@@ -915,7 +915,7 @@
           "candidate registry validates without changing release_shell_contract",
           "candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT",
           "Hermes candidate source is NousResearch/hermes-agent apps/desktop under MIT",
-          "Hermes candidate is the highest-priority Codex-like GUI candidate while it remains technical verification only",
+          "Hermes candidate is the only foreground alternative GUI route while it remains technical verification only",
           "Hermes candidate reports blocked_missing_checkout when neither shells/hermes nor ../opl-hermes-shell exists, or reports missing_wrapper_file blockers when a checkout lacks the minimal candidate files",
           "Hermes candidate preserves upstream Hermes Desktop feature baseline unless a feature comparison explicitly justifies replacement",
           "Hermes candidate replaces upstream branding with One Person Lab App candidate branding before any package acceptance claim",
