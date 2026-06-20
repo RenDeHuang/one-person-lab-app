@@ -245,7 +245,7 @@ Continue-work 详细列表也属于次级 surface。OPL App 可以让用户从 c
   `Local assistant / Auto`；`Codex CLI` 可进入二级技术详情或 diagnostics，
   不作为中文 first-screen 的主要状态文案。
 - Settings 使用 "General"、"Access"、"Agents & Capabilities"、
-  "Local Environment"、"Appearance"、"Advanced"、"About & Updates"。
+  "Local Environment"、"Storage"、"Appearance"、"Advanced"、"About & Updates"。
 - 普通 UI 文案避免 AG-UI、ACP、provider、backend、app-server、route id 或
   raw schema names。
 - 普通 UI 支持简体中文/英文两套界面 copy。同一屏用户层 chrome 必须使用同一语言。

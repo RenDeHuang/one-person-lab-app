@@ -79,8 +79,8 @@ Hermes candidate 的 App-owned 目标态已经由本仓固化，而不是由
   `opl start`、不做 `workspace_ensure` dry-run、不注入 route receipt。runtime truth、
   domain truth、artifact authority 和 quality verdict 仍归 OPL Framework 与各 domain repo。
 - Settings 必须 OPL 化。普通 tab 收敛为 General、Access、Agents & Capabilities、
-  Local Environment、Appearance、Advanced、About & Updates，并对应“模型策略、模型访问、
-  智能体与能力、本机环境、外观与语言、高级与诊断、关于与更新”。Hermes backend、
+  Local Environment、Storage、Appearance、Advanced、About & Updates，并对应“模型策略、模型访问、
+  智能体与能力、本机环境、存储、外观与语言、高级与诊断、关于与更新”。Hermes backend、
   provider marketplace、OAuth accounts、custom Base URL、remote backend、Hermes memory
   provider 和 raw gateway state 只能进 Advanced/Diagnostics 或隐藏。
 - 视觉门槛不低于 AionUI active release shell。Hermes 不能只因为用了 Codex app-server

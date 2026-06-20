@@ -316,6 +316,7 @@ surface 继续维护。
 - Access。
 - Agents & Capabilities。
 - Local Environment。
+- Storage。
 - Appearance。
 - Advanced。
 - About & Updates。

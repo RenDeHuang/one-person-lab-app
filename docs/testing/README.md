@@ -62,7 +62,7 @@ checks the Codex CLI fixed executor, purpose-first Research/Grant/Presentation/B
 home entries routed to MAS/MAG/RCA/BookForge, hidden home-path executor/provider/permission
 selectors with App-owned Codex model selector/status, home prompt, App-owned
 ordinary Settings navigation for General, Access, Agents & Capabilities, Local
-Environment, Appearance, Advanced, and About & Updates, legacy upstream route
+Environment, Storage, Appearance, Advanced, and About & Updates, legacy upstream route
 redirects, module path source explanation, stable/nightly release gating, MDS
 non-default display, and OPL Flow context before shell validation runs.
 The App product profile is declared in
