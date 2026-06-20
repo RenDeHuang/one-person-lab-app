@@ -35,7 +35,10 @@ Current GUI development follows one mainline and one alternative: AionUI is the
 stable App GUI mainline, and Hermes Desktop is the only foreground alternative
 candidate. The previous AG-UI/CopilotKit work remains useful as technical
 verification provenance and explicit replay material, but it is not a default
-candidate lane and should not receive routine updates or polish work.
+candidate lane and should not receive routine updates or polish work. Treat
+`candidate` in AGUI filenames, manifests, scripts, and adapter contracts as a
+backward-compatible replay label only; it does not reopen AGUI as a foreground
+candidate or default validation target.
 
 The App product profile is the current owner for desktop session defaults and
 user-facing product policy: Codex default model/reasoning, default visible
