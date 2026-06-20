@@ -24,7 +24,7 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 | Release channel policy, standard/Full separation, updater metadata, managed update plane, release evidence requirements | `contracts/app-release-channel.json` |
 | Release workflow shape and publish/promote sequencing | `.github/workflows/desktop-release*.yml`, `.github/workflows/homebrew-tap-update.yml`, release scripts |
 | Release evidence classification and boundary validation | `scripts/validate-release-boundary.ts`, `scripts/validate-release.ts`, release-boundary tests |
-| Full payload and size budgets | `contracts/app-release-channel.json#full_first_install.size_budget`, Full manifest `size_budget`, `scripts/verify-remote-release-assets.ts`, `scripts/release-full-size-report.ts` |
+| Full payload and size budgets | `contracts/app-release-channel.json#full_first_install.size_budget`, Full manifest `size_budget`, `scripts/verify-remote-release-assets.ts`, `npm run release:full:size`, `scripts/analyze-full-package-size.ts`, and `scripts/release-size-reporting.ts` |
 | App/root shell boundary | `contracts/app-shell-adapter.json`, `scripts/app-root-boundary.ts`, `scripts/validate-active-shell.ts` |
 | Install exposure and managed agent package visibility | `contracts/app-install-exposure-policy.json`, `npm run validate:agent-installation` |
 | Runtime/toolchain managed update execution | OPL Framework `opl update status/check/plan/apply/repair/rollback --json` runner outputs |
