@@ -86,6 +86,24 @@ type Options = {
   markdownPath: string | null;
 };
 
+function usage(): void {
+  process.stdout.write(`Usage:
+  npm run release:preflight -- --version <version> --release-mode <mode>
+
+Options:
+  --version <version>              OPL release version, for example 26.6.20.
+  --release-mode <mode>            refresh_existing, new_release, or draft_candidate.
+  --include-full-package <bool>    Whether the Full first-install package is in scope.
+  --run-vm-smoke <bool>            Whether release VM smokes are in scope.
+  --shell-ref <ref>                opl-aion-shell ref to validate. Default: main.
+  --framework-ref <ref>            one-person-lab framework ref to validate. Default: main.
+  --summary-path <path>            Write release-preflight-summary.json.
+  --markdown-path <path>           Write release-preflight-summary.md.
+  --offline                       Skip live GitHub/ref/package probes where supported.
+  --help                          Show this message.
+`);
+}
+
 function parseArgs(argv: string[]): Options {
   const options: Options = {
     version: process.env.OPL_RELEASE_VERSION || '',
@@ -101,6 +119,10 @@ function parseArgs(argv: string[]): Options {
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
+    if (token === '--help' || token === '-h') {
+      usage();
+      process.exit(0);
+    }
     if (token === '--offline') {
       options.offline = true;
       continue;

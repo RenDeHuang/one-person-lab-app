@@ -31,6 +31,23 @@ function defaultOptions(): Options {
   };
 }
 
+function usage(): void {
+  process.stdout.write(`Usage:
+  npm run release:actions-timing -- --run-id <github-actions-run-id> [--run-id <id> ...]
+  npm run release:actions-timing -- --run-json <path> [--run-json <path> ...]
+
+Options:
+  --repo <owner/name>        GitHub repository. Default: ${defaultRepo}
+  --run-id <id>             Fetch one GitHub Actions run with gh.
+  --run-json <path>         Read a saved gh run JSON payload.
+  --output <path>           Write JSON summary.
+  --markdown <path>         Write Markdown summary.
+  --top <n>                 Number of slow jobs/steps to include. Default: 12.
+  --agent-wall-time <dur>   Operator-loop duration, for example 2h6m43s.
+  --help                    Show this message.
+`);
+}
+
 function readArgValue(argv: string[], index: number, token: string): string {
   const value = argv[index + 1];
   if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
@@ -41,6 +58,10 @@ function parseArgs(argv: string[]): Options {
   const parsed = defaultOptions();
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
+    if (token === '--help' || token === '-h') {
+      usage();
+      process.exit(0);
+    }
     const value = token === '--run-id' || token === '--run-json' || token === '--repo'
       || token === '--output' || token === '--markdown' || token === '--top'
       || token === '--agent-wall-time'
@@ -245,9 +266,10 @@ function isSuccessful(run: JsonRecord): boolean {
   return conclusion(run) === 'success';
 }
 
+const failedOrCancelledConclusions = new Set(['failure', 'cancelled', 'timed_out', 'action_required', 'startup_failure']);
+
 function isFailedOrCancelled(run: JsonRecord): boolean {
-  const value = conclusion(run);
-  return value !== 'success' && value !== 'skipped';
+  return failedOrCancelledConclusions.has(conclusion(run));
 }
 
 function earliestIso(values: Array<unknown>): string | null {

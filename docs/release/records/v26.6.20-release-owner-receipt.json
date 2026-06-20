@@ -1,0 +1,103 @@
+{
+  "schema": "opl_app_release_owner_receipt_record.v1",
+  "owner": "one-person-lab-app release owner",
+  "scope": "same_cohort_app_release_user_path_owner_verdict",
+  "status": "release_owner_receipt_recorded",
+  "version": "26.6.20",
+  "tag": "v26.6.20",
+  "channel": "stable",
+  "release_owner_receipt_ref": "release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.20/receipt-20260620-owner-verdict",
+  "release_owner_verdict_ref": null,
+  "supersedes_typed_blocker_ref": "typed_blocker_ref://one-person-lab-app/release-owner/v26.6.20/verdict-pending",
+  "release_candidate_promote_ready": true,
+  "release_ready_claim": false,
+  "stable_latest_promotion_claim": false,
+  "family_production_ready_claim": false,
+  "can_close_opl_app_release_user_path": true,
+  "reason": "App release owner reviewed same-cohort v26.6.20 release, install, remote verification, Standard clean-VM, Full clean-VM, WebUI, and operator evidence from GitHub Actions refresh run 27866803313 and recorded an owner receipt for the release-owner gate. This receipt authorizes the App release-owner resolution ref path for candidate promotion validation; it does not claim App release-ready, stable/latest publication, OPL family production readiness, or any domain readiness.",
+  "evidence_refs": [
+    "github_actions_run_ref://gaofeng21cn/one-person-lab-app/actions/runs/27866803313",
+    "github_release_ref://gaofeng21cn/one-person-lab-app/releases/tag/v26.6.20",
+    "release_candidate_record_ref://one-person-lab-app/v26.6.20/run/27866803313",
+    "release_readiness_summary_ref://one-person-lab-app/v26.6.20/run/27866803313",
+    "release_preflight_summary_ref://one-person-lab-app/v26.6.20/run/27866803313",
+    "remote_release_verification_ref://one-person-lab-app/v26.6.20/run/27866803313",
+    "install_evidence_ref://one-person-lab-app/release-owner/v26.6.20/install-evidence",
+    "operator_evidence_bundle_ref://one-person-lab-app/v26.6.20"
+  ],
+  "source_artifact_readback": {
+    "source_run_id": "27866803313",
+    "app_commit": "a8761f5431587338dc58f447bacf2ffab067b13f",
+    "shell_ref": "a6d2103d63402148dfa2d398b78fcb7e1bb65480",
+    "framework_ref": "b924d799f44b724c433ec57197643adf4c518f53",
+    "release_candidate_record_artifact": "release-candidate-record-26.6.20",
+    "release_readiness_summary_artifact": "release-readiness-summary-26.6.20",
+    "release_preflight_summary_artifact": "release-preflight-summary-26.6.20",
+    "remote_release_verification_artifact": "remote-release-verification-26.6.20",
+    "source_sha256": {
+      "release_candidate_record_json": "fbb2ccbf9bb943f0f80a889eeedfe222b80b4d6eb3fa26b70d851b2f44189498",
+      "release_readiness_summary_json": "3b1ae95b8cd18ff3542c6595241891c6d24f124ea21d8aa27b7c88aeae99b0e7",
+      "release_preflight_summary_json": "40e5ba3459799922da951a6354722f9f76842b45010aeb5a5986f17467de334e",
+      "remote_release_verification_json": "b017d01cafc00087b700a3d2d1a522aae5b039e8618740bc06af34babfc6ca34"
+    },
+    "source_status": {
+      "preflight": "passed",
+      "readiness": "passed",
+      "remote_verification": "passed"
+    },
+    "release_readiness_failed_required_gate_count": 0,
+    "remote_verified_asset_count": 14,
+    "include_full_package": true,
+    "standard_clean_vm_status": "passed",
+    "full_clean_vm_status": "passed",
+    "homebrew_standard_cask_clean_vm_status": "skipped_in_refresh_run_because_release_was_draft",
+    "full_first_install_budget_status": "passed",
+    "full_dmg_size_status": "warning",
+    "full_dmg_size_bytes": 1118407432,
+    "runtime_uncompressed_bytes": 732463549
+  },
+  "owner_resolution_validation": {
+    "validator_command": "node --experimental-strip-types scripts/validate-release-candidate-record.ts --promote-ready --record <release-candidate-record.json>",
+    "release_candidate_status": "ready_to_promote",
+    "release_candidate_validator_promote_ready": true,
+    "release_owner_verdict_status": "release_owner_receipt_recorded",
+    "release_owner_resolution_ref_present": true,
+    "validator_errors": []
+  },
+  "candidate_record_rebuild_command": "node --experimental-strip-types scripts/write-release-candidate-record.ts --version 26.6.20 --release-mode refresh_existing --include-full-package true --run-vm-smoke true --app-commit a8761f5431587338dc58f447bacf2ffab067b13f --workflow-run-id 27866803313 --preflight <release-preflight-summary.json> --readiness <release-readiness-summary.json> --remote-verification <remote-release-verification.json> --release-owner-receipt-ref release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.20/receipt-20260620-owner-verdict --output <release-candidate-record.json>",
+  "post_promote_readback": {
+    "promote_run_id": "27867580320",
+    "published_release_readback": {
+      "tag": "v26.6.20",
+      "is_draft": false,
+      "is_prerelease": false,
+      "published_at": "2026-06-20T09:54:13Z",
+      "latest_list_readback": "One Person Lab v26.6.20 Latest v26.6.20"
+    },
+    "homebrew_tap_readback": {
+      "standard_cask_version": "26.6.20",
+      "standard_cask_sha256": "7197b1405d1ac808b2e15d8afb9b6cda12e853a385908730f65528fe2bb8d770",
+      "full_cask_version": "26.6.20",
+      "full_cask_sha256": "f38eecb1111c59b18a63d6330dbeb864422ccff8bd36984f1a9261c1d6d46ac2"
+    },
+    "post_publish_homebrew_vm_gate": {
+      "status": "failed_in_promote_run",
+      "failure_stage": "run_guest_smoke",
+      "failure_summary": "Timed out waiting for OPL core first-launch readiness from `opl system initialize --json` after Homebrew cask install succeeded.",
+      "follow_up_gate_run_id": "27868475783",
+      "follow_up_gate_status": "failed_before_app_launch",
+      "follow_up_gate_failure_stage": "homebrew_cask_install",
+      "follow_up_gate_failure_summary": "Standalone Homebrew Standard VM proof failed while downloading the published Standard DMG with curl error 18: Transferred a partial file. It did not reach App install, launch, or runtime readiness.",
+      "diagnostic_gap": "The promote-run readiness failure artifact preserved the failing `opl system initialize --json` command, status, and signal, but not enough stdout/stderr to classify the runtime initialization failure."
+    }
+  },
+  "authority_boundary": {
+    "can_claim_app_release_ready_from_evidence": false,
+    "can_claim_stable_latest_from_evidence": false,
+    "can_claim_family_production_ready": false,
+    "can_write_domain_truth": false,
+    "can_sign_domain_owner_receipt": false,
+    "can_claim_domain_ready": false,
+    "can_claim_quality_or_export_ready": false
+  }
+}

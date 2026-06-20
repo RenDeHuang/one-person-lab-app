@@ -202,3 +202,44 @@ test('GitHub Actions timing summarizer profiles multi-run release wall time and 
   assert.match(fs.readFileSync(markdownPath, 'utf8'), /Failed\/cancelled run tax: 37m14s across 2 run/);
   assert.match(fs.readFileSync(markdownPath, 'utf8'), /Unaccounted operator time outside Actions span: 51m15s/);
 });
+
+test('GitHub Actions timing summarizer does not count in-progress runs as failed tax', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-actions-timing-running-'));
+  const runJsonPath = path.join(tempRoot, 'runs.json');
+  const outputPath = path.join(tempRoot, 'actions-timing.json');
+
+  writeJson(runJsonPath, {
+    runs: [
+      {
+        databaseId: 27866803313,
+        workflowName: 'OPL Desktop Release',
+        status: 'in_progress',
+        conclusion: '',
+        createdAt: '2026-06-20T09:19:26Z',
+        updatedAt: '2026-06-20T09:50:48Z',
+        jobs: [
+          {
+            name: 'Build Full first-install assets / Build App-owned Full first-install DMG',
+            status: 'completed',
+            conclusion: 'success',
+            startedAt: '2026-06-20T09:19:50Z',
+            completedAt: '2026-06-20T09:35:46Z',
+          },
+        ],
+      },
+    ],
+  });
+
+  const result = runTimingSummary([
+    '--run-json',
+    runJsonPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.deepEqual(summary.conclusion_counts, { in_progress: 1 });
+  assert.equal(summary.timing.failed_or_cancelled_run_count, 0);
+  assert.equal(summary.timing.failed_or_cancelled_run_wall_seconds, 0);
+});

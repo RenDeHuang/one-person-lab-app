@@ -86,6 +86,33 @@ function defaultOptions(): Options {
   };
 }
 
+function usage(): void {
+  process.stdout.write(`Usage:
+  npm run release:closeout -- --version <version> --run-id <github-actions-run-id>
+  npm run release:closeout -- --version <version> --run-json <path> --jobs-json <path> --artifacts-dir <path> --no-download
+
+Options:
+  --version <version>              OPL release version, for example 26.6.20.
+  --run-id <id>                    GitHub Actions release run id.
+  --repo <owner/name>              GitHub repository. Default: ${defaultRepo}
+  --out-dir <path>                 Output directory.
+  --output <path>                  Write release-closeout.json.
+  --markdown <path>                Write release-closeout.md.
+  --monitor <path>                 Write release-monitor.json.
+  --notification <path>            Write release-notification.json.
+  --run-json <path>                Read saved gh run JSON instead of fetching.
+  --jobs-json <path>               Read saved jobs JSON.
+  --artifacts-json <path>          Read saved artifact list JSON.
+  --artifacts-dir <path>           Directory containing downloaded small release artifacts.
+  --artifact-profile <profile>     primary, diagnostics, or readiness-inputs. Default: primary.
+  --no-download                    Do not download artifacts; read --artifacts-dir only.
+  --agent-wall-time <duration>     Operator-loop duration, for example 2h6m43s.
+  --agent-started-at <iso>         Operator-loop start timestamp.
+  --agent-finished-at <iso>        Operator-loop finish timestamp.
+  --help                          Show this message.
+`);
+}
+
 function readArgValue(argv: string[], index: number, token: string): string {
   const value = argv[index + 1];
   if (!value || value.startsWith('--')) throw new Error(`Missing value for ${token}`);
@@ -123,6 +150,10 @@ function parseArgs(argv: string[]): Options {
   const parsed = defaultOptions();
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
+    if (token === '--help' || token === '-h') {
+      usage();
+      process.exit(0);
+    }
     if (token === '--no-download') {
       parsed.noDownload = true;
       continue;
