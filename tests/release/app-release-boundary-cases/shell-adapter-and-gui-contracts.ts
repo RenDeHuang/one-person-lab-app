@@ -341,6 +341,10 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-candidates.json'), 'utf8'),
   );
   const aguiCandidate = candidateRegistry.candidates.find((candidate) => candidate.id === 'agui-codex');
+  const hermesCandidate = candidateRegistry.candidates.find((candidate) => candidate.id === 'hermes-codex');
+  const hermesAdapter = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'shell-adapters', 'hermes-codex.json'), 'utf8'),
+  );
 
   assert.equal(packageJson.scripts['validate:shell-candidates'], 'node --experimental-strip-types scripts/validate-shell-candidates.ts');
   assert.equal(candidateRegistry.owner, 'one-person-lab-app');
@@ -386,6 +390,11 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   assert.ok(aguiCandidate.must_not_own.includes('domain truth'));
   assert.ok(aguiCandidate.non_goals.includes('do not switch active_shell away from aionui'));
   assert.ok(aguiCandidate.non_goals.includes('do not enter default stable or nightly release packaging'));
+  assert.ok(hermesCandidate);
+  assert.ok(hermesCandidate.settings_information_architecture.ordinary_tabs.includes('Storage'));
+  assert.ok(hermesCandidate.settings_information_architecture.opl_semantics.includes('存储'));
+  assert.ok(hermesAdapter.settings_information_architecture.ordinary_tabs.includes('Storage'));
+  assert.ok(hermesAdapter.settings_information_architecture.opl_semantics.includes('存储'));
 });
 
 test('explicit AG-UI/Codex adapter contract selects linked external candidate shell', () => {
