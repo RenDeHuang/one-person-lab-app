@@ -64,6 +64,6 @@ The current App process index keeps topic-level App docs-governance coverage.
 App `README*` and `docs/**/*.md` have no tracked unreviewed docs-governance
 theme remaining in the App process ledger; open App work is
 implementation/evidence-tail work under the owners above. This App coverage
-does not close the parent OPL series docs-governance goal, because the six-repo
+does not close the parent OPL series docs-governance goal, because the seven-repo
 goal remains open until every repo ledger has no unreviewed docs or unresolved
 stale/retire candidates.
