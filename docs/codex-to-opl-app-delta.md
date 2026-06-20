@@ -310,8 +310,9 @@ App-owned gates 通过后，才能成为默认 release shell。
 ## Hermes Candidate 增量入口
 
 `hermes-codex` 是当前唯一 foreground alternative GUI route。它参考
-`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；App repo 只把
-它作为 technical verification candidate 登记在
+`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；App repo 把它
+登记为唯一 foreground alternative，并把当前包、smoke 和 manifest 证据按
+technical verification 读取，直到显式 active-shell adoption 决策完成。登记位置在
 `contracts/app-shell-candidates.json` 和
 `contracts/shell-adapters/hermes-codex.json`。当前 active shell 仍是 AionUI，
 Hermes 不进入默认 stable/nightly release path。

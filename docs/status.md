@@ -300,8 +300,8 @@ model access, first-run, and capability status as ordinary product surfaces.
 Phase 3 is the full OPL product profile and possible active-shell adoption
 decision. None of these phases changes the active release shell by itself.
 
-The current `hermes-codex` state is Phase 1 implementation and technical
-verification. Current local evidence shows the candidate adapter can build and
+The current `hermes-codex` state is Phase 1 foreground-alternative implementation
+and technical verification. Current local evidence shows the adapter can build and
 exercise a fixture Codex app-server path, and the `2026-06-18` Tart VM smoke
 for `artifacts/hermes-candidate-tart-20260618T123825Z/summary.json` proves the
 current packaged candidate fixture path in a clean VM cohort
@@ -316,8 +316,9 @@ management into ordinary App capability.
 Package/runtime/visual acceptance is still not complete: AionUI-vs-Hermes visual
 screenshot parity has not been accepted, packaged GUI acceptance is separate
 from local live app-server smoke, and this does not promote Hermes to the
-release shell. Therefore the current state is technical verification candidate
-work, not release-ready, active-shell-adopted, domain-ready, or production-ready.
+release shell. Therefore the current state is foreground-alternative technical
+verification work, not release-ready, active-shell-adopted, domain-ready, or
+production-ready.
 
 The current candidate read is technical verification only. Candidate smoke,
 manifests, package evidence, shell roadmaps, upstream GUI defaults, and external

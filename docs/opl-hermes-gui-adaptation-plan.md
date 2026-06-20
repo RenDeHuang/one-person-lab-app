@@ -19,13 +19,15 @@ packaged artifact 和测试输出为准。
 Hermes Desktop 的 chat、files、preview、tool output、settings、onboarding、
 i18n 和 native packaging；OPL 只在普通路径上收窄 provider/backend/runtime
 概念，并补上 Codex CLI、模型访问、first-run、品牌化、简体中文/英文双语和 Codex Skill/Plugin 能力入口。
-AionUI 仍是 release shell；Hermes 仍是 explicit technical verification candidate。
+AionUI 仍是当前 release shell；Hermes Desktop / `hermes-codex` 是唯一
+foreground alternative。Hermes 现阶段证据仍按 technical verification 读取；
+未切换 active-shell contract 前，它不是默认发布 shell，也不是 release-ready claim。
 
 ## 三阶段路线
 
-Hermes candidate 的推进分三阶段。阶段顺序服务一个更窄的目标：先得到一个
+Hermes foreground alternative 的推进分三阶段。阶段顺序服务一个更窄的目标：先得到一个
 可维护、chat-first、行为接近 Codex App 的 OPL wrapper，再逐步呈现 OPL 品牌能力，
-最后才进入完整 OPL App product profile。阶段推进不能反过来要求当前 candidate
+最后才进入完整 OPL App product profile。阶段推进不能反过来要求当前 Hermes lane
 一次性背完整 Hermes backend、AionUI release shell 或 Full OPL runtime 的责任。
 
 | 阶段 | 定位 | 主要动作 | 明确不做 | 退出条件 |
@@ -52,7 +54,7 @@ Phase 1 完成度只按 fresh evidence 认定。`source tests passed` 能证明�
 
 ## App-owned 目标态
 
-Hermes candidate 的 App-owned 目标态已经由本仓固化，而不是由
+Hermes foreground alternative 的 App-owned 目标态已经由本仓固化，而不是由
 `/Users/gaofeng/workspace/opl-hermes-shell` 或 upstream Hermes roadmap 定义：
 
 - 默认发布 shell 仍是 AionUI。Hermes 只通过
@@ -112,7 +114,7 @@ Codex `turn/start` text input。App-root candidate chain 和 Tart clean-VM smoke
 
 ## 目标体验
 
-Hermes candidate 的目标不是“完整 Hermes 工作台加 OPL 插件”，而是 Codex App-like
+Hermes foreground alternative 的目标不是“完整 Hermes 工作台加 OPL 插件”，而是 Codex App-like
 OPL thin shell：
 
 - 打开后进入 workspace-aware chat，而不是 dashboard、provider marketplace 或
@@ -280,7 +282,7 @@ Codex App-like 心智重命名和收窄：
 
 ## 视觉与交互方向
 
-Hermes candidate 后续视觉优化要继续逼近 Codex App，而不是重新做工作台：
+Hermes foreground alternative 后续视觉优化要继续逼近 Codex App，而不是重新做工作台：
 
 - 第一屏保持中心 chat reading lane 和底部多行 composer，默认不打开复杂 inspector。
 - 第一屏 intro 只允许轻量品牌和 Skill chips；MAS/MAG/RCA 入口必须靠近 composer，
@@ -295,7 +297,7 @@ Hermes candidate 后续视觉优化要继续逼近 Codex App，而不是重新�
 
 ## 验收口径
 
-Hermes candidate 只能在以下证据齐备时声称“基本可用”：
+Hermes foreground alternative 只能在以下证据齐备时声称“基本可用”：
 
 - 启动不进入 Hermes Agent installer。
 - 热启动不跑 full initialize 作为阻塞 gate；已配置 API key、marker 新鲜且核心存在时
@@ -342,7 +344,7 @@ contract-only 写成 100%。
 | --- | --- | --- | --- | --- |
 | App-owned Hermes 目标态 | done | 100% | `contracts/app-shell-candidates.json` 与 `contracts/shell-adapters/hermes-codex.json` 通过候选 contract 校验。 | 后续若目标态变化，先改 App-owned contract/docs，再改 shell。 |
 | 默认 release shell 仍是 AionUI | done | 100% | `scripts/validate-shell-candidates.ts` 读取 `contracts/app-shell-adapter.json`、runtime bridge 和 GUI contract，确认 active shell 仍为 AionUI。 | 无；Hermes promotion 需单独 adoption decision。 |
-| Candidate app bundle identity | done | 100% | `npm run validate:candidate -- --require-app` 与 App-root manifest validator 证明 `CFBundleExecutable` 和 `Contents/MacOS` executable 都是 `One Person Lab Hermes Candidate`，且旧 `Electron` executable 不存在。 | 后续若改回 electron-builder，要保留同等 bundle identity check。 |
+| Foreground alternative app bundle identity | done | 100% | `npm run validate:candidate -- --require-app` 与 App-root manifest validator 证明 `CFBundleExecutable` 和 `Contents/MacOS` executable 都是 `One Person Lab Hermes Candidate`，且旧 `Electron` executable 不存在。 | 后续若改回 electron-builder，要保留同等 bundle identity check。 |
 | Codex app-server gateway 目标 | partial | 96% | Contract 声明 app-server gateway 和事件流；Hermes source/unit tests 证明 `session.create`、`prompt.submit` 先 ack 后后台流式推送、delta、complete、tool/approval/error bridge、长 turn 不再触发 RPC timeout 误报；`npm run smoke:opl-first-run` 在当前 packaged `.app` 中证明长 turn 的 `prompt.submit` 立即 ack 并满足 `<3s` gate，随后收到 `message.delta` 和 `message.complete`；本机 live smoke 曾证明 `CodexAppServerClient` 能驱动真实 `codex app-server` 完成一轮回合。 | 仍需用户本机真实模型服务的长回复人工验收和长期稳定性证据；不能从 fixture smoke 或一次 live smoke 推导 release readiness。 |
 | gflabtoken-only 模型访问 | partial | 95% | Contract 声明 gflabtoken、`OPENAI_API_KEY`、禁用 Base URL/provider marketplace；Hermes renderer tests 证明 Settings/onboarding 不展示其它 provider 和 legacy Base URL；packaged smoke 覆盖缺 key 与已配置状态分流；Settings visual smoke 证明模型访问页只暴露 gflabtoken/API key 普通入口。 | 仍需真实用户在 packaged GUI 中保存 API key 并完成真实模型访问验证；当前自动 smoke 使用 fixture 配置命令。 |
 | MAS/MAG/RCA Codex Skills | partial | 92% | Contract/docs 已切到 Skill-first；Hermes source/unit tests 证明 `codex.skills`、`/api/opl/codex-skills` 读取 Codex app-server `skills/list`，显式 `$mag` prompt 会变成 `turn/start` 的 `skill` input，普通 MAS 中文请求不被 GUI 自动 route，并阻止旧 `purpose.route.resolve` / route receipt 回归；renderer tests 证明 `/mas`、`/mag`、`/rca` 进入 `/` 命令面板并执行为 `$mas`、`$mag`、`$rca` prompt；packaged first-run smoke 证明 `$mas` 到达 Codex `turn/start` 的 structured skill input；chat hydration 和 packaged smoke 证明旧 `Opl route` / route receipt 不再出现在普通对话或 Codex text input。 | 仍需真实 packaged GUI 中由本机真实 Codex 成功显式加载 MAS/MAG/RCA Skill 的 live evidence；不能声称 domain ready、artifact ready 或 quality verdict。 |
