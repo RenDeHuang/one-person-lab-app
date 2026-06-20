@@ -2,7 +2,24 @@ import { beginnerFirstRunTestIds } from './app-contract-constants.ts';
 import { readShellText } from './shell-implementation-helpers.ts';
 
 export function validateFirstRunImplementation(shellPaths) {
+  const rendererMain = readShellText(shellPaths, 'packages/desktop/src/renderer/main.tsx');
+  const appLoader = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/AppLoader.tsx');
   const firstRunPage = readShellText(shellPaths, 'packages/desktop/src/renderer/pages/FirstRun/index.tsx');
+  for (const expected of [
+    "testId='opl-startup-preflight'",
+    'common.startupPreflight.steps.desktopSession',
+    'common.startupPreflight.steps.appConfig',
+    'common.startupPreflight.steps.firstRunStatus',
+  ]) {
+    if (!rendererMain.includes(expected)) {
+      throw new Error(`Active shell startup preflight must render visible progress before FirstRun: ${expected}`);
+    }
+  }
+  for (const expected of ['aria-live', 'steps.map', 'data-state']) {
+    if (!appLoader.includes(expected)) {
+      throw new Error(`Active shell AppLoader must expose progress steps without a blank startup window: ${expected}`);
+    }
+  }
   for (const expected of [
     'ipcBridge.oplRuntime.getInitialize.invoke()',
     'readInitializePayload',
@@ -23,6 +40,7 @@ export function validateFirstRunImplementation(shellPaths) {
     "data-testid='opl-first-run-full-readiness-progress'",
     "data-testid='opl-first-run-maintenance-progress'",
     "data-testid='opl-first-run-next-step'",
+    "data-testid='opl-first-run-initialize-pending'",
   ]) {
     if (!firstRunPage.includes(expected)) {
       throw new Error(`Active shell FirstRun page must render shared initialize progress: ${expected}`);
@@ -31,7 +49,9 @@ export function validateFirstRunImplementation(shellPaths) {
   if (firstRunPage.includes("ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })")) {
     throw new Error('Active shell FirstRun page must not auto-enter /guid from fast App state; use opl system initialize first-run setup_flow');
   }
-  for (const expected of beginnerFirstRunTestIds.map((id) => `data-testid='${id}'`)) {
+  for (const expected of beginnerFirstRunTestIds
+    .filter((id) => id !== 'opl-startup-preflight')
+    .map((id) => `data-testid='${id}'`)) {
     if (!firstRunPage.includes(expected)) {
       throw new Error(`Active shell FirstRun page must implement beginner first-run surface ${expected}`);
     }

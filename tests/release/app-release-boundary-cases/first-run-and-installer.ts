@@ -13,8 +13,13 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
   const scenarioById = new Map(matrix.scenarios.map((scenario) => [scenario.id, scenario]));
   const fullClean = scenarioById.get('full_first_install_clean_machine');
   const fullDmg = scenarioById.get('full_dmg_clean_vm_smoke');
+  const beginner = scenarioById.get('beginner_simplified_first_run_clean_machine');
 
   assert.ok(matrix.scenarios.every((scenario) => !('aliases' in scenario)));
+  assert.ok(beginner.required_shell_testids.includes('opl-startup-preflight'));
+  assert.ok(beginner.required_shell_testids.includes('opl-first-run-initialize-pending'));
+  assert.ok(beginner.expects.some((entry) => /instead of a blank window/.test(entry)));
+  assert.ok(beginner.expects.some((entry) => /initialize pending state renders explicit progress copy/.test(entry)));
   assert.deepEqual(fullClean.clean_machine_missing_tools, ['command_line_tools', 'homebrew', 'node', 'git']);
   assert.equal(fullClean.core_ready_source, 'bundled_runtime');
   assert.deepEqual(fullClean.background_maintenance, [

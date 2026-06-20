@@ -1293,7 +1293,9 @@
           "release_gate_policy": "user_visible_entry_complements_non_blocking_codex_ai_self_check_receipt"
         },
         "required_shell_testids": [
+          "opl-startup-preflight",
           "opl-first-run-beginner-summary",
+          "opl-first-run-initialize-pending",
           "opl-first-run-primary-action",
           "opl-first-run-technical-details-toggle"
         ],

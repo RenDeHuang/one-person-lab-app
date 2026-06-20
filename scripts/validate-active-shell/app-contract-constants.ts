@@ -84,7 +84,9 @@ export const forbiddenAuthorityOwners = [
   'domain_artifact_authority',
 ];
 export const beginnerFirstRunTestIds = [
+  'opl-startup-preflight',
   'opl-first-run-beginner-summary',
+  'opl-first-run-initialize-pending',
   'opl-first-run-primary-action',
   'opl-first-run-technical-details-toggle',
 ];
