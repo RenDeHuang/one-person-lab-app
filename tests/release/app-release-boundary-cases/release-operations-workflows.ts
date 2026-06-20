@@ -303,10 +303,18 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(promoteWorkflow, /name: OPL Desktop Release Promote/);
   assert.match(promoteWorkflow, /runs-on: macos-latest/);
   assert.match(promoteWorkflow, /release_run_id:/);
+  assert.match(promoteWorkflow, /release_owner_verdict_ref:/);
+  assert.match(promoteWorkflow, /release_owner_receipt_ref:/);
   assert.match(promoteWorkflow, /Download release candidate record/);
+  assert.match(promoteWorkflow, /Resolve release owner gate/);
+  assert.match(promoteWorkflow, /release:candidate-record:resolve-owner/);
   assert.match(promoteWorkflow, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(promoteWorkflow, /npm run release:candidate-record:validate/);
   assert.match(promoteWorkflow, /release-candidate-record-input\/release-candidate-record\.json/);
+  assert.equal(
+    packageJson.scripts['release:candidate-record:resolve-owner'],
+    'node --experimental-strip-types scripts/resolve-release-owner-candidate-record.ts',
+  );
   assert.equal(
     packageJson.scripts['release:candidate-record:validate'],
     'node --experimental-strip-types scripts/validate-release-candidate-record.ts --promote-ready',

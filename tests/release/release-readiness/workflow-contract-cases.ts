@@ -83,9 +83,18 @@ test('desktop release workflow has a final readiness aggregation job that downlo
 test('desktop promote workflow is gated by the candidate record before publishing', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-promote.yml'), 'utf8');
   assert.match(workflow, /release_run_id:/);
+  assert.match(workflow, /release_owner_verdict_ref:/);
+  assert.match(workflow, /release_owner_receipt_ref:/);
   assert.match(workflow, /Download release candidate record/);
   assert.match(workflow, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /release-candidate-record\.json/);
+  assert.match(workflow, /Download owner-resolution preflight input/);
+  assert.match(workflow, /Download owner-resolution readiness input/);
+  assert.match(workflow, /Download owner-resolution remote verification input/);
+  assert.match(workflow, /Resolve release owner gate/);
+  assert.match(workflow, /RELEASE_OWNER_RECEIPT_REF:\s+\$\{\{ inputs\.release_owner_receipt_ref \}\}/);
+  assert.match(workflow, /npm run release:candidate-record:resolve-owner/);
+  assert.match(workflow, /--release-owner-receipt-ref "\$\{RELEASE_OWNER_RECEIPT_REF\}"/);
   assert.match(workflow, /npm run release:candidate-record:validate/);
   assert.match(workflow, /--record release-candidate-record-input\/release-candidate-record\.json/);
   assert.doesNotMatch(workflow, /node <<'NODE'/);

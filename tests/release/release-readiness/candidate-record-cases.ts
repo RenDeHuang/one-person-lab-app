@@ -40,6 +40,14 @@ function runReleaseOwnerCandidateVerifier(args: string[]) {
   );
 }
 
+function runReleaseOwnerResolver(args: string[]) {
+  return spawnSync(
+    process.execPath,
+    ['--experimental-strip-types', 'scripts/resolve-release-owner-candidate-record.ts', ...args],
+    { cwd: appRoot, encoding: 'utf8', env: { ...process.env } },
+  );
+}
+
 function runGateReusePlan(args: string[]) {
   return spawnSync(
     process.execPath,
@@ -463,6 +471,89 @@ test('new release candidate record is promote-ready when initial run carries sam
     record.release_owner_verdict.release_owner_receipt_ref,
     'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-initial-owner-verdict',
   );
+});
+
+test('promote owner resolver rebuilds a blocked candidate record without rerunning release gates', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-owner-resolver-'));
+  const preflightPath = path.join(tempRoot, 'release-preflight-summary.json');
+  const readinessPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const remotePath = path.join(tempRoot, 'remote-release-verification.json');
+  const blockedCandidatePath = path.join(tempRoot, 'blocked-release-candidate-record.json');
+  const resolvedCandidatePath = path.join(tempRoot, 'resolved-release-candidate-record.json');
+  const resolvedMarkdownPath = path.join(tempRoot, 'resolved-release-candidate-record.md');
+
+  writeJson(preflightPath, { schema: 'opl_release_preflight.v1', status: 'passed' });
+  writeJson(readinessPath, {
+    schema: 'opl_release_readiness_summary.v1',
+    status: 'passed',
+    version: '26.5.99',
+    failed_required_gates: [],
+    release_owner_verdict: releaseOwnerVerdict(),
+  });
+  writeJson(remotePath, { status: 'passed', version: '26.5.99', verified_asset_count: 14 });
+
+  const blockedResult = runCandidateRecord([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'new_release',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--app-commit',
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    '--workflow-run-id',
+    '12345',
+    '--shell-ref',
+    'aion-shell-ref',
+    '--framework-ref',
+    'framework-ref',
+    '--preflight',
+    preflightPath,
+    '--readiness',
+    readinessPath,
+    '--remote-verification',
+    remotePath,
+    '--output',
+    blockedCandidatePath,
+    '--allow-blocked',
+  ]);
+  assert.equal(blockedResult.status, 0, blockedResult.stderr || blockedResult.stdout);
+  assert.equal(JSON.parse(fs.readFileSync(blockedCandidatePath, 'utf8')).status, 'blocked');
+
+  const resolverResult = runReleaseOwnerResolver([
+    '--candidate-record',
+    blockedCandidatePath,
+    '--preflight',
+    preflightPath,
+    '--readiness',
+    readinessPath,
+    '--remote-verification',
+    remotePath,
+    '--release-owner-receipt-ref',
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-promote-owner',
+    '--output',
+    resolvedCandidatePath,
+    '--markdown',
+    resolvedMarkdownPath,
+  ]);
+
+  assert.equal(resolverResult.status, 0, resolverResult.stderr || resolverResult.stdout);
+  const resolverSummary = JSON.parse(resolverResult.stdout);
+  const resolved = JSON.parse(fs.readFileSync(resolvedCandidatePath, 'utf8'));
+  assert.equal(resolverSummary.schema, 'opl_release_owner_resolution_candidate_record.v1');
+  assert.equal(resolverSummary.status, 'ready_to_promote');
+  assert.equal(resolved.status, 'ready_to_promote');
+  assert.equal(resolved.provenance.workflow_run_id, '12345');
+  assert.equal(resolved.provenance.app_commit, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+  assert.equal(resolved.inputs.shell_ref, 'aion-shell-ref');
+  assert.equal(resolved.release_owner_verdict.status, 'release_owner_receipt_recorded');
+  assert.equal(
+    resolved.release_owner_verdict.release_owner_receipt_ref,
+    'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.5.99/receipt-promote-owner',
+  );
+  assert.equal(fs.existsSync(resolvedMarkdownPath), true);
 });
 
 test('new release candidate record remains blocked without owner receipt or verdict ref', () => {

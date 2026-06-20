@@ -82,6 +82,15 @@ export function writeCloseoutMarkdown(filePath: string, summary: CloseoutSummary
     lines.push('', '### Candidate Blockers', '');
     for (const reason of blockedReasons) lines.push(`- ${String(reason)}`);
   }
+  const postPublish = asRecord(summary.decision.post_publish);
+  if (postPublish) {
+    lines.push('', '### Post-Publish Follow-Up', '');
+    lines.push('- Published release readback: true');
+    lines.push('- Rule: Do not conflate published release/tap state with post-publish Homebrew VM proof completion.');
+    for (const job of asArray(postPublish.failed_followup_jobs).map((entry) => asRecord(entry)).filter((entry): entry is JsonRecord => entry !== null)) {
+      lines.push(`- ${stringField(job, 'name') ?? 'unknown'}: ${stringField(job, 'conclusion') ?? stringField(job, 'status') ?? 'unknown'}`);
+    }
+  }
   lines.push('', '### Slowest Jobs', '', '| Job | Conclusion | Duration |', '| --- | --- | ---: |');
   for (const job of summary.jobs.slowest_jobs.slice(0, 8)) {
     lines.push(`| ${job.name} | ${job.conclusion ?? job.status ?? ''} | ${formatDuration(job.duration_seconds)} |`);

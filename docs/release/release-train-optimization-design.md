@@ -189,6 +189,25 @@ prebaked base still needs an image receipt with source VM, image digest,
 profile, prebaked layers, truth boundary, and validation command before it can
 be considered current release infrastructure.
 
+Layer 11 is now implemented as promote-time owner-resolution rebuild. When a
+desktop release run has already produced complete same-cohort evidence and the
+candidate is blocked only because the owner receipt/verdict ref arrived after
+the run, `desktop-release-promote.yml` can accept
+`release_owner_verdict_ref` or `release_owner_receipt_ref`, download the
+original run's small preflight/readiness/remote-verification artifacts, rebuild
+the candidate with `npm run release:candidate-record:resolve-owner`, and then
+run the same promote-ready validator before publication. This removes the full
+desktop release refresh tax for owner metadata only. It does not skip failed
+release gates, create owner receipts, or make release-ready/family-production
+claims.
+
+Layer 12 is now implemented as post-publish follow-up classification. Closeout
+distinguishes a completed publication/readback from a later Homebrew VM,
+screenshot, docs, or other proof gate failure by reporting
+`published_with_post_publish_followup` and `resolve_post_publish_followup_gate`.
+Operators should use this state to chase the failed proof artifact without
+reconstructing whether the GitHub Release or Homebrew tap already changed.
+
 Next optimization candidates must preserve release authority boundaries:
 
 - Teach the release workflows to explicitly consume

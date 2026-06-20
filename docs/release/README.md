@@ -284,8 +284,10 @@ Every desktop release run now produces the closeout by default in the final
 `release-closeout.md` after `release-candidate-record.json` is written. The same
 artifact also carries `release-monitor.json` and `release-notification.json`.
 Use `release-monitor.json#state` (`running`, `failed`, `ready_to_promote`, or
-`published`) plus `recommended_next_action` as the no-watch operator surface
-instead of leaving a terminal in `gh run watch`. It reads the same local small
+`published`, with `published_with_post_publish_followup` when publication is
+complete but a later proof gate failed) plus `recommended_next_action` as the
+no-watch operator surface instead of leaving a terminal in `gh run watch`. It
+reads the same local small
 artifacts already used by readiness, runs with `--no-download`, refuses
 standard/Full package artifacts, and points the
 operator at promotion only after the candidate record passes
@@ -295,6 +297,10 @@ operator at promotion only after the candidate record passes
 release-owner typed blocker / owner-resolution action instead of
 `promote_from_candidate_record`. Candidate blockers, failed readiness gates, or
 raw log inspection are used only after structured evidence is missing or failed.
+If a promote workflow publishes the release and then fails a Homebrew VM,
+screenshot, docs, or other post-publish proof gate, closeout must classify that
+as `resolve_post_publish_followup_gate`; do not conflate the published
+GitHub Release/tap state with clean-install proof completion.
 
 The local command is the rerun/debug path for the same logic, not a separate
 release step:
@@ -396,6 +402,16 @@ release-closeout artifacts to rebuild and validate the post-owner candidate
 record. This verifies the owner-resolution ref path only; it does not publish
 the release, mutate updater metadata, or claim App release ready / OPL family
 production ready.
+
+When a desktop release run has already produced complete same-cohort evidence
+and is blocked only by the release-owner resolution ref, pass
+`release_owner_verdict_ref` or `release_owner_receipt_ref` to
+`desktop-release-promote.yml`. The promote workflow downloads the original
+run's small preflight/readiness/remote-verification artifacts, rebuilds the
+candidate record with `npm run release:candidate-record:resolve-owner`, then
+runs the normal promote-ready validator before publishing. This avoids a full
+desktop release rerun solely for owner-resolution metadata; it does not skip
+failed gates, invent owner receipts, or bypass candidate-record validation.
 
 AI exploratory release checks are non-blocking. They can provide exploratory triage, summaries, risk hints, or follow-up suggestions, but they are not a release gate and must not block standard, Full, Homebrew, WebUI, updater, or promotion lanes.
 

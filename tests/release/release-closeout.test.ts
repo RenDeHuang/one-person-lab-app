@@ -316,6 +316,82 @@ test('release closeout stops at readiness failed gates before raw log inspection
   ]);
 });
 
+test('release closeout separates published release state from failed post-publish proof gates', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-closeout-post-publish-'));
+  const artifactsRoot = path.join(tempRoot, 'artifacts');
+  const outDir = path.join(tempRoot, 'out');
+  const runPath = path.join(tempRoot, 'run.json');
+  const jobsPath = path.join(tempRoot, 'jobs.json');
+  writeJson(path.join(artifactsRoot, 'remote-release-verification-26.5.99', 'remote-release-verification.json'), {
+    status: 'passed',
+    version: '26.5.99',
+    isDraft: false,
+    publishedAt: '2026-06-20T09:54:13Z',
+  });
+  writeJson(path.join(artifactsRoot, 'release-preflight-summary-26.5.99', 'release-preflight-summary.json'), {
+    schema: 'opl_release_preflight.v1',
+    status: 'passed',
+    release_target: { kind: 'draft_release' },
+  });
+  writeJson(runPath, {
+    databaseId: '67890',
+    status: 'completed',
+    conclusion: 'failure',
+    createdAt: '2026-06-20T09:52:53Z',
+    startedAt: '2026-06-20T09:52:53Z',
+    updatedAt: '2026-06-20T10:18:32Z',
+    workflowName: 'OPL Desktop Release Promote',
+    url: 'https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/67890',
+  });
+  writeJson(jobsPath, {
+    jobs: [
+      {
+        name: 'Verify and publish draft release',
+        status: 'completed',
+        conclusion: 'success',
+        startedAt: '2026-06-20T09:53:00Z',
+        completedAt: '2026-06-20T09:54:19Z',
+      },
+      {
+        name: 'Run Homebrew standard first-run VM smoke',
+        status: 'completed',
+        conclusion: 'failure',
+        startedAt: '2026-06-20T09:54:34Z',
+        completedAt: '2026-06-20T10:18:32Z',
+      },
+    ],
+  });
+
+  const result = runCloseout([
+    '--version',
+    '26.5.99',
+    '--run-json',
+    runPath,
+    '--jobs-json',
+    jobsPath,
+    '--artifacts-dir',
+    artifactsRoot,
+    '--out-dir',
+    outDir,
+    '--no-download',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const stdout = JSON.parse(result.stdout);
+  const summary = readJson(path.join(outDir, 'release-closeout.json'));
+  const monitor = readJson(path.join(outDir, 'release-monitor.json'));
+  assert.equal(stdout.status, 'resolve_post_publish_followup_gate');
+  assert.equal(stdout.monitor_state, 'published_with_post_publish_followup');
+  assert.equal(monitor.state, 'published_with_post_publish_followup');
+  assert.equal(monitor.published, true);
+  assert.equal(summary.decision.next_action, 'resolve_post_publish_followup_gate');
+  assert.equal(summary.decision.post_publish.published_release_readback, true);
+  assert.equal(summary.decision.post_publish.failed_followup_jobs[0].name, 'Run Homebrew standard first-run VM smoke');
+  const markdown = fs.readFileSync(path.join(outDir, 'release-closeout.md'), 'utf8');
+  assert.match(markdown, /Post-Publish Follow-Up/);
+  assert.match(markdown, /Do not conflate published release\/tap state/);
+});
+
 test('release closeout uses candidate record inside an in-progress workflow job', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-closeout-default-'));
   const artifactsRoot = path.join(tempRoot, 'release-closeout-inputs');

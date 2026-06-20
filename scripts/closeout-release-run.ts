@@ -649,12 +649,19 @@ function remoteReleaseLooksPublished(remote: JsonRecord | null, preflight: JsonR
   return false;
 }
 
+function postPublishFailedJobs(remote: JsonRecord | null, preflight: JsonRecord | null, jobs: ReturnType<typeof summarizeJobs>) {
+  if (!remoteReleaseLooksPublished(remote, preflight)) return [];
+  return jobs.failed_jobs.filter((job) => /homebrew|vm|smoke|guide|screenshot|docs/i.test(job.name));
+}
+
 function buildDecision(inputs: {
   options: Options;
   run: JsonRecord;
   candidate: JsonRecord | null;
   candidatePath: string | null;
   readiness: JsonRecord | null;
+  remote: JsonRecord | null;
+  preflight: JsonRecord | null;
   jobs: ReturnType<typeof summarizeJobs>;
 }) {
   const runStatus = stringField(inputs.run, 'status') ?? 'unknown';
@@ -704,6 +711,19 @@ function buildDecision(inputs: {
       command: `npm run release:closeout -- --version ${inputs.options.version} --run-id ${inputs.options.runId}`,
     };
   }
+  const postPublishFailures = postPublishFailedJobs(inputs.remote, inputs.preflight, inputs.jobs);
+  if (postPublishFailures.length > 0) {
+    return {
+      next_action: 'resolve_post_publish_followup_gate',
+      reason: 'GitHub release publication or remote release readback is complete, but a post-publish proof gate failed.',
+      command: `npm run release:closeout -- --version ${inputs.options.version} --run-id ${inputs.options.runId} --artifact-profile readiness-inputs`,
+      post_publish: {
+        published_release_readback: true,
+        failed_followup_jobs: postPublishFailures,
+        rule: 'Do not conflate published release/tap state with post-publish Homebrew VM proof completion.',
+      },
+    };
+  }
   if (inputs.jobs.failed_jobs.length > 0 || conclusion !== 'success') {
     return {
       next_action: 'inspect_failed_jobs',
@@ -728,6 +748,7 @@ function monitorState(input: {
   const runStatus = input.run.status ?? 'unknown';
   const conclusion = input.run.conclusion ?? 'unknown';
   const nextAction = stringField(input.decision, 'next_action') ?? 'unknown';
+  if (nextAction === 'resolve_post_publish_followup_gate') return 'published_with_post_publish_followup';
   if (remoteReleaseLooksPublished(input.remote, input.preflight)) return 'published';
   if (nextAction === 'promote_from_candidate_record') return 'ready_to_promote';
   if (nextAction === 'wait_for_release_run_completion') return 'running';
@@ -735,6 +756,7 @@ function monitorState(input: {
     nextAction === 'owner_needed_release_owner_resolution'
     || nextAction === 'resolve_candidate_record_blockers'
     || nextAction === 'resolve_readiness_failed_gates'
+    || nextAction === 'resolve_post_publish_followup_gate'
     || nextAction === 'inspect_failed_jobs'
     || input.jobs.failed_jobs.length > 0
   ) {
@@ -768,6 +790,8 @@ function buildSummary(options: Options) {
     candidate: candidateArtifact.payload,
     candidatePath: candidateArtifact.absolutePath,
     readiness: readinessArtifact.payload,
+    remote: remoteArtifact.payload,
+    preflight: preflightArtifact.payload,
     jobs: jobSummary,
   });
   const fullPackageProfile = fullPackageTuning(
@@ -911,7 +935,7 @@ function buildMonitorSummary(summary: ReturnType<typeof buildSummary>) {
     failed_job_count: summary.jobs.failed_jobs.length,
     source_status: summary.source_status,
     promote_ready: nextAction === 'promote_from_candidate_record',
-    published: state === 'published',
+    published: state === 'published' || state === 'published_with_post_publish_followup',
     no_watch_instructions: [
       `gh run view ${summary.run.id} --repo ${summary.release_repo} --json status,conclusion,url,updatedAt`,
       `gh run download ${summary.run.id} --repo ${summary.release_repo} --name release-closeout-${summary.version} --dir artifacts/release-closeout/v${summary.version}-${summary.run.id}`,

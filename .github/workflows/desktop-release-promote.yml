@@ -16,6 +16,16 @@ on:
         description: Desktop release workflow run id that produced the candidate record
         required: true
         type: string
+      release_owner_verdict_ref:
+        description: Optional same-cohort App release owner verdict ref to resolve a blocked owner gate without rerunning release evidence
+        required: false
+        default: ''
+        type: string
+      release_owner_receipt_ref:
+        description: Optional same-cohort App release owner receipt ref to resolve a blocked owner gate without rerunning release evidence
+        required: false
+        default: ''
+        type: string
       shell_ref:
         description: opl-aion-shell ref containing the first-run smoke scripts. Empty means main.
         required: false
@@ -54,6 +64,57 @@ jobs:
           run-id: ${{ inputs.release_run_id }}
           path: release-candidate-record-input
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download owner-resolution preflight input
+        if: ${{ inputs.release_owner_verdict_ref != '' || inputs.release_owner_receipt_ref != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: release-preflight-summary-${{ inputs.opl_version }}
+          run-id: ${{ inputs.release_run_id }}
+          path: owner-resolution-inputs
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download owner-resolution readiness input
+        if: ${{ inputs.release_owner_verdict_ref != '' || inputs.release_owner_receipt_ref != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: release-readiness-summary-${{ inputs.opl_version }}
+          run-id: ${{ inputs.release_run_id }}
+          path: owner-resolution-inputs
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download owner-resolution remote verification input
+        if: ${{ inputs.release_owner_verdict_ref != '' || inputs.release_owner_receipt_ref != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: remote-release-verification-${{ inputs.opl_version }}
+          run-id: ${{ inputs.release_run_id }}
+          path: owner-resolution-inputs
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve release owner gate
+        if: ${{ inputs.release_owner_verdict_ref != '' || inputs.release_owner_receipt_ref != '' }}
+        env:
+          RELEASE_OWNER_VERDICT_REF: ${{ inputs.release_owner_verdict_ref }}
+          RELEASE_OWNER_RECEIPT_REF: ${{ inputs.release_owner_receipt_ref }}
+        run: |
+          set -euo pipefail
+          args=(
+            npm run release:candidate-record:resolve-owner --
+            --candidate-record release-candidate-record-input/release-candidate-record.json
+            --preflight owner-resolution-inputs/release-preflight-summary.json
+            --readiness owner-resolution-inputs/release-readiness-summary.json
+            --remote-verification owner-resolution-inputs/remote-release-verification.json
+            --output release-candidate-record-input/release-candidate-record.json
+            --markdown release-candidate-record-input/release-candidate-record.md
+          )
+          if [ -n "${RELEASE_OWNER_VERDICT_REF}" ]; then
+            args+=(--release-owner-verdict-ref "${RELEASE_OWNER_VERDICT_REF}")
+          fi
+          if [ -n "${RELEASE_OWNER_RECEIPT_REF}" ]; then
+            args+=(--release-owner-receipt-ref "${RELEASE_OWNER_RECEIPT_REF}")
+          fi
+          "${args[@]}"
 
       - name: Verify release candidate record
         env:
