@@ -163,7 +163,7 @@ One Person Lab App 负责桌面产品体验：打包、发布、更新、首次�
 
 App 决定用户看到的安装形态、默认入口、首次启动体验和设置界面。One Person Lab Framework 提供背后的运行、初始化和进度数据，MAS、MAG、RCA 承载各自专业判断和交付物。App 只负责把这些能力呈现为用户能使用的桌面产品体验，不替专业 Agent 做领域判断。
 
-GUI 产品事实也由 App 仓维护。AionUI、`agui-codex`、PilotDeck 等只作为实现载体或参考材料；真正进入产品的界面、默认行为和发布体验，以 App 仓的产品文档、合同和验证结果为准。
+GUI 产品事实也由 App 仓维护。当前 GUI 主线是基于 AionUI 的 OPL 品牌壳；Hermes Desktop / `hermes-codex` 是唯一前台备选。`agui-codex`、PilotDeck 等只作为已归档技术验证或参考材料；真正进入产品的界面、默认行为和发布体验，以 App 仓的产品文档、合同和验证结果为准。
 
 需要框架、运行时和合同信息时，请进入 [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab)。
 
@@ -184,7 +184,7 @@ one-person-lab-app/
     aionui/             gaofeng21cn/opl-aion-shell 的外部检出目录
 ```
 
-`shells/aionui/` 不纳入本仓跟踪。构建和验证时从 `gaofeng21cn/opl-aion-shell` 检出，AionUI 历史和贡献者记录保留在独立 shell 仓库中。候选 shell 也遵循同样的外部检出规则；例如 `shells/agui-codex/` 链接到 `gaofeng21cn/opl-agui-codex-shell`，只在显式技术验证构建时使用。
+`shells/aionui/` 不纳入本仓跟踪。构建和验证时从 `gaofeng21cn/opl-aion-shell` 检出，AionUI 历史和贡献者记录保留在独立 shell 仓库中。Hermes Desktop / `hermes-codex` 作为唯一前台备选也遵循外部检出规则。`shells/agui-codex/` 只保留到 `gaofeng21cn/opl-agui-codex-shell` 的已归档技术验证链接；除非明确要求 AGUI replay，不再默认更新、完善或抛光。
 
 ### 常用验证命令
 
@@ -214,7 +214,13 @@ bun run validate-release -- release-assets
 - 界面来源：`gaofeng21cn/opl-aion-shell`
 - 历史策略：外部检出，不合并进 App 默认分支
 
-不改变默认发布 adapter 的情况下，可以显式选择实验 shell：
+不改变默认发布 adapter 的情况下，可以显式选择 Hermes Desktop 备选：
+
+```bash
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package
+```
+
+已归档 AGUI 技术验证只在明确要求 AGUI replay 时回放：
 
 ```bash
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
@@ -249,7 +255,7 @@ gates 见 [App release guide](docs/release/README.md)。当前 App 产品状态�
 gap 见 [`docs/status.md`](docs/status.md) 与
 [`docs/active/app-ideal-state-gap-plan.md`](docs/active/app-ideal-state-gap-plan.md)。
 
-GUI 定义栈按顺序阅读：[`docs/app-ideal-gui-interaction-spec.md`](docs/app-ideal-gui-interaction-spec.md) 定义不绑定具体 shell 的理想交互形态，[`docs/codex-to-opl-app-delta.md`](docs/codex-to-opl-app-delta.md) 定义 Codex App 变成 OPL App 需要追加、隐藏和治理的产品增量，[`docs/app-gui-feature-inventory.md`](docs/app-gui-feature-inventory.md) 维护跨 shell 的能力清单。后续设计或评审 GUI 时先看这三份，再看 contracts 和 page-state 矩阵；AionUI、`agui-codex` 和 PilotDeck 只提供实现或参考材料，不能反过来定义 OPL App 产品事实。
+GUI 定义栈按顺序阅读：[`docs/app-ideal-gui-interaction-spec.md`](docs/app-ideal-gui-interaction-spec.md) 定义不绑定具体 shell 的理想交互形态，[`docs/codex-to-opl-app-delta.md`](docs/codex-to-opl-app-delta.md) 定义 Codex App 变成 OPL App 需要追加、隐藏和治理的产品增量，[`docs/app-gui-feature-inventory.md`](docs/app-gui-feature-inventory.md) 维护跨 shell 的能力清单。后续设计或评审 GUI 时先看这三份，再看 contracts 和 page-state 矩阵；AionUI 是当前实现主线，Hermes Desktop / `hermes-codex` 是唯一前台备选，`agui-codex` 和 PilotDeck 只提供已归档技术验证或参考材料，不能反过来定义 OPL App 产品事实。
 
 ### Agent / Framework Boundary
 
