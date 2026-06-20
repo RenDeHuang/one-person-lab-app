@@ -2,7 +2,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { validateCandidate } from './validate-shell-candidates/candidate-contract.ts';
+import {
+  candidateValidationPolicyFromRegistry,
+  validateCandidate,
+} from './validate-shell-candidates/candidate-contract.ts';
 import { runCandidateCommands } from './validate-shell-candidates/candidate-evidence.ts';
 import { validateActiveShellUnaffected, validateRegistryShape } from './validate-shell-candidates/registry.ts';
 import { readJson, registryPath, root } from './validate-shell-candidates/shared.ts';
@@ -32,6 +35,7 @@ function main(): void {
   const registry = readJson<ShellCandidateRegistry>(registryPath);
   validateRegistryShape(registry);
   validateActiveShellUnaffected();
+  const validationPolicy = candidateValidationPolicyFromRegistry(registry);
 
   const candidates = args.candidate
     ? registry.candidates.filter((candidate) => candidate.id === args.candidate)
@@ -40,7 +44,7 @@ function main(): void {
     throw new Error(`No shell candidate matched ${args.candidate ?? 'default foreground alternative scope'}`);
   }
   for (const candidate of candidates) {
-    validateCandidate(candidate);
+    validateCandidate(candidate, validationPolicy);
     if (args.runCandidateCommands) {
       runCandidateCommands(candidate);
     }

@@ -407,6 +407,33 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   assert.ok(hermesAdapter.settings_information_architecture.opl_semantics.includes('存储'));
 });
 
+test('shell candidate validator derives foreground and archived policy from registry', () => {
+  const dispatcherSource = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-shell-candidates.ts'), 'utf8');
+  const candidateContractSource = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'validate-shell-candidates', 'candidate-contract.ts'),
+    'utf8',
+  );
+
+  assert.match(dispatcherSource, /candidateValidationPolicyFromRegistry\(registry\)/);
+  assert.match(dispatcherSource, /validateCandidate\(candidate,\s*validationPolicy\)/);
+  assert.match(candidateContractSource, /registry\.alternative_gui_policy/);
+  assert.match(candidateContractSource, /policy\.archivedTechnicalProofs\.includes\(candidate\.id\)/);
+  assert.match(candidateContractSource, /candidate\.default_update_policy !== policy\.archivedProofUpdatePolicy/);
+  assert.match(candidateContractSource, /alternative_gui_policy\.archived_proof_policy/);
+  assert.doesNotMatch(
+    candidateContractSource,
+    /candidate\.id\s*={2,3}\s*['"]agui-codex['"][\s\S]{0,120}archived_technical_proof/,
+  );
+  assert.doesNotMatch(
+    candidateContractSource,
+    /candidate\.id\s*={2,3}\s*['"]agui-codex['"][\s\S]{0,160}explicit_user_requested_technical_replay_only/,
+  );
+  assert.doesNotMatch(
+    candidateContractSource,
+    /candidate\.id\s*={2,3}\s*['"]agui-codex['"][\s\S]{0,160}archived_technical_verification_shell/,
+  );
+});
+
 test('explicit AG-UI/Codex adapter contract selects linked external candidate shell', () => {
   const result = runNode(
     [

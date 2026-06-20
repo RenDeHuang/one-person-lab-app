@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ShellCandidate, ValidationCommand } from './types.ts';
+import type { ShellCandidate, ShellCandidateRegistry, ValidationCommand } from './types.ts';
 import {
   activeAdapterPath,
   assertFile,
@@ -45,26 +45,58 @@ type CandidateAdapterContract = {
   visual_parity_contract?: ShellCandidate['visual_parity_contract'];
 };
 
-function validateCandidateRegistryEntry(candidate: ShellCandidate): void {
+export type CandidateValidationPolicy = {
+  onlyForegroundAlternative: string;
+  defaultCandidateValidationScope: string[];
+  archivedTechnicalProofs: string[];
+  archivedProofUpdatePolicy: string;
+};
+
+export function candidateValidationPolicyFromRegistry(registry: ShellCandidateRegistry): CandidateValidationPolicy {
+  const alternative = registry.alternative_gui_policy;
+  if (!alternative) {
+    throw new Error('candidate registry must declare alternative_gui_policy before candidate validation');
+  }
+  return {
+    onlyForegroundAlternative: alternative.only_foreground_alternative,
+    defaultCandidateValidationScope: alternative.default_candidate_validation_scope,
+    archivedTechnicalProofs: alternative.archived_technical_proofs,
+    archivedProofUpdatePolicy: alternative.archived_proof_policy,
+  };
+}
+
+function validateCandidateRegistryEntry(candidate: ShellCandidate, policy: CandidateValidationPolicy): void {
   if (!candidate.id || !candidate.candidate_root) {
     throw new Error(`Invalid candidate entry: ${JSON.stringify(candidate)}`);
   }
-  const expectedState = candidate.id === 'agui-codex' ? 'archived_technical_proof' : 'technical_verification';
+  const isArchivedProof = policy.archivedTechnicalProofs.includes(candidate.id);
+  const isForegroundAlternative = candidate.id === policy.onlyForegroundAlternative;
+  const isDefaultCandidate = policy.defaultCandidateValidationScope.includes(candidate.id);
+  const expectedState = isArchivedProof ? 'archived_technical_proof' : 'technical_verification';
   if (candidate.state !== expectedState) {
-    throw new Error(`${candidate.id} must stay in technical_verification until adopted`);
+    throw new Error(`${candidate.id} must stay in ${expectedState} according to app-shell-candidates alternative_gui_policy`);
   }
-  if (candidate.id === 'agui-codex') {
+  if (!isArchivedProof && !isForegroundAlternative) {
+    throw new Error(`${candidate.id} must be either the foreground alternative or an archived technical proof`);
+  }
+  if (isArchivedProof && isDefaultCandidate) {
+    throw new Error(`${candidate.id} archived technical proof must not enter default candidate validation scope`);
+  }
+  if (isForegroundAlternative && !isDefaultCandidate) {
+    throw new Error(`${candidate.id} foreground alternative must be included in default candidate validation scope`);
+  }
+  if (isArchivedProof) {
     if (!candidate.archived_reason?.includes('AG-UI/CopilotKit work served its technical verification purpose')) {
-      throw new Error('agui-codex archived technical proof must record why it is no longer a foreground alternative');
+      throw new Error(`${candidate.id} archived technical proof must record why it is no longer a foreground alternative`);
     }
-    if (candidate.default_update_policy !== 'do_not_update_or_improve_unless_user_explicitly_requests_agui') {
-      throw new Error('agui-codex must not be updated or improved unless the user explicitly requests AGUI work');
+    if (candidate.default_update_policy !== policy.archivedProofUpdatePolicy) {
+      throw new Error(`${candidate.id} archived proof update policy must match alternative_gui_policy.archived_proof_policy`);
     }
   }
   if (!candidate.candidate_root.startsWith('shells/') || candidate.candidate_root.split(/[\\/]+/).includes('..')) {
     throw new Error(`${candidate.id} candidate_root must be under shells/<candidate>`);
   }
-  const expectedReleaseParticipation = candidate.id === 'agui-codex'
+  const expectedReleaseParticipation = isArchivedProof
     ? 'explicit_user_requested_technical_replay_only'
     : 'selectable_for_explicit_candidate_build';
   if (candidate.release_participation !== expectedReleaseParticipation) {
@@ -80,7 +112,11 @@ function readCandidateAdapterContract(candidate: ShellCandidate): CandidateAdapt
   return readJson<CandidateAdapterContract>(path.join(root, candidate.adapter_contract));
 }
 
-function validateCandidateAdapterContract(candidate: ShellCandidate, adapterContract: CandidateAdapterContract): void {
+function validateCandidateAdapterContract(
+  candidate: ShellCandidate,
+  adapterContract: CandidateAdapterContract,
+  policy: CandidateValidationPolicy,
+): void {
   if (adapterContract.active_shell !== candidate.id || adapterContract.shell_root !== candidate.candidate_root) {
     throw new Error(`${candidate.id} adapter contract must point at ${candidate.candidate_root}`);
   }
@@ -90,7 +126,7 @@ function validateCandidateAdapterContract(candidate: ShellCandidate, adapterCont
   if (adapterContract.shell_source.history_policy !== 'external_checkout_not_merged_into_app_default_branch') {
     throw new Error(`${candidate.id} adapter must keep external checkout history policy`);
   }
-  const expectedRole = candidate.id === 'agui-codex'
+  const expectedRole = policy.archivedTechnicalProofs.includes(candidate.id)
     ? 'archived_technical_verification_shell'
     : 'experimental_candidate_shell';
   if (adapterContract.release_role !== expectedRole) {
@@ -359,10 +395,10 @@ function validateCandidatePackageScriptSurfaces(candidate: ShellCandidate): void
   ], 'package scripts for WebUI');
 }
 
-export function validateCandidate(candidate: ShellCandidate): void {
-  validateCandidateRegistryEntry(candidate);
+export function validateCandidate(candidate: ShellCandidate, policy: CandidateValidationPolicy): void {
+  validateCandidateRegistryEntry(candidate, policy);
   const adapterContract = readCandidateAdapterContract(candidate);
-  validateCandidateAdapterContract(candidate, adapterContract);
+  validateCandidateAdapterContract(candidate, adapterContract, policy);
   validateCandidateImplementationBasis(candidate);
   if (candidate.id === 'hermes-codex') {
     validateHermesCandidateContract(candidate);
