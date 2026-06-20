@@ -36,17 +36,19 @@ runtime, provider, or domain authority.
 - [`opl-hermes-first-run-flow.md`](opl-hermes-first-run-flow.md)：
   Hermes candidate 的首启初始化、模型访问向导、启动轻量检查和后台刷新验收草案。
 - [`agui-codex-candidate-verification.md`](agui-codex-candidate-verification.md):
-  AG-UI/CopilotKit archived technical-proof replay runbook; executable replay
-  checks stay in candidate contracts, validators, manifests, shell artifacts,
-  CI logs, release evidence, or history.
+  AG-UI/CopilotKit archived technical-proof replay runbook. This route is read
+  only for explicit AGUI replay or historical audit; executable replay checks
+  stay in adapter contracts, validators, manifests, shell artifacts, CI logs,
+  release evidence, or history.
 - [`release/`](release/): App release, updater, and Full first-install notes.
 - [`testing/`](testing/): App validation and page-state test guidance.
 - [`user-guides/`](user-guides/): user-facing guide entry point.
 - [`screenshots/`](screenshots/): screenshot and visual tutorial asset entry.
 - [`history/`](history/): retired App topology and migration notes.
 
-Recent AionUI builtin skill intake, candidate smoke records, and docs-governance
-closeouts are archived under [`history/process/`](history/process/).
+Recent AionUI builtin skill intake, archived AGUI proof smoke records, Hermes
+candidate provenance, and docs-governance closeouts are archived under
+[`history/process/`](history/process/).
 
 This file is the docs entry and navigation index. Current App product profile,
 install/exposure policy, active shell, candidate shell, release, runtime bridge,
