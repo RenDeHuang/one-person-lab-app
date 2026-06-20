@@ -7,6 +7,10 @@ Machine boundary: 本文是人读技术验证回放 runbook。机器可读 shell
 `contracts/app-shell-candidates.json` 和
 `contracts/shell-adapters/agui-codex.json` 中。
 
+说明：文件名和部分命令名仍保留 `candidate`，只是为了兼容既有 adapter、manifest
+和 replay tooling；当前语义是 archived technical proof replay，不代表 AGUI 仍是
+foreground candidate 或后续默认完善路线。
+
 ## 边界
 
 `agui-codex` 是已归档的 AG-UI/CopilotKit 技术验证。它不是默认 release

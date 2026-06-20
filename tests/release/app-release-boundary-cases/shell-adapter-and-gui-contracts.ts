@@ -344,7 +344,7 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   assert.equal(packageJson.scripts['validate:shell-candidates'], 'node --experimental-strip-types scripts/validate-shell-candidates.ts');
   assert.equal(candidateRegistry.owner, 'one-person-lab-app');
   assert.equal(candidateRegistry.purpose, 'app_shell_candidate_registry');
-  assert.equal(candidateRegistry.state, 'active_experimental');
+  assert.equal(candidateRegistry.state, 'active_gui_route_policy');
   assert.equal(candidateRegistry.active_shell_unchanged, adapterContract.active_shell);
   assert.equal(candidateRegistry.active_gui_mainline.shell, 'aionui');
   assert.equal(candidateRegistry.active_gui_mainline.shell_root, 'shells/aionui');

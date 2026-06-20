@@ -17,7 +17,7 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   if (registry.purpose !== 'app_shell_candidate_registry') {
     throw new Error(`Unexpected candidate registry purpose: ${registry.purpose}`);
   }
-  if (registry.state !== 'active_experimental') {
+  if (registry.state !== 'active_gui_route_policy') {
     throw new Error(`Unexpected candidate registry state: ${registry.state}`);
   }
   if (registry.active_shell_unchanged !== 'aionui') {

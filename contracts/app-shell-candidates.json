@@ -2,7 +2,7 @@
   "schema_version": 1,
   "owner": "one-person-lab-app",
   "purpose": "app_shell_candidate_registry",
-  "state": "active_experimental",
+  "state": "active_gui_route_policy",
   "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. Hermes Desktop is the only foreground alternative candidate. Archived technical-proof entries stay selectable only when explicitly requested and must not be improved by default.",
   "active_shell_unchanged": "aionui",
   "active_gui_mainline": {
