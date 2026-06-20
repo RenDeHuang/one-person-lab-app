@@ -11,11 +11,11 @@ Machine boundary: 本文只压缩记录已退役 surface、dated evidence foldba
 | --- | --- |
 | 当前完成进度、功能/结构差距、测试/证据差距、下一轮 prompt | `docs/active/app-ideal-state-gap-plan.md` |
 | 文档生命周期、目录职责、unique-role inventory、reopening conditions | `docs/docs_portfolio_consolidation.md` |
-| App 当前状态、release/user-path refs、shell/candidate/currentness 摘要 | `docs/status.md` |
+| App 当前状态、release/user-path refs、shell route/currentness 摘要 | `docs/status.md` |
 | App product boundary、runtime/domain/framework non-ownership | `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md` |
 | Public entry and install overview | root `README.md`, `README.zh-CN.md`; release/operator detail in `docs/release/README.md` |
 | GUI product truth and page-state acceptance | `contracts/app-gui-product-contract.json`, `contracts/app-product-profile.json`, `contracts/app-page-state-matrix.json`, `scripts/validate-active-shell.ts`, release-boundary tests |
-| AG-UI/CopilotKit candidate boundary | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/agui-codex.json`, `docs/agui-codex-candidate-verification.md`, candidate manifests, shell artifacts and CI logs |
+| Archived AG-UI/CopilotKit replay boundary | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/agui-codex.json`, `docs/agui-codex-candidate-verification.md`, replay manifests, shell artifacts and CI logs |
 | Release train, updater, Homebrew, WebUI GHCR, Full package, release evidence | `contracts/app-release-channel.json`, `.github/workflows/*`, release scripts, readiness summaries, candidate records, evidence manifests, updater metadata, release-boundary tests |
 | First-run and install exposure | `contracts/app-first-run-test-matrix.json`, `contracts/app-install-exposure-policy.json`, active-shell validators, release-boundary tests |
 | Runtime page bridge and provider/artifact refs | `contracts/app-runtime-bridge.json`, `contracts/app-page-state-matrix.json`, `contracts/app-gui-product-contract.json`, active-shell validation, OPL Framework `opl app state` / operator drilldown JSON |
