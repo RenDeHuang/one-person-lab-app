@@ -4,7 +4,18 @@ Owner: `one-person-lab-app`
 Purpose: `app_ideal_state_gap_plan`
 State: `active_plan`
 Machine boundary: Human-readable active truth and gap plan. Machine-readable truth lives in `contracts/`, source, release artifacts, updater metadata, and test results.
-Last reviewed: `2026-06-20`
+Last reviewed: `2026-06-21`
+
+Live Evidence deferred is the execution rule for this plan. Functional and
+structural lanes come first: App-owned contracts, active-shell adapter sync,
+AionUI mainline GUI behavior, Hermes foreground-alternative convergence,
+page-state matrices, route receipts, first-run policy, Settings / Storage,
+release-boundary validators, and runtime/domain no-authority guards. Release
+cohorts, clean-VM evidence, packaged `.app` smoke, same-cohort user-path
+artifacts, real user-directory E2E, owner acceptance, and production-ready
+claims are later release/lifecycle evidence lanes. They remain mandatory for
+release or production claims, but they must not block independent App
+contract/shell cleanup, and App validation or shell tests cannot replace them.
 
 ## Current Completion Progress
 

@@ -11,6 +11,17 @@ the repo-native profile used by OPL Flow / OPL Doc plugin sync and drift checks.
 It is not GUI product truth, release authority, runtime truth, domain truth, or
 installation evidence.
 
+Live Evidence deferred / functional structure first is the current App
+development rule. Normal App work should first close functional and structural
+gaps: App-owned contracts, active-shell sync, AionUI mainline behavior, Hermes
+foreground-alternative boundaries, page-state validation, first-run policy,
+Settings / Storage / route receipts, and no-authority runtime/domain guards.
+Release cohorts, clean-VM proof, packaged GUI smoke, same-cohort user-path
+evidence, real user-directory E2E, owner acceptance, and production-ready
+claims remain release/lifecycle evidence lanes. They must not block independent
+contract/shell cleanup, and contract validation or shell tests must not be
+promoted into release-ready or family production-ready proof.
+
 ## Current State
 
 - GitHub repo: `gaofeng21cn/one-person-lab-app`.
