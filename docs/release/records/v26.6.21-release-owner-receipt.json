@@ -1,0 +1,148 @@
+{
+  "schema": "opl_app_release_owner_receipt_record.v1",
+  "owner": "one-person-lab-app release owner",
+  "scope": "same_cohort_app_release_user_path_owner_verdict",
+  "status": "release_owner_receipt_recorded",
+  "version": "26.6.21",
+  "tag": "v26.6.21",
+  "channel": "stable",
+  "release_owner_receipt_ref": "release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.21/receipt-20260622-owner-verdict",
+  "release_owner_verdict_ref": null,
+  "supersedes_typed_blocker_ref": "typed_blocker_ref://one-person-lab-app/release-owner/v26.6.21/verdict-pending",
+  "release_candidate_promote_ready": true,
+  "release_ready_claim": false,
+  "stable_latest_promotion_claim": false,
+  "family_production_ready_claim": false,
+  "can_close_opl_app_release_user_path": true,
+  "reason": "App release owner reviewed same-cohort v26.6.21 release, install, remote verification, Standard clean-VM, Full clean-VM, Homebrew Standard clean-VM, Homebrew tap, WebUI, and operator evidence from GitHub Actions run 27916440933 and recorded an owner receipt for the release-owner gate. This receipt authorizes the App release-owner resolution ref path for candidate promotion validation; it does not claim OPL family production readiness, domain readiness, domain quality/export readiness, or any domain owner receipt.",
+  "evidence_refs": [
+    "github_actions_run_ref://gaofeng21cn/one-person-lab-app/actions/runs/27916440933",
+    "github_release_ref://gaofeng21cn/one-person-lab-app/releases/tag/v26.6.21",
+    "release_candidate_record_ref://one-person-lab-app/v26.6.21/run/27916440933",
+    "release_readiness_summary_ref://one-person-lab-app/v26.6.21/run/27916440933",
+    "release_preflight_summary_ref://one-person-lab-app/v26.6.21/run/27916440933",
+    "remote_release_verification_ref://one-person-lab-app/v26.6.21/run/27916440933",
+    "operator_evidence_bundle_ref://one-person-lab-app/v26.6.21/run/27916440933",
+    "homebrew_tap_plan_ref://one-person-lab-app/v26.6.21/standard/run/27916440933",
+    "homebrew_tap_plan_ref://one-person-lab-app/v26.6.21/full-first-install/run/27916440933",
+    "install_evidence_ref://one-person-lab-app/release-owner/v26.6.21/install-evidence"
+  ],
+  "source_artifact_readback": {
+    "source_run_id": "27916440933",
+    "app_commit": "667784a4b2132ca84978ca9823a9e4eb1a6f6b2b",
+    "shell_ref": "851440d931466247971eb3b1e03821f32676fb40",
+    "framework_ref": "main",
+    "framework_resolved_commit": "f26d779f4f6c2ed0242c3fbf7c62bd7f6acac506",
+    "release_candidate_record_artifact": "release-candidate-record-26.6.21",
+    "release_readiness_summary_artifact": "release-readiness-summary-26.6.21",
+    "release_preflight_summary_artifact": "release-preflight-summary-26.6.21",
+    "remote_release_verification_artifact": "remote-release-verification-26.6.21",
+    "release_evidence_bundle_artifact": "release-evidence-bundle-26.6.21",
+    "homebrew_standard_tap_plan_artifact": "homebrew-tap-plan-stable-app_standard-26.6.21",
+    "homebrew_full_tap_plan_artifact": "homebrew-tap-plan-stable-app_full_first_install-26.6.21",
+    "source_sha256": {
+      "release_candidate_record_json": "f8d0440ea9aefe7a23ba236cf8f62250d5eb90294da320d6452e3cfbbcf2c9d7",
+      "release_readiness_summary_json": "9e46f99b3eb1ee251eeeb44589f64fc7ca1a4be79df92a3702c63d762c47ffa4",
+      "release_preflight_summary_json": "08aa4d324bd53ebf7641d3f7b3a63bb5e78aed43b022e11afad9272075702bd6",
+      "remote_release_verification_json": "5ef7948f6cd67ca6657202da333d75d67c41a3c6e8d5f058d6e9f268198accfa",
+      "release_evidence_validation_summary_json": "53c78270ae2f7e5d13d69c97efc897778c0e532ceb6bc3542e9541d1421ac64e",
+      "homebrew_standard_tap_plan_json": "557a1230531ec408e7ae9296d79a9426b698211ea6be689dc0750f827cc32289",
+      "homebrew_full_tap_plan_json": "0b748404526b4b5efe5f9b110f315aaeae3415d35d86f2fe40020f93da5738bb"
+    },
+    "source_status": {
+      "desktop_release_run": "success",
+      "preflight": "passed",
+      "readiness": "passed",
+      "remote_verification": "passed",
+      "operator_evidence_bundle_validation": "passed"
+    },
+    "job_results": {
+      "full_first_install": "success",
+      "remote_verify_full": "success",
+      "standard_first_run_vm_smoke_after_full": "success",
+      "stable_homebrew_tap_update": "success",
+      "full_homebrew_tap_update": "success",
+      "homebrew_standard_first_run_vm_smoke": "success",
+      "full_first_run_vm_smoke": "success",
+      "one_shot_app_installer_smoke": "success",
+      "docker_webui_smoke": "success",
+      "webui_ghcr_publish": "success",
+      "operator_evidence_bundle_validation": "success"
+    },
+    "release_readiness_failed_required_gate_count": 0,
+    "remote_verified_asset_count": 14,
+    "include_full_package": true,
+    "standard_clean_vm_status": "passed",
+    "full_clean_vm_status": "passed",
+    "homebrew_standard_cask_clean_vm_status": "passed",
+    "standard_homebrew_tap_update_status": "passed",
+    "full_homebrew_tap_update_status": "passed",
+    "full_first_install_budget_status": "passed",
+    "full_dmg_size_status": "warning",
+    "full_dmg_size_bytes": 970364438,
+    "runtime_uncompressed_bytes": 742788429
+  },
+  "remote_release_asset_readback": {
+    "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.6.21",
+    "release_list_readback": "One Person Lab v26.6.21 Latest v26.6.21",
+    "standard_dmg": {
+      "name": "One-Person-Lab-26.6.21-mac-arm64.dmg",
+      "size": 391178263,
+      "sha256": "6966d4447b1290c72d32ab1e1bfda0cdf0a76d7f6b09a5d0141e12d30c9b0bfc"
+    },
+    "standard_zip": {
+      "name": "One-Person-Lab-26.6.21-mac-arm64.zip",
+      "size": 394974653,
+      "sha256": "d53849565cfce14acae92c4bad58cfad30c00837a79794c965d22b875658f706"
+    },
+    "standard_updater_metadata": {
+      "latest_mac_yml_sha256": "dd11ab303a95668d809b2a4696eacf0f85765ce657298e6935235d5ac20b43cc",
+      "latest_arm64_mac_yml_sha256": "dd11ab303a95668d809b2a4696eacf0f85765ce657298e6935235d5ac20b43cc"
+    },
+    "full_dmg": {
+      "name": "One-Person-Lab-Full-26.6.21-mac-arm64.dmg",
+      "size": 970364438,
+      "sha256": "8506f98686428828c2504c68366cac4786f74fbc357835832eb159f817587a40"
+    },
+    "full_manifest": {
+      "name": "full-package-manifest.json",
+      "size": 36837,
+      "sha256": "20c88618688702c1de3a4a2f704f71ffe88f83da2cacaebfd97223ca7a41ab21"
+    },
+    "sha256s": {
+      "name": "SHA256SUMS.txt",
+      "size": 589,
+      "sha256": "8d458ecee3caf62821195cb74010c6b7ebfd0eb7feca10b453f94043613a6936"
+    }
+  },
+  "homebrew_tap_readback": {
+    "standard_cask": {
+      "version": "26.6.21",
+      "sha256": "6966d4447b1290c72d32ab1e1bfda0cdf0a76d7f6b09a5d0141e12d30c9b0bfc",
+      "path": "Casks/one-person-lab.rb"
+    },
+    "full_cask": {
+      "version": "26.6.21",
+      "sha256": "8506f98686428828c2504c68366cac4786f74fbc357835832eb159f817587a40",
+      "path": "Casks/one-person-lab-full.rb"
+    }
+  },
+  "owner_resolution_validation": {
+    "validator_command": "node --experimental-strip-types scripts/validate-release-candidate-record.ts --promote-ready --record <release-candidate-record.json> --version 26.6.21",
+    "release_candidate_status": "ready_to_promote",
+    "release_candidate_validator_promote_ready": true,
+    "release_owner_verdict_status": "release_owner_receipt_recorded",
+    "release_owner_resolution_ref_present": true,
+    "validator_errors": []
+  },
+  "candidate_record_rebuild_command": "node --experimental-strip-types scripts/resolve-release-owner-candidate-record.ts --candidate-record <release-candidate-record.json> --preflight <release-preflight-summary.json> --readiness <release-readiness-summary.json> --remote-verification <remote-release-verification.json> --release-owner-receipt-ref release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.21/receipt-20260622-owner-verdict --output <release-candidate-record.json>",
+  "authority_boundary": {
+    "can_claim_app_release_ready_from_evidence": false,
+    "can_claim_stable_latest_from_evidence": false,
+    "can_claim_family_production_ready": false,
+    "can_write_domain_truth": false,
+    "can_sign_domain_owner_receipt": false,
+    "can_claim_domain_ready": false,
+    "can_claim_quality_or_export_ready": false
+  }
+}
