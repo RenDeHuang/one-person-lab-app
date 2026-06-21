@@ -93,6 +93,7 @@ test('desktop release workflow fails fast before expensive builds and cancels st
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run test:release-boundary/);
   assert.match(workflow, /standard-build:[\s\S]*needs:\s+release-workflow-contract/);
   assert.match(fullFirstInstallJob, /needs:\s+standard-vm-smoke-gate-after-full/);
+  assert.match(fullFirstInstallJob, /needs\.standard-vm-smoke-gate-after-full\.result == 'success'/);
   assert.match(standardGateJob, /needs:[\s\S]*publish-standard[\s\S]*standard-first-run-vm-smoke-after-full/);
   assert.match(standardGateJob, /Standard VM smoke must pass before Full build, remote verification, Homebrew, operator evidence, or readiness aggregation can run/);
   assert.match(publishFullAssetsJob, /needs\.publish-standard\.result == 'success'/);
