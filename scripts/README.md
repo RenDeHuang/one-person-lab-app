@@ -208,15 +208,20 @@ the complete standard and Full artifacts for publish jobs. These profiles fix
 the logical display at
 `1920x1080px`, sweep packaged Settings pages, and write profile-scoped artifacts
 named `opl-first-run-vm-<profile>-<run_id>`. The Full
-profile uses live `opl system initialize --json` output as the pre-`/guid`
-`ready_to_launch` proof source, keeps Full runtime readiness on the
-release-blocking path, and submits the Codex/OpenAI API key configuration wizard
-when the wizard is visible. It does not require the wizard UI when Codex config
-is already ready. Command Line Tools, git availability, and managed repo sync
-are deferred maintenance. The pre-`/guid` gate requires only workspace root,
-Codex CLI, and Codex config; Domain modules, the family runtime provider,
-recommended skills, native helpers, CLT, repo sync, and ecosystem updates are
-Full readiness or background maintenance and must not block launch. With
+profile must prove activation from the clean guest's installed
+`/Applications/One Person Lab.app`: installed bundle resources, guest runtime
+pointer/wrapper readback, and live `opl system initialize --json` output are the
+pre-`/guid` `ready_to_launch` proof source. Host `/Applications`, developer
+checkout state, prebaked runtime pointers, cache hits, manifest refs, and remote
+asset presence are diagnostics or provenance only. The Full profile keeps Full
+runtime readiness on the release-blocking path, and submits the Codex/OpenAI API
+key configuration wizard when the wizard is visible. It does not require the
+wizard UI when Codex config is already ready. Command Line Tools, git
+availability, and managed repo sync are deferred maintenance. The pre-`/guid`
+gate requires only workspace root, Codex CLI, and Codex config; Domain modules,
+the family runtime provider, recommended skills, native helpers, CLT, repo sync,
+and ecosystem updates are Full readiness or background maintenance and must not
+block launch. With
 `--codex-functional-check`, the guest smoke writes
 `codex-functional-check-summary.json` as a deterministic post-install receipt
 for Codex CLI detection, App-managed `opl-flow` context expectation, user

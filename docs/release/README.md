@@ -250,6 +250,16 @@ The launch gate is `ready_to_launch` before `/guid`, and Core means workspace ro
 
 After Core ready, domain modules, Temporal-backed family runtime provider, recommended skills, native helpers, repo sync, module reconcile, CLT installation, companion skills installation, and ecosystem module updates are Full readiness or background maintenance. They cannot block first launch.
 
+Full VM smoke evidence must come from the clean guest after installing the same
+Full DMG under review. The accepted evidence is the installed
+`/Applications/One Person Lab.app` bundle resources, the guest runtime pointer
+and wrapper readback, and live guest `opl system initialize --json` /
+`ready_to_launch` output for that installed package. A host `/Applications`
+bundle, a developer checkout, a pre-existing runtime pointer, a prebaked Tart
+image, Full manifest refs, cache hits, or remote asset presence can provide
+provenance or diagnostics only; none of them can replace clean-install installed
+App resource/runtime activation evidence.
+
 Full assets are GitHub Release first-install downloads and explicit stable `one-person-lab-full` cask inputs. They are not standard updater targets.
 
 The physical App assembly still records legacy layer buckets for cache and size accounting, but those buckets map to the OPL runtime bundle taxonomy:
