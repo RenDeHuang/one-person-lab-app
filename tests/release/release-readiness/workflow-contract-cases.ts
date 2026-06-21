@@ -310,7 +310,27 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.match(job, /app-wrapper-smoke\.stderr\.log/);
   assert.match(job, /exit_code/);
   assert.match(job, /phase_timings/);
+  assert.match(job, /--bootstrap-launch-diagnostics/);
   assert.match(job, /Upload first-run VM artifacts[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/);
+
+  const shellSmoke = fs.readFileSync(
+    path.join(appRoot, 'shells', 'aionui', 'scripts', 'opl-first-run-vm-smoke.mjs'),
+    'utf8',
+  );
+  assert.match(shellSmoke, /NSAlert runModal/);
+  assert.match(shellSmoke, /bootstrap-launch-diagnostics\.json/);
+  assert.match(shellSmoke, /renderer-bootstrap-diagnostics\.json/);
+  assert.match(shellSmoke, /native-modal-launch-blocker\.json/);
+  assert.match(shellSmoke, /launch-app/);
+  assert.match(shellSmoke, /native-window-diagnostics\.json/);
+  assert.match(shellSmoke, /main-bootstrap-fatal-candidates\.json/);
+  assert.match(shellSmoke, /native_modal_text/);
+  assert.match(shellSmoke, /blocker_detection_rule: 'cdp_absent_and_app_process_alive_and_nsalert_run_modal_sample_found'/);
+  assert.match(shellSmoke, /collectNativeModalText/);
+  assert.match(shellSmoke, /likely_alert_text/);
+  assert.match(shellSmoke, /window_title_text/);
+  assert.match(shellSmoke, /bootstrap_fatal_text/);
+  assert.match(shellSmoke, /launch_log_text/);
 
   const vmArtifactScenarioIds = new Set([
     'standard_dmg_clean_vm_smoke',
@@ -394,6 +414,20 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       'smoke_timeout_ms',
       'codex_install_phase_timeout_ms',
       'codex_readiness_phase_timeout_ms',
+    ]);
+    assert.deepEqual(scenario.diagnostics_contract.app_wrapper.required_launch_blocker_fields, [
+      'bootstrap-launch-diagnostics.json',
+      'renderer-bootstrap-diagnostics.json',
+      'native-modal-launch-blocker.json',
+      'launch-app/diagnostics.json',
+      'launch-app/native-window-diagnostics.json',
+      'launch-app/main-bootstrap-fatal-candidates.json',
+      'native_modal_launch_blocker.evidence_contract.blocker_detection_rule',
+      'native_modal_launch_blocker.native_modal_text',
+      'native_modal_launch_blocker.likely_alert_text',
+      'native_modal_launch_blocker.window_title_text',
+      'native_modal_launch_blocker.bootstrap_fatal_text',
+      'native_modal_launch_blocker.launch_log_text',
     ]);
     assert.deepEqual(scenario.diagnostics_contract.codex_install.install_asset_preseed, {
       mode: 'host_prefetch_cache_preseed',

@@ -195,6 +195,20 @@
             "smoke_timeout_ms",
             "codex_install_phase_timeout_ms",
             "codex_readiness_phase_timeout_ms"
+          ],
+          "required_launch_blocker_fields": [
+            "bootstrap-launch-diagnostics.json",
+            "renderer-bootstrap-diagnostics.json",
+            "native-modal-launch-blocker.json",
+            "launch-app/diagnostics.json",
+            "launch-app/native-window-diagnostics.json",
+            "launch-app/main-bootstrap-fatal-candidates.json",
+            "native_modal_launch_blocker.evidence_contract.blocker_detection_rule",
+            "native_modal_launch_blocker.native_modal_text",
+            "native_modal_launch_blocker.likely_alert_text",
+            "native_modal_launch_blocker.window_title_text",
+            "native_modal_launch_blocker.bootstrap_fatal_text",
+            "native_modal_launch_blocker.launch_log_text"
           ]
         },
         "codex_install": {
@@ -330,6 +344,20 @@
             "smoke_timeout_ms",
             "codex_install_phase_timeout_ms",
             "codex_readiness_phase_timeout_ms"
+          ],
+          "required_launch_blocker_fields": [
+            "bootstrap-launch-diagnostics.json",
+            "renderer-bootstrap-diagnostics.json",
+            "native-modal-launch-blocker.json",
+            "launch-app/diagnostics.json",
+            "launch-app/native-window-diagnostics.json",
+            "launch-app/main-bootstrap-fatal-candidates.json",
+            "native_modal_launch_blocker.evidence_contract.blocker_detection_rule",
+            "native_modal_launch_blocker.native_modal_text",
+            "native_modal_launch_blocker.likely_alert_text",
+            "native_modal_launch_blocker.window_title_text",
+            "native_modal_launch_blocker.bootstrap_fatal_text",
+            "native_modal_launch_blocker.launch_log_text"
           ]
         },
         "codex_install": {
@@ -478,6 +506,20 @@
             "smoke_timeout_ms",
             "codex_install_phase_timeout_ms",
             "codex_readiness_phase_timeout_ms"
+          ],
+          "required_launch_blocker_fields": [
+            "bootstrap-launch-diagnostics.json",
+            "renderer-bootstrap-diagnostics.json",
+            "native-modal-launch-blocker.json",
+            "launch-app/diagnostics.json",
+            "launch-app/native-window-diagnostics.json",
+            "launch-app/main-bootstrap-fatal-candidates.json",
+            "native_modal_launch_blocker.evidence_contract.blocker_detection_rule",
+            "native_modal_launch_blocker.native_modal_text",
+            "native_modal_launch_blocker.likely_alert_text",
+            "native_modal_launch_blocker.window_title_text",
+            "native_modal_launch_blocker.bootstrap_fatal_text",
+            "native_modal_launch_blocker.launch_log_text"
           ]
         },
         "codex_install": {
@@ -613,6 +655,20 @@
             "smoke_timeout_ms",
             "codex_install_phase_timeout_ms",
             "codex_readiness_phase_timeout_ms"
+          ],
+          "required_launch_blocker_fields": [
+            "bootstrap-launch-diagnostics.json",
+            "renderer-bootstrap-diagnostics.json",
+            "native-modal-launch-blocker.json",
+            "launch-app/diagnostics.json",
+            "launch-app/native-window-diagnostics.json",
+            "launch-app/main-bootstrap-fatal-candidates.json",
+            "native_modal_launch_blocker.evidence_contract.blocker_detection_rule",
+            "native_modal_launch_blocker.native_modal_text",
+            "native_modal_launch_blocker.likely_alert_text",
+            "native_modal_launch_blocker.window_title_text",
+            "native_modal_launch_blocker.bootstrap_fatal_text",
+            "native_modal_launch_blocker.launch_log_text"
           ]
         },
         "codex_install": {

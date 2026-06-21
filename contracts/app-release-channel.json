@@ -1235,7 +1235,28 @@
               "App install",
               "Gatekeeper/local authorization diagnostics",
               "App launch",
-              "CDP/accessibility/native modal/bootstrap fatal artifact collection"
+              "CDP/accessibility/native modal/bootstrap fatal artifact collection",
+              "renderer bootstrap diagnostics",
+              "native window and alert text diagnostics",
+              "NSAlert runModal sample diagnostics",
+              "main bootstrap fatal text diagnostics"
+            ],
+            "launch_blocker_artifacts": [
+              "bootstrap-launch-diagnostics.json",
+              "renderer-bootstrap-diagnostics.json",
+              "native-modal-launch-blocker.json",
+              "launch-app/diagnostics.json",
+              "launch-app/native-window-diagnostics.json",
+              "launch-app/main-bootstrap-fatal-candidates.json"
+            ],
+            "native_modal_blocker_detection_rule": "cdp_absent_and_app_process_alive_and_nsalert_run_modal_sample_found",
+            "native_modal_text_sources": [
+              "accessibility_likely_alert",
+              "frontmost_window_title",
+              "main_bootstrap_fatal.error.message",
+              "main_bootstrap_fatal.error.stack",
+              "launch_stderr",
+              "launch_stdout"
             ],
             "authority_boundary": "diagnostic_only_not_release_ready_owner_receipt_or_runtime_truth"
           },
