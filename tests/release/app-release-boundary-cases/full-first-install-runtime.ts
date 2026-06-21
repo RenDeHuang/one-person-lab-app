@@ -569,6 +569,26 @@ test('Full first-install manifest consumes the OPL runtime bundle boundary inste
   assert.equal(manifest.opl_runtime_bundle_consumer.app_repo_role, 'consumer_only');
   assert.equal(manifest.opl_runtime_bundle_consumer.truth_owner, 'gaofeng21cn/one-person-lab');
   assert.equal(manifest.opl_runtime_bundle_consumer.dependency_truth_owner, false);
+  assert.equal(
+    manifest.opl_runtime_bundle_consumer.source_surface.contract_ref,
+    'gaofeng21cn/one-person-lab/contracts/opl-framework/runtime-environment-substrate-contract.json',
+  );
+  assert.equal(
+    manifest.opl_runtime_bundle_consumer.source_surface.readback_command_refs.contract,
+    'opl runtime env contract --json',
+  );
+  assert.equal(
+    manifest.opl_runtime_bundle_consumer.source_surface.readback_command_refs.materialize_dry_run,
+    'opl runtime env materialize --domain <domain> --profile <profile> --platform <platform> --dry-run --json',
+  );
+  assert.deepEqual(manifest.opl_runtime_bundle_consumer.source_surface.required_readback_claim_fields, [
+    'implementation_status',
+    'target_planned',
+    'dry_run',
+    'can_claim_runtime_ready',
+    'can_claim_domain_ready',
+    'can_claim_app_release_ready',
+  ]);
   assert.deepEqual(manifest.opl_runtime_bundle_consumer.consumed_refs, {
     bundle_manifest: 'OPL runtime bundle manifest',
     bundle_lock: 'OPL runtime bundle lock',
@@ -582,6 +602,15 @@ test('Full first-install manifest consumes the OPL runtime bundle boundary inste
     full_package_built_is_release_ready: false,
     full_package_built_is_family_production_ready: false,
     app_can_claim_runtime_dependency_truth: false,
+  });
+  assert.deepEqual(manifest.opl_runtime_bundle_consumer.consumption_boundary, {
+    records_refs_only: true,
+    keeps_full_offline_first_install_payloads: true,
+    can_delete_required_offline_payloads_for_size: false,
+    can_materialize_runtime_root: false,
+    can_claim_runtime_ready: false,
+    can_claim_app_release_ready: false,
+    can_claim_family_production_ready: false,
   });
   assert.deepEqual(manifest.opl_runtime_bundle_consumer.layer_taxonomy.canonical_layer_ids, [
     'base-toolchain',
@@ -723,6 +752,14 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   );
   assert.equal(manifest.distribution.payload_boundary.consumer_refs.opl_runtime_bundle, 'opl_runtime_bundle_consumer');
   assert.equal(manifest.distribution.payload_boundary.consumer_refs.bundle_manifest, 'opl_runtime_bundle_consumer.consumed_refs.bundle_manifest');
+  assert.equal(
+    releaseContract.full_first_install.opl_runtime_bundle_consumer.source_surface.contract_ref,
+    'gaofeng21cn/one-person-lab/contracts/opl-framework/runtime-environment-substrate-contract.json',
+  );
+  assert.equal(
+    releaseContract.full_first_install.opl_runtime_bundle_consumer.consumption_boundary.can_delete_required_offline_payloads_for_size,
+    false,
+  );
   assert.equal(
     releaseContract.full_first_install.payload_boundary.consumer_refs.bundle_readback,
     'OPL runtime env contract/readback',
@@ -958,6 +995,14 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.deepEqual(
     releaseContract.release_acceleration.full_runtime_cache.opl_runtime_bundle_consumer.layer_taxonomy,
     mod.FULL_RUNTIME_CACHE_LAYER_TAXONOMY,
+  );
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_cache.opl_runtime_bundle_consumer.source_surface.contract_ref,
+    mod.OPL_RUNTIME_BUNDLE_SOURCE_SURFACE.contract_ref,
+  );
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_cache.opl_runtime_bundle_consumer.consumption_boundary.can_claim_app_release_ready,
+    false,
   );
   assert.equal(
     releaseContract.release_acceleration.full_runtime_cache.cache_hit_claim,
@@ -1197,6 +1242,8 @@ test('Full first-install cache and release acceleration contract are explicit', 
   );
   assert.match(buildScript, /duration_seconds: durationSeconds\(startedAt, monotonicSeconds\(\)\)/);
   assert.match(buildScript, /aggregate_key_input: buildFullRuntimeAggregateCacheKeyInput\(\{ layers \}\)/);
+  assert.match(buildScript, /opl_runtime_environment_substrate: \{/);
+  assert.match(buildScript, /contract_path: 'contracts\/opl-framework\/runtime-environment-substrate-contract\.json'/);
   assert.match(buildScript, /artifactNames\.runtimeCacheEvents/);
   assert.match(publishScript, /skipped_existing_artifacts/);
   assert.match(publishScript, /--force-upload/);

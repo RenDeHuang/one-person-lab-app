@@ -29,11 +29,29 @@ export const FULL_RUNTIME_CACHE_LAYER_TAXONOMY = {
     skills: ['companion-skills'],
   },
 } as const;
+export const OPL_RUNTIME_BUNDLE_SOURCE_SURFACE = {
+  contract_ref: 'gaofeng21cn/one-person-lab/contracts/opl-framework/runtime-environment-substrate-contract.json',
+  readback_command_refs: {
+    contract: 'opl runtime env contract --json',
+    build: 'opl runtime env build --domain <domain> --profile <profile> --platform <platform> --json',
+    materialize_dry_run: 'opl runtime env materialize --domain <domain> --profile <profile> --platform <platform> --dry-run --json',
+    run_context: 'opl runtime env run-context --domain <domain> --profile <profile> --platform <platform> --json',
+  },
+  required_readback_claim_fields: [
+    'implementation_status',
+    'target_planned',
+    'dry_run',
+    'can_claim_runtime_ready',
+    'can_claim_domain_ready',
+    'can_claim_app_release_ready',
+  ],
+} as const;
 export const OPL_RUNTIME_BUNDLE_CONSUMER_CONTRACT = {
   schema: 'opl_runtime_bundle_manifest_consumer.v1',
   app_repo_role: 'consumer_only',
   truth_owner: 'gaofeng21cn/one-person-lab',
   dependency_truth_owner: false,
+  source_surface: OPL_RUNTIME_BUNDLE_SOURCE_SURFACE,
   consumed_refs: {
     bundle_manifest: 'OPL runtime bundle manifest',
     bundle_lock: 'OPL runtime bundle lock',
@@ -47,6 +65,15 @@ export const OPL_RUNTIME_BUNDLE_CONSUMER_CONTRACT = {
     full_package_built_is_release_ready: false,
     full_package_built_is_family_production_ready: false,
     app_can_claim_runtime_dependency_truth: false,
+  },
+  consumption_boundary: {
+    records_refs_only: true,
+    keeps_full_offline_first_install_payloads: true,
+    can_delete_required_offline_payloads_for_size: false,
+    can_materialize_runtime_root: false,
+    can_claim_runtime_ready: false,
+    can_claim_app_release_ready: false,
+    can_claim_family_production_ready: false,
   },
   layer_taxonomy: FULL_RUNTIME_CACHE_LAYER_TAXONOMY,
 } as const;
@@ -80,11 +107,14 @@ type ComponentSnapshot = Partial<{
 }>;
 
 type ResolvedFullPayloadRefs = Record<string, Partial<{
+  label: string;
   source_path: string | null;
   repository: string;
   requested_ref: string | null;
   resolved_commit: string | null;
   version: string | null;
+  contract_path: string;
+  readback_commands: string[];
 }>>;
 
 type FullPackageManifestInput = Partial<{

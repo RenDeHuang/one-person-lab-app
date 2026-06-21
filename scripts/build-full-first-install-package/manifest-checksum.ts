@@ -19,6 +19,20 @@ export function buildResolvedFullPayloadRefs(options, sources, components) {
       requested_ref: options.frameworkRef || 'main',
       resolved_commit: components.opl?.git_commit ?? readGitHead(options.frameworkRoot),
     },
+    opl_runtime_environment_substrate: {
+      label: 'OPL Runtime Environment Substrate',
+      source_path: path.join(options.frameworkRoot, 'contracts', 'opl-framework', 'runtime-environment-substrate-contract.json'),
+      repository: readGitOriginUrl(options.frameworkRoot) || 'gaofeng21cn/one-person-lab',
+      requested_ref: options.frameworkRef || 'main',
+      resolved_commit: components.opl?.git_commit ?? readGitHead(options.frameworkRoot),
+      contract_path: 'contracts/opl-framework/runtime-environment-substrate-contract.json',
+      readback_commands: [
+        'opl runtime env contract --json',
+        'opl runtime env build --domain <domain> --profile <profile> --platform <platform> --json',
+        'opl runtime env materialize --domain <domain> --profile <profile> --platform <platform> --dry-run --json',
+        'opl runtime env run-context --domain <domain> --profile <profile> --platform <platform> --json',
+      ],
+    },
     mas: {
       label: 'MAS',
       source_path: options.masRoot,

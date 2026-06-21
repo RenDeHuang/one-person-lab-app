@@ -244,7 +244,7 @@ Gatekeeper rejection is acceptable only when the Stable local authorization poli
 
 ## Full First-Install
 
-Full first-install packaging policy is App-owned, but runtime dependency truth is OPL-owned. The App Full package consumes the OPL runtime bundle manifest, lock, env contract, and readback refs through `full-package-manifest.json#opl_runtime_bundle_consumer`; it must not create a second dependency-truth contract.
+Full first-install packaging policy is App-owned, but runtime dependency truth is OPL-owned. The App Full package consumes the OPL runtime bundle manifest, lock, env contract, and readback refs through `full-package-manifest.json#opl_runtime_bundle_consumer`; it must not create a second dependency-truth contract. The upstream source surface is OPL Framework `contracts/opl-framework/runtime-environment-substrate-contract.json` and `opl runtime env contract|build|materialize --dry-run|run-context --json` readbacks.
 
 The launch gate is `ready_to_launch` before `/guid`, and Core means workspace root, Codex CLI, and Codex config. A Full first-install package must reach Core ready from bundled runtime on a clean Mac even when Apple Command Line Tools, Homebrew, Node, and Git are absent.
 
@@ -261,7 +261,7 @@ The physical App assembly still records legacy layer buckets for cache and size 
 | `domain-runtime` | `domain-pack` |
 | `skills` | `companion-skills` |
 
-Runtime cache hits prove only reusable assembly inputs for those buckets. A cache hit, manifest file, lock file, successful Full build, or offline kit upload cannot by itself claim App release readiness, runtime dependency truth, OPL family production readiness, domain readiness, or owner acceptance.
+Runtime cache hits prove only reusable assembly inputs for those buckets. A cache hit, manifest file, lock file, successful Full build, or offline kit upload cannot by itself claim App release readiness, runtime dependency truth, OPL family production readiness, domain readiness, or owner acceptance. The consumer boundary is refs-only and must keep required clean-machine offline payloads in the Full package; it cannot use size review or cache reuse to delete required payloads, materialize an OPL runtime root, or claim runtime/App/family readiness.
 
 ## Full Size Policy
 
