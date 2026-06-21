@@ -194,6 +194,11 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(diagnosticWorkflow, /name:\s+OPL Desktop Release Diagnostics/, 'desktop release diagnostic workflow name');
   assertMatches(diagnosticWorkflow, /workflow_dispatch:/, 'desktop release diagnostic workflow manual trigger');
   assertMatches(diagnosticWorkflow, /permissions:[\s\S]*actions:\s+read[\s\S]*contents:\s+read/, 'desktop release diagnostic workflow read-only permissions');
+  assertMatches(
+    diagnosticWorkflow,
+    /concurrency:[\s\S]*inputs\.diagnostic_scope[\s\S]*temporary-standard-artifact[\s\S]*inputs\.release_artifact_run_id[\s\S]*release-asset[\s\S]*inputs\.run_vm_diagnostic/,
+    'diagnostic workflow concurrency distinguishes temporary, release, and existing-artifact VM diagnostics',
+  );
   assertMatches(diagnosticWorkflow, /npm run release:closeout --[\s\S]*--artifact-profile diagnostics/, 'diagnostic workflow closeout harness');
   assertMatches(diagnosticWorkflow, /npm run release:actions-timing --/, 'diagnostic workflow timing harness');
   assertMatches(diagnosticWorkflow, /run_vm_diagnostic:/, 'diagnostic workflow VM harness toggle');

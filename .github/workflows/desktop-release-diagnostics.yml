@@ -95,7 +95,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: opl-desktop-release-diagnostics-${{ inputs.opl_version }}-${{ inputs.release_run_id }}
+  group: opl-desktop-release-diagnostics-${{ inputs.opl_version }}-${{ inputs.diagnostic_scope }}-${{ inputs.build_standard_artifact && 'temporary-standard-artifact' || (inputs.release_artifact_run_id != '' && inputs.release_artifact_run_id || (inputs.release_dmg_url != '' && inputs.release_dmg_url || (inputs.release_run_id != '' && inputs.release_run_id || 'release-asset'))) }}-${{ inputs.release_artifact_name != '' && inputs.release_artifact_name || inputs.package_profile }}-${{ inputs.run_vm_diagnostic && 'vm' || 'metadata' }}
   cancel-in-progress: true
 
 env:

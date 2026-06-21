@@ -121,6 +121,7 @@ test('desktop release diagnostics workflow is diagnostic-only and read-only', ()
   assert.match(workflow, /release_artifact_name:/);
   assert.match(workflow, /release_artifact_run_id:/);
   assert.match(workflow, /package_profile:/);
+  assert.match(workflow, /concurrency:[\s\S]*inputs\.diagnostic_scope[\s\S]*temporary-standard-artifact[\s\S]*inputs\.release_artifact_run_id[\s\S]*release-asset[\s\S]*inputs\.run_vm_diagnostic/);
   assert.match(workflow, /permissions:[\s\S]*actions: read[\s\S]*contents: read/);
   assert.match(workflow, /diagnostic-inputs:/);
   assert.match(workflow, /Validate diagnostic workflow inputs/);
