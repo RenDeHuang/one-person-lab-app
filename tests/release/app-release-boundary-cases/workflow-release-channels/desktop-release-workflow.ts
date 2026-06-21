@@ -202,7 +202,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   );
   assert.match(vmWorkflow, /workflow_call:/);
   assert.match(vmWorkflow, /shell_ref:[\s\S]*description: 'opl-aion-shell ref containing the first-run smoke scripts/);
-  assert.match(vmWorkflow, /name: Checkout active shell[\s\S]*ref: \$\{\{ inputs\.shell_ref \|\| 'main' \}\}/);
+  assert.match(vmWorkflow, /validate-vm-inputs:[\s\S]*runs-on: ubuntu-latest/);
+  assert.match(vmWorkflow, /Validate active shell ref before VM runner work/);
+  assert.match(vmWorkflow, /opl-aion-shell ref '\$shell_ref' does not exist; fix shell_ref before occupying the first-run VM harness/);
+  assert.match(vmWorkflow, /clean-vm-first-run:[\s\S]*needs: validate-vm-inputs/);
+  assert.match(vmWorkflow, /PROFILE="\$\{\{ needs\.validate-vm-inputs\.outputs\.package_profile \}\}"/);
+  assert.match(vmWorkflow, /name: Checkout active shell[\s\S]*ref: \$\{\{ needs\.validate-vm-inputs\.outputs\.shell_ref \}\}/);
   assert.match(vmWorkflow, /release_artifact_name:/);
   assert.match(vmWorkflow, /release_artifact_run_id:/);
   assert.match(vmWorkflow, /actions\/download-artifact@v8/);
@@ -235,6 +240,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /homebrew-standard/);
   assert.match(vmWorkflow, /guide_screenshots:/);
   assert.match(vmWorkflow, /Resolve package profile/);
+  assert.match(vmWorkflow, /profile="\$\{\{ needs\.validate-vm-inputs\.outputs\.package_profile \}\}"/);
   assert.match(vmWorkflow, /Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_TART_SOURCE/);
   assert.match(vmWorkflow, /OPL_FIRST_RUN_HOMEBREW_TART_SOURCE/);
   assert.match(vmWorkflow, /package_profile=homebrew-standard/);
@@ -256,6 +262,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /deterministic release-blocking clean VM first launch/);
   assert.match(vmWorkflow, /--runtime-profile "\$\{\{ steps\.package_profile\.outputs\.runtime_profile \}\}"/);
   assert.match(vmWorkflow, /CMD\+=\(--guide-screenshots\)/);
+  assert.match(vmWorkflow, /name:\s+opl-first-run-vm-\$\{\{\s*steps\.package_profile\.outputs\.profile \|\| needs\.validate-vm-inputs\.outputs\.package_profile\s*\}\}-\$\{\{\s*github\.run_id\s*\}\}/);
   const vmSmokeScript = fs.readFileSync(
     path.join(activeShellRoot, 'scripts', 'opl-first-run-vm-smoke.mjs'),
     'utf8',

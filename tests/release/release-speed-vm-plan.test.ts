@@ -369,7 +369,7 @@ test('first-run VM workflow writes deterministic preflight and final summaries b
   assertMatches(workflow, /tart-smoke-summary\.json/, 'VM final smoke summary artifact');
   assertMatches(
     workflow,
-    /name:\s+opl-first-run-vm-\$\{\{\s*steps\.package_profile\.outputs\.profile\s*\}\}-\$\{\{\s*github\.run_id\s*\}\}/,
+    /name:\s+opl-first-run-vm-\$\{\{\s*steps\.package_profile\.outputs\.profile \|\| needs\.validate-vm-inputs\.outputs\.package_profile\s*\}\}-\$\{\{\s*github\.run_id\s*\}\}/,
     'VM artifacts must be profile-scoped so standard and Full evidence do not collide',
   );
 });
