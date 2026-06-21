@@ -322,7 +322,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   });
   assert.deepEqual(releaseContract.release_acceleration.github_actions.diagnostics_workflow_policy, {
     workflow: '.github/workflows/desktop-release-diagnostics.yml',
-    purpose: 'harness_only_release_diagnostics',
+    purpose: 'harness_and_standard_artifact_only_release_diagnostics',
     permissions: ['actions:read', 'contents:read'],
     reads: [
       'release_run_id',
@@ -330,16 +330,18 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'release_dmg_url',
       'release_artifact_name',
       'release_artifact_run_id',
+      'build_standard_artifact',
       'small release artifacts',
       'GitHub Actions run timing',
       'first-run VM harness diagnostics',
     ],
     writes: [
+      'temporary standard DMG diagnostic artifact only',
       'release-diagnostics artifact only',
       'opl-first-run-vm-<profile>-<run_id> diagnostic artifact only',
     ],
     forbidden: [
-      'standard App rebuild',
+      'published standard App rebuild',
       'Full package rebuild',
       'release publish',
       'owner receipt',
