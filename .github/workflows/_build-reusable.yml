@@ -631,6 +631,63 @@ jobs:
             --app-path "$app_path" \
             --output out/standard-local-authorization-policy.json
 
+      - name: Ensure macOS standard updater ZIP distributable
+        if: startsWith(matrix.platform, 'macos') && !inputs.upload_installers_only
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_arch="${{ matrix.native_arch || matrix.arch }}"
+          expected_zip="One-Person-Lab-${OPL_RELEASE_VERSION}-mac-${target_arch}.zip"
+          expected_zip_blockmap="${expected_zip}.blockmap"
+
+          if [ -f "out/${expected_zip}" ] && [ -f "out/${expected_zip_blockmap}" ]; then
+            echo "Standard updater ZIP already present: out/${expected_zip}"
+            exit 0
+          fi
+
+          app_path="$(find out -maxdepth 2 -type d -name 'One Person Lab.app' | sort | head -n 1)"
+          if [ -z "$app_path" ]; then
+            echo "::error::Cannot build missing standard updater ZIP because no packaged One Person Lab.app bundle was found under shells/aionui/out."
+            exit 1
+          fi
+
+          echo "::warning title=Missing standard updater ZIP::${expected_zip} was not produced by the primary macOS build; rebuilding macOS dmg+zip updater targets from ${app_path}."
+          bunx electron-builder \
+            --config packages/desktop/electron-builder.yml \
+            --mac dmg zip \
+            "--${target_arch}" \
+            --prepackaged "$app_path" \
+            --publish=never \
+            --config.extraMetadata.version="$OPL_RELEASE_VERSION"
+
+          if [ ! -f "out/${expected_zip}" ]; then
+            echo "::error::Missing standard updater ZIP after prepackaged rebuild: out/${expected_zip}"
+            exit 1
+          fi
+          if [ ! -f "out/${expected_zip_blockmap}" ]; then
+            echo "::error::Missing standard updater ZIP blockmap after prepackaged rebuild: out/${expected_zip_blockmap}"
+            exit 1
+          fi
+          for metadata in out/latest-mac.yml "out/latest-${target_arch}-mac.yml"; do
+            if [ -f "$metadata" ] && ! grep -q "$expected_zip" "$metadata"; then
+              echo "::error::${metadata} does not reference ${expected_zip}"
+              exit 1
+            fi
+          done
+        env:
+          NODE_OPTIONS: '--max-old-space-size=8192'
+          npm_config_arch: ${{ matrix.native_arch || matrix.arch }}
+          npm_config_target_arch: ${{ matrix.native_arch || matrix.arch }}
+          npm_config_runtime: electron
+          npm_config_disturl: https://electronjs.org/headers
+          npm_config_cache: ${{ runner.temp }}/.npm
+          ELECTRON_CACHE: ${{ runner.temp }}/.cache/electron
+          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/.cache/electron-builder
+          ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+          npm_config_electron_builder_binaries_mirror: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+          ELECTRON_MIRROR: ''
+          CI: true
+
       - name: Build with electron-builder (Linux)
         if: startsWith(matrix.platform, 'linux')
         uses: nick-fields/retry@v3

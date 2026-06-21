@@ -135,6 +135,9 @@ Stable release VM gates consume same-run DMG-only artifacts
 `opl-full-first-install-dmg-<version>-mac-arm64`) while publish jobs keep using
 the complete build/package artifacts. Do not route Full or Standard publish
 through the DMG-only handoff artifact.
+The complete standard macOS build artifact must retain the updater ZIP and ZIP
+blockmap; release builds fail closed or rebuild the prepackaged macOS updater
+targets when those files are missing.
 
 ## Standard Updater
 

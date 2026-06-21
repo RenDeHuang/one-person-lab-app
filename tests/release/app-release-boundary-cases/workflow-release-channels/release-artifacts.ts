@@ -28,6 +28,7 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   );
 
   assert.match(standardBuild, /"platform":"macos-arm64"/);
+  assert.match(standardBuild, /"command":"node scripts\/build-with-builder\.js arm64 --mac --arm64"/);
   assert.match(standardBuild, /"artifact-name":"macos-build-arm64"/);
   assert.doesNotMatch(standardBuild, /"platform":"windows-/);
   assert.doesNotMatch(standardBuild, /"platform":"linux-/);
@@ -87,4 +88,9 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.doesNotMatch(publishStandard, /release-assets\/\*\*\/\*\.exe/);
   assert.doesNotMatch(publishStandard, /release-assets\/\*\*\/\*\.msi/);
   assert.doesNotMatch(publishStandard, /release-assets\/\*\*\/\*\.deb/);
+
+  const shellBuildScript = fs.readFileSync(path.join(activeShellRoot, 'scripts', 'build-with-builder.js'), 'utf8');
+  assert.match(shellBuildScript, /function normalizeBuilderTargetArgs\(rawBuilderArgs\)/);
+  assert.match(shellBuildScript, /parts\.splice\(macIndex \+ 1, 0, 'dmg', 'zip'\)/);
+  assert.match(shellBuildScript, /normalizeBuilderTargetArgs\(builderArgs\)/);
 });

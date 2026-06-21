@@ -75,6 +75,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(reusableWorkflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/);
   assert.match(reusableWorkflow, /build:[\s\S]*needs:[\s\S]*macos-signing-preflight/);
   assert.match(reusableWorkflow, /Upload macOS DMG-only artifact[\s\S]*format\('\{0\}-dmg', matrix\.artifact-name\)[\s\S]*shells\/aionui\/out\/\*\.dmg/);
+  assert.match(reusableWorkflow, /Ensure macOS standard updater ZIP distributable[\s\S]*if: startsWith\(matrix\.platform, 'macos'\) && !inputs\.upload_installers_only/);
+  assert.match(reusableWorkflow, /expected_zip="One-Person-Lab-\$\{OPL_RELEASE_VERSION\}-mac-\$\{target_arch\}\.zip"/);
+  assert.match(reusableWorkflow, /Missing standard updater ZIP/);
+  assert.match(reusableWorkflow, /bunx electron-builder[\s\S]*--mac dmg zip[\s\S]*--prepackaged "\$app_path"[\s\S]*--publish=never[\s\S]*--config\.extraMetadata\.version="\$OPL_RELEASE_VERSION"/);
+  assert.match(reusableWorkflow, /grep -q "\$expected_zip" "\$metadata"/);
   assert.match(workflowJobBlock(workflow, 'publish-standard'), /Download standard build artifacts[\s\S]*name:\s+macos-build-arm64[\s\S]*path:\s+build-artifacts/);
   assert.match(workflow, /node --experimental-strip-types scripts\/prepare-release-assets\.ts build-artifacts release-assets/);
   assert.match(workflow, /name: Verify standard release assets[\s\S]*OPL_RELEASE_VERSION: \$\{\{ inputs\.opl_version \}\}[\s\S]*node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
