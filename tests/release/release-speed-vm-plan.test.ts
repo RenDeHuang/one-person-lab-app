@@ -135,7 +135,16 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     /homebrew-standard-first-run-vm-smoke:[\s\S]*?inputs\.release_mode == 'refresh_existing'/,
     'Homebrew VM smoke must stay on published-release refresh path inside desktop release',
   );
-  assertMatches(workflow, /full-first-run-vm-smoke:[\s\S]*?needs:\s+remote-verify-full/, 'Full VM smoke job');
+  assertMatches(
+    workflow,
+    /full-first-run-vm-smoke:[\s\S]*?needs:[\s\S]*?publish-full-assets[\s\S]*?standard-vm-smoke-gate-after-full/,
+    'Full VM smoke job waits for published Full assets and the standard VM gate',
+  );
+  assertMatches(
+    workflow,
+    /full-first-run-vm-smoke:[\s\S]*?needs\.standard-vm-smoke-gate-after-full\.result == 'success'/,
+    'Full VM smoke is skipped unless the standard VM gate passed',
+  );
   assertMatches(workflow, /one-shot-app-installer-smoke:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?standard-vm-smoke-gate-after-full/, 'one-shot installer smoke waits for standard VM fail-fast gate');
   assertMatches(workflow, /docker-webui-smoke:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?standard-vm-smoke-gate-after-full/, 'Docker WebUI smoke waits for standard VM fail-fast gate');
   assertMatches(workflow, /same_job_after_docker_webui_smoke/, 'WebUI GHCR publish reuses the smoked image build');

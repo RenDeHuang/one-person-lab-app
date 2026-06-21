@@ -164,6 +164,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "needs.release-preflight.outputs.homebrew_tap_update_required == 'true'",
       "needs.stable-homebrew-tap-update.result == 'success'",
       'full-first-run-vm-smoke:',
+      "needs.full-first-run-vm-smoke.result == 'success'",
       'one-shot-app-installer-smoke:',
       'docker-webui-smoke:',
       'webui-ghcr-publish:',
