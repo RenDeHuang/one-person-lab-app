@@ -117,7 +117,14 @@ replacement for `tart-smoke-summary.json` and shell Codex install diagnostics.
 The reusable VM workflow has two explicit `diagnostic_scope` values. Stable
 release workflows use `release_gate`, which keeps the Codex install asset
 preseed, Settings sweep, assistant route smoke, Codex functional check, and
-Codex AI self-check on the deterministic gate path. The diagnostics workflow
+Codex AI self-check on the deterministic gate path. Before those full readiness
+checks, the release gate also captures the same early launch blocker artifacts
+used by diagnostics, including `bootstrap-launch-diagnostics.json`,
+`renderer-bootstrap-diagnostics.json`, `native-modal-launch-blocker.json`,
+`launch-app/native-window-diagnostics.json`, and
+`launch-app/main-bootstrap-fatal-candidates.json`. That capture is
+non-blocking by itself; the release gate still passes or fails on the
+deterministic readiness, Settings, route, and Codex checks. The diagnostics workflow
 defaults to `bootstrap_only`: it still resolves the supplied or same-run DMG,
 installs the App, verifies the packaged main bootstrap marker, launches the
 App, and collects CDP/accessibility/native-modal/bootstrap-fatal artifacts, but
@@ -387,8 +394,10 @@ evidence, or readiness aggregation. When `include_full_package=true` and
 `run_vm_smoke=true`, it runs `standard-first-run-vm-smoke-after-full` before
 Full package build, Full publish/remote verification, Homebrew updates,
 operator evidence, or readiness aggregation. If the standard VM fails, stop at
-that diagnostic artifact; do not keep queueing Full, Homebrew, operator
-evidence, or readiness jobs for the same cohort.
+that diagnostic artifact; the artifact should already include the early
+bootstrap/native-modal summaries needed to classify launch blockers. Do not keep
+queueing Full, Homebrew, operator evidence, or readiness jobs for the same
+cohort.
 
 The local command is the rerun/debug path for the same logic, not a separate
 release step:

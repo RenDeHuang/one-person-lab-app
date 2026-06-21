@@ -1262,6 +1262,30 @@
           },
           "release_gate": {
             "purpose": "full deterministic VM release gate used by stable release workflows",
+            "keeps": [
+              "same-run or supplied DMG resolution",
+              "packaged main bootstrap marker verification",
+              "App install",
+              "Gatekeeper/local authorization diagnostics",
+              "App launch",
+              "non-blocking early CDP/accessibility/native modal/bootstrap fatal artifact collection",
+              "Codex install asset cache restore",
+              "Codex install asset prefetch",
+              "Codex install asset cache save",
+              "Settings page sweep",
+              "assistant route smoke",
+              "Codex functional check",
+              "Codex AI self-check"
+            ],
+            "early_launch_blocker_artifacts": [
+              "bootstrap-launch-diagnostics.json",
+              "renderer-bootstrap-diagnostics.json",
+              "native-modal-launch-blocker.json",
+              "launch-app/diagnostics.json",
+              "launch-app/native-window-diagnostics.json",
+              "launch-app/main-bootstrap-fatal-candidates.json"
+            ],
+            "early_launch_probe_policy": "non_blocking_capture_before_full_readiness_checks; full release gate failure still comes from the deterministic readiness/settings/route/codex checks",
             "authority_boundary": "release_gate_evidence_only_when_same_cohort_workflow_requires_it"
           }
         },

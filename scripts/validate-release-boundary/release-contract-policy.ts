@@ -292,6 +292,28 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
       failures += 1;
     }
   }
+  const releaseGateScope = diagnosticsWorkflowPolicy?.diagnostic_scopes?.release_gate;
+  for (const artifact of [
+    'bootstrap-launch-diagnostics.json',
+    'renderer-bootstrap-diagnostics.json',
+    'native-modal-launch-blocker.json',
+    'launch-app/diagnostics.json',
+    'launch-app/native-window-diagnostics.json',
+    'launch-app/main-bootstrap-fatal-candidates.json',
+  ]) {
+    if (!releaseGateScope?.early_launch_blocker_artifacts?.includes(artifact)) {
+      console.error(`FAIL release_diagnostics_scope_policy: release_gate must retain early launch artifact ${artifact}`);
+      failures += 1;
+    }
+  }
+  if (
+    typeof releaseGateScope?.early_launch_probe_policy !== 'string' ||
+    !releaseGateScope.early_launch_probe_policy.includes('non_blocking_capture_before_full_readiness_checks') ||
+    !releaseGateScope.early_launch_probe_policy.includes('deterministic readiness/settings/route/codex checks')
+  ) {
+    console.error('FAIL release_diagnostics_scope_policy: release_gate early launch probe must be non-blocking and preserve deterministic release gates');
+    failures += 1;
+  }
   if (
     firstRunVmConcurrency?.scheduled_default_package_profile !== 'standard' ||
     firstRunVmConcurrency?.scheduled_default_diagnostic_scope !== 'bootstrap_only' ||
