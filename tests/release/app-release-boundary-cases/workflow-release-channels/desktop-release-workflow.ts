@@ -17,6 +17,7 @@ test('retired tag-push Build and Release workflow has no live or compatibility s
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
+  const jobLevelIf = (job: string) => job.split('\n').find((line) => /^    if:/.test(line)) ?? '';
   const boundaryReleaseChecks = fs.readFileSync(
     path.join(appRoot, 'scripts', 'validate-release-boundary', 'release-checks.ts'),
     'utf8',
@@ -48,12 +49,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const standardBuild = workflowJobBlock(workflow, 'standard-build');
   const readinessJob = workflowJobBlock(workflow, 'release-readiness-summary');
+  const standardVmGateJob = workflowJobBlock(workflow, 'standard-vm-smoke-gate-after-full');
+  const stableHomebrewTapJob = workflowJobBlock(workflow, 'stable-homebrew-tap-update');
+  const oneShotInstallerJob = workflowJobBlock(workflow, 'one-shot-app-installer-smoke');
+  const dockerWebuiJob = workflowJobBlock(workflow, 'docker-webui-smoke');
+  const operatorEvidenceJob = workflowJobBlock(workflow, 'operator-evidence-bundle-validation');
+  const readinessAdmissionJob = workflowJobBlock(workflow, 'release-readiness-admission');
   const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
   const fullPackageScript = readFullPackageBuilderSource();
   const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
+  const jobLevelIf = (job: string) => job.split('\n').find((line) => /^    if:/.test(line)) ?? '';
 
   assert.match(workflow, /name: OPL Desktop Release/);
   assert.match(workflow, /cancel-in-progress:\s+true/);
@@ -119,6 +127,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /remote-verify-full:[\s\S]*needs:[\s\S]*publish-full-assets[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:[\s\S]*needs: publish-standard/);
   assert.match(workflow, /standard-vm-smoke-gate-after-full:[\s\S]*needs:[\s\S]*publish-standard[\s\S]*standard-first-run-vm-smoke-after-full/);
+  assert.doesNotMatch(jobLevelIf(standardVmGateJob), /if:\s*\$\{\{\s*always\(\)/);
+  assert.match(jobLevelIf(standardVmGateJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.include_full_package/);
   assert.match(workflow, /Standard VM smoke must pass before Full build, remote verification, Homebrew, operator evidence, or readiness aggregation can run/);
   assert.match(workflow, /run_vm_smoke:/);
   assert.match(workflow, /default: true/);
@@ -130,6 +140,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /stable-homebrew-tap-update:/);
   assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml/);
   assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*needs:[\s\S]*standard-vm-smoke-gate-after-full/);
+  assert.doesNotMatch(jobLevelIf(stableHomebrewTapJob), /if:\s*\$\{\{\s*always\(\)/);
+  assert.match(jobLevelIf(stableHomebrewTapJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.match(workflow, /full-homebrew-tap-update:/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*remote-verify-full/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*package_kind: app_full_first_install/);
@@ -143,6 +155,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /one-shot-app-installer-smoke:[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /docker-webui-smoke:/);
   assert.match(workflow, /docker-webui-smoke:[\s\S]*standard-vm-smoke-gate-after-full/);
+  assert.doesNotMatch(jobLevelIf(oneShotInstallerJob), /if:\s*\$\{\{\s*always\(\)/);
+  assert.doesNotMatch(jobLevelIf(dockerWebuiJob), /if:\s*\$\{\{\s*always\(\)/);
+  assert.match(jobLevelIf(oneShotInstallerJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
+  assert.match(jobLevelIf(dockerWebuiJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.match(workflow, /webui-ghcr-publish:/);
   assert.match(workflow, /OPL_INSTALL_SCRIPT_URL: file:\/\/\$\{\{ github\.workspace \}\}\/one-person-lab\/install\.sh/);
   assert.match(workflow, /\.\/install\.sh --complete --skip-modules/);
@@ -151,6 +167,15 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /same_job_after_docker_webui_smoke/);
   assert.match(workflow, /repeated_docker_build: false/);
   assert.match(workflow, /webui-ghcr-publish:[\s\S]*Download WebUI GHCR publish summary[\s\S]*Verify WebUI GHCR publish summary/);
+  assert.doesNotMatch(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*always\(\)/);
+  assert.match(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
+  assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*always\(\)/);
+  assert.match(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
+  assert.doesNotMatch(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*always\(\)/);
+  assert.match(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*!cancelled\(\) && needs\.release-readiness-admission\.result == 'success'/);
+  assert.doesNotMatch(readinessJob, /name: Write release candidate record[\s\S]{0,80}if:\s*\$\{\{\s*always\(\)/);
+  assert.doesNotMatch(readinessJob, /name: Upload release readiness summary[\s\S]{0,80}if:\s*always\(\)/);
+  assert.doesNotMatch(readinessJob, /name: Upload release candidate record[\s\S]{0,80}if:\s*always\(\)/);
   assert.equal((workflow.match(/docker build/g) ?? []).length, 1);
   assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
   assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);

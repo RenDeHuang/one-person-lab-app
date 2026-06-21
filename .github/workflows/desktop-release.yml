@@ -423,7 +423,7 @@ jobs:
       - remote-verify-full
       - standard-first-run-vm-smoke-after-standard-only
       - standard-vm-smoke-gate-after-full
-    if: ${{ always() && inputs.run_vm_smoke && needs.release-preflight.outputs.homebrew_tap_update_required == 'true' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.remote-verify-full.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.outputs.homebrew_tap_update_required == 'true' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.remote-verify-full.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
     uses: ./.github/workflows/homebrew-tap-update.yml
     with:
       channel: stable
@@ -479,7 +479,7 @@ jobs:
     needs:
       - publish-standard
       - standard-first-run-vm-smoke-after-full
-    if: ${{ always() && inputs.include_full_package }}
+    if: ${{ !cancelled() && inputs.include_full_package }}
     runs-on: ubuntu-latest
 
     steps:
@@ -527,7 +527,7 @@ jobs:
       - publish-standard
       - standard-first-run-vm-smoke-after-standard-only
       - standard-vm-smoke-gate-after-full
-    if: ${{ always() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
     runs-on: macos-latest
     timeout-minutes: 45
 
@@ -604,7 +604,7 @@ jobs:
       - publish-standard
       - standard-first-run-vm-smoke-after-standard-only
       - standard-vm-smoke-gate-after-full
-    if: ${{ always() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -766,7 +766,7 @@ jobs:
   operator-evidence-bundle-validation:
     name: Validate operator evidence bundle
     runs-on: ubuntu-latest
-    if: ${{ always() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.remote-verify-full.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.remote-verify-full.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) }}
     needs:
       - remote-verify-standard
       - remote-verify-full
@@ -920,7 +920,7 @@ jobs:
   release-readiness-admission:
     name: Admit release readiness aggregation
     runs-on: ubuntu-latest
-    if: ${{ always() }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) && (needs.stable-homebrew-tap-update.result == 'success' || needs.stable-homebrew-tap-update.result == 'skipped') && (needs.full-homebrew-tap-update.result == 'success' || needs.full-homebrew-tap-update.result == 'skipped') && (needs.homebrew-standard-first-run-vm-smoke.result == 'success' || needs.homebrew-standard-first-run-vm-smoke.result == 'skipped') && needs.one-shot-app-installer-smoke.result == 'success' && needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' && needs.operator-evidence-bundle-validation.result == 'success' }}
     needs:
       - remote-verify-standard
       - remote-verify-full
@@ -1004,7 +1004,7 @@ jobs:
   release-readiness-summary:
     name: Summarize release readiness
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.release-readiness-admission.result == 'success' }}
+    if: ${{ !cancelled() && needs.release-readiness-admission.result == 'success' }}
     needs:
       - full-first-install
       - remote-verify-standard
@@ -1166,7 +1166,6 @@ jobs:
           cat release-readiness-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Write release candidate record
-        if: ${{ always() }}
         shell: bash
         env:
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
@@ -1200,7 +1199,6 @@ jobs:
           cat release-candidate-record.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload release readiness summary
-        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: release-readiness-summary-${{ inputs.opl_version }}
@@ -1210,7 +1208,6 @@ jobs:
           if-no-files-found: error
 
       - name: Upload release candidate record
-        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: release-candidate-record-${{ inputs.opl_version }}
