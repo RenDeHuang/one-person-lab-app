@@ -359,6 +359,14 @@ screenshot, docs, or other post-publish proof gate, closeout must classify that
 as `resolve_post_publish_followup_gate`; do not conflate the published
 GitHub Release/tap state with clean-install proof completion.
 
+The standard clean VM smoke is the fail-fast gate for stable Full release
+trains. When `include_full_package=true` and `run_vm_smoke=true`,
+`desktop-release.yml` runs `standard-first-run-vm-smoke-after-full` before Full
+package build, Full publish/remote verification, Homebrew updates, operator
+evidence, or readiness aggregation. If the standard VM fails, stop at that
+diagnostic artifact; do not keep queueing Full, Homebrew, operator evidence, or
+readiness jobs for the same cohort.
+
 The local command is the rerun/debug path for the same logic, not a separate
 release step:
 
@@ -370,6 +378,15 @@ When run locally, the command writes ignored outputs under
 `artifacts/release-closeout/v<version>-<run_id>/`, downloads only final summary
 and diagnostic artifacts unless `--no-download` is passed, and can record the
 Agent orchestration wall time with `--agent-wall-time <duration>`.
+
+Use `desktop-release-diagnostics.yml` for harness-only diagnosis before
+starting another full release train. It can run the first-run VM harness against
+a published `release_tag`, a direct `release_dmg_url`, or a
+`release_artifact_name` from an existing `release_artifact_run_id`. That
+workflow is read-only: it may upload `release-diagnostics-*` and
+`opl-first-run-vm-<profile>-<run_id>` diagnostic artifacts, but it must not
+build standard assets, rebuild Full packages, publish releases, update
+Homebrew, or write owner receipts.
 
 ## Gate Reuse And VM Base Acceleration
 

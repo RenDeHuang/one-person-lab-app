@@ -15,6 +15,10 @@ on:
         description: 'Same-run GitHub Actions artifact containing the DMG. Used by release workflows before draft assets are externally visible.'
         required: false
         type: string
+      release_artifact_run_id:
+        description: 'GitHub Actions run id that owns release_artifact_name. Empty means the current workflow run.'
+        required: false
+        type: string
       shell_ref:
         description: 'opl-aion-shell ref containing the first-run smoke scripts. Empty means main.'
         required: false
@@ -86,6 +90,10 @@ on:
         type: string
       release_artifact_name:
         description: 'Same-run GitHub Actions artifact containing the DMG. Used by release workflows before draft assets are externally visible.'
+        required: false
+        type: string
+      release_artifact_run_id:
+        description: 'GitHub Actions run id that owns release_artifact_name. Empty means the caller workflow run.'
         required: false
         type: string
       shell_ref:
@@ -355,6 +363,8 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.release_artifact_name }}
+          run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
           path: artifacts/release
 
       - name: Resolve release DMG
@@ -952,7 +962,7 @@ jobs:
 
           RELEASE_SOURCE="latest GitHub Release"
           if [ -n "${{ inputs.release_artifact_name }}" ]; then
-            RELEASE_SOURCE="same-run workflow artifact ${{ inputs.release_artifact_name }}"
+            RELEASE_SOURCE="workflow artifact ${{ inputs.release_artifact_name }} from run ${{ inputs.release_artifact_run_id || github.run_id }}"
             if [ -n "${{ inputs.release_tag }}" ]; then
               RELEASE_SOURCE="$RELEASE_SOURCE; release tag ${{ inputs.release_tag }} kept for provenance"
             fi

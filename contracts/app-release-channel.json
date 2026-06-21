@@ -1206,13 +1206,21 @@
         ],
         "reads": [
           "release_run_id",
+          "release_tag",
+          "release_dmg_url",
+          "release_artifact_name",
+          "release_artifact_run_id",
           "small release artifacts",
-          "GitHub Actions run timing"
+          "GitHub Actions run timing",
+          "first-run VM harness diagnostics"
         ],
         "writes": [
-          "release-diagnostics artifact only"
+          "release-diagnostics artifact only",
+          "opl-first-run-vm-<profile>-<run_id> diagnostic artifact only"
         ],
         "forbidden": [
+          "standard App rebuild",
+          "Full package rebuild",
           "release publish",
           "owner receipt",
           "runtime truth",

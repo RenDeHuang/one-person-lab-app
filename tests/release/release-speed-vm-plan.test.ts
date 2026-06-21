@@ -78,11 +78,11 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertIncludes(workflow, 'uses: ./.github/workflows/_build-reusable.yml', 'standard build job');
   assertMatches(workflow, /publish-standard:[\s\S]*?needs:\s+standard-build/, 'publish-standard job');
   assertMatches(workflow, /full-first-install:[\s\S]*?uses:\s+\.\/\.github\/workflows\/full-first-install-release\.yml/, 'Full package build job');
-  assertMatches(workflow, /full-first-install:[\s\S]*?needs:\s+release-workflow-contract/, 'Full package build waits for the workflow contract gate');
+  assertMatches(workflow, /full-first-install:[\s\S]*?needs:\s+standard-vm-smoke-gate-after-full/, 'Full package build waits for standard VM fail-fast gate');
   assertMatches(workflow, /full-first-install:[\s\S]*?publish_to_release:\s+false/, 'Full package build-only job');
   assertMatches(workflow, /publish-full-assets:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?full-first-install/, 'Full package publish job');
   assertMatches(workflow, /remote-verify-standard:[\s\S]*?needs:\s+publish-standard/, 'standard remote verification job');
-  assertMatches(workflow, /remote-verify-full:[\s\S]*?needs:\s+publish-full-assets/, 'Full remote verification job');
+  assertMatches(workflow, /remote-verify-full:[\s\S]*?needs:[\s\S]*?publish-full-assets[\s\S]*?standard-vm-smoke-gate-after-full/, 'Full remote verification job waits for standard VM fail-fast gate');
   assertMatches(
     workflow,
     /standard-first-run-vm-smoke-after-standard-only:[\s\S]*?needs:\s+remote-verify-standard/,
@@ -92,6 +92,11 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     workflow,
     /standard-first-run-vm-smoke-after-full:[\s\S]*?needs:\s+publish-standard/,
     'standard VM smoke after Full job',
+  );
+  assertMatches(
+    workflow,
+    /standard-vm-smoke-gate-after-full:[\s\S]*?Standard VM smoke must pass before Full build, remote verification, Homebrew, operator evidence, or readiness aggregation can run/,
+    'standard VM fail-fast gate for Full release path',
   );
   assertMatches(
     workflow,
@@ -105,8 +110,8 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   );
   assertMatches(
     workflow,
-    /stable-homebrew-tap-update:[\s\S]*?needs\.release-preflight\.outputs\.homebrew_tap_update_required == 'true'/,
-    'Stable Homebrew tap update must follow preflight target classification inside desktop release',
+    /stable-homebrew-tap-update:[\s\S]*?needs\.standard-vm-smoke-gate-after-full\.result == 'success'/,
+    'Stable Homebrew tap update must wait for the standard VM fail-fast gate on Full release runs',
   );
   assertMatches(
     workflow,
@@ -122,8 +127,8 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     'Homebrew VM smoke must stay on published-release refresh path inside desktop release',
   );
   assertMatches(workflow, /full-first-run-vm-smoke:[\s\S]*?needs:\s+remote-verify-full/, 'Full VM smoke job');
-  assertMatches(workflow, /one-shot-app-installer-smoke:[\s\S]*?needs:\s+publish-standard/, 'one-shot installer smoke');
-  assertMatches(workflow, /docker-webui-smoke:[\s\S]*?needs:\s+publish-standard/, 'Docker WebUI smoke');
+  assertMatches(workflow, /one-shot-app-installer-smoke:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?standard-vm-smoke-gate-after-full/, 'one-shot installer smoke waits for standard VM fail-fast gate');
+  assertMatches(workflow, /docker-webui-smoke:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?standard-vm-smoke-gate-after-full/, 'Docker WebUI smoke waits for standard VM fail-fast gate');
   assertMatches(workflow, /same_job_after_docker_webui_smoke/, 'WebUI GHCR publish reuses the smoked image build');
   assertMatches(workflow, /repeated_docker_build: false/, 'WebUI publish summary records avoided rebuild');
   assertMatches(workflow, /webui-ghcr-publish:[\s\S]*Download WebUI GHCR publish summary[\s\S]*Verify WebUI GHCR publish summary/, 'WebUI GHCR gate verifies the publish summary without rebuilding');
@@ -159,8 +164,9 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   );
   const operatorEvidenceJob = workflow.match(/\n  operator-evidence-bundle-validation:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   assert.doesNotMatch(operatorEvidenceJob, /npm run [^\n]*> evidence-(?:collection|validation)-summary\.json/);
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/, 'final release readiness summary job');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?remote-verify-full[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?full-first-run-vm-smoke[\s\S]*?one-shot-app-installer-smoke[\s\S]*?docker-webui-smoke[\s\S]*?operator-evidence-bundle-validation/, 'final release readiness dependencies');
+  assertMatches(workflow, /release-readiness-admission:[\s\S]*?Release readiness aggregation is blocked by failed, skipped, or missing required gates/, 'release readiness admission fail-fast job');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?needs\.release-readiness-admission\.result == 'success'/, 'final release readiness summary waits for admission');
+  assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?remote-verify-full[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?standard-vm-smoke-gate-after-full[\s\S]*?full-first-run-vm-smoke[\s\S]*?one-shot-app-installer-smoke[\s\S]*?docker-webui-smoke[\s\S]*?operator-evidence-bundle-validation[\s\S]*?release-readiness-admission/, 'final release readiness dependencies');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-release-verification-\$\{\{ inputs\.opl_version \}\}/, 'remote verification small artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?release-evidence-bundle-\$\{\{ inputs\.opl_version \}\}/, 'operator evidence validation small artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?opl-full-workflow-telemetry-\$\{\{ inputs\.opl_version \}\}/, 'Full telemetry small artifact');
@@ -181,6 +187,10 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(diagnosticWorkflow, /permissions:[\s\S]*actions:\s+read[\s\S]*contents:\s+read/, 'desktop release diagnostic workflow read-only permissions');
   assertMatches(diagnosticWorkflow, /npm run release:closeout --[\s\S]*--artifact-profile diagnostics/, 'diagnostic workflow closeout harness');
   assertMatches(diagnosticWorkflow, /npm run release:actions-timing --/, 'diagnostic workflow timing harness');
+  assertMatches(diagnosticWorkflow, /run_vm_diagnostic:/, 'diagnostic workflow VM harness toggle');
+  assertMatches(diagnosticWorkflow, /uses:\s+\.\/\.github\/workflows\/opl-first-run-vm\.yml/, 'diagnostic workflow reuses the VM harness');
+  assertMatches(diagnosticWorkflow, /release_artifact_run_id:\s+\$\{\{ inputs\.release_artifact_run_id != '' && inputs\.release_artifact_run_id \|\| inputs\.release_run_id \}\}/, 'diagnostic workflow can diagnose artifacts from an existing run');
+  assert.doesNotMatch(diagnosticWorkflow, /full-first-install-release|npm run release:publish/, 'diagnostic workflow must not rebuild or publish release assets');
   assertMatches(diagnosticWorkflow, /release-diagnostics-\$\{\{ inputs\.opl_version \}\}/, 'diagnostic workflow artifact');
 });
 
@@ -425,9 +435,13 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   assert.deepEqual(laneById(plan, 'release_preflight').depends_on, []);
   assert.deepEqual(releaseBoundary.depends_on, ['release_preflight']);
   assert.deepEqual(standardBuild.depends_on, ['release_preflight']);
-  assert.deepEqual(fullBuild.depends_on?.sort(), ['release_preflight', 'full_runtime_keys'].sort());
-  assert.ok(standardBuild.can_run_with.includes('full_build'));
-  assert.ok(fullBuild.can_run_with.includes('standard_build'));
+  assert.deepEqual(fullBuild.depends_on?.sort(), [
+    'release_preflight',
+    'full_runtime_keys',
+    'standard_dmg_clean_vm_smoke',
+  ].sort());
+  assert.equal(standardBuild.can_run_with.includes('full_build'), false);
+  assert.equal(fullBuild.can_run_with.includes('standard_build'), false);
 
   assert.deepEqual(publishStandard.depends_on?.sort(), [
     'active_shell_quick_validation',
@@ -436,19 +450,22 @@ test('release plan exposes depends_on and can_run_with for parallel speed lanes 
   ].sort());
   assert.ok(publishStandard.command.includes('release_mode=new_release'));
   assert.deepEqual(publishFullAssets.depends_on?.sort(), ['full_build', 'publish_standard'].sort());
-  assert.deepEqual(remoteVerify.depends_on, ['publish_full_assets']);
+  assert.deepEqual(remoteVerify.depends_on?.sort(), [
+    'publish_full_assets',
+    'standard_dmg_clean_vm_smoke',
+  ].sort());
   assert.deepEqual(standardVm.depends_on, ['publish_standard']);
   assert.deepEqual(homebrewVm.depends_on?.sort(), ['full_homebrew_tap_update', 'stable_homebrew_tap_update'].sort());
   assert.deepEqual(fullVm.depends_on, ['remote_verify_standard_and_full']);
-  assert.ok(standardVm.can_run_with.includes('full_build'));
-  assert.ok(standardVm.can_run_with.includes('publish_full_assets'));
+  assert.equal(standardVm.can_run_with.includes('full_build'), false);
+  assert.equal(standardVm.can_run_with.includes('publish_full_assets'), false);
   assert.ok(homebrewVm.command.includes('--install-mode homebrew-cask'));
   assert.ok(homebrewVm.command.includes('--homebrew-cask gaofeng21cn/one-person-lab/one-person-lab'));
   assert.ok(homebrewVm.command.includes('--smoke-profile homebrew-standard-cask'));
   assert.deepEqual(fullVm.can_run_with, []);
 
-  assert.deepEqual(oneShotInstaller.depends_on, ['publish_standard']);
-  assert.deepEqual(dockerSmoke.depends_on, ['publish_standard']);
+  assert.deepEqual(oneShotInstaller.depends_on?.sort(), ['publish_standard', 'standard_dmg_clean_vm_smoke'].sort());
+  assert.deepEqual(dockerSmoke.depends_on?.sort(), ['publish_standard', 'standard_dmg_clean_vm_smoke'].sort());
   assert.ok(oneShotInstaller.can_run_with.includes('docker_webui_smoke'));
   assert.ok(dockerSmoke.can_run_with.includes('one_shot_app_installer_smoke'));
   assert.deepEqual(webuiGhcrPublish.depends_on, ['docker_webui_smoke']);

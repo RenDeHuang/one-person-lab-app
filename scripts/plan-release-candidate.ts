@@ -220,7 +220,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       id: 'standard_build',
       phase: 'parallel_build',
       depends_on: ['release_preflight'],
-      can_run_with: options.includeFullPackage ? ['full_build'] : [],
+      can_run_with: [],
       command: `npm run build-mac:arm64 && npm run release:publish -- --dry-run --version ${options.version}`,
       required_for: ['standard_release'],
     },
@@ -246,8 +246,12 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     lanes.push({
       id: 'full_build',
       phase: 'parallel_build',
-      depends_on: ['release_preflight', 'full_runtime_keys'],
-      can_run_with: ['standard_build', 'release_boundary', 'active_shell_quick_validation'],
+      depends_on: [
+        'release_preflight',
+        'full_runtime_keys',
+        ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : []),
+      ],
+      can_run_with: [],
       command: [
         'OPL_FULL_RUNTIME_CACHE_MODE=readwrite',
         'npm run release:full --',
@@ -261,7 +265,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     id: 'publish_standard',
     phase: 'publish',
     depends_on: ['standard_build', 'release_boundary', 'active_shell_quick_validation'],
-    can_run_with: options.includeFullPackage ? ['full_build'] : [],
+    can_run_with: [],
     command: `.github/workflows/desktop-release.yml release_mode=new_release publishes standard assets to draft v${options.version}`,
     required_for: ['standard_release'],
   });
@@ -271,11 +275,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       id: 'publish_full_assets',
       phase: 'publish',
       depends_on: ['publish_standard', 'full_build'],
-      can_run_with: [
-        'standard_dmg_clean_vm_smoke',
-        'one_shot_app_installer_smoke',
-        'docker_webui_smoke',
-      ],
+      can_run_with: [],
       command: [
         'npm run release:publish --',
         '--no-build',
@@ -294,7 +294,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
       phase: 'installation_gate',
       depends_on: ['publish_standard'],
       can_run_with: options.includeFullPackage
-        ? ['full_build', 'publish_full_assets', 'one_shot_app_installer_smoke', 'docker_webui_smoke']
+        ? []
         : ['one_shot_app_installer_smoke', 'docker_webui_smoke'],
       command: [
         'npm run test:opl-first-run-vm:tart --',
@@ -330,9 +330,11 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   lanes.push({
     id: 'remote_verify_standard_and_full',
     phase: 'remote_gate',
-    depends_on: options.includeFullPackage ? ['publish_full_assets'] : ['publish_standard'],
+    depends_on: options.includeFullPackage
+      ? ['publish_full_assets', ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : [])]
+      : ['publish_standard'],
     can_run_with: options.includeFullPackage
-      ? ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke', 'docker_webui_smoke']
+      ? ['one_shot_app_installer_smoke', 'docker_webui_smoke']
       : ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke', 'docker_webui_smoke'],
     command: [
       'npm run verify-remote-release --',
@@ -345,9 +347,9 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   lanes.push({
     id: 'one_shot_app_installer_smoke',
     phase: 'installation_gate',
-    depends_on: ['publish_standard'],
+    depends_on: ['publish_standard', ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : [])],
     can_run_with: options.includeFullPackage
-      ? ['standard_dmg_clean_vm_smoke', 'full_build', 'publish_full_assets', 'docker_webui_smoke']
+      ? ['full_build', 'publish_full_assets', 'docker_webui_smoke']
       : ['standard_dmg_clean_vm_smoke', 'docker_webui_smoke'],
     command: 'OPL_INSTALL_SCRIPT_URL=file://<framework-checkout>/install.sh ./install.sh --complete --skip-modules',
     required_for: ['stable_release'],
@@ -356,9 +358,9 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
   lanes.push({
     id: 'docker_webui_smoke',
     phase: 'installation_gate',
-    depends_on: ['publish_standard'],
+    depends_on: ['publish_standard', ...(options.settingsVm ? ['standard_dmg_clean_vm_smoke'] : [])],
     can_run_with: options.includeFullPackage
-      ? ['standard_dmg_clean_vm_smoke', 'full_build', 'publish_full_assets', 'one_shot_app_installer_smoke']
+      ? ['full_build', 'publish_full_assets', 'one_shot_app_installer_smoke']
       : ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke'],
     command: [
       `docker build -t one-person-lab-webui:${options.version} shells/aionui`,
@@ -374,7 +376,7 @@ function buildPlan(options: ReturnType<typeof parseArgs>) {
     phase: 'publish',
     depends_on: ['docker_webui_smoke'],
     can_run_with: options.includeFullPackage
-      ? ['standard_dmg_clean_vm_smoke', 'full_build', 'publish_full_assets', 'one_shot_app_installer_smoke']
+      ? ['full_build', 'publish_full_assets', 'one_shot_app_installer_smoke']
       : ['standard_dmg_clean_vm_smoke', 'one_shot_app_installer_smoke'],
     command: [
       `docker tag one-person-lab-webui:${options.version} ghcr.io/<owner>/one-person-lab-webui:${options.version}`,

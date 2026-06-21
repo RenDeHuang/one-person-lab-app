@@ -15,11 +15,13 @@ test('desktop release workflow has a final readiness aggregation job that downlo
     'remote-verify-full',
     'standard-first-run-vm-smoke-after-standard-only',
     'standard-first-run-vm-smoke-after-full',
+    'standard-vm-smoke-gate-after-full',
     'full-first-run-vm-smoke',
     'one-shot-app-installer-smoke',
     'docker-webui-smoke',
     'webui-ghcr-publish',
     'operator-evidence-bundle-validation',
+    'release-readiness-admission',
     'full-first-install',
   ]) {
     assert.match(job, new RegExp(dependency), `readiness job must depend on ${dependency}`);
@@ -75,13 +77,36 @@ test('desktop release workflow has a final readiness aggregation job that downlo
 
 test('desktop release workflow fails fast before expensive builds and cancels stale same-version runs', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
+  const fullFirstInstallJob = workflow.match(/\n  full-first-install:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  const standardGateJob = workflow.match(/\n  standard-vm-smoke-gate-after-full:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  const operatorEvidenceJob = workflow.match(/\n  operator-evidence-bundle-validation:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  const readinessAdmissionJob = workflow.match(/\n  release-readiness-admission:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  const readinessJob = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+
   assert.match(workflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-\$\{\{ inputs\.release_mode == 'draft_candidate' && 'draft' \|\| 'stable' \}\}-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /cancel-in-progress:\s+true/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*name:\s+Release workflow contract/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run validate:release-boundary/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run test:release-boundary/);
   assert.match(workflow, /standard-build:[\s\S]*needs:\s+release-workflow-contract/);
-  assert.match(workflow, /full-first-install:[\s\S]*needs:\s+release-workflow-contract/);
+  assert.match(fullFirstInstallJob, /needs:\s+standard-vm-smoke-gate-after-full/);
+  assert.match(standardGateJob, /needs:[\s\S]*publish-standard[\s\S]*standard-first-run-vm-smoke-after-full/);
+  assert.match(standardGateJob, /Standard VM smoke must pass before Full build, remote verification, Homebrew, operator evidence, or readiness aggregation can run/);
+  assert.match(workflow, /remote-verify-full:[\s\S]*needs:[\s\S]*publish-full-assets[\s\S]*standard-vm-smoke-gate-after-full/);
+  assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*standard-vm-smoke-gate-after-full/);
+  assert.match(operatorEvidenceJob, /standard-vm-smoke-gate-after-full/);
+  assert.match(operatorEvidenceJob, /needs\.standard-vm-smoke-gate-after-full\.result == 'success'/);
+  assert.doesNotMatch(
+    operatorEvidenceJob.match(/\n    if:[^\n]+/)?.[0] ?? '',
+    /if:\s+\$\{\{\s*always\(\)\s*\}\}/,
+  );
+  assert.match(readinessAdmissionJob, /Release readiness aggregation is blocked by failed, skipped, or missing required gates/);
+  assert.match(readinessAdmissionJob, /standard-vm-smoke-gate-after-full/);
+  assert.match(readinessJob, /needs\.release-readiness-admission\.result == 'success'/);
+  assert.doesNotMatch(
+    readinessJob.match(/\n    if:[^\n]+/)?.[0] ?? '',
+    /if:\s+\$\{\{\s*always\(\)\s*\}\}/,
+  );
 });
 
 test('desktop release diagnostics workflow is harness-only and read-only', () => {
@@ -90,14 +115,21 @@ test('desktop release diagnostics workflow is harness-only and read-only', () =>
   assert.match(workflow, /name: OPL Desktop Release Diagnostics/);
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /release_run_id:/);
+  assert.match(workflow, /run_vm_diagnostic:/);
+  assert.match(workflow, /release_dmg_url:/);
+  assert.match(workflow, /release_artifact_name:/);
+  assert.match(workflow, /release_artifact_run_id:/);
+  assert.match(workflow, /package_profile:/);
   assert.match(workflow, /permissions:[\s\S]*actions: read[\s\S]*contents: read/);
   assert.match(workflow, /npm run release:closeout --/);
   assert.match(workflow, /--artifact-profile diagnostics/);
   assert.match(workflow, /npm run release:actions-timing --/);
+  assert.match(workflow, /uses:\s+\.\/\.github\/workflows\/opl-first-run-vm\.yml/);
+  assert.match(workflow, /release_artifact_run_id:\s+\$\{\{ inputs\.release_artifact_run_id != '' && inputs\.release_artifact_run_id \|\| inputs\.release_run_id \}\}/);
   assert.match(workflow, /release-diagnostics-\$\{\{ inputs\.opl_version \}\}/);
   assert.doesNotMatch(workflow, /contents:\s+write/);
   assert.doesNotMatch(workflow, /packages:\s+write/);
-  assert.doesNotMatch(workflow, /gh release edit|gh release upload|npm run release:publish/);
+  assert.doesNotMatch(workflow, /full-first-install-release|gh release edit|gh release upload|npm run release:publish/);
 });
 
 test('desktop promote workflow is gated by the candidate record before publishing', () => {
@@ -160,6 +192,9 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
 
   assert.match(workflow, /run_timeout_ms:[\s\S]*default: '900000'/);
   assert.match(workflow, /smoke_timeout_ms:[\s\S]*default: '900000'/);
+  assert.match(workflow, /release_artifact_run_id:/);
+  assert.match(job, /run-id:\s+\$\{\{ inputs\.release_artifact_run_id \|\| github\.run_id \}\}/);
+  assert.match(job, /workflow artifact \$\{\{ inputs\.release_artifact_name \}\} from run \$\{\{ inputs\.release_artifact_run_id \|\| github\.run_id \}\}/);
   assert.match(job, /Resolve first-run VM timeouts/);
   assert.match(job, /Record first-run VM wrapper diagnostics/);
   assert.match(job, /app-wrapper-diagnostics\.json/);

@@ -67,7 +67,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run validate:release-boundary/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run test:release-boundary/);
   assert.match(workflow, /standard-build:[\s\S]*needs: release-workflow-contract/);
-  assert.match(workflow, /full-first-install:[\s\S]*needs: release-workflow-contract/);
+  assert.match(workflow, /full-first-install:[\s\S]*needs: standard-vm-smoke-gate-after-full/);
   assert.doesNotMatch(readinessJob, /release:closeout|release:actions-timing|release-closeout|release-actions-timing/);
   assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release[\s\S]*draft_candidate/);
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
@@ -113,10 +113,13 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
   assert.match(workflow, /publish_to_release: false/);
+  assert.match(workflow, /full-first-install:[\s\S]*needs:\s+standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /publish-full-assets:/);
   assert.match(workflow, /--full-package-dir full-package-artifacts/);
-  assert.match(workflow, /remote-verify-full:[\s\S]*needs: publish-full-assets/);
+  assert.match(workflow, /remote-verify-full:[\s\S]*needs:[\s\S]*publish-full-assets[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:[\s\S]*needs: publish-standard/);
+  assert.match(workflow, /standard-vm-smoke-gate-after-full:[\s\S]*needs:[\s\S]*publish-standard[\s\S]*standard-first-run-vm-smoke-after-full/);
+  assert.match(workflow, /Standard VM smoke must pass before Full build, remote verification, Homebrew, operator evidence, or readiness aggregation can run/);
   assert.match(workflow, /run_vm_smoke:/);
   assert.match(workflow, /default: true/);
   assert.match(workflow, /guide_screenshots:[\s\S]*Capture user-guide screenshots/);
@@ -126,6 +129,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /standard-first-run-vm-smoke-after-full:/);
   assert.match(workflow, /stable-homebrew-tap-update:/);
   assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*uses: \.\/\.github\/workflows\/homebrew-tap-update\.yml/);
+  assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*needs:[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /full-homebrew-tap-update:/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*remote-verify-full/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*package_kind: app_full_first_install/);
@@ -136,7 +140,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
   assert.match(workflow, /one-shot-app-installer-smoke:/);
+  assert.match(workflow, /one-shot-app-installer-smoke:[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /docker-webui-smoke:/);
+  assert.match(workflow, /docker-webui-smoke:[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /webui-ghcr-publish:/);
   assert.match(workflow, /OPL_INSTALL_SCRIPT_URL: file:\/\/\$\{\{ github\.workspace \}\}\/one-person-lab\/install\.sh/);
   assert.match(workflow, /\.\/install\.sh --complete --skip-modules/);
@@ -198,8 +204,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /shell_ref:[\s\S]*description: 'opl-aion-shell ref containing the first-run smoke scripts/);
   assert.match(vmWorkflow, /name: Checkout active shell[\s\S]*ref: \$\{\{ inputs\.shell_ref \|\| 'main' \}\}/);
   assert.match(vmWorkflow, /release_artifact_name:/);
+  assert.match(vmWorkflow, /release_artifact_run_id:/);
   assert.match(vmWorkflow, /actions\/download-artifact@v8/);
+  assert.match(vmWorkflow, /run-id:\s+\$\{\{ inputs\.release_artifact_run_id \|\| github\.run_id \}\}/);
   assert.match(vmWorkflow, /Using same-run workflow artifact/);
+  assert.match(vmWorkflow, /workflow artifact \$\{\{ inputs\.release_artifact_name \}\} from run \$\{\{ inputs\.release_artifact_run_id \|\| github\.run_id \}\}/);
   assert.match(vmWorkflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/);
   assert.match(vmWorkflow, /fetch_release_metadata_with_retry\(\)/);
   assert.match(vmWorkflow, /Release metadata fetch failed on attempt \$attempt/);
@@ -283,9 +292,28 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     workflow: '.github/workflows/desktop-release-diagnostics.yml',
     purpose: 'harness_only_release_diagnostics',
     permissions: ['actions:read', 'contents:read'],
-    reads: ['release_run_id', 'small release artifacts', 'GitHub Actions run timing'],
-    writes: ['release-diagnostics artifact only'],
-    forbidden: ['release publish', 'owner receipt', 'runtime truth', 'stable/latest promotion'],
+    reads: [
+      'release_run_id',
+      'release_tag',
+      'release_dmg_url',
+      'release_artifact_name',
+      'release_artifact_run_id',
+      'small release artifacts',
+      'GitHub Actions run timing',
+      'first-run VM harness diagnostics',
+    ],
+    writes: [
+      'release-diagnostics artifact only',
+      'opl-first-run-vm-<profile>-<run_id> diagnostic artifact only',
+    ],
+    forbidden: [
+      'standard App rebuild',
+      'Full package rebuild',
+      'release publish',
+      'owner receipt',
+      'runtime truth',
+      'stable/latest promotion',
+    ],
   });
   assert.deepEqual(releaseContract.release_preflight, {
     script: 'scripts/validate-release-preflight.ts',
