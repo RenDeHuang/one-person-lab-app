@@ -204,7 +204,12 @@ stays in the preflight summary as provenance and remote release verification
 remains the published-asset gate. Stable release workflows pass DMG-only
 same-run artifacts (`macos-build-arm64-dmg` and
 `opl-full-first-install-dmg-<version>-mac-arm64`) into VM gates while retaining
-the complete standard and Full artifacts for publish jobs. These profiles fix
+the complete standard and Full artifacts for publish jobs.
+Branch-lane evidence runs that should not publish release assets may pass the
+same DMG-only artifact name plus `release_artifact_run_id` to download the
+artifact from the source Actions run with `gh run download`; that handoff is
+for VM evidence only and does not replace same-run stable release gates or
+remote release verification. These profiles fix
 the logical display at
 `1920x1080px`, sweep packaged Settings pages, and write profile-scoped artifacts
 named `opl-first-run-vm-<profile>-<run_id>`. The Full

@@ -198,8 +198,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /shell_ref:[\s\S]*description: 'opl-aion-shell ref containing the first-run smoke scripts/);
   assert.match(vmWorkflow, /name: Checkout active shell[\s\S]*ref: \$\{\{ inputs\.shell_ref \|\| 'main' \}\}/);
   assert.match(vmWorkflow, /release_artifact_name:/);
+  assert.match(vmWorkflow, /release_artifact_run_id:/);
   assert.match(vmWorkflow, /actions\/download-artifact@v8/);
+  assert.match(vmWorkflow, /gh run download "\$\{\{ inputs\.release_artifact_run_id \}\}"/);
   assert.match(vmWorkflow, /Using same-run workflow artifact/);
+  assert.match(vmWorkflow, /Using source workflow run artifact/);
   assert.match(vmWorkflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/);
   assert.match(vmWorkflow, /fetch_release_metadata_with_retry\(\)/);
   assert.match(vmWorkflow, /Release metadata fetch failed on attempt \$attempt/);
@@ -286,6 +289,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     reads: ['release_run_id', 'small release artifacts', 'GitHub Actions run timing'],
     writes: ['release-diagnostics artifact only'],
     forbidden: ['release publish', 'owner receipt', 'runtime truth', 'stable/latest promotion'],
+  });
+  assert.deepEqual(releaseContract.release_acceleration.github_actions.first_run_vm_artifact_handoff, {
+    same_run_inputs: ['release_artifact_name'],
+    source_run_inputs: ['release_artifact_name', 'release_artifact_run_id'],
+    source_run_download_command: 'gh run download <release_artifact_run_id> --repo <repo> --name <release_artifact_name> --dir artifacts/release',
+    scope: 'vm_evidence_only',
+    forbidden_replacements: [
+      'stable release same-run VM gates',
+      'published release remote verification',
+      'owner receipt',
+      'release publish',
+    ],
+    rule: 'Branch-lane or post-release evidence runs may explicitly download a DMG-only artifact from a completed source Actions run without publishing assets; this handoff is VM evidence only and must not replace stable same-run VM gates or published asset verification.',
   });
   assert.deepEqual(releaseContract.release_preflight, {
     script: 'scripts/validate-release-preflight.ts',

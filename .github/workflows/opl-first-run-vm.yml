@@ -15,6 +15,10 @@ on:
         description: 'Same-run GitHub Actions artifact containing the DMG. Used by release workflows before draft assets are externally visible.'
         required: false
         type: string
+      release_artifact_run_id:
+        description: 'GitHub Actions run id that owns release_artifact_name. Empty means same-run artifact.'
+        required: false
+        type: string
       shell_ref:
         description: 'opl-aion-shell ref containing the first-run smoke scripts. Empty means main.'
         required: false
@@ -86,6 +90,10 @@ on:
         type: string
       release_artifact_name:
         description: 'Same-run GitHub Actions artifact containing the DMG. Used by release workflows before draft assets are externally visible.'
+        required: false
+        type: string
+      release_artifact_run_id:
+        description: 'GitHub Actions run id that owns release_artifact_name. Empty means same-run artifact.'
         required: false
         type: string
       shell_ref:
@@ -351,11 +359,22 @@ jobs:
             opl-first-run-codex-install-assets-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Download release DMG artifact
-        if: ${{ inputs.release_artifact_name != '' }}
+        if: ${{ inputs.release_artifact_name != '' && inputs.release_artifact_run_id == '' }}
         uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.release_artifact_name }}
           path: artifacts/release
+
+      - name: Download source-run release DMG artifact
+        if: ${{ inputs.release_artifact_name != '' && inputs.release_artifact_run_id != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/release
+          gh run download "${{ inputs.release_artifact_run_id }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "${{ inputs.release_artifact_name }}" \
+            --dir artifacts/release
 
       - name: Resolve release DMG
         id: dmg
@@ -493,6 +512,8 @@ jobs:
 
           if [ "${{ steps.package_profile.outputs.install_mode }}" = "homebrew-cask" ]; then
             echo "Using Homebrew cask install path: ${{ steps.package_profile.outputs.homebrew_cask }}"
+          elif [ -n "${{ inputs.release_artifact_name }}" ] && [ -n "${{ inputs.release_artifact_run_id }}" ]; then
+            echo "Using source workflow run artifact: ${{ inputs.release_artifact_name }} from run ${{ inputs.release_artifact_run_id }}"
           elif [ -n "${{ inputs.release_artifact_name }}" ]; then
             echo "Using same-run workflow artifact: ${{ inputs.release_artifact_name }}"
           elif [ -n "${{ inputs.release_dmg_url }}" ]; then
@@ -952,7 +973,11 @@ jobs:
 
           RELEASE_SOURCE="latest GitHub Release"
           if [ -n "${{ inputs.release_artifact_name }}" ]; then
-            RELEASE_SOURCE="same-run workflow artifact ${{ inputs.release_artifact_name }}"
+            if [ -n "${{ inputs.release_artifact_run_id }}" ]; then
+              RELEASE_SOURCE="source workflow run artifact ${{ inputs.release_artifact_name }} from run ${{ inputs.release_artifact_run_id }}"
+            else
+              RELEASE_SOURCE="same-run workflow artifact ${{ inputs.release_artifact_name }}"
+            fi
             if [ -n "${{ inputs.release_tag }}" ]; then
               RELEASE_SOURCE="$RELEASE_SOURCE; release tag ${{ inputs.release_tag }} kept for provenance"
             fi
@@ -1100,6 +1125,7 @@ jobs:
               release_tag: process.env.RELEASE_TAG || '',
               release_dmg_url_configured: process.env.RELEASE_DMG_URL_CONFIGURED === 'true',
               release_artifact_name: process.env.RELEASE_ARTIFACT_NAME || '',
+              release_artifact_run_id: process.env.RELEASE_ARTIFACT_RUN_ID || '',
               shell_ref: process.env.SHELL_REF || 'main',
             },
             vm: {
@@ -1203,6 +1229,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
           RELEASE_DMG_URL_CONFIGURED: ${{ inputs.release_dmg_url != '' && 'true' || 'false' }}
           RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
+          RELEASE_ARTIFACT_RUN_ID: ${{ inputs.release_artifact_run_id }}
           SHELL_REF: ${{ inputs.shell_ref || 'main' }}
           CODEX_PACKAGE_PREFLIGHT_JSON: ${{ steps.codex_package_preflight.outputs.preflight_json }}
           CODEX_PACKAGE_TARBALL: ${{ steps.codex_package_preflight.outputs.tarball_path }}

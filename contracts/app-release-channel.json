@@ -1273,6 +1273,24 @@
         "release_called_group": "opl-gui-first-run-vm-<run_id>-<package_profile>",
         "cancel_in_progress": "schedule_only",
         "rule": "Scheduled VM smokes collapse stale backlog; stable release-called VM profiles must use run/profile-scoped groups so standard, Homebrew, and Full install gates cannot cancel or replace each other."
+      },
+      "first_run_vm_artifact_handoff": {
+        "same_run_inputs": [
+          "release_artifact_name"
+        ],
+        "source_run_inputs": [
+          "release_artifact_name",
+          "release_artifact_run_id"
+        ],
+        "source_run_download_command": "gh run download <release_artifact_run_id> --repo <repo> --name <release_artifact_name> --dir artifacts/release",
+        "scope": "vm_evidence_only",
+        "forbidden_replacements": [
+          "stable release same-run VM gates",
+          "published release remote verification",
+          "owner receipt",
+          "release publish"
+        ],
+        "rule": "Branch-lane or post-release evidence runs may explicitly download a DMG-only artifact from a completed source Actions run without publishing assets; this handoff is VM evidence only and must not replace stable same-run VM gates or published asset verification."
       }
     },
     "vm_local_authorization_policy": {

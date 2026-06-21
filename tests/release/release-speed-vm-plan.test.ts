@@ -347,8 +347,11 @@ test('first-run VM workflow writes deterministic preflight and final summaries b
   assertMatches(workflow, /## OPL GUI first-run VM preflight/, 'VM preflight heading');
   assertMatches(workflow, /deterministic release-blocking clean VM first launch/, 'VM gate purpose');
   assertMatches(workflow, /release_artifact_name:/, 'VM same-run artifact input');
+  assertMatches(workflow, /release_artifact_run_id:/, 'VM source-run artifact input');
   assertMatches(workflow, /actions\/download-artifact@v8/, 'VM same-run artifact download');
+  assertMatches(workflow, /gh run download "\$\{\{ inputs\.release_artifact_run_id \}\}"/, 'VM source-run artifact download');
   assertMatches(workflow, /Using same-run workflow artifact/, 'VM artifact source log');
+  assertMatches(workflow, /Using source workflow run artifact/, 'VM source-run artifact source log');
   assertMatches(workflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/, 'VM release tag provenance');
   assertMatches(workflow, /Resolve host Node\.js runtime for guest smoke/, 'VM host Node runtime resolution');
   assertMatches(workflow, /--guest-node-root "\$\{\{ steps\.host_node\.outputs\.node_root \}\}"/, 'VM guest Node copy');
