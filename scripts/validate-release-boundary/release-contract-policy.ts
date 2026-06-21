@@ -191,7 +191,10 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const gateReuse = acceleration?.gate_reuse;
   const tartBasePrebake = acceleration?.tart_base_prebake;
   const githubActions = acceleration?.github_actions;
+  const readinessAdmission = githubActions?.release_readiness_admission;
   const diagnosticsWorkflowPolicy = githubActions?.diagnostics_workflow_policy;
+  const firstRunVmConcurrency = githubActions?.first_run_vm_concurrency;
+  const scheduledVmGuard = firstRunVmConcurrency?.scheduled_desktop_release_activity_guard;
   const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
 
   if (
@@ -254,6 +257,27 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   }
 
   if (
+    readinessAdmission?.workflow_job !== 'release-readiness-admission' ||
+    readinessAdmission?.preflight_dependency !== 'release-preflight' ||
+    readinessAdmission?.homebrew_tap_update_required_source !== 'release-preflight.outputs.homebrew_tap_update_required' ||
+    readinessAdmission?.homebrew_allowed_when_false !== 'success_or_skipped' ||
+    !readinessAdmission?.rule?.includes('must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required')
+  ) {
+    console.error('FAIL release_readiness_admission_policy: readiness admission must be preflight-driven for Homebrew gates');
+    failures += 1;
+  }
+  for (const gateId of [
+    'stable-homebrew-tap-update',
+    'homebrew-standard-first-run-vm-smoke',
+    'full-homebrew-tap-update_for_full_release',
+  ]) {
+    if (!readinessAdmission?.homebrew_required_when_true?.includes(gateId)) {
+      console.error(`FAIL release_readiness_admission_policy: missing required Homebrew gate ${gateId}`);
+      failures += 1;
+    }
+  }
+
+  if (
     diagnosticsWorkflowPolicy?.default_diagnostic_scope !== 'bootstrap_only' ||
     diagnosticsWorkflowPolicy?.diagnostic_scopes?.bootstrap_only?.authority_boundary !==
       'diagnostic_only_not_release_ready_owner_receipt_or_runtime_truth' ||
@@ -269,7 +293,9 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     'App install',
     'Gatekeeper/local authorization diagnostics',
     'App launch',
-    'CDP/accessibility/native modal/bootstrap fatal artifact collection',
+    'wrapper preflight diagnostics',
+    'wrapper smoke command and log artifacts',
+    'Tart smoke summary artifact',
   ]) {
     if (!diagnosticsWorkflowPolicy?.diagnostic_scopes?.bootstrap_only?.keeps?.includes(kept)) {
       console.error(`FAIL release_diagnostics_scope_policy: bootstrap_only must keep ${kept}`);
@@ -289,6 +315,52 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
       console.error(`FAIL release_diagnostics_scope_policy: bootstrap_only must skip ${skipped}`);
       failures += 1;
     }
+  }
+  const releaseGateScope = diagnosticsWorkflowPolicy?.diagnostic_scopes?.release_gate;
+  for (const artifact of [
+    'app-wrapper-diagnostics.json',
+    'app-wrapper-preflight.log',
+    'app-wrapper-smoke-command-preview.txt',
+    'app-wrapper-smoke.stdout.log',
+    'app-wrapper-smoke.stderr.log',
+    'tart-smoke-summary.json',
+  ]) {
+    if (
+      !diagnosticsWorkflowPolicy?.diagnostic_scopes?.bootstrap_only?.wrapper_diagnostic_artifacts?.includes(artifact) ||
+      !releaseGateScope?.wrapper_diagnostic_artifacts?.includes(artifact)
+    ) {
+      console.error(`FAIL release_diagnostics_scope_policy: VM scopes must retain wrapper diagnostic artifact ${artifact}`);
+      failures += 1;
+    }
+  }
+  if (
+    typeof releaseGateScope?.wrapper_diagnostic_policy !== 'string' ||
+    !releaseGateScope.wrapper_diagnostic_policy.includes('host_wrapper_preflight_and_smoke_logs_are_supporting_evidence') ||
+    !releaseGateScope.wrapper_diagnostic_policy.includes('deterministic VM readiness/settings/route/codex checks')
+  ) {
+    console.error('FAIL release_diagnostics_scope_policy: release_gate wrapper diagnostics must preserve deterministic release gates');
+    failures += 1;
+  }
+  if (
+    firstRunVmConcurrency?.scheduled_default_package_profile !== 'standard' ||
+    firstRunVmConcurrency?.scheduled_default_diagnostic_scope !== 'bootstrap_only' ||
+    scheduledVmGuard?.workflow !== 'OPL Desktop Release' ||
+    !sameStringSet(scheduledVmGuard?.checked_statuses, ['in_progress', 'queued']) ||
+    scheduledVmGuard?.skip_reason !== 'desktop_release_active_or_queued' ||
+    scheduledVmGuard?.guard_unavailable_skip_reason !== 'desktop_release_guard_unavailable' ||
+    scheduledVmGuard?.runner_boundary !== 'github_hosted_preflight_before_self_hosted_vm'
+  ) {
+    console.error('FAIL scheduled_first_run_vm_policy: scheduled VM maintenance must default to standard/bootstrap_only and skip before self-hosted VM when desktop release activity is active or unknown');
+    failures += 1;
+  }
+  if (
+    typeof firstRunVmConcurrency?.rule !== 'string' ||
+    !firstRunVmConcurrency.rule.includes('standard bootstrap-only diagnostic') ||
+    typeof scheduledVmGuard?.rule !== 'string' ||
+    !scheduledVmGuard.rule.includes('self-hosted first-run VM runner')
+  ) {
+    console.error('FAIL scheduled_first_run_vm_policy: scheduled VM policy must explain bootstrap-only diagnostics and VM runner protection');
+    failures += 1;
   }
   for (const gate of vmGates) {
     if (gate?.diagnostic_scope !== 'release_gate') {

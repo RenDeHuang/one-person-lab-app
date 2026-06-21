@@ -195,6 +195,21 @@
             "smoke_timeout_ms",
             "codex_install_phase_timeout_ms",
             "codex_readiness_phase_timeout_ms"
+          ],
+          "required_wrapper_diagnostic_fields": [
+            "app-wrapper-diagnostics.json",
+            "app-wrapper-preflight.log",
+            "app-wrapper-smoke-command-preview.txt",
+            "app-wrapper-smoke.stdout.log",
+            "app-wrapper-smoke.stderr.log",
+            "tart-smoke-summary.json",
+            "artifact_paths.smoke_command_preview",
+            "artifact_paths.smoke_stdout",
+            "artifact_paths.smoke_stderr",
+            "artifact_paths.tart_smoke_summary",
+            "smoke_command.exit_code",
+            "phase_timings.app_wrapper_preflight",
+            "phase_timings.app_wrapper_smoke"
           ]
         },
         "codex_install": {
@@ -330,6 +345,21 @@
             "smoke_timeout_ms",
             "codex_install_phase_timeout_ms",
             "codex_readiness_phase_timeout_ms"
+          ],
+          "required_wrapper_diagnostic_fields": [
+            "app-wrapper-diagnostics.json",
+            "app-wrapper-preflight.log",
+            "app-wrapper-smoke-command-preview.txt",
+            "app-wrapper-smoke.stdout.log",
+            "app-wrapper-smoke.stderr.log",
+            "tart-smoke-summary.json",
+            "artifact_paths.smoke_command_preview",
+            "artifact_paths.smoke_stdout",
+            "artifact_paths.smoke_stderr",
+            "artifact_paths.tart_smoke_summary",
+            "smoke_command.exit_code",
+            "phase_timings.app_wrapper_preflight",
+            "phase_timings.app_wrapper_smoke"
           ]
         },
         "codex_install": {
@@ -478,6 +508,21 @@
             "smoke_timeout_ms",
             "codex_install_phase_timeout_ms",
             "codex_readiness_phase_timeout_ms"
+          ],
+          "required_wrapper_diagnostic_fields": [
+            "app-wrapper-diagnostics.json",
+            "app-wrapper-preflight.log",
+            "app-wrapper-smoke-command-preview.txt",
+            "app-wrapper-smoke.stdout.log",
+            "app-wrapper-smoke.stderr.log",
+            "tart-smoke-summary.json",
+            "artifact_paths.smoke_command_preview",
+            "artifact_paths.smoke_stdout",
+            "artifact_paths.smoke_stderr",
+            "artifact_paths.tart_smoke_summary",
+            "smoke_command.exit_code",
+            "phase_timings.app_wrapper_preflight",
+            "phase_timings.app_wrapper_smoke"
           ]
         },
         "codex_install": {
@@ -613,6 +658,21 @@
             "smoke_timeout_ms",
             "codex_install_phase_timeout_ms",
             "codex_readiness_phase_timeout_ms"
+          ],
+          "required_wrapper_diagnostic_fields": [
+            "app-wrapper-diagnostics.json",
+            "app-wrapper-preflight.log",
+            "app-wrapper-smoke-command-preview.txt",
+            "app-wrapper-smoke.stdout.log",
+            "app-wrapper-smoke.stderr.log",
+            "tart-smoke-summary.json",
+            "artifact_paths.smoke_command_preview",
+            "artifact_paths.smoke_stdout",
+            "artifact_paths.smoke_stderr",
+            "artifact_paths.tart_smoke_summary",
+            "smoke_command.exit_code",
+            "phase_timings.app_wrapper_preflight",
+            "phase_timings.app_wrapper_smoke"
           ]
         },
         "codex_install": {

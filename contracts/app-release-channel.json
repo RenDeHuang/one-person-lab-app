@@ -1245,6 +1245,18 @@
         "cancel_in_progress": true,
         "rule": "A newer run for the same version and release lane cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts."
       },
+      "release_readiness_admission": {
+        "workflow_job": "release-readiness-admission",
+        "preflight_dependency": "release-preflight",
+        "homebrew_tap_update_required_source": "release-preflight.outputs.homebrew_tap_update_required",
+        "homebrew_required_when_true": [
+          "stable-homebrew-tap-update",
+          "homebrew-standard-first-run-vm-smoke",
+          "full-homebrew-tap-update_for_full_release"
+        ],
+        "homebrew_allowed_when_false": "success_or_skipped",
+        "rule": "Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required."
+      },
       "diagnostics_workflow_policy": {
         "workflow": ".github/workflows/desktop-release-diagnostics.yml",
         "purpose": "harness_and_standard_artifact_only_release_diagnostics",
@@ -1283,12 +1295,48 @@
               "App install",
               "Gatekeeper/local authorization diagnostics",
               "App launch",
-              "CDP/accessibility/native modal/bootstrap fatal artifact collection"
+              "wrapper preflight diagnostics",
+              "wrapper smoke command and log artifacts",
+              "Tart smoke summary artifact"
+            ],
+            "wrapper_diagnostic_artifacts": [
+              "app-wrapper-diagnostics.json",
+              "app-wrapper-preflight.log",
+              "app-wrapper-smoke-command-preview.txt",
+              "app-wrapper-smoke.stdout.log",
+              "app-wrapper-smoke.stderr.log",
+              "tart-smoke-summary.json"
             ],
             "authority_boundary": "diagnostic_only_not_release_ready_owner_receipt_or_runtime_truth"
           },
           "release_gate": {
             "purpose": "full deterministic VM release gate used by stable release workflows",
+            "keeps": [
+              "same-run or supplied DMG resolution",
+              "packaged main bootstrap marker verification",
+              "App install",
+              "Gatekeeper/local authorization diagnostics",
+              "App launch",
+              "wrapper preflight diagnostics",
+              "wrapper smoke command and log artifacts",
+              "Tart smoke summary artifact",
+              "Codex install asset cache restore",
+              "Codex install asset prefetch",
+              "Codex install asset cache save",
+              "Settings page sweep",
+              "assistant route smoke",
+              "Codex functional check",
+              "Codex AI self-check"
+            ],
+            "wrapper_diagnostic_artifacts": [
+              "app-wrapper-diagnostics.json",
+              "app-wrapper-preflight.log",
+              "app-wrapper-smoke-command-preview.txt",
+              "app-wrapper-smoke.stdout.log",
+              "app-wrapper-smoke.stderr.log",
+              "tart-smoke-summary.json"
+            ],
+            "wrapper_diagnostic_policy": "host_wrapper_preflight_and_smoke_logs_are_supporting_evidence; full release gate failure still comes from the deterministic VM readiness/settings/route/codex checks",
             "authority_boundary": "release_gate_evidence_only_when_same_cohort_workflow_requires_it"
           }
         },
@@ -1310,8 +1358,21 @@
       "first_run_vm_concurrency": {
         "scheduled_group": "opl-gui-first-run-vm-scheduled",
         "release_called_group": "opl-gui-first-run-vm-<run_id>-<package_profile>",
+        "scheduled_default_package_profile": "standard",
+        "scheduled_default_diagnostic_scope": "bootstrap_only",
+        "scheduled_desktop_release_activity_guard": {
+          "workflow": "OPL Desktop Release",
+          "checked_statuses": [
+            "in_progress",
+            "queued"
+          ],
+          "skip_reason": "desktop_release_active_or_queued",
+          "guard_unavailable_skip_reason": "desktop_release_guard_unavailable",
+          "runner_boundary": "github_hosted_preflight_before_self_hosted_vm",
+          "rule": "Scheduled maintenance must not occupy the self-hosted first-run VM runner while a desktop release is active, queued, or cannot be checked."
+        },
         "cancel_in_progress": "schedule_only",
-        "rule": "Scheduled VM smokes collapse stale backlog; stable release-called VM profiles must use run/profile-scoped groups so standard, Homebrew, and Full install gates cannot cancel or replace each other."
+        "rule": "Scheduled VM smokes collapse stale backlog and default to a standard bootstrap-only diagnostic; stable release-called VM profiles must use run/profile-scoped groups so standard, Homebrew, and Full install gates cannot cancel or replace each other."
       },
       "first_run_vm_artifact_handoff": {
         "same_run_inputs": [

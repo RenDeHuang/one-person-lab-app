@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { appRoot } from './helpers.ts';
+import { activeShellRoot } from '../app-release-boundary-cases/helpers.ts';
 
 test('desktop release workflow has a final readiness aggregation job that downloads only small artifacts', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
@@ -106,6 +107,16 @@ test('desktop release workflow fails fast before expensive builds and cancels st
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs:[\s\S]*full-first-run-vm-smoke/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs\.full-first-run-vm-smoke\.result == 'success'/);
   assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*standard-vm-smoke-gate-after-full/);
+  assert.match(readinessAdmissionJob, /release-preflight/);
+  assert.match(readinessAdmissionJob, /homebrewTapUpdateRequired/);
+  assert.match(readinessAdmissionJob, /requireSuccess\('full-homebrew-tap-update'\)/);
+  assert.match(readinessAdmissionJob, /requireSuccess\('homebrew-standard-first-run-vm-smoke'\)/);
+  assert.match(readinessAdmissionJob, /requireSuccessOrSkipped\('stable-homebrew-tap-update'\)/);
+  assert.match(readinessAdmissionJob, /requireSuccessOrSkipped\('homebrew-standard-first-run-vm-smoke'\)/);
+  assert.match(
+    readinessAdmissionJob.match(/\n    if:[^\n]+/)?.[0] ?? '',
+    /needs\.release-preflight\.outputs\.homebrew_tap_update_required != 'true'/,
+  );
   assert.match(webuiGhcrPublishJob, /needs\.docker-webui-smoke\.result == 'success'/);
   assert.match(operatorEvidenceJob, /standard-vm-smoke-gate-after-full/);
   assert.match(operatorEvidenceJob, /needs\.standard-vm-smoke-gate-after-full\.result == 'success'/);
@@ -310,7 +321,34 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.match(job, /app-wrapper-smoke\.stderr\.log/);
   assert.match(job, /exit_code/);
   assert.match(job, /phase_timings/);
+  assert.doesNotMatch(job, /--bootstrap-launch-diagnostics/);
   assert.match(job, /Upload first-run VM artifacts[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/);
+
+  const shellSmoke = fs.readFileSync(
+    path.join(activeShellRoot, 'scripts', 'opl-first-run-vm-smoke.mjs'),
+    'utf8',
+  );
+  const tartSmoke = fs.readFileSync(
+    path.join(activeShellRoot, 'scripts', 'opl-first-run-tart-smoke.mjs'),
+    'utf8',
+  );
+  assert.match(tartSmoke, /--smoke-timeout-ms <n>/);
+  assert.match(tartSmoke, /--codex-install-phase-timeout-ms <n>/);
+  assert.match(tartSmoke, /--codex-readiness-phase-timeout-ms <n>/);
+  assert.match(tartSmoke, /GUEST_SMOKE_SCRIPT_PATH/);
+  assert.match(tartSmoke, /tart-smoke-summary\.json/);
+  assert.match(tartSmoke, /smoke-events\.jsonl/);
+  assert.match(tartSmoke, /runtime_profile: options\.runtimeProfile/);
+  assert.match(tartSmoke, /settings_smoke: options\.settingsSmoke/);
+  assert.match(tartSmoke, /assistant_route_smoke: options\.assistantRouteSmoke/);
+  assert.match(shellSmoke, /--codex-install-phase-timeout-ms <n>/);
+  assert.match(shellSmoke, /--codex-readiness-phase-timeout-ms <n>/);
+  assert.match(shellSmoke, /waitForFullFirstRunEquivalence/);
+  assert.match(shellSmoke, /full_runtime_equivalence/);
+  assert.match(shellSmoke, /app-release-runtime-evidence-summary\.json/);
+  assert.match(shellSmoke, /codex-functional-check-summary\.json/);
+  assert.match(shellSmoke, /codex-ai-self-check-summary\.json/);
+  assert.match(shellSmoke, /first-launch\.png/);
 
   const vmArtifactScenarioIds = new Set([
     'standard_dmg_clean_vm_smoke',
@@ -394,6 +432,21 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       'smoke_timeout_ms',
       'codex_install_phase_timeout_ms',
       'codex_readiness_phase_timeout_ms',
+    ]);
+    assert.deepEqual(scenario.diagnostics_contract.app_wrapper.required_wrapper_diagnostic_fields, [
+      'app-wrapper-diagnostics.json',
+      'app-wrapper-preflight.log',
+      'app-wrapper-smoke-command-preview.txt',
+      'app-wrapper-smoke.stdout.log',
+      'app-wrapper-smoke.stderr.log',
+      'tart-smoke-summary.json',
+      'artifact_paths.smoke_command_preview',
+      'artifact_paths.smoke_stdout',
+      'artifact_paths.smoke_stderr',
+      'artifact_paths.tart_smoke_summary',
+      'smoke_command.exit_code',
+      'phase_timings.app_wrapper_preflight',
+      'phase_timings.app_wrapper_smoke',
     ]);
     assert.deepEqual(scenario.diagnostics_contract.codex_install.install_asset_preseed, {
       mode: 'host_prefetch_cache_preseed',

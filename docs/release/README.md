@@ -117,14 +117,25 @@ replacement for `tart-smoke-summary.json` and shell Codex install diagnostics.
 The reusable VM workflow has two explicit `diagnostic_scope` values. Stable
 release workflows use `release_gate`, which keeps the Codex install asset
 preseed, Settings sweep, assistant route smoke, Codex functional check, and
-Codex AI self-check on the deterministic gate path. The diagnostics workflow
-defaults to `bootstrap_only`: it still resolves the supplied or same-run DMG,
-installs the App, verifies the packaged main bootstrap marker, launches the
-App, and collects CDP/accessibility/native-modal/bootstrap-fatal artifacts, but
-skips Codex cache restore/prefetch/save and secondary route checks so a launch
-blocker produces evidence before another Full or stable release train is
-queued. `bootstrap_only` artifacts are diagnostic-only and cannot be used as
+Codex AI self-check on the deterministic gate path. The workflow also records
+wrapper preflight diagnostics, the exact Tart smoke command, stdout and stderr
+logs, and `tart-smoke-summary.json`. Those wrapper artifacts support debugging,
+but the release gate still passes or fails on the deterministic VM readiness,
+Settings, route, and Codex checks. The diagnostics workflow defaults to
+`bootstrap_only`: it still resolves the supplied or same-run DMG, installs the
+App, verifies the packaged main bootstrap marker, launches the App, and uploads
+wrapper diagnostics, but skips Codex cache restore/prefetch/save and secondary
+route checks so it does not occupy the release lane longer than necessary.
+`bootstrap_only` artifacts are diagnostic-only and cannot be used as
 release-ready, owner receipt, or runtime truth evidence.
+
+Scheduled `OPL GUI First-Run VM` runs are maintenance diagnostics, not stable
+release evidence. They default to `package_profile=standard` and
+`diagnostic_scope=bootstrap_only`; before occupying the self-hosted VM runner
+they check whether `OPL Desktop Release` is in progress or queued. If a release
+is active, queued, or cannot be checked, the scheduled run exits from the
+GitHub-hosted preflight with a skip summary instead of competing with the
+release's standard, Full, or Homebrew VM gates.
 
 `run_timeout_ms` and `smoke_timeout_ms` are workflow inputs and are passed to
 `opl-first-run-tart-smoke.mjs` as `--timeout-ms` and `--smoke-timeout-ms`.
@@ -244,6 +255,7 @@ opl connect sync-skills
 ```
 
 Stable desktop releases update the stable cask only after the promote workflow publishes the draft release. Existing published release refreshes may update the tap after remote asset verification and before the Homebrew VM gate. Same-owner App release tap writes use direct commits; do not restore tap pull-request mode as a compatibility path.
+`release-readiness-admission` reads `release-preflight.outputs.homebrew_tap_update_required`. When preflight says the tap update is required, the stable tap update, the Homebrew standard VM gate, and the Full tap update for Full releases must pass before readiness aggregation. When preflight says the tap update is not required, those Homebrew jobs may be `skipped`; readiness must not fail at the summary stage only because the tap was already current.
 
 ## Stable macOS Local Authorization
 
@@ -402,8 +414,10 @@ evidence, or readiness aggregation. When `include_full_package=true` and
 `run_vm_smoke=true`, it runs `standard-first-run-vm-smoke-after-full` before
 Full package build, Full publish/remote verification, Homebrew updates,
 operator evidence, or readiness aggregation. If the standard VM fails, stop at
-that diagnostic artifact; do not keep queueing Full, Homebrew, operator
-evidence, or readiness jobs for the same cohort.
+that diagnostic artifact; the artifact should already include the early
+bootstrap/native-modal summaries needed to classify launch blockers. Do not keep
+queueing Full, Homebrew, operator evidence, or readiness jobs for the same
+cohort.
 
 The local command is the rerun/debug path for the same logic, not a separate
 release step:
@@ -423,9 +437,10 @@ a published `release_tag`, a direct `release_dmg_url`, or a
 `release_artifact_name` from an existing `release_artifact_run_id` via
 `actions/download-artifact@v8` with `run-id`. That
 workflow is read-only: it may upload `release-diagnostics-*` and
-`opl-first-run-vm-<profile>-<run_id>` diagnostic artifacts, but it must not
-build standard assets, rebuild Full packages, publish releases, update
-Homebrew, or write owner receipts.
+`opl-first-run-vm-<profile>-<run_id>` diagnostic artifacts. If explicitly
+requested, it may build a temporary standard DMG diagnostic artifact for the VM
+harness only. It must not rebuild Full packages, publish releases, update
+Homebrew, write owner receipts, or claim release-ready.
 
 ## Gate Reuse And VM Base Acceleration
 

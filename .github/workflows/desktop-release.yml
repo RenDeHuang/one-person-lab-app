@@ -442,7 +442,7 @@ jobs:
       - stable-homebrew-tap-update
       - remote-verify-full
       - full-first-run-vm-smoke
-    if: ${{ inputs.include_full_package && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success' }}
+    if: ${{ !cancelled() && inputs.include_full_package && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success' }}
     uses: ./.github/workflows/homebrew-tap-update.yml
     with:
       channel: stable
@@ -503,7 +503,7 @@ jobs:
     name: Run Homebrew standard first-run VM smoke
     needs:
       - stable-homebrew-tap-update
-    if: ${{ inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
@@ -925,8 +925,9 @@ jobs:
   release-readiness-admission:
     name: Admit release readiness aggregation
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) && (needs.stable-homebrew-tap-update.result == 'success' || needs.stable-homebrew-tap-update.result == 'skipped') && (needs.full-homebrew-tap-update.result == 'success' || needs.full-homebrew-tap-update.result == 'skipped') && (needs.homebrew-standard-first-run-vm-smoke.result == 'success' || needs.homebrew-standard-first-run-vm-smoke.result == 'skipped') && needs.one-shot-app-installer-smoke.result == 'success' && needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' && needs.operator-evidence-bundle-validation.result == 'success' }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) && (needs.release-preflight.outputs.homebrew_tap_update_required != 'true' || (needs.stable-homebrew-tap-update.result == 'success' && (!inputs.include_full_package || needs.full-homebrew-tap-update.result == 'success') && needs.homebrew-standard-first-run-vm-smoke.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' && needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' && needs.operator-evidence-bundle-validation.result == 'success' }}
     needs:
+      - release-preflight
       - remote-verify-standard
       - remote-verify-full
       - standard-first-run-vm-smoke-after-standard-only
@@ -948,7 +949,9 @@ jobs:
           node <<'NODE'
           const includeFullPackage = '${{ inputs.include_full_package }}' === 'true';
           const runVmSmoke = '${{ inputs.run_vm_smoke }}' === 'true';
+          const homebrewTapUpdateRequired = '${{ needs.release-preflight.outputs.homebrew_tap_update_required }}' === 'true';
           const results = {
+            'release-preflight': '${{ needs.release-preflight.result }}',
             'remote-verify-standard': '${{ needs.remote-verify-standard.result }}',
             'remote-verify-full': '${{ needs.remote-verify-full.result }}',
             'standard-first-run-vm-smoke-after-standard-only': '${{ needs.standard-first-run-vm-smoke-after-standard-only.result }}',
@@ -979,19 +982,30 @@ jobs:
           if (!runVmSmoke) {
             failures.push('run_vm_smoke=false prevents release readiness aggregation for stable clean evidence closeout');
           }
+          requireSuccess('release-preflight');
 
           if (includeFullPackage) {
             requireSuccess('standard-vm-smoke-gate-after-full');
             requireSuccess('remote-verify-full');
             requireSuccess('full-first-run-vm-smoke');
-            requireSuccessOrSkipped('full-homebrew-tap-update');
           } else {
             requireSuccess('remote-verify-standard');
             requireSuccess('standard-first-run-vm-smoke-after-standard-only');
           }
 
-          requireSuccessOrSkipped('stable-homebrew-tap-update');
-          requireSuccessOrSkipped('homebrew-standard-first-run-vm-smoke');
+          if (homebrewTapUpdateRequired) {
+            requireSuccess('stable-homebrew-tap-update');
+            if (includeFullPackage) {
+              requireSuccess('full-homebrew-tap-update');
+            } else {
+              requireSuccessOrSkipped('full-homebrew-tap-update');
+            }
+            requireSuccess('homebrew-standard-first-run-vm-smoke');
+          } else {
+            requireSuccessOrSkipped('stable-homebrew-tap-update');
+            requireSuccessOrSkipped('full-homebrew-tap-update');
+            requireSuccessOrSkipped('homebrew-standard-first-run-vm-smoke');
+          }
           requireSuccess('one-shot-app-installer-smoke');
           requireSuccess('docker-webui-smoke');
           requireSuccess('webui-ghcr-publish');

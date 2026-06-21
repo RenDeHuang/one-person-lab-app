@@ -189,8 +189,65 @@ jobs:
       package_profile: ${{ steps.diagnostic_inputs.outputs.profile }}
       shell_ref: ${{ steps.diagnostic_inputs.outputs.shell_ref }}
       diagnostic_scope: ${{ steps.diagnostic_inputs.outputs.diagnostic_scope }}
+      skip_vm: ${{ steps.scheduled_release_guard.outputs.skip_vm || 'false' }}
+      skip_reason: ${{ steps.scheduled_release_guard.outputs.skip_reason || '' }}
 
     steps:
+      - name: Skip scheduled VM while desktop release is active
+        id: scheduled_release_guard
+        if: ${{ github.event_name == 'schedule' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          count_runs() {
+            local status="$1"
+            gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow "OPL Desktop Release" \
+              --status "$status" \
+              --limit 20 \
+              --json databaseId,status \
+            | node -e "const fs=require('node:fs'); const runs=JSON.parse(fs.readFileSync(0,'utf8')); const current=Number(process.env.CURRENT_RUN_ID || 0); process.stdout.write(String(runs.filter((run)=>Number(run.databaseId)!==current).length));"
+          }
+          active_release_runs=""
+          queued_release_runs=""
+          guard_status="ok"
+          active_release_runs="$(count_runs in_progress)" || guard_status="failed"
+          if [ "$guard_status" = "ok" ]; then
+            queued_release_runs="$(count_runs queued)" || guard_status="failed"
+          fi
+          if [ "$guard_status" != "ok" ]; then
+            echo "skip_vm=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=desktop_release_guard_unavailable" >> "$GITHUB_OUTPUT"
+            {
+              echo "## OPL GUI first-run VM"
+              echo
+              echo "- Status: skipped"
+              echo "- Reason: desktop release workflow activity could not be checked."
+              echo "- Policy: scheduled maintenance must not occupy the self-hosted first-run VM runner when release activity is unknown."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "$active_release_runs" != "0" ] || [ "$queued_release_runs" != "0" ]; then
+            echo "skip_vm=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=desktop_release_active_or_queued" >> "$GITHUB_OUTPUT"
+            {
+              echo "## OPL GUI first-run VM"
+              echo
+              echo "- Status: skipped"
+              echo "- Reason: desktop release workflow is active or queued."
+              echo "- Active release runs: $active_release_runs"
+              echo "- Queued release runs: $queued_release_runs"
+              echo "- Policy: scheduled maintenance must not occupy the self-hosted first-run VM runner during stable release closeout."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "skip_vm=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Normalize diagnostic inputs
         id: diagnostic_inputs
         shell: bash
@@ -198,7 +255,11 @@ jobs:
           set -euo pipefail
           profile="${{ inputs.package_profile }}"
           if [ -z "$profile" ]; then
-            profile="full"
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              profile="standard"
+            else
+              profile="full"
+            fi
           fi
           case "$profile" in
             full | standard | homebrew-standard)
@@ -214,7 +275,11 @@ jobs:
           fi
           diagnostic_scope="${{ inputs.diagnostic_scope }}"
           if [ -z "$diagnostic_scope" ]; then
-            diagnostic_scope="release_gate"
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              diagnostic_scope="bootstrap_only"
+            else
+              diagnostic_scope="release_gate"
+            fi
           fi
           case "$diagnostic_scope" in
             release_gate | bootstrap_only)
@@ -258,6 +323,7 @@ jobs:
   clean-vm-first-run:
     name: Clean VM first launch
     needs: validate-vm-inputs
+    if: ${{ needs.validate-vm-inputs.outputs.skip_vm != 'true' }}
     runs-on: ${{ fromJson(vars.OPL_FIRST_RUN_RUNNER_LABELS || '["self-hosted","macOS","opl-gui-vm"]') }}
     timeout-minutes: 90
     env:
@@ -1379,9 +1445,6 @@ jobs:
             --runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"
             --guest-node-root "${{ steps.host_node.outputs.node_root }}"
           )
-          if [ "${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}" = "bootstrap_only" ]; then
-            CMD+=(--bootstrap-launch-diagnostics)
-          fi
           if [ "${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}" != "bootstrap_only" ]; then
             CMD+=(--codex-package-tarball "${{ steps.codex_package_preflight.outputs.tarball_path }}")
             CMD+=(--codex-platform-package-tarball "${{ steps.codex_package_preflight.outputs.platform_tarball_path }}")

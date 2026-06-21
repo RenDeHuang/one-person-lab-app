@@ -86,6 +86,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   const reusableWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
   assert.match(reusableWorkflow, /macos-signing-preflight:/);
   assert.match(reusableWorkflow, /name: macOS release signing preflight/);
+  assert.match(reusableWorkflow, /name:\s+Record local authorization mode[\s\S]*if:\s+\$\{\{ !inputs\.require_macos_gatekeeper \}\}/);
+  assert.match(reusableWorkflow, /name:\s+Verify Apple signing and notarization secrets[\s\S]*if:\s+\$\{\{ inputs\.require_macos_gatekeeper \}\}/);
   assert.match(reusableWorkflow, /Missing GitHub Actions secrets: \$\{missing_csv\}/);
   assert.match(reusableWorkflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/);
   assert.match(reusableWorkflow, /build:[\s\S]*needs:[\s\S]*macos-signing-preflight/);
@@ -155,11 +157,14 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     workflow,
     /full-homebrew-tap-update:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*remote-verify-full[\s\S]*full-first-run-vm-smoke/,
   );
+  const fullHomebrewTapJob = workflow.match(/\n  full-homebrew-tap-update:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assert.match(jobLevelIf(fullHomebrewTapJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.include_full_package/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs\.full-first-run-vm-smoke\.result == 'success'/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*package_kind: app_full_first_install/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs\.stable-homebrew-tap-update\.result == 'success'/);
   const homebrewStandardVmJob = workflow.match(/\n  homebrew-standard-first-run-vm-smoke:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assert.match(jobLevelIf(homebrewStandardVmJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(homebrewStandardVmJob, /full-homebrew-tap-update/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
@@ -188,6 +193,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
+  assert.match(readinessAdmissionJob, /release-preflight/);
+  assert.match(jobLevelIf(readinessAdmissionJob), /needs\.release-preflight\.result == 'success'/);
+  assert.match(jobLevelIf(readinessAdmissionJob), /needs\.release-preflight\.outputs\.homebrew_tap_update_required != 'true'/);
+  assert.match(readinessAdmissionJob, /const homebrewTapUpdateRequired = '\$\{\{ needs\.release-preflight\.outputs\.homebrew_tap_update_required \}\}' === 'true'/);
+  assert.match(readinessAdmissionJob, /if \(homebrewTapUpdateRequired\) \{[\s\S]*requireSuccess\('stable-homebrew-tap-update'\)[\s\S]*requireSuccess\('full-homebrew-tap-update'\)[\s\S]*requireSuccess\('homebrew-standard-first-run-vm-smoke'\)/);
+  assert.match(readinessAdmissionJob, /else \{[\s\S]*requireSuccessOrSkipped\('stable-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkipped\('full-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkipped\('homebrew-standard-first-run-vm-smoke'\)/);
   assert.doesNotMatch(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*!cancelled\(\) && needs\.release-readiness-admission\.result == 'success'/);
   assert.doesNotMatch(readinessJob, /name: Write release candidate record[\s\S]{0,80}if:\s*\$\{\{\s*always\(\)/);
@@ -277,8 +288,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /format\('opl-gui-first-run-vm-\{0\}-\{1\}'/);
   assert.match(vmWorkflow, /github\.run_id/);
   assert.match(vmWorkflow, /inputs\.package_profile \|\| 'full'/);
+  assert.match(vmWorkflow, /Skip scheduled VM while desktop release is active/);
+  assert.match(vmWorkflow, /--workflow "OPL Desktop Release"/);
+  assert.match(vmWorkflow, /--status "\$status"/);
+  assert.match(vmWorkflow, /active_release_runs="\$\(count_runs in_progress\)"/);
+  assert.match(vmWorkflow, /queued_release_runs="\$\(count_runs queued\)"/);
+  assert.match(vmWorkflow, /skip_reason=desktop_release_active_or_queued/);
+  assert.match(vmWorkflow, /skip_reason=desktop_release_guard_unavailable/);
+  assert.match(vmWorkflow, /scheduled maintenance must not occupy the self-hosted first-run VM runner/);
+  assert.match(vmWorkflow, /if \[ "\$\{\{ github\.event_name \}\}" = "schedule" \]; then\s+profile="standard"/);
+  assert.match(vmWorkflow, /if \[ "\$\{\{ github\.event_name \}\}" = "schedule" \]; then\s+diagnostic_scope="bootstrap_only"/);
   assert.doesNotMatch(vmWorkflow, /opl-gui-first-run-vm-manual/);
   assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
+  assert.match(vmWorkflow, /clean-vm-first-run:[\s\S]*if: \$\{\{ needs\.validate-vm-inputs\.outputs\.skip_vm != 'true' \}\}/);
   assert.match(vmWorkflow, /Resolve Tart source VM/);
   assert.match(vmWorkflow, /package_profile:/);
   assert.match(vmWorkflow, /homebrew-standard/);
@@ -325,6 +347,26 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmSmokeScript, /gatekeeper_required: false/);
   assert.match(vmSmokeScript, /quarantine_removal_required: true/);
   assert.equal(
+    releaseContract.release_acceleration.github_actions.first_run_vm_concurrency.scheduled_default_package_profile,
+    'standard',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.first_run_vm_concurrency.scheduled_default_diagnostic_scope,
+    'bootstrap_only',
+  );
+  assert.deepEqual(
+    releaseContract.release_acceleration.github_actions.first_run_vm_concurrency
+      .scheduled_desktop_release_activity_guard,
+    {
+      workflow: 'OPL Desktop Release',
+      checked_statuses: ['in_progress', 'queued'],
+      skip_reason: 'desktop_release_active_or_queued',
+      guard_unavailable_skip_reason: 'desktop_release_guard_unavailable',
+      runner_boundary: 'github_hosted_preflight_before_self_hosted_vm',
+      rule: 'Scheduled maintenance must not occupy the self-hosted first-run VM runner while a desktop release is active, queued, or cannot be checked.',
+    },
+  );
+  assert.equal(
     releaseContract.standard_updater.same_tag_refresh.mode,
     'github_actions_prebuilt_assets_upload_clobber',
   );
@@ -340,6 +382,18 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     group: 'opl-desktop-release-<draft|stable>-<version>',
     cancel_in_progress: true,
     rule: 'A newer run for the same version and release lane cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts.',
+  });
+  assert.deepEqual(releaseContract.release_acceleration.github_actions.release_readiness_admission, {
+    workflow_job: 'release-readiness-admission',
+    preflight_dependency: 'release-preflight',
+    homebrew_tap_update_required_source: 'release-preflight.outputs.homebrew_tap_update_required',
+    homebrew_required_when_true: [
+      'stable-homebrew-tap-update',
+      'homebrew-standard-first-run-vm-smoke',
+      'full-homebrew-tap-update_for_full_release',
+    ],
+    homebrew_allowed_when_false: 'success_or_skipped',
+    rule: 'Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required.',
   });
   assert.deepEqual(releaseContract.release_acceleration.github_actions.diagnostics_workflow_policy, {
     workflow: '.github/workflows/desktop-release-diagnostics.yml',
@@ -376,12 +430,49 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           'App install',
           'Gatekeeper/local authorization diagnostics',
           'App launch',
-          'CDP/accessibility/native modal/bootstrap fatal artifact collection',
+          'wrapper preflight diagnostics',
+          'wrapper smoke command and log artifacts',
+          'Tart smoke summary artifact',
+        ],
+        wrapper_diagnostic_artifacts: [
+          'app-wrapper-diagnostics.json',
+          'app-wrapper-preflight.log',
+          'app-wrapper-smoke-command-preview.txt',
+          'app-wrapper-smoke.stdout.log',
+          'app-wrapper-smoke.stderr.log',
+          'tart-smoke-summary.json',
         ],
         authority_boundary: 'diagnostic_only_not_release_ready_owner_receipt_or_runtime_truth',
       },
       release_gate: {
         purpose: 'full deterministic VM release gate used by stable release workflows',
+        keeps: [
+          'same-run or supplied DMG resolution',
+          'packaged main bootstrap marker verification',
+          'App install',
+          'Gatekeeper/local authorization diagnostics',
+          'App launch',
+          'wrapper preflight diagnostics',
+          'wrapper smoke command and log artifacts',
+          'Tart smoke summary artifact',
+          'Codex install asset cache restore',
+          'Codex install asset prefetch',
+          'Codex install asset cache save',
+          'Settings page sweep',
+          'assistant route smoke',
+          'Codex functional check',
+          'Codex AI self-check',
+        ],
+        wrapper_diagnostic_artifacts: [
+          'app-wrapper-diagnostics.json',
+          'app-wrapper-preflight.log',
+          'app-wrapper-smoke-command-preview.txt',
+          'app-wrapper-smoke.stdout.log',
+          'app-wrapper-smoke.stderr.log',
+          'tart-smoke-summary.json',
+        ],
+        wrapper_diagnostic_policy:
+          'host_wrapper_preflight_and_smoke_logs_are_supporting_evidence; full release gate failure still comes from the deterministic VM readiness/settings/route/codex checks',
         authority_boundary: 'release_gate_evidence_only_when_same_cohort_workflow_requires_it',
       },
     },
