@@ -116,6 +116,14 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /remote-verify-standard:/);
   assert.match(workflow, /remote-verify-full:/);
   assert.match(workflowJobBlock(workflow, 'remote-verify-standard'), /runs-on: macos-latest/);
+  assert.match(
+    workflowJobBlock(workflow, 'remote-verify-standard'),
+    /needs:[\s\S]*standard-first-run-vm-smoke-after-standard-only/,
+  );
+  assert.match(
+    workflowJobBlock(workflow, 'remote-verify-standard'),
+    /needs\.standard-first-run-vm-smoke-after-standard-only\.result == 'success'/,
+  );
   assert.match(workflowJobBlock(workflow, 'remote-verify-full'), /runs-on: macos-latest/);
   assert.match(workflow, /npm run verify-remote-release/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
@@ -227,6 +235,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   );
   assert.match(vmWorkflow, /workflow_call:/);
   assert.match(vmWorkflow, /shell_ref:[\s\S]*description: 'opl-aion-shell ref containing the first-run smoke scripts/);
+  assert.match(vmWorkflow, /diagnostic_scope:[\s\S]*default: release_gate/);
   assert.match(vmWorkflow, /validate-vm-inputs:[\s\S]*runs-on: ubuntu-latest/);
   assert.match(vmWorkflow, /Validate active shell ref before VM runner work/);
   assert.match(vmWorkflow, /opl-aion-shell ref '\$shell_ref' does not exist; fix shell_ref before occupying the first-run VM harness/);
@@ -283,6 +292,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /--display 1920x1080px/);
   assert.match(vmWorkflow, /--settings-smoke/);
   assert.match(vmWorkflow, /--assistant-route-smoke/);
+  assert.match(vmWorkflow, /diagnostic_scope != 'bootstrap_only'/);
+  assert.match(vmWorkflow, /release_inputs:[\s\S]*diagnostic_scope: diagnosticScope/);
   assert.match(vmWorkflow, /Write first-run VM preflight summary/);
   assert.match(vmWorkflow, /deterministic release-blocking clean VM first launch/);
   assert.match(vmWorkflow, /--runtime-profile "\$\{\{ steps\.package_profile\.outputs\.runtime_profile \}\}"/);
@@ -330,11 +341,40 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'release_dmg_url',
       'release_artifact_name',
       'release_artifact_run_id',
+      'diagnostic_scope',
       'build_standard_artifact',
       'small release artifacts',
       'GitHub Actions run timing',
       'first-run VM harness diagnostics',
     ],
+    default_diagnostic_scope: 'bootstrap_only',
+    diagnostic_scopes: {
+      bootstrap_only: {
+        purpose: 'fast App launch and bootstrap blocker capture before rerunning a full release train',
+        skips: [
+          'Codex install asset cache restore',
+          'Codex install asset prefetch',
+          'Codex install asset cache save',
+          'Settings page sweep',
+          'assistant route smoke',
+          'Codex functional check',
+          'Codex AI self-check',
+        ],
+        keeps: [
+          'same-run or supplied DMG resolution',
+          'packaged main bootstrap marker verification',
+          'App install',
+          'Gatekeeper/local authorization diagnostics',
+          'App launch',
+          'CDP/accessibility/native modal/bootstrap fatal artifact collection',
+        ],
+        authority_boundary: 'diagnostic_only_not_release_ready_owner_receipt_or_runtime_truth',
+      },
+      release_gate: {
+        purpose: 'full deterministic VM release gate used by stable release workflows',
+        authority_boundary: 'release_gate_evidence_only_when_same_cohort_workflow_requires_it',
+      },
+    },
     writes: [
       'temporary standard DMG diagnostic artifact only',
       'release-diagnostics artifact only',
@@ -431,8 +471,13 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.equal(releaseContract.release_acceleration.vm_gate.artifact, 'One-Person-Lab-Full-<version>-mac-arm64.dmg');
   assert.equal(releaseContract.release_acceleration.vm_gate.smoke_profile, 'no-clt-clean-vm');
   assert.equal(releaseContract.release_acceleration.vm_gate.display, '1920x1080px');
+  assert.equal(releaseContract.release_acceleration.vm_gate.diagnostic_scope, 'release_gate');
   assert.equal(releaseContract.release_acceleration.vm_gate.runtime_profile, 'full');
+  for (const gate of releaseContract.release_acceleration.vm_gates) {
+    assert.equal(gate.diagnostic_scope, 'release_gate');
+  }
   assert.ok(releaseContract.release_acceleration.vm_gate.preflight_summary_fields.includes('runner_labels'));
+  assert.ok(releaseContract.release_acceleration.vm_gate.preflight_summary_fields.includes('diagnostic_scope'));
   assert.ok(releaseContract.release_acceleration.vm_gate.preflight_summary_fields.includes('dmg_artifact_path'));
   assert.equal(releaseContract.release_acceleration.ai_exploratory_policy.codex_app, 'non_blocking_exploratory_only');
   assert.equal(

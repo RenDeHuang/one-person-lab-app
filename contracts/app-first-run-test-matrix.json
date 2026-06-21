@@ -135,6 +135,7 @@
         "display": "1920x1080px",
         "smoke_profile": "no-clt-clean-vm",
         "settings_smoke": true,
+        "diagnostic_scope": "release_gate",
         "runtime_profile": "full"
       },
       "diagnostics_contract": {
@@ -161,6 +162,7 @@
             "host.npm_registry",
             "host.codex_package_metadata",
             "host.codex_package_preflight",
+            "release_inputs.diagnostic_scope",
             "artifact_paths.codex_package_preflight",
             "artifact_paths.codex_package_registry_response",
             "artifact_paths.codex_package_tarball",
@@ -268,6 +270,7 @@
         "display": "1920x1080px",
         "smoke_profile": "no-clt-clean-vm",
         "settings_smoke": true,
+        "diagnostic_scope": "release_gate",
         "runtime_profile": "standard"
       },
       "diagnostics_contract": {
@@ -294,6 +297,7 @@
             "host.npm_registry",
             "host.codex_package_metadata",
             "host.codex_package_preflight",
+            "release_inputs.diagnostic_scope",
             "artifact_paths.codex_package_preflight",
             "artifact_paths.codex_package_registry_response",
             "artifact_paths.codex_package_tarball",
@@ -414,6 +418,7 @@
         "homebrew_trust_scope": "explicit_standard_and_conflicting_cask_refs_not_whole_tap",
         "source_vm_variable": "OPL_FIRST_RUN_HOMEBREW_TART_SOURCE",
         "settings_smoke": true,
+        "diagnostic_scope": "release_gate",
         "runtime_profile": "standard"
       },
       "diagnostics_contract": {
@@ -440,6 +445,7 @@
             "host.npm_registry",
             "host.codex_package_metadata",
             "host.codex_package_preflight",
+            "release_inputs.diagnostic_scope",
             "artifact_paths.codex_package_preflight",
             "artifact_paths.codex_package_registry_response",
             "artifact_paths.codex_package_tarball",
@@ -547,6 +553,7 @@
         "display": "1920x1080px",
         "smoke_profile": "no-clt-clean-vm",
         "settings_smoke": true,
+        "diagnostic_scope": "release_gate",
         "runtime_profile": "full"
       },
       "diagnostics_contract": {
@@ -573,6 +580,7 @@
             "host.npm_registry",
             "host.codex_package_metadata",
             "host.codex_package_preflight",
+            "release_inputs.diagnostic_scope",
             "artifact_paths.codex_package_preflight",
             "artifact_paths.codex_package_registry_response",
             "artifact_paths.codex_package_tarball",

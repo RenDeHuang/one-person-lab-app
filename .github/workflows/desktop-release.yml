@@ -350,8 +350,10 @@ jobs:
 
   remote-verify-standard:
     name: Verify remote standard release assets
-    needs: publish-standard
-    if: ${{ !inputs.include_full_package }}
+    needs:
+      - publish-standard
+      - standard-first-run-vm-smoke-after-standard-only
+    if: ${{ !cancelled() && !inputs.include_full_package && (!inputs.run_vm_smoke || needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') }}
     runs-on: macos-latest
 
     steps:
@@ -452,7 +454,7 @@ jobs:
 
   standard-first-run-vm-smoke-after-standard-only:
     name: Run clean standard first-run VM smoke
-    needs: remote-verify-standard
+    needs: publish-standard
     if: ${{ !inputs.include_full_package && inputs.run_vm_smoke }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:

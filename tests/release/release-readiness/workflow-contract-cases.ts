@@ -327,6 +327,7 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       'host.npm_registry',
       'host.codex_package_metadata',
       'host.codex_package_preflight',
+      'release_inputs.diagnostic_scope',
       'artifact_paths.codex_package_preflight',
       'artifact_paths.codex_package_registry_response',
       'artifact_paths.codex_package_tarball',
