@@ -109,23 +109,33 @@ test('desktop release workflow fails fast before expensive builds and cancels st
   );
 });
 
-test('desktop release diagnostics workflow is harness-only and read-only', () => {
+test('desktop release diagnostics workflow is diagnostic-only and read-only', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-diagnostics.yml'), 'utf8');
 
   assert.match(workflow, /name: OPL Desktop Release Diagnostics/);
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /release_run_id:/);
   assert.match(workflow, /run_vm_diagnostic:/);
+  assert.match(workflow, /build_standard_artifact:/);
   assert.match(workflow, /release_dmg_url:/);
   assert.match(workflow, /release_artifact_name:/);
   assert.match(workflow, /release_artifact_run_id:/);
   assert.match(workflow, /package_profile:/);
   assert.match(workflow, /permissions:[\s\S]*actions: read[\s\S]*contents: read/);
+  assert.match(workflow, /diagnostic-inputs:/);
+  assert.match(workflow, /Validate diagnostic workflow inputs/);
+  assert.match(workflow, /build_standard_artifact only supports package_profile=standard/);
+  assert.match(workflow, /build_standard_artifact must not be combined with release_dmg_url, release_artifact_name, or release_artifact_run_id/);
   assert.match(workflow, /npm run release:closeout --/);
   assert.match(workflow, /--artifact-profile diagnostics/);
   assert.match(workflow, /npm run release:actions-timing --/);
+  assert.match(workflow, /standard-dmg-diagnostic-artifact:/);
+  assert.match(workflow, /Build temporary standard DMG diagnostic artifact/);
+  assert.match(workflow, /upload_installers_only:\s+true/);
+  assert.match(workflow, /skip_code_quality:\s+true/);
   assert.match(workflow, /uses:\s+\.\/\.github\/workflows\/opl-first-run-vm\.yml/);
-  assert.match(workflow, /release_artifact_run_id:\s+\$\{\{ inputs\.release_artifact_run_id != '' && inputs\.release_artifact_run_id \|\| inputs\.release_run_id \}\}/);
+  assert.match(workflow, /release_artifact_name:\s+\$\{\{ inputs\.build_standard_artifact && 'macos-build-arm64-dmg' \|\| inputs\.release_artifact_name \}\}/);
+  assert.match(workflow, /release_artifact_run_id:\s+\$\{\{ inputs\.build_standard_artifact && github\.run_id \|\| \(inputs\.release_artifact_run_id != '' && inputs\.release_artifact_run_id \|\| inputs\.release_run_id\) \}\}/);
   assert.match(workflow, /release-diagnostics-\$\{\{ inputs\.opl_version \}\}/);
   assert.doesNotMatch(workflow, /contents:\s+write/);
   assert.doesNotMatch(workflow, /packages:\s+write/);

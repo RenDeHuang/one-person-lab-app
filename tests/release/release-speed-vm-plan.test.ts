@@ -188,8 +188,11 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(diagnosticWorkflow, /npm run release:closeout --[\s\S]*--artifact-profile diagnostics/, 'diagnostic workflow closeout harness');
   assertMatches(diagnosticWorkflow, /npm run release:actions-timing --/, 'diagnostic workflow timing harness');
   assertMatches(diagnosticWorkflow, /run_vm_diagnostic:/, 'diagnostic workflow VM harness toggle');
+  assertMatches(diagnosticWorkflow, /build_standard_artifact:/, 'diagnostic workflow temporary standard artifact toggle');
+  assertMatches(diagnosticWorkflow, /standard-dmg-diagnostic-artifact:[\s\S]*?upload_installers_only:\s+true/, 'diagnostic workflow can build a temporary standard DMG only');
   assertMatches(diagnosticWorkflow, /uses:\s+\.\/\.github\/workflows\/opl-first-run-vm\.yml/, 'diagnostic workflow reuses the VM harness');
-  assertMatches(diagnosticWorkflow, /release_artifact_run_id:\s+\$\{\{ inputs\.release_artifact_run_id != '' && inputs\.release_artifact_run_id \|\| inputs\.release_run_id \}\}/, 'diagnostic workflow can diagnose artifacts from an existing run');
+  assertMatches(diagnosticWorkflow, /release_artifact_name:\s+\$\{\{ inputs\.build_standard_artifact && 'macos-build-arm64-dmg' \|\| inputs\.release_artifact_name \}\}/, 'diagnostic workflow can diagnose the same-run temporary standard DMG');
+  assertMatches(diagnosticWorkflow, /release_artifact_run_id:\s+\$\{\{ inputs\.build_standard_artifact && github\.run_id \|\| \(inputs\.release_artifact_run_id != '' && inputs\.release_artifact_run_id \|\| inputs\.release_run_id\) \}\}/, 'diagnostic workflow can diagnose artifacts from an existing run or same-run temporary build');
   assert.doesNotMatch(diagnosticWorkflow, /full-first-install-release|npm run release:publish/, 'diagnostic workflow must not rebuild or publish release assets');
   assertMatches(diagnosticWorkflow, /release-diagnostics-\$\{\{ inputs\.opl_version \}\}/, 'diagnostic workflow artifact');
 });
