@@ -279,6 +279,8 @@ test('_build-reusable splits quality work into parallel App and active-shell job
     assertIncludes(buildNeeds, dependency, `build job needs`);
   }
   assertMatches(workflow, /macos-signing-preflight:[\s\S]*name:\s+macOS release signing preflight/, 'macOS signing preflight job');
+  assertMatches(workflow, /name:\s+Record local authorization mode[\s\S]*if:\s+\$\{\{ !inputs\.require_macos_gatekeeper \}\}/, 'macOS signing preflight succeeds for local authorization callers');
+  assertMatches(workflow, /name:\s+Verify Apple signing and notarization secrets[\s\S]*if:\s+\$\{\{ inputs\.require_macos_gatekeeper \}\}/, 'macOS signing preflight only verifies secrets when Gatekeeper is required');
   assertMatches(workflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/, 'macOS signing preflight required secrets');
   assertMatches(workflow, /macOS release signing preflight failed/, 'macOS signing preflight failure message');
 });

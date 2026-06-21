@@ -86,6 +86,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   const reusableWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
   assert.match(reusableWorkflow, /macos-signing-preflight:/);
   assert.match(reusableWorkflow, /name: macOS release signing preflight/);
+  assert.match(reusableWorkflow, /name:\s+Record local authorization mode[\s\S]*if:\s+\$\{\{ !inputs\.require_macos_gatekeeper \}\}/);
+  assert.match(reusableWorkflow, /name:\s+Verify Apple signing and notarization secrets[\s\S]*if:\s+\$\{\{ inputs\.require_macos_gatekeeper \}\}/);
   assert.match(reusableWorkflow, /Missing GitHub Actions secrets: \$\{missing_csv\}/);
   assert.match(reusableWorkflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/);
   assert.match(reusableWorkflow, /build:[\s\S]*needs:[\s\S]*macos-signing-preflight/);

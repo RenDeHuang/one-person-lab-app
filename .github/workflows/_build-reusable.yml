@@ -172,10 +172,17 @@ jobs:
   macos-signing-preflight:
     name: macOS release signing preflight
     runs-on: ubuntu-latest
-    if: ${{ inputs.require_macos_gatekeeper }}
 
     steps:
+      - name: Record local authorization mode
+        if: ${{ !inputs.require_macos_gatekeeper }}
+        shell: bash
+        run: |
+          echo "Gatekeeper-required signing is disabled for this caller."
+          echo "This preflight job succeeds intentionally so reusable workflow callers can continue when the build job produces the local authorization evidence."
+
       - name: Verify Apple signing and notarization secrets
+        if: ${{ inputs.require_macos_gatekeeper }}
         shell: bash
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
