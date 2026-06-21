@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { buildFullPackageManifest } from '../full-first-install-package.ts';
+import { FULL_RUNTIME_CACHE_LAYER_TAXONOMY } from '../full-first-install-package.ts';
 import { directorySizeBytes } from './filesystem.ts';
 import { readGitHead, readGitOriginUrl } from './git.ts';
 import { packageJsonVersion } from './hashing.ts';
@@ -117,6 +118,7 @@ function collectFullRuntimeSizeBreakdown(runtimeRoot) {
   return {
     measurement_policy: 'uncompressed_file_bytes_after_full_runtime_pruning',
     total_runtime_uncompressed_bytes: directorySizeBytes(runtimeRoot),
+    opl_layer_taxonomy: FULL_RUNTIME_CACHE_LAYER_TAXONOMY,
     layers: {
       toolchain: {
         relative_paths: ['bin', 'node', 'python', 'uv', 'vendor'],

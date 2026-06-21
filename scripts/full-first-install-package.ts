@@ -12,6 +12,44 @@ export const FULL_RUNTIME_RESOURCE_DIR = 'opl-full-runtime';
 export const PACKAGED_MODULE_MARKER_FILE = 'opl-runtime-module.json';
 const FULL_RUNTIME_CACHE_LAYOUT_VERSION = 1;
 export const FULL_RUNTIME_CACHE_LAYER_IDS = ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'] as const;
+export const OPL_RUNTIME_BUNDLE_LAYER_IDS = [
+  'base-toolchain',
+  'python-wheelhouse',
+  'opl-framework-runtime',
+  'domain-pack',
+  'companion-skills',
+  'optional-heavy-tools',
+] as const;
+export const FULL_RUNTIME_CACHE_LAYER_TAXONOMY = {
+  canonical_layer_ids: OPL_RUNTIME_BUNDLE_LAYER_IDS,
+  legacy_assembly_layer_mapping: {
+    toolchain: ['base-toolchain', 'python-wheelhouse', 'optional-heavy-tools'],
+    'domain-runtime': ['domain-pack'],
+    'opl-runtime': ['opl-framework-runtime'],
+    skills: ['companion-skills'],
+  },
+} as const;
+export const OPL_RUNTIME_BUNDLE_CONSUMER_CONTRACT = {
+  schema: 'opl_runtime_bundle_manifest_consumer.v1',
+  app_repo_role: 'consumer_only',
+  truth_owner: 'gaofeng21cn/one-person-lab',
+  dependency_truth_owner: false,
+  consumed_refs: {
+    bundle_manifest: 'OPL runtime bundle manifest',
+    bundle_lock: 'OPL runtime bundle lock',
+    bundle_readback: 'OPL runtime env contract/readback',
+    env_contract: 'OPL runtime env contract',
+  },
+  false_ready_flags: {
+    cache_hit_is_release_ready: false,
+    manifest_present_is_release_ready: false,
+    lock_present_is_release_ready: false,
+    full_package_built_is_release_ready: false,
+    full_package_built_is_family_production_ready: false,
+    app_can_claim_runtime_dependency_truth: false,
+  },
+  layer_taxonomy: FULL_RUNTIME_CACHE_LAYER_TAXONOMY,
+} as const;
 const FULL_RUNTIME_CACHE_AGGREGATE_KEY_SCHEMA = 'opl_full_runtime_cache_aggregate_key.v1';
 const FULL_PACKAGE_SIZE_BUDGET = {
   platform_scope: 'macos-arm64',
@@ -114,6 +152,7 @@ export function buildFullRuntimeAggregateCacheKeyInput(input: {
     schema: FULL_RUNTIME_CACHE_AGGREGATE_KEY_SCHEMA,
     layout_version: FULL_RUNTIME_CACHE_LAYOUT_VERSION,
     layer_ids: FULL_RUNTIME_CACHE_LAYER_IDS,
+    opl_runtime_bundle_consumer: OPL_RUNTIME_BUNDLE_CONSUMER_CONTRACT,
     layers: input.layers,
   } as const;
 }
@@ -218,8 +257,10 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       executable_count: 0,
       executables: [],
     },
+    opl_runtime_bundle_consumer: OPL_RUNTIME_BUNDLE_CONSUMER_CONTRACT,
     size_breakdown: input.sizeBreakdown ?? {
       total_runtime_uncompressed_bytes: 0,
+      opl_layer_taxonomy: FULL_RUNTIME_CACHE_LAYER_TAXONOMY,
       layers: {
         toolchain: { size_bytes: 0 },
         'domain-runtime': { size_bytes: 0 },
@@ -259,6 +300,12 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       payload_boundary: {
         role: 'declared_payload_assembly_and_validation',
         app_repo_does_not_own: productProfile.boundary.app_does_not_own,
+        consumer_refs: {
+          opl_runtime_bundle: 'opl_runtime_bundle_consumer',
+          bundle_manifest: 'opl_runtime_bundle_consumer.consumed_refs.bundle_manifest',
+          bundle_lock: 'opl_runtime_bundle_consumer.consumed_refs.bundle_lock',
+          bundle_readback: 'opl_runtime_bundle_consumer.consumed_refs.bundle_readback',
+        },
         truth_sources: {
           framework_runtime_contracts: 'gaofeng21cn/one-person-lab',
           foundry_agent_domain_truth: 'gaofeng21cn/opl-meta-agent',

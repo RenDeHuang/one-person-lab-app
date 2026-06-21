@@ -24,7 +24,7 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 | Release channel policy, standard/Full separation, updater metadata, managed update plane, release evidence requirements | `contracts/app-release-channel.json` |
 | Release workflow shape and publish/promote sequencing | `.github/workflows/desktop-release*.yml`, `.github/workflows/homebrew-tap-update.yml`, release scripts |
 | Release evidence classification and boundary validation | `scripts/validate-release-boundary.ts`, `scripts/validate-release.ts`, release-boundary tests |
-| Full payload and size budgets | `contracts/app-release-channel.json#full_first_install.size_budget`, Full manifest `size_budget`, `scripts/verify-remote-release-assets.ts`, `npm run release:full:size`, `scripts/analyze-full-package-size.ts`, and `scripts/release-size-reporting.ts` |
+| Full payload and size budgets | `contracts/app-release-channel.json#full_first_install.size_budget`, `contracts/app-release-channel.json#full_first_install.opl_runtime_bundle_consumer`, Full manifest `opl_runtime_bundle_consumer`, `scripts/verify-remote-release-assets.ts`, `npm run release:full:size`, `scripts/analyze-full-package-size.ts`, and `scripts/release-size-reporting.ts` |
 | App/root shell boundary | `contracts/app-shell-adapter.json`, `scripts/app-root-boundary.ts`, `scripts/validate-active-shell.ts` |
 | Install exposure and managed agent package visibility | `contracts/app-install-exposure-policy.json`, `npm run validate:agent-installation` |
 | Runtime/toolchain managed update execution | OPL Framework `opl update status/check/plan/apply/repair/rollback --json` runner outputs |
@@ -34,8 +34,9 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 
 | Lane | Purpose | Required proof |
 | --- | --- | --- |
-| Standard macOS App | Ordinary desktop App package and standard updater target. | Standard DMG / ZIP assets, `latest*.yml`, remote asset verification, GUI smoke, local authorization policy, release evidence bundle. |
-| Full first-install DMG | Clean-machine package that can reach Core ready without CLT, Homebrew, Node, or Git first. | Full DMG, Full manifest, native runtime trust record, VM smoke when requested, Full local authorization policy, remote size and manifest verification. |
+| Standard macOS App | Ordinary desktop App package and standard updater target. It never carries or updates the OPL runtime bundle. | Standard DMG / ZIP assets, `latest*.yml`, remote asset verification, GUI smoke, local authorization policy, release evidence bundle. |
+| Full first-install DMG | Clean-machine package that can reach Core ready without CLT, Homebrew, Node, or Git first. It consumes the OPL runtime bundle manifest/lock/readback and does not own dependency truth. | Full DMG, Full manifest with `opl_runtime_bundle_consumer`, native runtime trust record, VM smoke when requested, Full local authorization policy, remote size and manifest verification. |
+| Offline runtime kit | Manual diagnostic or recovery artifact for the same Full runtime bundle payload. It is not updater-visible and is not a release-ready claim. | Runtime archive, checksums, Full manifest refs, and the same OPL bundle consumer boundary as the Full DMG. |
 | Stable promotion | Human release-owner promotion from candidate to stable/latest. | Candidate record with `status=ready_to_promote`, release readiness summary, same-cohort evidence, promote workflow output. |
 | Homebrew | Cask transport and index for standard and explicit Full first-install packages. | Published release assets, matching local authorization policy asset, tap update output, Homebrew VM smoke where required. |
 | WebUI/GHCR | App-owned image publication lane when release contract enables it. | OCI source label, package access, publish output, image smoke/evidence artifacts. |
@@ -243,11 +244,24 @@ Gatekeeper rejection is acceptable only when the Stable local authorization poli
 
 ## Full First-Install
 
-Full first-install policy is App-owned. The launch gate is `ready_to_launch` before `/guid`, and Core means workspace root, Codex CLI, and Codex config. A Full first-install package must reach Core ready from bundled runtime on a clean Mac even when Apple Command Line Tools, Homebrew, Node, and Git are absent.
+Full first-install packaging policy is App-owned, but runtime dependency truth is OPL-owned. The App Full package consumes the OPL runtime bundle manifest, lock, env contract, and readback refs through `full-package-manifest.json#opl_runtime_bundle_consumer`; it must not create a second dependency-truth contract.
+
+The launch gate is `ready_to_launch` before `/guid`, and Core means workspace root, Codex CLI, and Codex config. A Full first-install package must reach Core ready from bundled runtime on a clean Mac even when Apple Command Line Tools, Homebrew, Node, and Git are absent.
 
 After Core ready, domain modules, Temporal-backed family runtime provider, recommended skills, native helpers, repo sync, module reconcile, CLT installation, companion skills installation, and ecosystem module updates are Full readiness or background maintenance. They cannot block first launch.
 
 Full assets are GitHub Release first-install downloads and explicit stable `one-person-lab-full` cask inputs. They are not standard updater targets.
+
+The physical App assembly still records legacy layer buckets for cache and size accounting, but those buckets map to the OPL runtime bundle taxonomy:
+
+| Full assembly bucket | OPL runtime bundle layer ids |
+| --- | --- |
+| `toolchain` | `base-toolchain`, `python-wheelhouse`, `optional-heavy-tools` |
+| `opl-runtime` | `opl-framework-runtime` |
+| `domain-runtime` | `domain-pack` |
+| `skills` | `companion-skills` |
+
+Runtime cache hits prove only reusable assembly inputs for those buckets. A cache hit, manifest file, lock file, successful Full build, or offline kit upload cannot by itself claim App release readiness, runtime dependency truth, OPL family production readiness, domain readiness, or owner acceptance.
 
 ## Full Size Policy
 
@@ -262,8 +276,9 @@ Current policy values live in
 semantics, package-profile boundaries, measured records, runtime boundary, and
 optimization priority live in
 `contracts/app-release-channel.json#full_first_install.size_policy`. The Full
-manifest copies only the threshold-sized `size_budget` object. Treat the
-contract and manifest as the source for warning/review/runtime thresholds; this
+manifest copies the threshold-sized `size_budget` object and the
+`opl_runtime_bundle_consumer` boundary. Treat the contract and manifest as the
+source for warning/review/runtime thresholds and OPL bundle consumer refs; this
 guide records the operator path and measurement boundary.
 
 The current target is still a Full DMG under the `750000000`-byte review
@@ -299,6 +314,10 @@ artifact. It includes `full-package-size-summary.json` and
 `full-package-size-summary.md`; consume `full_package.size_analysis` in
 `release-readiness-summary.json` for final gate review without downloading the
 Full DMG. Full workflow telemetry is bottleneck tuning input, not release truth.
+`full_runtime_cache` telemetry is the same kind of tuning input: it can explain
+package build time and reuse, but it cannot make a release-ready or
+runtime-ready claim without the same-cohort release gates and owner-resolution
+surface.
 
 Timing review must keep two clocks separate. Do not compare agent orchestration wall time to GitHub Actions workflow wall time.
 GitHub Actions workflow wall time is the release execution KPI; agent

@@ -259,6 +259,10 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
     manifest_version: manifest.manifest_version ?? null,
     version: manifest.version ?? null,
     package_kind: manifest.package_kind ?? null,
+    opl_runtime_bundle_consumer: manifest.opl_runtime_bundle_consumer ?? null,
+    opl_layer_taxonomy: manifest.size_breakdown?.opl_layer_taxonomy
+      ?? manifest.opl_runtime_bundle_consumer?.layer_taxonomy
+      ?? null,
     budget: {
       status: runtimeUncompressedStatus === 'failed' || compressedFullDmgBudgetStatus === 'failed'
         ? 'failed'
@@ -353,6 +357,9 @@ function renderMarkdown(summary: ReturnType<typeof buildSummary>, top: number) {
     `- Full DMG hard limit: ${formatBytes(summary.hard_full_dmg_bytes)}`,
     `- Full DMG gate status: ${summary.budget.compressed_full_dmg.status}`,
     `- Runtime budget: ${formatBytes(summary.max_runtime_uncompressed_bytes)}${summary.runtime_budget_used_percent === null ? '' : ` (${summary.runtime_budget_used_percent}% used, ${summary.budget.runtime_uncompressed.status})`}`,
+    summary.opl_runtime_bundle_consumer
+      ? `- OPL runtime bundle role: ${summary.opl_runtime_bundle_consumer.app_repo_role}`
+      : null,
     '',
     '### Layers',
     '',
@@ -376,7 +383,22 @@ function renderMarkdown(summary: ReturnType<typeof buildSummary>, top: number) {
         String(component.version ?? component.git_commit ?? ''),
       ]),
     ),
-  ];
+  ].filter((line) => line !== null);
+
+  if (summary.opl_layer_taxonomy) {
+    lines.push(
+      '',
+      '### OPL Runtime Bundle Layer Taxonomy',
+      '',
+      renderTable(
+        ['Assembly layer', 'Canonical OPL layer ids'],
+        Object.entries(summary.opl_layer_taxonomy.legacy_assembly_layer_mapping ?? {}).map(([layerId, canonicalIds]) => [
+          layerId,
+          Array.isArray(canonicalIds) ? canonicalIds.join(', ') : String(canonicalIds),
+        ]),
+      ),
+    );
+  }
 
   if (summary.manifest_size_hotspots.length > 0) {
     lines.push(

@@ -220,6 +220,42 @@ test('Full package size analyzer reports manifest component and layer budgets', 
       manifest_version: 2,
       version: '26.5.27-size',
       package_kind: 'opl_full_first_install_macos_arm64',
+      opl_runtime_bundle_consumer: {
+        schema: 'opl_runtime_bundle_manifest_consumer.v1',
+        app_repo_role: 'consumer_only',
+        truth_owner: 'gaofeng21cn/one-person-lab',
+        dependency_truth_owner: false,
+        consumed_refs: {
+          bundle_manifest: 'OPL runtime bundle manifest',
+          bundle_lock: 'OPL runtime bundle lock',
+          bundle_readback: 'OPL runtime env contract/readback',
+          env_contract: 'OPL runtime env contract',
+        },
+        false_ready_flags: {
+          cache_hit_is_release_ready: false,
+          manifest_present_is_release_ready: false,
+          lock_present_is_release_ready: false,
+          full_package_built_is_release_ready: false,
+          full_package_built_is_family_production_ready: false,
+          app_can_claim_runtime_dependency_truth: false,
+        },
+        layer_taxonomy: {
+          canonical_layer_ids: [
+            'base-toolchain',
+            'python-wheelhouse',
+            'opl-framework-runtime',
+            'domain-pack',
+            'companion-skills',
+            'optional-heavy-tools',
+          ],
+          legacy_assembly_layer_mapping: {
+            toolchain: ['base-toolchain', 'python-wheelhouse', 'optional-heavy-tools'],
+            'domain-runtime': ['domain-pack'],
+            'opl-runtime': ['opl-framework-runtime'],
+            skills: ['companion-skills'],
+          },
+        },
+      },
       size_budget: {
         platform_scope: 'macos-arm64',
         warning_full_dmg_bytes: 700000000,
@@ -227,6 +263,22 @@ test('Full package size analyzer reports manifest component and layer budgets', 
         max_runtime_uncompressed_bytes: 1000,
       },
       size_breakdown: {
+        opl_layer_taxonomy: {
+          canonical_layer_ids: [
+            'base-toolchain',
+            'python-wheelhouse',
+            'opl-framework-runtime',
+            'domain-pack',
+            'companion-skills',
+            'optional-heavy-tools',
+          ],
+          legacy_assembly_layer_mapping: {
+            toolchain: ['base-toolchain', 'python-wheelhouse', 'optional-heavy-tools'],
+            'domain-runtime': ['domain-pack'],
+            'opl-runtime': ['opl-framework-runtime'],
+            skills: ['companion-skills'],
+          },
+        },
         total_runtime_uncompressed_bytes: 500,
         layers: {
           toolchain: {
@@ -275,6 +327,20 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.equal(summary.runtime_budget_used_percent, 50);
   assert.equal(summary.components[0].id, 'mas');
   assert.equal(summary.layers[0].id, 'toolchain');
+  assert.equal(summary.opl_runtime_bundle_consumer.app_repo_role, 'consumer_only');
+  assert.deepEqual(summary.opl_layer_taxonomy.canonical_layer_ids, [
+    'base-toolchain',
+    'python-wheelhouse',
+    'opl-framework-runtime',
+    'domain-pack',
+    'companion-skills',
+    'optional-heavy-tools',
+  ]);
+  assert.deepEqual(summary.opl_layer_taxonomy.legacy_assembly_layer_mapping.toolchain, [
+    'base-toolchain',
+    'python-wheelhouse',
+    'optional-heavy-tools',
+  ]);
   assert.equal(summary.top_contributors.components[0].id, 'mas');
   assert.equal(summary.top_contributors.layers[0].id, 'toolchain');
   assert.equal(summary.optimization_candidates[0].id, 'toolchain');
@@ -304,6 +370,9 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.match(markdownResult.stdout, /### Manifest Size Hotspots/);
   assert.match(markdownResult.stdout, /\| toolchain\/vendor\/temporal \| 150 B \|/);
   assert.match(markdownResult.stdout, /### Optimization Candidates/);
+  assert.match(markdownResult.stdout, /OPL runtime bundle role: consumer_only/);
+  assert.match(markdownResult.stdout, /### OPL Runtime Bundle Layer Taxonomy/);
+  assert.match(markdownResult.stdout, /toolchain \| base-toolchain, python-wheelhouse, optional-heavy-tools/);
 });
 
 test('Full package size analyzer separates review threshold from hard limit', () => {
@@ -492,6 +561,57 @@ test('Full first-install manifest declares App-owned distribution and Framework 
   assert.equal(manifest.components.opl.role, 'framework_cli_and_shared_contracts_payload_source');
 });
 
+test('Full first-install manifest consumes the OPL runtime bundle boundary instead of owning dependency truth', async () => {
+  const mod = await import('../../../scripts/full-first-install-package.ts');
+  const manifest = mod.buildFullPackageManifest({ version: '26.6.21-bundle-consumer' });
+
+  assert.equal(manifest.opl_runtime_bundle_consumer.schema, 'opl_runtime_bundle_manifest_consumer.v1');
+  assert.equal(manifest.opl_runtime_bundle_consumer.app_repo_role, 'consumer_only');
+  assert.equal(manifest.opl_runtime_bundle_consumer.truth_owner, 'gaofeng21cn/one-person-lab');
+  assert.equal(manifest.opl_runtime_bundle_consumer.dependency_truth_owner, false);
+  assert.deepEqual(manifest.opl_runtime_bundle_consumer.consumed_refs, {
+    bundle_manifest: 'OPL runtime bundle manifest',
+    bundle_lock: 'OPL runtime bundle lock',
+    bundle_readback: 'OPL runtime env contract/readback',
+    env_contract: 'OPL runtime env contract',
+  });
+  assert.deepEqual(manifest.opl_runtime_bundle_consumer.false_ready_flags, {
+    cache_hit_is_release_ready: false,
+    manifest_present_is_release_ready: false,
+    lock_present_is_release_ready: false,
+    full_package_built_is_release_ready: false,
+    full_package_built_is_family_production_ready: false,
+    app_can_claim_runtime_dependency_truth: false,
+  });
+  assert.deepEqual(manifest.opl_runtime_bundle_consumer.layer_taxonomy.canonical_layer_ids, [
+    'base-toolchain',
+    'python-wheelhouse',
+    'opl-framework-runtime',
+    'domain-pack',
+    'companion-skills',
+    'optional-heavy-tools',
+  ]);
+  assert.deepEqual(manifest.opl_runtime_bundle_consumer.layer_taxonomy.legacy_assembly_layer_mapping, {
+    toolchain: ['base-toolchain', 'python-wheelhouse', 'optional-heavy-tools'],
+    'domain-runtime': ['domain-pack'],
+    'opl-runtime': ['opl-framework-runtime'],
+    skills: ['companion-skills'],
+  });
+  assert.deepEqual(manifest.size_breakdown.opl_layer_taxonomy, manifest.opl_runtime_bundle_consumer.layer_taxonomy);
+
+  assert.deepEqual(
+    mod.buildFullRuntimeAggregateCacheKeyInput({
+      layers: {
+        toolchain: 'full-runtime-v1-toolchain-a',
+        'domain-runtime': 'full-runtime-v1-domain-runtime-b',
+        'opl-runtime': 'full-runtime-v1-opl-runtime-c',
+        skills: 'full-runtime-v1-skills-d',
+      },
+    }).opl_runtime_bundle_consumer.layer_taxonomy.canonical_layer_ids,
+    manifest.opl_runtime_bundle_consumer.layer_taxonomy.canonical_layer_ids,
+  );
+});
+
 test('Full first-install payload boundary stays assembly-only', async () => {
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
@@ -601,6 +721,16 @@ test('Full first-install payload boundary stays assembly-only', async () => {
     manifest.distribution.payload_boundary.truth_sources.visual_deliverable_domain_truth,
     'gaofeng21cn/redcube-ai',
   );
+  assert.equal(manifest.distribution.payload_boundary.consumer_refs.opl_runtime_bundle, 'opl_runtime_bundle_consumer');
+  assert.equal(manifest.distribution.payload_boundary.consumer_refs.bundle_manifest, 'opl_runtime_bundle_consumer.consumed_refs.bundle_manifest');
+  assert.equal(
+    releaseContract.full_first_install.payload_boundary.consumer_refs.bundle_readback,
+    'OPL runtime env contract/readback',
+  );
+  assert.equal(
+    releaseContract.full_first_install.payload_boundary.false_ready_flags.cache_hit_is_release_ready,
+    false,
+  );
   assert.equal(manifest.components.mineru_open_api.role, 'document_extraction_cli_binary');
   assert.equal(
     manifest.components.skills.role,
@@ -668,7 +798,17 @@ test('Full size policy records review semantics, measured v26.6.21 breakdown, an
     contains_opl_full_runtime: true,
     role: 'clean-machine first-install package with bundled runtime payloads',
   });
+  assert.deepEqual(sizePolicy.package_profile_boundary.offline_kit, {
+    asset_pattern: 'opl-runtime-full-<version>-macos-arm64.tar.zst',
+    runtime_profile: 'offline-kit',
+    updater_visible: false,
+    contains_opl_full_runtime: true,
+    role: 'manual diagnostic/runtime recovery artifact that consumes the same OPL runtime bundle manifest boundary',
+  });
   assert.equal(sizePolicy.runtime_boundary.opl_full_runtime.standard_package_allowed, false);
+  assert.equal(sizePolicy.runtime_boundary.opl_full_runtime.owner, 'gaofeng21cn/one-person-lab');
+  assert.equal(sizePolicy.runtime_boundary.opl_full_runtime.app_role, 'consumer_and_packager');
+  assert.equal(sizePolicy.threshold_semantics.cache_hit_rule, 'A Full runtime cache hit only proves reusable package assembly input; it is never App release readiness, runtime dependency truth, or OPL family production readiness.');
   assert.equal(sizePolicy.runtime_boundary.aionui_bundled_runtime.does_not_replace, 'opl_full_runtime');
   assert.equal(measuredRecord.full_dmg_bytes, 1121919153);
   assert.equal(measuredRecord.standard_dmg_bytes, 440471386);
@@ -815,6 +955,14 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(releaseContract.release_acceleration.tart_base_prebake.truth_boundary, /VM smoke artifact/);
   assert.equal(releaseContract.release_acceleration.full_runtime_cache.enabled_by_default, true);
   assert.deepEqual(releaseContract.release_acceleration.full_runtime_cache.layer_ids, mod.FULL_RUNTIME_CACHE_LAYER_IDS);
+  assert.deepEqual(
+    releaseContract.release_acceleration.full_runtime_cache.opl_runtime_bundle_consumer.layer_taxonomy,
+    mod.FULL_RUNTIME_CACHE_LAYER_TAXONOMY,
+  );
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_cache.cache_hit_claim,
+    'cache_hit_is_package_assembly_reuse_only',
+  );
   assert.deepEqual(releaseContract.release_acceleration.full_runtime_cache.restore_prefixes, {
     toolchain: 'opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-toolchain-',
     'domain-runtime': 'opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-domain-runtime-',
@@ -914,6 +1062,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
       schema: 'opl_full_runtime_cache_aggregate_key.v1',
       layout_version: 1,
       layer_ids: ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'],
+      opl_runtime_bundle_consumer: mod.OPL_RUNTIME_BUNDLE_CONSUMER_CONTRACT,
       layers: {
         toolchain: 'full-runtime-v1-toolchain-a',
         'domain-runtime': 'full-runtime-v1-domain-runtime-b',

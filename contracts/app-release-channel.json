@@ -603,7 +603,8 @@
           "value_ref": "full_first_install.size_budget.max_runtime_uncompressed_bytes",
           "status": "release_blocking"
         },
-        "above_review_threshold_rule": "A Full DMG above the review threshold must open package-size review and optimization planning, but it must not authorize removing required offline first-install payloads."
+        "above_review_threshold_rule": "A Full DMG above the review threshold must open package-size review and optimization planning, but it must not authorize removing required offline first-install payloads.",
+        "cache_hit_rule": "A Full runtime cache hit only proves reusable package assembly input; it is never App release readiness, runtime dependency truth, or OPL family production readiness."
       },
       "package_profile_boundary": {
         "standard": {
@@ -619,14 +620,23 @@
           "updater_visible": false,
           "contains_opl_full_runtime": true,
           "role": "clean-machine first-install package with bundled runtime payloads"
+        },
+        "offline_kit": {
+          "asset_pattern": "opl-runtime-full-<version>-macos-arm64.tar.zst",
+          "runtime_profile": "offline-kit",
+          "updater_visible": false,
+          "contains_opl_full_runtime": true,
+          "role": "manual diagnostic/runtime recovery artifact that consumes the same OPL runtime bundle manifest boundary"
         }
       },
       "runtime_boundary": {
         "opl_full_runtime": {
           "path": "Contents/Resources/opl-full-runtime",
-          "owner": "one-person-lab-app",
-          "role": "offline first-install runtime, framework, domain-module, companion-tool, and skill payload",
-          "standard_package_allowed": false
+          "owner": "gaofeng21cn/one-person-lab",
+          "role": "offline first-install runtime payload assembled from the OPL runtime bundle manifest; dependency truth remains in OPL",
+          "standard_package_allowed": false,
+          "app_role": "consumer_and_packager",
+          "bundle_manifest_ref": "full_first_install.opl_runtime_bundle_consumer.consumed_refs.bundle_manifest"
         },
         "aionui_bundled_runtime": {
           "path": "Contents/Resources/bundled-aioncore",
@@ -713,7 +723,33 @@
           ],
           "rule": "Use compression tuning as secondary size reduction only; the v26.6.21 zlib-level=9 estimate remains above the review threshold."
         }
-      ]
+      ],
+      "layer_taxonomy": {
+        "canonical_layer_ids": [
+          "base-toolchain",
+          "python-wheelhouse",
+          "opl-framework-runtime",
+          "domain-pack",
+          "companion-skills",
+          "optional-heavy-tools"
+        ],
+        "legacy_assembly_layer_mapping": {
+          "toolchain": [
+            "base-toolchain",
+            "python-wheelhouse",
+            "optional-heavy-tools"
+          ],
+          "domain-runtime": [
+            "domain-pack"
+          ],
+          "opl-runtime": [
+            "opl-framework-runtime"
+          ],
+          "skills": [
+            "companion-skills"
+          ]
+        }
+      }
     },
     "measurement_policy": {
       "full_dmg_bytes": "github_release_asset_size_bytes",
@@ -732,7 +768,9 @@
         "copy_declared_foundry_agent_payloads",
         "copy_declared_companion_tool_payloads",
         "write_distribution_manifest",
-        "write_checksums"
+        "write_checksums",
+        "consume_opl_runtime_bundle_manifest",
+        "record_opl_runtime_bundle_manifest_ref"
       ],
       "forbidden_authority": [
         "runtime_truth",
@@ -751,7 +789,68 @@
         "gaofeng21cn/med-autoscience",
         "gaofeng21cn/med-autogrant",
         "gaofeng21cn/redcube-ai"
-      ]
+      ],
+      "consumer_refs": {
+        "opl_runtime_bundle": "opl_runtime_bundle_consumer",
+        "bundle_manifest": "OPL runtime bundle manifest",
+        "bundle_lock": "OPL runtime bundle lock",
+        "bundle_readback": "OPL runtime env contract/readback",
+        "env_contract": "OPL runtime env contract"
+      },
+      "false_ready_flags": {
+        "cache_hit_is_release_ready": false,
+        "manifest_present_is_release_ready": false,
+        "lock_present_is_release_ready": false,
+        "full_package_built_is_release_ready": false,
+        "full_package_built_is_family_production_ready": false,
+        "app_can_claim_runtime_dependency_truth": false
+      }
+    },
+    "opl_runtime_bundle_consumer": {
+      "schema": "opl_runtime_bundle_manifest_consumer.v1",
+      "app_repo_role": "consumer_only",
+      "truth_owner": "gaofeng21cn/one-person-lab",
+      "dependency_truth_owner": false,
+      "consumed_refs": {
+        "bundle_manifest": "OPL runtime bundle manifest",
+        "bundle_lock": "OPL runtime bundle lock",
+        "bundle_readback": "OPL runtime env contract/readback",
+        "env_contract": "OPL runtime env contract"
+      },
+      "false_ready_flags": {
+        "cache_hit_is_release_ready": false,
+        "manifest_present_is_release_ready": false,
+        "lock_present_is_release_ready": false,
+        "full_package_built_is_release_ready": false,
+        "full_package_built_is_family_production_ready": false,
+        "app_can_claim_runtime_dependency_truth": false
+      },
+      "layer_taxonomy": {
+        "canonical_layer_ids": [
+          "base-toolchain",
+          "python-wheelhouse",
+          "opl-framework-runtime",
+          "domain-pack",
+          "companion-skills",
+          "optional-heavy-tools"
+        ],
+        "legacy_assembly_layer_mapping": {
+          "toolchain": [
+            "base-toolchain",
+            "python-wheelhouse",
+            "optional-heavy-tools"
+          ],
+          "domain-runtime": [
+            "domain-pack"
+          ],
+          "opl-runtime": [
+            "opl-framework-runtime"
+          ],
+          "skills": [
+            "companion-skills"
+          ]
+        }
+      }
     }
   },
   "release_preflight": {
@@ -862,7 +961,46 @@
         "opl-runtime": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-opl-runtime-",
         "skills": "opl-full-runtime-layer-${runner.os}-${runner.arch}-full-runtime-v1-skills-"
       },
-      "key_scope": "layer_content_only_not_release_or_dmg_wrapper_scripts"
+      "key_scope": "layer_content_only_not_release_or_dmg_wrapper_scripts",
+      "opl_runtime_bundle_consumer": {
+        "schema": "opl_runtime_bundle_manifest_consumer.v1",
+        "app_repo_role": "consumer_only",
+        "false_ready_flags": {
+          "cache_hit_is_release_ready": false,
+          "manifest_present_is_release_ready": false,
+          "lock_present_is_release_ready": false,
+          "full_package_built_is_release_ready": false,
+          "full_package_built_is_family_production_ready": false,
+          "app_can_claim_runtime_dependency_truth": false
+        },
+        "layer_taxonomy": {
+          "canonical_layer_ids": [
+            "base-toolchain",
+            "python-wheelhouse",
+            "opl-framework-runtime",
+            "domain-pack",
+            "companion-skills",
+            "optional-heavy-tools"
+          ],
+          "legacy_assembly_layer_mapping": {
+            "toolchain": [
+              "base-toolchain",
+              "python-wheelhouse",
+              "optional-heavy-tools"
+            ],
+            "domain-runtime": [
+              "domain-pack"
+            ],
+            "opl-runtime": [
+              "opl-framework-runtime"
+            ],
+            "skills": [
+              "companion-skills"
+            ]
+          }
+        }
+      },
+      "cache_hit_claim": "cache_hit_is_package_assembly_reuse_only"
     },
     "full_dmg_compression": {
       "default_ci_level": "9",
