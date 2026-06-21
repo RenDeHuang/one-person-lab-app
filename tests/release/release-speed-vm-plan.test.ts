@@ -79,6 +79,11 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(workflow, /publish-standard:[\s\S]*?needs:\s+standard-build/, 'publish-standard job');
   assertMatches(workflow, /full-first-install:[\s\S]*?uses:\s+\.\/\.github\/workflows\/full-first-install-release\.yml/, 'Full package build job');
   assertMatches(workflow, /full-first-install:[\s\S]*?needs:\s+standard-vm-smoke-gate-after-full/, 'Full package build waits for standard VM fail-fast gate');
+  assertMatches(
+    workflow,
+    /full-first-install:[\s\S]*?needs\.standard-vm-smoke-gate-after-full\.result == 'success'/,
+    'Full package build is skipped unless the standard VM fail-fast gate passed',
+  );
   assertMatches(workflow, /full-first-install:[\s\S]*?publish_to_release:\s+false/, 'Full package build-only job');
   assertMatches(workflow, /publish-full-assets:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?full-first-install/, 'Full package publish job');
   assertMatches(

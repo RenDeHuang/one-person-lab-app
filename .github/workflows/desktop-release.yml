@@ -291,7 +291,7 @@ jobs:
   full-first-install:
     name: Build Full first-install assets
     needs: standard-vm-smoke-gate-after-full
-    if: ${{ inputs.include_full_package }}
+    if: ${{ !cancelled() && inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' }}
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       opl_version: ${{ inputs.opl_version }}
