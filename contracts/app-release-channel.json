@@ -604,7 +604,34 @@
           "status": "release_blocking"
         },
         "above_review_threshold_rule": "A Full DMG above the review threshold must open package-size review and optimization planning, but it must not authorize removing required offline first-install payloads.",
+        "stable_release_coupling_rule": "Full DMG warning or review-threshold status is not release-blocking by size alone and must not block stable clean evidence unless a hard size limit, uncompressed runtime limit, offline payload boundary, native trust, or Full clean VM smoke gate fails.",
         "cache_hit_rule": "A Full runtime cache hit only proves reusable package assembly input; it is never App release readiness, runtime dependency truth, or OPL family production readiness."
+      },
+      "optimization_artifacts": {
+        "manifest_section": "package_optimization",
+        "schema": "opl_full_package_optimization.v1",
+        "trim_report": "full-app-bundle-trim-report.json",
+        "trim_report_schema": "opl_full_app_bundle_trim_report.v1",
+        "boundary_audit": "full-package-boundary-audit.json",
+        "boundary_audit_schema": "opl_full_package_boundary_audit.v1",
+        "size_summary": "full-package-size-summary.json",
+        "mode": "explicit_non_runtime_prune_only",
+        "required_manifest_flags": {
+          "offline_first_install_completeness_preserved": true,
+          "size_review_release_blocking_by_size_alone": false
+        },
+        "required_preserved_payloads": [
+          "Contents/Resources/opl-full-runtime",
+          "Contents/Resources/bundled-aioncore",
+          "Contents/Resources/app.asar",
+          "Contents/Resources/app.asar.unpacked",
+          "Contents/Frameworks/Electron Framework.framework"
+        ],
+        "required_remote_assets": [
+          "full-app-bundle-trim-report.json",
+          "full-package-boundary-audit.json"
+        ],
+        "rule": "Optimization evidence is part of the Full package manifest/readback surface and may only prove explicit non-runtime pruning plus boundary preservation; it cannot replace Full clean VM smoke or owner receipt evidence."
       },
       "package_profile_boundary": {
         "standard": {
@@ -1075,12 +1102,15 @@
         ".git",
         ".worktrees",
         ".venv",
+        "cache",
+        "logs",
         "node_modules",
         "runtime",
         "runtime-state",
         "runs",
         "sessions",
-        "tests"
+        "tests",
+        "tmp"
       ],
       "node_toolchain_pruned": [
         "npm/docs",
@@ -1118,8 +1148,22 @@
         "runtime_prune_policy.id",
         "runtime_assertions.prune_policy_hash",
         "runtime_assertions.offline_required_payloads",
-        "runtime_assertions.declared_pruned_paths"
+        "runtime_assertions.declared_pruned_paths",
+        "package_optimization.offline_first_install_completeness_preserved",
+        "package_optimization.size_review_release_blocking_by_size_alone"
       ],
+      "app_bundle_staging": {
+        "mode": "post_build_pre_dmg_explicit_non_runtime_trim",
+        "report": "full-app-bundle-trim-report.json",
+        "audit": "full-package-boundary-audit.json",
+        "protected_payloads": [
+          "Contents/Resources/opl-full-runtime",
+          "Contents/Resources/bundled-aioncore",
+          "Contents/Resources/app.asar",
+          "Contents/Resources/app.asar.unpacked",
+          "Contents/Frameworks/Electron Framework.framework"
+        ]
+      },
       "measurement_command": "npm run release:full:size -- --markdown",
       "domain_runtime_allowlist_owner": "domain_repositories",
       "app_policy": "exclude local indexes, dependency caches, tests, package docs/fixtures/examples, Python stdlib tests, and user/runtime state; do not prune declared offline first-install payloads, Codex/Temporal archives, domain modules, or packaged skills; do not infer domain truth or artifact authority from package pruning"
@@ -1160,6 +1204,8 @@
         "full-package-manifest.json",
         "runtime-cache-events.json",
         "full-runtime-native-trust.json",
+        "full-app-bundle-trim-report.json",
+        "full-package-boundary-audit.json",
         "README-Full-First-Install.txt",
         "SHA256SUMS.txt",
         "full-local-authorization-policy.json"
@@ -1173,6 +1219,8 @@
         "full_sha256sums",
         "full_runtime_cache_events",
         "full_runtime_native_trust",
+        "full_package_optimization_artifacts",
+        "full_package_boundary_audit",
         "full_manifest_distribution_boundary",
         "full_manifest_size_budget",
         "full_release_asset_size_budget",
@@ -1247,28 +1295,17 @@
               "App install",
               "Gatekeeper/local authorization diagnostics",
               "App launch",
-              "CDP/accessibility/native modal/bootstrap fatal artifact collection",
-              "renderer bootstrap diagnostics",
-              "native window and alert text diagnostics",
-              "NSAlert runModal sample diagnostics",
-              "main bootstrap fatal text diagnostics"
+              "wrapper preflight diagnostics",
+              "wrapper smoke command and log artifacts",
+              "Tart smoke summary artifact"
             ],
-            "launch_blocker_artifacts": [
-              "bootstrap-launch-diagnostics.json",
-              "renderer-bootstrap-diagnostics.json",
-              "native-modal-launch-blocker.json",
-              "launch-app/diagnostics.json",
-              "launch-app/native-window-diagnostics.json",
-              "launch-app/main-bootstrap-fatal-candidates.json"
-            ],
-            "native_modal_blocker_detection_rule": "cdp_absent_and_app_process_alive_and_nsalert_run_modal_sample_found",
-            "native_modal_text_sources": [
-              "accessibility_likely_alert",
-              "frontmost_window_title",
-              "main_bootstrap_fatal.error.message",
-              "main_bootstrap_fatal.error.stack",
-              "launch_stderr",
-              "launch_stdout"
+            "wrapper_diagnostic_artifacts": [
+              "app-wrapper-diagnostics.json",
+              "app-wrapper-preflight.log",
+              "app-wrapper-smoke-command-preview.txt",
+              "app-wrapper-smoke.stdout.log",
+              "app-wrapper-smoke.stderr.log",
+              "tart-smoke-summary.json"
             ],
             "authority_boundary": "diagnostic_only_not_release_ready_owner_receipt_or_runtime_truth"
           },
@@ -1280,7 +1317,9 @@
               "App install",
               "Gatekeeper/local authorization diagnostics",
               "App launch",
-              "non-blocking early CDP/accessibility/native modal/bootstrap fatal artifact collection",
+              "wrapper preflight diagnostics",
+              "wrapper smoke command and log artifacts",
+              "Tart smoke summary artifact",
               "Codex install asset cache restore",
               "Codex install asset prefetch",
               "Codex install asset cache save",
@@ -1289,15 +1328,15 @@
               "Codex functional check",
               "Codex AI self-check"
             ],
-            "early_launch_blocker_artifacts": [
-              "bootstrap-launch-diagnostics.json",
-              "renderer-bootstrap-diagnostics.json",
-              "native-modal-launch-blocker.json",
-              "launch-app/diagnostics.json",
-              "launch-app/native-window-diagnostics.json",
-              "launch-app/main-bootstrap-fatal-candidates.json"
+            "wrapper_diagnostic_artifacts": [
+              "app-wrapper-diagnostics.json",
+              "app-wrapper-preflight.log",
+              "app-wrapper-smoke-command-preview.txt",
+              "app-wrapper-smoke.stdout.log",
+              "app-wrapper-smoke.stderr.log",
+              "tart-smoke-summary.json"
             ],
-            "early_launch_probe_policy": "non_blocking_capture_before_full_readiness_checks; full release gate failure still comes from the deterministic readiness/settings/route/codex checks",
+            "wrapper_diagnostic_policy": "host_wrapper_preflight_and_smoke_logs_are_supporting_evidence; full release gate failure still comes from the deterministic VM readiness/settings/route/codex checks",
             "authority_boundary": "release_gate_evidence_only_when_same_cohort_workflow_requires_it"
           }
         },
@@ -1334,6 +1373,24 @@
         },
         "cancel_in_progress": "schedule_only",
         "rule": "Scheduled VM smokes collapse stale backlog and default to a standard bootstrap-only diagnostic; stable release-called VM profiles must use run/profile-scoped groups so standard, Homebrew, and Full install gates cannot cancel or replace each other."
+      },
+      "first_run_vm_artifact_handoff": {
+        "same_run_inputs": [
+          "release_artifact_name"
+        ],
+        "source_run_inputs": [
+          "release_artifact_name",
+          "release_artifact_run_id"
+        ],
+        "source_run_download_command": "actions/download-artifact@v8 with run-id=<release_artifact_run_id || github.run_id> and name=<release_artifact_name>",
+        "scope": "vm_evidence_only",
+        "forbidden_replacements": [
+          "stable release same-run VM gates",
+          "published release remote verification",
+          "owner receipt",
+          "release publish"
+        ],
+        "rule": "Branch-lane or post-release evidence runs may explicitly download a DMG-only artifact from a completed source Actions run without publishing assets; this handoff is VM evidence only and must not replace stable same-run VM gates or published asset verification."
       }
     },
     "vm_local_authorization_policy": {

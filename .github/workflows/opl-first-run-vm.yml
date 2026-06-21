@@ -651,6 +651,8 @@ jobs:
 
           if [ "${{ steps.package_profile.outputs.install_mode }}" = "homebrew-cask" ]; then
             echo "Using Homebrew cask install path: ${{ steps.package_profile.outputs.homebrew_cask }}"
+          elif [ -n "${{ inputs.release_artifact_name }}" ] && [ -n "${{ inputs.release_artifact_run_id }}" ]; then
+            echo "Using source workflow run artifact: ${{ inputs.release_artifact_name }} from run ${{ inputs.release_artifact_run_id }}"
           elif [ -n "${{ inputs.release_artifact_name }}" ]; then
             echo "Using same-run workflow artifact: ${{ inputs.release_artifact_name }}"
           elif [ -n "${{ inputs.release_dmg_url }}" ]; then
@@ -1296,6 +1298,7 @@ jobs:
               release_tag: process.env.RELEASE_TAG || '',
               release_dmg_url_configured: process.env.RELEASE_DMG_URL_CONFIGURED === 'true',
               release_artifact_name: process.env.RELEASE_ARTIFACT_NAME || '',
+              release_artifact_run_id: process.env.RELEASE_ARTIFACT_RUN_ID || '',
               shell_ref: process.env.SHELL_REF || 'main',
             },
             vm: {
@@ -1403,6 +1406,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
           RELEASE_DMG_URL_CONFIGURED: ${{ inputs.release_dmg_url != '' && 'true' || 'false' }}
           RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
+          RELEASE_ARTIFACT_RUN_ID: ${{ inputs.release_artifact_run_id }}
           SHELL_REF: ${{ inputs.shell_ref || 'main' }}
           DIAGNOSTIC_SCOPE: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}
           CODEX_PACKAGE_PREFLIGHT_JSON: ${{ steps.codex_package_preflight.outputs.preflight_json }}
@@ -1441,9 +1445,6 @@ jobs:
             --runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"
             --guest-node-root "${{ steps.host_node.outputs.node_root }}"
           )
-          if [ "${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}" = "bootstrap_only" ]; then
-            CMD+=(--bootstrap-launch-diagnostics)
-          fi
           if [ "${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}" != "bootstrap_only" ]; then
             CMD+=(--codex-package-tarball "${{ steps.codex_package_preflight.outputs.tarball_path }}")
             CMD+=(--codex-platform-package-tarball "${{ steps.codex_package_preflight.outputs.platform_tarball_path }}")

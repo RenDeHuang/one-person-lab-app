@@ -674,6 +674,17 @@ jobs:
             --full-dmg-size-bytes "$dmg_size_bytes" \
             --markdown > dist/opl-full-release/full-package-size-summary.md
           cat dist/opl-full-release/full-package-size-summary.md >> "$GITHUB_STEP_SUMMARY"
+          node - dist/opl-full-release/full-package-size-summary.json <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require('node:fs');
+          const summary = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const compressed = summary.budget?.compressed_full_dmg || {};
+          console.log('');
+          console.log('## Full Size Release Coupling');
+          console.log('');
+          console.log(`- Full DMG review status: ${compressed.status || 'unknown'}`);
+          console.log(`- Full DMG release-blocking by size alone: ${compressed.release_blocking === true}`);
+          console.log('- Stable release clean evidence remains coupled to remote verification and VM smoke gates; Full size review alone is diagnostic unless a hard limit or offline first-install payload regression fails.');
+          NODE
 
       - name: Summarize Full caches and timings
         shell: bash
@@ -841,6 +852,8 @@ jobs:
             one-person-lab-app/dist/opl-full-release/full-package-size-summary.md
             one-person-lab-app/dist/opl-full-release/runtime-cache-events.json
             one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
+            one-person-lab-app/dist/opl-full-release/full-app-bundle-trim-report.json
+            one-person-lab-app/dist/opl-full-release/full-package-boundary-audit.json
             one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json
             one-person-lab-app/dist/opl-full-release/SHA256SUMS.txt
             one-person-lab-app/dist/opl-full-release/README-Full-First-Install.txt

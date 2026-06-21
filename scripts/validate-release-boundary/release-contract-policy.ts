@@ -293,7 +293,9 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     'App install',
     'Gatekeeper/local authorization diagnostics',
     'App launch',
-    'CDP/accessibility/native modal/bootstrap fatal artifact collection',
+    'wrapper preflight diagnostics',
+    'wrapper smoke command and log artifacts',
+    'Tart smoke summary artifact',
   ]) {
     if (!diagnosticsWorkflowPolicy?.diagnostic_scopes?.bootstrap_only?.keeps?.includes(kept)) {
       console.error(`FAIL release_diagnostics_scope_policy: bootstrap_only must keep ${kept}`);
@@ -316,24 +318,27 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   }
   const releaseGateScope = diagnosticsWorkflowPolicy?.diagnostic_scopes?.release_gate;
   for (const artifact of [
-    'bootstrap-launch-diagnostics.json',
-    'renderer-bootstrap-diagnostics.json',
-    'native-modal-launch-blocker.json',
-    'launch-app/diagnostics.json',
-    'launch-app/native-window-diagnostics.json',
-    'launch-app/main-bootstrap-fatal-candidates.json',
+    'app-wrapper-diagnostics.json',
+    'app-wrapper-preflight.log',
+    'app-wrapper-smoke-command-preview.txt',
+    'app-wrapper-smoke.stdout.log',
+    'app-wrapper-smoke.stderr.log',
+    'tart-smoke-summary.json',
   ]) {
-    if (!releaseGateScope?.early_launch_blocker_artifacts?.includes(artifact)) {
-      console.error(`FAIL release_diagnostics_scope_policy: release_gate must retain early launch artifact ${artifact}`);
+    if (
+      !diagnosticsWorkflowPolicy?.diagnostic_scopes?.bootstrap_only?.wrapper_diagnostic_artifacts?.includes(artifact) ||
+      !releaseGateScope?.wrapper_diagnostic_artifacts?.includes(artifact)
+    ) {
+      console.error(`FAIL release_diagnostics_scope_policy: VM scopes must retain wrapper diagnostic artifact ${artifact}`);
       failures += 1;
     }
   }
   if (
-    typeof releaseGateScope?.early_launch_probe_policy !== 'string' ||
-    !releaseGateScope.early_launch_probe_policy.includes('non_blocking_capture_before_full_readiness_checks') ||
-    !releaseGateScope.early_launch_probe_policy.includes('deterministic readiness/settings/route/codex checks')
+    typeof releaseGateScope?.wrapper_diagnostic_policy !== 'string' ||
+    !releaseGateScope.wrapper_diagnostic_policy.includes('host_wrapper_preflight_and_smoke_logs_are_supporting_evidence') ||
+    !releaseGateScope.wrapper_diagnostic_policy.includes('deterministic VM readiness/settings/route/codex checks')
   ) {
-    console.error('FAIL release_diagnostics_scope_policy: release_gate early launch probe must be non-blocking and preserve deterministic release gates');
+    console.error('FAIL release_diagnostics_scope_policy: release_gate wrapper diagnostics must preserve deterministic release gates');
     failures += 1;
   }
   if (

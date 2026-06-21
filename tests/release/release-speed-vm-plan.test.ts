@@ -361,7 +361,8 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY/, 'Full signing preflight required secrets');
   assertMatches(workflow, /Full first-install local authorization mode/, 'Full local authorization mode notice');
   assertMatches(diagnosticsStep, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/, 'Full diagnostics artifact upload');
-  assertMatches(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*full-package-size-summary\.json[\s\S]*full-package-size-summary\.md[\s\S]*runtime-cache-events\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
+  assertMatches(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*full-package-size-summary\.json[\s\S]*full-package-size-summary\.md[\s\S]*runtime-cache-events\.json[\s\S]*full-runtime-native-trust\.json[\s\S]*full-app-bundle-trim-report\.json[\s\S]*full-package-boundary-audit\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/, 'Full diagnostics artifact contents');
+  assertMatches(workflow, /## Full Size Release Coupling[\s\S]*Full DMG release-blocking by size alone:[\s\S]*Stable release clean evidence remains coupled to remote verification and VM smoke gates/, 'Full workflow records size review as diagnostic unless hard limits or offline-first regressions fail');
   assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/, 'Full diagnostics artifact must not require release-only Gatekeeper evidence');
   assertMatches(localAuthorizationStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-local-authorization-policy\.json/, 'Full local authorization policy is uploaded for Stable assets');
   assertMatches(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/, 'Full package artifact upload defaults on for release-call consumers');
@@ -415,8 +416,11 @@ test('first-run VM workflow writes deterministic preflight and final summaries b
   assertMatches(workflow, /## OPL GUI first-run VM preflight/, 'VM preflight heading');
   assertMatches(workflow, /deterministic release-blocking clean VM first launch/, 'VM gate purpose');
   assertMatches(workflow, /release_artifact_name:/, 'VM same-run artifact input');
+  assertMatches(workflow, /release_artifact_run_id:/, 'VM source-run artifact input');
   assertMatches(workflow, /actions\/download-artifact@v8/, 'VM same-run artifact download');
+  assertMatches(workflow, /run-id:\s+\$\{\{ inputs\.release_artifact_run_id \|\| github\.run_id \}\}/, 'VM source-run artifact download');
   assertMatches(workflow, /Using same-run workflow artifact/, 'VM artifact source log');
+  assertMatches(workflow, /Using source workflow run artifact/, 'VM source-run artifact source log');
   assertMatches(workflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/, 'VM release tag provenance');
   assertMatches(workflow, /Resolve host Node\.js runtime for guest smoke/, 'VM host Node runtime resolution');
   assertMatches(workflow, /--guest-node-root "\$\{\{ steps\.host_node\.outputs\.node_root \}\}"/, 'VM guest Node copy');

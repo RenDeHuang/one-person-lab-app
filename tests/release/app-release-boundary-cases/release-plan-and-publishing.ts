@@ -20,6 +20,143 @@ import {
   sha256,
 } from './helpers.ts';
 
+function withFullPackageOptimizationManifest(manifest) {
+  return {
+    ...manifest,
+    package_optimization: {
+      schema: 'opl_full_package_optimization.v1',
+      offline_first_install_completeness_preserved: true,
+      size_review_release_blocking_by_size_alone: false,
+      app_bundle_trim: {
+        schema: 'opl_full_app_bundle_trim_report.v1',
+        mode: 'explicit_non_runtime_prune_only',
+        before_bytes: 1024,
+        after_bytes: 960,
+        bytes_removed: 64,
+        removed_count: 1,
+        required_payload_boundary: {
+          full_runtime_resource_dir: 'Contents/Resources/opl-full-runtime',
+          protected_payloads: [
+            'Contents/Resources/opl-full-runtime',
+            'Contents/Resources/bundled-aioncore',
+            'Contents/Resources/app.asar',
+            'Contents/Resources/app.asar.unpacked',
+            'Contents/Frameworks/Electron Framework.framework',
+          ],
+          preserved: true,
+        },
+      },
+      package_boundary_audit: {
+        schema: 'opl_full_package_boundary_audit.v1',
+        standard_package_allowed_to_contain_full_runtime: false,
+        contains_opl_full_runtime: true,
+        contains_shell_runtime: true,
+        dedupe_policy: 'audit_only_without_same_cohort_full_clean_vm_evidence',
+        audited_entries: {
+          opl_full_runtime: {
+            path: 'Contents/Resources/opl-full-runtime',
+            owner: 'gaofeng21cn/one-person-lab',
+            exists: true,
+            size_bytes: 128,
+          },
+          aionui_bundled_runtime: {
+            path: 'Contents/Resources/bundled-aioncore',
+            owner: 'active_shell',
+            exists: true,
+            size_bytes: 256,
+          },
+          app_asar: {
+            path: 'Contents/Resources/app.asar',
+            owner: 'active_shell',
+            exists: true,
+            size_bytes: 64,
+          },
+          electron_framework: {
+            path: 'Contents/Frameworks/Electron Framework.framework',
+            owner: 'active_shell/electron',
+            exists: true,
+            size_bytes: 512,
+          },
+        },
+      },
+    },
+  };
+}
+
+function writeFullPackageOptimizationArtifacts(fullPackageDir, version = 'test') {
+  writeFile(
+    path.join(fullPackageDir, 'full-app-bundle-trim-report.json'),
+    `${JSON.stringify({
+      schema: 'opl_full_app_bundle_trim_report.v1',
+      mode: 'explicit_non_runtime_prune_only',
+      app_bundle_path: '/tmp/One Person Lab.app',
+      required_payload_boundary: {
+        full_runtime_resource_dir: 'Contents/Resources/opl-full-runtime',
+        protected_payloads: [
+          'Contents/Resources/opl-full-runtime',
+          'Contents/Resources/bundled-aioncore',
+          'Contents/Resources/app.asar',
+          'Contents/Resources/app.asar.unpacked',
+          'Contents/Frameworks/Electron Framework.framework',
+        ],
+        preserved: true,
+      },
+      before_bytes: 1024,
+      after_bytes: 960,
+      bytes_removed: 64,
+      removed_count: 1,
+      removed_paths: [
+        { path: 'Contents/Resources/app.asar.map', size_bytes: 64, reason: 'staged_app_non_runtime_file' },
+      ],
+    }, null, 2)}\n`,
+  );
+  writeFile(
+    path.join(fullPackageDir, 'full-package-boundary-audit.json'),
+    `${JSON.stringify({
+      schema: 'opl_full_package_boundary_audit.v1',
+      app_bundle_path: '/tmp/One Person Lab.app',
+      package_kind: 'opl_full_first_install_macos_arm64',
+      version,
+      standard_app_boundary: {
+        standard_package_allowed_to_contain_full_runtime: false,
+        standard_payload_guard: 'scripts/prepare-standard-release-payload.ts removes packaged-runtimes/opl-full-runtime before standard builds',
+      },
+      full_package_boundary: {
+        contains_opl_full_runtime: true,
+        contains_shell_runtime: true,
+        dedupe_policy: 'audit_only_without_same_cohort_full_clean_vm_evidence',
+        rule: 'Do not dedupe or remove declared offline Full runtime, shell runtime, native trust, or Core readiness payloads for size alone.',
+      },
+      entries: {
+        opl_full_runtime: {
+          path: 'Contents/Resources/opl-full-runtime',
+          owner: 'gaofeng21cn/one-person-lab',
+          exists: true,
+          size_bytes: 128,
+        },
+        aionui_bundled_runtime: {
+          path: 'Contents/Resources/bundled-aioncore',
+          owner: 'active_shell',
+          exists: true,
+          size_bytes: 256,
+        },
+        app_asar: {
+          path: 'Contents/Resources/app.asar',
+          owner: 'active_shell',
+          exists: true,
+          size_bytes: 64,
+        },
+        electron_framework: {
+          path: 'Contents/Frameworks/Electron Framework.framework',
+          owner: 'active_shell/electron',
+          exists: true,
+          size_bytes: 512,
+        },
+      },
+    }, null, 2)}\n`,
+  );
+}
+
 test('release plan exposes the standard VM fail-fast gate before expensive Full lanes', () => {
   const result = runNode([
     'scripts/plan-release-candidate.ts',
@@ -611,12 +748,13 @@ test('publish dry run generates deterministic English release notes for Full-onl
   };
 
   writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
-  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   writeFullLocalAuthorizationPolicy(fullPackageDir);
   writeFullRuntimeNativeTrust(fullPackageDir);
+  writeFullPackageOptimizationArtifacts(fullPackageDir, version);
   const publicMarkdown = `One Person Lab 26.5.18
 
 This release makes a clean OPL install more useful immediately by shipping refreshed MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and packaged Codex skills together in the Full installer.
@@ -720,12 +858,13 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
   };
 
   writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
-  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   writeFullLocalAuthorizationPolicy(fullPackageDir);
   writeFullRuntimeNativeTrust(fullPackageDir);
+  writeFullPackageOptimizationArtifacts(fullPackageDir, version);
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -764,11 +903,12 @@ test('publish rejects Full package native trust when quarantine remains', () => 
   };
 
   writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
-  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   writeFullLocalAuthorizationPolicy(fullPackageDir);
+  writeFullPackageOptimizationArtifacts(fullPackageDir, version);
   writeFile(
     path.join(fullPackageDir, 'full-runtime-native-trust.json'),
     `${JSON.stringify({
@@ -828,12 +968,13 @@ test('Full-only release publish uses deterministic notes and does not call the A
   };
 
   writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
-  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   writeFullLocalAuthorizationPolicy(fullPackageDir);
   writeFullRuntimeNativeTrust(fullPackageDir);
+  writeFullPackageOptimizationArtifacts(fullPackageDir, version);
   fs.mkdirSync(path.dirname(fakeAi), { recursive: true });
   fs.writeFileSync(fakeAi, '#!/usr/bin/env node\nprocess.exit(42);\n', { mode: 0o755 });
 

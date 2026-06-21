@@ -117,20 +117,16 @@ replacement for `tart-smoke-summary.json` and shell Codex install diagnostics.
 The reusable VM workflow has two explicit `diagnostic_scope` values. Stable
 release workflows use `release_gate`, which keeps the Codex install asset
 preseed, Settings sweep, assistant route smoke, Codex functional check, and
-Codex AI self-check on the deterministic gate path. Before those full readiness
-checks, the release gate also captures the same early launch blocker artifacts
-used by diagnostics, including `bootstrap-launch-diagnostics.json`,
-`renderer-bootstrap-diagnostics.json`, `native-modal-launch-blocker.json`,
-`launch-app/native-window-diagnostics.json`, and
-`launch-app/main-bootstrap-fatal-candidates.json`. That capture is
-non-blocking by itself; the release gate still passes or fails on the
-deterministic readiness, Settings, route, and Codex checks. The diagnostics workflow
-defaults to `bootstrap_only`: it still resolves the supplied or same-run DMG,
-installs the App, verifies the packaged main bootstrap marker, launches the
-App, and collects CDP/accessibility/native-modal/bootstrap-fatal artifacts, but
-skips Codex cache restore/prefetch/save and secondary route checks so a launch
-blocker produces evidence before another Full or stable release train is
-queued. `bootstrap_only` artifacts are diagnostic-only and cannot be used as
+Codex AI self-check on the deterministic gate path. The workflow also records
+wrapper preflight diagnostics, the exact Tart smoke command, stdout and stderr
+logs, and `tart-smoke-summary.json`. Those wrapper artifacts support debugging,
+but the release gate still passes or fails on the deterministic VM readiness,
+Settings, route, and Codex checks. The diagnostics workflow defaults to
+`bootstrap_only`: it still resolves the supplied or same-run DMG, installs the
+App, verifies the packaged main bootstrap marker, launches the App, and uploads
+wrapper diagnostics, but skips Codex cache restore/prefetch/save and secondary
+route checks so it does not occupy the release lane longer than necessary.
+`bootstrap_only` artifacts are diagnostic-only and cannot be used as
 release-ready, owner receipt, or runtime truth evidence.
 
 Scheduled `OPL GUI First-Run VM` runs are maintenance diagnostics, not stable
@@ -163,6 +159,12 @@ Stable release VM gates consume same-run DMG-only artifacts
 `opl-full-first-install-dmg-<version>-mac-arm64`) while publish jobs keep using
 the complete build/package artifacts. Do not route Full or Standard publish
 through the DMG-only handoff artifact.
+For post-release or branch-lane evidence runs that must not publish assets,
+pass `release_artifact_name` together with `release_artifact_run_id` so the VM
+workflow downloads the DMG-only artifact from that source Actions run through
+`actions/download-artifact@v8` with `run-id`. This is an evidence-only handoff;
+stable release workflows still use same-run artifacts and published release
+gates still use remote verification.
 The complete standard macOS build artifact must retain the updater ZIP and ZIP
 blockmap; release builds fail closed or rebuild the prepackaged macOS updater
 targets when those files are missing.
@@ -304,9 +306,10 @@ Runtime cache hits prove only reusable assembly inputs for those buckets. A cach
 ## Full Size Policy
 
 Release review records compressed DMG size, uncompressed runtime size, top
-component/layer contributors, and optimization candidates. The remote verifier
-measures compressed Full DMG bytes from the GitHub asset size and the
-uncompressed runtime bytes from `full-package-manifest.json`
+component/layer contributors, optimization candidates, App-bundle trim evidence,
+and package-boundary audit evidence. The remote verifier measures compressed
+Full DMG bytes from the GitHub asset size and the uncompressed runtime bytes
+from `full-package-manifest.json`
 `size_breakdown.total_runtime_uncompressed_bytes`.
 
 Current policy values live in
@@ -327,6 +330,16 @@ release-blocking size gate. Do not trade away clean-machine first-install
 completeness, bundled Core readiness, or native trust evidence to make the DMG
 smaller.
 
+The Full package writes `package_optimization` into
+`full-package-manifest.json`, plus `full-app-bundle-trim-report.json` and
+`full-package-boundary-audit.json`. These artifacts are required Full assets and
+checksum entries. They can prove explicit non-runtime pruning, payload boundary
+preservation, and size-review release decoupling; they cannot replace the
+same-cohort Full clean VM smoke, native trust evidence, remote asset readback, or
+release-owner receipt. Full DMG warning/review-threshold status alone must not
+block stable clean evidence unless a hard size limit, uncompressed runtime
+limit, offline payload boundary, native trust, or Full clean VM gate fails.
+
 The v26.6.21 measured record in the release contract records:
 
 - Full DMG: `1121919153` bytes.
@@ -336,10 +349,16 @@ The v26.6.21 measured record in the release contract records:
 - zlib level 9 estimate: `844079932` bytes, still above the `750000000`-byte
   review threshold.
 
-Optimization should start with duplicate or split runtime-layer review across
-`opl-full-runtime` and `bundled-aioncore`, then shell bundle payload pruning,
-then Electron footprint review. Compression tuning is secondary; by the current
-measurement it cannot restore the target by itself.
+Optimization starts with explicit non-runtime pruning in the staged App bundle
+and Full runtime tree: source maps, tests, local caches, tmp/temp directories,
+logs, coverage, and package docs/fixtures/examples are removable only when the
+report preserves `Contents/Resources/opl-full-runtime`,
+`Contents/Resources/bundled-aioncore`, `Contents/Resources/app.asar`, and
+Electron framework resources. Duplicate or split runtime-layer review across
+`opl-full-runtime` and `bundled-aioncore` remains audit-only until same-cohort
+Full clean VM evidence proves offline Core readiness and native trust are
+unchanged. Compression tuning is secondary; by the current measurement it cannot
+restore the target by itself.
 
 Local review:
 
@@ -415,7 +434,8 @@ Agent orchestration wall time with `--agent-wall-time <duration>`.
 Use `desktop-release-diagnostics.yml` for harness-only diagnosis before
 starting another full release train. It can run the first-run VM harness against
 a published `release_tag`, a direct `release_dmg_url`, or a
-`release_artifact_name` from an existing `release_artifact_run_id`. That
+`release_artifact_name` from an existing `release_artifact_run_id` via
+`actions/download-artifact@v8` with `run-id`. That
 workflow is read-only: it may upload `release-diagnostics-*` and
 `opl-first-run-vm-<profile>-<run_id>` diagnostic artifacts. If explicitly
 requested, it may build a temporary standard DMG diagnostic artifact for the VM

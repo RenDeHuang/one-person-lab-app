@@ -12,6 +12,12 @@ import {
   ensureAppBundleAdHocCodesign,
   verifyDmgAppBundleLocalAuthorization,
 } from './macos-trust.ts';
+import {
+  auditFullPackageBundleBoundaries,
+  trimFullAppBundleForDmg,
+  withFullPackageOptimization,
+  writeFullPackageManifestIntoApp,
+} from './package-optimization.ts';
 import { findExecutable, run, runCapture } from './process.ts';
 
 function createTarZst(archivePath, cwd, entries = ['.']) {
@@ -169,15 +175,25 @@ export function findBuiltApp(guiRoot) {
   return found;
 }
 
-export function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version) {
+export function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version, manifest) {
   removeBuiltDmgCandidates(guiRoot, version);
   ensureAppBundleAdHocCodesign(appPath, 'Full built app bundle');
   assertAppBundleLocalAuthorization(appPath, 'Full built app bundle');
   const compressionLevel = resolveFullDmgCompressionLevel();
   const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-dmg-stage-'));
+  let result = null;
   try {
     const stagedApp = path.join(stagingRoot, 'One Person Lab.app');
     run('ditto', [appPath, stagedApp]);
+    const trimReport = trimFullAppBundleForDmg(stagedApp);
+    const boundaryAudit = auditFullPackageBundleBoundaries(stagedApp, manifest);
+    const optimizedManifest = manifest
+      ? withFullPackageOptimization(manifest, { trimReport, boundaryAudit })
+      : manifest;
+    const appManifestWrites = optimizedManifest
+      ? writeFullPackageManifestIntoApp(stagedApp, optimizedManifest)
+      : [];
+    ensureAppBundleAdHocCodesign(stagedApp, 'Full staged app bundle');
     assertAppBundleLocalAuthorization(stagedApp, 'Full staged app bundle');
     fs.symlinkSync('/Applications', path.join(stagingRoot, 'Applications'));
     const hdiutilCreateArgs = [
@@ -194,10 +210,17 @@ export function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, versio
       `zlib-level=${compressionLevel}`,
     ];
     createDmgWithResourceBusyRetry(targetDmg, hdiutilCreateArgs);
+    result = {
+      manifest: optimizedManifest,
+      app_bundle_trim: trimReport,
+      package_boundary_audit: boundaryAudit,
+      app_manifest_writes: appManifestWrites,
+    };
   } finally {
     fs.rmSync(stagingRoot, { recursive: true, force: true });
   }
   verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
+  return result;
 }
 
 export function resolveFullDmgCompressionLevel() {
@@ -206,19 +229,21 @@ export function resolveFullDmgCompressionLevel() {
     || (process.env.CI === 'true' ? '9' : '7');
 }
 
-export function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version) {
+export function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version, manifest = null) {
   if (!canRunMacosSigningChecks()) {
-    return;
+    return null;
   }
   try {
     verifyDmgAppBundleLocalAuthorization(targetDmg, 'Full first-install DMG');
+    return null;
   } catch (error) {
     const builtApp = findBuiltApp(guiRoot);
     ensureAppBundleAdHocCodesign(builtApp, 'Full built app bundle');
     assertAppBundleLocalAuthorization(builtApp, 'Full built app bundle');
     fs.rmSync(targetDmg, { force: true });
-    createFullDmgFromVerifiedApp(guiRoot, builtApp, targetDmg, version);
+    const rebuiltPackage = createFullDmgFromVerifiedApp(guiRoot, builtApp, targetDmg, version, manifest);
     console.warn(`Rebuilt Full DMG after local authorization verification failed: ${error instanceof Error ? error.message : String(error)}`);
+    return rebuiltPackage;
   }
 }
 

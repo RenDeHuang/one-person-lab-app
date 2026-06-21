@@ -97,6 +97,8 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /npm --silent run release:full:size[\s\S]*--full-dmg-size-bytes "\$dmg_size_bytes"[\s\S]*full-package-size-summary\.json/);
   assert.match(workflow, /npm --silent run release:full:size[\s\S]*--full-dmg-size-bytes "\$dmg_size_bytes"[\s\S]*full-package-size-summary\.md/);
   assert.match(workflow, /cat dist\/opl-full-release\/full-package-size-summary\.md >> "\$GITHUB_STEP_SUMMARY"/);
+  assert.match(workflow, /## Full Size Release Coupling/);
+  assert.match(workflow, /Full DMG release-blocking by size alone/);
   assert.match(workflow, /name: Summarize Full caches and timings/);
   assert.match(workflow, /name: Cache Electron artifacts[\s\S]*id: electron-cache/);
   assert.match(workflow, /full-electron-cache-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}/);
@@ -162,7 +164,7 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   const diagnosticsStep = workflowStepBlock(workflow, 'Upload Full diagnostics artifact');
   const localAuthorizationStep = workflowStepBlock(workflow, 'Upload Full local authorization policy');
   assert.match(workflow, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/);
-  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*full-package-size-summary\.json[\s\S]*full-package-size-summary\.md[\s\S]*runtime-cache-events\.json[\s\S]*full-runtime-native-trust\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/);
+  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*full-package-size-summary\.json[\s\S]*full-package-size-summary\.md[\s\S]*runtime-cache-events\.json[\s\S]*full-runtime-native-trust\.json[\s\S]*full-app-bundle-trim-report\.json[\s\S]*full-package-boundary-audit\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/);
   assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/);
   assert.match(localAuthorizationStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-local-authorization-policy\.json/);
   assert.match(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/);
@@ -203,7 +205,8 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
     /'--prepackaged'/,
     'Full recovery DMG must be created directly from the verified App bundle; electron-builder prepackaged DMG can drop nested framework signatures',
   );
-  assert.match(fullPackageScript, /ensureFullDmgLocalAuthorization\(options\.guiRoot, targetDmg, options\.version\)/);
+  assert.match(fullPackageScript, /const rebuiltOptimizedPackage = ensureFullDmgLocalAuthorization\(/);
+  assert.match(fullPackageScript, /rebuiltOptimizedPackage\.manifest/);
   assert.doesNotMatch(
     fullPackageScript,
     /if \(!strictMacosRuntimeSigningRequired\(\)\) \{[\s\S]*?verifyDmgAppBundleLocalAuthorization\(targetDmg, 'Full first-install DMG'\);[\s\S]*?return;[\s\S]*?\}/,
@@ -818,9 +821,31 @@ test('Full size policy records review semantics, measured v26.6.21 breakdown, an
     'review_required_not_release_blocking_by_size_alone',
   );
   assert.match(
+    sizePolicy.threshold_semantics.stable_release_coupling_rule,
+    /not release-blocking by size alone/,
+  );
+  assert.match(
     sizePolicy.threshold_semantics.above_review_threshold_rule,
     /must not authorize removing required offline first-install payloads/,
   );
+  assert.deepEqual(sizePolicy.optimization_artifacts.required_manifest_flags, {
+    offline_first_install_completeness_preserved: true,
+    size_review_release_blocking_by_size_alone: false,
+  });
+  assert.equal(sizePolicy.optimization_artifacts.manifest_section, 'package_optimization');
+  assert.equal(sizePolicy.optimization_artifacts.trim_report, 'full-app-bundle-trim-report.json');
+  assert.equal(sizePolicy.optimization_artifacts.boundary_audit, 'full-package-boundary-audit.json');
+  assert.equal(sizePolicy.optimization_artifacts.mode, 'explicit_non_runtime_prune_only');
+  assert.ok(
+    sizePolicy.optimization_artifacts.required_preserved_payloads.includes('Contents/Resources/opl-full-runtime'),
+  );
+  assert.ok(
+    sizePolicy.optimization_artifacts.required_preserved_payloads.includes('Contents/Resources/bundled-aioncore'),
+  );
+  assert.deepEqual(sizePolicy.optimization_artifacts.required_remote_assets, [
+    'full-app-bundle-trim-report.json',
+    'full-package-boundary-audit.json',
+  ]);
   assert.deepEqual(sizePolicy.package_profile_boundary.standard, {
     asset_pattern: 'One-Person-Lab-<version>-mac-arm64.dmg',
     runtime_profile: 'standard',
@@ -1025,12 +1050,15 @@ test('Full first-install cache and release acceleration contract are explicit', 
     '.git',
     '.worktrees',
     '.venv',
+    'cache',
+    'logs',
     'node_modules',
     'runtime',
     'runtime-state',
     'runs',
     'sessions',
     'tests',
+    'tmp',
   ]);
   assert.equal(
     releaseContract.release_acceleration.full_runtime_packaging_hygiene.prune_policy_id,
@@ -1279,6 +1307,12 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.equal(mod.shouldExcludeRuntimePath('modules/rca/test-results/e2e/output.zip'), true);
   assert.equal(mod.shouldExcludeRuntimePath('modules/mas/src/generated/client.js.map'), true);
   assert.equal(mod.shouldExcludeRuntimePath('modules/rca/runtime-state/quest/output.png'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/logs/latest.log'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('modules/mag/tmp/session.json'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/cache/render.bin'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('opl/logs/runtime.log'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('opl/tmp/build.tmp'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('opl/cache/index.bin'), true);
   assert.equal(mod.shouldExcludeRuntimePath('modules/mas/runs/2026-05-27/result.json'), true);
   assert.equal(mod.shouldExcludeRuntimePath('modules/rca/prompts/xiaohongshu/style-references/ref.png'), false);
   assert.equal(mod.shouldExcludeRuntimePath('modules/mas/assets/branding/logo.png'), false);
@@ -1350,6 +1384,12 @@ test('Full runtime slim policy is declared without moving required payloads to l
   assert.equal(hygiene.prune_policy_id, 'full_runtime_offline_first_install_slim_v1');
   assert.equal(hygiene.manifest_policy_schema, 'opl_full_runtime_prune_policy.v1');
   assert.ok(hygiene.node_toolchain_pruned.includes('npm/docs'));
+  assert.ok(hygiene.local_state_excluded.includes('logs'));
+  assert.ok(hygiene.local_state_excluded.includes('tmp'));
+  assert.ok(hygiene.local_state_excluded.includes('cache'));
+  assert.equal(hygiene.app_bundle_staging.report, 'full-app-bundle-trim-report.json');
+  assert.equal(hygiene.app_bundle_staging.audit, 'full-package-boundary-audit.json');
+  assert.ok(hygiene.app_bundle_staging.protected_payloads.includes('Contents/Resources/opl-full-runtime'));
   assert.ok(hygiene.python_runtime_pruned.includes('stdlib test suites'));
   assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz'));
   assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz'));
@@ -1362,6 +1402,92 @@ test('Full runtime slim policy is declared without moving required payloads to l
   assert.ok(hygiene.manifest_assertions.includes('runtime_assertions.offline_required_payloads'));
   assert.ok(hygiene.manifest_assertions.includes('runtime_assertions.declared_pruned_paths'));
   assert.match(hygiene.app_policy, /do not prune declared offline first-install payloads/);
+});
+
+test('Full App bundle staging trim removes non-runtime artifacts while preserving offline runtime payloads', async () => {
+  const {
+    trimFullAppBundleForDmg,
+    auditFullPackageBundleBoundaries,
+    withFullPackageOptimization,
+    assertFullPackageOptimizationPreservesOfflineBoundary,
+  } = await import('../../../scripts/build-full-first-install-package/package-optimization.ts');
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-app-bundle-trim-'));
+  const appPath = path.join(tempRoot, 'One Person Lab.app');
+  writeFile(path.join(appPath, 'Contents', 'Resources', 'app.asar'), 'app');
+  writeFile(path.join(appPath, 'Contents', 'Resources', 'app.asar.map'), 'map');
+  writeFile(path.join(appPath, 'Contents', 'Resources', 'bundled-aioncore', 'runtime.js.map'), 'shell map');
+  writeFile(path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'native.node.map'), 'native map');
+  writeFile(
+    path.join(
+      appPath,
+      'Contents',
+      'Frameworks',
+      'Electron Framework.framework',
+      'Resources',
+      'electron.js.map',
+    ),
+    'electron map',
+  );
+  writeFile(path.join(appPath, 'Contents', 'Resources', 'test-results', 'result.json'), '{}');
+  writeFile(path.join(appPath, 'Contents', 'Resources', 'opl-full-runtime', 'runtime', 'current', 'bin', 'opl'), 'runtime');
+  writeFile(path.join(appPath, 'Contents', 'Resources', 'bundled-aioncore', 'node'), 'shell-runtime');
+  writeFile(path.join(appPath, 'Contents', 'Frameworks', 'Electron Framework.framework', 'Electron Framework'), 'electron');
+
+  const trimReport = trimFullAppBundleForDmg(appPath);
+  assert.equal(trimReport.schema, 'opl_full_app_bundle_trim_report.v1');
+  assert.equal(trimReport.required_payload_boundary.preserved, true);
+  assert.equal(fs.existsSync(path.join(appPath, 'Contents', 'Resources', 'app.asar.map')), false);
+  assert.equal(fs.existsSync(path.join(appPath, 'Contents', 'Resources', 'test-results')), false);
+  assert.equal(fs.existsSync(path.join(appPath, 'Contents', 'Resources', 'opl-full-runtime', 'runtime', 'current', 'bin', 'opl')), true);
+  assert.equal(fs.existsSync(path.join(appPath, 'Contents', 'Resources', 'bundled-aioncore', 'node')), true);
+  assert.equal(fs.existsSync(path.join(appPath, 'Contents', 'Resources', 'bundled-aioncore', 'runtime.js.map')), true);
+  assert.equal(fs.existsSync(path.join(appPath, 'Contents', 'Resources', 'app.asar.unpacked', 'native.node.map')), true);
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        appPath,
+        'Contents',
+        'Frameworks',
+        'Electron Framework.framework',
+        'Resources',
+        'electron.js.map',
+      ),
+    ),
+    true,
+  );
+
+  const boundaryAudit = auditFullPackageBundleBoundaries(appPath, {
+    package_kind: 'opl_full_first_install_macos_arm64',
+    version: '26.6.21-size-opt',
+  });
+  assert.equal(boundaryAudit.standard_app_boundary.standard_package_allowed_to_contain_full_runtime, false);
+  assert.equal(boundaryAudit.full_package_boundary.contains_opl_full_runtime, true);
+  assert.equal(boundaryAudit.full_package_boundary.contains_shell_runtime, true);
+  const manifest = withFullPackageOptimization(
+    { manifest_version: 2, package_kind: 'opl_full_first_install_macos_arm64' },
+    { trimReport, boundaryAudit },
+  );
+  assert.equal(manifest.package_optimization.offline_first_install_completeness_preserved, true);
+  assert.equal(manifest.package_optimization.size_review_release_blocking_by_size_alone, false);
+  assert.equal(manifest.package_optimization.app_bundle_trim.bytes_removed, trimReport.bytes_removed);
+
+  const incompleteAudit = auditFullPackageBundleBoundaries(path.join(tempRoot, 'Incomplete.app'), {
+    package_kind: 'opl_full_first_install_macos_arm64',
+    version: '26.6.21-size-opt',
+  });
+  assert.throws(
+    () => withFullPackageOptimization(
+      { manifest_version: 2, package_kind: 'opl_full_first_install_macos_arm64' },
+      { trimReport, boundaryAudit: incompleteAudit },
+    ),
+    /did not preserve the declared offline first-install App bundle boundary/,
+  );
+  assert.throws(
+    () => assertFullPackageOptimizationPreservesOfflineBoundary({
+      offline_first_install_completeness_preserved: false,
+    }),
+    /did not preserve the declared offline first-install App bundle boundary/,
+  );
 });
 
 test('Full runtime node payload prunes package-only docs while preserving offline launch executables', async () => {

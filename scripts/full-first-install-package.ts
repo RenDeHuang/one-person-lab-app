@@ -475,10 +475,15 @@ const EXCLUDED_RUNTIME_PATH_SEGMENTS = [
   '.omx',
   '.worktrees',
   '.cache',
+  '.eslintcache',
+  '.hypothesis',
+  '.ipynb_checkpoints',
   '.mypy_cache',
   '.next',
   '.nyc_output',
+  '.parcel-cache',
   '.pytest_cache',
+  '.rollup.cache',
   '.ruff_cache',
   '.storybook',
   '.turbo',
@@ -486,8 +491,11 @@ const EXCLUDED_RUNTIME_PATH_SEGMENTS = [
   '__pycache__',
   '__snapshots__',
   'coverage',
+  'logs',
   'storybook-static',
   'target',
+  'temp',
+  'tmp',
   '.DS_Store',
 ] as const;
 
@@ -509,10 +517,12 @@ const EXCLUDED_RUNTIME_PATH_PATTERN_SOURCES = [
   '^modules\\/[^/]+\\/node_modules(?:\\/|$)',
   '^modules\\/[^/]+\\/tests?(?:\\/|$)',
   '^modules\\/[^/]+\\/(?:build|dist|htmlcov|docs\\/_build|notebooks|playwright-report|runtime|runtime-state|runs|sessions|test-results|\\.ds)(?:\\/|$)',
+  '^modules\\/[^/]+\\/(?:cache|logs?|tmp|temp)(?:\\/|$)',
   '^opl\\/node_modules(?:\\/|$)',
   '^opl\\/.*\\/\\.venv(?:\\/|$)',
   '^opl\\/dist(?:\\/|$)',
   '^opl\\/(?:build|playwright-report|test-results)(?:\\/|$)',
+  '^opl\\/(?:cache|logs?|tmp|temp)(?:\\/|$)',
   '^python\\/[^/]+\\/lib\\/python\\d+\\.\\d+\\/(?:test|idlelib\\/idle_test|tkinter\\/test|unittest\\/test|ctypes\\/test|distutils\\/tests|lib2to3\\/tests)(?:\\/|$)',
 ] as const;
 
@@ -558,6 +568,25 @@ export const FULL_RUNTIME_PRUNE_POLICY = {
   node_toolchain_global_packages: {
     copied_packages: ['npm', 'corepack'],
     excluded_path_patterns: EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERN_SOURCES,
+  },
+  app_bundle_staging: {
+    mode: 'post_build_pre_dmg_explicit_non_runtime_trim',
+    report: 'full-app-bundle-trim-report.json',
+    audit: 'full-package-boundary-audit.json',
+    excluded_payloads: [
+      'source maps',
+      'test fixtures',
+      'coverage reports',
+      'local caches',
+      'temporary files',
+      'logs',
+    ],
+    protected_payloads: [
+      `Contents/Resources/${FULL_RUNTIME_RESOURCE_DIR}`,
+      'Contents/Resources/bundled-aioncore',
+      'Contents/Resources/app.asar',
+      'Contents/Frameworks/Electron Framework.framework',
+    ],
   },
   retained_runtime_support: {
     python_headers: 'retained for offline native-extension build/debug support',

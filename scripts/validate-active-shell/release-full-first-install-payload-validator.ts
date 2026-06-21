@@ -7,6 +7,7 @@ export function validateReleaseFullFirstInstallPayloads(releaseChannel) {
   validateReleaseFullTemporalRuntimeProvider(
     releaseChannel.full_first_install?.required_payloads?.temporal_runtime_provider,
   );
+  validateReleaseFullSizeOptimizationPolicy(releaseChannel.full_first_install?.size_policy);
 }
 
 function validateReleaseFullCodexCliPayload(codexCli) {
@@ -82,4 +83,45 @@ function validateReleaseFullTemporalRuntimeProvider(temporalRuntimeProvider) {
   if (!/wrapper must export local Temporal defaults/.test(temporalRuntimeProvider?.verification ?? '')) {
     throw new Error('Release channel Full Temporal provider verification must include wrapper default exports');
   }
+}
+
+function validateReleaseFullSizeOptimizationPolicy(sizePolicy) {
+  if (
+    sizePolicy?.offline_first_install_completeness_must_not_regress !== true ||
+    sizePolicy?.threshold_semantics?.review_full_dmg_bytes?.status !==
+      'review_required_not_release_blocking_by_size_alone' ||
+    !/not release-blocking by size alone/.test(sizePolicy?.threshold_semantics?.stable_release_coupling_rule ?? '')
+  ) {
+    throw new Error('Release channel Full size policy must decouple size review from stable release blocking while preserving offline first-install completeness');
+  }
+  const artifacts = sizePolicy.optimization_artifacts;
+  if (
+    artifacts?.schema !== 'opl_full_package_optimization.v1' ||
+    artifacts?.manifest_section !== 'package_optimization' ||
+    artifacts?.trim_report !== 'full-app-bundle-trim-report.json' ||
+    artifacts?.trim_report_schema !== 'opl_full_app_bundle_trim_report.v1' ||
+    artifacts?.boundary_audit !== 'full-package-boundary-audit.json' ||
+    artifacts?.boundary_audit_schema !== 'opl_full_package_boundary_audit.v1' ||
+    artifacts?.mode !== 'explicit_non_runtime_prune_only' ||
+    artifacts?.required_manifest_flags?.offline_first_install_completeness_preserved !== true ||
+    artifacts?.required_manifest_flags?.size_review_release_blocking_by_size_alone !== false
+  ) {
+    throw new Error('Release channel Full size policy must declare package optimization artifacts and manifest flags');
+  }
+  assertIncludesAll(
+    artifacts.required_preserved_payloads,
+    [
+      'Contents/Resources/opl-full-runtime',
+      'Contents/Resources/bundled-aioncore',
+      'Contents/Resources/app.asar',
+      'Contents/Resources/app.asar.unpacked',
+      'Contents/Frameworks/Electron Framework.framework',
+    ],
+    'Release channel Full optimization preserved payloads',
+  );
+  assertIncludesAll(
+    artifacts.required_remote_assets,
+    ['full-app-bundle-trim-report.json', 'full-package-boundary-audit.json'],
+    'Release channel Full optimization remote assets',
+  );
 }

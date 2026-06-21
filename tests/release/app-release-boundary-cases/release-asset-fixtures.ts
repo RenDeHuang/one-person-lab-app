@@ -177,6 +177,77 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
 
 export function writeFullRemoteAssets(outDir, version, options = {}) {
   const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const trimReport = {
+    schema: 'opl_full_app_bundle_trim_report.v1',
+    mode: 'explicit_non_runtime_prune_only',
+    app_bundle_path: '/tmp/One Person Lab.app',
+    required_payload_boundary: {
+      full_runtime_resource_dir: 'Contents/Resources/opl-full-runtime',
+      protected_payloads: [
+        'Contents/Resources/opl-full-runtime',
+        'Contents/Resources/bundled-aioncore',
+        'Contents/Resources/app.asar',
+        'Contents/Resources/app.asar.unpacked',
+        'Contents/Frameworks/Electron Framework.framework',
+      ],
+      preserved: true,
+      rule: 'never trim the declared Full offline runtime payload from the App bundle staging pass',
+    },
+    before_bytes: 1024,
+    after_bytes: 960,
+    bytes_removed: 64,
+    removed_count: 2,
+    removed_paths: [
+      { path: 'Contents/Resources/app.asar.map', size_bytes: 32, reason: 'staged_app_non_runtime_file' },
+      { path: 'Contents/Resources/test-results', size_bytes: 32, reason: 'staged_app_non_runtime_directory' },
+    ],
+  };
+  const boundaryAudit = {
+    schema: 'opl_full_package_boundary_audit.v1',
+    app_bundle_path: '/tmp/One Person Lab.app',
+    package_kind: 'opl_full_first_install_macos_arm64',
+    version,
+    standard_app_boundary: {
+      standard_package_allowed_to_contain_full_runtime: false,
+      standard_payload_guard: 'scripts/prepare-standard-release-payload.ts removes packaged-runtimes/opl-full-runtime before standard builds',
+    },
+    full_package_boundary: {
+      contains_opl_full_runtime: true,
+      contains_shell_runtime: true,
+      dedupe_policy: 'audit_only_without_same_cohort_full_clean_vm_evidence',
+      rule: 'Do not dedupe or remove declared offline Full runtime, shell runtime, native trust, or Core readiness payloads for size alone.',
+    },
+    entries: {
+      opl_full_runtime: {
+        path: 'Contents/Resources/opl-full-runtime',
+        owner: 'gaofeng21cn/one-person-lab',
+        role: 'Full offline first-install runtime payload assembled by the App repo as consumer/packager',
+        exists: true,
+        size_bytes: 128,
+      },
+      aionui_bundled_runtime: {
+        path: 'Contents/Resources/bundled-aioncore',
+        owner: 'active_shell',
+        role: 'AionUI shell runtime required by the App bundle',
+        exists: true,
+        size_bytes: 256,
+      },
+      app_asar: {
+        path: 'Contents/Resources/app.asar',
+        owner: 'active_shell',
+        role: 'AionUI renderer and process bundle',
+        exists: true,
+        size_bytes: 64,
+      },
+      electron_framework: {
+        path: 'Contents/Frameworks/Electron Framework.framework',
+        owner: 'active_shell/electron',
+        role: 'Electron runtime framework',
+        exists: true,
+        size_bytes: 512,
+      },
+    },
+  };
   const manifest = {
     manifest_version: 2,
     version,
@@ -206,6 +277,54 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
     },
     distribution: {
       updater_metadata_allowed: false,
+    },
+    package_optimization: {
+      schema: 'opl_full_package_optimization.v1',
+      offline_first_install_completeness_preserved: true,
+      size_review_release_blocking_by_size_alone: false,
+      app_bundle_trim: {
+        schema: trimReport.schema,
+        mode: trimReport.mode,
+        before_bytes: trimReport.before_bytes,
+        after_bytes: trimReport.after_bytes,
+        bytes_removed: trimReport.bytes_removed,
+        removed_count: trimReport.removed_count,
+        required_payload_boundary: trimReport.required_payload_boundary,
+      },
+      package_boundary_audit: {
+        schema: boundaryAudit.schema,
+        standard_package_allowed_to_contain_full_runtime:
+          boundaryAudit.standard_app_boundary.standard_package_allowed_to_contain_full_runtime,
+        contains_opl_full_runtime: boundaryAudit.full_package_boundary.contains_opl_full_runtime,
+        contains_shell_runtime: boundaryAudit.full_package_boundary.contains_shell_runtime,
+        dedupe_policy: boundaryAudit.full_package_boundary.dedupe_policy,
+        audited_entries: {
+          opl_full_runtime: {
+            path: boundaryAudit.entries.opl_full_runtime.path,
+            owner: boundaryAudit.entries.opl_full_runtime.owner,
+            exists: boundaryAudit.entries.opl_full_runtime.exists,
+            size_bytes: boundaryAudit.entries.opl_full_runtime.size_bytes,
+          },
+          aionui_bundled_runtime: {
+            path: boundaryAudit.entries.aionui_bundled_runtime.path,
+            owner: boundaryAudit.entries.aionui_bundled_runtime.owner,
+            exists: boundaryAudit.entries.aionui_bundled_runtime.exists,
+            size_bytes: boundaryAudit.entries.aionui_bundled_runtime.size_bytes,
+          },
+          app_asar: {
+            path: boundaryAudit.entries.app_asar.path,
+            owner: boundaryAudit.entries.app_asar.owner,
+            exists: boundaryAudit.entries.app_asar.exists,
+            size_bytes: boundaryAudit.entries.app_asar.size_bytes,
+          },
+          electron_framework: {
+            path: boundaryAudit.entries.electron_framework.path,
+            owner: boundaryAudit.entries.electron_framework.owner,
+            exists: boundaryAudit.entries.electron_framework.exists,
+            size_bytes: boundaryAudit.entries.electron_framework.size_bytes,
+          },
+        },
+      },
     },
     components: {
       codex: {
@@ -246,6 +365,14 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
   writeFullLocalAuthorizationPolicy(outDir);
   writeFullRuntimeNativeTrust(outDir);
   writeFile(
+    path.join(outDir, 'full-app-bundle-trim-report.json'),
+    `${JSON.stringify(trimReport, null, 2)}\n`,
+  );
+  writeFile(
+    path.join(outDir, 'full-package-boundary-audit.json'),
+    `${JSON.stringify(boundaryAudit, null, 2)}\n`,
+  );
+  writeFile(
     path.join(outDir, 'runtime-cache-events.json'),
     `${JSON.stringify({
       mode: 'readwrite',
@@ -275,6 +402,8 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
     'full-package-manifest.json',
     'runtime-cache-events.json',
     'full-runtime-native-trust.json',
+    'full-app-bundle-trim-report.json',
+    'full-package-boundary-audit.json',
     'README-Full-First-Install.txt',
     'full-local-authorization-policy.json',
   ];
@@ -287,6 +416,8 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
     'full-package-manifest.json',
     'runtime-cache-events.json',
     'full-runtime-native-trust.json',
+    'full-app-bundle-trim-report.json',
+    'full-package-boundary-audit.json',
     'README-Full-First-Install.txt',
     'SHA256SUMS.txt',
     'full-local-authorization-policy.json',

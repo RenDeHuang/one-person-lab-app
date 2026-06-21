@@ -321,32 +321,34 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.match(job, /app-wrapper-smoke\.stderr\.log/);
   assert.match(job, /exit_code/);
   assert.match(job, /phase_timings/);
-  assert.match(job, /--bootstrap-launch-diagnostics/);
+  assert.doesNotMatch(job, /--bootstrap-launch-diagnostics/);
   assert.match(job, /Upload first-run VM artifacts[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/);
 
   const shellSmoke = fs.readFileSync(
     path.join(activeShellRoot, 'scripts', 'opl-first-run-vm-smoke.mjs'),
     'utf8',
   );
-  assert.match(shellSmoke, /NSAlert runModal/);
-  assert.match(shellSmoke, /bootstrap-launch-diagnostics\.json/);
-  assert.match(shellSmoke, /renderer-bootstrap-diagnostics\.json/);
-  assert.match(shellSmoke, /native-modal-launch-blocker\.json/);
-  assert.match(shellSmoke, /launch-app/);
-  assert.match(shellSmoke, /native-window-diagnostics\.json/);
-  assert.match(shellSmoke, /main-bootstrap-fatal-candidates\.json/);
-  assert.match(shellSmoke, /native_modal_text/);
-  assert.match(shellSmoke, /blocker_detection_rule: 'cdp_absent_and_app_process_alive_and_nsalert_run_modal_sample_found'/);
-  assert.match(shellSmoke, /collectNativeModalText/);
-  assert.match(shellSmoke, /likely_alert_text/);
-  assert.match(shellSmoke, /window_title_text/);
-  assert.match(shellSmoke, /bootstrap_fatal_text/);
-  assert.match(shellSmoke, /launch_log_text/);
-  assert.match(shellSmoke, /cdp_absent_and_app_process_alive_and_nsalert_run_modal_sample_found/);
-  assert.match(shellSmoke, /main_bootstrap_fatal\.error\.message/);
-  assert.match(shellSmoke, /main_bootstrap_fatal\.error\.stack/);
-  assert.match(shellSmoke, /launch_stderr/);
-  assert.match(shellSmoke, /launch_stdout/);
+  const tartSmoke = fs.readFileSync(
+    path.join(activeShellRoot, 'scripts', 'opl-first-run-tart-smoke.mjs'),
+    'utf8',
+  );
+  assert.match(tartSmoke, /--smoke-timeout-ms <n>/);
+  assert.match(tartSmoke, /--codex-install-phase-timeout-ms <n>/);
+  assert.match(tartSmoke, /--codex-readiness-phase-timeout-ms <n>/);
+  assert.match(tartSmoke, /GUEST_SMOKE_SCRIPT_PATH/);
+  assert.match(tartSmoke, /tart-smoke-summary\.json/);
+  assert.match(tartSmoke, /smoke-events\.jsonl/);
+  assert.match(tartSmoke, /runtime_profile: options\.runtimeProfile/);
+  assert.match(tartSmoke, /settings_smoke: options\.settingsSmoke/);
+  assert.match(tartSmoke, /assistant_route_smoke: options\.assistantRouteSmoke/);
+  assert.match(shellSmoke, /--codex-install-phase-timeout-ms <n>/);
+  assert.match(shellSmoke, /--codex-readiness-phase-timeout-ms <n>/);
+  assert.match(shellSmoke, /waitForFullFirstRunEquivalence/);
+  assert.match(shellSmoke, /full_runtime_equivalence/);
+  assert.match(shellSmoke, /app-release-runtime-evidence-summary\.json/);
+  assert.match(shellSmoke, /codex-functional-check-summary\.json/);
+  assert.match(shellSmoke, /codex-ai-self-check-summary\.json/);
+  assert.match(shellSmoke, /first-launch\.png/);
 
   const vmArtifactScenarioIds = new Set([
     'standard_dmg_clean_vm_smoke',
@@ -431,19 +433,20 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
       'codex_install_phase_timeout_ms',
       'codex_readiness_phase_timeout_ms',
     ]);
-    assert.deepEqual(scenario.diagnostics_contract.app_wrapper.required_launch_blocker_fields, [
-      'bootstrap-launch-diagnostics.json',
-      'renderer-bootstrap-diagnostics.json',
-      'native-modal-launch-blocker.json',
-      'launch-app/diagnostics.json',
-      'launch-app/native-window-diagnostics.json',
-      'launch-app/main-bootstrap-fatal-candidates.json',
-      'native_modal_launch_blocker.evidence_contract.blocker_detection_rule',
-      'native_modal_launch_blocker.native_modal_text',
-      'native_modal_launch_blocker.likely_alert_text',
-      'native_modal_launch_blocker.window_title_text',
-      'native_modal_launch_blocker.bootstrap_fatal_text',
-      'native_modal_launch_blocker.launch_log_text',
+    assert.deepEqual(scenario.diagnostics_contract.app_wrapper.required_wrapper_diagnostic_fields, [
+      'app-wrapper-diagnostics.json',
+      'app-wrapper-preflight.log',
+      'app-wrapper-smoke-command-preview.txt',
+      'app-wrapper-smoke.stdout.log',
+      'app-wrapper-smoke.stderr.log',
+      'tart-smoke-summary.json',
+      'artifact_paths.smoke_command_preview',
+      'artifact_paths.smoke_stdout',
+      'artifact_paths.smoke_stderr',
+      'artifact_paths.tart_smoke_summary',
+      'smoke_command.exit_code',
+      'phase_timings.app_wrapper_preflight',
+      'phase_timings.app_wrapper_smoke',
     ]);
     assert.deepEqual(scenario.diagnostics_contract.codex_install.install_asset_preseed, {
       mode: 'host_prefetch_cache_preseed',

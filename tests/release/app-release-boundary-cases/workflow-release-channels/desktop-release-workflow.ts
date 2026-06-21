@@ -267,6 +267,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /actions\/download-artifact@v8/);
   assert.match(vmWorkflow, /run-id:\s+\$\{\{ inputs\.release_artifact_run_id \|\| github\.run_id \}\}/);
   assert.match(vmWorkflow, /Using same-run workflow artifact/);
+  assert.match(vmWorkflow, /Using source workflow run artifact/);
   assert.match(vmWorkflow, /workflow artifact \$\{\{ inputs\.release_artifact_name \}\} from run \$\{\{ inputs\.release_artifact_run_id \|\| github\.run_id \}\}/);
   assert.match(vmWorkflow, /release tag \$\{\{ inputs\.release_tag \}\} kept for provenance/);
   assert.match(vmWorkflow, /fetch_release_metadata_with_retry\(\)/);
@@ -429,28 +430,17 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           'App install',
           'Gatekeeper/local authorization diagnostics',
           'App launch',
-          'CDP/accessibility/native modal/bootstrap fatal artifact collection',
-          'renderer bootstrap diagnostics',
-          'native window and alert text diagnostics',
-          'NSAlert runModal sample diagnostics',
-          'main bootstrap fatal text diagnostics',
+          'wrapper preflight diagnostics',
+          'wrapper smoke command and log artifacts',
+          'Tart smoke summary artifact',
         ],
-        launch_blocker_artifacts: [
-          'bootstrap-launch-diagnostics.json',
-          'renderer-bootstrap-diagnostics.json',
-          'native-modal-launch-blocker.json',
-          'launch-app/diagnostics.json',
-          'launch-app/native-window-diagnostics.json',
-          'launch-app/main-bootstrap-fatal-candidates.json',
-        ],
-        native_modal_blocker_detection_rule: 'cdp_absent_and_app_process_alive_and_nsalert_run_modal_sample_found',
-        native_modal_text_sources: [
-          'accessibility_likely_alert',
-          'frontmost_window_title',
-          'main_bootstrap_fatal.error.message',
-          'main_bootstrap_fatal.error.stack',
-          'launch_stderr',
-          'launch_stdout',
+        wrapper_diagnostic_artifacts: [
+          'app-wrapper-diagnostics.json',
+          'app-wrapper-preflight.log',
+          'app-wrapper-smoke-command-preview.txt',
+          'app-wrapper-smoke.stdout.log',
+          'app-wrapper-smoke.stderr.log',
+          'tart-smoke-summary.json',
         ],
         authority_boundary: 'diagnostic_only_not_release_ready_owner_receipt_or_runtime_truth',
       },
@@ -462,7 +452,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           'App install',
           'Gatekeeper/local authorization diagnostics',
           'App launch',
-          'non-blocking early CDP/accessibility/native modal/bootstrap fatal artifact collection',
+          'wrapper preflight diagnostics',
+          'wrapper smoke command and log artifacts',
+          'Tart smoke summary artifact',
           'Codex install asset cache restore',
           'Codex install asset prefetch',
           'Codex install asset cache save',
@@ -471,16 +463,16 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           'Codex functional check',
           'Codex AI self-check',
         ],
-        early_launch_blocker_artifacts: [
-          'bootstrap-launch-diagnostics.json',
-          'renderer-bootstrap-diagnostics.json',
-          'native-modal-launch-blocker.json',
-          'launch-app/diagnostics.json',
-          'launch-app/native-window-diagnostics.json',
-          'launch-app/main-bootstrap-fatal-candidates.json',
+        wrapper_diagnostic_artifacts: [
+          'app-wrapper-diagnostics.json',
+          'app-wrapper-preflight.log',
+          'app-wrapper-smoke-command-preview.txt',
+          'app-wrapper-smoke.stdout.log',
+          'app-wrapper-smoke.stderr.log',
+          'tart-smoke-summary.json',
         ],
-        early_launch_probe_policy:
-          'non_blocking_capture_before_full_readiness_checks; full release gate failure still comes from the deterministic readiness/settings/route/codex checks',
+        wrapper_diagnostic_policy:
+          'host_wrapper_preflight_and_smoke_logs_are_supporting_evidence; full release gate failure still comes from the deterministic VM readiness/settings/route/codex checks',
         authority_boundary: 'release_gate_evidence_only_when_same_cohort_workflow_requires_it',
       },
     },
@@ -497,6 +489,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'runtime truth',
       'stable/latest promotion',
     ],
+  });
+  assert.deepEqual(releaseContract.release_acceleration.github_actions.first_run_vm_artifact_handoff, {
+    same_run_inputs: ['release_artifact_name'],
+    source_run_inputs: ['release_artifact_name', 'release_artifact_run_id'],
+    source_run_download_command: 'actions/download-artifact@v8 with run-id=<release_artifact_run_id || github.run_id> and name=<release_artifact_name>',
+    scope: 'vm_evidence_only',
+    forbidden_replacements: [
+      'stable release same-run VM gates',
+      'published release remote verification',
+      'owner receipt',
+      'release publish',
+    ],
+    rule: 'Branch-lane or post-release evidence runs may explicitly download a DMG-only artifact from a completed source Actions run without publishing assets; this handoff is VM evidence only and must not replace stable same-run VM gates or published asset verification.',
   });
   assert.deepEqual(releaseContract.release_preflight, {
     script: 'scripts/validate-release-preflight.ts',
@@ -619,6 +624,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'full_sha256sums',
       'full_runtime_cache_events',
       'full_runtime_native_trust',
+      'full_package_optimization_artifacts',
+      'full_package_boundary_audit',
       'full_manifest_distribution_boundary',
       'full_manifest_size_budget',
       'full_release_asset_size_budget',
