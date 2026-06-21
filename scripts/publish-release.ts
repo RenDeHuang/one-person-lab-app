@@ -321,6 +321,8 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
     'full-package-manifest.json',
     'runtime-cache-events.json',
     'full-runtime-native-trust.json',
+    'full-app-bundle-trim-report.json',
+    'full-package-boundary-audit.json',
     'SHA256SUMS.txt',
     'README-Full-First-Install.txt',
     'full-local-authorization-policy.json',

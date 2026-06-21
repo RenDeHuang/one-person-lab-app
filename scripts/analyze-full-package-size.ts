@@ -15,8 +15,10 @@ const defaultManifestPath = path.join(appRoot, FULL_RELEASE_OUTPUT_DIR, 'full-pa
 function parseArgs(argv: string[]) {
   const parsed = {
     manifestPath: defaultManifestPath,
+    previousManifestPath: '',
     runtimeRoot: '',
     fullDmgSizeBytes: null as number | null,
+    previousFullDmgSizeBytes: null as number | null,
     top: 12,
     markdown: false,
   };
@@ -28,6 +30,10 @@ function parseArgs(argv: string[]) {
       if (!value) throw new Error('--manifest requires a path.');
       parsed.manifestPath = path.resolve(value);
       index += 1;
+    } else if (token === '--previous-manifest') {
+      if (!value) throw new Error('--previous-manifest requires a path.');
+      parsed.previousManifestPath = path.resolve(value);
+      index += 1;
     } else if (token === '--runtime-root') {
       if (!value) throw new Error('--runtime-root requires a path.');
       parsed.runtimeRoot = path.resolve(value);
@@ -35,6 +41,10 @@ function parseArgs(argv: string[]) {
     } else if (token === '--full-dmg-size-bytes') {
       if (!value || !/^\d+$/.test(value)) throw new Error('--full-dmg-size-bytes requires a non-negative integer.');
       parsed.fullDmgSizeBytes = Number(value);
+      index += 1;
+    } else if (token === '--previous-full-dmg-size-bytes') {
+      if (!value || !/^\d+$/.test(value)) throw new Error('--previous-full-dmg-size-bytes requires a non-negative integer.');
+      parsed.previousFullDmgSizeBytes = Number(value);
       index += 1;
     } else if (token === '--top') {
       if (!value || !/^\d+$/.test(value)) throw new Error('--top requires a positive integer.');
@@ -166,6 +176,45 @@ function runtimeRootEntries(runtimeRoot: string, top: number) {
     .slice(0, top);
 }
 
+function numericDelta(current: number | null, previous: number | null) {
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) {
+    return null;
+  }
+  const deltaBytes = (current as number) - (previous as number);
+  return {
+    previous_bytes: previous,
+    current_bytes: current,
+    delta_bytes: deltaBytes,
+    delta_percent: percent(deltaBytes, previous as number),
+  };
+}
+
+function topEntryMap(entries: Array<{ id?: string; path?: string; size_bytes: number | null }>) {
+  return new Map(entries
+    .filter((entry) => entry.size_bytes !== null && (entry.id || entry.path))
+    .map((entry) => [String(entry.id ?? entry.path), entry.size_bytes as number]));
+}
+
+function entryDeltas(
+  current: Array<{ id?: string; path?: string; size_bytes: number | null }>,
+  previous: Array<{ id?: string; path?: string; size_bytes: number | null }>,
+  top: number,
+) {
+  const currentMap = topEntryMap(current);
+  const previousMap = topEntryMap(previous);
+  const ids = [...new Set([...currentMap.keys(), ...previousMap.keys()])].sort();
+  return ids
+    .map((id) => {
+      const currentBytes = currentMap.get(id) ?? null;
+      const previousBytes = previousMap.get(id) ?? null;
+      const delta = numericDelta(currentBytes, previousBytes);
+      return delta ? { id, ...delta } : null;
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+    .sort((left, right) => Math.abs(right.delta_bytes) - Math.abs(left.delta_bytes))
+    .slice(0, top);
+}
+
 function ranked<T extends { size_bytes: number | null }>(entries: T[], totalBytes: number | null, top: number) {
   return entries
     .filter((entry) => Number.isFinite(entry.size_bytes))
@@ -230,6 +279,9 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
     throw new Error(`Full package manifest not found: ${options.manifestPath}`);
   }
   const manifest = readJson(options.manifestPath);
+  const previousManifest = options.previousManifestPath
+    ? readJson(options.previousManifestPath)
+    : null;
   const totalRuntimeBytes = manifest.size_breakdown?.total_runtime_uncompressed_bytes ?? null;
   const maxRuntimeBytes = manifest.size_budget?.max_runtime_uncompressed_bytes ?? null;
   const warningFullDmgBytes = manifest.size_budget?.warning_full_dmg_bytes ?? null;
@@ -240,7 +292,12 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
     : null;
   const components = componentEntries(manifest);
   const layers = layerEntries(manifest);
+  const previousComponents = previousManifest ? componentEntries(previousManifest) : [];
+  const previousLayers = previousManifest ? layerEntries(previousManifest) : [];
   const manifestSizeHotspots = collectManifestSizeHotspots(manifest, options.top);
+  const previousManifestSizeHotspots = previousManifest
+    ? collectManifestSizeHotspots(previousManifest, options.top)
+    : [];
   const fullDmgWarningStatus = budgetStatus(options.fullDmgSizeBytes, warningFullDmgBytes, 'warning_at_or_above');
   const fullDmgReviewThresholdStatus = budgetStatus(options.fullDmgSizeBytes, maxFullDmgBytes, 'review_above');
   const fullDmgHardLimitStatus = budgetStatus(options.fullDmgSizeBytes, hardFullDmgBytes, 'fail_above');
@@ -292,6 +349,22 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
         release_blocking: true,
       },
     },
+    size_delta: {
+      previous_manifest_path: options.previousManifestPath || null,
+      compressed_full_dmg: numericDelta(options.fullDmgSizeBytes, options.previousFullDmgSizeBytes),
+      runtime_uncompressed: numericDelta(
+        totalRuntimeBytes,
+        previousManifest?.size_breakdown?.total_runtime_uncompressed_bytes ?? null,
+      ),
+      layers: entryDeltas(layers, previousLayers, options.top),
+      components: entryDeltas(components, previousComponents, options.top),
+      manifest_size_hotspots: entryDeltas(
+        manifestSizeHotspots.map((entry) => ({ path: entry.path, size_bytes: entry.size_bytes })),
+        previousManifestSizeHotspots.map((entry) => ({ path: entry.path, size_bytes: entry.size_bytes })),
+        options.top,
+      ),
+    },
+    package_optimization: manifest.package_optimization ?? null,
     total_runtime_uncompressed_bytes: totalRuntimeBytes,
     full_dmg_size_bytes: options.fullDmgSizeBytes,
     warning_full_dmg_bytes: warningFullDmgBytes,
@@ -357,6 +430,12 @@ function renderMarkdown(summary: ReturnType<typeof buildSummary>, top: number) {
     `- Full DMG hard limit: ${formatBytes(summary.hard_full_dmg_bytes)}`,
     `- Full DMG gate status: ${summary.budget.compressed_full_dmg.status}`,
     `- Runtime budget: ${formatBytes(summary.max_runtime_uncompressed_bytes)}${summary.runtime_budget_used_percent === null ? '' : ` (${summary.runtime_budget_used_percent}% used, ${summary.budget.runtime_uncompressed.status})`}`,
+    summary.size_delta.compressed_full_dmg
+      ? `- Full DMG delta: ${formatBytes(summary.size_delta.compressed_full_dmg.delta_bytes)} (${summary.size_delta.compressed_full_dmg.delta_percent}%)`
+      : null,
+    summary.size_delta.runtime_uncompressed
+      ? `- Runtime delta: ${formatBytes(summary.size_delta.runtime_uncompressed.delta_bytes)} (${summary.size_delta.runtime_uncompressed.delta_percent}%)`
+      : null,
     summary.opl_runtime_bundle_consumer
       ? `- OPL runtime bundle role: ${summary.opl_runtime_bundle_consumer.app_repo_role}`
       : null,
@@ -397,6 +476,20 @@ function renderMarkdown(summary: ReturnType<typeof buildSummary>, top: number) {
           Array.isArray(canonicalIds) ? canonicalIds.join(', ') : String(canonicalIds),
         ]),
       ),
+    );
+  }
+
+  if (summary.package_optimization) {
+    const trim = summary.package_optimization.app_bundle_trim ?? {};
+    lines.push(
+      '',
+      '### Full Package Optimization',
+      '',
+      `- Offline first-install completeness preserved: ${summary.package_optimization.offline_first_install_completeness_preserved}`,
+      `- Size review release-blocking by size alone: ${summary.package_optimization.size_review_release_blocking_by_size_alone}`,
+      `- App bundle trim removed: ${formatBytes(trim.bytes_removed)} from ${String(trim.removed_count ?? 0)} path(s)`,
+      `- Full runtime preserved: ${summary.package_optimization.package_boundary_audit?.contains_opl_full_runtime}`,
+      `- Shell runtime preserved: ${summary.package_optimization.package_boundary_audit?.contains_shell_runtime}`,
     );
   }
 

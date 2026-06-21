@@ -266,8 +266,16 @@ function declaredPrunedPathAssertions(runtimeRoot) {
     'modules/*/.venv',
     'modules/*/node_modules',
     'modules/*/tests',
+    'modules/*/logs',
+    'modules/*/tmp',
+    'modules/*/cache',
     'modules/*/runtime-state',
+    'modules/*/runs',
+    'modules/*/sessions',
     'opl/dist',
+    'opl/logs',
+    'opl/tmp',
+    'opl/cache',
     'opl/node_modules/@temporalio/testing',
   ];
   const pathExists = (relativePath) => fs.existsSync(path.join(runtimeRoot, ...relativePath.split('/')));

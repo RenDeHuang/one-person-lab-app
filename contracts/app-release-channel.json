@@ -604,7 +604,34 @@
           "status": "release_blocking"
         },
         "above_review_threshold_rule": "A Full DMG above the review threshold must open package-size review and optimization planning, but it must not authorize removing required offline first-install payloads.",
+        "stable_release_coupling_rule": "Full DMG warning or review-threshold status is not release-blocking by size alone and must not block stable clean evidence unless a hard size limit, uncompressed runtime limit, offline payload boundary, native trust, or Full clean VM smoke gate fails.",
         "cache_hit_rule": "A Full runtime cache hit only proves reusable package assembly input; it is never App release readiness, runtime dependency truth, or OPL family production readiness."
+      },
+      "optimization_artifacts": {
+        "manifest_section": "package_optimization",
+        "schema": "opl_full_package_optimization.v1",
+        "trim_report": "full-app-bundle-trim-report.json",
+        "trim_report_schema": "opl_full_app_bundle_trim_report.v1",
+        "boundary_audit": "full-package-boundary-audit.json",
+        "boundary_audit_schema": "opl_full_package_boundary_audit.v1",
+        "size_summary": "full-package-size-summary.json",
+        "mode": "explicit_non_runtime_prune_only",
+        "required_manifest_flags": {
+          "offline_first_install_completeness_preserved": true,
+          "size_review_release_blocking_by_size_alone": false
+        },
+        "required_preserved_payloads": [
+          "Contents/Resources/opl-full-runtime",
+          "Contents/Resources/bundled-aioncore",
+          "Contents/Resources/app.asar",
+          "Contents/Resources/app.asar.unpacked",
+          "Contents/Frameworks/Electron Framework.framework"
+        ],
+        "required_remote_assets": [
+          "full-app-bundle-trim-report.json",
+          "full-package-boundary-audit.json"
+        ],
+        "rule": "Optimization evidence is part of the Full package manifest/readback surface and may only prove explicit non-runtime pruning plus boundary preservation; it cannot replace Full clean VM smoke or owner receipt evidence."
       },
       "package_profile_boundary": {
         "standard": {
@@ -1075,12 +1102,15 @@
         ".git",
         ".worktrees",
         ".venv",
+        "cache",
+        "logs",
         "node_modules",
         "runtime",
         "runtime-state",
         "runs",
         "sessions",
-        "tests"
+        "tests",
+        "tmp"
       ],
       "node_toolchain_pruned": [
         "npm/docs",
@@ -1118,8 +1148,22 @@
         "runtime_prune_policy.id",
         "runtime_assertions.prune_policy_hash",
         "runtime_assertions.offline_required_payloads",
-        "runtime_assertions.declared_pruned_paths"
+        "runtime_assertions.declared_pruned_paths",
+        "package_optimization.offline_first_install_completeness_preserved",
+        "package_optimization.size_review_release_blocking_by_size_alone"
       ],
+      "app_bundle_staging": {
+        "mode": "post_build_pre_dmg_explicit_non_runtime_trim",
+        "report": "full-app-bundle-trim-report.json",
+        "audit": "full-package-boundary-audit.json",
+        "protected_payloads": [
+          "Contents/Resources/opl-full-runtime",
+          "Contents/Resources/bundled-aioncore",
+          "Contents/Resources/app.asar",
+          "Contents/Resources/app.asar.unpacked",
+          "Contents/Frameworks/Electron Framework.framework"
+        ]
+      },
       "measurement_command": "npm run release:full:size -- --markdown",
       "domain_runtime_allowlist_owner": "domain_repositories",
       "app_policy": "exclude local indexes, dependency caches, tests, package docs/fixtures/examples, Python stdlib tests, and user/runtime state; do not prune declared offline first-install payloads, Codex/Temporal archives, domain modules, or packaged skills; do not infer domain truth or artifact authority from package pruning"
@@ -1160,6 +1204,8 @@
         "full-package-manifest.json",
         "runtime-cache-events.json",
         "full-runtime-native-trust.json",
+        "full-app-bundle-trim-report.json",
+        "full-package-boundary-audit.json",
         "README-Full-First-Install.txt",
         "SHA256SUMS.txt",
         "full-local-authorization-policy.json"
@@ -1173,6 +1219,8 @@
         "full_sha256sums",
         "full_runtime_cache_events",
         "full_runtime_native_trust",
+        "full_package_optimization_artifacts",
+        "full_package_boundary_audit",
         "full_manifest_distribution_boundary",
         "full_manifest_size_budget",
         "full_release_asset_size_budget",

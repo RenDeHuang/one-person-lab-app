@@ -108,6 +108,8 @@ function requiredAssetNames(version, includeFullPackage) {
     'full-package-manifest.json',
     'runtime-cache-events.json',
     'full-runtime-native-trust.json',
+    'full-app-bundle-trim-report.json',
+    'full-package-boundary-audit.json',
     'README-Full-First-Install.txt',
     'SHA256SUMS.txt',
     'full-local-authorization-policy.json',
@@ -279,6 +281,81 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, version, localAuthoriz
 
 function assertFullRuntimeNativeTrust(downloadDir, manifest) {
   assertFullRuntimeNativeTrustFile(path.join(downloadDir, 'full-runtime-native-trust.json'), manifest);
+}
+
+function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
+  const trimReport = JSON.parse(readText(path.join(downloadDir, 'full-app-bundle-trim-report.json')));
+  const boundaryAudit = JSON.parse(readText(path.join(downloadDir, 'full-package-boundary-audit.json')));
+  if (trimReport.schema !== 'opl_full_app_bundle_trim_report.v1') {
+    throw new Error(`Full app bundle trim report schema is unexpected: ${trimReport.schema}`);
+  }
+  if (trimReport.mode !== 'explicit_non_runtime_prune_only') {
+    throw new Error(`Full app bundle trim report mode is unexpected: ${trimReport.mode}`);
+  }
+  if (trimReport.required_payload_boundary?.preserved !== true) {
+    throw new Error('Full app bundle trim report must preserve the declared Full runtime payload boundary.');
+  }
+  if (trimReport.required_payload_boundary?.full_runtime_resource_dir !== 'Contents/Resources/opl-full-runtime') {
+    throw new Error('Full app bundle trim report must identify Contents/Resources/opl-full-runtime as protected.');
+  }
+  const protectedPayloads = trimReport.required_payload_boundary?.protected_payloads;
+  for (const requiredPayload of [
+    'Contents/Resources/opl-full-runtime',
+    'Contents/Resources/bundled-aioncore',
+    'Contents/Resources/app.asar',
+    'Contents/Frameworks/Electron Framework.framework',
+  ]) {
+    if (!Array.isArray(protectedPayloads) || !protectedPayloads.includes(requiredPayload)) {
+      throw new Error(`Full app bundle trim report must protect ${requiredPayload}.`);
+    }
+  }
+  if (Number(trimReport.after_bytes) > Number(trimReport.before_bytes)) {
+    throw new Error('Full app bundle trim report after_bytes must not exceed before_bytes.');
+  }
+  if (boundaryAudit.schema !== 'opl_full_package_boundary_audit.v1') {
+    throw new Error(`Full package boundary audit schema is unexpected: ${boundaryAudit.schema}`);
+  }
+  if (boundaryAudit.standard_app_boundary?.standard_package_allowed_to_contain_full_runtime !== false) {
+    throw new Error('Full package boundary audit must keep standard App package disallowed from containing the Full runtime.');
+  }
+  if (boundaryAudit.full_package_boundary?.contains_opl_full_runtime !== true) {
+    throw new Error('Full package boundary audit must prove the Full package still contains the OPL Full runtime.');
+  }
+  if (boundaryAudit.full_package_boundary?.contains_shell_runtime !== true) {
+    throw new Error('Full package boundary audit must prove the Full package still contains the shell runtime.');
+  }
+  if (boundaryAudit.entries?.app_asar?.exists !== true) {
+    throw new Error('Full package boundary audit must prove the App app.asar payload is still present.');
+  }
+  if (boundaryAudit.entries?.electron_framework?.exists !== true) {
+    throw new Error('Full package boundary audit must prove the Electron framework payload is still present.');
+  }
+  if (manifest.package_optimization?.offline_first_install_completeness_preserved !== true) {
+    throw new Error('Full manifest package_optimization must preserve offline first-install completeness.');
+  }
+  if (manifest.package_optimization?.size_review_release_blocking_by_size_alone !== false) {
+    throw new Error('Full manifest package_optimization must keep size review non-blocking by size alone.');
+  }
+  if (manifest.package_optimization?.package_boundary_audit?.audited_entries?.app_asar?.exists !== true) {
+    throw new Error('Full manifest package_optimization must record app_asar as present.');
+  }
+  if (manifest.package_optimization?.package_boundary_audit?.audited_entries?.electron_framework?.exists !== true) {
+    throw new Error('Full manifest package_optimization must record electron_framework as present.');
+  }
+  return {
+    app_bundle_trim: {
+      before_bytes: trimReport.before_bytes,
+      after_bytes: trimReport.after_bytes,
+      bytes_removed: trimReport.bytes_removed,
+      removed_count: trimReport.removed_count,
+    },
+    package_boundary_audit: {
+      contains_opl_full_runtime: boundaryAudit.full_package_boundary?.contains_opl_full_runtime,
+      contains_shell_runtime: boundaryAudit.full_package_boundary?.contains_shell_runtime,
+      standard_package_allowed_to_contain_full_runtime:
+        boundaryAudit.standard_app_boundary?.standard_package_allowed_to_contain_full_runtime,
+    },
+  };
 }
 
 function assertPlainObject(value, label) {
@@ -473,6 +550,8 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
     'full-package-manifest.json',
     'runtime-cache-events.json',
     'full-runtime-native-trust.json',
+    'full-app-bundle-trim-report.json',
+    'full-package-boundary-audit.json',
     'README-Full-First-Install.txt',
     'full-local-authorization-policy.json',
   ]) {
@@ -497,6 +576,7 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
   }
   assertStableLocalAuthorizationPolicy(downloadDir, 'full-local-authorization-policy.json', 'app_full_first_install');
   assertFullRuntimeNativeTrust(downloadDir, manifest);
+  const optimizationArtifacts = assertFullPackageOptimizationArtifacts(downloadDir, manifest);
 
   const runtimeCacheEvents = JSON.parse(readText(path.join(downloadDir, 'runtime-cache-events.json')));
   if (!Array.isArray(runtimeCacheEvents?.events) || runtimeCacheEvents.events.length === 0) {
@@ -512,7 +592,10 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
   if (!fullDmgAsset) {
     throw new Error(`Verified assets are missing ${fullDmgName}.`);
   }
-  return assertFullSizeBudget(manifest, fullDmgAsset.size);
+  return {
+    ...assertFullSizeBudget(manifest, fullDmgAsset.size),
+    package_optimization: optimizationArtifacts,
+  };
 }
 
 function verifyDownloadedAssets(releaseView, options, names, downloadDir) {

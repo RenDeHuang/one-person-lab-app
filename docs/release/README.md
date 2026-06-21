@@ -276,9 +276,10 @@ Runtime cache hits prove only reusable assembly inputs for those buckets. A cach
 ## Full Size Policy
 
 Release review records compressed DMG size, uncompressed runtime size, top
-component/layer contributors, and optimization candidates. The remote verifier
-measures compressed Full DMG bytes from the GitHub asset size and the
-uncompressed runtime bytes from `full-package-manifest.json`
+component/layer contributors, optimization candidates, App-bundle trim evidence,
+and package-boundary audit evidence. The remote verifier measures compressed
+Full DMG bytes from the GitHub asset size and the uncompressed runtime bytes
+from `full-package-manifest.json`
 `size_breakdown.total_runtime_uncompressed_bytes`.
 
 Current policy values live in
@@ -299,6 +300,16 @@ release-blocking size gate. Do not trade away clean-machine first-install
 completeness, bundled Core readiness, or native trust evidence to make the DMG
 smaller.
 
+The Full package writes `package_optimization` into
+`full-package-manifest.json`, plus `full-app-bundle-trim-report.json` and
+`full-package-boundary-audit.json`. These artifacts are required Full assets and
+checksum entries. They can prove explicit non-runtime pruning, payload boundary
+preservation, and size-review release decoupling; they cannot replace the
+same-cohort Full clean VM smoke, native trust evidence, remote asset readback, or
+release-owner receipt. Full DMG warning/review-threshold status alone must not
+block stable clean evidence unless a hard size limit, uncompressed runtime
+limit, offline payload boundary, native trust, or Full clean VM gate fails.
+
 The v26.6.21 measured record in the release contract records:
 
 - Full DMG: `1121919153` bytes.
@@ -308,10 +319,16 @@ The v26.6.21 measured record in the release contract records:
 - zlib level 9 estimate: `844079932` bytes, still above the `750000000`-byte
   review threshold.
 
-Optimization should start with duplicate or split runtime-layer review across
-`opl-full-runtime` and `bundled-aioncore`, then shell bundle payload pruning,
-then Electron footprint review. Compression tuning is secondary; by the current
-measurement it cannot restore the target by itself.
+Optimization starts with explicit non-runtime pruning in the staged App bundle
+and Full runtime tree: source maps, tests, local caches, tmp/temp directories,
+logs, coverage, and package docs/fixtures/examples are removable only when the
+report preserves `Contents/Resources/opl-full-runtime`,
+`Contents/Resources/bundled-aioncore`, `Contents/Resources/app.asar`, and
+Electron framework resources. Duplicate or split runtime-layer review across
+`opl-full-runtime` and `bundled-aioncore` remains audit-only until same-cohort
+Full clean VM evidence proves offline Core readiness and native trust are
+unchanged. Compression tuning is secondary; by the current measurement it cannot
+restore the target by itself.
 
 Local review:
 

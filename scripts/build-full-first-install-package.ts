@@ -95,8 +95,28 @@ function main() {
   const builtApp = findBuiltApp(options.guiRoot);
   ensureAppBundleAdHocCodesign(builtApp, 'Full built app bundle');
   const targetDmg = path.join(options.outDir, artifactNames.dmg);
-  createFullDmgFromVerifiedApp(options.guiRoot, builtApp, targetDmg, options.version);
-  ensureFullDmgLocalAuthorization(options.guiRoot, targetDmg, options.version);
+  let optimizedPackage = createFullDmgFromVerifiedApp(
+    options.guiRoot,
+    builtApp,
+    targetDmg,
+    options.version,
+    prepared.manifest,
+  );
+  if (optimizedPackage?.manifest) {
+    prepared.manifest = optimizedPackage.manifest;
+  }
+  const rebuiltOptimizedPackage = ensureFullDmgLocalAuthorization(
+    options.guiRoot,
+    targetDmg,
+    options.version,
+    prepared.manifest,
+  );
+  if (rebuiltOptimizedPackage) {
+    optimizedPackage = rebuiltOptimizedPackage;
+    if (rebuiltOptimizedPackage.manifest) {
+      prepared.manifest = rebuiltOptimizedPackage.manifest;
+    }
+  }
   removeStandardGuiArtifacts(options.guiRoot, options.version);
   const runtimeTar = maybeCreateRuntimeTar(options, prepared.runtimeRoot, artifactNames);
   timings.dmg_package_compression = durationSeconds(packageCompressionStartedAt, monotonicSeconds());
@@ -104,6 +124,14 @@ function main() {
   const manifestChecksumStartedAt = monotonicSeconds();
   const manifestPath = path.join(options.outDir, artifactNames.manifest);
   fs.writeFileSync(manifestPath, `${JSON.stringify(prepared.manifest, null, 2)}\n`, 'utf8');
+  const appBundleTrimPath = path.join(options.outDir, 'full-app-bundle-trim-report.json');
+  const packageBoundaryAuditPath = path.join(options.outDir, 'full-package-boundary-audit.json');
+  if (optimizedPackage?.app_bundle_trim) {
+    writeJsonFile(appBundleTrimPath, optimizedPackage.app_bundle_trim);
+  }
+  if (optimizedPackage?.package_boundary_audit) {
+    writeJsonFile(packageBoundaryAuditPath, optimizedPackage.package_boundary_audit);
+  }
   const readmePath = path.join(options.outDir, artifactNames.readme);
   fs.writeFileSync(readmePath, buildFullFirstInstallReadme({
     version: options.version,
@@ -116,6 +144,8 @@ function main() {
     manifestPath,
     runtimeCacheEventsPath,
     runtimeNativeTrustPath,
+    ...(optimizedPackage?.app_bundle_trim ? [appBundleTrimPath] : []),
+    ...(optimizedPackage?.package_boundary_audit ? [packageBoundaryAuditPath] : []),
     readmePath,
     ...(runtimeTar ? [runtimeTar] : []),
   ]);
@@ -145,6 +175,8 @@ function main() {
     manifest: manifestPath,
     runtime_cache_events: runtimeCacheEventsPath,
     runtime_native_trust: runtimeNativeTrustPath,
+    app_bundle_trim_report: optimizedPackage?.app_bundle_trim ? appBundleTrimPath : null,
+    package_boundary_audit: optimizedPackage?.package_boundary_audit ? packageBoundaryAuditPath : null,
     timing: timingPath,
     readme: readmePath,
     checksums: checksumPath,
@@ -152,6 +184,7 @@ function main() {
     product_profile: productProfileSync,
     staging_root: prepared.stagingRoot,
     runtime_cache: prepared.runtime_cache,
+    package_optimization: prepared.manifest.package_optimization ?? null,
     resolved_refs: prepared.resolved_refs,
     duration_seconds: {
       full_package_build: durationSeconds(buildStartedAt, buildFinishedAt),

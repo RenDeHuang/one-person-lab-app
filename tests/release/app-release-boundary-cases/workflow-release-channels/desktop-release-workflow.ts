@@ -403,6 +403,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'full_sha256sums',
       'full_runtime_cache_events',
       'full_runtime_native_trust',
+      'full_package_optimization_artifacts',
+      'full_package_boundary_audit',
       'full_manifest_distribution_boundary',
       'full_manifest_size_budget',
       'full_release_asset_size_budget',
