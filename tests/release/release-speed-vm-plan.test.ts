@@ -201,8 +201,14 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(diagnosticWorkflow, /diagnostic_scope:[\s\S]*?default:\s+bootstrap_only/, 'diagnostic workflow defaults to bootstrap-only VM scope');
   assertMatches(diagnosticWorkflow, /standard-dmg-diagnostic-artifact:[\s\S]*?upload_installers_only:\s+true/, 'diagnostic workflow can build a temporary standard DMG only');
   assertMatches(diagnosticWorkflow, /uses:\s+\.\/\.github\/workflows\/opl-first-run-vm\.yml/, 'diagnostic workflow reuses the VM harness');
-  assertMatches(diagnosticWorkflow, /release_artifact_name:\s+\$\{\{ inputs\.build_standard_artifact && 'macos-build-arm64-dmg' \|\| inputs\.release_artifact_name \}\}/, 'diagnostic workflow can diagnose the same-run temporary standard DMG');
-  assertMatches(diagnosticWorkflow, /release_artifact_run_id:\s+\$\{\{ inputs\.build_standard_artifact && github\.run_id \|\| \(inputs\.release_artifact_run_id != '' && inputs\.release_artifact_run_id \|\| inputs\.release_run_id\) \}\}/, 'diagnostic workflow can diagnose artifacts from an existing run or same-run temporary build');
+  assertMatches(diagnosticWorkflow, /vm-harness-diagnostics-standard-artifact:/, 'diagnostic workflow has a same-run temporary artifact VM lane');
+  assertMatches(diagnosticWorkflow, /vm-harness-diagnostics-release-asset:/, 'diagnostic workflow has a release asset VM lane');
+  assertMatches(diagnosticWorkflow, /inputs\.build_standard_artifact && needs\.diagnostic-inputs\.result == 'success' && needs\.standard-dmg-diagnostic-artifact\.result == 'success'/, 'temporary artifact VM lane waits for the temporary DMG build');
+  assertMatches(diagnosticWorkflow, /!inputs\.build_standard_artifact && needs\.diagnostic-inputs\.result == 'success'/, 'release asset VM lane does not need the temporary DMG build');
+  assertMatches(diagnosticWorkflow, /release_artifact_name:\s+macos-build-arm64-dmg/, 'diagnostic workflow can diagnose the same-run temporary standard DMG');
+  assertMatches(diagnosticWorkflow, /release_artifact_run_id:\s+\$\{\{ github\.run_id \}\}/, 'diagnostic workflow uses the current run for the same-run temporary standard DMG');
+  assertMatches(diagnosticWorkflow, /release_artifact_name:\s+\$\{\{ inputs\.release_artifact_name \}\}/, 'diagnostic workflow can diagnose artifacts from an existing run');
+  assertMatches(diagnosticWorkflow, /release_artifact_run_id:\s+\$\{\{ inputs\.release_artifact_run_id != '' && inputs\.release_artifact_run_id \|\| inputs\.release_run_id \}\}/, 'diagnostic workflow preserves existing artifact run selection');
   assertMatches(diagnosticWorkflow, /diagnostic_scope:\s+\$\{\{ inputs\.diagnostic_scope \}\}/, 'diagnostic workflow forwards diagnostic scope to the VM harness');
   const vmWorkflow = readRepoFile('.github/workflows/opl-first-run-vm.yml');
   assertMatches(vmWorkflow, /diagnostic_scope:[\s\S]*?default:\s+release_gate/, 'VM harness defaults to full release gate scope');
