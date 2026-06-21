@@ -157,11 +157,14 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     workflow,
     /full-homebrew-tap-update:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*remote-verify-full[\s\S]*full-first-run-vm-smoke/,
   );
+  const fullHomebrewTapJob = workflow.match(/\n  full-homebrew-tap-update:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assert.match(jobLevelIf(fullHomebrewTapJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.include_full_package/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs\.full-first-run-vm-smoke\.result == 'success'/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*package_kind: app_full_first_install/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs\.stable-homebrew-tap-update\.result == 'success'/);
   const homebrewStandardVmJob = workflow.match(/\n  homebrew-standard-first-run-vm-smoke:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assert.match(jobLevelIf(homebrewStandardVmJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(homebrewStandardVmJob, /full-homebrew-tap-update/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
@@ -190,6 +193,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
+  assert.match(jobLevelIf(readinessAdmissionJob), /needs\.stable-homebrew-tap-update\.result == 'success'/);
+  assert.match(jobLevelIf(readinessAdmissionJob), /needs\.homebrew-standard-first-run-vm-smoke\.result == 'success'/);
+  assert.match(jobLevelIf(readinessAdmissionJob), /!inputs\.include_full_package \|\| needs\.full-homebrew-tap-update\.result == 'success'/);
   assert.doesNotMatch(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*!cancelled\(\) && needs\.release-readiness-admission\.result == 'success'/);
   assert.doesNotMatch(readinessJob, /name: Write release candidate record[\s\S]{0,80}if:\s*\$\{\{\s*always\(\)/);

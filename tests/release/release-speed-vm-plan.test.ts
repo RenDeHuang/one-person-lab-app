@@ -132,8 +132,18 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     /full-homebrew-tap-update:[\s\S]*?inputs\.release_mode == 'refresh_existing'/,
     'Full Homebrew tap update must stay on published-release refresh path inside desktop release',
   );
+  assertMatches(
+    workflow,
+    /full-homebrew-tap-update:[\s\S]*?if:\s+\$\{\{ !cancelled\(\) && inputs\.include_full_package/,
+    'Full Homebrew tap update must opt out of default success() skip propagation from standard-only jobs',
+  );
   assertMatches(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*?needs:[\s\S]*?stable-homebrew-tap-update/, 'Homebrew VM smoke job');
   const homebrewVmJob = workflow.match(/\n  homebrew-standard-first-run-vm-smoke:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assertMatches(
+    homebrewVmJob,
+    /if:\s+\$\{\{ !cancelled\(\) && inputs\.run_vm_smoke/,
+    'Homebrew VM smoke must opt out of default success() skip propagation from standard-only jobs',
+  );
   assert.doesNotMatch(homebrewVmJob, /full-homebrew-tap-update/, 'standard Homebrew VM smoke must not wait for the unrelated Full cask tap update');
   assertMatches(
     workflow,
@@ -188,6 +198,8 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   const operatorEvidenceJob = workflow.match(/\n  operator-evidence-bundle-validation:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   assert.doesNotMatch(operatorEvidenceJob, /npm run [^\n]*> evidence-(?:collection|validation)-summary\.json/);
   assertMatches(workflow, /release-readiness-admission:[\s\S]*?Release readiness aggregation is blocked by failed, skipped, or missing required gates/, 'release readiness admission fail-fast job');
+  assertMatches(workflow, /release-readiness-admission:[\s\S]*?requireSuccess\('full-homebrew-tap-update'\)/, 'Full Homebrew tap update must be required when Full is included');
+  assertMatches(workflow, /release-readiness-admission:[\s\S]*?requireSuccess\('homebrew-standard-first-run-vm-smoke'\)/, 'Homebrew VM smoke must be required for clean release evidence');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?needs\.release-readiness-admission\.result == 'success'/, 'final release readiness summary waits for admission');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-verify-standard[\s\S]*?remote-verify-full[\s\S]*?standard-first-run-vm-smoke-after-standard-only[\s\S]*?standard-first-run-vm-smoke-after-full[\s\S]*?standard-vm-smoke-gate-after-full[\s\S]*?full-first-run-vm-smoke[\s\S]*?one-shot-app-installer-smoke[\s\S]*?docker-webui-smoke[\s\S]*?operator-evidence-bundle-validation[\s\S]*?release-readiness-admission/, 'final release readiness dependencies');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?remote-release-verification-\$\{\{ inputs\.opl_version \}\}/, 'remote verification small artifact');
