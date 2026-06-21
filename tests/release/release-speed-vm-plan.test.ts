@@ -425,6 +425,17 @@ test('first-run VM workflow writes deterministic preflight and final summaries b
   assertMatches(workflow, /Smoke profile: \\?`no-clt-clean-vm\\?`/, 'VM smoke profile summary');
   assertMatches(workflow, /Display: \\?`1920x1080px\\?`/, 'VM display summary');
   assertMatches(workflow, /Settings smoke: enabled/, 'VM settings smoke summary');
+  assertMatches(workflow, /Skip scheduled VM while desktop release is active/, 'scheduled VM release activity guard');
+  assertMatches(workflow, /--workflow "OPL Desktop Release"/, 'scheduled VM checks desktop release activity');
+  assertMatches(workflow, /skip_reason=desktop_release_active_or_queued/, 'scheduled VM skips when release is active or queued');
+  assertMatches(workflow, /skip_reason=desktop_release_guard_unavailable/, 'scheduled VM skips when the release activity guard is unavailable');
+  assertMatches(workflow, /profile="standard"/, 'scheduled VM defaults to standard App diagnostics');
+  assertMatches(workflow, /diagnostic_scope="bootstrap_only"/, 'scheduled VM defaults to bootstrap-only diagnostics');
+  assertMatches(
+    workflow,
+    /clean-vm-first-run:[\s\S]*?if:\s+\$\{\{ needs\.validate-vm-inputs\.outputs\.skip_vm != 'true' \}\}/,
+    'scheduled VM skip exits before occupying the self-hosted runner',
+  );
   assertMatches(workflow, /tart-smoke-summary\.json/, 'VM final smoke summary artifact');
   assertMatches(
     workflow,

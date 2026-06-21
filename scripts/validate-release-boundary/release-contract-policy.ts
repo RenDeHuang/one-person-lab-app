@@ -192,6 +192,8 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const tartBasePrebake = acceleration?.tart_base_prebake;
   const githubActions = acceleration?.github_actions;
   const diagnosticsWorkflowPolicy = githubActions?.diagnostics_workflow_policy;
+  const firstRunVmConcurrency = githubActions?.first_run_vm_concurrency;
+  const scheduledVmGuard = firstRunVmConcurrency?.scheduled_desktop_release_activity_guard;
   const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
 
   if (
@@ -289,6 +291,27 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
       console.error(`FAIL release_diagnostics_scope_policy: bootstrap_only must skip ${skipped}`);
       failures += 1;
     }
+  }
+  if (
+    firstRunVmConcurrency?.scheduled_default_package_profile !== 'standard' ||
+    firstRunVmConcurrency?.scheduled_default_diagnostic_scope !== 'bootstrap_only' ||
+    scheduledVmGuard?.workflow !== 'OPL Desktop Release' ||
+    !sameStringSet(scheduledVmGuard?.checked_statuses, ['in_progress', 'queued']) ||
+    scheduledVmGuard?.skip_reason !== 'desktop_release_active_or_queued' ||
+    scheduledVmGuard?.guard_unavailable_skip_reason !== 'desktop_release_guard_unavailable' ||
+    scheduledVmGuard?.runner_boundary !== 'github_hosted_preflight_before_self_hosted_vm'
+  ) {
+    console.error('FAIL scheduled_first_run_vm_policy: scheduled VM maintenance must default to standard/bootstrap_only and skip before self-hosted VM when desktop release activity is active or unknown');
+    failures += 1;
+  }
+  if (
+    typeof firstRunVmConcurrency?.rule !== 'string' ||
+    !firstRunVmConcurrency.rule.includes('standard bootstrap-only diagnostic') ||
+    typeof scheduledVmGuard?.rule !== 'string' ||
+    !scheduledVmGuard.rule.includes('self-hosted first-run VM runner')
+  ) {
+    console.error('FAIL scheduled_first_run_vm_policy: scheduled VM policy must explain bootstrap-only diagnostics and VM runner protection');
+    failures += 1;
   }
   for (const gate of vmGates) {
     if (gate?.diagnostic_scope !== 'release_gate') {

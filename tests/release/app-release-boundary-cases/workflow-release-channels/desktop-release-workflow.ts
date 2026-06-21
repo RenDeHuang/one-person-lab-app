@@ -284,8 +284,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /format\('opl-gui-first-run-vm-\{0\}-\{1\}'/);
   assert.match(vmWorkflow, /github\.run_id/);
   assert.match(vmWorkflow, /inputs\.package_profile \|\| 'full'/);
+  assert.match(vmWorkflow, /Skip scheduled VM while desktop release is active/);
+  assert.match(vmWorkflow, /--workflow "OPL Desktop Release"/);
+  assert.match(vmWorkflow, /--status "\$status"/);
+  assert.match(vmWorkflow, /active_release_runs="\$\(count_runs in_progress\)"/);
+  assert.match(vmWorkflow, /queued_release_runs="\$\(count_runs queued\)"/);
+  assert.match(vmWorkflow, /skip_reason=desktop_release_active_or_queued/);
+  assert.match(vmWorkflow, /skip_reason=desktop_release_guard_unavailable/);
+  assert.match(vmWorkflow, /scheduled maintenance must not occupy the self-hosted first-run VM runner/);
+  assert.match(vmWorkflow, /if \[ "\$\{\{ github\.event_name \}\}" = "schedule" \]; then\s+profile="standard"/);
+  assert.match(vmWorkflow, /if \[ "\$\{\{ github\.event_name \}\}" = "schedule" \]; then\s+diagnostic_scope="bootstrap_only"/);
   assert.doesNotMatch(vmWorkflow, /opl-gui-first-run-vm-manual/);
   assert.match(vmWorkflow, /cancel-in-progress: \$\{\{ github\.event_name == 'schedule' \}\}/);
+  assert.match(vmWorkflow, /clean-vm-first-run:[\s\S]*if: \$\{\{ needs\.validate-vm-inputs\.outputs\.skip_vm != 'true' \}\}/);
   assert.match(vmWorkflow, /Resolve Tart source VM/);
   assert.match(vmWorkflow, /package_profile:/);
   assert.match(vmWorkflow, /homebrew-standard/);
@@ -331,6 +342,26 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.doesNotMatch(vmSmokeScript, /if \(codesign\.status !== 0 \|\| spctl\.status !== 0\)/);
   assert.match(vmSmokeScript, /gatekeeper_required: false/);
   assert.match(vmSmokeScript, /quarantine_removal_required: true/);
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.first_run_vm_concurrency.scheduled_default_package_profile,
+    'standard',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.first_run_vm_concurrency.scheduled_default_diagnostic_scope,
+    'bootstrap_only',
+  );
+  assert.deepEqual(
+    releaseContract.release_acceleration.github_actions.first_run_vm_concurrency
+      .scheduled_desktop_release_activity_guard,
+    {
+      workflow: 'OPL Desktop Release',
+      checked_statuses: ['in_progress', 'queued'],
+      skip_reason: 'desktop_release_active_or_queued',
+      guard_unavailable_skip_reason: 'desktop_release_guard_unavailable',
+      runner_boundary: 'github_hosted_preflight_before_self_hosted_vm',
+      rule: 'Scheduled maintenance must not occupy the self-hosted first-run VM runner while a desktop release is active, queued, or cannot be checked.',
+    },
+  );
   assert.equal(
     releaseContract.standard_updater.same_tag_refresh.mode,
     'github_actions_prebuilt_assets_upload_clobber',

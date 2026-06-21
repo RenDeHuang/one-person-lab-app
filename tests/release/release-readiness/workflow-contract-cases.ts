@@ -331,6 +331,11 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.match(shellSmoke, /window_title_text/);
   assert.match(shellSmoke, /bootstrap_fatal_text/);
   assert.match(shellSmoke, /launch_log_text/);
+  assert.match(shellSmoke, /cdp_absent_and_app_process_alive_and_nsalert_run_modal_sample_found/);
+  assert.match(shellSmoke, /main_bootstrap_fatal\.error\.message/);
+  assert.match(shellSmoke, /main_bootstrap_fatal\.error\.stack/);
+  assert.match(shellSmoke, /launch_stderr/);
+  assert.match(shellSmoke, /launch_stdout/);
 
   const vmArtifactScenarioIds = new Set([
     'standard_dmg_clean_vm_smoke',

@@ -126,6 +126,14 @@ blocker produces evidence before another Full or stable release train is
 queued. `bootstrap_only` artifacts are diagnostic-only and cannot be used as
 release-ready, owner receipt, or runtime truth evidence.
 
+Scheduled `OPL GUI First-Run VM` runs are maintenance diagnostics, not stable
+release evidence. They default to `package_profile=standard` and
+`diagnostic_scope=bootstrap_only`; before occupying the self-hosted VM runner
+they check whether `OPL Desktop Release` is in progress or queued. If a release
+is active, queued, or cannot be checked, the scheduled run exits from the
+GitHub-hosted preflight with a skip summary instead of competing with the
+release's standard, Full, or Homebrew VM gates.
+
 `run_timeout_ms` and `smoke_timeout_ms` are workflow inputs and are passed to
 `opl-first-run-tart-smoke.mjs` as `--timeout-ms` and `--smoke-timeout-ms`.
 `codex_install_phase_timeout_ms` and `codex_readiness_phase_timeout_ms` are
