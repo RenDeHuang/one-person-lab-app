@@ -24,6 +24,8 @@ const FULL_PACKAGE_MEASUREMENT_POLICY = {
   runtime_uncompressed_bytes: 'manifest_size_breakdown_total_runtime_uncompressed_bytes',
 } as const;
 
+const FULL_RUNTIME_PRUNE_POLICY_SCHEMA = 'opl_full_runtime_prune_policy.v1';
+
 export type FullRuntimeCacheLayerId = typeof FULL_RUNTIME_CACHE_LAYER_IDS[number];
 
 type ComponentSnapshot = Partial<{
@@ -200,10 +202,15 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
     generated_at: input.generatedAt ?? new Date().toISOString(),
     size_budget: FULL_PACKAGE_SIZE_BUDGET,
     measurement_policy: FULL_PACKAGE_MEASUREMENT_POLICY,
+    runtime_prune_policy: FULL_RUNTIME_PRUNE_POLICY,
     runtime_assertions: input.runtimeAssertions ?? {
+      prune_policy_id: FULL_RUNTIME_PRUNE_POLICY.id,
+      prune_policy_hash: buildFullRuntimePrunePolicyHash(),
       temporal_core_bridge_releases: [],
       excluded_module_venv_count: 0,
       packaged_global_node_packages: [],
+      offline_required_payloads: [],
+      declared_pruned_paths: [],
     },
     native_trust: input.nativeTrust ?? {
       schema: 'opl_full_runtime_native_trust.v1',
@@ -383,7 +390,7 @@ function hasPathSegment(relativePath: string, segment: string) {
   return relativePath.split('/').includes(segment);
 }
 
-const EXCLUDED_RUNTIME_PATH_SEGMENTS: readonly string[] = [
+const EXCLUDED_RUNTIME_PATH_SEGMENTS = [
   '.git',
   '.codegraph',
   '.codex',
@@ -407,34 +414,84 @@ const EXCLUDED_RUNTIME_PATH_SEGMENTS: readonly string[] = [
   '.DS_Store',
 ] as const;
 
-const EXCLUDED_RUNTIME_BASENAMES: readonly string[] = ['.DS_Store', 'state.db'];
-const EXCLUDED_RUNTIME_BASENAME_SUFFIXES: readonly string[] = [
+const EXCLUDED_RUNTIME_BASENAMES = ['.DS_Store', 'state.db'] as const;
+const EXCLUDED_RUNTIME_BASENAME_SUFFIXES = [
   '.coverage',
   '.js.map',
   '.map',
   '.pyc',
   '.pyo',
   '.tsbuildinfo',
-];
-
-const EXCLUDED_RUNTIME_PATH_PATTERNS = [
-  /^hermes\/(?:web|ui|frontend)(?:\/|$)/,
-  /^hermes\/tests?(?:\/|$)/,
-  /^hermes\/.*(?:voice|tts|telegram|discord|slack|matrix|dingtalk|feishu)/,
-  /^modules\/[^/]+\/\.venv(?:\/|$)/,
-  /^modules\/[^/]+\/node_modules(?:\/|$)/,
-  /^modules\/[^/]+\/tests?(?:\/|$)/,
-  /^modules\/[^/]+\/(?:build|dist|htmlcov|docs\/_build|notebooks|playwright-report|runtime|runtime-state|runs|sessions|test-results|\.ds)(?:\/|$)/,
-  /^opl\/node_modules(?:\/|$)/,
-  /^opl\/.*\/\.venv(?:\/|$)/,
-  /^opl\/dist(?:\/|$)/,
-  /^opl\/(?:build|playwright-report|test-results)(?:\/|$)/,
 ] as const;
 
-const INCLUDED_RUNTIME_PATH_PATTERNS = [
-  /^modules\/meta-agent\/runtime$/,
-  /^modules\/meta-agent\/runtime\/authority_functions(?:\/|$)/,
+const EXCLUDED_RUNTIME_PATH_PATTERN_SOURCES = [
+  '^hermes\\/(?:web|ui|frontend)(?:\\/|$)',
+  '^hermes\\/tests?(?:\\/|$)',
+  '^hermes\\/.*(?:voice|tts|telegram|discord|slack|matrix|dingtalk|feishu)',
+  '^modules\\/[^/]+\\/\\.venv(?:\\/|$)',
+  '^modules\\/[^/]+\\/node_modules(?:\\/|$)',
+  '^modules\\/[^/]+\\/tests?(?:\\/|$)',
+  '^modules\\/[^/]+\\/(?:build|dist|htmlcov|docs\\/_build|notebooks|playwright-report|runtime|runtime-state|runs|sessions|test-results|\\.ds)(?:\\/|$)',
+  '^opl\\/node_modules(?:\\/|$)',
+  '^opl\\/.*\\/\\.venv(?:\\/|$)',
+  '^opl\\/dist(?:\\/|$)',
+  '^opl\\/(?:build|playwright-report|test-results)(?:\\/|$)',
+  '^python\\/[^/]+\\/lib\\/python\\d+\\.\\d+\\/(?:test|idlelib\\/idle_test|tkinter\\/test|unittest\\/test|ctypes\\/test|distutils\\/tests|lib2to3\\/tests)(?:\\/|$)',
 ] as const;
+
+const EXCLUDED_RUNTIME_PATH_PATTERNS = EXCLUDED_RUNTIME_PATH_PATTERN_SOURCES.map((source) => new RegExp(source));
+
+const INCLUDED_RUNTIME_PATH_PATTERN_SOURCES = [
+  '^modules\\/meta-agent\\/runtime$',
+  '^modules\\/meta-agent\\/runtime\\/authority_functions(?:\\/|$)',
+] as const;
+
+const INCLUDED_RUNTIME_PATH_PATTERNS = INCLUDED_RUNTIME_PATH_PATTERN_SOURCES.map((source) => new RegExp(source));
+
+const EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERN_SOURCES = [
+  '(?:^|\\/)(?:__fixtures__|__mocks__|__snapshots__|benchmarks?|coverage|docs?|examples?|fixtures?|playwright-report|storybook-static|test-results|tests?)(?:\\/|$)',
+  '(?:^|\\/)(?:\\.cache|\\.github|\\.nyc_output|\\.pytest_cache|\\.turbo)(?:\\/|$)',
+] as const;
+
+const EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERNS = EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERN_SOURCES.map((source) => new RegExp(source));
+
+const EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERN_SOURCES = [
+  '(?:^|\\/)(?:__fixtures__|__mocks__|__snapshots__|benchmarks?|coverage|docs?|examples?|fixtures?|man|playwright-report|tap-snapshots|test-results|tests?)(?:\\/|$)',
+  '(?:^|\\/)(?:\\.cache|\\.github|\\.nyc_output|\\.tap|\\.turbo)(?:\\/|$)',
+] as const;
+
+const EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERNS = EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERN_SOURCES.map((source) => new RegExp(source));
+
+export const FULL_RUNTIME_PRUNE_POLICY = {
+  schema: FULL_RUNTIME_PRUNE_POLICY_SCHEMA,
+  id: 'full_runtime_offline_first_install_slim_v1',
+  mode: 'explicit_non_runtime_prune_only',
+  offline_first_install_boundary: 'required Codex and Temporal archives, Node, Python, uv, officecli, mineru, domain modules, and packaged default skills stay local; pruning must not introduce lazy downloads for required launch payloads',
+  runtime_tree: {
+    excluded_path_segments: EXCLUDED_RUNTIME_PATH_SEGMENTS,
+    excluded_basenames: EXCLUDED_RUNTIME_BASENAMES,
+    excluded_basename_suffixes: EXCLUDED_RUNTIME_BASENAME_SUFFIXES,
+    excluded_path_patterns: EXCLUDED_RUNTIME_PATH_PATTERN_SOURCES,
+    included_path_patterns: INCLUDED_RUNTIME_PATH_PATTERN_SOURCES,
+  },
+  production_node_modules: {
+    source: 'package-lock production dependencies allowlist',
+    excluded_path_patterns: EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERN_SOURCES,
+  },
+  node_toolchain_global_packages: {
+    copied_packages: ['npm', 'corepack'],
+    excluded_path_patterns: EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERN_SOURCES,
+  },
+  retained_runtime_support: {
+    python_headers: 'retained for offline native-extension build/debug support',
+    python_ensurepip: 'retained so the packaged Python remains self-contained',
+    node_headers: 'not copied into the Full runtime Node payload',
+  },
+} as const;
+
+export function buildFullRuntimePrunePolicyHash() {
+  return crypto.createHash('sha256').update(JSON.stringify(FULL_RUNTIME_PRUNE_POLICY)).digest('hex');
+}
 
 function hasExcludedRuntimePathSegment(relativePath: string) {
   return EXCLUDED_RUNTIME_PATH_SEGMENTS.some((segment) => hasPathSegment(relativePath, segment));
@@ -470,11 +527,6 @@ export function shouldExcludeRuntimePath(relativePathInput: string) {
     || matchesExcludedRuntimePathPattern(lower);
 }
 
-const EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERNS = [
-  /(?:^|\/)(?:__fixtures__|__mocks__|__snapshots__|benchmarks?|coverage|docs?|examples?|fixtures?|playwright-report|storybook-static|test-results|tests?)(?:\/|$)/,
-  /(?:^|\/)(?:\.cache|\.github|\.nyc_output|\.pytest_cache|\.turbo)(?:\/|$)/,
-] as const;
-
 export function shouldExcludeProductionNodeModulePath(relativePathInput: string) {
   const relativePath = normalizeRuntimeRelativePath(relativePathInput);
   if (!relativePath || relativePath === '.') return false;
@@ -483,6 +535,16 @@ export function shouldExcludeProductionNodeModulePath(relativePathInput: string)
   return isExcludedRuntimeBaseName(baseName)
     || EXCLUDED_RUNTIME_BASENAME_SUFFIXES.some((suffix) => baseName.endsWith(suffix))
     || EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERNS.some((pattern) => pattern.test(lower));
+}
+
+export function shouldExcludeNodeToolchainPackagePath(relativePathInput: string) {
+  const relativePath = normalizeRuntimeRelativePath(relativePathInput);
+  if (!relativePath || relativePath === '.') return false;
+  const lower = relativePath.toLowerCase();
+  const baseName = path.posix.basename(relativePath);
+  return isExcludedRuntimeBaseName(baseName)
+    || EXCLUDED_RUNTIME_BASENAME_SUFFIXES.some((suffix) => baseName.endsWith(suffix))
+    || EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERNS.some((pattern) => pattern.test(lower));
 }
 
 export type PackageLockLike = {

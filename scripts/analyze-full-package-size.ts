@@ -89,6 +89,18 @@ function formatBytes(bytes: number | null | undefined) {
   return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
+function compressedFullDmgStatus(args: {
+  fullDmgWarningStatus: string;
+  fullDmgReviewThresholdStatus: string;
+  fullDmgHardLimitStatus: string;
+}) {
+  if (args.fullDmgHardLimitStatus === 'failed') return 'failed';
+  if (args.fullDmgReviewThresholdStatus === 'above_review_threshold') return 'requires_review';
+  if (args.fullDmgWarningStatus === 'warning') return 'warning';
+  if (args.fullDmgWarningStatus === 'unavailable') return 'unavailable';
+  return 'passed';
+}
+
 function componentEntries(manifest: Record<string, any>) {
   return Object.entries(manifest.components ?? {})
     .map(([id, component]) => ({
@@ -222,6 +234,7 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
   const maxRuntimeBytes = manifest.size_budget?.max_runtime_uncompressed_bytes ?? null;
   const warningFullDmgBytes = manifest.size_budget?.warning_full_dmg_bytes ?? null;
   const maxFullDmgBytes = manifest.size_budget?.max_full_dmg_bytes ?? null;
+  const hardFullDmgBytes = manifest.size_budget?.hard_full_dmg_bytes ?? null;
   const budgetPercent = Number.isFinite(totalRuntimeBytes) && Number.isFinite(maxRuntimeBytes)
     ? percent(totalRuntimeBytes, maxRuntimeBytes)
     : null;
@@ -230,6 +243,12 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
   const manifestSizeHotspots = collectManifestSizeHotspots(manifest, options.top);
   const fullDmgWarningStatus = budgetStatus(options.fullDmgSizeBytes, warningFullDmgBytes, 'warning_at_or_above');
   const fullDmgReviewThresholdStatus = budgetStatus(options.fullDmgSizeBytes, maxFullDmgBytes, 'review_above');
+  const fullDmgHardLimitStatus = budgetStatus(options.fullDmgSizeBytes, hardFullDmgBytes, 'fail_above');
+  const compressedFullDmgBudgetStatus = compressedFullDmgStatus({
+    fullDmgWarningStatus,
+    fullDmgReviewThresholdStatus,
+    fullDmgHardLimitStatus,
+  });
   const runtimeUncompressedStatus = budgetStatus(totalRuntimeBytes, maxRuntimeBytes, 'fail_above');
   const topComponents = ranked(components, totalRuntimeBytes, options.top);
   const topLayers = ranked(layers, totalRuntimeBytes, options.top);
@@ -241,15 +260,24 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
     version: manifest.version ?? null,
     package_kind: manifest.package_kind ?? null,
     budget: {
-      status: runtimeUncompressedStatus === 'failed' ? 'failed' : 'passed',
+      status: runtimeUncompressedStatus === 'failed' || compressedFullDmgBudgetStatus === 'failed'
+        ? 'failed'
+        : compressedFullDmgBudgetStatus === 'requires_review'
+          ? 'requires_review'
+          : 'passed',
       compressed_full_dmg: {
         measurement_source: options.fullDmgSizeBytes === null ? 'not_provided' : 'local_full_dmg_file_size_bytes',
         full_dmg_size_bytes: options.fullDmgSizeBytes,
         warning_full_dmg_bytes: warningFullDmgBytes,
+        review_full_dmg_bytes: maxFullDmgBytes,
         max_full_dmg_bytes: maxFullDmgBytes,
+        hard_full_dmg_bytes: hardFullDmgBytes,
+        status: compressedFullDmgBudgetStatus,
         warning_status: fullDmgWarningStatus,
         review_threshold_status: fullDmgReviewThresholdStatus,
-        release_blocking: false,
+        hard_limit_status: fullDmgHardLimitStatus,
+        review_required: fullDmgReviewThresholdStatus === 'above_review_threshold',
+        release_blocking: fullDmgHardLimitStatus === 'failed',
       },
       runtime_uncompressed: {
         measurement_source: 'full-package-manifest.json#size_breakdown.total_runtime_uncompressed_bytes',
@@ -263,7 +291,9 @@ function buildSummary(options: ReturnType<typeof parseArgs>) {
     total_runtime_uncompressed_bytes: totalRuntimeBytes,
     full_dmg_size_bytes: options.fullDmgSizeBytes,
     warning_full_dmg_bytes: warningFullDmgBytes,
+    review_full_dmg_bytes: maxFullDmgBytes,
     max_full_dmg_bytes: maxFullDmgBytes,
+    hard_full_dmg_bytes: hardFullDmgBytes,
     max_runtime_uncompressed_bytes: maxRuntimeBytes,
     runtime_budget_used_percent: budgetPercent,
     components: components.map((component) => ({
@@ -320,6 +350,8 @@ function renderMarkdown(summary: ReturnType<typeof buildSummary>, top: number) {
     `- Runtime total: ${formatBytes(summary.total_runtime_uncompressed_bytes)}`,
     `- Full DMG warning threshold: ${formatBytes(summary.warning_full_dmg_bytes)}`,
     `- Full DMG review threshold: ${formatBytes(summary.max_full_dmg_bytes)}`,
+    `- Full DMG hard limit: ${formatBytes(summary.hard_full_dmg_bytes)}`,
+    `- Full DMG gate status: ${summary.budget.compressed_full_dmg.status}`,
     `- Runtime budget: ${formatBytes(summary.max_runtime_uncompressed_bytes)}${summary.runtime_budget_used_percent === null ? '' : ` (${summary.runtime_budget_used_percent}% used, ${summary.budget.runtime_uncompressed.status})`}`,
     '',
     '### Layers',

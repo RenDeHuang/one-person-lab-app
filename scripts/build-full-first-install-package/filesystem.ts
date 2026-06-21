@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import {
   listFullRuntimeProductionNodeModulePaths,
+  shouldExcludeNodeToolchainPackagePath,
   shouldExcludeProductionNodeModulePath,
   shouldExcludeRuntimePath,
 } from '../full-first-install-package.ts';
@@ -205,9 +206,59 @@ export function copyNodeRuntimePayload(nodeRoot, targetRoot) {
       if (packageName === 'corepack') continue;
       throw new Error(`Node runtime package missing: lib/node_modules/${packageName}`);
     }
-    copyPortableTree(sourcePath, path.join(targetRoot, 'lib', 'node_modules', packageName));
+    copyNodeToolchainPackage(sourcePath, path.join(targetRoot, 'lib', 'node_modules', packageName));
   }
   assertNoExternalSymlinks(targetRoot, 'Full first-install Node runtime');
+}
+
+function copyNodeToolchainPackage(sourceRoot, targetRoot) {
+  fs.rmSync(targetRoot, { recursive: true, force: true });
+  const sourceBase = path.resolve(sourceRoot);
+  const targetBase = path.resolve(targetRoot);
+
+  const copyEntry = (sourcePath, targetPath, relativePath) => {
+    if (relativePath && shouldExcludeNodeToolchainPackagePath(relativePath)) {
+      return;
+    }
+    const stat = fs.lstatSync(sourcePath);
+    if (stat.isDirectory()) {
+      fs.mkdirSync(targetPath, { recursive: true });
+      for (const entry of fs.readdirSync(sourcePath)) {
+        copyEntry(path.join(sourcePath, entry), path.join(targetPath, entry), path.posix.join(relativePath, entry));
+      }
+      return;
+    }
+
+    if (stat.isSymbolicLink()) {
+      const linkTarget = fs.readlinkSync(sourcePath);
+      const resolvedSourceTarget = path.resolve(path.dirname(sourcePath), linkTarget);
+      if (isInsidePath(sourceBase, resolvedSourceTarget)) {
+        const targetEquivalent = path.join(targetBase, path.relative(sourceBase, resolvedSourceTarget));
+        const portableLinkTarget = path.relative(path.dirname(targetPath), targetEquivalent) || '.';
+        fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+        fs.rmSync(targetPath, { recursive: true, force: true });
+        fs.symlinkSync(portableLinkTarget, targetPath);
+        return;
+      }
+
+      const realStat = fs.statSync(resolvedSourceTarget);
+      if (realStat.isDirectory()) {
+        fs.mkdirSync(targetPath, { recursive: true });
+        for (const entry of fs.readdirSync(resolvedSourceTarget)) {
+          copyEntry(path.join(resolvedSourceTarget, entry), path.join(targetPath, entry), path.posix.join(relativePath, entry));
+        }
+        return;
+      }
+      copyFileWithMode(resolvedSourceTarget, targetPath, realStat);
+      return;
+    }
+
+    if (stat.isFile()) {
+      copyFileWithMode(sourcePath, targetPath, stat);
+    }
+  };
+
+  copyEntry(sourceBase, targetRoot, '');
 }
 
 export function copyProductionNodeModules(sourceRoot, targetRoot) {

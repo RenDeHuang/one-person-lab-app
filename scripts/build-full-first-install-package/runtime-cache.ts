@@ -4,12 +4,11 @@ import path from 'node:path';
 
 import {
   FULL_RUNTIME_CACHE_LAYER_IDS,
+  buildFullRuntimePrunePolicyHash,
   buildFullRuntimeAggregateCacheKeyInput,
   buildFullRuntimeCacheArchivePath,
   buildFullRuntimeCacheKey,
   classifyFullRuntimeLayerCache,
-  shouldExcludeProductionNodeModulePath,
-  shouldExcludeRuntimePath,
 } from '../full-first-install-package.ts';
 import { archiveLayer, extractLayer } from './archive-output.ts';
 import {
@@ -30,7 +29,6 @@ import {
   hashFiles,
   packageJsonVersion,
   productionNodeModulesFingerprint,
-  stringSha256,
 } from './hashing.ts';
 import { appRepoRoot } from './paths.ts';
 import { commandOutput, durationSeconds, monotonicSeconds } from './process.ts';
@@ -136,10 +134,7 @@ function buildRuntimeLayerPackagerInputs() {
 }
 
 function buildRuntimeExcludePolicyHash() {
-  return stringSha256([
-    shouldExcludeRuntimePath.toString(),
-    shouldExcludeProductionNodeModulePath.toString(),
-  ].join('\n\n'));
+  return buildFullRuntimePrunePolicyHash();
 }
 
 export function buildRuntimeCacheKeyInputs(options, sources) {

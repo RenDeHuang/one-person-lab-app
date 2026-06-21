@@ -250,15 +250,40 @@ Full assets are GitHub Release first-install downloads and explicit stable `one-
 
 Release review records compressed DMG size, uncompressed runtime size, top
 component/layer contributors, and optimization candidates. The remote verifier
-enforces the compressed Full DMG budget from the GitHub asset size and the
-uncompressed runtime budget from `full-package-manifest.json`
+measures compressed Full DMG bytes from the GitHub asset size and the
+uncompressed runtime bytes from `full-package-manifest.json`
 `size_breakdown.total_runtime_uncompressed_bytes`.
 
 Current policy values live in
-`contracts/app-release-channel.json#full_first_install.size_budget` and are
-copied into the Full manifest `size_budget`. Treat the contract and manifest as
-the source for warning/review/runtime thresholds; this guide only records the
-operator path and measurement boundary.
+`contracts/app-release-channel.json#full_first_install.size_budget`; policy
+semantics, package-profile boundaries, measured records, runtime boundary, and
+optimization priority live in
+`contracts/app-release-channel.json#full_first_install.size_policy`. The Full
+manifest copies only the threshold-sized `size_budget` object. Treat the
+contract and manifest as the source for warning/review/runtime thresholds; this
+guide records the operator path and measurement boundary.
+
+The current target is still a Full DMG under the `750000000`-byte review
+threshold, but the review threshold is not a permission to remove required
+offline payloads. A Full package that exceeds it must enter size review and
+optimization planning; the uncompressed runtime budget remains the
+release-blocking size gate. Do not trade away clean-machine first-install
+completeness, bundled Core readiness, or native trust evidence to make the DMG
+smaller.
+
+The v26.6.21 measured record in the release contract records:
+
+- Full DMG: `1121919153` bytes.
+- Standard DMG: `440471386` bytes.
+- Top App bundle contributors: `opl-full-runtime` `745M`,
+  `bundled-aioncore` `678M`, `app.asar` `367M`, and Electron Framework `249M`.
+- zlib level 9 estimate: `844079932` bytes, still above the `750000000`-byte
+  review threshold.
+
+Optimization should start with duplicate or split runtime-layer review across
+`opl-full-runtime` and `bundled-aioncore`, then shell bundle payload pruning,
+then Electron footprint review. Compression tuning is secondary; by the current
+measurement it cannot restore the target by itself.
 
 Local review:
 

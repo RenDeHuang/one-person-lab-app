@@ -203,7 +203,7 @@ export function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, versio
 export function resolveFullDmgCompressionLevel() {
   return process.env.OPL_FULL_DMG_COMPRESSION_LEVEL
     || process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL
-    || (process.env.CI === 'true' ? '1' : '7');
+    || (process.env.CI === 'true' ? '9' : '7');
 }
 
 export function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version) {

@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import {
+  FULL_RUNTIME_PRUNE_POLICY,
+  buildFullRuntimePrunePolicyHash,
   PACKAGED_MODULE_MARKER_FILE,
   buildPackagedModuleMarker,
   listFullRuntimeProductionNodeModulePaths,
@@ -207,13 +209,104 @@ function countRuntimeModuleVenvDirectories(runtimeRoot) {
   return count;
 }
 
+function runtimePayloadStatus(runtimeRoot, relativePath, options = {}) {
+  const absolutePath = path.join(runtimeRoot, ...relativePath.split('/'));
+  const exists = fs.existsSync(absolutePath);
+  const stat = exists ? fs.statSync(absolutePath) : null;
+  const executable = stat?.isFile()
+    ? Boolean(stat.mode & 0o111)
+    : false;
+  return {
+    path: relativePath,
+    exists,
+    ...(options.executable ? { executable } : {}),
+    ...(stat?.isFile() ? { size_bytes: stat.size } : {}),
+  };
+}
+
+function listRuntimeRelativePaths(runtimeRoot) {
+  if (!fs.existsSync(runtimeRoot)) return [];
+  const paths = [];
+  const stack = [''];
+  while (stack.length > 0) {
+    const relativePath = stack.pop();
+    const absolutePath = relativePath ? path.join(runtimeRoot, ...relativePath.split('/')) : runtimeRoot;
+    const stat = fs.lstatSync(absolutePath);
+    if (!relativePath) {
+      for (const entry of fs.readdirSync(absolutePath)) stack.push(entry);
+      continue;
+    }
+    paths.push(relativePath);
+    if (stat.isDirectory()) {
+      for (const entry of fs.readdirSync(absolutePath)) {
+        stack.push(path.posix.join(relativePath, entry));
+      }
+    }
+  }
+  return paths;
+}
+
+function runtimePathPattern(relativePath) {
+  const escaped = relativePath
+    .split('*')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('[^/]+');
+  return new RegExp(`^${escaped}(?:/|$)`);
+}
+
+function declaredPrunedPathAssertions(runtimeRoot) {
+  const runtimePaths = listRuntimeRelativePaths(runtimeRoot);
+  const expectedAbsent = [
+    'node/include',
+    'node/share',
+    'node/lib/node_modules/npm/docs',
+    'node/lib/node_modules/npm/man',
+    'node/lib/node_modules/npm/tap-snapshots',
+    'python/*/lib/python*/test',
+    'modules/*/.venv',
+    'modules/*/node_modules',
+    'modules/*/tests',
+    'modules/*/runtime-state',
+    'opl/dist',
+    'opl/node_modules/@temporalio/testing',
+  ];
+  const pathExists = (relativePath) => fs.existsSync(path.join(runtimeRoot, ...relativePath.split('/')));
+  return expectedAbsent.map((relativePath) => ({
+    path: relativePath,
+    expected: 'absent',
+    ...(relativePath.includes('*')
+      ? { match_count: runtimePaths.filter((runtimePath) => runtimePathPattern(relativePath).test(runtimePath)).length }
+      : { present: pathExists(relativePath) }),
+  }));
+}
+
 export function collectRuntimeAssertions(runtimeRoot) {
   return {
+    prune_policy_id: FULL_RUNTIME_PRUNE_POLICY.id,
+    prune_policy_hash: buildFullRuntimePrunePolicyHash(),
     temporal_core_bridge_releases: listTemporalCoreBridgeReleases(path.join(runtimeRoot, 'opl', 'node_modules')),
     excluded_module_venv_count: countRuntimeModuleVenvDirectories(runtimeRoot),
     packaged_global_node_packages: fs.existsSync(path.join(runtimeRoot, 'node', 'lib', 'node_modules'))
       ? fs.readdirSync(path.join(runtimeRoot, 'node', 'lib', 'node_modules')).sort()
       : [],
+    offline_required_payloads: [
+      runtimePayloadStatus(runtimeRoot, 'bin/codex', { executable: true }),
+      runtimePayloadStatus(runtimeRoot, 'vendor/codex/codex_cli_darwin_arm64.tar.gz'),
+      runtimePayloadStatus(runtimeRoot, 'bin/temporal', { executable: true }),
+      runtimePayloadStatus(runtimeRoot, 'vendor/temporal/temporal_cli_darwin_arm64.tar.gz'),
+      runtimePayloadStatus(runtimeRoot, 'node/bin/node', { executable: true }),
+      runtimePayloadStatus(runtimeRoot, 'node/bin/npm', { executable: true }),
+      runtimePayloadStatus(runtimeRoot, 'node/bin/npx', { executable: true }),
+      runtimePayloadStatus(runtimeRoot, 'uv/bin/uv', { executable: true }),
+      runtimePayloadStatus(runtimeRoot, 'bin/officecli', { executable: true }),
+      runtimePayloadStatus(runtimeRoot, 'bin/mineru-open-api', { executable: true }),
+      runtimePayloadStatus(runtimeRoot, 'skills/mas/SKILL.md'),
+      runtimePayloadStatus(runtimeRoot, 'skills/mag/SKILL.md'),
+      runtimePayloadStatus(runtimeRoot, 'skills/rca/SKILL.md'),
+      runtimePayloadStatus(runtimeRoot, 'skills/opl-bookforge/SKILL.md'),
+      runtimePayloadStatus(runtimeRoot, 'skills/superpowers/.codex-plugin/plugin.json'),
+    ],
+    declared_pruned_paths: declaredPrunedPathAssertions(runtimeRoot),
   };
 }
 

@@ -587,6 +587,134 @@
       "max_full_dmg_bytes": 750000000,
       "max_runtime_uncompressed_bytes": 1000000000
     },
+    "size_policy": {
+      "goal": "Keep Full first-install complete and offline-capable while making size growth visible and reviewable.",
+      "offline_first_install_completeness_must_not_regress": true,
+      "threshold_semantics": {
+        "warning_full_dmg_bytes": {
+          "value_ref": "full_first_install.size_budget.warning_full_dmg_bytes",
+          "status": "warning_only"
+        },
+        "review_full_dmg_bytes": {
+          "value_ref": "full_first_install.size_budget.max_full_dmg_bytes",
+          "status": "review_required_not_release_blocking_by_size_alone"
+        },
+        "max_runtime_uncompressed_bytes": {
+          "value_ref": "full_first_install.size_budget.max_runtime_uncompressed_bytes",
+          "status": "release_blocking"
+        },
+        "above_review_threshold_rule": "A Full DMG above the review threshold must open package-size review and optimization planning, but it must not authorize removing required offline first-install payloads."
+      },
+      "package_profile_boundary": {
+        "standard": {
+          "asset_pattern": "One-Person-Lab-<version>-mac-arm64.dmg",
+          "runtime_profile": "standard",
+          "updater_visible": true,
+          "contains_opl_full_runtime": false,
+          "role": "ordinary App package and standard updater target"
+        },
+        "full": {
+          "asset_pattern": "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+          "runtime_profile": "full",
+          "updater_visible": false,
+          "contains_opl_full_runtime": true,
+          "role": "clean-machine first-install package with bundled runtime payloads"
+        }
+      },
+      "runtime_boundary": {
+        "opl_full_runtime": {
+          "path": "Contents/Resources/opl-full-runtime",
+          "owner": "one-person-lab-app",
+          "role": "offline first-install runtime, framework, domain-module, companion-tool, and skill payload",
+          "standard_package_allowed": false
+        },
+        "aionui_bundled_runtime": {
+          "path": "Contents/Resources/bundled-aioncore",
+          "owner": "active_shell",
+          "role": "AionUI shell runtime required by the App bundle",
+          "does_not_replace": "opl_full_runtime"
+        },
+        "app_asar": {
+          "path": "Contents/Resources/app.asar",
+          "owner": "active_shell",
+          "role": "AionUI renderer and process bundle"
+        },
+        "electron_framework": {
+          "path": "Contents/Frameworks/Electron Framework.framework",
+          "owner": "active_shell/electron",
+          "role": "Electron runtime framework"
+        }
+      },
+      "measured_records": [
+        {
+          "version": "26.6.21",
+          "source": "measured v26.6.21 size breakdown",
+          "full_dmg_bytes": 1121919153,
+          "standard_dmg_bytes": 440471386,
+          "zlib_level_9_estimated_full_dmg_bytes": 844079932,
+          "zlib_level_9_estimate_under_review_threshold": false,
+          "conclusion": "Compression level 9 alone cannot bring the measured Full DMG back under the 750000000-byte review threshold.",
+          "top_app_bundle_contributors": [
+            {
+              "id": "opl-full-runtime",
+              "size_label": "745M",
+              "boundary_ref": "full_first_install.size_policy.runtime_boundary.opl_full_runtime"
+            },
+            {
+              "id": "bundled-aioncore",
+              "size_label": "678M",
+              "boundary_ref": "full_first_install.size_policy.runtime_boundary.aionui_bundled_runtime"
+            },
+            {
+              "id": "app.asar",
+              "size_label": "367M",
+              "boundary_ref": "full_first_install.size_policy.runtime_boundary.app_asar"
+            },
+            {
+              "id": "Electron Framework",
+              "size_label": "249M",
+              "boundary_ref": "full_first_install.size_policy.runtime_boundary.electron_framework"
+            }
+          ]
+        }
+      ],
+      "optimization_priority_order": [
+        {
+          "rank": 1,
+          "id": "dedupe_or_split_declared_full_runtime_layers",
+          "target_contributors": [
+            "opl-full-runtime",
+            "bundled-aioncore"
+          ],
+          "rule": "Reduce duplicated runtime payloads and layer contents only when Full offline Core readiness and native trust evidence remain intact."
+        },
+        {
+          "rank": 2,
+          "id": "shrink_aionui_app_bundle_payloads",
+          "target_contributors": [
+            "bundled-aioncore",
+            "app.asar"
+          ],
+          "rule": "Remove non-runtime shell assets, maps, tests, caches, or reports without changing App-owned GUI behavior or shell authority boundaries."
+        },
+        {
+          "rank": 3,
+          "id": "review_electron_framework_footprint",
+          "target_contributors": [
+            "Electron Framework"
+          ],
+          "rule": "Treat Electron footprint work as shell/runtime-carrier optimization; do not replace it with an unsupported carrier during release packaging."
+        },
+        {
+          "rank": 4,
+          "id": "compression_level_tuning",
+          "target_contributors": [
+            "Full DMG"
+          ],
+          "rule": "Use compression tuning as secondary size reduction only; the v26.6.21 zlib-level=9 estimate remains above the review threshold."
+        }
+      ]
+    },
     "measurement_policy": {
       "full_dmg_bytes": "github_release_asset_size_bytes",
       "runtime_uncompressed_bytes": "manifest_size_breakdown_total_runtime_uncompressed_bytes"
@@ -737,11 +865,13 @@
       "key_scope": "layer_content_only_not_release_or_dmg_wrapper_scripts"
     },
     "full_dmg_compression": {
-      "default_ci_level": "1",
+      "default_ci_level": "9",
       "telemetry_field": "dmg_compression_level",
-      "rule": "Stable Full CI uses an explicit fast zlib compression level for the App-owned fallback/rebuilt DMG path; release readiness still records compressed Full DMG size from the published GitHub asset and does not use compression tuning to bypass size review."
+      "rule": "Stable Full CI uses zlib level 9 for the App-owned fallback/rebuilt DMG path by default. Release readiness still records compressed Full DMG size from the published GitHub asset; crossing the review threshold opens package-size review but does not authorize removing required offline first-install payloads."
     },
     "full_runtime_packaging_hygiene": {
+      "prune_policy_id": "full_runtime_offline_first_install_slim_v1",
+      "manifest_policy_schema": "opl_full_runtime_prune_policy.v1",
       "local_state_excluded": [
         ".codegraph",
         ".git",
@@ -754,9 +884,47 @@
         "sessions",
         "tests"
       ],
+      "node_toolchain_pruned": [
+        "npm/docs",
+        "npm/man",
+        "npm/tap-snapshots",
+        "package tests",
+        "package fixtures",
+        "package examples",
+        "package coverage and reports"
+      ],
+      "python_runtime_pruned": [
+        "stdlib test suites",
+        "__pycache__",
+        "*.pyc",
+        "*.pyo"
+      ],
+      "retained_offline_payloads": [
+        "runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz",
+        "runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz",
+        "runtime/current/node/bin/node",
+        "runtime/current/node/bin/npm",
+        "runtime/current/node/bin/npx",
+        "runtime/current/python/<cpython>/bin/python3",
+        "runtime/current/uv/bin/uv",
+        "runtime/current/bin/officecli",
+        "runtime/current/bin/mineru-open-api",
+        "runtime/current/modules/mas",
+        "runtime/current/modules/mag",
+        "runtime/current/modules/rca",
+        "runtime/current/modules/meta-agent",
+        "runtime/current/modules/bookforge",
+        "runtime/current/skills"
+      ],
+      "manifest_assertions": [
+        "runtime_prune_policy.id",
+        "runtime_assertions.prune_policy_hash",
+        "runtime_assertions.offline_required_payloads",
+        "runtime_assertions.declared_pruned_paths"
+      ],
       "measurement_command": "npm run release:full:size -- --markdown",
       "domain_runtime_allowlist_owner": "domain_repositories",
-      "app_policy": "exclude local indexes, dependency caches, tests, and user/runtime state; do not infer domain truth or artifact authority from package pruning"
+      "app_policy": "exclude local indexes, dependency caches, tests, package docs/fixtures/examples, Python stdlib tests, and user/runtime state; do not prune declared offline first-install payloads, Codex/Temporal archives, domain modules, or packaged skills; do not infer domain truth or artifact authority from package pruning"
     },
     "publish_resume": {
       "default": "skip_existing_assets_when_size_and_sha256_digest_match",

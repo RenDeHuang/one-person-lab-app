@@ -9,6 +9,7 @@ import {
   activeShellRoot,
   runNode,
   writeFile,
+  writeExecutable,
   writeReleaseMetadata,
   sha256,
   fileSha256,
@@ -131,6 +132,8 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /resolved_refs:\s+fullManifest\?\.resolved_refs/);
   assert.match(workflow, /## Full Payload Resolved Refs/);
   assert.match(workflow, /requires_distributable_assets="\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}"/);
+  assert.match(workflow, /full_dmg_compression_level:[\s\S]*default:\s+'9'[\s\S]*type:\s+string/);
+  assert.match(workflow, /OPL_FULL_DMG_COMPRESSION_LEVEL:\s+\$\{\{ inputs\.full_dmg_compression_level \|\| '9' \}\}/);
   assert.match(workflow, /echo "OPL_FULL_DISTRIBUTABLE_ASSETS=\$requires_distributable_assets" >> "\$GITHUB_ENV"/);
   assert.match(workflow, /name: Inspect optional Full release signing secrets/);
   assert.match(workflow, /Full first-install local authorization mode/);
@@ -261,10 +264,14 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.equal(summary.version, '26.5.27-size');
   assert.equal(summary.budget.compressed_full_dmg.measurement_source, 'not_provided');
   assert.equal(summary.budget.compressed_full_dmg.release_blocking, false);
+  assert.equal(summary.budget.compressed_full_dmg.status, 'unavailable');
+  assert.equal(summary.budget.compressed_full_dmg.hard_limit_status, 'unavailable');
   assert.equal(summary.budget.runtime_uncompressed.status, 'passed');
   assert.equal(summary.budget.runtime_uncompressed.release_blocking, true);
   assert.equal(summary.warning_full_dmg_bytes, 700000000);
+  assert.equal(summary.review_full_dmg_bytes, 750000000);
   assert.equal(summary.max_full_dmg_bytes, 750000000);
+  assert.equal(summary.hard_full_dmg_bytes, null);
   assert.equal(summary.runtime_budget_used_percent, 50);
   assert.equal(summary.components[0].id, 'mas');
   assert.equal(summary.layers[0].id, 'toolchain');
@@ -290,11 +297,76 @@ test('Full package size analyzer reports manifest component and layer budgets', 
   assert.match(markdownResult.stdout, /50% used/);
   assert.match(markdownResult.stdout, /Full DMG warning threshold: 667\.6 MiB/);
   assert.match(markdownResult.stdout, /Full DMG review threshold: 715\.3 MiB/);
+  assert.match(markdownResult.stdout, /Full DMG hard limit: n\/a/);
+  assert.match(markdownResult.stdout, /Full DMG gate status: warning/);
   assert.match(markdownResult.stdout, /Runtime budget: 1000 B \(50% used, passed\)/);
   assert.match(markdownResult.stdout, /\| mas \| 180 B \| 36% \|/);
   assert.match(markdownResult.stdout, /### Manifest Size Hotspots/);
   assert.match(markdownResult.stdout, /\| toolchain\/vendor\/temporal \| 150 B \|/);
   assert.match(markdownResult.stdout, /### Optimization Candidates/);
+});
+
+test('Full package size analyzer separates review threshold from hard limit', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-size-gate-'));
+  const manifestPath = path.join(tempRoot, 'full-package-manifest.json');
+  const manifest = {
+    manifest_version: 2,
+    version: '26.6.21-size-gate',
+    package_kind: 'opl_full_first_install_macos_arm64',
+    size_budget: {
+      platform_scope: 'macos-arm64',
+      warning_full_dmg_bytes: 700000000,
+      max_full_dmg_bytes: 750000000,
+      max_runtime_uncompressed_bytes: 1000000000,
+    },
+    size_breakdown: {
+      total_runtime_uncompressed_bytes: 734713404,
+      layers: {
+        toolchain: { size_bytes: 539534131 },
+        'domain-runtime': { size_bytes: 85679162 },
+        'opl-runtime': { size_bytes: 105774657 },
+        skills: { size_bytes: 3699940 },
+      },
+    },
+    components: {
+      node: { size_bytes: 132662000, version: 'v24.16.0' },
+      opl: { size_bytes: 105774657, git_commit: 'b830b82b701e7fab49e2673a5184c2ffe2a3e7a5' },
+    },
+  };
+  writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+
+  const reviewResult = runNode([
+    'scripts/analyze-full-package-size.ts',
+    '--manifest',
+    manifestPath,
+    '--full-dmg-size-bytes',
+    '844079932',
+  ]);
+  assert.equal(reviewResult.status, 0, reviewResult.stderr);
+  const reviewSummary = JSON.parse(reviewResult.stdout);
+  assert.equal(reviewSummary.budget.status, 'requires_review');
+  assert.equal(reviewSummary.budget.compressed_full_dmg.status, 'requires_review');
+  assert.equal(reviewSummary.budget.compressed_full_dmg.warning_status, 'warning');
+  assert.equal(reviewSummary.budget.compressed_full_dmg.review_threshold_status, 'above_review_threshold');
+  assert.equal(reviewSummary.budget.compressed_full_dmg.hard_limit_status, 'unavailable');
+  assert.equal(reviewSummary.budget.compressed_full_dmg.review_required, true);
+  assert.equal(reviewSummary.budget.compressed_full_dmg.release_blocking, false);
+
+  manifest.size_budget.hard_full_dmg_bytes = 800000000;
+  writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+  const hardLimitResult = runNode([
+    'scripts/analyze-full-package-size.ts',
+    '--manifest',
+    manifestPath,
+    '--full-dmg-size-bytes',
+    '844079932',
+  ]);
+  assert.equal(hardLimitResult.status, 0, hardLimitResult.stderr);
+  const hardLimitSummary = JSON.parse(hardLimitResult.stdout);
+  assert.equal(hardLimitSummary.budget.status, 'failed');
+  assert.equal(hardLimitSummary.budget.compressed_full_dmg.status, 'failed');
+  assert.equal(hardLimitSummary.budget.compressed_full_dmg.hard_limit_status, 'failed');
+  assert.equal(hardLimitSummary.budget.compressed_full_dmg.release_blocking, true);
 });
 
 test('manual build workflow keeps cross-platform builds behind an explicit switch', () => {
@@ -397,9 +469,13 @@ test('Full first-install manifest declares App-owned distribution and Framework 
     runtime_uncompressed_bytes: 'manifest_size_breakdown_total_runtime_uncompressed_bytes',
   });
   assert.deepEqual(manifest.runtime_assertions, {
+    prune_policy_id: 'full_runtime_offline_first_install_slim_v1',
+    prune_policy_hash: mod.buildFullRuntimePrunePolicyHash(),
     temporal_core_bridge_releases: [],
     excluded_module_venv_count: 0,
     packaged_global_node_packages: [],
+    offline_required_payloads: [],
+    declared_pruned_paths: [],
   });
   assert.deepEqual(Object.keys(manifest.size_breakdown.layers), [
     'toolchain',
@@ -559,6 +635,68 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   assert.doesNotMatch(fullReadme, /[\u3400-\u9fff]/);
 });
 
+test('Full size policy records review semantics, measured v26.6.21 breakdown, and package boundary', () => {
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const sizeBudget = releaseContract.full_first_install.size_budget;
+  const sizePolicy = releaseContract.full_first_install.size_policy;
+  const measuredRecord = sizePolicy.measured_records.find((record) => record.version === '26.6.21');
+
+  assert.equal(sizeBudget.warning_full_dmg_bytes, 700000000);
+  assert.equal(sizeBudget.max_full_dmg_bytes, 750000000);
+  assert.equal(sizePolicy.offline_first_install_completeness_must_not_regress, true);
+  assert.equal(
+    sizePolicy.threshold_semantics.review_full_dmg_bytes.status,
+    'review_required_not_release_blocking_by_size_alone',
+  );
+  assert.match(
+    sizePolicy.threshold_semantics.above_review_threshold_rule,
+    /must not authorize removing required offline first-install payloads/,
+  );
+  assert.deepEqual(sizePolicy.package_profile_boundary.standard, {
+    asset_pattern: 'One-Person-Lab-<version>-mac-arm64.dmg',
+    runtime_profile: 'standard',
+    updater_visible: true,
+    contains_opl_full_runtime: false,
+    role: 'ordinary App package and standard updater target',
+  });
+  assert.deepEqual(sizePolicy.package_profile_boundary.full, {
+    asset_pattern: 'One-Person-Lab-Full-<version>-mac-arm64.dmg',
+    runtime_profile: 'full',
+    updater_visible: false,
+    contains_opl_full_runtime: true,
+    role: 'clean-machine first-install package with bundled runtime payloads',
+  });
+  assert.equal(sizePolicy.runtime_boundary.opl_full_runtime.standard_package_allowed, false);
+  assert.equal(sizePolicy.runtime_boundary.aionui_bundled_runtime.does_not_replace, 'opl_full_runtime');
+  assert.equal(measuredRecord.full_dmg_bytes, 1121919153);
+  assert.equal(measuredRecord.standard_dmg_bytes, 440471386);
+  assert.equal(measuredRecord.zlib_level_9_estimated_full_dmg_bytes, 844079932);
+  assert.equal(measuredRecord.zlib_level_9_estimate_under_review_threshold, false);
+  assert.ok(
+    measuredRecord.top_app_bundle_contributors.some((entry) => entry.id === 'opl-full-runtime' && entry.size_label === '745M'),
+  );
+  assert.ok(
+    measuredRecord.top_app_bundle_contributors.some((entry) => entry.id === 'bundled-aioncore' && entry.size_label === '678M'),
+  );
+  assert.ok(
+    measuredRecord.top_app_bundle_contributors.some((entry) => entry.id === 'app.asar' && entry.size_label === '367M'),
+  );
+  assert.ok(
+    measuredRecord.top_app_bundle_contributors.some((entry) => entry.id === 'Electron Framework' && entry.size_label === '249M'),
+  );
+  assert.deepEqual(
+    sizePolicy.optimization_priority_order.map((entry) => entry.id),
+    [
+      'dedupe_or_split_declared_full_runtime_layers',
+      'shrink_aionui_app_bundle_payloads',
+      'review_electron_framework_footprint',
+      'compression_level_tuning',
+    ],
+  );
+});
+
 test('Full first-install cache and release acceleration contract are explicit', async () => {
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
@@ -687,7 +825,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
     releaseContract.release_acceleration.full_runtime_cache.key_scope,
     'layer_content_only_not_release_or_dmg_wrapper_scripts',
   );
-  assert.equal(releaseContract.release_acceleration.full_dmg_compression.default_ci_level, '1');
+  assert.equal(releaseContract.release_acceleration.full_dmg_compression.default_ci_level, '9');
   assert.equal(releaseContract.release_acceleration.full_dmg_compression.telemetry_field, 'dmg_compression_level');
   assert.deepEqual(releaseContract.release_acceleration.full_runtime_packaging_hygiene.local_state_excluded, [
     '.codegraph',
@@ -701,6 +839,35 @@ test('Full first-install cache and release acceleration contract are explicit', 
     'sessions',
     'tests',
   ]);
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.prune_policy_id,
+    'full_runtime_offline_first_install_slim_v1',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.manifest_policy_schema,
+    'opl_full_runtime_prune_policy.v1',
+  );
+  assert.ok(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.node_toolchain_pruned.includes('npm/docs'),
+  );
+  assert.ok(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.python_runtime_pruned.includes('stdlib test suites'),
+  );
+  assert.ok(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.retained_offline_payloads.includes(
+      'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz',
+    ),
+  );
+  assert.ok(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.retained_offline_payloads.includes(
+      'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
+    ),
+  );
+  assert.ok(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.manifest_assertions.includes(
+      'runtime_assertions.offline_required_payloads',
+    ),
+  );
   assert.equal(
     releaseContract.release_acceleration.full_runtime_packaging_hygiene.measurement_command,
     'npm run release:full:size -- --markdown',
@@ -854,6 +1021,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.doesNotMatch(buildScript, /support_files:[\s\S]{0,1200}'scripts\/build-full-first-install-package\/manifest-checksum\.ts'/);
   assert.match(buildScript, /key_inputs: cacheKeyInputs/);
   assert.match(buildScript, /resolveFullDmgCompressionLevel\(\)/);
+  assert.match(buildScript, /process\.env\.CI === 'true' \? '9' : '7'/);
   assert.match(buildScript, /dmg_compression_level: process\.env\.ELECTRON_BUILDER_COMPRESSION_LEVEL/);
   assert.match(buildScript, /guiRoot: envValue\('OPL_FULL_GUI_ROOT', resolveActiveShellPaths\(\)\.shellRoot\)/);
   assert.doesNotMatch(buildScript, /guiRoot: process\.env\.OPL_FULL_GUI_ROOT \|\| path\.join\(appRepoRoot, 'shells', 'aionui'\)/);
@@ -925,12 +1093,30 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.equal(mod.shouldExcludeProductionNodeModulePath('lib/index.js'), false);
   assert.equal(mod.shouldExcludeProductionNodeModulePath('lib/native/addon.node'), false);
   assert.equal(mod.shouldExcludeProductionNodeModulePath('schema/runtime.json'), false);
+  assert.equal(mod.shouldExcludeRuntimePath('python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/test/test_os.py'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/unittest/test/test_case.py'), true);
+  assert.equal(mod.shouldExcludeRuntimePath('python/cpython-3.12.12-macos-aarch64-none/include/python3.12/Python.h'), false);
+  assert.equal(mod.shouldExcludeRuntimePath('python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/ensurepip/__init__.py'), false);
+  assert.equal(mod.shouldExcludeNodeToolchainPackagePath('docs/output/config.md'), true);
+  assert.equal(mod.shouldExcludeNodeToolchainPackagePath('man/man1/npm.1'), true);
+  assert.equal(mod.shouldExcludeNodeToolchainPackagePath('tap-snapshots/install.snap'), true);
+  assert.equal(mod.shouldExcludeNodeToolchainPackagePath('lib/cli.js'), false);
+  assert.equal(mod.shouldExcludeNodeToolchainPackagePath('node_modules/@npmcli/arborist/lib/index.js'), false);
+  assert.equal(mod.FULL_RUNTIME_PRUNE_POLICY.schema, 'opl_full_runtime_prune_policy.v1');
+  assert.equal(mod.FULL_RUNTIME_PRUNE_POLICY.id, 'full_runtime_offline_first_install_slim_v1');
+  assert.match(mod.buildFullRuntimePrunePolicyHash(), /^[a-f0-9]{64}$/);
+  assert.equal(mod.buildFullPackageManifest({ version: '26.5.15' }).runtime_prune_policy.id, mod.FULL_RUNTIME_PRUNE_POLICY.id);
   assert.match(buildScript, /shouldExcludeProductionNodeModulePath/);
+  assert.match(buildScript, /shouldExcludeNodeToolchainPackagePath/);
   assert.match(buildScript, /copyProductionNodeModule\(sourcePath, targetPath\)/);
+  assert.match(buildScript, /copyNodeToolchainPackage\(sourcePath, path\.join\(targetRoot, 'lib', 'node_modules', packageName\)\)/);
   assert.match(buildScript, /MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET = 'aarch64-apple-darwin'/);
   assert.match(buildScript, /pruneTemporalCoreBridgeReleases\(path\.join\(targetRoot, 'node_modules'\)\)/);
   assert.match(buildScript, /assertTemporalCoreBridgeMacosArm64Only\(path\.join\(runtimeRoot, 'opl', 'node_modules'\)\)/);
   assert.match(buildScript, /runtimeAssertions: collectRuntimeAssertions\(runtimeRoot\)/);
+  assert.match(buildScript, /prune_policy_hash: buildFullRuntimePrunePolicyHash\(\)/);
+  assert.match(buildScript, /offline_required_payloads:/);
+  assert.match(buildScript, /declared_pruned_paths:/);
   assert.match(buildScript, /bunBin: envValue\('OPL_FULL_BUN_BIN', ''\)/);
   assert.match(buildScript, /includeBunRuntime: process\.env\.OPL_FULL_INCLUDE_BUN_RUNTIME === '1'/);
   assert.match(buildScript, /temporalCliBin: envValue\('OPL_FULL_TEMPORAL_CLI_BIN', ''\)/);
@@ -957,4 +1143,105 @@ test('Full runtime pruning keeps macOS arm64 launch payloads without development
   assert.match(buildScript, /version: commandOutput\(path\.join\(runtimeRoot, 'bin', 'temporal'\), \['--version'\]\)/);
   assert.match(buildScript, /writeJsonFile\(runtimeNativeTrustPath, prepared\.manifest\.native_trust\)/);
   assert.match(buildScript, /codex: \{[\s\S]*source_path: sources\.codexRoot[\s\S]*size_bytes: directorySizeBytes\(path\.join\(runtimeRoot, 'bin', 'codex'\)\)[\s\S]*archive_path: 'runtime\/current\/vendor\/codex\/codex_cli_darwin_arm64\.tar\.gz'/);
+});
+
+test('Full runtime slim policy is declared without moving required payloads to lazy download', () => {
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const hygiene = releaseContract.release_acceleration.full_runtime_packaging_hygiene;
+
+  assert.equal(hygiene.prune_policy_id, 'full_runtime_offline_first_install_slim_v1');
+  assert.equal(hygiene.manifest_policy_schema, 'opl_full_runtime_prune_policy.v1');
+  assert.ok(hygiene.node_toolchain_pruned.includes('npm/docs'));
+  assert.ok(hygiene.python_runtime_pruned.includes('stdlib test suites'));
+  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz'));
+  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz'));
+  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/node/bin/node'));
+  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/python/<cpython>/bin/python3'));
+  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/modules/mas'));
+  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/skills'));
+  assert.ok(hygiene.manifest_assertions.includes('runtime_prune_policy.id'));
+  assert.ok(hygiene.manifest_assertions.includes('runtime_assertions.prune_policy_hash'));
+  assert.ok(hygiene.manifest_assertions.includes('runtime_assertions.offline_required_payloads'));
+  assert.ok(hygiene.manifest_assertions.includes('runtime_assertions.declared_pruned_paths'));
+  assert.match(hygiene.app_policy, /do not prune declared offline first-install payloads/);
+});
+
+test('Full runtime node payload prunes package-only docs while preserving offline launch executables', async () => {
+  const { copyNodeRuntimePayload } = await import('../../../scripts/build-full-first-install-package/filesystem.ts');
+  const { collectRuntimeAssertions } = await import('../../../scripts/build-full-first-install-package/runtime-layers.ts');
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-node-prune-'));
+  const sourceRoot = path.join(tempRoot, 'node-source');
+  const targetRoot = path.join(tempRoot, 'runtime', 'node');
+
+  writeExecutable(path.join(sourceRoot, 'bin', 'node'), '#!/bin/sh\nexit 0\n');
+  writeExecutable(path.join(sourceRoot, 'bin', 'npm'), '#!/bin/sh\nexit 0\n');
+  writeExecutable(path.join(sourceRoot, 'bin', 'npx'), '#!/bin/sh\nexit 0\n');
+  writeFile(path.join(sourceRoot, 'include', 'node', 'node.h'), 'header');
+  writeFile(path.join(sourceRoot, 'share', 'man', 'man1', 'node.1'), 'manual');
+  writeFile(path.join(sourceRoot, 'lib', 'node_modules', 'npm', 'package.json'), '{"name":"npm"}\n');
+  writeFile(path.join(sourceRoot, 'lib', 'node_modules', 'npm', 'lib', 'cli.js'), 'runtime');
+  writeFile(path.join(sourceRoot, 'lib', 'node_modules', 'npm', 'node_modules', '@npmcli', 'arborist', 'lib', 'index.js'), 'runtime');
+  writeFile(path.join(sourceRoot, 'lib', 'node_modules', 'npm', 'docs', 'config.md'), 'docs');
+  writeFile(path.join(sourceRoot, 'lib', 'node_modules', 'npm', 'man', 'man1', 'npm.1'), 'manual');
+  writeFile(path.join(sourceRoot, 'lib', 'node_modules', 'npm', 'tap-snapshots', 'install.snap'), 'snapshot');
+  writeFile(path.join(sourceRoot, 'lib', 'node_modules', 'corepack', 'dist', 'corepack.js'), 'runtime');
+  writeFile(path.join(sourceRoot, 'lib', 'node_modules', 'corepack', 'tests', 'corepack.test.js'), 'test');
+
+  copyNodeRuntimePayload(sourceRoot, targetRoot);
+
+  assert.equal(fs.existsSync(path.join(targetRoot, 'bin', 'node')), true);
+  assert.equal(fs.existsSync(path.join(targetRoot, 'bin', 'npm')), true);
+  assert.equal(fs.existsSync(path.join(targetRoot, 'bin', 'npx')), true);
+  assert.equal(fs.existsSync(path.join(targetRoot, 'include')), false);
+  assert.equal(fs.existsSync(path.join(targetRoot, 'share')), false);
+  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'npm', 'lib', 'cli.js')), true);
+  assert.equal(
+    fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'npm', 'node_modules', '@npmcli', 'arborist', 'lib', 'index.js')),
+    true,
+  );
+  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'npm', 'docs')), false);
+  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'npm', 'man')), false);
+  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'npm', 'tap-snapshots')), false);
+  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'corepack', 'dist', 'corepack.js')), true);
+  assert.equal(fs.existsSync(path.join(targetRoot, 'lib', 'node_modules', 'corepack', 'tests')), false);
+
+  const runtimeRoot = path.join(tempRoot, 'runtime');
+  writeExecutable(path.join(runtimeRoot, 'bin', 'codex'), '#!/bin/sh\nexit 0\n');
+  writeFile(path.join(runtimeRoot, 'vendor', 'codex', 'codex_cli_darwin_arm64.tar.gz'), 'codex archive');
+  writeExecutable(path.join(runtimeRoot, 'bin', 'temporal'), '#!/bin/sh\nexit 0\n');
+  writeFile(path.join(runtimeRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64.tar.gz'), 'temporal archive');
+  writeExecutable(path.join(runtimeRoot, 'uv', 'bin', 'uv'), '#!/bin/sh\nexit 0\n');
+  writeExecutable(path.join(runtimeRoot, 'bin', 'officecli'), '#!/bin/sh\nexit 0\n');
+  writeExecutable(path.join(runtimeRoot, 'bin', 'mineru-open-api'), '#!/bin/sh\nexit 0\n');
+  for (const skillId of ['mas', 'mag', 'rca', 'opl-bookforge']) {
+    writeFile(path.join(runtimeRoot, 'skills', skillId, 'SKILL.md'), '# skill\n');
+  }
+  writeFile(path.join(runtimeRoot, 'skills', 'superpowers', '.codex-plugin', 'plugin.json'), '{}\n');
+
+  const assertions = collectRuntimeAssertions(runtimeRoot);
+  assert.equal(assertions.prune_policy_id, 'full_runtime_offline_first_install_slim_v1');
+  assert.match(assertions.prune_policy_hash, /^[a-f0-9]{64}$/);
+  assert.deepEqual(assertions.packaged_global_node_packages, ['corepack', 'npm']);
+  assert.equal(
+    assertions.offline_required_payloads.find((entry) => entry.path === 'vendor/codex/codex_cli_darwin_arm64.tar.gz')?.exists,
+    true,
+  );
+  assert.equal(
+    assertions.offline_required_payloads.find((entry) => entry.path === 'vendor/temporal/temporal_cli_darwin_arm64.tar.gz')?.exists,
+    true,
+  );
+  assert.equal(
+    assertions.offline_required_payloads.find((entry) => entry.path === 'node/bin/npm')?.executable,
+    true,
+  );
+  assert.equal(
+    assertions.declared_pruned_paths.find((entry) => entry.path === 'node/include')?.present,
+    false,
+  );
+  assert.equal(
+    assertions.declared_pruned_paths.find((entry) => entry.path === 'node/lib/node_modules/npm/docs')?.present,
+    false,
+  );
 });

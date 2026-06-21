@@ -32,6 +32,11 @@ on:
         required: false
         default: false
         type: boolean
+      full_dmg_compression_level:
+        description: zlib level for the Full DMG UDZO image. Default 9 favors release size.
+        required: false
+        default: '9'
+        type: string
   workflow_call:
     inputs:
       opl_version:
@@ -63,6 +68,11 @@ on:
         required: false
         default: false
         type: boolean
+      full_dmg_compression_level:
+        description: zlib level for the Full DMG UDZO image. Default 9 favors release size.
+        required: false
+        default: '9'
+        type: string
 permissions:
   contents: write
 
@@ -553,7 +563,7 @@ jobs:
           ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
           npm_config_electron_builder_binaries_mirror: https://github.com/electron-userland/electron-builder-binaries/releases/download/
           ELECTRON_MIRROR: ''
-          OPL_FULL_DMG_COMPRESSION_LEVEL: '1'
+          OPL_FULL_DMG_COMPRESSION_LEVEL: ${{ inputs.full_dmg_compression_level || '9' }}
           npm_config_disturl: https://electronjs.org/headers
           npm_config_runtime: electron
           npm_config_target: ${{ steps.shell-electron-version.outputs.version }}

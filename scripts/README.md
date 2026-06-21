@@ -126,16 +126,29 @@ bootstrap carrier used when clean first launch cannot find `opl`.
 
 Full size policy lives in
 `contracts/app-release-channel.json#full_first_install.size_budget` and the Full
-manifest `size_budget`; `docs/release/README.md` is the operator map. Release
-review records the compressed DMG size, uncompressed runtime size, and layer
-breakdown, then uses `verify-remote-release-assets.ts` as the remote verifier
-size budget check for published GitHub Release assets. The remote verifier
-enforces the compressed Full DMG budget from the GitHub asset size and the
-uncompressed runtime budget from `full-package-manifest.json`
-`size_breakdown.total_runtime_uncompressed_bytes`.
+manifest `size_budget`; size semantics, measured records, profile boundaries,
+runtime boundaries, and optimization priority live in
+`contracts/app-release-channel.json#full_first_install.size_policy`;
+`docs/release/README.md` is the operator map. Release review records the
+compressed DMG size, uncompressed runtime size, and layer breakdown, then uses
+`verify-remote-release-assets.ts` as the remote verifier size budget check for
+published GitHub Release assets. The remote verifier measures compressed Full
+DMG bytes from the GitHub asset size and uncompressed runtime bytes from
+`full-package-manifest.json`
+`size_breakdown.total_runtime_uncompressed_bytes`. The Full size analyzer keeps
+compressed DMG warning, review threshold, and optional hard limit status
+separate: crossing the review threshold records `requires_review`; only an
+explicit hard limit records a release-blocking compressed-DMG failure.
 `npm run release:full:size -- --markdown` prints the same component and layer
 breakdown plus manifest size hotspots for local review and is appended to the
-Full GitHub Actions summary.
+Full GitHub Actions summary. Stable Full release builds use UDZO with zlib level
+9 by default for the App-owned DMG path; set
+`OPL_FULL_DMG_COMPRESSION_LEVEL=<1-9>` only for an explicit diagnostic override.
+The `750000000`-byte Full DMG threshold is a review trigger, not permission to
+remove required offline first-install payloads. The v26.6.21 measured contract
+record shows a `1121919153`-byte Full DMG, a `440471386`-byte standard DMG, and
+a zlib level 9 estimate of `844079932` bytes, so compression tuning alone is not
+enough to return under the review threshold.
 The Full workflow also uploads `full-workflow-telemetry.json`, a machine-readable
 cache/timing artifact for post-release bottleneck review; use it as tuning input,
 not as release truth.
@@ -160,6 +173,18 @@ through a narrower filter that removes package tests/docs/fixtures/examples,
 snapshots, reports, caches, and `*.map` files while keeping runtime JS, schemas,
 assets, and native binaries. Domain-specific allowlists must come from the
 owning domain repositories.
+The explicit prune policy is recorded in
+`full-package-manifest.json` as `runtime_prune_policy`, and
+`runtime_assertions.prune_policy_hash` is part of the Full runtime cache key.
+Node's global npm/corepack payload is copied through the same non-runtime
+policy for package docs/man pages/tests/fixtures/examples, while `node`,
+`npm`, and `npx` remain offline executables. Python keeps headers and
+`ensurepip` for offline native-extension build/debug support, but stdlib test
+suites and bytecode caches are excluded. The manifest also records
+`runtime_assertions.offline_required_payloads` and
+`runtime_assertions.declared_pruned_paths`; use those fields to audit that
+Codex and Temporal archives, Node/Python/uv, officecli, mineru, domain modules,
+and packaged skills stayed local instead of becoming lazy downloads.
 
 The clean first-install gates are wired through
 `.github/workflows/opl-first-run-vm.yml` and the active shell Tart smoke helper.
