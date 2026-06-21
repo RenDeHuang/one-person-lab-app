@@ -290,7 +290,7 @@ jobs:
 
   full-first-install:
     name: Build Full first-install assets
-    needs: release-workflow-contract
+    needs: standard-vm-smoke-gate-after-full
     if: ${{ inputs.include_full_package }}
     uses: ./.github/workflows/full-first-install-release.yml
     with:
@@ -382,7 +382,9 @@ jobs:
 
   remote-verify-full:
     name: Verify remote standard and Full release assets
-    needs: publish-full-assets
+    needs:
+      - publish-full-assets
+      - standard-vm-smoke-gate-after-full
     if: ${{ inputs.include_full_package }}
     runs-on: macos-latest
 
@@ -419,7 +421,9 @@ jobs:
       - release-preflight
       - remote-verify-standard
       - remote-verify-full
-    if: ${{ always() && needs.release-preflight.outputs.homebrew_tap_update_required == 'true' && (needs.remote-verify-standard.result == 'success' || needs.remote-verify-full.result == 'success') }}
+      - standard-first-run-vm-smoke-after-standard-only
+      - standard-vm-smoke-gate-after-full
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.outputs.homebrew_tap_update_required == 'true' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.remote-verify-full.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
     uses: ./.github/workflows/homebrew-tap-update.yml
     with:
       channel: stable
@@ -435,7 +439,7 @@ jobs:
     needs:
       - stable-homebrew-tap-update
       - remote-verify-full
-    if: ${{ always() && inputs.include_full_package && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' && needs.remote-verify-full.result == 'success' }}
+    if: ${{ inputs.include_full_package && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' && needs.remote-verify-full.result == 'success' }}
     uses: ./.github/workflows/homebrew-tap-update.yml
     with:
       channel: stable
@@ -470,11 +474,33 @@ jobs:
       shell_ref: ${{ inputs.shell_ref }}
     secrets: inherit
 
+  standard-vm-smoke-gate-after-full:
+    name: Gate downstream Full release work on standard VM smoke
+    needs:
+      - publish-standard
+      - standard-first-run-vm-smoke-after-full
+    if: ${{ !cancelled() && inputs.include_full_package }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Enforce standard VM fail-fast gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.run_vm_smoke }}" != "true" ]; then
+            echo "Standard VM smoke disabled by dispatch input; downstream Full release work may continue without VM evidence."
+            exit 0
+          fi
+          if [ "${{ needs.standard-first-run-vm-smoke-after-full.result }}" != "success" ]; then
+            echo "::error::Standard VM smoke must pass before Full build, remote verification, Homebrew, operator evidence, or readiness aggregation can run. Result: ${{ needs.standard-first-run-vm-smoke-after-full.result }}"
+            exit 1
+          fi
+
   homebrew-standard-first-run-vm-smoke:
     name: Run Homebrew standard first-run VM smoke
     needs:
       - stable-homebrew-tap-update
-    if: ${{ always() && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' }}
+    if: ${{ inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
@@ -497,8 +523,11 @@ jobs:
 
   one-shot-app-installer-smoke:
     name: Run one-shot App installer smoke
-    needs: publish-standard
-    if: ${{ inputs.run_vm_smoke }}
+    needs:
+      - publish-standard
+      - standard-first-run-vm-smoke-after-standard-only
+      - standard-vm-smoke-gate-after-full
+    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
     runs-on: macos-latest
     timeout-minutes: 45
 
@@ -571,8 +600,11 @@ jobs:
 
   docker-webui-smoke:
     name: Run Docker WebUI smoke and stage GHCR publish
-    needs: publish-standard
-    if: ${{ inputs.run_vm_smoke }}
+    needs:
+      - publish-standard
+      - standard-first-run-vm-smoke-after-standard-only
+      - standard-vm-smoke-gate-after-full
+    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -734,12 +766,13 @@ jobs:
   operator-evidence-bundle-validation:
     name: Validate operator evidence bundle
     runs-on: ubuntu-latest
-    if: ${{ always() }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.remote-verify-full.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) }}
     needs:
       - remote-verify-standard
       - remote-verify-full
       - standard-first-run-vm-smoke-after-standard-only
       - standard-first-run-vm-smoke-after-full
+      - standard-vm-smoke-gate-after-full
       - full-first-run-vm-smoke
 
     steps:
@@ -884,16 +917,16 @@ jobs:
         shell: bash
         run: exit 1
 
-  release-readiness-summary:
-    name: Summarize release readiness
+  release-readiness-admission:
+    name: Admit release readiness aggregation
     runs-on: ubuntu-latest
-    if: ${{ always() }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) && (needs.stable-homebrew-tap-update.result == 'success' || needs.stable-homebrew-tap-update.result == 'skipped') && (needs.full-homebrew-tap-update.result == 'success' || needs.full-homebrew-tap-update.result == 'skipped') && (needs.homebrew-standard-first-run-vm-smoke.result == 'success' || needs.homebrew-standard-first-run-vm-smoke.result == 'skipped') && needs.one-shot-app-installer-smoke.result == 'success' && needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' && needs.operator-evidence-bundle-validation.result == 'success' }}
     needs:
-      - full-first-install
       - remote-verify-standard
       - remote-verify-full
       - standard-first-run-vm-smoke-after-standard-only
       - standard-first-run-vm-smoke-after-full
+      - standard-vm-smoke-gate-after-full
       - stable-homebrew-tap-update
       - full-homebrew-tap-update
       - homebrew-standard-first-run-vm-smoke
@@ -902,6 +935,92 @@ jobs:
       - docker-webui-smoke
       - webui-ghcr-publish
       - operator-evidence-bundle-validation
+
+    steps:
+      - name: Enforce release readiness fail-fast admission
+        shell: bash
+        run: |
+          node <<'NODE'
+          const includeFullPackage = '${{ inputs.include_full_package }}' === 'true';
+          const runVmSmoke = '${{ inputs.run_vm_smoke }}' === 'true';
+          const results = {
+            'remote-verify-standard': '${{ needs.remote-verify-standard.result }}',
+            'remote-verify-full': '${{ needs.remote-verify-full.result }}',
+            'standard-first-run-vm-smoke-after-standard-only': '${{ needs.standard-first-run-vm-smoke-after-standard-only.result }}',
+            'standard-first-run-vm-smoke-after-full': '${{ needs.standard-first-run-vm-smoke-after-full.result }}',
+            'standard-vm-smoke-gate-after-full': '${{ needs.standard-vm-smoke-gate-after-full.result }}',
+            'stable-homebrew-tap-update': '${{ needs.stable-homebrew-tap-update.result }}',
+            'full-homebrew-tap-update': '${{ needs.full-homebrew-tap-update.result }}',
+            'homebrew-standard-first-run-vm-smoke': '${{ needs.homebrew-standard-first-run-vm-smoke.result }}',
+            'full-first-run-vm-smoke': '${{ needs.full-first-run-vm-smoke.result }}',
+            'one-shot-app-installer-smoke': '${{ needs.one-shot-app-installer-smoke.result }}',
+            'docker-webui-smoke': '${{ needs.docker-webui-smoke.result }}',
+            'webui-ghcr-publish': '${{ needs.webui-ghcr-publish.result }}',
+            'operator-evidence-bundle-validation': '${{ needs.operator-evidence-bundle-validation.result }}',
+          };
+
+          const failures = [];
+          function requireSuccess(job) {
+            if (results[job] !== 'success') {
+              failures.push(`${job}=${results[job] || 'unknown'}`);
+            }
+          }
+          function requireSuccessOrSkipped(job) {
+            if (results[job] !== 'success' && results[job] !== 'skipped') {
+              failures.push(`${job}=${results[job] || 'unknown'}`);
+            }
+          }
+
+          if (!runVmSmoke) {
+            failures.push('run_vm_smoke=false prevents release readiness aggregation for stable clean evidence closeout');
+          }
+
+          if (includeFullPackage) {
+            requireSuccess('standard-vm-smoke-gate-after-full');
+            requireSuccess('remote-verify-full');
+            requireSuccess('full-first-run-vm-smoke');
+            requireSuccessOrSkipped('full-homebrew-tap-update');
+          } else {
+            requireSuccess('remote-verify-standard');
+            requireSuccess('standard-first-run-vm-smoke-after-standard-only');
+          }
+
+          requireSuccessOrSkipped('stable-homebrew-tap-update');
+          requireSuccessOrSkipped('homebrew-standard-first-run-vm-smoke');
+          requireSuccess('one-shot-app-installer-smoke');
+          requireSuccess('docker-webui-smoke');
+          requireSuccess('webui-ghcr-publish');
+          requireSuccess('operator-evidence-bundle-validation');
+
+          if (failures.length > 0) {
+            console.error('Release readiness aggregation is blocked by failed, skipped, or missing required gates:');
+            for (const failure of failures) console.error(`- ${failure}`);
+            process.exit(1);
+          }
+
+          console.log('Release readiness aggregation admitted after all required same-cohort gates passed.');
+          NODE
+
+  release-readiness-summary:
+    name: Summarize release readiness
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() && needs.release-readiness-admission.result == 'success' }}
+    needs:
+      - full-first-install
+      - remote-verify-standard
+      - remote-verify-full
+      - standard-first-run-vm-smoke-after-standard-only
+      - standard-first-run-vm-smoke-after-full
+      - standard-vm-smoke-gate-after-full
+      - stable-homebrew-tap-update
+      - full-homebrew-tap-update
+      - homebrew-standard-first-run-vm-smoke
+      - full-first-run-vm-smoke
+      - one-shot-app-installer-smoke
+      - docker-webui-smoke
+      - webui-ghcr-publish
+      - operator-evidence-bundle-validation
+      - release-readiness-admission
 
     steps:
       - name: Checkout App repo
@@ -1047,7 +1166,6 @@ jobs:
           cat release-readiness-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Write release candidate record
-        if: ${{ always() }}
         shell: bash
         env:
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
@@ -1081,7 +1199,6 @@ jobs:
           cat release-candidate-record.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload release readiness summary
-        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: release-readiness-summary-${{ inputs.opl_version }}
@@ -1091,7 +1208,6 @@ jobs:
           if-no-files-found: error
 
       - name: Upload release candidate record
-        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: release-candidate-record-${{ inputs.opl_version }}

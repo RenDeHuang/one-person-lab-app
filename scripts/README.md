@@ -207,7 +207,8 @@ same-run artifacts (`macos-build-arm64-dmg` and
 the complete standard and Full artifacts for publish jobs.
 Branch-lane evidence runs that should not publish release assets may pass the
 same DMG-only artifact name plus `release_artifact_run_id` to download the
-artifact from the source Actions run with `gh run download`; that handoff is
+artifact from the source Actions run through `actions/download-artifact@v8`
+with `run-id`; that handoff is
 for VM evidence only and does not replace same-run stable release gates or
 remote release verification. These profiles fix
 the logical display at

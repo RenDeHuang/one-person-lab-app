@@ -138,26 +138,26 @@ function writeFullPackageOptimizationArtifacts(fullPackageDir, version = 'test')
           path: 'Contents/Resources/bundled-aioncore',
           owner: 'active_shell',
           exists: true,
-        size_bytes: 256,
+          size_bytes: 256,
+        },
+        app_asar: {
+          path: 'Contents/Resources/app.asar',
+          owner: 'active_shell',
+          exists: true,
+          size_bytes: 64,
+        },
+        electron_framework: {
+          path: 'Contents/Frameworks/Electron Framework.framework',
+          owner: 'active_shell/electron',
+          exists: true,
+          size_bytes: 512,
+        },
       },
-      app_asar: {
-        path: 'Contents/Resources/app.asar',
-        owner: 'active_shell',
-        exists: true,
-        size_bytes: 64,
-      },
-      electron_framework: {
-        path: 'Contents/Frameworks/Electron Framework.framework',
-        owner: 'active_shell/electron',
-        exists: true,
-        size_bytes: 512,
-      },
-    },
-  }, null, 2)}\n`,
+    }, null, 2)}\n`,
   );
 }
 
-test('release plan exposes parallel lanes and the serialized no-CLT VM gate', () => {
+test('release plan exposes the standard VM fail-fast gate before expensive Full lanes', () => {
   const result = runNode([
     'scripts/plan-release-candidate.ts',
     '--version',
@@ -192,8 +192,12 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
     lane.id === 'full_build'
     && lane.depends_on.includes('release_preflight')
   )));
-  assert.ok(payload.lanes.some((lane) => lane.id === 'standard_build' && lane.can_run_with.includes('full_build')));
-  assert.ok(payload.lanes.some((lane) => lane.id === 'full_build' && lane.command.includes('OPL_FULL_RUNTIME_CACHE_MODE=readwrite')));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'full_build'
+    && lane.depends_on.includes('standard_dmg_clean_vm_smoke')
+    && !lane.can_run_with.includes('standard_build')
+    && lane.command.includes('OPL_FULL_RUNTIME_CACHE_MODE=readwrite')
+  )));
   assert.equal(payload.profile, 'stable');
   assert.ok(payload.lanes.some((lane) => (
     lane.id === 'standard_dmg_clean_vm_smoke'
@@ -204,6 +208,19 @@ test('release plan exposes parallel lanes and the serialized no-CLT VM gate', ()
     && lane.command.includes('--settings-smoke')
     && lane.command.includes('--assistant-route-smoke')
     && lane.command.includes('--runtime-profile standard')
+  )));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'remote_verify_standard_and_full'
+    && lane.depends_on.includes('standard_dmg_clean_vm_smoke')
+    && lane.depends_on.includes('publish_full_assets')
+  )));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'one_shot_app_installer_smoke'
+    && lane.depends_on.includes('standard_dmg_clean_vm_smoke')
+  )));
+  assert.ok(payload.lanes.some((lane) => (
+    lane.id === 'docker_webui_smoke'
+    && lane.depends_on.includes('standard_dmg_clean_vm_smoke')
   )));
   assert.ok(payload.lanes.some((lane) => (
     lane.id === 'homebrew_standard_cask_clean_vm_smoke'

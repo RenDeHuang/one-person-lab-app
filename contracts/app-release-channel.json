@@ -1254,13 +1254,21 @@
         ],
         "reads": [
           "release_run_id",
+          "release_tag",
+          "release_dmg_url",
+          "release_artifact_name",
+          "release_artifact_run_id",
           "small release artifacts",
-          "GitHub Actions run timing"
+          "GitHub Actions run timing",
+          "first-run VM harness diagnostics"
         ],
         "writes": [
-          "release-diagnostics artifact only"
+          "release-diagnostics artifact only",
+          "opl-first-run-vm-<profile>-<run_id> diagnostic artifact only"
         ],
         "forbidden": [
+          "standard App rebuild",
+          "Full package rebuild",
           "release publish",
           "owner receipt",
           "runtime truth",
@@ -1282,7 +1290,7 @@
           "release_artifact_name",
           "release_artifact_run_id"
         ],
-        "source_run_download_command": "gh run download <release_artifact_run_id> --repo <repo> --name <release_artifact_name> --dir artifacts/release",
+        "source_run_download_command": "actions/download-artifact@v8 with run-id=<release_artifact_run_id || github.run_id> and name=<release_artifact_name>",
         "scope": "vm_evidence_only",
         "forbidden_replacements": [
           "stable release same-run VM gates",

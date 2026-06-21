@@ -9,7 +9,72 @@ on:
         type: string
       release_run_id:
         description: GitHub Actions desktop release run id to inspect
-        required: true
+        required: false
+        default: ''
+        type: string
+      run_vm_diagnostic:
+        description: Run the first-run VM harness against an existing release, URL, or workflow artifact without rebuilding or publishing release assets
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: GitHub release tag to diagnose. Empty means v<opl_version>.
+        required: false
+        default: ''
+        type: string
+      release_dmg_url:
+        description: Direct DMG URL to diagnose. Overrides release_tag when set.
+        required: false
+        default: ''
+        type: string
+      release_artifact_name:
+        description: Existing GitHub Actions artifact containing the DMG to diagnose.
+        required: false
+        default: ''
+        type: string
+      release_artifact_run_id:
+        description: GitHub Actions run id that owns release_artifact_name. Defaults to release_run_id when empty.
+        required: false
+        default: ''
+        type: string
+      shell_ref:
+        description: opl-aion-shell ref containing the first-run smoke scripts
+        required: false
+        default: main
+        type: string
+      package_profile:
+        description: Install profile to diagnose
+        required: false
+        default: standard
+        type: choice
+        options:
+          - standard
+          - full
+          - homebrew-standard
+      tart_source_vm:
+        description: Tart clean snapshot/base VM. Empty means repository variable OPL_FIRST_RUN_TART_SOURCE.
+        required: false
+        default: ''
+        type: string
+      keep_vm:
+        description: Leave temporary Tart VM for debugging
+        required: false
+        default: false
+        type: boolean
+      guide_screenshots:
+        description: Capture user-guide screenshots in the VM smoke artifacts
+        required: false
+        default: false
+        type: boolean
+      run_timeout_ms:
+        description: Outer Tart run timeout passed to opl-first-run-tart-smoke.mjs
+        required: false
+        default: '900000'
+        type: string
+      smoke_timeout_ms:
+        description: Guest smoke timeout passed to opl-first-run-tart-smoke.mjs
+        required: false
+        default: '900000'
         type: string
 
 permissions:
@@ -27,6 +92,7 @@ jobs:
   release-diagnostics:
     name: Build release diagnostic harness outputs
     runs-on: ubuntu-latest
+    if: ${{ inputs.release_run_id != '' }}
 
     steps:
       - name: Checkout App repo
@@ -80,3 +146,21 @@ jobs:
             release-diagnostics/release-actions-timing.json
             release-diagnostics/release-actions-timing.md
           if-no-files-found: error
+
+  vm-harness-diagnostics:
+    name: Run first-run VM diagnostic harness
+    if: ${{ inputs.run_vm_diagnostic }}
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_tag: ${{ inputs.release_tag != '' && inputs.release_tag || format('v{0}', inputs.opl_version) }}
+      release_dmg_url: ${{ inputs.release_dmg_url }}
+      release_artifact_name: ${{ inputs.release_artifact_name }}
+      release_artifact_run_id: ${{ inputs.release_artifact_run_id != '' && inputs.release_artifact_run_id || inputs.release_run_id }}
+      shell_ref: ${{ inputs.shell_ref }}
+      package_profile: ${{ inputs.package_profile }}
+      tart_source_vm: ${{ inputs.tart_source_vm }}
+      keep_vm: ${{ inputs.keep_vm }}
+      guide_screenshots: ${{ inputs.guide_screenshots }}
+      run_timeout_ms: ${{ inputs.run_timeout_ms }}
+      smoke_timeout_ms: ${{ inputs.smoke_timeout_ms }}
+    secrets: inherit

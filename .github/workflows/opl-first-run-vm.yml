@@ -16,7 +16,7 @@ on:
         required: false
         type: string
       release_artifact_run_id:
-        description: 'GitHub Actions run id that owns release_artifact_name. Empty means same-run artifact.'
+        description: 'GitHub Actions run id that owns release_artifact_name. Empty means the current workflow run.'
         required: false
         type: string
       shell_ref:
@@ -93,7 +93,7 @@ on:
         required: false
         type: string
       release_artifact_run_id:
-        description: 'GitHub Actions run id that owns release_artifact_name. Empty means same-run artifact.'
+        description: 'GitHub Actions run id that owns release_artifact_name. Empty means the caller workflow run.'
         required: false
         type: string
       shell_ref:
@@ -169,8 +169,68 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  validate-vm-inputs:
+    name: Validate VM harness inputs
+    runs-on: ubuntu-latest
+    outputs:
+      package_profile: ${{ steps.diagnostic_inputs.outputs.profile }}
+      shell_ref: ${{ steps.diagnostic_inputs.outputs.shell_ref }}
+
+    steps:
+      - name: Normalize diagnostic inputs
+        id: diagnostic_inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          profile="${{ inputs.package_profile }}"
+          if [ -z "$profile" ]; then
+            profile="full"
+          fi
+          case "$profile" in
+            full | standard | homebrew-standard)
+              ;;
+            *)
+              echo "::error::Unsupported package_profile: $profile"
+              exit 1
+              ;;
+          esac
+          shell_ref="${{ inputs.shell_ref }}"
+          if [ -z "$shell_ref" ]; then
+            shell_ref="main"
+          fi
+          echo "profile=$profile" >> "$GITHUB_OUTPUT"
+          echo "shell_ref=$shell_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Validate active shell ref before VM runner work
+        shell: bash
+        run: |
+          set -euo pipefail
+          shell_ref="${{ steps.diagnostic_inputs.outputs.shell_ref }}"
+          repo_url="https://github.com/gaofeng21cn/opl-aion-shell.git"
+          if git ls-remote --exit-code "$repo_url" "refs/heads/$shell_ref" >/dev/null 2>&1 ||
+             git ls-remote --exit-code "$repo_url" "refs/tags/$shell_ref" >/dev/null 2>&1 ||
+             git ls-remote --exit-code "$repo_url" "$shell_ref" >/dev/null 2>&1; then
+            exit 0
+          fi
+          if [[ "$shell_ref" =~ ^[0-9a-fA-F]{7,39}$ ]] &&
+             git ls-remote "$repo_url" | awk '{print $1}' | grep -E "^${shell_ref}" >/dev/null 2>&1; then
+            exit 0
+          fi
+          if [[ "$shell_ref" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            tmp_dir="$(mktemp -d)"
+            trap 'rm -rf "$tmp_dir"' EXIT
+            git -C "$tmp_dir" init -q
+            git -C "$tmp_dir" remote add origin "$repo_url"
+            if git -C "$tmp_dir" fetch --depth=1 origin "$shell_ref" >/dev/null 2>&1; then
+              exit 0
+            fi
+          fi
+          echo "::error::opl-aion-shell ref '$shell_ref' does not exist; fix shell_ref before occupying the first-run VM harness."
+          exit 1
+
   clean-vm-first-run:
     name: Clean VM first launch
+    needs: validate-vm-inputs
     runs-on: ${{ fromJson(vars.OPL_FIRST_RUN_RUNNER_LABELS || '["self-hosted","macOS","opl-gui-vm"]') }}
     timeout-minutes: 90
     env:
@@ -187,10 +247,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PROFILE="${{ inputs.package_profile }}"
-          if [ -z "$PROFILE" ]; then
-            PROFILE="full"
-          fi
+          PROFILE="${{ needs.validate-vm-inputs.outputs.package_profile }}"
           SOURCE_VM="${{ inputs.tart_source_vm }}"
           if [ -z "$SOURCE_VM" ]; then
             if [ "$PROFILE" = "homebrew-standard" ]; then
@@ -227,7 +284,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/opl-aion-shell
-          ref: ${{ inputs.shell_ref || 'main' }}
+          ref: ${{ needs.validate-vm-inputs.outputs.shell_ref }}
           path: shells/aionui
           fetch-depth: 1
           sparse-checkout: scripts
@@ -263,10 +320,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          profile="${{ inputs.package_profile }}"
-          if [ -z "$profile" ]; then
-            profile="full"
-          fi
+          profile="${{ needs.validate-vm-inputs.outputs.package_profile }}"
           case "$profile" in
             full)
               echo "download_pattern=One-Person-Lab-Full-*-mac-arm64.dmg" >> "$GITHUB_OUTPUT"
@@ -359,22 +413,13 @@ jobs:
             opl-first-run-codex-install-assets-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Download release DMG artifact
-        if: ${{ inputs.release_artifact_name != '' && inputs.release_artifact_run_id == '' }}
+        if: ${{ inputs.release_artifact_name != '' }}
         uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.release_artifact_name }}
+          run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
           path: artifacts/release
-
-      - name: Download source-run release DMG artifact
-        if: ${{ inputs.release_artifact_name != '' && inputs.release_artifact_run_id != '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts/release
-          gh run download "${{ inputs.release_artifact_run_id }}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --name "${{ inputs.release_artifact_name }}" \
-            --dir artifacts/release
 
       - name: Resolve release DMG
         id: dmg
@@ -973,11 +1018,7 @@ jobs:
 
           RELEASE_SOURCE="latest GitHub Release"
           if [ -n "${{ inputs.release_artifact_name }}" ]; then
-            if [ -n "${{ inputs.release_artifact_run_id }}" ]; then
-              RELEASE_SOURCE="source workflow run artifact ${{ inputs.release_artifact_name }} from run ${{ inputs.release_artifact_run_id }}"
-            else
-              RELEASE_SOURCE="same-run workflow artifact ${{ inputs.release_artifact_name }}"
-            fi
+            RELEASE_SOURCE="workflow artifact ${{ inputs.release_artifact_name }} from run ${{ inputs.release_artifact_run_id || github.run_id }}"
             if [ -n "${{ inputs.release_tag }}" ]; then
               RELEASE_SOURCE="$RELEASE_SOURCE; release tag ${{ inputs.release_tag }} kept for provenance"
             fi
@@ -1350,7 +1391,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
-          name: opl-first-run-vm-${{ steps.package_profile.outputs.profile }}-${{ github.run_id }}
+          name: opl-first-run-vm-${{ steps.package_profile.outputs.profile || needs.validate-vm-inputs.outputs.package_profile }}-${{ github.run_id }}
           path: artifacts/opl-first-run-vm
           if-no-files-found: warn
 
