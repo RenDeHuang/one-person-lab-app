@@ -198,18 +198,39 @@ jobs:
       require_macos_gatekeeper: false
     secrets: inherit
 
-  vm-harness-diagnostics:
-    name: Run first-run VM diagnostic harness
+  vm-harness-diagnostics-standard-artifact:
+    name: Run first-run VM diagnostic harness for temporary standard artifact
     needs:
       - diagnostic-inputs
       - standard-dmg-diagnostic-artifact
-    if: ${{ !cancelled() && inputs.run_vm_diagnostic && needs.diagnostic-inputs.result == 'success' && (!inputs.build_standard_artifact || needs.standard-dmg-diagnostic-artifact.result == 'success') }}
+    if: ${{ !cancelled() && inputs.run_vm_diagnostic && inputs.build_standard_artifact && needs.diagnostic-inputs.result == 'success' && needs.standard-dmg-diagnostic-artifact.result == 'success' }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: ${{ inputs.release_tag != '' && inputs.release_tag || format('v{0}', inputs.opl_version) }}
-      release_dmg_url: ${{ inputs.build_standard_artifact && '' || inputs.release_dmg_url }}
-      release_artifact_name: ${{ inputs.build_standard_artifact && 'macos-build-arm64-dmg' || inputs.release_artifact_name }}
-      release_artifact_run_id: ${{ inputs.build_standard_artifact && github.run_id || (inputs.release_artifact_run_id != '' && inputs.release_artifact_run_id || inputs.release_run_id) }}
+      release_dmg_url: ''
+      release_artifact_name: macos-build-arm64-dmg
+      release_artifact_run_id: ${{ github.run_id }}
+      shell_ref: ${{ inputs.shell_ref }}
+      package_profile: ${{ inputs.package_profile }}
+      tart_source_vm: ${{ inputs.tart_source_vm }}
+      keep_vm: ${{ inputs.keep_vm }}
+      guide_screenshots: ${{ inputs.guide_screenshots }}
+      run_timeout_ms: ${{ inputs.run_timeout_ms }}
+      smoke_timeout_ms: ${{ inputs.smoke_timeout_ms }}
+      diagnostic_scope: ${{ inputs.diagnostic_scope }}
+    secrets: inherit
+
+  vm-harness-diagnostics-release-asset:
+    name: Run first-run VM diagnostic harness for release asset
+    needs:
+      - diagnostic-inputs
+    if: ${{ !cancelled() && inputs.run_vm_diagnostic && !inputs.build_standard_artifact && needs.diagnostic-inputs.result == 'success' }}
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_tag: ${{ inputs.release_tag != '' && inputs.release_tag || format('v{0}', inputs.opl_version) }}
+      release_dmg_url: ${{ inputs.release_dmg_url }}
+      release_artifact_name: ${{ inputs.release_artifact_name }}
+      release_artifact_run_id: ${{ inputs.release_artifact_run_id != '' && inputs.release_artifact_run_id || inputs.release_run_id }}
       shell_ref: ${{ inputs.shell_ref }}
       package_profile: ${{ inputs.package_profile }}
       tart_source_vm: ${{ inputs.tart_source_vm }}
