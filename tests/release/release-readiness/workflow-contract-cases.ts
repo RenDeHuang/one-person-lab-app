@@ -78,7 +78,10 @@ test('desktop release workflow has a final readiness aggregation job that downlo
 test('desktop release workflow fails fast before expensive builds and cancels stale same-version runs', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const fullFirstInstallJob = workflow.match(/\n  full-first-install:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  const publishFullAssetsJob = workflow.match(/\n  publish-full-assets:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  const remoteVerifyFullJob = workflow.match(/\n  remote-verify-full:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   const standardGateJob = workflow.match(/\n  standard-vm-smoke-gate-after-full:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  const webuiGhcrPublishJob = workflow.match(/\n  webui-ghcr-publish:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   const operatorEvidenceJob = workflow.match(/\n  operator-evidence-bundle-validation:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   const readinessAdmissionJob = workflow.match(/\n  release-readiness-admission:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   const readinessJob = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
@@ -92,14 +95,31 @@ test('desktop release workflow fails fast before expensive builds and cancels st
   assert.match(fullFirstInstallJob, /needs:\s+standard-vm-smoke-gate-after-full/);
   assert.match(standardGateJob, /needs:[\s\S]*publish-standard[\s\S]*standard-first-run-vm-smoke-after-full/);
   assert.match(standardGateJob, /Standard VM smoke must pass before Full build, remote verification, Homebrew, operator evidence, or readiness aggregation can run/);
+  assert.match(publishFullAssetsJob, /needs\.publish-standard\.result == 'success'/);
+  assert.match(publishFullAssetsJob, /needs\.full-first-install\.result == 'success'/);
   assert.match(workflow, /remote-verify-full:[\s\S]*needs:[\s\S]*publish-full-assets[\s\S]*standard-vm-smoke-gate-after-full/);
+  assert.match(remoteVerifyFullJob, /needs\.publish-full-assets\.result == 'success'/);
+  assert.match(remoteVerifyFullJob, /needs\.standard-vm-smoke-gate-after-full\.result == 'success'/);
   assert.match(workflow, /full-first-run-vm-smoke:[\s\S]*needs:[\s\S]*publish-full-assets[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /full-first-run-vm-smoke:[\s\S]*needs\.standard-vm-smoke-gate-after-full\.result == 'success'/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs:[\s\S]*full-first-run-vm-smoke/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs\.full-first-run-vm-smoke\.result == 'success'/);
   assert.match(workflow, /stable-homebrew-tap-update:[\s\S]*standard-vm-smoke-gate-after-full/);
+  assert.match(webuiGhcrPublishJob, /needs\.docker-webui-smoke\.result == 'success'/);
   assert.match(operatorEvidenceJob, /standard-vm-smoke-gate-after-full/);
   assert.match(operatorEvidenceJob, /needs\.standard-vm-smoke-gate-after-full\.result == 'success'/);
+  assert.doesNotMatch(
+    publishFullAssetsJob.match(/\n    if:[^\n]+/)?.[0] ?? '',
+    /if:\s+\$\{\{\s*always\(\)\s*\}\}/,
+  );
+  assert.doesNotMatch(
+    remoteVerifyFullJob.match(/\n    if:[^\n]+/)?.[0] ?? '',
+    /if:\s+\$\{\{\s*always\(\)\s*\}\}/,
+  );
+  assert.doesNotMatch(
+    webuiGhcrPublishJob.match(/\n    if:[^\n]+/)?.[0] ?? '',
+    /if:\s+\$\{\{\s*always\(\)\s*\}\}/,
+  );
   assert.doesNotMatch(
     operatorEvidenceJob.match(/\n    if:[^\n]+/)?.[0] ?? '',
     /if:\s+\$\{\{\s*always\(\)\s*\}\}/,
