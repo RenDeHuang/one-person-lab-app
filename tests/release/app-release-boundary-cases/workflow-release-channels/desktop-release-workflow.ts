@@ -193,9 +193,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
-  assert.match(jobLevelIf(readinessAdmissionJob), /needs\.stable-homebrew-tap-update\.result == 'success'/);
-  assert.match(jobLevelIf(readinessAdmissionJob), /needs\.homebrew-standard-first-run-vm-smoke\.result == 'success'/);
-  assert.match(jobLevelIf(readinessAdmissionJob), /!inputs\.include_full_package \|\| needs\.full-homebrew-tap-update\.result == 'success'/);
+  assert.match(readinessAdmissionJob, /release-preflight/);
+  assert.match(jobLevelIf(readinessAdmissionJob), /needs\.release-preflight\.result == 'success'/);
+  assert.match(jobLevelIf(readinessAdmissionJob), /needs\.release-preflight\.outputs\.homebrew_tap_update_required != 'true'/);
+  assert.match(readinessAdmissionJob, /const homebrewTapUpdateRequired = '\$\{\{ needs\.release-preflight\.outputs\.homebrew_tap_update_required \}\}' === 'true'/);
+  assert.match(readinessAdmissionJob, /if \(homebrewTapUpdateRequired\) \{[\s\S]*requireSuccess\('stable-homebrew-tap-update'\)[\s\S]*requireSuccess\('full-homebrew-tap-update'\)[\s\S]*requireSuccess\('homebrew-standard-first-run-vm-smoke'\)/);
+  assert.match(readinessAdmissionJob, /else \{[\s\S]*requireSuccessOrSkipped\('stable-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkipped\('full-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkipped\('homebrew-standard-first-run-vm-smoke'\)/);
   assert.doesNotMatch(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*!cancelled\(\) && needs\.release-readiness-admission\.result == 'success'/);
   assert.doesNotMatch(readinessJob, /name: Write release candidate record[\s\S]{0,80}if:\s*\$\{\{\s*always\(\)/);
@@ -378,6 +381,18 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     group: 'opl-desktop-release-<draft|stable>-<version>',
     cancel_in_progress: true,
     rule: 'A newer run for the same version and release lane cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts.',
+  });
+  assert.deepEqual(releaseContract.release_acceleration.github_actions.release_readiness_admission, {
+    workflow_job: 'release-readiness-admission',
+    preflight_dependency: 'release-preflight',
+    homebrew_tap_update_required_source: 'release-preflight.outputs.homebrew_tap_update_required',
+    homebrew_required_when_true: [
+      'stable-homebrew-tap-update',
+      'homebrew-standard-first-run-vm-smoke',
+      'full-homebrew-tap-update_for_full_release',
+    ],
+    homebrew_allowed_when_false: 'success_or_skipped',
+    rule: 'Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required.',
   });
   assert.deepEqual(releaseContract.release_acceleration.github_actions.diagnostics_workflow_policy, {
     workflow: '.github/workflows/desktop-release-diagnostics.yml',

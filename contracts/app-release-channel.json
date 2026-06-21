@@ -1197,6 +1197,18 @@
         "cancel_in_progress": true,
         "rule": "A newer run for the same version and release lane cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts."
       },
+      "release_readiness_admission": {
+        "workflow_job": "release-readiness-admission",
+        "preflight_dependency": "release-preflight",
+        "homebrew_tap_update_required_source": "release-preflight.outputs.homebrew_tap_update_required",
+        "homebrew_required_when_true": [
+          "stable-homebrew-tap-update",
+          "homebrew-standard-first-run-vm-smoke",
+          "full-homebrew-tap-update_for_full_release"
+        ],
+        "homebrew_allowed_when_false": "success_or_skipped",
+        "rule": "Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required."
+      },
       "diagnostics_workflow_policy": {
         "workflow": ".github/workflows/desktop-release-diagnostics.yml",
         "purpose": "harness_and_standard_artifact_only_release_diagnostics",

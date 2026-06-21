@@ -191,6 +191,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const gateReuse = acceleration?.gate_reuse;
   const tartBasePrebake = acceleration?.tart_base_prebake;
   const githubActions = acceleration?.github_actions;
+  const readinessAdmission = githubActions?.release_readiness_admission;
   const diagnosticsWorkflowPolicy = githubActions?.diagnostics_workflow_policy;
   const firstRunVmConcurrency = githubActions?.first_run_vm_concurrency;
   const scheduledVmGuard = firstRunVmConcurrency?.scheduled_desktop_release_activity_guard;
@@ -253,6 +254,27 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   ) {
     console.error('FAIL tart_base_prebake_policy: truth boundary must keep App readiness in VM smoke artifacts');
     failures += 1;
+  }
+
+  if (
+    readinessAdmission?.workflow_job !== 'release-readiness-admission' ||
+    readinessAdmission?.preflight_dependency !== 'release-preflight' ||
+    readinessAdmission?.homebrew_tap_update_required_source !== 'release-preflight.outputs.homebrew_tap_update_required' ||
+    readinessAdmission?.homebrew_allowed_when_false !== 'success_or_skipped' ||
+    !readinessAdmission?.rule?.includes('must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required')
+  ) {
+    console.error('FAIL release_readiness_admission_policy: readiness admission must be preflight-driven for Homebrew gates');
+    failures += 1;
+  }
+  for (const gateId of [
+    'stable-homebrew-tap-update',
+    'homebrew-standard-first-run-vm-smoke',
+    'full-homebrew-tap-update_for_full_release',
+  ]) {
+    if (!readinessAdmission?.homebrew_required_when_true?.includes(gateId)) {
+      console.error(`FAIL release_readiness_admission_policy: missing required Homebrew gate ${gateId}`);
+      failures += 1;
+    }
   }
 
   if (

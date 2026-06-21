@@ -253,6 +253,7 @@ opl connect sync-skills
 ```
 
 Stable desktop releases update the stable cask only after the promote workflow publishes the draft release. Existing published release refreshes may update the tap after remote asset verification and before the Homebrew VM gate. Same-owner App release tap writes use direct commits; do not restore tap pull-request mode as a compatibility path.
+`release-readiness-admission` reads `release-preflight.outputs.homebrew_tap_update_required`. When preflight says the tap update is required, the stable tap update, the Homebrew standard VM gate, and the Full tap update for Full releases must pass before readiness aggregation. When preflight says the tap update is not required, those Homebrew jobs may be `skipped`; readiness must not fail at the summary stage only because the tap was already current.
 
 ## Stable macOS Local Authorization
 
@@ -416,9 +417,10 @@ starting another full release train. It can run the first-run VM harness against
 a published `release_tag`, a direct `release_dmg_url`, or a
 `release_artifact_name` from an existing `release_artifact_run_id`. That
 workflow is read-only: it may upload `release-diagnostics-*` and
-`opl-first-run-vm-<profile>-<run_id>` diagnostic artifacts, but it must not
-build standard assets, rebuild Full packages, publish releases, update
-Homebrew, or write owner receipts.
+`opl-first-run-vm-<profile>-<run_id>` diagnostic artifacts. If explicitly
+requested, it may build a temporary standard DMG diagnostic artifact for the VM
+harness only. It must not rebuild Full packages, publish releases, update
+Homebrew, write owner receipts, or claim release-ready.
 
 ## Gate Reuse And VM Base Acceleration
 
