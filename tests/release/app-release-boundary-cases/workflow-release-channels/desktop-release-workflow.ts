@@ -151,7 +151,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.doesNotMatch(jobLevelIf(stableHomebrewTapJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(stableHomebrewTapJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.match(workflow, /full-homebrew-tap-update:/);
-  assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*remote-verify-full/);
+  assert.match(
+    workflow,
+    /full-homebrew-tap-update:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update[\s\S]*remote-verify-full[\s\S]*full-first-run-vm-smoke/,
+  );
+  assert.match(workflow, /full-homebrew-tap-update:[\s\S]*needs\.full-first-run-vm-smoke\.result == 'success'/);
   assert.match(workflow, /full-homebrew-tap-update:[\s\S]*package_kind: app_full_first_install/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs:[\s\S]*stable-homebrew-tap-update/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:[\s\S]*needs\.stable-homebrew-tap-update\.result == 'success'/);
@@ -159,6 +163,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.doesNotMatch(homebrewStandardVmJob, /full-homebrew-tap-update/);
   assert.match(workflow, /homebrew-standard-first-run-vm-smoke:/);
   assert.match(workflow, /full-first-run-vm-smoke:/);
+  assert.match(
+    workflow,
+    /full-first-run-vm-smoke:[\s\S]*needs:[\s\S]*publish-full-assets[\s\S]*standard-vm-smoke-gate-after-full/,
+  );
+  assert.match(workflow, /full-first-run-vm-smoke:[\s\S]*needs\.standard-vm-smoke-gate-after-full\.result == 'success'/);
   assert.match(workflow, /one-shot-app-installer-smoke:/);
   assert.match(workflow, /one-shot-app-installer-smoke:[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /docker-webui-smoke:/);

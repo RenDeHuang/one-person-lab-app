@@ -441,7 +441,8 @@ jobs:
     needs:
       - stable-homebrew-tap-update
       - remote-verify-full
-    if: ${{ inputs.include_full_package && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' && needs.remote-verify-full.result == 'success' }}
+      - full-first-run-vm-smoke
+    if: ${{ inputs.include_full_package && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success' }}
     uses: ./.github/workflows/homebrew-tap-update.yml
     with:
       channel: stable
@@ -512,8 +513,10 @@ jobs:
 
   full-first-run-vm-smoke:
     name: Run clean Full first-run VM smoke
-    needs: remote-verify-full
-    if: ${{ inputs.include_full_package && inputs.run_vm_smoke }}
+    needs:
+      - publish-full-assets
+      - standard-vm-smoke-gate-after-full
+    if: ${{ !cancelled() && inputs.include_full_package && inputs.run_vm_smoke && needs.standard-vm-smoke-gate-after-full.result == 'success' }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
