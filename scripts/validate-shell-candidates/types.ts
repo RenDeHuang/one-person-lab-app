@@ -227,6 +227,17 @@ export type ShellCandidateRegistry = {
     adoption_gate: string[];
     default_validation_scope?: string;
     archived_technical_proof_policy?: string;
+    no_resurrection_policy?: {
+      policy_id: string;
+      default_validation_scope_must_exclude_archived_proofs: boolean;
+      candidate_label_does_not_imply_foreground_status: boolean;
+      archived_proof_update_requires_explicit_user_request: boolean;
+      archived_proof_release_participation: string;
+      archived_proof_must_not_appear_in_adoption_gate: boolean;
+      foreground_adoption_gate_must_be_shell_agnostic: boolean;
+      active_shell_switch_contract: string;
+      forbidden_default_routes: string[];
+    };
   };
   design_reference_policy?: {
     purpose: string;

@@ -95,7 +95,62 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   if (policy.archived_technical_proof_policy !== 'explicit_user_request_only') {
     throw new Error('candidate policy archived technical proof validation must be explicit_user_request_only');
   }
+  validateCandidateNoResurrectionPolicy(registry);
   validateDesignReferences(registry);
+}
+
+function validateCandidateNoResurrectionPolicy(registry: ShellCandidateRegistry): void {
+  const policy = registry.candidate_policy;
+  const noResurrection = policy.no_resurrection_policy;
+  const alternative = registry.alternative_gui_policy;
+  if (!noResurrection || !alternative) {
+    throw new Error('candidate registry must declare candidate_policy.no_resurrection_policy and alternative_gui_policy');
+  }
+  if (noResurrection.policy_id !== 'app.shell_candidate.no_resurrection.v1') {
+    throw new Error(`unexpected shell candidate no-resurrection policy id: ${noResurrection.policy_id}`);
+  }
+  if (noResurrection.default_validation_scope_must_exclude_archived_proofs !== true) {
+    throw new Error('candidate no-resurrection policy must exclude archived proofs from default validation scope');
+  }
+  if (noResurrection.candidate_label_does_not_imply_foreground_status !== true) {
+    throw new Error('candidate label must not imply foreground candidate status');
+  }
+  if (noResurrection.archived_proof_update_requires_explicit_user_request !== true) {
+    throw new Error('archived proof updates must require explicit user request');
+  }
+  if (noResurrection.archived_proof_release_participation !== 'explicit_user_requested_technical_replay_only') {
+    throw new Error('archived proof release participation must stay explicit replay only');
+  }
+  if (noResurrection.archived_proof_must_not_appear_in_adoption_gate !== true) {
+    throw new Error('archived proofs must not appear in foreground adoption gates');
+  }
+  if (noResurrection.foreground_adoption_gate_must_be_shell_agnostic !== true) {
+    throw new Error('foreground adoption gates must stay shell agnostic');
+  }
+  if (noResurrection.active_shell_switch_contract !== 'contracts/app-shell-adapter.json') {
+    throw new Error('active shell switch contract must stay contracts/app-shell-adapter.json');
+  }
+  assertStringArrayIncludes(noResurrection.forbidden_default_routes, [
+    'agui-codex in alternative_gui_policy.default_candidate_validation_scope',
+    'agui-codex in candidate_policy.adoption_gate',
+    'candidate filename label treated as foreground alternative',
+    'archived proof validation run by default',
+    'release wrapper default switched without contracts/app-shell-adapter.json',
+  ], 'candidate_policy.no_resurrection_policy.forbidden_default_routes');
+
+  const archivedProofs = new Set(alternative.archived_technical_proofs);
+  const defaultScopeArchivedProofs = alternative.default_candidate_validation_scope.filter((id) => (
+    archivedProofs.has(id)
+  ));
+  if (defaultScopeArchivedProofs.length > 0) {
+    throw new Error(`default candidate validation scope must not include archived proofs: ${defaultScopeArchivedProofs.join(', ')}`);
+  }
+  const adoptionGateText = policy.adoption_gate.join('\n');
+  for (const archivedProof of archivedProofs) {
+    if (adoptionGateText.includes(archivedProof)) {
+      throw new Error(`${archivedProof} must not appear in foreground adoption gates`);
+    }
+  }
 }
 
 function validateDesignReferences(registry: ShellCandidateRegistry): void {

@@ -359,6 +359,23 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   assert.equal(candidateRegistry.candidate_policy.release_participation_until_adopted, 'explicit_candidate_build_only');
   assert.equal(candidateRegistry.candidate_policy.default_validation_scope, 'foreground_alternative_only');
   assert.equal(candidateRegistry.candidate_policy.archived_technical_proof_policy, 'explicit_user_request_only');
+  assert.deepEqual(candidateRegistry.candidate_policy.no_resurrection_policy, {
+    policy_id: 'app.shell_candidate.no_resurrection.v1',
+    default_validation_scope_must_exclude_archived_proofs: true,
+    candidate_label_does_not_imply_foreground_status: true,
+    archived_proof_update_requires_explicit_user_request: true,
+    archived_proof_release_participation: 'explicit_user_requested_technical_replay_only',
+    archived_proof_must_not_appear_in_adoption_gate: true,
+    foreground_adoption_gate_must_be_shell_agnostic: true,
+    active_shell_switch_contract: 'contracts/app-shell-adapter.json',
+    forbidden_default_routes: [
+      'agui-codex in alternative_gui_policy.default_candidate_validation_scope',
+      'agui-codex in candidate_policy.adoption_gate',
+      'candidate filename label treated as foreground alternative',
+      'archived proof validation run by default',
+      'release wrapper default switched without contracts/app-shell-adapter.json',
+    ],
+  });
   assert.equal(candidateRegistry.candidate_policy.release_scripts_must_use_active_shell_adapter, true);
   assert.equal(candidateRegistry.candidate_policy.authority_transfer_allowed, false);
   assert.ok(candidateRegistry.candidate_policy.adoption_gate.includes('candidate is declared in contracts/app-shell-candidates.json'));
@@ -368,6 +385,8 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
       'contracts/app-shell-adapter.json is changed only when candidate becomes active release shell',
     ),
   );
+  assert.equal(candidateRegistry.candidate_policy.adoption_gate.some((gate) => gate.includes('agui-codex')), false);
+  assert.equal(candidateRegistry.alternative_gui_policy.default_candidate_validation_scope.includes('agui-codex'), false);
   assert.ok(aguiCandidate);
   assert.equal(aguiCandidate.state, 'archived_technical_proof');
   assert.equal(aguiCandidate.default_update_policy, 'do_not_update_or_improve_unless_user_explicitly_requests_agui');
@@ -420,6 +439,14 @@ test('shell candidate validator derives foreground and archived policy from regi
   assert.match(candidateContractSource, /policy\.archivedTechnicalProofs\.includes\(candidate\.id\)/);
   assert.match(candidateContractSource, /candidate\.default_update_policy !== policy\.archivedProofUpdatePolicy/);
   assert.match(candidateContractSource, /alternative_gui_policy\.archived_proof_policy/);
+  const registrySource = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'validate-shell-candidates', 'registry.ts'),
+    'utf8',
+  );
+  assert.match(registrySource, /validateCandidateNoResurrectionPolicy\(registry\)/);
+  assert.match(registrySource, /default_validation_scope_must_exclude_archived_proofs/);
+  assert.match(registrySource, /default_candidate_validation_scope\.filter/);
+  assert.match(registrySource, /adoptionGateText\.includes\(archivedProof\)/);
   assert.doesNotMatch(
     candidateContractSource,
     /candidate\.id\s*={2,3}\s*['"]agui-codex['"][\s\S]{0,120}archived_technical_proof/,

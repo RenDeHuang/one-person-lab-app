@@ -57,6 +57,23 @@
     ],
     "default_validation_scope": "foreground_alternative_only",
     "archived_technical_proof_policy": "explicit_user_request_only",
+    "no_resurrection_policy": {
+      "policy_id": "app.shell_candidate.no_resurrection.v1",
+      "default_validation_scope_must_exclude_archived_proofs": true,
+      "candidate_label_does_not_imply_foreground_status": true,
+      "archived_proof_update_requires_explicit_user_request": true,
+      "archived_proof_release_participation": "explicit_user_requested_technical_replay_only",
+      "archived_proof_must_not_appear_in_adoption_gate": true,
+      "foreground_adoption_gate_must_be_shell_agnostic": true,
+      "active_shell_switch_contract": "contracts/app-shell-adapter.json",
+      "forbidden_default_routes": [
+        "agui-codex in alternative_gui_policy.default_candidate_validation_scope",
+        "agui-codex in candidate_policy.adoption_gate",
+        "candidate filename label treated as foreground alternative",
+        "archived proof validation run by default",
+        "release wrapper default switched without contracts/app-shell-adapter.json"
+      ]
+    },
     "entry_route": "App_contract_gate_only",
     "forbidden_entry_routes": [
       "shell implementation roadmap copied into App truth",
