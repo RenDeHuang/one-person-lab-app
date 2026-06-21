@@ -307,7 +307,7 @@ jobs:
     needs:
       - publish-standard
       - full-first-install
-    if: ${{ inputs.include_full_package }}
+    if: ${{ !cancelled() && inputs.include_full_package && needs.publish-standard.result == 'success' && needs.full-first-install.result == 'success' }}
 
     steps:
       - name: Checkout App repo
@@ -387,7 +387,7 @@ jobs:
     needs:
       - publish-full-assets
       - standard-vm-smoke-gate-after-full
-    if: ${{ inputs.include_full_package }}
+    if: ${{ !cancelled() && inputs.include_full_package && needs.publish-full-assets.result == 'success' && needs.standard-vm-smoke-gate-after-full.result == 'success' }}
     runs-on: macos-latest
 
     steps:
@@ -732,7 +732,7 @@ jobs:
   webui-ghcr-publish:
     name: Verify WebUI GHCR publish
     needs: docker-webui-smoke
-    if: ${{ inputs.run_vm_smoke }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.docker-webui-smoke.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
