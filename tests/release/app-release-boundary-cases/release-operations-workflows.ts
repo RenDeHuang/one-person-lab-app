@@ -276,6 +276,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
   const warmupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-runtime-cache-warmup.yml'), 'utf8');
   const promoteWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-promote.yml'), 'utf8');
   const cleanupWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-cleanup-drafts.yml'), 'utf8');
+  const diagnosticsWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-diagnostics.yml'), 'utf8');
   const cleanupScript = fs.readFileSync(path.join(appRoot, 'scripts', 'cleanup-draft-release-candidates.ts'), 'utf8');
   const webuiCleanupScript = fs.readFileSync(path.join(appRoot, 'scripts', 'cleanup-webui-ghcr-versions.ts'), 'utf8');
   const candidateRecordValidator = fs.readFileSync(path.join(appRoot, 'scripts', 'validate-release-candidate-record.ts'), 'utf8');
@@ -425,6 +426,14 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(cleanupWorkflow, /actions\/upload-artifact@v7/);
   assert.doesNotMatch(cleanupWorkflow, /actions\/download-artifact/);
   assert.doesNotMatch(cleanupWorkflow, /gh release download/);
+  assert.match(diagnosticsWorkflow, /name: OPL Desktop Release Diagnostics/);
+  assert.match(diagnosticsWorkflow, /workflow_dispatch:/);
+  assert.match(diagnosticsWorkflow, /permissions:[\s\S]*actions: read[\s\S]*contents: read/);
+  assert.match(diagnosticsWorkflow, /npm run release:closeout --/);
+  assert.match(diagnosticsWorkflow, /--artifact-profile diagnostics/);
+  assert.match(diagnosticsWorkflow, /npm run release:actions-timing --/);
+  assert.match(diagnosticsWorkflow, /release-diagnostics-\$\{\{ inputs\.opl_version \}\}/);
+  assert.doesNotMatch(diagnosticsWorkflow, /contents:\s+write|packages:\s+write|gh release edit|gh release upload|npm run release:publish/);
   assert.match(cleanupScript, /\^v\$\{escaped\}-\(draft\|readiness\)\\\\\.\\\\d\{14\}\$/);
   assert.match(cleanupScript, /must be a published stable release/);
   assert.match(cleanupScript, /'--cleanup-tag'/);
@@ -440,6 +449,10 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.equal(
     releaseContract.release_acceleration.github_actions.full_runtime_cache_warmup_workflow,
     '.github/workflows/full-runtime-cache-warmup.yml',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.diagnostics_workflow,
+    '.github/workflows/desktop-release-diagnostics.yml',
   );
   assert.equal(
     releaseContract.release_acceleration.github_actions.promote_workflow,

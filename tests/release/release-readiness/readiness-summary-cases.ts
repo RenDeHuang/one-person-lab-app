@@ -115,6 +115,8 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(summary.gate_profile_schema, 'app_release_validation_profiles.v1');
   assert.equal(summary.gates.remote_release_verification.status, 'passed');
   assert.equal(summary.gates.full_size_cache_timing.status, 'passed');
+  assert.equal(summary.gates.full_size_cache_timing.required, false);
+  assert.equal(summary.gates.full_size_cache_timing.fields.diagnostic_only, true);
   assert.equal(summary.full_package.duration_seconds.full_package_build, 380);
   assert.equal(summary.full_package.duration_seconds.full_package_build_breakdown.shell_build, 4);
   assert.equal(summary.full_package.resolved_refs.opl_framework.commit, '1111111111111111111111111111111111111111');
@@ -134,6 +136,59 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.match(markdown, /skip_modules: true/);
   assert.match(markdown, /Bottlenecks/);
   assert.match(markdown, /Optimization recommendations/);
+});
+
+test('release readiness summary does not fail the clean evidence gate when Full diagnostics are absent', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-full-diagnostics-optional-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const summaryPath = path.join(tempRoot, 'summary.md');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot);
+  fs.rmSync(path.join(artifactsRoot, 'opl-full-workflow-telemetry-26.5.99'), { recursive: true, force: true });
+  fs.rmSync(path.join(artifactsRoot, 'opl-full-diagnostics-26.5.99'), { recursive: true, force: true });
+  writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
+    status: 'published',
+    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
+    tags: ['26.5.99', 'stable', 'latest'],
+    draft_candidate_push: false,
+    build_reuse: {
+      mode: 'same_job_after_docker_webui_smoke',
+      source_gate: 'docker-webui-smoke',
+      repeated_docker_build: false,
+    },
+  });
+  writePassingJobResults(jobResultsPath);
+  const jobResults = JSON.parse(fs.readFileSync(jobResultsPath, 'utf8'));
+  jobResults['full-first-install'] = 'success';
+  writeJson(jobResultsPath, jobResults);
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+    '--markdown',
+    summaryPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.gates.full_size_cache_timing.status, 'skipped');
+  assert.equal(summary.gates.full_size_cache_timing.required, false);
+  assert.equal(summary.gates.full_size_cache_timing.fields.diagnostic_only, true);
+  assert.deepEqual(summary.failed_required_gates, []);
 });
 
 test('release readiness summary fails closed without a same-cohort operator evidence bundle', () => {

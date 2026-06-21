@@ -67,11 +67,18 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   const workflow = readRepoFile('.github/workflows/desktop-release.yml');
 
   assertMatches(workflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-\$\{\{ inputs\.release_mode == 'draft_candidate' && 'draft' \|\| 'stable' \}\}-\$\{\{ inputs\.opl_version \}\}/, 'desktop release concurrency group');
-  assertMatches(workflow, /cancel-in-progress:\s+\$\{\{ inputs\.release_mode == 'draft_candidate' \}\}/, 'desktop release draft cancellation policy');
+  assertMatches(workflow, /cancel-in-progress:\s+true/, 'desktop release same-version cancellation policy');
+  assertMatches(
+    workflow,
+    /release-workflow-contract:[\s\S]*?name:\s+Release workflow contract[\s\S]*?npm run validate:release-boundary/,
+    'desktop release workflow contract gate',
+  );
   assertIncludes(workflow, 'standard-build:', 'desktop release workflow');
+  assertMatches(workflow, /standard-build:[\s\S]*?needs:\s+release-workflow-contract/, 'standard build waits for the workflow contract gate');
   assertIncludes(workflow, 'uses: ./.github/workflows/_build-reusable.yml', 'standard build job');
   assertMatches(workflow, /publish-standard:[\s\S]*?needs:\s+standard-build/, 'publish-standard job');
   assertMatches(workflow, /full-first-install:[\s\S]*?uses:\s+\.\/\.github\/workflows\/full-first-install-release\.yml/, 'Full package build job');
+  assertMatches(workflow, /full-first-install:[\s\S]*?needs:\s+release-workflow-contract/, 'Full package build waits for the workflow contract gate');
   assertMatches(workflow, /full-first-install:[\s\S]*?publish_to_release:\s+false/, 'Full package build-only job');
   assertMatches(workflow, /publish-full-assets:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?full-first-install/, 'Full package publish job');
   assertMatches(workflow, /remote-verify-standard:[\s\S]*?needs:\s+publish-standard/, 'standard remote verification job');
@@ -160,15 +167,21 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?opl-full-diagnostics-\$\{\{ inputs\.opl_version \}\}/, 'Full diagnostics small artifact');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?release-readiness-summary\.json/, 'machine-readable release readiness summary');
   assertMatches(workflow, /release-readiness-summary:[\s\S]*?summarize-release-readiness\.ts/, 'scripted release readiness aggregation');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?Build release closeout summary[\s\S]*?npm run release:closeout --[\s\S]*?--no-download/, 'default release closeout must run inside the final readiness job');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?release-closeout-inputs[\s\S]*?release-closeout\/release-closeout\.json[\s\S]*?release-closeout\/release-closeout\.md/, 'default release closeout must use local small artifacts and write machine-readable outputs');
-  assertMatches(workflow, /Upload release closeout summary[\s\S]*?release-closeout\/release-monitor\.json[\s\S]*?release-closeout\/release-notification\.json/, 'default release closeout artifact must include monitor and notification payloads');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?Upload release closeout summary[\s\S]*?release-closeout-\$\{\{ inputs\.opl_version \}\}/, 'default release closeout artifact');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?Build GitHub Actions timing summary[\s\S]*?npm run release:actions-timing --[\s\S]*?release-actions-timing\.json[\s\S]*?release-actions-timing\.md/, 'default release timing summary must run inside the final readiness job');
-  assertMatches(workflow, /release-readiness-summary:[\s\S]*?Upload GitHub Actions timing summary[\s\S]*?release-actions-timing-\$\{\{ inputs\.opl_version \}\}/, 'default release timing summary artifact');
   const readinessJob = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
+  assert.doesNotMatch(readinessJob, /release:closeout/, 'release readiness must not run diagnostic closeout');
+  assert.doesNotMatch(readinessJob, /release:actions-timing/, 'release readiness must not run diagnostic timing');
+  assert.doesNotMatch(readinessJob, /release-closeout/, 'release readiness must not upload diagnostic closeout artifacts');
+  assert.doesNotMatch(readinessJob, /release-actions-timing/, 'release readiness must not upload diagnostic timing artifacts');
   assert.doesNotMatch(readinessJob, /name:\s+macos-build-arm64/);
   assert.doesNotMatch(readinessJob, /name:\s+opl-full-first-install-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
+
+  const diagnosticWorkflow = readRepoFile('.github/workflows/desktop-release-diagnostics.yml');
+  assertMatches(diagnosticWorkflow, /name:\s+OPL Desktop Release Diagnostics/, 'desktop release diagnostic workflow name');
+  assertMatches(diagnosticWorkflow, /workflow_dispatch:/, 'desktop release diagnostic workflow manual trigger');
+  assertMatches(diagnosticWorkflow, /permissions:[\s\S]*actions:\s+read[\s\S]*contents:\s+read/, 'desktop release diagnostic workflow read-only permissions');
+  assertMatches(diagnosticWorkflow, /npm run release:closeout --[\s\S]*--artifact-profile diagnostics/, 'diagnostic workflow closeout harness');
+  assertMatches(diagnosticWorkflow, /npm run release:actions-timing --/, 'diagnostic workflow timing harness');
+  assertMatches(diagnosticWorkflow, /release-diagnostics-\$\{\{ inputs\.opl_version \}\}/, 'diagnostic workflow artifact');
 });
 
 test('_build-reusable splits quality work into parallel App and active-shell jobs with Bun cache boundaries', () => {

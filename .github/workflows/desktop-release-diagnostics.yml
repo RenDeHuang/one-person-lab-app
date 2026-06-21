@@ -1,0 +1,82 @@
+name: OPL Desktop Release Diagnostics
+
+on:
+  workflow_dispatch:
+    inputs:
+      opl_version:
+        description: OPL version to diagnose, for example 26.6.21
+        required: true
+        type: string
+      release_run_id:
+        description: GitHub Actions desktop release run id to inspect
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: opl-desktop-release-diagnostics-${{ inputs.opl_version }}-${{ inputs.release_run_id }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release-diagnostics:
+    name: Build release diagnostic harness outputs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Build release closeout diagnostics
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          OPL_RELEASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          npm run release:closeout -- \
+            --version "$OPL_RELEASE_VERSION" \
+            --run-id "$OPL_RELEASE_RUN_ID" \
+            --repo "$OPL_RELEASE_REPO" \
+            --out-dir release-diagnostics \
+            --artifact-profile diagnostics
+          cat release-diagnostics/release-closeout.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build GitHub Actions timing diagnostics
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          OPL_RELEASE_REPO: ${{ github.repository }}
+        run: |
+          npm run release:actions-timing -- \
+            --repo "$OPL_RELEASE_REPO" \
+            --run-id "$OPL_RELEASE_RUN_ID" \
+            --output release-diagnostics/release-actions-timing.json \
+            --markdown release-diagnostics/release-actions-timing.md
+          cat release-diagnostics/release-actions-timing.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release diagnostics
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-diagnostics-${{ inputs.opl_version }}
+          path: |
+            release-diagnostics/release-closeout.json
+            release-diagnostics/release-closeout.md
+            release-diagnostics/release-monitor.json
+            release-diagnostics/release-notification.json
+            release-diagnostics/release-actions-timing.json
+            release-diagnostics/release-actions-timing.md
+          if-no-files-found: error

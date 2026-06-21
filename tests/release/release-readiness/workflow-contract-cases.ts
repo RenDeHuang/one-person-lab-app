@@ -59,25 +59,45 @@ test('desktop release workflow has a final readiness aggregation job that downlo
   assert.match(job, /release-candidate-record-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(job, /release-candidate-record\.json/);
   assert.match(job, /release-candidate-record\.md/);
-  assert.match(job, /Build release closeout summary/);
-  assert.match(job, /npm run release:closeout --/);
-  assert.match(job, /--no-download/);
-  assert.match(job, /release-closeout-inputs/);
-  assert.match(job, /release-closeout\/release-closeout\.json/);
-  assert.match(job, /release-closeout\/release-closeout\.md/);
-  assert.match(job, /Upload release closeout summary/);
-  assert.match(job, /release-closeout-\$\{\{ inputs\.opl_version \}\}/);
-  assert.match(job, /Build GitHub Actions timing summary/);
-  assert.match(job, /npm run release:actions-timing --/);
-  assert.match(job, /release-actions-timing\.json/);
-  assert.match(job, /release-actions-timing\.md/);
-  assert.match(job, /release-actions-timing-\$\{\{ inputs\.opl_version \}\}/);
+  assert.doesNotMatch(job, /Build release closeout summary/);
+  assert.doesNotMatch(job, /npm run release:closeout --/);
+  assert.doesNotMatch(job, /release-closeout/);
+  assert.doesNotMatch(job, /Build GitHub Actions timing summary/);
+  assert.doesNotMatch(job, /npm run release:actions-timing --/);
+  assert.doesNotMatch(job, /release-actions-timing/);
   assert.match(job, /needs\[['"]?remote-verify-full['"]?\]\.result|needs\.remote-verify-full\.result/);
   assert.match(job, /release-readiness-job-results\.json/);
   assert.match(workflow, /release_artifact_name:\s+macos-build-arm64-dmg/);
   assert.match(workflow, /release_artifact_name:\s+opl-full-first-install-dmg-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(workflow, /same_job_after_docker_webui_smoke/);
   assert.match(workflow, /webui-ghcr-publish:[\s\S]*Verify WebUI GHCR publish summary/);
+});
+
+test('desktop release workflow fails fast before expensive builds and cancels stale same-version runs', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
+  assert.match(workflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-\$\{\{ inputs\.release_mode == 'draft_candidate' && 'draft' \|\| 'stable' \}\}-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /cancel-in-progress:\s+true/);
+  assert.match(workflow, /release-workflow-contract:[\s\S]*name:\s+Release workflow contract/);
+  assert.match(workflow, /release-workflow-contract:[\s\S]*npm run validate:release-boundary/);
+  assert.match(workflow, /release-workflow-contract:[\s\S]*npm run test:release-boundary/);
+  assert.match(workflow, /standard-build:[\s\S]*needs:\s+release-workflow-contract/);
+  assert.match(workflow, /full-first-install:[\s\S]*needs:\s+release-workflow-contract/);
+});
+
+test('desktop release diagnostics workflow is harness-only and read-only', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release-diagnostics.yml'), 'utf8');
+
+  assert.match(workflow, /name: OPL Desktop Release Diagnostics/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /release_run_id:/);
+  assert.match(workflow, /permissions:[\s\S]*actions: read[\s\S]*contents: read/);
+  assert.match(workflow, /npm run release:closeout --/);
+  assert.match(workflow, /--artifact-profile diagnostics/);
+  assert.match(workflow, /npm run release:actions-timing --/);
+  assert.match(workflow, /release-diagnostics-\$\{\{ inputs\.opl_version \}\}/);
+  assert.doesNotMatch(workflow, /contents:\s+write/);
+  assert.doesNotMatch(workflow, /packages:\s+write/);
+  assert.doesNotMatch(workflow, /gh release edit|gh release upload|npm run release:publish/);
 });
 
 test('desktop promote workflow is gated by the candidate record before publishing', () => {

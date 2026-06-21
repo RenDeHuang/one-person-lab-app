@@ -79,7 +79,7 @@ permissions:
 
 concurrency:
   group: opl-desktop-release-${{ inputs.release_mode == 'draft_candidate' && 'draft' || 'stable' }}-${{ inputs.opl_version }}
-  cancel-in-progress: ${{ inputs.release_mode == 'draft_candidate' }}
+  cancel-in-progress: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -133,9 +133,37 @@ jobs:
             release-preflight-summary.md
           if-no-files-found: error
 
+  release-workflow-contract:
+    name: Release workflow contract
+    runs-on: ubuntu-latest
+    needs: release-preflight
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Checkout active shell
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ inputs.shell_ref || 'main' }}
+          path: shells/aionui
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Validate release workflow contract
+        run: |
+          npm run validate:release-boundary
+          npm run test:release-boundary
+
   standard-build:
     name: Build standard App assets
-    needs: release-preflight
+    needs: release-workflow-contract
     uses: ./.github/workflows/_build-reusable.yml
     with:
       matrix: >-
@@ -262,7 +290,7 @@ jobs:
 
   full-first-install:
     name: Build Full first-install assets
-    needs: release-preflight
+    needs: release-workflow-contract
     if: ${{ inputs.include_full_package }}
     uses: ./.github/workflows/full-first-install-release.yml
     with:
@@ -1052,76 +1080,6 @@ jobs:
             --allow-blocked
           cat release-candidate-record.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Build release closeout summary
-        if: ${{ always() }}
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
-          OPL_RELEASE_RUN_ID: ${{ github.run_id }}
-          OPL_RELEASE_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          closeout_inputs="release-closeout-inputs"
-          mkdir -p \
-            "$closeout_inputs/release-candidate-record-${OPL_RELEASE_VERSION}" \
-            "$closeout_inputs/release-readiness-summary-${OPL_RELEASE_VERSION}" \
-            "$closeout_inputs/release-preflight-summary-${OPL_RELEASE_VERSION}" \
-            "$closeout_inputs/remote-release-verification-${OPL_RELEASE_VERSION}" \
-            "$closeout_inputs/opl-full-workflow-telemetry-${OPL_RELEASE_VERSION}" \
-            "$closeout_inputs/opl-full-diagnostics-${OPL_RELEASE_VERSION}"
-
-          candidate_source="release-candidate-record.json"
-          readiness_source="release-readiness-summary.json"
-          preflight_source="release-readiness-inputs/release-preflight-summary-${OPL_RELEASE_VERSION}/release-preflight-summary.json"
-          remote_source="release-readiness-inputs/remote-release-verification-${OPL_RELEASE_VERSION}/remote-release-verification.json"
-          telemetry_source="release-readiness-inputs/opl-full-workflow-telemetry-${OPL_RELEASE_VERSION}/full-workflow-telemetry.json"
-          diagnostics_source="release-readiness-inputs/opl-full-diagnostics-${OPL_RELEASE_VERSION}/runtime-cache-events.json"
-
-          if [ -f "$candidate_source" ]; then
-            cp "$candidate_source" "$closeout_inputs/release-candidate-record-${OPL_RELEASE_VERSION}/release-candidate-record.json"
-          fi
-          if [ -f "$readiness_source" ]; then
-            cp "$readiness_source" "$closeout_inputs/release-readiness-summary-${OPL_RELEASE_VERSION}/release-readiness-summary.json"
-          fi
-          if [ -f "$preflight_source" ]; then
-            cp "$preflight_source" "$closeout_inputs/release-preflight-summary-${OPL_RELEASE_VERSION}/release-preflight-summary.json"
-          fi
-          if [ -f "$remote_source" ]; then
-            cp "$remote_source" "$closeout_inputs/remote-release-verification-${OPL_RELEASE_VERSION}/remote-release-verification.json"
-          fi
-          if [ -f "$telemetry_source" ]; then
-            cp "$telemetry_source" "$closeout_inputs/opl-full-workflow-telemetry-${OPL_RELEASE_VERSION}/full-workflow-telemetry.json"
-          fi
-          if [ -f "$diagnostics_source" ]; then
-            cp "$diagnostics_source" "$closeout_inputs/opl-full-diagnostics-${OPL_RELEASE_VERSION}/runtime-cache-events.json"
-          fi
-
-          npm run release:closeout -- \
-            --version "$OPL_RELEASE_VERSION" \
-            --run-id "$OPL_RELEASE_RUN_ID" \
-            --repo "$OPL_RELEASE_REPO" \
-            --artifacts-dir "$closeout_inputs" \
-            --out-dir release-closeout \
-            --artifact-profile diagnostics \
-            --no-download
-          cat release-closeout/release-closeout.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Build GitHub Actions timing summary
-        if: ${{ always() }}
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_RELEASE_RUN_ID: ${{ github.run_id }}
-          OPL_RELEASE_REPO: ${{ github.repository }}
-        run: |
-          npm run release:actions-timing -- \
-            --repo "$OPL_RELEASE_REPO" \
-            --run-id "$OPL_RELEASE_RUN_ID" \
-            --output release-actions-timing.json \
-            --markdown release-actions-timing.md
-          cat release-actions-timing.md >> "$GITHUB_STEP_SUMMARY"
-
       - name: Upload release readiness summary
         if: always()
         uses: actions/upload-artifact@v7
@@ -1140,26 +1098,4 @@ jobs:
           path: |
             release-candidate-record.json
             release-candidate-record.md
-          if-no-files-found: error
-
-      - name: Upload release closeout summary
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-closeout-${{ inputs.opl_version }}
-          path: |
-            release-closeout/release-closeout.json
-            release-closeout/release-closeout.md
-            release-closeout/release-monitor.json
-            release-closeout/release-notification.json
-          if-no-files-found: error
-
-      - name: Upload GitHub Actions timing summary
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-actions-timing-${{ inputs.opl_version }}
-          path: |
-            release-actions-timing.json
-            release-actions-timing.md
           if-no-files-found: error

@@ -21,6 +21,7 @@ export const releaseWorkflowPaths = [
   '.github/workflows/_build-reusable.yml',
   '.github/workflows/build-manual.yml',
   '.github/workflows/desktop-release-cleanup-drafts.yml',
+  '.github/workflows/desktop-release-diagnostics.yml',
   '.github/workflows/desktop-release-promote.yml',
   '.github/workflows/desktop-release.yml',
   '.github/workflows/full-first-install-release.yml',

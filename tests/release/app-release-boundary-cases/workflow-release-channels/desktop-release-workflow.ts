@@ -47,6 +47,7 @@ test('retired tag-push Build and Release workflow has no live or compatibility s
 test('manual desktop release workflow supports new releases and same-tag refreshes in GitHub Actions', () => {
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
   const standardBuild = workflowJobBlock(workflow, 'standard-build');
+  const readinessJob = workflowJobBlock(workflow, 'release-readiness-summary');
   const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
   const fullPackageScript = readFullPackageBuilderSource();
   const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
@@ -55,13 +56,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   );
 
   assert.match(workflow, /name: OPL Desktop Release/);
+  assert.match(workflow, /cancel-in-progress:\s+true/);
   assert.match(workflow, /release-preflight:/);
   assert.match(workflow, /name: Release preflight/);
   assert.match(workflow, /npm run release:preflight --/);
   assert.match(workflow, /release-preflight-summary\.json/);
   assert.match(workflow, /release-preflight-summary\.md/);
-  assert.match(workflow, /standard-build:[\s\S]*needs: release-preflight/);
-  assert.match(workflow, /full-first-install:[\s\S]*needs: release-preflight/);
+  assert.match(workflow, /release-workflow-contract:/);
+  assert.match(workflow, /release-workflow-contract:[\s\S]*name: Release workflow contract/);
+  assert.match(workflow, /release-workflow-contract:[\s\S]*npm run validate:release-boundary/);
+  assert.match(workflow, /release-workflow-contract:[\s\S]*npm run test:release-boundary/);
+  assert.match(workflow, /standard-build:[\s\S]*needs: release-workflow-contract/);
+  assert.match(workflow, /full-first-install:[\s\S]*needs: release-workflow-contract/);
+  assert.doesNotMatch(readinessJob, /release:closeout|release:actions-timing|release-closeout|release-actions-timing/);
   assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release[\s\S]*draft_candidate/);
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to build and verify/);
@@ -263,6 +270,23 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     releaseContract.release_acceleration.github_actions.desktop_release_workflow,
     '.github/workflows/desktop-release.yml',
   );
+  assert.equal(
+    releaseContract.release_acceleration.github_actions.diagnostics_workflow,
+    '.github/workflows/desktop-release-diagnostics.yml',
+  );
+  assert.deepEqual(releaseContract.release_acceleration.github_actions.desktop_release_concurrency, {
+    group: 'opl-desktop-release-<draft|stable>-<version>',
+    cancel_in_progress: true,
+    rule: 'A newer run for the same version and release lane cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts.',
+  });
+  assert.deepEqual(releaseContract.release_acceleration.github_actions.diagnostics_workflow_policy, {
+    workflow: '.github/workflows/desktop-release-diagnostics.yml',
+    purpose: 'harness_only_release_diagnostics',
+    permissions: ['actions:read', 'contents:read'],
+    reads: ['release_run_id', 'small release artifacts', 'GitHub Actions run timing'],
+    writes: ['release-diagnostics artifact only'],
+    forbidden: ['release publish', 'owner receipt', 'runtime truth', 'stable/latest promotion'],
+  });
   assert.deepEqual(releaseContract.release_preflight, {
     script: 'scripts/validate-release-preflight.ts',
     package_script: 'release:preflight',

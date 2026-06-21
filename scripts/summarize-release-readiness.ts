@@ -543,7 +543,7 @@ function buildSummary(options: Options) {
   });
 
   const fullTelemetryGate = jsonGate(options, {
-    required: options.includeFullPackage,
+    required: false,
     artifactName: fullTelemetryArtifactName,
     fileName: 'full-workflow-telemetry.json',
     validate: (payload) => {
@@ -581,7 +581,7 @@ function buildSummary(options: Options) {
     : manifestPath && runtimeCacheEventsPath && checksumPath
       ? {
           status: 'passed',
-          required: true,
+          required: false,
           artifact_name: fullDiagnosticsArtifactName,
           artifact_path: [
             path.relative(options.artifactsDir, manifestPath),
@@ -595,25 +595,27 @@ function buildSummary(options: Options) {
             runtime_cache_events: readJson(runtimeCacheEventsPath),
           },
         }
-      : missingGate(true, fullDiagnosticsArtifactName, 'Missing Full diagnostics manifest, runtime cache events, or SHA256SUMS.');
+      : missingGate(false, fullDiagnosticsArtifactName, 'Missing Full diagnostics manifest, runtime cache events, or SHA256SUMS.');
 
   const fullSizeCacheTimingGate: GateSummary = options.includeFullPackage
     ? fullTelemetryGate.status === 'passed' && fullDiagnosticsGate.status === 'passed'
       ? {
           status: 'passed',
-          required: true,
+          required: false,
           artifact_name: `${fullTelemetryArtifactName}, ${fullDiagnosticsArtifactName}`,
           fields: {
+            diagnostic_only: true,
             telemetry: fullTelemetryGate.fields,
             diagnostics: fullDiagnosticsGate.fields,
           },
         }
       : {
-          status: 'failed',
-          required: true,
+          status: 'skipped',
+          required: false,
           artifact_name: `${fullTelemetryArtifactName}, ${fullDiagnosticsArtifactName}`,
           reason: [fullTelemetryGate.reason, fullDiagnosticsGate.reason].filter(Boolean).join(' '),
           fields: {
+            diagnostic_only: true,
             telemetry_status: fullTelemetryGate.status,
             diagnostics_status: fullDiagnosticsGate.status,
           },
@@ -670,7 +672,7 @@ function buildSummary(options: Options) {
     one_shot_app_installer: applyJobResult(oneShotGate, jobResults, 'one-shot-app-installer-smoke', true),
     docker_webui: applyJobResult(dockerGate, jobResults, 'docker-webui-smoke', true),
     webui_ghcr_publish: applyJobResult(webuiGhcrGate, jobResults, 'webui-ghcr-publish', true),
-    full_size_cache_timing: applyJobResult(fullSizeCacheTimingGate, jobResults, 'full-first-install', options.includeFullPackage),
+    full_size_cache_timing: applyJobResult(fullSizeCacheTimingGate, jobResults, 'full-first-install', false),
     operator_evidence_bundle: applyJobResult(operatorEvidenceBundleGate, jobResults, 'operator-evidence-bundle-validation', true),
   };
 

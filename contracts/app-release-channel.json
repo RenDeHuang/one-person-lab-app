@@ -1188,9 +1188,37 @@
       "promote_workflow": ".github/workflows/desktop-release-promote.yml",
       "remote_verification_workflow": ".github/workflows/release-verify-remote.yml",
       "full_runtime_cache_warmup_workflow": ".github/workflows/full-runtime-cache-warmup.yml",
+      "diagnostics_workflow": ".github/workflows/desktop-release-diagnostics.yml",
       "nightly_standard_release_workflow": ".github/workflows/nightly-standard-release.yml",
       "full_first_install_workflow": ".github/workflows/full-first-install-release.yml",
       "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
+      "desktop_release_concurrency": {
+        "group": "opl-desktop-release-<draft|stable>-<version>",
+        "cancel_in_progress": true,
+        "rule": "A newer run for the same version and release lane cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts."
+      },
+      "diagnostics_workflow_policy": {
+        "workflow": ".github/workflows/desktop-release-diagnostics.yml",
+        "purpose": "harness_only_release_diagnostics",
+        "permissions": [
+          "actions:read",
+          "contents:read"
+        ],
+        "reads": [
+          "release_run_id",
+          "small release artifacts",
+          "GitHub Actions run timing"
+        ],
+        "writes": [
+          "release-diagnostics artifact only"
+        ],
+        "forbidden": [
+          "release publish",
+          "owner receipt",
+          "runtime truth",
+          "stable/latest promotion"
+        ]
+      },
       "first_run_vm_mode": "run_vm_smoke",
       "first_run_vm_concurrency": {
         "scheduled_group": "opl-gui-first-run-vm-scheduled",
