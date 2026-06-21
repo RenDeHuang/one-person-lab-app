@@ -49,7 +49,12 @@ verification provenance and explicit replay material, but it is not a default
 candidate lane and should not receive routine updates or polish work. Treat
 `candidate` in AGUI filenames, manifests, scripts, and adapter contracts as a
 backward-compatible replay label only; it does not reopen AGUI as a foreground
-candidate or default validation target.
+candidate or default validation target. The App-owned convergence readback is
+`npm run validate:shell-convergence`: it confirms the AionUI mainline, Hermes
+foreground alternative, AGUI archived/no-resurrection policy, and false-ready
+boundaries as structure evidence only. It cannot claim App release readiness,
+active-shell adoption, packaged GUI acceptance, production readiness, live user
+path evidence, or Live Evidence.
 
 The App product profile is the current owner for desktop session defaults and
 user-facing product policy: Codex default model/reasoning, default visible
@@ -294,7 +299,11 @@ Shell alternative work is separated from the active release adapter.
 `contracts/app-shell-candidates.json` owns the registry,
 `contracts/shell-adapters/hermes-codex.json` owns the only foreground alternative
 adapter, and `contracts/shell-adapters/agui-codex.json` remains explicit replay
-only. Hermes docs own the active alternative target plan:
+only. `scripts/validate-shell-convergence.ts` is the App-owned aggregate readback
+for that policy: it reports `closed_structure_gate_not_live_evidence` only when
+the active AionUI adapter, Hermes foreground scope, AGUI archived proof policy,
+and no-release/no-live false-ready boundary all match the contracts. Hermes docs
+own the active alternative target plan:
 `docs/opl-hermes-gui-adaptation-plan.md` and
 `docs/opl-hermes-first-run-flow.md`. `docs/agui-codex-candidate-verification.md`
 is read only for explicit AGUI replay or historical audit. Default stable/nightly
