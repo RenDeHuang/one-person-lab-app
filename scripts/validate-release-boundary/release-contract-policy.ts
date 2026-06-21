@@ -190,6 +190,9 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const acceleration = releaseContract.release_acceleration;
   const gateReuse = acceleration?.gate_reuse;
   const tartBasePrebake = acceleration?.tart_base_prebake;
+  const githubActions = acceleration?.github_actions;
+  const diagnosticsWorkflowPolicy = githubActions?.diagnostics_workflow_policy;
+  const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
 
   if (
     gateReuse?.plan_command !== 'npm run release:gate-reuse-plan -- --version <version> --release-mode <mode> --include-full-package true --run-vm-smoke true' ||
@@ -247,6 +250,54 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     !tartBasePrebake.truth_boundary.includes('VM smoke artifact')
   ) {
     console.error('FAIL tart_base_prebake_policy: truth boundary must keep App readiness in VM smoke artifacts');
+    failures += 1;
+  }
+
+  if (
+    diagnosticsWorkflowPolicy?.default_diagnostic_scope !== 'bootstrap_only' ||
+    diagnosticsWorkflowPolicy?.diagnostic_scopes?.bootstrap_only?.authority_boundary !==
+      'diagnostic_only_not_release_ready_owner_receipt_or_runtime_truth' ||
+    diagnosticsWorkflowPolicy?.diagnostic_scopes?.release_gate?.authority_boundary !==
+      'release_gate_evidence_only_when_same_cohort_workflow_requires_it'
+  ) {
+    console.error('FAIL release_diagnostics_scope_policy: diagnostics workflow must default to bootstrap_only without release-ready authority');
+    failures += 1;
+  }
+  for (const kept of [
+    'same-run or supplied DMG resolution',
+    'packaged main bootstrap marker verification',
+    'App install',
+    'Gatekeeper/local authorization diagnostics',
+    'App launch',
+    'CDP/accessibility/native modal/bootstrap fatal artifact collection',
+  ]) {
+    if (!diagnosticsWorkflowPolicy?.diagnostic_scopes?.bootstrap_only?.keeps?.includes(kept)) {
+      console.error(`FAIL release_diagnostics_scope_policy: bootstrap_only must keep ${kept}`);
+      failures += 1;
+    }
+  }
+  for (const skipped of [
+    'Codex install asset cache restore',
+    'Codex install asset prefetch',
+    'Codex install asset cache save',
+    'Settings page sweep',
+    'assistant route smoke',
+    'Codex functional check',
+    'Codex AI self-check',
+  ]) {
+    if (!diagnosticsWorkflowPolicy?.diagnostic_scopes?.bootstrap_only?.skips?.includes(skipped)) {
+      console.error(`FAIL release_diagnostics_scope_policy: bootstrap_only must skip ${skipped}`);
+      failures += 1;
+    }
+  }
+  for (const gate of vmGates) {
+    if (gate?.diagnostic_scope !== 'release_gate') {
+      console.error(`FAIL release_vm_gate_scope_policy: VM gate ${gate?.id || '<unknown>'} must use diagnostic_scope=release_gate`);
+      failures += 1;
+    }
+  }
+  if (acceleration?.vm_gate?.diagnostic_scope !== 'release_gate') {
+    console.error('FAIL release_vm_gate_scope_policy: legacy vm_gate summary must use diagnostic_scope=release_gate');
     failures += 1;
   }
 

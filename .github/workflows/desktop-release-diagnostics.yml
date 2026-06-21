@@ -81,6 +81,14 @@ on:
         required: false
         default: '900000'
         type: string
+      diagnostic_scope:
+        description: Diagnostic scope for the first-run VM harness. Use bootstrap_only to capture App launch/bootstrap blockers without Codex asset preseed or secondary route checks.
+        required: false
+        default: bootstrap_only
+        type: choice
+        options:
+          - bootstrap_only
+          - release_gate
 
 permissions:
   actions: read
@@ -209,4 +217,5 @@ jobs:
       guide_screenshots: ${{ inputs.guide_screenshots }}
       run_timeout_ms: ${{ inputs.run_timeout_ms }}
       smoke_timeout_ms: ${{ inputs.smoke_timeout_ms }}
+      diagnostic_scope: ${{ inputs.diagnostic_scope }}
     secrets: inherit

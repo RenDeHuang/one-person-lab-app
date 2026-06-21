@@ -78,6 +78,14 @@ on:
         description: 'Codex readiness/initialize phase timeout passed through to the active shell smoke. Empty inherits smoke_timeout_ms.'
         required: false
         type: string
+      diagnostic_scope:
+        description: 'VM diagnostic scope. release_gate runs the full release smoke; bootstrap_only skips Codex asset preseed and secondary checks to capture App launch/bootstrap blockers quickly.'
+        required: false
+        default: release_gate
+        type: choice
+        options:
+          - release_gate
+          - bootstrap_only
   workflow_call:
     inputs:
       release_tag:
@@ -151,6 +159,11 @@ on:
         description: 'Codex readiness/initialize phase timeout passed through to the active shell smoke. Empty inherits smoke_timeout_ms.'
         required: false
         type: string
+      diagnostic_scope:
+        description: 'VM diagnostic scope: release_gate or bootstrap_only.'
+        required: false
+        default: release_gate
+        type: string
   schedule:
     - cron: '0 18 * * *'
 
@@ -175,6 +188,7 @@ jobs:
     outputs:
       package_profile: ${{ steps.diagnostic_inputs.outputs.profile }}
       shell_ref: ${{ steps.diagnostic_inputs.outputs.shell_ref }}
+      diagnostic_scope: ${{ steps.diagnostic_inputs.outputs.diagnostic_scope }}
 
     steps:
       - name: Normalize diagnostic inputs
@@ -198,8 +212,21 @@ jobs:
           if [ -z "$shell_ref" ]; then
             shell_ref="main"
           fi
+          diagnostic_scope="${{ inputs.diagnostic_scope }}"
+          if [ -z "$diagnostic_scope" ]; then
+            diagnostic_scope="release_gate"
+          fi
+          case "$diagnostic_scope" in
+            release_gate | bootstrap_only)
+              ;;
+            *)
+              echo "::error::Unsupported diagnostic_scope: $diagnostic_scope"
+              exit 1
+              ;;
+          esac
           echo "profile=$profile" >> "$GITHUB_OUTPUT"
           echo "shell_ref=$shell_ref" >> "$GITHUB_OUTPUT"
+          echo "diagnostic_scope=$diagnostic_scope" >> "$GITHUB_OUTPUT"
 
       - name: Validate active shell ref before VM runner work
         shell: bash
@@ -402,6 +429,7 @@ jobs:
           echo "codex_readiness_phase_timeout_ms=$CODEX_READINESS_PHASE_TIMEOUT_MS" >> "$GITHUB_OUTPUT"
 
       - name: Restore Codex install asset cache
+        if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' }}
         id: codex_install_asset_cache
         uses: actions/cache/restore@v5
         with:
@@ -593,6 +621,7 @@ jobs:
           echo "Using DMG: $DMG_PATH"
 
       - name: Prefetch Codex package install assets
+        if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' }}
         id: codex_package_preflight
         shell: bash
         run: |
@@ -987,7 +1016,7 @@ jobs:
           CODEX_CACHE_RESTORE_MATCHED_KEY: ${{ steps.codex_install_asset_cache.outputs.cache-matched-key }}
 
       - name: Save Codex install asset cache
-        if: ${{ steps.codex_package_preflight.outputs.cache_key != '' }}
+        if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' && steps.codex_package_preflight.outputs.cache_key != '' }}
         uses: actions/cache/save@v5
         continue-on-error: true
         with:
@@ -1043,6 +1072,7 @@ jobs:
             echo "- SSH key: $SSH_KEY_STATUS"
             echo "- Release source: $RELEASE_SOURCE"
             echo "- Package profile: \`${{ steps.package_profile.outputs.profile }}\`"
+            echo "- Diagnostic scope: \`${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}\`"
             echo "- Install mode: \`${{ steps.package_profile.outputs.install_mode }}\`"
             echo "- Runtime profile: \`${{ steps.package_profile.outputs.runtime_profile }}\`"
             echo "- DMG artifact path: \`${{ steps.dmg.outputs.dmg_path }}\`"
@@ -1075,6 +1105,7 @@ jobs:
 
           const diagnosticsPath = 'artifacts/opl-first-run-vm/app-wrapper-diagnostics.json';
           const startedAt = new Date();
+          const diagnosticScope = process.env.DIAGNOSTIC_SCOPE || 'release_gate';
 
           function run(command, args = []) {
             const started = new Date();
@@ -1101,9 +1132,36 @@ jobs:
           const npmVersion = run('npm', ['--version']);
           const curlVersion = run('curl', ['--version']);
           const npmRegistry = run('npm', ['config', 'get', 'registry']);
+          function skippedDiagnostic(label) {
+            const now = new Date().toISOString();
+            return {
+              command: label,
+              available: false,
+              exit_code: 0,
+              signal: null,
+              error: null,
+              stdout: '',
+              stderr: '',
+              skipped: true,
+              reason: diagnosticScope,
+              started_at: now,
+              ended_at: now,
+              duration_ms: 0,
+            };
+          }
           const codexPackagePreflight = (() => {
             const artifactPath = process.env.CODEX_PACKAGE_PREFLIGHT_JSON;
             if (!artifactPath) {
+              if (diagnosticScope === 'bootstrap_only') {
+                return {
+                  path: '',
+                  available: false,
+                  parsed: false,
+                  exit_code: 0,
+                  skipped: true,
+                  reason: 'bootstrap_only',
+                };
+              }
               return {
                 path: '',
                 available: false,
@@ -1131,18 +1189,21 @@ jobs:
               };
             }
           })();
-          const codexPackageMetadata = run('npm', [
-            'view',
-            '@openai/codex@latest',
-            'name',
-            'version',
-            'dist-tags',
-            'dist.tarball',
-            'dist.integrity',
-            'bin',
-            'engines',
-            '--json',
-          ]);
+          const codexPackageMetadata =
+            diagnosticScope === 'bootstrap_only'
+              ? skippedDiagnostic('npm view @openai/codex@latest')
+              : run('npm', [
+                  'view',
+                  '@openai/codex@latest',
+                  'name',
+                  'version',
+                  'dist-tags',
+                  'dist.tarball',
+                  'dist.integrity',
+                  'bin',
+                  'engines',
+                  '--json',
+                ]);
 
           const endedAt = new Date();
           const diagnostics = {
@@ -1161,6 +1222,7 @@ jobs:
             },
             release_inputs: {
               package_profile: process.env.PACKAGE_PROFILE,
+              diagnostic_scope: diagnosticScope,
               install_mode: process.env.INSTALL_MODE,
               runtime_profile: process.env.RUNTIME_PROFILE,
               release_tag: process.env.RELEASE_TAG || '',
@@ -1242,7 +1304,11 @@ jobs:
             ['npm config get registry', npmRegistry],
             ['codex-package-preflight.json', codexPackagePreflight],
             ['npm view @openai/codex@latest', codexPackageMetadata],
-          ].filter(([, result]) => result.exit_code !== 0 || result.error || result.parsed === false || result.available === false);
+          ].filter(
+            ([, result]) =>
+              result.skipped !== true &&
+              (result.exit_code !== 0 || result.error || result.parsed === false || result.available === false)
+          );
 
           if (requiredFailures.length > 0) {
             console.error('Required first-run VM wrapper diagnostics failed:');
@@ -1272,6 +1338,7 @@ jobs:
           RELEASE_ARTIFACT_NAME: ${{ inputs.release_artifact_name }}
           RELEASE_ARTIFACT_RUN_ID: ${{ inputs.release_artifact_run_id }}
           SHELL_REF: ${{ inputs.shell_ref || 'main' }}
+          DIAGNOSTIC_SCOPE: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}
           CODEX_PACKAGE_PREFLIGHT_JSON: ${{ steps.codex_package_preflight.outputs.preflight_json }}
           CODEX_PACKAGE_TARBALL: ${{ steps.codex_package_preflight.outputs.tarball_path }}
           CODEX_PLATFORM_PACKAGE_TARBALL: ${{ steps.codex_package_preflight.outputs.platform_tarball_path }}
@@ -1303,18 +1370,20 @@ jobs:
             --smoke-timeout-ms "${{ steps.vm_timeouts.outputs.smoke_timeout_ms }}"
             --codex-install-phase-timeout-ms "${{ steps.vm_timeouts.outputs.codex_install_phase_timeout_ms }}"
             --codex-readiness-phase-timeout-ms "${{ steps.vm_timeouts.outputs.codex_readiness_phase_timeout_ms }}"
-            --codex-package-tarball "${{ steps.codex_package_preflight.outputs.tarball_path }}"
-            --codex-platform-package-tarball "${{ steps.codex_package_preflight.outputs.platform_tarball_path }}"
-            --codex-npm-cache-dir "${{ steps.codex_package_preflight.outputs.npm_cache_dir }}"
             --smoke-profile no-clt-clean-vm
             --display 1920x1080px
-            --settings-smoke
-            --assistant-route-smoke
-            --codex-functional-check
-            --codex-ai-self-check
             --runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"
             --guest-node-root "${{ steps.host_node.outputs.node_root }}"
           )
+          if [ "${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}" != "bootstrap_only" ]; then
+            CMD+=(--codex-package-tarball "${{ steps.codex_package_preflight.outputs.tarball_path }}")
+            CMD+=(--codex-platform-package-tarball "${{ steps.codex_package_preflight.outputs.platform_tarball_path }}")
+            CMD+=(--codex-npm-cache-dir "${{ steps.codex_package_preflight.outputs.npm_cache_dir }}")
+            CMD+=(--settings-smoke)
+            CMD+=(--assistant-route-smoke)
+            CMD+=(--codex-functional-check)
+            CMD+=(--codex-ai-self-check)
+          fi
           if [ "${{ steps.package_profile.outputs.install_mode }}" = "homebrew-cask" ]; then
             CMD+=(--smoke-profile homebrew-standard-cask)
             CMD+=(--install-mode homebrew-cask)
@@ -1419,6 +1488,7 @@ jobs:
             echo "## OPL GUI first-run VM"
             echo
             echo "- Package profile: ${{ steps.package_profile.outputs.profile }}"
+            echo "- Diagnostic scope: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}"
             echo "- Install mode: ${{ steps.package_profile.outputs.install_mode }}"
             echo "- Runtime profile: ${{ steps.package_profile.outputs.runtime_profile }}"
             echo "- Tart source VM: ${{ steps.tart_source.outputs.source_vm }}"

@@ -1258,11 +1258,40 @@
           "release_dmg_url",
           "release_artifact_name",
           "release_artifact_run_id",
+          "diagnostic_scope",
           "build_standard_artifact",
           "small release artifacts",
           "GitHub Actions run timing",
           "first-run VM harness diagnostics"
         ],
+        "default_diagnostic_scope": "bootstrap_only",
+        "diagnostic_scopes": {
+          "bootstrap_only": {
+            "purpose": "fast App launch and bootstrap blocker capture before rerunning a full release train",
+            "skips": [
+              "Codex install asset cache restore",
+              "Codex install asset prefetch",
+              "Codex install asset cache save",
+              "Settings page sweep",
+              "assistant route smoke",
+              "Codex functional check",
+              "Codex AI self-check"
+            ],
+            "keeps": [
+              "same-run or supplied DMG resolution",
+              "packaged main bootstrap marker verification",
+              "App install",
+              "Gatekeeper/local authorization diagnostics",
+              "App launch",
+              "CDP/accessibility/native modal/bootstrap fatal artifact collection"
+            ],
+            "authority_boundary": "diagnostic_only_not_release_ready_owner_receipt_or_runtime_truth"
+          },
+          "release_gate": {
+            "purpose": "full deterministic VM release gate used by stable release workflows",
+            "authority_boundary": "release_gate_evidence_only_when_same_cohort_workflow_requires_it"
+          }
+        },
         "writes": [
           "temporary standard DMG diagnostic artifact only",
           "release-diagnostics artifact only",
@@ -1323,6 +1352,7 @@
         "smoke_profile": "no-clt-clean-vm",
         "display": "1920x1080px",
         "settings_smoke": true,
+        "diagnostic_scope": "release_gate",
         "runtime_profile": "standard",
         "release_blocking_readiness": [
           "local_authorization_policy",
@@ -1347,6 +1377,7 @@
         "homebrew_trust_scope": "explicit_standard_and_conflicting_cask_refs_not_whole_tap",
         "display": "1920x1080px",
         "settings_smoke": true,
+        "diagnostic_scope": "release_gate",
         "runtime_profile": "standard",
         "release_blocking_readiness": [
           "brew_tap_and_cask_install",
@@ -1366,6 +1397,7 @@
         "smoke_profile": "no-clt-clean-vm",
         "display": "1920x1080px",
         "settings_smoke": true,
+        "diagnostic_scope": "release_gate",
         "runtime_profile": "full",
         "codex_config_wizard": "required_and_submitted",
         "release_blocking_readiness": [
@@ -1384,6 +1416,7 @@
       "smoke_profile": "no-clt-clean-vm",
       "display": "1920x1080px",
       "settings_smoke": true,
+      "diagnostic_scope": "release_gate",
       "runtime_profile": "full",
       "codex_config_wizard": "required_and_submitted",
       "gate_policy": "deterministic_release_blocking",
@@ -1394,6 +1427,7 @@
         "ssh_key_configured",
         "release_source",
         "package_profile",
+        "diagnostic_scope",
         "runtime_profile",
         "dmg_artifact_path",
         "smoke_profile",

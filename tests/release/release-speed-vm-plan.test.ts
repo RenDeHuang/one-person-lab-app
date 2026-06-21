@@ -81,12 +81,21 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(workflow, /full-first-install:[\s\S]*?needs:\s+standard-vm-smoke-gate-after-full/, 'Full package build waits for standard VM fail-fast gate');
   assertMatches(workflow, /full-first-install:[\s\S]*?publish_to_release:\s+false/, 'Full package build-only job');
   assertMatches(workflow, /publish-full-assets:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?full-first-install/, 'Full package publish job');
-  assertMatches(workflow, /remote-verify-standard:[\s\S]*?needs:\s+publish-standard/, 'standard remote verification job');
+  assertMatches(
+    workflow,
+    /remote-verify-standard:[\s\S]*?needs:[\s\S]*?publish-standard[\s\S]*?standard-first-run-vm-smoke-after-standard-only/,
+    'standard remote verification waits for the standard VM fail-fast gate',
+  );
+  assertMatches(
+    workflow,
+    /remote-verify-standard:[\s\S]*?needs\.standard-first-run-vm-smoke-after-standard-only\.result == 'success'/,
+    'standard remote verification is skipped after a failed standard VM gate',
+  );
   assertMatches(workflow, /remote-verify-full:[\s\S]*?needs:[\s\S]*?publish-full-assets[\s\S]*?standard-vm-smoke-gate-after-full/, 'Full remote verification job waits for standard VM fail-fast gate');
   assertMatches(
     workflow,
-    /standard-first-run-vm-smoke-after-standard-only:[\s\S]*?needs:\s+remote-verify-standard/,
-    'standard-only VM smoke job',
+    /standard-first-run-vm-smoke-after-standard-only:[\s\S]*?needs:\s+publish-standard/,
+    'standard-only VM smoke runs immediately after standard publish',
   );
   assertMatches(
     workflow,
@@ -189,10 +198,18 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(diagnosticWorkflow, /npm run release:actions-timing --/, 'diagnostic workflow timing harness');
   assertMatches(diagnosticWorkflow, /run_vm_diagnostic:/, 'diagnostic workflow VM harness toggle');
   assertMatches(diagnosticWorkflow, /build_standard_artifact:/, 'diagnostic workflow temporary standard artifact toggle');
+  assertMatches(diagnosticWorkflow, /diagnostic_scope:[\s\S]*?default:\s+bootstrap_only/, 'diagnostic workflow defaults to bootstrap-only VM scope');
   assertMatches(diagnosticWorkflow, /standard-dmg-diagnostic-artifact:[\s\S]*?upload_installers_only:\s+true/, 'diagnostic workflow can build a temporary standard DMG only');
   assertMatches(diagnosticWorkflow, /uses:\s+\.\/\.github\/workflows\/opl-first-run-vm\.yml/, 'diagnostic workflow reuses the VM harness');
   assertMatches(diagnosticWorkflow, /release_artifact_name:\s+\$\{\{ inputs\.build_standard_artifact && 'macos-build-arm64-dmg' \|\| inputs\.release_artifact_name \}\}/, 'diagnostic workflow can diagnose the same-run temporary standard DMG');
   assertMatches(diagnosticWorkflow, /release_artifact_run_id:\s+\$\{\{ inputs\.build_standard_artifact && github\.run_id \|\| \(inputs\.release_artifact_run_id != '' && inputs\.release_artifact_run_id \|\| inputs\.release_run_id\) \}\}/, 'diagnostic workflow can diagnose artifacts from an existing run or same-run temporary build');
+  assertMatches(diagnosticWorkflow, /diagnostic_scope:\s+\$\{\{ inputs\.diagnostic_scope \}\}/, 'diagnostic workflow forwards diagnostic scope to the VM harness');
+  const vmWorkflow = readRepoFile('.github/workflows/opl-first-run-vm.yml');
+  assertMatches(vmWorkflow, /diagnostic_scope:[\s\S]*?default:\s+release_gate/, 'VM harness defaults to full release gate scope');
+  assertMatches(vmWorkflow, /Restore Codex install asset cache[\s\S]*?if:\s+\$\{\{ needs\.validate-vm-inputs\.outputs\.diagnostic_scope != 'bootstrap_only' \}\}/, 'bootstrap-only skips Codex cache restore');
+  assertMatches(vmWorkflow, /Prefetch Codex package install assets[\s\S]*?if:\s+\$\{\{ needs\.validate-vm-inputs\.outputs\.diagnostic_scope != 'bootstrap_only' \}\}/, 'bootstrap-only skips Codex asset prefetch');
+  assertMatches(vmWorkflow, /Save Codex install asset cache[\s\S]*?diagnostic_scope != 'bootstrap_only'/, 'bootstrap-only skips Codex cache save');
+  assertMatches(vmWorkflow, /if \[ "\$\{\{ needs\.validate-vm-inputs\.outputs\.diagnostic_scope \}\}" != "bootstrap_only" \]; then[\s\S]*?CMD\+=\(--settings-smoke\)[\s\S]*?CMD\+=\(--assistant-route-smoke\)[\s\S]*?CMD\+=\(--codex-functional-check\)[\s\S]*?CMD\+=\(--codex-ai-self-check\)/, 'secondary release checks stay out of bootstrap-only diagnostics');
   assert.doesNotMatch(diagnosticWorkflow, /full-first-install-release|npm run release:publish/, 'diagnostic workflow must not rebuild or publish release assets');
   assertMatches(diagnosticWorkflow, /release-diagnostics-\$\{\{ inputs\.opl_version \}\}/, 'diagnostic workflow artifact');
 });

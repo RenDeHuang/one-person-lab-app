@@ -114,6 +114,18 @@ must prove first-run behavior. This is an install asset preseed/cache surface;
 it is not App readiness truth, release-owner receipt, runtime truth, or a
 replacement for `tart-smoke-summary.json` and shell Codex install diagnostics.
 
+The reusable VM workflow has two explicit `diagnostic_scope` values. Stable
+release workflows use `release_gate`, which keeps the Codex install asset
+preseed, Settings sweep, assistant route smoke, Codex functional check, and
+Codex AI self-check on the deterministic gate path. The diagnostics workflow
+defaults to `bootstrap_only`: it still resolves the supplied or same-run DMG,
+installs the App, verifies the packaged main bootstrap marker, launches the
+App, and collects CDP/accessibility/native-modal/bootstrap-fatal artifacts, but
+skips Codex cache restore/prefetch/save and secondary route checks so a launch
+blocker produces evidence before another Full or stable release train is
+queued. `bootstrap_only` artifacts are diagnostic-only and cannot be used as
+release-ready, owner receipt, or runtime truth evidence.
+
 `run_timeout_ms` and `smoke_timeout_ms` are workflow inputs and are passed to
 `opl-first-run-tart-smoke.mjs` as `--timeout-ms` and `--smoke-timeout-ms`.
 `codex_install_phase_timeout_ms` and `codex_readiness_phase_timeout_ms` are
@@ -382,13 +394,16 @@ screenshot, docs, or other post-publish proof gate, closeout must classify that
 as `resolve_post_publish_followup_gate`; do not conflate the published
 GitHub Release/tap state with clean-install proof completion.
 
-The standard clean VM smoke is the fail-fast gate for stable Full release
-trains. When `include_full_package=true` and `run_vm_smoke=true`,
-`desktop-release.yml` runs `standard-first-run-vm-smoke-after-full` before Full
-package build, Full publish/remote verification, Homebrew updates, operator
-evidence, or readiness aggregation. If the standard VM fails, stop at that
-diagnostic artifact; do not keep queueing Full, Homebrew, operator evidence, or
-readiness jobs for the same cohort.
+The standard clean VM smoke is the fail-fast gate for stable release trains. In
+standard-only runs, `desktop-release.yml` runs
+`standard-first-run-vm-smoke-after-standard-only` immediately after standard
+asset publish and before remote verification, Homebrew updates, operator
+evidence, or readiness aggregation. When `include_full_package=true` and
+`run_vm_smoke=true`, it runs `standard-first-run-vm-smoke-after-full` before
+Full package build, Full publish/remote verification, Homebrew updates,
+operator evidence, or readiness aggregation. If the standard VM fails, stop at
+that diagnostic artifact; do not keep queueing Full, Homebrew, operator
+evidence, or readiness jobs for the same cohort.
 
 The local command is the rerun/debug path for the same logic, not a separate
 release step:

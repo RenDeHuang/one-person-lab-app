@@ -100,6 +100,7 @@ npm run release:full:size -- --markdown
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-homebrew-ready-base --install-mode homebrew-cask --homebrew-cask gaofeng21cn/one-person-lab/one-person-lab --smoke-profile homebrew-standard-cask --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
+npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --runtime-profile standard
 OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --complete --skip-modules
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
@@ -262,6 +263,13 @@ receipt, and it never replaces the clean VM install smoke.
 Codex App and Computer Use checks are non-blocking exploratory tools;
 release-blocking App readiness must live in deterministic scripts, contracts,
 or GitHub Actions gates.
+The App VM wrapper exposes `diagnostic_scope=release_gate|bootstrap_only`.
+Release workflows use `release_gate`; `desktop-release-diagnostics.yml`
+defaults to `bootstrap_only` to skip Codex asset cache restore/prefetch/save,
+Settings sweep, assistant route smoke, and Codex functional/AI checks while
+still installing and launching the App and collecting bootstrap fatal/native
+modal diagnostics. Bootstrap-only artifacts are diagnostic-only and cannot
+stand in for stable release evidence.
 Scheduled GitHub Actions runs must have repository variable
 `OPL_FIRST_RUN_TART_SOURCE` set to a local Tart source VM on the self-hosted
 runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18` for DMG
