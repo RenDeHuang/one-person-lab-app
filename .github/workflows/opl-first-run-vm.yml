@@ -1084,7 +1084,11 @@ jobs:
             echo "- Codex npm cache dir: \`${{ steps.codex_package_preflight.outputs.npm_cache_dir }}\`"
             echo "- Smoke profile: \`no-clt-clean-vm\`"
             echo "- Display: \`1920x1080px\`"
-            echo "- Settings smoke: enabled"
+            if [ "${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}" = "bootstrap_only" ]; then
+              echo "- Settings smoke: disabled for bootstrap-only diagnostics"
+            else
+              echo "- Settings smoke: enabled"
+            fi
             echo "- Artifact output: \`artifacts/opl-first-run-vm\`"
             echo "- Tart graphics: ${{ inputs.no_graphics && 'disabled (--no-graphics)' || 'enabled' }}"
             echo "- Temporary VM retention: ${{ inputs.keep_vm && 'keep for debugging' || 'clean up after run' }}"
@@ -1375,6 +1379,9 @@ jobs:
             --runtime-profile "${{ steps.package_profile.outputs.runtime_profile }}"
             --guest-node-root "${{ steps.host_node.outputs.node_root }}"
           )
+          if [ "${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}" = "bootstrap_only" ]; then
+            CMD+=(--bootstrap-launch-diagnostics)
+          fi
           if [ "${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}" != "bootstrap_only" ]; then
             CMD+=(--codex-package-tarball "${{ steps.codex_package_preflight.outputs.tarball_path }}")
             CMD+=(--codex-platform-package-tarball "${{ steps.codex_package_preflight.outputs.platform_tarball_path }}")
