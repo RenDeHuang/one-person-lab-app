@@ -256,28 +256,7 @@ function runtimePathPattern(relativePath) {
 
 function declaredPrunedPathAssertions(runtimeRoot) {
   const runtimePaths = listRuntimeRelativePaths(runtimeRoot);
-  const expectedAbsent = [
-    'node/include',
-    'node/share',
-    'node/lib/node_modules/npm/docs',
-    'node/lib/node_modules/npm/man',
-    'node/lib/node_modules/npm/tap-snapshots',
-    'python/*/lib/python*/test',
-    'modules/*/.venv',
-    'modules/*/node_modules',
-    'modules/*/tests',
-    'modules/*/logs',
-    'modules/*/tmp',
-    'modules/*/cache',
-    'modules/*/runtime-state',
-    'modules/*/runs',
-    'modules/*/sessions',
-    'opl/dist',
-    'opl/logs',
-    'opl/tmp',
-    'opl/cache',
-    'opl/node_modules/@temporalio/testing',
-  ];
+  const expectedAbsent = FULL_RUNTIME_PRUNE_POLICY.runtime_assertions?.expected_absent_paths ?? [];
   const pathExists = (relativePath) => fs.existsSync(path.join(runtimeRoot, ...relativePath.split('/')));
   return expectedAbsent.map((relativePath) => ({
     path: relativePath,

@@ -1,43 +1,24 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { FULL_RUNTIME_RESOURCE_DIR } from '../full-first-install-package.ts';
+import {
+  FULL_RUNTIME_PRUNE_POLICY,
+  FULL_RUNTIME_RESOURCE_DIR,
+} from '../full-first-install-package.ts';
 import { directorySizeBytes } from './filesystem.ts';
 
 const APP_BUNDLE_TRIM_REPORT_SCHEMA = 'opl_full_app_bundle_trim_report.v1';
 const PACKAGE_BOUNDARY_AUDIT_SCHEMA = 'opl_full_package_boundary_audit.v1';
 const PACKAGE_OPTIMIZATION_SCHEMA = 'opl_full_package_optimization.v1';
 
-const STAGED_APP_TRIM_DIRECTORY_BASENAMES = [
-  '.cache',
-  '.parcel-cache',
-  '.turbo',
-  '.vite',
-  '__mocks__',
-  '__snapshots__',
-  '__tests__',
-  'coverage',
-  'playwright-report',
-  'storybook-static',
-  'test-results',
-] as const;
-
-const STAGED_APP_TRIM_FILE_SUFFIXES = [
-  '.DS_Store',
-  '.js.map',
-  '.map',
-  '.tsbuildinfo',
-  '.log',
-  '.tmp',
-] as const;
-
-const PROTECTED_APP_BUNDLE_PAYLOADS = [
-  `Contents/Resources/${FULL_RUNTIME_RESOURCE_DIR}`,
-  'Contents/Resources/bundled-aioncore',
-  'Contents/Resources/app.asar',
-  'Contents/Resources/app.asar.unpacked',
-  'Contents/Frameworks/Electron Framework.framework',
-] as const;
+const STAGED_APP_TRIM_DIRECTORY_BASENAMES =
+  FULL_RUNTIME_PRUNE_POLICY.app_bundle_staging.trim_directory_basenames as string[];
+const STAGED_APP_TRIM_FILE_SUFFIXES =
+  FULL_RUNTIME_PRUNE_POLICY.app_bundle_staging.trim_file_suffixes as string[];
+const STAGED_APP_TRIM_NODE_MODULE_DIRECTORY_BASENAMES =
+  FULL_RUNTIME_PRUNE_POLICY.app_bundle_staging.trim_node_module_directory_basenames as string[];
+const PROTECTED_APP_BUNDLE_PAYLOADS =
+  FULL_RUNTIME_PRUNE_POLICY.app_bundle_staging.protected_payloads as string[];
 
 function normalizeBundleRelativePath(relativePath: string) {
   return relativePath.split(path.sep).join('/').replace(/^\/+/, '');
@@ -68,7 +49,7 @@ function trimReason(relativePath: string, stat: fs.Stats) {
   }
 
   const baseName = path.posix.basename(relativePath);
-  if (stat.isDirectory() && STAGED_APP_TRIM_DIRECTORY_BASENAMES.includes(baseName as never)) {
+  if (stat.isDirectory() && STAGED_APP_TRIM_DIRECTORY_BASENAMES.includes(baseName)) {
     return 'staged_app_non_runtime_directory';
   }
   if (
@@ -80,7 +61,7 @@ function trimReason(relativePath: string, stat: fs.Stats) {
   if (
     stat.isDirectory()
     && pathHasSegment(relativePath, 'node_modules')
-    && ['test', 'tests', 'docs', 'examples', 'fixtures', 'benchmarks'].includes(baseName)
+    && STAGED_APP_TRIM_NODE_MODULE_DIRECTORY_BASENAMES.includes(baseName)
   ) {
     return 'staged_app_node_module_non_runtime_directory';
   }

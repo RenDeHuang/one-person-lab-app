@@ -164,7 +164,15 @@ consumers.
 `runtime-cache-events.json` into readable cache counts and `miss_written` layer
 names in `release-readiness-summary.json`, making fresh cache writes visible in
 the final release summary.
-Full packaging excludes local development indexes, dependency caches, tests, and
+Full packaging pruning is governed by
+`contracts/full-runtime-prune-policy.json`. That contract is the single
+machine-readable source for runtime tree filters, production dependency package
+filters, Node toolchain package filters, expected pruned-path assertions,
+validation examples, and the external practice refs behind the policy. The
+builder, cache key, manifest `runtime_prune_policy`, runtime assertions, and
+policy audit command all derive from this contract.
+
+The policy excludes local development indexes, dependency caches, tests, and
 runtime/user state such as `.codegraph`, `.git`, `.worktrees`, `.venv`,
 `node_modules`, `runtime`, `runtime-state`, `runs`, `sessions`, and `tests`.
 It also prunes non-runtime build and report output such as `.github`, `.next`,
@@ -186,6 +194,9 @@ suites and bytecode caches are excluded. The manifest also records
 `runtime_assertions.declared_pruned_paths`; use those fields to audit that
 Codex and Temporal archives, Node/Python/uv, officecli, mineru, domain modules,
 and packaged skills stayed local instead of becoming lazy downloads.
+Run `npm run release:full:prune-audit -- --markdown` before changing prune
+rules. With `--runtime-root <path>`, it also reports currently excluded paths,
+largest excluded entries, runtime assertions, and optional baseline diff.
 
 The clean first-install gates are wired through
 `.github/workflows/opl-first-run-vm.yml` and the active shell Tart smoke helper.

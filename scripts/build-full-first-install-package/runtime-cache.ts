@@ -76,9 +76,11 @@ import {
 function buildRuntimeLayerPackagerInputs() {
   return {
     support_files: hashFiles(appRepoRoot, [
+      'contracts/full-runtime-prune-policy.json',
       'contracts/app-product-profile.json',
       'scripts/build-full-first-install-package/filesystem.ts',
       'scripts/build-full-first-install-package/hashing.ts',
+      'scripts/build-full-first-install-package/package-optimization.ts',
       'scripts/build-full-first-install-package/paths.ts',
       'scripts/build-full-first-install-package/runtime-cache.ts',
       'scripts/build-full-first-install-package/runtime-layers.ts',

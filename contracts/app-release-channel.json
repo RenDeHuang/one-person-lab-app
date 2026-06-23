@@ -1095,54 +1095,17 @@
       "rule": "Stable Full CI uses zlib level 9 for the App-owned fallback/rebuilt DMG path by default. Release readiness still records compressed Full DMG size from the published GitHub asset; crossing the review threshold opens package-size review but does not authorize removing required offline first-install payloads."
     },
     "full_runtime_packaging_hygiene": {
+      "source_of_truth": "contracts/full-runtime-prune-policy.json",
       "prune_policy_id": "full_runtime_offline_first_install_slim_v1",
       "manifest_policy_schema": "opl_full_runtime_prune_policy.v1",
-      "local_state_excluded": [
-        ".codegraph",
-        ".git",
-        ".worktrees",
-        ".venv",
-        "cache",
-        "logs",
-        "node_modules",
-        "runtime",
-        "runtime-state",
-        "runs",
-        "sessions",
-        "tests",
-        "tmp"
-      ],
-      "node_toolchain_pruned": [
-        "npm/docs",
-        "npm/man",
-        "npm/tap-snapshots",
-        "package tests",
-        "package fixtures",
-        "package examples",
-        "package coverage and reports"
-      ],
-      "python_runtime_pruned": [
-        "stdlib test suites",
-        "__pycache__",
-        "*.pyc",
-        "*.pyo"
-      ],
-      "retained_offline_payloads": [
-        "runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz",
-        "runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz",
-        "runtime/current/node/bin/node",
-        "runtime/current/node/bin/npm",
-        "runtime/current/node/bin/npx",
-        "runtime/current/python/<cpython>/bin/python3",
-        "runtime/current/uv/bin/uv",
-        "runtime/current/bin/officecli",
-        "runtime/current/bin/mineru-open-api",
-        "runtime/current/modules/mas",
-        "runtime/current/modules/mag",
-        "runtime/current/modules/rca",
-        "runtime/current/modules/meta-agent",
-        "runtime/current/modules/bookforge",
-        "runtime/current/skills"
+      "policy_summary_boundary": "This release contract records the policy owner and evidence surfaces only. Runtime tree filters, package filters, app-bundle trim rules, protected payloads, validation examples, and expected absent paths are not duplicated here; they live in the source_of_truth contract and must be read through the policy audit.",
+      "policy_surfaces": [
+        "runtime_tree",
+        "production_node_modules",
+        "node_toolchain_global_packages",
+        "app_bundle_staging",
+        "runtime_assertions",
+        "validation_examples"
       ],
       "manifest_assertions": [
         "runtime_prune_policy.id",
@@ -1152,19 +1115,9 @@
         "package_optimization.offline_first_install_completeness_preserved",
         "package_optimization.size_review_release_blocking_by_size_alone"
       ],
-      "app_bundle_staging": {
-        "mode": "post_build_pre_dmg_explicit_non_runtime_trim",
-        "report": "full-app-bundle-trim-report.json",
-        "audit": "full-package-boundary-audit.json",
-        "protected_payloads": [
-          "Contents/Resources/opl-full-runtime",
-          "Contents/Resources/bundled-aioncore",
-          "Contents/Resources/app.asar",
-          "Contents/Resources/app.asar.unpacked",
-          "Contents/Frameworks/Electron Framework.framework"
-        ]
-      },
+      "app_bundle_staging_surface": "contracts/full-runtime-prune-policy.json#app_bundle_staging",
       "measurement_command": "npm run release:full:size -- --markdown",
+      "policy_audit_command": "npm run release:full:prune-audit -- --markdown",
       "domain_runtime_allowlist_owner": "domain_repositories",
       "app_policy": "exclude local indexes, dependency caches, tests, package docs/fixtures/examples, Python stdlib tests, and user/runtime state; do not prune declared offline first-install payloads, Codex/Temporal archives, domain modules, or packaged skills; do not infer domain truth or artifact authority from package pruning"
     },

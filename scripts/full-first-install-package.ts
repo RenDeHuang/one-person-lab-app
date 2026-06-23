@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   formatCodexProfilePhrase,
   formatRecommendedCompanionSkills,
@@ -90,6 +92,8 @@ const FULL_PACKAGE_MEASUREMENT_POLICY = {
 } as const;
 
 const FULL_RUNTIME_PRUNE_POLICY_SCHEMA = 'opl_full_runtime_prune_policy.v1';
+const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+export const FULL_RUNTIME_PRUNE_POLICY_PATH = path.join(appRoot, 'contracts', 'full-runtime-prune-policy.json');
 
 export type FullRuntimeCacheLayerId = typeof FULL_RUNTIME_CACHE_LAYER_IDS[number];
 
@@ -467,133 +471,34 @@ function hasPathSegment(relativePath: string, segment: string) {
   return relativePath.split('/').includes(segment);
 }
 
-const EXCLUDED_RUNTIME_PATH_SEGMENTS = [
-  '.git',
-  '.codegraph',
-  '.codex',
-  '.github',
-  '.omx',
-  '.worktrees',
-  '.cache',
-  '.eslintcache',
-  '.hypothesis',
-  '.ipynb_checkpoints',
-  '.mypy_cache',
-  '.next',
-  '.nyc_output',
-  '.parcel-cache',
-  '.pytest_cache',
-  '.rollup.cache',
-  '.ruff_cache',
-  '.storybook',
-  '.turbo',
-  '.tox',
-  '__pycache__',
-  '__snapshots__',
-  'coverage',
-  'logs',
-  'storybook-static',
-  'target',
-  'temp',
-  'tmp',
-  '.DS_Store',
-] as const;
+function readFullRuntimePrunePolicy() {
+  const policy = JSON.parse(fs.readFileSync(FULL_RUNTIME_PRUNE_POLICY_PATH, 'utf8'));
+  if (policy.schema !== FULL_RUNTIME_PRUNE_POLICY_SCHEMA) {
+    throw new Error(`Unsupported Full runtime prune policy schema: ${policy.schema}`);
+  }
+  if (policy.mode !== 'explicit_non_runtime_prune_only') {
+    throw new Error(`Unsupported Full runtime prune policy mode: ${policy.mode}`);
+  }
+  return policy;
+}
 
-const EXCLUDED_RUNTIME_BASENAMES = ['.DS_Store', 'state.db'] as const;
-const EXCLUDED_RUNTIME_BASENAME_SUFFIXES = [
-  '.coverage',
-  '.js.map',
-  '.map',
-  '.pyc',
-  '.pyo',
-  '.tsbuildinfo',
-] as const;
+export const FULL_RUNTIME_PRUNE_POLICY = readFullRuntimePrunePolicy();
 
-const EXCLUDED_RUNTIME_PATH_PATTERN_SOURCES = [
-  '^hermes\\/(?:web|ui|frontend)(?:\\/|$)',
-  '^hermes\\/tests?(?:\\/|$)',
-  '^hermes\\/.*(?:voice|tts|telegram|discord|slack|matrix|dingtalk|feishu)',
-  '^modules\\/[^/]+\\/\\.venv(?:\\/|$)',
-  '^modules\\/[^/]+\\/node_modules(?:\\/|$)',
-  '^modules\\/[^/]+\\/tests?(?:\\/|$)',
-  '^modules\\/[^/]+\\/(?:build|dist|htmlcov|docs\\/_build|notebooks|playwright-report|runtime|runtime-state|runs|sessions|test-results|\\.ds)(?:\\/|$)',
-  '^modules\\/[^/]+\\/(?:cache|logs?|tmp|temp)(?:\\/|$)',
-  '^opl\\/node_modules(?:\\/|$)',
-  '^opl\\/.*\\/\\.venv(?:\\/|$)',
-  '^opl\\/dist(?:\\/|$)',
-  '^opl\\/(?:build|playwright-report|test-results)(?:\\/|$)',
-  '^opl\\/(?:cache|logs?|tmp|temp)(?:\\/|$)',
-  '^python\\/[^/]+\\/lib\\/python\\d+\\.\\d+\\/(?:test|idlelib\\/idle_test|tkinter\\/test|unittest\\/test|ctypes\\/test|distutils\\/tests|lib2to3\\/tests)(?:\\/|$)',
-] as const;
-
+const EXCLUDED_RUNTIME_PATH_SEGMENTS = FULL_RUNTIME_PRUNE_POLICY.runtime_tree.excluded_path_segments as string[];
+const EXCLUDED_RUNTIME_BASENAMES = FULL_RUNTIME_PRUNE_POLICY.runtime_tree.excluded_basenames as string[];
+const EXCLUDED_RUNTIME_BASENAME_SUFFIXES = FULL_RUNTIME_PRUNE_POLICY.runtime_tree.excluded_basename_suffixes as string[];
+const EXCLUDED_RUNTIME_PATH_PATTERN_SOURCES = FULL_RUNTIME_PRUNE_POLICY.runtime_tree.excluded_path_patterns as string[];
 const EXCLUDED_RUNTIME_PATH_PATTERNS = EXCLUDED_RUNTIME_PATH_PATTERN_SOURCES.map((source) => new RegExp(source));
-
-const INCLUDED_RUNTIME_PATH_PATTERN_SOURCES = [
-  '^modules\\/meta-agent\\/runtime$',
-  '^modules\\/meta-agent\\/runtime\\/authority_functions(?:\\/|$)',
-] as const;
-
+const INCLUDED_RUNTIME_PATH_PATTERN_SOURCES = FULL_RUNTIME_PRUNE_POLICY.runtime_tree.included_path_patterns as string[];
 const INCLUDED_RUNTIME_PATH_PATTERNS = INCLUDED_RUNTIME_PATH_PATTERN_SOURCES.map((source) => new RegExp(source));
-
-const EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERN_SOURCES = [
-  '(?:^|\\/)(?:__fixtures__|__mocks__|__snapshots__|benchmarks?|coverage|docs?|examples?|fixtures?|playwright-report|storybook-static|test-results|tests?)(?:\\/|$)',
-  '(?:^|\\/)(?:\\.cache|\\.github|\\.nyc_output|\\.pytest_cache|\\.turbo)(?:\\/|$)',
-] as const;
-
-const EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERNS = EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERN_SOURCES.map((source) => new RegExp(source));
-
-const EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERN_SOURCES = [
-  '(?:^|\\/)(?:__fixtures__|__mocks__|__snapshots__|benchmarks?|coverage|docs?|examples?|fixtures?|man|playwright-report|tap-snapshots|test-results|tests?)(?:\\/|$)',
-  '(?:^|\\/)(?:\\.cache|\\.github|\\.nyc_output|\\.tap|\\.turbo)(?:\\/|$)',
-] as const;
-
-const EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERNS = EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERN_SOURCES.map((source) => new RegExp(source));
-
-export const FULL_RUNTIME_PRUNE_POLICY = {
-  schema: FULL_RUNTIME_PRUNE_POLICY_SCHEMA,
-  id: 'full_runtime_offline_first_install_slim_v1',
-  mode: 'explicit_non_runtime_prune_only',
-  offline_first_install_boundary: 'required Codex and Temporal archives, Node, Python, uv, officecli, mineru, domain modules, and packaged default skills stay local; pruning must not introduce lazy downloads for required launch payloads',
-  runtime_tree: {
-    excluded_path_segments: EXCLUDED_RUNTIME_PATH_SEGMENTS,
-    excluded_basenames: EXCLUDED_RUNTIME_BASENAMES,
-    excluded_basename_suffixes: EXCLUDED_RUNTIME_BASENAME_SUFFIXES,
-    excluded_path_patterns: EXCLUDED_RUNTIME_PATH_PATTERN_SOURCES,
-    included_path_patterns: INCLUDED_RUNTIME_PATH_PATTERN_SOURCES,
-  },
-  production_node_modules: {
-    source: 'package-lock production dependencies allowlist',
-    excluded_path_patterns: EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERN_SOURCES,
-  },
-  node_toolchain_global_packages: {
-    copied_packages: ['npm', 'corepack'],
-    excluded_path_patterns: EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERN_SOURCES,
-  },
-  app_bundle_staging: {
-    mode: 'post_build_pre_dmg_explicit_non_runtime_trim',
-    report: 'full-app-bundle-trim-report.json',
-    audit: 'full-package-boundary-audit.json',
-    excluded_payloads: [
-      'source maps',
-      'test fixtures',
-      'coverage reports',
-      'local caches',
-      'temporary files',
-      'logs',
-    ],
-    protected_payloads: [
-      `Contents/Resources/${FULL_RUNTIME_RESOURCE_DIR}`,
-      'Contents/Resources/bundled-aioncore',
-      'Contents/Resources/app.asar',
-      'Contents/Frameworks/Electron Framework.framework',
-    ],
-  },
-  retained_runtime_support: {
-    python_headers: 'retained for offline native-extension build/debug support',
-    python_ensurepip: 'retained so the packaged Python remains self-contained',
-    node_headers: 'not copied into the Full runtime Node payload',
-  },
-} as const;
+const EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERN_SOURCES =
+  FULL_RUNTIME_PRUNE_POLICY.production_node_modules.excluded_path_patterns as string[];
+const EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERNS =
+  EXCLUDED_PRODUCTION_NODE_MODULE_PATH_PATTERN_SOURCES.map((source) => new RegExp(source));
+const EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERN_SOURCES =
+  FULL_RUNTIME_PRUNE_POLICY.node_toolchain_global_packages.excluded_path_patterns as string[];
+const EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERNS =
+  EXCLUDED_NODE_TOOLCHAIN_PACKAGE_PATH_PATTERN_SOURCES.map((source) => new RegExp(source));
 
 export function buildFullRuntimePrunePolicyHash() {
   return crypto.createHash('sha256').update(JSON.stringify(FULL_RUNTIME_PRUNE_POLICY)).digest('hex');

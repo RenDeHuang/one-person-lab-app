@@ -957,6 +957,10 @@ test('Full first-install cache and release acceleration contract are explicit', 
     'node --experimental-strip-types scripts/analyze-full-package-size.ts',
   );
   assert.equal(
+    packageJson.scripts['release:full:prune-audit'],
+    'node --experimental-strip-types scripts/audit-full-runtime-prune-policy.ts',
+  );
+  assert.equal(
     packageJson.scripts['release:gate-reuse-plan'],
     'node --experimental-strip-types scripts/plan-release-gate-reuse.ts',
   );
@@ -1045,21 +1049,10 @@ test('Full first-install cache and release acceleration contract are explicit', 
   );
   assert.equal(releaseContract.release_acceleration.full_dmg_compression.default_ci_level, '9');
   assert.equal(releaseContract.release_acceleration.full_dmg_compression.telemetry_field, 'dmg_compression_level');
-  assert.deepEqual(releaseContract.release_acceleration.full_runtime_packaging_hygiene.local_state_excluded, [
-    '.codegraph',
-    '.git',
-    '.worktrees',
-    '.venv',
-    'cache',
-    'logs',
-    'node_modules',
-    'runtime',
-    'runtime-state',
-    'runs',
-    'sessions',
-    'tests',
-    'tmp',
-  ]);
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.source_of_truth,
+    'contracts/full-runtime-prune-policy.json',
+  );
   assert.equal(
     releaseContract.release_acceleration.full_runtime_packaging_hygiene.prune_policy_id,
     'full_runtime_offline_first_install_slim_v1',
@@ -1068,22 +1061,31 @@ test('Full first-install cache and release acceleration contract are explicit', 
     releaseContract.release_acceleration.full_runtime_packaging_hygiene.manifest_policy_schema,
     'opl_full_runtime_prune_policy.v1',
   );
-  assert.ok(
-    releaseContract.release_acceleration.full_runtime_packaging_hygiene.node_toolchain_pruned.includes('npm/docs'),
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.policy_summary_boundary,
+    'This release contract records the policy owner and evidence surfaces only. Runtime tree filters, package filters, app-bundle trim rules, protected payloads, validation examples, and expected absent paths are not duplicated here; they live in the source_of_truth contract and must be read through the policy audit.',
   );
-  assert.ok(
-    releaseContract.release_acceleration.full_runtime_packaging_hygiene.python_runtime_pruned.includes('stdlib test suites'),
-  );
-  assert.ok(
-    releaseContract.release_acceleration.full_runtime_packaging_hygiene.retained_offline_payloads.includes(
-      'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz',
-    ),
-  );
-  assert.ok(
-    releaseContract.release_acceleration.full_runtime_packaging_hygiene.retained_offline_payloads.includes(
-      'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
-    ),
-  );
+  assert.deepEqual(releaseContract.release_acceleration.full_runtime_packaging_hygiene.policy_surfaces, [
+    'runtime_tree',
+    'production_node_modules',
+    'node_toolchain_global_packages',
+    'app_bundle_staging',
+    'runtime_assertions',
+    'validation_examples',
+  ]);
+  for (const duplicatedPolicyField of [
+    'local_state_excluded',
+    'node_toolchain_pruned',
+    'python_runtime_pruned',
+    'retained_offline_payloads',
+    'app_bundle_staging',
+  ]) {
+    assert.equal(
+      Object.hasOwn(releaseContract.release_acceleration.full_runtime_packaging_hygiene, duplicatedPolicyField),
+      false,
+      duplicatedPolicyField,
+    );
+  }
   assert.ok(
     releaseContract.release_acceleration.full_runtime_packaging_hygiene.manifest_assertions.includes(
       'runtime_assertions.offline_required_payloads',
@@ -1092,6 +1094,14 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.equal(
     releaseContract.release_acceleration.full_runtime_packaging_hygiene.measurement_command,
     'npm run release:full:size -- --markdown',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.policy_audit_command,
+    'npm run release:full:prune-audit -- --markdown',
+  );
+  assert.equal(
+    releaseContract.release_acceleration.full_runtime_packaging_hygiene.app_bundle_staging_surface,
+    'contracts/full-runtime-prune-policy.json#app_bundle_staging',
   );
   assert.equal(
     releaseContract.release_acceleration.full_runtime_packaging_hygiene.domain_runtime_allowlist_owner,
@@ -1282,60 +1292,114 @@ test('Full first-install cache and release acceleration contract are explicit', 
 test('Full runtime pruning keeps macOS arm64 launch payloads without development environments', async () => {
   const mod = await import('../../../scripts/full-first-install-package.ts');
   const buildScript = readFullPackageBuilderSource();
+  const runtimeCacheScript = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'build-full-first-install-package', 'runtime-cache.ts'),
+    'utf8',
+  );
   const runtimeLayersScript = fs.readFileSync(
     path.join(appRoot, 'scripts', 'build-full-first-install-package', 'runtime-layers.ts'),
     'utf8',
   );
-
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/.venv/lib/python3.12/site-packages/numpy/core.so'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mag/.venv/pyvenv.cfg'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/node_modules/@types/node/index.d.ts'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/src/med_autoscience/__init__.py'), false);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/contracts/runtime-program/schema.json'), false);
-  assert.equal(
-    mod.shouldExcludeRuntimePath('modules/meta-agent/runtime/authority_functions/meta-agent-authority-functions.json'),
-    false,
+  const policy = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'full-runtime-prune-policy.json'), 'utf8'),
   );
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/runtime/legacy-state.json'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/.codegraph/codegraph.db'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/.codegraph/codegraph.db-wal'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/.github/workflows/ci.yml'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/.next/cache/webpack.bin'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mag/.turbo/cache/hash'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/storybook-static/index.html'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/playwright-report/index.html'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/test-results/e2e/output.zip'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/src/generated/client.js.map'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/runtime-state/quest/output.png'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/logs/latest.log'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mag/tmp/session.json'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/cache/render.bin'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('opl/logs/runtime.log'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('opl/tmp/build.tmp'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('opl/cache/index.bin'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/runs/2026-05-27/result.json'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/rca/prompts/xiaohongshu/style-references/ref.png'), false);
-  assert.equal(mod.shouldExcludeRuntimePath('modules/mas/assets/branding/logo.png'), false);
-  assert.equal(mod.shouldExcludeProductionNodeModulePath('test/fixtures/large.json'), true);
-  assert.equal(mod.shouldExcludeProductionNodeModulePath('__snapshots__/case.snap'), true);
-  assert.equal(mod.shouldExcludeProductionNodeModulePath('docs/api.md'), true);
-  assert.equal(mod.shouldExcludeProductionNodeModulePath('dist/index.js.map'), true);
-  assert.equal(mod.shouldExcludeProductionNodeModulePath('lib/index.js'), false);
-  assert.equal(mod.shouldExcludeProductionNodeModulePath('lib/native/addon.node'), false);
-  assert.equal(mod.shouldExcludeProductionNodeModulePath('schema/runtime.json'), false);
-  assert.equal(mod.shouldExcludeRuntimePath('python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/test/test_os.py'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/unittest/test/test_case.py'), true);
-  assert.equal(mod.shouldExcludeRuntimePath('python/cpython-3.12.12-macos-aarch64-none/include/python3.12/Python.h'), false);
-  assert.equal(mod.shouldExcludeRuntimePath('python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/ensurepip/__init__.py'), false);
-  assert.equal(mod.shouldExcludeNodeToolchainPackagePath('docs/output/config.md'), true);
-  assert.equal(mod.shouldExcludeNodeToolchainPackagePath('man/man1/npm.1'), true);
-  assert.equal(mod.shouldExcludeNodeToolchainPackagePath('tap-snapshots/install.snap'), true);
-  assert.equal(mod.shouldExcludeNodeToolchainPackagePath('lib/cli.js'), false);
-  assert.equal(mod.shouldExcludeNodeToolchainPackagePath('node_modules/@npmcli/arborist/lib/index.js'), false);
+
+  for (const relativePath of policy.validation_examples.runtime_tree.excluded) {
+    assert.equal(mod.shouldExcludeRuntimePath(relativePath), true, relativePath);
+  }
+  for (const relativePath of policy.validation_examples.runtime_tree.retained) {
+    assert.equal(mod.shouldExcludeRuntimePath(relativePath), false, relativePath);
+  }
+  for (const relativePath of policy.validation_examples.production_node_modules.excluded) {
+    assert.equal(mod.shouldExcludeProductionNodeModulePath(relativePath), true, relativePath);
+  }
+  for (const relativePath of policy.validation_examples.production_node_modules.retained) {
+    assert.equal(mod.shouldExcludeProductionNodeModulePath(relativePath), false, relativePath);
+  }
+  for (const relativePath of policy.validation_examples.node_toolchain_global_packages.excluded) {
+    assert.equal(mod.shouldExcludeNodeToolchainPackagePath(relativePath), true, relativePath);
+  }
+  for (const relativePath of policy.validation_examples.node_toolchain_global_packages.retained) {
+    assert.equal(mod.shouldExcludeNodeToolchainPackagePath(relativePath), false, relativePath);
+  }
+
   assert.equal(mod.FULL_RUNTIME_PRUNE_POLICY.schema, 'opl_full_runtime_prune_policy.v1');
   assert.equal(mod.FULL_RUNTIME_PRUNE_POLICY.id, 'full_runtime_offline_first_install_slim_v1');
+  assert.equal(mod.FULL_RUNTIME_PRUNE_POLICY.mode, 'explicit_non_runtime_prune_only');
+  assert.equal(mod.FULL_RUNTIME_PRUNE_POLICY_PATH, path.join(appRoot, 'contracts', 'full-runtime-prune-policy.json'));
+  assert.deepEqual(mod.FULL_RUNTIME_PRUNE_POLICY.runtime_tree, policy.runtime_tree);
   assert.match(mod.buildFullRuntimePrunePolicyHash(), /^[a-f0-9]{64}$/);
   assert.equal(mod.buildFullPackageManifest({ version: '26.5.15' }).runtime_prune_policy.id, mod.FULL_RUNTIME_PRUNE_POLICY.id);
+  assert.match(runtimeCacheScript, /contracts\/full-runtime-prune-policy\.json/);
+
+  const auditResult = runNode(['scripts/audit-full-runtime-prune-policy.ts', '--json']);
+  assert.equal(auditResult.status, 0, auditResult.stderr);
+  const audit = JSON.parse(auditResult.stdout);
+  assert.equal(audit.schema, 'opl_full_runtime_prune_policy_audit.v1');
+  assert.equal(audit.source_of_truth, 'contracts/full-runtime-prune-policy.json');
+  assert.equal(audit.policy_id, policy.id);
+  assert.equal(audit.policy_hash, mod.buildFullRuntimePrunePolicyHash());
+  assert.equal(audit.examples.status, 'passed');
+  assert.equal(audit.examples.failures.length, 0);
+
+  const auditRuntimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-prune-audit-runtime-'));
+  writeFile(path.join(auditRuntimeRoot, 'modules', 'mas', 'logs', 'latest.log'), 'log');
+  writeFile(path.join(auditRuntimeRoot, 'modules', 'mas', 'src', 'index.py'), 'print("ok")');
+  writeFile(path.join(auditRuntimeRoot, 'node', 'lib', 'node_modules', 'npm', 'docs', 'readme.md'), 'docs');
+  writeFile(path.join(auditRuntimeRoot, 'node', 'lib', 'node_modules', 'npm', 'lib', 'cli.js'), 'cli');
+  writeFile(path.join(auditRuntimeRoot, 'node', 'bin', 'node'), 'node');
+  writeFile(path.join(auditRuntimeRoot, 'opl', 'node_modules', '@temporalio', 'client', 'docs', 'api.md'), 'docs');
+  writeFile(path.join(auditRuntimeRoot, 'opl', 'node_modules', '@temporalio', 'client', 'lib', 'index.js'), 'client');
+  const baselinePath = path.join(auditRuntimeRoot, 'baseline-audit.json');
+  writeFile(
+    baselinePath,
+    JSON.stringify({
+      runtime_scan: {
+        excluded_paths: [
+          'modules/mas/tmp/old.tmp',
+          'node/lib/node_modules/npm/docs',
+        ],
+      },
+    }),
+  );
+  const scanResult = runNode([
+    'scripts/audit-full-runtime-prune-policy.ts',
+    '--json',
+    '--runtime-root',
+    auditRuntimeRoot,
+    '--baseline',
+    baselinePath,
+    '--top',
+    '5',
+  ]);
+  assert.equal(scanResult.status, 0, scanResult.stderr);
+  const scanAudit = JSON.parse(scanResult.stdout);
+  assert.equal(scanAudit.runtime_scan.runtime_root, auditRuntimeRoot);
+  assert.ok(scanAudit.runtime_scan.excluded_paths.includes('modules/mas/logs'));
+  assert.ok(scanAudit.runtime_scan.excluded_paths.includes('modules/mas/logs/latest.log'));
+  assert.ok(scanAudit.runtime_scan.excluded_paths.includes('node/lib/node_modules/npm/docs'));
+  assert.ok(scanAudit.runtime_scan.excluded_paths.includes('node/lib/node_modules/npm/docs/readme.md'));
+  assert.ok(scanAudit.runtime_scan.excluded_paths.includes('opl/node_modules/@temporalio/client/docs'));
+  assert.ok(scanAudit.runtime_scan.excluded_paths.includes('opl/node_modules/@temporalio/client/docs/api.md'));
+  assert.ok(!scanAudit.runtime_scan.excluded_paths.includes('node/lib/node_modules/npm/lib/cli.js'));
+  assert.ok(!scanAudit.runtime_scan.excluded_paths.includes('opl/node_modules'));
+  assert.ok(!scanAudit.runtime_scan.excluded_paths.includes('opl/node_modules/@temporalio/client'));
+  assert.ok(!scanAudit.runtime_scan.excluded_paths.includes('opl/node_modules/@temporalio/client/lib/index.js'));
+  assert.ok(scanAudit.runtime_scan.excluded_bytes > 0);
+  assert.ok(scanAudit.runtime_scan.excluded_by_surface.runtime_tree >= 2);
+  assert.ok(scanAudit.runtime_scan.excluded_by_surface.node_toolchain_global_packages >= 2);
+  assert.ok(scanAudit.runtime_scan.excluded_by_surface.production_node_modules >= 2);
+  assert.ok(scanAudit.runtime_scan.top_excluded_paths.length <= 5);
+  assert.equal(scanAudit.runtime_scan.runtime_assertions.prune_policy_id, policy.id);
+  assert.equal(scanAudit.runtime_scan.runtime_assertions.prune_policy_hash, mod.buildFullRuntimePrunePolicyHash());
+  assert.ok(
+    scanAudit.runtime_scan.runtime_assertions.declared_pruned_paths.some(
+      (entry) => entry.path === 'node/lib/node_modules/npm/docs' && entry.expected === 'absent',
+    ),
+  );
+  assert.ok(scanAudit.runtime_scan_diff.added_excluded_paths.includes('modules/mas/logs'));
+  assert.ok(scanAudit.runtime_scan_diff.removed_excluded_paths.includes('modules/mas/tmp/old.tmp'));
+
   assert.match(buildScript, /shouldExcludeProductionNodeModulePath/);
   assert.match(buildScript, /shouldExcludeNodeToolchainPackagePath/);
   assert.match(buildScript, /copyProductionNodeModule\(sourcePath, targetPath\)/);
@@ -1380,23 +1444,36 @@ test('Full runtime slim policy is declared without moving required payloads to l
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
   const hygiene = releaseContract.release_acceleration.full_runtime_packaging_hygiene;
+  const policy = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'full-runtime-prune-policy.json'), 'utf8'),
+  );
 
   assert.equal(hygiene.prune_policy_id, 'full_runtime_offline_first_install_slim_v1');
   assert.equal(hygiene.manifest_policy_schema, 'opl_full_runtime_prune_policy.v1');
-  assert.ok(hygiene.node_toolchain_pruned.includes('npm/docs'));
-  assert.ok(hygiene.local_state_excluded.includes('logs'));
-  assert.ok(hygiene.local_state_excluded.includes('tmp'));
-  assert.ok(hygiene.local_state_excluded.includes('cache'));
-  assert.equal(hygiene.app_bundle_staging.report, 'full-app-bundle-trim-report.json');
-  assert.equal(hygiene.app_bundle_staging.audit, 'full-package-boundary-audit.json');
-  assert.ok(hygiene.app_bundle_staging.protected_payloads.includes('Contents/Resources/opl-full-runtime'));
-  assert.ok(hygiene.python_runtime_pruned.includes('stdlib test suites'));
-  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz'));
-  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz'));
-  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/node/bin/node'));
-  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/python/<cpython>/bin/python3'));
-  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/modules/mas'));
-  assert.ok(hygiene.retained_offline_payloads.includes('runtime/current/skills'));
+  assert.equal(hygiene.source_of_truth, 'contracts/full-runtime-prune-policy.json');
+  assert.match(hygiene.policy_summary_boundary, /not duplicated here/);
+  assert.deepEqual(hygiene.policy_surfaces, [
+    'runtime_tree',
+    'production_node_modules',
+    'node_toolchain_global_packages',
+    'app_bundle_staging',
+    'runtime_assertions',
+    'validation_examples',
+  ]);
+  assert.equal(policy.app_bundle_staging.report, 'full-app-bundle-trim-report.json');
+  assert.equal(policy.app_bundle_staging.audit, 'full-package-boundary-audit.json');
+  assert.ok(policy.app_bundle_staging.protected_payloads.includes('Contents/Resources/opl-full-runtime'));
+  assert.ok(policy.app_bundle_staging.protected_payloads.includes('Contents/Resources/app.asar.unpacked'));
+  assert.ok(policy.runtime_assertions.expected_absent_paths.includes('node/lib/node_modules/npm/docs'));
+  assert.ok(policy.runtime_assertions.expected_absent_paths.includes('python/*/lib/python*/test'));
+  assert.match(policy.offline_first_install_boundary, /Codex and Temporal archives/);
+  assert.match(policy.offline_first_install_boundary, /packaged default skills stay local/);
+  assert.ok(policy.validation_examples.runtime_tree.retained.includes('modules/mas/src/med_autoscience/__init__.py'));
+  assert.ok(
+    policy.validation_examples.runtime_tree.retained.includes(
+      'modules/meta-agent/runtime/authority_functions/meta-agent-authority-functions.json',
+    ),
+  );
   assert.ok(hygiene.manifest_assertions.includes('runtime_prune_policy.id'));
   assert.ok(hygiene.manifest_assertions.includes('runtime_assertions.prune_policy_hash'));
   assert.ok(hygiene.manifest_assertions.includes('runtime_assertions.offline_required_payloads'));

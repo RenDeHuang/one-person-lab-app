@@ -1,0 +1,236 @@
+{
+  "schema": "opl_full_runtime_prune_policy.v1",
+  "id": "full_runtime_offline_first_install_slim_v1",
+  "owner": "one-person-lab-app",
+  "purpose": "full_first_install_runtime_prune_policy",
+  "state": "active",
+  "mode": "explicit_non_runtime_prune_only",
+  "machine_boundary": "Canonical machine-readable prune policy for the App-owned Full first-install package assembly. Build scripts, cache keys, manifest assertions, and prune audits must derive pruning rules from this file.",
+  "offline_first_install_boundary": "Required Codex and Temporal archives, Node, Python, uv, officecli, mineru, domain modules, and packaged default skills stay local; pruning must not introduce lazy downloads for required launch payloads.",
+  "external_practice_refs": [
+    {
+      "source": "Docker build context",
+      "url": "https://docs.docker.com/build/concepts/context/#dockerignore-files",
+      "adopted_pattern": "Keep package/build-context exclusions declarative and auditable before the builder consumes the tree."
+    },
+    {
+      "source": "npm pack dry-run",
+      "url": "https://docs.npmjs.com/cli/v10/commands/npm-pack/",
+      "adopted_pattern": "Provide dry-run/readback evidence for what a package operation would include or publish."
+    },
+    {
+      "source": "electron-builder application contents",
+      "url": "https://www.electron.build/docs/contents/",
+      "adopted_pattern": "Keep application files and extra resources as explicit package-content surfaces."
+    }
+  ],
+  "runtime_tree": {
+    "excluded_path_segments": [
+      ".git",
+      ".codegraph",
+      ".codex",
+      ".github",
+      ".omx",
+      ".worktrees",
+      ".cache",
+      ".eslintcache",
+      ".hypothesis",
+      ".ipynb_checkpoints",
+      ".mypy_cache",
+      ".next",
+      ".nyc_output",
+      ".parcel-cache",
+      ".pytest_cache",
+      ".rollup.cache",
+      ".ruff_cache",
+      ".storybook",
+      ".turbo",
+      ".tox",
+      "__pycache__",
+      "__snapshots__",
+      "coverage",
+      "logs",
+      "storybook-static",
+      "target",
+      "temp",
+      "tmp",
+      ".DS_Store"
+    ],
+    "excluded_basenames": [
+      ".DS_Store",
+      "state.db"
+    ],
+    "excluded_basename_suffixes": [
+      ".coverage",
+      ".js.map",
+      ".map",
+      ".pyc",
+      ".pyo",
+      ".tsbuildinfo"
+    ],
+    "excluded_path_patterns": [
+      "^hermes\\/(?:web|ui|frontend)(?:\\/|$)",
+      "^hermes\\/tests?(?:\\/|$)",
+      "^hermes\\/.*(?:voice|tts|telegram|discord|slack|matrix|dingtalk|feishu)",
+      "^modules\\/[^/]+\\/\\.venv(?:\\/|$)",
+      "^modules\\/[^/]+\\/node_modules(?:\\/|$)",
+      "^modules\\/[^/]+\\/tests?(?:\\/|$)",
+      "^modules\\/[^/]+\\/(?:build|dist|htmlcov|docs\\/_build|notebooks|playwright-report|runtime|runtime-state|runs|sessions|test-results|\\.ds)(?:\\/|$)",
+      "^modules\\/[^/]+\\/(?:cache|logs?|tmp|temp)(?:\\/|$)",
+      "^opl\\/node_modules(?:\\/|$)",
+      "^opl\\/.*\\/\\.venv(?:\\/|$)",
+      "^opl\\/dist(?:\\/|$)",
+      "^opl\\/(?:build|playwright-report|test-results)(?:\\/|$)",
+      "^opl\\/(?:cache|logs?|tmp|temp)(?:\\/|$)",
+      "^python\\/[^/]+\\/lib\\/python\\d+\\.\\d+\\/(?:test|idlelib\\/idle_test|tkinter\\/test|unittest\\/test|ctypes\\/test|distutils\\/tests|lib2to3\\/tests)(?:\\/|$)"
+    ],
+    "included_path_patterns": [
+      "^modules\\/meta-agent\\/runtime$",
+      "^modules\\/meta-agent\\/runtime\\/authority_functions(?:\\/|$)"
+    ]
+  },
+  "production_node_modules": {
+    "source": "package-lock production dependencies allowlist",
+    "excluded_path_patterns": [
+      "(?:^|\\/)(?:__fixtures__|__mocks__|__snapshots__|benchmarks?|coverage|docs?|examples?|fixtures?|playwright-report|storybook-static|test-results|tests?)(?:\\/|$)",
+      "(?:^|\\/)(?:\\.cache|\\.github|\\.nyc_output|\\.pytest_cache|\\.turbo)(?:\\/|$)"
+    ]
+  },
+  "node_toolchain_global_packages": {
+    "copied_packages": [
+      "npm",
+      "corepack"
+    ],
+    "excluded_path_patterns": [
+      "(?:^|\\/)(?:__fixtures__|__mocks__|__snapshots__|benchmarks?|coverage|docs?|examples?|fixtures?|man|playwright-report|tap-snapshots|test-results|tests?)(?:\\/|$)",
+      "(?:^|\\/)(?:\\.cache|\\.github|\\.nyc_output|\\.tap|\\.turbo)(?:\\/|$)"
+    ]
+  },
+  "app_bundle_staging": {
+    "mode": "post_build_pre_dmg_explicit_non_runtime_trim",
+    "report": "full-app-bundle-trim-report.json",
+    "audit": "full-package-boundary-audit.json",
+    "trim_directory_basenames": [
+      ".cache",
+      ".parcel-cache",
+      ".turbo",
+      ".vite",
+      "__mocks__",
+      "__snapshots__",
+      "__tests__",
+      "coverage",
+      "playwright-report",
+      "storybook-static",
+      "test-results"
+    ],
+    "trim_file_suffixes": [
+      ".DS_Store",
+      ".js.map",
+      ".map",
+      ".tsbuildinfo",
+      ".log",
+      ".tmp"
+    ],
+    "trim_node_module_directory_basenames": [
+      "test",
+      "tests",
+      "docs",
+      "examples",
+      "fixtures",
+      "benchmarks"
+    ],
+    "excluded_payloads": [
+      "source maps",
+      "test fixtures",
+      "coverage reports",
+      "local caches",
+      "temporary files",
+      "logs"
+    ],
+    "protected_payloads": [
+      "Contents/Resources/opl-full-runtime",
+      "Contents/Resources/bundled-aioncore",
+      "Contents/Resources/app.asar",
+      "Contents/Resources/app.asar.unpacked",
+      "Contents/Frameworks/Electron Framework.framework"
+    ]
+  },
+  "retained_runtime_support": {
+    "python_headers": "retained for offline native-extension build/debug support",
+    "python_ensurepip": "retained so the packaged Python remains self-contained",
+    "node_headers": "not copied into the Full runtime Node payload"
+  },
+  "runtime_assertions": {
+    "expected_absent_paths": [
+      "node/include",
+      "node/share",
+      "node/lib/node_modules/npm/docs",
+      "node/lib/node_modules/npm/man",
+      "node/lib/node_modules/npm/tap-snapshots",
+      "python/*/lib/python*/test",
+      "modules/*/.venv",
+      "modules/*/node_modules",
+      "modules/*/tests",
+      "modules/*/logs",
+      "modules/*/tmp",
+      "modules/*/cache",
+      "modules/*/runtime-state",
+      "modules/*/runs",
+      "modules/*/sessions",
+      "opl/dist",
+      "opl/logs",
+      "opl/tmp",
+      "opl/cache",
+      "opl/node_modules/@temporalio/testing"
+    ]
+  },
+  "validation_examples": {
+    "runtime_tree": {
+      "excluded": [
+        "modules/mas/.venv/lib/python3.12/site-packages/numpy/core.so",
+        "modules/rca/node_modules/@types/node/index.d.ts",
+        "modules/mas/runtime/legacy-state.json",
+        "modules/mas/src/generated/client.js.map",
+        "python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/test/test_os.py"
+      ],
+      "retained": [
+        "modules/mas/src/med_autoscience/__init__.py",
+        "modules/rca/contracts/runtime-program/schema.json",
+        "modules/meta-agent/runtime/authority_functions/meta-agent-authority-functions.json",
+        "modules/rca/prompts/xiaohongshu/style-references/ref.png",
+        "python/cpython-3.12.12-macos-aarch64-none/lib/python3.12/ensurepip/__init__.py"
+      ]
+    },
+    "production_node_modules": {
+      "excluded": [
+        "docs/output/config.md",
+        "examples/basic.js",
+        "tests/index.test.js",
+        "dist/index.js.map"
+      ],
+      "retained": [
+        "lib/index.js",
+        "dist/runtime.cjs",
+        "schema/contract.json",
+        "native/binding.node"
+      ]
+    },
+    "node_toolchain_global_packages": {
+      "excluded": [
+        "docs/output/config.md",
+        "man/man1/npm.1",
+        "tap-snapshots/install.snap",
+        "tests/corepack.test.js"
+      ],
+      "retained": [
+        "lib/cli.js",
+        "dist/corepack.js",
+        "node_modules/@npmcli/arborist/lib/index.js"
+      ]
+    }
+  },
+  "governance": {
+    "audit_command": "npm run release:full:prune-audit -- --markdown",
+    "review_rule": "Changes to excluded or included patterns must include policy-audit output and focused release-boundary tests. Size review is never permission to remove declared offline first-install payloads."
+  }
+}

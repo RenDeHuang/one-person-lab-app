@@ -340,6 +340,16 @@ release-owner receipt. Full DMG warning/review-threshold status alone must not
 block stable clean evidence unless a hard size limit, uncompressed runtime
 limit, offline payload boundary, native trust, or Full clean VM gate fails.
 
+Full runtime pruning is governed by
+`contracts/full-runtime-prune-policy.json`. This is the single machine-readable
+source for runtime tree filters, production dependency package filters, Node
+toolchain package filters, expected pruned-path assertions, and validation
+examples. The build scripts, cache key, Full manifest `runtime_prune_policy`,
+runtime assertions, and `npm run release:full:prune-audit -- --markdown` derive
+from that contract. Operators should run the prune audit before changing rules;
+with `--runtime-root <path>` it reports excluded paths, largest excluded entries,
+runtime assertions, and optional baseline diff.
+
 The v26.6.21 measured record in the release contract records:
 
 - Full DMG: `1121919153` bytes.
