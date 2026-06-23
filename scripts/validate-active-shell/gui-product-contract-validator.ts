@@ -482,12 +482,14 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.settings_environment.must_show?.includes('module path source explanation')) {
     throw new Error('Settings Environment must show module path source explanation');
   }
+  validateEnvironmentModuleMaintenanceEntry(pages.settings_environment.module_maintenance_entry, 'Settings Environment');
   if (!pages.settings_environment.must_not_show?.includes('Med Deep Scientist as a default module')) {
     throw new Error('Settings Environment must keep MDS out of default module display');
   }
   if (pages.settings_environment.managed_update_plane_ref !== 'managed_update_plane') {
     throw new Error('Settings Environment must reference the managed update plane');
   }
+  validateFrameworkModuleMaintenanceEntry(guiContract.framework_surfaces?.managed_update_plane?.ordinary_module_maintenance_entry);
   if (pages.settings_storage.release_contract_ref !== 'contracts/app-release-channel.json#local_data_lifecycle') {
     throw new Error('Settings Storage must reference the App local data lifecycle contract');
   }
@@ -563,4 +565,62 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if ('docker_webui' in guiContract) {
     throw new Error('App GUI contract must not include withdrawn Docker/WebUI username, title, logo, or branding requirements');
   }
+}
+
+function validateEnvironmentModuleMaintenanceEntry(entry, label) {
+  if (
+    entry?.placement !== 'Local Environment' ||
+    entry?.app_role !== 'managed_update_status_action_consumer_only' ||
+    entry?.kernel_implementation_allowed !== false ||
+    entry?.domain_truth_write_allowed !== false ||
+    entry?.owner_receipt_write_allowed !== false ||
+    entry?.developer_checkout_silent_update_allowed !== false ||
+    entry?.dirty_checkout_silent_update_allowed !== false
+  ) {
+    throw new Error(`${label} module maintenance entry must stay under Local Environment as a consumer-only managed update surface`);
+  }
+  assertIncludesAll(entry?.required_modules, ['MAS', 'MAG', 'RCA', 'OMA', 'BookForge'], `${label} module maintenance modules`);
+  assertIncludesAll(
+    entry?.required_status,
+    ['managed agent package/capability exposure state', 'recommended action', 'post-update sync status', 'repair and rollback refs'],
+    `${label} module maintenance status`,
+  );
+  assertDeepEqualJson(
+    entry?.manual_action_mapping,
+    {
+      refresh: 'opl update status --json',
+      check: 'opl update check --json',
+      apply: 'opl update apply --component <component_id> --json',
+      repair: 'opl update repair --receipt <receipt_id> --json',
+      rollback: 'opl update rollback --component <component_id> --json',
+      app_action_route: 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json',
+    },
+    `${label} module maintenance action mapping`,
+  );
+}
+
+function validateFrameworkModuleMaintenanceEntry(entry) {
+  if (
+    entry?.settings_page !== 'settings_environment' ||
+    entry?.display_role !== 'user_facing_module_maintenance_entry' ||
+    entry?.app_role !== 'managed_update_status_action_consumer_only' ||
+    entry?.kernel_implementation_allowed !== false ||
+    entry?.domain_truth_write_allowed !== false ||
+    entry?.developer_checkout_silent_update_allowed !== false ||
+    entry?.dirty_checkout_silent_update_allowed !== false
+  ) {
+    throw new Error('App GUI managed update plane must expose module maintenance under Local Environment without owning the update kernel');
+  }
+  assertIncludesAll(entry?.must_include_modules, ['MAS', 'MAG', 'RCA', 'OMA', 'BookForge'], 'App GUI framework module maintenance modules');
+  assertDeepEqualJson(
+    entry?.manual_action_mapping,
+    {
+      check: 'opl update check --json',
+      apply: 'opl update apply --component <component_id> --json',
+      repair: 'opl update repair --receipt <receipt_id> --json',
+      rollback: 'opl update rollback --component <component_id> --json',
+      app_action_route: 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json',
+    },
+    'App GUI framework module maintenance action mapping',
+  );
 }

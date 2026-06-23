@@ -61,12 +61,45 @@ function validateEnvironmentPage(matrix) {
   if (!environmentPage.must_show?.includes('module path source explanation')) {
     throw new Error('Environment page must show module path source explanation');
   }
+  validateEnvironmentModuleMaintenanceEntry(environmentPage.module_maintenance_entry, 'Environment page');
   if (!environmentPage.must_not_show?.includes('Med Deep Scientist as a default module')) {
     throw new Error('Environment page must keep MDS out of default module display');
   }
   if (environmentPage.managed_update_plane_ref !== 'contracts/app-release-channel.json#managed_update_plane') {
     throw new Error('Environment page must reference the App release managed update plane');
   }
+}
+
+function validateEnvironmentModuleMaintenanceEntry(entry, label) {
+  if (
+    entry?.placement !== 'Local Environment' ||
+    entry?.app_role !== 'managed_update_status_action_consumer_only' ||
+    entry?.kernel_implementation_allowed !== false ||
+    entry?.domain_truth_write_allowed !== false ||
+    entry?.owner_receipt_write_allowed !== false ||
+    entry?.developer_checkout_silent_update_allowed !== false ||
+    entry?.dirty_checkout_silent_update_allowed !== false
+  ) {
+    throw new Error(`${label} module maintenance entry must stay under Local Environment as a consumer-only managed update surface`);
+  }
+  assertIncludesAll(entry?.required_modules, ['MAS', 'MAG', 'RCA', 'OMA', 'BookForge'], `${label} module maintenance modules`);
+  assertIncludesAll(
+    entry?.required_status,
+    ['managed agent package/capability exposure state', 'recommended action', 'post-update sync status', 'repair and rollback refs'],
+    `${label} module maintenance status`,
+  );
+  assertDeepEqualJson(
+    entry?.manual_action_mapping,
+    {
+      refresh: 'opl update status --json',
+      check: 'opl update check --json',
+      apply: 'opl update apply --component <component_id> --json',
+      repair: 'opl update repair --receipt <receipt_id> --json',
+      rollback: 'opl update rollback --component <component_id> --json',
+      app_action_route: 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json',
+    },
+    `${label} module maintenance action mapping`,
+  );
 }
 
 function validateAdvancedPage(matrix) {

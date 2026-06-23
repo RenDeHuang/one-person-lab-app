@@ -878,7 +878,11 @@
         "environment page named Local Environment, distinct from Project Progress",
         "runtime/toolchain managed updater status from App state or opl update status",
         "agent package channel status and post-update sync status",
-        "capability exposure sync status"
+        "capability exposure sync status",
+        "user-facing module maintenance entry under Local Environment",
+        "BookForge module maintenance status alongside MAS/MAG/RCA/OMA",
+        "managed agent package/capability exposure state and recommended action",
+        "manual check/apply/repair/rollback mappings through opl update or App action routes"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
@@ -887,6 +891,7 @@
         "core.codex",
         "provider.temporal",
         "modules",
+        "module_maintenance",
         "paths",
         "release",
         "managed_update_plane"
@@ -907,12 +912,58 @@
         "backend/provider selector as normal App configuration",
         "raw OPL_MODULE_SOURCE_MODE as ordinary Settings UI",
         "project progress as a settings runtime page",
+        "new Settings top-level tab for module maintenance",
         "Developer Profile checkout as a silent update target",
         "dirty checkout overwrite as a repair action",
+        "developer checkout/dirty checkout as a silent update target",
+        "module maintenance writing runtime/domain truth or update receipts directly",
         "Homebrew/global tool silent upgrade controls"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "managed_update_plane_ref": "contracts/app-release-channel.json#managed_update_plane"
+      "managed_update_plane_ref": "contracts/app-release-channel.json#managed_update_plane",
+      "module_maintenance_entry": {
+        "label_en": "Module Maintenance",
+        "label_zh": "智能体模块维护",
+        "placement": "Local Environment",
+        "status_sources": [
+          "opl app state --profile fast --json#managed_update_plane",
+          "opl update status --json"
+        ],
+        "state_inputs": [
+          "app_state.modules",
+          "managed_update_plane.agent_package_channel",
+          "managed_update_plane.capability_exposure"
+        ],
+        "required_modules": [
+          "MAS",
+          "MAG",
+          "RCA",
+          "OMA",
+          "BookForge"
+        ],
+        "required_status": [
+          "managed agent package/capability exposure state",
+          "recommended action",
+          "last run and next run",
+          "post-update sync status",
+          "repair and rollback refs"
+        ],
+        "manual_action_mapping": {
+          "refresh": "opl update status --json",
+          "check": "opl update check --json",
+          "apply": "opl update apply --component <component_id> --json",
+          "repair": "opl update repair --receipt <receipt_id> --json",
+          "rollback": "opl update rollback --component <component_id> --json",
+          "app_action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json"
+        },
+        "advanced_detail_target": "updates_and_maintenance",
+        "app_role": "managed_update_status_action_consumer_only",
+        "kernel_implementation_allowed": false,
+        "domain_truth_write_allowed": false,
+        "owner_receipt_write_allowed": false,
+        "developer_checkout_silent_update_allowed": false,
+        "dirty_checkout_silent_update_allowed": false
+      }
     },
     {
       "id": "storage",
@@ -986,12 +1037,15 @@
         "runtime/toolchain managed updater status",
         "agent package channel managed updater status",
         "capability exposure sync status",
-        "conditions and repair actions from App state or opl update status"
+        "conditions and repair actions from App state or opl update status",
+        "user-facing module maintenance entry under Local Environment",
+        "manual check/apply/repair/rollback action mapping for managed agent packages and capability exposure"
       ],
       "must_not_show": [
         "Full first-install asset as a standard updater target",
         "Developer Profile checkout as a silent update target",
         "dirty checkout overwrite as a repair action",
+        "developer checkout/dirty checkout as a silent update target",
         "domain truth write controls",
         "owner receipt mutation controls",
         "quality/export verdict controls",
@@ -1038,12 +1092,15 @@
           "runtime/toolchain managed updater status",
           "agent package channel managed updater status",
           "capability exposure sync status",
-          "conditions and repair actions from App state or opl update status"
+          "conditions and repair actions from App state or opl update status",
+          "user-facing module maintenance entry under Local Environment",
+          "manual check/apply/repair/rollback action mapping for managed agent packages and capability exposure"
         ],
         "must_not_show": [
           "Full first-install asset as a standard updater target",
           "Developer Profile checkout as a silent update target",
           "dirty checkout overwrite as a repair action",
+          "developer checkout/dirty checkout as a silent update target",
           "domain truth write controls",
           "owner receipt mutation controls",
           "quality/export verdict controls",

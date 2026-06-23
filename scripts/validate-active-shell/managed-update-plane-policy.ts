@@ -4,12 +4,15 @@ export const managedUpdateMustShow = [
   'agent package channel managed updater status',
   'capability exposure sync status',
   'conditions and repair actions from App state or opl update status',
+  'user-facing module maintenance entry under Local Environment',
+  'manual check/apply/repair/rollback action mapping for managed agent packages and capability exposure',
 ];
 
 export const managedUpdateMustNotShow = [
   'Full first-install asset as a standard updater target',
   'Developer Profile checkout as a silent update target',
   'dirty checkout overwrite as a repair action',
+  'developer checkout/dirty checkout as a silent update target',
   'domain truth write controls',
   'owner receipt mutation controls',
   'quality/export verdict controls',
