@@ -130,7 +130,7 @@ function validateReleaseHomebrewAgentPackPolicy(homebrew, managedUpdatePlane) {
   const agentPack = homebrew.agent_pack_policy;
   assertExpectedFields(
     [
-      { actual: agentPack?.package_kind, expected: 'app_cli_managed_agent_packs' },
+      { actual: agentPack?.package_kind, expected: 'app_cli_managed_opl_packages' },
       { actual: agentPack?.semantic_authority, expected: 'one-person-lab_and_domain_repositories' },
       { actual: agentPack?.homebrew_role, expected: 'not_a_distribution_target' },
       { actual: agentPack?.activation_owner, expected: 'app_cli_managed_background_maintenance' },
@@ -151,24 +151,24 @@ function validateReleaseHomebrewAgentPackPolicy(homebrew, managedUpdatePlane) {
     [
       { actual: agentPack?.managed_update_plane, expected: 'agent_package_channel' },
       { actual: agentPack?.kernel, expected: 'opl_managed_updater_kernel' },
-      { actual: agentPack?.source_role, expected: 'ordinary_user_non_development_agent_update_source' },
+      { actual: agentPack?.source_role, expected: 'ordinary_user_non_development_opl_package_update_source' },
       { actual: agentPack?.registry, expected: 'ghcr.io' },
       { actual: agentPack?.adapter, expected: 'agent_package_channel_adapter' },
       { actual: agentPack?.policy, expected: 'ordinary_user_non_development_silent_background' },
       {
         actual: agentPack?.post_apply,
-        expected: 'sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface',
+        expected: 'sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_capability_exposure_readiness',
       },
       {
         actual: agentPack?.developer_checkout_override_policy,
         expected: 'explicit_developer_profile_source_channel_only',
       },
     ],
-    'Release channel agent-pack policy must bind GHCR agent packages to the managed update plane',
+    'Release channel OPL Packages policy must bind GHCR OPL Packages to the managed update plane',
   );
   assertDeepEqualJson(
     agentPack?.managed_agent_ids,
-    ['mas', 'mag', 'rca', 'oma'],
+    ['mas', 'mag', 'rca', 'oma', 'obf', 'scholarskills'],
     'Release channel managed update agent ids',
   );
   assertIncludesAll(

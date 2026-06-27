@@ -41,6 +41,7 @@ export function validateReleaseManagedUpdatePlaneLanes(managedUpdatePlane) {
   validateManagedUpdateRuntimeAndAgentLanes(
     planeById.get('runtime_toolchain'),
     planeById.get('agent_package_channel'),
+    planeById.get('capability_exposure'),
     managedUpdatePlane?.agent_package_channel,
   );
   validateManagedUpdateCapabilityLane(planeById.get('capability_exposure'));
@@ -87,11 +88,14 @@ function validateReleaseRuntimeToolchainManagedComponents(runtimeUpdater) {
       'officecli',
       'mineru_open_api',
       'companion_skills',
+      'native_helper',
       'opl_framework_runtime',
-      'domain_module_payloads',
     ],
     'Release channel runtime/toolchain updater managed components',
   );
+  if (runtimeUpdater?.managed_components?.includes('domain_module_payloads')) {
+    throw new Error('Release channel runtime/toolchain updater must not own OPL package/domain module payloads');
+  }
 }
 
 function validateReleaseRuntimeToolchainLayering(runtimeUpdater) {
@@ -220,7 +224,7 @@ function validateManagedUpdateAppBinaryLane(appBinaryPlane) {
   );
 }
 
-function validateManagedUpdateRuntimeAndAgentLanes(runtimePlane, agentPlane, agentPackageChannel) {
+function validateManagedUpdateRuntimeAndAgentLanes(runtimePlane, agentPlane, capabilityPlane, agentPackageChannel) {
   if (
     runtimePlane?.updater_kind !== 'managed_updater_kernel' ||
     runtimePlane?.adapter !== 'runtime_toolchain_adapter' ||
@@ -229,12 +233,13 @@ function validateManagedUpdateRuntimeAndAgentLanes(runtimePlane, agentPlane, age
     agentPlane?.updater_kind !== 'managed_updater_kernel' ||
     agentPlane?.adapter !== 'agent_package_channel_adapter' ||
     agentPlane?.policy !== 'ordinary_user_non_development_silent_background' ||
-    agentPlane?.post_apply !== 'sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface'
+    agentPlane?.post_apply !==
+      'sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_capability_exposure_readiness'
   ) {
     throw new Error('Managed update plane runtime/toolchain and agent package lanes must share the managed kernel but differ by adapter/policy/post_apply');
   }
   validateManagedUpdateRuntimeLane(runtimePlane);
-  validateManagedUpdateAgentPackageLane(agentPlane, agentPackageChannel);
+  validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agentPackageChannel);
 }
 
 function validateManagedUpdateRuntimeLane(runtimePlane) {
@@ -268,7 +273,7 @@ function validateManagedUpdateRuntimeLane(runtimePlane) {
   }
 }
 
-function validateManagedUpdateAgentPackageLane(agentPlane, agentPackageChannel) {
+function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agentPackageChannel) {
   assertDeepEqualJson(
     agentPlane?.status_fields,
     [
@@ -279,6 +284,8 @@ function validateManagedUpdateAgentPackageLane(agentPlane, agentPackageChannel) 
       'conditions',
       'repair_actions',
       'components[].receipt.post_apply_hooks',
+      'post_apply_sync.capability_exposure',
+      'readiness.capability_exposure',
       'idempotency_lock.status',
       'execution.status',
       'components[].receipt.last_receipt_ref',
@@ -296,6 +303,9 @@ function validateManagedUpdateAgentPackageLane(agentPlane, agentPackageChannel) 
         'sync_plugin_registry',
         'sync_plugin_packaged_skills',
         'sync_oma_generated_plugin_surface',
+        'sync_bookforge_generated_plugin_surface',
+        'sync_scholarskills_package_surface',
+        'capability_exposure_readiness',
       ],
       reload_guidance: 'reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface',
       auto_apply_eligibility: 'clean_managed_module_roots_only',
@@ -309,12 +319,27 @@ function validateManagedUpdateAgentPackageLane(agentPlane, agentPackageChannel) 
     },
     'Managed update plane agent package post-apply sync guidance',
   );
-  assertDeepEqualJson(agentPlane?.package_agent_ids, ['mas', 'mag', 'rca', 'oma'], 'Managed update plane agent package ids');
+  assertDeepEqualJson(
+    agentPlane?.package_agent_ids,
+    ['mas', 'mag', 'rca', 'oma', 'obf', 'scholarskills'],
+    'Managed update plane agent package ids',
+  );
+  if (
+    agentPlane?.display_group !== 'OPL Packages' ||
+    agentPlane?.display_label_en !== 'OPL Packages' ||
+    agentPlane?.display_label_zh !== 'OPL 能力包' ||
+    agentPlane?.capability_exposure_substatus_source !== 'managed_update_plane.capability_exposure'
+  ) {
+    throw new Error('Managed update plane agent package lane must be displayed as OPL Packages with capability exposure as a substatus');
+  }
+  if (capabilityPlane?.display_group !== 'OPL Packages' || capabilityPlane?.user_visible_channel !== false) {
+    throw new Error('Managed update plane capability exposure must stay under OPL Packages instead of a user-visible channel');
+  }
   if (
     agentPackageChannel?.background_apply_policy !==
-    'apply_after_check_or_plan_when_all_agent_package_components_are_clean_managed_and_update_available'
+    'apply_after_check_or_plan_when_all_opl_package_components_are_clean_managed_and_update_available'
   ) {
-    throw new Error('Managed update plane agent package channel must declare clean managed background auto-apply policy');
+    throw new Error('Managed update plane OPL Packages channel must declare clean managed background auto-apply policy');
   }
   assertDeepEqualJson(
     agentPackageChannel?.background_apply_must_record,
@@ -326,7 +351,12 @@ function validateManagedUpdateAgentPackageLane(agentPlane, agentPackageChannel) 
       'last_auto_apply_skip_reasons',
       'reload_guidance',
     ],
-    'Managed update plane agent package channel background auto-apply receipt projection',
+    'Managed update plane OPL Packages channel background auto-apply receipt projection',
+  );
+  assertDeepEqualJson(
+    agentPackageChannel?.package_agent_ids,
+    ['mas', 'mag', 'rca', 'oma', 'obf', 'scholarskills'],
+    'Managed update plane OPL Packages package ids',
   );
 }
 

@@ -208,7 +208,7 @@
     "standard_updater_metadata_allowed": false,
     "standard_updater_latest_yml_allowed": false,
     "homebrew_tap_write_allowed": false,
-    "scope": "App-owned installed runtime fallback, toolchain layers, companion tools, skills, and managed module payloads only",
+    "scope": "App-owned installed runtime fallback, toolchain layers, companion tools, and native helper payloads only; OPL Packages are managed by the package channel.",
     "default_policy": {
       "auto_check": true,
       "check_schedule": "on_startup_and_daily_background",
@@ -227,8 +227,8 @@
       "officecli",
       "mineru_open_api",
       "companion_skills",
-      "opl_framework_runtime",
-      "domain_module_payloads"
+      "native_helper",
+      "opl_framework_runtime"
     ],
     "layering": {
       "runtime_root": "~/Library/Application Support/OPL/runtime",
@@ -457,7 +457,7 @@
       "one-person-lab-modules-nightly"
     ],
     "agent_pack_policy": {
-      "package_kind": "app_cli_managed_agent_packs",
+      "package_kind": "app_cli_managed_opl_packages",
       "semantic_authority": "one-person-lab_and_domain_repositories",
       "homebrew_role": "not_a_distribution_target",
       "activation_owner": "app_cli_managed_background_maintenance",
@@ -482,16 +482,18 @@
       "must_not_define_agent_semantics": true,
       "managed_update_plane": "agent_package_channel",
       "kernel": "opl_managed_updater_kernel",
-      "source_role": "ordinary_user_non_development_agent_update_source",
+      "source_role": "ordinary_user_non_development_opl_package_update_source",
       "registry": "ghcr.io",
       "adapter": "agent_package_channel_adapter",
       "policy": "ordinary_user_non_development_silent_background",
-      "post_apply": "sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface",
+      "post_apply": "sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_capability_exposure_readiness",
       "managed_agent_ids": [
         "mas",
         "mag",
         "rca",
-        "oma"
+        "oma",
+        "obf",
+        "scholarskills"
       ],
       "developer_checkout_override_policy": "explicit_developer_profile_source_channel_only",
       "forbidden_silent_overwrite_scope": [
@@ -2155,18 +2157,22 @@
       },
       {
         "id": "agent_package_channel",
-        "display_group": "Agent packages",
+        "display_group": "OPL Packages",
+        "display_label_en": "OPL Packages",
+        "display_label_zh": "OPL 能力包",
         "updater_kind": "managed_updater_kernel",
-        "source": "GHCR OPL agent packages",
+        "source": "GHCR OPL Packages",
         "adapter": "agent_package_channel_adapter",
         "policy": "ordinary_user_non_development_silent_background",
-        "post_apply": "sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface",
+        "post_apply": "sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_capability_exposure_readiness",
         "default_update_mode": "silent_background",
         "package_agent_ids": [
           "mas",
           "mag",
           "rca",
-          "oma"
+          "oma",
+          "obf",
+          "scholarskills"
         ],
         "status_fields": [
           "agent_id",
@@ -2176,6 +2182,8 @@
           "conditions",
           "repair_actions",
           "components[].receipt.post_apply_hooks",
+          "post_apply_sync.capability_exposure",
+          "readiness.capability_exposure",
           "idempotency_lock.status",
           "execution.status",
           "components[].receipt.last_receipt_ref",
@@ -2188,7 +2196,10 @@
             "sync_skills",
             "sync_plugin_registry",
             "sync_plugin_packaged_skills",
-            "sync_oma_generated_plugin_surface"
+            "sync_oma_generated_plugin_surface",
+            "sync_bookforge_generated_plugin_surface",
+            "sync_scholarskills_package_surface",
+            "capability_exposure_readiness"
           ],
           "reload_guidance": "reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface",
           "auto_apply_eligibility": "clean_managed_module_roots_only",
@@ -2200,17 +2211,20 @@
             "verification_failed"
           ]
         },
-        "repair_action_scope": "agent_package_reconcile_and_skill_sync_only"
+        "capability_exposure_substatus_source": "managed_update_plane.capability_exposure",
+        "repair_action_scope": "opl_package_reconcile_skill_sync_and_capability_exposure_readiness_only"
       },
       {
         "id": "capability_exposure",
-        "display_group": "Capability exposure",
+        "display_group": "OPL Packages",
+        "user_visible_channel": false,
+        "parent_display_plane": "agent_package_channel",
         "updater_kind": "managed_visibility_projection",
         "source": "OPL App state capability exposure projection",
         "adapter": "codex_exposure_status_adapter",
         "policy": "display_visibility_and_repair_actions_without_duplicate_semantics",
-        "post_apply": "none_display_only_until_framework_action_executes_sync",
-        "default_update_mode": "status_projection",
+        "post_apply": "opl_packages_post_apply_readiness_projection",
+        "default_update_mode": "substatus_projection",
         "status_fields": [
           "codex_plugin_registry",
           "plugin_packaged_skills",
@@ -2222,7 +2236,7 @@
           "reload_guidance"
         ],
         "reload_guidance": "manual_reload_only_after_framework_reports_needs_reload_or_post_apply_sync_changed_cached_capability_surface",
-        "repair_action_scope": "codex_exposure_repair_only"
+        "repair_action_scope": "opl_packages_capability_exposure_repair_substatus_only"
       }
     ],
     "channel_differences": {
@@ -2234,19 +2248,21 @@
       "agent_package_channel": {
         "adapter": "agent_package_channel_adapter",
         "policy": "ordinary_user_non_development_silent_background",
-        "post_apply": "reconcile_modules_sync_skills_sync_plugin_registry_and_oma_generated_plugin_surface"
+        "post_apply": "reconcile_modules_sync_skills_sync_plugin_registry_generated_surfaces_and_capability_exposure_readiness"
       }
     },
     "agent_package_channel": {
       "registry": "ghcr.io",
-      "source_role": "ordinary_user_non_development_agent_update_source",
+      "source_role": "ordinary_user_non_development_opl_package_update_source",
       "default_update_mode": "silent_background",
       "default_manifest_tag": "latest",
       "package_agent_ids": [
         "mas",
         "mag",
         "rca",
-        "oma"
+        "oma",
+        "obf",
+        "scholarskills"
       ],
       "post_update_sync_required": [
         "codex_plugin_registry",
@@ -2257,7 +2273,7 @@
         "opl connect reconcile-modules",
         "opl connect sync-skills"
       ],
-      "background_apply_policy": "apply_after_check_or_plan_when_all_agent_package_components_are_clean_managed_and_update_available",
+      "background_apply_policy": "apply_after_check_or_plan_when_all_opl_package_components_are_clean_managed_and_update_available",
       "background_apply_must_record": [
         "last_auto_apply_at",
         "last_auto_apply_component_ids",
@@ -2325,10 +2341,9 @@
         "backoff_policy": "bounded_retry_with_last_failure_projection",
         "user_blocking": false,
         "must_project_last_run_and_next_run": true,
-        "auto_apply_policy": "auto_apply_clean_managed_agent_package_and_capability_exposure_only",
+        "auto_apply_policy": "auto_apply_clean_opl_packages_only_with_capability_exposure_as_post_apply_substatus",
         "auto_apply_components": [
-          "agent_package_channel",
-          "capability_exposure"
+          "agent_package_channel"
         ],
         "never_auto_apply_components": [
           "app_binary",

@@ -46,8 +46,8 @@ test('runtime toolchain updater is a separate silent App-owned channel', () => {
     'officecli',
     'mineru_open_api',
     'companion_skills',
+    'native_helper',
     'opl_framework_runtime',
-    'domain_module_payloads',
   ]);
   assert.equal(runtimeUpdater.layering.activation, 'swap_current_pointer_on_app_restart_after_startup_smoke');
   assert.equal(runtimeUpdater.rollback_policy.rollback_on_startup_smoke_failure, true);
@@ -237,8 +237,8 @@ test('managed update plane unifies updater status while preserving adapter autho
     backoff_policy: 'bounded_retry_with_last_failure_projection',
     user_blocking: false,
     must_project_last_run_and_next_run: true,
-    auto_apply_policy: 'auto_apply_clean_managed_agent_package_and_capability_exposure_only',
-    auto_apply_components: ['agent_package_channel', 'capability_exposure'],
+    auto_apply_policy: 'auto_apply_clean_opl_packages_only_with_capability_exposure_as_post_apply_substatus',
+    auto_apply_components: ['agent_package_channel'],
     never_auto_apply_components: ['app_binary', 'runtime_toolchain'],
     must_project_recent_actions_and_skip_reasons: true,
   });
@@ -420,7 +420,7 @@ test('managed update plane unifies updater status while preserving adapter autho
   assert.equal(lanes.get('agent_package_channel').policy, 'ordinary_user_non_development_silent_background');
   assert.equal(
     lanes.get('agent_package_channel').post_apply,
-    'sync_plugin_registry_plugin_packaged_skills_and_oma_generated_plugin_surface',
+    'sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_capability_exposure_readiness',
   );
   assert.deepEqual(lanes.get('agent_package_channel').status_fields, [
     'agent_id',
@@ -430,6 +430,8 @@ test('managed update plane unifies updater status while preserving adapter autho
     'conditions',
     'repair_actions',
     'components[].receipt.post_apply_hooks',
+    'post_apply_sync.capability_exposure',
+    'readiness.capability_exposure',
     'idempotency_lock.status',
     'execution.status',
     'components[].receipt.last_receipt_ref',
@@ -443,6 +445,9 @@ test('managed update plane unifies updater status while preserving adapter autho
       'sync_plugin_registry',
       'sync_plugin_packaged_skills',
       'sync_oma_generated_plugin_surface',
+      'sync_bookforge_generated_plugin_surface',
+      'sync_scholarskills_package_surface',
+      'capability_exposure_readiness',
     ],
     reload_guidance: 'reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface',
     auto_apply_eligibility: 'clean_managed_module_roots_only',
@@ -475,11 +480,27 @@ test('managed update plane unifies updater status while preserving adapter autho
     'manual_reload_only_after_framework_reports_needs_reload_or_post_apply_sync_changed_cached_capability_surface',
   );
 
-  assert.deepEqual(lanes.get('agent_package_channel').package_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.equal(lanes.get('agent_package_channel').display_group, 'OPL Packages');
+  assert.equal(lanes.get('agent_package_channel').display_label_en, 'OPL Packages');
+  assert.equal(lanes.get('agent_package_channel').display_label_zh, 'OPL 能力包');
+  assert.equal(
+    lanes.get('agent_package_channel').capability_exposure_substatus_source,
+    'managed_update_plane.capability_exposure',
+  );
+  assert.equal(lanes.get('capability_exposure').display_group, 'OPL Packages');
+  assert.equal(lanes.get('capability_exposure').user_visible_channel, false);
+  assert.deepEqual(lanes.get('agent_package_channel').package_agent_ids, [
+    'mas',
+    'mag',
+    'rca',
+    'oma',
+    'obf',
+    'scholarskills',
+  ]);
   assert.equal(agentPolicy.registry, 'ghcr.io');
-  assert.equal(agentPolicy.source_role, 'ordinary_user_non_development_agent_update_source');
+  assert.equal(agentPolicy.source_role, 'ordinary_user_non_development_opl_package_update_source');
   assert.equal(agentPolicy.default_update_mode, 'silent_background');
-  assert.deepEqual(agentPolicy.managed_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.deepEqual(agentPolicy.managed_agent_ids, ['mas', 'mag', 'rca', 'oma', 'obf', 'scholarskills']);
   assert.deepEqual(plane.agent_package_channel.post_update_sync_required, [
     'codex_plugin_registry',
     'plugin_packaged_skills',
@@ -491,7 +512,7 @@ test('managed update plane unifies updater status while preserving adapter autho
   ]);
   assert.equal(
     plane.agent_package_channel.background_apply_policy,
-    'apply_after_check_or_plan_when_all_agent_package_components_are_clean_managed_and_update_available',
+    'apply_after_check_or_plan_when_all_opl_package_components_are_clean_managed_and_update_available',
   );
   assert.deepEqual(plane.agent_package_channel.background_apply_must_record, [
     'last_auto_apply_at',
@@ -588,14 +609,12 @@ test('managed update plane unifies updater status while preserving adapter autho
   assert.deepEqual(guiContract.pages.update.sections, [
     'app_binary',
     'runtime_toolchain',
-    'agent_packages',
-    'capability_exposure',
+    'opl_packages',
   ]);
   assert.deepEqual(guiContract.pages.update.managed_update_plane.display_planes, [
     'app_binary',
     'runtime_toolchain',
     'agent_package_channel',
-    'capability_exposure',
   ]);
   assert.deepEqual(updatePage.sections, guiContract.pages.update.sections);
   assert.equal(updatePage.page_contract, 'updates_and_maintenance');
@@ -610,12 +629,12 @@ test('managed update plane unifies updater status while preserving adapter autho
     'skipped_reasons',
     'reload_guidance',
   ]);
-  assert.ok(updatePage.must_show.includes('agent package channel managed updater status'));
+  assert.ok(updatePage.must_show.includes('OPL Packages managed updater status'));
   assert.ok(updatePage.must_not_show.includes('dirty checkout overwrite as a repair action'));
   assert.ok(updatePage.must_not_show.includes('quality/export verdict controls'));
   assert.ok(updatePage.must_not_show.includes('Homebrew/global tool silent upgrade controls'));
   assert.equal(environmentPage.managed_update_plane_ref, 'contracts/app-release-channel.json#managed_update_plane');
-  assert.ok(environmentPage.must_show.includes('agent package channel status and post-update sync status'));
+  assert.ok(environmentPage.must_show.includes('OPL Packages status and post-update sync status'));
   assert.ok(environmentPage.must_not_show.includes('Developer Profile checkout as a silent update target'));
   assert.equal(aboutPage.managed_update_plane_ref, 'contracts/app-release-channel.json#managed_update_plane');
   assert.ok(aboutPage.must_show.includes('Updates & Maintenance entry on About & Updates'));

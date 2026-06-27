@@ -873,15 +873,16 @@
         "Temporal status from app_state.provider.temporal",
         "MAS/MAG/RCA/OMA module version and source from app_state.modules",
         "module path source explanation",
-        "Developer Profile source_channel capability and managed GHCR agent package channel default",
+        "Developer Profile source_channel capability and managed GHCR OPL Packages channel default",
         "section-level refresh state",
         "environment page named Local Environment, distinct from Project Progress",
         "runtime/toolchain managed updater status from App state or opl update status",
-        "agent package channel status and post-update sync status",
-        "capability exposure sync status",
-        "user-facing module maintenance entry under Local Environment",
+        "OPL Packages status and post-update sync status",
+        "OPL Packages capability exposure sync substatus",
+        "user-facing OPL Packages maintenance entry under Local Environment",
         "BookForge module maintenance status alongside MAS/MAG/RCA/OMA",
-        "managed agent package/capability exposure state and recommended action",
+        "ScholarSkills module maintenance status alongside MAS/MAG/RCA/OMA/BookForge",
+        "OPL Packages state, capability exposure substatus, and recommended action",
         "manual check/apply/repair/rollback mappings through opl update or App action routes"
       ],
       "machine_source": "opl app state --profile fast --json",
@@ -922,8 +923,8 @@
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "managed_update_plane_ref": "contracts/app-release-channel.json#managed_update_plane",
       "module_maintenance_entry": {
-        "label_en": "Module Maintenance",
-        "label_zh": "智能体模块维护",
+        "label_en": "OPL Packages",
+        "label_zh": "OPL 能力包",
         "placement": "Local Environment",
         "status_sources": [
           "opl app state --profile fast --json#managed_update_plane",
@@ -939,10 +940,11 @@
           "MAG",
           "RCA",
           "OMA",
-          "BookForge"
+          "BookForge",
+          "ScholarSkills"
         ],
         "required_status": [
-          "managed agent package/capability exposure state",
+          "OPL Packages state and capability exposure substatus",
           "recommended action",
           "last run and next run",
           "post-update sync status",
@@ -1033,13 +1035,13 @@
       "id": "update",
       "expected_source": "OPL App managed update plane projection",
       "must_show": [
-        "App binary standard updater status",
-        "runtime/toolchain managed updater status",
-        "agent package channel managed updater status",
-        "capability exposure sync status",
+        "App update status",
+        "Runtime/toolchain managed updater status",
+        "OPL Packages managed updater status",
+        "OPL Packages capability exposure readiness and sync substatus",
         "conditions and repair actions from App state or opl update status",
-        "user-facing module maintenance entry under Local Environment",
-        "manual check/apply/repair/rollback action mapping for managed agent packages and capability exposure"
+        "user-facing OPL Packages maintenance entry under Local Environment",
+        "manual check/apply/repair/rollback action mapping for OPL Packages"
       ],
       "must_not_show": [
         "Full first-install asset as a standard updater target",
@@ -1064,8 +1066,7 @@
       "sections": [
         "app_binary",
         "runtime_toolchain",
-        "agent_packages",
-        "capability_exposure"
+        "opl_packages"
       ],
       "managed_update_plane": {
         "page_id": "updates_and_maintenance",
@@ -1081,20 +1082,19 @@
         "display_planes": [
           "app_binary",
           "runtime_toolchain",
-          "agent_package_channel",
-          "capability_exposure"
+          "agent_package_channel"
         ],
         "app_role": "status_conditions_repair_actions_consumer_only",
         "framework_role": "managed_update_kernel_owner",
         "status_consumption_policy": "show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth",
         "must_show": [
-          "App binary standard updater status",
-          "runtime/toolchain managed updater status",
-          "agent package channel managed updater status",
-          "capability exposure sync status",
+          "App update status",
+          "Runtime/toolchain managed updater status",
+          "OPL Packages managed updater status",
+          "OPL Packages capability exposure readiness and sync substatus",
           "conditions and repair actions from App state or opl update status",
-          "user-facing module maintenance entry under Local Environment",
-          "manual check/apply/repair/rollback action mapping for managed agent packages and capability exposure"
+          "user-facing OPL Packages maintenance entry under Local Environment",
+          "manual check/apply/repair/rollback action mapping for OPL Packages"
         ],
         "must_not_show": [
           "Full first-install asset as a standard updater target",
@@ -1117,10 +1117,9 @@
           "backoff_policy": "bounded_retry_with_last_failure_projection",
           "user_blocking": false,
           "must_project_last_run_and_next_run": true,
-          "auto_apply_policy": "auto_apply_clean_managed_agent_package_and_capability_exposure_only",
+          "auto_apply_policy": "auto_apply_clean_opl_packages_only_with_capability_exposure_as_post_apply_substatus",
           "auto_apply_components": [
-            "agent_package_channel",
-            "capability_exposure"
+            "agent_package_channel"
           ],
           "never_auto_apply_components": [
             "app_binary",

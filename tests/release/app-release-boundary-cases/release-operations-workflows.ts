@@ -171,7 +171,7 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
     'manifest_url',
     'local_authorization_policy_asset',
   ]);
-  assert.equal(homebrew.agent_pack_policy.package_kind, 'app_cli_managed_agent_packs');
+  assert.equal(homebrew.agent_pack_policy.package_kind, 'app_cli_managed_opl_packages');
   assert.equal(homebrew.agent_pack_policy.semantic_authority, 'one-person-lab_and_domain_repositories');
   assert.equal(homebrew.agent_pack_policy.homebrew_role, 'not_a_distribution_target');
   assert.equal(homebrew.agent_pack_policy.activation_owner, 'app_cli_managed_background_maintenance');

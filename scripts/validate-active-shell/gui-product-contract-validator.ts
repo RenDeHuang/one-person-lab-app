@@ -200,8 +200,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   for (const explanation of [
     'whether a module comes from the bundled Full runtime payload',
-    'whether a module comes from the App/CLI-managed GHCR agent package channel',
-    'whether a module comes from the App/CLI-managed GHCR agent package channel moving tags',
+    'whether a module comes from the App/CLI-managed GHCR OPL Packages channel',
+    'whether a module comes from the App/CLI-managed GHCR OPL Packages channel moving tags',
     'whether a module comes from a local domain repository checkout',
     'whether Developer Profile source_channel uses a GitHub repo or local checkout',
     'whether a module is managed by App/CLI maintenance',
@@ -212,7 +212,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     }
   }
   if (
-    modulePathPolicy.ordinary_user_source !== 'app_cli_managed_ghcr_agent_package_channel' ||
+    modulePathPolicy.ordinary_user_source !== 'app_cli_managed_ghcr_opl_packages_channel' ||
     modulePathPolicy.ordinary_user_transport !== 'app_cli_managed'
   ) {
     throw new Error('App GUI module path source policy must keep ordinary users on App/CLI-managed package maintenance');
@@ -579,10 +579,19 @@ function validateEnvironmentModuleMaintenanceEntry(entry, label) {
   ) {
     throw new Error(`${label} module maintenance entry must stay under Local Environment as a consumer-only managed update surface`);
   }
-  assertIncludesAll(entry?.required_modules, ['MAS', 'MAG', 'RCA', 'OMA', 'BookForge'], `${label} module maintenance modules`);
+  assertIncludesAll(
+    entry?.required_modules,
+    ['MAS', 'MAG', 'RCA', 'OMA', 'BookForge', 'ScholarSkills'],
+    `${label} module maintenance modules`,
+  );
   assertIncludesAll(
     entry?.required_status,
-    ['managed agent package/capability exposure state', 'recommended action', 'post-update sync status', 'repair and rollback refs'],
+    [
+      'OPL Packages state and capability exposure substatus',
+      'recommended action',
+      'post-update sync status',
+      'repair and rollback refs',
+    ],
     `${label} module maintenance status`,
   );
   assertDeepEqualJson(
@@ -611,7 +620,11 @@ function validateFrameworkModuleMaintenanceEntry(entry) {
   ) {
     throw new Error('App GUI managed update plane must expose module maintenance under Local Environment without owning the update kernel');
   }
-  assertIncludesAll(entry?.must_include_modules, ['MAS', 'MAG', 'RCA', 'OMA', 'BookForge'], 'App GUI framework module maintenance modules');
+  assertIncludesAll(
+    entry?.must_include_modules,
+    ['MAS', 'MAG', 'RCA', 'OMA', 'BookForge', 'ScholarSkills'],
+    'App GUI framework module maintenance modules',
+  );
   assertDeepEqualJson(
     entry?.manual_action_mapping,
     {

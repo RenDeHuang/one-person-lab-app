@@ -489,13 +489,13 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'app_state.modules[].source + app_state.modules[].path + app_state.paths',
   );
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the bundled Full runtime payload'));
-  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed GHCR agent package channel'));
-  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed GHCR agent package channel moving tags'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed GHCR OPL Packages channel'));
+  assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from the App/CLI-managed GHCR OPL Packages channel moving tags'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module comes from a local domain repository checkout'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether Developer Profile source_channel uses a GitHub repo or local checkout'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('whether a module is managed by App/CLI maintenance'));
   assert.ok(guiContract.module_path_source_policy.must_explain.includes('that module path display is refs-only and not domain truth authority'));
-  assert.equal(guiContract.module_path_source_policy.ordinary_user_source, 'app_cli_managed_ghcr_agent_package_channel');
+  assert.equal(guiContract.module_path_source_policy.ordinary_user_source, 'app_cli_managed_ghcr_opl_packages_channel');
   assert.equal(guiContract.module_path_source_policy.ordinary_user_transport, 'app_cli_managed');
   assert.equal(guiContract.module_path_source_policy.developer_override_surface, 'Developer Profile source_channel capability');
   assert.equal(guiContract.module_path_source_policy.developer_override_policy, 'explicit_opt_in_only');

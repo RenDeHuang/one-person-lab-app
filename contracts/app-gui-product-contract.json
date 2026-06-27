@@ -353,7 +353,7 @@
       "action_command": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
       "app_role": "status_conditions_repair_actions_consumer_only",
       "framework_role": "managed_update_kernel_owner",
-      "display_policy": "Updates & Maintenance shows App binary, runtime/toolchain, agent packages, and capability exposure from status projections only",
+      "display_policy": "Updates & Maintenance shows App binary, runtime/toolchain, and OPL Packages; capability exposure is an OPL Packages post-apply/readiness substatus from status projections only",
       "ordinary_module_maintenance_entry": {
         "settings_page": "settings_environment",
         "placement_label_en": "Local Environment",
@@ -367,11 +367,12 @@
           "MAG",
           "RCA",
           "OMA",
-          "BookForge"
+          "BookForge",
+          "ScholarSkills"
         ],
         "must_show_state": [
-          "managed agent package state",
-          "capability exposure sync state",
+          "OPL Packages state",
+          "OPL Packages capability exposure sync substatus",
           "recommended action",
           "post-update sync status",
           "repair and rollback refs"
@@ -870,7 +871,7 @@
     },
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
-    "policy": "Settings is an App-owned information architecture, not an upstream AionUI configuration dump. Ordinary navigation uses General, Access, Agents & Capabilities, Local Environment, Storage, Appearance, Advanced, and About & Updates. Storage owns local data lifecycle inventory, archive/restore proof, runtime pointer prune, and bounded log rotation controls. About & Updates contains the Updates & Maintenance plane for App binary, runtime/toolchain, agent packages, and capability exposure. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation. Pages answer user readiness questions first, with raw implementation details behind secondary disclosure.",
+      "policy": "Settings is an App-owned information architecture, not an upstream AionUI configuration dump. Ordinary navigation uses General, Access, Agents & Capabilities, Local Environment, Storage, Appearance, Advanced, and About & Updates. Storage owns local data lifecycle inventory, archive/restore proof, runtime pointer prune, and bounded log rotation controls. About & Updates contains the Updates & Maintenance plane for App binary, runtime/toolchain, and OPL Packages; capability exposure appears as OPL Packages post-apply/readiness substatus. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation. Pages answer user readiness questions first, with raw implementation details behind secondary disclosure.",
     "primary_tabs": {
       "general": {
         "label_zh": "通用",
@@ -1036,14 +1037,14 @@
     "settings_page": "settings_environment",
     "must_explain": [
       "whether a module comes from the bundled Full runtime payload",
-      "whether a module comes from the App/CLI-managed GHCR agent package channel",
-      "whether a module comes from the App/CLI-managed GHCR agent package channel moving tags",
+        "whether a module comes from the App/CLI-managed GHCR OPL Packages channel",
+        "whether a module comes from the App/CLI-managed GHCR OPL Packages channel moving tags",
       "whether a module comes from a local domain repository checkout",
       "whether Developer Profile source_channel uses a GitHub repo or local checkout",
       "whether a module is managed by App/CLI maintenance",
       "that module path display is refs-only and not domain truth authority"
     ],
-    "ordinary_user_source": "app_cli_managed_ghcr_agent_package_channel",
+      "ordinary_user_source": "app_cli_managed_ghcr_opl_packages_channel",
     "ordinary_user_transport": "app_cli_managed",
     "developer_override_surface": "Developer Profile source_channel capability",
     "developer_override_policy": "explicit_opt_in_only",
@@ -1325,8 +1326,7 @@
       "sections": [
         "app_binary",
         "runtime_toolchain",
-        "agent_packages",
-        "capability_exposure"
+        "opl_packages"
       ],
       "managed_update_plane": {
         "page_id": "updates_and_maintenance",
@@ -1342,20 +1342,19 @@
         "display_planes": [
           "app_binary",
           "runtime_toolchain",
-          "agent_package_channel",
-          "capability_exposure"
+          "agent_package_channel"
         ],
         "app_role": "status_conditions_repair_actions_consumer_only",
         "framework_role": "managed_update_kernel_owner",
         "status_consumption_policy": "show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth",
         "must_show": [
-          "App binary standard updater status",
-          "runtime/toolchain managed updater status",
-          "agent package channel managed updater status",
-          "capability exposure sync status",
+          "App update status",
+          "Runtime/toolchain managed updater status",
+          "OPL Packages managed updater status",
+          "OPL Packages capability exposure readiness and sync substatus",
           "conditions and repair actions from App state or opl update status",
-          "user-facing module maintenance entry under Local Environment",
-          "manual check/apply/repair/rollback action mapping for managed agent packages and capability exposure"
+          "user-facing OPL Packages maintenance entry under Local Environment",
+          "manual check/apply/repair/rollback action mapping for OPL Packages"
         ],
         "must_not_show": [
           "Full first-install asset as a standard updater target",
@@ -1378,10 +1377,9 @@
           "backoff_policy": "bounded_retry_with_last_failure_projection",
           "user_blocking": false,
           "must_project_last_run_and_next_run": true,
-          "auto_apply_policy": "auto_apply_clean_managed_agent_package_and_capability_exposure_only",
+          "auto_apply_policy": "auto_apply_clean_opl_packages_only_with_capability_exposure_as_post_apply_substatus",
           "auto_apply_components": [
-            "agent_package_channel",
-            "capability_exposure"
+            "agent_package_channel"
           ],
           "never_auto_apply_components": [
             "app_binary",
@@ -1407,13 +1405,13 @@
         ]
       },
       "must_show": [
-        "App binary standard updater status",
-        "runtime/toolchain managed updater status",
-        "agent package channel managed updater status",
-        "capability exposure sync status",
+        "App update status",
+        "Runtime/toolchain managed updater status",
+        "OPL Packages managed updater status",
+        "OPL Packages capability exposure readiness and sync substatus",
         "conditions and repair actions from App state or opl update status",
-        "user-facing module maintenance entry under Local Environment",
-        "manual check/apply/repair/rollback action mapping for managed agent packages and capability exposure"
+        "user-facing OPL Packages maintenance entry under Local Environment",
+        "manual check/apply/repair/rollback action mapping for OPL Packages"
       ],
       "must_not_show": [
         "Full first-install asset as a standard updater target",
@@ -1844,15 +1842,16 @@
         "Temporal status from app_state.provider.temporal",
         "MAS/MAG/RCA/OMA module version and source from app_state.modules",
         "module path source explanation",
-        "Developer Profile source_channel capability and managed GHCR agent package channel default",
+        "Developer Profile source_channel capability and managed GHCR OPL Packages channel default",
         "section-level refresh state",
         "environment page named Local Environment, distinct from Project Progress",
         "runtime/toolchain managed updater status from App state or opl update status",
-        "agent package channel status and post-update sync status",
-        "capability exposure sync status",
-        "user-facing module maintenance entry under Local Environment",
+        "OPL Packages status and post-update sync status",
+        "OPL Packages capability exposure sync substatus",
+        "user-facing OPL Packages maintenance entry under Local Environment",
         "BookForge module maintenance status alongside MAS/MAG/RCA/OMA",
-        "managed agent package/capability exposure state and recommended action",
+        "ScholarSkills module maintenance status alongside MAS/MAG/RCA/OMA/BookForge",
+        "OPL Packages state, capability exposure substatus, and recommended action",
         "manual check/apply/repair/rollback mappings through opl update or App action routes"
       ],
       "must_not_show": [
@@ -1869,8 +1868,8 @@
       ],
       "managed_update_plane_ref": "managed_update_plane",
       "module_maintenance_entry": {
-        "label_en": "Module Maintenance",
-        "label_zh": "智能体模块维护",
+        "label_en": "OPL Packages",
+        "label_zh": "OPL 能力包",
         "placement": "Local Environment",
         "status_sources": [
           "opl app state --profile fast --json#managed_update_plane",
@@ -1886,10 +1885,11 @@
           "MAG",
           "RCA",
           "OMA",
-          "BookForge"
+          "BookForge",
+          "ScholarSkills"
         ],
         "required_status": [
-          "managed agent package/capability exposure state",
+          "OPL Packages state and capability exposure substatus",
           "recommended action",
           "last run and next run",
           "post-update sync status",

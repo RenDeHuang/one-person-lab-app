@@ -82,10 +82,19 @@ function validateEnvironmentModuleMaintenanceEntry(entry, label) {
   ) {
     throw new Error(`${label} module maintenance entry must stay under Local Environment as a consumer-only managed update surface`);
   }
-  assertIncludesAll(entry?.required_modules, ['MAS', 'MAG', 'RCA', 'OMA', 'BookForge'], `${label} module maintenance modules`);
+  assertIncludesAll(
+    entry?.required_modules,
+    ['MAS', 'MAG', 'RCA', 'OMA', 'BookForge', 'ScholarSkills'],
+    `${label} module maintenance modules`,
+  );
   assertIncludesAll(
     entry?.required_status,
-    ['managed agent package/capability exposure state', 'recommended action', 'post-update sync status', 'repair and rollback refs'],
+    [
+      'OPL Packages state and capability exposure substatus',
+      'recommended action',
+      'post-update sync status',
+      'repair and rollback refs',
+    ],
     `${label} module maintenance status`,
   );
   assertDeepEqualJson(

@@ -398,8 +398,8 @@
       "officecli",
       "mineru_open_api",
       "companion_skills",
-      "opl_framework_runtime",
-      "domain_module_payloads"
+      "native_helper",
+      "opl_framework_runtime"
     ],
     "user_global_tool_policy": {
       "prefer_compatible_newer_system_tool": true,
@@ -459,11 +459,14 @@
         "one-person-lab-modules-nightly"
       ],
       "agent_pack_policy": {
+        "package_kind": "app_cli_managed_opl_packages",
         "managed_agent_ids": [
           "mas",
           "mag",
           "rca",
-          "oma"
+          "oma",
+          "obf",
+          "scholarskills"
         ],
         "homebrew_distribution_allowed": false,
         "user_visible_formula_allowed": false,
@@ -514,7 +517,8 @@
       "mag",
       "rca",
       "oma",
-      "bookforge"
+      "bookforge",
+      "scholarskills"
     ],
     "default_plugin_agent_ids": [
       "mas",
@@ -537,13 +541,14 @@
     "may_use_developer_checkout_by_default": false,
     "developer_checkout_override_policy": "explicit_opt_in_only",
     "developer_checkout_override_surface": "Developer Profile source_channel capability",
-    "ordinary_user_module_source": "app_cli_managed_ghcr_agent_package_channel",
+    "ordinary_user_module_source": "app_cli_managed_ghcr_opl_packages_channel",
     "module_package_channel_agent_ids": [
       "mas",
       "mag",
       "rca",
       "oma",
-      "bookforge"
+      "bookforge",
+      "scholarskills"
     ],
     "non_module_workflow_plugin_ids": [
       "opl-flow"
@@ -633,6 +638,23 @@
         "product_entry_manifest": "family-product-entry-manifest-v2",
         "canonical_metadata_source": "opl_generated_interface_contract_pack",
         "authority_boundary": "bookforge_owns_book_truth_quality_export_publication_and_owner_receipts; app_and_opl_generated_surfaces_must_not_claim_production_ready"
+      },
+      {
+        "agent_id": "scholarskills",
+        "display_name": "OPL ScholarSkills",
+        "default_home_visible": false,
+        "preferred_distribution": "framework_capability_package",
+        "codex_visible_entry": "opl-scholarskills",
+        "module_id": "scholarskills",
+        "repo_name": "opl-scholarskills",
+        "plugin_registry_required": true,
+        "direct_skill_compatibility_required": true,
+        "plugin_must_package_skill": true,
+        "must_not_create_second_semantics": true,
+        "sync_command": "opl connect sync-skills --domain scholarskills --scope workspace|quest",
+        "product_entry_manifest": "framework_capability_package_catalog",
+        "canonical_metadata_source": "opl_scholarskills_package_contract",
+        "authority_boundary": "scholarskills_provides_non_authoritative_candidate_capabilities; domain_agents_keep_truth_quality_artifact_and_owner_receipt_authority"
       }
     ],
     "managed_agent_pack_distribution": {
@@ -650,7 +672,8 @@
         "mag",
         "rca",
         "oma",
-        "bookforge"
+        "bookforge",
+        "scholarskills"
       ],
       "activation_commands": [
         "opl connect reconcile-modules",
@@ -658,7 +681,7 @@
       ],
       "fallback_source_order": [
         "bundled_full_runtime_modules",
-        "app_cli_managed_ghcr_agent_package_channel",
+        "app_cli_managed_ghcr_opl_packages_channel",
         "explicit_developer_checkout_override"
       ],
       "must_not_depend_on_fixed_version_tag_by_default": true,

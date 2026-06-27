@@ -121,11 +121,14 @@ function validateRuntimeToolchainAutoUpdate(runtimeUpdate) {
       'officecli',
       'mineru_open_api',
       'companion_skills',
+      'native_helper',
       'opl_framework_runtime',
-      'domain_module_payloads',
     ],
     'Install exposure runtime/toolchain managed components',
   );
+  if (runtimeUpdate.managed_components?.includes('domain_module_payloads')) {
+    throw new Error('Install exposure runtime/toolchain must not own OPL package/domain module payloads');
+  }
   validateRuntimeToolchainUserGlobalPolicy(runtimeUpdate.user_global_tool_policy);
   validateRuntimeToolchainCleanMachineRequirement(runtimeUpdate.clean_machine_requirement);
   assertIncludesAll(
@@ -230,6 +233,7 @@ function validateHomebrewUserTargets(homebrew) {
 
 function validateHomebrewAgentPackPolicy(homebrew) {
   if (
+    homebrew.agent_pack_policy?.package_kind !== 'app_cli_managed_opl_packages' ||
     homebrew.agent_pack_policy?.homebrew_distribution_allowed !== false ||
     homebrew.agent_pack_policy?.user_visible_formula_allowed !== false ||
     homebrew.agent_pack_policy?.activation_policy !== 'app_cli_managed_background_maintenance'
@@ -238,7 +242,7 @@ function validateHomebrewAgentPackPolicy(homebrew) {
   }
   assertIncludesAll(
     homebrew.agent_pack_policy?.managed_agent_ids,
-    ['mas', 'mag', 'rca', 'oma'],
+    ['mas', 'mag', 'rca', 'oma', 'obf', 'scholarskills'],
     'Install exposure Homebrew managed agent ids',
   );
   assertIncludesAll(
@@ -269,7 +273,7 @@ function validateManagedAgentPackDistribution(modulePackageDistribution) {
   );
   assertIncludesAll(
     modulePackageDistribution.package_agent_ids,
-    ['mas', 'mag', 'rca', 'oma'],
+    ['mas', 'mag', 'rca', 'oma', 'bookforge', 'scholarskills'],
     'Install exposure module package distribution agent ids',
   );
   assertIncludesAll(
@@ -281,7 +285,7 @@ function validateManagedAgentPackDistribution(modulePackageDistribution) {
     modulePackageDistribution.fallback_source_order,
     [
       'bundled_full_runtime_modules',
-      'app_cli_managed_ghcr_agent_package_channel',
+      'app_cli_managed_ghcr_opl_packages_channel',
       'explicit_developer_checkout_override',
     ],
     'Install exposure module package distribution fallback source order',

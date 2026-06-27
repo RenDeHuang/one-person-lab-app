@@ -444,7 +444,14 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.agent_installation_contract.codex_plugin_registry_target, 'codex_plugin_registry');
   assert.equal(policy.agent_installation_contract.direct_skill_target, 'codex_user_skill_discovery_path');
   assert.equal(policy.agent_installation_contract.product_entry_target, 'family-product-entry-manifest-v2');
-  assert.deepEqual(policy.agent_installation_contract.required_agent_ids, ['mas', 'mag', 'rca', 'oma', 'bookforge']);
+  assert.deepEqual(policy.agent_installation_contract.required_agent_ids, [
+    'mas',
+    'mag',
+    'rca',
+    'oma',
+    'bookforge',
+    'scholarskills',
+  ]);
   assert.deepEqual(policy.agent_installation_contract.default_plugin_agent_ids, ['mas', 'mag', 'rca', 'bookforge']);
   assert.deepEqual(policy.agent_installation_contract.generated_plugin_agent_ids, ['oma', 'bookforge']);
   assert.deepEqual(policy.agent_installation_contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states);
@@ -454,8 +461,15 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     policy.agent_installation_contract.developer_checkout_override_surface,
     'Developer Profile source_channel capability',
   );
-  assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'app_cli_managed_ghcr_agent_package_channel');
-  assert.deepEqual(policy.agent_installation_contract.module_package_channel_agent_ids, ['mas', 'mag', 'rca', 'oma', 'bookforge']);
+  assert.equal(policy.agent_installation_contract.ordinary_user_module_source, 'app_cli_managed_ghcr_opl_packages_channel');
+  assert.deepEqual(policy.agent_installation_contract.module_package_channel_agent_ids, [
+    'mas',
+    'mag',
+    'rca',
+    'oma',
+    'bookforge',
+    'scholarskills',
+  ]);
   assert.deepEqual(policy.agent_installation_contract.non_module_workflow_plugin_ids, ['opl-flow']);
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.channel_id, 'opl_distribution_cohort');
   assert.equal(
@@ -469,7 +483,14 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'plugin_packaged_skills',
     'opl_generated_plugin_surface',
   ]);
-  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.package_agent_ids, ['mas', 'mag', 'rca', 'oma', 'bookforge']);
+  assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.package_agent_ids, [
+    'mas',
+    'mag',
+    'rca',
+    'oma',
+    'bookforge',
+    'scholarskills',
+  ]);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.activation_commands, [
     'opl connect reconcile-modules',
     'opl connect sync-skills',
@@ -494,7 +515,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   ]);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.fallback_source_order, [
     'bundled_full_runtime_modules',
-    'app_cli_managed_ghcr_agent_package_channel',
+    'app_cli_managed_ghcr_opl_packages_channel',
     'explicit_developer_checkout_override',
   ]);
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.must_not_depend_on_fixed_version_tag_by_default, true);
@@ -580,8 +601,8 @@ test('runtime toolchain auto-update stays silent and does not mutate global tool
     'officecli',
     'mineru_open_api',
     'companion_skills',
+    'native_helper',
     'opl_framework_runtime',
-    'domain_module_payloads',
   ]);
   assert.deepEqual(runtimeUpdate.user_global_tool_policy, {
     prefer_compatible_newer_system_tool: true,
@@ -637,7 +658,8 @@ test('Homebrew distribution channel is transport-only and keeps OPL activation a
     standard_updater_visible: false,
     stable_only: true,
   });
-  assert.deepEqual(homebrew.agent_pack_policy.managed_agent_ids, ['mas', 'mag', 'rca', 'oma']);
+  assert.equal(homebrew.agent_pack_policy.package_kind, 'app_cli_managed_opl_packages');
+  assert.deepEqual(homebrew.agent_pack_policy.managed_agent_ids, ['mas', 'mag', 'rca', 'oma', 'obf', 'scholarskills']);
   assert.equal(homebrew.agent_pack_policy.homebrew_distribution_allowed, false);
   assert.equal(homebrew.agent_pack_policy.user_visible_formula_allowed, false);
   assert.equal(homebrew.agent_pack_policy.activation_policy, 'app_cli_managed_background_maintenance');

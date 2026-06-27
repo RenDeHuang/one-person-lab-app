@@ -13,7 +13,7 @@ const packageJsonPath = path.join(appRoot, 'package.json');
 const expectedDefaultPluginAgentIds = ['mas', 'mag', 'rca', 'bookforge'];
 const expectedRepoPackagedPluginAgentIds = ['mas', 'mag', 'rca'];
 const expectedGeneratedAgentIds = ['oma', 'bookforge'];
-const expectedRequiredAgentIds = ['mas', 'mag', 'rca', 'oma', 'bookforge'];
+const expectedRequiredAgentIds = ['mas', 'mag', 'rca', 'oma', 'bookforge', 'scholarskills'];
 const expectedDefaultVisibleDomainSkillIds = ['mas', 'mag', 'rca', 'opl-bookforge'];
 const expectedGeneratedPluginSkillIds = ['opl-meta-agent', 'opl-bookforge'];
 const expectedCompanionSkillSyncIds = [
@@ -230,7 +230,7 @@ function validateAgentInstallationContract(policy: any): any {
     may_use_developer_checkout_by_default: false,
     developer_checkout_override_policy: 'explicit_opt_in_only',
     developer_checkout_override_surface: 'Developer Profile source_channel capability',
-    ordinary_user_module_source: 'app_cli_managed_ghcr_agent_package_channel',
+    ordinary_user_module_source: 'app_cli_managed_ghcr_opl_packages_channel',
     duplicate_bare_skill_policy: 'forbid_domain_plugin_skill_mirrors',
   }, 'agent contract');
   assertArrayEqual(contract.required_agent_ids, expectedRequiredAgentIds, 'required agent ids');
@@ -264,7 +264,7 @@ function validateManagedAgentPackDistribution(contract: any): void {
     activation_commands: ['opl connect reconcile-modules', 'opl connect sync-skills'],
     fallback_source_order: [
       'bundled_full_runtime_modules',
-      'app_cli_managed_ghcr_agent_package_channel',
+      'app_cli_managed_ghcr_opl_packages_channel',
       'explicit_developer_checkout_override',
     ],
     forbidden_homebrew_formulae: ['one-person-lab-modules', 'one-person-lab-modules-nightly'],
