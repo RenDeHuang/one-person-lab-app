@@ -15,6 +15,10 @@ Machine boundary: 本文是人读协作偏好；项目事实、接口约束、�
 
 上位原则是 `AI-first / executor-first / purpose-first`：系统为最强执行者提供清晰目标、上下文、工具、权限、质量门、交接边界和可验证输出，让模型、工具和知识面的进步直接转化为产出能力。程序负责搭台、约束边界和承载审计；开放式推理、创作、评审、诊断和修订由合适的执行者完成。
 
+## Target-First / Substrate-As-Path
+
+对 OPL App、GUI/product surface、release/install 或用户可用能力交付任务，真实进度按可运行产品能力、release/install delta、owner decision、human gate、可接力 artifact delta 或用户可用结果计算；runtime、provider、read model、测试、docs、packaging 和平台修复只是支持证据。App/OPL 执行基座是首选路径，不是产品交付的前置条件：基座顺畅时走基座，基座卡住时，前端执行者继续推进合法的产品交付增量，并把暴露出的基座问题作为 side repair lane 记录或修复。只有继续动作会越权写 release/install authority surface、缺少必要 source/artifact、或同一写集 ownership 冲突且无法隔离时，才暂停具体目标动作。repair lane 不能吞掉产品主线，除非用户目标本身就是平台修复。
+
 ## 原则
 
 1. **AI 执行优先**
