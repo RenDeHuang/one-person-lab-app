@@ -269,6 +269,57 @@ export function readFullPackageBuilderSource() {
   ].join('\n');
 }
 
+function escapedPattern(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function assertFullFirstInstallOptionTables(buildScript: string) {
+  assert.match(buildScript, /const booleanOptionSetters = new Map\(\[/);
+  for (const option of [
+    '--skip-gui-build',
+    '--split-runtime',
+    '--reuse-gui-vite-output',
+    '--print-runtime-cache-keys',
+    '--include-bun-runtime',
+  ]) {
+    assert.match(buildScript, new RegExp(`\\['${escapedPattern(option)}', \\(parsed\\) =>`));
+  }
+  assert.match(buildScript, /const valueOptionSetters = new Map\(\[/);
+  for (const option of [
+    '--version',
+    '--out-dir',
+    '--framework-root',
+    '--opl-root',
+    '--gui-root',
+    '--mas-root',
+    '--mag-root',
+    '--rca-root',
+    '--meta-agent-root',
+    '--bookforge-root',
+    '--superpowers-root',
+    '--codex-root',
+    '--node-bin',
+    '--bun-bin',
+    '--uv-bin',
+    '--temporal-cli-bin',
+    '--temporal-cli-archive',
+    '--python-root',
+    '--officecli-bin',
+    '--officecli-root',
+    '--mineru-open-api-bin',
+    '--mineru-root',
+    '--mineru-document-extractor-root',
+    '--ui-ux-pro-max-root',
+    '--runtime-cache-dir',
+    '--runtime-cache-mode',
+  ]) {
+    assert.match(buildScript, new RegExp(`\\['${escapedPattern(option)}', \\(parsed, value\\) =>`));
+  }
+  assert.match(buildScript, /const apply = booleanOptionSetters\.get\(token\)/);
+  assert.match(buildScript, /const apply = valueOptionSetters\.get\(token\)/);
+  assert.match(buildScript, /throw new Error\(`Unknown argument: \$\{token\}`\)/);
+}
+
 export function writeBinaryFile(filePath, content) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content);

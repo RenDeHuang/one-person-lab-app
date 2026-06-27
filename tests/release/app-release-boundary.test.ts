@@ -14,4 +14,5 @@ import './app-release-boundary-cases/workflow-release-channels.ts';
 import './app-release-boundary-cases/release-operations-workflows.ts';
 import './app-release-boundary-cases/release-owner-nonready-records.ts';
 import './app-release-boundary-cases/full-first-install-runtime.ts';
+import './app-release-boundary-cases/full-first-install-cache-and-acceleration.ts';
 import './app-release-boundary-cases/full-first-install-args.ts';
