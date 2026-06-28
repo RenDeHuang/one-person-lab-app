@@ -144,6 +144,7 @@ export function assertGuideAssets(label: string, guide = loadGuide(), assetManif
 
   const dimensions: Record<string, { width: number; height: number }> = {};
   const assets: Record<string, Record<string, unknown>> = {};
+  const assetHashes = new Map<string, string>();
   for (const asset of assetNames) {
     const filePath = path.join(assetDir, asset);
     const info = imageInfo(filePath);
@@ -162,6 +163,7 @@ export function assertGuideAssets(label: string, guide = loadGuide(), assetManif
     if (sha256 !== expectedSha256) {
       throw new Error(`${label} screenshot hash mismatch for ${asset}: expected ${expectedSha256}, got ${sha256}`);
     }
+    assetHashes.set(asset, sha256);
     assets[asset] = {
       title: expected.title,
       source_kind: expected.source_kind,
@@ -173,6 +175,13 @@ export function assertGuideAssets(label: string, guide = loadGuide(), assetManif
       height: info.height,
       sha256,
     };
+  }
+  const accessSetupHash = assetHashes.get('03-codex-config-needed.png');
+  const firstRunCheckingHash = assetHashes.get('04-first-run-checking.png');
+  if (accessSetupHash && firstRunCheckingHash && accessSetupHash === firstRunCheckingHash) {
+    throw new Error(
+      `${label} guide screenshots must show distinct access setup and first-run checking states; 03-codex-config-needed.png and 04-first-run-checking.png have the same hash.`
+    );
   }
   return { dimensions, assets };
 }

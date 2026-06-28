@@ -55,15 +55,15 @@
       "sha256": "7c115224fce0cde0b477d4830adbd950cf795a6fbaecfb0fa5c2aeca55933c6f"
     },
     "03-codex-config-needed.png": {
-      "title": "First-run access setup screen",
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/first-run-beginner.png from standard VM smoke",
+      "title": "First-run access key setup screen",
+      "source_kind": "macos_tart_vm_app_cdp_capture_missing_access_key",
+      "source": "artifacts/first-run-beginner.png from first-run-progress-vm-20260621-0025 missing access-key VM smoke",
       "source_width": 1536,
       "source_height": 912,
-      "source_sha256": "523ac9ed1d3f002ddbdadde8138437770a321fd327b785820cf6cba102e2b1db",
+      "source_sha256": "d9390fc78b141972392cd441e6be5fbfa73694e3fd7ffe698053676c6bb9edc8",
       "width": 1536,
       "height": 912,
-      "sha256": "523ac9ed1d3f002ddbdadde8138437770a321fd327b785820cf6cba102e2b1db"
+      "sha256": "d9390fc78b141972392cd441e6be5fbfa73694e3fd7ffe698053676c6bb9edc8"
     },
     "04-first-run-checking.png": {
       "title": "First-run beginner readiness screen",

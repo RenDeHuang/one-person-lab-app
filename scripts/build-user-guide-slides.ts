@@ -91,7 +91,7 @@ function addTitle(slide: number, title: string, subtitle?: string) {
       x: '1.28cm',
       y: '2.55cm',
       width: '30.2cm',
-      height: '0.9cm',
+      height: '1.42cm',
       font: bodyFont,
       'font.ea': cjkFont,
       size: 20,
@@ -175,22 +175,22 @@ function addCalloutPanel(slide: number, callouts: string[]) {
     x: '25.65cm',
     y: '4.6cm',
     width: '6.72cm',
-    height: '7.7cm',
+    height: '9.05cm',
     geometry: 'roundRect',
     fill: panelFill,
     line: border,
     lineWidth: '1pt',
     font: bodyFont,
     'font.ea': cjkFont,
-    size: 16.2,
+    size: 14.2,
     color: primary,
-    lineSpacing: '1.12x',
+    lineSpacing: '1.05x',
     margin: '0.35cm',
   });
   addShape(slide, {
     text: '截图来自 v26.6.5 中文 1080p VM 验证。',
     x: '25.65cm',
-    y: '12.85cm',
+    y: '14.05cm',
     width: '6.72cm',
     height: '1.0cm',
     font: bodyFont,
@@ -315,17 +315,17 @@ function buildStepSlide(step: GuideStep, index: number) {
   addPicture(slide, {
     src: path.join(assetDir, step.asset),
     x: '1.25cm',
-    y: '3.75cm',
+    y: '4.15cm',
     width: '22.85cm',
-    height: '12.85cm',
+    height: '12.05cm',
     alt: step.title,
   });
   addShape(slide, {
     text: plainGuideText(step.body),
     x: '1.25cm',
-    y: '16.9cm',
+    y: '16.55cm',
     width: '22.85cm',
-    height: '0.8cm',
+    height: '1.1cm',
     font: bodyFont,
     'font.ea': cjkFont,
     size: 13,
@@ -468,6 +468,15 @@ function pptxStats() {
   return run('officecli', ['view', slidePptxPath, 'stats']).stdout;
 }
 
+function assertNoPptxIssues() {
+  const output = run('officecli', ['view', slidePptxPath, 'issues']).stdout.trim();
+  const issueCount = Number(output.match(/Found\s+(\d+)\s+issue\(s\)/i)?.[1] ?? 0);
+  if (issueCount > 0) {
+    throw new Error(`Slide deck has layout issues:\n${output}`);
+  }
+  return output;
+}
+
 function main() {
   const { dimensions, assets } = assertGuideAssets('Slide', guide, assetManifest);
   buildPptx();
@@ -482,6 +491,7 @@ function main() {
   if (pageWidth <= pageHeight) throw new Error(`Expected landscape slide PDF, got ${pageWidth}x${pageHeight} pts`);
 
   const stats = pptxStats();
+  const pptxIssues = assertNoPptxIssues();
   const slideMatch = stats.match(/Slides:\s+(\d+)/i) ?? stats.match(/totalSlides:\s+(\d+)/i);
   const slides = Number(slideMatch?.[1] ?? totalSlides);
 
@@ -505,12 +515,13 @@ function main() {
       step_title_pt: 31,
       step_subtitle_pt: 20,
       step_body_pt: 13,
-      callout_pt: '16.2-18',
+      callout_pt: '14.2-18',
       cover_title_pt: 34,
     },
     screenshot_source: screenshotSourceVerification(assetManifest),
     screenshot_assets: assets,
     screenshot_dimensions: dimensions,
+    pptx_layout_issues: pptxIssues,
     rendered_pages: render.pages.length,
     rendered_dir: relativeToApp(render.renderDir),
   };

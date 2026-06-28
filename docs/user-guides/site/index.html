@@ -306,7 +306,7 @@
         <aside>
           <div class="callouts">
             <h3>本页重点</h3>
-            <ul class=""><li>从 GitHub Releases latest 页面下载。</li><li>最简单命令：install-stable.sh。</li><li>首次安装建议使用 Full 版 DMG。</li><li>需要轻量 App 包时可显式选择标准 DMG。</li></ul>
+            <ul class=""><li>从 GitHub Releases latest 页面下载。</li><li>最简单命令：install.sh --stable-macos-install --yes。</li><li>首次安装建议使用 Full 版 DMG。</li><li>需要轻量 App 包时可显式选择标准 DMG。</li></ul>
           </div>
           <ul class="notes"><li>最新版本页面：<a href="https://github.com/gaofeng21cn/one-person-lab-app/releases/latest">https://github.com/gaofeng21cn/one-person-lab-app/releases/latest</a></li><li>最简单的稳定版安装命令：<code>curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes</code>。</li><li>稳定安装器默认下载 latest Full DMG、复制到 Applications，并尽量清理 macOS quarantine，减少首次启动时反复授权；需要轻量标准包时可追加 <code>--standard</code>。</li><li>Full 版 DMG 是首次安装资产，包含 OPL Framework runtime、MAS/MAG/RCA、officecli、mineru-open-api 与推荐 skills 等 payload。</li><li>标准 mac-arm64 DMG 体积更小，适合已经安装过 One Person Lab App 的用户和后续自动更新。</li></ul>
         </aside>
