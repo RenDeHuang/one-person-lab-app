@@ -346,7 +346,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
 
   const ownerBlocker = JSON.parse(
     fs.readFileSync(
-      path.join(appRoot, 'docs', 'release', 'records', 'v26.6.12-release-owner-verdict-pending.json'),
+      path.join(appRoot, 'docs', 'delivery', 'release', 'records', 'v26.6.12-release-owner-verdict-pending.json'),
       'utf8',
     ),
   );
@@ -376,7 +376,7 @@ test('release automation workflows cover remote verification, Full cache warmup,
 
   const ownerReceipt = JSON.parse(
     fs.readFileSync(
-      path.join(appRoot, 'docs', 'release', 'records', 'v26.6.12-release-owner-receipt.json'),
+      path.join(appRoot, 'docs', 'delivery', 'release', 'records', 'v26.6.12-release-owner-receipt.json'),
       'utf8',
     ),
   );

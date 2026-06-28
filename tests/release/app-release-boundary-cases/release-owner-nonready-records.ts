@@ -13,8 +13,8 @@ function readJson(relativePath: string) {
 test('v26.6.12 release owner typed blocker records receipt without release-ready or production-ready claims', () => {
   const releaseContract = readJson('contracts/app-release-channel.json');
   const ownerContract = releaseContract.operator_evidence_bundle.release_owner_verdict;
-  const ownerBlocker = readJson('docs/release/records/v26.6.12-release-owner-verdict-pending.json');
-  const ownerReceipt = readJson('docs/release/records/v26.6.12-release-owner-receipt.json');
+  const ownerBlocker = readJson('docs/delivery/release/records/v26.6.12-release-owner-verdict-pending.json');
+  const ownerReceipt = readJson('docs/delivery/release/records/v26.6.12-release-owner-receipt.json');
   const receiptRef = 'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.12/receipt-20260612-owner-verdict';
   const typedBlockerRef = 'typed_blocker_ref://one-person-lab-app/release-owner/v26.6.12/verdict-pending';
 
