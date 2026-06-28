@@ -9,9 +9,9 @@ Machine boundary: Human-readable invariants. Machine-readable truth lives in `co
 - The App repo is a purpose-first Codex wrapper product authority. It owns how users enter research, grant, presentation, and book work; it does not own the runtime, domain, memory, artifact, or family production truth behind those entries.
 - The App repo owns One Person Lab App GUI product truth. The active shell may implement renderer/process/package/test/release-hook details and absorb upstream AionUI changes, but App page behavior, model-selection policy, onboarding policy, screenshots, and release/user docs stay App-owned.
 - GUI 定义必须从 App-owned product docs 流向 implementation：
-  `docs/app-ideal-gui-interaction-spec.md` 定义交互模型，
-  `docs/codex-to-opl-app-delta.md` 定义 OPL 产品增量，
-  `docs/app-gui-feature-inventory.md` 维护跨 shell 能力清单。
+  `docs/product/gui/ideal-interaction-spec.md` 定义交互模型，
+  `docs/product/gui/codex-to-opl-app-delta.md` 定义 OPL 产品增量，
+  `docs/product/gui/feature-inventory.md` 维护跨 shell 能力清单。
 - The App ordinary path is a Codex CLI fixed-executor experience with built-in MAS/MAG/RCA/BookForge purpose entries. It must not expose Aion CLI, Claude Code, generic backend/provider switching, or permission-mode selectors as normal user choices; model control stays in the App-owned Codex model selector/status.
 - The App home assistant entries are not backend selectors. MAS, MAG, RCA, and BookForge route to Codex with assistant-scoped skill profiles, each default entry must require its matching Codex skill by default, and each created conversation must carry an App-owned route receipt.
 - Ordinary Settings navigation 由 App 拥有。General、Access、Agents & Capabilities、Local Environment、Storage、Appearance、Advanced、About & Updates 是 visible tabs；Storage owns local data lifecycle inventory and receipt-backed cleanup controls. Legacy overview/runtime/system/model/agent/assistants/skills-hub/tools/display/webui/pet routes 必须 redirect 到 App-owned pages，不能成为 normal user paths。

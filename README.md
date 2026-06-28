@@ -275,7 +275,7 @@ updater metadata, and evidence gates, read the
 remaining gaps, read [`docs/status.md`](docs/status.md) and
 [`docs/active/app-ideal-state-gap-plan.md`](docs/active/app-ideal-state-gap-plan.md).
 
-The GUI definition stack starts with the shell-independent ideal interaction spec in [`docs/app-ideal-gui-interaction-spec.md`](docs/app-ideal-gui-interaction-spec.md), then the Codex-to-OPL product delta in [`docs/codex-to-opl-app-delta.md`](docs/codex-to-opl-app-delta.md), then the cross-shell capability inventory in [`docs/app-gui-feature-inventory.md`](docs/app-gui-feature-inventory.md). Use them in that order when designing or reviewing a GUI shell.
+The GUI definition stack starts with the shell-independent ideal interaction spec in [`docs/product/gui/ideal-interaction-spec.md`](docs/product/gui/ideal-interaction-spec.md), then the Codex-to-OPL product delta in [`docs/product/gui/codex-to-opl-app-delta.md`](docs/product/gui/codex-to-opl-app-delta.md), then the cross-shell capability inventory in [`docs/product/gui/feature-inventory.md`](docs/product/gui/feature-inventory.md). Use them in that order when designing or reviewing a GUI shell.
 
 ### Agent / Framework Boundary
 
