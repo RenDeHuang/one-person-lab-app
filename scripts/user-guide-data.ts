@@ -49,24 +49,27 @@ export type AssetVerification = {
 };
 
 export const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const guideDir = path.join(appRoot, 'docs', 'user-guides');
+export const guideDir = path.join(appRoot, 'docs', 'delivery', 'user-guides', 'macos-app-install');
+export const guideSourceDir = path.join(guideDir, 'source');
+export const guideGeneratedDir = path.join(guideDir, 'generated');
+export const guideVerificationDir = path.join(guideDir, 'verification');
 export const publicDocsDir = path.join(appRoot, 'docs', 'public');
 export const publicGuideDir = path.join(publicDocsDir, 'macos-app-install');
 export const publicGuideAssetDir = path.join(publicGuideDir, 'assets');
 export const assetDir = path.join(guideDir, 'assets');
-export const assetManifestPath = path.join(guideDir, 'macos-app-install-assets.json');
-export const guideSourcePath = path.join(guideDir, 'macos-app-install.guide.json');
-export const markdownPath = path.join(guideDir, 'macos-app-install.md');
+export const assetManifestPath = path.join(guideSourceDir, 'macos-app-install-assets.json');
+export const guideSourcePath = path.join(guideSourceDir, 'macos-app-install.guide.json');
+export const markdownPath = path.join(guideGeneratedDir, 'macos-app-install.md');
 export const detailedPdfPath = path.join(publicGuideDir, 'macos-app-install-detailed-guide.pdf');
-export const detailedPdfVerificationPath = path.join(guideDir, 'macos-app-install-verification.json');
-export const slideMarkdownPath = path.join(guideDir, 'macos-app-install-slides.md');
-export const slideThemePath = path.join(guideDir, 'macos-app-install-marp-theme.css');
+export const detailedPdfVerificationPath = path.join(guideVerificationDir, 'macos-app-install-verification.json');
+export const slideMarkdownPath = path.join(guideGeneratedDir, 'macos-app-install-slides.md');
+export const slideThemePath = path.join(guideGeneratedDir, 'macos-app-install-marp-theme.css');
 export const slidePptxPath = path.join(publicGuideDir, 'macos-app-install-slides.pptx');
 export const slidePdfPath = path.join(publicGuideDir, 'macos-app-install-slides.pdf');
-export const slideVerificationPath = path.join(guideDir, 'macos-app-install-slides-verification.json');
+export const slideVerificationPath = path.join(guideVerificationDir, 'macos-app-install-slides-verification.json');
 export const htmlDir = publicGuideDir;
 export const htmlPath = path.join(htmlDir, 'index.html');
-export const htmlVerificationPath = path.join(guideDir, 'macos-app-install-html-verification.json');
+export const htmlVerificationPath = path.join(guideVerificationDir, 'macos-app-install-html-verification.json');
 
 const forbiddenPatterns = [
   /sk-[A-Za-z0-9_-]+/,

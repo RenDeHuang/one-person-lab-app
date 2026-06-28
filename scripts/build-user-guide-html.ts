@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  appRoot,
+  assetDir,
   assetManifestPath,
   assertGuideAssets,
   detailedPdfPath,
@@ -305,7 +305,7 @@ function copyPublicAssets() {
   const assets = new Set(guide.steps.map((step) => step.asset));
   assets.add(guide.cover.image_asset);
   for (const asset of assets) {
-    fs.copyFileSync(path.join(path.dirname(assetManifestPath), 'assets', asset), path.join(publicGuideAssetDir, asset));
+    fs.copyFileSync(path.join(assetDir, asset), path.join(publicGuideAssetDir, asset));
   }
 }
 

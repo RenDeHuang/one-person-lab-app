@@ -59,7 +59,7 @@ function markdownComment(value: string) {
 }
 
 function imagePath(asset: string) {
-  return `assets/${encodeURIComponent(asset)}`;
+  return `../assets/${encodeURIComponent(asset)}`;
 }
 
 function listHtml(items: string[]) {
