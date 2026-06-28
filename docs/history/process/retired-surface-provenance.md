@@ -15,7 +15,7 @@ Machine boundary: 本文只压缩记录已退役 surface、dated evidence foldba
 | App product boundary、runtime/domain/framework non-ownership | `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md` |
 | Public entry and install overview | root `README.md`, `README.zh-CN.md`; release/operator detail in `docs/release/README.md` |
 | GUI product truth and page-state acceptance | `contracts/app-gui-product-contract.json`, `contracts/app-product-profile.json`, `contracts/app-page-state-matrix.json`, `scripts/validate-active-shell.ts`, release-boundary tests |
-| Archived AG-UI/CopilotKit replay boundary | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/agui-codex.json`, `docs/agui-codex-candidate-verification.md`, replay manifests, shell artifacts and CI logs |
+| Archived AG-UI/CopilotKit replay boundary | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/agui-codex.json`, `docs/history/shell-candidates/agui-codex-candidate-verification.md`, replay manifests, shell artifacts and CI logs |
 | Release train, updater, Homebrew, WebUI GHCR, Full package, release evidence | `contracts/app-release-channel.json`, `.github/workflows/*`, release scripts, readiness summaries, candidate records, evidence manifests, updater metadata, release-boundary tests |
 | First-run and install exposure | `contracts/app-first-run-test-matrix.json`, `contracts/app-install-exposure-policy.json`, active-shell validators, release-boundary tests |
 | Runtime page bridge and provider/artifact refs | `contracts/app-runtime-bridge.json`, `contracts/app-page-state-matrix.json`, `contracts/app-gui-product-contract.json`, active-shell validation, OPL Framework `opl app state` / operator drilldown JSON |

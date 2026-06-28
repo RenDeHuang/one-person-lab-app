@@ -94,8 +94,8 @@ truth.
 GUI interaction status is contract-backed as a composer-first Codex canvas with
 purpose entries, App-owned model status, collapsed contextual surfaces, and
 secondary inspector/detail views. The element audit lives in
-`docs/app-gui-element-audit.md`; the target interaction definition lives in
-`docs/app-ideal-gui-interaction-spec.md`; machine acceptance is enforced by
+`docs/product/gui/element-audit.md`; the target interaction definition lives in
+`docs/product/gui/ideal-interaction-spec.md`; machine acceptance is enforced by
 `contracts/app-gui-product-contract.json`,
 `contracts/app-page-state-matrix.json`,
 `contracts/app-product-profile.json`, `scripts/validate-active-shell.ts`, and
@@ -284,8 +284,8 @@ stay framework-owned; MAS/MAG/RCA verdicts and artifact authority remain
 domain-owned refs.
 
 Current GUI product truth has a compact owner stack: human-readable intent lives
-in `docs/app-ideal-gui-interaction-spec.md`,
-`docs/codex-to-opl-app-delta.md`, and `docs/app-gui-feature-inventory.md`;
+in `docs/product/gui/ideal-interaction-spec.md`,
+`docs/product/gui/codex-to-opl-app-delta.md`, and `docs/product/gui/feature-inventory.md`;
 machine-readable GUI truth lives in
 `contracts/app-gui-product-contract.json`,
 `contracts/app-page-state-matrix.json`, `contracts/app-product-profile.json`,
@@ -304,8 +304,8 @@ for that policy: it reports `closed_structure_gate_not_live_evidence` only when
 the active AionUI adapter, Hermes foreground scope, AGUI archived proof policy,
 and no-release/no-live false-ready boundary all match the contracts. Hermes docs
 own the active alternative target plan:
-`docs/opl-hermes-gui-adaptation-plan.md` and
-`docs/opl-hermes-first-run-flow.md`. `docs/agui-codex-candidate-verification.md`
+`docs/product/shell-alternatives/hermes-gui-adaptation-plan.md` and
+`docs/product/shell-alternatives/hermes-first-run-flow.md`. `docs/history/shell-candidates/agui-codex-candidate-verification.md`
 is read only for explicit AGUI replay or historical audit. Default stable/nightly
 packaging continues to resolve `contracts/app-shell-adapter.json` and the active
 `aionui` shell until an explicit release-owner decision changes that contract.

@@ -9,9 +9,9 @@ One Person Lab App is the desktop product repository for One Person Lab. It owns
 
 The intended product shape is a purpose-first Codex App equivalent wrapper for the OPL family: Codex CLI is the fixed executor on the ordinary user path, and MAS, MAG, RCA, and BookForge are built-in intelligent task entries for research, grants, presentation work, and book writing. The App does not present upstream AionUI multi-backend selection as a normal user workflow. Selecting a built-in entry creates a Codex CLI conversation with an App-owned route receipt; it is not a backend switcher.
 
-不绑定具体 shell 的目标交互写在 `docs/app-ideal-gui-interaction-spec.md`。
-Codex App 到 OPL App 的产品增量写在 `docs/codex-to-opl-app-delta.md`。跨 shell
-能力清单仍由 `docs/app-gui-feature-inventory.md` 维护。
+不绑定具体 shell 的目标交互写在 `docs/product/gui/ideal-interaction-spec.md`。
+Codex App 到 OPL App 的产品增量写在 `docs/product/gui/codex-to-opl-app-delta.md`。跨 shell
+能力清单仍由 `docs/product/gui/feature-inventory.md` 维护。
 
 The App consumes OPL Framework CLI JSON, machine-readable contracts, provider receipts, and domain-owned projections. It does not own OPL runtime truth, provider implementation, MAS/MAG/RCA/BookForge domain truth, domain quality verdicts, memory body, artifact body, or artifact authority.
 
