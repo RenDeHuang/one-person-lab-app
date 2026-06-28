@@ -6,6 +6,22 @@ State: `active`
 Machine boundary: Human-readable testing guide. Test code, contracts, and
 artifacts are the executable truth.
 
+This directory is the App testing entry point. It orients maintainers to the
+smallest relevant validation command, explicit release/VM lanes, and evidence
+classification. It does not own release policy, public docs, product design, or
+historical provenance:
+
+| Neighbor docs owner | Use for | Boundary |
+| --- | --- | --- |
+| [`../public/`](../public/) | User-readable guide bundles, especially `macos-app-install` HTML/PDF/PPTX | Public docs are not release/readiness proof |
+| `../product/` | App/workbench/product shell design and GUI support after the product IA lane lands | Product acceptance stays in contracts, page-state matrices, shell validation, source, and tests |
+| `../delivery/` | Release, artifact/package/export, user-guide generation source, screenshots, and verification after the delivery IA lane lands | Release truth stays in assets, updater metadata, evidence manifests, workflows, validators, CI/logs, and release-boundary tests |
+| [`../history/`](../history/) | Retired routes, candidate replay provenance, and process history | Historical only |
+
+Until the delivery lane finalizes paths, release operator docs remain in
+[`../release/`](../release/), and guide source/provenance remains in
+`../user-guides/` plus `../screenshots/`.
+
 ## Active Shell Checks
 
 ```bash

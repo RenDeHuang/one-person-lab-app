@@ -51,6 +51,12 @@ external shell checkouts.
 runs the full active shell validation list and the shell GUI compile path
 through App wrappers. Run shell hygiene in `gaofeng21cn/opl-aion-shell`.
 
+Docs generation commands currently read `docs/user-guides` guide sources and
+write the public bundle under `docs/public/macos-app-install/`. In the target
+docs taxonomy, that source/provenance surface belongs to the delivery owner
+(`docs/delivery/`) once the delivery IA lane finalizes paths; do not change the
+script constants here until that lane lands the move and matching generators.
+
 Examples:
 
 ```bash
