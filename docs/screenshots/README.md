@@ -7,9 +7,10 @@ Machine boundary: Human-readable visual guide index.
 
 This directory is a human-readable index for App visual tutorial material. The
 current macOS install guide screenshot source and provenance live under
-`docs/user-guides/` in the guide source JSON, asset manifest, generated
-verification JSON, and generated reading artifacts. Do not hand-edit generated
-guide outputs or copy their content here as a second source of truth.
+`docs/user-guides/` in the guide source JSON, asset manifest, generated Marp
+source, and generated verification JSON. The clean user-facing guide and
+shareable PDF/PPTX live under `docs/public/macos-app-install/`. Do not hand-edit
+generated guide outputs or copy their content here as a second source of truth.
 
 Shell-specific source screenshots used by tests may remain under
 `shells/aionui/tests/` or the test artifact output directories.

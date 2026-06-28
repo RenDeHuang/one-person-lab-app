@@ -24,7 +24,7 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `cleanup-draft-release-candidates.ts` | Dry-runs or deletes stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. |
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
-| `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates, Stable candidate-record promotion, and post-release `docs/user-guides` screenshot/source/artifact refresh with `npm run docs:macos-guide`. |
+| `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates, Stable candidate-record promotion, and post-release guide refresh with `npm run docs:macos-guide` from `docs/user-guides` sources into `docs/public`. |
 | `closeout-release-run.ts` | Powers the default desktop release `release-closeout-<version>` artifact and local reruns; reads only final small release summaries, writes `release-closeout.json/md`, separates GitHub Actions workflow wall time from Agent orchestration wall time, and points the operator at candidate blockers, failed gates, promotion, or log inspection. |
 | `summarize-github-actions-timing.ts` | Profiles one or more `gh run view --json ...jobs` payloads, including multi-run span, failed/canceled run tax, slow jobs, slow steps, and the operator-loop gap when an Agent wall-time clock is supplied. |
 | `plan-release-gate-reuse.ts` | Compares the current release cohort with a previous promote-ready candidate record, readiness summary, and remote verification artifact, then writes `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable reuse digest. The plan is a decision artifact only; workflow gates still run unless a workflow explicitly consumes it. |
@@ -313,9 +313,10 @@ bundle validation can identify the exact user installation path that failed.
 For normal Stable trains, use `npm run release:plan -- --version <version>
 --include-full-package` as the operator plan: it models
 `new_release -> draft candidate -> gates -> candidate record -> promote` and keeps the
-`docs/user-guides` entry, screenshots, guide source, and generated artifacts refresh in a
+`docs/user-guides` sources, screenshots, and generated public artifacts refresh in a
 post-release lane. Run `npm run docs:macos-guide` for that docs refresh; it
-updates the HTML guide plus the shareable PDF/PPTX and detailed PDF artifacts.
+updates the public HTML guide plus the shareable PDF/PPTX and detailed PDF
+artifacts under `docs/public/macos-app-install/`.
 `refresh_existing` is the
 emergency repair/replace lane for an already published release, not the default
 new Stable path. Once a candidate record, readiness summary, remote verification

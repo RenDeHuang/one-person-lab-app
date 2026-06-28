@@ -42,7 +42,9 @@ runtime, provider, or domain authority.
   release evidence, or history.
 - [`release/`](release/): App release, updater, and Full first-install notes.
 - [`testing/`](testing/): App validation and page-state test guidance.
-- [`user-guides/`](user-guides/): user-facing guide entry point.
+- [`public/`](public/): clean end-user reading entry for publishable guides.
+- [`user-guides/`](user-guides/): guide source, screenshot manifests,
+  generator themes, fixtures, and verification records.
 - [`screenshots/`](screenshots/): screenshot and visual tutorial asset entry.
 - [`history/`](history/): retired App topology and migration notes.
 
@@ -50,7 +52,9 @@ Recent AionUI builtin skill intake, archived AGUI proof smoke records, Hermes
 alternative provenance, and docs-governance closeouts are archived under
 [`history/process/`](history/process/).
 
-This file is the docs entry and navigation index. Current App product profile,
+This file is the docs entry and navigation index. For ordinary users, link to
+[`public/macos-app-install/`](public/macos-app-install/) instead of
+`user-guides/`; the latter is a maintenance/source directory. Current App product profile,
 install/exposure policy, active shell, shell alternatives, release, runtime bridge,
 and live-conformance truth stays in the linked owner docs, `contracts/`,
 validation scripts, tests, release artifacts, updater metadata, and OPL

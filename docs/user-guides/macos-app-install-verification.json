@@ -6,7 +6,7 @@
   "guide_source": "docs/user-guides/macos-app-install.guide.json",
   "screenshot_asset_manifest": "docs/user-guides/macos-app-install-assets.json",
   "source_markdown": "docs/user-guides/macos-app-install.md",
-  "output_pdf": "docs/user-guides/macos-app-install-detailed-guide.pdf",
+  "output_pdf": "docs/public/macos-app-install/macos-app-install-detailed-guide.pdf",
   "screenshot_source": {
     "source": {
       "kind": "macos_tart_vm_guide_artifact",

@@ -15,6 +15,7 @@ import {
   htmlVerificationPath,
   loadAssetManifest,
   loadGuide,
+  publicGuideAssetDir,
   relativeToApp,
   scanTextForSecrets,
   screenshotReleaseTag,
@@ -295,7 +296,17 @@ function css() {
 }
 
 function assetPath(asset: string) {
-  return `../assets/${encodeURIComponent(asset)}`;
+  return `assets/${encodeURIComponent(asset)}`;
+}
+
+function copyPublicAssets() {
+  fs.rmSync(publicGuideAssetDir, { recursive: true, force: true });
+  fs.mkdirSync(publicGuideAssetDir, { recursive: true });
+  const assets = new Set(guide.steps.map((step) => step.asset));
+  assets.add(guide.cover.image_asset);
+  for (const asset of assets) {
+    fs.copyFileSync(path.join(path.dirname(assetManifestPath), 'assets', asset), path.join(publicGuideAssetDir, asset));
+  }
 }
 
 function renderList(items: string[], className: string) {
@@ -359,9 +370,9 @@ function buildHtml() {
             <p class="lede">${escapeHtml(guide.audience)}${escapeHtml(guide.intro)}</p>
             <div class="cta-row">
               <a class="button" href="${escapeHtml(guide.download.latest_release_url)}">下载最新版本</a>
-              <a class="button secondary" href="../macos-app-install-slides.pdf">图文 PDF</a>
-              <a class="button secondary" href="../macos-app-install-slides.pptx">图文 PPTX</a>
-              <a class="button secondary" href="../macos-app-install-detailed-guide.pdf">查看详细 PDF</a>
+              <a class="button secondary" href="macos-app-install-slides.pdf">图文 PDF</a>
+              <a class="button secondary" href="macos-app-install-slides.pptx">图文 PPTX</a>
+              <a class="button secondary" href="macos-app-install-detailed-guide.pdf">查看详细 PDF</a>
             </div>
             <div class="command" aria-label="稳定版一行安装命令"><code>${escapeHtml(guide.download.stable_install_command)}</code></div>
           </div>
@@ -386,15 +397,15 @@ function buildHtml() {
           <h2>下载附件</h2>
           <div class="artifact-grid">
             <div class="artifact">
-              <h3><a href="../macos-app-install-slides.pdf">图文 PDF</a></h3>
+              <h3><a href="macos-app-install-slides.pdf">图文 PDF</a></h3>
               <p>HTML 以外的默认转发附件，16:9 图文教程，适合发给需要在电脑上照着安装的新用户。</p>
             </div>
             <div class="artifact">
-              <h3><a href="../macos-app-install-detailed-guide.pdf">详细 PDF</a></h3>
+              <h3><a href="macos-app-install-detailed-guide.pdf">详细 PDF</a></h3>
               <p>从同一 guide source 派生的长文说明。</p>
             </div>
             <div class="artifact">
-              <h3><a href="../macos-app-install-slides.pptx">图文 PPTX</a></h3>
+              <h3><a href="macos-app-install-slides.pptx">图文 PPTX</a></h3>
               <p>同一 guide source 派生的可编辑 16:9 教程，便于转发、演示和后续维护。</p>
             </div>
           </div>
@@ -417,6 +428,7 @@ function buildHtml() {
 function main() {
   const { dimensions, assets } = assertGuideAssets('HTML guide', guide, assetManifest);
   fs.mkdirSync(htmlDir, { recursive: true });
+  copyPublicAssets();
   const html = buildHtml();
   fs.writeFileSync(htmlPath, html, 'utf8');
   const stats = fs.statSync(htmlPath);

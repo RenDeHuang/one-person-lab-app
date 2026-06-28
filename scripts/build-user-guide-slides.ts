@@ -489,6 +489,7 @@ function marp(args: string[]) {
 }
 
 function buildDeckArtifacts() {
+  fs.mkdirSync(path.dirname(slidePdfPath), { recursive: true });
   fs.rmSync(slidePdfPath, { force: true });
   fs.rmSync(slidePptxPath, { force: true });
   const commonArgs = [

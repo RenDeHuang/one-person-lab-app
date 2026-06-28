@@ -92,6 +92,7 @@ function stripRepositoryMetadata(markdown: string) {
 
 function buildPdf() {
   fs.mkdirSync(tempDir, { recursive: true });
+  fs.mkdirSync(path.dirname(detailedPdfPath), { recursive: true });
   const markdown = buildMarkdown();
   const pandocMarkdown = buildMarkdown({ pandocPageBreaks: true });
   scanTextForSecrets(markdown);

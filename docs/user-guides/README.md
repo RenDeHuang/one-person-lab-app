@@ -1,31 +1,32 @@
-# User Guides
+# User Guide Sources
 
 Owner: `one-person-lab-app`
-Purpose: `app_user_guides`
+Purpose: `app_user_guide_sources`
 State: `active`
-Machine boundary: Human-readable user documentation.
+Machine boundary: Human-readable guide source and generation maintenance.
 
-This directory is the entry point for end-user installation, first-run, update,
-and troubleshooting guides. Framework developer docs remain in
-`gaofeng21cn/one-person-lab`.
+This directory is the maintenance area for guide source, screenshot provenance,
+generated Marp source, fixtures, and verification records. It is not the clean
+end-user reading surface. Link users to
+[`../public/macos-app-install/`](../public/macos-app-install/) instead.
 
-Primary user guide entry:
+Clean user entry:
 
-- [macOS App install HTML guide](site/index.html): primary user-facing
+- [macOS App install guide](../public/macos-app-install/index.html): primary user-facing
   walkthrough. Use this in release notes and onboarding links because it gives
   users a navigable page, generated attachments, FAQ, and screenshot provenance
   in one place.
 
-Generated reading artifacts:
+Generated reading artifacts live beside that HTML entry:
 
-- [macOS App install slides PDF](macos-app-install-slides.pdf): generated 16:9
+- [macOS App install slides PDF](../public/macos-app-install/macos-app-install-slides.pdf): generated 16:9
   screenshot walkthrough for forwarding to users who will follow the guide on a
   computer. This is the primary shareable visual PDF and is exported from the
   Marp Markdown deck with the repo theme.
-- [macOS App install slides PPTX](macos-app-install-slides.pptx): generated 16:9
+- [macOS App install slides PPTX](../public/macos-app-install/macos-app-install-slides.pptx): generated 16:9
   sharing deck exported from the same Marp Markdown deck and theme as the PDF,
   so the visual PDF and PPTX stay aligned.
-- [macOS App install detailed PDF](macos-app-install-detailed-guide.pdf):
+- [macOS App install detailed PDF](../public/macos-app-install/macos-app-install-detailed-guide.pdf):
   generated long-form companion.
 - [macOS App install Markdown](macos-app-install.md): generated long-form text
   source for the detailed PDF. It is not the public onboarding entry.
@@ -43,11 +44,11 @@ Source and verification files:
   `macos-app-install-slides-verification.json`, and
   `macos-app-install-verification.json`: generated verification records.
 
-Read generated Markdown, PDFs, PPTX, and HTML as artifacts derived from the
-guide source and screenshot manifest. If their embedded metadata or titles look
-source-like, the canonical edit path still starts from `macos-app-install.guide.json`
-and regeneration; do not hand-edit generated artifacts as a second content
-source.
+Read generated Markdown, public PDFs/PPTX, and HTML as artifacts derived from
+the guide source and screenshot manifest. If their embedded metadata or titles
+look source-like, the canonical edit path still starts from
+`macos-app-install.guide.json` and regeneration; do not hand-edit generated
+artifacts as a second content source.
 
 Release evidence screenshots have a separate owner. The `screenshots/runtime.png`,
 `screenshots/full.png`, and `screenshots/action.png` paths belong to the
@@ -67,9 +68,9 @@ Update flow:
 2. Update `macos-app-install.guide.json` when the user flow, copy, FAQ,
    artifact links, or step ordering changes. Do not edit generated Markdown or
    slide copy as a second source of truth.
-3. Run `npm run docs:macos-guide` to refresh the HTML guide, Marp slides
-   PDF/PPTX, detailed companion PDF, generated Markdown, and all verification
-   JSON files.
+3. Run `npm run docs:macos-guide` to refresh the public HTML guide, copied
+   public assets, Marp slides PDF/PPTX, detailed companion PDF, generated
+   Markdown, and all verification JSON files.
 4. For targeted regeneration, run `npm run docs:macos-guide:html`,
    `npm run docs:macos-guide:slides`, or `npm run docs:macos-guide:pdf`.
 5. Verify `macos-app-install-html-verification.json`,
