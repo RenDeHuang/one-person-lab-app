@@ -221,7 +221,7 @@ assets stay as GitHub Release first-install downloads and the explicit stable
 `one-person-lab-full` Homebrew cask. Standard updater ZIP trust, App-managed
 local authorization, Full native-runtime trust, size budgets, Homebrew tap
 policy, and release workflow sequencing are governed by
-`contracts/app-release-channel.json`, `docs/release/README.md`, release
+`contracts/app-release-channel.json`, `docs/delivery/release/README.md`, release
 workflows, validators, and release artifacts.
 
 The standard updater now treats downloaded and applied as separate states.
@@ -251,7 +251,7 @@ typed-blocker, install-evidence, and human-gate refs do not authorize
 release-ready, stable/latest promotion, domain readiness, or OPL family
 production readiness.
 
-App release-owner receipt records live in `docs/release/records/` and are
+App release-owner receipt records live in `docs/delivery/release/records/` and are
 validated through `npm run release:owner-candidate-record:verify`. A recorded
 same-cohort owner receipt closes only the App release-owner verdict path for
 that cohort; it does not claim OPL family production readiness, domain

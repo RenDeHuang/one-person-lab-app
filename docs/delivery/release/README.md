@@ -578,7 +578,7 @@ Shell alternative or replay smoke does not imply active-shell adoption, domain r
 
 ## Local Commands
 
-Docs/release-only validation:
+Release-doc validation:
 
 ```bash
 npm run validate:release-boundary

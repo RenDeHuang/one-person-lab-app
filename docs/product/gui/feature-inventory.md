@@ -501,7 +501,7 @@ event frames、debug dashboards 只属于 diagnostics 或 developer verification
 material。
 
 当前 archived proof path 的命令、最低验收和 evidence lifecycle 由
-`docs/agui-codex-candidate-verification.md`、candidate manifest、shell artifacts、
+`docs/history/shell-candidates/agui-codex-candidate-verification.md`、candidate manifest、shell artifacts、
 CI logs 和 App-root validation output 持有。本文只保留 feature-level target shape：
 
 - Electron thin shell 加载 generated App product profile。
@@ -545,7 +545,7 @@ isolation gate 由下列 owner 承接：
 
 | 验证主题 | Current owner |
 | --- | --- |
-| Archived proof runbook、命令顺序、最低验收、evidence lifecycle | `docs/agui-codex-candidate-verification.md` |
+| Archived proof runbook、命令顺序、最低验收、evidence lifecycle | `docs/history/shell-candidates/agui-codex-candidate-verification.md` |
 | Archived proof registry、explicit adapter participation、explicit replay gate、reference implementations | `contracts/app-shell-candidates.json` |
 | Explicit adapter selection and shell root | `contracts/shell-adapters/agui-codex.json`; Hermes uses `contracts/shell-adapters/hermes-codex.json` |
 | Archived proof registry validation | `scripts/validate-shell-candidates.ts` and `npm run validate:shell-candidates -- --candidate agui-codex` |

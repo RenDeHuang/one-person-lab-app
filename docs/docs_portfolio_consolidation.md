@@ -3,68 +3,102 @@
 Owner: `one-person-lab-app`
 Purpose: `docs_lifecycle_governance`
 State: `active_support`
-Machine boundary: Human-readable governance entry and docs role inventory. Machine truth stays in `contracts/`, source, release artifacts, updater metadata, test outputs, active shell validation, and OPL Framework CLI/read-model output consumed by the App.
+Machine boundary: Human-readable governance entry and docs role inventory.
+Machine truth stays in `contracts/`, source, release artifacts, updater
+metadata, test outputs, workflows, active shell validation, and OPL Framework
+CLI/read-model output consumed by the App.
 
 ## Current Conclusion
 
-`one-person-lab-app` owns the desktop product repository: packaging, release assets, updater metadata, first-run product policy, App-level contracts, screenshots, user guides, and App validation wrappers. It consumes OPL Framework CLI JSON, framework contracts, runtime snapshots, provider receipts, and domain-owned projections. It does not own runtime truth, provider implementation, domain truth, domain quality/export verdicts, memory body, artifact body, artifact authority, or owner receipt authority.
+`one-person-lab-app` owns the desktop product repository: packaging, release
+assets, updater metadata, first-run product policy, App-level contracts,
+screenshots, user guides, App validation wrappers, and App public docs. It
+consumes OPL Framework CLI JSON, framework contracts, runtime snapshots,
+provider receipts, and domain-owned projections. It does not own runtime truth,
+provider implementation, domain truth, domain quality/export verdicts, memory
+body, artifact body, artifact authority, or owner receipt authority.
 
-The single Active Truth owner for App product progress, gaps, and next-round baton is `docs/active/app-ideal-state-gap-plan.md`. Durable current truth is split across `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, and `docs/decisions.md`; `docs/README.md` is the docs index. `shells/aionui/` remains an external checkout from `gaofeng21cn/opl-aion-shell`; shell implementation history must not be merged into the App default branch.
-
-This repository intentionally uses a lighter docs taxonomy than the framework and domain-agent repos. It currently has `docs/active/`, `docs/public/`, `docs/history/`, `docs/release/`, `docs/screenshots/`, `docs/testing/`, and `docs/user-guides/`. Future `product/`, `runtime/`, `delivery/`, `source/`, `policies/`, `specs/`, or `references/` directories should be created only when App-owned long-lived material has a clear owner, purpose, state, and machine boundary.
+The root `docs/` layer is now an index and governance layer. It keeps current
+core docs, the active gap plan, and this portfolio governance file. Specific
+product, delivery, testing, public, and history material belongs in the
+taxonomy below instead of growing more root-level topic files.
 
 ## Directory Responsibilities
 
-| Path group | Current role | Machine boundary |
-| --- | --- | --- |
-| `README.md`, `README.zh-CN.md` | Public bilingual App entry and install/product overview | Human-readable product docs; release readiness comes from artifacts, manifests, and validation outputs |
-| `docs/README.md` | Docs entry and App docs index | Navigation only |
-| `docs/active/app-ideal-state-gap-plan.md` | Single Active Truth owner for current progress, gaps, and next-round Agent prompt | Human-readable active plan; contracts/tests/artifacts prove machine claims |
-| `docs/status.md` | Current App repository, shell, release, runtime-page, and validation state | Human-readable status; no runtime/provider/domain authority |
-| `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md` | Product boundary, architecture split, non-ownership rules, and still-active App decisions | Durable human-readable current truth; machine decisions use contracts/source/tests |
-| `docs/product/gui/ideal-interaction-spec.md`, `docs/product/gui/codex-to-opl-app-delta.md`, `docs/product/gui/feature-inventory.md` | GUI 定义栈：理想 Codex App 形态交互、OPL 专用产品增量、跨 shell 能力清单和 reference mapping | 人读 design/product definitions；implementation claims 由 App contracts、page-state matrices、package manifests、UI smoke 和 release evidence 证明 |
-| `docs/product/gui/element-audit.md` | Human review of ordinary user GUI elements, placement, gaps, and interaction logic | Review note only; machine acceptance stays in contracts/page-state matrices/tests |
-| `docs/history/shell-candidates/agui-codex-candidate-verification.md` | Archived AG-UI/CopilotKit technical-proof replay runbook for explicit adapter command order and false-authority boundaries | Executable replay acceptance stays in `contracts/app-shell-candidates.json`, `contracts/shell-adapters/agui-codex.json`, `scripts/validate-shell-candidates/*`, candidate manifests, shell artifacts, CI logs, release evidence, or history |
-| `docs/release/` | Release, updater, Full first-install, and release-evidence notes | Release truth stays in produced assets, updater metadata, evidence manifests, CI/logs, and validation commands |
-| `docs/testing/` | Validation command entry, release evidence classification guidance, and test-surface orientation | Tests, scripts, contracts, workflows and release artifacts are authoritative; release policy itself stays in `docs/release/` and `contracts/app-release-channel.json` |
-| `docs/public/` | Clean end-user reading surfaces and shareable guide attachments | Human-readable public docs; not production/readiness proof |
-| `docs/user-guides/`, `docs/screenshots/` | Guide sources, screenshot provenance, visual tutorial maintenance notes, and generated verification records | Source/maintenance docs; public reading artifacts are generated into `docs/public/` |
-| `docs/history/` | Retired topology, process provenance, and archived dated evidence | Historical only; not active product/runtime truth |
-| `docs/history/process/README.md` | Compressed process-history index and coverage summary | Historical archive index only; current truth stays in active/core docs, contracts, source, tests, artifacts, manifests, workflows, validators, or CI logs |
-| `docs/history/process/retired-surface-provenance.md` | Retired surface, stale evidence, duplicate test, workflow, route, alias, and docs-prose no-resurrection provenance | Historical provenance only; current owner refs are contracts, source, validation scripts, release-boundary tests, workflows, artifacts, candidate manifests, and owner docs |
-| `scripts/README.md` | App wrapper and release script guide | Scripts/tests/contracts determine behavior |
+| Path group | Owner / purpose / state | Current role | Machine boundary |
+| --- | --- | --- | --- |
+| `README.md`, `README.zh-CN.md` | Public App README surfaces; `active` | Product overview, install orientation, and user-facing start points | Human-readable product docs; release readiness comes from artifacts, manifests, workflows, and validation outputs |
+| `docs/README.md` | App docs entry; `active` | Navigation index for core docs and target taxonomy | Navigation only |
+| `docs/docs_portfolio_consolidation.md` | Docs lifecycle governance; `active_support` | Directory owner inventory, lifecycle rules, and foldback routing | Governance only; not runtime/release proof |
+| `docs/active/app-ideal-state-gap-plan.md` | Active product plan; `active_plan` | Current product progress, gaps, and next-round Agent baton | Human-readable active plan; contracts/tests/artifacts prove machine claims |
+| `docs/status.md` | App status; `active` | Current App repository, shell, release, runtime-page, and validation state | Human-readable status; no runtime/provider/domain authority |
+| `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md` | Core current docs; `active` | Product boundary, architecture split, non-ownership rules, and still-active App decisions | Durable human-readable current truth; machine decisions use contracts/source/tests |
+| `docs/public/` | Public docs; `active` | Clean end-user reading surfaces. The primary guide is `docs/public/macos-app-install/README.md`, `index.html`, PDF, and PPTX. | Human-readable public docs; not production/readiness proof |
+| `docs/product/` | Product docs; `active_support` | App/workbench/product shell design, GUI support, foreground shell-alternative material, and product-facing reference docs | Product acceptance stays in App contracts, page-state matrices, active-shell validation, source, and tests |
+| `docs/delivery/` | Delivery docs; `active_support` | Release, artifact/package/export lifecycle, user-guide generation source, screenshot provenance, release evidence, and verification support | Release/delivery truth stays in assets, updater metadata, evidence manifests, CI/logs, workflows, validators, release records, and release-boundary tests |
+| `docs/testing/` | Testing docs; `active` | Test command entry, validation orientation, release-evidence classification guidance, and explicit smoke lanes | Tests, scripts, contracts, workflows, validators, and artifacts are authoritative |
+| `docs/history/` | History docs; `history_index` | Retired topology, process provenance, candidate replay history, stale-surface no-resurrection notes, and archived dated evidence | Historical only; not active product/runtime/release truth |
+| `scripts/README.md` | App wrapper and release script guide; `active_support` | Script/operator command index, including docs generation commands | Scripts/tests/contracts determine behavior |
 
 ## Governance Rules
 
-- App docs must not promote UI rendering, updater metadata, release artifact existence, provider completion, zero-open worklists, or OPL projection into MAS/MAG/RCA/OMA readiness, quality verdict, artifact authority, domain ready, App release ready, or family production ready.
-- App release evidence must be classified as present, missing, typed blocker, or not applicable. Missing screenshots, VM smoke, settings smoke, remote Release checks, or runtime JSON cannot be written as release-ready proof.
-- App-owned product/release contract changes stay in this repo. Active shell implementation changes stay in `gaofeng21cn/opl-aion-shell` unless the App contract or wrapper changes.
-- GUI candidate and external reference docs must keep their lifecycle role clear: Hermes runbooks describe the only foreground alternative; AGUI runbooks describe archived technical-proof replay only; executable acceptance criteria stay in contracts, validators, manifests and candidate artifacts. PilotDeck, Stitch, AG-UI, CopilotKit, and other external materials are implementation/reference inputs until App-owned contracts and adapter gates adopt them.
-- Completed process traces, release command logs, screenshots, VM logs, and remote verification output belong in release artifacts, evidence manifests, CI logs, history/provenance, or commit history. Active docs keep current state and next baton only.
-- Machine consumers must use contracts, source, release artifacts, updater metadata, test outputs, or OPL CLI/read-model output. Markdown paths and headings are human navigation only.
+- Root `docs/` should not accumulate new topic files. Add or move material to
+  `public/`, `product/`, `delivery/`, `testing/`, or `history/` according to
+  the owner and lifecycle role.
+- Every long-lived doc must make owner, purpose, state, and machine boundary
+  clear near the top.
+- `docs/public/` is for users. Link users to
+  `docs/public/macos-app-install/README.md`, `index.html`, PDF, or PPTX; do not
+  point them at guide source directories.
+- `docs/product/` owns App/workbench/product shell design and GUI support.
+  Product claims must fold back to App contracts, page-state matrices,
+  active-shell validation, source, and tests.
+- `docs/delivery/` owns release, artifact/package/export lifecycle, user-guide
+  generation source, screenshot provenance, release records, and verification
+  support. Release claims must fold back to artifacts, updater metadata,
+  evidence manifests, workflows, validators, release-boundary tests, CI logs,
+  or release records.
+- `docs/testing/` owns command orientation and evidence classification only. It
+  must not duplicate full release policy or become a proof ledger.
+- `docs/history/` owns retired routes and process provenance. Historical records
+  are not current truth until their durable conclusion is folded back into core
+  docs, contracts, source, tests, workflows, artifacts, manifests, or validators.
+- App docs must not promote UI rendering, updater metadata, release artifact
+  existence, provider completion, zero-open worklists, or OPL projection into
+  MAS/MAG/RCA/OMA readiness, quality verdict, artifact authority, domain ready,
+  App release ready, or family production ready.
+- Machine consumers must use contracts, source, release artifacts, updater
+  metadata, test outputs, workflows, validators, or OPL CLI/read-model output.
+  Markdown paths and headings are human navigation only.
 
 ## Coverage Ledger Foldback
 
-Dated coverage entries, closeout ledgers, candidate smoke notes, local release/source evidence, and stale-surface retirement notes are compressed under [App process history](./history/process/README.md), with durable no-resurrection rules in [App retired surface provenance](./history/process/retired-surface-provenance.md).
+Dated coverage entries, closeout ledgers, candidate smoke notes, local
+release/source evidence, and stale-surface retirement notes are compressed under
+[App process history](./history/process/README.md), with durable
+no-resurrection rules in
+[App retired surface provenance](./history/process/retired-surface-provenance.md).
 
-The current process index is topic-level only: it records SSOT owners, compressed provenance groups, coverage summary, remaining unreviewed scope, and next write scope. It must not grow back into per-tranche release/candidate evidence logs, VM smoke transcripts, screenshot logs, branch/worktree closeout, or proof-by-proof tranches.
+The current process index is topic-level only: it records SSOT owners,
+compressed provenance groups, coverage summary, remaining unreviewed scope, and
+next write scope. It must not grow back into per-tranche release/candidate
+evidence logs, VM smoke transcripts, screenshot logs, branch/worktree closeout,
+or proof-by-proof tranches.
 
 Future coverage belongs in the narrowest owner:
 
 | Future evidence | Owner |
 | --- | --- |
-| Durable App product or release rule | Core docs, active gap plan, App contracts, source, tests, or release validation docs |
+| Durable App product rule | Core docs, active gap plan, App contracts, source, tests, workflows, or `docs/product/` |
+| Durable App release or delivery rule | `docs/delivery/`, App contracts, source, tests, workflows, release validation docs, release records, artifacts, manifests, or CI logs |
 | Install exposure / Codex-visible domain skill rule | `contracts/app-install-exposure-policy.json`, product profile, status/decisions/active plan and `validate:agent-installation`; README/release/user docs may only point to that owner |
-| Release proof, remote checks, VM smoke, packaged route receipts | Release artifacts, evidence manifests, CI logs, or release history/provenance |
-| Foreground alternative technical smoke, adoption gate, or replacement decision | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/hermes-codex.json`, `scripts/validate-shell-candidates/*`, Hermes candidate manifests, shell artifacts, focused tests, or candidate history/provenance; default-shell replacement requires `contracts/app-shell-adapter.json` and release gates. Archived AGUI replay evidence stays under `contracts/shell-adapters/agui-codex.json` and AGUI provenance only when AGUI is explicitly requested |
-| GUI definition / interaction target | `docs/product/gui/ideal-interaction-spec.md`, `docs/product/gui/codex-to-opl-app-delta.md`, `docs/product/gui/feature-inventory.md`, `docs/product/gui/element-audit.md`, App GUI/page-state/first-run contracts and active-shell validation |
+| Release proof, remote checks, VM smoke, packaged route receipts | Release artifacts, evidence manifests, CI logs, release records, workflows, validators, or release history/provenance |
+| Foreground alternative technical smoke, adoption gate, or replacement decision | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/hermes-codex.json`, `scripts/validate-shell-candidates/*`, Hermes candidate manifests, shell artifacts, focused tests, candidate history/provenance, and `docs/product/shell-alternatives/`; archived AGUI replay evidence stays under `docs/history/shell-candidates/` only when AGUI is explicitly requested |
+| GUI definition / interaction target | `docs/product/gui/`, App GUI/page-state/first-run contracts, and active-shell validation |
+| User guide generation and screenshot provenance | `docs/delivery/user-guides/`, `docs/delivery/release-evidence/`, and generated artifacts in `docs/public/macos-app-install/` |
 | Docs lifecycle tranche closeout | `docs/history/process/README.md` as a compressed theme row, not a dated proof ledger |
-| Testing-doc release evidence guidance | `docs/testing/README.md` for command entry and evidence classification only; release cohort policy stays in `docs/release/README.md`, `contracts/app-release-channel.json`, workflows, validators and release-boundary tests |
+| Testing-doc release evidence guidance | `docs/testing/README.md` for command entry and evidence classification only; release cohort policy stays in delivery/release docs, `contracts/app-release-channel.json`, workflows, validators, and release-boundary tests |
 
-The current App process index keeps topic-level App docs-governance coverage.
-App `README*` and `docs/**/*.md` have no tracked unreviewed docs-governance
-theme remaining in the App process ledger; open App work is
-implementation/evidence-tail work under the owners above. This App coverage
-does not close the parent OPL series docs-governance goal, because the seven-repo
-goal remains open until every repo ledger has no unreviewed docs or unresolved
-stale/retire candidates.
+This App coverage does not close the parent OPL series docs-governance goal,
+because the seven-repo goal remains open until every repo ledger has no
+unreviewed docs or unresolved stale/retire candidates.

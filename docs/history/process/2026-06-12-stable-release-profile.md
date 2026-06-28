@@ -69,14 +69,14 @@ still `release_owner_verdict_pending` and carries neither
 blocker for OPL consumption is:
 `typed_blocker_ref://one-person-lab-app/release-owner/v26.6.12/verdict-pending`,
 tracked in
-`docs/release/records/v26.6.12-release-owner-verdict-pending.json`. This is a
+`docs/delivery/release/records/v26.6.12-release-owner-verdict-pending.json`. This is a
 non-ready owner verdict state; it preserves the passed release/install evidence
 without turning it into App release-owner sign-off.
 
 App release-owner review has now resolved that pending gate with:
 `release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.12/receipt-20260612-owner-verdict`,
 tracked in
-`docs/release/records/v26.6.12-release-owner-receipt.json`. Rebuilding the
+`docs/delivery/release/records/v26.6.12-release-owner-receipt.json`. Rebuilding the
 candidate record from the same run artifacts with that receipt ref makes the
 owner-aware validator return `promote_ready=true` and
 `release_owner_verdict_status=release_owner_receipt_recorded`. This closes the

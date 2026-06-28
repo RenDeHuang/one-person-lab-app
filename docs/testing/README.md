@@ -6,6 +6,18 @@ State: `active`
 Machine boundary: Human-readable testing guide. Test code, contracts, and
 artifacts are the executable truth.
 
+This directory is the App testing entry point. It orients maintainers to the
+smallest relevant validation command, explicit release/VM lanes, and evidence
+classification. It does not own release policy, public docs, product design, or
+historical provenance:
+
+| Neighbor docs owner | Use for | Boundary |
+| --- | --- | --- |
+| [`../public/`](../public/) | User-readable guide bundles, especially `macos-app-install` HTML/PDF/PPTX | Public docs are not release/readiness proof |
+| [`../product/`](../product/) | App/workbench/product shell design and GUI support | Product acceptance stays in contracts, page-state matrices, shell validation, source, and tests |
+| [`../delivery/`](../delivery/) | Release, artifact/package/export, user-guide generation source, screenshots, and verification | Release truth stays in assets, updater metadata, evidence manifests, workflows, validators, CI/logs, and release-boundary tests |
+| [`../history/`](../history/) | Retired routes, candidate replay provenance, and process history | Historical only |
+
 ## Active Shell Checks
 
 ```bash
@@ -150,7 +162,7 @@ examples are compressed under
 This file lists the testing entry points. Release policy, gate membership,
 Homebrew sequencing, Full first-install scope, VM profiles, release notes,
 candidate records, and promotion rules are owned by
-[`docs/release/README.md`](../release/README.md),
+[`docs/delivery/release/README.md`](../delivery/release/README.md),
 `contracts/app-release-channel.json`, release workflows, release validators, and
 release-boundary tests.
 

@@ -3,87 +3,76 @@
 Owner: `one-person-lab-app`
 Purpose: `app_docs_entry`
 State: `active`
-Machine boundary: Human-readable App documentation. Machine-readable truth lives
-in `contracts/`, source, release artifacts, updater metadata, and test results.
+Machine boundary: Human-readable App documentation index. Machine-readable truth
+lives in `contracts/`, source, release artifacts, updater metadata, validation
+outputs, and OPL Framework CLI/read-model output consumed by the App.
 
-This documentation set describes the end-user App repository. The App owns GUI
-truth, release policy, and App-owned documentation. OPL Framework owns the
-`opl app state` and `opl app action` producers consumed by the GUI bridge. The
-active shell is a replaceable renderer and adapter; it does not become product,
-runtime, provider, or domain authority.
+This directory is the App docs entry point. The App owns desktop product
+documentation, GUI/product shell intent, release/install documentation, public
+user guides, and App validation guidance. It consumes OPL Framework runtime
+output and domain-owned projections; it does not own provider runtime truth,
+domain truth, owner receipts, artifact bodies, artifact authority, or quality
+verdicts.
 
-## Current Docs
+## Core Current Docs
 
-- [`active/app-ideal-state-gap-plan.md`](active/app-ideal-state-gap-plan.md):
-  App product active truth, current gaps, and next-round governance baton.
-- [`status.md`](status.md): current App repository and active shell status.
-- [`project.md`](project.md): App product repository role and ownership boundary.
-- [`architecture.md`](architecture.md): App, shell, OPL Framework, and domain-agent ownership split.
-- [`invariants.md`](invariants.md): App repository invariants and non-ownership rules.
-- [`decisions.md`](decisions.md): still-active App product, shell, runtime bridge, release, and docs lifecycle decisions.
-- [`docs_portfolio_consolidation.md`](docs_portfolio_consolidation.md):
-  docs lifecycle governance and unique-role inventory.
-- [`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md)：
-  不绑定具体 shell 的理想 GUI 交互定义，目标是 Codex App 形态的 OPL App。
-- [`app-gui-element-audit.md`](app-gui-element-audit.md)：逐项审计普通用户路径
-  的页面元素、作用、缺口和位置判断。
-- [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)：Codex App 变成
-  OPL App 时需要新增、隐藏和治理的产品增量。
-- [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md)：跨 shell 的
-  GUI 能力清单、reference mapping 和验证类别。
-- [`opl-hermes-gui-adaptation-plan.md`](opl-hermes-gui-adaptation-plan.md)：
-  Hermes Desktop foreground alternative 的 OPL GUI 改造方案、完成度清单、设置页收敛和未 promotion 验收口径。
-- [`opl-hermes-first-run-flow.md`](opl-hermes-first-run-flow.md)：
-  Hermes candidate 的首启初始化、模型访问向导、启动轻量检查和后台刷新验收草案。
-- [`agui-codex-candidate-verification.md`](agui-codex-candidate-verification.md):
-  AG-UI/CopilotKit archived technical-proof replay runbook. This route is read
-  only for explicit AGUI replay or historical audit; executable replay checks
-  stay in adapter contracts, validators, manifests, shell artifacts, CI logs,
-  release evidence, or history.
-- [`release/`](release/): App release, updater, and Full first-install notes.
-- [`testing/`](testing/): App validation and page-state test guidance.
-- [`public/`](public/): clean end-user reading entry for publishable guides.
-- [`user-guides/`](user-guides/): guide source, screenshot manifests,
-  generator themes, fixtures, and verification records.
-- [`screenshots/`](screenshots/): screenshot and visual tutorial asset entry.
-- [`history/`](history/): retired App topology and migration notes.
+The root docs layer stays small: current state, durable decisions, and portfolio
+governance only.
 
-Recent AionUI builtin skill intake, archived AGUI proof smoke records, Hermes
-alternative provenance, and docs-governance closeouts are archived under
-[`history/process/`](history/process/).
+| Doc | Owner / purpose / state | Machine boundary |
+| --- | --- | --- |
+| [`project.md`](project.md) | App repository role and product ownership boundary; `active` | Human-readable product scope; contracts/source/artifacts prove machine claims |
+| [`status.md`](status.md) | Current App repository, shell, release, runtime-page, and validation state; `active` | Status summary only; no runtime/provider/domain authority |
+| [`architecture.md`](architecture.md) | App, shell, OPL Framework, and domain-agent ownership split; `active` | Architecture narrative; executable truth stays in contracts/source/tests |
+| [`invariants.md`](invariants.md) | App repository invariants and non-ownership rules; `active` | Human-readable constraints; guards live in contracts, scripts, workflows, and tests |
+| [`decisions.md`](decisions.md) | Still-active App product, shell, runtime bridge, release, and docs lifecycle decisions; `active` | Durable human-readable decisions; machine gates use contracts/source/tests |
+| [`docs_portfolio_consolidation.md`](docs_portfolio_consolidation.md) | Docs lifecycle governance and directory role inventory; `active_support` | Governance index only; not release/runtime proof |
+| [`active/app-ideal-state-gap-plan.md`](active/app-ideal-state-gap-plan.md) | Active App product progress, gaps, and next-round baton; `active_plan` | Plan/read-model only; not runnable behavior or owner acceptance |
 
-This file is the docs entry and navigation index. For ordinary users, link to
-[`public/macos-app-install/`](public/macos-app-install/) instead of
-`user-guides/`; the latter is a maintenance/source directory. Current App product profile,
-install/exposure policy, active shell, shell alternatives, release, runtime bridge,
-and live-conformance truth stays in the linked owner docs, `contracts/`,
-validation scripts, tests, release artifacts, updater metadata, and OPL
-Framework read-model output consumed by the App.
+## Directory Index
 
-## GUI 定义栈
+| Directory | Owner / purpose / state | Use it for | Machine boundary |
+| --- | --- | --- | --- |
+| [`public/`](public/) | App public docs; `app_public_docs_entry`; `active` | End-user reading surfaces. Start with [`public/macos-app-install/README.md`](public/macos-app-install/README.md), [`index.html`](public/macos-app-install/index.html), PDF, and PPTX. | Public docs are human-readable artifacts, not release/readiness proof. |
+| [`product/`](product/) | App/workbench/product shell design and GUI support; `active_support` | Product requirements, GUI support docs, App/workbench shell design, and product-facing decisions. | Product acceptance stays in App contracts, page-state matrices, shell validation, source, and tests. |
+| [`delivery/`](delivery/) | Release, artifact/package/export, user-guide generation source, and verification; `active_support` | Release operator docs, generated guide source/provenance, screenshots, and package/export lifecycle support. | Release truth stays in produced assets, updater metadata, evidence manifests, CI/logs, workflows, validators, and release-boundary tests. |
+| [`testing/`](testing/) | App testing entry; `app_testing_docs`; `active` | Test, validation, release-evidence classification, and smoke command orientation. | Test code, contracts, workflows, validators, and artifacts are executable truth. |
+| [`history/`](history/) | App historical index; `app_history`; `history_index` | Retired routes, candidate verification provenance, stale-surface no-resurrection notes, and compressed process history. | Historical only; not active product/runtime/release truth. |
+The canonical public user entry is `docs/public/macos-app-install/`; source and
+generated maintenance material belongs under `docs/delivery/`.
 
-设计或评审 GUI 变更时，按以下顺序阅读：
+## Public User Entry
 
-1. [`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md)
-   定义目标用户交互模型。
-2. [`app-gui-element-audit.md`](app-gui-element-audit.md) 说明当前普通用户路径
-   上每个页面元素的作用、缺口和位置判断。
-3. [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 定义 Codex App
-   baseline 之上的 OPL 增量。
-4. [`app-gui-feature-inventory.md`](app-gui-feature-inventory.md) 跟踪跨 shell
-   能力清单、reference mapping 和验证类别。
-5. [`opl-hermes-gui-adaptation-plan.md`](opl-hermes-gui-adaptation-plan.md)
-   只在需要推进 Hermes Desktop foreground alternative 的 GUI 定制、完成度复核、
-   Settings 收敛和可用性验收时阅读。
-6. [`opl-hermes-first-run-flow.md`](opl-hermes-first-run-flow.md)
-   只在需要检查 Hermes foreground alternative 启动分流、首启初始化、模型访问配置
-   和 VM smoke 验收口径时阅读。
-7. [`agui-codex-candidate-verification.md`](agui-codex-candidate-verification.md)
-   只在用户明确要求 AGUI replay，或需要审计 AG-UI/CopilotKit archived proof
-   命令顺序和 false-authority 边界时阅读。
-8. `contracts/` 和 page-state matrices 承载机器可读 gates。
+Use [`public/macos-app-install/README.md`](public/macos-app-install/README.md)
+for links to the publishable macOS App install guide:
 
-## 文档语言
+- [`public/macos-app-install/index.html`](public/macos-app-install/index.html)
+- [`public/macos-app-install/macos-app-install-slides.pdf`](public/macos-app-install/macos-app-install-slides.pdf)
+- [`public/macos-app-install/macos-app-install-slides.pptx`](public/macos-app-install/macos-app-install-slides.pptx)
+- [`public/macos-app-install/macos-app-install-detailed-guide.pdf`](public/macos-app-install/macos-app-install-detailed-guide.pdf)
 
-App 内部开发文档默认使用中文，便于维护者直接评审 GUI、release、contract 和
-runtime boundary。公共 README 可以保留双语或英文入口。
+Do not link ordinary users to `docs/delivery/user-guides/macos-app-install/`;
+it is a maintenance/source surface.
+
+## GUI And Candidate Docs
+
+GUI definition and candidate verification material is separated into
+product/history ownership:
+
+- [`product/gui/`](product/gui/) holds the ideal interaction spec, element
+  audit, Codex-to-OPL product delta, and GUI feature inventory.
+- [`product/shell-alternatives/`](product/shell-alternatives/) holds Hermes
+  Desktop foreground-alternative material.
+- [`history/shell-candidates/`](history/shell-candidates/) holds archived
+  AG-UI/CopilotKit technical-proof replay material for explicit AGUI replay or
+  historical audit.
+
+Executable acceptance for GUI/candidate work stays in contracts, adapter
+manifests, validators, shell artifacts, tests, release artifacts, workflows, and
+CI logs.
+
+## Documentation Language
+
+App internal development docs default to Chinese so GUI, release, contract, and
+runtime-boundary reviews stay direct for maintainers. Public README surfaces may
+remain bilingual or English when product distribution needs it.

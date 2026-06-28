@@ -271,7 +271,7 @@ async function main(): Promise<void> {
   const fixtureSha = sha256(fixturePath);
   Object.assign(asset, {
     source_kind: 'rendered_opl_app_state_fixture',
-    source: 'docs/user-guides/fixtures/runtime-environment-currentness.fixture.json',
+    source: 'docs/delivery/user-guides/macos-app-install/fixtures/runtime-environment-currentness.fixture.json',
     source_width: fixture.viewport.width,
     source_height: fixture.viewport.height,
     source_sha256: fixtureSha,
@@ -279,7 +279,7 @@ async function main(): Promise<void> {
     height: fixture.viewport.height,
     sha256: imageSha,
     vm_artifact_status: 'replaced_by_rendered_fixture',
-    vm_artifact_source: 'docs/user-guides/fixtures/runtime-environment-currentness.fixture.json',
+    vm_artifact_source: 'docs/delivery/user-guides/macos-app-install/fixtures/runtime-environment-currentness.fixture.json',
     note:
       'Re-rendered after the Full runtime currentness repair because the original v26.6.27 VM guide artifact captured stale packaged-runtime state and displayed unknown module statuses.',
   });

@@ -1,0 +1,25 @@
+# Product Docs
+
+Owner: `one-person-lab-app`
+Purpose: `app_product_docs_entry`
+State: `active_support`
+Machine boundary: Human-readable product, GUI, and shell-alternative design
+support. Product acceptance stays in App contracts, page-state matrices,
+active-shell validation, source, tests, release artifacts, workflows, and CI
+logs.
+
+This directory holds App-owned product design material. It is for maintainers
+and implementers, not for end-user onboarding.
+
+## Entries
+
+| Path | Role |
+| --- | --- |
+| [`gui/ideal-interaction-spec.md`](gui/ideal-interaction-spec.md) | Shell-independent target interaction model for the OPL App. |
+| [`gui/element-audit.md`](gui/element-audit.md) | Human review of ordinary user GUI elements, placement, gaps, and interaction logic. |
+| [`gui/codex-to-opl-app-delta.md`](gui/codex-to-opl-app-delta.md) | Product delta from Codex App baseline to OPL App. |
+| [`gui/feature-inventory.md`](gui/feature-inventory.md) | Cross-shell GUI capability inventory, reference mapping, and validation classes. |
+| [`shell-alternatives/hermes-gui-adaptation-plan.md`](shell-alternatives/hermes-gui-adaptation-plan.md) | Hermes Desktop foreground alternative adaptation route. |
+| [`shell-alternatives/hermes-first-run-flow.md`](shell-alternatives/hermes-first-run-flow.md) | Hermes candidate first-run and model-access flow. |
+
+Archived shell-candidate proof lives under `docs/history/shell-candidates/`.

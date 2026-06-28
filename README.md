@@ -101,7 +101,7 @@ opl system initialize --json
 Use `one-person-lab-full` when you want the complete first-install package
 through Homebrew. Release-channel, updater, Full package, and macOS trust
 details are maintained in the
-[App release guide](docs/release/README.md) and App contracts.
+[App release guide](docs/delivery/release/README.md) and App contracts.
 
 ### One-Shot Installer
 
@@ -136,11 +136,11 @@ For a first-time macOS arm64 install without Homebrew, choose
 package is also available as the `one-person-lab-full` Homebrew cask.
 
 For a screenshot-based first-run walkthrough, start from the
-[macOS App install user guide](docs/user-guides/site/index.html). The same
-guide source also generates the shareable
-[PDF](docs/user-guides/macos-app-install-slides.pdf) and
-[PPTX](docs/user-guides/macos-app-install-slides.pptx), plus a
-[detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf).
+[macOS App install user guide](docs/public/macos-app-install/index.html). The same
+guide is also available as a shareable
+[PDF](docs/public/macos-app-install/macos-app-install-slides.pdf) and
+[PPTX](docs/public/macos-app-install/macos-app-install-slides.pptx), plus a
+[detailed PDF](docs/public/macos-app-install/macos-app-install-detailed-guide.pdf).
 
 Daily updates are handled by Homebrew or the in-app update channel, depending on
 how the App was installed. Release asset, updater metadata, and Full
@@ -271,7 +271,7 @@ shell consumes App truth instead of defining it.
 
 For current release operations, Full package policy, macOS trust diagnostics,
 updater metadata, and evidence gates, read the
-[App release guide](docs/release/README.md). For current App product state and
+[App release guide](docs/delivery/release/README.md). For current App product state and
 remaining gaps, read [`docs/status.md`](docs/status.md) and
 [`docs/active/app-ideal-state-gap-plan.md`](docs/active/app-ideal-state-gap-plan.md).
 

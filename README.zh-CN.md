@@ -97,7 +97,7 @@ opl system initialize --json
 希望通过 Homebrew 一次拿到完整首次安装包时，使用
 `one-person-lab-full`。release channel、updater、Full package 和 macOS trust
 细节由
-[App release guide](docs/release/README.md) 与 App contracts 维护。
+[App release guide](docs/delivery/release/README.md) 与 App contracts 维护。
 
 ### 一键安装
 
@@ -127,11 +127,11 @@ macOS trust 诊断和内部版本处理细节留在 release guide，不放在公
 `One-Person-Lab-Full-<version>-mac-arm64.dmg`。同一完整首次安装包也可以通过
 `one-person-lab-full` Homebrew cask 安装。
 
-首次启动图文教程以 [macOS App install user guide](docs/user-guides/site/index.html)
-为主入口；同一份 guide source 也会生成
-[可转发 PDF](docs/user-guides/macos-app-install-slides.pdf)、
-[可转发 PPTX](docs/user-guides/macos-app-install-slides.pptx) 和
-[detailed PDF](docs/user-guides/macos-app-install-detailed-guide.pdf)。
+首次启动图文教程以 [macOS App install user guide](docs/public/macos-app-install/index.html)
+为主入口；同一份 guide 也提供
+[可转发 PDF](docs/public/macos-app-install/macos-app-install-slides.pdf)、
+[可转发 PPTX](docs/public/macos-app-install/macos-app-install-slides.pptx) 和
+[detailed PDF](docs/public/macos-app-install/macos-app-install-detailed-guide.pdf)。
 
 日常更新由 Homebrew 或应用内更新通道完成，取决于安装方式。release asset、updater metadata 和 Full first-install 边界由 App release guide 与 contracts 维护。
 
@@ -251,7 +251,7 @@ product contracts 同步到活动 shell，让 shell 消费 App truth，而不是
 truth。
 
 当前 release 操作、Full package policy、macOS trust 诊断、updater metadata 和 evidence
-gates 见 [App release guide](docs/release/README.md)。当前 App 产品状态和剩余
+gates 见 [App release guide](docs/delivery/release/README.md)。当前 App 产品状态和剩余
 gap 见 [`docs/status.md`](docs/status.md) 与
 [`docs/active/app-ideal-state-gap-plan.md`](docs/active/app-ideal-state-gap-plan.md)。
 

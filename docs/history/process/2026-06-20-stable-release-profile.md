@@ -18,7 +18,7 @@ Machine boundary: Human-readable release profiling, Codex operator-loop retrospe
 - Owner-receipt refresh run: `27866803313`, `https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/27866803313`
 - Promote run: `27867580320`, `https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/27867580320`
 - Standalone post-publish Homebrew VM proof run: `27868475783`, `https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/27868475783`
-- Release owner receipt: `docs/release/records/v26.6.20-release-owner-receipt.json`
+- Release owner receipt: `docs/delivery/release/records/v26.6.20-release-owner-receipt.json`
 
 ## Outcome
 
@@ -189,7 +189,7 @@ The largest operator-loop waste classes were:
   support `--help`.
 - `tests/release/github-actions-timing-summary.test.ts` covers the
   `in_progress` timing case.
-- This profile and `docs/release/records/v26.6.20-release-owner-receipt.json`
+- This profile and `docs/delivery/release/records/v26.6.20-release-owner-receipt.json`
   preserve the owner gate, release evidence, promote failure, and follow-up VM
   proof route.
 - Fresh standalone Homebrew VM evidence is recorded as a transport failure, so

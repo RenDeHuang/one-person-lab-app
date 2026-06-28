@@ -16,7 +16,7 @@ documentation commit:
 - Commit: `1d533879b1b2df869c4b556098f82dd48b9d4058`
 - Subject: `docs(release): record v26.6.21 asset readback gap`
 - Files touched: `contracts/app-release-channel.json`,
-  `docs/release/README.md`
+  `docs/delivery/release/README.md`
 
 The branch recorded a useful distinction: a remote release asset readback can
 prove asset currentness and size budget facts, but it cannot close a clean
@@ -45,7 +45,7 @@ later same-version owner receipt would be stale.
 ## Superseding Owner Receipt
 
 Current `main` carries
-`docs/release/records/v26.6.21-release-owner-receipt.json`, added by
+`docs/delivery/release/records/v26.6.21-release-owner-receipt.json`, added by
 `3c171c5`, for GitHub Actions run `27916440933`. That later same-version
 record supersedes the early branch as the active release-owner evidence:
 

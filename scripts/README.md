@@ -51,6 +51,10 @@ external shell checkouts.
 runs the full active shell validation list and the shell GUI compile path
 through App wrappers. Run shell hygiene in `gaofeng21cn/opl-aion-shell`.
 
+Docs generation commands read `docs/delivery/user-guides/macos-app-install`
+guide sources and write the public bundle under
+`docs/public/macos-app-install/`.
+
 Examples:
 
 ```bash

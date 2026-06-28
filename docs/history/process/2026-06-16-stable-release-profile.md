@@ -16,7 +16,7 @@ Machine boundary: Human-readable release profiling and optimization provenance f
 - Failed owner-receipt refresh run: `27609356225`, `https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/27609356225`
 - Successful owner-receipt refresh run: `27613954912`, `https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/27613954912`
 - Promote run: `27615808579`, `https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/27615808579`
-- Release owner receipt: `docs/release/records/v26.6.16-release-owner-receipt.json`
+- Release owner receipt: `docs/delivery/release/records/v26.6.16-release-owner-receipt.json`
 
 ## Outcome
 
