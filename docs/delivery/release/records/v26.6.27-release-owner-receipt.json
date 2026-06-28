@@ -123,6 +123,65 @@
     "validator_errors": []
   },
   "candidate_record_rebuild_command": "node --experimental-strip-types scripts/resolve-release-owner-candidate-record.ts --candidate-record <release-candidate-record.json> --preflight <release-preflight-summary.json> --readiness <release-readiness-summary.json> --remote-verification <remote-release-verification.json> --release-owner-receipt-ref release_owner_receipt_ref://one-person-lab-app/release-owner/v26.6.27/receipt-20260627-owner-verdict --output <release-candidate-record.json>",
+  "post_promote_readback": {
+    "captured_at": "2026-06-28T17:21:22Z",
+    "promote_run_id": "28297753122",
+    "promote_run_url": "https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/28297753122",
+    "published_release_readback": {
+      "tag": "v26.6.27",
+      "is_draft": false,
+      "is_prerelease": false,
+      "is_latest": true,
+      "published_at": "2026-06-27T18:21:05Z",
+      "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.6.27",
+      "standard_dmg_sha256": "9f07deaa3d92be20b87c069452b23414144111c861c8fc670ca041a9be9f7a5c",
+      "full_dmg_sha256": "e77095af459bf3fc543d3324d8658adf0ea9c34913aa3e6e0a5b5a3f6630af92",
+      "standard_updater_metadata_sha256": "580b32e680e977abb6f603b99b26ab904146cc3a0d24a3966674e5e1c389130f",
+      "full_manifest_sha256": "5f71ae3dcb2a620a5ece5c41dce2a605d73ca3e846caeb59c0814dfdcf816a7a"
+    },
+    "non_release_validation_readback": {
+      "run_id": "28329126676",
+      "run_url": "https://github.com/gaofeng21cn/one-person-lab-app/actions/runs/28329126676",
+      "head_sha": "4c75a5cfae0df14bdb28b640841f50ffeda21dc4",
+      "conclusion": "success",
+      "checked_jobs": [
+        "App release-boundary tests"
+      ],
+      "steps": [
+        "Run release-boundary tests",
+        "Validate release-boundary contract"
+      ]
+    },
+    "homebrew_tap_readback": {
+      "tap_repo": "gaofeng21cn/homebrew-one-person-lab",
+      "tap_head_sha": "b68b96525dd50fe23217fa64325e96ddbb069e58",
+      "tap_branch": "main",
+      "local_branch_ahead_behind_origin_main": "0 0",
+      "sync_from_app_releases_run_id": "28306114516",
+      "sync_from_app_releases_run_url": "https://github.com/gaofeng21cn/homebrew-one-person-lab/actions/runs/28306114516",
+      "sync_from_app_releases_conclusion": "success",
+      "tap_check_run_id": "28297802608",
+      "tap_check_run_url": "https://github.com/gaofeng21cn/homebrew-one-person-lab/actions/runs/28297802608",
+      "tap_check_conclusion": "success",
+      "standard_cask_version": "26.6.27",
+      "standard_cask_sha256": "9f07deaa3d92be20b87c069452b23414144111c861c8fc670ca041a9be9f7a5c",
+      "full_cask_version": "26.6.27",
+      "full_cask_sha256": "e77095af459bf3fc543d3324d8658adf0ea9c34913aa3e6e0a5b5a3f6630af92",
+      "nightly_cask_version": "26.6.27-nightly",
+      "nightly_cask_sha256": "5d3dacbd945679342310b54c7f92a4b5994cfb58344cbd06778bc62a7df8e4cd"
+    },
+    "post_publish_homebrew_vm_gate": {
+      "status": "passed_in_promote_run",
+      "run_id": "28297753122",
+      "job": "Run Homebrew standard first-run VM smoke / Clean VM first launch",
+      "job_conclusion": "success"
+    },
+    "currentness_boundary": {
+      "can_claim_app_release_ready_from_readback": false,
+      "can_claim_family_production_ready_from_readback": false,
+      "can_write_domain_truth": false
+    }
+  },
   "authority_boundary": {
     "can_claim_app_release_ready_from_evidence": false,
     "can_claim_stable_latest_from_evidence": false,
