@@ -24,7 +24,7 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `cleanup-draft-release-candidates.ts` | Dry-runs or deletes stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. |
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, and optional Full first-install assets. |
-| `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates, Stable candidate-record promotion, and post-release guide refresh with `npm run docs:macos-guide` from `docs/user-guides` sources into `docs/public`. |
+| `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates, Stable candidate-record promotion, and post-release guide refresh with `npm run docs:macos-guide` from `docs/delivery/user-guides/macos-app-install` sources into `docs/public`. |
 | `closeout-release-run.ts` | Powers the default desktop release `release-closeout-<version>` artifact and local reruns; reads only final small release summaries, writes `release-closeout.json/md`, separates GitHub Actions workflow wall time from Agent orchestration wall time, and points the operator at candidate blockers, failed gates, promotion, or log inspection. |
 | `summarize-github-actions-timing.ts` | Profiles one or more `gh run view --json ...jobs` payloads, including multi-run span, failed/canceled run tax, slow jobs, slow steps, and the operator-loop gap when an Agent wall-time clock is supplied. |
 | `plan-release-gate-reuse.ts` | Compares the current release cohort with a previous promote-ready candidate record, readiness summary, and remote verification artifact, then writes `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable reuse digest. The plan is a decision artifact only; workflow gates still run unless a workflow explicitly consumes it. |
@@ -95,7 +95,7 @@ npm run release:readiness-summary -- --version <version> --release-mode new_rele
 npm run release:candidate-record -- --version <version> --release-mode new_release --preflight release-preflight-summary.json --readiness release-readiness-summary.json --remote-verification remote-release-verification.json --release-owner-receipt-ref <release_owner_receipt_ref>
 npm run release:candidate-record:validate -- --version <version> --record release-candidate-record.json
 npm run release:candidate-record:status -- --record release-candidate-record.json --format json
-npm run release:owner-candidate-record:verify -- --version <version> --owner-record docs/release/records/v<version>-release-owner-receipt.json --artifacts-dir artifacts/release-closeout/v<version>-<run-id>/artifacts
+npm run release:owner-candidate-record:verify -- --version <version> --owner-record docs/delivery/release/records/v<version>-release-owner-receipt.json --artifacts-dir artifacts/release-closeout/v<version>-<run-id>/artifacts
 npm run release:full:size -- --markdown
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
@@ -130,7 +130,7 @@ Full size policy lives in
 manifest `size_budget`; size semantics, measured records, profile boundaries,
 runtime boundaries, and optimization priority live in
 `contracts/app-release-channel.json#full_first_install.size_policy`;
-`docs/release/README.md` is the operator map. Release review records the
+`docs/delivery/release/README.md` is the operator map. Release review records the
 compressed DMG size, uncompressed runtime size, and layer breakdown, then uses
 `verify-remote-release-assets.ts` as the remote verifier size budget check for
 published GitHub Release assets. The remote verifier measures compressed Full
@@ -313,7 +313,7 @@ bundle validation can identify the exact user installation path that failed.
 For normal Stable trains, use `npm run release:plan -- --version <version>
 --include-full-package` as the operator plan: it models
 `new_release -> draft candidate -> gates -> candidate record -> promote` and keeps the
-`docs/user-guides` sources, screenshots, and generated public artifacts refresh in a
+`docs/delivery/user-guides/macos-app-install` sources, screenshots, and generated public artifacts refresh in a
 post-release lane. Run `npm run docs:macos-guide` for that docs refresh; it
 updates the public HTML guide plus the shareable PDF/PPTX and detailed PDF
 artifacts under `docs/public/macos-app-install/`.

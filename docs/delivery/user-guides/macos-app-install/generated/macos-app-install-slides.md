@@ -22,7 +22,7 @@ author: "one-person-lab-app"
 </div>
 
 <figure class="cover-shot">
-  <img src="assets/05-opl-ready-research-entry.png" alt="按下载安装、首次配置、环境检查、科研入口和进度查看的顺序演示。" />
+  <img src="../assets/05-opl-ready-research-entry.png" alt="按下载安装、首次配置、环境检查、科研入口和进度查看的顺序演示。" />
 </figure>
 
 <div class="footer"><span>中文 1080p VM 截图 · v26.6.27</span><span>1 / 10</span></div>
@@ -43,7 +43,7 @@ author: "one-person-lab-app"
 
 <main class="step-layout">
   <figure class="shot-frame">
-    <img src="assets/01-download-release.png" alt="1. 下载 One Person Lab" />
+    <img src="../assets/01-download-release.png" alt="1. 下载 One Person Lab" />
   </figure>
   <aside class="focus">
     <h2>本页重点</h2>
@@ -73,7 +73,7 @@ author: "one-person-lab-app"
 
 <main class="step-layout">
   <figure class="shot-frame">
-    <img src="assets/02-install-dmg.png" alt="2. 安装 App" />
+    <img src="../assets/02-install-dmg.png" alt="2. 安装 App" />
   </figure>
   <aside class="focus">
     <h2>本页重点</h2>
@@ -101,7 +101,7 @@ author: "one-person-lab-app"
 
 <main class="step-layout">
   <figure class="shot-frame">
-    <img src="assets/03-codex-config-needed.png" alt="3. 配置访问权限" />
+    <img src="../assets/03-codex-config-needed.png" alt="3. 配置访问权限" />
   </figure>
   <aside class="focus">
     <h2>本页重点</h2>
@@ -130,7 +130,7 @@ author: "one-person-lab-app"
 
 <main class="step-layout">
   <figure class="shot-frame">
-    <img src="assets/04-first-run-checking.png" alt="4. 等待首次环境检查" />
+    <img src="../assets/04-first-run-checking.png" alt="4. 等待首次环境检查" />
   </figure>
   <aside class="focus">
     <h2>本页重点</h2>
@@ -159,7 +159,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 <main class="step-layout">
   <figure class="shot-frame">
-    <img src="assets/05-opl-ready-research-entry.png" alt="5. 进入科研入口" />
+    <img src="../assets/05-opl-ready-research-entry.png" alt="5. 进入科研入口" />
   </figure>
   <aside class="focus">
     <h2>本页重点</h2>
@@ -188,7 +188,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 <main class="step-layout">
   <figure class="shot-frame">
-    <img src="assets/06-research-data-folder.png" alt="6. 确认工作目录和运行设置" />
+    <img src="../assets/06-research-data-folder.png" alt="6. 确认工作目录和运行设置" />
   </figure>
   <aside class="focus">
     <h2>本页重点</h2>
@@ -218,7 +218,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 <main class="step-layout">
   <figure class="shot-frame">
-    <img src="assets/07-first-research-entry.png" alt="7. 发起首次科研任务" />
+    <img src="../assets/07-first-research-entry.png" alt="7. 发起首次科研任务" />
   </figure>
   <aside class="focus">
     <h2>本页重点</h2>
@@ -246,7 +246,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 <main class="step-layout">
   <figure class="shot-frame">
-    <img src="assets/08-opl-runtime-status.png" alt="8. 查看进度与结果" />
+    <img src="../assets/08-opl-runtime-status.png" alt="8. 查看进度与结果" />
   </figure>
   <aside class="focus">
     <h2>本页重点</h2>
