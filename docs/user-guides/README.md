@@ -20,9 +20,11 @@ Generated reading artifacts:
 
 - [macOS App install slides PDF](macos-app-install-slides.pdf): generated 16:9
   screenshot walkthrough for forwarding to users who will follow the guide on a
-  computer.
-- [macOS App install slides PPTX](macos-app-install-slides.pptx): generated
-  editable 16:9 sharing deck from the same guide source.
+  computer. This is the primary shareable visual PDF and is exported from the
+  Marp Markdown deck with the repo theme.
+- [macOS App install slides PPTX](macos-app-install-slides.pptx): generated 16:9
+  sharing deck exported from the same Marp Markdown deck and theme as the PDF,
+  so the visual PDF and PPTX stay aligned.
 - [macOS App install detailed PDF](macos-app-install-detailed-guide.pdf):
   generated long-form companion.
 - [macOS App install Markdown](macos-app-install.md): generated long-form text
@@ -32,6 +34,9 @@ Source and verification files:
 
 - [`macos-app-install.guide.json`](macos-app-install.guide.json): canonical
   user-guide content source for HTML, slides, Markdown, and detailed PDF.
+- [`macos-app-install-slides.md`](macos-app-install-slides.md) and
+  [`macos-app-install-marp-theme.css`](macos-app-install-marp-theme.css):
+  generated Marp deck source and CSS theme for the shareable visual PDF/PPTX.
 - [`macos-app-install-assets.json`](macos-app-install-assets.json): screenshot
   provenance, dimensions, and SHA256 manifest.
 - `macos-app-install-html-verification.json`,
@@ -62,8 +67,9 @@ Update flow:
 2. Update `macos-app-install.guide.json` when the user flow, copy, FAQ,
    artifact links, or step ordering changes. Do not edit generated Markdown or
    slide copy as a second source of truth.
-3. Run `npm run docs:macos-guide` to refresh the HTML guide, slides PDF/PPTX,
-   detailed companion PDF, generated Markdown, and all verification JSON files.
+3. Run `npm run docs:macos-guide` to refresh the HTML guide, Marp slides
+   PDF/PPTX, detailed companion PDF, generated Markdown, and all verification
+   JSON files.
 4. For targeted regeneration, run `npm run docs:macos-guide:html`,
    `npm run docs:macos-guide:slides`, or `npm run docs:macos-guide:pdf`.
 5. Verify `macos-app-install-html-verification.json`,

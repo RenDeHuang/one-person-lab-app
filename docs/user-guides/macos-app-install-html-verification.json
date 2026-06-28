@@ -11,7 +11,7 @@
     "slides_pptx": "docs/user-guides/macos-app-install-slides.pptx",
     "detailed_pdf": "docs/user-guides/macos-app-install-detailed-guide.pdf"
   },
-  "html_bytes": 21560,
+  "html_bytes": 21767,
   "guide_steps": 8,
   "image_references": 9,
   "screenshot_source": {
@@ -96,14 +96,14 @@
     },
     "06-research-data-folder.png": {
       "title": "Local runtime environment settings screen",
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/settings-pages/environment.png from standard VM smoke",
+      "source_kind": "rendered_opl_app_state_fixture",
+      "source": "docs/user-guides/fixtures/runtime-environment-currentness.fixture.json",
       "source_width": 1536,
       "source_height": 912,
-      "source_sha256": "c011c00b8bfff38700cd70f67ccf169cc723e8a180dd2b4e3259f4eaab72bce1",
+      "source_sha256": "1892d84d27c076e88bc2e2d2de9d52268d9e6d93b6858aec23ec678abe1465c5",
       "width": 1536,
       "height": 912,
-      "sha256": "c011c00b8bfff38700cd70f67ccf169cc723e8a180dd2b4e3259f4eaab72bce1"
+      "sha256": "5314ff4fcba9bdd05d0a91f23dd8cdf30ba315ee8dd161f0c130170e1524df51"
     },
     "07-first-research-entry.png": {
       "title": "First MAS research prompt entry screen",

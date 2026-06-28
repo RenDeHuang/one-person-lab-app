@@ -5,6 +5,7 @@ import path from 'node:path';
 import { directorySizeBytes } from './filesystem.ts';
 import { readGitHead } from './git.ts';
 import { ensureFullRuntimeNativeTrust } from './runtime-native-trust.ts';
+import { assertFullRuntimeCurrentness } from './runtime-currentness.ts';
 import {
   buildResolvedFullPayloadRefs,
   writeFullRuntimeManifest,
@@ -107,6 +108,9 @@ export function prepareRuntime(options, sources) {
     optionalComponents,
     nativeTrust,
   );
+  const currentness = assertFullRuntimeCurrentness(runtimeRoot, {
+    frameworkRoot: options.frameworkRoot,
+  });
 
   return {
     stagingRoot,
@@ -118,6 +122,7 @@ export function prepareRuntime(options, sources) {
       keys: cacheKeys,
       key_inputs: cacheKeyInputs,
       events: cacheEvents,
+      currentness,
     },
     resolved_refs: resolvedRefs,
   };

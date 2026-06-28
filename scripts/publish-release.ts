@@ -320,6 +320,7 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
     `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
     'full-package-manifest.json',
     'runtime-cache-events.json',
+    'full-runtime-currentness-probe.json',
     'full-runtime-native-trust.json',
     'full-app-bundle-trim-report.json',
     'full-package-boundary-audit.json',

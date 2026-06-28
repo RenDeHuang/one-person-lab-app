@@ -24,6 +24,21 @@ import {
   writeFullPackageOptimizationArtifacts,
 } from './release-plan-full-package-fixtures.ts';
 
+function writeFullRuntimeCurrentnessProbe(outDir: string, manifest: { components?: { opl?: { git_commit?: string } } }) {
+  writeFile(
+    path.join(outDir, 'full-runtime-currentness-probe.json'),
+    `${JSON.stringify({
+      schema: 'opl_full_runtime_currentness_probe.v1',
+      status: 'passed',
+      framework_commit: manifest.components?.opl?.git_commit ?? 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      managed_update_surface_id: 'opl_managed_updater_kernel',
+      managed_update_components: ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure'],
+      app_state_schema_version: 'opl_app_state.v1',
+      app_state_module_count: 5,
+    }, null, 2)}\n`,
+  );
+}
+
 test('release plan exposes the standard VM fail-fast gate before expensive Full lanes', () => {
   const result = runNode([
     'scripts/plan-release-candidate.ts',
@@ -617,6 +632,7 @@ test('publish dry run generates deterministic English release notes for Full-onl
   writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
   writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
+  writeFullRuntimeCurrentnessProbe(fullPackageDir, manifest);
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   writeFullLocalAuthorizationPolicy(fullPackageDir);
@@ -727,6 +743,7 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
   writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
   writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
+  writeFullRuntimeCurrentnessProbe(fullPackageDir, manifest);
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   writeFullLocalAuthorizationPolicy(fullPackageDir);
@@ -772,6 +789,7 @@ test('publish rejects Full package native trust when quarantine remains', () => 
   writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
   writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
+  writeFullRuntimeCurrentnessProbe(fullPackageDir, manifest);
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   writeFullLocalAuthorizationPolicy(fullPackageDir);
@@ -837,6 +855,7 @@ test('Full-only release publish uses deterministic notes and does not call the A
   writeFile(path.join(fullPackageDir, `One-Person-Lab-Full-${version}-mac-arm64.dmg`));
   writeFile(path.join(fullPackageDir, 'full-package-manifest.json'), `${JSON.stringify(withFullPackageOptimizationManifest(manifest), null, 2)}\n`);
   writeFile(path.join(fullPackageDir, 'runtime-cache-events.json'), '{"events":[{"layer_id":"toolchain","status":"hit"}]}\n');
+  writeFullRuntimeCurrentnessProbe(fullPackageDir, manifest);
   writeFile(path.join(fullPackageDir, 'SHA256SUMS.txt'), 'test  artifact\n');
   writeFile(path.join(fullPackageDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   writeFullLocalAuthorizationPolicy(fullPackageDir);

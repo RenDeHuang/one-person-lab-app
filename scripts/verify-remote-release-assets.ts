@@ -107,6 +107,7 @@ function requiredAssetNames(version, includeFullPackage) {
     `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
     'full-package-manifest.json',
     'runtime-cache-events.json',
+    'full-runtime-currentness-probe.json',
     'full-runtime-native-trust.json',
     'full-app-bundle-trim-report.json',
     'full-package-boundary-audit.json',
@@ -281,6 +282,35 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, version, localAuthoriz
 
 function assertFullRuntimeNativeTrust(downloadDir, manifest) {
   assertFullRuntimeNativeTrustFile(path.join(downloadDir, 'full-runtime-native-trust.json'), manifest);
+}
+
+function assertFullRuntimeCurrentnessProbe(downloadDir, manifest) {
+  const probe = JSON.parse(readText(path.join(downloadDir, 'full-runtime-currentness-probe.json')));
+  if (probe?.schema !== 'opl_full_runtime_currentness_probe.v1') {
+    throw new Error(`Full runtime currentness probe schema is unexpected: ${probe?.schema}`);
+  }
+  if (probe.status !== 'passed') {
+    throw new Error(`Full runtime currentness probe did not pass: ${probe.status || '(empty)'}`);
+  }
+  if (probe.managed_update_surface_id !== 'opl_managed_updater_kernel') {
+    throw new Error(`Full runtime currentness probe used unexpected managed update surface: ${probe.managed_update_surface_id || '(empty)'}`);
+  }
+  const componentIds = new Set(Array.isArray(probe.managed_update_components) ? probe.managed_update_components : []);
+  for (const required of ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure']) {
+    if (!componentIds.has(required)) {
+      throw new Error(`Full runtime currentness probe is missing managed update component: ${required}`);
+    }
+  }
+  const expectedCommit = manifest?.components?.opl?.git_commit || manifest?.resolved_refs?.opl_framework?.resolved_commit;
+  if (expectedCommit && probe.framework_commit !== expectedCommit) {
+    throw new Error(`Full runtime currentness probe Framework commit mismatch: expected ${expectedCommit}, got ${probe.framework_commit || '(empty)'}`);
+  }
+  if (probe.app_state_schema_version !== 'opl_app_state.v1') {
+    throw new Error(`Full runtime currentness probe App state schema is unexpected: ${probe.app_state_schema_version || '(empty)'}`);
+  }
+  if (!(Number(probe.app_state_module_count) > 0)) {
+    throw new Error('Full runtime currentness probe must record at least one App state module.');
+  }
 }
 
 function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
@@ -549,6 +579,7 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
     fullDmgName,
     'full-package-manifest.json',
     'runtime-cache-events.json',
+    'full-runtime-currentness-probe.json',
     'full-runtime-native-trust.json',
     'full-app-bundle-trim-report.json',
     'full-package-boundary-audit.json',
@@ -575,6 +606,7 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
     throw new Error(`Unexpected Full manifest package_kind: ${manifest?.package_kind}`);
   }
   assertStableLocalAuthorizationPolicy(downloadDir, 'full-local-authorization-policy.json', 'app_full_first_install');
+  assertFullRuntimeCurrentnessProbe(downloadDir, manifest);
   assertFullRuntimeNativeTrust(downloadDir, manifest);
   const optimizationArtifacts = assertFullPackageOptimizationArtifacts(downloadDir, manifest);
 

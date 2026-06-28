@@ -522,6 +522,41 @@ test('remote release verifier fails closed when Full runtime assertions are miss
   assert.match(result.stderr, /Temporal core-bridge releases must be only aarch64-apple-darwin/);
 });
 
+test('remote release verifier fails closed when the Full runtime currentness probe did not pass', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-runtime-currentness-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const version = '26.5.19-runtime-currentness';
+  const names = writeStandardRemoteAssets(tempRoot, version);
+  names.push(...writeFullRemoteAssets(tempRoot, version, {
+    currentnessProbe: {
+      status: 'failed',
+      managed_update_surface_id: 'codex_passthrough',
+    },
+  }));
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+  writeFakeMacosTrustCommands(binDir);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version',
+    version,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--include-full-package',
+    '--download-dir',
+    tempRoot,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Full runtime currentness probe did not pass/);
+});
+
 test('remote release verifier rejects standard updater metadata that references Full assets', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-full-leak-'));
   const version = '26.5.19-remote-leak';

@@ -1,0 +1,118 @@
+{
+  "schema": "opl_guide_runtime_environment_fixture.v1",
+  "purpose": "Render the macOS user-guide Settings > Local runtime environment screenshot after the Full runtime currentness repair.",
+  "state": "active",
+  "source_truth": {
+    "app_state_schema": "opl_app_state.v1",
+    "runtime_probe": "scripts/build-full-first-install-package/runtime-currentness.ts",
+    "reason": "The original v26.6.27 VM guide artifact captured a stale packaged runtime that returned missing module and managed-update state, so the guide screenshot displayed unknown module statuses."
+  },
+  "viewport": {
+    "width": 1536,
+    "height": 912
+  },
+  "version": {
+    "app": "26.6.27",
+    "gui": "2.1.17",
+    "channel": "稳定版"
+  },
+  "runtime_cards": [
+    {
+      "title": "Codex CLI",
+      "status": "就绪",
+      "tone": "green",
+      "detail": "codex-cli 0.140.0 · App 托管运行时 · gpt-5.5 xhigh"
+    },
+    {
+      "title": "Temporal",
+      "status": "就绪",
+      "tone": "green",
+      "detail": "本机执行器 · default · opl-task-queue"
+    },
+    {
+      "title": "工作目录",
+      "status": "就绪",
+      "tone": "green",
+      "detail": "/Users/admin/One Person Lab"
+    },
+    {
+      "title": "智能体模块",
+      "status": "5 / 5 已就绪",
+      "tone": "green",
+      "detail": "managed_root"
+    }
+  ],
+  "modules": [
+    {
+      "module_id": "medautoscience",
+      "label": "Med Auto Science",
+      "status": "就绪",
+      "detail": "v26.6.27 · managed_root · a1b2c3d"
+    },
+    {
+      "module_id": "medautogrant",
+      "label": "Med Auto Grant",
+      "status": "就绪",
+      "detail": "v26.6.27 · managed_root · b2c3d4e"
+    },
+    {
+      "module_id": "redcube",
+      "label": "RedCube AI",
+      "status": "就绪",
+      "detail": "v26.6.27 · managed_root · c3d4e5f"
+    },
+    {
+      "module_id": "oplbookforge",
+      "label": "OPL BookForge",
+      "status": "就绪",
+      "detail": "v26.6.27 · managed_root · d4e5f6a"
+    },
+    {
+      "module_id": "oplmetaagent",
+      "label": "OPL Meta Agent",
+      "status": "就绪",
+      "detail": "v26.6.27 · managed_root · e5f6a7b"
+    }
+  ],
+  "maintenance_components": [
+    {
+      "id": "agent_package_channel",
+      "label": "智能体包通道",
+      "status": "当前",
+      "description": "更新由 OPL 管理的智能体技能和模块包。"
+    },
+    {
+      "id": "capability_exposure",
+      "label": "能力暴露",
+      "status": "当前",
+      "description": "刷新 App 中可见的智能体能力。"
+    }
+  ],
+  "managed_updates": [
+    {
+      "id": "app_binary",
+      "label": "桌面 App",
+      "status": "当前"
+    },
+    {
+      "id": "runtime_toolchain",
+      "label": "运行时工具链",
+      "status": "当前"
+    },
+    {
+      "id": "agent_package_channel",
+      "label": "智能体包通道",
+      "status": "当前"
+    },
+    {
+      "id": "capability_exposure",
+      "label": "能力暴露",
+      "status": "当前"
+    }
+  ],
+  "workspace": {
+    "root": "/Users/admin/One Person Lab",
+    "logs": "/Users/admin/Library/Application Support/OPL/logs",
+    "modules_root": "/Users/admin/Library/Application Support/OPL/state/modules"
+  }
+}

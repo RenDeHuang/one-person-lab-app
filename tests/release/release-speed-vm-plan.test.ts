@@ -372,10 +372,16 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /OPL_FULL_DMG_COMPRESSION_LEVEL:\s+\$\{\{ inputs\.full_dmg_compression_level \|\| '9' \}\}/, 'Full workflow defaults to release-size DMG compression');
   assertMatches(workflow, /dmg_compression_level:\s+fullBuildTiming\?\.dmg_compression_level/, 'Full telemetry records the fallback DMG compression level');
   assertMatches(workflow, /Restore Full toolchain runtime cache[\s\S]*Restore Full domain runtime cache[\s\S]*Restore Full OPL runtime cache[\s\S]*Restore Full skills runtime cache/, 'per-layer Full runtime cache restore');
-  assertMatches(workflow, /restore-keys:[\s\S]*opl-full-runtime-layer-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-full-runtime-v1-toolchain-/, 'Full toolchain runtime cache has a stable restore prefix');
-  assertMatches(workflow, /restore-keys:[\s\S]*opl-full-runtime-layer-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-full-runtime-v1-domain-runtime-/, 'Full domain runtime cache has a stable restore prefix');
-  assertMatches(workflow, /restore-keys:[\s\S]*opl-full-runtime-layer-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-full-runtime-v1-opl-runtime-/, 'Full OPL runtime cache has a stable restore prefix');
-  assertMatches(workflow, /restore-keys:[\s\S]*opl-full-runtime-layer-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-full-runtime-v1-skills-/, 'Full skills runtime cache has a stable restore prefix');
+  for (const stepName of [
+    'Restore Full toolchain runtime cache',
+    'Restore Full domain runtime cache',
+    'Restore Full OPL runtime cache',
+    'Restore Full skills runtime cache',
+  ]) {
+    assert.doesNotMatch(workflowStepBlock(workflow, stepName), /restore-keys:/, `${stepName} must use exact-key restore only`);
+  }
+  assertMatches(workflow, /scripts\/assert-full-runtime-currentness\.ts[\s\S]*--runtime-root "\$mounted_runtime_root"[\s\S]*--framework-root "\$GITHUB_WORKSPACE\/one-person-lab"/, 'mounted Full DMG runtime must pass managed-update currentness probe');
+  assertMatches(workflow, /full-runtime-currentness-probe\.json/, 'Full diagnostics include runtime currentness probe');
   assertMatches(workflow, /Save Full toolchain runtime cache[\s\S]*Save Full domain runtime cache[\s\S]*Save Full OPL runtime cache[\s\S]*Save Full skills runtime cache/, 'per-layer Full runtime cache save');
   assertMatches(workflow, /git -C "\$GITHUB_WORKSPACE\/MinerU-Ecosystem" show -s --format=%cI HEAD/, 'MinerU build metadata is source-commit stable');
   assertMatches(workflow, /bash "\$GITHUB_WORKSPACE\/OfficeCLI\/install\.sh"/, 'OfficeCLI install uses the resolved checkout');

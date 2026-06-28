@@ -94,6 +94,8 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /Stable Full assets will use local authorization evidence instead of Developer ID notarization/);
   assert.match(workflow, /local-authorization-policy\.ts[\s\S]*--package-kind app_full_first_install/);
   assert.match(workflow, /mounted_app_path="\$\(find "\$mounted_app_dir" -maxdepth 2 -type d -name 'One Person Lab\.app'/);
+  assert.match(workflow, /mounted_runtime_root="\$mounted_app_path\/Contents\/Resources\/opl-full-runtime\/runtime\/current"/);
+  assert.match(workflow, /scripts\/assert-full-runtime-currentness\.ts[\s\S]*--runtime-root "\$mounted_runtime_root"[\s\S]*--framework-root "\$GITHUB_WORKSPACE\/one-person-lab"/);
   assert.match(workflow, /codesign --verify --deep --strict --verbose=2 "\$mounted_app_path" \|\| true/);
   assert.match(workflow, /--app-path "\$mounted_app_path"/);
   assert.match(workflow, /hdiutil detach "\$mounted_app_dir"/);
@@ -114,7 +116,7 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   const diagnosticsStep = workflowStepBlock(workflow, 'Upload Full diagnostics artifact');
   const localAuthorizationStep = workflowStepBlock(workflow, 'Upload Full local authorization policy');
   assert.match(workflow, /name:\s+opl-full-diagnostics-\$\{\{ env\.OPL_RELEASE_VERSION \}\}/);
-  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*full-package-size-summary\.json[\s\S]*full-package-size-summary\.md[\s\S]*runtime-cache-events\.json[\s\S]*full-runtime-native-trust\.json[\s\S]*full-app-bundle-trim-report\.json[\s\S]*full-package-boundary-audit\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/);
+  assert.match(diagnosticsStep, /full-package-build-timing\.json[\s\S]*full-package-manifest\.json[\s\S]*full-package-size-summary\.json[\s\S]*full-package-size-summary\.md[\s\S]*runtime-cache-events\.json[\s\S]*full-runtime-currentness-probe\.json[\s\S]*full-runtime-native-trust\.json[\s\S]*full-app-bundle-trim-report\.json[\s\S]*full-package-boundary-audit\.json[\s\S]*full-local-authorization-policy\.json[\s\S]*SHA256SUMS\.txt/);
   assert.doesNotMatch(diagnosticsStep, /full-gatekeeper-launch-policy\.json/);
   assert.match(localAuthorizationStep, /if:\s+\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}[\s\S]*full-local-authorization-policy\.json/);
   assert.match(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/);
@@ -132,6 +134,13 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
     'runtime-cache-events summary must not use a nested heredoc; indented heredoc delimiters break bash on GitHub Actions',
   );
   const fullPackageScript = readFullPackageBuilderSource();
+  assert.match(fullPackageScript, /assertFullRuntimeCurrentness/);
+  const currentnessScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package', 'runtime-currentness.ts'), 'utf8');
+  assert.match(currentnessScript, /opl_managed_updater_kernel/);
+  assert.match(currentnessScript, /agent_package_channel/);
+  assert.match(currentnessScript, /capability_exposure/);
+  assert.match(currentnessScript, /\['app', 'state', '--profile', 'fast', '--json'\]/);
+  assert.match(currentnessScript, /manifest\.components\.opl\.git_commit/);
   assert.match(fullPackageScript, /verifyDmgAppBundleLocalAuthorization/);
   assert.match(fullPackageScript, /assertAppBundleLocalAuthorization/);
   assert.match(fullPackageScript, /codesign verification must pass even when Stable Full uses local authorization/);

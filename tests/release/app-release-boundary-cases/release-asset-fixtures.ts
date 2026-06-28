@@ -396,11 +396,27 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
       ],
     }, null, 2)}\n`,
   );
+  writeFile(
+    path.join(outDir, 'full-runtime-currentness-probe.json'),
+    `${JSON.stringify({
+      schema: 'opl_full_runtime_currentness_probe.v1',
+      status: options.currentnessProbe?.status ?? 'passed',
+      framework_commit: options.currentnessProbe?.framework_commit
+        ?? manifest.components?.opl?.git_commit
+        ?? 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      managed_update_surface_id: options.currentnessProbe?.managed_update_surface_id ?? 'opl_managed_updater_kernel',
+      managed_update_components: options.currentnessProbe?.managed_update_components
+        ?? ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure'],
+      app_state_schema_version: options.currentnessProbe?.app_state_schema_version ?? 'opl_app_state.v1',
+      app_state_module_count: options.currentnessProbe?.app_state_module_count ?? 5,
+    }, null, 2)}\n`,
+  );
   writeFile(path.join(outDir, 'README-Full-First-Install.txt'), 'One Person Lab Full First-Install Package\n');
   const checksumNames = [
     fullDmgName,
     'full-package-manifest.json',
     'runtime-cache-events.json',
+    'full-runtime-currentness-probe.json',
     'full-runtime-native-trust.json',
     'full-app-bundle-trim-report.json',
     'full-package-boundary-audit.json',
@@ -415,6 +431,7 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
     fullDmgName,
     'full-package-manifest.json',
     'runtime-cache-events.json',
+    'full-runtime-currentness-probe.json',
     'full-runtime-native-trust.json',
     'full-app-bundle-trim-report.json',
     'full-package-boundary-audit.json',

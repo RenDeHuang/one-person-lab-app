@@ -113,6 +113,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       'export OPL_FULL_TEMPORAL_CLI_BIN="${OPL_FULL_TEMPORAL_CLI_BIN:-$(command -v temporal)}"',
       'Stable Full assets will use local authorization evidence instead of Developer ID notarization.',
       'full-local-authorization-policy.json',
+      'full-runtime-currentness-probe.json',
       'full-runtime-native-trust.json',
       'local-authorization-policy.ts',
       'mounted_app_path="$(find "$mounted_app_dir" -maxdepth 2 -type d -name \'One Person Lab.app\'',
@@ -619,6 +620,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
     required: [
       'standard-local-authorization-policy.json',
       'full-local-authorization-policy.json',
+      'full-runtime-currentness-probe.json',
       'full-runtime-native-trust.json',
       'assertStableLocalAuthorizationPolicy',
       'assertStandardUpdaterAppBundleTrust',

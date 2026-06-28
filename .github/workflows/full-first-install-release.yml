@@ -464,8 +464,6 @@ jobs:
         with:
           path: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.toolchain_cache_key }}
-          restore-keys: |
-            opl-full-runtime-layer-${{ runner.os }}-${{ runner.arch }}-full-runtime-v1-toolchain-
 
       - name: Restore Full domain runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
@@ -474,8 +472,6 @@ jobs:
         with:
           path: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.domain_runtime_cache_key }}
-          restore-keys: |
-            opl-full-runtime-layer-${{ runner.os }}-${{ runner.arch }}-full-runtime-v1-domain-runtime-
 
       - name: Restore Full OPL runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
@@ -484,8 +480,6 @@ jobs:
         with:
           path: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.opl_runtime_cache_key }}
-          restore-keys: |
-            opl-full-runtime-layer-${{ runner.os }}-${{ runner.arch }}-full-runtime-v1-opl-runtime-
 
       - name: Restore Full skills runtime cache
         if: ${{ !inputs.force_rebuild_runtime_cache }}
@@ -494,8 +488,6 @@ jobs:
         with:
           path: ${{ steps.runtime-cache-keys.outputs.skills_cache_dir }}
           key: ${{ steps.runtime-cache-keys.outputs.skills_cache_key }}
-          restore-keys: |
-            opl-full-runtime-layer-${{ runner.os }}-${{ runner.arch }}-full-runtime-v1-skills-
 
       - name: Reset Full runtime layer cache when forced
         if: ${{ inputs.force_rebuild_runtime_cache }}
@@ -626,6 +618,11 @@ jobs:
             echo "::error::Full first-install DMG does not contain One Person Lab.app."
             exit 1
           fi
+          mounted_runtime_root="$mounted_app_path/Contents/Resources/opl-full-runtime/runtime/current"
+          node --experimental-strip-types one-person-lab-app/scripts/assert-full-runtime-currentness.ts \
+            --runtime-root "$mounted_runtime_root" \
+            --framework-root "$GITHUB_WORKSPACE/one-person-lab" \
+            > one-person-lab-app/dist/opl-full-release/full-runtime-currentness-probe.json
           if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" = "true" ]; then
             codesign --verify --deep --strict --verbose=2 "$app_path"
             codesign --verify --deep --strict --verbose=2 "$mounted_app_path"
@@ -649,7 +646,8 @@ jobs:
           hdiutil verify "$dmg_path"
           (
             cd "$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"
-            grep -Ev '(full-gatekeeper-launch-policy|full-runtime-native-trust|full-local-authorization-policy)\.json$' SHA256SUMS.txt > SHA256SUMS.next
+            grep -Ev '(full-gatekeeper-launch-policy|full-runtime-currentness-probe|full-runtime-native-trust|full-local-authorization-policy)\.json$' SHA256SUMS.txt > SHA256SUMS.next
+            shasum -a 256 full-runtime-currentness-probe.json >> SHA256SUMS.next
             shasum -a 256 full-runtime-native-trust.json >> SHA256SUMS.next
             shasum -a 256 full-local-authorization-policy.json >> SHA256SUMS.next
             if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" = "true" ]; then
@@ -851,6 +849,7 @@ jobs:
             one-person-lab-app/dist/opl-full-release/full-package-size-summary.json
             one-person-lab-app/dist/opl-full-release/full-package-size-summary.md
             one-person-lab-app/dist/opl-full-release/runtime-cache-events.json
+            one-person-lab-app/dist/opl-full-release/full-runtime-currentness-probe.json
             one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
             one-person-lab-app/dist/opl-full-release/full-app-bundle-trim-report.json
             one-person-lab-app/dist/opl-full-release/full-package-boundary-audit.json

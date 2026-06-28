@@ -263,6 +263,15 @@ export function writePassingArtifacts(root: string, version = '26.5.99', runId =
   writeJson(path.join(root, `opl-full-diagnostics-${version}`, 'runtime-cache-events.json'), {
     events: options.runtimeCacheEvents ?? [{ layer_id: 'toolchain', status: 'hit' }],
   });
+  writeJson(path.join(root, `opl-full-diagnostics-${version}`, 'full-runtime-currentness-probe.json'), {
+    schema: 'opl_full_runtime_currentness_probe.v1',
+    status: 'passed',
+    framework_commit: '1111111111111111111111111111111111111111',
+    managed_update_surface_id: 'opl_managed_updater_kernel',
+    managed_update_components: ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure'],
+    app_state_schema_version: 'opl_app_state.v1',
+    app_state_module_count: 5,
+  });
   writeFile(path.join(root, `opl-full-diagnostics-${version}`, 'SHA256SUMS.txt'), 'checksum evidence\n');
   writeJson(path.join(root, `release-evidence-bundle-${version}`, 'evidence-validation-summary.json'), {
     schema: 'opl_release_evidence_bundle_validation.v1',

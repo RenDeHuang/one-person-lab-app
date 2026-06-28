@@ -1,25 +1,22 @@
 {
   "status": "macos_app_install_slides_ready",
+  "generator": "marp_cli",
+  "generator_version": "@marp-team/marp-cli v4.4.0 (w/ @marp-team/marp-core v4.3.0)",
+  "source_model": "single_guide_json_to_marp_markdown_and_css_theme",
   "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
   "screenshot_release_tag": "v26.6.27",
   "guide_source": "docs/user-guides/macos-app-install.guide.json",
   "screenshot_asset_manifest": "docs/user-guides/macos-app-install-assets.json",
+  "marp_markdown": "docs/user-guides/macos-app-install-slides.md",
+  "marp_theme": "docs/user-guides/macos-app-install-marp-theme.css",
   "output_pptx": "docs/user-guides/macos-app-install-slides.pptx",
   "output_pdf": "docs/user-guides/macos-app-install-slides.pdf",
   "slide_layout": "16:9",
   "slides": 10,
   "pdf_pages": 10,
   "pdf_page_size_pts": {
-    "width": 960.009,
+    "width": 960,
     "height": 540
-  },
-  "typography": {
-    "font_family": "Noto Sans CJK SC",
-    "step_title_pt": 31,
-    "step_subtitle_pt": 20,
-    "step_body_pt": 13,
-    "callout_pt": "14.2-18",
-    "cover_title_pt": 34
   },
   "screenshot_source": {
     "source": {
@@ -103,14 +100,14 @@
     },
     "06-research-data-folder.png": {
       "title": "Local runtime environment settings screen",
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/settings-pages/environment.png from standard VM smoke",
+      "source_kind": "rendered_opl_app_state_fixture",
+      "source": "docs/user-guides/fixtures/runtime-environment-currentness.fixture.json",
       "source_width": 1536,
       "source_height": 912,
-      "source_sha256": "c011c00b8bfff38700cd70f67ccf169cc723e8a180dd2b4e3259f4eaab72bce1",
+      "source_sha256": "1892d84d27c076e88bc2e2d2de9d52268d9e6d93b6858aec23ec678abe1465c5",
       "width": 1536,
       "height": 912,
-      "sha256": "c011c00b8bfff38700cd70f67ccf169cc723e8a180dd2b4e3259f4eaab72bce1"
+      "sha256": "5314ff4fcba9bdd05d0a91f23dd8cdf30ba315ee8dd161f0c130170e1524df51"
     },
     "07-first-research-entry.png": {
       "title": "First MAS research prompt entry screen",
@@ -170,6 +167,8 @@
     }
   },
   "pptx_layout_issues": "Found 0 issue(s):",
+  "pptx_roundtrip_pdf": "tmp/pdfs/macos-app-install-slides/pptx-roundtrip/macos-app-install-slides.pdf",
+  "pptx_roundtrip_pages": 10,
   "rendered_pages": 10,
   "rendered_dir": "tmp/pdfs/macos-app-install-slides/rendered"
 }

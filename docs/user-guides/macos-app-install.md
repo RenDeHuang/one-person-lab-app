@@ -106,7 +106,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 ## 截图与验证来源
 
-- 截图来自 v26.6.27 的中文 1080p VM guide artifact 与同一次 VM smoke 的 App CDP 截图；PNG 保留各自原始输出尺寸，不做统一画布要求。当前文案按 App contracts、安装脚本和最新 Release 面重新核对；截图只作为首启流程示意，不作为最新版本发布证据。
+- 截图主要来自 v26.6.27 的中文 1080p VM guide artifact 与同一次 VM smoke 的 App CDP 截图；本机运行环境截图来自修复后的 `runtime-environment-currentness.fixture.json` 渲染，用于替换旧 VM artifact 中 stale packaged-runtime 导致的“未知”模块状态。PNG 保留各自原始输出尺寸，不做统一画布要求。当前文案按 App contracts、安装脚本和最新 Release 面重新核对；截图只作为首启流程示意，不作为最新版本发布证据。
 - VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 GUID 输入页、Settings 和 MAS/MAG/RCA 入口可用。首启截图和 layout gate 会验证新手首屏保持简化，技术细节默认折叠。
 - 每张截图的来源、尺寸和 SHA256 记录在 `macos-app-install-assets.json` 与生成后的 verification JSON 中。
 - Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。
