@@ -15,6 +15,9 @@ import {
 test('App product profile owns user-facing defaults without runtime authority', () => {
   const profile = readProductProfile();
   const installExposurePolicy = readInstallExposurePolicy();
+  const guiContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-gui-product-contract.json'), 'utf8'),
+  );
 
   assert.equal(profile.owner, 'one-person-lab-app');
   assert.equal(profile.purpose, 'app_owned_product_profile');
@@ -84,6 +87,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.gui.right_context_inspector.chat_canvas_remains_primary, true);
   assert.equal(profile.gui.home.codex_auto_model_selection.strategy, 'codex_cli_auto_latest_available_frontier');
   assert.equal(profile.gui.home.codex_auto_model_selection.user_can_override_model, true);
+  assert.equal(profile.gui.home.codex_auto_model_selection.user_can_override_reasoning_effort, true);
   assert.equal(profile.gui.home.codex_auto_model_selection.user_can_restore_auto, true);
   assert.equal(profile.gui.home.codex_auto_model_selection.selection_persists_into_conversation, true);
   assert.deepEqual(
@@ -95,6 +99,20 @@ test('App product profile owns user-facing defaults without runtime authority', 
     'gpt-5.1-codex-max',
     'gpt-5.1-codex-mini',
   ]);
+  assert.equal(guiContract.executor_policy.default_model, profile.codex.default_model);
+  assert.equal(guiContract.executor_policy.default_reasoning_effort, profile.codex.default_reasoning_effort);
+  assert.equal(
+    guiContract.executor_policy.user_reasoning_effort_override_allowed,
+    profile.gui.home.codex_auto_model_selection.user_can_override_reasoning_effort,
+  );
+  assert.deepEqual(
+    guiContract.executor_policy.model_display_options_policy.user_reasoning_effort_options,
+    profile.gui.home.codex_model_display_options.user_reasoning_effort_options,
+  );
+  assert.equal(
+    guiContract.executor_policy.model_display_options_policy.reasoning_effort_segmented_control_visible,
+    true,
+  );
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt', 'book']);
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示', '写书']);
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca', 'bookforge']);

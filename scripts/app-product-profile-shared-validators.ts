@@ -126,6 +126,7 @@ function assertHomeCodexAutoSelectionPolicy(
     [
       { actual: autoSelection?.strategy, expected: 'codex_cli_auto_latest_available_frontier' },
       { actual: autoSelection?.user_can_override_model, expected: true },
+      { actual: autoSelection?.user_can_override_reasoning_effort, expected: true },
       { actual: autoSelection?.user_can_restore_auto, expected: true },
     ],
     `${label} GUI home must expose App-owned Codex model selection on the home path`,

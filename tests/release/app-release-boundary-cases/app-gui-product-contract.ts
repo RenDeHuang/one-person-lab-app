@@ -536,6 +536,28 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     guiContract.release_channel_policy.nightly.must_not_gate,
     releaseContract.release_validation_profiles.nightly_standard.forbidden_lanes,
   );
+  assert.equal(
+    releaseContract.operator_evidence_bundle.release_owner_verdict.release_ready_claim_allowed,
+    false,
+  );
+  assert.equal(
+    releaseContract.operator_evidence_bundle.release_owner_verdict.stable_latest_promotion_claim_allowed,
+    false,
+  );
+  assert.equal(
+    releaseContract.operator_evidence_bundle.release_owner_verdict.authority_boundary.can_claim_app_release_ready_from_evidence,
+    false,
+  );
+  assert.equal(
+    releaseContract.operator_evidence_bundle.release_owner_verdict.authority_boundary.can_claim_stable_latest_from_evidence,
+    false,
+  );
+  assert.equal(
+    productProfile.boundary.release_evidence_scope.classification,
+    'cohort_bound_app_user_path_evidence',
+  );
+  assert.ok(productProfile.boundary.release_evidence_scope.must_not_imply.includes('stable_latest_promotion'));
+  assert.ok(productProfile.boundary.release_evidence_scope.must_not_imply.includes('App release-ready without promotion decision'));
   assert.ok(!('docker_webui' in guiContract));
   assert.doesNotMatch(JSON.stringify(guiContract), /username input gate|must_skip_username_input|manifest_name|logo_policy/);
 });
