@@ -204,8 +204,10 @@
     },
     {
       "surface": "stable_local_authorized_macos_install",
-      "entrypoint": "install-stable.sh",
-      "backing_entrypoint": "install.sh --stable-macos-install --yes",
+      "entrypoint": "install.sh --stable-macos-install --yes",
+      "compatibility_entrypoints": [
+        "install-stable.sh"
+      ],
       "primary_audience": "beginner_non_technical_users",
       "progress_source": "github_release_dmg_copy_and_local_quarantine_diagnostics",
       "exposure_policy": "one_terminal_command_download_copy_authorize_and_open_as_stable_release_path",

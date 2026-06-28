@@ -31,7 +31,7 @@ export type {
 
 export { buildReleaseTitle } from './release-notes/tags.ts';
 
-const stableInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash';
+const stableInstallCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes';
 
 const releaseNotesAgentRuntimeEvidenceBoundary = {
   collectComponentChangeSubjects,

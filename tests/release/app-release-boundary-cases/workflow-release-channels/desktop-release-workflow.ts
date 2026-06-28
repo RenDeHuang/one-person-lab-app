@@ -534,6 +534,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     version_tag: '<app_or_opl_version>',
     source: 'shells/aionui Dockerfile',
     source_repository: 'https://github.com/gaofeng21cn/one-person-lab-app',
+    distribution_role: 'server_deployment_artifact_not_desktop_app_gui_shell',
+    ordinary_app_install_path: false,
+    managed_package_channel_member: false,
     required_oci_labels: {
       'org.opencontainers.image.source': 'https://github.com/gaofeng21cn/one-person-lab-app',
     },
@@ -570,7 +573,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     module_package_publish_allowed: false,
     opl_flow_plugin_publish_allowed: false,
     framework_role: 'references_image_coordinate_only',
-    rule: 'WebUI GHCR image publish truth is App-owned; Framework may reference the image coordinate but does not own publishing.',
+    rule: 'WebUI GHCR image publish truth is App-owned server deployment artifact truth. The desktop App embeds the AionUI shell through App packaging; ordinary App users do not install this container package. Framework may reference the image coordinate but does not own publishing.',
   });
   assert.equal(
     releaseContract.release_acceleration.github_actions.first_run_vm_workflow,

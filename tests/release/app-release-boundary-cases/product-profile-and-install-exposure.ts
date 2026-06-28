@@ -391,9 +391,9 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     }
   }
   const stableMacosInstall = installerSurfaceById.get('stable_local_authorized_macos_install');
-  assert.equal(stableMacosInstall.entrypoint, 'install-stable.sh');
-  assert.equal(stableMacosInstall.compatibility_entrypoints, undefined);
-  assert.equal(stableMacosInstall.backing_entrypoint, 'install.sh --stable-macos-install --yes');
+  assert.equal(stableMacosInstall.entrypoint, 'install.sh --stable-macos-install --yes');
+  assert.deepEqual(stableMacosInstall.compatibility_entrypoints, ['install-stable.sh']);
+  assert.equal(stableMacosInstall.backing_entrypoint, undefined);
   assert.equal(stableMacosInstall.compatibility_backing_entrypoint, undefined);
   assert.equal(stableMacosInstall.progress_source, 'github_release_dmg_copy_and_local_quarantine_diagnostics');
   assert.equal(
@@ -629,6 +629,7 @@ test('Homebrew distribution channel is transport-only and keeps OPL activation a
 
   assert.equal(homebrew.role, 'app_cask_transport_and_install_index_only');
   assert.equal(homebrew.tap, 'gaofeng21cn/one-person-lab');
+  assert.equal(homebrew.cask_install_policy.fully_qualified_cask_install, true);
   assert.equal(homebrew.must_not_own_agent_semantics, true);
   assert.equal(homebrew.must_not_write_user_codex_state, true);
   assert.equal(homebrew.user_state_activation_owner, 'opl_framework');

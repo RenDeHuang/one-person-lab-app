@@ -64,21 +64,20 @@ For macOS arm64 users who already use Homebrew, this is the shortest terminal
 path:
 
 ```bash
-brew tap gaofeng21cn/one-person-lab
-brew install --cask one-person-lab
+brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 open -a "One Person Lab"
 ```
 
 Nightly builds are opt-in:
 
 ```bash
-brew install --cask one-person-lab-nightly
+brew install --cask gaofeng21cn/one-person-lab/one-person-lab-nightly
 ```
 
 For the complete first-install payload:
 
 ```bash
-brew install --cask one-person-lab-full
+brew install --cask gaofeng21cn/one-person-lab/one-person-lab-full
 open -a "One Person Lab"
 ```
 
@@ -120,7 +119,7 @@ want the full framework/module install from the terminal.
 Stable macOS users who do not want Homebrew can use the stable install helper:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install-stable.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes
 ```
 
 Mac-specific trust diagnostics and internal-build handling stay in the release
@@ -147,7 +146,10 @@ Daily updates are handled by Homebrew or the in-app update channel, depending on
 how the App was installed. Release asset, updater metadata, and Full
 first-install boundaries are governed by the App release guide and contracts.
 
-For Docker or server deployment, see the [Docker/WebUI install guide](https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md).
+For Docker or server deployment, use the App-owned `one-person-lab-webui` GHCR
+image. It is separate from the desktop App GUI shell, which is bundled into the
+App package from the active AionUI shell, and it is not an OPL Packages module.
+See the [Docker/WebUI install guide](https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md).
 
 ## What The App Does
 

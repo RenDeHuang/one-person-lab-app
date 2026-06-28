@@ -39,13 +39,17 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 | Offline runtime kit | Manual diagnostic or recovery artifact for the same Full runtime bundle payload. It is not updater-visible and is not a release-ready claim. | Runtime archive, checksums, Full manifest refs, and the same OPL bundle consumer boundary as the Full DMG. |
 | Stable promotion | Human release-owner promotion from candidate to stable/latest. | Candidate record with `status=ready_to_promote`, release readiness summary, same-cohort evidence, promote workflow output. |
 | Homebrew | Cask transport and index for standard and explicit Full first-install packages. | Published release assets, matching local authorization policy asset, tap update output, Homebrew VM smoke where required. |
-| WebUI/GHCR | App-owned image publication lane when release contract enables it. | OCI source label, package access, publish output, image smoke/evidence artifacts. |
+| WebUI/GHCR | App-owned Docker/server deployment image. It is not the desktop App GUI shell install path and is not an OPL Packages member. | OCI source label, package access, publish output, image smoke/evidence artifacts. |
 | Managed runtime/toolchain update | Framework-runner channel for runtime toolchain and managed agent packages. | OPL update runner receipts, lock/runner status, repair/rollback status, post-apply sync status. |
 
 The Stable WebUI path builds the image once in the Docker smoke lane, verifies
 the image locally, publishes that same image to GHCR, and leaves the GHCR lane
 as a summary-verifier gate. Do not add a second Stable Docker build just to
 separate smoke and publish reporting.
+
+Desktop users get the AionUI shell through the App package itself. The
+`one-person-lab-webui` container exists only for Docker/server deployment and
+release smoke evidence; Framework package workflows must not publish it.
 
 ## Preflight
 

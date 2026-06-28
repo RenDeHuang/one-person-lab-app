@@ -16,8 +16,9 @@ export function assertLocalAuthorizationPolicy(policy, packageKind, name = 'loca
     || policy?.gatekeeper_required !== false
     || policy?.local_authorization_required !== true
     || policy?.quarantine_removal_required !== true
-    || policy?.install_entrypoint !== 'install-stable.sh'
-    || policy?.backing_entrypoint !== 'install.sh --stable-macos-install --yes'
+    || policy?.install_entrypoint !== 'install.sh --stable-macos-install --yes'
+    || !Array.isArray(policy?.compatibility_entrypoints)
+    || !policy.compatibility_entrypoints.includes('install-stable.sh')
   ) {
     throw new Error(`${name} must declare the Stable local-authorized macOS install policy for ${packageKind}.`);
   }
@@ -124,8 +125,8 @@ function buildPolicy(options) {
     gatekeeper_required: false,
     local_authorization_required: true,
     quarantine_removal_required: true,
-    install_entrypoint: 'install-stable.sh',
-    backing_entrypoint: 'install.sh --stable-macos-install --yes',
+    install_entrypoint: 'install.sh --stable-macos-install --yes',
+    compatibility_entrypoints: ['install-stable.sh'],
     default_package_profile: options.packageKind === 'app_full_first_install' ? 'full' : 'standard',
     user_prompt_policy: 'one_terminal_command_no_system_settings_override_expected_after_quarantine_clear',
     app_path: options.appPath,
