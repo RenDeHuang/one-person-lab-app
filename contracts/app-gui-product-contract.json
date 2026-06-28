@@ -448,6 +448,7 @@
     "permission_mode_selector_visible_in_conversation": false,
     "model_selection_auto_option_visible": true,
     "user_model_override_allowed": true,
+    "user_reasoning_effort_override_allowed": true,
     "restore_auto_model_selection_allowed": true,
     "frontier_model_preference_order": [
       "gpt-5.5",
@@ -460,6 +461,11 @@
       "display_policy": "friendly_model_name_and_reasoning_for_every_visible_option",
       "raw_model_id_visible_in_ordinary_ui": false,
       "reasoning_effort_visible_for_every_option": true,
+      "reasoning_effort_segmented_control_visible": true,
+      "user_reasoning_effort_options": [
+        "high",
+        "xhigh"
+      ],
       "auto_option_label_policy": "auto_recommended_with_current_model_reasoning_and_latest_strongest_description",
       "fixed_option_label_policy": "friendly_model_name_plus_reasoning_with_fixed_model_description",
       "visible_models_must_match_frontier_preference_order": true,
