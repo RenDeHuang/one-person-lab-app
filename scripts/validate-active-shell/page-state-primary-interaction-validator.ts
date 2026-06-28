@@ -61,8 +61,8 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     codex_model_auto_option_visible: true,
     codex_default_model: 'gpt-5.5',
     codex_default_reasoning_effort: 'xhigh',
-    codex_default_display_label: 'GPT-5.5（超高）',
-    codex_precise_model_display_policy: 'friendly_default_model_and_reasoning_visible',
+    codex_default_display_label: 'GPT-5.5',
+    codex_precise_model_display_policy: 'friendly_model_primary_reasoning_configurable_in_model_menu',
     codex_default_permission_mode: 'full-access',
     permission_mode_selector_visible: false,
     conversation_backend_selector_visible: false,
@@ -123,8 +123,8 @@ function validateGuidHomeRouteAndPurpose(homeViewModel) {
 function validateGuidHomeVisibleSignals(guidHomePage) {
   assertIncludesAll(guidHomePage.must_show, [
     'Codex CLI fixed executor experience',
-    'Codex model selector defaulting to GPT-5.5（超高）',
-    'default model and reasoning status GPT-5.5（超高）',
+    'Codex model selector defaulting to GPT-5.5',
+    'reasoning effort configurable inside the Codex model menu',
     'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/BookForge',
     'selected assistant keeps purpose entry switcher visible',
     'assistant-scoped skill menu with required skill checked',

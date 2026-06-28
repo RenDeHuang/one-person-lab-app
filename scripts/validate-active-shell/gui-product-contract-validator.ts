@@ -316,8 +316,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.guid_home.must_show?.includes('selected assistant shown as a compact @ purpose tag')) {
     throw new Error('App GUI home must show selected assistant as a compact @ purpose tag');
   }
-  if (pages.guid_home.model_status?.display_value !== 'GPT-5.5（超高）') {
-    throw new Error('App GUI home must display the friendly default model and reasoning status');
+  if (pages.guid_home.model_status?.display_value !== 'GPT-5.5') {
+    throw new Error('App GUI home must display the friendly default model without repeating reasoning');
   }
   if (pages.guid_home.model_status?.selector_visible !== true) {
     throw new Error('App GUI home model status must expose the App-owned model selector');
@@ -330,9 +330,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   if (
     pages.guid_home.conversation_feedback_policy?.model_status !==
-    'same model status and selector appear in Codex conversation composer'
+    'same model selector appears in Codex conversation composer; reasoning is configurable in the model menu'
   ) {
-    throw new Error('App GUI conversation must show the same model status and selector');
+    throw new Error('App GUI conversation must show the same model selector with reasoning configurable in the menu');
   }
   if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
     throw new Error('App GUI home must keep OMA out of default home entries');

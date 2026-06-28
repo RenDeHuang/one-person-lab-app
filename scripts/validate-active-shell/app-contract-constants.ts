@@ -157,7 +157,7 @@ const appOwnedOrdinaryConversation = {
   permission_mode_selector_visible: false,
   provider_selector_visible: false,
   model_status_surface: 'gui.home.codex_home_model_status_label',
-  technical_details_policy: 'friendly_default_model_and_reasoning_visible',
+  technical_details_policy: 'friendly_model_primary_reasoning_configurable_in_model_menu',
 };
 export const appOwnedGuiContractOrdinaryConversation = {
   ...appOwnedOrdinaryConversation,

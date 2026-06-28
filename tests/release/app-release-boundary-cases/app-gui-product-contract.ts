@@ -174,21 +174,21 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.executor_policy.home_executor_selector_visible, false);
   assert.equal(guiContract.executor_policy.executor_tab_visible_when_single_executor, false);
   assert.equal(guiContract.executor_policy.default_model_strategy, 'codex_cli_auto_latest_available_frontier');
-  assert.equal(guiContract.executor_policy.default_model_display_value, 'GPT-5.5（超高）');
-  assert.equal(guiContract.executor_policy.home_model_status_label, 'GPT-5.5（超高）');
+  assert.equal(guiContract.executor_policy.default_model_display_value, 'GPT-5.5');
+  assert.equal(guiContract.executor_policy.home_model_status_label, 'GPT-5.5');
   assert.equal(
     guiContract.executor_policy.home_model_status_policy,
-    'display_default_model_and_reasoning_with_visible_selector',
+    'display_default_model_with_reasoning_configurable_in_model_menu',
   );
   assert.equal(
     guiContract.executor_policy.conversation_model_status_policy,
-    'display_same_model_and_reasoning_with_visible_selector_in_codex_conversation',
+    'display_same_model_selector_with_reasoning_configurable_in_model_menu',
   );
   assert.equal(
     guiContract.executor_policy.conversation_pending_feedback_policy,
     'display_elapsed_seconds_while_ai_processing_or_backend_running',
   );
-  assert.equal(guiContract.executor_policy.precise_model_display_policy, 'friendly_default_model_and_reasoning_visible');
+  assert.equal(guiContract.executor_policy.precise_model_display_policy, 'friendly_model_primary_reasoning_configurable_in_model_menu');
   assert.equal(guiContract.executor_policy.permission_mode_selector_visible_on_home, false);
   assert.equal(guiContract.executor_policy.model_selector_visible_on_new_conversation, true);
   assert.equal(guiContract.executor_policy.model_selector_visible_in_conversation, true);
@@ -199,8 +199,6 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.deepEqual(guiContract.executor_policy.frontier_model_preference_order, [
     'gpt-5.5',
     'gpt-5.4',
-    'gpt-5.3-codex',
-    'gpt-5.2',
   ]);
   assert.deepEqual(guiContract.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca', 'bookforge']);
   assert.ok(guiContract.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
@@ -292,7 +290,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'a candidate shell should implement the same App contracts by swapping adapters/profile consumers, not by inheriting AionUI-specific product logic',
   );
   assert.equal(guiContract.pages.guid_home.hero_prompt, '把研究、基金、汇报和写书交给 One Person Lab 自动推进');
-  assert.equal(guiContract.pages.guid_home.model_status.display_value, 'GPT-5.5（超高）');
+  assert.equal(guiContract.pages.guid_home.model_status.display_value, 'GPT-5.5');
   assert.equal(guiContract.pages.guid_home.model_status.selector_visible, true);
   assert.equal(
     guiContract.pages.guid_home.conversation_feedback_policy.pending_indicator,
@@ -300,7 +298,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   );
   assert.equal(
     guiContract.pages.guid_home.conversation_feedback_policy.model_status,
-    'same model status and selector appear in Codex conversation composer',
+    'same model selector appears in Codex conversation composer; reasoning is configurable in the model menu',
   );
   assert.equal(guiContract.pages.guid_home.conversation_feedback_policy.raw_trace_visible, false);
   assert.ok(guiContract.pages.guid_home.must_show.includes('single composer-first home input'));

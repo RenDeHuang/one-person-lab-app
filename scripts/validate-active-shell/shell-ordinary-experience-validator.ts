@@ -51,17 +51,19 @@ const productProfileDefaultsExpected = [
   '"codex_model_policy": "codex_cli_latest_strongest_model_selector_visible"',
   '"codex_model_auto_option_visible": true',
   '"codex_default_model": "gpt-5.5"',
-  '"codex_home_model_status_label": "GPT-5.5（超高）"',
-  '"codex_precise_model_display_policy": "friendly_default_model_and_reasoning_visible"',
+  '"codex_home_model_status_label": "GPT-5.5"',
+  '"codex_precise_model_display_policy": "friendly_model_primary_reasoning_configurable_in_model_menu"',
   '"strategy": "codex_cli_auto_latest_available_frontier"',
   '"user_can_override_model": true',
   '"user_can_restore_auto": true',
-  '"display_policy": "friendly_model_name_and_reasoning_for_every_visible_option"',
+  '"display_policy": "friendly_model_name_primary_reasoning_configurable_in_model_menu"',
   '"raw_model_id_visible_in_ordinary_ui": false',
-  '"reasoning_effort_visible_for_every_option": true',
+  '"reasoning_effort_visible_for_every_option": false',
+  '"reasoning_effort_menu_visible": true',
+  '"reasoning_effort_options_source": "acp_codex_config_options_enum"',
   '"label_zh": "自动（推荐）"',
   '"description_zh": "当前 GPT-5.5 · 推理超高 · 跟随最新最强"',
-  '"label_zh": "GPT-5.3 Codex"',
+  '"label_zh": "GPT-5.4"',
   '"id": "mas"',
   '"id": "mag"',
   '"id": "rca"',
@@ -162,7 +164,7 @@ function validateGuidAgentSelection(shellPaths) {
 
 function assertProductProfileFrontierModelPreferenceOrder(productProfileJson) {
   const actual = productProfileJson?.gui?.home?.codex_auto_model_selection?.frontier_model_preference_order;
-  const expected = ['gpt-5.5', 'gpt-5.4', 'gpt-5.3-codex', 'gpt-5.2'];
+  const expected = ['gpt-5.5', 'gpt-5.4'];
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(
       `Active shell product profile must carry App Codex default frontier_model_preference_order=${JSON.stringify(expected)}`,

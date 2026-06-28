@@ -121,7 +121,7 @@ function validateHomeAssistantDefaults(profile) {
   if (!oma || oma.home_default_visible !== false || oma.home_entry_policy !== 'explicit_or_settings_only') {
     throw new Error('Product profile must keep OMA available but out of default home entries');
   }
-  for (const retiredModel of ['gpt-5.2-codex', 'gpt-5.1-codex-max', 'gpt-5.1-codex-mini']) {
+  for (const retiredModel of ['gpt-5.3-codex', 'gpt-5.2', 'gpt-5.2-codex', 'gpt-5.1-codex-max', 'gpt-5.1-codex-mini']) {
     if (!profile.gui.home?.retired_codex_models_must_not_be_exposed?.includes(retiredModel)) {
       throw new Error(`Product profile GUI home must ban retired Codex model ${retiredModel}`);
     }

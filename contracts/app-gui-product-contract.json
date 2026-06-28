@@ -433,13 +433,13 @@
     "default_model": "gpt-5.5",
     "default_model_strategy": "codex_cli_auto_latest_available_frontier",
     "default_reasoning_effort": "xhigh",
-    "default_model_display_value": "GPT-5.5（超高）",
-    "home_model_status_label": "GPT-5.5（超高）",
-    "home_model_status_label_en": "GPT-5.5 (Ultra)",
-    "home_model_status_policy": "display_default_model_and_reasoning_with_visible_selector",
-    "conversation_model_status_policy": "display_same_model_and_reasoning_with_visible_selector_in_codex_conversation",
+    "default_model_display_value": "GPT-5.5",
+    "home_model_status_label": "GPT-5.5",
+    "home_model_status_label_en": "GPT-5.5",
+    "home_model_status_policy": "display_default_model_with_reasoning_configurable_in_model_menu",
+    "conversation_model_status_policy": "display_same_model_selector_with_reasoning_configurable_in_model_menu",
     "conversation_pending_feedback_policy": "display_elapsed_seconds_while_ai_processing_or_backend_running",
-    "precise_model_display_policy": "friendly_default_model_and_reasoning_visible",
+    "precise_model_display_policy": "friendly_model_primary_reasoning_configurable_in_model_menu",
     "default_permission_mode": "full-access",
     "permission_mode_selector_visible_on_home": false,
     "model_selector_visible_on_new_conversation": true,
@@ -452,17 +452,20 @@
     "restore_auto_model_selection_allowed": true,
     "frontier_model_preference_order": [
       "gpt-5.5",
-      "gpt-5.4",
-      "gpt-5.3-codex",
-      "gpt-5.2"
+      "gpt-5.4"
     ],
     "model_display_options_policy": {
       "source": "contracts/app-product-profile.json#gui.home.codex_model_display_options",
-      "display_policy": "friendly_model_name_and_reasoning_for_every_visible_option",
+      "display_policy": "friendly_model_name_primary_reasoning_configurable_in_model_menu",
       "raw_model_id_visible_in_ordinary_ui": false,
-      "reasoning_effort_visible_for_every_option": true,
-      "reasoning_effort_segmented_control_visible": true,
+      "reasoning_effort_visible_for_every_option": false,
+      "reasoning_effort_menu_visible": true,
+      "reasoning_effort_override_surface": "model_configuration_menu",
+      "reasoning_effort_options_source": "acp_codex_config_options_enum",
       "user_reasoning_effort_options": [
+        "minimal",
+        "low",
+        "medium",
         "high",
         "xhigh"
       ],
@@ -507,7 +510,7 @@
     "permission_mode_selector_visible": false,
     "provider_selector_visible": false,
     "model_status_surface": "executor_policy.default_model_display_value",
-    "technical_details_policy": "friendly_default_model_and_reasoning_visible"
+    "technical_details_policy": "friendly_model_primary_reasoning_configurable_in_model_menu"
   },
   "right_context_inspector": {
     "placement": "right",
@@ -1179,20 +1182,20 @@
       "assistant_skill_profile_source_ref": "assistant_skill_profiles",
       "hero_prompt": "把研究、基金、汇报和写书交给 One Person Lab 自动推进",
       "model_status": {
-        "value_source": "default_session_profile.model + default_session_profile.reasoning_effort",
-        "display_value": "GPT-5.5（超高）",
+        "value_source": "default_session_profile.model",
+        "display_value": "GPT-5.5",
         "placement": "compact model selector/status near Home composer",
         "selector_visible": true
       },
       "conversation_feedback_policy": {
         "pending_indicator": "visible elapsed seconds while request is pending or backend is running",
-        "model_status": "same model status and selector appear in Codex conversation composer",
+        "model_status": "same model selector appears in Codex conversation composer; reasoning is configurable in the model menu",
         "raw_trace_visible": false
       },
       "must_show": [
         "Codex CLI fixed executor experience",
-        "Codex model selector defaults to GPT-5.5（超高）",
-        "default model and reasoning status GPT-5.5（超高）",
+        "Codex model selector defaults to GPT-5.5",
+        "reasoning effort configurable inside the Codex model menu",
         "conversation pending elapsed seconds while Codex is working",
         "purpose-first assistants Research/Grant/Presentation/Book as click-to-start entries",
         "selected assistant shown as a compact @ purpose tag",

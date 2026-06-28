@@ -59,6 +59,9 @@ export type AppProductProfile = {
         display_policy: string;
         raw_model_id_visible_in_ordinary_ui: boolean;
         reasoning_effort_visible_for_every_option: boolean;
+        reasoning_effort_menu_visible: boolean;
+        reasoning_effort_override_surface: string;
+        reasoning_effort_options_source: string;
         default_reasoning_effort: string;
         auto_option: {
           id: string;
@@ -75,11 +78,11 @@ export type AppProductProfile = {
         fixed_model_description_zh: string;
         fixed_model_description_en: string;
         reasoning_labels: Record<string, { zh: string; en: string }>;
+        user_reasoning_effort_options: string[];
         visible_models: Array<{
           id: string;
           label_zh: string;
           label_en: string;
-          reasoning_effort: string;
         }>;
       };
       home_purpose_entries: Array<{

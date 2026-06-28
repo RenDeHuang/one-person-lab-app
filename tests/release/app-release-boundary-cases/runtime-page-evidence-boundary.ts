@@ -333,23 +333,21 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guidHomePage.home_view_model.codex_model_policy, 'codex_cli_latest_strongest_model_selector_visible');
   assert.equal(guidHomePage.home_view_model.codex_default_model, 'gpt-5.5');
   assert.equal(guidHomePage.home_view_model.codex_default_reasoning_effort, 'xhigh');
-  assert.equal(guidHomePage.home_view_model.codex_default_display_label, 'GPT-5.5（超高）');
-  assert.equal(guidHomePage.home_view_model.codex_default_model_display_value, 'GPT-5.5（超高）');
+  assert.equal(guidHomePage.home_view_model.codex_default_display_label, 'GPT-5.5');
+  assert.equal(guidHomePage.home_view_model.codex_default_model_display_value, 'GPT-5.5');
   assert.equal(
     guidHomePage.home_view_model.codex_model_status_display_policy,
-    'default_model_and_reasoning_status_with_visible_selector',
+    'default_model_status_with_reasoning_configurable_in_model_menu',
   );
   assert.equal(guidHomePage.home_view_model.codex_default_permission_mode, 'full-access');
   assert.equal(guidHomePage.home_view_model.permission_mode_selector_visible, false);
   assert.equal(guidHomePage.home_view_model.conversation_backend_selector_visible, false);
   assert.equal(guidHomePage.home_view_model.conversation_model_selector_visible, true);
   assert.equal(guidHomePage.home_view_model.conversation_permission_mode_selector_visible, false);
-  assert.equal(guidHomePage.home_view_model.codex_precise_model_display_policy, 'friendly_default_model_and_reasoning_visible');
+  assert.equal(guidHomePage.home_view_model.codex_precise_model_display_policy, 'friendly_model_primary_reasoning_configurable_in_model_menu');
   assert.deepEqual(guidHomePage.home_view_model.codex_frontier_model_preference_order, [
     'gpt-5.5',
     'gpt-5.4',
-    'gpt-5.3-codex',
-    'gpt-5.2',
   ]);
   assert.equal(guidHomePage.home_view_model.codex_user_can_override_model, true);
   assert.equal(guidHomePage.home_view_model.codex_user_can_restore_auto, true);
@@ -371,6 +369,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     ],
   });
   assert.deepEqual(guidHomePage.home_view_model.retired_codex_models_must_not_be_exposed, [
+    'gpt-5.3-codex',
+    'gpt-5.2',
     'gpt-5.2-codex',
     'gpt-5.1-codex-max',
     'gpt-5.1-codex-mini',
@@ -446,8 +446,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   for (const expected of [
     'Codex CLI fixed executor experience',
-    'Codex model selector defaulting to GPT-5.5（超高）',
-    'default model and reasoning status GPT-5.5（超高）',
+    'Codex model selector defaulting to GPT-5.5',
+    'reasoning effort configurable inside the Codex model menu',
     'conversation pending elapsed seconds while Codex is working',
     'purpose-first entries 科研/MAS, 基金/MAG, 演示/RCA, 写书/BookForge',
     'selected assistant keeps purpose entry switcher visible',
@@ -495,7 +495,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     permission_mode_selector_visible: false,
     provider_selector_visible: false,
     model_status_surface_ref: 'contracts/app-gui-product-contract.json#executor_policy.default_model_display_value',
-    technical_details_policy: 'friendly_default_model_and_reasoning_visible',
+    technical_details_policy: 'friendly_model_primary_reasoning_configurable_in_model_menu',
   });
   assert.deepEqual(
     rightContextInspectorPage.inspector_view_model.tabs.map((tab) => tab.id),

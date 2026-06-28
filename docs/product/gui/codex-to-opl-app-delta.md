@@ -77,8 +77,9 @@ OPL App 隐藏或重构通用 agent app 控件：
 - 普通路径隐藏 executor selection；Codex CLI 是固定 executor。
 - 普通路径隐藏 backend 和 provider selection。
 - Model selector 是普通控件，但必须由 App product profile 控制：默认选择最新、
-  最强模型并显示为 `GPT-5.5（超高）`，Home 与 Codex conversation composer
-  保持一致；退休模型不进入普通列表。
+  最强模型并显示为 `GPT-5.5`，Home 与 Codex conversation composer 保持一致；
+  推理强度在同一个模型配置菜单中可手动覆盖，不在普通输入栏重复显示。普通列表
+  只展示 GPT-5.5 和 GPT-5.4；5.4 之前模型保持退休或隐藏。
 - Permission-mode selection 不是普通 composer UI。
 - AG-UI、ACP、app-server events、adapter frames 等 raw protocol names 只在
   diagnostics 中出现。

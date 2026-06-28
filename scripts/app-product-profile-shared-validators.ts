@@ -99,8 +99,8 @@ function assertHomeCodexFixedExecutorFields(
       { actual: home?.conversation_backend_selector_visible, expected: false },
       { actual: home?.conversation_model_selector_visible, expected: true },
       { actual: home?.conversation_permission_mode_selector_visible, expected: false },
-      { actual: home?.codex_home_model_status_label, expected: 'GPT-5.5（超高）' },
-      { actual: home?.codex_precise_model_display_policy, expected: 'friendly_default_model_and_reasoning_visible' },
+      { actual: home?.codex_home_model_status_label, expected: 'GPT-5.5' },
+      { actual: home?.codex_precise_model_display_policy, expected: 'friendly_model_primary_reasoning_configurable_in_model_menu' },
     ],
     `${label} GUI home must keep Codex CLI fixed while exposing App-owned model selectors`,
   );
@@ -111,8 +111,8 @@ function assertHomeCodexEnglishStatusLabel(
   label: string,
   options: HomePolicyOptions,
 ): void {
-  if (options.requireEnglishStatusLabel && home?.codex_home_model_status_label_en !== 'GPT-5.5 (Ultra)') {
-    throw new Error(`${label} GUI home must expose the English GPT-5.5 ultra status label`);
+  if (options.requireEnglishStatusLabel && home?.codex_home_model_status_label_en !== 'GPT-5.5') {
+    throw new Error(`${label} GUI home must expose the English GPT-5.5 status label without repeated reasoning`);
   }
 }
 
@@ -158,9 +158,12 @@ function assertCodexModelDisplayShape(
   const visibleModels = displayOptions?.visible_models ?? [];
   assertExpectedFields(
     [
-      { actual: displayOptions?.display_policy, expected: 'friendly_model_name_and_reasoning_for_every_visible_option' },
+      { actual: displayOptions?.display_policy, expected: 'friendly_model_name_primary_reasoning_configurable_in_model_menu' },
       { actual: displayOptions?.raw_model_id_visible_in_ordinary_ui, expected: false },
-      { actual: displayOptions?.reasoning_effort_visible_for_every_option, expected: true },
+      { actual: displayOptions?.reasoning_effort_visible_for_every_option, expected: false },
+      { actual: displayOptions?.reasoning_effort_menu_visible, expected: true },
+      { actual: displayOptions?.reasoning_effort_override_surface, expected: 'model_configuration_menu' },
+      { actual: displayOptions?.reasoning_effort_options_source, expected: 'acp_codex_config_options_enum' },
       { actual: displayOptions?.default_reasoning_effort, expected: profile.codex?.default_reasoning_effort },
       { actual: auto?.label_zh, expected: '自动（推荐）' },
       { actual: auto?.label_en, expected: 'Auto (recommended)' },
@@ -169,18 +172,29 @@ function assertCodexModelDisplayShape(
       { actual: auto?.follows_latest_strongest, expected: true },
       { actual: displayOptions?.fixed_model_description_zh, expected: '固定此模型' },
       { actual: displayOptions?.fixed_model_description_en, expected: 'Use this model' },
-      { actual: displayOptions?.reasoning_labels?.high?.zh, expected: '推理高' },
-      { actual: displayOptions?.reasoning_labels?.high?.en, expected: 'High reasoning' },
-      { actual: displayOptions?.reasoning_labels?.xhigh?.zh, expected: '推理超高' },
-      { actual: displayOptions?.reasoning_labels?.xhigh?.en, expected: 'Ultra reasoning' },
-      {
-        actual: JSON.stringify(displayOptions?.user_reasoning_effort_options),
-        expected: JSON.stringify(['high', 'xhigh']),
-      },
       { actual: JSON.stringify(visibleModels.map((model) => model.id)), expected: JSON.stringify(frontierOrder) },
     ],
     `${label} GUI home must expose friendly Codex model display options with reasoning labels`,
   );
+  assertReasoningOptions(displayOptions, profile, label);
+  assertNoPreGpt54VisibleModels(visibleModels, label);
+}
+
+function assertReasoningOptions(
+  displayOptions: CodexModelDisplayOptionsLike | undefined,
+  profile: ProductProfileLike,
+  label: string,
+): void {
+  const options = displayOptions?.user_reasoning_effort_options;
+  if (!Array.isArray(options) || options.length < 3 || !options.includes(String(profile.codex?.default_reasoning_effort))) {
+    throw new Error(`${label} Codex reasoning effort options must expose the ACP/Codex config enum, not a two-option high/xhigh list`);
+  }
+  for (const effort of options) {
+    const labels = displayOptions?.reasoning_labels?.[effort];
+    if (typeof labels?.zh !== 'string' || !labels.zh.trim() || typeof labels?.en !== 'string' || !labels.en.trim()) {
+      throw new Error(`${label} Codex reasoning effort option ${effort} must have friendly labels`);
+    }
+  }
 }
 
 function assertCodexAutoModelOptionDescription(
@@ -213,9 +227,21 @@ function assertVisibleCodexModelsUseFriendlyDefaults(
       typeof model.label_en !== 'string' ||
       model.label_zh === model.id ||
       model.label_en === model.id ||
-      model.reasoning_effort !== profile.codex?.default_reasoning_effort
+      'reasoning_effort' in model
     ) {
-      throw new Error(`${label} GUI home Codex model ${model.id} must use friendly labels and default reasoning`);
+      throw new Error(`${label} GUI home Codex model ${model.id} must use friendly labels without repeating reasoning`);
+    }
+  }
+}
+
+function assertNoPreGpt54VisibleModels(
+  visibleModels: NonNullable<CodexModelDisplayOptionsLike['visible_models']>,
+  label: string,
+): void {
+  const forbidden = new Set(['gpt-5.3-codex', 'gpt-5.2', 'gpt-5.2-codex', 'gpt-5.1-codex-max', 'gpt-5.1-codex-mini']);
+  for (const model of visibleModels) {
+    if (typeof model.id === 'string' && forbidden.has(model.id)) {
+      throw new Error(`${label} GUI home must not expose pre-GPT-5.4 model ${model.id} as an ordinary visible model`);
     }
   }
 }

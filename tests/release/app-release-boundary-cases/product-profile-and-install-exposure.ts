@@ -43,9 +43,9 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.gui.home.conversation_backend_selector_visible, false);
   assert.equal(profile.gui.home.conversation_model_selector_visible, true);
   assert.equal(profile.gui.home.conversation_permission_mode_selector_visible, false);
-  assert.equal(profile.gui.home.codex_home_model_status_label, 'GPT-5.5（超高）');
-  assert.equal(profile.gui.home.codex_home_model_status_label_en, 'GPT-5.5 (Ultra)');
-  assert.equal(profile.gui.home.codex_precise_model_display_policy, 'friendly_default_model_and_reasoning_visible');
+  assert.equal(profile.gui.home.codex_home_model_status_label, 'GPT-5.5');
+  assert.equal(profile.gui.home.codex_home_model_status_label_en, 'GPT-5.5');
+  assert.equal(profile.gui.home.codex_precise_model_display_policy, 'friendly_model_primary_reasoning_configurable_in_model_menu');
   assert.deepEqual(profile.gui.home.home_layout, {
     default_mode: 'composer_first_chat_canvas',
     first_screen_policy: 'chat_first_no_dashboard_or_landing_copy',
@@ -75,7 +75,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
     permission_mode_selector_visible: false,
     provider_selector_visible: false,
     model_status_surface: 'gui.home.codex_home_model_status_label',
-    technical_details_policy: 'friendly_default_model_and_reasoning_visible',
+    technical_details_policy: 'friendly_model_primary_reasoning_configurable_in_model_menu',
   });
   assert.deepEqual(
     profile.gui.right_context_inspector.tabs.map((tab) => tab.id),
@@ -92,9 +92,11 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.gui.home.codex_auto_model_selection.selection_persists_into_conversation, true);
   assert.deepEqual(
     profile.gui.home.codex_auto_model_selection.frontier_model_preference_order,
-    ['gpt-5.5', 'gpt-5.4', 'gpt-5.3-codex', 'gpt-5.2'],
+    ['gpt-5.5', 'gpt-5.4'],
   );
   assert.deepEqual(profile.gui.home.retired_codex_models_must_not_be_exposed, [
+    'gpt-5.3-codex',
+    'gpt-5.2',
     'gpt-5.2-codex',
     'gpt-5.1-codex-max',
     'gpt-5.1-codex-mini',
@@ -110,8 +112,16 @@ test('App product profile owns user-facing defaults without runtime authority', 
     profile.gui.home.codex_model_display_options.user_reasoning_effort_options,
   );
   assert.equal(
-    guiContract.executor_policy.model_display_options_policy.reasoning_effort_segmented_control_visible,
+    guiContract.executor_policy.model_display_options_policy.reasoning_effort_menu_visible,
     true,
+  );
+  assert.equal(
+    guiContract.executor_policy.model_display_options_policy.reasoning_effort_visible_for_every_option,
+    false,
+  );
+  assert.equal(
+    guiContract.executor_policy.model_display_options_policy.reasoning_effort_options_source,
+    'acp_codex_config_options_enum',
   );
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.id), ['research', 'grant', 'ppt', 'book']);
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示', '写书']);

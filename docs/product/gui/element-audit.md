@@ -53,7 +53,7 @@ dashboard、settings bar 或通用 agent 控制台。
 | Home/Guid | Composer input | 接收用户任务。 | Home 视觉中心或 pinned command surface。 | 主元素；不能被 Runtime/continue-work grid 抢占。 |
 | Home/Guid | Purpose entries | 快速选择 `科研`、`基金`、`演示`/RCA route intent。 | Composer 附近的 compact click-to-start options。 | Contract-backed；中文 chrome 当前为 `演示`。 |
 | Home/Guid | Compact purpose tag | 显示当前 route，不把 assistant 做成 dashboard。 | Composer prefix、input header 或 conversation header。 | 必需；receipt details 可展开。 |
-| Home/Guid | Codex model/status | 表示固定 Codex CLI executor、默认 GPT-5.5（超高）和可见模型选择策略。 | Header 或 composer 低权重状态。 | 当前 contracts 允许 Home/conversation 显示 model selector/status，但仍禁止 backend/provider/permission selector。 |
+| Home/Guid | Codex model/status | 表示固定 Codex CLI executor、默认 GPT-5.5 和可见模型选择策略；推理强度在模型菜单内配置。 | Header 或 composer 低权重状态。 | 当前 contracts 允许 Home/conversation 显示 model selector/status，但仍禁止 backend/provider/permission selector。 |
 | Home/Guid | Assistant-scoped skill menu | 展示 selected purpose 的 required/optional App packaged skills。 | Composer 次级菜单。 | Required skill locked；shell-local helper skills 不进普通 Home。 |
 | Home/Guid | Workspace selector | 发送前选择或确认 workspace。 | Header 或 composer-adjacent control。 | 合理；应支持近期目录和明确状态。 |
 | Home/Guid | File/folder attach | 加入本轮本地上下文。 | Composer action row。 | 需要预览、移除和 refs 表示。 |

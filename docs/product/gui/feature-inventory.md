@@ -34,8 +34,9 @@ Codex App 变成 OPL App 的产品增量看
 
 - 从已选 workspace directory 开始 conversation。
 - 固定 Codex CLI 作为 executor，并把模型控制收敛为 App-owned selector。默认
-  必须从 App product profile 派生为最新最强模型，例如 `GPT-5.5（超高）`；用户
-  可以合理切换模型，但 executor、backend 和 permission 仍不是普通选择项。
+  必须从 App product profile 派生为最新最强模型，例如 `GPT-5.5`；用户可以在
+  同一模型菜单里切换模型和推理强度，但 executor、backend 和 permission 仍不是
+  普通选择项。
 - Home entries 路由到 OPL capabilities：Research/MAS、Grant/MAG、
   Presentation/RCA。
 - 第一屏保持 chat-first，不出现 dashboard 或解释性 landing page copy。
