@@ -92,6 +92,33 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   );
 });
 
+test('Non-release validation workflow covers main pushes without publishing release assets', () => {
+  const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'non-release-validation.yml'), 'utf8');
+  const boundaryReleaseChecks = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'validate-release-boundary', 'release-checks.ts'),
+    'utf8',
+  );
+
+  assert.match(workflow, /name: OPL Non-Release Validation/);
+  assert.match(workflow, /push:[\s\S]*branches:[\s\S]*- main/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /permissions:[\s\S]*contents: read/);
+  assert.doesNotMatch(workflow, /contents: write/);
+  assert.doesNotMatch(workflow, /packages: write/);
+  assert.doesNotMatch(workflow, /actions: write/);
+  assert.match(workflow, /FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true/);
+  assert.match(workflow, /actions\/checkout@v6/);
+  assert.match(workflow, /uses: \.\/\.github\/actions\/setup-active-shell-deps/);
+  assert.match(workflow, /install-dependencies: 'false'/);
+  assert.match(workflow, /npm run test:release-boundary/);
+  assert.match(workflow, /npm run validate:release-boundary/);
+  assert.doesNotMatch(workflow, /gh release/);
+  assert.doesNotMatch(workflow, /npm run release:publish/);
+  assert.doesNotMatch(workflow, /npm run build/);
+  assert.doesNotMatch(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
+  assert.match(boundaryReleaseChecks, /non_release_validation_workflow/);
+});
+
 test('Homebrew tap publication is cohort-based and separates stable from nightly', () => {
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),

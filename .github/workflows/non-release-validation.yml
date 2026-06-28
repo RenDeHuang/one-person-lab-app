@@ -1,0 +1,38 @@
+name: OPL Non-Release Validation
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: opl-non-release-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release-boundary:
+    name: App release-boundary tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup active shell
+        uses: ./.github/actions/setup-active-shell-deps
+        with:
+          shell-ref: main
+          install-dependencies: 'false'
+
+      - name: Run release-boundary tests
+        run: npm run test:release-boundary
+
+      - name: Validate release-boundary contract
+        run: npm run validate:release-boundary

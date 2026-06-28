@@ -28,6 +28,7 @@ export const releaseWorkflowPaths = [
   '.github/workflows/full-runtime-cache-warmup.yml',
   '.github/workflows/homebrew-tap-update.yml',
   '.github/workflows/nightly-standard-release.yml',
+  '.github/workflows/non-release-validation.yml',
   '.github/workflows/opl-first-run-vm.yml',
   '.github/workflows/release-verify-remote.yml',
 ];
