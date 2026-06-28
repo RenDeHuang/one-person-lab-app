@@ -425,6 +425,9 @@
     "homebrew": {
       "role": "app_cask_transport_and_install_index_only",
       "tap": "gaofeng21cn/one-person-lab",
+      "cask_install_policy": {
+        "fully_qualified_cask_install": true
+      },
       "must_not_own_agent_semantics": true,
       "must_not_write_user_codex_state": true,
       "user_state_activation_owner": "opl_framework",

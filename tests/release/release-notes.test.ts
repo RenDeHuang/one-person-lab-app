@@ -207,7 +207,7 @@ test('stable release notes are English and include bundled OPL-family agent vers
   assert.match(result.stdout, /## Install Stable/);
   assert.match(
     result.stdout,
-    /curl -fsSL https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/install-stable\.sh \| bash/,
+    /curl -fsSL https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/install\.sh \| bash -s -- --stable-macos-install --yes/,
   );
   assert.match(result.stdout, /First-run setup/);
   assert.match(result.stdout, /Simplified the first-run setup flow/);
