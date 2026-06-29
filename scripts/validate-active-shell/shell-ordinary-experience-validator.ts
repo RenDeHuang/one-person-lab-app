@@ -27,7 +27,6 @@ const guidLocaleExpected = {
 };
 
 const guidHomeRuntimeForbidden = [
-  'getOplModelStatusDisplayText',
   "data-testid='opl-home-model-status'",
   'homeModelStatusRow',
   'homeModelStatus',
