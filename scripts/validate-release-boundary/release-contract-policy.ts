@@ -188,6 +188,8 @@ function validateWebuiPackagePolicy(releaseContract: Record<string, any>): numbe
 function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>): number {
   let failures = 0;
   const acceleration = releaseContract.release_acceleration;
+  const cohortPrepare = acceleration?.cohort_prepare;
+  const releaseOperator = acceleration?.release_operator;
   const gateReuse = acceleration?.gate_reuse;
   const tartBasePrebake = acceleration?.tart_base_prebake;
   const githubActions = acceleration?.github_actions;
@@ -196,6 +198,76 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const firstRunVmConcurrency = githubActions?.first_run_vm_concurrency;
   const scheduledVmGuard = firstRunVmConcurrency?.scheduled_desktop_release_activity_guard;
   const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
+
+  if (
+    cohortPrepare?.package_script !== 'release:cohort-plan' ||
+    cohortPrepare?.script !== 'scripts/plan-release-cohort.ts' ||
+    cohortPrepare?.schema !== 'opl_app_release_cohort_plan.v1' ||
+    typeof cohortPrepare?.purpose !== 'string' ||
+    !cohortPrepare.purpose.includes('pinned cohort refs') ||
+    typeof cohortPrepare?.authority_boundary !== 'string' ||
+    !cohortPrepare.authority_boundary.includes('operator planning artifact only') ||
+    !cohortPrepare.authority_boundary.includes('cannot publish a release') ||
+    !cohortPrepare.authority_boundary.includes('replace same-cohort release evidence')
+  ) {
+    console.error('FAIL release_cohort_prepare_policy: cohort prepare must expose a pinned-ref planning script without release authority');
+    failures += 1;
+  }
+  for (const field of [
+    'version',
+    'tag',
+    'release_mode',
+    'app_commit',
+    'shell_ref',
+    'framework_ref',
+    'include_full_package',
+    'run_vm_smoke',
+    'cheap_source_gates',
+    'next_action',
+  ]) {
+    if (!cohortPrepare?.records?.includes(field)) {
+      console.error(`FAIL release_cohort_prepare_policy: missing cohort plan record field ${field}`);
+      failures += 1;
+    }
+  }
+
+  if (
+    releaseOperator?.package_script !== 'release:operator' ||
+    releaseOperator?.script !== 'scripts/release-operator.ts' ||
+    releaseOperator?.state_schema !== 'opl_app_release_operator_state.v1' ||
+    typeof releaseOperator?.authority_boundary !== 'string' ||
+    !releaseOperator.authority_boundary.includes('thin controller') ||
+    !releaseOperator.authority_boundary.includes('must not become release truth') ||
+    !releaseOperator.authority_boundary.includes('claim release-ready')
+  ) {
+    console.error('FAIL release_operator_policy: release operator must stay a thin non-authoritative controller');
+    failures += 1;
+  }
+  for (const artifact of ['release-operator-state.json', 'release-operator-state.md']) {
+    if (!releaseOperator?.state_artifacts?.includes(artifact)) {
+      console.error(`FAIL release_operator_policy: missing operator state artifact ${artifact}`);
+      failures += 1;
+    }
+  }
+  for (const command of ['plan', 'diagnose-vm']) {
+    if (!releaseOperator?.commands?.includes(command)) {
+      console.error(`FAIL release_operator_policy: missing operator command ${command}`);
+      failures += 1;
+    }
+  }
+  for (const action of [
+    'repair_source_gate',
+    'rerun_diagnostic_same_artifact',
+    'provide_owner_receipt',
+    'wait_for_runner_capacity',
+    'retry_transient_upload',
+    'promote_candidate',
+  ]) {
+    if (!releaseOperator?.typed_next_actions?.includes(action)) {
+      console.error(`FAIL release_operator_policy: missing typed next action ${action}`);
+      failures += 1;
+    }
+  }
 
   if (
     gateReuse?.plan_command !== 'npm run release:gate-reuse-plan -- --version <version> --release-mode <mode> --include-full-package true --run-vm-smoke true' ||
@@ -323,6 +395,8 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     'app-wrapper-smoke-command-preview.txt',
     'app-wrapper-smoke.stdout.log',
     'app-wrapper-smoke.stderr.log',
+    'vm-gate-failure-summary.json',
+    'vm-gate-failure-summary.md',
     'tart-smoke-summary.json',
   ]) {
     if (
@@ -334,11 +408,27 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     }
   }
   if (
+    typeof releaseGateScope?.critical_failure_artifact_policy !== 'string' ||
+    !releaseGateScope.critical_failure_artifact_policy.includes('vm-gate-failure-summary.json/md') ||
+    !releaseGateScope.critical_failure_artifact_policy.includes('diagnostic_artifact_missing') ||
+    !releaseGateScope.critical_failure_artifact_policy.includes('rerun_diagnostic_same_artifact')
+  ) {
+    console.error('FAIL release_diagnostics_scope_policy: release_gate must preserve small VM failure summaries and same-artifact rerun guidance');
+    failures += 1;
+  }
+  if (
     typeof releaseGateScope?.wrapper_diagnostic_policy !== 'string' ||
     !releaseGateScope.wrapper_diagnostic_policy.includes('host_wrapper_preflight_and_smoke_logs_are_supporting_evidence') ||
     !releaseGateScope.wrapper_diagnostic_policy.includes('deterministic VM readiness/settings/route/codex checks')
   ) {
     console.error('FAIL release_diagnostics_scope_policy: release_gate wrapper diagnostics must preserve deterministic release gates');
+    failures += 1;
+  }
+  if (
+    githubActions?.first_run_vm_artifact_handoff?.same_artifact_diagnostic_next_action !== 'rerun_diagnostic_same_artifact' ||
+    githubActions?.first_run_vm_artifact_handoff?.diagnostic_missing_status !== 'diagnostic_artifact_missing'
+  ) {
+    console.error('FAIL first_run_vm_artifact_handoff_policy: source-run handoff must name same-artifact rerun and diagnostic-missing status');
     failures += 1;
   }
   if (

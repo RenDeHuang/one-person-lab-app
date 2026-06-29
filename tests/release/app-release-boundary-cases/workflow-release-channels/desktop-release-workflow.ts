@@ -442,6 +442,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           'app-wrapper-smoke-command-preview.txt',
           'app-wrapper-smoke.stdout.log',
           'app-wrapper-smoke.stderr.log',
+          'vm-gate-failure-summary.json',
+          'vm-gate-failure-summary.md',
           'tart-smoke-summary.json',
         ],
         authority_boundary: 'diagnostic_only_not_release_ready_owner_receipt_or_runtime_truth',
@@ -471,8 +473,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           'app-wrapper-smoke-command-preview.txt',
           'app-wrapper-smoke.stdout.log',
           'app-wrapper-smoke.stderr.log',
+          'vm-gate-failure-summary.json',
+          'vm-gate-failure-summary.md',
           'tart-smoke-summary.json',
         ],
+        critical_failure_artifact_policy:
+          'write vm-gate-failure-summary.json/md before uploading large VM artifacts; classify missing large artifacts separately as diagnostic_artifact_missing and recommend rerun_diagnostic_same_artifact',
         wrapper_diagnostic_policy:
           'host_wrapper_preflight_and_smoke_logs_are_supporting_evidence; full release gate failure still comes from the deterministic VM readiness/settings/route/codex checks',
         authority_boundary: 'release_gate_evidence_only_when_same_cohort_workflow_requires_it',
@@ -497,6 +503,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     source_run_inputs: ['release_artifact_name', 'release_artifact_run_id'],
     source_run_download_command: 'actions/download-artifact@v8 with run-id=<release_artifact_run_id || github.run_id> and name=<release_artifact_name>',
     scope: 'vm_evidence_only',
+    same_artifact_diagnostic_next_action: 'rerun_diagnostic_same_artifact',
+    diagnostic_missing_status: 'diagnostic_artifact_missing',
     forbidden_replacements: [
       'stable release same-run VM gates',
       'published release remote verification',

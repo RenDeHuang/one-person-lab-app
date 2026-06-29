@@ -140,6 +140,16 @@ route checks so it does not occupy the release lane longer than necessary.
 `bootstrap_only` artifacts are diagnostic-only and cannot be used as
 release-ready, owner receipt, or runtime truth evidence.
 
+Release VM gates must write the small critical failure summary
+`vm-gate-failure-summary.json` and `vm-gate-failure-summary.md` before uploading
+large screenshots, videos, or wrapper bundles. If the large VM artifact is
+missing or its upload finalization fails, closeout should classify the evidence
+gap as `diagnostic_artifact_missing` and recommend
+`rerun_diagnostic_same_artifact`. That rerun must use the same release tag,
+direct DMG URL, or `release_artifact_name` plus `release_artifact_run_id`; it is
+diagnostic evidence only unless a release workflow explicitly consumes it as a
+same-cohort gate.
+
 Scheduled `OPL GUI First-Run VM` runs are maintenance diagnostics, not stable
 release evidence. They default to `package_profile=standard` and
 `diagnostic_scope=bootstrap_only`; before occupying the self-hosted VM runner
@@ -451,6 +461,29 @@ When run locally, the command writes ignored outputs under
 `artifacts/release-closeout/v<version>-<run_id>/`, downloads only final summary
 and diagnostic artifacts unless `--no-download` is passed, and can record the
 Agent orchestration wall time with `--agent-wall-time <duration>`.
+
+Before dispatching a stable train from freshly synchronized OPL-family
+repositories, record the intended cohort:
+
+```bash
+npm run release:cohort-plan -- --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --output release-cohort-plan.json --markdown release-cohort-plan.md
+```
+
+The cohort plan pins the App commit plus shell/framework refs and cheap source
+gates for operator review. It is not release evidence and cannot publish,
+promote, or claim readiness. The thin operator entry can then produce the
+no-watch state or the same-artifact VM diagnostic command:
+
+```bash
+npm run release:operator -- plan --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --output release-operator-state.json --markdown release-operator-state.md
+npm run release:operator -- diagnose-vm --version <version> --release-artifact-name <artifact> --release-artifact-run-id <run-id> --package-profile full --diagnostic-scope bootstrap_only --output release-operator-state.json --markdown release-operator-state.md
+```
+
+`release:operator` is a controller surface over existing scripts, workflows, and
+artifacts. It may emit typed next actions such as
+`rerun_diagnostic_same_artifact`, `repair_source_gate`, or
+`promote_candidate`; it must not become release truth, write runtime/domain
+truth, or turn a diagnostic rerun into a release-ready claim.
 
 Use `desktop-release-diagnostics.yml` for harness-only diagnosis before
 starting another full release train. It can run the first-run VM harness against

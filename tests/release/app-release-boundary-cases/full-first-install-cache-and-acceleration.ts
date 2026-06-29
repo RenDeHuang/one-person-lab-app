@@ -112,6 +112,49 @@ test('Full first-install cache and release acceleration contract are explicit', 
   );
   assert.match(releaseContract.release_acceleration.gate_reuse.authority_boundary, /cannot claim release-ready/);
   assert.match(releaseContract.release_acceleration.gate_reuse.authority_boundary, /workflow explicitly consumes/);
+  assert.deepEqual(releaseContract.release_acceleration.cohort_prepare, {
+    package_script: 'release:cohort-plan',
+    script: 'scripts/plan-release-cohort.ts',
+    schema: 'opl_app_release_cohort_plan.v1',
+    records: [
+      'version',
+      'tag',
+      'release_mode',
+      'app_commit',
+      'shell_ref',
+      'framework_ref',
+      'include_full_package',
+      'run_vm_smoke',
+      'cheap_source_gates',
+      'next_action',
+    ],
+    purpose: 'separate currentness preparation from stable release dispatch by recording the exact pinned cohort refs before expensive release gates',
+    authority_boundary:
+      'cohort plan is an operator planning artifact only; it cannot publish a release, claim release-ready, write runtime truth, or replace same-cohort release evidence',
+  });
+  assert.deepEqual(releaseContract.release_acceleration.release_operator, {
+    package_script: 'release:operator',
+    script: 'scripts/release-operator.ts',
+    state_schema: 'opl_app_release_operator_state.v1',
+    state_artifacts: [
+      'release-operator-state.json',
+      'release-operator-state.md',
+    ],
+    commands: [
+      'plan',
+      'diagnose-vm',
+    ],
+    typed_next_actions: [
+      'repair_source_gate',
+      'rerun_diagnostic_same_artifact',
+      'provide_owner_receipt',
+      'wait_for_runner_capacity',
+      'retry_transient_upload',
+      'promote_candidate',
+    ],
+    authority_boundary:
+      'release operator is a thin controller over existing release scripts, workflows, and artifacts; it must not become release truth, publish by implication, claim release-ready, or write runtime/domain truth',
+  });
   assert.equal(releaseContract.release_acceleration.tart_base_prebake.status, 'contracted_not_claimed_current');
   assert.equal(releaseContract.release_acceleration.tart_base_prebake.standard_source_vm_variable, 'OPL_FIRST_RUN_TART_SOURCE');
   assert.equal(releaseContract.release_acceleration.tart_base_prebake.homebrew_source_vm_variable, 'OPL_FIRST_RUN_HOMEBREW_TART_SOURCE');

@@ -44,10 +44,26 @@ patterns:
 - Release evidence should be structured and small. Large DMGs should be
   validated by dedicated jobs, while summary jobs download only JSON/markdown
   diagnostics.
+- Software delivery health should be measured as a system, not by whether one
+  operator waited long enough. DORA-style metrics map directly to this release
+  train: workflow wall time is lead time, failed refresh/new-release attempts
+  are change-failure or rework tax, and recovery from a failed gate is measured
+  by time to a typed blocker or a green same-cohort rerun.
+- Canary/progressive delivery patterns still apply to desktop packages. The
+  equivalent of a service canary is a draft candidate plus standard and Full
+  clean-install gates against the exact bytes users will install, followed by
+  explicit promotion. No user-visible stable/latest state should depend on an
+  operator mentally reconstructing a long run.
 
 For this repo, those lessons map to App-owned contracts: standard updater truth,
 Full first-install truth, Homebrew cask truth, and clean VM readiness must remain
 separate, then be joined by the readiness summary.
+
+The external sources behind these lessons are intentionally operational rather
+than product-specific: GitHub Actions reusable workflow and artifact behavior,
+DORA software delivery metrics, and Google SRE release/canary guidance. The
+local implementation must keep using App-owned contracts and release artifacts
+as the machine truth.
 
 ## Target Architecture
 
@@ -208,8 +224,90 @@ screenshot, docs, or other proof gate failure by reporting
 Operators should use this state to chase the failed proof artifact without
 reconstructing whether the GitHub Release or Homebrew tap already changed.
 
+Layer 13 should turn the release operator loop into a controller surface. The
+2026-06-29 release attempt showed that the repository has many correct gates,
+but the human/agent still had to synchronize repositories, dispatch releases,
+poll Actions, classify failures, repair a shell gate, redispatch, switch from
+high-noise `gh run watch` to narrow JSON polling, and then manually discover the
+right diagnostic rerun. The ideal front door is one repo-native command or
+workflow that owns the state machine:
+
+1. resolve and record the cohort plan, including App commit, shell/framework
+   refs, Full intent, VM intent, owner-resolution inputs, and any reusable gate
+   candidates;
+2. run only the cheap local/currentness and preflight checks before dispatch;
+3. dispatch the release workflow;
+4. poll only the closeout/monitor artifact or structured job JSON, never the
+   whole job matrix by default;
+5. on failure, emit a typed stop state with exactly one next action:
+   `repair_source_gate`, `rerun_diagnostic_same_artifact`,
+   `provide_owner_receipt`, `wait_for_runner_capacity`, `retry_transient_upload`,
+   or `promote_candidate`;
+6. never require the operator to infer whether publish, promotion, or user-path
+   proof has happened from scattered logs.
+
+This controller must remain thin. It should orchestrate existing scripts,
+workflows, and artifacts; it must not become a second release truth source.
+
+Layer 14 should make failed VM diagnostics durable even when GitHub artifact
+upload finalization fails. The 2026-06-29 Full VM gate failed after the window
+opened but before usable-entry labels were exposed; the artifact upload then
+hit an `ECONNRESET`, leaving only partial log evidence. For release gates, the
+diagnostic path should be designed as if artifact upload can fail:
+
+- always write a small `vm-gate-failure-summary.json/md` before uploading large
+  bundles;
+- split VM diagnostics into small critical JSON/log artifacts and large optional
+  screenshots/videos;
+- upload the small critical artifact with fail-closed behavior, and upload
+  large evidence with retry/compression settings chosen for recovery rather
+  than convenience;
+- when running on a self-hosted Tart runner, optionally copy critical summaries
+  to a bounded local retention directory before workspace cleanup;
+- make the closeout state name `diagnostic_artifact_missing` separately from
+  the underlying VM failure, so the next action is a targeted diagnostic rerun
+  against the same release artifact, not another full release rebuild.
+
+Layer 15 should promote diagnostic reruns to first-class recovery lanes. A Full
+VM failure after remote asset verification should not force another standard
+build, Full build, and release asset upload just to learn more. The existing
+`OPL GUI First-Run VM` inputs already support `release_artifact_run_id`,
+`release_artifact_name`, `release_tag`, `package_profile`, `diagnostic_scope`,
+and `keep_vm`; the controller should expose a single command that dispatches
+the correct same-artifact diagnostic lane and records its output next to the
+failed release closeout. Diagnostic reruns remain non-authoritative unless the
+release workflow explicitly consumes them for a same-cohort gate decision, but
+they should be the default next step for missing VM evidence.
+
+Layer 16 should separate "sync everything to latest" from "release a stable
+cohort." Syncing every OPL-family repository immediately before release is good
+for currentness, but it maximizes batch size and can import unrelated shell or
+domain regressions into the release train. The ideal stable release flow has two
+phases:
+
+1. a currentness preparation phase that updates the OPL family, runs each repo's
+   cheap owner gate, and records a candidate ref set;
+2. a release phase that pins those refs and releases that exact cohort.
+
+If preparation finds a shell type/format/DOM failure, it should stop before the
+App release workflow starts. If the release phase fails, recovery should keep
+the same pinned cohort unless the typed blocker explicitly requires a source
+change. This reduces rework tax and makes gate reuse auditable.
+
 Next optimization candidates must preserve release authority boundaries:
 
+- Add the thin release controller described in Layer 13. It should read and
+  write only structured release artifacts, dispatch existing workflows, and
+  produce a small `release-operator-state.json` for local/agent use.
+- Split Full/standard VM failure evidence as described in Layer 14, then make
+  closeout recognize `diagnostic_artifact_missing` with a same-artifact
+  diagnostic rerun command.
+- Add a first-class same-artifact diagnostic command for Full VM failures,
+  backed by `OPL GUI First-Run VM` with `diagnostic_scope=bootstrap_only` or
+  `release_gate` as appropriate.
+- Introduce a release cohort preparation command that records the exact App,
+  shell, framework, and family refs after currentness sync, and runs cheap
+  source gates before the expensive release workflow.
 - Teach the release workflows to explicitly consume
   `opl_release_gate_reuse_plan.v1` for selected gates after one real release
   validates the artifact shape and stop conditions.
