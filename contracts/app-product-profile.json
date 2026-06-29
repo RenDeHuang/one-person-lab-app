@@ -1118,7 +1118,9 @@
       "secondary_page_ids": [
         "about",
         "update",
-        "theme"
+        "theme",
+        "workspace",
+        "local-services"
       ],
       "task_entry_policy": {
         "ordinary_entry_model": "user_task_first_sections_inside_the_seven_OPL_Control_Center_groups",
