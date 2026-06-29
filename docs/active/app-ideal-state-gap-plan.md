@@ -70,7 +70,7 @@ Write scope:
 
 Live truth inputs:
 
-- `AGENTS.md`, `TASTE.md`, `README.md`, `docs/README.md`, `docs/status.md`, this plan, App contracts, release/test scripts, shell adapter contract, release evidence manifests, active shell validation outputs, focused shell tests for App-owned GUI behavior, and live `npm run validate:agent-installation` output when install exposure is touched.
+- `AGENTS.md`, user-level `~/.codex/TASTE.md`, `README.md`, `docs/README.md`, `docs/status.md`, this plan, App contracts, release/test scripts, shell adapter contract, release evidence manifests, active shell validation outputs, focused shell tests for App-owned GUI behavior, and live `npm run validate:agent-installation` output when install exposure is touched.
 - OPL Framework runtime/App drilldown CLI JSON only as consumed input; it remains framework-owned truth.
 
 Required actions:

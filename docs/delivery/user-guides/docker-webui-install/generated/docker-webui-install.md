@@ -154,7 +154,7 @@ sudo docker run --rm -p 3000:3000 -v opl-data:/data \
 ```text
 本机电脑：http://localhost:3000/
 服务器：使用技术支持提供的 https 地址
-正常情况：不需要输入 Username / Password，直接进入 One Person Lab
+正常情况：不需要输入用户名/密码，直接进入 One Person Lab
 ```
 
 ![浏览器地址和自动进入](../assets/01-browser-open-webui.png)
@@ -167,34 +167,34 @@ sudo docker run --rm -p 3000:3000 -v opl-data:/data \
 
 说明：
 
-- 截图为本机 WebUI 在浏览器中自动进入后的界面。
-- 页面语言可能因浏览器设置显示为英文或中文，不影响使用。
+- 截图来自本机 Docker 容器运行的 WebUI，浏览器已自动进入界面。
+- 本教程截图统一使用中文界面；如果你的浏览器显示其他语言，可在设置里切换为中文。
 
-## 5. 开始使用 One Person Lab
+## 5. 进入启动检查页
 
-进入 One Person Lab 后，就可以像 macOS App 一样选择科研、基金、演示或写书入口。Docker/终端窗口保持运行，浏览器页面就能继续使用；如果你关闭终端窗口，WebUI 会停止。
+浏览器进入 One Person Lab 后，可能先看到启动检查页面。等待检查完成后继续，或者点击“跳过，先进入首页”。Docker/终端窗口保持运行，浏览器页面就能继续使用；如果你关闭终端窗口，WebUI 会停止。
 
-**进入后看到的界面**
+**自动登录后的启动检查页**
 
 ```text
 1. 浏览器进入 One Person Lab
-2. 选择科研、基金、演示或写书入口
-3. 按界面提示继续配置模型访问密钥或本地工具
+2. 页面显示侧边栏、设置、退出登录和启动检查
+3. 等待检查完成，或点击“跳过，先进入首页”
 4. 保持 Docker/终端窗口运行
 ```
 
-![进入后看到的界面](../assets/02-opl-workbench-after-login.png)
+![自动登录后的启动检查页](../assets/02-opl-startup-gate.png)
 
 重点：
 
+- 看到“退出登录”说明浏览器已经处于登录状态。
 - 不需要手动输入 WebUI 用户名和密码。
 - 模型访问密钥和 WebUI 登录不是一回事；如果界面后续要求配置模型，按管理员提供的信息填写。
-- 进入工作台后，使用方式与 macOS App 的主界面一致。
 
 说明：
 
-- 工作台截图来自同一 App renderer，用于展示进入后的 OPL 入口形态。
-- 实际 WebUI 页面会随版本、账号权限和语言设置略有不同。
+- 截图来自 Docker/WebUI 自动登录后的真实浏览器页面。
+- 实际 WebUI 页面会随版本、启动检查状态和语言设置略有不同。
 
 ## 6. 下次怎么打开和关闭
 
@@ -235,8 +235,8 @@ sudo docker run --rm -p 3000:3000 -v opl-data:/data \
 
 - Windows 路径按 Docker Desktop 官方 Windows 安装页核对：per-user 安装推荐给多数用户，WSL 2 backend 覆盖大多数 Docker Desktop 用户需求。
 - Linux 路径按 Docker Engine Ubuntu 官方 apt repository 安装页核对：先配置 apt repository，再安装 Docker packages，并用 `hello-world` 验证。
-- WebUI 自动登录行为由 Web CLI / web-host runtime 验证：浏览器访问后 `/api/auth/user` 返回 `success: true` 且下发 session cookie。
-- 浏览器界面截图来自本机 WebUI 的 Playwright 截图。
+- WebUI 自动登录行为由 Web CLI / web-host runtime 验证：无用户名密码请求 `/api/auth/user` 返回 `success: true` 且下发 session cookie。
+- 浏览器界面截图来自本机 Docker 容器的 Playwright 截图，容器端口映射为 `127.0.0.1:55662 -> 3000/tcp`，页面 URL 为 `/#/startup-gate`，界面语言为中文。
 
 ## 来源与边界
 

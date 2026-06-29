@@ -15,24 +15,24 @@
   },
   "rendered_pages": 8,
   "rendered_dir": "tmp/pdfs/docker-webui-install/rendered",
-  "html_bytes": 15820,
+  "html_bytes": 15902,
   "guide_steps": 8,
   "screenshot_assets": [
     {
       "step": "open-browser",
       "file": "docs/delivery/user-guides/docker-webui-install/assets/01-browser-open-webui.png",
       "public_file": "assets/01-browser-open-webui.png",
-      "sha256": "5671d42e885a7ec3d125fb4faba984e78f905bdde2d00ff05c6fa5bb163be39d",
-      "width": 1440,
-      "height": 960
+      "sha256": "ec1a480a03cbb767e477ad3eb461811581a3828326586f607ab09863c748d24e",
+      "width": 1280,
+      "height": 720
     },
     {
       "step": "start-using",
-      "file": "docs/delivery/user-guides/docker-webui-install/assets/02-opl-workbench-after-login.png",
-      "public_file": "assets/02-opl-workbench-after-login.png",
-      "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
-      "width": 1536,
-      "height": 912
+      "file": "docs/delivery/user-guides/docker-webui-install/assets/02-opl-startup-gate.png",
+      "public_file": "assets/02-opl-startup-gate.png",
+      "sha256": "cbd5a3d41248eab06eebb86482b660f4ce0c1ea0df83c8434b5f2344780c842b",
+      "width": 1019,
+      "height": 768
     }
   ],
   "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",

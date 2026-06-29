@@ -317,10 +317,13 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     throw new Error('App GUI home must show selected assistant as a compact @ purpose tag');
   }
   if (pages.guid_home.model_status?.display_value !== 'GPT-5.5') {
-    throw new Error('App GUI home must display the friendly default model without repeating reasoning');
+    throw new Error('App GUI home model selector must keep the friendly default model without repeating reasoning');
+  }
+  if (pages.guid_home.model_status?.standalone_home_subtitle_visible !== false) {
+    throw new Error('App GUI home must not show a standalone model subtitle');
   }
   if (pages.guid_home.model_status?.selector_visible !== true) {
-    throw new Error('App GUI home model status must expose the App-owned model selector');
+    throw new Error('App GUI home must expose the App-owned model selector');
   }
   if (
     pages.guid_home.conversation_feedback_policy?.pending_indicator !==

@@ -11,10 +11,10 @@ framework-owned machine-readable contracts, CLI JSON, provider receipts, and
 domain-owned projections. Do not copy runtime truth, domain truth, provider
 implementation, or domain artifact authority into this repository.
 
-Root `TASTE.md` records the shared OPL family maintenance taste for architecture,
-code, docs, tests, review, cleanup, and closeout decisions. Use it as the
-preference layer, then apply this App repository guide, contracts, docs, and
-source truth.
+The user-level `~/.codex/TASTE.md` records the shared OPL family maintenance
+taste for architecture, code, docs, tests, review, cleanup, and closeout
+decisions. Use it as the preference layer, then apply this App repository guide,
+contracts, docs, and source truth.
 
 ## Repository Boundaries
 
@@ -89,7 +89,7 @@ Run `npm run ensure:shell` before local build or validation if
 <!-- OPL_FLOW_MANAGED_START -->
 OPL Flow managed surface: repo_agent_instructions
 Plugin: opl-flow
-Plugin version: 0.1.0
+Plugin version: 0.1.7
 Profile pointer: contracts/opl-native-profile.json
 本块只声明 OPL Flow 工作流 profile 指针；repo-specific 规则、项目事实、contracts、source、tests 和 runtime 输出继续归本仓既有 owner。
 请只通过 OPL Flow repo_profile sync 更新本块；本块外内容由目标 repo 自己维护。

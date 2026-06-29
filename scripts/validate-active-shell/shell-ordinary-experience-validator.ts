@@ -10,8 +10,6 @@ import {
 const guidHomeExpected = [
   "document.title = 'One Person Lab App'",
   "t('conversation.welcome.placeholder')",
-  'getOplModelStatusDisplayText',
-  "data-testid='opl-home-model-status'",
   "t('guid.postInstallSelfCheck.prompt'",
   'POST_INSTALL_SELF_CHECK_PROMPT_DEFAULTS',
   'postInstallSelfCheckRequested',
@@ -29,6 +27,10 @@ const guidLocaleExpected = {
 };
 
 const guidHomeRuntimeForbidden = [
+  'getOplModelStatusDisplayText',
+  "data-testid='opl-home-model-status'",
+  'homeModelStatusRow',
+  'homeModelStatus',
   "useOplAppState('fast')",
   'normalizeGuidActivityCenter',
   'activityCenter={activityCenter}',

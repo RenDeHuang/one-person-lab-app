@@ -1190,7 +1190,8 @@
       "model_status": {
         "value_source": "default_session_profile.model",
         "display_value": "GPT-5.5",
-        "placement": "compact model selector/status near Home composer",
+        "placement": "inside Home model selector and ordinary Codex conversation composer",
+        "standalone_home_subtitle_visible": false,
         "selector_visible": true
       },
       "conversation_feedback_policy": {
