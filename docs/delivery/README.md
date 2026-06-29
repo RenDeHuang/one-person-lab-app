@@ -19,6 +19,7 @@ surfaces live under `docs/public/`.
 | [`release/records/`](release/records/) | Release owner receipt records and verdict records. |
 | [`release/release-train-optimization-design.md`](release/release-train-optimization-design.md) | Release train optimization design support. |
 | [`release-evidence/screenshots.md`](release-evidence/screenshots.md) | Screenshot and visual tutorial evidence routing. |
+| [`install/docker-webui-guide.md`](install/docker-webui-guide.md) | Compatibility entry for the Docker/WebUI guide maintenance source and public bundle. |
 | [`user-guides/macos-app-install/README.md`](user-guides/macos-app-install/README.md) | macOS install guide source, generated Markdown/deck source, screenshot provenance, fixtures, and verification records. |
 | [`user-guides/docker-webui-install/README.md`](user-guides/docker-webui-install/README.md) | Docker/WebUI install guide source, generated Markdown, and verification records. |
 
