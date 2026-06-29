@@ -513,7 +513,6 @@ function main() {
     tempMarkdownPath,
     '--standalone',
     '--pdf-engine=xelatex',
-    '--number-sections',
     '--metadata', `title-meta=${guide.title}`,
     '--metadata', `author-meta=${guide.owner}`,
     '--metadata', 'lang=zh-CN',

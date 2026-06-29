@@ -191,6 +191,50 @@ test('release readiness summary does not fail the clean evidence gate when Full 
   assert.deepEqual(summary.failed_required_gates, []);
 });
 
+test('release readiness summary treats Docker WebUI gates as optional when Docker publishing is disabled', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-docker-disabled-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot);
+  fs.rmSync(path.join(artifactsRoot, 'docker-webui-smoke-26.5.99'), { recursive: true, force: true });
+  fs.rmSync(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99'), { recursive: true, force: true });
+  writePassingJobResults(jobResultsPath);
+  const jobResults = JSON.parse(fs.readFileSync(jobResultsPath, 'utf8'));
+  jobResults['docker-webui-smoke'] = 'skipped';
+  jobResults['webui-ghcr-publish'] = 'skipped';
+  writeJson(jobResultsPath, jobResults);
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--publish-docker-webui',
+    'false',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.publish_docker_webui, false);
+  assert.equal(summary.gates.docker_webui.status, 'skipped');
+  assert.equal(summary.gates.docker_webui.required, false);
+  assert.equal(summary.gates.webui_ghcr_publish.status, 'skipped');
+  assert.equal(summary.gates.webui_ghcr_publish.required, false);
+  assert.deepEqual(summary.failed_required_gates, []);
+});
+
 test('release readiness summary fails closed without a same-cohort operator evidence bundle', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-missing-evidence-bundle-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');

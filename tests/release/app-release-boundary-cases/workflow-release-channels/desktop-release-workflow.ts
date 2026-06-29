@@ -180,7 +180,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.doesNotMatch(jobLevelIf(oneShotInstallerJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.doesNotMatch(jobLevelIf(dockerWebuiJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(oneShotInstallerJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
-  assert.match(jobLevelIf(dockerWebuiJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
+  assert.match(jobLevelIf(dockerWebuiJob), /if:\s*\$\{\{\s*!cancelled\(\)/);
+  assert.match(jobLevelIf(dockerWebuiJob), /inputs\.publish_docker_webui/);
+  assert.match(jobLevelIf(dockerWebuiJob), /inputs\.run_vm_smoke/);
   assert.match(workflow, /webui-ghcr-publish:/);
   assert.match(workflow, /OPL_INSTALL_SCRIPT_URL: file:\/\/\$\{\{ github\.workspace \}\}\/one-person-lab\/install\.sh/);
   assert.match(workflow, /\.\/install\.sh --complete --skip-modules/);

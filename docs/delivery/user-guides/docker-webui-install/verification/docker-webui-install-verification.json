@@ -8,31 +8,47 @@
   "pandoc_markdown": "tmp/pdfs/docker-webui-install/docker-webui-install.pandoc.md",
   "pandoc_header": "tmp/pdfs/docker-webui-install/docker-webui-install-header.tex",
   "pdf_layout": "portrait_ebook",
-  "pdf_pages": 8,
+  "pdf_pages": 11,
   "pdf_page_size_pts": {
     "width": 612,
     "height": 792
   },
-  "rendered_pages": 8,
+  "rendered_pages": 11,
   "rendered_dir": "tmp/pdfs/docker-webui-install/rendered",
-  "html_bytes": 17640,
-  "guide_steps": 8,
+  "html_bytes": 21205,
+  "guide_steps": 10,
   "screenshot_assets": [
     {
       "step": "open-browser",
       "file": "docs/delivery/user-guides/docker-webui-install/assets/01-browser-open-webui.png",
       "public_file": "assets/01-browser-open-webui.png",
-      "sha256": "ec1a480a03cbb767e477ad3eb461811581a3828326586f607ab09863c748d24e",
-      "width": 1280,
-      "height": 720
+      "sha256": "8d391e0f83311518dfe99936121b217c834d4bf3b0d620fd181e8b42707d6e0f",
+      "width": 1440,
+      "height": 1000
     },
     {
       "step": "start-using",
-      "file": "docs/delivery/user-guides/docker-webui-install/assets/02-opl-startup-gate.png",
-      "public_file": "assets/02-opl-startup-gate.png",
-      "sha256": "cbd5a3d41248eab06eebb86482b660f4ce0c1ea0df83c8434b5f2344780c842b",
-      "width": 1019,
-      "height": 768
+      "file": "docs/delivery/user-guides/docker-webui-install/assets/02-first-run-overview.png",
+      "public_file": "assets/02-first-run-overview.png",
+      "sha256": "7a279973e187e1943a97e022035d34e19c342733c6929502d748fcb67e684621",
+      "width": 1179,
+      "height": 964
+    },
+    {
+      "step": "configure-access-key",
+      "file": "docs/delivery/user-guides/docker-webui-install/assets/03-access-key-config.png",
+      "public_file": "assets/03-access-key-config.png",
+      "sha256": "f8e9a3489d907ce7e6bdb8e5696b9cf8263edbbf1e2026457421248a60ca6b9a",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "step": "settings-access-entry",
+      "file": "docs/delivery/user-guides/docker-webui-install/assets/04-settings-entry.png",
+      "public_file": "assets/04-settings-entry.png",
+      "sha256": "308183694bde108e752105b609ef83f79dba206fa464caeb04cad340bc339e2c",
+      "width": 1440,
+      "height": 1000
     }
   ],
   "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",

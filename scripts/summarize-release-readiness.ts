@@ -58,6 +58,7 @@ type Options = {
   releaseMode: string;
   includeFullPackage: boolean;
   runVmSmoke: boolean;
+  publishDockerWebui: boolean;
   artifactsDir: string;
   jobResultsPath: string;
   output: string;
@@ -670,8 +671,22 @@ function buildSummary(options: Options) {
       options.includeFullPackage && options.runVmSmoke,
     ),
     one_shot_app_installer: applyJobResult(oneShotGate, jobResults, 'one-shot-app-installer-smoke', true),
-    docker_webui: applyJobResult(dockerGate, jobResults, 'docker-webui-smoke', true),
-    webui_ghcr_publish: applyJobResult(webuiGhcrGate, jobResults, 'webui-ghcr-publish', true),
+    docker_webui: applyJobResult(
+      options.publishDockerWebui
+        ? dockerGate
+        : missingGate(false, dockerArtifactName, 'Docker WebUI publish disabled for this run.'),
+      jobResults,
+      'docker-webui-smoke',
+      options.publishDockerWebui,
+    ),
+    webui_ghcr_publish: applyJobResult(
+      options.publishDockerWebui
+        ? webuiGhcrGate
+        : missingGate(false, webuiGhcrArtifactName, 'Docker WebUI publish disabled for this run.'),
+      jobResults,
+      'webui-ghcr-publish',
+      options.publishDockerWebui,
+    ),
     full_size_cache_timing: applyJobResult(fullSizeCacheTimingGate, jobResults, 'full-first-install', false),
     operator_evidence_bundle: applyJobResult(operatorEvidenceBundleGate, jobResults, 'operator-evidence-bundle-validation', true),
   };
@@ -735,6 +750,7 @@ function buildSummary(options: Options) {
     release_mode: options.releaseMode,
     include_full_package: options.includeFullPackage,
     run_vm_smoke: options.runVmSmoke,
+    publish_docker_webui: options.publishDockerWebui,
     generated_at: new Date().toISOString(),
     artifacts_policy: {
       downloads_large_dmg_artifacts: false,

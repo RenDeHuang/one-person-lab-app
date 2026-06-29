@@ -5,6 +5,7 @@ type SharedReleaseReadinessOptions = {
   releaseMode: string;
   includeFullPackage: boolean;
   runVmSmoke: boolean;
+  publishDockerWebui: boolean;
 };
 
 type BooleanParser = (value: string | undefined, fallback?: boolean) => boolean;
@@ -22,6 +23,7 @@ export function buildSharedReleaseReadinessOptions(parseBoolean: BooleanParser):
     releaseMode: process.env.OPL_RELEASE_MODE || '',
     includeFullPackage: parseBoolean(process.env.OPL_INCLUDE_FULL_PACKAGE),
     runVmSmoke: parseBoolean(process.env.OPL_RUN_VM_SMOKE),
+    publishDockerWebui: parseBoolean(process.env.OPL_PUBLISH_DOCKER_WEBUI, true),
   };
 }
 
@@ -32,10 +34,11 @@ export function applySharedReleaseReadinessArg(
   parseBoolean: BooleanParser,
 ): number | null {
   const token = argv[index];
-  if (token === '--include-full-package' || token === '--run-vm-smoke') {
+  if (token === '--include-full-package' || token === '--run-vm-smoke' || token === '--publish-docker-webui') {
     const value = requiredOptionValue(argv, index, token);
     if (token === '--include-full-package') parsed.includeFullPackage = parseBoolean(value);
-    else parsed.runVmSmoke = parseBoolean(value);
+    else if (token === '--run-vm-smoke') parsed.runVmSmoke = parseBoolean(value);
+    else parsed.publishDockerWebui = parseBoolean(value, true);
     return index + 1;
   }
   if (token === '--version') {

@@ -41,6 +41,11 @@ on:
         required: false
         default: true
         type: boolean
+      publish_docker_webui:
+        description: Build, verify, and publish the Docker WebUI image with this release
+        required: false
+        default: true
+        type: boolean
       guide_screenshots:
         description: Capture user-guide screenshots in the clean Full first-run VM smoke artifacts
         required: false
@@ -609,7 +614,7 @@ jobs:
       - publish-standard
       - standard-first-run-vm-smoke-after-standard-only
       - standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
+    if: ${{ !cancelled() && inputs.publish_docker_webui && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -744,7 +749,7 @@ jobs:
   webui-ghcr-publish:
     name: Verify WebUI GHCR publish
     needs: docker-webui-smoke
-    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.docker-webui-smoke.result == 'success' }}
+    if: ${{ !cancelled() && inputs.publish_docker_webui && inputs.run_vm_smoke && needs.docker-webui-smoke.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -937,7 +942,7 @@ jobs:
   release-readiness-admission:
     name: Admit release readiness aggregation
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) && (needs.release-preflight.outputs.homebrew_tap_update_required != 'true' || (needs.stable-homebrew-tap-update.result == 'success' && (!inputs.include_full_package || needs.full-homebrew-tap-update.result == 'success') && needs.homebrew-standard-first-run-vm-smoke.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' && needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' && needs.operator-evidence-bundle-validation.result == 'success' }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) && (needs.release-preflight.outputs.homebrew_tap_update_required != 'true' || (needs.stable-homebrew-tap-update.result == 'success' && (!inputs.include_full_package || needs.full-homebrew-tap-update.result == 'success') && needs.homebrew-standard-first-run-vm-smoke.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' && (!inputs.publish_docker_webui || (needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success')) && needs.operator-evidence-bundle-validation.result == 'success' }}
     needs:
       - release-preflight
       - remote-verify-standard
@@ -960,6 +965,7 @@ jobs:
         run: |
           node <<'NODE'
           const includeFullPackage = '${{ inputs.include_full_package }}' === 'true';
+          const publishDockerWebui = '${{ inputs.publish_docker_webui }}' === 'true';
           const runVmSmoke = '${{ inputs.run_vm_smoke }}' === 'true';
           const homebrewTapUpdateRequired = '${{ needs.release-preflight.outputs.homebrew_tap_update_required }}' === 'true';
           const results = {
@@ -1019,8 +1025,13 @@ jobs:
             requireSuccessOrSkipped('homebrew-standard-first-run-vm-smoke');
           }
           requireSuccess('one-shot-app-installer-smoke');
-          requireSuccess('docker-webui-smoke');
-          requireSuccess('webui-ghcr-publish');
+          if (publishDockerWebui) {
+            requireSuccess('docker-webui-smoke');
+            requireSuccess('webui-ghcr-publish');
+          } else {
+            requireSuccessOrSkipped('docker-webui-smoke');
+            requireSuccessOrSkipped('webui-ghcr-publish');
+          }
           requireSuccess('operator-evidence-bundle-validation');
 
           if (failures.length > 0) {
@@ -1184,12 +1195,14 @@ jobs:
           OPL_RELEASE_MODE: ${{ inputs.release_mode }}
           OPL_INCLUDE_FULL_PACKAGE: ${{ inputs.include_full_package }}
           OPL_RUN_VM_SMOKE: ${{ inputs.run_vm_smoke }}
+          OPL_PUBLISH_DOCKER_WEBUI: ${{ inputs.publish_docker_webui }}
         run: |
           node --experimental-strip-types scripts/summarize-release-readiness.ts \
             --version "$OPL_RELEASE_VERSION" \
             --release-mode "$OPL_RELEASE_MODE" \
             --include-full-package "$OPL_INCLUDE_FULL_PACKAGE" \
             --run-vm-smoke "$OPL_RUN_VM_SMOKE" \
+            --publish-docker-webui "$OPL_PUBLISH_DOCKER_WEBUI" \
             --artifacts-dir release-readiness-inputs \
             --job-results release-readiness-job-results.json \
             --output release-readiness-summary.json \
@@ -1203,6 +1216,7 @@ jobs:
           OPL_RELEASE_MODE: ${{ inputs.release_mode }}
           OPL_INCLUDE_FULL_PACKAGE: ${{ inputs.include_full_package }}
           OPL_RUN_VM_SMOKE: ${{ inputs.run_vm_smoke }}
+          OPL_PUBLISH_DOCKER_WEBUI: ${{ inputs.publish_docker_webui }}
           OPL_SHELL_REF: ${{ inputs.shell_ref }}
           OPL_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           OPL_APP_COMMIT: ${{ github.sha }}
