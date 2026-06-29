@@ -52,6 +52,10 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /docker run --rm --entrypoint cat "one-person-lab-webui:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}"[\s\S]*\/opt\/opl\/seed\/metadata\.json/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-webui-runtime-image\.ts[\s\S]*--expected-profile webui-full/);
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
+  assert.match(workflow, /\/api\/opl-runtime\/startup-maintenance[\s\S]*\/tmp\/opl-webui-startup-maintenance\.json/);
+  assert.match(workflow, /\/api\/opl-runtime\/update-status[\s\S]*\/tmp\/opl-webui-update-status\.json/);
+  assert.match(workflow, /\/tmp\/opl-webui-startup-maintenance\.json/);
+  assert.match(workflow, /\/tmp\/opl-webui-update-status\.json/);
   assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
   assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
   assert.match(workflow, /write_publish_summary "failed" "ghcr_write_package_denied"/);

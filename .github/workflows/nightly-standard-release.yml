@@ -342,6 +342,14 @@ jobs:
           grep -q '"success":[[:space:]]*true' "$auth_body"
           grep -iq '^set-cookie:' "$auth_headers"
           cp "$auth_body" /tmp/opl-webui-auth-user.json
+          curl -fsS -X POST -H 'content-type: application/json' -d '{}' \
+            "http://127.0.0.1:${port}/api/opl-runtime/startup-maintenance" \
+            >/tmp/opl-webui-startup-maintenance.json
+          curl -fsS -X POST -H 'content-type: application/json' -d '{}' \
+            "http://127.0.0.1:${port}/api/opl-runtime/update-status" \
+            >/tmp/opl-webui-update-status.json
+          grep -q '"success":[[:space:]]*true' /tmp/opl-webui-startup-maintenance.json
+          grep -q '"success":[[:space:]]*true' /tmp/opl-webui-update-status.json
           for attempt in $(seq 1 60); do
             if [ -s "$webui_smoke_dir/data/opl/state/install-manifest.json" ]; then
               break
@@ -393,6 +401,8 @@ jobs:
             /tmp/opl-webui-runtime-image-validation.json
             /tmp/opl-webui-slim-runtime-image-validation.json
             /tmp/opl-webui-auth-user.json
+            /tmp/opl-webui-startup-maintenance.json
+            /tmp/opl-webui-update-status.json
             /tmp/opl-webui-projects-readback.txt
             /tmp/opl-webui-install-manifest.json
             /tmp/opl-webui-container.log

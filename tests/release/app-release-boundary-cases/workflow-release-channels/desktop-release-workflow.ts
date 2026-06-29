@@ -204,7 +204,13 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /docker exec "\$container" cat \/projects\/\.opl-projects-smoke >\/tmp\/opl-webui-projects-readback\.txt/);
   assert.match(workflow, /projects mount smoke[\s\S]*\/tmp\/opl-webui-projects-readback\.txt/);
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
+  assert.match(workflow, /curl -fsS -X POST[\s\S]*\/api\/opl-runtime\/startup-maintenance[\s\S]*\/tmp\/opl-webui-startup-maintenance\.json/);
+  assert.match(workflow, /curl -fsS -X POST[\s\S]*\/api\/opl-runtime\/update-status[\s\S]*\/tmp\/opl-webui-update-status\.json/);
+  assert.ok(workflow.includes(`grep -q '"success":[[:space:]]*true' /tmp/opl-webui-startup-maintenance.json`));
+  assert.ok(workflow.includes(`grep -q '"success":[[:space:]]*true' /tmp/opl-webui-update-status.json`));
   assert.match(workflow, /\/tmp\/opl-webui-install-manifest\.json/);
+  assert.match(workflow, /\/tmp\/opl-webui-startup-maintenance\.json/);
+  assert.match(workflow, /\/tmp\/opl-webui-update-status\.json/);
   assert.match(workflow, /docker-webui-smoke-gate-contract\.json/);
   assert.match(workflow, /contract_record_only_not_live_smoke_evidence/);
   assert.match(workflow, /clean Linux VM, clean Windows VM, existing Docker, and old OnePersonLab data-dir evidence must be supplied by fresh workflow\/manual smoke artifacts or typed blockers before release-ready claims/i);
@@ -224,6 +230,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(webuiWorkflow, /docker build[\s\S]*--build-arg OPL_FRAMEWORK_REF="\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*-t "one-person-lab-webui:\$\{OPL_VERSION\}"/);
   assert.match(webuiWorkflow, /docker build[\s\S]*--build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim[\s\S]*--build-arg OPL_FRAMEWORK_REF="\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*-t "one-person-lab-webui:\$\{OPL_VERSION\}-slim"/);
   assert.match(webuiWorkflow, /docker-webui-smoke-gate-contract\.json/);
+  assert.match(webuiWorkflow, /\/api\/opl-runtime\/startup-maintenance[\s\S]*\/tmp\/opl-webui-startup-maintenance\.json/);
+  assert.match(webuiWorkflow, /\/api\/opl-runtime\/update-status[\s\S]*\/tmp\/opl-webui-update-status\.json/);
+  assert.match(webuiWorkflow, /\/tmp\/opl-webui-startup-maintenance\.json/);
+  assert.match(webuiWorkflow, /\/tmp\/opl-webui-update-status\.json/);
   assert.match(webuiWorkflow, /contract_record_only_not_live_smoke_evidence/);
   assert.match(webuiWorkflow, /contracts\/app-install-exposure-policy\.json#installer_surfaces\.docker_webui\.smoke_gate_contract/);
   assert.doesNotMatch(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*always\(\)/);
