@@ -166,9 +166,45 @@ jobs:
           npm run validate:release-boundary
           npm run test:release-boundary
 
+  release-source-gate:
+    name: Release source gate
+    runs-on: ubuntu-latest
+    needs: release-preflight
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup active shell dependencies
+        uses: ./.github/actions/setup-active-shell-deps
+        with:
+          shell-ref: ${{ inputs.shell_ref }}
+          run-postinstall: 'false'
+
+      - name: Validate release source gate
+        run: |
+          npm run release:source-gate -- \
+            --expected-app-head "$GITHUB_SHA" \
+            --shell-ref "${{ inputs.shell_ref || 'main' }}" \
+            --require-shell-format true \
+            --output release-source-gate.json \
+            --json
+
+      - name: Upload release source gate summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-source-gate-${{ inputs.opl_version }}
+          path: release-source-gate.json
+          if-no-files-found: error
+
   standard-build:
     name: Build standard App assets
-    needs: release-workflow-contract
+    needs:
+      - release-workflow-contract
+      - release-source-gate
     uses: ./.github/workflows/_build-reusable.yml
     with:
       matrix: >-

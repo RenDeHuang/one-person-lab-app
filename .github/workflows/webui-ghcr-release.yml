@@ -43,6 +43,38 @@ jobs:
           ref: ${{ inputs.shell_ref || 'main' }}
           path: shells/aionui
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install active shell dependencies
+        shell: bash
+        working-directory: shells/aionui
+        run: bun install --frozen-lockfile
+
+      - name: Validate release source gate
+        run: |
+          npm run release:source-gate -- \
+            --expected-app-head "$GITHUB_SHA" \
+            --shell-ref "${{ inputs.shell_ref || 'main' }}" \
+            --require-shell-format true \
+            --output release-source-gate.json \
+            --json
+
+      - name: Upload release source gate summary
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-source-gate-${{ inputs.opl_version }}
+          path: release-source-gate.json
+          if-no-files-found: error
+
       - name: Resolve shell revision
         id: shell
         shell: bash

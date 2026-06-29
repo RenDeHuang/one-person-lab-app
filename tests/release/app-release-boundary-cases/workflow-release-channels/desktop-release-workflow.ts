@@ -74,7 +74,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /release-workflow-contract:[\s\S]*name: Release workflow contract/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run validate:release-boundary/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run test:release-boundary/);
-  assert.match(workflow, /standard-build:[\s\S]*needs: release-workflow-contract/);
+  assert.match(workflow, /release-source-gate:/);
+  assert.match(workflow, /release-source-gate:[\s\S]*name: Release source gate/);
+  assert.match(workflow, /release-source-gate:[\s\S]*npm run release:source-gate --/);
+  assert.match(workflow, /release-source-gate:[\s\S]*--expected-app-head "\$GITHUB_SHA"[\s\S]*--require-shell-format true/);
+  assert.match(workflow, /release-source-gate:[\s\S]*release-source-gate-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /standard-build:[\s\S]*needs:[\s\S]*release-workflow-contract[\s\S]*release-source-gate/);
   assert.match(workflow, /full-first-install:[\s\S]*needs: standard-vm-smoke-gate-after-full/);
   assert.doesNotMatch(readinessJob, /release:closeout|release:actions-timing|release-closeout|release-actions-timing/);
   assert.match(workflow, /release_mode:[\s\S]*refresh_existing[\s\S]*new_release[\s\S]*draft_candidate/);
