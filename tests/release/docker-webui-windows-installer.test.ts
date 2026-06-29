@@ -77,6 +77,10 @@ test('Windows Docker/WebUI installer gates prerequisite installation behind an e
   assert.match(installer, /docker-compose-version\.txt/);
   assert.match(installer, /http-probe\.txt/);
   assert.match(installer, /directories\.txt/);
+  assert.match(installer, /data-preservation\.txt/);
+  assert.match(installer, /pre_data_inventory/);
+  assert.match(installer, /post_data_inventory/);
+  assert.match(installer, /Get-PathInventoryText/);
   assert.match(installer, /Compress-Archive/);
   assert.match(installer, /ConvertFrom-DiagnosticSensitiveText/);
   assert.doesNotMatch(installer, /Get-ChildItem\s+Env:|docker compose config/);

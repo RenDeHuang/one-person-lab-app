@@ -5,9 +5,11 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { validateDockerWebuiDiagnostics } from '../../scripts/validate-docker-webui-diagnostics.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.sh');
+const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
 
 function runInstaller(args: string[], env: NodeJS.ProcessEnv = {}) {
   return spawnSync('bash', [installerPath, ...args], {
@@ -96,6 +98,9 @@ test('Docker/WebUI installer has health check and diagnostic collection built in
   assert.match(script, /docker image inspect "\$IMAGE"/);
   assert.match(script, /http-probe\.txt/);
   assert.match(script, /directories\.txt/);
+  assert.match(script, /data-preservation\.txt/);
+  assert.match(script, /pre_data_inventory/);
+  assert.match(script, /post_data_inventory/);
   assert.match(script, /tar -czf "\$DIAGNOSTICS_ARCHIVE"/);
   assert.match(script, /redact_diagnostic_stream/);
   assert.doesNotMatch(script, /printenv|env >|docker compose config/);
@@ -111,4 +116,51 @@ test('Docker/WebUI installer keeps OS-specific Docker policy explicit', () => {
   assert.match(script, /Docker is installed but the daemon is not reachable/);
   assert.match(script, /On macOS, would only check Docker availability/);
   assert.doesNotMatch(script, /brew install|curl .*Docker\.dmg|hdiutil .*Docker|orbctl|colima start/i);
+});
+
+test('Docker/WebUI diagnostic validator requires preservation evidence and rejects secret markers', () => {
+  const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-'));
+  for (const file of [
+    'metadata.txt',
+    'compose.yaml',
+    'docker-version.txt',
+    'docker-compose-version.txt',
+    'docker-compose-ps.txt',
+    'docker-compose-logs.txt',
+    'docker-image.txt',
+    'http-probe.txt',
+    'directories.txt',
+  ]) {
+    fs.writeFileSync(path.join(diagnostics, file), `${file}\n`);
+  }
+  fs.writeFileSync(
+    path.join(diagnostics, 'data-preservation.txt'),
+    'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n',
+  );
+  assert.equal(validateDockerWebuiDiagnostics(diagnostics).status, 'passed');
+
+  fs.writeFileSync(path.join(diagnostics, 'docker-compose-logs.txt'), 'OPENAI_API_KEY=sk-123456789012345678901234\n');
+  const secretResult = validateDockerWebuiDiagnostics(diagnostics);
+  assert.equal(secretResult.status, 'failed');
+  assert.ok(secretResult.forbidden_secret_markers.some((marker) => marker.includes('OPENAI_API_KEY')));
+
+  fs.rmSync(path.join(diagnostics, 'data-preservation.txt'));
+  const missingResult = validateDockerWebuiDiagnostics(diagnostics);
+  assert.equal(missingResult.status, 'failed');
+  assert.ok(missingResult.missing_files.includes('data-preservation.txt'));
+});
+
+test('Docker/WebUI smoke gate writes typed blocker instead of passing unmatched VM gates', () => {
+  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-smoke-gate-'));
+  const result = spawnSync(
+    process.execPath,
+    ['--experimental-strip-types', smokeGatePath, '--gate', 'clean_windows_vm', '--artifacts', artifacts, '--json'],
+    { cwd: appRoot, encoding: 'utf8' },
+  );
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
+  assert.equal(payload.status, 'typed_blocker');
+  assert.equal(payload.gate_id, 'clean_windows_vm');
+  assert.match(payload.blocker.code, /windows_vm|requires_windows_vm/);
+  assert.equal(payload.schema, 'opl_docker_webui_smoke_gate_result.v1');
 });

@@ -23,6 +23,8 @@ param(
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = "Stop"
+$script:PreDataInventory = ""
+$script:PreProjectsInventory = ""
 
 function Write-Step {
   param([string]$Message)
@@ -472,6 +474,67 @@ function Write-DirectorySummary {
   Write-DiagnosticText -PathValue $OutputPath -Content ($lines -join "`n")
 }
 
+function Get-PathInventoryText {
+  param([Parameter(Mandatory = $true)][string]$PathValue)
+
+  $lines = [System.Collections.Generic.List[string]]::new()
+  $lines.Add("path=$PathValue")
+  if (-not (Test-Path -LiteralPath $PathValue)) {
+    $lines.Add("exists=false")
+    return ($lines -join "`n")
+  }
+
+  $item = Get-Item -LiteralPath $PathValue
+  $lines.Add("exists=true")
+  if (-not $item.PSIsContainer) {
+    $lines.Add("type=file")
+    $lines.Add("length=$($item.Length)")
+    return ($lines -join "`n")
+  }
+
+  $lines.Add("type=directory")
+  $entries = @(Get-ChildItem -LiteralPath $PathValue -Recurse -Depth 3 -Force -ErrorAction SilentlyContinue)
+  $lines.Add("total_entries_max_depth_3=$($entries.Count)")
+  $lines.Add("sample_entries_max_depth_3:")
+  foreach ($entry in ($entries | Sort-Object FullName | Select-Object -First 50)) {
+    $relative = $entry.FullName.Substring($PathValue.Length).TrimStart([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $lines.Add("./$relative")
+  }
+  return (ConvertFrom-DiagnosticSensitiveText ($lines -join "`n"))
+}
+
+function Write-PreservationSummary {
+  param(
+    [Parameter(Mandatory = $true)][string]$OutputPath,
+    [Parameter(Mandatory = $true)][string]$DataPath,
+    [Parameter(Mandatory = $true)][string]$ProjectsPath
+  )
+
+  $postDataInventory = Get-PathInventoryText -PathValue $DataPath
+  $postProjectsInventory = Get-PathInventoryText -PathValue $ProjectsPath
+  $verdict = "preserved_or_reused"
+  if ($script:PreDataInventory -match "(?m)^exists=false$") {
+    $verdict = "created_new_data_dir"
+  }
+  $content = @(
+    "verdict=$verdict",
+    "policy=existing OnePersonLab data/projects directories must be preserved or migrated without delete",
+    "",
+    "[pre_data_inventory]",
+    $(if ([string]::IsNullOrWhiteSpace($script:PreDataInventory)) { "not_recorded" } else { $script:PreDataInventory }),
+    "",
+    "[post_data_inventory]",
+    $postDataInventory,
+    "",
+    "[pre_projects_inventory]",
+    $(if ([string]::IsNullOrWhiteSpace($script:PreProjectsInventory)) { "not_recorded" } else { $script:PreProjectsInventory }),
+    "",
+    "[post_projects_inventory]",
+    $postProjectsInventory
+  ) -join "`n"
+  Write-DiagnosticText -PathValue $OutputPath -Content $content
+}
+
 function Collect-WebUiDiagnostics {
   param(
     [Parameter(Mandatory = $true)][string]$Reason,
@@ -520,6 +583,7 @@ function Collect-WebUiDiagnostics {
   Invoke-DiagnosticDockerCommand -OutputPath (Join-Path $TargetDir "docker-image.txt") -Arguments @("image", "inspect", $ImageReference)
   Write-HttpProbeSummary -OutputPath (Join-Path $TargetDir "http-probe.txt") -Url $Url -TimeoutSeconds $HealthTimeoutSeconds
   Write-DirectorySummary -OutputPath (Join-Path $TargetDir "directories.txt") -ComposePath $ComposePath -DataPath $DataPath -ProjectsPath $ProjectsPath
+  Write-PreservationSummary -OutputPath (Join-Path $TargetDir "data-preservation.txt") -DataPath $DataPath -ProjectsPath $ProjectsPath
 
   if (-not [string]::IsNullOrWhiteSpace($DiagnosticsArchive)) {
     $archiveParent = Split-Path -Parent ([System.IO.Path]::GetFullPath($DiagnosticsArchive))
@@ -614,6 +678,8 @@ Assert-DockerCompose
 Assert-Wsl2
 Confirm-Run -ComposePath $composePath -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -Url $url
 
+$script:PreDataInventory = Get-PathInventoryText -PathValue $resolvedDataDir
+$script:PreProjectsInventory = Get-PathInventoryText -PathValue $resolvedProjectsDir
 New-DirectoryIfNeeded $composeDir
 New-DirectoryIfNeeded $resolvedDataDir
 New-DirectoryIfNeeded $resolvedProjectsDir

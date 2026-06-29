@@ -16,6 +16,8 @@ DRY_RUN=0
 YES=0
 OPEN_BROWSER=1
 DETACH=1
+PRE_DATA_INVENTORY=''
+PRE_PROJECTS_INVENTORY=''
 
 usage() {
   cat <<'USAGE'
@@ -352,6 +354,8 @@ write_compose_file() {
     return 0
   fi
 
+  PRE_DATA_INVENTORY="$(build_path_inventory "$DATA_DIR")"
+  PRE_PROJECTS_INVENTORY="$(build_path_inventory "$PROJECTS_DIR")"
   mkdir -p "$DATA_DIR" "$PROJECTS_DIR" "$(dirname "$COMPOSE_FILE")"
   if [ -f "$COMPOSE_FILE" ] && ! grep -q "$existing_marker" "$COMPOSE_FILE"; then
     die "Refusing to overwrite existing compose file without One Person Lab marker: $COMPOSE_FILE"
@@ -461,6 +465,53 @@ write_directory_summary() {
   } | redact_diagnostic_stream > "$output_file"
 }
 
+build_path_inventory() {
+  local target_path="$1"
+  if [ ! -e "$target_path" ]; then
+    printf 'path=%s\nexists=false\n' "$target_path"
+    return 0
+  fi
+
+  {
+    printf 'path=%s\n' "$target_path"
+    printf 'exists=true\n'
+    if [ -d "$target_path" ]; then
+      printf 'type=directory\n'
+      if command -v find >/dev/null 2>&1; then
+        local total_entries
+        total_entries="$(find "$target_path" -mindepth 1 -maxdepth 3 2>/dev/null | wc -l | tr -d '[:space:]')" || total_entries='unknown'
+        printf 'total_entries_max_depth_3=%s\n' "$total_entries"
+        printf 'sample_entries_max_depth_3:\n'
+        find "$target_path" -mindepth 1 -maxdepth 3 -print 2>/dev/null | sort | head -50 | sed "s#^$target_path#.#" || true
+      else
+        printf 'inventory_error=find_unavailable\n'
+      fi
+    else
+      printf 'type=file\n'
+      ls -l "$target_path" 2>/dev/null || true
+    fi
+  } | redact_diagnostic_stream
+}
+
+write_preservation_summary() {
+  local output_file="$1"
+  local post_data_inventory post_projects_inventory verdict
+  post_data_inventory="$(build_path_inventory "$DATA_DIR")"
+  post_projects_inventory="$(build_path_inventory "$PROJECTS_DIR")"
+  verdict='preserved_or_reused'
+  if printf '%s' "$PRE_DATA_INVENTORY" | grep -q '^exists=false$'; then
+    verdict='created_new_data_dir'
+  fi
+  {
+    printf 'verdict=%s\n' "$verdict"
+    printf 'policy=existing OnePersonLab data/projects directories must be preserved or migrated without delete\n'
+    printf '\n[pre_data_inventory]\n%s\n' "${PRE_DATA_INVENTORY:-not_recorded}"
+    printf '\n[post_data_inventory]\n%s\n' "$post_data_inventory"
+    printf '\n[pre_projects_inventory]\n%s\n' "${PRE_PROJECTS_INVENTORY:-not_recorded}"
+    printf '\n[post_projects_inventory]\n%s\n' "$post_projects_inventory"
+  } | redact_diagnostic_stream > "$output_file"
+}
+
 collect_diagnostics() {
   local reason="$1"
   local target_dir="$2"
@@ -499,6 +550,7 @@ collect_diagnostics() {
   capture_diagnostic_command "$target_dir/docker-image.txt" docker image inspect "$IMAGE"
   write_http_probe_summary "$target_dir/http-probe.txt"
   write_directory_summary "$target_dir/directories.txt"
+  write_preservation_summary "$target_dir/data-preservation.txt"
 
   if [ -n "$DIAGNOSTICS_ARCHIVE" ]; then
     mkdir -p "$(dirname "$DIAGNOSTICS_ARCHIVE")"
