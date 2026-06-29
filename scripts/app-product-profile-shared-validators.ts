@@ -125,6 +125,11 @@ function assertHomeCodexAutoSelectionPolicy(
   assertExpectedFields(
     [
       { actual: autoSelection?.strategy, expected: 'codex_cli_auto_latest_available_frontier' },
+      { actual: autoSelection?.model_list_source, expected: 'codex_cli_handshake_available_models' },
+      {
+        actual: autoSelection?.frontier_model_preference_order_role,
+        expected: 'fallback_when_codex_cli_model_list_unavailable',
+      },
       { actual: autoSelection?.user_can_override_model, expected: true },
       { actual: autoSelection?.user_can_override_reasoning_effort, expected: true },
       { actual: autoSelection?.user_can_restore_auto, expected: true },
@@ -159,12 +164,20 @@ function assertCodexModelDisplayShape(
   assertExpectedFields(
     [
       { actual: displayOptions?.display_policy, expected: 'friendly_model_name_primary_reasoning_configurable_in_model_menu' },
+      {
+        actual: displayOptions?.button_label_policy,
+        expected: 'auto_or_fixed_model_compact_label_with_selected_reasoning_effort',
+      },
       { actual: displayOptions?.raw_model_id_visible_in_ordinary_ui, expected: false },
       { actual: displayOptions?.reasoning_effort_visible_for_every_option, expected: false },
       { actual: displayOptions?.reasoning_effort_menu_visible, expected: true },
+      { actual: displayOptions?.reasoning_menu_title_zh, expected: '推理' },
+      { actual: displayOptions?.reasoning_menu_title_en, expected: 'Reasoning' },
       { actual: displayOptions?.reasoning_effort_override_surface, expected: 'model_configuration_menu' },
       { actual: displayOptions?.reasoning_effort_options_source, expected: 'acp_codex_config_options_enum' },
       { actual: displayOptions?.default_reasoning_effort, expected: profile.codex?.default_reasoning_effort },
+      { actual: displayOptions?.auto_option_current_resolution_visible, expected: true },
+      { actual: displayOptions?.model_menu_policy, expected: 'last_submenu_collapsed_by_default' },
       { actual: auto?.label_zh, expected: '自动（推荐）' },
       { actual: auto?.label_en, expected: 'Auto (recommended)' },
       { actual: auto?.resolved_model, expected: profile.codex?.default_model },

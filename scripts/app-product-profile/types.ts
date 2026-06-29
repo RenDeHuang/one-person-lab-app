@@ -50,6 +50,8 @@ export type AppProductProfile = {
       codex_precise_model_display_policy: string;
       codex_auto_model_selection: {
         strategy: string;
+        model_list_source: string;
+        frontier_model_preference_order_role: string;
         user_can_override_model: boolean;
         user_can_restore_auto: boolean;
         selection_persists_into_conversation: boolean;
@@ -57,12 +59,17 @@ export type AppProductProfile = {
       };
       codex_model_display_options: {
         display_policy: string;
+        button_label_policy: string;
         raw_model_id_visible_in_ordinary_ui: boolean;
         reasoning_effort_visible_for_every_option: boolean;
         reasoning_effort_menu_visible: boolean;
+        reasoning_menu_title_zh: string;
+        reasoning_menu_title_en: string;
         reasoning_effort_override_surface: string;
         reasoning_effort_options_source: string;
         default_reasoning_effort: string;
+        auto_option_current_resolution_visible: boolean;
+        model_menu_policy: string;
         auto_option: {
           id: string;
           label_zh: string;

@@ -189,12 +189,28 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'display_elapsed_seconds_while_ai_processing_or_backend_running',
   );
   assert.equal(guiContract.executor_policy.precise_model_display_policy, 'friendly_model_primary_reasoning_configurable_in_model_menu');
+  assert.equal(
+    guiContract.executor_policy.model_display_options_policy.button_label_policy,
+    'auto_or_fixed_model_compact_label_with_selected_reasoning_effort',
+  );
+  assert.equal(guiContract.executor_policy.model_display_options_policy.reasoning_menu_title_zh, '推理');
+  assert.equal(guiContract.executor_policy.model_display_options_policy.reasoning_menu_title_en, 'Reasoning');
+  assert.equal(guiContract.executor_policy.model_display_options_policy.auto_option_current_resolution_visible, true);
+  assert.equal(
+    guiContract.executor_policy.model_display_options_policy.model_menu_policy,
+    'last_submenu_collapsed_by_default',
+  );
   assert.equal(guiContract.executor_policy.permission_mode_selector_visible_on_home, false);
   assert.equal(guiContract.executor_policy.model_selector_visible_on_new_conversation, true);
   assert.equal(guiContract.executor_policy.model_selector_visible_in_conversation, true);
   assert.equal(guiContract.executor_policy.backend_selector_visible_in_conversation, false);
   assert.equal(guiContract.executor_policy.permission_mode_selector_visible_in_conversation, false);
   assert.equal(guiContract.executor_policy.user_model_override_allowed, true);
+  assert.equal(guiContract.executor_policy.model_list_source, 'codex_cli_handshake_available_models');
+  assert.equal(
+    guiContract.executor_policy.frontier_model_preference_order_role,
+    'fallback_when_codex_cli_model_list_unavailable',
+  );
   assert.equal(guiContract.executor_policy.restore_auto_model_selection_allowed, true);
   assert.deepEqual(guiContract.executor_policy.frontier_model_preference_order, [
     'gpt-5.5',

@@ -86,6 +86,11 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.equal(profile.gui.right_context_inspector.opens_on_user_request_only, true);
   assert.equal(profile.gui.right_context_inspector.chat_canvas_remains_primary, true);
   assert.equal(profile.gui.home.codex_auto_model_selection.strategy, 'codex_cli_auto_latest_available_frontier');
+  assert.equal(profile.gui.home.codex_auto_model_selection.model_list_source, 'codex_cli_handshake_available_models');
+  assert.equal(
+    profile.gui.home.codex_auto_model_selection.frontier_model_preference_order_role,
+    'fallback_when_codex_cli_model_list_unavailable',
+  );
   assert.equal(profile.gui.home.codex_auto_model_selection.user_can_override_model, true);
   assert.equal(profile.gui.home.codex_auto_model_selection.user_can_override_reasoning_effort, true);
   assert.equal(profile.gui.home.codex_auto_model_selection.user_can_restore_auto, true);
