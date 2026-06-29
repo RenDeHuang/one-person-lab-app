@@ -248,6 +248,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          SHELL_SHA="$(git -C shells/aionui rev-parse HEAD)"
           image_owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
           ghcr_image="ghcr.io/${image_owner}/one-person-lab-webui"
           write_publish_summary() {
@@ -277,11 +278,13 @@ jobs:
           }
           docker build \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${SHELL_SHA}" \
             -t "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}" \
             shells/aionui
           docker build \
             --build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${SHELL_SHA}" \
             -t "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}-slim" \
             shells/aionui
           docker image inspect "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}" > /tmp/opl-webui-image-inspect.json

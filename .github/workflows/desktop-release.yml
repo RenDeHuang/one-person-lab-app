@@ -754,6 +754,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_MODE: ${{ inputs.release_mode }}
           OPL_FRAMEWORK_SHA: ${{ needs.publish-standard.outputs.framework_sha }}
+          SHELL_SHA: ${{ needs.publish-standard.outputs.shell_sha }}
         run: |
           set -euo pipefail
           image_owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
@@ -814,12 +815,14 @@ jobs:
           docker build \
             --build-arg OPL_FRAMEWORK_REF="${OPL_FRAMEWORK_SHA}" \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${SHELL_SHA}" \
             -t "one-person-lab-webui:${{ inputs.opl_version }}" \
             shells/aionui
           docker build \
             --build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim \
             --build-arg OPL_FRAMEWORK_REF="${OPL_FRAMEWORK_SHA}" \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${SHELL_SHA}" \
             -t "one-person-lab-webui:${{ inputs.opl_version }}-slim" \
             shells/aionui
           docker image inspect "one-person-lab-webui:${{ inputs.opl_version }}" \
