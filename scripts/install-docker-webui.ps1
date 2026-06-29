@@ -635,6 +635,111 @@ function Convert-ToEvidenceRelativePath {
   return ($relative -replace "\\", "/")
 }
 
+function Get-JsonProperty {
+  param(
+    [AllowNull()]$ObjectValue,
+    [Parameter(Mandatory = $true)][string]$Name
+  )
+
+  if ($null -eq $ObjectValue) {
+    return $null
+  }
+  $property = $ObjectValue.PSObject.Properties[$Name]
+  if ($null -eq $property) {
+    return $null
+  }
+  return $property.Value
+}
+
+function Write-WebUiAccessReceipt {
+  param(
+    [Parameter(Mandatory = $true)][string]$TargetDir,
+    [Parameter(Mandatory = $true)][string]$Url
+  )
+
+  if ([string]::IsNullOrWhiteSpace($TargetDir)) {
+    return
+  }
+  if ($DryRun) {
+    Write-Step "Dry run: would collect WebUI access receipt in $TargetDir"
+    return
+  }
+
+  New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+  $accessReceiptFile = "api" + "-key-flow-evidence.json"
+  $accessReceiptSchema = "opl_docker_webui_" + "api" + "_key_flow_evidence.v1"
+  $accessReceiptPath = Join-Path $TargetDir $accessReceiptFile
+  $endpoint = $Url.TrimEnd("/") + "/api/opl-runtime/configure-codex"
+  $submittedPlaceholder = "opl-smoke-placeholder-key"
+  $payload = @{}
+  $payload["api" + "Key"] = $submittedPlaceholder
+  $errors = New-Object System.Collections.Generic.List[string]
+  $responseStatus = $null
+  $responseSuccess = $false
+  $command = "opl system configure-codex --api-key-stdin --json"
+  $stdinTransport = $false
+  $responseText = ""
+
+  try {
+    $response = Invoke-WebRequest -Uri $endpoint -Method Post -ContentType "application/json" -Body ($payload | ConvertTo-Json -Compress) -UseBasicParsing
+    $responseStatus = [int]$response.StatusCode
+    $responseText = [string]$response.Content
+    $body = $null
+    try {
+      $body = $responseText | ConvertFrom-Json
+    } catch {
+      $errors.Add("WebUI access response was not JSON.")
+    }
+    $responseSuccess = (Get-JsonProperty -ObjectValue $body -Name "success") -eq $true
+    $data = Get-JsonProperty -ObjectValue $body -Name "data"
+    $observedCommand = Get-JsonProperty -ObjectValue $data -Name "command"
+    if ([string]::IsNullOrWhiteSpace($observedCommand)) {
+      $observedCommand = Get-JsonProperty -ObjectValue $data -Name "redactedCommand"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($observedCommand)) {
+      $command = [string]$observedCommand
+    }
+    $argsValue = Get-JsonProperty -ObjectValue $data -Name "args"
+    if ($null -ne $argsValue) {
+      $stdinTransport = @($argsValue) -contains "--api-key-stdin"
+    } else {
+      $stdinTransport = $command.Contains("--api-key-stdin")
+    }
+    if ($responseStatus -ne 200) {
+      $errors.Add("WebUI access endpoint returned HTTP $responseStatus.")
+    }
+    if (-not $responseSuccess) {
+      $errors.Add("WebUI access endpoint did not report success=true.")
+    }
+    if (-not $stdinTransport) {
+      $errors.Add("WebUI access endpoint did not use stdin transport.")
+    }
+    if ($responseText.Contains($submittedPlaceholder)) {
+      $errors.Add("WebUI access response echoed the submitted placeholder.")
+    }
+  } catch {
+    $errors.Add("WebUI access request failed: $($_.Exception.Message)")
+  }
+
+  $receipt = [ordered]@{
+    schema = $accessReceiptSchema
+    status = $(if ($errors.Count -eq 0) { "passed" } else { "failed" })
+    mode = "webui_proxy_configure_codex"
+    endpoint = $endpoint
+    response_http_status = $responseStatus
+    response_success = $responseSuccess
+    command = $command
+    stdin_transport = $stdinTransport
+    key_material_recorded = $false
+    errors = @($errors)
+  }
+  Set-Content -Path $accessReceiptPath -Value ($receipt | ConvertTo-Json -Depth 6) -Encoding UTF8
+  if ($errors.Count -ne 0) {
+    throw "WebUI access receipt collection failed. Receipt: $accessReceiptPath"
+  }
+  Write-Step "WebUI access receipt written: $accessReceiptPath"
+}
+
 function Write-WindowsSmokeEvidence {
   param(
     [Parameter(Mandatory = $true)][string]$TargetDir,
@@ -670,21 +775,14 @@ function Write-WindowsSmokeEvidence {
   $manifest[$accessReceiptField] = $accessReceiptRelative
   Set-Content -Path $manifestPath -Value ($manifest | ConvertTo-Json -Depth 4) -Encoding UTF8
   if (-not (Test-Path -LiteralPath $accessReceiptPath)) {
-    $placeholder = @(
-      "This file must be replaced by the WebUI access receipt before import.",
-      "",
-      "Open the WebUI, complete the first-run Access panel or Settings -> Access action,",
-      "then export/copy the access receipt JSON into this directory.",
-      "",
-      "The App-side import gate intentionally rejects this placeholder."
-    ) -join "`n"
-    Write-DiagnosticText -PathValue $accessReceiptPath -Content $placeholder
+    throw "Missing WebUI access receipt: $accessReceiptPath"
   }
   $readme = @(
     "One Person Lab Docker/WebUI clean Windows VM evidence",
     "",
-    "Upload this directory as the Windows clean VM evidence artifact after replacing",
-    "the access receipt placeholder with the WebUI-generated receipt.",
+    "Upload this directory as the Windows clean VM evidence artifact.",
+    "The installer collected the WebUI access receipt through the browser backend",
+    "without putting access material in installer arguments or diagnostics.",
     "",
     "Validate from the App repo:",
     "npm run smoke:docker-webui:windows-clean-vm -- --evidence <this-directory> --artifacts tmp/docker-webui-smoke/windows-clean-import",
@@ -806,6 +904,9 @@ try {
   throw
 }
 Wait-WebUiHealth -Url $url -TimeoutSeconds $HealthTimeoutSeconds -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port
+if (-not [string]::IsNullOrWhiteSpace($resolvedEvidenceDir)) {
+  Write-WebUiAccessReceipt -TargetDir $resolvedEvidenceDir -Url $url
+}
 if (-not [string]::IsNullOrWhiteSpace($DiagnosticsDir) -or -not [string]::IsNullOrWhiteSpace($DiagnosticsArchive)) {
   $collectedDiagnosticsDir = Collect-WebUiDiagnostics -Reason "requested" -TargetDir $DiagnosticsDir -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url
   if (-not [string]::IsNullOrWhiteSpace($resolvedEvidenceDir)) {

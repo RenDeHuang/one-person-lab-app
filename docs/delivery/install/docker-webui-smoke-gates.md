@@ -152,12 +152,12 @@ powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 `
 ```
 
 `-EvidenceDir` defaults diagnostics into `windows-clean-evidence/diagnostics`
-and writes `windows-clean-evidence/windows-smoke-evidence.json`. The installer
-also writes a placeholder `api-key-flow-evidence.json`; replace that placeholder
-with the WebUI-generated API key flow receipt after completing the first-run
-Access panel or Settings -> Access action. The App-side import gate rejects the
-placeholder, so the artifact cannot pass until the UI-only API key path has real
-receipt evidence.
+and writes `windows-clean-evidence/windows-smoke-evidence.json`. It also calls
+the WebUI access backend to write `api-key-flow-evidence.json`, proving the UI
+path reaches `opl system configure-codex --api-key-stdin --json` without putting
+access material in installer arguments or diagnostics. If that receipt cannot
+be collected, the installer fails the evidence package instead of producing a
+placeholder that could be mistaken for pass evidence.
 
 ## Diagnostic Directory
 

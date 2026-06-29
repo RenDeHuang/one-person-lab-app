@@ -261,7 +261,9 @@ test('Docker/WebUI Windows installer writes an importable evidence skeleton with
   const script = fs.readFileSync(windowsInstallerPath, 'utf8');
 
   assert.match(script, /\[string\]\$EvidenceDir/);
+  assert.match(script, /function Write-WebUiAccessReceipt/);
   assert.match(script, /function Write-WindowsSmokeEvidence/);
+  assert.match(script, /Write-WebUiAccessReceipt -TargetDir \$resolvedEvidenceDir -Url \$url/);
   assert.match(script, /schema = "opl_docker_webui_windows_smoke_evidence\.v1"/);
   assert.match(script, /gate_id = "clean_windows_vm"/);
   assert.match(script, /host_platform = "win32"/);
@@ -269,7 +271,7 @@ test('Docker/WebUI Windows installer writes an importable evidence skeleton with
   assert.match(script, /diagnostics_dir = \$diagnosticsRelative/);
   assert.match(script, /\$accessReceiptField = "api" \+ "_key_flow_evidence"/);
   assert.match(script, /\$manifest\[\$accessReceiptField\] = \$accessReceiptRelative/);
-  assert.match(script, /The App-side import gate intentionally rejects this placeholder/);
+  assert.match(script, /Missing WebUI access receipt/);
   assert.match(script, /if \(-not \[string\]::IsNullOrWhiteSpace\(\$EvidenceDir\)\)/);
   assert.match(script, /\$DiagnosticsDir = Join-Path \$resolvedEvidenceDir "diagnostics"/);
   assert.match(script, /Write-WindowsSmokeEvidence -TargetDir \$resolvedEvidenceDir -DiagnosticsPath \$collectedDiagnosticsDir/);

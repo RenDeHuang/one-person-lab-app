@@ -73,6 +73,10 @@ test('Windows Docker/WebUI installer gates prerequisite installation behind an e
   assert.match(installer, /Wait-WebUiHealth/);
   assert.match(installer, /Test-WebUiHttpHealth/);
   assert.match(installer, /Invoke-WebRequest/);
+  assert.match(installer, /function Write-WebUiAccessReceipt/);
+  assert.match(installer, /\/api\/opl-runtime\/configure-codex/);
+  assert.match(installer, /api" \+ "Key"/);
+  assert.match(installer, /opl system configure-codex --api-key-stdin --json/);
   assert.match(installer, /Collect-WebUiDiagnostics/);
   assert.match(installer, /docker-compose-ps\.txt/);
   assert.match(installer, /docker-compose-logs\.txt/);
