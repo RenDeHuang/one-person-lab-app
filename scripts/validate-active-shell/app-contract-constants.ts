@@ -154,6 +154,20 @@ export const appOwnedSettingsPostUpdateNoticeFields = [
   'next_check',
   'restart_or_reload_guidance',
 ];
+export const appOwnedSettingsMakeUsableAllowedSteps = [
+  'run existing repair prep',
+  'check managed update status',
+  'repair components with explicit repair receipt',
+  'apply safe non-restart capability sync or package exposure actions',
+  'refresh fast App state',
+];
+export const appOwnedSettingsMakeUsableForbiddenSteps = [
+  'implement a second updater kernel',
+  'write runtime truth, domain truth, owner receipts, or typed blockers',
+  'silently apply runtime/toolchain changes that require restart',
+  'silently update dirty or developer checkouts',
+  'rollback automatically without explicit per-component user confirmation',
+];
 export const appOwnedSettingsVisualQaTargets = [
   'desktop_settings_overview',
   'desktop_settings_access',

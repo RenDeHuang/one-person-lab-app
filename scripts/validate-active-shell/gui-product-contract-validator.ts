@@ -21,6 +21,8 @@ import {
   appOwnedSettingsConfirmationFields,
   appOwnedSettingsIaGroupIds,
   appOwnedSettingsIssueStatuses,
+  appOwnedSettingsMakeUsableAllowedSteps,
+  appOwnedSettingsMakeUsableForbiddenSteps,
   appOwnedSettingsPostUpdateNoticeFields,
   appOwnedSettingsSearchProtocol,
   appOwnedSettingsTaskEntryIds,
@@ -642,6 +644,25 @@ function validateSettingsIaContract(settingsIa) {
     settingsIa.protocols?.post_update_notice?.required_fields,
     appOwnedSettingsPostUpdateNoticeFields,
     'App GUI settings post-update notice fields',
+  );
+  const makeUsableAction = settingsIa.protocols?.make_usable_action;
+  if (
+    makeUsableAction?.placement !== 'settings_environment.maintenance_hub.primary_action' ||
+    makeUsableAction?.orchestration_policy !== 'shell_orchestrates_existing_app_and_managed_update_actions_only' ||
+    makeUsableAction?.post_action_notice !==
+      'show restart or reload guidance from managed update status/result without claiming domain, release, or production readiness'
+  ) {
+    throw new Error('App GUI Settings make-usable action must stay a shell-orchestrated composite over existing actions');
+  }
+  assertDeepEqualJson(
+    makeUsableAction?.allowed_steps,
+    appOwnedSettingsMakeUsableAllowedSteps,
+    'App GUI Settings make-usable allowed steps',
+  );
+  assertDeepEqualJson(
+    makeUsableAction?.must_not,
+    appOwnedSettingsMakeUsableForbiddenSteps,
+    'App GUI Settings make-usable forbidden steps',
   );
   if (settingsIa.protocols?.diagnostics?.default_visibility !== 'collapsed_advanced_only') {
     throw new Error('App GUI settings diagnostics must be collapsed and Advanced-only by default');

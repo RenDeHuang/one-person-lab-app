@@ -514,6 +514,28 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'next_check',
     'restart_or_reload_guidance',
   ]);
+  assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.make_usable_action, {
+    label_en: 'Make OPL usable',
+    label_zh: '让 OPL 可用',
+    placement: 'settings_environment.maintenance_hub.primary_action',
+    orchestration_policy: 'shell_orchestrates_existing_app_and_managed_update_actions_only',
+    allowed_steps: [
+      'run existing repair prep',
+      'check managed update status',
+      'repair components with explicit repair receipt',
+      'apply safe non-restart capability sync or package exposure actions',
+      'refresh fast App state',
+    ],
+    must_not: [
+      'implement a second updater kernel',
+      'write runtime truth, domain truth, owner receipts, or typed blockers',
+      'silently apply runtime/toolchain changes that require restart',
+      'silently update dirty or developer checkouts',
+      'rollback automatically without explicit per-component user confirmation',
+    ],
+    post_action_notice:
+      'show restart or reload guidance from managed update status/result without claiming domain, release, or production readiness',
+  });
   assert.equal(
     guiContract.settings_navigation.settings_ia.protocols.diagnostics.default_visibility,
     'collapsed_advanced_only',

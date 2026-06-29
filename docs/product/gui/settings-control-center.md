@@ -69,6 +69,13 @@ ad hoc cards:
 - Actions come from `app_state.actions` and mutate only through
   `opl app action execute --action <action_id> [--payload <json>] [--dry-run]
   --json`.
+- The Maintenance hub may expose one primary "Make OPL usable" action. It is a
+  shell-orchestrated composite over existing repair prep and managed update
+  actions: it may check status, repair components with explicit repair receipts,
+  apply safe non-restart package/capability sync actions, and refresh fast App
+  state. It must not implement a second updater kernel, silently update dirty or
+  developer checkouts, silently apply restart-required runtime/toolchain changes,
+  auto-rollback, or write runtime/domain truth.
 - Settings search filters ordinary route labels, task entries, and action
   keywords. It is a navigation aid only: selecting a result changes the page,
   but search results do not create a second status source or expose internal
@@ -193,6 +200,12 @@ rollback actions are per component and show component-specific loading state.
 Dangerous or state-changing actions require a confirmation surface explaining
 what will change, what will not change, and what rollback or receipt reference
 will exist.
+
+The primary "Make OPL usable" action is a convenience entry, not a new authority
+surface. It sequences existing App/Framework actions and only applies safe
+non-restart repairs or capability sync actions. Restart-required runtime changes,
+dirty/developer checkouts, cleanup execution, and rollback remain explicit
+per-component actions with their own confirmation and guidance.
 
 The App remains a consumer of OPL/App action routes and managed updater status;
 it must not implement the update kernel or write runtime/domain truth.

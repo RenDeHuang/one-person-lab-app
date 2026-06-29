@@ -1006,6 +1006,27 @@
           "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
           "mutation_policy": "all_mutating_settings_actions_go_through_App_action_routes"
         },
+        "make_usable_action": {
+          "label_en": "Make OPL usable",
+          "label_zh": "让 OPL 可用",
+          "placement": "settings_environment.maintenance_hub.primary_action",
+          "orchestration_policy": "shell_orchestrates_existing_app_and_managed_update_actions_only",
+          "allowed_steps": [
+            "run existing repair prep",
+            "check managed update status",
+            "repair components with explicit repair receipt",
+            "apply safe non-restart capability sync or package exposure actions",
+            "refresh fast App state"
+          ],
+          "must_not": [
+            "implement a second updater kernel",
+            "write runtime truth, domain truth, owner receipts, or typed blockers",
+            "silently apply runtime/toolchain changes that require restart",
+            "silently update dirty or developer checkouts",
+            "rollback automatically without explicit per-component user confirmation"
+          ],
+          "post_action_notice": "show restart or reload guidance from managed update status/result without claiming domain, release, or production readiness"
+        },
         "settings_search": {
           "scope": "ordinary_route_labels_user_task_entries_and_action_keywords",
           "result_policy": "filter_settings_navigation_without_changing_current_page_until_user_selects_a_result",
