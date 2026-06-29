@@ -421,8 +421,13 @@
           "docker_image_inspect",
           "image_manifest",
           "seed_metadata",
+          "runtime_cli_shims",
+          "preheated_payload_files",
           "declared_volumes",
           "runtime_env",
+          "projects_mount_readback",
+          "install_manifest_receipt",
+          "startup_maintenance_log",
           "auto_login_smoke"
         ],
         "forbidden_success_state": "metadata_only_seed_promoted_to_stable_or_latest"

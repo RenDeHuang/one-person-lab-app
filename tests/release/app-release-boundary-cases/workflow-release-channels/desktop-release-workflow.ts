@@ -195,9 +195,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /docker build[\s\S]*--build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim[\s\S]*-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}-slim"[\s\S]*shells\/aionui/);
   assert.match(workflow, /docker run --rm --entrypoint cat "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"[\s\S]*\/opt\/opl\/image-manifest\.json/);
   assert.match(workflow, /docker run --rm --entrypoint cat "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"[\s\S]*\/opt\/opl\/seed\/metadata\.json/);
+  assert.match(workflow, /command -v opl && command -v codex/);
+  assert.match(workflow, /find \/opt\/opl\/seed\/payload -type f/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-webui-runtime-image\.ts[\s\S]*--expected-profile webui-full/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-webui-runtime-image\.ts[\s\S]*--expected-profile webui-slim/);
+  assert.match(workflow, /-v "\$webui_smoke_dir\/data:\/data"/);
+  assert.match(workflow, /-v "\$webui_smoke_dir\/projects:\/projects"/);
+  assert.match(workflow, /docker exec "\$container" cat \/projects\/\.opl-projects-smoke >\/tmp\/opl-webui-projects-readback\.txt/);
+  assert.match(workflow, /projects mount smoke[\s\S]*\/tmp\/opl-webui-projects-readback\.txt/);
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
+  assert.match(workflow, /\/tmp\/opl-webui-install-manifest\.json/);
+  assert.match(workflow, /running OPL seed apply/);
+  assert.match(workflow, /running OPL startup maintenance/);
+  assert.match(workflow, /OPL maintenance CLI not found; skipping startup maintenance/);
   assert.match(workflow, /same_job_after_docker_webui_smoke/);
   assert.match(workflow, /repeated_docker_build: false/);
   assert.match(workflow, /webui-ghcr-publish:[\s\S]*Download WebUI GHCR publish summary[\s\S]*Verify WebUI GHCR publish summary/);
@@ -725,8 +735,13 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           'docker_image_inspect',
           'image_manifest',
           'seed_metadata',
+          'runtime_cli_shims',
+          'preheated_payload_files',
           'declared_volumes',
           'runtime_env',
+          'projects_mount_readback',
+          'install_manifest_receipt',
+          'startup_maintenance_log',
           'auto_login_smoke',
         ],
         forbidden_success_state: 'metadata_only_seed_promoted_to_stable_or_latest',

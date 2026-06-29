@@ -109,6 +109,12 @@ function requiredComponentIds(seedMetadata: Record<string, unknown>) {
     if (typeof record.sha256 !== 'string' && typeof record.source_fingerprint !== 'string') {
       throw new Error(`Seed metadata component ${record.id} must include sha256 or source_fingerprint.`);
     }
+    if (record.sha256 !== undefined && typeof record.sha256 !== 'string') {
+      throw new Error(`Seed metadata component ${record.id} sha256 must be a string when present.`);
+    }
+    if (record.size_bytes !== undefined && (typeof record.size_bytes !== 'number' || record.size_bytes <= 0)) {
+      throw new Error(`Seed metadata component ${record.id} size_bytes must be a positive number when present.`);
+    }
     return record.id;
   });
 }
@@ -144,6 +150,14 @@ for (const [key, expected] of Object.entries({
 for (const key of ['OPL_IMAGE_MANIFEST_PATH', 'OPL_IMAGE_SEED_DIR']) {
   if (!env.get(key)) {
     throw new Error(`Docker env ${key} must be present.`);
+  }
+}
+const pathEnv = env.get('PATH') ?? '';
+if (args.expectedProfile === 'webui-full') {
+  for (const requiredPath of ['/opt/opl/seed/payload/opl_framework/bin', '/opt/opl/seed/payload/codex_cli/bin']) {
+    if (!pathEnv.split(':').includes(requiredPath)) {
+      throw new Error(`webui-full Docker PATH must include ${requiredPath}.`);
+    }
   }
 }
 

@@ -70,7 +70,19 @@ function validateWebuiGhcrImage(webuiImage) {
   }
   assertIncludesAll(
     contract.publish_gate?.must_read_back,
-    ['docker_image_inspect', 'image_manifest', 'seed_metadata', 'declared_volumes', 'runtime_env', 'auto_login_smoke'],
+    [
+      'docker_image_inspect',
+      'image_manifest',
+      'seed_metadata',
+      'runtime_cli_shims',
+      'preheated_payload_files',
+      'declared_volumes',
+      'runtime_env',
+      'projects_mount_readback',
+      'install_manifest_receipt',
+      'startup_maintenance_log',
+      'auto_login_smoke',
+    ],
     'Docker/WebUI publish gate readback',
   );
 }
