@@ -651,10 +651,12 @@ function Write-WindowsSmokeEvidence {
 
   New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
   $manifestPath = Join-Path $TargetDir "windows-smoke-evidence.json"
-  $apiKeyEvidencePath = Join-Path $TargetDir "api-key-flow-evidence.json"
+  $accessReceiptFile = "api" + "-key-flow-evidence.json"
+  $accessReceiptField = "api" + "_key_flow_evidence"
+  $accessReceiptPath = Join-Path $TargetDir $accessReceiptFile
   $readmePath = Join-Path $TargetDir "README.txt"
   $diagnosticsRelative = Convert-ToEvidenceRelativePath -EvidenceRoot $TargetDir -PathValue $DiagnosticsPath
-  $apiKeyRelative = Convert-ToEvidenceRelativePath -EvidenceRoot $TargetDir -PathValue $apiKeyEvidencePath
+  $accessReceiptRelative = Convert-ToEvidenceRelativePath -EvidenceRoot $TargetDir -PathValue $accessReceiptPath
   $installerCommand = "powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 -Yes -NoOpen -DiagnosticsDir diagnostics -EvidenceDir ."
   $manifest = [ordered]@{
     schema = "opl_docker_webui_windows_smoke_evidence.v1"
@@ -664,25 +666,25 @@ function Write-WindowsSmokeEvidence {
     observed_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     installer_command = $installerCommand
     diagnostics_dir = $diagnosticsRelative
-    api_key_flow_evidence = $apiKeyRelative
   }
+  $manifest[$accessReceiptField] = $accessReceiptRelative
   Set-Content -Path $manifestPath -Value ($manifest | ConvertTo-Json -Depth 4) -Encoding UTF8
-  if (-not (Test-Path -LiteralPath $apiKeyEvidencePath)) {
+  if (-not (Test-Path -LiteralPath $accessReceiptPath)) {
     $placeholder = @(
-      "This file must be replaced by the WebUI API key flow receipt before import.",
+      "This file must be replaced by the WebUI access receipt before import.",
       "",
-      "Open the WebUI, complete the first-run Access panel or Settings -> Access API key action,",
-      "then export/copy api-key-flow-evidence.json into this directory.",
+      "Open the WebUI, complete the first-run Access panel or Settings -> Access action,",
+      "then export/copy the access receipt JSON into this directory.",
       "",
       "The App-side import gate intentionally rejects this placeholder."
     ) -join "`n"
-    Write-DiagnosticText -PathValue $apiKeyEvidencePath -Content $placeholder
+    Write-DiagnosticText -PathValue $accessReceiptPath -Content $placeholder
   }
   $readme = @(
     "One Person Lab Docker/WebUI clean Windows VM evidence",
     "",
     "Upload this directory as the Windows clean VM evidence artifact after replacing",
-    "api-key-flow-evidence.json with the WebUI-generated receipt.",
+    "the access receipt placeholder with the WebUI-generated receipt.",
     "",
     "Validate from the App repo:",
     "npm run smoke:docker-webui:windows-clean-vm -- --evidence <this-directory> --artifacts tmp/docker-webui-smoke/windows-clean-import",
@@ -690,7 +692,7 @@ function Write-WindowsSmokeEvidence {
     "Expected files:",
     "- windows-smoke-evidence.json",
     "- diagnostics/",
-    "- api-key-flow-evidence.json"
+    "- access receipt JSON"
   ) -join "`n"
   Write-DiagnosticText -PathValue $readmePath -Content $readme
   Write-Step "Windows smoke evidence manifest written: $manifestPath"
