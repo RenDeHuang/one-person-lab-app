@@ -972,6 +972,7 @@
       }
     },
     "secondary_page_ids": [
+      "storage",
       "about",
       "update",
       "theme"

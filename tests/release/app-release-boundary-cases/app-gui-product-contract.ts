@@ -420,7 +420,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.primary_tabs.general.label_zh, '总览');
   assert.equal(guiContract.settings_navigation.primary_tabs.environment.label_en, 'Maintenance & Updates');
-  assert.deepEqual(guiContract.settings_navigation.secondary_page_ids, ['about', 'update', 'theme']);
+  assert.deepEqual(guiContract.settings_navigation.secondary_page_ids, ['storage', 'about', 'update', 'theme']);
   assert.deepEqual(guiContract.settings_navigation.ordinary_groups.map((group) => group.id), [
     'overview',
     'setup_access',
