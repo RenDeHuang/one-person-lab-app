@@ -470,7 +470,6 @@
       "auto_option_current_resolution_visible": true,
       "model_menu_policy": "last_submenu_collapsed_by_default",
       "user_reasoning_effort_options": [
-        "minimal",
         "low",
         "medium",
         "high",

@@ -198,11 +198,15 @@ function assertReasoningOptions(
   profile: ProductProfileLike,
   label: string,
 ): void {
+  const expectedOptions = ['low', 'medium', 'high', 'xhigh'];
   const options = displayOptions?.user_reasoning_effort_options;
-  if (!Array.isArray(options) || options.length < 3 || !options.includes(String(profile.codex?.default_reasoning_effort))) {
-    throw new Error(`${label} Codex reasoning effort options must expose the ACP/Codex config enum, not a two-option high/xhigh list`);
+  if (JSON.stringify(options) !== JSON.stringify(expectedOptions)) {
+    throw new Error(`${label} Codex reasoning effort options must be ${JSON.stringify(expectedOptions)}`);
   }
-  for (const effort of options) {
+  if (profile.codex?.default_reasoning_effort !== 'xhigh') {
+    throw new Error(`${label} Codex default reasoning effort must be xhigh`);
+  }
+  for (const effort of expectedOptions) {
     const labels = displayOptions?.reasoning_labels?.[effort];
     if (typeof labels?.zh !== 'string' || !labels.zh.trim() || typeof labels?.en !== 'string' || !labels.en.trim()) {
       throw new Error(`${label} Codex reasoning effort option ${effort} must have friendly labels`);
