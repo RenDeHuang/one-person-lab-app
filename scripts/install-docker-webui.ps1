@@ -11,6 +11,11 @@ param(
   [string]$Tag = "latest",
   [string]$DataDir,
   [string]$ProjectsDir,
+  [ValidateRange(1, 86400)]
+  [int]$HealthTimeoutSeconds = 120,
+  [string]$HealthUrl,
+  [string]$DiagnosticsDir,
+  [string]$DiagnosticsArchive,
   [switch]$InstallPrerequisites,
   [switch]$NoOpen,
   [switch]$Foreground
@@ -48,6 +53,41 @@ function Invoke-StepCommand {
   if ($LASTEXITCODE -ne 0) {
     throw "Command failed: $Display"
   }
+}
+
+function ConvertFrom-DiagnosticSensitiveText {
+  param([AllowNull()][string]$Text)
+  if ($null -eq $Text) {
+    return ""
+  }
+  $redacted = $Text -replace "(?i)([A-Za-z0-9_.-]*(api[_-]?key|token|credential)[A-Za-z0-9_.-]*\s*[:=]\s*)[^\s`"']+", '$1[redacted]'
+  $redacted = $redacted -replace "(?i)(Bearer\s+)[A-Za-z0-9._~+/=-]+", '$1[redacted]'
+  $redacted = $redacted -replace "sk-[A-Za-z0-9_-]{20,}", "sk-[redacted]"
+  return $redacted
+}
+
+function Write-DiagnosticText {
+  param(
+    [Parameter(Mandatory = $true)][string]$PathValue,
+    [AllowNull()][string]$Content
+  )
+  Set-Content -Path $PathValue -Value (ConvertFrom-DiagnosticSensitiveText $Content) -Encoding UTF8
+}
+
+function Invoke-DiagnosticDockerCommand {
+  param(
+    [Parameter(Mandatory = $true)][string]$OutputPath,
+    [Parameter(Mandatory = $true)][string[]]$Arguments
+  )
+
+  $display = "docker " + (($Arguments | ForEach-Object { if ($_ -match "\s") { '"' + $_ + '"' } else { $_ } }) -join " ")
+  $output = & docker @Arguments 2>&1 | Out-String
+  $exitCode = $LASTEXITCODE
+  $content = "`$ $display`n$output"
+  if ($exitCode -ne 0) {
+    $content += "`n[command exited with status $exitCode]`n"
+  }
+  Write-DiagnosticText -PathValue $OutputPath -Content $content
 }
 
 function Install-Wsl2Prerequisites {
@@ -358,9 +398,6 @@ function Invoke-DockerComposeUp {
   $displayCommand = "docker " + (($composeArgs | ForEach-Object { if ($_ -match "\s") { '"' + $_ + '"' } else { $_ } }) -join " ")
   if ($DryRun) {
     Write-Step "Dry run: would run $displayCommand"
-    if (-not $NoOpen) {
-      Write-Step "Dry run: would open $Url"
-    }
     return
   }
 
@@ -369,10 +406,181 @@ function Invoke-DockerComposeUp {
   if ($LASTEXITCODE -ne 0) {
     throw "Docker Compose failed. Check Docker Desktop status and the compose file at $ComposePath, then rerun this script."
   }
+}
 
-  if (-not $NoOpen) {
-    Start-Process $Url
+function Test-WebUiHttpHealth {
+  param([Parameter(Mandatory = $true)][string]$Url)
+
+  try {
+    $response = Invoke-WebRequest -Uri $Url -Method Head -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+    return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400)
+  } catch {
+    try {
+      $response = Invoke-WebRequest -Uri $Url -Method Get -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+      return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400)
+    } catch {
+      return $false
+    }
   }
+}
+
+function Write-HttpProbeSummary {
+  param(
+    [Parameter(Mandatory = $true)][string]$OutputPath,
+    [Parameter(Mandatory = $true)][string]$Url,
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+  )
+
+  $lines = [System.Collections.Generic.List[string]]::new()
+  $lines.Add("url=$Url")
+  $lines.Add("timeout_seconds=$TimeoutSeconds")
+  try {
+    $response = Invoke-WebRequest -Uri $Url -Method Head -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+    $lines.Add("head_status=$($response.StatusCode)")
+  } catch {
+    $lines.Add("head_error=$($_.Exception.GetType().Name): $($_.Exception.Message)")
+  }
+  try {
+    $response = Invoke-WebRequest -Uri $Url -Method Get -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+    $lines.Add("get_status=$($response.StatusCode)")
+  } catch {
+    $lines.Add("get_error=$($_.Exception.GetType().Name): $($_.Exception.Message)")
+  }
+  Write-DiagnosticText -PathValue $OutputPath -Content ($lines -join "`n")
+}
+
+function Write-DirectorySummary {
+  param(
+    [Parameter(Mandatory = $true)][string]$OutputPath,
+    [Parameter(Mandatory = $true)][string]$ComposePath,
+    [Parameter(Mandatory = $true)][string]$DataPath,
+    [Parameter(Mandatory = $true)][string]$ProjectsPath
+  )
+
+  $composeParent = Split-Path -Parent $ComposePath
+  $paths = @($composeParent, $DataPath, $ProjectsPath)
+  $lines = [System.Collections.Generic.List[string]]::new()
+  $lines.Add("compose_file=$ComposePath")
+  foreach ($pathValue in $paths) {
+    $item = Get-Item -LiteralPath $pathValue -ErrorAction SilentlyContinue
+    if ($null -eq $item) {
+      $lines.Add("path=$pathValue exists=false")
+    } else {
+      $lines.Add("path=$pathValue exists=true mode=$($item.Mode) length=$($item.Length)")
+    }
+  }
+  Write-DiagnosticText -PathValue $OutputPath -Content ($lines -join "`n")
+}
+
+function Collect-WebUiDiagnostics {
+  param(
+    [Parameter(Mandatory = $true)][string]$Reason,
+    [string]$TargetDir,
+    [Parameter(Mandatory = $true)][string]$ComposePath,
+    [Parameter(Mandatory = $true)][string]$ImageReference,
+    [Parameter(Mandatory = $true)][string]$DataPath,
+    [Parameter(Mandatory = $true)][string]$ProjectsPath,
+    [Parameter(Mandatory = $true)][int]$HostPort,
+    [Parameter(Mandatory = $true)][string]$Url
+  )
+
+  if ([string]::IsNullOrWhiteSpace($TargetDir)) {
+    $TargetDir = Join-Path (Join-Path (Split-Path -Parent $ComposePath) "diagnostics") ("opl-webui-diagnostics-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+  }
+
+  if ($DryRun) {
+    Write-Step "Dry run: would write diagnostic directory $TargetDir"
+    Write-Step "Dry run: would include compose.yaml, docker versions, compose ps/logs, HTTP probe summary, directory/port/image metadata."
+    if (-not [string]::IsNullOrWhiteSpace($DiagnosticsArchive)) {
+      Write-Step "Dry run: would write diagnostic archive $DiagnosticsArchive"
+    }
+    return $TargetDir
+  }
+
+  New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+  $metadata = @(
+    "reason=$Reason",
+    "created_at=$((Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"))",
+    "image=$ImageReference",
+    "host_port=$HostPort",
+    "health_url=$Url",
+    "compose_file=$ComposePath",
+    "data_dir=$DataPath",
+    "projects_dir=$ProjectsPath"
+  ) -join "`n"
+  Write-DiagnosticText -PathValue (Join-Path $TargetDir "metadata.txt") -Content $metadata
+
+  if (Test-Path -LiteralPath $ComposePath) {
+    Write-DiagnosticText -PathValue (Join-Path $TargetDir "compose.yaml") -Content (Get-Content -LiteralPath $ComposePath -Raw)
+  }
+  Invoke-DiagnosticDockerCommand -OutputPath (Join-Path $TargetDir "docker-version.txt") -Arguments @("version")
+  Invoke-DiagnosticDockerCommand -OutputPath (Join-Path $TargetDir "docker-compose-version.txt") -Arguments @("compose", "version")
+  Invoke-DiagnosticDockerCommand -OutputPath (Join-Path $TargetDir "docker-compose-ps.txt") -Arguments @("compose", "-f", $ComposePath, "ps")
+  Invoke-DiagnosticDockerCommand -OutputPath (Join-Path $TargetDir "docker-compose-logs.txt") -Arguments @("compose", "-f", $ComposePath, "logs", "--no-color", "--tail=300")
+  Invoke-DiagnosticDockerCommand -OutputPath (Join-Path $TargetDir "docker-image.txt") -Arguments @("image", "inspect", $ImageReference)
+  Write-HttpProbeSummary -OutputPath (Join-Path $TargetDir "http-probe.txt") -Url $Url -TimeoutSeconds $HealthTimeoutSeconds
+  Write-DirectorySummary -OutputPath (Join-Path $TargetDir "directories.txt") -ComposePath $ComposePath -DataPath $DataPath -ProjectsPath $ProjectsPath
+
+  if (-not [string]::IsNullOrWhiteSpace($DiagnosticsArchive)) {
+    $archiveParent = Split-Path -Parent ([System.IO.Path]::GetFullPath($DiagnosticsArchive))
+    if (-not [string]::IsNullOrWhiteSpace($archiveParent)) {
+      New-Item -ItemType Directory -Force -Path $archiveParent | Out-Null
+    }
+    if (Test-Path -LiteralPath $DiagnosticsArchive) {
+      Remove-Item -LiteralPath $DiagnosticsArchive -Force
+    }
+    Compress-Archive -Path (Join-Path $TargetDir "*") -DestinationPath $DiagnosticsArchive -Force
+    Write-Step "Diagnostic archive written: $DiagnosticsArchive"
+  }
+  Write-Step "Diagnostic directory written: $TargetDir"
+  return $TargetDir
+}
+
+function Wait-WebUiHealth {
+  param(
+    [Parameter(Mandatory = $true)][string]$Url,
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds,
+    [Parameter(Mandatory = $true)][string]$ComposePath,
+    [Parameter(Mandatory = $true)][string]$ImageReference,
+    [Parameter(Mandatory = $true)][string]$DataPath,
+    [Parameter(Mandatory = $true)][string]$ProjectsPath,
+    [Parameter(Mandatory = $true)][int]$HostPort
+  )
+
+  if ($DryRun) {
+    Write-Step "Dry run: would wait up to ${TimeoutSeconds}s for WebUI HTTP health at $Url."
+    return
+  }
+
+  Write-Step "Waiting up to ${TimeoutSeconds}s for WebUI HTTP health at $Url."
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  while ((Get-Date) -lt $deadline) {
+    if (Test-WebUiHttpHealth -Url $Url) {
+      Write-Step "WebUI HTTP health check passed: $Url"
+      return
+    }
+    Start-Sleep -Seconds 2
+  }
+
+  $failureDir = $DiagnosticsDir
+  if ([string]::IsNullOrWhiteSpace($failureDir)) {
+    $failureDir = Join-Path (Join-Path (Split-Path -Parent $ComposePath) "diagnostics") ("opl-webui-health-timeout-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+  }
+  Collect-WebUiDiagnostics -Reason "health-timeout" -TargetDir $failureDir -ComposePath $ComposePath -ImageReference $ImageReference -DataPath $DataPath -ProjectsPath $ProjectsPath -HostPort $HostPort -Url $Url | Out-Null
+  throw "WebUI did not become reachable at $Url within ${TimeoutSeconds}s. Diagnostic directory: $failureDir"
+}
+
+function Open-WebUiBrowser {
+  param([Parameter(Mandatory = $true)][string]$Url)
+
+  if ($NoOpen) {
+    return
+  }
+  if ($DryRun) {
+    Write-Step "Dry run: would open $Url"
+    return
+  }
+  Start-Process $Url
 }
 
 $tagWasProvided = $PSBoundParameters.ContainsKey("Tag")
@@ -394,7 +602,10 @@ $resolvedProjectsDir = Resolve-FullPath $ProjectsDir
 $composeDir = Split-Path -Parent $resolvedDataDir
 $composePath = Join-Path $composeDir "compose.yaml"
 $imageReference = Resolve-ImageReference -ImageName $Image -ImageTag $Tag -TagWasProvided $tagWasProvided
-$url = "http://localhost:$Port/"
+if ([string]::IsNullOrWhiteSpace($HealthUrl)) {
+  $HealthUrl = "http://localhost:$Port/"
+}
+$url = $HealthUrl
 
 Assert-WindowsHost
 Assert-PowerShellVersion
@@ -415,4 +626,16 @@ Write-Step "Compose file: $composePath"
 Write-Step "Browser URL: $url"
 Write-Step "Access keys are configured inside the WebUI first-run Access panel or Settings -> Access. This script does not accept or write API keys."
 
-Invoke-DockerComposeUp -ComposePath $composePath -Url $url
+try {
+  Invoke-DockerComposeUp -ComposePath $composePath -Url $url
+} catch {
+  if (-not [string]::IsNullOrWhiteSpace($DiagnosticsDir) -or -not [string]::IsNullOrWhiteSpace($DiagnosticsArchive)) {
+    Collect-WebUiDiagnostics -Reason "compose-up-failed" -TargetDir $DiagnosticsDir -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url | Out-Null
+  }
+  throw
+}
+Wait-WebUiHealth -Url $url -TimeoutSeconds $HealthTimeoutSeconds -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port
+if (-not [string]::IsNullOrWhiteSpace($DiagnosticsDir) -or -not [string]::IsNullOrWhiteSpace($DiagnosticsArchive)) {
+  Collect-WebUiDiagnostics -Reason "requested" -TargetDir $DiagnosticsDir -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url | Out-Null
+}
+Open-WebUiBrowser -Url $url

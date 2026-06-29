@@ -8,6 +8,10 @@ PROJECTS_DIR=${OPL_WEBUI_PROJECTS_DIR:-"$OPL_WEBUI_HOME/projects"}
 COMPOSE_FILE=${OPL_WEBUI_COMPOSE_FILE:-"$OPL_WEBUI_HOME/compose.yaml"}
 IMAGE=${OPL_WEBUI_IMAGE:-"$DEFAULT_IMAGE"}
 PORT=${OPL_WEBUI_PORT:-3000}
+HEALTH_TIMEOUT=${OPL_WEBUI_HEALTH_TIMEOUT:-120}
+HEALTH_URL=${OPL_WEBUI_HEALTH_URL:-}
+DIAGNOSTICS_DIR=${OPL_WEBUI_DIAGNOSTICS_DIR:-}
+DIAGNOSTICS_ARCHIVE=${OPL_WEBUI_DIAGNOSTICS_ARCHIVE:-}
 DRY_RUN=0
 YES=0
 OPEN_BROWSER=1
@@ -22,6 +26,11 @@ Options:
   --dry-run                 Print the actions without installing Docker or starting the container.
   --yes                     Allow Ubuntu Docker Engine installation without an interactive prompt.
   --port <port>             Host port for http://localhost:<port>/ (default: 3000).
+  --health-timeout <sec>    Seconds to wait for the WebUI HTTP endpoint (default: 120).
+  --health-url <url>        HTTP endpoint to probe (default: http://localhost:<port>/).
+  --diagnostics-dir <path>  Write a diagnostic directory after startup.
+  --diagnostics-archive <path>
+                            Write a .tar.gz diagnostic package after startup.
   --tag <tag>               Use ghcr.io/gaofeng21cn/one-person-lab-webui:<tag>.
   --image <image>           Use a full image reference instead of the default GHCR image.
   --data-dir <path>         Host directory mounted as /data.
@@ -88,6 +97,41 @@ while [ "$#" -gt 0 ]; do
     --port=*)
       PORT="${1#--port=}"
       ;;
+    --health-timeout)
+      shift
+      need_value --health-timeout "${1:-}"
+      HEALTH_TIMEOUT="$1"
+      ;;
+    --health-timeout=*)
+      HEALTH_TIMEOUT="${1#--health-timeout=}"
+      ;;
+    --health-url)
+      shift
+      need_value --health-url "${1:-}"
+      HEALTH_URL="$1"
+      ;;
+    --health-url=*)
+      HEALTH_URL="${1#--health-url=}"
+      need_value --health-url "$HEALTH_URL"
+      ;;
+    --diagnostics-dir)
+      shift
+      need_value --diagnostics-dir "${1:-}"
+      DIAGNOSTICS_DIR="$1"
+      ;;
+    --diagnostics-dir=*)
+      DIAGNOSTICS_DIR="${1#--diagnostics-dir=}"
+      need_value --diagnostics-dir "$DIAGNOSTICS_DIR"
+      ;;
+    --diagnostics-archive)
+      shift
+      need_value --diagnostics-archive "${1:-}"
+      DIAGNOSTICS_ARCHIVE="$1"
+      ;;
+    --diagnostics-archive=*)
+      DIAGNOSTICS_ARCHIVE="${1#--diagnostics-archive=}"
+      need_value --diagnostics-archive "$DIAGNOSTICS_ARCHIVE"
+      ;;
     --tag)
       shift
       need_value --tag "${1:-}"
@@ -147,6 +191,12 @@ done
 if ! is_uint "$PORT" || [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
   die "Port must be an integer from 1 to 65535: $PORT"
 fi
+if ! is_uint "$HEALTH_TIMEOUT" || [ "$HEALTH_TIMEOUT" -lt 1 ]; then
+  die "Health timeout must be a positive integer: $HEALTH_TIMEOUT"
+fi
+if [ -z "$HEALTH_URL" ]; then
+  HEALTH_URL="http://localhost:${PORT}/"
+fi
 
 if [ -z "$IMAGE" ]; then
   die "Image reference must not be empty"
@@ -155,6 +205,9 @@ reject_compose_unsafe_value "Image reference" "$IMAGE"
 reject_compose_unsafe_value "Data directory" "$DATA_DIR"
 reject_compose_unsafe_value "Projects directory" "$PROJECTS_DIR"
 reject_compose_unsafe_value "Compose file path" "$COMPOSE_FILE"
+reject_compose_unsafe_value "Health URL" "$HEALTH_URL"
+reject_compose_unsafe_value "Diagnostics directory" "$DIAGNOSTICS_DIR"
+reject_compose_unsafe_value "Diagnostics archive" "$DIAGNOSTICS_ARCHIVE"
 
 OS_NAME="$(uname -s)"
 
@@ -336,7 +389,178 @@ start_webui() {
   if [ "$DETACH" = "1" ]; then
     up_args+=(-d)
   fi
-  run docker "${up_args[@]}"
+  if [ "$DRY_RUN" = "1" ]; then
+    run docker "${up_args[@]}"
+    return 0
+  fi
+  log "+ docker ${up_args[*]}"
+  if ! docker "${up_args[@]}"; then
+    if [ -n "$DIAGNOSTICS_DIR" ] || [ -n "$DIAGNOSTICS_ARCHIVE" ]; then
+      collect_diagnostics "compose-up-failed" "$DIAGNOSTICS_DIR" || true
+    fi
+    die "Docker Compose failed. Check Docker status and the compose file at $COMPOSE_FILE, then rerun this installer."
+  fi
+}
+
+redact_diagnostic_stream() {
+  sed -E \
+    -e 's/([A-Za-z0-9_.-]*(api[_-]?key|token|credential)[A-Za-z0-9_.-]*[[:space:]]*[:=][[:space:]]*)[^[:space:]"'\'']+/\1[redacted]/Ig' \
+    -e 's/(Bearer[[:space:]]+)[A-Za-z0-9._~+\/=-]+/\1[redacted]/Ig' \
+    -e 's/sk-[A-Za-z0-9_-]{20,}/sk-[redacted]/g'
+}
+
+capture_diagnostic_command() {
+  local output_file="$1"
+  shift
+  {
+    printf '$'
+    printf ' %q' "$@"
+    printf '\n'
+    "$@" 2>&1 || printf '\n[command exited with status %s]\n' "$?"
+  } | redact_diagnostic_stream > "$output_file"
+}
+
+write_http_probe_summary() {
+  local output_file="$1"
+  {
+    printf 'url=%s\n' "$HEALTH_URL"
+    printf 'timeout_seconds=%s\n' "$HEALTH_TIMEOUT"
+    if command -v curl >/dev/null 2>&1; then
+      local http_code
+      http_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "$HEALTH_URL" 2>&1)" || true
+      printf 'curl_http_code_or_error=%s\n' "$http_code"
+    elif command -v python3 >/dev/null 2>&1; then
+      HEALTH_URL="$HEALTH_URL" python3 - <<'PY'
+import os
+import urllib.error
+import urllib.request
+
+url = os.environ["HEALTH_URL"]
+try:
+    with urllib.request.urlopen(url, timeout=5) as response:
+        print(f"python_http_status={response.status}")
+except Exception as exc:
+    print(f"python_http_error={type(exc).__name__}: {exc}")
+PY
+    else
+      printf 'http_probe_error=curl and python3 are unavailable\n'
+    fi
+  } | redact_diagnostic_stream > "$output_file"
+}
+
+write_directory_summary() {
+  local output_file="$1"
+  {
+    printf 'compose_file=%s\n' "$COMPOSE_FILE"
+    printf 'data_dir=%s exists=%s\n' "$DATA_DIR" "$([ -d "$DATA_DIR" ] && printf yes || printf no)"
+    printf 'projects_dir=%s exists=%s\n' "$PROJECTS_DIR" "$([ -d "$PROJECTS_DIR" ] && printf yes || printf no)"
+    printf 'compose_dir=%s exists=%s\n' "$(dirname "$COMPOSE_FILE")" "$([ -d "$(dirname "$COMPOSE_FILE")" ] && printf yes || printf no)"
+    if command -v ls >/dev/null 2>&1; then
+      ls -ld "$DATA_DIR" "$PROJECTS_DIR" "$(dirname "$COMPOSE_FILE")" 2>&1 || true
+    fi
+  } | redact_diagnostic_stream > "$output_file"
+}
+
+collect_diagnostics() {
+  local reason="$1"
+  local target_dir="$2"
+  if [ -z "$target_dir" ]; then
+    target_dir="$OPL_WEBUI_HOME/diagnostics/opl-webui-diagnostics-$(date +%Y%m%d-%H%M%S)"
+  fi
+
+  if [ "$DRY_RUN" = "1" ]; then
+    log "Would write diagnostic directory: $target_dir"
+    log "Would include compose.yaml, docker versions, compose ps/logs, HTTP probe summary, directory/port/image metadata."
+    if [ -n "$DIAGNOSTICS_ARCHIVE" ]; then
+      log "Would write diagnostic archive: $DIAGNOSTICS_ARCHIVE"
+    fi
+    return 0
+  fi
+
+  mkdir -p "$target_dir"
+  {
+    printf 'reason=%s\n' "$reason"
+    printf 'created_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'image=%s\n' "$IMAGE"
+    printf 'host_port=%s\n' "$PORT"
+    printf 'health_url=%s\n' "$HEALTH_URL"
+    printf 'compose_file=%s\n' "$COMPOSE_FILE"
+    printf 'data_dir=%s\n' "$DATA_DIR"
+    printf 'projects_dir=%s\n' "$PROJECTS_DIR"
+  } | redact_diagnostic_stream > "$target_dir/metadata.txt"
+
+  if [ -f "$COMPOSE_FILE" ]; then
+    redact_diagnostic_stream < "$COMPOSE_FILE" > "$target_dir/compose.yaml"
+  fi
+  capture_diagnostic_command "$target_dir/docker-version.txt" docker version
+  capture_diagnostic_command "$target_dir/docker-compose-version.txt" docker compose version
+  capture_diagnostic_command "$target_dir/docker-compose-ps.txt" docker compose -f "$COMPOSE_FILE" ps
+  capture_diagnostic_command "$target_dir/docker-compose-logs.txt" docker compose -f "$COMPOSE_FILE" logs --no-color --tail=300
+  capture_diagnostic_command "$target_dir/docker-image.txt" docker image inspect "$IMAGE"
+  write_http_probe_summary "$target_dir/http-probe.txt"
+  write_directory_summary "$target_dir/directories.txt"
+
+  if [ -n "$DIAGNOSTICS_ARCHIVE" ]; then
+    mkdir -p "$(dirname "$DIAGNOSTICS_ARCHIVE")"
+    tar -czf "$DIAGNOSTICS_ARCHIVE" -C "$(dirname "$target_dir")" "$(basename "$target_dir")"
+    log "Diagnostic archive written: $DIAGNOSTICS_ARCHIVE"
+  fi
+  log "Diagnostic directory written: $target_dir"
+}
+
+probe_http_once() {
+  if command -v curl >/dev/null 2>&1; then
+    local http_code
+    http_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "$HEALTH_URL" 2>/dev/null)" || return 1
+    case "$http_code" in
+      2*|3*)
+        return 0
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+  fi
+
+  command -v python3 >/dev/null 2>&1 || return 1
+  HEALTH_URL="$HEALTH_URL" python3 - <<'PY'
+import os
+import sys
+import urllib.request
+
+try:
+    with urllib.request.urlopen(os.environ["HEALTH_URL"], timeout=5) as response:
+        sys.exit(0 if 200 <= response.status < 400 else 1)
+except Exception:
+    sys.exit(1)
+PY
+}
+
+wait_for_health() {
+  if [ "$DRY_RUN" = "1" ]; then
+    log "Would wait up to ${HEALTH_TIMEOUT}s for WebUI HTTP health at $HEALTH_URL."
+    return 0
+  fi
+
+  log "Waiting up to ${HEALTH_TIMEOUT}s for WebUI HTTP health at $HEALTH_URL."
+  local start now
+  start="$(date +%s)"
+  while true; do
+    if probe_http_once; then
+      log "WebUI HTTP health check passed: $HEALTH_URL"
+      return 0
+    fi
+    now="$(date +%s)"
+    if [ $((now - start)) -ge "$HEALTH_TIMEOUT" ]; then
+      local failure_dir="${DIAGNOSTICS_DIR:-}"
+      if [ -z "$failure_dir" ]; then
+        failure_dir="$OPL_WEBUI_HOME/diagnostics/opl-webui-health-timeout-$(date +%Y%m%d-%H%M%S)"
+      fi
+      collect_diagnostics "health-timeout" "$failure_dir" || true
+      die "WebUI did not become reachable at $HEALTH_URL within ${HEALTH_TIMEOUT}s. Diagnostic directory: $failure_dir"
+    fi
+    sleep 2
+  done
 }
 
 log "One Person Lab Docker/WebUI installer"
@@ -344,13 +568,17 @@ log "Image: $IMAGE"
 log "Data directory: $DATA_DIR -> /data"
 log "Projects directory: $PROJECTS_DIR -> /projects"
 log "Compose file: $COMPOSE_FILE"
-log "URL: http://localhost:${PORT}/"
+log "URL: $HEALTH_URL"
 log "API keys are not accepted by this installer; enter provider keys inside the WebUI."
 
 ensure_docker
 ensure_compose
 write_compose_file
 start_webui
+wait_for_health
+if [ -n "$DIAGNOSTICS_DIR" ] || [ -n "$DIAGNOSTICS_ARCHIVE" ]; then
+  collect_diagnostics "requested" "$DIAGNOSTICS_DIR"
+fi
 open_browser
 
 log "Docker/WebUI startup command completed."

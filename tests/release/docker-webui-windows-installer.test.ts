@@ -27,7 +27,22 @@ function runPwsh(args: string[]) {
 }
 
 test('Windows Docker/WebUI installer exposes the required small parameter surface', () => {
-  for (const parameter of ['DryRun', 'Yes', 'Port', 'Image', 'Tag', 'DataDir', 'ProjectsDir', 'InstallPrerequisites', 'NoOpen', 'Foreground']) {
+  for (const parameter of [
+    'DryRun',
+    'Yes',
+    'Port',
+    'Image',
+    'Tag',
+    'DataDir',
+    'ProjectsDir',
+    'HealthTimeoutSeconds',
+    'HealthUrl',
+    'DiagnosticsDir',
+    'DiagnosticsArchive',
+    'InstallPrerequisites',
+    'NoOpen',
+    'Foreground',
+  ]) {
     assert.match(installer, new RegExp(`\\$${parameter}\\b`), `missing -${parameter}`);
   }
 
@@ -52,6 +67,19 @@ test('Windows Docker/WebUI installer gates prerequisite installation behind an e
   assert.match(installer, /Get-Command docker/);
   assert.match(installer, /docker info/);
   assert.match(installer, /docker compose version/);
+  assert.match(installer, /Wait-WebUiHealth/);
+  assert.match(installer, /Test-WebUiHttpHealth/);
+  assert.match(installer, /Invoke-WebRequest/);
+  assert.match(installer, /Collect-WebUiDiagnostics/);
+  assert.match(installer, /docker-compose-ps\.txt/);
+  assert.match(installer, /docker-compose-logs\.txt/);
+  assert.match(installer, /docker-version\.txt/);
+  assert.match(installer, /docker-compose-version\.txt/);
+  assert.match(installer, /http-probe\.txt/);
+  assert.match(installer, /directories\.txt/);
+  assert.match(installer, /Compress-Archive/);
+  assert.match(installer, /ConvertFrom-DiagnosticSensitiveText/);
+  assert.doesNotMatch(installer, /Get-ChildItem\s+Env:|docker compose config/);
   assert.match(installer, /Get-Command wsl\.exe/);
   assert.match(installer, /\[switch\]\$InstallPrerequisites/);
   assert.match(installer, /Run PowerShell as Administrator when using -InstallPrerequisites/);
@@ -87,10 +115,16 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
     '-Yes',
     '-Port',
     '3133',
+    '-HealthTimeoutSeconds',
+    '5',
     '-DataDir',
     path.join(tempRoot, 'data'),
     '-ProjectsDir',
     path.join(tempRoot, 'projects'),
+    '-DiagnosticsDir',
+    path.join(tempRoot, 'diagnostics'),
+    '-DiagnosticsArchive',
+    path.join(tempRoot, 'diagnostics.zip'),
     '-NoOpen',
   ]);
   assert.ok(dryRun, 'pwsh should be available for this test');
@@ -99,6 +133,10 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.match(dryRun.stdout, /127\.0\.0\.1:3133:3000/);
   assert.match(dryRun.stdout, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
   assert.match(dryRun.stdout, /docker compose .* up -d/);
+  assert.match(dryRun.stdout, /would wait up to 5s for WebUI HTTP health at http:\/\/localhost:3133\//);
+  assert.match(dryRun.stdout, /would write diagnostic directory .*diagnostics/);
+  assert.match(dryRun.stdout, /would include compose\.yaml, docker versions, compose ps\/logs, HTTP probe summary, directory\/port\/image metadata/);
+  assert.match(dryRun.stdout, /would write diagnostic archive .*diagnostics\.zip/);
   assert.equal(fs.existsSync(path.join(tempRoot, 'compose.yaml')), false, 'dry-run must not create compose.yaml');
 });
 
