@@ -602,8 +602,10 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'desktop_settings_capabilities',
     'desktop_settings_maintenance',
     'desktop_settings_storage',
+    'desktop_settings_preferences',
     'desktop_settings_advanced',
     'mobile_settings_section_nav',
+    'mobile_settings_preferences',
   ]);
   assert.deepEqual(
     Object.fromEntries(

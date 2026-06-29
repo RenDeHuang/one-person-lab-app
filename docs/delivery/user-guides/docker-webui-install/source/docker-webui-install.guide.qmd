@@ -8,9 +8,9 @@ lang: zh-CN
 
 新手主路径是先让 Docker 正常运行，再运行 One Person Lab 提供的一键安装器，最后在浏览器里完成首次配置。手动 Docker 命令只作为排障或高级部署路径保留。
 
-镜像：`ghcr.io/gaofeng21cn/one-person-lab-webui:latest`
+镜像：`{{download.image}}`
 
-参考：<https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md>
+参考：<{{download.support_reference_url}}>
 
 > 不要把访问密钥写进终端命令、环境变量、截图或公开文档。一键安装器只准备 Docker/WebUI、`compose.yaml`、数据目录和项目目录；模型/API 访问密钥在浏览器 WebUI 的首启访问页或“设置 -> 访问”里填写。
 
@@ -54,7 +54,7 @@ Windows 上不要先运行 `docker run`。先打开 Docker 官方下载页安装
 
 ```text
 1. 打开 Docker Desktop 官方 Windows 安装页:
-https://docs.docker.com/desktop/setup/install/windows-install/
+{{download.docker_desktop_windows_url}}
 2. 下载并安装 Docker Desktop
 3. 安装向导里保持 WSL 2 / recommended settings 默认选择
 4. 按提示重启电脑或重新登录
@@ -76,13 +76,13 @@ https://docs.docker.com/desktop/setup/install/windows-install/
 
 ```text
 Linux / macOS 终端在线一键:
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh | bash -s -- --yes
+{{download.linux_macos_online_command}}
 
 Windows PowerShell 在线一键:
-powershell -ExecutionPolicy Bypass -Command "$p=Join-Path $env:TEMP 'install-docker-webui.ps1'; iwr -UseBasicParsing https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1 -OutFile $p; & $p -Yes"
+{{download.windows_online_command}}
 
 Windows 管理员依赖安装入口（只有 Docker Desktop/WSL2 缺失时使用）:
-powershell -ExecutionPolicy Bypass -Command "$p=Join-Path $env:TEMP 'install-docker-webui.ps1'; iwr -UseBasicParsing https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1 -OutFile $p; & $p -InstallPrerequisites -Yes"
+{{download.windows_admin_prerequisites_command}}
 
 源码仓库内:
 sh ./scripts/install-docker-webui.sh
@@ -225,7 +225,7 @@ docker run --rm -p 3000:3000 \
   -e AIONUI_ALLOW_REMOTE=true \
   -e AIONUI_DATA_DIR=/data \
   -e OPL_PROJECTS_DIR=/projects \
-  ghcr.io/gaofeng21cn/one-person-lab-webui:latest
+  {{download.image}}
 ```
 
 `compose.yaml` 也必须保留 `/data`、`/projects` 和浏览器 WebUI-first key entry 边界。

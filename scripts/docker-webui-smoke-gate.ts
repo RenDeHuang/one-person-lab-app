@@ -32,6 +32,15 @@ type GateResult = {
   container: { name: string; status: string; id: string | null };
   image: { ref: string; status: 'present' | 'missing' | 'not_run'; id: string | null };
   data_preservation: { status: 'passed' | 'failed' | 'not_run'; verdict: string | null; summary: string };
+  api_key_flow: {
+    status: 'passed' | 'failed' | 'not_run';
+    mode: 'webui_proxy_configure_codex' | 'imported_evidence' | 'not_run';
+    endpoint: string | null;
+    command: string | null;
+    stdin_transport: boolean;
+    receipt_path: string | null;
+    errors: string[];
+  };
   secret_scan: { status: 'passed' | 'failed' | 'not_run'; forbidden_secret_markers: string[] };
   commands: Array<{ command: string; status: number | null; stdout_path: string; stderr_path: string }>;
   evidence: Record<string, string>;
@@ -54,6 +63,7 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const resultSchema = 'opl_docker_webui_smoke_gate_result.v1';
 const windowsEvidenceManifestName = 'windows-smoke-evidence.json';
 const windowsEvidenceSchema = 'opl_docker_webui_windows_smoke_evidence.v1';
+const apiKeyFlowEvidenceSchema = 'opl_docker_webui_api_key_flow_evidence.v1';
 const secretPatterns = [
   /sk-[A-Za-z0-9_-]{20,}/g,
   /OPENAI_API_KEY\s*[:=]\s*[^ \n\r]+/gi,
@@ -78,6 +88,7 @@ const requiredResultFields = [
   'container',
   'image',
   'data_preservation',
+  'api_key_flow',
   'secret_scan',
   'commands',
   'evidence',
@@ -204,6 +215,15 @@ function makeResult(gate: GateId, artifactDir: string): GateResult {
       verdict: null,
       summary: 'data preservation diagnostics were not run',
     },
+    api_key_flow: {
+      status: 'not_run',
+      mode: 'not_run',
+      endpoint: null,
+      command: null,
+      stdin_transport: false,
+      receipt_path: null,
+      errors: [],
+    },
     secret_scan: {
       status: 'not_run',
       forbidden_secret_markers: [],
@@ -320,6 +340,42 @@ function scanDirectoryForSecretMarkers(rootDir: string, scanRoot = rootDir): str
   return markers;
 }
 
+function validateApiKeyFlowEvidence(filePath: string) {
+  const errors: string[] = [];
+  let payload: Record<string, unknown> = {};
+  if (!fs.existsSync(filePath)) {
+    errors.push(`missing API key flow evidence: ${filePath}`);
+  } else {
+    try {
+      payload = readJson(filePath);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(`API key flow evidence must be valid JSON: ${message}`);
+    }
+  }
+  if (Object.keys(payload).length > 0) {
+    if (payload.schema !== apiKeyFlowEvidenceSchema) errors.push(`api_key_flow.schema must be ${apiKeyFlowEvidenceSchema}`);
+    if (payload.status !== 'passed') errors.push('api_key_flow.status must be passed');
+    if (payload.mode !== 'webui_proxy_configure_codex') errors.push('api_key_flow.mode must be webui_proxy_configure_codex');
+    if (payload.command !== 'opl system configure-codex --api-key-stdin --json') {
+      errors.push('api_key_flow.command must be the redacted configure-codex stdin command');
+    }
+    if (payload.stdin_transport !== true) errors.push('api_key_flow.stdin_transport must be true');
+    if (payload.key_material_recorded !== false) errors.push('api_key_flow.key_material_recorded must be false');
+  }
+  const forbiddenSecretMarkers = fs.existsSync(filePath) ? scanDirectoryForSecretMarkers(path.dirname(filePath)).filter((marker) => marker.startsWith(path.basename(filePath))) : [];
+  if (forbiddenSecretMarkers.length > 0) {
+    errors.push('API key flow evidence contains forbidden secret-like markers');
+  }
+  return {
+    status: errors.length === 0 && forbiddenSecretMarkers.length === 0 ? ('passed' as const) : ('failed' as const),
+    filePath,
+    errors,
+    forbiddenSecretMarkers,
+    payload,
+  };
+}
+
 function readKeyValue(filePath: string): Record<string, string> {
   if (!fs.existsSync(filePath)) return {};
   const values: Record<string, string> = {};
@@ -356,6 +412,100 @@ function readHttpStatus(httpProbe: Record<string, string>): number | null {
     if (match) return Number(match[1]);
   }
   return null;
+}
+
+function runNodeHttpPostJson(url: string, body: Record<string, unknown>) {
+  const script = `
+const url = process.argv[1];
+const payload = JSON.parse(process.argv[2]);
+const request = globalThis.fetch
+  ? globalThis.fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  : Promise.reject(new Error('fetch_unavailable'));
+request
+  .then(async (response) => {
+    const text = await response.text();
+    process.stdout.write(JSON.stringify({ status: response.status, body: text }) + '\\n');
+  })
+  .catch((error) => {
+    process.stderr.write(String(error && error.message ? error.message : error) + '\\n');
+    process.exitCode = 1;
+  });
+`;
+  return spawnSync(process.execPath, ['-e', script, url, JSON.stringify(body)], {
+    cwd: appRoot,
+    encoding: 'utf8',
+  });
+}
+
+function parseJsonObject(text: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(text);
+    return isObject(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function collectApiKeyFlowEvidence(result: GateResult, options: ReturnType<typeof parseArgs>) {
+  const endpoint = `http://127.0.0.1:${options.port}/api/opl-runtime/configure-codex`;
+  const receiptPath = path.join(result.artifact_dir, 'api-key-flow-evidence.json');
+  const errors: string[] = [];
+  const response = runNodeHttpPostJson(endpoint, { apiKey: 'opl-smoke-placeholder-key' });
+  let responseStatus: number | null = null;
+  let responseSuccess = false;
+  let command = 'opl system configure-codex --api-key-stdin --json';
+  let stdinTransport = false;
+
+  if (response.status !== 0) {
+    errors.push(`configure-codex proxy request failed: ${response.stderr.trim() || response.stdout.trim() || 'unknown error'}`);
+  } else {
+    const envelope = parseJsonObject(response.stdout.trim());
+    responseStatus = typeof envelope?.status === 'number' ? envelope.status : null;
+    const bodyText = typeof envelope?.body === 'string' ? envelope.body : '';
+    const body = parseJsonObject(bodyText);
+    responseSuccess = body?.success === true;
+    const data = isObject(body?.data) ? body.data : null;
+    const observedCommand = typeof data?.command === 'string' ? data.command : typeof data?.redactedCommand === 'string' ? data.redactedCommand : '';
+    if (observedCommand) command = observedCommand;
+    stdinTransport = Array.isArray(data?.args)
+      ? data.args.includes('--api-key-stdin')
+      : command.includes('--api-key-stdin');
+    if (responseStatus !== 200) errors.push(`configure-codex proxy returned HTTP ${responseStatus ?? 'unknown'}`);
+    if (!responseSuccess) errors.push('configure-codex proxy response did not report success=true');
+    if (!stdinTransport) errors.push('configure-codex command did not expose --api-key-stdin transport');
+    if (JSON.stringify(body).includes('opl-smoke-placeholder-key') || response.stdout.includes('opl-smoke-placeholder-key')) {
+      errors.push('configure-codex response leaked the submitted API key placeholder');
+    }
+  }
+
+  const payload = {
+    schema: apiKeyFlowEvidenceSchema,
+    status: errors.length === 0 ? 'passed' : 'failed',
+    mode: 'webui_proxy_configure_codex',
+    endpoint,
+    response_http_status: responseStatus,
+    response_success: responseSuccess,
+    command,
+    stdin_transport: stdinTransport,
+    key_material_recorded: false,
+    secret_scan_note: 'The smoke gate submits a non-real placeholder key and rejects any response that echoes it.',
+    errors,
+  };
+  writeJson(receiptPath, payload);
+  result.api_key_flow = {
+    status: payload.status,
+    mode: 'webui_proxy_configure_codex',
+    endpoint,
+    command,
+    stdin_transport: stdinTransport,
+    receipt_path: receiptPath,
+    errors,
+  };
+  result.evidence.api_key_flow_evidence = receiptPath;
 }
 
 function writeDiagnosticsManifest(result: GateResult, options: ReturnType<typeof parseArgs>) {
@@ -479,6 +629,12 @@ function validateWindowsEvidence(evidenceDir: string) {
   }
 
   const diagnosticsDir = resolveEvidenceMember(evidenceDir, manifest.diagnostics_dir, 'manifest.diagnostics_dir', errors);
+  const apiKeyFlowEvidencePath = resolveEvidenceMember(
+    evidenceDir,
+    manifest.api_key_flow_evidence,
+    'manifest.api_key_flow_evidence',
+    errors,
+  );
   const diagnosticsValidation = diagnosticsDir
     ? validateDockerWebuiDiagnostics(diagnosticsDir)
     : ({
@@ -496,6 +652,18 @@ function validateWindowsEvidence(evidenceDir: string) {
   if (diagnosticsValidation.status !== 'passed') {
     errors.push('diagnostics validation failed');
   }
+  const apiKeyFlowValidation = apiKeyFlowEvidencePath
+    ? validateApiKeyFlowEvidence(apiKeyFlowEvidencePath)
+    : {
+        status: 'failed' as const,
+        filePath: '',
+        errors: ['missing api_key_flow_evidence'],
+        forbiddenSecretMarkers: [],
+        payload: {},
+      };
+  if (apiKeyFlowValidation.status !== 'passed') {
+    errors.push('API key flow evidence validation failed');
+  }
 
   const forbiddenSecretMarkers = scanDirectoryForSecretMarkers(evidenceDir);
   if (forbiddenSecretMarkers.length > 0) {
@@ -508,6 +676,8 @@ function validateWindowsEvidence(evidenceDir: string) {
     manifestPath,
     diagnosticsDir,
     diagnosticsValidation,
+    apiKeyFlowEvidencePath,
+    apiKeyFlowValidation,
     errors,
     forbiddenSecretMarkers,
     manifest,
@@ -542,6 +712,24 @@ function importWindowsEvidenceGate(result: GateResult, options: ReturnType<typeo
     result.evidence.windows_diagnostics_dir = validation.diagnosticsDir;
     readDiagnosticsSummary(result, options);
   }
+  if (validation.apiKeyFlowEvidencePath) {
+    result.api_key_flow = {
+      status: validation.apiKeyFlowValidation.status,
+      mode: 'imported_evidence',
+      endpoint:
+        typeof validation.apiKeyFlowValidation.payload.endpoint === 'string'
+          ? validation.apiKeyFlowValidation.payload.endpoint
+          : null,
+      command:
+        typeof validation.apiKeyFlowValidation.payload.command === 'string'
+          ? validation.apiKeyFlowValidation.payload.command
+          : null,
+      stdin_transport: validation.apiKeyFlowValidation.payload.stdin_transport === true,
+      receipt_path: validation.apiKeyFlowEvidencePath,
+      errors: validation.apiKeyFlowValidation.errors,
+    };
+    result.evidence.windows_api_key_flow_evidence = validation.apiKeyFlowEvidencePath;
+  }
   if (validation.diagnosticsValidation.preservation_verdict) {
     result.data_preservation = {
       status: 'passed',
@@ -558,6 +746,7 @@ function importWindowsEvidenceGate(result: GateResult, options: ReturnType<typeo
     manifest_path: validation.manifestPath,
     diagnostics_dir: validation.diagnosticsDir,
     diagnostics_validation: validation.diagnosticsValidation,
+    api_key_flow_validation: validation.apiKeyFlowValidation,
     errors: validation.errors,
     forbidden_secret_markers: validation.forbiddenSecretMarkers,
     manifest: validation.manifest,
@@ -593,6 +782,7 @@ export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResult
   for (const objectField of ['diagnostics_validation', 'health', 'compose', 'container', 'image', 'data_preservation', 'secret_scan']) {
     if (objectField in payload && !isObject(payload[objectField])) invalidFields.push(objectField);
   }
+  if ('api_key_flow' in payload && !isObject(payload.api_key_flow)) invalidFields.push('api_key_flow');
   if (payload.status === 'passed') {
     if (!isObject(payload.diagnostics_validation) || payload.diagnostics_validation.status !== 'passed') {
       invalidFields.push('diagnostics_validation.status');
@@ -602,6 +792,10 @@ export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResult
     if (!isObject(payload.image) || payload.image.status !== 'present') invalidFields.push('image.status');
     if (!isObject(payload.data_preservation) || payload.data_preservation.status !== 'passed') {
       invalidFields.push('data_preservation.status');
+    }
+    if (!isObject(payload.api_key_flow) || payload.api_key_flow.status !== 'passed') invalidFields.push('api_key_flow.status');
+    if (!isObject(payload.api_key_flow) || payload.api_key_flow.stdin_transport !== true) {
+      invalidFields.push('api_key_flow.stdin_transport');
     }
     if (!isObject(payload.secret_scan) || payload.secret_scan.status !== 'passed') invalidFields.push('secret_scan.status');
   }
@@ -677,6 +871,11 @@ function runInstallGate(result: GateResult, options: ReturnType<typeof parseArgs
   }
 
   const validation = attachDiagnosticsReadback(result, options);
+  collectApiKeyFlowEvidence(result, options);
+  if (result.api_key_flow.status !== 'passed') {
+    result.status = 'failed';
+    return result;
+  }
   if (validation.status !== 'passed') {
     result.status = 'failed';
     return result;
@@ -732,7 +931,7 @@ function main() {
       result,
       process.platform === 'win32' ? 'windows_vm_runner_not_implemented' : 'requires_windows_vm',
       'This gate must be run inside a clean Windows VM with Docker Desktop/WSL2 readiness evidence.',
-      `Run scripts/install-docker-webui.ps1 -Yes in a clean Windows VM with -DiagnosticsDir diagnostics, write ${windowsEvidenceManifestName}, then rerun this gate with --evidence <dir>.`,
+      `Run scripts/install-docker-webui.ps1 -Yes in a clean Windows VM with -DiagnosticsDir diagnostics, capture api-key-flow-evidence.json through the WebUI configure-codex endpoint, write ${windowsEvidenceManifestName}, then rerun this gate with --evidence <dir>.`,
     );
   } else if (options.gate === 'clean_linux_vm' && process.platform !== 'linux') {
     result = blocker(

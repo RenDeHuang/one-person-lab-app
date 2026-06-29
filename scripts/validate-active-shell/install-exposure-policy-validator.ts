@@ -265,6 +265,7 @@ function validateDockerWebuiSmokeGateContract(contract) {
       'docker ps',
       'docker logs',
       'http_health_readback',
+      'api_key_flow_evidence',
       'auth_user_readback',
       'install_manifest_readback',
       'projects_mount_readback',
@@ -293,7 +294,7 @@ function validateDockerWebuiSmokeGateContract(contract) {
     }
     assertIncludesAll(
       gate.required_evidence,
-      ['compose_yaml', 'container_logs', 'http_health_readback', 'install_manifest_readback'],
+      ['compose_yaml', 'container_logs', 'http_health_readback', 'api_key_flow_evidence', 'install_manifest_readback'],
       `Docker/WebUI smoke gate ${gateId} evidence`,
     );
   }

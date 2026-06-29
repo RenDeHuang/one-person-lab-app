@@ -46,6 +46,16 @@ on:
         required: false
         default: true
         type: boolean
+      docker_webui_clean_linux_evidence_artifact:
+        description: Same-run artifact name containing clean Linux VM Docker WebUI smoke evidence; empty writes a typed blocker
+        required: false
+        default: ''
+        type: string
+      docker_webui_clean_windows_evidence_artifact:
+        description: Same-run artifact name containing clean Windows VM Docker WebUI smoke evidence; empty writes a typed blocker
+        required: false
+        default: ''
+        type: string
       guide_screenshots:
         description: Capture user-guide screenshots in the clean Full first-run VM smoke artifacts
         required: false
@@ -1001,6 +1011,208 @@ jobs:
           }
           NODE
 
+  docker-webui-clean-vm-evidence:
+    name: Validate Docker WebUI clean VM evidence
+    needs:
+      - docker-webui-smoke
+      - webui-ghcr-publish
+    if: ${{ !cancelled() && inputs.publish_docker_webui && inputs.run_vm_smoke && needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Download clean Linux VM Docker WebUI evidence
+        if: ${{ inputs.docker_webui_clean_linux_evidence_artifact != '' }}
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: ${{ inputs.docker_webui_clean_linux_evidence_artifact }}
+          path: docker-webui-clean-vm-inputs/clean-linux-vm
+
+      - name: Download clean Windows VM Docker WebUI evidence
+        if: ${{ inputs.docker_webui_clean_windows_evidence_artifact != '' }}
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: ${{ inputs.docker_webui_clean_windows_evidence_artifact }}
+          path: docker-webui-clean-vm-inputs/clean-windows-vm
+
+      - name: Import and validate clean VM evidence
+        id: clean_vm_evidence
+        shell: bash
+        env:
+          LINUX_ARTIFACT_NAME: ${{ inputs.docker_webui_clean_linux_evidence_artifact }}
+          WINDOWS_ARTIFACT_NAME: ${{ inputs.docker_webui_clean_windows_evidence_artifact }}
+        run: |
+          set -euo pipefail
+          output_dir="docker-webui-clean-vm-evidence"
+          mkdir -p "$output_dir"
+
+          if [ -n "$WINDOWS_ARTIFACT_NAME" ] && [ -f docker-webui-clean-vm-inputs/clean-windows-vm/windows-smoke-evidence.json ] && [ ! -f docker-webui-clean-vm-inputs/clean-windows-vm/docker-webui-smoke-gate-result.json ]; then
+            node --experimental-strip-types scripts/docker-webui-smoke-gate.ts \
+              --gate clean_windows_vm \
+              --evidence docker-webui-clean-vm-inputs/clean-windows-vm \
+              --artifacts "$output_dir/clean-windows-vm-import" \
+              --json > "$output_dir/clean-windows-vm-import-output.json" || true
+          fi
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { spawnSync } = require('node:child_process');
+          const outputDir = 'docker-webui-clean-vm-evidence';
+          const resultSchema = 'opl_docker_webui_clean_vm_evidence_validation.v1';
+          const required = [
+            {
+              gate: 'clean_linux_vm',
+              label: 'clean Linux VM',
+              inputDir: 'docker-webui-clean-vm-inputs/clean-linux-vm',
+              artifactName: process.env.LINUX_ARTIFACT_NAME || '',
+              missingCode: 'missing_clean_linux_vm_docker_webui_evidence_artifact',
+              missingMessage: 'No same-run clean Linux VM Docker WebUI smoke artifact was supplied to the release workflow.',
+              nextAction: 'Run the Docker/WebUI one-click installer in a clean Linux VM, upload the artifact containing docker-webui-smoke-gate-result.json, and rerun the release workflow with docker_webui_clean_linux_evidence_artifact set.',
+            },
+            {
+              gate: 'clean_windows_vm',
+              label: 'clean Windows VM',
+              inputDir: 'docker-webui-clean-vm-inputs/clean-windows-vm',
+              importDir: path.join(outputDir, 'clean-windows-vm-import'),
+              artifactName: process.env.WINDOWS_ARTIFACT_NAME || '',
+              missingCode: 'missing_clean_windows_vm_docker_webui_evidence_artifact',
+              missingMessage: 'No same-run clean Windows VM Docker WebUI smoke artifact was supplied to the release workflow.',
+              nextAction: 'Run scripts/install-docker-webui.ps1 -Yes in a clean Windows VM, upload windows-smoke-evidence.json plus diagnostics or docker-webui-smoke-gate-result.json, and rerun the release workflow with docker_webui_clean_windows_evidence_artifact set.',
+            },
+          ];
+
+          function writeJson(file, payload) {
+            fs.mkdirSync(path.dirname(file), { recursive: true });
+            fs.writeFileSync(file, `${JSON.stringify(payload, null, 2)}\n`);
+          }
+          function blocker(config, code, message, nextAction) {
+            return {
+              schema: resultSchema,
+              gate_id: config.gate,
+              status: 'typed_blocker',
+              artifact_name: config.artifactName || null,
+              typed_blocker: {
+                code,
+                owner: 'release_or_install_validation_operator',
+                message,
+                required_next_action: nextAction,
+              },
+            };
+          }
+          function findResultFile(config) {
+            const candidates = [
+              path.join(config.inputDir, 'docker-webui-smoke-gate-result.json'),
+              path.join(config.importDir || '', 'docker-webui-smoke-gate-result.json'),
+            ];
+            for (const candidate of candidates) {
+              if (candidate && fs.existsSync(candidate)) return candidate;
+            }
+            return null;
+          }
+          function validate(config) {
+            if (!config.artifactName) {
+              return blocker(config, config.missingCode, config.missingMessage, config.nextAction);
+            }
+            const resultPath = findResultFile(config);
+            if (!resultPath) {
+              return blocker(
+                config,
+                `${config.gate}_result_missing`,
+                `The ${config.label} artifact did not contain docker-webui-smoke-gate-result.json and could not be imported.`,
+                config.nextAction,
+              );
+            }
+            const validation = spawnSync(
+              'node',
+              ['--experimental-strip-types', 'scripts/docker-webui-smoke-gate.ts', '--validate-result', resultPath, '--json'],
+              { encoding: 'utf8' },
+            );
+            let result = {};
+            try {
+              result = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
+            } catch (error) {
+              return {
+                schema: resultSchema,
+                gate_id: config.gate,
+                status: 'failed',
+                artifact_name: config.artifactName,
+                result_path: resultPath,
+                error: `docker-webui-smoke-gate-result.json is not valid JSON: ${String(error)}`,
+              };
+            }
+            let schemaValidation = null;
+            try {
+              schemaValidation = JSON.parse(validation.stdout || '{}');
+            } catch (error) {
+              schemaValidation = { status: 'failed', parse_error: String(error) };
+            }
+            if (validation.status !== 0 || schemaValidation.status !== 'passed') {
+              return {
+                schema: resultSchema,
+                gate_id: config.gate,
+                status: 'failed',
+                artifact_name: config.artifactName,
+                result_path: resultPath,
+                validation: schemaValidation,
+                error: validation.stderr || validation.stdout,
+              };
+            }
+            if (result.gate_id !== config.gate || result.gate !== config.gate || result.status !== 'passed') {
+              return blocker(
+                config,
+                `${config.gate}_not_passed`,
+                `The ${config.label} artifact validated structurally but reported gate=${result.gate_id || result.gate} status=${result.status}.`,
+                config.nextAction,
+              );
+            }
+            return {
+              schema: resultSchema,
+              gate_id: config.gate,
+              status: 'passed',
+              artifact_name: config.artifactName,
+              result_path: resultPath,
+              validation: schemaValidation,
+              observed_at: result.observed_at,
+              required_environment: result.required_environment,
+            };
+          }
+
+          const summaries = required.map(validate);
+          for (const summary of summaries) {
+            writeJson(path.join(outputDir, `${summary.gate_id}-validation-summary.json`), summary);
+          }
+          const aggregate = {
+            schema: resultSchema,
+            status: summaries.every((summary) => summary.status === 'passed') ? 'passed' : 'typed_blocker',
+            required_gates: summaries.map((summary) => summary.gate_id),
+            summaries,
+            release_readiness_policy: 'clean Linux VM and clean Windows VM Docker WebUI evidence must validate as passed before release readiness aggregation',
+          };
+          writeJson(path.join(outputDir, 'docker-webui-clean-vm-evidence-validation.json'), aggregate);
+          if (aggregate.status !== 'passed') {
+            process.exitCode = 1;
+          }
+          NODE
+
+      - name: Upload clean VM evidence validation
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-webui-clean-vm-evidence-${{ inputs.opl_version }}
+          path: docker-webui-clean-vm-evidence
+          if-no-files-found: error
+
   operator-evidence-bundle-validation:
     name: Validate operator evidence bundle
     runs-on: ubuntu-latest
@@ -1159,7 +1371,7 @@ jobs:
   release-readiness-admission:
     name: Admit release readiness aggregation
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) && (needs.release-preflight.outputs.homebrew_tap_update_required != 'true' || (needs.stable-homebrew-tap-update.result == 'success' && (!inputs.include_full_package || needs.full-homebrew-tap-update.result == 'success') && needs.homebrew-standard-first-run-vm-smoke.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' && (!inputs.publish_docker_webui || (needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success')) && needs.operator-evidence-bundle-validation.result == 'success' }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) && (needs.release-preflight.outputs.homebrew_tap_update_required != 'true' || (needs.stable-homebrew-tap-update.result == 'success' && (!inputs.include_full_package || needs.full-homebrew-tap-update.result == 'success') && needs.homebrew-standard-first-run-vm-smoke.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' && (!inputs.publish_docker_webui || (needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' && needs.docker-webui-clean-vm-evidence.result == 'success')) && needs.operator-evidence-bundle-validation.result == 'success' }}
     needs:
       - release-preflight
       - remote-verify-standard
@@ -1174,6 +1386,7 @@ jobs:
       - one-shot-app-installer-smoke
       - docker-webui-smoke
       - webui-ghcr-publish
+      - docker-webui-clean-vm-evidence
       - operator-evidence-bundle-validation
 
     steps:
@@ -1199,6 +1412,7 @@ jobs:
             'one-shot-app-installer-smoke': '${{ needs.one-shot-app-installer-smoke.result }}',
             'docker-webui-smoke': '${{ needs.docker-webui-smoke.result }}',
             'webui-ghcr-publish': '${{ needs.webui-ghcr-publish.result }}',
+            'docker-webui-clean-vm-evidence': '${{ needs.docker-webui-clean-vm-evidence.result }}',
             'operator-evidence-bundle-validation': '${{ needs.operator-evidence-bundle-validation.result }}',
           };
 
@@ -1245,9 +1459,11 @@ jobs:
           if (publishDockerWebui) {
             requireSuccess('docker-webui-smoke');
             requireSuccess('webui-ghcr-publish');
+            requireSuccess('docker-webui-clean-vm-evidence');
           } else {
             requireSuccessOrSkipped('docker-webui-smoke');
             requireSuccessOrSkipped('webui-ghcr-publish');
+            requireSuccessOrSkipped('docker-webui-clean-vm-evidence');
           }
           requireSuccess('operator-evidence-bundle-validation');
 
@@ -1279,6 +1495,7 @@ jobs:
       - one-shot-app-installer-smoke
       - docker-webui-smoke
       - webui-ghcr-publish
+      - docker-webui-clean-vm-evidence
       - operator-evidence-bundle-validation
       - release-readiness-admission
 
@@ -1362,6 +1579,13 @@ jobs:
           name: webui-ghcr-publish-${{ inputs.opl_version }}
           path: release-readiness-inputs/webui-ghcr-publish-${{ inputs.opl_version }}
 
+      - name: Download Docker WebUI clean VM evidence validation
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: docker-webui-clean-vm-evidence-${{ inputs.opl_version }}
+          path: release-readiness-inputs/docker-webui-clean-vm-evidence-${{ inputs.opl_version }}
+
       - name: Download operator evidence validation summary
         uses: actions/download-artifact@v8
         continue-on-error: true
@@ -1402,6 +1626,7 @@ jobs:
             "one-shot-app-installer-smoke": "${{ needs.one-shot-app-installer-smoke.result }}",
             "docker-webui-smoke": "${{ needs.docker-webui-smoke.result }}",
             "webui-ghcr-publish": "${{ needs.webui-ghcr-publish.result }}",
+            "docker-webui-clean-vm-evidence": "${{ needs.docker-webui-clean-vm-evidence.result }}",
             "operator-evidence-bundle-validation": "${{ needs.operator-evidence-bundle-validation.result }}"
           }
           JSON

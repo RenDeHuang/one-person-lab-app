@@ -330,11 +330,30 @@
         "status": "required_manual_or_workflow_gate_not_live_evidence",
         "release_readiness_policy": "must_not_claim_release_ready_until_required_smoke_gates_have_fresh_artifacts_or_typed_blockers",
         "workflow_artifact": "docker-webui-smoke-gate-contract.json",
+        "workflow_import": {
+          "desktop_release_workflow": ".github/workflows/desktop-release.yml",
+          "validation_job": "docker-webui-clean-vm-evidence",
+          "linux_input": "docker_webui_clean_linux_evidence_artifact",
+          "windows_input": "docker_webui_clean_windows_evidence_artifact",
+          "validation_artifact": "docker-webui-clean-vm-evidence-<version>",
+          "aggregate_summary": "docker-webui-clean-vm-evidence-validation.json",
+          "linux_summary": "clean_linux_vm-validation-summary.json",
+          "windows_summary": "clean_windows_vm-validation-summary.json",
+          "accepted_result_file": "docker-webui-smoke-gate-result.json",
+          "windows_import_manifest": "windows-smoke-evidence.json",
+          "missing_artifact_status": "typed_blocker",
+          "missing_artifact_blocker_codes": [
+            "missing_clean_linux_vm_docker_webui_evidence_artifact",
+            "missing_clean_windows_vm_docker_webui_evidence_artifact"
+          ],
+          "readiness_admission_requires_passed_validation": true
+        },
         "diagnostic_bundle_artifacts": [
           "compose.yaml",
           "docker ps",
           "docker logs",
           "http_health_readback",
+          "api_key_flow_evidence",
           "auth_user_readback",
           "install_manifest_readback",
           "projects_mount_readback"
@@ -360,6 +379,7 @@
               "docker_ps",
               "container_logs",
               "http_health_readback",
+              "api_key_flow_evidence",
               "auth_user_readback",
               "install_manifest_readback",
               "projects_mount_readback"
@@ -378,6 +398,7 @@
               "docker_ps",
               "container_logs",
               "http_health_readback",
+              "api_key_flow_evidence",
               "auth_user_readback",
               "install_manifest_readback",
               "projects_mount_readback"
@@ -395,6 +416,7 @@
               "compose_yaml",
               "container_logs",
               "http_health_readback",
+              "api_key_flow_evidence",
               "auth_user_readback",
               "install_manifest_readback",
               "projects_mount_readback"
@@ -413,6 +435,7 @@
               "compose_yaml",
               "container_logs",
               "http_health_readback",
+              "api_key_flow_evidence",
               "install_manifest_readback",
               "post_smoke_data_inventory"
             ]

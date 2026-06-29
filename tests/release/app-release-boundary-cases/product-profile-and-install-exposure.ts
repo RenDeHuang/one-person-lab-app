@@ -514,6 +514,24 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'must_not_claim_release_ready_until_required_smoke_gates_have_fresh_artifacts_or_typed_blockers',
   );
   assert.equal(dockerWebui.smoke_gate_contract.workflow_artifact, 'docker-webui-smoke-gate-contract.json');
+  assert.deepEqual(dockerWebui.smoke_gate_contract.workflow_import, {
+    desktop_release_workflow: '.github/workflows/desktop-release.yml',
+    validation_job: 'docker-webui-clean-vm-evidence',
+    linux_input: 'docker_webui_clean_linux_evidence_artifact',
+    windows_input: 'docker_webui_clean_windows_evidence_artifact',
+    validation_artifact: 'docker-webui-clean-vm-evidence-<version>',
+    aggregate_summary: 'docker-webui-clean-vm-evidence-validation.json',
+    linux_summary: 'clean_linux_vm-validation-summary.json',
+    windows_summary: 'clean_windows_vm-validation-summary.json',
+    accepted_result_file: 'docker-webui-smoke-gate-result.json',
+    windows_import_manifest: 'windows-smoke-evidence.json',
+    missing_artifact_status: 'typed_blocker',
+    missing_artifact_blocker_codes: [
+      'missing_clean_linux_vm_docker_webui_evidence_artifact',
+      'missing_clean_windows_vm_docker_webui_evidence_artifact',
+    ],
+    readiness_admission_requires_passed_validation: true,
+  });
   assert.deepEqual(
     dockerWebui.smoke_gate_contract.required_gates.map((gate) => gate.id),
     ['clean_linux_vm', 'clean_windows_vm', 'existing_docker', 'existing_old_onepersonlab_data_dir'],
@@ -538,6 +556,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     assert.ok(gate.required_evidence.includes('compose_yaml'), `${gate.id} must require compose evidence`);
     assert.ok(gate.required_evidence.includes('container_logs'), `${gate.id} must require container logs`);
     assert.ok(gate.required_evidence.includes('http_health_readback'), `${gate.id} must require HTTP health readback`);
+    assert.ok(gate.required_evidence.includes('api_key_flow_evidence'), `${gate.id} must require API key UI flow evidence`);
     assert.ok(gate.required_evidence.includes('install_manifest_readback'), `${gate.id} must require install manifest readback`);
   }
   assert.deepEqual(dockerWebui.smoke_gate_contract.false_ready_boundary, {

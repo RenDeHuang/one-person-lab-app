@@ -1,69 +1,82 @@
 {
-  "status": "docker_webui_install_guide_ready",
-  "generator": "single_json_to_html_markdown_pandoc_xelatex",
-  "source": "docs/delivery/user-guides/docker-webui-install/source/docker-webui-install.guide.json",
+  "status": "quarto_guide_ready",
+  "generator": "quarto_book_qmd_to_html_pdf",
+  "quarto_version": "1.9.38",
+  "source_qmd": "docs/delivery/user-guides/docker-webui-install/source/docker-webui-install.guide.qmd",
+  "manifest": "docs/delivery/user-guides/docker-webui-install/source/docker-webui-install.guide.json",
   "generated_markdown": "docs/delivery/user-guides/docker-webui-install/generated/docker-webui-install.md",
   "output_html": "docs/public/docker-webui-install/index.html",
   "output_pdf": "docs/public/docker-webui-install/docker-webui-install-detailed-guide.pdf",
-  "pandoc_markdown": "tmp/pdfs/docker-webui-install/docker-webui-install.pandoc.md",
-  "pandoc_header": "tmp/pdfs/docker-webui-install/docker-webui-install-header.tex",
-  "pdf_layout": "portrait_ebook",
+  "quarto_project_dir": "tmp/quarto-guides/docker-webui-install/project",
+  "pdf_layout": "quarto_portrait_ebook",
   "pdf_pages": 11,
   "pdf_page_size_pts": {
     "width": 612,
     "height": 792
   },
   "rendered_pages": 11,
-  "rendered_dir": "tmp/pdfs/docker-webui-install/rendered",
-  "html_bytes": 20950,
-  "guide_steps": 9,
+  "rendered_dir": "tmp/quarto-guides/docker-webui-install/rendered",
+  "html_bytes": 2656325,
   "screenshot_assets": [
     {
-      "step": "open-browser",
+      "role": "browser_open_webui",
+      "description": "WebUI browser screen after Docker container startup.",
       "file": "docs/delivery/user-guides/docker-webui-install/assets/01-browser-open-webui.png",
       "public_file": "assets/01-browser-open-webui.png",
+      "width": 1440,
+      "height": 1000,
       "sha256": "8d391e0f83311518dfe99936121b217c834d4bf3b0d620fd181e8b42707d6e0f",
-      "width": 1440,
-      "height": 1000
+      "referenced": true
     },
     {
-      "step": "configure-access-key",
-      "file": "docs/delivery/user-guides/docker-webui-install/assets/03-access-key-config.png",
-      "public_file": "assets/03-access-key-config.png",
-      "sha256": "f8e9a3489d907ce7e6bdb8e5696b9cf8263edbbf1e2026457421248a60ca6b9a",
-      "width": 1440,
-      "height": 1000
-    },
-    {
-      "step": "data-and-projects",
+      "role": "first_run_overview",
+      "description": "First-run overview showing persistent data and project workflow context.",
       "file": "docs/delivery/user-guides/docker-webui-install/assets/02-first-run-overview.png",
       "public_file": "assets/02-first-run-overview.png",
-      "sha256": "7a279973e187e1943a97e022035d34e19c342733c6929502d748fcb67e684621",
       "width": 1179,
-      "height": 964
+      "height": 964,
+      "sha256": "7a279973e187e1943a97e022035d34e19c342733c6929502d748fcb67e684621",
+      "referenced": true
     },
     {
-      "step": "update-and-reopen",
+      "role": "access_key_config",
+      "description": "Chinese access key configuration page in WebUI.",
+      "file": "docs/delivery/user-guides/docker-webui-install/assets/03-access-key-config.png",
+      "public_file": "assets/03-access-key-config.png",
+      "width": 1440,
+      "height": 1000,
+      "sha256": "f8e9a3489d907ce7e6bdb8e5696b9cf8263edbbf1e2026457421248a60ca6b9a",
+      "referenced": true
+    },
+    {
+      "role": "settings_access_entry",
+      "description": "Chinese Settings page showing the Access entry.",
       "file": "docs/delivery/user-guides/docker-webui-install/assets/04-settings-entry.png",
       "public_file": "assets/04-settings-entry.png",
-      "sha256": "308183694bde108e752105b609ef83f79dba206fa464caeb04cad340bc339e2c",
       "width": 1440,
-      "height": 1000
+      "height": 1000,
+      "sha256": "308183694bde108e752105b609ef83f79dba206fa464caeb04cad340bc339e2c",
+      "referenced": true
     }
   ],
-  "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
-  "support_reference_url": "https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md",
   "required_terms": [
     "One Person Lab Docker/WebUI 一键安装教程",
-    "macOS",
-    "DMG",
-    "Homebrew",
-    "Linux",
     "Windows",
-    "Docker/WebUI",
-    "AIONUI_ALLOW_REMOTE",
+    "Docker Desktop",
+    "Linux",
+    "PowerShell",
+    "http://localhost:3000/",
+    "自动进入 WebUI",
+    "访问密钥",
+    "OnePersonLab/data",
+    "OnePersonLab/projects",
+    "OPL Framework",
+    "Codex CLI",
     "ghcr.io/gaofeng21cn/one-person-lab-webui",
-    "验证方式"
+    "clean Linux VM",
+    "clean Windows VM"
   ],
-  "required_terms_status": "present"
+  "required_terms_status": "present",
+  "unresolved_templates_status": "absent",
+  "forbidden_phrases_status": "absent"
 }

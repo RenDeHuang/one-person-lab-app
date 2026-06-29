@@ -54,6 +54,15 @@ function completeGateResult() {
       verdict: 'preserved_or_reused',
       summary: 'pre and post inventories captured',
     },
+    api_key_flow: {
+      status: 'passed',
+      mode: 'webui_proxy_configure_codex',
+      endpoint: 'http://127.0.0.1:3000/api/opl-runtime/configure-codex',
+      command: 'opl system configure-codex --api-key-stdin --json',
+      stdin_transport: true,
+      receipt_path: '/tmp/artifact/api-key-flow-evidence.json',
+      errors: [],
+    },
     secret_scan: { status: 'passed', forbidden_secret_markers: [] },
     commands: [],
     evidence: {},
@@ -101,6 +110,7 @@ test('Docker/WebUI smoke gate result readback fails when required artifact schem
     'container',
     'image',
     'data_preservation',
+    'api_key_flow',
     'secret_scan',
   ]) {
     const payload = completeGateResult() as Record<string, unknown>;
@@ -109,6 +119,24 @@ test('Docker/WebUI smoke gate result readback fails when required artifact schem
     assert.equal(result.status, 'failed', `${field} should be required`);
     assert.ok(result.missing_fields.includes(field), `${field} should be reported missing`);
   }
+});
+
+test('Docker/WebUI smoke gate result readback rejects passed gates without API key stdin flow evidence', () => {
+  const payload = completeGateResult();
+  payload.api_key_flow = {
+    status: 'failed',
+    mode: 'webui_proxy_configure_codex',
+    endpoint: 'http://127.0.0.1:3000/api/opl-runtime/configure-codex',
+    command: 'opl system configure-codex --api-key-stdin --json',
+    stdin_transport: false,
+    receipt_path: '/tmp/artifact/api-key-flow-evidence.json',
+    errors: ['missing stdin transport'],
+  };
+
+  const result = validateDockerWebuiSmokeGateResult(payload);
+  assert.equal(result.status, 'failed');
+  assert.ok(result.invalid_fields.includes('api_key_flow.status'));
+  assert.ok(result.invalid_fields.includes('api_key_flow.stdin_transport'));
 });
 
 test('Docker/WebUI smoke gate result readback rejects passed gates with failed health', () => {

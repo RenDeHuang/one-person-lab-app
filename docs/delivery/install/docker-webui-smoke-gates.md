@@ -41,9 +41,39 @@ gate that produced it:
 - `tmp/docker-webui-smoke/old-data/`
 
 Each directory must include `docker-webui-smoke-gate-result.json`,
-`diagnostics/`, command stdout/stderr files when commands were run, and the
-diagnostics archive when the installer produced one. Do not upload only logs or
-screenshots; they are supporting evidence, not the gate result.
+`diagnostics/`, `api-key-flow-evidence.json`, command stdout/stderr files when
+commands were run, and the diagnostics archive when the installer produced one.
+Do not upload only logs or screenshots; they are supporting evidence, not the
+gate result.
+
+## Desktop Release Import
+
+The desktop release workflow has an explicit import gate for clean VM evidence:
+`docker-webui-clean-vm-evidence`. It does not run the Linux or Windows VM
+itself. It downloads same-run artifacts named by these dispatch inputs:
+
+- `docker_webui_clean_linux_evidence_artifact`
+- `docker_webui_clean_windows_evidence_artifact`
+
+Each named artifact can provide either a completed
+`docker-webui-smoke-gate-result.json`, or for Windows the raw
+`windows-smoke-evidence.json` plus `diagnostics/` and
+`api-key-flow-evidence.json` that the workflow imports through the existing
+smoke gate runner.
+
+The workflow uploads `docker-webui-clean-vm-evidence-<version>` with:
+
+- `docker-webui-clean-vm-evidence-validation.json`
+- `clean_linux_vm-validation-summary.json`
+- `clean_windows_vm-validation-summary.json`
+
+If either dispatch input is empty, or the downloaded artifact cannot validate
+as `status=passed` for the matching gate, the workflow writes a typed blocker
+summary and the release readiness admission job does not run. The missing
+artifact blocker codes are:
+
+- `missing_clean_linux_vm_docker_webui_evidence_artifact`
+- `missing_clean_windows_vm_docker_webui_evidence_artifact`
 
 ## Gate Result Readback
 
@@ -63,6 +93,9 @@ before accepting an artifact:
   Docker.
 - `data_preservation.status`, `data_preservation.verdict`, and
   `data_preservation.summary` summarize old-data behavior.
+- `api_key_flow.status` proves the WebUI/API proxy accepted the first-run API
+  key action and called `opl system configure-codex --api-key-stdin --json`
+  without putting key material in the command line or artifact.
 - `secret_scan.status` is `passed` and
   `secret_scan.forbidden_secret_markers` is empty.
 
@@ -112,6 +145,27 @@ The validator checks required files, secret-like markers, and the preservation
 verdict. It is structural evidence only; it does not prove a VM gate was run on
 the right host.
 
+## API Key Flow Evidence
+
+The beginner path requires API keys to be entered inside the WebUI, not passed
+to the installer. A passed smoke gate must therefore include
+`api-key-flow-evidence.json` with schema
+`opl_docker_webui_api_key_flow_evidence.v1`.
+
+The evidence must prove only the safe transport shape:
+
+- the WebUI endpoint is `/api/opl-runtime/configure-codex`;
+- the command is the redacted `opl system configure-codex --api-key-stdin
+  --json`;
+- `stdin_transport` is `true`;
+- `key_material_recorded` is `false`;
+- no API key-like marker appears in the evidence or diagnostics.
+
+This receipt does not prove a real provider key is valid. It proves that the
+new-user UI path writes through the Framework-owned stdin command without
+leaking key material into shell history, compose files, diagnostics, or uploaded
+artifacts.
+
 ## Windows Evidence Import
 
 A Windows VM artifact directory must contain:
@@ -123,7 +177,8 @@ The manifest must use schema `opl_docker_webui_windows_smoke_evidence.v1` and
 bind the artifact to `gate_id: clean_windows_vm`, `status: passed`,
 `host_platform: win32`, an `observed_at` timestamp, an `installer_command` that
 references `install-docker-webui.ps1` with `-Yes`, and `diagnostics_dir:
-diagnostics`.
+diagnostics`. It must also reference `api_key_flow_evidence:
+api-key-flow-evidence.json`.
 
 Example:
 
@@ -135,14 +190,15 @@ Example:
   "host_platform": "win32",
   "observed_at": "2026-06-30T00:00:00Z",
   "installer_command": "powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 -Yes -NoOpen -DiagnosticsDir diagnostics",
-  "diagnostics_dir": "diagnostics"
+  "diagnostics_dir": "diagnostics",
+  "api_key_flow_evidence": "api-key-flow-evidence.json"
 }
 ```
 
 The importer validates the manifest, runs the diagnostic validator, and scans
-the artifact directory for API key-like plaintext markers. Do not put API keys
-in installer arguments, environment dumps, compose files, diagnostics, or
-artifact manifests.
+the artifact directory for API key-like plaintext markers. It also validates the
+API key flow receipt. Do not put API keys in installer arguments, environment
+dumps, compose files, diagnostics, API key flow receipts, or artifact manifests.
 
 ## Completion Boundary
 
@@ -166,6 +222,8 @@ that exact gate has all of the following fresh evidence:
 - `data_preservation.status=passed`; for the old-data gate, the summary must
   show pre/post data inventory preservation rather than a newly-created-only
   data directory.
+- `api_key_flow.status=passed`, `api_key_flow.stdin_transport=true`, and the
+  receipt path points to `api-key-flow-evidence.json`.
 - `secret_scan.status=passed` and no forbidden secret markers are reported.
 
 If any item is missing, mark that gate `partial` or `blocked` with the typed

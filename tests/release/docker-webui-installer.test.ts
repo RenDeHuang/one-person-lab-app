@@ -47,6 +47,25 @@ function writeWindowsEvidence(root: string, overrides: Record<string, unknown> =
   const diagnostics = path.join(root, 'diagnostics');
   writeMinimalDiagnostics(diagnostics);
   fs.writeFileSync(
+    path.join(root, 'api-key-flow-evidence.json'),
+    `${JSON.stringify(
+      {
+        schema: 'opl_docker_webui_api_key_flow_evidence.v1',
+        status: 'passed',
+        mode: 'webui_proxy_configure_codex',
+        endpoint: 'http://127.0.0.1:3000/api/opl-runtime/configure-codex',
+        response_http_status: 200,
+        response_success: true,
+        command: 'opl system configure-codex --api-key-stdin --json',
+        stdin_transport: true,
+        key_material_recorded: false,
+        errors: [],
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  fs.writeFileSync(
     path.join(root, 'windows-smoke-evidence.json'),
     `${JSON.stringify(
       {
@@ -58,6 +77,7 @@ function writeWindowsEvidence(root: string, overrides: Record<string, unknown> =
         installer_command:
           'powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 -Yes -NoOpen -DiagnosticsDir diagnostics',
         diagnostics_dir: 'diagnostics',
+        api_key_flow_evidence: 'api-key-flow-evidence.json',
         ...overrides,
       },
       null,
@@ -228,9 +248,12 @@ test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', (
   assert.equal(payload.gate_id, 'clean_windows_vm');
   assert.equal(payload.host_platform, process.platform);
   assert.equal(payload.diagnostics_validation.status, 'passed');
+  assert.equal(payload.api_key_flow.status, 'passed');
+  assert.equal(payload.api_key_flow.stdin_transport, true);
   assert.equal(payload.evidence_validation.status, 'passed');
   assert.equal(payload.evidence.windows_evidence_dir, evidence);
   assert.equal(payload.evidence.windows_diagnostics_dir, path.join(evidence, 'diagnostics'));
+  assert.equal(payload.evidence.windows_api_key_flow_evidence, path.join(evidence, 'api-key-flow-evidence.json'));
 });
 
 test('Docker/WebUI clean Windows smoke gate rejects incomplete Windows evidence', () => {
@@ -277,4 +300,31 @@ test('Docker/WebUI clean Windows smoke gate rejects secret-like markers in impor
   assert.equal(payload.status, 'failed');
   assert.equal(payload.evidence_validation.status, 'failed');
   assert.ok(payload.evidence_validation.forbidden_secret_markers.some((marker: string) => marker.includes('Bearer')));
+});
+
+test('Docker/WebUI clean Windows smoke gate rejects evidence without API key UI flow receipt', () => {
+  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
+  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
+  writeWindowsEvidence(evidence);
+  fs.rmSync(path.join(evidence, 'api-key-flow-evidence.json'));
+
+  const result = runSmokeGate([
+    '--gate',
+    'clean_windows_vm',
+    '--evidence',
+    evidence,
+    '--artifacts',
+    artifacts,
+    '--json',
+  ]);
+  assert.equal(result.status, 1, result.stderr || result.stdout);
+
+  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
+  assert.equal(payload.status, 'failed');
+  assert.equal(payload.evidence_validation.status, 'failed');
+  assert.ok(
+    payload.evidence_validation.errors.some((error: string) =>
+      error.includes('API key flow evidence validation failed'),
+    ),
+  );
 });
