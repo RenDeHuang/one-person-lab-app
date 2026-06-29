@@ -187,6 +187,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
     'access',
     'capabilities',
     'environment',
+    'storage',
     'appearance',
     'advanced',
   ]);

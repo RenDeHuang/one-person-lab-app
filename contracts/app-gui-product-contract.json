@@ -839,6 +839,7 @@
       "access",
       "capabilities",
       "environment",
+      "storage",
       "appearance",
       "advanced"
     ],

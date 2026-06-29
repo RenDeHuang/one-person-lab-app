@@ -32,7 +32,7 @@ const requiredDefaultPackagedSkillIds = [
 const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((skillId) => (
   !['mas', 'mag', 'rca', 'opl-bookforge'].includes(skillId)
 ));
-const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced'];
+const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
 const appOwnedSecondarySettingsPages = ['storage', 'about', 'update', 'theme'];
 const appOwnedSettingsIaGroups = ['overview', 'setup_access', 'capabilities', 'maintenance', 'data_storage', 'preferences', 'advanced'];
 const appOwnedSettingsPrimaryTabIds = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about'];

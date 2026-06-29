@@ -362,6 +362,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'access',
     'capabilities',
     'environment',
+    'storage',
     'appearance',
     'advanced',
   ]);

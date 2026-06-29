@@ -90,7 +90,7 @@ export const beginnerFirstRunTestIds = [
   'opl-first-run-primary-action',
   'opl-first-run-technical-details-toggle',
 ];
-export const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced'];
+export const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
 export const appOwnedSecondarySettingsPages = ['storage', 'about', 'update', 'theme'];
 export const appOwnedSettingsIaGroupIds = ['overview', 'setup_access', 'capabilities', 'maintenance', 'data_storage', 'preferences', 'advanced'];
 export const appOwnedSettingsIaLabelsZh = ['总览', '开始使用', '能力', '维护', '数据与存储', '偏好', '高级'];
