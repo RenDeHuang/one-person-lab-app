@@ -539,6 +539,24 @@ collect_diagnostics() {
     printf 'data_dir=%s\n' "$DATA_DIR"
     printf 'projects_dir=%s\n' "$PROJECTS_DIR"
   } | redact_diagnostic_stream > "$target_dir/metadata.txt"
+  cat > "$target_dir/diagnostics-manifest.json" <<'JSON'
+{
+  "schema": "opl_docker_webui_diagnostics_manifest.v1",
+  "required_files": [
+    "metadata.txt",
+    "diagnostics-manifest.json",
+    "compose.yaml",
+    "docker-version.txt",
+    "docker-compose-version.txt",
+    "docker-compose-ps.txt",
+    "docker-compose-logs.txt",
+    "docker-image.txt",
+    "http-probe.txt",
+    "directories.txt",
+    "data-preservation.txt"
+  ]
+}
+JSON
 
   if [ -f "$COMPOSE_FILE" ]; then
     redact_diagnostic_stream < "$COMPOSE_FILE" > "$target_dir/compose.yaml"

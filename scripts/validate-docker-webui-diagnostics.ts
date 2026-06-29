@@ -9,6 +9,10 @@ type ValidationResult = {
   checked_files: string[];
   missing_files: string[];
   forbidden_secret_markers: string[];
+  secret_scan: {
+    status: 'passed' | 'failed';
+    forbidden_secret_markers: string[];
+  };
   preservation_verdict: string | null;
 };
 
@@ -22,6 +26,7 @@ const SECRET_PATTERNS = [
 
 const REQUIRED_FILES = [
   'metadata.txt',
+  'diagnostics-manifest.json',
   'compose.yaml',
   'docker-version.txt',
   'docker-compose-version.txt',
@@ -112,6 +117,10 @@ export function validateDockerWebuiDiagnostics(diagnosticsDir: string): Validati
     checked_files: checkedFiles,
     missing_files: missingFiles,
     forbidden_secret_markers: forbiddenSecretMarkers,
+    secret_scan: {
+      status: forbiddenSecretMarkers.length === 0 ? 'passed' : 'failed',
+      forbidden_secret_markers: forbiddenSecretMarkers,
+    },
     preservation_verdict: preservationVerdict,
   };
 }

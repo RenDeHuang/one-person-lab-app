@@ -572,6 +572,23 @@ function Collect-WebUiDiagnostics {
     "projects_dir=$ProjectsPath"
   ) -join "`n"
   Write-DiagnosticText -PathValue (Join-Path $TargetDir "metadata.txt") -Content $metadata
+  $manifest = @{
+    schema = "opl_docker_webui_diagnostics_manifest.v1"
+    required_files = @(
+      "metadata.txt",
+      "diagnostics-manifest.json",
+      "compose.yaml",
+      "docker-version.txt",
+      "docker-compose-version.txt",
+      "docker-compose-ps.txt",
+      "docker-compose-logs.txt",
+      "docker-image.txt",
+      "http-probe.txt",
+      "directories.txt",
+      "data-preservation.txt"
+    )
+  } | ConvertTo-Json -Depth 4
+  Write-DiagnosticText -PathValue (Join-Path $TargetDir "diagnostics-manifest.json") -Content $manifest
 
   if (Test-Path -LiteralPath $ComposePath) {
     Write-DiagnosticText -PathValue (Join-Path $TargetDir "compose.yaml") -Content (Get-Content -LiteralPath $ComposePath -Raw)

@@ -10,12 +10,67 @@ import { validateDockerWebuiDiagnostics } from '../../scripts/validate-docker-we
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.sh');
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
+const diagnosticsFiles = [
+  'metadata.txt',
+  'diagnostics-manifest.json',
+  'compose.yaml',
+  'docker-version.txt',
+  'docker-compose-version.txt',
+  'docker-compose-ps.txt',
+  'docker-compose-logs.txt',
+  'docker-image.txt',
+  'http-probe.txt',
+  'directories.txt',
+] as const;
 
 function runInstaller(args: string[], env: NodeJS.ProcessEnv = {}) {
   return spawnSync('bash', [installerPath, ...args], {
     cwd: appRoot,
     encoding: 'utf8',
     env: { ...process.env, ...env },
+  });
+}
+
+function writeMinimalDiagnostics(diagnostics: string) {
+  fs.mkdirSync(diagnostics, { recursive: true });
+  for (const file of diagnosticsFiles) {
+    const content = file === 'http-probe.txt' ? 'url=http://localhost:3000/\nstatus=200\n' : `${file}\n`;
+    fs.writeFileSync(path.join(diagnostics, file), content);
+  }
+  fs.writeFileSync(
+    path.join(diagnostics, 'data-preservation.txt'),
+    'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n',
+  );
+}
+
+function writeWindowsEvidence(root: string, overrides: Record<string, unknown> = {}) {
+  const diagnostics = path.join(root, 'diagnostics');
+  writeMinimalDiagnostics(diagnostics);
+  fs.writeFileSync(
+    path.join(root, 'windows-smoke-evidence.json'),
+    `${JSON.stringify(
+      {
+        schema: 'opl_docker_webui_windows_smoke_evidence.v1',
+        gate_id: 'clean_windows_vm',
+        status: 'passed',
+        host_platform: 'win32',
+        observed_at: '2026-06-30T00:00:00Z',
+        installer_command:
+          'powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 -Yes -NoOpen -DiagnosticsDir diagnostics',
+        diagnostics_dir: 'diagnostics',
+        ...overrides,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  return { diagnostics };
+}
+
+function runSmokeGate(args: string[]) {
+  return spawnSync(process.execPath, ['--experimental-strip-types', smokeGatePath, ...args], {
+    cwd: appRoot,
+    encoding: 'utf8',
   });
 }
 
@@ -120,23 +175,7 @@ test('Docker/WebUI installer keeps OS-specific Docker policy explicit', () => {
 
 test('Docker/WebUI diagnostic validator requires preservation evidence and rejects secret markers', () => {
   const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-'));
-  for (const file of [
-    'metadata.txt',
-    'compose.yaml',
-    'docker-version.txt',
-    'docker-compose-version.txt',
-    'docker-compose-ps.txt',
-    'docker-compose-logs.txt',
-    'docker-image.txt',
-    'http-probe.txt',
-    'directories.txt',
-  ]) {
-    fs.writeFileSync(path.join(diagnostics, file), `${file}\n`);
-  }
-  fs.writeFileSync(
-    path.join(diagnostics, 'data-preservation.txt'),
-    'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n',
-  );
+  writeMinimalDiagnostics(diagnostics);
   assert.equal(validateDockerWebuiDiagnostics(diagnostics).status, 'passed');
 
   fs.writeFileSync(path.join(diagnostics, 'docker-compose-logs.txt'), 'OPENAI_API_KEY=sk-123456789012345678901234\n');
@@ -152,15 +191,90 @@ test('Docker/WebUI diagnostic validator requires preservation evidence and rejec
 
 test('Docker/WebUI smoke gate writes typed blocker instead of passing unmatched VM gates', () => {
   const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-smoke-gate-'));
-  const result = spawnSync(
-    process.execPath,
-    ['--experimental-strip-types', smokeGatePath, '--gate', 'clean_windows_vm', '--artifacts', artifacts, '--json'],
-    { cwd: appRoot, encoding: 'utf8' },
-  );
+  const result = runSmokeGate(['--gate', 'clean_windows_vm', '--artifacts', artifacts, '--json']);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
   assert.equal(payload.status, 'typed_blocker');
   assert.equal(payload.gate_id, 'clean_windows_vm');
   assert.match(payload.blocker.code, /windows_vm|requires_windows_vm/);
   assert.equal(payload.schema, 'opl_docker_webui_smoke_gate_result.v1');
+});
+
+test('Docker/WebUI smoke gate keeps Docker CLI home while isolating WebUI home', () => {
+  const script = fs.readFileSync(smokeGatePath, 'utf8');
+  assert.doesNotMatch(script, /HOME:\s*home/);
+  assert.match(script, /OPL_WEBUI_HOME:\s*webuiHome/);
+  assert.match(script, /OPL_WEBUI_COMPOSE_FILE:\s*composeFile/);
+});
+
+test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', () => {
+  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
+  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
+  writeWindowsEvidence(evidence);
+
+  const result = runSmokeGate([
+    '--gate',
+    'clean_windows_vm',
+    '--evidence',
+    evidence,
+    '--artifacts',
+    artifacts,
+    '--json',
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
+  assert.equal(payload.status, 'passed');
+  assert.equal(payload.gate_id, 'clean_windows_vm');
+  assert.equal(payload.host_platform, process.platform);
+  assert.equal(payload.diagnostics_validation.status, 'passed');
+  assert.equal(payload.evidence_validation.status, 'passed');
+  assert.equal(payload.evidence.windows_evidence_dir, evidence);
+  assert.equal(payload.evidence.windows_diagnostics_dir, path.join(evidence, 'diagnostics'));
+});
+
+test('Docker/WebUI clean Windows smoke gate rejects incomplete Windows evidence', () => {
+  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
+  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
+  const { diagnostics } = writeWindowsEvidence(evidence);
+  fs.rmSync(path.join(diagnostics, 'http-probe.txt'));
+
+  const result = runSmokeGate([
+    '--gate',
+    'clean_windows_vm',
+    '--evidence',
+    evidence,
+    '--artifacts',
+    artifacts,
+    '--json',
+  ]);
+  assert.equal(result.status, 1, result.stderr || result.stdout);
+
+  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
+  assert.equal(payload.status, 'failed');
+  assert.equal(payload.evidence_validation.status, 'failed');
+  assert.ok(payload.diagnostics_validation.missing_files.includes('http-probe.txt'));
+});
+
+test('Docker/WebUI clean Windows smoke gate rejects secret-like markers in imported evidence', () => {
+  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
+  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
+  const { diagnostics } = writeWindowsEvidence(evidence);
+  fs.writeFileSync(path.join(diagnostics, 'docker-compose-logs.txt'), 'Bearer abcdefghijklmnopqrstuvwxyz123456\n');
+
+  const result = runSmokeGate([
+    '--gate',
+    'clean_windows_vm',
+    '--evidence',
+    evidence,
+    '--artifacts',
+    artifacts,
+    '--json',
+  ]);
+  assert.equal(result.status, 1, result.stderr || result.stdout);
+
+  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
+  assert.equal(payload.status, 'failed');
+  assert.equal(payload.evidence_validation.status, 'failed');
+  assert.ok(payload.evidence_validation.forbidden_secret_markers.some((marker: string) => marker.includes('Bearer')));
 });
