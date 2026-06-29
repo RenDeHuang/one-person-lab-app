@@ -303,8 +303,32 @@
       "/settings/capabilities",
       "/settings/environment",
       "/settings/storage",
+      "/settings/appearance",
       "/settings/advanced"
     ],
+    "required_secondary_routes": [
+      "/settings/workspace",
+      "/settings/local-services"
+    ],
+    "required_status_anchors": [
+      "diagnostics_collapsed_by_default",
+      "state_changing_action_confirmation",
+      "post_action_recovery_notice",
+      "legacy_redirect_landing"
+    ],
+    "evidence_manifest": {
+      "path": "tests/e2e/screenshots/settings-control-center-manifest.json",
+      "required_fields": [
+        "command",
+        "commit",
+        "viewport",
+        "route",
+        "screenshot_path",
+        "status_anchors"
+      ],
+      "viewport_policy": "each required route is captured for desktop and mobile viewports",
+      "secondary_route_policy": "workspace and local-services are captured or explicitly marked route_unit_covered with no screenshot claim"
+    },
     "evidence_command": "E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep \"Settings Pages|Sidebar Navigation\"",
     "does_not_prove": [
       "release readiness",

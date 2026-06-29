@@ -176,8 +176,10 @@ export const appOwnedSettingsVisualQaTargets = [
   'desktop_settings_capabilities',
   'desktop_settings_maintenance',
   'desktop_settings_storage',
+  'desktop_settings_preferences',
   'desktop_settings_advanced',
   'mobile_settings_section_nav',
+  'mobile_settings_preferences',
 ];
 export const appOwnedDeveloperProfileCapabilityAxes = [
   'source_channel',

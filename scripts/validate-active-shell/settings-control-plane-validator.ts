@@ -80,7 +80,23 @@ const expectedVisualQaRoutes = [
   '/settings/capabilities',
   '/settings/environment',
   '/settings/storage',
+  '/settings/appearance',
   '/settings/advanced',
+];
+const expectedVisualQaSecondaryRoutes = ['/settings/workspace', '/settings/local-services'];
+const expectedVisualQaStatusAnchors = [
+  'diagnostics_collapsed_by_default',
+  'state_changing_action_confirmation',
+  'post_action_recovery_notice',
+  'legacy_redirect_landing',
+];
+const expectedVisualQaManifestFields = [
+  'command',
+  'commit',
+  'viewport',
+  'route',
+  'screenshot_path',
+  'status_anchors',
 ];
 
 const matrixRouteScopes = {
@@ -605,6 +621,31 @@ function validateSettingsVisualQaPolicy(controlPlane) {
   }
   assertDeepEqualJson(policy.required_viewports, ['desktop', 'mobile'], 'Settings visual QA required viewports');
   assertDeepEqualJson(policy.required_routes, expectedVisualQaRoutes, 'Settings visual QA required routes');
+  assertDeepEqualJson(
+    policy.required_secondary_routes,
+    expectedVisualQaSecondaryRoutes,
+    'Settings visual QA secondary routes',
+  );
+  assertDeepEqualJson(
+    policy.required_status_anchors,
+    expectedVisualQaStatusAnchors,
+    'Settings visual QA status anchors',
+  );
+  if (policy.evidence_manifest?.path !== 'tests/e2e/screenshots/settings-control-center-manifest.json') {
+    throw new Error('Settings visual QA policy must declare the screenshot evidence manifest path');
+  }
+  assertDeepEqualJson(
+    policy.evidence_manifest?.required_fields,
+    expectedVisualQaManifestFields,
+    'Settings visual QA evidence manifest fields',
+  );
+  if (
+    policy.evidence_manifest?.viewport_policy !== 'each required route is captured for desktop and mobile viewports' ||
+    policy.evidence_manifest?.secondary_route_policy !==
+      'workspace and local-services are captured or explicitly marked route_unit_covered with no screenshot claim'
+  ) {
+    throw new Error('Settings visual QA manifest must declare viewport and secondary route evidence policy');
+  }
   if (!String(policy.evidence_command ?? '').includes('E2E_SCREENSHOTS=1')) {
     throw new Error('Settings visual QA policy must require screenshot evidence');
   }

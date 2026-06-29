@@ -1095,15 +1095,18 @@
             "desktop_settings_capabilities",
             "desktop_settings_maintenance",
             "desktop_settings_storage",
+            "desktop_settings_preferences",
             "desktop_settings_advanced",
-            "mobile_settings_section_nav"
+            "mobile_settings_section_nav",
+            "mobile_settings_preferences"
           ],
           "must_check": [
             "ordinary nav shows seven current route ids only",
             "About/Update/Theme are secondary or deep-link surfaces unless contract is changed deliberately",
             "diagnostics and raw refs are collapsed by default",
             "confirmation drawer appears before destructive or state-changing actions",
-            "post-update notice displays receipt and restart or reload guidance"
+            "post-update notice displays receipt and restart or reload guidance",
+            "visual evidence manifest binds route, viewport, commit, command, screenshot path, and status anchors"
           ]
         }
       }

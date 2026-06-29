@@ -378,11 +378,21 @@ E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep "
 
 That evidence must cover desktop and mobile viewports for the ordinary routes
 `/settings/general`, `/settings/access`, `/settings/capabilities`,
-`/settings/environment`, `/settings/storage`, and `/settings/advanced`. Passing
-visual QA proves that the active shell can render the Settings Control Center
-without obvious navigation, overlap, or route-framing regressions. It does not
-prove release readiness, packaged App readiness, runtime currentness, or owner
-acceptance.
+`/settings/environment`, `/settings/storage`, `/settings/appearance`, and
+`/settings/advanced`. Workspace and Local Services are secondary/deep-link
+task pages; visual evidence must either capture `/settings/workspace` and
+`/settings/local-services` or explicitly mark them as route-unit-covered without
+claiming screenshot coverage.
+
+The shell evidence bundle must write
+`tests/e2e/screenshots/settings-control-center-manifest.json` with the command,
+commit, viewport, route, screenshot path, and status anchors observed for each
+entry. Status anchors include collapsed diagnostics, confirmation before
+state-changing actions, post-action recovery notice, and legacy redirect
+landing behavior. Passing visual QA proves that the active shell can render the
+Settings Control Center without obvious navigation, overlap, or route-framing
+regressions. It does not prove release readiness, packaged App readiness,
+runtime currentness, or owner acceptance.
 
 ## Upstream Intake Classification
 

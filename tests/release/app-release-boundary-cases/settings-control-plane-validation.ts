@@ -212,6 +212,33 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
     'packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.ts',
   );
   assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_viewports, ['desktop', 'mobile']);
+  assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_routes, [
+    '/settings/general',
+    '/settings/access',
+    '/settings/capabilities',
+    '/settings/environment',
+    '/settings/storage',
+    '/settings/appearance',
+    '/settings/advanced',
+  ]);
+  assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_secondary_routes, [
+    '/settings/workspace',
+    '/settings/local-services',
+  ]);
+  assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_status_anchors, [
+    'diagnostics_collapsed_by_default',
+    'state_changing_action_confirmation',
+    'post_action_recovery_notice',
+    'legacy_redirect_landing',
+  ]);
+  assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.evidence_manifest.required_fields, [
+    'command',
+    'commit',
+    'viewport',
+    'route',
+    'screenshot_path',
+    'status_anchors',
+  ]);
   assert.ok(controlPlaneContract.visual_qa_policy.evidence_command.includes('E2E_SCREENSHOTS=1'));
   assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.does_not_prove, [
     'release readiness',
@@ -246,5 +273,19 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
         adapterContract,
       ),
     /non-release evidence boundary/,
+  );
+
+  const invalidVisualQaManifest = structuredClone(controlPlaneContract);
+  invalidVisualQaManifest.visual_qa_policy.evidence_manifest.required_fields = ['route'];
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidVisualQaManifest,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /evidence manifest fields/,
   );
 });
