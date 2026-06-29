@@ -31,6 +31,10 @@ function parseArgs(argv) {
     classificationPath: process.env.OPL_RELEASE_EVIDENCE_CLASSIFICATION || '',
     version: process.env.OPL_RELEASE_VERSION || '',
     tag: process.env.OPL_RELEASE_TAG || '',
+    requiredConditionals: (process.env.OPL_RELEASE_EVIDENCE_REQUIRED_CONDITIONALS || '')
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean),
     overwrite: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -50,6 +54,7 @@ function parseArgs(argv) {
       '--classification': (value) => { parsed.classificationPath = value; },
       '--version': (value) => { parsed.version = value; },
       '--tag': (value) => { parsed.tag = value; },
+      '--require-conditional': (value) => { parsed.requiredConditionals.push(value); },
     });
     if (optionIndex !== null) {
       index = optionIndex;
@@ -64,6 +69,7 @@ function parseArgs(argv) {
       : '',
     version: parsed.version.trim(),
     tag: parsed.tag.trim(),
+    requiredConditionals: [...new Set(parsed.requiredConditionals)],
     overwrite: parsed.overwrite,
   };
 }
@@ -194,12 +200,24 @@ function main() {
   if (!Array.isArray(bundle.required_artifacts)) {
     throw new Error('Release evidence bundle contract must declare required_artifacts.');
   }
+  const conditionalArtifacts = Array.isArray(bundle.conditional_artifacts)
+    ? bundle.conditional_artifacts
+    : [];
+  const requiredConditionals = new Set(options.requiredConditionals);
+  const knownConditionalIds = new Set(conditionalArtifacts.map((artifact) => artifact.id));
+  const unknownRequiredConditionals = [...requiredConditionals].filter((id) => !knownConditionalIds.has(id));
+  if (unknownRequiredConditionals.length > 0) {
+    throw new Error(`Unknown required conditional evidence artifact(s): ${unknownRequiredConditionals.join(', ')}`);
+  }
   validateAppReleaseL5ReadoutContract(bundle.l5_evidence_readout);
   const optionalDiagnosticArtifacts = Array.isArray(bundle.optional_diagnostic_artifacts)
     ? bundle.optional_diagnostic_artifacts
     : [];
   const classifications = readArtifactClassifications(options.classificationPath);
-  const artifactIds = new Set(bundle.required_artifacts.map((artifact) => artifact.id));
+  const artifactIds = new Set([
+    ...bundle.required_artifacts.map((artifact) => artifact.id),
+    ...conditionalArtifacts.map((artifact) => artifact.id),
+  ]);
   const unknownClassifications = [...classifications.keys()].filter((id) => !artifactIds.has(id));
   if (unknownClassifications.length > 0) {
     throw new Error(`Evidence classification file declares unknown artifact(s): ${unknownClassifications.join(', ')}`);
@@ -211,7 +229,15 @@ function main() {
     throw new Error(`Evidence manifest already exists: ${manifestPath}. Pass --overwrite to replace it.`);
   }
 
-  const artifacts = bundle.required_artifacts.map((artifact) => {
+  const activeArtifacts = [
+    ...bundle.required_artifacts,
+    ...conditionalArtifacts.filter((artifact) => (
+      requiredConditionals.has(artifact.id) ||
+      fs.existsSync(resolveBundlePath(options.bundleDir, artifact.path)) ||
+      classifications.has(artifact.id)
+    )),
+  ];
+  const artifacts = activeArtifacts.map((artifact) => {
     const classification = classifications.get(artifact.id);
     const exists = fs.existsSync(resolveBundlePath(options.bundleDir, artifact.path));
     const typedBlocker = readTypedBlocker(options.bundleDir, artifact);
@@ -319,6 +345,7 @@ function main() {
     blocked_artifacts: blockedEvidence,
     missing_artifact_count: missingEvidence.length,
     missing_artifacts: missingEvidence,
+    required_conditionals: [...requiredConditionals],
     l5_evidence_readout: manifest.l5_evidence_readout,
   }, null, 2));
 }

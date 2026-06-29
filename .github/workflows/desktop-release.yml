@@ -1253,6 +1253,7 @@ jobs:
       - standard-first-run-vm-smoke-after-full
       - standard-vm-smoke-gate-after-full
       - full-first-run-vm-smoke
+      - docker-webui-clean-vm-evidence
 
     steps:
       - name: Checkout App repo
@@ -1296,6 +1297,14 @@ jobs:
           name: opl-first-run-vm-full-${{ github.run_id }}
           path: release-evidence-inputs/opl-first-run-vm-full-${{ github.run_id }}
 
+      - name: Download Docker WebUI clean VM evidence
+        if: ${{ inputs.publish_docker_webui }}
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: docker-webui-clean-vm-evidence-${{ inputs.opl_version }}
+          path: release-evidence-inputs/docker-webui-clean-vm-evidence-${{ inputs.opl_version }}
+
       - name: Collect same-cohort operator evidence
         id: collect_operator_evidence
         continue-on-error: true
@@ -1308,12 +1317,17 @@ jobs:
           full_source_dir="release-evidence-inputs/opl-first-run-vm-full-${{ github.run_id }}"
           standard_source_dir="release-evidence-inputs/opl-first-run-vm-standard-${{ github.run_id }}"
           remote_source_dir="release-evidence-inputs/remote-release-verification-${{ inputs.opl_version }}"
+          docker_webui_clean_vm_source_dir="release-evidence-inputs/docker-webui-clean-vm-evidence-${{ inputs.opl_version }}"
           collector_args=(
             --bundle-dir "$bundle_dir"
             --action-id developer_supervisor_refresh
             --execute-action
             --overwrite
             --opl-bin "$GITHUB_WORKSPACE/one-person-lab/bin/opl"
+          )
+          manifest_args=(
+            --bundle-dir "$bundle_dir"
+            --overwrite
           )
           if [ -d "$full_source_dir" ]; then
             collector_args+=(--evidence-source-dir "$full_source_dir")
@@ -1336,8 +1350,15 @@ jobs:
           if [ -d "$remote_source_dir" ]; then
             collector_args+=(--evidence-source-dir "$remote_source_dir")
           fi
+          if [ "${{ inputs.publish_docker_webui }}" = "true" ]; then
+            collector_args+=(--require-conditional docker_webui_clean_vm_evidence)
+            manifest_args+=(--require-conditional docker_webui_clean_vm_evidence)
+            if [ -d "$docker_webui_clean_vm_source_dir" ]; then
+              collector_args+=(--evidence-source-dir "$docker_webui_clean_vm_source_dir")
+            fi
+          fi
           node --experimental-strip-types scripts/collect-release-evidence.ts "${collector_args[@]}" > evidence-collection-summary.json
-          node --experimental-strip-types scripts/write-release-evidence-manifest.ts --bundle-dir "$bundle_dir" --overwrite
+          node --experimental-strip-types scripts/write-release-evidence-manifest.ts "${manifest_args[@]}"
 
       - name: Validate operator evidence bundle
         if: ${{ steps.collect_operator_evidence.outcome == 'success' }}
@@ -1346,8 +1367,14 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
+          validation_args=(
+            --bundle-dir "release-evidence/${{ inputs.opl_version }}"
+          )
+          if [ "${{ inputs.publish_docker_webui }}" = "true" ]; then
+            validation_args+=(--require-conditional docker_webui_clean_vm_evidence)
+          fi
           node --experimental-strip-types scripts/validate-release-evidence-bundle.ts \
-            --bundle-dir "release-evidence/${{ inputs.opl_version }}" \
+            "${validation_args[@]}" \
             > evidence-validation-summary.json
 
       - name: Write failed operator evidence summary

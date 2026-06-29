@@ -20,6 +20,7 @@ type Options = {
   actionId: string;
   version: string;
   tag: string;
+  requiredConditionals: string[];
   artifacts: Record<string, string>;
   evidenceSourceDirs: string[];
   typedBlockers: Record<string, string>;
@@ -49,6 +50,7 @@ const valueOptionTokens = [
   '--action-id',
   '--version',
   '--tag',
+  '--require-conditional',
   '--artifact',
   '--evidence-source-dir',
   '--typed-blocker',
@@ -92,6 +94,10 @@ function applyValueOption(parsed: Options, token: string, value: string): void {
     parsed.tag = value;
     return;
   }
+  if (token === '--require-conditional') {
+    parsed.requiredConditionals.push(value);
+    return;
+  }
   if (token === '--artifact') {
     setUniquePathOption(parsed.artifacts, '--artifact', value);
     return;
@@ -115,6 +121,10 @@ function parseArgs(argv: string[]): Options {
     actionId: process.env.OPL_RELEASE_EVIDENCE_ACTION_ID || '',
     version: process.env.OPL_RELEASE_VERSION || '',
     tag: process.env.OPL_RELEASE_TAG || '',
+    requiredConditionals: (process.env.OPL_RELEASE_EVIDENCE_REQUIRED_CONDITIONALS || '')
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean),
     artifacts: {},
     evidenceSourceDirs: [],
     typedBlockers: {},
@@ -173,6 +183,7 @@ function readReleaseEvidenceArtifacts(): EvidenceArtifact[] {
   const releaseContract = readJsonFile<{
     operator_evidence_bundle?: {
       required_artifacts?: EvidenceArtifact[];
+      conditional_artifacts?: EvidenceArtifact[];
       optional_diagnostic_artifacts?: EvidenceArtifact[];
     };
   }>(path.join(appRoot, 'contracts', 'app-release-channel.json'));
@@ -180,11 +191,15 @@ function readReleaseEvidenceArtifacts(): EvidenceArtifact[] {
   if (!Array.isArray(requiredArtifacts)) {
     throw new Error('Release evidence bundle contract must declare required_artifacts.');
   }
+  const conditionalArtifacts = releaseContract.operator_evidence_bundle?.conditional_artifacts;
+  if (conditionalArtifacts !== undefined && !Array.isArray(conditionalArtifacts)) {
+    throw new Error('Release evidence bundle conditional_artifacts must be an array when present.');
+  }
   const optionalDiagnosticArtifacts = releaseContract.operator_evidence_bundle?.optional_diagnostic_artifacts;
   if (optionalDiagnosticArtifacts !== undefined && !Array.isArray(optionalDiagnosticArtifacts)) {
     throw new Error('Release evidence bundle optional_diagnostic_artifacts must be an array when present.');
   }
-  return [...requiredArtifacts, ...(optionalDiagnosticArtifacts ?? [])];
+  return [...requiredArtifacts, ...(conditionalArtifacts ?? []), ...(optionalDiagnosticArtifacts ?? [])];
 }
 
 function artifactSourceCandidates(artifact: EvidenceArtifact): string[] {
@@ -237,6 +252,9 @@ function artifactSourceCandidates(artifact: EvidenceArtifact): string[] {
     ],
     remote_release_verification: [
       'remote-release-verification.json',
+    ],
+    docker_webui_clean_vm_evidence: [
+      'docker-webui-clean-vm-evidence-validation.json',
     ],
   };
   const candidates = candidatesById[artifact.id] ?? [artifact.path];
@@ -385,6 +403,7 @@ function validateGeneratedBundle(options: Options): void {
     '--bundle-dir',
     options.bundleDir,
     '--allow-missing-evidence',
+    ...options.requiredConditionals.flatMap((artifactId) => ['--require-conditional', artifactId]),
   ], {
     cwd: appRoot,
     encoding: 'utf8',
@@ -457,6 +476,7 @@ function main(): void {
     '--overwrite',
     ...(options.version ? ['--version', options.version] : []),
     ...(options.tag ? ['--tag', options.tag] : []),
+    ...options.requiredConditionals.flatMap((artifactId) => ['--require-conditional', artifactId]),
   ]) as {
     status: string;
     packaged_app_evidence: boolean;
@@ -483,6 +503,7 @@ function main(): void {
     packaged_app_evidence: manifest.packaged_app_evidence,
     release_cohort: manifest.release_cohort,
     current_cohort_evidence: manifest.current_cohort_evidence === true,
+    required_conditionals: [...new Set(options.requiredConditionals)],
     refs_only: true,
     action_id: options.actionId,
     action_execute_collected: options.executeAction,

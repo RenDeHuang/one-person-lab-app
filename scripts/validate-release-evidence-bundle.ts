@@ -31,6 +31,7 @@ const typedBlockerPathPattern = 'typed-blockers/<artifact_id>.json';
 type Options = {
   bundleDir: string;
   allowMissingEvidence: boolean;
+  requiredConditionals: string[];
 };
 
 type EvidenceArtifact = {
@@ -44,6 +45,7 @@ type EvidenceArtifact = {
 type EvidenceContract = {
   manifestPath: string;
   artifacts: EvidenceArtifact[];
+  conditionalArtifacts: EvidenceArtifact[];
   optionalDiagnostics: EvidenceArtifact[];
   imageEvidencePolicy: ImageEvidencePolicy;
   typedBlockerPolicy: TypedBlockerPolicy;
@@ -73,6 +75,7 @@ type OperatorEvidenceBundleContract = {
   acceptance_path?: unknown;
   refs_only?: unknown;
   required_artifacts?: unknown;
+  conditional_artifacts?: unknown;
   optional_diagnostic_artifacts?: unknown;
   forbidden_authority?: unknown;
   release_cohort?: Record<string, unknown>;
@@ -85,11 +88,24 @@ function parseArgs(argv: string[]): Options {
   const parsed = {
     bundleDir: defaultReleaseEvidenceBundleDir(),
     allowMissingEvidence: false,
+    requiredConditionals: (process.env.OPL_RELEASE_EVIDENCE_REQUIRED_CONDITIONALS || '')
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean),
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === '--allow-missing-evidence') {
       parsed.allowMissingEvidence = true;
+      continue;
+    }
+    if (token === '--require-conditional') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('--')) {
+        throw new Error('Missing value for --require-conditional');
+      }
+      parsed.requiredConditionals.push(value);
+      index += 1;
       continue;
     }
     const optionIndex = applyReleaseEvidenceBundleDirArg(argv, index, (value) => {
@@ -104,6 +120,7 @@ function parseArgs(argv: string[]): Options {
   return {
     bundleDir: resolveRequiredReleaseEvidenceBundleDir(parsed.bundleDir),
     allowMissingEvidence: parsed.allowMissingEvidence,
+    requiredConditionals: [...new Set(parsed.requiredConditionals)],
   };
 }
 
@@ -295,6 +312,10 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
     throw new Error('Operator evidence bundle must declare required artifacts.');
   }
   validateAppReleaseL5ReadoutContract(record.l5_evidence_readout);
+  const conditionalArtifacts = record.conditional_artifacts;
+  if (conditionalArtifacts !== undefined && !Array.isArray(conditionalArtifacts)) {
+    throw new Error('Operator evidence bundle conditional artifacts must be an array.');
+  }
   const optionalDiagnostics = record.optional_diagnostic_artifacts;
   if (optionalDiagnostics !== undefined && !Array.isArray(optionalDiagnostics)) {
     throw new Error('Operator evidence bundle optional diagnostic artifacts must be an array.');
@@ -304,12 +325,16 @@ function validateContractBoundary(bundle: unknown): EvidenceContract {
   for (const artifact of record.required_artifacts as EvidenceArtifact[]) {
     validateEvidenceArtifactContractFields(artifact, 'Invalid operator evidence artifact contract');
   }
+  for (const artifact of (conditionalArtifacts ?? []) as EvidenceArtifact[]) {
+    validateEvidenceArtifactContractFields(artifact, 'Invalid conditional operator evidence artifact contract');
+  }
   for (const artifact of (optionalDiagnostics ?? []) as EvidenceArtifact[]) {
     validateEvidenceArtifactContractFields(artifact, 'Invalid optional operator evidence diagnostic artifact contract');
   }
   return {
     manifestPath: record.manifest_path,
     artifacts: record.required_artifacts as EvidenceArtifact[],
+    conditionalArtifacts: (conditionalArtifacts ?? []) as EvidenceArtifact[],
     optionalDiagnostics: (optionalDiagnostics ?? []) as EvidenceArtifact[],
     imageEvidencePolicy,
     typedBlockerPolicy: {
@@ -587,15 +612,34 @@ function validateEvidenceManifestCollections(manifest: Record<string, unknown>) 
 function validateBundle(bundleDir: string, options: Options) {
   const releaseContract = readJsonFile(releaseContractPath);
   const contract = validateContractBoundary(releaseContract.operator_evidence_bundle);
+  const conditionalById = new Map(contract.conditionalArtifacts.map((artifact) => [artifact.id, artifact]));
+  const unknownRequiredConditionals = options.requiredConditionals.filter((id) => !conditionalById.has(id));
+  if (unknownRequiredConditionals.length > 0) {
+    throw new Error(`Unknown required conditional evidence artifact(s): ${unknownRequiredConditionals.join(', ')}`);
+  }
   const manifestPath = resolveBundlePath(bundleDir, contract.manifestPath);
   const manifest = asRecord(assertJsonFile(manifestPath, 'evidence-manifest'), 'evidence-manifest');
   validateEvidenceManifestHeader(manifest);
   validateEvidenceManifestCollections(manifest);
 
   const manifestArtifacts = manifestEntriesById(manifest.artifacts, 'evidence manifest artifact');
-  const unexpectedIds = unexpectedManifestIds(manifestArtifacts, contract.artifacts);
+  const manifestConditionalIds = contract.conditionalArtifacts
+    .filter((artifact) => manifestArtifacts.has(artifact.id))
+    .map((artifact) => artifact.id);
+  const activeConditionalIds = new Set([
+    ...options.requiredConditionals,
+    ...manifestConditionalIds,
+  ]);
+  const activeConditionalArtifacts = contract.conditionalArtifacts.filter((artifact) => activeConditionalIds.has(artifact.id));
+  const activeArtifacts = [...contract.artifacts, ...activeConditionalArtifacts];
+  const unexpectedIds = unexpectedManifestIds(manifestArtifacts, activeArtifacts);
   if (unexpectedIds.length > 0) {
     throw new Error(`Evidence manifest declares unknown artifact(s): ${unexpectedIds.join(', ')}`);
+  }
+  for (const artifactId of options.requiredConditionals) {
+    if (!manifestArtifacts.has(artifactId)) {
+      throw new Error(`Evidence manifest is missing required conditional artifact ${artifactId}`);
+    }
   }
   const diagnostics = Array.isArray(manifest.diagnostics) ? manifest.diagnostics : [];
   const diagnosticArtifacts = manifestEntriesById(diagnostics, 'evidence manifest diagnostic artifact');
@@ -615,7 +659,7 @@ function validateBundle(bundleDir: string, options: Options) {
     requireKnown: manifest.status === 'passed' || manifest.packaged_app_evidence === true,
   });
 
-  for (const expected of contract.artifacts) {
+  for (const expected of activeArtifacts) {
     const entry = manifestArtifacts.get(expected.id);
     if (!entry) {
       throw new Error(`Evidence manifest is missing artifact ${expected.id}`);

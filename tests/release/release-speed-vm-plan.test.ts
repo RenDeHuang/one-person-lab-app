@@ -198,7 +198,7 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   );
   assertMatches(
     workflow,
-    /operator-evidence-bundle-validation:[\s\S]*?node --experimental-strip-types scripts\/write-release-evidence-manifest\.ts --bundle-dir "\$bundle_dir" --overwrite/,
+    /operator-evidence-bundle-validation:[\s\S]*?manifest_args=\([\s\S]*?--bundle-dir "\$bundle_dir"[\s\S]*?--overwrite[\s\S]*?manifest_args\+=\(--require-conditional docker_webui_clean_vm_evidence\)[\s\S]*?node --experimental-strip-types scripts\/write-release-evidence-manifest\.ts "\$\{manifest_args\[@\]\}"/,
     'operator evidence manifest must use the direct script when producing machine artifacts',
   );
   const operatorEvidenceJob = workflow.match(/\n  operator-evidence-bundle-validation:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';

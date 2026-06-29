@@ -194,7 +194,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       {
         class_id: 'release_install_evidence',
         accepted_ref_shapes: ['release_evidence_ref', 'install_evidence_ref', 'descriptor_drift_ref', 'typed_blocker_ref'],
-        artifact_ids: ['remote_release_verification', 'first_run_vm_summary', 'guest_smoke_summary'],
+        artifact_ids: ['remote_release_verification', 'docker_webui_clean_vm_evidence', 'first_run_vm_summary', 'guest_smoke_summary'],
         gate_ids: [
           'remote_release_verification',
           'stable_homebrew_tap_update',
@@ -225,7 +225,7 @@ test('release evidence bundle records Runtime page acceptance artifacts without 
       {
         class_id: 'no_second_truth_regression',
         accepted_ref_shapes: ['no_resurrection_guard_ref', 'negative_guard_ref', 'source_scan_ref', 'typed_blocker_ref'],
-        gate_ids: ['operator_evidence_bundle', 'docker_webui', 'webui_ghcr_publish'],
+        gate_ids: ['operator_evidence_bundle', 'docker_webui', 'webui_ghcr_publish', 'docker_webui_clean_vm_evidence'],
       },
     ],
   });

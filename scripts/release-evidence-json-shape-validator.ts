@@ -221,6 +221,49 @@ function validateRemoteReleaseVerification(record: Record<string, unknown>, rele
     }
 }
 
+function validateDockerWebuiCleanVmEvidence(record: Record<string, unknown>) {
+    if (record.schema !== 'opl_docker_webui_clean_vm_evidence_validation.v1') {
+      throw new Error('docker_webui_clean_vm_evidence must use schema opl_docker_webui_clean_vm_evidence_validation.v1.');
+    }
+    if (record.status !== 'passed') {
+      throw new Error('docker_webui_clean_vm_evidence must be passed before it can enter release evidence.');
+    }
+    const requiredGates = Array.isArray(record.required_gates) ? record.required_gates : [];
+    for (const gateId of ['clean_linux_vm', 'clean_windows_vm']) {
+      if (!requiredGates.includes(gateId)) {
+        throw new Error(`docker_webui_clean_vm_evidence must require ${gateId}.`);
+      }
+    }
+    if (!Array.isArray(record.summaries)) {
+      throw new Error('docker_webui_clean_vm_evidence must include summaries.');
+    }
+    const summaryByGate = new Map(
+      record.summaries.map((entry) => {
+        const summary = asRecord(entry, 'docker_webui_clean_vm_evidence.summaries[]');
+        return [summary.gate_id, summary];
+      }),
+    );
+    for (const gateId of ['clean_linux_vm', 'clean_windows_vm']) {
+      const summary = summaryByGate.get(gateId);
+      if (!summary) {
+        throw new Error(`docker_webui_clean_vm_evidence must include ${gateId} summary.`);
+      }
+      if (summary.status !== 'passed') {
+        throw new Error(`docker_webui_clean_vm_evidence ${gateId} summary must be passed.`);
+      }
+      if (typeof summary.artifact_name !== 'string' || !summary.artifact_name.trim()) {
+        throw new Error(`docker_webui_clean_vm_evidence ${gateId} summary must include artifact_name.`);
+      }
+      if (typeof summary.result_path !== 'string' || !summary.result_path.trim()) {
+        throw new Error(`docker_webui_clean_vm_evidence ${gateId} summary must include result_path.`);
+      }
+      const validation = asRecord(summary.validation, `docker_webui_clean_vm_evidence.${gateId}.validation`);
+      if (validation.status !== 'passed') {
+        throw new Error(`docker_webui_clean_vm_evidence ${gateId} schema validation must be passed.`);
+      }
+    }
+}
+
 export function validateJsonEvidenceShape(
   artifact: EvidenceArtifact,
   payload: unknown,
@@ -250,5 +293,8 @@ export function validateJsonEvidenceShape(
   }
   if (artifact.id === 'remote_release_verification') {
     validateRemoteReleaseVerification(record, releaseCohort);
+  }
+  if (artifact.id === 'docker_webui_clean_vm_evidence') {
+    validateDockerWebuiCleanVmEvidence(record);
   }
 }

@@ -15,6 +15,7 @@ import {
   writeVmSmokeSummaryFiles,
   releaseEvidenceCohort,
   writeRemoteReleaseVerificationSummary,
+  writeDockerWebuiCleanVmEvidenceSummary,
 } from './helpers.ts';
 
 test('release evidence bundle validator accepts the declared Runtime page artifact set', () => {
@@ -42,6 +43,7 @@ test('release evidence bundle validator accepts the declared Runtime page artifa
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeRemoteReleaseVerificationSummary(tempRoot);
+  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
@@ -130,6 +132,7 @@ test('release evidence bundle validator rejects Codex functional checks without 
     })}\n`,
   );
   writeRemoteReleaseVerificationSummary(tempRoot);
+  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
@@ -171,6 +174,7 @@ test('release evidence bundle validator accepts optional Codex AI self-check dia
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeRemoteReleaseVerificationSummary(tempRoot);
+  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
@@ -190,6 +194,119 @@ test('release evidence bundle validator accepts optional Codex AI self-check dia
     'codex_ai_self_check_summary',
   ]);
   assert.equal(payload.missing_artifact_count, 0);
+});
+
+test('release evidence bundle validator requires Docker WebUI clean VM aggregate only on Docker publish path', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-docker-webui-'));
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const artifacts = [
+    ...releaseContract.operator_evidence_bundle.required_artifacts,
+    ...releaseContract.operator_evidence_bundle.conditional_artifacts,
+  ];
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'passed',
+    packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts: artifacts.map((artifact) => ({ ...artifact, status: 'present' })),
+    missing_evidence: [],
+    blocked_evidence: [],
+  }, null, 2)}\n`);
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeVmSmokeSummaryFiles(tempRoot);
+  writeAssistantRouteSmokeScreenshots(tempRoot);
+  writeRemoteReleaseVerificationSummary(tempRoot);
+  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+
+  const result = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+    '--require-conditional',
+    'docker_webui_clean_vm_evidence',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.status, 'passed');
+  assert.equal(payload.verified_artifact_count, 17);
+  assert.ok(payload.verified_artifacts.some((artifact) => artifact.id === 'docker_webui_clean_vm_evidence'));
+});
+
+test('release evidence bundle validator rejects Docker WebUI clean VM aggregate without Windows pass', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-docker-webui-missing-windows-'));
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const artifacts = [
+    ...releaseContract.operator_evidence_bundle.required_artifacts,
+    ...releaseContract.operator_evidence_bundle.conditional_artifacts,
+  ];
+  writeFile(path.join(tempRoot, 'evidence-manifest.json'), `${JSON.stringify({
+    schema_version: 1,
+    purpose: 'app_release_evidence_bundle',
+    status: 'passed',
+    packaged_app_evidence: true,
+    release_cohort: releaseEvidenceCohort(),
+    current_cohort_evidence: true,
+    acceptance_path: 'Runtime page',
+    runtime_page_contract: 'contracts/app-page-state-matrix.json#runtime',
+    refs_only: true,
+    authority_boundary: 'refs_only_no_runtime_truth_domain_truth_artifact_or_quality_authority',
+    artifacts: artifacts.map((artifact) => ({ ...artifact, status: 'present' })),
+    missing_evidence: [],
+    blocked_evidence: [],
+  }, null, 2)}\n`);
+  writeRuntimeEvidenceJsonFiles(tempRoot);
+  writeVmSmokeSummaryFiles(tempRoot);
+  writeAssistantRouteSmokeScreenshots(tempRoot);
+  writeRemoteReleaseVerificationSummary(tempRoot);
+  writeDockerWebuiCleanVmEvidenceSummary(tempRoot, {
+    status: 'typed_blocker',
+    summaries: [
+      {
+        schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+        gate_id: 'clean_linux_vm',
+        status: 'passed',
+        artifact_name: 'same_job_ubuntu_clean_vm_generated',
+        result_path: 'clean_linux_vm/docker-webui-smoke-gate-result.json',
+        validation: { status: 'passed' },
+      },
+      {
+        schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+        gate_id: 'clean_windows_vm',
+        status: 'typed_blocker',
+        artifact_name: 'windows-clean-evidence',
+        result_path: 'clean_windows_vm/docker-webui-smoke-gate-result.json',
+        validation: { status: 'missing' },
+      },
+    ],
+  });
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
+  writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
+
+  const result = runNode([
+    'scripts/validate-release-evidence-bundle.ts',
+    '--bundle-dir',
+    tempRoot,
+    '--require-conditional',
+    'docker_webui_clean_vm_evidence',
+  ]);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /docker_webui_clean_vm_evidence must be passed/);
 });
 
 test('release evidence bundle validator fails closed for incomplete packaged App evidence', () => {
@@ -329,6 +446,7 @@ test('release evidence bundle validator classifies typed blockers and not-applic
   writeRuntimeEvidenceJsonFiles(tempRoot);
   writeVmSmokeSummaryFiles(tempRoot);
   writeRemoteReleaseVerificationSummary(tempRoot);
+  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
@@ -640,6 +758,7 @@ test('release evidence bundle validator requires known release cohort before pac
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeRemoteReleaseVerificationSummary(tempRoot);
+  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
@@ -681,6 +800,7 @@ test('release evidence bundle validator rejects remote verification from a diffe
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeRemoteReleaseVerificationSummary(tempRoot, '26.6.4');
+  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'runtime.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));
@@ -740,6 +860,7 @@ test('release evidence bundle validator rejects undersized WebP screenshot evide
   writeVmSmokeSummaryFiles(tempRoot);
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeRemoteReleaseVerificationSummary(tempRoot);
+  writeDockerWebuiCleanVmEvidenceSummary(tempRoot);
   writeWebpVp8x(path.join(tempRoot, 'screenshots', 'runtime.webp'), 1, 1);
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'full.png'));
   writeScreenshotPng(path.join(tempRoot, 'screenshots', 'action.png'));

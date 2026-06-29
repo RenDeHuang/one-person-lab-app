@@ -2028,6 +2028,16 @@
         "source_kind": "remote_release_verification"
       }
     ],
+    "conditional_artifacts": [
+      {
+        "id": "docker_webui_clean_vm_evidence",
+        "path": "docker-webui-clean-vm-evidence-validation.json",
+        "kind": "json",
+        "producer": "docker-webui-clean-vm-evidence job aggregate validation",
+        "source_kind": "docker_webui_clean_vm_evidence_validation",
+        "required_when": "publish_docker_webui"
+      }
+    ],
     "optional_diagnostic_artifacts": [
       {
         "id": "codex_ai_self_check_summary",
@@ -2183,6 +2193,7 @@
           ],
           "artifact_ids": [
             "remote_release_verification",
+            "docker_webui_clean_vm_evidence",
             "first_run_vm_summary",
             "guest_smoke_summary"
           ],
@@ -2236,7 +2247,8 @@
           "gate_ids": [
             "operator_evidence_bundle",
             "docker_webui",
-            "webui_ghcr_publish"
+            "webui_ghcr_publish",
+            "docker_webui_clean_vm_evidence"
           ]
         }
       ]

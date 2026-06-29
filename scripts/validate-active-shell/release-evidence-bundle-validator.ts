@@ -77,6 +77,13 @@ const requiredReleaseEvidenceArtifacts = {
 };
 
 const optionalReleaseEvidenceArtifacts = {
+  docker_webui_clean_vm_evidence: {
+    path: 'docker-webui-clean-vm-evidence-validation.json',
+    producer: 'docker-webui-clean-vm-evidence job aggregate validation',
+    kind: 'json',
+    source_kind: 'docker_webui_clean_vm_evidence_validation',
+    required_when: 'publish_docker_webui',
+  },
   codex_ai_self_check_summary: {
     path: 'artifacts/codex-ai-self-check-summary.json',
     producer: 'packaged GUI Codex AI-first post-install self-check',
@@ -192,6 +199,17 @@ function validateRequiredArtifacts(bundle) {
 }
 
 function validateOptionalDiagnosticArtifacts(bundle) {
+  const conditionalArtifactById = new Map((bundle.conditional_artifacts ?? []).map((artifact) => [artifact.id, artifact]));
+  const dockerCleanVmEvidence = conditionalArtifactById.get('docker_webui_clean_vm_evidence');
+  if (!dockerCleanVmEvidence) {
+    throw new Error('Operator evidence bundle missing conditional artifact docker_webui_clean_vm_evidence');
+  }
+  validateArtifactFields(
+    dockerCleanVmEvidence,
+    optionalReleaseEvidenceArtifacts.docker_webui_clean_vm_evidence,
+    'Operator evidence bundle conditional docker_webui_clean_vm_evidence',
+  );
+
   const optionalArtifactById = new Map((bundle.optional_diagnostic_artifacts ?? []).map((artifact) => [artifact.id, artifact]));
   const codexAiSelfCheck = optionalArtifactById.get('codex_ai_self_check_summary');
   if (!codexAiSelfCheck) {

@@ -709,6 +709,39 @@ export function writeRemoteReleaseVerificationSummary(tempRoot, version = '26.6.
   );
 }
 
+export function dockerWebuiCleanVmEvidenceSummary(fields = {}) {
+  const summaryForGate = (gateId, artifactName) => ({
+    schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+    gate_id: gateId,
+    status: 'passed',
+    artifact_name: artifactName,
+    result_path: `${gateId}/docker-webui-smoke-gate-result.json`,
+    validation: {
+      status: 'passed',
+    },
+    observed_at: '2026-06-30T00:00:00.000Z',
+    required_environment: gateId,
+  });
+  return {
+    schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+    status: 'passed',
+    required_gates: ['clean_linux_vm', 'clean_windows_vm'],
+    summaries: [
+      summaryForGate('clean_linux_vm', 'same_job_ubuntu_clean_vm_generated'),
+      summaryForGate('clean_windows_vm', 'windows-clean-evidence'),
+    ],
+    release_readiness_policy: 'clean Linux VM and clean Windows VM Docker WebUI evidence must validate as passed before release readiness aggregation',
+    ...fields,
+  };
+}
+
+export function writeDockerWebuiCleanVmEvidenceSummary(tempRoot, fields = {}) {
+  writeFile(
+    path.join(tempRoot, 'docker-webui-clean-vm-evidence-validation.json'),
+    `${JSON.stringify(dockerWebuiCleanVmEvidenceSummary(fields))}\n`,
+  );
+}
+
 export function sha256(content) {
   return crypto.createHash('sha256').update(content).digest('hex');
 }
