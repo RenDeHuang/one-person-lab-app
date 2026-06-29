@@ -905,6 +905,122 @@
     "source": "opl app state --profile fast --json",
     "refresh_source": "opl app state --profile fast --json",
     "policy": "Settings is the App-owned OPL Control Center information architecture, not an upstream AionUI configuration dump. The target top-level IA is Overview, Setup & Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced. Existing shell route ids general, access, capabilities, environment, storage, appearance, and advanced map to those groups. About is version-and-links only and remains a secondary Advanced surface. Update and Theme remain secondary pages or deep links, not independent ordinary top-level groups. Updates, repair, package maintenance, and service health live under Maintenance & Updates. Storage lifecycle and safe cleanup live under Data & Storage. Workspace is an independent ordinary setup concern, not a buried runtime diagnostic. Legacy upstream settings routes remain compatibility redirects only; they must not reappear as ordinary navigation.",
+    "settings_ia": {
+      "schema": "settings_ia.v1",
+      "authority": "one-person-lab-app",
+      "ordinary_route_ids": [
+        "general",
+        "access",
+        "capabilities",
+        "environment",
+        "appearance",
+        "advanced"
+      ],
+      "secondary_or_deep_link_route_ids": [
+        "storage",
+        "about",
+        "update",
+        "theme"
+      ],
+      "group_ids": [
+        "overview",
+        "setup_access",
+        "capabilities",
+        "maintenance",
+        "data_storage",
+        "preferences",
+        "advanced"
+      ],
+      "route_identity_policy": "keep_current_shell_route_ids_distinct_from_user_facing_ia_groups",
+      "route_promotion_policy": "secondary_or_deep_link_routes_must_not_be_promoted_to_ordinary_routes_without_contract_matrix_validator_and_test_updates",
+      "user_task_entries": [
+        {
+          "id": "model_account"
+        },
+        {
+          "id": "workspace"
+        },
+        {
+          "id": "maintenance_hub"
+        },
+        {
+          "id": "capability_status"
+        },
+        {
+          "id": "web_remote_access"
+        },
+        {
+          "id": "developer_profile_status"
+        },
+        {
+          "id": "external_tools_voice"
+        },
+        {
+          "id": "custom_assistant"
+        }
+      ],
+      "protocols": {
+        "issue_queue": {
+          "statuses": [
+            "needs_action",
+            "in_progress",
+            "resolved",
+            "blocked",
+            "dismissed"
+          ]
+        },
+        "action_catalog": {
+          "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json"
+        },
+        "card_protocol": {
+          "required_fields": [
+            "id",
+            "title",
+            "state",
+            "summary",
+            "recommended_action",
+            "last_checked_at",
+            "details_disclosure"
+          ]
+        },
+        "confirmation_drawer": {
+          "required_fields": [
+            "action_id",
+            "summary",
+            "will_change",
+            "will_not_change",
+            "rollback_or_receipt",
+            "requires_preview_or_proof"
+          ]
+        },
+        "post_update_notice": {
+          "required_fields": [
+            "component_id",
+            "result",
+            "receipt_ref",
+            "next_check",
+            "restart_or_reload_guidance"
+          ]
+        },
+        "diagnostics": {
+          "default_visibility": "collapsed_advanced_only"
+        },
+        "deep_link_policy": {
+          "unknown_route_policy": "redirect_to_nearest_app_owned_settings_group"
+        },
+        "visual_qa_expectations": {
+          "required_targets": [
+            "desktop_settings_overview",
+            "desktop_settings_access",
+            "desktop_settings_capabilities",
+            "desktop_settings_maintenance",
+            "desktop_settings_storage",
+            "desktop_settings_advanced",
+            "mobile_settings_section_nav"
+          ]
+        }
+      }
+    },
     "primary_tabs": {
       "general": {
         "label_zh": "总览",
