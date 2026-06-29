@@ -24,10 +24,32 @@ const settingsRegistryExpected = [
 ];
 
 const settingsModalExpected = [
+  'SettingsHost',
+  "defaultTab = 'general'",
+];
+
+const settingsHostExpected = [
   'buildSettingsModalMenuItems',
   'getSearchableSecondarySettingsModalItems',
+  'getSettingsRenderSlot',
   'normalizeOplSettingsTab',
-  "defaultTab = 'general'",
+  'ExtensionSettingsTabContent',
+  'SettingsShellAdapterSlot',
+  'data-testid=\'settings-host\'',
+];
+
+const settingsShellAdapterSlotExpected = [
+  'SettingsShellRenderSlot',
+  'OverviewSettings',
+  'WorkspaceSettings',
+  'LocalServicesSettings',
+  'RuntimeSettings',
+  'CapabilitiesSettingsContent',
+  'AccessSettingsContent',
+  'AppearanceModalContent',
+  'SystemModalContent',
+  'StorageSettings',
+  'withWrapper={false}',
 ];
 
 const settingsModalForbidden = [
@@ -90,6 +112,18 @@ function validateSettingsPartitionImplementation(shellPaths) {
     'Active shell settings modal App-owned control-plane slot',
   );
   assertTextExcludesAll(settingsModal, settingsModalForbidden, 'Active shell settings modal legacy ordinary settings entry');
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/settings/SettingsModal/SettingsHost.tsx',
+    settingsHostExpected,
+    'Active shell SettingsHost App-owned registry consumer',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/settings/SettingsModal/SettingsShellAdapterSlot.tsx',
+    settingsShellAdapterSlotExpected,
+    'Active shell SettingsShellAdapterSlot App-owned slot renderer',
+  );
 }
 
 function legacySettingsRouteTarget(legacyId, targetId) {

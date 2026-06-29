@@ -9,6 +9,25 @@
   "product_profile_projection_target": "settings.control_plane",
   "active_shell": "aionui",
   "shell_adapter_role": "render_host_and_route_adapter_only",
+  "shell_adapter_slot": {
+    "host_component": "SettingsHost",
+    "adapter_slot": "SettingsShellAdapterSlot",
+    "registry_source": "contracts/app-settings-control-plane.json",
+    "adapter_contract_ref": "contracts/app-shell-adapter.json#implementation_probes.settings_control_plane_shell_adapter_slot",
+    "shell_may_own": [
+      "container layout",
+      "tab switching",
+      "extension tab mount/keep-alive",
+      "route sync"
+    ],
+    "app_owns": [
+      "tab order",
+      "user semantics",
+      "OPL page slots",
+      "state/action sources",
+      "upstream intake classification"
+    ]
+  },
   "ordinary_visible_tabs": [
     "general",
     "access",
@@ -232,7 +251,7 @@
       "extension tab rendering fixes",
       "i18n plumbing fixes"
     ],
-    "adapt_through_adapter": [
+    "adapt": [
       "skills or tools settings",
       "assistant settings",
       "provider or model setup",
@@ -249,6 +268,22 @@
       "shell-owned product IA",
       "shell-owned runtime truth",
       "backend/provider raw selector as ordinary App setup"
+    ]
+  },
+  "upstream_intake_checklist": {
+    "policy": "classify_aionui_settings_upstream_before_registry_or_slot_changes",
+    "allowed_classifications": [
+      "accepted",
+      "adapt",
+      "redirect",
+      "reject"
+    ],
+    "required_steps": [
+      "record the upstream Settings surface and user-visible behavior",
+      "classify as accepted/adapt/redirect/reject before changing registry or slots",
+      "bind accepted/adapt entries to SettingsHost or SettingsShellAdapterSlot evidence",
+      "route redirect/reject entries through legacy redirects, extension anchor remap, or forbidden probes",
+      "keep runtime truth, domain truth, provider implementation, owner receipts, and release readiness outside the shell adapter"
     ]
   },
   "validation_policy": {

@@ -207,6 +207,29 @@
     ]
   },
   "implementation_probes": {
+    "settings_control_plane_shell_adapter_slot": {
+      "source": "settings_control_plane_contract",
+      "source_ref": "contracts/app-settings-control-plane.json",
+      "policy": "behavior_level_dom_or_registry_validation_preferred",
+      "source_probe_policy": "reserved_for_forbidden_surfaces_only",
+      "host_component": "SettingsHost",
+      "slots": {
+        "SettingsShellAdapterSlot": {
+          "role": "active_shell_settings_registry_and_render_slot_adapter",
+          "registry_source": "contracts/app-settings-control-plane.json",
+          "ordinary_route_source": "ordinary_routes",
+          "secondary_route_source": "secondary_pages",
+          "legacy_redirect_source": "legacy_route_redirects",
+          "extension_anchor_source": "extension_anchor_remap"
+        }
+      },
+      "required_evidence": [
+        "SettingsHost renders ordinary routes from the hydrated App settings registry",
+        "SettingsShellAdapterSlot mounts App-owned route slots without shell-owned product IA",
+        "legacy route redirects and extension anchor remaps are resolved before shell rendering",
+        "AionUI upstream settings intake is classified as accepted/adapt/redirect/reject before registry or slot changes"
+      ]
+    },
     "aionui_team_disabled_surface": {
       "source": "app_shell_upgrade_architecture_hardening",
       "policy": "fail_closed_required_for_active_shell_upgrade",

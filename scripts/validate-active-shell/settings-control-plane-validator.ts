@@ -59,6 +59,14 @@ const expectedSlotKeys = [
   'settings_advanced',
 ];
 
+const expectedUpstreamIntakeClassifications = ['accepted', 'adapt', 'redirect', 'reject'];
+const expectedSettingsAdapterEvidence = [
+  'SettingsHost renders ordinary routes from the hydrated App settings registry',
+  'SettingsShellAdapterSlot mounts App-owned route slots without shell-owned product IA',
+  'legacy route redirects and extension anchor remaps are resolved before shell rendering',
+  'AionUI upstream settings intake is classified as accepted/adapt/redirect/reject before registry or slot changes',
+];
+
 const matrixRouteScopes = {
   settings_general: appOwnedSettingsRouteScopes.settings_general,
   access: appOwnedSettingsRouteScopes.access,
@@ -136,6 +144,9 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
     expectedSlotKeys,
     'Settings control plane slot registry keys',
   );
+  validateHydratedSettingsRegistry(controlPlane);
+  validateSettingsShellAdapterSlotContract(controlPlane);
+  validateSettingsUpstreamIntake(controlPlane);
   if (controlPlane.default_route !== '/settings/general') {
     throw new Error('Settings control plane default route must be /settings/general');
   }
@@ -154,7 +165,7 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   validateSettingsIa(guiContract?.settings_navigation?.settings_ia);
   validateSettingsPageStateMatrix(pageStateMatrix);
   validateProductProfileSettings(productProfile, controlPlane);
-  validateOptionalSettingsShellAdapterSlot(adapterContract);
+  validateSettingsShellAdapterSlot(adapterContract);
 }
 
 export function validateSettingsControlPlaneBehavior({
@@ -173,8 +184,84 @@ export function validateSettingsControlPlaneBehavior({
     assertDeepEqualJson(productProfile.settings?.visible_tabs, appOwnedSettingsTabs, 'Product profile settings visible tabs');
   }
   if (adapterContract) {
-    validateOptionalSettingsShellAdapterSlot(adapterContract);
+    validateSettingsShellAdapterSlot(adapterContract);
   }
+}
+
+export function buildHydratedSettingsRegistry(controlPlane) {
+  return {
+    ordinary_routes: (controlPlane.ordinary_routes ?? []).map((route) => {
+      const slot = controlPlane.slot_registry?.[route.slot_id];
+      return {
+        id: route.id,
+        path: route.path,
+        route_scope: 'ordinary',
+        ia_group: route.ia_group,
+        slot_id: route.slot_id,
+        component_key: slot?.component_key ?? null,
+        wrapper_policy: slot?.wrapper_policy ?? null,
+      };
+    }),
+    secondary_pages: (controlPlane.secondary_pages ?? []).map((page) => {
+      const slot = controlPlane.slot_registry?.[page.slot_id];
+      return {
+        id: page.id,
+        path: page.path,
+        route_scope: page.visibility,
+        ia_group: page.ia_group,
+        slot_id: page.slot_id,
+        component_key: slot?.component_key ?? null,
+      };
+    }),
+    legacy_route_redirects: controlPlane.legacy_route_redirects ?? {},
+    extension_anchor_remap: controlPlane.extension_anchor_remap ?? {},
+  };
+}
+
+export function resolveSettingsControlPlaneRoute(controlPlane, routeId) {
+  const registry = buildHydratedSettingsRegistry(controlPlane);
+  const ordinaryRoute = registry.ordinary_routes.find((route) => route.id === routeId);
+  if (ordinaryRoute) {
+    return settingsRouteResolution(routeId, ordinaryRoute.id, ordinaryRoute, 'ordinary');
+  }
+  const secondaryRoute = registry.secondary_pages.find((route) => route.id === routeId);
+  if (secondaryRoute) {
+    return settingsRouteResolution(routeId, secondaryRoute.id, secondaryRoute, 'secondary_or_deep_link');
+  }
+  const redirectTarget = registry.legacy_route_redirects[routeId];
+  if (redirectTarget) {
+    const [targetId, query] = String(redirectTarget).split('?');
+    const targetRoute = registry.ordinary_routes.find((route) => route.id === targetId);
+    if (!targetRoute) {
+      throw new Error(`Settings legacy route ${routeId} redirects to unknown ordinary route ${targetId}`);
+    }
+    return settingsRouteResolution(
+      routeId,
+      targetRoute.id,
+      {
+        ...targetRoute,
+        path: query ? `${targetRoute.path}?${query}` : targetRoute.path,
+      },
+      'legacy_redirect',
+    );
+  }
+  return settingsRouteResolution(
+    routeId,
+    'advanced',
+    registry.ordinary_routes.find((route) => route.id === 'advanced'),
+    'unknown_redirect',
+  );
+}
+
+export function remapSettingsExtensionAnchor(controlPlane, anchorId) {
+  const remapped = controlPlane.extension_anchor_remap?.[anchorId];
+  if (remapped) {
+    return remapped;
+  }
+  if (controlPlane.extension_tab_policy?.unknown_anchor === 'treat_as_unanchored') {
+    return 'advanced';
+  }
+  throw new Error(`Settings extension anchor ${anchorId} is unknown`);
 }
 
 function validateCrossContractConsistency(controlPlane, guiContract, pageStateMatrix, productProfile) {
@@ -391,10 +478,103 @@ function validateProductProfileSettings(productProfile, controlPlane) {
   );
 }
 
-function validateOptionalSettingsShellAdapterSlot(adapterContract) {
+function validateHydratedSettingsRegistry(controlPlane) {
+  const registry = buildHydratedSettingsRegistry(controlPlane);
+  assertDeepEqualJson(
+    registry.ordinary_routes.map((route) => route.id),
+    appOwnedSettingsTabs,
+    'Hydrated Settings registry ordinary route ids',
+  );
+  assertDeepEqualJson(
+    registry.ordinary_routes.map((route) => route.component_key),
+    [
+      'OverviewSettings',
+      'AccessSettingsContent',
+      'CapabilitiesSettingsContent',
+      'RuntimeSettings',
+      'StorageSettings',
+      'AppearanceModalContent',
+      'SystemModalContent',
+    ],
+    'Hydrated Settings registry ordinary component keys',
+  );
+  assertDeepEqualJson(
+    registry.secondary_pages.map((route) => route.route_scope),
+    appOwnedSecondarySettingsPages.map(() => 'secondary_or_deep_link'),
+    'Hydrated Settings registry secondary route scopes',
+  );
+  for (const routeId of [...appOwnedSettingsTabs, ...appOwnedSecondarySettingsPages]) {
+    const resolution = resolveSettingsControlPlaneRoute(controlPlane, routeId);
+    if (!['ordinary', 'secondary_or_deep_link'].includes(resolution.route_scope)) {
+      throw new Error(`Settings route ${routeId} must resolve as ordinary or secondary/deep-link`);
+    }
+  }
+  for (const legacyRoute of Object.keys(expectedLegacyRedirects)) {
+    const redirectTarget = String(controlPlane.legacy_route_redirects[legacyRoute]).split('?')[0];
+    if (!appOwnedSettingsTabs.includes(redirectTarget)) {
+      throw new Error(`Settings legacy route ${legacyRoute} must target an ordinary route`);
+    }
+    if (
+      !appOwnedSecondarySettingsPages.includes(legacyRoute) &&
+      resolveSettingsControlPlaneRoute(controlPlane, legacyRoute).route_scope !== 'legacy_redirect'
+    ) {
+      throw new Error(`Settings legacy route ${legacyRoute} must resolve through the legacy redirect table`);
+    }
+    if (!appOwnedSettingsTabs.includes(remapSettingsExtensionAnchor(controlPlane, legacyRoute))) {
+      throw new Error(`Settings extension anchor ${legacyRoute} must remap to an ordinary route`);
+    }
+  }
+}
+
+function validateSettingsShellAdapterSlotContract(controlPlane) {
+  const slot = controlPlane.shell_adapter_slot;
+  if (slot?.host_component !== 'SettingsHost') {
+    throw new Error('Settings control plane shell adapter slot must declare SettingsHost');
+  }
+  if (slot?.adapter_slot !== 'SettingsShellAdapterSlot') {
+    throw new Error('Settings control plane shell adapter slot must declare SettingsShellAdapterSlot');
+  }
+  if (slot?.registry_source !== settingsControlPlaneContractRef) {
+    throw new Error('SettingsHost must consume the App Settings control plane contract');
+  }
+  assertDeepEqualJson(
+    slot?.shell_may_own,
+    ['container layout', 'tab switching', 'extension tab mount/keep-alive', 'route sync'],
+    'SettingsShellAdapterSlot shell_may_own',
+  );
+  assertDeepEqualJson(
+    slot?.app_owns,
+    ['tab order', 'user semantics', 'OPL page slots', 'state/action sources', 'upstream intake classification'],
+    'SettingsShellAdapterSlot app_owns',
+  );
+}
+
+function validateSettingsUpstreamIntake(controlPlane) {
+  const checklist = controlPlane.upstream_intake_checklist;
+  if (checklist?.policy !== 'classify_aionui_settings_upstream_before_registry_or_slot_changes') {
+    throw new Error('Settings upstream intake checklist must classify AionUI settings upstream before registry or slot changes');
+  }
+  assertDeepEqualJson(
+    checklist?.allowed_classifications,
+    expectedUpstreamIntakeClassifications,
+    'Settings upstream intake classifications',
+  );
+  assertDeepEqualJson(
+    Object.keys(controlPlane.upstream_intake_classification ?? {}),
+    expectedUpstreamIntakeClassifications,
+    'Settings upstream intake classification buckets',
+  );
+  for (const classification of expectedUpstreamIntakeClassifications) {
+    if (!Array.isArray(controlPlane.upstream_intake_classification[classification])) {
+      throw new Error(`Settings upstream intake classification ${classification} must be an array`);
+    }
+  }
+}
+
+function validateSettingsShellAdapterSlot(adapterContract) {
   const slot = adapterContract?.implementation_probes?.settings_control_plane_shell_adapter_slot;
   if (!slot) {
-    return;
+    throw new Error('Active shell adapter must declare settings_control_plane_shell_adapter_slot');
   }
   if (slot.source_ref !== settingsIaRef && slot.source_ref !== settingsControlPlaneContractRef) {
     throw new Error('Settings shell adapter slot must point to the Settings control plane or settings_ia contract');
@@ -405,6 +585,17 @@ function validateOptionalSettingsShellAdapterSlot(adapterContract) {
   if ((slot.source_probe_policy ?? '').includes('primary')) {
     throw new Error('Settings shell adapter slot must not make source-string probes the primary validation strategy');
   }
+  if (slot.host_component !== 'SettingsHost') {
+    throw new Error('Settings shell adapter slot must declare SettingsHost');
+  }
+  if (!slot.slots?.SettingsShellAdapterSlot) {
+    throw new Error('Settings shell adapter slot must declare SettingsShellAdapterSlot');
+  }
+  assertDeepEqualJson(
+    slot.required_evidence,
+    expectedSettingsAdapterEvidence,
+    'Settings shell adapter slot required evidence',
+  );
 }
 
 function assertKnownSettingsRoute(routeId, label) {
@@ -420,4 +611,16 @@ function pageById(matrix, id) {
     throw new Error(`Page-state matrix is missing ${id}`);
   }
   return page;
+}
+
+function settingsRouteResolution(input, targetId, route, routeScope) {
+  return {
+    input,
+    id: input,
+    target_id: targetId,
+    path: route?.path ?? '/settings/advanced',
+    route_scope: routeScope,
+    slot_id: route?.slot_id ?? 'settings_advanced',
+    component_key: route?.component_key ?? null,
+  };
 }

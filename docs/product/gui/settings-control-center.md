@@ -5,15 +5,17 @@ Purpose: `settings_control_center_product_design`
 State: `active_design_target`
 Machine boundary: Human-readable product design. Machine-readable truth lives in
 `contracts/app-gui-product-contract.json`,
+`contracts/app-settings-control-plane.json`,
 `contracts/app-page-state-matrix.json`, active shell source, validation scripts,
 and release/user-path evidence.
 
-Current validation boundary: `settings_ia.v1` in
-`contracts/app-gui-product-contract.json#settings_navigation.settings_ia` is the
-active Settings Control Plane behavior contract until the planned standalone
-`contracts/app-settings-control-plane.json` lands. Validators must treat that
-standalone file as a typed dependency (`waiting_for_control_plane_contract`), not
-as an implicit pass.
+Current validation boundary: `contracts/app-settings-control-plane.json` is the
+active Settings Control Plane contract. It hydrates the Settings registry,
+legacy redirect table, extension anchor remap, route behavior, state/action
+source policy, and `SettingsHost` / `SettingsShellAdapterSlot` adapter slot.
+`settings_ia.v1` in
+`contracts/app-gui-product-contract.json#settings_navigation.settings_ia` remains
+the App GUI source contract consumed by that control plane.
 
 ## Goal
 
@@ -49,11 +51,12 @@ Legacy routes such as `runtime`, `model`, `agent`, `assistants`, `skills-hub`,
 `tools`, `display`, `webui`, `pet`, and `system` remain compatibility redirects.
 They must not reappear as ordinary navigation.
 
-`settings_ia.v1` is the machine-readable boundary for this design. It lives at
+`contracts/app-settings-control-plane.json` is the machine-readable registry and
+route resolver for this design. It consumes `settings_ia.v1` at
 `contracts/app-gui-product-contract.json#settings_navigation.settings_ia` and
 is mirrored by route metadata in `contracts/app-page-state-matrix.json#pages`.
-The contract deliberately separates user-facing groups from current shell route
-ids:
+The control plane deliberately separates user-facing groups from current shell
+route ids:
 
 - ordinary route ids remain `general`, `access`, `capabilities`, `environment`,
   `storage`, `appearance`, and `advanced`;
@@ -308,11 +311,14 @@ Settings should feel like a quiet engineering control center:
 
 ## Maintainability Rules
 
-The App should not maintain several hidden copies of Settings IA. A
-machine-readable Settings IA contract should be the long-term source for:
+The App must not maintain several hidden copies of Settings IA.
+`contracts/app-settings-control-plane.json` is the long-term source for:
 
 - visible navigation groups and page ids;
 - route redirects;
+- extension anchor remaps;
+- `SettingsHost` / `SettingsShellAdapterSlot` ownership;
+- upstream intake classification before registry or slot changes;
 - i18n key coverage;
 - page-state matrix expectations;
 - validation fixtures and smoke route ids;
@@ -334,40 +340,54 @@ and diagnostics components so each part has one owner and one test surface.
 Settings validation is split into three layers:
 
 1. App behavior contracts: `scripts/validate-active-shell/settings-control-plane-validator.ts`
-   validates Settings Control Plane behavior from `settings_ia.v1`,
+   validates Settings Control Plane behavior from
+   `contracts/app-settings-control-plane.json`, `settings_ia.v1`,
    `contracts/app-page-state-matrix.json`, `contracts/app-product-profile.json`,
-   and the active shell adapter contract. This layer owns route ids, route
-   scopes, IA groups, task entries, action routing, confirmation protocols,
-   diagnostics visibility, post-update notice policy, and route promotion rules.
+   and the active shell adapter contract. This layer owns the hydrated registry
+   snapshot, ordinary and secondary route behavior, legacy redirects, extension
+   anchor remaps, route ids, route scopes, IA groups, task entries, action
+   routing, confirmation protocols, diagnostics visibility, post-update notice
+   policy, upstream intake classification, and route promotion rules.
 2. Shell adapter slot: active-shell validation may verify that the shell consumes
-   the App-owned Settings registry/profile slots and legacy redirects. This is a
-   slot and registry behavior check, not a source-code inventory of every
-   Settings component.
+   the App-owned Settings registry through `SettingsHost` and
+   `SettingsShellAdapterSlot`, including ordinary routes, secondary routes,
+   legacy redirects, and extension anchor remaps. This is a slot and registry
+   behavior check, not a source-code inventory of every Settings component.
 3. High-risk forbidden source probes: source-string probes remain appropriate
    only for rejected or dangerous upstream surfaces, including AionUI Team mode,
    Team MCP state, raw runtime/domain truth writes, owner receipt writes, silent
    dirty/developer checkout updates, and direct reads of OPL internal state
    files.
 
-When the standalone Settings Control Plane contract lands, it should be consumed
-by the same validator entry rather than creating a second validator family. Until
-then, a lane that requires that file should report
-`waiting_for_control_plane_contract` with the expected path and dependency owner.
-
 ## Upstream Intake Classification
 
-Incoming upstream Settings changes are classified before release:
+Incoming upstream AionUI Settings changes are classified before they enter the
+Settings registry, `SettingsHost`, or `SettingsShellAdapterSlot`:
 
-- `accepted`: implements an existing App-owned route, task entry, protocol, or
-  visual QA target without changing authority.
-- `redirected`: keeps an upstream route or affordance only as a compatibility
-  redirect to an App-owned Settings group.
-- `requires_app_contract`: introduces a new ordinary Settings task, route,
-  protocol, action, or release/user-path expectation. The App contract,
-  page-state matrix, validators, tests, and docs must move first.
-- `rejected`: exposes upstream-only configuration, Team mode, raw provider or
+- `accepted`: layout, styling, accessibility, i18n, flicker, and extension tab
+  rendering fixes that implement existing App-owned routes, task entries,
+  protocols, or visual QA targets without changing authority.
+- `adapt`: upstream skills/tools, assistant, provider/model, remote-access, or
+  route changes that can be consumed only through the App registry, adapter
+  slot, page-state matrix, and App action/state routes.
+- `redirect`: upstream setup shortcuts or raw configuration affordances that
+  remain only as compatibility redirects or extension-anchor remaps to an
+  App-owned Settings group.
+- `reject`: exposes upstream-only configuration, Team mode, raw provider or
   runtime internals, domain truth mutation, owner receipt mutation, silent
   developer checkout updates, or another forbidden ordinary-user surface.
+
+Fixed intake checklist:
+
+1. Record the upstream Settings surface and user-visible behavior.
+2. Classify it as `accepted`, `adapt`, `redirect`, or `reject` before changing
+   the Settings registry or adapter slot.
+3. Bind `accepted` and `adapt` entries to `SettingsHost` /
+   `SettingsShellAdapterSlot` evidence.
+4. Route `redirect` and `reject` entries through legacy redirects, extension
+   anchor remaps, or forbidden probes.
+5. Keep runtime truth, domain truth, provider implementation, owner receipts,
+   and release readiness outside the shell adapter.
 
 ## Verification Expectations
 
