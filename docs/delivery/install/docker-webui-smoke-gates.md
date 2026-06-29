@@ -142,6 +142,23 @@ npm run smoke:docker-webui:windows-clean-vm -- \
 Without `--evidence`, the Windows gate still writes a typed blocker rather than
 claiming the local host proved a clean Windows VM run.
 
+On the Windows VM, let the installer create the uploadable evidence skeleton:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 `
+  -Yes `
+  -NoOpen `
+  -EvidenceDir windows-clean-evidence
+```
+
+`-EvidenceDir` defaults diagnostics into `windows-clean-evidence/diagnostics`
+and writes `windows-clean-evidence/windows-smoke-evidence.json`. The installer
+also writes a placeholder `api-key-flow-evidence.json`; replace that placeholder
+with the WebUI-generated API key flow receipt after completing the first-run
+Access panel or Settings -> Access action. The App-side import gate rejects the
+placeholder, so the artifact cannot pass until the UI-only API key path has real
+receipt evidence.
+
 ## Diagnostic Directory
 
 Installer diagnostics must include:

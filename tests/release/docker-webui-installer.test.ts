@@ -9,6 +9,7 @@ import { validateDockerWebuiDiagnostics } from '../../scripts/validate-docker-we
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.sh');
+const windowsInstallerPath = path.join(appRoot, 'scripts', 'install-docker-webui.ps1');
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
 const diagnosticsFiles = [
   'metadata.txt',
@@ -254,6 +255,25 @@ test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', (
   assert.equal(payload.evidence.windows_evidence_dir, evidence);
   assert.equal(payload.evidence.windows_diagnostics_dir, path.join(evidence, 'diagnostics'));
   assert.equal(payload.evidence.windows_api_key_flow_evidence, path.join(evidence, 'api-key-flow-evidence.json'));
+});
+
+test('Docker/WebUI Windows installer writes an importable evidence skeleton without claiming API key flow', () => {
+  const script = fs.readFileSync(windowsInstallerPath, 'utf8');
+
+  assert.match(script, /\[string\]\$EvidenceDir/);
+  assert.match(script, /function Write-WindowsSmokeEvidence/);
+  assert.match(script, /schema = "opl_docker_webui_windows_smoke_evidence\.v1"/);
+  assert.match(script, /gate_id = "clean_windows_vm"/);
+  assert.match(script, /host_platform = "win32"/);
+  assert.match(script, /installer_command = \$installerCommand/);
+  assert.match(script, /diagnostics_dir = \$diagnosticsRelative/);
+  assert.match(script, /api_key_flow_evidence = \$apiKeyRelative/);
+  assert.match(script, /The App-side import gate intentionally rejects this placeholder/);
+  assert.match(script, /if \(-not \[string\]::IsNullOrWhiteSpace\(\$EvidenceDir\)\)/);
+  assert.match(script, /\$DiagnosticsDir = Join-Path \$resolvedEvidenceDir "diagnostics"/);
+  assert.match(script, /Write-WindowsSmokeEvidence -TargetDir \$resolvedEvidenceDir -DiagnosticsPath \$collectedDiagnosticsDir/);
+  assert.match(script, /Evidence member must stay inside EvidenceDir/);
+  assert.doesNotMatch(script, /OPENAI_API_KEY|ANTHROPIC_API_KEY|GFLABTOKEN/);
 });
 
 test('Docker/WebUI clean Windows smoke gate rejects incomplete Windows evidence', () => {

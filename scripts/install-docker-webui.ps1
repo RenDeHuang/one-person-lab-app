@@ -16,6 +16,7 @@ param(
   [string]$HealthUrl,
   [string]$DiagnosticsDir,
   [string]$DiagnosticsArchive,
+  [string]$EvidenceDir,
   [switch]$InstallPrerequisites,
   [switch]$NoOpen,
   [switch]$Foreground
@@ -617,6 +618,84 @@ function Collect-WebUiDiagnostics {
   return $TargetDir
 }
 
+function Convert-ToEvidenceRelativePath {
+  param(
+    [Parameter(Mandatory = $true)][string]$EvidenceRoot,
+    [Parameter(Mandatory = $true)][string]$PathValue
+  )
+
+  $root = [System.IO.Path]::GetFullPath($EvidenceRoot).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+  $full = [System.IO.Path]::GetFullPath($PathValue)
+  $isRoot = $full.Equals($root, [System.StringComparison]::OrdinalIgnoreCase)
+  $isChild = $full.StartsWith($root + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase) -or $full.StartsWith($root + [System.IO.Path]::AltDirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)
+  if (-not ($isRoot -or $isChild)) {
+    throw "Evidence member must stay inside EvidenceDir: $PathValue"
+  }
+  $relative = $full.Substring($root.Length).TrimStart([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+  return ($relative -replace "\\", "/")
+}
+
+function Write-WindowsSmokeEvidence {
+  param(
+    [Parameter(Mandatory = $true)][string]$TargetDir,
+    [Parameter(Mandatory = $true)][string]$DiagnosticsPath
+  )
+
+  if ([string]::IsNullOrWhiteSpace($TargetDir)) {
+    return
+  }
+  if ($DryRun) {
+    Write-Step "Dry run: would write Windows smoke evidence manifest in $TargetDir"
+    return
+  }
+
+  New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+  $manifestPath = Join-Path $TargetDir "windows-smoke-evidence.json"
+  $apiKeyEvidencePath = Join-Path $TargetDir "api-key-flow-evidence.json"
+  $readmePath = Join-Path $TargetDir "README.txt"
+  $diagnosticsRelative = Convert-ToEvidenceRelativePath -EvidenceRoot $TargetDir -PathValue $DiagnosticsPath
+  $apiKeyRelative = Convert-ToEvidenceRelativePath -EvidenceRoot $TargetDir -PathValue $apiKeyEvidencePath
+  $installerCommand = "powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 -Yes -NoOpen -DiagnosticsDir diagnostics -EvidenceDir ."
+  $manifest = [ordered]@{
+    schema = "opl_docker_webui_windows_smoke_evidence.v1"
+    gate_id = "clean_windows_vm"
+    status = "passed"
+    host_platform = "win32"
+    observed_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    installer_command = $installerCommand
+    diagnostics_dir = $diagnosticsRelative
+    api_key_flow_evidence = $apiKeyRelative
+  }
+  Set-Content -Path $manifestPath -Value ($manifest | ConvertTo-Json -Depth 4) -Encoding UTF8
+  if (-not (Test-Path -LiteralPath $apiKeyEvidencePath)) {
+    $placeholder = @(
+      "This file must be replaced by the WebUI API key flow receipt before import.",
+      "",
+      "Open the WebUI, complete the first-run Access panel or Settings -> Access API key action,",
+      "then export/copy api-key-flow-evidence.json into this directory.",
+      "",
+      "The App-side import gate intentionally rejects this placeholder."
+    ) -join "`n"
+    Write-DiagnosticText -PathValue $apiKeyEvidencePath -Content $placeholder
+  }
+  $readme = @(
+    "One Person Lab Docker/WebUI clean Windows VM evidence",
+    "",
+    "Upload this directory as the Windows clean VM evidence artifact after replacing",
+    "api-key-flow-evidence.json with the WebUI-generated receipt.",
+    "",
+    "Validate from the App repo:",
+    "npm run smoke:docker-webui:windows-clean-vm -- --evidence <this-directory> --artifacts tmp/docker-webui-smoke/windows-clean-import",
+    "",
+    "Expected files:",
+    "- windows-smoke-evidence.json",
+    "- diagnostics/",
+    "- api-key-flow-evidence.json"
+  ) -join "`n"
+  Write-DiagnosticText -PathValue $readmePath -Content $readme
+  Write-Step "Windows smoke evidence manifest written: $manifestPath"
+}
+
 function Wait-WebUiHealth {
   param(
     [Parameter(Mandatory = $true)][string]$Url,
@@ -682,6 +761,13 @@ $resolvedDataDir = Resolve-FullPath $DataDir
 $resolvedProjectsDir = Resolve-FullPath $ProjectsDir
 $composeDir = Split-Path -Parent $resolvedDataDir
 $composePath = Join-Path $composeDir "compose.yaml"
+$resolvedEvidenceDir = ""
+if (-not [string]::IsNullOrWhiteSpace($EvidenceDir)) {
+  $resolvedEvidenceDir = Resolve-FullPath $EvidenceDir
+  if ([string]::IsNullOrWhiteSpace($DiagnosticsDir)) {
+    $DiagnosticsDir = Join-Path $resolvedEvidenceDir "diagnostics"
+  }
+}
 $imageReference = Resolve-ImageReference -ImageName $Image -ImageTag $Tag -TagWasProvided $tagWasProvided
 if ([string]::IsNullOrWhiteSpace($HealthUrl)) {
   $HealthUrl = "http://localhost:$Port/"
@@ -719,6 +805,9 @@ try {
 }
 Wait-WebUiHealth -Url $url -TimeoutSeconds $HealthTimeoutSeconds -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port
 if (-not [string]::IsNullOrWhiteSpace($DiagnosticsDir) -or -not [string]::IsNullOrWhiteSpace($DiagnosticsArchive)) {
-  Collect-WebUiDiagnostics -Reason "requested" -TargetDir $DiagnosticsDir -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url | Out-Null
+  $collectedDiagnosticsDir = Collect-WebUiDiagnostics -Reason "requested" -TargetDir $DiagnosticsDir -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url
+  if (-not [string]::IsNullOrWhiteSpace($resolvedEvidenceDir)) {
+    Write-WindowsSmokeEvidence -TargetDir $resolvedEvidenceDir -DiagnosticsPath $collectedDiagnosticsDir
+  }
 }
 Open-WebUiBrowser -Url $url
