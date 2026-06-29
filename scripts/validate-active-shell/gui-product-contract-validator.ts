@@ -505,11 +505,14 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.about.must_show?.includes('Stable or Nightly channel')) {
     throw new Error('About page must show Stable or Nightly channel');
   }
-  if (!pages.about.must_show?.includes('Updates & Maintenance entry on About & Updates')) {
-    throw new Error('About page must link to Updates & Maintenance');
+  if (!pages.about.must_show?.includes('Maintenance link that routes update and repair actions to Control Center Maintenance')) {
+    throw new Error('About page must link update and repair actions to Control Center Maintenance');
   }
-  if (pages.about.managed_update_plane_ref !== 'managed_update_plane') {
-    throw new Error('About page must reference the managed update plane');
+  if (pages.about.managed_update_plane_ref) {
+    throw new Error('About page must not own the managed update plane');
+  }
+  if (!pages.about.must_not_show?.includes('update, repair, rollback, package maintenance, or storage cleanup controls on About')) {
+    throw new Error('About page must keep update, repair, rollback, package maintenance, and cleanup controls out of About');
   }
   validateManagedUpdatePageSurface(pages.update, 'App GUI Updates & Maintenance page');
   if (!pages.settings_theme.must_show?.includes('Default theme option') || !pages.settings_theme.must_show?.includes('Codex theme option')) {

@@ -883,19 +883,25 @@
         "BookForge module maintenance status alongside MAS/MAG/RCA/OMA",
         "ScholarSkills module maintenance status alongside MAS/MAG/RCA/OMA/BookForge",
         "OPL Packages state, capability exposure substatus, and recommended action",
-        "manual check/apply/repair/rollback mappings through opl update or App action routes"
+        "manual check/apply/repair/rollback mappings through opl update or App action routes",
+        "health summary for whether the local App foundation can run now",
+        "grouped Core, Runtime, Capabilities, and Maintenance sections",
+        "user-facing action language for checks, repairs, updates, and rollback",
+        "diagnostics collapsed by default with raw booleans, ids, paths, and receipts hidden",
+        "environment page placed under Control Center Maintenance",
+        "Local Environment limited to service health rather than broad local runtime preferences"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_environment",
       "sections": [
+        "health_summary",
         "core.codex",
         "provider.temporal",
         "modules",
         "module_maintenance",
-        "paths",
-        "release",
-        "managed_update_plane"
+        "managed_update_plane",
+        "diagnostics"
       ],
       "state_sections": [
         "core.codex",
@@ -918,7 +924,11 @@
         "dirty checkout overwrite as a repair action",
         "developer checkout/dirty checkout as a silent update target",
         "module maintenance writing runtime/domain truth or update receipts directly",
-        "Homebrew/global tool silent upgrade controls"
+        "Homebrew/global tool silent upgrade controls",
+        "raw booleans, ids, component ids, receipts, or payload details as ordinary first-screen Local Environment content",
+        "three equal maintenance buttons with shared ambiguous loading state",
+        "workspace directory as a buried Local Environment detail instead of an independent ordinary entry",
+        "appearance, language, startup, or tray preferences as Local Environment runtime health"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "managed_update_plane_ref": "contracts/app-release-channel.json#managed_update_plane",
@@ -965,7 +975,10 @@
         "owner_receipt_write_allowed": false,
         "developer_checkout_silent_update_allowed": false,
         "dirty_checkout_silent_update_allowed": false
-      }
+      },
+      "ia_group": "maintenance",
+      "health_center_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.health_center",
+      "maintenance_action_policy_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.maintenance_action_policy"
     },
     {
       "id": "storage",
@@ -976,7 +989,9 @@
         "conversation archive/export receipt and restore proof before delete can execute",
         "runtime pointer-prune dry-run plan before execute can remove unreferenced runtime roots",
         "log rotation dry-run candidates by age, count, and size before execute can remove logs",
-        "updater cache cleanup scoped to stale installer packages only"
+        "updater cache cleanup scoped to stale installer packages only",
+        "safe cleanup language: preview, archive, restore proof, prune plan, or rotate logs",
+        "Storage placed under Control Center Maintenance"
       ],
       "machine_source": "active shell local data lifecycle service",
       "refresh_source": "Settings / Storage refresh inventory",
@@ -996,9 +1011,11 @@
         "runtime/toolchain cleanup without current or rollback pointer protection",
         "log cleanup as proof that user artifacts were archived or deleted",
         "Homebrew/global tool silent cleanup controls",
-        "domain artifact bodies"
+        "domain artifact bodies",
+        "dangerous cleanup wording such as wipe, purge, nuke, or force delete as ordinary Storage copy"
       ],
-      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "ia_group": "maintenance"
     },
     {
       "id": "about",
@@ -1008,8 +1025,8 @@
         "GUI shell version",
         "OPL Framework revision",
         "Stable or Nightly channel",
-        "localized update status",
-        "Updates & Maintenance entry on About & Updates"
+        "documentation, release notes, support, and maintenance links",
+        "Maintenance link that routes update and repair actions to Control Center Maintenance"
       ],
       "machine_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
@@ -1022,14 +1039,15 @@
         "AionUI version as the App version",
         "raw i18n keys",
         "raw update error codes as user-facing copy",
-        "developer checkout as a silent update target"
+        "developer checkout as a silent update target",
+        "update, repair, rollback, package maintenance, or storage cleanup controls on About"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "sections": [
         "release",
-        "updates_and_maintenance"
+        "links"
       ],
-      "managed_update_plane_ref": "contracts/app-release-channel.json#managed_update_plane"
+      "ia_group": "advanced"
     },
     {
       "id": "update",
@@ -1154,7 +1172,8 @@
         "recent_actions",
         "skipped_reasons",
         "reload_guidance"
-      ]
+      ],
+      "ia_group": "maintenance"
     },
     {
       "id": "login",
@@ -1237,7 +1256,8 @@
       "state_sections": [
         "theme"
       ],
-      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "ia_group": "preferences"
     },
     {
       "id": "first_launch_readiness",
@@ -1359,7 +1379,7 @@
           "chinese_primary_labels": [
             "工作目录",
             "本机助手",
-            "访问权限"
+            "模型访问"
           ],
           "technical_label_policy": "map_initialize_item_ids_to_app_owned_beginner_labels_before_rendering_primary_area",
           "forbidden_primary_area_text": [
@@ -1387,6 +1407,7 @@
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_general",
       "sections": [
+        "control_center_summary",
         "workspace",
         "startup",
         "tray",
@@ -1401,13 +1422,17 @@
         "workspace root from app_state.paths",
         "startup and tray preferences as App product preferences",
         "language preference",
-        "short links to Access, Agents & Capabilities, Local Environment, and Project Progress"
+        "Control Center Overview positioning",
+        "workspace as an independent ordinary entry",
+        "short links to Getting Started, Capabilities, Maintenance, Preferences, Advanced, and Project Progress"
       ],
       "must_not_show": [
         "raw OPL internal state files",
-        "provider implementation internals as ordinary General settings"
+        "provider implementation internals as ordinary General settings",
+        "workspace buried only under Advanced diagnostics or raw paths"
       ],
-      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "ia_group": "overview"
     },
     {
       "id": "access",
@@ -1416,6 +1441,7 @@
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_access",
       "sections": [
+        "getting_started_summary",
         "codex_cli",
         "provider_readiness",
         "api_keys",
@@ -1431,14 +1457,16 @@
         "whether configured provider access can work now",
         "current permission meaning in user-facing language",
         "API key and base URL controls behind advanced disclosure",
-        "section-level refresh state"
+        "section-level refresh state",
+        "Getting Started placed under Control Center Getting Started"
       ],
       "must_not_show": [
         "raw base URL and token paths as first-screen content",
         "backend selector as ordinary App configuration",
         "WebUI as the primary access mental model"
       ],
-      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "ia_group": "getting_started"
     },
     {
       "id": "capabilities",
@@ -1493,7 +1521,8 @@
         "AionUI implementation skills such as aionui-skills",
         "OPL Meta Agent as a default Home assistant"
       ],
-      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "ia_group": "capabilities"
     },
     {
       "id": "advanced",
@@ -1520,7 +1549,8 @@
         "workspace path from app_state.paths",
         "logs path from app_state.paths",
         "OPL Flow Context",
-        "diagnostics and raw refs behind Advanced navigation"
+        "diagnostics and raw refs behind Advanced navigation",
+        "Advanced placed under Control Center Advanced"
       ],
       "must_not_show": [
         "delayed developer mode flip from a shell-local cache",
@@ -1528,7 +1558,8 @@
         "Developer Profile as ordinary first-level user setup",
         "single Developer Mode switch as the only capability expression"
       ],
-      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget"
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "ia_group": "advanced"
     }
   ],
   "gui_product_contract": "contracts/app-gui-product-contract.json",

@@ -125,7 +125,7 @@ export function validatePageStateMatrix(matrix, contract) {
   const localizationPolicy = firstLaunchPage.beginner_view_model?.localization_policy;
   assertIncludesAll(
     localizationPolicy?.chinese_primary_labels,
-    ['工作目录', '本机助手', '访问权限'],
+    ['工作目录', '本机助手', '模型访问'],
     'First-launch readiness beginner localization labels',
   );
   assertIncludesAll(

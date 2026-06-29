@@ -362,10 +362,8 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'access',
     'capabilities',
     'environment',
-    'storage',
     'appearance',
     'advanced',
-    'about',
   ]);
   assert.deepEqual(guiContract.settings_navigation.legacy_route_redirects, {
     overview: 'general',
@@ -420,13 +418,24 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   });
   assert.equal(guiContract.settings_navigation.source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
-  assert.equal(guiContract.settings_navigation.primary_tabs.general.label_zh, '通用');
-  assert.equal(guiContract.settings_navigation.primary_tabs.environment.label_en, 'Local Environment');
+  assert.equal(guiContract.settings_navigation.primary_tabs.general.label_zh, '总览');
+  assert.equal(guiContract.settings_navigation.primary_tabs.environment.label_en, 'Maintenance');
+  assert.deepEqual(guiContract.settings_navigation.secondary_page_ids, ['storage', 'about', 'update', 'theme']);
+  assert.deepEqual(guiContract.settings_navigation.ordinary_groups.map((group) => group.id), [
+    'overview',
+    'getting_started',
+    'capabilities',
+    'maintenance',
+    'preferences',
+    'advanced',
+  ]);
   assert.deepEqual(guiContract.settings_navigation.primary_tabs.storage, {
     label_zh: '存储',
     label_en: 'Storage',
-    role: 'local_data_lifecycle_inventory_and_cleanup',
-    primary_question: 'Which local data roots are using space, and which cleanup actions are safe?',
+    role: 'safe_local_data_lifecycle_inventory_and_cleanup',
+    primary_question: 'Which local data roots are using space, and which cleanup actions are safe after preview or proof?',
+    ia_group: 'maintenance',
+    ordinary_entry_policy: 'secondary_page_under_maintenance',
   });
   assert.equal(
     guiContract.pages.settings_storage.release_contract_ref,

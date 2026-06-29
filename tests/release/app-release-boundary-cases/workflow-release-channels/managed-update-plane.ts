@@ -636,6 +636,7 @@ test('managed update plane unifies updater status while preserving adapter autho
   assert.equal(environmentPage.managed_update_plane_ref, 'contracts/app-release-channel.json#managed_update_plane');
   assert.ok(environmentPage.must_show.includes('OPL Packages status and post-update sync status'));
   assert.ok(environmentPage.must_not_show.includes('Developer Profile checkout as a silent update target'));
-  assert.equal(aboutPage.managed_update_plane_ref, 'contracts/app-release-channel.json#managed_update_plane');
-  assert.ok(aboutPage.must_show.includes('Updates & Maintenance entry on About & Updates'));
+  assert.equal(aboutPage.managed_update_plane_ref, undefined);
+  assert.ok(aboutPage.must_show.includes('Maintenance link that routes update and repair actions to Control Center Maintenance'));
+  assert.ok(aboutPage.must_not_show.includes('update, repair, rollback, package maintenance, or storage cleanup controls on About'));
 });

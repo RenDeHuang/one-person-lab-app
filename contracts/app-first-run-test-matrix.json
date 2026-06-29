@@ -52,7 +52,9 @@
         "package_type": "docker_webui",
         "surface": "WebUI container logs or CLI-backed status"
       }
-    ]
+    ],
+    "event_stream_source_command": "opl system initialize --events --json",
+    "event_stream_policy": "explicit_configuration_or_diagnostics_only"
   },
   "scenarios": [
     {
@@ -83,12 +85,14 @@
         "first screen shows a plain readiness summary instead of a technical checklist as the dominant view",
         "primary action leads to /guid only after ready_to_launch is true",
         "workspace root, Codex CLI, and Codex config are the only primary steps",
-        "Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 访问权限 even when initialize checklist labels are English",
+        "Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 模型访问 even when initialize checklist labels are English",
         "Chinese locale first-run primary area does not expose Codex API Configuration, Unknown, Needs setup, raw setup_flow fields, or opl system commands",
         "access key entry uses beginner-facing 访问密钥 copy while keeping the narrow Codex configuration bridge underneath",
         "Full readiness and background maintenance remain visible after expanding technical details",
         "Homebrew, Node, Git, CLT, modules, provider, and runtime maintenance do not become the beginner primary terminal goals"
-      ]
+      ],
+      "event_stream_source_command": "opl system initialize --events --json",
+      "event_stream_policy": "explicit_configuration_or_diagnostics_only"
     },
     {
       "id": "full_first_install_clean_machine",

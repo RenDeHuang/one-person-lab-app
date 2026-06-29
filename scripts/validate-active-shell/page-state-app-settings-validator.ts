@@ -132,11 +132,14 @@ function validateAboutPage(matrix) {
   if (!aboutPage.must_show?.includes('Stable or Nightly channel')) {
     throw new Error('About page must show Stable or Nightly channel');
   }
-  if (!aboutPage.must_show?.includes('Updates & Maintenance entry on About & Updates')) {
-    throw new Error('About page must link to Updates & Maintenance');
+  if (!aboutPage.must_show?.includes('Maintenance link that routes update and repair actions to Control Center Maintenance')) {
+    throw new Error('About page must link update and repair actions to Control Center Maintenance');
   }
-  if (aboutPage.managed_update_plane_ref !== 'contracts/app-release-channel.json#managed_update_plane') {
-    throw new Error('About page must reference the App release managed update plane');
+  if (aboutPage.managed_update_plane_ref) {
+    throw new Error('About page must not own the App release managed update plane');
+  }
+  if (!aboutPage.must_not_show?.includes('update, repair, rollback, package maintenance, or storage cleanup controls on About')) {
+    throw new Error('About page must keep update, repair, rollback, package maintenance, and cleanup controls out of About');
   }
 }
 

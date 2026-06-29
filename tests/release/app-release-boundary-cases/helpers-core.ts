@@ -123,22 +123,26 @@ export const expectedAionuiTeamProbeIds = [
 export const expectedSettingsPageSections = {
   settings_general: {
     matrixId: 'settings_general',
-    sections: ['workspace', 'startup', 'tray', 'language'],
+    sections: ['control_center_summary', 'workspace', 'startup', 'tray', 'language'],
     mustShow: [
+      'Control Center Overview positioning',
+      'workspace as an independent ordinary entry',
       'workspace root from app_state.paths',
       'startup and tray preferences as App product preferences',
       'language preference',
-      'short links to Access, Agents & Capabilities, Local Environment, and Project Progress',
+      'short links to Getting Started, Capabilities, Maintenance, Preferences, Advanced, and Project Progress',
     ],
     mustNotShow: [
       'raw OPL internal state files',
       'provider implementation internals as ordinary General settings',
+      'workspace buried only under Advanced diagnostics or raw paths',
     ],
   },
   settings_access: {
     matrixId: 'access',
-    sections: ['codex_cli', 'provider_readiness', 'api_keys', 'webui_compatibility'],
+    sections: ['getting_started_summary', 'codex_cli', 'provider_readiness', 'api_keys', 'webui_compatibility'],
     mustShow: [
+      'Getting Started placed under Control Center Getting Started',
       'whether Codex CLI can run now',
       'whether configured provider access can work now',
       'current permission meaning in user-facing language',
@@ -172,7 +176,7 @@ export const expectedSettingsPageSections = {
   },
   settings_environment: {
     matrixId: 'environment',
-    sections: ['core.codex', 'provider.temporal', 'modules', 'module_maintenance', 'paths', 'release', 'managed_update_plane'],
+    sections: ['health_summary', 'core.codex', 'provider.temporal', 'modules', 'module_maintenance', 'managed_update_plane', 'diagnostics'],
     mustShow: [
       'Codex CLI version and default profile from app_state.core',
       'Temporal status from app_state.provider.temporal',
@@ -189,6 +193,12 @@ export const expectedSettingsPageSections = {
       'ScholarSkills module maintenance status alongside MAS/MAG/RCA/OMA/BookForge',
       'OPL Packages state, capability exposure substatus, and recommended action',
       'manual check/apply/repair/rollback mappings through opl update or App action routes',
+      'health summary for whether the local App foundation can run now',
+      'grouped Core, Runtime, Capabilities, and Maintenance sections',
+      'user-facing action language for checks, repairs, updates, and rollback',
+      'diagnostics collapsed by default with raw booleans, ids, paths, and receipts hidden',
+      'environment page placed under Control Center Maintenance',
+      'Local Environment limited to service health rather than broad local runtime preferences',
     ],
     mustNotShow: [
       'Med Deep Scientist as a default module',
@@ -201,12 +211,18 @@ export const expectedSettingsPageSections = {
       'developer checkout/dirty checkout as a silent update target',
       'module maintenance writing runtime/domain truth or update receipts directly',
       'Homebrew/global tool silent upgrade controls',
+      'raw booleans, ids, component ids, receipts, or payload details as ordinary first-screen Local Environment content',
+      'three equal maintenance buttons with shared ambiguous loading state',
+      'workspace directory as a buried Local Environment detail instead of an independent ordinary entry',
+      'appearance, language, startup, or tray preferences as Local Environment runtime health',
     ],
   },
   settings_storage: {
     matrixId: 'storage',
     sections: ['updater_cache', 'conversation_artifacts', 'runtime_toolchain', 'logs'],
     mustShow: [
+      'safe cleanup language: preview, archive, restore proof, prune plan, or rotate logs',
+      'Storage placed under Control Center Maintenance',
       'storage inventory for updater cache, conversation artifacts, runtime/toolchain, and logs',
       'path, exists, bytes, cleanup_mode, and silent_delete_allowed for each local data root',
       'conversation archive/export receipt and restore proof before delete can execute',
@@ -215,6 +231,7 @@ export const expectedSettingsPageSections = {
       'updater cache cleanup scoped to stale installer packages only',
     ],
     mustNotShow: [
+      'dangerous cleanup wording such as wipe, purge, nuke, or force delete as ordinary Storage copy',
       'silent conversation workdir deletion',
       'runtime/toolchain cleanup without current or rollback pointer protection',
       'log cleanup as proof that user artifacts were archived or deleted',
@@ -226,6 +243,7 @@ export const expectedSettingsPageSections = {
     matrixId: 'advanced',
     sections: ['developer_profile', 'paths', 'logs', 'opl_flow_context', 'diagnostics'],
     mustShow: [
+      'Advanced placed under Control Center Advanced',
       'Developer Profile effective state and capabilities from app_state.developer_profile',
       'Developer Profile explicit opt-in state for repo or local checkout source_channel',
       'workspace path from app_state.paths',

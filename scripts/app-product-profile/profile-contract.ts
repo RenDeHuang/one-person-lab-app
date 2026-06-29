@@ -32,7 +32,10 @@ const requiredDefaultPackagedSkillIds = [
 const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((skillId) => (
   !['mas', 'mag', 'rca', 'opl-bookforge'].includes(skillId)
 ));
-const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about'];
+const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced'];
+const appOwnedSecondarySettingsPages = ['storage', 'about', 'update', 'theme'];
+const appOwnedSettingsIaGroups = ['overview', 'getting_started', 'capabilities', 'maintenance', 'preferences', 'advanced'];
+const appOwnedSettingsPrimaryTabIds = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about'];
 const developerProfileCapabilityAxes = [
   'source_channel',
   'workspace_trust',
@@ -164,9 +167,19 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   ) {
     throw new Error('App product profile settings.legacy_route_redirects must route legacy AionUI settings to App-owned pages');
   }
-  const settingsIaKeys = Object.keys(profile.settings.settings_information_architecture ?? {});
-  if (JSON.stringify(settingsIaKeys) !== JSON.stringify(appOwnedSettingsTabs)) {
-    throw new Error('App product profile settings_information_architecture must describe every ordinary App settings tab');
+  const settingsIa = profile.settings.settings_information_architecture ?? {};
+  const groupIds = Array.isArray(settingsIa.ordinary_groups)
+    ? settingsIa.ordinary_groups.map((group) => group.id)
+    : [];
+  if (JSON.stringify(groupIds) !== JSON.stringify(appOwnedSettingsIaGroups)) {
+    throw new Error('App product profile settings_information_architecture must describe every Control Center IA group');
+  }
+  const primaryTabIds = Object.keys(settingsIa.primary_tabs ?? {});
+  if (JSON.stringify(primaryTabIds) !== JSON.stringify(appOwnedSettingsPrimaryTabIds)) {
+    throw new Error('App product profile settings_information_architecture.primary_tabs must describe every App settings page id');
+  }
+  if (JSON.stringify(settingsIa.secondary_page_ids ?? []) !== JSON.stringify(appOwnedSecondarySettingsPages)) {
+    throw new Error('App product profile settings_information_architecture.secondary_page_ids must declare secondary settings pages');
   }
   assertStringArray(profile.settings.environment_items, 'settings.environment_items');
   const developerProfile = profile.settings.developer_profile;
