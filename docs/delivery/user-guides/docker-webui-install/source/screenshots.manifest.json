@@ -1,0 +1,77 @@
+{
+  "schema": "opl_guide_screenshots_manifest.v1",
+  "guide_id": "docker-webui-install",
+  "status": "active",
+  "source_summary": {
+    "kind": "docker_webui_local_clean_profile_capture",
+    "locale": "zh-CN",
+    "browser_size": "1365x900",
+    "note": "Screenshots are Chinese WebUI captures produced from the Docker/WebUI guide flow. Release readiness remains governed by GHCR receipts and smoke artifacts, not this screenshot manifest."
+  },
+  "screenshots": [
+    {
+      "file": "01-browser-open-webui.png",
+      "role": "browser_open_webui",
+      "description": "WebUI browser screen after Docker container startup.",
+      "title": "WebUI browser screen after Docker container startup.",
+      "source_kind": "docker_webui_browser_capture",
+      "source": "docs/delivery/user-guides/docker-webui-install/assets/01-browser-open-webui.png",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "One Person Lab",
+        "设置"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "sha256": "8d391e0f83311518dfe99936121b217c834d4bf3b0d620fd181e8b42707d6e0f"
+    },
+    {
+      "file": "02-first-run-overview.png",
+      "role": "first_run_overview",
+      "description": "First-run overview showing persistent data and project workflow context.",
+      "title": "First-run overview showing persistent data and project workflow context.",
+      "source_kind": "docker_webui_browser_capture",
+      "source": "docs/delivery/user-guides/docker-webui-install/assets/02-first-run-overview.png",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "One Person Lab",
+        "项目"
+      ],
+      "width": 1179,
+      "height": 964,
+      "sha256": "7a279973e187e1943a97e022035d34e19c342733c6929502d748fcb67e684621"
+    },
+    {
+      "file": "03-access-key-config.png",
+      "role": "access_key_config",
+      "description": "Chinese access key configuration page in WebUI.",
+      "title": "Chinese access key configuration page in WebUI.",
+      "source_kind": "docker_webui_browser_capture",
+      "source": "docs/delivery/user-guides/docker-webui-install/assets/03-access-key-config.png",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "访问",
+        "密钥"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "sha256": "f8e9a3489d907ce7e6bdb8e5696b9cf8263edbbf1e2026457421248a60ca6b9a"
+    },
+    {
+      "file": "04-settings-entry.png",
+      "role": "settings_access_entry",
+      "description": "Chinese Settings page showing the Access entry.",
+      "title": "Chinese Settings page showing the Access entry.",
+      "source_kind": "docker_webui_browser_capture",
+      "source": "docs/delivery/user-guides/docker-webui-install/assets/04-settings-entry.png",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "设置",
+        "访问"
+      ],
+      "width": 1440,
+      "height": 1000,
+      "sha256": "308183694bde108e752105b609ef83f79dba206fa464caeb04cad340bc339e2c"
+    }
+  ]
+}

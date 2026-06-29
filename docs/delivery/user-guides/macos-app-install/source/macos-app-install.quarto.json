@@ -22,48 +22,6 @@
     "stable_install_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes",
     "recommended_first_install_asset": "One-Person-Lab-Full-<version>-mac-arm64.dmg"
   },
-  "assets": [
-    {
-      "file": "01-download-release.png",
-      "role": "download_release",
-      "description": "GitHub Release download page."
-    },
-    {
-      "file": "02-install-dmg.png",
-      "role": "install_dmg",
-      "description": "DMG drag-to-Applications installation screen."
-    },
-    {
-      "file": "03-codex-config-needed.png",
-      "role": "configure_access",
-      "description": "First-run access configuration screen."
-    },
-    {
-      "file": "04-first-run-checking.png",
-      "role": "first_run_check",
-      "description": "First-run environment check screen."
-    },
-    {
-      "file": "05-opl-ready-research-entry.png",
-      "role": "research_entry",
-      "description": "OPL ready state with research entry."
-    },
-    {
-      "file": "06-research-data-folder.png",
-      "role": "runtime_settings",
-      "description": "Local runtime and work directory settings."
-    },
-    {
-      "file": "07-first-research-entry.png",
-      "role": "first_research_task",
-      "description": "First research task entry."
-    },
-    {
-      "file": "08-opl-runtime-status.png",
-      "role": "runtime_status",
-      "description": "Runtime status and progress screen."
-    }
-  ],
   "required_terms": [
     "One Person Lab App 首次安装图文教程",
     "macOS App",
@@ -77,5 +35,12 @@
     "查看进度与结果",
     "截图与验证来源"
   ],
-  "forbidden_phrases": []
+  "forbidden_phrases": [],
+  "screenshots_manifest": "source/screenshots.manifest.json",
+  "publishing": {
+    "template": "opl-guide",
+    "preferred_pdf_engine": "typst",
+    "pdf_engine": "xelatex",
+    "pdf_engine_reason": "Quarto 1.9.38 Typst Book route currently fails in the default orange-book template on local smoke; xelatex remains the stable Chinese PDF engine until the OPL Typst template is hardened."
+  }
 }

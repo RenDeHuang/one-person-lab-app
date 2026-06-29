@@ -4,10 +4,15 @@
   "quarto_version": "1.9.38",
   "source_qmd": "docs/delivery/user-guides/macos-app-install/source/macos-app-install.guide.qmd",
   "manifest": "docs/delivery/user-guides/macos-app-install/source/macos-app-install.quarto.json",
+  "screenshots_manifest": "docs/delivery/user-guides/macos-app-install/source/screenshots.manifest.json",
   "generated_markdown": "docs/delivery/user-guides/macos-app-install/generated/macos-app-install.md",
   "output_html": "docs/public/macos-app-install/index.html",
   "output_pdf": "docs/public/macos-app-install/macos-app-install-detailed-guide.pdf",
   "quarto_project_dir": "tmp/quarto-guides/macos-app-install/project",
+  "publishing_template": "opl-guide",
+  "preferred_pdf_engine": "typst",
+  "pdf_engine": "xelatex",
+  "pdf_engine_reason": "Quarto 1.9.38 Typst Book route currently fails in the default orange-book template on local smoke; xelatex remains the stable Chinese PDF engine until the OPL Typst template is hardened.",
   "pdf_layout": "quarto_portrait_ebook",
   "pdf_pages": 12,
   "pdf_page_size_pts": {
@@ -26,7 +31,14 @@
       "width": 1920,
       "height": 1080,
       "sha256": "e0521671f3635e404f3f515bccde6542a97cea2a23b6edb7d9a5b84b9862ec4d",
-      "referenced": true
+      "referenced": true,
+      "source_kind": "macos_tart_vm_release_page_screencapture",
+      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.6.27",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "One Person Lab",
+        "Release"
+      ]
     },
     {
       "role": "install_dmg",
@@ -36,7 +48,14 @@
       "width": 1920,
       "height": 1080,
       "sha256": "7c115224fce0cde0b477d4830adbd950cf795a6fbaecfb0fa5c2aeca55933c6f",
-      "referenced": true
+      "referenced": true,
+      "source_kind": "macos_tart_vm_dmg_finder_screencapture",
+      "source": "/Volumes/One Person Lab 26.6.27-arm64 from /tmp/opl-guide-v26.6.27/One-Person-Lab-26.6.27-mac-arm64.dmg",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "One Person Lab",
+        "Applications"
+      ]
     },
     {
       "role": "configure_access",
@@ -46,7 +65,15 @@
       "width": 1536,
       "height": 912,
       "sha256": "d9390fc78b141972392cd441e6be5fbfa73694e3fd7ffe698053676c6bb9edc8",
-      "referenced": true
+      "referenced": true,
+      "source_kind": "macos_tart_vm_app_cdp_capture_missing_access_key",
+      "source": "artifacts/first-run-beginner.png from first-run-progress-vm-20260621-0025 missing access-key VM smoke",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "访问",
+        "密钥"
+      ],
+      "note": "Missing access-key scenario retained because the v26.6.27 guide artifact had codex_api_key_present=true and did not show the configuration card."
     },
     {
       "role": "first_run_check",
@@ -56,7 +83,14 @@
       "width": 1536,
       "height": 912,
       "sha256": "523ac9ed1d3f002ddbdadde8138437770a321fd327b785820cf6cba102e2b1db",
-      "referenced": true
+      "referenced": true,
+      "source_kind": "macos_tart_vm_app_cdp_capture",
+      "source": "artifacts/first-run-beginner.png from standard VM smoke",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "正在准备",
+        "可以开始"
+      ]
     },
     {
       "role": "research_entry",
@@ -66,7 +100,14 @@
       "width": 1536,
       "height": 912,
       "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
-      "referenced": true
+      "referenced": true,
+      "source_kind": "macos_tart_vm_app_cdp_capture",
+      "source": "artifacts/assistant-route-smoke/mas.png from standard VM smoke",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "科研",
+        "One Person Lab"
+      ]
     },
     {
       "role": "runtime_settings",
@@ -76,7 +117,15 @@
       "width": 1536,
       "height": 912,
       "sha256": "5314ff4fcba9bdd05d0a91f23dd8cdf30ba315ee8dd161f0c130170e1524df51",
-      "referenced": true
+      "referenced": true,
+      "source_kind": "rendered_opl_app_state_fixture",
+      "source": "docs/delivery/user-guides/macos-app-install/fixtures/runtime-environment-currentness.fixture.json",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "本机运行环境",
+        "工作目录"
+      ],
+      "note": "Re-rendered after the Full runtime currentness repair because the original v26.6.27 VM guide artifact captured stale packaged-runtime state and displayed unknown module statuses."
     },
     {
       "role": "first_research_task",
@@ -86,7 +135,14 @@
       "width": 1536,
       "height": 912,
       "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
-      "referenced": true
+      "referenced": true,
+      "source_kind": "macos_tart_vm_app_cdp_capture",
+      "source": "artifacts/assistant-route-smoke/mas.png from standard VM smoke",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "科研",
+        "任务"
+      ]
     },
     {
       "role": "runtime_status",
@@ -96,7 +152,14 @@
       "width": 1536,
       "height": 912,
       "sha256": "a52a08f7eeeaec21f22fa07c15d9d3f2751bcd8ff06f16a79ea9160d67974f35",
-      "referenced": true
+      "referenced": true,
+      "source_kind": "macos_tart_vm_app_cdp_capture",
+      "source": "artifacts/settings-pages/runtime-status.png from standard VM smoke",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "运行",
+        "状态"
+      ]
     }
   ],
   "required_terms": [

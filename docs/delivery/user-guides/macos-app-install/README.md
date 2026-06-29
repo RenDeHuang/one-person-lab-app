@@ -37,16 +37,18 @@ Source and verification files:
   canonical long-form guide body source for HTML, generated Markdown, and
   detailed PDF.
 - [`source/macos-app-install.quarto.json`](source/macos-app-install.quarto.json):
-  Quarto manifest for long-form HTML/PDF output paths, assets, required terms,
-  and validation boundaries.
+  Quarto manifest for long-form HTML/PDF output paths, publishing template,
+  screenshot manifest reference, required terms, and validation boundaries.
 - [`source/macos-app-install.guide.json`](source/macos-app-install.guide.json):
   structured slide source for the Marp PDF/PPTX walkthrough and its speaker
   notes. Keep this aligned with the QMD guide body when changing the user flow.
 - [`generated/macos-app-install-slides.md`](generated/macos-app-install-slides.md) and
   [`generated/macos-app-install-marp-theme.css`](generated/macos-app-install-marp-theme.css):
   generated Marp deck source and CSS theme for the shareable visual PDF/PPTX.
-- [`source/macos-app-install-assets.json`](source/macos-app-install-assets.json): screenshot
-  provenance, dimensions, and SHA256 manifest.
+- [`source/screenshots.manifest.json`](source/screenshots.manifest.json): canonical
+  screenshot provenance, dimensions, and SHA256 manifest for the Quarto guide.
+- [`source/macos-app-install-assets.json`](source/macos-app-install-assets.json): legacy
+  screenshot provenance input still consumed by the Marp slide generator.
 - `verification/macos-app-install-html-verification.json`,
   `verification/macos-app-install-slides-verification.json`, and
   `verification/macos-app-install-verification.json`: generated verification records.
@@ -70,10 +72,11 @@ Update flow:
 
 1. Refresh screenshots from the Chinese 1080p macOS VM guide artifact under
    `docs/delivery/user-guides/macos-app-install/assets/`, then update
-   `source/macos-app-install-assets.json` with
-   each screenshot source, width, height, and SHA256. The guide generators fail
-   if the PNGs do not match this manifest. Do not force a shared canvas size;
-   keep the VM/CDP output dimensions recorded per image.
+   `source/screenshots.manifest.json` with each screenshot source, width,
+   height, SHA256, locale, and expected UI text when available. The Quarto guide
+   generator fails if the PNGs do not match this manifest. Keep
+   `source/macos-app-install-assets.json` aligned until the slide deck is moved
+   from Marp to Quarto presentation.
 2. Update `source/macos-app-install.guide.qmd` when long-form user-facing copy,
    FAQ, artifact links, or detailed PDF text changes.
 3. Update `source/macos-app-install.guide.json` when the slide walkthrough,
@@ -88,5 +91,10 @@ Update flow:
    `verification/macos-app-install-slides-verification.json`, and
    `verification/macos-app-install-verification.json` before publishing.
 
-Long-form HTML/PDF rendering uses Quarto Book. Slides remain on Marp because the
-public PPTX and slide PDF are presentation artifacts, not long-form manuals.
+Long-form HTML/PDF rendering uses Quarto Book with the shared
+[`../../../publishing/templates/opl-guide`](../../../publishing/templates/opl-guide/)
+template. The preferred future guide PDF engine is Typst, but the current stable
+engine is XeLaTeX because the local Quarto 1.9.38 Typst Book smoke fails before
+the OPL Typst template is hardened for Chinese book output. Slides remain on
+Marp for now; the publishing target is to move PPTX/slide PDF generation onto
+Quarto presentation rather than maintaining a second long-term rendering stack.

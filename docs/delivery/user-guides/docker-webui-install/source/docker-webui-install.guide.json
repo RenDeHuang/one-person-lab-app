@@ -28,28 +28,6 @@
     "docker_desktop_windows_url": "https://docs.docker.com/desktop/setup/install/windows-install/",
     "docker_engine_ubuntu_url": "https://docs.docker.com/engine/install/ubuntu/"
   },
-  "assets": [
-    {
-      "file": "01-browser-open-webui.png",
-      "role": "browser_open_webui",
-      "description": "WebUI browser screen after Docker container startup."
-    },
-    {
-      "file": "02-first-run-overview.png",
-      "role": "first_run_overview",
-      "description": "First-run overview showing persistent data and project workflow context."
-    },
-    {
-      "file": "03-access-key-config.png",
-      "role": "access_key_config",
-      "description": "Chinese access key configuration page in WebUI."
-    },
-    {
-      "file": "04-settings-entry.png",
-      "role": "settings_access_entry",
-      "description": "Chinese Settings page showing the Access entry."
-    }
-  ],
   "required_terms": [
     "One Person Lab Docker/WebUI 一键安装教程",
     "Windows",
@@ -71,5 +49,12 @@
     "不声明公开 GHCR latest",
     "不声明公开 GHCR latest 或一键脚本已经线上发布",
     "这个文档是否证明 latest 已发布：不能"
-  ]
+  ],
+  "screenshots_manifest": "source/screenshots.manifest.json",
+  "publishing": {
+    "template": "opl-guide",
+    "preferred_pdf_engine": "typst",
+    "pdf_engine": "xelatex",
+    "pdf_engine_reason": "Quarto 1.9.38 Typst Book route currently fails in the default orange-book template on local smoke; xelatex remains the stable Chinese PDF engine until the OPL Typst template is hardened."
+  }
 }

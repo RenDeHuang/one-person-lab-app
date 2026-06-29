@@ -28,8 +28,15 @@ type GuideManifest = {
   book?: {
     chapters?: string[];
   };
+  publishing?: {
+    template?: string;
+    preferred_pdf_engine?: string;
+    pdf_engine?: string;
+    pdf_engine_reason?: string;
+  };
   download?: Record<string, string>;
-  assets: Array<{
+  screenshots_manifest?: string;
+  assets?: Array<{
     file: string;
     role: string;
     description: string;
@@ -39,6 +46,29 @@ type GuideManifest = {
   }>;
   required_terms: string[];
   forbidden_phrases?: string[];
+};
+
+type ScreenshotManifest = {
+  schema: string;
+  guide_id: string;
+  status: string;
+  source_summary?: unknown;
+  release_run?: unknown;
+  screenshots: Array<{
+    file: string;
+    role: string;
+    title?: string;
+    description: string;
+    source_kind?: string;
+    source?: string;
+    locale?: string;
+    browser_size?: string;
+    width?: number;
+    height?: number;
+    sha256?: string;
+    expected_ui_text?: string[];
+    note?: string;
+  }>;
 };
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -55,6 +85,8 @@ const assetsDir = path.join(guideDir, 'assets');
 const tempDir = path.join(appRoot, 'tmp', 'quarto-guides', guideId);
 const projectDir = path.join(tempDir, 'project');
 const outputDir = path.join(projectDir, '_book');
+const publishingRoot = path.join(appRoot, 'docs', 'publishing');
+const templatesRoot = path.join(publishingRoot, 'templates');
 
 const forbiddenSecretPatterns = [
   /sk-[A-Za-z0-9_-]{20,}/,
@@ -97,10 +129,50 @@ function loadManifest() {
   if (!manifest.title || !manifest.source_qmd || !manifest.output?.pdf || !manifest.output?.html) {
     throw new Error(`Quarto guide manifest is incomplete: ${relativeToApp(manifestPath)}`);
   }
-  if (!Array.isArray(manifest.assets)) {
-    throw new Error(`Quarto guide manifest must list assets: ${relativeToApp(manifestPath)}`);
+  if (!manifest.screenshots_manifest && !Array.isArray(manifest.assets)) {
+    throw new Error(`Quarto guide manifest must list screenshots_manifest or assets: ${relativeToApp(manifestPath)}`);
   }
   return manifest;
+}
+
+function screenshotManifestPath(manifest: GuideManifest) {
+  const relativePath = manifest.screenshots_manifest;
+  if (!relativePath) return null;
+  if (path.isAbsolute(relativePath) || relativePath.includes('..')) {
+    throw new Error(`screenshots_manifest must be relative to guide dir: ${relativePath}`);
+  }
+  return path.join(guideDir, relativePath);
+}
+
+function loadScreenshotManifest(manifest: GuideManifest): ScreenshotManifest {
+  const filePath = screenshotManifestPath(manifest);
+  if (!filePath) {
+    return {
+      schema: 'opl_guide_screenshots_manifest.v1',
+      guide_id: manifest.id,
+      status: 'legacy_inline_assets',
+      screenshots: manifest.assets ?? [],
+    };
+  }
+  const screenshots = readJson<ScreenshotManifest>(filePath);
+  if (screenshots.schema !== 'opl_guide_screenshots_manifest.v1') {
+    throw new Error(`Unsupported screenshot manifest schema for ${guideId}: ${screenshots.schema}`);
+  }
+  if (screenshots.guide_id !== manifest.id) {
+    throw new Error(`Screenshot manifest guide_id ${screenshots.guide_id} does not match ${manifest.id}`);
+  }
+  if (!Array.isArray(screenshots.screenshots) || screenshots.screenshots.length === 0) {
+    throw new Error(`Screenshot manifest must list screenshots: ${relativeToApp(filePath)}`);
+  }
+  for (const screenshot of screenshots.screenshots) {
+    if (screenshot.locale !== 'zh-CN') {
+      throw new Error(`Guide screenshot ${screenshot.file} must declare locale zh-CN`);
+    }
+    if (!Array.isArray(screenshot.expected_ui_text) || screenshot.expected_ui_text.length === 0) {
+      throw new Error(`Guide screenshot ${screenshot.file} must declare expected_ui_text`);
+    }
+  }
+  return screenshots;
 }
 
 function sourceQmdPath(manifest: GuideManifest) {
@@ -192,15 +264,17 @@ function referencedAssets(qmd: string) {
 }
 
 function validateAssets(manifest: GuideManifest, qmd: string) {
+  const screenshotManifest = loadScreenshotManifest(manifest);
+  const screenshots = screenshotManifest.screenshots;
   const refs = referencedAssets(qmd);
-  const declaredNames = new Set(manifest.assets.map((asset) => asset.file));
+  const declaredNames = new Set(screenshots.map((asset) => asset.file));
   for (const ref of refs) {
     if (!declaredNames.has(ref)) {
       throw new Error(`QMD references undeclared guide asset: ${ref}`);
     }
   }
 
-  return manifest.assets.map((asset) => {
+  return screenshots.map((asset) => {
     if (asset.file.includes('/') || asset.file.includes('\\')) {
       throw new Error(`Guide asset must be a plain filename: ${asset.file}`);
     }
@@ -228,6 +302,12 @@ function validateAssets(manifest: GuideManifest, qmd: string) {
       height: dimensions.height,
       sha256,
       referenced: refs.has(asset.file),
+      source_kind: asset.source_kind,
+      source: asset.source,
+      locale: asset.locale,
+      browser_size: asset.browser_size,
+      expected_ui_text: asset.expected_ui_text ?? [],
+      note: asset.note,
     };
   });
 }
@@ -253,9 +333,10 @@ function trimLineEndings(text: string) {
 }
 
 function writeProject(manifest: GuideManifest, qmd: string) {
+  const screenshotManifest = loadScreenshotManifest(manifest);
   fs.rmSync(projectDir, { recursive: true, force: true });
   fs.mkdirSync(path.join(projectDir, 'assets'), { recursive: true });
-  for (const asset of manifest.assets) {
+  for (const asset of screenshotManifest.screenshots) {
     fs.copyFileSync(path.join(assetsDir, asset.file), path.join(projectDir, 'assets', asset.file));
   }
   for (const chapter of sourceQmdPaths(manifest)) {
@@ -264,12 +345,56 @@ function writeProject(manifest: GuideManifest, qmd: string) {
     scanText(`QMD source ${chapter.source}`, expanded, manifest);
     fs.writeFileSync(path.join(projectDir, chapter.projectName), expanded, 'utf8');
   }
-  fs.writeFileSync(path.join(projectDir, '_quarto.yml'), quartoYaml(manifest), 'utf8');
-  fs.writeFileSync(path.join(projectDir, 'styles.scss'), stylesScss(), 'utf8');
-  fs.writeFileSync(path.join(projectDir, 'header.tex'), latexHeader(), 'utf8');
+  const template = loadPublishingTemplate(manifest);
+  fs.writeFileSync(path.join(projectDir, '_quarto.yml'), quartoYaml(manifest, template), 'utf8');
+  copyPublishingTemplateAssets(template);
 }
 
-function quartoYaml(manifest: GuideManifest) {
+type PublishingTemplate = {
+  id: string;
+  path: string;
+  htmlTheme: string;
+  cssFile: string;
+  headerFile: string;
+};
+
+function loadPublishingTemplate(manifest: GuideManifest): PublishingTemplate {
+  const templateId = manifest.publishing?.template ?? 'opl-guide';
+  if (templateId.includes('/') || templateId.includes('\\') || templateId.includes('..')) {
+    throw new Error(`Invalid publishing template id: ${templateId}`);
+  }
+  const templatePath = path.join(templatesRoot, templateId);
+  const configPath = path.join(templatePath, 'template.json');
+  if (!fs.existsSync(configPath)) {
+    throw new Error(`Publishing template does not exist: ${relativeToApp(configPath)}`);
+  }
+  const config = readJson<{ id: string; html_theme: string; css_file: string; latex_header: string }>(configPath);
+  if (config.id !== templateId) {
+    throw new Error(`Publishing template id mismatch in ${relativeToApp(configPath)}`);
+  }
+  return {
+    id: templateId,
+    path: templatePath,
+    htmlTheme: config.html_theme,
+    cssFile: config.css_file,
+    headerFile: config.latex_header,
+  };
+}
+
+function copyPublishingTemplateAssets(template: PublishingTemplate) {
+  fs.copyFileSync(path.join(template.path, template.cssFile), path.join(projectDir, 'styles.scss'));
+  fs.copyFileSync(path.join(template.path, template.headerFile), path.join(projectDir, 'header.tex'));
+}
+
+function activePdfEngine(manifest: GuideManifest) {
+  return manifest.publishing?.pdf_engine ?? 'xelatex';
+}
+
+function preferredPdfEngine(manifest: GuideManifest) {
+  return manifest.publishing?.preferred_pdf_engine ?? activePdfEngine(manifest);
+}
+
+function quartoYaml(manifest: GuideManifest, template: PublishingTemplate) {
   const font = process.env.OPL_APP_GUIDE_PDF_FONT || 'Noto Sans CJK SC';
   return `project:
   type: book
@@ -286,13 +411,13 @@ number-sections: false
 
 format:
   html:
-    theme: cosmo
+    theme: ${template.htmlTheme}
     css: styles.scss
     embed-resources: true
     title-block-banner: true
   pdf:
     documentclass: scrreprt
-    pdf-engine: xelatex
+    pdf-engine: ${activePdfEngine(manifest)}
     mainfont: "${font}"
     CJKmainfont: "${font}"
     geometry:
@@ -300,59 +425,6 @@ format:
     colorlinks: true
     include-in-header: header.tex
     fig-pos: H
-`;
-}
-
-function stylesScss() {
-  return `/*-- scss:defaults --*/
-$primary: #0f766e;
-$body-color: #101828;
-$link-color: #0b5f59;
-$font-family-sans-serif: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-
-/*-- scss:rules --*/
-body {
-  letter-spacing: 0;
-}
-
-h1, h2, h3 {
-  letter-spacing: 0;
-}
-
-img {
-  border: 1px solid #d8e0ea;
-  border-radius: 6px;
-}
-
-pre {
-  border-radius: 8px;
-}
-`;
-}
-
-function latexHeader() {
-  return String.raw`
-\usepackage{xcolor}
-\usepackage{fancyhdr}
-\usepackage{titlesec}
-\usepackage{enumitem}
-\usepackage{float}
-\definecolor{OPLTeal}{HTML}{0F766E}
-\definecolor{OPLInk}{HTML}{101828}
-\definecolor{OPLMuted}{HTML}{667085}
-\definecolor{OPLLine}{HTML}{D0D5DD}
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{6pt}
-\setlist[itemize]{topsep=2pt,itemsep=2pt,leftmargin=18pt}
-\titleformat{\section}{\Large\bfseries\color{OPLTeal}}{\thesection}{0.7em}{}
-\titleformat{\subsection}{\large\bfseries\color{OPLInk}}{\thesubsection}{0.7em}{}
-\pagestyle{fancy}
-\fancyhf{}
-\lhead{\small\color{OPLMuted}One Person Lab App}
-\rhead{\small\color{OPLMuted}Guide}
-\cfoot{\small\thepage}
-\renewcommand{\headrulewidth}{0.3pt}
-\renewcommand{\headrule}{\hbox to\headwidth{\color{OPLLine}\leaders\hrule height \headrulewidth\hfill}}
 `;
 }
 
@@ -434,10 +506,15 @@ function main() {
     quarto_version: quartoVersion,
     source_qmd: relativeToApp(sourceQmdPath(manifest)),
     manifest: relativeToApp(manifestPath),
+    screenshots_manifest: screenshotManifestPath(manifest) ? relativeToApp(screenshotManifestPath(manifest)!) : null,
     generated_markdown: relativeToApp(generatedMarkdownPath),
     output_html: relativeToApp(htmlOutputPath),
     output_pdf: relativeToApp(pdfOutputPath),
     quarto_project_dir: relativeToApp(projectDir),
+    publishing_template: manifest.publishing?.template ?? 'opl-guide',
+    preferred_pdf_engine: preferredPdfEngine(manifest),
+    pdf_engine: activePdfEngine(manifest),
+    pdf_engine_reason: manifest.publishing?.pdf_engine_reason ?? null,
     pdf_layout: 'quarto_portrait_ebook',
     pdf_pages: pages,
     pdf_page_size_pts: {
