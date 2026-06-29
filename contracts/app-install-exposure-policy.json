@@ -325,6 +325,104 @@
           "opl update plan --json"
         ],
         "rule": "Docker/WebUI presents a browser-first install experience; image updates and OPL-managed runtime/module updates are separate planes, and user state remains in mounted host directories."
+      },
+      "smoke_gate_contract": {
+        "status": "required_manual_or_workflow_gate_not_live_evidence",
+        "release_readiness_policy": "must_not_claim_release_ready_until_required_smoke_gates_have_fresh_artifacts_or_typed_blockers",
+        "workflow_artifact": "docker-webui-smoke-gate-contract.json",
+        "diagnostic_bundle_artifacts": [
+          "compose.yaml",
+          "docker ps",
+          "docker logs",
+          "http_health_readback",
+          "auth_user_readback",
+          "install_manifest_readback",
+          "projects_mount_readback"
+        ],
+        "health_check_surfaces": [
+          "http://localhost:3000/",
+          "http://localhost:3000/manifest.webmanifest",
+          "http://localhost:3000/api/auth/user",
+          "OnePersonLab/data/opl/state/install-manifest.json",
+          "OnePersonLab/projects"
+        ],
+        "required_gates": [
+          {
+            "id": "clean_linux_vm",
+            "environment": "clean_linux_vm",
+            "entrypoint": "install-docker-webui.sh --yes",
+            "docker_state": "docker_engine_preinstalled_or_installed_by_explicit_admin_prerequisite",
+            "data_state": "new_OnePersonLab_data_dir",
+            "execution_mode": "manual_or_workflow_vm_smoke",
+            "required_evidence": [
+              "installer_stdout_stderr",
+              "compose_yaml",
+              "docker_ps",
+              "container_logs",
+              "http_health_readback",
+              "auth_user_readback",
+              "install_manifest_readback",
+              "projects_mount_readback"
+            ]
+          },
+          {
+            "id": "clean_windows_vm",
+            "environment": "clean_windows_vm",
+            "entrypoint": "install-docker-webui.ps1 -Yes",
+            "docker_state": "docker_desktop_running_or_installed_by_explicit_administrator_prerequisite",
+            "data_state": "new_OnePersonLab_data_dir",
+            "execution_mode": "manual_or_workflow_vm_smoke",
+            "required_evidence": [
+              "powershell_stdout_stderr",
+              "compose_yaml",
+              "docker_ps",
+              "container_logs",
+              "http_health_readback",
+              "auth_user_readback",
+              "install_manifest_readback",
+              "projects_mount_readback"
+            ]
+          },
+          {
+            "id": "existing_docker",
+            "environment": "host_with_existing_docker_engine",
+            "entrypoint": "one_click_installer_against_existing_docker",
+            "docker_state": "existing_docker_must_be_reused_not_reinstalled",
+            "data_state": "new_OnePersonLab_data_dir",
+            "execution_mode": "workflow_smoke_or_manual_smoke",
+            "required_evidence": [
+              "docker_version",
+              "compose_yaml",
+              "container_logs",
+              "http_health_readback",
+              "auth_user_readback",
+              "install_manifest_readback",
+              "projects_mount_readback"
+            ]
+          },
+          {
+            "id": "existing_old_onepersonlab_data_dir",
+            "environment": "host_with_existing_OnePersonLab_data",
+            "entrypoint": "one_click_installer_against_existing_data_dir",
+            "docker_state": "docker_available",
+            "data_state": "existing_OnePersonLab_data_dir_must_be_preserved_or_migrated_without_delete",
+            "execution_mode": "manual_or_workflow_migration_smoke",
+            "required_evidence": [
+              "preexisting_data_inventory",
+              "migration_or_preservation_log",
+              "compose_yaml",
+              "container_logs",
+              "http_health_readback",
+              "install_manifest_readback",
+              "post_smoke_data_inventory"
+            ]
+          }
+        ],
+        "false_ready_boundary": {
+          "docs_or_contract_only_can_claim_release_ready": false,
+          "local_container_smoke_can_replace_clean_vm_smoke": false,
+          "missing_gate_must_be_typed_blocker": true
+        }
       }
     }
   ],

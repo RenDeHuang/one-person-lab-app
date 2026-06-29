@@ -245,6 +245,77 @@ function validateInstallerSurfaces(policy) {
       throw new Error(`Docker/WebUI install exposure must include status surface ${surface}`);
     }
   }
+  validateDockerWebuiSmokeGateContract(dockerWebui.smoke_gate_contract);
+}
+
+function validateDockerWebuiSmokeGateContract(contract) {
+  if (contract?.status !== 'required_manual_or_workflow_gate_not_live_evidence') {
+    throw new Error('Docker/WebUI smoke gate contract must not claim live evidence from docs/contracts alone');
+  }
+  if (contract.release_readiness_policy !== 'must_not_claim_release_ready_until_required_smoke_gates_have_fresh_artifacts_or_typed_blockers') {
+    throw new Error('Docker/WebUI smoke gate contract must block release-ready claims until required smoke evidence or typed blockers exist');
+  }
+  if (contract.workflow_artifact !== 'docker-webui-smoke-gate-contract.json') {
+    throw new Error('Docker/WebUI smoke gate contract must declare the workflow contract artifact');
+  }
+  assertIncludesAll(
+    contract.diagnostic_bundle_artifacts,
+    [
+      'compose.yaml',
+      'docker ps',
+      'docker logs',
+      'http_health_readback',
+      'auth_user_readback',
+      'install_manifest_readback',
+      'projects_mount_readback',
+    ],
+    'Docker/WebUI smoke diagnostic bundle artifacts',
+  );
+  assertIncludesAll(
+    contract.health_check_surfaces,
+    [
+      'http://localhost:3000/',
+      'http://localhost:3000/manifest.webmanifest',
+      'http://localhost:3000/api/auth/user',
+      'OnePersonLab/data/opl/state/install-manifest.json',
+      'OnePersonLab/projects',
+    ],
+    'Docker/WebUI smoke health check surfaces',
+  );
+  const gateById = new Map((contract.required_gates ?? []).map((gate) => [gate.id, gate]));
+  for (const gateId of ['clean_linux_vm', 'clean_windows_vm', 'existing_docker', 'existing_old_onepersonlab_data_dir']) {
+    const gate = gateById.get(gateId);
+    if (!gate) {
+      throw new Error(`Docker/WebUI smoke gate contract missing required gate ${gateId}`);
+    }
+    if (!String(gate.execution_mode ?? '').includes('smoke')) {
+      throw new Error(`Docker/WebUI smoke gate ${gateId} must declare a smoke execution mode`);
+    }
+    assertIncludesAll(
+      gate.required_evidence,
+      ['compose_yaml', 'container_logs', 'http_health_readback', 'install_manifest_readback'],
+      `Docker/WebUI smoke gate ${gateId} evidence`,
+    );
+  }
+  if (gateById.get('clean_linux_vm')?.entrypoint !== 'install-docker-webui.sh --yes') {
+    throw new Error('Docker/WebUI clean Linux VM gate must use the shell one-click installer');
+  }
+  if (gateById.get('clean_windows_vm')?.entrypoint !== 'install-docker-webui.ps1 -Yes') {
+    throw new Error('Docker/WebUI clean Windows VM gate must use the PowerShell one-click installer');
+  }
+  if (gateById.get('existing_docker')?.docker_state !== 'existing_docker_must_be_reused_not_reinstalled') {
+    throw new Error('Docker/WebUI existing Docker gate must require reusing existing Docker');
+  }
+  if (gateById.get('existing_old_onepersonlab_data_dir')?.data_state !== 'existing_OnePersonLab_data_dir_must_be_preserved_or_migrated_without_delete') {
+    throw new Error('Docker/WebUI old data dir gate must require preserve-or-migrate behavior');
+  }
+  if (
+    contract.false_ready_boundary?.docs_or_contract_only_can_claim_release_ready !== false ||
+    contract.false_ready_boundary?.local_container_smoke_can_replace_clean_vm_smoke !== false ||
+    contract.false_ready_boundary?.missing_gate_must_be_typed_blocker !== true
+  ) {
+    throw new Error('Docker/WebUI smoke gate false-ready boundary must forbid release-ready claims without fresh gate evidence');
+  }
 }
 
 function validateFirstRunUserPresentation(presentation) {

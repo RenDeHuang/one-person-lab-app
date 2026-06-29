@@ -8,15 +8,15 @@
   "pandoc_markdown": "tmp/pdfs/docker-webui-install/docker-webui-install.pandoc.md",
   "pandoc_header": "tmp/pdfs/docker-webui-install/docker-webui-install-header.tex",
   "pdf_layout": "portrait_ebook",
-  "pdf_pages": 10,
+  "pdf_pages": 11,
   "pdf_page_size_pts": {
     "width": 612,
     "height": 792
   },
-  "rendered_pages": 10,
+  "rendered_pages": 11,
   "rendered_dir": "tmp/pdfs/docker-webui-install/rendered",
-  "html_bytes": 17137,
-  "guide_steps": 7,
+  "html_bytes": 20950,
+  "guide_steps": 9,
   "screenshot_assets": [
     {
       "step": "open-browser",

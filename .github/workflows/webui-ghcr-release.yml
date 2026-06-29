@@ -146,6 +146,27 @@ jobs:
           fs.writeFileSync('/tmp/opl-webui-ghcr-publish.json', JSON.stringify(payload) + '\n');
           NODE
           }
+          node <<'NODE'
+          const fs = require('node:fs');
+          const policy = JSON.parse(fs.readFileSync('contracts/app-install-exposure-policy.json', 'utf8'));
+          const dockerWebui = policy.installer_surfaces.find((surface) => surface.surface === 'docker_webui');
+          const smokeGate = dockerWebui && dockerWebui.smoke_gate_contract;
+          if (!smokeGate) {
+            throw new Error('contracts/app-install-exposure-policy.json missing docker_webui.smoke_gate_contract');
+          }
+          const payload = {
+            status: 'contract_record_only_not_live_smoke_evidence',
+            source_policy: 'contracts/app-install-exposure-policy.json#installer_surfaces.docker_webui.smoke_gate_contract',
+            workflow_job: 'publish-webui-ghcr',
+            workflow_artifact: smokeGate.workflow_artifact,
+            required_gates: smokeGate.required_gates,
+            health_check_surfaces: smokeGate.health_check_surfaces,
+            diagnostic_bundle_artifacts: smokeGate.diagnostic_bundle_artifacts,
+            false_ready_boundary: smokeGate.false_ready_boundary,
+            note: 'This artifact declares required Docker/WebUI smoke gates. Clean Linux VM, clean Windows VM, existing Docker, and old OnePersonLab data-dir evidence must be supplied by fresh workflow/manual smoke artifacts or typed blockers before release-ready claims.',
+          };
+          fs.writeFileSync('/tmp/docker-webui-smoke-gate-contract.json', JSON.stringify(payload, null, 2) + '\n');
+          NODE
 
           docker build \
             --build-arg OPL_FRAMEWORK_REF="${{ inputs.framework_ref || 'main' }}" \
@@ -286,6 +307,7 @@ jobs:
             /tmp/opl-webui-projects-readback.txt
             /tmp/opl-webui-install-manifest.json
             /tmp/opl-webui-container.log
+            /tmp/docker-webui-smoke-gate-contract.json
           if-no-files-found: ignore
 
       - name: Upload WebUI GHCR publish summary

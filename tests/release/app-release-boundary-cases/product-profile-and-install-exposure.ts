@@ -508,6 +508,43 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     dockerWebui.installer_model.online_availability_claim_policy,
     'repo_contract_and_artifacts_only_until_release_or_publish_receipt_exists',
   );
+  assert.equal(dockerWebui.smoke_gate_contract.status, 'required_manual_or_workflow_gate_not_live_evidence');
+  assert.equal(
+    dockerWebui.smoke_gate_contract.release_readiness_policy,
+    'must_not_claim_release_ready_until_required_smoke_gates_have_fresh_artifacts_or_typed_blockers',
+  );
+  assert.equal(dockerWebui.smoke_gate_contract.workflow_artifact, 'docker-webui-smoke-gate-contract.json');
+  assert.deepEqual(
+    dockerWebui.smoke_gate_contract.required_gates.map((gate) => gate.id),
+    ['clean_linux_vm', 'clean_windows_vm', 'existing_docker', 'existing_old_onepersonlab_data_dir'],
+  );
+  assert.equal(
+    dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'clean_linux_vm').entrypoint,
+    'install-docker-webui.sh --yes',
+  );
+  assert.equal(
+    dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'clean_windows_vm').entrypoint,
+    'install-docker-webui.ps1 -Yes',
+  );
+  assert.equal(
+    dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'existing_docker').docker_state,
+    'existing_docker_must_be_reused_not_reinstalled',
+  );
+  assert.equal(
+    dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'existing_old_onepersonlab_data_dir').data_state,
+    'existing_OnePersonLab_data_dir_must_be_preserved_or_migrated_without_delete',
+  );
+  for (const gate of dockerWebui.smoke_gate_contract.required_gates) {
+    assert.ok(gate.required_evidence.includes('compose_yaml'), `${gate.id} must require compose evidence`);
+    assert.ok(gate.required_evidence.includes('container_logs'), `${gate.id} must require container logs`);
+    assert.ok(gate.required_evidence.includes('http_health_readback'), `${gate.id} must require HTTP health readback`);
+    assert.ok(gate.required_evidence.includes('install_manifest_readback'), `${gate.id} must require install manifest readback`);
+  }
+  assert.deepEqual(dockerWebui.smoke_gate_contract.false_ready_boundary, {
+    docs_or_contract_only_can_claim_release_ready: false,
+    local_container_smoke_can_replace_clean_vm_smoke: false,
+    missing_gate_must_be_typed_blocker: true,
+  });
   assert.equal(policy.first_run_user_presentation.skill_plugin_distinction_visible_by_default, false);
   assert.deepEqual(policy.setup_flow_contract.ready_to_launch_required_core_items, [
     'workspace_root',
