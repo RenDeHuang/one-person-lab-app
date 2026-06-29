@@ -247,6 +247,11 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertMatches(vmWorkflow, /Prefetch Codex package install assets[\s\S]*?if:\s+\$\{\{ needs\.validate-vm-inputs\.outputs\.diagnostic_scope != 'bootstrap_only' \}\}/, 'bootstrap-only skips Codex asset prefetch');
   assertMatches(vmWorkflow, /Save Codex install asset cache[\s\S]*?diagnostic_scope != 'bootstrap_only'/, 'bootstrap-only skips Codex cache save');
   assertMatches(vmWorkflow, /if \[ "\$\{\{ needs\.validate-vm-inputs\.outputs\.diagnostic_scope \}\}" != "bootstrap_only" \]; then[\s\S]*?CMD\+=\(--settings-smoke\)[\s\S]*?CMD\+=\(--assistant-route-smoke\)[\s\S]*?CMD\+=\(--codex-functional-check\)[\s\S]*?CMD\+=\(--codex-ai-self-check\)/, 'secondary release checks stay out of bootstrap-only diagnostics');
+  assertMatches(vmWorkflow, /id:\s+vm_smoke[\s\S]*?name:\s+Write first-run VM critical diagnostics[\s\S]*?vm-gate-failure-summary\.json[\s\S]*?vm-gate-failure-summary\.md/, 'VM harness writes critical failure diagnostics after smoke');
+  assertMatches(vmWorkflow, /const expectedNextAction =[\s\S]*?rerun_diagnostic_same_artifact[\s\S]*?expected_next_action:\s+expectedNextAction/, 'VM critical diagnostics point operators at same-artifact rerun diagnostics');
+  assertMatches(vmWorkflow, /truth_boundary: 'critical diagnostics are not release-ready evidence/, 'VM critical diagnostics must not become release-ready evidence');
+  assertMatches(vmWorkflow, /name:\s+Upload first-run VM critical diagnostics[\s\S]*?if:\s+\$\{\{ always\(\) \}\}[\s\S]*?if-no-files-found:\s+error[\s\S]*?retention-days:\s+7/, 'VM critical diagnostics upload is independent and fail-closed');
+  assertMatches(vmWorkflow, /name:\s+Upload first-run VM critical diagnostics[\s\S]*?name:\s+opl-first-run-vm-critical-diagnostics-\$\{\{[\s\S]*?name:\s+Upload first-run VM artifacts[\s\S]*?if-no-files-found:\s+warn/, 'large VM artifact upload remains separate and cannot mask critical diagnostics');
   assert.doesNotMatch(diagnosticWorkflow, /full-first-install-release|npm run release:publish/, 'diagnostic workflow must not rebuild or publish release assets');
   assertMatches(diagnosticWorkflow, /release-diagnostics-\$\{\{ inputs\.opl_version \}\}/, 'diagnostic workflow artifact');
 });

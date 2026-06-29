@@ -322,7 +322,16 @@ test('first-run VM workflow preserves App-side diagnostics and visible timeout c
   assert.match(job, /exit_code/);
   assert.match(job, /phase_timings/);
   assert.doesNotMatch(job, /--bootstrap-launch-diagnostics/);
+  assert.match(job, /id:\s+vm_smoke/);
+  assert.match(job, /Write first-run VM critical diagnostics[\s\S]*vm-gate-failure-summary\.json[\s\S]*vm-gate-failure-summary\.md/);
+  assert.match(job, /step_conclusion:\s+smokeConclusion/);
+  assert.match(job, /const expectedNextAction =[\s\S]*rerun_diagnostic_same_artifact[\s\S]*expected_next_action:\s+expectedNextAction/);
+  assert.match(job, /release_artifact_run_id:\s+releaseArtifactRunId/);
+  assert.match(job, /artifact_upload_failure_boundary:[\s\S]*critical_diagnostics_if_no_files_found: 'error'[\s\S]*large_vm_artifact_if_no_files_found: 'warn'/);
+  assert.match(job, /truth_boundary: 'critical diagnostics are not release-ready evidence/);
+  assert.match(job, /Upload first-run VM critical diagnostics[\s\S]*if:\s+\$\{\{ always\(\) \}\}[\s\S]*if-no-files-found:\s+error[\s\S]*retention-days:\s+7/);
   assert.match(job, /Upload first-run VM artifacts[\s\S]*?if:\s+\$\{\{ always\(\) \}\}/);
+  assert.match(job, /Upload first-run VM artifacts[\s\S]*?if-no-files-found:\s+warn/);
 
   const shellSmoke = fs.readFileSync(
     path.join(activeShellRoot, 'scripts', 'opl-first-run-vm-smoke.mjs'),

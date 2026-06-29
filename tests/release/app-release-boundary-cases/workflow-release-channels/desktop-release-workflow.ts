@@ -330,9 +330,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(vmWorkflow, /release_inputs:[\s\S]*diagnostic_scope: diagnosticScope/);
   assert.match(vmWorkflow, /Write first-run VM preflight summary/);
   assert.match(vmWorkflow, /deterministic release-blocking clean VM first launch/);
+  assert.match(vmWorkflow, /id:\s+vm_smoke/);
+  assert.match(vmWorkflow, /Write first-run VM critical diagnostics[\s\S]*vm-gate-failure-summary\.json[\s\S]*vm-gate-failure-summary\.md/);
+  assert.match(vmWorkflow, /release_artifact_name: process\.env\.RELEASE_ARTIFACT_NAME/);
+  assert.match(vmWorkflow, /release_artifact_run_id: releaseArtifactRunId/);
+  assert.match(vmWorkflow, /step_conclusion: smokeConclusion/);
+  assert.match(vmWorkflow, /const expectedNextAction =[\s\S]*rerun_diagnostic_same_artifact[\s\S]*expected_next_action: expectedNextAction/);
+  assert.match(vmWorkflow, /artifact_upload_failure_boundary:[\s\S]*critical_diagnostics_retention_days: 7[\s\S]*large_vm_artifact_if_no_files_found: 'warn'/);
+  assert.match(vmWorkflow, /truth_boundary: 'critical diagnostics are not release-ready evidence/);
+  assert.match(vmWorkflow, /Upload first-run VM critical diagnostics[\s\S]*if:\s+\$\{\{ always\(\) \}\}[\s\S]*if-no-files-found:\s+error[\s\S]*retention-days:\s+7/);
   assert.match(vmWorkflow, /--runtime-profile "\$\{\{ steps\.package_profile\.outputs\.runtime_profile \}\}"/);
   assert.match(vmWorkflow, /CMD\+=\(--guide-screenshots\)/);
   assert.match(vmWorkflow, /name:\s+opl-first-run-vm-\$\{\{\s*steps\.package_profile\.outputs\.profile \|\| needs\.validate-vm-inputs\.outputs\.package_profile\s*\}\}-\$\{\{\s*github\.run_id\s*\}\}/);
+  assert.match(vmWorkflow, /Upload first-run VM artifacts[\s\S]*name:\s+opl-first-run-vm-\$\{\{[\s\S]*if-no-files-found:\s+warn/);
   const vmSmokeScript = fs.readFileSync(
     path.join(activeShellRoot, 'scripts', 'opl-first-run-vm-smoke.mjs'),
     'utf8',
