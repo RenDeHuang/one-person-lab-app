@@ -484,7 +484,7 @@ function buildHtml(guide: DockerGuide) {
             <a class="button" href="${escapeHtml(guide.download.support_reference_url)}">查看部署参考</a>
             <a class="button secondary" href="docker-webui-install-detailed-guide.pdf">查看详细 PDF</a>
           </div>
-          <div class="command">${escapeHtml('Linux/macOS: sh ./install-docker-webui.sh  |  Windows PowerShell: powershell -ExecutionPolicy Bypass -File .\\Install-DockerWebUI.ps1')}</div>
+          <div class="command">${escapeHtml('Linux/macOS: sh ./scripts/install-docker-webui.sh  |  Windows PowerShell: powershell -ExecutionPolicy Bypass -File .\\scripts\\install-docker-webui.ps1')}</div>
         </div>
       </section>
       <div class="content">

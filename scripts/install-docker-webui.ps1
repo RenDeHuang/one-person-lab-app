@@ -12,7 +12,7 @@ param(
   [string]$DataDir,
   [string]$ProjectsDir,
   [switch]$NoOpen,
-  [switch]$Detach
+  [switch]$Foreground
 )
 
 Set-StrictMode -Version 3.0
@@ -227,7 +227,7 @@ function Invoke-DockerComposeUp {
   )
 
   $composeArgs = @("compose", "-f", $ComposePath, "up")
-  if ($Detach) {
+  if (-not $Foreground) {
     $composeArgs += "-d"
   }
 

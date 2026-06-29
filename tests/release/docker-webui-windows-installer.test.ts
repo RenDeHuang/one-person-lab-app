@@ -27,7 +27,7 @@ function runPwsh(args: string[]) {
 }
 
 test('Windows Docker/WebUI installer exposes the required small parameter surface', () => {
-  for (const parameter of ['DryRun', 'Yes', 'Port', 'Image', 'Tag', 'DataDir', 'ProjectsDir', 'NoOpen', 'Detach']) {
+  for (const parameter of ['DryRun', 'Yes', 'Port', 'Image', 'Tag', 'DataDir', 'ProjectsDir', 'NoOpen', 'Foreground']) {
     assert.match(installer, new RegExp(`\\$${parameter}\\b`), `missing -${parameter}`);
   }
 
@@ -84,7 +84,6 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
     '-ProjectsDir',
     path.join(tempRoot, 'projects'),
     '-NoOpen',
-    '-Detach',
   ]);
   assert.ok(dryRun, 'pwsh should be available for this test');
   assert.equal(dryRun.status, 0, dryRun.stderr || dryRun.stdout);

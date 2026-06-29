@@ -475,7 +475,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   );
   assert.equal(dockerWebui.installer_model.primary_user_path, 'one_click_installer');
   assert.equal(dockerWebui.installer_model.linux_macos_shell_script, 'install-docker-webui.sh');
-  assert.equal(dockerWebui.installer_model.windows_powershell_script, 'Install-DockerWebUI.ps1');
+  assert.equal(dockerWebui.installer_model.windows_powershell_script, 'install-docker-webui.ps1');
   assert.equal(dockerWebui.installer_model.compose_file, 'compose.yaml');
   assert.deepEqual(dockerWebui.installer_model.persistent_host_dirs, [
     'OnePersonLab/data',

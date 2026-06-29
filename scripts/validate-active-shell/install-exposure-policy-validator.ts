@@ -174,7 +174,7 @@ function validateInstallerSurfaces(policy) {
   if (dockerWebui.installer_model?.linux_macos_shell_script !== 'install-docker-webui.sh') {
     throw new Error('Docker/WebUI install exposure must declare the Linux/macOS shell installer script artifact');
   }
-  if (dockerWebui.installer_model?.windows_powershell_script !== 'Install-DockerWebUI.ps1') {
+  if (dockerWebui.installer_model?.windows_powershell_script !== 'install-docker-webui.ps1') {
     throw new Error('Docker/WebUI install exposure must declare the Windows PowerShell installer script artifact');
   }
   if (dockerWebui.installer_model?.compose_file !== 'compose.yaml') {

@@ -256,7 +256,7 @@
       "installer_model": {
         "primary_user_path": "one_click_installer",
         "linux_macos_shell_script": "install-docker-webui.sh",
-        "windows_powershell_script": "Install-DockerWebUI.ps1",
+        "windows_powershell_script": "install-docker-webui.ps1",
         "compose_file": "compose.yaml",
         "installer_outputs": [
           "host_data_dir",

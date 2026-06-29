@@ -55,10 +55,10 @@ macOS 桌面新手 -> DMG / Homebrew / macOS App 一键安装
 
 ```text
 Linux / macOS:
-sh ./install-docker-webui.sh
+sh ./scripts/install-docker-webui.sh
 
 Windows PowerShell:
-powershell -ExecutionPolicy Bypass -File .\Install-DockerWebUI.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\install-docker-webui.ps1
 
 安装器输出:
 OnePersonLab/data -> 容器 /data

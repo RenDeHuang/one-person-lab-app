@@ -46,6 +46,9 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /image: ghcr\.io\/gaofeng21cn\/one-person-lab-webui:26\.6\.30/);
   assert.match(result.stdout, /"127\.0\.0\.1:3917:3000"/);
+  assert.match(result.stdout, /AIONUI_ALLOW_REMOTE: "true"/);
+  assert.match(result.stdout, /AIONUI_DATA_DIR: \/data/);
+  assert.match(result.stdout, /OPL_PROJECTS_DIR: \/projects/);
   assert.match(result.stdout, new RegExp(`${home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/data-dir:/data`));
   assert.match(result.stdout, new RegExp(`${home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/projects-dir:/projects`));
   assert.match(result.stdout, /docker compose -f .*compose\.yaml up -d/);

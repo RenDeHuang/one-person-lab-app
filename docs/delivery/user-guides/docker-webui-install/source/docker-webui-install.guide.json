@@ -59,10 +59,10 @@
       "visual_title": "一键命令",
       "visual_lines": [
         "Linux / macOS:",
-        "sh ./install-docker-webui.sh",
+        "sh ./scripts/install-docker-webui.sh",
         "",
         "Windows PowerShell:",
-        "powershell -ExecutionPolicy Bypass -File .\\Install-DockerWebUI.ps1",
+        "powershell -ExecutionPolicy Bypass -File .\\scripts\\install-docker-webui.ps1",
         "",
         "安装器输出:",
         "OnePersonLab/data -> 容器 /data",
