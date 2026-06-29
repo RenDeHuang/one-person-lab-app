@@ -432,11 +432,41 @@ package build time and reuse, but it cannot make a release-ready or
 runtime-ready claim without the same-cohort release gates and owner-resolution
 surface.
 
-Timing review must keep two clocks separate. Do not compare agent orchestration wall time to GitHub Actions workflow wall time.
-GitHub Actions workflow wall time is the release execution KPI; agent
-orchestration wall time includes waiting on runs, artifact downloads, local
-readback, documentation, validation, commit/push/cleanup, and tool/model round
-trips.
+Timing review must keep two clocks separate. Do not compare agent orchestration
+wall time to GitHub Actions workflow wall time. GitHub Actions workflow wall
+time is the release execution KPI; agent orchestration wall time includes
+waiting on runs, artifact downloads, local readback, documentation, validation,
+commit/push/cleanup, and tool/model round trips.
+
+Track release profiling from the same cohort artifacts instead of reconstructing
+it from chat or terminal scrollback:
+
+- `workflow_wall_time_seconds` from GitHub Actions run timestamps: the workflow
+  execution KPI.
+- `agent_orchestration_wall_time_seconds` from `--agent-wall-time` or
+  agent start/finish timestamps: the operator-loop KPI.
+- Phase elapsed from job/step timing, `release-monitor.json#state`, and
+  `recommended_next_action`: the one-screen blocker and next-action readout.
+- DORA-style lead time: first accepted release-cohort SHA freeze to stable/latest
+  publication or owner-recorded stop.
+- DORA-style MTTR: first same-cohort failed gate or typed blocker to a passing
+  same-cohort gate, diagnostic classification, owner resolution, or explicit
+  abort.
+- DORA-style change failure: same-cohort runs that fail a required gate, become
+  stale, need owner-blocker resolution, or publish with post-publish follow-up.
+
+Passing tests, green source gates, or a successful Docker/WebUI publish are
+inputs to those metrics. They are not release-ready, stable/latest, runtime
+truth, or owner-acceptance claims unless the same-cohort release artifacts and
+release-owner refs support that exact claim.
+
+This release flow intentionally folds external CI/CD practice into local owner
+surfaces instead of importing a separate release system. DORA-style metrics are
+derived only from same-cohort release artifacts; SRE-style monitoring is applied
+as a simple no-watch operator readout that names the symptom, primary blocker,
+and next action; GitHub Actions job/step timing and timeout boundaries are used
+as phase budgets and diagnostics, while release truth remains the candidate
+record, owner receipt, and same-cohort evidence.
 
 Every desktop release run now produces the closeout by default in the final
 `release-readiness-summary` job. That job writes and uploads
@@ -491,6 +521,35 @@ When run locally, the command writes ignored outputs under
 and diagnostic artifacts unless `--no-download` is passed, and can record the
 Agent orchestration wall time with `--agent-wall-time <duration>`.
 
+No-watch operator runbook:
+
+1. Read the current run once:
+
+   ```bash
+   npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha> --output release-operator-state.json --markdown release-operator-state.md
+   ```
+
+2. Read the closeout monitor when the artifact exists:
+
+   ```bash
+   gh run download <github-actions-run-id> --repo gaofeng21cn/one-person-lab-app --name release-closeout-<version> --dir artifacts/release-closeout/v<version>-<github-actions-run-id>
+   jq '{state, run: .run, next: .recommended_next_action, failed_gate_count, failed_job_count}' artifacts/release-closeout/v<version>-<github-actions-run-id>/release-monitor.json
+   ```
+
+3. Decide from one screen:
+   `release-operator-state.json#status` or `release-monitor.json#state` gives
+   the current phase (`running`, `failed_gate_draining`, `failed`,
+   `stale_candidate`, `ready_to_promote`, `published`, or
+   `published_with_post_publish_followup`); `run.workflow_wall_time_seconds` and
+   job/step timings give elapsed time; `primary_blocker` or failed gate counts
+   name the blocker; `recommended_next_action.action` and
+   `recommended_next_action.command` name the next action.
+
+4. Stop watching once the primary blocker or stale cohort is known. Use
+   `gh run view --log-failed` only for the named blocker after structured
+   state is missing or insufficient; do not keep an unbounded `gh run watch`
+   open while downstream jobs drain.
+
 Before dispatching a stable train from freshly synchronized OPL-family
 repositories, record the intended cohort:
 
@@ -522,6 +581,13 @@ failure it should report `failed_gate_draining` while downstream already-queued
 jobs settle, then `failed`, instead of asking the release owner to keep waiting
 on `gh run watch`.
 
+When a run's `headSha` no longer matches the expected App SHA, or when a newer
+same-version cohort supersedes it, treat the old run as stale. Its artifacts and
+logs can remain diagnostic background for the old cohort, but they cannot be
+promoted, patched into the new cohort, or reinterpreted as current release
+evidence. Re-freeze App/Shell/Framework refs, run the cohort plan again, and
+dispatch a new cohort.
+
 Desktop stable, WebUI GHCR, and diagnostics are separate lanes. Desktop stable
 owns the App package, updater metadata, Full first-install path, Homebrew gates,
 same-cohort candidate record, and stable/latest promotion. WebUI GHCR owns only
@@ -531,6 +597,15 @@ Diagnostics lanes are read-only or temporary-artifact harness runs for blocker
 classification; they can recommend repair or rerun actions but cannot publish,
 promote, update Homebrew, or convert old evidence into the current stable
 cohort.
+
+For example, Desktop Release run `28391573356` is desktop-stable evidence:
+preflight and source gate passed, then the standard clean VM smoke failed and
+the workflow fail-fast gate skipped Full, WebUI, Homebrew, evidence, and
+readiness jobs. WebUI GHCR run `28391599033` is WebUI/container evidence:
+its failure is a Docker/WebUI runtime image publish failure after its own source
+gate passed. Do not label that WebUI GHCR failure as an App source-gate failure
+or as a desktop stable install blocker unless a same-cohort desktop gate
+actually fails.
 
 Use `desktop-release-diagnostics.yml` for harness-only diagnosis before
 starting another full release train. It can run the first-run VM harness against

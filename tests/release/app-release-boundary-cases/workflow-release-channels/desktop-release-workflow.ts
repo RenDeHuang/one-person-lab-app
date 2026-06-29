@@ -582,6 +582,98 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     forbidden_wait_strategy: 'continue_waiting_on_gh_run_watch_after_primary_gate_failure',
     rule: 'After a critical release gate fails, operator status must report failed_gate_draining or failed with repair_source_gate or dispatch_new_cohort guidance instead of continuing to wait on gh run watch.',
   });
+  assert.deepEqual(releaseContract.release_acceleration.release_monitor, {
+    schema: 'opl_app_release_monitor.v1',
+    mode: 'no_watch',
+    surface: 'release_operator_status',
+    status_command: 'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>',
+    required_status_fields: [
+      'phase',
+      'state',
+      'current_job',
+      'current_step',
+      'elapsed_seconds',
+      'warning_after_seconds',
+      'timeout_after_seconds',
+      'primary_blocker',
+      'recommended_next_action',
+    ],
+    phase_budgets: {
+      vm_smoke: {
+        phase: 'vm_smoke',
+        jobs: [
+          'standard-first-run-vm-smoke-after-standard-only',
+          'standard-first-run-vm-smoke-after-full',
+          'homebrew-standard-first-run-vm-smoke',
+          'full-first-run-vm-smoke',
+        ],
+        warning_after_seconds: 3600,
+        timeout_after_seconds: 7200,
+        primary_blocker: 'vm_smoke_timeout_or_failure',
+        recommended_next_actions: {
+          warning: 'wait_for_runner_capacity',
+          timeout: 'rerun_diagnostic_same_artifact',
+          diagnostic: 'rerun_diagnostic_same_artifact',
+        },
+      },
+      full_build: {
+        phase: 'full_build',
+        jobs: [
+          'full-first-install',
+          'publish-full-assets',
+        ],
+        warning_after_seconds: 5400,
+        timeout_after_seconds: 10800,
+        primary_blocker: 'full_build_timeout_or_failure',
+        recommended_next_actions: {
+          warning: 'inspect_full_build_diagnostics',
+          timeout: 'rerun_full_build_same_cohort',
+          diagnostic: 'inspect_full_build_diagnostics',
+        },
+      },
+      homebrew: {
+        phase: 'homebrew',
+        jobs: [
+          'stable-homebrew-tap-update',
+          'full-homebrew-tap-update',
+          'homebrew-standard-first-run-vm-smoke',
+        ],
+        warning_after_seconds: 1800,
+        timeout_after_seconds: 3600,
+        primary_blocker: 'homebrew_tap_or_cask_gate_failure',
+        recommended_next_actions: {
+          warning: 'inspect_homebrew_tap_diagnostics',
+          timeout: 'inspect_homebrew_tap_diagnostics',
+          diagnostic: 'inspect_homebrew_tap_diagnostics',
+        },
+      },
+      webui_ghcr: {
+        phase: 'webui_ghcr',
+        jobs: [
+          'docker-webui-smoke',
+          'webui-ghcr-publish',
+        ],
+        warning_after_seconds: 1800,
+        timeout_after_seconds: 3600,
+        primary_blocker: 'webui_runtime_image_or_ghcr_publish_failure',
+        recommended_next_actions: {
+          warning: 'inspect_webui_runtime_image_diagnostics',
+          timeout: 'inspect_webui_runtime_image_diagnostics',
+          diagnostic: 'inspect_webui_runtime_image_diagnostics',
+        },
+      },
+    },
+    failure_classification: {
+      webui_docker_runtime_image_failure: {
+        classification: 'runtime_image_publish_gate_failure',
+        source_gate_failure: false,
+        primary_blocker: 'webui_runtime_image_invalid',
+        recommended_next_action: 'inspect_webui_runtime_image_diagnostics',
+      },
+    },
+    authority_boundary:
+      'release monitor is an operator status and diagnostic routing surface only; it is not release truth, cannot publish a release, cannot write runtime truth, and cannot claim release-ready. Release-ready still requires same-cohort evidence, release candidate record, and owner receipt.',
+  });
   assert.ok(releaseContract.release_acceleration.release_operator.commands.includes('status'));
   assert.ok(releaseContract.release_acceleration.release_operator.typed_next_actions.includes('dispatch_new_cohort'));
   assert.deepEqual(releaseContract.release_preflight, {

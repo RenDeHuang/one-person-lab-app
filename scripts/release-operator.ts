@@ -32,6 +32,8 @@ type OperatorNextAction = {
     | 'follow_cohort_plan'
     | 'rerun_diagnostic_same_artifact'
     | 'repair_source_gate'
+    | 'repair_webui_runtime_image'
+    | 'repair_ghcr_publish_access'
     | 'inspect_primary_blocker'
     | 'start_new_cohort_from_current_main'
     | 'inspect_release_closeout_evidence'
@@ -51,12 +53,25 @@ type OperatorStatus =
   | 'ready_for_closeout_review'
   | 'waiting_for_run_completion';
 
+type OperatorPhase =
+  | 'release_plan_ready'
+  | 'release_diagnostic_ready'
+  | 'release_run_failed'
+  | 'release_run_failed_draining'
+  | 'release_run_stale_candidate'
+  | 'release_run_waiting'
+  | 'release_closeout_review_ready';
+
 type RunStatusSummary = {
   id: string;
   workflow_name: string | null;
   display_title: string | null;
   status: string | null;
   conclusion: string | null;
+  created_at: string | null;
+  started_at: string | null;
+  updated_at: string | null;
+  completed_at: string | null;
   head_sha: string | null;
   head_branch: string | null;
   url: string | null;
@@ -64,10 +79,14 @@ type RunStatusSummary = {
     name: string;
     status: string | null;
     conclusion: string | null;
+    started_at: string | null;
+    completed_at: string | null;
     steps: Array<{
       name: string;
       status: string | null;
       conclusion: string | null;
+      started_at: string | null;
+      completed_at: string | null;
     }>;
   }>;
 };
@@ -83,14 +102,40 @@ type PrimaryBlocker = {
   reason: string;
 } | null;
 
+type CurrentStep = {
+  job_name: string | null;
+  step_name: string | null;
+  status: string | null;
+  conclusion: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  waiting: boolean;
+  reason: string;
+};
+
+type OperatorElapsed = {
+  started_at: string | null;
+  ended_at: string | null;
+  seconds: number | null;
+};
+
+type OperatorBudget = {
+  status: 'unknown';
+  elapsed_seconds: number | null;
+};
+
 type OperatorState = {
   schema: 'opl_app_release_operator_state.v1';
   generated_at: string;
   command: 'plan' | 'diagnose-vm' | 'status';
   status: OperatorStatus;
+  phase: OperatorPhase;
   cohort_plan?: ReleaseCohortPlan;
   diagnostic_commands?: DiagnosticCommand[];
   run?: RunStatusSummary;
+  current_step?: CurrentStep;
+  elapsed?: OperatorElapsed;
+  budget?: OperatorBudget;
   expected_head?: string;
   is_stale?: boolean;
   primary_blocker?: PrimaryBlocker;
@@ -123,6 +168,7 @@ type StatusOptions = OperatorOutputOptions & {
   repo: string;
   expectedHead: string;
   runJsonPath: string;
+  stdoutFormat: 'json' | 'summary';
 };
 
 function usage(): void {
@@ -140,6 +186,8 @@ Subcommands:
 Common options:
   --output <path>      Write release-operator-state.json.
   --markdown <path>    Write release-operator-state.md.
+  --json               Print JSON to stdout.
+  --summary            Print a one-screen human summary to stdout.
 `);
 }
 
@@ -158,7 +206,7 @@ function defaultOutputOptions(): OperatorOutputOptions {
 
 function resolveOutputOptions(options: OperatorOutputOptions): OperatorOutputOptions {
   return {
-    output: options.output ? path.resolve(options.output) : path.resolve(appRoot, 'release-operator-state.json'),
+    output: options.output ? path.resolve(options.output) : '',
     markdown: options.markdown ? path.resolve(options.markdown) : '',
   };
 }
@@ -240,12 +288,17 @@ function parseStatusArgs(argv: string[]): StatusOptions {
     repo: process.env.OPL_RELEASE_REPO || defaultRepo,
     expectedHead: process.env.OPL_RELEASE_EXPECTED_HEAD || '',
     runJsonPath: process.env.OPL_RELEASE_RUN_JSON || '',
+    stdoutFormat: 'json',
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === '--help' || token === '-h') {
       usage();
       process.exit(0);
+    }
+    if (token === '--json' || token === '--summary') {
+      parsed.stdoutFormat = token === '--summary' ? 'summary' : 'json';
+      continue;
     }
     const optionIndex = applyStringOptionArg(argv, index, {
       '--run-id': (value) => { parsed.runId = value; },
@@ -313,6 +366,7 @@ function buildPlanState(plan: ReleaseCohortPlan): OperatorState {
     generated_at: new Date().toISOString(),
     command: 'plan',
     status: 'planned',
+    phase: 'release_plan_ready',
     cohort_plan: plan,
     next_action: {
       action: 'follow_cohort_plan',
@@ -334,6 +388,7 @@ function buildDiagnoseVmState(options: DiagnoseVmOptions): OperatorState {
     generated_at: new Date().toISOString(),
     command: 'diagnose-vm',
     status: 'diagnostic_command_ready',
+    phase: 'release_diagnostic_ready',
     diagnostic_commands: diagnosticCommands,
     next_action: {
       action: 'rerun_diagnostic_same_artifact',
@@ -377,6 +432,10 @@ function asArray(value: unknown): unknown[] {
 function stringField(record: JsonRecord | null | undefined, key: string): string | null {
   const value = record?.[key];
   return typeof value === 'string' ? value : null;
+}
+
+function timestampField(record: JsonRecord | null | undefined, camelKey: string, snakeKey?: string): string | null {
+  return stringField(record, camelKey) ?? (snakeKey ? stringField(record, snakeKey) : null);
 }
 
 function idField(record: JsonRecord | null | undefined): string {
@@ -428,6 +487,8 @@ function normalizeSteps(job: JsonRecord): RunStatusSummary['jobs'][number]['step
       name: stringField(step, 'name') ?? stringField(step, 'displayName') ?? 'unknown',
       status: stringField(step, 'status'),
       conclusion: stringField(step, 'conclusion'),
+      started_at: timestampField(step, 'startedAt', 'started_at'),
+      completed_at: timestampField(step, 'completedAt', 'completed_at'),
     }));
 }
 
@@ -439,6 +500,8 @@ function normalizeJobs(run: JsonRecord): RunStatusSummary['jobs'] {
       name: stringField(job, 'name') ?? stringField(job, 'displayName') ?? 'unknown',
       status: stringField(job, 'status'),
       conclusion: stringField(job, 'conclusion'),
+      started_at: timestampField(job, 'startedAt', 'started_at'),
+      completed_at: timestampField(job, 'completedAt', 'completed_at'),
       steps: normalizeSteps(job),
     }));
 }
@@ -450,6 +513,10 @@ function summarizeRun(run: JsonRecord, options: StatusOptions): RunStatusSummary
     display_title: stringField(run, 'displayTitle') ?? stringField(run, 'display_title'),
     status: stringField(run, 'status'),
     conclusion: stringField(run, 'conclusion'),
+    created_at: timestampField(run, 'createdAt', 'created_at'),
+    started_at: timestampField(run, 'startedAt', 'started_at'),
+    updated_at: timestampField(run, 'updatedAt', 'updated_at'),
+    completed_at: timestampField(run, 'completedAt', 'completed_at'),
     head_sha: stringField(run, 'headSha') ?? stringField(run, 'head_sha'),
     head_branch: stringField(run, 'headBranch') ?? stringField(run, 'head_branch'),
     url: stringField(run, 'url'),
@@ -461,6 +528,123 @@ const blockingConclusions = new Set(['failure', 'cancelled', 'timed_out', 'actio
 
 function isBlockingConclusion(value: string | null): value is string {
   return Boolean(value && blockingConclusions.has(value));
+}
+
+function normalizeClassifierText(...values: Array<string | null | undefined>): string {
+  return values
+    .filter((value): value is string => Boolean(value))
+    .join(' ')
+    .toLowerCase();
+}
+
+function classifyBlockerAction(blocker: PrimaryBlocker, run: RunStatusSummary): OperatorNextAction['action'] {
+  if (!blocker) return 'inspect_primary_blocker';
+  const text = normalizeClassifierText(run.workflow_name, blocker.job_name, blocker.step_name, blocker.reason);
+  const blockerText = normalizeClassifierText(blocker.job_name, blocker.step_name, blocker.reason);
+  if (text.includes('source gate')) return 'repair_source_gate';
+  if (
+    blockerText.includes('ghcr')
+    && (
+      blockerText.includes('permission')
+      || blockerText.includes('denied')
+      || blockerText.includes('unauthorized')
+      || blockerText.includes('access')
+      || blockerText.includes('push')
+    )
+  ) {
+    return 'repair_ghcr_publish_access';
+  }
+  if (text.includes('webui') || text.includes('docker')) return 'repair_webui_runtime_image';
+  if (text.includes('first-run vm') || text.includes('first run vm') || text.includes('vm smoke') || text.includes('first launch')) {
+    return 'rerun_diagnostic_same_artifact';
+  }
+  return 'inspect_primary_blocker';
+}
+
+function phaseForStatus(status: OperatorStatus): OperatorPhase {
+  if (status === 'planned') return 'release_plan_ready';
+  if (status === 'diagnostic_command_ready') return 'release_diagnostic_ready';
+  if (status === 'failed') return 'release_run_failed';
+  if (status === 'failed_gate_draining') return 'release_run_failed_draining';
+  if (status === 'stale_candidate') return 'release_run_stale_candidate';
+  if (status === 'ready_for_closeout_review') return 'release_closeout_review_ready';
+  return 'release_run_waiting';
+}
+
+function parseTimestamp(value: string | null): number | null {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function elapsedSeconds(startedAt: string | null, endedAt: string | null): number | null {
+  const started = parseTimestamp(startedAt);
+  const ended = parseTimestamp(endedAt);
+  if (started === null || ended === null || ended < started) return null;
+  return Math.floor((ended - started) / 1000);
+}
+
+function buildElapsed(run: RunStatusSummary): OperatorElapsed {
+  const startedAt = run.started_at ?? run.created_at;
+  const endedAt = run.completed_at ?? run.updated_at;
+  return {
+    started_at: startedAt,
+    ended_at: endedAt,
+    seconds: elapsedSeconds(startedAt, endedAt),
+  };
+}
+
+function buildBudget(elapsed: OperatorElapsed): OperatorBudget {
+  return {
+    status: 'unknown',
+    elapsed_seconds: elapsed.seconds,
+  };
+}
+
+function findCurrentStep(run: RunStatusSummary): CurrentStep {
+  const activeJob = run.jobs.find((job) => job.status === 'in_progress' || job.status === 'queued' || job.status === 'waiting');
+  if (activeJob) {
+    const activeStep = activeJob.steps.find((step) => (
+      step.status === 'in_progress'
+      || step.status === 'queued'
+      || step.status === 'waiting'
+      || (step.started_at && !step.completed_at)
+    ));
+    return {
+      job_name: activeJob.name,
+      step_name: activeStep?.name ?? null,
+      status: activeStep?.status ?? activeJob.status,
+      conclusion: activeStep?.conclusion ?? activeJob.conclusion,
+      started_at: activeStep?.started_at ?? activeJob.started_at,
+      completed_at: activeStep?.completed_at ?? activeJob.completed_at,
+      waiting: activeJob.status !== 'in_progress' && !activeStep,
+      reason: activeStep
+        ? `Step ${activeStep.name} in job ${activeJob.name} is ${activeStep.status ?? 'active'}.`
+        : `Job ${activeJob.name} is ${activeJob.status ?? 'active'} with no active step reported.`,
+    };
+  }
+  if (run.status !== 'completed') {
+    return {
+      job_name: null,
+      step_name: null,
+      status: run.status,
+      conclusion: run.conclusion,
+      started_at: run.started_at ?? run.created_at,
+      completed_at: run.completed_at,
+      waiting: true,
+      reason: `Run is ${run.status ?? 'unknown'} and no active job was reported.`,
+    };
+  }
+  return {
+    job_name: null,
+    step_name: null,
+    status: run.status,
+    conclusion: run.conclusion,
+    started_at: run.started_at ?? run.created_at,
+    completed_at: run.completed_at ?? run.updated_at,
+    waiting: false,
+    reason: `Run completed with conclusion ${run.conclusion ?? 'none'}.`,
+  };
 }
 
 function findPrimaryBlocker(run: RunStatusSummary): PrimaryBlocker {
@@ -507,8 +691,9 @@ function statusAction(options: StatusOptions, run: RunStatusSummary, status: Ope
     };
   }
   if (status === 'failed_gate_draining') {
+    const action = classifyBlockerAction(blocker, run);
     return {
-      action: 'inspect_primary_blocker',
+      action,
       command: `gh run view ${run.id} --repo ${options.repo} --log-failed`,
       reason: `Primary blocker failed while the workflow is still ${run.status ?? 'running'}: ${blocker?.reason ?? 'A gate failed.'}`,
       publishes_release: false,
@@ -516,8 +701,9 @@ function statusAction(options: StatusOptions, run: RunStatusSummary, status: Ope
     };
   }
   if (status === 'failed') {
+    const action = classifyBlockerAction(blocker, run);
     return {
-      action: 'repair_source_gate',
+      action,
       command: `gh run view ${run.id} --repo ${options.repo} --log-failed`,
       reason: blocker?.reason ?? `Run conclusion is ${run.conclusion ?? 'unknown'}.`,
       publishes_release: false,
@@ -566,12 +752,17 @@ function buildStatusState(options: StatusOptions): OperatorState {
           ? 'ready_for_closeout_review'
           : 'waiting_for_run_completion';
   const recommendedNextAction = statusAction(options, run, status, primaryBlocker);
+  const elapsed = buildElapsed(run);
   return {
     schema: 'opl_app_release_operator_state.v1',
     generated_at: new Date().toISOString(),
     command: 'status',
     status,
+    phase: phaseForStatus(status),
     run,
+    current_step: findCurrentStep(run),
+    elapsed,
+    budget: buildBudget(elapsed),
     expected_head: options.expectedHead || undefined,
     is_stale: isStale,
     primary_blocker: primaryBlocker,
@@ -593,6 +784,7 @@ function writeOperatorMarkdown(filePath: string, state: OperatorState): void {
     `- Schema: ${state.schema}`,
     `- Command: ${state.command}`,
     `- Status: ${state.status}`,
+    `- Phase: ${state.phase}`,
     `- Next action: ${state.next_action.action}`,
     `- Next command: \`${state.next_action.command.replaceAll('|', '\\|')}\``,
     '',
@@ -606,6 +798,9 @@ function writeOperatorMarkdown(filePath: string, state: OperatorState): void {
       `- Run status: ${state.run.status ?? 'unknown'}`,
       `- Run conclusion: ${state.run.conclusion ?? 'none'}`,
       `- Head SHA: ${state.run.head_sha ?? 'unknown'}`,
+      `- Current job: ${state.current_step?.job_name ?? 'none'}`,
+      `- Current step: ${state.current_step?.step_name ?? 'none'}`,
+      `- Elapsed seconds: ${state.elapsed?.seconds ?? 'unknown'}`,
       `- Stale: ${String(state.is_stale ?? false)}`,
       `- Primary blocker: ${state.primary_blocker ? state.primary_blocker.reason : 'none'}`,
       '',
@@ -635,9 +830,51 @@ function writeOperatorMarkdown(filePath: string, state: OperatorState): void {
 }
 
 function writeOperatorState(options: OperatorOutputOptions, state: OperatorState): void {
-  fs.mkdirSync(path.dirname(options.output), { recursive: true });
-  fs.writeFileSync(options.output, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  if (options.output) {
+    fs.mkdirSync(path.dirname(options.output), { recursive: true });
+    fs.writeFileSync(options.output, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  }
   writeOperatorMarkdown(options.markdown, state);
+}
+
+function formatOperatorSummary(state: OperatorState): string {
+  const lines = [
+    'Release operator status',
+    `Status: ${state.status}`,
+    `Phase: ${state.phase}`,
+  ];
+  if (state.run) {
+    lines.push(
+      `Run: ${state.run.id}`,
+      `Workflow: ${state.run.workflow_name ?? 'unknown'}`,
+      `Run state: ${state.run.status ?? 'unknown'} / ${state.run.conclusion ?? 'none'}`,
+      `Head: ${state.run.head_sha ?? 'unknown'}`,
+    );
+  }
+  if (state.current_step) {
+    lines.push(
+      `Current job: ${state.current_step.job_name ?? 'none'}`,
+      `Current step: ${state.current_step.step_name ?? 'none'}`,
+      `Waiting: ${String(state.current_step.waiting)}`,
+    );
+  }
+  if (state.elapsed) {
+    lines.push(`Elapsed: ${state.elapsed.seconds ?? 'unknown'}s`);
+  }
+  lines.push(
+    `Primary blocker: ${state.primary_blocker ? state.primary_blocker.reason : 'none'}`,
+    `Next action: ${state.next_action.action}`,
+    `Next command: ${state.next_action.command}`,
+  );
+  return `${lines.join('\n')}\n`;
+}
+
+function writeStdout(state: OperatorState, format: 'json' | 'summary' = 'json'): void {
+  if (format === 'summary') {
+    process.stdout.write(formatOperatorSummary(state));
+    return;
+  }
+  process.stdout.write(`${JSON.stringify(state, null, 2)}\n`);
 }
 
 function main(): void {
@@ -651,21 +888,21 @@ function main(): void {
     const plan = buildReleaseCohortPlan(cohort);
     const state = buildPlanState(plan);
     writeOperatorState(operator, state);
-    process.stdout.write(`${JSON.stringify(state, null, 2)}\n`);
+    writeStdout(state);
     return;
   }
   if (subcommand === 'diagnose-vm') {
     const options = parseDiagnoseVmArgs(args);
     const state = buildDiagnoseVmState(options);
     writeOperatorState(options, state);
-    process.stdout.write(`${JSON.stringify(state, null, 2)}\n`);
+    writeStdout(state);
     return;
   }
   if (subcommand === 'status') {
     const options = parseStatusArgs(args);
     const state = buildStatusState(options);
     writeOperatorState(options, state);
-    process.stdout.write(`${JSON.stringify(state, null, 2)}\n`);
+    writeStdout(state, options.stdoutFormat);
     return;
   }
   throw new Error(`Unknown subcommand: ${subcommand}`);

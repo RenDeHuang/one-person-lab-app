@@ -176,8 +176,14 @@ test('Full first-install cache and release acceleration contract are explicit', 
     },
     typed_next_actions: [
       'repair_source_gate',
+      'repair_webui_runtime_image',
+      'repair_ghcr_publish_access',
       'dispatch_new_cohort',
       'rerun_diagnostic_same_artifact',
+      'inspect_full_build_diagnostics',
+      'rerun_full_build_same_cohort',
+      'inspect_homebrew_tap_diagnostics',
+      'inspect_webui_runtime_image_diagnostics',
       'provide_owner_receipt',
       'wait_for_runner_capacity',
       'retry_transient_upload',
@@ -186,6 +192,37 @@ test('Full first-install cache and release acceleration contract are explicit', 
     authority_boundary:
       'release operator is a thin controller over existing release scripts, workflows, and artifacts; it must not become release truth, publish by implication, claim release-ready, or write runtime/domain truth',
   });
+  assert.deepEqual(releaseContract.release_acceleration.release_monitor.required_status_fields, [
+    'phase',
+    'state',
+    'current_job',
+    'current_step',
+    'elapsed_seconds',
+    'warning_after_seconds',
+    'timeout_after_seconds',
+    'primary_blocker',
+    'recommended_next_action',
+  ]);
+  assert.equal(releaseContract.release_acceleration.release_monitor.mode, 'no_watch');
+  assert.match(releaseContract.release_acceleration.release_monitor.authority_boundary, /not release truth/);
+  assert.match(releaseContract.release_acceleration.release_monitor.authority_boundary, /same-cohort evidence/);
+  assert.match(releaseContract.release_acceleration.release_monitor.authority_boundary, /owner receipt/);
+  assert.equal(
+    releaseContract.release_acceleration.release_monitor.phase_budgets.full_build.warning_after_seconds,
+    5400,
+  );
+  assert.equal(
+    releaseContract.release_acceleration.release_monitor.phase_budgets.full_build.timeout_after_seconds,
+    10800,
+  );
+  assert.deepEqual(
+    releaseContract.release_acceleration.release_monitor.phase_budgets.full_build.recommended_next_actions,
+    {
+      warning: 'inspect_full_build_diagnostics',
+      timeout: 'rerun_full_build_same_cohort',
+      diagnostic: 'inspect_full_build_diagnostics',
+    },
+  );
   assert.equal(releaseContract.release_acceleration.tart_base_prebake.status, 'contracted_not_claimed_current');
   assert.equal(releaseContract.release_acceleration.tart_base_prebake.standard_source_vm_variable, 'OPL_FIRST_RUN_TART_SOURCE');
   assert.equal(releaseContract.release_acceleration.tart_base_prebake.homebrew_source_vm_variable, 'OPL_FIRST_RUN_HOMEBREW_TART_SOURCE');

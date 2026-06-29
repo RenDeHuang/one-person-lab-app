@@ -655,6 +655,32 @@ test('release operator docs and contract freeze candidates, fail fast on source 
   assert.deepEqual(blockerPolicy.failed_gate_states, ['failed_gate_draining', 'failed']);
   assert.deepEqual(blockerPolicy.failed_gate_next_actions, ['repair_source_gate', 'dispatch_new_cohort']);
   assert.equal(blockerPolicy.forbidden_wait_strategy, 'continue_waiting_on_gh_run_watch_after_primary_gate_failure');
+  assert.ok(contract.release_acceleration.release_operator.typed_next_actions.includes('repair_webui_runtime_image'));
+  assert.ok(contract.release_acceleration.release_operator.typed_next_actions.includes('repair_ghcr_publish_access'));
+  assert.deepEqual(contract.release_acceleration.release_monitor.required_status_fields, [
+    'phase',
+    'state',
+    'current_job',
+    'current_step',
+    'elapsed_seconds',
+    'warning_after_seconds',
+    'timeout_after_seconds',
+    'primary_blocker',
+    'recommended_next_action',
+  ]);
+  assert.equal(contract.release_acceleration.release_monitor.mode, 'no_watch');
+  assert.equal(contract.release_acceleration.release_monitor.phase_budgets.vm_smoke.recommended_next_actions.timeout, 'rerun_diagnostic_same_artifact');
+  assert.equal(contract.release_acceleration.release_monitor.phase_budgets.homebrew.recommended_next_actions.diagnostic, 'inspect_homebrew_tap_diagnostics');
+  assert.equal(contract.release_acceleration.release_monitor.phase_budgets.webui_ghcr.recommended_next_actions.diagnostic, 'inspect_webui_runtime_image_diagnostics');
+  assert.equal(
+    contract.release_acceleration.release_monitor.failure_classification.webui_docker_runtime_image_failure.source_gate_failure,
+    false,
+  );
+  assertMatches(
+    contract.release_acceleration.release_monitor.authority_boundary,
+    /Release-ready still requires same-cohort evidence, release candidate record, and owner receipt/,
+    'release monitor authority boundary',
+  );
 
   assertMatches(releaseDocs, /npm run release:source-gate -- --version <version>/, 'release docs source gate command');
   assertMatches(releaseDocs, /App SHA, shell SHA, and framework SHA/, 'release docs pinned cohort');

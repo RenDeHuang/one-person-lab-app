@@ -6,6 +6,19 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { appRoot } from './release-readiness/helpers.ts';
 
+function cleanEnv() {
+  const {
+    OPL_RELEASE_OPERATOR_STATE,
+    OPL_RELEASE_OPERATOR_MARKDOWN,
+    OPL_RELEASE_RUN_ID,
+    OPL_RELEASE_REPO,
+    OPL_RELEASE_EXPECTED_HEAD,
+    OPL_RELEASE_RUN_JSON,
+    ...env
+  } = process.env;
+  return env;
+}
+
 function runScript(script: string, args: string[]) {
   return spawnSync(
     process.execPath,
@@ -13,7 +26,7 @@ function runScript(script: string, args: string[]) {
     {
       cwd: appRoot,
       encoding: 'utf8',
-      env: { ...process.env },
+      env: cleanEnv(),
     },
   );
 }
@@ -25,6 +38,44 @@ function readJson(filePath: string) {
 function writeJson(filePath: string, payload: unknown): void {
   fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
+
+function snapshotFile(filePath: string): string | null {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : null;
+}
+
+function assertFileSnapshotUnchanged(filePath: string, snapshot: string | null): void {
+  assert.equal(snapshotFile(filePath), snapshot);
+}
+
+test('release guide documents no-watch operator runbook and lane boundaries', () => {
+  const guide = fs.readFileSync(path.join(appRoot, 'docs', 'delivery', 'release', 'README.md'), 'utf8');
+
+  for (const requiredText of [
+    'No-watch operator runbook',
+    'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>',
+    "jq '{state, run: .run, next: .recommended_next_action, failed_gate_count, failed_job_count}'",
+    'release-operator-state.json#status',
+    'release-monitor.json#state',
+    'primary_blocker',
+    'recommended_next_action',
+    'failed_gate_draining',
+    'stale_candidate',
+    'dispatch a new cohort',
+    'Desktop stable, WebUI GHCR, and diagnostics are separate lanes',
+    'Docker/WebUI runtime image publish failure',
+    'workflow_wall_time_seconds',
+    'agent_orchestration_wall_time_seconds',
+    'DORA-style lead time',
+    'DORA-style MTTR',
+    'DORA-style change failure',
+    'They are not release-ready',
+  ]) {
+    assert.ok(guide.includes(requiredText), `release guide must document ${requiredText}`);
+  }
+
+  assert.match(guide, /28391573356[\s\S]*standard clean VM smoke failed/);
+  assert.match(guide, /28391599033[\s\S]*not label that WebUI GHCR failure as an App source-gate failure/);
+});
 
 test('release cohort planner writes pinned cohort JSON and typed next action', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-cohort-'));
@@ -199,11 +250,216 @@ test('release operator status reports completed failure primary blocker', () => 
   assert.equal(state.primary_blocker.type, 'step');
   assert.equal(state.primary_blocker.job_name, 'Build App-owned DMG');
   assert.equal(state.primary_blocker.step_name, 'Package app');
-  assert.equal(state.recommended_next_action.action, 'repair_source_gate');
+  assert.equal(state.recommended_next_action.action, 'inspect_primary_blocker');
   assert.match(state.recommended_next_action.command, /gh run view 12345 --repo gaofeng21cn\/one-person-lab-app --log-failed/);
   assert.equal(state.authority_boundary.operator_can_publish_release, false);
   assert.equal(state.authority_boundary.operator_can_write_runtime_truth, false);
   assert.equal(state.authority_boundary.operator_can_dispatch_workflow_without_explicit_user_action, false);
+});
+
+test('release operator status --json writes only JSON stdout without default root state file', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-json-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  const defaultStatePath = path.join(appRoot, 'release-operator-state.json');
+  const defaultStateSnapshot = snapshotFile(defaultStatePath);
+  writeJson(runJsonPath, {
+    databaseId: 12346,
+    workflowName: 'OPL Desktop Release',
+    status: 'completed',
+    conclusion: 'failure',
+    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    jobs: [
+      {
+        name: 'Release source gate',
+        status: 'completed',
+        conclusion: 'failure',
+        steps: [{ name: 'Validate release source gate', status: 'completed', conclusion: 'failure' }],
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--json',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(result.stderr, '');
+  const state = JSON.parse(result.stdout);
+  assert.equal(state.schema, 'opl_app_release_operator_state.v1');
+  assert.equal(state.status, 'failed');
+  assert.equal(state.next_action.action, 'repair_source_gate');
+  assertFileSnapshotUnchanged(defaultStatePath, defaultStateSnapshot);
+});
+
+test('release operator status --summary emits one-screen human summary', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-summary-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  writeJson(runJsonPath, {
+    databaseId: 12347,
+    workflowName: 'OPL Desktop Release',
+    status: 'completed',
+    conclusion: 'success',
+    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    jobs: [
+      {
+        name: 'release-readiness',
+        status: 'completed',
+        conclusion: 'success',
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--summary',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /^Release operator status$/m);
+  assert.match(result.stdout, /^Status: ready_for_closeout_review$/m);
+  assert.match(result.stdout, /^Next action: inspect_release_closeout_evidence$/m);
+  assert.throws(() => JSON.parse(result.stdout), SyntaxError);
+});
+
+test('release operator status maps primary blockers to domain next actions', () => {
+  const cases = [
+    {
+      name: 'source-gate',
+      jobName: 'Release source gate',
+      stepName: 'Validate release source gate',
+      workflowName: 'OPL Desktop Release',
+      expectedAction: 'repair_source_gate',
+    },
+    {
+      name: 'standard-vm',
+      jobName: 'Run clean standard first-run VM smoke / Clean VM first launch',
+      stepName: 'Run clean VM first launch smoke',
+      workflowName: 'OPL Desktop Release',
+      expectedAction: 'rerun_diagnostic_same_artifact',
+    },
+    {
+      name: 'webui-runtime-image',
+      jobName: 'Build, verify, and publish WebUI GHCR image',
+      stepName: 'Build, verify, and publish Docker WebUI',
+      workflowName: 'OPL WebUI GHCR Release',
+      expectedAction: 'repair_webui_runtime_image',
+    },
+    {
+      name: 'ghcr-permission',
+      jobName: 'Build, verify, and publish WebUI GHCR image',
+      stepName: 'Push Docker image to GHCR',
+      workflowName: 'OPL WebUI GHCR Release',
+      expectedAction: 'repair_ghcr_publish_access',
+    },
+  ];
+
+  for (const entry of cases) {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `opl-release-operator-blocker-${entry.name}-`));
+    const runJsonPath = path.join(tempRoot, 'run.json');
+    const outputPath = path.join(tempRoot, 'release-operator-state.json');
+    writeJson(runJsonPath, {
+      databaseId: 50000,
+      workflowName: entry.workflowName,
+      status: 'completed',
+      conclusion: 'failure',
+      headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      jobs: [
+        {
+          name: entry.jobName,
+          status: 'completed',
+          conclusion: 'failure',
+          steps: [
+            { name: 'Set up job', status: 'completed', conclusion: 'success' },
+            { name: entry.stepName, status: 'completed', conclusion: 'failure' },
+          ],
+        },
+      ],
+    });
+
+    const result = runScript('scripts/release-operator.ts', [
+      'status',
+      '--run-json',
+      runJsonPath,
+      '--output',
+      outputPath,
+    ]);
+
+    assert.equal(result.status, 0, `${entry.name}: ${result.stderr || result.stdout}`);
+    const state = readJson(outputPath);
+    assert.equal(state.next_action.action, entry.expectedAction, entry.name);
+  }
+});
+
+test('release operator status reports phase current step elapsed and budget for in-progress runs', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-progress-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  const outputPath = path.join(tempRoot, 'release-operator-state.json');
+  writeJson(runJsonPath, {
+    databaseId: 56789,
+    workflowName: 'OPL Desktop Release',
+    status: 'in_progress',
+    conclusion: null,
+    startedAt: '2026-06-29T17:45:43Z',
+    updatedAt: '2026-06-29T17:50:43Z',
+    headSha: 'ffffffffffffffffffffffffffffffffffffffff',
+    jobs: [
+      {
+        name: 'Release preflight',
+        status: 'completed',
+        conclusion: 'success',
+        startedAt: '2026-06-29T17:45:50Z',
+        completedAt: '2026-06-29T17:46:05Z',
+        steps: [{ name: 'Run release preflight', status: 'completed', conclusion: 'success' }],
+      },
+      {
+        name: 'Build standard App assets / Active shell tests (dom)',
+        status: 'in_progress',
+        conclusion: null,
+        startedAt: '2026-06-29T17:47:06Z',
+        steps: [
+          {
+            name: 'Setup active shell dependencies',
+            status: 'completed',
+            conclusion: 'success',
+            startedAt: '2026-06-29T17:47:09Z',
+            completedAt: '2026-06-29T17:47:47Z',
+          },
+          {
+            name: 'Run active shell test project',
+            status: 'in_progress',
+            conclusion: null,
+            startedAt: '2026-06-29T17:47:47Z',
+          },
+        ],
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const state = readJson(outputPath);
+  assert.equal(state.status, 'waiting_for_run_completion');
+  assert.equal(state.phase, 'release_run_waiting');
+  assert.equal(state.current_step.job_name, 'Build standard App assets / Active shell tests (dom)');
+  assert.equal(state.current_step.step_name, 'Run active shell test project');
+  assert.equal(state.current_step.status, 'in_progress');
+  assert.equal(state.elapsed.seconds, 300);
+  assert.equal(state.elapsed.started_at, '2026-06-29T17:45:43Z');
+  assert.equal(state.elapsed.ended_at, '2026-06-29T17:50:43Z');
+  assert.equal(state.budget.status, 'unknown');
+  assert.equal(state.budget.elapsed_seconds, 300);
 });
 
 test('release operator status reports failed gate while run is draining', () => {

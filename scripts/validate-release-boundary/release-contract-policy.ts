@@ -67,6 +67,78 @@ const requiredTartPrebakeReceiptFields = [
   'truth_boundary',
   'validation_command',
 ];
+const requiredReleaseMonitorStatusFields = [
+  'phase',
+  'state',
+  'current_job',
+  'current_step',
+  'elapsed_seconds',
+  'warning_after_seconds',
+  'timeout_after_seconds',
+  'primary_blocker',
+  'recommended_next_action',
+];
+const requiredReleaseMonitorPhaseBudgets = {
+  vm_smoke: {
+    jobs: [
+      'standard-first-run-vm-smoke-after-standard-only',
+      'standard-first-run-vm-smoke-after-full',
+      'homebrew-standard-first-run-vm-smoke',
+      'full-first-run-vm-smoke',
+    ],
+    warning_after_seconds: 3600,
+    timeout_after_seconds: 7200,
+    primary_blocker: 'vm_smoke_timeout_or_failure',
+    recommended_next_actions: {
+      warning: 'wait_for_runner_capacity',
+      timeout: 'rerun_diagnostic_same_artifact',
+      diagnostic: 'rerun_diagnostic_same_artifact',
+    },
+  },
+  full_build: {
+    jobs: [
+      'full-first-install',
+      'publish-full-assets',
+    ],
+    warning_after_seconds: 5400,
+    timeout_after_seconds: 10800,
+    primary_blocker: 'full_build_timeout_or_failure',
+    recommended_next_actions: {
+      warning: 'inspect_full_build_diagnostics',
+      timeout: 'rerun_full_build_same_cohort',
+      diagnostic: 'inspect_full_build_diagnostics',
+    },
+  },
+  homebrew: {
+    jobs: [
+      'stable-homebrew-tap-update',
+      'full-homebrew-tap-update',
+      'homebrew-standard-first-run-vm-smoke',
+    ],
+    warning_after_seconds: 1800,
+    timeout_after_seconds: 3600,
+    primary_blocker: 'homebrew_tap_or_cask_gate_failure',
+    recommended_next_actions: {
+      warning: 'inspect_homebrew_tap_diagnostics',
+      timeout: 'inspect_homebrew_tap_diagnostics',
+      diagnostic: 'inspect_homebrew_tap_diagnostics',
+    },
+  },
+  webui_ghcr: {
+    jobs: [
+      'docker-webui-smoke',
+      'webui-ghcr-publish',
+    ],
+    warning_after_seconds: 1800,
+    timeout_after_seconds: 3600,
+    primary_blocker: 'webui_runtime_image_or_ghcr_publish_failure',
+    recommended_next_actions: {
+      warning: 'inspect_webui_runtime_image_diagnostics',
+      timeout: 'inspect_webui_runtime_image_diagnostics',
+      diagnostic: 'inspect_webui_runtime_image_diagnostics',
+    },
+  },
+};
 
 function readJson(appRoot: string, relativePath: string) {
   return JSON.parse(fs.readFileSync(path.join(appRoot, relativePath), 'utf8'));
@@ -78,6 +150,69 @@ function sameStringSet(actual: unknown, expected: string[]) {
     && actual.length === expected.length
     && expected.every((entry) => actual.includes(entry))
   );
+}
+
+function validateReleaseMonitorPolicy(releaseMonitor: Record<string, any>, typedNextActions: unknown): number {
+  let failures = 0;
+  if (
+    releaseMonitor?.schema !== 'opl_app_release_monitor.v1' ||
+    releaseMonitor?.mode !== 'no_watch' ||
+    releaseMonitor?.surface !== 'release_operator_status' ||
+    releaseMonitor?.status_command !== 'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>'
+  ) {
+    console.error('FAIL release_monitor_policy: release monitor must expose the no-watch operator status surface and command');
+    failures += 1;
+  }
+  if (!sameStringSet(releaseMonitor?.required_status_fields, requiredReleaseMonitorStatusFields)) {
+    console.error('FAIL release_monitor_policy: release monitor must require phase, state, job, step, elapsed, budget, blocker, and next action fields');
+    failures += 1;
+  }
+  for (const [phase, expectedBudget] of Object.entries(requiredReleaseMonitorPhaseBudgets)) {
+    const budget = releaseMonitor?.phase_budgets?.[phase];
+    if (
+      budget?.phase !== phase ||
+      budget?.warning_after_seconds !== expectedBudget.warning_after_seconds ||
+      budget?.timeout_after_seconds !== expectedBudget.timeout_after_seconds ||
+      budget?.primary_blocker !== expectedBudget.primary_blocker ||
+      !sameStringSet(budget?.jobs, expectedBudget.jobs) ||
+      budget?.recommended_next_actions?.warning !== expectedBudget.recommended_next_actions.warning ||
+      budget?.recommended_next_actions?.timeout !== expectedBudget.recommended_next_actions.timeout ||
+      budget?.recommended_next_actions?.diagnostic !== expectedBudget.recommended_next_actions.diagnostic
+    ) {
+      console.error(`FAIL release_monitor_policy: phase budget ${phase} must define jobs, warning/timeout seconds, blocker, and typed next actions`);
+      failures += 1;
+    }
+    for (const action of Object.values(expectedBudget.recommended_next_actions)) {
+      if (!Array.isArray(typedNextActions) || !typedNextActions.includes(action)) {
+        console.error(`FAIL release_monitor_policy: typed next actions must include ${action} for phase ${phase}`);
+        failures += 1;
+      }
+    }
+  }
+  const webuiClassification = releaseMonitor?.failure_classification?.webui_docker_runtime_image_failure;
+  if (
+    webuiClassification?.classification !== 'runtime_image_publish_gate_failure' ||
+    webuiClassification?.source_gate_failure !== false ||
+    webuiClassification?.primary_blocker !== 'webui_runtime_image_invalid' ||
+    webuiClassification?.recommended_next_action !== 'inspect_webui_runtime_image_diagnostics'
+  ) {
+    console.error('FAIL release_monitor_policy: WebUI Docker runtime image failures must be runtime image publish gate failures, not source gate failures');
+    failures += 1;
+  }
+  if (
+    typeof releaseMonitor?.authority_boundary !== 'string' ||
+    !releaseMonitor.authority_boundary.includes('not release truth') ||
+    !releaseMonitor.authority_boundary.includes('cannot publish a release') ||
+    !releaseMonitor.authority_boundary.includes('cannot write runtime truth') ||
+    !releaseMonitor.authority_boundary.includes('cannot claim release-ready') ||
+    !releaseMonitor.authority_boundary.includes('same-cohort evidence') ||
+    !releaseMonitor.authority_boundary.includes('release candidate record') ||
+    !releaseMonitor.authority_boundary.includes('owner receipt')
+  ) {
+    console.error('FAIL release_monitor_policy: monitor authority boundary must keep release truth on same-cohort evidence, candidate, and owner receipt');
+    failures += 1;
+  }
+  return failures;
 }
 
 function validateGithubReleaseName(releaseContract: Record<string, any>): number {
@@ -244,6 +379,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const acceleration = releaseContract.release_acceleration;
   const cohortPrepare = acceleration?.cohort_prepare;
   const releaseOperator = acceleration?.release_operator;
+  const releaseMonitor = acceleration?.release_monitor;
   const gateReuse = acceleration?.gate_reuse;
   const tartBasePrebake = acceleration?.tart_base_prebake;
   const githubActions = acceleration?.github_actions;
@@ -344,8 +480,14 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   }
   for (const action of [
     'repair_source_gate',
+    'repair_webui_runtime_image',
+    'repair_ghcr_publish_access',
     'dispatch_new_cohort',
     'rerun_diagnostic_same_artifact',
+    'inspect_full_build_diagnostics',
+    'rerun_full_build_same_cohort',
+    'inspect_homebrew_tap_diagnostics',
+    'inspect_webui_runtime_image_diagnostics',
     'provide_owner_receipt',
     'wait_for_runner_capacity',
     'retry_transient_upload',
@@ -356,6 +498,7 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
       failures += 1;
     }
   }
+  failures += validateReleaseMonitorPolicy(releaseMonitor, releaseOperator?.typed_next_actions);
 
   if (
     gateReuse?.plan_command !== 'npm run release:gate-reuse-plan -- --version <version> --release-mode <mode> --include-full-package true --run-vm-smoke true' ||
