@@ -22,6 +22,7 @@ macOS 用户可以继续使用 DMG、一键安装、Homebrew 或 Docker；Linux 
 - 如果是 Windows，先确认电脑可以启用 WSL 2 和虚拟化；普通个人电脑优先使用 Docker Desktop。
 - 如果是 Linux，准备一个可以使用 `sudo` 的账号。
 - 如果需要模型访问，联系管理员获取访问密钥；不要把密钥发到群里或写进截图。
+- 准备一个固定的本机目录保存数据和项目：Windows 使用 `C:\Users\你的用户名\OnePersonLab`，Linux 使用 `~/OnePersonLab`。
 
 ## 1. 先看你是哪种电脑
 
@@ -72,14 +73,18 @@ macOS -> DMG / 一键安装 / Homebrew / Docker
 
 ## 3A. Windows：启动 One Person Lab
 
-Docker Desktop 正在运行后，打开 PowerShell，复制下面这条命令并按 Enter。第一次运行会下载镜像，可能需要几分钟。看到终端持续输出日志时，不要关闭这个窗口。
+Docker Desktop 正在运行后，打开 PowerShell。先创建 One Person Lab 的本机保存目录，再运行 WebUI。第一次运行会下载镜像，可能需要几分钟。看到终端持续输出日志时，不要关闭这个窗口。
 
 **PowerShell 命令**
 
 ```text
-docker run --rm -p 3000:3000 -v opl-data:/data \
-  -e AIONUI_ALLOW_REMOTE=true \
-  -e AIONUI_DATA_DIR=/data \
+New-Item -ItemType Directory -Force "$env:USERPROFILE\OnePersonLab\data"
+New-Item -ItemType Directory -Force "$env:USERPROFILE\OnePersonLab\projects"
+docker run --rm -p 3000:3000 `
+  -v "$env:USERPROFILE\OnePersonLab\data:/data" `
+  -v "$env:USERPROFILE\OnePersonLab\projects:/projects" `
+  -e AIONUI_ALLOW_REMOTE=true `
+  -e AIONUI_DATA_DIR=/data `
   ghcr.io/gaofeng21cn/one-person-lab-webui:latest
 ```
 
@@ -87,12 +92,14 @@ docker run --rm -p 3000:3000 -v opl-data:/data \
 
 - 这个窗口就是 One Person Lab WebUI 的运行窗口。
 - 窗口关掉后 WebUI 会停止；重新运行同一条命令即可再次打开。
-- `opl-data` 会保存 WebUI 数据，重启后还能继续使用。
+- `OnePersonLab\data` 保存配置、登录会话、对话历史、SQLite、日志和缓存。
+- `OnePersonLab\projects` 保存你的项目文件；在界面里选择项目目录时，从 `/projects` 里选择。
 
 说明：
 
 - 如果提示 `docker` 命令不存在，先确认 Docker Desktop 已启动，再重新打开 PowerShell。
 - 如果下载镜像很慢，先换网络或请技术支持确认 GitHub/GHCR 是否可访问。
+- 以后更新时拉取新镜像并重新运行这条命令，`OnePersonLab` 目录里的数据和项目不会因为替换容器而丢失。
 
 ## 2B. Linux：安装 Docker
 
@@ -123,12 +130,15 @@ sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin dock
 
 ## 3B. Linux：启动 One Person Lab
 
-Docker 安装完成后，在终端复制下面这条命令并按 Enter。第一次运行会下载 One Person Lab WebUI 镜像。看到日志持续输出后，保持终端窗口打开。
+Docker 安装完成后，在终端先创建 One Person Lab 的本机保存目录，再启动 WebUI。第一次运行会下载 One Person Lab WebUI 镜像。看到日志持续输出后，保持终端窗口打开。
 
 **Linux 终端命令**
 
 ```text
-sudo docker run --rm -p 3000:3000 -v opl-data:/data \
+mkdir -p "$HOME/OnePersonLab/data" "$HOME/OnePersonLab/projects"
+sudo docker run --rm -p 3000:3000 \
+  -v "$HOME/OnePersonLab/data:/data" \
+  -v "$HOME/OnePersonLab/projects:/projects" \
   -e AIONUI_ALLOW_REMOTE=true \
   -e AIONUI_DATA_DIR=/data \
   ghcr.io/gaofeng21cn/one-person-lab-webui:latest
@@ -139,11 +149,14 @@ sudo docker run --rm -p 3000:3000 -v opl-data:/data \
 - 本机使用时，浏览器访问 `http://localhost:3000/`。
 - 服务器使用时，技术支持应配置服务器地址、反向代理和访问控制。
 - 不要关闭运行命令的终端窗口；关闭后 WebUI 会停止。
+- `~/OnePersonLab/data` 保存配置、登录会话、对话历史、SQLite、日志和缓存。
+- `~/OnePersonLab/projects` 保存你的项目文件；在界面里选择项目目录时，从 `/projects` 里选择。
 
 说明：
 
 - 如果你已经配置了 Docker 非 root 用户，也可以去掉命令开头的 `sudo`。
 - 需要后台长期运行时，请让技术支持改成 Docker Compose 或系统服务。
+- 以后更新时拉取新镜像并重新运行这条命令，`~/OnePersonLab` 目录里的数据和项目不会因为替换容器而丢失。
 
 ## 4. 打开浏览器访问 WebUI
 
@@ -198,7 +211,7 @@ sudo docker run --rm -p 3000:3000 -v opl-data:/data \
 
 ## 6. 下次怎么打开和关闭
 
-下次使用时，先打开 Docker Desktop 或确认 Linux Docker 服务正在运行，然后重新运行启动 One Person Lab 的命令，再用浏览器访问 `http://localhost:3000/`。不用时可以在终端按 Ctrl+C 停止。
+下次使用时，先打开 Docker Desktop 或确认 Linux Docker 服务正在运行，然后重新运行启动 One Person Lab 的命令，再用浏览器访问 `http://localhost:3000/`。不用时可以在终端按 Ctrl+C 停止。更新时先拉取新镜像，再用同样的挂载命令启动；不要删除本机 `OnePersonLab` 目录。
 
 **日常使用**
 
@@ -206,13 +219,15 @@ sudo docker run --rm -p 3000:3000 -v opl-data:/data \
 打开：运行同一条 docker run 命令
 访问：浏览器打开 http://localhost:3000/
 关闭：终端按 Ctrl+C
-保留：不要删除 Docker volume `opl-data`
+保留：不要删除本机 OnePersonLab/data 和 OnePersonLab/projects
+更新：docker pull ghcr.io/gaofeng21cn/one-person-lab-webui:latest 后重新运行启动命令
 ```
 
 重点：
 
-- `opl-data` 是数据保存位置，不要随便删除。
-- 更新时通常拉取新镜像后重新运行同一条命令。
+- `OnePersonLab/data` 是 WebUI 内部数据保存位置，不要随便删除。
+- `OnePersonLab/projects` 是项目文件保存位置，建议把长期项目都放在这里。
+- 更新时通常拉取新镜像后重新运行同一条命令；只要挂载目录不变，数据和项目会继续保留。
 - 正式服务器部署请交给技术支持配置长期运行。
 
 说明：
@@ -230,12 +245,15 @@ sudo docker run --rm -p 3000:3000 -v opl-data:/data \
 - 服务器给别人访问：不要直接裸露端口，请配置 TLS、域名、反向代理和访问控制。
 - 看到登录页怎么办：先刷新浏览器；仍然停在登录页时，回到终端按 Ctrl+C 停止，再重新运行启动命令。如果还是不行，联系技术支持。
 - 为什么不用输入用户名密码：Docker/WebUI 启动时会自动配置本机浏览器会话，新手只需要打开浏览器访问地址。
+- 配置、登录会话和对话历史保存在哪里：都在本机 `OnePersonLab/data`，容器内对应 `/data`。
+- 项目文件保存在哪里：建议都放在本机 `OnePersonLab/projects`，容器内对应 `/projects`。在界面里选择项目目录时，从 `/projects` 下选择。
 
 ## 验证方式
 
 - Windows 路径按 Docker Desktop 官方 Windows 安装页核对：per-user 安装推荐给多数用户，WSL 2 backend 覆盖大多数 Docker Desktop 用户需求。
 - Linux 路径按 Docker Engine Ubuntu 官方 apt repository 安装页核对：先配置 apt repository，再安装 Docker packages，并用 `hello-world` 验证。
 - WebUI 自动登录行为由 Web CLI / web-host runtime 验证：无用户名密码请求 `/api/auth/user` 返回 `success: true` 且下发 session cookie。
+- Docker 持久化边界按 active shell Dockerfile 和 web-cli 实现核对：`AIONUI_DATA_DIR=/data` 保存 WebUI 内部状态，`/projects` 是用户项目文件挂载点。
 - 浏览器界面截图来自本机 Docker 容器的 Playwright 截图，容器端口映射为 `127.0.0.1:55662 -> 3000/tcp`，页面 URL 为 `/#/startup-gate`，界面语言为中文。
 
 ## 来源与边界

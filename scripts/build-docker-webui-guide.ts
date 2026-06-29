@@ -264,7 +264,7 @@ function stripRepositoryMetadata(markdown: string) {
 }
 
 function normalizePdfInlineCode(markdown: string) {
-  return markdown.replace(/`([^`\n]+)`/g, '$1');
+  return markdown;
 }
 
 function buildPdfMarkdown(guide: DockerGuide, markdown: string) {
@@ -437,7 +437,7 @@ function buildHtml(guide: DockerGuide) {
             <a class="button" href="${escapeHtml(guide.download.support_reference_url)}">查看部署参考</a>
             <a class="button secondary" href="docker-webui-install-detailed-guide.pdf">查看详细 PDF</a>
           </div>
-          <div class="command">${escapeHtml(`docker run --rm -p 3000:3000 -v opl-data:/data -e AIONUI_ALLOW_REMOTE=true -e AIONUI_DATA_DIR=/data ${guide.download.image}`)}</div>
+          <div class="command">${escapeHtml(`docker run --rm -p 3000:3000 -v "$HOME/OnePersonLab/data:/data" -v "$HOME/OnePersonLab/projects:/projects" -e AIONUI_ALLOW_REMOTE=true -e AIONUI_DATA_DIR=/data ${guide.download.image}`)}</div>
         </div>
       </section>
       <div class="content">
