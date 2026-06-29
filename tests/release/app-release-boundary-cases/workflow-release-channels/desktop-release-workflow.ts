@@ -542,6 +542,36 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     ],
     rule: 'Branch-lane or post-release evidence runs may explicitly download a DMG-only artifact from a completed source Actions run without publishing assets; this handoff is VM evidence only and must not replace stable same-run VM gates or published asset verification.',
   });
+  assert.deepEqual(releaseContract.release_acceleration.cohort_prepare.stable_candidate_freeze, {
+    required: true,
+    pinned_sha_fields: [
+      'app_sha',
+      'shell_sha',
+      'framework_sha',
+    ],
+    currentness_rule: 'A stable candidate is current only for the pinned App SHA, shell SHA, and framework SHA cohort. If main or any pinned source advances after the run starts, the old run becomes an obsolete/stale candidate and must not continue as the current stable candidate.',
+    obsolete_candidate_statuses: [
+      'obsolete_candidate',
+      'stale_candidate',
+    ],
+    next_action: 'dispatch_new_cohort',
+  });
+  assert.deepEqual(releaseContract.release_acceleration.release_operator.primary_blocker_policy, {
+    monitor_mode: 'no_watch',
+    status_command: 'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>',
+    failed_gate_states: [
+      'failed_gate_draining',
+      'failed',
+    ],
+    failed_gate_next_actions: [
+      'repair_source_gate',
+      'dispatch_new_cohort',
+    ],
+    forbidden_wait_strategy: 'continue_waiting_on_gh_run_watch_after_primary_gate_failure',
+    rule: 'After a critical release gate fails, operator status must report failed_gate_draining or failed with repair_source_gate or dispatch_new_cohort guidance instead of continuing to wait on gh run watch.',
+  });
+  assert.ok(releaseContract.release_acceleration.release_operator.commands.includes('status'));
+  assert.ok(releaseContract.release_acceleration.release_operator.typed_next_actions.includes('dispatch_new_cohort'));
   assert.deepEqual(releaseContract.release_preflight, {
     script: 'scripts/validate-release-preflight.ts',
     package_script: 'release:preflight',
@@ -554,9 +584,14 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'version',
       'release_mode',
       'release_preflight_contract',
+      'release_source_gate_contract',
       'workflow_preflight_shape',
       'release_plan',
       'release_refs',
+      'app_sha',
+      'shell_ref_format',
+      'shell_ref_resolves_to_sha',
+      'framework_ref_resolves_to_sha',
       'codex_package_metadata',
       'homebrew_vm_gate_static_policy',
       'homebrew_tap_token',
@@ -564,7 +599,28 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'remote_target',
     ],
     failure_budget: 'fail before standard or Full builds start',
-    rule: 'Every App release train must pass preflight before starting expensive standard, Full, VM, Homebrew, WebUI, or publish jobs.',
+    source_gate: {
+      package_script: 'release:source-gate',
+      status: 'implemented_enforced_before_expensive_release_jobs',
+      scope: [
+        'App release-boundary contract',
+        'shell format',
+        'shell type',
+        'shell ref resolution',
+        'framework ref resolution',
+      ],
+      must_run_before: [
+        'standard_macos_arm64_build',
+        'full_first_install_build',
+        'standard_dmg_clean_vm_smoke',
+        'homebrew_standard_cask_clean_vm_smoke',
+        'full_dmg_clean_vm_smoke',
+        'webui_ghcr_publish',
+      ],
+      failure_next_action: 'repair_source_gate',
+      rule: 'The App release source gate must fail before expensive build, VM, Full, Homebrew, or WebUI work when App release-boundary validation, shell format/type, shell ref resolution, or framework ref resolution is invalid.',
+    },
+    rule: 'Every App release train must pass preflight and the source gate before starting expensive standard, Full, VM, Homebrew, WebUI, or publish jobs.',
   });
   assert.deepEqual(releaseContract.webui_ghcr_image, {
     owner: 'one-person-lab-app',

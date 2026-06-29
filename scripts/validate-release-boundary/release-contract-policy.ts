@@ -36,6 +36,28 @@ const requiredGateReuseMatchFields = [
   'previous_candidate_status_ready_to_promote',
   'reuse_digest',
 ];
+const requiredSourceGateChecks = [
+  'release_source_gate_contract',
+  'app_sha',
+  'shell_ref_format',
+  'shell_ref_resolves_to_sha',
+  'framework_ref_resolves_to_sha',
+];
+const requiredSourceGateScopes = [
+  'App release-boundary contract',
+  'shell format',
+  'shell type',
+  'shell ref resolution',
+  'framework ref resolution',
+];
+const requiredSourceGatePrecedes = [
+  'standard_macos_arm64_build',
+  'full_first_install_build',
+  'standard_dmg_clean_vm_smoke',
+  'homebrew_standard_cask_clean_vm_smoke',
+  'full_dmg_clean_vm_smoke',
+  'webui_ghcr_publish',
+];
 const requiredTartPrebakeReceiptFields = [
   'source_vm',
   'image_id_or_digest',
@@ -107,6 +129,38 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
       console.error(`FAIL release_preflight_contract: missing summary artifact ${artifact}`);
       failures += 1;
     }
+  }
+  for (const checkId of requiredSourceGateChecks) {
+    if (!preflight?.required_fast_checks?.includes(checkId)) {
+      console.error(`FAIL release_source_gate_contract: missing source gate fast check ${checkId}`);
+      failures += 1;
+    }
+  }
+  const sourceGate = preflight?.source_gate;
+  if (
+    sourceGate?.package_script !== 'release:source-gate' ||
+    sourceGate?.status !== 'implemented_enforced_before_expensive_release_jobs' ||
+    sourceGate?.failure_next_action !== 'repair_source_gate' ||
+    typeof sourceGate?.rule !== 'string' ||
+    !sourceGate.rule.includes('fail before expensive build, VM, Full, Homebrew, or WebUI work')
+  ) {
+    console.error('FAIL release_source_gate_contract: source gate must be a contracted fail-fast pre-expensive-gate boundary');
+    failures += 1;
+  }
+  if (!sameStringSet(sourceGate?.scope, requiredSourceGateScopes)) {
+    console.error('FAIL release_source_gate_contract: source gate scope must cover release-boundary, shell format/type/ref, and framework ref');
+    failures += 1;
+  }
+  if (!sameStringSet(sourceGate?.must_run_before, requiredSourceGatePrecedes)) {
+    console.error('FAIL release_source_gate_contract: source gate must precede build, VM, Full, Homebrew, and WebUI work');
+    failures += 1;
+  }
+  if (
+    typeof preflight?.rule !== 'string' ||
+    !preflight.rule.includes('preflight and the source gate before starting expensive standard, Full, VM, Homebrew, WebUI, or publish jobs')
+  ) {
+    console.error('FAIL release_source_gate_contract: release preflight rule must require source gate before expensive jobs');
+    failures += 1;
   }
   return failures;
 }
@@ -213,6 +267,19 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     console.error('FAIL release_cohort_prepare_policy: cohort prepare must expose a pinned-ref planning script without release authority');
     failures += 1;
   }
+  const stableCandidateFreeze = cohortPrepare?.stable_candidate_freeze;
+  if (
+    stableCandidateFreeze?.required !== true ||
+    stableCandidateFreeze?.next_action !== 'dispatch_new_cohort' ||
+    !sameStringSet(stableCandidateFreeze?.pinned_sha_fields, ['app_sha', 'shell_sha', 'framework_sha']) ||
+    !sameStringSet(stableCandidateFreeze?.obsolete_candidate_statuses, ['obsolete_candidate', 'stale_candidate']) ||
+    typeof stableCandidateFreeze?.currentness_rule !== 'string' ||
+    !stableCandidateFreeze.currentness_rule.includes('pinned App SHA, shell SHA, and framework SHA cohort') ||
+    !stableCandidateFreeze.currentness_rule.includes('obsolete/stale candidate')
+  ) {
+    console.error('FAIL stable_candidate_freeze_policy: stable candidates must be pinned to App/Shell/Framework SHAs and stale after source advances');
+    failures += 1;
+  }
   for (const field of [
     'version',
     'tag',
@@ -249,14 +316,35 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
       failures += 1;
     }
   }
-  for (const command of ['plan', 'diagnose-vm']) {
+  for (const command of ['plan', 'status', 'diagnose-vm']) {
     if (!releaseOperator?.commands?.includes(command)) {
       console.error(`FAIL release_operator_policy: missing operator command ${command}`);
       failures += 1;
     }
   }
+  const blockerPolicy = releaseOperator?.primary_blocker_policy;
+  if (
+    blockerPolicy?.monitor_mode !== 'no_watch' ||
+    blockerPolicy?.status_command !== 'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>' ||
+    blockerPolicy?.forbidden_wait_strategy !== 'continue_waiting_on_gh_run_watch_after_primary_gate_failure' ||
+    typeof blockerPolicy?.rule !== 'string' ||
+    !blockerPolicy.rule.includes('failed_gate_draining or failed') ||
+    !blockerPolicy.rule.includes('instead of continuing to wait on gh run watch')
+  ) {
+    console.error('FAIL release_operator_primary_blocker_policy: operator status must be no-watch and stop on primary gate failures');
+    failures += 1;
+  }
+  if (!sameStringSet(blockerPolicy?.failed_gate_states, ['failed_gate_draining', 'failed'])) {
+    console.error('FAIL release_operator_primary_blocker_policy: failed gate states must be failed_gate_draining and failed');
+    failures += 1;
+  }
+  if (!sameStringSet(blockerPolicy?.failed_gate_next_actions, ['repair_source_gate', 'dispatch_new_cohort'])) {
+    console.error('FAIL release_operator_primary_blocker_policy: failed gate next actions must repair source gate or dispatch a new cohort');
+    failures += 1;
+  }
   for (const action of [
     'repair_source_gate',
+    'dispatch_new_cohort',
     'rerun_diagnostic_same_artifact',
     'provide_owner_receipt',
     'wait_for_runner_capacity',

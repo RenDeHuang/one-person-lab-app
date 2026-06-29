@@ -624,3 +624,43 @@ test('AI exploratory release policy is locked in the machine contract', () => {
   assertMatches(contract, policyPattern, 'release channel AI exploratory policy');
   assertMatches(contract.replaceAll('_', '-'), nonBlockingPattern, 'release channel AI exploratory gate policy');
 });
+
+test('release operator docs and contract freeze candidates, fail fast on source gates, and avoid gh watch waits', () => {
+  const contract = JSON.parse(readRepoFile('contracts/app-release-channel.json'));
+  const releaseDocs = readRepoFile('docs/delivery/release/README.md');
+  const sourceGate = contract.release_preflight.source_gate;
+  const candidateFreeze = contract.release_acceleration.cohort_prepare.stable_candidate_freeze;
+  const blockerPolicy = contract.release_acceleration.release_operator.primary_blocker_policy;
+
+  assert.deepEqual(candidateFreeze.pinned_sha_fields, ['app_sha', 'shell_sha', 'framework_sha']);
+  assert.deepEqual(candidateFreeze.obsolete_candidate_statuses, ['obsolete_candidate', 'stale_candidate']);
+  assert.equal(candidateFreeze.next_action, 'dispatch_new_cohort');
+  assertMatches(candidateFreeze.currentness_rule, /obsolete\/stale candidate/, 'stable candidate stale rule');
+
+  assert.equal(sourceGate.package_script, 'release:source-gate');
+  assert.deepEqual(sourceGate.scope, [
+    'App release-boundary contract',
+    'shell format',
+    'shell type',
+    'shell ref resolution',
+    'framework ref resolution',
+  ]);
+  assert.ok(sourceGate.must_run_before.includes('standard_macos_arm64_build'));
+  assert.ok(sourceGate.must_run_before.includes('full_first_install_build'));
+  assert.ok(sourceGate.must_run_before.includes('homebrew_standard_cask_clean_vm_smoke'));
+  assert.ok(sourceGate.must_run_before.includes('webui_ghcr_publish'));
+  assert.equal(sourceGate.failure_next_action, 'repair_source_gate');
+
+  assert.equal(blockerPolicy.monitor_mode, 'no_watch');
+  assert.deepEqual(blockerPolicy.failed_gate_states, ['failed_gate_draining', 'failed']);
+  assert.deepEqual(blockerPolicy.failed_gate_next_actions, ['repair_source_gate', 'dispatch_new_cohort']);
+  assert.equal(blockerPolicy.forbidden_wait_strategy, 'continue_waiting_on_gh_run_watch_after_primary_gate_failure');
+
+  assertMatches(releaseDocs, /npm run release:source-gate -- --version <version>/, 'release docs source gate command');
+  assertMatches(releaseDocs, /App SHA, shell SHA, and framework SHA/, 'release docs pinned cohort');
+  assertMatches(releaseDocs, /obsolete\/stale candidate/, 'release docs stale candidate');
+  assertMatches(releaseDocs, /npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>/, 'release docs operator status command');
+  assertMatches(releaseDocs, /failed_gate_draining/, 'release docs failed gate draining state');
+  assertMatches(releaseDocs, /instead of asking the release owner to keep waiting\s+on `gh run watch`/, 'release docs no-watch policy');
+  assertMatches(releaseDocs, /Desktop stable, WebUI GHCR, and diagnostics are separate lanes/, 'release docs lane split');
+});

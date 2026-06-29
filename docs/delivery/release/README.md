@@ -73,6 +73,21 @@ availability, the Homebrew VM static trust policy, and the App-owned release
 contract. A failing preflight stops the release before standard, Full, VM,
 Homebrew, WebUI, or publish jobs run.
 
+The source gate is the next fail-fast boundary after preflight:
+
+```bash
+npm run validate:release-boundary
+npm run release:source-gate -- --version <version> --app-ref <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref>
+```
+
+`release:source-gate` is the App-owned source/readiness front door for the
+candidate cohort. It must check App release-boundary policy plus shell
+format/type/source ref and framework ref resolution before expensive standard
+build, Full build, VM, Homebrew, or WebUI work starts. If it fails, stop the
+train, repair the source gate, and dispatch a new cohort after the pinned refs
+are valid. Do not wait for downstream build or VM jobs to prove a source-gate
+failure again.
+
 For the Homebrew standard VM gate, the static policy is:
 
 - Install ref: `gaofeng21cn/one-person-lab/one-person-lab`
@@ -90,15 +105,25 @@ whole tap.
 
 Stable release flow:
 
-1. Run the release workflow for the selected version/channel.
-2. Produce standard and, when requested, Full artifacts plus the release evidence bundle.
-3. Run remote verification against the published draft release assets.
-4. Produce `release-candidate-record.json`.
-5. Promote only when the promote workflow reads a ready candidate record for the same cohort.
-6. Update Homebrew casks after the draft release is published and the matching policy assets exist.
-7. Run post-release user-guide/screenshots only after promotion; they are never pre-promotion gates.
+1. Freeze the candidate cohort by recording the App SHA, shell SHA, and
+   framework SHA.
+2. Run preflight and `release:source-gate` for that pinned cohort.
+3. Run the release workflow for the selected version/channel.
+4. Produce standard and, when requested, Full artifacts plus the release evidence bundle.
+5. Run remote verification against the published draft release assets.
+6. Produce `release-candidate-record.json`.
+7. Promote only when the promote workflow reads a ready candidate record for the same cohort.
+8. Update Homebrew casks after the draft release is published and the matching policy assets exist.
+9. Run post-release user-guide/screenshots only after promotion; they are never pre-promotion gates.
 
 Nightly and candidate flows follow the same SSOT contract but do not imply stable/latest promotion.
+
+The stable candidate is valid only for the pinned App/Shell/Framework SHA
+cohort. If `main`, the active shell ref, or the framework ref advances after the
+run starts, the old run is an obsolete/stale candidate. It can remain diagnostic
+evidence for that old cohort, but it cannot continue as the current stable
+candidate or be promoted as latest. Dispatch a new cohort instead of trying to
+reinterpret old artifacts against newer source.
 
 Every desktop release run also uploads `release-actions-timing-<version>`. Use
 that artifact to inspect workflow wall time, failed/canceled run tax, slow jobs,
@@ -418,11 +443,15 @@ Every desktop release run now produces the closeout by default in the final
 `release-closeout-<version>` with `release-closeout.json` and
 `release-closeout.md` after `release-candidate-record.json` is written. The same
 artifact also carries `release-monitor.json` and `release-notification.json`.
-Use `release-monitor.json#state` (`running`, `failed`, `ready_to_promote`, or
-`published`, with `published_with_post_publish_followup` when publication is
-complete but a later proof gate failed) plus `recommended_next_action` as the
-no-watch operator surface instead of leaving a terminal in `gh run watch`. It
-reads the same local small
+Use `release:operator status` and `release-monitor.json#state` (`running`,
+`failed_gate_draining`, `failed`, `ready_to_promote`, or `published`, with
+`published_with_post_publish_followup` when publication is complete but a later
+proof gate failed) plus `recommended_next_action` as the no-watch operator
+surface instead of leaving a terminal in `gh run watch`. Once a primary blocker
+is known, stop watching: source-gate failures should return
+`repair_source_gate`; stale cohorts should return `dispatch_new_cohort`; VM or
+artifact diagnostic gaps should return a same-artifact diagnostic action. The
+closeout reads the same local small
 artifacts already used by readiness, runs with `--no-download`, refuses
 standard/Full package artifacts, and points the
 operator at promotion only after the candidate record passes
@@ -470,20 +499,38 @@ npm run release:cohort-plan -- --version <version> --release-mode new_release --
 ```
 
 The cohort plan pins the App commit plus shell/framework refs and cheap source
-gates for operator review. It is not release evidence and cannot publish,
-promote, or claim readiness. The thin operator entry can then produce the
-no-watch state or the same-artifact VM diagnostic command:
+gates for operator review. For stable candidates, treat those refs as the frozen
+candidate cohort: App SHA, shell SHA, and framework SHA must match all
+release-ready evidence and the candidate record. It is not release evidence and
+cannot publish, promote, or claim readiness. The thin operator entry can then
+produce the no-watch state, the primary blocker status, or the same-artifact VM
+diagnostic command:
 
 ```bash
 npm run release:operator -- plan --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --output release-operator-state.json --markdown release-operator-state.md
+npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha> --output release-operator-state.json --markdown release-operator-state.md
 npm run release:operator -- diagnose-vm --version <version> --release-artifact-name <artifact> --release-artifact-run-id <run-id> --package-profile full --diagnostic-scope bootstrap_only --output release-operator-state.json --markdown release-operator-state.md
 ```
 
 `release:operator` is a controller surface over existing scripts, workflows, and
 artifacts. It may emit typed next actions such as
-`rerun_diagnostic_same_artifact`, `repair_source_gate`, or
-`promote_candidate`; it must not become release truth, write runtime/domain
-truth, or turn a diagnostic rerun into a release-ready claim.
+`rerun_diagnostic_same_artifact`, `repair_source_gate`,
+`dispatch_new_cohort`, or `promote_candidate`; it must not become release truth,
+write runtime/domain truth, or turn a diagnostic rerun into a release-ready
+claim. The operator status path is primary-blocker first: after a critical gate
+failure it should report `failed_gate_draining` while downstream already-queued
+jobs settle, then `failed`, instead of asking the release owner to keep waiting
+on `gh run watch`.
+
+Desktop stable, WebUI GHCR, and diagnostics are separate lanes. Desktop stable
+owns the App package, updater metadata, Full first-install path, Homebrew gates,
+same-cohort candidate record, and stable/latest promotion. WebUI GHCR owns only
+the preheated container image publish and image smoke evidence; it does not
+replace desktop install evidence or promote a desktop stable candidate.
+Diagnostics lanes are read-only or temporary-artifact harness runs for blocker
+classification; they can recommend repair or rerun actions but cannot publish,
+promote, update Homebrew, or convert old evidence into the current stable
+cohort.
 
 Use `desktop-release-diagnostics.yml` for harness-only diagnosis before
 starting another full release train. It can run the first-run VM harness against
