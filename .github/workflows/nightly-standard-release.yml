@@ -69,7 +69,7 @@ jobs:
         with:
           repository: gaofeng21cn/one-person-lab
           ref: main
-          path: ../one-person-lab
+          path: one-person-lab
 
       - name: Validate release source gate
         run: |
@@ -78,6 +78,7 @@ jobs:
             --app-ref "$GITHUB_SHA" \
             --shell-ref main \
             --framework-ref main \
+            --framework-root one-person-lab \
             --require-shell-format true \
             --output release-source-gate.json \
             --json
