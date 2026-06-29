@@ -135,7 +135,7 @@ test('release cohort planner writes pinned cohort JSON and typed next action', (
     '--run-vm-smoke',
     'true',
     '--app-commit',
-    'main',
+    refs.appHead,
     '--shell-ref',
     'main',
     '--framework-ref',
@@ -160,7 +160,7 @@ test('release cohort planner writes pinned cohort JSON and typed next action', (
   assert.equal(plan.app_commit, refs.appHead);
   assert.equal(plan.shell_ref, 'main');
   assert.equal(plan.framework_ref, 'main');
-  assert.equal(plan.cohort_lock.app.requested_ref, 'main');
+  assert.equal(plan.cohort_lock.app.requested_ref, refs.appHead);
   assert.equal(plan.cohort_lock.app.resolved_sha, refs.appHead);
   assert.equal(plan.cohort_lock.shell.requested_ref, 'main');
   assert.equal(plan.cohort_lock.shell.resolved_sha, refs.shell.head);
@@ -198,7 +198,7 @@ test('release operator plan reuses cohort plan and writes operator state', () =>
     '--run-vm-smoke',
     'false',
     '--app-commit',
-    'main',
+    refs.appHead,
     '--shell-ref',
     'main',
     '--framework-ref',
@@ -220,7 +220,7 @@ test('release operator plan reuses cohort plan and writes operator state', () =>
   assert.equal(state.status, 'planned');
   assert.equal(state.cohort_plan.schema, 'opl_app_release_cohort_plan.v1');
   assert.equal(state.cohort_plan.app_commit, refs.appHead);
-  assert.equal(state.cohort_plan.cohort_lock.app.requested_ref, 'main');
+  assert.equal(state.cohort_plan.cohort_lock.app.requested_ref, refs.appHead);
   assert.equal(state.cohort_plan.cohort_lock.shell.resolved_sha, refs.shell.head);
   assert.equal(state.cohort_plan.cohort_lock.framework.resolved_sha, refs.framework.head);
   assert.equal(state.next_action.action, 'follow_cohort_plan');
@@ -526,11 +526,59 @@ test('release operator status reports phase current step elapsed and budget for 
   assert.equal(state.current_step.job_name, 'Build standard App assets / Active shell tests (dom)');
   assert.equal(state.current_step.step_name, 'Run active shell test project');
   assert.equal(state.current_step.status, 'in_progress');
-  assert.equal(state.elapsed.seconds, 300);
+  assert.ok(state.elapsed.seconds > 300);
   assert.equal(state.elapsed.started_at, '2026-06-29T17:45:43Z');
-  assert.equal(state.elapsed.ended_at, '2026-06-29T17:50:43Z');
-  assert.equal(state.budget.status, 'unknown');
-  assert.equal(state.budget.elapsed_seconds, 300);
+  assert.notEqual(state.elapsed.ended_at, '2026-06-29T17:50:43Z');
+  assert.equal(state.elapsed.ended_at, state.generated_at);
+  assert.equal(state.budget.status, 'attention');
+  assert.equal(state.budget.elapsed_seconds, state.elapsed.seconds);
+  assert.ok(state.budget.current_step_elapsed_seconds > 0);
+  assert.equal(state.budget.run_updated_age_seconds, state.elapsed.seconds - 300);
+  assert.equal(state.budget.threshold_seconds, 1200);
+  assert.equal(state.next_action.action, 'inspect_current_step_progress');
+});
+
+test('release operator status attention budget calls out opaque WebUI publish steps', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-webui-progress-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  writeJson(runJsonPath, {
+    databaseId: 67890,
+    workflowName: 'OPL WebUI GHCR Release',
+    status: 'in_progress',
+    conclusion: null,
+    createdAt: '2026-06-29T19:53:18Z',
+    updatedAt: '2026-06-29T19:53:23Z',
+    headSha: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    jobs: [
+      {
+        name: 'Build, verify, and publish WebUI GHCR image',
+        status: 'in_progress',
+        conclusion: null,
+        startedAt: '2026-06-29T19:53:22Z',
+        steps: [
+          {
+            name: 'Build, verify, and publish Docker WebUI',
+            status: 'in_progress',
+            conclusion: null,
+            startedAt: '2026-06-29T19:54:10Z',
+          },
+        ],
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--summary',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /^Status: waiting_for_run_completion$/m);
+  assert.match(result.stdout, /^Current step: Build, verify, and publish Docker WebUI$/m);
+  assert.match(result.stdout, /^Budget: attention$/m);
+  assert.match(result.stdout, /^Next action: inspect_current_step_progress$/m);
 });
 
 test('release operator status reports failed gate while run is draining', () => {

@@ -65,7 +65,7 @@ test('release cohort lock resolves requested refs to immutable SHAs', () => {
 
   const result = runScript([
     '--app-ref',
-    'main',
+    appHead,
     '--shell-ref',
     'main',
     '--framework-ref',
@@ -85,7 +85,7 @@ test('release cohort lock resolves requested refs to immutable SHAs', () => {
   const lock = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
   assert.equal(stdout.schema, 'opl_app_release_cohort_lock.v1');
   assert.equal(lock.schema, 'opl_app_release_cohort_lock.v1');
-  assert.equal(lock.app.requested_ref, 'main');
+  assert.equal(lock.app.requested_ref, appHead);
   assert.equal(lock.app.resolved_sha, appHead);
   assert.equal(lock.shell.requested_ref, 'main');
   assert.equal(lock.shell.resolved_sha, shell.head);
@@ -98,9 +98,10 @@ test('release cohort lock resolves requested refs to immutable SHAs', () => {
 test('release cohort lock fails unresolved source refs before emitting dispatch inputs', () => {
   const shell = createGitCheckout('opl-release-lock-missing-shell-');
   const framework = createGitCheckout('opl-release-lock-missing-framework-');
+  const appHead = runGit(appRoot, ['rev-parse', 'HEAD']);
   const result = runScript([
     '--app-ref',
-    'main',
+    appHead,
     '--shell-ref',
     'missing-shell-ref',
     '--framework-ref',

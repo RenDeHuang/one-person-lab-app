@@ -106,201 +106,47 @@ jobs:
           path: release-source-gate.json
           if-no-files-found: error
 
-      - name: Build, verify, and publish Docker WebUI
+      - name: Export WebUI release environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo 'OPL_VERSION=${{ inputs.opl_version }}'
+            echo 'SHELL_SHA=${{ steps.release-source-gate.outputs.shell_sha }}'
+            echo 'OPL_FRAMEWORK_SHA=${{ steps.release-source-gate.outputs.framework_sha }}'
+            echo 'WEBUI_CHANNEL_TAGS=stable,latest'
+            echo 'WEBUI_WORKFLOW_JOB=publish-webui-ghcr'
+            echo 'WEBUI_BUILD_REUSE_MODE=webui_only_release_workflow'
+            echo 'WEBUI_SOURCE_GATE=webui-ghcr-release'
+            echo 'WEBUI_REPEATED_DOCKER_BUILD=false'
+            echo 'RELEASE_MODE=new_release'
+          } >> "$GITHUB_ENV"
+
+      - name: Prepare WebUI GHCR publish records
+        shell: bash
+        run: bash scripts/webui-ghcr-release-step.sh prepare
+
+      - name: Build WebUI Docker images
+        shell: bash
+        run: bash scripts/webui-ghcr-release-step.sh build
+
+      - name: Inspect and validate WebUI runtime images
+        shell: bash
+        run: bash scripts/webui-ghcr-release-step.sh inspect
+
+      - name: Smoke WebUI container runtime
+        shell: bash
+        run: bash scripts/webui-ghcr-release-step.sh smoke
+
+      - name: Tag WebUI GHCR images
+        shell: bash
+        run: bash scripts/webui-ghcr-release-step.sh tag
+
+      - name: Publish WebUI GHCR tags
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPL_VERSION: ${{ inputs.opl_version }}
-          SHELL_SHA: ${{ steps.release-source-gate.outputs.shell_sha }}
-          OPL_FRAMEWORK_SHA: ${{ steps.release-source-gate.outputs.framework_sha }}
-        run: |
-          set -euo pipefail
-          if ! [[ "$OPL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Invalid OPL version: $OPL_VERSION"
-            exit 1
-          fi
-
-          image_owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
-          ghcr_image="ghcr.io/${image_owner}/one-person-lab-webui"
-          write_publish_summary() {
-            local status="$1"
-            local error_code="${2:-}"
-            local error_message="${3:-}"
-            node <<NODE
-          const fs = require('node:fs');
-          const payload = {
-            status: '${status}',
-            image: '${ghcr_image}',
-            tags: ['${OPL_VERSION}', '${OPL_VERSION}-slim', 'stable', 'latest'],
-            source_repository: 'https://github.com/${GITHUB_REPOSITORY}',
-            shell_repository: 'https://github.com/gaofeng21cn/opl-aion-shell',
-            shell_revision: '${SHELL_SHA}',
-            build_reuse: {
-              mode: 'webui_only_release_workflow',
-              source_gate: 'webui-ghcr-release',
-              repeated_docker_build: false,
-              image_profiles: ['webui-full', 'webui-slim'],
-            },
-            package_access_required: {
-              package_url: 'https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui/settings',
-              required_actions_access_repository: 'gaofeng21cn/one-person-lab-app',
-              required_actions_access_permission: 'write',
-              configuration_surface: 'GitHub Packages settings Manage Actions access',
-              failure_signal: 'docker push denied: permission_denied: write_package',
-            },
-          };
-          if ('${error_code}') {
-            payload.error = { code: '${error_code}', message: '${error_message}' };
-          }
-          fs.writeFileSync('/tmp/opl-webui-ghcr-publish.json', JSON.stringify(payload) + '\n');
-          NODE
-          }
-          node <<'NODE'
-          const fs = require('node:fs');
-          const policy = JSON.parse(fs.readFileSync('contracts/app-install-exposure-policy.json', 'utf8'));
-          const dockerWebui = policy.installer_surfaces.find((surface) => surface.surface === 'docker_webui');
-          const smokeGate = dockerWebui && dockerWebui.smoke_gate_contract;
-          if (!smokeGate) {
-            throw new Error('contracts/app-install-exposure-policy.json missing docker_webui.smoke_gate_contract');
-          }
-          const payload = {
-            status: 'contract_record_only_not_live_smoke_evidence',
-            source_policy: 'contracts/app-install-exposure-policy.json#installer_surfaces.docker_webui.smoke_gate_contract',
-            workflow_job: 'publish-webui-ghcr',
-            workflow_artifact: smokeGate.workflow_artifact,
-            required_gates: smokeGate.required_gates,
-            health_check_surfaces: smokeGate.health_check_surfaces,
-            diagnostic_bundle_artifacts: smokeGate.diagnostic_bundle_artifacts,
-            false_ready_boundary: smokeGate.false_ready_boundary,
-            note: 'This artifact declares required Docker/WebUI smoke gates. Clean Linux VM, clean Windows VM, existing Docker, and old OnePersonLab data-dir evidence must be supplied by fresh workflow/manual smoke artifacts or typed blockers before release-ready claims.',
-          };
-          fs.writeFileSync('/tmp/docker-webui-smoke-gate-contract.json', JSON.stringify(payload, null, 2) + '\n');
-          NODE
-
-          docker build \
-            --build-arg OPL_FRAMEWORK_REF="${OPL_FRAMEWORK_SHA}" \
-            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
-            --label "org.opencontainers.image.revision=${SHELL_SHA}" \
-            -t "one-person-lab-webui:${OPL_VERSION}" \
-            shells/aionui
-          docker build \
-            --build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim \
-            --build-arg OPL_FRAMEWORK_REF="${OPL_FRAMEWORK_SHA}" \
-            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
-            --label "org.opencontainers.image.revision=${SHELL_SHA}" \
-            -t "one-person-lab-webui:${OPL_VERSION}-slim" \
-            shells/aionui
-          docker image inspect "one-person-lab-webui:${OPL_VERSION}" \
-            --format '{{.Size}}' > /tmp/opl-webui-image-size-bytes.txt
-          docker image inspect "one-person-lab-webui:${OPL_VERSION}" > /tmp/opl-webui-image-inspect.json
-          docker image inspect "one-person-lab-webui:${OPL_VERSION}-slim" > /tmp/opl-webui-slim-image-inspect.json
-          docker run --rm --entrypoint cat "one-person-lab-webui:${OPL_VERSION}" \
-            /opt/opl/image-manifest.json > /tmp/opl-webui-image-manifest.json
-          docker run --rm --entrypoint cat "one-person-lab-webui:${OPL_VERSION}" \
-            /opt/opl/seed/metadata.json > /tmp/opl-webui-seed-metadata.json
-          docker run --rm --entrypoint sh "one-person-lab-webui:${OPL_VERSION}" -lc \
-            'command -v opl && command -v codex && test "$(find /opt/opl/seed/payload -type f | wc -l)" -gt 0' \
-            > /tmp/opl-webui-runtime-readback.txt
-          docker run --rm --entrypoint cat "one-person-lab-webui:${OPL_VERSION}-slim" \
-            /opt/opl/image-manifest.json > /tmp/opl-webui-slim-image-manifest.json
-          docker run --rm --entrypoint cat "one-person-lab-webui:${OPL_VERSION}-slim" \
-            /opt/opl/seed/metadata.json > /tmp/opl-webui-slim-seed-metadata.json
-          node --experimental-strip-types scripts/validate-webui-runtime-image.ts \
-            --image-inspect /tmp/opl-webui-image-inspect.json \
-            --image-manifest /tmp/opl-webui-image-manifest.json \
-            --seed-metadata /tmp/opl-webui-seed-metadata.json \
-            --expected-profile webui-full \
-            --summary-path /tmp/opl-webui-runtime-image-validation.json
-          node --experimental-strip-types scripts/validate-webui-runtime-image.ts \
-            --image-inspect /tmp/opl-webui-slim-image-inspect.json \
-            --image-manifest /tmp/opl-webui-slim-image-manifest.json \
-            --seed-metadata /tmp/opl-webui-slim-seed-metadata.json \
-            --expected-profile webui-slim \
-            --summary-path /tmp/opl-webui-slim-runtime-image-validation.json
-
-          webui_smoke_dir="$(mktemp -d)"
-          mkdir -p "$webui_smoke_dir/data" "$webui_smoke_dir/projects"
-          printf '%s\n' "projects mount smoke" > "$webui_smoke_dir/projects/.opl-projects-smoke"
-          container="$(docker run --rm -d -p 127.0.0.1::3000 \
-            -v "$webui_smoke_dir/data:/data" \
-            -v "$webui_smoke_dir/projects:/projects" \
-            "one-person-lab-webui:${OPL_VERSION}")"
-          cleanup() {
-            docker logs "$container" >/tmp/opl-webui-container.log 2>&1 || true
-            docker rm -f "$container" >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-          port="$(docker port "$container" 3000/tcp | sed -E 's/.*:([0-9]+)$/\1/')"
-          for attempt in $(seq 1 60); do
-            if curl -fsS "http://127.0.0.1:${port}/" >/tmp/opl-webui-index.html; then
-              break
-            fi
-            sleep 2
-          done
-          curl -fsS "http://127.0.0.1:${port}/manifest.webmanifest" >/tmp/opl-webui-manifest.webmanifest
-          auth_headers="$(mktemp)"
-          auth_body="$(mktemp)"
-          for attempt in $(seq 1 60); do
-            if curl -fsS -D "$auth_headers" "http://127.0.0.1:${port}/api/auth/user" -o "$auth_body" \
-              && grep -q '"success":[[:space:]]*true' "$auth_body" \
-              && grep -iq '^set-cookie:' "$auth_headers"; then
-              break
-            fi
-            sleep 2
-          done
-          grep -q '"success":[[:space:]]*true' "$auth_body"
-          grep -iq '^set-cookie:' "$auth_headers"
-          cp "$auth_body" /tmp/opl-webui-auth-user.json
-          curl -fsS -X POST -H 'content-type: application/json' -d '{}' \
-            "http://127.0.0.1:${port}/api/opl-runtime/startup-maintenance" \
-            >/tmp/opl-webui-startup-maintenance.json
-          curl -fsS -X POST -H 'content-type: application/json' -d '{}' \
-            "http://127.0.0.1:${port}/api/opl-runtime/update-status" \
-            >/tmp/opl-webui-update-status.json
-          grep -q '"success":[[:space:]]*true' /tmp/opl-webui-startup-maintenance.json
-          grep -q '"success":[[:space:]]*true' /tmp/opl-webui-update-status.json
-          for attempt in $(seq 1 60); do
-            if [ -s "$webui_smoke_dir/data/opl/state/install-manifest.json" ]; then
-              break
-            fi
-            sleep 1
-          done
-          test -s "$webui_smoke_dir/data/opl/state/install-manifest.json"
-          test -f "$webui_smoke_dir/projects/.opl-projects-smoke"
-          docker exec "$container" cat /projects/.opl-projects-smoke >/tmp/opl-webui-projects-readback.txt
-          grep -q 'projects mount smoke' /tmp/opl-webui-projects-readback.txt
-          cp "$webui_smoke_dir/data/opl/state/install-manifest.json" /tmp/opl-webui-install-manifest.json
-          docker logs "$container" >/tmp/opl-webui-container.log 2>&1
-          grep -q 'running OPL seed apply' /tmp/opl-webui-container.log
-          grep -q 'running OPL startup maintenance' /tmp/opl-webui-container.log
-          ! grep -q 'OPL maintenance CLI not found; skipping startup maintenance' /tmp/opl-webui-container.log
-
-          docker tag "one-person-lab-webui:${OPL_VERSION}" "${ghcr_image}:${OPL_VERSION}"
-          docker tag "one-person-lab-webui:${OPL_VERSION}-slim" "${ghcr_image}:${OPL_VERSION}-slim"
-          docker tag "one-person-lab-webui:${OPL_VERSION}" "${ghcr_image}:stable"
-          docker tag "one-person-lab-webui:${OPL_VERSION}" "${ghcr_image}:latest"
-
-          if ! printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin; then
-            write_publish_summary "failed" "ghcr_login_failed" "GHCR login failed before pushing one-person-lab-webui tags."
-            exit 1
-          fi
-          if ! docker push "${ghcr_image}:${OPL_VERSION}"; then
-            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
-            exit 1
-          fi
-          if ! docker push "${ghcr_image}:${OPL_VERSION}-slim"; then
-            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR slim tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
-            exit 1
-          fi
-          if ! docker push "${ghcr_image}:stable"; then
-            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR stable tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
-            exit 1
-          fi
-          if ! docker push "${ghcr_image}:latest"; then
-            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR latest tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
-            exit 1
-          fi
-          write_publish_summary "published"
+        run: bash scripts/webui-ghcr-release-step.sh publish
 
       - name: Upload Docker WebUI smoke artifacts
         if: ${{ always() }}

@@ -43,6 +43,10 @@ patterns:
   cohort explicit: resolve moving refs once, pass fixed SHAs through `needs`
   outputs, and make downstream jobs consume those values instead of re-reading
   branch names.
+- GitHub Actions is a good executor, but a weak live control surface for one
+  opaque long shell step. Use step boundaries, `$GITHUB_STEP_SUMMARY`, small
+  artifacts, and job timeouts as observability and recovery tools instead of
+  expecting an operator to infer progress from a static run page.
 - Homebrew casks are an index to published assets and checksums. They should not
   become semantic authority for runtime modules or agent behavior.
 - SLSA-style provenance treats resolved source dependencies as part of build
@@ -109,6 +113,21 @@ cohort.
 one-shot installer, and Docker WebUI. These jobs write small artifacts consumed
 by the summary.
 
+`release_operator_status` is the no-watch control surface. It reads GitHub
+Actions live state, the expected App SHA, current job/step, elapsed time, active
+step age, run update age, stale-candidate state, and primary blockers. Its
+output is not a release-ready claim; it is an operator state machine that
+chooses between wait, inspect current step, repair source gate, repair WebUI
+runtime image, repair GHCR access, inspect closeout evidence, or start a new
+cohort.
+
+`webui_ghcr_publish` must be observable as a pipeline, not a monolith. The
+standalone WebUI lane is split into prepare, build, inspect/readback, smoke,
+tag, publish, and upload steps. Desktop release may still build once and reuse
+that image for smoke plus publish, but the action boundary must reveal whether
+time is being spent in Docker build, runtime validation, HTTP smoke, GHCR
+authentication, or package push.
+
 `release_readiness_summary` is the final judge. It downloads only small
 diagnostic artifacts and fails closed when required gates are missing, failed,
 or inconsistent.
@@ -167,6 +186,22 @@ runs that exposed problems only after expensive jobs had already started:
   asset prefetch.
 - `27771471126` failed in standard clean VM readiness and later in active-shell
   checkout for the Homebrew VM lane.
+
+Layer 7 is now implemented as release-operator progress correction. The
+2026-06-29/30 stable attempt showed that an in-progress GitHub run may keep an
+old `updatedAt` while the current step is still active. The operator therefore
+computes active elapsed time against its own `generated_at`, reports current
+step elapsed time and run update age, and changes the next action from passive
+waiting to current-step inspection when the attention budget is crossed.
+
+Layer 8 is now implemented for the standalone WebUI GHCR lane. The old
+standalone workflow put build, runtime inspection, smoke, tagging, and GHCR
+push into one long step, so an operator could only see
+`Build, verify, and publish Docker WebUI` while logs and artifacts were
+unavailable. The workflow now calls the App-owned
+`scripts/webui-ghcr-release-step.sh` helper from separate GitHub Actions steps,
+preserving existing artifact names while making the slow or failed boundary
+visible in the Actions job list.
 
 The release preflight therefore owns fast external availability checks for
 `shell_ref`, `framework_ref`, and the Codex CLI plus Darwin arm64 platform

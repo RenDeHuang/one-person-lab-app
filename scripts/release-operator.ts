@@ -35,6 +35,7 @@ type OperatorNextAction = {
     | 'repair_webui_runtime_image'
     | 'repair_ghcr_publish_access'
     | 'inspect_primary_blocker'
+    | 'inspect_current_step_progress'
     | 'start_new_cohort_from_current_main'
     | 'inspect_release_closeout_evidence'
     | 'wait_for_release_run_completion';
@@ -120,8 +121,12 @@ type OperatorElapsed = {
 };
 
 type OperatorBudget = {
-  status: 'unknown';
+  status: 'unknown' | 'within_budget' | 'attention';
   elapsed_seconds: number | null;
+  current_step_elapsed_seconds: number | null;
+  run_updated_age_seconds: number | null;
+  threshold_seconds: number | null;
+  reason: string;
 };
 
 type OperatorState = {
@@ -584,9 +589,11 @@ function elapsedSeconds(startedAt: string | null, endedAt: string | null): numbe
   return Math.floor((ended - started) / 1000);
 }
 
-function buildElapsed(run: RunStatusSummary): OperatorElapsed {
+function buildElapsed(run: RunStatusSummary, generatedAt: string): OperatorElapsed {
   const startedAt = run.started_at ?? run.created_at;
-  const endedAt = run.completed_at ?? run.updated_at;
+  const endedAt = run.status === 'completed'
+    ? run.completed_at ?? run.updated_at
+    : generatedAt;
   return {
     started_at: startedAt,
     ended_at: endedAt,
@@ -594,10 +601,64 @@ function buildElapsed(run: RunStatusSummary): OperatorElapsed {
   };
 }
 
-function buildBudget(elapsed: OperatorElapsed): OperatorBudget {
+function progressThresholdSeconds(run: RunStatusSummary, currentStep: CurrentStep): number | null {
+  if (run.status === 'completed') return null;
+  if (currentStep.waiting) return 10 * 60;
+  const classifier = normalizeClassifierText(run.workflow_name, currentStep.job_name, currentStep.step_name);
+  if (classifier.includes('build, verify, and publish docker webui')) return 10 * 60;
+  if (classifier.includes('docker') || classifier.includes('webui') || classifier.includes('ghcr')) return 20 * 60;
+  if (classifier.includes('vm smoke') || classifier.includes('first-run vm') || classifier.includes('first run vm')) return 30 * 60;
+  return 20 * 60;
+}
+
+function buildBudget(run: RunStatusSummary, currentStep: CurrentStep, elapsed: OperatorElapsed, generatedAt: string): OperatorBudget {
+  const stepStartedAt = currentStep.started_at ?? (currentStep.waiting ? currentStep.started_at : null);
+  const currentStepElapsed = run.status === 'completed'
+    ? null
+    : elapsedSeconds(stepStartedAt, generatedAt);
+  const runUpdatedAge = run.status === 'completed'
+    ? null
+    : elapsedSeconds(run.updated_at ?? run.started_at ?? run.created_at, generatedAt);
+  const threshold = progressThresholdSeconds(run, currentStep);
+  if (run.status === 'completed') {
+    return {
+      status: 'unknown',
+      elapsed_seconds: elapsed.seconds,
+      current_step_elapsed_seconds: currentStepElapsed,
+      run_updated_age_seconds: runUpdatedAge,
+      threshold_seconds: threshold,
+      reason: 'Run is complete; progress budget no longer applies.',
+    };
+  }
+  if (threshold !== null && currentStepElapsed !== null && currentStepElapsed >= threshold) {
+    return {
+      status: 'attention',
+      elapsed_seconds: elapsed.seconds,
+      current_step_elapsed_seconds: currentStepElapsed,
+      run_updated_age_seconds: runUpdatedAge,
+      threshold_seconds: threshold,
+      reason: `Current step has been active for ${currentStepElapsed}s, crossing the ${threshold}s release-operator attention budget.`,
+    };
+  }
+  if (threshold !== null && runUpdatedAge !== null && runUpdatedAge >= threshold) {
+    return {
+      status: 'attention',
+      elapsed_seconds: elapsed.seconds,
+      current_step_elapsed_seconds: currentStepElapsed,
+      run_updated_age_seconds: runUpdatedAge,
+      threshold_seconds: threshold,
+      reason: `Run status has not updated for ${runUpdatedAge}s, crossing the ${threshold}s release-operator attention budget.`,
+    };
+  }
   return {
-    status: 'unknown',
+    status: threshold === null ? 'unknown' : 'within_budget',
     elapsed_seconds: elapsed.seconds,
+    current_step_elapsed_seconds: currentStepElapsed,
+    run_updated_age_seconds: runUpdatedAge,
+    threshold_seconds: threshold,
+    reason: threshold === null
+      ? 'No progress budget applies to this run state.'
+      : `Current run is still inside the ${threshold}s release-operator attention budget.`,
   };
 }
 
@@ -680,7 +741,13 @@ function findPrimaryBlocker(run: RunStatusSummary): PrimaryBlocker {
   return null;
 }
 
-function statusAction(options: StatusOptions, run: RunStatusSummary, status: OperatorStatus, blocker: PrimaryBlocker): OperatorNextAction {
+function statusAction(
+  options: StatusOptions,
+  run: RunStatusSummary,
+  status: OperatorStatus,
+  blocker: PrimaryBlocker,
+  budget?: OperatorBudget,
+): OperatorNextAction {
   if (status === 'stale_candidate') {
     return {
       action: 'start_new_cohort_from_current_main',
@@ -719,6 +786,15 @@ function statusAction(options: StatusOptions, run: RunStatusSummary, status: Ope
       dispatches_workflow: false,
     };
   }
+  if (status === 'waiting_for_run_completion' && budget?.status === 'attention') {
+    return {
+      action: 'inspect_current_step_progress',
+      command: `gh run view ${run.id} --repo ${options.repo} --json status,conclusion,updatedAt,jobs`,
+      reason: budget.reason,
+      publishes_release: false,
+      dispatches_workflow: false,
+    };
+  }
   return {
     action: 'wait_for_release_run_completion',
     command: `npm run release:operator -- status --run-id ${run.id} --repo ${options.repo}`,
@@ -729,6 +805,7 @@ function statusAction(options: StatusOptions, run: RunStatusSummary, status: Ope
 }
 
 function buildStatusState(options: StatusOptions): OperatorState {
+  const generatedAt = new Date().toISOString();
   const run = summarizeRun(fetchRun(options), options);
   const isStale = Boolean(options.expectedHead && run.head_sha && run.head_sha !== options.expectedHead);
   const foundBlocker = findPrimaryBlocker(run);
@@ -751,18 +828,20 @@ function buildStatusState(options: StatusOptions): OperatorState {
         : run.status === 'completed' && run.conclusion === 'success'
           ? 'ready_for_closeout_review'
           : 'waiting_for_run_completion';
-  const recommendedNextAction = statusAction(options, run, status, primaryBlocker);
-  const elapsed = buildElapsed(run);
+  const currentStep = findCurrentStep(run);
+  const elapsed = buildElapsed(run, generatedAt);
+  const budget = buildBudget(run, currentStep, elapsed, generatedAt);
+  const recommendedNextAction = statusAction(options, run, status, primaryBlocker, budget);
   return {
     schema: 'opl_app_release_operator_state.v1',
-    generated_at: new Date().toISOString(),
+    generated_at: generatedAt,
     command: 'status',
     status,
     phase: phaseForStatus(status),
     run,
-    current_step: findCurrentStep(run),
+    current_step: currentStep,
     elapsed,
-    budget: buildBudget(elapsed),
+    budget,
     expected_head: options.expectedHead || undefined,
     is_stale: isStale,
     primary_blocker: primaryBlocker,
@@ -862,6 +941,13 @@ function formatOperatorSummary(state: OperatorState): string {
   }
   if (state.elapsed) {
     lines.push(`Elapsed: ${state.elapsed.seconds ?? 'unknown'}s`);
+  }
+  if (state.budget) {
+    lines.push(
+      `Budget: ${state.budget.status}`,
+      `Current step elapsed: ${state.budget.current_step_elapsed_seconds ?? 'unknown'}s`,
+      `Run updated age: ${state.budget.run_updated_age_seconds ?? 'unknown'}s`,
+    );
   }
   lines.push(
     `Primary blocker: ${state.primary_blocker ? state.primary_blocker.reason : 'none'}`,

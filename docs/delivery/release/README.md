@@ -46,6 +46,11 @@ The Stable WebUI path builds the image once in the Docker smoke lane, verifies
 the image locally, publishes that same image to GHCR, and leaves the GHCR lane
 as a summary-verifier gate. Do not add a second Stable Docker build just to
 separate smoke and publish reporting.
+The standalone WebUI GHCR workflow must expose the same work as separate
+prepare, build, inspect/readback, smoke, tag, publish, and upload steps. A
+single long `Build, verify, and publish Docker WebUI` step is not acceptable
+operator evidence because GitHub does not expose live step logs or partial
+artifacts until the active step completes.
 
 Desktop users get the AionUI shell through the App package itself. The
 `one-person-lab-webui` container exists only for Docker/server deployment and
@@ -140,6 +145,36 @@ same-cohort reuse inputs.
 Every desktop release run also uploads `release-actions-timing-<version>`. Use
 that artifact to inspect workflow wall time, failed/canceled run tax, slow jobs,
 and slow steps before opening raw job logs.
+
+## No-Watch Operator Runbook
+
+Do not watch a release page as the control loop. Use the operator readout as
+the first status surface:
+
+```bash
+npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha> --summary
+```
+
+Interpret the result as follows:
+
+- `stale_candidate`: stop waiting. The run head is not the expected App SHA;
+  keep it only as old-cohort diagnostics and dispatch a new pinned cohort.
+- `failed_gate_draining`: stop waiting for unrelated downstream work; inspect
+  the primary blocker and repair that gate.
+- `waiting_for_run_completion` with `Budget: within_budget`: wait or check the
+  current job normally.
+- `waiting_for_run_completion` with `Budget: attention`: the active job/step or
+  run update age crossed the release-operator budget. Inspect the current step,
+  runner availability, and workflow shape before continuing to wait.
+- `ready_for_closeout_review`: inspect closeout, readiness, candidate record,
+  and remote verification artifacts before any release-owner decision.
+
+The 2026-06-29/30 stable attempt exposed two design traps that this runbook
+guards against: a WebUI GHCR run can sit inside one opaque Docker step with no
+downloadable live logs, and GitHub `updatedAt` may stop moving while the run is
+still active. Operator elapsed time therefore uses the current read time for
+active runs, not `updatedAt`, and the WebUI GHCR workflow is split into named
+steps so the Actions job itself identifies the slow boundary.
 
 ## Clean VM Diagnostics
 
