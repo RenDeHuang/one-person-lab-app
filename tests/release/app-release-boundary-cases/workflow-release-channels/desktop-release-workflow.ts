@@ -86,7 +86,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /permissions:[\s\S]*packages: write/);
   assert.match(workflow, /shell_ref:[\s\S]*description: opl-aion-shell ref to build and verify/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml/);
-  assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/_build-reusable\.yml[\s\S]*ref: \$\{\{ needs\.release-source-gate\.outputs\.app_sha \}\}[\s\S]*shell_ref: \$\{\{ needs\.release-source-gate\.outputs\.shell_sha \}\}/);
   assert.match(standardBuild, /require_macos_gatekeeper:\s+false/);
   const reusableWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
   assert.match(reusableWorkflow, /macos-signing-preflight:/);
@@ -134,7 +134,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflowJobBlock(workflow, 'remote-verify-full'), /runs-on: macos-latest/);
   assert.match(workflow, /npm run verify-remote-release/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml/);
-  assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/full-first-install-release\.yml[\s\S]*framework_ref: \$\{\{ needs\.standard-vm-smoke-gate-after-full\.outputs\.framework_sha \}\}[\s\S]*shell_ref: \$\{\{ needs\.standard-vm-smoke-gate-after-full\.outputs\.shell_sha \}\}/);
   assert.match(workflow, /publish_to_release: false/);
   assert.match(workflow, /full-first-install:[\s\S]*needs:\s+standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /publish-full-assets:/);
@@ -227,8 +227,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   const webuiWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'webui-ghcr-release.yml'), 'utf8');
   assert.match(webuiWorkflow, /name: Validate release source gate[\s\S]*npm run release:source-gate --/);
   assert.match(webuiWorkflow, /name: Validate release source gate[\s\S]*--require-shell-format true/);
-  assert.match(webuiWorkflow, /docker build[\s\S]*--build-arg OPL_FRAMEWORK_REF="\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*-t "one-person-lab-webui:\$\{OPL_VERSION\}"/);
-  assert.match(webuiWorkflow, /docker build[\s\S]*--build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim[\s\S]*--build-arg OPL_FRAMEWORK_REF="\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*-t "one-person-lab-webui:\$\{OPL_VERSION\}-slim"/);
+  assert.match(webuiWorkflow, /OPL_FRAMEWORK_SHA: \$\{\{ steps\.release-source-gate\.outputs\.framework_sha \}\}/);
+  assert.match(webuiWorkflow, /docker build[\s\S]*--build-arg OPL_FRAMEWORK_REF="\$\{OPL_FRAMEWORK_SHA\}"[\s\S]*-t "one-person-lab-webui:\$\{OPL_VERSION\}"/);
+  assert.match(webuiWorkflow, /docker build[\s\S]*--build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim[\s\S]*--build-arg OPL_FRAMEWORK_REF="\$\{OPL_FRAMEWORK_SHA\}"[\s\S]*-t "one-person-lab-webui:\$\{OPL_VERSION\}-slim"/);
   assert.match(webuiWorkflow, /docker-webui-smoke-gate-contract\.json/);
   assert.match(webuiWorkflow, /\/api\/opl-runtime\/startup-maintenance[\s\S]*\/tmp\/opl-webui-startup-maintenance\.json/);
   assert.match(webuiWorkflow, /\/api\/opl-runtime\/update-status[\s\S]*\/tmp\/opl-webui-update-status\.json/);
@@ -266,7 +267,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /RELEASE_MODE.*draft_candidate/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
-  assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml[\s\S]*shell_ref: \$\{\{ inputs\.shell_ref \}\}/);
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml[\s\S]*shell_ref: \$\{\{ needs\.publish-standard\.outputs\.shell_sha \}\}/);
   assert.match(workflow, /release_artifact_name: macos-build-arm64-dmg/);
   assert.match(workflow, /release_artifact_name: opl-full-first-install-dmg-\$\{\{ inputs\.opl_version \}\}-mac-arm64/);
   assert.match(workflow, /package_profile: standard/);

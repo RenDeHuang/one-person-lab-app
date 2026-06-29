@@ -8,12 +8,12 @@ on:
         required: true
         type: string
       shell_ref:
-        description: opl-aion-shell ref to build. Empty means main.
+        description: opl-aion-shell ref to resolve before release work. Prefer a fixed SHA; main is resolved once by the source gate.
         required: false
         default: main
         type: string
       framework_ref:
-        description: OPL Framework ref to resolve for release source-gate currentness. Empty means main.
+        description: OPL Framework ref to resolve before release work. Prefer a fixed SHA; main is resolved once by the source gate.
         required: false
         default: main
         type: string
@@ -71,6 +71,7 @@ jobs:
           path: one-person-lab
 
       - name: Validate release source gate
+        id: release-source-gate
         run: |
           npm run release:source-gate -- \
             --version "${{ inputs.opl_version }}" \
@@ -81,6 +82,21 @@ jobs:
             --require-shell-format true \
             --output release-source-gate.json \
             --json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('release-source-gate.json', 'utf8'));
+          const outputs = {
+            app_sha: report.app_head,
+            shell_sha: report.shell_sha,
+            framework_sha: report.framework_sha,
+          };
+          for (const [name, value] of Object.entries(outputs)) {
+            if (typeof value !== 'string' || !/^[0-9a-f]{40}$/i.test(value)) {
+              throw new Error(`release source gate did not resolve ${name} to a fixed SHA`);
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
+          }
+          NODE
 
       - name: Upload release source gate summary
         if: always()
@@ -90,20 +106,13 @@ jobs:
           path: release-source-gate.json
           if-no-files-found: error
 
-      - name: Resolve shell revision
-        id: shell
-        shell: bash
-        run: |
-          set -euo pipefail
-          shell_sha="$(git -C shells/aionui rev-parse HEAD)"
-          echo "sha=$shell_sha" >> "$GITHUB_OUTPUT"
-
       - name: Build, verify, and publish Docker WebUI
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_VERSION: ${{ inputs.opl_version }}
-          SHELL_SHA: ${{ steps.shell.outputs.sha }}
+          SHELL_SHA: ${{ steps.release-source-gate.outputs.shell_sha }}
+          OPL_FRAMEWORK_SHA: ${{ steps.release-source-gate.outputs.framework_sha }}
         run: |
           set -euo pipefail
           if ! [[ "$OPL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
@@ -169,14 +178,14 @@ jobs:
           NODE
 
           docker build \
-            --build-arg OPL_FRAMEWORK_REF="${{ inputs.framework_ref || 'main' }}" \
+            --build-arg OPL_FRAMEWORK_REF="${OPL_FRAMEWORK_SHA}" \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             --label "org.opencontainers.image.revision=${SHELL_SHA}" \
             -t "one-person-lab-webui:${OPL_VERSION}" \
             shells/aionui
           docker build \
             --build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim \
-            --build-arg OPL_FRAMEWORK_REF="${{ inputs.framework_ref || 'main' }}" \
+            --build-arg OPL_FRAMEWORK_REF="${OPL_FRAMEWORK_SHA}" \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             --label "org.opencontainers.image.revision=${SHELL_SHA}" \
             -t "one-person-lab-webui:${OPL_VERSION}-slim" \

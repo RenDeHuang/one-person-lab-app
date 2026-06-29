@@ -499,6 +499,40 @@ test('release automation workflows cover remote verification, Full cache warmup,
   );
 });
 
+test('release workflows resolve moving refs once and pass fixed SHA cohort refs downstream', () => {
+  const desktopWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'desktop-release.yml'), 'utf8');
+  const webuiWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'webui-ghcr-release.yml'), 'utf8');
+
+  assert.match(desktopWorkflow, /framework_ref:[\s\S]*Prefer a fixed SHA; main is resolved once by the source gate/);
+  assert.match(desktopWorkflow, /shell_ref:[\s\S]*Prefer a fixed SHA; main is resolved once by the source gate/);
+  assert.match(desktopWorkflow, /release-source-gate:[\s\S]*outputs:[\s\S]*app_sha: \$\{\{ steps\.release-source-gate\.outputs\.app_sha \}\}[\s\S]*shell_sha: \$\{\{ steps\.release-source-gate\.outputs\.shell_sha \}\}[\s\S]*framework_sha: \$\{\{ steps\.release-source-gate\.outputs\.framework_sha \}\}/);
+  assert.match(desktopWorkflow, /const outputs = \{[\s\S]*app_sha: report\.app_head,[\s\S]*shell_sha: report\.shell_sha,[\s\S]*framework_sha: report\.framework_sha/);
+  assert.match(desktopWorkflow, /release source gate did not resolve \$\{name\} to a fixed SHA/);
+  assert.match(desktopWorkflow, /standard-build:[\s\S]*ref: \$\{\{ needs\.release-source-gate\.outputs\.app_sha \}\}[\s\S]*shell_ref: \$\{\{ needs\.release-source-gate\.outputs\.shell_sha \}\}/);
+  assert.match(desktopWorkflow, /publish-standard:[\s\S]*outputs:[\s\S]*app_sha: \$\{\{ steps\.release-cohort\.outputs\.app_sha \}\}[\s\S]*shell_sha: \$\{\{ steps\.release-cohort\.outputs\.shell_sha \}\}[\s\S]*framework_sha: \$\{\{ steps\.release-cohort\.outputs\.framework_sha \}\}/);
+  assert.match(desktopWorkflow, /name: Record fixed release cohort refs[\s\S]*APP_SHA: \$\{\{ needs\.release-source-gate\.outputs\.app_sha \}\}[\s\S]*FRAMEWORK_SHA: \$\{\{ needs\.release-source-gate\.outputs\.framework_sha \}\}/);
+  assert.match(desktopWorkflow, /full-first-install:[\s\S]*framework_ref: \$\{\{ needs\.standard-vm-smoke-gate-after-full\.outputs\.framework_sha \}\}[\s\S]*shell_ref: \$\{\{ needs\.standard-vm-smoke-gate-after-full\.outputs\.shell_sha \}\}/);
+  assert.match(desktopWorkflow, /standard-first-run-vm-smoke-after-standard-only:[\s\S]*shell_ref: \$\{\{ needs\.publish-standard\.outputs\.shell_sha \}\}/);
+  assert.match(desktopWorkflow, /standard-vm-smoke-gate-after-full:[\s\S]*outputs:[\s\S]*framework_sha: \$\{\{ steps\.release-cohort\.outputs\.framework_sha \}\}/);
+  assert.match(desktopWorkflow, /one-shot-app-installer-smoke:[\s\S]*repository: gaofeng21cn\/one-person-lab[\s\S]*ref: \$\{\{ needs\.publish-standard\.outputs\.framework_sha \}\}/);
+  assert.match(desktopWorkflow, /docker-webui-smoke:[\s\S]*repository: gaofeng21cn\/opl-aion-shell[\s\S]*ref: \$\{\{ needs\.publish-standard\.outputs\.shell_sha \}\}/);
+  assert.match(desktopWorkflow, /OPL_FRAMEWORK_SHA: \$\{\{ needs\.publish-standard\.outputs\.framework_sha \}\}/);
+  assert.match(desktopWorkflow, /--build-arg OPL_FRAMEWORK_REF="\$\{OPL_FRAMEWORK_SHA\}"/);
+  assert.match(desktopWorkflow, /operator-evidence-bundle-validation:[\s\S]*repository: gaofeng21cn\/one-person-lab[\s\S]*ref: \$\{\{ needs\.publish-standard\.outputs\.framework_sha \}\}/);
+  assert.match(desktopWorkflow, /OPL_SHELL_REF: \$\{\{ needs\.publish-standard\.outputs\.shell_sha \}\}/);
+  assert.match(desktopWorkflow, /OPL_FRAMEWORK_REF: \$\{\{ needs\.publish-standard\.outputs\.framework_sha \}\}/);
+  assert.match(desktopWorkflow, /OPL_APP_COMMIT: \$\{\{ needs\.publish-standard\.outputs\.app_sha \}\}/);
+
+  assert.match(webuiWorkflow, /framework_ref:[\s\S]*Prefer a fixed SHA; main is resolved once by the source gate/);
+  assert.match(webuiWorkflow, /shell_ref:[\s\S]*Prefer a fixed SHA; main is resolved once by the source gate/);
+  assert.match(webuiWorkflow, /name: Validate release source gate[\s\S]*id: release-source-gate[\s\S]*app_sha: report\.app_head,[\s\S]*shell_sha: report\.shell_sha,[\s\S]*framework_sha: report\.framework_sha/);
+  assert.doesNotMatch(webuiWorkflow, /id: shell[\s\S]*git -C shells\/aionui rev-parse HEAD/);
+  assert.match(webuiWorkflow, /SHELL_SHA: \$\{\{ steps\.release-source-gate\.outputs\.shell_sha \}\}/);
+  assert.match(webuiWorkflow, /OPL_FRAMEWORK_SHA: \$\{\{ steps\.release-source-gate\.outputs\.framework_sha \}\}/);
+  assert.match(webuiWorkflow, /--build-arg OPL_FRAMEWORK_REF="\$\{OPL_FRAMEWORK_SHA\}"/);
+  assert.doesNotMatch(webuiWorkflow, /--build-arg OPL_FRAMEWORK_REF="\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"/);
+});
+
 test('release CI operations policy distinguishes workflow hygiene from release evidence', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');

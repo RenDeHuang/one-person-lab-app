@@ -78,7 +78,11 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   assertIncludes(workflow, 'standard-build:', 'desktop release workflow');
   assertMatches(workflow, /standard-build:[\s\S]*?needs:[\s\S]*?release-workflow-contract[\s\S]*?release-source-gate/, 'standard build waits for cheap source gates');
   assertIncludes(workflow, 'uses: ./.github/workflows/_build-reusable.yml', 'standard build job');
-  assertMatches(workflow, /publish-standard:[\s\S]*?needs:\s+standard-build/, 'publish-standard job');
+  assertMatches(
+    workflow,
+    /publish-standard:[\s\S]*?needs:[\s\S]*?release-source-gate[\s\S]*?standard-build/,
+    'publish-standard job waits for source gate outputs and standard build',
+  );
   assertMatches(workflow, /full-first-install:[\s\S]*?uses:\s+\.\/\.github\/workflows\/full-first-install-release\.yml/, 'Full package build job');
   assertMatches(workflow, /full-first-install:[\s\S]*?needs:\s+standard-vm-smoke-gate-after-full/, 'Full package build waits for standard VM fail-fast gate');
   assertMatches(
@@ -174,8 +178,8 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
   );
   assertMatches(
     workflow,
-    /operator-evidence-bundle-validation:[\s\S]*?repository:\s+gaofeng21cn\/one-person-lab[\s\S]*?ref:\s+\$\{\{ inputs\.framework_ref \|\| 'main' \}\}[\s\S]*?npm ci[\s\S]*?node --experimental-strip-types scripts\/collect-release-evidence\.ts/,
-    'operator evidence validation must collect OPL runtime evidence through the Framework CLI',
+    /operator-evidence-bundle-validation:[\s\S]*?repository:\s+gaofeng21cn\/one-person-lab[\s\S]*?ref:\s+\$\{\{ needs\.publish-standard\.outputs\.framework_sha \}\}[\s\S]*?npm ci[\s\S]*?node --experimental-strip-types scripts\/collect-release-evidence\.ts/,
+    'operator evidence validation must collect OPL runtime evidence through the pinned Framework CLI',
   );
   assertMatches(
     workflow,

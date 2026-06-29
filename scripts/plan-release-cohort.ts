@@ -12,6 +12,11 @@ import {
   buildSharedReleaseReadinessOptions,
   parseStrictBoolean,
 } from './release-readiness-args.ts';
+import {
+  buildReleaseCohortLock,
+  type CommandRunner,
+  type ReleaseCohortLock,
+} from './release-cohort-lock.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -23,6 +28,8 @@ export type ReleaseCohortPlanOptions = {
   appCommit: string;
   shellRef: string;
   frameworkRef: string;
+  shellRoot: string;
+  frameworkRoot: string;
   output: string;
   markdown: string;
 };
@@ -49,6 +56,7 @@ export type ReleaseCohortPlan = {
   app_commit: string;
   shell_ref: string;
   framework_ref: string;
+  cohort_lock: ReleaseCohortLock;
   include_full_package: boolean;
   run_vm_smoke: boolean;
   cheap_gates: CheapGate[];
@@ -69,9 +77,12 @@ Options:
   --release-mode <mode>            Release mode, for example new_release or refresh_existing.
   --include-full-package <bool>    Whether the cohort includes the Full first-install package.
   --run-vm-smoke <bool>            Whether the cohort requests VM smoke gates.
-  --app-commit <sha>               App commit. Defaults to current git HEAD.
+  --app-ref <ref>                  App ref to resolve. Default: current git HEAD.
+  --app-commit <sha>               Alias for --app-ref.
   --shell-ref <ref>                Active shell ref. Default: main.
   --framework-ref <ref>            OPL framework ref. Default: main.
+  --shell-root <path>              Active shell checkout root. Default: shells/aionui.
+  --framework-root <path>          OPL Framework checkout root. Default: ../one-person-lab.
   --output <path>                  Write cohort plan JSON.
   --markdown <path>                Write cohort plan Markdown.
   --help                          Show this message.
@@ -89,9 +100,11 @@ function gitHead(): string {
 function defaultOptions(): ReleaseCohortPlanOptions {
   return {
     ...buildSharedReleaseReadinessOptions(parseStrictBoolean),
-    appCommit: process.env.OPL_APP_COMMIT || process.env.GITHUB_SHA || gitHead(),
+    appCommit: process.env.OPL_APP_REF || process.env.OPL_APP_COMMIT || process.env.GITHUB_SHA || gitHead(),
     shellRef: process.env.OPL_SHELL_REF || 'main',
     frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
+    shellRoot: process.env.OPL_SHELL_ROOT || path.join(appRoot, 'shells', 'aionui'),
+    frameworkRoot: process.env.OPL_FRAMEWORK_ROOT || path.resolve(appRoot, '..', 'one-person-lab'),
     output: process.env.OPL_RELEASE_COHORT_PLAN || '',
     markdown: process.env.OPL_RELEASE_COHORT_MARKDOWN || '',
   };
@@ -112,8 +125,11 @@ export function parseReleaseCohortPlanArgs(argv: string[]): ReleaseCohortPlanOpt
     }
     const optionIndex = applyStringOptionArg(argv, index, {
       '--app-commit': (value) => { parsed.appCommit = value; },
+      '--app-ref': (value) => { parsed.appCommit = value; },
       '--shell-ref': (value) => { parsed.shellRef = value; },
       '--framework-ref': (value) => { parsed.frameworkRef = value; },
+      '--shell-root': (value) => { parsed.shellRoot = value; },
+      '--framework-root': (value) => { parsed.frameworkRoot = value; },
       '--output': (value) => { parsed.output = value; },
       '--markdown': (value) => { parsed.markdown = value; },
     });
@@ -125,12 +141,14 @@ export function parseReleaseCohortPlanArgs(argv: string[]): ReleaseCohortPlanOpt
   }
 
   assertSharedReleaseReadinessOptions(parsed);
-  if (!parsed.appCommit.trim()) throw new Error('Pass --app-commit <sha> or run from a git checkout.');
+  if (!parsed.appCommit.trim()) throw new Error('Pass --app-ref <ref>/--app-commit <sha> or run from a git checkout.');
   if (!parsed.shellRef.trim()) throw new Error('Pass --shell-ref <ref> or set OPL_SHELL_REF.');
   if (!parsed.frameworkRef.trim()) throw new Error('Pass --framework-ref <ref> or set OPL_FRAMEWORK_REF.');
 
   return {
     ...parsed,
+    shellRoot: path.resolve(parsed.shellRoot),
+    frameworkRoot: path.resolve(parsed.frameworkRoot),
     output: parsed.output ? path.resolve(parsed.output) : path.resolve(appRoot, 'release-cohort-plan.json'),
     markdown: parsed.markdown ? path.resolve(parsed.markdown) : '',
   };
@@ -144,29 +162,53 @@ function boolText(value: boolean): string {
   return value ? 'true' : 'false';
 }
 
-function releaseCommand(options: ReleaseCohortPlanOptions): string {
+function releaseCommand(options: ReleaseCohortPlanOptions, lock: ReleaseCohortLock): string {
   return [
     'gh workflow run "OPL Desktop Release"',
+    `--ref ${lock.app.resolved_sha}`,
     `--field opl_version=${options.version}`,
     `--field release_mode=${options.releaseMode}`,
     `--field include_full_package=${boolText(options.includeFullPackage)}`,
     `--field run_vm_smoke=${boolText(options.runVmSmoke)}`,
-    `--field shell_ref=${options.shellRef}`,
-    `--field framework_ref=${options.frameworkRef}`,
+    `--field shell_ref=${lock.shell.resolved_sha}`,
+    `--field framework_ref=${lock.framework.resolved_sha}`,
   ].join(' ');
 }
 
-function buildCheapGates(options: ReleaseCohortPlanOptions): CheapGate[] {
+function buildCheapGates(options: ReleaseCohortPlanOptions, lock: ReleaseCohortLock): CheapGate[] {
   const preflight = [
     'npm run release:preflight --',
     `--version ${options.version}`,
     `--release-mode ${options.releaseMode}`,
     `--include-full-package ${boolText(options.includeFullPackage)}`,
     `--run-vm-smoke ${boolText(options.runVmSmoke)}`,
-    `--shell-ref ${options.shellRef}`,
-    `--framework-ref ${options.frameworkRef}`,
+    `--shell-ref ${lock.shell.resolved_sha}`,
+    `--framework-ref ${lock.framework.resolved_sha}`,
   ].join(' ');
   const gates: CheapGate[] = [
+    {
+      id: 'release_cohort_lock',
+      required: true,
+      command: [
+        'npm run release:cohort-lock --',
+        `--app-ref ${lock.app.resolved_sha}`,
+        `--shell-ref ${lock.shell.resolved_sha}`,
+        `--framework-ref ${lock.framework.resolved_sha}`,
+      ].join(' '),
+      purpose: 'Record the immutable App, shell, and framework SHAs before release dispatch.',
+    },
+    {
+      id: 'release_source_gate',
+      required: true,
+      command: [
+        'npm run release:source-gate --',
+        `--version ${options.version}`,
+        `--app-ref ${lock.app.resolved_sha}`,
+        `--shell-ref ${lock.shell.resolved_sha}`,
+        `--framework-ref ${lock.framework.resolved_sha}`,
+      ].join(' '),
+      purpose: 'Validate the locked App, shell, and framework refs before expensive release work.',
+    },
     {
       id: 'release_preflight',
       required: true,
@@ -204,37 +246,55 @@ function buildCheapGates(options: ReleaseCohortPlanOptions): CheapGate[] {
   return gates;
 }
 
-function buildNextAction(options: ReleaseCohortPlanOptions): NextAction {
+function buildNextAction(options: ReleaseCohortPlanOptions, lock: ReleaseCohortLock): NextAction {
+  const cheapGates = buildCheapGates(options, lock);
+  const preflightCommand = cheapGates.find((gate) => gate.id === 'release_preflight')?.command;
+  if (!preflightCommand) throw new Error('release_preflight gate is missing from cohort plan.');
   if (options.runVmSmoke) {
     return {
       action: 'run_release_train_with_vm_smoke',
-      command: releaseCommand(options),
+      command: releaseCommand(options, lock),
       reason: 'VM smoke was requested, so the release train must preserve same-cohort VM proof gates.',
     };
   }
   return {
     action: options.includeFullPackage ? 'run_release_train_without_vm_smoke' : 'run_release_preflight',
-    command: options.includeFullPackage ? releaseCommand(options) : buildCheapGates(options)[0].command,
+    command: options.includeFullPackage ? releaseCommand(options, lock) : preflightCommand,
     reason: options.includeFullPackage
       ? 'Full package was requested without VM smoke; run the release train after cheap gates pass.'
       : 'Standard-only cohort can start with the cheap release preflight before expensive release work.',
   };
 }
 
-export function buildReleaseCohortPlan(options: ReleaseCohortPlanOptions): ReleaseCohortPlan {
+export function buildReleaseCohortPlan(
+  options: ReleaseCohortPlanOptions,
+  runner?: CommandRunner,
+  generatedAt = new Date().toISOString(),
+): ReleaseCohortPlan {
+  const lock = buildReleaseCohortLock({
+    appRef: options.appCommit,
+    shellRef: options.shellRef,
+    frameworkRef: options.frameworkRef,
+    repoRoot: appRoot,
+    shellRoot: options.shellRoot,
+    frameworkRoot: options.frameworkRoot,
+    output: '',
+    markdown: '',
+  }, runner, generatedAt);
   return {
     schema: 'opl_app_release_cohort_plan.v1',
-    generated_at: new Date().toISOString(),
+    generated_at: generatedAt,
     version: options.version,
     tag: releaseTag(options.version),
     release_mode: options.releaseMode,
-    app_commit: options.appCommit,
+    app_commit: lock.app.resolved_sha,
     shell_ref: options.shellRef,
     framework_ref: options.frameworkRef,
+    cohort_lock: lock,
     include_full_package: options.includeFullPackage,
     run_vm_smoke: options.runVmSmoke,
-    cheap_gates: buildCheapGates(options),
-    next_action: buildNextAction(options),
+    cheap_gates: buildCheapGates(options, lock),
+    next_action: buildNextAction(options, lock),
     authority_boundary: {
       cohort_plan_can_publish_release: false,
       cohort_plan_can_write_runtime_truth: false,
@@ -254,7 +314,9 @@ export function writeReleaseCohortPlanMarkdown(filePath: string, plan: ReleaseCo
     `- Release mode: ${plan.release_mode}`,
     `- App commit: ${plan.app_commit}`,
     `- Shell ref: ${plan.shell_ref}`,
+    `- Shell SHA: ${plan.cohort_lock.shell.resolved_sha}`,
     `- Framework ref: ${plan.framework_ref}`,
+    `- Framework SHA: ${plan.cohort_lock.framework.resolved_sha}`,
     `- Include Full package: ${boolText(plan.include_full_package)}`,
     `- Run VM smoke: ${boolText(plan.run_vm_smoke)}`,
     `- Next action: ${plan.next_action.action}`,

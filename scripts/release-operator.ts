@@ -814,7 +814,9 @@ function writeOperatorMarkdown(filePath: string, state: OperatorState): void {
       `- Tag: ${state.cohort_plan.tag}`,
       `- App commit: ${state.cohort_plan.app_commit}`,
       `- Shell ref: ${state.cohort_plan.shell_ref}`,
+      `- Shell SHA: ${state.cohort_plan.cohort_lock.shell.resolved_sha}`,
       `- Framework ref: ${state.cohort_plan.framework_ref}`,
+      `- Framework SHA: ${state.cohort_plan.cohort_lock.framework.resolved_sha}`,
       '',
     );
   }

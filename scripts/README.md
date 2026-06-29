@@ -32,6 +32,9 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `closeout-release-run.ts` | Powers the default desktop release `release-closeout-<version>` artifact and local reruns; reads only final small release summaries, writes `release-closeout.json/md`, separates GitHub Actions workflow wall time from Agent orchestration wall time, and points the operator at candidate blockers, failed gates, promotion, or log inspection. |
 | `summarize-github-actions-timing.ts` | Profiles one or more `gh run view --json ...jobs` payloads, including multi-run span, failed/canceled run tax, slow jobs, slow steps, and the operator-loop gap when an Agent wall-time clock is supplied. |
 | `plan-release-gate-reuse.ts` | Compares the current release cohort with a previous promote-ready candidate record, readiness summary, and remote verification artifact, then writes `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable reuse digest. The plan is a decision artifact only; workflow gates still run unless a workflow explicitly consumes it. |
+| `release-cohort-lock.ts` | Resolves App, shell, and Framework refs into `opl_app_release_cohort_lock.v1` with immutable SHAs. It is a preparation record only and cannot dispatch, publish, promote, claim readiness, or write runtime truth. |
+| `plan-release-cohort.ts` | Writes `opl_app_release_cohort_plan.v1` for a Stable train: version, release mode, embedded cohort lock, Full/VM intent, cheap source gates, and the typed next action that consumes fixed App/Shell/Framework SHAs. |
+| `release-operator.ts` | Thin no-watch controller over existing release scripts, workflows, and artifacts. It can write `release-operator-state.json/md`, report structured status from GitHub run JSON, classify stale or draining runs, and emit typed next actions such as `repair_source_gate`, `dispatch_new_cohort`, `rerun_diagnostic_same_artifact`, `provide_owner_receipt`, or `promote_candidate`; it is not release truth. |
 | `summarize-release-readiness.ts` | Aggregates small Stable gate artifacts and job results into `release-readiness-summary.json` and Markdown without downloading large DMG artifacts. |
 | `validate-release-candidate-record.ts` | Validates or summarizes `release-candidate-record.json`; promotion requires schema `opl_release_candidate_record.v1`, matching version, `status=ready_to_promote`, and `decision.can_promote=true`. |
 | `analyze-full-package-size.ts` | Reads `full-package-manifest.json` and reports Full runtime component/layer size, budget use, and optional runtime-root top entries. |
@@ -99,6 +102,11 @@ npm run release:plan -- --version <version> --include-full-package
 npm run release:closeout -- --version <version> --run-id <github-actions-run-id> --artifact-profile diagnostics --agent-wall-time <duration>
 npm run release:actions-timing -- --run-id <github-actions-run-id> --run-id <promote-run-id> --agent-wall-time <duration> --output actions-timing.json --markdown actions-timing.md
 npm run release:gate-reuse-plan -- --version <version> --release-mode refresh_existing --include-full-package true --run-vm-smoke true --app-commit <sha> --shell-ref <ref> --framework-ref <ref> --current-preflight release-preflight-summary.json --current-remote-verification remote-release-verification.json --previous-candidate-record previous-release-candidate-record.json --previous-readiness previous-release-readiness-summary.json --previous-remote-verification previous-remote-release-verification.json --output release-gate-reuse-plan.json --markdown release-gate-reuse-plan.md
+npm run release:cohort-lock -- --app-ref <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-lock.json --markdown release-cohort-lock.md
+npm run release:cohort-plan -- --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --app-commit <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-plan.json --markdown release-cohort-plan.md
+npm run release:operator -- plan --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --app-commit <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-operator-state.json --markdown release-operator-state.md
+npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha> --output release-operator-state.json --markdown release-operator-state.md
+npm run release:operator -- diagnose-vm --version <version> --release-artifact-name <artifact> --release-artifact-run-id <run-id> --package-profile full --diagnostic-scope bootstrap_only --output release-operator-state.json --markdown release-operator-state.md
 npm run release:readiness-summary -- --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --artifacts-dir <downloaded-small-artifacts-dir> --job-results release-readiness-job-results.json --output release-readiness-summary.json --markdown release-readiness-summary.md
 npm run release:candidate-record -- --version <version> --release-mode new_release --preflight release-preflight-summary.json --readiness release-readiness-summary.json --remote-verification remote-release-verification.json --release-owner-receipt-ref <release_owner_receipt_ref>
 npm run release:candidate-record:validate -- --version <version> --record release-candidate-record.json
@@ -331,6 +339,20 @@ new Stable path. Once a candidate record, readiness summary, remote verification
 JSON, or named gate result establishes a blocked stop condition, do not continue
 polling scattered logs from long-running release runs.
 
+Stable cohort preparation is separate from Stable dispatch. Use moving App,
+shell, or framework `main` only to resolve immutable SHAs during sync
+preparation. `release:cohort-lock` records the immutable App/Shell/Framework
+SHA tuple, and `release:cohort-plan` embeds that lock with the release intent
+and next action. The release train consumes those fixed SHAs, not moving refs.
+If source preparation exposes a stale App head, unresolved shell/framework ref,
+wrong shell type/format, dirty source checkout, or release-boundary/source-gate
+failure, repair that root cause before dispatching the workflow. During a run,
+use `release:operator status` or the closeout `release-monitor.json` instead of
+broad `gh run watch`; after a primary gate fails, `failed_gate_draining` means
+queued jobs are settling, and `stale_candidate` means the old run is diagnostic
+evidence only. Neither state can be promoted or reinterpreted as release-ready
+for a newer cohort.
+
 ## Release CI operations notes
 
 Release automation has two distinct improvement tracks:
@@ -365,10 +387,12 @@ the candidate record, using the already downloaded small artifacts and
 artifacts. The artifact includes `release-closeout.json`,
 `release-closeout.md`, `release-monitor.json`, and `release-notification.json`.
 Read `release-monitor.json#state` plus `recommended_next_action` to replace long
-`gh run watch` loops; states are `running`, `failed`, `ready_to_promote`, and
-`published`. The notification JSON is a small repo-native payload for automation
-consumers, not an external push channel. The same npm script is the local
-rerun/debug entry for completed or in-progress GitHub Actions release runs.
+`gh run watch` loops; states include `running`, `failed_gate_draining`,
+`failed`, `stale_candidate`, `ready_to_promote`, `published`, and
+`published_with_post_publish_followup`. The notification JSON is a small
+repo-native payload for automation consumers, not an external push channel. The
+same npm script is the local rerun/debug entry for completed or in-progress
+GitHub Actions release runs.
 Local reruns write ignored output under
 `artifacts/release-closeout/v<version>-<run_id>/`, download only primary small
 artifacts (`release-candidate-record`, `release-readiness-summary`,

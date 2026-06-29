@@ -64,6 +64,7 @@
     "release:preflight": "node --experimental-strip-types scripts/validate-release-preflight.ts",
     "release:source-gate": "node --experimental-strip-types scripts/validate-release-source-gate.ts",
     "release:plan": "node --experimental-strip-types scripts/plan-release-candidate.ts",
+    "release:cohort-lock": "node --experimental-strip-types scripts/release-cohort-lock.ts",
     "release:cohort-plan": "node --experimental-strip-types scripts/plan-release-cohort.ts",
     "release:operator": "node --experimental-strip-types scripts/release-operator.ts",
     "release:closeout": "node --experimental-strip-types scripts/closeout-release-run.ts",

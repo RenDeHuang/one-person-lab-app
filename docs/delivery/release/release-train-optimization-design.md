@@ -39,8 +39,15 @@ patterns:
   separate from unrelated payloads.
 - GitHub Actions reusable workflows work best when expensive jobs are called
   after a small validation job checks inputs, permissions, and target state.
+- GitHub Actions job outputs and reusable workflow inputs make the release
+  cohort explicit: resolve moving refs once, pass fixed SHAs through `needs`
+  outputs, and make downstream jobs consume those values instead of re-reading
+  branch names.
 - Homebrew casks are an index to published assets and checksums. They should not
   become semantic authority for runtime modules or agent behavior.
+- SLSA-style provenance treats resolved source dependencies as part of build
+  integrity. App, shell, and Framework SHAs therefore belong in the release
+  cohort and candidate record, not only in operator notes.
 - Release evidence should be structured and small. Large DMGs should be
   validated by dedicated jobs, while summary jobs download only JSON/markdown
   diagnostics.
@@ -224,30 +231,39 @@ screenshot, docs, or other proof gate failure by reporting
 Operators should use this state to chase the failed proof artifact without
 reconstructing whether the GitHub Release or Homebrew tap already changed.
 
-Layer 13 should turn the release operator loop into a controller surface. The
-2026-06-29 release attempt showed that the repository has many correct gates,
-but the human/agent still had to synchronize repositories, dispatch releases,
-poll Actions, classify failures, repair a shell gate, redispatch, switch from
-high-noise `gh run watch` to narrow JSON polling, and then manually discover the
-right diagnostic rerun. The ideal front door is one repo-native command or
-workflow that owns the state machine:
+Layer 13 is now the release operator controller surface. The 2026-06-29 release
+attempt showed that the repository has many correct gates, but the human/agent
+still had to synchronize repositories, dispatch releases, poll Actions,
+classify failures, repair a shell gate, redispatch, switch from high-noise
+`gh run watch` to narrow JSON polling, and then manually discover the right
+diagnostic rerun. The default front door is a repo-native command pair:
+`npm run release:cohort-plan` records the pinned cohort, and
+`npm run release:operator` reads or writes the local operator state.
 
-1. resolve and record the cohort plan, including App commit, shell/framework
-   refs, Full intent, VM intent, owner-resolution inputs, and any reusable gate
-   candidates;
-2. run only the cheap local/currentness and preflight checks before dispatch;
-3. dispatch the release workflow;
-4. poll only the closeout/monitor artifact or structured job JSON, never the
-   whole job matrix by default;
+The controller default flow is:
+
+1. resolve and record the cohort plan, including App commit, shell ref, shell
+   resolved SHA, framework ref, framework resolved SHA, Full intent, VM intent,
+   owner-resolution inputs, and any reusable gate candidates;
+2. run only the cheap local/currentness, release-boundary, and source-gate
+   checks before dispatch;
+3. dispatch the release workflow only for that pinned cohort;
+4. poll only `release-operator-state.json`, the closeout/monitor artifact, or
+   structured job JSON; never poll the whole job matrix by default;
 5. on failure, emit a typed stop state with exactly one next action:
-   `repair_source_gate`, `rerun_diagnostic_same_artifact`,
-   `provide_owner_receipt`, `wait_for_runner_capacity`, `retry_transient_upload`,
-   or `promote_candidate`;
+   `repair_source_gate`, `dispatch_new_cohort`,
+   `rerun_diagnostic_same_artifact`, `provide_owner_receipt`,
+   `wait_for_runner_capacity`, `retry_transient_upload`, or
+   `promote_candidate`;
 6. never require the operator to infer whether publish, promotion, or user-path
    proof has happened from scattered logs.
 
 This controller must remain thin. It should orchestrate existing scripts,
 workflows, and artifacts; it must not become a second release truth source.
+Moving `main` is allowed only as a ref-resolution source during preparation. It
+is not a final release train input. The release train input is the cohort lock:
+version, release mode, App SHA, shell ref plus resolved shell SHA, framework ref
+plus resolved framework SHA, Full/VM intent, owner refs, and gate-reuse inputs.
 
 Layer 14 should make failed VM diagnostics durable even when GitHub artifact
 upload finalization fails. The 2026-06-29 Full VM gate failed after the window
@@ -279,34 +295,50 @@ failed release closeout. Diagnostic reruns remain non-authoritative unless the
 release workflow explicitly consumes them for a same-cohort gate decision, but
 they should be the default next step for missing VM evidence.
 
-Layer 16 should separate "sync everything to latest" from "release a stable
-cohort." Syncing every OPL-family repository immediately before release is good
-for currentness, but it maximizes batch size and can import unrelated shell or
-domain regressions into the release train. The ideal stable release flow has two
-phases:
+Layer 16 is now the pinned cohort release flow. It separates "sync everything to
+latest" from "release a stable cohort." Syncing every OPL-family repository
+immediately before release is good for currentness, but it maximizes batch size
+and can import unrelated shell or domain regressions into the release train. The
+stable release flow has two phases:
 
-1. a currentness preparation phase that updates the OPL family, runs each repo's
-   cheap owner gate, and records a candidate ref set;
-2. a release phase that pins those refs and releases that exact cohort.
+1. a sync preparation phase that updates the OPL family, runs each repo's cheap
+   owner/source gate, and records a candidate ref set;
+2. a stable release phase that pins those refs, writes the cohort lock, and
+   releases that exact cohort.
 
 If preparation finds a shell type/format/DOM failure, it should stop before the
 App release workflow starts. If the release phase fails, recovery should keep
 the same pinned cohort unless the typed blocker explicitly requires a source
 change. This reduces rework tax and makes gate reuse auditable.
+The source-gate root-cause rule is fail-fast: a stale App head, unresolved shell
+ref, wrong shell type/format, unresolved framework ref, dirty source checkout,
+or missing release-boundary policy is a preparation/source-gate failure. Do not
+redispatch a full release train to rediscover it in standard, Full, VM,
+Homebrew, WebUI, or readiness jobs.
+
+Stale run draining is a stop state, not a watch strategy. If a critical gate has
+failed while already-queued jobs are still settling, the controller should
+report `failed_gate_draining` with the primary blocker and next action. The
+operator waits for drain only to avoid racing cleanup or artifact finalization;
+the release decision has already stopped on the typed blocker. If the run head
+or source refs no longer match the cohort lock, the run becomes
+`stale_candidate`: keep its artifacts for diagnosis of the old cohort, but
+never promote it or reinterpret it as evidence for a newer cohort.
 
 Next optimization candidates must preserve release authority boundaries:
 
-- Add the thin release controller described in Layer 13. It should read and
-  write only structured release artifacts, dispatch existing workflows, and
-  produce a small `release-operator-state.json` for local/agent use.
+- Continue hardening the thin release controller described in Layer 13. It
+  should read and write only structured release artifacts, dispatch existing
+  workflows, and produce a small `release-operator-state.json` for local/agent
+  use.
 - Split Full/standard VM failure evidence as described in Layer 14, then make
   closeout recognize `diagnostic_artifact_missing` with a same-artifact
   diagnostic rerun command.
 - Add a first-class same-artifact diagnostic command for Full VM failures,
   backed by `OPL GUI First-Run VM` with `diagnostic_scope=bootstrap_only` or
   `release_gate` as appropriate.
-- Introduce a release cohort preparation command that records the exact App,
-  shell, framework, and family refs after currentness sync, and runs cheap
+- Keep extending the release cohort preparation command so it records the exact
+  App, shell, framework, and family refs after currentness sync, and runs cheap
   source gates before the expensive release workflow.
 - Teach the release workflows to explicitly consume
   `opl_release_gate_reuse_plan.v1` for selected gates after one real release
@@ -337,9 +369,19 @@ Operator stop conditions:
 - Promote only when `release-candidate-record.json` has
   `status=ready_to_promote` for the intended version, App commit, shell ref,
   Full refs, remote verification, readiness summary, and job results.
+- Dispatch Stable only from a pinned cohort lock. Moving `main`, shell `main`,
+  and framework `main` may be used to resolve SHA values during sync
+  preparation, but the final release train must consume resolved App/Shell/
+  Framework SHAs.
 - Stop as blocked when the candidate record is `blocked`, a required small
   artifact is missing, a gate is failed/cancelled/skipped unexpectedly, or the
   release workflow cannot produce a candidate record.
+- Treat `failed_gate_draining` as a stopped decision with queued jobs still
+  settling. Do not wait on broad `gh run watch` once the primary blocker and
+  typed next action are known.
+- Treat `stale_candidate` and `obsolete_candidate` artifacts as old-cohort
+  diagnostics only. They cannot be promoted, patched into the new cohort, or
+  used as current release evidence.
 - Use `refresh_existing` only for an owner-approved emergency repair or replace
   lane against an already published release.
 - Run user-guide screenshot/docs refresh only after Stable promotion; screenshot

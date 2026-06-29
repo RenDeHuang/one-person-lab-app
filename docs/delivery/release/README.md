@@ -105,16 +105,23 @@ whole tap.
 
 Stable release flow:
 
-1. Freeze the candidate cohort by recording the App SHA, shell SHA, and
-   framework SHA.
-2. Run preflight and `release:source-gate` for that pinned cohort.
-3. Run the release workflow for the selected version/channel.
-4. Produce standard and, when requested, Full artifacts plus the release evidence bundle.
-5. Run remote verification against the published draft release assets.
-6. Produce `release-candidate-record.json`.
-7. Promote only when the promote workflow reads a ready candidate record for the same cohort.
-8. Update Homebrew casks after the draft release is published and the matching policy assets exist.
-9. Run post-release user-guide/screenshots only after promotion; they are never pre-promotion gates.
+1. Run sync preparation outside the release train: update the OPL-family repos,
+   run each repo's cheap owner/source gate, and resolve the candidate refs.
+2. Freeze the candidate cohort by recording App SHA, shell ref plus resolved
+   shell SHA, framework ref plus resolved framework SHA, release mode, Full
+   intent, VM intent, owner refs, and any gate-reuse inputs.
+3. Run preflight and `release:source-gate` for that pinned cohort.
+4. Run the release workflow for the selected version/channel.
+5. Produce standard and, when requested, Full artifacts plus the release
+   evidence bundle.
+6. Run remote verification against the published draft release assets.
+7. Produce `release-candidate-record.json`.
+8. Promote only when the promote workflow reads a ready candidate record for
+   the same cohort.
+9. Update Homebrew casks after the draft release is published and the matching
+   policy assets exist.
+10. Run post-release user-guide/screenshots only after promotion; they are never
+   pre-promotion gates.
 
 Nightly and candidate flows follow the same SSOT contract but do not imply stable/latest promotion.
 
@@ -124,6 +131,11 @@ run starts, the old run is an obsolete/stale candidate. It can remain diagnostic
 evidence for that old cohort, but it cannot continue as the current stable
 candidate or be promoted as latest. Dispatch a new cohort instead of trying to
 reinterpret old artifacts against newer source.
+Moving `main`, shell `main`, and framework `main` are allowed only as
+preparation-time ref-resolution sources. They are not final Stable release
+inputs. The final train input is the pinned cohort lock: App SHA, shell SHA,
+framework SHA, version, release mode, Full/VM intent, owner refs, and any
+same-cohort reuse inputs.
 
 Every desktop release run also uploads `release-actions-timing-<version>`. Use
 that artifact to inspect workflow wall time, failed/canceled run tax, slow jobs,
@@ -550,20 +562,33 @@ No-watch operator runbook:
    state is missing or insufficient; do not keep an unbounded `gh run watch`
    open while downstream jobs drain.
 
-Before dispatching a stable train from freshly synchronized OPL-family
-repositories, record the intended cohort:
+Pinned cohort runbook:
+
+1. Sync preparation:
+
+   - Fetch and fast-forward each OPL-family repo that will contribute source,
+     then run its cheap owner/source gate.
+   - Resolve moving refs to immutable values: App SHA, shell ref plus shell
+     SHA, and framework ref plus framework SHA.
+   - Stop here for shell type/format/DOM failures, unresolved refs, dirty source
+     checkouts, or release-boundary/source-gate failures. These are root causes
+     to repair before dispatch, not reasons to start a full release train.
+
+2. Write the cohort lock:
 
 ```bash
+npm run release:cohort-lock -- --app-ref <app-sha> --shell-ref <shell-ref> --framework-ref <framework-ref> --output release-cohort-lock.json --markdown release-cohort-lock.md
 npm run release:cohort-plan -- --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --output release-cohort-plan.json --markdown release-cohort-plan.md
 ```
 
-The cohort plan pins the App commit plus shell/framework refs and cheap source
-gates for operator review. For stable candidates, treat those refs as the frozen
-candidate cohort: App SHA, shell SHA, and framework SHA must match all
-release-ready evidence and the candidate record. It is not release evidence and
-cannot publish, promote, or claim readiness. The thin operator entry can then
-produce the no-watch state, the primary blocker status, or the same-artifact VM
-diagnostic command:
+The cohort lock records the immutable App/Shell/Framework SHA tuple. The cohort
+plan embeds that lock with the release intent, cheap source gates, and typed
+next action. For stable candidates, treat those refs as the frozen candidate
+cohort: App SHA, shell SHA, and framework SHA must match all release-ready
+evidence and the candidate record. Neither file is release evidence and neither
+can publish, promote, or claim readiness.
+
+3. Dispatch and observe through the controller:
 
 ```bash
 npm run release:operator -- plan --version <version> --release-mode new_release --include-full-package true --run-vm-smoke true --output release-operator-state.json --markdown release-operator-state.md
@@ -580,6 +605,22 @@ claim. The operator status path is primary-blocker first: after a critical gate
 failure it should report `failed_gate_draining` while downstream already-queued
 jobs settle, then `failed`, instead of asking the release owner to keep waiting
 on `gh run watch`.
+
+4. Handle stale or draining runs:
+
+   - `failed_gate_draining` means the release decision has already stopped on a
+     primary blocker while queued jobs finish or artifact upload settles. Wait
+     only for cleanup/artifact finalization; do not infer readiness from later
+     unrelated job success.
+   - `stale_candidate` means the run head or pinned source refs no longer match
+     the cohort lock. Keep its artifacts as old-cohort diagnostics only. Do not
+     promote it, patch it into a newer cohort, or use it as current release
+     evidence.
+   - Source-gate blockers are repaired at the source gate. A stale App head,
+     unresolved shell/framework ref, wrong shell type/format, dirty source
+     checkout, or missing release-boundary policy should lead to
+     `repair_source_gate` or `dispatch_new_cohort`, not another broad release
+     dispatch.
 
 When a run's `headSha` no longer matches the expected App SHA, or when a newer
 same-version cohort supersedes it, treat the old run as stale. Its artifacts and

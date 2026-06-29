@@ -14,6 +14,14 @@ function cleanEnv() {
     OPL_RELEASE_REPO,
     OPL_RELEASE_EXPECTED_HEAD,
     OPL_RELEASE_RUN_JSON,
+    OPL_APP_REF,
+    OPL_APP_COMMIT,
+    OPL_SHELL_REF,
+    OPL_FRAMEWORK_REF,
+    OPL_SHELL_ROOT,
+    OPL_FRAMEWORK_ROOT,
+    OPL_RELEASE_COHORT_LOCK,
+    OPL_RELEASE_COHORT_LOCK_MARKDOWN,
     ...env
   } = process.env;
   return env;
@@ -47,6 +55,31 @@ function assertFileSnapshotUnchanged(filePath: string, snapshot: string | null):
   assert.equal(snapshotFile(filePath), snapshot);
 }
 
+function runGit(cwd: string, args: string[]): string {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return result.stdout.trim();
+}
+
+function createGitCheckout(prefix: string): { root: string; head: string } {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  runGit(root, ['init', '-b', 'main']);
+  runGit(root, ['config', 'user.email', 'release-test@example.com']);
+  runGit(root, ['config', 'user.name', 'Release Test']);
+  fs.writeFileSync(path.join(root, 'README.md'), `${prefix}\n`, 'utf8');
+  runGit(root, ['add', 'README.md']);
+  runGit(root, ['commit', '-m', 'Initial test commit']);
+  return { root, head: runGit(root, ['rev-parse', 'HEAD']) };
+}
+
+function createReleaseRefCheckouts() {
+  return {
+    shell: createGitCheckout('opl-release-shell-'),
+    framework: createGitCheckout('opl-release-framework-'),
+    appHead: runGit(appRoot, ['rev-parse', 'HEAD']),
+  };
+}
+
 test('release guide documents no-watch operator runbook and lane boundaries', () => {
   const guide = fs.readFileSync(path.join(appRoot, 'docs', 'delivery', 'release', 'README.md'), 'utf8');
 
@@ -61,6 +94,16 @@ test('release guide documents no-watch operator runbook and lane boundaries', ()
     'failed_gate_draining',
     'stale_candidate',
     'dispatch a new cohort',
+    'Pinned cohort runbook',
+    'Sync preparation',
+    'moving refs to immutable values',
+    'shell SHA',
+    'framework SHA',
+    'Moving `main`, shell `main`, and framework `main` are allowed only as',
+    'preparation-time ref-resolution sources',
+    'pinned cohort lock',
+    'Source-gate blockers are repaired at the source gate',
+    'old-cohort diagnostics only',
     'Desktop stable, WebUI GHCR, and diagnostics are separate lanes',
     'Docker/WebUI runtime image publish failure',
     'workflow_wall_time_seconds',
@@ -79,6 +122,7 @@ test('release guide documents no-watch operator runbook and lane boundaries', ()
 
 test('release cohort planner writes pinned cohort JSON and typed next action', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-cohort-'));
+  const refs = createReleaseRefCheckouts();
   const outputPath = path.join(tempRoot, 'release-cohort-plan.json');
   const markdownPath = path.join(tempRoot, 'release-cohort-plan.md');
   const result = runScript('scripts/plan-release-cohort.ts', [
@@ -91,11 +135,15 @@ test('release cohort planner writes pinned cohort JSON and typed next action', (
     '--run-vm-smoke',
     'true',
     '--app-commit',
-    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    'main',
     '--shell-ref',
-    'shell-test-ref',
+    'main',
     '--framework-ref',
-    'framework-test-ref',
+    'main',
+    '--shell-root',
+    refs.shell.root,
+    '--framework-root',
+    refs.framework.root,
     '--output',
     outputPath,
     '--markdown',
@@ -109,12 +157,24 @@ test('release cohort planner writes pinned cohort JSON and typed next action', (
   assert.equal(plan.schema, 'opl_app_release_cohort_plan.v1');
   assert.equal(plan.version, '26.6.99');
   assert.equal(plan.tag, 'v26.6.99');
-  assert.equal(plan.app_commit, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-  assert.equal(plan.shell_ref, 'shell-test-ref');
-  assert.equal(plan.framework_ref, 'framework-test-ref');
+  assert.equal(plan.app_commit, refs.appHead);
+  assert.equal(plan.shell_ref, 'main');
+  assert.equal(plan.framework_ref, 'main');
+  assert.equal(plan.cohort_lock.app.requested_ref, 'main');
+  assert.equal(plan.cohort_lock.app.resolved_sha, refs.appHead);
+  assert.equal(plan.cohort_lock.shell.requested_ref, 'main');
+  assert.equal(plan.cohort_lock.shell.resolved_sha, refs.shell.head);
+  assert.equal(plan.cohort_lock.framework.requested_ref, 'main');
+  assert.equal(plan.cohort_lock.framework.resolved_sha, refs.framework.head);
   assert.equal(plan.include_full_package, true);
   assert.equal(plan.run_vm_smoke, true);
   assert.equal(plan.next_action.action, 'run_release_train_with_vm_smoke');
+  assert.match(plan.next_action.command, new RegExp(`--ref ${refs.appHead}`));
+  assert.match(plan.next_action.command, new RegExp(`--field shell_ref=${refs.shell.head}`));
+  assert.match(plan.next_action.command, new RegExp(`--field framework_ref=${refs.framework.head}`));
+  assert.doesNotMatch(plan.next_action.command, /shell_ref=main|framework_ref=main/);
+  assert.ok(plan.cheap_gates.some((gate: { id: string }) => gate.id === 'release_cohort_lock'));
+  assert.ok(plan.cheap_gates.some((gate: { id: string }) => gate.id === 'release_source_gate'));
   assert.ok(plan.cheap_gates.some((gate: { id: string }) => gate.id === 'release_preflight'));
   assert.ok(plan.cheap_gates.some((gate: { id: string }) => gate.id === 'full_package_prune_audit'));
   assert.equal(plan.authority_boundary.cohort_plan_can_publish_release, false);
@@ -124,6 +184,7 @@ test('release cohort planner writes pinned cohort JSON and typed next action', (
 
 test('release operator plan reuses cohort plan and writes operator state', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-plan-'));
+  const refs = createReleaseRefCheckouts();
   const outputPath = path.join(tempRoot, 'release-operator-state.json');
   const markdownPath = path.join(tempRoot, 'release-operator-state.md');
   const result = runScript('scripts/release-operator.ts', [
@@ -137,11 +198,15 @@ test('release operator plan reuses cohort plan and writes operator state', () =>
     '--run-vm-smoke',
     'false',
     '--app-commit',
-    'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    'main',
     '--shell-ref',
-    'shell-test-ref',
+    'main',
     '--framework-ref',
-    'framework-test-ref',
+    'main',
+    '--shell-root',
+    refs.shell.root,
+    '--framework-root',
+    refs.framework.root,
     '--output',
     outputPath,
     '--markdown',
@@ -154,8 +219,14 @@ test('release operator plan reuses cohort plan and writes operator state', () =>
   assert.equal(state.command, 'plan');
   assert.equal(state.status, 'planned');
   assert.equal(state.cohort_plan.schema, 'opl_app_release_cohort_plan.v1');
-  assert.equal(state.cohort_plan.app_commit, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+  assert.equal(state.cohort_plan.app_commit, refs.appHead);
+  assert.equal(state.cohort_plan.cohort_lock.app.requested_ref, 'main');
+  assert.equal(state.cohort_plan.cohort_lock.shell.resolved_sha, refs.shell.head);
+  assert.equal(state.cohort_plan.cohort_lock.framework.resolved_sha, refs.framework.head);
   assert.equal(state.next_action.action, 'follow_cohort_plan');
+  assert.match(state.next_action.command, new RegExp(`--shell-ref ${refs.shell.head}`));
+  assert.match(state.next_action.command, new RegExp(`--framework-ref ${refs.framework.head}`));
+  assert.doesNotMatch(state.next_action.command, /--shell-ref main|--framework-ref main/);
   assert.equal(state.authority_boundary.operator_can_publish_release, false);
   assert.equal(state.authority_boundary.operator_can_write_runtime_truth, false);
   assert.match(fs.readFileSync(markdownPath, 'utf8'), /Release Operator State/);

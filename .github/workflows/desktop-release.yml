@@ -22,12 +22,12 @@ on:
         default: true
         type: boolean
       framework_ref:
-        description: OPL Framework ref to bundle in the Full package. Empty means main.
+        description: OPL Framework ref to bundle in the Full package. Prefer a fixed SHA; main is resolved once by the source gate.
         required: false
         default: main
         type: string
       shell_ref:
-        description: opl-aion-shell ref to build and verify. Empty means main.
+        description: opl-aion-shell ref to build and verify. Prefer a fixed SHA; main is resolved once by the source gate.
         required: false
         default: main
         type: string
@@ -141,7 +141,7 @@ jobs:
   release-workflow-contract:
     name: Release workflow contract
     runs-on: ubuntu-latest
-    needs: release-preflight
+    needs: release-source-gate
 
     steps:
       - name: Checkout App repo
@@ -153,7 +153,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/opl-aion-shell
-          ref: ${{ inputs.shell_ref || 'main' }}
+          ref: ${{ needs.release-source-gate.outputs.shell_sha }}
+          # Controller lock API consumption point: replace the dispatch default below with a locked SHA cohort.
+          # shell_ref: ${{ inputs.shell_ref }}
           path: shells/aionui
 
       - name: Setup Node.js
@@ -170,6 +172,10 @@ jobs:
     name: Release source gate
     runs-on: ubuntu-latest
     needs: release-preflight
+    outputs:
+      app_sha: ${{ steps.release-source-gate.outputs.app_sha }}
+      shell_sha: ${{ steps.release-source-gate.outputs.shell_sha }}
+      framework_sha: ${{ steps.release-source-gate.outputs.framework_sha }}
 
     steps:
       - name: Checkout App repo
@@ -191,6 +197,7 @@ jobs:
           path: one-person-lab
 
       - name: Validate release source gate
+        id: release-source-gate
         run: |
           npm run release:source-gate -- \
             --version "${{ inputs.opl_version }}" \
@@ -201,6 +208,21 @@ jobs:
             --require-shell-format true \
             --output release-source-gate.json \
             --json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('release-source-gate.json', 'utf8'));
+          const outputs = {
+            app_sha: report.app_head,
+            shell_sha: report.shell_sha,
+            framework_sha: report.framework_sha,
+          };
+          for (const [name, value] of Object.entries(outputs)) {
+            if (typeof value !== 'string' || !/^[0-9a-f]{40}$/i.test(value)) {
+              throw new Error(`release source gate did not resolve ${name} to a fixed SHA`);
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
+          }
+          NODE
 
       - name: Upload release source gate summary
         if: always()
@@ -221,18 +243,24 @@ jobs:
         {"include":[
           {"platform":"macos-arm64","os":"macos-latest","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"macos-build-arm64","arch":"arm64"}
         ]}
+      ref: ${{ needs.release-source-gate.outputs.app_sha }}
       skip_code_quality: ${{ inputs.skip_code_quality }}
       opl_release_version: ${{ inputs.opl_version }}
-      shell_ref: ${{ inputs.shell_ref }}
+      shell_ref: ${{ needs.release-source-gate.outputs.shell_sha }}
       require_macos_gatekeeper: false
     secrets: inherit
 
   publish-standard:
     name: Publish standard App assets
     runs-on: ubuntu-latest
-    needs: standard-build
+    needs:
+      - release-source-gate
+      - standard-build
     outputs:
       release_tag: ${{ steps.release-target.outputs.tag }}
+      app_sha: ${{ steps.release-cohort.outputs.app_sha }}
+      shell_sha: ${{ steps.release-cohort.outputs.shell_sha }}
+      framework_sha: ${{ steps.release-cohort.outputs.framework_sha }}
 
     steps:
       - name: Checkout App repo
@@ -244,8 +272,23 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/opl-aion-shell
-          ref: ${{ inputs.shell_ref || 'main' }}
+          ref: ${{ needs.release-source-gate.outputs.shell_sha }}
+          # Controller lock API consumption point: replace the dispatch default below with a locked SHA cohort.
+          # shell_ref: ${{ inputs.shell_ref }}
           path: shells/aionui
+
+      - name: Record fixed release cohort refs
+        id: release-cohort
+        shell: bash
+        env:
+          APP_SHA: ${{ needs.release-source-gate.outputs.app_sha }}
+          SHELL_SHA: ${{ needs.release-source-gate.outputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ needs.release-source-gate.outputs.framework_sha }}
+        run: |
+          set -euo pipefail
+          echo "app_sha=$APP_SHA" >> "$GITHUB_OUTPUT"
+          echo "shell_sha=$SHELL_SHA" >> "$GITHUB_OUTPUT"
+          echo "framework_sha=$FRAMEWORK_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -346,8 +389,8 @@ jobs:
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       opl_version: ${{ inputs.opl_version }}
-      framework_ref: ${{ inputs.framework_ref }}
-      shell_ref: ${{ inputs.shell_ref }}
+      framework_ref: ${{ needs.standard-vm-smoke-gate-after-full.outputs.framework_sha }}
+      shell_ref: ${{ needs.standard-vm-smoke-gate-after-full.outputs.shell_sha }}
       publish_to_release: false
       force_rebuild_runtime_cache: ${{ inputs.force_rebuild_runtime_cache }}
     secrets: inherit
@@ -513,7 +556,7 @@ jobs:
       release_tag: v${{ inputs.opl_version }}
       release_artifact_name: macos-build-arm64-dmg
       package_profile: standard
-      shell_ref: ${{ inputs.shell_ref }}
+      shell_ref: ${{ needs.publish-standard.outputs.shell_sha }}
     secrets: inherit
 
   standard-first-run-vm-smoke-after-full:
@@ -525,7 +568,7 @@ jobs:
       release_tag: v${{ inputs.opl_version }}
       release_artifact_name: macos-build-arm64-dmg
       package_profile: standard
-      shell_ref: ${{ inputs.shell_ref }}
+      shell_ref: ${{ needs.publish-standard.outputs.shell_sha }}
     secrets: inherit
 
   standard-vm-smoke-gate-after-full:
@@ -535,8 +578,25 @@ jobs:
       - standard-first-run-vm-smoke-after-full
     if: ${{ !cancelled() && inputs.include_full_package }}
     runs-on: ubuntu-latest
+    outputs:
+      app_sha: ${{ steps.release-cohort.outputs.app_sha }}
+      shell_sha: ${{ steps.release-cohort.outputs.shell_sha }}
+      framework_sha: ${{ steps.release-cohort.outputs.framework_sha }}
 
     steps:
+      - name: Record fixed release cohort refs
+        id: release-cohort
+        shell: bash
+        env:
+          APP_SHA: ${{ needs.publish-standard.outputs.app_sha }}
+          SHELL_SHA: ${{ needs.publish-standard.outputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ needs.publish-standard.outputs.framework_sha }}
+        run: |
+          set -euo pipefail
+          echo "app_sha=$APP_SHA" >> "$GITHUB_OUTPUT"
+          echo "shell_sha=$SHELL_SHA" >> "$GITHUB_OUTPUT"
+          echo "framework_sha=$FRAMEWORK_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Enforce standard VM fail-fast gate
         shell: bash
         run: |
@@ -553,13 +613,14 @@ jobs:
   homebrew-standard-first-run-vm-smoke:
     name: Run Homebrew standard first-run VM smoke
     needs:
+      - publish-standard
       - stable-homebrew-tap-update
     if: ${{ !cancelled() && inputs.run_vm_smoke && inputs.release_mode == 'refresh_existing' && needs.stable-homebrew-tap-update.result == 'success' }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_tag: v${{ inputs.opl_version }}
       package_profile: homebrew-standard
-      shell_ref: ${{ inputs.shell_ref }}
+      shell_ref: ${{ needs.publish-standard.outputs.shell_sha }}
     secrets: inherit
 
   full-first-run-vm-smoke:
@@ -573,7 +634,7 @@ jobs:
       release_tag: v${{ inputs.opl_version }}
       release_artifact_name: opl-full-first-install-dmg-${{ inputs.opl_version }}-mac-arm64
       package_profile: full
-      shell_ref: ${{ inputs.shell_ref }}
+      shell_ref: ${{ needs.standard-vm-smoke-gate-after-full.outputs.shell_sha }}
       guide_screenshots: ${{ inputs.guide_screenshots }}
     secrets: inherit
 
@@ -595,7 +656,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/one-person-lab
-          ref: main
+          ref: ${{ needs.publish-standard.outputs.framework_sha }}
           path: one-person-lab
 
       - name: Setup Node.js
@@ -672,7 +733,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/opl-aion-shell
-          ref: ${{ inputs.shell_ref || 'main' }}
+          ref: ${{ needs.publish-standard.outputs.shell_sha }}
+          # Controller lock API consumption point: replace the dispatch default below with a locked SHA cohort.
+          # shell_ref: ${{ inputs.shell_ref }}
           path: shells/aionui
 
       - name: Build, verify, and publish Docker WebUI
@@ -680,6 +743,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_MODE: ${{ inputs.release_mode }}
+          OPL_FRAMEWORK_SHA: ${{ needs.publish-standard.outputs.framework_sha }}
         run: |
           set -euo pipefail
           image_owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
@@ -738,11 +802,13 @@ jobs:
           fs.writeFileSync('/tmp/docker-webui-smoke-gate-contract.json', JSON.stringify(payload, null, 2) + '\n');
           NODE
           docker build \
+            --build-arg OPL_FRAMEWORK_REF="${OPL_FRAMEWORK_SHA}" \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             -t "one-person-lab-webui:${{ inputs.opl_version }}" \
             shells/aionui
           docker build \
             --build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim \
+            --build-arg OPL_FRAMEWORK_REF="${OPL_FRAMEWORK_SHA}" \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             -t "one-person-lab-webui:${{ inputs.opl_version }}-slim" \
             shells/aionui
@@ -942,6 +1008,7 @@ jobs:
     needs:
       - remote-verify-standard
       - remote-verify-full
+      - publish-standard
       - standard-first-run-vm-smoke-after-standard-only
       - standard-first-run-vm-smoke-after-full
       - standard-vm-smoke-gate-after-full
@@ -955,7 +1022,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: gaofeng21cn/one-person-lab
-          ref: ${{ inputs.framework_ref || 'main' }}
+          ref: ${{ needs.publish-standard.outputs.framework_sha }}
           path: one-person-lab
 
       - name: Setup Node.js
@@ -1201,6 +1268,7 @@ jobs:
       - full-first-install
       - remote-verify-standard
       - remote-verify-full
+      - publish-standard
       - standard-first-run-vm-smoke-after-standard-only
       - standard-first-run-vm-smoke-after-full
       - standard-vm-smoke-gate-after-full
@@ -1367,9 +1435,9 @@ jobs:
           OPL_INCLUDE_FULL_PACKAGE: ${{ inputs.include_full_package }}
           OPL_RUN_VM_SMOKE: ${{ inputs.run_vm_smoke }}
           OPL_PUBLISH_DOCKER_WEBUI: ${{ inputs.publish_docker_webui }}
-          OPL_SHELL_REF: ${{ inputs.shell_ref }}
-          OPL_FRAMEWORK_REF: ${{ inputs.framework_ref }}
-          OPL_APP_COMMIT: ${{ github.sha }}
+          OPL_SHELL_REF: ${{ needs.publish-standard.outputs.shell_sha }}
+          OPL_FRAMEWORK_REF: ${{ needs.publish-standard.outputs.framework_sha }}
+          OPL_APP_COMMIT: ${{ needs.publish-standard.outputs.app_sha }}
           OPL_RELEASE_OWNER_VERDICT_REF: ${{ inputs.release_owner_verdict_ref }}
           OPL_RELEASE_OWNER_RECEIPT_REF: ${{ inputs.release_owner_receipt_ref }}
           OPL_RELEASE_OWNER_TYPED_BLOCKER_REF: ${{ inputs.release_owner_typed_blocker_ref }}
