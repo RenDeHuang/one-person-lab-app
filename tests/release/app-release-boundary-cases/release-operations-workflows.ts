@@ -48,6 +48,9 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /npm run verify-remote-release/);
   assert.match(workflow, /webui-ghcr-publish:/);
   assert.match(workflow, /docker build[\s\S]*--label "org\.opencontainers\.image\.source=https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"[\s\S]*-t "one-person-lab-webui:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}"[\s\S]*shells\/aionui/);
+  assert.match(workflow, /docker run --rm --entrypoint cat "one-person-lab-webui:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}"[\s\S]*\/opt\/opl\/image-manifest\.json/);
+  assert.match(workflow, /docker run --rm --entrypoint cat "one-person-lab-webui:\$\{\{ needs\.resolve-nightly\.outputs\.version \}\}"[\s\S]*\/opt\/opl\/seed\/metadata\.json/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/validate-webui-runtime-image\.ts[\s\S]*--expected-profile webui-full/);
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
   assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
   assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
@@ -286,9 +289,14 @@ test('stable validation profile covers every user installation surface', () => {
       command: 'docker build -t one-person-lab-webui:<version> shells/aionui && docker run -p 127.0.0.1::<container_port> one-person-lab-webui:<version>',
       expects: [
         'Docker image builds from the active AionUI shell Dockerfile',
+        'Docker image declares /data and /projects volumes',
+        'Docker image exposes /opt/opl/image-manifest.json and /opt/opl/seed/metadata.json',
+        'Stable/latest WebUI image validates as webui-full rather than metadata-only slim',
         'WebUI container starts on port 3000',
         'HTTP / returns 200',
         'HTTP /manifest.webmanifest returns 200',
+        'HTTP /api/auth/user returns success with a session cookie without manual username or password',
+        'WebUI runtime can call OPL startup maintenance and managed update status through Framework-owned JSON surfaces',
       ],
     },
   );

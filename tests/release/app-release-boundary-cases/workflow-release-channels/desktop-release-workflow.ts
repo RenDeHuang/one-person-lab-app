@@ -187,6 +187,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /OPL_INSTALL_SCRIPT_URL: file:\/\/\$\{\{ github\.workspace \}\}\/one-person-lab\/install\.sh/);
   assert.match(workflow, /\.\/install\.sh --complete --skip-modules/);
   assert.match(workflow, /docker build[\s\S]*--label "org\.opencontainers\.image\.source=https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"[\s\S]*-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"[\s\S]*shells\/aionui/);
+  assert.match(workflow, /docker run --rm --entrypoint cat "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"[\s\S]*\/opt\/opl\/image-manifest\.json/);
+  assert.match(workflow, /docker run --rm --entrypoint cat "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"[\s\S]*\/opt\/opl\/seed\/metadata\.json/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/validate-webui-runtime-image\.ts[\s\S]*--expected-profile webui-full/);
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
   assert.match(workflow, /same_job_after_docker_webui_smoke/);
   assert.match(workflow, /repeated_docker_build: false/);
@@ -567,14 +570,46 @@ test('manual desktop release workflow supports new releases and same-tag refresh
         'bundled_aioncore',
         'opl_bootstrap_installer',
         'image_manifest',
-        'optional_opl_seed_metadata',
+        'opl_seed_metadata',
+        'preheated_seed_payload',
       ],
+      profiles: {
+        webui_full: {
+          default_for_beginner_and_stable_latest: true,
+          required_tags: [
+            '<app_or_opl_version>',
+            'stable',
+            'latest',
+          ],
+          seed_strategy: [
+            'payload_manifest',
+            'payload_preheated',
+          ],
+          required_seed_components: [
+            'opl_framework',
+            'codex_cli',
+            'companion_skills',
+            'domain_modules',
+          ],
+          metadata_only_allowed: false,
+          rule: 'Stable/latest Docker WebUI images must be payload-capable runtime images. A metadata-only image may not be promoted as the beginner default.',
+        },
+        webui_slim: {
+          developer_or_ci_only: true,
+          seed_strategy: [
+            'metadata_only',
+          ],
+          stable_latest_allowed: false,
+          rule: 'Slim images may carry only WebUI, AionCore, bootstrap, and seed metadata, but must not be tagged stable/latest or documented as the default beginner path.',
+        },
+      },
       persistent_mounts: {
         '/data': 'configuration_sessions_sqlite_logs_cache_opl_state_codex_home_and_managed_runtime_state',
         '/projects': 'user_project_files_and_workspaces',
       },
       image_manifest: {
         required: true,
+        canonical_path: '/opt/opl/image-manifest.json',
         path_env: 'OPL_IMAGE_MANIFEST_PATH',
         seed_dir_env: 'OPL_IMAGE_SEED_DIR',
         data_dir_env: 'AIONUI_DATA_DIR',
@@ -590,6 +625,37 @@ test('manual desktop release workflow supports new releases and same-tag refresh
           'projects_dir',
           'seed_strategy',
         ],
+      },
+      seed_metadata: {
+        required: true,
+        canonical_path: '/opt/opl/seed/metadata.json',
+        required_component_fields: [
+          'id',
+          'version',
+          'source',
+          'payload_path',
+          'sha256_or_source_fingerprint',
+          'receipt_kind',
+        ],
+        full_profile_required_components: [
+          'opl_framework',
+          'codex_cli',
+          'companion_skills',
+          'domain_modules',
+        ],
+      },
+      publish_gate: {
+        script: 'scripts/validate-webui-runtime-image.ts',
+        stable_latest_expected_profile: 'webui-full',
+        must_read_back: [
+          'docker_image_inspect',
+          'image_manifest',
+          'seed_metadata',
+          'declared_volumes',
+          'runtime_env',
+          'auto_login_smoke',
+        ],
+        forbidden_success_state: 'metadata_only_seed_promoted_to_stable_or_latest',
       },
       update_planes: {
         image_update: [

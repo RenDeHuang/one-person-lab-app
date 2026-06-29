@@ -171,6 +171,23 @@ function validateInstallerSurfaces(policy) {
   if (dockerWebui.runtime_distribution_model?.persistent_projects_dir !== '/projects') {
     throw new Error('Docker/WebUI install exposure must keep /projects as the persistent projects directory');
   }
+  if (dockerWebui.runtime_distribution_model?.default_profile !== 'webui_full') {
+    throw new Error('Docker/WebUI install exposure must make webui_full the beginner default profile');
+  }
+  if (dockerWebui.runtime_distribution_model?.stable_latest_policy !== 'latest_and_stable_must_point_to_webui_full_not_metadata_only_slim') {
+    throw new Error('Docker/WebUI install exposure must forbid metadata-only slim images for stable/latest');
+  }
+  if (dockerWebui.runtime_distribution_model?.required_image_manifest !== '/opt/opl/image-manifest.json') {
+    throw new Error('Docker/WebUI install exposure must require the canonical /opt/opl image manifest');
+  }
+  if (dockerWebui.runtime_distribution_model?.required_seed_metadata !== '/opt/opl/seed/metadata.json') {
+    throw new Error('Docker/WebUI install exposure must require the canonical /opt/opl seed metadata');
+  }
+  assertIncludesAll(
+    dockerWebui.runtime_distribution_model?.required_full_seed_components,
+    ['opl_framework', 'codex_cli', 'companion_skills', 'domain_modules'],
+    'Docker/WebUI full seed components',
+  );
   for (const surface of ['opl system startup-maintenance --json', 'opl update status --json']) {
     if (!dockerWebui.runtime_distribution_model?.status_surfaces?.includes(surface)) {
       throw new Error(`Docker/WebUI install exposure must include status surface ${surface}`);

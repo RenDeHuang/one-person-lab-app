@@ -763,9 +763,14 @@
       "command": "docker build -t one-person-lab-webui:<version> shells/aionui && docker run -p 127.0.0.1::<container_port> one-person-lab-webui:<version>",
       "expects": [
         "Docker image builds from the active AionUI shell Dockerfile",
+        "Docker image declares /data and /projects volumes",
+        "Docker image exposes /opt/opl/image-manifest.json and /opt/opl/seed/metadata.json",
+        "Stable/latest WebUI image validates as webui-full rather than metadata-only slim",
         "WebUI container starts on port 3000",
         "HTTP / returns 200",
-        "HTTP /manifest.webmanifest returns 200"
+        "HTTP /manifest.webmanifest returns 200",
+        "HTTP /api/auth/user returns success with a session cookie without manual username or password",
+        "WebUI runtime can call OPL startup maintenance and managed update status through Framework-owned JSON surfaces"
       ]
     },
     {

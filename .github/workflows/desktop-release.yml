@@ -675,6 +675,17 @@ jobs:
             shells/aionui
           docker image inspect "one-person-lab-webui:${{ inputs.opl_version }}" \
             --format '{{.Size}}' > /tmp/opl-webui-image-size-bytes.txt
+          docker image inspect "one-person-lab-webui:${{ inputs.opl_version }}" > /tmp/opl-webui-image-inspect.json
+          docker run --rm --entrypoint cat "one-person-lab-webui:${{ inputs.opl_version }}" \
+            /opt/opl/image-manifest.json > /tmp/opl-webui-image-manifest.json
+          docker run --rm --entrypoint cat "one-person-lab-webui:${{ inputs.opl_version }}" \
+            /opt/opl/seed/metadata.json > /tmp/opl-webui-seed-metadata.json
+          node --experimental-strip-types scripts/validate-webui-runtime-image.ts \
+            --image-inspect /tmp/opl-webui-image-inspect.json \
+            --image-manifest /tmp/opl-webui-image-manifest.json \
+            --seed-metadata /tmp/opl-webui-seed-metadata.json \
+            --expected-profile webui-full \
+            --summary-path /tmp/opl-webui-runtime-image-validation.json
           container="$(docker run --rm -d -p 127.0.0.1::3000 "one-person-lab-webui:${{ inputs.opl_version }}")"
           cleanup() {
             docker rm -f "$container" >/dev/null 2>&1 || true
@@ -735,6 +746,10 @@ jobs:
           path: |
             /tmp/opl-webui-index.html
             /tmp/opl-webui-manifest.webmanifest
+            /tmp/opl-webui-image-inspect.json
+            /tmp/opl-webui-image-manifest.json
+            /tmp/opl-webui-seed-metadata.json
+            /tmp/opl-webui-runtime-image-validation.json
             /tmp/opl-webui-image-size-bytes.txt
           if-no-files-found: error
 

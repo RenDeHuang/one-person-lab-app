@@ -233,6 +233,17 @@ jobs:
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             -t "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}" \
             shells/aionui
+          docker image inspect "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}" > /tmp/opl-webui-image-inspect.json
+          docker run --rm --entrypoint cat "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}" \
+            /opt/opl/image-manifest.json > /tmp/opl-webui-image-manifest.json
+          docker run --rm --entrypoint cat "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}" \
+            /opt/opl/seed/metadata.json > /tmp/opl-webui-seed-metadata.json
+          node --experimental-strip-types scripts/validate-webui-runtime-image.ts \
+            --image-inspect /tmp/opl-webui-image-inspect.json \
+            --image-manifest /tmp/opl-webui-image-manifest.json \
+            --seed-metadata /tmp/opl-webui-seed-metadata.json \
+            --expected-profile webui-full \
+            --summary-path /tmp/opl-webui-runtime-image-validation.json
           container="$(docker run --rm -d -p 127.0.0.1::3000 "one-person-lab-webui:${{ needs.resolve-nightly.outputs.version }}")"
           cleanup() {
             docker rm -f "$container" >/dev/null 2>&1 || true
@@ -277,5 +288,10 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: webui-ghcr-publish-${{ needs.resolve-nightly.outputs.version }}
-          path: /tmp/opl-webui-ghcr-publish.json
+          path: |
+            /tmp/opl-webui-ghcr-publish.json
+            /tmp/opl-webui-image-inspect.json
+            /tmp/opl-webui-image-manifest.json
+            /tmp/opl-webui-seed-metadata.json
+            /tmp/opl-webui-runtime-image-validation.json
           if-no-files-found: error

@@ -10,10 +10,67 @@ import {
 export function validateReleaseChannelContract(releaseChannel) {
   const managedUpdatePlane = releaseChannel.managed_update_plane;
   validateLocalDataLifecycle(releaseChannel.local_data_lifecycle);
+  validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
   validateReleaseRuntimeToolchainUpdater(releaseChannel.runtime_toolchain_updater, managedUpdatePlane);
   validateReleaseHomebrewDistribution(releaseChannel, managedUpdatePlane);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
+}
+
+function validateWebuiGhcrImage(webuiImage) {
+  const contract = webuiImage?.runtime_image_contract;
+  if (
+    webuiImage?.owner !== 'one-person-lab-app' ||
+    webuiImage?.distribution_role !== 'preheated_webui_runtime_image_not_desktop_app_gui_shell' ||
+    contract?.image_role !== 'browser_entrypoint_for_opl_on_linux_container' ||
+    contract?.profiles?.webui_full?.default_for_beginner_and_stable_latest !== true ||
+    contract?.profiles?.webui_full?.metadata_only_allowed !== false ||
+    contract?.profiles?.webui_slim?.stable_latest_allowed !== false
+  ) {
+    throw new Error('Release channel must declare Docker/WebUI full and slim image profile boundaries');
+  }
+  assertIncludesAll(
+    contract.required_runtime_contents,
+    [
+      'webui_static_assets',
+      'aionui_web_standalone_launcher',
+      'bundled_aioncore',
+      'opl_bootstrap_installer',
+      'image_manifest',
+      'opl_seed_metadata',
+      'preheated_seed_payload',
+    ],
+    'Docker/WebUI runtime image required contents',
+  );
+  assertIncludesAll(
+    contract.profiles.webui_full?.required_seed_components,
+    ['opl_framework', 'codex_cli', 'companion_skills', 'domain_modules'],
+    'Docker/WebUI full image seed components',
+  );
+  assertDeepEqualJson(
+    contract.profiles.webui_full?.seed_strategy,
+    ['payload_manifest', 'payload_preheated'],
+    'Docker/WebUI full image seed strategy',
+  );
+  assertDeepEqualJson(
+    contract.profiles.webui_slim?.seed_strategy,
+    ['metadata_only'],
+    'Docker/WebUI slim image seed strategy',
+  );
+  if (
+    contract.image_manifest?.canonical_path !== '/opt/opl/image-manifest.json' ||
+    contract.seed_metadata?.canonical_path !== '/opt/opl/seed/metadata.json' ||
+    contract.publish_gate?.script !== 'scripts/validate-webui-runtime-image.ts' ||
+    contract.publish_gate?.stable_latest_expected_profile !== 'webui-full' ||
+    contract.publish_gate?.forbidden_success_state !== 'metadata_only_seed_promoted_to_stable_or_latest'
+  ) {
+    throw new Error('Docker/WebUI GHCR publishing must validate canonical manifest, seed metadata, and full profile before stable/latest tags');
+  }
+  assertIncludesAll(
+    contract.publish_gate?.must_read_back,
+    ['docker_image_inspect', 'image_manifest', 'seed_metadata', 'declared_volumes', 'runtime_env', 'auto_login_smoke'],
+    'Docker/WebUI publish gate readback',
+  );
 }
 
 function validateLocalDataLifecycle(lifecycle) {
