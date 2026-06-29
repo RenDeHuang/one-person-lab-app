@@ -325,9 +325,68 @@
     "version_tag": "<app_or_opl_version>",
     "source": "shells/aionui Dockerfile",
     "source_repository": "https://github.com/gaofeng21cn/one-person-lab-app",
-    "distribution_role": "server_deployment_artifact_not_desktop_app_gui_shell",
+    "distribution_role": "preheated_webui_runtime_image_not_desktop_app_gui_shell",
     "ordinary_app_install_path": false,
     "managed_package_channel_member": false,
+    "runtime_image_contract": {
+      "image_role": "browser_entrypoint_for_opl_on_linux_container",
+      "startup_goal": "open_webui_quickly_then_let_opl_reconcile_persisted_runtime_state",
+      "base_os_policy": "slim_lts_linux_base_with_only_runtime_required_packages",
+      "required_runtime_contents": [
+        "webui_static_assets",
+        "aionui_web_standalone_launcher",
+        "bundled_aioncore",
+        "opl_bootstrap_installer",
+        "image_manifest",
+        "optional_opl_seed_metadata"
+      ],
+      "persistent_mounts": {
+        "/data": "configuration_sessions_sqlite_logs_cache_opl_state_codex_home_and_managed_runtime_state",
+        "/projects": "user_project_files_and_workspaces"
+      },
+      "image_manifest": {
+        "required": true,
+        "path_env": "OPL_IMAGE_MANIFEST_PATH",
+        "seed_dir_env": "OPL_IMAGE_SEED_DIR",
+        "data_dir_env": "AIONUI_DATA_DIR",
+        "projects_dir_env": "OPL_PROJECTS_DIR",
+        "must_describe": [
+          "schema",
+          "image_role",
+          "base_image_family",
+          "webui_package",
+          "bundled_aioncore_platforms",
+          "bootstrap_path",
+          "data_dir",
+          "projects_dir",
+          "seed_strategy"
+        ]
+      },
+      "update_planes": {
+        "image_update": [
+          "webui_shell",
+          "aionui_web_launcher",
+          "bundled_aioncore",
+          "opl_bootstrap_installer",
+          "base_os_packages",
+          "preheated_seed_payload"
+        ],
+        "opl_managed_update": [
+          "opl_framework",
+          "codex_cli_or_runtime",
+          "companion_skills",
+          "domain_modules",
+          "managed_toolchain"
+        ],
+        "data_migration": [
+          "sqlite_schema",
+          "install_manifest",
+          "runtime_receipts",
+          "user_settings_shape"
+        ]
+      },
+      "rule": "Docker/WebUI starts as a preheated WebUI runtime image: the image gets users to a browser quickly, while OPL Framework owns reconciliation and managed updates inside the mounted /data state."
+    },
     "required_oci_labels": {
       "org.opencontainers.image.source": "https://github.com/gaofeng21cn/one-person-lab-app"
     },
@@ -375,7 +434,7 @@
     "module_package_publish_allowed": false,
     "opl_flow_plugin_publish_allowed": false,
     "framework_role": "references_image_coordinate_only",
-    "rule": "WebUI GHCR image publish truth is App-owned server deployment artifact truth. The desktop App embeds the AionUI shell through App packaging; ordinary App users do not install this container package. Framework may reference the image coordinate but does not own publishing."
+    "rule": "WebUI GHCR image publish truth is App-owned server deployment artifact truth for the preheated WebUI runtime image. The desktop App embeds the AionUI shell through App packaging; ordinary desktop users do not install this container package. Framework may reference the image coordinate and owns OPL-managed reconciliation inside /data, but it does not own GHCR publishing."
   },
   "homebrew_tap_distribution": {
     "owner": "one-person-lab-app",

@@ -161,6 +161,21 @@ function validateInstallerSurfaces(policy) {
   if (installerSurfaces.get('app_first_run')?.exposure_policy !== 'hide_skill_plugin_packaging_mechanics_by_default') {
     throw new Error('App first-run install exposure must hide skill/plugin packaging mechanics by default');
   }
+  const dockerWebui = installerSurfaces.get('docker_webui');
+  if (dockerWebui?.runtime_distribution_model?.container_role !== 'preheated_webui_runtime_image') {
+    throw new Error('Docker/WebUI install exposure must declare the preheated WebUI runtime image model');
+  }
+  if (dockerWebui.runtime_distribution_model?.persistent_data_dir !== '/data') {
+    throw new Error('Docker/WebUI install exposure must keep /data as the persistent data directory');
+  }
+  if (dockerWebui.runtime_distribution_model?.persistent_projects_dir !== '/projects') {
+    throw new Error('Docker/WebUI install exposure must keep /projects as the persistent projects directory');
+  }
+  for (const surface of ['opl system startup-maintenance --json', 'opl update status --json']) {
+    if (!dockerWebui.runtime_distribution_model?.status_surfaces?.includes(surface)) {
+      throw new Error(`Docker/WebUI install exposure must include status surface ${surface}`);
+    }
+  }
 }
 
 function validateFirstRunUserPresentation(presentation) {

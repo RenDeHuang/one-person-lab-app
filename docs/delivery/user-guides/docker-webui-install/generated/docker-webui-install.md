@@ -73,7 +73,7 @@ macOS -> DMG / 一键安装 / Homebrew / Docker
 
 ## 3A. Windows：启动 One Person Lab
 
-Docker Desktop 正在运行后，打开 PowerShell。先创建 One Person Lab 的本机保存目录，再运行 WebUI。即使电脑里还没有 `OnePersonLab` 文件夹，下面两行 `New-Item` 也会自动创建 `data` 和 `projects` 子目录。第一次运行会下载镜像，可能需要几分钟。看到终端持续输出日志时，不要关闭这个窗口。
+Docker Desktop 正在运行后，打开 PowerShell。先创建 One Person Lab 的本机保存目录，再运行 WebUI。即使电脑里还没有 `OnePersonLab` 文件夹，下面两行 `New-Item` 也会自动创建 `data` 和 `projects` 子目录。第一次运行会下载预热好的 One Person Lab WebUI 镜像，可能需要几分钟。看到终端持续输出日志时，不要关闭这个窗口。
 
 **PowerShell 命令**
 
@@ -100,7 +100,7 @@ docker run --rm -p 3000:3000 `
 
 - 如果提示 `docker` 命令不存在，先确认 Docker Desktop 已启动，再重新打开 PowerShell。
 - 如果下载镜像很慢，先换网络或请技术支持确认 GitHub/GHCR 是否可访问。
-- 以后更新时拉取新镜像并重新运行这条命令，`OnePersonLab` 目录里的数据和项目不会因为替换容器而丢失。
+- 收到 WebUI/Docker 镜像更新通知时，可以拉取新镜像并重新运行这条命令；`OnePersonLab` 目录里的数据和项目不会因为替换容器而丢失。
 
 ## 2B. Linux：安装 Docker
 
@@ -131,7 +131,7 @@ sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin dock
 
 ## 3B. Linux：启动 One Person Lab
 
-Docker 安装完成后，在终端先创建 One Person Lab 的本机保存目录，再启动 WebUI。即使 Home 目录下还没有 `OnePersonLab` 文件夹，`mkdir -p` 也会自动创建 `data` 和 `projects` 子目录。第一次运行会下载 One Person Lab WebUI 镜像。看到日志持续输出后，保持终端窗口打开。
+Docker 安装完成后，在终端先创建 One Person Lab 的本机保存目录，再启动 WebUI。即使 Home 目录下还没有 `OnePersonLab` 文件夹，`mkdir -p` 也会自动创建 `data` 和 `projects` 子目录。第一次运行会下载预热好的 One Person Lab WebUI 镜像。看到日志持续输出后，保持终端窗口打开。
 
 **Linux 终端命令**
 
@@ -158,7 +158,7 @@ sudo docker run --rm -p 3000:3000 \
 
 - 如果你已经配置了 Docker 非 root 用户，也可以去掉命令开头的 `sudo`。
 - 需要后台长期运行时，请让技术支持改成 Docker Compose 或系统服务。
-- 以后更新时拉取新镜像并重新运行这条命令，`~/OnePersonLab` 目录里的数据和项目不会因为替换容器而丢失。
+- 收到 WebUI/Docker 镜像更新通知时，可以拉取新镜像并重新运行这条命令；`~/OnePersonLab` 目录里的数据和项目不会因为替换容器而丢失。
 
 ## 4. 打开浏览器访问 WebUI
 
@@ -264,7 +264,7 @@ sudo docker run --rm -p 3000:3000 \
 
 ## 8. 下次怎么打开和关闭
 
-下次使用时，先打开 Docker Desktop 或确认 Linux Docker 服务正在运行，然后重新运行启动 One Person Lab 的命令，再用浏览器访问 `http://localhost:3000/`。不用时可以在终端按 Ctrl+C 停止。建议定期或在收到更新通知时拉取最新镜像，再用同样的挂载命令启动；不要删除本机 `OnePersonLab` 目录。
+下次使用时，先打开 Docker Desktop 或确认 Linux Docker 服务正在运行，然后重新运行启动 One Person Lab 的命令，再用浏览器访问 `http://localhost:3000/`。不用时可以在终端按 Ctrl+C 停止。进入 WebUI 以后，运行环境、模块和访问配置主要由 One Person Lab 自己的启动检查和维护功能处理；收到 WebUI/Docker 镜像更新通知时，再拉取最新镜像并用同样的挂载命令启动。不要删除本机 `OnePersonLab` 目录。
 
 **日常使用**
 
@@ -273,22 +273,25 @@ sudo docker run --rm -p 3000:3000 \
 访问：浏览器打开 http://localhost:3000/
 关闭：终端按 Ctrl+C
 保留：不要删除本机 OnePersonLab/data 和 OnePersonLab/projects
-更新：docker pull ghcr.io/gaofeng21cn/one-person-lab-webui:latest 后重新运行启动命令
+模块维护：在 WebUI 中按提示完成启动检查和更新维护
+入口镜像更新：收到通知时 docker pull ghcr.io/gaofeng21cn/one-person-lab-webui:latest 后重新运行启动命令
 ```
 
 重点：
 
 - `OnePersonLab/data` 是 WebUI 内部数据保存位置，不要随便删除。
 - `OnePersonLab/projects` 是项目文件保存位置，建议把长期项目都放在这里。
-- 更新时通常拉取新镜像后重新运行同一条命令；只要挂载目录不变，数据和项目会继续保留。
-- Docker 版的主要更新方式是替换镜像和重建容器，不等同于桌面 App 里的内置自动更新。
+- 运行环境、Codex 配置和模块维护主要通过 WebUI 进入后的 OPL 维护机制完成。
+- 更新入口镜像时，只要挂载目录不变，数据和项目会继续保留。
+- 镜像更新主要用于更新 WebUI 外壳、启动器、bundled AionCore、bootstrap 脚本和基础系统层。
 - 正式服务器部署请交给技术支持配置长期运行。
 
 说明：
 
 - 这份教程面向新手日常使用，不展开 Docker 内部概念。
-- Docker/WebUI 镜像包含 WebUI、AionCore、本机启动器和 OPL bootstrap；首次初始化和后续运行会把 OPL Framework、Codex CLI、访问配置、会话历史、日志和缓存等写入本机挂载的 `OnePersonLab/data`。
-- 拉取最新镜像会更新镜像内的 WebUI 和启动器；已经持久化在 `OnePersonLab/data` 里的运行环境和模块是否刷新，以 WebUI 首启检查、运行状态和后续维护动作的结果为准。
+- Docker/WebUI 镜像不是静态全家桶，也不是纯裸 Linux；它是预热好的 WebUI 运行镜像，内含 WebUI、AionCore、启动器、OPL bootstrap 和镜像清单。
+- 首次初始化和后续运行会把 OPL Framework、Codex CLI、访问配置、会话历史、日志、缓存和维护记录等写入本机挂载的 `OnePersonLab/data`。
+- 持久化在 `OnePersonLab/data` 里的运行环境和模块，以 WebUI 首启检查、运行状态和后续 OPL 维护动作的结果为准；镜像内的预热内容用于更快补齐首启环境。
 - Docker/WebUI 的发布真相仍以 App release workflow、GHCR publish summary 和 contracts 为准。
 
 ## 常见问题
@@ -305,8 +308,10 @@ sudo docker run --rm -p 3000:3000 \
 - 项目文件保存在哪里：建议都放在本机 `OnePersonLab/projects`，容器内对应 `/projects`。在界面里选择项目目录时，从 `/projects` 下选择。
 - 新机器没有 `OnePersonLab` 目录怎么办：按教程命令运行即可，Windows 的 `New-Item -Force` 和 Linux 的 `mkdir -p` 会创建目录；Docker 挂载和 WebUI 启动也会继续创建内部子目录。
 - 访问密钥在哪里填：首次打开后看“准备开始使用”页面，在“访问权限”区域的“输入访问密钥”里填写，然后点击“完成配置”。
-- 这个 Docker 镜像是不是完整全家桶：它是 Docker/WebUI 入口镜像，包含 WebUI、AionCore、本机启动器和 OPL bootstrap；OPL Framework、Codex CLI、companion skills、访问配置、会话历史和缓存会在首次初始化或运行维护过程中写入本机 `OnePersonLab/data`。
-- 拉取最新镜像是否等于所有模块都自动最新：不能这样理解。拉取镜像会更新镜像内的 WebUI 和启动器；挂载目录里已经安装的运行环境、模块和依赖是否刷新，要看 WebUI 首启检查、运行状态和维护动作。为了拿到最新镜像内的能力，建议定期或在收到通知时执行 `docker pull ghcr.io/gaofeng21cn/one-person-lab-webui:latest`，再重新运行启动命令。
+- 这个 Docker 镜像是不是完整全家桶：不能按静态全家桶理解。它是预热好的 WebUI 运行镜像，包含 WebUI、AionCore、本机启动器、OPL bootstrap 和镜像清单；OPL Framework、Codex CLI、companion skills、访问配置、会话历史和缓存会在首次初始化或运行维护过程中写入本机 `OnePersonLab/data`。
+- 是不是可以只靠 WebUI 维护模块：大体可以这样理解。进入 WebUI 后，运行环境、模块和 Codex 配置主要通过 OPL 自己的启动检查、维护和更新动作处理，数据保存在 `OnePersonLab/data`。但镜像仍然建议在收到通知时更新，因为 WebUI 外壳、启动器、bundled AionCore、bootstrap 脚本、预热内容和基础系统层属于镜像内容。
+- 为什么 Docker 镜像里要打包 WebUI：因为用户第一次启动时，OPL Framework 还没有安装在 `OnePersonLab/data` 里。镜像内置 WebUI 后，用户只需要运行 Docker 命令并打开浏览器，WebUI 就能完成自动登录、首启检查、访问密钥配置和 OPL 初始化。
+- 安装模式怎么理解：面向新手可以理解成两类体验。macOS 优先使用桌面 App 安装，包括 DMG、一键安装和 Homebrew；Windows、Linux 和服务器优先使用 WebUI 安装体验，Docker 镜像是这个 WebUI 体验在 Linux 容器里的预装入口。macOS 也可以使用 Docker/WebUI，但不是桌面新手的首选路径。
 
 ## 验证方式
 
@@ -314,7 +319,8 @@ sudo docker run --rm -p 3000:3000 \
 - Linux 路径按 Docker Engine Ubuntu 官方 apt repository 安装页核对：先配置 apt repository，再安装 Docker packages，并用 `hello-world` 验证。
 - WebUI 自动登录行为由 Web CLI / web-host runtime 验证：无用户名密码请求 `/api/auth/user` 返回 `success: true` 且下发 session cookie。
 - Docker 持久化边界按 active shell Dockerfile 和 web-cli 实现核对：`AIONUI_DATA_DIR=/data` 保存 WebUI 内部状态，`/projects` 是用户项目文件挂载点。
-- Docker 镜像内容边界按 active shell Dockerfile、`scripts/pack-web-cli.js` 和本地镜像 inspect 核对：镜像包含 WebUI 静态资源、`aionui-web`、bundled AionCore、`opl-install.sh`，并声明 `/data`、`/projects` 挂载点。
+- Docker 镜像内容边界按 active shell Dockerfile、`scripts/pack-web-cli.js` 和本地镜像 inspect 核对：镜像包含 WebUI 静态资源、`aionui-web`、bundled AionCore、`opl-install.sh`、镜像清单，并声明 `/data`、`/projects` 挂载点。
+- WebUI 维护边界按 web-host runtime proxy 核对：WebUI 通过 `/api/opl-runtime/*` 调用 `opl system initialize`、`opl system startup-maintenance`、`opl system reconcile-modules`、`opl update status/check/plan/apply/repair/rollback` 等 OPL 维护命令。
 - 新机器目录创建行为用干净宿主目录验证：`OnePersonLab` 原本不存在时，Docker bind mount 创建 `data` 和 `projects`，WebUI 再创建 `logs`、`runtime`、`.codex`、`.opl`、`opl/state` 等内部目录。
 - 浏览器界面截图来自本机干净 Docker 容器的 Playwright 截图，容器端口映射为 `127.0.0.1:64022 -> 3000/tcp`，页面 URL 覆盖 `/#/first-run`，界面语言为中文。
 

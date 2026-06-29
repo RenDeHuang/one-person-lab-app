@@ -68,12 +68,12 @@ const forbiddenPatterns = [
   /OPL_CODEX_API_KEY\s*=\s*[^`\s]+/,
 ];
 
-function run(command: string, args: string[]) {
+function run(command: string, args: string[], options: { env?: NodeJS.ProcessEnv } = {}) {
   const result = spawnSync(command, args, {
     cwd: appRoot,
     encoding: 'utf8',
     stdio: 'pipe',
-    env: process.env,
+    env: options.env ?? process.env,
   });
   if (result.status !== 0) {
     throw new Error([
@@ -325,6 +325,13 @@ function renderList(items: string[], guide: DockerGuide, className: string) {
   return `<ul class="${className}">${expandList(items, guide).map((item) => `<li>${inlineMarkdown(item)}</li>`).join('')}</ul>`;
 }
 
+function trimLineEndings(text: string) {
+  return text
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n');
+}
+
 function renderVisual(step: DockerGuideStep, guide: DockerGuide) {
   return `
     <figure class="visual">
@@ -504,7 +511,7 @@ function main() {
   fs.mkdirSync(tempDir, { recursive: true });
   copyAssets(assetValidation.seen);
   fs.writeFileSync(markdownPath, markdown, 'utf8');
-  fs.writeFileSync(htmlPath, html, 'utf8');
+  fs.writeFileSync(htmlPath, trimLineEndings(html), 'utf8');
   fs.writeFileSync(tempHeaderPath, buildHeader(), 'utf8');
   fs.writeFileSync(tempMarkdownPath, buildPdfMarkdown(guide, markdown), 'utf8');
 
@@ -524,7 +531,9 @@ function main() {
     '-V', 'linkcolor=OPLTeal',
     '-V', 'urlcolor=OPLTeal',
     '-o', pdfPath,
-  ]);
+  ], {
+    env: { ...process.env, SOURCE_DATE_EPOCH: '1782730800' },
+  });
 
   const render = renderPdfPages();
   const info = readPdfInfo();

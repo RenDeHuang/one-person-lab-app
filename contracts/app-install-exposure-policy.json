@@ -251,8 +251,36 @@
       "entrypoint": "Docker/WebUI",
       "primary_audience": "server_or_webui_users",
       "progress_source": "opl system initialize --json",
-      "exposure_policy": "show_cli_backed_status_without_desktop_plugin_semantics",
-      "codex_exposure_owner": "opl_framework"
+      "exposure_policy": "show_webui_entry_status_and_opl_managed_runtime_maintenance_without_desktop_plugin_semantics",
+      "codex_exposure_owner": "opl_framework",
+      "runtime_distribution_model": {
+        "container_role": "preheated_webui_runtime_image",
+        "first_visible_surface": "browser_webui",
+        "persistent_data_dir": "/data",
+        "persistent_projects_dir": "/projects",
+        "image_update_scope": [
+          "webui_shell",
+          "aioncore",
+          "launcher",
+          "bootstrap",
+          "base_linux_layer",
+          "preheated_seed_payload"
+        ],
+        "opl_managed_update_scope": [
+          "opl_framework",
+          "codex_cli",
+          "companion_skills",
+          "domain_modules",
+          "managed_toolchain"
+        ],
+        "status_surfaces": [
+          "opl system initialize --json",
+          "opl system startup-maintenance --json",
+          "opl update status --json",
+          "opl update plan --json"
+        ],
+        "rule": "Docker/WebUI presents a browser-first install experience; image updates and OPL-managed runtime/module updates are separate planes, and user state remains in mounted host directories."
+      }
     }
   ],
   "first_run_user_presentation": {
