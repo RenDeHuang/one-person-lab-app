@@ -181,3 +181,70 @@ test('Settings adapter slot and upstream intake classification are machine-reada
     /upstream intake classifications/,
   );
 });
+
+test('Settings page adapters and visual QA policy are machine-readable gates', () => {
+  const controlPlaneContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-settings-control-plane.json'), 'utf8'),
+  );
+  const guiContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-gui-product-contract.json'), 'utf8'),
+  );
+  const pageStateMatrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
+  );
+  const adapterContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'),
+  );
+  const productProfile = readProductProfile();
+
+  assert.deepStrictEqual(Object.keys(controlPlaneContract.page_adapter_policy.required_pages), [
+    'access',
+    'environment',
+    'storage',
+    'capabilities',
+  ]);
+  assert.strictEqual(
+    controlPlaneContract.page_adapter_policy.required_pages.access.adapter_entry,
+    'packages/desktop/src/renderer/pages/settings/accessProjection.ts',
+  );
+  assert.strictEqual(
+    controlPlaneContract.page_adapter_policy.required_pages.environment.adapter_entry,
+    'packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.ts',
+  );
+  assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.required_viewports, ['desktop', 'mobile']);
+  assert.ok(controlPlaneContract.visual_qa_policy.evidence_command.includes('E2E_SCREENSHOTS=1'));
+  assert.deepStrictEqual(controlPlaneContract.visual_qa_policy.does_not_prove, [
+    'release readiness',
+    'packaged App readiness',
+    'runtime currentness',
+    'owner acceptance',
+  ]);
+
+  const invalidAdapterPolicy = structuredClone(controlPlaneContract);
+  delete invalidAdapterPolicy.page_adapter_policy.required_pages.environment;
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidAdapterPolicy,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /required pages/,
+  );
+
+  const invalidVisualQaPolicy = structuredClone(controlPlaneContract);
+  invalidVisualQaPolicy.visual_qa_policy.does_not_prove = ['release readiness'];
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidVisualQaPolicy,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /non-release evidence boundary/,
+  );
+});

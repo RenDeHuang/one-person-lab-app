@@ -67,6 +67,22 @@ const expectedSettingsAdapterEvidence = [
   'AionUI upstream settings intake is classified as accepted/adapt/redirect/reject before registry or slot changes',
 ];
 
+const expectedPageAdapterEntries = {
+  access: 'packages/desktop/src/renderer/pages/settings/accessProjection.ts',
+  environment: 'packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.ts',
+  storage: 'packages/desktop/src/renderer/pages/settings/storageProjection.ts',
+  capabilities: 'packages/desktop/src/renderer/pages/settings/capabilitiesProjection.ts',
+};
+
+const expectedVisualQaRoutes = [
+  '/settings/general',
+  '/settings/access',
+  '/settings/capabilities',
+  '/settings/environment',
+  '/settings/storage',
+  '/settings/advanced',
+];
+
 const matrixRouteScopes = {
   settings_general: appOwnedSettingsRouteScopes.settings_general,
   access: appOwnedSettingsRouteScopes.access,
@@ -146,6 +162,8 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   );
   validateHydratedSettingsRegistry(controlPlane);
   validateSettingsShellAdapterSlotContract(controlPlane);
+  validateSettingsPageAdapterPolicy(controlPlane);
+  validateSettingsVisualQaPolicy(controlPlane);
   validateSettingsUpstreamIntake(controlPlane);
   if (controlPlane.default_route !== '/settings/general') {
     throw new Error('Settings control plane default route must be /settings/general');
@@ -546,6 +564,54 @@ function validateSettingsShellAdapterSlotContract(controlPlane) {
     slot?.app_owns,
     ['tab order', 'user semantics', 'OPL page slots', 'state/action sources', 'upstream intake classification'],
     'SettingsShellAdapterSlot app_owns',
+  );
+}
+
+function validateSettingsPageAdapterPolicy(controlPlane) {
+  const policy = controlPlane.page_adapter_policy;
+  if (policy?.policy !== 'settings_pages_consume_explicit_view_model_adapters') {
+    throw new Error('Settings page adapter policy must require explicit view-model adapters');
+  }
+  const requiredPages = policy.required_pages ?? {};
+  assertDeepEqualJson(
+    Object.keys(requiredPages),
+    Object.keys(expectedPageAdapterEntries),
+    'Settings page adapter required pages',
+  );
+  for (const [routeId, adapterEntry] of Object.entries(expectedPageAdapterEntries)) {
+    const page = requiredPages[routeId];
+    if (!page) {
+      throw new Error(`Settings page adapter policy is missing ${routeId}`);
+    }
+    if (page.route_id !== routeId) {
+      throw new Error(`Settings page adapter policy ${routeId} must keep route_id ${routeId}`);
+    }
+    if (page.adapter_entry !== adapterEntry) {
+      throw new Error(`Settings page adapter policy ${routeId} must use ${adapterEntry}`);
+    }
+    if (!String(page.renderer_entry ?? '').startsWith('packages/desktop/src/renderer/pages/settings/')) {
+      throw new Error(`Settings page adapter policy ${routeId} must declare a Settings renderer entry`);
+    }
+    if (!Array.isArray(page.forbidden_sources) || page.forbidden_sources.length === 0) {
+      throw new Error(`Settings page adapter policy ${routeId} must declare forbidden sources`);
+    }
+  }
+}
+
+function validateSettingsVisualQaPolicy(controlPlane) {
+  const policy = controlPlane.visual_qa_policy;
+  if (policy?.policy !== 'settings_control_center_visual_qa_is_shell_behavior_evidence') {
+    throw new Error('Settings visual QA policy must describe shell behavior evidence');
+  }
+  assertDeepEqualJson(policy.required_viewports, ['desktop', 'mobile'], 'Settings visual QA required viewports');
+  assertDeepEqualJson(policy.required_routes, expectedVisualQaRoutes, 'Settings visual QA required routes');
+  if (!String(policy.evidence_command ?? '').includes('E2E_SCREENSHOTS=1')) {
+    throw new Error('Settings visual QA policy must require screenshot evidence');
+  }
+  assertIncludesAll(
+    policy.does_not_prove,
+    ['release readiness', 'packaged App readiness', 'runtime currentness', 'owner acceptance'],
+    'Settings visual QA non-release evidence boundary',
   );
 }
 

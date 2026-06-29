@@ -331,9 +331,19 @@ secondary/deep-link routes such as Workspace, Local Services, About, Update, or 
 ordinary routes without updating the contract, matrix, validators, tests, and
 visual QA targets.
 
-Implementation components should consume typed view models. Large mixed pages
-such as Local Environment should be split into summary, action, maintenance,
-and diagnostics components so each part has one owner and one test surface.
+Implementation components must consume explicit typed view-model adapters for
+the ordinary pages that carry OPL state/action semantics:
+
+- Access: `packages/desktop/src/renderer/pages/settings/accessProjection.ts`;
+- Maintenance & Updates: `packages/desktop/src/renderer/pages/settings/RuntimeSettings/runtimeSettingsViewModel.ts`;
+- Data & Storage: `packages/desktop/src/renderer/pages/settings/storageProjection.ts`;
+- Capabilities: `packages/desktop/src/renderer/pages/settings/capabilitiesProjection.ts`.
+
+Large mixed pages such as Maintenance & Updates should stay split into summary,
+action, maintenance, and diagnostics components so each part has one owner and
+one test surface. Renderers may own layout and event wiring; adapters own the
+normalization from App state, managed-update projections, and local lifecycle
+receipts into user-facing view models.
 
 ## Validation Boundary
 
@@ -358,6 +368,21 @@ Settings validation is split into three layers:
    Team MCP state, raw runtime/domain truth writes, owner receipt writes, silent
    dirty/developer checkout updates, and direct reads of OPL internal state
    files.
+
+Visual/UX QA is shell behavior evidence, not release evidence. The fixed
+Settings Control Center visual command is:
+
+```bash
+E2E_SCREENSHOTS=1 bun run test:e2e -- tests/e2e/specs/navigation.e2e.ts --grep "Settings Pages|Sidebar Navigation"
+```
+
+That evidence must cover desktop and mobile viewports for the ordinary routes
+`/settings/general`, `/settings/access`, `/settings/capabilities`,
+`/settings/environment`, `/settings/storage`, and `/settings/advanced`. Passing
+visual QA proves that the active shell can render the Settings Control Center
+without obvious navigation, overlap, or route-framing regressions. It does not
+prove release readiness, packaged App readiness, runtime currentness, or owner
+acceptance.
 
 ## Upstream Intake Classification
 
