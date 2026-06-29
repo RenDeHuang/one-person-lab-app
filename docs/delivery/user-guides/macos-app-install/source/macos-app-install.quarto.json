@@ -6,10 +6,10 @@
   "owner": "one-person-lab-app",
   "purpose": "macos_app_install_quarto_manifest",
   "state": "active",
-  "machine_boundary": "Machine-readable Quarto guide manifest. Human-readable long-form guide body is maintained in macos-app-install.guide.qmd. Release contracts, workflows, VM smoke artifacts, screenshot manifest, and App release metadata remain the machine truth.",
+  "machine_boundary": "Machine-readable Quarto guide manifest. Human-readable long-form guide body is maintained in docs/guides/macos-app-install/guide.qmd. Release contracts, workflows, VM smoke artifacts, screenshot manifest, and App release metadata remain the machine truth.",
   "audience": "医生、PI、课题负责人；不要求计算机基础。",
   "intro": "本文以 macOS App 首次启动为主线，说明如何下载、安装、配置 One Person Lab，并从科研、基金、演示或写书入口开始工作；下文以 Research Foundry / Med Auto Science 的首次科研任务为例。",
-  "source_qmd": "source/macos-app-install.guide.qmd",
+  "source_qmd": "docs/guides/macos-app-install/guide.qmd",
   "output": {
     "public_dir": "docs/public/macos-app-install",
     "html": "docs/public/macos-app-install/index.html",
@@ -36,7 +36,7 @@
     "截图与验证来源"
   ],
   "forbidden_phrases": [],
-  "screenshots_manifest": "source/screenshots.manifest.json",
+  "screenshots_manifest": "docs/guides/macos-app-install/screenshots.manifest.json",
   "publishing": {
     "template": "opl-guide",
     "preferred_pdf_engine": "typst",

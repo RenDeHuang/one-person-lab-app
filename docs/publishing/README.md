@@ -7,13 +7,17 @@ Machine boundary: Shared guide publishing templates and maintenance rules. Guide
 
 OPL install guides use a Quarto-first publishing pipeline:
 
-- Human-readable body source: `.qmd`.
+- Human-readable body source: `docs/guides/<guide-id>/guide.qmd` and, when needed, `slides.qmd`.
 - Machine metadata: guide manifest JSON.
 - Screenshot provenance: `screenshots.manifest.json`.
 - Published reading outputs: Quarto Book HTML and PDF.
 - Shared style: `docs/publishing/templates/opl-guide`.
 
 This keeps the maintenance boundary simple: edit QMD for prose, edit manifest JSON for paths and validation terms, edit screenshot manifest for image provenance, and edit templates for brand or layout.
+
+The delivery tree under `docs/delivery/user-guides/` is not the prose source.
+It stores guide-specific Quarto manifests, generated Markdown/QMD snapshots, and
+verification records. Do not add long-form body copy back into JSON files there.
 
 ## Templates
 

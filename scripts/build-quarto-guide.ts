@@ -81,7 +81,6 @@ if (!guideId) {
 
 const guideDir = path.join(appRoot, 'docs', 'delivery', 'user-guides', guideId);
 const manifestPath = path.join(guideDir, 'source', manifestFileName);
-const assetsDir = path.join(guideDir, 'assets');
 const tempDir = path.join(appRoot, 'tmp', 'quarto-guides', guideId);
 const projectDir = path.join(tempDir, 'project');
 const outputDir = path.join(projectDir, '_book');
@@ -141,7 +140,29 @@ function screenshotManifestPath(manifest: GuideManifest) {
   if (path.isAbsolute(relativePath) || relativePath.includes('..')) {
     throw new Error(`screenshots_manifest must be relative to guide dir: ${relativePath}`);
   }
+  return resolveSourcePath(relativePath);
+}
+
+function resolveSourcePath(relativePath: string) {
+  if (path.isAbsolute(relativePath) || relativePath.includes('..')) {
+    throw new Error(`Guide source path must be relative and stay inside the app repo: ${relativePath}`);
+  }
+  const appRootPath = path.join(appRoot, relativePath);
+  if (fs.existsSync(appRootPath)) {
+    return appRootPath;
+  }
   return path.join(guideDir, relativePath);
+}
+
+function screenshotAssetsDir(manifest: GuideManifest) {
+  const manifestPath = screenshotManifestPath(manifest);
+  if (manifestPath) {
+    const canonicalScreenshotsDir = path.join(path.dirname(manifestPath), 'screenshots');
+    if (fs.existsSync(canonicalScreenshotsDir)) {
+      return canonicalScreenshotsDir;
+    }
+  }
+  return path.join(guideDir, 'assets');
 }
 
 function loadScreenshotManifest(manifest: GuideManifest): ScreenshotManifest {
@@ -179,7 +200,7 @@ function sourceQmdPath(manifest: GuideManifest) {
   if (path.isAbsolute(manifest.source_qmd) || manifest.source_qmd.includes('..')) {
     throw new Error(`source_qmd must be relative to guide dir: ${manifest.source_qmd}`);
   }
-  return path.join(guideDir, manifest.source_qmd);
+  return resolveSourcePath(manifest.source_qmd);
 }
 
 function sourceQmdPaths(manifest: GuideManifest) {
@@ -190,7 +211,7 @@ function sourceQmdPaths(manifest: GuideManifest) {
     }
     return {
       source: chapter,
-      absolute: path.join(guideDir, chapter),
+      absolute: resolveSourcePath(chapter),
       projectName: index === 0 ? 'index.qmd' : path.basename(chapter),
     };
   });
@@ -265,6 +286,7 @@ function referencedAssets(qmd: string) {
 
 function validateAssets(manifest: GuideManifest, qmd: string) {
   const screenshotManifest = loadScreenshotManifest(manifest);
+  const sourceAssetsDir = screenshotAssetsDir(manifest);
   const screenshots = screenshotManifest.screenshots;
   const refs = referencedAssets(qmd);
   const declaredNames = new Set(screenshots.map((asset) => asset.file));
@@ -278,7 +300,7 @@ function validateAssets(manifest: GuideManifest, qmd: string) {
     if (asset.file.includes('/') || asset.file.includes('\\')) {
       throw new Error(`Guide asset must be a plain filename: ${asset.file}`);
     }
-    const filePath = path.join(assetsDir, asset.file);
+    const filePath = path.join(sourceAssetsDir, asset.file);
     if (!fs.existsSync(filePath)) {
       throw new Error(`Guide asset does not exist: ${relativeToApp(filePath)}`);
     }
@@ -334,10 +356,11 @@ function trimLineEndings(text: string) {
 
 function writeProject(manifest: GuideManifest, qmd: string) {
   const screenshotManifest = loadScreenshotManifest(manifest);
+  const sourceAssetsDir = screenshotAssetsDir(manifest);
   fs.rmSync(projectDir, { recursive: true, force: true });
   fs.mkdirSync(path.join(projectDir, 'assets'), { recursive: true });
   for (const asset of screenshotManifest.screenshots) {
-    fs.copyFileSync(path.join(assetsDir, asset.file), path.join(projectDir, 'assets', asset.file));
+    fs.copyFileSync(path.join(sourceAssetsDir, asset.file), path.join(projectDir, 'assets', asset.file));
   }
   for (const chapter of sourceQmdPaths(manifest)) {
     const raw = fs.readFileSync(chapter.absolute, 'utf8');
@@ -465,6 +488,9 @@ function main() {
   const pdfOutputPath = outputPath(manifest.output.pdf);
   const generatedMarkdownPath = outputPath(manifest.output.generated_markdown);
   const verificationPath = outputPath(manifest.output.verification);
+  const htmlVerificationPath = guideId === 'macos-app-install'
+    ? path.join(path.dirname(verificationPath), 'macos-app-install-html-verification.json')
+    : null;
 
   fs.mkdirSync(publicDir, { recursive: true });
   fs.mkdirSync(path.dirname(generatedMarkdownPath), { recursive: true });
@@ -531,6 +557,9 @@ function main() {
     forbidden_phrases_status: 'absent',
   };
   fs.writeFileSync(verificationPath, `${JSON.stringify(verification, null, 2)}\n`, 'utf8');
+  if (htmlVerificationPath) {
+    fs.writeFileSync(htmlVerificationPath, `${JSON.stringify(verification, null, 2)}\n`, 'utf8');
+  }
   console.log(JSON.stringify(verification, null, 2));
 }
 

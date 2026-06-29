@@ -6,10 +6,10 @@
   "owner": "one-person-lab-app",
   "purpose": "docker_webui_install_quarto_manifest",
   "state": "active",
-  "machine_boundary": "Machine-readable guide manifest. Human-readable guide body is maintained in docker-webui-install.guide.qmd. App install contracts, release artifacts, GHCR publish receipts, shell Dockerfile, WebUI backend behavior, and live container smoke remain the machine truth.",
+  "machine_boundary": "Machine-readable guide manifest. Human-readable guide body is maintained in docs/guides/docker-webui-install/guide.qmd. App install contracts, release artifacts, GHCR publish receipts, shell Dockerfile, WebUI backend behavior, and live container smoke remain the machine truth.",
   "audience": "Linux、Windows 或服务器用户；默认没有 Docker 经验。",
   "intro": "新手主路径是先让 Docker 正常运行，再运行 One Person Lab 提供的一键安装器，最后在浏览器里完成首次配置。",
-  "source_qmd": "source/docker-webui-install.guide.qmd",
+  "source_qmd": "docs/guides/docker-webui-install/guide.qmd",
   "output": {
     "public_dir": "docs/public/docker-webui-install",
     "html": "docs/public/docker-webui-install/index.html",
@@ -21,6 +21,8 @@
     "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
     "local_image": "one-person-lab-webui:latest",
     "source_repo": "https://github.com/gaofeng21cn/one-person-lab-app",
+    "linux_macos_installer_url": "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh",
+    "windows_installer_url": "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1",
     "linux_macos_online_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh | bash -s -- --yes",
     "windows_online_command": "powershell -ExecutionPolicy Bypass -Command \"$p=Join-Path $env:TEMP 'install-docker-webui.ps1'; iwr -UseBasicParsing https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1 -OutFile $p; & $p -Yes\"",
     "windows_admin_prerequisites_command": "powershell -ExecutionPolicy Bypass -Command \"$p=Join-Path $env:TEMP 'install-docker-webui.ps1'; iwr -UseBasicParsing https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1 -OutFile $p; & $p -InstallPrerequisites -Yes\"",
@@ -50,7 +52,7 @@
     "不声明公开 GHCR latest 或一键脚本已经线上发布",
     "这个文档是否证明 latest 已发布：不能"
   ],
-  "screenshots_manifest": "source/screenshots.manifest.json",
+  "screenshots_manifest": "docs/guides/docker-webui-install/screenshots.manifest.json",
   "publishing": {
     "template": "opl-guide",
     "preferred_pdf_engine": "typst",

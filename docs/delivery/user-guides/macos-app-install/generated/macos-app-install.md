@@ -29,7 +29,11 @@ lang: zh-CN
 重点：
 
 - 最新版本页面：<https://github.com/gaofeng21cn/one-person-lab-app/releases/latest>
-- 最简单的稳定版安装命令：`curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes`。
+- 最简单的稳定版安装命令：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes
+```
 - 稳定安装器默认下载 latest Full DMG、复制到 Applications，并尽量清理 macOS quarantine，减少首次启动时反复授权；需要轻量标准包时可追加 `--standard`。
 - Full 版 DMG 是首次安装资产，包含 OPL Framework runtime、MAS/MAG/RCA、officecli、mineru-open-api 与推荐 skills 等 payload。
 - 标准 mac-arm64 DMG 体积更小，适合已经安装过 One Person Lab App 的用户和后续自动更新。
@@ -128,5 +132,5 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 - 长文 HTML/PDF 使用 Quarto Book 渲染；Quarto 负责目录、主题、HTML/PDF 输出和 LaTeX PDF 排版路径。
 - 截图主要来自中文 1080p VM guide artifact 与同一次 VM smoke 的 App CDP 截图；本机运行环境截图来自修复后的 `runtime-environment-currentness.fixture.json` 渲染，用于替换旧 VM artifact 中 stale packaged-runtime 导致的“未知”模块状态。
 - VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证访问密钥输入页、Settings 和 MAS/MAG/RCA 入口可用。
-- 每张截图的来源、尺寸和 SHA256 记录在 `macos-app-install-assets.json`、Quarto manifest 与生成后的 verification JSON 中。
+- 每张截图的来源、尺寸和 SHA256 记录在 `screenshots.manifest.json`、Quarto manifest 与生成后的 verification JSON 中。
 - Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。

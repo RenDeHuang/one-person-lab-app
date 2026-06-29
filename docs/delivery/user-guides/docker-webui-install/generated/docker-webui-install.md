@@ -74,21 +74,38 @@ https://docs.docker.com/desktop/setup/install/windows-install/
 
 它不会询问或接收模型/API 访问密钥。新手可以直接复制在线命令；已经 clone 源码仓库的用户也可以运行本地脚本。
 
+Linux / macOS 终端在线一键：
+
+```bash
+git clone https://github.com/gaofeng21cn/one-person-lab-app
+cd one-person-lab-app
+sh ./scripts/install-docker-webui.sh --yes
+```
+
+Windows PowerShell 在线一键：
+
+```powershell
+git clone https://github.com/gaofeng21cn/one-person-lab-app
+cd one-person-lab-app
+powershell -ExecutionPolicy Bypass `
+  -File .\scripts\install-docker-webui.ps1 -Yes
+```
+
+Windows 管理员依赖安装入口（只有 Docker Desktop/WSL2 缺失时使用）：
+
+```powershell
+powershell -ExecutionPolicy Bypass `
+  -File .\scripts\install-docker-webui.ps1 `
+  -InstallPrerequisites -Yes
+```
+
+源码仓库内：
+
 ```text
-Linux / macOS 终端在线一键:
-curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh | bash -s -- --yes
-
-Windows PowerShell 在线一键:
-powershell -ExecutionPolicy Bypass -Command "$p=Join-Path $env:TEMP 'install-docker-webui.ps1'; iwr -UseBasicParsing https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1 -OutFile $p; & $p -Yes"
-
-Windows 管理员依赖安装入口（只有 Docker Desktop/WSL2 缺失时使用）:
-powershell -ExecutionPolicy Bypass -Command "$p=Join-Path $env:TEMP 'install-docker-webui.ps1'; iwr -UseBasicParsing https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1 -OutFile $p; & $p -InstallPrerequisites -Yes"
-
-源码仓库内:
 sh ./scripts/install-docker-webui.sh
 powershell -ExecutionPolicy Bypass -File .\scripts\install-docker-webui.ps1 -Yes
 
-安装器输出:
+安装器输出：
 OnePersonLab/data -> 容器 /data
 OnePersonLab/projects -> 容器 /projects
 compose.yaml -> Docker Compose 启动定义

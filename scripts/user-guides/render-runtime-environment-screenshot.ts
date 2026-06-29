@@ -16,9 +16,17 @@ type Fixture = {
 };
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const fixturePath = path.join(appRoot, 'docs', 'user-guides', 'fixtures', 'runtime-environment-currentness.fixture.json');
-const assetPath = path.join(appRoot, 'docs', 'user-guides', 'assets', '06-research-data-folder.png');
-const manifestPath = path.join(appRoot, 'docs', 'user-guides', 'macos-app-install-assets.json');
+const fixturePath = path.join(
+  appRoot,
+  'docs',
+  'delivery',
+  'user-guides',
+  'macos-app-install',
+  'fixtures',
+  'runtime-environment-currentness.fixture.json',
+);
+const assetPath = path.join(appRoot, 'docs', 'guides', 'macos-app-install', 'screenshots', '06-research-data-folder.png');
+const manifestPath = path.join(appRoot, 'docs', 'guides', 'macos-app-install', 'screenshots.manifest.json');
 const shellRoot = fs.realpathSync(path.join(appRoot, 'shells', 'aionui'));
 const requireFromApp = createRequire(import.meta.url);
 const { chromium } = requireFromApp(path.join(shellRoot, 'node_modules', 'playwright')) as typeof import('playwright');
@@ -265,8 +273,8 @@ async function main(): Promise<void> {
   await browser.close();
 
   const manifest = readJson<Record<string, any>>(manifestPath);
-  const asset = manifest.assets?.['06-research-data-folder.png'];
-  if (!asset) throw new Error('Missing 06-research-data-folder.png entry in guide asset manifest.');
+  const asset = manifest.screenshots?.find((entry: Record<string, unknown>) => entry.file === '06-research-data-folder.png');
+  if (!asset) throw new Error('Missing 06-research-data-folder.png entry in guide screenshot manifest.');
   const imageSha = sha256(assetPath);
   const fixtureSha = sha256(fixturePath);
   Object.assign(asset, {

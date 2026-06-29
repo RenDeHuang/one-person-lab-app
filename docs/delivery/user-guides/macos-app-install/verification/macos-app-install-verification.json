@@ -2,9 +2,9 @@
   "status": "quarto_guide_ready",
   "generator": "quarto_book_qmd_to_html_pdf",
   "quarto_version": "1.9.38",
-  "source_qmd": "docs/delivery/user-guides/macos-app-install/source/macos-app-install.guide.qmd",
+  "source_qmd": "docs/guides/macos-app-install/guide.qmd",
   "manifest": "docs/delivery/user-guides/macos-app-install/source/macos-app-install.quarto.json",
-  "screenshots_manifest": "docs/delivery/user-guides/macos-app-install/source/screenshots.manifest.json",
+  "screenshots_manifest": "docs/guides/macos-app-install/screenshots.manifest.json",
   "generated_markdown": "docs/delivery/user-guides/macos-app-install/generated/macos-app-install.md",
   "output_html": "docs/public/macos-app-install/index.html",
   "output_pdf": "docs/public/macos-app-install/macos-app-install-detailed-guide.pdf",
@@ -21,12 +21,12 @@
   },
   "rendered_pages": 12,
   "rendered_dir": "tmp/quarto-guides/macos-app-install/rendered",
-  "html_bytes": 4600645,
+  "html_bytes": 4602458,
   "screenshot_assets": [
     {
       "role": "download_release",
       "description": "GitHub Release download page.",
-      "file": "docs/delivery/user-guides/macos-app-install/assets/01-download-release.png",
+      "file": "docs/guides/macos-app-install/screenshots/01-download-release.png",
       "public_file": "assets/01-download-release.png",
       "width": 1920,
       "height": 1080,
@@ -43,7 +43,7 @@
     {
       "role": "install_dmg",
       "description": "DMG drag-to-Applications installation screen.",
-      "file": "docs/delivery/user-guides/macos-app-install/assets/02-install-dmg.png",
+      "file": "docs/guides/macos-app-install/screenshots/02-install-dmg.png",
       "public_file": "assets/02-install-dmg.png",
       "width": 1920,
       "height": 1080,
@@ -60,7 +60,7 @@
     {
       "role": "configure_access",
       "description": "First-run access configuration screen.",
-      "file": "docs/delivery/user-guides/macos-app-install/assets/03-codex-config-needed.png",
+      "file": "docs/guides/macos-app-install/screenshots/03-codex-config-needed.png",
       "public_file": "assets/03-codex-config-needed.png",
       "width": 1536,
       "height": 912,
@@ -78,7 +78,7 @@
     {
       "role": "first_run_check",
       "description": "First-run environment check screen.",
-      "file": "docs/delivery/user-guides/macos-app-install/assets/04-first-run-checking.png",
+      "file": "docs/guides/macos-app-install/screenshots/04-first-run-checking.png",
       "public_file": "assets/04-first-run-checking.png",
       "width": 1536,
       "height": 912,
@@ -95,7 +95,7 @@
     {
       "role": "research_entry",
       "description": "OPL ready state with research entry.",
-      "file": "docs/delivery/user-guides/macos-app-install/assets/05-opl-ready-research-entry.png",
+      "file": "docs/guides/macos-app-install/screenshots/05-opl-ready-research-entry.png",
       "public_file": "assets/05-opl-ready-research-entry.png",
       "width": 1536,
       "height": 912,
@@ -112,7 +112,7 @@
     {
       "role": "runtime_settings",
       "description": "Local runtime and work directory settings.",
-      "file": "docs/delivery/user-guides/macos-app-install/assets/06-research-data-folder.png",
+      "file": "docs/guides/macos-app-install/screenshots/06-research-data-folder.png",
       "public_file": "assets/06-research-data-folder.png",
       "width": 1536,
       "height": 912,
@@ -130,7 +130,7 @@
     {
       "role": "first_research_task",
       "description": "First research task entry.",
-      "file": "docs/delivery/user-guides/macos-app-install/assets/07-first-research-entry.png",
+      "file": "docs/guides/macos-app-install/screenshots/07-first-research-entry.png",
       "public_file": "assets/07-first-research-entry.png",
       "width": 1536,
       "height": 912,
@@ -147,7 +147,7 @@
     {
       "role": "runtime_status",
       "description": "Runtime status and progress screen.",
-      "file": "docs/delivery/user-guides/macos-app-install/assets/08-opl-runtime-status.png",
+      "file": "docs/guides/macos-app-install/screenshots/08-opl-runtime-status.png",
       "public_file": "assets/08-opl-runtime-status.png",
       "width": 1536,
       "height": 912,

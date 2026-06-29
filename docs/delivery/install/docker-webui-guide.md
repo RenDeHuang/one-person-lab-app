@@ -23,6 +23,6 @@ Use these canonical entries:
   [`../../public/docker-webui-install/docker-webui-install-detailed-guide.pdf`](../../public/docker-webui-install/docker-webui-install-detailed-guide.pdf)
 
 Do not duplicate the generated guide content here. Update the Quarto body source
-`../user-guides/docker-webui-install/source/docker-webui-install.guide.qmd`
+`../../guides/docker-webui-install/guide.qmd`
 for guide text, update the adjacent JSON manifest only for commands/assets/gates,
 and run `npm run docs:docker-webui-guide` instead.

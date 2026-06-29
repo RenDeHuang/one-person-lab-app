@@ -2,9 +2,9 @@
   "status": "quarto_guide_ready",
   "generator": "quarto_book_qmd_to_html_pdf",
   "quarto_version": "1.9.38",
-  "source_qmd": "docs/delivery/user-guides/docker-webui-install/source/docker-webui-install.guide.qmd",
+  "source_qmd": "docs/guides/docker-webui-install/guide.qmd",
   "manifest": "docs/delivery/user-guides/docker-webui-install/source/docker-webui-install.guide.json",
-  "screenshots_manifest": "docs/delivery/user-guides/docker-webui-install/source/screenshots.manifest.json",
+  "screenshots_manifest": "docs/guides/docker-webui-install/screenshots.manifest.json",
   "generated_markdown": "docs/delivery/user-guides/docker-webui-install/generated/docker-webui-install.md",
   "output_html": "docs/public/docker-webui-install/index.html",
   "output_pdf": "docs/public/docker-webui-install/docker-webui-install-detailed-guide.pdf",
@@ -21,12 +21,12 @@
   },
   "rendered_pages": 11,
   "rendered_dir": "tmp/quarto-guides/docker-webui-install/rendered",
-  "html_bytes": 2656325,
+  "html_bytes": 2658209,
   "screenshot_assets": [
     {
       "role": "browser_open_webui",
       "description": "WebUI browser screen after Docker container startup.",
-      "file": "docs/delivery/user-guides/docker-webui-install/assets/01-browser-open-webui.png",
+      "file": "docs/guides/docker-webui-install/screenshots/01-browser-open-webui.png",
       "public_file": "assets/01-browser-open-webui.png",
       "width": 1440,
       "height": 1000,
@@ -43,7 +43,7 @@
     {
       "role": "first_run_overview",
       "description": "First-run overview showing persistent data and project workflow context.",
-      "file": "docs/delivery/user-guides/docker-webui-install/assets/02-first-run-overview.png",
+      "file": "docs/guides/docker-webui-install/screenshots/02-first-run-overview.png",
       "public_file": "assets/02-first-run-overview.png",
       "width": 1179,
       "height": 964,
@@ -60,7 +60,7 @@
     {
       "role": "access_key_config",
       "description": "Chinese access key configuration page in WebUI.",
-      "file": "docs/delivery/user-guides/docker-webui-install/assets/03-access-key-config.png",
+      "file": "docs/guides/docker-webui-install/screenshots/03-access-key-config.png",
       "public_file": "assets/03-access-key-config.png",
       "width": 1440,
       "height": 1000,
@@ -77,7 +77,7 @@
     {
       "role": "settings_access_entry",
       "description": "Chinese Settings page showing the Access entry.",
-      "file": "docs/delivery/user-guides/docker-webui-install/assets/04-settings-entry.png",
+      "file": "docs/guides/docker-webui-install/screenshots/04-settings-entry.png",
       "public_file": "assets/04-settings-entry.png",
       "width": 1440,
       "height": 1000,
