@@ -7,6 +7,8 @@ import {
   appOwnedSettingsIssueStatuses,
   appOwnedSettingsMakeUsableAllowedSteps,
   appOwnedSettingsMakeUsableForbiddenSteps,
+  appOwnedSettingsProductSystemItemIds,
+  appOwnedSettingsProductSystemTracks,
   appOwnedSettingsPostUpdateNoticeFields,
   appOwnedSettingsRouteScopes,
   appOwnedSettingsSearchProtocol,
@@ -180,6 +182,7 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   validateSettingsShellAdapterSlotContract(controlPlane);
   validateSettingsPageAdapterPolicy(controlPlane);
   validateSettingsVisualQaPolicy(controlPlane);
+  validateSettingsProductSystemChecklist(controlPlane);
   validateSettingsUpstreamIntake(controlPlane);
   if (controlPlane.default_route !== '/settings/general') {
     throw new Error('Settings control plane default route must be /settings/general');
@@ -653,6 +656,70 @@ function validateSettingsVisualQaPolicy(controlPlane) {
     policy.does_not_prove,
     ['release readiness', 'packaged App readiness', 'runtime currentness', 'owner acceptance'],
     'Settings visual QA non-release evidence boundary',
+  );
+}
+
+function validateSettingsProductSystemChecklist(controlPlane) {
+  const checklist = controlPlane.product_system_checklist;
+  if (checklist?.schema !== 'settings_product_system_checklist.v1') {
+    throw new Error('Settings product system checklist must use settings_product_system_checklist.v1');
+  }
+  if (checklist?.purpose !== 'plan_completion_audit_source_for_settings_control_center') {
+    throw new Error('Settings product system checklist must be the plan completion audit source');
+  }
+  if (
+    checklist?.completion_policy !==
+    'each item is audited against fresh evidence; tests, docs, or contracts only prove the item slice they directly cover'
+  ) {
+    throw new Error('Settings product system checklist must require fresh per-item evidence');
+  }
+  if (
+    checklist?.release_currentness_policy !==
+    'installed app, notarization, running version, and release readiness remain release-owner gates and must not be inferred from Settings tests'
+  ) {
+    throw new Error('Settings product system checklist must separate release/currentness gates from Settings tests');
+  }
+  const items = checklist?.items ?? [];
+  assertDeepEqualJson(
+    items.map((item) => item.id),
+    appOwnedSettingsProductSystemItemIds,
+    'Settings product system checklist item ids',
+  );
+  const tracks = [...new Set(items.map((item) => item.track))];
+  assertDeepEqualJson(tracks, appOwnedSettingsProductSystemTracks, 'Settings product system checklist tracks');
+  for (const item of items) {
+    if (!appOwnedSettingsProductSystemTracks.includes(item.track)) {
+      throw new Error(`Settings product system checklist item ${item.id} has unknown track ${item.track}`);
+    }
+    if (typeof item.goal !== 'string' || item.goal.trim().length < 20) {
+      throw new Error(`Settings product system checklist item ${item.id} must declare a concrete goal`);
+    }
+    if (!Array.isArray(item.evidence_required) || item.evidence_required.length < 3) {
+      throw new Error(`Settings product system checklist item ${item.id} must list at least three evidence requirements`);
+    }
+  }
+  const releaseItem = items.find((item) => item.id === 'installed_release_currentness');
+  if (releaseItem?.track !== 'release_currentness') {
+    throw new Error('Settings installed/release currentness item must stay on the release_currentness track');
+  }
+  assertIncludesAll(
+    releaseItem?.evidence_required,
+    [
+      'release_currentness_policy separates this item from Settings tests',
+      'visual QA and contract validators list what they do not prove',
+      'release owner gate supplies any future installed/release evidence',
+    ],
+    'Settings release/currentness checklist evidence',
+  );
+  const screenshotItem = items.find((item) => item.id === 'screenshot_qa');
+  assertIncludesAll(
+    screenshotItem?.evidence_required,
+    [
+      'visual_qa_policy declares required routes and anchors',
+      'manifest includes command, commit, viewport, route, screenshot_path, and status_anchors',
+      'visual QA does not claim release or currentness readiness',
+    ],
+    'Settings screenshot QA checklist evidence',
   );
 }
 

@@ -345,6 +345,32 @@ one test surface. Renderers may own layout and event wiring; adapters own the
 normalization from App state, managed-update projections, and local lifecycle
 receipts into user-facing view models.
 
+## Product System Checklist
+
+Completion audits for Settings Control Center work use
+`contracts/app-settings-control-plane.json#product_system_checklist` as the
+machine-readable checklist. The checklist tracks product-system outcomes rather
+than only page names:
+
+| Track | Checklist items |
+| --- | --- |
+| Product positioning | Control Center positioning |
+| IA and routes | Seven-entry IA, secondary route strategy, Settings search |
+| Control plane | Single control plane, contract validators |
+| Shell adapter | Host adapter slot, view-model layer |
+| State/action protocol | Issue/action protocol, Make OPL usable reconcile |
+| User task UX | Maintenance noise reduction, update/rollback UX, Workspace, Local Services, Access, Capabilities, Data & Storage, Preferences, Advanced, Developer Profile, user copy system |
+| Visual QA | Visual system, screenshot QA |
+| Ops hygiene | Worktree/lane hygiene |
+| Release/currentness | Installed/release currentness |
+
+Each item is audited against fresh evidence. Docs, contracts, tests,
+screenshots, and shell code prove only the slice they directly cover. The
+installed/release currentness item stays in the checklist so audits cannot omit
+it, but it remains a release-owner gate. Settings tests, visual QA, contract
+validation, and pushed source commits must not be used as installed App,
+notarization, running-version, or release-ready evidence.
+
 ## Validation Boundary
 
 Settings validation is split into three layers:

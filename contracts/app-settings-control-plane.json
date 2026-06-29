@@ -28,6 +28,143 @@
       "upstream intake classification"
     ]
   },
+  "product_system_inventory": {
+    "schema": "settings_control_center_product_system_inventory.v1",
+    "policy": "machine_verifiable_app_owned_settings_product_system_manifest",
+    "source_refs": [
+      "contracts/app-settings-control-plane.json",
+      "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
+      "contracts/app-page-state-matrix.json#pages",
+      "tests/release/app-release-boundary-cases/settings-control-plane-validation.ts"
+    ],
+    "entries": [
+      {
+        "id": "ia_groups",
+        "owner_surface": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia.group_ids",
+        "validator_guard": "appOwnedSettingsIaGroupIds"
+      },
+      {
+        "id": "ordinary_routes",
+        "owner_surface": "contracts/app-settings-control-plane.json#ordinary_routes",
+        "validator_guard": "appOwnedSettingsTabs"
+      },
+      {
+        "id": "secondary_routes",
+        "owner_surface": "contracts/app-settings-control-plane.json#secondary_pages",
+        "validator_guard": "secondary_or_deep_link_route_ids_and_route_scope"
+      },
+      {
+        "id": "legacy_redirects",
+        "owner_surface": "contracts/app-settings-control-plane.json#legacy_route_redirects",
+        "validator_guard": "expectedLegacyRedirects"
+      },
+      {
+        "id": "legacy_tab_exclusion",
+        "owner_surface": "contracts/app-gui-product-contract.json#settings_navigation.ordinary_hidden_legacy_tabs",
+        "validator_guard": "ordinary_hidden_legacy_tabs_must_not_return_as_ordinary_routes"
+      },
+      {
+        "id": "extension_anchor_remap",
+        "owner_surface": "contracts/app-settings-control-plane.json#extension_anchor_remap",
+        "validator_guard": "expectedAnchorRemap"
+      },
+      {
+        "id": "route_resolver",
+        "owner_surface": "scripts/validate-active-shell/settings-control-plane-validator.ts#resolveSettingsControlPlaneRoute",
+        "validator_guard": "legacy_secondary_and_unknown_route_resolution"
+      },
+      {
+        "id": "shell_adapter_slot",
+        "owner_surface": "contracts/app-settings-control-plane.json#shell_adapter_slot",
+        "validator_guard": "SettingsHost_and_SettingsShellAdapterSlot"
+      },
+      {
+        "id": "slot_registry",
+        "owner_surface": "contracts/app-settings-control-plane.json#slot_registry",
+        "validator_guard": "expectedSlotKeys_and_hydrated_registry"
+      },
+      {
+        "id": "state_action_sources",
+        "owner_surface": "contracts/app-settings-control-plane.json#state_action_policy",
+        "validator_guard": "fast_state_and_app_action_route"
+      },
+      {
+        "id": "issue_queue",
+        "owner_surface": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia.protocols.issue_queue",
+        "validator_guard": "appOwnedSettingsIssueStatuses"
+      },
+      {
+        "id": "action_catalog",
+        "owner_surface": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia.protocols.action_catalog",
+        "validator_guard": "app_state_actions_and_opl_app_action_execute"
+      },
+      {
+        "id": "make_usable_action",
+        "owner_surface": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia.protocols.make_usable_action",
+        "validator_guard": "allowed_steps_and_must_not"
+      },
+      {
+        "id": "settings_search",
+        "owner_surface": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia.protocols.settings_search",
+        "validator_guard": "ordinary_labels_task_entries_action_keywords_no_internal_route_ids"
+      },
+      {
+        "id": "card_protocol",
+        "owner_surface": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia.protocols.card_protocol",
+        "validator_guard": "summary_first_required_fields"
+      },
+      {
+        "id": "confirmation",
+        "owner_surface": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia.protocols.confirmation_drawer",
+        "validator_guard": "state_changing_actions_require_confirmation_boundary"
+      },
+      {
+        "id": "post_action_notice",
+        "owner_surface": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia.protocols.post_update_notice",
+        "validator_guard": "receipt_guidance_without_release_or_domain_claims"
+      },
+      {
+        "id": "diagnostics",
+        "owner_surface": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia.protocols.diagnostics",
+        "validator_guard": "collapsed_advanced_or_disclosure_only"
+      },
+      {
+        "id": "deep_link_policy",
+        "owner_surface": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia.protocols.deep_link_policy",
+        "validator_guard": "unknown_legacy_and_secondary_route_policy"
+      },
+      {
+        "id": "developer_profile",
+        "owner_surface": "contracts/app-page-state-matrix.json#settings_advanced",
+        "validator_guard": "developer_profile_status_advanced_only"
+      },
+      {
+        "id": "page_adapter_policy",
+        "owner_surface": "contracts/app-settings-control-plane.json#page_adapter_policy",
+        "validator_guard": "required_page_view_model_adapters"
+      },
+      {
+        "id": "upstream_intake",
+        "owner_surface": "contracts/app-settings-control-plane.json#upstream_intake_checklist",
+        "validator_guard": "accepted_adapt_redirect_reject"
+      },
+      {
+        "id": "visual_manifest",
+        "owner_surface": "contracts/app-settings-control-plane.json#visual_qa_policy.evidence_manifest",
+        "validator_guard": "manifest_path_required_fields_viewport_and_secondary_route_policy"
+      },
+      {
+        "id": "screenshot_evidence",
+        "owner_surface": "contracts/app-settings-control-plane.json#visual_qa_policy",
+        "validator_guard": "desktop_mobile_routes_status_anchors_and_E2E_SCREENSHOTS"
+      },
+      {
+        "id": "release_currentness_separation",
+        "owner_surface": "contracts/app-settings-control-plane.json#visual_qa_policy.release_currentness_separation",
+        "validator_guard": "visual_qa_does_not_prove_release_packaged_runtime_currentness_or_owner_acceptance"
+      }
+    ]
+  },
   "ordinary_visible_tabs": [
     "general",
     "access",
@@ -335,7 +472,17 @@
       "packaged App readiness",
       "runtime currentness",
       "owner acceptance"
-    ]
+    ],
+    "release_currentness_separation": {
+      "visual_qa_claim": "active_shell_settings_behavior_evidence_only",
+      "release_or_currentness_claim": "requires_separate_release_owner_runtime_or_packaged_app_evidence",
+      "forbidden_claims_from_manifest": [
+        "release readiness",
+        "packaged App readiness",
+        "runtime currentness",
+        "owner acceptance"
+      ]
+    }
   },
   "upstream_intake_classification": {
     "accepted": [
@@ -377,6 +524,264 @@
       "bind accepted/adapt entries to SettingsHost or SettingsShellAdapterSlot evidence",
       "route redirect/reject entries through legacy redirects, extension anchor remap, or forbidden probes",
       "keep runtime truth, domain truth, provider implementation, owner receipts, and release readiness outside the shell adapter"
+    ]
+  },
+  "product_system_checklist": {
+    "schema": "settings_product_system_checklist.v1",
+    "purpose": "plan_completion_audit_source_for_settings_control_center",
+    "completion_policy": "each item is audited against fresh evidence; tests, docs, or contracts only prove the item slice they directly cover",
+    "release_currentness_policy": "installed app, notarization, running version, and release readiness remain release-owner gates and must not be inferred from Settings tests",
+    "items": [
+      {
+        "id": "control_center_positioning",
+        "track": "product_positioning",
+        "goal": "Settings is presented as the OPL Control Center instead of an upstream configuration dump.",
+        "evidence_required": [
+          "App contract names the surface as Control Center",
+          "ordinary shell UI labels and docs use user-task language",
+          "visual QA captures the Control Center routes"
+        ]
+      },
+      {
+        "id": "seven_entry_ia",
+        "track": "ia_routes",
+        "goal": "The ordinary Settings IA has exactly seven user-facing entries: Overview, Setup & Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced.",
+        "evidence_required": [
+          "ordinary_visible_tabs contains seven route ids",
+          "legacy routes do not render as ordinary tabs",
+          "page-state matrix maps each route to one IA group"
+        ]
+      },
+      {
+        "id": "secondary_route_strategy",
+        "track": "ia_routes",
+        "goal": "Workspace, Local Services, About, Update, and Theme remain secondary or deep-link routes, searchable and routable without top-level promotion.",
+        "evidence_required": [
+          "secondary_pages declares the five route ids",
+          "route resolver returns secondary_or_deep_link",
+          "visual or route tests cover Workspace and Local Services"
+        ]
+      },
+      {
+        "id": "single_control_plane",
+        "track": "control_plane",
+        "goal": "The App Settings Control Plane is the machine source for routes, slots, redirects, search, page-state expectations, and shell adapter boundaries.",
+        "evidence_required": [
+          "product profile projection matches this contract",
+          "validator checks route, redirect, anchor, and matrix consistency",
+          "docs point future IA changes to this contract"
+        ]
+      },
+      {
+        "id": "host_adapter_slot",
+        "track": "shell_adapter",
+        "goal": "Aion renders App-declared Settings through SettingsHost and SettingsShellAdapterSlot without owning OPL product IA.",
+        "evidence_required": [
+          "shell_adapter_slot declares host and adapter slot",
+          "active-shell adapter contract requires slot evidence",
+          "upstream intake changes are classified before registry changes"
+        ]
+      },
+      {
+        "id": "view_model_layer",
+        "track": "shell_adapter",
+        "goal": "Settings pages with OPL state/action semantics consume typed view-model adapters instead of raw runtime or app-state blobs.",
+        "evidence_required": [
+          "page_adapter_policy lists Access, Maintenance, Storage, and Capabilities adapters",
+          "focused projection tests cover user-facing normalization",
+          "renderers keep raw details behind disclosure"
+        ]
+      },
+      {
+        "id": "issue_action_protocol",
+        "track": "state_action_protocol",
+        "goal": "Issues and actions expose impact, recommended action, owner boundary, confirmation, receipt, and verification semantics without shell-owned truth.",
+        "evidence_required": [
+          "settings_ia protocols define issue statuses and card fields",
+          "actions route through opl app action execute",
+          "mutating actions use confirmation fields"
+        ]
+      },
+      {
+        "id": "make_opl_usable_reconcile",
+        "track": "state_action_protocol",
+        "goal": "Make OPL usable behaves as a safe composite over existing actions with dry-run/check, apply receipt, skip reason, and post-check summary.",
+        "evidence_required": [
+          "make_usable_action declares allowed and forbidden steps",
+          "shell UI presents it as a convenience action rather than a new updater",
+          "post-action notice explains restart or reload guidance"
+        ]
+      },
+      {
+        "id": "maintenance_noise_reduction",
+        "track": "user_task_ux",
+        "goal": "Maintenance shows user impact and safe next steps; OPL packages and capability exposure are not shown as competing update systems.",
+        "evidence_required": [
+          "maintenance route uses summary, recommendation, and disclosure card protocol",
+          "capability exposure appears as capability/package status",
+          "raw component ids stay collapsed"
+        ]
+      },
+      {
+        "id": "update_rollback_ux",
+        "track": "user_task_ux",
+        "goal": "Update, repair, rollback, reload, and restart actions share confirmation and result notice semantics.",
+        "evidence_required": [
+          "confirmation protocol includes rollback_or_receipt",
+          "post-update notice includes receipt and restart_or_reload_guidance",
+          "visual QA covers confirmation and notice anchors"
+        ]
+      },
+      {
+        "id": "workspace_task_page",
+        "track": "user_task_ux",
+        "goal": "Workspace is a task page with current folder, open/change/verify, and repair-permission actions.",
+        "evidence_required": [
+          "Workspace is declared as a secondary route",
+          "Overview task entries can route to Workspace",
+          "shell tests cover Workspace route behavior"
+        ]
+      },
+      {
+        "id": "local_services_page",
+        "track": "user_task_ux",
+        "goal": "Local Services explains Codex, background service, Temporal/native helpers, module loading, and recovery actions in user language.",
+        "evidence_required": [
+          "Local Services is declared as a secondary route",
+          "route belongs to Maintenance IA group",
+          "shell tests cover Local Services route behavior"
+        ]
+      },
+      {
+        "id": "access_model_account",
+        "track": "user_task_ux",
+        "goal": "Access explains model, account/API key, permissions, Web, Docker, and remote access without first-screen raw provider configuration.",
+        "evidence_required": [
+          "Access adapter forbids direct provider implementation reads",
+          "task entry includes Model & Account and Web/Remote Access",
+          "focused Access DOM tests cover user-facing readiness"
+        ]
+      },
+      {
+        "id": "capabilities_experience",
+        "track": "user_task_ux",
+        "goal": "Capabilities are organized by user purpose with package support, Codex visibility, sync state, failure reason, and per-package action detail.",
+        "evidence_required": [
+          "Capabilities adapter is required",
+          "Capabilities task entry is purpose-based",
+          "supporting tools remain below purpose cards"
+        ]
+      },
+      {
+        "id": "data_storage_safety",
+        "track": "user_task_ux",
+        "goal": "Data & Storage shows inventory, preview, archive or restore proof, receipt, and dangerous-action confirmation.",
+        "evidence_required": [
+          "Storage adapter is required",
+          "Storage route is an ordinary Data & Storage entry",
+          "cleanup copy uses preview and receipt language"
+        ]
+      },
+      {
+        "id": "preferences_purity",
+        "track": "user_task_ux",
+        "goal": "Preferences contains real preferences such as appearance, language, startup, density, and motion; maintenance, account, and About controls stay elsewhere.",
+        "evidence_required": [
+          "Appearance route belongs to preferences",
+          "Theme remains secondary or deep-link",
+          "docs forbid maintenance controls in Preferences"
+        ]
+      },
+      {
+        "id": "advanced_diagnostics",
+        "track": "user_task_ux",
+        "goal": "Advanced keeps diagnostics, raw paths, logs, About, and copy-diagnostics evidence available without putting them in the ordinary setup path.",
+        "evidence_required": [
+          "diagnostics default visibility is collapsed_advanced_only",
+          "About is secondary or deep-link",
+          "visual QA checks diagnostics collapsed anchor"
+        ]
+      },
+      {
+        "id": "developer_profile_warning",
+        "track": "user_task_ux",
+        "goal": "Developer Profile, source mode, dirty checkout, and skipped auto-update impact are clearly explained with next steps.",
+        "evidence_required": [
+          "Developer Profile is a task entry",
+          "Advanced owns developer diagnostics",
+          "maintenance copy explains developer/source checkout impact"
+        ]
+      },
+      {
+        "id": "user_copy_system",
+        "track": "user_task_ux",
+        "goal": "Ordinary Settings copy uses user actions and impact, not unexplained dry-run, plan, apply selected, raw ids, or raw status.",
+        "evidence_required": [
+          "card protocol requires summary and recommended_action",
+          "diagnostics policy gates raw refs",
+          "focused DOM or visual tests guard ordinary copy anchors"
+        ]
+      },
+      {
+        "id": "settings_search",
+        "track": "ia_routes",
+        "goal": "Search covers route labels, task entries, action keywords, and secondary pages without exposing internal route ids.",
+        "evidence_required": [
+          "settings_search protocol is declared",
+          "secondary route ids remain routable",
+          "empty state hides internal ids"
+        ]
+      },
+      {
+        "id": "visual_system",
+        "track": "visual_qa",
+        "goal": "Settings uses quiet engineering-control-center visuals: rows for controls, cards only for summary/repeated entities, stable density, no overlap.",
+        "evidence_required": [
+          "docs define visual system",
+          "visual QA captures desktop and mobile routes",
+          "screenshot review checks text overflow and route framing"
+        ]
+      },
+      {
+        "id": "screenshot_qa",
+        "track": "visual_qa",
+        "goal": "Screenshot evidence covers ordinary routes, secondary routes, confirmation, post-action notice, diagnostics collapse, and legacy redirect landing.",
+        "evidence_required": [
+          "visual_qa_policy declares required routes and anchors",
+          "manifest includes command, commit, viewport, route, screenshot_path, and status_anchors",
+          "visual QA does not claim release or currentness readiness"
+        ]
+      },
+      {
+        "id": "contract_validators",
+        "track": "control_plane",
+        "goal": "Validators prevent IA drift, slot drift, legacy tab return, route promotion drift, and evidence-boundary confusion.",
+        "evidence_required": [
+          "settings-control-plane validation checks product_system_checklist",
+          "release-boundary test includes negative cases",
+          "active-shell validation consumes the contract"
+        ]
+      },
+      {
+        "id": "worktree_lane_hygiene",
+        "track": "ops_hygiene",
+        "goal": "Settings lanes are either absorbed or explicitly handed off, with no Settings worktree carrying unreviewed commits or dirty diffs.",
+        "evidence_required": [
+          "codex ops gate shows no unresolved Settings dirty lane",
+          "main session independently reviews subagent diffs",
+          "temporary Settings worktrees and branches are cleaned after absorption"
+        ]
+      },
+      {
+        "id": "installed_release_currentness",
+        "track": "release_currentness",
+        "goal": "Installed App currentness, notarization, running version, and release readiness are separately owner-gated and stay outside Settings completion claims.",
+        "evidence_required": [
+          "release_currentness_policy separates this item from Settings tests",
+          "visual QA and contract validators list what they do not prove",
+          "release owner gate supplies any future installed/release evidence"
+        ]
+      }
     ]
   },
   "validation_policy": {

@@ -289,3 +289,110 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
     /evidence manifest fields/,
   );
 });
+
+test('Settings product system checklist is the completion-audit source and keeps release currentness separate', () => {
+  const controlPlaneContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-settings-control-plane.json'), 'utf8'),
+  );
+  const guiContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-gui-product-contract.json'), 'utf8'),
+  );
+  const pageStateMatrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
+  );
+  const adapterContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'),
+  );
+  const productProfile = readProductProfile();
+
+  assert.strictEqual(controlPlaneContract.product_system_checklist.schema, 'settings_product_system_checklist.v1');
+  assert.strictEqual(controlPlaneContract.product_system_checklist.items.length, 25);
+  assert.deepStrictEqual(
+    controlPlaneContract.product_system_checklist.items.map((item) => item.id),
+    [
+      'control_center_positioning',
+      'seven_entry_ia',
+      'secondary_route_strategy',
+      'single_control_plane',
+      'host_adapter_slot',
+      'view_model_layer',
+      'issue_action_protocol',
+      'make_opl_usable_reconcile',
+      'maintenance_noise_reduction',
+      'update_rollback_ux',
+      'workspace_task_page',
+      'local_services_page',
+      'access_model_account',
+      'capabilities_experience',
+      'data_storage_safety',
+      'preferences_purity',
+      'advanced_diagnostics',
+      'developer_profile_warning',
+      'user_copy_system',
+      'settings_search',
+      'visual_system',
+      'screenshot_qa',
+      'contract_validators',
+      'worktree_lane_hygiene',
+      'installed_release_currentness',
+    ],
+  );
+  assert.strictEqual(
+    controlPlaneContract.product_system_checklist.release_currentness_policy,
+    'installed app, notarization, running version, and release readiness remain release-owner gates and must not be inferred from Settings tests',
+  );
+  assert.deepStrictEqual(
+    controlPlaneContract.product_system_checklist.items.find((item) => item.id === 'installed_release_currentness')
+      .evidence_required,
+    [
+      'release_currentness_policy separates this item from Settings tests',
+      'visual QA and contract validators list what they do not prove',
+      'release owner gate supplies any future installed/release evidence',
+    ],
+  );
+
+  const invalidMissingChecklistItem = structuredClone(controlPlaneContract);
+  invalidMissingChecklistItem.product_system_checklist.items =
+    invalidMissingChecklistItem.product_system_checklist.items.filter((item) => item.id !== 'settings_search');
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidMissingChecklistItem,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /checklist item ids/,
+  );
+
+  const invalidReleasePolicy = structuredClone(controlPlaneContract);
+  invalidReleasePolicy.product_system_checklist.release_currentness_policy = 'Settings visual QA proves release readiness';
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidReleasePolicy,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /release\/currentness gates/,
+  );
+
+  const invalidEvidence = structuredClone(controlPlaneContract);
+  invalidEvidence.product_system_checklist.items.find((item) => item.id === 'screenshot_qa').evidence_required = [
+    'run screenshots',
+  ];
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidEvidence,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /at least three evidence requirements/,
+  );
+});
