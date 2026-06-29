@@ -1053,6 +1053,7 @@
             "rollback_or_receipt",
             "requires_preview_or_proof"
           ],
+          "copy_policy": "must_explain_what_changes_what_does_not_change_and_the_recovery_reference_before_mutation",
           "required_for": [
             "cleanup",
             "repair",
@@ -1069,6 +1070,7 @@
             "next_check",
             "restart_or_reload_guidance"
           ],
+          "visibility_policy": "ordinary_layer_after_mutation_or_background_action_until_next_refresh",
           "receipt_policy": "show_receipt_ref_without_claiming_domain_or_release_readiness"
         },
         "diagnostics": {

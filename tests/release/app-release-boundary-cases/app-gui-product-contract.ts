@@ -507,6 +507,10 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'rollback_or_receipt',
     'requires_preview_or_proof',
   ]);
+  assert.equal(
+    guiContract.settings_navigation.settings_ia.protocols.confirmation_drawer.copy_policy,
+    'must_explain_what_changes_what_does_not_change_and_the_recovery_reference_before_mutation',
+  );
   assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.post_update_notice.required_fields, [
     'component_id',
     'result',
@@ -514,6 +518,14 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'next_check',
     'restart_or_reload_guidance',
   ]);
+  assert.equal(
+    guiContract.settings_navigation.settings_ia.protocols.post_update_notice.visibility_policy,
+    'ordinary_layer_after_mutation_or_background_action_until_next_refresh',
+  );
+  assert.equal(
+    guiContract.settings_navigation.settings_ia.protocols.post_update_notice.receipt_policy,
+    'show_receipt_ref_without_claiming_domain_or_release_readiness',
+  );
   assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.make_usable_action, {
     label_en: 'Make OPL usable',
     label_zh: '让 OPL 可用',

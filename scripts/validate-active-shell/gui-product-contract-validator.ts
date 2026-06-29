@@ -640,11 +640,25 @@ function validateSettingsIaContract(settingsIa) {
     appOwnedSettingsConfirmationFields,
     'App GUI settings confirmation drawer fields',
   );
+  if (
+    settingsIa.protocols?.confirmation_drawer?.copy_policy !==
+    'must_explain_what_changes_what_does_not_change_and_the_recovery_reference_before_mutation'
+  ) {
+    throw new Error('App GUI settings confirmation drawer must explain change boundaries and recovery references');
+  }
   assertDeepEqualJson(
     settingsIa.protocols?.post_update_notice?.required_fields,
     appOwnedSettingsPostUpdateNoticeFields,
     'App GUI settings post-update notice fields',
   );
+  if (
+    settingsIa.protocols?.post_update_notice?.visibility_policy !==
+      'ordinary_layer_after_mutation_or_background_action_until_next_refresh' ||
+    settingsIa.protocols?.post_update_notice?.receipt_policy !==
+      'show_receipt_ref_without_claiming_domain_or_release_readiness'
+  ) {
+    throw new Error('App GUI settings post-update notices must stay visible without readiness claims');
+  }
   const makeUsableAction = settingsIa.protocols?.make_usable_action;
   if (
     makeUsableAction?.placement !== 'settings_environment.maintenance_hub.primary_action' ||

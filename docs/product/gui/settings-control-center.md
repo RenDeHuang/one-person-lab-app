@@ -84,10 +84,13 @@ ad hoc cards:
   checked time, and details disclosure.
 - State-changing or destructive actions use a confirmation drawer that states
   what changes, what does not change, and which rollback or receipt reference
-  will exist.
+  will exist before the mutation runs. The implementation may render this as a
+  drawer, modal, or inline confirmation surface as long as the same required
+  fields are visible before confirmation.
 - Post-update notices show component id, result, receipt ref, next check, and
-  restart or reload guidance without claiming domain readiness or release
-  readiness.
+  restart or reload guidance in the ordinary Settings layer after a manual or
+  background action, without claiming domain, production, currentness, or
+  release readiness.
 - Diagnostics, raw ids, paths, receipts, JSON, and component ids are collapsed
   by default and live under Advanced or explicit disclosure.
 - Unknown deep links redirect to the nearest App-owned Settings group; legacy
@@ -199,7 +202,7 @@ action, last check, next check, and details disclosure. Apply, repair, and
 rollback actions are per component and show component-specific loading state.
 Dangerous or state-changing actions require a confirmation surface explaining
 what will change, what will not change, and what rollback or receipt reference
-will exist.
+will exist before the mutation runs.
 
 The primary "Make OPL usable" action is a convenience entry, not a new authority
 surface. It sequences existing App/Framework actions and only applies safe
