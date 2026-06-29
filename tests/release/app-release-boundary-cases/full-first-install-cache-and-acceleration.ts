@@ -129,6 +129,21 @@ test('Full first-install cache and release acceleration contract are explicit', 
       'next_action',
     ],
     purpose: 'separate currentness preparation from stable release dispatch by recording the exact pinned cohort refs before expensive release gates',
+    stable_candidate_freeze: {
+      required: true,
+      pinned_sha_fields: [
+        'app_sha',
+        'shell_sha',
+        'framework_sha',
+      ],
+      currentness_rule:
+        'A stable candidate is current only for the pinned App SHA, shell SHA, and framework SHA cohort. If main or any pinned source advances after the run starts, the old run becomes an obsolete/stale candidate and must not continue as the current stable candidate.',
+      obsolete_candidate_statuses: [
+        'obsolete_candidate',
+        'stale_candidate',
+      ],
+      next_action: 'dispatch_new_cohort',
+    },
     authority_boundary:
       'cohort plan is an operator planning artifact only; it cannot publish a release, claim release-ready, write runtime truth, or replace same-cohort release evidence',
   });
@@ -142,10 +157,26 @@ test('Full first-install cache and release acceleration contract are explicit', 
     ],
     commands: [
       'plan',
+      'status',
       'diagnose-vm',
     ],
+    primary_blocker_policy: {
+      monitor_mode: 'no_watch',
+      status_command: 'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>',
+      failed_gate_states: [
+        'failed_gate_draining',
+        'failed',
+      ],
+      failed_gate_next_actions: [
+        'repair_source_gate',
+        'dispatch_new_cohort',
+      ],
+      forbidden_wait_strategy: 'continue_waiting_on_gh_run_watch_after_primary_gate_failure',
+      rule: 'After a critical release gate fails, operator status must report failed_gate_draining or failed with repair_source_gate or dispatch_new_cohort guidance instead of continuing to wait on gh run watch.',
+    },
     typed_next_actions: [
       'repair_source_gate',
+      'dispatch_new_cohort',
       'rerun_diagnostic_same_artifact',
       'provide_owner_receipt',
       'wait_for_runner_capacity',
