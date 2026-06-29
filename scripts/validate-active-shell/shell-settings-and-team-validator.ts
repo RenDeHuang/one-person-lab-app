@@ -6,24 +6,28 @@ import {
 } from './shell-implementation-helpers.ts';
 
 const settingsNavExpected = [
+  "from '../registry/settingsRegistry'",
+  'buildSettingsNavItems',
+  'getBuiltinSettingsNavItems',
+];
+
+const settingsRegistryExpected = [
+  'getOplGuiSettingsControlPlane',
   'getOplGuiSettingsVisibleTabs',
   'getOplGuiLegacySettingsRouteRedirects',
-  'SETTINGS_DEFAULT_ROUTE = \'/settings/general\'',
-  "if (legacyId === 'skills-hub') return '/settings/capabilities?tab=skills'",
-  "if (legacyId === 'tools') return '/settings/capabilities?tab=tools'",
+  'settingsControlPlane?.default_route',
+  'settingsControlPlane?.ordinary_routes',
+  'settingsControlPlane?.extension_anchor_remap',
   'LEGACY_SETTINGS_ROUTE_REDIRECTS',
   'LEGACY_ANCHOR_REMAP',
+  'buildSettingsItemsWithExtensions',
 ];
 
 const settingsModalExpected = [
-  'getOplGuiSettingsVisibleTabs',
-  'getOplGuiLegacySettingsRouteRedirects',
+  'buildSettingsModalMenuItems',
+  'getSearchableSecondarySettingsModalItems',
+  'normalizeOplSettingsTab',
   "defaultTab = 'general'",
-  '<OverviewSettings withWrapper={false} />',
-  '<RuntimeSettings withWrapper={false} />',
-  '<CapabilitiesSettingsContent activeTab={capabilitiesTab} onTabChange={setCapabilitiesTab} />',
-  '<AccessSettingsContent />',
-  '<AppearanceModalContent />',
 ];
 
 const settingsModalForbidden = [
@@ -69,15 +73,21 @@ const teamCreatedRedirectExpected = ['if (!TEAM_MODE_ENABLED)', 'return undefine
 function validateSettingsPartitionImplementation(shellPaths) {
   assertShellTextIncludesAll(
     shellPaths,
+    'packages/desktop/src/renderer/pages/settings/registry/settingsRegistry.tsx',
+    settingsRegistryExpected,
+    'Active shell settings registry App-owned control-plane slot',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
     'packages/desktop/src/renderer/pages/settings/sections/settingsNav.tsx',
     settingsNavExpected,
-    'Active shell settings navigation App-owned settings partition',
+    'Active shell settings navigation App-owned control-plane slot',
   );
   const settingsModal = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/components/settings/SettingsModal/index.tsx',
     settingsModalExpected,
-    'Active shell settings modal App-owned settings partition',
+    'Active shell settings modal App-owned control-plane slot',
   );
   assertTextExcludesAll(settingsModal, settingsModalForbidden, 'Active shell settings modal legacy ordinary settings entry');
 }

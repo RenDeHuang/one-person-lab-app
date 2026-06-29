@@ -4,8 +4,11 @@ import {
   validateManagedUpdatePageBasics,
   validateManagedUpdatePlaneBinding,
 } from './managed-update-plane-validator.ts';
+import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 
 export function validateAppSettingsPages(matrix) {
+  validateSettingsControlPlaneBehavior({ pageStateMatrix: matrix });
+
   const appStatePages = ['settings_general', 'access', 'environment', 'advanced', 'about', 'settings_theme'];
   for (const pageId of appStatePages) {
     const page = pageById(matrix, pageId);

@@ -250,6 +250,41 @@ export type AppProductProfile = {
   settings: {
     visible_tabs: string[];
     legacy_route_redirects: Record<string, string>;
+    control_plane?: {
+      source_contract_ref: string;
+      default_route: string;
+      route_identity_policy: string;
+      ordinary_visible_tabs: string[];
+      ordinary_routes: Array<{
+        id: string;
+        path: string;
+        label_key: string;
+        default_label_en: string;
+        default_label_zh: string;
+        icon_token: string;
+        ia_group: string;
+        slot_id: string;
+        state_source: string;
+        refresh_source: string;
+      }>;
+      secondary_pages: Array<{
+        id: string;
+        path: string;
+        ia_group: string;
+        slot_id: string;
+        visibility: string;
+      }>;
+      legacy_route_redirects: Record<string, string>;
+      extension_anchor_remap: Record<string, string>;
+      extension_tab_policy: Record<string, unknown>;
+      slot_registry: Record<string, {
+        component_key: string;
+        wrapper_policy: string;
+        subroute_query_param?: string;
+        legacy_subroutes?: Record<string, string>;
+      }>;
+      state_action_policy: Record<string, unknown>;
+    };
     settings_information_architecture?: Record<string, {
       label_zh: string;
       label_en: string;

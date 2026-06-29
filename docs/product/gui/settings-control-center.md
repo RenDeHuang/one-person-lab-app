@@ -8,6 +8,13 @@ Machine boundary: Human-readable product design. Machine-readable truth lives in
 `contracts/app-page-state-matrix.json`, active shell source, validation scripts,
 and release/user-path evidence.
 
+Current validation boundary: `settings_ia.v1` in
+`contracts/app-gui-product-contract.json#settings_navigation.settings_ia` is the
+active Settings Control Plane behavior contract until the planned standalone
+`contracts/app-settings-control-plane.json` lands. Validators must treat that
+standalone file as a typed dependency (`waiting_for_control_plane_contract`), not
+as an implicit pass.
+
 ## Goal
 
 Settings is the One Person Lab App OPL Control Center, not an upstream AionUI
@@ -321,6 +328,46 @@ visual QA targets.
 Implementation components should consume typed view models. Large mixed pages
 such as Local Environment should be split into summary, action, maintenance,
 and diagnostics components so each part has one owner and one test surface.
+
+## Validation Boundary
+
+Settings validation is split into three layers:
+
+1. App behavior contracts: `scripts/validate-active-shell/settings-control-plane-validator.ts`
+   validates Settings Control Plane behavior from `settings_ia.v1`,
+   `contracts/app-page-state-matrix.json`, `contracts/app-product-profile.json`,
+   and the active shell adapter contract. This layer owns route ids, route
+   scopes, IA groups, task entries, action routing, confirmation protocols,
+   diagnostics visibility, post-update notice policy, and route promotion rules.
+2. Shell adapter slot: active-shell validation may verify that the shell consumes
+   the App-owned Settings registry/profile slots and legacy redirects. This is a
+   slot and registry behavior check, not a source-code inventory of every
+   Settings component.
+3. High-risk forbidden source probes: source-string probes remain appropriate
+   only for rejected or dangerous upstream surfaces, including AionUI Team mode,
+   Team MCP state, raw runtime/domain truth writes, owner receipt writes, silent
+   dirty/developer checkout updates, and direct reads of OPL internal state
+   files.
+
+When the standalone Settings Control Plane contract lands, it should be consumed
+by the same validator entry rather than creating a second validator family. Until
+then, a lane that requires that file should report
+`waiting_for_control_plane_contract` with the expected path and dependency owner.
+
+## Upstream Intake Classification
+
+Incoming upstream Settings changes are classified before release:
+
+- `accepted`: implements an existing App-owned route, task entry, protocol, or
+  visual QA target without changing authority.
+- `redirected`: keeps an upstream route or affordance only as a compatibility
+  redirect to an App-owned Settings group.
+- `requires_app_contract`: introduces a new ordinary Settings task, route,
+  protocol, action, or release/user-path expectation. The App contract,
+  page-state matrix, validators, tests, and docs must move first.
+- `rejected`: exposes upstream-only configuration, Team mode, raw provider or
+  runtime internals, domain truth mutation, owner receipt mutation, silent
+  developer checkout updates, or another forbidden ordinary-user surface.
 
 ## Verification Expectations
 

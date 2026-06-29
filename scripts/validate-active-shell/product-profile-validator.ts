@@ -26,9 +26,11 @@ import {
   installExposurePolicyPath,
   pageStateMatrixPath,
   root,
+  settingsControlPlanePath,
   assertFile,
 } from './validation-config.ts';
 import { validateBeginnerFirstRunPresentation, validateOplFlowContext } from './shared-contract-validators.ts';
+import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 import { assertDefaultCodexSessionProfile } from '../app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from '../app-product-profile-identity.ts';
 import {
@@ -66,6 +68,7 @@ function validateProductProfileContractRefs(profile) {
     page_state: pageStateMatrixPath,
     first_run: firstRunMatrixPath,
     install_exposure: installExposurePolicyPath,
+    settings_control_plane: settingsControlPlanePath,
   })) {
     const value = profile.contract_refs?.[label];
     if (typeof value !== 'string' || !value.trim()) {
@@ -129,6 +132,7 @@ function validateHomeAssistantDefaults(profile) {
 }
 
 function validateProductProfileSettings(profile) {
+  validateSettingsControlPlaneBehavior({ productProfile: profile });
   assertDeepEqualJson(
     profile.settings?.visible_tabs,
     appOwnedSettingsTabs,
@@ -138,6 +142,28 @@ function validateProductProfileSettings(profile) {
     profile.settings?.legacy_route_redirects,
     legacySettingsRouteRedirects,
     'Product profile legacy settings route redirects',
+  );
+  if (profile.settings?.control_plane?.source_contract_ref !== 'contracts/app-settings-control-plane.json') {
+    throw new Error('Product profile settings.control_plane must project the App Settings control plane');
+  }
+  assertDeepEqualJson(
+    profile.settings.control_plane.ordinary_visible_tabs,
+    appOwnedSettingsTabs,
+    'Product profile settings.control_plane ordinary tabs',
+  );
+  assertDeepEqualJson(
+    profile.settings.control_plane.ordinary_routes?.map((route) => route.id),
+    appOwnedSettingsTabs,
+    'Product profile settings.control_plane ordinary route ids',
+  );
+  assertDeepEqualJson(
+    Object.fromEntries(
+      Object.entries(profile.settings.control_plane.legacy_route_redirects ?? {})
+        .filter(([id]) => id !== 'about')
+        .map(([id, target]) => [id, String(target).split('?')[0]]),
+    ),
+    legacySettingsRouteRedirects,
+    'Product profile settings.control_plane legacy redirects',
   );
 }
 

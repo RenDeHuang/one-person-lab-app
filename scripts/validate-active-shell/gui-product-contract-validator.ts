@@ -35,6 +35,7 @@ import {
   validateManagedUpdatePageBasics,
   validateManagedUpdatePlaneBinding,
 } from './managed-update-plane-validator.ts';
+import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 import {
   validateArtifactNativeDrilldownProjectionContract,
   validateBeginnerFirstRunPresentation,
@@ -88,6 +89,7 @@ function validateManagedUpdatePageSurface(page, label) {
 export function validateAppGuiProductContract(guiContract, releaseChannel, installExposurePolicy) {
   validateGuiProductHomeContract(guiContract);
   validateGuiFrameworkSurfaces(guiContract, releaseChannel, installExposurePolicy);
+  validateSettingsControlPlaneBehavior({ guiContract });
 
   if (guiContract.theme_and_branding?.default_theme_id !== 'default-theme') {
     throw new Error('App GUI default theme must be default-theme');

@@ -167,6 +167,27 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   ) {
     throw new Error('App product profile settings.legacy_route_redirects must route legacy AionUI settings to App-owned pages');
   }
+  const controlPlane = profile.settings.control_plane;
+  if (!controlPlane || controlPlane.source_contract_ref !== 'contracts/app-settings-control-plane.json') {
+    throw new Error('App product profile settings.control_plane must project contracts/app-settings-control-plane.json');
+  }
+  if (JSON.stringify(controlPlane.ordinary_visible_tabs) !== JSON.stringify(appOwnedSettingsTabs)) {
+    throw new Error('App product profile settings.control_plane must keep ordinary settings tabs on App-owned pages');
+  }
+  if (JSON.stringify(controlPlane.ordinary_routes?.map((route) => route.id)) !== JSON.stringify(appOwnedSettingsTabs)) {
+    throw new Error('App product profile settings.control_plane.ordinary_routes must describe every ordinary App settings route');
+  }
+  const controlPlaneRedirects = Object.fromEntries(
+    Object.entries(controlPlane.legacy_route_redirects ?? {})
+      .filter(([id]) => id !== 'about')
+      .map(([id, target]) => [id, String(target).split('?')[0]]),
+  );
+  if (JSON.stringify(controlPlaneRedirects) !== JSON.stringify(legacySettingsRouteRedirects)) {
+    throw new Error('App product profile settings.control_plane legacy redirects must match App-owned legacy redirects');
+  }
+  if (controlPlane.extension_tab_policy?.legacy_anchor_remap_required !== true) {
+    throw new Error('App product profile settings.control_plane must require legacy extension anchor remapping');
+  }
   const settingsIa = profile.settings.settings_information_architecture ?? {};
   const groupIds = Array.isArray(settingsIa.ordinary_groups)
     ? settingsIa.ordinary_groups.map((group) => group.id)

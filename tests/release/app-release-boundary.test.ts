@@ -8,6 +8,7 @@ import './app-release-boundary-cases/release-evidence-validation.ts';
 import './app-release-boundary-cases/release-evidence-collector.ts';
 import './app-release-boundary-cases/release-assets-and-remote-verification.ts';
 import './app-release-boundary-cases/release-plan-and-publishing.ts';
+import './app-release-boundary-cases/settings-control-plane-validation.ts';
 import './app-release-boundary-cases/shell-adapter-and-gui-contracts.ts';
 import './app-release-boundary-cases/app-gui-product-contract.ts';
 import './app-release-boundary-cases/workflow-release-channels.ts';

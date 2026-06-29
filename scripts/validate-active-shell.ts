@@ -13,6 +13,7 @@ import { validatePageStateMatrix } from './validate-active-shell/page-state-matr
 import { validateProductProfile } from './validate-active-shell/product-profile-validator.ts';
 import { validateReleaseChannelContract } from './validate-active-shell/release-contract-validator.ts';
 import { validateReleaseEvidenceBundle } from './validate-active-shell/release-evidence-bundle-validator.ts';
+import { validateSettingsControlPlane } from './validate-active-shell/settings-control-plane-validator.ts';
 import {
   validateLiveOplConformance,
   validateRuntimeBridgeContract,
@@ -26,6 +27,7 @@ import {
   productProfilePath,
   releaseChannelPath,
   runtimeBridgePath,
+  settingsControlPlanePath,
 } from './validate-active-shell/validation-config.ts';
 
 assertAppRootBoundary({ phase: 'active shell validation' });
@@ -35,17 +37,20 @@ const shellPaths = resolveActiveShellPaths({ contract });
 const guiProductContract = readJson(guiProductContractPath);
 const runtimeBridge = readJson(runtimeBridgePath);
 const pageStateMatrix = readJson(pageStateMatrixPath);
+const settingsControlPlane = readJson(settingsControlPlanePath);
 const firstRunMatrix = readJson(firstRunMatrixPath);
 const releaseChannel = readJson(releaseChannelPath);
 const installExposurePolicy = readJson(installExposurePolicyPath);
+const productProfile = readJson(productProfilePath);
 
 validateContractShape(contract);
 validateRuntimeBridgeContract(runtimeBridge, contract);
 validateInstallExposurePolicy(installExposurePolicy);
 validateAppGuiProductContract(guiProductContract, releaseChannel, installExposurePolicy);
 validatePageStateMatrix(pageStateMatrix, contract);
+validateSettingsControlPlane(settingsControlPlane, guiProductContract, pageStateMatrix, productProfile, contract);
 validateFirstRunMatrix(firstRunMatrix, contract);
-validateProductProfile(readJson(productProfilePath), installExposurePolicy);
+validateProductProfile(productProfile, installExposurePolicy);
 validateReleaseChannelContract(releaseChannel);
 validateReleaseEvidenceBundle(releaseChannel, pageStateMatrix, firstRunMatrix);
 validateActiveShellImplementation(shellPaths);

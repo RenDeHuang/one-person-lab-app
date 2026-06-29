@@ -21,7 +21,8 @@
     "first_run": "contracts/app-first-run-test-matrix.json",
     "install_exposure": "contracts/app-install-exposure-policy.json",
     "release_channel": "contracts/app-release-channel.json",
-    "gui_product": "contracts/app-gui-product-contract.json"
+    "gui_product": "contracts/app-gui-product-contract.json",
+    "settings_control_plane": "contracts/app-settings-control-plane.json"
   },
   "default_session_profile": {
     "provider": "gflab",
@@ -1143,6 +1144,225 @@
           "AG-UI implementation surface",
           "AionUI implementation skills",
           "raw runtime/provider internals"
+        ]
+      }
+    },
+    "control_plane": {
+      "source_contract_ref": "contracts/app-settings-control-plane.json",
+      "default_route": "/settings/general",
+      "route_identity_policy": "keep_current_shell_route_ids_distinct_from_user_facing_ia_groups",
+      "ordinary_visible_tabs": [
+        "general",
+        "access",
+        "capabilities",
+        "environment",
+        "storage",
+        "appearance",
+        "advanced"
+      ],
+      "ordinary_routes": [
+        {
+          "id": "general",
+          "path": "/settings/general",
+          "label_key": "settings.overview",
+          "default_label_en": "Overview",
+          "default_label_zh": "总览",
+          "icon_token": "dashboard",
+          "ia_group": "overview",
+          "slot_id": "settings_general",
+          "state_source": "opl app state --profile fast --json",
+          "refresh_source": "opl app state --profile fast --json"
+        },
+        {
+          "id": "access",
+          "path": "/settings/access",
+          "label_key": "settings.onboarding",
+          "default_label_en": "Setup & Access",
+          "default_label_zh": "开始使用",
+          "icon_token": "access",
+          "ia_group": "setup_access",
+          "slot_id": "settings_access",
+          "state_source": "opl app state --profile fast --json",
+          "refresh_source": "opl app state --profile fast --json"
+        },
+        {
+          "id": "capabilities",
+          "path": "/settings/capabilities",
+          "label_key": "settings.capabilities",
+          "default_label_en": "Capabilities",
+          "default_label_zh": "能力",
+          "icon_token": "capabilities",
+          "ia_group": "capabilities",
+          "slot_id": "settings_capabilities",
+          "state_source": "contracts/app-gui-product-contract.json#default_assistants + opl app state --profile fast --json",
+          "refresh_source": "opl app state --profile fast --json"
+        },
+        {
+          "id": "environment",
+          "path": "/settings/environment",
+          "label_key": "settings.maintenance",
+          "default_label_en": "Maintenance & Updates",
+          "default_label_zh": "维护",
+          "icon_token": "maintenance",
+          "ia_group": "maintenance",
+          "slot_id": "settings_environment",
+          "state_source": "opl app state --profile fast --json",
+          "refresh_source": "opl app state --profile fast --json"
+        },
+        {
+          "id": "storage",
+          "path": "/settings/storage",
+          "label_key": "settings.storage",
+          "default_label_en": "Data & Storage",
+          "default_label_zh": "数据与存储",
+          "icon_token": "storage",
+          "ia_group": "data_storage",
+          "slot_id": "settings_storage",
+          "state_source": "active shell local data lifecycle service + contracts/app-release-channel.json#local_data_lifecycle",
+          "refresh_source": "Settings / Storage refresh inventory"
+        },
+        {
+          "id": "appearance",
+          "path": "/settings/appearance",
+          "label_key": "settings.preferences",
+          "default_label_en": "Preferences",
+          "default_label_zh": "偏好",
+          "icon_token": "appearance",
+          "ia_group": "preferences",
+          "slot_id": "settings_theme",
+          "state_source": "opl app state --profile fast --json",
+          "refresh_source": "opl app state --profile fast --json"
+        },
+        {
+          "id": "advanced",
+          "path": "/settings/advanced",
+          "label_key": "settings.advanced",
+          "default_label_en": "Advanced",
+          "default_label_zh": "高级",
+          "icon_token": "advanced",
+          "ia_group": "advanced",
+          "slot_id": "settings_advanced",
+          "state_source": "opl app state --profile fast --json",
+          "refresh_source": "opl app state --profile fast --json"
+        }
+      ],
+      "secondary_pages": [
+        {
+          "id": "about",
+          "path": "/settings/about",
+          "ia_group": "advanced",
+          "slot_id": "about",
+          "visibility": "secondary_or_deep_link"
+        },
+        {
+          "id": "update",
+          "path": "/settings/update",
+          "ia_group": "maintenance",
+          "slot_id": "update",
+          "visibility": "secondary_or_deep_link"
+        },
+        {
+          "id": "theme",
+          "path": "/settings/theme",
+          "ia_group": "preferences",
+          "slot_id": "settings_theme",
+          "visibility": "secondary_or_deep_link"
+        },
+        {
+          "id": "workspace",
+          "path": "/settings/workspace",
+          "ia_group": "overview",
+          "slot_id": "workspace",
+          "visibility": "secondary_or_deep_link"
+        },
+        {
+          "id": "local-services",
+          "path": "/settings/local-services",
+          "ia_group": "maintenance",
+          "slot_id": "local_services",
+          "visibility": "secondary_or_deep_link"
+        }
+      ],
+      "legacy_route_redirects": {
+        "overview": "general",
+        "runtime": "environment",
+        "system": "advanced",
+        "model": "environment",
+        "agent": "capabilities",
+        "assistants": "capabilities",
+        "skills-hub": "capabilities?tab=skills",
+        "tools": "capabilities?tab=tools",
+        "display": "appearance",
+        "webui": "access",
+        "pet": "appearance",
+        "about": "advanced"
+      },
+      "extension_anchor_remap": {
+        "overview": "general",
+        "runtime": "environment",
+        "system": "advanced",
+        "model": "environment",
+        "agent": "capabilities",
+        "assistants": "capabilities",
+        "skills-hub": "capabilities",
+        "tools": "capabilities",
+        "display": "appearance",
+        "webui": "access",
+        "pet": "appearance",
+        "about": "advanced"
+      },
+      "extension_tab_policy": {
+        "anchored_tabs": "insert_before_or_after_remapped_ordinary_route",
+        "unanchored_tabs": "insert_before_advanced",
+        "unknown_anchor": "treat_as_unanchored",
+        "legacy_anchor_remap_required": true
+      },
+      "slot_registry": {
+        "settings_general": {
+          "component_key": "OverviewSettings",
+          "wrapper_policy": "host_provides_wrapper"
+        },
+        "settings_access": {
+          "component_key": "AccessSettingsContent",
+          "wrapper_policy": "host_provides_wrapper"
+        },
+        "settings_capabilities": {
+          "component_key": "CapabilitiesSettingsContent",
+          "wrapper_policy": "host_provides_wrapper",
+          "subroute_query_param": "tab",
+          "legacy_subroutes": {
+            "skills-hub": "skills",
+            "tools": "tools"
+          }
+        },
+        "settings_environment": {
+          "component_key": "RuntimeSettings",
+          "wrapper_policy": "host_provides_wrapper"
+        },
+        "settings_storage": {
+          "component_key": "StorageSettings",
+          "wrapper_policy": "host_provides_wrapper"
+        },
+        "settings_theme": {
+          "component_key": "AppearanceModalContent",
+          "wrapper_policy": "host_provides_wrapper"
+        },
+        "settings_advanced": {
+          "component_key": "SystemModalContent",
+          "wrapper_policy": "host_provides_wrapper"
+        }
+      },
+      "state_action_policy": {
+        "default_state_source": "opl app state --profile fast --json",
+        "default_refresh_source": "opl app state --profile fast --json",
+        "full_profile_policy": "diagnostic_or_release_evidence_only",
+        "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
+        "shell_must_not_own": [
+          "runtime truth",
+          "provider implementation",
+          "domain truth",
+          "owner receipts",
+          "release readiness"
         ]
       }
     }
