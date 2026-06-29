@@ -6,6 +6,16 @@ State: `active_plan`
 Machine boundary: Human-readable active truth and gap plan. Machine-readable truth lives in `contracts/`, source, release artifacts, updater metadata, and test results.
 Last reviewed: `2026-06-21`
 
+2026-06-30 SSOT refresh: this active plan keeps App functional / structural
+gaps only: App-owned contracts, active-shell sync, GUI definition stack,
+Settings / Storage, release-boundary validators, shell-candidate policy, route
+receipts, first-run policy, and runtime/domain no-authority guards. Release
+cohorts, clean-VM proof, packaged `.app` smoke, same-cohort user-path artifacts,
+real user-directory E2E, owner acceptance, and production-ready claims are
+separate release / lifecycle evidence lanes. They should not be mixed into the
+ideal-state or current-state gap list, and App validation or shell tests cannot
+replace them.
+
 Live Evidence deferred is the execution rule for this plan. Functional and
 structural lanes come first: App-owned contracts, active-shell adapter sync,
 AionUI mainline GUI behavior, Hermes foreground-alternative convergence,

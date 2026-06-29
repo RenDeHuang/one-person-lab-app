@@ -1,0 +1,81 @@
+{
+  "schema": "opl_quarto_user_guide_manifest.v1",
+  "id": "macos-app-install",
+  "title": "One Person Lab App 首次安装图文教程",
+  "short_title": "macOS App 首次安装",
+  "owner": "one-person-lab-app",
+  "purpose": "macos_app_install_quarto_manifest",
+  "state": "active",
+  "machine_boundary": "Machine-readable Quarto guide manifest. Human-readable long-form guide body is maintained in macos-app-install.guide.qmd. Release contracts, workflows, VM smoke artifacts, screenshot manifest, and App release metadata remain the machine truth.",
+  "audience": "医生、PI、课题负责人；不要求计算机基础。",
+  "intro": "本文以 macOS App 首次启动为主线，说明如何下载、安装、配置 One Person Lab，并从科研、基金、演示或写书入口开始工作；下文以 Research Foundry / Med Auto Science 的首次科研任务为例。",
+  "source_qmd": "source/macos-app-install.guide.qmd",
+  "output": {
+    "public_dir": "docs/public/macos-app-install",
+    "html": "docs/public/macos-app-install/index.html",
+    "pdf": "docs/public/macos-app-install/macos-app-install-detailed-guide.pdf",
+    "generated_markdown": "docs/delivery/user-guides/macos-app-install/generated/macos-app-install.md",
+    "verification": "docs/delivery/user-guides/macos-app-install/verification/macos-app-install-verification.json"
+  },
+  "download": {
+    "latest_release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
+    "stable_install_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes",
+    "recommended_first_install_asset": "One-Person-Lab-Full-<version>-mac-arm64.dmg"
+  },
+  "assets": [
+    {
+      "file": "01-download-release.png",
+      "role": "download_release",
+      "description": "GitHub Release download page."
+    },
+    {
+      "file": "02-install-dmg.png",
+      "role": "install_dmg",
+      "description": "DMG drag-to-Applications installation screen."
+    },
+    {
+      "file": "03-codex-config-needed.png",
+      "role": "configure_access",
+      "description": "First-run access configuration screen."
+    },
+    {
+      "file": "04-first-run-checking.png",
+      "role": "first_run_check",
+      "description": "First-run environment check screen."
+    },
+    {
+      "file": "05-opl-ready-research-entry.png",
+      "role": "research_entry",
+      "description": "OPL ready state with research entry."
+    },
+    {
+      "file": "06-research-data-folder.png",
+      "role": "runtime_settings",
+      "description": "Local runtime and work directory settings."
+    },
+    {
+      "file": "07-first-research-entry.png",
+      "role": "first_research_task",
+      "description": "First research task entry."
+    },
+    {
+      "file": "08-opl-runtime-status.png",
+      "role": "runtime_status",
+      "description": "Runtime status and progress screen."
+    }
+  ],
+  "required_terms": [
+    "One Person Lab App 首次安装图文教程",
+    "macOS App",
+    "下载 One Person Lab",
+    "安装 App",
+    "配置访问权限",
+    "等待首次环境检查",
+    "进入科研入口",
+    "确认工作目录和运行设置",
+    "发起首次科研任务",
+    "查看进度与结果",
+    "截图与验证来源"
+  ],
+  "forbidden_phrases": []
+}

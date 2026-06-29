@@ -5,9 +5,9 @@ Purpose: `app_user_guide_sources`
 State: `active`
 Machine boundary: Human-readable guide source and generation maintenance.
 
-This directory is the maintenance area for guide source, screenshot provenance,
-generated Marp source, fixtures, and verification records. It is not the clean
-end-user reading surface. Link users to
+This directory is the maintenance area for Quarto guide source, screenshot
+provenance, generated Marp source, fixtures, and verification records. It is not
+the clean end-user reading surface. Link users to
 [`../../../public/macos-app-install/`](../../../public/macos-app-install/) instead.
 
 Clean user entry:
@@ -33,8 +33,15 @@ Generated reading artifacts live beside that HTML entry:
 
 Source and verification files:
 
-- [`source/macos-app-install.guide.json`](source/macos-app-install.guide.json): canonical
-  user-guide content source for HTML, slides, Markdown, and detailed PDF.
+- [`source/macos-app-install.guide.qmd`](source/macos-app-install.guide.qmd):
+  canonical long-form guide body source for HTML, generated Markdown, and
+  detailed PDF.
+- [`source/macos-app-install.quarto.json`](source/macos-app-install.quarto.json):
+  Quarto manifest for long-form HTML/PDF output paths, assets, required terms,
+  and validation boundaries.
+- [`source/macos-app-install.guide.json`](source/macos-app-install.guide.json):
+  structured slide source for the Marp PDF/PPTX walkthrough and its speaker
+  notes. Keep this aligned with the QMD guide body when changing the user flow.
 - [`generated/macos-app-install-slides.md`](generated/macos-app-install-slides.md) and
   [`generated/macos-app-install-marp-theme.css`](generated/macos-app-install-marp-theme.css):
   generated Marp deck source and CSS theme for the shareable visual PDF/PPTX.
@@ -45,10 +52,11 @@ Source and verification files:
   `verification/macos-app-install-verification.json`: generated verification records.
 
 Read generated Markdown, public PDFs/PPTX, and HTML as artifacts derived from
-the guide source and screenshot manifest. If their embedded metadata or titles
-look source-like, the canonical edit path still starts from
-`source/macos-app-install.guide.json` and regeneration; do not hand-edit generated
-artifacts as a second content source.
+the QMD guide body, slide JSON, and screenshot manifest. If their embedded
+metadata or titles look source-like, the canonical edit path still starts from
+`source/macos-app-install.guide.qmd` for long-form text, from
+`source/macos-app-install.guide.json` for slides, and then regeneration; do not
+hand-edit generated artifacts as a second content source.
 
 Release evidence screenshots have a separate owner. The `screenshots/runtime.png`,
 `screenshots/full.png`, and `screenshots/action.png` paths belong to the
@@ -66,14 +74,19 @@ Update flow:
    each screenshot source, width, height, and SHA256. The guide generators fail
    if the PNGs do not match this manifest. Do not force a shared canvas size;
    keep the VM/CDP output dimensions recorded per image.
-2. Update `source/macos-app-install.guide.json` when the user flow, copy, FAQ,
-   artifact links, or step ordering changes. Do not edit generated Markdown or
-   slide copy as a second source of truth.
-3. Run `npm run docs:macos-guide` to refresh the public HTML guide, copied
+2. Update `source/macos-app-install.guide.qmd` when long-form user-facing copy,
+   FAQ, artifact links, or detailed PDF text changes.
+3. Update `source/macos-app-install.guide.json` when the slide walkthrough,
+   speaker notes, or step ordering changes. Keep it aligned with the QMD guide
+   body.
+4. Run `npm run docs:macos-guide` to refresh the public HTML guide, copied
    public assets, Marp slides PDF/PPTX, detailed companion PDF, generated
    Markdown, and all verification JSON files.
-4. For targeted regeneration, run `npm run docs:macos-guide:html`,
+5. For targeted regeneration, run `npm run docs:macos-guide:html`,
    `npm run docs:macos-guide:slides`, or `npm run docs:macos-guide:pdf`.
-5. Verify `verification/macos-app-install-html-verification.json`,
+6. Verify `verification/macos-app-install-html-verification.json`,
    `verification/macos-app-install-slides-verification.json`, and
    `verification/macos-app-install-verification.json` before publishing.
+
+Long-form HTML/PDF rendering uses Quarto Book. Slides remain on Marp because the
+public PPTX and slide PDF are presentation artifacts, not long-form manuals.

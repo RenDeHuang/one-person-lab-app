@@ -1,165 +1,118 @@
 {
-  "status": "macos_app_install_html_ready",
+  "status": "quarto_guide_ready",
+  "generator": "quarto_book_qmd_to_html_pdf",
+  "quarto_version": "1.9.38",
+  "source_qmd": "docs/delivery/user-guides/macos-app-install/source/macos-app-install.guide.qmd",
+  "manifest": "docs/delivery/user-guides/macos-app-install/source/macos-app-install.quarto.json",
+  "generated_markdown": "docs/delivery/user-guides/macos-app-install/generated/macos-app-install.md",
   "output_html": "docs/public/macos-app-install/index.html",
-  "guide_source": "docs/delivery/user-guides/macos-app-install/source/macos-app-install.guide.json",
-  "screenshot_release_tag": "v26.6.27",
-  "screenshot_asset_manifest": "docs/delivery/user-guides/macos-app-install/source/macos-app-install-assets.json",
-  "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
-  "stable_install_command_present": true,
-  "generated_artifacts": {
-    "slides_pdf": "docs/public/macos-app-install/macos-app-install-slides.pdf",
-    "slides_pptx": "docs/public/macos-app-install/macos-app-install-slides.pptx",
-    "detailed_pdf": "docs/public/macos-app-install/macos-app-install-detailed-guide.pdf"
+  "output_pdf": "docs/public/macos-app-install/macos-app-install-detailed-guide.pdf",
+  "quarto_project_dir": "tmp/quarto-guides/macos-app-install/project",
+  "pdf_layout": "quarto_portrait_ebook",
+  "pdf_pages": 12,
+  "pdf_page_size_pts": {
+    "width": 612,
+    "height": 792
   },
-  "html_bytes": 21790,
-  "guide_steps": 8,
-  "image_references": 9,
-  "screenshot_source": {
-    "source": {
-      "kind": "macos_tart_vm_guide_artifact",
-      "source": "macos_tart_vm_1920x1080_zh",
-      "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.6.27",
-      "release_asset": "One-Person-Lab-26.6.27-mac-arm64.dmg",
-      "release_asset_sha256": "9f07deaa3d92be20b87c069452b23414144111c861c8fc670ca041a9be9f7a5c",
-      "package_profile": "standard",
-      "host_artifacts": "/Users/gaofeng/workspace/opl-aion-shell/artifacts/opl-guide-screenshots-v26.6.27-standard-final",
-      "guide_summary": "/Users/gaofeng/workspace/opl-aion-shell/artifacts/opl-guide-screenshots-v26.6.27-standard-final/artifacts/guide-screenshots-summary.json",
-      "tart_summary": "/Users/gaofeng/workspace/opl-aion-shell/artifacts/opl-guide-screenshots-v26.6.27-standard-final/tart-smoke-summary.json",
-      "source_vm": "opl-first-run-no-clt-clean-base-26-5-18",
-      "vm_name": "opl-first-run-2026-06-28T03-49-46-243Z",
-      "display": "1920x1080px",
-      "locale": "zh-CN",
-      "guest_user": "admin",
-      "status": "passed",
-      "guide_status": "passed",
-      "captured_at": "2026-06-28T03:52:40Z"
-    },
-    "release_run_id": "local-vm-guide-refresh-2026-06-28T03-49-46-243Z",
-    "release_run_url": "/Users/gaofeng/workspace/opl-aion-shell/artifacts/opl-guide-screenshots-v26.6.27-standard-final",
-    "release_run_conclusion": "success"
-  },
-  "screenshot_assets": {
-    "01-download-release.png": {
-      "title": "GitHub Release v26.6.27 page",
-      "source_kind": "macos_tart_vm_release_page_screencapture",
-      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.6.27",
-      "source_width": 1920,
-      "source_height": 1080,
-      "source_sha256": "e0521671f3635e404f3f515bccde6542a97cea2a23b6edb7d9a5b84b9862ec4d",
+  "rendered_pages": 12,
+  "rendered_dir": "tmp/quarto-guides/macos-app-install/rendered",
+  "html_bytes": 4600726,
+  "screenshot_assets": [
+    {
+      "role": "download_release",
+      "description": "GitHub Release download page.",
+      "file": "docs/delivery/user-guides/macos-app-install/assets/01-download-release.png",
+      "public_file": "assets/01-download-release.png",
       "width": 1920,
       "height": 1080,
-      "sha256": "e0521671f3635e404f3f515bccde6542a97cea2a23b6edb7d9a5b84b9862ec4d"
+      "sha256": "e0521671f3635e404f3f515bccde6542a97cea2a23b6edb7d9a5b84b9862ec4d",
+      "referenced": true
     },
-    "02-install-dmg.png": {
-      "title": "Standard DMG Finder install window",
-      "source_kind": "macos_tart_vm_dmg_finder_screencapture",
-      "source": "/Volumes/One Person Lab 26.6.27-arm64 from /tmp/opl-guide-v26.6.27/One-Person-Lab-26.6.27-mac-arm64.dmg",
-      "source_width": 1920,
-      "source_height": 1080,
-      "source_sha256": "7c115224fce0cde0b477d4830adbd950cf795a6fbaecfb0fa5c2aeca55933c6f",
+    {
+      "role": "install_dmg",
+      "description": "DMG drag-to-Applications installation screen.",
+      "file": "docs/delivery/user-guides/macos-app-install/assets/02-install-dmg.png",
+      "public_file": "assets/02-install-dmg.png",
       "width": 1920,
       "height": 1080,
-      "sha256": "7c115224fce0cde0b477d4830adbd950cf795a6fbaecfb0fa5c2aeca55933c6f"
+      "sha256": "7c115224fce0cde0b477d4830adbd950cf795a6fbaecfb0fa5c2aeca55933c6f",
+      "referenced": true
     },
-    "03-codex-config-needed.png": {
-      "title": "First-run access key setup screen",
-      "source_kind": "macos_tart_vm_app_cdp_capture_missing_access_key",
-      "source": "artifacts/first-run-beginner.png from first-run-progress-vm-20260621-0025 missing access-key VM smoke",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "d9390fc78b141972392cd441e6be5fbfa73694e3fd7ffe698053676c6bb9edc8",
+    {
+      "role": "configure_access",
+      "description": "First-run access configuration screen.",
+      "file": "docs/delivery/user-guides/macos-app-install/assets/03-codex-config-needed.png",
+      "public_file": "assets/03-codex-config-needed.png",
       "width": 1536,
       "height": 912,
-      "sha256": "d9390fc78b141972392cd441e6be5fbfa73694e3fd7ffe698053676c6bb9edc8"
+      "sha256": "d9390fc78b141972392cd441e6be5fbfa73694e3fd7ffe698053676c6bb9edc8",
+      "referenced": true
     },
-    "04-first-run-checking.png": {
-      "title": "First-run beginner readiness screen",
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/first-run-beginner.png from standard VM smoke",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "523ac9ed1d3f002ddbdadde8138437770a321fd327b785820cf6cba102e2b1db",
+    {
+      "role": "first_run_check",
+      "description": "First-run environment check screen.",
+      "file": "docs/delivery/user-guides/macos-app-install/assets/04-first-run-checking.png",
+      "public_file": "assets/04-first-run-checking.png",
       "width": 1536,
       "height": 912,
-      "sha256": "523ac9ed1d3f002ddbdadde8138437770a321fd327b785820cf6cba102e2b1db"
+      "sha256": "523ac9ed1d3f002ddbdadde8138437770a321fd327b785820cf6cba102e2b1db",
+      "referenced": true
     },
-    "05-opl-ready-research-entry.png": {
-      "title": "Research/MAS entry screen",
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/assistant-route-smoke/mas.png from standard VM smoke",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
+    {
+      "role": "research_entry",
+      "description": "OPL ready state with research entry.",
+      "file": "docs/delivery/user-guides/macos-app-install/assets/05-opl-ready-research-entry.png",
+      "public_file": "assets/05-opl-ready-research-entry.png",
       "width": 1536,
       "height": 912,
-      "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9"
+      "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
+      "referenced": true
     },
-    "06-research-data-folder.png": {
-      "title": "Local runtime environment settings screen",
-      "source_kind": "rendered_opl_app_state_fixture",
-      "source": "docs/delivery/user-guides/macos-app-install/fixtures/runtime-environment-currentness.fixture.json",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "1892d84d27c076e88bc2e2d2de9d52268d9e6d93b6858aec23ec678abe1465c5",
+    {
+      "role": "runtime_settings",
+      "description": "Local runtime and work directory settings.",
+      "file": "docs/delivery/user-guides/macos-app-install/assets/06-research-data-folder.png",
+      "public_file": "assets/06-research-data-folder.png",
       "width": 1536,
       "height": 912,
-      "sha256": "5314ff4fcba9bdd05d0a91f23dd8cdf30ba315ee8dd161f0c130170e1524df51"
+      "sha256": "5314ff4fcba9bdd05d0a91f23dd8cdf30ba315ee8dd161f0c130170e1524df51",
+      "referenced": true
     },
-    "07-first-research-entry.png": {
-      "title": "First MAS research prompt entry screen",
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/assistant-route-smoke/mas.png from standard VM smoke",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
+    {
+      "role": "first_research_task",
+      "description": "First research task entry.",
+      "file": "docs/delivery/user-guides/macos-app-install/assets/07-first-research-entry.png",
+      "public_file": "assets/07-first-research-entry.png",
       "width": 1536,
       "height": 912,
-      "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9"
+      "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
+      "referenced": true
     },
-    "08-opl-runtime-status.png": {
-      "title": "Runtime status screen",
-      "source_kind": "macos_tart_vm_app_cdp_capture",
-      "source": "artifacts/settings-pages/runtime-status.png from standard VM smoke",
-      "source_width": 1536,
-      "source_height": 912,
-      "source_sha256": "a52a08f7eeeaec21f22fa07c15d9d3f2751bcd8ff06f16a79ea9160d67974f35",
+    {
+      "role": "runtime_status",
+      "description": "Runtime status and progress screen.",
+      "file": "docs/delivery/user-guides/macos-app-install/assets/08-opl-runtime-status.png",
+      "public_file": "assets/08-opl-runtime-status.png",
       "width": 1536,
       "height": 912,
-      "sha256": "a52a08f7eeeaec21f22fa07c15d9d3f2751bcd8ff06f16a79ea9160d67974f35"
+      "sha256": "a52a08f7eeeaec21f22fa07c15d9d3f2751bcd8ff06f16a79ea9160d67974f35",
+      "referenced": true
     }
-  },
-  "screenshot_dimensions": {
-    "01-download-release.png": {
-      "width": 1920,
-      "height": 1080
-    },
-    "02-install-dmg.png": {
-      "width": 1920,
-      "height": 1080
-    },
-    "03-codex-config-needed.png": {
-      "width": 1536,
-      "height": 912
-    },
-    "04-first-run-checking.png": {
-      "width": 1536,
-      "height": 912
-    },
-    "05-opl-ready-research-entry.png": {
-      "width": 1536,
-      "height": 912
-    },
-    "06-research-data-folder.png": {
-      "width": 1536,
-      "height": 912
-    },
-    "07-first-research-entry.png": {
-      "width": 1536,
-      "height": 912
-    },
-    "08-opl-runtime-status.png": {
-      "width": 1536,
-      "height": 912
-    }
-  }
+  ],
+  "required_terms": [
+    "One Person Lab App 首次安装图文教程",
+    "macOS App",
+    "下载 One Person Lab",
+    "安装 App",
+    "配置访问权限",
+    "等待首次环境检查",
+    "进入科研入口",
+    "确认工作目录和运行设置",
+    "发起首次科研任务",
+    "查看进度与结果",
+    "截图与验证来源"
+  ],
+  "required_terms_status": "present",
+  "unresolved_templates_status": "absent",
+  "forbidden_phrases_status": "absent"
 }
