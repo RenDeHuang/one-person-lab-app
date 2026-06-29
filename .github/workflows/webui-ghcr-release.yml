@@ -1,0 +1,179 @@
+name: OPL WebUI GHCR Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      opl_version:
+        description: OPL version tag to publish, for example 26.6.27
+        required: true
+        type: string
+      shell_ref:
+        description: opl-aion-shell ref to build. Empty means main.
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  packages: write
+
+concurrency:
+  group: opl-webui-ghcr-release-${{ inputs.opl_version }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  BUN_INSTALL_REGISTRY: 'https://registry.npmjs.org/'
+
+jobs:
+  publish-webui-ghcr:
+    name: Build, verify, and publish WebUI GHCR image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Checkout active shell
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/opl-aion-shell
+          ref: ${{ inputs.shell_ref || 'main' }}
+          path: shells/aionui
+
+      - name: Resolve shell revision
+        id: shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          shell_sha="$(git -C shells/aionui rev-parse HEAD)"
+          echo "sha=$shell_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Build, verify, and publish Docker WebUI
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_VERSION: ${{ inputs.opl_version }}
+          SHELL_SHA: ${{ steps.shell.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$OPL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid OPL version: $OPL_VERSION"
+            exit 1
+          fi
+
+          image_owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          ghcr_image="ghcr.io/${image_owner}/one-person-lab-webui"
+          write_publish_summary() {
+            local status="$1"
+            local error_code="${2:-}"
+            local error_message="${3:-}"
+            node <<NODE
+          const fs = require('node:fs');
+          const payload = {
+            status: '${status}',
+            image: '${ghcr_image}',
+            tags: ['${OPL_VERSION}', 'stable', 'latest'],
+            source_repository: 'https://github.com/${GITHUB_REPOSITORY}',
+            shell_repository: 'https://github.com/gaofeng21cn/opl-aion-shell',
+            shell_revision: '${SHELL_SHA}',
+            build_reuse: {
+              mode: 'webui_only_release_workflow',
+              source_gate: 'webui-ghcr-release',
+              repeated_docker_build: false,
+            },
+            package_access_required: {
+              package_url: 'https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui/settings',
+              required_actions_access_repository: 'gaofeng21cn/one-person-lab-app',
+              required_actions_access_permission: 'write',
+              configuration_surface: 'GitHub Packages settings Manage Actions access',
+              failure_signal: 'docker push denied: permission_denied: write_package',
+            },
+          };
+          if ('${error_code}') {
+            payload.error = { code: '${error_code}', message: '${error_message}' };
+          }
+          fs.writeFileSync('/tmp/opl-webui-ghcr-publish.json', JSON.stringify(payload) + '\n');
+          NODE
+          }
+
+          docker build \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${SHELL_SHA}" \
+            -t "one-person-lab-webui:${OPL_VERSION}" \
+            shells/aionui
+          docker image inspect "one-person-lab-webui:${OPL_VERSION}" \
+            --format '{{.Size}}' > /tmp/opl-webui-image-size-bytes.txt
+
+          container="$(docker run --rm -d -p 127.0.0.1::3000 "one-person-lab-webui:${OPL_VERSION}")"
+          cleanup() {
+            docker logs "$container" >/tmp/opl-webui-container.log 2>&1 || true
+            docker rm -f "$container" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          port="$(docker port "$container" 3000/tcp | sed -E 's/.*:([0-9]+)$/\1/')"
+          for attempt in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:${port}/" >/tmp/opl-webui-index.html; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS "http://127.0.0.1:${port}/manifest.webmanifest" >/tmp/opl-webui-manifest.webmanifest
+          auth_headers="$(mktemp)"
+          auth_body="$(mktemp)"
+          for attempt in $(seq 1 60); do
+            if curl -fsS -D "$auth_headers" "http://127.0.0.1:${port}/api/auth/user" -o "$auth_body" \
+              && grep -q '"success":[[:space:]]*true' "$auth_body" \
+              && grep -iq '^set-cookie:' "$auth_headers"; then
+              break
+            fi
+            sleep 2
+          done
+          grep -q '"success":[[:space:]]*true' "$auth_body"
+          grep -iq '^set-cookie:' "$auth_headers"
+          cp "$auth_body" /tmp/opl-webui-auth-user.json
+
+          docker tag "one-person-lab-webui:${OPL_VERSION}" "${ghcr_image}:${OPL_VERSION}"
+          docker tag "one-person-lab-webui:${OPL_VERSION}" "${ghcr_image}:stable"
+          docker tag "one-person-lab-webui:${OPL_VERSION}" "${ghcr_image}:latest"
+
+          if ! printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin; then
+            write_publish_summary "failed" "ghcr_login_failed" "GHCR login failed before pushing one-person-lab-webui tags."
+            exit 1
+          fi
+          if ! docker push "${ghcr_image}:${OPL_VERSION}"; then
+            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
+            exit 1
+          fi
+          if ! docker push "${ghcr_image}:stable"; then
+            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR stable tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
+            exit 1
+          fi
+          if ! docker push "${ghcr_image}:latest"; then
+            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR latest tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
+            exit 1
+          fi
+          write_publish_summary "published"
+
+      - name: Upload Docker WebUI smoke artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-webui-smoke-${{ inputs.opl_version }}
+          path: |
+            /tmp/opl-webui-index.html
+            /tmp/opl-webui-manifest.webmanifest
+            /tmp/opl-webui-image-size-bytes.txt
+            /tmp/opl-webui-auth-user.json
+            /tmp/opl-webui-container.log
+          if-no-files-found: ignore
+
+      - name: Upload WebUI GHCR publish summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: webui-ghcr-publish-${{ inputs.opl_version }}
+          path: /tmp/opl-webui-ghcr-publish.json
+          if-no-files-found: error
