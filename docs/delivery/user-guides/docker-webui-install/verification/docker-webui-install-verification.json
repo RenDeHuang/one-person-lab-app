@@ -8,15 +8,15 @@
   "pandoc_markdown": "tmp/pdfs/docker-webui-install/docker-webui-install.pandoc.md",
   "pandoc_header": "tmp/pdfs/docker-webui-install/docker-webui-install-header.tex",
   "pdf_layout": "portrait_ebook",
-  "pdf_pages": 11,
+  "pdf_pages": 10,
   "pdf_page_size_pts": {
     "width": 612,
     "height": 792
   },
-  "rendered_pages": 11,
+  "rendered_pages": 10,
   "rendered_dir": "tmp/pdfs/docker-webui-install/rendered",
-  "html_bytes": 22595,
-  "guide_steps": 10,
+  "html_bytes": 16602,
+  "guide_steps": 7,
   "screenshot_assets": [
     {
       "step": "open-browser",
@@ -27,14 +27,6 @@
       "height": 1000
     },
     {
-      "step": "start-using",
-      "file": "docs/delivery/user-guides/docker-webui-install/assets/02-first-run-overview.png",
-      "public_file": "assets/02-first-run-overview.png",
-      "sha256": "7a279973e187e1943a97e022035d34e19c342733c6929502d748fcb67e684621",
-      "width": 1179,
-      "height": 964
-    },
-    {
       "step": "configure-access-key",
       "file": "docs/delivery/user-guides/docker-webui-install/assets/03-access-key-config.png",
       "public_file": "assets/03-access-key-config.png",
@@ -43,7 +35,15 @@
       "height": 1000
     },
     {
-      "step": "settings-access-entry",
+      "step": "data-and-projects",
+      "file": "docs/delivery/user-guides/docker-webui-install/assets/02-first-run-overview.png",
+      "public_file": "assets/02-first-run-overview.png",
+      "sha256": "7a279973e187e1943a97e022035d34e19c342733c6929502d748fcb67e684621",
+      "width": 1179,
+      "height": 964
+    },
+    {
+      "step": "update-and-reopen",
       "file": "docs/delivery/user-guides/docker-webui-install/assets/04-settings-entry.png",
       "public_file": "assets/04-settings-entry.png",
       "sha256": "308183694bde108e752105b609ef83f79dba206fa464caeb04cad340bc339e2c",
@@ -54,7 +54,7 @@
   "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
   "support_reference_url": "https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md",
   "required_terms": [
-    "One Person Lab Docker/WebUI 新手安装教程",
+    "One Person Lab Docker/WebUI 一键安装教程",
     "macOS",
     "DMG",
     "Homebrew",

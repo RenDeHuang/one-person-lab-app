@@ -162,6 +162,49 @@ function validateInstallerSurfaces(policy) {
     throw new Error('App first-run install exposure must hide skill/plugin packaging mechanics by default');
   }
   const dockerWebui = installerSurfaces.get('docker_webui');
+  if (dockerWebui?.entrypoint !== 'Docker/WebUI one-click installer') {
+    throw new Error('Docker/WebUI install exposure must make the one-click installer the entrypoint');
+  }
+  if (dockerWebui.exposure_policy !== 'one_click_installer_is_beginner_default_with_manual_docker_as_advanced_troubleshooting_path') {
+    throw new Error('Docker/WebUI install exposure must keep manual Docker commands as the advanced troubleshooting path');
+  }
+  if (dockerWebui.installer_model?.primary_user_path !== 'one_click_installer') {
+    throw new Error('Docker/WebUI install exposure must declare one-click installer as the primary user path');
+  }
+  if (dockerWebui.installer_model?.linux_macos_shell_script !== 'install-docker-webui.sh') {
+    throw new Error('Docker/WebUI install exposure must declare the Linux/macOS shell installer script artifact');
+  }
+  if (dockerWebui.installer_model?.windows_powershell_script !== 'Install-DockerWebUI.ps1') {
+    throw new Error('Docker/WebUI install exposure must declare the Windows PowerShell installer script artifact');
+  }
+  if (dockerWebui.installer_model?.compose_file !== 'compose.yaml') {
+    throw new Error('Docker/WebUI install exposure must declare compose.yaml as the one-click installer compose artifact');
+  }
+  assertIncludesAll(
+    dockerWebui.installer_model?.persistent_host_dirs,
+    ['OnePersonLab/data', 'OnePersonLab/projects'],
+    'Docker/WebUI persistent host dirs',
+  );
+  if (dockerWebui.installer_model?.container_mounts?.data !== '/data') {
+    throw new Error('Docker/WebUI install exposure must map host data dir to /data');
+  }
+  if (dockerWebui.installer_model?.container_mounts?.projects !== '/projects') {
+    throw new Error('Docker/WebUI install exposure must map host projects dir to /projects');
+  }
+  if (dockerWebui.installer_model?.api_key_policy !== 'never_pass_api_key_on_cli_or_environment_for_beginner_path') {
+    throw new Error('Docker/WebUI install exposure must forbid API keys in beginner CLI/env installer inputs');
+  }
+  if (dockerWebui.installer_model?.api_key_entry_surface !== 'browser_webui_first_run_access_panel_or_settings_access') {
+    throw new Error('Docker/WebUI install exposure must make WebUI the first API key entry surface');
+  }
+  if (dockerWebui.installer_model?.manual_docker_fallback !== 'advanced_troubleshooting_path_only') {
+    throw new Error('Docker/WebUI install exposure must keep manual Docker as an advanced fallback only');
+  }
+  assertIncludesAll(
+    dockerWebui.installer_model?.manual_fallback_forms,
+    ['docker run', 'docker compose'],
+    'Docker/WebUI manual fallback forms',
+  );
   if (dockerWebui?.runtime_distribution_model?.container_role !== 'preheated_webui_runtime_image') {
     throw new Error('Docker/WebUI install exposure must declare the preheated WebUI runtime image model');
   }

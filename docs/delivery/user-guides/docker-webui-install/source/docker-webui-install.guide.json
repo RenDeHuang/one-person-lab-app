@@ -1,15 +1,15 @@
 {
   "schema": "opl_docker_webui_user_guide.v1",
   "id": "docker-webui-install",
-  "title": "One Person Lab Docker/WebUI 新手安装教程",
-  "short_title": "Linux / Windows 安装",
+  "title": "One Person Lab Docker/WebUI 一键安装教程",
+  "short_title": "Linux / Windows 一键安装",
   "owner": "one-person-lab-app",
   "purpose": "docker_webui_install_user_guide_source",
   "state": "active",
-  "machine_boundary": "Human-readable Docker/WebUI user guide source. App release contracts, GHCR publish receipts, shell Dockerfile, WebUI backend behavior, and live container smoke remain the machine truth.",
+  "machine_boundary": "Human-readable Docker/WebUI user guide source. App install contracts, release artifacts, GHCR publish receipts, shell Dockerfile, WebUI backend behavior, and live container smoke remain the machine truth.",
   "audience": "Linux、Windows 或服务器用户；默认没有 Docker 经验。",
-  "intro": "macOS 用户可以继续使用 DMG、一键安装、Homebrew 或 Docker；Linux 和 Windows 用户从本教程开始，通过浏览器打开 One Person Lab。",
-  "security_notice": "Docker/WebUI 默认会自动完成本机浏览器登录，不需要手动输入用户名和密码。如果要让别人通过网络访问这台电脑上的 WebUI，请先让技术支持配置内网、反向代理、TLS 和访问控制。访问密钥、登录密码和研究数据不要写入公开文档或截图。",
+  "intro": "新手主路径是运行 One Person Lab 提供的一键安装器，然后在浏览器里完成首次配置。手动 Docker 命令只作为排障或高级部署路径保留。",
+  "security_notice": "不要把访问密钥写进终端命令、环境变量、截图或公开文档。一键安装器只准备 Docker/WebUI、compose.yaml、数据目录和项目目录；模型/API 访问密钥在浏览器 WebUI 的首启访问页或 Settings -> Access 里填写。",
   "download": {
     "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
     "local_image": "one-person-lab-webui:latest",
@@ -19,301 +19,211 @@
     "docker_engine_ubuntu_url": "https://docs.docker.com/engine/install/ubuntu/"
   },
   "cover": {
-    "description": "按 Windows 安装 Docker Desktop、Linux 终端安装 Docker、启动 One Person Lab WebUI、打开浏览器自动进入工作台的顺序说明。"
+    "description": "按系统选择一键安装命令，打开浏览器，填写访问密钥，理解数据目录、更新和高级 Docker 排障路径。"
   },
   "prepare_checklist": [
-    "一台 Windows 10/11、Ubuntu Linux 或 Linux 服务器。",
-    "稳定网络，用于安装 Docker 和下载 One Person Lab WebUI 镜像。",
-    "如果是 Windows，先确认电脑可以启用 WSL 2 和虚拟化；普通个人电脑优先使用 Docker Desktop。",
-    "如果是 Linux，准备一个可以使用 `sudo` 的账号。",
-    "如果需要模型访问，联系管理员获取访问密钥；不要把密钥发到群里或写进截图。",
-    "准备一个固定的本机目录保存数据和项目：Windows 使用 `C:\\Users\\你的用户名\\OnePersonLab`，Linux 使用 `~/OnePersonLab`。"
+    "一台 Windows 10/11、Ubuntu Linux、Linux 服务器或可运行 Docker 的 macOS 机器。",
+    "Windows 用户先安装并启动 Docker Desktop；Linux 服务器由管理员确认 Docker Engine 可用。",
+    "稳定网络，用于下载 Docker/WebUI 镜像和运行时组件。",
+    "准备固定保存目录：Windows 默认 `%USERPROFILE%\\OnePersonLab`，Linux/macOS 默认 `$HOME/OnePersonLab`。",
+    "准备管理员提供的模型/API 访问密钥；密钥稍后只在浏览器 WebUI 里填写，不放进命令行。"
   ],
   "steps": [
     {
       "id": "choose-system",
-      "title": "1. 先看你是哪种电脑",
-      "subtitle": "Windows 走 Docker Desktop；Linux 走终端命令；macOS 继续看 macOS 教程。",
-      "body": "如果你面前是 Windows 电脑，先安装 Docker Desktop，再在 PowerShell 里启动 One Person Lab。如果你面前是 Ubuntu Linux 或 Linux 服务器，直接在终端里安装 Docker 并启动 WebUI。macOS 用户仍然优先看 macOS App 图文教程。",
-      "visual_title": "入口选择",
+      "title": "1. 选择你的系统",
+      "subtitle": "Windows 用 PowerShell；Linux 和 macOS 用终端 shell。",
+      "body": "先确认你要在哪台机器上运行 WebUI。本机 Windows 用户打开 PowerShell；Linux、macOS 或服务器用户打开 Terminal/终端。Windows 需要 Docker Desktop 已经启动，Linux 服务器需要 Docker Engine 已经可用。macOS 桌面新手仍优先使用 DMG、Homebrew 或 macOS App 一键安装；Docker/WebUI 更适合服务器、跨平台 WebUI 或需要容器部署的用户。",
+      "visual_title": "系统入口",
       "visual_lines": [
-        "Windows 10/11 -> 安装 Docker Desktop -> PowerShell 启动 OPL",
-        "Ubuntu Linux / Linux 服务器 -> 终端安装 Docker -> 终端启动 OPL",
-        "macOS -> DMG / 一键安装 / Homebrew / Docker"
+        "Windows -> PowerShell -> 一键 PowerShell 安装器",
+        "Linux / macOS / Server -> Terminal -> 一键 shell 安装器",
+        "macOS 桌面新手 -> DMG / Homebrew / macOS App 一键安装",
+        "所有 Docker/WebUI 路径最后都打开 http://localhost:3000/"
       ],
       "callouts": [
-        "Windows 新手不要先打开 Linux 命令；先装 Docker Desktop。",
-        "Linux 用户重点是复制终端命令运行。",
-        "所有系统最后都在浏览器打开 `http://localhost:3000/`。"
+        "不要先复制手动 docker run；新手主路径是一键安装器。",
+        "Windows 如果看不到 Docker running，先打开 Docker Desktop。",
+        "服务器对外访问需要管理员配置域名、TLS、反向代理和访问控制。"
       ],
       "notes": [
-        "如果你不确定自己的系统，Windows 左下角有开始菜单；Ubuntu/Linux 通常会使用 Terminal/终端。",
-        "本教程只覆盖非 macOS 的 Docker/WebUI 路径。"
+        "本教程描述 repo 合同和安装 artifact 形态，不声明公开 GHCR latest 或一键脚本已经线上发布。",
+        "Docker/WebUI 是浏览器入口，不替代 macOS 桌面 App 的普通安装路径。"
       ]
     },
     {
-      "id": "windows-install-docker",
-      "title": "2A. Windows：安装 Docker Desktop",
-      "subtitle": "下载 Docker Desktop，安装时保留 WSL 2 选项，安装后启动它。",
-      "body": "打开 Docker 官方 Windows 安装页面，下载 Docker Desktop Installer。双击安装器，普通个人电脑选择推荐的 per-user 安装；看到 WSL 2 相关选项时保持启用。安装完成后，从开始菜单打开 Docker Desktop，等它显示正在运行。",
-      "visual_title": "Windows 要做的事",
+      "id": "run-one-click-installer",
+      "title": "2. 运行一键安装器",
+      "subtitle": "一条命令创建数据目录、项目目录和 compose.yaml，然后启动 WebUI。",
+      "body": "一键安装器负责创建 `OnePersonLab/data`、`OnePersonLab/projects` 和 `compose.yaml`，再用 Docker Compose 启动 WebUI。它不会询问或接收模型/API 访问密钥。下面的命令是 repo artifact 合同中的目标形态：Linux/macOS 使用 shell 脚本，Windows 使用 PowerShell 脚本。",
+      "visual_title": "一键命令",
       "visual_lines": [
-        "1. 打开 Docker Desktop for Windows 下载页",
-        "2. 下载并双击 Docker Desktop Installer.exe",
-        "3. 保持 WSL 2 backend / Use WSL 2 选项启用",
-        "4. 安装完成后打开 Docker Desktop"
+        "Linux / macOS:",
+        "sh ./install-docker-webui.sh",
+        "",
+        "Windows PowerShell:",
+        "powershell -ExecutionPolicy Bypass -File .\\Install-DockerWebUI.ps1",
+        "",
+        "安装器输出:",
+        "OnePersonLab/data -> 容器 /data",
+        "OnePersonLab/projects -> 容器 /projects",
+        "compose.yaml -> Docker Compose 启动定义",
+        "浏览器地址 -> http://localhost:3000/"
       ],
       "callouts": [
-        "新手优先选择 Docker Desktop，不需要理解 Docker 内部结构。",
-        "Docker Desktop 窗口打开并显示运行后，再继续下一步。",
-        "如果提示 WSL 2 或虚拟化未启用，按 Docker Desktop 的提示修复或请技术支持处理。"
+        "访问密钥不出现在命令行，也不写进 compose.yaml。",
+        "如果一键安装器提示 Docker 不可用，先修复 Docker Desktop 或 Docker Engine。",
+        "终端窗口或 compose 服务保持运行时，浏览器才能访问 WebUI。"
       ],
       "notes": [
-        "Docker 官方文档建议多数用户使用 per-user 安装；该模式使用 WSL 2 backend。",
-        "Windows Server 不是 Docker Desktop 的普通支持场景；服务器由技术支持单独部署。"
+        "合同要求 Linux/macOS shell 脚本、Windows PowerShell 脚本和 `compose.yaml` 共同构成 one-click installer model。",
+        "本指南只声明 repo artifact/contract；真实公开可用性以 release artifact、GHCR publish receipt 和 live smoke 为准。"
       ]
     },
     {
-      "id": "windows-run-opl",
-      "title": "3A. Windows：启动 One Person Lab",
-      "subtitle": "打开 PowerShell，复制一条命令启动 WebUI。",
-      "body": "Docker Desktop 正在运行后，打开 PowerShell。先创建 One Person Lab 的本机保存目录，再运行 WebUI。即使电脑里还没有 `OnePersonLab` 文件夹，下面两行 `New-Item` 也会自动创建 `data` 和 `projects` 子目录。第一次运行会下载预热好的 One Person Lab WebUI 镜像，可能需要几分钟。看到终端持续输出日志时，不要关闭这个窗口。",
-      "visual_title": "PowerShell 命令",
+      "id": "open-browser",
+      "title": "3. 打开浏览器",
+      "subtitle": "访问本机地址，进入 One Person Lab WebUI。",
+      "body": "安装器启动成功后，打开 Chrome、Edge、Safari 或 Firefox，在地址栏输入 `http://localhost:3000/`。如果部署在服务器上，使用管理员提供的 https 地址。Docker/WebUI 会自动配置本机浏览器会话；新手不需要输入 WebUI 用户名或密码。",
+      "asset": "01-browser-open-webui.png",
+      "visual_title": "浏览器地址",
       "visual_lines": [
-        "New-Item -ItemType Directory -Force \"$env:USERPROFILE\\OnePersonLab\\data\"",
-        "New-Item -ItemType Directory -Force \"$env:USERPROFILE\\OnePersonLab\\projects\"",
-        "docker run --rm -p 3000:3000 `",
-        "  -v \"$env:USERPROFILE\\OnePersonLab\\data:/data\" `",
-        "  -v \"$env:USERPROFILE\\OnePersonLab\\projects:/projects\" `",
-        "  -e AIONUI_ALLOW_REMOTE=true `",
-        "  -e AIONUI_DATA_DIR=/data `",
-        "  -e OPL_PROJECTS_DIR=/projects `",
-        "  ghcr.io/gaofeng21cn/one-person-lab-webui:latest"
+        "本机电脑：http://localhost:3000/",
+        "服务器：使用管理员提供的 https 地址",
+        "正常情况：直接进入 One Person Lab WebUI"
       ],
       "callouts": [
-        "这个窗口就是 One Person Lab WebUI 的运行窗口。",
-        "窗口关掉后 WebUI 会停止；重新运行同一条命令即可再次打开。",
-        "如果 `C:\\Users\\你的用户名\\OnePersonLab` 原本不存在，命令会自动创建。",
-        "`OnePersonLab\\data` 保存配置、登录会话、对话历史、SQLite、日志和缓存。",
-        "`OnePersonLab\\projects` 保存你的项目文件；在界面里选择项目目录时，从 `/projects` 里选择。"
+        "地址输入到浏览器地址栏，不是在搜索框里搜索。",
+        "如果页面打不开，先看安装器/compose/Docker 窗口是否仍在运行。",
+        "如果看到登录页，不要猜用户名密码；先刷新，再重启 WebUI。"
       ],
       "notes": [
-        "如果提示 `docker` 命令不存在，先确认 Docker Desktop 已启动，再重新打开 PowerShell。",
-        "如果下载镜像很慢，先换网络或请技术支持确认 GitHub/GHCR 是否可访问。",
-        "收到 WebUI/Docker 镜像更新通知时，可以拉取新镜像并重新运行这条命令；`OnePersonLab` 目录里的数据和项目不会因为替换容器而丢失。"
+        "截图来自本机 Docker 容器运行的 WebUI，浏览器已自动进入界面。",
+        "不同版本的首屏可能略有变化，但浏览器入口保持一致。"
       ]
     },
     {
-      "id": "linux-install-docker",
-      "title": "2B. Linux：安装 Docker",
-      "subtitle": "Ubuntu 用户在终端复制安装命令；其他 Linux 发行版请让技术支持按 Docker 官方文档安装。",
-      "body": "在 Ubuntu 上打开 Terminal/终端，先安装 Docker Engine。下面是官方 apt repository 路线的简化命令，适合新机器首次安装。每一行都可以复制到终端执行。",
-      "visual_title": "Ubuntu 安装命令",
+      "id": "configure-access-key",
+      "title": "4. 在 WebUI 里填写访问密钥",
+      "subtitle": "模型/API 访问密钥只在浏览器里的访问配置页填写。",
+      "body": "首次进入后，如果页面提示访问配置未完成，联系管理员获取模型/API 访问密钥。拿到密钥后，在首启访问页的输入框里粘贴并保存；之后也可以从 Settings -> Access 进入同一个配置面。这个密钥不是 WebUI 登录密码，也不应该出现在终端命令里。",
+      "asset": "03-access-key-config.png",
+      "visual_title": "访问密钥配置",
       "visual_lines": [
-        "sudo apt update",
-        "sudo apt install ca-certificates curl",
-        "sudo install -m 0755 -d /etc/apt/keyrings",
-        "sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc",
-        "sudo chmod a+r /etc/apt/keyrings/docker.asc",
-        "sudo apt update",
-        "sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
+        "1. 打开首启检查或 Settings -> Access",
+        "2. 在访问密钥输入框粘贴管理员提供的密钥",
+        "3. 点击保存或完成配置",
+        "4. 配置通过后进入 One Person Lab"
       ],
       "callouts": [
-        "终端要求输入密码时，输入电脑登录密码；输入时屏幕可能不显示字符，这是正常的。",
-        "安装完成后用 `sudo docker run hello-world` 验证 Docker 可用。",
-        "如果不是 Ubuntu，不要硬套这段命令，请按 Docker 官方对应系统文档安装。"
+        "不要把真实密钥写进聊天、截图、脚本、compose.yaml 或 shell 历史。",
+        "密钥保存到本机 `OnePersonLab/data` 对应的 WebUI 数据目录。",
+        "以后要更换密钥，从 Settings -> Access 处理。"
       ],
       "notes": [
-        "Docker 官方 Ubuntu 文档要求先配置 apt repository，再安装 Docker packages。",
-        "如果 `sudo docker run hello-world` 成功，说明 Docker 已经可以运行容器。"
+        "WebUI-first key entry 是 Docker/WebUI 新手路径的安全边界。",
+        "如果管理员要求使用组织代理、域名或 TLS，按组织部署说明处理。"
       ]
     },
     {
-      "id": "linux-run-opl",
-      "title": "3B. Linux：启动 One Person Lab",
-      "subtitle": "Docker 可用后，在终端复制一条命令启动 WebUI。",
-      "body": "Docker 安装完成后，在终端先创建 One Person Lab 的本机保存目录，再启动 WebUI。即使 Home 目录下还没有 `OnePersonLab` 文件夹，`mkdir -p` 也会自动创建 `data` 和 `projects` 子目录。第一次运行会下载预热好的 One Person Lab WebUI 镜像。看到日志持续输出后，保持终端窗口打开。",
-      "visual_title": "Linux 终端命令",
+      "id": "data-and-projects",
+      "title": "5. 理解数据目录和项目目录",
+      "subtitle": "数据保存在主机目录里，不靠容器本身保存。",
+      "body": "一键安装器会把主机上的 `OnePersonLab/data` 挂载到容器 `/data`，把 `OnePersonLab/projects` 挂载到容器 `/projects`。`data` 保存 WebUI 配置、登录会话、访问配置、运行维护记录、日志和缓存；`projects` 保存你的项目文件。升级、重建或替换容器时，不要删除这两个主机目录。",
+      "asset": "02-first-run-overview.png",
+      "visual_title": "持久化目录",
       "visual_lines": [
-        "mkdir -p \"$HOME/OnePersonLab/data\" \"$HOME/OnePersonLab/projects\"",
-        "sudo docker run --rm -p 3000:3000 \\",
+        "Windows: %USERPROFILE%\\OnePersonLab\\data -> /data",
+        "Windows: %USERPROFILE%\\OnePersonLab\\projects -> /projects",
+        "Linux/macOS: $HOME/OnePersonLab/data -> /data",
+        "Linux/macOS: $HOME/OnePersonLab/projects -> /projects"
+      ],
+      "callouts": [
+        "`OnePersonLab/data` 是 WebUI 内部状态，不要随手删除。",
+        "`OnePersonLab/projects` 是项目文件位置，长期项目建议放这里。",
+        "容器可以替换；数据目录和项目目录才是用户状态。"
+      ],
+      "notes": [
+        "合同固定容器内 `/data` 和 `/projects` 两个挂载点。",
+        "WebUI 里的目录选择应从 `/projects` 开始找项目文件。"
+      ]
+    },
+    {
+      "id": "update-and-reopen",
+      "title": "6. 下次打开、关闭和更新",
+      "subtitle": "再次运行 compose 或安装器即可；更新不会要求重新输入命令行密钥。",
+      "body": "日常使用时，先启动 Docker Desktop 或确认 Docker Engine 正常，再用安装器生成的 compose 入口启动 WebUI，浏览器访问 `http://localhost:3000/`。不用时停止 compose 服务。收到更新通知时，更新入口镜像或重新运行一键安装器生成的 compose 流程；只要保留 `OnePersonLab/data` 和 `OnePersonLab/projects`，配置和项目会继续保留。",
+      "asset": "04-settings-entry.png",
+      "visual_title": "日常维护",
+      "visual_lines": [
+        "打开：启动 Docker Desktop / Docker Engine",
+        "启动：使用安装器生成的 compose.yaml",
+        "访问：http://localhost:3000/",
+        "关闭：停止 compose 服务",
+        "更新：拉取新 WebUI 镜像或重新运行一键安装器",
+        "保留：OnePersonLab/data 和 OnePersonLab/projects"
+      ],
+      "callouts": [
+        "镜像更新主要更新 WebUI 外壳、启动器、bootstrap、基础系统层和预热内容。",
+        "OPL Framework、Codex CLI、模块和维护状态以 WebUI 进入后的 OPL 维护结果为准。",
+        "不要把测试通过或文档生成当成线上 latest 已发布的证明。"
+      ],
+      "notes": [
+        "真实 release/currentness 需要 release workflow、GHCR publish receipt 和 live smoke 证明。",
+        "本教程只给普通用户解释该怎么安全进入和维护 WebUI。"
+      ]
+    },
+    {
+      "id": "advanced-manual-docker",
+      "title": "7. 高级路径：手动 Docker 排障",
+      "subtitle": "只有一键安装器不可用或需要技术支持排障时才使用。",
+      "body": "手动 `docker run` 和 `docker compose` 不是新手主路径。它们保留给技术支持确认镜像、端口、挂载和环境变量。手动命令也不能携带模型/API 访问密钥；密钥仍然只在 WebUI 里填写。",
+      "visual_title": "手动 Docker 参考",
+      "visual_lines": [
+        "docker run --rm -p 3000:3000 \\",
         "  -v \"$HOME/OnePersonLab/data:/data\" \\",
         "  -v \"$HOME/OnePersonLab/projects:/projects\" \\",
         "  -e AIONUI_ALLOW_REMOTE=true \\",
         "  -e AIONUI_DATA_DIR=/data \\",
         "  -e OPL_PROJECTS_DIR=/projects \\",
-        "  ghcr.io/gaofeng21cn/one-person-lab-webui:latest"
+        "  {image}",
+        "",
+        "compose.yaml 也必须保留 /data、/projects 和浏览器 WebUI-first key entry 边界。"
       ],
       "callouts": [
-        "本机使用时，浏览器访问 `http://localhost:3000/`。",
-        "服务器使用时，技术支持应配置服务器地址、反向代理和访问控制。",
-        "不要关闭运行命令的终端窗口；关闭后 WebUI 会停止。",
-        "如果 `~/OnePersonLab` 原本不存在，`mkdir -p` 会自动创建。",
-        "`~/OnePersonLab/data` 保存配置、登录会话、对话历史、SQLite、日志和缓存。",
-        "`~/OnePersonLab/projects` 保存你的项目文件；在界面里选择项目目录时，从 `/projects` 里选择。"
+        "手动命令只用于排障、服务器高级部署或技术支持接管。",
+        "不要在 `docker run`、compose environment 或 shell history 中写访问密钥。",
+        "如果端口 3000 被占用，由技术支持调整端口映射和访问地址。"
       ],
       "notes": [
-        "如果你已经配置了 Docker 非 root 用户，也可以去掉命令开头的 `sudo`。",
-        "需要后台长期运行时，请让技术支持改成 Docker Compose 或系统服务。",
-        "收到 WebUI/Docker 镜像更新通知时，可以拉取新镜像并重新运行这条命令；`~/OnePersonLab` 目录里的数据和项目不会因为替换容器而丢失。"
-      ]
-    },
-    {
-      "id": "open-browser",
-      "title": "4. 打开浏览器访问 WebUI",
-      "subtitle": "浏览器会自动进入 One Person Lab，不需要输入用户名和密码。",
-      "body": "打开 Chrome、Edge 或 Firefox，在地址栏输入 `http://localhost:3000/`。如果是在服务器上部署，请输入技术支持给你的服务器访问地址。Docker/WebUI 会自动完成登录配置；正常情况下你会直接看到 One Person Lab 的工作台或启动检查页面。",
-      "asset": "01-browser-open-webui.png",
-      "visual_title": "浏览器地址和自动进入",
-      "visual_lines": [
-        "本机电脑：http://localhost:3000/",
-        "服务器：使用技术支持提供的 https 地址",
-        "正常情况：不需要输入用户名/密码，直接进入 One Person Lab"
-      ],
-      "callouts": [
-        "地址要输入到浏览器地址栏，不是搜索框里的关键词。",
-        "如果页面打不开，先确认 Docker/终端窗口还在运行。",
-        "如果看到登录页，不要自己猜用户名密码；先刷新一次，仍不行就重启容器或联系技术支持。"
-      ],
-      "notes": [
-        "截图来自本机 Docker 容器运行的 WebUI，浏览器已自动进入界面。",
-        "本教程截图统一使用中文界面；如果你的浏览器显示其他语言，可在设置里切换为中文。"
-      ]
-    },
-    {
-      "id": "start-using",
-      "title": "5. 看到首启检查页",
-      "subtitle": "看到侧边栏和“准备开始使用”，说明已经进入 One Person Lab。",
-      "body": "浏览器进入 One Person Lab 后，会先看到首启检查页。页面会检查工作目录、本机助手和访问权限。这里不需要输入 WebUI 用户名或密码；如果访问权限还没配置，继续下一步填写访问密钥。",
-      "asset": "02-first-run-overview.png",
-      "visual_title": "自动登录后的首启检查页",
-      "visual_lines": [
-        "1. 浏览器进入 One Person Lab",
-        "2. 页面显示侧边栏、设置、退出登录和首启检查",
-        "3. 工作目录和本机助手就绪后，检查访问权限",
-        "4. 保持 Docker/终端窗口运行"
-      ],
-      "callouts": [
-        "看到“退出登录”说明浏览器已经处于登录状态。",
-        "不需要手动输入 WebUI 用户名和密码。",
-        "模型访问密钥和 WebUI 登录不是一回事；如果界面后续要求配置模型，按管理员提供的信息填写。"
-      ],
-      "notes": [
-        "截图来自 Docker/WebUI 自动登录后的真实浏览器页面。",
-        "实际 WebUI 页面会随版本、启动检查状态和语言设置略有不同。"
-      ]
-    },
-    {
-      "id": "configure-access-key",
-      "title": "6. 配置访问密钥",
-      "subtitle": "把管理员提供的访问密钥粘贴到输入框，然后点击“完成配置”。",
-      "body": "如果首启检查页提示“访问权限”需要处理，请联系管理员获取访问密钥。拿到密钥后，粘贴到“输入访问密钥”输入框，点击“完成配置”。访问密钥用于模型访问配置，不是 WebUI 登录密码，也不要把密钥写进聊天、文档或截图。",
-      "asset": "03-access-key-config.png",
-      "visual_title": "首启页中的访问密钥配置入口",
-      "visual_lines": [
-        "1. 找到“访问权限”这一项",
-        "2. 在“输入访问密钥”里粘贴管理员提供的密钥",
-        "3. 点击“完成配置”",
-        "4. 页面检查通过后，点击“进入 OPL”开始使用"
-      ],
-      "callouts": [
-        "这是模型访问密钥，不是 WebUI 用户名密码。",
-        "密钥只需要填写一次；后续配置会保存在本机 `OnePersonLab/data`。",
-        "不要在截图里展示真实密钥。"
-      ],
-      "notes": [
-        "截图来自干净 Docker 数据目录首次启动后的真实中文 WebUI。",
-        "如果之后需要重新检查访问配置，可以从左侧“设置”进入“访问”。"
-      ]
-    },
-    {
-      "id": "settings-access-entry",
-      "title": "7. 以后从设置进入访问配置",
-      "subtitle": "如果以后要检查访问密钥或本机运行权限，从左侧“设置”进入“访问”。",
-      "body": "首次配置完成后，日常一般不需要反复填写访问密钥。如果需要重新检查访问状态，点击左侧“设置”，在设置页里选择“访问”，就能看到 Codex CLI、访问密钥、本机后台服务和权限模式的状态。",
-      "asset": "04-settings-entry.png",
-      "visual_title": "设置页中的访问入口",
-      "visual_lines": [
-        "1. 点击左侧“设置”",
-        "2. 在设置页找到“访问”",
-        "3. 点击“访问”查看访问密钥和本机权限状态"
-      ],
-      "callouts": [
-        "这是后续检查入口，不是首次启动必须步骤。",
-        "真实访问密钥不要展示在截图或文档里。",
-        "如果访问状态显示需要处理，联系管理员确认密钥是否有效。"
-      ],
-      "notes": [
-        "截图来自同一个干净 Docker WebUI 环境。",
-        "不同版本的设置项位置可能略有调整，但入口名称保持为“访问”。"
-      ]
-    },
-    {
-      "id": "daily-use",
-      "title": "8. 下次怎么打开和关闭",
-      "subtitle": "重新运行启动命令即可再次打开；保留 `OnePersonLab` 目录就能保留数据和项目。",
-      "body": "下次使用时，先打开 Docker Desktop 或确认 Linux Docker 服务正在运行，然后重新运行启动 One Person Lab 的命令，再用浏览器访问 `http://localhost:3000/`。不用时可以在终端按 Ctrl+C 停止。进入 WebUI 以后，运行环境、模块和访问配置主要由 One Person Lab 自己的启动检查和维护功能处理；收到 WebUI/Docker 镜像更新通知时，再拉取最新镜像并用同样的挂载命令启动。不要删除本机 `OnePersonLab` 目录。",
-      "visual_title": "日常使用",
-      "visual_lines": [
-        "打开：运行同一条 docker run 命令",
-        "访问：浏览器打开 http://localhost:3000/",
-        "关闭：终端按 Ctrl+C",
-        "保留：不要删除本机 OnePersonLab/data 和 OnePersonLab/projects",
-        "模块维护：在 WebUI 中按提示完成启动检查和更新维护",
-        "入口镜像更新：收到通知时 docker pull ghcr.io/gaofeng21cn/one-person-lab-webui:latest 后重新运行启动命令",
-        "版本口径：latest/stable 是普通用户入口；带 -slim 的版本只给开发和 CI 使用"
-      ],
-      "callouts": [
-        "`OnePersonLab/data` 是 WebUI 内部数据保存位置，不要随便删除。",
-        "`OnePersonLab/projects` 是项目文件保存位置，建议把长期项目都放在这里。",
-        "运行环境、Codex 配置和模块维护主要通过 WebUI 进入后的 OPL 维护机制完成。",
-        "更新入口镜像时，只要挂载目录不变，数据和项目会继续保留。",
-        "镜像更新主要用于更新 WebUI 外壳、启动器、bundled AionCore、bootstrap 脚本和基础系统层。",
-        "正式服务器部署请交给技术支持配置长期运行。"
-      ],
-      "notes": [
-        "这份教程面向新手日常使用，不展开 Docker 内部概念。",
-        "Docker/WebUI 镜像不是静态全家桶，也不是纯裸 Linux；它是预热好的 WebUI 运行镜像，内含 WebUI、AionCore、启动器、OPL bootstrap 和镜像清单。",
-        "新手教程默认使用 `latest`，它对应预热的 `webui-full` 镜像；`-slim` 镜像只给开发和 CI 使用，不作为普通安装入口。",
-        "首次初始化和后续运行会把 OPL Framework、Codex CLI、访问配置、会话历史、日志、缓存和维护记录等写入本机挂载的 `OnePersonLab/data`。",
-        "持久化在 `OnePersonLab/data` 里的运行环境和模块，以 WebUI 首启检查、运行状态和后续 OPL 维护动作的结果为准；镜像内的预热内容用于更快补齐首启环境。",
-        "Docker/WebUI 的发布真相仍以 App release workflow、GHCR publish summary 和 contracts 为准。"
+        "Docker 官方安装细节仍以 Docker 文档为准；本教程不复刻 Docker 官方文档。",
+        "手动 fallback 不改变合同：新手主路径仍是一键安装器，密钥仍然 WebUI-first。"
       ]
     }
   ],
   "faqs": [
-    "Windows 上找不到 Docker 命令：先启动 Docker Desktop，等它显示 running，再重新打开 PowerShell。",
-    "Windows 提示 WSL 2 或虚拟化问题：按 Docker Desktop 提示启用 WSL 2 / virtualization，或让技术支持处理。",
-    "Linux 上 `docker` 权限不够：先用 `sudo docker ...`；后续是否配置非 root 用户由技术支持决定。",
-    "镜像下载很慢或失败：换网络，或让技术支持确认 GHCR 是否可访问。",
-    "浏览器打不开 `localhost:3000`：确认启动命令窗口还在运行，且没有其他程序占用 3000 端口。",
+    "一键安装器做什么：创建 `OnePersonLab/data`、`OnePersonLab/projects` 和 `compose.yaml`，然后启动 Docker/WebUI。",
+    "为什么不在命令里传访问密钥：命令行、环境变量和 shell 历史容易泄露；密钥必须在浏览器 WebUI 的访问配置里填写。",
+    "Windows 找不到 Docker：先启动 Docker Desktop，等它显示 running，再重新运行 PowerShell 安装器。",
+    "Linux 上 Docker 权限不够：让管理员确认 Docker Engine 和当前用户权限；临时排障可由管理员使用 `sudo`。",
+    "浏览器打不开 `localhost:3000`：确认 compose 服务仍在运行，3000 端口没有被占用，Docker 容器没有退出。",
     "服务器给别人访问：不要直接裸露端口，请配置 TLS、域名、反向代理和访问控制。",
-    "看到登录页怎么办：先刷新浏览器；仍然停在登录页时，回到终端按 Ctrl+C 停止，再重新运行启动命令。如果还是不行，联系技术支持。",
-    "为什么不用输入用户名密码：Docker/WebUI 启动时会自动配置本机浏览器会话，新手只需要打开浏览器访问地址。",
-    "配置、登录会话和对话历史保存在哪里：都在本机 `OnePersonLab/data`，容器内对应 `/data`。",
-    "项目文件保存在哪里：建议都放在本机 `OnePersonLab/projects`，容器内对应 `/projects`。在界面里选择项目目录时，从 `/projects` 下选择。",
-    "新机器没有 `OnePersonLab` 目录怎么办：按教程命令运行即可，Windows 的 `New-Item -Force` 和 Linux 的 `mkdir -p` 会创建目录；Docker 挂载和 WebUI 启动也会继续创建内部子目录。",
-    "访问密钥在哪里填：首次打开后看“准备开始使用”页面，在“访问权限”区域的“输入访问密钥”里填写，然后点击“完成配置”。",
-    "这个 Docker 镜像是不是完整全家桶：不能按静态全家桶理解。它是预热好的 WebUI 运行镜像，包含 WebUI、AionCore、本机启动器、OPL bootstrap 和镜像清单；OPL Framework、Codex CLI、companion skills、访问配置、会话历史和缓存会在首次初始化或运行维护过程中写入本机 `OnePersonLab/data`。",
-    "我应该用 full 还是 slim 镜像：新手只使用教程里的 `latest`，它会指向预热的 full 镜像。`-slim` 是开发和 CI 变体，不会被标记为 `stable` 或 `latest`。",
-    "是不是可以只靠 WebUI 维护模块：大体可以这样理解。进入 WebUI 后，运行环境、模块和 Codex 配置主要通过 OPL 自己的启动检查、维护和更新动作处理，数据保存在 `OnePersonLab/data`。但镜像仍然建议在收到通知时更新，因为 WebUI 外壳、启动器、bundled AionCore、bootstrap 脚本、预热内容和基础系统层属于镜像内容。",
-    "为什么 Docker 镜像里要打包 WebUI：因为用户第一次启动时，OPL Framework 还没有安装在 `OnePersonLab/data` 里。镜像内置 WebUI 后，用户只需要运行 Docker 命令并打开浏览器，WebUI 就能完成自动登录、首启检查、访问密钥配置和 OPL 初始化。",
-    "安装模式怎么理解：面向新手可以理解成两类体验。macOS 优先使用桌面 App 安装，包括 DMG、一键安装和 Homebrew；Windows、Linux 和服务器优先使用 WebUI 安装体验，Docker 镜像是这个 WebUI 体验在 Linux 容器里的预装入口。macOS 也可以使用 Docker/WebUI，但不是桌面新手的首选路径。"
+    "数据在哪里：配置、访问状态、日志和缓存在 `OnePersonLab/data`；项目文件在 `OnePersonLab/projects`。",
+    "能不能只用手动 docker run：可以作为高级排障路径，但新手文档和合同默认一键安装器是主路径。",
+    "这个文档是否证明 latest 已发布：不能。本教程只证明 repo guide artifact 和合同已声明目标安装模型；公开发布仍看 release/GHCR/live smoke 证据。"
   ],
   "verification_callouts": [
-    "Windows 路径按 Docker Desktop 官方 Windows 安装页核对：per-user 安装推荐给多数用户，WSL 2 backend 覆盖大多数 Docker Desktop 用户需求。",
-    "Linux 路径按 Docker Engine Ubuntu 官方 apt repository 安装页核对：先配置 apt repository，再安装 Docker packages，并用 `hello-world` 验证。",
-    "WebUI 自动登录行为由 Web CLI / web-host runtime 验证：无用户名密码请求 `/api/auth/user` 返回 `success: true` 且下发 session cookie。",
-    "Docker 持久化边界按 App release contract、active shell Dockerfile 和 web-cli 实现核对：`AIONUI_DATA_DIR=/data` 保存 WebUI 内部状态，`OPL_PROJECTS_DIR=/projects` 指向用户项目文件挂载点。",
-    "Docker 镜像内容边界按 active shell Dockerfile、`scripts/pack-web-cli.js` 和本地镜像 inspect 核对：镜像包含 WebUI 静态资源、`aionui-web`、bundled AionCore、`opl-install.sh`、镜像清单，并声明 `/data`、`/projects` 挂载点。",
-    "WebUI 维护边界按 web-host runtime proxy 核对：WebUI 通过 `/api/opl-runtime/*` 调用 `opl system initialize`、`opl system startup-maintenance`、`opl system reconcile-modules`、`opl update status/check/plan/apply/repair/rollback` 等 OPL 维护命令。",
-    "新机器目录创建行为用干净宿主目录验证：`OnePersonLab` 原本不存在时，Docker bind mount 创建 `data` 和 `projects`，WebUI 再创建 `logs`、`runtime`、`.codex`、`.opl`、`opl/state` 等内部目录。",
-    "浏览器界面截图来自本机干净 Docker 容器的 Playwright 截图，容器端口映射为 `127.0.0.1:64022 -> 3000/tcp`，页面 URL 覆盖 `/#/first-run`，界面语言为中文。"
+    "合同验证检查 Docker/WebUI installer model：一键 shell、PowerShell、compose.yaml、`/data`、`/projects`、无 CLI key、WebUI-first key entry、manual Docker fallback。",
+    "生成器会扫描 source、Markdown 和 HTML，禁止真实 secret marker 出现在教程 artifact 中。",
+    "WebUI 自动登录行为由 Web CLI / web-host runtime 验证；本教程不把截图或文档当作 runtime-ready 证明。",
+    "Docker 持久化边界按 App install exposure contract、active shell Dockerfile 和 web-cli 实现核对：`AIONUI_DATA_DIR=/data`，`OPL_PROJECTS_DIR=/projects`。",
+    "手动 Docker fallback 保留 `AIONUI_ALLOW_REMOTE`、`AIONUI_DATA_DIR` 和 `OPL_PROJECTS_DIR` 作为排障参考，不是新手主入口。",
+    "验证方式包括 `npm run docs:docker-webui-guide`、install exposure validator/release-boundary focused checks 和 JSON parse。"
   ],
   "provenance_notes": [
-    "本教程是新手 onboarding artifact，不是 Docker 官方文档复刻，也不是 release-ready 或 runtime-ready 证明。",
+    "本教程是新手 onboarding artifact，不是 Docker 官方文档复刻，也不是 release-ready、runtime-ready 或 public latest 证明。",
     "Docker/WebUI 镜像坐标、构建发布和 release gate 归 `one-person-lab-app`；plain WebUI runtime 变量以 active shell Dockerfile / web-cli / web-host 为实现真相。",
-    "Docker/WebUI 的自动登录只用于 standalone WebUI/Docker 新手入口；桌面 App 设置里的 WebUI 密码管理仍保持独立语义。",
+    "Docker/WebUI one-click installer 合同要求 Linux/macOS shell、Windows PowerShell、compose.yaml、持久化 data/projects 目录、无 CLI key、WebUI-first key entry 和 manual Docker fallback。",
     "截图资产保存在 `docs/delivery/user-guides/docker-webui-install/assets/`，生成器会校验文件存在、尺寸和 SHA256。"
   ]
 }

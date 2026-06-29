@@ -248,35 +248,63 @@
     },
     {
       "surface": "docker_webui",
-      "entrypoint": "Docker/WebUI",
+      "entrypoint": "Docker/WebUI one-click installer",
       "primary_audience": "server_or_webui_users",
       "progress_source": "opl system initialize --json",
-      "exposure_policy": "show_webui_entry_status_and_opl_managed_runtime_maintenance_without_desktop_plugin_semantics",
+      "exposure_policy": "one_click_installer_is_beginner_default_with_manual_docker_as_advanced_troubleshooting_path",
       "codex_exposure_owner": "opl_framework",
-        "runtime_distribution_model": {
-          "container_role": "preheated_webui_runtime_image",
-          "first_visible_surface": "browser_webui",
-          "persistent_data_dir": "/data",
-          "persistent_projects_dir": "/projects",
-          "default_profile": "webui_full",
-          "profile_policy": {
-            "webui_full": "beginner_default_with_payload_capable_seed_and_fast_first_start",
-            "webui_slim": "developer_or_ci_only_metadata_seed_online_reconcile"
-          },
-          "stable_latest_policy": "latest_and_stable_must_point_to_webui_full_not_metadata_only_slim",
-          "required_image_manifest": "/opt/opl/image-manifest.json",
-          "required_seed_metadata": "/opt/opl/seed/metadata.json",
-          "required_full_seed_components": [
-            "opl_framework",
-            "codex_cli",
-            "companion_skills",
-            "domain_modules"
-          ],
-          "image_update_scope": [
-            "webui_shell",
-            "aioncore",
-            "launcher",
-            "bootstrap",
+      "installer_model": {
+        "primary_user_path": "one_click_installer",
+        "linux_macos_shell_script": "install-docker-webui.sh",
+        "windows_powershell_script": "Install-DockerWebUI.ps1",
+        "compose_file": "compose.yaml",
+        "installer_outputs": [
+          "host_data_dir",
+          "host_projects_dir",
+          "compose.yaml",
+          "browser_webui_url"
+        ],
+        "persistent_host_dirs": [
+          "OnePersonLab/data",
+          "OnePersonLab/projects"
+        ],
+        "container_mounts": {
+          "data": "/data",
+          "projects": "/projects"
+        },
+        "api_key_policy": "never_pass_api_key_on_cli_or_environment_for_beginner_path",
+        "api_key_entry_surface": "browser_webui_first_run_access_panel_or_settings_access",
+        "manual_docker_fallback": "advanced_troubleshooting_path_only",
+        "manual_fallback_forms": [
+          "docker run",
+          "docker compose"
+        ],
+        "online_availability_claim_policy": "repo_contract_and_artifacts_only_until_release_or_publish_receipt_exists"
+      },
+      "runtime_distribution_model": {
+        "container_role": "preheated_webui_runtime_image",
+        "first_visible_surface": "browser_webui",
+        "persistent_data_dir": "/data",
+        "persistent_projects_dir": "/projects",
+        "default_profile": "webui_full",
+        "profile_policy": {
+          "webui_full": "beginner_default_with_payload_capable_seed_and_fast_first_start",
+          "webui_slim": "developer_or_ci_only_metadata_seed_online_reconcile"
+        },
+        "stable_latest_policy": "latest_and_stable_must_point_to_webui_full_not_metadata_only_slim",
+        "required_image_manifest": "/opt/opl/image-manifest.json",
+        "required_seed_metadata": "/opt/opl/seed/metadata.json",
+        "required_full_seed_components": [
+          "opl_framework",
+          "codex_cli",
+          "companion_skills",
+          "domain_modules"
+        ],
+        "image_update_scope": [
+          "webui_shell",
+          "aioncore",
+          "launcher",
+          "bootstrap",
           "base_linux_layer",
           "preheated_seed_payload"
         ],

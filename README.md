@@ -147,13 +147,14 @@ Daily updates are handled by Homebrew or the in-app update channel, depending on
 how the App was installed. Release asset, updater metadata, and Full
 first-install boundaries are governed by the App release guide and contracts.
 
-For Docker or server deployment, use the App-owned `one-person-lab-webui` GHCR
-image. It is separate from the desktop App GUI shell, which is bundled into the
-App package from the active AionUI shell, and it is not an OPL Packages module.
-Linux, Windows, and server users should start from the
+For Docker or server deployment, Linux, Windows, and server users should start
+from the Docker/WebUI one-click installer path in the
 [Docker/WebUI install guide](docs/public/docker-webui-install/index.html). The
 same guide is also available as a
 [detailed PDF](docs/public/docker-webui-install/docker-webui-install-detailed-guide.pdf).
+This path is separate from the desktop App GUI shell, does not put API keys in
+CLI commands, and keeps manual `docker run` / Compose commands as advanced
+troubleshooting references.
 
 ## What The App Does
 

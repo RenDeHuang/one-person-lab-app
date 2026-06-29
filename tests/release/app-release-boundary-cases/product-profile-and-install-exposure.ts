@@ -467,6 +467,35 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'codesign --verify --deep --strict --verbose=2',
     'spctl --assess --type execute --verbose=4',
   ]);
+  const dockerWebui = installerSurfaceById.get('docker_webui');
+  assert.equal(dockerWebui.entrypoint, 'Docker/WebUI one-click installer');
+  assert.equal(
+    dockerWebui.exposure_policy,
+    'one_click_installer_is_beginner_default_with_manual_docker_as_advanced_troubleshooting_path',
+  );
+  assert.equal(dockerWebui.installer_model.primary_user_path, 'one_click_installer');
+  assert.equal(dockerWebui.installer_model.linux_macos_shell_script, 'install-docker-webui.sh');
+  assert.equal(dockerWebui.installer_model.windows_powershell_script, 'Install-DockerWebUI.ps1');
+  assert.equal(dockerWebui.installer_model.compose_file, 'compose.yaml');
+  assert.deepEqual(dockerWebui.installer_model.persistent_host_dirs, [
+    'OnePersonLab/data',
+    'OnePersonLab/projects',
+  ]);
+  assert.deepEqual(dockerWebui.installer_model.container_mounts, {
+    data: '/data',
+    projects: '/projects',
+  });
+  assert.equal(dockerWebui.installer_model.api_key_policy, 'never_pass_api_key_on_cli_or_environment_for_beginner_path');
+  assert.equal(
+    dockerWebui.installer_model.api_key_entry_surface,
+    'browser_webui_first_run_access_panel_or_settings_access',
+  );
+  assert.equal(dockerWebui.installer_model.manual_docker_fallback, 'advanced_troubleshooting_path_only');
+  assert.deepEqual(dockerWebui.installer_model.manual_fallback_forms, ['docker run', 'docker compose']);
+  assert.equal(
+    dockerWebui.installer_model.online_availability_claim_policy,
+    'repo_contract_and_artifacts_only_until_release_or_publish_receipt_exists',
+  );
   assert.equal(policy.first_run_user_presentation.skill_plugin_distinction_visible_by_default, false);
   assert.deepEqual(policy.setup_flow_contract.ready_to_launch_required_core_items, [
     'workspace_root',
