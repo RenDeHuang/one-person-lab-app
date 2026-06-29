@@ -41,6 +41,7 @@ test('Windows Docker/WebUI installer exposes the required small parameter surfac
     'DiagnosticsDir',
     'DiagnosticsArchive',
     'EvidenceDir',
+    'EvidenceArchive',
     'InstallPrerequisites',
     'NoOpen',
     'Foreground',

@@ -257,12 +257,68 @@ test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', (
   assert.equal(payload.evidence.windows_api_key_flow_evidence, path.join(evidence, 'api-key-flow-evidence.json'));
 });
 
+test('Docker/WebUI clean Windows smoke gate imports zipped Windows evidence', () => {
+  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
+  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
+  writeWindowsEvidence(evidence);
+  const archivePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-archive-')), 'windows-clean-evidence.zip');
+  const zipped = spawnSync('zip', ['-qr', archivePath, '.'], {
+    cwd: evidence,
+    encoding: 'utf8',
+  });
+  assert.equal(zipped.status, 0, zipped.stderr || zipped.stdout);
+
+  const result = runSmokeGate([
+    '--gate',
+    'clean_windows_vm',
+    '--evidence',
+    archivePath,
+    '--artifacts',
+    artifacts,
+    '--json',
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
+  assert.equal(payload.status, 'passed');
+  assert.equal(payload.gate_id, 'clean_windows_vm');
+  assert.equal(payload.evidence_validation.status, 'passed');
+  assert.equal(payload.evidence.windows_evidence_archive, archivePath);
+  assert.match(payload.evidence.windows_evidence_dir, /windows-evidence-archive/);
+});
+
+test('Docker/WebUI clean Windows smoke gate rejects unsafe zipped Windows evidence paths', () => {
+  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
+  const archiveRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-unsafe-archive-'));
+  const archivePath = path.join(archiveRoot, 'windows-clean-evidence.zip');
+  fs.writeFileSync(path.join(archiveRoot, '..', 'evil.txt'), 'unsafe\n');
+  const zipped = spawnSync('zip', ['-q', archivePath, '../evil.txt'], {
+    cwd: archiveRoot,
+    encoding: 'utf8',
+  });
+  assert.equal(zipped.status, 0, zipped.stderr || zipped.stdout);
+
+  const result = runSmokeGate([
+    '--gate',
+    'clean_windows_vm',
+    '--evidence',
+    archivePath,
+    '--artifacts',
+    artifacts,
+    '--json',
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /unsafe parent traversal entry/);
+});
+
 test('Docker/WebUI Windows installer writes an importable evidence skeleton without claiming API key flow', () => {
   const script = fs.readFileSync(windowsInstallerPath, 'utf8');
 
   assert.match(script, /\[string\]\$EvidenceDir/);
+  assert.match(script, /\[string\]\$EvidenceArchive/);
   assert.match(script, /function Write-WebUiAccessReceipt/);
   assert.match(script, /function Write-WindowsSmokeEvidence/);
+  assert.match(script, /function Write-WindowsEvidenceArchive/);
   assert.match(script, /Write-WebUiAccessReceipt -TargetDir \$resolvedEvidenceDir -Url \$url/);
   assert.match(script, /schema = "opl_docker_webui_windows_smoke_evidence\.v1"/);
   assert.match(script, /gate_id = "clean_windows_vm"/);
@@ -274,7 +330,10 @@ test('Docker/WebUI Windows installer writes an importable evidence skeleton with
   assert.match(script, /Missing WebUI access receipt/);
   assert.match(script, /if \(-not \[string\]::IsNullOrWhiteSpace\(\$EvidenceDir\)\)/);
   assert.match(script, /\$DiagnosticsDir = Join-Path \$resolvedEvidenceDir "diagnostics"/);
+  assert.match(script, /-EvidenceArchive requires -EvidenceDir/);
   assert.match(script, /Write-WindowsSmokeEvidence -TargetDir \$resolvedEvidenceDir -DiagnosticsPath \$collectedDiagnosticsDir/);
+  assert.match(script, /Write-WindowsEvidenceArchive -SourceDir \$resolvedEvidenceDir -ArchivePath \$resolvedEvidenceArchive/);
+  assert.match(script, /Compress-Archive -Path \(Join-Path \$SourceDir "\*"\) -DestinationPath \$ArchivePath -Force/);
   assert.match(script, /Evidence member must stay inside EvidenceDir/);
   assert.doesNotMatch(script, /ApiKey|API_KEY|OPENAI_API_KEY|GFLABTOKEN|Secret/i);
 });

@@ -46,6 +46,11 @@ commands were run, and the diagnostics archive when the installer produced one.
 Do not upload only logs or screenshots; they are supporting evidence, not the
 gate result.
 
+For the Windows clean VM gate, the VM operator may upload either the evidence
+directory itself or a `.zip` archive produced by the installer. The importer
+accepts both forms and applies the same manifest, diagnostics, API key flow,
+and secret-scan validation after extracting the archive.
+
 ## Desktop Release Import
 
 The desktop release workflow has an explicit import gate for clean VM evidence:
@@ -81,8 +86,9 @@ Windows runner is not Docker Desktop + WSL 2 clean-machine evidence. Each named
 artifact can provide either a completed
 `docker-webui-smoke-gate-result.json`, or for Windows the raw
 `windows-smoke-evidence.json` plus `diagnostics/` and
-`api-key-flow-evidence.json` that the workflow imports through the existing
-smoke gate runner.
+`api-key-flow-evidence.json`, or a `.zip` archive containing those files. The
+workflow imports raw or zipped Windows evidence through the existing smoke gate
+runner.
 
 The workflow uploads `docker-webui-clean-vm-evidence-<version>` with:
 
@@ -139,6 +145,14 @@ npm run smoke:docker-webui:windows-clean-vm -- \
   --artifacts tmp/docker-webui-smoke/windows-clean-import
 ```
 
+If the VM produced `windows-clean-evidence.zip`, import the archive directly:
+
+```bash
+npm run smoke:docker-webui:windows-clean-vm -- \
+  --evidence windows-clean-evidence.zip \
+  --artifacts tmp/docker-webui-smoke/windows-clean-import
+```
+
 Without `--evidence`, the Windows gate still writes a typed blocker rather than
 claiming the local host proved a clean Windows VM run.
 
@@ -148,7 +162,8 @@ On the Windows VM, let the installer create the uploadable evidence skeleton:
 powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 `
   -Yes `
   -NoOpen `
-  -EvidenceDir windows-clean-evidence
+  -EvidenceDir windows-clean-evidence `
+  -EvidenceArchive windows-clean-evidence.zip
 ```
 
 `-EvidenceDir` defaults diagnostics into `windows-clean-evidence/diagnostics`
@@ -158,6 +173,11 @@ path reaches `opl system configure-codex --api-key-stdin --json` without putting
 access material in installer arguments or diagnostics. If that receipt cannot
 be collected, the installer fails the evidence package instead of producing a
 placeholder that could be mistaken for pass evidence.
+
+`-EvidenceArchive` packages the complete evidence directory into one uploadable
+zip after the manifest, diagnostics, and access receipt exist. It requires
+`-EvidenceDir`, and the release workflow can import either the raw directory
+artifact or this zip artifact.
 
 ## Diagnostic Directory
 
@@ -208,7 +228,7 @@ artifacts.
 
 ## Windows Evidence Import
 
-A Windows VM artifact directory must contain:
+A Windows VM artifact directory, or zip archive, must contain:
 
 - `windows-smoke-evidence.json`
 - `diagnostics/` with the diagnostic files listed above

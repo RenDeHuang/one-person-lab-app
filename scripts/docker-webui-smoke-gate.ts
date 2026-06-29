@@ -175,7 +175,7 @@ function printUsage() {
 
 Runs a Docker/WebUI smoke gate when the current host matches the gate. If the current host cannot prove the gate, writes a typed blocker instead of passing.
 
-For clean_windows_vm, --evidence <dir> imports a Windows VM artifact set with ${windowsEvidenceManifestName} and diagnostics/.`);
+For clean_windows_vm, --evidence <dir-or-zip> imports a Windows VM artifact set with ${windowsEvidenceManifestName} and diagnostics/.`);
 }
 
 function makeResult(gate: GateId, artifactDir: string): GateResult {
@@ -684,8 +684,74 @@ function validateWindowsEvidence(evidenceDir: string) {
   };
 }
 
+function assertSafeZipEntries(archivePath: string) {
+  const listed = spawnSync('unzip', ['-Z1', archivePath], { encoding: 'utf8' });
+  if (listed.status !== 0) {
+    throw new Error(`Failed to list Windows evidence archive: ${listed.stderr || listed.stdout}`);
+  }
+  const entries = listed.stdout.split(/\r?\n/).filter(Boolean);
+  if (entries.length === 0) {
+    throw new Error(`Windows evidence archive is empty: ${archivePath}`);
+  }
+  for (const entry of entries) {
+    if (entry.startsWith('/') || entry.startsWith('\\') || entry.includes('\0')) {
+      throw new Error(`Windows evidence archive contains an unsafe absolute entry: ${entry}`);
+    }
+    const normalized = entry.replaceAll('\\', '/');
+    if (normalized.split('/').includes('..')) {
+      throw new Error(`Windows evidence archive contains an unsafe parent traversal entry: ${entry}`);
+    }
+  }
+}
+
+function prepareWindowsEvidenceDir(evidencePath: string, artifactDir: string) {
+  const resolved = path.resolve(evidencePath);
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`Windows evidence path not found: ${resolved}`);
+  }
+  const stat = fs.statSync(resolved);
+  if (stat.isDirectory()) {
+    return {
+      evidenceDir: resolved,
+      evidenceArchive: null as string | null,
+    };
+  }
+  if (!stat.isFile() || path.extname(resolved).toLowerCase() !== '.zip') {
+    throw new Error(`Windows evidence must be a directory or .zip archive: ${resolved}`);
+  }
+
+  const extractedRoot = path.join(artifactDir, 'windows-evidence-archive');
+  fs.rmSync(extractedRoot, { recursive: true, force: true });
+  fs.mkdirSync(extractedRoot, { recursive: true });
+  assertSafeZipEntries(resolved);
+  const extracted = spawnSync('unzip', ['-q', resolved, '-d', extractedRoot], { encoding: 'utf8' });
+  if (extracted.status !== 0) {
+    throw new Error(`Failed to extract Windows evidence archive: ${extracted.stderr || extracted.stdout}`);
+  }
+
+  const directManifest = path.join(extractedRoot, windowsEvidenceManifestName);
+  if (fs.existsSync(directManifest)) {
+    return {
+      evidenceDir: extractedRoot,
+      evidenceArchive: resolved,
+    };
+  }
+  const childDirs = fs.readdirSync(extractedRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+  const manifestDirs = childDirs
+    .map((entry) => path.join(extractedRoot, entry.name))
+    .filter((dir) => fs.existsSync(path.join(dir, windowsEvidenceManifestName)));
+  if (manifestDirs.length === 1) {
+    return {
+      evidenceDir: manifestDirs[0],
+      evidenceArchive: resolved,
+    };
+  }
+  throw new Error(`Windows evidence archive must contain ${windowsEvidenceManifestName} at the archive root or in one top-level directory.`);
+}
+
 function importWindowsEvidenceGate(result: GateResult, options: ReturnType<typeof parseArgs>): GateResult {
-  const evidenceDir = path.resolve(options.evidence);
+  const prepared = prepareWindowsEvidenceDir(options.evidence, result.artifact_dir);
+  const evidenceDir = prepared.evidenceDir;
   const validation = validateWindowsEvidence(evidenceDir);
   result.diagnostics_dir = validation.diagnosticsDir || result.diagnostics_dir;
   result.diagnostics_validation = validation.diagnosticsValidation;
@@ -708,6 +774,9 @@ function importWindowsEvidenceGate(result: GateResult, options: ReturnType<typeo
   };
   result.evidence.windows_evidence_dir = evidenceDir;
   result.evidence.windows_evidence_manifest = validation.manifestPath;
+  if (prepared.evidenceArchive) {
+    result.evidence.windows_evidence_archive = prepared.evidenceArchive;
+  }
   if (validation.diagnosticsDir) {
     result.evidence.windows_diagnostics_dir = validation.diagnosticsDir;
     readDiagnosticsSummary(result, options);
@@ -743,6 +812,7 @@ function importWindowsEvidenceGate(result: GateResult, options: ReturnType<typeo
     schema: 'opl_docker_webui_windows_evidence_import_summary.v1',
     status: validation.status,
     evidence_dir: evidenceDir,
+    evidence_archive: prepared.evidenceArchive,
     manifest_path: validation.manifestPath,
     diagnostics_dir: validation.diagnosticsDir,
     diagnostics_validation: validation.diagnosticsValidation,
@@ -931,7 +1001,7 @@ function main() {
       result,
       process.platform === 'win32' ? 'windows_vm_runner_not_implemented' : 'requires_windows_vm',
       'This gate must be run inside a clean Windows VM with Docker Desktop/WSL2 readiness evidence.',
-      `Run scripts/install-docker-webui.ps1 -Yes in a clean Windows VM with -DiagnosticsDir diagnostics, capture api-key-flow-evidence.json through the WebUI configure-codex endpoint, write ${windowsEvidenceManifestName}, then rerun this gate with --evidence <dir>.`,
+      `Run scripts/install-docker-webui.ps1 -Yes in a clean Windows VM with -EvidenceDir and optional -EvidenceArchive, capture api-key-flow-evidence.json through the WebUI configure-codex endpoint, write ${windowsEvidenceManifestName}, then rerun this gate with --evidence <dir-or-zip>.`,
     );
   } else if (options.gate === 'clean_linux_vm' && process.platform !== 'linux') {
     result = blocker(

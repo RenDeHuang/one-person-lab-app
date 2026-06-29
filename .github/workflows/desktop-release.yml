@@ -1075,10 +1075,18 @@ jobs:
             export LINUX_ARTIFACT_NAME
           fi
 
-          if [ -n "$WINDOWS_ARTIFACT_NAME" ] && [ -f docker-webui-clean-vm-inputs/clean-windows-vm/windows-smoke-evidence.json ] && [ ! -f docker-webui-clean-vm-inputs/clean-windows-vm/docker-webui-smoke-gate-result.json ]; then
+          windows_raw_evidence="docker-webui-clean-vm-inputs/clean-windows-vm"
+          windows_zip_evidence="$(find docker-webui-clean-vm-inputs/clean-windows-vm -maxdepth 1 -type f -name '*.zip' | sort | head -n 1 || true)"
+          if [ -n "$WINDOWS_ARTIFACT_NAME" ] && [ -f "$windows_raw_evidence/windows-smoke-evidence.json" ] && [ ! -f "$windows_raw_evidence/docker-webui-smoke-gate-result.json" ]; then
             node --experimental-strip-types scripts/docker-webui-smoke-gate.ts \
               --gate clean_windows_vm \
-              --evidence docker-webui-clean-vm-inputs/clean-windows-vm \
+              --evidence "$windows_raw_evidence" \
+              --artifacts "$output_dir/clean-windows-vm-import" \
+              --json > "$output_dir/clean-windows-vm-import-output.json" || true
+          elif [ -n "$WINDOWS_ARTIFACT_NAME" ] && [ -n "$windows_zip_evidence" ] && [ ! -f "$windows_raw_evidence/docker-webui-smoke-gate-result.json" ]; then
+            node --experimental-strip-types scripts/docker-webui-smoke-gate.ts \
+              --gate clean_windows_vm \
+              --evidence "$windows_zip_evidence" \
               --artifacts "$output_dir/clean-windows-vm-import" \
               --json > "$output_dir/clean-windows-vm-import-output.json" || true
           fi
@@ -1108,7 +1116,7 @@ jobs:
               artifactName: process.env.WINDOWS_ARTIFACT_NAME || '',
               missingCode: 'missing_clean_windows_vm_docker_webui_evidence_artifact',
               missingMessage: 'No same-run clean Windows VM Docker WebUI smoke artifact was supplied to the release workflow.',
-              nextAction: 'Run scripts/install-docker-webui.ps1 -Yes in a clean Windows VM, upload windows-smoke-evidence.json plus diagnostics or docker-webui-smoke-gate-result.json, and rerun the release workflow with docker_webui_clean_windows_evidence_artifact set.',
+              nextAction: 'Run scripts/install-docker-webui.ps1 -Yes -EvidenceDir windows-clean-evidence -EvidenceArchive windows-clean-evidence.zip in a clean Windows VM, upload the evidence zip or raw directory artifact, and rerun the release workflow with docker_webui_clean_windows_evidence_artifact set.',
             },
           ];
 

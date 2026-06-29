@@ -17,6 +17,7 @@ param(
   [string]$DiagnosticsDir,
   [string]$DiagnosticsArchive,
   [string]$EvidenceDir,
+  [string]$EvidenceArchive,
   [switch]$InstallPrerequisites,
   [switch]$NoOpen,
   [switch]$Foreground
@@ -796,6 +797,33 @@ function Write-WindowsSmokeEvidence {
   Write-Step "Windows smoke evidence manifest written: $manifestPath"
 }
 
+function Write-WindowsEvidenceArchive {
+  param(
+    [Parameter(Mandatory = $true)][string]$SourceDir,
+    [Parameter(Mandatory = $true)][string]$ArchivePath
+  )
+
+  if ([string]::IsNullOrWhiteSpace($SourceDir) -or [string]::IsNullOrWhiteSpace($ArchivePath)) {
+    return
+  }
+  if ($DryRun) {
+    Write-Step "Dry run: would write Windows smoke evidence archive $ArchivePath"
+    return
+  }
+  if (-not (Test-Path -LiteralPath (Join-Path $SourceDir "windows-smoke-evidence.json"))) {
+    throw "Windows smoke evidence archive requires windows-smoke-evidence.json in $SourceDir"
+  }
+  $archiveParent = Split-Path -Parent ([System.IO.Path]::GetFullPath($ArchivePath))
+  if (-not [string]::IsNullOrWhiteSpace($archiveParent)) {
+    New-Item -ItemType Directory -Force -Path $archiveParent | Out-Null
+  }
+  if (Test-Path -LiteralPath $ArchivePath) {
+    Remove-Item -LiteralPath $ArchivePath -Force
+  }
+  Compress-Archive -Path (Join-Path $SourceDir "*") -DestinationPath $ArchivePath -Force
+  Write-Step "Windows smoke evidence archive written: $ArchivePath"
+}
+
 function Wait-WebUiHealth {
   param(
     [Parameter(Mandatory = $true)][string]$Url,
@@ -868,6 +896,13 @@ if (-not [string]::IsNullOrWhiteSpace($EvidenceDir)) {
     $DiagnosticsDir = Join-Path $resolvedEvidenceDir "diagnostics"
   }
 }
+$resolvedEvidenceArchive = ""
+if (-not [string]::IsNullOrWhiteSpace($EvidenceArchive)) {
+  if ([string]::IsNullOrWhiteSpace($resolvedEvidenceDir)) {
+    throw "-EvidenceArchive requires -EvidenceDir so the installer knows which evidence directory to package."
+  }
+  $resolvedEvidenceArchive = Resolve-FullPath $EvidenceArchive
+}
 $imageReference = Resolve-ImageReference -ImageName $Image -ImageTag $Tag -TagWasProvided $tagWasProvided
 if ([string]::IsNullOrWhiteSpace($HealthUrl)) {
   $HealthUrl = "http://localhost:$Port/"
@@ -911,6 +946,9 @@ if (-not [string]::IsNullOrWhiteSpace($DiagnosticsDir) -or -not [string]::IsNull
   $collectedDiagnosticsDir = Collect-WebUiDiagnostics -Reason "requested" -TargetDir $DiagnosticsDir -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url
   if (-not [string]::IsNullOrWhiteSpace($resolvedEvidenceDir)) {
     Write-WindowsSmokeEvidence -TargetDir $resolvedEvidenceDir -DiagnosticsPath $collectedDiagnosticsDir
+    if (-not [string]::IsNullOrWhiteSpace($resolvedEvidenceArchive)) {
+      Write-WindowsEvidenceArchive -SourceDir $resolvedEvidenceDir -ArchivePath $resolvedEvidenceArchive
+    }
   }
 }
 Open-WebUiBrowser -Url $url

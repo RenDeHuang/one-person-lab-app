@@ -203,7 +203,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(dockerWebuiCleanVmEvidenceJob, /Download clean Windows VM Docker WebUI evidence[\s\S]*name: \$\{\{ inputs\.docker_webui_clean_windows_evidence_artifact \}\}/);
   assert.match(dockerWebuiCleanVmEvidenceJob, /if \[ -z "\$LINUX_ARTIFACT_NAME" \]; then[\s\S]*npm run smoke:docker-webui:linux-clean-vm --[\s\S]*--artifacts "\$linux_generated_dir"[\s\S]*--health-timeout 180[\s\S]*same_job_ubuntu_clean_vm_generated/);
   assert.match(dockerWebuiCleanVmEvidenceJob, /importDir: path\.join\(outputDir, 'clean-linux-vm-generated'\)/);
-  assert.match(dockerWebuiCleanVmEvidenceJob, /windows-smoke-evidence\.json[\s\S]*--gate clean_windows_vm[\s\S]*--evidence docker-webui-clean-vm-inputs\/clean-windows-vm/);
+  assert.match(dockerWebuiCleanVmEvidenceJob, /windows-smoke-evidence\.json[\s\S]*--gate clean_windows_vm[\s\S]*--evidence "\$windows_raw_evidence"/);
+  assert.match(dockerWebuiCleanVmEvidenceJob, /find docker-webui-clean-vm-inputs\/clean-windows-vm -maxdepth 1 -type f -name '\*\.zip'/);
+  assert.match(dockerWebuiCleanVmEvidenceJob, /--evidence "\$windows_zip_evidence"/);
   assert.match(dockerWebuiCleanVmEvidenceJob, /--validate-result', resultPath, '--json'/);
   assert.match(dockerWebuiCleanVmEvidenceJob, /missing_clean_linux_vm_docker_webui_evidence_artifact/);
   assert.match(dockerWebuiCleanVmEvidenceJob, /missing_clean_windows_vm_docker_webui_evidence_artifact/);
