@@ -123,6 +123,46 @@ function hashFile(filePath: string) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
+function stablePdfFontSubsetTag(fontName: string) {
+  const digest = crypto.createHash('sha256').update(fontName).digest();
+  return Array.from(digest.subarray(0, 6), (byte) => String.fromCharCode(65 + (byte % 26))).join('');
+}
+
+function normalizePdfFontSubsetPrefixes(filePath: string) {
+  const source = fs.readFileSync(filePath, 'latin1');
+  const fontPattern = /\/(?:FontName|BaseFont|CMapName)\s*\/([A-Z]{6})\+([A-Za-z0-9_.-]+)/g;
+  const replacements = new Map<string, string>();
+  for (const match of source.matchAll(fontPattern)) {
+    const originalTag = match[1];
+    const rawName = match[2];
+    const fontName = rawName.replace(/-(?:Identity-H|UTF16)$/, '');
+    replacements.set(`${originalTag}+${fontName}`, `${stablePdfFontSubsetTag(fontName)}+${fontName}`);
+  }
+  if (replacements.size === 0) {
+    throw new Error(`Expected PDF font subset prefixes to normalize: ${filePath}`);
+  }
+  let normalized = source;
+  for (const [from, to] of replacements) {
+    if (from.length !== to.length) {
+      throw new Error(`PDF font subset replacement must preserve byte length: ${from} -> ${to}`);
+    }
+    normalized = normalized.replaceAll(from, to);
+  }
+  fs.writeFileSync(filePath, Buffer.from(normalized, 'latin1'));
+}
+
+function normalizePdfTrailerId(filePath: string) {
+  const source = fs.readFileSync(filePath, 'latin1');
+  const idPattern = /\/ID\s*\[\s*<[0-9A-Fa-f]{32}>\s*<[0-9A-Fa-f]{32}>\s*\]/g;
+  const withoutId = source.replace(idPattern, '/ID[<OPL_PDF_STABLE_ID_PLACEHOLDER><OPL_PDF_STABLE_ID_PLACEHOLDER>]');
+  if (withoutId === source) {
+    throw new Error(`Expected PDF trailer ID to normalize: ${filePath}`);
+  }
+  const stableId = crypto.createHash('sha256').update(withoutId, 'latin1').digest('hex').slice(0, 32);
+  const normalized = source.replace(idPattern, `/ID[<${stableId}><${stableId}>]`);
+  fs.writeFileSync(filePath, Buffer.from(normalized, 'latin1'));
+}
+
 function validateAssets(guide: DockerGuide) {
   const seen = new Set<string>();
   const assets: Array<{
@@ -520,6 +560,7 @@ function main() {
     tempMarkdownPath,
     '--standalone',
     '--pdf-engine=xelatex',
+    '--pdf-engine-opt=-output-driver=xdvipdfmx -z 0 -C 0x0060',
     '--metadata', `title-meta=${guide.title}`,
     '--metadata', `author-meta=${guide.owner}`,
     '--metadata', 'lang=zh-CN',
@@ -534,6 +575,8 @@ function main() {
   ], {
     env: { ...process.env, SOURCE_DATE_EPOCH: '1782730800' },
   });
+  normalizePdfFontSubsetPrefixes(pdfPath);
+  normalizePdfTrailerId(pdfPath);
 
   const render = renderPdfPages();
   const info = readPdfInfo();
