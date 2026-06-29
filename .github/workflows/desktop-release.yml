@@ -647,13 +647,14 @@ jobs:
           const payload = {
             status: '${status}',
             image: '${ghcr_image}',
-            tags: ['${{ inputs.opl_version }}', 'stable', 'latest'],
+            tags: ['${{ inputs.opl_version }}', '${{ inputs.opl_version }}-slim', 'stable', 'latest'],
             draft_candidate_push: false,
             source_repository: 'https://github.com/${GITHUB_REPOSITORY}',
             build_reuse: {
               mode: 'same_job_after_docker_webui_smoke',
               source_gate: 'docker-webui-smoke',
               repeated_docker_build: false,
+              image_profiles: ['webui-full', 'webui-slim'],
             },
             package_access_required: {
               package_url: 'https://github.com/users/gaofeng21cn/packages/container/package/one-person-lab-webui/settings',
@@ -673,19 +674,35 @@ jobs:
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             -t "one-person-lab-webui:${{ inputs.opl_version }}" \
             shells/aionui
+          docker build \
+            --build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            -t "one-person-lab-webui:${{ inputs.opl_version }}-slim" \
+            shells/aionui
           docker image inspect "one-person-lab-webui:${{ inputs.opl_version }}" \
             --format '{{.Size}}' > /tmp/opl-webui-image-size-bytes.txt
           docker image inspect "one-person-lab-webui:${{ inputs.opl_version }}" > /tmp/opl-webui-image-inspect.json
+          docker image inspect "one-person-lab-webui:${{ inputs.opl_version }}-slim" > /tmp/opl-webui-slim-image-inspect.json
           docker run --rm --entrypoint cat "one-person-lab-webui:${{ inputs.opl_version }}" \
             /opt/opl/image-manifest.json > /tmp/opl-webui-image-manifest.json
           docker run --rm --entrypoint cat "one-person-lab-webui:${{ inputs.opl_version }}" \
             /opt/opl/seed/metadata.json > /tmp/opl-webui-seed-metadata.json
+          docker run --rm --entrypoint cat "one-person-lab-webui:${{ inputs.opl_version }}-slim" \
+            /opt/opl/image-manifest.json > /tmp/opl-webui-slim-image-manifest.json
+          docker run --rm --entrypoint cat "one-person-lab-webui:${{ inputs.opl_version }}-slim" \
+            /opt/opl/seed/metadata.json > /tmp/opl-webui-slim-seed-metadata.json
           node --experimental-strip-types scripts/validate-webui-runtime-image.ts \
             --image-inspect /tmp/opl-webui-image-inspect.json \
             --image-manifest /tmp/opl-webui-image-manifest.json \
             --seed-metadata /tmp/opl-webui-seed-metadata.json \
             --expected-profile webui-full \
             --summary-path /tmp/opl-webui-runtime-image-validation.json
+          node --experimental-strip-types scripts/validate-webui-runtime-image.ts \
+            --image-inspect /tmp/opl-webui-slim-image-inspect.json \
+            --image-manifest /tmp/opl-webui-slim-image-manifest.json \
+            --seed-metadata /tmp/opl-webui-slim-seed-metadata.json \
+            --expected-profile webui-slim \
+            --summary-path /tmp/opl-webui-slim-runtime-image-validation.json
           container="$(docker run --rm -d -p 127.0.0.1::3000 "one-person-lab-webui:${{ inputs.opl_version }}")"
           cleanup() {
             docker rm -f "$container" >/dev/null 2>&1 || true
@@ -713,6 +730,7 @@ jobs:
           grep -iq '^set-cookie:' "$auth_headers"
 
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:${{ inputs.opl_version }}"
+          docker tag "one-person-lab-webui:${{ inputs.opl_version }}-slim" "${ghcr_image}:${{ inputs.opl_version }}-slim"
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:stable"
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:latest"
 
@@ -727,6 +745,10 @@ jobs:
           fi
           if ! docker push "${ghcr_image}:${{ inputs.opl_version }}"; then
             write_publish_summary "failed" "ghcr_write_package_denied" "GHCR push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
+            exit 0
+          fi
+          if ! docker push "${ghcr_image}:${{ inputs.opl_version }}-slim"; then
+            write_publish_summary "failed" "ghcr_write_package_denied" "GHCR slim tag push failed. Ensure the one-person-lab-webui package grants write Actions access to gaofeng21cn/one-person-lab-app."
             exit 0
           fi
           if ! docker push "${ghcr_image}:stable"; then
@@ -747,9 +769,13 @@ jobs:
             /tmp/opl-webui-index.html
             /tmp/opl-webui-manifest.webmanifest
             /tmp/opl-webui-image-inspect.json
+            /tmp/opl-webui-slim-image-inspect.json
             /tmp/opl-webui-image-manifest.json
+            /tmp/opl-webui-slim-image-manifest.json
             /tmp/opl-webui-seed-metadata.json
+            /tmp/opl-webui-slim-seed-metadata.json
             /tmp/opl-webui-runtime-image-validation.json
+            /tmp/opl-webui-slim-runtime-image-validation.json
             /tmp/opl-webui-image-size-bytes.txt
           if-no-files-found: error
 

@@ -364,10 +364,12 @@
         },
         "webui_slim": {
           "developer_or_ci_only": true,
+          "version_tag": "<app_or_opl_version>-slim",
           "seed_strategy": [
             "metadata_only"
           ],
           "stable_latest_allowed": false,
+          "moving_tags_allowed": false,
           "rule": "Slim images may carry only WebUI, AionCore, bootstrap, and seed metadata, but must not be tagged stable/latest or documented as the default beginner path."
         }
       },

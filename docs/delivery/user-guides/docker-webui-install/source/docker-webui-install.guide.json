@@ -271,6 +271,7 @@
       "notes": [
         "这份教程面向新手日常使用，不展开 Docker 内部概念。",
         "Docker/WebUI 镜像不是静态全家桶，也不是纯裸 Linux；它是预热好的 WebUI 运行镜像，内含 WebUI、AionCore、启动器、OPL bootstrap 和镜像清单。",
+        "新手教程默认使用 `latest`，它对应预热的 `webui-full` 镜像；`-slim` 镜像只给开发和 CI 使用，不作为普通安装入口。",
         "首次初始化和后续运行会把 OPL Framework、Codex CLI、访问配置、会话历史、日志、缓存和维护记录等写入本机挂载的 `OnePersonLab/data`。",
         "持久化在 `OnePersonLab/data` 里的运行环境和模块，以 WebUI 首启检查、运行状态和后续 OPL 维护动作的结果为准；镜像内的预热内容用于更快补齐首启环境。",
         "Docker/WebUI 的发布真相仍以 App release workflow、GHCR publish summary 和 contracts 为准。"
@@ -291,6 +292,7 @@
     "新机器没有 `OnePersonLab` 目录怎么办：按教程命令运行即可，Windows 的 `New-Item -Force` 和 Linux 的 `mkdir -p` 会创建目录；Docker 挂载和 WebUI 启动也会继续创建内部子目录。",
     "访问密钥在哪里填：首次打开后看“准备开始使用”页面，在“访问权限”区域的“输入访问密钥”里填写，然后点击“完成配置”。",
     "这个 Docker 镜像是不是完整全家桶：不能按静态全家桶理解。它是预热好的 WebUI 运行镜像，包含 WebUI、AionCore、本机启动器、OPL bootstrap 和镜像清单；OPL Framework、Codex CLI、companion skills、访问配置、会话历史和缓存会在首次初始化或运行维护过程中写入本机 `OnePersonLab/data`。",
+    "我应该用 full 还是 slim 镜像：新手只使用教程里的 `latest`，它会指向预热的 full 镜像。`-slim` 是开发和 CI 变体，不会被标记为 `stable` 或 `latest`。",
     "是不是可以只靠 WebUI 维护模块：大体可以这样理解。进入 WebUI 后，运行环境、模块和 Codex 配置主要通过 OPL 自己的启动检查、维护和更新动作处理，数据保存在 `OnePersonLab/data`。但镜像仍然建议在收到通知时更新，因为 WebUI 外壳、启动器、bundled AionCore、bootstrap 脚本、预热内容和基础系统层属于镜像内容。",
     "为什么 Docker 镜像里要打包 WebUI：因为用户第一次启动时，OPL Framework 还没有安装在 `OnePersonLab/data` 里。镜像内置 WebUI 后，用户只需要运行 Docker 命令并打开浏览器，WebUI 就能完成自动登录、首启检查、访问密钥配置和 OPL 初始化。",
     "安装模式怎么理解：面向新手可以理解成两类体验。macOS 优先使用桌面 App 安装，包括 DMG、一键安装和 Homebrew；Windows、Linux 和服务器优先使用 WebUI 安装体验，Docker 镜像是这个 WebUI 体验在 Linux 容器里的预装入口。macOS 也可以使用 Docker/WebUI，但不是桌面新手的首选路径。"

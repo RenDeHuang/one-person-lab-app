@@ -187,9 +187,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /OPL_INSTALL_SCRIPT_URL: file:\/\/\$\{\{ github\.workspace \}\}\/one-person-lab\/install\.sh/);
   assert.match(workflow, /\.\/install\.sh --complete --skip-modules/);
   assert.match(workflow, /docker build[\s\S]*--label "org\.opencontainers\.image\.source=https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}"[\s\S]*-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"[\s\S]*shells\/aionui/);
+  assert.match(workflow, /docker build[\s\S]*--build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim[\s\S]*-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}-slim"[\s\S]*shells\/aionui/);
   assert.match(workflow, /docker run --rm --entrypoint cat "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"[\s\S]*\/opt\/opl\/image-manifest\.json/);
   assert.match(workflow, /docker run --rm --entrypoint cat "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"[\s\S]*\/opt\/opl\/seed\/metadata\.json/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-webui-runtime-image\.ts[\s\S]*--expected-profile webui-full/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/validate-webui-runtime-image\.ts[\s\S]*--expected-profile webui-slim/);
   assert.match(workflow, /curl -fsS "http:\/\/127\.0\.0\.1:\$\{port\}\/manifest\.webmanifest"/);
   assert.match(workflow, /same_job_after_docker_webui_smoke/);
   assert.match(workflow, /repeated_docker_build: false/);
@@ -209,15 +211,18 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.doesNotMatch(readinessJob, /name: Write release candidate record[\s\S]{0,80}if:\s*\$\{\{\s*always\(\)/);
   assert.doesNotMatch(readinessJob, /name: Upload release readiness summary[\s\S]{0,80}if:\s*always\(\)/);
   assert.doesNotMatch(readinessJob, /name: Upload release candidate record[\s\S]{0,80}if:\s*always\(\)/);
-  assert.equal((workflow.match(/docker build/g) ?? []).length, 1);
+  assert.equal((workflow.match(/docker build/g) ?? []).length, 2);
   assert.match(workflow, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/);
   assert.match(workflow, /ghcr\.io\/\$\{image_owner\}\/one-person-lab-webui/);
   assert.match(workflow, /write_publish_summary "failed" "ghcr_write_package_denied"/);
   assert.match(workflow, /required_actions_access_repository: 'gaofeng21cn\/one-person-lab-app'/);
   assert.match(workflow, /source_repository: 'https:\/\/github\.com\/\$\{GITHUB_REPOSITORY\}'/);
   assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}"/);
+  assert.match(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}-slim"/);
   assert.match(workflow, /"\$\{ghcr_image\}:stable"/);
   assert.match(workflow, /"\$\{ghcr_image\}:latest"/);
+  assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:stable-slim"/);
+  assert.doesNotMatch(workflow, /"\$\{ghcr_image\}:latest-slim"/);
   assert.match(workflow, /RELEASE_MODE.*draft_candidate/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/opl-first-run-vm\.yml/);
   assert.match(workflow, /release_tag: v\$\{\{ inputs\.opl_version \}\}/);
@@ -596,10 +601,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
         },
         webui_slim: {
           developer_or_ci_only: true,
+          version_tag: '<app_or_opl_version>-slim',
           seed_strategy: [
             'metadata_only',
           ],
           stable_latest_allowed: false,
+          moving_tags_allowed: false,
           rule: 'Slim images may carry only WebUI, AionCore, bootstrap, and seed metadata, but must not be tagged stable/latest or documented as the default beginner path.',
         },
       },

@@ -25,7 +25,9 @@ function validateWebuiGhcrImage(webuiImage) {
     contract?.image_role !== 'browser_entrypoint_for_opl_on_linux_container' ||
     contract?.profiles?.webui_full?.default_for_beginner_and_stable_latest !== true ||
     contract?.profiles?.webui_full?.metadata_only_allowed !== false ||
-    contract?.profiles?.webui_slim?.stable_latest_allowed !== false
+    contract?.profiles?.webui_slim?.version_tag !== '<app_or_opl_version>-slim' ||
+    contract?.profiles?.webui_slim?.stable_latest_allowed !== false ||
+    contract?.profiles?.webui_slim?.moving_tags_allowed !== false
   ) {
     throw new Error('Release channel must declare Docker/WebUI full and slim image profile boundaries');
   }

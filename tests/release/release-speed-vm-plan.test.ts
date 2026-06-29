@@ -466,7 +466,10 @@ test('Docker WebUI smoke records image size as a release-speed artifact', () => 
   assertMatches(workflow, /image[-_]size|size_bytes|Size/, 'Docker image size field');
   assertMatches(workflow, /\/tmp\/opl-webui-image-size[-\w]*\.(json|txt)|artifacts\/docker-webui-image-size/, 'Docker image size artifact path');
   assertMatches(workflow, /Upload Docker WebUI smoke artifacts[\s\S]*opl-webui-image-size/, 'Docker image size upload');
-  assert.equal((workflow.match(/docker build/g) ?? []).length, 1, 'stable WebUI release path should build the image once');
+  assert.equal((workflow.match(/docker build/g) ?? []).length, 2, 'stable WebUI release path should build full and slim variants once each');
+  assertMatches(workflow, /-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}"/, 'Docker WebUI full image tag');
+  assertMatches(workflow, /-t "one-person-lab-webui:\$\{\{ inputs\.opl_version \}\}-slim"/, 'Docker WebUI slim image tag');
+  assertMatches(workflow, /"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}"[\s\S]*"\$\{ghcr_image\}:\$\{\{ inputs\.opl_version \}\}-slim"[\s\S]*"\$\{ghcr_image\}:stable"[\s\S]*"\$\{ghcr_image\}:latest"/, 'stable/latest remain full image tags while slim is version-scoped');
 });
 
 test('release plan exposes depends_on and can_run_with for parallel speed lanes and serialized gates', () => {
