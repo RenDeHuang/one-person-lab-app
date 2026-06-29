@@ -1,0 +1,104 @@
+name: OPL Docker WebUI Clean Windows VM Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_labels_json:
+        description: JSON array of labels for a clean Windows runner with Docker Desktop/WSL2 available.
+        required: false
+        default: '["self-hosted","Windows","X64","docker-webui-clean-vm"]'
+        type: string
+      image:
+        description: Docker/WebUI image to validate in a clean Windows runner.
+        required: false
+        default: ghcr.io/gaofeng21cn/one-person-lab-webui:latest
+        type: string
+      artifact_name:
+        description: Artifact name to upload for desktop-release docker_webui_clean_windows_evidence_artifact.
+        required: false
+        default: docker-webui-clean-windows-vm-evidence
+        type: string
+      port:
+        description: Host port used for the local WebUI smoke.
+        required: false
+        default: '3000'
+        type: string
+      health_timeout:
+        description: Seconds to wait for WebUI health.
+        required: false
+        default: '180'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-webui-clean-windows-vm-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  clean-windows-vm-smoke:
+    name: Clean Windows VM Docker/WebUI smoke
+    runs-on: ${{ fromJSON(inputs.runner_labels_json) }}
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Run clean Windows VM Docker/WebUI installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          powershell -ExecutionPolicy Bypass `
+            -File scripts/install-docker-webui.ps1 `
+            -Yes `
+            -NoOpen `
+            -Image "${{ inputs.image }}" `
+            -Port ${{ inputs.port }} `
+            -HealthTimeoutSeconds ${{ inputs.health_timeout }} `
+            -EvidenceDir windows-clean-evidence `
+            -EvidenceArchive windows-clean-evidence.zip
+
+      - name: Import and validate clean Windows VM evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/docker-webui-smoke-gate.ts \
+            --gate clean_windows_vm \
+            --evidence windows-clean-evidence.zip \
+            --artifacts docker-webui-clean-windows-vm \
+            --json | tee docker-webui-clean-windows-vm-output.json
+          node --experimental-strip-types scripts/docker-webui-smoke-gate.ts \
+            --validate-result docker-webui-clean-windows-vm/docker-webui-smoke-gate-result.json \
+            --json | tee docker-webui-clean-windows-vm-validation.json
+
+      - name: Upload clean Windows VM Docker/WebUI evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: |
+            windows-clean-evidence
+            windows-clean-evidence.zip
+            docker-webui-clean-windows-vm
+            docker-webui-clean-windows-vm-output.json
+            docker-webui-clean-windows-vm-validation.json
+          if-no-files-found: error
+
+      - name: Stop Docker/WebUI smoke container
+        if: ${{ always() }}
+        shell: pwsh
+        run: |
+          $composePath = Join-Path $env:USERPROFILE "OnePersonLab\compose.yaml"
+          if (Test-Path -LiteralPath $composePath) {
+            docker compose -f $composePath down --remove-orphans
+          }

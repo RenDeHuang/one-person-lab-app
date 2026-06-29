@@ -526,6 +526,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     accepted_result_file: 'docker-webui-smoke-gate-result.json',
     linux_default_producer: 'desktop_release_same_job_ubuntu_clean_vm_generated',
     linux_manual_producer_workflow: '.github/workflows/docker-webui-clean-linux-vm.yml',
+    windows_manual_producer_workflow: '.github/workflows/docker-webui-clean-windows-vm.yml',
     windows_import_manifest: 'windows-smoke-evidence.json',
     missing_artifact_status: 'typed_blocker',
     missing_artifact_blocker_codes: [
@@ -549,6 +550,10 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(
     dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'clean_windows_vm').entrypoint,
     'install-docker-webui.ps1 -Yes',
+  );
+  assert.equal(
+    dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'clean_windows_vm').execution_mode,
+    'self_hosted_clean_windows_runner_or_manual_vm_smoke',
   );
   assert.equal(
     dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'existing_docker').docker_state,

@@ -24,6 +24,8 @@ export const releaseWorkflowPaths = [
   '.github/workflows/desktop-release-diagnostics.yml',
   '.github/workflows/desktop-release-promote.yml',
   '.github/workflows/desktop-release.yml',
+  '.github/workflows/docker-webui-clean-linux-vm.yml',
+  '.github/workflows/docker-webui-clean-windows-vm.yml',
   '.github/workflows/full-first-install-release.yml',
   '.github/workflows/full-runtime-cache-warmup.yml',
   '.github/workflows/homebrew-tap-update.yml',

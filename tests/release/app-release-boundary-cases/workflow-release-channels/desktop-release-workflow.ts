@@ -61,6 +61,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     path.join(appRoot, '.github', 'workflows', 'docker-webui-clean-linux-vm.yml'),
     'utf8',
   );
+  const cleanWindowsDockerWebuiWorkflow = fs.readFileSync(
+    path.join(appRoot, '.github', 'workflows', 'docker-webui-clean-windows-vm.yml'),
+    'utf8',
+  );
   const fullPackageScript = readFullPackageBuilderSource();
   const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
   const releaseContract = JSON.parse(
@@ -283,6 +287,22 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(cleanLinuxDockerWebuiWorkflow, /docker compose -f docker-webui-clean-linux-vm\/home\/OnePersonLab\/compose\.yaml down --remove-orphans \|\| true/);
   assert.doesNotMatch(cleanLinuxDockerWebuiWorkflow, /--gate clean_windows_vm/);
   assert.doesNotMatch(cleanLinuxDockerWebuiWorkflow, /packages: write/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /name: OPL Docker WebUI Clean Windows VM Smoke/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /workflow_dispatch:/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /runner_labels_json:/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /"self-hosted","Windows","X64","docker-webui-clean-vm"/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /runs-on: \$\{\{ fromJSON\(inputs\.runner_labels_json\) \}\}/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /artifact_name:[\s\S]*docker-webui-clean-windows-vm-evidence/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /powershell -ExecutionPolicy Bypass[\s\S]*-File scripts\/install-docker-webui\.ps1[\s\S]*-EvidenceDir windows-clean-evidence[\s\S]*-EvidenceArchive windows-clean-evidence\.zip/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /node --experimental-strip-types scripts\/docker-webui-smoke-gate\.ts[\s\S]*--gate clean_windows_vm[\s\S]*--evidence windows-clean-evidence\.zip/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /--validate-result docker-webui-clean-windows-vm\/docker-webui-smoke-gate-result\.json/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /actions\/upload-artifact@v7/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /windows-clean-evidence\.zip/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /docker compose -f \$composePath down --remove-orphans/);
+  assert.doesNotMatch(cleanWindowsDockerWebuiWorkflow, /runs-on: windows-latest/);
+  assert.doesNotMatch(cleanWindowsDockerWebuiWorkflow, /--gate clean_linux_vm/);
+  assert.doesNotMatch(cleanWindowsDockerWebuiWorkflow, /packages: write/);
   assert.doesNotMatch(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*always\(\)/);

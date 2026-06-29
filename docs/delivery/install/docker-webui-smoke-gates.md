@@ -166,6 +166,22 @@ powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 `
   -EvidenceArchive windows-clean-evidence.zip
 ```
 
+If a clean Windows runner is available, use the standalone workflow instead of
+collecting the zip by hand:
+
+```text
+.github/workflows/docker-webui-clean-windows-vm.yml
+artifact: docker-webui-clean-windows-vm-evidence
+default runner labels: ["self-hosted","Windows","X64","docker-webui-clean-vm"]
+```
+
+That workflow runs the same PowerShell installer with `-EvidenceDir` and
+`-EvidenceArchive`, imports the archive through
+`scripts/docker-webui-smoke-gate.ts --gate clean_windows_vm --evidence`, and
+uploads the raw evidence, zip archive, imported gate result, and validation
+summary. Pass the uploaded artifact name to the desktop release workflow as
+`docker_webui_clean_windows_evidence_artifact`.
+
 `-EvidenceDir` defaults diagnostics into `windows-clean-evidence/diagnostics`
 and writes `windows-clean-evidence/windows-smoke-evidence.json`. It also calls
 the WebUI access backend to write `api-key-flow-evidence.json`, proving the UI

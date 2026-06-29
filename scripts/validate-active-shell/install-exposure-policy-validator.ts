@@ -264,6 +264,9 @@ function validateDockerWebuiSmokeGateContract(contract) {
   if (contract.workflow_import?.linux_manual_producer_workflow !== '.github/workflows/docker-webui-clean-linux-vm.yml') {
     throw new Error('Docker/WebUI clean Linux VM gate must declare the standalone manual producer workflow');
   }
+  if (contract.workflow_import?.windows_manual_producer_workflow !== '.github/workflows/docker-webui-clean-windows-vm.yml') {
+    throw new Error('Docker/WebUI clean Windows VM gate must declare the standalone manual producer workflow');
+  }
   assertIncludesAll(
     contract.diagnostic_bundle_artifacts,
     [
@@ -312,6 +315,9 @@ function validateDockerWebuiSmokeGateContract(contract) {
   }
   if (gateById.get('clean_windows_vm')?.entrypoint !== 'install-docker-webui.ps1 -Yes') {
     throw new Error('Docker/WebUI clean Windows VM gate must use the PowerShell one-click installer');
+  }
+  if (gateById.get('clean_windows_vm')?.execution_mode !== 'self_hosted_clean_windows_runner_or_manual_vm_smoke') {
+    throw new Error('Docker/WebUI clean Windows VM gate must use a self-hosted clean Windows runner or manual VM smoke');
   }
   if (gateById.get('existing_docker')?.docker_state !== 'existing_docker_must_be_reused_not_reinstalled') {
     throw new Error('Docker/WebUI existing Docker gate must require reusing existing Docker');
