@@ -232,6 +232,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /\/tmp\/opl-webui-install-manifest\.json/);
   assert.match(workflow, /\/tmp\/opl-webui-startup-maintenance\.json/);
   assert.match(workflow, /\/tmp\/opl-webui-update-status\.json/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/validate-webui-runtime-smoke-receipts\.ts/);
+  assert.match(workflow, /--startup-maintenance \/tmp\/opl-webui-startup-maintenance\.json/);
+  assert.match(workflow, /--update-status \/tmp\/opl-webui-update-status\.json/);
+  assert.match(workflow, /--install-manifest \/tmp\/opl-webui-install-manifest\.json/);
+  assert.match(workflow, /\/tmp\/opl-webui-runtime-smoke-receipts-validation\.json/);
   assert.match(workflow, /docker-webui-smoke-gate-contract\.json/);
   assert.match(workflow, /contract_record_only_not_live_smoke_evidence/);
   assert.match(workflow, /clean Linux VM, clean Windows VM, existing Docker, and old OnePersonLab data-dir evidence must be supplied by fresh workflow\/manual smoke artifacts or typed blockers before release-ready claims/i);
@@ -261,6 +266,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(webuiHelper, /\/api\/opl-runtime\/update-status[\s\S]*\/tmp\/opl-webui-update-status\.json/);
   assert.match(webuiHelper, /\/tmp\/opl-webui-startup-maintenance\.json/);
   assert.match(webuiHelper, /\/tmp\/opl-webui-update-status\.json/);
+  assert.match(webuiHelper, /node --experimental-strip-types scripts\/validate-webui-runtime-smoke-receipts\.ts/);
+  assert.match(webuiHelper, /--summary-path \/tmp\/opl-webui-runtime-smoke-receipts-validation\.json/);
   assert.match(webuiHelper, /contract_record_only_not_live_smoke_evidence/);
   assert.match(webuiHelper, /contracts\/app-install-exposure-policy\.json#installer_surfaces\.docker_webui\.smoke_gate_contract/);
   assert.match(cleanLinuxDockerWebuiWorkflow, /name: OPL Docker WebUI Clean Linux VM Smoke/);

@@ -198,6 +198,11 @@ case "$phase" in
     docker exec "$container" cat /projects/.opl-projects-smoke >/tmp/opl-webui-projects-readback.txt
     grep -q 'projects mount smoke' /tmp/opl-webui-projects-readback.txt
     cp "$webui_smoke_dir/data/opl/state/install-manifest.json" /tmp/opl-webui-install-manifest.json
+    node --experimental-strip-types scripts/validate-webui-runtime-smoke-receipts.ts \
+      --startup-maintenance /tmp/opl-webui-startup-maintenance.json \
+      --update-status /tmp/opl-webui-update-status.json \
+      --install-manifest /tmp/opl-webui-install-manifest.json \
+      --summary-path /tmp/opl-webui-runtime-smoke-receipts-validation.json
     docker logs "$container" >/tmp/opl-webui-container.log 2>&1
     grep -q 'running OPL seed apply' /tmp/opl-webui-container.log
     grep -q 'running OPL startup maintenance' /tmp/opl-webui-container.log
