@@ -77,7 +77,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /release-source-gate:/);
   assert.match(workflow, /release-source-gate:[\s\S]*name: Release source gate/);
   assert.match(workflow, /release-source-gate:[\s\S]*npm run release:source-gate --/);
-  assert.match(workflow, /release-source-gate:[\s\S]*--expected-app-head "\$GITHUB_SHA"[\s\S]*--require-shell-format true/);
+  assert.match(workflow, /release-source-gate:[\s\S]*--app-ref "\$GITHUB_SHA"[\s\S]*--framework-ref "\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*--require-shell-format true/);
   assert.match(workflow, /release-source-gate:[\s\S]*release-source-gate-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /standard-build:[\s\S]*needs:[\s\S]*release-workflow-contract[\s\S]*release-source-gate/);
   assert.match(workflow, /full-first-install:[\s\S]*needs: standard-vm-smoke-gate-after-full/);
@@ -201,6 +201,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /same_job_after_docker_webui_smoke/);
   assert.match(workflow, /repeated_docker_build: false/);
   assert.match(workflow, /webui-ghcr-publish:[\s\S]*Download WebUI GHCR publish summary[\s\S]*Verify WebUI GHCR publish summary/);
+  const nightlyWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'nightly-standard-release.yml'), 'utf8');
+  assert.match(nightlyWorkflow, /release-source-gate:[\s\S]*npm run release:source-gate --/);
+  assert.match(nightlyWorkflow, /standard-build:[\s\S]*needs:[\s\S]*resolve-nightly[\s\S]*release-source-gate/);
+  const webuiWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'webui-ghcr-release.yml'), 'utf8');
+  assert.match(webuiWorkflow, /name: Validate release source gate[\s\S]*npm run release:source-gate --/);
+  assert.match(webuiWorkflow, /name: Validate release source gate[\s\S]*--require-shell-format true/);
   assert.doesNotMatch(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*always\(\)/);

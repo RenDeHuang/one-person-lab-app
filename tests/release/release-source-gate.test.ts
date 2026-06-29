@@ -9,15 +9,20 @@ import {
 
 const repoRoot = '/tmp/opl-app';
 const shellRoot = path.join(repoRoot, 'shells', 'aionui');
+const frameworkRoot = '/tmp/one-person-lab';
 const appHead = '0123456789abcdef0123456789abcdef01234567';
 const shellHead = 'abcdef0123456789abcdef0123456789abcdef01';
+const frameworkHead = '789abcdef0123456789abcdef0123456789abcde';
 
 function options(overrides: Partial<ReleaseSourceGateOptions> = {}): ReleaseSourceGateOptions {
   return {
+    version: '26.6.99',
     expectedAppHead: appHead,
     shellRef: 'main',
+    frameworkRef: 'main',
     requireShellFormat: false,
     repoRoot,
+    frameworkRoot,
     output: '',
     json: true,
     ...overrides,
@@ -41,6 +46,9 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
     if (command === 'git' && args.join(' ') === 'status --porcelain --untracked-files=normal' && commandOptions.cwd === repoRoot) {
       return { status: 0, stdout: '', stderr: '' };
     }
+    if (command === 'npm' && args.join(' ') === 'run validate:release-boundary' && commandOptions.cwd === repoRoot) {
+      return { status: 0, stdout: 'release boundary ok\n', stderr: '' };
+    }
     if (
       command === 'git'
       && args[0] === 'rev-parse'
@@ -49,6 +57,15 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
       && commandOptions.cwd === shellRoot
     ) {
       return { status: 0, stdout: `${shellHead}\n`, stderr: '' };
+    }
+    if (
+      command === 'git'
+      && args[0] === 'rev-parse'
+      && args[1] === '--verify'
+      && args[2] === '--quiet'
+      && commandOptions.cwd === frameworkRoot
+    ) {
+      return { status: 0, stdout: `${frameworkHead}\n`, stderr: '' };
     }
     if (command === 'bun' && args.join(' ') === 'run format:check' && commandOptions.cwd === shellRoot) {
       return { status: 0, stdout: 'format ok\n', stderr: '' };
@@ -68,7 +85,13 @@ function reportFor(overrides: Partial<ReleaseSourceGateOptions> = {}) {
     options(overrides),
     runner(),
     '2026-06-30T00:00:00.000Z',
-    { pathExists: (candidatePath) => candidatePath === shellRoot },
+    {
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => {
+        assert.equal(candidatePath, path.join(shellRoot, 'package.json'));
+        return { name: 'one-person-lab-aion-shell' };
+      },
+    },
   );
 }
 
@@ -79,16 +102,23 @@ test('release source gate fails stale expected App HEAD before expensive release
   assert.equal(checkStatus(report, 'expected_app_head'), 'failed');
   assert.equal(checkStatus(report, 'app_worktree_clean'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
+  assert.equal(checkStatus(report, 'framework_ref_resolved'), 'passed');
 });
 
-test('release source gate passes for clean current App checkout and resolvable active shell ref', () => {
+test('release source gate passes for clean current App checkout and resolvable source refs', () => {
   const report = reportFor({ expectedAppHead: appHead.slice(0, 12), shellRef: 'main' });
 
   assert.equal(report.status, 'passed');
+  assert.equal(report.version, '26.6.99');
   assert.equal(report.app_head, appHead);
+  assert.equal(report.shell_sha, shellHead);
+  assert.equal(report.framework_sha, frameworkHead);
   assert.equal(checkStatus(report, 'expected_app_head'), 'passed');
   assert.equal(checkStatus(report, 'app_worktree_clean'), 'passed');
+  assert.equal(checkStatus(report, 'app_release_boundary_contract'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
+  assert.equal(checkStatus(report, 'active_shell_type'), 'passed');
+  assert.equal(checkStatus(report, 'framework_ref_resolved'), 'passed');
 });
 
 test('release source gate emits shell format policy and executes it only when required', () => {
@@ -104,4 +134,45 @@ test('release source gate emits shell format policy and executes it only when re
   assert.equal(executed.status, 'passed');
   assert.equal(executed.required_gates.find((gate) => gate.id === 'active_shell_format_check')?.executed, true);
   assert.equal(checkStatus(executed, 'active_shell_format_check'), 'passed');
+});
+
+test('release source gate fails dirty App worktree before expensive release work', () => {
+  const report = buildReleaseSourceGateReport(
+    options(),
+    runner({
+      [`${repoRoot} $ git status --porcelain --untracked-files=normal`]: {
+        status: 0,
+        stdout: ' M .github/workflows/desktop-release.yml\n?? tmp.txt\n',
+      },
+    }),
+    '2026-06-30T00:00:00.000Z',
+    {
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: () => ({ name: 'one-person-lab-aion-shell' }),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'app_worktree_clean'), 'failed');
+});
+
+test('release source gate fails unresolved framework ref and wrong shell type', () => {
+  const report = buildReleaseSourceGateReport(
+    options({ frameworkRef: 'missing-framework-ref' }),
+    runner({
+      [`${frameworkRoot} $ git rev-parse --verify --quiet missing-framework-ref^{commit}`]: { status: 1 },
+      [`${frameworkRoot} $ git rev-parse --verify --quiet refs/heads/missing-framework-ref^{commit}`]: { status: 1 },
+      [`${frameworkRoot} $ git rev-parse --verify --quiet refs/remotes/origin/missing-framework-ref^{commit}`]: { status: 1 },
+      [`${frameworkRoot} $ git rev-parse --verify --quiet refs/tags/missing-framework-ref^{commit}`]: { status: 1 },
+    }),
+    '2026-06-30T00:00:00.000Z',
+    {
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: () => ({ name: 'unexpected-shell' }),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'active_shell_type'), 'failed');
+  assert.equal(checkStatus(report, 'framework_ref_resolved'), 'failed');
 });

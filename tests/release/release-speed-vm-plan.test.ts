@@ -74,7 +74,7 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     'desktop release workflow contract gate',
   );
   assertMatches(workflow, /release-source-gate:[\s\S]*?name:\s+Release source gate[\s\S]*?npm run release:source-gate --/, 'desktop release source gate');
-  assertMatches(workflow, /release-source-gate:[\s\S]*?--expected-app-head "\$GITHUB_SHA"[\s\S]*?--require-shell-format true/, 'desktop release source gate pins App HEAD and shell format policy');
+  assertMatches(workflow, /release-source-gate:[\s\S]*?--app-ref "\$GITHUB_SHA"[\s\S]*?--framework-ref "\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*?--require-shell-format true/, 'desktop release source gate pins App HEAD, framework ref, and shell format policy');
   assertIncludes(workflow, 'standard-build:', 'desktop release workflow');
   assertMatches(workflow, /standard-build:[\s\S]*?needs:[\s\S]*?release-workflow-contract[\s\S]*?release-source-gate/, 'standard build waits for cheap source gates');
   assertIncludes(workflow, 'uses: ./.github/workflows/_build-reusable.yml', 'standard build job');

@@ -10,14 +10,23 @@ import { parseStrictBoolean } from './release-readiness-args.ts';
 const defaultRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 type CheckStatus = 'passed' | 'failed' | 'skipped';
-type CommandResult = { status: number | null; stdout: string; stderr: string };
+
+type CommandResult = {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+};
+
 export type CommandRunner = (command: string, args: string[], options: { cwd: string }) => CommandResult;
 
 export type ReleaseSourceGateOptions = {
+  version: string;
   expectedAppHead: string;
   shellRef: string;
+  frameworkRef: string;
   requireShellFormat: boolean;
   repoRoot: string;
+  frameworkRoot: string;
   output: string;
   json: boolean;
 };
@@ -45,10 +54,15 @@ export type ReleaseSourceGateReport = {
   generated_at: string;
   status: 'passed' | 'failed';
   repo_root: string;
+  version: string;
   expected_app_head: string;
   app_head: string | null;
   shell_ref: string;
+  shell_sha: string | null;
   shell_root: string;
+  framework_ref: string;
+  framework_sha: string | null;
+  framework_root: string;
   require_shell_format: boolean;
   checks: Check[];
   required_gates: RequiredGate[];
@@ -56,17 +70,22 @@ export type ReleaseSourceGateReport = {
 
 export type ReleaseSourceGateEnvironment = {
   pathExists?: (candidatePath: string) => boolean;
+  readJson?: (candidatePath: string) => unknown;
 };
 
 function usage(): void {
   process.stdout.write(`Usage:
-  npm run release:source-gate -- --expected-app-head <sha> --shell-ref <ref>
+  npm run release:source-gate -- --version <version> --app-ref <sha> --shell-ref <ref> --framework-ref <ref>
 
 Options:
-  --expected-app-head <sha>        Expected App repository HEAD commit.
+  --version <version>              Release version for the candidate cohort.
+  --app-ref <sha>                  Expected App repository HEAD commit.
+  --expected-app-head <sha>        Alias for --app-ref.
   --shell-ref <ref>                Active shell ref to resolve in shells/aionui. Default: main.
+  --framework-ref <ref>            OPL Framework ref to resolve. Default: main.
   --require-shell-format <bool>    Run bun run format:check in the active shell. Default: false.
   --repo-root <path>               App repository root. Default: current script repository.
+  --framework-root <path>          OPL Framework checkout root. Default: ../one-person-lab.
   --output <path>                  Write source gate JSON report.
   --json                          Print the JSON report to stdout.
   --help                          Show this message.
@@ -75,10 +94,13 @@ Options:
 
 function defaultOptions(): ReleaseSourceGateOptions {
   return {
+    version: process.env.OPL_RELEASE_VERSION || '',
     expectedAppHead: process.env.OPL_EXPECTED_APP_HEAD || process.env.GITHUB_SHA || '',
     shellRef: process.env.OPL_SHELL_REF || 'main',
+    frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
     requireShellFormat: parseStrictBoolean(process.env.OPL_REQUIRE_SHELL_FORMAT, false),
     repoRoot: defaultRepoRoot,
+    frameworkRoot: process.env.OPL_FRAMEWORK_ROOT || path.resolve(defaultRepoRoot, '..', 'one-person-lab'),
     output: process.env.OPL_RELEASE_SOURCE_GATE_OUTPUT || '',
     json: false,
   };
@@ -97,10 +119,14 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
       continue;
     }
     const optionIndex = applyStringOptionArg(argv, index, {
+      '--version': (value) => { parsed.version = value; },
+      '--app-ref': (value) => { parsed.expectedAppHead = value; },
       '--expected-app-head': (value) => { parsed.expectedAppHead = value; },
       '--shell-ref': (value) => { parsed.shellRef = value; },
+      '--framework-ref': (value) => { parsed.frameworkRef = value; },
       '--require-shell-format': (value) => { parsed.requireShellFormat = parseStrictBoolean(value); },
       '--repo-root': (value) => { parsed.repoRoot = value; },
+      '--framework-root': (value) => { parsed.frameworkRoot = value; },
       '--output': (value) => { parsed.output = value; },
     });
     if (optionIndex !== null) {
@@ -110,13 +136,16 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
     throw new Error(`Unknown argument: ${token}`);
   }
 
+  if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');
   if (!parsed.expectedAppHead.trim()) {
-    throw new Error('Pass --expected-app-head <sha> or set OPL_EXPECTED_APP_HEAD/GITHUB_SHA.');
+    throw new Error('Pass --app-ref <sha>/--expected-app-head <sha> or set OPL_EXPECTED_APP_HEAD/GITHUB_SHA.');
   }
   if (!parsed.shellRef.trim()) throw new Error('Pass --shell-ref <ref> or set OPL_SHELL_REF.');
+  if (!parsed.frameworkRef.trim()) throw new Error('Pass --framework-ref <ref> or set OPL_FRAMEWORK_REF.');
   return {
     ...parsed,
     repoRoot: path.resolve(parsed.repoRoot),
+    frameworkRoot: path.resolve(parsed.frameworkRoot),
     output: parsed.output ? path.resolve(parsed.output) : '',
   };
 }
@@ -128,7 +157,11 @@ function run(command: string, args: string[], options: { cwd: string }): Command
     env: process.env,
     maxBuffer: 8 * 1024 * 1024,
   });
-  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+  return {
+    status: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
 }
 
 function firstLine(text: string): string {
@@ -148,13 +181,18 @@ function addCheck(checks: Check[], check: Check): void {
 }
 
 function refCandidates(ref: string): string[] {
-  if (/^[0-9a-f]{7,40}$/i.test(ref)) return [ref, 'HEAD'];
-  return [ref, `refs/heads/${ref}`, `refs/remotes/origin/${ref}`, `refs/tags/${ref}`, 'HEAD'];
+  if (/^[0-9a-f]{7,40}$/i.test(ref)) return [ref];
+  return [
+    ref,
+    `refs/heads/${ref}`,
+    `refs/remotes/origin/${ref}`,
+    `refs/tags/${ref}`,
+  ];
 }
 
-function resolveShellRef(shellRoot: string, shellRef: string, runner: CommandRunner): string | null {
-  for (const candidate of refCandidates(shellRef)) {
-    const result = runner('git', ['rev-parse', '--verify', '--quiet', `${candidate}^{commit}`], { cwd: shellRoot });
+function resolveGitRef(root: string, ref: string, runner: CommandRunner): string | null {
+  for (const candidate of refCandidates(ref)) {
+    const result = runner('git', ['rev-parse', '--verify', '--quiet', `${candidate}^{commit}`], { cwd: root });
     const resolved = firstLine(result.stdout);
     if (result.status === 0 && resolved) return resolved;
   }
@@ -175,9 +213,21 @@ export function buildReleaseSourceGateReport(
   environment: ReleaseSourceGateEnvironment = {},
 ): ReleaseSourceGateReport {
   const pathExists = environment.pathExists ?? fs.existsSync;
+  const readJson = environment.readJson ?? ((candidatePath: string) => JSON.parse(fs.readFileSync(candidatePath, 'utf8')));
   const shellRoot = path.join(options.repoRoot, 'shells', 'aionui');
+  const frameworkRoot = options.frameworkRoot;
+  let shellSha: string | null = null;
+  let frameworkSha: string | null = null;
   const checks: Check[] = [];
   const requiredGates: RequiredGate[] = [
+    {
+      id: 'app_release_boundary_contract',
+      required: true,
+      command: 'npm run validate:release-boundary',
+      cwd: options.repoRoot,
+      executed: true,
+      reason: 'Release source gate must prove the App-owned release boundary before expensive release work.',
+    },
     {
       id: 'active_shell_format_check',
       required: true,
@@ -188,23 +238,33 @@ export function buildReleaseSourceGateReport(
     },
   ];
 
+  const releaseBoundaryResult = runner('npm', ['run', 'validate:release-boundary'], { cwd: options.repoRoot });
+  addCheck(checks, {
+    id: 'app_release_boundary_contract',
+    status: releaseBoundaryResult.status === 0 ? 'passed' : 'failed',
+    message: releaseBoundaryResult.status === 0
+      ? 'App release-boundary contract passed.'
+      : `App release-boundary contract failed.${commandDetail(releaseBoundaryResult) ? `\n${commandDetail(releaseBoundaryResult)}` : ''}`,
+    command: 'npm run validate:release-boundary',
+  });
+
   const appHeadResult = runner('git', ['rev-parse', 'HEAD'], { cwd: options.repoRoot });
   const appHead = appHeadResult.status === 0 ? firstLine(appHeadResult.stdout) : '';
-  addCheck(checks, appHead
-    ? {
-        id: 'app_head_resolved',
-        status: 'passed',
-        message: `Resolved App HEAD ${appHead}.`,
-        actual: appHead,
-        command: commandText('git', ['rev-parse', 'HEAD']),
-      }
-    : {
-        id: 'app_head_resolved',
-        status: 'failed',
-        message: `Unable to resolve App HEAD.${commandDetail(appHeadResult) ? ` ${commandDetail(appHeadResult)}` : ''}`,
-        command: commandText('git', ['rev-parse', 'HEAD']),
-      });
-  if (appHead) {
+  if (!appHead) {
+    addCheck(checks, {
+      id: 'app_head_resolved',
+      status: 'failed',
+      message: `Unable to resolve App HEAD.${commandDetail(appHeadResult) ? ` ${commandDetail(appHeadResult)}` : ''}`,
+      command: commandText('git', ['rev-parse', 'HEAD']),
+    });
+  } else {
+    addCheck(checks, {
+      id: 'app_head_resolved',
+      status: 'passed',
+      message: `Resolved App HEAD ${appHead}.`,
+      actual: appHead,
+      command: commandText('git', ['rev-parse', 'HEAD']),
+    });
     addCheck(checks, {
       id: 'expected_app_head',
       status: appHeadMatches(options.expectedAppHead, appHead) ? 'passed' : 'failed',
@@ -230,19 +290,71 @@ export function buildReleaseSourceGateReport(
   });
 
   if (!pathExists(shellRoot)) {
-    addCheck(checks, { id: 'active_shell_checkout', status: 'failed', message: `Active shell checkout is missing at ${shellRoot}.` });
+    addCheck(checks, {
+      id: 'active_shell_checkout',
+      status: 'failed',
+      message: `Active shell checkout is missing at ${shellRoot}.`,
+    });
   } else {
-    addCheck(checks, { id: 'active_shell_checkout', status: 'passed', message: `Active shell checkout exists at ${shellRoot}.` });
-    const resolvedShellRef = resolveShellRef(shellRoot, options.shellRef, runner);
+    addCheck(checks, {
+      id: 'active_shell_checkout',
+      status: 'passed',
+      message: `Active shell checkout exists at ${shellRoot}.`,
+    });
+    shellSha = resolveGitRef(shellRoot, options.shellRef, runner);
     addCheck(checks, {
       id: 'active_shell_ref_resolved',
-      status: resolvedShellRef ? 'passed' : 'failed',
-      message: resolvedShellRef
-        ? `Active shell ref ${options.shellRef} resolves to ${resolvedShellRef}.`
+      status: shellSha ? 'passed' : 'failed',
+      message: shellSha
+        ? `Active shell ref ${options.shellRef} resolves to ${shellSha}.`
         : `Active shell ref ${options.shellRef} cannot be resolved in ${shellRoot}.`,
       expected: options.shellRef,
-      actual: resolvedShellRef ?? undefined,
+      actual: shellSha ?? undefined,
       command: commandText('git', ['rev-parse', '--verify', '--quiet', `${options.shellRef}^{commit}`]),
+    });
+    try {
+      const packageJson = readJson(path.join(shellRoot, 'package.json')) as { name?: unknown };
+      addCheck(checks, {
+        id: 'active_shell_type',
+        status: packageJson?.name === 'one-person-lab-aion-shell' ? 'passed' : 'failed',
+        message: packageJson?.name === 'one-person-lab-aion-shell'
+          ? 'Active shell package type is one-person-lab-aion-shell.'
+          : `Active shell package name must be one-person-lab-aion-shell, got ${String(packageJson?.name ?? 'missing')}.`,
+        expected: 'one-person-lab-aion-shell',
+        actual: typeof packageJson?.name === 'string' ? packageJson.name : undefined,
+      });
+    } catch (error) {
+      addCheck(checks, {
+        id: 'active_shell_type',
+        status: 'failed',
+        message: `Unable to read active shell package.json.${error instanceof Error ? ` ${error.message}` : ''}`,
+        expected: 'one-person-lab-aion-shell',
+      });
+    }
+  }
+
+  if (!pathExists(frameworkRoot)) {
+    addCheck(checks, {
+      id: 'framework_checkout',
+      status: 'failed',
+      message: `OPL Framework checkout is missing at ${frameworkRoot}.`,
+    });
+  } else {
+    addCheck(checks, {
+      id: 'framework_checkout',
+      status: 'passed',
+      message: `OPL Framework checkout exists at ${frameworkRoot}.`,
+    });
+    frameworkSha = resolveGitRef(frameworkRoot, options.frameworkRef, runner);
+    addCheck(checks, {
+      id: 'framework_ref_resolved',
+      status: frameworkSha ? 'passed' : 'failed',
+      message: frameworkSha
+        ? `OPL Framework ref ${options.frameworkRef} resolves to ${frameworkSha}.`
+        : `OPL Framework ref ${options.frameworkRef} cannot be resolved in ${frameworkRoot}.`,
+      expected: options.frameworkRef,
+      actual: frameworkSha ?? undefined,
+      command: commandText('git', ['rev-parse', '--verify', '--quiet', `${options.frameworkRef}^{commit}`]),
     });
   }
 
@@ -270,10 +382,15 @@ export function buildReleaseSourceGateReport(
     generated_at: generatedAt,
     status: checks.some((check) => check.status === 'failed') ? 'failed' : 'passed',
     repo_root: options.repoRoot,
+    version: options.version,
     expected_app_head: options.expectedAppHead,
     app_head: appHead || null,
     shell_ref: options.shellRef,
+    shell_sha: shellSha,
     shell_root: shellRoot,
+    framework_ref: options.frameworkRef,
+    framework_sha: frameworkSha,
+    framework_root: frameworkRoot,
     require_shell_format: options.requireShellFormat,
     checks,
     required_gates: requiredGates,

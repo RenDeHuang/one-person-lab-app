@@ -64,11 +64,20 @@ jobs:
           shell-ref: main
           run-postinstall: 'false'
 
+      - name: Checkout OPL Framework payload source
+        uses: actions/checkout@v6
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: main
+          path: ../one-person-lab
+
       - name: Validate release source gate
         run: |
           npm run release:source-gate -- \
-            --expected-app-head "$GITHUB_SHA" \
+            --version "${{ needs.resolve-nightly.outputs.version }}" \
+            --app-ref "$GITHUB_SHA" \
             --shell-ref main \
+            --framework-ref main \
             --require-shell-format true \
             --output release-source-gate.json \
             --json
