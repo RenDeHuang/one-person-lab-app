@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { applyStringOptionArg, requiredOptionValue } from './cli-option-args.ts';
 import { writeLinesFile } from './release-file-helpers.ts';
@@ -13,8 +14,11 @@ import {
 } from './plan-release-cohort.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const defaultRepo = 'gaofeng21cn/one-person-lab-app';
+const commandMaxBuffer = 16 * 1024 * 1024;
 
 type DiagnosticTarget = 'opl_first_run_vm' | 'desktop_release_diagnostics';
+type JsonRecord = Record<string, unknown>;
 
 type DiagnosticCommand = {
   id: DiagnosticTarget;
@@ -24,18 +28,73 @@ type DiagnosticCommand = {
 };
 
 type OperatorNextAction = {
-  action: 'follow_cohort_plan' | 'rerun_diagnostic_same_artifact';
+  action:
+    | 'follow_cohort_plan'
+    | 'rerun_diagnostic_same_artifact'
+    | 'repair_source_gate'
+    | 'inspect_primary_blocker'
+    | 'start_new_cohort_from_current_main'
+    | 'inspect_release_closeout_evidence'
+    | 'wait_for_release_run_completion';
   command: string;
   reason: string;
+  publishes_release?: false;
+  dispatches_workflow?: false;
 };
+
+type OperatorStatus =
+  | 'planned'
+  | 'diagnostic_command_ready'
+  | 'failed'
+  | 'failed_gate_draining'
+  | 'stale_candidate'
+  | 'ready_for_closeout_review'
+  | 'waiting_for_run_completion';
+
+type RunStatusSummary = {
+  id: string;
+  workflow_name: string | null;
+  display_title: string | null;
+  status: string | null;
+  conclusion: string | null;
+  head_sha: string | null;
+  head_branch: string | null;
+  url: string | null;
+  jobs: Array<{
+    name: string;
+    status: string | null;
+    conclusion: string | null;
+    steps: Array<{
+      name: string;
+      status: string | null;
+      conclusion: string | null;
+    }>;
+  }>;
+};
+
+type PrimaryBlocker = {
+  type: 'run' | 'job' | 'step' | 'stale_candidate';
+  conclusion: string;
+  job_name?: string;
+  step_name?: string;
+  run_id?: string;
+  head_sha?: string | null;
+  expected_head?: string;
+  reason: string;
+} | null;
 
 type OperatorState = {
   schema: 'opl_app_release_operator_state.v1';
   generated_at: string;
-  command: 'plan' | 'diagnose-vm';
-  status: 'planned' | 'diagnostic_command_ready';
+  command: 'plan' | 'diagnose-vm' | 'status';
+  status: OperatorStatus;
   cohort_plan?: ReleaseCohortPlan;
   diagnostic_commands?: DiagnosticCommand[];
+  run?: RunStatusSummary;
+  expected_head?: string;
+  is_stale?: boolean;
+  primary_blocker?: PrimaryBlocker;
+  recommended_next_action?: OperatorNextAction;
   next_action: OperatorNextAction;
   authority_boundary: {
     operator_can_publish_release: false;
@@ -59,14 +118,24 @@ type DiagnoseVmOptions = OperatorOutputOptions & {
   runVmDiagnostic: boolean;
 };
 
+type StatusOptions = OperatorOutputOptions & {
+  runId: string;
+  repo: string;
+  expectedHead: string;
+  runJsonPath: string;
+};
+
 function usage(): void {
   process.stdout.write(`Usage:
   npm run release:operator -- plan --version <version> --release-mode <mode>
   npm run release:operator -- diagnose-vm --version <version> --release-artifact-run-id <run-id>
+  npm run release:operator -- status --run-id <id> [--repo owner/name] [--expected-head <sha>]
+  npm run release:operator -- status --run-json <path> [--expected-head <sha>]
 
 Subcommands:
   plan          Generate release-operator-state.json/md with an embedded cohort plan.
   diagnose-vm  Generate suggested VM diagnostic workflow commands only; does not dispatch.
+  status       Summarize a GitHub Actions run and recommend the next operator action.
 
 Common options:
   --output <path>      Write release-operator-state.json.
@@ -164,6 +233,44 @@ function parseDiagnoseVmArgs(argv: string[]): DiagnoseVmOptions {
   };
 }
 
+function parseStatusArgs(argv: string[]): StatusOptions {
+  const parsed: StatusOptions = {
+    ...defaultOutputOptions(),
+    runId: process.env.OPL_RELEASE_RUN_ID || '',
+    repo: process.env.OPL_RELEASE_REPO || defaultRepo,
+    expectedHead: process.env.OPL_RELEASE_EXPECTED_HEAD || '',
+    runJsonPath: process.env.OPL_RELEASE_RUN_JSON || '',
+  };
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (token === '--help' || token === '-h') {
+      usage();
+      process.exit(0);
+    }
+    const optionIndex = applyStringOptionArg(argv, index, {
+      '--run-id': (value) => { parsed.runId = value; },
+      '--repo': (value) => { parsed.repo = value; },
+      '--expected-head': (value) => { parsed.expectedHead = value; },
+      '--run-json': (value) => { parsed.runJsonPath = value; },
+      '--output': (value) => { parsed.output = value; },
+      '--markdown': (value) => { parsed.markdown = value; },
+    });
+    if (optionIndex !== null) {
+      index = optionIndex;
+      continue;
+    }
+    throw new Error(`Unknown argument: ${token}`);
+  }
+  if (!parsed.runId.trim() && !parsed.runJsonPath.trim()) {
+    throw new Error('Pass --run-id <id> or --run-json <path>.');
+  }
+  return {
+    ...parsed,
+    runJsonPath: parsed.runJsonPath ? path.resolve(parsed.runJsonPath) : '',
+    ...resolveOutputOptions(parsed),
+  };
+}
+
 function quoteField(value: string): string {
   return JSON.stringify(value);
 }
@@ -241,6 +348,243 @@ function buildDiagnoseVmState(options: DiagnoseVmOptions): OperatorState {
   };
 }
 
+function readJson(filePath: string): unknown {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function runGh(args: string[], label: string): string {
+  const result = spawnSync('gh', args, {
+    cwd: appRoot,
+    encoding: 'utf8',
+    maxBuffer: commandMaxBuffer,
+  });
+  if (result.status !== 0) {
+    throw new Error(`${label} failed: ${result.stderr || result.stdout}`);
+  }
+  return result.stdout;
+}
+
+function asRecord(value: unknown): JsonRecord | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as JsonRecord
+    : null;
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function stringField(record: JsonRecord | null | undefined, key: string): string | null {
+  const value = record?.[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function idField(record: JsonRecord | null | undefined): string {
+  const value = record?.databaseId ?? record?.database_id ?? record?.id ?? record?.run_id;
+  if (typeof value === 'string' && value.trim()) return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return 'local';
+}
+
+function normalizeRunPayload(payload: unknown): JsonRecord {
+  const record = asRecord(payload);
+  if (!record) throw new Error('Run JSON must be an object.');
+  return record;
+}
+
+function fetchRun(options: StatusOptions): JsonRecord {
+  if (options.runJsonPath) return normalizeRunPayload(readJson(options.runJsonPath));
+  const stdout = runGh([
+    'run',
+    'view',
+    options.runId,
+    '--repo',
+    options.repo,
+    '--json',
+    [
+      'databaseId',
+      'status',
+      'conclusion',
+      'createdAt',
+      'updatedAt',
+      'startedAt',
+      'headSha',
+      'headBranch',
+      'workflowName',
+      'displayTitle',
+      'event',
+      'url',
+      'jobs',
+    ].join(','),
+  ], 'Fetch release run status');
+  return normalizeRunPayload(JSON.parse(stdout));
+}
+
+function normalizeSteps(job: JsonRecord): RunStatusSummary['jobs'][number]['steps'] {
+  return asArray(job.steps)
+    .map((entry) => asRecord(entry))
+    .filter((entry): entry is JsonRecord => entry !== null)
+    .map((step) => ({
+      name: stringField(step, 'name') ?? stringField(step, 'displayName') ?? 'unknown',
+      status: stringField(step, 'status'),
+      conclusion: stringField(step, 'conclusion'),
+    }));
+}
+
+function normalizeJobs(run: JsonRecord): RunStatusSummary['jobs'] {
+  return asArray(run.jobs ?? run.workflow_jobs)
+    .map((entry) => asRecord(entry))
+    .filter((entry): entry is JsonRecord => entry !== null)
+    .map((job) => ({
+      name: stringField(job, 'name') ?? stringField(job, 'displayName') ?? 'unknown',
+      status: stringField(job, 'status'),
+      conclusion: stringField(job, 'conclusion'),
+      steps: normalizeSteps(job),
+    }));
+}
+
+function summarizeRun(run: JsonRecord, options: StatusOptions): RunStatusSummary {
+  return {
+    id: options.runId || idField(run),
+    workflow_name: stringField(run, 'workflowName') ?? stringField(run, 'workflow_name') ?? stringField(run, 'name'),
+    display_title: stringField(run, 'displayTitle') ?? stringField(run, 'display_title'),
+    status: stringField(run, 'status'),
+    conclusion: stringField(run, 'conclusion'),
+    head_sha: stringField(run, 'headSha') ?? stringField(run, 'head_sha'),
+    head_branch: stringField(run, 'headBranch') ?? stringField(run, 'head_branch'),
+    url: stringField(run, 'url'),
+    jobs: normalizeJobs(run),
+  };
+}
+
+const blockingConclusions = new Set(['failure', 'cancelled', 'timed_out', 'action_required', 'startup_failure']);
+
+function isBlockingConclusion(value: string | null): value is string {
+  return Boolean(value && blockingConclusions.has(value));
+}
+
+function findPrimaryBlocker(run: RunStatusSummary): PrimaryBlocker {
+  for (const job of run.jobs) {
+    for (const step of job.steps) {
+      if (isBlockingConclusion(step.conclusion)) {
+        return {
+          type: 'step',
+          conclusion: step.conclusion,
+          job_name: job.name,
+          step_name: step.name,
+          reason: `Step ${step.name} in job ${job.name} concluded ${step.conclusion}.`,
+        };
+      }
+    }
+    if (isBlockingConclusion(job.conclusion)) {
+      return {
+        type: 'job',
+        conclusion: job.conclusion,
+        job_name: job.name,
+        reason: `Job ${job.name} concluded ${job.conclusion}.`,
+      };
+    }
+  }
+  if (isBlockingConclusion(run.conclusion)) {
+    return {
+      type: 'run',
+      conclusion: run.conclusion,
+      run_id: run.id,
+      reason: `Run concluded ${run.conclusion}.`,
+    };
+  }
+  return null;
+}
+
+function statusAction(options: StatusOptions, run: RunStatusSummary, status: OperatorStatus, blocker: PrimaryBlocker): OperatorNextAction {
+  if (status === 'stale_candidate') {
+    return {
+      action: 'start_new_cohort_from_current_main',
+      command: 'npm run release:operator -- plan --app-commit <current-origin-main-sha>',
+      reason: `Run head ${run.head_sha ?? 'unknown'} does not match expected head ${options.expectedHead}.`,
+      publishes_release: false,
+      dispatches_workflow: false,
+    };
+  }
+  if (status === 'failed_gate_draining') {
+    return {
+      action: 'inspect_primary_blocker',
+      command: `gh run view ${run.id} --repo ${options.repo} --log-failed`,
+      reason: `Primary blocker failed while the workflow is still ${run.status ?? 'running'}: ${blocker?.reason ?? 'A gate failed.'}`,
+      publishes_release: false,
+      dispatches_workflow: false,
+    };
+  }
+  if (status === 'failed') {
+    return {
+      action: 'repair_source_gate',
+      command: `gh run view ${run.id} --repo ${options.repo} --log-failed`,
+      reason: blocker?.reason ?? `Run conclusion is ${run.conclusion ?? 'unknown'}.`,
+      publishes_release: false,
+      dispatches_workflow: false,
+    };
+  }
+  if (status === 'ready_for_closeout_review') {
+    return {
+      action: 'inspect_release_closeout_evidence',
+      command: `npm run release:closeout -- --run-id ${run.id} --repo ${options.repo}`,
+      reason: 'Run completed successfully; inspect closeout artifacts before any owner release decision.',
+      publishes_release: false,
+      dispatches_workflow: false,
+    };
+  }
+  return {
+    action: 'wait_for_release_run_completion',
+    command: `npm run release:operator -- status --run-id ${run.id} --repo ${options.repo}`,
+    reason: `Run is ${run.status ?? 'unknown'} with conclusion ${run.conclusion ?? 'none'}.`,
+    publishes_release: false,
+    dispatches_workflow: false,
+  };
+}
+
+function buildStatusState(options: StatusOptions): OperatorState {
+  const run = summarizeRun(fetchRun(options), options);
+  const isStale = Boolean(options.expectedHead && run.head_sha && run.head_sha !== options.expectedHead);
+  const foundBlocker = findPrimaryBlocker(run);
+  const staleBlocker: PrimaryBlocker = isStale
+    ? {
+        type: 'stale_candidate',
+        conclusion: 'stale',
+        head_sha: run.head_sha,
+        expected_head: options.expectedHead,
+        reason: `Run head ${run.head_sha ?? 'unknown'} does not match expected head ${options.expectedHead}.`,
+      }
+    : null;
+  const primaryBlocker = staleBlocker ?? foundBlocker;
+  const status: OperatorStatus = isStale
+    ? 'stale_candidate'
+    : foundBlocker && run.status !== 'completed'
+      ? 'failed_gate_draining'
+      : foundBlocker || (run.status === 'completed' && run.conclusion !== 'success')
+        ? 'failed'
+        : run.status === 'completed' && run.conclusion === 'success'
+          ? 'ready_for_closeout_review'
+          : 'waiting_for_run_completion';
+  const recommendedNextAction = statusAction(options, run, status, primaryBlocker);
+  return {
+    schema: 'opl_app_release_operator_state.v1',
+    generated_at: new Date().toISOString(),
+    command: 'status',
+    status,
+    run,
+    expected_head: options.expectedHead || undefined,
+    is_stale: isStale,
+    primary_blocker: primaryBlocker,
+    recommended_next_action: recommendedNextAction,
+    next_action: recommendedNextAction,
+    authority_boundary: {
+      operator_can_publish_release: false,
+      operator_can_write_runtime_truth: false,
+      operator_can_dispatch_workflow_without_explicit_user_action: false,
+    },
+  };
+}
+
 function writeOperatorMarkdown(filePath: string, state: OperatorState): void {
   if (!filePath) return;
   const lines = [
@@ -253,6 +597,20 @@ function writeOperatorMarkdown(filePath: string, state: OperatorState): void {
     `- Next command: \`${state.next_action.command.replaceAll('|', '\\|')}\``,
     '',
   ];
+  if (state.run) {
+    lines.push(
+      '## Run',
+      '',
+      `- Run id: ${state.run.id}`,
+      `- Workflow: ${state.run.workflow_name ?? 'unknown'}`,
+      `- Run status: ${state.run.status ?? 'unknown'}`,
+      `- Run conclusion: ${state.run.conclusion ?? 'none'}`,
+      `- Head SHA: ${state.run.head_sha ?? 'unknown'}`,
+      `- Stale: ${String(state.is_stale ?? false)}`,
+      `- Primary blocker: ${state.primary_blocker ? state.primary_blocker.reason : 'none'}`,
+      '',
+    );
+  }
   if (state.cohort_plan) {
     lines.push(
       '## Cohort',
@@ -299,6 +657,13 @@ function main(): void {
   if (subcommand === 'diagnose-vm') {
     const options = parseDiagnoseVmArgs(args);
     const state = buildDiagnoseVmState(options);
+    writeOperatorState(options, state);
+    process.stdout.write(`${JSON.stringify(state, null, 2)}\n`);
+    return;
+  }
+  if (subcommand === 'status') {
+    const options = parseStatusArgs(args);
+    const state = buildStatusState(options);
     writeOperatorState(options, state);
     process.stdout.write(`${JSON.stringify(state, null, 2)}\n`);
     return;
