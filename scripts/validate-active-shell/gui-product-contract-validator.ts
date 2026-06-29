@@ -22,6 +22,7 @@ import {
   appOwnedSettingsIaGroupIds,
   appOwnedSettingsIssueStatuses,
   appOwnedSettingsPostUpdateNoticeFields,
+  appOwnedSettingsSearchProtocol,
   appOwnedSettingsTaskEntryIds,
   appOwnedSettingsVisualQaTargets,
 } from './app-contract-constants.ts';
@@ -622,6 +623,11 @@ function validateSettingsIaContract(settingsIa) {
   ) {
     throw new Error('App GUI settings action catalog must use the App action route');
   }
+  assertDeepEqualJson(
+    settingsIa.protocols?.settings_search,
+    appOwnedSettingsSearchProtocol,
+    'App GUI settings search protocol',
+  );
   assertDeepEqualJson(
     settingsIa.protocols?.card_protocol?.required_fields,
     appOwnedSettingsCardFields,

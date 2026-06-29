@@ -69,6 +69,10 @@ ad hoc cards:
 - Actions come from `app_state.actions` and mutate only through
   `opl app action execute --action <action_id> [--payload <json>] [--dry-run]
   --json`.
+- Settings search filters ordinary route labels, task entries, and action
+  keywords. It is a navigation aid only: selecting a result changes the page,
+  but search results do not create a second status source or expose internal
+  route ids.
 - Summary cards require id, title, state, summary, recommended action, last
   checked time, and details disclosure.
 - State-changing or destructive actions use a confirmation drawer that states

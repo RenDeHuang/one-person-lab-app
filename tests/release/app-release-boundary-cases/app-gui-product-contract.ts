@@ -485,6 +485,11 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     guiContract.settings_navigation.settings_ia.protocols.action_catalog.action_route,
     'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json',
   );
+  assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.settings_search, {
+    scope: 'ordinary_route_labels_user_task_entries_and_action_keywords',
+    result_policy: 'filter_settings_navigation_without_changing_current_page_until_user_selects_a_result',
+    empty_state: 'show_no_matching_settings_without_exposing_internal_route_ids',
+  });
   assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.card_protocol.required_fields, [
     'id',
     'title',

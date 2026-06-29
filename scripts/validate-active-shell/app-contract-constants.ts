@@ -125,6 +125,11 @@ export const appOwnedSettingsTaskEntryIds = [
   'custom_assistant',
 ];
 export const appOwnedSettingsIssueStatuses = ['needs_action', 'in_progress', 'resolved', 'blocked', 'dismissed'];
+export const appOwnedSettingsSearchProtocol = {
+  scope: 'ordinary_route_labels_user_task_entries_and_action_keywords',
+  result_policy: 'filter_settings_navigation_without_changing_current_page_until_user_selects_a_result',
+  empty_state: 'show_no_matching_settings_without_exposing_internal_route_ids',
+};
 export const appOwnedSettingsCardFields = [
   'id',
   'title',
