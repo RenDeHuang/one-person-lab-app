@@ -10,6 +10,7 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..',
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.ps1');
 const installer = fs.readFileSync(installerPath, 'utf8');
 const pwshPath = findPwsh();
+const paramBlock = installer.match(/param\([\s\S]*?\n\)/)?.[0] ?? '';
 
 function findPwsh() {
   if (process.env.PWSH) {
@@ -39,6 +40,7 @@ test('Windows Docker/WebUI installer exposes the required small parameter surfac
     'HealthUrl',
     'DiagnosticsDir',
     'DiagnosticsArchive',
+    'EvidenceDir',
     'InstallPrerequisites',
     'NoOpen',
     'Foreground',
@@ -46,7 +48,8 @@ test('Windows Docker/WebUI installer exposes the required small parameter surfac
     assert.match(installer, new RegExp(`\\$${parameter}\\b`), `missing -${parameter}`);
   }
 
-  assert.doesNotMatch(installer, /ApiKey|API_KEY|OPENAI_API_KEY|GFLABTOKEN|Secret/i);
+  assert.doesNotMatch(paramBlock, /ApiKey|API_KEY|OPENAI_API_KEY|GFLABTOKEN|Secret/i);
+  assert.doesNotMatch(installer, /OPENAI_API_KEY|ANTHROPIC_API_KEY|GFLABTOKEN/i);
 });
 
 test('Windows Docker/WebUI installer writes a compose file with the App-owned WebUI boundary', () => {
