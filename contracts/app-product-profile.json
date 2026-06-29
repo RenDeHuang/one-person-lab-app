@@ -1105,7 +1105,30 @@
         "about",
         "update",
         "theme"
-      ]
+      ],
+      "task_entry_policy": {
+        "ordinary_entry_model": "user_task_first_sections_inside_the_six_Control_Center_groups",
+        "top_level_tab_policy": "do_not_add_new_top_level_tabs_for_model_workspace_updates_web_tools_or_developer_profile",
+        "p0_entries": [
+          "model_account",
+          "workspace_entry",
+          "maintenance_hub",
+          "capability_status"
+        ],
+        "p1_entries": [
+          "web_remote_access",
+          "developer_profile_status",
+          "external_tools_voice",
+          "custom_assistants"
+        ],
+        "hidden_as_ordinary_ui": [
+          "AionUI Team",
+          "backend/provider raw selector",
+          "AG-UI implementation surface",
+          "AionUI implementation skills",
+          "raw runtime/provider internals"
+        ]
+      }
     }
   },
   "companion_payloads": {

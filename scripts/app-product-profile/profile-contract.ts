@@ -181,6 +181,28 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   if (JSON.stringify(settingsIa.secondary_page_ids ?? []) !== JSON.stringify(appOwnedSecondarySettingsPages)) {
     throw new Error('App product profile settings_information_architecture.secondary_page_ids must declare secondary settings pages');
   }
+  const taskEntryPolicy = settingsIa.task_entry_policy;
+  if (!taskEntryPolicy || typeof taskEntryPolicy !== 'object') {
+    throw new Error('App product profile settings_information_architecture.task_entry_policy must be declared');
+  }
+  if (taskEntryPolicy.ordinary_entry_model !== 'user_task_first_sections_inside_the_six_Control_Center_groups') {
+    throw new Error('App product profile task_entry_policy must keep task entries inside the six Control Center groups');
+  }
+  assertIncludesAll(
+    taskEntryPolicy.p0_entries ?? [],
+    ['model_account', 'workspace_entry', 'maintenance_hub', 'capability_status'],
+    'settings_information_architecture.task_entry_policy.p0_entries',
+  );
+  assertIncludesAll(
+    taskEntryPolicy.p1_entries ?? [],
+    ['web_remote_access', 'developer_profile_status', 'external_tools_voice', 'custom_assistants'],
+    'settings_information_architecture.task_entry_policy.p1_entries',
+  );
+  assertIncludesAll(
+    taskEntryPolicy.hidden_as_ordinary_ui ?? [],
+    ['AionUI Team', 'backend/provider raw selector', 'AG-UI implementation surface', 'AionUI implementation skills', 'raw runtime/provider internals'],
+    'settings_information_architecture.task_entry_policy.hidden_as_ordinary_ui',
+  );
   assertStringArray(profile.settings.environment_items, 'settings.environment_items');
   const developerProfile = profile.settings.developer_profile;
   if (!developerProfile || typeof developerProfile !== 'object') {

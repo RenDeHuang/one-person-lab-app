@@ -43,6 +43,38 @@ They must not reappear as ordinary navigation.
 
 ## Page Contracts
 
+## Task Entries
+
+The Control Center keeps six top-level groups. User task entries are surfaced
+inside those groups instead of adding more tabs.
+
+P0 entries:
+
+- Model & Account: current model, model access/API key readiness, connection
+  check, and repair entry. It belongs to Get Started.
+- Workspace: current path, open/change/verify actions, and permission status.
+  It belongs to Overview as an ordinary setup entry.
+- Maintenance Hub: App updates, runtime/toolchain, OPL Packages, storage
+  cleanup, and repair recommendations. It belongs to Maintenance.
+- Capability Status: Research, Grant Writing, Presentations, Book/manuscript
+  work, and OPL automation show usable / needs update / needs repair /
+  not configured. It belongs to Capabilities.
+
+P1 entries:
+
+- Web / Docker / Remote Access: direct route for users who need WebUI, Docker,
+  or remote access. It belongs to Get Started.
+- Developer Profile Status: local checkout source, auto-update impact, and
+  dirty checkout risk. It belongs to Advanced.
+- External Tools & Voice: ordinary label for tools, MCP support, and voice.
+  MCP is explanatory detail, not the primary entry name.
+- Custom Assistant: secondary or Advanced capability depending on product
+  policy; it must not replace built-in OPL purpose entries.
+
+The ordinary UI must not expose AionUI Team, backend/provider raw selectors,
+AG-UI implementation surfaces, AionUI implementation skills, or raw
+runtime/provider internals as product capabilities.
+
 ### Overview
 
 The overview is a summary-first dashboard. It shows:
@@ -50,6 +82,8 @@ The overview is a summary-first dashboard. It shows:
 - a single overall state: usable, needs attention, or blocked;
 - status chips for access, workspace, local services, and capabilities;
 - one recommended primary action and at most two secondary actions;
+- direct entries for Workspace, Model & Account, Maintenance, Capabilities, and
+  Web / Remote Access;
 - last maintenance check and next background check when known;
 - a collapsed technical detail section.
 
@@ -61,10 +95,12 @@ phase names, git state, or package receipt ids as first-screen content.
 Access & Model owns user-facing connection readiness:
 
 - Codex CLI availability;
+- Model & Account with current model, account/API key readiness, connection
+  check, and repair entry;
 - model access/API key state;
 - default model and reasoning selection;
 - permission meaning in user language;
-- WebUI or remote access as a secondary compatibility surface.
+- Web / Docker / Remote Access as a clearly named secondary surface.
 
 Base URLs, token paths, raw config files, and provider internals are advanced
 details, not first-screen content.
@@ -92,8 +128,9 @@ Capabilities are organized by work purpose before implementation detail:
 - OPL automation and Meta Agent.
 
 Each purpose card shows current availability, primary entry, required package or
-skill support, and last capability sync when available. Skills, MCP, voice, and
-tool details are supporting tabs below the purpose model.
+skill support, whether it needs update or repair, and last capability sync when
+available. Skills, external tools, MCP, voice, and custom assistants are
+supporting sections below the purpose model.
 
 ### Updates & Maintenance
 
@@ -103,6 +140,8 @@ links. The maintenance page groups:
 - App binary;
 - runtime/toolchain;
 - OPL Packages;
+- storage cleanup;
+- repair recommendations;
 - capability exposure sync.
 
 Each group uses the same structure: current state, user summary, recommended

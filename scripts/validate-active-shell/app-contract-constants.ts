@@ -188,8 +188,10 @@ export const settingsPageExpectations = {
   settings_general: {
     matrix_id: 'settings_general',
     ia_group: 'overview',
-    sections: ['control_center_summary', 'workspace', 'startup', 'tray', 'language'],
+    sections: ['control_center_summary', 'workspace', 'task_entry_hub', 'workspace_entry', 'startup', 'tray', 'language'],
     must_show: [
+      'task entry hub for Workspace, Model & Account, Maintenance, Capabilities, and Web / Remote Access',
+      'workspace path, open/change/verify actions, and permission status as ordinary user-facing content',
       'Control Center Overview positioning',
       'workspace as an independent ordinary entry',
       'workspace root from app_state.paths',
@@ -206,8 +208,10 @@ export const settingsPageExpectations = {
   settings_access: {
     matrix_id: 'access',
     ia_group: 'getting_started',
-    sections: ['getting_started_summary', 'codex_cli', 'provider_readiness', 'api_keys', 'webui_compatibility'],
+    sections: ['getting_started_summary', 'model_account', 'codex_cli', 'provider_readiness', 'api_keys', 'webui_compatibility', 'web_remote_access'],
     must_show: [
+      'Model & Account section with current model, model access/API key readiness, connection check, and repair entry',
+      'Web / Docker / Remote Access section with a direct user-facing entry to WebUI or remote access setup',
       'Getting Started placed under Control Center Getting Started',
       'whether Codex CLI can run now',
       'whether configured provider access can work now',
@@ -219,13 +223,17 @@ export const settingsPageExpectations = {
       'raw base URL and token paths as first-screen content',
       'backend selector as ordinary App configuration',
       'WebUI as the primary access mental model',
+      'backend/provider raw selector as the Model & Account primary control',
     ],
   },
   settings_capabilities: {
     matrix_id: 'capabilities',
     ia_group: 'capabilities',
-    sections: ['research', 'grant', 'ppt', 'opl_meta_agent', 'skills_detail', 'tools_detail'],
+    sections: ['research', 'grant', 'ppt', 'opl_meta_agent', 'capability_status', 'skills_detail', 'tools_detail', 'external_tools_voice', 'custom_assistants'],
     must_show: [
+      'capability status for Research, Grant, Presentation, Book or manuscript work, and OPL automation',
+      'External Tools & Voice entry with MCP described as secondary technical detail',
+      'Custom Assistant entry as a secondary or advanced capability when enabled by product policy',
       'purpose-grouped MAS research capability',
       'purpose-grouped MAG grant capability',
       'purpose-grouped RCA presentation capability',
@@ -239,13 +247,18 @@ export const settingsPageExpectations = {
       'AG-UI as a user-visible capability concept',
       'AionUI implementation skills such as aionui-skills',
       'OPL Meta Agent as a default Home assistant',
+      'AionUI Team as the ordinary multi-agent collaboration entry',
+      'MCP as the primary user-facing name for external tools',
     ],
   },
   settings_environment: {
     matrix_id: 'environment',
     ia_group: 'maintenance',
-    sections: ['health_summary', 'core.codex', 'provider.temporal', 'modules', 'module_maintenance', 'managed_update_plane', 'diagnostics'],
+    sections: ['health_summary', 'maintenance_hub', 'core.codex', 'provider.temporal', 'modules', 'module_maintenance', 'managed_update_plane', 'storage_cleanup_entry', 'repair_recommendations', 'diagnostics'],
     must_show: [
+      'Maintenance hub for App updates, runtime/toolchain, OPL Packages, storage cleanup, and repair recommendations',
+      'storage cleanup entry routed to Storage & Data without making cleanup a raw diagnostic card',
+      'single recommended repair or maintenance action before advanced manual actions',
       'Codex CLI version and default profile from app_state.core',
       'Temporal status from app_state.provider.temporal',
       'MAS/MAG/RCA/OMA module version and source from app_state.modules',
@@ -283,6 +296,7 @@ export const settingsPageExpectations = {
       'three equal maintenance buttons with shared ambiguous loading state',
       'workspace directory as a buried Local Environment detail instead of an independent ordinary entry',
       'appearance, language, startup, or tray preferences as Local Environment runtime health',
+      'update, repair, package maintenance, and storage cleanup scattered across unrelated pages without a Maintenance hub',
     ],
   },
   settings_storage: {
@@ -311,8 +325,9 @@ export const settingsPageExpectations = {
   settings_advanced: {
     matrix_id: 'advanced',
     ia_group: 'advanced',
-    sections: ['developer_profile', 'paths', 'logs', 'opl_flow_context', 'diagnostics'],
+    sections: ['developer_profile', 'developer_profile_status', 'paths', 'logs', 'opl_flow_context', 'diagnostics'],
     must_show: [
+      'Developer Profile status for local checkout source, auto-update impact, and dirty checkout risk',
       'Advanced placed under Control Center Advanced',
       'Developer Profile effective state and capabilities from app_state.developer_profile',
       'Developer Profile explicit opt-in state for repo or local checkout source_channel',
@@ -326,6 +341,7 @@ export const settingsPageExpectations = {
       'AionUI local directory as OPL path truth',
       'Developer Profile as ordinary first-level user setup',
       'single Developer Mode switch as the only capability expression',
+      'Developer Profile as a one-click ordinary setup shortcut',
     ],
   },
 };

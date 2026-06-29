@@ -123,7 +123,7 @@ export const expectedAionuiTeamProbeIds = [
 export const expectedSettingsPageSections = {
   settings_general: {
     matrixId: 'settings_general',
-    sections: ['control_center_summary', 'workspace', 'startup', 'tray', 'language'],
+    sections: ['control_center_summary', 'workspace', 'task_entry_hub', 'workspace_entry', 'startup', 'tray', 'language'],
     mustShow: [
       'Control Center Overview positioning',
       'workspace as an independent ordinary entry',
@@ -131,6 +131,8 @@ export const expectedSettingsPageSections = {
       'startup and tray preferences as App product preferences',
       'language preference',
       'short links to Getting Started, Capabilities, Maintenance, Preferences, Advanced, and Project Progress',
+      'task entry hub for Workspace, Model & Account, Maintenance, Capabilities, and Web / Remote Access',
+      'workspace path, open/change/verify actions, and permission status as ordinary user-facing content',
     ],
     mustNotShow: [
       'raw OPL internal state files',
@@ -140,7 +142,7 @@ export const expectedSettingsPageSections = {
   },
   settings_access: {
     matrixId: 'access',
-    sections: ['getting_started_summary', 'codex_cli', 'provider_readiness', 'api_keys', 'webui_compatibility'],
+    sections: ['getting_started_summary', 'model_account', 'codex_cli', 'provider_readiness', 'api_keys', 'webui_compatibility', 'web_remote_access'],
     mustShow: [
       'Getting Started placed under Control Center Getting Started',
       'whether Codex CLI can run now',
@@ -148,16 +150,19 @@ export const expectedSettingsPageSections = {
       'current permission meaning in user-facing language',
       'API key and base URL controls behind advanced disclosure',
       'section-level refresh state',
+      'Model & Account section with current model, model access/API key readiness, connection check, and repair entry',
+      'Web / Docker / Remote Access section with a direct user-facing entry to WebUI or remote access setup',
     ],
     mustNotShow: [
       'raw base URL and token paths as first-screen content',
       'backend selector as ordinary App configuration',
       'WebUI as the primary access mental model',
+      'backend/provider raw selector as the Model & Account primary control',
     ],
   },
   settings_capabilities: {
     matrixId: 'capabilities',
-    sections: ['research', 'grant', 'ppt', 'opl_meta_agent', 'skills_detail', 'tools_detail'],
+    sections: ['research', 'grant', 'ppt', 'opl_meta_agent', 'capability_status', 'skills_detail', 'tools_detail', 'external_tools_voice', 'custom_assistants'],
     mustShow: [
       'purpose-grouped MAS research capability',
       'purpose-grouped MAG grant capability',
@@ -166,17 +171,33 @@ export const expectedSettingsPageSections = {
       'required skills locked and optional skills selectable by assistant',
       'builtin skill catalog and auto-injected skills filtered to App packaged skill ids',
       'MCP and tool details as secondary support details',
+      'capability status for Research, Grant, Presentation, Book or manuscript work, and OPL automation',
+      'External Tools & Voice entry with MCP described as secondary technical detail',
+      'Custom Assistant entry as a secondary or advanced capability when enabled by product policy',
     ],
     mustNotShow: [
       'Skills and Tools as the only top-level mental model',
       'AG-UI as a user-visible capability concept',
       'AionUI implementation skills such as aionui-skills',
       'OPL Meta Agent as a default Home assistant',
+      'AionUI Team as the ordinary multi-agent collaboration entry',
+      'MCP as the primary user-facing name for external tools',
     ],
   },
   settings_environment: {
     matrixId: 'environment',
-    sections: ['health_summary', 'core.codex', 'provider.temporal', 'modules', 'module_maintenance', 'managed_update_plane', 'diagnostics'],
+    sections: [
+      'health_summary',
+      'maintenance_hub',
+      'core.codex',
+      'provider.temporal',
+      'modules',
+      'module_maintenance',
+      'managed_update_plane',
+      'storage_cleanup_entry',
+      'repair_recommendations',
+      'diagnostics',
+    ],
     mustShow: [
       'Codex CLI version and default profile from app_state.core',
       'Temporal status from app_state.provider.temporal',
@@ -199,6 +220,9 @@ export const expectedSettingsPageSections = {
       'diagnostics collapsed by default with raw booleans, ids, paths, and receipts hidden',
       'environment page placed under Control Center Maintenance',
       'Local Environment limited to service health rather than broad local runtime preferences',
+      'Maintenance hub for App updates, runtime/toolchain, OPL Packages, storage cleanup, and repair recommendations',
+      'storage cleanup entry routed to Storage & Data without making cleanup a raw diagnostic card',
+      'single recommended repair or maintenance action before advanced manual actions',
     ],
     mustNotShow: [
       'Med Deep Scientist as a default module',
@@ -215,6 +239,7 @@ export const expectedSettingsPageSections = {
       'three equal maintenance buttons with shared ambiguous loading state',
       'workspace directory as a buried Local Environment detail instead of an independent ordinary entry',
       'appearance, language, startup, or tray preferences as Local Environment runtime health',
+      'update, repair, package maintenance, and storage cleanup scattered across unrelated pages without a Maintenance hub',
     ],
   },
   settings_storage: {
@@ -241,7 +266,7 @@ export const expectedSettingsPageSections = {
   },
   settings_advanced: {
     matrixId: 'advanced',
-    sections: ['developer_profile', 'paths', 'logs', 'opl_flow_context', 'diagnostics'],
+    sections: ['developer_profile', 'developer_profile_status', 'paths', 'logs', 'opl_flow_context', 'diagnostics'],
     mustShow: [
       'Advanced placed under Control Center Advanced',
       'Developer Profile effective state and capabilities from app_state.developer_profile',
@@ -250,12 +275,14 @@ export const expectedSettingsPageSections = {
       'logs path from app_state.paths',
       'OPL Flow Context',
       'diagnostics and raw refs behind Advanced navigation',
+      'Developer Profile status for local checkout source, auto-update impact, and dirty checkout risk',
     ],
     mustNotShow: [
       'delayed developer mode flip from a shell-local cache',
       'AionUI local directory as OPL path truth',
       'Developer Profile as ordinary first-level user setup',
       'single Developer Mode switch as the only capability expression',
+      'Developer Profile as a one-click ordinary setup shortcut',
     ],
   },
 };
