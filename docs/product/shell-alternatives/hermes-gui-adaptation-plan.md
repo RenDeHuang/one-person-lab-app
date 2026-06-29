@@ -80,9 +80,10 @@ Hermes foreground alternative 的 App-owned 目标态已经由本仓固化，而
   通过已安装 Skill/Plugin/MCP 机制决定。GUI adapter 不做关键词识别、不直接执行
   `opl start`、不做 `workspace_ensure` dry-run、不注入 route receipt。runtime truth、
   domain truth、artifact authority 和 quality verdict 仍归 OPL Framework 与各 domain repo。
-- Settings 必须 OPL 化。普通 tab 收敛为 General、Access、Agents & Capabilities、
-  Local Environment、Storage、Appearance、Advanced、About & Updates，并对应“模型策略、模型访问、
-  智能体与能力、本机环境、存储、外观与语言、高级与诊断、关于与更新”。Hermes backend、
+- Settings 必须 OPL 化。普通 tab 收敛为 Overview、Setup & Access、Capabilities、
+  Maintenance & Updates、Data & Storage、Preferences、Advanced，并对应“总览、设置与访问、
+  能力、维护与更新、数据与存储、偏好、高级”。About、Update、Theme 只作为 secondary
+  surfaces。Hermes backend、
   provider marketplace、OAuth accounts、custom Base URL、remote backend、Hermes memory
   provider 和 raw gateway state 只能进 Advanced/Diagnostics 或隐藏。
 - 视觉门槛不低于 AionUI active release shell。Hermes 不能只因为用了 Codex app-server

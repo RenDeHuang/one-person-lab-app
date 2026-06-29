@@ -421,7 +421,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.primary_tabs.general.label_zh, '总览');
   assert.equal(guiContract.settings_navigation.primary_tabs.environment.label_en, 'Maintenance & Updates');
-  assert.deepEqual(guiContract.settings_navigation.secondary_page_ids, ['storage', 'about', 'update', 'theme']);
+  assert.deepEqual(guiContract.settings_navigation.secondary_page_ids, ['about', 'update', 'theme']);
   assert.deepEqual(guiContract.settings_navigation.ordinary_groups.map((group) => group.id), [
     'overview',
     'setup_access',
@@ -438,11 +438,11 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'access',
     'capabilities',
     'environment',
+    'storage',
     'appearance',
     'advanced',
   ]);
   assert.deepEqual(guiContract.settings_navigation.settings_ia.secondary_or_deep_link_route_ids, [
-    'storage',
     'about',
     'update',
     'theme',
@@ -526,6 +526,24 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'desktop_settings_advanced',
     'mobile_settings_section_nav',
   ]);
+  assert.deepEqual(
+    Object.fromEntries(
+      pageStateMatrix.pages
+        .filter((page) => page.settings_ia_ref === 'contracts/app-gui-product-contract.json#settings_navigation.settings_ia')
+        .map((page) => [page.id, { route_id: page.route_id, route_scope: page.route_scope, ia_group: page.ia_group }]),
+    ),
+    {
+      settings_general: { route_id: 'general', route_scope: 'ordinary', ia_group: 'overview' },
+      access: { route_id: 'access', route_scope: 'ordinary', ia_group: 'setup_access' },
+      capabilities: { route_id: 'capabilities', route_scope: 'ordinary', ia_group: 'capabilities' },
+      environment: { route_id: 'environment', route_scope: 'ordinary', ia_group: 'maintenance' },
+      storage: { route_id: 'storage', route_scope: 'ordinary', ia_group: 'data_storage' },
+      about: { route_id: 'about', route_scope: 'secondary_or_deep_link', ia_group: 'advanced' },
+      update: { route_id: 'update', route_scope: 'secondary_or_deep_link', ia_group: 'maintenance' },
+      settings_theme: { route_id: 'theme', route_scope: 'secondary_or_deep_link', ia_group: 'preferences' },
+      advanced: { route_id: 'advanced', route_scope: 'ordinary', ia_group: 'advanced' },
+    },
+  );
   assert.deepEqual(guiContract.settings_navigation.primary_tabs.storage, {
     label_zh: '存储',
     label_en: 'Data & Storage',

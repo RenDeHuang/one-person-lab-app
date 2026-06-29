@@ -50,7 +50,7 @@ export const requiredCapabilities = [
   'release_isolation',
   'candidate_app_bundle_package',
 ];
-export const requiredSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about'];
+export const requiredSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
 export const forbiddenLegacySettingsTabs = [
   'overview',
   'runtime',

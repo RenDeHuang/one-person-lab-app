@@ -42,7 +42,45 @@ Legacy routes such as `runtime`, `model`, `agent`, `assistants`, `skills-hub`,
 `tools`, `display`, `webui`, `pet`, and `system` remain compatibility redirects.
 They must not reappear as ordinary navigation.
 
+`settings_ia.v1` is the machine-readable boundary for this design. It lives at
+`contracts/app-gui-product-contract.json#settings_navigation.settings_ia` and
+is mirrored by route metadata in `contracts/app-page-state-matrix.json#pages`.
+The contract deliberately separates user-facing groups from current shell route
+ids:
+
+- ordinary route ids remain `general`, `access`, `capabilities`, `environment`,
+  `appearance`, and `advanced`;
+- `storage` is an ordinary Data & Storage route. `about`, `update`, and `theme`
+  are secondary or deep-link route ids.
+  unless the contract, page-state matrix, validators, and release-boundary tests
+  are deliberately changed together;
+- user-facing groups remain Overview, Setup & Access, Capabilities,
+  Maintenance & Updates, Data & Storage, Preferences, and Advanced.
+
 ## Page Contracts
+
+## Shared Protocols
+
+Settings pages use the same Control Center protocol instead of page-specific
+ad hoc cards:
+
+- Issue queue entries use `needs_action`, `in_progress`, `resolved`, `blocked`,
+  and `dismissed`.
+- Actions come from `app_state.actions` and mutate only through
+  `opl app action execute --action <action_id> [--payload <json>] [--dry-run]
+  --json`.
+- Summary cards require id, title, state, summary, recommended action, last
+  checked time, and details disclosure.
+- State-changing or destructive actions use a confirmation drawer that states
+  what changes, what does not change, and which rollback or receipt reference
+  will exist.
+- Post-update notices show component id, result, receipt ref, next check, and
+  restart or reload guidance without claiming domain readiness or release
+  readiness.
+- Diagnostics, raw ids, paths, receipts, JSON, and component ids are collapsed
+  by default and live under Advanced or explicit disclosure.
+- Unknown deep links redirect to the nearest App-owned Settings group; legacy
+  deep links follow `settings_navigation.legacy_route_redirects`.
 
 ## Task Entries
 
@@ -248,6 +286,13 @@ machine-readable Settings IA contract should be the long-term source for:
 - validation fixtures and smoke route ids;
 - screenshot/user-guide targets.
 
+The route identity rule is part of maintainability: current shell route ids are
+implementation facts, while the seven IA groups are user-facing product groups.
+Do not rename shell routes to match prose group labels, and do not promote
+secondary/deep-link routes such as Storage, About, Update, or Theme into
+ordinary routes without updating the contract, matrix, validators, tests, and
+visual QA targets.
+
 Implementation components should consume typed view models. Large mixed pages
 such as Local Environment should be split into summary, action, maintenance,
 and diagnostics components so each part has one owner and one test surface.
@@ -257,6 +302,8 @@ and diagnostics components so each part has one owner and one test surface.
 Structural landing requires:
 
 - App contracts and page-state matrix updated;
+- `settings_ia.v1` route ids, user task entries, protocols, and visual QA
+  targets covered by active-shell validation and release-boundary tests;
 - active shell navigation and routes updated;
 - i18n labels updated in English and Chinese;
 - active-shell validation passing;

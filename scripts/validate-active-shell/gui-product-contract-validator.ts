@@ -15,7 +15,15 @@ import {
   homeActivityCenterForbiddenDisplays,
   legacySettingsRouteRedirects,
   ordinaryHiddenLegacySettingsTabs,
+  appOwnedSecondarySettingsPages,
   settingsPageExpectations,
+  appOwnedSettingsCardFields,
+  appOwnedSettingsConfirmationFields,
+  appOwnedSettingsIaGroupIds,
+  appOwnedSettingsIssueStatuses,
+  appOwnedSettingsPostUpdateNoticeFields,
+  appOwnedSettingsTaskEntryIds,
+  appOwnedSettingsVisualQaTargets,
 } from './app-contract-constants.ts';
 import { validateGuiFrameworkSurfaces } from './gui-framework-surfaces-validator.ts';
 import { validateGuiProductHomeContract } from './gui-product-home-validator.ts';
@@ -96,6 +104,12 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     appOwnedSettingsTabs,
     'App GUI settings navigation ordinary visible tabs',
   );
+  assertDeepEqualJson(
+    guiContract.settings_navigation?.secondary_page_ids,
+    appOwnedSecondarySettingsPages.filter((routeId) => routeId !== 'storage'),
+    'App GUI settings navigation secondary page ids',
+  );
+  validateSettingsIaContract(guiContract.settings_navigation?.settings_ia);
   assertDeepEqualJson(
     guiContract.settings_navigation?.legacy_route_redirects,
     legacySettingsRouteRedirects,
@@ -571,6 +585,69 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if ('docker_webui' in guiContract) {
     throw new Error('App GUI contract must not include withdrawn Docker/WebUI username, title, logo, or branding requirements');
   }
+}
+
+function validateSettingsIaContract(settingsIa) {
+  if (settingsIa?.schema !== 'settings_ia.v1') {
+    throw new Error('App GUI settings IA must declare settings_ia.v1');
+  }
+  if (settingsIa.authority !== 'one-person-lab-app') {
+    throw new Error('App GUI settings IA authority must stay in one-person-lab-app');
+  }
+  assertDeepEqualJson(settingsIa.ordinary_route_ids, appOwnedSettingsTabs, 'App GUI settings IA ordinary route ids');
+  assertDeepEqualJson(
+    settingsIa.secondary_or_deep_link_route_ids,
+    appOwnedSecondarySettingsPages,
+    'App GUI settings IA secondary/deep-link route ids',
+  );
+  assertDeepEqualJson(settingsIa.group_ids, appOwnedSettingsIaGroupIds, 'App GUI settings IA group ids');
+  if (settingsIa.route_identity_policy !== 'keep_current_shell_route_ids_distinct_from_user_facing_ia_groups') {
+    throw new Error('App GUI settings IA must distinguish current route ids from user-facing IA groups');
+  }
+  if (
+    settingsIa.route_promotion_policy !==
+    'secondary_or_deep_link_routes_must_not_be_promoted_to_ordinary_routes_without_contract_matrix_validator_and_test_updates'
+  ) {
+    throw new Error('App GUI settings IA must gate secondary/deep-link route promotion through contract, matrix, validator, and tests');
+  }
+  assertDeepEqualJson(
+    (settingsIa.user_task_entries ?? []).map((entry) => entry.id),
+    appOwnedSettingsTaskEntryIds,
+    'App GUI settings IA user task entries',
+  );
+  assertDeepEqualJson(settingsIa.protocols?.issue_queue?.statuses, appOwnedSettingsIssueStatuses, 'App GUI settings issue queue statuses');
+  if (
+    settingsIa.protocols?.action_catalog?.action_route !==
+    'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json'
+  ) {
+    throw new Error('App GUI settings action catalog must use the App action route');
+  }
+  assertDeepEqualJson(
+    settingsIa.protocols?.card_protocol?.required_fields,
+    appOwnedSettingsCardFields,
+    'App GUI settings card protocol fields',
+  );
+  assertDeepEqualJson(
+    settingsIa.protocols?.confirmation_drawer?.required_fields,
+    appOwnedSettingsConfirmationFields,
+    'App GUI settings confirmation drawer fields',
+  );
+  assertDeepEqualJson(
+    settingsIa.protocols?.post_update_notice?.required_fields,
+    appOwnedSettingsPostUpdateNoticeFields,
+    'App GUI settings post-update notice fields',
+  );
+  if (settingsIa.protocols?.diagnostics?.default_visibility !== 'collapsed_advanced_only') {
+    throw new Error('App GUI settings diagnostics must be collapsed and Advanced-only by default');
+  }
+  if (settingsIa.protocols?.deep_link_policy?.unknown_route_policy !== 'redirect_to_nearest_app_owned_settings_group') {
+    throw new Error('App GUI settings deep links must redirect unknown routes to the nearest App-owned Settings group');
+  }
+  assertDeepEqualJson(
+    settingsIa.protocols?.visual_qa_expectations?.required_targets,
+    appOwnedSettingsVisualQaTargets,
+    'App GUI settings visual QA targets',
+  );
 }
 
 function validateEnvironmentModuleMaintenanceEntry(entry, label) {

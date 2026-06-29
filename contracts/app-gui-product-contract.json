@@ -909,16 +909,20 @@
     "settings_ia": {
       "schema": "settings_ia.v1",
       "authority": "one-person-lab-app",
+      "source_ref": "contracts/app-gui-product-contract.json#settings_navigation",
+      "matrix_ref": "contracts/app-page-state-matrix.json#pages",
+      "route_identity_policy": "keep_current_shell_route_ids_distinct_from_user_facing_ia_groups",
+      "route_promotion_policy": "secondary_or_deep_link_routes_must_not_be_promoted_to_ordinary_routes_without_contract_matrix_validator_and_test_updates",
       "ordinary_route_ids": [
         "general",
         "access",
         "capabilities",
         "environment",
+        "storage",
         "appearance",
         "advanced"
       ],
       "secondary_or_deep_link_route_ids": [
-        "storage",
         "about",
         "update",
         "theme"
@@ -932,46 +936,75 @@
         "preferences",
         "advanced"
       ],
-      "route_identity_policy": "keep_current_shell_route_ids_distinct_from_user_facing_ia_groups",
-      "route_promotion_policy": "secondary_or_deep_link_routes_must_not_be_promoted_to_ordinary_routes_without_contract_matrix_validator_and_test_updates",
       "user_task_entries": [
         {
-          "id": "model_account"
+          "id": "model_account",
+          "group_id": "setup_access",
+          "route_id": "access",
+          "priority": "p0"
         },
         {
-          "id": "workspace"
+          "id": "workspace",
+          "group_id": "overview",
+          "route_id": "general",
+          "priority": "p0"
         },
         {
-          "id": "maintenance_hub"
+          "id": "maintenance_hub",
+          "group_id": "maintenance",
+          "route_id": "environment",
+          "secondary_route_ids": [
+            "update"
+          ],
+          "priority": "p0"
         },
         {
-          "id": "capability_status"
+          "id": "capability_status",
+          "group_id": "capabilities",
+          "route_id": "capabilities",
+          "priority": "p0"
         },
         {
-          "id": "web_remote_access"
+          "id": "web_remote_access",
+          "group_id": "setup_access",
+          "route_id": "access",
+          "priority": "p1"
         },
         {
-          "id": "developer_profile_status"
+          "id": "developer_profile_status",
+          "group_id": "advanced",
+          "route_id": "advanced",
+          "priority": "p1"
         },
         {
-          "id": "external_tools_voice"
+          "id": "external_tools_voice",
+          "group_id": "capabilities",
+          "route_id": "capabilities",
+          "priority": "p1"
         },
         {
-          "id": "custom_assistant"
+          "id": "custom_assistant",
+          "group_id": "capabilities",
+          "route_id": "capabilities",
+          "priority": "p1"
         }
       ],
       "protocols": {
         "issue_queue": {
+          "source": "opl app state --profile fast --json#settings.issue_queue",
           "statuses": [
             "needs_action",
             "in_progress",
             "resolved",
             "blocked",
             "dismissed"
-          ]
+          ],
+          "owner_policy": "App renders issue refs and action routes without writing runtime/domain truth"
         },
         "action_catalog": {
-          "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json"
+          "source": "app_state.actions",
+          "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
+          "mutation_policy": "all_mutating_settings_actions_go_through_App_action_routes"
         },
         "card_protocol": {
           "required_fields": [
@@ -982,7 +1015,8 @@
             "recommended_action",
             "last_checked_at",
             "details_disclosure"
-          ]
+          ],
+          "first_screen_policy": "summary_first_no_raw_ids_or_receipts_until_disclosed"
         },
         "confirmation_drawer": {
           "required_fields": [
@@ -992,6 +1026,13 @@
             "will_not_change",
             "rollback_or_receipt",
             "requires_preview_or_proof"
+          ],
+          "required_for": [
+            "cleanup",
+            "repair",
+            "rollback",
+            "apply_update",
+            "change_workspace"
           ]
         },
         "post_update_notice": {
@@ -1001,13 +1042,17 @@
             "receipt_ref",
             "next_check",
             "restart_or_reload_guidance"
-          ]
+          ],
+          "receipt_policy": "show_receipt_ref_without_claiming_domain_or_release_readiness"
         },
         "diagnostics": {
-          "default_visibility": "collapsed_advanced_only"
+          "default_visibility": "collapsed_advanced_only",
+          "raw_ref_policy": "raw_paths_ids_receipts_json_and_component_ids_require_disclosure_or_advanced_route"
         },
         "deep_link_policy": {
-          "unknown_route_policy": "redirect_to_nearest_app_owned_settings_group"
+          "unknown_route_policy": "redirect_to_nearest_app_owned_settings_group",
+          "legacy_route_policy": "redirect_using_settings_navigation.legacy_route_redirects",
+          "secondary_route_policy": "open_as_secondary_or_deep_link_without_ordinary_tab_promotion"
         },
         "visual_qa_expectations": {
           "required_targets": [
@@ -1018,6 +1063,13 @@
             "desktop_settings_storage",
             "desktop_settings_advanced",
             "mobile_settings_section_nav"
+          ],
+          "must_check": [
+            "ordinary nav shows seven current route ids only",
+            "About/Update/Theme are secondary or deep-link surfaces unless contract is changed deliberately",
+            "diagnostics and raw refs are collapsed by default",
+            "confirmation drawer appears before destructive or state-changing actions",
+            "post-update notice displays receipt and restart or reload guidance"
           ]
         }
       }
@@ -1089,7 +1141,6 @@
       }
     },
     "secondary_page_ids": [
-      "storage",
       "about",
       "update",
       "theme"

@@ -985,7 +985,10 @@
       },
       "ia_group": "maintenance",
       "health_center_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.health_center",
-      "maintenance_action_policy_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.maintenance_action_policy"
+      "maintenance_action_policy_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.maintenance_action_policy",
+      "route_id": "environment",
+      "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {
       "id": "storage",
@@ -1022,7 +1025,10 @@
         "dangerous cleanup wording such as wipe, purge, nuke, or force delete as ordinary Storage copy"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "data_storage"
+      "ia_group": "data_storage",
+      "route_id": "storage",
+      "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {
       "id": "about",
@@ -1054,7 +1060,10 @@
         "release",
         "links"
       ],
-      "ia_group": "advanced"
+      "ia_group": "advanced",
+      "route_id": "about",
+      "route_scope": "secondary_or_deep_link",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {
       "id": "update",
@@ -1180,7 +1189,10 @@
         "skipped_reasons",
         "reload_guidance"
       ],
-      "ia_group": "maintenance"
+      "ia_group": "maintenance",
+      "route_id": "update",
+      "route_scope": "secondary_or_deep_link",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {
       "id": "login",
@@ -1264,7 +1276,10 @@
         "theme"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "preferences"
+      "ia_group": "preferences",
+      "route_id": "theme",
+      "route_scope": "secondary_or_deep_link",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {
       "id": "first_launch_readiness",
@@ -1443,7 +1458,10 @@
         "workspace buried only under Advanced diagnostics or raw paths"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "overview"
+      "ia_group": "overview",
+      "route_id": "general",
+      "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {
       "id": "access",
@@ -1482,7 +1500,10 @@
         "backend/provider raw selector as the Model & Account primary control"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "setup_access"
+      "ia_group": "setup_access",
+      "route_id": "access",
+      "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {
       "id": "capabilities",
@@ -1546,7 +1567,10 @@
         "MCP as the primary user-facing name for external tools"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "capabilities"
+      "ia_group": "capabilities",
+      "route_id": "capabilities",
+      "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {
       "id": "advanced",
@@ -1586,7 +1610,10 @@
         "Developer Profile as a one-click ordinary setup shortcut"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
-      "ia_group": "advanced"
+      "ia_group": "advanced",
+      "route_id": "advanced",
+      "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     }
   ],
   "gui_product_contract": "contracts/app-gui-product-contract.json",

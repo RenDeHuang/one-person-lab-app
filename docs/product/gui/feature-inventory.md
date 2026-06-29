@@ -270,8 +270,9 @@ workbench、表格化 dashboard 或默认右侧 inspector，应只吸收视觉 t
   refs、per-assistant running badges 或底部 feedback/favorite/web 图标；这些信息
   进入 Runtime 页、右侧 inspector、drawer 或其他 secondary context surface。
 - Module 和 path 只作为 refs 展示，不取得 runtime 或 domain authority。
-- Settings sections 是 General、Access、Agents & Capabilities、Local
-  Environment、Storage、Appearance、Advanced、About & Updates。
+- Settings sections 是 Overview、Setup & Access、Capabilities、
+  Maintenance & Updates、Data & Storage、Preferences、Advanced；
+  About、Update、Theme 是 secondary surfaces。
 - Agents & Capabilities 的内置技能列表和自动注入技能只展示 App packaged skill
   whitelist 中的技能；AionUI implementation helper 如 `aionui-skills` 不作为 OPL 能力展示。
 - Home/new conversation 的普通技能/MCP 选择不使用完整 packaged skill dump 或

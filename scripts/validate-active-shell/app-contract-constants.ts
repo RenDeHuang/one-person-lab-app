@@ -91,7 +91,7 @@ export const beginnerFirstRunTestIds = [
   'opl-first-run-technical-details-toggle',
 ];
 export const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
-export const appOwnedSecondarySettingsPages = ['storage', 'about', 'update', 'theme'];
+export const appOwnedSecondarySettingsPages = ['about', 'update', 'theme'];
 export const appOwnedSettingsIaGroupIds = ['overview', 'setup_access', 'capabilities', 'maintenance', 'data_storage', 'preferences', 'advanced'];
 export const appOwnedSettingsIaLabelsZh = ['总览', '开始使用', '能力', '维护', '数据与存储', '偏好', '高级'];
 export const appOwnedSettingsIaEntryMap = {
@@ -103,6 +103,61 @@ export const appOwnedSettingsIaEntryMap = {
   preferences: ['settings_theme', 'appearance', 'language', 'startup', 'tray'],
   advanced: ['settings_advanced', 'about'],
 };
+export const appOwnedSettingsRouteScopes = {
+  settings_general: { route_id: 'general', route_scope: 'ordinary' },
+  access: { route_id: 'access', route_scope: 'ordinary' },
+  capabilities: { route_id: 'capabilities', route_scope: 'ordinary' },
+  environment: { route_id: 'environment', route_scope: 'ordinary' },
+  storage: { route_id: 'storage', route_scope: 'ordinary' },
+  settings_theme: { route_id: 'theme', route_scope: 'secondary_or_deep_link' },
+  advanced: { route_id: 'advanced', route_scope: 'ordinary' },
+  about: { route_id: 'about', route_scope: 'secondary_or_deep_link' },
+  update: { route_id: 'update', route_scope: 'secondary_or_deep_link' },
+};
+export const appOwnedSettingsTaskEntryIds = [
+  'model_account',
+  'workspace',
+  'maintenance_hub',
+  'capability_status',
+  'web_remote_access',
+  'developer_profile_status',
+  'external_tools_voice',
+  'custom_assistant',
+];
+export const appOwnedSettingsIssueStatuses = ['needs_action', 'in_progress', 'resolved', 'blocked', 'dismissed'];
+export const appOwnedSettingsCardFields = [
+  'id',
+  'title',
+  'state',
+  'summary',
+  'recommended_action',
+  'last_checked_at',
+  'details_disclosure',
+];
+export const appOwnedSettingsConfirmationFields = [
+  'action_id',
+  'summary',
+  'will_change',
+  'will_not_change',
+  'rollback_or_receipt',
+  'requires_preview_or_proof',
+];
+export const appOwnedSettingsPostUpdateNoticeFields = [
+  'component_id',
+  'result',
+  'receipt_ref',
+  'next_check',
+  'restart_or_reload_guidance',
+];
+export const appOwnedSettingsVisualQaTargets = [
+  'desktop_settings_overview',
+  'desktop_settings_access',
+  'desktop_settings_capabilities',
+  'desktop_settings_maintenance',
+  'desktop_settings_storage',
+  'desktop_settings_advanced',
+  'mobile_settings_section_nav',
+];
 export const appOwnedDeveloperProfileCapabilityAxes = [
   'source_channel',
   'workspace_trust',
