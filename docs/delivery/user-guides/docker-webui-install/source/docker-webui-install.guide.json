@@ -1,0 +1,231 @@
+{
+  "schema": "opl_docker_webui_user_guide.v1",
+  "id": "docker-webui-install",
+  "title": "One Person Lab Docker/WebUI 新手安装教程",
+  "short_title": "Linux / Windows 安装",
+  "owner": "one-person-lab-app",
+  "purpose": "docker_webui_install_user_guide_source",
+  "state": "active",
+  "machine_boundary": "Human-readable Docker/WebUI user guide source. App release contracts, GHCR publish receipts, shell Dockerfile, WebUI backend behavior, and live container smoke remain the machine truth.",
+  "audience": "Linux、Windows 或服务器用户；默认没有 Docker 经验。",
+  "intro": "macOS 用户可以继续使用 DMG、一键安装、Homebrew 或 Docker；Linux 和 Windows 用户从本教程开始，通过浏览器打开 One Person Lab。",
+  "security_notice": "如果要让别人通过网络访问这台电脑上的 WebUI，请先让技术支持配置内网、反向代理、TLS 和访问控制。访问密钥、登录密码和研究数据不要写入公开文档或截图。",
+  "download": {
+    "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
+    "local_image": "one-person-lab-webui:latest",
+    "source_repo": "https://github.com/gaofeng21cn/opl-aion-shell",
+    "support_reference_url": "https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md",
+    "docker_desktop_windows_url": "https://docs.docker.com/desktop/setup/install/windows-install/",
+    "docker_engine_ubuntu_url": "https://docs.docker.com/engine/install/ubuntu/"
+  },
+  "cover": {
+    "description": "按 Windows 安装 Docker Desktop、Linux 终端安装 Docker、启动 One Person Lab WebUI、打开浏览器登录和进入工作台的顺序说明。"
+  },
+  "prepare_checklist": [
+    "一台 Windows 10/11、Ubuntu Linux 或 Linux 服务器。",
+    "稳定网络，用于安装 Docker 和下载 One Person Lab WebUI 镜像。",
+    "如果是 Windows，先确认电脑可以启用 WSL 2 和虚拟化；普通个人电脑优先使用 Docker Desktop。",
+    "如果是 Linux，准备一个可以使用 `sudo` 的账号。",
+    "如果需要模型访问，联系管理员获取访问密钥；不要把密钥发到群里或写进截图。"
+  ],
+  "steps": [
+    {
+      "id": "choose-system",
+      "title": "1. 先看你是哪种电脑",
+      "subtitle": "Windows 走 Docker Desktop；Linux 走终端命令；macOS 继续看 macOS 教程。",
+      "body": "如果你面前是 Windows 电脑，先安装 Docker Desktop，再在 PowerShell 里启动 One Person Lab。如果你面前是 Ubuntu Linux 或 Linux 服务器，直接在终端里安装 Docker 并启动 WebUI。macOS 用户仍然优先看 macOS App 图文教程。",
+      "visual_title": "入口选择",
+      "visual_lines": [
+        "Windows 10/11 -> 安装 Docker Desktop -> PowerShell 启动 OPL",
+        "Ubuntu Linux / Linux 服务器 -> 终端安装 Docker -> 终端启动 OPL",
+        "macOS -> DMG / 一键安装 / Homebrew / Docker"
+      ],
+      "callouts": [
+        "Windows 新手不要先打开 Linux 命令；先装 Docker Desktop。",
+        "Linux 用户重点是复制终端命令运行。",
+        "所有系统最后都在浏览器打开 `http://localhost:3000/`。"
+      ],
+      "notes": [
+        "如果你不确定自己的系统，Windows 左下角有开始菜单；Ubuntu/Linux 通常会使用 Terminal/终端。",
+        "本教程只覆盖非 macOS 的 Docker/WebUI 路径。"
+      ]
+    },
+    {
+      "id": "windows-install-docker",
+      "title": "2A. Windows：安装 Docker Desktop",
+      "subtitle": "下载 Docker Desktop，安装时保留 WSL 2 选项，安装后启动它。",
+      "body": "打开 Docker 官方 Windows 安装页面，下载 Docker Desktop Installer。双击安装器，普通个人电脑选择推荐的 per-user 安装；看到 WSL 2 相关选项时保持启用。安装完成后，从开始菜单打开 Docker Desktop，等它显示正在运行。",
+      "visual_title": "Windows 要做的事",
+      "visual_lines": [
+        "1. 打开 Docker Desktop for Windows 下载页",
+        "2. 下载并双击 Docker Desktop Installer.exe",
+        "3. 保持 WSL 2 backend / Use WSL 2 选项启用",
+        "4. 安装完成后打开 Docker Desktop"
+      ],
+      "callouts": [
+        "新手优先选择 Docker Desktop，不需要理解 Docker 内部结构。",
+        "Docker Desktop 窗口打开并显示运行后，再继续下一步。",
+        "如果提示 WSL 2 或虚拟化未启用，按 Docker Desktop 的提示修复或请技术支持处理。"
+      ],
+      "notes": [
+        "Docker 官方文档建议多数用户使用 per-user 安装；该模式使用 WSL 2 backend。",
+        "Windows Server 不是 Docker Desktop 的普通支持场景；服务器由技术支持单独部署。"
+      ]
+    },
+    {
+      "id": "windows-run-opl",
+      "title": "3A. Windows：启动 One Person Lab",
+      "subtitle": "打开 PowerShell，复制一条命令启动 WebUI。",
+      "body": "Docker Desktop 正在运行后，打开 PowerShell，复制下面这条命令并按 Enter。第一次运行会下载镜像，可能需要几分钟。看到终端持续输出日志时，不要关闭这个窗口。",
+      "visual_title": "PowerShell 命令",
+      "visual_lines": [
+        "docker run --rm -p 3000:3000 -v opl-data:/data \\",
+        "  -e AIONUI_ALLOW_REMOTE=true \\",
+        "  -e AIONUI_DATA_DIR=/data \\",
+        "  ghcr.io/gaofeng21cn/one-person-lab-webui:latest"
+      ],
+      "callouts": [
+        "这个窗口就是 One Person Lab WebUI 的运行窗口。",
+        "窗口关掉后 WebUI 会停止；重新运行同一条命令即可再次打开。",
+        "`opl-data` 会保存 WebUI 数据，重启后还能继续使用。"
+      ],
+      "notes": [
+        "如果提示 `docker` 命令不存在，先确认 Docker Desktop 已启动，再重新打开 PowerShell。",
+        "如果下载镜像很慢，先换网络或请技术支持确认 GitHub/GHCR 是否可访问。"
+      ]
+    },
+    {
+      "id": "linux-install-docker",
+      "title": "2B. Linux：安装 Docker",
+      "subtitle": "Ubuntu 用户在终端复制安装命令；其他 Linux 发行版请让技术支持按 Docker 官方文档安装。",
+      "body": "在 Ubuntu 上打开 Terminal/终端，先安装 Docker Engine。下面是官方 apt repository 路线的简化命令，适合新机器首次安装。每一行都可以复制到终端执行。",
+      "visual_title": "Ubuntu 安装命令",
+      "visual_lines": [
+        "sudo apt update",
+        "sudo apt install ca-certificates curl",
+        "sudo install -m 0755 -d /etc/apt/keyrings",
+        "sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc",
+        "sudo chmod a+r /etc/apt/keyrings/docker.asc",
+        "sudo apt update",
+        "sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
+      ],
+      "callouts": [
+        "终端要求输入密码时，输入电脑登录密码；输入时屏幕可能不显示字符，这是正常的。",
+        "安装完成后用 `sudo docker run hello-world` 验证 Docker 可用。",
+        "如果不是 Ubuntu，不要硬套这段命令，请按 Docker 官方对应系统文档安装。"
+      ],
+      "notes": [
+        "Docker 官方 Ubuntu 文档要求先配置 apt repository，再安装 Docker packages。",
+        "如果 `sudo docker run hello-world` 成功，说明 Docker 已经可以运行容器。"
+      ]
+    },
+    {
+      "id": "linux-run-opl",
+      "title": "3B. Linux：启动 One Person Lab",
+      "subtitle": "Docker 可用后，在终端复制一条命令启动 WebUI。",
+      "body": "Docker 安装完成后，在终端复制下面这条命令并按 Enter。第一次运行会下载 One Person Lab WebUI 镜像。看到日志持续输出后，保持终端窗口打开。",
+      "visual_title": "Linux 终端命令",
+      "visual_lines": [
+        "sudo docker run --rm -p 3000:3000 -v opl-data:/data \\",
+        "  -e AIONUI_ALLOW_REMOTE=true \\",
+        "  -e AIONUI_DATA_DIR=/data \\",
+        "  ghcr.io/gaofeng21cn/one-person-lab-webui:latest"
+      ],
+      "callouts": [
+        "本机使用时，浏览器访问 `http://localhost:3000/`。",
+        "服务器使用时，技术支持应配置服务器地址、反向代理和访问控制。",
+        "不要关闭运行命令的终端窗口；关闭后 WebUI 会停止。"
+      ],
+      "notes": [
+        "如果你已经配置了 Docker 非 root 用户，也可以去掉命令开头的 `sudo`。",
+        "需要后台长期运行时，请让技术支持改成 Docker Compose 或系统服务。"
+      ]
+    },
+    {
+      "id": "open-browser",
+      "title": "4. 打开浏览器访问 WebUI",
+      "subtitle": "看到登录页就说明 WebUI 已经跑起来了。",
+      "body": "打开 Chrome、Edge 或 Firefox，在地址栏输入 `http://localhost:3000/`。如果是在服务器上部署，请输入技术支持给你的服务器访问地址。页面出现 One Person Lab 登录框时，就说明浏览器已经连上 WebUI。",
+      "asset": "01-browser-open-webui.png",
+      "visual_title": "浏览器地址",
+      "visual_lines": [
+        "本机电脑：http://localhost:3000/",
+        "服务器：使用技术支持提供的 https 地址",
+        "看到登录页后继续下一步"
+      ],
+      "callouts": [
+        "地址要输入到浏览器地址栏，不是搜索框里的关键词。",
+        "如果页面打不开，先确认 Docker/终端窗口还在运行。",
+        "如果是服务器地址打不开，联系技术支持检查端口、域名和访问控制。"
+      ],
+      "notes": [
+        "截图为本机 WebUI 在浏览器中打开后的登录页。",
+        "页面语言可能因浏览器设置显示为英文或中文，不影响使用。"
+      ]
+    },
+    {
+      "id": "sign-in-use",
+      "title": "5. 登录并开始使用",
+      "subtitle": "使用管理员给你的账号或首次启动输出的临时密码登录。",
+      "body": "在登录页输入账号和密码。个人本机首次启动时，终端可能会显示初始 admin 用户名和临时密码；服务器部署时，通常由技术支持提供账号。登录后进入 One Person Lab 工作台，就可以像 macOS App 一样选择科研、基金、演示或写书入口。",
+      "asset": "02-opl-workbench-after-login.png",
+      "visual_title": "登录后看到的界面",
+      "visual_lines": [
+        "1. 输入 Username 和 Password",
+        "2. 点击 Sign In / 登录",
+        "3. 进入 One Person Lab 工作台",
+        "4. 选择科研、基金、演示或写书入口"
+      ],
+      "callouts": [
+        "首次临时密码只给本人使用，登录后按提示修改。",
+        "不要把密码截图发给别人。",
+        "进入工作台后，使用方式与 macOS App 的主界面一致。"
+      ],
+      "notes": [
+        "工作台截图来自同一 App renderer 的已验证 macOS guide 截图，用于展示登录后的 OPL 入口形态。",
+        "实际 WebUI 登录后的页面会随版本、账号权限和语言设置略有不同。"
+      ]
+    },
+    {
+      "id": "daily-use",
+      "title": "6. 下次怎么打开和关闭",
+      "subtitle": "重新运行启动命令即可再次打开；保留 `opl-data` 就能保留数据。",
+      "body": "下次使用时，先打开 Docker Desktop 或确认 Linux Docker 服务正在运行，然后重新运行启动 One Person Lab 的命令，再用浏览器访问 `http://localhost:3000/`。不用时可以在终端按 Ctrl+C 停止。",
+      "visual_title": "日常使用",
+      "visual_lines": [
+        "打开：运行同一条 docker run 命令",
+        "访问：浏览器打开 http://localhost:3000/",
+        "关闭：终端按 Ctrl+C",
+        "保留：不要删除 Docker volume `opl-data`"
+      ],
+      "callouts": [
+        "`opl-data` 是数据保存位置，不要随便删除。",
+        "更新时通常拉取新镜像后重新运行同一条命令。",
+        "正式服务器部署请交给技术支持配置长期运行。"
+      ],
+      "notes": [
+        "这份教程面向新手日常使用，不展开 Docker 内部概念。",
+        "Docker/WebUI 的发布真相仍以 App release workflow、GHCR publish summary 和 contracts 为准。"
+      ]
+    }
+  ],
+  "faqs": [
+    "Windows 上找不到 Docker 命令：先启动 Docker Desktop，等它显示 running，再重新打开 PowerShell。",
+    "Windows 提示 WSL 2 或虚拟化问题：按 Docker Desktop 提示启用 WSL 2 / virtualization，或让技术支持处理。",
+    "Linux 上 `docker` 权限不够：先用 `sudo docker ...`；后续是否配置非 root 用户由技术支持决定。",
+    "镜像下载很慢或失败：换网络，或让技术支持确认 GHCR 是否可访问。",
+    "浏览器打不开 `localhost:3000`：确认启动命令窗口还在运行，且没有其他程序占用 3000 端口。",
+    "服务器给别人访问：不要直接裸露端口，请配置 TLS、域名、反向代理和访问控制。"
+  ],
+  "verification_callouts": [
+    "Windows 路径按 Docker Desktop 官方 Windows 安装页核对：per-user 安装推荐给多数用户，WSL 2 backend 覆盖大多数 Docker Desktop 用户需求。",
+    "Linux 路径按 Docker Engine Ubuntu 官方 apt repository 安装页核对：先配置 apt repository，再安装 Docker packages，并用 `hello-world` 验证。",
+    "WebUI 浏览器登录页截图来自本机 `http://127.0.0.1:33000/` 的 Playwright 截图。",
+    "工作台截图复用同一 App renderer 的已验证 macOS guide 截图，只作为登录后入口形态示意。"
+  ],
+  "provenance_notes": [
+    "本教程是新手 onboarding artifact，不是 Docker 官方文档复刻，也不是 release-ready 或 runtime-ready 证明。",
+    "Docker/WebUI 镜像坐标、构建发布和 release gate 归 `one-person-lab-app`；plain WebUI runtime 变量以 active shell Dockerfile / web-cli / web-host 为实现真相。",
+    "截图资产保存在 `docs/delivery/user-guides/docker-webui-install/assets/`，生成器会校验文件存在、尺寸和 SHA256。"
+  ]
+}

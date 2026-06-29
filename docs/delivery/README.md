@@ -20,6 +20,8 @@ surfaces live under `docs/public/`.
 | [`release/release-train-optimization-design.md`](release/release-train-optimization-design.md) | Release train optimization design support. |
 | [`release-evidence/screenshots.md`](release-evidence/screenshots.md) | Screenshot and visual tutorial evidence routing. |
 | [`user-guides/macos-app-install/README.md`](user-guides/macos-app-install/README.md) | macOS install guide source, generated Markdown/deck source, screenshot provenance, fixtures, and verification records. |
+| [`user-guides/docker-webui-install/README.md`](user-guides/docker-webui-install/README.md) | Docker/WebUI install guide source, generated Markdown, and verification records. |
 
 Do not link ordinary users to this directory. Use
-`docs/public/macos-app-install/` for the publishable guide bundle.
+`docs/public/macos-app-install/` and `docs/public/docker-webui-install/` for
+publishable guide bundles.

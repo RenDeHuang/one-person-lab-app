@@ -38,21 +38,25 @@ governance only.
 | [`delivery/`](delivery/) | Release, artifact/package/export, user-guide generation source, and verification; `active_support` | Release operator docs, generated guide source/provenance, screenshots, and package/export lifecycle support. | Release truth stays in produced assets, updater metadata, evidence manifests, CI/logs, workflows, validators, and release-boundary tests. |
 | [`testing/`](testing/) | App testing entry; `app_testing_docs`; `active` | Test, validation, release-evidence classification, and smoke command orientation. | Test code, contracts, workflows, validators, and artifacts are executable truth. |
 | [`history/`](history/) | App historical index; `app_history`; `history_index` | Retired routes, candidate verification provenance, stale-surface no-resurrection notes, and compressed process history. | Historical only; not active product/runtime/release truth. |
-The canonical public user entry is `docs/public/macos-app-install/`; source and
-generated maintenance material belongs under `docs/delivery/`.
+The canonical public user install entries are `docs/public/macos-app-install/`
+and `docs/public/docker-webui-install/`; source and generated maintenance
+material belongs under `docs/delivery/`.
 
 ## Public User Entry
 
 Use [`public/macos-app-install/README.md`](public/macos-app-install/README.md)
-for links to the publishable macOS App install guide:
+and [`public/docker-webui-install/README.md`](public/docker-webui-install/README.md)
+for links to publishable install guides:
 
 - [`public/macos-app-install/index.html`](public/macos-app-install/index.html)
 - [`public/macos-app-install/macos-app-install-slides.pdf`](public/macos-app-install/macos-app-install-slides.pdf)
 - [`public/macos-app-install/macos-app-install-slides.pptx`](public/macos-app-install/macos-app-install-slides.pptx)
 - [`public/macos-app-install/macos-app-install-detailed-guide.pdf`](public/macos-app-install/macos-app-install-detailed-guide.pdf)
+- [`public/docker-webui-install/index.html`](public/docker-webui-install/index.html)
+- [`public/docker-webui-install/docker-webui-install-detailed-guide.pdf`](public/docker-webui-install/docker-webui-install-detailed-guide.pdf)
 
-Do not link ordinary users to `docs/delivery/user-guides/macos-app-install/`;
-it is a maintenance/source surface.
+Do not link ordinary users to `docs/delivery/user-guides/*`; those are
+maintenance/source surfaces.
 
 ## GUI And Candidate Docs
 

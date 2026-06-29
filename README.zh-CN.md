@@ -127,7 +127,8 @@ macOS trust 诊断和内部版本处理细节留在 release guide，不放在公
 `One-Person-Lab-Full-<version>-mac-arm64.dmg`。同一完整首次安装包也可以通过
 `one-person-lab-full` Homebrew cask 安装。
 
-首次启动图文教程以 [macOS App install user guide](docs/public/macos-app-install/index.html)
+macOS 可以通过 DMG、一键安装、Homebrew 或 Docker/WebUI 安装。首次启动图文教程以
+[macOS App install user guide](docs/public/macos-app-install/index.html)
 为主入口；同一份 guide 也提供
 [可转发 PDF](docs/public/macos-app-install/macos-app-install-slides.pdf)、
 [可转发 PPTX](docs/public/macos-app-install/macos-app-install-slides.pptx) 和
@@ -135,7 +136,10 @@ macOS trust 诊断和内部版本处理细节留在 release guide，不放在公
 
 日常更新由 Homebrew 或应用内更新通道完成，取决于安装方式。release asset、updater metadata 和 Full first-install 边界由 App release guide 与 contracts 维护。
 
-Docker 或服务器部署请参考 [Docker/WebUI 安装说明](https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md)。
+Linux、Windows 或服务器用户默认使用 Docker/WebUI，请从
+[Docker/WebUI install guide](docs/public/docker-webui-install/index.html) 开始；同一份
+guide 也提供
+[detailed PDF](docs/public/docker-webui-install/docker-webui-install-detailed-guide.pdf)。
 
 ## 应用能做什么
 

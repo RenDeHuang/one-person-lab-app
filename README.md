@@ -135,9 +135,10 @@ For a first-time macOS arm64 install without Homebrew, choose
 `One-Person-Lab-Full-<version>-mac-arm64.dmg`. The same complete first-install
 package is also available as the `one-person-lab-full` Homebrew cask.
 
-For a screenshot-based first-run walkthrough, start from the
-[macOS App install user guide](docs/public/macos-app-install/index.html). The same
-guide is also available as a shareable
+For macOS, the App can be installed through DMG, the one-shot installer,
+Homebrew, or Docker/WebUI. For a screenshot-based first-run walkthrough, start
+from the [macOS App install user guide](docs/public/macos-app-install/index.html).
+The same guide is also available as a shareable
 [PDF](docs/public/macos-app-install/macos-app-install-slides.pdf) and
 [PPTX](docs/public/macos-app-install/macos-app-install-slides.pptx), plus a
 [detailed PDF](docs/public/macos-app-install/macos-app-install-detailed-guide.pdf).
@@ -149,7 +150,10 @@ first-install boundaries are governed by the App release guide and contracts.
 For Docker or server deployment, use the App-owned `one-person-lab-webui` GHCR
 image. It is separate from the desktop App GUI shell, which is bundled into the
 App package from the active AionUI shell, and it is not an OPL Packages module.
-See the [Docker/WebUI install guide](https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md).
+Linux, Windows, and server users should start from the
+[Docker/WebUI install guide](docs/public/docker-webui-install/index.html). The
+same guide is also available as a
+[detailed PDF](docs/public/docker-webui-install/docker-webui-install-detailed-guide.pdf).
 
 ## What The App Does
 

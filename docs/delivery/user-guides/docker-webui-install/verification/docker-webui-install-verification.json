@@ -1,0 +1,35 @@
+{
+  "status": "docker_webui_install_guide_ready",
+  "generator": "single_json_to_html_markdown_pandoc_xelatex",
+  "source": "docs/delivery/user-guides/docker-webui-install/source/docker-webui-install.guide.json",
+  "generated_markdown": "docs/delivery/user-guides/docker-webui-install/generated/docker-webui-install.md",
+  "output_html": "docs/public/docker-webui-install/index.html",
+  "output_pdf": "docs/public/docker-webui-install/docker-webui-install-detailed-guide.pdf",
+  "pandoc_markdown": "tmp/pdfs/docker-webui-install/docker-webui-install.pandoc.md",
+  "pandoc_header": "tmp/pdfs/docker-webui-install/docker-webui-install-header.tex",
+  "pdf_layout": "portrait_ebook",
+  "pdf_pages": 7,
+  "pdf_page_size_pts": {
+    "width": 612,
+    "height": 792
+  },
+  "rendered_pages": 7,
+  "rendered_dir": "tmp/pdfs/docker-webui-install/rendered",
+  "html_bytes": 15066,
+  "guide_steps": 8,
+  "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
+  "support_reference_url": "https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md",
+  "required_terms": [
+    "One Person Lab Docker/WebUI 新手安装教程",
+    "macOS",
+    "DMG",
+    "Homebrew",
+    "Linux",
+    "Windows",
+    "Docker/WebUI",
+    "AIONUI_ALLOW_REMOTE",
+    "ghcr.io/gaofeng21cn/one-person-lab-webui",
+    "验证方式"
+  ],
+  "required_terms_status": "present"
+}

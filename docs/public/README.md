@@ -16,5 +16,7 @@ material belongs under the delivery owner (`docs/delivery/`).
 | Entry | Purpose | Boundary |
 | --- | --- | --- |
 | [macOS App install guide bundle](macos-app-install/README.md) | User-facing install and first-run guide bundle. Start with [`index.html`](macos-app-install/index.html), then use the PDF/PPTX attachments when a shareable file is needed. | Human-readable onboarding artifact only. Release/install truth stays in App contracts, release artifacts, VM smoke, workflows, validators, and evidence manifests. |
+| [Docker/WebUI install guide bundle](docker-webui-install/README.md) | User-facing Docker/WebUI guide for Linux, Windows, and server users. Start with [`index.html`](docker-webui-install/index.html), then use the detailed PDF when a shareable file is needed. | Human-readable onboarding artifact only. WebUI image truth stays in App contracts, release artifacts, GHCR publish receipts, shell Dockerfile/web-cli behavior, and live container smoke. |
 
-Do not point ordinary users at guide source or screenshot provenance directories.
+Do not point ordinary users at guide source, generated maintenance material, or
+screenshot provenance directories.

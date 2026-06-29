@@ -1,11 +1,14 @@
 {
   "status": "macos_app_install_pdf_ready",
-  "pdf_layout": "landscape",
+  "generator": "pandoc_xelatex_publication_template",
+  "pdf_layout": "portrait_ebook",
   "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
   "screenshot_release_tag": "v26.6.27",
   "guide_source": "docs/delivery/user-guides/macos-app-install/source/macos-app-install.guide.json",
   "screenshot_asset_manifest": "docs/delivery/user-guides/macos-app-install/source/macos-app-install-assets.json",
   "source_markdown": "docs/delivery/user-guides/macos-app-install/generated/macos-app-install.md",
+  "pandoc_markdown": "tmp/pdfs/macos-app-install/macos-app-install.pandoc.md",
+  "pandoc_header": "tmp/pdfs/macos-app-install/macos-app-install-header.tex",
   "output_pdf": "docs/public/macos-app-install/macos-app-install-detailed-guide.pdf",
   "screenshot_source": {
     "source": {
@@ -157,9 +160,20 @@
   },
   "pdf_pages": 10,
   "pdf_page_size_pts": {
-    "width": 792,
-    "height": 612
+    "width": 612,
+    "height": 792
   },
   "rendered_pages": 10,
-  "rendered_dir": "tmp/pdfs/macos-app-install/rendered"
+  "rendered_dir": "tmp/pdfs/macos-app-install/rendered",
+  "required_terms": [
+    "One Person Lab App 首次安装图文教程",
+    "准备清单",
+    "下载 One Person Lab",
+    "安装 App",
+    "配置访问权限",
+    "等待首次环境检查",
+    "常见问题",
+    "截图与验证来源"
+  ],
+  "required_terms_status": "present"
 }
