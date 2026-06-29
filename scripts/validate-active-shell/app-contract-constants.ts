@@ -91,14 +91,15 @@ export const beginnerFirstRunTestIds = [
   'opl-first-run-technical-details-toggle',
 ];
 export const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced'];
-export const appOwnedSecondarySettingsPages = ['storage', 'about', 'update', 'theme'];
-export const appOwnedSettingsIaGroupIds = ['overview', 'getting_started', 'capabilities', 'maintenance', 'preferences', 'advanced'];
-export const appOwnedSettingsIaLabelsZh = ['总览', '开始使用', '能力', '维护', '偏好', '高级'];
+export const appOwnedSecondarySettingsPages = ['about', 'update', 'theme'];
+export const appOwnedSettingsIaGroupIds = ['overview', 'setup_access', 'capabilities', 'maintenance', 'data_storage', 'preferences', 'advanced'];
+export const appOwnedSettingsIaLabelsZh = ['总览', '开始使用', '能力', '维护', '数据与存储', '偏好', '高级'];
 export const appOwnedSettingsIaEntryMap = {
   overview: ['settings_general', 'workspace'],
-  getting_started: ['settings_access', 'first_run_setup_center'],
+  setup_access: ['settings_access', 'first_run_setup_center'],
   capabilities: ['settings_capabilities'],
-  maintenance: ['settings_environment', 'settings_storage', 'update'],
+  maintenance: ['settings_environment', 'update'],
+  data_storage: ['settings_storage'],
   preferences: ['settings_theme', 'appearance', 'language', 'startup', 'tray'],
   advanced: ['settings_advanced', 'about'],
 };
@@ -197,7 +198,7 @@ export const settingsPageExpectations = {
       'workspace root from app_state.paths',
       'startup and tray preferences as App product preferences',
       'language preference',
-      'short links to Getting Started, Capabilities, Maintenance, Preferences, Advanced, and Project Progress',
+      'short links to Setup & Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, Advanced, and Project Progress',
     ],
     must_not_show: [
       'raw OPL internal state files',
@@ -207,12 +208,12 @@ export const settingsPageExpectations = {
   },
   settings_access: {
     matrix_id: 'access',
-    ia_group: 'getting_started',
+    ia_group: 'setup_access',
     sections: ['getting_started_summary', 'model_account', 'codex_cli', 'provider_readiness', 'api_keys', 'webui_compatibility', 'web_remote_access'],
     must_show: [
       'Model & Account section with current model, model access/API key readiness, connection check, and repair entry',
       'Web / Docker / Remote Access section with a direct user-facing entry to WebUI or remote access setup',
-      'Getting Started placed under Control Center Getting Started',
+      'Setup & Access placed under OPL Control Center Setup & Access',
       'whether Codex CLI can run now',
       'whether configured provider access can work now',
       'current permission meaning in user-facing language',
@@ -278,7 +279,7 @@ export const settingsPageExpectations = {
       'grouped Core, Runtime, Capabilities, and Maintenance sections',
       'user-facing action language for checks, repairs, updates, and rollback',
       'diagnostics collapsed by default with raw booleans, ids, paths, and receipts hidden',
-      'environment page placed under Control Center Maintenance',
+      'environment page placed under OPL Control Center Maintenance & Updates',
       'Local Environment limited to service health rather than broad local runtime preferences',
     ],
     must_not_show: [
@@ -301,11 +302,11 @@ export const settingsPageExpectations = {
   },
   settings_storage: {
     matrix_id: 'storage',
-    ia_group: 'maintenance',
+    ia_group: 'data_storage',
     sections: ['updater_cache', 'conversation_artifacts', 'runtime_toolchain', 'logs'],
     must_show: [
       'safe cleanup language: preview, archive, restore proof, prune plan, or rotate logs',
-      'Storage placed under Control Center Maintenance',
+      'Storage placed under OPL Control Center Data & Storage',
       'storage inventory for updater cache, conversation artifacts, runtime/toolchain, and logs',
       'path, exists, bytes, cleanup_mode, and silent_delete_allowed for each local data root',
       'conversation archive/export receipt and restore proof before delete can execute',

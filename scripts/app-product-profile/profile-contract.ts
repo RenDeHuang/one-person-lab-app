@@ -33,8 +33,8 @@ const requiredCompanionSkillSyncIds = requiredDefaultPackagedSkillIds.filter((sk
   !['mas', 'mag', 'rca', 'opl-bookforge'].includes(skillId)
 ));
 const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'appearance', 'advanced'];
-const appOwnedSecondarySettingsPages = ['storage', 'about', 'update', 'theme'];
-const appOwnedSettingsIaGroups = ['overview', 'getting_started', 'capabilities', 'maintenance', 'preferences', 'advanced'];
+const appOwnedSecondarySettingsPages = ['about', 'update', 'theme'];
+const appOwnedSettingsIaGroups = ['overview', 'setup_access', 'capabilities', 'maintenance', 'data_storage', 'preferences', 'advanced'];
 const appOwnedSettingsPrimaryTabIds = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced', 'about'];
 const developerProfileCapabilityAxes = [
   'source_channel',
@@ -185,8 +185,8 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   if (!taskEntryPolicy || typeof taskEntryPolicy !== 'object') {
     throw new Error('App product profile settings_information_architecture.task_entry_policy must be declared');
   }
-  if (taskEntryPolicy.ordinary_entry_model !== 'user_task_first_sections_inside_the_six_Control_Center_groups') {
-    throw new Error('App product profile task_entry_policy must keep task entries inside the six Control Center groups');
+  if (taskEntryPolicy.ordinary_entry_model !== 'user_task_first_sections_inside_the_seven_OPL_Control_Center_groups') {
+    throw new Error('App product profile task_entry_policy must keep task entries inside the seven OPL Control Center groups');
   }
   assertIncludesAll(
     taskEntryPolicy.p0_entries ?? [],

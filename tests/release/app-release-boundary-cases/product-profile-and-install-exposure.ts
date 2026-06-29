@@ -205,9 +205,10 @@ test('App product profile owns user-facing defaults without runtime authority', 
   });
   assert.deepEqual(profile.settings.settings_information_architecture.ordinary_groups.map((group) => group.id), [
     'overview',
-    'getting_started',
+    'setup_access',
     'capabilities',
     'maintenance',
+    'data_storage',
     'preferences',
     'advanced',
   ]);
@@ -223,11 +224,11 @@ test('App product profile owns user-facing defaults without runtime authority', 
   ]);
   assert.deepEqual(profile.settings.settings_information_architecture.primary_tabs.storage, {
     label_zh: '存储',
-    label_en: 'Storage',
+    label_en: 'Data & Storage',
     role: 'safe_local_data_lifecycle_inventory_and_cleanup',
     primary_question: 'Which local data roots are using space, and which cleanup actions are safe after preview or proof?',
-    ia_group: 'maintenance',
-    ordinary_entry_policy: 'secondary_page_under_maintenance',
+    ia_group: 'data_storage',
+    ordinary_entry_policy: 'top_level_control_center_group_entry',
   });
   assert.deepEqual(profile.settings.developer_profile.capability_axes, [
     'source_channel',

@@ -10,7 +10,7 @@ and release/user-path evidence.
 
 ## Goal
 
-Settings is the One Person Lab App control center, not an upstream AionUI
+Settings is the One Person Lab App OPL Control Center, not an upstream AionUI
 configuration dump. It should answer user questions in this order:
 
 1. Can I use the App now?
@@ -31,9 +31,10 @@ The target navigation groups are:
 | Group | Pages | Primary user question |
 | --- | --- | --- |
 | Overview | Overview | Is the App usable now, and what should I do next? |
-| Get Started | Access & Model, Workspace | How do I connect the App, and where does work happen? |
+| Setup & Access | Access & Model, Workspace | How do I connect the App, and where does work happen? |
 | Capabilities | Agents & Capabilities | What can OPL help me do? |
-| Maintenance | Updates & Maintenance, Storage & Data, Local Services | How do I keep the local App healthy and safe? |
+| Maintenance & Updates | Updates & Maintenance, Local Services | How do I keep the App foundation healthy and updated? |
+| Data & Storage | Storage & Data | How do I safely manage local App data? |
 | Preferences | Appearance, Language & Notifications | How should the App behave and look for me? |
 | Advanced | Developer & Diagnostics, About | Where are technical details, raw references, versions, and links? |
 
@@ -45,17 +46,17 @@ They must not reappear as ordinary navigation.
 
 ## Task Entries
 
-The Control Center keeps six top-level groups. User task entries are surfaced
+The OPL Control Center keeps seven top-level IA groups. User task entries are surfaced
 inside those groups instead of adding more tabs.
 
 P0 entries:
 
 - Model & Account: current model, model access/API key readiness, connection
-  check, and repair entry. It belongs to Get Started.
+  check, and repair entry. It belongs to Setup & Access.
 - Workspace: current path, open/change/verify actions, and permission status.
   It belongs to Overview as an ordinary setup entry.
 - Maintenance Hub: App updates, runtime/toolchain, OPL Packages, storage
-  cleanup, and repair recommendations. It belongs to Maintenance.
+  cleanup entry, and repair recommendations. It belongs to Maintenance & Updates.
 - Capability Status: Research, Grant Writing, Presentations, Book/manuscript
   work, and OPL automation show usable / needs update / needs repair /
   not configured. It belongs to Capabilities.
@@ -63,7 +64,7 @@ P0 entries:
 P1 entries:
 
 - Web / Docker / Remote Access: direct route for users who need WebUI, Docker,
-  or remote access. It belongs to Get Started.
+  or remote access. It belongs to Setup & Access.
 - Developer Profile Status: local checkout source, auto-update impact, and
   dirty checkout risk. It belongs to Advanced.
 - External Tools & Voice: ordinary label for tools, MCP support, and voice.
@@ -82,8 +83,8 @@ The overview is a summary-first dashboard. It shows:
 - a single overall state: usable, needs attention, or blocked;
 - status chips for access, workspace, local services, and capabilities;
 - one recommended primary action and at most two secondary actions;
-- direct entries for Workspace, Model & Account, Maintenance, Capabilities, and
-  Web / Remote Access;
+- direct entries for Workspace, Model & Account, Maintenance & Updates,
+  Data & Storage, Capabilities, and Web / Remote Access;
 - last maintenance check and next background check when known;
 - a collapsed technical detail section.
 
@@ -134,7 +135,7 @@ supporting sections below the purpose model.
 
 ### Updates & Maintenance
 
-Updates & Maintenance owns normal maintenance, while About owns only version and
+Updates & Maintenance owns normal maintenance and update actions, while About owns only version and
 links. The maintenance page groups:
 
 - App binary;
@@ -156,7 +157,7 @@ it must not implement the update kernel or write runtime/domain truth.
 
 ### Storage & Data
 
-Storage & Data uses user safety language:
+Storage & Data is its own Control Center group and uses user safety language:
 
 - Update cache;
 - Conversation archives;
@@ -184,7 +185,7 @@ repo urls, git status, and component receipt refs stay collapsed.
 
 ### Appearance
 
-Appearance belongs to Preferences, not Maintenance or Local Runtime. It owns:
+Appearance belongs to Preferences, not Maintenance & Updates, Data & Storage, or Local Runtime. It owns:
 
 - visual theme;
 - density;

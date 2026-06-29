@@ -419,23 +419,24 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.settings_navigation.source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.primary_tabs.general.label_zh, '总览');
-  assert.equal(guiContract.settings_navigation.primary_tabs.environment.label_en, 'Maintenance');
-  assert.deepEqual(guiContract.settings_navigation.secondary_page_ids, ['storage', 'about', 'update', 'theme']);
+  assert.equal(guiContract.settings_navigation.primary_tabs.environment.label_en, 'Maintenance & Updates');
+  assert.deepEqual(guiContract.settings_navigation.secondary_page_ids, ['about', 'update', 'theme']);
   assert.deepEqual(guiContract.settings_navigation.ordinary_groups.map((group) => group.id), [
     'overview',
-    'getting_started',
+    'setup_access',
     'capabilities',
     'maintenance',
+    'data_storage',
     'preferences',
     'advanced',
   ]);
   assert.deepEqual(guiContract.settings_navigation.primary_tabs.storage, {
     label_zh: '存储',
-    label_en: 'Storage',
+    label_en: 'Data & Storage',
     role: 'safe_local_data_lifecycle_inventory_and_cleanup',
     primary_question: 'Which local data roots are using space, and which cleanup actions are safe after preview or proof?',
-    ia_group: 'maintenance',
-    ordinary_entry_policy: 'secondary_page_under_maintenance',
+    ia_group: 'data_storage',
+    ordinary_entry_policy: 'top_level_control_center_group_entry',
   });
   assert.equal(
     guiContract.pages.settings_storage.release_contract_ref,
