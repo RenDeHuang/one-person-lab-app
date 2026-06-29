@@ -27,7 +27,7 @@ function runPwsh(args: string[]) {
 }
 
 test('Windows Docker/WebUI installer exposes the required small parameter surface', () => {
-  for (const parameter of ['DryRun', 'Yes', 'Port', 'Image', 'Tag', 'DataDir', 'ProjectsDir', 'NoOpen', 'Foreground']) {
+  for (const parameter of ['DryRun', 'Yes', 'Port', 'Image', 'Tag', 'DataDir', 'ProjectsDir', 'InstallPrerequisites', 'NoOpen', 'Foreground']) {
     assert.match(installer, new RegExp(`\\$${parameter}\\b`), `missing -${parameter}`);
   }
 
@@ -46,16 +46,24 @@ test('Windows Docker/WebUI installer writes a compose file with the App-owned We
   assert.match(installer, /\$\{HostProjectsDir\}:\/projects/);
 });
 
-test('Windows Docker/WebUI installer checks prerequisites without silently installing them', () => {
+test('Windows Docker/WebUI installer gates prerequisite installation behind an explicit admin switch', () => {
   assert.match(installer, /Test-WindowsHost/);
   assert.match(installer, /\[Version\]"5\.1"/);
   assert.match(installer, /Get-Command docker/);
   assert.match(installer, /docker info/);
   assert.match(installer, /docker compose version/);
   assert.match(installer, /Get-Command wsl\.exe/);
+  assert.match(installer, /\[switch\]\$InstallPrerequisites/);
+  assert.match(installer, /Run PowerShell as Administrator when using -InstallPrerequisites/);
+  assert.match(installer, /if \(-not \$InstallPrerequisites\) \{\s*return\s*\}/);
   assert.match(installer, /wsl --install/);
   assert.match(installer, /winget install Docker\.DockerDesktop/);
-  assert.doesNotMatch(installer, /Start-Process\s+winget|&\s*winget|Start-Process\s+wsl|&\s*wsl\.exe\s+--install/);
+  assert.match(installer, /winget\.exe install --id Docker\.DockerDesktop --exact --accept-package-agreements --accept-source-agreements/);
+  assert.match(installer, /wsl\.exe --install --no-distribution/);
+  assert.match(installer, /wsl\.exe --set-default-version 2/);
+  assert.match(installer, /Docker Desktop did not become ready within 180 seconds/);
+  assert.match(installer, /Start-DockerDesktopIfPresent/);
+  assert.doesNotMatch(installer, /Start-Process\s+(winget|wsl)/);
 });
 
 test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is available', { skip: !pwshPath }, () => {
@@ -91,5 +99,31 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.match(dryRun.stdout, /127\.0\.0\.1:3133:3000/);
   assert.match(dryRun.stdout, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
   assert.match(dryRun.stdout, /docker compose .* up -d/);
+  assert.equal(fs.existsSync(path.join(tempRoot, 'compose.yaml')), false, 'dry-run must not create compose.yaml');
+});
+
+test('Windows Docker/WebUI prerequisite mode is explicit and dry-runnable when PowerShell is available', { skip: !pwshPath }, () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-prereq-'));
+  const dryRun = runPwsh([
+    '-NoLogo',
+    '-NoProfile',
+    '-File',
+    installerPath,
+    '-DryRun',
+    '-Yes',
+    '-InstallPrerequisites',
+    '-Port',
+    '3134',
+    '-DataDir',
+    path.join(tempRoot, 'data'),
+    '-ProjectsDir',
+    path.join(tempRoot, 'projects'),
+    '-NoOpen',
+  ]);
+  assert.ok(dryRun, 'pwsh should be available for this test');
+  assert.equal(dryRun.status, 0, dryRun.stderr || dryRun.stdout);
+  assert.match(dryRun.stdout, /would install Docker Desktop with winget if docker CLI is missing/);
+  assert.match(dryRun.stdout, /would enable WSL 2 prerequisites before checking wsl --status/);
+  assert.match(dryRun.stdout, /127\.0\.0\.1:3134:3000/);
   assert.equal(fs.existsSync(path.join(tempRoot, 'compose.yaml')), false, 'dry-run must not create compose.yaml');
 });

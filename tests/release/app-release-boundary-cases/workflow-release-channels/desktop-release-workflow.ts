@@ -217,6 +217,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   const webuiWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'webui-ghcr-release.yml'), 'utf8');
   assert.match(webuiWorkflow, /name: Validate release source gate[\s\S]*npm run release:source-gate --/);
   assert.match(webuiWorkflow, /name: Validate release source gate[\s\S]*--require-shell-format true/);
+  assert.match(webuiWorkflow, /docker build[\s\S]*--build-arg OPL_FRAMEWORK_REF="\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*-t "one-person-lab-webui:\$\{OPL_VERSION\}"/);
+  assert.match(webuiWorkflow, /docker build[\s\S]*--build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim[\s\S]*--build-arg OPL_FRAMEWORK_REF="\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*-t "one-person-lab-webui:\$\{OPL_VERSION\}-slim"/);
   assert.doesNotMatch(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*always\(\)/);

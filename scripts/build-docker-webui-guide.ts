@@ -34,6 +34,9 @@ type DockerGuide = {
     image: string;
     local_image: string;
     source_repo: string;
+    linux_macos_online_command: string;
+    windows_online_command: string;
+    windows_admin_prerequisites_command: string;
     support_reference_url: string;
   };
   cover: {
@@ -92,6 +95,11 @@ function loadGuide() {
   }
   if (!guide.title || !guide.download?.image || !Array.isArray(guide.steps) || guide.steps.length < 6) {
     throw new Error('Docker/WebUI guide source is missing required title, image, or steps.');
+  }
+  for (const commandKey of ['linux_macos_online_command', 'windows_online_command', 'windows_admin_prerequisites_command'] as const) {
+    if (!guide.download[commandKey]?.includes('install-docker-webui')) {
+      throw new Error(`Docker/WebUI guide source is missing download.${commandKey}`);
+    }
   }
   const ids = new Set<string>();
   for (const step of guide.steps) {
@@ -484,7 +492,7 @@ function buildHtml(guide: DockerGuide) {
             <a class="button" href="${escapeHtml(guide.download.support_reference_url)}">查看部署参考</a>
             <a class="button secondary" href="docker-webui-install-detailed-guide.pdf">查看详细 PDF</a>
           </div>
-          <div class="command">${escapeHtml('Linux/macOS: sh ./scripts/install-docker-webui.sh  |  Windows PowerShell: powershell -ExecutionPolicy Bypass -File .\\scripts\\install-docker-webui.ps1')}</div>
+          <div class="command">${escapeHtml(`Linux/macOS: ${guide.download.linux_macos_online_command}  |  Windows: ${guide.download.windows_online_command}`)}</div>
         </div>
       </section>
       <div class="content">

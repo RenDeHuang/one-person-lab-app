@@ -49,16 +49,23 @@ macOS 桌面新手 -> DMG / Homebrew / macOS App 一键安装
 
 ## 2. 运行一键安装器
 
-一键安装器负责创建 `OnePersonLab/data`、`OnePersonLab/projects` 和 `compose.yaml`，再用 Docker Compose 启动 WebUI。它不会询问或接收模型/API 访问密钥。下面的命令是 repo artifact 合同中的目标形态：Linux/macOS 使用 shell 脚本，Windows 使用 PowerShell 脚本。
+一键安装器负责创建 `OnePersonLab/data`、`OnePersonLab/projects` 和 `compose.yaml`，再用 Docker Compose 启动 WebUI。它不会询问或接收模型/API 访问密钥。新手可以直接复制在线命令；已经 clone 源码仓库的用户也可以运行本地脚本。
 
 **一键命令**
 
 ```text
-Linux / macOS:
-sh ./scripts/install-docker-webui.sh
+Linux / macOS 在线一键:
+{{download.linux_macos_online_command}}
 
-Windows PowerShell:
-powershell -ExecutionPolicy Bypass -File .\scripts\install-docker-webui.ps1
+Windows PowerShell 在线一键:
+{{download.windows_online_command}}
+
+Windows 管理员一键安装 Docker/WSL2 依赖:
+{{download.windows_admin_prerequisites_command}}
+
+源码仓库内:
+sh ./scripts/install-docker-webui.sh
+powershell -ExecutionPolicy Bypass -File .\scripts\install-docker-webui.ps1 -Yes
 
 安装器输出:
 OnePersonLab/data -> 容器 /data
@@ -70,6 +77,7 @@ compose.yaml -> Docker Compose 启动定义
 重点：
 
 - 访问密钥不出现在命令行，也不写进 compose.yaml。
+- Windows 依赖安装只在显式使用 `-InstallPrerequisites` 时执行，并且需要管理员 PowerShell。
 - 如果一键安装器提示 Docker 不可用，先修复 Docker Desktop 或 Docker Engine。
 - 终端窗口或 compose 服务保持运行时，浏览器才能访问 WebUI。
 

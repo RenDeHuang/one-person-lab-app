@@ -177,6 +177,15 @@ function validateInstallerSurfaces(policy) {
   if (dockerWebui.installer_model?.windows_powershell_script !== 'install-docker-webui.ps1') {
     throw new Error('Docker/WebUI install exposure must declare the Windows PowerShell installer script artifact');
   }
+  if (!dockerWebui.installer_model?.linux_macos_online_command?.includes('raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh')) {
+    throw new Error('Docker/WebUI install exposure must declare the Linux/macOS online one-click command');
+  }
+  if (dockerWebui.installer_model?.windows_online_command !== 'download install-docker-webui.ps1 from raw.githubusercontent.com and run with -Yes') {
+    throw new Error('Docker/WebUI install exposure must declare the Windows online one-click command model');
+  }
+  if (dockerWebui.installer_model?.windows_prerequisite_mode !== 'explicit_install_prerequisites_switch_requires_administrator') {
+    throw new Error('Docker/WebUI install exposure must keep Windows Docker/WSL2 installation behind an explicit administrator prerequisite switch');
+  }
   if (dockerWebui.installer_model?.compose_file !== 'compose.yaml') {
     throw new Error('Docker/WebUI install exposure must declare compose.yaml as the one-click installer compose artifact');
   }

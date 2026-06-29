@@ -257,6 +257,9 @@
         "primary_user_path": "one_click_installer",
         "linux_macos_shell_script": "install-docker-webui.sh",
         "windows_powershell_script": "install-docker-webui.ps1",
+        "linux_macos_online_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh | bash -s -- --yes",
+        "windows_online_command": "download install-docker-webui.ps1 from raw.githubusercontent.com and run with -Yes",
+        "windows_prerequisite_mode": "explicit_install_prerequisites_switch_requires_administrator",
         "compose_file": "compose.yaml",
         "installer_outputs": [
           "host_data_dir",

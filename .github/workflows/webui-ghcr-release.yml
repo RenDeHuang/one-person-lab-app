@@ -148,12 +148,14 @@ jobs:
           }
 
           docker build \
+            --build-arg OPL_FRAMEWORK_REF="${{ inputs.framework_ref || 'main' }}" \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             --label "org.opencontainers.image.revision=${SHELL_SHA}" \
             -t "one-person-lab-webui:${OPL_VERSION}" \
             shells/aionui
           docker build \
             --build-arg OPL_WEBUI_IMAGE_PROFILE=webui-slim \
+            --build-arg OPL_FRAMEWORK_REF="${{ inputs.framework_ref || 'main' }}" \
             --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
             --label "org.opencontainers.image.revision=${SHELL_SHA}" \
             -t "one-person-lab-webui:${OPL_VERSION}-slim" \

@@ -11,6 +11,7 @@ param(
   [string]$Tag = "latest",
   [string]$DataDir,
   [string]$ProjectsDir,
+  [switch]$InstallPrerequisites,
   [switch]$NoOpen,
   [switch]$Foreground
 )
@@ -21,6 +22,103 @@ $ErrorActionPreference = "Stop"
 function Write-Step {
   param([string]$Message)
   Write-Host "[One Person Lab] $Message"
+}
+
+function Test-Administrator {
+  if (-not (Test-WindowsHost)) {
+    return $false
+  }
+  $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+  $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+  return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Invoke-StepCommand {
+  param(
+    [Parameter(Mandatory = $true)][string]$Display,
+    [Parameter(Mandatory = $true)][scriptblock]$Command
+  )
+
+  if ($DryRun) {
+    Write-Step "Dry run: would run $Display"
+    return
+  }
+  Write-Step "Running $Display"
+  & $Command
+  if ($LASTEXITCODE -ne 0) {
+    throw "Command failed: $Display"
+  }
+}
+
+function Install-Wsl2Prerequisites {
+  if (-not $InstallPrerequisites) {
+    return
+  }
+  if (-not (Test-Administrator)) {
+    throw "Run PowerShell as Administrator when using -InstallPrerequisites to enable WSL 2."
+  }
+
+  $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
+  if ($null -ne $wsl) {
+    Invoke-StepCommand -Display "wsl.exe --install --no-distribution" -Command { & wsl.exe --install --no-distribution }
+    Invoke-StepCommand -Display "wsl.exe --set-default-version 2" -Command { & wsl.exe --set-default-version 2 }
+    return
+  }
+
+  Invoke-StepCommand -Display "dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart" -Command {
+    & dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+  }
+  Invoke-StepCommand -Display "dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart" -Command {
+    & dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+  }
+  Write-Step "WSL 2 prerequisites were requested. Reboot if Windows asks, then rerun this script."
+}
+
+function Install-DockerDesktopPrerequisite {
+  if (-not $InstallPrerequisites) {
+    return
+  }
+  if (-not (Test-Administrator)) {
+    throw "Run PowerShell as Administrator when using -InstallPrerequisites to install Docker Desktop."
+  }
+  $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+  if ($null -eq $winget) {
+    throw "winget was not found. Install Docker Desktop manually from https://docs.docker.com/desktop/setup/install/windows-install/, then rerun this script."
+  }
+  Invoke-StepCommand -Display "winget install --id Docker.DockerDesktop --exact --accept-package-agreements --accept-source-agreements" -Command {
+    & winget.exe install --id Docker.DockerDesktop --exact --accept-package-agreements --accept-source-agreements
+  }
+}
+
+function Start-DockerDesktopIfPresent {
+  $dockerDesktop = @(
+    Join-Path ${env:ProgramFiles} "Docker\Docker\Docker Desktop.exe"
+    Join-Path ${env:LOCALAPPDATA} "Docker\Docker Desktop.exe"
+  ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path $_) } | Select-Object -First 1
+
+  if ($null -eq $dockerDesktop) {
+    return
+  }
+  if ($DryRun) {
+    Write-Step "Dry run: would start Docker Desktop at $dockerDesktop"
+    return
+  }
+  Write-Step "Starting Docker Desktop."
+  Start-Process -FilePath $dockerDesktop | Out-Null
+}
+
+function Wait-DockerDaemon {
+  if ($DryRun) {
+    return
+  }
+  for ($i = 1; $i -le 90; $i++) {
+    $infoOutput = & docker info --format "{{.ServerVersion}}" 2>&1
+    if ($LASTEXITCODE -eq 0) {
+      return
+    }
+    Start-Sleep -Seconds 2
+  }
+  throw "Docker Desktop did not become ready within 180 seconds. Open Docker Desktop, finish any setup prompts, then rerun this script."
 }
 
 function Test-WindowsHost {
@@ -155,11 +253,19 @@ function Assert-PowerShellVersion {
 
 function Assert-DockerCli {
   if ($DryRun) {
-    Write-Step "Dry run: would check Docker Desktop/docker CLI availability."
+    if ($InstallPrerequisites) {
+      Write-Step "Dry run: would install Docker Desktop with winget if docker CLI is missing."
+    } else {
+      Write-Step "Dry run: would check Docker Desktop/docker CLI availability."
+    }
     return
   }
 
   $docker = Get-Command docker -ErrorAction SilentlyContinue
+  if ($null -eq $docker) {
+    Install-DockerDesktopPrerequisite
+    $docker = Get-Command docker -ErrorAction SilentlyContinue
+  }
   if ($null -eq $docker) {
     throw "docker CLI was not found. Install Docker Desktop, for example: winget install Docker.DockerDesktop, then open Docker Desktop and rerun this script."
   }
@@ -167,6 +273,12 @@ function Assert-DockerCli {
   & docker version --format "{{.Client.Version}}" | Out-Null
   $infoOutput = & docker info --format "{{.ServerVersion}}" 2>&1
   if ($LASTEXITCODE -ne 0) {
+    if ($InstallPrerequisites) {
+      Start-DockerDesktopIfPresent
+      Wait-DockerDaemon
+      Write-Step "Docker CLI and Docker Desktop daemon are available."
+      return
+    }
     throw "Docker CLI is installed but Docker Desktop is not ready. Open Docker Desktop, wait until it is running, then rerun this script. Details: $infoOutput"
   }
   Write-Step "Docker CLI and Docker Desktop daemon are available."
@@ -187,16 +299,28 @@ function Assert-DockerCompose {
 
 function Assert-Wsl2 {
   if ($DryRun) {
-    Write-Step "Dry run: would check WSL 2 availability with wsl --status."
+    if ($InstallPrerequisites) {
+      Write-Step "Dry run: would enable WSL 2 prerequisites before checking wsl --status."
+    } else {
+      Write-Step "Dry run: would check WSL 2 availability with wsl --status."
+    }
     return
   }
 
   $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
   if ($null -eq $wsl) {
+    Install-Wsl2Prerequisites
+    $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
+  }
+  if ($null -eq $wsl) {
     throw "WSL is not available. Run 'wsl --install' from an elevated PowerShell if Windows asks for it, reboot if prompted, then install/open Docker Desktop."
   }
 
   $statusOutput = & wsl.exe --status 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    Install-Wsl2Prerequisites
+    $statusOutput = & wsl.exe --status 2>&1
+  }
   if ($LASTEXITCODE -ne 0) {
     throw "WSL status check failed. Run 'wsl --install' from an elevated PowerShell if Windows asks for it, reboot if prompted, then reopen Docker Desktop. Details: $statusOutput"
   }
