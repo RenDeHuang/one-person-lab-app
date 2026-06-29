@@ -430,6 +430,101 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'preferences',
     'advanced',
   ]);
+  assert.equal(guiContract.settings_navigation.settings_ia.schema, 'settings_ia.v1');
+  assert.equal(guiContract.settings_navigation.settings_ia.authority, 'one-person-lab-app');
+  assert.deepEqual(guiContract.settings_navigation.settings_ia.ordinary_route_ids, [
+    'general',
+    'access',
+    'capabilities',
+    'environment',
+    'appearance',
+    'advanced',
+  ]);
+  assert.deepEqual(guiContract.settings_navigation.settings_ia.secondary_or_deep_link_route_ids, [
+    'storage',
+    'about',
+    'update',
+    'theme',
+  ]);
+  assert.deepEqual(guiContract.settings_navigation.settings_ia.group_ids, [
+    'overview',
+    'setup_access',
+    'capabilities',
+    'maintenance',
+    'data_storage',
+    'preferences',
+    'advanced',
+  ]);
+  assert.equal(
+    guiContract.settings_navigation.settings_ia.route_identity_policy,
+    'keep_current_shell_route_ids_distinct_from_user_facing_ia_groups',
+  );
+  assert.equal(
+    guiContract.settings_navigation.settings_ia.route_promotion_policy,
+    'secondary_or_deep_link_routes_must_not_be_promoted_to_ordinary_routes_without_contract_matrix_validator_and_test_updates',
+  );
+  assert.deepEqual(guiContract.settings_navigation.settings_ia.user_task_entries.map((entry) => entry.id), [
+    'model_account',
+    'workspace',
+    'maintenance_hub',
+    'capability_status',
+    'web_remote_access',
+    'developer_profile_status',
+    'external_tools_voice',
+    'custom_assistant',
+  ]);
+  assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.issue_queue.statuses, [
+    'needs_action',
+    'in_progress',
+    'resolved',
+    'blocked',
+    'dismissed',
+  ]);
+  assert.equal(
+    guiContract.settings_navigation.settings_ia.protocols.action_catalog.action_route,
+    'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json',
+  );
+  assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.card_protocol.required_fields, [
+    'id',
+    'title',
+    'state',
+    'summary',
+    'recommended_action',
+    'last_checked_at',
+    'details_disclosure',
+  ]);
+  assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.confirmation_drawer.required_fields, [
+    'action_id',
+    'summary',
+    'will_change',
+    'will_not_change',
+    'rollback_or_receipt',
+    'requires_preview_or_proof',
+  ]);
+  assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.post_update_notice.required_fields, [
+    'component_id',
+    'result',
+    'receipt_ref',
+    'next_check',
+    'restart_or_reload_guidance',
+  ]);
+  assert.equal(
+    guiContract.settings_navigation.settings_ia.protocols.diagnostics.default_visibility,
+    'collapsed_advanced_only',
+  );
+  assert.equal(
+    guiContract.settings_navigation.settings_ia.protocols.deep_link_policy.unknown_route_policy,
+    'redirect_to_nearest_app_owned_settings_group',
+  );
+  assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations.required_targets, [
+    'desktop_settings_overview',
+    'desktop_settings_access',
+    'desktop_settings_capabilities',
+    'desktop_settings_maintenance',
+    'desktop_settings_storage',
+    'desktop_settings_advanced',
+    'mobile_settings_section_nav',
+  ]);
   assert.deepEqual(guiContract.settings_navigation.primary_tabs.storage, {
     label_zh: '存储',
     label_en: 'Data & Storage',
