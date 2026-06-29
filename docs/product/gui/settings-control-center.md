@@ -49,9 +49,10 @@ The contract deliberately separates user-facing groups from current shell route
 ids:
 
 - ordinary route ids remain `general`, `access`, `capabilities`, `environment`,
-  `appearance`, and `advanced`;
-- `storage` is an ordinary Data & Storage route. `about`, `update`, and `theme`
-  are secondary or deep-link route ids.
+  `storage`, `appearance`, and `advanced`;
+- `workspace` and `local-services` are independent user task pages surfaced as
+  secondary/deep-link routes under Overview and Maintenance & Updates. `about`,
+  `update`, and `theme` are also secondary or deep-link route ids.
   unless the contract, page-state matrix, validators, and release-boundary tests
   are deliberately changed together;
 - user-facing groups remain Overview, Setup & Access, Capabilities,
@@ -160,8 +161,10 @@ details, not first-screen content.
 
 ### Workspace
 
-Workspace is an ordinary setup page, not hidden inside Local Environment. It
-shows:
+Workspace is an independent setup task page, not hidden inside Local
+Environment. It may render as a secondary/deep-link route rather than a new
+top-level tab, but search and Overview task entries must be able to route to
+it. It shows:
 
 - current workspace folder;
 - whether the folder exists and is writable;
@@ -230,7 +233,9 @@ receipt exists.
 
 ### Local Services
 
-Local Services answers whether the local foundation can run:
+Local Services is an independent service-health task page under Maintenance &
+Updates. It answers whether the local foundation can run without mixing in
+package update, rollback, storage cleanup, or workspace management controls:
 
 - Codex executor;
 - local background service;
@@ -309,7 +314,7 @@ machine-readable Settings IA contract should be the long-term source for:
 The route identity rule is part of maintainability: current shell route ids are
 implementation facts, while the seven IA groups are user-facing product groups.
 Do not rename shell routes to match prose group labels, and do not promote
-secondary/deep-link routes such as Storage, About, Update, or Theme into
+secondary/deep-link routes such as Workspace, Local Services, About, Update, or Theme into
 ordinary routes without updating the contract, matrix, validators, tests, and
 visual QA targets.
 

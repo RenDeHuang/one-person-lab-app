@@ -496,6 +496,20 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.settings_advanced.must_show?.includes('OPL Flow Context')) {
     throw new Error('Settings Advanced must show OPL Flow Context');
   }
+  if (
+    pages.settings_workspace?.ia_group !== 'overview' ||
+    !pages.settings_workspace.must_show?.includes('workspace page reachable as a secondary deep link from Overview and task search') ||
+    !pages.settings_workspace.must_not_show?.includes('workspace buried only inside Local Environment or Advanced diagnostics')
+  ) {
+    throw new Error('Settings Workspace must be an independent secondary page under Overview');
+  }
+  if (
+    pages.settings_local_services?.ia_group !== 'maintenance' ||
+    !pages.settings_local_services.must_show?.includes('Local Services page reachable as a secondary deep link from Maintenance & Updates') ||
+    !pages.settings_local_services.must_not_show?.includes('updates, package maintenance, storage cleanup, or rollback controls as the primary Local Services task')
+  ) {
+    throw new Error('Settings Local Services must be an independent service-health page under Maintenance');
+  }
   if (pages.settings_environment.module_path_source_policy_ref !== 'module_path_source_policy') {
     throw new Error('Settings Environment must reference the App GUI module path source policy');
   }

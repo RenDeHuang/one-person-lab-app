@@ -991,6 +991,42 @@
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {
+      "id": "settings_local_services",
+      "expected_source": "OPL App state core/provider projection and App-owned settings information architecture",
+      "machine_source": "opl app state --profile fast --json#app_state.core_and_provider",
+      "refresh_source": "opl app state --profile fast --json",
+      "page_contract": "settings_local_services",
+      "sections": [
+        "codex_service_health",
+        "temporal_service_health",
+        "native_helpers",
+        "service_repair_entry",
+        "diagnostics_disclosure"
+      ],
+      "state_sections": [
+        "core.codex",
+        "provider.temporal",
+        "provider.native_helpers"
+      ],
+      "must_show": [
+        "Codex CLI health from app_state.core.codex",
+        "Temporal or local service health from app_state.provider.temporal",
+        "native helper readiness when present in App state",
+        "single user-facing repair or refresh action before diagnostics",
+        "Local Services page reachable as a secondary deep link from Maintenance & Updates"
+      ],
+      "must_not_show": [
+        "updates, package maintenance, storage cleanup, or rollback controls as the primary Local Services task",
+        "workspace directory as a local service health detail",
+        "raw booleans, ids, paths, receipts, or command output before diagnostics disclosure"
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "ia_group": "maintenance",
+      "route_id": "local-services",
+      "route_scope": "secondary_or_deep_link",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+    },
+    {
       "id": "storage",
       "expected_source": "active shell local data lifecycle service and App release lifecycle contract",
       "must_show": [
@@ -1461,6 +1497,40 @@
       "ia_group": "overview",
       "route_id": "general",
       "route_scope": "ordinary",
+      "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
+    },
+    {
+      "id": "settings_workspace",
+      "expected_source": "OPL App state paths projection and App-owned settings information architecture",
+      "machine_source": "opl app state --profile fast --json#app_state.paths",
+      "refresh_source": "opl app state --profile fast --json",
+      "page_contract": "settings_workspace",
+      "sections": [
+        "workspace_root",
+        "workspace_actions",
+        "workspace_permissions",
+        "workspace_diagnostics_disclosure"
+      ],
+      "state_sections": [
+        "paths",
+        "developer_profile.workspace_trust"
+      ],
+      "must_show": [
+        "workspace root from app_state.paths",
+        "open workspace action",
+        "change or verify workspace action through App action route when available",
+        "permission or trust status in user-facing language",
+        "workspace page reachable as a secondary deep link from Overview and task search"
+      ],
+      "must_not_show": [
+        "workspace buried only inside Local Environment or Advanced diagnostics",
+        "raw path JSON or provider implementation details as the primary page language",
+        "workspace changes without confirmation when mutation is required"
+      ],
+      "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
+      "ia_group": "overview",
+      "route_id": "workspace",
+      "route_scope": "secondary_or_deep_link",
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia"
     },
     {

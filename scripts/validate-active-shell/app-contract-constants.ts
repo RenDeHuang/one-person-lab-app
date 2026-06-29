@@ -91,14 +91,14 @@ export const beginnerFirstRunTestIds = [
   'opl-first-run-technical-details-toggle',
 ];
 export const appOwnedSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
-export const appOwnedSecondarySettingsPages = ['about', 'update', 'theme'];
+export const appOwnedSecondarySettingsPages = ['about', 'update', 'theme', 'workspace', 'local-services'];
 export const appOwnedSettingsIaGroupIds = ['overview', 'setup_access', 'capabilities', 'maintenance', 'data_storage', 'preferences', 'advanced'];
 export const appOwnedSettingsIaLabelsZh = ['总览', '开始使用', '能力', '维护', '数据与存储', '偏好', '高级'];
 export const appOwnedSettingsIaEntryMap = {
   overview: ['settings_general', 'workspace'],
   setup_access: ['settings_access', 'first_run_setup_center'],
   capabilities: ['settings_capabilities'],
-  maintenance: ['settings_environment', 'update'],
+  maintenance: ['settings_environment', 'local_services', 'update'],
   data_storage: ['settings_storage'],
   preferences: ['settings_theme', 'appearance', 'language', 'startup', 'tray'],
   advanced: ['settings_advanced', 'about'],
@@ -113,6 +113,8 @@ export const appOwnedSettingsRouteScopes = {
   advanced: { route_id: 'advanced', route_scope: 'ordinary' },
   about: { route_id: 'about', route_scope: 'secondary_or_deep_link' },
   update: { route_id: 'update', route_scope: 'secondary_or_deep_link' },
+  workspace: { route_id: 'workspace', route_scope: 'secondary_or_deep_link' },
+  local_services: { route_id: 'local-services', route_scope: 'secondary_or_deep_link' },
 };
 export const appOwnedSettingsTaskEntryIds = [
   'model_account',

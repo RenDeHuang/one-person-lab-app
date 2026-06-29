@@ -925,7 +925,9 @@
       "secondary_or_deep_link_route_ids": [
         "about",
         "update",
-        "theme"
+        "theme",
+        "workspace",
+        "local-services"
       ],
       "group_ids": [
         "overview",
@@ -947,13 +949,17 @@
           "id": "workspace",
           "group_id": "overview",
           "route_id": "general",
-          "priority": "p0"
+          "priority": "p0",
+          "secondary_route_ids": [
+            "workspace"
+          ]
         },
         {
           "id": "maintenance_hub",
           "group_id": "maintenance",
           "route_id": "environment",
           "secondary_route_ids": [
+            "local-services",
             "update"
           ],
           "priority": "p0"
@@ -1171,7 +1177,9 @@
     "secondary_page_ids": [
       "about",
       "update",
-      "theme"
+      "theme",
+      "workspace",
+      "local-services"
     ],
     "ordinary_surface": {
       "id": "control_center",
@@ -1222,6 +1230,7 @@
         "role": "health_updates_and_repair",
         "ordinary_entries": [
           "settings_environment",
+          "local_services",
           "update"
         ],
         "owns": [
@@ -1295,6 +1304,26 @@
         "AionUI implementation skills",
         "raw runtime/provider internals"
       ]
+    },
+    "secondary_pages": {
+      "workspace": {
+        "route_id": "workspace",
+        "parent_group": "overview",
+        "parent_route_id": "general",
+        "label_en": "Workspace",
+        "label_zh": "工作目录",
+        "ordinary_entry_policy": "secondary_deep_link_for_independent_workspace_task",
+        "source": "opl app state --profile fast --json#app_state.paths"
+      },
+      "local_services": {
+        "route_id": "local-services",
+        "parent_group": "maintenance",
+        "parent_route_id": "environment",
+        "label_en": "Local Services",
+        "label_zh": "本机服务",
+        "ordinary_entry_policy": "secondary_deep_link_for_local_service_health",
+        "source": "opl app state --profile fast --json#app_state.core_and_provider"
+      }
     }
   },
   "desktop_tray_policy": {
@@ -2501,6 +2530,53 @@
         "Developer Profile as a one-click ordinary setup shortcut"
       ],
       "ia_group": "advanced"
+    },
+    "settings_workspace": {
+      "state_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json",
+      "sections": [
+        "workspace_root",
+        "workspace_actions",
+        "workspace_permissions",
+        "workspace_diagnostics_disclosure"
+      ],
+      "must_show": [
+        "workspace root from app_state.paths",
+        "open workspace action",
+        "change or verify workspace action through App action route when available",
+        "permission or trust status in user-facing language",
+        "workspace page reachable as a secondary deep link from Overview and task search"
+      ],
+      "must_not_show": [
+        "workspace buried only inside Local Environment or Advanced diagnostics",
+        "raw path JSON or provider implementation details as the primary page language",
+        "workspace changes without confirmation when mutation is required"
+      ],
+      "ia_group": "overview"
+    },
+    "settings_local_services": {
+      "state_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app state --profile fast --json",
+      "sections": [
+        "codex_service_health",
+        "temporal_service_health",
+        "native_helpers",
+        "service_repair_entry",
+        "diagnostics_disclosure"
+      ],
+      "must_show": [
+        "Codex CLI health from app_state.core.codex",
+        "Temporal or local service health from app_state.provider.temporal",
+        "native helper readiness when present in App state",
+        "single user-facing repair or refresh action before diagnostics",
+        "Local Services page reachable as a secondary deep link from Maintenance & Updates"
+      ],
+      "must_not_show": [
+        "updates, package maintenance, storage cleanup, or rollback controls as the primary Local Services task",
+        "workspace directory as a local service health detail",
+        "raw booleans, ids, paths, receipts, or command output before diagnostics disclosure"
+      ],
+      "ia_group": "maintenance"
     }
   },
   "ordinary_cockpit_surface_budget": {

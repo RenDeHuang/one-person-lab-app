@@ -349,6 +349,28 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.ok(guiContract.pages.settings_advanced.must_show.includes('OPL Flow Context'));
   assert.ok(!guiContract.pages.settings_advanced.sections.includes('opl_agent_codex_context'));
   assert.ok(!('legacy_state_sections' in guiContract.pages.settings_advanced));
+  assert.equal(guiContract.pages.settings_workspace.ia_group, 'overview');
+  assert.ok(
+    guiContract.pages.settings_workspace.must_show.includes(
+      'workspace page reachable as a secondary deep link from Overview and task search',
+    ),
+  );
+  assert.ok(
+    guiContract.pages.settings_workspace.must_not_show.includes(
+      'workspace buried only inside Local Environment or Advanced diagnostics',
+    ),
+  );
+  assert.equal(guiContract.pages.settings_local_services.ia_group, 'maintenance');
+  assert.ok(
+    guiContract.pages.settings_local_services.must_show.includes(
+      'Local Services page reachable as a secondary deep link from Maintenance & Updates',
+    ),
+  );
+  assert.ok(
+    guiContract.pages.settings_local_services.must_not_show.includes(
+      'updates, package maintenance, storage cleanup, or rollback controls as the primary Local Services task',
+    ),
+  );
   for (const pageId of guiContract.ordinary_cockpit_surface_budget.applies_to_pages) {
     const matrixPage = pageStateMatrix.pages.find((page) => page.id === pageId);
     assert.equal(
@@ -421,7 +443,13 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   assert.equal(guiContract.settings_navigation.refresh_source, 'opl app state --profile fast --json');
   assert.equal(guiContract.settings_navigation.primary_tabs.general.label_zh, '总览');
   assert.equal(guiContract.settings_navigation.primary_tabs.environment.label_en, 'Maintenance & Updates');
-  assert.deepEqual(guiContract.settings_navigation.secondary_page_ids, ['about', 'update', 'theme']);
+  assert.deepEqual(guiContract.settings_navigation.secondary_page_ids, [
+    'about',
+    'update',
+    'theme',
+    'workspace',
+    'local-services',
+  ]);
   assert.deepEqual(guiContract.settings_navigation.ordinary_groups.map((group) => group.id), [
     'overview',
     'setup_access',
@@ -446,6 +474,8 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'about',
     'update',
     'theme',
+    'workspace',
+    'local-services',
   ]);
   assert.deepEqual(guiContract.settings_navigation.settings_ia.group_ids, [
     'overview',
@@ -474,6 +504,16 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'external_tools_voice',
     'custom_assistant',
   ]);
+  assert.deepEqual(
+    guiContract.settings_navigation.settings_ia.user_task_entries.find((entry) => entry.id === 'workspace')
+      .secondary_route_ids,
+    ['workspace'],
+  );
+  assert.deepEqual(
+    guiContract.settings_navigation.settings_ia.user_task_entries.find((entry) => entry.id === 'maintenance_hub')
+      .secondary_route_ids,
+    ['local-services', 'update'],
+  );
   assert.deepEqual(guiContract.settings_navigation.settings_ia.protocols.issue_queue.statuses, [
     'needs_action',
     'in_progress',
@@ -576,11 +616,17 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
       access: { route_id: 'access', route_scope: 'ordinary', ia_group: 'setup_access' },
       capabilities: { route_id: 'capabilities', route_scope: 'ordinary', ia_group: 'capabilities' },
       environment: { route_id: 'environment', route_scope: 'ordinary', ia_group: 'maintenance' },
+      settings_local_services: {
+        route_id: 'local-services',
+        route_scope: 'secondary_or_deep_link',
+        ia_group: 'maintenance',
+      },
       storage: { route_id: 'storage', route_scope: 'ordinary', ia_group: 'data_storage' },
       about: { route_id: 'about', route_scope: 'secondary_or_deep_link', ia_group: 'advanced' },
       update: { route_id: 'update', route_scope: 'secondary_or_deep_link', ia_group: 'maintenance' },
       settings_theme: { route_id: 'theme', route_scope: 'secondary_or_deep_link', ia_group: 'preferences' },
       advanced: { route_id: 'advanced', route_scope: 'ordinary', ia_group: 'advanced' },
+      settings_workspace: { route_id: 'workspace', route_scope: 'secondary_or_deep_link', ia_group: 'overview' },
     },
   );
   assert.deepEqual(guiContract.settings_navigation.primary_tabs.storage, {
