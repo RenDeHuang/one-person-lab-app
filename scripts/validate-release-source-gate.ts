@@ -206,6 +206,36 @@ function appHeadMatches(expected: string, actual: string): boolean {
   return normalizedActual === normalizedExpected || normalizedActual.startsWith(normalizedExpected);
 }
 
+function pathForGitStatus(candidatePath: string): string {
+  return candidatePath.split(path.sep).join('/');
+}
+
+function ignoredFrameworkCheckoutStatusPrefixes(repoRoot: string, frameworkRoot: string): string[] {
+  const relative = path.relative(repoRoot, frameworkRoot);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return [];
+  const normalized = pathForGitStatus(relative).replace(/\/+$/, '');
+  return normalized ? [`?? ${normalized}`, `?? ${normalized}/`] : [];
+}
+
+function isIgnoredFrameworkCheckoutStatusLine(line: string, ignoredPrefixes: string[]): boolean {
+  const exactDirectory = ignoredPrefixes[0];
+  const directoryContents = ignoredPrefixes[1];
+  return line === exactDirectory || Boolean(directoryContents && line.startsWith(directoryContents));
+}
+
+function statusTextWithoutDeclaredFrameworkCheckout(statusText: string, repoRoot: string, frameworkRoot: string): string {
+  const ignoredPrefixes = ignoredFrameworkCheckoutStatusPrefixes(repoRoot, frameworkRoot);
+  if (ignoredPrefixes.length === 0) return statusText;
+  return statusText
+    .split(/\r?\n/)
+    .filter((line) => {
+      const trimmed = line.trimEnd();
+      if (!trimmed) return false;
+      return !isIgnoredFrameworkCheckoutStatusLine(trimmed, ignoredPrefixes);
+    })
+    .join('\n');
+}
+
 export function buildReleaseSourceGateReport(
   options: ReleaseSourceGateOptions,
   runner: CommandRunner = run,
@@ -278,12 +308,13 @@ export function buildReleaseSourceGateReport(
   }
 
   const appStatusResult = runner('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: options.repoRoot });
-  const statusText = appStatusResult.stdout.trim();
+  const rawStatusText = appStatusResult.stdout.trim();
+  const statusText = statusTextWithoutDeclaredFrameworkCheckout(rawStatusText, options.repoRoot, frameworkRoot);
   addCheck(checks, {
     id: 'app_worktree_clean',
     status: appStatusResult.status === 0 && !statusText ? 'passed' : 'failed',
     message: appStatusResult.status === 0 && !statusText
-      ? 'App worktree is clean.'
+      ? 'App worktree is clean apart from declared release source checkouts.'
       : `App worktree must be clean before release work.${statusText ? ` Dirty entries:\n${statusText}` : ''}`,
     actual: statusText || undefined,
     command: commandText('git', ['status', '--porcelain', '--untracked-files=normal']),

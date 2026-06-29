@@ -10,6 +10,7 @@ import {
 const repoRoot = '/tmp/opl-app';
 const shellRoot = path.join(repoRoot, 'shells', 'aionui');
 const frameworkRoot = '/tmp/one-person-lab';
+const repoLocalFrameworkRoot = path.join(repoRoot, 'one-person-lab');
 const appHead = '0123456789abcdef0123456789abcdef01234567';
 const shellHead = 'abcdef0123456789abcdef0123456789abcdef01';
 const frameworkHead = '789abcdef0123456789abcdef0123456789abcde';
@@ -154,6 +155,79 @@ test('release source gate fails dirty App worktree before expensive release work
 
   assert.equal(report.status, 'failed');
   assert.equal(checkStatus(report, 'app_worktree_clean'), 'failed');
+});
+
+test('release source gate ignores declared framework checkout inside App workspace only', () => {
+  const report = buildReleaseSourceGateReport(
+    options({ frameworkRoot: repoLocalFrameworkRoot }),
+    runner({
+      [`${repoRoot} $ git status --porcelain --untracked-files=normal`]: {
+        status: 0,
+        stdout: '?? one-person-lab/\n',
+      },
+      [`${repoLocalFrameworkRoot} $ git rev-parse --verify --quiet main^{commit}`]: {
+        status: 0,
+        stdout: `${frameworkHead}\n`,
+      },
+    }),
+    '2026-06-30T00:00:00.000Z',
+    {
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
+      readJson: () => ({ name: 'one-person-lab-aion-shell' }),
+    },
+  );
+
+  assert.equal(report.status, 'passed');
+  assert.equal(checkStatus(report, 'app_worktree_clean'), 'passed');
+
+  const stillDirty = buildReleaseSourceGateReport(
+    options({ frameworkRoot: repoLocalFrameworkRoot }),
+    runner({
+      [`${repoRoot} $ git status --porcelain --untracked-files=normal`]: {
+        status: 0,
+        stdout: '?? one-person-lab/\n M .github/workflows/desktop-release.yml\n',
+      },
+      [`${repoLocalFrameworkRoot} $ git rev-parse --verify --quiet main^{commit}`]: {
+        status: 0,
+        stdout: `${frameworkHead}\n`,
+      },
+    }),
+    '2026-06-30T00:00:00.000Z',
+    {
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
+      readJson: () => ({ name: 'one-person-lab-aion-shell' }),
+    },
+  );
+
+  assert.equal(stillDirty.status, 'failed');
+  assert.equal(checkStatus(stillDirty, 'app_worktree_clean'), 'failed');
+  assert.match(stillDirty.checks.find((check) => check.id === 'app_worktree_clean')?.actual ?? '', /desktop-release/);
+
+  const similarlyNamedUntracked = buildReleaseSourceGateReport(
+    options({ frameworkRoot: repoLocalFrameworkRoot }),
+    runner({
+      [`${repoRoot} $ git status --porcelain --untracked-files=normal`]: {
+        status: 0,
+        stdout: '?? one-person-lab/\n?? one-person-lab-extra/\n',
+      },
+      [`${repoLocalFrameworkRoot} $ git rev-parse --verify --quiet main^{commit}`]: {
+        status: 0,
+        stdout: `${frameworkHead}\n`,
+      },
+    }),
+    '2026-06-30T00:00:00.000Z',
+    {
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
+      readJson: () => ({ name: 'one-person-lab-aion-shell' }),
+    },
+  );
+
+  assert.equal(similarlyNamedUntracked.status, 'failed');
+  assert.equal(checkStatus(similarlyNamedUntracked, 'app_worktree_clean'), 'failed');
+  assert.match(
+    similarlyNamedUntracked.checks.find((check) => check.id === 'app_worktree_clean')?.actual ?? '',
+    /one-person-lab-extra/,
+  );
 });
 
 test('release source gate fails unresolved framework ref and wrong shell type', () => {
