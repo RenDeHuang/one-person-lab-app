@@ -57,6 +57,10 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   const operatorEvidenceJob = workflowJobBlock(workflow, 'operator-evidence-bundle-validation');
   const readinessAdmissionJob = workflowJobBlock(workflow, 'release-readiness-admission');
   const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
+  const cleanLinuxDockerWebuiWorkflow = fs.readFileSync(
+    path.join(appRoot, '.github', 'workflows', 'docker-webui-clean-linux-vm.yml'),
+    'utf8',
+  );
   const fullPackageScript = readFullPackageBuilderSource();
   const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
   const releaseContract = JSON.parse(
@@ -183,7 +187,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /one-shot-app-installer-smoke:[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /docker-webui-smoke:/);
   assert.match(workflow, /docker-webui-smoke:[\s\S]*standard-vm-smoke-gate-after-full/);
-  assert.match(workflow, /docker_webui_clean_linux_evidence_artifact:[\s\S]*Same-run artifact name containing clean Linux VM Docker WebUI smoke evidence/);
+  assert.match(workflow, /docker_webui_clean_linux_evidence_artifact:[\s\S]*Optional same-run artifact name containing clean Linux VM Docker WebUI smoke evidence; empty runs the Ubuntu clean VM gate in this workflow/);
   assert.match(workflow, /docker_webui_clean_windows_evidence_artifact:[\s\S]*Same-run artifact name containing clean Windows VM Docker WebUI smoke evidence/);
   assert.doesNotMatch(jobLevelIf(oneShotInstallerJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.doesNotMatch(jobLevelIf(dockerWebuiJob), /if:\s*\$\{\{\s*always\(\)/);
@@ -197,6 +201,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(jobLevelIf(dockerWebuiCleanVmEvidenceJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.publish_docker_webui && inputs\.run_vm_smoke/);
   assert.match(dockerWebuiCleanVmEvidenceJob, /Download clean Linux VM Docker WebUI evidence[\s\S]*name: \$\{\{ inputs\.docker_webui_clean_linux_evidence_artifact \}\}/);
   assert.match(dockerWebuiCleanVmEvidenceJob, /Download clean Windows VM Docker WebUI evidence[\s\S]*name: \$\{\{ inputs\.docker_webui_clean_windows_evidence_artifact \}\}/);
+  assert.match(dockerWebuiCleanVmEvidenceJob, /if \[ -z "\$LINUX_ARTIFACT_NAME" \]; then[\s\S]*npm run smoke:docker-webui:linux-clean-vm --[\s\S]*--artifacts "\$linux_generated_dir"[\s\S]*--health-timeout 180[\s\S]*same_job_ubuntu_clean_vm_generated/);
+  assert.match(dockerWebuiCleanVmEvidenceJob, /importDir: path\.join\(outputDir, 'clean-linux-vm-generated'\)/);
   assert.match(dockerWebuiCleanVmEvidenceJob, /windows-smoke-evidence\.json[\s\S]*--gate clean_windows_vm[\s\S]*--evidence docker-webui-clean-vm-inputs\/clean-windows-vm/);
   assert.match(dockerWebuiCleanVmEvidenceJob, /--validate-result', resultPath, '--json'/);
   assert.match(dockerWebuiCleanVmEvidenceJob, /missing_clean_linux_vm_docker_webui_evidence_artifact/);
@@ -257,6 +263,17 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(webuiHelper, /\/tmp\/opl-webui-update-status\.json/);
   assert.match(webuiHelper, /contract_record_only_not_live_smoke_evidence/);
   assert.match(webuiHelper, /contracts\/app-install-exposure-policy\.json#installer_surfaces\.docker_webui\.smoke_gate_contract/);
+  assert.match(cleanLinuxDockerWebuiWorkflow, /name: OPL Docker WebUI Clean Linux VM Smoke/);
+  assert.match(cleanLinuxDockerWebuiWorkflow, /workflow_dispatch:/);
+  assert.match(cleanLinuxDockerWebuiWorkflow, /runs-on: ubuntu-latest/);
+  assert.match(cleanLinuxDockerWebuiWorkflow, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
+  assert.match(cleanLinuxDockerWebuiWorkflow, /artifact_name:[\s\S]*docker-webui-clean-linux-vm-evidence/);
+  assert.match(cleanLinuxDockerWebuiWorkflow, /node --experimental-strip-types scripts\/docker-webui-smoke-gate\.ts[\s\S]*--gate clean_linux_vm/);
+  assert.match(cleanLinuxDockerWebuiWorkflow, /--validate-result docker-webui-clean-linux-vm\/docker-webui-smoke-gate-result\.json/);
+  assert.match(cleanLinuxDockerWebuiWorkflow, /actions\/upload-artifact@v7/);
+  assert.match(cleanLinuxDockerWebuiWorkflow, /docker compose -f docker-webui-clean-linux-vm\/home\/OnePersonLab\/compose\.yaml down --remove-orphans \|\| true/);
+  assert.doesNotMatch(cleanLinuxDockerWebuiWorkflow, /--gate clean_windows_vm/);
+  assert.doesNotMatch(cleanLinuxDockerWebuiWorkflow, /packages: write/);
   assert.doesNotMatch(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*always\(\)/);

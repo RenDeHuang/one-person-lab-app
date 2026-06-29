@@ -49,13 +49,36 @@ gate result.
 ## Desktop Release Import
 
 The desktop release workflow has an explicit import gate for clean VM evidence:
-`docker-webui-clean-vm-evidence`. It does not run the Linux or Windows VM
-itself. It downloads same-run artifacts named by these dispatch inputs:
+`docker-webui-clean-vm-evidence`. It runs the clean Linux gate on the same
+GitHub-hosted Ubuntu clean VM job when no Linux artifact is supplied, then
+downloads optional same-run artifacts named by these dispatch inputs:
 
 - `docker_webui_clean_linux_evidence_artifact`
 - `docker_webui_clean_windows_evidence_artifact`
 
-Each named artifact can provide either a completed
+The Linux input is optional. When it is empty, the workflow runs:
+
+```bash
+npm run smoke:docker-webui:linux-clean-vm -- \
+  --artifacts docker-webui-clean-vm-evidence/clean-linux-vm-generated \
+  --health-timeout 180 \
+  --json
+```
+
+and validates the generated `docker-webui-smoke-gate-result.json` as
+`artifact_name: same_job_ubuntu_clean_vm_generated`. Supplying
+`docker_webui_clean_linux_evidence_artifact` overrides this default and imports
+that artifact instead.
+
+For preflight or rerun without the whole desktop release flow, dispatch
+`.github/workflows/docker-webui-clean-linux-vm.yml`. It uploads
+`docker-webui-clean-linux-vm-evidence` by default; pass that artifact name to
+`docker_webui_clean_linux_evidence_artifact` when the desktop release should
+reuse the preflight result instead of generating Linux evidence in-job.
+
+The Windows input is still required for a clean Windows gate because a hosted
+Windows runner is not Docker Desktop + WSL 2 clean-machine evidence. Each named
+artifact can provide either a completed
 `docker-webui-smoke-gate-result.json`, or for Windows the raw
 `windows-smoke-evidence.json` plus `diagnostics/` and
 `api-key-flow-evidence.json` that the workflow imports through the existing
@@ -67,10 +90,10 @@ The workflow uploads `docker-webui-clean-vm-evidence-<version>` with:
 - `clean_linux_vm-validation-summary.json`
 - `clean_windows_vm-validation-summary.json`
 
-If either dispatch input is empty, or the downloaded artifact cannot validate
-as `status=passed` for the matching gate, the workflow writes a typed blocker
-summary and the release readiness admission job does not run. The missing
-artifact blocker codes are:
+If the Linux generated or imported artifact cannot validate as `status=passed`,
+or if the Windows dispatch input is empty or invalid, the workflow writes a
+typed blocker summary and the release readiness admission job does not run. The
+missing artifact blocker codes are:
 
 - `missing_clean_linux_vm_docker_webui_evidence_artifact`
 - `missing_clean_windows_vm_docker_webui_evidence_artifact`

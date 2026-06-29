@@ -258,6 +258,12 @@ function validateDockerWebuiSmokeGateContract(contract) {
   if (contract.workflow_artifact !== 'docker-webui-smoke-gate-contract.json') {
     throw new Error('Docker/WebUI smoke gate contract must declare the workflow contract artifact');
   }
+  if (contract.workflow_import?.linux_default_producer !== 'desktop_release_same_job_ubuntu_clean_vm_generated') {
+    throw new Error('Docker/WebUI clean Linux VM gate must declare the desktop release same-job Ubuntu producer');
+  }
+  if (contract.workflow_import?.linux_manual_producer_workflow !== '.github/workflows/docker-webui-clean-linux-vm.yml') {
+    throw new Error('Docker/WebUI clean Linux VM gate must declare the standalone manual producer workflow');
+  }
   assertIncludesAll(
     contract.diagnostic_bundle_artifacts,
     [
@@ -300,6 +306,9 @@ function validateDockerWebuiSmokeGateContract(contract) {
   }
   if (gateById.get('clean_linux_vm')?.entrypoint !== 'install-docker-webui.sh --yes') {
     throw new Error('Docker/WebUI clean Linux VM gate must use the shell one-click installer');
+  }
+  if (gateById.get('clean_linux_vm')?.execution_mode !== 'desktop_release_same_job_ubuntu_clean_vm_smoke_or_manual_vm_smoke') {
+    throw new Error('Docker/WebUI clean Linux VM gate must default to the desktop release same-job Ubuntu smoke');
   }
   if (gateById.get('clean_windows_vm')?.entrypoint !== 'install-docker-webui.ps1 -Yes') {
     throw new Error('Docker/WebUI clean Windows VM gate must use the PowerShell one-click installer');

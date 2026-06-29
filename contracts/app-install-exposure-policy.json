@@ -340,6 +340,8 @@
           "linux_summary": "clean_linux_vm-validation-summary.json",
           "windows_summary": "clean_windows_vm-validation-summary.json",
           "accepted_result_file": "docker-webui-smoke-gate-result.json",
+          "linux_default_producer": "desktop_release_same_job_ubuntu_clean_vm_generated",
+          "linux_manual_producer_workflow": ".github/workflows/docker-webui-clean-linux-vm.yml",
           "windows_import_manifest": "windows-smoke-evidence.json",
           "missing_artifact_status": "typed_blocker",
           "missing_artifact_blocker_codes": [
@@ -372,7 +374,7 @@
             "entrypoint": "install-docker-webui.sh --yes",
             "docker_state": "docker_engine_preinstalled_or_installed_by_explicit_admin_prerequisite",
             "data_state": "new_OnePersonLab_data_dir",
-            "execution_mode": "manual_or_workflow_vm_smoke",
+            "execution_mode": "desktop_release_same_job_ubuntu_clean_vm_smoke_or_manual_vm_smoke",
             "required_evidence": [
               "installer_stdout_stderr",
               "compose_yaml",
