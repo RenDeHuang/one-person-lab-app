@@ -80,6 +80,10 @@ test('release readiness summary passes only from small diagnostic artifacts', ()
   assert.equal(summary.gates.webui_ghcr_publish.status, 'passed');
   assert.deepEqual(summary.gates.webui_ghcr_publish.fields.tags, ['26.5.99', 'stable', 'latest']);
   assert.equal(summary.gates.webui_ghcr_publish.fields.build_reuse.repeated_docker_build, false);
+  assert.equal(summary.gates.docker_webui_clean_vm_evidence.status, 'passed');
+  assert.equal(summary.gates.docker_webui_clean_vm_evidence.fields.clean_linux_vm.status, 'passed');
+  assert.equal(summary.gates.docker_webui_clean_vm_evidence.fields.clean_windows_vm.status, 'passed');
+  assert.equal(summary.gates.docker_webui_clean_vm_evidence.fields.clean_windows_vm.artifact_name, 'windows-clean-evidence');
   assert.equal(summary.gates.operator_evidence_bundle.status, 'passed');
   assert.equal(summary.gates.operator_evidence_bundle.fields.packaged_app_evidence, true);
   assert.deepEqual(summary.release_cohort, {
@@ -199,10 +203,12 @@ test('release readiness summary treats Docker WebUI gates as optional when Docke
   writePassingArtifacts(artifactsRoot);
   fs.rmSync(path.join(artifactsRoot, 'docker-webui-smoke-26.5.99'), { recursive: true, force: true });
   fs.rmSync(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99'), { recursive: true, force: true });
+  fs.rmSync(path.join(artifactsRoot, 'docker-webui-clean-vm-evidence-26.5.99'), { recursive: true, force: true });
   writePassingJobResults(jobResultsPath);
   const jobResults = JSON.parse(fs.readFileSync(jobResultsPath, 'utf8'));
   jobResults['docker-webui-smoke'] = 'skipped';
   jobResults['webui-ghcr-publish'] = 'skipped';
+  jobResults['docker-webui-clean-vm-evidence'] = 'skipped';
   writeJson(jobResultsPath, jobResults);
 
   const result = runSummary([
@@ -232,7 +238,77 @@ test('release readiness summary treats Docker WebUI gates as optional when Docke
   assert.equal(summary.gates.docker_webui.required, false);
   assert.equal(summary.gates.webui_ghcr_publish.status, 'skipped');
   assert.equal(summary.gates.webui_ghcr_publish.required, false);
+  assert.equal(summary.gates.docker_webui_clean_vm_evidence.status, 'skipped');
+  assert.equal(summary.gates.docker_webui_clean_vm_evidence.required, false);
   assert.deepEqual(summary.failed_required_gates, []);
+});
+
+test('release readiness summary fails closed when Docker WebUI clean Windows VM evidence is missing', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-docker-clean-vm-missing-windows-'));
+  const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
+  const jobResultsPath = path.join(tempRoot, 'job-results.json');
+  const artifactsRoot = path.join(tempRoot, 'inputs');
+  writePassingArtifacts(artifactsRoot);
+  writePassingJobResults(jobResultsPath);
+  writeJson(path.join(artifactsRoot, 'docker-webui-clean-vm-evidence-26.5.99', 'docker-webui-clean-vm-evidence-validation.json'), {
+    schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+    status: 'typed_blocker',
+    required_gates: ['clean_linux_vm', 'clean_windows_vm'],
+    summaries: [
+      {
+        schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+        gate_id: 'clean_linux_vm',
+        status: 'passed',
+        artifact_name: 'same_job_ubuntu_clean_vm_generated',
+        result_path: 'clean-linux-vm-generated/docker-webui-smoke-gate-result.json',
+      },
+      {
+        schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+        gate_id: 'clean_windows_vm',
+        status: 'typed_blocker',
+        artifact_name: null,
+        typed_blocker: {
+          code: 'missing_clean_windows_vm_docker_webui_evidence_artifact',
+          owner: 'release_or_install_validation_operator',
+          message: 'No same-run clean Windows VM Docker WebUI smoke artifact was supplied to the release workflow.',
+          required_next_action: 'Run scripts/install-docker-webui.ps1 -Yes -EvidenceDir windows-clean-evidence -EvidenceArchive windows-clean-evidence.zip in a clean Windows VM.',
+        },
+      },
+    ],
+    release_readiness_policy: 'clean Linux VM and clean Windows VM Docker WebUI evidence must validate as passed before release readiness aggregation',
+  });
+
+  const result = runSummary([
+    '--version',
+    '26.5.99',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--artifacts-dir',
+    artifactsRoot,
+    '--job-results',
+    jobResultsPath,
+    '--output',
+    outputPath,
+  ]);
+
+  assert.notEqual(result.status, 0, result.stdout);
+  const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(summary.status, 'failed');
+  assert.equal(summary.gates.docker_webui_clean_vm_evidence.status, 'failed');
+  assert.equal(summary.gates.docker_webui_clean_vm_evidence.required, true);
+  assert.match(
+    summary.gates.docker_webui_clean_vm_evidence.reason,
+    /missing_clean_windows_vm_docker_webui_evidence_artifact/,
+  );
+  assert.equal(
+    summary.gates.docker_webui_clean_vm_evidence.fields.clean_windows_vm.typed_blocker.code,
+    'missing_clean_windows_vm_docker_webui_evidence_artifact',
+  );
+  assert.ok(summary.failed_required_gates.some((gate) => gate.id === 'docker_webui_clean_vm_evidence'));
 });
 
 test('release readiness summary fails closed without a same-cohort operator evidence bundle', () => {
@@ -353,6 +429,7 @@ test('release readiness summary includes App L5 readout for current cohort evide
     'one-shot-app-installer-smoke': 'success',
     'docker-webui-smoke': 'success',
     'webui-ghcr-publish': 'success',
+    'docker-webui-clean-vm-evidence': 'success',
     'operator-evidence-bundle-validation': 'success',
   });
 
@@ -491,6 +568,7 @@ test('release readiness summary defers Homebrew gates for refresh_existing draft
     'one-shot-app-installer-smoke': 'success',
     'docker-webui-smoke': 'success',
     'webui-ghcr-publish': 'success',
+    'docker-webui-clean-vm-evidence': 'success',
     'operator-evidence-bundle-validation': 'success',
   });
 

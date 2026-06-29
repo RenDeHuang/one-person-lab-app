@@ -543,6 +543,46 @@ function buildSummary(options: Options) {
     },
   });
 
+  const dockerCleanVmEvidenceArtifactName = `docker-webui-clean-vm-evidence-${options.version}`;
+  const dockerCleanVmEvidenceGate = jsonGate(options, {
+    required: true,
+    artifactName: dockerCleanVmEvidenceArtifactName,
+    fileName: 'docker-webui-clean-vm-evidence-validation.json',
+    validate: (payload) => {
+      const summaries = Array.isArray(payload.summaries)
+        ? payload.summaries.filter((summary) => summary && typeof summary === 'object' && !Array.isArray(summary)) as Record<string, unknown>[]
+        : [];
+      const cleanLinux = summaries.find((summary) => summary.gate_id === 'clean_linux_vm') ?? null;
+      const cleanWindows = summaries.find((summary) => summary.gate_id === 'clean_windows_vm') ?? null;
+      const fields = {
+        aggregate_status: payload.status ?? null,
+        required_gates: Array.isArray(payload.required_gates) ? payload.required_gates : [],
+        clean_linux_vm: cleanLinux,
+        clean_windows_vm: cleanWindows,
+        release_readiness_policy: payload.release_readiness_policy ?? null,
+      };
+      if (payload.schema !== 'opl_docker_webui_clean_vm_evidence_validation.v1') {
+        return { reason: 'Docker WebUI clean VM evidence validation schema is not opl_docker_webui_clean_vm_evidence_validation.v1.', fields };
+      }
+      if (payload.status !== 'passed') {
+        const blocker = cleanWindows?.typed_blocker && typeof cleanWindows.typed_blocker === 'object' && !Array.isArray(cleanWindows.typed_blocker)
+          ? cleanWindows.typed_blocker as Record<string, unknown>
+          : cleanLinux?.typed_blocker && typeof cleanLinux.typed_blocker === 'object' && !Array.isArray(cleanLinux.typed_blocker)
+            ? cleanLinux.typed_blocker as Record<string, unknown>
+            : null;
+        const blockerCode = typeof blocker?.code === 'string' ? ` (${blocker.code})` : '';
+        return { reason: `Docker WebUI clean VM evidence status is ${statusString(payload.status) || 'unknown'}${blockerCode}.`, fields };
+      }
+      if (cleanLinux?.status !== 'passed' || cleanWindows?.status !== 'passed') {
+        return {
+          reason: `Docker WebUI clean VM evidence requires clean_linux_vm and clean_windows_vm to pass; got Linux=${statusString(cleanLinux?.status) || 'missing'} Windows=${statusString(cleanWindows?.status) || 'missing'}.`,
+          fields,
+        };
+      }
+      return { fields };
+    },
+  });
+
   const fullTelemetryGate = jsonGate(options, {
     required: false,
     artifactName: fullTelemetryArtifactName,
@@ -685,6 +725,14 @@ function buildSummary(options: Options) {
         : missingGate(false, webuiGhcrArtifactName, 'Docker WebUI publish disabled for this run.'),
       jobResults,
       'webui-ghcr-publish',
+      options.publishDockerWebui,
+    ),
+    docker_webui_clean_vm_evidence: applyJobResult(
+      options.publishDockerWebui
+        ? dockerCleanVmEvidenceGate
+        : missingGate(false, dockerCleanVmEvidenceArtifactName, 'Docker WebUI publish disabled for this run.'),
+      jobResults,
+      'docker-webui-clean-vm-evidence',
       options.publishDockerWebui,
     ),
     full_size_cache_timing: applyJobResult(fullSizeCacheTimingGate, jobResults, 'full-first-install', false),

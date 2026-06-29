@@ -162,6 +162,32 @@ export function writePassingArtifacts(root: string, version = '26.5.99', runId =
       repeated_docker_build: false,
     },
   });
+  writeJson(path.join(root, `docker-webui-clean-vm-evidence-${version}`, 'docker-webui-clean-vm-evidence-validation.json'), {
+    schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+    status: 'passed',
+    required_gates: ['clean_linux_vm', 'clean_windows_vm'],
+    summaries: [
+      {
+        schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+        gate_id: 'clean_linux_vm',
+        status: 'passed',
+        artifact_name: 'same_job_ubuntu_clean_vm_generated',
+        result_path: 'clean-linux-vm-generated/docker-webui-smoke-gate-result.json',
+        observed_at: '2026-06-30T00:00:00.000Z',
+        required_environment: 'clean Linux VM running the Bash one-click installer',
+      },
+      {
+        schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
+        gate_id: 'clean_windows_vm',
+        status: 'passed',
+        artifact_name: 'windows-clean-evidence',
+        result_path: 'clean-windows-vm-import/docker-webui-smoke-gate-result.json',
+        observed_at: '2026-06-30T00:01:00.000Z',
+        required_environment: 'clean Windows VM running the PowerShell one-click installer',
+      },
+    ],
+    release_readiness_policy: 'clean Linux VM and clean Windows VM Docker WebUI evidence must validate as passed before release readiness aggregation',
+  });
   writeJson(path.join(root, `opl-full-workflow-telemetry-${version}`, 'full-workflow-telemetry.json'), {
     schema: 'opl_full_workflow_telemetry.v1',
     cache: { full_runtime_layers: 'toolchain:true;domain-runtime:true;opl-runtime:true;skills:true' },
@@ -307,6 +333,7 @@ export function writePassingJobResults(filePath: string) {
     'one-shot-app-installer-smoke': 'success',
     'docker-webui-smoke': 'success',
     'webui-ghcr-publish': 'success',
+    'docker-webui-clean-vm-evidence': 'success',
     'operator-evidence-bundle-validation': 'success',
   });
 }
