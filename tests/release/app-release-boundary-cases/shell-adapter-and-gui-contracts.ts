@@ -182,7 +182,7 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   assert.doesNotMatch(JSON.stringify(packageJson.scripts), /--cwd shells\/aionui|cd shells\/aionui/);
   assert.match(shellBuildScript, /--config\.extraMetadata\.version=\$\{version\}/);
   assert.match(shellBuildScript, /\$\{publishArg\} \$\{oplReleaseVersionConfigArg\}/);
-  assert.match(shellViteConfig, /const appReleaseVersion = injectedOplReleaseVersion \|\| rootPackageJson\.version/);
+  assert.match(shellViteConfig, /const appReleaseVersion = injectedOplReleaseVersion \|\| defaultOplReleaseVersion\(\)/);
   assert.match(shellViteConfig, /__APP_VERSION__:\s*JSON\.stringify\(appReleaseVersion\)/);
 });
 
