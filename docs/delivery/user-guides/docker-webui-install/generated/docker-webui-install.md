@@ -85,6 +85,7 @@ docker run --rm -p 3000:3000 `
   -v "$env:USERPROFILE\OnePersonLab\projects:/projects" `
   -e AIONUI_ALLOW_REMOTE=true `
   -e AIONUI_DATA_DIR=/data `
+  -e OPL_PROJECTS_DIR=/projects `
   ghcr.io/gaofeng21cn/one-person-lab-webui:latest
 ```
 
@@ -142,6 +143,7 @@ sudo docker run --rm -p 3000:3000 \
   -v "$HOME/OnePersonLab/projects:/projects" \
   -e AIONUI_ALLOW_REMOTE=true \
   -e AIONUI_DATA_DIR=/data \
+  -e OPL_PROJECTS_DIR=/projects \
   ghcr.io/gaofeng21cn/one-person-lab-webui:latest
 ```
 
@@ -275,6 +277,7 @@ sudo docker run --rm -p 3000:3000 \
 保留：不要删除本机 OnePersonLab/data 和 OnePersonLab/projects
 模块维护：在 WebUI 中按提示完成启动检查和更新维护
 入口镜像更新：收到通知时 docker pull ghcr.io/gaofeng21cn/one-person-lab-webui:latest 后重新运行启动命令
+版本口径：latest/stable 是普通用户入口；带 -slim 的版本只给开发和 CI 使用
 ```
 
 重点：
@@ -320,7 +323,7 @@ sudo docker run --rm -p 3000:3000 \
 - Windows 路径按 Docker Desktop 官方 Windows 安装页核对：per-user 安装推荐给多数用户，WSL 2 backend 覆盖大多数 Docker Desktop 用户需求。
 - Linux 路径按 Docker Engine Ubuntu 官方 apt repository 安装页核对：先配置 apt repository，再安装 Docker packages，并用 `hello-world` 验证。
 - WebUI 自动登录行为由 Web CLI / web-host runtime 验证：无用户名密码请求 `/api/auth/user` 返回 `success: true` 且下发 session cookie。
-- Docker 持久化边界按 active shell Dockerfile 和 web-cli 实现核对：`AIONUI_DATA_DIR=/data` 保存 WebUI 内部状态，`/projects` 是用户项目文件挂载点。
+- Docker 持久化边界按 App release contract、active shell Dockerfile 和 web-cli 实现核对：`AIONUI_DATA_DIR=/data` 保存 WebUI 内部状态，`OPL_PROJECTS_DIR=/projects` 指向用户项目文件挂载点。
 - Docker 镜像内容边界按 active shell Dockerfile、`scripts/pack-web-cli.js` 和本地镜像 inspect 核对：镜像包含 WebUI 静态资源、`aionui-web`、bundled AionCore、`opl-install.sh`、镜像清单，并声明 `/data`、`/projects` 挂载点。
 - WebUI 维护边界按 web-host runtime proxy 核对：WebUI 通过 `/api/opl-runtime/*` 调用 `opl system initialize`、`opl system startup-maintenance`、`opl system reconcile-modules`、`opl update status/check/plan/apply/repair/rollback` 等 OPL 维护命令。
 - 新机器目录创建行为用干净宿主目录验证：`OnePersonLab` 原本不存在时，Docker bind mount 创建 `data` 和 `projects`，WebUI 再创建 `logs`、`runtime`、`.codex`、`.opl`、`opl/state` 等内部目录。
