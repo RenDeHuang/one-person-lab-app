@@ -13,7 +13,7 @@ macOS 用户可以继续使用 DMG、一键安装、Homebrew 或 Docker；Linux 
 
 参考：https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md
 
-> 如果要让别人通过网络访问这台电脑上的 WebUI，请先让技术支持配置内网、反向代理、TLS 和访问控制。访问密钥、登录密码和研究数据不要写入公开文档或截图。
+> Docker/WebUI 默认会自动完成本机浏览器登录，不需要手动输入用户名和密码。如果要让别人通过网络访问这台电脑上的 WebUI，请先让技术支持配置内网、反向代理、TLS 和访问控制。访问密钥、登录密码和研究数据不要写入公开文档或截图。
 
 ## 准备清单
 
@@ -147,50 +147,54 @@ sudo docker run --rm -p 3000:3000 -v opl-data:/data \
 
 ## 4. 打开浏览器访问 WebUI
 
-打开 Chrome、Edge 或 Firefox，在地址栏输入 `http://localhost:3000/`。如果是在服务器上部署，请输入技术支持给你的服务器访问地址。页面出现 One Person Lab 登录框时，就说明浏览器已经连上 WebUI。
+打开 Chrome、Edge 或 Firefox，在地址栏输入 `http://localhost:3000/`。如果是在服务器上部署，请输入技术支持给你的服务器访问地址。Docker/WebUI 会自动完成登录配置；正常情况下你会直接看到 One Person Lab 的工作台或启动检查页面。
 
-**浏览器地址**
+**浏览器地址和自动进入**
 
 ```text
 本机电脑：http://localhost:3000/
 服务器：使用技术支持提供的 https 地址
-看到登录页后继续下一步
+正常情况：不需要输入 Username / Password，直接进入 One Person Lab
 ```
+
+![浏览器地址和自动进入](../assets/01-browser-open-webui.png)
 
 重点：
 
 - 地址要输入到浏览器地址栏，不是搜索框里的关键词。
 - 如果页面打不开，先确认 Docker/终端窗口还在运行。
-- 如果是服务器地址打不开，联系技术支持检查端口、域名和访问控制。
+- 如果看到登录页，不要自己猜用户名密码；先刷新一次，仍不行就重启容器或联系技术支持。
 
 说明：
 
-- 截图为本机 WebUI 在浏览器中打开后的登录页。
+- 截图为本机 WebUI 在浏览器中自动进入后的界面。
 - 页面语言可能因浏览器设置显示为英文或中文，不影响使用。
 
-## 5. 登录并开始使用
+## 5. 开始使用 One Person Lab
 
-在登录页输入账号和密码。个人本机首次启动时，终端可能会显示初始 admin 用户名和临时密码；服务器部署时，通常由技术支持提供账号。登录后进入 One Person Lab 工作台，就可以像 macOS App 一样选择科研、基金、演示或写书入口。
+进入 One Person Lab 后，就可以像 macOS App 一样选择科研、基金、演示或写书入口。Docker/终端窗口保持运行，浏览器页面就能继续使用；如果你关闭终端窗口，WebUI 会停止。
 
-**登录后看到的界面**
+**进入后看到的界面**
 
 ```text
-1. 输入 Username 和 Password
-2. 点击 Sign In / 登录
-3. 进入 One Person Lab 工作台
-4. 选择科研、基金、演示或写书入口
+1. 浏览器进入 One Person Lab
+2. 选择科研、基金、演示或写书入口
+3. 按界面提示继续配置模型访问密钥或本地工具
+4. 保持 Docker/终端窗口运行
 ```
+
+![进入后看到的界面](../assets/02-opl-workbench-after-login.png)
 
 重点：
 
-- 首次临时密码只给本人使用，登录后按提示修改。
-- 不要把密码截图发给别人。
+- 不需要手动输入 WebUI 用户名和密码。
+- 模型访问密钥和 WebUI 登录不是一回事；如果界面后续要求配置模型，按管理员提供的信息填写。
 - 进入工作台后，使用方式与 macOS App 的主界面一致。
 
 说明：
 
-- 工作台截图来自同一 App renderer 的已验证 macOS guide 截图，用于展示登录后的 OPL 入口形态。
-- 实际 WebUI 登录后的页面会随版本、账号权限和语言设置略有不同。
+- 工作台截图来自同一 App renderer，用于展示进入后的 OPL 入口形态。
+- 实际 WebUI 页面会随版本、账号权限和语言设置略有不同。
 
 ## 6. 下次怎么打开和关闭
 
@@ -224,16 +228,19 @@ sudo docker run --rm -p 3000:3000 -v opl-data:/data \
 - 镜像下载很慢或失败：换网络，或让技术支持确认 GHCR 是否可访问。
 - 浏览器打不开 `localhost:3000`：确认启动命令窗口还在运行，且没有其他程序占用 3000 端口。
 - 服务器给别人访问：不要直接裸露端口，请配置 TLS、域名、反向代理和访问控制。
+- 看到登录页怎么办：先刷新浏览器；仍然停在登录页时，回到终端按 Ctrl+C 停止，再重新运行启动命令。如果还是不行，联系技术支持。
+- 为什么不用输入用户名密码：Docker/WebUI 启动时会自动配置本机浏览器会话，新手只需要打开浏览器访问地址。
 
 ## 验证方式
 
 - Windows 路径按 Docker Desktop 官方 Windows 安装页核对：per-user 安装推荐给多数用户，WSL 2 backend 覆盖大多数 Docker Desktop 用户需求。
 - Linux 路径按 Docker Engine Ubuntu 官方 apt repository 安装页核对：先配置 apt repository，再安装 Docker packages，并用 `hello-world` 验证。
-- WebUI 浏览器登录页截图来自本机 `http://127.0.0.1:33000/` 的 Playwright 截图。
-- 工作台截图复用同一 App renderer 的已验证 macOS guide 截图，只作为登录后入口形态示意。
+- WebUI 自动登录行为由 Web CLI / web-host runtime 验证：浏览器访问后 `/api/auth/user` 返回 `success: true` 且下发 session cookie。
+- 浏览器界面截图来自本机 WebUI 的 Playwright 截图。
 
 ## 来源与边界
 
 - 本教程是新手 onboarding artifact，不是 Docker 官方文档复刻，也不是 release-ready 或 runtime-ready 证明。
 - Docker/WebUI 镜像坐标、构建发布和 release gate 归 `one-person-lab-app`；plain WebUI runtime 变量以 active shell Dockerfile / web-cli / web-host 为实现真相。
+- Docker/WebUI 的自动登录只用于 standalone WebUI/Docker 新手入口；桌面 App 设置里的 WebUI 密码管理仍保持独立语义。
 - 截图资产保存在 `docs/delivery/user-guides/docker-webui-install/assets/`，生成器会校验文件存在、尺寸和 SHA256。

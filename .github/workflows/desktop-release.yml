@@ -683,6 +683,18 @@ jobs:
             sleep 2
           done
           curl -fsS "http://127.0.0.1:${port}/manifest.webmanifest" >/tmp/opl-webui-manifest.webmanifest
+          auth_headers="$(mktemp)"
+          auth_body="$(mktemp)"
+          for attempt in $(seq 1 60); do
+            if curl -fsS -D "$auth_headers" "http://127.0.0.1:${port}/api/auth/user" -o "$auth_body" \
+              && grep -q '"success":[[:space:]]*true' "$auth_body" \
+              && grep -iq '^set-cookie:' "$auth_headers"; then
+              break
+            fi
+            sleep 2
+          done
+          grep -q '"success":[[:space:]]*true' "$auth_body"
+          grep -iq '^set-cookie:' "$auth_headers"
 
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:${{ inputs.opl_version }}"
           docker tag "one-person-lab-webui:${{ inputs.opl_version }}" "${ghcr_image}:stable"

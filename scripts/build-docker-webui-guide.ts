@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
@@ -14,6 +15,7 @@ type DockerGuideStep = {
   visual_lines: string[];
   callouts: string[];
   notes: string[];
+  asset?: string;
 };
 
 type DockerGuide = {
@@ -46,6 +48,7 @@ type DockerGuide = {
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const guideDir = path.join(appRoot, 'docs', 'delivery', 'user-guides', 'docker-webui-install');
+const assetsDir = path.join(guideDir, 'assets');
 const sourcePath = path.join(guideDir, 'source', 'docker-webui-install.guide.json');
 const generatedDir = path.join(guideDir, 'generated');
 const verificationDir = path.join(guideDir, 'verification');
@@ -103,6 +106,66 @@ function loadGuide() {
 
 function relativeToApp(filePath: string) {
   return path.relative(appRoot, filePath);
+}
+
+function readPngDimensions(filePath: string) {
+  const buf = fs.readFileSync(filePath);
+  if (buf.length < 24 || buf.toString('ascii', 1, 4) !== 'PNG') {
+    throw new Error(`Guide asset is not a PNG file: ${relativeToApp(filePath)}`);
+  }
+  return {
+    width: buf.readUInt32BE(16),
+    height: buf.readUInt32BE(20),
+  };
+}
+
+function hashFile(filePath: string) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function validateAssets(guide: DockerGuide) {
+  const seen = new Set<string>();
+  const assets: Array<{
+    step: string;
+    file: string;
+    public_file: string;
+    sha256: string;
+    width: number;
+    height: number;
+  }> = [];
+  for (const step of guide.steps) {
+    if (!step.asset) continue;
+    if (step.asset.includes('/') || step.asset.includes('\\')) {
+      throw new Error(`Docker/WebUI guide asset must be a plain filename: ${step.asset}`);
+    }
+    const filePath = path.join(assetsDir, step.asset);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Docker/WebUI guide asset does not exist: ${relativeToApp(filePath)}`);
+    }
+    const dims = readPngDimensions(filePath);
+    if (dims.width < 900 || dims.height < 500) {
+      throw new Error(`Docker/WebUI guide asset is too small: ${relativeToApp(filePath)} ${dims.width}x${dims.height}`);
+    }
+    seen.add(step.asset);
+    assets.push({
+      step: step.id,
+      file: relativeToApp(filePath),
+      public_file: `assets/${step.asset}`,
+      sha256: hashFile(filePath),
+      width: dims.width,
+      height: dims.height,
+    });
+  }
+  return { seen, assets };
+}
+
+function copyAssets(assetNames: Set<string>) {
+  const publicAssetsDir = path.join(publicDir, 'assets');
+  fs.rmSync(publicAssetsDir, { recursive: true, force: true });
+  fs.mkdirSync(publicAssetsDir, { recursive: true });
+  for (const asset of assetNames) {
+    fs.copyFileSync(path.join(assetsDir, asset), path.join(publicAssetsDir, asset));
+  }
 }
 
 function scanTextForSecrets(text: string) {
@@ -171,7 +234,9 @@ function buildMarkdown(guide: DockerGuide) {
   for (const step of guide.steps) {
     lines.push(`## ${step.title}`, '', expandTemplate(step.body, guide), '', `**${step.visual_title}**`, '', '```text');
     for (const line of expandList(step.visual_lines, guide)) lines.push(line);
-    lines.push('```', '', '重点：', '');
+    lines.push('```', '');
+    if (step.asset) lines.push(`![${step.visual_title}](../assets/${step.asset})`, '');
+    lines.push('重点：', '');
     for (const callout of expandList(step.callouts, guide)) lines.push(`- ${callout}`);
     lines.push('', '说明：', '');
     for (const note of expandList(step.notes, guide)) lines.push(`- ${note}`);
@@ -226,7 +291,8 @@ function buildPdfMarkdown(guide: DockerGuide, markdown: string) {
   ].join('\n');
   const body = normalizePdfInlineCode(stripRepositoryMetadata(markdown))
     .replace(/^# .+\n\n/, '')
-    .replace(/^## /gm, '# ');
+    .replace(/^## /gm, '# ')
+    .replace(/\]\(\.\.\/assets\/([^)]+)\)/g, (_match, asset) => `](${path.join(assetsDir, asset)})`);
   return `${cover}${body}`;
 }
 
@@ -264,6 +330,7 @@ function renderVisual(step: DockerGuideStep, guide: DockerGuide) {
     <figure class="visual">
       <figcaption>${escapeHtml(step.visual_title)}</figcaption>
       <pre>${escapeHtml(expandList(step.visual_lines, guide).join('\n'))}</pre>
+      ${step.asset ? `<img src="assets/${escapeHtml(step.asset)}" alt="${escapeHtml(step.visual_title)}" loading="lazy" />` : ''}
     </figure>
   `;
 }
@@ -310,6 +377,7 @@ function css() {
     .visual { margin: 0 0 18px; padding: 16px; border-radius: 8px; border: 1px solid #c7d3df; background: #f8fafc; }
     .visual figcaption { margin-bottom: 10px; color: var(--accent-strong); font-weight: 750; }
     .visual pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.45; }
+    .visual img { display: block; width: 100%; height: auto; margin-top: 14px; border-radius: 6px; border: 1px solid #d8e0ea; background: white; }
     .callouts { margin: 0 0 18px; padding: 16px; border-radius: 8px; background: var(--accent-soft); border: 1px solid #b9ded7; }
     .callouts h3 { margin: 0 0 10px; color: var(--accent-strong); font-size: 16px; }
     .checklist, .faq-list, .notes { margin: 0; padding-left: 1.25rem; }
@@ -423,6 +491,7 @@ function writeJson(filePath: string, value: unknown) {
 
 function main() {
   const guide = loadGuide();
+  const assetValidation = validateAssets(guide);
   const markdown = buildMarkdown(guide);
   const html = buildHtml(guide);
   scanTextForSecrets(JSON.stringify(guide));
@@ -433,6 +502,7 @@ function main() {
   fs.mkdirSync(verificationDir, { recursive: true });
   fs.mkdirSync(publicDir, { recursive: true });
   fs.mkdirSync(tempDir, { recursive: true });
+  copyAssets(assetValidation.seen);
   fs.writeFileSync(markdownPath, markdown, 'utf8');
   fs.writeFileSync(htmlPath, html, 'utf8');
   fs.writeFileSync(tempHeaderPath, buildHeader(), 'utf8');
@@ -503,6 +573,7 @@ function main() {
     rendered_dir: relativeToApp(render.renderDir),
     html_bytes: html.length,
     guide_steps: guide.steps.length,
+    screenshot_assets: assetValidation.assets,
     image: guide.download.image,
     support_reference_url: guide.download.support_reference_url,
     required_terms: requiredTerms,

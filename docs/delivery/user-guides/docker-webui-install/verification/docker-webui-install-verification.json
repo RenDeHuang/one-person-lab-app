@@ -8,15 +8,33 @@
   "pandoc_markdown": "tmp/pdfs/docker-webui-install/docker-webui-install.pandoc.md",
   "pandoc_header": "tmp/pdfs/docker-webui-install/docker-webui-install-header.tex",
   "pdf_layout": "portrait_ebook",
-  "pdf_pages": 7,
+  "pdf_pages": 8,
   "pdf_page_size_pts": {
     "width": 612,
     "height": 792
   },
-  "rendered_pages": 7,
+  "rendered_pages": 8,
   "rendered_dir": "tmp/pdfs/docker-webui-install/rendered",
-  "html_bytes": 15066,
+  "html_bytes": 15820,
   "guide_steps": 8,
+  "screenshot_assets": [
+    {
+      "step": "open-browser",
+      "file": "docs/delivery/user-guides/docker-webui-install/assets/01-browser-open-webui.png",
+      "public_file": "assets/01-browser-open-webui.png",
+      "sha256": "5671d42e885a7ec3d125fb4faba984e78f905bdde2d00ff05c6fa5bb163be39d",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "step": "start-using",
+      "file": "docs/delivery/user-guides/docker-webui-install/assets/02-opl-workbench-after-login.png",
+      "public_file": "assets/02-opl-workbench-after-login.png",
+      "sha256": "23dbb11274b0a18cc64cef4ee3fad1deb0f32ca2dd9b5430d05e6e1f2cf39cb9",
+      "width": 1536,
+      "height": 912
+    }
+  ],
   "image": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
   "support_reference_url": "https://github.com/gaofeng21cn/one-person-lab/blob/main/docs/references/current-support/opl-docker-webui-deployment.md",
   "required_terms": [
