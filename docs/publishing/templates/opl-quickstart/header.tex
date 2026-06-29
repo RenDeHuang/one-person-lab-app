@@ -1,0 +1,21 @@
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{float}
+\definecolor{OPLTeal}{HTML}{0F766E}
+\definecolor{OPLInk}{HTML}{111827}
+\definecolor{OPLMuted}{HTML}{6B7280}
+\definecolor{OPLLine}{HTML}{D1D5DB}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlist[itemize]{topsep=2pt,itemsep=1pt,leftmargin=17pt}
+\titleformat{\section}{\large\bfseries\color{OPLTeal}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{OPLInk}}{\thesubsection}{0.6em}{}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\color{OPLMuted}One Person Lab}
+\rhead{\small\color{OPLMuted}Quickstart}
+\cfoot{\small\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{OPLLine}\leaders\hrule height \headrulewidth\hfill}}

@@ -1,0 +1,10 @@
+{
+  "id": "opl-whitepaper",
+  "kind": "quarto_book_template",
+  "state": "active",
+  "html_theme": "flatly",
+  "css_file": "styles.scss",
+  "latex_header": "header.tex",
+  "preferred_pdf_engine": "typst",
+  "stable_pdf_engine": "xelatex"
+}

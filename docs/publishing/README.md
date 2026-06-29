@@ -22,10 +22,14 @@ verification records. Do not add long-form body copy back into JSON files there.
 ## Templates
 
 - [`templates/opl-guide`](templates/opl-guide/): beginner screenshot guide template for installation and onboarding manuals.
-- [`templates/opl-whitepaper`](templates/opl-whitepaper/): reserved for formal whitepapers and institution-facing reports. It should stay Quarto-based but may use stricter PDF requirements.
-- [`templates/opl-quickstart`](templates/opl-quickstart/): reserved for shorter quickstart guides.
+- [`templates/opl-whitepaper`](templates/opl-whitepaper/): formal whitepaper and institution-facing report template.
+- [`templates/opl-quickstart`](templates/opl-quickstart/): compact setup and short guide template.
 
-The active guide template is intentionally small: Quarto owns the book build, while the template owns HTML theme selection, SCSS, and LaTeX header polish. Typst is the preferred future PDF engine for guide-style documents, but the current stable local engine is XeLaTeX until the OPL Typst book template is hardened and verified with Chinese content.
+The templates are intentionally small: Quarto owns the book build, while each
+template owns HTML theme selection, SCSS, and LaTeX header polish. Typst is the
+preferred future PDF engine for guide-style documents, but the current stable
+local engine is XeLaTeX until the OPL Typst book template is hardened and
+verified with Chinese content.
 
 ## Build And Validation
 

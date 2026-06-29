@@ -1,0 +1,22 @@
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{booktabs}
+\definecolor{OPLBlue}{HTML}{124B5F}
+\definecolor{OPLInk}{HTML}{111827}
+\definecolor{OPLMuted}{HTML}{6B7280}
+\definecolor{OPLLine}{HTML}{D1D5DB}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{7pt}
+\setlist[itemize]{topsep=3pt,itemsep=2pt,leftmargin=20pt}
+\titleformat{\section}{\Large\bfseries\color{OPLBlue}}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\large\bfseries\color{OPLInk}}{\thesubsection}{0.7em}{}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\color{OPLMuted}One Person Lab}
+\rhead{\small\color{OPLMuted}Whitepaper}
+\cfoot{\small\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{OPLLine}\leaders\hrule height \headrulewidth\hfill}}
