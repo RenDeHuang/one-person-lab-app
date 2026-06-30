@@ -103,3 +103,10 @@ Future coverage belongs in the narrowest owner:
 This App coverage does not close the parent OPL series docs-governance goal,
 because the seven-repo goal remains open until every repo ledger has no
 unreviewed docs or unresolved stale/retire candidates.
+
+Current residual App candidates are not open owner-route gaps: the release guide
+has test-bound operator wording, Docker/WebUI smoke gates have validator-bound
+wording, and Settings/GUI history compression must start from the owning
+contract, artifact, validator, or process-history surface before prose changes.
+Do not convert these residual candidates into active gap rows unless a fresh
+owner surface changes.

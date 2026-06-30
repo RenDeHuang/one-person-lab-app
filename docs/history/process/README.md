@@ -57,6 +57,7 @@ claim for the parent seven-repo OPL series goal.
 | Runtime architecture field-list compression | `docs/architecture.md` now keeps the runtime page architecture boundary without freezing App-state JSON paths, diagnostic counters, forbidden-source lists, progress field names or Stage Artifact ref field lists as prose truth. Runtime bridge details stay in contracts, active-shell validation, release-boundary tests and OPL Framework CLI/read-model output. | `docs/architecture.md`, `contracts/app-runtime-bridge.json`, `contracts/app-page-state-matrix.json`, `contracts/app-gui-product-contract.json`, `scripts/validate-active-shell.ts`, release-boundary tests |
 | Testing docs release guidance | Testing docs own command entry points and evidence classification guidance only. They do not duplicate release workflow policy or serve as current proof ledger. | `docs/testing/README.md`, package scripts, validators, release-boundary tests |
 | GUI definition stack | GUI target shape, OPL delta, element audit, feature inventory, Hermes foreground-alternative runbooks, and AGUI archived-proof replay runbook remain separate owner docs. Shell implementation, active-shell adoption, and product acceptance require contracts, adapter selection, validation, and release gates. | GUI definition docs, App GUI/page-state/first-run contracts, active-shell validation |
+| Settings Control Center audit compression | `settings-control-center-completion-audit.md` is now a compact active audit pointer. The detailed 2026-06-30 evidence list, version/readback details, visual-manifest counts, workflow ids, and worktree notes remain historical process evidence in git history, release records, visual manifests, CI logs, and this compressed process index. | `contracts/app-settings-control-plane.json`, `docs/product/gui/settings-control-center.md`, Settings validators, visual manifests, release records |
 | Hermes first-run candidate evidence compression | `docs/product/shell-alternatives/hermes-first-run-flow.md`, `docs/product/shell-alternatives/hermes-gui-adaptation-plan.md`, and `docs/status.md` no longer freeze dated Tart VM ids, guest IPs, absolute paths, smoke summaries, or proof-by-proof candidate evidence. Product docs keep target flow, scenario requirements, false-ready boundaries, and post-evidence owner routing; current behavior comes from candidate contracts, validators, manifests, shell artifacts, CI logs, release evidence, or explicit provenance records. | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/hermes-codex.json`, `contracts/app-first-run-test-matrix.json`, `scripts/validate-shell-candidates/*`, candidate manifests, shell artifacts, CI logs, release evidence/provenance |
 | GUI external-reference foldback | The feature inventory now keeps only current App-owned feature mappings for PilotDeck, Stitch, AG-UI and CopilotKit. Evaluated refs, source URLs, reference inventories, Hermes adoption gates, archived-proof replay commands and dated research/proof details stay with App contracts, the relevant runbook, manifests, artifacts, CI logs or history/provenance. | `docs/product/gui/feature-inventory.md`, `contracts/app-shell-candidates.json`, `docs/history/shell-candidates/agui-codex-candidate-verification.md` |
 | Foreground alternative adoption and archived AGUI replay | Foreground alternative registry/adoption policy, design-reference policy, executable acceptance fields and Hermes adapter selection are contract/validator-owned. The current foreground alternative is Hermes Desktop / `hermes-codex`; AGUI is archived technical proof and explicit replay only. AGUI smoke, manifests and runbook prose prove archived technical verification only. | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/hermes-codex.json`, `contracts/app-shell-adapter.json`, `scripts/validate-shell-candidates/*`, Hermes manifests, validation scripts, `docs/product/gui/feature-inventory.md`, `docs/product/shell-alternatives/hermes-gui-adaptation-plan.md`; AGUI replay provenance stays in `docs/history/shell-candidates/agui-codex-candidate-verification.md` and `contracts/shell-adapters/agui-codex.json` |
@@ -69,11 +70,15 @@ guide/screenshot indexes, package scripts, candidate registry/adapters,
 candidate validators, and retired-surface provenance. No source, contract,
 workflow, package, shell, or test surface changed in this docs-only tranche.
 
-Remaining unreviewed docs-governance scope for App: none currently carried in
-the App process ledger for tracked `README*` / `docs/**/*.md` owner-route themes.
-This is not a release-readiness, GUI implementation parity, install exposure
-live-root, candidate adoption, Full first-install, App production, or family
-production claim.
+Remaining unreviewed docs-governance scope for App: no unreviewed owner-route
+theme is currently carried in the App process ledger for tracked `README*` /
+`docs/**/*.md`. Residual compression candidates are owner-scoped rather than
+ledger gaps: release guide wording is test-bound, Docker/WebUI smoke gates are
+validator-bound, and future GUI/Settings history compression should start from
+the relevant contract or artifact owner before editing prose. This is not a
+release-readiness, GUI implementation parity, install exposure live-root,
+candidate adoption, Full first-install, App production, or family production
+claim.
 
 Remaining App work under current owners: future release cohorts, Full/VM
 evidence, candidate shell technical proof, GUI implementation parity, install

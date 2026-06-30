@@ -17,6 +17,15 @@ source policy, and `SettingsHost` / `SettingsShellAdapterSlot` adapter slot.
 `contracts/app-gui-product-contract.json#settings_navigation.settings_ia` remains
 the App GUI source contract consumed by that control plane.
 
+## Reading Order And SSOT
+
+Use this document for the human product design of Settings as the OPL Control
+Center. Use `contracts/app-settings-control-plane.json` for route, checklist,
+registry, redirect, adapter-slot, and validator truth. Use
+`settings-control-center-completion-audit.md` only as a compact audit pointer;
+it must not grow back into a dated evidence ledger, release proof transcript, or
+installed-currentness record.
+
 ## Goal
 
 Settings is the One Person Lab App OPL Control Center, not an upstream AionUI

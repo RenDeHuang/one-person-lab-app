@@ -28,6 +28,17 @@ Codex CLI 后端桥接、普通路径收窄、必要 OPL 功能接入和 release
 Codex App 变成 OPL App 的产品增量看
 [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)。
 
+## 读法与 SSOT
+
+- `ideal-interaction-spec.md` 定义不绑定 shell 的理想交互模型。
+- 本文只列产品级 GUI 能力和外部参考到 OPL App 的映射，不保存实现完成流水。
+- `codex-to-opl-app-delta.md` 只解释 Codex App-like 产品增量。
+- Settings 的机器边界归 `contracts/app-settings-control-plane.json`；Settings 设计归
+  `settings-control-center.md`；完成审计只读
+  `settings-control-center-completion-audit.md` 的当前结论。
+- 版本、run id、截图 proof、candidate smoke、release readback 和 worktree closeout
+  进入 release/candidate artifacts、history/process 或 git history，不进入本清单。
+
 ## 产品形态
 
 理想 OPL App GUI 是 Codex App 形态的 chat-first desktop surface：

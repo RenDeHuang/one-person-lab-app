@@ -31,6 +31,19 @@ gate，不能按 AionUI 主线或 AGUI archived proof 路径直接搬运。Herme
 不改变当前 AionUI 默认 release shell，也不表达 release-ready。除非用户明确要求
 AGUI，本交互细则后续默认不再推动 AG-UI/CopilotKit 路线的更新、完善或抛光。
 
+## 文档分工
+
+本文是理想交互定义，只回答“理想 GUI 应该怎样工作”。能力清单、外部参考映射和
+候选 shell 适配不要在这里重复展开：
+
+- App GUI 能力目录归 `feature-inventory.md`。
+- Codex App-like 增量归 `codex-to-opl-app-delta.md`。
+- Settings Control Center 设计归 `settings-control-center.md`，机器 truth 归
+  `contracts/app-settings-control-plane.json`。
+- 完成度、截图、release、VM、installed currentness 和候选 smoke 证据不归本文；
+  这些证据只在对应 contract、validator、artifact、release record、candidate
+  manifest 或 history/process 中保存。
+
 Hermes 路线的产品假设和 AG-UI spike 不同：Hermes Desktop 已经是完整通用桌面
 Agent GUI，具备 chat、workspace/files、preview、tool output、settings、onboarding
 和 native packaging 等基础能力。因此 OPL 对 Hermes 的默认策略不是重新设计一个
