@@ -259,8 +259,8 @@ function validateStandardUpdaterCompressionPolicy(appRoot: string, releaseContra
     !compression.metadata_blockmap_gate.includes('hdiutil imageinfo/verify') ||
     typeof compression?.rule !== 'string' ||
     !compression.rule.includes('does not accept ULMO') ||
-    !compression.rule.includes('.dmg.blockmap') ||
-    !compression.rule.includes('latest*.yml')
+    !compression.rule.includes('ZIP blockmap') ||
+    !compression.rule.includes('latest-arm64-mac.yml')
   ) {
     console.error('FAIL standard_updater_dmg_compression: compression policy must preserve updater metadata and blockmap verification boundaries');
     failures += 1;
