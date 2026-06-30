@@ -212,6 +212,10 @@ test('desktop promote workflow is gated by the candidate record before publishin
   assert.doesNotMatch(workflow, /node <<'NODE'/);
   assert.match(workflow, /Verify remote release assets/);
   assert.match(workflow, /Publish draft release/);
+  assert.match(workflow, /Verify published release readback/);
+  assert.match(workflow, /gh release view "\$tag"[\s\S]*--json tagName,isDraft,isPrerelease,publishedAt,assets/);
+  assert.match(workflow, /gh release list[\s\S]*--json tagName,isLatest,isDraft,isPrerelease,publishedAt/);
+  assert.match(workflow, /git ls-remote --exit-code --tags origin "refs\/tags\/\$\{tag\}"/);
   assert.match(workflow, /Update Stable Homebrew tap/);
   assert.match(workflow, /Update Full Homebrew tap/);
   assert.match(workflow, /Run Homebrew standard first-run VM smoke/);
@@ -224,7 +228,8 @@ test('desktop promote workflow is gated by the candidate record before publishin
   assert.doesNotMatch(homebrewStandardVmJob, /full-homebrew-tap-update/);
   assert.ok(workflow.indexOf('Verify release candidate record') < workflow.indexOf('Publish draft release'));
   assert.ok(workflow.indexOf('Verify remote release assets') < workflow.indexOf('Publish draft release'));
-  assert.ok(workflow.indexOf('Publish draft release') < workflow.indexOf('Update Stable Homebrew tap'));
+  assert.ok(workflow.indexOf('Publish draft release') < workflow.indexOf('Verify published release readback'));
+  assert.ok(workflow.indexOf('Verify published release readback') < workflow.indexOf('Update Stable Homebrew tap'));
 });
 
 test('one-shot installer smoke uploads its diagnostic artifact even when bootstrap fails', () => {

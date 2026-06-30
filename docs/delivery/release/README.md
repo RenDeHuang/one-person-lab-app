@@ -85,6 +85,21 @@ first; its Homebrew tap update belongs to the promote workflow after the draft
 is published, so preflight must not block App assets, Full assets, or
 Docker/WebUI candidate evidence on that token.
 
+Promote must read back the just-published Stable release before it starts
+Homebrew. The required readback is the remote `gh release view v<version>`
+payload plus `refs/tags/v<version>`: non-draft, non-prerelease, latest,
+published, and with readable assets. If GitHub publication visibility lags or
+the tag/release binding drifts, the promote job retries briefly and fails at
+that boundary instead of letting Homebrew fail later with an ambiguous
+`release not found`.
+
+Homebrew tap writes remain direct commits, not pull requests, but same
+channel/version writes are serialized across Standard and Full casks. If the
+tap main branch still advances between checkout and push, the workflow fetches
+`origin/main`, rebases the local cask commit, and retries before classifying the
+tap update as failed. A non-fast-forward tap push is a recoverable write
+conflict, not release evidence failure.
+
 Docker/WebUI releases are gated by Docker build, GHCR publish, and clean Linux
 Docker runtime smoke. `docker_webui_clean_windows_evidence_artifact` is optional
 diagnostic input; missing Windows evidence must not block a macOS App stable

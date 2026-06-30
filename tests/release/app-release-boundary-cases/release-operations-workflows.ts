@@ -179,19 +179,26 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.equal(homebrew.tap_update_policy.app_release_direct_workflow, '.github/workflows/homebrew-tap-update.yml');
   assert.equal(homebrew.tap_update_policy.app_release_direct_token, 'OPL_HOMEBREW_TAP_TOKEN');
   assert.equal(homebrew.tap_update_policy.app_release_pull_request_allowed, false);
-  assert.equal(homebrew.tap_update_policy.app_release_workflow_write_mode, 'direct_commit_only');
+  assert.equal(
+    homebrew.tap_update_policy.app_release_workflow_write_mode,
+    'direct_commit_only_with_same_version_channel_serialization_and_fetch_rebase_retry',
+  );
   assert.equal('app_release_pr_workflow' in homebrew.tap_update_policy, false);
   assert.equal('app_release_pr_token' in homebrew.tap_update_policy, false);
   assert.equal(
     homebrew.tap_update_policy.stable_release_workflow_write_mode,
-    'new_release_promote_direct_commit_after_publish_before_homebrew_vm_gate; refresh_existing_published_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_defer_to_promote_after_publish',
+    'new_release_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate; refresh_existing_published_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_defer_to_promote_after_publish_readback',
+  );
+  assert.equal(
+    homebrew.tap_update_policy.direct_commit_conflict_policy,
+    'serialize same channel/version tap writes across package kinds; on non-fast-forward push, fetch origin main, rebase the local tap commit, and retry before failing',
   );
   assert.equal(homebrew.tap_update_policy.planner_script, 'scripts/update-homebrew-tap.ts');
   assert.equal(homebrew.tap_update_policy.nightly.mode, 'tap_repo_scheduled_self_sync_to_nightly_cask');
   assert.equal(homebrew.tap_update_policy.nightly.may_update_stable, false);
   assert.equal(
     homebrew.tap_update_policy.stable.mode,
-    'new_release_desktop_promote_direct_commit_after_published_release_before_homebrew_vm_gate; refresh_existing_published_release_desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_desktop_promote_after_publish_before_homebrew_vm_gate',
+    'new_release_desktop_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate; refresh_existing_published_release_desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_desktop_promote_after_publish_readback_before_homebrew_vm_gate',
   );
   assert.equal(homebrew.tap_update_policy.stable.may_consume_nightly_directly, false);
   assert.equal(homebrew.tap_update_policy.full.mode, 'stable_full_first_install_cask_after_full_release_gates');
@@ -235,6 +242,8 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.match(homebrewWorkflow, /name: OPL Homebrew Tap Update/);
   assert.match(homebrewWorkflow, /workflow_dispatch:/);
   assert.match(homebrewWorkflow, /workflow_call:/);
+  assert.match(homebrewWorkflow, /group: opl-homebrew-tap-\$\{\{ inputs\.channel \}\}-\$\{\{ inputs\.opl_version \}\}/);
+  assert.doesNotMatch(homebrewWorkflow, /group: opl-homebrew-tap-\$\{\{ inputs\.channel \}\}-\$\{\{ inputs\.package_kind \}\}-\$\{\{ inputs\.opl_version \}\}/);
   assert.doesNotMatch(homebrewWorkflow, /write_mode:/);
   assert.doesNotMatch(homebrewWorkflow, /pull-requests: read/);
   assert.doesNotMatch(homebrewWorkflow, /pull_request/);
@@ -256,6 +265,10 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.doesNotMatch(homebrewWorkflow, /peter-evans\/create-pull-request@v8/);
   assert.doesNotMatch(homebrewWorkflow, /inputs\.write_mode/);
   assert.match(homebrewWorkflow, /git -C homebrew-tap push origin HEAD:main/);
+  assert.match(homebrewWorkflow, /for attempt in 1 2 3/);
+  assert.match(homebrewWorkflow, /git -C homebrew-tap fetch origin main/);
+  assert.match(homebrewWorkflow, /git -C homebrew-tap rebase origin\/main/);
+  assert.match(homebrewWorkflow, /Homebrew tap push failed on attempt \$\{attempt\}; fetching and rebasing before retry/);
   assert.match(homebrewWorkflow, /path: homebrew-tap/);
   assert.doesNotMatch(homebrewWorkflow, /gh release upload/);
 
@@ -454,6 +467,13 @@ test('release automation workflows cover remote verification, Full cache warmup,
   assert.match(promoteWorkflow, /gh release edit "v\$\{OPL_RELEASE_VERSION\}"/);
   assert.match(promoteWorkflow, /--draft=false/);
   assert.match(promoteWorkflow, /--latest/);
+  assert.match(promoteWorkflow, /Verify published release readback/);
+  assert.match(promoteWorkflow, /gh release view "\$tag"[\s\S]*--json tagName,isDraft,isPrerelease,publishedAt,assets/);
+  assert.match(promoteWorkflow, /gh release list[\s\S]*--json tagName,isLatest,isDraft,isPrerelease,publishedAt/);
+  assert.match(promoteWorkflow, /git ls-remote --exit-code --tags origin "refs\/tags\/\$\{tag\}"/);
+  assert.match(promoteWorkflow, /Promoted release is still a draft/);
+  assert.match(promoteWorkflow, /Promoted Stable release is not marked latest/);
+  assert.match(promoteWorkflow, /Published release \$\{tag\} did not become readable with a matching tag before Homebrew tap update/);
 
   assert.equal(packageJson.scripts['release:cleanup-drafts'], 'node --experimental-strip-types scripts/cleanup-draft-release-candidates.ts');
   assert.equal(packageJson.scripts['release:cleanup-webui-ghcr'], 'node --experimental-strip-types scripts/cleanup-webui-ghcr-versions.ts');
@@ -500,6 +520,18 @@ test('release automation workflows cover remote verification, Full cache warmup,
     releaseContract.release_acceleration.github_actions.promote_workflow,
     '.github/workflows/desktop-release-promote.yml',
   );
+  assert.deepEqual(releaseContract.release_acceleration.github_actions.promote_post_publish_readback, {
+    workflow_job: 'promote',
+    step: 'Verify published release readback',
+    checks: [
+      'gh release view v<version> returns tagName, isDraft, isPrerelease, publishedAt, and assets',
+      'gh release list marks v<version> as latest',
+      'release tag exists at refs/tags/v<version>',
+      'stable release is non-draft, non-prerelease, latest, published, and has readable assets',
+    ],
+    rule:
+      'The promote workflow must not start Homebrew tap updates until the just-published Stable GitHub Release and matching tag are readable from remote APIs.',
+  });
 });
 
 test('release workflows resolve moving refs once and pass fixed SHA cohort refs downstream', () => {

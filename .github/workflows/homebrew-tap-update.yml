@@ -63,7 +63,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: opl-homebrew-tap-${{ inputs.channel }}-${{ inputs.package_kind }}-${{ inputs.opl_version }}
+  group: opl-homebrew-tap-${{ inputs.channel }}-${{ inputs.opl_version }}
   cancel-in-progress: false
 
 env:
@@ -279,7 +279,18 @@ jobs:
           git -C homebrew-tap config user.email "github-actions[bot]@users.noreply.github.com"
           git -C homebrew-tap add Casks/one-person-lab.rb Casks/one-person-lab-nightly.rb Casks/one-person-lab-full.rb
           git -C homebrew-tap commit -m "Update OPL Homebrew tap for ${{ inputs.opl_version }} ${{ inputs.package_kind }}"
-          git -C homebrew-tap push origin HEAD:main
+          for attempt in 1 2 3; do
+            if git -C homebrew-tap push origin HEAD:main; then
+              echo "Pushed Homebrew tap update on attempt ${attempt}."
+              exit 0
+            fi
+            echo "Homebrew tap push failed on attempt ${attempt}; fetching and rebasing before retry."
+            git -C homebrew-tap fetch origin main
+            git -C homebrew-tap rebase origin/main
+            sleep $((attempt * 5))
+          done
+          echo "::error::Homebrew tap direct commit push failed after rebase retries."
+          exit 1
 
       - name: Summarize unchanged direct Homebrew tap update
         if: ${{ steps.tap-token.outputs.available == 'true' && steps.tap-plan.outputs.changed == 'false' }}

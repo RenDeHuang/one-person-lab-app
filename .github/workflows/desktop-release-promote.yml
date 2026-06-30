@@ -148,6 +148,60 @@ jobs:
             --draft=false \
             --latest
 
+      - name: Verify published release readback
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        run: |
+          set -euo pipefail
+          tag="v${OPL_RELEASE_VERSION}"
+          release_json="$RUNNER_TEMP/promoted-release-readback.json"
+          latest_json="$RUNNER_TEMP/promoted-release-latest-readback.json"
+
+          for attempt in {1..12}; do
+            if gh release view "$tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json tagName,isDraft,isPrerelease,publishedAt,assets \
+              > "$release_json" \
+              && gh release list \
+                --repo "$GITHUB_REPOSITORY" \
+                --limit 20 \
+                --json tagName,isLatest,isDraft,isPrerelease,publishedAt \
+                > "$latest_json" \
+              && git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null; then
+              if RELEASE_JSON="$release_json" LATEST_JSON="$latest_json" EXPECTED_TAG="$tag" node --input-type=module <<'NODE'
+              import fs from 'node:fs';
+
+              const release = JSON.parse(fs.readFileSync(process.env.RELEASE_JSON, 'utf8'));
+              const releaseList = JSON.parse(fs.readFileSync(process.env.LATEST_JSON, 'utf8'));
+              const expectedTag = process.env.EXPECTED_TAG;
+              const assets = Array.isArray(release.assets) ? release.assets : [];
+              const listedRelease = Array.isArray(releaseList)
+                ? releaseList.find((candidate) => candidate?.tagName === expectedTag)
+                : null;
+              function fail(message) {
+                console.error(message);
+                process.exit(1);
+              }
+              if (release.tagName !== expectedTag) fail(`Promoted release tag mismatch: ${release.tagName}`);
+              if (release.isDraft) fail('Promoted release is still a draft.');
+              if (release.isPrerelease) fail('Promoted Stable release is marked as a prerelease.');
+              if (!release.publishedAt) fail('Promoted release does not expose publishedAt.');
+              if (assets.length === 0) fail('Promoted release has no readable assets.');
+              if (listedRelease?.isLatest !== true) fail('Promoted Stable release is not marked latest.');
+              NODE
+              then
+                echo "Published release ${tag} is readable with tag and assets after attempt ${attempt}."
+                exit 0
+              fi
+            fi
+            echo "Published release ${tag} is not fully readable yet; retrying attempt ${attempt}."
+            sleep 10
+          done
+
+          echo "::error::Published release ${tag} did not become readable with a matching tag before Homebrew tap update."
+          exit 1
+
       - name: Upload remote verification summary
         uses: actions/upload-artifact@v7
         with:

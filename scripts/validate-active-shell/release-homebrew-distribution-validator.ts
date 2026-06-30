@@ -73,11 +73,19 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       { actual: tapUpdate?.app_release_direct_workflow, expected: '.github/workflows/homebrew-tap-update.yml' },
       { actual: tapUpdate?.app_release_direct_token, expected: 'OPL_HOMEBREW_TAP_TOKEN' },
       { actual: tapUpdate?.app_release_pull_request_allowed, expected: false },
-      { actual: tapUpdate?.app_release_workflow_write_mode, expected: 'direct_commit_only' },
+      {
+        actual: tapUpdate?.app_release_workflow_write_mode,
+        expected: 'direct_commit_only_with_same_version_channel_serialization_and_fetch_rebase_retry',
+      },
       {
         actual: tapUpdate?.stable_release_workflow_write_mode,
         expected:
-          'new_release_promote_direct_commit_after_publish_before_homebrew_vm_gate; refresh_existing_published_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_defer_to_promote_after_publish',
+          'new_release_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate; refresh_existing_published_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_defer_to_promote_after_publish_readback',
+      },
+      {
+        actual: tapUpdate?.direct_commit_conflict_policy,
+        expected:
+          'serialize same channel/version tap writes across package kinds; on non-fast-forward push, fetch origin main, rebase the local tap commit, and retry before failing',
       },
       { actual: tapUpdate?.planner_script, expected: 'scripts/update-homebrew-tap.ts' },
       { actual: tapUpdate?.nightly?.mode, expected: 'tap_repo_scheduled_self_sync_to_nightly_cask' },
@@ -85,7 +93,7 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       {
         actual: tapUpdate?.stable?.mode,
         expected:
-          'new_release_desktop_promote_direct_commit_after_published_release_before_homebrew_vm_gate; refresh_existing_published_release_desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_desktop_promote_after_publish_before_homebrew_vm_gate',
+          'new_release_desktop_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate; refresh_existing_published_release_desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_desktop_promote_after_publish_readback_before_homebrew_vm_gate',
       },
       { actual: tapUpdate?.stable?.may_consume_nightly_directly, expected: false },
       { actual: tapUpdate?.full?.mode, expected: 'stable_full_first_install_cask_after_full_release_gates' },

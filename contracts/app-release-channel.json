@@ -551,15 +551,16 @@
       "app_release_direct_workflow": ".github/workflows/homebrew-tap-update.yml",
       "app_release_direct_token": "OPL_HOMEBREW_TAP_TOKEN",
       "app_release_pull_request_allowed": false,
-      "app_release_workflow_write_mode": "direct_commit_only",
-      "stable_release_workflow_write_mode": "new_release_promote_direct_commit_after_publish_before_homebrew_vm_gate; refresh_existing_published_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_defer_to_promote_after_publish",
+      "app_release_workflow_write_mode": "direct_commit_only_with_same_version_channel_serialization_and_fetch_rebase_retry",
+      "stable_release_workflow_write_mode": "new_release_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate; refresh_existing_published_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_defer_to_promote_after_publish_readback",
+      "direct_commit_conflict_policy": "serialize same channel/version tap writes across package kinds; on non-fast-forward push, fetch origin main, rebase the local tap commit, and retry before failing",
       "planner_script": "scripts/update-homebrew-tap.ts",
       "nightly": {
         "mode": "tap_repo_scheduled_self_sync_to_nightly_cask",
         "may_update_stable": false
       },
       "stable": {
-        "mode": "new_release_desktop_promote_direct_commit_after_published_release_before_homebrew_vm_gate; refresh_existing_published_release_desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_desktop_promote_after_publish_before_homebrew_vm_gate",
+        "mode": "new_release_desktop_promote_direct_commit_after_publish_readback_before_homebrew_vm_gate; refresh_existing_published_release_desktop_release_direct_commit_after_remote_verification_before_homebrew_vm_gate; refresh_existing_draft_release_desktop_promote_after_publish_readback_before_homebrew_vm_gate",
         "may_consume_nightly_directly": false
       },
       "full": {
@@ -1522,6 +1523,17 @@
       "nightly_standard_release_workflow": ".github/workflows/nightly-standard-release.yml",
       "full_first_install_workflow": ".github/workflows/full-first-install-release.yml",
       "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
+      "promote_post_publish_readback": {
+        "workflow_job": "promote",
+        "step": "Verify published release readback",
+        "checks": [
+          "gh release view v<version> returns tagName, isDraft, isPrerelease, publishedAt, and assets",
+          "gh release list marks v<version> as latest",
+          "release tag exists at refs/tags/v<version>",
+          "stable release is non-draft, non-prerelease, latest, published, and has readable assets"
+        ],
+        "rule": "The promote workflow must not start Homebrew tap updates until the just-published Stable GitHub Release and matching tag are readable from remote APIs."
+      },
       "desktop_release_concurrency": {
         "group": "opl-desktop-release-<release_mode>-<version>",
         "cancel_in_progress": true,
