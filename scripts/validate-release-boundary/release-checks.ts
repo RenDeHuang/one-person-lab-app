@@ -799,7 +799,6 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       'One-Person-Lab-Full-${version}-mac-arm64.dmg',
       'opl-release-manifest.json',
       'standard-local-authorization-policy.json',
-      'full-local-authorization-policy.json',
       'Full first-install Homebrew cask updates must stay on the stable channel.',
       'node --experimental-strip-types scripts/update-homebrew-tap.ts',
       '--remote-write-mode "direct_commit"',

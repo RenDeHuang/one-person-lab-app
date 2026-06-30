@@ -212,7 +212,7 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
     'artifact',
     'sha256',
     'manifest_url',
-    'local_authorization_policy_asset',
+    'local_authorization_policy_ref',
   ]);
   assert.equal(homebrew.agent_pack_policy.package_kind, 'app_cli_managed_opl_packages');
   assert.equal(homebrew.agent_pack_policy.semantic_authority, 'one-person-lab_and_domain_repositories');

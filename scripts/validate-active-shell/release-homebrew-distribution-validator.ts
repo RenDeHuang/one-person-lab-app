@@ -106,7 +106,7 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
   );
   assertIncludesAll(
     tapUpdate?.required_manifest_fields,
-    ['channel', 'artifact', 'sha256', 'manifest_url', 'local_authorization_policy_asset'],
+    ['channel', 'artifact', 'sha256', 'manifest_url', 'local_authorization_policy_ref'],
     'Release channel Homebrew cohort manifest fields',
   );
 }

@@ -654,13 +654,54 @@ jobs:
             --app-path "$mounted_app_path" \
             --runtime-native-trust one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json \
             --output one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json
+          node - "$OPL_RELEASE_VERSION" "$dmg_path" one-person-lab-app/dist/opl-full-release <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const crypto = require('node:crypto');
+          const version = process.argv[2];
+          const dmgPath = process.argv[3];
+          const outDir = process.argv[4];
+          const readJson = (name) => JSON.parse(fs.readFileSync(path.join(outDir, name), 'utf8'));
+          const fullDmgName = path.basename(dmgPath);
+          const releaseManifest = {
+            schema: 'opl_public_release_manifest.v1',
+            package_kind: 'opl_full_first_install_macos_arm64',
+            version,
+            primary_install_asset: fullDmgName,
+            assets: [
+              {
+                name: fullDmgName,
+                role: 'full_first_install_carrier',
+                size_bytes: fs.statSync(dmgPath).size,
+                sha256: crypto.createHash('sha256').update(fs.readFileSync(dmgPath)).digest('hex'),
+              },
+            ],
+            manifest: readJson('full-package-manifest.json'),
+            evidence: {
+              runtime_cache_events: readJson('runtime-cache-events.json'),
+              runtime_currentness_probe: readJson('full-runtime-currentness-probe.json'),
+              runtime_native_trust: readJson('full-runtime-native-trust.json'),
+              app_bundle_trim_report: readJson('full-app-bundle-trim-report.json'),
+              package_boundary_audit: readJson('full-package-boundary-audit.json'),
+              local_authorization_policy: readJson('full-local-authorization-policy.json'),
+              readme_text: fs.readFileSync(path.join(outDir, 'README-Full-First-Install.txt'), 'utf8'),
+            },
+            transition_legacy_assets: [
+              'full-package-manifest.json',
+              'runtime-cache-events.json',
+              'full-runtime-currentness-probe.json',
+              'full-runtime-native-trust.json',
+              'full-app-bundle-trim-report.json',
+              'full-package-boundary-audit.json',
+            ],
+          };
+          fs.writeFileSync(path.join(outDir, 'opl-release-manifest.json'), `${JSON.stringify(releaseManifest, null, 2)}\n`);
+          NODE
           hdiutil verify "$dmg_path"
           (
             cd "$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"
-            grep -Ev '(full-gatekeeper-launch-policy|full-runtime-currentness-probe|full-runtime-native-trust|full-local-authorization-policy)\.json$' SHA256SUMS.txt > SHA256SUMS.next
-            shasum -a 256 full-runtime-currentness-probe.json >> SHA256SUMS.next
-            shasum -a 256 full-runtime-native-trust.json >> SHA256SUMS.next
-            shasum -a 256 full-local-authorization-policy.json >> SHA256SUMS.next
+            grep -Ev '(opl-release-manifest|full-gatekeeper-launch-policy|full-runtime-currentness-probe|full-runtime-native-trust|full-local-authorization-policy)\.json$' SHA256SUMS.txt > SHA256SUMS.next
+            shasum -a 256 opl-release-manifest.json full-runtime-currentness-probe.json full-runtime-native-trust.json full-local-authorization-policy.json >> SHA256SUMS.next
             if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" = "true" ]; then
               shasum -a 256 full-gatekeeper-launch-policy.json >> SHA256SUMS.next
             fi

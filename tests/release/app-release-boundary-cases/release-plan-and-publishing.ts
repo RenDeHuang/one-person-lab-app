@@ -1024,6 +1024,25 @@ This release makes a clean OPL install more useful immediately by shipping refre
   assert.doesNotMatch(notes, /Update channel guidance/);
   assert.doesNotMatch(notes, /Full clean-install/);
   assert.doesNotMatch(publicNotes, /[\u3400-\u9fff]/);
+  assert.deepEqual(
+    payload.full_package_artifacts.map((artifact) => path.basename(artifact)),
+    [`One-Person-Lab-Full-${version}-mac-arm64.dmg`, 'opl-release-manifest.json'],
+  );
+  assert.ok(payload.upload_commands.some((command) => command.some((part) => String(part).endsWith('opl-release-manifest.json'))));
+  for (const legacyName of [
+    'full-package-manifest.json',
+    'runtime-cache-events.json',
+    'full-runtime-currentness-probe.json',
+    'full-runtime-native-trust.json',
+    'full-app-bundle-trim-report.json',
+    'full-package-boundary-audit.json',
+    'README-Full-First-Install.txt',
+    'SHA256SUMS.txt',
+    'full-local-authorization-policy.json',
+  ]) {
+    assert.ok(!payload.full_package_artifacts.some((artifact) => artifact.endsWith(legacyName)));
+    assert.ok(!payload.upload_commands.some((command) => command.some((part) => String(part).endsWith(legacyName))));
+  }
 });
 
 test('publish rejects Full notes when OPL Meta Agent release-note metadata is missing', () => {
@@ -1208,6 +1227,7 @@ test('Full-only release publish uses deterministic notes and does not call the A
 
 test('existing same-tag standard plus Full publish uses deterministic full release notes body', () => {
   const source = fs.readFileSync(path.join(appRoot, 'scripts', 'publish-release.ts'), 'utf8');
+  const fullWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'full-first-install-release.yml'), 'utf8');
 
   assert.match(source, /else if \(options\.includeFullPackage && options\.fullPackageOnly\)/);
   assert.match(source, /replaceReleaseNotes\(options\.releaseRepo, tag, releaseNotes\)/);
@@ -1221,4 +1241,8 @@ test('existing same-tag standard plus Full publish uses deterministic full relea
   );
   assert.doesNotMatch(source, /Bundled OPL runtime and agent versions/);
   assert.doesNotMatch(source, /buildBundledModuleNotes/);
+  assert.match(source, /const required = \[fullDmgName, 'opl-release-manifest\.json'\]/);
+  assert.match(source, /readJsonFile\(releaseManifestPath\)\.manifest \?\? null/);
+  assert.match(fullWorkflow, /readJson\('full-package-manifest\.json'\)/);
+  assert.match(fullWorkflow, /fs\.writeFileSync\(path\.join\(outDir, 'opl-release-manifest\.json'\)/);
 });

@@ -195,44 +195,22 @@ function assertStableLocalAuthorizationPolicy(releaseDir, name, packageKind) {
   assertLocalAuthorizationPolicy(policy, packageKind, name);
 }
 
-function assertFullRuntimeNativeTrust(releaseDir, manifest) {
-  const trustPath = path.join(releaseDir, 'full-runtime-native-trust.json');
-  assertFullRuntimeNativeTrustFile(trustPath, manifest, {
-    missingMessage: `Missing Full runtime native-trust evidence: ${trustPath}`,
-  });
+function assertFullRuntimeNativeTrustObject(trust, manifest) {
+  if (!trust || typeof trust !== 'object' || Array.isArray(trust)) {
+    throw new Error('Full public release manifest is missing evidence.runtime_native_trust.');
+  }
+  const tempDir = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'opl-full-native-trust-'));
+  const trustPath = path.join(tempDir, 'full-runtime-native-trust.json');
+  try {
+    fs.writeFileSync(trustPath, `${JSON.stringify(trust, null, 2)}\n`);
+    assertFullRuntimeNativeTrustFile(trustPath, manifest);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 }
 
-function assertFullPublicReleaseManifest(releaseDir, version, manifest) {
-  const manifestPath = path.join(releaseDir, 'opl-release-manifest.json');
-  if (!fs.existsSync(manifestPath)) {
-    throw new Error(`Missing Full public release manifest: ${manifestPath}`);
-  }
-  const releaseManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
-  if (
-    releaseManifest?.schema !== 'opl_public_release_manifest.v1'
-    || releaseManifest?.package_kind !== 'opl_full_first_install_macos_arm64'
-    || releaseManifest?.version !== version
-    || releaseManifest?.primary_install_asset !== fullDmgName
-  ) {
-    throw new Error('opl-release-manifest.json must describe the Full first-install DMG for this release.');
-  }
-  if (releaseManifest?.manifest?.version !== manifest?.version) {
-    throw new Error('opl-release-manifest.json must embed the checked Full package manifest.');
-  }
-  const evidence = releaseManifest?.evidence || {};
-  for (const key of [
-    'runtime_cache_events',
-    'runtime_currentness_probe',
-    'runtime_native_trust',
-    'app_bundle_trim_report',
-    'package_boundary_audit',
-    'local_authorization_policy',
-  ]) {
-    if (!evidence[key]) {
-      throw new Error(`opl-release-manifest.json is missing evidence.${key}.`);
-    }
-  }
+function readJsonFile(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
 function isGuiArtifact(name, version, extension, macArch) {
@@ -349,30 +327,50 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
     throw new Error(`Missing Full package directory: ${fullPackageDir || '(empty)'}`);
   }
 
-  const required = [
-    `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
-    'opl-release-manifest.json',
-  ];
-  const internalEvidence = [
-    'full-package-manifest.json',
-    'full-runtime-native-trust.json',
-    'full-local-authorization-policy.json',
-  ];
+  const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const required = [fullDmgName, 'opl-release-manifest.json'];
 
   const files = fs.readdirSync(fullPackageDir);
-  for (const name of [...required, ...internalEvidence]) {
+  for (const name of required) {
     if (!files.includes(name)) {
       throw new Error(`Missing Full package release asset: ${path.join(fullPackageDir, name)}`);
     }
   }
 
-  const manifest = JSON.parse(fs.readFileSync(path.join(fullPackageDir, 'full-package-manifest.json'), 'utf8'));
+  const fullDmgPath = path.join(fullPackageDir, fullDmgName);
+  const releaseManifestPath = path.join(fullPackageDir, 'opl-release-manifest.json');
+  const releaseManifest = readJsonFile(releaseManifestPath);
+  if (releaseManifest?.schema !== 'opl_public_release_manifest.v1') {
+    throw new Error('Full public release manifest must declare schema=opl_public_release_manifest.v1.');
+  }
+  if (releaseManifest.package_kind !== 'opl_full_first_install_macos_arm64') {
+    throw new Error('Full public release manifest must declare package_kind=opl_full_first_install_macos_arm64.');
+  }
+  if (releaseManifest.version !== version) {
+    throw new Error(`Full public release manifest version mismatch: expected ${version}, got ${releaseManifest.version || '(empty)'}.`);
+  }
+  if (releaseManifest.primary_install_asset !== fullDmgName) {
+    throw new Error(`Full public release manifest primary_install_asset must be ${fullDmgName}.`);
+  }
+  if (!Array.isArray(releaseManifest.assets) || !releaseManifest.assets.some((asset) => (
+    asset?.name === fullDmgName
+    && asset.role === 'full_first_install_carrier'
+    && asset.size_bytes === fs.statSync(fullDmgPath).size
+    && asset.sha256 === fileSha256(fullDmgPath)
+  ))) {
+    throw new Error(`Full public release manifest must record size and sha256 for ${fullDmgName}.`);
+  }
+
+  const manifest = releaseManifest.manifest;
   if (manifest?.distribution?.updater_metadata_allowed !== false) {
     throw new Error('Full package manifest must declare distribution.updater_metadata_allowed=false.');
   }
-  assertStableLocalAuthorizationPolicy(fullPackageDir, 'full-local-authorization-policy.json', 'app_full_first_install');
-  assertFullRuntimeNativeTrust(fullPackageDir, manifest);
-  assertFullPublicReleaseManifest(fullPackageDir, version, manifest);
+  assertLocalAuthorizationPolicy(
+    releaseManifest?.evidence?.local_authorization_policy,
+    'app_full_first_install',
+    'opl-release-manifest.json#evidence.local_authorization_policy',
+  );
+  assertFullRuntimeNativeTrustObject(releaseManifest?.evidence?.runtime_native_trust, manifest);
   assertFullPackageManifestHasReleaseNotesMetadata(manifest);
 
   return required.map((name) => path.join(fullPackageDir, name));
@@ -400,11 +398,11 @@ function assertFullPackageManifestHasReleaseNotesMetadata(manifest) {
 }
 
 function readFullPackageManifest(fullPackageDir) {
-  const manifestPath = path.join(fullPackageDir || defaultFullPackageDir, 'full-package-manifest.json');
-  if (!fs.existsSync(manifestPath)) {
+  const releaseManifestPath = path.join(fullPackageDir || defaultFullPackageDir, 'opl-release-manifest.json');
+  if (!fs.existsSync(releaseManifestPath)) {
     return null;
   }
-  return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  return readJsonFile(releaseManifestPath).manifest ?? null;
 }
 
 function releaseExists(repo, tag) {

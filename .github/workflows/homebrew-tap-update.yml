@@ -198,9 +198,9 @@ jobs:
           const manifestAsset = packageKind === 'app_full_first_install'
             ? assetByName('opl-release-manifest.json')
             : assetByName('latest-arm64-mac.yml');
-          assetByName(packageKind === 'app_full_first_install'
-            ? 'full-local-authorization-policy.json'
-            : 'standard-local-authorization-policy.json');
+          if (packageKind === 'app_standard') {
+            assetByName('standard-local-authorization-policy.json');
+          }
 
           const output = {
             download_url: urlOf(downloadAsset),

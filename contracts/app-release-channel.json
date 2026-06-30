@@ -595,7 +595,7 @@
         "artifact",
         "sha256",
         "manifest_url",
-        "local_authorization_policy_asset"
+        "local_authorization_policy_ref"
       ]
     },
     "full_first_install_policy": "stable_full_cask_or_github_release_first_install_asset; never standard updater metadata",
