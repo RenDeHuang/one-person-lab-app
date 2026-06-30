@@ -800,6 +800,77 @@ test('publish retries an individual release asset upload before failing the refr
   assert.equal((ghCalls.match(new RegExp(`${zipName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} --repo`, 'g')) ?? []).length, 2);
 });
 
+test('new release upload failure deletes only the incomplete release and keeps tag for recovery', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-upload-failure-cleanup-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const outDir = path.join(shellRoot, 'out');
+  const binDir = path.join(tempRoot, 'bin');
+  const fakeGh = path.join(binDir, 'gh');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
+  const logPath = path.join(tempRoot, 'gh-calls.log');
+  const version = '26.5.19-upload-failure';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+
+  writeFile(path.join(outDir, dmgName), 'dmg');
+  writeFile(path.join(outDir, zipName), 'zip');
+  writeReleaseMetadata(outDir, version, dmgName);
+  writeStandardLocalAuthorizationPolicy(outDir);
+  writeFakeReleaseNotesAiWriter(fakeAi, validStandardAiReleaseNotes(version));
+  writeFile(
+    fakeGh,
+    [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      `echo "$*" >> ${JSON.stringify(logPath)}`,
+      'if [ "$1" = "release" ] && [ "$2" = "view" ]; then',
+      '  exit 1',
+      'fi',
+      'if [ "$1" = "release" ] && [ "$2" = "create" ]; then',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "release" ] && [ "$2" = "upload" ]; then',
+      '  echo "simulated upload failure" >&2',
+      '  exit 1',
+      'fi',
+      'if [ "$1" = "release" ] && [ "$2" = "delete" ]; then',
+      '  for arg in "$@"; do',
+      '    if [ "$arg" = "--cleanup-tag" ]; then',
+      '      echo "cleanup-tag must not be used by publish failure cleanup" >&2',
+      '      exit 2',
+      '    fi',
+      '  done',
+      '  exit 0',
+      'fi',
+      'echo "unexpected gh call: $*" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+  );
+  fs.chmodSync(fakeGh, 0o755);
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--shell-root',
+    shellRoot,
+    '--version',
+    version,
+  ], {
+    env: {
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+      OPL_RELEASE_UPLOAD_ATTEMPTS: '1',
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  const ghCalls = fs.readFileSync(logPath, 'utf8');
+  assert.match(ghCalls, new RegExp(`release create v${version}`));
+  assert.match(ghCalls, new RegExp(`release delete v${version} --repo gaofeng21cn/one-person-lab-app --yes`));
+  assert.doesNotMatch(ghCalls, /--cleanup-tag/);
+});
+
 test('publish dry run generates deterministic English release notes for Full-only lane', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-notes-'));
   const fullPackageDir = path.join(tempRoot, 'full');

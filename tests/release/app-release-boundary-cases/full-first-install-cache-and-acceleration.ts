@@ -509,5 +509,6 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.match(publishScript, /skipped_existing_artifacts/);
   assert.match(publishScript, /--force-upload/);
   assert.match(publishScript, /cleanupNewlyCreatedReleaseAfterUploadFailure/);
-  assert.match(publishScript, /'release', 'delete', tag, '--repo', repo, '--yes', '--cleanup-tag'/);
+  assert.match(publishScript, /'release', 'delete', tag, '--repo', repo, '--yes'\]/);
+  assert.doesNotMatch(publishScript, /cleanupNewlyCreatedReleaseAfterUploadFailure[\s\S]*--cleanup-tag/);
 });

@@ -522,7 +522,7 @@ function replaceReleaseNotes(repo, tag, notes) {
 }
 
 function cleanupNewlyCreatedReleaseAfterUploadFailure(repo, tag) {
-  const result = spawnSync('gh', ['release', 'delete', tag, '--repo', repo, '--yes', '--cleanup-tag'], {
+  const result = spawnSync('gh', ['release', 'delete', tag, '--repo', repo, '--yes'], {
     encoding: 'utf8',
     stdio: 'pipe',
     env: process.env,
@@ -533,7 +533,7 @@ function cleanupNewlyCreatedReleaseAfterUploadFailure(repo, tag) {
       `Upload failed after creating ${tag}, and cleanup failed. Delete the incomplete release manually before retrying.${detail ? `\ncleanup=${detail}` : ''}`,
     );
   }
-  console.error(`Cleaned up newly created release ${tag} after upload failure.`);
+  console.error(`Cleaned up newly created release ${tag} after upload failure; kept tag for explicit operator recovery.`);
 }
 
 function buildUploadArgs(repo, tag, artifactPath) {
