@@ -99,7 +99,7 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
       { actual: tapUpdate?.full?.mode, expected: 'stable_full_first_install_cask_after_full_release_gates' },
       { actual: tapUpdate?.full?.may_update_standard_cask, expected: false },
       { actual: tapUpdate?.full?.may_update_nightly_cask, expected: false },
-      { actual: tapUpdate?.full?.manifest, expected: 'full-package-manifest.json' },
+      { actual: tapUpdate?.full?.manifest, expected: 'opl-release-manifest.json' },
       { actual: tapUpdate?.full?.standard_updater_visible, expected: false },
     ],
     'Release channel Homebrew tap update policy must use tap self-sync and separate nightly automation from stable promotion',

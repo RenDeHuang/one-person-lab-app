@@ -452,6 +452,60 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
     path.join(outDir, 'SHA256SUMS.txt'),
     checksumNames.map((name) => `${fileSha256(path.join(outDir, name))}  ${name}`).join('\n') + '\n',
   );
+  if (!options.legacySeparateEvidenceAssets) {
+    writeFile(
+      path.join(outDir, 'opl-release-manifest.json'),
+      `${JSON.stringify({
+        schema: 'opl_public_release_manifest.v1',
+        package_kind: 'opl_full_first_install_macos_arm64',
+        version,
+        primary_install_asset: fullDmgName,
+        assets: [
+          {
+            name: fullDmgName,
+            role: 'full_first_install_carrier',
+            size_bytes: fs.statSync(path.join(outDir, fullDmgName)).size,
+            sha256: fileSha256(path.join(outDir, fullDmgName)),
+          },
+        ],
+        manifest,
+        evidence: {
+          runtime_cache_events: JSON.parse(fs.readFileSync(path.join(outDir, 'runtime-cache-events.json'), 'utf8')),
+          runtime_currentness_probe: JSON.parse(fs.readFileSync(path.join(outDir, 'full-runtime-currentness-probe.json'), 'utf8')),
+          runtime_native_trust: JSON.parse(fs.readFileSync(path.join(outDir, 'full-runtime-native-trust.json'), 'utf8')),
+          app_bundle_trim_report: trimReport,
+          package_boundary_audit: boundaryAudit,
+          local_authorization_policy: JSON.parse(fs.readFileSync(path.join(outDir, 'full-local-authorization-policy.json'), 'utf8')),
+          readme_text: fs.readFileSync(path.join(outDir, 'README-Full-First-Install.txt'), 'utf8'),
+        },
+        transition_legacy_assets: [
+          'full-package-manifest.json',
+          'runtime-cache-events.json',
+          'full-runtime-currentness-probe.json',
+          'full-runtime-native-trust.json',
+          'full-app-bundle-trim-report.json',
+          'full-package-boundary-audit.json',
+        ],
+      }, null, 2)}\n`,
+    );
+    for (const name of [
+      'full-package-manifest.json',
+      'runtime-cache-events.json',
+      'full-runtime-currentness-probe.json',
+      'full-runtime-native-trust.json',
+      'full-app-bundle-trim-report.json',
+      'full-package-boundary-audit.json',
+      'README-Full-First-Install.txt',
+      'SHA256SUMS.txt',
+      'full-local-authorization-policy.json',
+    ]) {
+      fs.rmSync(path.join(outDir, name), { force: true });
+    }
+    return [
+      fullDmgName,
+      'opl-release-manifest.json',
+    ];
+  }
   return [
     fullDmgName,
     'full-package-manifest.json',

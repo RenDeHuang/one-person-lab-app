@@ -586,7 +586,7 @@
         "mode": "stable_full_first_install_cask_after_full_release_gates",
         "may_update_standard_cask": false,
         "may_update_nightly_cask": false,
-        "manifest": "full-package-manifest.json",
+        "manifest": "opl-release-manifest.json",
         "asset": "One-Person-Lab-Full-<version>-mac-arm64.dmg",
         "standard_updater_visible": false
       },

@@ -122,7 +122,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     '--cask',
     'Casks/one-person-lab-full.rb',
     '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/full-package-manifest.json',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-release-manifest.json',
     '--checksum-sha256',
     digest,
     '--download-url',
@@ -140,7 +140,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.equal(fullPlan.policy.agent_pack_homebrew_allowed, false);
   const fullCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab-full.rb'), 'utf8');
   assert.match(fullCask, /One-Person-Lab-Full-#\{version\}-mac-arm64\.dmg/);
-  assert.match(fullCask, /full-package-manifest\.json/);
+  assert.match(fullCask, /opl-release-manifest\.json/);
   assert.match(fullCask, /package_kind: app_full_first_install/);
   assert.match(fullCask, /full_first_install_allowed: true/);
   assert.match(fullCask, /standard_updater_visible: false/);
@@ -296,7 +296,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     '--cask',
     'Casks/one-person-lab.rb',
     '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/full-package-manifest.json',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-release-manifest.json',
     '--checksum-sha256',
     digest,
     '--download-url',
@@ -318,7 +318,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     '--cask',
     'Casks/one-person-lab-full.rb',
     '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/full-package-manifest.json',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4-nightly/opl-release-manifest.json',
     '--checksum-sha256',
     digest,
     '--download-url',
@@ -340,7 +340,7 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
     '--cask',
     'Casks/one-person-lab.rb',
     '--manifest-url',
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/full-package-manifest.json',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-release-manifest.json',
     '--checksum-sha256',
     digest,
     '--download-url',

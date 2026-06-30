@@ -202,6 +202,39 @@ function assertFullRuntimeNativeTrust(releaseDir, manifest) {
   });
 }
 
+function assertFullPublicReleaseManifest(releaseDir, version, manifest) {
+  const manifestPath = path.join(releaseDir, 'opl-release-manifest.json');
+  if (!fs.existsSync(manifestPath)) {
+    throw new Error(`Missing Full public release manifest: ${manifestPath}`);
+  }
+  const releaseManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  if (
+    releaseManifest?.schema !== 'opl_public_release_manifest.v1'
+    || releaseManifest?.package_kind !== 'opl_full_first_install_macos_arm64'
+    || releaseManifest?.version !== version
+    || releaseManifest?.primary_install_asset !== fullDmgName
+  ) {
+    throw new Error('opl-release-manifest.json must describe the Full first-install DMG for this release.');
+  }
+  if (releaseManifest?.manifest?.version !== manifest?.version) {
+    throw new Error('opl-release-manifest.json must embed the checked Full package manifest.');
+  }
+  const evidence = releaseManifest?.evidence || {};
+  for (const key of [
+    'runtime_cache_events',
+    'runtime_currentness_probe',
+    'runtime_native_trust',
+    'app_bundle_trim_report',
+    'package_boundary_audit',
+    'local_authorization_policy',
+  ]) {
+    if (!evidence[key]) {
+      throw new Error(`opl-release-manifest.json is missing evidence.${key}.`);
+    }
+  }
+}
+
 function isGuiArtifact(name, version, extension, macArch) {
   const baseNames = guiArtifactPrefixes.map((prefix) => `${prefix}${version}-mac-${macArch}`);
   if (extension === '.blockmap') {
@@ -318,19 +351,16 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
 
   const required = [
     `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
+    'opl-release-manifest.json',
+  ];
+  const internalEvidence = [
     'full-package-manifest.json',
-    'runtime-cache-events.json',
-    'full-runtime-currentness-probe.json',
     'full-runtime-native-trust.json',
-    'full-app-bundle-trim-report.json',
-    'full-package-boundary-audit.json',
-    'SHA256SUMS.txt',
-    'README-Full-First-Install.txt',
     'full-local-authorization-policy.json',
   ];
 
   const files = fs.readdirSync(fullPackageDir);
-  for (const name of required) {
+  for (const name of [...required, ...internalEvidence]) {
     if (!files.includes(name)) {
       throw new Error(`Missing Full package release asset: ${path.join(fullPackageDir, name)}`);
     }
@@ -342,6 +372,7 @@ function findFullPackageArtifacts(fullPackageDir, version, macArch) {
   }
   assertStableLocalAuthorizationPolicy(fullPackageDir, 'full-local-authorization-policy.json', 'app_full_first_install');
   assertFullRuntimeNativeTrust(fullPackageDir, manifest);
+  assertFullPublicReleaseManifest(fullPackageDir, version, manifest);
   assertFullPackageManifestHasReleaseNotesMetadata(manifest);
 
   return required.map((name) => path.join(fullPackageDir, name));

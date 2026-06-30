@@ -797,7 +797,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       'Homebrew tap updates must not read draft GitHub Releases.',
       'Homebrew tap updates must read assets from gaofeng21cn/one-person-lab-app',
       'One-Person-Lab-Full-${version}-mac-arm64.dmg',
-      'full-package-manifest.json',
+      'opl-release-manifest.json',
       'standard-local-authorization-policy.json',
       'full-local-authorization-policy.json',
       'Full first-install Homebrew cask updates must stay on the stable channel.',

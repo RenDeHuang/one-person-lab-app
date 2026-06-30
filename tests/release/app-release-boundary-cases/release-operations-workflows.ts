@@ -204,7 +204,7 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.equal(homebrew.tap_update_policy.full.mode, 'stable_full_first_install_cask_after_full_release_gates');
   assert.equal(homebrew.tap_update_policy.full.may_update_standard_cask, false);
   assert.equal(homebrew.tap_update_policy.full.may_update_nightly_cask, false);
-  assert.equal(homebrew.tap_update_policy.full.manifest, 'full-package-manifest.json');
+  assert.equal(homebrew.tap_update_policy.full.manifest, 'opl-release-manifest.json');
   assert.equal(homebrew.tap_update_policy.full.asset, 'One-Person-Lab-Full-<version>-mac-arm64.dmg');
   assert.equal(homebrew.tap_update_policy.full.standard_updater_visible, false);
   assert.deepEqual(homebrew.tap_update_policy.required_manifest_fields, [
@@ -256,7 +256,7 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.match(homebrewWorkflow, /Homebrew tap updates must not read draft GitHub Releases/);
   assert.match(homebrewWorkflow, /One-Person-Lab-\$\{version\}-mac-arm64\.dmg/);
   assert.match(homebrewWorkflow, /One-Person-Lab-Full-\$\{version\}-mac-arm64\.dmg/);
-  assert.match(homebrewWorkflow, /full-package-manifest\.json/);
+  assert.match(homebrewWorkflow, /opl-release-manifest\.json/);
   assert.match(homebrewWorkflow, /Casks\/one-person-lab-full\.rb/);
   assert.match(homebrewWorkflow, /Full first-install Homebrew cask updates must stay on the stable channel/);
   assert.match(homebrewWorkflow, /Homebrew tap updates are App cask-only; agent packs are App\/CLI-managed/);

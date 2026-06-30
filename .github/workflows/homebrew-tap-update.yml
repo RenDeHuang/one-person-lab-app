@@ -196,7 +196,7 @@ jobs:
             ? assetByName(`One-Person-Lab-Full-${version}-mac-arm64.dmg`)
             : assetByName(`One-Person-Lab-${version}-mac-arm64.dmg`);
           const manifestAsset = packageKind === 'app_full_first_install'
-            ? assetByName('full-package-manifest.json')
+            ? assetByName('opl-release-manifest.json')
             : assetByName('latest-arm64-mac.yml');
           assetByName(packageKind === 'app_full_first_install'
             ? 'full-local-authorization-policy.json'

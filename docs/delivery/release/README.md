@@ -34,7 +34,7 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 
 | Lane | Purpose | Required proof |
 | --- | --- | --- |
-| Standard macOS App | Ordinary desktop App package and standard updater target. It never carries or updates the OPL runtime bundle. | Standard DMG / ZIP assets, `latest*.yml`, remote asset verification, GUI smoke, local authorization policy, release evidence bundle. |
+| Standard macOS App | Ordinary desktop App package and standard updater target. It never carries or updates the OPL runtime bundle. | Standard DMG / ZIP assets, `latest-arm64-mac.yml`, ZIP blockmap, remote asset verification, GUI smoke, local authorization policy, release evidence bundle. |
 | Full first-install DMG | Clean-machine package that can reach Core ready without CLT, Homebrew, Node, or Git first. It consumes the OPL runtime bundle manifest/lock/readback and does not own dependency truth. | Full DMG, Full manifest with `opl_runtime_bundle_consumer`, native runtime trust record, VM smoke when requested, Full local authorization policy, remote size and manifest verification. |
 | Offline runtime kit | Manual diagnostic or recovery artifact for the same Full runtime bundle payload. It is not updater-visible and is not a release-ready claim. | Runtime archive, checksums, Full manifest refs, and the same OPL bundle consumer boundary as the Full DMG. |
 | Stable promotion | Human release-owner promotion from candidate to stable/latest. | Candidate record with `status=ready_to_promote`, release readiness summary, same-cohort evidence, promote workflow output. |
@@ -45,9 +45,10 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 Standard macOS DMGs use electron-builder-supported `ULFO` / LZFSE compression
 by default. Current electron-builder 26.8.1 does not accept `ULMO` in
 `dmg.format`; treating `ULMO` as a standard default would require a separate
-postprocess patch, with focused proof that `latest*.yml`, `.dmg.blockmap`,
-`.zip.blockmap`, and the DMG format/readability still match the published
-assets.
+postprocess patch, with focused proof that canonical `latest-arm64-mac.yml`,
+the ZIP blockmap, and the DMG format/readability still match the published
+assets. `latest-mac.yml` is a deliberate legacy alias only when published; a
+DMG blockmap is not part of the required Standard public updater asset set.
 
 GitHub Release public assets stay limited to install, updater, checksum, and
 small machine-verification entrypoints. Release-note evidence, Full size
@@ -303,7 +304,7 @@ targets when those files are missing.
 
 ## Standard Updater
 
-Standard updater metadata is restricted to macOS arm64 standard assets. Full assets must never be written into `latest*.yml`, and assets whose names include `Full` are not updater targets.
+Standard updater metadata is restricted to macOS arm64 standard assets. Full assets must never be written into `latest-arm64-mac.yml` or any deliberate legacy alias, and assets whose names include `Full` are not updater targets.
 
 The standard updater follows Electron's background-download plus visible restart/install model. Download completion is not installation success. The release contract tracks `update_downloaded`, `update_apply_started`, `update_apply_completed`, and `running_version_switched` separately. After restart, the running App version must be greater than or equal to the downloaded target version; otherwise the shell records `auto-update-diagnostics.json#install-not-applied` and exposes a recovery action to install the downloaded update again or reveal the cached package.
 

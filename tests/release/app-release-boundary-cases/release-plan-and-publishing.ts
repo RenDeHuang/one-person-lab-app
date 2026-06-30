@@ -18,6 +18,7 @@ import {
   writeFullRuntimeNativeTrust,
   writeExecutable,
   sha256,
+  fileSha256,
 } from './helpers.ts';
 import {
   withFullPackageOptimizationManifest,
@@ -35,6 +36,46 @@ function writeFullRuntimeCurrentnessProbe(outDir: string, manifest: { components
       managed_update_components: ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure'],
       app_state_schema_version: 'opl_app_state.v1',
       app_state_module_count: 5,
+    }, null, 2)}\n`,
+  );
+}
+
+function writeFullPublicReleaseManifest(outDir: string, version: string, manifest: Record<string, unknown>) {
+  const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const readJson = (name: string) => JSON.parse(fs.readFileSync(path.join(outDir, name), 'utf8'));
+  writeFile(
+    path.join(outDir, 'opl-release-manifest.json'),
+    `${JSON.stringify({
+      schema: 'opl_public_release_manifest.v1',
+      package_kind: 'opl_full_first_install_macos_arm64',
+      version,
+      primary_install_asset: fullDmgName,
+      assets: [
+        {
+          name: fullDmgName,
+          role: 'full_first_install_carrier',
+          size_bytes: fs.statSync(path.join(outDir, fullDmgName)).size,
+          sha256: fileSha256(path.join(outDir, fullDmgName)),
+        },
+      ],
+      manifest,
+      evidence: {
+        runtime_cache_events: readJson('runtime-cache-events.json'),
+        runtime_currentness_probe: readJson('full-runtime-currentness-probe.json'),
+        runtime_native_trust: readJson('full-runtime-native-trust.json'),
+        app_bundle_trim_report: readJson('full-app-bundle-trim-report.json'),
+        package_boundary_audit: readJson('full-package-boundary-audit.json'),
+        local_authorization_policy: readJson('full-local-authorization-policy.json'),
+        readme_text: fs.readFileSync(path.join(outDir, 'README-Full-First-Install.txt'), 'utf8'),
+      },
+      transition_legacy_assets: [
+        'full-package-manifest.json',
+        'runtime-cache-events.json',
+        'full-runtime-currentness-probe.json',
+        'full-runtime-native-trust.json',
+        'full-app-bundle-trim-report.json',
+        'full-package-boundary-audit.json',
+      ],
     }, null, 2)}\n`,
   );
 }
@@ -902,6 +943,7 @@ test('publish dry run generates deterministic English release notes for Full-onl
   writeFullLocalAuthorizationPolicy(fullPackageDir);
   writeFullRuntimeNativeTrust(fullPackageDir);
   writeFullPackageOptimizationArtifacts(fullPackageDir, version);
+  writeFullPublicReleaseManifest(fullPackageDir, version, withFullPackageOptimizationManifest(manifest));
   const publicMarkdown = `One Person Lab 26.5.18
 
 This release makes a clean OPL install more useful immediately by shipping refreshed MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and packaged Codex skills together in the Full installer.
@@ -1013,6 +1055,7 @@ test('publish rejects Full notes when OPL Meta Agent release-note metadata is mi
   writeFullLocalAuthorizationPolicy(fullPackageDir);
   writeFullRuntimeNativeTrust(fullPackageDir);
   writeFullPackageOptimizationArtifacts(fullPackageDir, version);
+  writeFullPublicReleaseManifest(fullPackageDir, version, withFullPackageOptimizationManifest(manifest));
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -1077,6 +1120,7 @@ test('publish rejects Full package native trust when quarantine remains', () => 
       ],
     }, null, 2)}\n`,
   );
+  writeFullPublicReleaseManifest(fullPackageDir, version, withFullPackageOptimizationManifest(manifest));
 
   const result = runNode([
     'scripts/publish-release.ts',
@@ -1125,6 +1169,7 @@ test('Full-only release publish uses deterministic notes and does not call the A
   writeFullLocalAuthorizationPolicy(fullPackageDir);
   writeFullRuntimeNativeTrust(fullPackageDir);
   writeFullPackageOptimizationArtifacts(fullPackageDir, version);
+  writeFullPublicReleaseManifest(fullPackageDir, version, withFullPackageOptimizationManifest(manifest));
   fs.mkdirSync(path.dirname(fakeAi), { recursive: true });
   fs.writeFileSync(fakeAi, '#!/usr/bin/env node\nprocess.exit(42);\n', { mode: 0o755 });
 

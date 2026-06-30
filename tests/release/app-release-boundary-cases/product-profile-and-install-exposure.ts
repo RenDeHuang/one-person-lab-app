@@ -915,7 +915,7 @@ test('Homebrew distribution channel is transport-only and keeps OPL activation a
     name: 'one-person-lab-full',
     target: 'Casks/one-person-lab-full.rb',
     asset: 'One-Person-Lab-Full-<version>-mac-arm64.dmg',
-    manifest: 'full-package-manifest.json',
+    manifest: 'opl-release-manifest.json',
     standard_updater_visible: false,
     stable_only: true,
   });

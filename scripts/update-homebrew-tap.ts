@@ -37,7 +37,7 @@ type TapUpdateTarget = {
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultTapRoot = path.join(appRoot, 'dist', 'homebrew-tap-plan');
-const fullPayloadPattern = /One-Person-Lab-Full-[^"'\s]+-mac-arm64\.dmg|full-package-manifest/i;
+const fullPayloadPattern = /One-Person-Lab-Full-[^"'\s]+-mac-arm64\.dmg|opl-release-manifest\.json/i;
 const sha256Pattern = /^[a-f0-9]{64}$/i;
 const standardAppCaskTargets = new Set([
   'Casks/one-person-lab.rb',
@@ -179,8 +179,8 @@ function validateOptions(options: Options): ResolvedOptions {
 
   if (packageKind === 'app_full_first_install') {
     assertFullPayloadReference('download URL', options.downloadUrl);
-    if (!/full-package-manifest\.json$/i.test(new URL(options.manifestUrl).pathname)) {
-      throw new Error('Full first-install Homebrew cask updates must reference full-package-manifest.json.');
+    if (!/opl-release-manifest\.json$/i.test(new URL(options.manifestUrl).pathname)) {
+      throw new Error('Full first-install Homebrew cask updates must reference opl-release-manifest.json.');
     }
   } else {
     assertNoFullPayloadReference('manifest URL', options.manifestUrl);
@@ -487,7 +487,7 @@ function runSelfCheck(): void {
     packageKind: 'app_full_first_install',
     version: '26.6.4',
     tapRoot: tempRoot,
-    manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/full-package-manifest.json',
+    manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-release-manifest.json',
     checksumSha256: digest,
     downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-Full-26.6.4-mac-arm64.dmg',
     targets: ['Casks/one-person-lab-full.rb'],
@@ -552,7 +552,7 @@ function runSelfCheck(): void {
       channel: 'stable' as Channel,
       packageKind: 'app_standard' as PackageKind,
       version: '26.6.4',
-      manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/full-package-manifest.json',
+      manifestUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-release-manifest.json',
       downloadUrl: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-26.6.4-mac-arm64.dmg',
       targets: ['Casks/one-person-lab.rb'],
       message: 'Full first-install payloads',
@@ -580,7 +580,7 @@ function runSelfCheck(): void {
         version: blocked.version,
         tapRoot: tempRoot,
         manifestUrl: blocked.packageKind === 'app_full_first_install'
-          ? 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/full-package-manifest.json'
+          ? 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/opl-release-manifest.json'
           : blocked.manifestUrl ?? 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/latest-arm64-mac.yml',
         checksumSha256: digest,
         downloadUrl: blocked.packageKind === 'app_full_first_install'

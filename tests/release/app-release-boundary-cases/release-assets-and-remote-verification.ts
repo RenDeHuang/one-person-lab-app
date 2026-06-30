@@ -18,16 +18,7 @@ import {
   writeStandardRemoteAssets,
   writeFullRemoteAssets,
   walkFiles,
-  fileSha256,
 } from './helpers.ts';
-
-function readJson(filePath) {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-}
-
-function writeJson(filePath, value) {
-  writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
-}
 
 function validFullReleaseNotes(version) {
   return `One Person Lab v${version}
@@ -55,70 +46,6 @@ This Stable release makes a new or upgraded OPL App install useful sooner by car
 
 **Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.6.29...v${version}
 `;
-}
-
-function consolidateFullReleaseManifest(assetDir, version, names) {
-  const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
-  const manifest = readJson(path.join(assetDir, 'full-package-manifest.json'));
-  const releaseManifestName = 'opl-release-manifest.json';
-  writeJson(path.join(assetDir, releaseManifestName), {
-    schema: 'opl_public_release_manifest.v1',
-    package_kind: 'opl_full_first_install_macos_arm64',
-    version,
-    primary_install_asset: fullDmgName,
-    assets: [
-      {
-        name: fullDmgName,
-        role: 'full_first_install_carrier',
-        size_bytes: fs.statSync(path.join(assetDir, fullDmgName)).size,
-        sha256: fileSha256(path.join(assetDir, fullDmgName)),
-      },
-    ],
-    manifest,
-    evidence: {
-      runtime_cache_events: readJson(path.join(assetDir, 'runtime-cache-events.json')),
-      runtime_currentness_probe: readJson(path.join(assetDir, 'full-runtime-currentness-probe.json')),
-      runtime_native_trust: readJson(path.join(assetDir, 'full-runtime-native-trust.json')),
-      app_bundle_trim_report: readJson(path.join(assetDir, 'full-app-bundle-trim-report.json')),
-      package_boundary_audit: readJson(path.join(assetDir, 'full-package-boundary-audit.json')),
-      local_authorization_policy: readJson(path.join(assetDir, 'full-local-authorization-policy.json')),
-      readme_text: fs.readFileSync(path.join(assetDir, 'README-Full-First-Install.txt'), 'utf8'),
-    },
-    transition_legacy_assets: [
-      'full-package-manifest.json',
-      'runtime-cache-events.json',
-      'full-runtime-currentness-probe.json',
-      'full-runtime-native-trust.json',
-      'full-app-bundle-trim-report.json',
-      'full-package-boundary-audit.json',
-    ],
-  });
-  for (const name of [
-    'full-package-manifest.json',
-    'runtime-cache-events.json',
-    'full-runtime-currentness-probe.json',
-    'full-runtime-native-trust.json',
-    'full-app-bundle-trim-report.json',
-    'full-package-boundary-audit.json',
-    'README-Full-First-Install.txt',
-    'SHA256SUMS.txt',
-    'full-local-authorization-policy.json',
-  ]) {
-    fs.rmSync(path.join(assetDir, name), { force: true });
-  }
-  return names
-    .filter((name) => name === fullDmgName || ![
-      'full-package-manifest.json',
-      'runtime-cache-events.json',
-      'full-runtime-currentness-probe.json',
-      'full-runtime-native-trust.json',
-      'full-app-bundle-trim-report.json',
-      'full-package-boundary-audit.json',
-      'README-Full-First-Install.txt',
-      'SHA256SUMS.txt',
-      'full-local-authorization-policy.json',
-    ].includes(name))
-    .concat(releaseManifestName);
 }
 
 test('App-owned automation entrypoints are TypeScript, not JavaScript wrappers', () => {
@@ -499,10 +426,10 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-'));
   const binDir = path.join(tempRoot, 'bin');
   const version = '26.5.19-remote';
-  const names = consolidateFullReleaseManifest(tempRoot, version, [
+  const names = [
     ...writeStandardRemoteAssets(tempRoot, version),
     ...writeFullRemoteAssets(tempRoot, version),
-  ]);
+  ];
   const summaryPath = path.join(tempRoot, 'remote-release-verification.json');
   const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`, validFullReleaseNotes(version));
   writeFakeMacosTrustCommands(binDir);
@@ -564,10 +491,10 @@ test('remote release verifier rejects short Stable Full GitHub Release notes', (
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-short-notes-'));
   const binDir = path.join(tempRoot, 'bin');
   const version = '26.5.19-short-notes';
-  const names = consolidateFullReleaseManifest(tempRoot, version, [
+  const names = [
     ...writeStandardRemoteAssets(tempRoot, version),
     ...writeFullRemoteAssets(tempRoot, version),
-  ]);
+  ];
   const releaseView = buildRemoteReleaseView(
     tempRoot,
     names,
@@ -655,7 +582,7 @@ test('remote release verifier accepts legacy separate Full evidence assets durin
   const version = '26.5.19-legacy';
   const names = [
     ...writeStandardRemoteAssets(tempRoot, version),
-    ...writeFullRemoteAssets(tempRoot, version),
+    ...writeFullRemoteAssets(tempRoot, version, { legacySeparateEvidenceAssets: true }),
   ];
   const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
   writeFakeMacosTrustCommands(binDir);
