@@ -13,11 +13,11 @@ adapter contract、packaged smoke、timing artifact 和 release gate 仍以
 最新要求修正过宽的 first-run 说法：Hermes checklist UI 只承载真正需要等待的本机
 准备，不承载每次启动的 full `opl system initialize --json`。
 
-2026-06-18 更新：Hermes candidate 的 checklist 形态本身可以保留，且比纯后台
-初始化更容易让用户理解“现在发生了什么”。但它必须遵守 Codex App 套壳下限：
-只要 Codex CLI / Codex app-server 能启动，用户就应该可以跳过剩余 One Person Lab
-准备并进入 chat-first 主界面。被跳过的模块同步、完整状态刷新、网络依赖检查和
-诊断刷新必须变成显式 deferred/background 状态，不能用首启页继续挡住入口。
+Hermes candidate 的 checklist 形态本身可以保留，且比纯后台初始化更容易让用户理解
+“现在发生了什么”。但它必须遵守 Codex App 套壳下限：只要 Codex CLI / Codex
+app-server 能启动，用户就应该可以跳过剩余 One Person Lab 准备并进入 chat-first
+主界面。被跳过的模块同步、完整状态刷新、网络依赖检查和诊断刷新必须变成显式
+deferred/background 状态，不能用首启页继续挡住入口。
 
 ## App-owned 启动合同
 
@@ -149,46 +149,41 @@ Hermes checklist/progress UI 只用于“用户必须等待且 App 不能安全�
 | 全新安装 / VM smoke | 干净机器或隔离 VM，无 marker，可能无 key。 | 记录轻量检查、本机初始化、模型访问、adapter startup、后台 OPL status refresh 各阶段耗时；Full maintenance 保持后台。 | smoke artifact 中包含每阶段 started/finished/duration、阻塞/非阻塞分类、最终路由结果。 |
 | 后台刷新失败 | 主界面已进入，full OPL status refresh 或 maintenance readback 失败。 | 主 chat 不被关闭；Runtime/Diagnostics 显示可恢复状态或重试入口；不回退成首启安装失败。 | 后台刷新错误事件、非阻塞 UI 状态、仍可发送或恢复 conversation 的证据。 |
 
-## 当前 packaged smoke 证据
+## Candidate Smoke 证据路由
 
-当前 Hermes candidate 已把 packaged first-run smoke 纳入 App-root candidate
-validation：`npm run validate:shell-candidates -- --candidate hermes-codex
---run-candidate-commands` 会先通过 App wrapper 打包候选 `.app`，再进入 sibling
-Hermes checkout 执行 `npm run smoke:opl-first-run`，最后读取
-`/Users/gaofeng/workspace/opl-hermes-shell/out/smoke-opl-first-run/summary.json`
-作为行为证据。
+Hermes candidate 的 packaged first-run smoke 由 App-root candidate validation 和
+Hermes shell artifact owner 持有。本文只固定需要覆盖的场景和 false-ready 边界，不保存
+具体 run id、绝对路径、VM 名称、guest IP、summary 路径或通过记录。
 
-该 smoke 覆盖以下场景：
+当前 SSOT 分工：
+
+| 内容 | Current owner |
+| --- | --- |
+| Candidate registry / adapter policy | `contracts/app-shell-candidates.json`, `contracts/shell-adapters/hermes-codex.json` |
+| App-root candidate validation command | `scripts/validate-shell-candidates/*` and package scripts |
+| First-run scenario contract | `contracts/app-first-run-test-matrix.json` |
+| Dated smoke run metadata, VM summary, screenshots and logs | Candidate artifacts, shell artifacts, CI logs, release evidence artifacts, or `docs/history/process/` provenance |
+
+Candidate smoke 应覆盖以下场景，而不是把某次历史 smoke 写成当前 truth：
 
 - `missing_key`：marker 缺失但 fast app state 证明核心可用、缺 gflabtoken API key，
-  预期进入模型访问路径，不进入 Hermes Agent installer。
-- `missing_key_hot_launch`：marker 新鲜但仍缺 key，预期不跑 full initialize gate。
-- `configured_key`：模型访问已配置，预期进入 Codex adapter ready 路径，并在真实
-  packaged `.app` 内通过 Codex app-server fixture 完成一轮 session/turn/delta/complete；
-  同时验证 `$mas` 通过 Codex app-server `skills/list` 解析为 structured Skill input，
-  交给 `turn/start`，不产生 GUI 侧 route receipt/error，也不直接执行 MAS/MAG/RCA CLI。
-  长回复 smoke 还必须证明 `prompt.submit` 先 ack，后续通过事件流返回 complete。
+  应进入模型访问路径，不进入 Hermes Agent installer。
+- `missing_key_hot_launch`：marker 新鲜但仍缺 key，不应跑 full initialize gate。
+- `configured_key`：模型访问已配置，应进入 Codex adapter ready 路径，并通过 Codex
+  app-server fixture 或 live readback 完成 session / turn / delta / complete；`$mas`
+  等显式 Skill prompt 必须交给 Codex Skill/Plugin 机制，不产生 GUI 侧 route
+  receipt/error，也不直接执行 MAS/MAG/RCA CLI。
 - `configured_key_hot_launch`：marker 新鲜且 key 存在时，即使后台出现
-  `system initialize --json`，也必须发生在 `OPL Codex adapter is ready` 之后。
-- `fast_probe_not_ready_first_run`：fast probe 不能证明 readiness 时，允许走一次性初始化
-  checklist，再进入 adapter。
+  `system initialize --json`，也必须发生在 Codex adapter ready 之后。
+- `fast_probe_not_ready_first_run`：fast probe 不能证明 readiness 时，允许走一次性
+  初始化 checklist，再进入 adapter。
+- `user_deferred_first_run`：核心可用但用户选择跳过非核心准备时，应进入 chat-first
+  主界面，并把后续维护留给 Settings/Diagnostics。
 
-2026-06-18 已刷新 Tart clean-VM 候选包证据：
-`npm run smoke:hermes-candidate:tart -- --no-graphics --shell-root
-/Users/gaofeng/workspace/opl-hermes-shell --artifacts
-artifacts/hermes-candidate-tart-20260618T123825Z --timeout-ms 600000` 通过。该命令从
-`opl-first-run-no-clt-clean-base-26-5-18` 克隆临时 VM，把当前 packaged
-`One Person Lab Hermes Candidate.app` 和 smoke 脚本传入 guest，在 guest 内执行同一组
-first-run smoke，并把 summary 与 guest artifacts 拷回
-`artifacts/hermes-candidate-tart-20260618T123825Z/summary.json`。该 summary 记录
-guest VM `opl-hermes-candidate-2026-06-18T12-38-37-375Z`、guest IP `192.168.64.4`，覆盖
-missing key、missing key hot launch、configured key、configured key hot launch、
-fast probe fallback 和 user-deferred first-run，并记录 `$mas` structured Skill input、
-long-turn immediate ack 和 legacy route strip。
-
-这条 VM 证据只证明 Hermes candidate packaged fixture smoke 能在 clean VM 中运行；它不
-证明正式 release shell、真实外部模型服务、AionUI 视觉 parity、MAS/MAG/RCA domain ready、
-artifact ready 或 quality verdict。
+Candidate smoke 只能证明对应 candidate 包、场景和 cohort 的行为。它不证明正式 release
+shell、真实外部模型服务、AionUI 视觉 parity、MAS/MAG/RCA domain ready、artifact ready
+或 quality verdict；这些结论必须回到 release owner、App contracts、OPL Framework 和
+domain owner surfaces。
 
 ## 证据分级
 
@@ -199,13 +194,13 @@ artifact ready 或 quality verdict。
 | active shell 仍是 AionUI | 可以。验证脚本读取 active adapter、runtime bridge 和 GUI contract。 | 不需要打包；除非声称 release artifact fresh。 |
 | Hermes 有 app-server adapter 目标 | 可以。contract 能声明 gateway route、事件流和禁用 backend。 | 需要 package/source smoke 证明 adapter 真能启动、创建 session、发送 turn、展示 response。 |
 | 模型访问单一 | 可以。contract 能声明 gflabtoken-only、禁用 Base URL/provider marketplace。 | 手动/VM packaged Settings visual smoke 已证明模型访问页不暴露 forbidden provider controls；真实保存 API key 和真实模型访问仍需 live/人工证据。 |
-| 首启四线语义 | 可以。contract 能声明四条流程、触发条件和阻塞关系。 | packaged smoke 和 Tart clean-VM smoke 已覆盖热启动、缺 key、已配置、无 marker fallback；真实模型访问仍需 live evidence。 |
-| MAS/MAG/RCA Codex Skill declaration | 可以。contract 能声明普通入口、Codex Skill invocation 和 forbidden claims。 | packaged smoke 已证明 MAS/MAG/RCA Skill catalog 可见、MAS chip 可写入 `$mas`、显式 `$mas` 会作为 Codex app-server `turn/start` 的 structured skill input 转交给 Codex，且没有 GUI 侧 route receipt/error；domain ready、artifact ready 和质量结论仍需 domain owner evidence。 |
+| 首启四线语义 | 可以。contract 能声明四条流程、触发条件和阻塞关系。 | Packaged / VM smoke 应按当前 artifact owner 证明热启动、缺 key、已配置、无 marker fallback 和 user-deferred 场景；真实模型访问仍需 live evidence。 |
+| MAS/MAG/RCA Codex Skill declaration | 可以。contract 能声明普通入口、Codex Skill invocation 和 forbidden claims。 | Packaged / live readback 应证明 MAS/MAG/RCA Skill catalog 可见、Skill prompt 进入 Codex app-server `turn/start`，且没有 GUI 侧 route receipt/error；domain ready、artifact ready 和质量结论仍需 domain owner evidence。 |
 | 视觉不低于 AionUI | 不可以。docs/contract 只能定义门槛。 | 必须有 AionUI baseline 与 Hermes packaged candidate 的截图或视觉 smoke 对比。 |
 
-当前 source 级实现还补了一条首启防回归证据：即使旧 Hermes local endpoint 触发状态进入
-onboarding，普通 OPL 模型访问页也只能显示 gflabtoken API key，不能预选或展示
-`OPENAI_BASE_URL`。这条证据已由 renderer test 和手动/VM packaged Settings visual smoke 双重覆盖。
+模型访问回归证据的 current owner 是 renderer/source tests、Settings visual smoke、candidate
+artifacts 或 live readback。即使旧 Hermes local endpoint 触发状态进入 onboarding，普通
+OPL 模型访问页也只能显示 gflabtoken API key，不能预选或展示 `OPENAI_BASE_URL`。
 
 ## 实施注意
 

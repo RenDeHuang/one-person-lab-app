@@ -46,11 +46,13 @@ Phase 1 的核心不是“尽量实现所有 Hermes Desktop 功能”，而是�
 | `diagnostic_only` | 工程排障有价值，但普通用户不应以为这是主能力。 | raw MCP config、gateway logs、unsupported backend route readback、advanced config JSON。 |
 | `hide_or_remove` | 当前无法实现、会误导用户，或会创建第二 truth source。 | provider marketplace、OAuth accounts、自定义 Base URL、完整 Hermes MCP manager、Hermes Agent installer、普通路径 backend selector。 |
 
-Phase 1 完成度只按 fresh evidence 认定。`source tests passed` 能证明对应 source
+Phase 1 的状态只按当前 owner surface 读取。`source tests passed` 能证明对应 source
 行为，`candidate validation passed` 能证明候选边界，`packaged smoke passed`
 能证明当前包的 fixture 路径，`VM smoke passed` 只能证明该候选包在该 VM cohort
 中执行了 smoke；它们都不能单独证明 release-ready、domain-ready、artifact-ready
-或 Hermes 已成为默认 shell。
+或 Hermes 已成为默认 shell。具体 run metadata、VM 名称、绝对路径、截图和 dated pass/fail
+记录属于 candidate artifacts、shell artifacts、CI logs、release evidence 或
+`docs/history/process/` provenance。
 
 ## App-owned 目标态
 
@@ -90,16 +92,16 @@ Hermes foreground alternative 的 App-owned 目标态已经由本仓固化，而
   或 contract 通过就算 GUI 可用；chat reading lane、composer、Settings、首启和 packaged
   smoke 截图至少要与 AionUI baseline 对比，且不能出现明显更低的可读性、密度、层级或空白页。
 
-## 当前完成度口径
+## 当前缺口口径
 
-本清单只按 fresh evidence 计完成度。Contract、source tests、packaged smoke、
-Settings visual smoke、VM smoke 和 live Codex app-server smoke 可以证明各自覆盖的
-candidate 边界；它们不能单独证明视觉不低于 AionUI、release promotion、
-MAS/MAG/RCA domain ready、artifact ready 或 quality verdict。
+本文只保留 Hermes foreground alternative 的目标态、功能/结构读法和后置证据 owner。
+Contract、source tests、packaged smoke、Settings visual smoke、VM smoke 和 live Codex
+app-server smoke 可以证明各自覆盖的 candidate 边界；它们不能单独证明视觉不低于 AionUI、
+release promotion、MAS/MAG/RCA domain ready、artifact ready 或 quality verdict。
 
 具体 smoke run、绝对路径、VM 元数据、截图和 dated pass/fail 记录属于 candidate
-manifest、shell artifacts、CI logs、release evidence 或 `docs/history/process/`；
-active plan 只保留当前目标态、验收口径和缺口。
+manifests、shell artifacts、CI logs、release evidence 或 `docs/history/process/`；
+active plan 不维护第二份 candidate evidence ledger。
 
 ## 目标体验
 
@@ -280,21 +282,20 @@ Hermes foreground alternative 只能在以下证据齐备时声称“基本可�
 `contracts/app-shell-adapter.json`，并通过 page-state、first-run、product profile、
 runtime bridge、packaged smoke、WebUI claim 和 release gates。
 
-## 完成度清单
+## 功能/结构缺口清单
 
-本文和 contract 只固化目标态；完成度必须按证据分层计算，不能把 docs-only 或
-contract-only 写成 100%。
+本文和 contract 只固化目标态。Live / VM / release / owner evidence 是后置证据 owner
+的职责，不在本表累积百分比。
 
-| 条目 | 当前状态 | 完成度 | 新鲜证据要求 | 缺口/后续动作 |
+| 条目 | 当前功能/结构状态 | 目的 | 剩余功能/结构缺口 | 后置证据 owner |
 | --- | --- | --- | --- | --- |
-| App-owned Hermes 目标态 | done | 100% | `contracts/app-shell-candidates.json` 与 `contracts/shell-adapters/hermes-codex.json` 通过候选 contract 校验。 | 后续若目标态变化，先改 App-owned contract/docs，再改 shell。 |
-| 默认 release shell 仍是 AionUI | done | 100% | `scripts/validate-shell-candidates.ts` 读取 `contracts/app-shell-adapter.json`、runtime bridge 和 GUI contract，确认 active shell 仍为 AionUI。 | 无；Hermes promotion 需单独 adoption decision。 |
-| Foreground alternative app bundle identity | done | 100% | `npm run validate:candidate -- --require-app` 与 App-root manifest validator 证明 `CFBundleExecutable` 和 `Contents/MacOS` executable 都是 `One Person Lab Hermes Candidate`，且旧 `Electron` executable 不存在。 | 后续若改回 electron-builder，要保留同等 bundle identity check。 |
-| Codex app-server gateway 目标 | partial | 96% | Contract 声明 app-server gateway 和事件流；Hermes source/unit tests、packaged smoke 或 live app-server readback 应证明 session、prompt ack、delta、complete、tool/approval/error bridge 和长 turn 行为。 | 仍需用户本机真实模型服务的长回复人工验收和长期稳定性证据；不能从 fixture smoke 或一次 live smoke 推导 release readiness。 |
-| gflabtoken-only 模型访问 | partial | 95% | Contract 声明 gflabtoken、`OPENAI_API_KEY`、禁用 Base URL/provider marketplace；renderer tests、packaged smoke 或 Settings visual smoke 应证明普通模型访问页只暴露 gflabtoken/API key 入口。 | 仍需真实用户在 packaged GUI 中保存 API key 并完成真实模型访问验证；自动 smoke 使用 fixture 配置时不能替代 live evidence。 |
-| MAS/MAG/RCA Codex Skills | partial | 92% | Contract/docs 已切到 Skill-first；source/unit tests、renderer tests、packaged smoke 或 live readback 应证明 `/mas`、`/mag`、`/rca` 进入普通 Skill prompt，并由 Codex Skill/Plugin 机制接管，旧 GUI purpose route 不回归。 | 仍需真实 packaged GUI 中由本机真实 Codex 成功显式加载 MAS/MAG/RCA Skill 的 live evidence；不能声称 domain ready、artifact ready 或 quality verdict。 |
-| Settings OPL 化 | partial | 78% | Contract/docs 已定义 ordinary IA；renderer tests 或 Settings visual smoke 应证明普通导航、模型访问、智能体与能力、关于页面非空，并隐藏 provider/Base URL/OAuth 普通控件。 | Settings 深层仍有 upstream 通用 Agent 设置、远程网关和高级能力文案残留；需要逐页按普通路径/Advanced/隐藏分级处理。 |
-| 首启四线模型 | partial | 96% | First-run contract 和矩阵区分轻量检查、一次性初始化、模型访问、后台刷新；source tests、packaged smoke 或 VM smoke 应覆盖缺 key、热启动、已配置、fallback 和 user-deferred 场景。 | 仍需真实模型访问和非 fixture Codex turn；候选 VM smoke 不是 release shell clean-VM readiness。 |
-| 视觉不低于 AionUI | partial | 20% | 方向和门槛已写入 contract/docs；Hermes upstream UI 基线和普通导航降噪已保留。 | 需要 AionUI baseline 与 Hermes candidate 的 desktop、Settings、首启 packaged screenshot 对比。 |
-| VM clean smoke | done | 100% | VM smoke summary 应由 artifact owner 记录 guest、package、scenario 和 event evidence。 | 该证据仍不等同于 release shell clean-VM readiness、真实模型服务或 AionUI 视觉验收。 |
-| Hermes release promotion | not_started | 0% | 需要 active shell contract 切换、page-state、first-run、product profile、runtime bridge、packaged smoke、WebUI 和 release gates 全部通过。 | 本轮明确不 promotion。 |
+| App-owned Hermes 目标态 | Contract / docs owner 已明确。 | 让 Hermes foreground alternative 受 App product truth 约束，而不是受 upstream roadmap 或 shell-local state 约束。 | 目标态变化时先改 App-owned contract/docs，再改 shell。 | Candidate validators and shell artifacts. |
+| 默认 release shell 仍是 AionUI | Active shell contract 仍指向 AionUI；Hermes 是 foreground alternative。 | 防止 candidate work 被误读成默认发布 shell 切换。 | Hermes promotion 需要单独 adoption decision 和 active-shell contract change。 | Release owner records, release artifacts, release validators. |
+| Foreground alternative app bundle identity | OPL branded candidate bundle identity 已纳入 candidate contract/readback 要求。 | 避免候选包仍暴露 generic Electron identity。 | 后续若 packaging 机制变化，保留等价 bundle identity gate。 | Candidate manifests and package validation artifacts. |
+| Codex app-server gateway | 目标 gateway 和事件流边界已定义。 | 让普通 chat 走 Codex app-server，而不是 Hermes backend/provider selector。 | 继续补齐 tool / approval / error bridge 和长 turn 稳定性。 | Source tests, packaged smoke, live app-server readback. |
+| gflabtoken-only 模型访问 | 普通模型访问目标已收敛到 gflabtoken/API key。 | 避免 provider marketplace、Base URL、OAuth 和多 provider 设置成为普通用户路径。 | Settings 深层仍需持续按普通路径 / Advanced / 隐藏分级处理。 | Renderer tests, Settings visual smoke, real user credential readback. |
+| MAS/MAG/RCA Codex Skills | 目标已切到 Skill-first composer / slash / explicit prompt。 | 防止 GUI 重建 purpose-route truth source 或直接执行 domain CLI。 | 继续确保 shell 不恢复关键词路由、GUI route receipt 或 domain CLI direct call。 | Packaged / live Skill readback; domain owner evidence for domain claims. |
+| Settings OPL 化 | Ordinary IA 已定义，仍需逐页跟进 upstream 通用 Agent 设置残留。 | 让 Settings 表达 App control center，而不是 Aion/Hermes generic backend manager。 | 深层远程网关、高级能力和通用 Agent 文案继续分流到 Advanced/Diagnostics 或隐藏。 | Active-shell validation and Settings visual QA manifest. |
+| 首启四线模型 | 轻量检查、一次性初始化、模型访问、后台刷新已形成目标模型。 | 防止 full initialize 或后台维护挡住 chat-first 入口。 | 持续防回归：marker/fast probe/user-deferred/缺 key/热启动路径不能混淆。 | First-run matrix, packaged/VM smoke artifacts, real model access readback. |
+| 视觉不低于 AionUI | 方向和门槛已写入 product/docs。 | 防止只有 protocol 可用但 GUI 体验倒退。 | 仍需 desktop、Settings、首启 packaged screenshot 对比和视觉接受。 | Visual QA screenshots, release/candidate artifacts, owner acceptance. |
+| Hermes release promotion | 未进入默认发布 shell。 | 保持 foreground alternative 与 release shell 分离。 | 需要 active shell contract 切换、page-state、first-run、product profile、runtime bridge、packaged smoke、WebUI 和 release gates 一起通过。 | Release owner decision, release artifacts, release validators. |

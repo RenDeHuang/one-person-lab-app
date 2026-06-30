@@ -320,18 +320,17 @@ model access, first-run, and capability status as ordinary product surfaces.
 Phase 3 is the full OPL product profile and possible active-shell adoption
 decision. None of these phases changes the active release shell by itself.
 
-The current `hermes-codex` state is Phase 1 foreground-alternative implementation
-and technical verification. Current local evidence shows the adapter can build and
-exercise a fixture Codex app-server path, and the `2026-06-18` Tart VM smoke
-for `artifacts/hermes-candidate-tart-20260618T123825Z/summary.json` proves the
-current packaged candidate fixture path in a clean VM cohort
-(`opl-hermes-candidate-2026-06-18T12-38-37-375Z`, guest IP `192.168.64.4`).
-MAS/MAG/RCA are Codex
-Skill/Plugin entries: ordinary users invoke them through composer slash
-shortcuts such as `/mas` or explicit `$mas` prompt text, while Settings may show
-read-only status and diagnostics. The GUI must not recreate a purpose-route
-truth source, directly run domain CLIs, or turn MCP/Profile/Cron/Toolset
-management into ordinary App capability.
+The current `hermes-codex` state is Phase 1 foreground-alternative
+implementation and technical verification. Status does not freeze dated local
+smoke paths, VM cohort ids, guest metadata, screenshots, or candidate pass/fail
+logs. Current candidate behavior must be read from the App-owned candidate
+contracts, validation scripts, candidate manifests, shell artifacts, CI logs, or
+explicit history/provenance records. MAS/MAG/RCA are Codex Skill/Plugin
+entries: ordinary users invoke them through composer slash shortcuts such as
+`/mas` or explicit `$mas` prompt text, while Settings may show read-only status
+and diagnostics. The GUI must not recreate a purpose-route truth source,
+directly run domain CLIs, or turn MCP/Profile/Cron/Toolset management into
+ordinary App capability.
 
 Package/runtime/visual acceptance is still not complete: AionUI-vs-Hermes visual
 screenshot parity has not been accepted, packaged GUI acceptance is separate
