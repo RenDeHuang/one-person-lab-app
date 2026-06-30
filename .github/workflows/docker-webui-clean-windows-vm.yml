@@ -67,6 +67,8 @@ jobs:
             eligible_runners: [],
             observed_runners: [],
           };
+          let inventoryReadable = false;
+          let apiOutput = '';
 
           try {
             requiredLabels = JSON.parse(process.env.RUNNER_LABELS_JSON || '[]');
@@ -91,11 +93,21 @@ jobs:
                 detail,
                 required_next_action: 'Grant a token/scope that can read repository Actions runners or run this workflow with explicit runner inventory evidence, then rerun clean Windows smoke.',
               };
-              fs.writeFileSync(artifactPath, `${JSON.stringify(payload, null, 2)}\n`);
-              process.exitCode = 1;
-              return;
+            } else {
+              inventoryReadable = true;
+              apiOutput = api.stdout;
             }
-            const pages = api.stdout
+          } catch (error) {
+            payload.typed_blocker = {
+              code: 'runner_preflight_failed',
+              owner: 'release_or_install_validation_operator',
+              message: 'The clean Windows runner preflight failed before it could evaluate runner availability.',
+              detail: error instanceof Error ? error.message : String(error),
+              required_next_action: 'Fix runner_labels_json or the runner preflight inventory read path, then rerun clean Windows smoke.',
+            };
+          }
+          if (inventoryReadable) {
+            const pages = apiOutput
               .split(/\n(?=\{)/)
               .filter(Boolean)
               .map((page) => JSON.parse(page));
@@ -126,14 +138,6 @@ jobs:
                 busy: runner.busy,
                 labels: (runner.labels || []).map((label) => label.name),
               })),
-            };
-          } catch (error) {
-            payload.typed_blocker = {
-              code: 'runner_preflight_failed',
-              owner: 'release_or_install_validation_operator',
-              message: 'The clean Windows runner preflight failed before it could evaluate runner availability.',
-              detail: error instanceof Error ? error.message : String(error),
-              required_next_action: 'Fix runner_labels_json or the runner preflight inventory read path, then rerun clean Windows smoke.',
             };
           }
           if (payload.status !== 'passed' && !payload.typed_blocker) {
