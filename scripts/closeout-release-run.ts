@@ -96,6 +96,7 @@ Options:
   --run-id <id>                    GitHub Actions release run id.
   --repo <owner/name>              GitHub repository. Default: ${defaultRepo}
   --out-dir <path>                 Output directory.
+  --output-dir <path>              Alias for --out-dir.
   --output <path>                  Write release-closeout.json.
   --markdown <path>                Write release-closeout.md.
   --monitor <path>                 Write release-monitor.json.
@@ -130,7 +131,7 @@ function applyOption(parsed: Options, token: string, value: string): void {
   if (token === '--version') parsed.version = value;
   else if (token === '--run-id') parsed.runId = value;
   else if (token === '--repo') parsed.repo = value;
-  else if (token === '--out-dir') parsed.outDir = value;
+  else if (token === '--out-dir' || token === '--output-dir') parsed.outDir = value;
   else if (token === '--output') parsed.output = value;
   else if (token === '--markdown') parsed.markdown = value;
   else if (token === '--monitor') parsed.monitor = value;

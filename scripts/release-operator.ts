@@ -171,6 +171,7 @@ type DiagnoseVmOptions = OperatorOutputOptions & {
 type StatusOptions = OperatorOutputOptions & {
   runId: string;
   repo: string;
+  version: string;
   expectedHead: string;
   runJsonPath: string;
   stdoutFormat: 'json' | 'summary';
@@ -180,7 +181,7 @@ function usage(): void {
   process.stdout.write(`Usage:
   npm run release:operator -- plan --version <version> --release-mode <mode>
   npm run release:operator -- diagnose-vm --version <version> --release-artifact-run-id <run-id>
-  npm run release:operator -- status --run-id <id> [--repo owner/name] [--expected-head <sha>]
+  npm run release:operator -- status --run-id <id> --version <version> [--repo owner/name] [--expected-head <sha>]
   npm run release:operator -- status --run-json <path> [--expected-head <sha>]
 
 Subcommands:
@@ -291,6 +292,7 @@ function parseStatusArgs(argv: string[]): StatusOptions {
     ...defaultOutputOptions(),
     runId: process.env.OPL_RELEASE_RUN_ID || '',
     repo: process.env.OPL_RELEASE_REPO || defaultRepo,
+    version: process.env.OPL_RELEASE_VERSION || '',
     expectedHead: process.env.OPL_RELEASE_EXPECTED_HEAD || '',
     runJsonPath: process.env.OPL_RELEASE_RUN_JSON || '',
     stdoutFormat: 'json',
@@ -308,6 +310,7 @@ function parseStatusArgs(argv: string[]): StatusOptions {
     const optionIndex = applyStringOptionArg(argv, index, {
       '--run-id': (value) => { parsed.runId = value; },
       '--repo': (value) => { parsed.repo = value; },
+      '--version': (value) => { parsed.version = value; },
       '--expected-head': (value) => { parsed.expectedHead = value; },
       '--run-json': (value) => { parsed.runJsonPath = value; },
       '--output': (value) => { parsed.output = value; },
@@ -778,10 +781,13 @@ function statusAction(
     };
   }
   if (status === 'ready_for_closeout_review') {
+    const version = options.version.trim() || '<version>';
     return {
       action: 'inspect_release_closeout_evidence',
-      command: `npm run release:closeout -- --run-id ${run.id} --repo ${options.repo}`,
-      reason: 'Run completed successfully; inspect closeout artifacts before any owner release decision.',
+      command: `npm run release:closeout -- --version ${version} --run-id ${run.id} --repo ${options.repo}`,
+      reason: options.version.trim()
+        ? 'Run completed successfully; inspect closeout artifacts before any owner release decision.'
+        : 'Run completed successfully; inspect closeout artifacts before any owner release decision. Replace <version> with the release version.',
       publishes_release: false,
       dispatches_workflow: false,
     };

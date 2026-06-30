@@ -257,6 +257,43 @@ test('release closeout separates workflow wall time from Agent orchestration wal
   assert.match(markdown, /No-watch monitor/);
 });
 
+test('release closeout accepts output-dir as a clear alias for out-dir', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-closeout-output-dir-'));
+  const artifactsRoot = path.join(tempRoot, 'artifacts');
+  const outDir = path.join(tempRoot, 'out');
+  const runPath = path.join(tempRoot, 'run.json');
+  const jobsPath = path.join(tempRoot, 'jobs.json');
+  writeCloseoutArtifacts(artifactsRoot);
+  writeJson(runPath, {
+    databaseId: '67890',
+    status: 'completed',
+    conclusion: 'success',
+    createdAt: '2026-06-30T00:00:00Z',
+    startedAt: '2026-06-30T00:00:01Z',
+    updatedAt: '2026-06-30T00:10:00Z',
+    workflowName: 'OPL Desktop Release',
+    headSha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  });
+  writeJson(jobsPath, { jobs: [] });
+
+  const result = runCloseout([
+    '--version',
+    '26.5.99',
+    '--run-json',
+    runPath,
+    '--jobs-json',
+    jobsPath,
+    '--artifacts-dir',
+    artifactsRoot,
+    '--output-dir',
+    outDir,
+    '--no-download',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(readJson(path.join(outDir, 'release-closeout.json')).schema, 'opl_release_closeout_summary.v1');
+});
+
 test('release closeout stops at readiness failed gates before raw log inspection', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-closeout-blocked-'));
   const artifactsRoot = path.join(tempRoot, 'artifacts');

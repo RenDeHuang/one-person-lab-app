@@ -693,6 +693,8 @@ test('release operator status reports successful current run as ready for closeo
     'status',
     '--run-json',
     runJsonPath,
+    '--version',
+    '26.6.29',
     '--expected-head',
     'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
     '--output',
@@ -709,6 +711,6 @@ test('release operator status reports successful current run as ready for closeo
   assert.equal(state.is_stale, false);
   assert.equal(state.primary_blocker, null);
   assert.equal(state.recommended_next_action.action, 'inspect_release_closeout_evidence');
-  assert.match(state.recommended_next_action.command, /npm run release:closeout -- --run-id 45678/);
+  assert.match(state.recommended_next_action.command, /npm run release:closeout -- --version 26\.6\.29 --run-id 45678/);
   assert.match(fs.readFileSync(markdownPath, 'utf8'), /Primary blocker: none/);
 });
