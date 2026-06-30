@@ -2483,7 +2483,7 @@
               "failed_with_repair"
             ],
             "managed_kernel_apply_allowed": false,
-            "opl_update_apply_boundary": "Inside-container `opl update apply` may update runtime_substrate, capability_packages, codex_surface, and companion_tools only; it must not report Docker/WebUI image replacement as applied.",
+            "opl_update_apply_boundary": "Inside-container `opl update apply` may update runtime_substrate, capability_packages, and companion_tools only; Codex Surface remains a post-apply visibility/reload projection, and the command must not report Docker/WebUI image replacement as applied.",
             "data_volume_preservation_proof_required": true,
             "preserved_mounts": [
               "OnePersonLab/data -> /data",

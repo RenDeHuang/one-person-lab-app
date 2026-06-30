@@ -1591,6 +1591,7 @@
       "user_data_artifacts"
     ],
     "ordinary_ui_must_not_use_legacy_names": [
+      "app_binary",
       "runtime_toolchain",
       "agent_package_channel",
       "capability_exposure",

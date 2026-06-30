@@ -176,6 +176,10 @@ test('managed update plane exposes the v2 install/update taxonomy and legacy ali
     carrierVariants.get('docker_webui_image').opl_update_apply_boundary,
     /must not report Docker\/WebUI image replacement as applied/,
   );
+  assert.doesNotMatch(
+    carrierVariants.get('docker_webui_image').opl_update_apply_boundary,
+    /codex_surface/,
+  );
   assert.equal(carrierVariants.get('linux_package_carrier').host_executor_required, true);
   assert.equal(carrierVariants.get('linux_package_carrier').managed_kernel_apply_allowed, false);
 

@@ -36,7 +36,7 @@
       "detail": "/Users/admin/One Person Lab"
     },
     {
-      "title": "智能体模块",
+      "title": "能力包",
       "status": "5 / 5 已就绪",
       "tone": "green",
       "detail": "managed_root"
@@ -79,7 +79,7 @@
       "id": "capability_packages",
       "label": "OPL 能力包",
       "status": "当前",
-      "description": "更新由 OPL 管理的智能体技能和模块包。"
+      "description": "更新由 OPL 管理的技能和能力包。"
     },
     {
       "id": "codex_surface",

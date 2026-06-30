@@ -274,7 +274,7 @@ function validateInstallationCarrierMacosVariant(variant) {
     variant?.data_volume_preservation_proof_required !== false ||
     variant?.repair_action_scope !== 'app_release_check_download_retry_or_install_downloaded_update_only'
   ) {
-    throw new Error('Installation carrier macOS App variant must bind the legacy App binary updater to macOS carrier semantics');
+    throw new Error('Installation carrier macOS App variant must bind the legacy macOS updater alias to carrier semantics');
   }
   assertIncludesAll(
     variant?.status_values,
@@ -289,7 +289,8 @@ function validateInstallationCarrierDockerWebuiVariant(variant) {
     variant?.managed_kernel_apply_allowed !== false ||
     variant?.data_volume_preservation_proof_required !== true ||
     variant?.repair_action_scope !== 'docker_webui_host_route_diagnostics_and_data_volume_preservation_only' ||
-    !String(variant?.opl_update_apply_boundary ?? '').includes('must not report Docker/WebUI image replacement as applied')
+    !String(variant?.opl_update_apply_boundary ?? '').includes('must not report Docker/WebUI image replacement as applied') ||
+    String(variant?.opl_update_apply_boundary ?? '').includes('codex_surface')
   ) {
     throw new Error('Installation carrier Docker/WebUI image variant must require host update route and forbid opl update apply from claiming image replacement');
   }

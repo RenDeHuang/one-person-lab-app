@@ -143,10 +143,10 @@
       "locale": "zh-CN",
       "width": 1536,
       "height": 912,
-      "sha256": "5314ff4fcba9bdd05d0a91f23dd8cdf30ba315ee8dd161f0c130170e1524df51",
+      "sha256": "423062f8b4f3687bb6ef28ff78b59dad09eab1cf9fc3385fbee68b4d01c4c465",
       "source_width": 1536,
       "source_height": 912,
-      "source_sha256": "1892d84d27c076e88bc2e2d2de9d52268d9e6d93b6858aec23ec678abe1465c5",
+      "source_sha256": "9a23c72203ed52fb264dee15104ea759d16839af9b96a0762d0fb3e898ffe50e",
       "expected_ui_text": [
         "本机运行环境",
         "工作目录"

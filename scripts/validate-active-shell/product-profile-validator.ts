@@ -257,6 +257,17 @@ function validateInstallUpdateTaxonomy(profile) {
     'Product profile install/update taxonomy classes',
   );
   assertDeepEqualJson(
+    profile.install_update_taxonomy?.ordinary_ui_must_not_use_legacy_names,
+    [
+      'app_binary',
+      'runtime_toolchain',
+      'agent_package_channel',
+      'capability_exposure',
+      'codex_cli_fallback',
+    ],
+    'Product profile install/update taxonomy forbidden legacy UI names',
+  );
+  assertDeepEqualJson(
     profile.companion_payloads?.tools,
     ['officecli', 'mineru_open_api'],
     'Product profile companion tools',

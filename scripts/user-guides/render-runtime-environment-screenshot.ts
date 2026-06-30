@@ -200,7 +200,7 @@ function renderHtml(fixture: Fixture): string {
       <div class="content">
         <div>
           <h1>本机运行环境</h1>
-          <div class="desc">检查 Codex CLI、Temporal、工作目录、日志目录、更新和 OPL 智能体模块就绪状态。</div>
+          <div class="desc">检查 Codex CLI、Temporal、工作目录、日志目录、更新和 OPL 能力包就绪状态。</div>
         </div>
         <div class="card toolbar">
           <button class="primary">◎ 运行诊断</button>
@@ -217,20 +217,20 @@ function renderHtml(fixture: Fixture): string {
         <section class="card">
           <div class="maintenance-head">
             <div>
-              <div class="section-title">智能体模块维护</div>
-              <div class="muted">维护 OPL 智能体模块、打包技能和可见能力。App 更新仍在「关于与更新」中处理；这里仅通过 OPL 托管更新内核执行。</div>
+              <div class="section-title">能力包维护</div>
+              <div class="muted">维护 OPL 能力包、打包技能和 Codex Surface。App 更新仍在「关于与更新」中处理；这里仅通过 OPL 托管更新内核执行。</div>
               <div class="tagline"><span class="badge badge-green">5 / 5 个模块就绪</span></div>
             </div>
             <button>⟳ 检查模块更新</button>
           </div>
           <div class="two-col">
             <div class="panel">
-              <div class="strong">已安装智能体模块</div>
+              <div class="strong">已安装能力包</div>
               ${modules}
             </div>
             <div class="panel">
-              <div class="strong">模块维护动作</div>
-              <div class="muted">通过 OPL 检查、应用、修复或回滚托管智能体和能力暴露变更，不绕过内核。</div>
+              <div class="strong">能力包维护动作</div>
+              <div class="muted">通过 OPL 检查、应用、修复或回滚能力包和 Codex Surface 变更，不绕过内核。</div>
               ${maintenance}
             </div>
           </div>
@@ -239,7 +239,7 @@ function renderHtml(fixture: Fixture): string {
           <div class="maintenance-head">
             <div>
               <div class="section-title">更新与维护</div>
-              <div class="muted">统一展示桌面 App、运行时工具链、托管智能体包通道和可见能力暴露的 OPL 更新状态。</div>
+              <div class="muted">统一展示安装载体、运行时基座、OPL 能力包和 Codex Surface 的 OPL 更新状态。</div>
               <div class="tagline"><span class="badge badge-green">stable</span><span class="badge badge-green">not_acquired_for_projection</span></div>
             </div>
             <div><button>⟳ 刷新状态</button> <button>检查</button> <button>计划</button></div>

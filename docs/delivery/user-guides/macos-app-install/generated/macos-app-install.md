@@ -39,9 +39,8 @@ lang: zh-CN
 curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes
 ```
 - 稳定安装器默认下载 latest Full DMG、复制到 Applications，并尽量清理 macOS quarantine，减少首次启动时反复授权；需要轻量标准包时可追加 `--standard`。
-- Full 版 DMG 是首次安装资产，预置 App 启动所需的运行底座、OPL Packages、Companion Tools 和 App-owned Codex CLI executor payload；它不是后续长期更新通道，也不会改写用户全局 Codex。
-- 标准 mac-arm64 DMG 体积更小，适合已经安装过 One Person Lab App 的用户和后续 macOS App carrier 自动更新。
-- 安装后请把维护理解为 7 层：Installation Carrier、Runtime Substrate、Capability Packages、Companion Tools、Codex Surface、Workflow Profile、User Data/Artifacts。standard updater 只更新 macOS App carrier；Docker/WebUI image 更新需要 host update route 与数据卷保留证明；OPL Packages 只会静默更新 clean managed roots，dirty/developer checkout 或 manual required 状态不会被覆盖；Workflow Profile 不会静默覆盖已有 `AGENTS.md` / `TASTE.md`。
+- Full 版 DMG 是首次安装资产，包含 OPL Framework runtime、MAS/MAG/RCA、officecli、mineru-open-api 与推荐 skills 等 payload。
+- 标准 mac-arm64 DMG 体积更小，适合已经安装过 One Person Lab App 的用户和后续自动更新。
 
 ## 2. 安装 App
 
@@ -91,7 +90,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 ## 6. 确认工作目录和运行设置
 
-在本机运行环境中确认工作目录、Codex CLI、Temporal 和本机基础状态；在智能体与能力查看专业入口；在关于与更新查看 Installation Carrier 与 OPL Packages 维护状态。需要调整数据目录或运行设置时，从这里进入。
+在本机运行环境中确认工作目录、Codex CLI、Temporal 和本机基础状态；在智能体与能力查看专业入口；在关于与更新查看 App 与 OPL Packages 维护状态。需要调整数据目录或运行设置时，从这里进入。
 
 ![确认工作目录和运行设置](screenshots/06-research-data-folder.png)
 
@@ -99,7 +98,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 - 数据目录和运行入口从 Settings 的本机运行环境进入。
 - 专业 Agent 能力在智能体与能力中查看。
-- Installation Carrier 与 OPL Packages 维护状态在关于与更新中查看；运行底座、Codex Surface、Workflow Profile 和用户产物属于分层维护边界，不等同于 App 更新。
+- App 与 OPL Packages 维护状态在关于与更新中查看。
 - 患者数据需先脱敏，并遵守机构要求。
 
 ## 7. 发起首次科研任务
@@ -128,7 +127,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 - 下载失败：换网络后重试，或请技术支持人员确认 GitHub Release 是否可访问。
 - 打不开 App：优先使用稳定安装命令重新安装；手动安装时确认已拖入 Applications，并按 macOS 安全提示允许打开。
 - 访问权限未配置：联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。
-- 模块未就绪：在 App 的本机运行环境或关于与更新中重新检查维护状态，确认 OPL Packages、Codex Surface 和本机网络状态；不要手动覆盖 dirty/developer checkout。
+- 模块未就绪：在 App 的本机运行环境或关于与更新中重新检查维护状态，确认 OPL 完整安装资产与本机网络状态。
 - 数据路径看不到：确认选择的是本机可访问的专病 workspace，或能看到其中的 `raw_data/`。
 - 任务启动后不知道看哪里：查看运行状态页的当前阶段、下一步和需要人工确认的项目。
 
