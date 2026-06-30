@@ -1,8 +1,20 @@
 # Docker/WebUI Smoke Gates
 
+Owner: `one-person-lab-app`
+Purpose: `docker_webui_smoke_gate_runbook`
+State: `active_support`
+Machine boundary: Human-readable verification and readiness-boundary support.
+Machine policy stays in `contracts/app-install-exposure-policy.json`; pass/fail
+truth stays in workflow outputs and uploaded smoke gate artifacts.
+
 This runbook owns the App-side execution entry for Docker/WebUI installer smoke
 evidence. It does not replace the install exposure contract, and it does not
 turn local container smoke into clean VM proof.
+
+SSOT split: the contract owns required policy, the operator guide owns the
+install route, this runbook owns verification commands and artifact readback,
+the public README owns the user entry, and generated guide files are payload
+artifacts only.
 
 ## Stable Gate Policy
 

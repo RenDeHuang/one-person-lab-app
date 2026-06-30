@@ -182,6 +182,11 @@ and promote flows use different release profiles. Treat the release guide and
 contract as the SSOT for those profiles; this testing guide should not duplicate
 their full workflow policy.
 
+Docker/WebUI smoke gate commands, artifact readback, and typed blocker
+boundaries are maintained in
+[`../delivery/install/docker-webui-smoke-gates.md`](../delivery/install/docker-webui-smoke-gates.md).
+This testing guide only routes maintainers to that verification support surface.
+
 ## Release Cohort Evidence Boundary
 
 Release evidence is current only for the named App cohort that produced it.

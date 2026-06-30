@@ -98,6 +98,7 @@ Future coverage belongs in the narrowest owner:
 | User guide generation and screenshot provenance | `docs/delivery/user-guides/`, `docs/delivery/release-evidence/`, and generated artifacts in `docs/public/macos-app-install/` |
 | Docs lifecycle tranche closeout | `docs/history/process/README.md` as a compressed theme row, not a dated proof ledger |
 | Testing-doc release evidence guidance | `docs/testing/README.md` for command entry and evidence classification only; release cohort policy stays in delivery/release docs, `contracts/app-release-channel.json`, workflows, validators, and release-boundary tests |
+| Docker/WebUI beginner install path | `contracts/app-install-exposure-policy.json` owns machine policy; `docs/delivery/install/docker-webui-guide.md` owns operator install routing; `docs/delivery/install/docker-webui-smoke-gates.md` owns verification/readiness-boundary support; `docs/public/docker-webui-install/README.md` owns the user-facing entry; `docs/delivery/user-guides/docker-webui-install/generated/` is generated payload only |
 
 This App coverage does not close the parent OPL series docs-governance goal,
 because the seven-repo goal remains open until every repo ledger has no
