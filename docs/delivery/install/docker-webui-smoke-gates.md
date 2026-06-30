@@ -248,6 +248,43 @@ X64
 docker-webui-clean-vm
 ```
 
+When a self-hosted runner is not available, the same evidence can be collected
+manually in a disposable VMware Fusion VM. The 2026-06-30 local route selected
+VMware Fusion 26H1 plus the official Windows 11 25H2 x64 Chinese Simplified ISO
+because VirtualBox could boot Windows but could not make Docker Desktop's WSL 2
+Linux engine healthy on this host. That route is only a producer path; it is not
+pass evidence until the host imports the VM artifact and validates a
+`clean_windows_vm` gate result.
+
+Guest PowerShell command inside the clean Windows VM:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 `
+  -Yes `
+  -NoOpen `
+  -EvidenceDir windows-clean-evidence `
+  -EvidenceArchive windows-clean-evidence.zip
+```
+
+Host import and readback commands from the App repo:
+
+```bash
+npm run smoke:docker-webui:windows-clean-vm -- \
+  --evidence <path-to-windows-clean-evidence.zip-or-dir> \
+  --artifacts tmp/docker-webui-smoke/windows-clean-import \
+  --json
+
+node --experimental-strip-types scripts/docker-webui-smoke-gate.ts \
+  --validate-result tmp/docker-webui-smoke/windows-clean-import/docker-webui-smoke-gate-result.json \
+  --json
+```
+
+Keep the raw `windows-clean-evidence/` directory, `windows-clean-evidence.zip`,
+the imported `docker-webui-smoke-gate-result.json`, and the validation output in
+the evidence folder. A VirtualBox, VMware, or local-host failure should remain a
+typed blocker with its owner route and probe logs; do not rewrite it as a clean
+Windows pass.
+
 Bootstrap checklist for the VM operator:
 
 1. Install Windows updates and enable WSL 2.
