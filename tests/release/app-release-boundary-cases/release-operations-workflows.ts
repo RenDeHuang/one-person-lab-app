@@ -306,7 +306,8 @@ test('stable validation profile covers every user installation surface', () => {
       ],
     },
   );
-  assert.ok(stable.required_lanes.includes('operator_evidence_bundle'));
+  assert.equal(stable.required_lanes.includes('operator_evidence_bundle'), false);
+  assert.deepEqual(stable.diagnostic_lanes, ['operator_evidence_bundle']);
   for (const scenarioId of stable.required_installation_surfaces) {
     assert.ok(scenarioIds.includes(scenarioId), scenarioId);
   }

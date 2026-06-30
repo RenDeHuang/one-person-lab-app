@@ -1537,7 +1537,10 @@
           "full-homebrew-tap-update_for_full_release"
         ],
         "homebrew_allowed_when_false": "success_or_skipped",
-        "rule": "Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required."
+        "diagnostic_gates": [
+          "operator-evidence-bundle-validation"
+        ],
+        "rule": "Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required. Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running."
       },
       "diagnostics_workflow_policy": {
         "workflow": ".github/workflows/desktop-release-diagnostics.yml",
@@ -1844,7 +1847,9 @@
         "full_dmg_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "docker_webui_smoke",
-        "webui_ghcr_publish",
+        "webui_ghcr_publish"
+      ],
+      "diagnostic_lanes": [
         "operator_evidence_bundle"
       ],
       "required_installation_surfaces": [

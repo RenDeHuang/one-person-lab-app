@@ -754,6 +754,18 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     releaseContract.release_validation_profiles.stable.required_lanes,
   );
   assert.deepEqual(
+    guiContract.release_channel_policy.stable.diagnostic_gate,
+    releaseContract.release_validation_profiles.stable.diagnostic_lanes,
+  );
+  assert.equal(
+    releaseContract.release_validation_profiles.stable.required_lanes.includes('operator_evidence_bundle'),
+    false,
+  );
+  assert.deepEqual(
+    releaseContract.release_validation_profiles.stable.diagnostic_lanes,
+    ['operator_evidence_bundle'],
+  );
+  assert.deepEqual(
     guiContract.release_channel_policy.nightly.must_gate,
     releaseContract.release_validation_profiles.nightly_standard.required_lanes,
   );

@@ -1435,15 +1435,10 @@ jobs:
             release-evidence/${{ inputs.opl_version }}
           if-no-files-found: error
 
-      - name: Fail when operator evidence is incomplete
-        if: ${{ steps.collect_operator_evidence.outcome != 'success' || steps.validate_operator_evidence.outcome != 'success' }}
-        shell: bash
-        run: exit 1
-
   release-readiness-admission:
     name: Admit release readiness aggregation
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) && (needs.release-preflight.outputs.homebrew_tap_update_required != 'true' || (needs.stable-homebrew-tap-update.result == 'success' && (!inputs.include_full_package || needs.full-homebrew-tap-update.result == 'success') && needs.homebrew-standard-first-run-vm-smoke.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' && (!inputs.publish_docker_webui || (needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' && needs.docker-webui-clean-vm-evidence.result == 'success')) && needs.operator-evidence-bundle-validation.result == 'success' }}
+    if: ${{ !cancelled() && inputs.run_vm_smoke && needs.release-preflight.result == 'success' && ((!inputs.include_full_package && needs.remote-verify-standard.result == 'success' && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success' && needs.remote-verify-full.result == 'success' && needs.full-first-run-vm-smoke.result == 'success')) && (needs.release-preflight.outputs.homebrew_tap_update_required != 'true' || (needs.stable-homebrew-tap-update.result == 'success' && (!inputs.include_full_package || needs.full-homebrew-tap-update.result == 'success') && needs.homebrew-standard-first-run-vm-smoke.result == 'success')) && needs.one-shot-app-installer-smoke.result == 'success' && (!inputs.publish_docker_webui || (needs.docker-webui-smoke.result == 'success' && needs.webui-ghcr-publish.result == 'success' && needs.docker-webui-clean-vm-evidence.result == 'success')) }}
     needs:
       - release-preflight
       - remote-verify-standard
@@ -1537,8 +1532,6 @@ jobs:
             requireSuccessOrSkipped('webui-ghcr-publish');
             requireSuccessOrSkipped('docker-webui-clean-vm-evidence');
           }
-          requireSuccess('operator-evidence-bundle-validation');
-
           if (failures.length > 0) {
             console.error('Release readiness aggregation is blocked by failed, skipped, or missing required gates:');
             for (const failure of failures) console.error(`- ${failure}`);

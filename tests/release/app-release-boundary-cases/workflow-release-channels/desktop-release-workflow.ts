@@ -341,6 +341,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(readinessAdmissionJob, /else \{[\s\S]*requireSuccessOrSkipped\('stable-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkipped\('full-homebrew-tap-update'\)[\s\S]*requireSuccessOrSkipped\('homebrew-standard-first-run-vm-smoke'\)/);
   assert.match(readinessAdmissionJob, /requireSuccess\('docker-webui-clean-vm-evidence'\)/);
   assert.match(readinessAdmissionJob, /requireSuccessOrSkipped\('docker-webui-clean-vm-evidence'\)/);
+  assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /operator-evidence-bundle-validation/);
+  assert.doesNotMatch(readinessAdmissionJob, /requireSuccess\('operator-evidence-bundle-validation'\)/);
   assert.doesNotMatch(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(readinessJob), /if:\s*\$\{\{\s*!cancelled\(\) && needs\.release-readiness-admission\.result == 'success'/);
   assert.doesNotMatch(readinessJob, /name: Write release candidate record[\s\S]{0,80}if:\s*\$\{\{\s*always\(\)/);
@@ -548,7 +550,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'full-homebrew-tap-update_for_full_release',
     ],
     homebrew_allowed_when_false: 'success_or_skipped',
-    rule: 'Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required.',
+    diagnostic_gates: ['operator-evidence-bundle-validation'],
+    rule: 'Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required. Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running.',
   });
   assert.deepEqual(releaseContract.release_acceleration.github_actions.diagnostics_workflow_policy, {
     workflow: '.github/workflows/desktop-release-diagnostics.yml',

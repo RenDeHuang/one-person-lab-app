@@ -4,12 +4,17 @@ This runbook owns the App-side execution entry for Docker/WebUI installer smoke
 evidence. It does not replace the install exposure contract, and it does not
 turn local container smoke into clean VM proof.
 
-## Required Gates
+## Stable Gate Policy
 
-The Docker/WebUI beginner path is release-ready only after every required gate
-has a fresh smoke artifact or a typed blocker:
+The stable release hard blockers cover the App-owned Docker/WebUI delivery
+surface:
 
 - `clean_linux_vm`: a clean Linux VM runs `install-docker-webui.sh --yes`.
+
+Windows Docker Desktop/WSL2 is a Windows/Docker host concern. The following
+gates remain valuable diagnostics, but they are not stable release hard
+blockers:
+
 - `clean_windows_vm`: a clean Windows VM runs `install-docker-webui.ps1 -Yes`.
 - `existing_docker`: a host with Docker already working reruns the installer
   without reinstalling Docker.
@@ -18,7 +23,7 @@ has a fresh smoke artifact or a typed blocker:
   of deleting it.
 
 Contract-only rows and docs are not pass evidence. The gate runner writes a
-typed blocker when the current host cannot prove a gate.
+typed blocker when the current host cannot prove a requested gate.
 
 ## Commands
 

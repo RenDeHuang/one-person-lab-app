@@ -1601,7 +1601,9 @@
         "full_dmg_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "docker_webui_smoke",
-        "webui_ghcr_publish",
+        "webui_ghcr_publish"
+      ],
+      "diagnostic_gate": [
         "operator_evidence_bundle"
       ],
       "latest_policy": "stable_release_may_be_marked_latest_after_required_lanes_pass"

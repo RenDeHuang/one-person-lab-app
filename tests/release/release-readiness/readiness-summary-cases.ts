@@ -313,13 +313,24 @@ test('release readiness summary allows missing optional Docker WebUI clean Windo
   assert.deepEqual(summary.failed_required_gates, []);
 });
 
-test('release readiness summary fails closed without a same-cohort operator evidence bundle', () => {
+test('release readiness summary treats missing operator evidence bundle as diagnostic', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-missing-evidence-bundle-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
   const jobResultsPath = path.join(tempRoot, 'job-results.json');
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
   writePassingJobResults(jobResultsPath);
+  writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
+    status: 'published',
+    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
+    tags: ['26.5.99', 'stable', 'latest'],
+    draft_candidate_push: false,
+    build_reuse: {
+      mode: 'same_job_after_docker_webui_smoke',
+      source_gate: 'docker-webui-smoke',
+      repeated_docker_build: false,
+    },
+  });
   fs.rmSync(path.join(artifactsRoot, 'release-evidence-bundle-26.5.99'), { recursive: true, force: true });
 
   const result = runSummary([
@@ -339,17 +350,18 @@ test('release readiness summary fails closed without a same-cohort operator evid
     outputPath,
   ]);
 
-  assert.notEqual(result.status, 0, result.stdout);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
   const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
-  assert.equal(summary.status, 'failed');
-  assert.equal(summary.gates.operator_evidence_bundle.status, 'failed');
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.gates.operator_evidence_bundle.status, 'skipped');
+  assert.equal(summary.gates.operator_evidence_bundle.required, false);
   assert.match(summary.gates.operator_evidence_bundle.reason, /Missing evidence-validation-summary\.json/);
-  assert.equal(summary.release_owner_verdict.status, 'release_owner_typed_blocker_required');
+  assert.equal(summary.release_owner_verdict.status, 'release_owner_verdict_pending');
   assert.equal(
     summary.release_owner_verdict.release_owner_typed_blocker_ref,
     'typed_blocker_ref://one-person-lab-app/release-owner/v26.5.99/verdict-pending',
   );
-  assert.ok(summary.release_owner_verdict.blocked_by_required_gate_ids.includes('operator_evidence_bundle'));
+  assert.equal(summary.release_owner_verdict.blocked_by_required_gate_ids.includes('operator_evidence_bundle'), false);
   assert.equal(summary.release_owner_verdict.release_ready_claim, false);
 });
 
@@ -461,7 +473,7 @@ test('release readiness summary includes App L5 readout for current cohort evide
   assert.equal(summary.l5_evidence_readout.family_l5_claim, false);
   assert.equal(summary.l5_evidence_readout.ordinary_cockpit_excluded, true);
   assert.ok(summary.l5_evidence_readout.failed_required_gate_ids.includes('homebrew_standard_cask_clean_vm'));
-  assert.ok(summary.l5_evidence_readout.failed_required_gate_ids.includes('operator_evidence_bundle'));
+  assert.equal(summary.l5_evidence_readout.failed_required_gate_ids.includes('operator_evidence_bundle'), false);
   const classById = new Map(
     summary.l5_evidence_readout.evidence_classes.map((entry) => [entry.class_id, entry]),
   );

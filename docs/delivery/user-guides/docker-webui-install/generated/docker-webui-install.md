@@ -44,7 +44,7 @@ macOS 桌面新手 -> DMG / Homebrew / macOS App 一键安装
 - Linux 如果命令提示没有 Docker 或权限不足，请先让管理员处理 Docker Engine 和用户权限。
 - 服务器对外访问需要管理员配置域名、TLS、反向代理和访问控制。
 
-公开 `ghcr.io/gaofeng21cn/one-person-lab-webui:latest` 和 `stable` 已发布并完成公开容器 smoke；正式 release-ready 仍需要对应 clean VM 或 typed blocker 证据。
+公开 `ghcr.io/gaofeng21cn/one-person-lab-webui:latest` 和 `stable` 已发布并完成公开容器 smoke；stable 发布硬证据要求 Docker/WebUI 构建、GHCR 发布和 clean Linux Docker runtime smoke 通过。Windows Docker Desktop/WSL2 是 Windows 侧 Docker 运行环境，clean Windows VM 证据只作为可选诊断导入，不阻断 stable 发布。
 
 ## 2. Windows：安装并启动 Docker Desktop
 
@@ -120,7 +120,7 @@ compose.yaml -> Docker Compose 启动定义
 - 如果 `OnePersonLab/data` 已存在，一键安装器会按保留/迁移边界处理，不能把旧数据目录当作可删除缓存。
 - 终端窗口或 compose 服务保持运行时，浏览器才能访问 WebUI。
 
-公开 GHCR latest/stable 当前可作为新手默认镜像入口；clean Linux/Windows VM 通过状态仍以独立 smoke artifact 为准。
+公开 GHCR latest/stable 当前可作为新手默认镜像入口；clean Linux VM 通过状态仍以独立 smoke artifact 为准，clean Windows VM 通过状态只作为诊断证据读取。
 
 ## 4. 打开浏览器
 
@@ -254,9 +254,9 @@ docker run --rm -p 3000:3000 \
 
 ## 10. 发布验证边界
 
-Docker/WebUI 发布验收不是只看文档、合同或本地容器启动。正式 release-ready 结论需要四组 gate 的新鲜证据：clean Linux VM、clean Windows VM、已有 Docker 的机器、以及已有旧 `OnePersonLab/data` 的机器。
+Docker/WebUI 发布验收不是只看文档、合同或本地容器启动。stable 发布硬阻断只覆盖我们拥有的交付面：Docker/WebUI 构建、GHCR 发布、clean Linux Docker runtime smoke。clean Windows VM、已有 Docker 的机器、以及已有旧 `OnePersonLab/data` 的机器是可选诊断 gate；它们能帮助维护安装体验，但缺失时不阻断 stable 发布。
 
-当前教程说明验收预期；如果某组 gate 没跑，应该记录为 typed blocker，不能把未跑的 gate 包装成已通过。
+当前教程说明验收预期；如果可选诊断 gate 没跑，应该记录为 skipped 或 typed blocker，不能把未跑的 gate 包装成已通过。
 
 ```text
 clean_linux_vm -> install-docker-webui.sh --yes -> 新 OnePersonLab/data
@@ -265,7 +265,7 @@ existing_docker -> 复用已有 Docker，不重新安装 Docker
 existing_old_onepersonlab_data_dir -> 保留或迁移旧 data，不删除
 ```
 
-公开镜像当前性可以由 release workflow、GHCR publish receipt 和 public live smoke 证明；clean Linux/Windows VM 是否通过，必须看对应 VM smoke artifact 或 typed blocker。
+公开镜像当前性可以由 release workflow、GHCR publish receipt 和 public live smoke 证明；clean Linux VM 是否通过，必须看对应 VM smoke artifact 或 typed blocker。clean Windows VM 是否通过只用于 Windows 安装体验诊断。
 
 ## 常见问题
 
@@ -287,4 +287,4 @@ existing_old_onepersonlab_data_dir -> 保留或迁移旧 data，不删除
 - 生成脚本检查 QMD、HTML 和 PDF 文本中不存在未展开的双花括号模板占位符。
 - 生成脚本扫描 source、HTML 和 PDF 文本，禁止真实 secret marker 出现在教程 artifact 中。
 - 截图资产保存在 `docs/guides/docker-webui-install/screenshots/`，生成器会校验文件存在、尺寸和 SHA256，并发布到 `docs/public/docker-webui-install/screenshots/`。
-- Docker/WebUI smoke gate 合同要求 clean Linux VM、clean Windows VM、existing Docker 和 existing old `OnePersonLab/data` 四组 gate；未跑 gate 必须留 typed blocker，不能声明 release-ready。
+- Docker/WebUI stable 发布硬 gate 要求 clean Linux VM 通过；clean Windows VM、existing Docker 和 existing old `OnePersonLab/data` 是诊断 gate，未跑时必须留 skipped 或 typed blocker，不能包装成已通过。

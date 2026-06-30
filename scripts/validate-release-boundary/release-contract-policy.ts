@@ -565,9 +565,14 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     readinessAdmission?.preflight_dependency !== 'release-preflight' ||
     readinessAdmission?.homebrew_tap_update_required_source !== 'release-preflight.outputs.homebrew_tap_update_required' ||
     readinessAdmission?.homebrew_allowed_when_false !== 'success_or_skipped' ||
-    !readinessAdmission?.rule?.includes('must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required')
+    !readinessAdmission?.rule?.includes('must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required') ||
+    !readinessAdmission?.rule?.includes('Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running')
   ) {
     console.error('FAIL release_readiness_admission_policy: readiness admission must be preflight-driven for Homebrew gates');
+    failures += 1;
+  }
+  if (!readinessAdmission?.diagnostic_gates?.includes('operator-evidence-bundle-validation')) {
+    console.error('FAIL release_readiness_admission_policy: operator evidence bundle validation must be a diagnostic gate');
     failures += 1;
   }
   for (const gateId of [

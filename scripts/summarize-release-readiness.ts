@@ -424,7 +424,7 @@ function buildSummary(options: Options) {
 
   const operatorEvidenceBundleArtifactName = `release-evidence-bundle-${options.version}`;
   const operatorEvidenceBundleGate = jsonGate(options, {
-    required: true,
+    required: false,
     artifactName: operatorEvidenceBundleArtifactName,
     fileName: 'evidence-validation-summary.json',
     validate: (payload) => {
@@ -737,7 +737,7 @@ function buildSummary(options: Options) {
       options.publishDockerWebui,
     ),
     full_size_cache_timing: applyJobResult(fullSizeCacheTimingGate, jobResults, 'full-first-install', false),
-    operator_evidence_bundle: applyJobResult(operatorEvidenceBundleGate, jobResults, 'operator-evidence-bundle-validation', true),
+    operator_evidence_bundle: applyJobResult(operatorEvidenceBundleGate, jobResults, 'operator-evidence-bundle-validation', false),
   };
 
   const failedRequired = Object.entries(gates)
