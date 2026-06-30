@@ -1,26 +1,29 @@
 {
   "status": "macos_app_install_slides_ready",
-  "generator": "quarto_presentation_qmd_to_pptx_and_beamer_pdf",
-  "quarto_version": "1.9.38",
+  "generator": "marp_cli_static_slides",
+  "generator_version": "@marp-team/marp-cli v4.4.0 (w/ @marp-team/marp-core v4.3.0)",
+  "source_model": "qmd_body_manifest_metadata_to_marp_markdown_and_css_theme",
+  "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
+  "stable_install_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes",
+  "screenshot_release_run": {
+    "id": "local-vm-guide-refresh-2026-06-28T03-49-46-243Z",
+    "url": "/Users/gaofeng/workspace/opl-aion-shell/artifacts/opl-guide-screenshots-v26.6.27-standard-final",
+    "conclusion": "success"
+  },
   "source_qmd": "docs/guides/macos-app-install/slides.qmd",
   "generated_qmd": "docs/delivery/user-guides/macos-app-install/generated/macos-app-install-slides.qmd",
+  "generated_marp_markdown": "docs/delivery/user-guides/macos-app-install/generated/macos-app-install-slides.md",
+  "generated_marp_theme": "docs/delivery/user-guides/macos-app-install/generated/macos-app-install-marp-theme.css",
   "manifest": "docs/delivery/user-guides/macos-app-install/source/macos-app-install.quarto.json",
   "screenshots_manifest": "docs/guides/macos-app-install/screenshots.manifest.json",
   "output_pptx": "docs/public/macos-app-install/macos-app-install-slides.pptx",
   "output_pdf": "docs/public/macos-app-install/macos-app-install-slides.pdf",
-  "slide_layout": "quarto_presentation_landscape",
-  "slides": 11,
-  "content_slides": 10,
-  "title_slides": 1,
-  "pdf_pages": 11,
+  "slide_layout": "16:9",
+  "slides": 10,
+  "pdf_pages": 10,
   "pdf_page_size_pts": {
-    "width": 362.83,
-    "height": 272.13
-  },
-  "screenshot_source": {
-    "id": "local-vm-guide-refresh-2026-06-28T03-49-46-243Z",
-    "url": "/Users/gaofeng/workspace/opl-aion-shell/artifacts/opl-guide-screenshots-v26.6.27-standard-final",
-    "conclusion": "success"
+    "width": 960,
+    "height": 540
   },
   "screenshot_assets": [
     {
@@ -128,9 +131,14 @@
       ]
     }
   ],
+  "pptx_schema_validation_status": "warning",
+  "pptx_schema_validation_output": "Found 1 validation error(s):\n  [Schema] The element has unexpected child element 'http://schemas.openxmlformats.org/presentationml/2006/main:notesMasterIdLst'. List of possible elements expected: <http://schemas.openxmlformats.org/presentationml/2006/main:notesSz>.\n    Path: /p:presentation[1]\n    Part: /ppt/presentation.xml",
   "pptx_layout_issues": "Found 0 issue(s):",
-  "rendered_pages": 11,
-  "rendered_dir": "tmp/quarto-guides/macos-app-install-slides/rendered",
+  "text_status": "checked_generated_marp_source_and_pdf_text_no_placeholder_tokens",
+  "pptx_roundtrip_pdf": "tmp/pdfs/macos-app-install-slides/pptx-roundtrip/macos-app-install-slides.pdf",
+  "pptx_roundtrip_pages": 10,
+  "rendered_pages": 10,
+  "rendered_dir": "tmp/pdfs/macos-app-install-slides/rendered",
   "unresolved_templates_status": "absent",
   "forbidden_secret_markers_status": "absent"
 }

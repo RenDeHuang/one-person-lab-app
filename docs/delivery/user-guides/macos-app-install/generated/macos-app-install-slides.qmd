@@ -24,6 +24,8 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 访问 One Person Lab App 最新 Release 页面，下载 macOS Apple Silicon DMG。首次安装或干净机器建议选择 Full 版 DMG。
 
+最新版本页面：<https://github.com/gaofeng21cn/one-person-lab-app/releases/latest>
+
 ![](screenshots/01-download-release.png){width=76%}
 
 - 最简单命令：`curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes`。

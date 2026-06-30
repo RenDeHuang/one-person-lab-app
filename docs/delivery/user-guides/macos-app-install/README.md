@@ -14,7 +14,7 @@ Canonical source files:
 - [`../../../guides/macos-app-install/guide.qmd`](../../../guides/macos-app-install/guide.qmd):
   long-form HTML/PDF body source.
 - [`../../../guides/macos-app-install/slides.qmd`](../../../guides/macos-app-install/slides.qmd):
-  Quarto presentation source for the shareable PDF/PPTX walkthrough.
+  maintainable QMD source for the shareable PDF/PPTX walkthrough.
 - [`../../../guides/macos-app-install/screenshots.manifest.json`](../../../guides/macos-app-install/screenshots.manifest.json):
   screenshot provenance, locale, dimensions, expected UI text, and SHA256.
 - [`../../../guides/macos-app-install/screenshots/`](../../../guides/macos-app-install/screenshots/):
@@ -29,6 +29,9 @@ Delivery and generated files:
   generated long-form Markdown snapshot.
 - [`generated/macos-app-install-slides.qmd`](generated/macos-app-install-slides.qmd):
   generated expanded presentation snapshot.
+- `generated/macos-app-install-slides.md` and
+  `generated/macos-app-install-marp-theme.css`: generated static Marp source
+  and theme used only for the slide PDF/PPTX special-case build.
 - `verification/macos-app-install-verification.json`,
   `verification/macos-app-install-html-verification.json`, and
   `verification/macos-app-install-slides-verification.json`: generated
@@ -53,6 +56,8 @@ Update flow:
 
 Long-form HTML/PDF rendering uses Quarto Book with the shared
 [`../../../publishing/templates/opl-guide`](../../../publishing/templates/opl-guide/)
-template. Slides use Quarto presentation to generate PPTX, then LibreOffice
-converts the PPTX to the shareable slide PDF. Do not reintroduce long-form
-guide prose into JSON or hand-maintain generated outputs as content sources.
+template. Slides are a special-case static deck: QMD remains the editable
+content source, while `scripts/build-user-guide-slides.ts` compiles that QMD
+through a Marp theme to generate the shareable PDF and PPTX. Do not reintroduce
+long-form guide prose into JSON or hand-maintain generated outputs as content
+sources.
