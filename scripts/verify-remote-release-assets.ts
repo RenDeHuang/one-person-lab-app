@@ -7,7 +7,6 @@ import { spawnSync } from 'node:child_process';
 import { assertLocalAuthorizationPolicy } from './local-authorization-policy.ts';
 import { fileSha256 } from './release-file-helpers.ts';
 import { runCommand } from './release-cleanup-helpers.ts';
-import { assertFullRuntimeNativeTrustFile } from './full-runtime-native-trust.ts';
 
 function parseArgs(argv) {
   const parsed = {
@@ -89,13 +88,15 @@ function readReleaseView(repo, tag) {
   return JSON.parse(result.stdout);
 }
 
-function requiredAssetNames(version, includeFullPackage) {
+function releaseHasAsset(releaseView, name) {
+  return Array.isArray(releaseView.assets) && releaseView.assets.some((asset) => asset?.name === name);
+}
+
+function requiredAssetNames(version, includeFullPackage, releaseView) {
   const standard = [
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
-    `One-Person-Lab-${version}-mac-arm64.dmg.blockmap`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
-    'latest-mac.yml',
     'latest-arm64-mac.yml',
     'standard-local-authorization-policy.json',
   ];
@@ -105,15 +106,19 @@ function requiredAssetNames(version, includeFullPackage) {
   return [
     ...standard,
     `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
-    'full-package-manifest.json',
-    'runtime-cache-events.json',
-    'full-runtime-currentness-probe.json',
-    'full-runtime-native-trust.json',
-    'full-app-bundle-trim-report.json',
-    'full-package-boundary-audit.json',
-    'README-Full-First-Install.txt',
-    'SHA256SUMS.txt',
-    'full-local-authorization-policy.json',
+    ...(releaseHasAsset(releaseView, 'opl-release-manifest.json')
+      ? ['opl-release-manifest.json']
+      : [
+        'full-package-manifest.json',
+        'runtime-cache-events.json',
+        'full-runtime-currentness-probe.json',
+        'full-runtime-native-trust.json',
+        'full-app-bundle-trim-report.json',
+        'full-package-boundary-audit.json',
+        'README-Full-First-Install.txt',
+        'SHA256SUMS.txt',
+        'full-local-authorization-policy.json',
+      ]),
   ];
 }
 
@@ -171,12 +176,60 @@ function readText(filePath) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+function readJson(filePath) {
+  return JSON.parse(readText(filePath));
+}
+
+function readOptionalJson(downloadDir, name) {
+  const filePath = path.join(downloadDir, name);
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  return readJson(filePath);
+}
+
+function readFullPublicReleaseManifest(downloadDir) {
+  return readOptionalJson(downloadDir, 'opl-release-manifest.json');
+}
+
+function readFullReleaseSection(downloadDir, sectionName, legacyName) {
+  const releaseManifest = readFullPublicReleaseManifest(downloadDir);
+  const section = releaseManifest?.evidence?.[sectionName] ?? releaseManifest?.[sectionName];
+  if (section) {
+    return section;
+  }
+  const legacy = readOptionalJson(downloadDir, legacyName);
+  if (legacy) {
+    return legacy;
+  }
+  throw new Error(`Full release manifest is missing ${sectionName}, and legacy asset ${legacyName} is absent.`);
+}
+
+function readFullPackageManifest(downloadDir) {
+  const releaseManifest = readFullPublicReleaseManifest(downloadDir);
+  if (releaseManifest?.schema === 'opl_public_release_manifest.v1') {
+    return releaseManifest.manifest;
+  }
+  return readOptionalJson(downloadDir, 'full-package-manifest.json');
+}
+
+function readFullLocalAuthorizationPolicy(downloadDir) {
+  const releaseManifest = readFullPublicReleaseManifest(downloadDir);
+  return releaseManifest?.evidence?.local_authorization_policy
+    ?? readOptionalJson(downloadDir, 'full-local-authorization-policy.json');
+}
+
 function assertStandardMetadata(downloadDir, version) {
   const expectedAssets = [
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
   ];
-  for (const name of ['latest-mac.yml', 'latest-arm64-mac.yml']) {
+  const metadataNames = ['latest-arm64-mac.yml'];
+  const legacyMetadataPath = path.join(downloadDir, 'latest-mac.yml');
+  if (fs.existsSync(legacyMetadataPath)) {
+    metadataNames.push('latest-mac.yml');
+  }
+  for (const name of metadataNames) {
     const metadataPath = path.join(downloadDir, name);
     const text = readText(metadataPath);
     if (/One[ .-]Person[ .-]Lab[ .-]Full-|One-Person-Lab-Full-|Full-/i.test(text)) {
@@ -195,6 +248,11 @@ function assertStandardMetadata(downloadDir, version) {
 
 function assertStableLocalAuthorizationPolicy(downloadDir, name, packageKind) {
   const policy = JSON.parse(readText(path.join(downloadDir, name)));
+  assertLocalAuthorizationPolicy(policy, packageKind, name);
+  return policy;
+}
+
+function assertLocalAuthorizationPolicyObject(policy, packageKind, name) {
   assertLocalAuthorizationPolicy(policy, packageKind, name);
   return policy;
 }
@@ -302,11 +360,14 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, version, localAuthoriz
 }
 
 function assertFullRuntimeNativeTrust(downloadDir, manifest) {
-  assertFullRuntimeNativeTrustFile(path.join(downloadDir, 'full-runtime-native-trust.json'), manifest);
+  assertFullRuntimeNativeTrustObject(
+    readFullReleaseSection(downloadDir, 'runtime_native_trust', 'full-runtime-native-trust.json'),
+    manifest,
+  );
 }
 
 function assertFullRuntimeCurrentnessProbe(downloadDir, manifest) {
-  const probe = JSON.parse(readText(path.join(downloadDir, 'full-runtime-currentness-probe.json')));
+  const probe = readFullReleaseSection(downloadDir, 'runtime_currentness_probe', 'full-runtime-currentness-probe.json');
   if (probe?.schema !== 'opl_full_runtime_currentness_probe.v1') {
     throw new Error(`Full runtime currentness probe schema is unexpected: ${probe?.schema}`);
   }
@@ -335,8 +396,8 @@ function assertFullRuntimeCurrentnessProbe(downloadDir, manifest) {
 }
 
 function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
-  const trimReport = JSON.parse(readText(path.join(downloadDir, 'full-app-bundle-trim-report.json')));
-  const boundaryAudit = JSON.parse(readText(path.join(downloadDir, 'full-package-boundary-audit.json')));
+  const trimReport = readFullReleaseSection(downloadDir, 'app_bundle_trim_report', 'full-app-bundle-trim-report.json');
+  const boundaryAudit = readFullReleaseSection(downloadDir, 'package_boundary_audit', 'full-package-boundary-audit.json');
   if (trimReport.schema !== 'opl_full_app_bundle_trim_report.v1') {
     throw new Error(`Full app bundle trim report schema is unexpected: ${trimReport.schema}`);
   }
@@ -407,6 +468,35 @@ function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
         boundaryAudit.standard_app_boundary?.standard_package_allowed_to_contain_full_runtime,
     },
   };
+}
+
+function assertFullRuntimeNativeTrustObject(trust, manifest) {
+  if (trust?.schema !== 'opl_full_runtime_native_trust.v1' || !['passed', 'local_authorized_unsigned', 'not_distributable', 'failed'].includes(trust?.status)) {
+    throw new Error('full-runtime-native-trust.json must record Full runtime native executable diagnostics.');
+  }
+  const temporalBinaryPath = manifest?.components?.temporal_cli?.binary_path;
+  const requiredPaths = [
+    'runtime/current/node/bin/node',
+    ...(typeof temporalBinaryPath === 'string' && temporalBinaryPath ? [temporalBinaryPath] : []),
+  ];
+  const executables = Array.isArray(trust.executables) ? trust.executables : [];
+  if (executables.length === 0 || trust.executable_count !== executables.length) {
+    throw new Error('full-runtime-native-trust.json must list the checked native executables.');
+  }
+  for (const required of requiredPaths) {
+    if (!executables.some((entry) => entry?.relative_path === required)) {
+      throw new Error(`full-runtime-native-trust.json is missing ${required}.`);
+    }
+  }
+  for (const entry of executables) {
+    if (
+      !['passed', 'failed_allowed_unsigned'].includes(entry?.codesign_status) ||
+      !['passed', 'not_required', 'deferred_until_notarized_app', 'failed_allowed_unsigned'].includes(entry?.spctl_status) ||
+      entry?.quarantine_status !== 'absent'
+    ) {
+      throw new Error(`Full runtime native executable is not locally authorized: ${entry?.relative_path || '(unknown)'}.`);
+    }
+  }
 }
 
 function assertPlainObject(value, label) {
@@ -595,28 +685,45 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
 
 function assertFullAssets(downloadDir, version, verifiedAssets) {
   const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
-  const checksumEntries = parseSha256Sums(readText(path.join(downloadDir, 'SHA256SUMS.txt')));
-  for (const name of [
-    fullDmgName,
-    'full-package-manifest.json',
-    'runtime-cache-events.json',
-    'full-runtime-currentness-probe.json',
-    'full-runtime-native-trust.json',
-    'full-app-bundle-trim-report.json',
-    'full-package-boundary-audit.json',
-    'README-Full-First-Install.txt',
-    'full-local-authorization-policy.json',
-  ]) {
-    const expected = checksumEntries.get(name);
-    if (!expected) {
-      throw new Error(`SHA256SUMS.txt is missing ${name}.`);
+  const releaseManifest = readFullPublicReleaseManifest(downloadDir);
+  if (releaseManifest) {
+    if (releaseManifest.schema !== 'opl_public_release_manifest.v1') {
+      throw new Error(`Full release manifest schema is unexpected: ${releaseManifest.schema}`);
     }
-    const actual = fileSha256(path.join(downloadDir, name));
-    if (actual !== expected) {
-      throw new Error(`SHA256SUMS.txt mismatch for ${name}: expected ${expected}, got ${actual}.`);
+    if (releaseManifest.package_kind !== 'opl_full_first_install_macos_arm64') {
+      throw new Error(`Full release manifest package_kind is unexpected: ${releaseManifest.package_kind}`);
+    }
+    if (releaseManifest.version !== version) {
+      throw new Error(`Full release manifest version mismatch: expected ${version}, got ${releaseManifest.version}`);
+    }
+    if (releaseManifest.primary_install_asset !== fullDmgName) {
+      throw new Error(`Full release manifest primary_install_asset mismatch: expected ${fullDmgName}, got ${releaseManifest.primary_install_asset || '(empty)'}`);
     }
   }
-  const manifest = JSON.parse(readText(path.join(downloadDir, 'full-package-manifest.json')));
+  if (!releaseManifest) {
+    const checksumEntries = parseSha256Sums(readText(path.join(downloadDir, 'SHA256SUMS.txt')));
+    for (const name of [
+      fullDmgName,
+      'full-package-manifest.json',
+      'runtime-cache-events.json',
+      'full-runtime-currentness-probe.json',
+      'full-runtime-native-trust.json',
+      'full-app-bundle-trim-report.json',
+      'full-package-boundary-audit.json',
+      'README-Full-First-Install.txt',
+      'full-local-authorization-policy.json',
+    ]) {
+      const expected = checksumEntries.get(name);
+      if (!expected) {
+        throw new Error(`SHA256SUMS.txt is missing ${name}.`);
+      }
+      const actual = fileSha256(path.join(downloadDir, name));
+      if (actual !== expected) {
+        throw new Error(`SHA256SUMS.txt mismatch for ${name}: expected ${expected}, got ${actual}.`);
+      }
+    }
+  }
+  const manifest = readFullPackageManifest(downloadDir);
   if (manifest.version !== version) {
     throw new Error(`Full manifest version mismatch: expected ${version}, got ${manifest.version}`);
   }
@@ -626,17 +733,22 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
   if (manifest?.package_kind !== 'opl_full_first_install_macos_arm64') {
     throw new Error(`Unexpected Full manifest package_kind: ${manifest?.package_kind}`);
   }
-  assertStableLocalAuthorizationPolicy(downloadDir, 'full-local-authorization-policy.json', 'app_full_first_install');
+  assertLocalAuthorizationPolicyObject(
+    readFullLocalAuthorizationPolicy(downloadDir),
+    'app_full_first_install',
+    'full-local-authorization-policy.json',
+  );
   assertFullRuntimeCurrentnessProbe(downloadDir, manifest);
   assertFullRuntimeNativeTrust(downloadDir, manifest);
   const optimizationArtifacts = assertFullPackageOptimizationArtifacts(downloadDir, manifest);
 
-  const runtimeCacheEvents = JSON.parse(readText(path.join(downloadDir, 'runtime-cache-events.json')));
+  const runtimeCacheEvents = readFullReleaseSection(downloadDir, 'runtime_cache_events', 'runtime-cache-events.json');
   if (!Array.isArray(runtimeCacheEvents?.events) || runtimeCacheEvents.events.length === 0) {
     throw new Error('runtime-cache-events.json must include non-empty runtime cache events.');
   }
 
-  const readme = readText(path.join(downloadDir, 'README-Full-First-Install.txt'));
+  const readme = releaseManifest?.evidence?.readme_text
+    ?? readText(path.join(downloadDir, 'README-Full-First-Install.txt'));
   if (/[\u3400-\u9fff]/.test(readme)) {
     throw new Error('README-Full-First-Install.txt must remain English-only.');
   }
@@ -644,6 +756,10 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
   const fullDmgAsset = verifiedAssets.find((asset) => asset.name === fullDmgName);
   if (!fullDmgAsset) {
     throw new Error(`Verified assets are missing ${fullDmgName}.`);
+  }
+  const fullDmgManifestAsset = releaseManifest?.assets?.find((asset) => asset?.name === fullDmgName);
+  if (releaseManifest && fullDmgManifestAsset?.sha256 !== fullDmgAsset.sha256) {
+    throw new Error(`Full release manifest sha256 mismatch for ${fullDmgName}.`);
   }
   return {
     ...assertFullSizeBudget(manifest, fullDmgAsset.size),
@@ -710,7 +826,7 @@ function main() {
   const options = parseArgs(process.argv.slice(2));
   const downloadDir = options.downloadDir || fs.mkdtempSync(path.join(os.tmpdir(), 'opl-remote-release-'));
   const releaseView = readReleaseView(options.repo, options.tag);
-  const names = requiredAssetNames(options.version, options.includeFullPackage);
+  const names = requiredAssetNames(options.version, options.includeFullPackage, releaseView);
 
   if (releaseView.tagName && releaseView.tagName !== options.tag) {
     throw new Error(`Release tag mismatch: expected ${options.tag}, got ${releaseView.tagName}`);

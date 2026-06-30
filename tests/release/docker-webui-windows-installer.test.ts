@@ -43,6 +43,7 @@ test('Windows Docker/WebUI installer exposes the required small parameter surfac
     'EvidenceDir',
     'EvidenceArchive',
     'InstallPrerequisites',
+    'Update',
     'NoOpen',
     'Foreground',
   ]) {
@@ -55,7 +56,9 @@ test('Windows Docker/WebUI installer exposes the required small parameter surfac
 
 test('Windows Docker/WebUI installer writes a compose file with the App-owned WebUI boundary', () => {
   assert.match(installer, /compose\.yaml/);
-  assert.match(installer, /docker @composeArgs/);
+  assert.match(installer, /docker @pullArgs/);
+  assert.match(installer, /docker @upArgs/);
+  assert.match(installer, /pull_policy: always/);
   assert.match(installer, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui/);
   assert.match(installer, /127\.0\.0\.1:\$\{HostPort\}:3000/);
   assert.match(installer, /AIONUI_ALLOW_REMOTE/);
@@ -74,6 +77,7 @@ test('Windows Docker/WebUI installer gates prerequisite installation behind an e
   assert.match(installer, /Wait-WebUiHealth/);
   assert.match(installer, /Test-WebUiHttpHealth/);
   assert.match(installer, /Invoke-WebRequest/);
+  assert.match(installer, /"compose", "-f", \$ComposePath, "pull"/);
   assert.match(installer, /function Write-WebUiAccessReceipt/);
   assert.match(installer, /\/api\/opl-runtime\/configure-codex/);
   assert.match(installer, /api" \+ "Key"/);
@@ -104,6 +108,7 @@ test('Windows Docker/WebUI installer gates prerequisite installation behind an e
   assert.match(installer, /Docker Desktop did not become ready within 180 seconds/);
   assert.match(installer, /Start-DockerDesktopIfPresent/);
   assert.doesNotMatch(installer, /Start-Process\s+(winget|wsl)/);
+  assert.doesNotMatch(installer, /docker\.sock|watchtower/i);
 });
 
 test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is available', { skip: !pwshPath }, () => {
@@ -125,6 +130,7 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
     installerPath,
     '-DryRun',
     '-Yes',
+    '-Update',
     '-Port',
     '3133',
     '-HealthTimeoutSeconds',
@@ -144,6 +150,9 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.match(dryRun.stdout, /Dry run: would write/);
   assert.match(dryRun.stdout, /127\.0\.0\.1:3133:3000/);
   assert.match(dryRun.stdout, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
+  assert.match(dryRun.stdout, /pull_policy: always/);
+  assert.match(dryRun.stdout, /Update mode: pull the configured WebUI image from the host and recreate the compose service/);
+  assert.match(dryRun.stdout, /docker compose .* pull/);
   assert.match(dryRun.stdout, /docker compose .* up -d/);
   assert.match(dryRun.stdout, /would wait up to 5s for WebUI HTTP health at http:\/\/localhost:3133\//);
   assert.match(dryRun.stdout, /would write diagnostic directory .*diagnostics/);
@@ -154,6 +163,7 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.match(dryRun.stdout, /access_key_settings: enter provider keys in the WebUI first-run Access panel or Settings -> Access/);
   assert.match(dryRun.stdout, /runtime_proxy: WebUI uses \/api\/opl-runtime\/configure-codex -> opl system configure-codex --api-key-stdin --json/);
   assert.match(dryRun.stdout, /startup_recovery: if startup fails, collect redacted startup doctor diagnostics/);
+  assert.match(dryRun.stdout, /host_update: rerun this installer, or pass -Update, to pull the WebUI image from the host/);
   assert.match(dryRun.stdout, /Image\/seed: default latest\/stable WebUI image uses the full seed/);
   assert.equal(fs.existsSync(path.join(tempRoot, 'compose.yaml')), false, 'dry-run must not create compose.yaml');
 });

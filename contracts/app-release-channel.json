@@ -15,14 +15,18 @@
   "shell_root": "shells/aionui",
   "standard_updater": {
     "allowed_metadata": [
-      "latest-mac.yml",
       "latest-arm64-mac.yml"
+    ],
+    "legacy_metadata": [
+      "latest-mac.yml"
     ],
     "allowed_assets": [
       "One-Person-Lab-*-mac-arm64.dmg",
       "One-Person-Lab-*-mac-arm64.zip",
-      "One-Person-Lab-*-mac-arm64.dmg.blockmap",
       "One-Person-Lab-*-mac-arm64.zip.blockmap"
+    ],
+    "optional_manual_install_assets": [
+      "One-Person-Lab-*-mac-arm64.dmg"
     ],
     "dmg_compression": {
       "default_format": "ULFO",
@@ -39,7 +43,7 @@
       "ulmo_standard_default_allowed": false,
       "ulmo_postprocess_status": "separate_experiment_required",
       "metadata_blockmap_gate": "node --experimental-strip-types scripts/validate-release.ts release-assets plus focused hdiutil imageinfo/verify readback from a standard macOS build artifact",
-      "rule": "Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.8.1 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves updater metadata, .dmg.blockmap, .zip.blockmap, and latest*.yml still match the published assets before it can replace the default."
+      "rule": "Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.8.1 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves updater metadata, ZIP blockmap, and latest-arm64-mac.yml still match the published assets before it can replace the default."
     },
     "forbidden_asset_substrings": [
       "Full"
@@ -61,11 +65,11 @@
       "verification": "npm run verify-remote-release on macos-latest downloads the published ZIP, extracts One Person Lab.app, verifies the bundle version, records codesign/spctl/signature diagnostics, and accepts ad-hoc or unsigned bundles only when standard-local-authorization-policy.json declares Stable local authorization with quarantine removal required",
       "rule": "standard updater replacement is App-managed local authorization: the updater ZIP must contain the expected One Person Lab.app bundle, and release evidence must include the standard local authorization policy rather than requiring paid Apple Developer ID signing"
     },
-    "rule": "standard updater metadata must never point to Full first-install assets, and standard updater ZIP assets must contain the expected One Person Lab.app bundle plus local authorization evidence",
+    "rule": "standard updater metadata is canonical arm64-only latest-arm64-mac.yml, must never point to Full first-install assets, and standard updater ZIP assets must contain the expected One Person Lab.app bundle plus local authorization evidence; latest-mac.yml is a legacy compatibility alias only when deliberately published.",
     "same_tag_refresh": {
       "allowed": true,
       "mode": "github_actions_prebuilt_assets_upload_clobber",
-      "scope": "standard App DMG, ZIP, blockmaps, and updater metadata for an existing release"
+      "scope": "standard App DMG, ZIP, ZIP blockmap, canonical arm64 updater metadata, and local authorization policy for an existing release"
     },
     "managed_update_plane": "app_binary_only",
     "apply_lifecycle": {
@@ -328,9 +332,7 @@
     "asset_scope": [
       "One-Person-Lab-<version>-mac-arm64.dmg",
       "One-Person-Lab-<version>-mac-arm64.zip",
-      "One-Person-Lab-<version>-mac-arm64.dmg.blockmap",
       "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
-      "latest-mac.yml",
       "latest-arm64-mac.yml"
     ],
     "rule": "Nightly releases publish standard macOS arm64 updater assets only and remain visible only to prerelease opt-in update checks."
@@ -762,9 +764,10 @@
       "optimization_artifacts": {
         "manifest_section": "package_optimization",
         "schema": "opl_full_package_optimization.v1",
-        "trim_report": "full-app-bundle-trim-report.json",
+        "public_manifest": "opl-release-manifest.json",
+        "trim_report": "opl-release-manifest.json#evidence.app_bundle_trim_report",
         "trim_report_schema": "opl_full_app_bundle_trim_report.v1",
-        "boundary_audit": "full-package-boundary-audit.json",
+        "boundary_audit": "opl-release-manifest.json#evidence.package_boundary_audit",
         "boundary_audit_schema": "opl_full_package_boundary_audit.v1",
         "size_summary": "full-package-size-summary.json",
         "mode": "explicit_non_runtime_prune_only",
@@ -780,6 +783,9 @@
           "Contents/Frameworks/Electron Framework.framework"
         ],
         "required_remote_assets": [
+          "opl-release-manifest.json"
+        ],
+        "transition_accepted_legacy_remote_assets": [
           "full-app-bundle-trim-report.json",
           "full-package-boundary-audit.json"
         ],
@@ -1502,14 +1508,15 @@
       "standard_required_assets": [
         "One-Person-Lab-<version>-mac-arm64.dmg",
         "One-Person-Lab-<version>-mac-arm64.zip",
-        "One-Person-Lab-<version>-mac-arm64.dmg.blockmap",
         "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
-        "latest-mac.yml",
         "latest-arm64-mac.yml",
         "standard-local-authorization-policy.json"
       ],
       "full_required_assets": [
         "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+        "opl-release-manifest.json"
+      ],
+      "full_transition_accepted_legacy_assets": [
         "full-package-manifest.json",
         "runtime-cache-events.json",
         "full-runtime-currentness-probe.json",
@@ -2328,13 +2335,14 @@
       "updater": "electron_standard_updater",
       "scope": "desktop_app_assets_only",
       "allowed_metadata": [
-        "latest-mac.yml",
         "latest-arm64-mac.yml"
+      ],
+      "legacy_metadata": [
+        "latest-mac.yml"
       ],
       "allowed_assets": [
         "One-Person-Lab-*-mac-arm64.dmg",
         "One-Person-Lab-*-mac-arm64.zip",
-        "One-Person-Lab-*-mac-arm64.dmg.blockmap",
         "One-Person-Lab-*-mac-arm64.zip.blockmap"
       ],
       "apply_lifecycle": {

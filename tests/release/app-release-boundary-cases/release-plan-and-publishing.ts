@@ -616,9 +616,9 @@ test('publish dry run skips existing release assets when a resumed upload alread
     { name: dmgName, size: Buffer.byteLength(dmgContent), digest: `sha256:${sha256(dmgContent)}` },
     { name: zipName, size: Buffer.byteLength(zipContent), digest: `sha256:${sha256(zipContent)}` },
     {
-      name: 'latest-mac.yml',
-      size: fs.statSync(path.join(outDir, 'latest-mac.yml')).size,
-      digest: `sha256:${sha256(fs.readFileSync(path.join(outDir, 'latest-mac.yml')))}`,
+      name: 'latest-arm64-mac.yml',
+      size: fs.statSync(path.join(outDir, 'latest-arm64-mac.yml')).size,
+      digest: `sha256:${sha256(fs.readFileSync(path.join(outDir, 'latest-arm64-mac.yml')))}`,
     },
   ];
   const result = runNode([

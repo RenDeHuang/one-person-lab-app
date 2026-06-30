@@ -295,7 +295,8 @@
             "access_key_settings",
             "runtime_proxy",
             "startup_recovery",
-            "data_preservation"
+            "data_preservation",
+            "host_update"
           ],
           "rows": {
             "one_click_install": "Run the one-click installer to create compose.yaml, data/projects directories, and start the WebUI image.",
@@ -303,7 +304,8 @@
             "access_key_settings": "Enter provider access keys in the WebUI first-run Access panel or Settings -> Access.",
             "runtime_proxy": "The WebUI configures Codex through /api/opl-runtime/configure-codex using stdin transport.",
             "startup_recovery": "If startup fails, collect the redacted startup doctor diagnostics and rerun after the Docker, port, image, or data issue is fixed.",
-            "data_preservation": "Keep host OnePersonLab/data and OnePersonLab/projects mounted and preserved across image/container replacement."
+            "data_preservation": "Keep host OnePersonLab/data and OnePersonLab/projects mounted and preserved across image/container replacement.",
+            "host_update": "Update the WebUI image from the host by rerunning the installer or using its explicit update mode; the browser WebUI must not self-update containers through a Docker socket."
           },
           "settings_entry": "Settings -> Access",
           "image_seed_selection": "Default latest/stable image must use the WebUI full seed; --tag and --image are explicit advanced overrides.",
@@ -394,6 +396,25 @@
           "base_linux_layer",
           "preheated_seed_payload"
         ],
+        "image_update_model": {
+          "owner": "host_installer_or_operator",
+          "linux_macos_entrypoint": "install-docker-webui.sh --update",
+          "windows_entrypoint": "install-docker-webui.ps1 -Update",
+          "rerun_semantics": "rerunning_the_one_click_installer_is_equivalent_to_host_side_image_pull_and_compose_recreate",
+          "required_host_commands": [
+            "docker compose pull",
+            "docker compose up"
+          ],
+          "preserve_host_dirs": [
+            "/data",
+            "/projects"
+          ],
+          "forbidden_mechanisms": [
+            "WebUI_self_update_via_Docker_socket",
+            "Docker_socket_mount",
+            "Watchtower_or_container_side_auto_updater"
+          ]
+        },
         "opl_managed_update_scope": [
           "opl_framework",
           "codex_cli",

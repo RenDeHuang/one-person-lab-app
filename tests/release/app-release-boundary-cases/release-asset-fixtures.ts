@@ -9,7 +9,7 @@ import {
 } from './helpers-core.ts';
 
 export function writeReleaseMetadata(outDir, version, assetName) {
-  writeFile(path.join(outDir, 'latest-mac.yml'), [
+  writeFile(path.join(outDir, 'latest-arm64-mac.yml'), [
     `version: ${version}`,
     'files:',
     `  - url: ${assetName}`,
@@ -99,9 +99,7 @@ export function standardRemoteAssetNames(version) {
   return [
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
-    `One-Person-Lab-${version}-mac-arm64.dmg.blockmap`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
-    'latest-mac.yml',
     'latest-arm64-mac.yml',
     'standard-local-authorization-policy.json',
   ];
@@ -153,7 +151,6 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
   const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
   writeFile(path.join(outDir, dmgName), 'standard-dmg');
   writeStandardUpdaterZip(path.join(outDir, zipName), version);
-  writeFile(path.join(outDir, `${dmgName}.blockmap`), 'standard-dmg-blockmap');
   writeFile(path.join(outDir, `${zipName}.blockmap`), 'standard-zip-blockmap');
   writeStandardLocalAuthorizationPolicy(outDir);
   const metadata = [
@@ -170,8 +167,10 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
     ...(options.fullLeak ? [`notes: One-Person-Lab-Full-${version}-mac-arm64.dmg`] : []),
     '',
   ].join('\n');
-  writeFile(path.join(outDir, 'latest-mac.yml'), metadata);
   writeFile(path.join(outDir, 'latest-arm64-mac.yml'), metadata);
+  if (options.legacyMetadata) {
+    writeFile(path.join(outDir, 'latest-mac.yml'), metadata);
+  }
   return names;
 }
 

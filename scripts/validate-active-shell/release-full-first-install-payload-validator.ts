@@ -98,9 +98,10 @@ function validateReleaseFullSizeOptimizationPolicy(sizePolicy) {
   if (
     artifacts?.schema !== 'opl_full_package_optimization.v1' ||
     artifacts?.manifest_section !== 'package_optimization' ||
-    artifacts?.trim_report !== 'full-app-bundle-trim-report.json' ||
+    artifacts?.public_manifest !== 'opl-release-manifest.json' ||
+    artifacts?.trim_report !== 'opl-release-manifest.json#evidence.app_bundle_trim_report' ||
     artifacts?.trim_report_schema !== 'opl_full_app_bundle_trim_report.v1' ||
-    artifacts?.boundary_audit !== 'full-package-boundary-audit.json' ||
+    artifacts?.boundary_audit !== 'opl-release-manifest.json#evidence.package_boundary_audit' ||
     artifacts?.boundary_audit_schema !== 'opl_full_package_boundary_audit.v1' ||
     artifacts?.mode !== 'explicit_non_runtime_prune_only' ||
     artifacts?.required_manifest_flags?.offline_first_install_completeness_preserved !== true ||
@@ -121,7 +122,12 @@ function validateReleaseFullSizeOptimizationPolicy(sizePolicy) {
   );
   assertIncludesAll(
     artifacts.required_remote_assets,
-    ['full-app-bundle-trim-report.json', 'full-package-boundary-audit.json'],
+    ['opl-release-manifest.json'],
     'Release channel Full optimization remote assets',
+  );
+  assertIncludesAll(
+    artifacts.transition_accepted_legacy_remote_assets,
+    ['full-app-bundle-trim-report.json', 'full-package-boundary-audit.json'],
+    'Release channel Full optimization transition legacy remote assets',
   );
 }

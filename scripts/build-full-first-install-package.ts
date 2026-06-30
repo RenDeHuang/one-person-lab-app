@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -29,6 +30,52 @@ import { durationSeconds, monotonicSeconds, run } from './build-full-first-insta
 import { buildRuntimeCacheKeyReport } from './build-full-first-install-package/runtime-cache.ts';
 import { resolveRuntimeSources } from './build-full-first-install-package/runtime-sources.ts';
 import { prepareRuntime } from './build-full-first-install-package/staging.ts';
+
+function readJsonIfExists(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function fileSha256(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function buildFullPublicReleaseManifest(input) {
+  return {
+    schema: 'opl_public_release_manifest.v1',
+    package_kind: 'opl_full_first_install_macos_arm64',
+    version: input.version,
+    primary_install_asset: input.artifactNames.dmg,
+    assets: [
+      {
+        name: input.artifactNames.dmg,
+        role: 'full_first_install_carrier',
+        size_bytes: fs.statSync(input.fullDmgPath).size,
+        sha256: fileSha256(input.fullDmgPath),
+      },
+    ],
+    manifest: input.fullPackageManifest,
+    evidence: {
+      runtime_cache_events: input.runtimeCacheEvents,
+      runtime_currentness_probe: readJsonIfExists(input.runtimeCurrentnessProbePath),
+      runtime_native_trust: input.runtimeNativeTrust,
+      app_bundle_trim_report: input.appBundleTrimReport,
+      package_boundary_audit: input.packageBoundaryAudit,
+      local_authorization_policy: readJsonIfExists(path.join(input.outDir, 'full-local-authorization-policy.json')),
+      readme_asset: input.artifactNames.readme,
+    },
+    transition_legacy_assets: [
+      input.artifactNames.manifest,
+      input.artifactNames.runtimeCacheEvents,
+      'full-runtime-currentness-probe.json',
+      'full-runtime-native-trust.json',
+      'full-app-bundle-trim-report.json',
+      'full-package-boundary-audit.json',
+    ],
+  };
+}
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
@@ -143,13 +190,22 @@ function main() {
     runtimeTarName: runtimeTar ? artifactNames.runtimeTar : null,
     notarized: process.env.OPL_FULL_PACKAGE_NOTARIZED === 'true',
   }), 'utf8');
+  const releaseManifestPath = path.join(options.outDir, artifactNames.releaseManifest);
+  writeJsonFile(releaseManifestPath, buildFullPublicReleaseManifest({
+    version: options.version,
+    artifactNames,
+    outDir: options.outDir,
+    fullDmgPath: targetDmg,
+    fullPackageManifest: prepared.manifest,
+    runtimeCacheEvents: prepared.runtime_cache,
+    runtimeCurrentnessProbePath: path.join(options.outDir, 'full-runtime-currentness-probe.json'),
+    runtimeNativeTrust: prepared.manifest.native_trust,
+    appBundleTrimReport: optimizedPackage?.app_bundle_trim ?? null,
+    packageBoundaryAudit: optimizedPackage?.package_boundary_audit ?? null,
+  }));
   const checksumPath = writeChecksums(options.outDir, [
     targetDmg,
-    manifestPath,
-    runtimeCacheEventsPath,
-    runtimeNativeTrustPath,
-    ...(optimizedPackage?.app_bundle_trim ? [appBundleTrimPath] : []),
-    ...(optimizedPackage?.package_boundary_audit ? [packageBoundaryAuditPath] : []),
+    releaseManifestPath,
     readmePath,
     ...(runtimeTar ? [runtimeTar] : []),
   ]);
@@ -179,6 +235,7 @@ function main() {
     dmg: targetDmg,
     runtime_tar: runtimeTar,
     manifest: manifestPath,
+    release_manifest: releaseManifestPath,
     runtime_cache_events: runtimeCacheEventsPath,
     runtime_native_trust: runtimeNativeTrustPath,
     app_bundle_trim_report: optimizedPackage?.app_bundle_trim ? appBundleTrimPath : null,

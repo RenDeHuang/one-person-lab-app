@@ -17,7 +17,80 @@ import {
   writeStandardRemoteAssets,
   writeFullRemoteAssets,
   walkFiles,
+  fileSha256,
 } from './helpers.ts';
+
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function writeJson(filePath, value) {
+  writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function consolidateFullReleaseManifest(assetDir, version, names) {
+  const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const manifest = readJson(path.join(assetDir, 'full-package-manifest.json'));
+  const releaseManifestName = 'opl-release-manifest.json';
+  writeJson(path.join(assetDir, releaseManifestName), {
+    schema: 'opl_public_release_manifest.v1',
+    package_kind: 'opl_full_first_install_macos_arm64',
+    version,
+    primary_install_asset: fullDmgName,
+    assets: [
+      {
+        name: fullDmgName,
+        role: 'full_first_install_carrier',
+        size_bytes: fs.statSync(path.join(assetDir, fullDmgName)).size,
+        sha256: fileSha256(path.join(assetDir, fullDmgName)),
+      },
+    ],
+    manifest,
+    evidence: {
+      runtime_cache_events: readJson(path.join(assetDir, 'runtime-cache-events.json')),
+      runtime_currentness_probe: readJson(path.join(assetDir, 'full-runtime-currentness-probe.json')),
+      runtime_native_trust: readJson(path.join(assetDir, 'full-runtime-native-trust.json')),
+      app_bundle_trim_report: readJson(path.join(assetDir, 'full-app-bundle-trim-report.json')),
+      package_boundary_audit: readJson(path.join(assetDir, 'full-package-boundary-audit.json')),
+      local_authorization_policy: readJson(path.join(assetDir, 'full-local-authorization-policy.json')),
+      readme_text: fs.readFileSync(path.join(assetDir, 'README-Full-First-Install.txt'), 'utf8'),
+    },
+    transition_legacy_assets: [
+      'full-package-manifest.json',
+      'runtime-cache-events.json',
+      'full-runtime-currentness-probe.json',
+      'full-runtime-native-trust.json',
+      'full-app-bundle-trim-report.json',
+      'full-package-boundary-audit.json',
+    ],
+  });
+  for (const name of [
+    'full-package-manifest.json',
+    'runtime-cache-events.json',
+    'full-runtime-currentness-probe.json',
+    'full-runtime-native-trust.json',
+    'full-app-bundle-trim-report.json',
+    'full-package-boundary-audit.json',
+    'README-Full-First-Install.txt',
+    'SHA256SUMS.txt',
+    'full-local-authorization-policy.json',
+  ]) {
+    fs.rmSync(path.join(assetDir, name), { force: true });
+  }
+  return names
+    .filter((name) => name === fullDmgName || ![
+      'full-package-manifest.json',
+      'runtime-cache-events.json',
+      'full-runtime-currentness-probe.json',
+      'full-runtime-native-trust.json',
+      'full-app-bundle-trim-report.json',
+      'full-package-boundary-audit.json',
+      'README-Full-First-Install.txt',
+      'SHA256SUMS.txt',
+      'full-local-authorization-policy.json',
+    ].includes(name))
+    .concat(releaseManifestName);
+}
 
 test('App-owned automation entrypoints are TypeScript, not JavaScript wrappers', () => {
   const appOwnedEntrypoints = [
@@ -103,9 +176,7 @@ test('publish dry run accepts prebuilt standard release assets from GitHub Actio
 
   writeFile(path.join(releaseAssetsDir, dmgName));
   writeFile(path.join(releaseAssetsDir, zipName));
-  writeFile(path.join(releaseAssetsDir, `${dmgName}.blockmap`));
   writeFile(path.join(releaseAssetsDir, `${zipName}.blockmap`));
-  writeFile(path.join(releaseAssetsDir, 'latest-mac.yml'), metadata);
   writeFile(path.join(releaseAssetsDir, 'latest-arm64-mac.yml'), metadata);
   writeStandardLocalAuthorizationPolicy(releaseAssetsDir);
 
@@ -157,11 +228,12 @@ test('prebuilt standard release assets must include updater metadata', () => {
   });
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /latest-mac\.yml/);
+  assert.match(result.stderr, /latest-arm64-mac\.yml/);
 });
 
 test('release asset validation fails before tagging when updater metadata keeps the shell version', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-shell-version-metadata-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
   const releaseAssetsDir = path.join(tempRoot, 'release-assets');
   const version = '26.5.25';
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
@@ -182,18 +254,25 @@ test('release asset validation fails before tagging when updater metadata keeps 
 
   writeFile(path.join(releaseAssetsDir, dmgName));
   writeFile(path.join(releaseAssetsDir, zipName));
-  writeFile(path.join(releaseAssetsDir, `${dmgName}.blockmap`));
   writeFile(path.join(releaseAssetsDir, `${zipName}.blockmap`));
-  writeFile(path.join(releaseAssetsDir, 'latest-mac.yml'), metadata);
   writeFile(path.join(releaseAssetsDir, 'latest-arm64-mac.yml'), metadata);
+  writeStandardLocalAuthorizationPolicy(releaseAssetsDir);
+  writeFile(
+    path.join(shellRoot, 'scripts', 'verify-release-assets.sh'),
+    ['#!/usr/bin/env bash', 'exit 0', ''].join('\n'),
+  );
+  fs.chmodSync(path.join(shellRoot, 'scripts', 'verify-release-assets.sh'), 0o755);
 
   const result = runNode(['scripts/validate-release.ts', releaseAssetsDir], {
-    env: { OPL_RELEASE_VERSION: version },
+    env: {
+      OPL_APP_SHELL_ROOT: shellRoot,
+      OPL_RELEASE_VERSION: version,
+    },
   });
+  const validationOutput = `${result.stdout}${result.stderr}`;
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /latest-mac\.yml does not declare OPL release version 26\.5\.25/);
-  assert.match(result.stderr, /latest-arm64-mac\.yml does not declare OPL release version 26\.5\.25/);
+  assert.match(validationOutput, /latest-arm64-mac\.yml does not declare OPL release version 26\.5\.25/);
 });
 
 test('release asset preparation drops stale standard assets from older OPL versions', () => {
@@ -248,7 +327,6 @@ test('release asset preparation drops stale standard assets from older OPL versi
   );
   writeFile(path.join(artifactsDir, `One-Person-Lab-${previousVersion}-mac-arm64.dmg.blockmap`));
   writeFile(path.join(artifactsDir, `One-Person-Lab-${previousVersion}-mac-arm64.zip.blockmap`));
-  writeFile(path.join(artifactsDir, 'latest-mac.yml'), metadata);
   writeFile(path.join(artifactsDir, 'latest-arm64-mac.yml'), metadata);
 
   const result = runNode(['scripts/prepare-release-assets.ts', artifactsDir, releaseAssetsDir], {
@@ -261,11 +339,9 @@ test('release asset preparation drops stale standard assets from older OPL versi
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(fs.readdirSync(releaseAssetsDir).sort(), [
     dmgName,
-    `${dmgName}.blockmap`,
     zipName,
     `${zipName}.blockmap`,
     'latest-arm64-mac.yml',
-    'latest-mac.yml',
     'standard-local-authorization-policy.json',
   ]);
 });
@@ -309,7 +385,6 @@ test('release asset preparation preserves App-owned local authorization policy w
   writeFile(path.join(artifactsDir, zipName));
   writeFile(path.join(artifactsDir, `${dmgName}.blockmap`));
   writeFile(path.join(artifactsDir, `${zipName}.blockmap`));
-  writeFile(path.join(artifactsDir, 'latest-mac.yml'), metadata);
   writeFile(path.join(artifactsDir, 'latest-arm64-mac.yml'), metadata);
   writeFile(
     path.join(artifactsDir, 'standard-local-authorization-policy.json'),
@@ -377,7 +452,6 @@ test('release asset preparation preserves local authorization policy from GitHub
   writeFile(path.join(buildArtifactDir, zipName));
   writeFile(path.join(buildArtifactDir, `${dmgName}.blockmap`));
   writeFile(path.join(buildArtifactDir, `${zipName}.blockmap`));
-  writeFile(path.join(buildArtifactDir, 'latest-mac.yml'), metadata);
   writeFile(path.join(buildArtifactDir, 'latest-arm64-mac.yml'), metadata);
   writeStandardLocalAuthorizationPolicy(buildArtifactDir);
 
@@ -396,10 +470,10 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-'));
   const binDir = path.join(tempRoot, 'bin');
   const version = '26.5.19-remote';
-  const names = [
+  const names = consolidateFullReleaseManifest(tempRoot, version, [
     ...writeStandardRemoteAssets(tempRoot, version),
     ...writeFullRemoteAssets(tempRoot, version),
-  ];
+  ]);
   const summaryPath = path.join(tempRoot, 'remote-release-verification.json');
   const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
   writeFakeMacosTrustCommands(binDir);
@@ -432,6 +506,8 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.download_dir, tempRoot);
   assert.equal(summary.verified_asset_count, names.length);
   assert.deepEqual(summary.verified_assets.map((asset) => asset.name), names);
+  assert.ok(summary.verified_assets.some((asset) => asset.name === 'opl-release-manifest.json'));
+  assert.ok(!summary.verified_assets.some((asset) => asset.name === 'full-package-manifest.json'));
   assert.equal(summary.standard_updater_app_bundle_trust.status, 'passed');
   assert.equal(summary.standard_updater_app_bundle_trust.version, version);
   assert.equal(summary.standard_updater_app_bundle_trust.team_identifier, 'TESTTEAMID');
@@ -494,6 +570,42 @@ test('remote release verifier rejects diagnostic-only files as public GitHub Rel
   assert.match(result.stderr, /full-package-size-summary\.json/);
   assert.match(result.stderr, /full-workflow-telemetry\.json/);
   assert.match(result.stderr, /standard-release-notes-evidence\.json/);
+});
+
+test('remote release verifier accepts legacy separate Full evidence assets during manifest transition', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-legacy-full-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const version = '26.5.19-legacy';
+  const names = [
+    ...writeStandardRemoteAssets(tempRoot, version),
+    ...writeFullRemoteAssets(tempRoot, version),
+  ];
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+  writeFakeMacosTrustCommands(binDir);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version',
+    version,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--include-full-package',
+    '--download-dir',
+    tempRoot,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.status, 'passed');
+  assert.ok(summary.verified_assets.some((asset) => asset.name === 'full-package-manifest.json'));
+  assert.ok(!summary.verified_assets.some((asset) => asset.name === 'opl-release-manifest.json'));
+  assert.equal(summary.full_first_install_budget.status, 'passed');
 });
 
 test('remote release verifier accepts ad-hoc signed standard updater app zips under local authorization policy', () => {
@@ -622,7 +734,7 @@ test('remote release verifier rejects standard updater metadata that references 
   });
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /latest-mac\.yml references Full first-install assets/);
+  assert.match(result.stderr, /latest-arm64-mac\.yml references Full first-install assets/);
 });
 
 test('remote release verifier warns when Full DMG review threshold is exceeded', () => {

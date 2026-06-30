@@ -59,7 +59,7 @@ function preserveStandardLocalAuthorizationPolicy(): void {
 
 function readMetadataVersion(): string {
   const versions = new Set<string>();
-  for (const metadataName of ['latest-mac.yml', 'latest-arm64-mac.yml']) {
+  for (const metadataName of ['latest-arm64-mac.yml', 'latest-mac.yml']) {
     const metadataPath = path.join(outputDir, metadataName);
     if (!fs.existsSync(metadataPath)) {
       continue;
@@ -78,12 +78,23 @@ function readMetadataVersion(): string {
   return '';
 }
 
+function ensureCanonicalArm64Metadata(): void {
+  const canonical = path.join(outputDir, 'latest-arm64-mac.yml');
+  const legacy = path.join(outputDir, 'latest-mac.yml');
+  if (!fs.existsSync(canonical) && fs.existsSync(legacy)) {
+    fs.copyFileSync(legacy, canonical);
+  }
+  if (fs.existsSync(legacy)) {
+    fs.rmSync(legacy, { force: true });
+  }
+}
+
 function filterStandardAssetsToVersion(version: string): void {
   if (!version) {
     return;
   }
   const escapedVersion = escapeRegExp(version);
-  const currentAsset = new RegExp(`^One-Person-Lab-${escapedVersion}-mac-arm64\\.(?:dmg|zip)(?:\\.blockmap)?$`);
+  const currentAsset = new RegExp(`^(?:One-Person-Lab-${escapedVersion}-mac-arm64\\.(?:dmg|zip)|One-Person-Lab-${escapedVersion}-mac-arm64\\.zip\\.blockmap)$`);
   const standardAsset = /^One-Person-Lab-.+-mac-arm64\.(?:dmg|zip)(?:\.blockmap)?$/;
   for (const entry of fs.readdirSync(outputDir)) {
     if (!standardAsset.test(entry) || currentAsset.test(entry)) {
@@ -94,4 +105,5 @@ function filterStandardAssetsToVersion(version: string): void {
 }
 
 preserveStandardLocalAuthorizationPolicy();
+ensureCanonicalArm64Metadata();
 filterStandardAssetsToVersion(expectedVersion || readMetadataVersion());

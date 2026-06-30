@@ -825,7 +825,6 @@
       "standard_channel": {
         "implementation_reference": "electron_autoUpdater_background_download_update_downloaded_restart_prompt",
         "metadata_scope": [
-          "latest-mac.yml",
           "latest-arm64-mac.yml"
         ],
         "download_policy": "background_download",

@@ -396,7 +396,9 @@ Stable macOS standard updater releases use App-managed local authorization. Paid
 Required local authorization evidence:
 
 - `standard-local-authorization-policy.json` for standard assets.
-- `full-local-authorization-policy.json` for Full assets.
+- `opl-release-manifest.json#evidence.local_authorization_policy` for Full
+  assets. Existing releases that still publish `full-local-authorization-policy.json`
+  remain accepted during the transition.
 - Remote ZIP extraction on a macOS runner.
 - Embedded bundle version check.
 - `codesign` / `spctl` diagnostics.
@@ -422,7 +424,14 @@ image, Full manifest refs, cache hits, or remote asset presence can provide
 provenance or diagnostics only; none of them can replace clean-install installed
 App resource/runtime activation evidence.
 
-Full assets are GitHub Release first-install downloads and explicit stable `one-person-lab-full` cask inputs. They are not standard updater targets.
+Full public release assets are the Full DMG install carrier and
+`opl-release-manifest.json`. The manifest consolidates the previous separate
+Full package manifest, runtime cache events, runtime currentness probe, native
+trust, local authorization policy, and package optimization evidence. Existing
+releases that still expose those files separately remain accepted by remote
+verification during the transition. Full assets are GitHub Release first-install
+downloads and explicit stable `one-person-lab-full` cask inputs. They are not
+standard updater targets.
 
 The physical App assembly still records legacy layer buckets for cache and size accounting, but those buckets map to the OPL runtime bundle taxonomy:
 
@@ -441,7 +450,7 @@ Release review records compressed DMG size, uncompressed runtime size, top
 component/layer contributors, optimization candidates, App-bundle trim evidence,
 and package-boundary audit evidence. The remote verifier measures compressed
 Full DMG bytes from the GitHub asset size and the uncompressed runtime bytes
-from `full-package-manifest.json`
+from `opl-release-manifest.json#manifest`
 `size_breakdown.total_runtime_uncompressed_bytes`.
 
 Current policy values live in
@@ -463,14 +472,17 @@ completeness, bundled Core readiness, or native trust evidence to make the DMG
 smaller.
 
 The Full package writes `package_optimization` into
-`full-package-manifest.json`, plus `full-app-bundle-trim-report.json` and
-`full-package-boundary-audit.json`. These artifacts are required Full assets and
-checksum entries. They can prove explicit non-runtime pruning, payload boundary
-preservation, and size-review release decoupling; they cannot replace the
-same-cohort Full clean VM smoke, native trust evidence, remote asset readback, or
-release-owner receipt. Full DMG warning/review-threshold status alone must not
-block stable clean evidence unless a hard size limit, uncompressed runtime
-limit, offline payload boundary, native trust, or Full clean VM gate fails.
+`opl-release-manifest.json#manifest.package_optimization` and carries the trim
+report and boundary audit under `#evidence.app_bundle_trim_report` and
+`#evidence.package_boundary_audit`. Legacy `full-package-manifest.json`,
+`full-app-bundle-trim-report.json`, and `full-package-boundary-audit.json`
+release assets are accepted only as transition alternatives. This evidence can
+prove explicit non-runtime pruning, payload boundary preservation, and
+size-review release decoupling; it cannot replace the same-cohort Full clean VM
+smoke, native trust evidence, remote asset readback, or release-owner receipt.
+Full DMG warning/review-threshold status alone must not block stable clean
+evidence unless a hard size limit, uncompressed runtime limit, offline payload
+boundary, native trust, or Full clean VM gate fails.
 
 Full runtime pruning is governed by
 `contracts/full-runtime-prune-policy.json`. This is the single machine-readable

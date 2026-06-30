@@ -68,6 +68,14 @@ directory itself or a `.zip` archive produced by the installer. The importer
 accepts both forms and applies the same manifest, diagnostics, API key flow,
 and secret-scan validation after extracting the archive.
 
+Docker/WebUI image updates are a host-side lane. The accepted update path is to
+rerun the one-click installer or use `install-docker-webui.sh --update` /
+`install-docker-webui.ps1 -Update`, which runs Docker Compose from the host to
+pull the configured image and recreate the service while preserving mounted
+`/data` and `/projects`. Do not treat WebUI self-update through a Docker socket,
+a Docker socket mount, Watchtower, or any container-side auto-updater as release
+evidence for this lane.
+
 ## Desktop Release Import
 
 The desktop release workflow has an explicit import gate for clean VM evidence:

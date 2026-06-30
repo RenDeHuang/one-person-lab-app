@@ -351,7 +351,6 @@ test('App product profile owns user-facing defaults without runtime authority', 
     'electron_autoUpdater_background_download_update_downloaded_restart_prompt',
   );
   assert.deepEqual(profile.first_run.updates.standard_channel.metadata_scope, [
-    'latest-mac.yml',
     'latest-arm64-mac.yml',
   ]);
   assert.equal(profile.first_run.updates.standard_channel.download_policy, 'background_download');
@@ -517,6 +516,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'runtime_proxy',
     'startup_recovery',
     'data_preservation',
+    'host_update',
   ]);
   assert.equal(
     dockerWebui.installer_model.operator_readable_status.priority,
@@ -534,6 +534,10 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.match(
     dockerWebui.installer_model.operator_readable_status.rows.runtime_proxy,
     /\/api\/opl-runtime\/configure-codex/,
+  );
+  assert.match(
+    dockerWebui.installer_model.operator_readable_status.rows.host_update,
+    /must not self-update containers through a Docker socket/,
   );
   assert.match(
     dockerWebui.installer_model.operator_readable_status.image_seed_selection,
@@ -589,6 +593,19 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     dockerWebui.installer_model.online_availability_claim_policy,
     'repo_contract_and_artifacts_only_until_release_or_publish_receipt_exists',
   );
+  assert.deepEqual(dockerWebui.runtime_distribution_model.image_update_model, {
+    owner: 'host_installer_or_operator',
+    linux_macos_entrypoint: 'install-docker-webui.sh --update',
+    windows_entrypoint: 'install-docker-webui.ps1 -Update',
+    rerun_semantics: 'rerunning_the_one_click_installer_is_equivalent_to_host_side_image_pull_and_compose_recreate',
+    required_host_commands: ['docker compose pull', 'docker compose up'],
+    preserve_host_dirs: ['/data', '/projects'],
+    forbidden_mechanisms: [
+      'WebUI_self_update_via_Docker_socket',
+      'Docker_socket_mount',
+      'Watchtower_or_container_side_auto_updater',
+    ],
+  });
   assert.equal(dockerWebui.smoke_gate_contract.status, 'required_manual_or_workflow_gate_not_live_evidence');
   assert.equal(
     dockerWebui.smoke_gate_contract.release_readiness_policy,

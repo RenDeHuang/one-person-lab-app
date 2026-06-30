@@ -160,6 +160,7 @@ export function buildFullPackageArtifactNames(versionInput: string) {
     checksums: 'SHA256SUMS.txt',
     readme: 'README-Full-First-Install.txt',
     manifest: 'full-package-manifest.json',
+    releaseManifest: 'opl-release-manifest.json',
     runtimeCacheEvents: 'runtime-cache-events.json',
   };
 }

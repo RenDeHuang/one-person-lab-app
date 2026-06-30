@@ -567,8 +567,9 @@ test('Full size policy records review semantics, measured v26.6.21 breakdown, an
     size_review_release_blocking_by_size_alone: false,
   });
   assert.equal(sizePolicy.optimization_artifacts.manifest_section, 'package_optimization');
-  assert.equal(sizePolicy.optimization_artifacts.trim_report, 'full-app-bundle-trim-report.json');
-  assert.equal(sizePolicy.optimization_artifacts.boundary_audit, 'full-package-boundary-audit.json');
+  assert.equal(sizePolicy.optimization_artifacts.public_manifest, 'opl-release-manifest.json');
+  assert.equal(sizePolicy.optimization_artifacts.trim_report, 'opl-release-manifest.json#evidence.app_bundle_trim_report');
+  assert.equal(sizePolicy.optimization_artifacts.boundary_audit, 'opl-release-manifest.json#evidence.package_boundary_audit');
   assert.equal(sizePolicy.optimization_artifacts.mode, 'explicit_non_runtime_prune_only');
   assert.ok(
     sizePolicy.optimization_artifacts.required_preserved_payloads.includes('Contents/Resources/opl-full-runtime'),
@@ -577,6 +578,9 @@ test('Full size policy records review semantics, measured v26.6.21 breakdown, an
     sizePolicy.optimization_artifacts.required_preserved_payloads.includes('Contents/Resources/bundled-aioncore'),
   );
   assert.deepEqual(sizePolicy.optimization_artifacts.required_remote_assets, [
+    'opl-release-manifest.json',
+  ]);
+  assert.deepEqual(sizePolicy.optimization_artifacts.transition_accepted_legacy_remote_assets, [
     'full-app-bundle-trim-report.json',
     'full-package-boundary-audit.json',
   ]);

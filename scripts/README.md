@@ -151,7 +151,7 @@ compressed DMG size, uncompressed runtime size, and layer breakdown, then uses
 `verify-remote-release-assets.ts` as the remote verifier size budget check for
 published GitHub Release assets. The remote verifier measures compressed Full
 DMG bytes from the GitHub asset size and uncompressed runtime bytes from
-`full-package-manifest.json`
+`opl-release-manifest.json#manifest`
 `size_breakdown.total_runtime_uncompressed_bytes`. The Full size analyzer keeps
 compressed DMG warning, review threshold, and optional hard limit status
 separate: crossing the review threshold records `requires_review`; only an
@@ -177,6 +177,14 @@ can compare recorded hashes, manifest commits, and runtime layer cache status
 without downloading the large Full DMG. Warmup runs disable the large Full
 package artifact; release-called Full builds keep it enabled for publish and VM
 consumers.
+Published Full release verification prefers the consolidated
+`opl-release-manifest.json` plus the Full DMG. During migration it still accepts
+the legacy separate `full-package-manifest.json`, `runtime-cache-events.json`,
+`full-runtime-currentness-probe.json`, `full-runtime-native-trust.json`,
+`full-app-bundle-trim-report.json`, `full-package-boundary-audit.json`,
+`README-Full-First-Install.txt`, `SHA256SUMS.txt`, and
+`full-local-authorization-policy.json` assets when the consolidated manifest is
+not present.
 `scripts/summarize-release-readiness.ts` also flattens
 `runtime-cache-events.json` into readable cache counts and `miss_written` layer
 names in `release-readiness-summary.json`, making fresh cache writes visible in

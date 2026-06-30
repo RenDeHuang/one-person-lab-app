@@ -19,6 +19,7 @@ param(
   [string]$EvidenceDir,
   [string]$EvidenceArchive,
   [switch]$InstallPrerequisites,
+  [switch]$Update,
   [switch]$NoOpen,
   [switch]$Foreground
 )
@@ -43,6 +44,7 @@ function Write-UserPathStatus {
   Write-Step "  runtime_proxy: WebUI uses /api/opl-runtime/configure-codex -> opl system configure-codex --api-key-stdin --json."
   Write-Step "  startup_recovery: if startup fails, collect redacted startup doctor diagnostics and rerun after fixing Docker, port, image, or data issues."
   Write-Step "  data_preservation: keep OnePersonLab/data and OnePersonLab/projects mounted and preserved."
+  Write-Step "  host_update: rerun this installer, or pass -Update, to pull the WebUI image from the host and recreate the compose service."
 }
 
 function Test-Administrator {
@@ -240,6 +242,7 @@ function Write-ComposeFile {
 services:
   one-person-lab-webui:
     image: $(Convert-ToComposeScalar $ImageReference)
+    pull_policy: always
     ports:
       - $(Convert-ToComposeScalar "127.0.0.1:${HostPort}:3000")
     environment:
@@ -406,19 +409,31 @@ function Invoke-DockerComposeUp {
     [Parameter(Mandatory = $true)][string]$Url
   )
 
-  $composeArgs = @("compose", "-f", $ComposePath, "up")
+  $pullArgs = @("compose", "-f", $ComposePath, "pull")
+  $upArgs = @("compose", "-f", $ComposePath, "up")
   if (-not $Foreground) {
-    $composeArgs += "-d"
+    $upArgs += "-d"
   }
 
-  $displayCommand = "docker " + (($composeArgs | ForEach-Object { if ($_ -match "\s") { '"' + $_ + '"' } else { $_ } }) -join " ")
+  $displayPullCommand = "docker " + (($pullArgs | ForEach-Object { if ($_ -match "\s") { '"' + $_ + '"' } else { $_ } }) -join " ")
+  $displayUpCommand = "docker " + (($upArgs | ForEach-Object { if ($_ -match "\s") { '"' + $_ + '"' } else { $_ } }) -join " ")
   if ($DryRun) {
-    Write-Step "Dry run: would run $displayCommand"
+    if ($Update) {
+      Write-Step "Dry run: would run $displayPullCommand"
+    }
+    Write-Step "Dry run: would run $displayUpCommand"
     return
   }
 
-  Write-Step "Running $displayCommand"
-  & docker @composeArgs
+  if ($Update) {
+    Write-Step "Running $displayPullCommand"
+    & docker @pullArgs
+    if ($LASTEXITCODE -ne 0) {
+      throw "Docker Compose image pull failed. Check Docker/GHCR network access, then rerun this script."
+    }
+  }
+  Write-Step "Running $displayUpCommand"
+  & docker @upArgs
   if ($LASTEXITCODE -ne 0) {
     throw "Docker Compose failed. Check Docker Desktop status and the compose file at $ComposePath, then rerun this script."
   }
@@ -940,6 +955,11 @@ Write-Step "Data directory: $resolvedDataDir"
 Write-Step "Projects directory: $resolvedProjectsDir"
 Write-Step "Compose file: $composePath"
 Write-Step "Browser URL: $url"
+if ($Update) {
+  Write-Step "Update mode: pull the configured WebUI image from the host and recreate the compose service."
+} else {
+  Write-Step "Update model: rerun this installer, or pass -Update, to pull the WebUI image from the host; the WebUI does not self-update through Docker."
+}
 Write-Step "Image/seed: default latest/stable WebUI image uses the full seed; -Tag and -Image are advanced overrides."
 Write-Step "Access keys are configured inside the WebUI first-run Access panel or Settings -> Access. This script does not accept or write API keys."
 Write-UserPathStatus -Url $url

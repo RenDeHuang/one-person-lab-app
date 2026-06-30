@@ -14,6 +14,7 @@ DIAGNOSTICS_DIR=${OPL_WEBUI_DIAGNOSTICS_DIR:-}
 DIAGNOSTICS_ARCHIVE=${OPL_WEBUI_DIAGNOSTICS_ARCHIVE:-}
 DRY_RUN=0
 YES=0
+UPDATE=0
 OPEN_BROWSER=1
 DETACH=1
 PRE_DATA_INVENTORY=''
@@ -27,6 +28,7 @@ Usage:
 Options:
   --dry-run                 Print the actions without installing Docker or starting the container.
   --yes                     Allow Ubuntu Docker Engine installation without an interactive prompt.
+  --update                  Pull the configured WebUI image and recreate the host-side compose service.
   --port <port>             Host port for http://localhost:<port>/ (default: 3000).
   --health-timeout <sec>    Seconds to wait for the WebUI HTTP endpoint (default: 120).
   --health-url <url>        HTTP endpoint to probe (default: http://localhost:<port>/).
@@ -57,6 +59,7 @@ log_user_path_status() {
   log "  runtime_proxy: WebUI uses /api/opl-runtime/configure-codex -> opl system configure-codex --api-key-stdin --json."
   log "  startup_recovery: if startup fails, collect redacted startup doctor diagnostics and rerun after fixing Docker, port, image, or data issues."
   log "  data_preservation: keep OnePersonLab/data and OnePersonLab/projects mounted and preserved."
+  log "  host_update: rerun this installer, or pass --update, to pull the WebUI image from the host and recreate the compose service."
 }
 
 die() {
@@ -100,6 +103,9 @@ while [ "$#" -gt 0 ]; do
       ;;
     --yes)
       YES=1
+      ;;
+    --update)
+      UPDATE=1
       ;;
     --port)
       shift
@@ -399,13 +405,23 @@ open_browser() {
 }
 
 start_webui() {
+  local pull_args=(compose -f "$COMPOSE_FILE" pull)
   local up_args=(compose -f "$COMPOSE_FILE" up)
   if [ "$DETACH" = "1" ]; then
     up_args+=(-d)
   fi
   if [ "$DRY_RUN" = "1" ]; then
+    if [ "$UPDATE" = "1" ]; then
+      run docker "${pull_args[@]}"
+    fi
     run docker "${up_args[@]}"
     return 0
+  fi
+  if [ "$UPDATE" = "1" ]; then
+    log "+ docker ${pull_args[*]}"
+    if ! docker "${pull_args[@]}"; then
+      die "Docker Compose image pull failed. Check Docker/GHCR network access, then rerun this installer."
+    fi
   fi
   log "+ docker ${up_args[*]}"
   if ! docker "${up_args[@]}"; then
@@ -649,6 +665,11 @@ log "Data directory: $DATA_DIR -> /data"
 log "Projects directory: $PROJECTS_DIR -> /projects"
 log "Compose file: $COMPOSE_FILE"
 log "URL: $HEALTH_URL"
+if [ "$UPDATE" = "1" ]; then
+  log "Update mode: pull the configured WebUI image from the host and recreate the compose service."
+else
+  log "Update model: rerun this installer, or pass --update, to pull the WebUI image from the host; the WebUI does not self-update through Docker."
+fi
 log "Image/seed: default latest/stable WebUI image uses the full seed; --tag and --image are advanced overrides."
 log "API keys are not accepted by this installer; enter provider keys inside the WebUI first-run Access panel or Settings -> Access."
 log_user_path_status

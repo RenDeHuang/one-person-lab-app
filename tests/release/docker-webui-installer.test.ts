@@ -108,6 +108,7 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
   const result = runInstaller(
     [
       '--dry-run',
+      '--update',
       '--port',
       '3917',
       '--health-timeout',
@@ -129,12 +130,15 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /image: ghcr\.io\/gaofeng21cn\/one-person-lab-webui:26\.6\.30/);
+  assert.match(result.stdout, /pull_policy: always/);
   assert.match(result.stdout, /"127\.0\.0\.1:3917:3000"/);
   assert.match(result.stdout, /AIONUI_ALLOW_REMOTE: "true"/);
   assert.match(result.stdout, /AIONUI_DATA_DIR: \/data/);
   assert.match(result.stdout, /OPL_PROJECTS_DIR: \/projects/);
   assert.match(result.stdout, new RegExp(`${home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/data-dir:/data`));
   assert.match(result.stdout, new RegExp(`${home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/projects-dir:/projects`));
+  assert.match(result.stdout, /Update mode: pull the configured WebUI image from the host and recreate the compose service/);
+  assert.match(result.stdout, /docker compose -f .*compose\.yaml pull/);
   assert.match(result.stdout, /docker compose -f .*compose\.yaml up -d/);
   assert.match(result.stdout, /Would wait up to 7s for WebUI HTTP health at http:\/\/localhost:3917\//);
   assert.match(result.stdout, /Would write diagnostic directory: .*diagnostics-dir/);
@@ -145,6 +149,7 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
   assert.match(result.stdout, /access_key_settings: enter provider keys in the WebUI first-run Access panel or Settings -> Access/);
   assert.match(result.stdout, /runtime_proxy: WebUI uses \/api\/opl-runtime\/configure-codex -> opl system configure-codex --api-key-stdin --json/);
   assert.match(result.stdout, /startup_recovery: if startup fails, collect redacted startup doctor diagnostics/);
+  assert.match(result.stdout, /host_update: rerun this installer, or pass --update, to pull the WebUI image from the host/);
   assert.match(result.stdout, /Image\/seed: default latest\/stable WebUI image uses the full seed/);
   assert.doesNotMatch(result.stdout, /docker run/);
   assert.doesNotMatch(result.stdout, /OPENAI_API_KEY|ANTHROPIC_API_KEY|api_key/i);
@@ -175,6 +180,8 @@ test('Docker/WebUI installer has health check and diagnostic collection built in
   assert.match(script, /collect_diagnostics/);
   assert.match(script, /docker compose -f "\$COMPOSE_FILE" ps/);
   assert.match(script, /docker compose -f "\$COMPOSE_FILE" logs --no-color --tail=300/);
+  assert.match(script, /local pull_args=\(compose -f "\$COMPOSE_FILE" pull\)/);
+  assert.match(script, /docker "\$\{pull_args\[@\]\}"/);
   assert.match(script, /docker version/);
   assert.match(script, /docker compose version/);
   assert.match(script, /docker image inspect "\$IMAGE"/);
@@ -186,6 +193,7 @@ test('Docker/WebUI installer has health check and diagnostic collection built in
   assert.match(script, /tar -czf "\$DIAGNOSTICS_ARCHIVE"/);
   assert.match(script, /redact_diagnostic_stream/);
   assert.doesNotMatch(script, /printenv|env >|docker compose config/);
+  assert.doesNotMatch(script, /docker\.sock|watchtower/i);
 });
 
 test('Docker/WebUI installer keeps OS-specific Docker policy explicit', () => {

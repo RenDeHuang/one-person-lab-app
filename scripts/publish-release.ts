@@ -205,10 +205,7 @@ function assertFullRuntimeNativeTrust(releaseDir, manifest) {
 function isGuiArtifact(name, version, extension, macArch) {
   const baseNames = guiArtifactPrefixes.map((prefix) => `${prefix}${version}-mac-${macArch}`);
   if (extension === '.blockmap') {
-    return baseNames.some((baseName) => (
-      name === `${baseName}.dmg.blockmap`
-      || name === `${baseName}.zip.blockmap`
-    ));
+    return baseNames.some((baseName) => name === `${baseName}.zip.blockmap`);
   }
   return baseNames.some((baseName) => name === `${baseName}${extension}`);
 }
@@ -236,7 +233,7 @@ function isStandardReleaseAssetName(releaseDir, name, version, macArch) {
   if (name === 'standard-local-authorization-policy.json') {
     return true;
   }
-  return isLatestMetadataForVersion(releaseDir, name, version, macArch);
+  return name === `latest-${macArch}-mac.yml` && isLatestMetadataForVersion(releaseDir, name, version, macArch);
 }
 
 function listStandardReleaseAssetNames(releaseDir, version, macArch) {
@@ -260,10 +257,14 @@ function findArtifacts(shellRoot, version, macArch) {
   assertUpdaterMetadataDoesNotReferenceFullPackage(releaseDir, files);
   assertStableLocalAuthorizationPolicy(releaseDir, 'standard-local-authorization-policy.json', 'app_standard');
   files.push('standard-local-authorization-policy.json');
-  if (macArch === 'arm64' && files.some((name) => name.includes('-mac-arm64.')) && files.includes('latest-mac.yml')) {
-    const arm64MetadataName = 'latest-arm64-mac.yml';
-    fs.copyFileSync(path.join(releaseDir, 'latest-mac.yml'), path.join(releaseDir, arm64MetadataName));
-    files.push(arm64MetadataName);
+  const canonicalMetadataName = `latest-${macArch}-mac.yml`;
+  if (!files.includes(canonicalMetadataName)) {
+    const legacyMetadataName = 'latest-mac.yml';
+    const legacyMetadataPath = path.join(releaseDir, legacyMetadataName);
+    if (macArch === 'arm64' && fs.existsSync(legacyMetadataPath) && isLatestMetadataForVersion(releaseDir, legacyMetadataName, version, macArch)) {
+      fs.copyFileSync(legacyMetadataPath, path.join(releaseDir, canonicalMetadataName));
+      files.push(canonicalMetadataName);
+    }
   }
   const artifacts = files.map((name) => {
     const source = path.join(releaseDir, name);
@@ -294,8 +295,7 @@ function findPrebuiltStandardArtifacts(standardArtifactsDir, version, macArch) {
   const requiredKinds = [
     ['DMG', (name) => name.endsWith('.dmg')],
     ['ZIP', (name) => name.endsWith('.zip')],
-    ['latest-mac.yml', (name) => name === 'latest-mac.yml'],
-    ['latest-arm64-mac.yml', (name) => name === 'latest-arm64-mac.yml'],
+    [`latest-${macArch}-mac.yml`, (name) => name === `latest-${macArch}-mac.yml`],
     ['standard-local-authorization-policy.json', (name) => name === 'standard-local-authorization-policy.json'],
   ];
   for (const [label, predicate] of requiredKinds) {

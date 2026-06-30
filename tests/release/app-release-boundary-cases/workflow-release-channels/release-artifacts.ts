@@ -39,13 +39,14 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.equal(packageJson.scripts['build-win'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-win');
   assert.equal(packageJson.scripts['build-deb'], 'node --experimental-strip-types scripts/prepare-standard-release-payload.ts && node --experimental-strip-types scripts/run-active-shell-command.ts bun run build-deb');
   assert.deepEqual(releaseContract.standard_updater.allowed_metadata, [
-    'latest-mac.yml',
     'latest-arm64-mac.yml',
+  ]);
+  assert.deepEqual(releaseContract.standard_updater.legacy_metadata, [
+    'latest-mac.yml',
   ]);
   assert.deepEqual(releaseContract.standard_updater.allowed_assets, [
     'One-Person-Lab-*-mac-arm64.dmg',
     'One-Person-Lab-*-mac-arm64.zip',
-    'One-Person-Lab-*-mac-arm64.dmg.blockmap',
     'One-Person-Lab-*-mac-arm64.zip.blockmap',
   ]);
   assert.deepEqual(releaseContract.standard_updater.dmg_compression, {
@@ -56,7 +57,7 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
     ulmo_standard_default_allowed: false,
     ulmo_postprocess_status: 'separate_experiment_required',
     metadata_blockmap_gate: 'node --experimental-strip-types scripts/validate-release.ts release-assets plus focused hdiutil imageinfo/verify readback from a standard macOS build artifact',
-    rule: 'Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.8.1 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves updater metadata, .dmg.blockmap, .zip.blockmap, and latest*.yml still match the published assets before it can replace the default.',
+    rule: 'Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.8.1 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves updater metadata, ZIP blockmap, and latest-arm64-mac.yml still match the published assets before it can replace the default.',
   });
   assert.equal(releaseContract.standard_updater.scope, 'desktop_app_assets_only');
   assert.deepEqual(releaseContract.standard_updater.apply_lifecycle, {
