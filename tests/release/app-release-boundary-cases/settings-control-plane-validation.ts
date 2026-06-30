@@ -106,7 +106,7 @@ test('Settings control plane hydrates registry, route resolver, and extension an
     path: '/settings/workspace',
     route_scope: 'secondary_or_deep_link',
     slot_id: 'workspace',
-    component_key: null,
+    component_key: 'WorkspaceSettings',
   });
   assert.deepStrictEqual(resolveSettingsControlPlaneRoute(controlPlaneContract, 'skills-hub'), {
     input: 'skills-hub',
