@@ -188,6 +188,16 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   if (controlPlane.extension_tab_policy?.legacy_anchor_remap_required !== true) {
     throw new Error('App product profile settings.control_plane must require legacy extension anchor remapping');
   }
+  const recommendedActionIds = controlPlane.state_action_policy?.recommended_action_ids;
+  if (
+    !recommendedActionIds ||
+    typeof recommendedActionIds !== 'object' ||
+    Array.isArray(recommendedActionIds) ||
+    recommendedActionIds.doctor !== 'doctor' ||
+    recommendedActionIds.repair !== 'repair'
+  ) {
+    throw new Error('App product profile settings.control_plane.state_action_policy.recommended_action_ids must expose doctor and repair action ids');
+  }
   const settingsIa = profile.settings.settings_information_architecture ?? {};
   const groupIds = Array.isArray(settingsIa.ordinary_groups)
     ? settingsIa.ordinary_groups.map((group) => group.id)

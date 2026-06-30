@@ -373,6 +373,10 @@
     "default_refresh_source": "opl app state --profile fast --json",
     "full_profile_policy": "diagnostic_or_release_evidence_only",
     "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
+    "recommended_action_ids": {
+      "doctor": "doctor",
+      "repair": "repair"
+    },
     "shell_must_not_own": [
       "runtime truth",
       "provider implementation",

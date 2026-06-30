@@ -194,6 +194,11 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   if (controlPlane.state_action_policy?.action_route !== 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json') {
     throw new Error('Settings control plane must route mutations through opl app action execute');
   }
+  assertDeepEqualJson(
+    controlPlane.state_action_policy?.recommended_action_ids,
+    { doctor: 'doctor', repair: 'repair' },
+    'Settings control plane recommended action ids',
+  );
   assertIncludesAll(
     controlPlane.state_action_policy?.shell_must_not_own,
     ['runtime truth', 'provider implementation', 'domain truth', 'owner receipts', 'release readiness'],
@@ -354,6 +359,11 @@ function validateCrossContractConsistency(controlPlane, guiContract, pageStateMa
     productProfile?.settings?.control_plane?.extension_anchor_remap,
     controlPlane.extension_anchor_remap,
     'Product profile settings.control_plane extension anchors',
+  );
+  assertDeepEqualJson(
+    productProfile?.settings?.control_plane?.state_action_policy?.recommended_action_ids,
+    controlPlane.state_action_policy?.recommended_action_ids,
+    'Product profile settings.control_plane recommended action ids',
   );
 }
 
