@@ -82,7 +82,7 @@ Write scope:
 
 - `docs/active/app-ideal-state-gap-plan.md`, `docs/status.md`, `docs/project.md`, `docs/architecture.md`, `docs/invariants.md`, `docs/decisions.md`, App contracts, release-boundary validators, testing docs, and focused App tests that affect App product boundary, first-run policy, page-state validation, Settings / Storage, shell-candidate policy, or evidence routing.
 
-Functional truth inputs:
+Live truth inputs:
 
 - `AGENTS.md`, user-level `~/.codex/TASTE.md`, `README.md`, `docs/README.md`, `docs/status.md`, this plan, App contracts, release-boundary validators, release/test scripts, shell adapter contract, active shell validation outputs, focused shell tests for App-owned GUI behavior, and `npm run validate:agent-installation` output when install exposure is touched. Release evidence manifests are read only for routing and false-ready boundaries unless the task explicitly targets release evidence.
 - OPL Framework runtime/App drilldown CLI JSON only as consumed input; it remains framework-owned truth.
