@@ -290,11 +290,15 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(cleanWindowsDockerWebuiWorkflow, /name: OPL Docker WebUI Clean Windows VM Smoke/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /workflow_dispatch:/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /runner_labels_json:/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /runner_inventory_json:/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /"self-hosted","Windows","X64","docker-webui-clean-vm"/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /runner-preflight:/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /name: Clean Windows runner preflight/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /runs-on: ubuntu-latest/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /RUNNER_INVENTORY_JSON/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /workflow_dispatch_input/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /repos\/\$\{process\.env\.GITHUB_REPOSITORY\}\/actions\/runners/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /runner_inventory_unreadable/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /missing_clean_windows_self_hosted_runner/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /docker-webui-clean-windows-vm-runner-blocker/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /needs: runner-preflight/);

@@ -8,6 +8,11 @@ on:
         required: false
         default: '["self-hosted","Windows","X64","docker-webui-clean-vm"]'
         type: string
+      runner_inventory_json:
+        description: Optional JSON array of repository self-hosted runners, used when GITHUB_TOKEN cannot read runner inventory.
+        required: false
+        default: ''
+        type: string
       image:
         description: Docker/WebUI image to validate in a clean Windows runner.
         required: false
@@ -51,6 +56,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RUNNER_LABELS_JSON: ${{ inputs.runner_labels_json }}
+          RUNNER_INVENTORY_JSON: ${{ inputs.runner_inventory_json }}
         run: |
           set -euo pipefail
           mkdir -p docker-webui-clean-windows-vm-runner-blocker
@@ -64,11 +70,23 @@ jobs:
             schema: 'opl_docker_webui_clean_windows_runner_preflight.v1',
             status: 'typed_blocker',
             required_labels: requiredLabels,
+            inventory_source: 'github_actions_api',
             eligible_runners: [],
             observed_runners: [],
           };
           let inventoryReadable = false;
-          let apiOutput = '';
+          let runners = [];
+
+          function normalizeRunner(runner) {
+            return {
+              id: runner.id ?? null,
+              name: runner.name ?? '',
+              os: runner.os ?? '',
+              status: runner.status ?? '',
+              busy: Boolean(runner.busy),
+              labels: (runner.labels || []).map((label) => typeof label === 'string' ? label : label.name).filter(Boolean),
+            };
+          }
 
           try {
             requiredLabels = JSON.parse(process.env.RUNNER_LABELS_JSON || '[]');
@@ -76,26 +94,40 @@ jobs:
               throw new Error('runner_labels_json must be a non-empty JSON array');
             }
             payload.required_labels = requiredLabels;
-            const api = spawnSync('gh', [
-              'api',
-              `repos/${process.env.GITHUB_REPOSITORY}/actions/runners`,
-              '--paginate',
-            ], {
-              encoding: 'utf8',
-              env: process.env,
-            });
-            if (api.status !== 0) {
-              const detail = (api.stderr || api.stdout || 'failed to list self-hosted runners').trim();
-              payload.typed_blocker = {
-                code: 'runner_inventory_unreadable',
-                owner: 'release_or_install_validation_operator',
-                message: 'The workflow could not read repository self-hosted runner inventory.',
-                detail,
-                required_next_action: 'Grant a token/scope that can read repository Actions runners or run this workflow with explicit runner inventory evidence, then rerun clean Windows smoke.',
-              };
-            } else {
+            if ((process.env.RUNNER_INVENTORY_JSON || '').trim()) {
+              const supplied = JSON.parse(process.env.RUNNER_INVENTORY_JSON);
+              if (!Array.isArray(supplied)) {
+                throw new Error('runner_inventory_json must be a JSON array when provided');
+              }
+              payload.inventory_source = 'workflow_dispatch_input';
+              runners = supplied.map(normalizeRunner);
               inventoryReadable = true;
-              apiOutput = api.stdout;
+            } else {
+              const api = spawnSync('gh', [
+                'api',
+                `repos/${process.env.GITHUB_REPOSITORY}/actions/runners`,
+                '--paginate',
+              ], {
+                encoding: 'utf8',
+                env: process.env,
+              });
+              if (api.status !== 0) {
+                const detail = (api.stderr || api.stdout || 'failed to list self-hosted runners').trim();
+                payload.typed_blocker = {
+                  code: 'runner_inventory_unreadable',
+                  owner: 'release_or_install_validation_operator',
+                  message: 'The workflow could not read repository self-hosted runner inventory.',
+                  detail,
+                  required_next_action: 'Pass runner_inventory_json from an operator token that can read repository Actions runners, or grant a token/scope that can read runner inventory, then rerun clean Windows smoke.',
+                };
+              } else {
+                const pages = api.stdout
+                  .split(/\n(?=\{)/)
+                  .filter(Boolean)
+                  .map((page) => JSON.parse(page));
+                runners = pages.flatMap((page) => page.runners || []).map(normalizeRunner);
+                inventoryReadable = true;
+              };
             }
           } catch (error) {
             payload.typed_blocker = {
@@ -107,13 +139,8 @@ jobs:
             };
           }
           if (inventoryReadable) {
-            const pages = apiOutput
-              .split(/\n(?=\{)/)
-              .filter(Boolean)
-              .map((page) => JSON.parse(page));
-            const runners = pages.flatMap((page) => page.runners || []);
             const eligible = runners.filter((runner) => {
-              const labels = new Set((runner.labels || []).map((label) => label.name));
+              const labels = new Set(runner.labels || []);
               return runner.status === 'online' &&
                 runner.busy === false &&
                 requiredLabels.every((label) => labels.has(label));
@@ -122,22 +149,8 @@ jobs:
               ...payload,
               status: eligible.length > 0 ? 'passed' : 'typed_blocker',
               required_labels: requiredLabels,
-              eligible_runners: eligible.map((runner) => ({
-                id: runner.id,
-                name: runner.name,
-                os: runner.os,
-                status: runner.status,
-                busy: runner.busy,
-                labels: (runner.labels || []).map((label) => label.name),
-              })),
-              observed_runners: runners.map((runner) => ({
-                id: runner.id,
-                name: runner.name,
-                os: runner.os,
-                status: runner.status,
-                busy: runner.busy,
-                labels: (runner.labels || []).map((label) => label.name),
-              })),
+              eligible_runners: eligible,
+              observed_runners: runners,
             };
           }
           if (payload.status !== 'passed' && !payload.typed_blocker) {
