@@ -349,6 +349,28 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.notEqual(fullToStandard.status, 0);
   assert.match(fullToStandard.stderr, /Full first-install Homebrew cask updates may only update Casks\/one-person-lab-full\.rb/);
 
+  const legacyFullManifestForFullCask = runNode([
+    'scripts/update-homebrew-tap.ts',
+    '--channel',
+    'stable',
+    '--package-kind',
+    'app_full_first_install',
+    '--version',
+    '26.6.4',
+    '--tap-root',
+    tapRoot,
+    '--cask',
+    'Casks/one-person-lab-full.rb',
+    '--manifest-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/full-package-manifest.json',
+    '--checksum-sha256',
+    digest,
+    '--download-url',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.6.4/One-Person-Lab-Full-26.6.4-mac-arm64.dmg',
+  ]);
+  assert.notEqual(legacyFullManifestForFullCask.status, 0);
+  assert.match(legacyFullManifestForFullCask.stderr, /opl-release-manifest\.json/);
+
   const selfCheck = runNode(['scripts/update-homebrew-tap.ts', '--self-check']);
   assert.equal(selfCheck.status, 0, selfCheck.stderr || selfCheck.stdout);
   assert.match(selfCheck.stdout, /Full cask isolation/);

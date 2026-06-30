@@ -57,7 +57,7 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
     ulmo_standard_default_allowed: false,
     ulmo_postprocess_status: 'separate_experiment_required',
     metadata_blockmap_gate: 'node --experimental-strip-types scripts/validate-release.ts release-assets plus focused hdiutil imageinfo/verify readback from a standard macOS build artifact',
-    rule: 'Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.8.1 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves updater metadata, ZIP blockmap, and latest-arm64-mac.yml still match the published assets before it can replace the default.',
+    rule: 'Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.8.1 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves canonical updater metadata, ZIP blockmap, and latest-arm64-mac.yml still match the published assets before it can replace the default; latest-mac.yml and DMG blockmap files are legacy compatibility assets only when deliberately published.',
   });
   assert.equal(releaseContract.standard_updater.scope, 'desktop_app_assets_only');
   assert.deepEqual(releaseContract.standard_updater.apply_lifecycle, {

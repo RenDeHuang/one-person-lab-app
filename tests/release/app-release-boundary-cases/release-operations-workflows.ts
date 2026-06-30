@@ -257,6 +257,8 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
   assert.match(homebrewWorkflow, /One-Person-Lab-\$\{version\}-mac-arm64\.dmg/);
   assert.match(homebrewWorkflow, /One-Person-Lab-Full-\$\{version\}-mac-arm64\.dmg/);
   assert.match(homebrewWorkflow, /opl-release-manifest\.json/);
+  assert.doesNotMatch(homebrewWorkflow, /full-package-manifest\.json/);
+  assert.doesNotMatch(homebrewWorkflow, /full-local-authorization-policy\.json/);
   assert.match(homebrewWorkflow, /Casks\/one-person-lab-full\.rb/);
   assert.match(homebrewWorkflow, /Full first-install Homebrew cask updates must stay on the stable channel/);
   assert.match(homebrewWorkflow, /Homebrew tap updates are App cask-only; agent packs are App\/CLI-managed/);
