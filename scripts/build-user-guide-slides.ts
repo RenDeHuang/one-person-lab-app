@@ -771,6 +771,29 @@ function marp(args: string[]) {
   return run('npx', ['--yes', marpPackage, ...args]);
 }
 
+function normalizePptxPresentationXml() {
+  const unpackDir = path.join(tempDir, 'pptx-normalized');
+  fs.rmSync(unpackDir, { recursive: true, force: true });
+  fs.mkdirSync(unpackDir, { recursive: true });
+  run('unzip', ['-q', outputPptxPath, '-d', unpackDir]);
+
+  const presentationXmlPath = path.join(unpackDir, 'ppt', 'presentation.xml');
+  const presentationXml = fs.readFileSync(presentationXmlPath, 'utf8');
+  const notesMasterMatch = presentationXml.match(/<p:notesMasterIdLst>[\s\S]*?<\/p:notesMasterIdLst>/);
+  if (!notesMasterMatch) return;
+
+  const notesMasterXml = notesMasterMatch[0];
+  const withoutNotesMaster = presentationXml.replace(notesMasterXml, '');
+  const normalizedXml = withoutNotesMaster.replace('<p:sldIdLst>', `${notesMasterXml}<p:sldIdLst>`);
+  if (normalizedXml === presentationXml) {
+    throw new Error('Expected to normalize notesMasterIdLst before sldIdLst in PPTX presentation.xml');
+  }
+  fs.writeFileSync(presentationXmlPath, normalizedXml, 'utf8');
+
+  fs.rmSync(outputPptxPath, { force: true });
+  run('zip', ['-qr', outputPptxPath, '.'], { cwd: unpackDir });
+}
+
 function buildDeckArtifacts() {
   fs.mkdirSync(path.dirname(outputPdfPath), { recursive: true });
   fs.rmSync(outputPdfPath, { force: true });
@@ -786,15 +809,11 @@ function buildDeckArtifacts() {
   ];
   marp([...commonArgs, '--pdf', '--pdf-outlines', '--output', outputPdfPath]);
   marp([...commonArgs, '--pptx', '--output', outputPptxPath]);
+  normalizePptxPresentationXml();
 }
 
 function validatePptx(totalSlides: number, requiredPdfText: string[]) {
-  const schemaValidation = spawnSync('officecli', ['validate', outputPptxPath], {
-    cwd: appRoot,
-    encoding: 'utf8',
-    stdio: 'pipe',
-    env: process.env,
-  });
+  const schemaValidation = run('officecli', ['validate', outputPptxPath]).stdout.trim();
   const output = run('officecli', ['view', outputPptxPath, 'issues']).stdout.trim();
   const issueCount = Number(output.match(/Found\s+(\d+)\s+issue\(s\)/i)?.[1] ?? 0);
   if (issueCount > 0) {
@@ -836,8 +855,8 @@ function validatePptx(totalSlides: number, requiredPdfText: string[]) {
     throw new Error(`Expected Marp PPTX roundtrip PDF to have ${totalSlides} pages, got ${roundtripPages}`);
   }
   return {
-    schema_validation_status: schemaValidation.status === 0 ? 'passed' : 'warning',
-    schema_validation_output: `${schemaValidation.stdout}${schemaValidation.stderr}`.trim(),
+    schema_validation_status: 'passed',
+    schema_validation_output: schemaValidation,
     officecli_issues: output,
     text_status: 'checked_generated_marp_source_and_pdf_text_no_placeholder_tokens',
     roundtrip_pdf: relativeToApp(roundtripPdfPath),

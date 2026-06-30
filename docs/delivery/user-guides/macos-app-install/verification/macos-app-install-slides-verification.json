@@ -131,8 +131,8 @@
       ]
     }
   ],
-  "pptx_schema_validation_status": "warning",
-  "pptx_schema_validation_output": "Found 1 validation error(s):\n  [Schema] The element has unexpected child element 'http://schemas.openxmlformats.org/presentationml/2006/main:notesMasterIdLst'. List of possible elements expected: <http://schemas.openxmlformats.org/presentationml/2006/main:notesSz>.\n    Path: /p:presentation[1]\n    Part: /ppt/presentation.xml",
+  "pptx_schema_validation_status": "passed",
+  "pptx_schema_validation_output": "Validation passed: no errors found.",
   "pptx_layout_issues": "Found 0 issue(s):",
   "text_status": "checked_generated_marp_source_and_pdf_text_no_placeholder_tokens",
   "pptx_roundtrip_pdf": "tmp/pdfs/macos-app-install-slides/pptx-roundtrip/macos-app-install-slides.pdf",
