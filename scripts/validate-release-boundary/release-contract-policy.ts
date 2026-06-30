@@ -465,7 +465,9 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
     blockerPolicy?.status_command !== 'npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>' ||
     blockerPolicy?.forbidden_wait_strategy !== 'continue_waiting_on_gh_run_watch_after_primary_gate_failure' ||
     typeof blockerPolicy?.rule !== 'string' ||
-    !blockerPolicy.rule.includes('failed_gate_draining or failed') ||
+    !blockerPolicy.rule.includes('terminal blocker state') ||
+    !blockerPolicy.rule.includes('cancelled') ||
+    !blockerPolicy.rule.includes('superseded') ||
     !blockerPolicy.rule.includes('instead of continuing to wait on gh run watch')
   ) {
     console.error('FAIL release_operator_primary_blocker_policy: operator status must be no-watch and stop on primary gate failures');
@@ -473,6 +475,16 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   }
   if (!sameStringSet(blockerPolicy?.failed_gate_states, ['failed_gate_draining', 'failed'])) {
     console.error('FAIL release_operator_primary_blocker_policy: failed gate states must be failed_gate_draining and failed');
+    failures += 1;
+  }
+  if (!sameStringSet(blockerPolicy?.terminal_blocker_states, [
+    'failed_gate_draining',
+    'failed',
+    'stale_candidate',
+    'cancelled',
+    'superseded',
+  ])) {
+    console.error('FAIL release_operator_primary_blocker_policy: terminal blocker states must include failed, stale, cancelled, and superseded states');
     failures += 1;
   }
   if (!sameStringSet(blockerPolicy?.failed_gate_next_actions, ['repair_source_gate', 'dispatch_new_cohort'])) {

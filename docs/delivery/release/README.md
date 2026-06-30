@@ -622,7 +622,10 @@ No-watch operator runbook:
 4. Stop watching once the primary blocker or stale cohort is known. Use
    `gh run view --log-failed` only for the named blocker after structured
    state is missing or insufficient; do not keep an unbounded `gh run watch`
-   open while downstream jobs drain.
+   open while downstream jobs drain. If the release process itself needs a fix
+   mid-run, stop the old run and dispatch a new pinned cohort after the fix.
+   Record the old run as `cancelled` or `superseded`, not as a source-gate
+   failure.
 
 Pinned cohort runbook:
 
@@ -678,6 +681,9 @@ on `gh run watch`.
      the cohort lock. Keep its artifacts as old-cohort diagnostics only. Do not
      promote it, patch it into a newer cohort, or use it as current release
      evidence.
+   - `cancelled` and `superseded` are typed operator outcomes for
+     stop-and-redispatch. They preserve old-run diagnostics and failed-run tax,
+     but they do not prove a source gate failed.
    - Source-gate blockers are repaired at the source gate. A stale App head,
      unresolved shell/framework ref, wrong shell type/format, dirty source
      checkout, or missing release-boundary policy should lead to

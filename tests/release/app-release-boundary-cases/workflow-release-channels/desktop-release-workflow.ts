@@ -691,12 +691,19 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'failed_gate_draining',
       'failed',
     ],
+    terminal_blocker_states: [
+      'failed_gate_draining',
+      'failed',
+      'stale_candidate',
+      'cancelled',
+      'superseded',
+    ],
     failed_gate_next_actions: [
       'repair_source_gate',
       'dispatch_new_cohort',
     ],
     forbidden_wait_strategy: 'continue_waiting_on_gh_run_watch_after_primary_gate_failure',
-    rule: 'After a critical release gate fails, operator status must report failed_gate_draining or failed with repair_source_gate or dispatch_new_cohort guidance instead of continuing to wait on gh run watch.',
+    rule: 'After a critical release gate fails, is stale, cancelled, or superseded, operator status must report a terminal blocker state with repair_source_gate or dispatch_new_cohort guidance instead of continuing to wait on gh run watch.',
   });
   assert.deepEqual(releaseContract.release_acceleration.release_monitor, {
     schema: 'opl_app_release_monitor.v1',

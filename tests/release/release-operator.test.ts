@@ -666,6 +666,84 @@ test('release operator status marks stale head and points to a new cohort', () =
   assert.equal(state.recommended_next_action.dispatches_workflow, false);
 });
 
+test('release operator status marks cancelled stale head as superseded', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-superseded-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  const outputPath = path.join(tempRoot, 'release-operator-state.json');
+  writeJson(runJsonPath, {
+    databaseId: 34568,
+    workflowName: 'OPL Desktop Release',
+    status: 'completed',
+    conclusion: 'cancelled',
+    headSha: 'cccccccccccccccccccccccccccccccccccccccc',
+    jobs: [
+      {
+        name: 'Release source gate',
+        status: 'completed',
+        conclusion: 'cancelled',
+        steps: [{ name: 'Validate release source gate', status: 'completed', conclusion: 'cancelled' }],
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--expected-head',
+    'dddddddddddddddddddddddddddddddddddddddd',
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const state = readJson(outputPath);
+  assert.equal(state.status, 'superseded');
+  assert.equal(state.phase, 'release_run_superseded');
+  assert.equal(state.primary_blocker.type, 'stale_candidate');
+  assert.equal(state.recommended_next_action.action, 'start_new_cohort_from_current_main');
+  assert.notEqual(state.recommended_next_action.action, 'repair_source_gate');
+});
+
+test('release operator status classifies current cancelled run without source-gate repair', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-cancelled-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  const outputPath = path.join(tempRoot, 'release-operator-state.json');
+  writeJson(runJsonPath, {
+    databaseId: 34569,
+    workflowName: 'OPL Desktop Release',
+    status: 'completed',
+    conclusion: 'cancelled',
+    headSha: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    jobs: [
+      {
+        name: 'Release source gate',
+        status: 'completed',
+        conclusion: 'cancelled',
+        steps: [{ name: 'Validate release source gate', status: 'completed', conclusion: 'cancelled' }],
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--expected-head',
+    'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const state = readJson(outputPath);
+  assert.equal(state.status, 'cancelled');
+  assert.equal(state.phase, 'release_run_cancelled');
+  assert.equal(state.primary_blocker.conclusion, 'cancelled');
+  assert.equal(state.recommended_next_action.action, 'inspect_primary_blocker');
+  assert.notEqual(state.recommended_next_action.action, 'repair_source_gate');
+});
+
 test('release operator status reports successful current run as ready for closeout review', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-ready-'));
   const runJsonPath = path.join(tempRoot, 'run.json');

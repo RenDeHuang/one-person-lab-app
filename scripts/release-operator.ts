@@ -51,6 +51,8 @@ type OperatorStatus =
   | 'failed'
   | 'failed_gate_draining'
   | 'stale_candidate'
+  | 'superseded'
+  | 'cancelled'
   | 'ready_for_closeout_review'
   | 'waiting_for_run_completion';
 
@@ -60,6 +62,8 @@ type OperatorPhase =
   | 'release_run_failed'
   | 'release_run_failed_draining'
   | 'release_run_stale_candidate'
+  | 'release_run_superseded'
+  | 'release_run_cancelled'
   | 'release_run_waiting'
   | 'release_closeout_review_ready';
 
@@ -547,6 +551,7 @@ function normalizeClassifierText(...values: Array<string | null | undefined>): s
 
 function classifyBlockerAction(blocker: PrimaryBlocker, run: RunStatusSummary): OperatorNextAction['action'] {
   if (!blocker) return 'inspect_primary_blocker';
+  if (blocker.conclusion === 'cancelled') return 'inspect_primary_blocker';
   const text = normalizeClassifierText(run.workflow_name, blocker.job_name, blocker.step_name, blocker.reason);
   const blockerText = normalizeClassifierText(blocker.job_name, blocker.step_name, blocker.reason);
   if (text.includes('source gate')) return 'repair_source_gate';
@@ -575,6 +580,8 @@ function phaseForStatus(status: OperatorStatus): OperatorPhase {
   if (status === 'failed') return 'release_run_failed';
   if (status === 'failed_gate_draining') return 'release_run_failed_draining';
   if (status === 'stale_candidate') return 'release_run_stale_candidate';
+  if (status === 'superseded') return 'release_run_superseded';
+  if (status === 'cancelled') return 'release_run_cancelled';
   if (status === 'ready_for_closeout_review') return 'release_closeout_review_ready';
   return 'release_run_waiting';
 }
@@ -760,6 +767,15 @@ function statusAction(
       dispatches_workflow: false,
     };
   }
+  if (status === 'superseded') {
+    return {
+      action: 'start_new_cohort_from_current_main',
+      command: 'npm run release:operator -- plan --app-commit <current-origin-main-sha>',
+      reason: `Cancelled run head ${run.head_sha ?? 'unknown'} does not match expected head ${options.expectedHead}; treat it as an old-cohort stopped run.`,
+      publishes_release: false,
+      dispatches_workflow: false,
+    };
+  }
   if (status === 'failed_gate_draining') {
     const action = classifyBlockerAction(blocker, run);
     return {
@@ -776,6 +792,15 @@ function statusAction(
       action,
       command: `gh run view ${run.id} --repo ${options.repo} --log-failed`,
       reason: blocker?.reason ?? `Run conclusion is ${run.conclusion ?? 'unknown'}.`,
+      publishes_release: false,
+      dispatches_workflow: false,
+    };
+  }
+  if (status === 'cancelled') {
+    return {
+      action: 'inspect_primary_blocker',
+      command: `gh run view ${run.id} --repo ${options.repo} --log-failed`,
+      reason: blocker?.reason ?? 'Run was cancelled; inspect the cancellation owner or source gate before redispatch.',
       publishes_release: false,
       dispatches_workflow: false,
     };
@@ -826,9 +851,11 @@ function buildStatusState(options: StatusOptions): OperatorState {
     : null;
   const primaryBlocker = staleBlocker ?? foundBlocker;
   const status: OperatorStatus = isStale
-    ? 'stale_candidate'
+    ? run.conclusion === 'cancelled' ? 'superseded' : 'stale_candidate'
     : foundBlocker && run.status !== 'completed'
       ? 'failed_gate_draining'
+      : run.status === 'completed' && run.conclusion === 'cancelled'
+        ? 'cancelled'
       : foundBlocker || (run.status === 'completed' && run.conclusion !== 'success')
         ? 'failed'
         : run.status === 'completed' && run.conclusion === 'success'

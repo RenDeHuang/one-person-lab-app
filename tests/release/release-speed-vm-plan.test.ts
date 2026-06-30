@@ -658,6 +658,13 @@ test('release operator docs and contract freeze candidates, fail fast on source 
 
   assert.equal(blockerPolicy.monitor_mode, 'no_watch');
   assert.deepEqual(blockerPolicy.failed_gate_states, ['failed_gate_draining', 'failed']);
+  assert.deepEqual(blockerPolicy.terminal_blocker_states, [
+    'failed_gate_draining',
+    'failed',
+    'stale_candidate',
+    'cancelled',
+    'superseded',
+  ]);
   assert.deepEqual(blockerPolicy.failed_gate_next_actions, ['repair_source_gate', 'dispatch_new_cohort']);
   assert.equal(blockerPolicy.forbidden_wait_strategy, 'continue_waiting_on_gh_run_watch_after_primary_gate_failure');
   assert.ok(contract.release_acceleration.release_operator.typed_next_actions.includes('repair_webui_runtime_image'));

@@ -34,7 +34,7 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `plan-release-gate-reuse.ts` | Compares the current release cohort with a previous promote-ready candidate record, readiness summary, and remote verification artifact, then writes `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable reuse digest. The plan is a decision artifact only; workflow gates still run unless a workflow explicitly consumes it. |
 | `release-cohort-lock.ts` | Resolves App, shell, and Framework refs into `opl_app_release_cohort_lock.v1` with immutable SHAs. It is a preparation record only and cannot dispatch, publish, promote, claim readiness, or write runtime truth. |
 | `plan-release-cohort.ts` | Writes `opl_app_release_cohort_plan.v1` for a Stable train: version, release mode, embedded cohort lock, Full/VM intent, cheap source gates, and the typed next action that consumes fixed App/Shell/Framework SHAs. |
-| `release-operator.ts` | Thin no-watch controller over existing release scripts, workflows, and artifacts. It can write `release-operator-state.json/md`, report structured status from GitHub run JSON, classify stale or draining runs, and emit typed next actions such as `repair_source_gate`, `dispatch_new_cohort`, `rerun_diagnostic_same_artifact`, `provide_owner_receipt`, or `promote_candidate`; it is not release truth. |
+| `release-operator.ts` | Thin no-watch controller over existing release scripts, workflows, and artifacts. It can write `release-operator-state.json/md`, report structured status from GitHub run JSON, classify stale, draining, cancelled, or superseded runs, and emit typed next actions such as `repair_source_gate`, `dispatch_new_cohort`, `rerun_diagnostic_same_artifact`, `provide_owner_receipt`, or `promote_candidate`; it is the only no-watch status entrypoint and is not release truth. |
 | `summarize-release-readiness.ts` | Aggregates small Stable gate artifacts and job results into `release-readiness-summary.json` and Markdown without downloading large DMG artifacts. |
 | `validate-release-candidate-record.ts` | Validates or summarizes `release-candidate-record.json`; promotion requires schema `opl_release_candidate_record.v1`, matching version, `status=ready_to_promote`, and `decision.can_promote=true`. |
 | `analyze-full-package-size.ts` | Reads `full-package-manifest.json` and reports Full runtime component/layer size, budget use, and optional runtime-root top entries. |
@@ -351,7 +351,9 @@ use `release:operator status` or the closeout `release-monitor.json` instead of
 broad `gh run watch`; after a primary gate fails, `failed_gate_draining` means
 queued jobs are settling, and `stale_candidate` means the old run is diagnostic
 evidence only. Neither state can be promoted or reinterpreted as release-ready
-for a newer cohort.
+for a newer cohort. If the release process must be repaired while a run is in
+flight, stop the old run and dispatch a new pinned cohort; record the stopped
+run as `cancelled` or `superseded`, not as a source-gate failure.
 
 ## Release CI operations notes
 
@@ -388,8 +390,8 @@ artifacts. The artifact includes `release-closeout.json`,
 `release-closeout.md`, `release-monitor.json`, and `release-notification.json`.
 Read `release-monitor.json#state` plus `recommended_next_action` to replace long
 `gh run watch` loops; states include `running`, `failed_gate_draining`,
-`failed`, `stale_candidate`, `ready_to_promote`, `published`, and
-`published_with_post_publish_followup`. The notification JSON is a small
+`failed`, `stale_candidate`, `cancelled`, `superseded`, `ready_to_promote`,
+`published`, and `published_with_post_publish_followup`. The notification JSON is a small
 repo-native payload for automation consumers, not an external push channel. The
 same npm script is the local rerun/debug entry for completed or in-progress
 GitHub Actions release runs.
