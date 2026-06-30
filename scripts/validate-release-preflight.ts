@@ -126,6 +126,9 @@ function parseArgs(argv: string[]): Options {
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
+    if (token === '') {
+      continue;
+    }
     if (token === '--help' || token === '-h') {
       usage();
       process.exit(0);

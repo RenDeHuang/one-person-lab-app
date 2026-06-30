@@ -462,6 +462,7 @@ test('release preflight allows Docker WebUI trains without clean Windows VM evid
     '--publish-docker-webui',
     'true',
     '--docker-webui-clean-windows-evidence-artifact',
+    '',
     '--framework-ref',
     'main',
     '--shell-ref',
