@@ -86,6 +86,15 @@ bun run validate:active-shell
 Run `npm run ensure:shell` before local build or validation if
 `shells/aionui/` has not been checked out yet.
 
+## OPL App Full Profile Boundary
+
+- If the machine was provisioned through OPL App Full, prefer the Superpowers
+  execution surface packaged by the App distribution.
+- OPL Flow supplies routing, guardrail, and acceptance semantics for that
+  environment. It must not replace the packaged Superpowers skill surface.
+- Keep the current local Superpowers profile by default. Switch to another
+  Superpowers profile only when the operator explicitly requests it.
+
 <!-- OPL_FLOW_MANAGED_START -->
 OPL Flow managed surface: repo_agent_instructions
 Plugin: opl-flow

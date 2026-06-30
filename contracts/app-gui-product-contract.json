@@ -1420,7 +1420,7 @@
         "trigger": "ready_to_launch first-run completion or explicit ready entry",
         "target_route": "/guid",
         "route_state": "postInstallSelfCheck",
-        "prompt_policy": "localized Codex CLI read-only diagnosis prompt describing target OPL working mode",
+        "prompt_policy": "localized Codex CLI post-install self-check prompt describing target OPL working mode and repair path",
         "target_state_checks": [
           "codex_cli_callable",
           "ui_language_policy",

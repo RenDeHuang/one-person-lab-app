@@ -136,6 +136,21 @@ macOS 可以通过 DMG、一键安装、Homebrew 或 Docker/WebUI 安装。首�
 
 日常更新由 Homebrew 或应用内更新通道完成，取决于安装方式。release asset、updater metadata 和 Full first-install 边界由 App release guide 与 contracts 维护。
 
+### 安装与更新分层
+
+Full 首装包是给干净机器准备的预置载荷，不是长期更新通道。安装完成后，App
+维护按 7 层理解：
+
+| 层 | 用户应如何理解 |
+| --- | --- |
+| App Binary | `One Person Lab.app`、DMG/ZIP 资产和 standard updater。standard updater 只更新桌面 App bundle。 |
+| Runtime Substrate | App 管理的运行底座和启动所需 fallback executor。`embedded_codex_executor` 指 App-owned Codex CLI executor payload；它不升级、不重写用户全局 Codex 或 Homebrew 安装。 |
+| Capability Packages | MAS/MAG/RCA/OMA/BookForge/ScholarSkills 等 OPL Packages。clean managed roots 可以静默更新；dirty checkout、developer checkout 或 manual required 状态不会被覆盖。 |
+| Companion Tools | OfficeCLI、MinerU、PDF/UI helpers、Superpowers 等辅助工具和技能。它们支撑工作流，但不持有领域判断。 |
+| Codex Surface | Codex 可见的 plugin registry、packaged skills、generated surfaces 和 reload guidance。这里暴露同一语义入口，不制造重复 skill/plugin 语义。 |
+| Workflow Profile | OPL Flow workflow guidance 与 profile material。已有用户 `AGENTS.md` / `TASTE.md` 不会被静默覆盖；已有 profile 变更走 Codex semantic merge packet。 |
+| User Data / Artifacts | 工作区、对话、生成交付物、日志、缓存和 receipts。用户产物删除前需要 inventory、archive/restore proof 和明确确认。 |
+
 Linux、Windows 或服务器用户默认使用 Docker/WebUI，请从
 [Docker/WebUI install guide](docs/public/docker-webui-install/index.html) 开始；同一份
 guide 也提供
@@ -245,8 +260,8 @@ App 产品默认策略由
 声明，release channel 策略由
 [`contracts/app-release-channel.json`](contracts/app-release-channel.json)
 声明。这些 contracts 维护用户可见安装面、standard 与 Full package 边界、
-updater 可见性、Homebrew cask policy、运行状态页桥接行为、App 管理的
-skill/plugin 暴露和 release validation gates。
+7 层安装/更新分类、updater 可见性、Homebrew cask policy、运行状态页桥接行为、
+App 管理的 Codex 暴露、Workflow Profile merge 边界和 release validation gates。
 
 OPL Framework 仍生产 install/sync/read-model surfaces、runtime state 和 action
 execution。MAS/MAG/RCA/OMA 继续持有 domain skill semantics、quality/export

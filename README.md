@@ -147,6 +147,22 @@ Daily updates are handled by Homebrew or the in-app update channel, depending on
 how the App was installed. Release asset, updater metadata, and Full
 first-install boundaries are governed by the App release guide and contracts.
 
+### Install And Update Layers
+
+Full first-install packages are preloaded payloads for clean machines, not a
+long-term update channel. After install, App maintenance is split into seven
+user-facing layers:
+
+| Layer | What it means |
+| --- | --- |
+| App Binary | `One Person Lab.app`, DMG/ZIP assets, and the standard updater. The standard updater updates only the desktop App bundle. |
+| Runtime Substrate | App-owned runtime roots and fallback executors needed to launch and run OPL. `embedded_codex_executor` means the App-owned Codex CLI executor payload; it does not upgrade or rewrite the user's global Codex/Homebrew install. |
+| Capability Packages | MAS/MAG/RCA/OMA/BookForge/ScholarSkills OPL Packages. Clean managed roots may update quietly; dirty checkouts, developer checkouts, and manual-required states are not overwritten. |
+| Companion Tools | Helper tools and skills such as OfficeCLI, MinerU, PDF/UI helpers, and Superpowers. They support workflows but do not own domain judgment. |
+| Codex Surface | Codex-visible plugin registry entries, packaged skills, generated surfaces, and reload guidance. This layer exposes one semantic entry instead of duplicate skill/plugin meanings. |
+| Workflow Profile | OPL Flow workflow guidance and profile material. Existing user `AGENTS.md` / `TASTE.md` content is not silently overwritten; profile changes use a Codex semantic merge packet. |
+| User Data / Artifacts | Workspaces, conversations, generated deliverables, logs, caches, and receipts. User artifacts require inventory, archive/restore proof, and explicit confirmation before deletion. |
+
 For Docker or server deployment, Linux, Windows, and server users should start
 from the Docker/WebUI one-click installer path in the
 [Docker/WebUI install guide](docs/public/docker-webui-install/index.html). The
@@ -265,8 +281,9 @@ runtime bridge policy is declared in
 release-channel policy is declared in
 [`contracts/app-release-channel.json`](contracts/app-release-channel.json).
 Those contracts own user-facing install surfaces, standard versus Full package
-boundaries, updater visibility, Homebrew cask policy, Runtime page bridge
-behavior, App-managed skill/plugin exposure, and release validation gates.
+boundaries, the seven App install/update layers, updater visibility, Homebrew
+cask policy, Runtime page bridge behavior, App-managed Codex exposure, Workflow
+Profile merge boundaries, and release validation gates.
 
 The OPL Framework still produces install/sync/read-model surfaces, runtime
 state, and action execution. MAS/MAG/RCA/BookForge/OMA keep domain skill semantics,

@@ -625,7 +625,7 @@ export function validateBeginnerFirstRunPresentation(presentation, label) {
   for (const [field, expected] of Object.entries({
     target_route: '/guid',
     route_state: 'postInstallSelfCheck',
-    prompt_policy: 'localized Codex CLI read-only diagnosis prompt describing target OPL working mode',
+    prompt_policy: 'localized Codex CLI post-install self-check prompt describing target OPL working mode and repair path',
     mutation_policy: 'diagnose_first_no_file_mutation_without_user_confirmation',
     release_gate_policy: 'user_visible_entry_complements_non_blocking_codex_ai_self_check_receipt',
   })) {

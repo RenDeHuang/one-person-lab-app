@@ -22,8 +22,8 @@ const guidHomeExpected = [
 ];
 
 const guidLocaleExpected = {
-  'zh-CN': ['安装后智能自检', '程序化初始化已经完成', '不要覆盖用户已有的 AGENTS.md', '模块自动更新'],
-  'en-US': ['Post-install intelligent self-check', 'Programmatic initialization has completed', "Do not overwrite the user's AGENTS.md", 'module auto-update'],
+  'zh-CN': ['安装后智能自检', '程序化初始化已经完成', 'OPL Flow 与用户已有工作区规则可以共存', 'MAS/MAG/RCA/OMA/OBF', '后台维护'],
+  'en-US': ['Post-install intelligent self-check', 'Programmatic initialization has completed', "OPL Flow can coexist with the user's existing workspace rules", 'MAS/MAG/RCA/OMA/OBF', 'background maintenance'],
 };
 
 const guidHomeRuntimeForbidden = [
