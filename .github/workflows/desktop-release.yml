@@ -93,7 +93,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: opl-desktop-release-${{ inputs.release_mode == 'draft_candidate' && 'draft' || 'stable' }}-${{ inputs.opl_version }}
+  group: opl-desktop-release-${{ inputs.release_mode }}-${{ inputs.opl_version }}
   cancel-in-progress: true
 
 env:
@@ -732,9 +732,7 @@ jobs:
     name: Run Docker WebUI smoke and stage GHCR publish
     needs:
       - publish-standard
-      - standard-first-run-vm-smoke-after-standard-only
-      - standard-vm-smoke-gate-after-full
-    if: ${{ !cancelled() && inputs.publish_docker_webui && inputs.run_vm_smoke && ((!inputs.include_full_package && needs.standard-first-run-vm-smoke-after-standard-only.result == 'success') || (inputs.include_full_package && needs.standard-vm-smoke-gate-after-full.result == 'success')) }}
+    if: ${{ !cancelled() && inputs.publish_docker_webui && inputs.run_vm_smoke && needs.publish-standard.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
 

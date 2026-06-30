@@ -1,4 +1,3 @@
-import { legacySettingsRouteRedirects } from './app-contract-constants.ts';
 import {
   assertShellTextIncludesAll,
   assertTextExcludesAll,
@@ -126,26 +125,6 @@ function validateSettingsPartitionImplementation(shellPaths) {
   );
 }
 
-function legacySettingsRouteTarget(legacyId, targetId) {
-  if (legacyId === 'skills-hub') {
-    return '/settings/capabilities?tab=skills';
-  }
-  if (legacyId === 'tools') {
-    return '/settings/capabilities?tab=tools';
-  }
-  return `/settings/${targetId}`;
-}
-
-function assertLegacySettingsRoutes(router) {
-  for (const [legacyId, targetId] of Object.entries(legacySettingsRouteRedirects)) {
-    const expectedTarget = legacySettingsRouteTarget(legacyId, targetId);
-    const expectedRoute = `path='/settings/${legacyId}' element={<Navigate to='${expectedTarget}' replace />}`;
-    if (!router.includes(expectedRoute)) {
-      throw new Error(`Active shell router must redirect legacy settings route ${legacyId} to ${expectedTarget}`);
-    }
-  }
-}
-
 function validateTeamRouteDisablement(shellPaths) {
   const router = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Router.tsx');
   assertShellTextIncludesAll(
@@ -157,7 +136,20 @@ function validateTeamRouteDisablement(shellPaths) {
   if (!router.includes('TEAM_MODE_ENABLED ? withRouteFallback(TeamIndex) : <Navigate to=\'/guid\' replace />')) {
     throw new Error('Active shell router must redirect /team routes when Team mode is disabled');
   }
-  assertLegacySettingsRoutes(router);
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/layout/Router.tsx',
+    [
+      'LEGACY_SETTINGS_ROUTE_REDIRECTS',
+      'Object.entries(LEGACY_SETTINGS_ROUTE_REDIRECTS)',
+      "targetPath !== `/settings/${legacyId}`",
+      'renderSettingsRedirect',
+      'const path = `/settings/${legacyId}`',
+      'path={path}',
+      'element={<Navigate to={targetPath} replace />}',
+    ],
+    'Active shell router registry-driven legacy settings redirects',
+  );
 }
 
 function validateTeamSurfaceDisablement(shellPaths) {

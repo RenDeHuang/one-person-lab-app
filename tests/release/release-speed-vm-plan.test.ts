@@ -66,7 +66,7 @@ function laneById(plan: { lanes: Array<{ id: string }> }, laneId: string) {
 test('desktop release workflow keeps the release DAG split by build, publish, verification, and VM gates', () => {
   const workflow = readRepoFile('.github/workflows/desktop-release.yml');
 
-  assertMatches(workflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-\$\{\{ inputs\.release_mode == 'draft_candidate' && 'draft' \|\| 'stable' \}\}-\$\{\{ inputs\.opl_version \}\}/, 'desktop release concurrency group');
+  assertMatches(workflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-\$\{\{ inputs\.release_mode \}\}-\$\{\{ inputs\.opl_version \}\}/, 'desktop release concurrency group');
   assertMatches(workflow, /cancel-in-progress:\s+true/, 'desktop release same-version cancellation policy');
   assertMatches(
     workflow,

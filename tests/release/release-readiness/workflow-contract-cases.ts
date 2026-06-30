@@ -87,7 +87,7 @@ test('desktop release workflow fails fast before expensive builds and cancels st
   const readinessAdmissionJob = workflow.match(/\n  release-readiness-admission:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
   const readinessJob = workflow.match(/\n  release-readiness-summary:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '';
 
-  assert.match(workflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-\$\{\{ inputs\.release_mode == 'draft_candidate' && 'draft' \|\| 'stable' \}\}-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(workflow, /concurrency:[\s\S]*group:\s+opl-desktop-release-\$\{\{ inputs\.release_mode \}\}-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /cancel-in-progress:\s+true/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*name:\s+Release workflow contract/);
   assert.match(workflow, /release-workflow-contract:[\s\S]*npm run validate:release-boundary/);
@@ -118,6 +118,11 @@ test('desktop release workflow fails fast before expensive builds and cancels st
     /needs\.release-preflight\.outputs\.homebrew_tap_update_required != 'true'/,
   );
   assert.match(webuiGhcrPublishJob, /needs\.docker-webui-smoke\.result == 'success'/);
+  assert.match(workflow, /docker-webui-smoke:[\s\S]*needs:\s+[\s\S]*publish-standard/);
+  assert.doesNotMatch(
+    workflow.match(/\n  docker-webui-smoke:[\s\S]*?(?=\n  [a-z0-9-]+:\n|$)/)?.[0] ?? '',
+    /standard-vm-smoke-gate-after-full|standard-first-run-vm-smoke-after-standard-only/,
+  );
   assert.match(operatorEvidenceJob, /standard-vm-smoke-gate-after-full/);
   assert.match(operatorEvidenceJob, /needs\.standard-vm-smoke-gate-after-full\.result == 'success'/);
   assert.doesNotMatch(

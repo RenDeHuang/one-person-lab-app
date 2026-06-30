@@ -92,6 +92,10 @@ Docker/WebUI release readiness is scoped to the image and Docker runtime: Docker
 build, GHCR publish, and clean Linux Docker runtime smoke are blocking evidence.
 Clean Windows VM evidence is optional diagnostic input because Windows Docker
 host readiness belongs to Docker and Windows, not the macOS App stable release.
+The Docker/WebUI lane starts after standard asset publish, not after the macOS
+standard VM gate. Final Stable readiness still requires both the macOS App gate
+and the Docker/WebUI gates when Docker/WebUI publishing is enabled, but one lane
+must not suppress the other's evidence collection.
 
 `release_source_gate` runs after preflight and before expensive lanes. It checks
 the App release-boundary contract, active shell format/type, active shell
@@ -445,6 +449,9 @@ Next optimization candidates must preserve release authority boundaries:
 - Keep `refresh_existing` as an emergency repair path; ordinary Stable should
   prefer draft candidate promotion so failed attempts do not overwrite the
   already published stable asset set.
+- Keep `new_release` and `refresh_existing` in distinct workflow concurrency
+  groups. A mistaken `refresh_existing` for the same version must fail in
+  preflight without cancelling an in-flight `new_release`.
 - Add the release-session manifest described in Layer 17, with a focused test
   fixture for the `v26.6.29` shape: two failed Desktop Release runs, one
   successful Desktop Release run, one Promote run, owner receipt closeout, and

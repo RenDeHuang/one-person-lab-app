@@ -1523,9 +1523,9 @@
       "full_first_install_workflow": ".github/workflows/full-first-install-release.yml",
       "first_run_vm_workflow": ".github/workflows/opl-first-run-vm.yml",
       "desktop_release_concurrency": {
-        "group": "opl-desktop-release-<draft|stable>-<version>",
+        "group": "opl-desktop-release-<release_mode>-<version>",
         "cancel_in_progress": true,
-        "rule": "A newer run for the same version and release lane cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts."
+        "rule": "A newer run for the same version and same release mode cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts; new_release and refresh_existing must not cancel each other."
       },
       "release_readiness_admission": {
         "workflow_job": "release-readiness-admission",
@@ -1540,7 +1540,7 @@
         "diagnostic_gates": [
           "operator-evidence-bundle-validation"
         ],
-        "rule": "Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required. Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running."
+        "rule": "Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required. Docker/WebUI publish and clean Linux Docker runtime evidence run independently after standard asset publish and remain required when publish_docker_webui=true; clean Windows VM evidence is optional diagnostic import. Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running."
       },
       "diagnostics_workflow_policy": {
         "workflow": ".github/workflows/desktop-release-diagnostics.yml",

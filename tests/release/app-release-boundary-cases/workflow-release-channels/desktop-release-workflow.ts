@@ -197,7 +197,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /one-shot-app-installer-smoke:/);
   assert.match(workflow, /one-shot-app-installer-smoke:[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /docker-webui-smoke:/);
-  assert.match(workflow, /docker-webui-smoke:[\s\S]*standard-vm-smoke-gate-after-full/);
+  assert.match(workflow, /docker-webui-smoke:[\s\S]*needs:\s+[\s\S]*publish-standard/);
+  assert.doesNotMatch(dockerWebuiJob, /standard-vm-smoke-gate-after-full|standard-first-run-vm-smoke-after-standard-only/);
   assert.match(workflow, /docker_webui_clean_linux_evidence_artifact:[\s\S]*Optional same-run artifact name containing clean Linux VM Docker WebUI smoke evidence; empty runs the Ubuntu clean VM gate in this workflow/);
   assert.match(workflow, /docker_webui_clean_windows_evidence_artifact:[\s\S]*Optional same-run artifact name containing clean Windows VM Docker WebUI smoke evidence for diagnostic import/);
   assert.doesNotMatch(jobLevelIf(oneShotInstallerJob), /if:\s*\$\{\{\s*always\(\)/);
@@ -536,9 +537,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     '.github/workflows/desktop-release-diagnostics.yml',
   );
   assert.deepEqual(releaseContract.release_acceleration.github_actions.desktop_release_concurrency, {
-    group: 'opl-desktop-release-<draft|stable>-<version>',
+    group: 'opl-desktop-release-<release_mode>-<version>',
     cancel_in_progress: true,
-    rule: 'A newer run for the same version and release lane cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts.',
+    rule: 'A newer run for the same version and same release mode cancels stale work before another expensive App release attempt can publish or produce contradictory diagnostic artifacts; new_release and refresh_existing must not cancel each other.',
   });
   assert.deepEqual(releaseContract.release_acceleration.github_actions.release_readiness_admission, {
     workflow_job: 'release-readiness-admission',
@@ -551,7 +552,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     ],
     homebrew_allowed_when_false: 'success_or_skipped',
     diagnostic_gates: ['operator-evidence-bundle-validation'],
-    rule: 'Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required. Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running.',
+    rule: 'Release readiness admission must fail when required same-cohort gates fail, but it must not force Homebrew tap or Homebrew VM gates when release-preflight says no tap update is required. Docker/WebUI publish and clean Linux Docker runtime evidence run independently after standard asset publish and remain required when publish_docker_webui=true; clean Windows VM evidence is optional diagnostic import. Diagnostic gates such as operator evidence bundle validation must feed the readiness summary when present, but they must not prevent readiness aggregation from running.',
   });
   assert.deepEqual(releaseContract.release_acceleration.github_actions.diagnostics_workflow_policy, {
     workflow: '.github/workflows/desktop-release-diagnostics.yml',
