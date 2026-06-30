@@ -246,7 +246,7 @@ function validateInstallUpdateTaxonomy(profile) {
   assertDeepEqualJson(
     profile.install_update_taxonomy?.user_semantic_classes,
     [
-      'app_binary',
+      'installation_carrier',
       'runtime_substrate',
       'capability_packages',
       'companion_tools',

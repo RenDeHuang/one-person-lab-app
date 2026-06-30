@@ -81,9 +81,12 @@ function validatePublicAbi(abi) {
 
 function validateExposureClasses(policy) {
   const exposureClassById = new Map((policy.exposure_classes ?? []).map((entry) => [entry.id, entry]));
-  const domainPluginClass = exposureClassById.get('family_domain_plugin_surfaces');
+  const domainPluginClass = exposureClassById.get('codex_surface');
   if (domainPluginClass?.sync_target !== 'codex_plugin_registry') {
     throw new Error('Install exposure domain plugin class must sync to codex_plugin_registry');
+  }
+  if (domainPluginClass?.legacy_alias !== 'family_domain_plugin_surfaces') {
+    throw new Error('Install exposure Codex surface class must keep family_domain_plugin_surfaces as a legacy alias only');
   }
   assertIncludesAll(
     domainPluginClass?.members,
@@ -99,9 +102,12 @@ function validateExposureClasses(policy) {
   if (generatedClass?.sync_target !== 'opl_generated_codex_plugin_surface' || !generatedClass?.members?.includes('opl-meta-agent')) {
     throw new Error('Install exposure generated class must route OPL Meta Agent through OPL-generated local Codex plugin surface');
   }
-  const companionClass = exposureClassById.get('companion_skill_sync');
+  const companionClass = exposureClassById.get('companion_tools_codex_skills');
   if (companionClass?.sync_target !== 'codex_user_skill_discovery_path') {
     throw new Error('Install exposure companion skill class must sync to Codex user skill discovery path');
+  }
+  if (companionClass?.legacy_alias !== 'companion_skill_sync') {
+    throw new Error('Install exposure companion tools Codex skills class must keep companion_skill_sync as a legacy alias only');
   }
   assertIncludesAll(
     companionClass?.members,
@@ -113,9 +119,12 @@ function validateExposureClasses(policy) {
       throw new Error(`Install exposure companion skill class must not include domain plugin ${forbiddenDomain}`);
     }
   }
-  const packagedRuntimeClass = exposureClassById.get('packaged_full_runtime_payloads');
+  const packagedRuntimeClass = exposureClassById.get('runtime_substrate_payloads');
   if (packagedRuntimeClass?.owner !== 'one-person-lab-app') {
     throw new Error('Install exposure packaged Full runtime payloads must stay App-owned');
+  }
+  if (packagedRuntimeClass?.legacy_alias !== 'packaged_full_runtime_payloads') {
+    throw new Error('Install exposure runtime substrate payload class must keep packaged_full_runtime_payloads as a legacy alias only');
   }
   if (!packagedRuntimeClass?.must_not_sync_to?.includes('implicit_user_codex_skill_install_without_managed_sync')) {
     throw new Error('Install exposure packaged Full runtime payloads must not imply user skill install without managed sync');

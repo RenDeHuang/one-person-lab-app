@@ -94,7 +94,7 @@ ad hoc cards:
   actions: it may check status, repair components with explicit repair receipts,
   apply safe non-restart package/capability sync actions, and refresh fast App
   state. It must not implement a second updater kernel, silently update dirty or
-  developer checkouts, silently apply restart-required runtime/toolchain changes,
+  developer checkouts, silently apply restart-required runtime substrate changes,
   auto-rollback, or write runtime/domain truth.
 - Settings search filters ordinary route labels, task entries, and action
   keywords. It is a navigation aid only: selecting a result changes the page,
@@ -127,7 +127,7 @@ P0 entries:
   check, and repair entry. It belongs to Setup & Access.
 - Workspace: current path, open/change/verify actions, and permission status.
   It belongs to Overview as an ordinary setup entry.
-- Maintenance Hub: App updates, runtime/toolchain, OPL Packages, storage
+- Maintenance Hub: App updates, runtime substrate, OPL Packages, storage
   cleanup entry, and repair recommendations. It belongs to Maintenance & Updates.
 - Capability Status: Research, Grant Writing, Presentations, Book/manuscript
   work, and OPL automation show usable / needs update / needs repair /
@@ -212,12 +212,12 @@ supporting sections below the purpose model.
 Updates & Maintenance owns normal maintenance and update actions, while About owns only version and
 links. The maintenance page groups:
 
-- App binary;
-- runtime/toolchain;
+- Installation carrier;
+- runtime substrate;
 - OPL Packages;
 - storage cleanup;
 - repair recommendations;
-- capability exposure sync.
+- Codex Surface sync.
 
 Each group uses the same structure: current state, user summary, recommended
 action, last check, next check, and details disclosure. Apply, repair, and

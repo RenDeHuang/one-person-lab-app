@@ -33,7 +33,7 @@ Installation exposure uses separate classes so user-facing defaults do not becom
 
 | Layer | Architecture boundary |
 | --- | --- |
-| App Binary | The desktop `.app` bundle, DMG/ZIP assets, `latest*.yml`, and standard updater apply lifecycle. The standard updater is App-binary-only. |
+| Installation Carrier | The host/container carrier: macOS desktop `.app` bundle and updater metadata, Docker/WebUI image, or Linux package carrier. The standard updater is macOS App carrier-only; Docker/WebUI image updates use host update routes and volume-preservation proof. |
 | Runtime Substrate | App-owned runtime roots, native helpers, Temporal/Codex fallback archives, and framework runtime payload needed to launch or recover OPL. `embedded_codex_executor` is the App-owned Codex CLI executor payload and must not mutate the user's global Codex, Homebrew, or system tools. |
 | Capability Packages | MAS/MAG/RCA/OMA/BookForge/ScholarSkills OPL Packages. Clean managed roots may be silently updated by OPL maintenance; dirty checkouts, developer checkouts, idempotency locks, verification failures, and manual-required conditions fail closed instead of being overwritten. |
 | Companion Tools | Support tools and skills such as Superpowers, cron, OfficeCLI, PDF, MinerU, and UI/UX helpers. They are App-visible helpers, not domain-authority owners. |

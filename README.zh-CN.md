@@ -143,7 +143,7 @@ Full 首装包是给干净机器准备的预置载荷，不是长期更新通道
 
 | 层 | 用户应如何理解 |
 | --- | --- |
-| App Binary | `One Person Lab.app`、DMG/ZIP 资产和 standard updater。standard updater 只更新桌面 App bundle。 |
+| Installation Carrier | OPL 在宿主机/容器层面的安装和更新载体：macOS App bundle、Docker/WebUI image 或 Linux package carrier。macOS 走 standard updater/Homebrew；Docker/WebUI 走 image status 与 host update route；Linux package carrier 走宿主机包管理器或 host executor。 |
 | Runtime Substrate | App 管理的运行底座和启动所需 fallback executor。`embedded_codex_executor` 指 App-owned Codex CLI executor payload；它不升级、不重写用户全局 Codex 或 Homebrew 安装。 |
 | Capability Packages | MAS/MAG/RCA/OMA/BookForge/ScholarSkills 等 OPL Packages。clean managed roots 可以静默更新；dirty checkout、developer checkout 或 manual required 状态不会被覆盖。 |
 | Companion Tools | OfficeCLI、MinerU、PDF/UI helpers、Superpowers 等辅助工具和技能。它们支撑工作流，但不持有领域判断。 |

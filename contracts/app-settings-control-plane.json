@@ -751,10 +751,10 @@
       {
         "id": "maintenance_noise_reduction",
         "track": "user_task_ux",
-        "goal": "Maintenance shows user impact and safe next steps; OPL packages and capability exposure are not shown as competing update systems.",
+        "goal": "Maintenance shows user impact and safe next steps; OPL packages and Codex Surface are not shown as competing update systems.",
         "evidence_required": [
           "maintenance route uses summary, recommendation, and disclosure card protocol",
-          "capability exposure appears as capability/package status",
+          "Codex Surface appears as capability/package status",
           "raw component ids stay collapsed"
         ]
       },

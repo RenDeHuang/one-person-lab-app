@@ -37,10 +37,10 @@ may stay machine-readable, but they must not become the primary user taxonomy.
 
 | Layer | User-facing meaning | Update boundary |
 | --- | --- | --- |
-| App Binary | `One Person Lab.app`, DMG/ZIP assets, updater metadata, and the visible restart/install lifecycle. | Standard updater and Homebrew casks update only this layer. |
+| Installation Carrier | The host/container installation carrier: macOS App bundle, Docker/WebUI image, or Linux package carrier. | macOS uses standard updater/Homebrew. Docker/WebUI image updates require carrier status, host update route, `host_executor_required` or `manual_required`, and mounted data/projects preservation proof. Linux package carriers route through the host package manager or documented host executor. |
 | Runtime Substrate | App-owned runtime roots, fallback executors, native helpers, Temporal/Codex fallback archives, and OPL Framework runtime needed to launch or recover. | Managed by OPL/App startup maintenance; `embedded_codex_executor` is an App-owned Codex CLI executor payload and must not mutate user global Codex/Homebrew/system installs. |
 | Capability Packages | MAS/MAG/RCA/OMA/BookForge/ScholarSkills OPL Packages. | Clean managed roots may update silently; dirty checkouts, developer checkouts, locks, verification failures, and manual-required states are not overwritten. |
-| Companion Tools | OfficeCLI, MinerU, PDF/UI helpers, Superpowers, cron, and similar workflow helpers. | Maintained as helper payloads/skills, not domain-authority or App Binary assets. |
+| Companion Tools | OfficeCLI, MinerU, PDF/UI helpers, Superpowers, cron, and similar workflow helpers. | Maintained as helper payloads/skills, not domain-authority or Installation Carrier assets. |
 | Codex Surface | Codex plugin registry, plugin-packaged skills, generated OMA/BookForge surfaces, post-apply sync, readiness, and reload guidance. | A visibility/readiness projection over one semantic entry; it is not a separate update channel. |
 | Workflow Profile | OPL Flow workflow/profile guidance and Codex profile material. | Profile sync must not silently overwrite existing `AGENTS.md` or `TASTE.md`; existing profiles route through a Codex semantic merge packet. |
 | User Data/Artifacts | Workspaces, conversations, generated deliverables, logs, caches, receipts, and archive/restore state. | Never a silent updater target; destructive cleanup requires inventory, archive/restore proof, and explicit confirmation. |
@@ -331,7 +331,7 @@ The standard updater follows Electron's background-download plus visible restart
 
 The current macOS install path is App-managed local authorization: the ZIP must contain the expected `One Person Lab.app` bundle, the installer replaces the local App bundle, clears quarantine, records `codesign` / `spctl` diagnostics, and relaunches the App. The active-shell gate requires both the local authorized installer path and the post-restart `quit-and-install` / `install-not-applied` diagnostics so a release cannot regress to a download-only success claim.
 
-The standard updater updates App Binary assets only. It does not update Runtime
+The standard updater updates only the macOS App carrier variant. It does not update Runtime
 Substrate, OPL Packages, Companion Tools, Codex Surface, Workflow Profile,
 Developer Profile checkout sources, WebUI images, Homebrew/system tools, global
 Codex, user artifacts, or domain readiness.
@@ -375,10 +375,10 @@ Framework readbacks, but user surfaces label them as OPL Packages and Codex
 Surface readiness. If `opl update check` or `opl update plan` reports those
 components as clean managed and updateable, the shell may call the Framework
 runner to apply them and then display the recorded receipt refs, post-apply
-hooks, skill/plugin sync result, and reload guidance. App Binary updates and
+hooks, skill/plugin sync result, and reload guidance. Installation Carrier updates and
 Runtime Substrate updates remain conservative: they can be checked, staged,
 repaired, or shown as requiring restart, but the shell must not silently replace
-the App bundle, switch runtime pointers, upgrade Homebrew/system tools, or
+the App bundle, replace Docker/WebUI images, switch runtime pointers, upgrade Homebrew/system tools, or
 mutate developer / dirty checkouts.
 
 The App may display component receipt refs, lock/runner status, repair status,

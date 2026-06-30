@@ -431,7 +431,7 @@ export function writeFullRemoteAssets(outDir, version, options = {}) {
         ?? 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       managed_update_surface_id: options.currentnessProbe?.managed_update_surface_id ?? 'opl_managed_updater_kernel',
       managed_update_components: options.currentnessProbe?.managed_update_components
-        ?? ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure'],
+        ?? ['installation_carrier', 'runtime_substrate', 'capability_packages', 'codex_surface', 'companion_tools'],
       app_state_schema_version: options.currentnessProbe?.app_state_schema_version ?? 'opl_app_state.v1',
       app_state_module_count: options.currentnessProbe?.app_state_module_count ?? 5,
     }, null, 2)}\n`,

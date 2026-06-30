@@ -14,10 +14,11 @@ type Args = {
 const requiredSeedComponents = ['opl_framework', 'codex_cli', 'companion_skills', 'domain_modules'];
 const requiredMigrationComponents = ['data_dir', 'projects_dir'];
 const requiredManagedUpdateComponents = [
-  'app_binary',
-  'runtime_toolchain',
-  'agent_package_channel',
-  'capability_exposure',
+  'installation_carrier',
+  'runtime_substrate',
+  'capability_packages',
+  'codex_surface',
+  'companion_tools',
 ];
 
 function parseArgs(): Args {

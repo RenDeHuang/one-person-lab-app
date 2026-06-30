@@ -55,7 +55,7 @@
   },
   "exposure_classes": [
     {
-      "id": "family_domain_plugin_surfaces",
+      "id": "codex_surface",
       "owner": "one-person-lab",
       "members": [
         "mas",
@@ -70,7 +70,8 @@
         "~/.codex/skills/mag",
         "~/.codex/skills/rca",
         "~/.codex/skills/opl-bookforge"
-      ]
+      ],
+      "legacy_alias": "family_domain_plugin_surfaces"
     },
     {
       "id": "opl_generated_plugin_surfaces",
@@ -86,8 +87,8 @@
       ]
     },
     {
-      "id": "companion_skill_sync",
-      "owner": "one-person-lab",
+      "id": "companion_tools_codex_skills",
+      "owner": "one-person-lab-app",
       "members": [
         "superpowers",
         "cron",
@@ -107,22 +108,24 @@
       "sync_target": "codex_user_skill_discovery_path",
       "must_not_sync_to": [
         "domain_plugin_semantic_mirror"
-      ]
+      ],
+      "legacy_alias": "companion_skill_sync"
     },
     {
-      "id": "packaged_full_runtime_payloads",
+      "id": "runtime_substrate_payloads",
       "owner": "one-person-lab-app",
       "members": [
-        "runtime_payloads",
-        "domain_modules",
-        "companion_skill_payloads",
+        "runtime_substrate",
+        "capability_packages",
+        "companion_tools",
         "native_helpers"
       ],
       "default_app_visible": false,
       "sync_target": "bundled_runtime_payload_refs",
       "must_not_sync_to": [
         "implicit_user_codex_skill_install_without_managed_sync"
-      ]
+      ],
+      "legacy_alias": "packaged_full_runtime_payloads"
     }
   ],
   "domain_exposure": [
@@ -681,50 +684,6 @@
       "temporal_worker_source_stale"
     ]
   },
-  "runtime_toolchain_auto_update": {
-    "owner": "one-person-lab-app",
-    "producer_owner": "one-person-lab",
-    "app_role": "define_update_policy_surface_release_channel_and_install_exposure",
-    "framework_role": "apply_verified_staged_runtime_during_startup_maintenance",
-    "entrypoint": "opl system startup-maintenance",
-    "ready_to_launch_blocking": false,
-    "default_policy": {
-      "auto_check": true,
-      "download": "silent_background",
-      "stage": "verify_then_stage_app_owned_runtime",
-      "apply": "next_app_restart",
-      "rollback": "previous_runtime_pointer_on_startup_smoke_failure"
-    },
-    "managed_components": [
-      "codex_cli_fallback",
-      "temporal_cli_archive",
-      "node_runtime",
-      "python_runtime",
-      "uv_runtime",
-      "officecli",
-      "mineru_open_api",
-      "companion_skills",
-      "native_helper",
-      "opl_framework_runtime"
-    ],
-    "user_global_tool_policy": {
-      "prefer_compatible_newer_system_tool": true,
-      "silent_homebrew_upgrade_allowed": false,
-      "silent_system_tool_mutation_allowed": false,
-      "opt_in_global_upgrade_surface": "Developer Profile explicit maintenance action"
-    },
-    "clean_machine_requirement": {
-      "full_first_install_must_remain_self_contained": true,
-      "required_release_smoke": "full_dmg_clean_vm_smoke",
-      "standard_core_ready_must_not_require_homebrew_node_git_or_clt": true
-    },
-    "fail_closed_states": [
-      "runtime_update_manifest_invalid",
-      "runtime_update_asset_sha256_mismatch",
-      "runtime_update_capability_smoke_failed",
-      "runtime_update_startup_smoke_failed"
-    ]
-  },
   "distribution_channels": {
     "homebrew": {
       "role": "app_cask_transport_and_install_index_only",
@@ -974,7 +933,8 @@
       "post_update_sync_required": [
         "codex_plugin_registry",
         "plugin_packaged_skills",
-        "opl_generated_plugin_surface"
+        "opl_generated_plugin_surface",
+        "codex_surface"
       ],
       "package_agent_ids": [
         "mas",
@@ -1003,7 +963,9 @@
       ],
       "must_not_write_user_codex_state": true,
       "must_not_define_agent_semantics": true,
-      "cohort_manifest_required": true
+      "cohort_manifest_required": true,
+      "class": "capability_packages",
+      "legacy_alias": "agent_package_channel"
     }
   },
   "release_validation": {
@@ -1021,6 +983,87 @@
       "Core ready before /guid",
       "non-blocking companion skill and plugin maintenance",
       "Codex-visible MAS/MAG/RCA/OMA entries without duplicate semantics"
+    ]
+  },
+  "runtime_substrate_auto_update": {
+    "owner": "one-person-lab-app",
+    "producer_owner": "one-person-lab",
+    "app_role": "define_runtime_substrate_update_policy_surface_release_channel_and_install_exposure",
+    "framework_role": "apply_verified_staged_runtime_during_startup_maintenance",
+    "entrypoint": "opl system startup-maintenance",
+    "ready_to_launch_blocking": false,
+    "default_policy": {
+      "auto_check": true,
+      "download": "silent_background",
+      "stage": "verify_then_stage_app_owned_runtime",
+      "apply": "next_app_restart",
+      "rollback": "previous_runtime_pointer_on_startup_smoke_failure"
+    },
+    "managed_components": [
+      "embedded_codex_executor",
+      "temporal_cli_archive",
+      "node_runtime",
+      "python_runtime",
+      "uv_runtime",
+      "native_helper",
+      "opl_framework_runtime"
+    ],
+    "user_global_tool_policy": {
+      "prefer_compatible_newer_system_tool": true,
+      "silent_homebrew_upgrade_allowed": false,
+      "silent_system_tool_mutation_allowed": false,
+      "opt_in_global_upgrade_surface": "Developer Profile explicit maintenance action"
+    },
+    "clean_machine_requirement": {
+      "full_first_install_must_remain_self_contained": true,
+      "required_release_smoke": "full_dmg_clean_vm_smoke",
+      "standard_core_ready_must_not_require_homebrew_node_git_or_clt": true
+    },
+    "fail_closed_states": [
+      "runtime_update_manifest_invalid",
+      "runtime_update_asset_sha256_mismatch",
+      "runtime_update_capability_smoke_failed",
+      "runtime_update_startup_smoke_failed"
+    ],
+    "legacy_alias": "runtime_toolchain_auto_update",
+    "companion_tools_ref": "companion_tools_auto_update"
+  },
+  "companion_tools_auto_update": {
+    "owner": "one-person-lab-app",
+    "producer_owner": "one-person-lab",
+    "app_role": "define_companion_tool_update_policy_surface_release_channel_and_install_exposure",
+    "framework_role": "apply_verified_staged_companion_tools_during_startup_maintenance",
+    "entrypoint": "opl system startup-maintenance",
+    "ready_to_launch_blocking": false,
+    "default_policy": {
+      "auto_check": true,
+      "download": "silent_background",
+      "stage": "verify_then_stage_app_owned_runtime",
+      "apply": "next_app_restart",
+      "rollback": "previous_runtime_pointer_on_startup_smoke_failure"
+    },
+    "managed_tools": [
+      "officecli",
+      "mineru_open_api"
+    ],
+    "shared_kernel_lifecycle_allowed": true,
+    "must_not_be_grouped_under_runtime_substrate": true,
+    "user_global_tool_policy": {
+      "prefer_compatible_newer_system_tool": true,
+      "silent_homebrew_upgrade_allowed": false,
+      "silent_system_tool_mutation_allowed": false,
+      "opt_in_global_upgrade_surface": "Developer Profile explicit maintenance action"
+    },
+    "clean_machine_requirement": {
+      "full_first_install_must_remain_self_contained": true,
+      "required_release_smoke": "full_dmg_clean_vm_smoke",
+      "standard_core_ready_must_not_require_homebrew_node_git_or_clt": true
+    },
+    "fail_closed_states": [
+      "companion_tool_update_manifest_invalid",
+      "companion_tool_update_asset_sha256_mismatch",
+      "companion_tool_capability_smoke_failed",
+      "companion_tool_startup_smoke_failed"
     ]
   }
 }

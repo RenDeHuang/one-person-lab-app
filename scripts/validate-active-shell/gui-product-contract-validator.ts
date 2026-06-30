@@ -727,7 +727,7 @@ function validateEnvironmentModuleMaintenanceEntry(entry, label) {
   assertIncludesAll(
     entry?.required_status,
     [
-      'OPL Packages state and Codex surface substatus',
+      'OPL Packages state and Codex Surface substatus',
       'recommended action',
       'post-update sync status',
       'repair and rollback refs',
@@ -739,7 +739,15 @@ function validateEnvironmentModuleMaintenanceEntry(entry, label) {
     {
       refresh: 'opl update status --json',
       check: 'opl update check --json',
-      apply: 'opl update apply --component <component_id> --json',
+      apply_managed_component: 'opl update apply --component <component_id> --json',
+      apply_allowed_components: ['capability_packages'],
+      apply_forbidden_components: [
+        'installation_carrier',
+        'runtime_substrate',
+        'companion_tools',
+        'codex_surface',
+        'workflow_profile',
+      ],
       repair: 'opl update repair --receipt <receipt_id> --json',
       rollback: 'opl update rollback --component <component_id> --json',
       app_action_route: 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json',
@@ -769,7 +777,15 @@ function validateFrameworkModuleMaintenanceEntry(entry) {
     entry?.manual_action_mapping,
     {
       check: 'opl update check --json',
-      apply: 'opl update apply --component <component_id> --json',
+      apply_managed_component: 'opl update apply --component <component_id> --json',
+      apply_allowed_components: ['capability_packages'],
+      apply_forbidden_components: [
+        'installation_carrier',
+        'runtime_substrate',
+        'companion_tools',
+        'codex_surface',
+        'workflow_profile',
+      ],
       repair: 'opl update repair --receipt <receipt_id> --json',
       rollback: 'opl update rollback --component <component_id> --json',
       app_action_route: 'opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json',

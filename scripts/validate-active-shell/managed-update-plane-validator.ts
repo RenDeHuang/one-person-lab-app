@@ -9,6 +9,7 @@ import {
   managedKernelRunnerResultRequiredFields,
   managedKernelStateVocabulary,
   managedKernelStatusProjectionRequiredFields,
+  managedUpdateActionSource,
   managedUpdateBackgroundFields,
   managedUpdateDisplayPlanes,
   managedUpdateIpcSurfaces,
@@ -37,7 +38,7 @@ export function validateReleaseManagedUpdateKernelSurface(managedUpdatePlane) {
 export function validateReleaseManagedUpdatePlaneLanes(managedUpdatePlane) {
   const planeById = new Map((managedUpdatePlane?.planes ?? []).map((plane) => [plane.id, plane]));
 
-  validateManagedUpdateAppBinaryLane(planeById.get('app_binary'));
+  validateManagedUpdateInstallationCarrierLane(planeById.get('installation_carrier'));
   validateManagedUpdateRuntimeAndAgentLanes(
     planeById.get('runtime_substrate'),
     planeById.get('capability_packages'),
@@ -218,23 +219,29 @@ function validateReleaseRuntimeToolchainVerification(runtimeUpdater) {
   }
 }
 
-function validateManagedUpdateAppBinaryLane(appBinaryPlane) {
+function validateManagedUpdateInstallationCarrierLane(carrierPlane) {
   if (
-    appBinaryPlane?.updater_kind !== 'standard_updater' ||
-    appBinaryPlane?.adapter !== 'electron_standard_updater' ||
-    appBinaryPlane?.source !== 'GitHub Release standard macOS arm64 updater assets' ||
-    appBinaryPlane?.policy !== 'user_visible_release_channel_check' ||
-    appBinaryPlane?.post_apply !== 'verify_running_version_after_restart_or_report_recovery' ||
-    appBinaryPlane?.repair_action_scope !== 'app_release_check_download_retry_or_install_downloaded_update_only'
+    carrierPlane?.updater_kind !== 'carrier_specific_status' ||
+    carrierPlane?.adapter !== 'installation_carrier_status_adapter' ||
+    carrierPlane?.policy !== 'carrier_specific_status_with_host_update_route' ||
+    carrierPlane?.post_apply !== 'carrier_specific_restart_host_executor_or_manual_readback' ||
+    carrierPlane?.managed_kernel_apply_allowed !== false ||
+    carrierPlane?.opl_update_apply_must_not_claim_carrier_update_complete !== true ||
+    carrierPlane?.repair_action_scope !== 'carrier_specific_check_download_host_route_or_manual_recovery_only'
   ) {
-    throw new Error('Managed update plane App binary lane must remain the standard desktop updater only');
+    throw new Error('Managed update plane installation carrier lane must be carrier-specific and outside the managed kernel apply path');
   }
   assertDeepEqualJson(
-    appBinaryPlane?.status_fields,
+    carrierPlane?.status_fields,
     [
+      'carrier_type',
       'installed_version',
       'available_version',
       'channel',
+      'carrier_status',
+      'host_update_route',
+      'host_executor_required',
+      'manual_required',
       'downloaded_version',
       'download_progress',
       'restart_required',
@@ -243,9 +250,100 @@ function validateManagedUpdateAppBinaryLane(appBinaryPlane) {
       'running_version_switched',
       'install_not_applied_reason',
       'cached_update_path',
+      'image_ref',
+      'image_digest',
+      'container_id',
+      'compose_file',
+      'package_manager',
+      'data_volume_preservation',
       'repair_actions',
     ],
-    'Managed update plane App binary lane status fields',
+    'Managed update plane installation carrier lane status fields',
+  );
+  const variants = new Map((carrierPlane?.carrier_variants ?? []).map((variant) => [variant.id, variant]));
+  validateInstallationCarrierMacosVariant(variants.get('macos_app'));
+  validateInstallationCarrierDockerWebuiVariant(variants.get('docker_webui_image'));
+  validateInstallationCarrierLinuxVariant(variants.get('linux_package_carrier'));
+}
+
+function validateInstallationCarrierMacosVariant(variant) {
+  if (
+    variant?.legacy_alias !== 'app_binary' ||
+    variant?.adapter !== 'electron_standard_updater' ||
+    variant?.host_update_route !== 'electron_standard_updater_or_homebrew_cask' ||
+    variant?.data_volume_preservation_proof_required !== false ||
+    variant?.repair_action_scope !== 'app_release_check_download_retry_or_install_downloaded_update_only'
+  ) {
+    throw new Error('Installation carrier macOS App variant must bind the legacy App binary updater to macOS carrier semantics');
+  }
+  assertIncludesAll(
+    variant?.status_values,
+    ['current', 'update_available', 'downloaded', 'restart_required', 'install_not_applied', 'failed_with_repair'],
+    'Installation carrier macOS App status values',
+  );
+}
+
+function validateInstallationCarrierDockerWebuiVariant(variant) {
+  if (
+    variant?.host_update_route !== 'host_executor_runs_documented_installer_or_compose_pull_and_up' ||
+    variant?.managed_kernel_apply_allowed !== false ||
+    variant?.data_volume_preservation_proof_required !== true ||
+    variant?.repair_action_scope !== 'docker_webui_host_route_diagnostics_and_data_volume_preservation_only' ||
+    !String(variant?.opl_update_apply_boundary ?? '').includes('must not report Docker/WebUI image replacement as applied')
+  ) {
+    throw new Error('Installation carrier Docker/WebUI image variant must require host update route and forbid opl update apply from claiming image replacement');
+  }
+  assertIncludesAll(
+    variant?.status_values,
+    ['current', 'update_available', 'host_executor_required', 'manual_required', 'failed_with_repair'],
+    'Installation carrier Docker/WebUI status values',
+  );
+  assertIncludesAll(
+    variant?.host_update_route_examples,
+    ['install-docker-webui.sh --yes --pull', 'install-docker-webui.ps1 -Yes -Pull', 'docker compose pull && docker compose up -d'],
+    'Installation carrier Docker/WebUI host update route examples',
+  );
+  assertIncludesAll(
+    variant?.preserved_mounts,
+    ['OnePersonLab/data -> /data', 'OnePersonLab/projects -> /projects'],
+    'Installation carrier Docker/WebUI preserved mounts',
+  );
+  assertIncludesAll(
+    variant?.required_preservation_evidence,
+    [
+      'compose.yaml volume mapping readback',
+      'data-preservation.txt',
+      'pre_data_inventory',
+      'post_data_inventory',
+      'install_manifest_readback',
+      'projects_mount_readback',
+    ],
+    'Installation carrier Docker/WebUI data preservation evidence',
+  );
+}
+
+function validateInstallationCarrierLinuxVariant(variant) {
+  if (
+    variant?.host_update_route !== 'host_package_manager_or_documented_host_executor' ||
+    variant?.host_executor_required !== true ||
+    variant?.managed_kernel_apply_allowed !== false ||
+    variant?.repair_action_scope !== 'linux_package_carrier_host_route_only'
+  ) {
+    throw new Error('Installation carrier Linux package variant must require host/package-manager routing outside the managed kernel apply path');
+  }
+  assertIncludesAll(
+    variant?.status_values,
+    ['current', 'update_available', 'host_executor_required', 'manual_required', 'failed_with_repair'],
+    'Installation carrier Linux package status values',
+  );
+  assertIncludesAll(
+    variant?.manual_required_when,
+    [
+      'package_manager_requires_sudo_or_root',
+      'host_policy_disallows_app_executor',
+      'repository_or_signature_configuration_required',
+    ],
+    'Installation carrier Linux manual-required reasons',
   );
 }
 
@@ -459,6 +557,7 @@ function validateManagedUpdateStandardUpdaterBoundary(standardUpdaterBoundary) {
     'Managed update plane standard updater forbidden targets',
   );
   if (
+    standardUpdaterBoundary?.plane !== 'installation_carrier.macos_app' ||
     standardUpdaterBoundary?.scope !== 'desktop_app_assets_only' ||
     standardUpdaterBoundary?.updater !== 'electron_standard_updater' ||
     standardUpdaterBoundary?.apply_lifecycle?.downloaded_state_is_not_success !== true ||
@@ -594,7 +693,7 @@ export function validateManagedUpdatePageBasics(page, label, options = {}) {
   if (page?.status_source !== 'opl update status --json') {
     throw new Error(`${label} must expose opl update status --json as the explicit status source`);
   }
-  if (page?.action_source !== 'opl update apply/repair/rollback --json through shell IPC') {
+  if (page?.action_source !== managedUpdateActionSource) {
     throw new Error(options.actionSourceError ?? `${label} must expose managed update actions through shell IPC`);
   }
   assertDeepEqualJson(

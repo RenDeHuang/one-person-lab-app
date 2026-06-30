@@ -155,7 +155,7 @@ user-facing layers:
 
 | Layer | What it means |
 | --- | --- |
-| App Binary | `One Person Lab.app`, DMG/ZIP assets, and the standard updater. The standard updater updates only the desktop App bundle. |
+| Installation Carrier | How OPL is installed and updated at the host/container layer: macOS App bundle, Docker/WebUI image, or Linux package carrier. macOS uses the standard updater/Homebrew; Docker/WebUI uses image status plus a host update route; Linux package carriers use host package-manager or host-executor routing. |
 | Runtime Substrate | App-owned runtime roots and fallback executors needed to launch and run OPL. `embedded_codex_executor` means the App-owned Codex CLI executor payload; it does not upgrade or rewrite the user's global Codex/Homebrew install. |
 | Capability Packages | MAS/MAG/RCA/OMA/BookForge/ScholarSkills OPL Packages. Clean managed roots may update quietly; dirty checkouts, developer checkouts, and manual-required states are not overwritten. |
 | Companion Tools | Helper tools and skills such as OfficeCLI, MinerU, PDF/UI helpers, and Superpowers. They support workflows but do not own domain judgment. |

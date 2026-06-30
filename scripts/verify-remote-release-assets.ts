@@ -405,7 +405,7 @@ function assertFullRuntimeCurrentnessProbe(downloadDir, manifest) {
     throw new Error(`Full runtime currentness probe used unexpected managed update surface: ${probe.managed_update_surface_id || '(empty)'}`);
   }
   const componentIds = new Set(Array.isArray(probe.managed_update_components) ? probe.managed_update_components : []);
-  for (const required of ['app_binary', 'runtime_toolchain', 'agent_package_channel', 'capability_exposure']) {
+  for (const required of ['installation_carrier', 'runtime_substrate', 'capability_packages', 'codex_surface', 'companion_tools']) {
     if (!componentIds.has(required)) {
       throw new Error(`Full runtime currentness probe is missing managed update component: ${required}`);
     }

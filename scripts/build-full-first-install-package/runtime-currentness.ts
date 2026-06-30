@@ -5,10 +5,11 @@ import { readGitHead } from './git.ts';
 import { run } from './process.ts';
 
 const REQUIRED_MANAGED_UPDATE_COMPONENTS = [
-  'app_binary',
-  'runtime_toolchain',
-  'agent_package_channel',
-  'capability_exposure',
+  'installation_carrier',
+  'runtime_substrate',
+  'capability_packages',
+  'codex_surface',
+  'companion_tools',
 ] as const;
 
 function parseJsonCommand(command: string, args: string[], env: NodeJS.ProcessEnv): unknown {

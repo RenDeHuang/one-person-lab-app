@@ -139,8 +139,9 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(fullPackageScript, /assertFullRuntimeCurrentness/);
   const currentnessScript = fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package', 'runtime-currentness.ts'), 'utf8');
   assert.match(currentnessScript, /opl_managed_updater_kernel/);
-  assert.match(currentnessScript, /agent_package_channel/);
-  assert.match(currentnessScript, /capability_exposure/);
+  assert.match(currentnessScript, /installation_carrier/);
+  assert.match(currentnessScript, /capability_packages/);
+  assert.match(currentnessScript, /codex_surface/);
   assert.match(currentnessScript, /\['app', 'state', '--profile', 'fast', '--json'\]/);
   assert.match(currentnessScript, /manifest\.components\.opl\.git_commit/);
   assert.match(fullPackageScript, /verifyDmgAppBundleLocalAuthorization/);

@@ -76,37 +76,37 @@
   ],
   "maintenance_components": [
     {
-      "id": "agent_package_channel",
-      "label": "智能体包通道",
+      "id": "capability_packages",
+      "label": "OPL 能力包",
       "status": "当前",
       "description": "更新由 OPL 管理的智能体技能和模块包。"
     },
     {
-      "id": "capability_exposure",
-      "label": "能力暴露",
+      "id": "codex_surface",
+      "label": "Codex Surface",
       "status": "当前",
       "description": "刷新 App 中可见的智能体能力。"
     }
   ],
   "managed_updates": [
     {
-      "id": "app_binary",
-      "label": "桌面 App",
+      "id": "installation_carrier",
+      "label": "安装载体",
       "status": "当前"
     },
     {
-      "id": "runtime_toolchain",
-      "label": "运行时工具链",
+      "id": "runtime_substrate",
+      "label": "运行底座",
       "status": "当前"
     },
     {
-      "id": "agent_package_channel",
-      "label": "智能体包通道",
+      "id": "capability_packages",
+      "label": "OPL 能力包",
       "status": "当前"
     },
     {
-      "id": "capability_exposure",
-      "label": "能力暴露",
+      "id": "codex_surface",
+      "label": "Codex Surface",
       "status": "当前"
     }
   ],

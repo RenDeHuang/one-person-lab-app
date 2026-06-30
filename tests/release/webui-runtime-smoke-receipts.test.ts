@@ -122,7 +122,7 @@ function startupMaintenance() {
 function managedUpdateComponent(id: string) {
   return {
     component_id: id,
-    state: id === 'agent_package_channel' ? 'skipped_manual_required' : 'current',
+    state: id === 'capability_packages' ? 'skipped_manual_required' : 'current',
     receipt: {
       schema_version: 'opl_managed_update_component_receipt.v1',
       required: true,
@@ -149,10 +149,11 @@ function updateStatus(overrides: Record<string, unknown> = {}) {
       },
       lifecycle: ['read_manifest', 'verify', 'activate', 'write_receipt', 'report_status_or_repair'],
       components: [
-        'app_binary',
-        'runtime_toolchain',
-        'agent_package_channel',
-        'capability_exposure',
+        'installation_carrier',
+        'runtime_substrate',
+        'capability_packages',
+        'codex_surface',
+        'companion_tools',
       ].map((id) => managedUpdateComponent(id)),
       receipts: {
         component_receipt_schema: 'opl_managed_update_component_receipt.v1',
@@ -219,10 +220,11 @@ test('WebUI runtime smoke receipt validator rejects managed update components wi
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-runtime-receipts-'));
   const update = updateStatus({
     components: [
-      managedUpdateComponent('app_binary'),
-      { ...managedUpdateComponent('runtime_toolchain'), receipt: { required: true } },
-      managedUpdateComponent('agent_package_channel'),
-      managedUpdateComponent('capability_exposure'),
+      managedUpdateComponent('installation_carrier'),
+      { ...managedUpdateComponent('runtime_substrate'), receipt: { required: true } },
+      managedUpdateComponent('capability_packages'),
+      managedUpdateComponent('codex_surface'),
+      managedUpdateComponent('companion_tools'),
     ],
   });
   writeJson(root, 'startup.json', startupMaintenance());
@@ -231,5 +233,5 @@ test('WebUI runtime smoke receipt validator rejects managed update components wi
 
   const result = runValidator(root);
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /managed update component runtime_toolchain receipt schema/);
+  assert.match(result.stderr, /managed update component runtime_substrate receipt schema/);
 });

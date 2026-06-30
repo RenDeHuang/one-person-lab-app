@@ -373,7 +373,7 @@
       "action_command": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
       "app_role": "status_conditions_repair_actions_consumer_only",
       "framework_role": "managed_update_kernel_owner",
-      "display_policy": "Updates & Maintenance shows App binary, runtime/toolchain, and OPL Packages; capability exposure is an OPL Packages post-apply/readiness substatus from status projections only",
+      "display_policy": "Updates & Maintenance shows installation carrier, runtime substrate, companion tools, and OPL Packages; Codex Surface is an OPL Packages post-apply/readiness substatus from status projections only; workflow profile changes require semantic merge.",
       "ordinary_module_maintenance_entry": {
         "settings_page": "settings_environment",
         "placement_label_en": "Local Environment",
@@ -392,14 +392,24 @@
         ],
         "must_show_state": [
           "OPL Packages state",
-          "OPL Packages capability exposure sync substatus",
+          "OPL Packages Codex Surface sync substatus",
           "recommended action",
           "post-update sync status",
           "repair and rollback refs"
         ],
         "manual_action_mapping": {
           "check": "opl update check --json",
-          "apply": "opl update apply --component <component_id> --json",
+          "apply_managed_component": "opl update apply --component <component_id> --json",
+          "apply_allowed_components": [
+            "capability_packages"
+          ],
+          "apply_forbidden_components": [
+            "installation_carrier",
+            "runtime_substrate",
+            "companion_tools",
+            "codex_surface",
+            "workflow_profile"
+          ],
           "repair": "opl update repair --receipt <receipt_id> --json",
           "rollback": "opl update rollback --component <component_id> --json",
           "app_action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json"
@@ -1021,13 +1031,13 @@
             "run existing repair prep",
             "check managed update status",
             "repair components with explicit repair receipt",
-            "apply safe non-restart capability sync or package exposure actions",
+            "apply safe non-restart package or Codex Surface sync actions",
             "refresh fast App state"
           ],
           "must_not": [
             "implement a second updater kernel",
             "write runtime truth, domain truth, owner receipts, or typed blockers",
-            "silently apply runtime/toolchain changes that require restart",
+            "silently apply runtime substrate changes that require restart",
             "silently update dirty or developer checkouts",
             "rollback automatically without explicit per-component user confirmation"
           ],
@@ -1238,8 +1248,8 @@
         ],
         "owns": [
           "local_service_health",
-          "app_binary_updates",
-          "runtime_toolchain_updates",
+          "installation_carrier_updates",
+          "runtime_substrate_updates",
           "opl_packages_maintenance",
           "repair_recommendations"
         ]
@@ -1802,9 +1812,11 @@
       "refresh_source": "opl app state --profile fast --json",
       "status_source": "opl update status --json",
       "sections": [
-        "app_binary",
-        "runtime_toolchain",
-        "opl_packages"
+        "installation_carrier",
+        "runtime_substrate",
+        "companion_tools",
+        "opl_packages",
+        "workflow_profile"
       ],
       "managed_update_plane": {
         "page_id": "updates_and_maintenance",
@@ -1818,18 +1830,21 @@
         "action_source": "app_state.actions",
         "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",
         "display_planes": [
-          "app_binary",
-          "runtime_toolchain",
-          "agent_package_channel"
+          "installation_carrier",
+          "runtime_substrate",
+          "companion_tools",
+          "capability_packages"
         ],
         "app_role": "status_conditions_repair_actions_consumer_only",
         "framework_role": "managed_update_kernel_owner",
         "status_consumption_policy": "show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth",
         "must_show": [
-          "App update status",
-          "Runtime/toolchain managed updater status",
+          "Installation carrier status",
+          "Runtime substrate managed updater status",
+          "Companion tools managed updater status",
           "OPL Packages managed updater status",
-          "OPL Packages capability exposure readiness and sync substatus",
+          "OPL Packages Codex Surface readiness and sync substatus",
+          "Workflow profile semantic merge status when profile changes are available",
           "conditions and repair actions from App state or opl update status",
           "user-facing OPL Packages maintenance entry under Local Environment",
           "manual check/apply/repair/rollback action mapping for OPL Packages"
@@ -1855,13 +1870,15 @@
           "backoff_policy": "bounded_retry_with_last_failure_projection",
           "user_blocking": false,
           "must_project_last_run_and_next_run": true,
-          "auto_apply_policy": "auto_apply_clean_opl_packages_only_with_capability_exposure_as_post_apply_substatus",
+          "auto_apply_policy": "auto_apply_clean_opl_packages_only_with_codex_surface_as_post_apply_substatus",
           "auto_apply_components": [
-            "agent_package_channel"
+            "capability_packages"
           ],
           "never_auto_apply_components": [
-            "app_binary",
-            "runtime_toolchain"
+            "installation_carrier",
+            "runtime_substrate",
+            "companion_tools",
+            "workflow_profile"
           ],
           "must_project_recent_actions_and_skip_reasons": true
         },
@@ -1869,7 +1886,18 @@
           "refresh": "opl update status --json",
           "check": "opl update check --json",
           "plan": "opl update plan --json",
-          "apply_component": "opl update apply --component <component_id> --json",
+          "apply_managed_component": "opl update apply --component <component_id> --json",
+          "apply_allowed_components": [
+            "runtime_substrate",
+            "capability_packages",
+            "companion_tools"
+          ],
+          "apply_forbidden_components": [
+            "installation_carrier",
+            "codex_surface",
+            "workflow_profile"
+          ],
+          "carrier_host_update_route": "carrier-specific host update route from installation_carrier.carrier_variants; Docker/WebUI image replacement requires host executor or manual route plus data volume preservation proof",
           "repair_receipt": "opl update repair --receipt <receipt_id> --json",
           "rollback_component": "opl update rollback --component <component_id> --json"
         },
@@ -1883,10 +1911,12 @@
         ]
       },
       "must_show": [
-        "App update status",
-        "Runtime/toolchain managed updater status",
+        "Installation carrier status",
+        "Runtime substrate managed updater status",
+        "Companion tools managed updater status",
         "OPL Packages managed updater status",
-        "OPL Packages capability exposure readiness and sync substatus",
+        "OPL Packages Codex Surface readiness and sync substatus",
+        "Workflow profile semantic merge status when profile changes are available",
         "conditions and repair actions from App state or opl update status",
         "user-facing OPL Packages maintenance entry under Local Environment",
         "manual check/apply/repair/rollback action mapping for OPL Packages"
@@ -1902,7 +1932,7 @@
         "Homebrew/global tool silent upgrade controls",
         "artifact bodies"
       ],
-      "action_source": "opl update apply/repair/rollback --json through shell IPC",
+      "action_source": "managed component apply/repair/rollback through shell IPC; installation carrier updates through carrier-specific host route action refs",
       "background_maintenance_status_fields": [
         "last_run_at",
         "next_run_at",
@@ -2352,13 +2382,13 @@
         "Developer Profile source_channel capability and managed GHCR OPL Packages channel default",
         "section-level refresh state",
         "environment page named Local Environment, distinct from Project Progress",
-        "runtime/toolchain managed updater status from App state or opl update status",
+        "runtime substrate managed updater status from App state or opl update status",
         "OPL Packages status and post-update sync status",
-        "OPL Packages capability exposure sync substatus",
+        "OPL Packages Codex Surface sync substatus",
         "user-facing OPL Packages maintenance entry under Local Environment",
         "BookForge module maintenance status alongside MAS/MAG/RCA/OMA",
         "ScholarSkills module maintenance status alongside MAS/MAG/RCA/OMA/BookForge",
-        "OPL Packages state, capability exposure substatus, and recommended action",
+        "OPL Packages state, Codex Surface substatus, and recommended action",
         "manual check/apply/repair/rollback mappings through opl update or App action routes",
         "health summary for whether the local App foundation can run now",
         "grouped Core, Runtime, Capabilities, and Maintenance sections",
@@ -2366,7 +2396,7 @@
         "diagnostics collapsed by default with raw booleans, ids, paths, and receipts hidden",
         "environment page placed under OPL Control Center Maintenance & Updates",
         "Local Environment limited to service health rather than broad local runtime preferences",
-        "Maintenance hub for App updates, runtime/toolchain, OPL Packages, storage cleanup, and repair recommendations",
+        "Maintenance hub for App updates, runtime substrate, companion tools, OPL Packages, storage cleanup, and repair recommendations",
         "storage cleanup entry routed to Storage & Data without making cleanup a raw diagnostic card",
         "single recommended repair or maintenance action before advanced manual actions"
       ],
@@ -2398,8 +2428,8 @@
         ],
         "state_inputs": [
           "app_state.modules",
-          "managed_update_plane.agent_package_channel",
-          "managed_update_plane.capability_exposure"
+          "managed_update_plane.capability_packages",
+          "managed_update_plane.codex_surface"
         ],
         "required_modules": [
           "MAS",
@@ -2410,7 +2440,7 @@
           "ScholarSkills"
         ],
         "required_status": [
-          "OPL Packages state and capability exposure substatus",
+          "OPL Packages state and Codex Surface substatus",
           "recommended action",
           "last run and next run",
           "post-update sync status",
@@ -2419,7 +2449,17 @@
         "manual_action_mapping": {
           "refresh": "opl update status --json",
           "check": "opl update check --json",
-          "apply": "opl update apply --component <component_id> --json",
+          "apply_managed_component": "opl update apply --component <component_id> --json",
+          "apply_allowed_components": [
+            "capability_packages"
+          ],
+          "apply_forbidden_components": [
+            "installation_carrier",
+            "runtime_substrate",
+            "companion_tools",
+            "codex_surface",
+            "workflow_profile"
+          ],
           "repair": "opl update repair --receipt <receipt_id> --json",
           "rollback": "opl update rollback --component <component_id> --json",
           "app_action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json"
@@ -2481,24 +2521,24 @@
       "refresh_source": "Settings / Storage refresh inventory",
       "sections": [
         "updater_cache",
-        "conversation_artifacts",
-        "runtime_toolchain",
+        "user_data_artifacts",
+        "runtime_substrate",
         "logs"
       ],
       "release_contract_ref": "contracts/app-release-channel.json#local_data_lifecycle",
       "must_show": [
-        "storage inventory for updater cache, conversation artifacts, runtime/toolchain, and logs",
+        "storage inventory for updater cache, user data artifacts, runtime substrate, and logs",
         "path, exists, bytes, cleanup_mode, and silent_delete_allowed for each local data root",
         "conversation archive/export receipt and restore proof before delete can execute",
-        "runtime pointer-prune dry-run plan before execute can remove unreferenced runtime roots",
+        "runtime substrate pointer-prune dry-run plan before execute can remove unreferenced runtime roots",
         "log rotation dry-run candidates by age, count, and size before execute can remove logs",
         "updater cache cleanup scoped to stale installer packages only",
         "safe cleanup language: preview, archive, restore proof, prune plan, or rotate logs",
         "Storage placed under OPL Control Center Data & Storage"
       ],
       "must_not_show": [
-        "silent conversation workdir deletion",
-        "runtime/toolchain cleanup without current or rollback pointer protection",
+        "silent user data artifact deletion",
+        "runtime substrate cleanup without current or rollback pointer protection",
         "log cleanup as proof that user artifacts were archived or deleted",
         "Homebrew/global tool silent cleanup controls",
         "domain artifact bodies",

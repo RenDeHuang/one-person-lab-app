@@ -1002,8 +1002,8 @@
           ],
           "owns": [
             "local_service_health",
-            "app_binary_updates",
-            "runtime_toolchain_updates",
+            "installation_carrier_updates",
+            "runtime_substrate_updates",
             "opl_packages_maintenance",
             "repair_recommendations"
           ]
@@ -1397,7 +1397,7 @@
     "exposure_classes_ref": "contracts/app-install-exposure-policy.json#exposure_classes",
     "tools": [
       "officecli",
-      "mineru-open-api"
+      "mineru_open_api"
     ],
     "domain_modules": [
       "mas",
@@ -1493,7 +1493,10 @@
         "preferred_app_distribution": "opl_generated_codex_plugin_surface",
         "direct_skill_semantics_required": true
       }
-    ]
+    ],
+    "class": "companion_tools",
+    "codex_surface_ref": "contracts/app-install-exposure-policy.json#exposure_classes.codex_surface",
+    "capability_packages_ref": "contracts/app-install-exposure-policy.json#agent_installation_contract.managed_agent_pack_distribution"
   },
   "boundary": {
     "app_owns": [
@@ -1572,5 +1575,26 @@
         "OPL family production readiness"
       ]
     }
+  },
+  "install_update_taxonomy": {
+    "source_refs": [
+      "contracts/app-release-channel.json#managed_update_plane.taxonomy",
+      "contracts/app-install-exposure-policy.json"
+    ],
+    "user_semantic_classes": [
+      "installation_carrier",
+      "runtime_substrate",
+      "capability_packages",
+      "companion_tools",
+      "codex_surface",
+      "workflow_profile",
+      "user_data_artifacts"
+    ],
+    "ordinary_ui_must_not_use_legacy_names": [
+      "runtime_toolchain",
+      "agent_package_channel",
+      "capability_exposure",
+      "codex_cli_fallback"
+    ]
   }
 }

@@ -1,9 +1,9 @@
 export const managedUpdateMustShow = [
-  'App update status',
+  'Installation carrier status',
   'Runtime substrate managed updater status',
   'Companion tools managed updater status',
   'OPL Packages managed updater status',
-  'OPL Packages Codex surface readiness and sync substatus',
+  'OPL Packages Codex Surface readiness and sync substatus',
   'Workflow profile semantic merge status when profile changes are available',
   'conditions and repair actions from App state or opl update status',
   'user-facing OPL Packages maintenance entry under Local Environment',
@@ -50,7 +50,7 @@ export const managedUpdateScheduler = {
   must_project_last_run_and_next_run: true,
   auto_apply_policy: 'auto_apply_clean_opl_packages_only_with_codex_surface_as_post_apply_substatus',
   auto_apply_components: ['capability_packages'],
-  never_auto_apply_components: ['app_binary', 'runtime_substrate', 'companion_tools', 'workflow_profile'],
+  never_auto_apply_components: ['installation_carrier', 'runtime_substrate', 'companion_tools', 'workflow_profile'],
   must_project_recent_actions_and_skip_reasons: true,
 };
 
@@ -58,10 +58,17 @@ export const managedUpdateUiActions = {
   refresh: 'opl update status --json',
   check: 'opl update check --json',
   plan: 'opl update plan --json',
-  apply_component: 'opl update apply --component <component_id> --json',
+  apply_managed_component: 'opl update apply --component <component_id> --json',
+  apply_allowed_components: ['runtime_substrate', 'capability_packages', 'companion_tools'],
+  apply_forbidden_components: ['installation_carrier', 'codex_surface', 'workflow_profile'],
+  carrier_host_update_route:
+    'carrier-specific host update route from installation_carrier.carrier_variants; Docker/WebUI image replacement requires host executor or manual route plus data volume preservation proof',
   repair_receipt: 'opl update repair --receipt <receipt_id> --json',
   rollback_component: 'opl update rollback --component <component_id> --json',
 };
+
+export const managedUpdateActionSource =
+  'managed component apply/repair/rollback through shell IPC; installation carrier updates through carrier-specific host route action refs';
 
 export const managedKernelLifecycle = [
   'read_manifest',
@@ -167,8 +174,8 @@ export const managedKernelComponentReceiptIdentityFields = [
   'generated_surface_hash',
 ];
 
-export const managedUpdateSections = ['app_binary', 'runtime_substrate', 'companion_tools', 'opl_packages', 'workflow_profile'];
-export const managedUpdateDisplayPlanes = ['app_binary', 'runtime_substrate', 'companion_tools', 'capability_packages'];
+export const managedUpdateSections = ['installation_carrier', 'runtime_substrate', 'companion_tools', 'opl_packages', 'workflow_profile'];
+export const managedUpdateDisplayPlanes = ['installation_carrier', 'runtime_substrate', 'companion_tools', 'capability_packages'];
 export const managedUpdateStateSources = ['opl app state --profile fast --json#managed_update_plane', 'opl update status --json'];
 export const managedUpdateStatusConsumptionPolicy =
   'show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth';

@@ -404,9 +404,10 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.public_abi.app_must_not_mirror_plugin_skill_as_duplicate_bare_skill, true);
 
   const exposureClassById = new Map(policy.exposure_classes.map((entry) => [entry.id, entry]));
-  assert.deepEqual(exposureClassById.get('family_domain_plugin_surfaces').members, ['mas', 'mag', 'rca', 'opl-bookforge']);
-  assert.equal(exposureClassById.get('family_domain_plugin_surfaces').sync_target, 'codex_plugin_registry');
-  assert.deepEqual(exposureClassById.get('family_domain_plugin_surfaces').must_not_sync_to, [
+  assert.deepEqual(exposureClassById.get('codex_surface').members, ['mas', 'mag', 'rca', 'opl-bookforge']);
+  assert.equal(exposureClassById.get('codex_surface').sync_target, 'codex_plugin_registry');
+  assert.equal(exposureClassById.get('codex_surface').legacy_alias, 'family_domain_plugin_surfaces');
+  assert.deepEqual(exposureClassById.get('codex_surface').must_not_sync_to, [
     '~/.codex/skills/mas',
     '~/.codex/skills/mag',
     '~/.codex/skills/rca',
@@ -414,10 +415,11 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   ]);
   assert.equal(exposureClassById.get('opl_generated_plugin_surfaces').sync_target, 'opl_generated_codex_plugin_surface');
   assert.deepEqual(exposureClassById.get('opl_generated_plugin_surfaces').members, ['opl-meta-agent', 'opl-bookforge']);
-  assert.deepEqual(exposureClassById.get('companion_skill_sync').members, expectedDefaultCompanionSkillSyncIds);
-  assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mas'), false);
-  assert.equal(exposureClassById.get('companion_skill_sync').members.includes('mag'), false);
-  assert.equal(exposureClassById.get('companion_skill_sync').members.includes('rca'), false);
+  assert.deepEqual(exposureClassById.get('companion_tools_codex_skills').members, expectedDefaultCompanionSkillSyncIds);
+  assert.equal(exposureClassById.get('companion_tools_codex_skills').legacy_alias, 'companion_skill_sync');
+  assert.equal(exposureClassById.get('companion_tools_codex_skills').members.includes('mas'), false);
+  assert.equal(exposureClassById.get('companion_tools_codex_skills').members.includes('mag'), false);
+  assert.equal(exposureClassById.get('companion_tools_codex_skills').members.includes('rca'), false);
 
   const domainById = new Map(policy.domain_exposure.map((entry) => [entry.domain_id, entry]));
   assert.equal(domainById.get('mas').preferred_app_distribution, 'plugin_packaged_skill');
@@ -742,6 +744,7 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'codex_plugin_registry',
     'plugin_packaged_skills',
     'opl_generated_plugin_surface',
+    'codex_surface',
   ]);
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.package_agent_ids, [
     'mas',
@@ -836,12 +839,13 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   ]);
 });
 
-test('runtime toolchain auto-update stays silent and does not mutate global tools', () => {
+test('runtime substrate auto-update stays silent and does not mutate global tools', () => {
   const policy = readInstallExposurePolicy();
-  const runtimeUpdate = policy.runtime_toolchain_auto_update;
+  const runtimeUpdate = policy.runtime_substrate_auto_update;
 
   assert.equal(runtimeUpdate.owner, 'one-person-lab-app');
   assert.equal(runtimeUpdate.producer_owner, 'one-person-lab');
+  assert.equal(runtimeUpdate.app_role, 'define_runtime_substrate_update_policy_surface_release_channel_and_install_exposure');
   assert.equal(runtimeUpdate.framework_role, 'apply_verified_staged_runtime_during_startup_maintenance');
   assert.equal(runtimeUpdate.entrypoint, 'opl system startup-maintenance');
   assert.equal(runtimeUpdate.ready_to_launch_blocking, false);
@@ -853,17 +857,16 @@ test('runtime toolchain auto-update stays silent and does not mutate global tool
     rollback: 'previous_runtime_pointer_on_startup_smoke_failure',
   });
   assert.deepEqual(runtimeUpdate.managed_components, [
-    'codex_cli_fallback',
+    'embedded_codex_executor',
     'temporal_cli_archive',
     'node_runtime',
     'python_runtime',
     'uv_runtime',
-    'officecli',
-    'mineru_open_api',
-    'companion_skills',
     'native_helper',
     'opl_framework_runtime',
   ]);
+  assert.equal(runtimeUpdate.legacy_alias, 'runtime_toolchain_auto_update');
+  assert.equal(runtimeUpdate.companion_tools_ref, 'companion_tools_auto_update');
   assert.deepEqual(runtimeUpdate.user_global_tool_policy, {
     prefer_compatible_newer_system_tool: true,
     silent_homebrew_upgrade_allowed: false,
