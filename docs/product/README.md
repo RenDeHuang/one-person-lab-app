@@ -19,6 +19,8 @@ and implementers, not for end-user onboarding.
 | [`gui/element-audit.md`](gui/element-audit.md) | Human review of ordinary user GUI elements, placement, gaps, and interaction logic. |
 | [`gui/codex-to-opl-app-delta.md`](gui/codex-to-opl-app-delta.md) | Product delta from Codex App baseline to OPL App. |
 | [`gui/feature-inventory.md`](gui/feature-inventory.md) | Cross-shell GUI capability inventory, reference mapping, and validation classes. |
+| [`gui/settings-control-center.md`](gui/settings-control-center.md) | App-owned Settings Control Center product system and validation boundary. |
+| [`gui/settings-control-center-completion-audit.md`](gui/settings-control-center-completion-audit.md) | Current completion audit for the Settings Control Center product-system checklist. |
 | [`shell-alternatives/hermes-gui-adaptation-plan.md`](shell-alternatives/hermes-gui-adaptation-plan.md) | Hermes Desktop foreground alternative adaptation route. |
 | [`shell-alternatives/hermes-first-run-flow.md`](shell-alternatives/hermes-first-run-flow.md) | Hermes candidate first-run and model-access flow. |
 
