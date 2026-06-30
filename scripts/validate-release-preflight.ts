@@ -593,7 +593,6 @@ function buildHomebrewPreflight(
   target: ReleaseTarget,
   vmGateStaticPolicy: HomebrewVmGateStaticPolicy,
 ): HomebrewPreflight {
-  const tapTokenRequired = options.runVmSmoke && options.releaseMode !== 'draft_candidate';
   if (!options.runVmSmoke) {
     return {
       tap_update_required: false,
@@ -615,7 +614,7 @@ function buildHomebrewPreflight(
   if (options.releaseMode === 'refresh_existing' && (target.kind === 'published_release' || target.kind === 'offline_unknown')) {
     return {
       tap_update_required: true,
-      tap_token_required: tapTokenRequired,
+      tap_token_required: true,
       tap_update_owner: 'desktop_release_after_remote_verification',
       reason: 'Published-release refreshes update Homebrew in desktop-release after remote verification.',
       vm_gate_static_policy: vmGateStaticPolicy,
@@ -623,7 +622,7 @@ function buildHomebrewPreflight(
   }
   return {
     tap_update_required: false,
-    tap_token_required: tapTokenRequired,
+    tap_token_required: false,
     tap_update_owner: 'desktop_release_promote_after_publish',
     reason: 'Release target is a draft; Homebrew tap updates can read it only after promote publishes the draft.',
     vm_gate_static_policy: vmGateStaticPolicy,
@@ -632,7 +631,10 @@ function buildHomebrewPreflight(
 
 function checkHomebrewToken(homebrew: HomebrewPreflight, checks: Check[]) {
   if (!homebrew.tap_token_required) {
-    addCheck(checks, 'homebrew_tap_token', 'skipped', 'Stable Homebrew tap update is not required for this run.');
+    const message = homebrew.tap_update_owner === 'desktop_release_promote_after_publish'
+      ? 'Stable Homebrew tap update is owned by the promote workflow after the draft is published; this preflight does not block App, Full, or Docker/WebUI candidate creation on the tap token.'
+      : 'Stable Homebrew tap update is not required for this run.';
+    addCheck(checks, 'homebrew_tap_token', 'skipped', message);
     return;
   }
   if (process.env.OPL_HOMEBREW_TAP_TOKEN_PRESENT !== 'true') {

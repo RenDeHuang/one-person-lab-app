@@ -73,10 +73,17 @@ npm run release:preflight
 
 The preflight checks version/mode compatibility, remote tag or release state,
 workflow shape, release plan shape, shell/framework ref availability, Codex CLI
-plus Darwin arm64 package metadata for VM-smoke runs, Homebrew tap token
-availability, the Homebrew VM static trust policy, and the App-owned release
-contract. A failing preflight stops the release before standard, Full, VM,
-Homebrew, WebUI, or publish jobs run.
+plus Darwin arm64 package metadata for VM-smoke runs, the Homebrew VM static
+trust policy, stage-appropriate Homebrew tap token availability, and the
+App-owned release contract. A failing preflight stops the release before
+standard, Full, VM, Homebrew, WebUI, or publish jobs run.
+
+Homebrew token absence is release-blocking only for a path that updates the tap
+inside the current desktop release workflow, such as published-release
+`refresh_existing`. A normal `new_release` creates and verifies a draft release
+first; its Homebrew tap update belongs to the promote workflow after the draft
+is published, so preflight must not block App assets, Full assets, or
+Docker/WebUI candidate evidence on that token.
 
 Docker/WebUI releases are gated by Docker build, GHCR publish, and clean Linux
 Docker runtime smoke. `docker_webui_clean_windows_evidence_artifact` is optional

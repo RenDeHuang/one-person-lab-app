@@ -395,10 +395,42 @@ exit 2
   const draftRefreshPayload = JSON.parse(draftRefresh.stdout);
   assert.equal(draftRefreshPayload.release_target.kind, 'draft_release');
   assert.equal(draftRefreshPayload.homebrew.tap_update_required, false);
+  assert.equal(draftRefreshPayload.homebrew.tap_token_required, false);
   assert.equal(draftRefreshPayload.homebrew.tap_update_owner, 'desktop_release_promote_after_publish');
   assert.ok(draftRefreshPayload.checks.some((check) => (
     check.id === 'homebrew_tap_token'
-    && check.status === 'passed'
+    && check.status === 'skipped'
+    && check.message.includes('promote workflow')
+  )));
+
+  const newReleaseWithoutTapToken = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.20',
+    '--release-mode',
+    'new_release',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--publish-docker-webui',
+    'true',
+    '--offline',
+  ], {
+    env: {
+      OPL_HOMEBREW_TAP_TOKEN_PRESENT: 'false',
+    },
+  });
+  assert.equal(newReleaseWithoutTapToken.status, 0, newReleaseWithoutTapToken.stderr || newReleaseWithoutTapToken.stdout);
+  const newReleaseWithoutTapTokenPayload = JSON.parse(newReleaseWithoutTapToken.stdout);
+  assert.equal(newReleaseWithoutTapTokenPayload.status, 'passed');
+  assert.equal(newReleaseWithoutTapTokenPayload.homebrew.tap_update_required, false);
+  assert.equal(newReleaseWithoutTapTokenPayload.homebrew.tap_token_required, false);
+  assert.equal(newReleaseWithoutTapTokenPayload.homebrew.tap_update_owner, 'desktop_release_promote_after_publish');
+  assert.ok(newReleaseWithoutTapTokenPayload.checks.some((check) => (
+    check.id === 'homebrew_tap_token'
+    && check.status === 'skipped'
+    && check.message.includes('does not block App, Full, or Docker/WebUI candidate creation')
   )));
 
   const failure = runNode([
