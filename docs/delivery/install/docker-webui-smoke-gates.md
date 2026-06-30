@@ -201,6 +201,75 @@ uploads the raw evidence, zip archive, imported gate result, and validation
 summary. Pass the uploaded artifact name to the desktop release workflow as
 `docker_webui_clean_windows_evidence_artifact`.
 
+### Clean Windows Runner Bootstrap
+
+The clean Windows gate needs a real disposable Windows machine. A GitHub-hosted
+`windows-latest` runner is not acceptable evidence because this path must prove
+Docker Desktop and WSL 2 on the same class of host a Windows beginner would use.
+
+Use a fresh Windows 11 x64 VM when possible. Do not reuse a developer machine
+with existing OPL data for this gate. The runner must be online, idle, and carry
+these labels:
+
+```text
+self-hosted
+Windows
+X64
+docker-webui-clean-vm
+```
+
+Bootstrap checklist for the VM operator:
+
+1. Install Windows updates and enable WSL 2.
+2. Install Docker Desktop, enable the WSL 2 backend, start Docker Desktop, and
+   verify these commands in PowerShell:
+
+   ```powershell
+   docker version
+   docker compose version
+   ```
+
+3. In GitHub, open
+   `gaofeng21cn/one-person-lab-app -> Settings -> Actions -> Runners -> New
+   self-hosted runner`, choose Windows x64, and use GitHub's generated
+   registration token. Keep the generated registration token out of docs, logs,
+   artifacts, and chat.
+4. Add the custom label `docker-webui-clean-vm` during runner configuration.
+   GitHub supplies `self-hosted`, `Windows`, and `X64`.
+5. Start the runner as a short-lived foreground runner or as a service. Confirm
+   the repository runner inventory shows it as online and idle.
+6. From the App repo on an operator machine, dispatch the smoke:
+
+   ```bash
+   npm run smoke:docker-webui:windows-clean-vm:dispatch -- --execute --json
+   ```
+
+7. If the workflow uploads `docker-webui-clean-windows-vm-evidence`, download
+   and validate the result before using it in the desktop release workflow:
+
+   ```bash
+   gh run download <run-id> \
+     --repo gaofeng21cn/one-person-lab-app \
+     --name docker-webui-clean-windows-vm-evidence \
+     --dir tmp/docker-webui-clean-windows-run-<run-id>
+
+   node --experimental-strip-types scripts/docker-webui-smoke-gate.ts \
+     --validate-result tmp/docker-webui-clean-windows-run-<run-id>/docker-webui-clean-windows-vm/docker-webui-smoke-gate-result.json \
+     --json
+   ```
+
+8. Pass `docker-webui-clean-windows-vm-evidence` to the desktop release workflow
+   as `docker_webui_clean_windows_evidence_artifact`.
+9. After evidence is collected, remove or stop the self-hosted runner and delete
+   the disposable VM if it was created only for this gate.
+
+If the dispatch uploads `docker-webui-clean-windows-vm-runner-blocker` instead,
+read `runner-preflight.json`. A `missing_clean_windows_self_hosted_runner`
+blocker means the repository inventory was readable but no online idle runner
+matched the required labels. A `runner_inventory_unreadable` blocker means an
+operator must either grant runner inventory read access or provide
+`runner_inventory_json` through the dispatch helper.
+
 `-EvidenceDir` defaults diagnostics into `windows-clean-evidence/diagnostics`
 and writes `windows-clean-evidence/windows-smoke-evidence.json`. It also calls
 the WebUI access backend to write `api-key-flow-evidence.json`, proving the UI
