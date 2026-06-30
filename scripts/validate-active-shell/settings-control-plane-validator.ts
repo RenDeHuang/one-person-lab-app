@@ -60,6 +60,10 @@ const expectedSlotKeys = [
   'settings_storage',
   'settings_theme',
   'settings_advanced',
+  'about',
+  'update',
+  'workspace',
+  'local_services',
 ];
 
 const expectedSettingsAdapterEvidence = [
@@ -178,6 +182,7 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
     expectedSlotKeys,
     'Settings control plane slot registry keys',
   );
+  assertEveryRouteHasSlot(controlPlane);
   validateHydratedSettingsRegistry(controlPlane);
   validateSettingsShellAdapterSlotContract(controlPlane);
   validateSettingsModelReasoningPolicy(controlPlane, guiContract, productProfile);
@@ -361,10 +366,24 @@ function validateCrossContractConsistency(controlPlane, guiContract, pageStateMa
     'Product profile settings.control_plane extension anchors',
   );
   assertDeepEqualJson(
+    productProfile?.settings?.control_plane?.slot_registry,
+    controlPlane.slot_registry,
+    'Product profile settings.control_plane slot registry',
+  );
+  assertDeepEqualJson(
     productProfile?.settings?.control_plane?.state_action_policy?.recommended_action_ids,
     controlPlane.state_action_policy?.recommended_action_ids,
     'Product profile settings.control_plane recommended action ids',
   );
+}
+
+function assertEveryRouteHasSlot(controlPlane) {
+  const slotRegistry = controlPlane.slot_registry ?? {};
+  for (const route of [...(controlPlane.ordinary_routes ?? []), ...(controlPlane.secondary_pages ?? [])]) {
+    if (!slotRegistry[route.slot_id]) {
+      throw new Error(`Settings control plane slot registry must declare ${route.slot_id}`);
+    }
+  }
 }
 
 function validateSettingsIa(settingsIa) {

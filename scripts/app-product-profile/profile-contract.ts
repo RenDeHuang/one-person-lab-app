@@ -198,6 +198,12 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
   ) {
     throw new Error('App product profile settings.control_plane.state_action_policy.recommended_action_ids must expose doctor and repair action ids');
   }
+  const declaredSlotIds = new Set(Object.keys(controlPlane.slot_registry ?? {}));
+  for (const route of [...controlPlane.ordinary_routes, ...controlPlane.secondary_pages]) {
+    if (!declaredSlotIds.has(route.slot_id)) {
+      throw new Error(`App product profile settings.control_plane.slot_registry must declare ${route.slot_id}`);
+    }
+  }
   const settingsIa = profile.settings.settings_information_architecture ?? {};
   const groupIds = Array.isArray(settingsIa.ordinary_groups)
     ? settingsIa.ordinary_groups.map((group) => group.id)

@@ -1350,6 +1350,22 @@
         "settings_advanced": {
           "component_key": "SystemModalContent",
           "wrapper_policy": "host_provides_wrapper"
+        },
+        "about": {
+          "component_key": "SystemModalContent",
+          "wrapper_policy": "host_provides_wrapper"
+        },
+        "update": {
+          "component_key": "RuntimeSettings",
+          "wrapper_policy": "host_provides_wrapper"
+        },
+        "workspace": {
+          "component_key": "WorkspaceSettings",
+          "wrapper_policy": "host_provides_wrapper"
+        },
+        "local_services": {
+          "component_key": "LocalServicesSettings",
+          "wrapper_policy": "host_provides_wrapper"
         }
       },
       "state_action_policy": {
