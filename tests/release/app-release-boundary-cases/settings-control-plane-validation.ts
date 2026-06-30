@@ -290,6 +290,50 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
   );
 });
 
+test('Settings model and reasoning policy is App-owned and shells are adapters only', () => {
+  const controlPlaneContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-settings-control-plane.json'), 'utf8'),
+  );
+  const guiContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-gui-product-contract.json'), 'utf8'),
+  );
+  const pageStateMatrix = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-page-state-matrix.json'), 'utf8'),
+  );
+  const adapterContract = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'),
+  );
+  const productProfile = readProductProfile();
+  const policy = controlPlaneContract.model_reasoning_policy_source;
+
+  assert.equal(policy.owner, 'one-person-lab-app');
+  assert.deepStrictEqual(policy.source_refs, [
+    'contracts/app-product-profile.json#codex',
+    'contracts/app-product-profile.json#gui.home.codex_model_display_options',
+    'contracts/app-gui-product-contract.json#executor_policy',
+  ]);
+  assert.equal(policy.default_model_ref, 'contracts/app-product-profile.json#codex.default_model');
+  assert.equal(policy.default_reasoning_effort_ref, 'contracts/app-product-profile.json#codex.default_reasoning_effort');
+  assert.equal(policy.settings_surface, 'settings_access.model_account');
+  assert.equal(policy.adapter_policy, 'Aion/Hermes/shell render App-derived model and reasoning policy only');
+  assert.deepStrictEqual(policy.shell_must_not_own, [
+    'default model',
+    'frontier model preference order',
+    'reasoning effort options',
+    'model access readiness truth',
+    'provider selector as ordinary UI',
+  ]);
+  assert.equal(guiContract.executor_policy.default_model, productProfile.codex.default_model);
+  assert.equal(guiContract.executor_policy.default_reasoning_effort, productProfile.codex.default_reasoning_effort);
+
+  const invalidPolicy = structuredClone(controlPlaneContract);
+  invalidPolicy.model_reasoning_policy_source.adapter_policy = 'shell owns its model selector';
+  assert.throws(
+    () => validateSettingsControlPlane(invalidPolicy, guiContract, pageStateMatrix, productProfile, adapterContract),
+    /shells as adapters only/,
+  );
+});
+
 test('Settings product system checklist is the completion-audit source and keeps release currentness separate', () => {
   const controlPlaneContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-settings-control-plane.json'), 'utf8'),

@@ -502,6 +502,47 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     dockerWebui.installer_model.api_key_entry_surface,
     'browser_webui_first_run_access_panel_or_settings_access',
   );
+  assert.deepEqual(dockerWebui.installer_model.runtime_proxy_smoke, {
+    mode: 'webui_proxy_configure_codex',
+    endpoint: '/api/opl-runtime/configure-codex',
+    command: 'opl system configure-codex --api-key-stdin --json',
+    secret_transport: 'stdin_only',
+    receipt_schema: 'opl_docker_webui_api_key_flow_evidence.v1',
+    key_material_recorded: false,
+  });
+  assert.equal(
+    dockerWebui.installer_model.startup_doctor.validator,
+    'scripts/validate-docker-webui-diagnostics.ts',
+  );
+  assert.deepEqual(dockerWebui.installer_model.startup_doctor.required_files, [
+    'metadata.txt',
+    'diagnostics-manifest.json',
+    'compose.yaml',
+    'docker-version.txt',
+    'docker-compose-version.txt',
+    'docker-compose-ps.txt',
+    'docker-compose-logs.txt',
+    'docker-image.txt',
+    'http-probe.txt',
+    'directories.txt',
+    'data-preservation.txt',
+  ]);
+  assert.equal(
+    dockerWebui.installer_model.failure_recovery.health_timeout,
+    'collect_diagnostics_then_retry_after_Docker_port_or_container_fix',
+  );
+  assert.deepEqual(dockerWebui.installer_model.operator_progress.status_surfaces, [
+    'HTTP health readback',
+    'api_key_flow_evidence',
+    'data-preservation verdict',
+    'OPL maintenance status after WebUI opens',
+  ]);
+  assert.deepEqual(dockerWebui.installer_model.operator_progress.must_not_claim, [
+    'release readiness',
+    'clean VM pass',
+    'domain readiness',
+    'production readiness',
+  ]);
   assert.equal(dockerWebui.installer_model.manual_docker_fallback, 'advanced_troubleshooting_path_only');
   assert.deepEqual(dockerWebui.installer_model.manual_fallback_forms, ['docker run', 'docker compose']);
   assert.equal(

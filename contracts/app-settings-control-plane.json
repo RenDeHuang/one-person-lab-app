@@ -381,6 +381,27 @@
       "release readiness"
     ]
   },
+  "model_reasoning_policy_source": {
+    "owner": "one-person-lab-app",
+    "source_refs": [
+      "contracts/app-product-profile.json#codex",
+      "contracts/app-product-profile.json#gui.home.codex_model_display_options",
+      "contracts/app-gui-product-contract.json#executor_policy"
+    ],
+    "default_model_ref": "contracts/app-product-profile.json#codex.default_model",
+    "default_reasoning_effort_ref": "contracts/app-product-profile.json#codex.default_reasoning_effort",
+    "ordinary_surface": "home_and_conversation_model_configuration_menu",
+    "settings_surface": "settings_access.model_account",
+    "adapter_policy": "Aion/Hermes/shell render App-derived model and reasoning policy only",
+    "shell_must_not_own": [
+      "default model",
+      "frontier model preference order",
+      "reasoning effort options",
+      "model access readiness truth",
+      "provider selector as ordinary UI"
+    ],
+    "release_evidence_policy": "model/reasoning contract validation does not prove release cohort, clean VM, live provider access, or owner acceptance"
+  },
   "page_adapter_policy": {
     "policy": "settings_pages_consume_explicit_view_model_adapters",
     "required_pages": {

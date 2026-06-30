@@ -160,6 +160,8 @@ projects mount readback
 
 普通用户不需要理解 Docker 日志；页面打不开时把安装器输出交给技术支持。日志和 readback 里如果出现访问密钥，先脱敏再发送。
 
+如果启动失败，优先运行安装器自带 startup doctor 或让技术支持收集诊断包。诊断包应包含 `compose.yaml`、Docker 版本、compose 状态、容器日志、HTTP probe、目录 readback 和 data-preservation verdict；诊断包不能包含真实访问密钥。
+
 ## 6. 在 WebUI 里填写访问密钥
 
 首次进入后，如果页面提示访问配置未完成，联系管理员获取模型/API 访问密钥。拿到密钥后，在首启访问页的输入框里粘贴并保存；之后也可以从“设置 -> 访问”进入同一个配置面。
@@ -172,13 +174,15 @@ projects mount readback
 1. 打开首启检查或 设置 -> 访问
 2. 在访问密钥输入框粘贴管理员提供的密钥
 3. 点击保存或完成配置
-4. 配置通过后进入 One Person Lab
+4. WebUI 通过 runtime proxy smoke 调用 `opl system configure-codex --api-key-stdin --json`
+5. 配置通过后进入 One Person Lab
 ```
 
 重点：
 
 - 不要把真实密钥写进聊天、截图、脚本、`compose.yaml` 或 shell 历史。
 - 密钥保存到本机 `OnePersonLab/data` 对应的 WebUI 数据目录。
+- runtime proxy smoke 只验证浏览器访问配置能走 stdin 传输，不把密钥写进安装命令或诊断包。
 - 以后要更换密钥，从“设置 -> 访问”处理。
 
 ![设置里的访问入口](screenshots/04-settings-entry.png)
@@ -223,6 +227,7 @@ OPL Framework、Codex CLI 和模块主要由进入 WebUI 后的 OPL 维护机制
 日常模块更新：进入 WebUI 后按 OPL 维护提示处理
 入口镜像更新：拉取新 WebUI 镜像或重新运行一键安装器
 保留：OnePersonLab/data 和 OnePersonLab/projects
+operator progress：进入 WebUI 后看首启检查、设置里的访问状态和维护提示
 ```
 
 重点：

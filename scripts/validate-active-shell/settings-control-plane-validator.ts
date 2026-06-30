@@ -180,6 +180,7 @@ export function validateSettingsControlPlane(controlPlane, guiContract, pageStat
   );
   validateHydratedSettingsRegistry(controlPlane);
   validateSettingsShellAdapterSlotContract(controlPlane);
+  validateSettingsModelReasoningPolicy(controlPlane, guiContract, productProfile);
   validateSettingsPageAdapterPolicy(controlPlane);
   validateSettingsVisualQaPolicy(controlPlane);
   validateSettingsProductSystemChecklist(controlPlane);
@@ -584,6 +585,60 @@ function validateSettingsShellAdapterSlotContract(controlPlane) {
     ['tab order', 'user semantics', 'OPL page slots', 'state/action sources', 'upstream intake classification'],
     'SettingsShellAdapterSlot app_owns',
   );
+}
+
+function validateSettingsModelReasoningPolicy(controlPlane, guiContract, productProfile) {
+  const policy = controlPlane.model_reasoning_policy_source;
+  if (policy?.owner !== 'one-person-lab-app') {
+    throw new Error('Settings model/reasoning policy must be App-owned');
+  }
+  assertIncludesAll(
+    policy?.source_refs,
+    [
+      'contracts/app-product-profile.json#codex',
+      'contracts/app-product-profile.json#gui.home.codex_model_display_options',
+      'contracts/app-gui-product-contract.json#executor_policy',
+    ],
+    'Settings model/reasoning policy source refs',
+  );
+  if (policy.default_model_ref !== 'contracts/app-product-profile.json#codex.default_model') {
+    throw new Error('Settings default model must be derived from the App product profile');
+  }
+  if (policy.default_reasoning_effort_ref !== 'contracts/app-product-profile.json#codex.default_reasoning_effort') {
+    throw new Error('Settings default reasoning effort must be derived from the App product profile');
+  }
+  if (policy.settings_surface !== 'settings_access.model_account') {
+    throw new Error('Settings model/reasoning policy must surface through Settings Access Model & Account');
+  }
+  if (policy.adapter_policy !== 'Aion/Hermes/shell render App-derived model and reasoning policy only') {
+    throw new Error('Settings model/reasoning policy must keep shells as adapters only');
+  }
+  assertIncludesAll(
+    policy.shell_must_not_own,
+    [
+      'default model',
+      'frontier model preference order',
+      'reasoning effort options',
+      'model access readiness truth',
+      'provider selector as ordinary UI',
+    ],
+    'Settings model/reasoning shell_must_not_own',
+  );
+  if (
+    guiContract?.executor_policy?.default_model !== productProfile?.codex?.default_model ||
+    guiContract?.executor_policy?.default_reasoning_effort !== productProfile?.codex?.default_reasoning_effort
+  ) {
+    throw new Error('Settings model/reasoning policy must match App product profile and GUI executor policy defaults');
+  }
+  if (
+    guiContract?.executor_policy?.model_display_options_policy?.source !==
+    'contracts/app-product-profile.json#gui.home.codex_model_display_options'
+  ) {
+    throw new Error('Settings model/reasoning display options must be derived from the App product profile');
+  }
+  if (!String(policy.release_evidence_policy ?? '').includes('does not prove release cohort')) {
+    throw new Error('Settings model/reasoning policy must keep release/live evidence separate');
+  }
 }
 
 function validateSettingsPageAdapterPolicy(controlPlane) {

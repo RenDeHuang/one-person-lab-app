@@ -277,6 +277,55 @@
         },
         "api_key_policy": "never_pass_api_key_on_cli_or_environment_for_beginner_path",
         "api_key_entry_surface": "browser_webui_first_run_access_panel_or_settings_access",
+        "runtime_proxy_smoke": {
+          "mode": "webui_proxy_configure_codex",
+          "endpoint": "/api/opl-runtime/configure-codex",
+          "command": "opl system configure-codex --api-key-stdin --json",
+          "secret_transport": "stdin_only",
+          "receipt_schema": "opl_docker_webui_api_key_flow_evidence.v1",
+          "key_material_recorded": false
+        },
+        "startup_doctor": {
+          "type": "installer_diagnostics_bundle",
+          "trigger": "requested_or_startup_failure",
+          "validator": "scripts/validate-docker-webui-diagnostics.ts",
+          "required_files": [
+            "metadata.txt",
+            "diagnostics-manifest.json",
+            "compose.yaml",
+            "docker-version.txt",
+            "docker-compose-version.txt",
+            "docker-compose-ps.txt",
+            "docker-compose-logs.txt",
+            "docker-image.txt",
+            "http-probe.txt",
+            "directories.txt",
+            "data-preservation.txt"
+          ],
+          "secret_policy": "diagnostics_are_redacted_and_validator_rejects_secret_markers"
+        },
+        "failure_recovery": {
+          "docker_missing": "install_or_start_Docker_then_rerun_one_click_installer",
+          "daemon_not_ready": "start_Docker_Desktop_or_fix_Docker_permissions_then_rerun",
+          "health_timeout": "collect_diagnostics_then_retry_after_Docker_port_or_container_fix",
+          "existing_data": "preserve_or_migrate_OnePersonLab_data_without_delete"
+        },
+        "operator_progress": {
+          "source": "opl system initialize --json",
+          "browser_surface": "first_run_access_panel_or_settings_access",
+          "status_surfaces": [
+            "HTTP health readback",
+            "api_key_flow_evidence",
+            "data-preservation verdict",
+            "OPL maintenance status after WebUI opens"
+          ],
+          "must_not_claim": [
+            "release readiness",
+            "clean VM pass",
+            "domain readiness",
+            "production readiness"
+          ]
+        },
         "manual_docker_fallback": "advanced_troubleshooting_path_only",
         "manual_fallback_forms": [
           "docker run",

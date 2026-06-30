@@ -206,6 +206,40 @@ function validateInstallerSurfaces(policy) {
   if (dockerWebui.installer_model?.api_key_entry_surface !== 'browser_webui_first_run_access_panel_or_settings_access') {
     throw new Error('Docker/WebUI install exposure must make WebUI the first API key entry surface');
   }
+  if (
+    dockerWebui.installer_model?.runtime_proxy_smoke?.mode !== 'webui_proxy_configure_codex' ||
+    dockerWebui.installer_model?.runtime_proxy_smoke?.endpoint !== '/api/opl-runtime/configure-codex' ||
+    dockerWebui.installer_model?.runtime_proxy_smoke?.command !== 'opl system configure-codex --api-key-stdin --json' ||
+    dockerWebui.installer_model?.runtime_proxy_smoke?.secret_transport !== 'stdin_only' ||
+    dockerWebui.installer_model?.runtime_proxy_smoke?.key_material_recorded !== false
+  ) {
+    throw new Error('Docker/WebUI runtime proxy smoke must validate configure-codex stdin transport without key material');
+  }
+  if (dockerWebui.installer_model?.startup_doctor?.validator !== 'scripts/validate-docker-webui-diagnostics.ts') {
+    throw new Error('Docker/WebUI startup doctor must use validate-docker-webui-diagnostics.ts');
+  }
+  assertIncludesAll(
+    dockerWebui.installer_model?.startup_doctor?.required_files,
+    [
+      'metadata.txt',
+      'diagnostics-manifest.json',
+      'compose.yaml',
+      'docker-version.txt',
+      'docker-compose-version.txt',
+      'docker-compose-ps.txt',
+      'docker-compose-logs.txt',
+      'docker-image.txt',
+      'http-probe.txt',
+      'directories.txt',
+      'data-preservation.txt',
+    ],
+    'Docker/WebUI startup doctor required files',
+  );
+  assertIncludesAll(
+    dockerWebui.installer_model?.operator_progress?.must_not_claim,
+    ['release readiness', 'clean VM pass', 'domain readiness', 'production readiness'],
+    'Docker/WebUI operator progress false-ready boundary',
+  );
   if (dockerWebui.installer_model?.manual_docker_fallback !== 'advanced_troubleshooting_path_only') {
     throw new Error('Docker/WebUI install exposure must keep manual Docker as an advanced fallback only');
   }

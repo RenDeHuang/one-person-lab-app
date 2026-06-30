@@ -21,7 +21,7 @@
   },
   "rendered_pages": 11,
   "rendered_dir": "tmp/quarto-guides/docker-webui-install/rendered",
-  "html_bytes": 2658264,
+  "html_bytes": 2658642,
   "screenshot_assets": [
     {
       "role": "browser_open_webui",
@@ -105,6 +105,9 @@
     "OnePersonLab/projects",
     "OPL Framework",
     "Codex CLI",
+    "runtime proxy smoke",
+    "startup doctor",
+    "operator progress",
     "ghcr.io/gaofeng21cn/one-person-lab-webui",
     "clean Linux VM",
     "clean Windows VM"
