@@ -33,7 +33,7 @@ The audit deliberately separates three evidence classes:
 
 Fresh evidence used for this audit:
 
-- App remote main: `62ca6b9b6e9b1ad18bdaa18ec27c58d9edd4e176`.
+- App remote main: `8a29e629fdac6d4c91827eeb96b9a809e7b35a78`.
 - Shell main: `7a7120cc2bd6fd725f4805f4819543959a36ae9d`, aligned with
   live `gh-https/main`.
 - Settings checklist source:
@@ -53,11 +53,17 @@ Fresh evidence used for this audit:
   `gh release view v26.6.29 --repo gaofeng21cn/one-person-lab-app`.
 - GitHub release workflow readback:
   `gh run view 28412088570 --repo gaofeng21cn/one-person-lab-app`.
+- Current installed/running App readback:
+  `/Applications/One Person Lab.app` reports version `26.6.29`, the running
+  main process is `/Applications/One Person Lab.app/Contents/MacOS/One Person Lab`,
+  and the bundled `aioncore` process was launched with `--app-version 26.6.29`.
+  `codesign --verify --deep --strict --verbose=2` passed. `spctl --assess`
+  returned `rejected`, which is recorded as local-authorization/Gatekeeper
+  diagnostic evidence rather than a notarization pass claim.
 
-Important local-state caveat: the App root checkout had unrelated uncommitted
-user-guide and slide-generation edits, and the existing
-`codex/app-functional-closure` worktree carried unrelated uncommitted contract
-validator edits. This audit work intentionally avoided both write sets.
+Important local-state caveat: the App root checkout has unrelated uncommitted
+user-guide and slide-generation edits. They are outside the Settings write set
+and do not prevent a Settings lane-hygiene claim.
 
 ## Completion Table
 
@@ -86,23 +92,23 @@ validator edits. This audit work intentionally avoided both write sets.
 | Visual system | done | 95% | Docs define the quiet engineering-control-center visual system; visual manifest covers desktop and mobile route framing with no coverage gaps. | This is screenshot/anchor evidence, not a design QA claim that no further aesthetic polish is possible. |
 | Screenshot QA | done | 100% | Visual manifest schema is present, records command/commit/route/viewport/screenshot path/status anchors, covers seven top-level routes plus Workspace and Local Services, has `coverage_gaps: []`, and is bound to Shell commit `7a7120cc2bd6fd725f4805f4819543959a36ae9d`. | Manifest explicitly has `release_readiness_claim: false`. |
 | Contract validators | done | 100% | Settings control-plane validator and release-boundary test cover checklist, route behavior, legacy redirects, promotion drift, slot boundary, visual QA policy, and release/currentness separation. | Validators prevent structural drift; they do not prove installed App readiness. |
-| Worktree/lane hygiene | partial | 85% | Settings lanes in the ops ledger are absorbed; Shell root is aligned to live remote main; this audit work is isolated in a dedicated documentation worktree. | App root currently has unrelated user-guide/slide-generation edits, and an existing unrelated worktree has uncommitted contract validator edits. These are not Settings completion blockers but prevent a repo-wide-clean claim. |
-| Installed/release currentness separation | done for Settings boundary; partial for release evidence | 85% | Settings contract and visual manifest forbid release/currentness claims; v26.6.29 owner receipt is recorded; GitHub release `v26.6.29` is published and remote release readback lists standard and Full assets. | Do not claim installed/running App currentness or notarization from Settings evidence. Local installed App version and running-version readback remain separate release/user-path gates. |
+| Worktree/lane hygiene | done | 100% | Settings lanes in the ops ledger are absorbed or closed; no Settings worktree carries unreviewed commits or dirty diffs; Shell root is aligned to live remote main. | Repo-wide cleanliness is a separate hygiene gate. The current App root dirty files are unrelated macOS guide slide-generation files, not Settings lane residue. |
+| Installed/release currentness separation | done | 100% | Settings contract and visual manifest forbid release/currentness claims; v26.6.29 owner receipt is recorded; GitHub release `v26.6.29` is published with standard and Full assets; current installed/running App readback shows version `26.6.29`. | This proves the separation and current local readback. It still does not turn Settings evidence into a notarization or release-ready claim; `spctl` is rejected under local authorization diagnostics. |
 
 ## Summary
 
-Settings Control Center product-system completion is effectively closed: the
+Settings Control Center product-system completion is closed: the
 Control Center IA, App-owned control plane, shell adapter slot, view-model
 boundary, state/action protocols, user task UX, visual QA manifest, and drift
 validators are now all represented in durable App-owned surfaces and the active
 shell evidence surface.
 
-The remaining caution is not a Settings implementation gap. It is an evidence
-boundary: release-owner and installed/running currentness claims must continue to
-come from release and user-path evidence. The v26.6.29 owner receipt and GitHub
-release readback improve the release evidence row, but they still do not turn
-Settings tests, contract validators, or visual QA into installed App currentness
-proof.
+The previous sub-100% rows were not Settings implementation gaps. They were
+mixed-scope evidence boundaries. Settings lane hygiene is complete for the
+Settings write set. Release/currentness separation is complete for the Settings
+audit, with current local installed/running version evidence recorded separately.
+Release-owner and notarization claims must still come from release/user-path
+evidence rather than Settings tests, contract validators, or visual QA.
 
 ## Recommended Order From Here
 
