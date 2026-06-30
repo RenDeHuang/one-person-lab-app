@@ -583,6 +583,8 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'data-preservation verdict',
     'compose volume mapping readback',
     'image digest readback',
+    'remote image digest readback',
+    'image currentness status readback',
     'OPL maintenance status after WebUI opens',
   ]);
   assert.deepEqual(dockerWebui.installer_model.ordinary_user_progress.must_not_claim, [
@@ -602,6 +604,8 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     linux_macos_entrypoint: 'install-docker-webui.sh --update',
     windows_entrypoint: 'install-docker-webui.ps1 -Update',
     rerun_semantics: 'rerunning_the_one_click_installer_is_equivalent_to_host_side_image_pull_and_compose_recreate',
+    currentness_status_model: 'local_image_digest_and_optional_remote_image_digest_compare_only',
+    currentness_claim_policy: 'remote digest comparison is status-only; it does not prove release readiness, live latest, or that a host update was applied',
     required_host_commands: ['docker compose pull', 'docker compose up'],
     preserve_host_dirs: ['/data', '/projects'],
     forbidden_mechanisms: [
@@ -689,6 +693,8 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.deepEqual(dockerWebui.smoke_gate_contract.false_ready_boundary, {
     docs_or_contract_only_can_claim_release_ready: false,
     local_container_smoke_can_replace_clean_vm_smoke: false,
+    remote_digest_match_can_claim_release_ready: false,
+    image_digest_readback_can_claim_live_currentness: false,
     missing_gate_must_be_typed_blocker: true,
   });
   assert.equal(policy.first_run_user_presentation.skill_plugin_distinction_visible_by_default, false);

@@ -76,6 +76,12 @@ pull the configured image and recreate the service while preserving mounted
 a Docker socket mount, Watchtower, or any container-side auto-updater as release
 evidence for this lane.
 
+Image digest evidence is split in two. The local compose/container image digest
+identifies what is running or installed. An optional remote GHCR digest readback
+may mark the local image as `current`, `update_available`, `unknown`, or
+`not_checked`, but that status is only user/operator guidance. It does not prove
+release readiness, live latest/currentness, or that a host update was applied.
+
 ## Desktop Release Import
 
 The desktop release workflow has an explicit import gate for clean VM evidence:

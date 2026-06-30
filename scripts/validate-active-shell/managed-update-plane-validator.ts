@@ -252,6 +252,9 @@ function validateManagedUpdateInstallationCarrierLane(carrierPlane) {
       'cached_update_path',
       'image_ref',
       'image_digest',
+      'remote_image_digest',
+      'image_currentness_status',
+      'image_currentness_evidence_source',
       'container_id',
       'compose_file',
       'package_manager',
@@ -288,6 +291,9 @@ function validateInstallationCarrierDockerWebuiVariant(variant) {
     variant?.host_update_route !== 'host_executor_runs_documented_installer_or_compose_pull_and_up' ||
     variant?.managed_kernel_apply_allowed !== false ||
     variant?.data_volume_preservation_proof_required !== true ||
+    variant?.image_currentness_status_source !== 'optional GHCR remote digest readback compared with the local compose/container image digest' ||
+    variant?.image_currentness_claim_policy !==
+      'remote digest comparison is status-only and must not be used as release-ready, live-current, or applied-update proof' ||
     variant?.repair_action_scope !== 'docker_webui_host_route_diagnostics_and_data_volume_preservation_only' ||
     !String(variant?.opl_update_apply_boundary ?? '').includes('must not report Docker/WebUI image replacement as applied') ||
     String(variant?.opl_update_apply_boundary ?? '').includes('codex_surface')

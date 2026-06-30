@@ -36,6 +36,10 @@ type GateResult = {
     id: string | null;
     repo_digests: string[];
     digest: string | null;
+    remote_ref: string | null;
+    remote_digest: string | null;
+    currentness_status: 'not_checked' | 'current' | 'update_available' | 'unknown';
+    currentness_evidence_source: string | null;
     currentness_claim: false;
   };
   data_preservation: { status: 'passed' | 'failed' | 'not_run'; verdict: string | null; summary: string };
@@ -141,6 +145,7 @@ const ordinaryMustNotClaim = [
   'clean_windows_vm_pass_without_clean_windows_evidence',
   'release_ready',
 ] as const;
+const imageCurrentnessStatuses = ['not_checked', 'current', 'update_available', 'unknown'] as const;
 
 function emptyDiagnosticsValidation(diagnosticsDir: string, missingFiles = ['diagnostics not run']) {
   return {
@@ -180,6 +185,10 @@ function emptyDiagnosticsValidation(diagnosticsDir: string, missingFiles = ['dia
       image_id: null,
       repo_digests: [],
       digest: null,
+      remote_ref: null,
+      remote_digest: null,
+      currentness_status: 'not_checked' as const,
+      currentness_evidence_source: null,
       currentness_claim: false as const,
     },
   };
@@ -302,6 +311,10 @@ function makeResult(gate: GateId, artifactDir: string): GateResult {
       id: null,
       repo_digests: [],
       digest: null,
+      remote_ref: null,
+      remote_digest: null,
+      currentness_status: 'not_checked',
+      currentness_evidence_source: null,
       currentness_claim: false,
     },
     data_preservation: {
@@ -639,6 +652,50 @@ function normalizeImageDigest(imageId: string | null, repoDigests: string[]): st
   return imageId && /^sha256:[a-f0-9]{64}$/i.test(imageId) ? imageId : null;
 }
 
+function extractDigestFromText(text: string): string | null {
+  const match = text.match(/\bsha256:[a-f0-9]{64}\b/i);
+  return match?.[0] ?? null;
+}
+
+function readRemoteImageDigest(diagnosticsDir: string): {
+  remote_ref: string | null;
+  remote_digest: string | null;
+  currentness_evidence_source: string | null;
+} {
+  for (const file of ['remote-image-digest.txt', 'docker-remote-image.txt']) {
+    const filePath = path.join(diagnosticsDir, file);
+    if (!fs.existsSync(filePath)) continue;
+    const text = fs.readFileSync(filePath, 'utf8');
+    const keyValues = Object.fromEntries(
+      text
+        .split(/\r?\n/)
+        .map((line) => line.match(/^([^=\s]+)=(.*)$/))
+        .filter((match): match is RegExpMatchArray => Boolean(match))
+        .map((match) => [match[1], match[2]]),
+    );
+    return {
+      remote_ref: keyValues.remote_ref ?? keyValues.image ?? null,
+      remote_digest: keyValues.remote_digest ?? keyValues.digest ?? extractDigestFromText(text),
+      currentness_evidence_source: file,
+    };
+  }
+  return {
+    remote_ref: null,
+    remote_digest: null,
+    currentness_evidence_source: null,
+  };
+}
+
+function compareImageCurrentness(
+  localDigest: string | null,
+  remoteDigest: string | null,
+  currentnessEvidenceSource: string | null,
+): 'not_checked' | 'current' | 'update_available' | 'unknown' {
+  if (!currentnessEvidenceSource) return 'not_checked';
+  if (!localDigest || !remoteDigest) return 'unknown';
+  return localDigest.toLowerCase() === remoteDigest.toLowerCase() ? 'current' : 'update_available';
+}
+
 function readHttpStatus(httpProbe: Record<string, string>): number | null {
   const candidates = [
     httpProbe.status,
@@ -796,6 +853,7 @@ function readDiagnosticsSummary(result: GateResult, options: ReturnType<typeof p
   const imageId = firstJsonString(path.join(result.diagnostics_dir, 'docker-image.txt'), 'Id');
   const repoDigests = jsonStringArray(path.join(result.diagnostics_dir, 'docker-image.txt'), 'RepoDigests');
   const imageDigest = normalizeImageDigest(imageId, repoDigests);
+  const remoteImage = readRemoteImageDigest(result.diagnostics_dir);
 
   result.health = {
     url: healthUrl,
@@ -817,6 +875,10 @@ function readDiagnosticsSummary(result: GateResult, options: ReturnType<typeof p
     id: imageId,
     repo_digests: repoDigests,
     digest: imageDigest,
+    remote_ref: remoteImage.remote_ref,
+    remote_digest: remoteImage.remote_digest,
+    currentness_status: compareImageCurrentness(imageDigest, remoteImage.remote_digest, remoteImage.currentness_evidence_source),
+    currentness_evidence_source: remoteImage.currentness_evidence_source,
     currentness_claim: false,
   };
   result.data_preservation = {
@@ -1166,6 +1228,22 @@ export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResult
     ) {
       invalidFields.push('diagnostics_validation.image_identity.currentness_claim');
     }
+    if (
+      !isObject(payload.diagnostics_validation) ||
+      !isObject(payload.diagnostics_validation.image_identity) ||
+      !imageCurrentnessStatuses.includes(String(payload.diagnostics_validation.image_identity.currentness_status) as typeof imageCurrentnessStatuses[number])
+    ) {
+      invalidFields.push('diagnostics_validation.image_identity.currentness_status');
+    }
+    if (
+      isObject(payload.diagnostics_validation) &&
+      isObject(payload.diagnostics_validation.image_identity) &&
+      payload.diagnostics_validation.image_identity.remote_digest !== null &&
+      (!isNonEmptyString(payload.diagnostics_validation.image_identity.remote_digest) ||
+        !/^sha256:[a-f0-9]{64}$/i.test(payload.diagnostics_validation.image_identity.remote_digest))
+    ) {
+      invalidFields.push('diagnostics_validation.image_identity.remote_digest');
+    }
     if (!isObject(payload.health) || payload.health.status !== 'passed') invalidFields.push('health.status');
     if (!isObject(payload.compose) || payload.compose.status !== 'present') invalidFields.push('compose.status');
     if (!isObject(payload.image) || payload.image.status !== 'present') invalidFields.push('image.status');
@@ -1178,6 +1256,16 @@ export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResult
     }
     if (!isObject(payload.image) || payload.image.currentness_claim !== false) {
       invalidFields.push('image.currentness_claim');
+    }
+    if (!isObject(payload.image) || !imageCurrentnessStatuses.includes(String(payload.image.currentness_status) as typeof imageCurrentnessStatuses[number])) {
+      invalidFields.push('image.currentness_status');
+    }
+    if (
+      isObject(payload.image) &&
+      payload.image.remote_digest !== null &&
+      (!isNonEmptyString(payload.image.remote_digest) || !/^sha256:[a-f0-9]{64}$/i.test(payload.image.remote_digest))
+    ) {
+      invalidFields.push('image.remote_digest');
     }
     if (!isObject(payload.data_preservation) || payload.data_preservation.status !== 'passed') {
       invalidFields.push('data_preservation.status');

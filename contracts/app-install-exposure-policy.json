@@ -358,6 +358,8 @@
             "data-preservation verdict",
             "compose volume mapping readback",
             "image digest readback",
+            "remote image digest readback",
+            "image currentness status readback",
             "OPL maintenance status after WebUI opens"
           ],
           "must_not_claim": [
@@ -406,6 +408,8 @@
           "linux_macos_entrypoint": "install-docker-webui.sh --update",
           "windows_entrypoint": "install-docker-webui.ps1 -Update",
           "rerun_semantics": "rerunning_the_one_click_installer_is_equivalent_to_host_side_image_pull_and_compose_recreate",
+          "currentness_status_model": "local_image_digest_and_optional_remote_image_digest_compare_only",
+          "currentness_claim_policy": "remote digest comparison is status-only; it does not prove release readiness, live latest, or that a host update was applied",
           "required_host_commands": [
             "docker compose pull",
             "docker compose up"
@@ -464,6 +468,8 @@
           "docker ps",
           "docker logs",
           "image_digest_readback",
+          "remote_image_digest_readback_optional",
+          "image_currentness_status_readback",
           "compose_volume_mapping_readback",
           "http_health_readback",
           "api_key_flow_evidence",
@@ -574,6 +580,8 @@
         "false_ready_boundary": {
           "docs_or_contract_only_can_claim_release_ready": false,
           "local_container_smoke_can_replace_clean_vm_smoke": false,
+          "remote_digest_match_can_claim_release_ready": false,
+          "image_digest_readback_can_claim_live_currentness": false,
           "missing_gate_must_be_typed_blocker": true
         }
       }

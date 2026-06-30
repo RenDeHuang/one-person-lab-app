@@ -11,6 +11,7 @@ import { validateDockerWebuiSmokeGateResult } from '../../scripts/docker-webui-s
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
 const imageDigest = 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const remoteImageDigest = 'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
 function writeCompleteDiagnostics(root: string) {
   const files = {
@@ -83,6 +84,10 @@ function completeGateResult() {
         image_id: imageDigest,
         repo_digests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
         digest: imageDigest,
+        remote_ref: null,
+        remote_digest: null,
+        currentness_status: 'not_checked',
+        currentness_evidence_source: null,
         currentness_claim: false,
       },
     },
@@ -95,6 +100,10 @@ function completeGateResult() {
       id: imageDigest,
       repo_digests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
       digest: imageDigest,
+      remote_ref: null,
+      remote_digest: null,
+      currentness_status: 'not_checked',
+      currentness_evidence_source: null,
       currentness_claim: false,
     },
     data_preservation: {
@@ -230,6 +239,29 @@ test('Docker/WebUI diagnostics validator requires compose mounts, preservation i
   assert.equal(missingDigest.image_identity.currentness_claim, false);
 });
 
+test('Docker/WebUI diagnostics validator treats remote image currentness as optional status-only evidence', () => {
+  const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-currentness-'));
+  writeCompleteDiagnostics(diagnostics);
+
+  const notChecked = validateDockerWebuiDiagnostics(diagnostics);
+  assert.equal(notChecked.status, 'passed');
+  assert.equal(notChecked.image_identity.digest, imageDigest);
+  assert.equal(notChecked.image_identity.remote_digest, null);
+  assert.equal(notChecked.image_identity.currentness_status, 'not_checked');
+  assert.equal(notChecked.image_identity.currentness_claim, false);
+
+  fs.writeFileSync(
+    path.join(diagnostics, 'remote-image-digest.txt'),
+    `remote_ref=ghcr.io/gaofeng21cn/one-person-lab-webui:latest\nremote_digest=${remoteImageDigest}\n`,
+  );
+  const updateAvailable = validateDockerWebuiDiagnostics(diagnostics);
+  assert.equal(updateAvailable.status, 'passed');
+  assert.equal(updateAvailable.image_identity.remote_digest, remoteImageDigest);
+  assert.equal(updateAvailable.image_identity.currentness_status, 'update_available');
+  assert.equal(updateAvailable.image_identity.currentness_evidence_source, 'remote-image-digest.txt');
+  assert.equal(updateAvailable.image_identity.currentness_claim, false);
+});
+
 test('Docker/WebUI smoke gate result readback fails when required artifact schema fields are missing', () => {
   const valid = validateDockerWebuiSmokeGateResult(completeGateResult());
   assert.equal(valid.status, 'passed');
@@ -296,6 +328,26 @@ test('Docker/WebUI smoke gate result readback rejects passed gates without image
   const falseCurrentness = validateDockerWebuiSmokeGateResult(payload);
   assert.equal(falseCurrentness.status, 'failed');
   assert.ok(falseCurrentness.invalid_fields.includes('image.currentness_claim'));
+});
+
+test('Docker/WebUI smoke gate result readback accepts remote currentness comparison only as status readback', () => {
+  const payload = completeGateResult();
+  payload.image.remote_ref = 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest';
+  payload.image.remote_digest = remoteImageDigest;
+  payload.image.currentness_status = 'update_available';
+  payload.image.currentness_evidence_source = 'remote-image-digest.txt';
+  payload.diagnostics_validation.image_identity.remote_ref = payload.image.remote_ref;
+  payload.diagnostics_validation.image_identity.remote_digest = remoteImageDigest;
+  payload.diagnostics_validation.image_identity.currentness_status = 'update_available';
+  payload.diagnostics_validation.image_identity.currentness_evidence_source = 'remote-image-digest.txt';
+
+  const result = validateDockerWebuiSmokeGateResult(payload);
+  assert.equal(result.status, 'passed');
+
+  payload.image.currentness_claim = true;
+  const claimed = validateDockerWebuiSmokeGateResult(payload);
+  assert.equal(claimed.status, 'failed');
+  assert.ok(claimed.invalid_fields.includes('image.currentness_claim'));
 });
 
 test('Docker/WebUI smoke gate result readback rejects passed gates without diagnostics proof fields', () => {

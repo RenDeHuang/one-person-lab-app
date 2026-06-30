@@ -30,6 +30,10 @@ type ValidationResult = {
     image_id: string | null;
     repo_digests: string[];
     digest: string | null;
+    remote_ref: string | null;
+    remote_digest: string | null;
+    currentness_status: 'not_checked' | 'current' | 'update_available' | 'unknown';
+    currentness_evidence_source: string | null;
     currentness_claim: false;
   };
 };
@@ -84,6 +88,50 @@ function normalizeImageDigest(imageId: string | null, repoDigests: string[]): st
     return repoDigest.slice(repoDigest.indexOf('@') + 1);
   }
   return imageId && /^sha256:[a-f0-9]{64}$/i.test(imageId) ? imageId : null;
+}
+
+function extractDigestFromText(text: string): string | null {
+  const match = text.match(/\bsha256:[a-f0-9]{64}\b/i);
+  return match?.[0] ?? null;
+}
+
+function readRemoteImageDigest(diagnosticsDir: string): {
+  remote_ref: string | null;
+  remote_digest: string | null;
+  currentness_evidence_source: string | null;
+} {
+  for (const file of ['remote-image-digest.txt', 'docker-remote-image.txt']) {
+    const filePath = path.join(diagnosticsDir, file);
+    if (!fs.existsSync(filePath)) continue;
+    const text = readText(filePath);
+    const keyValues = Object.fromEntries(
+      text
+        .split(/\r?\n/)
+        .map((line) => line.match(/^([^=\s]+)=(.*)$/))
+        .filter((match): match is RegExpMatchArray => Boolean(match))
+        .map((match) => [match[1], match[2]]),
+    );
+    return {
+      remote_ref: keyValues.remote_ref ?? keyValues.image ?? null,
+      remote_digest: keyValues.remote_digest ?? keyValues.digest ?? extractDigestFromText(text),
+      currentness_evidence_source: file,
+    };
+  }
+  return {
+    remote_ref: null,
+    remote_digest: null,
+    currentness_evidence_source: null,
+  };
+}
+
+function compareImageCurrentness(
+  localDigest: string | null,
+  remoteDigest: string | null,
+  currentnessEvidenceSource: string | null,
+): 'not_checked' | 'current' | 'update_available' | 'unknown' {
+  if (!currentnessEvidenceSource) return 'not_checked';
+  if (!localDigest || !remoteDigest) return 'unknown';
+  return localDigest.toLowerCase() === remoteDigest.toLowerCase() ? 'current' : 'update_available';
 }
 
 function validateComposeVolumeMapping(composeText: string) {
@@ -219,11 +267,16 @@ export function validateDockerWebuiDiagnostics(diagnosticsDir: string): Validati
   const imageId = extractJsonString(dockerImagePath, 'Id');
   const repoDigests = extractJsonStringArray(dockerImagePath, 'RepoDigests');
   const digest = normalizeImageDigest(imageId, repoDigests);
+  const remoteImage = readRemoteImageDigest(diagnosticsDir);
   const imageIdentity = {
     status: digest ? ('passed' as const) : ('failed' as const),
     image_id: imageId,
     repo_digests: repoDigests,
     digest,
+    remote_ref: remoteImage.remote_ref,
+    remote_digest: remoteImage.remote_digest,
+    currentness_status: compareImageCurrentness(digest, remoteImage.remote_digest, remoteImage.currentness_evidence_source),
+    currentness_evidence_source: remoteImage.currentness_evidence_source,
     currentness_claim: false as const,
   };
   if (!digest) {

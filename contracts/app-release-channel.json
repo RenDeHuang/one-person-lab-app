@@ -2442,6 +2442,9 @@
           "cached_update_path",
           "image_ref",
           "image_digest",
+          "remote_image_digest",
+          "image_currentness_status",
+          "image_currentness_evidence_source",
           "container_id",
           "compose_file",
           "package_manager",
@@ -2469,6 +2472,8 @@
           {
             "id": "docker_webui_image",
             "carrier_status_source": "GHCR image digest, compose/container image readback, and Docker/WebUI installer or smoke-gate diagnostics",
+            "image_currentness_status_source": "optional GHCR remote digest readback compared with the local compose/container image digest",
+            "image_currentness_claim_policy": "remote digest comparison is status-only and must not be used as release-ready, live-current, or applied-update proof",
             "host_update_route": "host_executor_runs_documented_installer_or_compose_pull_and_up",
             "host_update_route_examples": [
               "install-docker-webui.sh --yes --update",

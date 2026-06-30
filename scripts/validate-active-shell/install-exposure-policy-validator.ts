@@ -285,6 +285,8 @@ function validateInstallerSurfaces(policy) {
       'data-preservation verdict',
       'compose volume mapping readback',
       'image digest readback',
+      'remote image digest readback',
+      'image currentness status readback',
       'OPL maintenance status after WebUI opens',
     ],
     'Docker/WebUI ordinary user progress status surfaces',
@@ -328,6 +330,14 @@ function validateInstallerSurfaces(policy) {
       throw new Error(`Docker/WebUI install exposure must include status surface ${surface}`);
     }
   }
+  if (
+    dockerWebui.runtime_distribution_model?.image_update_model?.currentness_status_model !==
+      'local_image_digest_and_optional_remote_image_digest_compare_only' ||
+    dockerWebui.runtime_distribution_model?.image_update_model?.currentness_claim_policy !==
+      'remote digest comparison is status-only; it does not prove release readiness, live latest, or that a host update was applied'
+  ) {
+    throw new Error('Docker/WebUI image currentness must remain status-only and separate from release-ready or applied-update proof');
+  }
   validateDockerWebuiSmokeGateContract(dockerWebui.smoke_gate_contract);
 }
 
@@ -357,6 +367,8 @@ function validateDockerWebuiSmokeGateContract(contract) {
       'docker ps',
       'docker logs',
       'image_digest_readback',
+      'remote_image_digest_readback_optional',
+      'image_currentness_status_readback',
       'compose_volume_mapping_readback',
       'http_health_readback',
       'api_key_flow_evidence',
@@ -433,6 +445,8 @@ function validateDockerWebuiSmokeGateContract(contract) {
   if (
     contract.false_ready_boundary?.docs_or_contract_only_can_claim_release_ready !== false ||
     contract.false_ready_boundary?.local_container_smoke_can_replace_clean_vm_smoke !== false ||
+    contract.false_ready_boundary?.remote_digest_match_can_claim_release_ready !== false ||
+    contract.false_ready_boundary?.image_digest_readback_can_claim_live_currentness !== false ||
     contract.false_ready_boundary?.missing_gate_must_be_typed_blocker !== true
   ) {
     throw new Error('Docker/WebUI smoke gate false-ready boundary must forbid release-ready claims without fresh gate evidence');
