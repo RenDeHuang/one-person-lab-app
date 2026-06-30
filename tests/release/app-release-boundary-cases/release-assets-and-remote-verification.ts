@@ -9,6 +9,7 @@ import {
   runNode,
   writeFile,
   writeFakeReleaseNotesAiWriter,
+  stableInstallCommand,
   validStandardAiReleaseNotes,
   writeReleaseMetadata,
   writeStandardLocalAuthorizationPolicy,
@@ -26,6 +27,34 @@ function readJson(filePath) {
 
 function writeJson(filePath, value) {
   writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function validFullReleaseNotes(version) {
+  return `One Person Lab v${version}
+
+This Stable release makes a new or upgraded OPL App install useful sooner by carrying MAS research, MAG grant-writing, RCA visual-deliverable, OPL Meta Agent, document extraction, Office, and runtime payload evidence from the same release cohort.
+
+## What improved
+
+### OPL agent updates
+- Updated the App-managed MAS, MAG, RCA, OPL Meta Agent, and Codex skill/plugin surface used by OPL agent sessions.
+
+## OPL agents and runtime payload
+- Full first-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
+- Build-time payload refs: OPL Framework @ 1234567; Codex CLI 0.142.4; MAS @ 1234567; MAG @ 1234567; RCA @ 1234567; OPL Meta Agent @ 1234567; OfficeCLI 1.0.125; MinerU v0.1.0.
+- Payload updates since previous Stable: MAS 0000000 -> 1234567.
+
+## OPL family updates
+- MAS: 1 commit, including route paper handoff receipts, refs 0000000 -> 1234567.
+
+## Install Stable
+\`${stableInstallCommand}\`
+
+## Release scope
+- Standard macOS arm64 updater package plus Full first-install DMG.
+
+**Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.6.29...v${version}
+`;
 }
 
 function consolidateFullReleaseManifest(assetDir, version, names) {
@@ -475,7 +504,7 @@ test('remote release verifier validates standard and Full assets from GitHub rel
     ...writeFullRemoteAssets(tempRoot, version),
   ]);
   const summaryPath = path.join(tempRoot, 'remote-release-verification.json');
-  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`, validFullReleaseNotes(version));
   writeFakeMacosTrustCommands(binDir);
 
   const result = runNode([
@@ -515,6 +544,8 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.standard_updater_app_bundle_trust.local_authorization_policy, 'standard-local-authorization-policy.json');
   assert.equal(summary.standard_updater_app_bundle_trust.apple_developer_id_required, false);
   assert.equal(summary.standard_updater_app_bundle_trust.gatekeeper_required, false);
+  assert.equal(summary.release_notes.status, 'passed');
+  assert.equal(summary.release_notes.body_length, validFullReleaseNotes(version).length);
   assert.equal(summary.full_first_install_budget.status, 'passed');
   assert.equal(summary.full_first_install_budget.platform_scope, 'macos-arm64');
   assert.equal(summary.full_first_install_budget.warning_full_dmg_bytes, 700000000);
@@ -527,6 +558,52 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.full_first_install_budget.excluded_module_venv_count, 0);
   assert.equal(summary.full_first_install_budget.required_components.temporal_cli.version, 'temporal version 1.7.0');
   assert.equal(summary.full_first_install_budget.optional_components.bun.status, 'not_packaged');
+});
+
+test('remote release verifier rejects short Stable Full GitHub Release notes', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-short-notes-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const version = '26.5.19-short-notes';
+  const names = consolidateFullReleaseManifest(tempRoot, version, [
+    ...writeStandardRemoteAssets(tempRoot, version),
+    ...writeFullRemoteAssets(tempRoot, version),
+  ]);
+  const releaseView = buildRemoteReleaseView(
+    tempRoot,
+    names,
+    `v${version}`,
+    [
+      `# One Person Lab v${version}`,
+      '',
+      stableInstallCommand,
+      '',
+      'Standard macOS arm64 updater package plus Full first-install DMG.',
+      '',
+    ].join('\n'),
+  );
+  writeFakeMacosTrustCommands(binDir);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version',
+    version,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--include-full-package',
+    '--download-dir',
+    tempRoot,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Stable Full GitHub Release notes are incomplete/);
+  assert.match(result.stderr, /## What improved/);
+  assert.match(result.stderr, /Build-time payload refs:/);
 });
 
 test('remote release verifier rejects diagnostic-only files as public GitHub Release assets', () => {

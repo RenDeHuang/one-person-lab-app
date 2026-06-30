@@ -83,7 +83,7 @@ function readReleaseView(repo, tag) {
     '--repo',
     repo,
     '--json',
-    'tagName,name,isDraft,isPrerelease,publishedAt,assets',
+    'tagName,name,isDraft,isPrerelease,publishedAt,body,assets',
   ], { capture: true });
   return JSON.parse(result.stdout);
 }
@@ -141,6 +141,33 @@ function assertNoForbiddenPublicAssets(releaseView) {
       `GitHub Release public assets include diagnostic-only files: ${found.join(', ')}. Keep release evidence, size summaries, and workflow telemetry in Actions artifacts or step summaries instead.`,
     );
   }
+}
+
+function assertReleaseNotesBody(releaseView, options) {
+  if (!options.includeFullPackage || options.version.includes('-nightly') || releaseView.isPrerelease) {
+    return null;
+  }
+  const body = typeof releaseView.body === 'string' ? releaseView.body : '';
+  const required = [
+    `One Person Lab v${options.version}`,
+    '## What improved',
+    '## OPL agents and runtime payload',
+    'Full first-install DMG payload:',
+    'Build-time payload refs:',
+    'Payload updates since previous Stable:',
+    '## OPL family updates',
+    '## Install Stable',
+    '## Release scope',
+    'Full Changelog',
+  ];
+  const missing = required.filter((marker) => !body.includes(marker));
+  if (missing.length > 0) {
+    throw new Error(`Stable Full GitHub Release notes are incomplete; missing: ${missing.join(', ')}`);
+  }
+  return {
+    status: 'passed',
+    body_length: body.length,
+  };
 }
 
 function normalizeDigest(digest) {
@@ -832,6 +859,7 @@ function main() {
     throw new Error(`Release tag mismatch: expected ${options.tag}, got ${releaseView.tagName}`);
   }
   assertNoForbiddenPublicAssets(releaseView);
+  const releaseNotes = assertReleaseNotesBody(releaseView, options);
 
   downloadAssets(options, names, downloadDir);
   const verification = verifyDownloadedAssets(releaseView, options, names, downloadDir);
@@ -845,6 +873,7 @@ function main() {
     verified_asset_count: verification.verified.length,
     verified_assets: verification.verified,
     standard_updater_app_bundle_trust: verification.standardUpdaterAppBundleTrust,
+    ...(releaseNotes ? { release_notes: releaseNotes } : {}),
     ...(verification.fullFirstInstallBudget
       ? { full_first_install_budget: verification.fullFirstInstallBudget }
       : {}),

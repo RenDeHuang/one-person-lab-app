@@ -79,11 +79,37 @@ export function writeFullRuntimeNativeTrust(outDir) {
   );
 }
 
-export function buildRemoteReleaseView(assetDir, names, tagName) {
+function defaultReleaseBody(tagName) {
+  const version = tagName.startsWith('v') ? tagName.slice(1) : tagName;
+  return `One Person Lab v${version}
+
+## What improved
+- Test release body.
+
+## OPL agents and runtime payload
+- Full first-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
+- Build-time payload refs: MAS @ 1234567.
+- Payload updates since previous Stable: MAS 0000000 -> 1234567.
+
+## OPL family updates
+- MAS: 1 commit, refs 0000000 -> 1234567.
+
+## Install Stable
+\`install.sh --stable-macos-install --yes\`
+
+## Release scope
+- Standard macOS arm64 updater package plus Full first-install DMG.
+
+**Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.0.0...v${version}
+`;
+}
+
+export function buildRemoteReleaseView(assetDir, names, tagName, body = defaultReleaseBody(tagName)) {
   return {
     tagName,
     isDraft: false,
     isPrerelease: false,
+    body,
     assets: names.map((name) => {
       const filePath = path.join(assetDir, name);
       return {
