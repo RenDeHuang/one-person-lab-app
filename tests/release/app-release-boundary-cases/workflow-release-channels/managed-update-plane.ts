@@ -283,6 +283,7 @@ test('scheduler and UI surfaces consume new primary ids', () => {
     'runtime_substrate',
     'companion_tools',
     'capability_packages',
+    'workflow_profile',
   ]);
   assert.deepEqual(updatePage.sections, guiContract.pages.update.sections);
   assert.deepEqual(updatePage.managed_update_plane.display_planes, guiContract.pages.update.managed_update_plane.display_planes);

@@ -1167,7 +1167,8 @@
           "installation_carrier",
           "runtime_substrate",
           "companion_tools",
-          "capability_packages"
+          "capability_packages",
+          "workflow_profile"
         ],
         "app_role": "status_conditions_repair_actions_consumer_only",
         "framework_role": "managed_update_kernel_owner",

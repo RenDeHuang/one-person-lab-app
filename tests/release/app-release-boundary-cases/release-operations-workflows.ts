@@ -224,6 +224,7 @@ test('Homebrew tap publication is cohort-based and separates stable from nightly
     'codex_plugin_registry',
     'plugin_packaged_skills',
     'opl_generated_plugin_surface',
+    'codex_surface',
   ]);
   assert.equal(homebrew.agent_pack_policy.homebrew_distribution_allowed, false);
   assert.equal(homebrew.agent_pack_policy.homebrew_formula_allowed, false);

@@ -175,7 +175,13 @@ export const managedKernelComponentReceiptIdentityFields = [
 ];
 
 export const managedUpdateSections = ['installation_carrier', 'runtime_substrate', 'companion_tools', 'opl_packages', 'workflow_profile'];
-export const managedUpdateDisplayPlanes = ['installation_carrier', 'runtime_substrate', 'companion_tools', 'capability_packages'];
+export const managedUpdateDisplayPlanes = [
+  'installation_carrier',
+  'runtime_substrate',
+  'companion_tools',
+  'capability_packages',
+  'workflow_profile',
+];
 export const managedUpdateStateSources = ['opl app state --profile fast --json#managed_update_plane', 'opl update status --json'];
 export const managedUpdateStatusConsumptionPolicy =
   'show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth';

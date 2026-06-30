@@ -259,7 +259,7 @@ function validateManagedAgentPackDistribution(contract: any): void {
     cohort_manifest_required: true,
   }, 'agent-pack distribution');
   assertArrayFieldsEqual(distribution, {
-    post_update_sync_required: ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface'],
+    post_update_sync_required: ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface', 'codex_surface'],
     package_agent_ids: expectedRequiredAgentIds,
     activation_commands: ['opl connect reconcile-modules', 'opl connect sync-skills'],
     fallback_source_order: [
@@ -287,9 +287,10 @@ function validatePluginRegistrationInputs(contract: any): void {
 }
 
 function validateExposureClasses(policy: any, contract: any): void {
-  const domainPluginClass = findExposureClass(policy, 'family_domain_plugin_surfaces');
+  const domainPluginClass = findExposureClass(policy, 'codex_surface');
   assertArrayEqual(domainPluginClass.members, expectedDefaultVisibleDomainSkillIds, 'domain plugin exposure members');
   assertEqual(domainPluginClass.sync_target, contract.codex_plugin_registry_target, 'domain plugin sync target');
+  assertEqual(domainPluginClass.legacy_alias, 'family_domain_plugin_surfaces', 'domain plugin exposure legacy alias');
   assertArrayEqual(domainPluginClass.must_not_sync_to, [
     '~/.codex/skills/mas',
     '~/.codex/skills/mag',
@@ -301,8 +302,9 @@ function validateExposureClasses(policy: any, contract: any): void {
   assertArrayEqual(generatedClass.members, expectedGeneratedPluginSkillIds, 'generated plugin exposure members');
   assertEqual(generatedClass.sync_target, 'opl_generated_codex_plugin_surface', 'generated plugin sync target');
 
-  const companionClass = findExposureClass(policy, 'companion_skill_sync');
+  const companionClass = findExposureClass(policy, 'companion_tools_codex_skills');
   assertArrayEqual(companionClass.members, expectedCompanionSkillSyncIds, 'companion skill sync members');
+  assertEqual(companionClass.legacy_alias, 'companion_skill_sync', 'companion skill sync legacy alias');
   for (const agentId of expectedRepoPackagedPluginAgentIds) {
     if (companionClass.members.includes(agentId)) {
       fail(`companion skill sync must not include domain plugin ${agentId}`);
