@@ -165,7 +165,7 @@ function validateReleaseRuntimeToolchainSystemPolicy(runtimeUpdater) {
   assertDeepEqualJson(
     runtimeUpdater.system_tool_policy?.preferred_sources,
     ['explicit_user_path', 'system_path', 'homebrew_formula', 'app_owned_runtime_fallback'],
-    'Release channel runtime/toolchain updater preferred sources',
+    'Release channel Runtime Substrate updater preferred sources',
   );
   if (
     runtimeUpdater.system_tool_policy?.prefer_valid_newer_system_tool !== true ||
