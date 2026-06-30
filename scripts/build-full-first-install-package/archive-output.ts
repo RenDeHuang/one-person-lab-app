@@ -175,7 +175,7 @@ export function findBuiltApp(guiRoot) {
   return found;
 }
 
-export function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version, manifest) {
+export function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, version, manifest, dmgFormat = resolveFullDmgFormat()) {
   removeBuiltDmgCandidates(guiRoot, version);
   ensureAppBundleAdHocCodesign(appPath, 'Full built app bundle');
   assertAppBundleLocalAuthorization(appPath, 'Full built app bundle');
@@ -204,10 +204,9 @@ export function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, versio
       '-srcfolder',
       stagingRoot,
       '-format',
-      'UDZO',
+      dmgFormat,
       '-ov',
-      '-imagekey',
-      `zlib-level=${compressionLevel}`,
+      ...(dmgFormat === 'UDZO' ? ['-imagekey', `zlib-level=${compressionLevel}`] : []),
     ];
     createDmgWithResourceBusyRetry(targetDmg, hdiutilCreateArgs);
     result = {
@@ -223,13 +222,21 @@ export function createFullDmgFromVerifiedApp(guiRoot, appPath, targetDmg, versio
   return result;
 }
 
+export function resolveFullDmgFormat() {
+  const format = (process.env.OPL_FULL_DMG_FORMAT || 'ULMO').toUpperCase();
+  if (!['UDZO', 'ULFO', 'ULMO'].includes(format)) {
+    throw new Error(`Unsupported Full DMG format: ${format}. Expected UDZO, ULFO, or ULMO.`);
+  }
+  return format;
+}
+
 export function resolveFullDmgCompressionLevel() {
   return process.env.OPL_FULL_DMG_COMPRESSION_LEVEL
     || process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL
     || (process.env.CI === 'true' ? '9' : '7');
 }
 
-export function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version, manifest = null) {
+export function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version, manifest = null, dmgFormat = resolveFullDmgFormat()) {
   if (!canRunMacosSigningChecks()) {
     return null;
   }
@@ -241,7 +248,7 @@ export function ensureFullDmgLocalAuthorization(guiRoot, targetDmg, version, man
     ensureAppBundleAdHocCodesign(builtApp, 'Full built app bundle');
     assertAppBundleLocalAuthorization(builtApp, 'Full built app bundle');
     fs.rmSync(targetDmg, { force: true });
-    const rebuiltPackage = createFullDmgFromVerifiedApp(guiRoot, builtApp, targetDmg, version, manifest);
+    const rebuiltPackage = createFullDmgFromVerifiedApp(guiRoot, builtApp, targetDmg, version, manifest, dmgFormat);
     console.warn(`Rebuilt Full DMG after local authorization verification failed: ${error instanceof Error ? error.message : String(error)}`);
     return rebuiltPackage;
   }

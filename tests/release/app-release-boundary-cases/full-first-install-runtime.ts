@@ -84,7 +84,9 @@ test('Full first-install workflow has one MinerU checkout and keeps standalone b
   assert.match(workflow, /resolved_refs:\s+fullManifest\?\.resolved_refs/);
   assert.match(workflow, /## Full Payload Resolved Refs/);
   assert.match(workflow, /requires_distributable_assets="\$\{\{ inputs\.publish_to_release \|\| inputs\.upload_full_package_artifact \}\}"/);
+  assert.match(workflow, /full_dmg_format:[\s\S]*default:\s+ULMO[\s\S]*type:\s+string/);
   assert.match(workflow, /full_dmg_compression_level:[\s\S]*default:\s+'9'[\s\S]*type:\s+string/);
+  assert.match(workflow, /OPL_FULL_DMG_FORMAT:\s+\$\{\{ inputs\.full_dmg_format \|\| 'ULMO' \}\}/);
   assert.match(workflow, /OPL_FULL_DMG_COMPRESSION_LEVEL:\s+\$\{\{ inputs\.full_dmg_compression_level \|\| '9' \}\}/);
   assert.match(workflow, /echo "OPL_FULL_DISTRIBUTABLE_ASSETS=\$requires_distributable_assets" >> "\$GITHUB_ENV"/);
   assert.match(workflow, /name: Inspect optional Full release signing secrets/);

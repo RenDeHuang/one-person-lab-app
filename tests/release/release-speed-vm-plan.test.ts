@@ -379,8 +379,11 @@ test('Full first-install workflow caches npm, uv, Go, and Bun work and writes an
   assertMatches(workflow, /upload_full_package_artifact:[\s\S]*default:\s+true/, 'Full package artifact upload defaults on for release-call consumers');
   assertMatches(workflow, /Upload Full package workflow artifact[\s\S]*if:\s+\$\{\{ inputs\.upload_full_package_artifact \}\}/, 'large Full package artifact is explicitly gated');
   assertMatches(workflow, /cache:[\s\S]*full_runtime_layers/, 'Full telemetry cache fields');
-  assertMatches(workflow, /full_dmg_compression_level:[\s\S]*default:\s+'9'[\s\S]*type:\s+string/, 'Full workflow exposes explicit compression override');
+  assertMatches(workflow, /full_dmg_format:[\s\S]*default:\s+ULMO[\s\S]*type:\s+string/, 'Full workflow defaults to ULMO DMG compression');
+  assertMatches(workflow, /full_dmg_compression_level:[\s\S]*default:\s+'9'[\s\S]*type:\s+string/, 'Full workflow exposes explicit UDZO compression override');
+  assertMatches(workflow, /OPL_FULL_DMG_FORMAT:\s+\$\{\{ inputs\.full_dmg_format \|\| 'ULMO' \}\}/, 'Full workflow passes the release-size DMG format');
   assertMatches(workflow, /OPL_FULL_DMG_COMPRESSION_LEVEL:\s+\$\{\{ inputs\.full_dmg_compression_level \|\| '9' \}\}/, 'Full workflow defaults to release-size DMG compression');
+  assertMatches(workflow, /dmg_format:\s+fullBuildTiming\?\.dmg_format/, 'Full telemetry records the DMG compression format');
   assertMatches(workflow, /dmg_compression_level:\s+fullBuildTiming\?\.dmg_compression_level/, 'Full telemetry records the fallback DMG compression level');
   assertMatches(workflow, /Restore Full toolchain runtime cache[\s\S]*Restore Full domain runtime cache[\s\S]*Restore Full OPL runtime cache[\s\S]*Restore Full skills runtime cache/, 'per-layer Full runtime cache restore');
   for (const stepName of [

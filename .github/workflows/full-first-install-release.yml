@@ -33,9 +33,14 @@ on:
         default: false
         type: boolean
       full_dmg_compression_level:
-        description: zlib level for the Full DMG UDZO image. Default 9 favors release size.
+        description: zlib level for the Full DMG when full_dmg_format is UDZO.
         required: false
         default: '9'
+        type: string
+      full_dmg_format:
+        description: Full DMG compression format. ULMO favors release size; UDZO keeps legacy zlib compatibility.
+        required: false
+        default: ULMO
         type: string
   workflow_call:
     inputs:
@@ -69,9 +74,14 @@ on:
         default: false
         type: boolean
       full_dmg_compression_level:
-        description: zlib level for the Full DMG UDZO image. Default 9 favors release size.
+        description: zlib level for the Full DMG when full_dmg_format is UDZO.
         required: false
         default: '9'
+        type: string
+      full_dmg_format:
+        description: Full DMG compression format. ULMO favors release size; UDZO keeps legacy zlib compatibility.
+        required: false
+        default: ULMO
         type: string
 permissions:
   contents: write
@@ -555,6 +565,7 @@ jobs:
           ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
           npm_config_electron_builder_binaries_mirror: https://github.com/electron-userland/electron-builder-binaries/releases/download/
           ELECTRON_MIRROR: ''
+          OPL_FULL_DMG_FORMAT: ${{ inputs.full_dmg_format || 'ULMO' }}
           OPL_FULL_DMG_COMPRESSION_LEVEL: ${{ inputs.full_dmg_compression_level || '9' }}
           npm_config_disturl: https://electronjs.org/headers
           npm_config_runtime: electron
@@ -758,6 +769,7 @@ jobs:
               full_runtime_layer_keys: readJson('runtime-cache-events.json')?.keys ?? null,
               full_runtime_layer_key_inputs: readJson('runtime-cache-events.json')?.key_inputs ?? null,
             },
+            dmg_format: fullBuildTiming?.dmg_format ?? null,
             dmg_compression_level: fullBuildTiming?.dmg_compression_level ?? null,
             duration_seconds: {
               toolchain_install: duration(env.OPL_FULL_WORKFLOW_STARTED_AT, env.OPL_FULL_TOOLCHAIN_READY_AT),

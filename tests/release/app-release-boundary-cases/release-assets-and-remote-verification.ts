@@ -453,6 +453,49 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.full_first_install_budget.optional_components.bun.status, 'not_packaged');
 });
 
+test('remote release verifier rejects diagnostic-only files as public GitHub Release assets', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-diagnostics-assets-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const version = '26.5.19-public-assets';
+  const names = [
+    ...writeStandardRemoteAssets(tempRoot, version),
+    ...writeFullRemoteAssets(tempRoot, version),
+  ];
+  for (const name of [
+    'full-package-size-summary.json',
+    'full-workflow-telemetry.json',
+    'standard-release-notes-evidence.json',
+  ]) {
+    writeFile(path.join(tempRoot, name), '{}\n');
+    names.push(name);
+  }
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+  writeFakeMacosTrustCommands(binDir);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version',
+    version,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--include-full-package',
+    '--download-dir',
+    tempRoot,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /diagnostic-only files/);
+  assert.match(result.stderr, /full-package-size-summary\.json/);
+  assert.match(result.stderr, /full-workflow-telemetry\.json/);
+  assert.match(result.stderr, /standard-release-notes-evidence\.json/);
+});
+
 test('remote release verifier accepts ad-hoc signed standard updater app zips under local authorization policy', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-adhoc-'));
   const binDir = path.join(tempRoot, 'bin');

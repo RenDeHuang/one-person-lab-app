@@ -42,6 +42,18 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 | WebUI/GHCR | App-owned preheated Docker/WebUI runtime image for browser-first Linux/container deployment. It is not the desktop App GUI shell install path and is not an OPL Packages member. | OCI source label, package access, publish output, image manifest/volume boundary, image smoke/evidence artifacts. |
 | Managed runtime/toolchain update | Framework-runner channel for runtime toolchain and managed agent packages. | OPL update runner receipts, lock/runner status, repair/rollback status, post-apply sync status. |
 
+Standard macOS DMGs use electron-builder-supported `ULFO` / LZFSE compression
+by default. Current electron-builder 26.8.1 does not accept `ULMO` in
+`dmg.format`; treating `ULMO` as a standard default would require a separate
+postprocess patch, with focused proof that `latest*.yml`, `.dmg.blockmap`,
+`.zip.blockmap`, and the DMG format/readability still match the published
+assets.
+
+GitHub Release public assets stay limited to install, updater, checksum, and
+small machine-verification entrypoints. Release-note evidence, Full size
+summaries, build timing, and workflow telemetry belong in Actions artifacts or
+job summaries, not the public download list.
+
 The Stable WebUI path builds the image once in the Docker smoke lane, verifies
 the image locally, publishes that same image to GHCR, and leaves the GHCR lane
 as a summary-verifier gate. Do not add a second Stable Docker build just to

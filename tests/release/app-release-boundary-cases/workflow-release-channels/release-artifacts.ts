@@ -48,6 +48,16 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
     'One-Person-Lab-*-mac-arm64.dmg.blockmap',
     'One-Person-Lab-*-mac-arm64.zip.blockmap',
   ]);
+  assert.deepEqual(releaseContract.standard_updater.dmg_compression, {
+    default_format: 'ULFO',
+    format_owner: 'shells/aionui/packages/desktop/electron-builder.yml#dmg.format',
+    electron_builder_version: '26.8.1',
+    electron_builder_supported_formats: ['UDBZ', 'UDCO', 'UDRO', 'UDRW', 'UDZO', 'ULFO'],
+    ulmo_standard_default_allowed: false,
+    ulmo_postprocess_status: 'separate_experiment_required',
+    metadata_blockmap_gate: 'node --experimental-strip-types scripts/validate-release.ts release-assets plus focused hdiutil imageinfo/verify readback from a standard macOS build artifact',
+    rule: 'Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.8.1 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves updater metadata, .dmg.blockmap, .zip.blockmap, and latest*.yml still match the published assets before it can replace the default.',
+  });
   assert.equal(releaseContract.standard_updater.scope, 'desktop_app_assets_only');
   assert.deepEqual(releaseContract.standard_updater.apply_lifecycle, {
     downloaded_state_is_not_success: true,

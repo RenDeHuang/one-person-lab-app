@@ -230,6 +230,45 @@ function validateGithubReleaseName(releaseContract: Record<string, any>): number
   return 0;
 }
 
+function validateStandardUpdaterCompressionPolicy(appRoot: string, releaseContract: Record<string, any>): number {
+  let failures = 0;
+  const compression = releaseContract.standard_updater?.dmg_compression;
+  const electronBuilderConfig = fs.readFileSync(
+    path.join(appRoot, 'shells/aionui/packages/desktop/electron-builder.yml'),
+    'utf8',
+  );
+
+  if (
+    compression?.default_format !== 'ULFO' ||
+    compression?.format_owner !== 'shells/aionui/packages/desktop/electron-builder.yml#dmg.format' ||
+    compression?.electron_builder_version !== '26.8.1' ||
+    compression?.ulmo_standard_default_allowed !== false ||
+    compression?.ulmo_postprocess_status !== 'separate_experiment_required' ||
+    !sameStringSet(compression?.electron_builder_supported_formats, ['UDBZ', 'UDCO', 'UDRO', 'UDRW', 'UDZO', 'ULFO'])
+  ) {
+    console.error('FAIL standard_updater_dmg_compression: standard DMG compression must default to electron-builder-supported ULFO and keep ULMO as a separate experiment');
+    failures += 1;
+  }
+  if (!/dmg:[\s\S]*format:\s+ULFO/.test(electronBuilderConfig)) {
+    console.error('FAIL standard_updater_dmg_compression: active shell electron-builder.yml must use ULFO for standard DMGs');
+    failures += 1;
+  }
+  if (
+    typeof compression?.metadata_blockmap_gate !== 'string' ||
+    !compression.metadata_blockmap_gate.includes('validate-release.ts') ||
+    !compression.metadata_blockmap_gate.includes('hdiutil imageinfo/verify') ||
+    typeof compression?.rule !== 'string' ||
+    !compression.rule.includes('does not accept ULMO') ||
+    !compression.rule.includes('.dmg.blockmap') ||
+    !compression.rule.includes('latest*.yml')
+  ) {
+    console.error('FAIL standard_updater_dmg_compression: compression policy must preserve updater metadata and blockmap verification boundaries');
+    failures += 1;
+  }
+
+  return failures;
+}
+
 function validateReleasePreflightContract(releaseContract: Record<string, any>): number {
   let failures = 0;
   const preflight = releaseContract.release_preflight;
@@ -721,6 +760,7 @@ export function validateReleaseContractPolicies(appRoot: string): number {
   let failures = 0;
 
   failures += validateGithubReleaseName(releaseContract);
+  failures += validateStandardUpdaterCompressionPolicy(appRoot, releaseContract);
   failures += validateReleasePreflightContract(releaseContract);
   failures += validateHomebrewVmGateStaticPolicy(appRoot, releaseContract, firstRunMatrix);
   failures += validateWebuiPackagePolicy(releaseContract);

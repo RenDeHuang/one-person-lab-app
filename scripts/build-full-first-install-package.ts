@@ -14,6 +14,7 @@ import {
   maybeCreateRuntimeTar,
   removeStandardGuiArtifacts,
   resolveFullDmgCompressionLevel,
+  resolveFullDmgFormat,
   syncRuntimePayloadToBuildRoots,
 } from './build-full-first-install-package/archive-output.ts';
 import { parseArgs } from './build-full-first-install-package/env.ts';
@@ -91,6 +92,7 @@ function main() {
   }
 
   const packageCompressionStartedAt = monotonicSeconds();
+  const dmgFormat = resolveFullDmgFormat();
   process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL = resolveFullDmgCompressionLevel();
   const builtApp = findBuiltApp(options.guiRoot);
   ensureAppBundleAdHocCodesign(builtApp, 'Full built app bundle');
@@ -101,6 +103,7 @@ function main() {
     targetDmg,
     options.version,
     prepared.manifest,
+    dmgFormat,
   );
   if (optimizedPackage?.manifest) {
     prepared.manifest = optimizedPackage.manifest;
@@ -110,6 +113,7 @@ function main() {
     targetDmg,
     options.version,
     prepared.manifest,
+    dmgFormat,
   );
   if (rebuiltOptimizedPackage) {
     optimizedPackage = rebuiltOptimizedPackage;
@@ -155,6 +159,7 @@ function main() {
   writeJsonFile(timingPath, {
     schema: 'opl_full_package_build_timing.v1',
     version: options.version,
+    dmg_format: dmgFormat,
     dmg_compression_level: process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL,
     duration_seconds: {
       full_package_build: durationSeconds(buildStartedAt, buildFinishedAt),
@@ -166,6 +171,7 @@ function main() {
   console.log(JSON.stringify({
     status: 'completed',
     version: options.version,
+    dmg_format: dmgFormat,
     dmg_compression_level: process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL,
     out_dir: options.outDir,
     app_repo_root: appRepoRoot,

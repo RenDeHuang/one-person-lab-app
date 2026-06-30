@@ -277,7 +277,9 @@ test('Full first-install cache and release acceleration contract are explicit', 
     releaseContract.release_acceleration.full_runtime_cache.key_scope,
     'layer_content_only_not_release_or_dmg_wrapper_scripts',
   );
+  assert.equal(releaseContract.release_acceleration.full_dmg_compression.default_ci_format, 'ULMO');
   assert.equal(releaseContract.release_acceleration.full_dmg_compression.default_ci_level, '9');
+  assert.equal(releaseContract.release_acceleration.full_dmg_compression.format_telemetry_field, 'dmg_format');
   assert.equal(releaseContract.release_acceleration.full_dmg_compression.telemetry_field, 'dmg_compression_level');
   assert.equal(
     releaseContract.release_acceleration.full_runtime_packaging_hygiene.source_of_truth,
@@ -483,6 +485,7 @@ test('Full first-install cache and release acceleration contract are explicit', 
   assert.doesNotMatch(buildScript, /support_files:[\s\S]{0,1200}'scripts\/build-full-first-install-package\/manifest-checksum\.ts'/);
   assert.match(buildScript, /key_inputs: cacheKeyInputs/);
   assert.match(buildScript, /resolveFullDmgCompressionLevel\(\)/);
+  assert.match(buildScript, /dmg_format: dmgFormat/);
   assert.match(buildScript, /process\.env\.CI === 'true' \? '9' : '7'/);
   assert.match(buildScript, /dmg_compression_level: process\.env\.ELECTRON_BUILDER_COMPRESSION_LEVEL/);
   assert.match(buildScript, /guiRoot: envValue\('OPL_FULL_GUI_ROOT', resolveActiveShellPaths\(\)\.shellRoot\)/);

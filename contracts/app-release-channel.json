@@ -24,6 +24,23 @@
       "One-Person-Lab-*-mac-arm64.dmg.blockmap",
       "One-Person-Lab-*-mac-arm64.zip.blockmap"
     ],
+    "dmg_compression": {
+      "default_format": "ULFO",
+      "format_owner": "shells/aionui/packages/desktop/electron-builder.yml#dmg.format",
+      "electron_builder_version": "26.8.1",
+      "electron_builder_supported_formats": [
+        "UDBZ",
+        "UDCO",
+        "UDRO",
+        "UDRW",
+        "UDZO",
+        "ULFO"
+      ],
+      "ulmo_standard_default_allowed": false,
+      "ulmo_postprocess_status": "separate_experiment_required",
+      "metadata_blockmap_gate": "node --experimental-strip-types scripts/validate-release.ts release-assets plus focused hdiutil imageinfo/verify readback from a standard macOS build artifact",
+      "rule": "Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.8.1 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves updater metadata, .dmg.blockmap, .zip.blockmap, and latest*.yml still match the published assets before it can replace the default."
+    },
     "forbidden_asset_substrings": [
       "Full"
     ],
@@ -1427,9 +1444,11 @@
       "cache_hit_claim": "cache_hit_is_package_assembly_reuse_only"
     },
     "full_dmg_compression": {
+      "default_ci_format": "ULMO",
       "default_ci_level": "9",
+      "format_telemetry_field": "dmg_format",
       "telemetry_field": "dmg_compression_level",
-      "rule": "Stable Full CI uses zlib level 9 for the App-owned fallback/rebuilt DMG path by default. Release readiness still records compressed Full DMG size from the published GitHub asset; crossing the review threshold opens package-size review but does not authorize removing required offline first-install payloads."
+      "rule": "Stable Full CI uses ULMO for the App-owned fallback/rebuilt DMG path by default. UDZO remains available as a legacy diagnostic override with zlib level 9 by default. Release readiness still records compressed Full DMG size from the published GitHub asset; crossing the review threshold opens package-size review but does not authorize removing required offline first-install payloads."
     },
     "full_runtime_packaging_hygiene": {
       "source_of_truth": "contracts/full-runtime-prune-policy.json",
@@ -1493,6 +1512,7 @@
         "One-Person-Lab-Full-<version>-mac-arm64.dmg",
         "full-package-manifest.json",
         "runtime-cache-events.json",
+        "full-runtime-currentness-probe.json",
         "full-runtime-native-trust.json",
         "full-app-bundle-trim-report.json",
         "full-package-boundary-audit.json",
@@ -1500,6 +1520,15 @@
         "SHA256SUMS.txt",
         "full-local-authorization-policy.json"
       ],
+      "forbidden_public_diagnostic_assets": [
+        "full-package-build-timing.json",
+        "full-package-size-summary.json",
+        "full-package-size-summary.md",
+        "full-workflow-telemetry.json",
+        "standard-release-notes-evidence.json",
+        "full-release-notes-evidence.json"
+      ],
+      "public_asset_policy": "GitHub Release assets are user/install/update/checksum entrypoints only. Release-note evidence, Full size summaries, build timing, and workflow telemetry stay in Actions artifacts or step summaries so the public download list remains short and operator evidence remains cohort-bound.",
       "checks": [
         "remote_asset_size",
         "remote_asset_sha256_digest",

@@ -117,6 +117,27 @@ function requiredAssetNames(version, includeFullPackage) {
   ];
 }
 
+const forbiddenPublicAssetNames = new Set([
+  'full-package-build-timing.json',
+  'full-package-size-summary.json',
+  'full-package-size-summary.md',
+  'full-workflow-telemetry.json',
+  'standard-release-notes-evidence.json',
+  'full-release-notes-evidence.json',
+]);
+
+function assertNoForbiddenPublicAssets(releaseView) {
+  const assets = Array.isArray(releaseView.assets) ? releaseView.assets : [];
+  const found = assets
+    .map((asset) => asset?.name)
+    .filter((name) => forbiddenPublicAssetNames.has(name));
+  if (found.length > 0) {
+    throw new Error(
+      `GitHub Release public assets include diagnostic-only files: ${found.join(', ')}. Keep release evidence, size summaries, and workflow telemetry in Actions artifacts or step summaries instead.`,
+    );
+  }
+}
+
 function normalizeDigest(digest) {
   if (typeof digest !== 'string') {
     return '';
@@ -694,6 +715,7 @@ function main() {
   if (releaseView.tagName && releaseView.tagName !== options.tag) {
     throw new Error(`Release tag mismatch: expected ${options.tag}, got ${releaseView.tagName}`);
   }
+  assertNoForbiddenPublicAssets(releaseView);
 
   downloadAssets(options, names, downloadDir);
   const verification = verifyDownloadedAssets(releaseView, options, names, downloadDir);

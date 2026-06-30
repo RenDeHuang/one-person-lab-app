@@ -152,7 +152,12 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   const workflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', '_build-reusable.yml'), 'utf8');
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
   const adapterContract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-adapter.json'), 'utf8'));
+  const releaseContract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'));
   const shellBuildScript = fs.readFileSync(path.join(activeShellRoot, 'scripts', 'build-with-builder.js'), 'utf8');
+  const electronBuilderConfig = fs.readFileSync(
+    path.join(activeShellRoot, 'packages', 'desktop', 'electron-builder.yml'),
+    'utf8',
+  );
   const shellViteConfig = fs.readFileSync(
     path.join(activeShellRoot, 'packages', 'desktop', 'electron.vite.config.ts'),
     'utf8',
@@ -182,6 +187,8 @@ test('release build uses App wrappers for cross-shell active-shell commands', ()
   assert.doesNotMatch(JSON.stringify(packageJson.scripts), /--cwd shells\/aionui|cd shells\/aionui/);
   assert.match(shellBuildScript, /--config\.extraMetadata\.version=\$\{version\}/);
   assert.match(shellBuildScript, /\$\{publishArg\} \$\{oplReleaseVersionConfigArg\}/);
+  assert.equal(releaseContract.standard_updater.dmg_compression.default_format, 'ULFO');
+  assert.match(electronBuilderConfig, new RegExp(`dmg:[\\s\\S]*format:\\s+${releaseContract.standard_updater.dmg_compression.default_format}`));
   assert.match(shellViteConfig, /const appReleaseVersion = injectedOplReleaseVersion \|\| defaultOplReleaseVersion\(\)/);
   assert.match(shellViteConfig, /__APP_VERSION__:\s*JSON\.stringify\(appReleaseVersion\)/);
 });
