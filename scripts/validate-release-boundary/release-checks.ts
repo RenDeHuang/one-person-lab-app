@@ -430,6 +430,28 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
     ],
   },
   {
+    id: 'docker_webui_clean_windows_dispatch_helper',
+    file: 'scripts/dispatch-docker-webui-clean-windows-smoke.ts',
+    required: [
+      'opl_docker_webui_clean_windows_dispatch_plan.v1',
+      'runner_inventory_json',
+      'missing_clean_windows_self_hosted_runner',
+      'docker-webui-clean-windows-vm.yml',
+      'actions/runners',
+      'workflow',
+      'run',
+      '--execute',
+    ],
+  },
+  {
+    id: 'docker_webui_clean_windows_dispatch_npm_script',
+    file: 'package.json',
+    required: [
+      'smoke:docker-webui:windows-clean-vm:dispatch',
+      'scripts/dispatch-docker-webui-clean-windows-smoke.ts',
+    ],
+  },
+  {
     id: 'webui_ghcr_release_helper',
     file: 'scripts/webui-ghcr-release-step.sh',
     required: [

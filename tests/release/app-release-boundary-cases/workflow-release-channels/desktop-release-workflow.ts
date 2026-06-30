@@ -65,6 +65,11 @@ test('manual desktop release workflow supports new releases and same-tag refresh
     path.join(appRoot, '.github', 'workflows', 'docker-webui-clean-windows-vm.yml'),
     'utf8',
   );
+  const packageJson = fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8');
+  const cleanWindowsDispatchHelper = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'dispatch-docker-webui-clean-windows-smoke.ts'),
+    'utf8',
+  );
   const fullPackageScript = readFullPackageBuilderSource();
   const vmWorkflow = fs.readFileSync(path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml'), 'utf8');
   const releaseContract = JSON.parse(
@@ -315,6 +320,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.doesNotMatch(cleanWindowsDockerWebuiWorkflow, /runs-on: windows-latest/);
   assert.doesNotMatch(cleanWindowsDockerWebuiWorkflow, /--gate clean_linux_vm/);
   assert.doesNotMatch(cleanWindowsDockerWebuiWorkflow, /packages: write/);
+  assert.match(packageJson, /smoke:docker-webui:windows-clean-vm:dispatch/);
+  assert.match(cleanWindowsDispatchHelper, /opl_docker_webui_clean_windows_dispatch_plan\.v1/);
+  assert.match(cleanWindowsDispatchHelper, /runner_inventory_json/);
+  assert.match(cleanWindowsDispatchHelper, /missing_clean_windows_self_hosted_runner/);
+  assert.match(cleanWindowsDispatchHelper, /actions\/runners/);
+  assert.match(cleanWindowsDispatchHelper, /workflow[\s\S]*run/);
   assert.doesNotMatch(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(operatorEvidenceJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
   assert.doesNotMatch(jobLevelIf(readinessAdmissionJob), /if:\s*\$\{\{\s*always\(\)/);

@@ -59,6 +59,7 @@
     "docs:docker-webui-guide": "node --experimental-strip-types scripts/build-docker-webui-guide.ts",
     "smoke:docker-webui:linux-clean-vm": "node --experimental-strip-types scripts/docker-webui-smoke-gate.ts --gate clean_linux_vm",
     "smoke:docker-webui:windows-clean-vm": "node --experimental-strip-types scripts/docker-webui-smoke-gate.ts --gate clean_windows_vm",
+    "smoke:docker-webui:windows-clean-vm:dispatch": "node --experimental-strip-types scripts/dispatch-docker-webui-clean-windows-smoke.ts",
     "smoke:docker-webui:existing-docker": "node --experimental-strip-types scripts/docker-webui-smoke-gate.ts --gate existing_docker",
     "smoke:docker-webui:old-data": "node --experimental-strip-types scripts/docker-webui-smoke-gate.ts --gate existing_old_onepersonlab_data_dir",
     "validate:docker-webui-diagnostics": "node --experimental-strip-types scripts/validate-docker-webui-diagnostics.ts",

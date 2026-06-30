@@ -169,6 +169,25 @@ powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 `
 If a clean Windows runner is available, use the standalone workflow instead of
 collecting the zip by hand:
 
+```bash
+npm run smoke:docker-webui:windows-clean-vm:dispatch -- --execute --json
+```
+
+That operator helper reads repository self-hosted runner inventory with the
+local `gh` token, passes the normalized inventory into the workflow as
+`runner_inventory_json`, and dispatches
+`.github/workflows/docker-webui-clean-windows-vm.yml`. When no matching runner
+exists, the workflow uploads `docker-webui-clean-windows-vm-runner-blocker` with
+`typed_blocker.code=missing_clean_windows_self_hosted_runner`; this is a
+blocked evidence artifact, not a clean Windows pass.
+
+Use dry-run mode before dispatching if you need to inspect the command and
+runner inventory:
+
+```bash
+npm run smoke:docker-webui:windows-clean-vm:dispatch -- --json
+```
+
 ```text
 .github/workflows/docker-webui-clean-windows-vm.yml
 artifact: docker-webui-clean-windows-vm-evidence
