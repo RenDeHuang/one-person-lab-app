@@ -1,4 +1,8 @@
 ---
+# Owner: `one-person-lab-app`
+# Purpose: `generated_macos-app-install_guide_markdown`
+# State: `generated_payload`
+# Machine boundary: Generated Markdown snapshot. Human-readable source is `docs/guides/macos-app-install/guide.qmd`; machine truth remains in `docs/delivery/user-guides/macos-app-install/source/macos-app-install.quarto.json`, publishing templates, guide generator scripts, verification JSON, release evidence, screenshots manifest, and App contracts.
 title: "One Person Lab App 首次安装图文教程"
 subtitle: "macOS App 首次安装"
 lang: zh-CN

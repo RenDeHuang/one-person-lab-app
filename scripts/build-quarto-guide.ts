@@ -120,6 +120,21 @@ function readJson<T>(filePath: string): T {
   return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T;
 }
 
+function generatedLifecycleFrontMatter(manifest: GuideManifest) {
+  return [
+    `# Owner: \`${manifest.owner}\``,
+    `# Purpose: \`generated_${manifest.id}_guide_markdown\``,
+    '# State: `generated_payload`',
+    `# Machine boundary: Generated Markdown snapshot. Human-readable source is \`${manifest.source_qmd}\`; machine truth remains in \`${relativeToApp(manifestPath)}\`, publishing templates, guide generator scripts, verification JSON, release evidence, screenshots manifest, and App contracts.`,
+  ].join('\n');
+}
+
+function withGeneratedLifecycleFrontMatter(markdown: string, lifecycle: string) {
+  return markdown.startsWith('---\n')
+    ? markdown.replace('---\n', `---\n${lifecycle}\n`)
+    : `${lifecycle}\n\n${markdown}`;
+}
+
 function loadManifest() {
   const manifest = readJson<GuideManifest>(manifestPath);
   if (manifest.schema !== 'opl_quarto_user_guide_manifest.v1') {
@@ -506,7 +521,11 @@ function main() {
     'utf8',
   );
   fs.copyFileSync(path.join(outputDir, renderedPdf), pdfOutputPath);
-  fs.writeFileSync(generatedMarkdownPath, qmd, 'utf8');
+  fs.writeFileSync(
+    generatedMarkdownPath,
+    withGeneratedLifecycleFrontMatter(qmd, generatedLifecycleFrontMatter(manifest)),
+    'utf8',
+  );
 
   const html = fs.readFileSync(htmlOutputPath, 'utf8');
   scanText('HTML visible text', htmlVisibleText(html), manifest);

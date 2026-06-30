@@ -12,6 +12,10 @@ type GuideManifest = {
   title: string;
   short_title: string;
   owner?: string;
+  source_qmd?: string;
+  purpose?: string;
+  state?: string;
+  machine_boundary?: string;
   download?: Record<string, string>;
 };
 
@@ -269,6 +273,21 @@ function inlineHtml(value: string) {
 
 function markdownComment(value: string) {
   return value.replaceAll('-->', '--&gt;');
+}
+
+function generatedLifecycleFrontMatter(manifest: GuideManifest) {
+  return [
+    `# Owner: \`${manifest.owner ?? 'one-person-lab-app'}\``,
+    `# Purpose: \`generated_${manifest.id}_slides_markdown\``,
+    '# State: `generated_payload`',
+    `# Machine boundary: Generated Marp markdown snapshot. Human-readable source is \`${relativeToApp(sourceQmdPath)}\`; machine truth remains in \`${relativeToApp(manifestPath)}\`, \`${relativeToApp(screenshotManifestPath)}\`, slide generator scripts, verification JSON, public deck artifacts, release evidence, and App contracts.`,
+  ].join('\n');
+}
+
+function withGeneratedLifecycleFrontMatter(markdown: string, lifecycle: string) {
+  return markdown.startsWith('---\n')
+    ? markdown.replace('---\n', `---\n${lifecycle}\n`)
+    : `${lifecycle}\n\n${markdown}`;
 }
 
 function imagePath(asset: string) {
@@ -869,7 +888,11 @@ function main() {
   fs.mkdirSync(path.dirname(generatedMarpPath), { recursive: true });
   fs.mkdirSync(path.dirname(verificationPath), { recursive: true });
   fs.writeFileSync(generatedQmdPath, qmd, 'utf8');
-  fs.writeFileSync(generatedMarpPath, marpMarkdown, 'utf8');
+  fs.writeFileSync(
+    generatedMarpPath,
+    withGeneratedLifecycleFrontMatter(marpMarkdown, generatedLifecycleFrontMatter(manifest)),
+    'utf8',
+  );
   writeTheme();
 
   const marpVersion = marp(['--version']).stdout.trim();

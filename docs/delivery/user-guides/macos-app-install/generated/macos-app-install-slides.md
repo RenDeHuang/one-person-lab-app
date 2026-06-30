@@ -1,4 +1,8 @@
 ---
+# Owner: `one-person-lab-app`
+# Purpose: `generated_macos-app-install_slides_markdown`
+# State: `generated_payload`
+# Machine boundary: Generated Marp markdown snapshot. Human-readable source is `docs/guides/macos-app-install/slides.qmd`; machine truth remains in `docs/delivery/user-guides/macos-app-install/source/macos-app-install.quarto.json`, `docs/guides/macos-app-install/screenshots.manifest.json`, slide generator scripts, verification JSON, public deck artifacts, release evidence, and App contracts.
 marp: true
 theme: opl-guide
 size: 16:9

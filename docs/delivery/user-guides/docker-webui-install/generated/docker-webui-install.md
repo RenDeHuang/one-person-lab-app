@@ -1,4 +1,8 @@
 ---
+# Owner: `one-person-lab-app`
+# Purpose: `generated_docker-webui-install_guide_markdown`
+# State: `generated_payload`
+# Machine boundary: Generated Markdown snapshot. Human-readable source is `docs/guides/docker-webui-install/guide.qmd`; machine truth remains in `docs/delivery/user-guides/docker-webui-install/source/docker-webui-install.guide.json`, publishing templates, guide generator scripts, verification JSON, release evidence, screenshots manifest, and App contracts.
 title: "One Person Lab Docker/WebUI 一键安装教程"
 subtitle: "Linux / Windows 一键安装"
 lang: zh-CN
@@ -44,7 +48,7 @@ macOS 桌面新手 -> DMG / Homebrew / macOS App 一键安装
 - Linux 如果命令提示没有 Docker 或权限不足，请先让管理员处理 Docker Engine 和用户权限。
 - 服务器对外访问需要管理员配置域名、TLS、反向代理和访问控制。
 
-公开 `ghcr.io/gaofeng21cn/one-person-lab-webui:latest` 和 `stable` 已发布并完成公开容器 smoke；stable 发布硬证据要求 Docker/WebUI 构建、GHCR 发布和 clean Linux Docker runtime smoke 通过。Windows Docker Desktop/WSL2 是 Windows 侧 Docker 运行环境，clean Windows VM 证据只作为可选诊断导入，不阻断 stable 发布。
+普通用户默认镜像入口是安装器里的 WebUI full seed 镜像；`--tag` 和 `--image` 是技术支持或高级部署才使用的覆盖项。是否已经具备 release、真实安装或 clean VM 通过状态，必须看对应 release/GHCR/smoke artifact 或 typed blocker；本教程本身只说明用户路径。
 
 ## 2. Windows：安装并启动 Docker Desktop
 
@@ -120,7 +124,7 @@ compose.yaml -> Docker Compose 启动定义
 - 如果 `OnePersonLab/data` 已存在，一键安装器会按保留/迁移边界处理，不能把旧数据目录当作可删除缓存。
 - 终端窗口或 compose 服务保持运行时，浏览器才能访问 WebUI。
 
-公开 GHCR latest/stable 当前可作为新手默认镜像入口；clean Linux VM 通过状态仍以独立 smoke artifact 为准，clean Windows VM 通过状态只作为诊断证据读取。
+安装器输出会先报告普通用户路径状态：一键安装、浏览器地址、访问密钥入口、runtime proxy、startup doctor 和 data preservation。operator 或技术支持应优先读这些状态，再进入 release evidence、preflight 或 smoke artifact 细节。
 
 ## 4. 打开浏览器
 
@@ -228,6 +232,7 @@ OPL Framework、Codex CLI 和模块主要由进入 WebUI 后的 OPL 维护机制
 入口镜像更新：拉取新 WebUI 镜像或重新运行一键安装器
 保留：OnePersonLab/data 和 OnePersonLab/projects
 operator progress：进入 WebUI 后看首启检查、设置里的访问状态和维护提示
+ordinary_docker_webui_user_path：一键安装 -> 浏览器 WebUI -> Settings -> Access -> runtime proxy -> startup doctor -> data preservation
 ```
 
 重点：
@@ -254,7 +259,7 @@ docker run --rm -p 3000:3000 \
 
 ## 10. 发布验证边界
 
-Docker/WebUI 发布验收不是只看文档、合同或本地容器启动。stable 发布硬阻断只覆盖我们拥有的交付面：Docker/WebUI 构建、GHCR 发布、clean Linux Docker runtime smoke。clean Windows VM、已有 Docker 的机器、以及已有旧 `OnePersonLab/data` 的机器是可选诊断 gate；它们能帮助维护安装体验，但缺失时不阻断 stable 发布。
+Docker/WebUI 发布验收不是只看文档、合同或本地容器启动。release/GHCR/smoke 结论只来自对应 workflow artifact、publish receipt、VM smoke result 或 typed blocker。clean Linux VM、clean Windows VM、已有 Docker 的机器、以及已有旧 `OnePersonLab/data` 的机器都要按各自 gate 读取，不能从教程、合同或本地单次容器启动直接推出通过状态。
 
 当前教程说明验收预期；如果可选诊断 gate 没跑，应该记录为 skipped 或 typed blocker，不能把未跑的 gate 包装成已通过。
 
@@ -265,7 +270,7 @@ existing_docker -> 复用已有 Docker，不重新安装 Docker
 existing_old_onepersonlab_data_dir -> 保留或迁移旧 data，不删除
 ```
 
-公开镜像当前性可以由 release workflow、GHCR publish receipt 和 public live smoke 证明；clean Linux VM 是否通过，必须看对应 VM smoke artifact 或 typed blocker。clean Windows VM 是否通过只用于 Windows 安装体验诊断。
+镜像当前性、release 状态和 VM gate 是否通过，必须看对应 workflow/readback artifact 或 typed blocker。普通用户安装排障时，先读安装器和 smoke result 里的用户路径状态，再决定是否需要进入 evidence bundle。
 
 ## 常见问题
 
@@ -279,7 +284,7 @@ existing_old_onepersonlab_data_dir -> 保留或迁移旧 data，不删除
 - 数据在哪里：配置、访问状态、会话历史、维护记录、日志和缓存在 `OnePersonLab/data`；项目文件在 `OnePersonLab/projects`。
 - 已有旧数据目录怎么办：先保留或备份目录，重跑安装器时应保留或迁移旧 `OnePersonLab/data`，不要删除后当作成功。
 - 能不能只用手动 `docker run`：可以作为高级排障路径，但新手文档和合同默认一键安装器是主路径。
-- 这个文档是否证明 latest 当前可用：文档本身不能证明；当前公开 latest/stable 可用性由 release workflow、GHCR publish receipt 和 public live smoke 证明。
+- 这个文档是否证明 latest 当前可用：不能；镜像当前性必须由 release workflow、GHCR publish receipt、smoke result 或 typed blocker 证明。
 
 ## 验证方式
 
@@ -287,4 +292,4 @@ existing_old_onepersonlab_data_dir -> 保留或迁移旧 data，不删除
 - 生成脚本检查 QMD、HTML 和 PDF 文本中不存在未展开的双花括号模板占位符。
 - 生成脚本扫描 source、HTML 和 PDF 文本，禁止真实 secret marker 出现在教程 artifact 中。
 - 截图资产保存在 `docs/guides/docker-webui-install/screenshots/`，生成器会校验文件存在、尺寸和 SHA256，并发布到 `docs/public/docker-webui-install/screenshots/`。
-- Docker/WebUI stable 发布硬 gate 要求 clean Linux VM 通过；clean Windows VM、existing Docker 和 existing old `OnePersonLab/data` 是诊断 gate，未跑时必须留 skipped 或 typed blocker，不能包装成已通过。
+- Docker/WebUI gate 结论必须来自对应 smoke artifact 或 typed blocker；未跑的 clean VM、existing Docker 或 old-data gate 不能包装成已通过。

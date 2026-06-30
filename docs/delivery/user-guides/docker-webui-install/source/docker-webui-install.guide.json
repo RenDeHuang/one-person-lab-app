@@ -69,7 +69,7 @@
     "ordinary_docker_webui_user_path",
     "ghcr.io/gaofeng21cn/one-person-lab-webui",
     "clean Linux VM",
-    "clean Windows VM"
+    "typed blocker"
   ],
   "forbidden_phrases": [
     "不声明公开 GHCR latest",
