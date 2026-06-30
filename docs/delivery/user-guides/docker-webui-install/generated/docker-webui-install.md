@@ -124,7 +124,7 @@ compose.yaml -> Docker Compose 启动定义
 - 如果 `OnePersonLab/data` 已存在，一键安装器会按保留/迁移边界处理，不能把旧数据目录当作可删除缓存。
 - 终端窗口或 compose 服务保持运行时，浏览器才能访问 WebUI。
 
-安装器输出会先报告普通用户路径状态：一键安装、浏览器地址、访问密钥入口、runtime proxy、startup doctor 和 data preservation。operator 或技术支持应优先读这些状态，再进入 release evidence、preflight 或 smoke artifact 细节。
+安装器输出会先报告普通用户路径状态：一键安装、浏览器地址、访问密钥入口、runtime proxy、startup diagnostics 和 data preservation。技术支持应优先读这些状态，再进入 release evidence、preflight 或 smoke artifact 细节。
 
 ## 4. 打开浏览器
 
@@ -164,7 +164,7 @@ projects mount readback
 
 普通用户不需要理解 Docker 日志；页面打不开时把安装器输出交给技术支持。日志和 readback 里如果出现访问密钥，先脱敏再发送。
 
-如果启动失败，优先运行安装器自带 startup doctor 或让技术支持收集诊断包。诊断包应包含 `compose.yaml`、Docker 版本、compose 状态、容器日志、HTTP probe、目录 readback 和 data-preservation verdict；诊断包不能包含真实访问密钥。
+如果启动失败，优先运行安装器自带 startup diagnostics 或让技术支持收集诊断包。诊断包应包含 `compose.yaml`、Docker 版本、compose 状态、容器日志、HTTP probe、目录 readback 和 data-preservation verdict；诊断包不能包含真实访问密钥。
 
 ## 6. 在 WebUI 里填写访问密钥
 
@@ -219,7 +219,7 @@ Linux/macOS: $HOME/OnePersonLab/projects -> /projects
 
 日常使用时，Windows 先启动 Docker Desktop；Linux 先确认 Docker Engine 正常。然后用安装器生成的 compose 入口启动 WebUI，浏览器访问 `http://localhost:3000/`。不用时停止 compose 服务。
 
-OPL Framework、Codex CLI 和模块主要由进入 WebUI 后的 OPL 维护机制检查和更新。WebUI 入口镜像、基础系统层、启动器或预热内容更新时，再拉取新的 Docker 镜像或重新运行一键安装器。
+OPL Framework、Codex CLI 和模块主要由进入 WebUI 后的 OPL 维护机制检查和更新。WebUI 入口镜像、基础系统层、启动器或预热内容更新时，在主机上重新运行一键安装器，或使用显式更新模式。更新路径会拉取新的 WebUI 镜像并用同一个 `compose.yaml` 重建服务。
 
 只要保留 `OnePersonLab/data` 和 `OnePersonLab/projects`，配置、会话历史和项目文件会继续保留。
 
@@ -229,17 +229,18 @@ OPL Framework、Codex CLI 和模块主要由进入 WebUI 后的 OPL 维护机制
 访问：http://localhost:3000/
 关闭：停止 compose 服务
 日常模块更新：进入 WebUI 后按 OPL 维护提示处理
-入口镜像更新：拉取新 WebUI 镜像或重新运行一键安装器
+入口镜像更新：重跑一键安装器，或运行 install-docker-webui.sh --update / install-docker-webui.ps1 -Update
 保留：OnePersonLab/data 和 OnePersonLab/projects
-operator progress：进入 WebUI 后看首启检查、设置里的访问状态和维护提示
-ordinary_docker_webui_user_path：一键安装 -> 浏览器 WebUI -> Settings -> Access -> runtime proxy -> startup doctor -> data preservation
+ordinary user progress：进入 WebUI 后看首启检查、设置里的访问状态和维护提示
+ordinary_docker_webui_user_path：一键安装 -> 浏览器 WebUI -> Settings -> Access -> runtime proxy -> startup diagnostics -> data preservation
 ```
 
 重点：
 
 - 镜像更新主要更新 WebUI 外壳、启动器、bootstrap、基础系统层和预热内容。
 - OPL Framework、Codex CLI、模块和维护状态以 WebUI 进入后的 OPL 维护结果为准。
-- 定期或收到通知时拉取新镜像；替换容器前确认 `data/projects` 仍映射到同一个主机目录。
+- Docker/WebUI 不通过浏览器 WebUI 挂载 Docker socket 自我更新容器，也不需要 Watchtower。
+- 定期或收到通知时在主机上拉取新镜像；替换容器前确认 `data/projects` 仍映射到同一个主机目录。
 
 ## 9. 高级路径：手动 Docker 排障
 

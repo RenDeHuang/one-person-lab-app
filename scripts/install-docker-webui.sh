@@ -43,7 +43,7 @@ Options:
   --detach                  Start with docker compose up -d. This is the default.
   --help                    Show this help.
 
-The installer never accepts API keys. Add model/provider keys inside the WebUI.
+The installer never accepts API keys. Add access keys inside the WebUI.
 USAGE
 }
 
@@ -55,9 +55,9 @@ log_user_path_status() {
   log "User path status:"
   log "  one_click_install: create compose.yaml, data/projects directories, and start the WebUI image."
   log "  browser_webui: open ${HEALTH_URL} after the health check passes."
-  log "  access_key_settings: enter provider keys in the WebUI first-run Access panel or Settings -> Access."
+  log "  access_key_settings: enter access keys in the WebUI first-run Access panel or Settings -> Access."
   log "  runtime_proxy: WebUI uses /api/opl-runtime/configure-codex -> opl system configure-codex --api-key-stdin --json."
-  log "  startup_recovery: if startup fails, collect redacted startup doctor diagnostics and rerun after fixing Docker, port, image, or data issues."
+  log "  startup_recovery: if startup fails, collect redacted startup diagnostics and rerun after fixing Docker, port, image, or data issues."
   log "  data_preservation: keep OnePersonLab/data and OnePersonLab/projects mounted and preserved."
   log "  host_update: rerun this installer, or pass --update, to pull the WebUI image from the host and recreate the compose service."
 }
@@ -197,7 +197,7 @@ while [ "$#" -gt 0 ]; do
       exit 0
       ;;
     --api-key|--api-key=*|--*-api-key|--*-api-key=*|--*api_key|--*api_key=*)
-      die "Do not pass API keys to this installer. Enter provider keys inside the WebUI after it opens."
+      die "Do not pass API keys to this installer. Enter access keys inside the WebUI after it opens."
       ;;
     *)
       die "Unknown option: $1"
@@ -671,7 +671,7 @@ else
   log "Update model: rerun this installer, or pass --update, to pull the WebUI image from the host; the WebUI does not self-update through Docker."
 fi
 log "Image/seed: default latest/stable WebUI image uses the full seed; --tag and --image are advanced overrides."
-log "API keys are not accepted by this installer; enter provider keys inside the WebUI first-run Access panel or Settings -> Access."
+log "API keys are not accepted by this installer; enter access keys inside the WebUI first-run Access panel or Settings -> Access."
 log_user_path_status
 
 ensure_docker

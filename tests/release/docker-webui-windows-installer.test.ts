@@ -160,9 +160,9 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.match(dryRun.stdout, /would write diagnostic archive .*diagnostics\.zip/);
   assert.match(dryRun.stdout, /User path status:/);
   assert.match(dryRun.stdout, /one_click_install: create compose\.yaml, data\/projects directories, and start the WebUI image/);
-  assert.match(dryRun.stdout, /access_key_settings: enter provider keys in the WebUI first-run Access panel or Settings -> Access/);
+  assert.match(dryRun.stdout, /access_key_settings: enter access keys in the WebUI first-run Access panel or Settings -> Access/);
   assert.match(dryRun.stdout, /runtime_proxy: WebUI uses \/api\/opl-runtime\/configure-codex -> opl system configure-codex --api-key-stdin --json/);
-  assert.match(dryRun.stdout, /startup_recovery: if startup fails, collect redacted startup doctor diagnostics/);
+  assert.match(dryRun.stdout, /startup_recovery: if startup fails, collect redacted startup diagnostics/);
   assert.match(dryRun.stdout, /host_update: rerun this installer, or pass -Update, to pull the WebUI image from the host/);
   assert.match(dryRun.stdout, /Image\/seed: default latest\/stable WebUI image uses the full seed/);
   assert.equal(fs.existsSync(path.join(tempRoot, 'compose.yaml')), false, 'dry-run must not create compose.yaml');

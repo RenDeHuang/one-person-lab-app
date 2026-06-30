@@ -63,7 +63,7 @@ function completeGateResult() {
       receipt_path: '/tmp/artifact/api-key-flow-evidence.json',
       errors: [],
     },
-    operator_readable_status: {
+    ordinary_user_status: {
       path_id: 'ordinary_docker_webui_user_path',
       priority: 'ordinary_user_path_before_evidence_bundle_language',
       one_click_install: {
@@ -80,7 +80,7 @@ function completeGateResult() {
       },
       access_key_settings: {
         status: 'passed',
-        summary: 'Provider keys are entered in the WebUI first-run Access panel or Settings -> Access.',
+        summary: 'Access keys are entered in the WebUI first-run Access panel or Settings -> Access.',
         next_action: null,
         evidence_ref: '/tmp/artifact/api-key-flow-evidence.json',
       },
@@ -92,7 +92,7 @@ function completeGateResult() {
       },
       startup_recovery: {
         status: 'passed',
-        summary: 'Startup doctor diagnostics are redacted and can be used to recover Docker, port, image, or data issues.',
+        summary: 'Startup diagnostics are redacted and show what to retry or repair for Docker, port, image, or data issues.',
         next_action: null,
         evidence_ref: '/tmp/artifact/diagnostics',
       },
@@ -101,6 +101,12 @@ function completeGateResult() {
         summary: 'Host OnePersonLab/data and OnePersonLab/projects stay mounted and preserved across image/container replacement.',
         next_action: null,
         evidence_ref: '/tmp/artifact/diagnostics/data-preservation.txt',
+      },
+      host_update: {
+        status: 'passed',
+        summary: 'Host updates rerun the installer or explicit update mode to pull the WebUI image and recreate the compose service.',
+        next_action: 'Use install-docker-webui.sh --update or install-docker-webui.ps1 -Update when the host image should be updated.',
+        evidence_ref: '/tmp/artifact/home/OnePersonLab/compose.yaml',
       },
       image_seed_selection: 'Default latest/stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
       settings_entry: 'Settings -> Access',
@@ -159,7 +165,7 @@ test('Docker/WebUI smoke gate result readback fails when required artifact schem
     'image',
     'data_preservation',
     'api_key_flow',
-    'operator_readable_status',
+    'ordinary_user_status',
     'secret_scan',
   ]) {
     const payload = completeGateResult() as Record<string, unknown>;
@@ -199,13 +205,13 @@ test('Docker/WebUI smoke gate result readback rejects passed gates with failed h
 
 test('Docker/WebUI smoke gate result readback rejects passed gates without ordinary user path status', () => {
   const payload = completeGateResult();
-  payload.operator_readable_status.browser_webui.status = 'not_run';
-  payload.operator_readable_status.must_not_claim = ['release_ready'];
+  payload.ordinary_user_status.browser_webui.status = 'not_run';
+  payload.ordinary_user_status.must_not_claim = ['release_ready'];
 
   const result = validateDockerWebuiSmokeGateResult(payload);
   assert.equal(result.status, 'failed');
-  assert.ok(result.invalid_fields.includes('operator_readable_status.browser_webui.status'));
-  assert.ok(result.invalid_fields.includes('operator_readable_status.must_not_claim.desktop_release_ready'));
+  assert.ok(result.invalid_fields.includes('ordinary_user_status.browser_webui.status'));
+  assert.ok(result.invalid_fields.includes('ordinary_user_status.must_not_claim.desktop_release_ready'));
 });
 
 test('Docker/WebUI smoke gate CLI validates uploaded gate result artifacts without running Docker', () => {

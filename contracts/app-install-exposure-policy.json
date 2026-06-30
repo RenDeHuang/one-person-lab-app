@@ -285,8 +285,8 @@
           "receipt_schema": "opl_docker_webui_api_key_flow_evidence.v1",
           "key_material_recorded": false
         },
-        "operator_readable_status": {
-          "source": "installer_stdout_and_docker_webui_smoke_gate_result.operator_readable_status",
+        "ordinary_user_status": {
+          "source": "installer_stdout_and_docker_webui_smoke_gate_result.ordinary_user_status",
           "priority": "ordinary_user_path_before_evidence_bundle_language",
           "path_id": "ordinary_docker_webui_user_path",
           "display_order": [
@@ -300,10 +300,10 @@
           ],
           "rows": {
             "one_click_install": "Run the one-click installer to create compose.yaml, data/projects directories, and start the WebUI image.",
-            "browser_webui": "Open http://localhost:3000/ or the operator-provided WebUI URL.",
-            "access_key_settings": "Enter provider access keys in the WebUI first-run Access panel or Settings -> Access.",
+            "browser_webui": "Open http://localhost:3000/ or the administrator-provided WebUI URL.",
+            "access_key_settings": "Enter access keys in the WebUI first-run Access panel or Settings -> Access.",
             "runtime_proxy": "The WebUI configures Codex through /api/opl-runtime/configure-codex using stdin transport.",
-            "startup_recovery": "If startup fails, collect the redacted startup doctor diagnostics and rerun after the Docker, port, image, or data issue is fixed.",
+            "startup_recovery": "If startup fails, collect the redacted startup diagnostics and rerun after the Docker, port, image, or data issue is fixed.",
             "data_preservation": "Keep host OnePersonLab/data and OnePersonLab/projects mounted and preserved across image/container replacement.",
             "host_update": "Update the WebUI image from the host by rerunning the installer or using its explicit update mode; the browser WebUI must not self-update containers through a Docker socket."
           },
@@ -346,7 +346,7 @@
           "health_timeout": "collect_diagnostics_then_retry_after_Docker_port_or_container_fix",
           "existing_data": "preserve_or_migrate_OnePersonLab_data_without_delete"
         },
-        "operator_progress": {
+        "ordinary_user_progress": {
           "source": "opl system initialize --json",
           "browser_surface": "first_run_access_panel_or_settings_access",
           "status_surfaces": [
@@ -397,7 +397,7 @@
           "preheated_seed_payload"
         ],
         "image_update_model": {
-          "owner": "host_installer_or_operator",
+          "owner": "host_installer_or_administrator",
           "linux_macos_entrypoint": "install-docker-webui.sh --update",
           "windows_entrypoint": "install-docker-webui.ps1 -Update",
           "rerun_semantics": "rerunning_the_one_click_installer_is_equivalent_to_host_side_image_pull_and_compose_recreate",

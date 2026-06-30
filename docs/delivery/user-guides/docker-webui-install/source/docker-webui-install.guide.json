@@ -31,7 +31,7 @@
     "docker_engine_ubuntu_url": "https://docs.docker.com/engine/install/ubuntu/"
   },
   "beginner_functional_path": {
-    "source_ref": "contracts/app-install-exposure-policy.json#installer_surfaces[surface=docker_webui].installer_model.operator_readable_status",
+    "source_ref": "contracts/app-install-exposure-policy.json#installer_surfaces[surface=docker_webui].installer_model.ordinary_user_status",
     "non_live_scope": "guide_contract_validator_and_installer_surface_only",
     "primary_steps": [
       "install_or_start_Docker",
@@ -39,8 +39,8 @@
       "open_browser_webui",
       "enter_model_api_key_in_WebUI_Access",
       "runtime_proxy_configure_codex_smoke",
-      "startup_doctor_or_diagnostics_if_needed",
-      "operator_progress_after_WebUI_opens"
+      "startup_diagnostics_if_needed",
+      "ordinary_user_progress_after_WebUI_opens"
     ],
     "must_not_claim": [
       "release readiness",
@@ -63,8 +63,8 @@
     "OPL Framework",
     "Codex CLI",
     "runtime proxy smoke",
-    "startup doctor",
-    "operator progress",
+    "startup diagnostics",
+    "ordinary user progress",
     "Settings -> Access",
     "ordinary_docker_webui_user_path",
     "ghcr.io/gaofeng21cn/one-person-lab-webui",

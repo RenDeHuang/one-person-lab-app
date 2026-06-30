@@ -40,9 +40,9 @@ function Write-UserPathStatus {
   Write-Step "User path status:"
   Write-Step "  one_click_install: create compose.yaml, data/projects directories, and start the WebUI image."
   Write-Step "  browser_webui: open $Url after the health check passes."
-  Write-Step "  access_key_settings: enter provider keys in the WebUI first-run Access panel or Settings -> Access."
+  Write-Step "  access_key_settings: enter access keys in the WebUI first-run Access panel or Settings -> Access."
   Write-Step "  runtime_proxy: WebUI uses /api/opl-runtime/configure-codex -> opl system configure-codex --api-key-stdin --json."
-  Write-Step "  startup_recovery: if startup fails, collect redacted startup doctor diagnostics and rerun after fixing Docker, port, image, or data issues."
+  Write-Step "  startup_recovery: if startup fails, collect redacted startup diagnostics and rerun after fixing Docker, port, image, or data issues."
   Write-Step "  data_preservation: keep OnePersonLab/data and OnePersonLab/projects mounted and preserved."
   Write-Step "  host_update: rerun this installer, or pass -Update, to pull the WebUI image from the host and recreate the compose service."
 }

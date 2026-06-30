@@ -41,27 +41,28 @@ type GateResult = {
     receipt_path: string | null;
     errors: string[];
   };
-  operator_readable_status: OperatorReadableStatus;
+  ordinary_user_status: OrdinaryUserStatus;
   secret_scan: { status: 'passed' | 'failed' | 'not_run'; forbidden_secret_markers: string[] };
   commands: Array<{ command: string; status: number | null; stdout_path: string; stderr_path: string }>;
   evidence: Record<string, string>;
 };
 
-type OperatorReadableStatus = {
+type OrdinaryUserStatus = {
   path_id: 'ordinary_docker_webui_user_path';
   priority: 'ordinary_user_path_before_evidence_bundle_language';
-  one_click_install: OperatorStatusRow;
-  browser_webui: OperatorStatusRow;
-  access_key_settings: OperatorStatusRow;
-  runtime_proxy: OperatorStatusRow;
-  startup_recovery: OperatorStatusRow;
-  data_preservation: OperatorStatusRow;
+  one_click_install: OrdinaryStatusRow;
+  browser_webui: OrdinaryStatusRow;
+  access_key_settings: OrdinaryStatusRow;
+  runtime_proxy: OrdinaryStatusRow;
+  startup_recovery: OrdinaryStatusRow;
+  data_preservation: OrdinaryStatusRow;
+  host_update: OrdinaryStatusRow;
   image_seed_selection: string;
   settings_entry: 'Settings -> Access';
   must_not_claim: string[];
 };
 
-type OperatorStatusRow = {
+type OrdinaryStatusRow = {
   status: 'passed' | 'typed_blocker' | 'failed' | 'not_run';
   summary: string;
   next_action: string | null;
@@ -111,22 +112,23 @@ const requiredResultFields = [
   'image',
   'data_preservation',
   'api_key_flow',
-  'operator_readable_status',
+  'ordinary_user_status',
   'secret_scan',
   'commands',
   'evidence',
 ];
 
-const operatorStatusRows = [
+const ordinaryStatusRows = [
   'one_click_install',
   'browser_webui',
   'access_key_settings',
   'runtime_proxy',
   'startup_recovery',
   'data_preservation',
+  'host_update',
 ] as const;
 
-const operatorMustNotClaim = [
+const ordinaryMustNotClaim = [
   'desktop_release_ready',
   'real_install_ready',
   'clean_windows_vm_pass_without_clean_windows_evidence',
@@ -263,7 +265,7 @@ function makeResult(gate: GateId, artifactDir: string): GateResult {
       receipt_path: null,
       errors: [],
     },
-    operator_readable_status: makeOperatorReadableStatus({
+    ordinary_user_status: makeOrdinaryUserStatus({
       healthUrl: `http://localhost:3000/`,
       composePath: null,
       diagnosticsDir,
@@ -279,14 +281,14 @@ function makeResult(gate: GateId, artifactDir: string): GateResult {
   };
 }
 
-function makeOperatorReadableStatus(input: {
+function makeOrdinaryUserStatus(input: {
   healthUrl: string;
   composePath: string | null;
   diagnosticsDir: string | null;
   apiKeyReceiptPath: string | null;
   dataEvidencePath: string | null;
   result?: GateResult;
-}): OperatorReadableStatus {
+}): OrdinaryUserStatus {
   const result = input.result;
   const oneClickStatus = result
     ? result.status === 'typed_blocker'
@@ -353,7 +355,7 @@ function makeOperatorReadableStatus(input: {
     },
     access_key_settings: {
       status: accessStatus,
-      summary: 'Provider keys are entered in the WebUI first-run Access panel or Settings -> Access.',
+      summary: 'Access keys are entered in the WebUI first-run Access panel or Settings -> Access.',
       next_action: accessStatus === 'passed' ? null : 'Use the WebUI access form; do not pass API keys to the installer.',
       evidence_ref: input.apiKeyReceiptPath,
     },
@@ -365,11 +367,11 @@ function makeOperatorReadableStatus(input: {
     },
     startup_recovery: {
       status: recoveryStatus,
-      summary: 'Startup doctor diagnostics are redacted and can be used to recover Docker, port, image, or data issues.',
+      summary: 'Startup diagnostics are redacted and show what to retry or repair for Docker, port, image, or data issues.',
       next_action:
         recoveryStatus === 'passed'
           ? null
-          : 'Collect diagnostics with compose, logs, HTTP probe, and preservation readback before claiming the gate passed.',
+          : 'Collect diagnostics, fix the reported Docker/port/image/data issue, then rerun the installer.',
       evidence_ref: input.diagnosticsDir,
     },
     data_preservation: {
@@ -378,14 +380,23 @@ function makeOperatorReadableStatus(input: {
       next_action: dataStatus === 'passed' ? null : 'Inspect data-preservation.txt and fix preserve-or-migrate behavior before rerunning.',
       evidence_ref: input.dataEvidencePath,
     },
+    host_update: {
+      status: oneClickStatus,
+      summary: 'Host updates rerun the installer or explicit update mode to pull the WebUI image and recreate the compose service.',
+      next_action:
+        oneClickStatus === 'passed'
+          ? 'Use install-docker-webui.sh --update or install-docker-webui.ps1 -Update when the host image should be updated.'
+          : 'Finish the one-click installer before using host update mode.',
+      evidence_ref: input.composePath,
+    },
     image_seed_selection: 'Default latest/stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
     settings_entry: 'Settings -> Access',
-    must_not_claim: [...operatorMustNotClaim],
+    must_not_claim: [...ordinaryMustNotClaim],
   };
 }
 
-function refreshOperatorReadableStatus(result: GateResult) {
-  result.operator_readable_status = makeOperatorReadableStatus({
+function refreshOrdinaryUserStatus(result: GateResult) {
+  result.ordinary_user_status = makeOrdinaryUserStatus({
     healthUrl: result.health.url,
     composePath: result.compose.path || result.evidence.compose_yaml || null,
     diagnosticsDir: result.diagnostics_dir || null,
@@ -1018,43 +1029,43 @@ export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResult
     'container',
     'image',
     'data_preservation',
-    'operator_readable_status',
+    'ordinary_user_status',
     'secret_scan',
   ]) {
     if (objectField in payload && !isObject(payload[objectField])) invalidFields.push(objectField);
   }
   if ('api_key_flow' in payload && !isObject(payload.api_key_flow)) invalidFields.push('api_key_flow');
-  if (isObject(payload.operator_readable_status)) {
-    const operatorStatus = payload.operator_readable_status;
-    if (operatorStatus.path_id !== 'ordinary_docker_webui_user_path') {
-      invalidFields.push('operator_readable_status.path_id');
+  if (isObject(payload.ordinary_user_status)) {
+    const ordinaryStatus = payload.ordinary_user_status;
+    if (ordinaryStatus.path_id !== 'ordinary_docker_webui_user_path') {
+      invalidFields.push('ordinary_user_status.path_id');
     }
-    if (operatorStatus.priority !== 'ordinary_user_path_before_evidence_bundle_language') {
-      invalidFields.push('operator_readable_status.priority');
+    if (ordinaryStatus.priority !== 'ordinary_user_path_before_evidence_bundle_language') {
+      invalidFields.push('ordinary_user_status.priority');
     }
-    if (operatorStatus.settings_entry !== 'Settings -> Access') {
-      invalidFields.push('operator_readable_status.settings_entry');
+    if (ordinaryStatus.settings_entry !== 'Settings -> Access') {
+      invalidFields.push('ordinary_user_status.settings_entry');
     }
-    if (!Array.isArray(operatorStatus.must_not_claim)) {
-      invalidFields.push('operator_readable_status.must_not_claim');
+    if (!Array.isArray(ordinaryStatus.must_not_claim)) {
+      invalidFields.push('ordinary_user_status.must_not_claim');
     } else {
-      for (const claim of operatorMustNotClaim) {
-        if (!operatorStatus.must_not_claim.includes(claim)) {
-          invalidFields.push(`operator_readable_status.must_not_claim.${claim}`);
+      for (const claim of ordinaryMustNotClaim) {
+        if (!ordinaryStatus.must_not_claim.includes(claim)) {
+          invalidFields.push(`ordinary_user_status.must_not_claim.${claim}`);
         }
       }
     }
-    for (const rowName of operatorStatusRows) {
-      const row = operatorStatus[rowName];
+    for (const rowName of ordinaryStatusRows) {
+      const row = ordinaryStatus[rowName];
       if (!isObject(row)) {
-        invalidFields.push(`operator_readable_status.${rowName}`);
+        invalidFields.push(`ordinary_user_status.${rowName}`);
         continue;
       }
       if (!['passed', 'typed_blocker', 'failed', 'not_run'].includes(String(row.status))) {
-        invalidFields.push(`operator_readable_status.${rowName}.status`);
+        invalidFields.push(`ordinary_user_status.${rowName}.status`);
       }
       if (!isNonEmptyString(row.summary)) {
-        invalidFields.push(`operator_readable_status.${rowName}.summary`);
+        invalidFields.push(`ordinary_user_status.${rowName}.summary`);
       }
     }
   }
@@ -1072,13 +1083,13 @@ export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResult
     if (!isObject(payload.api_key_flow) || payload.api_key_flow.stdin_transport !== true) {
       invalidFields.push('api_key_flow.stdin_transport');
     }
-    if (!isObject(payload.operator_readable_status)) {
-      invalidFields.push('operator_readable_status');
+    if (!isObject(payload.ordinary_user_status)) {
+      invalidFields.push('ordinary_user_status');
     } else {
-      for (const rowName of operatorStatusRows) {
-        const row = payload.operator_readable_status[rowName];
+      for (const rowName of ordinaryStatusRows) {
+        const row = payload.ordinary_user_status[rowName];
         if (!isObject(row) || row.status !== 'passed') {
-          invalidFields.push(`operator_readable_status.${rowName}.status`);
+          invalidFields.push(`ordinary_user_status.${rowName}.status`);
         }
       }
     }
@@ -1244,12 +1255,12 @@ function main() {
   }
 
   const resultPath = path.join(artifactDir, 'docker-webui-smoke-gate-result.json');
-  refreshOperatorReadableStatus(result);
+  refreshOrdinaryUserStatus(result);
   const resultValidation = validateDockerWebuiSmokeGateResult(result);
   if (resultValidation.status !== 'passed') {
     result.status = 'failed';
     result.evidence.result_schema_validation = JSON.stringify(resultValidation);
-    refreshOperatorReadableStatus(result);
+    refreshOrdinaryUserStatus(result);
   }
   writeJson(resultPath, result);
   if (options.json) {

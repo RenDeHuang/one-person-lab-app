@@ -15,7 +15,7 @@ Markdown, or smoke gate runbook.
 ## SSOT Roles
 
 - Machine policy: [`../../../contracts/app-install-exposure-policy.json`](../../../contracts/app-install-exposure-policy.json)
-  owns installer surface, data mounts, Access key transport, startup doctor, and
+  owns installer surface, data mounts, Access key transport, startup diagnostics, and
   false-ready boundaries.
 - Operator guide: this file owns the maintainer-facing install route and points
   to the guide source, public bundle, and verification support.
@@ -45,8 +45,8 @@ Markdown, or smoke gate runbook.
 ## Operator Boundary
 
 The beginner path is: one-click installer, browser WebUI, Access key entry in
-the WebUI, runtime proxy smoke through stdin transport, startup doctor
-diagnostics when needed, and preserved host `OnePersonLab/data` /
+the WebUI, runtime proxy smoke through stdin transport, startup diagnostics
+when needed, and preserved host `OnePersonLab/data` /
 `OnePersonLab/projects` mounts.
 
 Do not duplicate the generated guide content here. Update the Quarto body source
