@@ -165,7 +165,8 @@ export function writePassingArtifacts(root: string, version = '26.5.99', runId =
   writeJson(path.join(root, `docker-webui-clean-vm-evidence-${version}`, 'docker-webui-clean-vm-evidence-validation.json'), {
     schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
     status: 'passed',
-    required_gates: ['clean_linux_vm', 'clean_windows_vm'],
+    required_gates: ['clean_linux_vm'],
+    optional_gates: ['clean_windows_vm'],
     summaries: [
       {
         schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
@@ -186,7 +187,7 @@ export function writePassingArtifacts(root: string, version = '26.5.99', runId =
         required_environment: 'clean Windows VM running the PowerShell one-click installer',
       },
     ],
-    release_readiness_policy: 'clean Linux VM and clean Windows VM Docker WebUI evidence must validate as passed before release readiness aggregation',
+    release_readiness_policy: 'clean Linux Docker runtime evidence must validate as passed before release readiness aggregation; clean Windows VM evidence is optional diagnostic import.',
   });
   writeJson(path.join(root, `opl-full-workflow-telemetry-${version}`, 'full-workflow-telemetry.json'), {
     schema: 'opl_full_workflow_telemetry.v1',

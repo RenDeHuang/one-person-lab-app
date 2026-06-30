@@ -418,7 +418,7 @@ exit 2
   )));
 });
 
-test('release preflight fails non-draft Docker WebUI trains without clean Windows VM evidence', () => {
+test('release preflight allows Docker WebUI trains without clean Windows VM evidence', () => {
   const missingEvidence = runNode([
     'scripts/validate-release-preflight.ts',
     '--version',
@@ -438,15 +438,15 @@ test('release preflight fails non-draft Docker WebUI trains without clean Window
     },
   });
 
-  assert.notEqual(missingEvidence.status, 0);
-  const failedPayload = JSON.parse(missingEvidence.stdout);
-  assert.equal(failedPayload.status, 'failed');
-  assert.equal(failedPayload.inputs.publish_docker_webui, true);
-  assert.equal(failedPayload.inputs.docker_webui_clean_windows_evidence_artifact, '');
-  assert.ok(failedPayload.checks.some((check) => (
+  assert.equal(missingEvidence.status, 0, missingEvidence.stderr || missingEvidence.stdout);
+  const warningPayload = JSON.parse(missingEvidence.stdout);
+  assert.equal(warningPayload.status, 'passed');
+  assert.equal(warningPayload.inputs.publish_docker_webui, true);
+  assert.equal(warningPayload.inputs.docker_webui_clean_windows_evidence_artifact, '');
+  assert.ok(warningPayload.checks.some((check) => (
     check.id === 'docker_webui_clean_windows_evidence_artifact'
-    && check.status === 'failed'
-    && check.message.includes('before expensive release jobs')
+    && check.status === 'warning'
+    && check.message.includes('optional')
   )));
 
   const declaredEvidence = runNode([
@@ -495,7 +495,7 @@ test('release preflight fails non-draft Docker WebUI trains without clean Window
   assert.ok(draftPayload.checks.some((check) => (
     check.id === 'docker_webui_clean_windows_evidence_artifact'
     && check.status === 'warning'
-    && check.message.includes('Draft candidates may omit')
+    && check.message.includes('optional')
   )));
 });
 

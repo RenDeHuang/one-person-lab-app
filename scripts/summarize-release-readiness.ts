@@ -557,6 +557,7 @@ function buildSummary(options: Options) {
       const fields = {
         aggregate_status: payload.status ?? null,
         required_gates: Array.isArray(payload.required_gates) ? payload.required_gates : [],
+        optional_gates: Array.isArray(payload.optional_gates) ? payload.optional_gates : [],
         clean_linux_vm: cleanLinux,
         clean_windows_vm: cleanWindows,
         release_readiness_policy: payload.release_readiness_policy ?? null,
@@ -573,9 +574,9 @@ function buildSummary(options: Options) {
         const blockerCode = typeof blocker?.code === 'string' ? ` (${blocker.code})` : '';
         return { reason: `Docker WebUI clean VM evidence status is ${statusString(payload.status) || 'unknown'}${blockerCode}.`, fields };
       }
-      if (cleanLinux?.status !== 'passed' || cleanWindows?.status !== 'passed') {
+      if (cleanLinux?.status !== 'passed') {
         return {
-          reason: `Docker WebUI clean VM evidence requires clean_linux_vm and clean_windows_vm to pass; got Linux=${statusString(cleanLinux?.status) || 'missing'} Windows=${statusString(cleanWindows?.status) || 'missing'}.`,
+          reason: `Docker WebUI clean VM evidence requires clean_linux_vm to pass; got Linux=${statusString(cleanLinux?.status) || 'missing'}.`,
           fields,
         };
       }

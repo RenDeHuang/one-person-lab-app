@@ -244,7 +244,7 @@ test('release evidence bundle validator requires Docker WebUI clean VM aggregate
   assert.ok(payload.verified_artifacts.some((artifact) => artifact.id === 'docker_webui_clean_vm_evidence'));
 });
 
-test('release evidence bundle validator rejects Docker WebUI clean VM aggregate without Windows pass', () => {
+test('release evidence bundle validator accepts Docker WebUI clean VM aggregate with optional Windows skip', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-release-evidence-docker-webui-missing-windows-'));
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
@@ -273,7 +273,6 @@ test('release evidence bundle validator rejects Docker WebUI clean VM aggregate 
   writeAssistantRouteSmokeScreenshots(tempRoot);
   writeRemoteReleaseVerificationSummary(tempRoot);
   writeDockerWebuiCleanVmEvidenceSummary(tempRoot, {
-    status: 'typed_blocker',
     summaries: [
       {
         schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
@@ -286,10 +285,11 @@ test('release evidence bundle validator rejects Docker WebUI clean VM aggregate 
       {
         schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
         gate_id: 'clean_windows_vm',
-        status: 'typed_blocker',
+        status: 'skipped',
         artifact_name: 'windows-clean-evidence',
         result_path: 'clean_windows_vm/docker-webui-smoke-gate-result.json',
         validation: { status: 'missing' },
+        optional: true,
       },
     ],
   });
@@ -305,8 +305,7 @@ test('release evidence bundle validator rejects Docker WebUI clean VM aggregate 
     'docker_webui_clean_vm_evidence',
   ]);
 
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /docker_webui_clean_vm_evidence must be passed/);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
 test('release evidence bundle validator fails closed for incomplete packaged App evidence', () => {

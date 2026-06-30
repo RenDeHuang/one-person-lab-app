@@ -243,17 +243,29 @@ test('release readiness summary treats Docker WebUI gates as optional when Docke
   assert.deepEqual(summary.failed_required_gates, []);
 });
 
-test('release readiness summary fails closed when Docker WebUI clean Windows VM evidence is missing', () => {
+test('release readiness summary allows missing optional Docker WebUI clean Windows VM evidence', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-readiness-docker-clean-vm-missing-windows-'));
   const outputPath = path.join(tempRoot, 'release-readiness-summary.json');
   const jobResultsPath = path.join(tempRoot, 'job-results.json');
   const artifactsRoot = path.join(tempRoot, 'inputs');
   writePassingArtifacts(artifactsRoot);
   writePassingJobResults(jobResultsPath);
+  writeJson(path.join(artifactsRoot, 'webui-ghcr-publish-26.5.99', 'opl-webui-ghcr-publish.json'), {
+    status: 'published',
+    image: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
+    tags: ['26.5.99', 'stable', 'latest'],
+    draft_candidate_push: false,
+    build_reuse: {
+      mode: 'same_job_after_docker_webui_smoke',
+      source_gate: 'docker-webui-smoke',
+      repeated_docker_build: false,
+    },
+  });
   writeJson(path.join(artifactsRoot, 'docker-webui-clean-vm-evidence-26.5.99', 'docker-webui-clean-vm-evidence-validation.json'), {
     schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
-    status: 'typed_blocker',
-    required_gates: ['clean_linux_vm', 'clean_windows_vm'],
+    status: 'passed',
+    required_gates: ['clean_linux_vm'],
+    optional_gates: ['clean_windows_vm'],
     summaries: [
       {
         schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
@@ -265,17 +277,13 @@ test('release readiness summary fails closed when Docker WebUI clean Windows VM 
       {
         schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
         gate_id: 'clean_windows_vm',
-        status: 'typed_blocker',
+        status: 'skipped',
         artifact_name: null,
-        typed_blocker: {
-          code: 'missing_clean_windows_vm_docker_webui_evidence_artifact',
-          owner: 'release_or_install_validation_operator',
-          message: 'No same-run clean Windows VM Docker WebUI smoke artifact was supplied to the release workflow.',
-          required_next_action: 'Run scripts/install-docker-webui.ps1 -Yes -EvidenceDir windows-clean-evidence -EvidenceArchive windows-clean-evidence.zip in a clean Windows VM.',
-        },
+        optional: true,
+        message: 'clean Windows VM evidence was not supplied; Docker/WebUI release readiness does not require Windows Docker host proof.',
       },
     ],
-    release_readiness_policy: 'clean Linux VM and clean Windows VM Docker WebUI evidence must validate as passed before release readiness aggregation',
+    release_readiness_policy: 'clean Linux Docker runtime evidence must validate as passed before release readiness aggregation; clean Windows VM evidence is optional diagnostic import.',
   });
 
   const result = runSummary([
@@ -295,20 +303,14 @@ test('release readiness summary fails closed when Docker WebUI clean Windows VM 
     outputPath,
   ]);
 
-  assert.notEqual(result.status, 0, result.stdout);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
   const summary = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
-  assert.equal(summary.status, 'failed');
-  assert.equal(summary.gates.docker_webui_clean_vm_evidence.status, 'failed');
+  assert.equal(summary.status, 'passed');
+  assert.equal(summary.gates.docker_webui_clean_vm_evidence.status, 'passed');
   assert.equal(summary.gates.docker_webui_clean_vm_evidence.required, true);
-  assert.match(
-    summary.gates.docker_webui_clean_vm_evidence.reason,
-    /missing_clean_windows_vm_docker_webui_evidence_artifact/,
-  );
-  assert.equal(
-    summary.gates.docker_webui_clean_vm_evidence.fields.clean_windows_vm.typed_blocker.code,
-    'missing_clean_windows_vm_docker_webui_evidence_artifact',
-  );
-  assert.ok(summary.failed_required_gates.some((gate) => gate.id === 'docker_webui_clean_vm_evidence'));
+  assert.equal(summary.gates.docker_webui_clean_vm_evidence.fields.clean_linux_vm.status, 'passed');
+  assert.equal(summary.gates.docker_webui_clean_vm_evidence.fields.clean_windows_vm.status, 'skipped');
+  assert.deepEqual(summary.failed_required_gates, []);
 });
 
 test('release readiness summary fails closed without a same-cohort operator evidence bundle', () => {

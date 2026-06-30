@@ -250,7 +250,6 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     'release_plan',
     'release_refs',
     'codex_package_metadata',
-    'docker_webui_clean_windows_evidence_artifact',
     'homebrew_vm_gate_static_policy',
     'homebrew_tap_token',
     'macos_local_authorization',

@@ -395,8 +395,7 @@
           "windows_import_manifest": "windows-smoke-evidence.json",
           "missing_artifact_status": "typed_blocker",
           "missing_artifact_blocker_codes": [
-            "missing_clean_linux_vm_docker_webui_evidence_artifact",
-            "missing_clean_windows_vm_docker_webui_evidence_artifact"
+            "missing_clean_linux_vm_docker_webui_evidence_artifact"
           ],
           "readiness_admission_requires_passed_validation": true
         },
@@ -436,7 +435,9 @@
               "install_manifest_readback",
               "projects_mount_readback"
             ]
-          },
+          }
+        ],
+        "optional_gates": [
           {
             "id": "clean_windows_vm",
             "environment": "clean_windows_vm",
@@ -455,7 +456,9 @@
               "install_manifest_readback",
               "projects_mount_readback"
             ]
-          },
+          }
+        ],
+        "diagnostic_gates": [
           {
             "id": "existing_docker",
             "environment": "host_with_existing_docker_engine",

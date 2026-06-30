@@ -572,13 +572,20 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     missing_artifact_status: 'typed_blocker',
     missing_artifact_blocker_codes: [
       'missing_clean_linux_vm_docker_webui_evidence_artifact',
-      'missing_clean_windows_vm_docker_webui_evidence_artifact',
     ],
     readiness_admission_requires_passed_validation: true,
   });
   assert.deepEqual(
     dockerWebui.smoke_gate_contract.required_gates.map((gate) => gate.id),
-    ['clean_linux_vm', 'clean_windows_vm', 'existing_docker', 'existing_old_onepersonlab_data_dir'],
+    ['clean_linux_vm'],
+  );
+  assert.deepEqual(
+    dockerWebui.smoke_gate_contract.optional_gates.map((gate) => gate.id),
+    ['clean_windows_vm'],
+  );
+  assert.deepEqual(
+    dockerWebui.smoke_gate_contract.diagnostic_gates.map((gate) => gate.id),
+    ['existing_docker', 'existing_old_onepersonlab_data_dir'],
   );
   assert.equal(
     dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'clean_linux_vm').entrypoint,
@@ -589,22 +596,26 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'desktop_release_same_job_ubuntu_clean_vm_smoke_or_manual_vm_smoke',
   );
   assert.equal(
-    dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'clean_windows_vm').entrypoint,
+    dockerWebui.smoke_gate_contract.optional_gates.find((gate) => gate.id === 'clean_windows_vm').entrypoint,
     'install-docker-webui.ps1 -Yes',
   );
   assert.equal(
-    dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'clean_windows_vm').execution_mode,
+    dockerWebui.smoke_gate_contract.optional_gates.find((gate) => gate.id === 'clean_windows_vm').execution_mode,
     'self_hosted_clean_windows_runner_or_manual_vm_smoke',
   );
   assert.equal(
-    dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'existing_docker').docker_state,
+    dockerWebui.smoke_gate_contract.diagnostic_gates.find((gate) => gate.id === 'existing_docker').docker_state,
     'existing_docker_must_be_reused_not_reinstalled',
   );
   assert.equal(
-    dockerWebui.smoke_gate_contract.required_gates.find((gate) => gate.id === 'existing_old_onepersonlab_data_dir').data_state,
+    dockerWebui.smoke_gate_contract.diagnostic_gates.find((gate) => gate.id === 'existing_old_onepersonlab_data_dir').data_state,
     'existing_OnePersonLab_data_dir_must_be_preserved_or_migrated_without_delete',
   );
-  for (const gate of dockerWebui.smoke_gate_contract.required_gates) {
+  for (const gate of [
+    ...dockerWebui.smoke_gate_contract.required_gates,
+    ...dockerWebui.smoke_gate_contract.optional_gates,
+    ...dockerWebui.smoke_gate_contract.diagnostic_gates,
+  ]) {
     assert.ok(gate.required_evidence.includes('compose_yaml'), `${gate.id} must require compose evidence`);
     assert.ok(gate.required_evidence.includes('container_logs'), `${gate.id} must require container logs`);
     assert.ok(gate.required_evidence.includes('http_health_readback'), `${gate.id} must require HTTP health readback`);

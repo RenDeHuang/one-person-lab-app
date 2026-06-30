@@ -73,16 +73,15 @@ npm run release:preflight
 
 The preflight checks version/mode compatibility, remote tag or release state,
 workflow shape, release plan shape, shell/framework ref availability, Codex CLI
-plus Darwin arm64 package metadata for VM-smoke runs, Docker WebUI clean Windows
-VM evidence admission, Homebrew tap token availability, the Homebrew VM static
-trust policy, and the App-owned release contract. A failing preflight stops the
-release before standard, Full, VM, Homebrew, WebUI, or publish jobs run.
+plus Darwin arm64 package metadata for VM-smoke runs, Homebrew tap token
+availability, the Homebrew VM static trust policy, and the App-owned release
+contract. A failing preflight stops the release before standard, Full, VM,
+Homebrew, WebUI, or publish jobs run.
 
-For non-draft Docker WebUI release trains, `publish_docker_webui=true` and
-`run_vm_smoke=true` require
-`docker_webui_clean_windows_evidence_artifact` at preflight time. An empty value
-is allowed only for `draft_candidate` diagnostics, where the later Docker WebUI
-clean VM evidence job may write a typed blocker instead of blocking preflight.
+Docker/WebUI releases are gated by Docker build, GHCR publish, and clean Linux
+Docker runtime smoke. `docker_webui_clean_windows_evidence_artifact` is optional
+diagnostic input; missing Windows evidence must not block a macOS App stable
+release or a Docker/WebUI image release.
 
 The source gate is the next fail-fast boundary after preflight:
 

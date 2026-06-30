@@ -326,7 +326,11 @@ function validateDockerWebuiSmokeGateContract(contract) {
     ],
     'Docker/WebUI smoke health check surfaces',
   );
-  const gateById = new Map((contract.required_gates ?? []).map((gate) => [gate.id, gate]));
+  const gateById = new Map([
+    ...(contract.required_gates ?? []),
+    ...(contract.optional_gates ?? []),
+    ...(contract.diagnostic_gates ?? []),
+  ].map((gate) => [gate.id, gate]));
   for (const gateId of ['clean_linux_vm', 'clean_windows_vm', 'existing_docker', 'existing_old_onepersonlab_data_dir']) {
     const gate = gateById.get(gateId);
     if (!gate) {
@@ -346,6 +350,12 @@ function validateDockerWebuiSmokeGateContract(contract) {
   }
   if (gateById.get('clean_linux_vm')?.execution_mode !== 'desktop_release_same_job_ubuntu_clean_vm_smoke_or_manual_vm_smoke') {
     throw new Error('Docker/WebUI clean Linux VM gate must default to the desktop release same-job Ubuntu smoke');
+  }
+  if (!Array.isArray(contract.required_gates) || contract.required_gates.map((gate) => gate.id).join(',') !== 'clean_linux_vm') {
+    throw new Error('Docker/WebUI release-blocking smoke gates must only require clean_linux_vm');
+  }
+  if (!Array.isArray(contract.optional_gates) || !contract.optional_gates.some((gate) => gate.id === 'clean_windows_vm')) {
+    throw new Error('Docker/WebUI clean Windows VM gate must be optional diagnostic evidence');
   }
   if (gateById.get('clean_windows_vm')?.entrypoint !== 'install-docker-webui.ps1 -Yes') {
     throw new Error('Docker/WebUI clean Windows VM gate must use the PowerShell one-click installer');

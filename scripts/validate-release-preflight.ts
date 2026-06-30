@@ -725,21 +725,12 @@ function checkDockerWebuiCleanWindowsEvidence(options: Options, checks: Check[])
     );
     return;
   }
-  if (options.releaseMode === 'draft_candidate') {
-    addCheck(
-      checks,
-      'docker_webui_clean_windows_evidence_artifact',
-      'warning',
-      'Draft candidates may omit clean Windows VM Docker WebUI evidence and produce a typed diagnostic blocker later.',
-    );
-    return;
-  }
   if (!options.dockerWebuiCleanWindowsEvidenceArtifact.trim()) {
     addCheck(
       checks,
       'docker_webui_clean_windows_evidence_artifact',
-      'failed',
-      'Stable Docker WebUI release trains require docker_webui_clean_windows_evidence_artifact before expensive release jobs. Run the clean Windows VM Docker WebUI smoke workflow and pass its artifact name.',
+      'warning',
+      'Clean Windows VM Docker WebUI evidence is optional; Docker/WebUI release readiness is gated by Docker build, GHCR publish, and clean Linux Docker runtime smoke.',
     );
     return;
   }
@@ -747,7 +738,7 @@ function checkDockerWebuiCleanWindowsEvidence(options: Options, checks: Check[])
     checks,
     'docker_webui_clean_windows_evidence_artifact',
     'passed',
-    `Clean Windows VM Docker WebUI evidence artifact ${options.dockerWebuiCleanWindowsEvidenceArtifact} is declared before expensive release jobs.`,
+    `Optional clean Windows VM Docker WebUI evidence artifact ${options.dockerWebuiCleanWindowsEvidenceArtifact} is declared for import.`,
   );
 }
 
@@ -765,7 +756,6 @@ function checkContract(options: Options, checks: Check[]) {
     'remote_target',
     'release_refs',
     'codex_package_metadata',
-    'docker_webui_clean_windows_evidence_artifact',
     'workflow_preflight_shape',
     'release_plan',
     'homebrew_vm_gate_static_policy',

@@ -201,12 +201,10 @@ uploads the raw evidence, zip archive, imported gate result, and validation
 summary. Pass the uploaded artifact name to the desktop release workflow as
 `docker_webui_clean_windows_evidence_artifact`.
 
-For non-draft desktop release trains with `publish_docker_webui=true` and
-`run_vm_smoke=true`, the desktop release preflight requires that artifact name
-before standard build, publish, GHCR, or release-readiness jobs start. Empty
-Windows evidence is only a draft-candidate diagnostic path; stable release
-trains must run this Windows gate first and then dispatch the release with the
-artifact name.
+For desktop release trains with `publish_docker_webui=true` and
+`run_vm_smoke=true`, this artifact name is optional diagnostic input. Docker/WebUI
+release readiness is blocked by Docker build, GHCR publish, and clean Linux
+Docker runtime smoke; it is not blocked by missing clean Windows VM evidence.
 
 ### Clean Windows Runner Bootstrap
 

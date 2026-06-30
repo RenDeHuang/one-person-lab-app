@@ -199,7 +199,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /docker-webui-smoke:/);
   assert.match(workflow, /docker-webui-smoke:[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /docker_webui_clean_linux_evidence_artifact:[\s\S]*Optional same-run artifact name containing clean Linux VM Docker WebUI smoke evidence; empty runs the Ubuntu clean VM gate in this workflow/);
-  assert.match(workflow, /docker_webui_clean_windows_evidence_artifact:[\s\S]*required by preflight for non-draft Docker WebUI release trains/);
+  assert.match(workflow, /docker_webui_clean_windows_evidence_artifact:[\s\S]*Optional same-run artifact name containing clean Windows VM Docker WebUI smoke evidence for diagnostic import/);
   assert.doesNotMatch(jobLevelIf(oneShotInstallerJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.doesNotMatch(jobLevelIf(dockerWebuiJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(oneShotInstallerJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
@@ -252,7 +252,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /\/tmp\/opl-webui-runtime-smoke-receipts-validation\.json/);
   assert.match(workflow, /docker-webui-smoke-gate-contract\.json/);
   assert.match(workflow, /contract_record_only_not_live_smoke_evidence/);
-  assert.match(workflow, /clean Linux VM, clean Windows VM, existing Docker, and old OnePersonLab data-dir evidence must be supplied by fresh workflow\/manual smoke artifacts or typed blockers before release-ready claims/i);
+  assert.match(workflow, /Clean Linux Docker runtime evidence is release-blocking; clean Windows VM evidence is optional diagnostic import/i);
   assert.match(workflow, /contracts\/app-install-exposure-policy\.json#installer_surfaces\.docker_webui\.smoke_gate_contract/);
   assert.match(workflow, /running OPL seed apply/);
   assert.match(workflow, /running OPL startup maintenance/);
@@ -809,7 +809,6 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'shell_ref_resolves_to_sha',
       'framework_ref_resolves_to_sha',
       'codex_package_metadata',
-      'docker_webui_clean_windows_evidence_artifact',
       'homebrew_vm_gate_static_policy',
       'homebrew_tap_token',
       'macos_local_authorization',

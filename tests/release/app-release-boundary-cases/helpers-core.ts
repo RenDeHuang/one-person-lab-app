@@ -727,12 +727,13 @@ export function dockerWebuiCleanVmEvidenceSummary(fields = {}) {
   return {
     schema: 'opl_docker_webui_clean_vm_evidence_validation.v1',
     status: 'passed',
-    required_gates: ['clean_linux_vm', 'clean_windows_vm'],
+    required_gates: ['clean_linux_vm'],
+    optional_gates: ['clean_windows_vm'],
     summaries: [
       summaryForGate('clean_linux_vm', 'same_job_ubuntu_clean_vm_generated'),
       summaryForGate('clean_windows_vm', 'windows-clean-evidence'),
     ],
-    release_readiness_policy: 'clean Linux VM and clean Windows VM Docker WebUI evidence must validate as passed before release readiness aggregation',
+    release_readiness_policy: 'clean Linux Docker runtime evidence must validate as passed before release readiness aggregation; clean Windows VM evidence is optional diagnostic import.',
     ...fields,
   };
 }

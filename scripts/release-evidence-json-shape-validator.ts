@@ -229,7 +229,7 @@ function validateDockerWebuiCleanVmEvidence(record: Record<string, unknown>) {
       throw new Error('docker_webui_clean_vm_evidence must be passed before it can enter release evidence.');
     }
     const requiredGates = Array.isArray(record.required_gates) ? record.required_gates : [];
-    for (const gateId of ['clean_linux_vm', 'clean_windows_vm']) {
+    for (const gateId of ['clean_linux_vm']) {
       if (!requiredGates.includes(gateId)) {
         throw new Error(`docker_webui_clean_vm_evidence must require ${gateId}.`);
       }
@@ -243,7 +243,7 @@ function validateDockerWebuiCleanVmEvidence(record: Record<string, unknown>) {
         return [summary.gate_id, summary];
       }),
     );
-    for (const gateId of ['clean_linux_vm', 'clean_windows_vm']) {
+    for (const gateId of ['clean_linux_vm']) {
       const summary = summaryByGate.get(gateId);
       if (!summary) {
         throw new Error(`docker_webui_clean_vm_evidence must include ${gateId} summary.`);
