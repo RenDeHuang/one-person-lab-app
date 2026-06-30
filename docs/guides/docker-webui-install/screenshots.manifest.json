@@ -15,7 +15,7 @@
       "description": "WebUI browser screen after Docker container startup.",
       "title": "WebUI browser screen after Docker container startup.",
       "source_kind": "docker_webui_browser_capture",
-      "source": "docs/delivery/user-guides/docker-webui-install/assets/01-browser-open-webui.png",
+      "source": "docs/guides/docker-webui-install/screenshots/01-browser-open-webui.png",
       "locale": "zh-CN",
       "expected_ui_text": [
         "One Person Lab",
@@ -31,7 +31,7 @@
       "description": "First-run overview showing persistent data and project workflow context.",
       "title": "First-run overview showing persistent data and project workflow context.",
       "source_kind": "docker_webui_browser_capture",
-      "source": "docs/delivery/user-guides/docker-webui-install/assets/02-first-run-overview.png",
+      "source": "docs/guides/docker-webui-install/screenshots/02-first-run-overview.png",
       "locale": "zh-CN",
       "expected_ui_text": [
         "One Person Lab",
@@ -47,7 +47,7 @@
       "description": "Chinese access key configuration page in WebUI.",
       "title": "Chinese access key configuration page in WebUI.",
       "source_kind": "docker_webui_browser_capture",
-      "source": "docs/delivery/user-guides/docker-webui-install/assets/03-access-key-config.png",
+      "source": "docs/guides/docker-webui-install/screenshots/03-access-key-config.png",
       "locale": "zh-CN",
       "expected_ui_text": [
         "访问",
@@ -63,7 +63,7 @@
       "description": "Chinese Settings page showing the Access entry.",
       "title": "Chinese Settings page showing the Access entry.",
       "source_kind": "docker_webui_browser_capture",
-      "source": "docs/delivery/user-guides/docker-webui-install/assets/04-settings-entry.png",
+      "source": "docs/guides/docker-webui-install/screenshots/04-settings-entry.png",
       "locale": "zh-CN",
       "expected_ui_text": [
         "设置",

@@ -278,7 +278,7 @@ function hashFile(filePath: string) {
 
 function referencedAssets(qmd: string) {
   const refs = new Set<string>();
-  for (const match of qmd.matchAll(/!\[[^\]]*]\(assets\/([^)]+)\)/g)) {
+  for (const match of qmd.matchAll(/!\[[^\]]*]\((?:assets|screenshots)\/([^)]+)\)/g)) {
     refs.add(decodeURIComponent(match[1]));
   }
   return refs;
@@ -319,7 +319,7 @@ function validateAssets(manifest: GuideManifest, qmd: string) {
       role: asset.role,
       description: asset.description,
       file: relativeToApp(filePath),
-      public_file: `assets/${asset.file}`,
+      public_file: `screenshots/${asset.file}`,
       width: dimensions.width,
       height: dimensions.height,
       sha256,
@@ -358,9 +358,9 @@ function writeProject(manifest: GuideManifest, qmd: string) {
   const screenshotManifest = loadScreenshotManifest(manifest);
   const sourceAssetsDir = screenshotAssetsDir(manifest);
   fs.rmSync(projectDir, { recursive: true, force: true });
-  fs.mkdirSync(path.join(projectDir, 'assets'), { recursive: true });
+  fs.mkdirSync(path.join(projectDir, 'screenshots'), { recursive: true });
   for (const asset of screenshotManifest.screenshots) {
-    fs.copyFileSync(path.join(sourceAssetsDir, asset.file), path.join(projectDir, 'assets', asset.file));
+    fs.copyFileSync(path.join(sourceAssetsDir, asset.file), path.join(projectDir, 'screenshots', asset.file));
   }
   for (const chapter of sourceQmdPaths(manifest)) {
     const raw = fs.readFileSync(chapter.absolute, 'utf8');
@@ -495,7 +495,7 @@ function main() {
   fs.mkdirSync(publicDir, { recursive: true });
   fs.mkdirSync(path.dirname(generatedMarkdownPath), { recursive: true });
   fs.mkdirSync(path.dirname(verificationPath), { recursive: true });
-  copyDir(path.join(projectDir, 'assets'), path.join(publicDir, 'assets'));
+  copyDir(path.join(projectDir, 'screenshots'), path.join(publicDir, 'screenshots'));
   const renderedPdf = fs.readdirSync(outputDir).find((name) => name.endsWith('.pdf'));
   if (!renderedPdf) {
     throw new Error(`Quarto book did not produce a PDF in ${relativeToApp(outputDir)}`);

@@ -24,7 +24,7 @@ lang: zh-CN
 
 访问 One Person Lab App 最新 Release 页面，下载 macOS Apple Silicon DMG。首次安装或干净机器建议选择 Full 版 DMG。
 
-![下载 One Person Lab](assets/01-download-release.png)
+![下载 One Person Lab](screenshots/01-download-release.png)
 
 重点：
 
@@ -42,7 +42,7 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 打开 DMG，将 One Person Lab 拖入 Applications。首次打开如出现 macOS 安全提示，按系统提示确认。
 
-![安装 App](assets/02-install-dmg.png)
+![安装 App](screenshots/02-install-dmg.png)
 
 重点：
 
@@ -53,7 +53,7 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 首次启动如果提示访问权限未配置，请联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。
 
-![配置访问权限](assets/03-codex-config-needed.png)
+![配置访问权限](screenshots/03-codex-config-needed.png)
 
 重点：
 
@@ -64,7 +64,7 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 OPL 会先检查开始使用所需的关键项：工作目录、本机助手和访问权限。首屏只显示“正在准备 / 可以开始 / 需要处理”的简短状态、三步准备进度、下一步，以及进入 OPL 的主按钮。
 
-![等待首次环境检查](assets/04-first-run-checking.png)
+![等待首次环境检查](screenshots/04-first-run-checking.png)
 
 重点：
 
@@ -76,7 +76,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 准备完成后，根据目标选择科研、基金、演示或写书入口。本教程以科研入口为例，进入 Research Foundry / Med Auto Science 工作流。
 
-![进入科研入口](assets/05-opl-ready-research-entry.png)
+![进入科研入口](screenshots/05-opl-ready-research-entry.png)
 
 重点：
 
@@ -88,7 +88,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 在本机运行环境中确认工作目录、Codex CLI、Temporal 和本机基础状态；在智能体与能力查看专业入口；在关于与更新查看 App 与 OPL Packages 维护状态。需要调整数据目录或运行设置时，从这里进入。
 
-![确认工作目录和运行设置](assets/06-research-data-folder.png)
+![确认工作目录和运行设置](screenshots/06-research-data-folder.png)
 
 重点：
 
@@ -101,7 +101,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 第一条任务可直接用自然语言描述，让 MAS 先判断研究方向、证据缺口和下一步。
 
-![发起首次科研任务](assets/07-first-research-entry.png)
+![发起首次科研任务](screenshots/07-first-research-entry.png)
 
 示例提示词：
 
@@ -111,7 +111,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 任务启动后，重点查看当前阶段、阻塞项、下一步和产物位置。
 
-![查看进度与结果](assets/08-opl-runtime-status.png)
+![查看进度与结果](screenshots/08-opl-runtime-status.png)
 
 重点：
 

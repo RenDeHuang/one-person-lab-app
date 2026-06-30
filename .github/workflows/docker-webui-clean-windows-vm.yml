@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: docker-webui-clean-windows-vm-${{ github.ref }}
@@ -40,8 +41,99 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  runner-preflight:
+    name: Clean Windows runner preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check clean Windows runner availability
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNNER_LABELS_JSON: ${{ inputs.runner_labels_json }}
+        run: |
+          set -euo pipefail
+          mkdir -p docker-webui-clean-windows-vm-runner-blocker
+          node <<'NODE'
+          const fs = require('node:fs');
+          const { spawnSync } = require('node:child_process');
+
+          const requiredLabels = JSON.parse(process.env.RUNNER_LABELS_JSON || '[]');
+          if (!Array.isArray(requiredLabels) || requiredLabels.length === 0) {
+            throw new Error('runner_labels_json must be a non-empty JSON array');
+          }
+          const api = spawnSync('gh', [
+            'api',
+            `repos/${process.env.GITHUB_REPOSITORY}/actions/runners`,
+            '--paginate',
+          ], {
+            encoding: 'utf8',
+            env: process.env,
+          });
+          if (api.status !== 0) {
+            throw new Error(api.stderr || api.stdout || 'failed to list self-hosted runners');
+          }
+          const pages = api.stdout
+            .split(/\n(?=\{)/)
+            .filter(Boolean)
+            .map((page) => JSON.parse(page));
+          const runners = pages.flatMap((page) => page.runners || []);
+          const eligible = runners.filter((runner) => {
+            const labels = new Set((runner.labels || []).map((label) => label.name));
+            return runner.status === 'online' &&
+              runner.busy === false &&
+              requiredLabels.every((label) => labels.has(label));
+          });
+          const payload = {
+            schema: 'opl_docker_webui_clean_windows_runner_preflight.v1',
+            status: eligible.length > 0 ? 'passed' : 'typed_blocker',
+            required_labels: requiredLabels,
+            eligible_runners: eligible.map((runner) => ({
+              id: runner.id,
+              name: runner.name,
+              os: runner.os,
+              status: runner.status,
+              busy: runner.busy,
+              labels: (runner.labels || []).map((label) => label.name),
+            })),
+            observed_runners: runners.map((runner) => ({
+              id: runner.id,
+              name: runner.name,
+              os: runner.os,
+              status: runner.status,
+              busy: runner.busy,
+              labels: (runner.labels || []).map((label) => label.name),
+            })),
+          };
+          if (payload.status !== 'passed') {
+            payload.typed_blocker = {
+              code: 'missing_clean_windows_self_hosted_runner',
+              owner: 'release_or_install_validation_operator',
+              message: 'No online idle self-hosted clean Windows runner matches runner_labels_json.',
+              required_next_action: 'Register a clean Windows self-hosted runner with labels self-hosted, Windows, X64, docker-webui-clean-vm, ensure Docker Desktop/WSL2 is running, then rerun this workflow.',
+            };
+          }
+          fs.writeFileSync(
+            'docker-webui-clean-windows-vm-runner-blocker/runner-preflight.json',
+            `${JSON.stringify(payload, null, 2)}\n`,
+          );
+          if (payload.status !== 'passed') {
+            process.exitCode = 1;
+          }
+          NODE
+
+      - name: Upload runner preflight blocker
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-webui-clean-windows-vm-runner-blocker
+          path: docker-webui-clean-windows-vm-runner-blocker
+          if-no-files-found: error
+
   clean-windows-vm-smoke:
     name: Clean Windows VM Docker/WebUI smoke
+    needs: runner-preflight
+    if: ${{ needs.runner-preflight.result == 'success' }}
     runs-on: ${{ fromJSON(inputs.runner_labels_json) }}
     timeout-minutes: 45
 

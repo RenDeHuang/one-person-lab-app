@@ -13,7 +13,9 @@ stable while the maintained guide source lives under
 
 Use these canonical entries:
 
-- Maintainer source, generated Markdown, screenshots, and verification:
+- Maintainer QMD source and screenshot provenance:
+  [`../../guides/docker-webui-install/guide.qmd`](../../guides/docker-webui-install/guide.qmd)
+- Generated Markdown, delivery manifest, and verification:
   [`../user-guides/docker-webui-install/README.md`](../user-guides/docker-webui-install/README.md)
 - Public user bundle:
   [`../../public/docker-webui-install/README.md`](../../public/docker-webui-install/README.md)
@@ -23,6 +25,7 @@ Use these canonical entries:
   [`../../public/docker-webui-install/docker-webui-install-detailed-guide.pdf`](../../public/docker-webui-install/docker-webui-install-detailed-guide.pdf)
 
 Do not duplicate the generated guide content here. Update the Quarto body source
-`../../guides/docker-webui-install/guide.qmd`
-for guide text, update the adjacent JSON manifest only for commands/assets/gates,
-and run `npm run docs:docker-webui-guide` instead.
+`../../guides/docker-webui-install/guide.qmd` for guide text, update the delivery
+JSON manifest only for commands, output paths, required terms, and release gates,
+update `../../guides/docker-webui-install/screenshots.manifest.json` for
+screenshot provenance, and run `npm run docs:docker-webui-guide` instead.

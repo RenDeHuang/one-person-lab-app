@@ -291,6 +291,14 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(cleanWindowsDockerWebuiWorkflow, /workflow_dispatch:/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /runner_labels_json:/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /"self-hosted","Windows","X64","docker-webui-clean-vm"/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /runner-preflight:/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /name: Clean Windows runner preflight/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /runs-on: ubuntu-latest/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /repos\/\$\{process\.env\.GITHUB_REPOSITORY\}\/actions\/runners/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /missing_clean_windows_self_hosted_runner/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /docker-webui-clean-windows-vm-runner-blocker/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /needs: runner-preflight/);
+  assert.match(cleanWindowsDockerWebuiWorkflow, /if: \$\{\{ needs\.runner-preflight\.result == 'success' \}\}/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /runs-on: \$\{\{ fromJSON\(inputs\.runner_labels_json\) \}\}/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
   assert.match(cleanWindowsDockerWebuiWorkflow, /artifact_name:[\s\S]*docker-webui-clean-windows-vm-evidence/);

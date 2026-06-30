@@ -128,7 +128,7 @@ compose.yaml -> Docker Compose 启动定义
 
 Docker/WebUI 会自动配置本机浏览器会话；新手不需要输入 WebUI 用户名或密码。
 
-![浏览器打开 WebUI](assets/01-browser-open-webui.png)
+![浏览器打开 WebUI](screenshots/01-browser-open-webui.png)
 
 重点：
 
@@ -166,7 +166,7 @@ projects mount readback
 
 这个密钥不是 WebUI 登录密码，也不应该出现在终端命令里。
 
-![访问密钥配置](assets/03-access-key-config.png)
+![访问密钥配置](screenshots/03-access-key-config.png)
 
 ```text
 1. 打开首启检查或 设置 -> 访问
@@ -181,7 +181,7 @@ projects mount readback
 - 密钥保存到本机 `OnePersonLab/data` 对应的 WebUI 数据目录。
 - 以后要更换密钥，从“设置 -> 访问”处理。
 
-![设置里的访问入口](assets/04-settings-entry.png)
+![设置里的访问入口](screenshots/04-settings-entry.png)
 
 ## 7. 理解数据目录和项目目录
 
@@ -191,7 +191,7 @@ projects mount readback
 
 如果机器上已有旧的 `OnePersonLab/data`，正确结果是保留或迁移，并能在诊断包里看到迁移/保留记录和安装清单 readback。
 
-![首次运行概览](assets/02-first-run-overview.png)
+![首次运行概览](screenshots/02-first-run-overview.png)
 
 ```text
 Windows: %USERPROFILE%\OnePersonLab\data -> /data
@@ -281,5 +281,5 @@ existing_old_onepersonlab_data_dir -> 保留或迁移旧 data，不删除
 - 这份长文 HTML/PDF 使用 Quarto 渲染；Quarto 负责目录、主题、HTML/PDF 输出和 LaTeX PDF 排版路径。
 - 生成脚本检查 QMD、HTML 和 PDF 文本中不存在未展开的双花括号模板占位符。
 - 生成脚本扫描 source、HTML 和 PDF 文本，禁止真实 secret marker 出现在教程 artifact 中。
-- 截图资产保存在 `docs/delivery/user-guides/docker-webui-install/assets/`，生成器会校验文件存在、尺寸和 SHA256。
+- 截图资产保存在 `docs/guides/docker-webui-install/screenshots/`，生成器会校验文件存在、尺寸和 SHA256，并发布到 `docs/public/docker-webui-install/screenshots/`。
 - Docker/WebUI smoke gate 合同要求 clean Linux VM、clean Windows VM、existing Docker 和 existing old `OnePersonLab/data` 四组 gate；未跑 gate 必须留 typed blocker，不能声明 release-ready。
