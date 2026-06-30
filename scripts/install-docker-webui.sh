@@ -49,6 +49,16 @@ log() {
   printf '[opl-webui] %s\n' "$*"
 }
 
+log_user_path_status() {
+  log "User path status:"
+  log "  one_click_install: create compose.yaml, data/projects directories, and start the WebUI image."
+  log "  browser_webui: open ${HEALTH_URL} after the health check passes."
+  log "  access_key_settings: enter provider keys in the WebUI first-run Access panel or Settings -> Access."
+  log "  runtime_proxy: WebUI uses /api/opl-runtime/configure-codex -> opl system configure-codex --api-key-stdin --json."
+  log "  startup_recovery: if startup fails, collect redacted startup doctor diagnostics and rerun after fixing Docker, port, image, or data issues."
+  log "  data_preservation: keep OnePersonLab/data and OnePersonLab/projects mounted and preserved."
+}
+
 die() {
   printf '[opl-webui] ERROR: %s\n' "$*" >&2
   exit 1
@@ -639,7 +649,9 @@ log "Data directory: $DATA_DIR -> /data"
 log "Projects directory: $PROJECTS_DIR -> /projects"
 log "Compose file: $COMPOSE_FILE"
 log "URL: $HEALTH_URL"
-log "API keys are not accepted by this installer; enter provider keys inside the WebUI."
+log "Image/seed: default latest/stable WebUI image uses the full seed; --tag and --image are advanced overrides."
+log "API keys are not accepted by this installer; enter provider keys inside the WebUI first-run Access panel or Settings -> Access."
+log_user_path_status
 
 ensure_docker
 ensure_compose

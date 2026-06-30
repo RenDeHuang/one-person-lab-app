@@ -41,9 +41,31 @@ type GateResult = {
     receipt_path: string | null;
     errors: string[];
   };
+  operator_readable_status: OperatorReadableStatus;
   secret_scan: { status: 'passed' | 'failed' | 'not_run'; forbidden_secret_markers: string[] };
   commands: Array<{ command: string; status: number | null; stdout_path: string; stderr_path: string }>;
   evidence: Record<string, string>;
+};
+
+type OperatorReadableStatus = {
+  path_id: 'ordinary_docker_webui_user_path';
+  priority: 'ordinary_user_path_before_evidence_bundle_language';
+  one_click_install: OperatorStatusRow;
+  browser_webui: OperatorStatusRow;
+  access_key_settings: OperatorStatusRow;
+  runtime_proxy: OperatorStatusRow;
+  startup_recovery: OperatorStatusRow;
+  data_preservation: OperatorStatusRow;
+  image_seed_selection: string;
+  settings_entry: 'Settings -> Access';
+  must_not_claim: string[];
+};
+
+type OperatorStatusRow = {
+  status: 'passed' | 'typed_blocker' | 'failed' | 'not_run';
+  summary: string;
+  next_action: string | null;
+  evidence_ref: string | null;
 };
 
 type GateResultBlocker = {
@@ -89,10 +111,27 @@ const requiredResultFields = [
   'image',
   'data_preservation',
   'api_key_flow',
+  'operator_readable_status',
   'secret_scan',
   'commands',
   'evidence',
 ];
+
+const operatorStatusRows = [
+  'one_click_install',
+  'browser_webui',
+  'access_key_settings',
+  'runtime_proxy',
+  'startup_recovery',
+  'data_preservation',
+] as const;
+
+const operatorMustNotClaim = [
+  'desktop_release_ready',
+  'real_install_ready',
+  'clean_windows_vm_pass_without_clean_windows_evidence',
+  'release_ready',
+] as const;
 
 function parseArgs(argv: string[]) {
   const options = {
@@ -224,6 +263,13 @@ function makeResult(gate: GateId, artifactDir: string): GateResult {
       receipt_path: null,
       errors: [],
     },
+    operator_readable_status: makeOperatorReadableStatus({
+      healthUrl: `http://localhost:3000/`,
+      composePath: null,
+      diagnosticsDir,
+      apiKeyReceiptPath: null,
+      dataEvidencePath: null,
+    }),
     secret_scan: {
       status: 'not_run',
       forbidden_secret_markers: [],
@@ -231,6 +277,122 @@ function makeResult(gate: GateId, artifactDir: string): GateResult {
     commands: [],
     evidence: {},
   };
+}
+
+function makeOperatorReadableStatus(input: {
+  healthUrl: string;
+  composePath: string | null;
+  diagnosticsDir: string | null;
+  apiKeyReceiptPath: string | null;
+  dataEvidencePath: string | null;
+  result?: GateResult;
+}): OperatorReadableStatus {
+  const result = input.result;
+  const oneClickStatus = result
+    ? result.status === 'typed_blocker'
+      ? 'typed_blocker'
+      : result.compose.status === 'present' && result.image.status === 'present'
+        ? 'passed'
+        : result.status === 'failed'
+          ? 'failed'
+          : 'not_run'
+    : 'not_run';
+  const browserStatus = result
+    ? result.health.status === 'passed'
+      ? 'passed'
+      : result.status === 'typed_blocker'
+        ? 'typed_blocker'
+        : result.health.status === 'failed'
+          ? 'failed'
+          : 'not_run'
+    : 'not_run';
+  const accessStatus = result
+    ? result.api_key_flow.status === 'passed'
+      ? 'passed'
+      : result.status === 'typed_blocker'
+        ? 'typed_blocker'
+        : result.api_key_flow.status === 'failed'
+          ? 'failed'
+          : 'not_run'
+    : 'not_run';
+  const recoveryStatus = result
+    ? result.status === 'typed_blocker'
+      ? 'typed_blocker'
+      : result.diagnostics_validation?.status === 'passed'
+        ? 'passed'
+        : result.diagnostics_validation?.status === 'failed'
+          ? 'failed'
+          : 'not_run'
+    : 'not_run';
+  const dataStatus = result
+    ? result.data_preservation.status === 'passed'
+      ? 'passed'
+      : result.status === 'typed_blocker'
+        ? 'typed_blocker'
+        : result.data_preservation.status === 'failed'
+          ? 'failed'
+          : 'not_run'
+    : 'not_run';
+  return {
+    path_id: 'ordinary_docker_webui_user_path',
+    priority: 'ordinary_user_path_before_evidence_bundle_language',
+    one_click_install: {
+      status: oneClickStatus,
+      summary: 'One-click installer creates compose.yaml, host data/projects directories, and starts the WebUI image.',
+      next_action:
+        oneClickStatus === 'passed'
+          ? null
+          : 'Run the one-click installer on the target host after Docker is available.',
+      evidence_ref: input.composePath,
+    },
+    browser_webui: {
+      status: browserStatus,
+      summary: `Open the browser WebUI at ${input.healthUrl}.`,
+      next_action: browserStatus === 'passed' ? null : 'Fix Docker, image, port, or container startup, then rerun the installer.',
+      evidence_ref: input.diagnosticsDir ? path.join(input.diagnosticsDir, 'http-probe.txt') : null,
+    },
+    access_key_settings: {
+      status: accessStatus,
+      summary: 'Provider keys are entered in the WebUI first-run Access panel or Settings -> Access.',
+      next_action: accessStatus === 'passed' ? null : 'Use the WebUI access form; do not pass API keys to the installer.',
+      evidence_ref: input.apiKeyReceiptPath,
+    },
+    runtime_proxy: {
+      status: accessStatus,
+      summary: 'The WebUI runtime proxy calls /api/opl-runtime/configure-codex and forwards the key through stdin transport.',
+      next_action: accessStatus === 'passed' ? null : 'Collect or rerun the API key flow receipt after WebUI health passes.',
+      evidence_ref: input.apiKeyReceiptPath,
+    },
+    startup_recovery: {
+      status: recoveryStatus,
+      summary: 'Startup doctor diagnostics are redacted and can be used to recover Docker, port, image, or data issues.',
+      next_action:
+        recoveryStatus === 'passed'
+          ? null
+          : 'Collect diagnostics with compose, logs, HTTP probe, and preservation readback before claiming the gate passed.',
+      evidence_ref: input.diagnosticsDir,
+    },
+    data_preservation: {
+      status: dataStatus,
+      summary: 'Host OnePersonLab/data and OnePersonLab/projects stay mounted and preserved across image/container replacement.',
+      next_action: dataStatus === 'passed' ? null : 'Inspect data-preservation.txt and fix preserve-or-migrate behavior before rerunning.',
+      evidence_ref: input.dataEvidencePath,
+    },
+    image_seed_selection: 'Default latest/stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
+    settings_entry: 'Settings -> Access',
+    must_not_claim: [...operatorMustNotClaim],
+  };
+}
+
+function refreshOperatorReadableStatus(result: GateResult) {
+  result.operator_readable_status = makeOperatorReadableStatus({
+    healthUrl: result.health.url,
+    composePath: result.compose.path || result.evidence.compose_yaml || null,
+    diagnosticsDir: result.diagnostics_dir || null,
+    apiKeyReceiptPath: result.api_key_flow.receipt_path || result.evidence.api_key_flow_evidence || result.evidence.windows_api_key_flow_evidence || null,
+    dataEvidencePath: result.diagnostics_dir ? path.join(result.diagnostics_dir, 'data-preservation.txt') : null,
+    result,
+  });
 }
 
 function requiredEnvironment(gate: GateId): string {
@@ -849,10 +1011,53 @@ export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResult
   }
   if (!['passed', 'typed_blocker', 'failed'].includes(String(payload.status))) invalidFields.push('status');
   if (payload.status === 'typed_blocker' && !isObject(payload.typed_blocker)) invalidFields.push('typed_blocker');
-  for (const objectField of ['diagnostics_validation', 'health', 'compose', 'container', 'image', 'data_preservation', 'secret_scan']) {
+  for (const objectField of [
+    'diagnostics_validation',
+    'health',
+    'compose',
+    'container',
+    'image',
+    'data_preservation',
+    'operator_readable_status',
+    'secret_scan',
+  ]) {
     if (objectField in payload && !isObject(payload[objectField])) invalidFields.push(objectField);
   }
   if ('api_key_flow' in payload && !isObject(payload.api_key_flow)) invalidFields.push('api_key_flow');
+  if (isObject(payload.operator_readable_status)) {
+    const operatorStatus = payload.operator_readable_status;
+    if (operatorStatus.path_id !== 'ordinary_docker_webui_user_path') {
+      invalidFields.push('operator_readable_status.path_id');
+    }
+    if (operatorStatus.priority !== 'ordinary_user_path_before_evidence_bundle_language') {
+      invalidFields.push('operator_readable_status.priority');
+    }
+    if (operatorStatus.settings_entry !== 'Settings -> Access') {
+      invalidFields.push('operator_readable_status.settings_entry');
+    }
+    if (!Array.isArray(operatorStatus.must_not_claim)) {
+      invalidFields.push('operator_readable_status.must_not_claim');
+    } else {
+      for (const claim of operatorMustNotClaim) {
+        if (!operatorStatus.must_not_claim.includes(claim)) {
+          invalidFields.push(`operator_readable_status.must_not_claim.${claim}`);
+        }
+      }
+    }
+    for (const rowName of operatorStatusRows) {
+      const row = operatorStatus[rowName];
+      if (!isObject(row)) {
+        invalidFields.push(`operator_readable_status.${rowName}`);
+        continue;
+      }
+      if (!['passed', 'typed_blocker', 'failed', 'not_run'].includes(String(row.status))) {
+        invalidFields.push(`operator_readable_status.${rowName}.status`);
+      }
+      if (!isNonEmptyString(row.summary)) {
+        invalidFields.push(`operator_readable_status.${rowName}.summary`);
+      }
+    }
+  }
   if (payload.status === 'passed') {
     if (!isObject(payload.diagnostics_validation) || payload.diagnostics_validation.status !== 'passed') {
       invalidFields.push('diagnostics_validation.status');
@@ -866,6 +1071,16 @@ export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResult
     if (!isObject(payload.api_key_flow) || payload.api_key_flow.status !== 'passed') invalidFields.push('api_key_flow.status');
     if (!isObject(payload.api_key_flow) || payload.api_key_flow.stdin_transport !== true) {
       invalidFields.push('api_key_flow.stdin_transport');
+    }
+    if (!isObject(payload.operator_readable_status)) {
+      invalidFields.push('operator_readable_status');
+    } else {
+      for (const rowName of operatorStatusRows) {
+        const row = payload.operator_readable_status[rowName];
+        if (!isObject(row) || row.status !== 'passed') {
+          invalidFields.push(`operator_readable_status.${rowName}.status`);
+        }
+      }
     }
     if (!isObject(payload.secret_scan) || payload.secret_scan.status !== 'passed') invalidFields.push('secret_scan.status');
   }
@@ -1029,10 +1244,12 @@ function main() {
   }
 
   const resultPath = path.join(artifactDir, 'docker-webui-smoke-gate-result.json');
+  refreshOperatorReadableStatus(result);
   const resultValidation = validateDockerWebuiSmokeGateResult(result);
   if (resultValidation.status !== 'passed') {
     result.status = 'failed';
     result.evidence.result_schema_validation = JSON.stringify(resultValidation);
+    refreshOperatorReadableStatus(result);
   }
   writeJson(resultPath, result);
   if (options.json) {

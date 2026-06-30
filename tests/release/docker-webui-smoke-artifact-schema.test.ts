@@ -63,6 +63,54 @@ function completeGateResult() {
       receipt_path: '/tmp/artifact/api-key-flow-evidence.json',
       errors: [],
     },
+    operator_readable_status: {
+      path_id: 'ordinary_docker_webui_user_path',
+      priority: 'ordinary_user_path_before_evidence_bundle_language',
+      one_click_install: {
+        status: 'passed',
+        summary: 'One-click installer creates compose.yaml, host data/projects directories, and starts the WebUI image.',
+        next_action: null,
+        evidence_ref: '/tmp/artifact/home/OnePersonLab/compose.yaml',
+      },
+      browser_webui: {
+        status: 'passed',
+        summary: 'Open the browser WebUI at http://localhost:3000/.',
+        next_action: null,
+        evidence_ref: '/tmp/artifact/diagnostics/http-probe.txt',
+      },
+      access_key_settings: {
+        status: 'passed',
+        summary: 'Provider keys are entered in the WebUI first-run Access panel or Settings -> Access.',
+        next_action: null,
+        evidence_ref: '/tmp/artifact/api-key-flow-evidence.json',
+      },
+      runtime_proxy: {
+        status: 'passed',
+        summary: 'The WebUI runtime proxy calls /api/opl-runtime/configure-codex and forwards the key through stdin transport.',
+        next_action: null,
+        evidence_ref: '/tmp/artifact/api-key-flow-evidence.json',
+      },
+      startup_recovery: {
+        status: 'passed',
+        summary: 'Startup doctor diagnostics are redacted and can be used to recover Docker, port, image, or data issues.',
+        next_action: null,
+        evidence_ref: '/tmp/artifact/diagnostics',
+      },
+      data_preservation: {
+        status: 'passed',
+        summary: 'Host OnePersonLab/data and OnePersonLab/projects stay mounted and preserved across image/container replacement.',
+        next_action: null,
+        evidence_ref: '/tmp/artifact/diagnostics/data-preservation.txt',
+      },
+      image_seed_selection: 'Default latest/stable image must use the WebUI full seed; --tag/--image are explicit advanced overrides.',
+      settings_entry: 'Settings -> Access',
+      must_not_claim: [
+        'desktop_release_ready',
+        'real_install_ready',
+        'clean_windows_vm_pass_without_clean_windows_evidence',
+        'release_ready',
+      ],
+    },
     secret_scan: { status: 'passed', forbidden_secret_markers: [] },
     commands: [],
     evidence: {},
@@ -111,6 +159,7 @@ test('Docker/WebUI smoke gate result readback fails when required artifact schem
     'image',
     'data_preservation',
     'api_key_flow',
+    'operator_readable_status',
     'secret_scan',
   ]) {
     const payload = completeGateResult() as Record<string, unknown>;
@@ -146,6 +195,17 @@ test('Docker/WebUI smoke gate result readback rejects passed gates with failed h
   const result = validateDockerWebuiSmokeGateResult(payload);
   assert.equal(result.status, 'failed');
   assert.ok(result.invalid_fields.includes('health.status'));
+});
+
+test('Docker/WebUI smoke gate result readback rejects passed gates without ordinary user path status', () => {
+  const payload = completeGateResult();
+  payload.operator_readable_status.browser_webui.status = 'not_run';
+  payload.operator_readable_status.must_not_claim = ['release_ready'];
+
+  const result = validateDockerWebuiSmokeGateResult(payload);
+  assert.equal(result.status, 'failed');
+  assert.ok(result.invalid_fields.includes('operator_readable_status.browser_webui.status'));
+  assert.ok(result.invalid_fields.includes('operator_readable_status.must_not_claim.desktop_release_ready'));
 });
 
 test('Docker/WebUI smoke gate CLI validates uploaded gate result artifacts without running Docker', () => {

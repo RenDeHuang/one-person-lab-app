@@ -215,6 +215,34 @@ function validateInstallerSurfaces(policy) {
   ) {
     throw new Error('Docker/WebUI runtime proxy smoke must validate configure-codex stdin transport without key material');
   }
+  const operatorReadableStatus = dockerWebui.installer_model?.operator_readable_status;
+  if (operatorReadableStatus?.path_id !== 'ordinary_docker_webui_user_path') {
+    throw new Error('Docker/WebUI operator readable status must use the ordinary Docker/WebUI user path id');
+  }
+  if (operatorReadableStatus?.priority !== 'ordinary_user_path_before_evidence_bundle_language') {
+    throw new Error('Docker/WebUI operator readable status must prioritize ordinary user path language');
+  }
+  assertIncludesAll(
+    operatorReadableStatus?.display_order,
+    ['one_click_install', 'browser_webui', 'access_key_settings', 'runtime_proxy', 'startup_recovery', 'data_preservation'],
+    'Docker/WebUI operator readable status rows',
+  );
+  if (operatorReadableStatus?.settings_entry !== 'Settings -> Access') {
+    throw new Error('Docker/WebUI operator readable status must route access key changes through Settings -> Access');
+  }
+  if (!String(operatorReadableStatus?.image_seed_selection ?? '').includes('WebUI full seed')) {
+    throw new Error('Docker/WebUI operator readable status must declare the default WebUI full seed image path');
+  }
+  assertIncludesAll(
+    operatorReadableStatus?.must_prefer_over,
+    ['release_evidence_bundle', 'operator_evidence_bundle', 'preflight_gate_summary'],
+    'Docker/WebUI operator readable status language precedence',
+  );
+  assertIncludesAll(
+    operatorReadableStatus?.must_not_claim,
+    ['desktop_release_ready', 'real_install_ready', 'clean_windows_vm_pass_without_clean_windows_evidence', 'release_ready'],
+    'Docker/WebUI operator readable status false-ready boundary',
+  );
   if (dockerWebui.installer_model?.startup_doctor?.validator !== 'scripts/validate-docker-webui-diagnostics.ts') {
     throw new Error('Docker/WebUI startup doctor must use validate-docker-webui-diagnostics.ts');
   }

@@ -31,7 +31,7 @@
     "docker_engine_ubuntu_url": "https://docs.docker.com/engine/install/ubuntu/"
   },
   "beginner_functional_path": {
-    "source_ref": "contracts/app-install-exposure-policy.json#installer_surfaces.docker_webui.installer_model",
+    "source_ref": "contracts/app-install-exposure-policy.json#installer_surfaces[surface=docker_webui].installer_model.operator_readable_status",
     "non_live_scope": "guide_contract_validator_and_installer_surface_only",
     "primary_steps": [
       "install_or_start_Docker",
@@ -65,6 +65,8 @@
     "runtime proxy smoke",
     "startup doctor",
     "operator progress",
+    "Settings -> Access",
+    "ordinary_docker_webui_user_path",
     "ghcr.io/gaofeng21cn/one-person-lab-webui",
     "clean Linux VM",
     "clean Windows VM"
@@ -72,7 +74,10 @@
   "forbidden_phrases": [
     "不声明公开 GHCR latest",
     "不声明公开 GHCR latest 或一键脚本已经线上发布",
-    "这个文档是否证明 latest 已发布：不能"
+    "这个文档是否证明 latest 已发布：不能",
+    "公开 GHCR latest/stable 当前可作为新手默认镜像入口",
+    "公开 `ghcr.io/gaofeng21cn/one-person-lab-webui:latest` 和 `stable` 已发布",
+    "public live smoke 证明"
   ],
   "screenshots_manifest": "docs/guides/docker-webui-install/screenshots.manifest.json",
   "publishing": {

@@ -33,6 +33,18 @@ function Write-Step {
   Write-Host "[One Person Lab] $Message"
 }
 
+function Write-UserPathStatus {
+  param([Parameter(Mandatory = $true)][string]$Url)
+
+  Write-Step "User path status:"
+  Write-Step "  one_click_install: create compose.yaml, data/projects directories, and start the WebUI image."
+  Write-Step "  browser_webui: open $Url after the health check passes."
+  Write-Step "  access_key_settings: enter provider keys in the WebUI first-run Access panel or Settings -> Access."
+  Write-Step "  runtime_proxy: WebUI uses /api/opl-runtime/configure-codex -> opl system configure-codex --api-key-stdin --json."
+  Write-Step "  startup_recovery: if startup fails, collect redacted startup doctor diagnostics and rerun after fixing Docker, port, image, or data issues."
+  Write-Step "  data_preservation: keep OnePersonLab/data and OnePersonLab/projects mounted and preserved."
+}
+
 function Test-Administrator {
   if (-not (Test-WindowsHost)) {
     return $false
@@ -928,7 +940,9 @@ Write-Step "Data directory: $resolvedDataDir"
 Write-Step "Projects directory: $resolvedProjectsDir"
 Write-Step "Compose file: $composePath"
 Write-Step "Browser URL: $url"
+Write-Step "Image/seed: default latest/stable WebUI image uses the full seed; -Tag and -Image are advanced overrides."
 Write-Step "Access keys are configured inside the WebUI first-run Access panel or Settings -> Access. This script does not accept or write API keys."
+Write-UserPathStatus -Url $url
 
 try {
   Invoke-DockerComposeUp -ComposePath $composePath -Url $url

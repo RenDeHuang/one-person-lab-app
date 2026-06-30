@@ -140,6 +140,12 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
   assert.match(result.stdout, /Would write diagnostic directory: .*diagnostics-dir/);
   assert.match(result.stdout, /Would include compose\.yaml, docker versions, compose ps\/logs, HTTP probe summary, directory\/port\/image metadata/);
   assert.match(result.stdout, /Would write diagnostic archive: .*diagnostics\.tar\.gz/);
+  assert.match(result.stdout, /User path status:/);
+  assert.match(result.stdout, /one_click_install: create compose\.yaml, data\/projects directories, and start the WebUI image/);
+  assert.match(result.stdout, /access_key_settings: enter provider keys in the WebUI first-run Access panel or Settings -> Access/);
+  assert.match(result.stdout, /runtime_proxy: WebUI uses \/api\/opl-runtime\/configure-codex -> opl system configure-codex --api-key-stdin --json/);
+  assert.match(result.stdout, /startup_recovery: if startup fails, collect redacted startup doctor diagnostics/);
+  assert.match(result.stdout, /Image\/seed: default latest\/stable WebUI image uses the full seed/);
   assert.doesNotMatch(result.stdout, /docker run/);
   assert.doesNotMatch(result.stdout, /OPENAI_API_KEY|ANTHROPIC_API_KEY|api_key/i);
   assert.equal(fs.existsSync(path.join(home, 'OnePersonLab')), false, 'dry-run must not create host directories');
@@ -219,6 +225,10 @@ test('Docker/WebUI smoke gate writes typed blocker instead of passing unmatched 
   assert.equal(payload.gate_id, 'clean_windows_vm');
   assert.match(payload.blocker.code, /windows_vm|requires_windows_vm/);
   assert.equal(payload.schema, 'opl_docker_webui_smoke_gate_result.v1');
+  assert.equal(payload.operator_readable_status.path_id, 'ordinary_docker_webui_user_path');
+  assert.equal(payload.operator_readable_status.priority, 'ordinary_user_path_before_evidence_bundle_language');
+  assert.equal(payload.operator_readable_status.access_key_settings.status, 'typed_blocker');
+  assert.ok(payload.operator_readable_status.must_not_claim.includes('clean_windows_vm_pass_without_clean_windows_evidence'));
 });
 
 test('Docker/WebUI smoke gate keeps Docker CLI home while isolating WebUI home', () => {
@@ -255,6 +265,10 @@ test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', (
   assert.equal(payload.evidence.windows_evidence_dir, evidence);
   assert.equal(payload.evidence.windows_diagnostics_dir, path.join(evidence, 'diagnostics'));
   assert.equal(payload.evidence.windows_api_key_flow_evidence, path.join(evidence, 'api-key-flow-evidence.json'));
+  assert.equal(payload.operator_readable_status.path_id, 'ordinary_docker_webui_user_path');
+  assert.equal(payload.operator_readable_status.access_key_settings.status, 'passed');
+  assert.equal(payload.operator_readable_status.runtime_proxy.status, 'passed');
+  assert.equal(payload.operator_readable_status.settings_entry, 'Settings -> Access');
 });
 
 test('Docker/WebUI clean Windows smoke gate imports zipped Windows evidence', () => {

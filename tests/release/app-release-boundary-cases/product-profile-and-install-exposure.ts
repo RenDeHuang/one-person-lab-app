@@ -510,6 +510,46 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     receipt_schema: 'opl_docker_webui_api_key_flow_evidence.v1',
     key_material_recorded: false,
   });
+  assert.deepEqual(dockerWebui.installer_model.operator_readable_status.display_order, [
+    'one_click_install',
+    'browser_webui',
+    'access_key_settings',
+    'runtime_proxy',
+    'startup_recovery',
+    'data_preservation',
+  ]);
+  assert.equal(
+    dockerWebui.installer_model.operator_readable_status.priority,
+    'ordinary_user_path_before_evidence_bundle_language',
+  );
+  assert.equal(dockerWebui.installer_model.operator_readable_status.settings_entry, 'Settings -> Access');
+  assert.match(
+    dockerWebui.installer_model.operator_readable_status.rows.one_click_install,
+    /one-click installer/i,
+  );
+  assert.match(
+    dockerWebui.installer_model.operator_readable_status.rows.access_key_settings,
+    /Settings -> Access/,
+  );
+  assert.match(
+    dockerWebui.installer_model.operator_readable_status.rows.runtime_proxy,
+    /\/api\/opl-runtime\/configure-codex/,
+  );
+  assert.match(
+    dockerWebui.installer_model.operator_readable_status.image_seed_selection,
+    /WebUI full seed/,
+  );
+  assert.deepEqual(dockerWebui.installer_model.operator_readable_status.must_prefer_over, [
+    'release_evidence_bundle',
+    'operator_evidence_bundle',
+    'preflight_gate_summary',
+  ]);
+  assert.deepEqual(dockerWebui.installer_model.operator_readable_status.must_not_claim, [
+    'desktop_release_ready',
+    'real_install_ready',
+    'clean_windows_vm_pass_without_clean_windows_evidence',
+    'release_ready',
+  ]);
   assert.equal(
     dockerWebui.installer_model.startup_doctor.validator,
     'scripts/validate-docker-webui-diagnostics.ts',
