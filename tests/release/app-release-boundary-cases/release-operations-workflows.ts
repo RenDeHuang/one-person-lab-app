@@ -528,6 +528,7 @@ test('release workflows resolve moving refs once and pass fixed SHA cohort refs 
   assert.match(webuiWorkflow, /framework_ref:[\s\S]*Prefer a fixed SHA; main is resolved once by the source gate/);
   assert.match(webuiWorkflow, /shell_ref:[\s\S]*Prefer a fixed SHA; main is resolved once by the source gate/);
   assert.match(webuiWorkflow, /name: Validate release source gate[\s\S]*id: release-source-gate[\s\S]*app_sha: report\.app_head,[\s\S]*shell_sha: report\.shell_sha,[\s\S]*framework_sha: report\.framework_sha/);
+  assert.match(webuiWorkflow, /--require-shell-format true[\s\S]*--run-shell-tests true/);
   assert.doesNotMatch(webuiWorkflow, /id: shell[\s\S]*git -C shells\/aionui rev-parse HEAD/);
   assert.match(webuiWorkflow, /echo 'SHELL_SHA=\$\{\{ steps\.release-source-gate\.outputs\.shell_sha \}\}'/);
   assert.match(webuiWorkflow, /echo 'OPL_FRAMEWORK_SHA=\$\{\{ steps\.release-source-gate\.outputs\.framework_sha \}\}'/);

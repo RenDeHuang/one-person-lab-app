@@ -201,6 +201,13 @@ uploads the raw evidence, zip archive, imported gate result, and validation
 summary. Pass the uploaded artifact name to the desktop release workflow as
 `docker_webui_clean_windows_evidence_artifact`.
 
+For non-draft desktop release trains with `publish_docker_webui=true` and
+`run_vm_smoke=true`, the desktop release preflight requires that artifact name
+before standard build, publish, GHCR, or release-readiness jobs start. Empty
+Windows evidence is only a draft-candidate diagnostic path; stable release
+trains must run this Windows gate first and then dispatch the release with the
+artifact name.
+
 ### Clean Windows Runner Bootstrap
 
 The clean Windows gate needs a real disposable Windows machine. A GitHub-hosted

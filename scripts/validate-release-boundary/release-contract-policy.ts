@@ -47,6 +47,7 @@ const requiredSourceGateScopes = [
   'App release-boundary contract',
   'shell format',
   'shell type',
+  'active shell node/dom tests',
   'shell ref resolution',
   'framework ref resolution',
 ];
@@ -249,6 +250,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     'release_plan',
     'release_refs',
     'codex_package_metadata',
+    'docker_webui_clean_windows_evidence_artifact',
     'homebrew_vm_gate_static_policy',
     'homebrew_tap_token',
     'macos_local_authorization',
@@ -283,7 +285,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     failures += 1;
   }
   if (!sameStringSet(sourceGate?.scope, requiredSourceGateScopes)) {
-    console.error('FAIL release_source_gate_contract: source gate scope must cover release-boundary, shell format/type/ref, and framework ref');
+    console.error('FAIL release_source_gate_contract: source gate scope must cover release-boundary, shell format/type/tests/ref, and framework ref');
     failures += 1;
   }
   if (!sameStringSet(sourceGate?.must_run_before, requiredSourceGatePrecedes)) {

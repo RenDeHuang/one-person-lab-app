@@ -82,6 +82,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /release-preflight:/);
   assert.match(workflow, /name: Release preflight/);
   assert.match(workflow, /npm run release:preflight --/);
+  assert.match(workflow, /--publish-docker-webui "\$\{\{ inputs\.publish_docker_webui \}\}"/);
+  assert.match(workflow, /--docker-webui-clean-windows-evidence-artifact "\$\{\{ inputs\.docker_webui_clean_windows_evidence_artifact \}\}"/);
   assert.match(workflow, /release-preflight-summary\.json/);
   assert.match(workflow, /release-preflight-summary\.md/);
   assert.match(workflow, /release-workflow-contract:/);
@@ -91,7 +93,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /release-source-gate:/);
   assert.match(workflow, /release-source-gate:[\s\S]*name: Release source gate/);
   assert.match(workflow, /release-source-gate:[\s\S]*npm run release:source-gate --/);
-  assert.match(workflow, /release-source-gate:[\s\S]*--app-ref "\$GITHUB_SHA"[\s\S]*--framework-ref "\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*--require-shell-format true/);
+  assert.match(workflow, /release-source-gate:[\s\S]*--app-ref "\$GITHUB_SHA"[\s\S]*--framework-ref "\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*--require-shell-format true[\s\S]*--run-shell-tests true/);
   assert.match(workflow, /release-source-gate:[\s\S]*release-source-gate-\$\{\{ inputs\.opl_version \}\}/);
   assert.match(workflow, /standard-build:[\s\S]*needs:[\s\S]*release-workflow-contract[\s\S]*release-source-gate/);
   assert.match(workflow, /full-first-install:[\s\S]*needs: standard-vm-smoke-gate-after-full/);
@@ -197,7 +199,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /docker-webui-smoke:/);
   assert.match(workflow, /docker-webui-smoke:[\s\S]*standard-vm-smoke-gate-after-full/);
   assert.match(workflow, /docker_webui_clean_linux_evidence_artifact:[\s\S]*Optional same-run artifact name containing clean Linux VM Docker WebUI smoke evidence; empty runs the Ubuntu clean VM gate in this workflow/);
-  assert.match(workflow, /docker_webui_clean_windows_evidence_artifact:[\s\S]*Same-run artifact name containing clean Windows VM Docker WebUI smoke evidence/);
+  assert.match(workflow, /docker_webui_clean_windows_evidence_artifact:[\s\S]*required by preflight for non-draft Docker WebUI release trains/);
   assert.doesNotMatch(jobLevelIf(oneShotInstallerJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.doesNotMatch(jobLevelIf(dockerWebuiJob), /if:\s*\$\{\{\s*always\(\)/);
   assert.match(jobLevelIf(oneShotInstallerJob), /if:\s*\$\{\{\s*!cancelled\(\) && inputs\.run_vm_smoke/);
@@ -807,6 +809,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'shell_ref_resolves_to_sha',
       'framework_ref_resolves_to_sha',
       'codex_package_metadata',
+      'docker_webui_clean_windows_evidence_artifact',
       'homebrew_vm_gate_static_policy',
       'homebrew_tap_token',
       'macos_local_authorization',
@@ -820,6 +823,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
         'App release-boundary contract',
         'shell format',
         'shell type',
+        'active shell node/dom tests',
         'shell ref resolution',
         'framework ref resolution',
       ],

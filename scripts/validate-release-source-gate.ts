@@ -25,6 +25,7 @@ export type ReleaseSourceGateOptions = {
   shellRef: string;
   frameworkRef: string;
   requireShellFormat: boolean;
+  runShellTests: boolean;
   repoRoot: string;
   frameworkRoot: string;
   output: string;
@@ -64,6 +65,7 @@ export type ReleaseSourceGateReport = {
   framework_sha: string | null;
   framework_root: string;
   require_shell_format: boolean;
+  run_shell_tests: boolean;
   checks: Check[];
   required_gates: RequiredGate[];
 };
@@ -84,6 +86,7 @@ Options:
   --shell-ref <ref>                Active shell ref to resolve in shells/aionui. Default: main.
   --framework-ref <ref>            OPL Framework ref to resolve. Default: main.
   --require-shell-format <bool>    Run bun run format:check in the active shell. Default: false.
+  --run-shell-tests <bool>         Run active shell node/dom tests before expensive release jobs. Default: false.
   --repo-root <path>               App repository root. Default: current script repository.
   --framework-root <path>          OPL Framework checkout root. Default: ../one-person-lab.
   --output <path>                  Write source gate JSON report.
@@ -99,6 +102,7 @@ function defaultOptions(): ReleaseSourceGateOptions {
     shellRef: process.env.OPL_SHELL_REF || 'main',
     frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
     requireShellFormat: parseStrictBoolean(process.env.OPL_REQUIRE_SHELL_FORMAT, false),
+    runShellTests: parseStrictBoolean(process.env.OPL_RELEASE_SOURCE_GATE_RUN_SHELL_TESTS, false),
     repoRoot: defaultRepoRoot,
     frameworkRoot: process.env.OPL_FRAMEWORK_ROOT || path.resolve(defaultRepoRoot, '..', 'one-person-lab'),
     output: process.env.OPL_RELEASE_SOURCE_GATE_OUTPUT || '',
@@ -125,6 +129,7 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
       '--shell-ref': (value) => { parsed.shellRef = value; },
       '--framework-ref': (value) => { parsed.frameworkRef = value; },
       '--require-shell-format': (value) => { parsed.requireShellFormat = parseStrictBoolean(value); },
+      '--run-shell-tests': (value) => { parsed.runShellTests = parseStrictBoolean(value); },
       '--repo-root': (value) => { parsed.repoRoot = value; },
       '--framework-root': (value) => { parsed.frameworkRoot = value; },
       '--output': (value) => { parsed.output = value; },
@@ -265,6 +270,14 @@ export function buildReleaseSourceGateReport(
       cwd: shellRoot,
       executed: options.requireShellFormat,
       reason: 'Release source gate must prove or require active shell formatting before expensive release work.',
+    },
+    {
+      id: 'active_shell_node_dom_tests',
+      required: true,
+      command: 'node --experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2',
+      cwd: options.repoRoot,
+      executed: options.runShellTests,
+      reason: 'Release source gate must catch active shell node/dom regressions before expensive release work.',
     },
   ];
 
@@ -408,6 +421,35 @@ export function buildReleaseSourceGateReport(
     });
   }
 
+  if (options.runShellTests) {
+    const shellTestsArgs = [
+      '--experimental-strip-types',
+      'scripts/run-active-shell-tests.ts',
+      '--project',
+      'all',
+      '--chunk-size',
+      '8',
+      '--max-workers',
+      '2',
+    ];
+    const shellTestsResult = runner(process.execPath, shellTestsArgs, { cwd: options.repoRoot });
+    addCheck(checks, {
+      id: 'active_shell_node_dom_tests',
+      status: shellTestsResult.status === 0 ? 'passed' : 'failed',
+      message: shellTestsResult.status === 0
+        ? 'Active shell node/dom tests passed before expensive release work.'
+        : `Active shell node/dom tests failed before expensive release work.${commandDetail(shellTestsResult) ? `\n${commandDetail(shellTestsResult)}` : ''}`,
+      command: commandText('node', shellTestsArgs.slice(1)),
+    });
+  } else {
+    addCheck(checks, {
+      id: 'active_shell_node_dom_tests',
+      status: 'skipped',
+      message: 'Active shell node/dom tests were not executed; required gate command is emitted for CI enforcement.',
+      command: 'node --experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2',
+    });
+  }
+
   return {
     schema: 'opl_app_release_source_gate.v1',
     generated_at: generatedAt,
@@ -423,6 +465,7 @@ export function buildReleaseSourceGateReport(
     framework_sha: frameworkSha,
     framework_root: frameworkRoot,
     require_shell_format: options.requireShellFormat,
+    run_shell_tests: options.runShellTests,
     checks,
     required_gates: requiredGates,
   };

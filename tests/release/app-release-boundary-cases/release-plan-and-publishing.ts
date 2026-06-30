@@ -197,6 +197,8 @@ test('release preflight fails fast before expensive release jobs', () => {
     'true',
     '--run-vm-smoke',
     'false',
+    '--publish-docker-webui',
+    'false',
     '--offline',
     '--summary-path',
     summaryPath,
@@ -211,6 +213,10 @@ test('release preflight fails fast before expensive release jobs', () => {
   assert.ok(payload.checks.some((check) => check.id === 'remote_target' && check.status === 'skipped'));
   assert.ok(payload.checks.some((check) => check.id === 'release_refs' && check.status === 'skipped'));
   assert.ok(payload.checks.some((check) => check.id === 'codex_package_metadata' && check.status === 'skipped'));
+  assert.ok(payload.checks.some((check) => (
+    check.id === 'docker_webui_clean_windows_evidence_artifact'
+    && check.status === 'skipped'
+  )));
   assert.ok(payload.checks.some((check) => check.id === 'full_workflow_call' && check.status === 'passed'));
   assert.ok(payload.checks.some((check) => (
     check.id === 'homebrew_vm_gate_static_policy'
@@ -253,6 +259,8 @@ test('release preflight fails fast before expensive release jobs', () => {
     'false',
     '--run-vm-smoke',
     'false',
+    '--publish-docker-webui',
+    'false',
     '--offline',
   ]);
   assert.equal(standardOnly.status, 0, standardOnly.stderr || standardOnly.stdout);
@@ -268,6 +276,8 @@ test('release preflight fails fast before expensive release jobs', () => {
     '26.5.19',
     '--release-mode',
     'draft_candidate',
+    '--publish-docker-webui',
+    'false',
     '--offline',
   ], {
     env: {
@@ -339,6 +349,8 @@ exit 2
     'true',
     '--run-vm-smoke',
     'true',
+    '--publish-docker-webui',
+    'false',
   ], {
     env: {
       PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`,
@@ -365,6 +377,8 @@ exit 2
     'true',
     '--run-vm-smoke',
     'true',
+    '--publish-docker-webui',
+    'false',
     '--offline',
   ], {
     env: {
@@ -390,6 +404,8 @@ exit 2
     'false',
     '--run-vm-smoke',
     'false',
+    '--publish-docker-webui',
+    'false',
     '--offline',
   ]);
   assert.equal(missingSigningSecrets.status, 0, missingSigningSecrets.stderr || missingSigningSecrets.stdout);
@@ -399,6 +415,87 @@ exit 2
     check.id === 'macos_local_authorization'
     && check.status === 'passed'
     && check.message.includes('Developer ID signing/notarization secrets are optional')
+  )));
+});
+
+test('release preflight fails non-draft Docker WebUI trains without clean Windows VM evidence', () => {
+  const missingEvidence = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'false',
+    '--run-vm-smoke',
+    'true',
+    '--publish-docker-webui',
+    'true',
+    '--offline',
+  ], {
+    env: {
+      OPL_HOMEBREW_TAP_TOKEN_PRESENT: 'true',
+    },
+  });
+
+  assert.notEqual(missingEvidence.status, 0);
+  const failedPayload = JSON.parse(missingEvidence.stdout);
+  assert.equal(failedPayload.status, 'failed');
+  assert.equal(failedPayload.inputs.publish_docker_webui, true);
+  assert.equal(failedPayload.inputs.docker_webui_clean_windows_evidence_artifact, '');
+  assert.ok(failedPayload.checks.some((check) => (
+    check.id === 'docker_webui_clean_windows_evidence_artifact'
+    && check.status === 'failed'
+    && check.message.includes('before expensive release jobs')
+  )));
+
+  const declaredEvidence = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'false',
+    '--run-vm-smoke',
+    'true',
+    '--publish-docker-webui',
+    'true',
+    '--docker-webui-clean-windows-evidence-artifact',
+    'docker-webui-clean-windows-vm-evidence',
+    '--offline',
+  ], {
+    env: {
+      OPL_HOMEBREW_TAP_TOKEN_PRESENT: 'true',
+    },
+  });
+  assert.equal(declaredEvidence.status, 0, declaredEvidence.stderr || declaredEvidence.stdout);
+  const passedPayload = JSON.parse(declaredEvidence.stdout);
+  assert.ok(passedPayload.checks.some((check) => (
+    check.id === 'docker_webui_clean_windows_evidence_artifact'
+    && check.status === 'passed'
+  )));
+
+  const diagnosticDraft = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'draft_candidate',
+    '--include-full-package',
+    'false',
+    '--run-vm-smoke',
+    'true',
+    '--publish-docker-webui',
+    'true',
+    '--offline',
+  ]);
+  assert.equal(diagnosticDraft.status, 0, diagnosticDraft.stderr || diagnosticDraft.stdout);
+  const draftPayload = JSON.parse(diagnosticDraft.stdout);
+  assert.ok(draftPayload.checks.some((check) => (
+    check.id === 'docker_webui_clean_windows_evidence_artifact'
+    && check.status === 'warning'
+    && check.message.includes('Draft candidates may omit')
   )));
 });
 

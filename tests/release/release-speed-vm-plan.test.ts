@@ -74,7 +74,7 @@ test('desktop release workflow keeps the release DAG split by build, publish, ve
     'desktop release workflow contract gate',
   );
   assertMatches(workflow, /release-source-gate:[\s\S]*?name:\s+Release source gate[\s\S]*?npm run release:source-gate --/, 'desktop release source gate');
-  assertMatches(workflow, /release-source-gate:[\s\S]*?--app-ref "\$GITHUB_SHA"[\s\S]*?--framework-ref "\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*?--require-shell-format true/, 'desktop release source gate pins App HEAD, framework ref, and shell format policy');
+  assertMatches(workflow, /release-source-gate:[\s\S]*?--app-ref "\$GITHUB_SHA"[\s\S]*?--framework-ref "\$\{\{ inputs\.framework_ref \|\| 'main' \}\}"[\s\S]*?--require-shell-format true[\s\S]*?--run-shell-tests true/, 'desktop release source gate pins App HEAD, framework ref, shell format, and active shell test policy');
   assertIncludes(workflow, 'standard-build:', 'desktop release workflow');
   assertMatches(workflow, /standard-build:[\s\S]*?needs:[\s\S]*?release-workflow-contract[\s\S]*?release-source-gate/, 'standard build waits for cheap source gates');
   assertIncludes(workflow, 'uses: ./.github/workflows/_build-reusable.yml', 'standard build job');
@@ -646,6 +646,7 @@ test('release operator docs and contract freeze candidates, fail fast on source 
     'App release-boundary contract',
     'shell format',
     'shell type',
+    'active shell node/dom tests',
     'shell ref resolution',
     'framework ref resolution',
   ]);

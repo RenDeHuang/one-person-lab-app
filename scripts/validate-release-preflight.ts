@@ -79,6 +79,8 @@ type Options = {
   releaseMode: string;
   includeFullPackage: boolean;
   runVmSmoke: boolean;
+  publishDockerWebui: boolean;
+  dockerWebuiCleanWindowsEvidenceArtifact: string;
   shellRef: string;
   frameworkRef: string;
   offline: boolean;
@@ -95,6 +97,9 @@ Options:
   --release-mode <mode>            refresh_existing, new_release, or draft_candidate.
   --include-full-package <bool>    Whether the Full first-install package is in scope.
   --run-vm-smoke <bool>            Whether release VM smokes are in scope.
+  --publish-docker-webui <bool>    Whether the Docker WebUI image is in scope.
+  --docker-webui-clean-windows-evidence-artifact <name>
+                                   Clean Windows VM Docker WebUI evidence artifact for Stable release trains.
   --shell-ref <ref>                opl-aion-shell ref to validate. Default: main.
   --framework-ref <ref>            one-person-lab framework ref to validate. Default: main.
   --summary-path <path>            Write release-preflight-summary.json.
@@ -110,6 +115,8 @@ function parseArgs(argv: string[]): Options {
     releaseMode: process.env.OPL_RELEASE_MODE || 'refresh_existing',
     includeFullPackage: parseStrictBoolean(process.env.OPL_INCLUDE_FULL_PACKAGE, false),
     runVmSmoke: parseStrictBoolean(process.env.OPL_RUN_VM_SMOKE, true),
+    publishDockerWebui: parseStrictBoolean(process.env.OPL_PUBLISH_DOCKER_WEBUI, true),
+    dockerWebuiCleanWindowsEvidenceArtifact: process.env.OPL_DOCKER_WEBUI_CLEAN_WINDOWS_EVIDENCE_ARTIFACT || '',
     shellRef: process.env.OPL_SHELL_REF || 'main',
     frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
     offline: false,
@@ -148,6 +155,16 @@ function parseArgs(argv: string[]): Options {
     }
     if (token === '--run-vm-smoke') {
       options.runVmSmoke = parseStrictBoolean(value);
+      index += 1;
+      continue;
+    }
+    if (token === '--publish-docker-webui') {
+      options.publishDockerWebui = parseStrictBoolean(value);
+      index += 1;
+      continue;
+    }
+    if (token === '--docker-webui-clean-windows-evidence-artifact') {
+      options.dockerWebuiCleanWindowsEvidenceArtifact = value;
       index += 1;
       continue;
     }
@@ -689,6 +706,51 @@ function checkCodexPackageMetadata(options: Options, checks: Check[]): CodexPack
   return preflight;
 }
 
+function checkDockerWebuiCleanWindowsEvidence(options: Options, checks: Check[]) {
+  if (!options.runVmSmoke) {
+    addCheck(
+      checks,
+      'docker_webui_clean_windows_evidence_artifact',
+      'skipped',
+      'VM smoke is disabled; Docker WebUI clean Windows VM evidence is not required.',
+    );
+    return;
+  }
+  if (!options.publishDockerWebui) {
+    addCheck(
+      checks,
+      'docker_webui_clean_windows_evidence_artifact',
+      'skipped',
+      'Docker WebUI publishing is disabled; clean Windows VM evidence is not required.',
+    );
+    return;
+  }
+  if (options.releaseMode === 'draft_candidate') {
+    addCheck(
+      checks,
+      'docker_webui_clean_windows_evidence_artifact',
+      'warning',
+      'Draft candidates may omit clean Windows VM Docker WebUI evidence and produce a typed diagnostic blocker later.',
+    );
+    return;
+  }
+  if (!options.dockerWebuiCleanWindowsEvidenceArtifact.trim()) {
+    addCheck(
+      checks,
+      'docker_webui_clean_windows_evidence_artifact',
+      'failed',
+      'Stable Docker WebUI release trains require docker_webui_clean_windows_evidence_artifact before expensive release jobs. Run the clean Windows VM Docker WebUI smoke workflow and pass its artifact name.',
+    );
+    return;
+  }
+  addCheck(
+    checks,
+    'docker_webui_clean_windows_evidence_artifact',
+    'passed',
+    `Clean Windows VM Docker WebUI evidence artifact ${options.dockerWebuiCleanWindowsEvidenceArtifact} is declared before expensive release jobs.`,
+  );
+}
+
 function checkContract(options: Options, checks: Check[]) {
   const contract = JSON.parse(readText('contracts/app-release-channel.json'));
   if (contract.release_preflight?.script !== 'scripts/validate-release-preflight.ts') {
@@ -703,6 +765,7 @@ function checkContract(options: Options, checks: Check[]) {
     'remote_target',
     'release_refs',
     'codex_package_metadata',
+    'docker_webui_clean_windows_evidence_artifact',
     'workflow_preflight_shape',
     'release_plan',
     'homebrew_vm_gate_static_policy',
@@ -748,6 +811,8 @@ function writeSummary(options: Options, checks: Check[], releaseTarget: ReleaseT
       release_mode: options.releaseMode,
       include_full_package: options.includeFullPackage,
       run_vm_smoke: options.runVmSmoke,
+      publish_docker_webui: options.publishDockerWebui,
+      docker_webui_clean_windows_evidence_artifact: options.dockerWebuiCleanWindowsEvidenceArtifact,
       shell_ref: options.shellRef,
       framework_ref: options.frameworkRef,
       offline: options.offline,
@@ -801,6 +866,7 @@ const releaseTarget = resolveReleaseTarget(options);
 checkRemoteTarget(options, checks, releaseTarget);
 const releaseRefs = checkReleaseRefs(options, checks);
 const codexPackageMetadata = checkCodexPackageMetadata(options, checks);
+checkDockerWebuiCleanWindowsEvidence(options, checks);
 const homebrew = buildHomebrewPreflight(options, releaseTarget, homebrewVmGateStaticPolicy);
 checkHomebrewToken(homebrew, checks);
 checkMacosLocalAuthorization(checks);

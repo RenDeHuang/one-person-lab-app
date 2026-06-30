@@ -80,6 +80,7 @@ jobs:
             --framework-ref "${{ inputs.framework_ref || 'main' }}" \
             --framework-root one-person-lab \
             --require-shell-format true \
+            --run-shell-tests true \
             --output release-source-gate.json \
             --json
           node <<'NODE'

@@ -22,6 +22,7 @@ function options(overrides: Partial<ReleaseSourceGateOptions> = {}): ReleaseSour
     shellRef: 'main',
     frameworkRef: 'main',
     requireShellFormat: false,
+    runShellTests: false,
     repoRoot,
     frameworkRoot,
     output: '',
@@ -70,6 +71,13 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
     }
     if (command === 'bun' && args.join(' ') === 'run format:check' && commandOptions.cwd === shellRoot) {
       return { status: 0, stdout: 'format ok\n', stderr: '' };
+    }
+    if (
+      command === process.execPath
+      && args.join(' ') === '--experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2'
+      && commandOptions.cwd === repoRoot
+    ) {
+      return { status: 0, stdout: 'active shell tests ok\n', stderr: '' };
     }
     return { status: 1, stdout: '', stderr: `unexpected command: ${key}` };
   };
@@ -135,6 +143,49 @@ test('release source gate emits shell format policy and executes it only when re
   assert.equal(executed.status, 'passed');
   assert.equal(executed.required_gates.find((gate) => gate.id === 'active_shell_format_check')?.executed, true);
   assert.equal(checkStatus(executed, 'active_shell_format_check'), 'passed');
+});
+
+test('release source gate runs active shell node/dom tests before expensive release work when required', () => {
+  const policyOnly = reportFor({ runShellTests: false });
+  const requiredGate = policyOnly.required_gates.find((gate) => gate.id === 'active_shell_node_dom_tests');
+  assert.equal(requiredGate?.required, true);
+  assert.equal(
+    requiredGate?.command,
+    'node --experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2',
+  );
+  assert.equal(requiredGate?.cwd, repoRoot);
+  assert.equal(requiredGate?.executed, false);
+  assert.equal(checkStatus(policyOnly, 'active_shell_node_dom_tests'), 'skipped');
+
+  const executed = reportFor({ runShellTests: true });
+  assert.equal(executed.status, 'passed');
+  assert.equal(executed.required_gates.find((gate) => gate.id === 'active_shell_node_dom_tests')?.executed, true);
+  assert.equal(checkStatus(executed, 'active_shell_node_dom_tests'), 'passed');
+});
+
+test('release source gate fails active shell node/dom regressions before expensive release work', () => {
+  const report = buildReleaseSourceGateReport(
+    options({ runShellTests: true }),
+    runner({
+      [`${repoRoot} $ ${process.execPath} --experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2`]: {
+        status: 1,
+        stdout: 'dom chunk 10/12 failed\n',
+        stderr: "TypeError: Cannot read properties of undefined (reading 'configureCodexInvoke')\n",
+      },
+    }),
+    '2026-06-30T00:00:00.000Z',
+    {
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: () => ({ name: 'one-person-lab-aion-shell' }),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'active_shell_node_dom_tests'), 'failed');
+  assert.match(
+    report.checks.find((check) => check.id === 'active_shell_node_dom_tests')?.message ?? '',
+    /configureCodexInvoke/,
+  );
 });
 
 test('release source gate fails dirty App worktree before expensive release work', () => {

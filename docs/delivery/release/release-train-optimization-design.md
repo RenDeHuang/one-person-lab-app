@@ -85,8 +85,21 @@ as the machine truth.
 
 `release_preflight` is the first gate for every release train. It checks version
 syntax, release mode, remote tag/release state, workflow shape, release plan
-shape, Homebrew token availability, and the App-owned preflight contract. It
+shape, Homebrew token availability, Docker WebUI clean Windows VM evidence
+admission for non-draft WebUI releases, and the App-owned preflight contract. It
 writes `release-preflight-summary.json` and `release-preflight-summary.md`.
+
+The WebUI evidence admission rule exists to prevent a known slow-failure shape:
+a stable release run must not spend standard build, publish, GHCR, and evidence
+bundle time only to discover that `docker_webui_clean_windows_evidence_artifact`
+was empty. `draft_candidate` remains the diagnostic escape hatch; stable
+`new_release` and `refresh_existing` trains fail in preflight instead.
+
+`release_source_gate` runs after preflight and before expensive lanes. It checks
+the App release-boundary contract, active shell format/type, active shell
+node/dom tests, shell ref resolution, and framework ref resolution. Shell test
+failures such as Settings DOM regressions are source-gate failures, not release
+lane failures.
 
 `release_plan` is the deterministic graph. It names lanes, dependencies, and
 parallelism. Expensive lanes depend on `release_preflight`, and serialized

@@ -52,7 +52,7 @@ on:
         default: ''
         type: string
       docker_webui_clean_windows_evidence_artifact:
-        description: Same-run artifact name containing clean Windows VM Docker WebUI smoke evidence; empty writes a typed blocker
+        description: Same-run artifact name containing clean Windows VM Docker WebUI smoke evidence; required by preflight for non-draft Docker WebUI release trains
         required: false
         default: ''
         type: string
@@ -132,6 +132,8 @@ jobs:
             --release-mode "${{ inputs.release_mode }}" \
             --include-full-package "${{ inputs.include_full_package }}" \
             --run-vm-smoke "${{ inputs.run_vm_smoke }}" \
+            --publish-docker-webui "${{ inputs.publish_docker_webui }}" \
+            --docker-webui-clean-windows-evidence-artifact "${{ inputs.docker_webui_clean_windows_evidence_artifact }}" \
             --framework-ref "${{ inputs.framework_ref }}" \
             --shell-ref "${{ inputs.shell_ref }}" \
             --summary-path release-preflight-summary.json \
@@ -216,6 +218,7 @@ jobs:
             --framework-ref "${{ inputs.framework_ref || 'main' }}" \
             --framework-root one-person-lab \
             --require-shell-format true \
+            --run-shell-tests true \
             --output release-source-gate.json \
             --json
           node <<'NODE'

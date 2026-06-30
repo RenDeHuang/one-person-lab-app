@@ -73,10 +73,16 @@ npm run release:preflight
 
 The preflight checks version/mode compatibility, remote tag or release state,
 workflow shape, release plan shape, shell/framework ref availability, Codex CLI
-plus Darwin arm64 package metadata for VM-smoke runs, Homebrew tap token
-availability, the Homebrew VM static trust policy, and the App-owned release
-contract. A failing preflight stops the release before standard, Full, VM,
-Homebrew, WebUI, or publish jobs run.
+plus Darwin arm64 package metadata for VM-smoke runs, Docker WebUI clean Windows
+VM evidence admission, Homebrew tap token availability, the Homebrew VM static
+trust policy, and the App-owned release contract. A failing preflight stops the
+release before standard, Full, VM, Homebrew, WebUI, or publish jobs run.
+
+For non-draft Docker WebUI release trains, `publish_docker_webui=true` and
+`run_vm_smoke=true` require
+`docker_webui_clean_windows_evidence_artifact` at preflight time. An empty value
+is allowed only for `draft_candidate` diagnostics, where the later Docker WebUI
+clean VM evidence job may write a typed blocker instead of blocking preflight.
 
 The source gate is the next fail-fast boundary after preflight:
 
@@ -86,12 +92,12 @@ npm run release:source-gate -- --version <version> --app-ref <app-sha> --shell-r
 ```
 
 `release:source-gate` is the App-owned source/readiness front door for the
-candidate cohort. It must check App release-boundary policy plus shell
-format/type/source ref and framework ref resolution before expensive standard
-build, Full build, VM, Homebrew, or WebUI work starts. If it fails, stop the
-train, repair the source gate, and dispatch a new cohort after the pinned refs
-are valid. Do not wait for downstream build or VM jobs to prove a source-gate
-failure again.
+candidate cohort. It must check App release-boundary policy, shell format/type,
+active shell node/dom tests, shell source ref, and framework ref resolution
+before expensive standard build, Full build, VM, Homebrew, or WebUI work starts.
+If it fails, stop the train, repair the source gate, and dispatch a new cohort
+after the pinned refs are valid. Do not wait for downstream build or VM jobs to
+prove a source-gate failure again.
 
 For the Homebrew standard VM gate, the static policy is:
 

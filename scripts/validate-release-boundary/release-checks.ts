@@ -772,6 +772,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       'release_plan',
       'release_refs',
       'codex_package_metadata',
+      'docker_webui_clean_windows_evidence_artifact',
       '@openai/codex@latest',
       '-darwin-arm64',
       'homebrew_tap_token',
