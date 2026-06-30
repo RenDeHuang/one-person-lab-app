@@ -332,12 +332,44 @@ process.exit(2);
   writeExecutable(path.join(fakeBin, 'git'), `#!/usr/bin/env bash
 set -euo pipefail
 if [ "$1" = "ls-remote" ]; then
-  echo "1111111111111111111111111111111111111111 refs/tags/v26.5.19"
+  echo "\${OPL_FAKE_TAG_SHA:-1111111111111111111111111111111111111111} refs/tags/v26.5.19"
   exit 0
 fi
 echo "unexpected git args: $*" >&2
 exit 2
 `);
+
+  const staleDraftRefresh = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'true',
+    '--run-vm-smoke',
+    'true',
+    '--publish-docker-webui',
+    'false',
+    '--expected-app-head',
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  ], {
+    env: {
+      PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`,
+      OPL_HOMEBREW_TAP_TOKEN_PRESENT: 'true',
+      OPL_FAKE_TAG_SHA: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    },
+  });
+  assert.notEqual(staleDraftRefresh.status, 0);
+  const staleDraftRefreshPayload = JSON.parse(staleDraftRefresh.stdout);
+  assert.equal(staleDraftRefreshPayload.status, 'failed');
+  assert.equal(staleDraftRefreshPayload.release_target.tag_sha, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+  assert.ok(staleDraftRefreshPayload.checks.some((check) => (
+    check.id === 'remote_target'
+    && check.status === 'failed'
+    && check.message.includes('points at bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
+    && check.message.includes('expected current App head aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+  )));
 
   const draftRefresh = runNode([
     'scripts/validate-release-preflight.ts',
@@ -351,6 +383,8 @@ exit 2
     'true',
     '--publish-docker-webui',
     'false',
+    '--expected-app-head',
+    '1111111111111111111111111111111111111111',
   ], {
     env: {
       PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`,

@@ -29,6 +29,7 @@ type ReleaseTarget = {
   kind: 'offline_unknown' | 'unused' | 'published_release' | 'draft_release' | 'prerelease_release';
   release_exists: boolean | null;
   tag_exists: boolean | null;
+  tag_sha: string | null;
   is_draft: boolean | null;
   is_prerelease: boolean | null;
   published_at: string | null;
@@ -83,6 +84,7 @@ type Options = {
   dockerWebuiCleanWindowsEvidenceArtifact: string;
   shellRef: string;
   frameworkRef: string;
+  expectedAppHead: string;
   offline: boolean;
   summaryPath: string | null;
   markdownPath: string | null;
@@ -100,6 +102,7 @@ Options:
   --publish-docker-webui <bool>    Whether the Docker WebUI image is in scope.
   --docker-webui-clean-windows-evidence-artifact <name>
                                    Clean Windows VM Docker WebUI evidence artifact for Stable release trains.
+  --expected-app-head <sha>        Expected App commit for the release tag. Default: OPL_EXPECTED_APP_HEAD or GITHUB_SHA.
   --shell-ref <ref>                opl-aion-shell ref to validate. Default: main.
   --framework-ref <ref>            one-person-lab framework ref to validate. Default: main.
   --summary-path <path>            Write release-preflight-summary.json.
@@ -119,6 +122,7 @@ function parseArgs(argv: string[]): Options {
     dockerWebuiCleanWindowsEvidenceArtifact: process.env.OPL_DOCKER_WEBUI_CLEAN_WINDOWS_EVIDENCE_ARTIFACT || '',
     shellRef: process.env.OPL_SHELL_REF || 'main',
     frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
+    expectedAppHead: process.env.OPL_EXPECTED_APP_HEAD || process.env.GITHUB_SHA || '',
     offline: false,
     summaryPath: null,
     markdownPath: null,
@@ -186,6 +190,11 @@ function parseArgs(argv: string[]): Options {
       index += 1;
       continue;
     }
+    if (token === '--expected-app-head') {
+      options.expectedAppHead = value;
+      index += 1;
+      continue;
+    }
     if (token === '--summary-path') {
       options.summaryPath = value;
       index += 1;
@@ -249,6 +258,33 @@ function parseReleasePayload(stdout: string) {
   return objectOrNull(JSON.parse(stdout));
 }
 
+function normalizeSha(value: string | null | undefined): string | null {
+  const sha = value?.trim() ?? '';
+  return /^[a-f0-9]{40}$/i.test(sha) ? sha.toLowerCase() : null;
+}
+
+function parseRemoteTagSha(stdout: string, tag: string): string | null {
+  const lines = stdout.trim().split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const peeledSuffix = `refs/tags/${tag}^{}`;
+  const directSuffix = `refs/tags/${tag}`;
+  const peeled = lines.find((line) => line.endsWith(peeledSuffix));
+  const direct = lines.find((line) => line.endsWith(directSuffix));
+  const selected = peeled ?? direct ?? '';
+  return normalizeSha(selected.split(/\s+/)[0]);
+}
+
+function resolveExpectedAppHead(options: Options): string | null {
+  const declared = normalizeSha(options.expectedAppHead);
+  if (declared) {
+    return declared;
+  }
+  const localHead = run('git', ['rev-parse', 'HEAD'], { allowFailure: true });
+  if (localHead.status === 0) {
+    return normalizeSha(stdoutLine(localHead));
+  }
+  return null;
+}
+
 function checkVersion(options: Options, checks: Check[]) {
   if (!/^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$/.test(options.version)) {
     addCheck(checks, 'version', 'failed', `Invalid release version: ${options.version}`);
@@ -273,6 +309,7 @@ function resolveReleaseTarget(options: Options): ReleaseTarget {
       kind: 'offline_unknown',
       release_exists: null,
       tag_exists: null,
+      tag_sha: null,
       is_draft: null,
       is_prerelease: null,
       published_at: null,
@@ -284,10 +321,11 @@ function resolveReleaseTarget(options: Options): ReleaseTarget {
   });
   const releaseExists = release.status === 0;
   const releasePayload = releaseExists ? parseReleasePayload(release.stdout) : null;
-  const tagLookup = run('git', ['ls-remote', '--tags', `https://github.com/${releaseRepo}.git`, `refs/tags/${tag}`], {
+  const tagLookup = run('git', ['ls-remote', '--tags', `https://github.com/${releaseRepo}.git`, `refs/tags/${tag}`, `refs/tags/${tag}^{}`], {
     allowFailure: true,
   });
   const tagExists = tagLookup.status === 0 && tagLookup.stdout.trim().length > 0;
+  const tagSha = tagExists ? parseRemoteTagSha(tagLookup.stdout, tag) : null;
   const isDraft = releaseExists && typeof releasePayload?.isDraft === 'boolean' ? releasePayload.isDraft : null;
   const isPrerelease = releaseExists && typeof releasePayload?.isPrerelease === 'boolean' ? releasePayload.isPrerelease : null;
   const publishedAt = typeof releasePayload?.publishedAt === 'string' ? releasePayload.publishedAt : null;
@@ -304,6 +342,7 @@ function resolveReleaseTarget(options: Options): ReleaseTarget {
     kind,
     release_exists: releaseExists,
     tag_exists: tagExists,
+    tag_sha: tagSha,
     is_draft: isDraft,
     is_prerelease: isPrerelease,
     published_at: publishedAt,
@@ -321,7 +360,25 @@ function checkRemoteTarget(options: Options, checks: Check[], target: ReleaseTar
       addCheck(checks, 'remote_target', 'failed', `refresh_existing requires GitHub Release ${target.tag} to exist.`);
       return;
     }
-    addCheck(checks, 'remote_target', 'passed', `GitHub Release ${target.tag} exists for refresh_existing as ${target.kind}.`);
+    if (!target.tag_exists || !target.tag_sha) {
+      addCheck(checks, 'remote_target', 'failed', `refresh_existing requires Git tag ${target.tag} to exist and resolve to a commit.`);
+      return;
+    }
+    const expectedAppHead = resolveExpectedAppHead(options);
+    if (!expectedAppHead) {
+      addCheck(checks, 'remote_target', 'failed', 'refresh_existing requires --expected-app-head, OPL_EXPECTED_APP_HEAD, GITHUB_SHA, or a readable local git HEAD.');
+      return;
+    }
+    if (target.tag_sha !== expectedAppHead) {
+      addCheck(
+        checks,
+        'remote_target',
+        'failed',
+        `refresh_existing tag ${target.tag} points at ${target.tag_sha}; expected current App head ${expectedAppHead}. Delete/recreate the draft/tag or use a same-cohort refresh before running expensive release jobs.`,
+      );
+      return;
+    }
+    addCheck(checks, 'remote_target', 'passed', `GitHub Release ${target.tag} exists for refresh_existing as ${target.kind}, and tag points at ${expectedAppHead.slice(0, 12)}.`);
     return;
   }
 
@@ -813,6 +870,7 @@ function writeSummary(options: Options, checks: Check[], releaseTarget: ReleaseT
       docker_webui_clean_windows_evidence_artifact: options.dockerWebuiCleanWindowsEvidenceArtifact,
       shell_ref: options.shellRef,
       framework_ref: options.frameworkRef,
+      expected_app_head: options.expectedAppHead,
       offline: options.offline,
     },
     release_target: releaseTarget,
