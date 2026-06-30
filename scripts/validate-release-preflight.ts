@@ -134,6 +134,16 @@ function parseArgs(argv: string[]): Options {
       options.offline = true;
       continue;
     }
+    if (token === '--docker-webui-clean-windows-evidence-artifact') {
+      const optionalValue = argv[index + 1];
+      if (!optionalValue || optionalValue.startsWith('--')) {
+        options.dockerWebuiCleanWindowsEvidenceArtifact = '';
+        continue;
+      }
+      options.dockerWebuiCleanWindowsEvidenceArtifact = optionalValue;
+      index += 1;
+      continue;
+    }
     const value = argv[index + 1];
     if (!value || value.startsWith('--')) {
       throw new Error(`Missing value for ${token}`);
@@ -160,11 +170,6 @@ function parseArgs(argv: string[]): Options {
     }
     if (token === '--publish-docker-webui') {
       options.publishDockerWebui = parseStrictBoolean(value);
-      index += 1;
-      continue;
-    }
-    if (token === '--docker-webui-clean-windows-evidence-artifact') {
-      options.dockerWebuiCleanWindowsEvidenceArtifact = value;
       index += 1;
       continue;
     }

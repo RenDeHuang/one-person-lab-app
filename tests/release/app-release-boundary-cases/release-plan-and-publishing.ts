@@ -449,6 +449,35 @@ test('release preflight allows Docker WebUI trains without clean Windows VM evid
     && check.message.includes('optional')
   )));
 
+  const emptyWorkflowInput = runNode([
+    'scripts/validate-release-preflight.ts',
+    '--version',
+    '26.5.19',
+    '--release-mode',
+    'refresh_existing',
+    '--include-full-package',
+    'false',
+    '--run-vm-smoke',
+    'true',
+    '--publish-docker-webui',
+    'true',
+    '--docker-webui-clean-windows-evidence-artifact',
+    '--framework-ref',
+    'main',
+    '--shell-ref',
+    'main',
+    '--offline',
+  ], {
+    env: {
+      OPL_HOMEBREW_TAP_TOKEN_PRESENT: 'true',
+    },
+  });
+  assert.equal(emptyWorkflowInput.status, 0, emptyWorkflowInput.stderr || emptyWorkflowInput.stdout);
+  const emptyWorkflowPayload = JSON.parse(emptyWorkflowInput.stdout);
+  assert.equal(emptyWorkflowPayload.inputs.docker_webui_clean_windows_evidence_artifact, '');
+  assert.equal(emptyWorkflowPayload.inputs.framework_ref, 'main');
+  assert.equal(emptyWorkflowPayload.inputs.shell_ref, 'main');
+
   const declaredEvidence = runNode([
     'scripts/validate-release-preflight.ts',
     '--version',
