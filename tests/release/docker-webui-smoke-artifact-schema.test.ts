@@ -10,21 +10,38 @@ import { validateDockerWebuiSmokeGateResult } from '../../scripts/docker-webui-s
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
+const imageDigest = 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
 function writeCompleteDiagnostics(root: string) {
   const files = {
     'metadata.txt': 'gate=existing_docker\n',
     'diagnostics-manifest.json': JSON.stringify({ schema: 'opl_docker_webui_diagnostics_manifest.v1' }),
-    'compose.yaml': 'services:\n  webui:\n    image: ghcr.io/gaofeng21cn/one-person-lab-webui:latest\n',
+    'compose.yaml': [
+      'services:',
+      '  webui:',
+      '    image: ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
+      '    environment:',
+      '      AIONUI_DATA_DIR: /data',
+      '      OPL_PROJECTS_DIR: /projects',
+      '    volumes:',
+      '      - "/tmp/data:/data"',
+      '      - "/tmp/projects:/projects"',
+      '',
+    ].join('\n'),
     'docker-version.txt': 'Docker version 27.0.0\n',
     'docker-compose-version.txt': 'Docker Compose version v2.0.0\n',
     'docker-compose-ps.txt': 'webui running\n',
     'docker-compose-logs.txt': 'ready\n',
-    'docker-image.txt': 'image id sha256:abc\n',
+    'docker-image.txt': JSON.stringify([
+      {
+        Id: imageDigest,
+        RepoDigests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
+      },
+    ]),
     'http-probe.txt': 'url=http://localhost:3000/\nstatus=200\n',
     'directories.txt': 'data_dir=/tmp/data\nprojects_dir=/tmp/projects\n',
     'data-preservation.txt':
-      'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n',
+      'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n[pre_projects_inventory]\nexists=true\n[post_projects_inventory]\nexists=true\n',
   };
   fs.mkdirSync(root, { recursive: true });
   for (const [file, contents] of Object.entries(files)) {
@@ -44,11 +61,42 @@ function completeGateResult() {
     required_environment: 'host with existing Docker engine reused by the one-click installer',
     artifact_dir: '/tmp/artifact',
     diagnostics_dir: '/tmp/artifact/diagnostics',
-    diagnostics_validation: { status: 'passed' },
+    diagnostics_validation: {
+      status: 'passed',
+      compose_volume_mapping: {
+        status: 'passed',
+        required_mounts: ['host_data_dir -> /data', 'host_projects_dir -> /projects'],
+        missing_mounts: [],
+      },
+      preservation_evidence: {
+        status: 'passed',
+        required_sections: [
+          'pre_data_inventory',
+          'post_data_inventory',
+          'pre_projects_inventory',
+          'post_projects_inventory',
+        ],
+        missing_sections: [],
+      },
+      image_identity: {
+        status: 'passed',
+        image_id: imageDigest,
+        repo_digests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
+        digest: imageDigest,
+        currentness_claim: false,
+      },
+    },
     health: { url: 'http://localhost:3000/', status: 'passed', http_status: 200 },
     compose: { path: '/tmp/artifact/home/OnePersonLab/compose.yaml', status: 'present' },
     container: { name: 'one-person-lab-webui', status: 'running', id: 'abc123' },
-    image: { ref: 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest', status: 'present', id: 'sha256:abc' },
+    image: {
+      ref: 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
+      status: 'present',
+      id: imageDigest,
+      repo_digests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
+      digest: imageDigest,
+      currentness_claim: false,
+    },
     data_preservation: {
       status: 'passed',
       verdict: 'preserved_or_reused',
@@ -150,6 +198,38 @@ test('Docker/WebUI diagnostics validator rejects secret-like content in required
   assert.ok(result.forbidden_secret_markers.some((marker) => marker.includes('Bearer')));
 });
 
+test('Docker/WebUI diagnostics validator requires compose mounts, preservation inventories, and image digest identity', () => {
+  const diagnostics = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-diagnostics-proof-'));
+  writeCompleteDiagnostics(diagnostics);
+  assert.equal(validateDockerWebuiDiagnostics(diagnostics).status, 'passed');
+
+  fs.writeFileSync(
+    path.join(diagnostics, 'compose.yaml'),
+    'services:\n  webui:\n    image: ghcr.io/gaofeng21cn/one-person-lab-webui:latest\n',
+  );
+  const missingMounts = validateDockerWebuiDiagnostics(diagnostics);
+  assert.equal(missingMounts.status, 'failed');
+  assert.ok(missingMounts.invalid_evidence.includes('compose.yaml:host_data_dir -> /data'));
+  assert.ok(missingMounts.invalid_evidence.includes('compose.yaml:host_projects_dir -> /projects'));
+
+  writeCompleteDiagnostics(diagnostics);
+  fs.writeFileSync(
+    path.join(diagnostics, 'data-preservation.txt'),
+    'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n',
+  );
+  const missingProjectsInventory = validateDockerWebuiDiagnostics(diagnostics);
+  assert.equal(missingProjectsInventory.status, 'failed');
+  assert.ok(missingProjectsInventory.invalid_evidence.includes('data-preservation.txt:pre_projects_inventory'));
+  assert.ok(missingProjectsInventory.invalid_evidence.includes('data-preservation.txt:post_projects_inventory'));
+
+  writeCompleteDiagnostics(diagnostics);
+  fs.writeFileSync(path.join(diagnostics, 'docker-image.txt'), JSON.stringify([{ Id: 'sha256:not-a-real-digest' }]));
+  const missingDigest = validateDockerWebuiDiagnostics(diagnostics);
+  assert.equal(missingDigest.status, 'failed');
+  assert.ok(missingDigest.invalid_evidence.includes('docker-image.txt:image_digest'));
+  assert.equal(missingDigest.image_identity.currentness_claim, false);
+});
+
 test('Docker/WebUI smoke gate result readback fails when required artifact schema fields are missing', () => {
   const valid = validateDockerWebuiSmokeGateResult(completeGateResult());
   assert.equal(valid.status, 'passed');
@@ -201,6 +281,32 @@ test('Docker/WebUI smoke gate result readback rejects passed gates with failed h
   const result = validateDockerWebuiSmokeGateResult(payload);
   assert.equal(result.status, 'failed');
   assert.ok(result.invalid_fields.includes('health.status'));
+});
+
+test('Docker/WebUI smoke gate result readback rejects passed gates without image digest identity', () => {
+  const payload = completeGateResult();
+  payload.image.digest = null;
+
+  const result = validateDockerWebuiSmokeGateResult(payload);
+  assert.equal(result.status, 'failed');
+  assert.ok(result.invalid_fields.includes('image.digest'));
+
+  payload.image.digest = imageDigest;
+  payload.image.currentness_claim = true;
+  const falseCurrentness = validateDockerWebuiSmokeGateResult(payload);
+  assert.equal(falseCurrentness.status, 'failed');
+  assert.ok(falseCurrentness.invalid_fields.includes('image.currentness_claim'));
+});
+
+test('Docker/WebUI smoke gate result readback rejects passed gates without diagnostics proof fields', () => {
+  const payload = completeGateResult();
+  payload.diagnostics_validation = { status: 'passed' };
+
+  const result = validateDockerWebuiSmokeGateResult(payload);
+  assert.equal(result.status, 'failed');
+  assert.ok(result.invalid_fields.includes('diagnostics_validation.compose_volume_mapping.status'));
+  assert.ok(result.invalid_fields.includes('diagnostics_validation.preservation_evidence.status'));
+  assert.ok(result.invalid_fields.includes('diagnostics_validation.image_identity.digest'));
 });
 
 test('Docker/WebUI smoke gate result readback rejects passed gates without ordinary user path status', () => {

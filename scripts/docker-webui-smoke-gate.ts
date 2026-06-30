@@ -30,7 +30,14 @@ type GateResult = {
   health: { url: string; status: 'passed' | 'failed' | 'not_run'; http_status: number | null };
   compose: { path: string; status: 'present' | 'missing' | 'not_run' };
   container: { name: string; status: string; id: string | null };
-  image: { ref: string; status: 'present' | 'missing' | 'not_run'; id: string | null };
+  image: {
+    ref: string;
+    status: 'present' | 'missing' | 'not_run';
+    id: string | null;
+    repo_digests: string[];
+    digest: string | null;
+    currentness_claim: false;
+  };
   data_preservation: { status: 'passed' | 'failed' | 'not_run'; verdict: string | null; summary: string };
   api_key_flow: {
     status: 'passed' | 'failed' | 'not_run';
@@ -134,6 +141,49 @@ const ordinaryMustNotClaim = [
   'clean_windows_vm_pass_without_clean_windows_evidence',
   'release_ready',
 ] as const;
+
+function emptyDiagnosticsValidation(diagnosticsDir: string, missingFiles = ['diagnostics not run']) {
+  return {
+    status: 'failed' as const,
+    diagnostics_dir: diagnosticsDir,
+    checked_files: [],
+    missing_files: missingFiles,
+    invalid_evidence: [],
+    forbidden_secret_markers: [],
+    secret_scan: {
+      status: 'passed' as const,
+      forbidden_secret_markers: [],
+    },
+    preservation_verdict: null,
+    compose_volume_mapping: {
+      status: 'failed' as const,
+      required_mounts: ['host_data_dir -> /data', 'host_projects_dir -> /projects'],
+      missing_mounts: ['host_data_dir -> /data', 'host_projects_dir -> /projects'],
+    },
+    preservation_evidence: {
+      status: 'failed' as const,
+      required_sections: [
+        'pre_data_inventory',
+        'post_data_inventory',
+        'pre_projects_inventory',
+        'post_projects_inventory',
+      ],
+      missing_sections: [
+        'pre_data_inventory',
+        'post_data_inventory',
+        'pre_projects_inventory',
+        'post_projects_inventory',
+      ],
+    },
+    image_identity: {
+      status: 'failed' as const,
+      image_id: null,
+      repo_digests: [],
+      digest: null,
+      currentness_claim: false as const,
+    },
+  };
+}
 
 function parseArgs(argv: string[]) {
   const options = {
@@ -250,6 +300,9 @@ function makeResult(gate: GateId, artifactDir: string): GateResult {
       ref: '',
       status: 'not_run',
       id: null,
+      repo_digests: [],
+      digest: null,
+      currentness_claim: false,
     },
     data_preservation: {
       status: 'not_run',
@@ -570,6 +623,22 @@ function firstJsonString(filePath: string, key: string): string | null {
   return match?.[1] ?? null;
 }
 
+function jsonStringArray(filePath: string, key: string): string[] {
+  if (!fs.existsSync(filePath)) return [];
+  const text = fs.readFileSync(filePath, 'utf8');
+  const match = text.match(new RegExp(`"${key}"\\s*:\\s*\\[([\\s\\S]*?)\\]`));
+  if (!match) return [];
+  return [...match[1].matchAll(/"([^"]+)"/g)].map((entry) => entry[1]).filter(Boolean);
+}
+
+function normalizeImageDigest(imageId: string | null, repoDigests: string[]): string | null {
+  const repoDigest = repoDigests.find((value) => /@sha256:[a-f0-9]{64}$/i.test(value));
+  if (repoDigest) {
+    return repoDigest.slice(repoDigest.indexOf('@') + 1);
+  }
+  return imageId && /^sha256:[a-f0-9]{64}$/i.test(imageId) ? imageId : null;
+}
+
 function readHttpStatus(httpProbe: Record<string, string>): number | null {
   const candidates = [
     httpProbe.status,
@@ -725,6 +794,8 @@ function readDiagnosticsSummary(result: GateResult, options: ReturnType<typeof p
   const healthUrl = metadata.health_url || `http://localhost:${options.port}/`;
   const httpStatus = readHttpStatus(httpProbe);
   const imageId = firstJsonString(path.join(result.diagnostics_dir, 'docker-image.txt'), 'Id');
+  const repoDigests = jsonStringArray(path.join(result.diagnostics_dir, 'docker-image.txt'), 'RepoDigests');
+  const imageDigest = normalizeImageDigest(imageId, repoDigests);
 
   result.health = {
     url: healthUrl,
@@ -744,6 +815,9 @@ function readDiagnosticsSummary(result: GateResult, options: ReturnType<typeof p
     ref: imageRef,
     status: fileStatus(path.join(result.diagnostics_dir, 'docker-image.txt')),
     id: imageId,
+    repo_digests: repoDigests,
+    digest: imageDigest,
+    currentness_claim: false,
   };
   result.data_preservation = {
     status: preservation.verdict ? 'passed' : fileStatus(path.join(result.diagnostics_dir, 'data-preservation.txt')) === 'present' ? 'failed' : 'not_run',
@@ -810,18 +884,7 @@ function validateWindowsEvidence(evidenceDir: string) {
   );
   const diagnosticsValidation = diagnosticsDir
     ? validateDockerWebuiDiagnostics(diagnosticsDir)
-    : ({
-        status: 'failed',
-        diagnostics_dir: '',
-        checked_files: [],
-        missing_files: ['diagnostics_dir'],
-        forbidden_secret_markers: [],
-        secret_scan: {
-          status: 'passed',
-          forbidden_secret_markers: [],
-        },
-        preservation_verdict: null,
-      } as ReturnType<typeof validateDockerWebuiDiagnostics>);
+    : (emptyDiagnosticsValidation('', ['diagnostics_dir']) as ReturnType<typeof validateDockerWebuiDiagnostics>);
   if (diagnosticsValidation.status !== 'passed') {
     errors.push('diagnostics validation failed');
   }
@@ -1073,9 +1136,49 @@ export function validateDockerWebuiSmokeGateResult(payload: unknown): GateResult
     if (!isObject(payload.diagnostics_validation) || payload.diagnostics_validation.status !== 'passed') {
       invalidFields.push('diagnostics_validation.status');
     }
+    if (
+      !isObject(payload.diagnostics_validation) ||
+      !isObject(payload.diagnostics_validation.compose_volume_mapping) ||
+      payload.diagnostics_validation.compose_volume_mapping.status !== 'passed'
+    ) {
+      invalidFields.push('diagnostics_validation.compose_volume_mapping.status');
+    }
+    if (
+      !isObject(payload.diagnostics_validation) ||
+      !isObject(payload.diagnostics_validation.preservation_evidence) ||
+      payload.diagnostics_validation.preservation_evidence.status !== 'passed'
+    ) {
+      invalidFields.push('diagnostics_validation.preservation_evidence.status');
+    }
+    if (
+      !isObject(payload.diagnostics_validation) ||
+      !isObject(payload.diagnostics_validation.image_identity) ||
+      payload.diagnostics_validation.image_identity.status !== 'passed' ||
+      !isNonEmptyString(payload.diagnostics_validation.image_identity.digest) ||
+      !/^sha256:[a-f0-9]{64}$/i.test(payload.diagnostics_validation.image_identity.digest)
+    ) {
+      invalidFields.push('diagnostics_validation.image_identity.digest');
+    }
+    if (
+      !isObject(payload.diagnostics_validation) ||
+      !isObject(payload.diagnostics_validation.image_identity) ||
+      payload.diagnostics_validation.image_identity.currentness_claim !== false
+    ) {
+      invalidFields.push('diagnostics_validation.image_identity.currentness_claim');
+    }
     if (!isObject(payload.health) || payload.health.status !== 'passed') invalidFields.push('health.status');
     if (!isObject(payload.compose) || payload.compose.status !== 'present') invalidFields.push('compose.status');
     if (!isObject(payload.image) || payload.image.status !== 'present') invalidFields.push('image.status');
+    if (
+      !isObject(payload.image) ||
+      !isNonEmptyString(payload.image.digest) ||
+      !/^sha256:[a-f0-9]{64}$/i.test(payload.image.digest)
+    ) {
+      invalidFields.push('image.digest');
+    }
+    if (!isObject(payload.image) || payload.image.currentness_claim !== false) {
+      invalidFields.push('image.currentness_claim');
+    }
     if (!isObject(payload.data_preservation) || payload.data_preservation.status !== 'passed') {
       invalidFields.push('data_preservation.status');
     }
@@ -1207,18 +1310,7 @@ function main() {
   const artifactDir = path.resolve(options.artifacts);
   fs.mkdirSync(artifactDir, { recursive: true });
   let result = makeResult(options.gate, artifactDir);
-  result.diagnostics_validation = {
-    status: 'failed',
-    diagnostics_dir: result.diagnostics_dir,
-    checked_files: [],
-    missing_files: ['diagnostics not run'],
-    forbidden_secret_markers: [],
-    secret_scan: {
-      status: 'passed',
-      forbidden_secret_markers: [],
-    },
-    preservation_verdict: null,
-  };
+  result.diagnostics_validation = emptyDiagnosticsValidation(result.diagnostics_dir);
 
   if (options.gate === 'clean_windows_vm' && options.evidence) {
     result = importWindowsEvidenceGate(result, options);

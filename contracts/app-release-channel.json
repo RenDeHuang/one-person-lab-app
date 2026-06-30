@@ -2471,8 +2471,8 @@
             "carrier_status_source": "GHCR image digest, compose/container image readback, and Docker/WebUI installer or smoke-gate diagnostics",
             "host_update_route": "host_executor_runs_documented_installer_or_compose_pull_and_up",
             "host_update_route_examples": [
-              "install-docker-webui.sh --yes --pull",
-              "install-docker-webui.ps1 -Yes -Pull",
+              "install-docker-webui.sh --yes --update",
+              "install-docker-webui.ps1 -Yes -Update",
               "docker compose pull && docker compose up -d"
             ],
             "status_values": [

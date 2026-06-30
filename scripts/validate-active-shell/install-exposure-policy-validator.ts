@@ -277,6 +277,18 @@ function validateInstallerSurfaces(policy) {
     ['release readiness', 'clean VM pass', 'domain readiness', 'production readiness'],
     'Docker/WebUI ordinary user progress false-ready boundary',
   );
+  assertIncludesAll(
+    dockerWebui.installer_model?.ordinary_user_progress?.status_surfaces,
+    [
+      'HTTP health readback',
+      'api_key_flow_evidence',
+      'data-preservation verdict',
+      'compose volume mapping readback',
+      'image digest readback',
+      'OPL maintenance status after WebUI opens',
+    ],
+    'Docker/WebUI ordinary user progress status surfaces',
+  );
   if (dockerWebui.installer_model?.manual_docker_fallback !== 'advanced_troubleshooting_path_only') {
     throw new Error('Docker/WebUI install exposure must keep manual Docker as an advanced fallback only');
   }
@@ -344,9 +356,12 @@ function validateDockerWebuiSmokeGateContract(contract) {
       'compose.yaml',
       'docker ps',
       'docker logs',
+      'image_digest_readback',
+      'compose_volume_mapping_readback',
       'http_health_readback',
       'api_key_flow_evidence',
       'auth_user_readback',
+      'data_preservation_inventory',
       'install_manifest_readback',
       'projects_mount_readback',
     ],
@@ -378,7 +393,16 @@ function validateDockerWebuiSmokeGateContract(contract) {
     }
     assertIncludesAll(
       gate.required_evidence,
-      ['compose_yaml', 'container_logs', 'http_health_readback', 'api_key_flow_evidence', 'install_manifest_readback'],
+      [
+        'compose_yaml',
+        'image_digest_readback',
+        'compose_volume_mapping_readback',
+        'container_logs',
+        'http_health_readback',
+        'api_key_flow_evidence',
+        'data_preservation_inventory',
+        'install_manifest_readback',
+      ],
       `Docker/WebUI smoke gate ${gateId} evidence`,
     );
   }

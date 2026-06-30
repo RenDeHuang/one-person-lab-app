@@ -301,7 +301,7 @@ function validateInstallationCarrierDockerWebuiVariant(variant) {
   );
   assertIncludesAll(
     variant?.host_update_route_examples,
-    ['install-docker-webui.sh --yes --pull', 'install-docker-webui.ps1 -Yes -Pull', 'docker compose pull && docker compose up -d'],
+    ['install-docker-webui.sh --yes --update', 'install-docker-webui.ps1 -Yes -Update', 'docker compose pull && docker compose up -d'],
     'Installation carrier Docker/WebUI host update route examples',
   );
   assertIncludesAll(

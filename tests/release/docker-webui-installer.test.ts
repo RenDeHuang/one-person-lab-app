@@ -11,6 +11,7 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..',
 const installerPath = path.join(appRoot, 'scripts', 'install-docker-webui.sh');
 const windowsInstallerPath = path.join(appRoot, 'scripts', 'install-docker-webui.ps1');
 const smokeGatePath = path.join(appRoot, 'scripts', 'docker-webui-smoke-gate.ts');
+const imageDigest = 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const diagnosticsFiles = [
   'metadata.txt',
   'diagnostics-manifest.json',
@@ -35,12 +36,35 @@ function runInstaller(args: string[], env: NodeJS.ProcessEnv = {}) {
 function writeMinimalDiagnostics(diagnostics: string) {
   fs.mkdirSync(diagnostics, { recursive: true });
   for (const file of diagnosticsFiles) {
-    const content = file === 'http-probe.txt' ? 'url=http://localhost:3000/\nstatus=200\n' : `${file}\n`;
+    let content = `${file}\n`;
+    if (file === 'http-probe.txt') {
+      content = 'url=http://localhost:3000/\nstatus=200\n';
+    } else if (file === 'compose.yaml') {
+      content = [
+        'services:',
+        '  webui:',
+        '    image: ghcr.io/gaofeng21cn/one-person-lab-webui:latest',
+        '    environment:',
+        '      AIONUI_DATA_DIR: /data',
+        '      OPL_PROJECTS_DIR: /projects',
+        '    volumes:',
+        '      - "/tmp/data:/data"',
+        '      - "/tmp/projects:/projects"',
+        '',
+      ].join('\n');
+    } else if (file === 'docker-image.txt') {
+      content = JSON.stringify([
+        {
+          Id: imageDigest,
+          RepoDigests: [`ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`],
+        },
+      ]);
+    }
     fs.writeFileSync(path.join(diagnostics, file), content);
   }
   fs.writeFileSync(
     path.join(diagnostics, 'data-preservation.txt'),
-    'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n',
+    'verdict=preserved_or_reused\n[pre_data_inventory]\nexists=true\n[post_data_inventory]\nexists=true\n[pre_projects_inventory]\nexists=true\n[post_projects_inventory]\nexists=true\n',
   );
 }
 
@@ -218,6 +242,7 @@ test('Docker/WebUI diagnostic validator requires preservation evidence and rejec
   assert.equal(secretResult.status, 'failed');
   assert.ok(secretResult.forbidden_secret_markers.some((marker) => marker.includes('OPENAI_API_KEY')));
 
+  writeMinimalDiagnostics(diagnostics);
   fs.rmSync(path.join(diagnostics, 'data-preservation.txt'));
   const missingResult = validateDockerWebuiDiagnostics(diagnostics);
   assert.equal(missingResult.status, 'failed');
@@ -267,6 +292,11 @@ test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', (
   assert.equal(payload.gate_id, 'clean_windows_vm');
   assert.equal(payload.host_platform, process.platform);
   assert.equal(payload.diagnostics_validation.status, 'passed');
+  assert.equal(payload.diagnostics_validation.compose_volume_mapping.status, 'passed');
+  assert.equal(payload.diagnostics_validation.preservation_evidence.status, 'passed');
+  assert.equal(payload.diagnostics_validation.image_identity.digest, imageDigest);
+  assert.equal(payload.image.digest, imageDigest);
+  assert.equal(payload.image.currentness_claim, false);
   assert.equal(payload.api_key_flow.status, 'passed');
   assert.equal(payload.api_key_flow.stdin_transport, true);
   assert.equal(payload.evidence_validation.status, 'passed');

@@ -581,6 +581,8 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'HTTP health readback',
     'api_key_flow_evidence',
     'data-preservation verdict',
+    'compose volume mapping readback',
+    'image digest readback',
     'OPL maintenance status after WebUI opens',
   ]);
   assert.deepEqual(dockerWebui.installer_model.ordinary_user_progress.must_not_claim, [
@@ -676,9 +678,12 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     ...dockerWebui.smoke_gate_contract.diagnostic_gates,
   ]) {
     assert.ok(gate.required_evidence.includes('compose_yaml'), `${gate.id} must require compose evidence`);
+    assert.ok(gate.required_evidence.includes('image_digest_readback'), `${gate.id} must require image digest evidence`);
+    assert.ok(gate.required_evidence.includes('compose_volume_mapping_readback'), `${gate.id} must require compose volume mapping evidence`);
     assert.ok(gate.required_evidence.includes('container_logs'), `${gate.id} must require container logs`);
     assert.ok(gate.required_evidence.includes('http_health_readback'), `${gate.id} must require HTTP health readback`);
     assert.ok(gate.required_evidence.includes('api_key_flow_evidence'), `${gate.id} must require API key UI flow evidence`);
+    assert.ok(gate.required_evidence.includes('data_preservation_inventory'), `${gate.id} must require data preservation inventory evidence`);
     assert.ok(gate.required_evidence.includes('install_manifest_readback'), `${gate.id} must require install manifest readback`);
   }
   assert.deepEqual(dockerWebui.smoke_gate_contract.false_ready_boundary, {

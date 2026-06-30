@@ -356,6 +356,8 @@
             "HTTP health readback",
             "api_key_flow_evidence",
             "data-preservation verdict",
+            "compose volume mapping readback",
+            "image digest readback",
             "OPL maintenance status after WebUI opens"
           ],
           "must_not_claim": [
@@ -461,9 +463,12 @@
           "compose.yaml",
           "docker ps",
           "docker logs",
+          "image_digest_readback",
+          "compose_volume_mapping_readback",
           "http_health_readback",
           "api_key_flow_evidence",
           "auth_user_readback",
+          "data_preservation_inventory",
           "install_manifest_readback",
           "projects_mount_readback"
         ],
@@ -485,11 +490,14 @@
             "required_evidence": [
               "installer_stdout_stderr",
               "compose_yaml",
+              "image_digest_readback",
+              "compose_volume_mapping_readback",
               "docker_ps",
               "container_logs",
               "http_health_readback",
               "api_key_flow_evidence",
               "auth_user_readback",
+              "data_preservation_inventory",
               "install_manifest_readback",
               "projects_mount_readback"
             ]
@@ -506,11 +514,14 @@
             "required_evidence": [
               "powershell_stdout_stderr",
               "compose_yaml",
+              "image_digest_readback",
+              "compose_volume_mapping_readback",
               "docker_ps",
               "container_logs",
               "http_health_readback",
               "api_key_flow_evidence",
               "auth_user_readback",
+              "data_preservation_inventory",
               "install_manifest_readback",
               "projects_mount_readback"
             ]
@@ -527,10 +538,13 @@
             "required_evidence": [
               "docker_version",
               "compose_yaml",
+              "image_digest_readback",
+              "compose_volume_mapping_readback",
               "container_logs",
               "http_health_readback",
               "api_key_flow_evidence",
               "auth_user_readback",
+              "data_preservation_inventory",
               "install_manifest_readback",
               "projects_mount_readback"
             ]
@@ -546,9 +560,12 @@
               "preexisting_data_inventory",
               "migration_or_preservation_log",
               "compose_yaml",
+              "image_digest_readback",
+              "compose_volume_mapping_readback",
               "container_logs",
               "http_health_readback",
               "api_key_flow_evidence",
+              "data_preservation_inventory",
               "install_manifest_readback",
               "post_smoke_data_inventory"
             ]
