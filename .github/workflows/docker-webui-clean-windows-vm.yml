@@ -57,55 +57,86 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const { spawnSync } = require('node:child_process');
+          const artifactPath = 'docker-webui-clean-windows-vm-runner-blocker/runner-preflight.json';
 
-          const requiredLabels = JSON.parse(process.env.RUNNER_LABELS_JSON || '[]');
-          if (!Array.isArray(requiredLabels) || requiredLabels.length === 0) {
-            throw new Error('runner_labels_json must be a non-empty JSON array');
-          }
-          const api = spawnSync('gh', [
-            'api',
-            `repos/${process.env.GITHUB_REPOSITORY}/actions/runners`,
-            '--paginate',
-          ], {
-            encoding: 'utf8',
-            env: process.env,
-          });
-          if (api.status !== 0) {
-            throw new Error(api.stderr || api.stdout || 'failed to list self-hosted runners');
-          }
-          const pages = api.stdout
-            .split(/\n(?=\{)/)
-            .filter(Boolean)
-            .map((page) => JSON.parse(page));
-          const runners = pages.flatMap((page) => page.runners || []);
-          const eligible = runners.filter((runner) => {
-            const labels = new Set((runner.labels || []).map((label) => label.name));
-            return runner.status === 'online' &&
-              runner.busy === false &&
-              requiredLabels.every((label) => labels.has(label));
-          });
-          const payload = {
+          let requiredLabels = [];
+          let payload = {
             schema: 'opl_docker_webui_clean_windows_runner_preflight.v1',
-            status: eligible.length > 0 ? 'passed' : 'typed_blocker',
+            status: 'typed_blocker',
             required_labels: requiredLabels,
-            eligible_runners: eligible.map((runner) => ({
-              id: runner.id,
-              name: runner.name,
-              os: runner.os,
-              status: runner.status,
-              busy: runner.busy,
-              labels: (runner.labels || []).map((label) => label.name),
-            })),
-            observed_runners: runners.map((runner) => ({
-              id: runner.id,
-              name: runner.name,
-              os: runner.os,
-              status: runner.status,
-              busy: runner.busy,
-              labels: (runner.labels || []).map((label) => label.name),
-            })),
+            eligible_runners: [],
+            observed_runners: [],
           };
-          if (payload.status !== 'passed') {
+
+          try {
+            requiredLabels = JSON.parse(process.env.RUNNER_LABELS_JSON || '[]');
+            if (!Array.isArray(requiredLabels) || requiredLabels.length === 0) {
+              throw new Error('runner_labels_json must be a non-empty JSON array');
+            }
+            payload.required_labels = requiredLabels;
+            const api = spawnSync('gh', [
+              'api',
+              `repos/${process.env.GITHUB_REPOSITORY}/actions/runners`,
+              '--paginate',
+            ], {
+              encoding: 'utf8',
+              env: process.env,
+            });
+            if (api.status !== 0) {
+              const detail = (api.stderr || api.stdout || 'failed to list self-hosted runners').trim();
+              payload.typed_blocker = {
+                code: 'runner_inventory_unreadable',
+                owner: 'release_or_install_validation_operator',
+                message: 'The workflow could not read repository self-hosted runner inventory.',
+                detail,
+                required_next_action: 'Grant a token/scope that can read repository Actions runners or run this workflow with explicit runner inventory evidence, then rerun clean Windows smoke.',
+              };
+              fs.writeFileSync(artifactPath, `${JSON.stringify(payload, null, 2)}\n`);
+              process.exitCode = 1;
+              return;
+            }
+            const pages = api.stdout
+              .split(/\n(?=\{)/)
+              .filter(Boolean)
+              .map((page) => JSON.parse(page));
+            const runners = pages.flatMap((page) => page.runners || []);
+            const eligible = runners.filter((runner) => {
+              const labels = new Set((runner.labels || []).map((label) => label.name));
+              return runner.status === 'online' &&
+                runner.busy === false &&
+                requiredLabels.every((label) => labels.has(label));
+            });
+            payload = {
+              ...payload,
+              status: eligible.length > 0 ? 'passed' : 'typed_blocker',
+              required_labels: requiredLabels,
+              eligible_runners: eligible.map((runner) => ({
+                id: runner.id,
+                name: runner.name,
+                os: runner.os,
+                status: runner.status,
+                busy: runner.busy,
+                labels: (runner.labels || []).map((label) => label.name),
+              })),
+              observed_runners: runners.map((runner) => ({
+                id: runner.id,
+                name: runner.name,
+                os: runner.os,
+                status: runner.status,
+                busy: runner.busy,
+                labels: (runner.labels || []).map((label) => label.name),
+              })),
+            };
+          } catch (error) {
+            payload.typed_blocker = {
+              code: 'runner_preflight_failed',
+              owner: 'release_or_install_validation_operator',
+              message: 'The clean Windows runner preflight failed before it could evaluate runner availability.',
+              detail: error instanceof Error ? error.message : String(error),
+              required_next_action: 'Fix runner_labels_json or the runner preflight inventory read path, then rerun clean Windows smoke.',
+            };
+          }
+          if (payload.status !== 'passed' && !payload.typed_blocker) {
             payload.typed_blocker = {
               code: 'missing_clean_windows_self_hosted_runner',
               owner: 'release_or_install_validation_operator',
@@ -114,7 +145,7 @@ jobs:
             };
           }
           fs.writeFileSync(
-            'docker-webui-clean-windows-vm-runner-blocker/runner-preflight.json',
+            artifactPath,
             `${JSON.stringify(payload, null, 2)}\n`,
           );
           if (payload.status !== 'passed') {
