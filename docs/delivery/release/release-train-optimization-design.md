@@ -156,306 +156,39 @@ or inconsistent.
 may capture and refresh user-guide screenshots from the promoted Stable cohort,
 but it must not become a pre-promotion gate or a release readiness substitute.
 
-## Implementation Layers
+## Implementation Surface
 
-Layer 1 is now implemented: App-owned preflight. It prevents common late
-failures such as wrong release mode, missing release target, missing Homebrew
-token for a stable VM run, deleted preflight workflow steps, and release plan
-drift.
+This section records the current release-control design, not a proof ledger.
+Specific run ids, timing profiles, failed-gate transcripts, and release-by-
+release investigation detail belong in release artifacts, CI logs, release
+records, or `docs/history/process/`.
 
-Layer 2 is now partially implemented: release triggering and promotion are
-joined by `opl_release_candidate_record.v1`. The intended Stable path creates a
-draft candidate first, runs the gates against that cohort, writes the candidate
-record, and promotes only when the record is `ready_to_promote`; blocked cohorts
-keep their gate reasons in the same record.
+| Control surface | Current design role | Authority boundary |
+| --- | --- | --- |
+| App-owned preflight | Fail fast on release mode, target, workflow shape, release-plan drift, external ref availability, Homebrew token requirements, and VM-smoke package metadata before expensive jobs run. | Preflight is an admission gate only; it does not replace build, VM, remote verification, or owner evidence. |
+| Candidate record and promotion | Join release triggering, readiness, remote verification, owner-resolution refs, and promotion decision through `opl_release_candidate_record.v1`. Stable promotion must read a same-cohort `ready_to_promote` record. | Candidate records cannot skip failed gates, create owner receipts, or claim family/domain production readiness. |
+| Readiness summary and closeout | The final readiness job writes `release-readiness-summary.json`, `release-candidate-record.json`, `release-closeout.json/md`, monitor state, and notification state from small structured artifacts. | Operators stop at structured blockers, readiness, closeout, remote verification, or candidate record before opening raw logs. |
+| Release operator status | `npm run release:operator` is the no-watch control surface for current job/step, elapsed time, run update age, stale candidate state, primary blocker, and typed next action. | It is an operator state machine, not a release-ready claim or second release truth source. |
+| WebUI GHCR lane | Standalone WebUI publish is split into prepare, build, inspect/readback, smoke, tag, publish, and upload steps so the slow or failed boundary is visible. | WebUI/container evidence does not replace desktop App install evidence or stable promotion evidence. |
+| Release actions timing | `release-actions-timing.json/md` measures workflow wall time, failed/cancelled run tax, slow jobs, slow steps, and optional operator-loop gap. | Timing artifacts are delivery-health evidence, not release readiness or owner acceptance. |
+| Standard/Homebrew critical path | The Homebrew standard VM gate waits only for the stable standard cask tap update. Full cask update remains an independent required gate when Full is included. | Standard and Full release lanes stay separate; standard evidence cannot prove Full first-install readiness. |
+| Gate reuse plan | `npm run release:gate-reuse-plan` can emit `opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run` decisions and a stable digest. | It is advisory until workflows explicitly consume the artifact; no gate is skipped by prose. |
+| Tart prebake boundary | The release contract allows only host setup layers such as GUI session readiness, Homebrew prerequisites, Node prerequisites, and Codex install cache seed. | A prebaked base is not current release infrastructure until it has an image receipt, digest, profile, truth boundary, and validation command. |
+| Owner-resolution rebuild | Promote workflow may rebuild a candidate record from existing same-cohort small artifacts when only owner receipt/verdict refs arrived after the run. | It cannot repair failed gates or generate owner authority. |
+| Post-publish follow-up | Closeout distinguishes published/readback state from later Homebrew VM, screenshot, docs, or proof-gate follow-up via `published_with_post_publish_followup`. | Follow-up gates must not rewrite whether the release/tap was already published. |
+| Pinned cohort flow | Stable release separates sync preparation from release execution: resolve App/Shell/Framework refs, run cheap owner/source gates, write a cohort lock, then release that exact cohort. | Moving `main`, shell `main`, and framework `main` are preparation inputs only, never final release train truth. |
+| Stale/draining stop states | `failed_gate_draining` stops the decision while queued jobs settle; `stale_candidate` keeps old artifacts diagnostic-only when source refs no longer match the cohort lock. | Old-cohort artifacts cannot be promoted or reinterpreted as current release evidence. |
 
-Layer 3 should make Full package size and DMG fallback compression a local fast
-gate. The Full fallback must use electron-builder `--prepackaged`; any plain
-`hdiutil -srcfolder` fallback is a release regression because it can pass local
-authorization while exceeding the Full DMG size budget.
+## Open Design Work
 
-Layer 4 is now implemented as a default release-train artifact, not as an
-optional operator shortcut. The `release-readiness-summary` job writes
-`release-readiness-summary.json`, `release-candidate-record.json`, and then
-`release-closeout.json/md`, uploading `release-closeout-<version>` for every
-desktop release run. It reuses the local small artifacts already downloaded by
-readiness, runs the closeout script with `--no-download`, refuses
-standard/Full package artifacts, records GitHub Actions workflow wall time
-separately from Agent orchestration wall time, and points the operator at
-promotion, candidate blockers, failed readiness gates, or raw log inspection
-only after structured evidence is missing. The `npm run release:closeout`
-command remains the rerun/debug entry for the same logic. For any long-running
-release run, stop at the candidate record, readiness summary, closeout summary,
-remote verification JSON, or named blocked gate. Do not keep chasing scattered
-job logs after the structured artifacts have already identified the stop
-condition.
-
-Layer 5 is now implemented as the candidate record. It stores version, App
-commit, shell/framework refs, workflow run id, preflight/readiness/remote
-verification statuses, Full resolved refs, remote asset summary, job results,
-blocked reasons, and the promotion decision.
-
-Layer 6 is now implemented as first-run failure-tax reduction. The 2026-06-18
-`v26.6.18` stable refresh took `4h2m50s` of Agent/operator wall time, but the
-successful final workflow was `48m32s`. The extra cost came from failed release
-runs that exposed problems only after expensive jobs had already started:
-
-- `27766301877` failed after the Full package lane and operator-evidence
-  summary had already run.
-- `27768289724` failed in the Homebrew standard VM lane during Codex package
-  asset prefetch.
-- `27771471126` failed in standard clean VM readiness and later in active-shell
-  checkout for the Homebrew VM lane.
-
-Layer 7 is now implemented as release-operator progress correction. The
-2026-06-29/30 stable attempt showed that an in-progress GitHub run may keep an
-old `updatedAt` while the current step is still active. The operator therefore
-computes active elapsed time against its own `generated_at`, reports current
-step elapsed time and run update age, and changes the next action from passive
-waiting to current-step inspection when the attention budget is crossed.
-
-Layer 8 is now implemented for the standalone WebUI GHCR lane. The old
-standalone workflow put build, runtime inspection, smoke, tagging, and GHCR
-push into one long step, so an operator could only see
-`Build, verify, and publish Docker WebUI` while logs and artifacts were
-unavailable. The workflow now calls the App-owned
-`scripts/webui-ghcr-release-step.sh` helper from separate GitHub Actions steps,
-preserving existing artifact names while making the slow or failed boundary
-visible in the Actions job list.
-
-The release preflight therefore owns fast external availability checks for
-`shell_ref`, `framework_ref`, and the Codex CLI plus Darwin arm64 platform
-package metadata whenever VM smoke is requested. These checks do not replace
-builds, VM smokes, tarball download, or release readback evidence; they only
-move common release-blocking failures from the 30-50 minute mark to the first
-preflight job.
-
-Layer 7 is now implemented as a default GitHub Actions timing artifact. Every
-desktop release run writes `release-actions-timing.json` and
-`release-actions-timing.md` from the final readiness job. This artifact records
-workflow wall time, failed/cancelled run tax when multiple run IDs are supplied
-manually, slow jobs, and slow steps. Operators should use it before opening raw
-job logs so performance tuning starts from measured bottlenecks rather than
-long `gh run watch` output.
-
-Layer 8 is now implemented as standard/Homebrew critical-path decoupling. The
-Homebrew standard VM smoke waits for the stable standard cask tap update only.
-It no longer waits for the Full cask tap update, because the standard Homebrew
-install gate tests the standard cask and standard release assets. The Full tap
-update remains an independent required readiness gate when the Full package is
-included.
-
-Layer 9 is now implemented as a gate-reuse decision artifact. The
-`npm run release:gate-reuse-plan` command compares the current cohort against a
-previous promote-ready candidate record, previous readiness summary, and
-previous remote verification artifact. It emits
-`opl_release_gate_reuse_plan.v1` with per-gate `reuse_allowed` / `must_run`
-decisions, the matched cohort fields, and a stable `reuse_digest`. The command
-requires matching version, release mode, Full/VM-smoke intent, App commit,
-shell/framework refs, resolved framework sha, previous gate status, previous
-candidate status, and remote asset `{name,size,sha256}` set. This is not yet an
-automatic workflow skip; workflows must explicitly consume the artifact before
-any gate can be skipped.
-
-Layer 10 is now contracted as a Tart base prebake boundary, not claimed as a
-current image. The release contract names the standard and Homebrew source VM
-variables and allows only host setup layers such as GUI session readiness,
-Homebrew prerequisites, Node runtime prerequisites, and Codex install asset
-cache seed. It forbids prebaking the App, release DMGs, release Homebrew casks,
-workspace state, runtime truth, domain artifact truth, or owner receipts. A real
-prebaked base still needs an image receipt with source VM, image digest,
-profile, prebaked layers, truth boundary, and validation command before it can
-be considered current release infrastructure.
-
-Layer 11 is now implemented as promote-time owner-resolution rebuild. When a
-desktop release run has already produced complete same-cohort evidence and the
-candidate is blocked only because the owner receipt/verdict ref arrived after
-the run, `desktop-release-promote.yml` can accept
-`release_owner_verdict_ref` or `release_owner_receipt_ref`, download the
-original run's small preflight/readiness/remote-verification artifacts, rebuild
-the candidate with `npm run release:candidate-record:resolve-owner`, and then
-run the same promote-ready validator before publication. This removes the full
-desktop release refresh tax for owner metadata only. It does not skip failed
-release gates, create owner receipts, or make release-ready/family-production
-claims.
-
-Layer 12 is now implemented as post-publish follow-up classification. Closeout
-distinguishes a completed publication/readback from a later Homebrew VM,
-screenshot, docs, or other proof gate failure by reporting
-`published_with_post_publish_followup` and `resolve_post_publish_followup_gate`.
-Operators should use this state to chase the failed proof artifact without
-reconstructing whether the GitHub Release or Homebrew tap already changed.
-
-Layer 13 is now the release operator controller surface. The 2026-06-29 release
-attempt showed that the repository has many correct gates, but the human/agent
-still had to synchronize repositories, dispatch releases, poll Actions,
-classify failures, repair a shell gate, redispatch, switch from high-noise
-`gh run watch` to narrow JSON polling, and then manually discover the right
-diagnostic rerun. The default front door is a repo-native command pair:
-`npm run release:cohort-plan` records the pinned cohort, and
-`npm run release:operator` reads or writes the local operator state.
-
-The controller default flow is:
-
-1. resolve and record the cohort plan, including App commit, shell ref, shell
-   resolved SHA, framework ref, framework resolved SHA, Full intent, VM intent,
-   owner-resolution inputs, and any reusable gate candidates;
-2. run only the cheap local/currentness, release-boundary, and source-gate
-   checks before dispatch;
-3. dispatch the release workflow only for that pinned cohort;
-4. poll only `release-operator-state.json`, the closeout/monitor artifact, or
-   structured job JSON; never poll the whole job matrix by default;
-5. on failure, emit a typed stop state with exactly one next action:
-   `repair_source_gate`, `dispatch_new_cohort`,
-   `rerun_diagnostic_same_artifact`, `provide_owner_receipt`,
-   `wait_for_runner_capacity`, `retry_transient_upload`, or
-   `promote_candidate`;
-6. never require the operator to infer whether publish, promotion, or user-path
-   proof has happened from scattered logs.
-
-This controller must remain thin. It should orchestrate existing scripts,
-workflows, and artifacts; it must not become a second release truth source.
-Moving `main` is allowed only as a ref-resolution source during preparation. It
-is not a final release train input. The release train input is the cohort lock:
-version, release mode, App SHA, shell ref plus resolved shell SHA, framework ref
-plus resolved framework SHA, Full/VM intent, owner refs, and gate-reuse inputs.
-
-Layer 14 should make failed VM diagnostics durable even when GitHub artifact
-upload finalization fails. The 2026-06-29 Full VM gate failed after the window
-opened but before usable-entry labels were exposed; the artifact upload then
-hit an `ECONNRESET`, leaving only partial log evidence. For release gates, the
-diagnostic path should be designed as if artifact upload can fail:
-
-- always write a small `vm-gate-failure-summary.json/md` before uploading large
-  bundles;
-- split VM diagnostics into small critical JSON/log artifacts and large optional
-  screenshots/videos;
-- upload the small critical artifact with fail-closed behavior, and upload
-  large evidence with retry/compression settings chosen for recovery rather
-  than convenience;
-- when running on a self-hosted Tart runner, optionally copy critical summaries
-  to a bounded local retention directory before workspace cleanup;
-- make the closeout state name `diagnostic_artifact_missing` separately from
-  the underlying VM failure, so the next action is a targeted diagnostic rerun
-  against the same release artifact, not another full release rebuild.
-
-Layer 15 should promote diagnostic reruns to first-class recovery lanes. A Full
-VM failure after remote asset verification should not force another standard
-build, Full build, and release asset upload just to learn more. The existing
-`OPL GUI First-Run VM` inputs already support `release_artifact_run_id`,
-`release_artifact_name`, `release_tag`, `package_profile`, `diagnostic_scope`,
-and `keep_vm`; the controller should expose a single command that dispatches
-the correct same-artifact diagnostic lane and records its output next to the
-failed release closeout. Diagnostic reruns remain non-authoritative unless the
-release workflow explicitly consumes them for a same-cohort gate decision, but
-they should be the default next step for missing VM evidence.
-
-Layer 16 is now the pinned cohort release flow. It separates "sync everything to
-latest" from "release a stable cohort." Syncing every OPL-family repository
-immediately before release is good for currentness, but it maximizes batch size
-and can import unrelated shell or domain regressions into the release train. The
-stable release flow has two phases:
-
-1. a sync preparation phase that updates the OPL family, runs each repo's cheap
-   owner/source gate, and records a candidate ref set;
-2. a stable release phase that pins those refs, writes the cohort lock, and
-   releases that exact cohort.
-
-If preparation finds a shell type/format/DOM failure, it should stop before the
-App release workflow starts. If the release phase fails, recovery should keep
-the same pinned cohort unless the typed blocker explicitly requires a source
-change. This reduces rework tax and makes gate reuse auditable.
-The source-gate root-cause rule is fail-fast: a stale App head, unresolved shell
-ref, wrong shell type/format, unresolved framework ref, dirty source checkout,
-or missing release-boundary policy is a preparation/source-gate failure. Do not
-redispatch a full release train to rediscover it in standard, Full, VM,
-Homebrew, WebUI, or readiness jobs.
-
-Stale run draining is a stop state, not a watch strategy. If a critical gate has
-failed while already-queued jobs are still settling, the controller should
-report `failed_gate_draining` with the primary blocker and next action. The
-operator waits for drain only to avoid racing cleanup or artifact finalization;
-the release decision has already stopped on the typed blocker. If the run head
-or source refs no longer match the cohort lock, the run becomes
-`stale_candidate`: keep its artifacts for diagnosis of the old cohort, but
-never promote it or reinterpret it as evidence for a newer cohort.
-
-Layer 17 is now the release-session control loop. The 2026-06-29/30
-`v26.6.29` stable release finally published and promoted, but the operator
-experience took about 14 hours. Fresh readback on 2026-06-30 showed the
-successful Desktop Release run `28412088570` took `3251s`, the Promote run
-`28414244139` took `619s`, and a multi-run `release:actions-timing` profile
-over `28399013653`, `28409816179`, `28412088570`, and `28414244139` counted
-`6864s` of accumulated Actions run wall time inside a `20652s` Actions span,
-with two failed release runs consuming `2994s`. With a 14-hour operator clock,
-`29748s` remained outside the Actions span. That residual time is the new
-optimization target: not faster Bash alone, but less waiting, fewer manual
-branch/context switches, faster typed stop states, and fewer ambiguous
-diagnostic decisions.
-
-The ideal release session has one durable state file and one next action at any
-time:
-
-- `release_session_id`: version plus pinned cohort digest, not a conversation
-  id or a moving branch.
-- `session_budget`: target, attention, and stop thresholds for total operator
-  wall time, accumulated Actions wall time, and no-progress time.
-- `run_set`: all related Desktop Release, diagnostic, GHCR, Windows VM,
-  Promote, Homebrew, and docs follow-up run ids with their role and cohort.
-- `current_authority`: `preflight`, `source_gate`, `release_run`,
-  `candidate_record`, `owner_receipt`, `promote_run`, `published_release`,
-  or `post_publish_followup`; this avoids treating logs, docs, or an old run
-  as the active truth.
-- `typed_next_action`: exactly one of wait, inspect current step, repair source
-  gate, run same-artifact diagnostic, provide owner receipt, promote candidate,
-  resolve post-publish follow-up, or start a new cohort.
-- `session_timing`: generated by `release:actions-timing` across the full run
-  set, including failed/cancelled run tax and unaccounted operator time when an
-  Agent wall-time clock is supplied.
-
-This layer should land as an extension of the thin operator controller, not as a
-second release truth source. `release:operator status` remains the one-run
-readout; the next controller increment should add a session manifest that calls
-the existing one-run status, closeout, candidate-record, and actions-timing
-commands. It should make the 14-hour path visible while it is happening: after
-the first failed gate, after every diagnostic rerun, after owner receipt
-arrival, before promote, and after post-publish follow-up. A completed release
-should close with both machine truth and delivery health: published release
-readback, Homebrew tap readback, owner receipt, candidate/promote evidence,
-run-set timing, failed-run tax, and exactly which future work would reduce the
-next session.
-
-Next optimization candidates must preserve release authority boundaries:
-
-- Continue hardening the thin release controller described in Layer 13. It
-  should read and write only structured release artifacts, dispatch existing
-  workflows, and produce a small `release-operator-state.json` for local/agent
-  use.
-- Split Full/standard VM failure evidence as described in Layer 14, then make
-  closeout recognize `diagnostic_artifact_missing` with a same-artifact
-  diagnostic rerun command.
-- Add a first-class same-artifact diagnostic command for Full VM failures,
-  backed by `OPL GUI First-Run VM` with `diagnostic_scope=bootstrap_only` or
-  `release_gate` as appropriate.
-- Keep extending the release cohort preparation command so it records the exact
-  App, shell, framework, and family refs after currentness sync, and runs cheap
-  source gates before the expensive release workflow.
-- Teach the release workflows to explicitly consume
-  `opl_release_gate_reuse_plan.v1` for selected gates after one real release
-  validates the artifact shape and stop conditions.
-- Produce and validate actual Tart prebake image receipts for the standard and
-  Homebrew profiles, then switch VM source variables only with fresh image
-  digest evidence.
-- Keep `refresh_existing` as an emergency repair path; ordinary Stable should
-  prefer draft candidate promotion so failed attempts do not overwrite the
-  already published stable asset set.
-- Keep `new_release` and `refresh_existing` in distinct workflow concurrency
-  groups. A mistaken `refresh_existing` for the same version must fail in
-  preflight without cancelling an in-flight `new_release`.
-- Add the release-session manifest described in Layer 17, with a focused test
-  fixture for the `v26.6.29` shape: two failed Desktop Release runs, one
-  successful Desktop Release run, one Promote run, owner receipt closeout, and
-  a 14-hour supplied operator clock.
+| Work item | Purpose | Completion signal |
+| --- | --- | --- |
+| Full package size fast gate | Catch size-budget and DMG fallback regressions locally before remote release work. | Full fallback uses electron-builder `--prepackaged`; plain `hdiutil -srcfolder` fallback fails release-boundary validation. |
+| Durable VM diagnostic summaries | Preserve small critical VM failure summaries even when large artifact upload finalization fails. | `vm-gate-failure-summary.json/md` is written before large uploads, and closeout can report `diagnostic_artifact_missing` separately from the underlying VM failure. |
+| Same-artifact diagnostic rerun command | Debug Full/standard VM failures after remote verification without rebuilding and reuploading the full release cohort. | One command dispatches the correct `OPL GUI First-Run VM` diagnostic lane for a release tag, direct DMG URL, or existing artifact run/name, and records the result next to the failed closeout. |
+| Workflow gate-reuse consumption | Turn advisory `opl_release_gate_reuse_plan.v1` into explicit workflow skip behavior for selected gates only after artifact shape and stop conditions are proven. | The workflow consumes the reuse plan and records which gates were reused or rerun for the same cohort. |
+| Tart prebake image receipts | Make standard/Homebrew base images current release infrastructure only when they have image digest evidence and validation output. | Release contract source variables change only alongside fresh image receipts. |
+| Release-session manifest | Add a durable session-level state file around existing one-run status, closeout, candidate-record, and timing commands. | The manifest records session id, run set, current authority, typed next action, timing, failed-run tax, owner receipt state, and post-publish follow-up without becoming a second release truth source. |
 
 ## Validation
 
