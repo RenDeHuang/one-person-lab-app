@@ -324,6 +324,13 @@ The App must not maintain several hidden copies of Settings IA.
 - validation fixtures and smoke route ids;
 - screenshot/user-guide targets.
 
+The AionUI fork maintenance strategy is
+`docs/architecture/opl-aionui-fork-maintenance-strategy.md`: strengthen this
+control plane, keep the shell adapter thin, and classify upstream Settings
+intake before changing the registry or adapter slot. Do not create a parallel
+Settings package, plugin ecosystem, or shell-owned product IA to solve fork
+maintenance.
+
 The route identity rule is part of maintainability: current shell route ids are
 implementation facts, while the seven IA groups are user-facing product groups.
 Do not rename shell routes to match prose group labels, and do not promote

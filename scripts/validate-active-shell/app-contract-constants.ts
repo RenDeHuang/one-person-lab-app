@@ -181,6 +181,7 @@ export const appOwnedSettingsVisualQaTargets = [
   'mobile_settings_section_nav',
   'mobile_settings_preferences',
 ];
+export const appOwnedSettingsUpstreamIntakeClassifications = ['accepted', 'adapt', 'redirect', 'reject'];
 export const appOwnedSettingsProductSystemItemIds = [
   'control_center_positioning',
   'seven_entry_ia',

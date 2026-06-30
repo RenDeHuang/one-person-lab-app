@@ -12,6 +12,7 @@ import {
   resolveSettingsControlPlaneRoute,
   validateSettingsControlPlane,
 } from '../../../scripts/validate-active-shell/settings-control-plane-validator.ts';
+import { appOwnedSettingsUpstreamIntakeClassifications } from '../../../scripts/validate-active-shell/app-contract-constants.ts';
 
 test('Settings control-plane validator binds contract, profile, page-state, and shell adapter behavior', () => {
   const controlPlaneContract = JSON.parse(
@@ -137,12 +138,41 @@ test('Settings adapter slot and upstream intake classification are machine-reada
 
   assert.strictEqual(controlPlaneContract.shell_adapter_slot.host_component, 'SettingsHost');
   assert.strictEqual(controlPlaneContract.shell_adapter_slot.adapter_slot, 'SettingsShellAdapterSlot');
-  assert.deepStrictEqual(controlPlaneContract.upstream_intake_checklist.allowed_classifications, [
-    'accepted',
-    'adapt',
-    'redirect',
-    'reject',
-  ]);
+  assert.deepStrictEqual(
+    controlPlaneContract.upstream_intake_checklist.allowed_classifications,
+    appOwnedSettingsUpstreamIntakeClassifications,
+  );
+  assert.deepStrictEqual(
+    controlPlaneContract.upstream_intake_checklist.records.map((record) => record.id),
+    [
+      'team-ordinary-surface-disabled',
+      'skills-tools-settings-routed-to-capabilities',
+      'provider-model-setup-routed-to-access-and-environment',
+      'layout-accessibility-i18n-settings-fixes',
+      'webui-primary-setup-redirected-to-access',
+    ],
+  );
+  assert.deepStrictEqual(
+    controlPlaneContract.upstream_intake_checklist.records.map((record) => record.classification),
+    ['reject', 'adapt', 'adapt', 'accepted', 'redirect'],
+  );
+  assert.deepStrictEqual(
+    controlPlaneContract.upstream_intake_checklist.records.find(
+      (record) => record.id === 'skills-tools-settings-routed-to-capabilities',
+    ).route_or_slot_impact,
+    {
+      route_id: 'capabilities',
+      slot_id: 'settings_capabilities',
+      adapter_slot: 'SettingsShellAdapterSlot',
+      legacy_redirects: ['skills-hub', 'tools'],
+    },
+  );
+  assert.strictEqual(
+    controlPlaneContract.upstream_intake_checklist.records.find(
+      (record) => record.id === 'team-ordinary-surface-disabled',
+    ).route_or_slot_impact.forbidden_probe,
+    'Team MCP ordinary surface',
+  );
   assert.deepStrictEqual(
     adapterContract.implementation_probes.settings_control_plane_shell_adapter_slot.required_evidence,
     [
@@ -179,6 +209,55 @@ test('Settings adapter slot and upstream intake classification are machine-reada
         adapterContract,
       ),
     /upstream intake classifications/,
+  );
+
+  const invalidRecordClassification = structuredClone(controlPlaneContract);
+  invalidRecordClassification.upstream_intake_checklist.records[0].classification = 'maybe';
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidRecordClassification,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /classification must be accepted\/adapt\/redirect\/reject/,
+  );
+
+  const invalidAdaptEvidence = structuredClone(controlPlaneContract);
+  invalidAdaptEvidence.upstream_intake_checklist.records.find(
+    (record) => record.id === 'skills-tools-settings-routed-to-capabilities',
+  ).route_or_slot_impact = {};
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidAdaptEvidence,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /accepted\/adapt records must bind/,
+  );
+
+  const invalidRedirectEvidence = structuredClone(controlPlaneContract);
+  invalidRedirectEvidence.upstream_intake_checklist.records.find(
+    (record) => record.id === 'webui-primary-setup-redirected-to-access',
+  ).route_or_slot_impact = {};
+  invalidRedirectEvidence.upstream_intake_checklist.records.find(
+    (record) => record.id === 'webui-primary-setup-redirected-to-access',
+  ).app_contract_ref = 'contracts/app-settings-control-plane.json';
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidRedirectEvidence,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /redirect\/reject records must bind/,
   );
 });
 

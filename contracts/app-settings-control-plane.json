@@ -545,6 +545,101 @@
       "bind accepted/adapt entries to SettingsHost or SettingsShellAdapterSlot evidence",
       "route redirect/reject entries through legacy redirects, extension anchor remap, or forbidden probes",
       "keep runtime truth, domain truth, provider implementation, owner receipts, and release readiness outside the shell adapter"
+    ],
+    "records": [
+      {
+        "id": "team-ordinary-surface-disabled",
+        "upstream_surface": "AionUI Team settings ordinary surface",
+        "classification": "reject",
+        "app_contract_ref": "contracts/app-settings-control-plane.json#page_adapter_policy.required_pages.capabilities.forbidden_sources",
+        "route_or_slot_impact": {
+          "forbidden_probe": "Team MCP ordinary surface",
+          "route_id": "capabilities"
+        },
+        "required_evidence": [
+          "capabilities adapter forbidden_sources includes Team MCP ordinary surface",
+          "Team surface does not become an ordinary Settings route or slot"
+        ],
+        "decision_owner": "one-person-lab-app",
+        "last_reviewed_at": "2026-06-30",
+        "status": "active"
+      },
+      {
+        "id": "skills-tools-settings-routed-to-capabilities",
+        "upstream_surface": "AionUI skills and tools settings",
+        "classification": "adapt",
+        "app_contract_ref": "contracts/app-settings-control-plane.json#slot_registry.settings_capabilities.legacy_subroutes",
+        "route_or_slot_impact": {
+          "route_id": "capabilities",
+          "slot_id": "settings_capabilities",
+          "adapter_slot": "SettingsShellAdapterSlot",
+          "legacy_redirects": [
+            "skills-hub",
+            "tools"
+          ]
+        },
+        "required_evidence": [
+          "legacy skills-hub and tools routes redirect to capabilities subroutes",
+          "SettingsShellAdapterSlot mounts settings_capabilities from the hydrated App registry"
+        ],
+        "decision_owner": "one-person-lab-app",
+        "last_reviewed_at": "2026-06-30",
+        "status": "active"
+      },
+      {
+        "id": "provider-model-setup-routed-to-access-and-environment",
+        "upstream_surface": "AionUI provider and model setup",
+        "classification": "adapt",
+        "app_contract_ref": "contracts/app-settings-control-plane.json#model_reasoning_policy_source",
+        "route_or_slot_impact": {
+          "route_id": "access",
+          "slot_id": "settings_access",
+          "host_component": "SettingsHost",
+          "secondary_route": "environment"
+        },
+        "required_evidence": [
+          "model and reasoning policy source stays App-owned",
+          "provider implementation and model access readiness truth stay outside shell-owned ordinary UI"
+        ],
+        "decision_owner": "one-person-lab-app",
+        "last_reviewed_at": "2026-06-30",
+        "status": "active"
+      },
+      {
+        "id": "layout-accessibility-i18n-settings-fixes",
+        "upstream_surface": "AionUI settings layout, accessibility, and i18n plumbing fixes",
+        "classification": "accepted",
+        "app_contract_ref": "contracts/app-settings-control-plane.json#shell_adapter_slot",
+        "route_or_slot_impact": {
+          "host_component": "SettingsHost",
+          "adapter_slot": "SettingsShellAdapterSlot"
+        },
+        "required_evidence": [
+          "SettingsHost renders ordinary routes from the hydrated App settings registry",
+          "SettingsShellAdapterSlot preserves App-owned tab order and slots"
+        ],
+        "decision_owner": "one-person-lab-app",
+        "last_reviewed_at": "2026-06-30",
+        "status": "active"
+      },
+      {
+        "id": "webui-primary-setup-redirected-to-access",
+        "upstream_surface": "AionUI WebUI primary setup",
+        "classification": "redirect",
+        "app_contract_ref": "contracts/app-settings-control-plane.json#legacy_route_redirects.webui",
+        "route_or_slot_impact": {
+          "legacy_redirect": "webui",
+          "anchor_remap": "webui",
+          "route_id": "access"
+        },
+        "required_evidence": [
+          "webui legacy route redirects to access",
+          "webui extension anchor remaps to access"
+        ],
+        "decision_owner": "one-person-lab-app",
+        "last_reviewed_at": "2026-06-30",
+        "status": "active"
+      }
     ]
   },
   "product_system_checklist": {

@@ -13,6 +13,7 @@ import {
   appOwnedSettingsRouteScopes,
   appOwnedSettingsSearchProtocol,
   appOwnedSettingsTabs,
+  appOwnedSettingsUpstreamIntakeClassifications,
   appOwnedSettingsTaskEntryIds,
   appOwnedSettingsVisualQaTargets,
 } from './app-contract-constants.ts';
@@ -61,7 +62,6 @@ const expectedSlotKeys = [
   'settings_advanced',
 ];
 
-const expectedUpstreamIntakeClassifications = ['accepted', 'adapt', 'redirect', 'reject'];
 const expectedSettingsAdapterEvidence = [
   'SettingsHost renders ordinary routes from the hydrated App settings registry',
   'SettingsShellAdapterSlot mounts App-owned route slots without shell-owned product IA',
@@ -785,18 +785,101 @@ function validateSettingsUpstreamIntake(controlPlane) {
   }
   assertDeepEqualJson(
     checklist?.allowed_classifications,
-    expectedUpstreamIntakeClassifications,
+    appOwnedSettingsUpstreamIntakeClassifications,
     'Settings upstream intake classifications',
   );
   assertDeepEqualJson(
     Object.keys(controlPlane.upstream_intake_classification ?? {}),
-    expectedUpstreamIntakeClassifications,
+    appOwnedSettingsUpstreamIntakeClassifications,
     'Settings upstream intake classification buckets',
   );
-  for (const classification of expectedUpstreamIntakeClassifications) {
+  for (const classification of appOwnedSettingsUpstreamIntakeClassifications) {
     if (!Array.isArray(controlPlane.upstream_intake_classification[classification])) {
       throw new Error(`Settings upstream intake classification ${classification} must be an array`);
     }
+  }
+  const records = checklist?.records;
+  if (!Array.isArray(records) || records.length === 0) {
+    throw new Error('Settings upstream intake records must be a non-empty array');
+  }
+  const seenRecordIds = new Set();
+  for (const record of records) {
+    validateSettingsUpstreamIntakeRecord(record, seenRecordIds);
+  }
+}
+
+function validateSettingsUpstreamIntakeRecord(record, seenRecordIds) {
+  const label = `Settings upstream intake record ${record?.id ?? '<missing id>'}`;
+  for (const field of [
+    'id',
+    'upstream_surface',
+    'classification',
+    'app_contract_ref',
+    'route_or_slot_impact',
+    'required_evidence',
+    'decision_owner',
+    'last_reviewed_at',
+    'status',
+  ]) {
+    if (record?.[field] === undefined || record?.[field] === null || record?.[field] === '') {
+      throw new Error(`${label} must declare ${field}`);
+    }
+  }
+  if (seenRecordIds.has(record.id)) {
+    throw new Error(`${label} id must be unique`);
+  }
+  seenRecordIds.add(record.id);
+  if (!appOwnedSettingsUpstreamIntakeClassifications.includes(record.classification)) {
+    throw new Error(`${label} classification must be accepted/adapt/redirect/reject`);
+  }
+  if (!String(record.app_contract_ref).startsWith('contracts/')) {
+    throw new Error(`${label} must bind to an App contract ref`);
+  }
+  if (!Array.isArray(record.required_evidence) || record.required_evidence.length === 0) {
+    throw new Error(`${label} must declare required_evidence`);
+  }
+  if (record.decision_owner !== 'one-person-lab-app') {
+    throw new Error(`${label} decision_owner must be one-person-lab-app`);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(record.last_reviewed_at))) {
+    throw new Error(`${label} last_reviewed_at must be YYYY-MM-DD`);
+  }
+  if (!['active', 'pending', 'superseded'].includes(record.status)) {
+    throw new Error(`${label} status must be active, pending, or superseded`);
+  }
+  const impact = record.route_or_slot_impact ?? {};
+  if (['accepted', 'adapt'].includes(record.classification)) {
+    if (impact.host_component && impact.host_component !== 'SettingsHost') {
+      throw new Error(`${label} host_component must be SettingsHost`);
+    }
+    if (impact.adapter_slot && impact.adapter_slot !== 'SettingsShellAdapterSlot') {
+      throw new Error(`${label} adapter_slot must be SettingsShellAdapterSlot`);
+    }
+    if (impact.host_component !== 'SettingsHost' && impact.adapter_slot !== 'SettingsShellAdapterSlot' && !impact.slot_id && !impact.route_id) {
+      throw new Error(`${label} accepted/adapt records must bind to SettingsHost, SettingsShellAdapterSlot, route, or slot evidence`);
+    }
+    if (impact.route_id) {
+      assertKnownSettingsRoute(impact.route_id, label);
+    }
+    if (impact.secondary_route) {
+      assertKnownSettingsRoute(impact.secondary_route, label);
+    }
+    if (impact.slot_id && !expectedSlotKeys.includes(impact.slot_id)) {
+      throw new Error(`${label} references unknown Settings slot ${impact.slot_id}`);
+    }
+    return;
+  }
+  if (!impact.legacy_redirect && !impact.anchor_remap && !impact.forbidden_probe && !String(record.app_contract_ref).includes('#')) {
+    throw new Error(`${label} redirect/reject records must bind to a legacy redirect, anchor remap, forbidden probe, or explicit app contract ref`);
+  }
+  if (impact.route_id) {
+    assertKnownSettingsRoute(impact.route_id, label);
+  }
+  if (impact.legacy_redirect && !expectedLegacyRedirects[impact.legacy_redirect]) {
+    throw new Error(`${label} references unknown legacy redirect ${impact.legacy_redirect}`);
+  }
+  if (impact.anchor_remap && !expectedAnchorRemap[impact.anchor_remap]) {
+    throw new Error(`${label} references unknown extension anchor ${impact.anchor_remap}`);
   }
 }
 
