@@ -24,7 +24,7 @@ Codex CLI 后端桥接、普通路径收窄、必要 OPL 功能接入和 release
 提升前先做 Hermes 原生功能对比，明确哪些保留、隐藏、重命名、替换或延后。
 
 本文是能力清单，不是完整交互细则。理想且不绑定具体 shell 的交互模型看
-[`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md)；
+[`ideal-interaction-spec.md`](ideal-interaction-spec.md)；
 Codex App 变成 OPL App 的产品增量看
 [`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md)。
 
@@ -55,7 +55,7 @@ executor-first，并能展示 runtime status、purpose routing、receipts 和 pa
 App settings，同时不把第一屏变成 dashboard。
 
 第一屏规范以
-[`app-ideal-gui-interaction-spec.md`](app-ideal-gui-interaction-spec.md) 为准：
+[`ideal-interaction-spec.md`](ideal-interaction-spec.md) 为准：
 普通 home 打开即是 chat canvas，workspace/session rail 和右侧 inspector 默认
 收起，contextual surfaces 只在用户主动触发时打开。
 
