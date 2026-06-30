@@ -1,8 +1,10 @@
 export const managedUpdateMustShow = [
   'App update status',
-  'Runtime/toolchain managed updater status',
+  'Runtime substrate managed updater status',
+  'Companion tools managed updater status',
   'OPL Packages managed updater status',
-  'OPL Packages capability exposure readiness and sync substatus',
+  'OPL Packages Codex surface readiness and sync substatus',
+  'Workflow profile semantic merge status when profile changes are available',
   'conditions and repair actions from App state or opl update status',
   'user-facing OPL Packages maintenance entry under Local Environment',
   'manual check/apply/repair/rollback action mapping for OPL Packages',
@@ -46,9 +48,9 @@ export const managedUpdateScheduler = {
   backoff_policy: 'bounded_retry_with_last_failure_projection',
   user_blocking: false,
   must_project_last_run_and_next_run: true,
-  auto_apply_policy: 'auto_apply_clean_opl_packages_only_with_capability_exposure_as_post_apply_substatus',
-  auto_apply_components: ['agent_package_channel'],
-  never_auto_apply_components: ['app_binary', 'runtime_toolchain'],
+  auto_apply_policy: 'auto_apply_clean_opl_packages_only_with_codex_surface_as_post_apply_substatus',
+  auto_apply_components: ['capability_packages'],
+  never_auto_apply_components: ['app_binary', 'runtime_substrate', 'companion_tools', 'workflow_profile'],
   must_project_recent_actions_and_skip_reasons: true,
 };
 
@@ -165,8 +167,8 @@ export const managedKernelComponentReceiptIdentityFields = [
   'generated_surface_hash',
 ];
 
-export const managedUpdateSections = ['app_binary', 'runtime_toolchain', 'opl_packages'];
-export const managedUpdateDisplayPlanes = ['app_binary', 'runtime_toolchain', 'agent_package_channel'];
+export const managedUpdateSections = ['app_binary', 'runtime_substrate', 'companion_tools', 'opl_packages', 'workflow_profile'];
+export const managedUpdateDisplayPlanes = ['app_binary', 'runtime_substrate', 'companion_tools', 'capability_packages'];
 export const managedUpdateStateSources = ['opl app state --profile fast --json#managed_update_plane', 'opl update status --json'];
 export const managedUpdateStatusConsumptionPolicy =
   'show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth';

@@ -39,16 +39,18 @@ export function validateReleaseManagedUpdatePlaneLanes(managedUpdatePlane) {
 
   validateManagedUpdateAppBinaryLane(planeById.get('app_binary'));
   validateManagedUpdateRuntimeAndAgentLanes(
-    planeById.get('runtime_toolchain'),
-    planeById.get('agent_package_channel'),
-    planeById.get('capability_exposure'),
-    managedUpdatePlane?.agent_package_channel,
+    planeById.get('runtime_substrate'),
+    planeById.get('capability_packages'),
+    planeById.get('codex_surface'),
+    managedUpdatePlane?.capability_packages,
   );
-  validateManagedUpdateCapabilityLane(planeById.get('capability_exposure'));
+  validateManagedUpdateCompanionToolsLane(planeById.get('companion_tools'), managedUpdatePlane?.companion_tools);
+  validateManagedUpdateCapabilityLane(planeById.get('codex_surface'));
+  validateManagedUpdateWorkflowProfileLane(planeById.get('workflow_profile'), managedUpdatePlane?.workflow_profile);
   validateManagedUpdateStandardUpdaterBoundary(managedUpdatePlane?.standard_updater_boundary);
 }
 
-export function validateReleaseRuntimeToolchainUpdater(runtimeUpdater, managedUpdatePlane) {
+export function validateReleaseRuntimeSubstrateUpdater(runtimeUpdater, managedUpdatePlane) {
   validateReleaseRuntimeToolchainChannelPolicy(runtimeUpdater);
   validateReleaseRuntimeToolchainManagedComponents(runtimeUpdater);
   validateReleaseRuntimeToolchainLayering(runtimeUpdater);
@@ -57,10 +59,34 @@ export function validateReleaseRuntimeToolchainUpdater(runtimeUpdater, managedUp
   validateReleaseRuntimeToolchainPlaneBinding(runtimeUpdater, managedUpdatePlane);
 }
 
+export function validateReleaseCompanionToolsUpdater(companionUpdater, managedUpdatePlane) {
+  if (
+    companionUpdater?.owner !== 'one-person-lab-app' ||
+    companionUpdater?.producer_owner !== 'one-person-lab' ||
+    companionUpdater?.class !== 'companion_tools' ||
+    companionUpdater?.managed_update_plane !== 'companion_tools' ||
+    companionUpdater?.kernel !== 'opl_managed_updater_kernel' ||
+    companionUpdater?.adapter !== 'companion_tools_adapter' ||
+    companionUpdater?.shared_kernel_lifecycle_allowed !== true ||
+    companionUpdater?.standard_updater_metadata_allowed !== false ||
+    companionUpdater?.standard_updater_latest_yml_allowed !== false ||
+    companionUpdater?.homebrew_tap_write_allowed !== false ||
+    companionUpdater?.app_role !== 'status_conditions_repair_actions_consumer_only'
+  ) {
+    throw new Error('Release channel companion tools updater must be a separate managed class that shares the kernel lifecycle without becoming runtime substrate');
+  }
+  assertDeepEqualJson(companionUpdater?.managed_tools, ['officecli', 'mineru_open_api'], 'Release channel companion tools');
+  assertIncludesAll(
+    companionUpdater?.forbidden_silent_overwrite_scope,
+    managedUpdatePlane?.forbidden_silent_overwrite_scope,
+    'Release channel companion tools forbidden silent overwrite scope',
+  );
+}
+
 function validateReleaseRuntimeToolchainChannelPolicy(runtimeUpdater) {
   if (
     runtimeUpdater?.owner !== 'one-person-lab-app' ||
-    runtimeUpdater?.role !== 'app_owned_runtime_fallback_and_toolchain_layer_updates' ||
+    runtimeUpdater?.role !== 'app_owned_runtime_substrate_layer_updates' ||
     runtimeUpdater?.channel_manifest_asset !== 'app-runtime-update-channel.json' ||
     runtimeUpdater?.transport !== 'app_owned_github_release_assets' ||
     runtimeUpdater?.standard_updater_metadata_allowed !== false ||
@@ -72,7 +98,7 @@ function validateReleaseRuntimeToolchainChannelPolicy(runtimeUpdater) {
     runtimeUpdater?.default_policy?.restart_prompt !== 'none_until_user_restarts_app' ||
     runtimeUpdater?.default_policy?.user_blocking !== false
   ) {
-    throw new Error('Release channel runtime/toolchain updater must be a silent App-owned runtime fallback channel separate from standard updater and Homebrew');
+    throw new Error('Release channel runtime substrate updater must be a silent App-owned runtime fallback channel separate from standard updater and Homebrew');
   }
 }
 
@@ -80,21 +106,20 @@ function validateReleaseRuntimeToolchainManagedComponents(runtimeUpdater) {
   assertIncludesAll(
     runtimeUpdater?.managed_components,
     [
-      'codex_cli_fallback',
+      'embedded_codex_executor',
       'temporal_cli_archive',
       'node_runtime',
       'python_runtime',
       'uv_runtime',
-      'officecli',
-      'mineru_open_api',
-      'companion_skills',
       'native_helper',
       'opl_framework_runtime',
     ],
-    'Release channel runtime/toolchain updater managed components',
+    'Release channel runtime substrate updater managed components',
   );
-  if (runtimeUpdater?.managed_components?.includes('domain_module_payloads')) {
-    throw new Error('Release channel runtime/toolchain updater must not own OPL package/domain module payloads');
+  for (const forbidden of ['domain_module_payloads', 'officecli', 'mineru_open_api', 'companion_skills', 'codex_cli_fallback']) {
+    if (runtimeUpdater?.managed_components?.includes(forbidden)) {
+      throw new Error(`Release channel runtime substrate updater must not own ${forbidden}`);
+    }
   }
 }
 
@@ -105,26 +130,26 @@ function validateReleaseRuntimeToolchainLayering(runtimeUpdater) {
     runtimeUpdater?.layering?.activation !== 'swap_current_pointer_on_app_restart_after_startup_smoke' ||
     runtimeUpdater?.layering?.rollback !== 'restore_previous_pointer_when_startup_smoke_fails'
   ) {
-    throw new Error('Release channel runtime/toolchain updater must stage runtime layers and atomically activate through the runtime current pointer');
+    throw new Error('Release channel runtime substrate updater must stage runtime layers and atomically activate through the runtime current pointer');
   }
 }
 
 function validateReleaseRuntimeToolchainPlaneBinding(runtimeUpdater, managedUpdatePlane) {
   if (
-    runtimeUpdater?.managed_update_plane !== 'runtime_toolchain' ||
+    runtimeUpdater?.managed_update_plane !== 'runtime_substrate' ||
     runtimeUpdater?.kernel !== 'opl_managed_updater_kernel' ||
-    runtimeUpdater?.adapter !== 'runtime_toolchain_adapter' ||
+    runtimeUpdater?.adapter !== 'runtime_substrate_adapter' ||
     runtimeUpdater?.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
     runtimeUpdater?.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
     runtimeUpdater?.app_role !== 'status_conditions_repair_actions_consumer_only'
   ) {
-    throw new Error('Release channel runtime/toolchain updater must bind to the managed update plane runtime lane');
+    throw new Error('Release channel runtime substrate updater must bind to the managed update plane runtime substrate lane');
   }
   assertDeepEqualJson(
     runtimeUpdater?.status_sources,
     [
-      'opl app state --profile fast --json#managed_update_plane.runtime_toolchain',
-      'opl update status --json#runtime_toolchain',
+      'opl app state --profile fast --json#managed_update_plane.runtime_substrate',
+      'opl update status --json#runtime_substrate',
     ],
     'Release channel runtime updater status sources',
   );
@@ -147,7 +172,7 @@ function validateReleaseRuntimeToolchainSystemPolicy(runtimeUpdater) {
     runtimeUpdater.system_tool_policy?.homebrew_upgrade_allowed_by_default !== false ||
     runtimeUpdater.system_tool_policy?.user_opt_in_global_upgrade_allowed !== true
   ) {
-    throw new Error('Release channel runtime/toolchain updater must detect compatible system tools without silently mutating global Homebrew or system installs');
+    throw new Error('Release channel runtime substrate updater must detect compatible system tools without silently mutating global Homebrew or system installs');
   }
   assertIncludesAll(
     runtimeUpdater.manifest_required_fields,
@@ -162,7 +187,7 @@ function validateReleaseRuntimeToolchainSystemPolicy(runtimeUpdater) {
       'apply_policy',
       'rollback_policy',
     ],
-    'Release channel runtime/toolchain updater manifest fields',
+    'Release channel runtime substrate updater manifest fields',
   );
 }
 
@@ -170,7 +195,7 @@ function validateReleaseRuntimeToolchainVerification(runtimeUpdater) {
   assertIncludesAll(
     runtimeUpdater.verification?.required_before_stage,
     ['manifest_schema', 'asset_sha256', 'minimum_version', 'component_capability_smoke'],
-    'Release channel runtime/toolchain updater stage checks',
+    'Release channel runtime substrate updater stage checks',
   );
   assertIncludesAll(
     runtimeUpdater.verification?.required_before_release,
@@ -180,7 +205,7 @@ function validateReleaseRuntimeToolchainVerification(runtimeUpdater) {
       'homebrew_standard_cask_clean_vm_smoke',
       'remote_release_verification',
     ],
-    'Release channel runtime/toolchain updater release checks',
+    'Release channel runtime substrate updater release checks',
   );
   if (
     runtimeUpdater.verification?.clean_machine_installability_must_not_regress !== true ||
@@ -189,7 +214,7 @@ function validateReleaseRuntimeToolchainVerification(runtimeUpdater) {
     runtimeUpdater.rollback_policy?.rollback_must_not_mutate_user_global_tools !== true ||
     !/silent download and verified staging/.test(runtimeUpdater.rule ?? '')
   ) {
-    throw new Error('Release channel runtime/toolchain updater must preserve clean-machine installability and rollback without global tool mutation');
+    throw new Error('Release channel runtime substrate updater must preserve clean-machine installability and rollback without global tool mutation');
   }
 }
 
@@ -227,16 +252,16 @@ function validateManagedUpdateAppBinaryLane(appBinaryPlane) {
 function validateManagedUpdateRuntimeAndAgentLanes(runtimePlane, agentPlane, capabilityPlane, agentPackageChannel) {
   if (
     runtimePlane?.updater_kind !== 'managed_updater_kernel' ||
-    runtimePlane?.adapter !== 'runtime_toolchain_adapter' ||
+    runtimePlane?.adapter !== 'runtime_substrate_adapter' ||
     runtimePlane?.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
     runtimePlane?.post_apply !== 'startup_smoke_then_swap_runtime_current_pointer_with_rollback' ||
     agentPlane?.updater_kind !== 'managed_updater_kernel' ||
-    agentPlane?.adapter !== 'agent_package_channel_adapter' ||
+    agentPlane?.adapter !== 'capability_packages_adapter' ||
     agentPlane?.policy !== 'ordinary_user_non_development_silent_background' ||
     agentPlane?.post_apply !==
-      'sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_capability_exposure_readiness'
+      'sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_codex_surface_readiness'
   ) {
-    throw new Error('Managed update plane runtime/toolchain and agent package lanes must share the managed kernel but differ by adapter/policy/post_apply');
+    throw new Error('Managed update plane runtime substrate and capability package lanes must share the managed kernel but differ by adapter/policy/post_apply');
   }
   validateManagedUpdateRuntimeLane(runtimePlane);
   validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agentPackageChannel);
@@ -266,7 +291,7 @@ function validateManagedUpdateRuntimeLane(runtimePlane) {
     'Managed update plane runtime lane receipt identity fields',
   );
   if (
-    runtimePlane?.rollback_status_source !== 'opl update rollback --component runtime_toolchain --json#managed_update.execution.status' ||
+    runtimePlane?.rollback_status_source !== 'opl update rollback --component runtime_substrate --json#managed_update.execution.status' ||
     runtimePlane?.repair_status_source !== 'opl update repair --receipt <receipt_id> --json#managed_update.execution.status'
   ) {
     throw new Error('Managed update plane runtime lane must consume Framework rollback and repair runner status fields');
@@ -284,8 +309,8 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
       'conditions',
       'repair_actions',
       'components[].receipt.post_apply_hooks',
-      'post_apply_sync.capability_exposure',
-      'readiness.capability_exposure',
+      'post_apply_sync.codex_surface',
+      'readiness.codex_surface',
       'idempotency_lock.status',
       'execution.status',
       'components[].receipt.last_receipt_ref',
@@ -305,7 +330,7 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
         'sync_oma_generated_plugin_surface',
         'sync_bookforge_generated_plugin_surface',
         'sync_scholarskills_package_surface',
-        'capability_exposure_readiness',
+        'codex_surface_readiness',
       ],
       reload_guidance: 'reload_app_and_codex_plugin_cache_when_post_apply_sync_changes_visible_plugin_or_skill_surface',
       auto_apply_eligibility: 'clean_managed_module_roots_only',
@@ -328,12 +353,12 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
     agentPlane?.display_group !== 'OPL Packages' ||
     agentPlane?.display_label_en !== 'OPL Packages' ||
     agentPlane?.display_label_zh !== 'OPL 能力包' ||
-    agentPlane?.capability_exposure_substatus_source !== 'managed_update_plane.capability_exposure'
+    agentPlane?.codex_surface_substatus_source !== 'managed_update_plane.codex_surface'
   ) {
-    throw new Error('Managed update plane agent package lane must be displayed as OPL Packages with capability exposure as a substatus');
+    throw new Error('Managed update plane capability package lane must be displayed as OPL Packages with Codex surface as a substatus');
   }
   if (capabilityPlane?.display_group !== 'OPL Packages' || capabilityPlane?.user_visible_channel !== false) {
-    throw new Error('Managed update plane capability exposure must stay under OPL Packages instead of a user-visible channel');
+    throw new Error('Managed update plane Codex surface must stay under OPL Packages instead of a user-visible channel');
   }
   if (
     agentPackageChannel?.background_apply_policy !==
@@ -351,7 +376,7 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
       'last_auto_apply_skip_reasons',
       'reload_guidance',
     ],
-    'Managed update plane OPL Packages channel background auto-apply receipt projection',
+    'Managed update plane OPL Packages background auto-apply receipt projection',
   );
   assertDeepEqualJson(
     agentPackageChannel?.package_agent_ids,
@@ -360,13 +385,27 @@ function validateManagedUpdateAgentPackageLane(agentPlane, capabilityPlane, agen
   );
 }
 
+function validateManagedUpdateCompanionToolsLane(companionPlane, companionTools) {
+  if (
+    companionPlane?.updater_kind !== 'managed_updater_kernel' ||
+    companionPlane?.adapter !== 'companion_tools_adapter' ||
+    companionPlane?.policy !== 'silent_background_verified_stage_apply_on_next_restart' ||
+    companionPlane?.display_group !== 'Companion tools' ||
+    companionTools?.must_not_be_grouped_under_runtime_substrate !== true ||
+    companionTools?.shared_kernel_lifecycle_allowed !== true
+  ) {
+    throw new Error('Managed update plane companion tools must be a separate class that may share the managed updater kernel lifecycle');
+  }
+  assertDeepEqualJson(companionPlane?.managed_tools, ['officecli', 'mineru_open_api'], 'Managed update plane companion tools');
+}
+
 function validateManagedUpdateCapabilityLane(capabilityPlane) {
   if (
     capabilityPlane?.updater_kind !== 'managed_visibility_projection' ||
-    capabilityPlane?.adapter !== 'codex_exposure_status_adapter' ||
-    capabilityPlane?.policy !== 'display_visibility_and_repair_actions_without_duplicate_semantics'
+    capabilityPlane?.adapter !== 'codex_surface_status_adapter' ||
+    capabilityPlane?.policy !== 'display_codex_surface_visibility_and_repair_actions_without_duplicate_semantics'
   ) {
-    throw new Error('Managed update plane capability exposure lane must be a status projection only');
+    throw new Error('Managed update plane Codex surface lane must be a status projection only');
   }
   assertDeepEqualJson(
     capabilityPlane?.status_fields,
@@ -380,23 +419,39 @@ function validateManagedUpdateCapabilityLane(capabilityPlane) {
       'reload_required',
       'reload_guidance',
     ],
-    'Managed update plane capability exposure status fields',
+    'Managed update plane Codex surface status fields',
   );
   if (
     capabilityPlane?.reload_guidance !==
     'manual_reload_only_after_framework_reports_needs_reload_or_post_apply_sync_changed_cached_capability_surface'
   ) {
-    throw new Error('Managed update plane capability exposure lane must declare post-apply reload guidance');
+    throw new Error('Managed update plane Codex surface lane must declare post-apply reload guidance');
   }
+}
+
+function validateManagedUpdateWorkflowProfileLane(workflowPlane, workflowProfile) {
+  if (
+    workflowPlane?.updater_kind !== 'semantic_merge_required_profile_sync' ||
+    workflowPlane?.adapter !== 'workflow_profile_adapter' ||
+    workflowPlane?.policy !== 'semantic_merge_required_no_silent_overwrite' ||
+    workflowPlane?.default_update_mode !== 'manual_semantic_merge_when_changed' ||
+    workflowProfile?.semantic_merge_required !== true ||
+    workflowProfile?.silent_overwrite_allowed !== false
+  ) {
+    throw new Error('Managed update plane workflow profile updates must require semantic merge');
+  }
+  assertDeepEqualJson(workflowPlane?.managed_profile_parts, ['AGENTS.md', 'TASTE.md', 'prompts'], 'Managed update plane workflow profile parts');
 }
 
 function validateManagedUpdateStandardUpdaterBoundary(standardUpdaterBoundary) {
   assertIncludesAll(
     standardUpdaterBoundary?.forbidden_targets,
     [
-      'runtime_toolchain',
-      'agent_package_channel',
-      'capability_exposure',
+      'runtime_substrate',
+      'capability_packages',
+      'codex_surface',
+      'companion_tools',
+      'workflow_profile',
       'developer_checkout_selection',
       'homebrew_or_global_tool_upgrade',
       'domain_truth',

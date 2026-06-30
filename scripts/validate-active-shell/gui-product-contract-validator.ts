@@ -727,7 +727,7 @@ function validateEnvironmentModuleMaintenanceEntry(entry, label) {
   assertIncludesAll(
     entry?.required_status,
     [
-      'OPL Packages state and capability exposure substatus',
+      'OPL Packages state and Codex surface substatus',
       'recommended action',
       'post-update sync status',
       'repair and rollback refs',

@@ -157,15 +157,15 @@ function validateReleaseHomebrewAgentPackPolicy(homebrew, managedUpdatePlane) {
   );
   assertExpectedFields(
     [
-      { actual: agentPack?.managed_update_plane, expected: 'agent_package_channel' },
+      { actual: agentPack?.managed_update_plane, expected: 'capability_packages' },
       { actual: agentPack?.kernel, expected: 'opl_managed_updater_kernel' },
       { actual: agentPack?.source_role, expected: 'ordinary_user_non_development_opl_package_update_source' },
       { actual: agentPack?.registry, expected: 'ghcr.io' },
-      { actual: agentPack?.adapter, expected: 'agent_package_channel_adapter' },
+      { actual: agentPack?.adapter, expected: 'capability_packages_adapter' },
       { actual: agentPack?.policy, expected: 'ordinary_user_non_development_silent_background' },
       {
         actual: agentPack?.post_apply,
-        expected: 'sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_capability_exposure_readiness',
+        expected: 'sync_plugin_registry_plugin_packaged_skills_generated_surfaces_and_codex_surface_readiness',
       },
       {
         actual: agentPack?.developer_checkout_override_policy,

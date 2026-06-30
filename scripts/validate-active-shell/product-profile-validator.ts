@@ -101,6 +101,7 @@ function validateProductProfileCodexDefaults(profile) {
   validateProductProfileSettings(profile);
   validateAssistantSkillProfiles(profile);
   validateProductProfileCodexSkills(profile);
+  validateInstallUpdateTaxonomy(profile);
   validateOrdinaryCapabilitySelectorPolicy(profile);
 }
 
@@ -238,6 +239,35 @@ function validateProductProfileCodexSkills(profile) {
     profile.companion_payloads.packaged_not_default_visible_codex_skill_ids.includes('morph-ppt')
   ) {
     throw new Error('Product profile must not include retired morph-ppt skill wiring');
+  }
+}
+
+function validateInstallUpdateTaxonomy(profile) {
+  assertDeepEqualJson(
+    profile.install_update_taxonomy?.user_semantic_classes,
+    [
+      'app_binary',
+      'runtime_substrate',
+      'capability_packages',
+      'companion_tools',
+      'codex_surface',
+      'workflow_profile',
+      'user_data_artifacts',
+    ],
+    'Product profile install/update taxonomy classes',
+  );
+  assertDeepEqualJson(
+    profile.companion_payloads?.tools,
+    ['officecli', 'mineru_open_api'],
+    'Product profile companion tools',
+  );
+  if (
+    profile.companion_payloads?.class !== 'companion_tools' ||
+    profile.companion_payloads?.codex_surface_ref !== 'contracts/app-install-exposure-policy.json#exposure_classes.codex_surface' ||
+    profile.companion_payloads?.capability_packages_ref !==
+      'contracts/app-install-exposure-policy.json#agent_installation_contract.managed_agent_pack_distribution'
+  ) {
+    throw new Error('Product profile companion payloads must reference companion tools, Codex surface, and capability packages taxonomy');
   }
 }
 

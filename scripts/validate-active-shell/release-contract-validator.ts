@@ -2,9 +2,10 @@ import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { validateReleaseFullFirstInstallPayloads } from './release-full-first-install-payload-validator.ts';
 import { validateReleaseHomebrewDistribution } from './release-homebrew-distribution-validator.ts';
 import {
+  validateReleaseCompanionToolsUpdater,
   validateReleaseManagedUpdateKernelSurface,
   validateReleaseManagedUpdatePlaneLanes,
-  validateReleaseRuntimeToolchainUpdater,
+  validateReleaseRuntimeSubstrateUpdater,
 } from './managed-update-plane-validator.ts';
 
 export function validateReleaseChannelContract(releaseChannel) {
@@ -12,7 +13,8 @@ export function validateReleaseChannelContract(releaseChannel) {
   validateLocalDataLifecycle(releaseChannel.local_data_lifecycle);
   validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
-  validateReleaseRuntimeToolchainUpdater(releaseChannel.runtime_toolchain_updater, managedUpdatePlane);
+  validateReleaseRuntimeSubstrateUpdater(releaseChannel.runtime_substrate_updater, managedUpdatePlane);
+  validateReleaseCompanionToolsUpdater(releaseChannel.companion_tools_updater, managedUpdatePlane);
   validateReleaseHomebrewDistribution(releaseChannel, managedUpdatePlane);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
 }
@@ -131,7 +133,7 @@ function validateLocalDataLifecycle(lifecycle) {
   );
   assertIncludesAll(
     lifecycle.storage_inventory?.sections,
-    ['updater_cache', 'conversation_artifacts', 'runtime_toolchain', 'logs'],
+    ['updater_cache', 'user_data_artifacts', 'runtime_substrate', 'logs'],
     'Local data lifecycle storage inventory sections',
   );
   assertIncludesAll(
@@ -145,21 +147,21 @@ function validateLocalDataLifecycle(lifecycle) {
     lifecycle.storage_inventory?.implementation !==
       'shells/aionui/packages/desktop/src/process/services/localDataLifecycle/index.ts' ||
     lifecycle.updater_cache?.receipt_required !== true ||
-    lifecycle.conversation_artifacts?.default_policy !== 'retain_until_user_cleanup_or_archive' ||
-    lifecycle.conversation_artifacts?.silent_delete_allowed !== false ||
-    lifecycle.conversation_artifacts?.cleanup_execution !== 'archive_then_explicit_user_confirmed_delete' ||
-    lifecycle.conversation_artifacts?.archive_required_before_cleanup !== true ||
-    lifecycle.conversation_artifacts?.restore_proof_required !== true ||
-    lifecycle.conversation_artifacts?.cleanup_surface !== 'Settings / Storage' ||
-    lifecycle.runtime_toolchain?.default_policy !== 'retain_current_and_declared_rollback_runtime' ||
-    lifecycle.runtime_toolchain?.owner_ref !== 'contracts/app-release-channel.json#runtime_toolchain_updater' ||
-    lifecycle.runtime_toolchain?.cleanup_execution !== 'pointer_based_dry_run_first_explicit_execute_required' ||
-    lifecycle.runtime_toolchain?.protected_refs?.current_pointer !==
+    lifecycle.user_data_artifacts?.default_policy !== 'retain_conversations_workspaces_and_artifacts_until_user_cleanup_or_archive' ||
+    lifecycle.user_data_artifacts?.silent_delete_allowed !== false ||
+    lifecycle.user_data_artifacts?.cleanup_execution !== 'archive_then_explicit_user_confirmed_delete' ||
+    lifecycle.user_data_artifacts?.archive_required_before_cleanup !== true ||
+    lifecycle.user_data_artifacts?.restore_proof_required !== true ||
+    lifecycle.user_data_artifacts?.cleanup_surface !== 'Settings / Storage' ||
+    lifecycle.runtime_substrate?.default_policy !== 'retain_current_and_declared_rollback_runtime' ||
+    lifecycle.runtime_substrate?.owner_ref !== 'contracts/app-release-channel.json#runtime_substrate_updater' ||
+    lifecycle.runtime_substrate?.cleanup_execution !== 'pointer_based_dry_run_first_explicit_execute_required' ||
+    lifecycle.runtime_substrate?.protected_refs?.current_pointer !==
       '~/Library/Application Support/OPL/runtime/current.json' ||
-    lifecycle.runtime_toolchain?.protected_refs?.current_root !==
+    lifecycle.runtime_substrate?.protected_refs?.current_root !==
       '~/Library/Application Support/OPL/runtime/current' ||
-    lifecycle.runtime_toolchain?.prune_candidate_policy !== 'unreferenced_runtime_roots_only' ||
-    lifecycle.runtime_toolchain?.dry_run_receipt_required !== true ||
+    lifecycle.runtime_substrate?.prune_candidate_policy !== 'unreferenced_runtime_roots_only' ||
+    lifecycle.runtime_substrate?.dry_run_receipt_required !== true ||
     lifecycle.logs?.default_policy !== 'bounded_rotation_or_user_cleanup' ||
     lifecycle.logs?.silent_delete_allowed !== false ||
     lifecycle.logs?.cleanup_execution !== 'bounded_rotation_dry_run_first' ||
@@ -171,17 +173,17 @@ function validateLocalDataLifecycle(lifecycle) {
     throw new Error('Local data lifecycle must retain user artifacts and bind runtime/log cleanup to explicit policy surfaces');
   }
   assertDeepEqualJson(
-    lifecycle.conversation_artifacts?.archive_receipt_required_fields,
+    lifecycle.user_data_artifacts?.archive_receipt_required_fields,
     ['conversation_id', 'source_paths', 'archive_path', 'archive_sha256', 'manifest_path', 'restore_probe_path', 'created_at'],
     'Local data lifecycle conversation archive receipt fields',
   );
   assertDeepEqualJson(
-    lifecycle.conversation_artifacts?.delete_receipt_required_fields,
+    lifecycle.user_data_artifacts?.delete_receipt_required_fields,
     ['conversation_id', 'deleted_paths', 'archive_receipt_path', 'confirmed_at', 'created_at'],
     'Local data lifecycle conversation delete receipt fields',
   );
   assertDeepEqualJson(
-    lifecycle.runtime_toolchain?.execute_receipt_required_fields,
+    lifecycle.runtime_substrate?.execute_receipt_required_fields,
     ['runtime_root', 'dry_run_plan_id', 'protected_paths', 'deleted_paths', 'deleted_bytes', 'created_at'],
     'Local data lifecycle runtime prune execute receipt fields',
   );
@@ -251,9 +253,13 @@ function validateManagedUpdatePlane(managedUpdatePlane) {
     managedUpdatePlane.release_boundary_required_cases,
     [
       'standard_updater_desktop_assets_only',
-      'runtime_toolchain_uses_managed_kernel_not_standard_updater',
-      'agent_package_channel_uses_managed_kernel_and_post_update_sync',
-      'capability_exposure_status_is_projection_only',
+      'standard_updater_apply_verification_and_recovery',
+      'runtime_substrate_uses_managed_kernel_not_standard_updater',
+      'capability_packages_use_managed_kernel_and_post_update_sync',
+      'codex_surface_status_is_projection_only',
+      'companion_tools_are_separate_from_runtime_substrate',
+      'workflow_profile_requires_semantic_merge',
+      'user_data_artifacts_no_silent_delete',
       'forbidden_silent_overwrite_scope_fail_closed',
     ],
     'Managed update plane release-boundary cases',
