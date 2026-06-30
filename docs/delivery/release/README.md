@@ -21,14 +21,35 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 
 | Theme | Current owner |
 | --- | --- |
-| Release channel policy, standard/Full separation, updater metadata, managed update plane, release evidence requirements | `contracts/app-release-channel.json` |
+| Release channel policy, standard/Full separation, seven-layer install/update taxonomy, updater metadata, release evidence requirements | `contracts/app-release-channel.json` |
 | Release workflow shape and publish/promote sequencing | `.github/workflows/desktop-release*.yml`, `.github/workflows/homebrew-tap-update.yml`, release scripts |
 | Release evidence classification and boundary validation | `scripts/validate-release-boundary.ts`, `scripts/validate-release.ts`, release-boundary tests |
 | Full payload and size budgets | `contracts/app-release-channel.json#full_first_install.size_budget`, `contracts/app-release-channel.json#full_first_install.opl_runtime_bundle_consumer`, Full manifest `opl_runtime_bundle_consumer`, `scripts/verify-remote-release-assets.ts`, `npm run release:full:size`, `scripts/analyze-full-package-size.ts`, and `scripts/release-size-reporting.ts` |
 | App/root shell boundary | `contracts/app-shell-adapter.json`, `scripts/app-root-boundary.ts`, `scripts/validate-active-shell.ts` |
-| Install exposure and managed agent package visibility | `contracts/app-install-exposure-policy.json`, `npm run validate:agent-installation` |
-| Runtime/toolchain managed update execution | OPL Framework `opl update status/check/plan/apply/repair/rollback --json` runner outputs |
+| Install exposure and Capability Packages visibility | `contracts/app-install-exposure-policy.json`, `npm run validate:agent-installation` |
+| Runtime Substrate and OPL Packages managed execution | OPL Framework `opl update status/check/plan/apply/repair/rollback --json` runner outputs |
 | Release history and retired workflow no-resurrection notes | `docs/history/process/` and `docs/history/process/retired-surface-provenance.md` |
+
+## Install And Update Taxonomy
+
+Release docs and user docs use seven user-facing layers. Contract/readback ids
+may stay machine-readable, but they must not become the primary user taxonomy.
+
+| Layer | User-facing meaning | Update boundary |
+| --- | --- | --- |
+| App Binary | `One Person Lab.app`, DMG/ZIP assets, updater metadata, and the visible restart/install lifecycle. | Standard updater and Homebrew casks update only this layer. |
+| Runtime Substrate | App-owned runtime roots, fallback executors, native helpers, Temporal/Codex fallback archives, and OPL Framework runtime needed to launch or recover. | Managed by OPL/App startup maintenance; `embedded_codex_executor` is an App-owned Codex CLI executor payload and must not mutate user global Codex/Homebrew/system installs. |
+| Capability Packages | MAS/MAG/RCA/OMA/BookForge/ScholarSkills OPL Packages. | Clean managed roots may update silently; dirty checkouts, developer checkouts, locks, verification failures, and manual-required states are not overwritten. |
+| Companion Tools | OfficeCLI, MinerU, PDF/UI helpers, Superpowers, cron, and similar workflow helpers. | Maintained as helper payloads/skills, not domain-authority or App Binary assets. |
+| Codex Surface | Codex plugin registry, plugin-packaged skills, generated OMA/BookForge surfaces, post-apply sync, readiness, and reload guidance. | A visibility/readiness projection over one semantic entry; it is not a separate update channel. |
+| Workflow Profile | OPL Flow workflow/profile guidance and Codex profile material. | Profile sync must not silently overwrite existing `AGENTS.md` or `TASTE.md`; existing profiles route through a Codex semantic merge packet. |
+| User Data/Artifacts | Workspaces, conversations, generated deliverables, logs, caches, receipts, and archive/restore state. | Never a silent updater target; destructive cleanup requires inventory, archive/restore proof, and explicit confirmation. |
+
+Full first-install assets are preloaded payloads for clean machines. They can
+carry Runtime Substrate, Capability Packages, Companion Tools, Codex Surface
+seeds, and Workflow Profile material so first launch can reach Core readiness,
+but Full is not a long-term update channel and must never be selected by
+standard updater metadata.
 
 ## Release Lanes
 
@@ -40,7 +61,7 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 | Stable promotion | Human release-owner promotion from candidate to stable/latest. | Candidate record with `status=ready_to_promote`, release readiness summary, same-cohort evidence, promote workflow output. |
 | Homebrew | Cask transport and index for standard and explicit Full first-install packages. | Published release assets, standard local authorization policy asset or Full manifest ref, tap update output, Homebrew VM smoke where required. |
 | WebUI/GHCR | App-owned preheated Docker/WebUI runtime image for browser-first Linux/container deployment. It is not the desktop App GUI shell install path and is not an OPL Packages member. | OCI source label, package access, publish output, image manifest/volume boundary, image smoke/evidence artifacts. |
-| Managed runtime/toolchain update | Framework-runner channel for runtime toolchain and managed agent packages. | OPL update runner receipts, lock/runner status, repair/rollback status, post-apply sync status. |
+| Managed maintenance | Framework-runner maintenance for Runtime Substrate, Capability Packages, Companion Tools, and Codex Surface readiness. | OPL update runner receipts, lock/runner status, repair/rollback status, post-apply sync status. |
 
 Standard macOS DMGs use electron-builder-supported `ULFO` / LZFSE compression
 by default. Current electron-builder 26.8.1 does not accept `ULMO` in
@@ -310,7 +331,10 @@ The standard updater follows Electron's background-download plus visible restart
 
 The current macOS install path is App-managed local authorization: the ZIP must contain the expected `One Person Lab.app` bundle, the installer replaces the local App bundle, clears quarantine, records `codesign` / `spctl` diagnostics, and relaunches the App. The active-shell gate requires both the local authorized installer path and the post-restart `quit-and-install` / `install-not-applied` diagnostics so a release cannot regress to a download-only success claim.
 
-The standard updater updates desktop App assets only. It does not update OPL module packages, select Developer Profile checkout sources, publish WebUI images, install `opl-flow`, mutate global Homebrew/system Codex, or claim domain readiness.
+The standard updater updates App Binary assets only. It does not update Runtime
+Substrate, OPL Packages, Companion Tools, Codex Surface, Workflow Profile,
+Developer Profile checkout sources, WebUI images, Homebrew/system tools, global
+Codex, user artifacts, or domain readiness.
 
 ## Managed Update Plane
 
@@ -344,16 +368,18 @@ Framework idempotency lock, use bounded retry/backoff, and project `last_run_at`
 `next_run_at`, `last_failure`, lock status, execution status, recent actions,
 skip reasons, and reload guidance into the Updates & Maintenance surface.
 
-For ordinary users, clean managed agent packages and capability exposure are the
-only background auto-apply targets. If `opl update check` or `opl update plan`
-reports `agent_package_channel` / `capability_exposure` as clean managed and
-updateable, the shell may call the Framework runner to apply those components
-and then display the recorded receipt refs, post-apply hooks, skill/plugin sync
-result, and reload guidance. Desktop App binary updates and runtime/toolchain
-updates remain conservative: they can be checked, staged, repaired, or shown as
-requiring restart, but the shell must not silently replace the App bundle,
-switch runtime pointers, upgrade Homebrew/system tools, or mutate developer /
-dirty checkouts.
+For ordinary users, clean managed OPL Packages and Codex Surface readiness are
+the only background auto-apply targets. The legacy internal ids
+`agent_package_channel` and `capability_exposure` may appear in contract JSON or
+Framework readbacks, but user surfaces label them as OPL Packages and Codex
+Surface readiness. If `opl update check` or `opl update plan` reports those
+components as clean managed and updateable, the shell may call the Framework
+runner to apply them and then display the recorded receipt refs, post-apply
+hooks, skill/plugin sync result, and reload guidance. App Binary updates and
+Runtime Substrate updates remain conservative: they can be checked, staged,
+repaired, or shown as requiring restart, but the shell must not silently replace
+the App bundle, switch runtime pointers, upgrade Homebrew/system tools, or
+mutate developer / dirty checkouts.
 
 The App may display component receipt refs, lock/runner status, repair status,
 rollback status, post-apply sync status, and reload guidance. It must not read
