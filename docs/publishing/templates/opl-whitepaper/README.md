@@ -1,6 +1,9 @@
 # OPL Whitepaper Template
 
+Owner: `one-person-lab-app`
+Purpose: `opl_whitepaper_template`
 State: `active`
+Machine boundary: Human-readable template guide. Template machine truth remains in `template.json`, Quarto template assets, publishing generator scripts, validation scripts, generated guide manifests, and release evidence surfaces.
 
 This template is for formal OPL whitepapers and institution-facing reports.
 It uses Quarto source files and a shared OPL style contract instead of a
