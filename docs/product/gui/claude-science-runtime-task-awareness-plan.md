@@ -54,6 +54,7 @@ Claude Science 对 OPL App 的可学习点不是新增一个科研工作台，�
 | Artifact provenance | 产物来源、输入、lineage、manifest、hash、receipt refs；不包含 artifact body。 | Framework / domain producers |
 | Reviewer receipt | 审查状态、issue refs、next action、receipt ref；不是 quality verdict 或 domain readiness。 | Domain producers + Framework projection |
 | Plan-approve-run receipt | `opl app action execute --dry-run` 的计划预览与 `--json` execute receipt。 | OPL Framework action surface |
+| Resource context refs | OPL Gateway、OPL Fabric、环境、存储、资源 receipt 和成本估算 refs；用于说明任务会使用哪些 AI、连接器、计算、环境和存储资源。 | OPL Framework / Fabric projections |
 
 ## 当前规划调整
 
@@ -71,14 +72,16 @@ Claude Science 对 OPL App 的可学习点不是新增一个科研工作台，�
 | Specialist Agent Handoff | `next_owner` / owner route / accepted return shape | 覆盖为 Runtime 字段 |
 | Scientific Source Connector UX | Capability / connector readiness refs | 等价覆盖 |
 | Reproducibility Export Bundle | Export-bundle preview refs + dry-run receipt boundary；真实生成仍归 domain owner | 等价覆盖 refs-only GUI 目标 |
+| Cloud / HPC / managed compute flow | Resource context refs + plan/approve/execute/monitor/collect/receipt | 覆盖为资源上下文，不新增 Cloud dashboard |
 
 ## Owner 分层
 
 | 层 | 责任 | 不做什么 |
 | --- | --- | --- |
 | OPL Framework / domain agents | 产出 task projection、artifact refs、reviewer receipt refs、action dry-run/execute receipt、connector/capability status。 | 不把 App 或 shell 变成 runtime/domain truth owner。 |
-| OPL App repo | 定义 GUI contract、runtime bridge、page-state matrix、fixtures、validation、docs 和 completion audit。 | 不产出 runtime truth，不读 artifact body，不写 owner receipt。 |
-| AionUI shell | 读取 App state/profile，渲染通用任务/产物/receipt/health 卡片，调用 App action。 | 不实现 reviewer/domain logic，不解析 Temporal 为用户任务，不判断 readiness，不新增 runtime store。 |
+| OPL App repo | 定义 GUI contract、runtime bridge、page-state matrix、fixtures、validation、docs 和 completion audit；显示 OPL Gateway/Fabric/Workspace/Console refs 的用户边界。 | 不产出 runtime truth，不读 artifact body，不写 owner receipt，不调度计算，不管理计费。 |
+| AionUI shell | 读取 App state/profile，渲染通用任务/产物/receipt/health/资源上下文卡片，调用 App action。 | 不实现 reviewer/domain logic，不解析 Temporal 为用户任务，不判断 readiness，不新增 runtime store，不实现 Cloud service client。 |
+| OPL Console | 管理组织、权限、账单、Workspace 生命周期、连接器审批、环境策略和托管资源包。 | 不管理用户自带本机、SSH 或 HPC 资源，除非 Framework projection 标记为 Console-managed。 |
 
 ## 详细落地清单
 

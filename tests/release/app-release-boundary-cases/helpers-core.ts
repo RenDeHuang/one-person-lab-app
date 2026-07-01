@@ -144,7 +144,18 @@ export const expectedSettingsPageSections = {
   },
   settings_access: {
     matrixId: 'access',
-    sections: ['getting_started_summary', 'model_account', 'codex_cli', 'provider_readiness', 'api_keys', 'webui_compatibility', 'web_remote_access'],
+    sections: [
+      'getting_started_summary',
+      'model_account',
+      'codex_cli',
+      'provider_readiness',
+      'api_keys',
+      'opl_gateway',
+      'cloud_remote_access',
+      'fabric_resource_sources',
+      'webui_compatibility',
+      'web_remote_access',
+    ],
     mustShow: [
       'Setup & Access placed under OPL Control Center Setup & Access',
       'whether Codex CLI can run now',

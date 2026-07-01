@@ -36,7 +36,8 @@ configuration dump. It should answer user questions in this order:
 3. What OPL capabilities can I use?
 4. What needs maintenance?
 5. How do I safely manage local data?
-6. Where are technical diagnostics when I need them?
+6. Which local, remote, or managed resources can my tasks use?
+7. Where are technical diagnostics when I need them?
 
 The default surface gives conclusions and next actions. Raw paths, ids,
 receipts, component ids, JSON payloads, operation modes, and implementation
@@ -136,7 +137,9 @@ P0 entries:
 P1 entries:
 
 - Web / Docker / Remote Access: direct route for users who need WebUI, Docker,
-  or remote access. It belongs to Setup & Access.
+  OPL Workspace, user-provided SSH/HPC, or OPL Cloud-managed resources. It
+  belongs to Setup & Access and is displayed as Cloud & Remote Access when the
+  App has OPL Gateway or Fabric refs.
 - Developer Profile Status: local checkout source, auto-update impact, and
   dirty checkout risk. It belongs to Advanced.
 - External Tools & Voice: ordinary label for tools, MCP support, and voice.
@@ -170,13 +173,20 @@ Access & Model owns user-facing connection readiness:
 - Codex CLI availability;
 - Model & Account with current model, account/API key readiness, connection
   check, and repair entry;
+- OPL Gateway status as the branded AI access surface for model routing, key
+  state, provider policy, and use refs;
 - model access/API key state;
 - default model and reasoning selection;
 - permission meaning in user language;
-- Web / Docker / Remote Access as a clearly named secondary surface.
+- Cloud & Remote Access for Local App, Docker/WebUI, OPL Workspace,
+  user-provided SSH/HPC, and OPL Cloud-managed compute or storage refs;
+- OPL Fabric resource-source status for compute, storage, connector, and
+  environment refs when the Framework projection provides them.
 
 Base URLs, token paths, raw config files, and provider internals are advanced
-details, not first-screen content.
+details, not first-screen content. Console billing, organization policy, and
+managed-resource entitlement are displayed only as Console-managed refs; the App
+does not make those decisions.
 
 ### Workspace
 
@@ -206,6 +216,12 @@ Each purpose card shows current availability, primary entry, required package or
 skill support, whether it needs update or repair, and last capability sync when
 available. Skills, external tools, MCP, voice, and custom assistants are
 supporting sections below the purpose model.
+
+Connector readiness appears as OPL Connect refs grouped by user purpose, such
+as literature databases, research databases, storage, tools/API, internal
+systems, and compute schedulers. Environment and resource-source readiness
+appears as OPL Fabric refs. Settings must not expose connector credentials,
+connector bodies, environment bodies, or domain verdicts.
 
 ### Updates & Maintenance
 

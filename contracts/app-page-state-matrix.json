@@ -248,7 +248,11 @@
             "elapsed_seconds",
             "plan_ref",
             "latest_receipt_ref",
-            "latest_artifact_ref"
+            "latest_artifact_ref",
+            "gateway_status_ref",
+            "resource_source_refs",
+            "environment_ref",
+            "storage_ref"
           ],
           "independent_task_store_allowed": false
         }
@@ -344,8 +348,15 @@
             "action_receipt",
             "workflow_refs",
             "export_bundle_action_ref",
-            "lineage_refs"
+            "lineage_refs",
+            "gateway_status_ref",
+            "resource_source_refs",
+            "environment_ref",
+            "storage_ref",
+            "resource_receipt_ref",
+            "cost_estimate_ref"
           ],
+          "resource_context_policy": "OPL Gateway and OPL Fabric refs are displayed as current-task execution context only; no compute, storage, connector, environment, billing, or Console policy truth is owned by the App",
           "default_state": "collapsed",
           "artifact_body_access": false,
           "domain_verdict_authority": false
@@ -441,7 +452,13 @@
             "review_receipt",
             "action_receipt",
             "workflow_refs",
-            "export_bundle_action_ref"
+            "export_bundle_action_ref",
+            "gateway_status_ref",
+            "resource_source_refs",
+            "environment_ref",
+            "storage_ref",
+            "resource_receipt_ref",
+            "cost_estimate_ref"
           ],
           "count_policies": {
             "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
@@ -484,8 +501,15 @@
             "workflow_refs",
             "export_bundle_action_ref",
             "connector_readiness_refs",
+            "gateway_status_ref",
+            "resource_source_refs",
+            "environment_ref",
+            "storage_ref",
+            "resource_receipt_ref",
+            "cost_estimate_ref",
             "diagnostic_substrate_refs"
           ],
+          "resource_context_policy_ref": "contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy",
           "settings_capabilities_surface_ref": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
           "display_policy": "runtime_global_task_awareness_with_current_task_slices_no_new_dashboard",
           "temporal_policy": "diagnostics_only_never_user_task_model",
@@ -1686,6 +1710,9 @@
         "codex_cli",
         "provider_readiness",
         "api_keys",
+        "opl_gateway",
+        "cloud_remote_access",
+        "fabric_resource_sources",
         "webui_compatibility",
         "web_remote_access"
       ],
@@ -1702,13 +1729,18 @@
         "section-level refresh state",
         "Setup & Access placed under OPL Control Center Setup & Access",
         "Model & Account section with current model, model access/API key readiness, connection check, and repair entry",
+        "OPL Gateway as the branded AI access surface for model routing, key status, and provider policy refs",
+        "Cloud & Remote Access entry that explains Local App, Docker WebUI, OPL Workspace, user-provided SSH/HPC, and OPL Cloud managed resource sources",
+        "OPL Fabric resource-source status as refs-only local, remote, managed compute, storage, connector, and environment context",
         "Web / Docker / Remote Access section with a direct user-facing entry to WebUI or remote access setup"
       ],
       "must_not_show": [
         "raw base URL and token paths as first-screen content",
         "backend selector as ordinary App configuration",
         "WebUI as the primary access mental model",
-        "backend/provider raw selector as the Model & Account primary control"
+        "backend/provider raw selector as the Model & Account primary control",
+        "Console billing or managed-cloud entitlement as an App-owned decision",
+        "Cloud service availability as release-ready or runtime-ready proof"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "setup_access",
@@ -1745,7 +1777,13 @@
         "capability_health_refs",
         "connector_readiness_refs",
         "workflow_refs",
-        "export_bundle_action_ref"
+        "export_bundle_action_ref",
+        "resource_source_refs",
+        "gateway_status_ref",
+        "environment_ref",
+        "storage_ref",
+        "resource_receipt_ref",
+        "cost_estimate_ref"
       ],
       "task_awareness_ref_policy": "thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict",
       "export_bundle_action_policy": "show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness",
@@ -1777,6 +1815,8 @@
         "MCP and tool details as secondary support details",
         "capability status for Research, Grant, Presentation, Book or manuscript work, and OPL automation",
         "capability health and connector readiness refs from OPL App state",
+        "OPL Connect connector readiness grouped by literature, database, storage, tools/API, internal system, and compute scheduler refs",
+        "OPL Fabric environment and resource-source refs when capability tasks need managed or user-provided resources",
         "reusable workflow refs without skill bodies",
         "reproducibility export bundle action ref with dry-run receipt boundary",
         "External Tools & Voice entry with MCP described as secondary technical detail",

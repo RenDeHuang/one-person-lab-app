@@ -676,6 +676,12 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'connector_readiness_refs',
     'workflow_refs',
     'export_bundle_action_ref',
+    'resource_source_refs',
+    'gateway_status_ref',
+    'environment_ref',
+    'storage_ref',
+    'resource_receipt_ref',
+    'cost_estimate_ref',
   ]);
   assert.equal(
     guiContract.pages.settings_capabilities.task_awareness_ref_policy,
@@ -710,7 +716,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   );
   assert.ok(
     guiContract.pages.settings_capabilities.must_not_show.includes(
-      'artifact body, workflow body, owner receipt write, or domain export readiness verdict from Settings Capabilities',
+      'artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities',
     ),
   );
   assert.ok(guiContract.pages.settings_capabilities.auto_injected_skills_policy.forbidden_examples.includes('aionui-skills'));

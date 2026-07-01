@@ -340,6 +340,34 @@ test('Settings page adapters and visual QA policy are machine-readable gates', (
     /required pages/,
   );
 
+  const invalidAccessCloudBoundary = structuredClone(controlPlaneContract);
+  delete invalidAccessCloudBoundary.page_adapter_policy.required_pages.access.cloud_remote_boundary;
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidAccessCloudBoundary,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /cloud_remote_boundary/,
+  );
+
+  const invalidCapabilitiesResourceGrouping = structuredClone(controlPlaneContract);
+  delete invalidCapabilitiesResourceGrouping.page_adapter_policy.required_pages.capabilities.resource_grouping_surface;
+  assert.throws(
+    () =>
+      validateSettingsControlPlane(
+        invalidCapabilitiesResourceGrouping,
+        guiContract,
+        pageStateMatrix,
+        productProfile,
+        adapterContract,
+      ),
+    /resource grouping surface/,
+  );
+
   const invalidVisualQaPolicy = structuredClone(controlPlaneContract);
   invalidVisualQaPolicy.visual_qa_policy.does_not_prove = ['release readiness'];
   assert.throws(
