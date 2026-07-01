@@ -125,6 +125,18 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(fixtureTask.action_receipt.owner_receipt_write_access, false);
   assert.deepEqual(fixtureTask.workflow_refs, ['opl://workflow/medautoscience/module-runtime-repair']);
   assert.equal(fixtureTask.export_bundle_action_ref, null);
+  assert.equal(fixtureTask.gateway_status_ref, 'opl://gateway/status/gflabtoken');
+  assert.deepEqual(fixtureTask.resource_source_refs, [
+    'opl://resource-source/local-app',
+    'opl://resource-source/opl-workspace',
+    'opl://resource-source/opl-fabric/compute',
+  ]);
+  assert.equal(fixtureTask.environment_ref, 'opl://environment/python-r-quarto');
+  assert.equal(fixtureTask.storage_ref, 'opl://storage/workspace-volume/medautoscience');
+  assert.equal(fixtureTask.resource_receipt_ref, 'opl://resource-receipt/medautoscience/module-runtime-repair');
+  assert.equal(fixtureTask.cost_estimate_ref, 'opl://cost-estimate/medautoscience/module-runtime-repair');
+  assert.ok(fixtureTask.connector_readiness_refs.some((entry) => entry.id === 'opl_connect_literature'));
+  assert.ok(fixtureTask.connector_readiness_refs.some((entry) => entry.id === 'opl_fabric_compute'));
   assert.equal(fixtureTask.action_receipt.export_bundle_action_id, 'task_export_bundle_preview');
   assert.equal(fixtureTask.action_receipt.export_bundle_route, 'opl app action execute --action task_export_bundle_preview --dry-run');
   assert.ok(fixtureTask.diagnostic_substrate_refs.includes('opl://diagnostics/provider/temporal'));
@@ -156,6 +168,26 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.ok(
     fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.connector_readiness_refs.some(
       (entry) => entry.id === 'temporal_provider',
+    ),
+  );
+  assert.equal(
+    fastStateFixture.app_state.settings_control_center.app_settings_read_model.resource_sources.opl_gateway
+      .gateway_status_ref,
+    'opl://gateway/status/gflabtoken',
+  );
+  assert.ok(
+    fastStateFixture.app_state.settings_control_center.app_settings_read_model.resource_sources.opl_workspace.resource_source_refs.includes(
+      'opl://resource-source/opl-workspace',
+    ),
+  );
+  assert.ok(
+    fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.connector_readiness_refs.some(
+      (entry) => entry.id === 'opl_connect_literature' && entry.ref === 'opl://connect/literature/pubmed',
+    ),
+  );
+  assert.ok(
+    fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.connector_readiness_refs.some(
+      (entry) => entry.id === 'opl_fabric_compute' && entry.ref === 'opl://fabric/compute/user-provided-ssh',
     ),
   );
   assert.ok(

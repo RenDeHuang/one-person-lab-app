@@ -453,6 +453,34 @@
               "opl://workflow/medautoscience/module-runtime-repair"
             ],
             "export_bundle_action_ref": null,
+            "connector_readiness_refs": [
+              {
+                "id": "opl_connect_literature",
+                "title": "OPL Connect literature refs",
+                "status": "refs_available",
+                "ref": "opl://connect/literature/pubmed",
+                "owner": "one-person-lab",
+                "next_action": "list_refs_only_no_connector_body"
+              },
+              {
+                "id": "opl_fabric_compute",
+                "title": "OPL Fabric compute refs",
+                "status": "self_managed",
+                "ref": "opl://fabric/compute/user-provided-ssh",
+                "owner": "user",
+                "next_action": "plan_approve_execute_collect_receipt"
+              }
+            ],
+            "gateway_status_ref": "opl://gateway/status/gflabtoken",
+            "resource_source_refs": [
+              "opl://resource-source/local-app",
+              "opl://resource-source/opl-workspace",
+              "opl://resource-source/opl-fabric/compute"
+            ],
+            "environment_ref": "opl://environment/python-r-quarto",
+            "storage_ref": "opl://storage/workspace-volume/medautoscience",
+            "resource_receipt_ref": "opl://resource-receipt/medautoscience/module-runtime-repair",
+            "cost_estimate_ref": "opl://cost-estimate/medautoscience/module-runtime-repair",
             "diagnostic_substrate_refs": [
               "opl://diagnostics/provider/temporal"
             ],
@@ -697,6 +725,37 @@
       }
     ],
     "settings_control_center": {
+      "app_settings_read_model": {
+        "resource_sources": {
+          "cloud_remote_access": {
+            "status": "available",
+            "resource_source_refs": [
+              "opl://resource-source/local-app",
+              "opl://resource-source/opl-workspace"
+            ],
+            "gateway_status_ref": "opl://gateway/status/gflabtoken"
+          },
+          "opl_gateway": {
+            "status": "available",
+            "gateway_status_ref": "opl://gateway/status/gflabtoken"
+          },
+          "opl_workspace": {
+            "status": "optional_surface",
+            "resource_source_refs": [
+              "opl://resource-source/opl-workspace"
+            ],
+            "environment_ref": "opl://environment/python-r-quarto",
+            "storage_ref": "opl://storage/workspace-volume/medautoscience"
+          },
+          "opl_fabric": {
+            "status": "refs_available",
+            "resource_source_refs": [
+              "opl://resource-source/opl-fabric/compute",
+              "opl://resource-source/opl-fabric/storage"
+            ]
+          }
+        }
+      },
       "capability_task_awareness_refs": {
         "surface_kind": "opl_settings_capability_task_awareness_refs.v1",
         "source_refs": [
@@ -704,7 +763,9 @@
           "app_state.provider.temporal",
           "app_state.actions#task_action_receipt_preview",
           "app_state.actions#task_export_bundle_preview",
-          "app_state.operator.workbench.task_drilldowns[].workflow_refs"
+          "app_state.operator.workbench.task_drilldowns[].workflow_refs",
+          "app_state.operator.workbench.task_drilldowns[].resource_source_refs",
+          "app_state.settings_control_center.app_settings_read_model.resource_sources"
         ],
         "capability_health_refs": [
           {
@@ -764,6 +825,22 @@
             "ref": "app_state.actions#settings_reload_codex_surface",
             "owner": "one-person-lab",
             "next_action": "settings_reload_codex_surface"
+          },
+          {
+            "id": "opl_connect_literature",
+            "title": "OPL Connect literature refs",
+            "status": "refs_available",
+            "ref": "opl://connect/literature/pubmed",
+            "owner": "one-person-lab",
+            "next_action": "list_refs_only_no_connector_body"
+          },
+          {
+            "id": "opl_fabric_compute",
+            "title": "OPL Fabric compute refs",
+            "status": "self_managed",
+            "ref": "opl://fabric/compute/user-provided-ssh",
+            "owner": "user",
+            "next_action": "plan_approve_execute_collect_receipt"
           }
         ],
         "workflow_refs": [
