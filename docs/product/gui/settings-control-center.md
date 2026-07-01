@@ -263,13 +263,21 @@ Storage & Data is its own Control Center group and uses user safety language:
 - Update cache;
 - Conversation archives;
 - Runtime cache;
-- Logs.
+- Logs;
+- Workspace data lifecycle.
 
 The first screen shows size, safety classification, and the recommended action.
 Technical terms such as dry-run may appear as secondary labels, but primary
 copy should say "Preview cleanup plan" and "Clean selected cache". Destructive
 actions stay disabled until the required preview, archive, restore proof, or
 receipt exists.
+
+For research workspaces, Storage & Data is a read-only consumer of OPL/MAS
+lifecycle refs. It can show lifecycle planes, large body refs, small-file
+pressure, runtime compact dry-run refs, completed-project closeout refs, and
+forbidden generic-cleanup boundaries. The App must not read SQLite sidecars
+directly, scan workspace trees to infer cleanup candidates, delete clinical
+data bodies, write runtime/domain truth, or authorize artifact cleanup.
 
 ### Local Services
 

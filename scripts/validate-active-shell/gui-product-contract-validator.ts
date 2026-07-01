@@ -87,6 +87,84 @@ function validateManagedUpdatePageSurface(page, label) {
   });
 }
 
+function validateReadOnlyStorageLifecycleSurface(surface, label) {
+  if (
+    surface?.role !== 'read_only_storage_lifecycle_product_surface' ||
+    surface.app_role !== 'display_only_consumer_of_opl_mas_read_model_refs' ||
+    surface.source_policy !== 'consume_opl_mas_read_model_refs_from_app_state_or_framework_projection_only'
+  ) {
+    throw new Error(`${label} must be a read-only OPL/MAS read-model consumer`);
+  }
+  assertIncludesAll(
+    surface.source_refs,
+    [
+      'OPL App state storage lifecycle refs',
+      'MAS read-model lifecycle refs when a study/workspace exposes them',
+      'runtime compact dry-run refs from OPL Framework projections',
+      'completed-project closeout refs from OPL/MAS projections',
+    ],
+    `${label} source refs`,
+  );
+  assertIncludesAll(
+    surface.display_planes,
+    [
+      'data_lifecycle_planes',
+      'large_body_refs',
+      'small_file_pressure_refs',
+      'runtime_compact_dry_run_refs',
+      'completed_project_closeout_refs',
+      'forbidden_generic_cleanup_boundary',
+    ],
+    `${label} display planes`,
+  );
+  assertIncludesAll(
+    surface.required_ref_fields,
+    [
+      'plane_id',
+      'label',
+      'summary',
+      'size_or_pressure_ref',
+      'recommended_action_ref',
+      'dry_run_ref',
+      'closeout_ref',
+      'authority_boundary',
+    ],
+    `${label} required ref fields`,
+  );
+  for (const [field, expected] of Object.entries({
+    sqlite_access: 'forbidden',
+    file_delete: 'forbidden',
+    data_authority_owner: 'OPL Framework and domain owners',
+    app_authority: 'read_model_display_only',
+    generic_cleanup_policy: 'forbidden_without_owner_ref_and_dry_run_or_closeout_ref',
+  })) {
+    if (surface.authority_boundary?.[field] !== expected) {
+      throw new Error(`${label} authority_boundary.${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    surface.must_not_read,
+    [
+      'SQLite files directly',
+      'domain artifact bodies',
+      'raw runtime private ledgers',
+      'workspace filesystem trees to infer cleanup candidates',
+    ],
+    `${label} must_not_read`,
+  );
+  assertIncludesAll(
+    surface.must_not_write,
+    [
+      'SQLite files',
+      'runtime or domain truth',
+      'owner receipts',
+      'typed blockers',
+      'filesystem deletes or cleanup execution',
+    ],
+    `${label} must_not_write`,
+  );
+}
+
 export function validateAppGuiProductContract(guiContract, releaseChannel, installExposurePolicy) {
   validateGuiProductHomeContract(guiContract);
   validateGuiFrameworkSurfaces(guiContract, releaseChannel, installExposurePolicy);
@@ -586,6 +664,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   ) {
     throw new Error('Settings Storage must consume the active shell local data lifecycle service and App release lifecycle contract');
   }
+  validateReadOnlyStorageLifecycleSurface(
+    pages.settings_storage.read_only_lifecycle_surface,
+    'Settings Storage read-only lifecycle surface',
+  );
   if (!pages.about.must_show?.includes('Stable or Nightly channel')) {
     throw new Error('About page must show Stable or Nightly channel');
   }

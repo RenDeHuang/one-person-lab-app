@@ -2931,7 +2931,13 @@
         "log rotation dry-run candidates by age, count, and size before execute can remove logs",
         "updater cache cleanup scoped to stale installer packages only",
         "safe cleanup language: preview, archive, restore proof, prune plan, or rotate logs",
-        "Storage placed under OPL Control Center Data & Storage"
+        "Storage placed under OPL Control Center Data & Storage",
+        "data lifecycle planes from OPL/MAS read-model refs",
+        "large body refs without artifact body access",
+        "small-file pressure refs without scanning workspace trees",
+        "runtime compact dry-run refs as preview-only lifecycle guidance",
+        "completed-project closeout refs from OPL/MAS projections",
+        "forbidden generic cleanup boundary"
       ],
       "must_not_show": [
         "silent user data artifact deletion",
@@ -2939,9 +2945,62 @@
         "log cleanup as proof that user artifacts were archived or deleted",
         "Homebrew/global tool silent cleanup controls",
         "domain artifact bodies",
-        "dangerous cleanup wording such as wipe, purge, nuke, or force delete as ordinary Storage copy"
+        "dangerous cleanup wording such as wipe, purge, nuke, or force delete as ordinary Storage copy",
+        "direct SQLite reads or writes",
+        "App-owned file deletion or cleanup execution authority",
+        "generic cleanup recommendations without owner refs and dry-run or closeout refs",
+        "App-owned data lifecycle authority"
       ],
-      "ia_group": "data_storage"
+      "ia_group": "data_storage",
+      "read_only_lifecycle_surface": {
+        "role": "read_only_storage_lifecycle_product_surface",
+        "app_role": "display_only_consumer_of_opl_mas_read_model_refs",
+        "source_policy": "consume_opl_mas_read_model_refs_from_app_state_or_framework_projection_only",
+        "source_refs": [
+          "OPL App state storage lifecycle refs",
+          "MAS read-model lifecycle refs when a study/workspace exposes them",
+          "runtime compact dry-run refs from OPL Framework projections",
+          "completed-project closeout refs from OPL/MAS projections"
+        ],
+        "display_planes": [
+          "data_lifecycle_planes",
+          "large_body_refs",
+          "small_file_pressure_refs",
+          "runtime_compact_dry_run_refs",
+          "completed_project_closeout_refs",
+          "forbidden_generic_cleanup_boundary"
+        ],
+        "required_ref_fields": [
+          "plane_id",
+          "label",
+          "summary",
+          "size_or_pressure_ref",
+          "recommended_action_ref",
+          "dry_run_ref",
+          "closeout_ref",
+          "authority_boundary"
+        ],
+        "authority_boundary": {
+          "sqlite_access": "forbidden",
+          "file_delete": "forbidden",
+          "data_authority_owner": "OPL Framework and domain owners",
+          "app_authority": "read_model_display_only",
+          "generic_cleanup_policy": "forbidden_without_owner_ref_and_dry_run_or_closeout_ref"
+        },
+        "must_not_read": [
+          "SQLite files directly",
+          "domain artifact bodies",
+          "raw runtime private ledgers",
+          "workspace filesystem trees to infer cleanup candidates"
+        ],
+        "must_not_write": [
+          "SQLite files",
+          "runtime or domain truth",
+          "owner receipts",
+          "typed blockers",
+          "filesystem deletes or cleanup execution"
+        ]
+      }
     },
     "settings_advanced": {
       "state_source": "opl app state --profile fast --json",

@@ -490,6 +490,12 @@ export const settingsPageExpectations = {
       'OPL Runtime Fabric pointer-prune dry-run plan before execute can remove unreferenced runtime roots',
       'log rotation dry-run candidates by age, count, and size before execute can remove logs',
       'updater cache cleanup scoped to stale installer packages only',
+      'data lifecycle planes from OPL/MAS read-model refs',
+      'large body refs without artifact body access',
+      'small-file pressure refs without scanning workspace trees',
+      'runtime compact dry-run refs as preview-only lifecycle guidance',
+      'completed-project closeout refs from OPL/MAS projections',
+      'forbidden generic cleanup boundary',
     ],
     must_not_show: [
       'dangerous cleanup wording such as wipe, purge, nuke, or force delete as ordinary Storage copy',
@@ -498,6 +504,10 @@ export const settingsPageExpectations = {
       'log cleanup as proof that user artifacts were archived or deleted',
       'Homebrew/global tool silent cleanup controls',
       'domain artifact bodies',
+      'direct SQLite reads or writes',
+      'App-owned file deletion or cleanup execution authority',
+      'generic cleanup recommendations without owner refs and dry-run or closeout refs',
+      'App-owned data lifecycle authority',
     ],
   },
   settings_advanced: {
