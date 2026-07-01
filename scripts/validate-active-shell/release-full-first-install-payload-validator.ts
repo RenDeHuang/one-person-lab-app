@@ -17,14 +17,16 @@ function validateReleaseFullCodexCliPayload(codexCli) {
     codexCli?.fallback_version_source !== 'distribution cohort manifest components.codex_cli.fallback_version' ||
     codexCli?.fallback_runtime_path !== 'runtime/current/bin/codex' ||
     codexCli?.fallback_payload_path !== 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz' ||
-    codexCli?.must_prefer_valid_newer_user_version !== true ||
+    codexCli?.must_prefer_valid_newer_user_version !== false ||
+    codexCli?.system_sources_visible_as_diagnostics !== true ||
+    codexCli?.system_sources_require_expert_opt_in !== true ||
     !/offline from the packaged archive wrapper/.test(codexCli?.verification ?? '')
   ) {
-    throw new Error('Release channel Full Codex CLI payload must be compatibility-gated with an offline archive-wrapper fallback');
+    throw new Error('Release channel Full Codex CLI payload must default to the App-owned offline archive-wrapper runtime');
   }
   assertDeepEqualJson(
     codexCli.preferred_sources,
-    ['explicit_user_path', 'system_path', 'homebrew_formula'],
+    ['app_owned_archive_wrapper'],
     'Release channel Codex CLI preferred sources',
   );
 }
@@ -36,14 +38,16 @@ function validateReleaseFullTemporalCliPayload(temporalCli) {
     temporalCli?.fallback_version_source !== 'distribution cohort manifest components.temporal_cli.fallback_version' ||
     temporalCli?.fallback_runtime_path !== 'runtime/current/bin/temporal' ||
     temporalCli?.fallback_payload_path !== 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz' ||
-    temporalCli?.must_prefer_valid_newer_user_version !== true ||
+    temporalCli?.must_prefer_valid_newer_user_version !== false ||
+    temporalCli?.system_sources_visible_as_diagnostics !== true ||
+    temporalCli?.system_sources_require_expert_opt_in !== true ||
     !/offline from the packaged archive wrapper/.test(temporalCli?.verification ?? '')
   ) {
-    throw new Error('Release channel Full Temporal CLI payload must be compatibility-gated with an offline archive-wrapper fallback');
+    throw new Error('Release channel Full Temporal CLI payload must default to the App-owned offline archive-wrapper runtime');
   }
   assertDeepEqualJson(
     temporalCli.preferred_sources,
-    ['explicit_user_path', 'system_path', 'homebrew_formula'],
+    ['app_owned_archive_wrapper'],
     'Release channel Temporal CLI preferred sources',
   );
 }

@@ -88,6 +88,8 @@ function validateReleaseRuntimeToolchainChannelPolicy(runtimeUpdater) {
   if (
     runtimeUpdater?.owner !== 'one-person-lab-app' ||
     runtimeUpdater?.role !== 'app_owned_runtime_substrate_layer_updates' ||
+    runtimeUpdater?.brand_name !== 'OPL Runtime Fabric' ||
+    runtimeUpdater?.brand_role !== 'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/BookForge/ScholarSkills brand module' ||
     runtimeUpdater?.channel_manifest_asset !== 'app-runtime-update-channel.json' ||
     runtimeUpdater?.transport !== 'app_owned_github_release_assets' ||
     runtimeUpdater?.standard_updater_metadata_allowed !== false ||
@@ -122,6 +124,15 @@ function validateReleaseRuntimeToolchainManagedComponents(runtimeUpdater) {
       throw new Error(`Release channel runtime substrate updater must not own ${forbidden}`);
     }
   }
+  assertDeepEqualJson(
+    runtimeUpdater?.managed_subsystems,
+    {
+      agent_execution_core: ['embedded_codex_executor', 'temporal_cli_archive', 'opl_framework_runtime'],
+      environment_base: ['node_runtime', 'python_runtime', 'uv_runtime'],
+      system_bridge: ['native_helper'],
+    },
+    'Release channel OPL Runtime Fabric managed subsystems',
+  );
 }
 
 function validateReleaseRuntimeToolchainLayering(runtimeUpdater) {
@@ -164,16 +175,19 @@ function validateReleaseRuntimeToolchainPlaneBinding(runtimeUpdater, managedUpda
 function validateReleaseRuntimeToolchainSystemPolicy(runtimeUpdater) {
   assertDeepEqualJson(
     runtimeUpdater.system_tool_policy?.preferred_sources,
-    ['explicit_user_path', 'system_path', 'homebrew_formula', 'app_owned_runtime_fallback'],
-    'Release channel Runtime Substrate updater preferred sources',
+    ['app_owned_runtime', 'explicit_expert_unmanaged_source'],
+    'Release channel OPL Runtime Fabric updater preferred sources',
   );
   if (
-    runtimeUpdater.system_tool_policy?.prefer_valid_newer_system_tool !== true ||
+    runtimeUpdater.system_tool_policy?.prefer_valid_newer_system_tool !== false ||
+    runtimeUpdater.system_tool_policy?.system_sources_default_used !== false ||
+    runtimeUpdater.system_tool_policy?.system_sources_visible_as_diagnostics !== true ||
+    runtimeUpdater.system_tool_policy?.system_sources_require_expert_opt_in !== true ||
     runtimeUpdater.system_tool_policy?.silent_global_mutation_allowed !== false ||
     runtimeUpdater.system_tool_policy?.homebrew_upgrade_allowed_by_default !== false ||
     runtimeUpdater.system_tool_policy?.user_opt_in_global_upgrade_allowed !== true
   ) {
-    throw new Error('Release channel runtime substrate updater must detect compatible system tools without silently mutating global Homebrew or system installs');
+    throw new Error('Release channel OPL Runtime Fabric updater must default to App-owned runtime and keep system tools diagnostic or explicit expert opt-in only');
   }
   assertIncludesAll(
     runtimeUpdater.manifest_required_fields,
@@ -217,6 +231,10 @@ function validateReleaseRuntimeToolchainVerification(runtimeUpdater) {
   ) {
     throw new Error('Release channel runtime substrate updater must preserve clean-machine installability and rollback without global tool mutation');
   }
+  validateOplBodyPolicy(runtimeUpdater.linux_docker_opl_body_policy, {
+    label: 'Release channel OPL Runtime Fabric Linux/Docker OPL body policy',
+    expectManagedUpdatePlane: true,
+  });
 }
 
 function validateManagedUpdateInstallationCarrierLane(carrierPlane) {
@@ -329,6 +347,10 @@ function validateInstallationCarrierDockerWebuiVariant(variant) {
     ],
     'Installation carrier Docker/WebUI data preservation evidence',
   );
+  validateOplBodyPolicy(variant?.opl_body_update_policy, {
+    label: 'Installation carrier Docker/WebUI OPL body policy',
+    expectHostCarrierUpdateAllowed: false,
+  });
 }
 
 function validateInstallationCarrierLinuxVariant(variant) {
@@ -368,6 +390,10 @@ function validateInstallationCarrierLinuxVariant(variant) {
     ],
     'Installation carrier Linux manual-required reasons',
   );
+  validateOplBodyPolicy(variant?.opl_body_update_policy, {
+    label: 'Installation carrier Linux OPL body policy',
+    expectHostCarrierUpdateAllowed: false,
+  });
 }
 
 function validateManagedUpdateRuntimeAndAgentLanes(runtimePlane, agentPlane, capabilityPlane, agentPackageChannel) {
@@ -389,6 +415,42 @@ function validateManagedUpdateRuntimeAndAgentLanes(runtimePlane, agentPlane, cap
 }
 
 function validateManagedUpdateRuntimeLane(runtimePlane) {
+  if (
+    runtimePlane?.display_group !== 'OPL Runtime Fabric' ||
+    runtimePlane?.display_label_en !== 'OPL Runtime Fabric' ||
+    runtimePlane?.display_label_zh !== 'OPL 运行基座' ||
+    runtimePlane?.brand_name !== 'OPL Runtime Fabric' ||
+    runtimePlane?.brand_role !== 'shared runtime fabric for OPL capability modules, not a user-facing brand module'
+  ) {
+    throw new Error('Managed update plane runtime lane must expose OPL Runtime Fabric as the user-facing runtime foundation');
+  }
+  assertDeepEqualJson(
+    runtimePlane?.managed_subsystems,
+    {
+      agent_execution_core: ['embedded_codex_executor', 'temporal_cli_archive', 'opl_framework_runtime'],
+      environment_base: ['node_runtime', 'python_runtime', 'uv_runtime'],
+      system_bridge: ['native_helper'],
+    },
+    'Managed update plane OPL Runtime Fabric subsystems',
+  );
+  assertDeepEqualJson(
+    runtimePlane?.source_preference_policy,
+    {
+      default_source: 'app_owned_runtime',
+      system_sources_default_used: false,
+      system_sources_visible_as_diagnostics: true,
+      system_sources_require_expert_opt_in: true,
+      developer_checkout_default_used: false,
+      expert_opt_in_surface: 'Developer Profile explicit maintenance action',
+      standard_download_policy: 'minimal_runtime_fabric_then_on_demand_payloads',
+      full_download_policy: 'preload_runtime_fabric_common_tools_and_capability_caches',
+    },
+    'Managed update plane OPL Runtime Fabric source preference policy',
+  );
+  validateOplBodyPolicy(runtimePlane?.linux_docker_opl_body_policy, {
+    label: 'Managed update plane Linux/Docker OPL body policy',
+    expectInstallationCarrierExclusion: true,
+  });
   assertDeepEqualJson(
     runtimePlane?.status_fields,
     [
@@ -416,6 +478,41 @@ function validateManagedUpdateRuntimeLane(runtimePlane) {
     runtimePlane?.repair_status_source !== 'opl update repair --receipt <receipt_id> --json#managed_update.execution.status'
   ) {
     throw new Error('Managed update plane runtime lane must consume Framework rollback and repair runner status fields');
+  }
+}
+
+function validateOplBodyPolicy(policy, options) {
+  if (
+    policy?.user_intent_label !== 'Update OPL body' ||
+    policy?.managed_update_plane !== 'runtime_substrate' ||
+    policy?.runtime_fabric_label !== 'OPL Runtime Fabric'
+  ) {
+    throw new Error(`${options.label} must route Update OPL body to runtime_substrate / OPL Runtime Fabric`);
+  }
+  if (options.expectManagedUpdatePlane) {
+    assertIncludesAll(
+      policy?.applies_to,
+      ['docker_webui_managed_root', 'linux_package_managed_root'],
+      `${options.label} applies-to roots`,
+    );
+    assertIncludesAll(
+      policy?.forbidden_host_targets,
+      ['docker_webui_image', 'linux_package_carrier'],
+      `${options.label} forbidden host targets`,
+    );
+  }
+  if (options.expectInstallationCarrierExclusion) {
+    if (policy?.not_installation_carrier_update !== true) {
+      throw new Error(`${options.label} must mark OPL body updates as not installation carrier updates`);
+    }
+    assertIncludesAll(
+      policy?.forbidden_host_targets,
+      ['docker_webui_image', 'linux_package_carrier'],
+      `${options.label} forbidden host targets`,
+    );
+  }
+  if (options.expectHostCarrierUpdateAllowed === false && policy?.host_carrier_update_allowed !== false) {
+    throw new Error(`${options.label} must forbid host carrier update when user intent is Update OPL body`);
   }
 }
 

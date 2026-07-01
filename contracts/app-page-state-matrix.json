@@ -876,7 +876,7 @@
         "Developer Profile source_channel capability and managed GHCR OPL Packages channel default",
         "section-level refresh state",
         "environment page named Local Environment, distinct from Project Progress",
-        "runtime substrate managed updater status from App state or opl update status",
+        "OPL Runtime Fabric managed updater status from App state or opl update status",
         "OPL Packages status and post-update sync status",
         "OPL Packages Codex Surface sync substatus",
         "user-facing OPL Packages maintenance entry under Local Environment",
@@ -890,7 +890,7 @@
         "diagnostics collapsed by default with raw booleans, ids, paths, and receipts hidden",
         "environment page placed under OPL Control Center Maintenance & Updates",
         "Local Environment limited to service health rather than broad local runtime preferences",
-        "Maintenance hub for App updates, runtime substrate, companion tools, OPL Packages, storage cleanup, and repair recommendations",
+        "Maintenance hub for App updates, OPL Runtime Fabric, companion tools, OPL Packages, storage cleanup, and repair recommendations",
         "storage cleanup entry routed to Storage & Data without making cleanup a raw diagnostic card",
         "single recommended repair or maintenance action before advanced manual actions"
       ],
@@ -1040,10 +1040,10 @@
       "id": "storage",
       "expected_source": "active shell local data lifecycle service and App release lifecycle contract",
       "must_show": [
-        "storage inventory for updater cache, user data artifacts, runtime substrate, and logs",
+        "storage inventory for updater cache, user data artifacts, OPL Runtime Fabric roots, and logs",
         "path, exists, bytes, cleanup_mode, and silent_delete_allowed for each local data root",
         "conversation archive/export receipt and restore proof before delete can execute",
-        "runtime substrate pointer-prune dry-run plan before execute can remove unreferenced runtime roots",
+        "OPL Runtime Fabric pointer-prune dry-run plan before execute can remove unreferenced runtime roots",
         "log rotation dry-run candidates by age, count, and size before execute can remove logs",
         "updater cache cleanup scoped to stale installer packages only",
         "safe cleanup language: preview, archive, restore proof, prune plan, or rotate logs",
@@ -1064,7 +1064,7 @@
       "local_data_lifecycle_ref": "contracts/app-release-channel.json#local_data_lifecycle",
       "must_not_show": [
         "silent user data artifact deletion",
-        "runtime substrate cleanup without current or rollback pointer protection",
+        "OPL Runtime Fabric cleanup without current or rollback pointer protection",
         "log cleanup as proof that user artifacts were archived or deleted",
         "Homebrew/global tool silent cleanup controls",
         "domain artifact bodies",
@@ -1116,7 +1116,7 @@
       "expected_source": "OPL App managed update plane projection",
       "must_show": [
         "Installation carrier status",
-        "Runtime substrate managed updater status",
+        "OPL Runtime Fabric status",
         "Companion tools managed updater status",
         "OPL Packages managed updater status",
         "OPL Packages Codex Surface readiness and sync substatus",
@@ -1175,7 +1175,7 @@
         "status_consumption_policy": "show status, conditions, progress refs, and repair action refs without reading artifact bodies or writing runtime/domain truth",
         "must_show": [
           "Installation carrier status",
-          "Runtime substrate managed updater status",
+          "OPL Runtime Fabric status",
           "Companion tools managed updater status",
           "OPL Packages managed updater status",
           "OPL Packages Codex Surface readiness and sync substatus",
@@ -1232,7 +1232,7 @@
             "codex_surface",
             "workflow_profile"
           ],
-          "carrier_host_update_route": "carrier-specific host update route from installation_carrier.carrier_variants; Docker/WebUI image replacement requires host executor or manual route plus data volume preservation proof",
+          "carrier_host_update_route": "carrier-specific host update route from installation_carrier.carrier_variants; Docker/WebUI image replacement requires host executor or manual route plus data volume preservation proof; updating the OPL body inside Linux/Docker managed roots stays on runtime_substrate",
           "repair_receipt": "opl update repair --receipt <receipt_id> --json",
           "rollback_component": "opl update rollback --component <component_id> --json"
         },

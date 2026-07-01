@@ -114,6 +114,8 @@
     {
       "id": "runtime_substrate_payloads",
       "owner": "one-person-lab-app",
+      "brand_name": "OPL Runtime Fabric",
+      "brand_role": "shared runtime fabric for OPL capability modules, not a user-facing brand module",
       "members": [
         "runtime_substrate",
         "capability_packages",
@@ -1015,6 +1017,8 @@
     "producer_owner": "one-person-lab",
     "app_role": "define_runtime_substrate_update_policy_surface_release_channel_and_install_exposure",
     "framework_role": "apply_verified_staged_runtime_during_startup_maintenance",
+    "brand_name": "OPL Runtime Fabric",
+    "brand_role": "shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/BookForge/ScholarSkills brand module",
     "entrypoint": "opl system startup-maintenance",
     "ready_to_launch_blocking": false,
     "default_policy": {
@@ -1033,8 +1037,26 @@
       "native_helper",
       "opl_framework_runtime"
     ],
+    "managed_subsystems": {
+      "agent_execution_core": [
+        "embedded_codex_executor",
+        "temporal_cli_archive",
+        "opl_framework_runtime"
+      ],
+      "environment_base": [
+        "node_runtime",
+        "python_runtime",
+        "uv_runtime"
+      ],
+      "system_bridge": [
+        "native_helper"
+      ]
+    },
     "user_global_tool_policy": {
-      "prefer_compatible_newer_system_tool": true,
+      "prefer_compatible_newer_system_tool": false,
+      "system_sources_default_used": false,
+      "system_sources_visible_as_diagnostics": true,
+      "system_sources_require_expert_opt_in": true,
       "silent_homebrew_upgrade_allowed": false,
       "silent_system_tool_mutation_allowed": false,
       "opt_in_global_upgrade_surface": "Developer Profile explicit maintenance action"
@@ -1074,7 +1096,10 @@
     "shared_kernel_lifecycle_allowed": true,
     "must_not_be_grouped_under_runtime_substrate": true,
     "user_global_tool_policy": {
-      "prefer_compatible_newer_system_tool": true,
+      "prefer_compatible_newer_system_tool": false,
+      "system_sources_default_used": false,
+      "system_sources_visible_as_diagnostics": true,
+      "system_sources_require_expert_opt_in": true,
       "silent_homebrew_upgrade_allowed": false,
       "silent_system_tool_mutation_allowed": false,
       "opt_in_global_upgrade_surface": "Developer Profile explicit maintenance action"

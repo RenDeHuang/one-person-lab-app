@@ -31,6 +31,11 @@ test('runtime substrate and companion tools are separate App-owned managed chann
 
   assert.equal(runtimeUpdater.owner, 'one-person-lab-app');
   assert.equal(runtimeUpdater.role, 'app_owned_runtime_substrate_layer_updates');
+  assert.equal(runtimeUpdater.brand_name, 'OPL Runtime Fabric');
+  assert.equal(
+    runtimeUpdater.brand_role,
+    'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/BookForge/ScholarSkills brand module',
+  );
   assert.equal(runtimeUpdater.channel_manifest_asset, 'app-runtime-update-channel.json');
   assert.equal(runtimeUpdater.standard_updater_metadata_allowed, false);
   assert.equal(runtimeUpdater.standard_updater_latest_yml_allowed, false);
@@ -47,6 +52,19 @@ test('runtime substrate and companion tools are separate App-owned managed chann
     'native_helper',
     'opl_framework_runtime',
   ]);
+  assert.deepEqual(runtimeUpdater.managed_subsystems, {
+    agent_execution_core: ['embedded_codex_executor', 'temporal_cli_archive', 'opl_framework_runtime'],
+    environment_base: ['node_runtime', 'python_runtime', 'uv_runtime'],
+    system_bridge: ['native_helper'],
+  });
+  assert.deepEqual(runtimeUpdater.system_tool_policy.preferred_sources, [
+    'app_owned_runtime',
+    'explicit_expert_unmanaged_source',
+  ]);
+  assert.equal(runtimeUpdater.system_tool_policy.prefer_valid_newer_system_tool, false);
+  assert.equal(runtimeUpdater.system_tool_policy.system_sources_default_used, false);
+  assert.equal(runtimeUpdater.system_tool_policy.system_sources_visible_as_diagnostics, true);
+  assert.equal(runtimeUpdater.system_tool_policy.system_sources_require_expert_opt_in, true);
   for (const forbidden of ['codex_cli_fallback', 'officecli', 'mineru_open_api', 'companion_skills']) {
     assert.equal(runtimeUpdater.managed_components.includes(forbidden), false);
   }
@@ -176,6 +194,13 @@ test('managed update plane exposes the v2 install/update taxonomy and legacy ali
     carrierVariants.get('docker_webui_image').opl_update_apply_boundary,
     /must not report Docker\/WebUI image replacement as applied/,
   );
+  assert.deepEqual(carrierVariants.get('docker_webui_image').opl_body_update_policy, {
+    user_intent_label: 'Update OPL body',
+    managed_update_plane: 'runtime_substrate',
+    runtime_fabric_label: 'OPL Runtime Fabric',
+    host_carrier_update_allowed: false,
+    rule: 'Updating the OPL body inside a running Docker/WebUI managed root is runtime_substrate managed maintenance, not Docker image replacement.',
+  });
   assert.doesNotMatch(
     carrierVariants.get('docker_webui_image').opl_update_apply_boundary,
     /codex_surface/,
@@ -191,8 +216,42 @@ test('managed update plane exposes the v2 install/update taxonomy and legacy ali
   assert.ok(
     carrierVariants.get('linux_package_carrier').host_update_route_examples.includes('sudo dnf upgrade one-person-lab'),
   );
+  assert.deepEqual(carrierVariants.get('linux_package_carrier').opl_body_update_policy, {
+    user_intent_label: 'Update OPL body',
+    managed_update_plane: 'runtime_substrate',
+    runtime_fabric_label: 'OPL Runtime Fabric',
+    host_carrier_update_allowed: false,
+    rule: 'Updating the OPL body inside a managed Linux root is runtime_substrate managed maintenance. Updating the Linux package carrier still routes through the host package manager or documented host executor.',
+  });
 
   assert.equal(lanes.get('runtime_substrate').adapter, 'runtime_substrate_adapter');
+  assert.equal(lanes.get('runtime_substrate').display_group, 'OPL Runtime Fabric');
+  assert.equal(lanes.get('runtime_substrate').display_label_en, 'OPL Runtime Fabric');
+  assert.equal(lanes.get('runtime_substrate').display_label_zh, 'OPL 运行基座');
+  assert.deepEqual(lanes.get('runtime_substrate').managed_subsystems, {
+    agent_execution_core: ['embedded_codex_executor', 'temporal_cli_archive', 'opl_framework_runtime'],
+    environment_base: ['node_runtime', 'python_runtime', 'uv_runtime'],
+    system_bridge: ['native_helper'],
+  });
+  assert.deepEqual(lanes.get('runtime_substrate').source_preference_policy, {
+    default_source: 'app_owned_runtime',
+    system_sources_default_used: false,
+    system_sources_visible_as_diagnostics: true,
+    system_sources_require_expert_opt_in: true,
+    developer_checkout_default_used: false,
+    expert_opt_in_surface: 'Developer Profile explicit maintenance action',
+    standard_download_policy: 'minimal_runtime_fabric_then_on_demand_payloads',
+    full_download_policy: 'preload_runtime_fabric_common_tools_and_capability_caches',
+  });
+  assert.deepEqual(lanes.get('runtime_substrate').linux_docker_opl_body_policy, {
+    user_intent_label: 'Update OPL body',
+    managed_update_plane: 'runtime_substrate',
+    runtime_fabric_label: 'OPL Runtime Fabric',
+    applies_to: ['docker_webui_managed_root', 'linux_package_managed_root'],
+    not_installation_carrier_update: true,
+    forbidden_host_targets: ['docker_webui_image', 'linux_package_carrier'],
+    rule: 'Update OPL body maps to runtime_substrate/OPL Runtime Fabric managed maintenance for Linux/Docker managed roots. Docker image refresh and Linux package refresh stay installation_carrier host routes.',
+  });
   assert.equal(
     lanes.get('runtime_substrate').rollback_status_source,
     'opl update rollback --component runtime_substrate --json#managed_update.execution.status',
@@ -254,7 +313,7 @@ test('scheduler and UI surfaces consume new primary ids', () => {
     apply_allowed_components: ['runtime_substrate', 'capability_packages', 'companion_tools'],
     apply_forbidden_components: ['installation_carrier', 'codex_surface', 'workflow_profile'],
     carrier_host_update_route:
-      'carrier-specific host update route from installation_carrier.carrier_variants; Docker/WebUI image replacement requires host executor or manual route plus data volume preservation proof',
+      'carrier-specific host update route from installation_carrier.carrier_variants; Docker/WebUI image replacement requires host executor or manual route plus data volume preservation proof; updating the OPL body inside Linux/Docker managed roots stays on runtime_substrate',
     repair_receipt: 'opl update repair --receipt <receipt_id> --json',
     rollback_component: 'opl update rollback --component <component_id> --json',
   });
@@ -296,7 +355,7 @@ test('scheduler and UI surfaces consume new primary ids', () => {
   ]);
   assert.deepEqual(updatePage.sections, guiContract.pages.update.sections);
   assert.deepEqual(updatePage.managed_update_plane.display_planes, guiContract.pages.update.managed_update_plane.display_planes);
-  assert.ok(updatePage.must_show.includes('Runtime substrate managed updater status'));
+  assert.ok(updatePage.must_show.includes('OPL Runtime Fabric status'));
   assert.ok(updatePage.must_show.includes('Companion tools managed updater status'));
   assert.ok(updatePage.must_show.includes('OPL Packages Codex Surface readiness and sync substatus'));
   assert.ok(updatePage.must_show.includes('Workflow profile semantic merge status when profile changes are available'));

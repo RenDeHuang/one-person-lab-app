@@ -858,6 +858,11 @@ test('runtime substrate auto-update stays silent and does not mutate global tool
   assert.equal(runtimeUpdate.producer_owner, 'one-person-lab');
   assert.equal(runtimeUpdate.app_role, 'define_runtime_substrate_update_policy_surface_release_channel_and_install_exposure');
   assert.equal(runtimeUpdate.framework_role, 'apply_verified_staged_runtime_during_startup_maintenance');
+  assert.equal(runtimeUpdate.brand_name, 'OPL Runtime Fabric');
+  assert.equal(
+    runtimeUpdate.brand_role,
+    'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/BookForge/ScholarSkills brand module',
+  );
   assert.equal(runtimeUpdate.entrypoint, 'opl system startup-maintenance');
   assert.equal(runtimeUpdate.ready_to_launch_blocking, false);
   assert.deepEqual(runtimeUpdate.default_policy, {
@@ -876,10 +881,18 @@ test('runtime substrate auto-update stays silent and does not mutate global tool
     'native_helper',
     'opl_framework_runtime',
   ]);
+  assert.deepEqual(runtimeUpdate.managed_subsystems, {
+    agent_execution_core: ['embedded_codex_executor', 'temporal_cli_archive', 'opl_framework_runtime'],
+    environment_base: ['node_runtime', 'python_runtime', 'uv_runtime'],
+    system_bridge: ['native_helper'],
+  });
   assert.equal(runtimeUpdate.legacy_alias, 'runtime_toolchain_auto_update');
   assert.equal(runtimeUpdate.companion_tools_ref, 'companion_tools_auto_update');
   assert.deepEqual(runtimeUpdate.user_global_tool_policy, {
-    prefer_compatible_newer_system_tool: true,
+    prefer_compatible_newer_system_tool: false,
+    system_sources_default_used: false,
+    system_sources_visible_as_diagnostics: true,
+    system_sources_require_expert_opt_in: true,
     silent_homebrew_upgrade_allowed: false,
     silent_system_tool_mutation_allowed: false,
     opt_in_global_upgrade_surface: 'Developer Profile explicit maintenance action',

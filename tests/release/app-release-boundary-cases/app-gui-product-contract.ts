@@ -581,7 +581,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     must_not: [
       'implement a second updater kernel',
       'write runtime truth, domain truth, owner receipts, or typed blockers',
-      'silently apply runtime substrate changes that require restart',
+      'silently apply OPL Runtime Fabric changes that require restart',
       'silently update dirty or developer checkouts',
       'rollback automatically without explicit per-component user confirmation',
     ],

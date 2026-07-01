@@ -1,6 +1,6 @@
 export const managedUpdateMustShow = [
   'Installation carrier status',
-  'Runtime substrate managed updater status',
+  'OPL Runtime Fabric status',
   'Companion tools managed updater status',
   'OPL Packages managed updater status',
   'OPL Packages Codex Surface readiness and sync substatus',
@@ -62,7 +62,7 @@ export const managedUpdateUiActions = {
   apply_allowed_components: ['runtime_substrate', 'capability_packages', 'companion_tools'],
   apply_forbidden_components: ['installation_carrier', 'codex_surface', 'workflow_profile'],
   carrier_host_update_route:
-    'carrier-specific host update route from installation_carrier.carrier_variants; Docker/WebUI image replacement requires host executor or manual route plus data volume preservation proof',
+    'carrier-specific host update route from installation_carrier.carrier_variants; Docker/WebUI image replacement requires host executor or manual route plus data volume preservation proof; updating the OPL body inside Linux/Docker managed roots stays on runtime_substrate',
   repair_receipt: 'opl update repair --receipt <receipt_id> --json',
   rollback_component: 'opl update rollback --component <component_id> --json',
 };

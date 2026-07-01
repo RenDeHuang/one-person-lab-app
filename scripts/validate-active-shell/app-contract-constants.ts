@@ -166,7 +166,7 @@ export const appOwnedSettingsMakeUsableAllowedSteps = [
 export const appOwnedSettingsMakeUsableForbiddenSteps = [
   'implement a second updater kernel',
   'write runtime truth, domain truth, owner receipts, or typed blockers',
-  'silently apply runtime substrate changes that require restart',
+  'silently apply OPL Runtime Fabric changes that require restart',
   'silently update dirty or developer checkouts',
   'rollback automatically without explicit per-component user confirmation',
 ];
@@ -374,7 +374,7 @@ export const settingsPageExpectations = {
     ia_group: 'maintenance',
     sections: ['health_summary', 'maintenance_hub', 'core.codex', 'provider.temporal', 'modules', 'module_maintenance', 'managed_update_plane', 'storage_cleanup_entry', 'repair_recommendations', 'diagnostics'],
     must_show: [
-      'Maintenance hub for App updates, runtime substrate, companion tools, OPL Packages, storage cleanup, and repair recommendations',
+      'Maintenance hub for App updates, OPL Runtime Fabric, companion tools, OPL Packages, storage cleanup, and repair recommendations',
       'storage cleanup entry routed to Storage & Data without making cleanup a raw diagnostic card',
       'single recommended repair or maintenance action before advanced manual actions',
       'Codex CLI version and default profile from app_state.core',
@@ -384,7 +384,7 @@ export const settingsPageExpectations = {
       'Developer Profile source_channel capability and managed GHCR OPL Packages channel default',
       'section-level refresh state',
       'environment page named Local Environment, distinct from Project Progress',
-      'runtime substrate managed updater status from App state or opl update status',
+      'OPL Runtime Fabric managed updater status from App state or opl update status',
       'OPL Packages status and post-update sync status',
       'OPL Packages Codex Surface sync substatus',
       'user-facing OPL Packages maintenance entry under Local Environment',
@@ -424,17 +424,17 @@ export const settingsPageExpectations = {
     must_show: [
       'safe cleanup language: preview, archive, restore proof, prune plan, or rotate logs',
       'Storage placed under OPL Control Center Data & Storage',
-      'storage inventory for updater cache, user data artifacts, runtime substrate, and logs',
+      'storage inventory for updater cache, user data artifacts, OPL Runtime Fabric roots, and logs',
       'path, exists, bytes, cleanup_mode, and silent_delete_allowed for each local data root',
       'conversation archive/export receipt and restore proof before delete can execute',
-      'runtime substrate pointer-prune dry-run plan before execute can remove unreferenced runtime roots',
+      'OPL Runtime Fabric pointer-prune dry-run plan before execute can remove unreferenced runtime roots',
       'log rotation dry-run candidates by age, count, and size before execute can remove logs',
       'updater cache cleanup scoped to stale installer packages only',
     ],
     must_not_show: [
       'dangerous cleanup wording such as wipe, purge, nuke, or force delete as ordinary Storage copy',
       'silent user data artifact deletion',
-      'runtime substrate cleanup without current or rollback pointer protection',
+      'OPL Runtime Fabric cleanup without current or rollback pointer protection',
       'log cleanup as proof that user artifacts were archived or deleted',
       'Homebrew/global tool silent cleanup controls',
       'domain artifact bodies',

@@ -27,7 +27,7 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 | Full payload and size budgets | `contracts/app-release-channel.json#full_first_install.size_budget`, `contracts/app-release-channel.json#full_first_install.opl_runtime_bundle_consumer`, Full manifest `opl_runtime_bundle_consumer`, `scripts/verify-remote-release-assets.ts`, `npm run release:full:size`, `scripts/analyze-full-package-size.ts`, and `scripts/release-size-reporting.ts` |
 | App/root shell boundary | `contracts/app-shell-adapter.json`, `scripts/app-root-boundary.ts`, `scripts/validate-active-shell.ts` |
 | Install exposure and Capability Packages visibility | `contracts/app-install-exposure-policy.json`, `npm run validate:agent-installation` |
-| Runtime Substrate and OPL Packages managed execution | OPL Framework `opl update status/check/plan/apply/repair/rollback --json` runner outputs |
+| OPL Runtime Fabric and OPL Packages managed execution | OPL Framework `opl update status/check/plan/apply/repair/rollback --json` runner outputs |
 | Release history and retired workflow no-resurrection notes | `docs/history/process/` and `docs/history/process/retired-surface-provenance.md` |
 
 ## Install And Update Taxonomy
@@ -38,7 +38,7 @@ may stay machine-readable, but they must not become the primary user taxonomy.
 | Layer | User-facing meaning | Update boundary |
 | --- | --- | --- |
 | Installation Carrier | The host/container installation carrier: macOS App bundle, Docker/WebUI image, or Linux package carrier. | macOS uses standard updater/Homebrew. Docker/WebUI image updates require carrier status, host update route, `host_executor_required` or `manual_required`, and mounted data/projects preservation proof. Local and optional remote image digests are status readbacks only; they do not prove release-ready/current/latest. Linux package carriers expose read-only host package-manager/package metadata fields and route through the host package manager or a documented host executor; OPL does not ship a privileged Linux host executor until an explicit operator opt-in policy exists. |
-| Runtime Substrate | App-owned runtime roots, fallback executors, native helpers, Temporal/Codex fallback archives, and OPL Framework runtime needed to launch or recover. | Managed by OPL/App startup maintenance; `embedded_codex_executor` is an App-owned Codex CLI executor payload and must not mutate user global Codex/Homebrew/system installs. |
+| OPL Runtime Fabric | App-owned runtime foundation needed to launch or recover OPL. User-facing grouping is Agent Execution Core (Codex executor, Temporal task runner, OPL Framework runtime), Environment Base (Node/Python/uv and managed environment/cache), and System Bridge (native helper only where platform boundaries require it). | Managed by OPL/App startup maintenance; `runtime_substrate` remains the machine id. Ordinary defaults use the App-owned runtime. System PATH, Homebrew, global tools, and developer checkouts are diagnostic or explicit expert opt-in unmanaged sources, not default sources. |
 | Capability Packages | MAS/MAG/RCA/OMA/BookForge/ScholarSkills OPL Packages. | Clean managed roots may update silently; dirty checkouts, developer checkouts, locks, verification failures, and manual-required states are not overwritten. |
 | Companion Tools | OfficeCLI, MinerU, PDF/UI helpers, Superpowers, cron, and similar workflow helpers. | Maintained as helper payloads/skills, not domain-authority or Installation Carrier assets. |
 | Codex Surface | Codex plugin registry, plugin-packaged skills, generated OMA/BookForge surfaces, post-apply sync, readiness, and reload guidance. | A visibility/readiness projection over one semantic entry; it is not a separate update channel. |
@@ -46,7 +46,7 @@ may stay machine-readable, but they must not become the primary user taxonomy.
 | User Data/Artifacts | Workspaces, conversations, generated deliverables, logs, caches, receipts, and archive/restore state. | Never a silent updater target; destructive cleanup requires inventory, archive/restore proof, and explicit confirmation. |
 
 Full first-install assets are preloaded payloads for clean machines. They can
-carry Runtime Substrate, Capability Packages, Companion Tools, Codex Surface
+carry OPL Runtime Fabric, Capability Packages, Companion Tools, Codex Surface
 seeds, and Workflow Profile material so first launch can reach Core readiness,
 but Full is not a long-term update channel and must never be selected by
 standard updater metadata.
@@ -61,7 +61,7 @@ standard updater metadata.
 | Stable promotion | Human release-owner promotion from candidate to stable/latest. | Candidate record with `status=ready_to_promote`, release readiness summary, same-cohort evidence, promote workflow output. |
 | Homebrew | Cask transport and index for standard and explicit Full first-install packages. | Published release assets, standard local authorization policy asset or Full manifest ref, tap update output, Homebrew VM smoke where required. |
 | WebUI/GHCR | App-owned preheated Docker/WebUI runtime image for browser-first Linux/container deployment. It is not the desktop App GUI shell install path and is not an OPL Packages member. | OCI source label, package access, publish output, image manifest/volume boundary, image smoke/evidence artifacts. |
-| Managed maintenance | Framework-runner maintenance for Runtime Substrate, Capability Packages, Companion Tools, and Codex Surface readiness. | OPL update runner receipts, lock/runner status, repair/rollback status, post-apply sync status. |
+| Managed maintenance | Framework-runner maintenance for OPL Runtime Fabric, Capability Packages, Companion Tools, and Codex Surface readiness. | OPL update runner receipts, lock/runner status, repair/rollback status, post-apply sync status. |
 
 Standard macOS DMGs use electron-builder-supported `ULFO` / LZFSE compression
 by default. Current electron-builder 26.8.1 does not accept `ULMO` in
@@ -376,7 +376,7 @@ Surface readiness. If `opl update check` or `opl update plan` reports those
 components as clean managed and updateable, the shell may call the Framework
 runner to apply them and then display the recorded receipt refs, post-apply
 hooks, skill/plugin sync result, and reload guidance. Installation Carrier updates and
-Runtime Substrate updates remain conservative: they can be checked, staged,
+OPL Runtime Fabric updates remain conservative: they can be checked, staged,
 repaired, or shown as requiring restart, but the shell must not silently replace
 the App bundle, replace Docker/WebUI images, switch runtime pointers, upgrade Homebrew/system tools, or
 mutate developer / dirty checkouts.

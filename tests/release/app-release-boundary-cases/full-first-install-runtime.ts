@@ -399,12 +399,14 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   assert.deepEqual(releaseContract.full_first_install.required_payloads.codex_cli, {
     compatibility_mode: 'minimum_version_plus_capability_smoke',
     minimum_version_source: 'distribution cohort manifest components.codex_cli.minimum_version',
-    preferred_sources: ['explicit_user_path', 'system_path', 'homebrew_formula'],
+    preferred_sources: ['app_owned_archive_wrapper'],
     fallback_version_source: 'distribution cohort manifest components.codex_cli.fallback_version',
     fallback_runtime_path: 'runtime/current/bin/codex',
     fallback_payload_path: 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz',
-    must_prefer_valid_newer_user_version: true,
-    verification: 'codex --version must satisfy minimum_version, bundled fallback must execute offline from the packaged archive wrapper, and Codex functional smoke must pass',
+    must_prefer_valid_newer_user_version: false,
+    system_sources_visible_as_diagnostics: true,
+    system_sources_require_expert_opt_in: true,
+    verification: 'App-owned runtime/current/bin/codex must satisfy minimum_version, execute offline from the packaged archive wrapper, and pass Codex functional smoke; system PATH/Homebrew/global Codex may be reported as diagnostics but is not the default runtime source',
   });
   assert.equal(releaseContract.full_first_install.required_payloads.bun_cli, undefined);
   assert.deepEqual(releaseContract.full_first_install.optional_payloads.bun_cli, {
@@ -417,12 +419,14 @@ test('Full first-install payload boundary stays assembly-only', async () => {
   assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_cli, {
     compatibility_mode: 'minimum_version_plus_capability_smoke',
     minimum_version_source: 'distribution cohort manifest components.temporal_cli.minimum_version',
-    preferred_sources: ['explicit_user_path', 'system_path', 'homebrew_formula'],
+    preferred_sources: ['app_owned_archive_wrapper'],
     fallback_version_source: 'distribution cohort manifest components.temporal_cli.fallback_version',
     fallback_runtime_path: 'runtime/current/bin/temporal',
     fallback_payload_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
-    must_prefer_valid_newer_user_version: true,
-    verification: 'temporal --version must satisfy minimum_version, bundled fallback must execute offline from the packaged archive wrapper, and Temporal provider smoke must pass',
+    must_prefer_valid_newer_user_version: false,
+    system_sources_visible_as_diagnostics: true,
+    system_sources_require_expert_opt_in: true,
+    verification: 'App-owned runtime/current/bin/temporal must satisfy minimum_version, execute offline from the packaged archive wrapper, and pass Temporal provider smoke; system PATH/Homebrew/global Temporal may be reported as diagnostics but is not the default runtime source',
   });
   assert.deepEqual(releaseContract.full_first_install.required_payloads.temporal_runtime_provider, {
     provider_env_default: 'OPL_FAMILY_RUNTIME_PROVIDER=temporal',

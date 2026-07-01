@@ -104,6 +104,8 @@ function validateRuntimeSubstrateAutoUpdate(runtimeUpdate) {
   if (
     runtimeUpdate?.owner !== 'one-person-lab-app' ||
     runtimeUpdate?.producer_owner !== 'one-person-lab' ||
+    runtimeUpdate?.brand_name !== 'OPL Runtime Fabric' ||
+    runtimeUpdate?.brand_role !== 'shared runtime fabric for OPL capability modules, not a MAS/MAG/RCA/OMA/BookForge/ScholarSkills brand module' ||
     runtimeUpdate?.framework_role !== 'apply_verified_staged_runtime_during_startup_maintenance' ||
     runtimeUpdate?.entrypoint !== 'opl system startup-maintenance' ||
     runtimeUpdate?.ready_to_launch_blocking !== false
@@ -129,6 +131,15 @@ function validateRuntimeSubstrateAutoUpdate(runtimeUpdate) {
       throw new Error(`Install exposure runtime substrate must not own ${forbidden}`);
     }
   }
+  assertDeepEqualJson(
+    runtimeUpdate.managed_subsystems,
+    {
+      agent_execution_core: ['embedded_codex_executor', 'temporal_cli_archive', 'opl_framework_runtime'],
+      environment_base: ['node_runtime', 'python_runtime', 'uv_runtime'],
+      system_bridge: ['native_helper'],
+    },
+    'Install exposure OPL Runtime Fabric managed subsystems',
+  );
   validateRuntimeToolchainUserGlobalPolicy(runtimeUpdate.user_global_tool_policy);
   validateRuntimeToolchainCleanMachineRequirement(runtimeUpdate.clean_machine_requirement);
   assertIncludesAll(
@@ -177,7 +188,10 @@ function validateRuntimeToolchainDefaultPolicy(defaultPolicy) {
 
 function validateRuntimeToolchainUserGlobalPolicy(userGlobalToolPolicy) {
   if (
-    userGlobalToolPolicy?.prefer_compatible_newer_system_tool !== true ||
+    userGlobalToolPolicy?.prefer_compatible_newer_system_tool !== false ||
+    userGlobalToolPolicy?.system_sources_default_used !== false ||
+    userGlobalToolPolicy?.system_sources_visible_as_diagnostics !== true ||
+    userGlobalToolPolicy?.system_sources_require_expert_opt_in !== true ||
     userGlobalToolPolicy?.silent_homebrew_upgrade_allowed !== false ||
     userGlobalToolPolicy?.silent_system_tool_mutation_allowed !== false ||
     userGlobalToolPolicy?.opt_in_global_upgrade_surface !== 'Developer Profile explicit maintenance action'
