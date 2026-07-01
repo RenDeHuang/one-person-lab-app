@@ -2613,7 +2613,7 @@
       "must_show": [
         "Codex CLI health from app_state.core.codex",
         "Temporal or local service health from app_state.provider.temporal",
-        "native helper readiness when present in App state",
+        "OPL System Bridge readiness when present in App state",
         "single user-facing repair or refresh action before diagnostics",
         "Local Services page reachable as a secondary deep link from Maintenance & Updates"
       ],

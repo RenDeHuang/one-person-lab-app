@@ -2988,7 +2988,7 @@
     "standard_updater_metadata_allowed": false,
     "standard_updater_latest_yml_allowed": false,
     "homebrew_tap_write_allowed": false,
-    "scope": "App-owned installed OPL Runtime Fabric only. User-facing docs group its internals as Agent Execution Core, Environment Base, and System Bridge instead of listing every binary at the top level. Companion tools and OPL Packages are separate classes that may share the managed updater kernel lifecycle.",
+    "scope": "App-owned installed OPL Runtime Fabric only. User-facing docs group its internals as Agent Execution Core, Environment Base, and OPL System Bridge instead of listing every binary at the top level. Companion tools and OPL Packages are separate classes that may share the managed updater kernel lifecycle.",
     "default_policy": {
       "auto_check": true,
       "check_schedule": "on_startup_and_daily_background",

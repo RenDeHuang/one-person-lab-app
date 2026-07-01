@@ -781,7 +781,7 @@
       {
         "id": "local_services_page",
         "track": "user_task_ux",
-        "goal": "Local Services explains Codex, background service, Temporal/native helpers, module loading, and recovery actions in user language.",
+        "goal": "Local Services explains Codex, background service, Temporal/OPL System Bridge, module loading, and recovery actions in user language.",
         "evidence_required": [
           "Local Services is declared as a secondary route",
           "route belongs to Maintenance IA group",

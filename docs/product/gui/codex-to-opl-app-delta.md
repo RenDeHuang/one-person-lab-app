@@ -206,7 +206,7 @@ Codex App 假设本机已有可用 Codex 环境。OPL App 增加产品化安装�
 
 - Core launch gate：workspace root、Codex CLI 和 Codex config。
 - Full readiness：domain modules、family runtime provider、recommended skills、
-  native helpers、repo sync、CLT、companion skills 和 ecosystem updates。
+  OPL System Bridge、repo sync、CLT、companion skills 和 ecosystem updates。
 - Standard updater assets 与 Full first-install assets 分离。
 - Full first-install 可为干净机器携带 bundled runtime payloads。
 - Settings 在 launch 后继续 background maintenance。

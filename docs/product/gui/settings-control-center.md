@@ -259,7 +259,7 @@ package update, rollback, storage cleanup, or workspace management controls:
 - Codex executor;
 - local background service;
 - Temporal worker when present;
-- native helpers and runtime support;
+- OPL System Bridge and runtime support;
 - module loading health.
 
 It offers diagnose, refresh, start/restart, and repair actions. Module paths,
