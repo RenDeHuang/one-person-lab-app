@@ -187,7 +187,10 @@ function validateStartupMaintenance(payload: Record<string, unknown>) {
   requireEqual(payload.version, 'g2', 'startup maintenance version');
   const action = asRecord(payload.system_action, 'startup maintenance system_action');
   requireEqual(action.action, 'startup_maintenance', 'startup maintenance action');
-  requireEqual(action.status, 'completed', 'startup maintenance status');
+  const actionStatus = requireString(action.status, 'startup maintenance status');
+  if (actionStatus !== 'completed' && actionStatus !== 'manual_required') {
+    throw new Error(`startup maintenance status must be "completed" or "manual_required", got ${JSON.stringify(actionStatus)}`);
+  }
   const workspaceRoot = asRecord(action.workspace_root, 'startup maintenance workspace_root');
   requireEqual(workspaceRoot.selected_path, '/projects', 'startup maintenance workspace root');
   requireEqual(workspaceRoot.health_status, 'ready', 'startup maintenance workspace health');
@@ -203,6 +206,43 @@ function validateStartupMaintenance(payload: Record<string, unknown>) {
   requireEqual(seedInstall.data_dir, '/data', 'startup maintenance seed install data_dir');
   requireEqual(seedInstall.projects_dir, '/projects', 'startup maintenance seed install projects_dir');
   requireString(seedInstall.manifest_file, 'startup maintenance seed install manifest_file');
+
+  if (actionStatus === 'manual_required') {
+    const frameworkTargets = requireArray(details.framework_targets, 'startup maintenance framework_targets').map((item) =>
+      asRecord(item, 'startup maintenance framework target')
+    );
+    const manualFrameworkTarget = frameworkTargets.find((target) => target.status === 'manual_required');
+    if (!manualFrameworkTarget) {
+      throw new Error('startup maintenance manual_required must include a manual_required framework target.');
+    }
+    requireEqual(
+      manualFrameworkTarget.reason,
+      'framework_update_target_invalid',
+      'startup maintenance manual framework target reason',
+    );
+  }
+}
+
+function validateRuntimeSubstrateFrameworkUpdate(component: Record<string, unknown>) {
+  if (component.component_id !== 'runtime_substrate') return;
+  if (typeof component.current === 'undefined' || component.current === null) return;
+  const current = asRecord(component.current, 'runtime_substrate current');
+  if (typeof current.opl_framework_runtime === 'undefined' || current.opl_framework_runtime === null) return;
+  const frameworkRuntime = asRecord(current.opl_framework_runtime, 'runtime_substrate opl_framework_runtime');
+  if (frameworkRuntime.update_available !== true) return;
+  requireString(frameworkRuntime.channel_artifact, 'runtime_substrate framework channel_artifact');
+  requireString(frameworkRuntime.channel_version, 'runtime_substrate framework channel_version');
+  requireString(frameworkRuntime.channel_source_archive_sha256, 'runtime_substrate framework channel_source_archive_sha256');
+  requireEqual(
+    frameworkRuntime.command_ref,
+    'opl update apply --component runtime_substrate --json',
+    'runtime_substrate framework command_ref',
+  );
+  requireEqual(
+    frameworkRuntime.rollback_command_ref,
+    'opl update rollback --component runtime_substrate --json',
+    'runtime_substrate framework rollback_command_ref',
+  );
 }
 
 function validateUpdateStatus(payload: Record<string, unknown>) {
@@ -241,6 +281,7 @@ function validateUpdateStatus(payload: Record<string, unknown>) {
     requireArray(receipt.content_identity_fields, `managed update component ${id} content_identity_fields`);
     asRecord(receipt.status_detail, `managed update component ${id} receipt status_detail`);
     asRecord(receipt.reload_guidance, `managed update component ${id} receipt reload_guidance`);
+    validateRuntimeSubstrateFrameworkUpdate(component);
   }
   const receipts = asRecord(managedUpdate.receipts, 'managed update receipts');
   requireEqual(receipts.component_receipt_schema, 'opl_managed_update_component_receipt.v1', 'managed update receipt schema');

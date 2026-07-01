@@ -119,6 +119,42 @@ function startupMaintenance() {
   });
 }
 
+function startupMaintenanceWithFrameworkManualRequired() {
+  return proxyEnvelope('startup_maintenance', 'opl system startup-maintenance --json', {
+    version: 'g2',
+    system_action: {
+      action: 'startup_maintenance',
+      status: 'manual_required',
+      workspace_root: {
+        selected_path: '/projects',
+        health_status: 'ready',
+      },
+      details: {
+        surface_kind: 'opl_app_startup_maintenance',
+        summary: {
+          total_targets_count: 1,
+        },
+        seed_boundary: {
+          surface_kind: 'opl_seed_install_manifest',
+          install: {
+            data_dir: '/data',
+            projects_dir: '/projects',
+            manifest_file: '/data/opl/state/install-manifest.json',
+          },
+        },
+        framework_targets: [
+          {
+            target_type: 'framework',
+            target_id: 'opl-framework',
+            status: 'manual_required',
+            reason: 'framework_update_target_invalid',
+          },
+        ],
+      },
+    },
+  });
+}
+
 function managedUpdateComponent(id: string) {
   return {
     component_id: id,
@@ -132,6 +168,23 @@ function managedUpdateComponent(id: string) {
       content_identity_fields: ['sha256'],
       status_detail: {},
       reload_guidance: {},
+    },
+  };
+}
+
+function runtimeSubstrateWithFrameworkUpdate() {
+  return {
+    ...managedUpdateComponent('runtime_substrate'),
+    state: 'update_available',
+    current: {
+      opl_framework_runtime: {
+        update_available: true,
+        channel_artifact: 'ghcr.io/gaofeng21cn/one-person-lab-framework:26.7.1',
+        channel_version: '26.7.1',
+        channel_source_archive_sha256: 'a'.repeat(64),
+        command_ref: 'opl update apply --component runtime_substrate --json',
+        rollback_command_ref: 'opl update rollback --component runtime_substrate --json',
+      },
     },
   };
 }
@@ -201,6 +254,27 @@ test('WebUI runtime smoke receipt validator accepts seed, migration, and managed
   const summary = JSON.parse(fs.readFileSync(path.join(root, 'summary.json'), 'utf8'));
   assert.equal(summary.status, 'passed');
   assert.deepEqual(summary.migration_components, ['data_dir', 'projects_dir']);
+});
+
+test('WebUI runtime smoke receipt validator accepts framework self-update pending runtime_substrate apply', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-runtime-receipts-'));
+  const update = updateStatus({
+    components: [
+      managedUpdateComponent('installation_carrier'),
+      runtimeSubstrateWithFrameworkUpdate(),
+      managedUpdateComponent('capability_packages'),
+      managedUpdateComponent('codex_surface'),
+      managedUpdateComponent('companion_tools'),
+    ],
+  });
+  writeJson(root, 'startup.json', startupMaintenanceWithFrameworkManualRequired());
+  writeJson(root, 'update.json', update);
+  writeJson(root, 'install-manifest.json', installManifest());
+
+  const result = runValidator(root);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(fs.readFileSync(path.join(root, 'summary.json'), 'utf8'));
+  assert.equal(summary.status, 'passed');
 });
 
 test('WebUI runtime smoke receipt validator rejects missing /projects migration receipt', () => {
