@@ -147,6 +147,12 @@ export function validateTaskRunProjectionV2Fixture(task, label) {
           throw new Error(`${label} ${group}[0] must include ${field}`);
         }
       }
+      if (
+        ['evidence_cards', 'action_cards', 'resource_cards'].includes(group) &&
+        (!value[0].open_action || typeof value[0].open_action !== 'object')
+      ) {
+        throw new Error(`${label} ${group}[0] must include open_action object`);
+      }
     } else {
       if (!value || typeof value !== 'object' || Array.isArray(value)) {
         throw new Error(`${label} ${group} must be an object`);

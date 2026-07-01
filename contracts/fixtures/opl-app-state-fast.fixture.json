@@ -706,19 +706,50 @@
               "evidence_cards": [
                 {
                   "card_id": "artifact-blocker-summary",
+                  "kind": "artifact_or_blocker_refs",
+                  "owner": "medautoscience",
+                  "updated_at": "2026-07-01T00:00:00Z",
                   "title": "Artifact or blocker refs",
                   "summary": "Workspace ref is missing",
                   "ref": "app_state.operator.workbench.task_drilldowns[medautoscience].artifact_or_blocker",
+                  "why_it_matters": "Shows whether the task is blocked by a missing workspace ref without exposing artifact bodies.",
+                  "open_action": {
+                    "action_id": "task_export_bundle_preview",
+                    "action_ref": "app_state.actions#task_export_bundle_preview",
+                    "route": "opl app action execute --action task_export_bundle_preview --dry-run",
+                    "required_mode": "dry_run",
+                    "content_policy": "refs_only_no_action_body",
+                    "payload_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].task_identity"
+                  },
                   "content_policy": "refs_only_no_artifact_body_no_domain_verdict"
                 }
               ],
               "action_cards": [
                 {
                   "card_id": "provider_worker_start",
+                  "risk": {
+                    "mutation_policy": "no_writes_preview_only",
+                    "authority_boundary": "cannot_create_owner_receipt_or_domain_truth"
+                  },
+                  "write_targets": [],
+                  "expected_output": {
+                    "ref": "opl://app-action/task_action_receipt_preview",
+                    "content_policy": "refs_only_no_action_receipt_body"
+                  },
+                  "rollback_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].action_receipt",
+                  "verify_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].review_receipt",
                   "title": "Start provider worker",
                   "summary": "opl app action execute --action task_action_receipt_preview --dry-run --json",
                   "ref": "opl://app-action/task_action_receipt_preview",
                   "action_ref": "opl://app-action/task_action_receipt_preview",
+                  "open_action": {
+                    "action_id": "task_action_receipt_preview",
+                    "action_ref": "opl://app-action/task_action_receipt_preview",
+                    "route": "opl app action execute --action task_action_receipt_preview --dry-run",
+                    "required_mode": "dry_run",
+                    "content_policy": "refs_only_no_action_body",
+                    "payload_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].task_identity"
+                  },
                   "dry_run_required": true,
                   "content_policy": "refs_only_no_action_receipt_body"
                 }
@@ -726,9 +757,24 @@
               "resource_cards": [
                 {
                   "card_id": "local-runtime",
+                  "resource_kind": "workspace",
+                  "owner": "opl_framework",
                   "title": "local_app",
                   "summary": "opl://gateway/status/gflabtoken",
                   "ref": "opl://resource-receipt/medautoscience/module-runtime-repair",
+                  "status_ref": "opl://gateway/status/gflabtoken",
+                  "usage_ref": "opl://resource-usage/medautoscience/module-runtime-repair",
+                  "quota_ref": "opl://quota/medautoscience/module-runtime-repair",
+                  "permission_ref": "opl://permission/medautoscience/module-runtime-repair",
+                  "cost_estimate_ref": "opl://cost-estimate/medautoscience/module-runtime-repair",
+                  "open_action": {
+                    "action_id": "workspace_inspect",
+                    "action_ref": "app_state.actions#workspace_inspect",
+                    "route": "opl app action execute --action workspace_inspect --dry-run",
+                    "required_mode": "dry_run",
+                    "content_policy": "refs_only_no_action_body",
+                    "payload_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].task_identity"
+                  },
                   "content_policy": "refs_only_no_resource_body"
                 }
               ],

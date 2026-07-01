@@ -183,6 +183,51 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(taskRunProjectionV2.authority_boundary.can_create_owner_receipt, false);
   assert.equal(taskRunProjectionV2.tasks[0].task_identity.task_id, 'medautoscience');
   assert.equal(taskRunProjectionV2.tasks[0].diagnostics_ref, 'app_state.provider.temporal');
+  assert.deepEqual(Object.keys(taskRunProjectionV2.tasks[0].evidence_cards[0]), [
+    'card_id',
+    'kind',
+    'owner',
+    'updated_at',
+    'title',
+    'summary',
+    'ref',
+    'why_it_matters',
+    'open_action',
+    'content_policy',
+  ]);
+  assert.deepEqual(Object.keys(taskRunProjectionV2.tasks[0].action_cards[0]), [
+    'card_id',
+    'risk',
+    'write_targets',
+    'expected_output',
+    'rollback_ref',
+    'verify_ref',
+    'title',
+    'summary',
+    'ref',
+    'action_ref',
+    'open_action',
+    'dry_run_required',
+    'content_policy',
+  ]);
+  assert.deepEqual(Object.keys(taskRunProjectionV2.tasks[0].resource_cards[0]), [
+    'card_id',
+    'resource_kind',
+    'owner',
+    'title',
+    'summary',
+    'ref',
+    'status_ref',
+    'usage_ref',
+    'quota_ref',
+    'permission_ref',
+    'cost_estimate_ref',
+    'open_action',
+    'content_policy',
+  ]);
+  assert.equal(taskRunProjectionV2.tasks[0].evidence_cards[0].open_action.required_mode, 'dry_run');
+  assert.equal(taskRunProjectionV2.tasks[0].action_cards[0].risk.mutation_policy, 'no_writes_preview_only');
+  assert.equal(taskRunProjectionV2.tasks[0].resource_cards[0].open_action.required_mode, 'dry_run');
   assert.deepEqual(Object.keys(taskRunProjectionV2.tasks[0].conditions[0]), [
     'type',
     'status',
