@@ -189,7 +189,7 @@ jobs:
               if (!release.publishedAt) fail('Promoted release does not expose publishedAt.');
               if (assets.length === 0) fail('Promoted release has no readable assets.');
               if (listedRelease?.isLatest !== true) fail('Promoted Stable release is not marked latest.');
-              NODE
+NODE
               then
                 echo "Published release ${tag} is readable with tag and assets after attempt ${attempt}."
                 exit 0

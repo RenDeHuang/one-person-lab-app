@@ -216,6 +216,7 @@ test('desktop promote workflow is gated by the candidate record before publishin
   assert.match(workflow, /gh release view "\$tag"[\s\S]*--json tagName,isDraft,isPrerelease,publishedAt,assets/);
   assert.match(workflow, /gh release list[\s\S]*--json tagName,isLatest,isDraft,isPrerelease,publishedAt/);
   assert.match(workflow, /git ls-remote --exit-code --tags origin "refs\/tags\/\$\{tag\}"/);
+  assert.match(workflow, /^NODE\n\s+then$/m);
   assert.match(workflow, /Update Stable Homebrew tap/);
   assert.match(workflow, /Update Full Homebrew tap/);
   assert.match(workflow, /Run Homebrew standard first-run VM smoke/);
