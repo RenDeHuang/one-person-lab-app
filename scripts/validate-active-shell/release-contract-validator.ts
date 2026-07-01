@@ -259,6 +259,7 @@ function validateManagedUpdatePlane(managedUpdatePlane) {
       'codex_surface_status_is_projection_only',
       'companion_tools_are_separate_from_runtime_substrate',
       'workflow_profile_requires_semantic_merge',
+      'framework_artifact_gate_requires_channel_readback_checksum_and_rollback',
       'user_data_artifacts_no_silent_delete',
       'forbidden_silent_overwrite_scope_fail_closed',
     ],

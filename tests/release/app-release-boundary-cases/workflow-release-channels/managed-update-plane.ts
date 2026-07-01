@@ -68,6 +68,40 @@ test('runtime substrate and companion tools are separate App-owned managed chann
   for (const forbidden of ['codex_cli_fallback', 'officecli', 'mineru_open_api', 'companion_skills']) {
     assert.equal(runtimeUpdater.managed_components.includes(forbidden), false);
   }
+  assert.deepEqual(runtimeUpdater.verification.required_before_release, [
+    'standard_dmg_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+    'homebrew_standard_cask_clean_vm_smoke',
+    'remote_release_verification',
+    'framework_artifact_channel_readback',
+    'framework_artifact_checksum_readback',
+    'framework_artifact_rollback_evidence',
+  ]);
+  assert.deepEqual(runtimeUpdater.framework_artifact_gate, {
+    owner: 'one-person-lab',
+    component_id: 'opl_framework_runtime',
+    release_gate: true,
+    channel_manifest_ref: 'app-runtime-update-channel.json#components.opl_framework_runtime',
+    artifact_channel_id: 'framework_artifact_channel',
+    status_source: 'opl update status --json#runtime_substrate.components[opl_framework_runtime]',
+    required_release_evidence: [
+      'framework_artifact_channel_readback',
+      'framework_artifact_readback',
+      'framework_artifact_sha256',
+      'framework_artifact_rollback_ref',
+    ],
+    required_receipt_fields: [
+      'source_manifest_ref',
+      'artifact_ref',
+      'artifact_channel',
+      'artifact_sha256',
+      'git_head_sha',
+      'rollback_ref',
+    ],
+    app_consumption_policy: 'refs_and_checksums_only_no_artifact_body',
+    docker_image_update_allowed: false,
+    rule: 'App release gates must prove the OPL Framework runtime artifact channel, artifact readback, sha256 checksum, and rollback ref before release. The App consumes Framework refs and receipts only; this does not authorize updating a Docker/WebUI image from inside Docker.',
+  });
 
   assert.equal(companionUpdater.owner, 'one-person-lab-app');
   assert.equal(companionUpdater.producer_owner, 'one-person-lab');

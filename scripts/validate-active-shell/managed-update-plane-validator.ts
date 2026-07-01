@@ -219,6 +219,9 @@ function validateReleaseRuntimeToolchainVerification(runtimeUpdater) {
       'full_dmg_clean_vm_smoke',
       'homebrew_standard_cask_clean_vm_smoke',
       'remote_release_verification',
+      'framework_artifact_channel_readback',
+      'framework_artifact_checksum_readback',
+      'framework_artifact_rollback_evidence',
     ],
     'Release channel runtime substrate updater release checks',
   );
@@ -235,6 +238,37 @@ function validateReleaseRuntimeToolchainVerification(runtimeUpdater) {
     label: 'Release channel OPL Runtime Fabric Linux/Docker OPL body policy',
     expectManagedUpdatePlane: true,
   });
+  validateFrameworkArtifactGate(runtimeUpdater.framework_artifact_gate);
+}
+
+function validateFrameworkArtifactGate(gate) {
+  if (
+    gate?.owner !== 'one-person-lab' ||
+    gate?.component_id !== 'opl_framework_runtime' ||
+    gate?.release_gate !== true ||
+    gate?.channel_manifest_ref !== 'app-runtime-update-channel.json#components.opl_framework_runtime' ||
+    gate?.artifact_channel_id !== 'framework_artifact_channel' ||
+    gate?.status_source !== 'opl update status --json#runtime_substrate.components[opl_framework_runtime]' ||
+    gate?.app_consumption_policy !== 'refs_and_checksums_only_no_artifact_body' ||
+    gate?.docker_image_update_allowed !== false
+  ) {
+    throw new Error('Release channel OPL Framework artifact gate must require channel/readback/checksum/rollback evidence without authorizing Docker image updates');
+  }
+  assertDeepEqualJson(
+    gate?.required_release_evidence,
+    [
+      'framework_artifact_channel_readback',
+      'framework_artifact_readback',
+      'framework_artifact_sha256',
+      'framework_artifact_rollback_ref',
+    ],
+    'Release channel OPL Framework artifact release evidence',
+  );
+  assertIncludesAll(
+    gate?.required_receipt_fields,
+    ['source_manifest_ref', 'artifact_ref', 'artifact_channel', 'artifact_sha256', 'git_head_sha', 'rollback_ref'],
+    'Release channel OPL Framework artifact receipt fields',
+  );
 }
 
 function validateManagedUpdateInstallationCarrierLane(carrierPlane) {

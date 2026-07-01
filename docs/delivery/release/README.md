@@ -28,6 +28,7 @@ The App repository owns desktop packaging, release assets, updater metadata, rel
 | App/root shell boundary | `contracts/app-shell-adapter.json`, `scripts/app-root-boundary.ts`, `scripts/validate-active-shell.ts` |
 | Install exposure and Capability Packages visibility | `contracts/app-install-exposure-policy.json`, `npm run validate:agent-installation` |
 | OPL Runtime Fabric and OPL Packages managed execution | OPL Framework `opl update status/check/plan/apply/repair/rollback --json` runner outputs |
+| OPL Framework runtime artifact gate | `contracts/app-release-channel.json#runtime_substrate_updater.framework_artifact_gate`, Framework artifact channel/readback/checksum/rollback receipts |
 | Release history and retired workflow no-resurrection notes | `docs/history/process/` and `docs/history/process/retired-surface-provenance.md` |
 
 ## Install And Update Taxonomy
@@ -61,7 +62,7 @@ standard updater metadata.
 | Stable promotion | Human release-owner promotion from candidate to stable/latest. | Candidate record with `status=ready_to_promote`, release readiness summary, same-cohort evidence, promote workflow output. |
 | Homebrew | Cask transport and index for standard and explicit Full first-install packages. | Published release assets, standard local authorization policy asset or Full manifest ref, tap update output, Homebrew VM smoke where required. |
 | WebUI/GHCR | App-owned preheated Docker/WebUI runtime image for browser-first Linux/container deployment. It is not the desktop App GUI shell install path and is not an OPL Packages member. | OCI source label, package access, publish output, image manifest/volume boundary, image smoke/evidence artifacts. |
-| Managed maintenance | Framework-runner maintenance for OPL Runtime Fabric, Capability Packages, Companion Tools, and Codex Surface readiness. | OPL update runner receipts, lock/runner status, repair/rollback status, post-apply sync status. |
+| Managed maintenance | Framework-runner maintenance for OPL Runtime Fabric, Capability Packages, Companion Tools, and Codex Surface readiness. | OPL update runner receipts, lock/runner status, Framework artifact channel/readback/checksum/rollback evidence, repair/rollback status, post-apply sync status. |
 
 Standard macOS DMGs use electron-builder-supported `ULFO` / LZFSE compression
 by default. Current electron-builder 26.8.1 does not accept `ULMO` in
@@ -96,6 +97,12 @@ maintenance receipts, Codex configuration, logs, cache, and managed runtime
 state belong under the mounted `/data`; project files belong under `/projects`.
 Image replacement updates the WebUI/container entry layer, while OPL Framework
 owns managed reconciliation and module/toolchain updates inside `/data`.
+The OPL Framework runtime artifact is a release gate under OPL Runtime Fabric:
+the candidate must carry Framework artifact channel readback, artifact ref
+readback, sha256 checksum evidence, and a rollback ref/receipt. The App consumes
+those refs and checksums only. This gate does not authorize the App or Framework
+to update the Docker/WebUI image from inside Docker; image replacement remains
+the Installation Carrier host route.
 
 ## Preflight
 
