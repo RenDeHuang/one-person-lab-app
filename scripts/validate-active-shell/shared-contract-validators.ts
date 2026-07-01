@@ -28,6 +28,28 @@ const resourceContextOptionalTaskRefs = [
   'cost_estimate_ref',
 ];
 
+const taskRunProjectionV2RequiredFields = [
+  'task_identity',
+  'status',
+  'progress',
+  'conditions',
+  'evidence_cards',
+  'action_cards',
+  'resource_cards',
+  'diagnostics_ref',
+];
+
+const taskRunProjectionV2FieldGroups = {
+  task_identity: ['task_id', 'title', 'domain_id', 'domain_label', 'study_id', 'task_ref'],
+  status: ['state', 'status', 'status_label', 'priority_bucket', 'active_stage_id', 'active_stage_label', 'active_run_ref'],
+  progress: ['progress_label', 'current_step', 'last_progress_at', 'progress_ref', 'stage_ref'],
+  conditions: ['type', 'status', 'reason', 'message', 'severity', 'owner', 'last_transition_time', 'ref'],
+  evidence_cards: ['card_id', 'title', 'summary', 'ref', 'content_policy'],
+  action_cards: ['card_id', 'title', 'summary', 'ref', 'action_ref', 'dry_run_required', 'content_policy'],
+  resource_cards: ['card_id', 'title', 'summary', 'ref', 'content_policy'],
+  diagnostics_ref: ['diagnostics_ref'],
+};
+
 export function validateTaskAwarenessProjectionContract(projection, label) {
   if (!projection || typeof projection !== 'object') {
     throw new Error(`${label} must be declared`);
@@ -44,9 +66,10 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
       throw new Error(`${label} ${field} must be ${expected}`);
     }
   }
+  validateTaskRunProjectionV2Contract(projection, label);
   assertIncludesAll(
     projection.required_task_ref_fields,
-    ['task_id', 'stage', 'progress_label', 'next_owner', 'artifact_or_blocker', 'review_receipt', 'action_receipt'],
+    taskRunProjectionV2RequiredFields,
     `${label} required_task_ref_fields`,
   );
   assertIncludesAll(
@@ -97,6 +120,81 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
     ],
     `${label} forbidden_claims`,
   );
+}
+
+export function validateTaskRunProjectionV2Contract(projection, label) {
+  for (const [field, expected] of Object.entries({
+    schema_name: 'TaskRunProjection',
+    schema_version: 2,
+    projection_kind: 'task_run_projection_v2',
+    model_policy:
+      'Runtime is the global task list and task detail surface; ordinary conversation and right inspector are filtered slices of the same TaskRunProjection v2 records.',
+    slice_policy: 'runtime_global_list_and_detail_conversation_and_inspector_filtered_slices_same_model',
+    domain_authority_policy: 'refs_only_no_domain_authority_no_artifact_body_no_domain_verdict',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  for (const [group, fields] of Object.entries(taskRunProjectionV2FieldGroups)) {
+    assertDeepEqualJson(projection.v2_field_groups?.[group], fields, `${label} v2_field_groups.${group}`);
+  }
+}
+
+export function validateTaskRunProjectionV2Fixture(task, label) {
+  if (!task || typeof task !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const field of taskRunProjectionV2RequiredFields) {
+    if (!Object.hasOwn(task, field)) {
+      throw new Error(`${label} must include ${field}`);
+    }
+  }
+  for (const [group, fields] of Object.entries(taskRunProjectionV2FieldGroups)) {
+    if (group === 'diagnostics_ref') {
+      if (typeof task.diagnostics_ref !== 'string' || task.diagnostics_ref.length === 0) {
+        throw new Error(`${label} diagnostics_ref must be a non-empty ref`);
+      }
+      continue;
+    }
+    const value = group === 'conditions' ? task.conditions?.[0] : task[group];
+    if (['evidence_cards', 'action_cards', 'resource_cards'].includes(group)) {
+      if (!Array.isArray(value) || value.length === 0) {
+        throw new Error(`${label} ${group} must include at least one card`);
+      }
+      for (const field of fields) {
+        if (!Object.hasOwn(value[0], field)) {
+          throw new Error(`${label} ${group}[0] must include ${field}`);
+        }
+      }
+    } else {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error(`${label} ${group} must be an object`);
+      }
+      for (const field of fields) {
+        if (!Object.hasOwn(value, field)) {
+          throw new Error(`${label} ${group} must include ${field}`);
+        }
+      }
+    }
+  }
+  for (const forbidden of [
+    'artifact_body',
+    'artifact_body_preview',
+    'domain_artifact_body',
+    'domain_truth',
+    'owner_receipt_body',
+    'domain_quality_verdict',
+    'quality_verdict',
+    'domain_readiness',
+    'domain_ready',
+    'app_release_readiness',
+    'production_readiness',
+  ]) {
+    if (Object.hasOwn(task, forbidden)) {
+      throw new Error(`${label} must not project ${forbidden}`);
+    }
+  }
 }
 
 export function validateResourceContextPolicy(policy, label) {

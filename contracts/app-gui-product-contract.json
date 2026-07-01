@@ -256,13 +256,14 @@
         "right_context_inspector"
       ],
       "required_task_ref_fields": [
-        "task_id",
-        "stage",
-        "progress_label",
-        "next_owner",
-        "artifact_or_blocker",
-        "review_receipt",
-        "action_receipt"
+        "task_identity",
+        "status",
+        "progress",
+        "conditions",
+        "evidence_cards",
+        "action_cards",
+        "resource_cards",
+        "diagnostics_ref"
       ],
       "optional_task_ref_fields": [
         "capability_health_refs",
@@ -405,7 +406,75 @@
         ],
         "display_policy": "show_console_managed_policy_quota_billing_permission_refs_only_when_projection_marks_resource_managed",
         "self_managed_policy": "local_user_ssh_hpc_resources_show_self_managed_resource_context_without_console_billing_claims"
-      }
+      },
+      "schema_name": "TaskRunProjection",
+      "schema_version": 2,
+      "projection_kind": "task_run_projection_v2",
+      "model_policy": "Runtime is the global task list and task detail surface; ordinary conversation and right inspector are filtered slices of the same TaskRunProjection v2 records.",
+      "v2_field_groups": {
+        "task_identity": [
+          "task_id",
+          "title",
+          "domain_id",
+          "domain_label",
+          "study_id",
+          "task_ref"
+        ],
+        "status": [
+          "state",
+          "status",
+          "status_label",
+          "priority_bucket",
+          "active_stage_id",
+          "active_stage_label",
+          "active_run_ref"
+        ],
+        "progress": [
+          "progress_label",
+          "current_step",
+          "last_progress_at",
+          "progress_ref",
+          "stage_ref"
+        ],
+        "conditions": [
+          "type",
+          "status",
+          "reason",
+          "message",
+          "severity",
+          "owner",
+          "last_transition_time",
+          "ref"
+        ],
+        "evidence_cards": [
+          "card_id",
+          "title",
+          "summary",
+          "ref",
+          "content_policy"
+        ],
+        "action_cards": [
+          "card_id",
+          "title",
+          "summary",
+          "ref",
+          "action_ref",
+          "dry_run_required",
+          "content_policy"
+        ],
+        "resource_cards": [
+          "card_id",
+          "title",
+          "summary",
+          "ref",
+          "content_policy"
+        ],
+        "diagnostics_ref": [
+          "diagnostics_ref"
+        ]
+      },
+      "slice_policy": "runtime_global_list_and_detail_conversation_and_inspector_filtered_slices_same_model",
+      "domain_authority_policy": "refs_only_no_domain_authority_no_artifact_body_no_domain_verdict"
     },
     "stage_run_cockpit": {
       "projection_ref": "contracts/app-runtime-bridge.json#stage_run_cockpit_projection",
@@ -723,6 +792,14 @@
         "plan_ref",
         "latest_receipt_ref",
         "latest_artifact_ref",
+        "task_identity",
+        "status",
+        "progress",
+        "conditions",
+        "evidence_cards",
+        "action_cards",
+        "resource_cards",
+        "diagnostics_ref",
         "gateway_status_ref",
         "resource_source_refs",
         "environment_ref",
@@ -734,7 +811,9 @@
         "environment_template_ref",
         "environment_version_ref"
       ],
-      "independent_task_store_allowed": false
+      "independent_task_store_allowed": false,
+      "model_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
+      "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
     }
   },
   "right_context_inspector": {
@@ -807,6 +886,14 @@
         "workflow_refs",
         "export_bundle_action_ref",
         "lineage_refs",
+        "task_identity",
+        "status",
+        "progress",
+        "conditions",
+        "evidence_cards",
+        "action_cards",
+        "resource_cards",
+        "diagnostics_ref",
         "gateway_status_ref",
         "resource_source_refs",
         "environment_ref",
@@ -831,7 +918,9 @@
       "resource_context_policy": "OPL Gateway and OPL Fabric refs are displayed as current-task execution context only; the App does not own compute, storage, connector, environment, billing, or Console policy truth",
       "default_state": "collapsed",
       "artifact_body_access": false,
-      "domain_verdict_authority": false
+      "domain_verdict_authority": false,
+      "model_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
+      "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
     },
     "must_not_own": [
       "runtime truth",

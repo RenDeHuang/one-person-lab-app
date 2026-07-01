@@ -16,6 +16,7 @@ import {
   validateStageRunCockpitProjectionContract,
   validateStateIndexSidecarFixture,
   validateStateIndexSidecarProjectionContract,
+  validateTaskRunProjectionV2Fixture,
   validateUserTaskStatusProjectionContract,
 } from './shared-contract-validators.ts';
 
@@ -170,6 +171,20 @@ function validateGoldenAppStateTaskDrilldowns(fixture) {
   if (/deliverable|paper|manuscript|submission/i.test(platformRepairExample.progress_display_label ?? '')) {
     throw new Error('OPL App state platform repair label must not present repair as deliverable progress.');
   }
+  const taskRunProjection = lookupPath(fixture, 'app_state.operator.workbench.task_run_projection_v2');
+  if (
+    taskRunProjection?.surface_kind !== 'task_run_projection_v2'
+    || taskRunProjection?.schema_version !== 'task-run-projection.v2'
+    || taskRunProjection?.refs_only !== true
+    || !Array.isArray(taskRunProjection?.tasks)
+    || taskRunProjection.tasks.length === 0
+  ) {
+    throw new Error('OPL App state golden fixture must include workbench.task_run_projection_v2.');
+  }
+  validateTaskRunProjectionV2Fixture(
+    taskRunProjection.tasks[0],
+    'OPL App state golden fixture TaskRunProjection v2 task',
+  );
   const stateIndexSidecarExample = taskDrilldowns.find((task) => task?.state_index_sidecar_projection);
   if (!stateIndexSidecarExample) {
     throw new Error('OPL App state golden fixture must include a State Index sidecar read-model projection example.');

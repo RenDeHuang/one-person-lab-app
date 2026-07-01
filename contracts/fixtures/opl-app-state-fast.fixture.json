@@ -642,7 +642,108 @@
             "surface": "opl runtime app-operator-drilldown --detail full --json",
             "policy": "on_demand_diagnostic_only"
           }
-        ]
+        ],
+        "task_run_projection_v2": {
+          "surface_kind": "task_run_projection_v2",
+          "schema_version": "task-run-projection.v2",
+          "source_ref": "app_state.operator.workbench.task_drilldowns",
+          "authority": "opl_framework_refs_only_user_task_projection",
+          "refs_only": true,
+          "summary": {
+            "task_count": 1,
+            "running_task_count": 0,
+            "attention_task_count": 1,
+            "recent_task_count": 0
+          },
+          "tasks": [
+            {
+              "task_identity": {
+                "task_id": "medautoscience",
+                "title": "Med Auto Science",
+                "domain_id": "medautoscience",
+                "domain_label": "Med Auto Science",
+                "study_id": null,
+                "task_ref": "app_state.operator.workbench.task_drilldowns[medautoscience]"
+              },
+              "status": {
+                "state": "missing",
+                "status": "attention_needed",
+                "status_label": "attention_needed",
+                "priority_bucket": "needs_attention",
+                "active_stage_id": "module_runtime",
+                "active_stage_label": null,
+                "active_run_ref": null
+              },
+              "progress": {
+                "progress_label": "Platform repair",
+                "current_step": "Resolve missing Med Auto Science workspace ref",
+                "last_progress_at": null,
+                "progress_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].progress",
+                "stage_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].stage"
+              },
+              "conditions": [
+                {
+                  "type": "task_status",
+                  "status": "missing",
+                  "reason": "attention_needed",
+                  "message": "Resolve missing Med Auto Science workspace ref",
+                  "severity": "warning",
+                  "owner": "opl_framework",
+                  "last_transition_time": null,
+                  "ref": "app_state.operator.workbench.task_drilldowns[medautoscience].progress"
+                },
+                {
+                  "type": "evidence_refs",
+                  "status": "available",
+                  "reason": "refs_available",
+                  "message": "Artifact, review, and blocker refs are available",
+                  "severity": "none",
+                  "owner": "opl_framework",
+                  "last_transition_time": null,
+                  "ref": "app_state.operator.workbench.task_drilldowns[medautoscience].artifact_or_blocker"
+                }
+              ],
+              "evidence_cards": [
+                {
+                  "card_id": "artifact-blocker-summary",
+                  "title": "Artifact or blocker refs",
+                  "summary": "Workspace ref is missing",
+                  "ref": "app_state.operator.workbench.task_drilldowns[medautoscience].artifact_or_blocker",
+                  "content_policy": "refs_only_no_artifact_body_no_domain_verdict"
+                }
+              ],
+              "action_cards": [
+                {
+                  "card_id": "provider_worker_start",
+                  "title": "Start provider worker",
+                  "summary": "opl app action execute --action task_action_receipt_preview --dry-run --json",
+                  "ref": "opl://app-action/task_action_receipt_preview",
+                  "action_ref": "opl://app-action/task_action_receipt_preview",
+                  "dry_run_required": true,
+                  "content_policy": "refs_only_no_action_receipt_body"
+                }
+              ],
+              "resource_cards": [
+                {
+                  "card_id": "local-runtime",
+                  "title": "local_app",
+                  "summary": "opl://gateway/status/gflabtoken",
+                  "ref": "opl://resource-receipt/medautoscience/module-runtime-repair",
+                  "content_policy": "refs_only_no_resource_body"
+                }
+              ],
+              "diagnostics_ref": "app_state.provider.temporal"
+            }
+          ],
+          "authority_boundary": {
+            "can_write_domain_truth": false,
+            "can_read_artifact_body": false,
+            "can_read_memory_body": false,
+            "can_create_owner_receipt": false,
+            "can_create_typed_blocker": false,
+            "can_authorize_quality_verdict": false
+          }
+        }
       },
       "visual_ref_groups": {
         "active_project_refs": [

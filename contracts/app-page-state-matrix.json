@@ -249,6 +249,14 @@
             "plan_ref",
             "latest_receipt_ref",
             "latest_artifact_ref",
+            "task_identity",
+            "status",
+            "progress",
+            "conditions",
+            "evidence_cards",
+            "action_cards",
+            "resource_cards",
+            "diagnostics_ref",
             "gateway_status_ref",
             "resource_source_refs",
             "environment_ref",
@@ -260,7 +268,9 @@
             "environment_template_ref",
             "environment_version_ref"
           ],
-          "independent_task_store_allowed": false
+          "independent_task_store_allowed": false,
+          "model_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
+          "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
         }
       },
       "must_show": [
@@ -356,6 +366,14 @@
             "workflow_refs",
             "export_bundle_action_ref",
             "lineage_refs",
+            "task_identity",
+            "status",
+            "progress",
+            "conditions",
+            "evidence_cards",
+            "action_cards",
+            "resource_cards",
+            "diagnostics_ref",
             "gateway_status_ref",
             "resource_source_refs",
             "environment_ref",
@@ -380,7 +398,9 @@
           "resource_context_policy": "OPL Gateway and OPL Fabric refs are displayed as current-task execution context only; no compute, storage, connector, environment, billing, or Console policy truth is owned by the App",
           "default_state": "collapsed",
           "artifact_body_access": false,
-          "domain_verdict_authority": false
+          "domain_verdict_authority": false,
+          "model_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
+          "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
         },
         "must_not_own": [
           "runtime truth",
@@ -520,13 +540,14 @@
             "right_context_inspector"
           ],
           "required_task_ref_fields": [
-            "task_id",
-            "stage",
-            "progress_label",
-            "next_owner",
-            "artifact_or_blocker",
-            "review_receipt",
-            "action_receipt"
+            "task_identity",
+            "status",
+            "progress",
+            "conditions",
+            "evidence_cards",
+            "action_cards",
+            "resource_cards",
+            "diagnostics_ref"
           ],
           "optional_task_ref_fields": [
             "capability_health_refs",
@@ -559,7 +580,74 @@
           "settings_capabilities_surface_ref": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
           "display_policy": "runtime_global_task_awareness_with_current_task_slices_no_new_dashboard",
           "temporal_policy": "diagnostics_only_never_user_task_model",
-          "refs_only": true
+          "refs_only": true,
+          "schema_name": "TaskRunProjection",
+          "schema_version": 2,
+          "projection_kind": "task_run_projection_v2",
+          "v2_field_groups": {
+            "task_identity": [
+              "task_id",
+              "title",
+              "domain_id",
+              "domain_label",
+              "study_id",
+              "task_ref"
+            ],
+            "status": [
+              "state",
+              "status",
+              "status_label",
+              "priority_bucket",
+              "active_stage_id",
+              "active_stage_label",
+              "active_run_ref"
+            ],
+            "progress": [
+              "progress_label",
+              "current_step",
+              "last_progress_at",
+              "progress_ref",
+              "stage_ref"
+            ],
+            "conditions": [
+              "type",
+              "status",
+              "reason",
+              "message",
+              "severity",
+              "owner",
+              "last_transition_time",
+              "ref"
+            ],
+            "evidence_cards": [
+              "card_id",
+              "title",
+              "summary",
+              "ref",
+              "content_policy"
+            ],
+            "action_cards": [
+              "card_id",
+              "title",
+              "summary",
+              "ref",
+              "action_ref",
+              "dry_run_required",
+              "content_policy"
+            ],
+            "resource_cards": [
+              "card_id",
+              "title",
+              "summary",
+              "ref",
+              "content_policy"
+            ],
+            "diagnostics_ref": [
+              "diagnostics_ref"
+            ]
+          },
+          "slice_policy": "runtime_global_list_and_detail_conversation_and_inspector_filtered_slices_same_model",
+          "domain_authority_policy": "refs_only_no_domain_authority_no_artifact_body_no_domain_verdict"
         },
         "project_progress": {
           "source": "app_state.operator.workbench.task_drilldowns",

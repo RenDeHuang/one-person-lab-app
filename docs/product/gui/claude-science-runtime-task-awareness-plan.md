@@ -18,11 +18,11 @@ claim.
   readback confirms artifact/review/action/workflow/export bodies are excluded
   and non-dry-run export preview fails closed.
 - App repo main: `014e0f8` contracted `task_awareness_projection` and
-  `current_task_slice_projection`; this tranche adds the
-  `settings_capabilities_surface` contract, fixture readback, page-state matrix,
-  GUI product contract, active-shell validation, and release-boundary assertions
-  for capability health, connector readiness, workflow refs, and export-bundle
-  preview refs.
+  `current_task_slice_projection`; this tranche upgrades the App-owned machine
+  contract to `TaskRunProjection` v2 with identity/status/progress/conditions,
+  evidence/action/resource cards, `diagnostics_ref`, fixture readback,
+  page-state matrix, GUI product contract, active-shell validation, and
+  release-boundary assertions for the refs-only task model.
 - AionUI shell main: `6bccbab8f` renders Runtime task ref summaries;
   `ffb5701e0` renders conversation and inspector refs; `3da93d1a` renders the
   same capability/connector/workflow/export refs in Settings / Capabilities as a
@@ -88,7 +88,7 @@ Claude Science 对 OPL App 的可学习点不是新增一个科研工作台，�
 | 顺序 | Item | 主 owner | AionUI 角色 | 当前完成度 | 当前证据 | 彻底落地标准 |
 | --- | --- | --- | --- | ---: | --- | --- |
 | 1 | 统一任务感知定义 | App repo | 按 contract 消费 | 100% | `docs/architecture.md`、`docs/decisions.md`、active plan、本文和 App contracts 一致定义 Runtime 为全局任务感知，聊天/inspector 为当前任务切片。 | 已完成；后续只需随合同变化维护。 |
-| 2 | Runtime projection 字段收敛 | App repo 定义，Framework 产出 | 渲染字段 | 100% | App `014e0f8` 定义 `task_awareness_projection` / `current_task_slice_projection`；Framework `dd867215` mainline readback 输出 stage/progress/next_owner/artifact_or_blocker/review_receipt/action_receipt/workflow refs。 | 已完成；真实 domain artifact/reviewer 内容仍由 domain owner 产出。 |
+| 2 | Runtime projection 字段收敛 | App repo 定义，Framework 产出 | 渲染字段 | 100% | App `014e0f8` 定义 `task_awareness_projection` / `current_task_slice_projection`；this tranche defines `TaskRunProjection` v2 identity/status/progress/conditions/evidence_cards/action_cards/resource_cards/diagnostics_ref and validates the fast fixture plus page-state/GUI slices against the same model；Framework `dd867215` mainline readback 输出 stage/progress/next_owner/artifact_or_blocker/review_receipt/action_receipt/workflow refs。 | 已完成；真实 domain artifact/reviewer 内容仍由 domain owner 产出。 |
 | 3 | Framework producer refs | OPL Framework / domain | 无 | 100% | Framework `dd867215`; fresh `./bin/opl app state --profile fast --json` readback contains refs-only task awareness fields and excludes artifact/review/action/workflow bodies. | 已完成；domain-specific receipt quality remains domain authority. |
 | 4 | Plan-approve-run action | OPL Framework action catalog | 复用 confirmation/action UI | 100% | Framework `dd867215` dry-run readback returns plan/write_targets/risk/expected_output and non-dry-run fails closed; Framework `8d1aaba8` adds `task_export_bundle_preview` as the matching export preview action; App contracts the dry-run/receipt route. | 已完成 for App action dry-run/receipt preview; real domain execute receipts remain domain-owner actions, not this generic preview action. |
 | 5 | Artifact provenance card | Framework/domain 产出，App contract 定义 | 通用 artifact/receipt card | 100% | Runtime projection and AionUI Runtime summary render artifact/blocker refs; AionUI `ffb5701e0` renders right-side current-task artifact/blocker evidence refs; App contracts forbid artifact body access. | 已完成 for refs-only artifact provenance UI; real artifact body and quality/export verdict remain domain authority. |
@@ -99,7 +99,7 @@ Claude Science 对 OPL App 的可学习点不是新增一个科研工作台，�
 | 10 | Capability health / connector readiness | Framework/App contract | Settings thin renderer | 100% | Framework `8d1aaba8` exposes `capability_task_awareness_refs.capability_health_refs` and `connector_readiness_refs`; App contract/fixture/tests require `settings_capabilities_surface`; AionUI `3da93d1a` renders them in Settings / Capabilities. | 已完成 for refs-only capability and connector readiness display; real module/domain readiness remains owner authority. |
 | 11 | Reusable workflow refs | Framework/domain | Settings/Capabilities 列 ref | 100% | Framework `8d1aaba8` exposes Settings-level workflow refs with `content_policy=refs_only_no_skill_body_no_workflow_body`; App contract/test locks the field; AionUI `3da93d1a` lists workflow refs without skill bodies. | 已完成 for reusable workflow refs listing; workflow/skill body authoring remains outside App/AionUI. |
 | 12 | Reproducibility export bundle action | Framework/domain action | artifact/task action button + receipt summary | 100% | Framework `8d1aaba8` exposes `task_export_bundle_preview` dry-run action and non-dry-run fail-closed boundary; App fixture/test checks the preview route; AionUI `3da93d1a` renders the export action ref and dry-run/receipt summary. | 已完成 for reproducibility export preview/action-ref UI; real domain bundle generation and export readiness remain domain-owner actions. |
-| 13 | Fixture 与 focused tests | App repo + shell repo | DOM/i18n focused tests | 100% | App runtime-page/app-gui release-boundary tests pass; active-shell quick pass against AionUI capability renderer; Framework app-state/action tests and typecheck pass; AionUI capabilities projection/DOM tests, i18n validation, format check, and diff check pass. | 已完成 for all landed slices. |
+| 13 | Fixture 与 focused tests | App repo + shell repo | DOM/i18n focused tests | 100% | App fast fixture carries a `TaskRunProjection` v2 example; shared validators fail when required v2 fields are missing; runtime-page/app-gui release-boundary tests and active-shell quick validation cover the contract slices. | 已完成 for landed App-owned contract slices; shell rendering and domain producer changes remain separate owner surfaces. |
 | 14 | 吸收、清理和完成度审计 | Main session | 提供 verified shell commit 后由主会话吸收 | 100% | Framework `8d1aaba8`, App contract/docs commit, and AionUI `3da93d1a` were main-session reviewed, verified, absorbed, and worktree-audited before cleanup. | 已完成 for this refs-only Runtime task-awareness landing; no App release-ready/domain-ready claim. |
 
 ## 本次完成证据

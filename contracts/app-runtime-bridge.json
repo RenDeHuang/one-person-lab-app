@@ -186,13 +186,14 @@
       "right_context_inspector"
     ],
     "required_task_ref_fields": [
-      "task_id",
-      "stage",
-      "progress_label",
-      "next_owner",
-      "artifact_or_blocker",
-      "review_receipt",
-      "action_receipt"
+      "task_identity",
+      "status",
+      "progress",
+      "conditions",
+      "evidence_cards",
+      "action_cards",
+      "resource_cards",
+      "diagnostics_ref"
     ],
     "optional_task_ref_fields": [
       "capability_health_refs",
@@ -341,7 +342,75 @@
       "domain_readiness",
       "app_release_readiness",
       "family_production_readiness"
-    ]
+    ],
+    "schema_name": "TaskRunProjection",
+    "schema_version": 2,
+    "projection_kind": "task_run_projection_v2",
+    "model_policy": "Runtime is the global task list and task detail surface; ordinary conversation and right inspector are filtered slices of the same TaskRunProjection v2 records.",
+    "v2_field_groups": {
+      "task_identity": [
+        "task_id",
+        "title",
+        "domain_id",
+        "domain_label",
+        "study_id",
+        "task_ref"
+      ],
+      "status": [
+        "state",
+        "status",
+        "status_label",
+        "priority_bucket",
+        "active_stage_id",
+        "active_stage_label",
+        "active_run_ref"
+      ],
+      "progress": [
+        "progress_label",
+        "current_step",
+        "last_progress_at",
+        "progress_ref",
+        "stage_ref"
+      ],
+      "conditions": [
+        "type",
+        "status",
+        "reason",
+        "message",
+        "severity",
+        "owner",
+        "last_transition_time",
+        "ref"
+      ],
+      "evidence_cards": [
+        "card_id",
+        "title",
+        "summary",
+        "ref",
+        "content_policy"
+      ],
+      "action_cards": [
+        "card_id",
+        "title",
+        "summary",
+        "ref",
+        "action_ref",
+        "dry_run_required",
+        "content_policy"
+      ],
+      "resource_cards": [
+        "card_id",
+        "title",
+        "summary",
+        "ref",
+        "content_policy"
+      ],
+      "diagnostics_ref": [
+        "diagnostics_ref"
+      ]
+    },
+    "slice_policy": "runtime_global_list_and_detail_conversation_and_inspector_filtered_slices_same_model",
+    "domain_authority_policy": "refs_only_no_domain_authority_no_artifact_body_no_domain_verdict"
   },
   "current_task_slice_projection": {
     "source": "same_task_awareness_projection_filtered_by_current_conversation_or_selected_task",
@@ -355,6 +424,14 @@
       "plan_ref",
       "latest_receipt_ref",
       "latest_artifact_ref",
+      "task_identity",
+      "status",
+      "progress",
+      "conditions",
+      "evidence_cards",
+      "action_cards",
+      "resource_cards",
+      "diagnostics_ref",
       "gateway_status_ref",
       "resource_source_refs",
       "environment_ref",
@@ -373,6 +450,14 @@
       "workflow_refs",
       "export_bundle_action_ref",
       "lineage_refs",
+      "task_identity",
+      "status",
+      "progress",
+      "conditions",
+      "evidence_cards",
+      "action_cards",
+      "resource_cards",
+      "diagnostics_ref",
       "gateway_status_ref",
       "resource_source_refs",
       "environment_ref",
@@ -398,7 +483,12 @@
     "independent_task_store_allowed": false,
     "artifact_body_access": false,
     "memory_body_access": false,
-    "app_role": "display_only_current_task_slice_consumer"
+    "app_role": "display_only_current_task_slice_consumer",
+    "model_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
+    "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task",
+    "refs_only": true,
+    "domain_authority": false,
+    "domain_verdict_authority": false
   },
   "project_progress_projection": {
     "source": "app_state.operator.workbench.task_drilldowns",
