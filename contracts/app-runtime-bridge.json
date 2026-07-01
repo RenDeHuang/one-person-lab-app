@@ -111,6 +111,78 @@
     "full_detail": "runtime_tray_snapshot.app_operator_drilldown",
     "policy": "user_task_status_from_app_state_project_refs_provider_projection_diagnostic_only"
   },
+  "runtime_surface_owner_matrix": {
+    "purpose": "keep_runtime_resource_task_data_lifecycle_refs_single_sourced",
+    "app_policy_owner": "one-person-lab-app",
+    "family_projection_owner": "one-person-lab",
+    "active_shell_role": "thin_renderer_consumer",
+    "distribution_mirror_role": "release_transport_only",
+    "surface_rows": [
+      {
+        "surface": "OPL Runtime Fabric",
+        "source_owner": "one-person-lab-app",
+        "producer_owner": "one-person-lab",
+        "consumer_role": "App defines user-facing policy and release gates; Framework produces update/status receipts; Shell renders status/actions.",
+        "forbidden_second_truth": [
+          "shell_runtime_store",
+          "homebrew_runtime_readiness",
+          "domain_agent_runtime_authority"
+        ]
+      },
+      {
+        "surface": "Environment Materializer",
+        "source_owner": "one-person-lab",
+        "producer_owner": "one-person-lab",
+        "consumer_role": "App consumes environment refs and receipts through task/resource projections without reading package lock bodies.",
+        "forbidden_second_truth": [
+          "app_environment_body_store",
+          "shell_package_lock_parser",
+          "user_global_tool_mutation"
+        ]
+      },
+      {
+        "surface": "TaskRunProjection v2",
+        "source_owner": "one-person-lab",
+        "producer_owner": "one-person-lab",
+        "consumer_role": "Runtime is the global task list; conversation and inspector are filtered slices of the same refs-only model.",
+        "forbidden_second_truth": [
+          "new_task_dashboard",
+          "shell_task_state_machine",
+          "provider_attempt_count_as_user_running_task"
+        ]
+      },
+      {
+        "surface": "OPL Fabric resource refs",
+        "source_owner": "one-person-lab",
+        "producer_owner": "one-person-lab",
+        "consumer_role": "App displays plan, approval, execution, monitor, collect, usage, and receipt refs without owning compute, storage, environment, connector, billing, or Console policy truth.",
+        "forbidden_second_truth": [
+          "app_compute_scheduler",
+          "shell_storage_authority",
+          "homebrew_resource_currentness"
+        ]
+      },
+      {
+        "surface": "Local data lifecycle",
+        "source_owner": "one-person-lab-app",
+        "producer_owner": "active_shell_local_service",
+        "consumer_role": "App contract owns lifecycle classes and no-silent-delete policy; shell service inventories local files and returns archive/restore/prune receipts.",
+        "forbidden_second_truth": [
+          "generic_cleanup_button",
+          "runtime_pointer_prune_without_dry_run",
+          "artifact_delete_without_restore_proof"
+        ]
+      }
+    ],
+    "homebrew_policy": "homebrew-one-person-lab mirrors App release cohorts only and must not decide runtime, task, resource, data lifecycle, stable/latest, or readiness truth.",
+    "must_not_add_layers": [
+      "second_resource_state_machine",
+      "shell_owned_task_queue",
+      "app_owned_domain_receipts",
+      "homebrew_currentness_gate",
+      "health_platform_runtime_authority"
+    ]
+  },
   "user_task_status_projection": {
     "source": "app_state.operator.workbench.summary_cards + app_state.operator.workbench.activity_center + app_state.operator.workbench.task_drilldowns + app_state.operator.visual_ref_groups.active_project_refs",
     "authority": "opl_framework_refs_only_user_task_projection",

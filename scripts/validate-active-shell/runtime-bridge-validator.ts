@@ -567,6 +567,58 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
   );
 }
 
+function validateRuntimeSurfaceOwnerMatrix(runtimeBridge) {
+  const matrix = runtimeBridge.runtime_surface_owner_matrix;
+  for (const [field, expected] of Object.entries({
+    purpose: 'keep_runtime_resource_task_data_lifecycle_refs_single_sourced',
+    app_policy_owner: 'one-person-lab-app',
+    family_projection_owner: 'one-person-lab',
+    active_shell_role: 'thin_renderer_consumer',
+    distribution_mirror_role: 'release_transport_only',
+  })) {
+    if (matrix?.[field] !== expected) {
+      throw new Error(`Runtime surface owner matrix ${field} must be ${expected}`);
+    }
+  }
+  const rows = matrix?.surface_rows;
+  if (!Array.isArray(rows) || rows.length !== 5) {
+    throw new Error('Runtime surface owner matrix must declare five surface rows');
+  }
+  const rowBySurface = new Map(rows.map((row) => [row?.surface, row]));
+  for (const [surface, owner] of Object.entries({
+    'OPL Runtime Fabric': 'one-person-lab-app',
+    'Environment Materializer': 'one-person-lab',
+    'TaskRunProjection v2': 'one-person-lab',
+    'OPL Fabric resource refs': 'one-person-lab',
+    'Local data lifecycle': 'one-person-lab-app',
+  })) {
+    const row = rowBySurface.get(surface);
+    if (row?.source_owner !== owner) {
+      throw new Error(`Runtime surface owner matrix ${surface} source_owner must be ${owner}`);
+    }
+    if (typeof row?.producer_owner !== 'string' || !row.producer_owner) {
+      throw new Error(`Runtime surface owner matrix ${surface} must declare producer_owner`);
+    }
+    if (!Array.isArray(row?.forbidden_second_truth) || row.forbidden_second_truth.length === 0) {
+      throw new Error(`Runtime surface owner matrix ${surface} must declare forbidden_second_truth`);
+    }
+  }
+  if (!matrix?.homebrew_policy?.includes('must not decide runtime, task, resource, data lifecycle')) {
+    throw new Error('Runtime surface owner matrix must keep Homebrew as release transport only');
+  }
+  for (const forbidden of [
+    'second_resource_state_machine',
+    'shell_owned_task_queue',
+    'app_owned_domain_receipts',
+    'homebrew_currentness_gate',
+    'health_platform_runtime_authority',
+  ]) {
+    if (!matrix?.must_not_add_layers?.includes(forbidden)) {
+      throw new Error(`Runtime surface owner matrix must forbid ${forbidden}`);
+    }
+  }
+}
+
 function validateRuntimeBridgeAuthorityBoundary(runtimeBridge) {
   for (const [field, expected] of Object.entries({
     shell_adapter_can_own_runtime_truth: false,
@@ -630,6 +682,7 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   validateRuntimeBridgeUserTaskStatus(runtimeBridge);
   validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge);
   validateRuntimeBridgeProjectionContracts(runtimeBridge);
+  validateRuntimeSurfaceOwnerMatrix(runtimeBridge);
   validateRuntimeBridgeAuthorityBoundary(runtimeBridge);
   validateRuntimeBridgeReplacementPolicy(runtimeBridge);
   validateRuntimeBridgeForbiddenTruthSources(runtimeBridge);

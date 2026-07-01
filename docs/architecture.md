@@ -80,6 +80,17 @@ and receipt. The App may display those refs and call `opl app action`; it does
 not own compute scheduling, storage authority, connector credentials,
 environment bodies, billing, or Console policy truth.
 
+The App runtime/resource/task/data-lifecycle split is kept in one owner matrix
+instead of a new control layer. `contracts/app-runtime-bridge.json#runtime_surface_owner_matrix`
+binds OPL Runtime Fabric, Environment Materializer, TaskRunProjection v2, OPL
+Fabric resource refs, local data lifecycle, the active shell, and Homebrew into
+their owner roles. The matrix is deliberately narrow: App owns product policy
+and release gates, OPL Framework owns family projections and runtime receipts,
+Aion renders, and Homebrew mirrors release cohorts only. New runtime/resource
+surfaces should extend that matrix and the existing projection contracts before
+adding any shell-local task store, resource state machine, cleanup authority, or
+distribution currentness gate.
+
 The default Runtime page attention model is user-task-status first. The
 ordinary view answers which tasks are explicitly running or advancing, which
 projects/tasks are active or queued, what needs attention, and what the next
