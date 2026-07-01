@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `claude_science_runtime_task_awareness_landing_plan`
-State: `landed_mainline_with_remaining_ui_slices`
+State: `landed_mainline`
 Machine boundary: Human-readable external-learning landing plan. Machine-readable truth lives in `contracts/`, `opl app state`, `opl app action`, source, tests, active-shell validation, and OPL Framework/domain read-model output consumed by the App.
 
 ## 当前状态
@@ -22,12 +22,11 @@ claim.
   the page-state matrix and GUI product contract, updates fixtures, and extends
   active-shell validation plus release-boundary tests.
 - AionUI shell main: `6bccbab8f` renders Runtime task ref summaries as a thin
-  renderer and keeps Temporal/provider/current_control_state in diagnostics. It
-  does not add shell-owned runtime truth, reviewer/domain logic, artifact-body
-  access, readiness judgment, or a new dashboard.
-- Remaining UI slices: conversation current-task inline rendering and right
-  inspector evidence tabs are contract-backed but not yet implemented in AionUI.
-  They remain follow-up UI slices, not Framework/App-contract blockers.
+  renderer, and `ffb5701e0` renders the conversation current-task inline status
+  plus the right-side workspace/inspector evidence refs from the same runtime
+  current-task slice. Temporal/provider/current_control_state remain
+  diagnostics. AionUI does not add shell-owned runtime truth, reviewer/domain
+  logic, artifact-body access, readiness judgment, or a new dashboard.
 
 ## 目标
 
@@ -87,16 +86,16 @@ Claude Science 对 OPL App 的可学习点不是新增一个科研工作台，�
 | 2 | Runtime projection 字段收敛 | App repo 定义，Framework 产出 | 渲染字段 | 100% | App `014e0f8` 定义 `task_awareness_projection` / `current_task_slice_projection`；Framework `dd867215` mainline readback 输出 stage/progress/next_owner/artifact_or_blocker/review_receipt/action_receipt/workflow refs。 | 已完成；真实 domain artifact/reviewer 内容仍由 domain owner 产出。 |
 | 3 | Framework producer refs | OPL Framework / domain | 无 | 100% | Framework `dd867215`; fresh `./bin/opl app state --profile fast --json` readback contains refs-only task awareness fields and excludes artifact/review/action/workflow bodies. | 已完成；domain-specific receipt quality remains domain authority. |
 | 4 | Plan-approve-run action | OPL Framework action catalog | 复用 confirmation/action UI | 90% | Framework `dd867215` dry-run readback returns plan/write_targets/risk/expected_output and non-dry-run fails closed; App `014e0f8` contracts the route. | Preview path complete; real domain execute receipts remain domain-owner actions, not this generic preview action. |
-| 5 | Artifact provenance card | Framework/domain 产出，App contract 定义 | 通用 artifact/receipt card | 85% | Runtime projection and AionUI Runtime summary render artifact/blocker refs; App contracts forbid artifact body access. | Runtime surface complete; right inspector artifact tab remains contract-backed UI follow-up. |
-| 6 | Reviewer receipt card | Domain 产出，Framework projection，App contract 定义 | 通用 receipt summary | 80% | Framework readback includes `review_receipt`; App contracts and AionUI Runtime summaries treat it as non-authoritative refs. | Runtime summary complete; inspector review tab remains contract-backed UI follow-up. |
+| 5 | Artifact provenance card | Framework/domain 产出，App contract 定义 | 通用 artifact/receipt card | 100% | Runtime projection and AionUI Runtime summary render artifact/blocker refs; AionUI `ffb5701e0` renders right-side current-task artifact/blocker evidence refs; App contracts forbid artifact body access. | 已完成 for refs-only artifact provenance UI; real artifact body and quality/export verdict remain domain authority. |
+| 6 | Reviewer receipt card | Domain 产出，Framework projection，App contract 定义 | 通用 receipt summary | 100% | Framework readback includes `review_receipt`; App contracts and AionUI Runtime/conversation summaries treat it as non-authoritative refs; AionUI `ffb5701e0` renders right-side review receipt refs. | 已完成 for refs-only reviewer receipt UI; reviewer verdict quality remains domain authority. |
 | 7 | Runtime 全局展示增强 | Framework projection + App contract | existing Runtime thin renderer | 100% | AionUI `6bccbab8f` renders task ref summaries; DOM/i18n/format checks pass; Temporal/provider remain diagnostics. | 已完成 for Runtime page global task awareness. |
-| 8 | 聊天当前任务切片 | Framework projection + App contract | conversation/composer status thin renderer | 55% | App `014e0f8` contracts `current_task_slice_projection` and validates no independent task store. | Contract complete; AionUI conversation inline rendering remains follow-up. |
-| 9 | Inspector 当前任务证据面 | Framework refs + App contract | collapsed tabs/card thin renderer | 60% | App `014e0f8` adds inspector Artifacts/Review/Actions tabs and current-task evidence contract, with artifact body/domain verdict authority false. | Contract complete; AionUI inspector rendering remains follow-up. |
+| 8 | 聊天当前任务切片 | Framework projection + App contract | conversation/composer status thin renderer | 100% | App `014e0f8` contracts `current_task_slice_projection`; AionUI `ffb5701e0` projects `current_task` through the conversation runtime view and renders the inline current-task status without an independent task store. Focused current-task DOM and conversation runtime view tests pass. | 已完成 for current conversation inline status. |
+| 9 | Inspector 当前任务证据面 | Framework refs + App contract | collapsed tabs/card thin renderer | 100% | App `014e0f8` adds inspector Artifacts/Review/Actions tabs and current-task evidence contract, with artifact body/domain verdict authority false; AionUI `ffb5701e0` renders artifact/review/action/workflow refs in the right-side workspace/inspector panel from the same current-task slice. | 已完成 for refs-only right-side evidence surface. |
 | 10 | Capability health / connector readiness | Framework/App contract | Settings thin renderer | 55% | Existing Settings capability and maintenance boundaries remain unchanged. | Not expanded in this tranche; still a separate Settings capability-health follow-up. |
 | 11 | Reusable workflow refs | Framework/domain | Settings/Capabilities 列 ref | 70% | Framework readback includes `workflow_refs`; App contracts list workflow refs and forbid App skill-body writes. | Runtime refs complete; Settings/Capabilities workflow listing remains follow-up. |
 | 12 | Reproducibility export bundle action | Framework/domain action | artifact/task action button + receipt summary | 70% | Framework exposes export bundle refs under artifact/task refs; App contracts `export_bundle_action_ref`. | Ref contract complete; real domain bundle generation remains domain action follow-up. |
-| 13 | Fixture 与 focused tests | App repo + shell repo | DOM/i18n focused tests | 100% | App release-boundary + active-shell quick pass; Framework app-state/action tests + typecheck pass; AionUI Runtime DOM/i18n/format pass. | 已完成 for landed slices. |
-| 14 | 吸收、清理和完成度审计 | Main session | 提供 verified shell commit 后由主会话吸收 | 85% | Framework `dd867215`, App `014e0f8`, and AionUI `6bccbab8f` are on main with fresh verification. | Worktree cleanup and final Plan Completion Audit remain in progress. |
+| 13 | Fixture 与 focused tests | App repo + shell repo | DOM/i18n focused tests | 100% | App release-boundary + active-shell quick pass; Framework app-state/action tests + typecheck pass; AionUI Runtime/current-task DOM tests, conversation runtime view tests, i18n validation, and format checks pass. | 已完成 for landed slices. |
+| 14 | 吸收、清理和完成度审计 | Main session | 提供 verified shell commit 后由主会话吸收 | 100% | Framework `dd867215` is absorbed in Framework main; App `014e0f8` and `b7cd8ed` are on App main; AionUI `6bccbab8f` and `ffb5701e0` are on AionUI main/gh-https; Claude Science worktrees were absorption-audited and removed; ops ledgers record closed lanes. | 已完成 for this refs-only Runtime task-awareness landing. |
 
 ## 建议落地顺序
 
