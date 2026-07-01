@@ -182,6 +182,15 @@ test('managed update plane exposes the v2 install/update taxonomy and legacy ali
   );
   assert.equal(carrierVariants.get('linux_package_carrier').host_executor_required, true);
   assert.equal(carrierVariants.get('linux_package_carrier').managed_kernel_apply_allowed, false);
+  assert.deepEqual(carrierVariants.get('linux_package_carrier').status_readback_fields, [
+    'package_manager',
+    'package_name',
+    'installed_version',
+    'detected_package_managers',
+  ]);
+  assert.ok(
+    carrierVariants.get('linux_package_carrier').host_update_route_examples.includes('sudo dnf upgrade one-person-lab'),
+  );
 
   assert.equal(lanes.get('runtime_substrate').adapter, 'runtime_substrate_adapter');
   assert.equal(

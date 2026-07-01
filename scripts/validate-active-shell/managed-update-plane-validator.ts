@@ -258,6 +258,8 @@ function validateManagedUpdateInstallationCarrierLane(carrierPlane) {
       'container_id',
       'compose_file',
       'package_manager',
+      'package_name',
+      'detected_package_managers',
       'data_volume_preservation',
       'repair_actions',
     ],
@@ -342,6 +344,20 @@ function validateInstallationCarrierLinuxVariant(variant) {
     variant?.status_values,
     ['current', 'update_available', 'host_executor_required', 'manual_required', 'failed_with_repair'],
     'Installation carrier Linux package status values',
+  );
+  assertIncludesAll(
+    variant?.host_update_route_examples,
+    [
+      'sudo apt update && sudo apt install --only-upgrade one-person-lab',
+      'sudo dnf upgrade one-person-lab',
+      'sudo zypper update one-person-lab',
+    ],
+    'Installation carrier Linux host update route examples',
+  );
+  assertIncludesAll(
+    variant?.status_readback_fields,
+    ['package_manager', 'package_name', 'installed_version', 'detected_package_managers'],
+    'Installation carrier Linux status readback fields',
   );
   assertIncludesAll(
     variant?.manual_required_when,

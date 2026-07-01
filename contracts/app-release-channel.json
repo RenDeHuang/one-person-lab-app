@@ -2448,6 +2448,8 @@
           "container_id",
           "compose_file",
           "package_manager",
+          "package_name",
+          "detected_package_managers",
           "data_volume_preservation",
           "repair_actions"
         ],
@@ -2508,6 +2510,17 @@
             "id": "linux_package_carrier",
             "carrier_status_source": "host package manager, package metadata, or documented Linux package carrier readback",
             "host_update_route": "host_package_manager_or_documented_host_executor",
+            "host_update_route_examples": [
+              "sudo apt update && sudo apt install --only-upgrade one-person-lab",
+              "sudo dnf upgrade one-person-lab",
+              "sudo zypper update one-person-lab"
+            ],
+            "status_readback_fields": [
+              "package_manager",
+              "package_name",
+              "installed_version",
+              "detected_package_managers"
+            ],
             "status_values": [
               "current",
               "update_available",
