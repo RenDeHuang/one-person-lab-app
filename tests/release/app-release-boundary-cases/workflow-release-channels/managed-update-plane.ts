@@ -24,6 +24,27 @@ function readPageStateMatrix() {
   );
 }
 
+const EXPECTED_RUNTIME_FABRIC_SUBSYSTEMS = {
+  agent_execution_core: ['embedded_codex_executor', 'temporal_cli_archive', 'opl_framework_runtime'],
+  environment_materializer: {
+    role: 'materialize module-declared sandbox-like runtime environments from managed App-owned materials',
+    language_runtimes: ['node_runtime', 'python_runtime'],
+    package_and_env_resolvers: ['uv_runtime'],
+    optional_resolver_slots: ['pixi_for_scientific_native_stack_when_declared'],
+    env_cache_and_isolated_prefix: 'module-specific managed env roots and package cache under the App-owned runtime/state root',
+    receipt_fields: [
+      'language_runtime_versions',
+      'resolver_versions',
+      'lock_refs',
+      'materialized_env_root',
+      'cache_root',
+      'sha256',
+      'rollback_ref',
+    ],
+  },
+  opl_system_bridge: ['native_helper'],
+};
+
 test('runtime substrate and companion tools are separate App-owned managed channels', () => {
   const releaseContract = readReleaseContract();
   const runtimeUpdater = releaseContract.runtime_substrate_updater;
@@ -53,9 +74,7 @@ test('runtime substrate and companion tools are separate App-owned managed chann
     'opl_framework_runtime',
   ]);
   assert.deepEqual(runtimeUpdater.managed_subsystems, {
-    agent_execution_core: ['embedded_codex_executor', 'temporal_cli_archive', 'opl_framework_runtime'],
-    environment_base: ['node_runtime', 'python_runtime', 'uv_runtime'],
-    system_bridge: ['native_helper'],
+    ...EXPECTED_RUNTIME_FABRIC_SUBSYSTEMS,
   });
   assert.deepEqual(runtimeUpdater.system_tool_policy.preferred_sources, [
     'app_owned_runtime',
@@ -263,9 +282,7 @@ test('managed update plane exposes the v2 install/update taxonomy and legacy ali
   assert.equal(lanes.get('runtime_substrate').display_label_en, 'OPL Runtime Fabric');
   assert.equal(lanes.get('runtime_substrate').display_label_zh, 'OPL 运行基座');
   assert.deepEqual(lanes.get('runtime_substrate').managed_subsystems, {
-    agent_execution_core: ['embedded_codex_executor', 'temporal_cli_archive', 'opl_framework_runtime'],
-    environment_base: ['node_runtime', 'python_runtime', 'uv_runtime'],
-    system_bridge: ['native_helper'],
+    ...EXPECTED_RUNTIME_FABRIC_SUBSYSTEMS,
   });
   assert.deepEqual(lanes.get('runtime_substrate').source_preference_policy, {
     default_source: 'app_owned_runtime',

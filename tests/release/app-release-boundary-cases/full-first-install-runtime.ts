@@ -364,6 +364,27 @@ test('Full first-install manifest consumes the OPL runtime bundle boundary inste
     'opl-runtime': ['opl-framework-runtime'],
     skills: ['companion-skills'],
   });
+  assert.deepEqual(
+    manifest.opl_runtime_bundle_consumer.runtime_fabric_bundle_taxonomy['environment-materializer.bundle'].materializer_parts,
+    {
+      language_runtimes: ['node', 'python'],
+      package_and_env_resolvers: ['uv'],
+      env_cache_and_isolated_prefix: 'runtime/current/.runtime-cache plus module-specific managed env roots',
+      optional_resolver_slots: ['pixi_for_scientific_native_stack_when_declared'],
+    },
+  );
+  assert.deepEqual(Object.keys(manifest.runtime_fabric_bundles), [
+    'execution-core.bundle',
+    'environment-materializer.bundle',
+    'system-bridge.bundle',
+  ]);
+  assert.equal(manifest.runtime_fabric_bundles['execution-core.bundle'].display_name, 'Agent Execution Core');
+  assert.equal(manifest.runtime_fabric_bundles['environment-materializer.bundle'].display_name, 'Environment Materializer');
+  assert.equal(manifest.runtime_fabric_bundles['system-bridge.bundle'].display_name, 'OPL System Bridge');
+  assert.deepEqual(
+    Object.keys(manifest.runtime_fabric_bundles['environment-materializer.bundle'].packaged_components),
+    ['node', 'python', 'uv'],
+  );
   assert.deepEqual(manifest.size_breakdown.opl_layer_taxonomy, manifest.opl_runtime_bundle_consumer.layer_taxonomy);
 
   assert.deepEqual(

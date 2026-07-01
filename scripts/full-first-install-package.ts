@@ -31,6 +31,32 @@ export const FULL_RUNTIME_CACHE_LAYER_TAXONOMY = {
     skills: ['companion-skills'],
   },
 } as const;
+export const RUNTIME_FABRIC_BUNDLE_TAXONOMY = {
+  'execution-core.bundle': {
+    display_name: 'Agent Execution Core',
+    components: ['codex', 'temporal_cli', 'opl'],
+    cache_layers: ['base-toolchain', 'opl-framework-runtime'],
+    smoke: 'Codex and Temporal wrapper version checks plus OPL CLI startup smoke',
+  },
+  'environment-materializer.bundle': {
+    display_name: 'Environment Materializer',
+    components: ['node', 'python', 'uv'],
+    cache_layers: ['base-toolchain', 'python-wheelhouse'],
+    materializer_parts: {
+      language_runtimes: ['node', 'python'],
+      package_and_env_resolvers: ['uv'],
+      env_cache_and_isolated_prefix: 'runtime/current/.runtime-cache plus module-specific managed env roots',
+      optional_resolver_slots: ['pixi_for_scientific_native_stack_when_declared'],
+    },
+    smoke: 'Node, Python, and uv version checks plus resolver/cache receipt presence',
+  },
+  'system-bridge.bundle': {
+    display_name: 'OPL System Bridge',
+    components: ['native_helper'],
+    cache_layers: [],
+    smoke: 'Native helper doctor/runtime-watch/indexer protocol smoke when helper is present',
+  },
+} as const;
 export const OPL_RUNTIME_BUNDLE_SOURCE_SURFACE = {
   contract_ref: 'gaofeng21cn/one-person-lab/contracts/opl-framework/runtime-environment-substrate-contract.json',
   readback_command_refs: {
@@ -78,6 +104,7 @@ export const OPL_RUNTIME_BUNDLE_CONSUMER_CONTRACT = {
     can_claim_family_production_ready: false,
   },
   layer_taxonomy: FULL_RUNTIME_CACHE_LAYER_TAXONOMY,
+  runtime_fabric_bundle_taxonomy: RUNTIME_FABRIC_BUNDLE_TAXONOMY,
 } as const;
 const FULL_RUNTIME_CACHE_AGGREGATE_KEY_SCHEMA = 'opl_full_runtime_cache_aggregate_key.v1';
 const FULL_PACKAGE_SIZE_BUDGET = {
@@ -150,6 +177,21 @@ function normalizeOptionalComponent(input: ComponentSnapshot | undefined) {
     ...normalizeComponent(input),
     status: input?.status ?? 'not_packaged',
   };
+}
+
+function buildRuntimeFabricBundles(components: Record<string, ComponentSnapshot>) {
+  return Object.fromEntries(
+    Object.entries(RUNTIME_FABRIC_BUNDLE_TAXONOMY).map(([bundleId, bundle]) => [
+      bundleId,
+      {
+        ...bundle,
+        receipt_fields: ['components', 'cache_layers', 'smoke', 'sha256', 'rollback_ref'],
+        packaged_components: Object.fromEntries(
+          bundle.components.map((componentId) => [componentId, normalizeComponent(components[componentId])]),
+        ),
+      },
+    ]),
+  );
 }
 
 export function buildFullPackageArtifactNames(versionInput: string) {
@@ -293,6 +335,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       executables: [],
     },
     opl_runtime_bundle_consumer: OPL_RUNTIME_BUNDLE_CONSUMER_CONTRACT,
+    runtime_fabric_bundles: buildRuntimeFabricBundles(components),
     size_breakdown: input.sizeBreakdown ?? {
       total_runtime_uncompressed_bytes: 0,
       opl_layer_taxonomy: FULL_RUNTIME_CACHE_LAYER_TAXONOMY,

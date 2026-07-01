@@ -12,6 +12,27 @@ import {
   readInstallExposurePolicy,
 } from './helpers.ts';
 
+const EXPECTED_RUNTIME_FABRIC_SUBSYSTEMS = {
+  agent_execution_core: ['embedded_codex_executor', 'temporal_cli_archive', 'opl_framework_runtime'],
+  environment_materializer: {
+    role: 'materialize module-declared sandbox-like runtime environments from managed App-owned materials',
+    language_runtimes: ['node_runtime', 'python_runtime'],
+    package_and_env_resolvers: ['uv_runtime'],
+    optional_resolver_slots: ['pixi_for_scientific_native_stack_when_declared'],
+    env_cache_and_isolated_prefix: 'module-specific managed env roots and package cache under the App-owned runtime/state root',
+    receipt_fields: [
+      'language_runtime_versions',
+      'resolver_versions',
+      'lock_refs',
+      'materialized_env_root',
+      'cache_root',
+      'sha256',
+      'rollback_ref',
+    ],
+  },
+  opl_system_bridge: ['native_helper'],
+};
+
 test('App product profile owns user-facing defaults without runtime authority', () => {
   const profile = readProductProfile();
   const installExposurePolicy = readInstallExposurePolicy();
@@ -882,9 +903,7 @@ test('runtime substrate auto-update stays silent and does not mutate global tool
     'opl_framework_runtime',
   ]);
   assert.deepEqual(runtimeUpdate.managed_subsystems, {
-    agent_execution_core: ['embedded_codex_executor', 'temporal_cli_archive', 'opl_framework_runtime'],
-    environment_base: ['node_runtime', 'python_runtime', 'uv_runtime'],
-    system_bridge: ['native_helper'],
+    ...EXPECTED_RUNTIME_FABRIC_SUBSYSTEMS,
   });
   assert.equal(runtimeUpdate.legacy_alias, 'runtime_toolchain_auto_update');
   assert.equal(runtimeUpdate.companion_tools_ref, 'companion_tools_auto_update');

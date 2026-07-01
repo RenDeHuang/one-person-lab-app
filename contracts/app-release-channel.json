@@ -2572,12 +2572,30 @@
             "temporal_cli_archive",
             "opl_framework_runtime"
           ],
-          "environment_base": [
-            "node_runtime",
-            "python_runtime",
-            "uv_runtime"
-          ],
-          "system_bridge": [
+          "environment_materializer": {
+            "role": "materialize module-declared sandbox-like runtime environments from managed App-owned materials",
+            "language_runtimes": [
+              "node_runtime",
+              "python_runtime"
+            ],
+            "package_and_env_resolvers": [
+              "uv_runtime"
+            ],
+            "optional_resolver_slots": [
+              "pixi_for_scientific_native_stack_when_declared"
+            ],
+            "env_cache_and_isolated_prefix": "module-specific managed env roots and package cache under the App-owned runtime/state root",
+            "receipt_fields": [
+              "language_runtime_versions",
+              "resolver_versions",
+              "lock_refs",
+              "materialized_env_root",
+              "cache_root",
+              "sha256",
+              "rollback_ref"
+            ]
+          },
+          "opl_system_bridge": [
             "native_helper"
           ]
         },
@@ -2988,7 +3006,7 @@
     "standard_updater_metadata_allowed": false,
     "standard_updater_latest_yml_allowed": false,
     "homebrew_tap_write_allowed": false,
-    "scope": "App-owned installed OPL Runtime Fabric only. User-facing docs group its internals as Agent Execution Core, Environment Base, and OPL System Bridge instead of listing every binary at the top level. Companion tools and OPL Packages are separate classes that may share the managed updater kernel lifecycle.",
+    "scope": "App-owned installed OPL Runtime Fabric only. User-facing docs group its internals as Agent Execution Core, Environment Materializer, and OPL System Bridge instead of listing every binary at the top level. Companion tools and OPL Packages are separate classes that may share the managed updater kernel lifecycle.",
     "default_policy": {
       "auto_check": true,
       "check_schedule": "on_startup_and_daily_background",
@@ -3013,12 +3031,30 @@
         "temporal_cli_archive",
         "opl_framework_runtime"
       ],
-      "environment_base": [
-        "node_runtime",
-        "python_runtime",
-        "uv_runtime"
-      ],
-      "system_bridge": [
+      "environment_materializer": {
+        "role": "materialize module-declared sandbox-like runtime environments from managed App-owned materials",
+        "language_runtimes": [
+          "node_runtime",
+          "python_runtime"
+        ],
+        "package_and_env_resolvers": [
+          "uv_runtime"
+        ],
+        "optional_resolver_slots": [
+          "pixi_for_scientific_native_stack_when_declared"
+        ],
+        "env_cache_and_isolated_prefix": "module-specific managed env roots and package cache under the App-owned runtime/state root",
+        "receipt_fields": [
+          "language_runtime_versions",
+          "resolver_versions",
+          "lock_refs",
+          "materialized_env_root",
+          "cache_root",
+          "sha256",
+          "rollback_ref"
+        ]
+      },
+      "opl_system_bridge": [
         "native_helper"
       ]
     },
