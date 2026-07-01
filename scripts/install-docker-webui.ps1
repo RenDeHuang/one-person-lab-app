@@ -496,8 +496,10 @@ function Write-DirectorySummary {
     $item = Get-Item -LiteralPath $pathValue -ErrorAction SilentlyContinue
     if ($null -eq $item) {
       $lines.Add("path=$pathValue exists=false")
+    } elseif ($item.PSIsContainer) {
+      $lines.Add("path=$pathValue exists=true type=directory mode=$($item.Mode)")
     } else {
-      $lines.Add("path=$pathValue exists=true mode=$($item.Mode) length=$($item.Length)")
+      $lines.Add("path=$pathValue exists=true type=file mode=$($item.Mode) length=$($item.Length)")
     }
   }
   Write-DiagnosticText -PathValue $OutputPath -Content ($lines -join "`n")
@@ -702,51 +704,77 @@ function Write-WebUiAccessReceipt {
   $payload = @{}
   $payload["api" + "Key"] = $submittedPlaceholder
   $errors = New-Object System.Collections.Generic.List[string]
+  $retryErrors = New-Object System.Collections.Generic.List[string]
   $responseStatus = $null
   $responseSuccess = $false
   $command = "opl system configure-codex --api-key-stdin --json"
   $stdinTransport = $false
   $responseText = ""
+  $accessReceiptAttempt = 0
+  $maxAccessReceiptAttempts = 12
+  $accessReceiptRetryDelaySeconds = 5
 
-  try {
-    $response = Invoke-WebRequest -Uri $endpoint -Method Post -ContentType "application/json" -Body ($payload | ConvertTo-Json -Compress) -UseBasicParsing
-    $responseStatus = [int]$response.StatusCode
-    $responseText = [string]$response.Content
-    $body = $null
+  for ($attempt = 1; $attempt -le $maxAccessReceiptAttempts; $attempt++) {
+    $accessReceiptAttempt = $attempt
+    $errors = New-Object System.Collections.Generic.List[string]
+    $responseStatus = $null
+    $responseSuccess = $false
+    $stdinTransport = $false
+    $responseText = ""
+
     try {
-      $body = $responseText | ConvertFrom-Json
+      $response = Invoke-WebRequest -Uri $endpoint -Method Post -ContentType "application/json" -Body ($payload | ConvertTo-Json -Compress) -UseBasicParsing -TimeoutSec 30
+      $responseStatus = [int]$response.StatusCode
+      $responseText = [string]$response.Content
+      $body = $null
+      try {
+        $body = $responseText | ConvertFrom-Json
+      } catch {
+        $errors.Add("WebUI access response was not JSON.")
+      }
+      $responseSuccess = (Get-JsonProperty -ObjectValue $body -Name "success") -eq $true
+      $data = Get-JsonProperty -ObjectValue $body -Name "data"
+      $observedCommand = Get-JsonProperty -ObjectValue $data -Name "command"
+      if ([string]::IsNullOrWhiteSpace($observedCommand)) {
+        $observedCommand = Get-JsonProperty -ObjectValue $data -Name "redactedCommand"
+      }
+      if (-not [string]::IsNullOrWhiteSpace($observedCommand)) {
+        $command = [string]$observedCommand
+      }
+      $argsValue = Get-JsonProperty -ObjectValue $data -Name "args"
+      if ($null -ne $argsValue) {
+        $stdinTransport = @($argsValue) -contains "--api-key-stdin"
+      } else {
+        $stdinTransport = $command.Contains("--api-key-stdin")
+      }
+      if ($responseStatus -ne 200) {
+        $errors.Add("WebUI access endpoint returned HTTP $responseStatus.")
+      }
+      if (-not $responseSuccess) {
+        $errors.Add("WebUI access endpoint did not report success=true.")
+      }
+      if (-not $stdinTransport) {
+        $errors.Add("WebUI access endpoint did not use stdin transport.")
+      }
+      if ($responseText.Contains($submittedPlaceholder)) {
+        $errors.Add("WebUI access response echoed the submitted placeholder.")
+      }
     } catch {
-      $errors.Add("WebUI access response was not JSON.")
+      $errors.Add("WebUI access request failed: $($_.Exception.Message)")
     }
-    $responseSuccess = (Get-JsonProperty -ObjectValue $body -Name "success") -eq $true
-    $data = Get-JsonProperty -ObjectValue $body -Name "data"
-    $observedCommand = Get-JsonProperty -ObjectValue $data -Name "command"
-    if ([string]::IsNullOrWhiteSpace($observedCommand)) {
-      $observedCommand = Get-JsonProperty -ObjectValue $data -Name "redactedCommand"
+
+    if ($errors.Count -eq 0) {
+      break
     }
-    if (-not [string]::IsNullOrWhiteSpace($observedCommand)) {
-      $command = [string]$observedCommand
+
+    foreach ($errorMessage in @($errors)) {
+      $retryErrors.Add("attempt ${attempt}/${maxAccessReceiptAttempts}: $errorMessage")
     }
-    $argsValue = Get-JsonProperty -ObjectValue $data -Name "args"
-    if ($null -ne $argsValue) {
-      $stdinTransport = @($argsValue) -contains "--api-key-stdin"
-    } else {
-      $stdinTransport = $command.Contains("--api-key-stdin")
+
+    if ($attempt -lt $maxAccessReceiptAttempts) {
+      Write-Step "WebUI access receipt attempt $attempt failed; retrying in ${accessReceiptRetryDelaySeconds}s."
+      Start-Sleep -Seconds $accessReceiptRetryDelaySeconds
     }
-    if ($responseStatus -ne 200) {
-      $errors.Add("WebUI access endpoint returned HTTP $responseStatus.")
-    }
-    if (-not $responseSuccess) {
-      $errors.Add("WebUI access endpoint did not report success=true.")
-    }
-    if (-not $stdinTransport) {
-      $errors.Add("WebUI access endpoint did not use stdin transport.")
-    }
-    if ($responseText.Contains($submittedPlaceholder)) {
-      $errors.Add("WebUI access response echoed the submitted placeholder.")
-    }
-  } catch {
-    $errors.Add("WebUI access request failed: $($_.Exception.Message)")
   }
 
   $receipt = [ordered]@{
@@ -758,6 +786,8 @@ function Write-WebUiAccessReceipt {
     response_success = $responseSuccess
     command = $command
     stdin_transport = $stdinTransport
+    attempts = $accessReceiptAttempt
+    retry_errors = @($retryErrors)
     key_material_recorded = $false
     errors = @($errors)
   }

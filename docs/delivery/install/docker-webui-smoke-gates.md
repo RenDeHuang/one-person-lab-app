@@ -410,6 +410,12 @@ A Windows VM artifact directory, or zip archive, must contain:
 - `windows-smoke-evidence.json`
 - `diagnostics/` with the diagnostic files listed above
 
+Archives produced by PowerShell `Compress-Archive` may store paths with
+Windows backslash separators, and PowerShell text files may carry a UTF-8 BOM.
+The App importer treats both as normal Windows evidence shape, then normalizes
+paths before applying zip-slip checks, manifest validation, diagnostics
+validation, API key flow validation, and secret scanning.
+
 The manifest must use schema `opl_docker_webui_windows_smoke_evidence.v1` and
 bind the artifact to `gate_id: clean_windows_vm`, `status: passed`,
 `host_platform: win32`, an `observed_at` timestamp, an `installer_command` that

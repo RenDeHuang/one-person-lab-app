@@ -209,7 +209,7 @@ Validates a Docker/WebUI installer diagnostic directory without treating it as r
 }
 
 function readText(filePath: string): string {
-  return fs.readFileSync(filePath, 'utf8');
+  return fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
 }
 
 export function validateDockerWebuiDiagnostics(diagnosticsDir: string): ValidationResult {

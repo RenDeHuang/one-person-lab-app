@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateRawSync } from 'node:zlib';
 import { validateDockerWebuiDiagnostics } from './validate-docker-webui-diagnostics.ts';
 
 type GateId = 'clean_linux_vm' | 'clean_windows_vm' | 'existing_docker' | 'existing_old_onepersonlab_data_dir';
@@ -527,7 +528,7 @@ function writeJson(filePath: string, payload: unknown) {
 }
 
 function readJson(filePath: string): Record<string, unknown> {
-  return JSON.parse(fs.readFileSync(filePath, 'utf8')) as Record<string, unknown>;
+  return JSON.parse(fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')) as Record<string, unknown>;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -618,7 +619,7 @@ function validateApiKeyFlowEvidence(filePath: string) {
 function readKeyValue(filePath: string): Record<string, string> {
   if (!fs.existsSync(filePath)) return {};
   const values: Record<string, string> = {};
-  for (const line of fs.readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+  for (const line of fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/)) {
     const match = line.match(/^([^=\s]+)=(.*)$/);
     if (match) values[match[1]] = match[2];
   }
@@ -982,23 +983,145 @@ function validateWindowsEvidence(evidenceDir: string) {
   };
 }
 
-function assertSafeZipEntries(archivePath: string) {
-  const listed = spawnSync('unzip', ['-Z1', archivePath], { encoding: 'utf8' });
-  if (listed.status !== 0) {
-    throw new Error(`Failed to list Windows evidence archive: ${listed.stderr || listed.stdout}`);
+type WindowsEvidenceArchiveEntry = {
+  raw: string;
+  normalized: string;
+  isDirectory: boolean;
+  payload: Buffer | null;
+};
+
+function normalizeWindowsEvidenceArchiveEntry(entry: string) {
+  if (entry.startsWith('/') || entry.startsWith('\\') || /^[A-Za-z]:/.test(entry) || entry.includes('\0')) {
+    throw new Error(`Windows evidence archive contains an unsafe absolute entry: ${entry}`);
   }
-  const entries = listed.stdout.split(/\r?\n/).filter(Boolean);
-  if (entries.length === 0) {
+  const normalized = entry.replaceAll('\\', '/');
+  const pathForCheck = normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
+  const segments = pathForCheck.split('/');
+  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    throw new Error(`Windows evidence archive contains an unsafe parent traversal entry: ${entry}`);
+  }
+  return {
+    raw: entry,
+    normalized,
+    isDirectory: normalized.endsWith('/'),
+  };
+}
+
+function findZipEndOfCentralDirectory(archive: Buffer, archivePath: string) {
+  const minimumEocdSize = 22;
+  const maxCommentSize = 0xffff;
+  const searchStart = Math.max(0, archive.length - minimumEocdSize - maxCommentSize);
+  for (let offset = archive.length - minimumEocdSize; offset >= searchStart; offset--) {
+    if (archive.readUInt32LE(offset) === 0x06054b50) {
+      return offset;
+    }
+  }
+  throw new Error(`Failed to locate Windows evidence archive central directory: ${archivePath}`);
+}
+
+function readWindowsEvidenceArchiveEntries(archivePath: string): WindowsEvidenceArchiveEntry[] {
+  const archive = fs.readFileSync(archivePath);
+  const eocd = findZipEndOfCentralDirectory(archive, archivePath);
+  const entriesOnDisk = archive.readUInt16LE(eocd + 8);
+  const totalEntries = archive.readUInt16LE(eocd + 10);
+  const centralDirectorySize = archive.readUInt32LE(eocd + 12);
+  const centralDirectoryOffset = archive.readUInt32LE(eocd + 16);
+  if (entriesOnDisk !== totalEntries) {
+    throw new Error(`Windows evidence archive spans multiple disks, which is unsupported: ${archivePath}`);
+  }
+  if (totalEntries === 0) {
     throw new Error(`Windows evidence archive is empty: ${archivePath}`);
   }
+  const centralDirectoryEnd = centralDirectoryOffset + centralDirectorySize;
+  if (centralDirectoryEnd > archive.length) {
+    throw new Error(`Windows evidence archive central directory is out of range: ${archivePath}`);
+  }
+
+  const entries: WindowsEvidenceArchiveEntry[] = [];
+  let cursor = centralDirectoryOffset;
+  while (cursor < centralDirectoryEnd) {
+    if (archive.readUInt32LE(cursor) !== 0x02014b50) {
+      throw new Error(`Windows evidence archive central directory is invalid at offset ${cursor}: ${archivePath}`);
+    }
+    const flags = archive.readUInt16LE(cursor + 8);
+    const method = archive.readUInt16LE(cursor + 10);
+    const compressedSize = archive.readUInt32LE(cursor + 20);
+    const uncompressedSize = archive.readUInt32LE(cursor + 24);
+    const fileNameLength = archive.readUInt16LE(cursor + 28);
+    const extraLength = archive.readUInt16LE(cursor + 30);
+    const commentLength = archive.readUInt16LE(cursor + 32);
+    const localHeaderOffset = archive.readUInt32LE(cursor + 42);
+    if ([compressedSize, uncompressedSize, localHeaderOffset].some((value) => value === 0xffffffff)) {
+      throw new Error(`Windows evidence archive uses ZIP64 entries, which are unsupported: ${archivePath}`);
+    }
+    const fileNameStart = cursor + 46;
+    const fileNameEnd = fileNameStart + fileNameLength;
+    const raw = archive.subarray(fileNameStart, fileNameEnd).toString('utf8');
+    const normalized = normalizeWindowsEvidenceArchiveEntry(raw);
+    if ((flags & 0x1) !== 0) {
+      throw new Error(`Windows evidence archive contains an encrypted entry: ${raw}`);
+    }
+
+    let payload: Buffer | null = null;
+    if (!normalized.isDirectory) {
+      if (![0, 8].includes(method)) {
+        throw new Error(`Windows evidence archive entry uses unsupported compression method ${method}: ${raw}`);
+      }
+      if (archive.readUInt32LE(localHeaderOffset) !== 0x04034b50) {
+        throw new Error(`Windows evidence archive local header is invalid for entry: ${raw}`);
+      }
+      const localFileNameLength = archive.readUInt16LE(localHeaderOffset + 26);
+      const localExtraLength = archive.readUInt16LE(localHeaderOffset + 28);
+      const dataStart = localHeaderOffset + 30 + localFileNameLength + localExtraLength;
+      const dataEnd = dataStart + compressedSize;
+      if (dataEnd > archive.length) {
+        throw new Error(`Windows evidence archive entry data is out of range: ${raw}`);
+      }
+      const compressedPayload = archive.subarray(dataStart, dataEnd);
+      payload = method === 0 ? Buffer.from(compressedPayload) : inflateRawSync(compressedPayload);
+      if (payload.length !== uncompressedSize) {
+        throw new Error(`Windows evidence archive entry size mismatch: ${raw}`);
+      }
+    }
+
+    entries.push({ ...normalized, payload });
+    cursor = fileNameEnd + extraLength + commentLength;
+  }
+  if (entries.length !== totalEntries) {
+    throw new Error(`Windows evidence archive entry count mismatch: ${archivePath}`);
+  }
+  return entries;
+}
+
+function listSafeWindowsEvidenceArchiveEntries(archivePath: string): WindowsEvidenceArchiveEntry[] {
+  return readWindowsEvidenceArchiveEntries(archivePath);
+}
+
+function assertSafeZipEntries(archivePath: string) {
+  listSafeWindowsEvidenceArchiveEntries(archivePath);
+}
+
+function extractWindowsEvidenceArchive(archivePath: string, extractedRoot: string) {
+  const entries = listSafeWindowsEvidenceArchiveEntries(archivePath);
+  const root = path.resolve(extractedRoot);
+  const seenFiles = new Set<string>();
+
   for (const entry of entries) {
-    if (entry.startsWith('/') || entry.startsWith('\\') || entry.includes('\0')) {
-      throw new Error(`Windows evidence archive contains an unsafe absolute entry: ${entry}`);
+    const destination = path.resolve(root, entry.normalized);
+    if (destination !== root && !destination.startsWith(root + path.sep)) {
+      throw new Error(`Windows evidence archive contains an unsafe entry outside extraction root: ${entry.raw}`);
     }
-    const normalized = entry.replaceAll('\\', '/');
-    if (normalized.split('/').includes('..')) {
-      throw new Error(`Windows evidence archive contains an unsafe parent traversal entry: ${entry}`);
+    if (entry.isDirectory) {
+      fs.mkdirSync(destination, { recursive: true });
+      continue;
     }
+    if (seenFiles.has(entry.normalized)) {
+      throw new Error(`Windows evidence archive contains duplicate normalized entry: ${entry.raw}`);
+    }
+    seenFiles.add(entry.normalized);
+
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, entry.payload ?? Buffer.alloc(0));
   }
 }
 
@@ -1021,11 +1144,7 @@ function prepareWindowsEvidenceDir(evidencePath: string, artifactDir: string) {
   const extractedRoot = path.join(artifactDir, 'windows-evidence-archive');
   fs.rmSync(extractedRoot, { recursive: true, force: true });
   fs.mkdirSync(extractedRoot, { recursive: true });
-  assertSafeZipEntries(resolved);
-  const extracted = spawnSync('unzip', ['-q', resolved, '-d', extractedRoot], { encoding: 'utf8' });
-  if (extracted.status !== 0) {
-    throw new Error(`Failed to extract Windows evidence archive: ${extracted.stderr || extracted.stdout}`);
-  }
+  extractWindowsEvidenceArchive(resolved, extractedRoot);
 
   const directManifest = path.join(extractedRoot, windowsEvidenceManifestName);
   if (fs.existsSync(directManifest)) {

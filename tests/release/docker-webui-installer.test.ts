@@ -339,6 +339,63 @@ test('Docker/WebUI clean Windows smoke gate imports zipped Windows evidence', ()
   assert.match(payload.evidence.windows_evidence_dir, /windows-evidence-archive/);
 });
 
+test('Docker/WebUI clean Windows smoke gate imports PowerShell-style zipped Windows evidence', () => {
+  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
+  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
+  const { diagnostics } = writeWindowsEvidence(evidence);
+  for (const bomFile of [
+    'api-key-flow-evidence.json',
+    'windows-smoke-evidence.json',
+    path.join('diagnostics', 'data-preservation.txt'),
+    path.join('diagnostics', 'metadata.txt'),
+  ]) {
+    const bomPath = path.join(evidence, bomFile);
+    fs.writeFileSync(bomPath, `\uFEFF${fs.readFileSync(bomPath, 'utf8')}`);
+  }
+  const archivePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-archive-')), 'windows-clean-evidence.zip');
+  const createArchive = spawnSync(
+    'python3',
+    [
+      '-c',
+      [
+        'import os, sys, zipfile',
+        'source, archive = sys.argv[1], sys.argv[2]',
+        'with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:',
+        '    for root, _, files in os.walk(source):',
+        '        for file_name in files:',
+        '            full_path = os.path.join(root, file_name)',
+        '            rel = os.path.relpath(full_path, source).replace(os.sep, "\\\\")',
+        '            zf.write(full_path, rel)',
+      ].join('\n'),
+      evidence,
+      archivePath,
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.equal(createArchive.status, 0, createArchive.stderr || createArchive.stdout);
+
+  const result = runSmokeGate([
+    '--gate',
+    'clean_windows_vm',
+    '--evidence',
+    archivePath,
+    '--artifacts',
+    artifacts,
+    '--json',
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const payload = JSON.parse(fs.readFileSync(path.join(artifacts, 'docker-webui-smoke-gate-result.json'), 'utf8'));
+  assert.equal(payload.status, 'passed');
+  assert.equal(payload.gate_id, 'clean_windows_vm');
+  assert.equal(payload.evidence_validation.status, 'passed');
+  assert.equal(payload.diagnostics_validation.preservation_verdict, 'preserved_or_reused');
+  assert.equal(payload.data_preservation.status, 'passed');
+  assert.equal(payload.evidence.windows_evidence_archive, archivePath);
+  assert.ok(fs.existsSync(path.join(payload.evidence.windows_evidence_dir, 'diagnostics', 'compose.yaml')));
+  assert.ok(fs.existsSync(path.join(diagnostics, 'data-preservation.txt')));
+});
+
 test('Docker/WebUI clean Windows smoke gate rejects unsafe zipped Windows evidence paths', () => {
   const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
   const archiveRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-unsafe-archive-'));
