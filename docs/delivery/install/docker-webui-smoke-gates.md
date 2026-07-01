@@ -82,6 +82,35 @@ may mark the local image as `current`, `update_available`, `unknown`, or
 `not_checked`, but that status is only user/operator guidance. It does not prove
 release readiness, live latest/currentness, or that a host update was applied.
 
+OPL body updates inside WebUI use the Linux runtime maintenance path, not the
+Docker image lane. The accepted user action is the Settings/Updates
+`runtime_substrate` apply route, backed by:
+
+```bash
+opl update apply --component runtime_substrate --json
+opl update rollback --component runtime_substrate --json
+```
+
+For Docker/WebUI this must apply the OPL Framework runtime artifact under the
+mounted data root, normally `/data/opl/framework`, with `/data/opl/framework.previous`
+available for rollback. Evidence for this lane is the OPL Framework target
+receipt inside the managed-update result:
+
+- apply execution status is `completed`;
+- `startup_maintenance.details.framework_targets[]` contains
+  `target_id=opl-framework`, `status=completed`, and
+  `reason=framework_runtime_artifact_applied`;
+- the target root is under the mounted data root, not the image seed root;
+- the result includes `source_archive_sha256`, `metadata_ref`,
+  `previous_root`, and `rollback_ref`;
+- rollback execution status is `completed` and returns
+  `reason=framework_runtime_rollback_completed`.
+
+This proves Linux/Docker WebUI can update the OPL runtime body through the
+shared Framework updater. It does not prove that GHCR `latest` is current, that
+a new WebUI image has been published, or that the host Installation Carrier has
+been refreshed.
+
 ## Desktop Release Import
 
 The desktop release workflow has an explicit import gate for clean VM evidence:
