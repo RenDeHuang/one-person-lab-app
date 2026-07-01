@@ -202,9 +202,34 @@ function validateOrdinaryConversationPage(matrix) {
     throw new Error('Ordinary conversation page contract must be ordinary_codex_conversation');
   }
   assertDeepEqualJson(
-    ordinaryConversationPage.conversation_view_model,
-    appOwnedPageStateOrdinaryConversation,
-    'Ordinary conversation view model',
+    {
+      ...ordinaryConversationPage.conversation_view_model,
+      current_task_slice: Object.fromEntries(
+        Object.entries(ordinaryConversationPage.conversation_view_model?.current_task_slice ?? {}).filter(
+          ([key]) => key !== 'fields',
+        ),
+      ),
+    },
+    {
+      ...appOwnedPageStateOrdinaryConversation,
+      current_task_slice: Object.fromEntries(
+        Object.entries(appOwnedPageStateOrdinaryConversation.current_task_slice).filter(([key]) => key !== 'fields'),
+      ),
+    },
+    'Ordinary conversation view model shell policy',
+  );
+  assertIncludesAll(
+    ordinaryConversationPage.conversation_view_model?.current_task_slice?.fields,
+    [
+      ...appOwnedPageStateOrdinaryConversation.current_task_slice.fields,
+      'resource_plan_ref',
+      'resource_approval_ref',
+      'resource_usage_ref',
+      'console_policy_ref',
+      'environment_template_ref',
+      'environment_version_ref',
+    ],
+    'Ordinary conversation current task fields',
   );
   assertIncludesAll(ordinaryConversationPage.must_show, [
     'Codex CLI ordinary conversation',

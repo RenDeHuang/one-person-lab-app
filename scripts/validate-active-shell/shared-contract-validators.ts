@@ -77,7 +77,11 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
     projection.settings_capabilities_surface,
     `${label} settings_capabilities_surface`,
   );
-  validateResourceContextPolicy(projection.resource_context_policy, `${label} resource_context_policy`);
+  if (projection.resource_context_policy) {
+    validateResourceContextPolicy(projection.resource_context_policy, `${label} resource_context_policy`);
+  } else if (projection.resource_context_policy_ref !== 'contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy') {
+    throw new Error(`${label} must declare resource_context_policy or resource_context_policy_ref`);
+  }
   assertIncludesAll(
     projection.forbidden_claims,
     [
@@ -752,7 +756,7 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
     ['running_task_count', 'active_project_count', 'queued_project_count', 'attention_count'],
     `${label} summary_fields`,
   );
-  assertDeepEqualJson(
+  assertIncludesAll(
     userTaskStatus.task_fields,
     [
       'task_id',
@@ -773,6 +777,17 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
       'resource_source_refs',
       'environment_ref',
       'storage_ref',
+      'resource_plan_ref',
+      'resource_approval_ref',
+      'resource_usage_ref',
+      'console_policy_ref',
+      'quota_ref',
+      'billing_ref',
+      'permission_ref',
+      'environment_template_ref',
+      'environment_version_ref',
+      'environment_source_ref',
+      'environment_task_refs',
       'resource_receipt_ref',
       'cost_estimate_ref',
     ],

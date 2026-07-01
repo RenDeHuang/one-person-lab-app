@@ -1,4 +1,4 @@
-import { assertDeepEqualJson } from './assertions.ts';
+import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedCurrentTaskSlice,
   appOwnedGuiContractOrdinaryConversation,
@@ -77,9 +77,24 @@ function validateHomeLayout(guiContract) {
     'App GUI ordinary conversation contract',
   );
   assertDeepEqualJson(
-    guiContract.ordinary_conversation?.current_task_slice,
-    appOwnedCurrentTaskSlice,
-    'App GUI ordinary conversation current task slice',
+    Object.fromEntries(
+      Object.entries(guiContract.ordinary_conversation?.current_task_slice ?? {}).filter(([key]) => key !== 'fields'),
+    ),
+    Object.fromEntries(Object.entries(appOwnedCurrentTaskSlice).filter(([key]) => key !== 'fields')),
+    'App GUI ordinary conversation current task slice shell policy',
+  );
+  assertIncludesAll(
+    guiContract.ordinary_conversation?.current_task_slice?.fields,
+    [
+      ...appOwnedCurrentTaskSlice.fields,
+      'resource_plan_ref',
+      'resource_approval_ref',
+      'resource_usage_ref',
+      'console_policy_ref',
+      'environment_template_ref',
+      'environment_version_ref',
+    ],
+    'App GUI ordinary conversation current task slice fields',
   );
 }
 
