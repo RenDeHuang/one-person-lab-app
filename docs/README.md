@@ -64,7 +64,8 @@ GUI definition and candidate verification material is separated into
 product/history ownership:
 
 - [`product/gui/`](product/gui/) holds the ideal interaction spec, element
-  audit, Codex-to-OPL product delta, and GUI feature inventory.
+  audit, Codex-to-OPL product delta, Claude Science Runtime task-awareness
+  landing plan, and GUI feature inventory.
 - [`product/shell-alternatives/`](product/shell-alternatives/) holds Hermes
   Desktop foreground-alternative material.
 - [`history/shell-candidates/`](history/shell-candidates/) holds archived

@@ -70,6 +70,19 @@ disclosures. A release/user-path evidence bundle can support the same App
 release cohort and release-owner review, but it cannot by itself promote
 stable/latest, prove domain readiness, or prove OPL family production readiness.
 
+Claude Science-style task awareness lands inside this Runtime model rather than
+as a new dashboard. The Runtime page remains the global task-awareness center;
+chat and the right inspector may show only the current-task slice of the same
+`opl app state` projection. Artifact provenance, reviewer receipts, reusable
+workflow refs, connector readiness, and reproducibility export actions are
+Framework/domain refs consumed through App contracts. Temporal workflow,
+activity, worker, queue, attempt, and Search Attribute details remain
+diagnostic substrate fields and must not become the ordinary user task model.
+The active shell's role is a thin renderer over App state/profile and App action
+routes, not reviewer logic, artifact-body access, readiness judgment, or a
+shell-owned runtime store. The active landing plan is
+`docs/product/gui/claude-science-runtime-task-awareness-plan.md`.
+
 The upstream AionUI Team surface is not an OPL ordinary-user capability. It is
 configured around shell-local team leaders and agents, so the active shell keeps
 Team mode disabled, hides the Team sidebar entry, rejects Team deep links, and
