@@ -292,6 +292,23 @@ export const appOwnedGuiContractOrdinaryConversation = {
   ...appOwnedOrdinaryConversation,
   model_status_surface: 'executor_policy.default_model_display_value',
 };
+export const appOwnedCurrentTaskSlice = {
+  source: 'contracts/app-runtime-bridge.json#current_task_slice_projection',
+  state_source: 'opl app state --profile fast --json',
+  scope: 'current_conversation_or_selected_task',
+  default_visibility: 'inline_compact_when_task_active',
+  fields: [
+    'task_id',
+    'status',
+    'stage',
+    'progress_label',
+    'elapsed_seconds',
+    'plan_ref',
+    'latest_receipt_ref',
+    'latest_artifact_ref',
+  ],
+  independent_task_store_allowed: false,
+};
 export const appOwnedPageStateOrdinaryConversation = {
   ...Object.fromEntries(
     Object.entries(appOwnedOrdinaryConversation).filter(
@@ -300,8 +317,19 @@ export const appOwnedPageStateOrdinaryConversation = {
   ),
   model_status_surface_ref: 'contracts/app-gui-product-contract.json#executor_policy.default_model_display_value',
   technical_details_policy: appOwnedOrdinaryConversation.technical_details_policy,
+  current_task_slice: appOwnedCurrentTaskSlice,
 };
-export const appOwnedRightContextInspectorTabIds = ['files', 'capabilities', 'runtime', 'memory', 'automations', 'settings'];
+export const appOwnedRightContextInspectorTabIds = [
+  'files',
+  'artifacts',
+  'review',
+  'actions',
+  'capabilities',
+  'runtime',
+  'memory',
+  'automations',
+  'settings',
+];
 export const settingsPageExpectations = {
   settings_general: {
     matrix_id: 'settings_general',

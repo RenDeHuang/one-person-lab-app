@@ -26,6 +26,22 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   const fastStateFixture = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'fixtures', 'opl-app-state-fast.fixture.json'), 'utf8'),
   );
+  const expectedTaskFields = [
+    'task_id',
+    'title',
+    'status',
+    'stage',
+    'progress_label',
+    'next_step',
+    'owner',
+    'last_progress',
+    'next_owner',
+    'artifact_or_blocker',
+    'review_receipt',
+    'action_receipt',
+    'workflow_refs',
+    'export_bundle_action_ref',
+  ];
   const guidHomePage = pageStateMatrix.pages.find((page) => page.id === 'guid_home');
   const runtimePage = pageStateMatrix.pages.find((page) => page.id === 'runtime');
   const environmentPage = pageStateMatrix.pages.find((page) => page.id === 'environment');
@@ -94,6 +110,17 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(fastOperator.current_owner_delta_next_action.can_claim_production_ready, false);
   assert.equal(fastOperator.current_owner_delta.ordinary_progress_spine.raw_worklist_can_generate_default_next_action, false);
   assert.equal(fastOperator.current_owner_delta.ordinary_progress_spine.default_next_action_derives_from, 'current_owner_delta');
+  const fixtureTask = fastOperator.workbench.task_drilldowns[0];
+  assert.equal(fixtureTask.progress_label, 'Platform repair');
+  assert.equal(fixtureTask.artifact_or_blocker.artifact_body_access, false);
+  assert.equal(fixtureTask.review_receipt.quality_verdict_authority, false);
+  assert.equal(fixtureTask.review_receipt.domain_readiness_authority, false);
+  assert.equal(fixtureTask.action_receipt.owner_receipt_write_access, false);
+  assert.deepEqual(fixtureTask.workflow_refs, ['opl://workflow/medautoscience/module-runtime-repair']);
+  assert.equal(fixtureTask.export_bundle_action_ref, 'opl://app-action/export_reproducibility_bundle');
+  assert.ok(fixtureTask.diagnostic_substrate_refs.includes('opl://diagnostics/provider/temporal'));
+  assert.ok(fastStateFixture.app_state.actions.some((action) => action.action_id === 'task_action_receipt_preview'));
+  assert.ok(fastStateFixture.app_state.actions.some((action) => action.action_id === 'export_reproducibility_bundle'));
   assert.ok(fastOperator.ordinary_cockpit.developer_full_drilldown_only.includes('release_evidence'));
   assert.equal(fastOperator.ordinary_cockpit.authority_boundary.default_planning_root, 'current_owner_delta');
   assert.equal(
@@ -130,16 +157,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'queued_project_count',
       'attention_count',
     ],
-    task_fields: [
-      'task_id',
-      'title',
-      'status',
-      'stage',
-      'progress_label',
-      'next_step',
-      'owner',
-      'last_progress',
-    ],
+    task_fields: expectedTaskFields,
     count_policies: {
       running_task_count: 'count user tasks projected as actively running or advancing, never raw provider attempts',
       active_project_count: 'count active user-visible project lines from the framework project-line projection',
@@ -164,6 +182,67 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     refs_only: true,
     app_role: 'display_only_user_task_status_consumer',
   });
+  assert.deepEqual(runtimeBridge.task_awareness_projection, {
+    source: 'app_state.operator.workbench.task_drilldowns',
+    authority: 'opl_framework_refs_only_task_awareness_projection',
+    display_policy: 'runtime_global_task_awareness_with_current_task_slices_no_new_dashboard',
+    global_surface: 'runtime_page',
+    current_task_surfaces: ['ordinary_conversation', 'right_context_inspector'],
+    required_task_ref_fields: [
+      'task_id',
+      'stage',
+      'progress_label',
+      'next_owner',
+      'artifact_or_blocker',
+      'review_receipt',
+      'action_receipt',
+    ],
+    optional_task_ref_fields: [
+      'workflow_refs',
+      'export_bundle_action_ref',
+      'connector_readiness_refs',
+      'diagnostic_substrate_refs',
+    ],
+    artifact_or_blocker_policy: 'summary_ref_only_no_artifact_body',
+    review_receipt_policy: 'receipt_ref_only_no_quality_or_readiness_verdict',
+    action_receipt_policy: 'dry_run_plan_and_execute_receipt_refs_only_via_opl_app_action',
+    workflow_ref_policy: 'capability_workflow_refs_only_no_app_skill_body_write',
+    export_bundle_policy: 'framework_domain_action_ref_only_app_displays_dry_run_execute_receipt',
+    temporal_policy: 'diagnostics_only_never_user_task_model',
+    app_role: 'display_only_task_awareness_consumer',
+    shell_role: 'thin_renderer_no_runtime_store',
+    forbidden_claims: [
+      'new_task_dashboard',
+      'shell_runtime_truth',
+      'temporal_as_user_task_model',
+      'artifact_body',
+      'owner_receipt_authority',
+      'domain_quality_verdict',
+      'domain_readiness',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+  });
+  assert.deepEqual(runtimeBridge.current_task_slice_projection.conversation_fields, [
+    'task_id',
+    'status',
+    'stage',
+    'progress_label',
+    'elapsed_seconds',
+    'plan_ref',
+    'latest_receipt_ref',
+    'latest_artifact_ref',
+  ]);
+  assert.deepEqual(runtimeBridge.current_task_slice_projection.inspector_fields, [
+    'artifact_or_blocker',
+    'review_receipt',
+    'action_receipt',
+    'workflow_refs',
+    'export_bundle_action_ref',
+    'lineage_refs',
+  ]);
+  assert.equal(runtimeBridge.current_task_slice_projection.independent_task_store_allowed, false);
+  assert.equal(runtimeBridge.current_task_slice_projection.artifact_body_access, false);
   assert.deepEqual(runtimePage.runtime_view_model.must_not_default_display_terms, expectedOrdinaryCockpitForbiddenTerms);
   assert.equal(
     runtimePage.runtime_view_model.ordinary_cockpit_surface_budget_ref,
@@ -496,15 +575,35 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     provider_selector_visible: false,
     model_status_surface_ref: 'contracts/app-gui-product-contract.json#executor_policy.default_model_display_value',
     technical_details_policy: 'friendly_model_primary_reasoning_configurable_in_model_menu',
+    current_task_slice: {
+      source: 'contracts/app-runtime-bridge.json#current_task_slice_projection',
+      state_source: 'opl app state --profile fast --json',
+      scope: 'current_conversation_or_selected_task',
+      default_visibility: 'inline_compact_when_task_active',
+      fields: runtimeBridge.current_task_slice_projection.conversation_fields,
+      independent_task_store_allowed: false,
+    },
+  });
+  assert.deepEqual(guiProductContract.ordinary_conversation.current_task_slice, {
+    source: 'contracts/app-runtime-bridge.json#current_task_slice_projection',
+    state_source: 'opl app state --profile fast --json',
+    scope: 'current_conversation_or_selected_task',
+    default_visibility: 'inline_compact_when_task_active',
+    fields: runtimeBridge.current_task_slice_projection.conversation_fields,
+    independent_task_store_allowed: false,
   });
   assert.deepEqual(
     rightContextInspectorPage.inspector_view_model.tabs.map((tab) => tab.id),
-    ['files', 'capabilities', 'runtime', 'memory', 'automations', 'settings'],
+    ['files', 'artifacts', 'review', 'actions', 'capabilities', 'runtime', 'memory', 'automations', 'settings'],
   );
   assert.equal(rightContextInspectorPage.inspector_view_model.placement, 'right');
   assert.equal(rightContextInspectorPage.inspector_view_model.default_state, 'collapsed');
   assert.equal(rightContextInspectorPage.inspector_view_model.chat_canvas_remains_primary, true);
   assert.equal(rightContextInspectorPage.inspector_view_model.opens_on_user_request_only, true);
+  assert.deepEqual(rightContextInspectorPage.inspector_view_model.current_task_evidence.fields, runtimeBridge.current_task_slice_projection.inspector_fields);
+  assert.equal(rightContextInspectorPage.inspector_view_model.current_task_evidence.artifact_body_access, false);
+  assert.equal(rightContextInspectorPage.inspector_view_model.current_task_evidence.domain_verdict_authority, false);
+  assert.deepEqual(guiProductContract.right_context_inspector.current_task_evidence.fields, runtimeBridge.current_task_slice_projection.inspector_fields);
 
   for (const [pageContract, expected] of Object.entries(expectedSettingsPageSections)) {
     const page = pageById.get(expected.matrixId);
@@ -592,16 +691,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'queued_project_count',
       'attention_count',
     ],
-    task_fields: [
-      'task_id',
-      'title',
-      'status',
-      'stage',
-      'progress_label',
-      'next_step',
-      'owner',
-      'last_progress',
-    ],
+    task_fields: expectedTaskFields,
     count_policies: {
       running_task_count: 'count user tasks projected as actively running or advancing, never raw provider attempts',
       active_project_count: 'count active user-visible project lines from the framework project-line projection',
@@ -625,6 +715,18 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     ],
     refs_only: true,
   });
+  assert.deepEqual(runtimePage.runtime_view_model.task_awareness_projection, {
+    source: 'contracts/app-runtime-bridge.json#task_awareness_projection',
+    global_surface: 'runtime_page',
+    current_task_surfaces: ['ordinary_conversation', 'right_context_inspector'],
+    required_task_ref_fields: runtimeBridge.task_awareness_projection.required_task_ref_fields,
+    display_policy: 'runtime_global_task_awareness_with_current_task_slices_no_new_dashboard',
+    temporal_policy: 'diagnostics_only_never_user_task_model',
+    refs_only: true,
+  });
+  assert.deepEqual(guiProductContract.framework_surfaces.task_awareness.required_task_ref_fields, runtimeBridge.task_awareness_projection.required_task_ref_fields);
+  assert.equal(guiProductContract.framework_surfaces.task_awareness.shell_role, 'thin_renderer_no_runtime_store');
+  assert.equal(guiProductContract.framework_surfaces.task_awareness.artifact_body_access, false);
   assert.deepEqual(runtimePage.runtime_view_model.project_progress, {
     source: 'app_state.operator.workbench.task_drilldowns',
     authority: 'opl_framework_shared_project_progress_projection',
@@ -791,6 +893,11 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'summary OPL operator drilldown read model',
     'fast App state refresh',
     'app_state.operator.workbench.task_drilldowns project progress refs',
+    'app_state.operator.workbench.task_drilldowns task awareness refs',
+    'current task slice projected to conversation and right inspector',
+    'review receipt refs as non-authoritative summaries',
+    'action receipt refs from app action dry-run/execute',
+    'workflow refs and export bundle action refs',
     'app_state.operator.workbench.activity_center.active_projects active project lines',
     'app_state.operator.visual_ref_groups.active_project_refs',
     'non-running waiting or stopped projects collapsed by default',
@@ -834,6 +941,11 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'safe app action dry-run/execute controls',
     'deliverable progress delta classification',
     'platform repair delta as separate infrastructure repair',
+    'Task awareness refs-only current task slice',
+    'review receipt refs',
+    'action receipt refs',
+    'workflow refs',
+    'export bundle action refs',
     'receipt/count refresh after execute',
     'refs-only non-authority boundary',
     'next owner action before full evidence ledger',
@@ -852,6 +964,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'platform repair truth',
     'action route authority',
     'domain action approval override',
+    'shell-owned task store',
+    'new task dashboard',
   ]) {
     assert.ok(runtimePage.must_not_own.includes(forbiddenOwner), forbiddenOwner);
   }

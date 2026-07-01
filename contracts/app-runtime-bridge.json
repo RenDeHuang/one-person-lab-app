@@ -130,7 +130,13 @@
       "progress_label",
       "next_step",
       "owner",
-      "last_progress"
+      "last_progress",
+      "next_owner",
+      "artifact_or_blocker",
+      "review_receipt",
+      "action_receipt",
+      "workflow_refs",
+      "export_bundle_action_ref"
     ],
     "count_policies": {
       "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
@@ -152,6 +158,77 @@
     ],
     "refs_only": true,
     "app_role": "display_only_user_task_status_consumer"
+  },
+  "task_awareness_projection": {
+    "source": "app_state.operator.workbench.task_drilldowns",
+    "authority": "opl_framework_refs_only_task_awareness_projection",
+    "display_policy": "runtime_global_task_awareness_with_current_task_slices_no_new_dashboard",
+    "global_surface": "runtime_page",
+    "current_task_surfaces": [
+      "ordinary_conversation",
+      "right_context_inspector"
+    ],
+    "required_task_ref_fields": [
+      "task_id",
+      "stage",
+      "progress_label",
+      "next_owner",
+      "artifact_or_blocker",
+      "review_receipt",
+      "action_receipt"
+    ],
+    "optional_task_ref_fields": [
+      "workflow_refs",
+      "export_bundle_action_ref",
+      "connector_readiness_refs",
+      "diagnostic_substrate_refs"
+    ],
+    "artifact_or_blocker_policy": "summary_ref_only_no_artifact_body",
+    "review_receipt_policy": "receipt_ref_only_no_quality_or_readiness_verdict",
+    "action_receipt_policy": "dry_run_plan_and_execute_receipt_refs_only_via_opl_app_action",
+    "workflow_ref_policy": "capability_workflow_refs_only_no_app_skill_body_write",
+    "export_bundle_policy": "framework_domain_action_ref_only_app_displays_dry_run_execute_receipt",
+    "temporal_policy": "diagnostics_only_never_user_task_model",
+    "app_role": "display_only_task_awareness_consumer",
+    "shell_role": "thin_renderer_no_runtime_store",
+    "forbidden_claims": [
+      "new_task_dashboard",
+      "shell_runtime_truth",
+      "temporal_as_user_task_model",
+      "artifact_body",
+      "owner_receipt_authority",
+      "domain_quality_verdict",
+      "domain_readiness",
+      "app_release_readiness",
+      "family_production_readiness"
+    ]
+  },
+  "current_task_slice_projection": {
+    "source": "same_task_awareness_projection_filtered_by_current_conversation_or_selected_task",
+    "authority": "opl_framework_refs_only_current_task_slice",
+    "conversation_fields": [
+      "task_id",
+      "status",
+      "stage",
+      "progress_label",
+      "elapsed_seconds",
+      "plan_ref",
+      "latest_receipt_ref",
+      "latest_artifact_ref"
+    ],
+    "inspector_fields": [
+      "artifact_or_blocker",
+      "review_receipt",
+      "action_receipt",
+      "workflow_refs",
+      "export_bundle_action_ref",
+      "lineage_refs"
+    ],
+    "default_visibility": "collapsed_or_inline_compact",
+    "independent_task_store_allowed": false,
+    "artifact_body_access": false,
+    "memory_body_access": false,
+    "app_role": "display_only_current_task_slice_consumer"
   },
   "project_progress_projection": {
     "source": "app_state.operator.workbench.task_drilldowns",

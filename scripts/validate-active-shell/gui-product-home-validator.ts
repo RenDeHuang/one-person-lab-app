@@ -1,5 +1,6 @@
 import { assertDeepEqualJson } from './assertions.ts';
 import {
+  appOwnedCurrentTaskSlice,
   appOwnedGuiContractOrdinaryConversation,
   appOwnedHomeLayout,
   appOwnedRightContextInspectorTabIds,
@@ -69,9 +70,16 @@ function validateExecutorPolicy(guiContract) {
 function validateHomeLayout(guiContract) {
   assertDeepEqualJson(guiContract.home_layout, appOwnedHomeLayout, 'App GUI home layout');
   assertDeepEqualJson(
-    guiContract.ordinary_conversation,
+    Object.fromEntries(
+      Object.entries(guiContract.ordinary_conversation ?? {}).filter(([key]) => key !== 'current_task_slice'),
+    ),
     appOwnedGuiContractOrdinaryConversation,
     'App GUI ordinary conversation contract',
+  );
+  assertDeepEqualJson(
+    guiContract.ordinary_conversation?.current_task_slice,
+    appOwnedCurrentTaskSlice,
+    'App GUI ordinary conversation current task slice',
   );
 }
 

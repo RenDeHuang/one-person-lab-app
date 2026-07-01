@@ -572,7 +572,22 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
   );
   assertDeepEqualJson(
     userTaskStatus.task_fields,
-    ['task_id', 'title', 'status', 'stage', 'progress_label', 'next_step', 'owner', 'last_progress'],
+    [
+      'task_id',
+      'title',
+      'status',
+      'stage',
+      'progress_label',
+      'next_step',
+      'owner',
+      'last_progress',
+      'next_owner',
+      'artifact_or_blocker',
+      'review_receipt',
+      'action_receipt',
+      'workflow_refs',
+      'export_bundle_action_ref',
+    ],
     `${label} task_fields`,
   );
   for (const [field, expected] of Object.entries({

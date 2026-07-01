@@ -383,7 +383,9 @@
                   "label": "Med Auto Science",
                   "state": "missing",
                   "active_stage_id": "module_runtime",
-                  "active_path_node_ids": ["module:medautoscience"],
+                  "active_path_node_ids": [
+                    "module:medautoscience"
+                  ],
                   "paper_route_lens_ref_count": 0
                 }
               ]
@@ -419,6 +421,39 @@
             "blocker_ref_count": 1,
             "next_visible_step": "Resolve missing Med Auto Science workspace ref",
             "next_owner": "opl_framework",
+            "progress_label": "Platform repair",
+            "artifact_or_blocker": {
+              "kind": "typed_blocker_ref",
+              "summary": "Workspace ref is missing",
+              "refs": [
+                "opl://typed-blocker/medautoscience/module-runtime-workspace-missing"
+              ],
+              "artifact_body_access": false
+            },
+            "review_receipt": {
+              "status": "not_available_blocked",
+              "receipt_ref": null,
+              "issue_refs": [
+                "opl://typed-blocker/medautoscience/module-runtime-workspace-missing"
+              ],
+              "next_action": "repair_workspace_ref_or_return_typed_blocker",
+              "quality_verdict_authority": false,
+              "domain_readiness_authority": false
+            },
+            "action_receipt": {
+              "latest_receipt_ref": null,
+              "dry_run_action_ref": "opl://app-action/task_action_receipt_preview",
+              "execute_receipt_ref": null,
+              "action_route": "opl app action execute --action task_action_receipt_preview --dry-run --json",
+              "owner_receipt_write_access": false
+            },
+            "workflow_refs": [
+              "opl://workflow/medautoscience/module-runtime-repair"
+            ],
+            "export_bundle_action_ref": "opl://app-action/export_reproducibility_bundle",
+            "diagnostic_substrate_refs": [
+              "opl://diagnostics/provider/temporal"
+            ],
             "paper_route_lens_ref_count": 0,
             "stage_run_cockpit": {
               "surface_kind": "opl_stage_run_cockpit_refs",
@@ -507,6 +542,24 @@
           }
         ],
         "safe_action_routes": [
+          {
+            "action_id": "task_action_receipt_preview",
+            "label": "Preview task action receipt",
+            "owner": "opl_framework",
+            "route": "opl app action execute --action task_action_receipt_preview --dry-run --json",
+            "dry_run_required": true,
+            "source_ref": "app_state.actions",
+            "mutates": "none_dry_run_only"
+          },
+          {
+            "action_id": "export_reproducibility_bundle",
+            "label": "Export reproducibility bundle",
+            "owner": "domain_agent",
+            "route": "opl app action execute --action export_reproducibility_bundle --dry-run --json",
+            "dry_run_required": true,
+            "source_ref": "app_state.operator.workbench.task_drilldowns[medautoscience].export_bundle_action_ref",
+            "mutates": "domain_action_after_explicit_execute"
+          },
           {
             "action_id": "provider_scheduler_status",
             "label": "Read Temporal scheduler status",
@@ -607,6 +660,27 @@
         "delegated_surface": "opl family-runtime scheduler status --provider temporal",
         "payload_fields": [],
         "mutates": "none_read_only"
+      },
+      {
+        "action_id": "task_action_receipt_preview",
+        "label": "Preview task action receipt",
+        "surface": "opl app action execute",
+        "delegated_surface": "opl app action execute --action task_action_receipt_preview --dry-run --json",
+        "payload_fields": [
+          "task_id"
+        ],
+        "mutates": "none_dry_run_only"
+      },
+      {
+        "action_id": "export_reproducibility_bundle",
+        "label": "Export reproducibility bundle",
+        "surface": "opl app action execute",
+        "delegated_surface": "domain export bundle action",
+        "payload_fields": [
+          "task_id",
+          "artifact_ref"
+        ],
+        "mutates": "domain_action_after_explicit_execute"
       }
     ]
   }

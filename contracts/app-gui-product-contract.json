@@ -245,6 +245,37 @@
         "family_production_readiness"
       ]
     },
+    "task_awareness": {
+      "projection_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
+      "source": "app_state.operator.workbench.task_drilldowns",
+      "display_policy": "runtime_global_task_awareness_with_current_task_slices_no_new_dashboard",
+      "global_surface": "runtime_page",
+      "current_task_surfaces": [
+        "ordinary_conversation",
+        "right_context_inspector"
+      ],
+      "required_task_ref_fields": [
+        "task_id",
+        "stage",
+        "progress_label",
+        "next_owner",
+        "artifact_or_blocker",
+        "review_receipt",
+        "action_receipt"
+      ],
+      "optional_task_ref_fields": [
+        "workflow_refs",
+        "export_bundle_action_ref",
+        "connector_readiness_refs",
+        "diagnostic_substrate_refs"
+      ],
+      "app_role": "display_only_task_awareness_consumer",
+      "shell_role": "thin_renderer_no_runtime_store",
+      "artifact_body_access": false,
+      "owner_receipt_write_access": false,
+      "domain_verdict_authority": false,
+      "temporal_policy": "diagnostics_only_never_user_task_model"
+    },
     "stage_run_cockpit": {
       "projection_ref": "contracts/app-runtime-bridge.json#stage_run_cockpit_projection",
       "source": "app_state.operator.workbench.task_drilldowns.stage_run_cockpit + app_state.operator.workbench.task_drilldowns.stage_run_cockpit_summary",
@@ -546,7 +577,24 @@
     "permission_mode_selector_visible": false,
     "provider_selector_visible": false,
     "model_status_surface": "executor_policy.default_model_display_value",
-    "technical_details_policy": "friendly_model_primary_reasoning_configurable_in_model_menu"
+    "technical_details_policy": "friendly_model_primary_reasoning_configurable_in_model_menu",
+    "current_task_slice": {
+      "source": "contracts/app-runtime-bridge.json#current_task_slice_projection",
+      "state_source": "opl app state --profile fast --json",
+      "scope": "current_conversation_or_selected_task",
+      "default_visibility": "inline_compact_when_task_active",
+      "fields": [
+        "task_id",
+        "status",
+        "stage",
+        "progress_label",
+        "elapsed_seconds",
+        "plan_ref",
+        "latest_receipt_ref",
+        "latest_artifact_ref"
+      ],
+      "independent_task_store_allowed": false
+    }
   },
   "right_context_inspector": {
     "placement": "right",
@@ -559,6 +607,21 @@
         "id": "files",
         "label": "Files",
         "authority": "workspace_refs_only"
+      },
+      {
+        "id": "artifacts",
+        "label": "Artifacts",
+        "authority": "artifact_refs_only_no_body"
+      },
+      {
+        "id": "review",
+        "label": "Review",
+        "authority": "review_receipt_refs_only"
+      },
+      {
+        "id": "actions",
+        "label": "Actions",
+        "authority": "app_action_receipt_refs"
       },
       {
         "id": "capabilities",
@@ -586,6 +649,28 @@
         "authority": "app_owned_settings"
       }
     ],
+    "current_task_evidence": {
+      "source": "contracts/app-runtime-bridge.json#current_task_slice_projection",
+      "state_source": "opl app state --profile fast --json",
+      "tabs": [
+        "files",
+        "artifacts",
+        "review",
+        "actions",
+        "runtime"
+      ],
+      "fields": [
+        "artifact_or_blocker",
+        "review_receipt",
+        "action_receipt",
+        "workflow_refs",
+        "export_bundle_action_ref",
+        "lineage_refs"
+      ],
+      "default_state": "collapsed",
+      "artifact_body_access": false,
+      "domain_verdict_authority": false
+    },
     "must_not_own": [
       "runtime truth",
       "domain truth",
@@ -1990,7 +2075,13 @@
           "progress_label",
           "next_step",
           "owner",
-          "last_progress"
+          "last_progress",
+          "next_owner",
+          "artifact_or_blocker",
+          "review_receipt",
+          "action_receipt",
+          "workflow_refs",
+          "export_bundle_action_ref"
         ],
         "count_policies": {
           "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
@@ -2206,6 +2297,8 @@
         "progress delta rendered as user-facing labels",
         "State Index Kernel / SQLite sidecar read-model refs",
         "artifact-native current/canonical/export/lineage/retention/conformance refs",
+        "task awareness artifact/blocker/review/action refs",
+        "workflow refs and export bundle action refs",
         "runtime diagnostics as secondary disclosure",
         "provider readiness from app_state.provider",
         "repair command for provider worker not ready",
@@ -2217,7 +2310,8 @@
         "deliverable progress delta classification",
         "platform repair delta as separate infrastructure repair",
         "State Index sidecar refs-only drilldown to Stage Folder",
-        "Stage Artifact Kernel refs-only drilldown"
+        "Stage Artifact Kernel refs-only drilldown",
+        "current task slice available to conversation and right inspector"
       ],
       "must_not_default_show": [
         "Temporal",
@@ -2241,7 +2335,9 @@
         "quality/readiness/export verdict",
         "deliverable progress truth",
         "platform repair truth",
-        "action route authority"
+        "action route authority",
+        "shell-owned task store",
+        "new task dashboard"
       ]
     },
     "settings_general": {
