@@ -256,7 +256,7 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /Clean Linux Docker runtime evidence is release-blocking; clean Windows VM evidence is optional diagnostic import/i);
   assert.match(workflow, /contracts\/app-install-exposure-policy\.json#installer_surfaces\.docker_webui\.smoke_gate_contract/);
   assert.match(workflow, /running OPL seed apply/);
-  assert.match(workflow, /running OPL startup maintenance/);
+  assert.match(workflow, /running OPL \(runtime substrate \)\?startup maintenance/);
   assert.match(workflow, /OPL maintenance CLI not found; skipping startup maintenance/);
   assert.match(workflow, /same_job_after_docker_webui_smoke/);
   assert.match(workflow, /repeated_docker_build: false/);

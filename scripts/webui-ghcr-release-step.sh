@@ -205,7 +205,7 @@ case "$phase" in
       --summary-path /tmp/opl-webui-runtime-smoke-receipts-validation.json
     docker logs "$container" >/tmp/opl-webui-container.log 2>&1
     grep -q 'running OPL seed apply' /tmp/opl-webui-container.log
-    grep -q 'running OPL startup maintenance' /tmp/opl-webui-container.log
+    grep -Eq 'running OPL (runtime substrate )?startup maintenance' /tmp/opl-webui-container.log
     ! grep -q 'OPL maintenance CLI not found; skipping startup maintenance' /tmp/opl-webui-container.log
     ;;
 
