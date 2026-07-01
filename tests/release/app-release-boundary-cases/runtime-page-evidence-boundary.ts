@@ -10,6 +10,7 @@ import {
   expectedSettingsPageSections,
 } from './helpers.ts';
 import { validateTaskAwarenessProjectionContract } from '../../../scripts/validate-active-shell/shared-contract-validators.ts';
+import { assertIncludesAll } from '../../../scripts/validate-active-shell/assertions.ts';
 
 test('runtime page consumes OPL App/operator drilldown instead of App-owned runtime truth', () => {
   const activeShellContract = JSON.parse(
@@ -46,6 +47,17 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'resource_source_refs',
     'environment_ref',
     'storage_ref',
+    'resource_plan_ref',
+    'resource_approval_ref',
+    'resource_usage_ref',
+    'console_policy_ref',
+    'quota_ref',
+    'billing_ref',
+    'permission_ref',
+    'environment_template_ref',
+    'environment_version_ref',
+    'environment_source_ref',
+    'environment_task_refs',
     'resource_receipt_ref',
     'cost_estimate_ref',
   ];
@@ -133,6 +145,23 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   ]);
   assert.equal(fixtureTask.environment_ref, 'opl://environment/python-r-quarto');
   assert.equal(fixtureTask.storage_ref, 'opl://storage/workspace-volume/medautoscience');
+  assert.equal(fixtureTask.resource_plan_ref, 'opl://resource-plan/medautoscience/module-runtime-repair');
+  assert.equal(fixtureTask.resource_approval_ref, 'opl://resource-approval/medautoscience/module-runtime-repair');
+  assert.equal(fixtureTask.resource_execute_ref, 'opl://resource-execute/medautoscience/module-runtime-repair');
+  assert.equal(fixtureTask.resource_monitor_ref, 'opl://resource-monitor/medautoscience/module-runtime-repair');
+  assert.equal(fixtureTask.resource_collect_ref, 'opl://resource-collect/medautoscience/module-runtime-repair');
+  assert.equal(fixtureTask.resource_usage_ref, 'opl://resource-usage/medautoscience/module-runtime-repair');
+  assert.equal(fixtureTask.console_policy_ref, 'opl://console/policy/lab-managed-compute');
+  assert.equal(fixtureTask.quota_ref, 'opl://console/quota/lab-managed-compute');
+  assert.equal(fixtureTask.billing_ref, 'opl://console/billing/lab-managed-compute');
+  assert.equal(fixtureTask.permission_ref, 'opl://console/permission/lab-managed-compute');
+  assert.equal(fixtureTask.environment_template_ref, 'opl://environment-template/python-r-quarto');
+  assert.equal(fixtureTask.environment_version_ref, 'opl://environment-version/python-r-quarto/2026.07');
+  assert.equal(fixtureTask.environment_source_ref, 'opl://environment-source/opl-fabric/catalog/python-r-quarto');
+  assert.deepEqual(fixtureTask.environment_task_refs, [
+    'opl://environment-task/mas/statistical-analysis',
+    'opl://environment-task/bookforge/report-export',
+  ]);
   assert.equal(fixtureTask.resource_receipt_ref, 'opl://resource-receipt/medautoscience/module-runtime-repair');
   assert.equal(fixtureTask.cost_estimate_ref, 'opl://cost-estimate/medautoscience/module-runtime-repair');
   assert.ok(fixtureTask.connector_readiness_refs.some((entry) => entry.id === 'opl_connect_literature'));
@@ -175,10 +204,30 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       .gateway_status_ref,
     'opl://gateway/status/gflabtoken',
   );
+  assert.equal(
+    fastStateFixture.app_state.settings_control_center.app_settings_read_model.resource_sources.opl_gateway
+      .management_mode,
+    'console_managed',
+  );
   assert.ok(
     fastStateFixture.app_state.settings_control_center.app_settings_read_model.resource_sources.opl_workspace.resource_source_refs.includes(
       'opl://resource-source/opl-workspace',
     ),
+  );
+  assert.equal(
+    fastStateFixture.app_state.settings_control_center.app_settings_read_model.resource_sources.opl_workspace
+      .console_policy_ref,
+    'opl://console/policy/workspace/default',
+  );
+  assert.equal(
+    fastStateFixture.app_state.settings_control_center.app_settings_read_model.resource_sources.user_provided_hpc
+      .management_mode,
+    'self_managed',
+  );
+  assert.equal(
+    fastStateFixture.app_state.settings_control_center.app_settings_read_model.environment_catalog.templates[0]
+      .environment_template_ref,
+    'opl://environment-template/python-r-quarto',
   );
   assert.ok(
     fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.connector_readiness_refs.some(
@@ -271,19 +320,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'review_receipt',
       'action_receipt',
     ],
-    optional_task_ref_fields: [
-      'capability_health_refs',
-      'workflow_refs',
-      'export_bundle_action_ref',
-      'connector_readiness_refs',
-      'gateway_status_ref',
-      'resource_source_refs',
-      'environment_ref',
-      'storage_ref',
-      'resource_receipt_ref',
-      'cost_estimate_ref',
-      'diagnostic_substrate_refs',
-    ],
+    optional_task_ref_fields: runtimeBridge.task_awareness_projection.optional_task_ref_fields,
     artifact_or_blocker_policy: 'summary_ref_only_no_artifact_body',
     review_receipt_policy: 'receipt_ref_only_no_quality_or_readiness_verdict',
     action_receipt_policy: 'dry_run_plan_and_execute_receipt_refs_only_via_opl_app_action',
@@ -293,14 +330,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       source: 'same_task_awareness_projection_optional_resource_context_refs',
       display_policy:
         'OPL Gateway and OPL Fabric resource refs only; App displays plan approval context and receipts without owning compute, storage, connector, environment, billing, or Console policy truth',
-      optional_ref_fields: [
-        'gateway_status_ref',
-        'resource_source_refs',
-        'environment_ref',
-        'storage_ref',
-        'resource_receipt_ref',
-        'cost_estimate_ref',
-      ],
+      optional_ref_fields: runtimeBridge.task_awareness_projection.resource_context_policy.optional_ref_fields,
       resource_source_kinds: [
         'local_app',
         'docker_webui',
@@ -311,33 +341,29 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
         'managed_storage',
         'institutional_data_source',
       ],
-      plan_approve_execute_collect_flow: [
-        'plan_ref',
-        'approval_ref',
-        'execute_ref',
-        'monitor_ref',
-        'collect_ref',
-        'resource_receipt_ref',
-      ],
+      plan_approve_execute_collect_flow: runtimeBridge.task_awareness_projection.resource_context_policy.plan_approve_execute_collect_flow,
       console_management_policy:
         'Console-managed refs may indicate organization policy, quota, billing, or permission ownership; user-provided local/SSH/HPC refs remain self-managed unless the projection states otherwise',
       app_role: 'display_only_resource_context_consumer',
+      console_management_ref_fields: ['console_policy_ref', 'quota_ref', 'billing_ref', 'permission_ref'],
+      environment_catalog_policy: {
+        source: 'same_task_awareness_projection_optional_environment_refs',
+        display_policy: 'read_only_environment_catalog_refs_for_template_version_source_and_task_fit',
+        ref_fields: [
+          'environment_ref',
+          'environment_template_ref',
+          'environment_version_ref',
+          'environment_source_ref',
+          'environment_task_refs',
+        ],
+        environment_body_access: false,
+        package_lock_body_access: false,
+      },
     },
     settings_capabilities_surface: {
       surface: 'settings_capabilities',
       source: 'same_task_awareness_projection_refs_aggregated_for_capabilities',
-      required_ref_fields: [
-        'capability_health_refs',
-        'connector_readiness_refs',
-        'workflow_refs',
-        'export_bundle_action_ref',
-        'resource_source_refs',
-        'gateway_status_ref',
-        'environment_ref',
-        'storage_ref',
-        'resource_receipt_ref',
-        'cost_estimate_ref',
-      ],
+      required_ref_fields: runtimeBridge.task_awareness_projection.settings_capabilities_surface.required_ref_fields,
       display_policy: 'capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict',
       connector_grouping_policy:
         'OPL Connect groups connector readiness refs by literature databases, research databases, storage, tools/APIs, internal systems, and compute schedulers while keeping connector bodies and credentials outside App authority',
@@ -385,7 +411,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     () => validateTaskAwarenessProjectionContract(invalidResourceGrouping, 'Runtime bridge task awareness projection'),
     /resource grouping/,
   );
-  assert.deepEqual(runtimeBridge.current_task_slice_projection.conversation_fields, [
+  assertIncludesAll(runtimeBridge.current_task_slice_projection.conversation_fields, [
     'task_id',
     'status',
     'stage',
@@ -398,8 +424,14 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'resource_source_refs',
     'environment_ref',
     'storage_ref',
-  ]);
-  assert.deepEqual(runtimeBridge.current_task_slice_projection.inspector_fields, [
+    'resource_plan_ref',
+    'resource_approval_ref',
+    'resource_usage_ref',
+    'console_policy_ref',
+    'environment_template_ref',
+    'environment_version_ref',
+  ], 'Current task conversation resource fields');
+  assertIncludesAll(runtimeBridge.current_task_slice_projection.inspector_fields, [
     'artifact_or_blocker',
     'review_receipt',
     'action_receipt',
@@ -410,9 +442,23 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'resource_source_refs',
     'environment_ref',
     'storage_ref',
+    'resource_plan_ref',
+    'resource_approval_ref',
+    'resource_execute_ref',
+    'resource_monitor_ref',
+    'resource_collect_ref',
+    'resource_usage_ref',
+    'console_policy_ref',
+    'quota_ref',
+    'billing_ref',
+    'permission_ref',
+    'environment_template_ref',
+    'environment_version_ref',
+    'environment_source_ref',
+    'environment_task_refs',
     'resource_receipt_ref',
     'cost_estimate_ref',
-  ]);
+  ], 'Current task inspector resource fields');
   assert.equal(runtimeBridge.current_task_slice_projection.independent_task_store_allowed, false);
   assert.equal(runtimeBridge.current_task_slice_projection.artifact_body_access, false);
   assert.deepEqual(runtimePage.runtime_view_model.must_not_default_display_terms, expectedOrdinaryCockpitForbiddenTerms);

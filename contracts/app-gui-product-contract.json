@@ -273,6 +273,20 @@
         "resource_source_refs",
         "environment_ref",
         "storage_ref",
+        "resource_plan_ref",
+        "resource_approval_ref",
+        "resource_execute_ref",
+        "resource_monitor_ref",
+        "resource_collect_ref",
+        "resource_usage_ref",
+        "console_policy_ref",
+        "quota_ref",
+        "billing_ref",
+        "permission_ref",
+        "environment_template_ref",
+        "environment_version_ref",
+        "environment_source_ref",
+        "environment_task_refs",
         "resource_receipt_ref",
         "cost_estimate_ref",
         "diagnostic_substrate_refs"
@@ -286,6 +300,11 @@
         "resource_source_refs",
         "gateway_status_ref",
         "environment_ref",
+        "environment_template_ref",
+        "environment_version_ref",
+        "environment_source_ref",
+        "environment_task_refs",
+        "console_policy_ref",
         "storage_ref",
         "resource_receipt_ref",
         "cost_estimate_ref"
@@ -307,6 +326,11 @@
           "resource_source_refs",
           "gateway_status_ref",
           "environment_ref",
+          "environment_template_ref",
+          "environment_version_ref",
+          "environment_source_ref",
+          "environment_task_refs",
+          "console_policy_ref",
           "storage_ref",
           "resource_receipt_ref",
           "cost_estimate_ref"
@@ -343,7 +367,45 @@
         "domain_readiness",
         "app_release_readiness",
         "family_production_readiness"
-      ]
+      ],
+      "resource_confirmation_surface": {
+        "source": "contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy",
+        "required_refs": [
+          "resource_plan_ref",
+          "resource_approval_ref",
+          "resource_execute_ref",
+          "resource_monitor_ref",
+          "resource_collect_ref",
+          "resource_receipt_ref"
+        ],
+        "display_policy": "show_plan_approval_execution_monitoring_collection_refs_before_resource_actions_without_owning_execution",
+        "app_action_route": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+        "refs_only": true
+      },
+      "environment_catalog_surface": {
+        "source": "contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy.environment_catalog_policy",
+        "required_refs": [
+          "environment_ref",
+          "environment_template_ref",
+          "environment_version_ref",
+          "environment_source_ref",
+          "environment_task_refs"
+        ],
+        "display_policy": "read_only_environment_template_version_source_and_task_fit",
+        "environment_body_access": false,
+        "package_lock_body_access": false
+      },
+      "console_managed_surface": {
+        "source": "contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy.console_management_ref_fields",
+        "required_refs": [
+          "console_policy_ref",
+          "quota_ref",
+          "billing_ref",
+          "permission_ref"
+        ],
+        "display_policy": "show_console_managed_policy_quota_billing_permission_refs_only_when_projection_marks_resource_managed",
+        "self_managed_policy": "local_user_ssh_hpc_resources_show_self_managed_resource_context_without_console_billing_claims"
+      }
     },
     "stage_run_cockpit": {
       "projection_ref": "contracts/app-runtime-bridge.json#stage_run_cockpit_projection",
@@ -664,7 +726,13 @@
         "gateway_status_ref",
         "resource_source_refs",
         "environment_ref",
-        "storage_ref"
+        "storage_ref",
+        "resource_plan_ref",
+        "resource_approval_ref",
+        "resource_usage_ref",
+        "console_policy_ref",
+        "environment_template_ref",
+        "environment_version_ref"
       ],
       "independent_task_store_allowed": false
     }
@@ -743,6 +811,20 @@
         "resource_source_refs",
         "environment_ref",
         "storage_ref",
+        "resource_plan_ref",
+        "resource_approval_ref",
+        "resource_execute_ref",
+        "resource_monitor_ref",
+        "resource_collect_ref",
+        "resource_usage_ref",
+        "console_policy_ref",
+        "quota_ref",
+        "billing_ref",
+        "permission_ref",
+        "environment_template_ref",
+        "environment_version_ref",
+        "environment_source_ref",
+        "environment_task_refs",
         "resource_receipt_ref",
         "cost_estimate_ref"
       ],
@@ -2147,34 +2229,34 @@
           "queued_project_count",
           "attention_count"
         ],
-          "task_fields": [
-            "task_id",
-            "title",
-            "status",
-            "stage",
+        "task_fields": [
+          "task_id",
+          "title",
+          "status",
+          "stage",
           "progress_label",
           "next_step",
           "owner",
           "last_progress",
           "next_owner",
           "artifact_or_blocker",
-            "review_receipt",
-            "action_receipt",
-            "workflow_refs",
-            "export_bundle_action_ref",
-            "gateway_status_ref",
-            "resource_source_refs",
-            "environment_ref",
-            "storage_ref",
-            "resource_receipt_ref",
-            "cost_estimate_ref"
-          ],
-          "resource_context_policy": {
-            "source": "contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy",
-            "display_policy": "show OPL Gateway/Fabric resource context as refs-only plan, approval, execution, collection, and receipt context",
-            "app_role": "display_only_resource_context_consumer",
-            "console_management_boundary": "show Console-managed policy, quota, billing, or permission refs only when Framework projection provides them; user-provided local, SSH, or HPC resources remain self-managed in the App display"
-          },
+          "review_receipt",
+          "action_receipt",
+          "workflow_refs",
+          "export_bundle_action_ref",
+          "gateway_status_ref",
+          "resource_source_refs",
+          "environment_ref",
+          "storage_ref",
+          "resource_receipt_ref",
+          "cost_estimate_ref"
+        ],
+        "resource_context_policy": {
+          "source": "contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy",
+          "display_policy": "show OPL Gateway/Fabric resource context as refs-only plan, approval, execution, collection, and receipt context",
+          "app_role": "display_only_resource_context_consumer",
+          "console_management_boundary": "show Console-managed policy, quota, billing, or permission refs only when Framework projection provides them; user-provided local, SSH, or HPC resources remain self-managed in the App display"
+        },
         "count_policies": {
           "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
           "active_project_count": "count active user-visible project lines from the framework project-line projection",
@@ -2473,6 +2555,8 @@
         "opl_gateway",
         "cloud_remote_access",
         "fabric_resource_sources",
+        "environment_catalog",
+        "console_managed_resources",
         "webui_compatibility",
         "web_remote_access"
       ],
@@ -2487,6 +2571,9 @@
         "OPL Gateway as the branded AI access surface for model routing, key status, and provider policy refs",
         "Cloud & Remote Access entry that explains Local App, Docker WebUI, OPL Workspace, user-provided SSH/HPC, and OPL Cloud managed resource sources",
         "OPL Fabric resource-source status as refs-only local, remote, managed compute, storage, connector, and environment context",
+        "Environment Catalog read-only refs for template, version, source, and task fit when resource projections provide them",
+        "Console-managed status for policy, quota, billing, and permission refs on managed resources",
+        "self-managed status for local, user-provided SSH, and user-provided HPC resources",
         "Web / Docker / Remote Access section with a direct user-facing entry to WebUI or remote access setup"
       ],
       "must_not_show": [
@@ -2518,7 +2605,34 @@
           "institutional_data_source"
         ],
         "console_management_boundary": "OPL Console manages organization policy, quota, billing, permissions, Workspace lifecycle, connector approval, and managed resource packages only for Console-managed resources",
-        "app_role": "display_and_action_route_consumer_only"
+        "app_role": "display_and_action_route_consumer_only",
+        "environment_catalog": {
+          "source": "app_state.settings_control_center.app_settings_read_model.environment_catalog",
+          "display_policy": "read_only_template_version_source_task_fit_refs",
+          "required_ref_fields": [
+            "environment_ref",
+            "environment_template_ref",
+            "environment_version_ref",
+            "environment_source_ref",
+            "environment_task_refs"
+          ],
+          "environment_body_access": false,
+          "package_lock_body_access": false
+        },
+        "console_management": {
+          "source": "app_state.settings_control_center.app_settings_read_model.resource_sources.*",
+          "management_modes": [
+            "self_managed",
+            "console_managed"
+          ],
+          "managed_ref_fields": [
+            "console_policy_ref",
+            "quota_ref",
+            "billing_ref",
+            "permission_ref"
+          ],
+          "display_policy": "managed_resources_show_console_refs_self_managed_resources_show_owner_context"
+        }
       },
       "ia_group": "setup_access"
     },
@@ -2534,6 +2648,11 @@
         "resource_source_refs",
         "gateway_status_ref",
         "environment_ref",
+        "environment_template_ref",
+        "environment_version_ref",
+        "environment_source_ref",
+        "environment_task_refs",
+        "console_policy_ref",
         "storage_ref",
         "resource_receipt_ref",
         "cost_estimate_ref"
@@ -2563,6 +2682,7 @@
         "capability health and connector readiness refs from OPL App state",
         "OPL Connect connector readiness grouped by literature, database, storage, tools/API, internal system, and compute scheduler refs",
         "OPL Fabric environment and resource-source refs when capability tasks need managed or user-provided resources",
+        "Environment Catalog refs grouped with OPL Fabric resource readiness when capability tasks declare runtime requirements",
         "reusable workflow refs without skill bodies",
         "reproducibility export bundle action ref with dry-run receipt boundary",
         "External Tools & Voice entry with MCP described as secondary technical detail",
@@ -2587,6 +2707,19 @@
           "tools_and_apis",
           "internal_systems",
           "compute_schedulers"
+        ],
+        "environment_catalog_ref_fields": [
+          "environment_ref",
+          "environment_template_ref",
+          "environment_version_ref",
+          "environment_source_ref",
+          "environment_task_refs"
+        ],
+        "console_managed_ref_fields": [
+          "console_policy_ref",
+          "quota_ref",
+          "billing_ref",
+          "permission_ref"
         ]
       },
       "builtin_skill_catalog_policy": {

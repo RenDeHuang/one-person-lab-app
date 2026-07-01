@@ -491,6 +491,11 @@
             "resource_source_refs",
             "gateway_status_ref",
             "environment_ref",
+            "console_policy_ref",
+            "environment_task_refs",
+            "environment_source_ref",
+            "environment_version_ref",
+            "environment_template_ref",
             "storage_ref",
             "resource_receipt_ref",
             "cost_estimate_ref"

@@ -568,6 +568,23 @@
                 "owner": "opl_framework",
                 "ref": "/workspace/med-autoscience"
               }
+            ],
+            "resource_plan_ref": "opl://resource-plan/medautoscience/module-runtime-repair",
+            "resource_approval_ref": "opl://resource-approval/medautoscience/module-runtime-repair",
+            "resource_execute_ref": "opl://resource-execute/medautoscience/module-runtime-repair",
+            "resource_monitor_ref": "opl://resource-monitor/medautoscience/module-runtime-repair",
+            "resource_collect_ref": "opl://resource-collect/medautoscience/module-runtime-repair",
+            "resource_usage_ref": "opl://resource-usage/medautoscience/module-runtime-repair",
+            "console_policy_ref": "opl://console/policy/lab-managed-compute",
+            "quota_ref": "opl://console/quota/lab-managed-compute",
+            "billing_ref": "opl://console/billing/lab-managed-compute",
+            "permission_ref": "opl://console/permission/lab-managed-compute",
+            "environment_template_ref": "opl://environment-template/python-r-quarto",
+            "environment_version_ref": "opl://environment-version/python-r-quarto/2026.07",
+            "environment_source_ref": "opl://environment-source/opl-fabric/catalog/python-r-quarto",
+            "environment_task_refs": [
+              "opl://environment-task/mas/statistical-analysis",
+              "opl://environment-task/bookforge/report-export"
             ]
           }
         ],
@@ -733,11 +750,21 @@
               "opl://resource-source/local-app",
               "opl://resource-source/opl-workspace"
             ],
-            "gateway_status_ref": "opl://gateway/status/gflabtoken"
+            "gateway_status_ref": "opl://gateway/status/gflabtoken",
+            "deployment_kind": "app_surface",
+            "management_mode": "self_managed",
+            "resource_usage_ref": "opl://resource-usage/local-app/current"
           },
           "opl_gateway": {
             "status": "available",
-            "gateway_status_ref": "opl://gateway/status/gflabtoken"
+            "gateway_status_ref": "opl://gateway/status/gflabtoken",
+            "deployment_kind": "ai_access",
+            "management_mode": "console_managed",
+            "console_policy_ref": "opl://console/policy/gateway/default",
+            "quota_ref": "opl://console/quota/gateway/default",
+            "billing_ref": "opl://console/billing/gateway/default",
+            "permission_ref": "opl://console/permission/gateway/default",
+            "resource_usage_ref": "opl://gateway/usage/gflabtoken"
           },
           "opl_workspace": {
             "status": "optional_surface",
@@ -745,15 +772,115 @@
               "opl://resource-source/opl-workspace"
             ],
             "environment_ref": "opl://environment/python-r-quarto",
-            "storage_ref": "opl://storage/workspace-volume/medautoscience"
+            "storage_ref": "opl://storage/workspace-volume/medautoscience",
+            "deployment_kind": "hosted_app_surface",
+            "management_mode": "console_managed",
+            "console_policy_ref": "opl://console/policy/workspace/default",
+            "quota_ref": "opl://console/quota/workspace/default",
+            "billing_ref": "opl://console/billing/workspace/default",
+            "permission_ref": "opl://console/permission/workspace/default",
+            "environment_template_ref": "opl://environment-template/python-r-quarto",
+            "environment_version_ref": "opl://environment-version/python-r-quarto/2026.07",
+            "environment_source_ref": "opl://environment-source/opl-fabric/catalog/python-r-quarto",
+            "environment_task_refs": [
+              "opl://environment-task/mas/statistical-analysis"
+            ],
+            "resource_usage_ref": "opl://resource-usage/workspace/medautoscience"
           },
           "opl_fabric": {
             "status": "refs_available",
             "resource_source_refs": [
               "opl://resource-source/opl-fabric/compute",
               "opl://resource-source/opl-fabric/storage"
-            ]
+            ],
+            "deployment_kind": "resource_fabric",
+            "management_mode": "mixed",
+            "console_policy_ref": "opl://console/policy/fabric/default",
+            "quota_ref": "opl://console/quota/fabric/default",
+            "billing_ref": "opl://console/billing/fabric/default",
+            "permission_ref": "opl://console/permission/fabric/default",
+            "environment_template_ref": "opl://environment-template/python-r-quarto",
+            "environment_version_ref": "opl://environment-version/python-r-quarto/2026.07",
+            "environment_source_ref": "opl://environment-source/opl-fabric/catalog/python-r-quarto",
+            "environment_task_refs": [
+              "opl://environment-task/mas/statistical-analysis",
+              "opl://environment-task/bookforge/report-export"
+            ],
+            "resource_usage_ref": "opl://resource-usage/fabric/current"
+          },
+          "user_provided_hpc": {
+            "status": "configured",
+            "deployment_kind": "remote_compute",
+            "management_mode": "self_managed",
+            "resource_source_refs": [
+              "opl://resource-source/user-provided-hpc/login-node"
+            ],
+            "environment_ref": "opl://environment/institution-hpc-r",
+            "environment_template_ref": "opl://environment-template/institution-hpc-r",
+            "environment_version_ref": "opl://environment-version/institution-hpc-r/site-current",
+            "environment_source_ref": "opl://environment-source/user/hpc-module-stack",
+            "environment_task_refs": [
+              "opl://environment-task/mas/high-throughput-analysis"
+            ],
+            "resource_usage_ref": "opl://resource-usage/user-provided-hpc/current"
           }
+        },
+        "environment_catalog": {
+          "status": "refs_available",
+          "display_policy": "read_only_template_version_source_task_fit_refs",
+          "templates": [
+            {
+              "id": "python_r_quarto",
+              "title": "Python / R / Quarto",
+              "status": "available",
+              "environment_ref": "opl://environment/python-r-quarto",
+              "environment_template_ref": "opl://environment-template/python-r-quarto",
+              "environment_version_ref": "opl://environment-version/python-r-quarto/2026.07",
+              "environment_source_ref": "opl://environment-source/opl-fabric/catalog/python-r-quarto",
+              "environment_task_refs": [
+                "opl://environment-task/mas/statistical-analysis",
+                "opl://environment-task/bookforge/report-export"
+              ]
+            },
+            {
+              "id": "latex_pdf",
+              "title": "LaTeX / PDF",
+              "status": "available",
+              "environment_ref": "opl://environment/latex-pdf",
+              "environment_template_ref": "opl://environment-template/latex-pdf",
+              "environment_version_ref": "opl://environment-version/latex-pdf/2026.07",
+              "environment_source_ref": "opl://environment-source/opl-fabric/catalog/latex-pdf",
+              "environment_task_refs": [
+                "opl://environment-task/bookforge/manuscript-export"
+              ]
+            },
+            {
+              "id": "cuda_gpu",
+              "title": "CUDA / GPU",
+              "status": "optional",
+              "environment_ref": "opl://environment/cuda-gpu",
+              "environment_template_ref": "opl://environment-template/cuda-gpu",
+              "environment_version_ref": "opl://environment-version/cuda-gpu/managed-current",
+              "environment_source_ref": "opl://environment-source/opl-fabric/catalog/cuda-gpu",
+              "environment_task_refs": [
+                "opl://environment-task/mas/gpu-analysis"
+              ]
+            },
+            {
+              "id": "office_pdf",
+              "title": "Office / PDF",
+              "status": "available",
+              "environment_ref": "opl://environment/office-pdf",
+              "environment_template_ref": "opl://environment-template/office-pdf",
+              "environment_version_ref": "opl://environment-version/office-pdf/2026.07",
+              "environment_source_ref": "opl://environment-source/opl-fabric/catalog/office-pdf",
+              "environment_task_refs": [
+                "opl://environment-task/rca/presentation-export"
+              ]
+            }
+          ],
+          "environment_body_access": false,
+          "package_lock_body_access": false
         }
       },
       "capability_task_awareness_refs": {

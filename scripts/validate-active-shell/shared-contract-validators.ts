@@ -10,6 +10,20 @@ const resourceContextOptionalTaskRefs = [
   'gateway_status_ref',
   'environment_ref',
   'storage_ref',
+  'resource_plan_ref',
+  'resource_approval_ref',
+  'resource_execute_ref',
+  'resource_monitor_ref',
+  'resource_collect_ref',
+  'resource_usage_ref',
+  'console_policy_ref',
+  'quota_ref',
+  'billing_ref',
+  'permission_ref',
+  'environment_template_ref',
+  'environment_version_ref',
+  'environment_source_ref',
+  'environment_task_refs',
   'resource_receipt_ref',
   'cost_estimate_ref',
 ];
@@ -63,6 +77,7 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
     projection.settings_capabilities_surface,
     `${label} settings_capabilities_surface`,
   );
+  validateResourceContextPolicy(projection.resource_context_policy, `${label} resource_context_policy`);
   assertIncludesAll(
     projection.forbidden_claims,
     [
@@ -78,6 +93,41 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
     ],
     `${label} forbidden_claims`,
   );
+}
+
+export function validateResourceContextPolicy(policy, label) {
+  if (!policy || typeof policy !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  assertIncludesAll(policy.optional_ref_fields, resourceContextOptionalTaskRefs, `${label} optional_ref_fields`);
+  assertDeepEqualJson(
+    policy.plan_approve_execute_collect_flow,
+    [
+      'resource_plan_ref',
+      'resource_approval_ref',
+      'resource_execute_ref',
+      'resource_monitor_ref',
+      'resource_collect_ref',
+      'resource_receipt_ref',
+    ],
+    `${label} plan approve execute collect flow`,
+  );
+  assertDeepEqualJson(
+    policy.console_management_ref_fields,
+    ['console_policy_ref', 'quota_ref', 'billing_ref', 'permission_ref'],
+    `${label} console management ref fields`,
+  );
+  assertDeepEqualJson(
+    policy.environment_catalog_policy?.ref_fields,
+    ['environment_ref', 'environment_template_ref', 'environment_version_ref', 'environment_source_ref', 'environment_task_refs'],
+    `${label} environment catalog ref fields`,
+  );
+  if (
+    policy.environment_catalog_policy?.environment_body_access !== false ||
+    policy.environment_catalog_policy?.package_lock_body_access !== false
+  ) {
+    throw new Error(`${label} environment catalog must remain refs-only`);
+  }
 }
 
 export function validateSettingsCapabilitiesResourceGrouping(surface, label) {
@@ -104,6 +154,11 @@ export function validateSettingsCapabilitiesResourceGrouping(surface, label) {
       'resource_source_refs',
       'gateway_status_ref',
       'environment_ref',
+      'environment_template_ref',
+      'environment_version_ref',
+      'environment_source_ref',
+      'environment_task_refs',
+      'console_policy_ref',
       'storage_ref',
       'resource_receipt_ref',
       'cost_estimate_ref',
