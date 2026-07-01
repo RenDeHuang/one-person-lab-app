@@ -9,6 +9,7 @@ import {
   expectedHomeActivityCenterForbiddenDisplays,
   expectedSettingsPageSections,
 } from './helpers.ts';
+import { validateTaskAwarenessProjectionContract } from '../../../scripts/validate-active-shell/shared-contract-validators.ts';
 
 test('runtime page consumes OPL App/operator drilldown instead of App-owned runtime truth', () => {
   const activeShellContract = JSON.parse(
@@ -41,6 +42,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'action_receipt',
     'workflow_refs',
     'export_bundle_action_ref',
+    'gateway_status_ref',
+    'resource_source_refs',
+    'environment_ref',
+    'storage_ref',
+    'resource_receipt_ref',
+    'cost_estimate_ref',
   ];
   const guidHomePage = pageStateMatrix.pages.find((page) => page.id === 'guid_home');
   const runtimePage = pageStateMatrix.pages.find((page) => page.id === 'runtime');
@@ -237,6 +244,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'workflow_refs',
       'export_bundle_action_ref',
       'connector_readiness_refs',
+      'gateway_status_ref',
+      'resource_source_refs',
+      'environment_ref',
+      'storage_ref',
+      'resource_receipt_ref',
+      'cost_estimate_ref',
       'diagnostic_substrate_refs',
     ],
     artifact_or_blocker_policy: 'summary_ref_only_no_artifact_body',
@@ -244,6 +257,40 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     action_receipt_policy: 'dry_run_plan_and_execute_receipt_refs_only_via_opl_app_action',
     workflow_ref_policy: 'capability_workflow_refs_only_no_app_skill_body_write',
     export_bundle_policy: 'framework_domain_action_ref_only_app_displays_dry_run_execute_receipt',
+    resource_context_policy: {
+      source: 'same_task_awareness_projection_optional_resource_context_refs',
+      display_policy:
+        'OPL Gateway and OPL Fabric resource refs only; App displays plan approval context and receipts without owning compute, storage, connector, environment, billing, or Console policy truth',
+      optional_ref_fields: [
+        'gateway_status_ref',
+        'resource_source_refs',
+        'environment_ref',
+        'storage_ref',
+        'resource_receipt_ref',
+        'cost_estimate_ref',
+      ],
+      resource_source_kinds: [
+        'local_app',
+        'docker_webui',
+        'opl_workspace',
+        'user_provided_ssh',
+        'user_provided_hpc',
+        'opl_cloud_managed_compute',
+        'managed_storage',
+        'institutional_data_source',
+      ],
+      plan_approve_execute_collect_flow: [
+        'plan_ref',
+        'approval_ref',
+        'execute_ref',
+        'monitor_ref',
+        'collect_ref',
+        'resource_receipt_ref',
+      ],
+      console_management_policy:
+        'Console-managed refs may indicate organization policy, quota, billing, or permission ownership; user-provided local/SSH/HPC refs remain self-managed unless the projection states otherwise',
+      app_role: 'display_only_resource_context_consumer',
+    },
     settings_capabilities_surface: {
       surface: 'settings_capabilities',
       source: 'same_task_awareness_projection_refs_aggregated_for_capabilities',
@@ -252,9 +299,27 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
         'connector_readiness_refs',
         'workflow_refs',
         'export_bundle_action_ref',
+        'resource_source_refs',
+        'gateway_status_ref',
+        'environment_ref',
+        'storage_ref',
+        'resource_receipt_ref',
+        'cost_estimate_ref',
       ],
       display_policy: 'capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict',
+      connector_grouping_policy:
+        'OPL Connect groups connector readiness refs by literature databases, research databases, storage, tools/APIs, internal systems, and compute schedulers while keeping connector bodies and credentials outside App authority',
       action_policy: 'export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists',
+      resource_grouping_policy: {
+        grouping_source: 'OPL Connect/Fabric resource refs',
+        allowed_groups: ['OPL Connect', 'Fabric resources'],
+      },
+      refs_only: true,
+      skill_body_access: false,
+      workflow_body_access: false,
+      artifact_body_access: false,
+      owner_receipt_write_access: false,
+      domain_verdict_authority: false,
     },
     temporal_policy: 'diagnostics_only_never_user_task_model',
     app_role: 'display_only_task_awareness_consumer',
@@ -271,6 +336,23 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'family_production_readiness',
     ],
   });
+  assert.doesNotThrow(() =>
+    validateTaskAwarenessProjectionContract(runtimeBridge.task_awareness_projection, 'Runtime bridge task awareness projection'),
+  );
+  const missingResourceRefs = structuredClone(runtimeBridge.task_awareness_projection);
+  missingResourceRefs.optional_task_ref_fields = missingResourceRefs.optional_task_ref_fields.filter(
+    (field) => field !== 'gateway_status_ref',
+  );
+  assert.throws(
+    () => validateTaskAwarenessProjectionContract(missingResourceRefs, 'Runtime bridge task awareness projection'),
+    /optional_task_ref_fields/,
+  );
+  const invalidResourceGrouping = structuredClone(runtimeBridge.task_awareness_projection);
+  delete invalidResourceGrouping.settings_capabilities_surface.resource_grouping_policy;
+  assert.throws(
+    () => validateTaskAwarenessProjectionContract(invalidResourceGrouping, 'Runtime bridge task awareness projection'),
+    /resource grouping/,
+  );
   assert.deepEqual(runtimeBridge.current_task_slice_projection.conversation_fields, [
     'task_id',
     'status',
@@ -280,6 +362,10 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'plan_ref',
     'latest_receipt_ref',
     'latest_artifact_ref',
+    'gateway_status_ref',
+    'resource_source_refs',
+    'environment_ref',
+    'storage_ref',
   ]);
   assert.deepEqual(runtimeBridge.current_task_slice_projection.inspector_fields, [
     'artifact_or_blocker',
@@ -288,6 +374,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'workflow_refs',
     'export_bundle_action_ref',
     'lineage_refs',
+    'gateway_status_ref',
+    'resource_source_refs',
+    'environment_ref',
+    'storage_ref',
+    'resource_receipt_ref',
+    'cost_estimate_ref',
   ]);
   assert.equal(runtimeBridge.current_task_slice_projection.independent_task_store_allowed, false);
   assert.equal(runtimeBridge.current_task_slice_projection.artifact_body_access, false);
@@ -769,6 +861,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     current_task_surfaces: ['ordinary_conversation', 'right_context_inspector'],
     required_task_ref_fields: runtimeBridge.task_awareness_projection.required_task_ref_fields,
     optional_task_ref_fields: runtimeBridge.task_awareness_projection.optional_task_ref_fields,
+    resource_context_policy_ref: 'contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy',
     settings_capabilities_surface_ref: 'contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface',
     display_policy: 'runtime_global_task_awareness_with_current_task_slices_no_new_dashboard',
     temporal_policy: 'diagnostics_only_never_user_task_model',

@@ -248,6 +248,7 @@
     "task_awareness": {
       "projection_ref": "contracts/app-runtime-bridge.json#task_awareness_projection",
       "source": "app_state.operator.workbench.task_drilldowns",
+      "authority": "opl_framework_refs_only_task_awareness_projection",
       "display_policy": "runtime_global_task_awareness_with_current_task_slices_no_new_dashboard",
       "global_surface": "runtime_page",
       "current_task_surfaces": [
@@ -268,6 +269,12 @@
         "workflow_refs",
         "export_bundle_action_ref",
         "connector_readiness_refs",
+        "gateway_status_ref",
+        "resource_source_refs",
+        "environment_ref",
+        "storage_ref",
+        "resource_receipt_ref",
+        "cost_estimate_ref",
         "diagnostic_substrate_refs"
       ],
       "settings_capabilities_surface_ref": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
@@ -275,14 +282,68 @@
         "capability_health_refs",
         "connector_readiness_refs",
         "workflow_refs",
-        "export_bundle_action_ref"
+        "export_bundle_action_ref",
+        "resource_source_refs",
+        "gateway_status_ref",
+        "environment_ref",
+        "storage_ref",
+        "resource_receipt_ref",
+        "cost_estimate_ref"
       ],
+      "artifact_or_blocker_policy": "summary_ref_only_no_artifact_body",
+      "review_receipt_policy": "receipt_ref_only_no_quality_or_readiness_verdict",
+      "action_receipt_policy": "dry_run_plan_and_execute_receipt_refs_only_via_opl_app_action",
+      "workflow_ref_policy": "capability_workflow_refs_only_no_app_skill_body_write",
+      "export_bundle_policy": "framework_domain_action_ref_only_app_displays_dry_run_execute_receipt",
+      "resource_context_policy_ref": "contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy",
+      "settings_capabilities_surface": {
+        "surface": "settings_capabilities",
+        "source": "same_task_awareness_projection_refs_aggregated_for_capabilities",
+        "required_ref_fields": [
+          "capability_health_refs",
+          "connector_readiness_refs",
+          "workflow_refs",
+          "export_bundle_action_ref",
+          "resource_source_refs",
+          "gateway_status_ref",
+          "environment_ref",
+          "storage_ref",
+          "resource_receipt_ref",
+          "cost_estimate_ref"
+        ],
+        "display_policy": "capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict",
+        "resource_grouping_policy": {
+          "grouping_source": "OPL Connect/Fabric resource refs",
+          "allowed_groups": [
+            "OPL Connect",
+            "Fabric resources"
+          ]
+        },
+        "action_policy": "export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists",
+        "refs_only": true,
+        "skill_body_access": false,
+        "workflow_body_access": false,
+        "artifact_body_access": false,
+        "owner_receipt_write_access": false,
+        "domain_verdict_authority": false
+      },
       "app_role": "display_only_task_awareness_consumer",
       "shell_role": "thin_renderer_no_runtime_store",
       "artifact_body_access": false,
       "owner_receipt_write_access": false,
       "domain_verdict_authority": false,
-      "temporal_policy": "diagnostics_only_never_user_task_model"
+      "temporal_policy": "diagnostics_only_never_user_task_model",
+      "forbidden_claims": [
+        "new_task_dashboard",
+        "shell_runtime_truth",
+        "temporal_as_user_task_model",
+        "artifact_body",
+        "owner_receipt_authority",
+        "domain_quality_verdict",
+        "domain_readiness",
+        "app_release_readiness",
+        "family_production_readiness"
+      ]
     },
     "stage_run_cockpit": {
       "projection_ref": "contracts/app-runtime-bridge.json#stage_run_cockpit_projection",
@@ -599,7 +660,11 @@
         "elapsed_seconds",
         "plan_ref",
         "latest_receipt_ref",
-        "latest_artifact_ref"
+        "latest_artifact_ref",
+        "gateway_status_ref",
+        "resource_source_refs",
+        "environment_ref",
+        "storage_ref"
       ],
       "independent_task_store_allowed": false
     }
@@ -673,8 +738,15 @@
         "action_receipt",
         "workflow_refs",
         "export_bundle_action_ref",
-        "lineage_refs"
+        "lineage_refs",
+        "gateway_status_ref",
+        "resource_source_refs",
+        "environment_ref",
+        "storage_ref",
+        "resource_receipt_ref",
+        "cost_estimate_ref"
       ],
+      "resource_context_policy": "OPL Gateway and OPL Fabric refs are displayed as current-task execution context only; the App does not own compute, storage, connector, environment, billing, or Console policy truth",
       "default_state": "collapsed",
       "artifact_body_access": false,
       "domain_verdict_authority": false
@@ -2075,22 +2147,34 @@
           "queued_project_count",
           "attention_count"
         ],
-        "task_fields": [
-          "task_id",
-          "title",
-          "status",
-          "stage",
+          "task_fields": [
+            "task_id",
+            "title",
+            "status",
+            "stage",
           "progress_label",
           "next_step",
           "owner",
           "last_progress",
           "next_owner",
           "artifact_or_blocker",
-          "review_receipt",
-          "action_receipt",
-          "workflow_refs",
-          "export_bundle_action_ref"
-        ],
+            "review_receipt",
+            "action_receipt",
+            "workflow_refs",
+            "export_bundle_action_ref",
+            "gateway_status_ref",
+            "resource_source_refs",
+            "environment_ref",
+            "storage_ref",
+            "resource_receipt_ref",
+            "cost_estimate_ref"
+          ],
+          "resource_context_policy": {
+            "source": "contracts/app-runtime-bridge.json#task_awareness_projection.resource_context_policy",
+            "display_policy": "show OPL Gateway/Fabric resource context as refs-only plan, approval, execution, collection, and receipt context",
+            "app_role": "display_only_resource_context_consumer",
+            "console_management_boundary": "show Console-managed policy, quota, billing, or permission refs only when Framework projection provides them; user-provided local, SSH, or HPC resources remain self-managed in the App display"
+          },
         "count_policies": {
           "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
           "active_project_count": "count active user-visible project lines from the framework project-line projection",
@@ -2386,6 +2470,9 @@
         "codex_cli",
         "provider_readiness",
         "api_keys",
+        "opl_gateway",
+        "cloud_remote_access",
+        "fabric_resource_sources",
         "webui_compatibility",
         "web_remote_access"
       ],
@@ -2397,14 +2484,42 @@
         "section-level refresh state",
         "Setup & Access placed under OPL Control Center Setup & Access",
         "Model & Account section with current model, model access/API key readiness, connection check, and repair entry",
+        "OPL Gateway as the branded AI access surface for model routing, key status, and provider policy refs",
+        "Cloud & Remote Access entry that explains Local App, Docker WebUI, OPL Workspace, user-provided SSH/HPC, and OPL Cloud managed resource sources",
+        "OPL Fabric resource-source status as refs-only local, remote, managed compute, storage, connector, and environment context",
         "Web / Docker / Remote Access section with a direct user-facing entry to WebUI or remote access setup"
       ],
       "must_not_show": [
         "raw base URL and token paths as first-screen content",
         "backend selector as ordinary App configuration",
         "WebUI as the primary access mental model",
-        "backend/provider raw selector as the Model & Account primary control"
+        "backend/provider raw selector as the Model & Account primary control",
+        "Console billing or managed-cloud entitlement as an App-owned decision",
+        "Cloud service availability as release-ready or runtime-ready proof"
       ],
+      "cloud_fabric_surface": {
+        "surface": "settings_access",
+        "display_name": "Cloud & Remote Access",
+        "source": "opl app state --profile fast --json optional cloud_fabric refs",
+        "gateway_entry": "OPL Gateway",
+        "deployment_surfaces": [
+          "OPL App",
+          "Docker WebUI",
+          "OPL Workspace"
+        ],
+        "fabric_resource_sources": [
+          "local_app",
+          "docker_webui",
+          "opl_workspace",
+          "user_provided_ssh",
+          "user_provided_hpc",
+          "opl_cloud_managed_compute",
+          "managed_storage",
+          "institutional_data_source"
+        ],
+        "console_management_boundary": "OPL Console manages organization policy, quota, billing, permissions, Workspace lifecycle, connector approval, and managed resource packages only for Console-managed resources",
+        "app_role": "display_and_action_route_consumer_only"
+      },
       "ia_group": "setup_access"
     },
     "settings_capabilities": {
@@ -2415,7 +2530,13 @@
         "capability_health_refs",
         "connector_readiness_refs",
         "workflow_refs",
-        "export_bundle_action_ref"
+        "export_bundle_action_ref",
+        "resource_source_refs",
+        "gateway_status_ref",
+        "environment_ref",
+        "storage_ref",
+        "resource_receipt_ref",
+        "cost_estimate_ref"
       ],
       "task_awareness_ref_policy": "thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict",
       "export_bundle_action_policy": "show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness",
@@ -2440,6 +2561,8 @@
         "MCP and tool details as secondary support details",
         "capability status for Research, Grant, Presentation, Book or manuscript work, and OPL automation",
         "capability health and connector readiness refs from OPL App state",
+        "OPL Connect connector readiness grouped by literature, database, storage, tools/API, internal system, and compute scheduler refs",
+        "OPL Fabric environment and resource-source refs when capability tasks need managed or user-provided resources",
         "reusable workflow refs without skill bodies",
         "reproducibility export bundle action ref with dry-run receipt boundary",
         "External Tools & Voice entry with MCP described as secondary technical detail",
@@ -2452,8 +2575,20 @@
         "OPL Meta Agent as a default Home assistant",
         "AionUI Team as the ordinary multi-agent collaboration entry",
         "MCP as the primary user-facing name for external tools",
-        "artifact body, workflow body, owner receipt write, or domain export readiness verdict from Settings Capabilities"
+        "artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities"
       ],
+      "fabric_connect_grouping_policy": {
+        "source": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
+        "display_policy": "group connector readiness as OPL Connect refs and environment/resource readiness as OPL Fabric refs without exposing credentials, connector bodies, environment bodies, or domain verdicts",
+        "groups": [
+          "literature_databases",
+          "research_databases",
+          "storage",
+          "tools_and_apis",
+          "internal_systems",
+          "compute_schedulers"
+        ]
+      },
       "builtin_skill_catalog_policy": {
         "source": "AionUI shell builtin skill catalog filtered by App product profile packaged Codex skill ids",
         "allowed_set_ref": "contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + packaged_not_default_visible_codex_skill_ids",

@@ -17,6 +17,7 @@ import {
   appOwnedSettingsTaskEntryIds,
   appOwnedSettingsVisualQaTargets,
 } from './app-contract-constants.ts';
+import { validateSettingsCapabilitiesResourceGrouping } from './shared-contract-validators.ts';
 
 const settingsIaRef = 'contracts/app-gui-product-contract.json#settings_navigation.settings_ia';
 const settingsControlPlaneContractRef = 'contracts/app-settings-control-plane.json';
@@ -699,6 +700,34 @@ function validateSettingsPageAdapterPolicy(controlPlane) {
       throw new Error(`Settings page adapter policy ${routeId} must declare forbidden sources`);
     }
   }
+  validateSettingsAccessCloudBoundary(requiredPages.access);
+  validateSettingsCapabilitiesResourceGrouping(
+    requiredPages.capabilities?.resource_grouping_surface,
+    'Settings Capabilities page adapter resource grouping surface',
+  );
+}
+
+function validateSettingsAccessCloudBoundary(accessPage) {
+  const boundary = accessPage?.cloud_remote_boundary;
+  if (!boundary || typeof boundary !== 'object') {
+    throw new Error('Settings Access page adapter must declare cloud_remote_boundary');
+  }
+  assertDeepEqualJson(
+    boundary.required_boundary_terms,
+    ['App', 'Workspace', 'Gateway', 'Fabric', 'Console'],
+    'Settings Access cloud remote boundary terms',
+  );
+  if (boundary.display_policy !== 'explain_app_workspace_gateway_fabric_console_boundary_without_runtime_truth_claims') {
+    throw new Error('Settings Access cloud remote boundary must explain the App/Workspace/Gateway/Fabric/Console boundary');
+  }
+  if (boundary.refs_only !== true) {
+    throw new Error('Settings Access cloud remote boundary refs_only must be true');
+  }
+  assertIncludesAll(
+    boundary.forbidden_claims,
+    ['runtime_truth', 'provider_implementation', 'domain_truth', 'domain_readiness', 'app_release_readiness'],
+    'Settings Access cloud remote boundary forbidden claims',
+  );
 }
 
 function validateSettingsVisualQaPolicy(controlPlane) {

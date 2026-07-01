@@ -136,7 +136,13 @@
       "review_receipt",
       "action_receipt",
       "workflow_refs",
-      "export_bundle_action_ref"
+      "export_bundle_action_ref",
+      "gateway_status_ref",
+      "resource_source_refs",
+      "environment_ref",
+      "storage_ref",
+      "resource_receipt_ref",
+      "cost_estimate_ref"
     ],
     "count_policies": {
       "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
@@ -182,6 +188,12 @@
       "workflow_refs",
       "export_bundle_action_ref",
       "connector_readiness_refs",
+      "gateway_status_ref",
+      "resource_source_refs",
+      "environment_ref",
+      "storage_ref",
+      "resource_receipt_ref",
+      "cost_estimate_ref",
       "diagnostic_substrate_refs"
     ],
     "artifact_or_blocker_policy": "summary_ref_only_no_artifact_body",
@@ -189,6 +201,38 @@
     "action_receipt_policy": "dry_run_plan_and_execute_receipt_refs_only_via_opl_app_action",
     "workflow_ref_policy": "capability_workflow_refs_only_no_app_skill_body_write",
     "export_bundle_policy": "framework_domain_action_ref_only_app_displays_dry_run_execute_receipt",
+    "resource_context_policy": {
+      "source": "same_task_awareness_projection_optional_resource_context_refs",
+      "display_policy": "OPL Gateway and OPL Fabric resource refs only; App displays plan approval context and receipts without owning compute, storage, connector, environment, billing, or Console policy truth",
+      "optional_ref_fields": [
+        "gateway_status_ref",
+        "resource_source_refs",
+        "environment_ref",
+        "storage_ref",
+        "resource_receipt_ref",
+        "cost_estimate_ref"
+      ],
+      "resource_source_kinds": [
+        "local_app",
+        "docker_webui",
+        "opl_workspace",
+        "user_provided_ssh",
+        "user_provided_hpc",
+        "opl_cloud_managed_compute",
+        "managed_storage",
+        "institutional_data_source"
+      ],
+      "plan_approve_execute_collect_flow": [
+        "plan_ref",
+        "approval_ref",
+        "execute_ref",
+        "monitor_ref",
+        "collect_ref",
+        "resource_receipt_ref"
+      ],
+      "console_management_policy": "Console-managed refs may indicate organization policy, quota, billing, or permission ownership; user-provided local/SSH/HPC refs remain self-managed unless the projection states otherwise",
+      "app_role": "display_only_resource_context_consumer"
+    },
     "settings_capabilities_surface": {
       "surface": "settings_capabilities",
       "source": "same_task_awareness_projection_refs_aggregated_for_capabilities",
@@ -196,10 +240,30 @@
         "capability_health_refs",
         "connector_readiness_refs",
         "workflow_refs",
-        "export_bundle_action_ref"
+        "export_bundle_action_ref",
+        "resource_source_refs",
+        "gateway_status_ref",
+        "environment_ref",
+        "storage_ref",
+        "resource_receipt_ref",
+        "cost_estimate_ref"
       ],
       "display_policy": "capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict",
-      "action_policy": "export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists"
+      "connector_grouping_policy": "OPL Connect groups connector readiness refs by literature databases, research databases, storage, tools/APIs, internal systems, and compute schedulers while keeping connector bodies and credentials outside App authority",
+      "resource_grouping_policy": {
+        "grouping_source": "OPL Connect/Fabric resource refs",
+        "allowed_groups": [
+          "OPL Connect",
+          "Fabric resources"
+        ]
+      },
+      "action_policy": "export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists",
+      "refs_only": true,
+      "skill_body_access": false,
+      "workflow_body_access": false,
+      "artifact_body_access": false,
+      "owner_receipt_write_access": false,
+      "domain_verdict_authority": false
     },
     "temporal_policy": "diagnostics_only_never_user_task_model",
     "app_role": "display_only_task_awareness_consumer",
@@ -227,7 +291,11 @@
       "elapsed_seconds",
       "plan_ref",
       "latest_receipt_ref",
-      "latest_artifact_ref"
+      "latest_artifact_ref",
+      "gateway_status_ref",
+      "resource_source_refs",
+      "environment_ref",
+      "storage_ref"
     ],
     "inspector_fields": [
       "artifact_or_blocker",
@@ -235,7 +303,13 @@
       "action_receipt",
       "workflow_refs",
       "export_bundle_action_ref",
-      "lineage_refs"
+      "lineage_refs",
+      "gateway_status_ref",
+      "resource_source_refs",
+      "environment_ref",
+      "storage_ref",
+      "resource_receipt_ref",
+      "cost_estimate_ref"
     ],
     "default_visibility": "collapsed_or_inline_compact",
     "independent_task_store_allowed": false,

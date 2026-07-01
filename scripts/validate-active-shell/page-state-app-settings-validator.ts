@@ -81,7 +81,18 @@ function validateCapabilitiesPage(matrix) {
   }
   assertDeepEqualJson(
     capabilitiesPage.task_awareness_ref_fields,
-    ['capability_health_refs', 'connector_readiness_refs', 'workflow_refs', 'export_bundle_action_ref'],
+    [
+      'capability_health_refs',
+      'connector_readiness_refs',
+      'workflow_refs',
+      'export_bundle_action_ref',
+      'resource_source_refs',
+      'gateway_status_ref',
+      'environment_ref',
+      'storage_ref',
+      'resource_receipt_ref',
+      'cost_estimate_ref',
+    ],
     'Capabilities page task awareness ref fields',
   );
   if (

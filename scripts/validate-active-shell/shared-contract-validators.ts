@@ -5,6 +5,133 @@ import {
   firstRunCoreItems,
 } from './app-contract-constants.ts';
 
+const resourceContextOptionalTaskRefs = [
+  'resource_source_refs',
+  'gateway_status_ref',
+  'environment_ref',
+  'storage_ref',
+  'resource_receipt_ref',
+  'cost_estimate_ref',
+];
+
+export function validateTaskAwarenessProjectionContract(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.task_drilldowns',
+    authority: 'opl_framework_refs_only_task_awareness_projection',
+    display_policy: 'runtime_global_task_awareness_with_current_task_slices_no_new_dashboard',
+    global_surface: 'runtime_page',
+    app_role: 'display_only_task_awareness_consumer',
+    shell_role: 'thin_renderer_no_runtime_store',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    projection.required_task_ref_fields,
+    ['task_id', 'stage', 'progress_label', 'next_owner', 'artifact_or_blocker', 'review_receipt', 'action_receipt'],
+    `${label} required_task_ref_fields`,
+  );
+  assertIncludesAll(
+    projection.optional_task_ref_fields,
+    [
+      'capability_health_refs',
+      'workflow_refs',
+      'export_bundle_action_ref',
+      'connector_readiness_refs',
+      'diagnostic_substrate_refs',
+      ...resourceContextOptionalTaskRefs,
+    ],
+    `${label} optional_task_ref_fields`,
+  );
+  for (const [field, expected] of Object.entries({
+    artifact_or_blocker_policy: 'summary_ref_only_no_artifact_body',
+    review_receipt_policy: 'receipt_ref_only_no_quality_or_readiness_verdict',
+    action_receipt_policy: 'dry_run_plan_and_execute_receipt_refs_only_via_opl_app_action',
+    workflow_ref_policy: 'capability_workflow_refs_only_no_app_skill_body_write',
+    export_bundle_policy: 'framework_domain_action_ref_only_app_displays_dry_run_execute_receipt',
+    temporal_policy: 'diagnostics_only_never_user_task_model',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  validateSettingsCapabilitiesResourceGrouping(
+    projection.settings_capabilities_surface,
+    `${label} settings_capabilities_surface`,
+  );
+  assertIncludesAll(
+    projection.forbidden_claims,
+    [
+      'new_task_dashboard',
+      'shell_runtime_truth',
+      'temporal_as_user_task_model',
+      'artifact_body',
+      'owner_receipt_authority',
+      'domain_quality_verdict',
+      'domain_readiness',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+    `${label} forbidden_claims`,
+  );
+}
+
+export function validateSettingsCapabilitiesResourceGrouping(surface, label) {
+  if (!surface || typeof surface !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    surface: 'settings_capabilities',
+    source: 'same_task_awareness_projection_refs_aggregated_for_capabilities',
+    display_policy: 'capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict',
+    action_policy: 'export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists',
+  })) {
+    if (surface[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    surface.required_ref_fields,
+    [
+      'capability_health_refs',
+      'connector_readiness_refs',
+      'workflow_refs',
+      'export_bundle_action_ref',
+      'resource_source_refs',
+      'gateway_status_ref',
+      'environment_ref',
+      'storage_ref',
+      'resource_receipt_ref',
+      'cost_estimate_ref',
+    ],
+    `${label} required_ref_fields`,
+  );
+  if (surface.resource_grouping_policy?.grouping_source !== 'OPL Connect/Fabric resource refs') {
+    throw new Error(`${label} resource grouping must use OPL Connect/Fabric resource refs`);
+  }
+  assertIncludesAll(
+    surface.resource_grouping_policy?.allowed_groups,
+    ['OPL Connect', 'Fabric resources'],
+    `${label} resource grouping allowed groups`,
+  );
+  for (const [field, expected] of Object.entries({
+    refs_only: true,
+    skill_body_access: false,
+    workflow_body_access: false,
+    artifact_body_access: false,
+    owner_receipt_write_access: false,
+    domain_verdict_authority: false,
+  })) {
+    if (surface[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+}
+
 export function validateProgressDeltaDisplayContract(progressDelta, label) {
   if (!progressDelta || typeof progressDelta !== 'object') {
     throw new Error(`${label} must be declared`);
@@ -587,6 +714,12 @@ export function validateUserTaskStatusProjectionContract(userTaskStatus, label) 
       'action_receipt',
       'workflow_refs',
       'export_bundle_action_ref',
+      'gateway_status_ref',
+      'resource_source_refs',
+      'environment_ref',
+      'storage_ref',
+      'resource_receipt_ref',
+      'cost_estimate_ref',
     ],
     `${label} task_fields`,
   );

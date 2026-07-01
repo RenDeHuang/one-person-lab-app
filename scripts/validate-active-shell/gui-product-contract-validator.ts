@@ -43,6 +43,7 @@ import {
   validateProviderReadinessRepairProjectionContract,
   validateProgressDeltaDisplayContract,
   validateStateIndexSidecarProjectionContract,
+  validateTaskAwarenessProjectionContract,
   validateUserTaskStatusProjectionContract,
 } from './shared-contract-validators.ts';
 
@@ -497,7 +498,18 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   assertDeepEqualJson(
     pages.settings_capabilities.task_awareness_ref_fields,
-    ['capability_health_refs', 'connector_readiness_refs', 'workflow_refs', 'export_bundle_action_ref'],
+    [
+      'capability_health_refs',
+      'connector_readiness_refs',
+      'workflow_refs',
+      'export_bundle_action_ref',
+      'resource_source_refs',
+      'gateway_status_ref',
+      'environment_ref',
+      'storage_ref',
+      'resource_receipt_ref',
+      'cost_estimate_ref',
+    ],
     'Settings Capabilities task awareness ref fields',
   );
   assertIncludesAll(
@@ -511,7 +523,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   );
   assertIncludesAll(
     pages.settings_capabilities.must_not_show,
-    ['artifact body, workflow body, owner receipt write, or domain export readiness verdict from Settings Capabilities'],
+    [
+      'artifact body, workflow body, connector body, credential body, owner receipt write, or domain export readiness verdict from Settings Capabilities',
+    ],
     'Settings Capabilities task awareness must_not_show',
   );
   validateOplFlowContext(guiContract.opl_flow_context, 'App GUI OPL Flow Context');
@@ -604,6 +618,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   validateUserTaskStatusProjectionContract(
     pages.runtime_status.user_task_status_policy,
     'App GUI runtime status user task status policy',
+  );
+  validateTaskAwarenessProjectionContract(
+    guiContract.framework_surfaces?.task_awareness,
+    'App GUI framework task awareness',
   );
   for (const signal of [
     'user task status first OPL runtime status',
