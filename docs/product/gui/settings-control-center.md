@@ -181,7 +181,11 @@ Access & Model owns user-facing connection readiness:
 - Cloud & Remote Access for Local App, Docker/WebUI, OPL Workspace,
   user-provided SSH/HPC, and OPL Cloud-managed compute or storage refs;
 - OPL Fabric resource-source status for compute, storage, connector, and
-  environment refs when the Framework projection provides them.
+  environment refs when the Framework projection provides them;
+- Environment Catalog refs that show template, version, source, and task fit;
+- Console-managed resource refs for policy, quota, billing, and permission, and
+  self-managed status for local, user-provided SSH, and user-provided HPC
+  resources.
 
 Base URLs, token paths, raw config files, and provider internals are advanced
 details, not first-screen content. Console billing, organization policy, and
@@ -220,8 +224,9 @@ supporting sections below the purpose model.
 Connector readiness appears as OPL Connect refs grouped by user purpose, such
 as literature databases, research databases, storage, tools/API, internal
 systems, and compute schedulers. Environment and resource-source readiness
-appears as OPL Fabric refs. Settings must not expose connector credentials,
-connector bodies, environment bodies, or domain verdicts.
+appears as OPL Fabric refs. Environment Catalog appears as read-only template,
+version, source, and task-fit refs. Settings must not expose connector
+credentials, connector bodies, environment bodies, or domain verdicts.
 
 ### Updates & Maintenance
 

@@ -62,21 +62,23 @@ OPL App and OPL Workspace are deployment surfaces for the same App experience.
 The local desktop App, Docker/WebUI, and OPL Workspace present the same
 chat-first product model and consume the same Framework state/action contracts.
 OPL Workspace may add hosted URL, account, isolation, storage volume, and
-managed-resource receipts, but those are surfaced through App contracts rather
-than becoming a second product truth. OPL Console manages organization policy,
-users, quota, billing, Workspace lifecycle, connector approval, environment
-policy, and managed resource packages for OPL Cloud-managed resources. User
-provided local, SSH, or HPC resources remain self-managed unless Framework
-projections explicitly mark them as Console-managed.
+managed-resource receipts, and the user still sees the same App task flow:
+select a Workspace or local App surface, confirm the resource plan, run the
+task, and receive receipts. OPL Console manages organization policy, users,
+quota, billing, Workspace lifecycle, connector approval, environment policy,
+and managed resource packages for Console-managed resources. User-provided
+local, SSH, or HPC resources remain self-managed unless Framework projections
+explicitly mark them as Console-managed.
 
 OPL Fabric is the resource capability layer behind App and Workspace, not a new
 ordinary Settings top-level product. In App contracts it appears as refs-only
 resource context: OPL Gateway for AI access, OPL Connect for connector
-readiness, OPL Compute for local/remote/managed execution, and environment and
-storage refs for reproducible work. The user-facing flow is plan, approve,
-execute, monitor, collect, and receipt. The App may display those refs and call
-`opl app action`; it does not own compute scheduling, storage authority,
-connector credentials, environment bodies, billing, or Console policy truth.
+readiness, OPL Compute for local/remote/managed execution, Storage refs for
+where work lands, and Environment Catalog refs for template, version, source,
+and task fit. The user-facing flow is plan, approve, execute, monitor, collect,
+and receipt. The App may display those refs and call `opl app action`; it does
+not own compute scheduling, storage authority, connector credentials,
+environment bodies, billing, or Console policy truth.
 
 The default Runtime page attention model is user-task-status first. The
 ordinary view answers which tasks are explicitly running or advancing, which
