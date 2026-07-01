@@ -71,6 +71,25 @@ function validateCapabilitiesPage(matrix) {
   if (capabilitiesPage.machine_source !== 'contracts/app-gui-product-contract.json#default_assistants + opl app state --profile fast --json') {
     throw new Error('Capabilities page must combine App-owned assistant profile truth with OPL App state readiness refs');
   }
+  assertIncludesAll(
+    capabilitiesPage.state_sections,
+    ['operator.workbench.task_drilldowns'],
+    'Capabilities page task awareness state sections',
+  );
+  if (capabilitiesPage.task_awareness_refs_source !== 'contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface') {
+    throw new Error('Capabilities page must consume the App runtime bridge task-awareness Settings surface');
+  }
+  assertDeepEqualJson(
+    capabilitiesPage.task_awareness_ref_fields,
+    ['capability_health_refs', 'connector_readiness_refs', 'workflow_refs', 'export_bundle_action_ref'],
+    'Capabilities page task awareness ref fields',
+  );
+  if (
+    capabilitiesPage.task_awareness_ref_policy !== 'thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict' ||
+    capabilitiesPage.export_bundle_action_policy !== 'show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness'
+  ) {
+    throw new Error('Capabilities page must keep task awareness refs display-only and export bundle actions dry-run/receipt bounded');
+  }
 }
 
 function validateEnvironmentPage(matrix) {

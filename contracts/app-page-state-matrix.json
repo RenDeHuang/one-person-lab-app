@@ -479,6 +479,14 @@
             "review_receipt",
             "action_receipt"
           ],
+          "optional_task_ref_fields": [
+            "capability_health_refs",
+            "workflow_refs",
+            "export_bundle_action_ref",
+            "connector_readiness_refs",
+            "diagnostic_substrate_refs"
+          ],
+          "settings_capabilities_surface_ref": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
           "display_policy": "runtime_global_task_awareness_with_current_task_slices_no_new_dashboard",
           "temporal_policy": "diagnostics_only_never_user_task_model",
           "refs_only": true
@@ -1729,8 +1737,18 @@
         "default_assistants",
         "assistant_skill_profiles",
         "modules",
-        "tools"
+        "tools",
+        "operator.workbench.task_drilldowns"
       ],
+      "task_awareness_refs_source": "contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface",
+      "task_awareness_ref_fields": [
+        "capability_health_refs",
+        "connector_readiness_refs",
+        "workflow_refs",
+        "export_bundle_action_ref"
+      ],
+      "task_awareness_ref_policy": "thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict",
+      "export_bundle_action_policy": "show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness",
       "builtin_skill_catalog_policy": {
         "source": "active shell builtin skill catalog filtered by App product profile packaged skills",
         "allowed_set_ref": "contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids + packaged_not_default_visible_codex_skill_ids",
@@ -1758,6 +1776,9 @@
         "builtin skill catalog and auto-injected skills filtered to App packaged skill ids",
         "MCP and tool details as secondary support details",
         "capability status for Research, Grant, Presentation, Book or manuscript work, and OPL automation",
+        "capability health and connector readiness refs from OPL App state",
+        "reusable workflow refs without skill bodies",
+        "reproducibility export bundle action ref with dry-run receipt boundary",
         "External Tools & Voice entry with MCP described as secondary technical detail",
         "Custom Assistant entry as a secondary or advanced capability when enabled by product policy"
       ],
@@ -1767,7 +1788,8 @@
         "AionUI implementation skills such as aionui-skills",
         "OPL Meta Agent as a default Home assistant",
         "AionUI Team as the ordinary multi-agent collaboration entry",
-        "MCP as the primary user-facing name for external tools"
+        "MCP as the primary user-facing name for external tools",
+        "artifact body, workflow body, owner receipt write, or domain export readiness verdict from Settings Capabilities"
       ],
       "ordinary_cockpit_surface_budget_ref": "contracts/app-gui-product-contract.json#ordinary_cockpit_surface_budget",
       "ia_group": "capabilities",

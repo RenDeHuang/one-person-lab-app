@@ -117,10 +117,45 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(fixtureTask.review_receipt.domain_readiness_authority, false);
   assert.equal(fixtureTask.action_receipt.owner_receipt_write_access, false);
   assert.deepEqual(fixtureTask.workflow_refs, ['opl://workflow/medautoscience/module-runtime-repair']);
-  assert.equal(fixtureTask.export_bundle_action_ref, 'opl://app-action/export_reproducibility_bundle');
+  assert.equal(fixtureTask.export_bundle_action_ref, null);
+  assert.equal(fixtureTask.action_receipt.export_bundle_action_id, 'task_export_bundle_preview');
+  assert.equal(fixtureTask.action_receipt.export_bundle_route, 'opl app action execute --action task_export_bundle_preview --dry-run');
   assert.ok(fixtureTask.diagnostic_substrate_refs.includes('opl://diagnostics/provider/temporal'));
   assert.ok(fastStateFixture.app_state.actions.some((action) => action.action_id === 'task_action_receipt_preview'));
-  assert.ok(fastStateFixture.app_state.actions.some((action) => action.action_id === 'export_reproducibility_bundle'));
+  assert.ok(fastStateFixture.app_state.actions.some((action) => action.action_id === 'task_export_bundle_preview'));
+  assert.equal(
+    fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.surface_kind,
+    'opl_settings_capability_task_awareness_refs.v1',
+  );
+  assert.equal(
+    fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.content_policy,
+    'refs_only_no_skill_body_no_workflow_body',
+  );
+  assert.equal(
+    fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.authority_boundary.can_write_domain_truth,
+    false,
+  );
+  assert.equal(
+    fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.authority_boundary.can_create_owner_receipt,
+    false,
+  );
+  assert.equal(
+    fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.authority_boundary.can_read_artifact_body,
+    false,
+  );
+  assert.ok(
+    fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.capability_health_refs.length >= 5,
+  );
+  assert.ok(
+    fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.connector_readiness_refs.some(
+      (entry) => entry.id === 'temporal_provider',
+    ),
+  );
+  assert.ok(
+    fastStateFixture.app_state.settings_control_center.capability_task_awareness_refs.workflow_refs.some(
+      (entry) => entry.id === 'task_export_bundle_preview' && entry.status === 'dry_run_refs_only',
+    ),
+  );
   assert.ok(fastOperator.ordinary_cockpit.developer_full_drilldown_only.includes('release_evidence'));
   assert.equal(fastOperator.ordinary_cockpit.authority_boundary.default_planning_root, 'current_owner_delta');
   assert.equal(
@@ -198,6 +233,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'action_receipt',
     ],
     optional_task_ref_fields: [
+      'capability_health_refs',
       'workflow_refs',
       'export_bundle_action_ref',
       'connector_readiness_refs',
@@ -208,6 +244,18 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     action_receipt_policy: 'dry_run_plan_and_execute_receipt_refs_only_via_opl_app_action',
     workflow_ref_policy: 'capability_workflow_refs_only_no_app_skill_body_write',
     export_bundle_policy: 'framework_domain_action_ref_only_app_displays_dry_run_execute_receipt',
+    settings_capabilities_surface: {
+      surface: 'settings_capabilities',
+      source: 'same_task_awareness_projection_refs_aggregated_for_capabilities',
+      required_ref_fields: [
+        'capability_health_refs',
+        'connector_readiness_refs',
+        'workflow_refs',
+        'export_bundle_action_ref',
+      ],
+      display_policy: 'capability_health_connector_workflow_and_export_refs_only_no_skill_body_no_domain_verdict',
+      action_policy: 'export_bundle_action_ref_may_open_app_action_dry_run_receipt_only_until_domain_owner_execute_exists',
+    },
     temporal_policy: 'diagnostics_only_never_user_task_model',
     app_role: 'display_only_task_awareness_consumer',
     shell_role: 'thin_renderer_no_runtime_store',
@@ -720,6 +768,8 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     global_surface: 'runtime_page',
     current_task_surfaces: ['ordinary_conversation', 'right_context_inspector'],
     required_task_ref_fields: runtimeBridge.task_awareness_projection.required_task_ref_fields,
+    optional_task_ref_fields: runtimeBridge.task_awareness_projection.optional_task_ref_fields,
+    settings_capabilities_surface_ref: 'contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface',
     display_policy: 'runtime_global_task_awareness_with_current_task_slices_no_new_dashboard',
     temporal_policy: 'diagnostics_only_never_user_task_model',
     refs_only: true,

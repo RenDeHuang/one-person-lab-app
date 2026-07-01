@@ -667,14 +667,50 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     guiContract.pages.settings_capabilities.auto_injected_skills_policy.allowed_set_ref,
     'contracts/app-product-profile.json#companion_payloads.default_packaged_codex_skill_ids',
   );
+  assert.equal(
+    guiContract.pages.settings_capabilities.task_awareness_refs_source,
+    'contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface',
+  );
+  assert.deepEqual(guiContract.pages.settings_capabilities.task_awareness_ref_fields, [
+    'capability_health_refs',
+    'connector_readiness_refs',
+    'workflow_refs',
+    'export_bundle_action_ref',
+  ]);
+  assert.equal(
+    guiContract.pages.settings_capabilities.task_awareness_ref_policy,
+    'thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict',
+  );
+  assert.equal(
+    guiContract.pages.settings_capabilities.export_bundle_action_policy,
+    'show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness',
+  );
   assert.ok(
     guiContract.pages.settings_capabilities.must_show.includes(
       'builtin skill catalog and auto-injected skills filtered to App packaged skill ids',
     ),
   );
   assert.ok(
+    guiContract.pages.settings_capabilities.must_show.includes(
+      'capability health and connector readiness refs from OPL App state',
+    ),
+  );
+  assert.ok(
+    guiContract.pages.settings_capabilities.must_show.includes('reusable workflow refs without skill bodies'),
+  );
+  assert.ok(
+    guiContract.pages.settings_capabilities.must_show.includes(
+      'reproducibility export bundle action ref with dry-run receipt boundary',
+    ),
+  );
+  assert.ok(
     guiContract.pages.settings_capabilities.must_not_show.includes(
       'AionUI implementation skills such as aionui-skills',
+    ),
+  );
+  assert.ok(
+    guiContract.pages.settings_capabilities.must_not_show.includes(
+      'artifact body, workflow body, owner receipt write, or domain export readiness verdict from Settings Capabilities',
     ),
   );
   assert.ok(guiContract.pages.settings_capabilities.auto_injected_skills_policy.forbidden_examples.includes('aionui-skills'));

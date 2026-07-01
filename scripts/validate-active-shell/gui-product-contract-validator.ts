@@ -485,6 +485,35 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     ['aionui-skills', 'aionui-webui-setup', 'skill-creator'],
     'Settings Capabilities forbidden upstream auto skills',
   );
+  if (
+    pages.settings_capabilities.task_awareness_refs_source !==
+      'contracts/app-runtime-bridge.json#task_awareness_projection.settings_capabilities_surface' ||
+    pages.settings_capabilities.task_awareness_ref_policy !==
+      'thin_renderer_refs_only_no_skill_body_no_artifact_body_no_domain_verdict' ||
+    pages.settings_capabilities.export_bundle_action_policy !==
+      'show_export_bundle_action_ref_and_dry_run_receipt_without_claiming_domain_export_readiness'
+  ) {
+    throw new Error('Settings Capabilities must consume task awareness refs as display-only App state refs');
+  }
+  assertDeepEqualJson(
+    pages.settings_capabilities.task_awareness_ref_fields,
+    ['capability_health_refs', 'connector_readiness_refs', 'workflow_refs', 'export_bundle_action_ref'],
+    'Settings Capabilities task awareness ref fields',
+  );
+  assertIncludesAll(
+    pages.settings_capabilities.must_show,
+    [
+      'capability health and connector readiness refs from OPL App state',
+      'reusable workflow refs without skill bodies',
+      'reproducibility export bundle action ref with dry-run receipt boundary',
+    ],
+    'Settings Capabilities task awareness must_show',
+  );
+  assertIncludesAll(
+    pages.settings_capabilities.must_not_show,
+    ['artifact body, workflow body, owner receipt write, or domain export readiness verdict from Settings Capabilities'],
+    'Settings Capabilities task awareness must_not_show',
+  );
   validateOplFlowContext(guiContract.opl_flow_context, 'App GUI OPL Flow Context');
   if (!pages.settings_advanced.sections?.includes('opl_flow_context')) {
     throw new Error('Settings Advanced sections must include opl_flow_context');
