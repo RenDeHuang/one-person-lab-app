@@ -11,17 +11,10 @@ import {
 } from './helpers.ts';
 import { validateTaskAwarenessProjectionContract } from '../../../scripts/validate-active-shell/shared-contract-validators.ts';
 import { assertIncludesAll } from '../../../scripts/validate-active-shell/assertions.ts';
-
-const taskRunProjectionV2RequiredFields = [
-  'task_identity',
-  'status',
-  'progress',
-  'conditions',
-  'evidence_cards',
-  'action_cards',
-  'resource_cards',
-  'diagnostics_ref',
-];
+import {
+  taskRunProjectionV2FieldGroups,
+  taskRunProjectionV2RequiredFields,
+} from '../../../scripts/validate-active-shell/app-contract-constants.ts';
 
 test('runtime page consumes OPL App/operator drilldown instead of App-owned runtime truth', () => {
   const activeShellContract = JSON.parse(
@@ -200,6 +193,9 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'last_transition_time',
     'ref',
   ]);
+  assert.deepEqual(Object.keys(taskRunProjectionV2.tasks[0].evidence_cards[0]), taskRunProjectionV2FieldGroups.evidence_cards);
+  assert.deepEqual(Object.keys(taskRunProjectionV2.tasks[0].action_cards[0]), taskRunProjectionV2FieldGroups.action_cards);
+  assert.deepEqual(Object.keys(taskRunProjectionV2.tasks[0].resource_cards[0]), taskRunProjectionV2FieldGroups.resource_cards);
   for (const card of [
     ...taskRunProjectionV2.tasks[0].evidence_cards,
     ...taskRunProjectionV2.tasks[0].action_cards,

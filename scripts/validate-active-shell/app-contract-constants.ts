@@ -10,6 +10,66 @@ export const appOwnedProjectGroupExpansionPolicy = {
 export const appOwnedRunningStatePolicy =
   'only explicit running, in_progress, or advancing status/state counts as running; active_run_id alone is context, not liveness proof';
 
+export const taskRunProjectionV2RequiredFields = [
+  'task_identity',
+  'status',
+  'progress',
+  'conditions',
+  'evidence_cards',
+  'action_cards',
+  'resource_cards',
+  'diagnostics_ref',
+];
+
+export const taskRunProjectionV2FieldGroups = {
+  task_identity: ['task_id', 'title', 'domain_id', 'domain_label', 'study_id', 'task_ref'],
+  status: ['state', 'status', 'status_label', 'priority_bucket', 'active_stage_id', 'active_stage_label', 'active_run_ref'],
+  progress: ['progress_label', 'current_step', 'last_progress_at', 'progress_ref', 'stage_ref'],
+  conditions: ['type', 'status', 'reason', 'message', 'severity', 'owner', 'last_transition_time', 'ref'],
+  evidence_cards: [
+    'card_id',
+    'title',
+    'summary',
+    'ref',
+    'content_policy',
+    'kind',
+    'owner',
+    'updated_at',
+    'why_it_matters',
+    'open_action',
+  ],
+  action_cards: [
+    'card_id',
+    'title',
+    'summary',
+    'ref',
+    'action_ref',
+    'dry_run_required',
+    'content_policy',
+    'risk',
+    'write_targets',
+    'expected_output',
+    'rollback_ref',
+    'verify_ref',
+  ],
+  resource_cards: [
+    'card_id',
+    'title',
+    'summary',
+    'ref',
+    'content_policy',
+    'resource_kind',
+    'owner',
+    'status_ref',
+    'usage_ref',
+    'quota_ref',
+    'permission_ref',
+    'cost_estimate_ref',
+    'open_action',
+  ],
+  diagnostics_ref: ['diagnostics_ref'],
+};
+
 export const requiredHostTools = ['command_line_tools', 'homebrew', 'node', 'git'];
 export const fullReadinessItems = [
   'domain_modules',

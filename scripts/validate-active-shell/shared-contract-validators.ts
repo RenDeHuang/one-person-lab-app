@@ -3,6 +3,8 @@ import {
   appOwnedProjectGroupExpansionPolicy,
   appOwnedRunningStatePolicy,
   firstRunCoreItems,
+  taskRunProjectionV2FieldGroups,
+  taskRunProjectionV2RequiredFields,
 } from './app-contract-constants.ts';
 
 const resourceContextOptionalTaskRefs = [
@@ -27,28 +29,6 @@ const resourceContextOptionalTaskRefs = [
   'resource_receipt_ref',
   'cost_estimate_ref',
 ];
-
-const taskRunProjectionV2RequiredFields = [
-  'task_identity',
-  'status',
-  'progress',
-  'conditions',
-  'evidence_cards',
-  'action_cards',
-  'resource_cards',
-  'diagnostics_ref',
-];
-
-const taskRunProjectionV2FieldGroups = {
-  task_identity: ['task_id', 'title', 'domain_id', 'domain_label', 'study_id', 'task_ref'],
-  status: ['state', 'status', 'status_label', 'priority_bucket', 'active_stage_id', 'active_stage_label', 'active_run_ref'],
-  progress: ['progress_label', 'current_step', 'last_progress_at', 'progress_ref', 'stage_ref'],
-  conditions: ['type', 'status', 'reason', 'message', 'severity', 'owner', 'last_transition_time', 'ref'],
-  evidence_cards: ['card_id', 'title', 'summary', 'ref', 'content_policy'],
-  action_cards: ['card_id', 'title', 'summary', 'ref', 'action_ref', 'dry_run_required', 'content_policy'],
-  resource_cards: ['card_id', 'title', 'summary', 'ref', 'content_policy'],
-  diagnostics_ref: ['diagnostics_ref'],
-};
 
 export function validateTaskAwarenessProjectionContract(projection, label) {
   if (!projection || typeof projection !== 'object') {

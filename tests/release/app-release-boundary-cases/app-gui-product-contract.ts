@@ -11,6 +11,7 @@ import {
   expectedSettingsPageSections,
   readProductProfile,
 } from './helpers.ts';
+import { taskRunProjectionV2FieldGroups } from '../../../scripts/validate-active-shell/app-contract-constants.ts';
 
 test('App GUI product contract owns GUI requirements and unified OPL state/action boundaries', () => {
   const guiContract = JSON.parse(
@@ -86,6 +87,9 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
     'opl runtime app-operator-drilldown --detail full --json',
   );
   assert.equal(guiContract.framework_surfaces.runtime_full_drilldown.policy, 'on_demand_only');
+  assert.deepEqual(guiContract.framework_surfaces.task_awareness.v2_field_groups.evidence_cards, taskRunProjectionV2FieldGroups.evidence_cards);
+  assert.deepEqual(guiContract.framework_surfaces.task_awareness.v2_field_groups.action_cards, taskRunProjectionV2FieldGroups.action_cards);
+  assert.deepEqual(guiContract.framework_surfaces.task_awareness.v2_field_groups.resource_cards, taskRunProjectionV2FieldGroups.resource_cards);
   assert.deepEqual(guiContract.framework_surfaces.stage_run_cockpit, {
     projection_ref: 'contracts/app-runtime-bridge.json#stage_run_cockpit_projection',
     source: 'app_state.operator.workbench.task_drilldowns.stage_run_cockpit + app_state.operator.workbench.task_drilldowns.stage_run_cockpit_summary',

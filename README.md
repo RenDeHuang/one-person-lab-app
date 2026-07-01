@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="assets/branding/opl-app-logo.png" alt="One Person Lab App logo" width="132" />
+</p>
+
+<p align="center">
   <img src="assets/branding/opl-banner.png" alt="One Person Lab App banner" width="100%" />
 </p>
 
