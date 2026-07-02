@@ -4,9 +4,8 @@ Owner: `one-person-lab-app`
 Purpose: `local_data_lifecycle_issue_5_provenance`
 State: `historical_provenance`
 Machine boundary: Human-readable Issue #5 landing provenance. Current machine-readable policy lives in `contracts/app-release-channel.json#local_data_lifecycle`; executable shell behavior lives in `shells/aionui/packages/desktop/src/process/services/localDataLifecycle/index.ts`, IPC bridge wiring, Settings / Storage UI, active-shell validation, and focused release-boundary tests.
-Last reviewed: `2026-06-20`
 
-## Current Owner
+## Owner Foldback
 
 GitHub issue `#5` was originally only partially addressed by legacy updater
 cache cleanup. The current owner for this surface is no longer an active plan:

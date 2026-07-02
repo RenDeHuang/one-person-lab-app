@@ -3,12 +3,16 @@
 Owner: `one-person-lab-app`
 Purpose: `settings_control_center_completion_audit`
 State: `active_audit_pointer`
-Audit date: `2026-06-30`
 Machine boundary: Human-readable audit pointer. Machine-readable Settings truth
 stays in `contracts/app-settings-control-plane.json`,
 `contracts/app-gui-product-contract.json`,
 `contracts/app-page-state-matrix.json`, active shell source, validators, tests,
 visual manifests, release artifacts, and user-path evidence.
+Currentness policy: This file does not freeze audit dates, workflow ids,
+installed-version readbacks, visual-manifest counts, release readiness,
+notarization, or currentness. Re-read the checklist contract, validators,
+active-shell source, release artifacts, visual manifests, and user-path evidence
+before making a current completion or release/currentness claim.
 
 ## Single Source Of Truth
 
