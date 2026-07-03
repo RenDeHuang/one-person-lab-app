@@ -100,6 +100,25 @@ function buildFullManifest(refs) {
   };
 }
 
+function writeFakeGhReleaseDownload(binDir, publicReleaseManifest) {
+  fs.mkdirSync(binDir, { recursive: true });
+  const fakeGh = path.join(binDir, 'gh');
+  fs.writeFileSync(fakeGh, `#!/usr/bin/env node
+const fs = require('node:fs');
+const path = require('node:path');
+const args = process.argv.slice(2);
+const pattern = args[args.indexOf('--pattern') + 1];
+const dir = args[args.indexOf('--dir') + 1];
+if (args[0] === 'release' && args[1] === 'download' && pattern === 'opl-release-manifest.json' && dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'opl-release-manifest.json'), ${JSON.stringify(JSON.stringify(publicReleaseManifest, null, 2))} + '\\n');
+  process.exit(0);
+}
+process.exit(1);
+`);
+  fs.chmodSync(fakeGh, 0o755);
+}
+
 test('stable release notes are English and include bundled OPL-family agent versions', () => {
   const shellRoot = createShellHistory();
   const manifestPath = path.join(shellRoot, 'full-package-manifest.json');
@@ -232,6 +251,92 @@ test('stable release notes are English and include bundled OPL-family agent vers
   assert.doesNotMatch(result.stdout, /Full clean-install/);
   assert.doesNotMatch(result.stdout, /[\u3400-\u9fff]/);
   assert.doesNotMatch(result.stdout, /Change log\n(?:- .+\n){5,}/);
+});
+
+test('stable release notes compare previous Full payload from public release manifest asset', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-notes-public-manifest-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const shellRoot = createShellHistory();
+  const manifestPath = path.join(tempRoot, 'full-package-manifest.json');
+  const currentManifest = buildFullManifest({
+    mas: {
+      repoRoot: null,
+      repository: 'gaofeng21cn/med-autoscience',
+      previousRef: null,
+      currentRef: '1234567890abcdef1234567890abcdef12345678',
+      resolvedKey: 'mas',
+      label: 'MAS',
+    },
+    officecli: {
+      repoRoot: null,
+      repository: 'iOfficeAI/OfficeCLI',
+      previousRef: null,
+      currentRef: null,
+      resolvedKey: 'officecli',
+      label: 'OfficeCLI',
+      version: '1.2.3',
+    },
+  });
+  const previousManifest = buildFullManifest({
+    mas: {
+      repoRoot: null,
+      repository: 'gaofeng21cn/med-autoscience',
+      previousRef: null,
+      currentRef: '0000000000abcdef1234567890abcdef12345678',
+      resolvedKey: 'mas',
+      label: 'MAS',
+    },
+    officecli: {
+      repoRoot: null,
+      repository: 'iOfficeAI/OfficeCLI',
+      previousRef: null,
+      currentRef: null,
+      resolvedKey: 'officecli',
+      label: 'OfficeCLI',
+      version: '1.2.2',
+    },
+  });
+  fs.writeFileSync(manifestPath, `${JSON.stringify(currentManifest, null, 2)}\n`);
+  writeFakeGhReleaseDownload(binDir, {
+    schema: 'opl_public_release_manifest.v1',
+    manifest: previousManifest,
+  });
+
+  const result = runNode([
+    'scripts/generate-release-notes.ts',
+    '--version',
+    '26.5.31',
+    '--channel',
+    'stable',
+    '--previous-tag',
+    'v26.5.28',
+    '--current-tag',
+    'v26.5.31',
+    '--shell-root',
+    shellRoot,
+    '--previous-shell-ref',
+    'previous-shell',
+    '--current-shell-ref',
+    'HEAD',
+    '--previous-app-ref',
+    'HEAD',
+    '--current-app-ref',
+    'HEAD',
+    '--include-full-package',
+    '--full-package-manifest',
+    manifestPath,
+  ], {
+    env: {
+      OPL_RELEASE_NOTES_SKIP_REMOTE_FAMILY_REPOS: '1',
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    result.stdout,
+    /Payload updates since previous Stable: MAS 0000000 -> 1234567; OfficeCLI 1\.2\.2 -> 1\.2\.3\./,
+  );
 });
 
 test('nightly release notes compare against the previous nightly and stay standard-only', () => {
