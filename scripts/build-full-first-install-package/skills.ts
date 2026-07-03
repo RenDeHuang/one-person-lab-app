@@ -68,8 +68,11 @@ function metaAgentDomainSkillSource(options) {
 }
 
 function generatedBookforgeSkillSource(options) {
-  const frameworkEntry = path.join(options.frameworkRoot, 'src', 'opl-skills.ts');
-  if (!fs.existsSync(frameworkEntry)) {
+  const frameworkEntry = [
+    path.join(options.frameworkRoot, 'src', 'modules', 'connect', 'opl-skills.ts'),
+    path.join(options.frameworkRoot, 'src', 'opl-skills.ts'),
+  ].find((candidate) => fs.existsSync(candidate));
+  if (!frameworkEntry) {
     return null;
   }
   return {
@@ -195,7 +198,7 @@ export function copyOplBookforgeSkill(targetRoot, options) {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-bookforge-skill-'));
     try {
       const script = `
-        const mod = await import(${JSON.stringify(path.join(options.frameworkRoot, 'src', 'opl-skills.ts'))});
+        const mod = await import(${JSON.stringify(generated.frameworkEntry)});
         const result = mod.syncFamilySkillPackFromRepoRoot('oplbookforge', ${JSON.stringify(options.bookforgeRoot)}, {
           home: ${JSON.stringify(home)},
           registerPlugin: false,
