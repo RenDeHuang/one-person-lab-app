@@ -183,7 +183,7 @@ export function validateFirstRunMatrix(matrix, contract) {
   for (const expected of [
     'Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 模型访问 even when initialize checklist labels are English',
     'Chinese locale first-run primary area does not expose Codex API Configuration, Unknown, Needs setup, raw setup_flow fields, or opl system commands',
-    'access key entry uses beginner-facing 访问密钥 copy while keeping the narrow Codex configuration bridge underneath',
+    'OPL Gateway access key entry uses beginner-facing 访问密钥 copy while existing usable Codex model access can skip first-launch Gateway setup',
   ]) {
     if (!beginnerScenario.expects?.includes(expected)) {
       throw new Error(`Beginner first-run scenario must require localized beginner setup UX: ${expected}`);

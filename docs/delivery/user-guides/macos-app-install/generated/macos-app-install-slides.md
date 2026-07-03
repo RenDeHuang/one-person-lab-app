@@ -21,7 +21,7 @@ author: "one-person-lab-app"
   <div class="command">curl -fsSL <a href="https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh">https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh</a> | bash -s -- --stable-macos-install --yes</div>
   <div class="checklist"><ul><li>一台 Apple Silicon Mac 或可运行 macOS App 的 Mac。</li>
 <li>稳定网络，用于下载 One Person Lab 和完成首次环境检查。</li>
-<li>gflabtoken 开通状态；涉及访问权限时请联系 gflabtoken 管理员获取访问密钥。</li>
+<li>OPL Gateway 开通状态；已有可用 Codex/OpenAI 登录或其它 provider 时可先跳过首启 Gateway 配置。</li>
 <li>本地研究数据文件夹，数据需完成脱敏并符合本机构数据管理要求。</li></ul></div>
 </div>
 
@@ -100,7 +100,7 @@ author: "one-person-lab-app"
 
 <header class="step-title">
   <h1>3. 配置访问权限</h1>
-  <p>首次启动如果提示访问权限未配置，请联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。</p>
+  <p>首次启动会先检查模型访问；已有可用 Codex/OpenAI 登录或其它 provider 时可以跳过。完全没有可用模型访问时，请联系管理员获取 OPL Gatew...</p>
 </header>
 
 <main class="step-layout">
@@ -109,17 +109,17 @@ author: "one-person-lab-app"
   </figure>
   <aside class="focus">
     <h2>本页重点</h2>
-    <ul><li>管理员开通后，在页面输入访问密钥。</li>
-<li>点击完成配置后继续首启检查。</li>
+    <ul><li>管理员开通后，在页面输入 OPL Gateway 访问密钥。</li>
+<li>点击配置 OPL Gateway 后继续首启检查；跳过的用户之后仍可在 Settings 中切换到 OPL Gateway。</li>
 <li>不要截图、转发或保存密钥到研究目录。</li></ul>
   </aside>
 </main>
 
-<p class="body-line">首次启动如果提示访问权限未配置，请联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。</p>
+<p class="body-line">首次启动会先检查模型访问；已有可用 Codex/OpenAI 登录或其它 provider 时可以跳过。完全没有可用模型访问时，请联系管理员获取 OPL Gateway 访问密钥，并在首启页面完成配置。</p>
 <div class="footer"><span class="source-line">截图来自 local-vm-guide-refresh-2026-06-28T03-49-46-243Z；PNG 保留原始尺寸。</span><span>4 / 10</span></div>
 
 <!--
-首次启动如果提示访问权限未配置，请联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。 管理员开通后，在页面输入访问密钥。 点击完成配置后继续首启检查。 不要截图、转发或保存密钥到研究目录。
+首次启动会先检查模型访问；已有可用 Codex/OpenAI 登录或其它 provider 时可以跳过。完全没有可用模型访问时，请联系管理员获取 OPL Gateway 访问密钥，并在首启页面完成配置。 管理员开通后，在页面输入 OPL Gateway 访问密钥。 点击配置 OPL Gateway 后继续首启检查；跳过的用户之后仍可在 Settings 中切换到 OPL Gateway。 不要截图、转发或保存密钥到研究目录。
 -->
 
 ---
@@ -280,7 +280,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
     <h2>常见问题</h2>
     <ul><li>GitHub Release 下载入口：<a href="https://github.com/gaofeng21cn/one-person-lab-app/releases/latest">https://github.com/gaofeng21cn/one-person-lab-app/releases/latest</a></li>
 <li>下载失败：换网络后重试，或请技术支持人员确认 GitHub Release 是否可访问。</li>
-<li>访问权限未配置：联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。</li>
+<li>访问权限未配置：没有可用 Codex 登录、provider 或 OPL Gateway 访问时，联系管理员获取 OPL Gateway 访问密钥，并在首启页面或 Settings 中完成配置。</li>
 <li>模块未就绪：在本机运行环境或关于与更新中重新检查维护状态。</li>
 <li>Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。</li></ul>
   </div>
@@ -296,5 +296,5 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 <div class="footer"><span>GitHub Release: <a href="https://github.com/gaofeng21cn/one-person-lab-app/releases/latest">https://github.com/gaofeng21cn/one-person-lab-app/releases/latest</a></span><span>10 / 10</span></div>
 
 <!--
-GitHub Release 下载入口：https://github.com/gaofeng21cn/one-person-lab-app/releases/latest 下载失败：换网络后重试，或请技术支持人员确认 GitHub Release 是否可访问。 访问权限未配置：联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。 模块未就绪：在本机运行环境或关于与更新中重新检查维护状态。 Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。 Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。 截图 manifest 记录来源、语言、尺寸、SHA 和预期中文界面文案。 PPTX/PDF 幻灯片由静态 Marp 编译链路生成，并逐页渲染检查。
+GitHub Release 下载入口：https://github.com/gaofeng21cn/one-person-lab-app/releases/latest 下载失败：换网络后重试，或请技术支持人员确认 GitHub Release 是否可访问。 访问权限未配置：没有可用 Codex 登录、provider 或 OPL Gateway 访问时，联系管理员获取 OPL Gateway 访问密钥，并在首启页面或 Settings 中完成配置。 模块未就绪：在本机运行环境或关于与更新中重新检查维护状态。 Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。 Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。 截图 manifest 记录来源、语言、尺寸、SHA 和预期中文界面文案。 PPTX/PDF 幻灯片由静态 Marp 编译链路生成，并逐页渲染检查。
 -->

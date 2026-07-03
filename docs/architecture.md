@@ -152,11 +152,12 @@ Shell alternatives are intentionally separated from the default release adapter 
 Hermes 的 first-run 是一个例外的最低可用性要求：可以复用 Hermes Desktop 的
 onboarding/progress UI module，但行为 owner 必须是 OPL App/OPL CLI，不能默认
 下载或执行 Hermes Agent installer。候选包启动路径必须分成四条线：每次 launch
-只做轻量检查 marker、One Person Lab CLI、Codex CLI、gflabtoken 模型访问和 Codex
+只做轻量检查 marker、One Person Lab CLI、Codex CLI、可用 Codex 模型访问和 Codex
 adapter startup；只有 marker 缺失、marker 过旧或核心组件缺失时才进入一次性本机
-初始化 checklist；缺少 API key 时进入“模型访问”向导，通过
-`opl system configure-codex --api-key-stdin --json` 写入模型访问 API key，具体 key
-可来自 gflabtoken，但 UI 主名称使用“模型访问”；`opl system initialize --json`、
+初始化 checklist；完全没有可用模型访问时进入“OPL Gateway”向导，通过
+`opl system configure-codex --api-key-stdin --json` 写入 OPL Gateway 访问密钥。已有
+Codex/OpenAI 登录或其它可用 provider 时可跳过首启 Gateway 配置，Settings 保留
+OPL Gateway 配置入口用于后续切换；`opl system initialize --json`、
 `opl system startup-maintenance --json`、`opl system reconcile-modules --json`、
 MAS/MAG/RCA 状态和 contract diagnostics 在 OPL Codex adapter ready、主界面可见后
 后台异步执行，不能阻塞热启动进入主界面。如果 `setup.status` 已显示 Codex 模型访问

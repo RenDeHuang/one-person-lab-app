@@ -257,11 +257,12 @@ pointer/wrapper readback, and live `opl system initialize --json` output are the
 pre-`/guid` `ready_to_launch` proof source. Host `/Applications`, developer
 checkout state, prebaked runtime pointers, cache hits, manifest refs, and remote
 asset presence are diagnostics or provenance only. The Full profile keeps Full
-runtime readiness on the release-blocking path, and submits the Codex/OpenAI API
-key configuration wizard when the wizard is visible. It does not require the
-wizard UI when Codex config is already ready. Command Line Tools, git
+runtime readiness on the release-blocking path, and submits the OPL Gateway
+configuration wizard only when no usable Codex model access exists. It does not
+require the wizard UI when existing Codex login or another provider is already
+ready. Command Line Tools, git
 availability, and managed repo sync are deferred maintenance. The pre-`/guid`
-gate requires only workspace root, Codex CLI, and Codex config; Domain modules,
+gate requires only workspace root, Codex CLI, and usable Codex model access; Domain modules,
 the family runtime provider, recommended skills, native helpers, CLT, repo sync,
 and ecosystem updates are Full readiness or background maintenance and must not
 block launch. With

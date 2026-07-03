@@ -1633,7 +1633,7 @@
         "localized ready/checking/progress labels",
         "localized update and setup error copy",
         "Chinese beginner labels for workspace root, local assistant, and access",
-        "Chinese access-key copy for Codex configuration blockers"
+        "Chinese OPL Gateway access-key copy for missing model access blockers"
       ],
       "must_not_show": [
         "raw settings.firstRun keys",
@@ -1719,7 +1719,7 @@
       "must_show": [
         "workspace root readiness",
         "Codex CLI readiness",
-        "Codex config readiness",
+        "Codex model access readiness",
         "ready_to_launch before /guid",
         "full readiness and background maintenance state",
         "current initialization phase",

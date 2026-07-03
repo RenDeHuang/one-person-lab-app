@@ -84,10 +84,10 @@
         "initialize pending state renders explicit progress copy and item summaries before opl system initialize returns",
         "first screen shows a plain readiness summary instead of a technical checklist as the dominant view",
         "primary action leads to /guid only after ready_to_launch is true",
-        "workspace root, Codex CLI, and Codex config are the only primary steps",
+        "workspace root, Codex CLI, and model access are the only primary steps",
         "Chinese locale first-run primary area uses beginner labels such as 工作目录, 本机助手, and 模型访问 even when initialize checklist labels are English",
         "Chinese locale first-run primary area does not expose Codex API Configuration, Unknown, Needs setup, raw setup_flow fields, or opl system commands",
-        "access key entry uses beginner-facing 访问密钥 copy while keeping the narrow Codex configuration bridge underneath",
+        "OPL Gateway access key entry uses beginner-facing 访问密钥 copy while existing usable Codex model access can skip first-launch Gateway setup",
         "Full readiness and background maintenance remain visible after expanding technical details",
         "Homebrew, Node, Git, CLT, modules, provider, and runtime maintenance do not become the beginner primary terminal goals"
       ],
@@ -252,10 +252,10 @@
       },
       "expects": [
         "Full DMG is installed into /Applications on first launch",
-        "Codex config is ready before /guid; if the Codex/OpenAI API key configuration wizard is visible, it is submitted",
+        "Codex model access is ready before /guid; OPL Gateway is configured only when no existing Codex login or other usable provider is available",
         "Settings pages are navigable after first-run initialization",
         "Full runtime payload is materialized",
-        "ready_to_launch is reached before /guid after workspace root, Codex CLI, and Codex config are ready",
+        "ready_to_launch is reached before /guid after workspace root, Codex CLI, and usable Codex model access are ready",
         "Core ready is reached from bundled runtime without requiring host CLT, Homebrew, Node, or Git",
         "domain modules, family runtime provider, recommended skills, native helpers, repo sync, CLT installation, and ecosystem module updates continue as full readiness or best-effort background maintenance after Core ready and ready_to_launch",
         "Codex remains the default executor path",
@@ -715,8 +715,8 @@
       },
       "expects": [
         "Full DMG reaches Core ready from the bundled runtime",
-        "ready_to_launch is reached before /guid after workspace root, Codex CLI, and Codex config are ready",
-        "Codex config is ready before /guid; if the Codex/OpenAI API key configuration wizard is visible, it is submitted",
+        "ready_to_launch is reached before /guid after workspace root, Codex CLI, and usable Codex model access are ready",
+        "Codex model access is ready before /guid; OPL Gateway is configured only when no existing Codex login or other usable provider is available",
         "Domain modules and family runtime provider readiness are verified as Full readiness after ready_to_launch",
         "Settings pages are navigable after first-run initialization",
         "Packaged GUI route smoke selects MAS, MAG, and RCA purpose entries, shows @MAS/@MAG/@RCA badges, hides ordinary backend/model/permission selectors, and records Codex CLI builtin_capability route receipts"

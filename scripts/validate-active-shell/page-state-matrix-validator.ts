@@ -93,7 +93,7 @@ export function validatePageStateMatrix(matrix, contract) {
   for (const signal of [
     'workspace root readiness',
     'Codex CLI readiness',
-    'Codex config readiness',
+    'Codex model access readiness',
     'ready_to_launch before /guid',
     'full readiness and background maintenance state',
     'current initialization phase',

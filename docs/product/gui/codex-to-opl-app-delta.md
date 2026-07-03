@@ -204,7 +204,7 @@ artifacts 留在 release/evidence surfaces。
 
 Codex App 假设本机已有可用 Codex 环境。OPL App 增加产品化安装与维护：
 
-- Core launch gate：workspace root、Codex CLI 和 Codex config。
+- Core launch gate：workspace root、Codex CLI 和可用 Codex 模型访问。OPL Gateway 是托管/推荐路径，但已有 Codex/OpenAI 登录或其它可用 provider 时可跳过首启 Gateway 配置。
 - Full readiness：domain modules、family runtime provider、recommended skills、
   OPL System Bridge、repo sync、CLT、companion skills 和 ecosystem updates。
 - Standard updater assets 与 Full first-install assets 分离。
@@ -333,12 +333,13 @@ Codex experience，Phase 3 才做 full OPL product profile 和 adoption 评估�
   层硬编码混合语言标签；繁体中文和日文不进入 OPL App 普通维护范围。
 - First-run / startup：复用 Hermes onboarding/progress UI module，但把行为 owner
   改成 OPL App/OPL CLI，并拆成四条线。每次启动只做轻量检查：初始化 marker、
-  One Person Lab CLI、Codex CLI、gflabtoken 模型访问和 Codex adapter startup。
+  One Person Lab CLI、Codex CLI、可用 Codex 模型访问和 Codex adapter startup。
   只有 marker 缺失、marker 过旧或核心组件缺失时才进入一次性本机初始化 checklist；
   该 checklist 检查 One Person Lab CLI、Codex CLI、准备本机目录和配置、检查/
-  安装或修复 OPL core，并写入初始化 marker。缺模型访问时进入单独“模型访问”向导，
-  API key 通过 `opl system configure-codex --api-key-stdin --json` 写入，具体 key
-  可来自 gflabtoken，但 UI 主标题使用通用“模型访问”。`opl system initialize --json`、
+  安装或修复 OPL core，并写入初始化 marker。完全缺模型访问时进入单独“OPL Gateway”
+  向导，访问密钥通过 `opl system configure-codex --api-key-stdin --json` 写入。已有
+  Codex/OpenAI 登录或其它可用 provider 时跳过首启 Gateway 配置，但 Settings 仍保留
+  OPL Gateway 配置入口用于切换。`opl system initialize --json`、
   startup maintenance、module reconcile、MAS/MAG/RCA 状态和 contract diagnostics
   在主界面可见、Codex adapter ready 后后台异步刷新。这里明确禁止默认下载或执行
   Hermes Agent installer，也禁止用 full initialize 或维护命令阻塞热启动主界面。
@@ -405,7 +406,7 @@ Hermes WebUI TODO：
 - **品牌化/命名收敛：** 产品名、图标、bundle id、普通文案和 OPL purpose labels
   由 App repo 定义。
 - **启动与首启：** 使用 Hermes onboarding/checklist UI 承载真正需要等待的一次性
-  本机准备；每次启动只做轻量检查，缺 key 进入单独模型访问向导，full initialize、
+  本机准备；每次启动只做轻量检查，完全缺模型访问才进入单独 OPL Gateway 向导，full initialize、
   startup maintenance 和 reconcile 在主界面打开后后台刷新。
 - **隐藏普通路径不需要的概念：** provider/backend/permission/Hermes runtime 细节
   可进入 diagnostics 或 explicit mode，但不抢占 OPL 普通 home/chat。

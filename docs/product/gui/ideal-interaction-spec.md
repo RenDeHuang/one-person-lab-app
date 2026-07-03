@@ -22,7 +22,7 @@ focused tests 证明行为。不要把产品 IA、runtime truth、model/provider
 `hermes-codex` 是当前唯一 foreground alternative GUI candidate。它的外部来源是
 `NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；当前路线是
 先回官方 Hermes Desktop 功能基线，再做最小 OPL delta：候选 branding、简体中文/英文
-copy、图标、bundle metadata、OPL App-managed first-run、模型访问 API key
+copy、图标、bundle metadata、OPL App-managed first-run、OPL Gateway / 模型访问
 配置、Codex executor adapter 和 explicit candidate package。
 Codex 与 MAS 只作为 executor/agent route 扩展点接入，不全量替换 Hermes backend，
 也不把 OPL runtime truth 搬进 App repo。App state/action、page-state、first-run、
@@ -57,15 +57,15 @@ first-run、runtime bridge 或 release gate。
 
 启动与首启属于普通用户路径，不能被视为后置技术细节。Hermes candidate 的理想
 路径拆成四条线：每次启动只做轻量启动检查；只有 marker 缺失、marker 过旧或核心
-组件缺失时才进入一次性本机初始化 checklist；缺少或无法验证 gflabtoken API key
-时进入单独的“模型访问”配置向导；`opl system initialize --json`、module scan、
-MAS/MAG/RCA 状态和 contract diagnostics 在主界面打开后后台异步刷新。系统语言为
-中文时，首启初始化和访问配置默认显示中文。具体 API key 可来自 gflabtoken，但 UI
-主标题使用通用“模型访问”，保存时调用
-`opl system configure-codex --api-key-stdin --json`。这一路径允许沿用 Hermes
+组件缺失时才进入一次性本机初始化 checklist；完全没有可用 Codex/OpenAI 登录、
+provider 或 OPL Gateway 访问时进入单独的“OPL Gateway”配置向导；`opl system
+initialize --json`、module scan、MAS/MAG/RCA 状态和 contract diagnostics 在主界面
+打开后后台异步刷新。系统语言为中文时，首启初始化和访问配置默认显示中文。OPL
+Gateway 访问密钥保存时调用 `opl system configure-codex --api-key-stdin --json`；
+已有可用模型访问可跳过首启 Gateway 配置，Settings 保留 Gateway 配置入口。这一路径允许沿用 Hermes
 onboarding/checklist 组件的视觉和交互，但不沿用 Hermes Agent 安装语义，也不把
-full OPL 状态审计当作热启动首页 gate。轻量检查通过且 API key 已存在时必须直接
-进入 chat-first 主界面；缺 key 时不得显示本机安装 checklist；`setup.status` 已明确
+full OPL 状态审计当作热启动首页 gate。轻量检查通过且模型访问已存在时必须直接
+进入 chat-first 主界面；缺模型访问时不得显示本机安装 checklist；`setup.status` 已明确
 `provider_configured=true` 时，onboarding 必须自动完成；runtime detail 只作为诊断
 信息，不得作为普通用户首启的阻塞主文案。
 
@@ -314,7 +314,7 @@ OMA 保持 explicit 或 settings-only，直到单独产品决策把它提升为�
 
 First-run 应让干净 Mac 在完整维护结束前先进入 App。
 
-- Core launch readiness 是 workspace root、Codex CLI 和 Codex config。
+- Core launch readiness 是 workspace root、Codex CLI 和可用 Codex 模型访问。
 - Full readiness 和 background maintenance 可见，但保持次级。
 - Domain modules、runtime provider、recommended skills、repo sync、CLT、
   companion skills 和 ecosystem updates 不阻塞普通 launch，除非 App-owned

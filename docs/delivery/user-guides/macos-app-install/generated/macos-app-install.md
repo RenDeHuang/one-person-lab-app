@@ -14,13 +14,13 @@ lang: zh-CN
 
 下载最新版本：<https://github.com/gaofeng21cn/one-person-lab-app/releases/latest>
 
-> 涉及访问权限配置时，请联系 gflabtoken 管理员获取访问密钥。不要自行购买、复制来源不明的密钥，或把密钥写入研究数据目录。
+> 涉及 OPL Gateway 访问权限配置时，请联系管理员获取访问密钥。不要自行购买、复制来源不明的密钥，或把密钥写入研究数据目录。
 
 ## 准备清单
 
 - 一台 Apple Silicon Mac 或可运行 macOS App 的 Mac。
 - 稳定网络，用于下载 One Person Lab 和完成首次环境检查。
-- gflabtoken 开通状态；涉及访问权限时请联系 gflabtoken 管理员获取访问密钥。
+- OPL Gateway 开通状态；如果本机 Codex/OpenAI 已经登录或已有可用模型 provider，可以先跳过首启 Gateway 配置，之后仍可在设置中切换到 OPL Gateway。
 - 本地研究数据文件夹，数据需完成脱敏并符合本机构数据管理要求。
 - 变量说明、纳排标准、终点定义、统计计划、参考文献或已有草稿；可以先放入专病 workspace 的 `raw_data/`。
 
@@ -55,13 +55,14 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 ## 3. 配置访问权限
 
-首次启动如果提示访问权限未配置，请联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。
+首次启动会先检查模型访问。如果本机 Codex/OpenAI 已经登录，或已经配置了其它可用 provider，App 会标注“我已配置，跳过”并继续进入主界面；如果完全没有可用模型访问，请联系管理员获取 OPL Gateway 访问密钥，并在首启页面完成配置。
 
 ![配置访问权限](screenshots/03-codex-config-needed.png)
 
 重点：
 
-- 管理员开通后，在页面输入访问密钥并点击完成配置。
+- 管理员开通后，在页面输入 OPL Gateway 访问密钥并点击配置。
+- 已跳过首启 Gateway 配置的用户，之后可以从 Settings 的“模型与账号 / OPL Gateway”重新进入配置并切换到 OPL Gateway。
 - 不要把密钥截图、转发或写入研究数据目录。
 
 ## 4. 等待首次环境检查
@@ -126,7 +127,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 - 下载失败：换网络后重试，或请技术支持人员确认 GitHub Release 是否可访问。
 - 打不开 App：优先使用稳定安装命令重新安装；手动安装时确认已拖入 Applications，并按 macOS 安全提示允许打开。
-- 访问权限未配置：联系 gflabtoken 管理员获取访问密钥，并在首启页面完成配置。
+- 访问权限未配置：没有可用 Codex 登录、provider 或 OPL Gateway 访问时，联系管理员获取 OPL Gateway 访问密钥，并在首启页面或 Settings 中完成配置。
 - 模块未就绪：在 App 的本机运行环境或关于与更新中重新检查维护状态，确认 OPL 完整安装资产与本机网络状态。
 - 数据路径看不到：确认选择的是本机可访问的专病 workspace，或能看到其中的 `raw_data/`。
 - 任务启动后不知道看哪里：查看运行状态页的当前阶段、下一步和需要人工确认的项目。
@@ -135,6 +136,6 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 - 长文 HTML/PDF 使用 Quarto Book 渲染；Quarto 负责目录、主题、HTML/PDF 输出和 LaTeX PDF 排版路径。
 - 截图主要来自中文 1080p VM guide artifact 与同一次 VM smoke 的 App CDP 截图；本机运行环境截图来自修复后的 `runtime-environment-currentness.fixture.json` 渲染，用于替换旧 VM artifact 中 stale packaged-runtime 导致的“未知”模块状态。
-- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证访问密钥输入页、Settings 和 MAS/MAG/RCA 入口可用。
+- VM smoke 使用真实 DMG 安装到 `/Applications/One Person Lab.app`；标准版验证 OPL Gateway 访问密钥输入页、Settings 和 MAS/MAG/RCA 入口可用。
 - 每张截图的来源、尺寸和 SHA256 记录在 `screenshots.manifest.json`、Quarto manifest 与生成后的 verification JSON 中。
 - Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。

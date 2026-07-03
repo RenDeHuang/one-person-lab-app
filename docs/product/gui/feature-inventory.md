@@ -305,7 +305,7 @@ workbench、表格化 dashboard 或默认右侧 inspector，应只吸收视觉 t
 
 ## First-Run 功能
 
-- Launch readiness 只 gate Core items：workspace root、Codex CLI、Codex config。
+- Launch readiness 只 gate Core items：workspace root、Codex CLI、可用 Codex 模型访问。
 - 从 `opl system initialize --json` 展示 first-run phase、Core progress、Full
   readiness progress、background maintenance counts、blockers 和 next visible
   step。
@@ -348,7 +348,7 @@ Hermes 的候选策略是 upstream-first，而不是 blank-slate。它应该先�
 Desktop 功能基线，把官方 `apps/desktop` 当成可升级参考系：后续跟随 upstream 时
 记录 ref，对比 `apps/desktop` 和 shared package 变化，再重放 OPL 最小 delta。
 最小 delta 只包括 OPL candidate branding、中文/英文 copy、图标、bundle metadata、
-OPL App-managed first-run、模型访问 API key 配置、Codex app-server-backed
+OPL App-managed first-run、OPL Gateway / 模型访问配置、Codex app-server-backed
 Hermes gateway adapter、MAS/MAG/RCA Codex Skill 入口和 explicit candidate wrapper。
 除这些面外，任何新增 OPL surface 都要先说明 upstream 已有能力、OPL 需要保留/隐藏/
 替换什么、truth owner 是谁，以及是否触发 App-owned adoption gate。
@@ -379,11 +379,11 @@ Hermes 第一版只替换最小几类上游面，才能声称 minimal candidate 
   繁体中文或日文 locale。
 - First-run / startup：复用 Hermes onboarding/progress UI，但实际行为由 OPL CLI
   和 App-owned startup contract 执行，不下载或执行 Hermes Agent installer。启动
-  分成四条线：每次启动轻量检查 marker、One Person Lab CLI、Codex CLI、gflabtoken
+  分成四条线：每次启动轻量检查 marker、One Person Lab CLI、Codex CLI、可用 Codex
   模型访问和 Codex adapter startup；marker 缺失、过旧或核心组件缺失时才显示
-  一次性本机初始化 checklist；缺模型访问 API key 时显示单独的“模型访问”配置，
-  具体 key 可来自 gflabtoken，保存时调用
-  `opl system configure-codex --api-key-stdin --json`；`opl system initialize --json`、
+  一次性本机初始化 checklist；完全没有可用模型访问时显示单独的“OPL Gateway”配置，
+  保存时调用 `opl system configure-codex --api-key-stdin --json`；已有 Codex/OpenAI
+  登录或其它 provider 时可跳过首启 Gateway 配置，Settings 保留 Gateway 配置入口；`opl system initialize --json`、
   startup maintenance、module reconcile、MAS/MAG/RCA 状态和 contract diagnostics
   在 adapter ready、主界面可见后后台异步刷新，不进入热启动阻塞路径。
 - Renderer bootstrap routes：fallback Codex adapter 必须提供 `/api/profiles`、
@@ -428,7 +428,7 @@ shortcuts 和必要 refs；Hermes backend/runtime/provider 细节只在 Advanced
 它不表示 release-ready、active-shell-adopted、production-ready 或 full-release-ready。
 但候选包的“能启动并进入 OPL App”必须包含 first-run owner 修正：packaged smoke
 需要证明没有 fetch/execute `install.sh` 或 `install.ps1`，有 OPL bootstrap events，
-有 OPL Codex adapter startup，并且缺 key 时进入模型访问 onboarding；维护命令
+有 OPL Codex adapter startup，并且完全缺模型访问时进入 OPL Gateway onboarding；维护命令
 只能作为 adapter ready 后的后台动作。
 
 Hermes WebUI parity TODO：
