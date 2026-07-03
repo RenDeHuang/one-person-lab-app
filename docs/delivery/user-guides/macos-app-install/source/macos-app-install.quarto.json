@@ -35,7 +35,12 @@
     "查看进度与结果",
     "截图与验证来源"
   ],
-  "forbidden_phrases": [],
+  "forbidden_phrases": [
+    "联系 gflabtoken 管理员",
+    "gflabtoken 管理员",
+    "必须配置 OPL Gateway",
+    "强制配置 OPL Gateway"
+  ],
   "screenshots_manifest": "docs/guides/macos-app-install/screenshots.manifest.json",
   "publishing": {
     "template": "opl-guide",

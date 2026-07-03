@@ -21,7 +21,7 @@
   },
   "rendered_pages": 12,
   "rendered_dir": "tmp/quarto-guides/macos-app-install/rendered",
-  "html_bytes": 4595953,
+  "html_bytes": 4597999,
   "screenshot_assets": [
     {
       "role": "download_release",
@@ -59,21 +59,21 @@
     },
     {
       "role": "configure_access",
-      "description": "First-run access configuration screen.",
+      "description": "First-run model access screen showing optional OPL Gateway configuration when existing Codex/OpenAI/provider access is already available.",
       "file": "docs/guides/macos-app-install/screenshots/03-codex-config-needed.png",
       "public_file": "screenshots/03-codex-config-needed.png",
       "width": 1536,
       "height": 912,
-      "sha256": "d9390fc78b141972392cd441e6be5fbfa73694e3fd7ffe698053676c6bb9edc8",
+      "sha256": "ce860b51f8e99ba2af64194eda67cd13c125b001f7617ab3f1fdec8fcd2e7cf8",
       "referenced": true,
-      "source_kind": "macos_tart_vm_app_cdp_capture_missing_access_key",
-      "source": "artifacts/first-run-beginner.png from first-run-progress-vm-20260621-0025 missing access-key VM smoke",
+      "source_kind": "rendered_current_first_run_copy",
+      "source": "Rendered guide screenshot from current first-run copy after OPL Gateway optional-first-launch policy update.",
       "locale": "zh-CN",
       "expected_ui_text": [
-        "访问",
-        "密钥"
+        "OPL Gateway",
+        "我已配置，跳过"
       ],
-      "note": "Missing access-key scenario retained because the v26.6.27 guide artifact had codex_api_key_present=true and did not show the configuration card."
+      "note": "Updated after first-launch policy changed: existing Codex/OpenAI/provider access can proceed without mandatory OPL Gateway setup."
     },
     {
       "role": "first_run_check",

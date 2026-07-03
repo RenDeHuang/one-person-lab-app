@@ -17,7 +17,7 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 - 一台 Apple Silicon Mac 或可运行 macOS App 的 Mac。
 - 稳定网络，用于下载 One Person Lab 和完成首次环境检查。
-- OPL Gateway 开通状态；已有可用 Codex/OpenAI 登录或其它 provider 时可先跳过首启 Gateway 配置。
+- 可用模型访问方式；已有可用 Codex/OpenAI 登录或其它 provider 时可先跳过首启 Gateway 配置。
 - 本地研究数据文件夹，数据需完成脱敏并符合本机构数据管理要求。
 
 ## 1. 下载 One Person Lab
@@ -43,11 +43,11 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 ## 3. 配置访问权限
 
-首次启动会先检查模型访问；已有可用 Codex/OpenAI 登录或其它 provider 时可以跳过。完全没有可用模型访问时，请联系管理员获取 OPL Gateway 访问密钥，并在首启页面完成配置。
+首次启动会先检查模型访问；已有可用 Codex/OpenAI 登录或其它 provider 时，可先跳过 OPL Gateway 配置。完全没有可用模型访问时，可向本团队获取 OPL Gateway 访问密钥，并在首启页面完成配置。
 
 ![](screenshots/03-codex-config-needed.png){width=76%}
 
-- 管理员开通后，在页面输入 OPL Gateway 访问密钥。
+- 拿到访问密钥后，在页面输入 OPL Gateway 访问密钥。
 - 点击配置 OPL Gateway 后继续首启检查；跳过的用户之后仍可在 Settings 中切换到 OPL Gateway。
 - 不要截图、转发或保存密钥到研究目录。
 
@@ -106,6 +106,5 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 遇到下载、权限、模块、数据路径问题时，先按界面提示和本页检查。
 
 - 下载失败：换网络后重试，或请技术支持人员确认 GitHub Release 是否可访问。
-- 访问权限未配置：没有可用 Codex 登录、provider 或 OPL Gateway 访问时，联系管理员获取 OPL Gateway 访问密钥，并在首启页面或 Settings 中完成配置。
+- 访问权限未配置：没有可用 Codex 登录、provider 或 OPL Gateway 访问时，向本团队获取 OPL Gateway 访问密钥，并在首启页面或 Settings 中完成配置。
 - 模块未就绪：在本机运行环境或关于与更新中重新检查维护状态。
-- Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。

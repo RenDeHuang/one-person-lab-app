@@ -615,8 +615,8 @@ section.final .brand {
 .notes li {
   margin: 0 0 10px;
   color: var(--opl-ink);
-  font-size: 19px;
-  line-height: 1.36;
+  font-size: 18px;
+  line-height: 1.32;
   overflow-wrap: anywhere;
 }
 
@@ -705,9 +705,6 @@ ${markdownComment([body, ...callouts, slide.quote ?? ''].filter(Boolean).join(' 
 function finalSlide(slide: SlideBlock, slideIndex: number, totalSlides: number, manifest: GuideManifest) {
   const releaseUrl = manifest.download?.latest_release_url;
   const faqs = [...slide.bullets];
-  if (releaseUrl && !faqs.some((item) => item.includes(releaseUrl))) {
-    faqs.unshift(`GitHub Release 下载入口：${releaseUrl}`);
-  }
   const verification = [
     'Release、DMG、首启日志和模块状态以 App repo contracts / workflow / VM smoke artifacts 为机器真相。',
     '截图 manifest 记录来源、语言、尺寸、SHA 和预期中文界面文案。',
@@ -733,8 +730,8 @@ function finalSlide(slide: SlideBlock, slideIndex: number, totalSlides: number, 
   </div>
 </main>
 
-<div class="security">涉及访问权限配置时，请联系 gflabtoken 管理员获取访问密钥。不要截图、转发或保存密钥到研究目录。</div>
-<div class="footer"><span>GitHub Release: ${inlineHtml(releaseUrl ?? '')}</span><span>${slideIndex + 1} / ${totalSlides}</span></div>
+<div class="security">涉及 OPL Gateway 访问权限配置时，可向本团队获取访问密钥。不要截图、转发或保存密钥到研究目录。</div>
+<div class="footer"><span>GitHub Release 下载入口: ${inlineHtml(releaseUrl ?? '')}</span><span>${slideIndex + 1} / ${totalSlides}</span></div>
 
 <!--
 ${markdownComment([...faqs, ...verification].join(' '))}

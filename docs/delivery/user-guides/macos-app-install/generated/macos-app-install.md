@@ -14,13 +14,13 @@ lang: zh-CN
 
 下载最新版本：<https://github.com/gaofeng21cn/one-person-lab-app/releases/latest>
 
-> 涉及 OPL Gateway 访问权限配置时，请联系管理员获取访问密钥。不要自行购买、复制来源不明的密钥，或把密钥写入研究数据目录。
+> 如需使用 OPL Gateway，可向本团队获取访问密钥。已有可用 Codex/OpenAI 登录或其它 provider 的用户，可以先进入 App，后续再按需要切换到 OPL Gateway。
 
 ## 准备清单
 
 - 一台 Apple Silicon Mac 或可运行 macOS App 的 Mac。
 - 稳定网络，用于下载 One Person Lab 和完成首次环境检查。
-- OPL Gateway 开通状态；如果本机 Codex/OpenAI 已经登录或已有可用模型 provider，可以先跳过首启 Gateway 配置，之后仍可在设置中切换到 OPL Gateway。
+- 可用模型访问方式：如果本机 Codex/OpenAI 已经登录或已有可用模型 provider，可以先跳过首启 Gateway 配置；没有可用模型访问时，再申请 OPL Gateway 访问密钥。
 - 本地研究数据文件夹，数据需完成脱敏并符合本机构数据管理要求。
 - 变量说明、纳排标准、终点定义、统计计划、参考文献或已有草稿；可以先放入专病 workspace 的 `raw_data/`。
 
@@ -55,13 +55,13 @@ curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main
 
 ## 3. 配置访问权限
 
-首次启动会先检查模型访问。如果本机 Codex/OpenAI 已经登录，或已经配置了其它可用 provider，App 会标注“我已配置，跳过”并继续进入主界面；如果完全没有可用模型访问，请联系管理员获取 OPL Gateway 访问密钥，并在首启页面完成配置。
+首次启动会先检查模型访问。如果本机 Codex/OpenAI 已经登录，或已经配置了其它可用 provider，可点击“我已配置，跳过”并继续进入主界面；如果完全没有可用模型访问，可向本团队获取 OPL Gateway 访问密钥，并在首启页面完成配置。
 
 ![配置访问权限](screenshots/03-codex-config-needed.png)
 
 重点：
 
-- 管理员开通后，在页面输入 OPL Gateway 访问密钥并点击配置。
+- 拿到访问密钥后，在页面输入 OPL Gateway 访问密钥并点击配置。
 - 已跳过首启 Gateway 配置的用户，之后可以从 Settings 的“模型与账号 / OPL Gateway”重新进入配置并切换到 OPL Gateway。
 - 不要把密钥截图、转发或写入研究数据目录。
 
@@ -127,7 +127,7 @@ OPL 会先检查开始使用所需的关键项：工作目录、本机助手和�
 
 - 下载失败：换网络后重试，或请技术支持人员确认 GitHub Release 是否可访问。
 - 打不开 App：优先使用稳定安装命令重新安装；手动安装时确认已拖入 Applications，并按 macOS 安全提示允许打开。
-- 访问权限未配置：没有可用 Codex 登录、provider 或 OPL Gateway 访问时，联系管理员获取 OPL Gateway 访问密钥，并在首启页面或 Settings 中完成配置。
+- 访问权限未配置：没有可用 Codex 登录、provider 或 OPL Gateway 访问时，向本团队获取 OPL Gateway 访问密钥，并在首启页面或 Settings 中完成配置。
 - 模块未就绪：在 App 的本机运行环境或关于与更新中重新检查维护状态，确认 OPL 完整安装资产与本机网络状态。
 - 数据路径看不到：确认选择的是本机可访问的专病 workspace，或能看到其中的 `raw_data/`。
 - 任务启动后不知道看哪里：查看运行状态页的当前阶段、下一步和需要人工确认的项目。

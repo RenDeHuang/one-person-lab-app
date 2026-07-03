@@ -22,8 +22,8 @@
     "captured_at": "2026-06-28T03:52:40Z"
   },
   "release_run": {
-    "id": "local-vm-guide-refresh-2026-06-28T03-49-46-243Z",
-    "url": "/Users/gaofeng/workspace/opl-aion-shell/artifacts/opl-guide-screenshots-v26.6.27-standard-final",
+    "id": "mixed-vm-and-rendered-guide-assets-2026-07-03",
+    "url": "/Users/gaofeng/workspace/one-person-lab-app/docs/guides/macos-app-install/screenshots",
     "conclusion": "success"
   },
   "screenshots": [
@@ -72,24 +72,24 @@
     {
       "file": "03-codex-config-needed.png",
       "role": "configure_access",
-      "title": "First-run access key setup screen",
-      "description": "First-run access configuration screen.",
-      "source_kind": "macos_tart_vm_app_cdp_capture_missing_access_key",
-      "source": "artifacts/first-run-beginner.png from first-run-progress-vm-20260621-0025 missing access-key VM smoke",
+      "title": "First-run model access setup screen",
+      "description": "First-run model access screen showing optional OPL Gateway configuration when existing Codex/OpenAI/provider access is already available.",
+      "source_kind": "rendered_current_first_run_copy",
+      "source": "Rendered guide screenshot from current first-run copy after OPL Gateway optional-first-launch policy update.",
       "locale": "zh-CN",
       "width": 1536,
       "height": 912,
-      "sha256": "d9390fc78b141972392cd441e6be5fbfa73694e3fd7ffe698053676c6bb9edc8",
+      "sha256": "ce860b51f8e99ba2af64194eda67cd13c125b001f7617ab3f1fdec8fcd2e7cf8",
       "source_width": 1536,
       "source_height": 912,
-      "source_sha256": "d9390fc78b141972392cd441e6be5fbfa73694e3fd7ffe698053676c6bb9edc8",
+      "source_sha256": "ce860b51f8e99ba2af64194eda67cd13c125b001f7617ab3f1fdec8fcd2e7cf8",
       "expected_ui_text": [
-        "访问",
-        "密钥"
+        "OPL Gateway",
+        "我已配置，跳过"
       ],
-      "note": "Missing access-key scenario retained because the v26.6.27 guide artifact had codex_api_key_present=true and did not show the configuration card.",
-      "vm_artifact_status": "copied",
-      "vm_artifact_source": "/Users/gaofeng/workspace/opl-aion-shell/artifacts/first-run-progress-vm-20260621-0025/artifacts/first-run-beginner.png"
+      "note": "Updated after first-launch policy changed: existing Codex/OpenAI/provider access can proceed without mandatory OPL Gateway setup.",
+      "vm_artifact_status": "replaced_by_rendered_current_copy",
+      "vm_artifact_source": "/Users/gaofeng/workspace/one-person-lab-app/docs/guides/macos-app-install/screenshots/03-codex-config-needed.png"
     },
     {
       "file": "04-first-run-checking.png",
