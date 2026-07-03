@@ -613,7 +613,7 @@
                   "required_mode": "read_only",
                   "content_policy": "refs_only_no_artifact_body"
                 },
-                "shell_implementation_status": "contract_only_not_shell_ui_implemented"
+                "shell_implementation_status": "aionui_refs_only_drawer_implemented"
               },
               "artifact_body_access": false,
               "domain_verdict_authority": false,

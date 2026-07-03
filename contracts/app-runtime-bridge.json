@@ -850,7 +850,7 @@
     ],
     "typed_issue_policy": "typed_issues_are_refs_or_issue_summaries_not_owner_receipts_or_domain_verdicts",
     "drawer_surface": "right_context_inspector.artifacts.provenance_drawer",
-    "drawer_route_policy": "may_open_contract_declared_drawer_or_AI_readback_from_refs_only_projection_no_shell_ui_claim",
+    "drawer_route_policy": "may_open_aionui_refs_only_drawer_or_AI_readback_from_refs_only_projection_no_artifact_body_no_domain_verdict",
     "refs_only": true,
     "artifact_body_access": false,
     "memory_body_access": false,
@@ -860,7 +860,7 @@
     "quality_verdict_authority": false,
     "readiness_authority": false,
     "app_role": "display_only_artifact_provenance_bundle_refs_consumer",
-    "shell_implementation_status": "contract_only_not_shell_ui_implemented",
+    "shell_implementation_status": "aionui_refs_only_drawer_implemented",
     "forbidden_claims": [
       "artifact_body",
       "domain_artifact_body",

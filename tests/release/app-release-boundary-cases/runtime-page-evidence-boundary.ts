@@ -197,7 +197,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(artifactDrilldown.quality_verdict_authority, false);
   assert.equal(artifactDrilldown.readiness_authority, false);
   assert.equal(artifactDrilldown.provenance_drawer.open_action.required_mode, 'read_only');
-  assert.equal(artifactDrilldown.provenance_drawer.shell_implementation_status, 'contract_only_not_shell_ui_implemented');
+  assert.equal(artifactDrilldown.provenance_drawer.shell_implementation_status, 'aionui_refs_only_drawer_implemented');
   assert.doesNotThrow(() =>
     validateArtifactNativeDrilldownFixture(artifactDrilldown, 'Runtime boundary fixture artifact native drilldown'),
   );
@@ -734,7 +734,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(runtimeBridge.artifact_provenance_bundle_projection.readiness_authority, false);
   assert.equal(
     runtimeBridge.artifact_provenance_bundle_projection.shell_implementation_status,
-    'contract_only_not_shell_ui_implemented',
+    'aionui_refs_only_drawer_implemented',
   );
   assertIncludesAll(runtimeBridge.artifact_provenance_bundle_projection.input_sources, [
     'opl app state --profile fast --json',
