@@ -144,6 +144,9 @@ P1 entries:
   dirty checkout risk. It belongs to Advanced.
 - External Tools & Voice: ordinary label for tools, MCP support, and voice.
   MCP is explanatory detail, not the primary entry name.
+  K-Dense BYOK learning reinforces this product boundary: users see External
+  Tools or OPL Connect refs, while MCP server names, transports, and tool lists
+  stay implementation detail behind disclosure.
 - Custom Assistant: secondary or Advanced capability depending on product
   policy; it must not replace built-in OPL purpose entries.
 
@@ -227,6 +230,8 @@ systems, and compute schedulers. Environment and resource-source readiness
 appears as OPL Fabric refs. Environment Catalog appears as read-only template,
 version, source, and task-fit refs. Settings must not expose connector
 credentials, connector bodies, environment bodies, or domain verdicts.
+External-tool implementation details such as MCP transport shape remain OPL
+Connect disclosure details, not separate ordinary capability categories.
 
 ### Updates & Maintenance
 
