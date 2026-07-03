@@ -30,6 +30,22 @@ const resourceContextOptionalTaskRefs = [
   'cost_estimate_ref',
 ];
 
+function assertNoForbiddenKeys(value, forbiddenKeys, label, objectPath = label) {
+  if (!value || typeof value !== 'object') {
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertNoForbiddenKeys(item, forbiddenKeys, label, `${objectPath}[${index}]`));
+    return;
+  }
+  for (const [key, nested] of Object.entries(value)) {
+    if (forbiddenKeys.includes(key)) {
+      throw new Error(`${label} must not project ${key} at ${objectPath}.${key}`);
+    }
+    assertNoForbiddenKeys(nested, forbiddenKeys, label, `${objectPath}.${key}`);
+  }
+}
+
 export function validateTaskAwarenessProjectionContract(projection, label) {
   if (!projection || typeof projection !== 'object') {
     throw new Error(`${label} must be declared`);
@@ -514,7 +530,7 @@ export function validateStateIndexSidecarFixture(projection, label) {
   }
 }
 
-export function validateArtifactNativeDrilldownProjectionContract(projection, label) {
+export function validateArtifactNativeDrilldownProjectionContract(projection, label, options = {}) {
   if (!projection || typeof projection !== 'object') {
     throw new Error(`${label} must be declared`);
   }
@@ -544,17 +560,36 @@ export function validateArtifactNativeDrilldownProjectionContract(projection, la
     ],
     `${label} required_ref_fields`,
   );
-  assertDeepEqualJson(
-    projection.optional_ref_fields,
-    [
-      'content_hash_refs',
-      'attempt_manifest_refs',
-      'owner_receipt_refs',
-      'typed_blocker_refs',
-      'decision_receipt_refs',
-    ],
-    `${label} optional_ref_fields`,
-  );
+  const optionalRefFields = [
+    'content_hash_refs',
+    'attempt_manifest_refs',
+    'owner_receipt_refs',
+    'typed_blocker_refs',
+    'decision_receipt_refs',
+  ];
+  if (options.requireProvenanceBundle) {
+    optionalRefFields.push(
+      'provenance_bundle_refs',
+      'provenance_index_ref',
+      'ro_crate_metadata_ref',
+      'replay_status_ref',
+      'agent_trace_refs',
+      'review_refs',
+      'typed_issues',
+    );
+  }
+  assertDeepEqualJson(projection.optional_ref_fields, optionalRefFields, `${label} optional_ref_fields`);
+  if (options.requireProvenanceBundle) {
+    if (projection.provenance_projection_ref !== 'contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection') {
+      throw new Error(`${label} provenance_projection_ref must point at artifact provenance bundle projection`);
+    }
+  }
+  if (projection.quality_verdict_authority !== undefined && projection.quality_verdict_authority !== false) {
+    throw new Error(`${label} quality_verdict_authority must be false`);
+  }
+  if (projection.readiness_authority !== undefined && projection.readiness_authority !== false) {
+    throw new Error(`${label} readiness_authority must be false`);
+  }
   if (projection.artifact_body_access !== false) {
     throw new Error(`${label} artifact_body_access must be false`);
   }
@@ -575,6 +610,13 @@ export function validateArtifactNativeDrilldownProjectionContract(projection, la
     ],
     `${label} forbidden_claims`,
   );
+  if (options.requireProvenanceBundle) {
+    assertIncludesAll(
+      projection.forbidden_claims,
+      ['quality_verdict', 'readiness_authority'],
+      `${label} provenance forbidden_claims`,
+    );
+  }
 }
 
 export function validateArtifactNativeDrilldownFixture(projection, label) {
@@ -602,16 +644,58 @@ export function validateArtifactNativeDrilldownFixture(projection, label) {
     'owner_receipt_refs',
     'typed_blocker_refs',
     'decision_receipt_refs',
+    'provenance_bundle_refs',
+    'provenance_index_ref',
+    'ro_crate_metadata_ref',
+    'replay_status_ref',
+    'agent_trace_refs',
+    'review_refs',
+    'typed_issues',
   ]) {
     if (!Object.hasOwn(projection, field)) {
-      throw new Error(`${label} must include ${field} as refs or an empty refs list`);
+      throw new Error(`${label} must include ${field} as refs or a typed empty value`);
     }
+  }
+  if (projection.provenance_projection_kind !== 'artifact_provenance_bundle_projection') {
+    throw new Error(`${label} provenance_projection_kind must be artifact_provenance_bundle_projection`);
+  }
+  if (projection.provenance_projection_ref !== 'contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection') {
+    throw new Error(`${label} provenance_projection_ref must point at app-runtime-bridge artifact provenance bundle projection`);
+  }
+  for (const field of ['provenance_bundle_refs', 'agent_trace_refs', 'review_refs', 'typed_issues']) {
+    if (!Array.isArray(projection[field]) || projection[field].length === 0) {
+      throw new Error(`${label} ${field} must include at least one refs-only example`);
+    }
+  }
+  if (typeof projection.provenance_index_ref !== 'string' || !projection.provenance_index_ref) {
+    throw new Error(`${label} provenance_index_ref must be a non-empty ref`);
+  }
+  if (typeof projection.ro_crate_metadata_ref !== 'string' || !projection.ro_crate_metadata_ref) {
+    throw new Error(`${label} ro_crate_metadata_ref must be a non-empty ref`);
+  }
+  if (typeof projection.replay_status_ref !== 'string' || !projection.replay_status_ref) {
+    throw new Error(`${label} replay_status_ref must be a non-empty ref`);
+  }
+  if (projection.provenance_drawer?.projection_ref !== 'contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection') {
+    throw new Error(`${label} provenance_drawer must reference artifact provenance bundle projection`);
+  }
+  if (projection.provenance_drawer?.open_action?.required_mode !== 'read_only') {
+    throw new Error(`${label} provenance_drawer open_action must be read_only`);
+  }
+  if (projection.provenance_drawer?.shell_implementation_status !== 'contract_only_not_shell_ui_implemented') {
+    throw new Error(`${label} provenance_drawer must not claim shell UI implementation`);
   }
   if (projection.artifact_body_access !== false) {
     throw new Error(`${label} artifact_body_access must be false`);
   }
   if (projection.domain_verdict_authority !== false) {
     throw new Error(`${label} domain_verdict_authority must be false`);
+  }
+  if (projection.quality_verdict_authority !== false) {
+    throw new Error(`${label} quality_verdict_authority must be false`);
+  }
+  if (projection.readiness_authority !== false) {
+    throw new Error(`${label} readiness_authority must be false`);
   }
   for (const forbidden of [
     'artifact_body',
@@ -630,6 +714,115 @@ export function validateArtifactNativeDrilldownFixture(projection, label) {
       throw new Error(`${label} must not project ${forbidden}`);
     }
   }
+  assertNoForbiddenKeys(
+    projection,
+    [
+      'artifact_body',
+      'artifact_body_preview',
+      'domain_artifact_body',
+      'domain_quality_verdict',
+      'quality_verdict',
+      'domain_export_readiness',
+      'export_readiness',
+      'domain_readiness',
+      'domain_ready',
+      'app_release_readiness',
+      'production_readiness',
+    ],
+    label,
+  );
+}
+
+export function validateArtifactProvenanceBundleProjectionContract(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.task_drilldowns.artifact_native_drilldown.provenance_bundle_refs',
+    detail_source: 'opl runtime app-operator-drilldown --task <task_id> --json',
+    ledger_source: 'OPL Ledger artifact provenance bundle record',
+    authority: 'opl_ledger_artifact_provenance_bundle_refs_projection',
+    projection_kind: 'artifact_provenance_bundle_projection',
+    surface_kind: 'artifact_provenance_bundle_projection',
+    display_policy: 'provenance_drawer_refs_only_no_artifact_body_no_domain_verdict_no_readiness_authority',
+    full_detail_policy: 'on_demand_task_drilldown_or_ledger_inspect_only',
+    typed_issue_policy: 'typed_issues_are_refs_or_issue_summaries_not_owner_receipts_or_domain_verdicts',
+    drawer_surface: 'right_context_inspector.artifacts.provenance_drawer',
+    drawer_route_policy: 'may_open_contract_declared_drawer_or_AI_readback_from_refs_only_projection_no_shell_ui_claim',
+    app_role: 'display_only_artifact_provenance_bundle_refs_consumer',
+    shell_implementation_status: 'contract_only_not_shell_ui_implemented',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    projection.input_sources,
+    [
+      'opl app state --profile fast --json',
+      'opl runtime app-operator-drilldown --task <task_id> --json',
+      'OPL Ledger artifact provenance bundle record',
+    ],
+    `${label} input_sources`,
+  );
+  assertDeepEqualJson(
+    projection.required_ref_fields,
+    [
+      'provenance_bundle_refs',
+      'provenance_index_ref',
+      'ro_crate_metadata_ref',
+      'replay_status_ref',
+      'agent_trace_refs',
+      'review_refs',
+      'typed_issues',
+    ],
+    `${label} required_ref_fields`,
+  );
+  assertIncludesAll(
+    projection.optional_ref_fields,
+    [
+      'ledger_record_refs',
+      'code_refs',
+      'input_refs',
+      'output_refs',
+      'environment_refs',
+      'content_hash_refs',
+      'visual_review_refs',
+      'turn_summary_refs',
+      'redacted_transcript_export_refs',
+    ],
+    `${label} optional_ref_fields`,
+  );
+  for (const [field, expected] of Object.entries({
+    refs_only: true,
+    artifact_body_access: false,
+    memory_body_access: false,
+    domain_truth_write_access: false,
+    owner_receipt_write_access: false,
+    domain_verdict_authority: false,
+    quality_verdict_authority: false,
+    readiness_authority: false,
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    projection.forbidden_claims,
+    [
+      'artifact_body',
+      'domain_artifact_body',
+      'domain_artifact_authority',
+      'domain_quality_verdict',
+      'quality_verdict',
+      'domain_export_readiness',
+      'domain_readiness',
+      'owner_receipt_authority',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+    `${label} forbidden_claims`,
+  );
 }
 
 export function validateStageRunCockpitProjectionContract(projection, label) {

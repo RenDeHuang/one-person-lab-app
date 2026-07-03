@@ -10,6 +10,7 @@ import {
   validateActiveProjectLineProjectionContract,
   validateArtifactNativeDrilldownFixture,
   validateArtifactNativeDrilldownProjectionContract,
+  validateArtifactProvenanceBundleProjectionContract,
   validateProviderReadinessRepairProjectionContract,
   validateProjectProgressDisplayContract,
   validateStageRunCockpitFixture,
@@ -560,6 +561,11 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
   validateArtifactNativeDrilldownProjectionContract(
     runtimeBridge.artifact_native_drilldown_projection,
     'Runtime bridge Stage Artifact drilldown projection',
+    { requireProvenanceBundle: true },
+  );
+  validateArtifactProvenanceBundleProjectionContract(
+    runtimeBridge.artifact_provenance_bundle_projection,
+    'Runtime bridge Artifact Provenance Bundle projection',
   );
   validateStageRunCockpitProjectionContract(
     runtimeBridge.stage_run_cockpit_projection,

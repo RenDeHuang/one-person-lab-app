@@ -9,7 +9,12 @@ import {
   expectedHomeActivityCenterForbiddenDisplays,
   expectedSettingsPageSections,
 } from './helpers.ts';
-import { validateTaskAwarenessProjectionContract } from '../../../scripts/validate-active-shell/shared-contract-validators.ts';
+import {
+  validateArtifactNativeDrilldownFixture,
+  validateArtifactNativeDrilldownProjectionContract,
+  validateArtifactProvenanceBundleProjectionContract,
+  validateTaskAwarenessProjectionContract,
+} from '../../../scripts/validate-active-shell/shared-contract-validators.ts';
 import { assertIncludesAll } from '../../../scripts/validate-active-shell/assertions.ts';
 import {
   taskRunProjectionV2FieldGroups,
@@ -173,6 +178,41 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(fixtureTask.action_receipt.export_bundle_action_id, 'task_export_bundle_preview');
   assert.equal(fixtureTask.action_receipt.export_bundle_route, 'opl app action execute --action task_export_bundle_preview --dry-run');
   assert.ok(fixtureTask.diagnostic_substrate_refs.includes('opl://diagnostics/provider/temporal'));
+  const artifactDrilldown = fixtureTask.artifact_native_drilldown;
+  assert.equal(artifactDrilldown.provenance_projection_kind, 'artifact_provenance_bundle_projection');
+  assert.equal(
+    artifactDrilldown.provenance_projection_ref,
+    'contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection',
+  );
+  assert.ok(artifactDrilldown.provenance_bundle_refs.length > 0);
+  assert.equal(artifactDrilldown.provenance_bundle_refs[0].ledger_record_ref, 'opl://ledger/artifact-provenance/medautoscience/dm003/treatment-gap-fig1');
+  assert.equal(artifactDrilldown.provenance_index_ref, 'opl://artifact-provenance-index/medautoscience/dm003');
+  assert.equal(artifactDrilldown.ro_crate_metadata_ref, 'opl://artifact-provenance-bundle/medautoscience/dm003/treatment-gap-fig1/ro-crate-metadata.json');
+  assert.equal(artifactDrilldown.replay_status_ref, 'opl://artifact-replay-status/medautoscience/dm003/treatment-gap-fig1');
+  assert.ok(artifactDrilldown.agent_trace_refs.some((entry) => entry.trace_kind === 'full_transcript_ref'));
+  assert.ok(artifactDrilldown.review_refs.some((entry) => entry.review_kind === 'visual_audit_receipt'));
+  assert.ok(artifactDrilldown.typed_issues.some((entry) => entry.issue_type === 'replay_not_verified_in_fast_fixture'));
+  assert.equal(artifactDrilldown.artifact_body_access, false);
+  assert.equal(artifactDrilldown.domain_verdict_authority, false);
+  assert.equal(artifactDrilldown.quality_verdict_authority, false);
+  assert.equal(artifactDrilldown.readiness_authority, false);
+  assert.equal(artifactDrilldown.provenance_drawer.open_action.required_mode, 'read_only');
+  assert.equal(artifactDrilldown.provenance_drawer.shell_implementation_status, 'contract_only_not_shell_ui_implemented');
+  assert.doesNotThrow(() =>
+    validateArtifactNativeDrilldownFixture(artifactDrilldown, 'Runtime boundary fixture artifact native drilldown'),
+  );
+  const invalidArtifactBodyDrilldown = structuredClone(artifactDrilldown);
+  invalidArtifactBodyDrilldown.provenance_bundle_refs[0].artifact_body = {};
+  assert.throws(
+    () => validateArtifactNativeDrilldownFixture(invalidArtifactBodyDrilldown, 'Runtime boundary fixture artifact native drilldown'),
+    /artifact_body/,
+  );
+  const invalidReadinessDrilldown = structuredClone(artifactDrilldown);
+  invalidReadinessDrilldown.readiness_authority = true;
+  assert.throws(
+    () => validateArtifactNativeDrilldownFixture(invalidReadinessDrilldown, 'Runtime boundary fixture artifact native drilldown'),
+    /readiness_authority/,
+  );
   const taskRunProjectionV2 = fastOperator.workbench.task_run_projection_v2;
   assert.equal(taskRunProjectionV2.surface_kind, 'task_run_projection_v2');
   assert.equal(taskRunProjectionV2.schema_version, 'task-run-projection.v2');
@@ -662,6 +702,66 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
       'family_production_readiness',
     ],
   });
+  assert.equal(
+    runtimeBridge.artifact_native_drilldown_projection.provenance_projection_ref,
+    'contracts/app-runtime-bridge.json#artifact_provenance_bundle_projection',
+  );
+  assertIncludesAll(runtimeBridge.artifact_native_drilldown_projection.optional_ref_fields, [
+    'provenance_bundle_refs',
+    'provenance_index_ref',
+    'ro_crate_metadata_ref',
+    'replay_status_ref',
+    'agent_trace_refs',
+    'review_refs',
+    'typed_issues',
+  ], 'Runtime bridge artifact native provenance fields');
+  assert.equal(runtimeBridge.artifact_native_drilldown_projection.artifact_body_access, false);
+  assert.equal(runtimeBridge.artifact_native_drilldown_projection.domain_verdict_authority, false);
+  assert.equal(runtimeBridge.artifact_native_drilldown_projection.quality_verdict_authority, false);
+  assert.equal(runtimeBridge.artifact_native_drilldown_projection.readiness_authority, false);
+  assert.doesNotThrow(() =>
+    validateArtifactNativeDrilldownProjectionContract(
+      runtimeBridge.artifact_native_drilldown_projection,
+      'Runtime bridge Stage Artifact drilldown projection',
+      { requireProvenanceBundle: true },
+    ),
+  );
+  assert.equal(runtimeBridge.artifact_provenance_bundle_projection.projection_kind, 'artifact_provenance_bundle_projection');
+  assert.equal(runtimeBridge.artifact_provenance_bundle_projection.refs_only, true);
+  assert.equal(runtimeBridge.artifact_provenance_bundle_projection.artifact_body_access, false);
+  assert.equal(runtimeBridge.artifact_provenance_bundle_projection.domain_verdict_authority, false);
+  assert.equal(runtimeBridge.artifact_provenance_bundle_projection.quality_verdict_authority, false);
+  assert.equal(runtimeBridge.artifact_provenance_bundle_projection.readiness_authority, false);
+  assert.equal(
+    runtimeBridge.artifact_provenance_bundle_projection.shell_implementation_status,
+    'contract_only_not_shell_ui_implemented',
+  );
+  assertIncludesAll(runtimeBridge.artifact_provenance_bundle_projection.input_sources, [
+    'opl app state --profile fast --json',
+    'opl runtime app-operator-drilldown --task <task_id> --json',
+    'OPL Ledger artifact provenance bundle record',
+  ], 'Runtime bridge artifact provenance bundle sources');
+  assertIncludesAll(runtimeBridge.artifact_provenance_bundle_projection.required_ref_fields, [
+    'provenance_bundle_refs',
+    'provenance_index_ref',
+    'ro_crate_metadata_ref',
+    'replay_status_ref',
+    'agent_trace_refs',
+    'review_refs',
+    'typed_issues',
+  ], 'Runtime bridge artifact provenance bundle required fields');
+  assert.doesNotThrow(() =>
+    validateArtifactProvenanceBundleProjectionContract(
+      runtimeBridge.artifact_provenance_bundle_projection,
+      'Runtime bridge Artifact Provenance Bundle projection',
+    ),
+  );
+  const invalidProvenanceProjection = structuredClone(runtimeBridge.artifact_provenance_bundle_projection);
+  invalidProvenanceProjection.artifact_body_access = true;
+  assert.throws(
+    () => validateArtifactProvenanceBundleProjectionContract(invalidProvenanceProjection, 'Runtime bridge Artifact Provenance Bundle projection'),
+    /artifact_body_access/,
+  );
   assert.deepEqual(runtimeBridge.provider_readiness_repair_projection, {
     source: 'app_state.provider + app_state.actions + app_state.operator.default_read_surface_policy',
     authority: 'opl_framework_provider_readiness_refs_projection',
