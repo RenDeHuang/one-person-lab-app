@@ -446,14 +446,15 @@ function validateReleaseAccelerationPolicy(releaseContract: Record<string, any>)
   const stableCandidateFreeze = cohortPrepare?.stable_candidate_freeze;
   if (
     stableCandidateFreeze?.required !== true ||
-    stableCandidateFreeze?.next_action !== 'dispatch_new_cohort' ||
+    stableCandidateFreeze?.next_action !== 'owner_receipt_then_promote_or_dispatch_new_cohort' ||
     !sameStringSet(stableCandidateFreeze?.pinned_sha_fields, ['app_sha', 'shell_sha', 'framework_sha']) ||
     !sameStringSet(stableCandidateFreeze?.obsolete_candidate_statuses, ['obsolete_candidate', 'stale_candidate']) ||
     typeof stableCandidateFreeze?.currentness_rule !== 'string' ||
     !stableCandidateFreeze.currentness_rule.includes('pinned App SHA, shell SHA, and framework SHA cohort') ||
-    !stableCandidateFreeze.currentness_rule.includes('obsolete/stale candidate')
+    !stableCandidateFreeze.currentness_rule.includes('post-freeze drift') ||
+    !stableCandidateFreeze.currentness_rule.includes('same frozen cohort only needs owner receipt and promote')
   ) {
-    console.error('FAIL stable_candidate_freeze_policy: stable candidates must be pinned to App/Shell/Framework SHAs and stale after source advances');
+    console.error('FAIL stable_candidate_freeze_policy: stable candidates must be pinned to App/Shell/Framework SHAs and handle post-freeze drift through owner receipt or a new cohort');
     failures += 1;
   }
   for (const field of [

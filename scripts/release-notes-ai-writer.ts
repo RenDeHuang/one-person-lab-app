@@ -158,7 +158,7 @@ function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
     '- In "## What improved", start with user-facing agent tasks and runtime use cases before mentioning release plumbing.',
     '- In "## OPL agents and runtime payload", include role-based payload bullets first. Keep raw release_evidence.payload.lines entries that contain refs, SHAs, boundaries, gates, validation wording, or packaged component refs after "## Technical details".',
     '- Do not format release_evidence.payload.lines as blockquotes. They must stay normal bullets.',
-    '- Keep build-time refs and payload deltas in "## Technical details". They are supporting evidence, not the headline.',
+    '- Keep packaged component refs and payload deltas after "## Technical details". They are supporting evidence, not the headline.',
     '- Include the Full Changelog link when evidence.full_changelog_url is present.',
     '- Do not include Chinese text in the visible public Markdown.',
     '- Do not invent domain results, quality claims, benchmarks, or unsupported agent capabilities.',

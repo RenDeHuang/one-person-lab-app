@@ -150,11 +150,14 @@ function assertReleaseNotesBody(releaseView, options) {
   const body = typeof releaseView.body === 'string' ? releaseView.body : '';
   const required = [
     `One Person Lab v${options.version}`,
+    '## Highlights',
     '## What improved',
+    '## Compatibility and action required',
+    '## Technical details',
     '## OPL agents and runtime payload',
-    'Full first-install DMG payload:',
-    'Build-time payload refs:',
-    'Payload updates since previous Stable:',
+    'Full first-install package includes',
+    'Packaged component refs:',
+    'Component updates since previous Stable:',
     '## OPL family updates',
     '## Install Stable',
     '## Release scope',

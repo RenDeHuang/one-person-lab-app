@@ -23,20 +23,31 @@ import {
 function validFullReleaseNotes(version) {
   return `One Person Lab v${version}
 
-This Stable release makes a new or upgraded OPL App install useful sooner by carrying MAS research, MAG grant-writing, RCA visual-deliverable, OPL Meta Agent, document extraction, Office, and runtime payload evidence from the same release cohort.
+This Stable release is for users installing or upgrading One Person Lab App. It focuses on making research, grant-writing, visual-deliverable, agent-design, Office, and document-intake work ready from one App install.
+
+## Highlights
+- Use one Stable install path for the App plus refreshed research, grant, visual, Office, and document-intake tools.
+- Built-in research, grant-writing, visual deliverable, and agent-design entries have been refreshed for this release.
 
 ## What improved
 
-### OPL agent updates
-- Updated the App-managed MAS, MAG, RCA, OPL Meta Agent, and Codex skill/plugin surface used by OPL agent sessions.
+### Built-in research, grant, and visual work
+- Refreshed the built-in research, grant, visual deliverable, and agent-design entries used from the App.
+
+## Compatibility and action required
+- No manual migration is required beyond installing or upgrading this Stable release.
+- Use the Full first-install package for a fresh machine that needs the bundled OPL family tools.
+
+## Technical details
+These details are included for operators who audit exactly what was packaged. They should not be needed for ordinary install or upgrade decisions.
 
 ## OPL agents and runtime payload
-- Full first-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
-- Build-time payload refs: OPL Framework @ 1234567; Codex CLI 0.142.4; MAS @ 1234567; MAG @ 1234567; RCA @ 1234567; OPL Meta Agent @ 1234567; OfficeCLI 1.0.125; MinerU v0.1.0.
-- Payload updates since previous Stable: MAS 0000000 -> 1234567.
+- Full first-install package includes the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
+- Packaged component refs: OPL Framework @ 1234567; Codex CLI 0.142.4; MAS @ 1234567; MAG @ 1234567; RCA @ 1234567; OPL Meta Agent @ 1234567; OfficeCLI 1.0.125; MinerU v0.1.0.
+- Component updates since previous Stable: MAS 0000000 -> 1234567.
 
 ## OPL family updates
-- MAS: 1 commit, including route paper handoff receipts, refs 0000000 -> 1234567.
+- MAS: Research sessions make study and paper status clearer (1 commit, audit ref 0000000 -> 1234567).
 
 ## Install Stable
 \`${stableInstallCommand}\`
@@ -147,6 +158,7 @@ test('publish dry run accepts prebuilt standard release assets from GitHub Actio
   ], {
     env: {
       OPL_RELEASE_EXISTS: '0',
+      OPL_RELEASE_NOTES_MODE: 'template',
     },
   });
 
@@ -530,7 +542,7 @@ test('remote release verifier rejects short Stable Full GitHub Release notes', (
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Stable Full GitHub Release notes are incomplete/);
   assert.match(result.stderr, /## What improved/);
-  assert.match(result.stderr, /Build-time payload refs:/);
+  assert.match(result.stderr, /Packaged component refs:/);
 });
 
 test('remote release verifier rejects diagnostic-only files as public GitHub Release assets', () => {

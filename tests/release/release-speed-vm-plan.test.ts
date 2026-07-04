@@ -641,8 +641,9 @@ test('release operator docs and contract freeze candidates, fail fast on source 
 
   assert.deepEqual(candidateFreeze.pinned_sha_fields, ['app_sha', 'shell_sha', 'framework_sha']);
   assert.deepEqual(candidateFreeze.obsolete_candidate_statuses, ['obsolete_candidate', 'stale_candidate']);
-  assert.equal(candidateFreeze.next_action, 'dispatch_new_cohort');
-  assertMatches(candidateFreeze.currentness_rule, /obsolete\/stale candidate/, 'stable candidate stale rule');
+  assert.equal(candidateFreeze.next_action, 'owner_receipt_then_promote_or_dispatch_new_cohort');
+  assertMatches(candidateFreeze.currentness_rule, /post-freeze drift/, 'stable candidate post-freeze drift rule');
+  assertMatches(candidateFreeze.currentness_rule, /same frozen cohort only needs owner receipt and promote/, 'stable candidate owner receipt fast path');
 
   assert.equal(sourceGate.package_script, 'release:source-gate');
   assert.deepEqual(sourceGate.scope, [
@@ -699,7 +700,8 @@ test('release operator docs and contract freeze candidates, fail fast on source 
 
   assertMatches(releaseDocs, /npm run release:source-gate -- --version <version>/, 'release docs source gate command');
   assertMatches(releaseDocs, /App SHA, shell SHA, and framework SHA/, 'release docs pinned cohort');
-  assertMatches(releaseDocs, /obsolete\/stale candidate/, 'release docs stale candidate');
+  assertMatches(releaseDocs, /post-freeze drift/, 'release docs post-freeze drift');
+  assertMatches(releaseDocs, /owner receipt/, 'release docs owner receipt fast path');
   assertMatches(releaseDocs, /npm run release:operator -- status --run-id <github-actions-run-id> --expected-head <app-sha>/, 'release docs operator status command');
   assertMatches(releaseDocs, /failed_gate_draining/, 'release docs failed gate draining state');
   assertMatches(releaseDocs, /instead of asking the release owner to keep waiting\s+on `gh run watch`/, 'release docs no-watch policy');

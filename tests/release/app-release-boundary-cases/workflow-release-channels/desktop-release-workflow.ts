@@ -123,7 +123,8 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /name: Verify standard release assets[\s\S]*OPL_RELEASE_VERSION: \$\{\{ inputs\.opl_version \}\}[\s\S]*node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
-  assert.doesNotMatch(workflow, /models: read/);
+  assert.match(workflowJobBlock(workflow, 'publish-standard'), /permissions:[\s\S]*models: read/);
+  assert.match(workflowJobBlock(workflow, 'publish-full-assets'), /permissions:[\s\S]*models: read/);
   assert.doesNotMatch(workflow, /Install Codex release-note writer/);
   assert.doesNotMatch(workflow, /Configure Codex release-note writer/);
   assert.doesNotMatch(workflow, /OPL_RELEASE_NOTES_PROVIDER: auto/);
@@ -677,12 +678,17 @@ test('manual desktop release workflow supports new releases and same-tag refresh
       'shell_sha',
       'framework_sha',
     ],
-    currentness_rule: 'A stable candidate is current only for the pinned App SHA, shell SHA, and framework SHA cohort. If main or any pinned source advances after the run starts, the old run becomes an obsolete/stale candidate and must not continue as the current stable candidate.',
+    pre_freeze_currentness_required: true,
+    post_freeze_drift_name: 'post-freeze drift',
+    dispatch_input_source: 'cohort_plan_or_lock',
+    manual_long_sha_dispatch_recommended: false,
+    single_desktop_release_per_frozen_cohort: true,
+    currentness_rule: 'A stable candidate is current only for the pinned App SHA, shell SHA, and framework SHA cohort. Remote movement after freeze is post-freeze drift: it may justify freezing a new cohort, but it must not make the completed candidate claim closeout-time latest or force a desktop release rerun when the same frozen cohort only needs owner receipt and promote.',
     obsolete_candidate_statuses: [
       'obsolete_candidate',
       'stale_candidate',
     ],
-    next_action: 'dispatch_new_cohort',
+    next_action: 'owner_receipt_then_promote_or_dispatch_new_cohort',
   });
   assert.deepEqual(releaseContract.release_acceleration.release_operator.primary_blocker_policy, {
     monitor_mode: 'no_watch',

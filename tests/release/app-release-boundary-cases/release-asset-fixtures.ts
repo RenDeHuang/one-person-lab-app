@@ -83,16 +83,27 @@ function defaultReleaseBody(tagName) {
   const version = tagName.startsWith('v') ? tagName.slice(1) : tagName;
   return `One Person Lab v${version}
 
+This Stable release is for users installing or upgrading One Person Lab App.
+
+## Highlights
+- Use one Stable install path for the App plus refreshed research tools.
+
 ## What improved
 - Test release body.
 
+## Compatibility and action required
+- No manual migration is required beyond installing or upgrading this Stable release.
+
+## Technical details
+These details are included for operators who audit exactly what was packaged.
+
 ## OPL agents and runtime payload
-- Full first-install DMG payload: OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
-- Build-time payload refs: MAS @ 1234567.
-- Payload updates since previous Stable: MAS 0000000 -> 1234567.
+- Full first-install package includes the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.
+- Packaged component refs: MAS @ 1234567.
+- Component updates since previous Stable: MAS 0000000 -> 1234567.
 
 ## OPL family updates
-- MAS: 1 commit, refs 0000000 -> 1234567.
+- MAS: Research sessions make study and paper status clearer (1 commit, audit ref 0000000 -> 1234567).
 
 ## Install Stable
 \`install.sh --stable-macos-install --yes\`
