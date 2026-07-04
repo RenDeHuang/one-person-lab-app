@@ -85,7 +85,6 @@ on:
         type: string
 permissions:
   contents: write
-  models: read
 
 concurrency:
   group: opl-full-first-install-${{ inputs.opl_version }}
@@ -1025,12 +1024,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
           OPL_RELEASE_NOTES_MODE: ai
-          OPL_RELEASE_NOTES_PROVIDER: auto
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL }}
+          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL || vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY || secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL || vars.OPL_RELEASE_NOTES_MODEL || 'auto' }}
           OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/full-release-notes-evidence.json
         run: |
+          node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible
           npm run release:publish -- \
             --no-build \
             --version "$OPL_RELEASE_VERSION" \

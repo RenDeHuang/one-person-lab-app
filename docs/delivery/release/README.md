@@ -257,38 +257,52 @@ the candidate record, CI summaries, or closeout artifacts. The public download
 list must stay focused on install/update/checksum entrypoints; release-note
 evidence JSON is operator evidence, not a user download.
 
-AI public-copy generation is the default path. Template output is allowed only
-as a fallback when AI generation is unavailable, or for explicit dry-runs and
-diagnostic previews. A template fallback must preserve the evidence facts and
-technical details, but it should not be treated as polished public Stable copy
-without an AI or release-owner writing pass.
+AI public-copy generation is the release publishing path. Template output is
+allowed only for explicit dry-runs and diagnostic previews. Stable and Nightly
+publishing must fail closed when the online AI route is unavailable; do not
+silently publish template copy as polished public release notes.
 
-Release workflows use `OPL_RELEASE_NOTES_PROVIDER=auto`: the maintained online
-path is an operator-configured OpenAI-compatible endpoint first, then GitHub
-Models only as a legacy fallback while it remains available, then the local Codex
-provider for operator-run fallbacks. GitHub announced that
+Release workflows use `OPL_RELEASE_NOTES_PROVIDER=openai_compatible`: the
+maintained online path is an operator-configured OpenAI-compatible endpoint.
+There is no GitHub Models fallback and no automatic template fallback in release
+publishing. GitHub announced that
 [GitHub Models is being fully retired on July 30, 2026](https://github.blog/changelog/2026-07-01-github-models-is-being-fully-retired-on-july-30-2026/),
-so do not treat a free GitHub model as the stable release-note route. If the
-GitHub legacy fallback is used explicitly, it defaults to `openai/gpt-4o-mini`,
-`openai/gpt-4.1-mini`, then `mistral-ai/mistral-small-2503`; override with
-`OPL_RELEASE_NOTES_GITHUB_MODELS` only for short-lived operator probes. The
-evidence sent to the model is compacted
-before the request so token limits do not turn release notes into a large-prompt
-failure. Each online model request has a bounded timeout
+so do not route release notes through free GitHub Models. The evidence sent to
+the model is compacted before the request so token limits do not turn release
+notes into a large-prompt failure. Each online model request has a bounded timeout
 (`OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS`, default 75 seconds), so a slow provider
 falls through instead of hanging the release job.
 
-Configure the OpenAI-compatible online path before Stable or Nightly release
-publishing instead of switching release notes back to template copy:
+Release workflows probe the online provider before publishing and fail closed
+when the endpoint or secret is missing or unusable. Configure one of these
+secret-safe GitHub Actions routes:
 
 ```bash
+# Preferred explicit route.
 OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL=http://localhost:3001/v1
 OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY=freellmapi-...
 OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL=auto
+
+# Compatibility route already used by older release-note configuration.
+OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gflabtoken.cn/v1
+OPL_RELEASE_NOTES_CODEX_API_KEY=<repo secret>
+OPL_RELEASE_NOTES_MODEL=gpt-5.4-mini
 ```
 
-`freellmapi` is acceptable for this slot when it is a self-hosted, single-user
-gateway with provider keys managed by the operator. Treat it as an
+Keep API keys in GitHub Actions secrets only. Do not put them in workflow vars,
+release evidence, artifacts, logs, or repository files. The probe prints only
+provider status, model, and endpoint host/path; it redacts provider output that
+echoes the bearer token.
+
+Before a release, verify the exact online path from a shell that has the same
+environment:
+
+```bash
+npm run release:notes:probe-ai
+```
+
+`freellmapi` is acceptable for the explicit route when it is a self-hosted,
+single-user gateway with provider keys managed by the operator. Treat it as an
 operator-provided inference route, not as an App-owned production dependency:
 its own README describes the project as personal experimentation, and upstream
 free tiers can change or disappear without notice.

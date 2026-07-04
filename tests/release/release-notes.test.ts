@@ -250,6 +250,53 @@ process.stdout.write(JSON.stringify({ choices: [{ message: { content: ${JSON.str
   assert.match(fs.readFileSync(outputPath, 'utf8'), /One Person Lab v26\.9\.1/);
 });
 
+test('AI release notes provider probe uses OpenAI-compatible endpoint without printing the secret', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-probe-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const fakeCurl = path.join(binDir, 'curl');
+  const requestPath = path.join(tempRoot, 'probe-request.json');
+
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.writeFileSync(fakeCurl, `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+const endpoint = args.find((arg) => /^https?:\\/\\//.test(arg));
+const body = args[args.indexOf('-d') + 1];
+const payload = JSON.parse(body);
+fs.writeFileSync(${JSON.stringify(requestPath)}, JSON.stringify({
+  endpoint,
+  model: payload.model,
+  hasBearer: args.includes('Authorization: Bearer freellmapi-secret-test'),
+  prompt: payload.messages?.[0]?.content,
+}, null, 2));
+process.stdout.write(JSON.stringify({ choices: [{ message: { content: 'OPL_RELEASE_NOTES_PROVIDER_OK' } }] }));
+`, { mode: 0o755 });
+
+  const result = runNode(['scripts/release-notes-ai-writer.ts', '--probe-openai-compatible'], {
+    env: {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: 'http://127.0.0.1:3001/v1',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: 'freellmapi-secret-test',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: 'auto',
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.doesNotMatch(result.stdout, /freellmapi-secret-test/);
+  assert.doesNotMatch(result.stderr, /freellmapi-secret-test/);
+  const request = JSON.parse(fs.readFileSync(requestPath, 'utf8'));
+  assert.deepEqual(request, {
+    endpoint: 'http://127.0.0.1:3001/v1/chat/completions',
+    model: 'auto',
+    hasBearer: true,
+    prompt: 'Return exactly: OPL_RELEASE_NOTES_PROVIDER_OK',
+  });
+  const readback = JSON.parse(result.stdout);
+  assert.equal(readback.status, 'ok');
+  assert.equal(readback.provider, 'openai_compatible');
+  assert.equal(readback.model, 'auto');
+});
+
 test('AI release notes writer keeps evidence-completed user sections before Technical details', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-section-order-'));
   const binDir = path.join(tempRoot, 'bin');

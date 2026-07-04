@@ -10,14 +10,9 @@ type AiReleaseNotesOptions = {
 };
 
 type ReleaseNotesLocale = 'en-US' | 'zh-CN';
-type ReleaseNotesProvider = 'auto' | 'github_models' | 'openai_compatible' | 'codex';
+type ReleaseNotesProvider = 'auto' | 'openai_compatible' | 'codex';
 
 const releaseNotesLocales: ReleaseNotesLocale[] = ['en-US', 'zh-CN'];
-const defaultGitHubModels = [
-  'openai/gpt-4o-mini',
-  'openai/gpt-4.1-mini',
-  'mistral-ai/mistral-small-2503',
-];
 const defaultOpenAICompatibleModel = 'auto';
 const defaultProviderTimeoutSeconds = 75;
 
@@ -91,7 +86,7 @@ function selectedProvider(): ReleaseNotesProvider {
   if (!value) {
     return 'auto';
   }
-  if (!['auto', 'github_models', 'openai_compatible', 'codex'].includes(value)) {
+  if (!['auto', 'openai_compatible', 'codex'].includes(value)) {
     throw new Error(`Unsupported OPL_RELEASE_NOTES_PROVIDER: ${process.env.OPL_RELEASE_NOTES_PROVIDER}`);
   }
   return value as ReleaseNotesProvider;
@@ -112,6 +107,14 @@ function listFromEnv(value: string | undefined, fallback: string[]) {
 function providerTimeoutSeconds() {
   const value = Number.parseInt(process.env.OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS || '', 10);
   return Number.isFinite(value) && value > 0 ? value : defaultProviderTimeoutSeconds;
+}
+
+function redactSecret(value: string, secret: string) {
+  return secret ? value.split(secret).join('[redacted]') : value;
+}
+
+function redactProviderOutput(value: string, token: string) {
+  return redactSecret(value, token).slice(0, 1200);
 }
 
 function compactArray<T>(values: T[] | undefined, limit: number) {
@@ -557,12 +560,12 @@ function completeAiReleaseNotesWithEvidence(markdown: string, evidence: ReleaseN
   return restoreLocalizedBlocks(visible, markdown, evidence);
 }
 
-function parseChatCompletionsContent(stdout: string, providerLabel: string) {
+function parseChatCompletionsContent(stdout: string, providerLabel: string, token: string) {
   let payload: any;
   try {
     payload = JSON.parse(stdout);
   } catch {
-    throw new Error(`${providerLabel} returned invalid JSON: ${stdout.slice(0, 400)}`);
+    throw new Error(`${providerLabel} returned invalid JSON: ${redactProviderOutput(stdout, token).slice(0, 400)}`);
   }
   const content = payload?.choices?.[0]?.message?.content;
   if (typeof content !== 'string' || !content.trim()) {
@@ -611,9 +614,10 @@ function requestChatCompletions(endpoint: string, token: string, model: string, 
     throw new Error(`${providerLabel} failed: ${result.error.message}`);
   }
   if (result.status !== 0) {
-    throw new Error(`${providerLabel} failed: ${result.stderr || result.stdout || `exit ${result.status}`}`);
+    const detail = result.stderr || result.stdout || `exit ${result.status}`;
+    throw new Error(`${providerLabel} failed: ${redactProviderOutput(detail, token)}`);
   }
-  return extractMarkdown(parseChatCompletionsContent(result.stdout, providerLabel));
+  return extractMarkdown(parseChatCompletionsContent(result.stdout, providerLabel, token));
 }
 
 function validateOrRepairGeneratedMarkdown(
@@ -631,31 +635,6 @@ function validateOrRepairGeneratedMarkdown(
     validateAiReleaseNotes(markdown, evidence);
     return markdown;
   }
-}
-
-function runGitHubModelsProvider(prompt: string, evidence: ReleaseNotesEvidence) {
-  const token = process.env.GITHUB_TOKEN?.trim() || process.env.GH_TOKEN?.trim();
-  if (!token) {
-    throw new Error('Missing GITHUB_TOKEN or GH_TOKEN for GitHub Models release notes.');
-  }
-  const models = listFromEnv(
-    process.env.OPL_RELEASE_NOTES_GITHUB_MODELS || process.env.OPL_RELEASE_NOTES_GITHUB_MODEL,
-    defaultGitHubModels,
-  );
-  const endpoint = process.env.OPL_RELEASE_NOTES_GITHUB_MODELS_ENDPOINT?.trim()
-    || 'https://models.github.ai/inference/chat/completions';
-  const failures: string[] = [];
-  for (const model of models) {
-    const providerLabel = `GitHub Models ${model}`;
-    try {
-      return validateOrRepairGeneratedMarkdown(prompt, evidence, (activePrompt) => (
-        requestChatCompletions(endpoint, token, model, activePrompt, providerLabel)
-      ));
-    } catch (error) {
-      failures.push(`${model}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-  throw new Error(`GitHub Models provider failed for ${models.join(', ')}: ${failures.join(' | ')}`);
 }
 
 function openAICompatibleEndpoint(baseUrl: string) {
@@ -701,6 +680,44 @@ function runOpenAICompatibleProvider(prompt: string, evidence: ReleaseNotesEvide
     }
   }
   throw new Error(`OpenAI-compatible provider failed for ${models.join(', ')}: ${failures.join(' | ')}`);
+}
+
+function runOpenAICompatibleProbe() {
+  const endpoint = openAICompatibleEndpoint(process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL || '');
+  const token = process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY?.trim() || '';
+  if (!endpoint || !token) {
+    throw new Error('Missing OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL or OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY.');
+  }
+  const models = listFromEnv(
+    process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS || process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL,
+    [defaultOpenAICompatibleModel],
+  );
+  const failures: string[] = [];
+  for (const model of models) {
+    const providerLabel = `OpenAI-compatible ${model}`;
+    try {
+      const content = requestChatCompletions(
+        endpoint,
+        token,
+        model,
+        'Return exactly: OPL_RELEASE_NOTES_PROVIDER_OK',
+        providerLabel,
+      );
+      if (!/OPL_RELEASE_NOTES_PROVIDER_OK/.test(content)) {
+        throw new Error(`${providerLabel} probe returned unexpected content.`);
+      }
+      console.log(JSON.stringify({
+        status: 'ok',
+        provider: 'openai_compatible',
+        model,
+        endpoint: endpoint.replace(/^https?:\/\//, '').replace(/\/v1\/chat\/completions$/, ''),
+      }, null, 2));
+      return;
+    } catch (error) {
+      failures.push(`${model}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  throw new Error(`OpenAI-compatible provider probe failed for ${models.join(', ')}: ${failures.join(' | ')}`);
 }
 
 function runCodexProvider(prompt: string, evidence: ReleaseNotesEvidence, command: string) {
@@ -873,43 +890,22 @@ export function buildAiReleaseNotesDocument(evidence: ReleaseNotesEvidence, opti
   const prompt = buildAiReleaseNotesPrompt(evidence);
   const command = options.providerCommand || process.env.OPL_RELEASE_NOTES_AI_COMMAND || defaultCodexCommand(options.model || process.env.OPL_RELEASE_NOTES_MODEL);
   const provider = selectedProvider();
-  if (provider === 'github_models') {
-    return runGitHubModelsProvider(prompt, evidence);
-  }
   if (provider === 'openai_compatible') {
     return runOpenAICompatibleProvider(prompt, evidence);
   }
   if (provider === 'codex') {
     return runCodexProvider(prompt, evidence, command);
   }
-  const failures: string[] = [];
   if (openAICompatibleConfigured()) {
-    try {
-      return runOpenAICompatibleProvider(prompt, evidence);
-    } catch (error) {
-      failures.push(`OpenAI-compatible: ${error instanceof Error ? error.message : String(error)}`);
-      console.error(`OpenAI-compatible release-note provider unavailable; trying GitHub Models legacy provider. ${error instanceof Error ? error.message : String(error)}`);
-    }
-  } else {
-    failures.push('OpenAI-compatible: not configured');
+    return runOpenAICompatibleProvider(prompt, evidence);
   }
-  try {
-    return runGitHubModelsProvider(prompt, evidence);
-  } catch (error) {
-    failures.push(`GitHub Models: ${error instanceof Error ? error.message : String(error)}`);
-    console.error(`GitHub Models legacy release-note provider unavailable; trying Codex provider. ${error instanceof Error ? error.message : String(error)}`);
-  }
-  try {
-    return runCodexProvider(prompt, evidence, command);
-  } catch (error) {
-    failures.push(`Codex: ${error instanceof Error ? error.message : String(error)}`);
-    throw new Error(`No AI release-note provider succeeded. ${failures.join(' | ')}`);
-  }
+  throw new Error('No online OpenAI-compatible release-note provider is configured. Set OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL and OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY, or explicitly set OPL_RELEASE_NOTES_PROVIDER=codex for a local operator fallback.');
 }
 
 type AiReleaseNotesCliOptions = AiReleaseNotesOptions & {
   evidencePath: string;
   outputPath: string;
+  probeOpenAICompatible: boolean;
 };
 
 function valueAfter(argv: string[], index: number, token: string) {
@@ -924,9 +920,14 @@ function parseCliArgs(argv: string[]): AiReleaseNotesCliOptions {
   const parsed: AiReleaseNotesCliOptions = {
     evidencePath: process.env.OPL_RELEASE_NOTES_EVIDENCE_INPUT?.trim() || '',
     outputPath: '',
+    probeOpenAICompatible: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
+    if (token === '--probe-openai-compatible') {
+      parsed.probeOpenAICompatible = true;
+      continue;
+    }
     const value = valueAfter(argv, index, token);
     if (token === '--evidence') {
       parsed.evidencePath = path.resolve(value);
@@ -941,7 +942,7 @@ function parseCliArgs(argv: string[]): AiReleaseNotesCliOptions {
     }
     index += 1;
   }
-  if (!parsed.evidencePath) {
+  if (!parsed.probeOpenAICompatible && !parsed.evidencePath) {
     throw new Error('Missing required --evidence.');
   }
   return parsed;
@@ -954,6 +955,10 @@ function readReleaseNotesEvidence(evidencePath: string): ReleaseNotesEvidence {
 
 function runCli() {
   const options = parseCliArgs(process.argv.slice(2));
+  if (options.probeOpenAICompatible) {
+    runOpenAICompatibleProbe();
+    return;
+  }
   const notes = buildAiReleaseNotesDocument(readReleaseNotesEvidence(options.evidencePath), options);
   if (options.outputPath) {
     fs.mkdirSync(path.dirname(options.outputPath), { recursive: true });

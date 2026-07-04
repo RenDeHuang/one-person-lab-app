@@ -22,14 +22,14 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
-| `generate-release-notes.ts` | Builds release-note evidence first, then produces English, channel-aware public copy by default with AI. Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, release names use `One Person Lab v<version>`, and the public body leads with user scenarios, upgrade value, and action items. Commit logs, refs, workflow facts, changelog details, OPL-family changes, and Full payload versions stay in Technical details or evidence artifacts unless they are directly user-visible. Template output is fallback/dry-run only. |
+| `generate-release-notes.ts` | Builds release-note evidence first, then produces English, channel-aware public copy by default with AI. Stable compares with the previous Stable release, Nightly compares with the previous Nightly prerelease, release names use `One Person Lab v<version>`, and the public body leads with user scenarios, upgrade value, and action items. Commit logs, refs, workflow facts, changelog details, OPL-family changes, and Full payload versions stay in Technical details or evidence artifacts unless they are directly user-visible. Template output is dry-run/diagnostic only for release publishing. |
 | `cleanup-draft-release-candidates.ts` | Dry-runs or deletes stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the stable release exists. |
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `install-docker-webui.sh` | Linux/macOS Bash entrypoint for starting the Docker/WebUI image with host `/data` and `/projects` mounts through `docker compose`; Ubuntu may install Docker Engine, while macOS only checks for an existing Docker runtime. After compose startup it waits for the local HTTP endpoint and can write a diagnostic directory or `.tar.gz` package without accepting API keys. |
 | `install-docker-webui.ps1` | Windows PowerShell one-click Docker/WebUI installer that writes `compose.yaml`, creates persistent `OnePersonLab` data/projects directories, runs `docker compose up`, waits for the local HTTP endpoint, and can write a diagnostic directory or archive without accepting API keys. |
 | `docker-webui-smoke-gate.ts` | Repo-native Docker/WebUI smoke gate runner for clean Linux VM, clean Windows VM, existing Docker, and old data-dir gates. It writes a typed blocker when the current host cannot prove the requested gate instead of returning a false pass. |
 | `validate-docker-webui-diagnostics.ts` | Validates installer diagnostic directories for required files, data preservation evidence, and secret-like markers. |
-| `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, optional Full first-install assets, and the evidence-backed release-note body. It publishes AI-written public copy when available, keeps release-note evidence and technical audit material in Technical details, Actions artifacts, candidate records, or closeout artifacts, and uses template notes only for fallback/dry-run paths. |
+| `publish-release.ts` | Creates or refreshes App GitHub Release assets from local shell output, prebuilt standard assets, optional Full first-install assets, and the evidence-backed release-note body. It publishes AI-written public copy for release publishing, keeps release-note evidence and technical audit material in Technical details, Actions artifacts, candidate records, or closeout artifacts, and uses template notes only for explicit dry-run/diagnostic paths. |
 | `plan-release-candidate.ts` | Prints the Nightly or Stable release lane plan, including purpose-based installation gates, Stable candidate-record promotion, and post-release guide refresh with `npm run docs:macos-guide` from `docs/delivery/user-guides/macos-app-install` sources into `docs/public`. |
 | `closeout-release-run.ts` | Powers the default desktop release `release-closeout-<version>` artifact and local reruns; reads only final small release summaries, writes `release-closeout.json/md`, separates GitHub Actions workflow wall time from Agent orchestration wall time, and points the operator at candidate blockers, failed gates, promotion, or log inspection. |
 | `summarize-github-actions-timing.ts` | Profiles one or more `gh run view --json ...jobs` payloads, including multi-run span, failed/canceled run tax, slow jobs, slow steps, and the operator-loop gap when an Agent wall-time clock is supplied. |
@@ -349,14 +349,18 @@ updates that tag to the current workflow commit on same-day reruns, keeps
 Nightly, and runs the remote standard asset verifier without Full assets.
 
 AI release-note generation uses the same provider chain as Stable:
-`OPL_RELEASE_NOTES_PROVIDER=auto` tries an OpenAI-compatible endpoint configured through
+`OPL_RELEASE_NOTES_PROVIDER=openai_compatible` uses an OpenAI-compatible endpoint configured through
 `OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL` and
-`OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY` first, then GitHub Models only as a
-legacy fallback while it remains available, then the local Codex provider for
-operator-run fallback. A self-hosted FreeLLMAPI server can fill the
-OpenAI-compatible slot by exposing `/v1/chat/completions` and using model
-`auto`. Use `OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS` to override the default
-75-second per-model online request timeout.
+`OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY`, with a GitHub Actions fallback to
+the existing `OPL_RELEASE_NOTES_CODEX_BASE_URL` /
+`OPL_RELEASE_NOTES_CODEX_API_KEY` route. GitHub Models is not in the release
+path. A self-hosted FreeLLMAPI server can fill the OpenAI-compatible slot by
+exposing `/v1/chat/completions` and using model `auto`. Release workflows run
+`scripts/release-notes-ai-writer.ts --probe-openai-compatible` before publishing
+and fail closed when the online route is not usable. Use
+`npm run release:notes:probe-ai` to run the same secret-safe probe locally, and
+`OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS` to override the default 75-second
+per-model online request timeout.
 
 Stable release verification keeps the heavy installation checks in separate
 lanes for speed and debuggability: standard DMG clean VM, Full DMG clean VM,

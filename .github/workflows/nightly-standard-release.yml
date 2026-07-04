@@ -113,7 +113,6 @@ jobs:
     permissions:
       contents: write
       actions: read
-      models: read
     needs:
       - resolve-nightly
       - standard-build
@@ -158,15 +157,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_RELEASE_NOTES_MODE: ai
-          OPL_RELEASE_NOTES_PROVIDER: auto
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY }}
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL }}
+          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL || vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY || secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL || vars.OPL_RELEASE_NOTES_MODEL || 'auto' }}
           OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/opl-nightly-notes-evidence.json
           OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
           OPL_RELEASE_TAG: ${{ needs.resolve-nightly.outputs.tag }}
         run: |
           set -euo pipefail
+          node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible
           release_title="One Person Lab ${OPL_RELEASE_TAG}"
           git fetch --tags origin
 

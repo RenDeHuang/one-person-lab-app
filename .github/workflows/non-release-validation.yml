@@ -31,6 +31,13 @@ jobs:
           shell-ref: main
           install-dependencies: 'false'
 
+      - name: Probe release-note online AI provider
+        env:
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL || vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY || secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL || vars.OPL_RELEASE_NOTES_MODEL || 'auto' }}
+        run: node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible
+
       - name: Run release-boundary tests
         run: npm run test:release-boundary
 

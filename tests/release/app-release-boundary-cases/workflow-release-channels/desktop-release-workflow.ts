@@ -123,11 +123,12 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflow, /name: Verify standard release assets[\s\S]*OPL_RELEASE_VERSION: \$\{\{ inputs\.opl_version \}\}[\s\S]*node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
-  assert.match(workflowJobBlock(workflow, 'publish-standard'), /permissions:[\s\S]*models: read/);
-  assert.match(workflowJobBlock(workflow, 'publish-full-assets'), /permissions:[\s\S]*models: read/);
+  assert.doesNotMatch(workflowJobBlock(workflow, 'publish-standard'), /models: read/);
+  assert.doesNotMatch(workflowJobBlock(workflow, 'publish-full-assets'), /models: read/);
   assert.doesNotMatch(workflow, /Install Codex release-note writer/);
   assert.doesNotMatch(workflow, /Configure Codex release-note writer/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_PROVIDER: auto/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_PROVIDER: openai_compatible/);
+  assert.match(workflow, /node --experimental-strip-types scripts\/release-notes-ai-writer\.ts --probe-openai-compatible/);
   assert.match(workflow, /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY/);
   assert.doesNotMatch(workflow, /OPL_RELEASE_NOTES_GITHUB_MODEL:/);
   assert.doesNotMatch(workflow, /setup-release-notes-codex-config/);

@@ -90,6 +90,7 @@
     "release:cleanup-drafts": "node --experimental-strip-types scripts/cleanup-draft-release-candidates.ts",
     "release:cleanup-webui-ghcr": "node --experimental-strip-types scripts/cleanup-webui-ghcr-versions.ts",
     "release:notes": "node --experimental-strip-types scripts/generate-release-notes.ts",
+    "release:notes:probe-ai": "node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible",
     "release:full:size": "node --experimental-strip-types scripts/analyze-full-package-size.ts",
     "release:full:prune-audit": "node --experimental-strip-types scripts/audit-full-runtime-prune-policy.ts",
     "release:full": "node --experimental-strip-types scripts/build-full-first-install-package.ts",

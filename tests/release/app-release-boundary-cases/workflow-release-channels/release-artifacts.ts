@@ -87,10 +87,11 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.match(publishStandard, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(publishStandard, /npm run release:publish --[\s\S]*--standard-artifacts-dir release-assets/);
   assert.match(publishStandard, /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
-  assert.match(publishStandard, /models: read/);
+  assert.doesNotMatch(publishStandard, /models: read/);
   assert.doesNotMatch(publishStandard, /Install Codex release-note writer/);
   assert.doesNotMatch(publishStandard, /Configure Codex release-note writer/);
-  assert.match(publishStandard, /OPL_RELEASE_NOTES_PROVIDER: auto/);
+  assert.match(publishStandard, /OPL_RELEASE_NOTES_PROVIDER: openai_compatible/);
+  assert.match(publishStandard, /node --experimental-strip-types scripts\/release-notes-ai-writer\.ts --probe-openai-compatible/);
   assert.match(publishStandard, /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL/);
   assert.doesNotMatch(publishStandard, /OPL_RELEASE_NOTES_GITHUB_MODEL:/);
   assert.doesNotMatch(publishStandard, /setup-release-notes-codex-config/);
