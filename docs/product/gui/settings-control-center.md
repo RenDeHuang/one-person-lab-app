@@ -222,8 +222,10 @@ URL follows OPL Framework validation, lock, rollback ref, receipt creation, and
 package list readback. Updating, repairing, rolling back, uninstalling,
 hiding/unhiding, enabling/disabling, and status readback are Framework-owned
 lifecycle receipt routes that Settings may expose as App actions. Active shell
-may persist local Home shortcut preferences. Framework owns package Home
-shortcut preference readback through
+reads Framework-backed Home shortcut preference readback from App state, routes
+visibility/order changes through the Framework action, and keeps local
+preference storage as fallback/migration. Framework owns package Home shortcut
+preference readback through
 `agent_package_home_shortcut_preferences_set` and
 `connect agent-packages list/status#home_shortcut_preferences`. Framework also
 owns manifest-declared local Codex plugin materialization and records it through

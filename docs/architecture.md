@@ -42,9 +42,11 @@ local Codex plugin sources into `CODEX_HOME` plugin cache, OPL state local
 marketplace wrappers, Codex config tables, package lock `physical_surface`, and
 lifecycle receipt `physical_surface`. Framework also validates local packaged
 payloads contain `skills/<required_skill_id>/SKILL.md` before materialization
-and owns package Home shortcut preference readback. Active shell persists local
-Home shortcut preferences, emits launch-only `opl_agent_package_invocation`
-route smoke, and renders `physical_surface` in Settings, but release-published
+and owns package Home shortcut preference readback. Active shell reads
+Framework-backed Home shortcut preferences from App state, persists
+visibility/order changes through the Framework action route with local fallback,
+emits launch-only `opl_agent_package_invocation` route smoke, and renders
+`physical_surface` in Settings, but release-published
 first-party payload proof, installed Codex-surface reload proof, and live
 user-path evidence still need separate runtime or release-owner evidence.
 
