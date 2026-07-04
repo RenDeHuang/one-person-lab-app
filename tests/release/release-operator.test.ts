@@ -227,9 +227,26 @@ test('release operator plan reuses cohort plan and writes operator state', () =>
   assert.match(state.next_action.command, new RegExp(`--shell-ref ${refs.shell.head}`));
   assert.match(state.next_action.command, new RegExp(`--framework-ref ${refs.framework.head}`));
   assert.doesNotMatch(state.next_action.command, /--shell-ref main|--framework-ref main/);
+  assert.equal(state.operator_guidance.currentness_freeze.required_before_dispatch, true);
+  assert.equal(state.operator_guidance.currentness_freeze.dispatch_input_source, 'release_cohort_plan_or_lock');
+  assert.equal(state.operator_guidance.currentness_freeze.manual_long_sha_dispatch_recommended, false);
+  assert.equal(state.operator_guidance.currentness_freeze.single_desktop_release_per_frozen_cohort, true);
+  assert.equal(
+    state.operator_guidance.post_owner_receipt_fast_path.default_action,
+    'verify_owner_candidate_record_then_dispatch_promote',
+  );
+  assert.equal(state.operator_guidance.post_owner_receipt_fast_path.desktop_release_rerun_required, false);
+  assert.equal(
+    state.operator_guidance.post_owner_receipt_fast_path.promote_workflow,
+    '.github/workflows/desktop-release-promote.yml',
+  );
+  assert.match(state.operator_guidance.post_owner_receipt_fast_path.verify_command, /--version 26\.6\.99/);
   assert.equal(state.authority_boundary.operator_can_publish_release, false);
   assert.equal(state.authority_boundary.operator_can_write_runtime_truth, false);
-  assert.match(fs.readFileSync(markdownPath, 'utf8'), /Release Operator State/);
+  const markdown = fs.readFileSync(markdownPath, 'utf8');
+  assert.match(markdown, /Release Operator State/);
+  assert.match(markdown, /Operator guidance/);
+  assert.match(markdown, /Post-owner receipt fast path/);
 });
 
 test('release operator VM diagnostics only emits non-dispatching suggested commands', () => {
@@ -395,6 +412,52 @@ test('release operator status --summary emits one-screen human summary', () => {
   assert.match(result.stdout, /^Status: ready_for_closeout_review$/m);
   assert.match(result.stdout, /^Next action: inspect_release_closeout_evidence$/m);
   assert.throws(() => JSON.parse(result.stdout), SyntaxError);
+});
+
+test('release operator status includes owner-receipt promote fast path guidance', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-operator-status-owner-fast-path-'));
+  const runJsonPath = path.join(tempRoot, 'run.json');
+  const outputPath = path.join(tempRoot, 'release-operator-state.json');
+  writeJson(runJsonPath, {
+    databaseId: 12348,
+    workflowName: 'OPL Desktop Release',
+    status: 'completed',
+    conclusion: 'success',
+    headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    jobs: [
+      {
+        name: 'release-readiness',
+        status: 'completed',
+        conclusion: 'success',
+      },
+    ],
+  });
+
+  const result = runScript('scripts/release-operator.ts', [
+    'status',
+    '--run-json',
+    runJsonPath,
+    '--version',
+    '26.6.99',
+    '--output',
+    outputPath,
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const state = readJson(outputPath);
+  assert.equal(state.status, 'ready_for_closeout_review');
+  assert.equal(state.next_action.action, 'inspect_release_closeout_evidence');
+  assert.match(state.next_action.reason, /desktop-release-promote\.yml/);
+  assert.equal(
+    state.operator_guidance.post_owner_receipt_fast_path.default_action,
+    'verify_owner_candidate_record_then_dispatch_promote',
+  );
+  assert.equal(state.operator_guidance.post_owner_receipt_fast_path.desktop_release_rerun_required, false);
+  assert.equal(
+    state.operator_guidance.post_owner_receipt_fast_path.promote_workflow,
+    '.github/workflows/desktop-release-promote.yml',
+  );
+  assert.match(state.operator_guidance.post_owner_receipt_fast_path.verify_command, /--version 26\.6\.99/);
 });
 
 test('release operator status maps primary blockers to domain next actions', () => {

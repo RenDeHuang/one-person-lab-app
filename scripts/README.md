@@ -354,6 +354,12 @@ shell, or framework `main` only to resolve immutable SHAs during sync
 preparation. `release:cohort-lock` records the immutable App/Shell/Framework
 SHA tuple, and `release:cohort-plan` embeds that lock with the release intent
 and next action. The release train consumes those fixed SHAs, not moving refs.
+`release:operator plan` repeats this boundary as machine-readable
+`operator_guidance`: dispatch inputs come from the cohort plan/lock, manual
+long-SHA entry is a diagnostic fallback, and a frozen cohort should run desktop
+release once. Remote movement after the freeze is post-freeze drift; either
+promote the frozen cohort after owner receipt, or freeze a new cohort and
+dispatch a new desktop release.
 If source preparation exposes a stale App head, unresolved shell/framework ref,
 wrong shell type/format, dirty source checkout, or release-boundary/source-gate
 failure, repair that root cause before dispatching the workflow. During a run,
@@ -453,6 +459,10 @@ small release artifacts, rebuilds `release-candidate-record.json`, and runs the
 same promote-ready validator. Its output is a verification artifact only; it
 does not publish a release, mutate updater metadata, claim App release ready, or
 claim OPL family production ready.
+When this is the only missing same-cohort input, the operator fast path is:
+verify the post-owner candidate record, then dispatch
+`.github/workflows/desktop-release-promote.yml`. Do not rerun
+`desktop-release.yml` solely to carry owner receipt metadata.
 
 The one-shot installer section records the fixed public entry command, the
 workflow job result as bootstrap status source, the

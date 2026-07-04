@@ -45,6 +45,24 @@ type OperatorNextAction = {
   dispatches_workflow?: false;
 };
 
+type OperatorGuidance = {
+  currentness_freeze: {
+    required_before_dispatch: true;
+    dispatch_input_source: 'release_cohort_plan_or_lock';
+    manual_long_sha_dispatch_recommended: false;
+    post_freeze_drift_name: 'post-freeze drift';
+    single_desktop_release_per_frozen_cohort: true;
+    rule: string;
+  };
+  post_owner_receipt_fast_path: {
+    default_action: 'verify_owner_candidate_record_then_dispatch_promote';
+    verify_command: string;
+    promote_workflow: '.github/workflows/desktop-release-promote.yml';
+    desktop_release_rerun_required: false;
+    rule: string;
+  };
+};
+
 type OperatorStatus =
   | 'planned'
   | 'diagnostic_command_ready'
@@ -150,6 +168,7 @@ type OperatorState = {
   primary_blocker?: PrimaryBlocker;
   recommended_next_action?: OperatorNextAction;
   next_action: OperatorNextAction;
+  operator_guidance?: OperatorGuidance;
   authority_boundary: {
     operator_can_publish_release: false;
     operator_can_write_runtime_truth: false;
@@ -372,6 +391,36 @@ function buildDiagnosticCommands(options: DiagnoseVmOptions): DiagnosticCommand[
   ];
 }
 
+function ownerCandidateRecordVerifyCommand(version: string): string {
+  const versionArg = version.trim() || '<version>';
+  return [
+    'npm run release:owner-candidate-record:verify --',
+    `--version ${versionArg}`,
+    `--owner-record docs/delivery/release/records/v${versionArg}-release-owner-receipt.json`,
+    `--artifacts-dir artifacts/release-closeout/v${versionArg}-<run-id>/artifacts`,
+  ].join(' ');
+}
+
+function buildOperatorGuidance(version: string): OperatorGuidance {
+  return {
+    currentness_freeze: {
+      required_before_dispatch: true,
+      dispatch_input_source: 'release_cohort_plan_or_lock',
+      manual_long_sha_dispatch_recommended: false,
+      post_freeze_drift_name: 'post-freeze drift',
+      single_desktop_release_per_frozen_cohort: true,
+      rule: 'Freeze App/Shell/Framework SHAs before dispatch. Remote movement after freeze is post-freeze drift: choose owner receipt plus promote for the frozen cohort, or freeze and dispatch a new cohort.',
+    },
+    post_owner_receipt_fast_path: {
+      default_action: 'verify_owner_candidate_record_then_dispatch_promote',
+      verify_command: ownerCandidateRecordVerifyCommand(version),
+      promote_workflow: '.github/workflows/desktop-release-promote.yml',
+      desktop_release_rerun_required: false,
+      rule: 'When same-cohort evidence is complete and only the release-owner receipt was missing, verify the post-owner candidate record and dispatch the promote workflow; do not rerun desktop-release solely for owner metadata.',
+    },
+  };
+}
+
 function buildPlanState(plan: ReleaseCohortPlan): OperatorState {
   return {
     schema: 'opl_app_release_operator_state.v1',
@@ -385,6 +434,7 @@ function buildPlanState(plan: ReleaseCohortPlan): OperatorState {
       command: plan.next_action.command,
       reason: 'Release operator plan is a controller surface over the pinned cohort plan.',
     },
+    operator_guidance: buildOperatorGuidance(plan.version),
     authority_boundary: {
       operator_can_publish_release: false,
       operator_can_write_runtime_truth: false,
@@ -407,6 +457,7 @@ function buildDiagnoseVmState(options: DiagnoseVmOptions): OperatorState {
       command: diagnosticCommands[1].command,
       reason: 'Diagnose the same release artifact without publishing or writing runtime truth.',
     },
+    operator_guidance: buildOperatorGuidance(options.version),
     authority_boundary: {
       operator_can_publish_release: false,
       operator_can_write_runtime_truth: false,
@@ -811,8 +862,8 @@ function statusAction(
       action: 'inspect_release_closeout_evidence',
       command: `npm run release:closeout -- --version ${version} --run-id ${run.id} --repo ${options.repo}`,
       reason: options.version.trim()
-        ? 'Run completed successfully; inspect closeout artifacts before any owner release decision.'
-        : 'Run completed successfully; inspect closeout artifacts before any owner release decision. Replace <version> with the release version.',
+        ? 'Run completed successfully; inspect closeout artifacts before any owner release decision. If only the same-cohort owner receipt is missing, verify the post-owner candidate record and dispatch desktop-release-promote.yml instead of rerunning desktop-release.'
+        : 'Run completed successfully; inspect closeout artifacts before any owner release decision. Replace <version> with the release version. If only the same-cohort owner receipt is missing, verify the post-owner candidate record and dispatch desktop-release-promote.yml instead of rerunning desktop-release.',
       publishes_release: false,
       dispatches_workflow: false,
     };
@@ -880,6 +931,7 @@ function buildStatusState(options: StatusOptions): OperatorState {
     primary_blocker: primaryBlocker,
     recommended_next_action: recommendedNextAction,
     next_action: recommendedNextAction,
+    operator_guidance: buildOperatorGuidance(options.version),
     authority_boundary: {
       operator_can_publish_release: false,
       operator_can_write_runtime_truth: false,
@@ -929,6 +981,20 @@ function writeOperatorMarkdown(filePath: string, state: OperatorState): void {
       `- Shell SHA: ${state.cohort_plan.cohort_lock.shell.resolved_sha}`,
       `- Framework ref: ${state.cohort_plan.framework_ref}`,
       `- Framework SHA: ${state.cohort_plan.cohort_lock.framework.resolved_sha}`,
+      '',
+    );
+  }
+  if (state.operator_guidance) {
+    lines.push(
+      '## Operator guidance',
+      '',
+      `- Currentness freeze: ${state.operator_guidance.currentness_freeze.rule}`,
+      `- Dispatch input source: ${state.operator_guidance.currentness_freeze.dispatch_input_source}`,
+      `- Manual long-SHA dispatch recommended: ${String(state.operator_guidance.currentness_freeze.manual_long_sha_dispatch_recommended)}`,
+      `- Post-owner receipt fast path: ${state.operator_guidance.post_owner_receipt_fast_path.default_action}`,
+      `- Owner candidate verify command: \`${state.operator_guidance.post_owner_receipt_fast_path.verify_command.replaceAll('|', '\\|')}\``,
+      `- Promote workflow: ${state.operator_guidance.post_owner_receipt_fast_path.promote_workflow}`,
+      `- Desktop release rerun required: ${String(state.operator_guidance.post_owner_receipt_fast_path.desktop_release_rerun_required)}`,
       '',
     );
   }
