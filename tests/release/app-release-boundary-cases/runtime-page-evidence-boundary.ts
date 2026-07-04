@@ -69,6 +69,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     'environment_task_refs',
     'resource_receipt_ref',
     'cost_estimate_ref',
+    'openscience_console_projection_ref',
   ];
   const guidHomePage = pageStateMatrix.pages.find((page) => page.id === 'guid_home');
   const runtimePage = pageStateMatrix.pages.find((page) => page.id === 'runtime');

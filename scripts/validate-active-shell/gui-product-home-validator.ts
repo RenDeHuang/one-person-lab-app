@@ -98,6 +98,41 @@ function validateHomeLayout(guiContract) {
   );
 }
 
+function validateAiFirstInteractionModel(guiContract) {
+  const model = guiContract.ai_first_interaction_model;
+  if (
+    !model ||
+    model.default_visual_basis !== 'codex_app_composer_first' ||
+    model.primary_policy !== 'maximize_direct_ai_interaction_on_the_chat_canvas' ||
+    model.right_context_policy !== 'collapsed_user_requested_secondary_layer' ||
+    model.mas_autonomy_policy !== 'MAS_runs_as_autonomous_research_execution_not_co_scientist_pair_work' ||
+    model.open_science_learning_policy !== 'adopt_artifact_provenance_review_and_plain_language_data_flow_patterns_as_secondary_context_only'
+  ) {
+    throw new Error('App GUI AI-first interaction model must keep Codex App composer-first defaults and collapsed secondary context');
+  }
+  assertIncludesAll(
+    model.allowed_adoptions,
+    [
+      'artifact_provenance_review_refs_in_collapsible_inspector',
+      'plain_language_data_flow_and_safety_copy',
+      'workflow_starters_as_purpose_entries_or_app_actions',
+      'scientific_preview_affordances_on_demand',
+    ],
+    'App GUI AI-first allowed external learning adoptions',
+  );
+  assertIncludesAll(
+    model.must_not_default_to,
+    [
+      'three-column scientific workbench',
+      'open artifact inspector',
+      'side-by-side co-scientist monitoring',
+      'Home activity cockpit',
+      'foreign runtime or domain authority',
+    ],
+    'App GUI AI-first forbidden defaults',
+  );
+}
+
 function validateRightContextInspector(guiContract) {
   assertDeepEqualJson(
     (guiContract.right_context_inspector?.tabs ?? []).map((tab) => tab.id),
@@ -194,6 +229,7 @@ export function validateGuiProductHomeContract(guiContract) {
   validateGuiProductIdentity(guiContract);
   validateExecutorPolicy(guiContract);
   validateHomeLayout(guiContract);
+  validateAiFirstInteractionModel(guiContract);
   validateRightContextInspector(guiContract);
   validateDefaultAssistants(guiContract);
   validateAssistantSkillProfiles(guiContract);

@@ -253,6 +253,41 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'do not adopt OpenClaudeScience runtime, domain verdicts, or research authority as OPL authority',
     'do not copy source until a separate license and code-reuse decision is recorded',
   ], 'OpenClaudeScience forbidden_reuse');
+
+  const openScience = references.find((reference) => reference.id === 'open-science');
+  if (!openScience) {
+    throw new Error('candidate registry must record ai4s-research/open-science as a design reference');
+  }
+  if (openScience.source_repo !== 'https://github.com/ai4s-research/open-science') {
+    throw new Error('Open Science design reference must point at ai4s-research/open-science');
+  }
+  if (openScience.evaluated_ref !== '2200ad2ec4e2ac7c7ff59c5dcdfaeb0b9a5fda66') {
+    throw new Error('Open Science design reference must record the evaluated ref');
+  }
+  if (openScience.license !== 'MIT') {
+    throw new Error('Open Science design reference must record MIT license');
+  }
+  if (openScience.source_usage !== 'design_reference_only') {
+    throw new Error('Open Science source usage must stay design_reference_only');
+  }
+  assertStringArrayIncludes(openScience.reference_value, [
+    'artifact, provenance, and review surfaces kept close to the conversation',
+    'plain-language data-flow and safety presentation',
+    'workflow starters that turn broad research intents into concrete starts',
+    'scientific report, figure, notebook, and table preview affordances',
+  ], 'Open Science reference_value');
+  assertStringArrayIncludes(openScience.opl_mapping, [
+    "OPL Native Workbench should keep the default visual basis Codex App composer-first, not Open Science's three-column workbench default",
+    'OPL right context stays collapsed by default and opens only when the user asks to inspect files, artifacts, review refs, actions, runtime refs, memory refs, automations, or settings',
+    'MAS is autonomous research execution, not a co-scientist pair-work surface; the UI must not assume users monitor results beside chat while work runs',
+    'Open Science artifact/provenance/review ideas map to secondary refs, Runtime/delivery pages, and explicit inspector tabs without taking artifact body, domain verdict, or runtime authority',
+  ], 'Open Science opl_mapping');
+  assertStringArrayIncludes(openScience.forbidden_reuse, [
+    "do not adopt Open Science's OpenCode sidecar, runtime manager, provider model, or auth flow as OPL authority",
+    'do not copy or vendor Open Science source without a separate license and code-reuse decision',
+    'do not make a three-column scientific workbench, artifact inspector, or activity cockpit the ordinary default Home layout',
+    'do not convert MAS into a co-scientist monitor UI; MAS progress and results are inspect-on-demand refs',
+  ], 'Open Science forbidden_reuse');
 }
 
 export function validateActiveShellUnaffected(): void {

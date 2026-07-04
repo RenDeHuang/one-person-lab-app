@@ -140,6 +140,14 @@ export type ShellCandidate = {
     primary_user_flow: string;
     capability_inventory: string[];
   };
+  ai_first_interaction_model?: {
+    default_visual_basis: string;
+    primary_policy: string;
+    right_context_policy: string;
+    mas_autonomy_policy: string;
+    open_science_adoption: string[];
+    must_not: string[];
+  };
   webui_transport?: {
     shared_renderer: boolean;
     electron_surface: string;
@@ -165,6 +173,10 @@ export type ShellCandidate = {
     permission_mode_selector_visible: boolean;
     workspace_session_rail_default_visible: boolean;
     inspector_default_visible: boolean;
+    default_visual_basis?: string;
+    right_context_user_request_only?: boolean;
+    co_scientist_split_screen_default?: boolean;
+    mas_autonomous_research_default?: boolean;
     purpose_entries: string[];
     runtime_page_policy: string;
     settings_policy: string;

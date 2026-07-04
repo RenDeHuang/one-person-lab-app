@@ -175,6 +175,7 @@ function validateCandidateImplementationBasis(candidate: ShellCandidate): void {
       'OPL-native React/Electron shared renderer',
       'OPL App state/action contract first',
       'K-Dense delivery workspace patterns adapted without runtime authority transfer',
+      'Open Science artifact/provenance/review affordances adapted as secondary context without default split-screen workbench assumptions',
       'results and artifact delivery-first presentation',
       'independent shell repo mounted under shells/opl-native-workbench',
     ], `${candidate.id}.implementation_basis`);
@@ -214,6 +215,42 @@ function validateCandidateTargetProductShape(candidate: ShellCandidate): void {
   if (candidate.target_product_shape.settings_policy !== 'app_state_refs_only') {
     throw new Error(`${candidate.id}.target_product_shape.settings_policy must keep Settings App-owned and refs-only`);
   }
+  if (candidate.id === 'opl-native-workbench') {
+    if (
+      candidate.target_product_shape.default_visual_basis !== 'codex_app_composer_first' ||
+      candidate.target_product_shape.right_context_user_request_only !== true ||
+      candidate.target_product_shape.co_scientist_split_screen_default !== false ||
+      candidate.target_product_shape.mas_autonomous_research_default !== true
+    ) {
+      throw new Error(`${candidate.id}.target_product_shape must encode AI-first Codex App defaults and MAS autonomous research interaction`);
+    }
+    validateCandidateAiFirstInteractionModel(candidate);
+  }
+}
+
+function validateCandidateAiFirstInteractionModel(candidate: ShellCandidate): void {
+  const model = candidate.ai_first_interaction_model;
+  if (
+    !model ||
+    model.default_visual_basis !== 'codex_app_composer_first' ||
+    model.primary_policy !== 'maximize_direct_ai_interaction_on_the_chat_canvas' ||
+    model.right_context_policy !== 'collapsed_user_requested_secondary_layer' ||
+    model.mas_autonomy_policy !== 'MAS_runs_as_autonomous_research_execution_not_co_scientist_pair_work'
+  ) {
+    throw new Error(`${candidate.id}.ai_first_interaction_model must preserve composer-first interaction and collapsed secondary context`);
+  }
+  assertStringArrayIncludes(model.open_science_adoption, [
+    'artifact_provenance_review_refs_as_secondary_context',
+    'plain_language_data_flow_and_safety_copy',
+    'workflow_starters_as_purpose_entries_or_app_actions',
+    'scientific_preview_affordances_on_demand',
+  ], `${candidate.id}.ai_first_interaction_model.open_science_adoption`);
+  assertStringArrayIncludes(model.must_not, [
+    'default_three_column_scientific_workbench',
+    'default_open_artifact_inspector',
+    'co_scientist_side_by_side_monitoring_assumption',
+    'foreign_runtime_or_domain_authority_transfer',
+  ], `${candidate.id}.ai_first_interaction_model.must_not`);
 }
 
 function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
@@ -951,6 +988,7 @@ function validateCandidateChatTarget(candidate: ShellCandidate): void {
       'shared native React renderer for Electron and WebUI',
       'Web transport bridge with HTTP actions and SSE Codex events',
       'K-Dense-informed project sandbox and delivery artifact organization as reference-only',
+      'Open Science-informed artifact, provenance, and review affordances as collapsed secondary context',
       'chat-first main canvas with pinned composer',
       'results, files, receipts, and delivery refs as first-class context',
       'right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs',

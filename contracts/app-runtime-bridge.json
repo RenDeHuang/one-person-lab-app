@@ -570,7 +570,8 @@
       "environment_source_ref",
       "environment_task_refs",
       "resource_receipt_ref",
-      "cost_estimate_ref"
+      "cost_estimate_ref",
+      "openscience_console_projection_ref"
     ],
     "default_visibility": "collapsed_or_inline_compact",
     "independent_task_store_allowed": false,

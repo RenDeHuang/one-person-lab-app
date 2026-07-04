@@ -87,7 +87,7 @@
     ]
   },
   "design_reference_policy": {
-    "purpose": "External agent UI projects can inform OPL-owned information organization without becoming shell candidates, runtime sources, or copied code.",
+    "purpose": "External agent UI projects can inform OPL-owned information organization without becoming shell candidates, runtime sources, copied code, or default split-screen workbench assumptions.",
     "source_code_use": "reference_only_no_vendoring_or_copying_without_license_decision",
     "runtime_authority_transfer_allowed": false,
     "license_gate_required_before_code_reuse": true,
@@ -198,6 +198,35 @@
         "do not adopt OpenClaudeScience runtime, domain verdicts, or research authority as OPL authority",
         "do not copy source until a separate license and code-reuse decision is recorded",
         "do not treat external scientific workflow state as OPL Framework runtime truth"
+      ]
+    },
+    {
+      "id": "open-science",
+      "source_repo": "https://github.com/ai4s-research/open-science",
+      "evaluated_ref": "2200ad2ec4e2ac7c7ff59c5dcdfaeb0b9a5fda66",
+      "evaluated_at": "2026-07-04",
+      "license": "MIT",
+      "source_usage": "design_reference_only",
+      "reference_value": [
+        "artifact, provenance, and review surfaces kept close to the conversation",
+        "plain-language data-flow and safety presentation",
+        "workflow starters that turn broad research intents into concrete starts",
+        "scientific report, figure, notebook, and table preview affordances",
+        "local-first runtime isolation as a packaging reference only"
+      ],
+      "opl_mapping": [
+        "OPL Native Workbench should keep the default visual basis Codex App composer-first, not Open Science's three-column workbench default",
+        "OPL right context stays collapsed by default and opens only when the user asks to inspect files, artifacts, review refs, actions, runtime refs, memory refs, automations, or settings",
+        "MAS is autonomous research execution, not a co-scientist pair-work surface; the UI must not assume users monitor results beside chat while work runs",
+        "Open Science artifact/provenance/review ideas map to secondary refs, Runtime/delivery pages, and explicit inspector tabs without taking artifact body, domain verdict, or runtime authority",
+        "Open Science workflow starters map to OPL purpose entries and App action routes, not to a new workflow runtime"
+      ],
+      "forbidden_reuse": [
+        "do not adopt Open Science's OpenCode sidecar, runtime manager, provider model, or auth flow as OPL authority",
+        "do not copy or vendor Open Science source without a separate license and code-reuse decision",
+        "do not make a three-column scientific workbench, artifact inspector, or activity cockpit the ordinary default Home layout",
+        "do not treat Open Science screenshots, mock sessions, planned features, provenance records, or review outputs as OPL product or domain truth",
+        "do not convert MAS into a co-scientist monitor UI; MAS progress and results are inspect-on-demand refs"
       ]
     }
   ],
@@ -632,6 +661,7 @@
         "OPL App state/action contract first",
         "K-Dense delivery workspace patterns adapted without runtime authority transfer",
         "OpenClaudeScience scientific task-awareness patterns adapted without domain authority transfer",
+        "Open Science artifact/provenance/review affordances adapted as secondary context without default split-screen workbench assumptions",
         "results and artifact delivery-first presentation",
         "independent shell repo mounted under shells/opl-native-workbench"
       ],
@@ -646,11 +676,30 @@
           "Web transport bridge with HTTP actions and SSE Codex events",
           "K-Dense-informed project sandbox and delivery artifact organization as reference-only",
           "OpenClaudeScience-informed scientific task awareness as reference-only",
+          "Open Science-informed artifact, provenance, and review affordances as collapsed secondary context",
           "chat-first main canvas with pinned composer",
           "results, files, receipts, and delivery refs as first-class context",
           "right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs",
           "App-owned model access and Settings summaries",
           "candidate .app package through the App wrapper"
+        ]
+      },
+      "ai_first_interaction_model": {
+        "default_visual_basis": "codex_app_composer_first",
+        "primary_policy": "maximize_direct_ai_interaction_on_the_chat_canvas",
+        "right_context_policy": "collapsed_user_requested_secondary_layer",
+        "mas_autonomy_policy": "MAS_runs_as_autonomous_research_execution_not_co_scientist_pair_work",
+        "open_science_adoption": [
+          "artifact_provenance_review_refs_as_secondary_context",
+          "plain_language_data_flow_and_safety_copy",
+          "workflow_starters_as_purpose_entries_or_app_actions",
+          "scientific_preview_affordances_on_demand"
+        ],
+        "must_not": [
+          "default_three_column_scientific_workbench",
+          "default_open_artifact_inspector",
+          "co_scientist_side_by_side_monitoring_assumption",
+          "foreign_runtime_or_domain_authority_transfer"
         ]
       },
       "webui_transport": {
@@ -721,6 +770,10 @@
         "permission_mode_selector_visible": false,
         "workspace_session_rail_default_visible": false,
         "inspector_default_visible": false,
+        "default_visual_basis": "codex_app_composer_first",
+        "right_context_user_request_only": true,
+        "co_scientist_split_screen_default": false,
+        "mas_autonomous_research_default": true,
         "purpose_entries": [
           "research",
           "grant",
