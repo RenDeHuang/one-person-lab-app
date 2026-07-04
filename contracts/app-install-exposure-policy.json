@@ -795,7 +795,11 @@
       "missing_plugin_manifest",
       "missing_skill_entry",
       "duplicate_codex_visible_domain_skill",
-      "unavailable_managed_agent_pack_channel"
+      "unavailable_managed_agent_pack_channel",
+      "invalid_package_manifest",
+      "missing_package_lock_receipt",
+      "package_source_validation_failed",
+      "atomic_package_unit_incomplete"
     ]
   },
   "agent_installation_contract": {
@@ -831,7 +835,11 @@
       "missing_plugin_manifest",
       "missing_skill_entry",
       "duplicate_codex_visible_domain_skill",
-      "unavailable_managed_agent_pack_channel"
+      "unavailable_managed_agent_pack_channel",
+      "invalid_package_manifest",
+      "missing_package_lock_receipt",
+      "package_source_validation_failed",
+      "atomic_package_unit_incomplete"
     ],
     "may_use_developer_checkout_by_default": false,
     "developer_checkout_override_policy": "explicit_opt_in_only",
@@ -848,6 +856,114 @@
     "non_module_workflow_plugin_ids": [
       "opl-flow"
     ],
+    "package_manager_lifecycle": {
+      "policy_surface": "Settings Capabilities package manager and app/cli action receipts",
+      "actions": [
+        "discover",
+        "install",
+        "update",
+        "repair",
+        "rollback",
+        "uninstall",
+        "enable",
+        "disable",
+        "hide",
+        "unhide",
+        "manual_check",
+        "apply_selected"
+      ],
+      "manual_check_policy": "explicit_user_action_only",
+      "apply_selected_policy": "explicit_user_selected_package_set_only",
+      "mutating_actions_require_action_receipt": true,
+      "rollback_ref_required_for_mutating_actions": true,
+      "package_lock_required": true,
+      "domain_truth_authority_allowed": false
+    },
+    "third_party_manual_source_policy": {
+      "ordinary_user_default_source_kinds": [
+        "first_party_managed_cohort",
+        "bundled_full_runtime_modules"
+      ],
+      "manual_third_party_allowed_source_kinds": [
+        "local_manifest_file",
+        "manifest_url",
+        "manifest_import"
+      ],
+      "manual_third_party_requires": [
+        "explicit_user_action",
+        "manifest_validation",
+        "trust_tier_assignment",
+        "package_lock_receipt",
+        "rollback_ref"
+      ],
+      "developer_override_source_kind": "developer_checkout_override",
+      "app_hardcoded_repo_path_allowed": false,
+      "duplicate_bare_skill_mirrors_allowed": false,
+      "homebrew_package_formula_allowed": false,
+      "third_party_catalog_required": false,
+      "validation_scope": "validate manifest shape, plugin manifest, required skill entries, source digest, trust tier, and rollback ref without hardcoding exact third-party package ids"
+    },
+    "package_lock_receipt_contract": {
+      "lock_owner": "one-person-lab",
+      "app_role": "require_and_display_package_lock_refs_without_owning_domain_semantics",
+      "required_fields": [
+        "package_id",
+        "version_or_source_digest",
+        "installed_at",
+        "updated_at",
+        "codex_visible_entry",
+        "bundled_required_skill_ids",
+        "optional_skill_refs",
+        "source_kind",
+        "trust_tier",
+        "action_receipt_id",
+        "rollback_ref"
+      ],
+      "source_kind_allowed_values": [
+        "first_party_managed_cohort",
+        "bundled_full_runtime_modules",
+        "local_manifest_file",
+        "manifest_url",
+        "manifest_import",
+        "developer_checkout_override"
+      ],
+      "trust_tier_required": true,
+      "rollback_ref_required": true,
+      "codex_visible_entry_required": true,
+      "optional_skill_refs_are_refs_only": true
+    },
+    "atomic_bundle_policy": {
+      "managed_package_unit_agent_ids": [
+        "mas",
+        "mag",
+        "rca",
+        "oma",
+        "bookforge",
+        "scholarskills"
+      ],
+      "package_unit_includes": [
+        "plugin_manifest",
+        "bundled_required_skill_entries",
+        "optional_companion_skill_refs"
+      ],
+      "reconcile_update_uninstall_as_unit": true,
+      "domain_repo_remains_semantic_owner": true,
+      "app_package_manager_scope": "install_exposure_package_lock_action_receipts_and_codex_visible_entries_only",
+      "mas_professional_skill_pack_unit": {
+        "package_id": "opl.mas",
+        "agent_id": "mas",
+        "required_skill_pack_id": "mas-professional-skill-pack",
+        "atomic_with_agent_package": true,
+        "lifecycle_actions": [
+          "install",
+          "update",
+          "repair",
+          "rollback",
+          "uninstall"
+        ],
+        "domain_repo_remains_semantic_owner": true
+      }
+    },
     "duplicate_bare_skill_policy": "forbid_domain_plugin_skill_mirrors",
     "plugin_registration_validation_command": "npm run validate:agent-installation",
     "plugin_registration_validation_inputs": {

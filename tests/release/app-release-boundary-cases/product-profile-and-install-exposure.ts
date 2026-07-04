@@ -32,6 +32,33 @@ const EXPECTED_RUNTIME_FABRIC_SUBSYSTEMS = {
   },
   opl_system_bridge: ['native_helper'],
 };
+const EXPECTED_PACKAGE_LIFECYCLE_ACTIONS = [
+  'discover',
+  'install',
+  'update',
+  'repair',
+  'rollback',
+  'uninstall',
+  'enable',
+  'disable',
+  'hide',
+  'unhide',
+  'manual_check',
+  'apply_selected',
+];
+const EXPECTED_PACKAGE_LOCK_RECEIPT_FIELDS = [
+  'package_id',
+  'version_or_source_digest',
+  'installed_at',
+  'updated_at',
+  'codex_visible_entry',
+  'bundled_required_skill_ids',
+  'optional_skill_refs',
+  'source_kind',
+  'trust_tier',
+  'action_receipt_id',
+  'rollback_ref',
+];
 
 test('App product profile owns user-facing defaults without runtime authority', () => {
   const profile = readProductProfile();
@@ -765,6 +792,72 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'scholarskills',
   ]);
   assert.deepEqual(policy.agent_installation_contract.non_module_workflow_plugin_ids, ['opl-flow']);
+  assert.deepEqual(policy.agent_installation_contract.package_manager_lifecycle.actions, EXPECTED_PACKAGE_LIFECYCLE_ACTIONS);
+  assert.equal(policy.agent_installation_contract.package_manager_lifecycle.manual_check_policy, 'explicit_user_action_only');
+  assert.equal(policy.agent_installation_contract.package_manager_lifecycle.apply_selected_policy, 'explicit_user_selected_package_set_only');
+  assert.equal(policy.agent_installation_contract.package_manager_lifecycle.mutating_actions_require_action_receipt, true);
+  assert.equal(policy.agent_installation_contract.package_manager_lifecycle.rollback_ref_required_for_mutating_actions, true);
+  assert.equal(policy.agent_installation_contract.package_manager_lifecycle.package_lock_required, true);
+  assert.equal(policy.agent_installation_contract.package_manager_lifecycle.domain_truth_authority_allowed, false);
+  assert.deepEqual(policy.agent_installation_contract.third_party_manual_source_policy.manual_third_party_allowed_source_kinds, [
+    'local_manifest_file',
+    'manifest_url',
+    'manifest_import',
+  ]);
+  assert.deepEqual(policy.agent_installation_contract.third_party_manual_source_policy.manual_third_party_requires, [
+    'explicit_user_action',
+    'manifest_validation',
+    'trust_tier_assignment',
+    'package_lock_receipt',
+    'rollback_ref',
+  ]);
+  assert.equal(policy.agent_installation_contract.third_party_manual_source_policy.app_hardcoded_repo_path_allowed, false);
+  assert.equal(policy.agent_installation_contract.third_party_manual_source_policy.duplicate_bare_skill_mirrors_allowed, false);
+  assert.equal(policy.agent_installation_contract.third_party_manual_source_policy.homebrew_package_formula_allowed, false);
+  assert.equal(policy.agent_installation_contract.third_party_manual_source_policy.third_party_catalog_required, false);
+  assert.match(
+    policy.agent_installation_contract.third_party_manual_source_policy.validation_scope,
+    /without hardcoding exact third-party package ids/,
+  );
+  assert.deepEqual(policy.agent_installation_contract.package_lock_receipt_contract.required_fields, EXPECTED_PACKAGE_LOCK_RECEIPT_FIELDS);
+  assert.deepEqual(policy.agent_installation_contract.package_lock_receipt_contract.source_kind_allowed_values, [
+    'first_party_managed_cohort',
+    'bundled_full_runtime_modules',
+    'local_manifest_file',
+    'manifest_url',
+    'manifest_import',
+    'developer_checkout_override',
+  ]);
+  assert.equal(policy.agent_installation_contract.package_lock_receipt_contract.lock_owner, 'one-person-lab');
+  assert.equal(
+    policy.agent_installation_contract.package_lock_receipt_contract.app_role,
+    'require_and_display_package_lock_refs_without_owning_domain_semantics',
+  );
+  assert.equal(policy.agent_installation_contract.package_lock_receipt_contract.trust_tier_required, true);
+  assert.equal(policy.agent_installation_contract.package_lock_receipt_contract.rollback_ref_required, true);
+  assert.deepEqual(policy.agent_installation_contract.atomic_bundle_policy.managed_package_unit_agent_ids, [
+    'mas',
+    'mag',
+    'rca',
+    'oma',
+    'bookforge',
+    'scholarskills',
+  ]);
+  assert.deepEqual(policy.agent_installation_contract.atomic_bundle_policy.package_unit_includes, [
+    'plugin_manifest',
+    'bundled_required_skill_entries',
+    'optional_companion_skill_refs',
+  ]);
+  assert.equal(policy.agent_installation_contract.atomic_bundle_policy.reconcile_update_uninstall_as_unit, true);
+  assert.equal(policy.agent_installation_contract.atomic_bundle_policy.domain_repo_remains_semantic_owner, true);
+  assert.deepEqual(policy.agent_installation_contract.atomic_bundle_policy.mas_professional_skill_pack_unit, {
+    package_id: 'opl.mas',
+    agent_id: 'mas',
+    required_skill_pack_id: 'mas-professional-skill-pack',
+    atomic_with_agent_package: true,
+    lifecycle_actions: ['install', 'update', 'repair', 'rollback', 'uninstall'],
+    domain_repo_remains_semantic_owner: true,
+  });
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.channel_id, 'opl_distribution_cohort');
   assert.equal(
     policy.agent_installation_contract.managed_agent_pack_distribution.default_transport,

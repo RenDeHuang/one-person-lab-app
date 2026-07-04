@@ -111,6 +111,25 @@ contract:
 }
 ```
 
+`Package Lock / Receipt` is the installed-state proof. App may display it, but
+OPL Framework owns producing and applying it:
+
+```json
+{
+  "package_id": "opl.mas",
+  "version_or_source_digest": "1.4.0+sha256:...",
+  "installed_at": "2026-07-04T00:00:00Z",
+  "updated_at": "2026-07-04T00:00:00Z",
+  "codex_visible_entry": "mas",
+  "bundled_required_skill_ids": ["mas", "mas-professional-skill-pack"],
+  "optional_skill_refs": ["opl-scholarskills:display"],
+  "source_kind": "first_party_managed_cohort",
+  "trust_tier": "first_party",
+  "action_receipt_id": "opl-action-receipt-ref",
+  "rollback_ref": "package-receipt-ref"
+}
+```
+
 ## MAS And External Skill Pack Management
 
 MAS may keep professional skills in a separate repository, but ordinary package
@@ -145,12 +164,12 @@ Avoid this shape:
 | 2 | Rename product language from fixed assistants to configurable package shortcuts. | 35% | partial | Docs now define the target; current contracts still carry `assistant_skill_profiles` and fixed starter ids. | Product/profile contracts use package/profile/shortcut terms. |
 | 3 | Define agent package manifest and shortcut metadata in contracts. | 15% | partial | Human-readable shapes in this plan. | JSON schema, fixtures, and validator coverage. |
 | 4 | Keep launch evidence as thin invocation receipt. | 45% | partial | Existing route receipt policy exists; docs narrow it to launch fact only. | Contract fields include package/profile/source/version and forbid behavior authority. |
-| 5 | Add package lifecycle actions. | 20% | partial | Existing managed update plane and OPL Packages policy. | Install/update/repair/rollback/uninstall/hide/show action routes with receipts. |
-| 6 | Make MAS plus required skill packs atomic. | 25% | partial | Current skill/plugin ABI boundary; this plan defines the packaging rule. | MAS package manifest lock, bundled skill-pack receipt, rollback proof. |
+| 5 | Add package lifecycle actions. | 65% | partial | `app-install-exposure-policy` now names discover/install/update/repair/rollback/uninstall/enable/disable/hide/unhide/manual_check/apply_selected, package-lock requirement, action receipt, rollback ref, plus validator and release-boundary coverage. | OPL Framework action execution and package receipts prove each mutating route. |
+| 6 | Make MAS plus required skill packs atomic. | 60% | partial | Contract now requires atomic package units to include plugin manifest, bundled required skill entries, optional companion skill refs, and treats MAS + professional skill pack as one lifecycle unit. | MAS package manifest lock, bundled skill-pack receipt, rollback proof from OPL Framework. |
 | 7 | Build Settings > Agents & Capabilities package manager UI. | 40% | partial | Existing Settings Capabilities page and OPL Packages maintenance entry. | Installed package list, source, version, update, repair, uninstall/hide/show status. |
 | 8 | Make Home shortcuts user-configurable. | 15% | partial | Current home purpose entries are fixed starter entries. | Home reads user shortcut config over installed packages. |
-| 9 | Support third-party/manual package install. | 5% | not_started | Policy direction only. | Manifest URL/local manifest import with trust, compatibility, and rollback receipt. |
-| 10 | Migration and regression gates. | 25% | partial | Existing active-shell/package validators cover the old route. | Tests prove starter migration, custom package install, uninstall/hide, shortcut reorder, and no duplicate skill mirror. |
+| 9 | Support third-party/manual package install. | 55% | partial | Contract now allows local manifest file, manifest URL, and manifest import only through explicit user action, validation, trust tier, package lock receipt, and rollback ref; it forbids App hardcoded repo paths, duplicate bare skill mirrors, and Homebrew package formulae. | OPL Framework manual import command validates a real third-party manifest and emits lock/rollback receipt. |
+| 10 | Migration and regression gates. | 45% | partial | Agent installation validator and release-boundary test now cover lifecycle/source/lock/atomic-bundle policy. | Tests prove starter migration, custom package install, uninstall/hide, shortcut reorder, and no duplicate skill mirror. |
 
 ## Suggested Landing Order
 
