@@ -35,14 +35,18 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   }
   const alternative = registry.alternative_gui_policy;
   if (
-    alternative?.only_foreground_alternative !== 'hermes-codex' ||
-    alternative.basis !== 'Hermes Desktop' ||
+    alternative?.only_foreground_alternative !== 'opl-native-workbench' ||
+    alternative.basis !== 'OPL native workbench' ||
     alternative.archived_proof_policy !== 'do_not_update_or_improve_unless_user_explicitly_requests_agui' ||
     alternative.active_shell_switch_policy !== 'only_contracts/app-shell-adapter.json_can_switch_default_release_shell'
   ) {
-    throw new Error('candidate registry must keep Hermes Desktop as the only foreground alternative and AGUI as explicit-only archived proof');
+    throw new Error('candidate registry must keep OPL native workbench as the foreground alternative, Hermes as a reference candidate, and AGUI as explicit-only archived proof');
   }
-  assertStringArrayIncludes(alternative.default_candidate_validation_scope, ['hermes-codex'], 'alternative_gui_policy.default_candidate_validation_scope');
+  assertStringArrayIncludes(alternative.default_candidate_validation_scope, ['opl-native-workbench'], 'alternative_gui_policy.default_candidate_validation_scope');
+  assertStringArrayIncludes(alternative.reference_only_candidates ?? [], ['hermes-codex'], 'alternative_gui_policy.reference_only_candidates');
+  if (alternative.reference_candidate_policy !== 'kept_for_explicit_reference_replay_not_default_foreground_scope') {
+    throw new Error('Hermes reference candidate policy must keep Hermes out of default foreground scope');
+  }
   assertStringArrayIncludes(alternative.archived_technical_proofs, ['agui-codex'], 'alternative_gui_policy.archived_technical_proofs');
   for (const [label, expected] of Object.entries({
     release_shell_contract: 'contracts/app-shell-adapter.json',
@@ -139,11 +143,18 @@ function validateCandidateNoResurrectionPolicy(registry: ShellCandidateRegistry)
   ], 'candidate_policy.no_resurrection_policy.forbidden_default_routes');
 
   const archivedProofs = new Set(alternative.archived_technical_proofs);
+  const referenceCandidates = new Set(alternative.reference_only_candidates ?? []);
   const defaultScopeArchivedProofs = alternative.default_candidate_validation_scope.filter((id) => (
     archivedProofs.has(id)
   ));
   if (defaultScopeArchivedProofs.length > 0) {
     throw new Error(`default candidate validation scope must not include archived proofs: ${defaultScopeArchivedProofs.join(', ')}`);
+  }
+  const defaultScopeReferences = alternative.default_candidate_validation_scope.filter((id) => (
+    referenceCandidates.has(id)
+  ));
+  if (defaultScopeReferences.length > 0) {
+    throw new Error(`default candidate validation scope must not include reference-only candidates: ${defaultScopeReferences.join(', ')}`);
   }
   const adoptionGateText = policy.adoption_gate.join('\n');
   for (const archivedProof of archivedProofs) {
@@ -206,6 +217,42 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'do not expose PilotDeck provider/model/backend selection as ordinary OPL App controls',
     'do not treat PilotDeck screenshots, demo data, or WorkSpace model as App product truth',
   ], 'PilotDeck forbidden_reuse');
+
+  const kdense = references.find((reference) => reference.id === 'kdense-byok');
+  if (!kdense) {
+    throw new Error('candidate registry must record K-Dense BYOK as an experience reference for opl-native-workbench');
+  }
+  if (kdense.source_repo !== 'https://github.com/K-Dense-AI/k-dense-byok') {
+    throw new Error('K-Dense design reference must point at K-Dense-AI/k-dense-byok');
+  }
+  if (kdense.source_usage !== 'experience_reference_only') {
+    throw new Error('K-Dense source usage must stay experience_reference_only');
+  }
+  assertStringArrayIncludes(kdense.reference_value, [
+    'project sandbox organization',
+    'result and artifact delivery panel',
+    'structured confirmation forms',
+    'rich file preview affordances',
+  ], 'K-Dense reference_value');
+  assertStringArrayIncludes(kdense.forbidden_reuse, [
+    'do not adopt K-Dense runtime, agent authority, provider routing, or remote compute as OPL authority',
+    'do not copy source until a separate license and code-reuse decision is recorded',
+  ], 'K-Dense forbidden_reuse');
+
+  const openClaudeScience = references.find((reference) => reference.id === 'openclaudescience');
+  if (!openClaudeScience) {
+    throw new Error('candidate registry must record OpenClaudeScience as an experience reference for scientific workflow display');
+  }
+  if (openClaudeScience.source_repo !== 'https://github.com/qzzqzzb/OpenClaudeScience') {
+    throw new Error('OpenClaudeScience design reference must point at qzzqzzb/OpenClaudeScience');
+  }
+  if (openClaudeScience.source_usage !== 'experience_reference_only') {
+    throw new Error('OpenClaudeScience source usage must stay experience_reference_only');
+  }
+  assertStringArrayIncludes(openClaudeScience.forbidden_reuse, [
+    'do not adopt OpenClaudeScience runtime, domain verdicts, or research authority as OPL authority',
+    'do not copy source until a separate license and code-reuse decision is recorded',
+  ], 'OpenClaudeScience forbidden_reuse');
 }
 
 export function validateActiveShellUnaffected(): void {

@@ -132,7 +132,7 @@ function main(): void {
       {
         id: 'foreground_candidate_contract_or_blocker',
         cwd: '.',
-        command: 'node --experimental-strip-types scripts/validate-hermes-candidate.ts',
+        command: 'npm run validate:shell-candidates -- --candidate opl-native-workbench',
       },
       ...candidateRootCommands.filter((entry) => [
         'candidate_registry',
@@ -146,7 +146,6 @@ function main(): void {
       foregroundCandidate.adapter_contract,
       'scripts/validate-active-shell.ts',
       'scripts/validate-shell-candidates.ts',
-      'scripts/validate-hermes-candidate.ts',
     ],
   };
 

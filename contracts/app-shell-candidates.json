@@ -3,7 +3,7 @@
   "owner": "one-person-lab-app",
   "purpose": "app_shell_candidate_registry",
   "state": "active_gui_route_policy",
-  "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. Hermes Desktop is the only foreground alternative candidate. Archived technical-proof entries stay selectable only when explicitly requested and must not be improved by default.",
+  "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. OPL Native Workbench is the foreground alternative candidate. Hermes Desktop is retained as an explicit reference candidate. Archived technical-proof entries stay selectable only when explicitly requested and must not be improved by default.",
   "active_shell_unchanged": "aionui",
   "active_gui_mainline": {
     "shell": "aionui",
@@ -13,11 +13,15 @@
     "product_truth_owner": "one-person-lab-app"
   },
   "alternative_gui_policy": {
-    "only_foreground_alternative": "hermes-codex",
-    "basis": "Hermes Desktop",
+    "only_foreground_alternative": "opl-native-workbench",
+    "basis": "OPL native workbench",
     "default_candidate_validation_scope": [
+      "opl-native-workbench"
+    ],
+    "reference_only_candidates": [
       "hermes-codex"
     ],
+    "reference_candidate_policy": "kept_for_explicit_reference_replay_not_default_foreground_scope",
     "archived_technical_proofs": [
       "agui-codex"
     ],
@@ -145,13 +149,63 @@
         "do not replace Codex app-server as the primary OPL Codex backend because a reference UI supports other agents",
         "do not treat PilotDeck screenshots, demo data, or WorkSpace model as App product truth"
       ]
+    },
+    {
+      "id": "kdense-byok",
+      "source_repo": "https://github.com/K-Dense-AI/k-dense-byok",
+      "evaluated_ref": "dccc7ec4",
+      "evaluated_at": "2026-07-04",
+      "license": "MIT",
+      "source_usage": "experience_reference_only",
+      "reference_value": [
+        "project sandbox organization",
+        "result and artifact delivery panel",
+        "structured confirmation forms",
+        "rich file preview affordances",
+        "editable specialist roles and workflow templates"
+      ],
+      "opl_mapping": [
+        "OPL Native Workbench should organize work by project, conversation, files, receipts, and delivery outputs",
+        "OPL result surfaces should make generated artifacts, previews, handoff receipts, and next actions scannable before raw logs",
+        "OPL confirmation flows should use structured App actions and dry-run receipts rather than ad hoc prompts",
+        "OPL specialist entries stay Codex Skill/Plugin references and App-owned capability summaries, not runtime authority"
+      ],
+      "forbidden_reuse": [
+        "do not adopt K-Dense runtime, agent authority, provider routing, or remote compute as OPL authority",
+        "do not copy source until a separate license and code-reuse decision is recorded",
+        "do not expose provider/backend marketplace controls as ordinary OPL App controls",
+        "do not treat K-Dense project, cost, or remote compute state as App runtime truth"
+      ]
+    },
+    {
+      "id": "openclaudescience",
+      "source_repo": "https://github.com/qzzqzzb/OpenClaudeScience",
+      "evaluated_at": "2026-07-04",
+      "license": "MIT",
+      "source_usage": "experience_reference_only",
+      "reference_value": [
+        "scientific workflow task awareness",
+        "result-first research progress presentation",
+        "deliverable-oriented project context",
+        "research artifact review and handoff patterns"
+      ],
+      "opl_mapping": [
+        "OPL Native Workbench should show active scientific work as progress, result refs, artifact refs, and owner handoff state",
+        "OPL research UI should keep method/result/deliverable review close to the conversation without taking domain verdict authority",
+        "OPL scientific panels consume OPL Framework and domain projections rather than local GUI-owned research state"
+      ],
+      "forbidden_reuse": [
+        "do not adopt OpenClaudeScience runtime, domain verdicts, or research authority as OPL authority",
+        "do not copy source until a separate license and code-reuse decision is recorded",
+        "do not treat external scientific workflow state as OPL Framework runtime truth"
+      ]
     }
   ],
   "candidates": [
     {
       "id": "agui-codex",
       "state": "archived_technical_proof",
-      "archived_reason": "AG-UI/CopilotKit work served its technical verification purpose. AionUI is the App GUI mainline and Hermes Desktop is the only foreground alternative.",
+      "archived_reason": "AG-UI/CopilotKit work served its technical verification purpose. AionUI is the App GUI mainline and OPL Native Workbench is the foreground alternative; AGUI stays explicit replay only.",
       "default_update_policy": "do_not_update_or_improve_unless_user_explicitly_requests_agui",
       "candidate_root": "shells/agui-codex",
       "adapter_contract": "contracts/shell-adapters/agui-codex.json",
@@ -561,13 +615,325 @@
       }
     },
     {
-      "id": "hermes-codex",
+      "id": "opl-native-workbench",
       "state": "technical_verification",
+      "candidate_root": "shells/opl-native-workbench",
+      "adapter_contract": "contracts/shell-adapters/opl-native-workbench.json",
+      "source_topology": "external_checkout_linked_shell_repo",
+      "release_participation": "selectable_for_explicit_candidate_build",
+      "foreground_alternative_role": "only_foreground_alternative",
+      "source_upstream": {
+        "repo": "gaofeng21cn/opl-native-workbench",
+        "app_path": ".",
+        "license": "Apache-2.0"
+      },
+      "implementation_basis": [
+        "OPL-native React/Electron shared renderer",
+        "OPL App state/action contract first",
+        "K-Dense delivery workspace patterns adapted without runtime authority transfer",
+        "OpenClaudeScience scientific task-awareness patterns adapted without domain authority transfer",
+        "results and artifact delivery-first presentation",
+        "independent shell repo mounted under shells/opl-native-workbench"
+      ],
+      "codex_app_like_chat_target": {
+        "scope": "OPL-native chat-first desktop and WebUI target optimized for results, deliverables, and artifact refs",
+        "primary_user_flow": "choose workspace, start or continue a Codex conversation, route the turn to an OPL purpose, and inspect result refs, files, receipts, runtime state, and delivery handoff from secondary context without displacing the chat canvas",
+        "capability_inventory": [
+          "workspace directory picker",
+          "new conversation and lightweight thread history rail",
+          "Codex app-server backed chat turns",
+          "shared native React renderer for Electron and WebUI",
+          "Web transport bridge with HTTP actions and SSE Codex events",
+          "K-Dense-informed project sandbox and delivery artifact organization as reference-only",
+          "OpenClaudeScience-informed scientific task awareness as reference-only",
+          "chat-first main canvas with pinned composer",
+          "results, files, receipts, and delivery refs as first-class context",
+          "right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs",
+          "App-owned model access and Settings summaries",
+          "candidate .app package through the App wrapper"
+        ]
+      },
+      "webui_transport": {
+        "shared_renderer": true,
+        "electron_surface": "Electron preload/IPC window.oplNativeWorkbench",
+        "web_surface": "browser window.oplNativeWorkbench compatibility bridge",
+        "web_bridge": "src/bridge/webTransport.ts",
+        "event_stream": "SSE /api/opl-events",
+        "gateway": "scripts/dev-webui-server.mjs",
+        "native_picker_policy": "Electron may use native directory picker; WebUI uses an explicit workspace path/action bridge without changing App product truth"
+      },
+      "pilotdeck_information_architecture_target": {
+        "source_usage": "design_reference_only",
+        "license": "AGPL-3.0",
+        "copied_source_allowed": false,
+        "runtime_authority_transfer_allowed": false,
+        "required_surfaces": [
+          "chat-first main canvas",
+          "lightweight workspace/session rail",
+          "right-side collapsible inspector tabs",
+          "Files context tab",
+          "Skills context tab",
+          "Routing context tab",
+          "Memory context tab",
+          "Always-On context tab"
+        ],
+        "required_testids": [
+          "opl-workspace-rail",
+          "opl-session-list",
+          "opl-context-tabs",
+          "opl-files-panel",
+          "opl-skills-panel",
+          "opl-routing-panel",
+          "opl-memory-panel",
+          "opl-always-on-panel",
+          "opl-web-transport"
+        ]
+      },
+      "checkout_policy": {
+        "primary_path": "shells/opl-native-workbench",
+        "accepted_alternate_path": "../opl-native-workbench",
+        "missing_checkout_status": "blocked_missing_checkout"
+      },
+      "build_wrapper": {
+        "adapter_contract": "contracts/shell-adapters/opl-native-workbench.json",
+        "app_root_command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package",
+        "missing_checkout_blocker_allowed": true,
+        "sibling_checkout_command": "OPL_APP_SHELL_ROOT=../opl-native-workbench OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package"
+      },
+      "candidate_stage": "opl_native_workbench_candidate_skeleton",
+      "visual_parity_contract": {
+        "comparison_baseline": "AionUI active release shell",
+        "minimum_bar": "not_lower_than_aionui_for_chat_first_reading_composer_settings_result_preview_and_packaged_smoke_visual_quality",
+        "required_evidence": [
+          "desktop screenshot comparison against AionUI baseline",
+          "webui screenshot comparison against desktop renderer",
+          "packaged app screenshot or VM smoke artifact"
+        ],
+        "docs_or_contract_only_completion_allowed": false
+      },
+      "target_product_shape": {
+        "codex_cli_fixed_executor": true,
+        "workspace_directory_picker": true,
+        "new_conversation_resets_codex_thread": true,
+        "home_executor_selector_visible": false,
+        "home_backend_selector_visible": false,
+        "home_model_selector_visible": true,
+        "permission_mode_selector_visible": false,
+        "workspace_session_rail_default_visible": false,
+        "inspector_default_visible": false,
+        "purpose_entries": [
+          "research",
+          "grant",
+          "ppt"
+        ],
+        "runtime_page_policy": "summary_first_full_detail_on_demand",
+        "settings_policy": "app_state_refs_only"
+      },
+      "framework_surfaces": {
+        "state": "opl app state --profile fast --json",
+        "refresh": "opl app state --profile fast --json",
+        "full_state": "opl app state --profile full --json",
+        "full_drilldown": "opl runtime app-operator-drilldown --detail full --json",
+        "action": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json"
+      },
+      "active_project_line_state_model": {
+        "authority": "opl_framework_active_project_line_projection",
+        "validation_command": "npm run validate:state-model",
+        "consumed_projection": "opl app state --profile fast --json active_project_lines",
+        "required_fields": [
+          "status",
+          "active_run_id",
+          "next_visible_step",
+          "progress_delta_classification",
+          "deliverable_progress_delta",
+          "platform_repair_delta",
+          "next_forced_delta"
+        ],
+        "forbidden_claims": [
+          "domain_ready",
+          "production_ready",
+          "clean_vm_ready",
+          "full_release_ready",
+          "active_shell_adopted"
+        ]
+      },
+      "foundry_agent_series_display_contract": {
+        "authority": "opl_framework_shared_progress_projection",
+        "display_policy": "classification_only_no_domain_artifact_body",
+        "required_shared_progress_fields": [
+          "progress_delta_classification",
+          "deliverable_progress_delta",
+          "platform_repair_delta",
+          "next_forced_delta"
+        ],
+        "forbidden_domain_fields": [
+          "domain_body",
+          "artifact_body",
+          "memory_body",
+          "quality_verdict",
+          "export_verdict"
+        ]
+      },
+      "required_capabilities": [
+        "codex_cli_fixed_executor_home",
+        "codex_app_server_thread_turn_backend",
+        "native_react_workbench_renderer",
+        "opl_app_event_contract_map",
+        "purpose_first_home_entries",
+        "workspace_directory_picker",
+        "new_conversation_thread_reset",
+        "source_renderer_build",
+        "source_ui_smoke",
+        "packaged_ui_smoke",
+        "webui_shared_renderer",
+        "web_transport_bridge",
+        "webui_smoke",
+        "chat_first_codex_app_surface",
+        "results_and_delivery_first_presentation",
+        "default_context_collapsed_chat_first_home",
+        "lightweight_workspace_session_rail",
+        "collapsible_contextual_tabs",
+        "app_product_profile_mapping",
+        "opl_app_state_bridge",
+        "active_project_line_state_model",
+        "opl_app_action_bridge",
+        "page_state_matrix_mapping",
+        "first_run_matrix_mapping",
+        "runtime_summary_detail_action_bridge",
+        "foundry_agent_series_shared_progress_display",
+        "app_owned_settings_information_architecture",
+        "secondary_runtime_context_refs",
+        "conversation_event_ref_rendering",
+        "webui_renderer_parity",
+        "release_isolation",
+        "candidate_app_bundle_package"
+      ],
+      "technical_verification": {
+        "app_root_commands": [
+          {
+            "id": "default_release_shell_guard",
+            "cwd": ".",
+            "command": "node --experimental-strip-types scripts/validate-active-shell.ts --quick"
+          },
+          {
+            "id": "candidate_registry",
+            "cwd": ".",
+            "command": "npm run validate:shell-candidates -- --candidate opl-native-workbench"
+          },
+          {
+            "id": "candidate_adapter_quick",
+            "cwd": ".",
+            "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json node --experimental-strip-types scripts/validate-active-shell.ts --quick"
+          },
+          {
+            "id": "candidate_app_bundle_build",
+            "cwd": ".",
+            "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package"
+          }
+        ],
+        "candidate_shell_commands": [
+          {
+            "id": "source_self_check",
+            "cwd": "shells/opl-native-workbench",
+            "command": "npm run validate:candidate"
+          },
+          {
+            "id": "state_model",
+            "cwd": "shells/opl-native-workbench",
+            "command": "npm run validate:state-model"
+          },
+          {
+            "id": "webui_smoke",
+            "cwd": "shells/opl-native-workbench",
+            "command": "npm run smoke:webui"
+          },
+          {
+            "id": "source_renderer_build",
+            "cwd": "shells/opl-native-workbench",
+            "command": "npm run build"
+          }
+        ],
+        "minimum_acceptance": [
+          "default App release adapter still validates as aionui",
+          "candidate registry validates without changing release_shell_contract",
+          "candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT",
+          "candidate consumes OPL App state/action contracts without owning runtime or domain truth",
+          "candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims",
+          "Electron and WebUI use the same native React renderer and App-owned bridge shape",
+          "ordinary UI stays chat-first while prioritizing results, files, receipts, and delivery refs",
+          "WebUI parity evidence proves the same renderer and product semantics as Electron",
+          "candidate evidence must not claim release-ready, active-shell-adopted, production-ready, or full-release-ready from contract-only validation"
+        ]
+      },
+      "must_not_own": [
+        "App GUI product truth",
+        "App model-selection policy",
+        "App release gate policy",
+        "OPL runtime truth",
+        "provider implementation",
+        "domain truth",
+        "domain quality verdict",
+        "memory body",
+        "artifact body",
+        "artifact authority"
+      ],
+      "forbidden_home_controls": [
+        "Aion CLI backend choice",
+        "Claude Code backend choice",
+        "generic backend selector",
+        "non-App-owned model override selector",
+        "permission mode selector",
+        "provider marketplace"
+      ],
+      "validation_commands": [
+        {
+          "id": "candidate_contract",
+          "cwd": ".",
+          "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json node --experimental-strip-types scripts/validate-active-shell.ts --quick"
+        },
+        {
+          "id": "candidate_self_check",
+          "cwd": "shells/opl-native-workbench",
+          "command": "npm run validate:candidate"
+        },
+        {
+          "id": "candidate_state_model",
+          "cwd": "shells/opl-native-workbench",
+          "command": "npm run validate:state-model"
+        },
+        {
+          "id": "candidate_webui_smoke",
+          "cwd": "shells/opl-native-workbench",
+          "command": "npm run smoke:webui"
+        },
+        {
+          "id": "candidate_app_bundle_build",
+          "cwd": ".",
+          "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package"
+        }
+      ],
+      "non_goals": [
+        "do not switch active_shell away from aionui",
+        "do not enter default stable or nightly release packaging",
+        "do not introduce runtime or domain truth into the App repo",
+        "do not continue AGUI/CopilotKit implementation as the native workbench route",
+        "do not claim release-ready from contract-only evidence"
+      ],
+      "product_truth_policy": {
+        "entry_route": "contracts/app-shell-candidates.json plus selectable adapter contract plus validation gates",
+        "ordinary_product_copy_source": "contracts/app-gui-product-contract.json",
+        "implementation_roadmap_role": "candidate_shell_private_execution_plan_only",
+        "adoption_policy": "no_default_release_authority_until_contracts_app_shell_adapter_changes"
+      }
+    },
+    {
+      "id": "hermes-codex",
+      "state": "technical_reference",
       "candidate_root": "shells/hermes",
       "adapter_contract": "contracts/shell-adapters/hermes-codex.json",
       "source_topology": "external_checkout_linked_shell_repo",
       "release_participation": "selectable_for_explicit_candidate_build",
-      "foreground_alternative_role": "only_foreground_alternative",
+      "foreground_alternative_role": "superseded_foreground_alternative_reference",
       "source_upstream": {
         "repo": "NousResearch/hermes-agent",
         "app_path": "apps/desktop",
@@ -932,7 +1298,7 @@
           "candidate registry validates without changing release_shell_contract",
           "candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT",
           "Hermes candidate source is NousResearch/hermes-agent apps/desktop under MIT",
-          "Hermes candidate is the only foreground alternative GUI route while it remains technical verification only",
+          "Hermes candidate is retained as an explicit reference candidate after OPL Native Workbench becomes the foreground alternative",
           "Hermes candidate reports blocked_missing_checkout when neither shells/hermes nor ../opl-hermes-shell exists, or reports missing_wrapper_file blockers when a checkout lacks the minimal candidate files",
           "Hermes candidate preserves upstream Hermes Desktop feature baseline unless a feature comparison explicitly justifies replacement",
           "Hermes candidate replaces upstream branding with One Person Lab App candidate branding before any package acceptance claim",

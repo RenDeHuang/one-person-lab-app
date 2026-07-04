@@ -106,6 +106,8 @@ shells/agui-codex
 shells/agui-codex/
 shells/hermes
 shells/hermes/
+shells/opl-native-workbench
+shells/opl-native-workbench/
 !shells/.gitkeep
 
 # IDE and Editor files

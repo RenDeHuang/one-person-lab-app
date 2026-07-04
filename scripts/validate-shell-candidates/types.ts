@@ -207,6 +207,8 @@ export type ShellCandidateRegistry = {
     only_foreground_alternative: string;
     basis: string;
     default_candidate_validation_scope: string[];
+    reference_only_candidates?: string[];
+    reference_candidate_policy?: string;
     archived_technical_proofs: string[];
     archived_proof_policy: string;
     active_shell_switch_policy: string;

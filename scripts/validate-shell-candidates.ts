@@ -61,6 +61,37 @@ function main(): void {
 }
 
 function candidateBlockers(candidate: { id: string }): Array<{ candidate: string; blockers: string[] }> {
+  if (candidate.id === 'opl-native-workbench') {
+    const checkoutPath = ['shells/opl-native-workbench', '../opl-native-workbench'].find((entry) => fs.existsSync(path.resolve(root, entry)));
+    if (!checkoutPath) {
+      return [{
+        candidate: candidate.id,
+        blockers: [
+          'missing_shell_checkout:shells/opl-native-workbench',
+          'missing_shell_checkout:../opl-native-workbench',
+        ],
+      }];
+    }
+    const missing = [
+      'AGENTS.md',
+      'README.md',
+      'package.json',
+      'src/bridge/oplBridge.ts',
+      'src/workbench/App.tsx',
+      'src/workbench/workbenchModel.ts',
+      'src/candidateContractEvidence.json',
+      'scripts/validate-native-workbench-candidate.mjs',
+      'scripts/validate-state-model.mjs',
+      'scripts/smoke-webui.mjs',
+      'scripts/package-native-workbench.mjs',
+    ].filter((relativePath) => !fs.existsSync(path.resolve(root, checkoutPath, relativePath)));
+    return missing.length === 0
+      ? []
+      : [{
+        candidate: candidate.id,
+        blockers: missing.map((relativePath) => `missing_wrapper_file:${checkoutPath}/${relativePath}`),
+      }];
+  }
   if (candidate.id !== 'hermes-codex') {
     return [];
   }

@@ -343,7 +343,11 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-shell-candidates.json'), 'utf8'),
   );
   const aguiCandidate = candidateRegistry.candidates.find((candidate) => candidate.id === 'agui-codex');
+  const nativeCandidate = candidateRegistry.candidates.find((candidate) => candidate.id === 'opl-native-workbench');
   const hermesCandidate = candidateRegistry.candidates.find((candidate) => candidate.id === 'hermes-codex');
+  const nativeAdapter = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'shell-adapters', 'opl-native-workbench.json'), 'utf8'),
+  );
   const hermesAdapter = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'shell-adapters', 'hermes-codex.json'), 'utf8'),
   );
@@ -357,9 +361,14 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   assert.equal(candidateRegistry.active_gui_mainline.shell_root, 'shells/aionui');
   assert.equal(candidateRegistry.active_gui_mainline.source_repo, 'gaofeng21cn/opl-aion-shell');
   assert.equal(candidateRegistry.active_gui_mainline.role, 'stable_app_gui_mainline');
-  assert.equal(candidateRegistry.alternative_gui_policy.only_foreground_alternative, 'hermes-codex');
-  assert.equal(candidateRegistry.alternative_gui_policy.basis, 'Hermes Desktop');
-  assert.deepEqual(candidateRegistry.alternative_gui_policy.default_candidate_validation_scope, ['hermes-codex']);
+  assert.equal(candidateRegistry.alternative_gui_policy.only_foreground_alternative, 'opl-native-workbench');
+  assert.equal(candidateRegistry.alternative_gui_policy.basis, 'OPL native workbench');
+  assert.deepEqual(candidateRegistry.alternative_gui_policy.default_candidate_validation_scope, ['opl-native-workbench']);
+  assert.deepEqual(candidateRegistry.alternative_gui_policy.reference_only_candidates, ['hermes-codex']);
+  assert.equal(
+    candidateRegistry.alternative_gui_policy.reference_candidate_policy,
+    'kept_for_explicit_reference_replay_not_default_foreground_scope',
+  );
   assert.deepEqual(candidateRegistry.alternative_gui_policy.archived_technical_proofs, ['agui-codex']);
   assert.equal(candidateRegistry.alternative_gui_policy.archived_proof_policy, 'do_not_update_or_improve_unless_user_explicitly_requests_agui');
   assert.equal(candidateRegistry.release_shell_contract, 'contracts/app-shell-adapter.json');
@@ -394,6 +403,7 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   );
   assert.equal(candidateRegistry.candidate_policy.adoption_gate.some((gate) => gate.includes('agui-codex')), false);
   assert.equal(candidateRegistry.alternative_gui_policy.default_candidate_validation_scope.includes('agui-codex'), false);
+  assert.equal(candidateRegistry.alternative_gui_policy.default_candidate_validation_scope.includes('hermes-codex'), false);
   assert.ok(aguiCandidate);
   assert.equal(aguiCandidate.state, 'archived_technical_proof');
   assert.equal(aguiCandidate.default_update_policy, 'do_not_update_or_improve_unless_user_explicitly_requests_agui');
@@ -424,9 +434,27 @@ test('App shell candidates are isolated from active AionUI release shell', () =>
   assert.ok(aguiCandidate.must_not_own.includes('domain truth'));
   assert.ok(aguiCandidate.non_goals.includes('do not switch active_shell away from aionui'));
   assert.ok(aguiCandidate.non_goals.includes('do not enter default stable or nightly release packaging'));
+  assert.ok(nativeCandidate);
+  assert.equal(nativeCandidate.state, 'technical_verification');
+  assert.equal(nativeCandidate.foreground_alternative_role, 'only_foreground_alternative');
+  assert.equal(nativeCandidate.candidate_root, 'shells/opl-native-workbench');
+  assert.equal(nativeCandidate.adapter_contract, 'contracts/shell-adapters/opl-native-workbench.json');
+  assert.equal(nativeCandidate.source_topology, 'external_checkout_linked_shell_repo');
+  assert.equal(nativeCandidate.source_upstream.repo, 'gaofeng21cn/opl-native-workbench');
+  assert.equal(nativeCandidate.source_upstream.license, 'Apache-2.0');
+  assert.ok(nativeCandidate.required_capabilities.includes('native_react_workbench_renderer'));
+  assert.ok(nativeCandidate.required_capabilities.includes('results_and_delivery_first_presentation'));
+  assert.ok(nativeCandidate.validation_commands.some((entry) => (
+    entry.id === 'candidate_app_bundle_build'
+    && /OPL_APP_SHELL_ADAPTER_CONTRACT=contracts\/shell-adapters\/opl-native-workbench\.json npm run package/.test(entry.command)
+  )));
+  assert.equal(nativeAdapter.active_shell, 'opl-native-workbench');
+  assert.equal(nativeAdapter.shell_root, 'shells/opl-native-workbench');
+  assert.equal(nativeAdapter.release_role, 'experimental_candidate_shell');
+  assert.equal(nativeAdapter.shell_source.history_policy, 'external_checkout_not_merged_into_app_default_branch');
   assert.ok(hermesCandidate);
-  assert.equal(hermesCandidate.state, 'technical_verification');
-  assert.equal(hermesCandidate.foreground_alternative_role, 'only_foreground_alternative');
+  assert.equal(hermesCandidate.state, 'technical_reference');
+  assert.equal(hermesCandidate.foreground_alternative_role, 'superseded_foreground_alternative_reference');
   assert.ok(hermesCandidate.settings_information_architecture.ordinary_tabs.includes('Storage'));
   assert.ok(hermesCandidate.settings_information_architecture.opl_semantics.includes('存储'));
   assert.ok(hermesAdapter.settings_information_architecture.ordinary_tabs.includes('Storage'));
@@ -444,6 +472,7 @@ test('shell candidate validator derives foreground and archived policy from regi
   assert.match(dispatcherSource, /validateCandidate\(candidate,\s*validationPolicy\)/);
   assert.match(candidateContractSource, /registry\.alternative_gui_policy/);
   assert.match(candidateContractSource, /policy\.archivedTechnicalProofs\.includes\(candidate\.id\)/);
+  assert.match(candidateContractSource, /policy\.referenceOnlyCandidates\.includes\(candidate\.id\)/);
   assert.match(candidateContractSource, /candidate\.default_update_policy !== policy\.archivedProofUpdatePolicy/);
   assert.match(candidateContractSource, /alternative_gui_policy\.archived_proof_policy/);
   const registrySource = fs.readFileSync(
@@ -453,6 +482,7 @@ test('shell candidate validator derives foreground and archived policy from regi
   assert.match(registrySource, /validateCandidateNoResurrectionPolicy\(registry\)/);
   assert.match(registrySource, /default_validation_scope_must_exclude_archived_proofs/);
   assert.match(registrySource, /default_candidate_validation_scope\.filter/);
+  assert.match(registrySource, /default candidate validation scope must not include reference-only candidates/);
   assert.match(registrySource, /adoptionGateText\.includes\(archivedProof\)/);
   assert.doesNotMatch(
     candidateContractSource,
@@ -488,13 +518,14 @@ test('App shell convergence readback closes structure gate without release or li
   assert.equal(readback.active_shell_release_role, 'stable_app_shell');
   assert.equal(readback.mainline_shell, 'aionui');
   assert.equal(readback.mainline_source_repo, 'gaofeng21cn/opl-aion-shell');
-  assert.equal(readback.foreground_alternative, 'hermes-codex');
-  assert.equal(readback.foreground_alternative_basis, 'Hermes Desktop');
-  assert.deepEqual(readback.default_candidate_validation_scope, ['hermes-codex']);
+  assert.equal(readback.foreground_alternative, 'opl-native-workbench');
+  assert.equal(readback.foreground_alternative_basis, 'OPL native workbench');
+  assert.deepEqual(readback.default_candidate_validation_scope, ['opl-native-workbench']);
   assert.deepEqual(readback.archived_technical_proofs, ['agui-codex']);
   assert.equal(readback.agui_default_update_allowed, false);
   assert.equal(readback.no_resurrection_policy_id, 'app.shell_candidate.no_resurrection.v1');
   assert.equal(readback.default_candidate_validation_scope.includes('agui-codex'), false);
+  assert.equal(readback.default_candidate_validation_scope.includes('hermes-codex'), false);
   assert.deepEqual(readback.false_ready_boundary, {
     active_shell_switch_allowed_by_this_readback: false,
     can_claim_active_shell_adopted: false,
@@ -519,17 +550,12 @@ test('App shell convergence readback closes structure gate without release or li
   assert.ok(
     readback.required_validation_commands.some((entry) => (
       entry.id === 'foreground_candidate_contract_or_blocker'
-      && entry.command === 'node --experimental-strip-types scripts/validate-hermes-candidate.ts'
-    )),
-  );
-  assert.ok(
-    readback.manual_evidence_tail_commands.some((entry) => (
-      entry.id === 'candidate_tart_clean_vm_smoke'
-      && entry.command === 'npm run smoke:hermes-candidate:tart -- --no-graphics'
+      && entry.command === 'npm run validate:shell-candidates -- --candidate opl-native-workbench'
     )),
   );
   assert.ok(readback.source_refs.includes('contracts/app-shell-adapter.json'));
   assert.ok(readback.source_refs.includes('contracts/app-shell-candidates.json'));
+  assert.ok(readback.source_refs.includes('contracts/shell-adapters/opl-native-workbench.json'));
 });
 
 test('explicit AG-UI/Codex adapter contract selects linked external candidate shell', () => {

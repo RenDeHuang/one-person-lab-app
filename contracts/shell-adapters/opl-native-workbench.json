@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "owner": "one-person-lab-app",
+  "purpose": "active_shell_adapter",
+  "state": "active",
+  "app_repo": "gaofeng21cn/one-person-lab-app",
+  "active_shell": "opl-native-workbench",
+  "shell_root": "shells/opl-native-workbench",
+  "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
+  "upstream_family": "OPL Native Workbench",
+  "shell_source": {
+    "owner_repo": "gaofeng21cn/opl-native-workbench",
+    "default_ref": "main",
+    "checkout_path": "shells/opl-native-workbench",
+    "history_policy": "external_checkout_not_merged_into_app_default_branch",
+    "upstream_ref": "main"
+  },
+  "release_role": "experimental_candidate_shell",
+  "candidate_stage": "opl_native_workbench_candidate_skeleton",
+  "gui_authority": {
+    "source_of_truth": "one-person-lab-app",
+    "implementation_role": "active_shell_implementation_carrier",
+    "product_contracts": [
+      "contracts/app-gui-product-contract.json",
+      "contracts/app-runtime-bridge.json",
+      "contracts/app-product-profile.json",
+      "contracts/app-install-exposure-policy.json",
+      "contracts/app-page-state-matrix.json",
+      "contracts/app-first-run-test-matrix.json",
+      "contracts/app-release-channel.json"
+    ],
+    "shell_may_own": [
+      "concrete renderer implementation",
+      "process and preload implementation",
+      "shell package metadata",
+      "shell tests and release hooks",
+      "native workbench implementation experiments",
+      "shell-local implementation details",
+      "shell-local tests that prove App contracts are implemented"
+    ],
+    "shell_must_not_own": [
+      "App GUI product truth",
+      "App user-facing page-state authority",
+      "App model-selection policy",
+      "App onboarding policy",
+      "App release/user documentation authority",
+      "App release gate policy",
+      "OPL runtime truth",
+      "domain truth",
+      "provider implementation",
+      "artifact authority"
+    ],
+    "upstream_intake_policy": "check_against_app_owned_gui_contracts_before_acceptance"
+  },
+  "shell_replacement_policy": {
+    "candidate_root_pattern": "shells/<candidate>",
+    "candidate_state": "candidate_until_contracts_and_tests_complete",
+    "authority_transfer_allowed": false,
+    "adoption_gate": [
+      "declare candidate in contracts/app-shell-candidates.json",
+      "implement contracts/app-gui-product-contract.json",
+      "sync App product profile into the candidate shell target",
+      "pass App page-state and first-run matrices",
+      "pass App-root active shell validation",
+      "pass GUI package compile through App wrapper",
+      "preserve external checkout history policy"
+    ]
+  },
+  "implementation_probes": {
+    "settings_control_plane_shell_adapter_slot": {
+      "source": "settings_control_plane_contract",
+      "source_ref": "contracts/app-settings-control-plane.json",
+      "policy": "behavior_level_dom_or_registry_validation_preferred",
+      "source_probe_policy": "reserved_for_forbidden_surfaces_only",
+      "host_component": "SettingsHost",
+      "slots": {
+        "SettingsShellAdapterSlot": {
+          "role": "active_shell_settings_registry_and_render_slot_adapter",
+          "registry_source": "contracts/app-settings-control-plane.json",
+          "ordinary_route_source": "ordinary_routes",
+          "secondary_route_source": "secondary_pages",
+          "legacy_redirect_source": "legacy_route_redirects",
+          "extension_anchor_source": "extension_anchor_remap"
+        }
+      },
+      "required_evidence": [
+        "SettingsHost renders ordinary routes from the hydrated App settings registry",
+        "SettingsShellAdapterSlot mounts App-owned route slots without shell-owned product IA",
+        "legacy route redirects and extension anchor remaps are resolved before shell rendering",
+        "AionUI upstream settings intake is classified as accepted/adapt/redirect/reject before registry or slot changes"
+      ]
+    }
+  },
+  "shell_contract": {
+    "layout_id": "opl_native_workbench_app_bundle",
+    "source_topology": "external_checkout_linked_shell_repo",
+    "implementation_validation": "contract_paths_only",
+    "paths": {
+      "package_manifest": "package.json",
+      "agents_guide": "AGENTS.md",
+      "vitest_config": "vitest.config.ts",
+      "electron_builder_config": "electron-builder.yml",
+      "build_output_dir": "out",
+      "product_profile_target": "src/generated/oplProductProfile.generated.json",
+      "packaged_runtime_root": "packaged-runtimes/opl-full-runtime",
+      "packaged_runtime_validator": "scripts/validate-packaged-runtime.mjs",
+      "release_prepare_script": "scripts/prepare-release-assets.sh",
+      "release_verify_script": "scripts/verify-release-assets.sh"
+    },
+    "capabilities": [
+      "app_product_profile_generated_config",
+      "candidate_app_bundle_package",
+      "app_owned_gui_product_contract",
+      "app_owned_runtime_bridge_contract",
+      "opl_app_state_bridge",
+      "opl_app_action_bridge",
+      "app_gui_release_channel_gating"
+    ]
+  },
+  "gui_product_contract": "contracts/app-gui-product-contract.json",
+  "gui_product_contract_policy": {
+    "must_implement": true,
+    "source_of_truth": "one-person-lab-app",
+    "upstream_override_allowed": false,
+    "upstream_family_role": "implementation_material_only",
+    "upstream_must_not_override_app_truth": true
+  },
+  "state_surface_contract": {
+    "primary_read_command": "opl app state --profile fast --json",
+    "refresh_read_command": "opl app state --profile fast --json",
+    "full_state_read_command": "opl app state --profile full --json",
+    "full_state_policy": "diagnostic_or_release_evidence_only",
+    "action_command": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+    "full_drilldown_exception": "opl runtime app-operator-drilldown --detail full --json",
+    "forbidden_gui_truth_sources": [
+      "direct opl connect modules --json page aggregation",
+      "direct opl system developer-supervisor page aggregation",
+      "direct opl family-runtime worker status page aggregation",
+      "application.systemInfo as OPL path truth",
+      "application.appVersions as OPL release truth",
+      "direct reads of OPL internal state files",
+      "GUI-local project database as runtime truth"
+    ]
+  },
+  "validation_commands": [
+    {
+      "id": "candidate_self_check",
+      "cwd": "shells/opl-native-workbench",
+      "command": "npm run validate:candidate"
+    },
+    {
+      "id": "candidate_state_model",
+      "cwd": "shells/opl-native-workbench",
+      "command": "npm run validate:state-model"
+    },
+    {
+      "id": "candidate_webui_smoke",
+      "cwd": "shells/opl-native-workbench",
+      "command": "npm run smoke:webui"
+    },
+    {
+      "id": "candidate_app_bundle_build",
+      "cwd": "shells/opl-native-workbench",
+      "command": "npm run package"
+    }
+  ],
+  "manual_verification_commands": [
+    {
+      "id": "candidate_visual_smoke",
+      "cwd": "shells/opl-native-workbench",
+      "command": "npm run smoke:visual",
+      "policy": "manual_or_vm_foreground_only"
+    }
+  ]
+}

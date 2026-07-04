@@ -15,6 +15,7 @@ import {
   requiredSeriesProgressFields,
   forbiddenSeriesDomainFields,
   readJson,
+  requiredNativeCapabilities,
   root,
   validateActiveProjectLineStateModel,
 } from './shared.ts';
@@ -50,6 +51,8 @@ export type CandidateValidationPolicy = {
   defaultCandidateValidationScope: string[];
   archivedTechnicalProofs: string[];
   archivedProofUpdatePolicy: string;
+  referenceOnlyCandidates: string[];
+  referenceCandidatePolicy?: string;
 };
 
 export function candidateValidationPolicyFromRegistry(registry: ShellCandidateRegistry): CandidateValidationPolicy {
@@ -62,6 +65,8 @@ export function candidateValidationPolicyFromRegistry(registry: ShellCandidateRe
     defaultCandidateValidationScope: alternative.default_candidate_validation_scope,
     archivedTechnicalProofs: alternative.archived_technical_proofs,
     archivedProofUpdatePolicy: alternative.archived_proof_policy,
+    referenceOnlyCandidates: alternative.reference_only_candidates ?? [],
+    referenceCandidatePolicy: alternative.reference_candidate_policy,
   };
 }
 
@@ -72,15 +77,23 @@ function validateCandidateRegistryEntry(candidate: ShellCandidate, policy: Candi
   const isArchivedProof = policy.archivedTechnicalProofs.includes(candidate.id);
   const isForegroundAlternative = candidate.id === policy.onlyForegroundAlternative;
   const isDefaultCandidate = policy.defaultCandidateValidationScope.includes(candidate.id);
-  const expectedState = isArchivedProof ? 'archived_technical_proof' : 'technical_verification';
+  const isReferenceCandidate = policy.referenceOnlyCandidates.includes(candidate.id);
+  const expectedState = isArchivedProof
+    ? 'archived_technical_proof'
+    : isReferenceCandidate
+      ? 'technical_reference'
+      : 'technical_verification';
   if (candidate.state !== expectedState) {
     throw new Error(`${candidate.id} must stay in ${expectedState} according to app-shell-candidates alternative_gui_policy`);
   }
-  if (!isArchivedProof && !isForegroundAlternative) {
-    throw new Error(`${candidate.id} must be either the foreground alternative or an archived technical proof`);
+  if (!isArchivedProof && !isForegroundAlternative && !isReferenceCandidate) {
+    throw new Error(`${candidate.id} must be the foreground alternative, a reference candidate, or an archived technical proof`);
   }
   if (isArchivedProof && isDefaultCandidate) {
     throw new Error(`${candidate.id} archived technical proof must not enter default candidate validation scope`);
+  }
+  if (isReferenceCandidate && isDefaultCandidate) {
+    throw new Error(`${candidate.id} reference candidate must not enter default candidate validation scope`);
   }
   if (isForegroundAlternative && !isDefaultCandidate) {
     throw new Error(`${candidate.id} foreground alternative must be included in default candidate validation scope`);
@@ -157,6 +170,16 @@ function validateCandidateAdapterContract(
 }
 
 function validateCandidateImplementationBasis(candidate: ShellCandidate): void {
+  if (candidate.id === 'opl-native-workbench') {
+    assertStringArrayIncludes(candidate.implementation_basis, [
+      'OPL-native React/Electron shared renderer',
+      'OPL App state/action contract first',
+      'K-Dense delivery workspace patterns adapted without runtime authority transfer',
+      'results and artifact delivery-first presentation',
+      'independent shell repo mounted under shells/opl-native-workbench',
+    ], `${candidate.id}.implementation_basis`);
+    return;
+  }
   if (candidate.id === 'hermes-codex') {
     assertStringArrayIncludes(candidate.implementation_basis, [
       'Codex-like chat-first desktop target',
@@ -194,6 +217,19 @@ function validateCandidateTargetProductShape(candidate: ShellCandidate): void {
 }
 
 function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
+  if (candidate.id === 'opl-native-workbench') {
+    assertStringArrayIncludes(candidate.technical_verification?.minimum_acceptance ?? [], [
+      'default App release adapter still validates as aionui',
+      'candidate registry validates without changing release_shell_contract',
+      'candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT',
+      'candidate consumes OPL App state/action contracts without owning runtime or domain truth',
+      'candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims',
+      'Electron and WebUI use the same native React renderer and App-owned bridge shape',
+      'ordinary UI stays chat-first while prioritizing results, files, receipts, and delivery refs',
+      'WebUI parity evidence proves the same renderer and product semantics as Electron',
+    ], `${candidate.id}.technical_verification.minimum_acceptance`);
+    return;
+  }
   assertStringArrayIncludes(candidate.technical_verification?.minimum_acceptance ?? [], [
     'candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims',
     'ordinary Settings uses Overview, Setup & Access, Capabilities, Maintenance & Updates, Data & Storage, Preferences, and Advanced, with About/Update/Theme secondary',
@@ -247,6 +283,26 @@ function validateCandidateSeriesDisplayContract(candidate: ShellCandidate): void
 }
 
 function validateCandidateAuthorityBoundaries(candidate: ShellCandidate): void {
+  if (candidate.id === 'opl-native-workbench') {
+    assertStringArrayIncludes(candidate.required_capabilities, requiredNativeCapabilities, `${candidate.id}.required_capabilities`);
+    assertStringArrayIncludes(candidate.must_not_own, forbiddenAuthority, `${candidate.id}.must_not_own`);
+    assertStringArrayIncludes(candidate.forbidden_home_controls, [
+      'Aion CLI backend choice',
+      'Claude Code backend choice',
+      'generic backend selector',
+      'non-App-owned model override selector',
+      'permission mode selector',
+      'provider marketplace',
+    ], `${candidate.id}.forbidden_home_controls`);
+    assertStringArrayIncludes(candidate.non_goals, [
+      'do not switch active_shell away from aionui',
+      'do not enter default stable or nightly release packaging',
+      'do not introduce runtime or domain truth into the App repo',
+      'do not continue AGUI/CopilotKit implementation as the native workbench route',
+      'do not claim release-ready from contract-only evidence',
+    ], `${candidate.id}.non_goals`);
+    return;
+  }
   if (candidate.id === 'hermes-codex') {
     assertStringArrayIncludes(candidate.required_capabilities, [
       'upstream_hermes_desktop_feature_baseline_preserved',
@@ -386,6 +442,16 @@ function validateCandidatePackageScriptSurfaces(candidate: ShellCandidate): void
   if (candidate.id === 'hermes-codex') {
     return;
   }
+  if (candidate.id === 'opl-native-workbench') {
+    assertFile(path.join(root, candidate.candidate_root, 'scripts', 'validate-native-workbench-candidate.mjs'), `${candidate.id} self-check`);
+    assertCandidateFileContains(candidate, 'package.json', [
+      '"build:webui"',
+      '"webui"',
+      '"smoke:webui"',
+      '"validate:state-model"',
+    ], 'package scripts for shared Electron/WebUI renderer');
+    return;
+  }
   assertFile(path.join(root, candidate.candidate_root, 'scripts', 'validate-agui-codex-candidate.ts'), `${candidate.id} self-check`);
   assertCandidateFileContains(candidate, 'package.json', [
     '"build:webui"',
@@ -407,6 +473,20 @@ export function validateCandidate(candidate: ShellCandidate, policy: CandidateVa
     validateCandidateValidationCommands(candidate);
     return;
   }
+  if (candidate.id === 'opl-native-workbench') {
+    validateNativeWorkbenchCandidateContract(candidate);
+    validateCandidateChatTarget(candidate);
+    validateCandidateWebUiTransport(candidate);
+    validateCandidateTargetProductShape(candidate);
+    validateCandidateMinimumAcceptance(candidate);
+    validateCandidateFrameworkSurfaces(candidate);
+    validateCandidateStateModelCommand(candidate);
+    validateCandidateSeriesDisplayContract(candidate);
+    validateCandidateAuthorityBoundaries(candidate);
+    validateCandidateValidationCommands(candidate);
+    validateCandidatePackageScriptSurfaces(candidate);
+    return;
+  }
   validateCandidateChatTarget(candidate);
   validateCandidateWebUiTransport(candidate);
   validateCandidateTargetProductShape(candidate);
@@ -419,9 +499,42 @@ export function validateCandidate(candidate: ShellCandidate, policy: CandidateVa
   validateCandidatePackageScriptSurfaces(candidate);
 }
 
-function validateHermesCandidateContract(candidate: ShellCandidate): void {
+function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): void {
   if (candidate.foreground_alternative_role !== 'only_foreground_alternative') {
     throw new Error(`${candidate.id}.foreground_alternative_role must be only_foreground_alternative`);
+  }
+  if (
+    candidate.source_upstream?.repo !== 'gaofeng21cn/opl-native-workbench' ||
+    candidate.source_upstream.app_path !== '.' ||
+    candidate.source_upstream.license !== 'Apache-2.0'
+  ) {
+    throw new Error(`${candidate.id}.source_upstream must point to gaofeng21cn/opl-native-workbench under Apache-2.0`);
+  }
+  if (candidate.candidate_stage !== 'opl_native_workbench_candidate_skeleton') {
+    throw new Error(`${candidate.id}.candidate_stage must be opl_native_workbench_candidate_skeleton`);
+  }
+  if (
+    candidate.checkout_policy?.primary_path !== 'shells/opl-native-workbench' ||
+    candidate.checkout_policy.accepted_alternate_path !== '../opl-native-workbench' ||
+    candidate.checkout_policy.missing_checkout_status !== 'blocked_missing_checkout'
+  ) {
+    throw new Error(`${candidate.id}.checkout_policy must accept shells/opl-native-workbench or ../opl-native-workbench and report blocked_missing_checkout`);
+  }
+  if (
+    candidate.build_wrapper?.adapter_contract !== candidate.adapter_contract ||
+    candidate.build_wrapper.app_root_command !== `OPL_APP_SHELL_ADAPTER_CONTRACT=${candidate.adapter_contract} npm run package` ||
+    candidate.build_wrapper.missing_checkout_blocker_allowed !== true
+  ) {
+    throw new Error(`${candidate.id}.build_wrapper must route through the App-root explicit adapter and allow missing-checkout blocker reporting`);
+  }
+  if (candidate.visual_parity_contract?.docs_or_contract_only_completion_allowed !== false) {
+    throw new Error(`${candidate.id}.visual_parity_contract must forbid docs-only visual completion`);
+  }
+}
+
+function validateHermesCandidateContract(candidate: ShellCandidate): void {
+  if (!['only_foreground_alternative', 'superseded_foreground_alternative_reference'].includes(candidate.foreground_alternative_role ?? '')) {
+    throw new Error(`${candidate.id}.foreground_alternative_role must be only_foreground_alternative or superseded_foreground_alternative_reference`);
   }
   if (
     candidate.source_upstream?.repo !== 'NousResearch/hermes-agent'
@@ -767,6 +880,38 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
     ], 'Hermes candidate self-validator');
     return;
   }
+  if (candidate.id === 'opl-native-workbench') {
+    assertCandidateFileContains(candidate, 'src/workbench/App.tsx', [
+      'data-testid="opl-workspace-rail"',
+      'data-testid="opl-session-list"',
+      'data-testid="opl-context-tabs"',
+      'data-testid="opl-files-panel"',
+      'data-testid="opl-skills-panel"',
+      'data-testid="opl-routing-panel"',
+      'data-testid="opl-memory-panel"',
+      'data-testid="opl-always-on-panel"',
+      'data-testid="opl-web-transport"',
+      'data-testid="opl-locale-toggle"',
+    ], 'native chat-first contextual renderer');
+    assertCandidateFileContains(candidate, 'src/bridge/oplBridge.ts', [
+      'opl app state --profile fast --json',
+      'opl app state --profile full --json',
+      'opl runtime app-operator-drilldown --detail full --json',
+      'opl app action execute --action',
+    ], 'OPL App state/action bridge');
+    assertCandidateFileContains(candidate, 'src/workbench/workbenchModel.ts', [
+      'results',
+      'deliverables',
+      'receipts',
+      'activeProjectLines',
+    ], 'results and delivery workbench model');
+    assertCandidateFileContains(candidate, 'scripts/validate-native-workbench-candidate.mjs', [
+      'src/candidateContractEvidence.json',
+      'opl-workspace-rail',
+      'opl-native-workbench',
+    ], 'native workbench self-validator');
+    return;
+  }
 
   assertCandidateFileContains(candidate, 'src/renderer/App.jsx', [
     'data-testid="opl-workspace-rail"',
@@ -795,6 +940,23 @@ function validateCandidateChatTarget(candidate: ShellCandidate): void {
   if (!target) {
     throw new Error(`${candidate.id} must declare codex_app_like_chat_target`);
   }
+  if (candidate.id === 'opl-native-workbench') {
+    if (target.scope !== 'OPL-native chat-first desktop and WebUI target optimized for results, deliverables, and artifact refs') {
+      throw new Error(`${candidate.id} target must be the OPL-native results/delivery workbench`);
+    }
+    assertStringArrayIncludes(target.capability_inventory, [
+      'workspace directory picker',
+      'new conversation and lightweight thread history rail',
+      'Codex app-server backed chat turns',
+      'shared native React renderer for Electron and WebUI',
+      'Web transport bridge with HTTP actions and SSE Codex events',
+      'K-Dense-informed project sandbox and delivery artifact organization as reference-only',
+      'chat-first main canvas with pinned composer',
+      'results, files, receipts, and delivery refs as first-class context',
+      'right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs',
+      'candidate .app package through the App wrapper',
+    ], `${candidate.id}.codex_app_like_chat_target.capability_inventory`);
+  } else {
   if (target.scope !== 'Codex App-style chat-first desktop and WebUI target, not a full workbench first screen or AionUI modification list') {
     throw new Error(`${candidate.id} target must stay Codex App-style chat-first, not a full workbench first screen`);
   }
@@ -809,6 +971,7 @@ function validateCandidateChatTarget(candidate: ShellCandidate): void {
     'right-side collapsible Files, Skills, Routing, Memory, and Always-On context tabs',
     'candidate .app package through the App wrapper',
   ], `${candidate.id}.codex_app_like_chat_target.capability_inventory`);
+  }
 
   const pilotdeckTarget = candidate.pilotdeck_information_architecture_target;
   if (!pilotdeckTarget) {
@@ -831,6 +994,27 @@ function validateCandidateWebUiTransport(candidate: ShellCandidate): void {
   }
   if (transport.shared_renderer !== true) {
     throw new Error(`${candidate.id} webui_transport.shared_renderer must be true`);
+  }
+  if (candidate.id === 'opl-native-workbench') {
+    if (transport.electron_surface !== 'Electron preload/IPC window.oplNativeWorkbench') {
+      throw new Error(`${candidate.id} electron transport must expose window.oplNativeWorkbench`);
+    }
+    if (transport.web_surface !== 'browser window.oplNativeWorkbench compatibility bridge') {
+      throw new Error(`${candidate.id} web surface must expose the browser window.oplNativeWorkbench bridge`);
+    }
+    if (transport.web_bridge !== 'src/bridge/webTransport.ts') {
+      throw new Error(`${candidate.id} web bridge must be src/bridge/webTransport.ts`);
+    }
+    if (transport.gateway !== 'scripts/dev-webui-server.mjs') {
+      throw new Error(`${candidate.id} WebUI gateway must be scripts/dev-webui-server.mjs`);
+    }
+    if (transport.event_stream !== 'SSE /api/opl-events') {
+      throw new Error(`${candidate.id} WebUI event stream must be SSE /api/opl-events`);
+    }
+    if (transport.native_picker_policy !== 'Electron may use native directory picker; WebUI uses an explicit workspace path/action bridge without changing App product truth') {
+      throw new Error(`${candidate.id} WebUI native picker policy must preserve App product truth`);
+    }
+    return;
   }
   if (transport.electron_surface !== 'Electron preload/IPC window.oplCandidate') {
     throw new Error(`${candidate.id} electron WebUI transport must preserve preload/IPC window.oplCandidate`);

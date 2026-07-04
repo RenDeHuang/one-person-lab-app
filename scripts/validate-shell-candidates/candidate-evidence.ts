@@ -16,6 +16,7 @@ import {
   forbiddenSeriesDomainFields,
   pageStateMatrixPath,
   readJson,
+  requiredNativeCapabilities,
   requiredActivityGroups,
   requiredCapabilities,
   requiredContextTestIds,
@@ -59,6 +60,10 @@ export function runCandidateCommands(candidate: ShellCandidate): void {
 function validateCandidatePackageManifest(candidate: ShellCandidate, options: { requireSmoke?: boolean } = { requireSmoke: true }): void {
   if (candidate.id === 'hermes-codex') {
     validateHermesCandidatePackageManifest(candidate, options);
+    return;
+  }
+  if (candidate.id === 'opl-native-workbench') {
+    validateNativeWorkbenchPackageManifest(candidate, options);
     return;
   }
 
@@ -170,6 +175,75 @@ function validateCandidatePackageManifest(candidate: ShellCandidate, options: { 
     requiredCapabilities,
     `${candidate.id} package manifest implemented capabilities`,
   );
+}
+
+function validateNativeWorkbenchPackageManifest(candidate: ShellCandidate, options: { requireSmoke?: boolean } = { requireSmoke: true }): void {
+  const manifestPath = path.join(root, candidate.candidate_root, 'out', 'opl-native-workbench-candidate-manifest.json');
+  assertFile(manifestPath, `${candidate.id} package manifest`);
+  const manifest = readJson<{
+    status: string;
+    package_kind: string;
+    app_bundle_path: string;
+    app_bundle_executable?: string;
+    product_profile_owner: string;
+    default_release_shell_unchanged: boolean;
+    active_shell_adopted: boolean;
+    runtime_authority_transfer: boolean;
+    domain_truth_owned: boolean;
+    home_purpose_entries: string[];
+    implemented_capabilities?: string[];
+    context_testids?: string[];
+  }>(manifestPath);
+  if (manifest.status !== 'candidate_app_bundle_ready') {
+    throw new Error(`${candidate.id} package manifest must declare candidate_app_bundle_ready`);
+  }
+  if (manifest.package_kind !== 'explicit_candidate_app_bundle') {
+    throw new Error(`${candidate.id} package manifest must declare explicit_candidate_app_bundle`);
+  }
+  if (!manifest.app_bundle_path || !manifest.app_bundle_path.endsWith('.app')) {
+    throw new Error(`${candidate.id} package manifest must point at a .app bundle`);
+  }
+  assertRelativePath(manifest.app_bundle_path, `${candidate.id} package manifest app_bundle_path`);
+  const appBundleRoot = path.join(root, candidate.candidate_root, manifest.app_bundle_path);
+  assertDirectory(appBundleRoot, `${candidate.id} .app bundle`);
+  assertFile(path.join(appBundleRoot, 'Contents', 'Info.plist'), `${candidate.id} .app Info.plist`);
+  const macOsDir = path.join(appBundleRoot, 'Contents', 'MacOS');
+  assertDirectory(macOsDir, `${candidate.id} .app Contents/MacOS`);
+  const executable = findMacAppExecutable(macOsDir, candidate.id);
+  if (manifest.app_bundle_executable !== 'One Person Lab Native Workbench Candidate' || executable !== manifest.app_bundle_executable) {
+    throw new Error(`${candidate.id} .app bundle must use the OPL native workbench executable name`);
+  }
+  assertNoAbsoluteSymlinks(appBundleRoot, candidate.id);
+  if (manifest.product_profile_owner !== 'one-person-lab-app') {
+    throw new Error(`${candidate.id} package manifest must prove App-owned product profile input`);
+  }
+  for (const [field, expected] of Object.entries({
+    default_release_shell_unchanged: true,
+    active_shell_adopted: false,
+    runtime_authority_transfer: false,
+    domain_truth_owned: false,
+  })) {
+    if ((manifest as Record<string, unknown>)[field] !== expected) {
+      throw new Error(`${candidate.id} package manifest ${field} must be ${String(expected)}`);
+    }
+  }
+  assertStringArrayIncludes(manifest.home_purpose_entries, requiredHomeEntries, `${candidate.id} package manifest purpose entries`);
+  assertStringArrayIncludes(manifest.implemented_capabilities ?? [], requiredNativeCapabilities, `${candidate.id} package manifest implemented capabilities`);
+  assertStringArrayIncludes(manifest.context_testids ?? [], requiredContextTestIds, `${candidate.id} package manifest context testids`);
+  if (options.requireSmoke !== false) {
+    for (const [field, expected] of Object.entries({
+      source_ui_smoke_status: 'passed',
+      packaged_ui_smoke_status: 'passed',
+      webui_smoke_status: 'passed',
+      state_model_status: 'passed',
+      action_dry_run_status: 'passed',
+      webui_parity_status: 'passed',
+    })) {
+      if ((manifest as Record<string, unknown>)[field] !== expected) {
+        throw new Error(`${candidate.id} package manifest ${field} must be ${expected}`);
+      }
+    }
+  }
 }
 
 function validateHermesCandidatePackageManifest(candidate: ShellCandidate, options: { requireSmoke?: boolean } = { requireSmoke: true }): void {
@@ -418,6 +492,116 @@ function validateHermesCandidateSourceReceipt(candidate: ShellCandidate): void {
   }
 }
 
+function validateNativeWorkbenchImplementationEvidence(candidate: ShellCandidate, evidence: Record<string, any>): void {
+  assertStringArrayIncludes(evidence.capabilities ?? [], requiredNativeCapabilities, `${candidate.id} evidence capabilities`);
+  validateActiveProjectLineStateModel(evidence.active_project_line_state_model, `${candidate.id} evidence active_project_line_state_model`);
+  assertStringArrayIncludes(
+    evidence.settings_information_architecture?.visible_tabs ?? [],
+    requiredSettingsTabs,
+    `${candidate.id} evidence settings_information_architecture.visible_tabs`,
+  );
+  assertStringArrayIncludes(
+    evidence.settings_information_architecture?.legacy_tabs_hidden ?? [],
+    forbiddenLegacySettingsTabs,
+    `${candidate.id} evidence settings_information_architecture.legacy_tabs_hidden`,
+  );
+  if (
+    evidence.bilingual_ui?.default_locale !== 'zh' ||
+    evidence.bilingual_ui?.ordinary_ui_policy !== 'same_screen_single_language_for_user_visible_chrome' ||
+    evidence.bilingual_ui?.language_toggle_testid !== 'opl-locale-toggle'
+  ) {
+    throw new Error(`${candidate.id} evidence must define bilingual UI as same-screen single-language user-visible chrome`);
+  }
+  assertStringArrayIncludes(evidence.bilingual_ui?.supported_locales ?? [], ['zh', 'en'], `${candidate.id} evidence bilingual_ui.supported_locales`);
+  if (
+    evidence.default_home_layout?.policy !== 'ordinary home opens on the chat canvas only; workspace/session rail and inspector stay collapsed until the user explicitly opens them' ||
+    evidence.default_home_layout?.workspace_rail_default_open !== false ||
+    evidence.default_home_layout?.inspector_default_open !== false
+  ) {
+    throw new Error(`${candidate.id} evidence must prove ordinary home defaults to collapsed side context`);
+  }
+  if (
+    evidence.webui_transport?.renderer !== 'src/workbench/App.tsx' ||
+    evidence.webui_transport?.electron_transport !== 'src/bridge/electronPreload.ts' ||
+    evidence.webui_transport?.web_transport !== 'src/bridge/webTransport.ts' ||
+    evidence.webui_transport?.gateway !== 'scripts/dev-webui-server.mjs' ||
+    evidence.webui_transport?.shared_surface !== true ||
+    evidence.webui_transport?.events !== 'GET /api/opl-events uses SSE for Codex app-server events'
+  ) {
+    throw new Error(`${candidate.id} evidence must prove shared native Electron/WebUI renderer transport`);
+  }
+  if (
+    evidence.reuse_policy?.kdense_source_usage !== 'experience_reference_only' ||
+    evidence.reuse_policy?.openclaudescience_source_usage !== 'experience_reference_only' ||
+    evidence.reuse_policy?.copied_source !== false ||
+    evidence.reuse_policy?.runtime_authority_transfer !== false
+  ) {
+    throw new Error(`${candidate.id} evidence must keep K-Dense/OpenClaudeScience as experience references without copied source or runtime authority transfer`);
+  }
+  assertStringArrayIncludes(
+    evidence.reuse_policy?.adopted_patterns ?? [],
+    [
+      'project sandbox organization',
+      'result and artifact delivery panel',
+      'structured confirmation forms',
+      'rich file preview affordances',
+    ],
+    `${candidate.id} evidence reuse_policy.adopted_patterns`,
+  );
+  if (
+    evidence.secondary_runtime_context_refs?.authority !== 'opl_framework_refs_only_projection' ||
+    evidence.secondary_runtime_context_refs?.source !== 'Runtime page and secondary context surfaces only' ||
+    evidence.secondary_runtime_context_refs?.default_placement !== 'runtime_page_or_secondary_context_not_home' ||
+    evidence.secondary_runtime_context_refs?.home_surface_policy !== 'ordinary_home_must_not_render_runtime_activity_or_continue_work'
+  ) {
+    throw new Error(`${candidate.id} evidence must keep refs-only activity out of ordinary Home and in Runtime/secondary context`);
+  }
+  assertStringArrayIncludes(evidence.secondary_runtime_context_refs?.display_groups ?? [], requiredActivityGroups, `${candidate.id} evidence secondary_runtime_context_refs.display_groups`);
+  assertStringArrayIncludes(evidence.conversation_event_rendering?.event_kinds ?? [], requiredConversationEventKinds, `${candidate.id} evidence conversation_event_rendering.event_kinds`);
+  assertStringArrayIncludes(evidence.page_state_matrix_mapping?.runtime_testids ?? [], requiredContextTestIds, `${candidate.id} evidence runtime testids`);
+  assertStringArrayIncludes(evidence.first_run_matrix_mapping?.required_shell_testids ?? [], [
+    'opl-native-workbench-root',
+    'opl-model-access-entry',
+    'opl-skip-to-chat',
+  ], `${candidate.id} evidence first-run testids`);
+  if (
+    evidence.runtime_summary_detail_action_bridge?.full_detail_policy !== 'lazy_full_drilldown_only' ||
+    evidence.runtime_summary_detail_action_bridge?.action_policy !== 'dry_run_first_then_explicit_execute'
+  ) {
+    throw new Error(`${candidate.id} evidence must keep full drilldown lazy and actions dry-run first`);
+  }
+  if (
+    evidence.webui_parity?.shared_renderer !== true ||
+    evidence.webui_parity?.bridge_shape !== 'window.oplNativeWorkbench' ||
+    evidence.webui_parity?.product_profile !== 'src/generated/oplProductProfile.generated.json' ||
+    evidence.webui_parity?.desktop_and_webui_default_home !== 'chat_first_default_collapsed'
+  ) {
+    throw new Error(`${candidate.id} evidence must prove WebUI uses the same native renderer, bridge shape, product profile, and default home semantics as Electron`);
+  }
+  const evidenceSeriesDisplay = evidence.foundry_agent_series_display_contract;
+  if (evidenceSeriesDisplay?.authority !== 'opl_framework_shared_progress_projection') {
+    throw new Error(`${candidate.id} evidence must bind Foundry series display to the shared OPL progress projection`);
+  }
+  assertStringArrayIncludes(
+    evidenceSeriesDisplay?.required_shared_progress_fields ?? [],
+    requiredSeriesProgressFields,
+    `${candidate.id} evidence foundry_agent_series_display_contract.required_shared_progress_fields`,
+  );
+  assertStringArrayIncludes(
+    evidenceSeriesDisplay?.forbidden_domain_fields ?? [],
+    forbiddenSeriesDomainFields,
+    `${candidate.id} evidence foundry_agent_series_display_contract.forbidden_domain_fields`,
+  );
+  if (evidence.user_visible_protocol_copy?.agui !== false || evidence.user_visible_protocol_copy?.copilotkit_surface !== false) {
+    throw new Error(`${candidate.id} evidence must not present AGUI/CopilotKit as the native ordinary UI surface`);
+  }
+  for (const [surface, expected] of Object.entries(expectedFrameworkSurfaces)) {
+    if (evidence.framework_surfaces?.[surface] !== expected) {
+      throw new Error(`${candidate.id} evidence framework_surfaces.${surface} must be ${expected}`);
+    }
+  }
+}
+
 function validateCandidateImplementationEvidence(candidate: ShellCandidate): void {
   const evidencePath = path.join(root, candidate.candidate_root, 'src', 'candidateContractEvidence.json');
   assertFile(evidencePath, `${candidate.id} contract evidence`);
@@ -471,6 +655,10 @@ function validateCandidateImplementationEvidence(candidate: ShellCandidate): voi
   }>(evidencePath);
   if (evidence.owner !== 'one-person-lab-app' || evidence.shell !== candidate.id) {
     throw new Error(`${candidate.id} evidence must be App-owned and match the candidate id`);
+  }
+  if (candidate.id === 'opl-native-workbench') {
+    validateNativeWorkbenchImplementationEvidence(candidate, evidence);
+    return;
   }
   assertStringArrayIncludes(evidence.capabilities, requiredCapabilities, `${candidate.id} evidence capabilities`);
   validateActiveProjectLineStateModel(evidence.active_project_line_state_model, `${candidate.id} evidence active_project_line_state_model`);
