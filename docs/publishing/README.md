@@ -37,6 +37,7 @@ Use:
 
 ```bash
 npm run docs:guides
+npm run docs:whitepaper
 ```
 
 The generator validates:

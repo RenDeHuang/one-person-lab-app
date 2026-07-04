@@ -7,7 +7,23 @@ Machine boundary: Human-readable project boundary. Machine-readable truth lives 
 
 One Person Lab App is the desktop product repository for One Person Lab. It owns packaging, release assets, updater metadata, user guides, screenshots, first-run checks, App product contracts, GUI runtime bridge contract, GUI product truth, and GUI page-state validation.
 
-The intended product shape is a purpose-first Codex App equivalent wrapper for the OPL family: Codex CLI is the fixed executor on the ordinary user path, and MAS, MAG, RCA, and BookForge are built-in intelligent task entries for research, grants, presentation work, and book writing. The App does not present upstream AionUI multi-backend selection as a normal user workflow. Selecting a built-in entry creates a Codex CLI conversation with an App-owned route receipt; it is not a backend switcher.
+The intended product shape is a local-first, cloud-continuous workbench for the
+OPL family: users start from a chat-first App, choose the work they want to do,
+and keep the same project/task/artifact/receipt language whether they are on the
+macOS desktop App, Docker/WebUI in a browser, or hosted OPL Workspace. Codex CLI
+is the fixed executor on the ordinary user path, and MAS, MAG, RCA, and
+BookForge are built-in intelligent task entries for research, grants,
+presentation work, and book writing. The App does not present upstream AionUI
+multi-backend selection as a normal user workflow. Selecting a built-in entry
+creates a Codex CLI conversation with an App-owned route receipt; it is not a
+backend switcher.
+
+Docker/WebUI is the browser runtime form of the same App workbench, suitable for
+Linux, Windows, servers, and cloud VMs. OPL Workspace is the hosted product form
+of that WebUI when account, storage, isolation, and managed-resource policy are
+attached. This keeps the user promise simple: start where your files and work
+already are, then move to remote or cloud execution without learning a second
+work system.
 
 不绑定具体 shell 的目标交互写在 `docs/product/gui/ideal-interaction-spec.md`。
 Codex App 到 OPL App 的产品增量写在 `docs/product/gui/codex-to-opl-app-delta.md`。跨 shell

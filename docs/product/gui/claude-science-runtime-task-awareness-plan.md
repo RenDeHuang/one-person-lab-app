@@ -37,6 +37,32 @@ Claude Science 对 OPL App 的可学习点不是新增一个科研工作台，�
 - reviewer 检查到了什么，下一步怎么处理？
 - 哪些动作会写文件或触发长任务，执行前计划是什么，执行后 receipt 在哪里？
 
+## 表达方式调整
+
+2026-07-04 复查 Claude Science 官方介绍
+(`https://www.anthropic.com/news/claude-science-ai-workbench`、
+`https://claude.com/product/claude-science`、`https://claude.com/docs/claude-science/overview`)
+后，本计划的产品表达要避免从 Settings、shell、contract、validator 这些内部词起笔。
+可借鉴的不是 Claude Science 的品牌或科研限定场景，而是它把复杂系统讲成用户收益的方式：
+
+- 用户不用在 PubMed、Jupyter、R、cluster terminal 和各类工具之间来回切换，而是在一个研究环境里完成多阶段工作。
+- 产物不是普通文件输出，而是带生成历史、代码、环境和会话上下文的可复查 artifact。
+- 计算资源不是后台架构，而是用户可以在 laptop、Linux box、HPC login node、cloud VM 或按需 GPU 上继续工作的能力。
+- 连接器和 skills 不是插件清单，而是让团队已有工具、数据库、ELN、脚本和 pipeline 进入同一个工作会话。
+- reviewer 不是“质量模块”，而是在结果出现前检查引用、数字、图表和底层证据是否对得上。
+
+映射到 OPL App，白皮书和公开文档应采用这组用户侧表达：
+
+- **一个工作台，不用跳工具。** 用户从 App 进入科研、基金、演示、书稿和智能体构建，不需要知道底层是哪个 agent、仓库、命令或 shell。
+- **结果带来路。** 图、表、稿件、PPT、申请书和运行结果都应能回到材料、任务、产物、审阅、回执和下一步，而不是只给一个最终文件。
+- **工作台跟着工作走。** OPL App 是本地优先、云端连续的工作台：macOS 桌面 App、本机/服务器 Docker WebUI、云端 OPL Workspace 使用同一套任务、产物、进度和回执语言。
+- **用已有资源，不重建世界。** 本机文件、服务器、SSH/HPC、云主机、OPL Gateway、OPL Fabric、团队工具和未来连接器都应进入同一条 plan/approve/run/collect/receipt 工作线。
+- **专业智能体协作，但用户先看到工作目的。** MAS、MAG、RCA、BookForge、OMA 等能力在普通表达里对应研究、基金、演示、书稿、智能体构建，而不是一组技术缩写。
+
+这意味着 App 白皮书若单独创建，主轴应是“可信专业工作台”，不是“Settings
+信任机制”“可替换 shell”“contracts 定义产品真相”。这些内部概念仍然保留在
+App 架构和验证文档中，但不作为用户-facing 白皮书的主要叙事。
+
 ## 核心定义
 
 | 概念 | 定义 | Owner |
