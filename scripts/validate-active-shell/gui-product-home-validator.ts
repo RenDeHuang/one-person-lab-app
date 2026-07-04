@@ -9,11 +9,26 @@ import { validateGuiProductAuthority } from './gui-product-authority-validator.t
 
 const defaultAssistantIds = ['mas', 'mag', 'rca', 'bookforge'];
 const purposeEntryIds = ['research', 'grant', 'ppt', 'book'];
+const managedPackageIds = [...defaultAssistantIds, 'oma'];
 const requiredSkillByAssistantId = {
   mas: 'mas',
   mag: 'mag',
   rca: 'rca',
   bookforge: 'opl-bookforge',
+};
+const requiredSkillByPackageId = {
+  mas: ['mas'],
+  mag: ['mag'],
+  rca: ['rca'],
+  bookforge: ['opl-bookforge'],
+  oma: ['opl-meta-agent'],
+};
+const codexEntryByPackageId = {
+  mas: 'mas',
+  mag: 'mag',
+  rca: 'rca',
+  bookforge: 'opl-bookforge',
+  oma: 'opl-meta-agent',
 };
 const rightInspectorExpected = {
   placement: 'right',
@@ -71,11 +86,16 @@ function validateHomeLayout(guiContract) {
   assertDeepEqualJson(guiContract.home_layout, appOwnedHomeLayout, 'App GUI home layout');
   assertDeepEqualJson(
     Object.fromEntries(
-      Object.entries(guiContract.ordinary_conversation ?? {}).filter(([key]) => key !== 'current_task_slice'),
+      Object.entries(guiContract.ordinary_conversation ?? {}).filter(
+        ([key]) => !['current_task_slice', 'agent_package_invocation_receipt_required'].includes(key),
+      ),
     ),
     appOwnedGuiContractOrdinaryConversation,
     'App GUI ordinary conversation contract',
   );
+  if (guiContract.ordinary_conversation?.agent_package_invocation_receipt_required !== true) {
+    throw new Error('App GUI ordinary conversation must require agent package invocation receipts');
+  }
   assertDeepEqualJson(
     Object.fromEntries(
       Object.entries(guiContract.ordinary_conversation?.current_task_slice ?? {}).filter(([key]) => key !== 'fields'),
@@ -135,6 +155,39 @@ function validateDefaultAssistants(guiContract) {
   }
 }
 
+function validateProfessionalAgentPackages(guiContract) {
+  const packages = guiContract.professional_agent_packages ?? [];
+  assertDeepEqualJson(
+    packages.map((entry) => entry.package_id),
+    managedPackageIds,
+    'App GUI contract professional agent packages',
+  );
+  for (const entry of packages) {
+    if (
+      entry.installed_manageable !== true ||
+      entry.codex_visible_entry !== codexEntryByPackageId[entry.package_id] ||
+      JSON.stringify(entry.required_skill_ids) !== JSON.stringify(requiredSkillByPackageId[entry.package_id]) ||
+      entry.required_skill_policy !== 'checked_locked' ||
+      entry.optional_skill_policy !== 'unchecked_user_selectable' ||
+      entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
+    ) {
+      throw new Error(`App GUI professional agent package ${entry.package_id} has invalid shortcut or skill policy`);
+    }
+    if (defaultAssistantIds.includes(entry.package_id)) {
+      if (entry.package_kind !== 'starter_professional_agent_package' || entry.default_home_visible !== true || entry.home_shortcut_ids.length !== 1) {
+        throw new Error(`App GUI starter package ${entry.package_id} must be default home visible through one shortcut`);
+      }
+    }
+    if (entry.package_id === 'oma' && (
+      entry.package_kind !== 'managed_professional_agent_package' ||
+      entry.default_home_visible !== false ||
+      entry.home_shortcut_ids.length !== 0
+    )) {
+      throw new Error('App GUI contract must keep OMA installed/manageable but out of default home shortcuts');
+    }
+  }
+}
+
 function validateAssistantSkillProfiles(guiContract) {
   const skillProfiles = guiContract.assistant_skill_profiles ?? [];
   assertDeepEqualJson(
@@ -177,6 +230,30 @@ function validatePurposeEntries(guiContract) {
       throw new Error(`App GUI purpose entry ${entry.id} must be purpose-first and click-to-start`);
     }
   }
+  const shortcuts = guiContract.home_agent_shortcuts ?? [];
+  assertDeepEqualJson(
+    shortcuts.map((entry) => entry.shortcut_id),
+    purposeEntryIds,
+    'App GUI contract home agent shortcuts',
+  );
+  assertDeepEqualJson(
+    shortcuts.map((entry) => entry.package_id),
+    defaultAssistantIds,
+    'App GUI contract home agent shortcut package targets',
+  );
+  for (const entry of shortcuts) {
+    if (
+      entry.executor !== 'codex_cli' ||
+      entry.source !== 'opl_app_home' ||
+      entry.display_policy !== 'purpose_first' ||
+      entry.home_entry_policy !== 'visible_click_to_start' ||
+      entry.default_visible !== true ||
+      entry.user_configurable !== true ||
+      JSON.stringify(entry.required_skill_ids) !== JSON.stringify(requiredSkillByPackageId[entry.package_id])
+    ) {
+      throw new Error(`App GUI home agent shortcut ${entry.shortcut_id} must be a configurable Codex package launch shortcut`);
+    }
+  }
 }
 
 function validateNonDefaultAndRetiredAssistants(guiContract) {
@@ -195,6 +272,7 @@ export function validateGuiProductHomeContract(guiContract) {
   validateExecutorPolicy(guiContract);
   validateHomeLayout(guiContract);
   validateRightContextInspector(guiContract);
+  validateProfessionalAgentPackages(guiContract);
   validateDefaultAssistants(guiContract);
   validateAssistantSkillProfiles(guiContract);
   validatePurposeEntries(guiContract);

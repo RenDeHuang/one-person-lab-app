@@ -790,6 +790,7 @@
     "executor": "codex_cli",
     "composer_position": "pinned_bottom",
     "purpose_tag_visible": true,
+    "agent_package_invocation_receipt_required": true,
     "assistant_route_receipt_required": true,
     "backend_selector_visible": false,
     "model_selector_visible": true,
@@ -971,7 +972,36 @@
       }
     }
   },
+  "agent_package_invocation_receipt_policy": {
+    "scope": "package_shortcut_launch_to_codex_conversation",
+    "required_for_package_shortcuts": [
+      "research",
+      "grant",
+      "ppt",
+      "book"
+    ],
+    "route_kind": "agent_package_shortcut",
+    "executor": "codex_cli",
+    "source": "opl_app_home",
+    "required_fields": [
+      "route_kind",
+      "executor",
+      "package_id",
+      "shortcut_id",
+      "codex_visible_entry",
+      "required_skill_ids",
+      "source"
+    ],
+    "receipt_authority": "launch_fact_only_no_session_behavior_domain_workflow_or_readiness",
+    "must_not_govern": [
+      "session_behavior",
+      "domain_workflow",
+      "domain_readiness"
+    ],
+    "must_not_depend_on_visible_backend_selection": true
+  },
   "builtin_assistant_route_receipt_policy": {
+    "migration_alias_for": "agent_package_invocation_receipt_policy",
     "scope": "home_purpose_entry_to_conversation",
     "required_for_assistants": [
       "mas",
@@ -995,6 +1025,7 @@
     "scope": "home_composer_and_ordinary_conversation",
     "authority": "app_owned_opl_allowlist",
     "skill_source_ref": "assistant_skill_profiles.required_skills + optional_skills",
+    "package_skill_source_ref": "professional_agent_packages.required_skill_ids + optional_skill_ids",
     "skill_menu_policy": "assistant_scoped_required_checked_optional_visible",
     "conversation_loaded_skill_display_policy": "filter_to_ordinary_skill_allowlist",
     "mcp_server_source_ref": "contracts/app-product-profile.json#gui.ordinary_capability_selector_policy.visible_mcp_server_ids",
@@ -1130,6 +1161,187 @@
       "target_assistant_short_name": "BookForge",
       "display_policy": "purpose_first",
       "home_entry_policy": "visible_click_to_start"
+    }
+  ],
+  "home_agent_shortcuts": [
+    {
+      "shortcut_id": "research",
+      "package_id": "mas",
+      "primary_label": "科研",
+      "package_short_name": "MAS",
+      "codex_visible_entry": "mas",
+      "required_skill_ids": [
+        "mas"
+      ],
+      "source": "opl_app_home",
+      "executor": "codex_cli",
+      "display_policy": "purpose_first",
+      "home_entry_policy": "visible_click_to_start",
+      "default_visible": true,
+      "user_configurable": true
+    },
+    {
+      "shortcut_id": "grant",
+      "package_id": "mag",
+      "primary_label": "基金",
+      "package_short_name": "MAG",
+      "codex_visible_entry": "mag",
+      "required_skill_ids": [
+        "mag"
+      ],
+      "source": "opl_app_home",
+      "executor": "codex_cli",
+      "display_policy": "purpose_first",
+      "home_entry_policy": "visible_click_to_start",
+      "default_visible": true,
+      "user_configurable": true
+    },
+    {
+      "shortcut_id": "ppt",
+      "package_id": "rca",
+      "primary_label": "演示",
+      "package_short_name": "RCA",
+      "codex_visible_entry": "rca",
+      "required_skill_ids": [
+        "rca"
+      ],
+      "source": "opl_app_home",
+      "executor": "codex_cli",
+      "display_policy": "purpose_first",
+      "home_entry_policy": "visible_click_to_start",
+      "default_visible": true,
+      "user_configurable": true
+    },
+    {
+      "shortcut_id": "book",
+      "package_id": "bookforge",
+      "primary_label": "写书",
+      "package_short_name": "BookForge",
+      "codex_visible_entry": "opl-bookforge",
+      "required_skill_ids": [
+        "opl-bookforge"
+      ],
+      "source": "opl_app_home",
+      "executor": "codex_cli",
+      "display_policy": "purpose_first",
+      "home_entry_policy": "visible_click_to_start",
+      "default_visible": true,
+      "user_configurable": true
+    }
+  ],
+  "professional_agent_packages": [
+    {
+      "package_id": "mas",
+      "display_name": "Med Auto Science",
+      "short_name": "MAS",
+      "role": "research_and_paper_agent",
+      "package_kind": "starter_professional_agent_package",
+      "installed_manageable": true,
+      "default_home_visible": true,
+      "codex_visible_entry": "mas",
+      "home_shortcut_ids": [
+        "research"
+      ],
+      "required_skill_ids": [
+        "mas"
+      ],
+      "optional_skill_ids": [
+        "mineru-document-extractor",
+        "officecli-docx",
+        "officecli-xlsx"
+      ],
+      "required_skill_policy": "checked_locked",
+      "optional_skill_policy": "unchecked_user_selectable",
+      "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
+    },
+    {
+      "package_id": "mag",
+      "display_name": "Med Auto Grant",
+      "short_name": "MAG",
+      "role": "grant_authoring_agent",
+      "package_kind": "starter_professional_agent_package",
+      "installed_manageable": true,
+      "default_home_visible": true,
+      "codex_visible_entry": "mag",
+      "home_shortcut_ids": [
+        "grant"
+      ],
+      "required_skill_ids": [
+        "mag"
+      ],
+      "optional_skill_ids": [
+        "officecli-docx",
+        "officecli-xlsx",
+        "mineru-document-extractor"
+      ],
+      "required_skill_policy": "checked_locked",
+      "optional_skill_policy": "unchecked_user_selectable",
+      "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
+    },
+    {
+      "package_id": "rca",
+      "display_name": "RedCube AI",
+      "short_name": "RCA",
+      "role": "presentation_and_visual_deliverable_agent",
+      "package_kind": "starter_professional_agent_package",
+      "installed_manageable": true,
+      "default_home_visible": true,
+      "codex_visible_entry": "rca",
+      "home_shortcut_ids": [
+        "ppt"
+      ],
+      "required_skill_ids": [
+        "rca"
+      ],
+      "optional_skill_ids": [
+        "officecli-pptx",
+        "ui-ux-pro-max"
+      ],
+      "required_skill_policy": "checked_locked",
+      "optional_skill_policy": "unchecked_user_selectable",
+      "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
+    },
+    {
+      "package_id": "bookforge",
+      "display_name": "OPL BookForge",
+      "short_name": "BookForge",
+      "role": "book_authoring_agent",
+      "package_kind": "starter_professional_agent_package",
+      "installed_manageable": true,
+      "default_home_visible": true,
+      "codex_visible_entry": "opl-bookforge",
+      "home_shortcut_ids": [
+        "book"
+      ],
+      "required_skill_ids": [
+        "opl-bookforge"
+      ],
+      "optional_skill_ids": [
+        "officecli-docx",
+        "pdf",
+        "mineru-document-extractor"
+      ],
+      "required_skill_policy": "checked_locked",
+      "optional_skill_policy": "unchecked_user_selectable",
+      "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
+    },
+    {
+      "package_id": "oma",
+      "display_name": "OPL Meta Agent",
+      "short_name": "OMA",
+      "role": "opl_agent_design_and_testing_agent",
+      "package_kind": "managed_professional_agent_package",
+      "installed_manageable": true,
+      "default_home_visible": false,
+      "codex_visible_entry": "opl-meta-agent",
+      "home_shortcut_ids": [],
+      "required_skill_ids": [
+        "opl-meta-agent"
+      ],
+      "optional_skill_ids": [],
+      "required_skill_policy": "checked_locked",
+      "optional_skill_policy": "unchecked_user_selectable",
+      "skill_menu_policy": "assistant_scoped_required_checked_optional_visible"
     }
   ],
   "default_assistants": [
@@ -2076,6 +2288,9 @@
       "refresh_source": "opl app state --profile fast --json",
       "executor_policy_ref": "executor_policy",
       "home_layout_ref": "home_layout",
+      "agent_package_source_ref": "professional_agent_packages",
+      "home_agent_shortcut_source_ref": "home_agent_shortcuts",
+      "agent_package_skill_source_ref": "professional_agent_packages.required_skill_ids + optional_skill_ids",
       "assistant_source_ref": "default_assistants",
       "purpose_entry_source_ref": "home_purpose_entries",
       "assistant_skill_profile_source_ref": "assistant_skill_profiles",
@@ -2170,7 +2385,8 @@
       "state_source": "opl app state --profile fast --json",
       "refresh_source": "opl app state --profile fast --json",
       "ordinary_conversation_ref": "ordinary_conversation",
-      "route_receipt_policy_ref": "builtin_assistant_route_receipt_policy",
+      "route_receipt_policy_ref": "agent_package_invocation_receipt_policy",
+      "legacy_route_receipt_alias_ref": "builtin_assistant_route_receipt_policy",
       "must_show": [
         "Codex CLI ordinary conversation",
         "pinned composer",

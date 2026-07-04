@@ -871,6 +871,12 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   assert.equal(guidHomePage.home_view_model.state_source, 'opl app state --profile fast --json');
   assert.equal(guidHomePage.home_view_model.refresh_source, 'opl app state --profile fast --json');
   assert.equal(guidHomePage.home_view_model.executor_policy_ref, 'contracts/app-gui-product-contract.json#executor_policy');
+  assert.equal(guidHomePage.home_view_model.agent_package_source_ref, 'contracts/app-gui-product-contract.json#professional_agent_packages');
+  assert.equal(guidHomePage.home_view_model.home_agent_shortcut_source_ref, 'contracts/app-gui-product-contract.json#home_agent_shortcuts');
+  assert.equal(
+    guidHomePage.home_view_model.agent_package_skill_source_ref,
+    'contracts/app-gui-product-contract.json#professional_agent_packages.required_skill_ids + optional_skill_ids',
+  );
   assert.equal(guidHomePage.home_view_model.assistant_source_ref, 'contracts/app-gui-product-contract.json#default_assistants');
   assert.equal(guidHomePage.home_view_model.codex_only_default, true);
   assert.equal(guidHomePage.home_view_model.executor_tab_visible_when_single_executor, false);
@@ -889,22 +895,53 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
   );
   assert.equal(
     guidHomePage.home_view_model.route_receipt_source_ref,
+    'contracts/app-gui-product-contract.json#agent_package_invocation_receipt_policy',
+  );
+  assert.equal(
+    guidHomePage.home_view_model.legacy_route_receipt_alias_source_ref,
     'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
   );
   assert.deepEqual(guidHomePage.home_view_model.route_receipt_required_fields, [
     'route_kind',
     'executor',
-    'assistant_id',
-    'assistant_short_name',
+    'package_id',
+    'shortcut_id',
+    'codex_visible_entry',
+    'required_skill_ids',
     'source',
   ]);
+  assert.deepEqual(guidHomePage.home_view_model.route_receipt_must_not_govern, [
+    'session_behavior',
+    'domain_workflow',
+    'domain_readiness',
+  ]);
   assert.deepEqual(guidHomePage.home_view_model.default_assistants, ['mas', 'mag', 'rca', 'bookforge']);
+  assert.deepEqual(guidHomePage.home_view_model.professional_agent_packages, ['mas', 'mag', 'rca', 'bookforge', 'oma']);
+  assert.deepEqual(guidHomePage.home_view_model.default_home_agent_packages, ['mas', 'mag', 'rca', 'bookforge']);
   assert.deepEqual(guidHomePage.home_view_model.default_assistant_required_skills, {
     mas: ['mas'],
     mag: ['mag'],
     rca: ['rca'],
     bookforge: ['opl-bookforge'],
   });
+  assert.deepEqual(guidHomePage.home_view_model.default_agent_package_required_skills, {
+    mas: ['mas'],
+    mag: ['mag'],
+    rca: ['rca'],
+    bookforge: ['opl-bookforge'],
+  });
+  assert.deepEqual(guidHomePage.home_view_model.home_agent_shortcuts.map((entry) => entry.shortcut_id), [
+    'research',
+    'grant',
+    'ppt',
+    'book',
+  ]);
+  assert.deepEqual(guidHomePage.home_view_model.home_agent_shortcuts.map((entry) => entry.package_id), [
+    'mas',
+    'mag',
+    'rca',
+    'bookforge',
+  ]);
   assert.deepEqual(guidHomePage.home_view_model.home_purpose_entries.map((entry) => entry.id), [
     'research',
     'grant',
@@ -982,6 +1019,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
     executor: 'codex_cli',
     composer_position: 'pinned_bottom',
     purpose_tag_visible: true,
+    agent_package_invocation_receipt_required: true,
     assistant_route_receipt_required: true,
     backend_selector_visible: false,
     model_selector_visible: true,

@@ -46,6 +46,9 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     state_source: 'opl app state --profile fast --json',
     refresh_source: 'opl app state --profile fast --json',
     executor_policy_ref: 'contracts/app-gui-product-contract.json#executor_policy',
+    agent_package_source_ref: 'contracts/app-gui-product-contract.json#professional_agent_packages',
+    home_agent_shortcut_source_ref: 'contracts/app-gui-product-contract.json#home_agent_shortcuts',
+    agent_package_skill_source_ref: 'contracts/app-gui-product-contract.json#professional_agent_packages.required_skill_ids + optional_skill_ids',
     assistant_source_ref: 'contracts/app-gui-product-contract.json#default_assistants',
     assistant_skill_profile_source_ref: 'contracts/app-gui-product-contract.json#assistant_skill_profiles',
     ordinary_capability_selector_policy_ref: 'contracts/app-product-profile.json#gui.ordinary_capability_selector_policy',
@@ -86,11 +89,27 @@ function validateGuidHomeDefaultAssistants(homeViewModel) {
   if (homeViewModel.default_assistants?.includes('oma')) {
     throw new Error('Guid home page must not include OMA as a default assistant');
   }
+  assertIncludesAll(
+    homeViewModel.professional_agent_packages,
+    ['mas', 'mag', 'rca', 'bookforge', 'oma'],
+    'Guid home page professional agent packages',
+  );
+  assertDeepEqualJson(
+    homeViewModel.default_home_agent_packages,
+    ['mas', 'mag', 'rca', 'bookforge'],
+    'Guid home page default home agent packages',
+  );
   const requiredSkills = homeViewModel.default_assistant_required_skills ?? {};
   assertDeepEqualJson(
     ['mas', 'mag', 'rca', 'bookforge'].map((assistant) => requiredSkills[assistant]),
     [['mas'], ['mag'], ['rca'], ['opl-bookforge']],
     'Guid home page required assistant skills',
+  );
+  const packageRequiredSkills = homeViewModel.default_agent_package_required_skills ?? {};
+  assertDeepEqualJson(
+    ['mas', 'mag', 'rca', 'bookforge'].map((packageId) => packageRequiredSkills[packageId]),
+    [['mas'], ['mag'], ['rca'], ['opl-bookforge']],
+    'Guid home page required package skills',
   );
 }
 
@@ -98,19 +117,33 @@ function validateGuidHomeRouteAndPurpose(homeViewModel) {
   assertDeepEqualJson(
     fieldsFrom(homeViewModel, {
       purpose_entry_source_ref: 'contracts/app-gui-product-contract.json#home_purpose_entries',
-      route_receipt_source_ref: 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
+      route_receipt_source_ref: 'contracts/app-gui-product-contract.json#agent_package_invocation_receipt_policy',
+      legacy_route_receipt_alias_source_ref: 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
     }),
     {
       purpose_entry_source_ref: 'contracts/app-gui-product-contract.json#home_purpose_entries',
-      route_receipt_source_ref: 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
+      route_receipt_source_ref: 'contracts/app-gui-product-contract.json#agent_package_invocation_receipt_policy',
+      legacy_route_receipt_alias_source_ref: 'contracts/app-gui-product-contract.json#builtin_assistant_route_receipt_policy',
     },
     'Guid home page route and purpose source refs',
   );
   assertIncludesAll(
     homeViewModel.route_receipt_required_fields,
-    ['route_kind', 'executor', 'assistant_id', 'assistant_short_name', 'source'],
+    ['route_kind', 'executor', 'package_id', 'shortcut_id', 'codex_visible_entry', 'required_skill_ids', 'source'],
     'Guid home page route receipt fields',
   );
+  assertIncludesAll(
+    homeViewModel.route_receipt_must_not_govern,
+    ['session_behavior', 'domain_workflow', 'domain_readiness'],
+    'Guid home page route receipt non-authority fields',
+  );
+  const homeAgentShortcuts = homeViewModel.home_agent_shortcuts ?? [];
+  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
+    throw new Error('Guid home page must expose research, grant, ppt, and book package shortcuts');
+  }
+  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
+    throw new Error('Guid home page package shortcuts must target MAS, MAG, RCA, and BookForge');
+  }
   const homePurposeEntries = homeViewModel.home_purpose_entries ?? [];
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.id)) !== JSON.stringify(['research', 'grant', 'ppt', 'book'])) {
     throw new Error('Guid home page must expose research, grant, ppt, and book purpose entries');
@@ -203,7 +236,11 @@ function validateOrdinaryConversationPage(matrix) {
   }
   assertDeepEqualJson(
     {
-      ...ordinaryConversationPage.conversation_view_model,
+      ...Object.fromEntries(
+        Object.entries(ordinaryConversationPage.conversation_view_model ?? {}).filter(
+          ([key]) => key !== 'agent_package_invocation_receipt_required',
+        ),
+      ),
       current_task_slice: Object.fromEntries(
         Object.entries(ordinaryConversationPage.conversation_view_model?.current_task_slice ?? {}).filter(
           ([key]) => key !== 'fields',
@@ -218,6 +255,9 @@ function validateOrdinaryConversationPage(matrix) {
     },
     'Ordinary conversation view model shell policy',
   );
+  if (ordinaryConversationPage.conversation_view_model?.agent_package_invocation_receipt_required !== true) {
+    throw new Error('Ordinary conversation view model must require agent package invocation receipts');
+  }
   assertIncludesAll(
     ordinaryConversationPage.conversation_view_model?.current_task_slice?.fields,
     [

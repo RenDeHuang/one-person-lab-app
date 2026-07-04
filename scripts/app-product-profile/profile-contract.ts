@@ -43,6 +43,22 @@ const developerProfileCapabilityAxes = [
   'agent_automation',
   'runtime_mutation_scope',
 ];
+const starterPackageIds = ['mas', 'mag', 'rca', 'bookforge'];
+const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
+const requiredSkillByPackageId = {
+  mas: ['mas'],
+  mag: ['mag'],
+  rca: ['rca'],
+  bookforge: ['opl-bookforge'],
+  oma: ['opl-meta-agent'],
+};
+const codexEntryByPackageId = {
+  mas: 'mas',
+  mag: 'mag',
+  rca: 'rca',
+  bookforge: 'opl-bookforge',
+  oma: 'opl-meta-agent',
+};
 const legacySettingsRouteRedirects = {
   overview: 'general',
   runtime: 'environment',
@@ -433,6 +449,27 @@ function assertHomePurposeEntries(profile: AppProductProfile): void {
       throw new Error(`App product profile GUI home purpose entry ${entry.id} must be purpose-first and click-to-start`);
     }
   }
+  const shortcuts = profile.gui.home.home_agent_shortcuts ?? [];
+  if (JSON.stringify(shortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(starterShortcutIds)) {
+    throw new Error('App product profile GUI home must expose configurable research, grant, ppt, and book package shortcuts');
+  }
+  if (JSON.stringify(shortcuts.map((entry) => entry.package_id)) !== JSON.stringify(starterPackageIds)) {
+    throw new Error('App product profile GUI home shortcuts must target MAS, MAG, RCA, and BookForge packages');
+  }
+  for (const shortcut of shortcuts) {
+    const expectedSkills = requiredSkillByPackageId[shortcut.package_id as keyof typeof requiredSkillByPackageId];
+    if (
+      shortcut.executor !== 'codex_cli' ||
+      shortcut.source !== 'opl_app_home' ||
+      shortcut.display_policy !== 'purpose_first' ||
+      shortcut.home_entry_policy !== 'visible_click_to_start' ||
+      shortcut.default_visible !== true ||
+      shortcut.user_configurable !== true ||
+      JSON.stringify(shortcut.required_skill_ids) !== JSON.stringify(expectedSkills)
+    ) {
+      throw new Error(`App product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
+    }
+  }
   assertStringArray(
     profile.gui.home.retired_codex_models_must_not_be_exposed,
     'gui.home.retired_codex_models_must_not_be_exposed',
@@ -503,7 +540,7 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
   if (
     ordinarySelector.scope !== 'home_composer_and_ordinary_conversation' ||
     ordinarySelector.authority !== 'app_owned_opl_allowlist' ||
-    ordinarySelector.skill_source_ref !== 'gui.assistant_skill_profiles.required_skills + optional_skills' ||
+    ordinarySelector.skill_source_ref !== 'gui.professional_agent_packages.required_skill_ids + optional_skill_ids' ||
     ordinarySelector.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible' ||
     ordinarySelector.conversation_loaded_skill_display_policy !== 'filter_to_ordinary_skill_allowlist' ||
     ordinarySelector.mcp_server_source_ref !== 'gui.ordinary_capability_selector_policy.visible_mcp_server_ids' ||
@@ -574,6 +611,42 @@ function assertOrdinaryCapabilitySelectorPolicy(profile: AppProductProfile): voi
   }
 }
 
+function assertProfessionalAgentPackages(profile: AppProductProfile): void {
+  const packages = profile.gui.professional_agent_packages ?? [];
+  if (JSON.stringify(packages.map((entry) => entry.package_id)) !== JSON.stringify([...starterPackageIds, 'oma'])) {
+    throw new Error('App product profile professional agent packages must declare MAS, MAG, RCA, BookForge, and OMA');
+  }
+  for (const entry of packages) {
+    const requiredSkills = requiredSkillByPackageId[entry.package_id as keyof typeof requiredSkillByPackageId];
+    const codexEntry = codexEntryByPackageId[entry.package_id as keyof typeof codexEntryByPackageId];
+    if (!requiredSkills || !codexEntry) {
+      throw new Error(`App product profile professional agent package ${entry.package_id} is not in the App package allowlist`);
+    }
+    if (
+      entry.installed_manageable !== true ||
+      entry.codex_visible_entry !== codexEntry ||
+      JSON.stringify(entry.required_skill_ids) !== JSON.stringify(requiredSkills) ||
+      entry.required_skill_policy !== 'checked_locked' ||
+      entry.optional_skill_policy !== 'unchecked_user_selectable' ||
+      entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
+    ) {
+      throw new Error(`App product profile professional agent package ${entry.package_id} has invalid shortcut or skill policy`);
+    }
+    if (starterPackageIds.includes(entry.package_id)) {
+      if (entry.package_kind !== 'starter_professional_agent_package' || entry.default_home_visible !== true || entry.home_shortcut_ids.length !== 1) {
+        throw new Error(`App product profile starter package ${entry.package_id} must be default home visible through one shortcut`);
+      }
+    }
+    if (entry.package_id === 'oma' && (
+      entry.package_kind !== 'managed_professional_agent_package' ||
+      entry.default_home_visible !== false ||
+      entry.home_shortcut_ids.length !== 0
+    )) {
+      throw new Error('App product profile must keep OMA installed/manageable but out of default home shortcuts');
+    }
+  }
+}
+
 function assertAssistantSkillProfiles(
   profile: AppProductProfile,
 ): AppProductProfile['gui']['assistant_skill_profiles'] {
@@ -628,6 +701,7 @@ function assertProfileShape(profile: AppProductProfile): void {
   assertAppProductProfileRouteReceiptPolicy(profile, 'App product profile', {
     requireExactAssistants: true,
   });
+  assertProfessionalAgentPackages(profile);
   assertDefaultAssistantProfileShape(profile);
   assertOrdinaryCapabilitySelectorPolicy(profile);
   const skillProfiles = assertAssistantSkillProfiles(profile);

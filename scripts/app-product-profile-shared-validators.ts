@@ -22,6 +22,7 @@ type ProductProfileLike = {
       };
     };
     builtin_assistant_route_receipt_policy?: Record<string, unknown>;
+    agent_package_invocation_receipt_policy?: Record<string, unknown>;
   };
 };
 
@@ -37,6 +38,18 @@ type ModelDisplayOptions = {
 type RouteReceiptOptions = {
   requireExactAssistants?: boolean;
 };
+
+const starterPackageIds = ['mas', 'mag', 'rca', 'bookforge'];
+const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
+const agentPackageReceiptRequiredFields = [
+  'route_kind',
+  'executor',
+  'package_id',
+  'shortcut_id',
+  'codex_visible_entry',
+  'required_skill_ids',
+  'source',
+];
 
 type GuiLike = NonNullable<ProductProfileLike['gui']>;
 type HomeLike = GuiLike['home'];
@@ -268,23 +281,57 @@ export function assertAppProductProfileRouteReceiptPolicy(
   label = 'App product profile',
   options: RouteReceiptOptions = {},
 ): void {
-  const policy = profile.gui?.builtin_assistant_route_receipt_policy;
+  const policy = profile.gui?.agent_package_invocation_receipt_policy;
   if (
-    policy?.scope !== 'home_purpose_entry_to_conversation' ||
-    policy.route_kind !== 'builtin_capability' ||
+    policy?.scope !== 'package_shortcut_launch_to_codex_conversation' ||
+    policy.route_kind !== 'agent_package_shortcut' ||
     policy.executor !== 'codex_cli' ||
     policy.source !== 'opl_app_home' ||
+    policy.receipt_authority !== 'launch_fact_only_no_session_behavior_domain_workflow_or_readiness' ||
     policy.must_not_depend_on_visible_backend_selection !== true
   ) {
-    throw new Error(`${label} must require built-in assistant Codex CLI route receipts`);
+    throw new Error(`${label} must require agent package shortcut Codex CLI launch receipts`);
   }
   if (options.requireExactAssistants) {
-    assertExactStringArray(policy.required_for_assistants, ['mas', 'mag', 'rca', 'bookforge'], `${label} route receipt assistants`);
+    assertExactStringArray(policy.required_for_package_shortcuts, starterShortcutIds, `${label} package shortcut receipt ids`);
   } else {
-    assertStringArrayIncludes(policy.required_for_assistants, ['mas', 'mag', 'rca', 'bookforge'], `${label} route receipt assistants`);
+    assertStringArrayIncludes(policy.required_for_package_shortcuts, starterShortcutIds, `${label} package shortcut receipt ids`);
   }
   assertStringArrayIncludes(
     policy.required_fields,
+    agentPackageReceiptRequiredFields,
+    `${label} package shortcut receipt fields`,
+  );
+  assertStringArrayIncludes(
+    policy.must_not_govern,
+    ['session_behavior', 'domain_workflow', 'domain_readiness'],
+    `${label} package shortcut receipt non-authority fields`,
+  );
+
+  const legacyPolicy = profile.gui?.builtin_assistant_route_receipt_policy;
+  if (
+    legacyPolicy &&
+    (
+      legacyPolicy.migration_alias_for !== 'agent_package_invocation_receipt_policy' ||
+      legacyPolicy.scope !== 'home_purpose_entry_to_conversation' ||
+      legacyPolicy.route_kind !== 'builtin_capability' ||
+      legacyPolicy.executor !== 'codex_cli' ||
+      legacyPolicy.source !== 'opl_app_home' ||
+      legacyPolicy.must_not_depend_on_visible_backend_selection !== true
+    )
+  ) {
+    throw new Error(`${label} legacy built-in assistant route receipt policy must stay a migration alias`);
+  }
+  if (!legacyPolicy) {
+    return;
+  }
+  if (options.requireExactAssistants) {
+    assertExactStringArray(legacyPolicy.required_for_assistants, starterPackageIds, `${label} route receipt assistants`);
+  } else {
+    assertStringArrayIncludes(legacyPolicy.required_for_assistants, starterPackageIds, `${label} route receipt assistants`);
+  }
+  assertStringArrayIncludes(
+    legacyPolicy.required_fields,
     ['route_kind', 'executor', 'assistant_id', 'assistant_short_name', 'source'],
     `${label} route receipt fields`,
   );
