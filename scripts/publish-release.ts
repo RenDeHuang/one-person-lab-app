@@ -505,7 +505,7 @@ function suggestDefaultReleaseVersion(repo, dateVersion) {
 }
 
 function releaseNotesMode(options = {}) {
-  const mode = (process.env.OPL_RELEASE_NOTES_MODE || 'template').trim().toLowerCase();
+  const mode = (process.env.OPL_RELEASE_NOTES_MODE || 'ai').trim().toLowerCase();
   if (mode !== 'ai' && mode !== 'template') {
     throw new Error(`Unsupported OPL_RELEASE_NOTES_MODE: ${process.env.OPL_RELEASE_NOTES_MODE}`);
   }

@@ -1,4 +1,7 @@
 import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { ReleaseNotesEvidence } from './release-notes.ts';
 
 type AiReleaseNotesOptions = {
@@ -47,6 +50,21 @@ const runtimeChangeDetailPatterns = [
   /\b(work[- ]order|agent design|agent testing|Foundry)\b/i,
   /\b(runtime state|state\/action|provider liveness|supervision)\b/i,
 ];
+
+const technicalDetailsHeadingPattern = /^## Technical details\b.*$/im;
+
+const developerMemoTermPatterns = [
+  ['refs', /\brefs?\b/i],
+  ['SHA', /\bSHA(?:-[0-9]+)?\b/],
+  ['cohort', /\bcohort\b/i],
+  ['gate', /\bgate(?:d|s)?\b/i],
+  ['workflow', /\bworkflows?\b/i],
+  ['validation', /\bvalidation\b/i],
+  ['release operator', /\brelease operator\b/i],
+  ['owner receipt', /\bowner receipt\b/i],
+  ['owner verdict', /\bowner verdict\b/i],
+  ['release candidate', /\brelease candidate\b/i],
+] as const;
 
 function shellCommandArgs(command: string) {
   return ['-lc', command];
@@ -103,6 +121,16 @@ function stripLocalizedReleaseNotes(markdown: string) {
     .trimEnd()}\n`;
 }
 
+function technicalDetailsOffset(markdown: string) {
+  const match = technicalDetailsHeadingPattern.exec(markdown);
+  return match ? match.index : -1;
+}
+
+function publicMarkdownBeforeTechnicalDetails(markdown: string) {
+  const offset = technicalDetailsOffset(markdown);
+  return offset >= 0 ? markdown.slice(0, offset) : markdown;
+}
+
 function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
   return [
     'Write the public GitHub Release notes for One Person Lab App.',
@@ -116,6 +144,9 @@ function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
     '- Write natural, concrete, user-facing English. Do not sound like a commit classifier.',
     '- The visible first paragraph must explain what a user can do more easily after installing or upgrading. Do not lead with CI, workflows, contracts, release-note generation, or audit mechanics.',
     '- Put that visible first paragraph immediately after the title, before any "##" section heading.',
+    '- The first visible screen must be for users, not maintainers: avoid refs, SHA, cohort, gate, workflow, validation, release operator, owner receipt, owner verdict, and release candidate wording before the final technical section.',
+    '- If refs, SHAs, gates, validation details, owner-route terms, or other process evidence are necessary for auditability, put them only after a "## Technical details" heading or inside the hidden localization blocks.',
+    '- Put the technical/audit tail after the user-facing narrative. The "## Technical details" heading is the boundary where maintainer evidence may begin.',
     '- Explain bundled OPL agent/runtime changes in plain language: MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and Codex skills when present.',
     '- When release_evidence.family_repo_changes is non-empty, include a concise "## OPL family updates" section that summarizes actual changes per repository. Use commit subjects, commit counts, and compare links from that evidence. Do not collapse this into App-only wording.',
     '- When release_evidence.agent_runtime_changes is non-empty, use those entries to write concise role-based bullets. Say what MAS, MAG, RCA, OPL Meta Agent, Framework, Codex CLI, OfficeCLI, or MinerU help users do; do not list refs as the main improvement.',
@@ -124,10 +155,10 @@ function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
     '- Keep the required sections: "## What improved", "## OPL agents and runtime payload", and "## Release scope".',
     '- For Stable releases, include a section titled exactly "## Install Stable" before "## Release scope". In that section include release_evidence.install_command exactly in inline code.',
     '- For Nightly releases, do not include the Stable install command.',
-    '- In "## What improved", start with user-facing agent and runtime workflows before mentioning release plumbing.',
-    '- In "## OPL agents and runtime payload", include role-based payload bullets first, then include the release_evidence.payload.lines entries exactly enough that the payload refs, Nightly boundary, and Full runtime boundary remain auditable.',
+    '- In "## What improved", start with user-facing agent tasks and runtime use cases before mentioning release plumbing.',
+    '- In "## OPL agents and runtime payload", include role-based payload bullets first. Keep raw release_evidence.payload.lines entries that contain refs, SHAs, boundaries, gates, validation wording, or packaged component refs after "## Technical details".',
     '- Do not format release_evidence.payload.lines as blockquotes. They must stay normal bullets.',
-    '- Keep build-time refs and payload deltas in the payload/audit part of the note. They are supporting evidence, not the headline.',
+    '- Keep build-time refs and payload deltas in "## Technical details". They are supporting evidence, not the headline.',
     '- Include the Full Changelog link when evidence.full_changelog_url is present.',
     '- Do not include Chinese text in the visible public Markdown.',
     '- Do not invent domain results, quality claims, benchmarks, or unsupported agent capabilities.',
@@ -247,7 +278,7 @@ function validateEnglishReleaseNotesMarkdown(markdown: string, evidence: Release
       failures.push(`missing ${required}`);
     }
   }
-  if (evidence.channel === 'nightly' && !/Nightly standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin\/skill sync policy\./.test(markdown)) {
+  if (evidence.channel === 'nightly' && !/Nightly standard package.*MAS, MAG, RCA, and OPL Meta Agent.*Codex plugin.*skill sync policy/i.test(markdown)) {
     failures.push('missing Nightly agent entry surface');
   }
   if (evidence.channel === 'stable') {
@@ -261,16 +292,28 @@ function validateEnglishReleaseNotesMarkdown(markdown: string, evidence: Release
   if (evidence.channel === 'nightly' && evidence.install_command && markdown.includes(evidence.install_command)) {
     failures.push('Nightly release notes include Stable install command');
   }
-  if (evidence.payload.include_full_package && !/Build-time payload refs:/.test(markdown)) {
+  if (evidence.payload.include_full_package && !/(?:Build-time payload refs|Packaged component refs):/.test(markdown)) {
     failures.push('missing Full payload refs');
   }
-  if (evidence.payload.include_full_package && evidence.payload.updates_since_previous_stable.length > 0 && !/Payload updates since previous Stable:/.test(markdown)) {
+  if (evidence.payload.include_full_package && evidence.payload.updates_since_previous_stable.length > 0 && !/(?:Payload|Component) updates since previous Stable:/.test(markdown)) {
     failures.push('missing Full payload update summary');
   }
+  const technicalOffset = technicalDetailsOffset(markdown);
   for (const ref of evidence.payload.bundled_refs) {
     if (!markdown.includes(ref)) {
       failures.push(`missing payload ref: ${ref}`);
+    } else if (evidence.payload.include_full_package && technicalOffset < 0) {
+      failures.push('payload refs missing Technical details section');
+    } else if (evidence.payload.include_full_package && markdown.indexOf(ref) < technicalOffset) {
+      failures.push(`payload ref before Technical details: ${ref}`);
     }
+  }
+  const payloadUpdatesOffset = Math.max(
+    markdown.indexOf('Payload updates since previous Stable:'),
+    markdown.indexOf('Component updates since previous Stable:'),
+  );
+  if (payloadUpdatesOffset >= 0 && technicalOffset >= 0 && payloadUpdatesOffset < technicalOffset) {
+    failures.push('payload update summary before Technical details');
   }
   if (evidence.family_repo_changes?.length > 0) {
     if (!markdown.includes('## OPL family updates')) {
@@ -300,6 +343,13 @@ function validateEnglishReleaseNotesMarkdown(markdown: string, evidence: Release
   }
   if (processFirstPatterns.some((pattern) => pattern.test(firstParagraph)) && !userWorkflowPattern.test(firstParagraph)) {
     failures.push('opening paragraph is process-first');
+  }
+  const preTechnicalMarkdown = publicMarkdownBeforeTechnicalDetails(markdown);
+  const developerMemoTerms = developerMemoTermPatterns
+    .filter(([, pattern]) => pattern.test(preTechnicalMarkdown))
+    .map(([label]) => label);
+  if (developerMemoTerms.length > 0) {
+    failures.push(`developer memo terms before Technical details: ${developerMemoTerms.join(', ')}`);
   }
   if (!userWorkflowPattern.test(markdown)) {
     failures.push('missing concrete user impact');
@@ -376,5 +426,70 @@ export function buildAiReleaseNotesDocument(evidence: ReleaseNotesEvidence, opti
   } catch (error) {
     console.error(`GitHub Models release-note provider unavailable; falling back to Codex provider. ${error instanceof Error ? error.message : String(error)}`);
     return runCodexProvider(prompt, evidence, command);
+  }
+}
+
+type AiReleaseNotesCliOptions = AiReleaseNotesOptions & {
+  evidencePath: string;
+  outputPath: string;
+};
+
+function valueAfter(argv: string[], index: number, token: string) {
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`Missing value for ${token}`);
+  }
+  return value;
+}
+
+function parseCliArgs(argv: string[]): AiReleaseNotesCliOptions {
+  const parsed: AiReleaseNotesCliOptions = {
+    evidencePath: process.env.OPL_RELEASE_NOTES_EVIDENCE_INPUT?.trim() || '',
+    outputPath: '',
+  };
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    const value = valueAfter(argv, index, token);
+    if (token === '--evidence') {
+      parsed.evidencePath = path.resolve(value);
+    } else if (token === '--output') {
+      parsed.outputPath = path.resolve(value);
+    } else if (token === '--provider-command') {
+      parsed.providerCommand = value;
+    } else if (token === '--model') {
+      parsed.model = value;
+    } else {
+      throw new Error(`Unknown argument: ${token}`);
+    }
+    index += 1;
+  }
+  if (!parsed.evidencePath) {
+    throw new Error('Missing required --evidence.');
+  }
+  return parsed;
+}
+
+function readReleaseNotesEvidence(evidencePath: string): ReleaseNotesEvidence {
+  const payload = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+  return (payload?.release_evidence ?? payload) as ReleaseNotesEvidence;
+}
+
+function runCli() {
+  const options = parseCliArgs(process.argv.slice(2));
+  const notes = buildAiReleaseNotesDocument(readReleaseNotesEvidence(options.evidencePath), options);
+  if (options.outputPath) {
+    fs.mkdirSync(path.dirname(options.outputPath), { recursive: true });
+    fs.writeFileSync(options.outputPath, notes);
+  } else {
+    process.stdout.write(notes);
+  }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    runCli();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
   }
 }

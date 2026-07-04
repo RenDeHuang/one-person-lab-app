@@ -110,6 +110,10 @@ jobs:
   publish-nightly:
     name: Publish standard Nightly prerelease
     runs-on: macos-latest
+    permissions:
+      contents: write
+      actions: read
+      models: read
     needs:
       - resolve-nightly
       - standard-build
@@ -153,6 +157,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPL_RELEASE_NOTES_MODE: ai
+          OPL_RELEASE_NOTES_PROVIDER: github_models
           OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/opl-nightly-notes-evidence.json
           OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
           OPL_RELEASE_TAG: ${{ needs.resolve-nightly.outputs.tag }}
@@ -172,12 +178,16 @@ jobs:
           fi
 
           notes_file="$RUNNER_TEMP/opl-nightly-notes.md"
+          template_notes_file="$RUNNER_TEMP/opl-nightly-template-notes.md"
           node --experimental-strip-types scripts/generate-release-notes.ts \
             --version "$OPL_RELEASE_VERSION" \
             --channel nightly \
             --repo "$GITHUB_REPOSITORY" \
             --shell-root shells/aionui \
             --evidence-output "$OPL_RELEASE_NOTES_EVIDENCE_OUTPUT" \
+            --output "$template_notes_file"
+          node --experimental-strip-types scripts/release-notes-ai-writer.ts \
+            --evidence "$OPL_RELEASE_NOTES_EVIDENCE_OUTPUT" \
             --output "$notes_file"
 
           if gh release view "${OPL_RELEASE_TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then

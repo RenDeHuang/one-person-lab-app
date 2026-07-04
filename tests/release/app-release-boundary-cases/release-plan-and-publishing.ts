@@ -729,7 +729,7 @@ test('publish dry run reuploads same-size existing release assets when sha256 di
   assert.deepEqual(payload.skipped_existing_artifacts, []);
 });
 
-test('standard publish uses deterministic evidence release notes without calling AI writer', () => {
+test('standard publish can explicitly use deterministic template release notes without calling AI writer', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-standard-deterministic-notes-'));
   const shellRoot = path.join(tempRoot, 'shells', 'aionui');
   const outDir = path.join(shellRoot, 'out');
@@ -754,6 +754,7 @@ test('standard publish uses deterministic evidence release notes without calling
     version,
   ], {
     env: {
+      OPL_RELEASE_NOTES_MODE: 'template',
       OPL_RELEASE_EXISTS: '1',
       OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
     },
@@ -771,6 +772,125 @@ test('standard publish uses deterministic evidence release notes without calling
   assert.match(payload.release_notes, /## Install Stable/);
   assert.match(payload.release_notes, new RegExp(stableInstallCommand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(payload.release_notes, /## Release scope/);
+});
+
+test('standard publish defaults to AI release notes writer', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-standard-ai-notes-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const outDir = path.join(shellRoot, 'out');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
+  const promptCapture = path.join(tempRoot, 'ai-prompt.txt');
+  const version = '26.5.19-ai-default';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+
+  writeFile(path.join(outDir, dmgName), 'dmg');
+  writeFile(path.join(outDir, zipName), 'zip');
+  writeReleaseMetadata(outDir, version, dmgName);
+  writeStandardLocalAuthorizationPolicy(outDir);
+  writeExecutable(fakeAi, `#!/usr/bin/env node
+const fs = require('node:fs');
+const input = fs.readFileSync(0, 'utf8');
+fs.writeFileSync(${JSON.stringify(promptCapture)}, input);
+process.stdout.write(${JSON.stringify(validStandardAiReleaseNotes(version))});
+`);
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--shell-root',
+    shellRoot,
+    '--version',
+    version,
+  ], {
+    env: {
+      OPL_RELEASE_EXISTS: '1',
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.release_notes_mode, 'ai');
+  assert.match(payload.release_notes, /One Person Lab v26\.5\.19-ai-default/);
+  assert.ok(fs.existsSync(promptCapture));
+  assert.match(fs.readFileSync(promptCapture, 'utf8'), /"release_evidence"/);
+});
+
+test('AI release notes quality gate rejects process-first developer memo copy', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-standard-ai-process-copy-'));
+  const shellRoot = path.join(tempRoot, 'shells', 'aionui');
+  const outDir = path.join(shellRoot, 'out');
+  const fakeAi = path.join(tempRoot, 'fake-release-notes-ai.js');
+  const version = '26.5.19-ai-process-copy';
+  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
+  const zipName = `One-Person-Lab-${version}-mac-arm64.zip`;
+  const badPublicMarkdown = `One Person Lab v${version}
+
+Workflow validation gate and release operator owner receipt refs are aligned for this cohort while MAS, MAG, and RCA remain available after first launch.
+
+## What improved
+
+### Built-in OPL agent entries are still present
+- MAS, MAG, and RCA are mentioned here, but the copy leads with maintainer process instead of user value.
+
+## OPL agents and runtime payload
+- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.
+
+## OPL family updates
+- One Person Lab App: current standard package changes keep the built-in OPL entries aligned.
+- OPL Aion Shell: current shell changes keep the first-run and settings UI aligned with the App release.
+
+## Install Stable
+\`${stableInstallCommand}\`
+
+## Release scope
+- Standard macOS arm64 updater package is published for this release.
+`;
+
+  writeFile(path.join(outDir, dmgName), 'dmg');
+  writeFile(path.join(outDir, zipName), 'zip');
+  writeReleaseMetadata(outDir, version, dmgName);
+  writeStandardLocalAuthorizationPolicy(outDir);
+  writeFakeReleaseNotesAiWriter(fakeAi, withHiddenLocalizedReleaseNotes(badPublicMarkdown, `One Person Lab v${version}
+
+这次更新仍然包含 MAS、MAG 和 RCA，但这段测试文案故意以维护流程开头。
+
+## What improved
+- MAS、MAG 和 RCA 仍可使用。
+
+## OPL agents and runtime payload
+- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin/skill sync policy.
+
+## OPL family updates
+- One Person Lab App: 当前标准包更新会让内置 OPL 入口保持一致。
+- OPL Aion Shell: 当前 shell 更新会让首次启动和设置界面与 App 发布保持一致。
+
+## Install Stable
+\`${stableInstallCommand}\`
+
+## Release scope
+- Standard macOS arm64 updater package is published for this release.
+`));
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--shell-root',
+    shellRoot,
+    '--version',
+    version,
+  ], {
+    env: {
+      OPL_RELEASE_EXISTS: '1',
+      OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /developer memo terms before Technical details/);
 });
 
 test('publish retries an individual release asset upload before failing the refresh', () => {
@@ -1000,6 +1120,7 @@ This release makes a clean OPL install more useful immediately by shipping refre
     fullPackageDir,
   ], {
     env: {
+      OPL_RELEASE_NOTES_MODE: 'template',
       OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
     },
   });
@@ -1203,6 +1324,7 @@ test('Full-only release publish uses deterministic notes and does not call the A
     fullPackageDir,
   ], {
     env: {
+      OPL_RELEASE_NOTES_MODE: 'template',
       OPL_RELEASE_EXISTS: '1',
       OPL_RELEASE_NOTES_AI_COMMAND: `${process.execPath} ${fakeAi}`,
       OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: evidencePath,
@@ -1233,7 +1355,7 @@ test('existing same-tag standard plus Full publish uses deterministic full relea
   assert.match(source, /replaceReleaseNotes\(options\.releaseRepo, tag, releaseNotes\)/);
   assert.match(source, /buildAiReleaseNotesDocument\(evidence\)/);
   assert.match(source, /OPL_RELEASE_NOTES_EVIDENCE_OUTPUT/);
-  assert.match(source, /process\.env\.OPL_RELEASE_NOTES_MODE \|\| 'template'/);
+  assert.match(source, /process\.env\.OPL_RELEASE_NOTES_MODE \|\| 'ai'/);
   assert.match(source, /if \(mode === 'template'\)/);
   assert.match(
     source,
@@ -1243,6 +1365,10 @@ test('existing same-tag standard plus Full publish uses deterministic full relea
   assert.doesNotMatch(source, /buildBundledModuleNotes/);
   assert.match(source, /const required = \[fullDmgName, 'opl-release-manifest\.json'\]/);
   assert.match(source, /readJsonFile\(releaseManifestPath\)\.manifest \?\? null/);
+  assert.match(fullWorkflow, /permissions:[\s\S]*models: read/);
+  assert.match(fullWorkflow, /Verify release upload plan[\s\S]*OPL_RELEASE_NOTES_MODE: template/);
+  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_MODE: ai/);
+  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_PROVIDER: github_models/);
   assert.match(fullWorkflow, /readJson\('full-package-manifest\.json'\)/);
   assert.match(fullWorkflow, /fs\.writeFileSync\(path\.join\(outDir, 'opl-release-manifest\.json'\)/);
 });
