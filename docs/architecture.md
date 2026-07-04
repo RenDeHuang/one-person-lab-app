@@ -29,18 +29,22 @@ default App registry contract is `contracts/agent-package-registry.json`, and
 operators may add organization or user registry URLs. Registry entries carry
 labels, source/trust hints, and manifest URLs only; they do not define
 business behavior, session contracts, artifact schemas, readiness rules, or
-owner receipt authority. Selecting a package routes the manifest URL to OPL
-Framework validation and package lifecycle execution. The validated manifest
-plus Framework package lock, rollback ref, and action receipt is the install
+owner receipt authority. `contracts/agent-package-surfaces.schema.json` and
+`contracts/fixtures/agent-package-manifests/` define the App-side manifest,
+shortcut, invocation receipt, and package lock receipt shapes for first-party
+starter packages. Selecting a package routes the manifest URL to OPL Framework
+validation and package lifecycle execution. The validated manifest plus
+Framework package lock, rollback ref, and action receipt is the install
 authority for the non-live contract/readback slice. Framework also owns
 update, repair, rollback, uninstall, hide/unhide, enable/disable, status, and
 their lifecycle receipts. Framework now also materializes manifest-declared
 local Codex plugin sources into `CODEX_HOME` plugin cache, OPL state local
 marketplace wrappers, Codex config tables, package lock `physical_surface`, and
-lifecycle receipt `physical_surface`. Active shell may persist local Home
-shortcut preferences, but release-packaged required skill-pack materialization,
-installed Codex-surface reload proof, and live user-path evidence still need
-separate runtime or release-owner evidence.
+lifecycle receipt `physical_surface`. Active shell persists local Home shortcut
+preferences, emits launch-only `opl_agent_package_invocation` route smoke, and
+renders `physical_surface` in Settings, but release-packaged required skill-pack
+materialization, installed Codex-surface reload proof, and live user-path
+evidence still need separate runtime or release-owner evidence.
 
 Home entry ownership is split deliberately for GUI replacement. The App contract owns user-facing shortcut targets and labels, while installed Agent Packages provide the Codex plugin/skill surfaces that those shortcuts invoke. Existing MAS/MAG/RCA/BookForge entries are starter shortcuts and migration seeds; future compliant first-party, organization, user, or third-party packages should be able to provide the same shortcut metadata without App source edits. Shells render configured shortcuts, launch Codex with the package's declared plugin/skill surface, and persist an App-owned invocation receipt. They do not decide which packages are installed, which shortcuts are default, whether an agent appears on the home screen, or whether the route is exposed as a backend selector.
 

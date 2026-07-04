@@ -5,6 +5,8 @@
   "version": 1,
   "machine_boundary": "Default App-owned discovery catalog fixture. Registry entries help users find packages; validated package manifests plus OPL Framework package lock receipts remain the install/update/rollback authority.",
   "policy_ref": "contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy",
+  "manifest_schema_ref": "contracts/agent-package-surfaces.schema.json#/$defs/agent_package_manifest",
+  "first_party_manifest_fixture_dir": "contracts/fixtures/agent-package-manifests",
   "registry_id": "opl-default-agent-registry",
   "registry_name": "OPL Agent Registry",
   "registry_source_kind": "default_opl_registry",

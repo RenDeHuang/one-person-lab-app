@@ -224,11 +224,13 @@ hiding/unhiding, enabling/disabling, and status readback are Framework-owned
 lifecycle receipt routes that Settings may expose as App actions. Active shell
 may persist local Home shortcut preferences. Framework owns manifest-declared
 local Codex plugin materialization and records it through package lock /
-lifecycle receipt `physical_surface`. Installed Codex-surface reload proof,
-release-packaged required skill-pack materialization and rollback cleanup, and
-live install readiness remain runtime or release-owner evidence; Settings must
-not present contract/readback evidence as live install readiness. The Registry
-never defines the agent's business behavior.
+lifecycle receipt `physical_surface`; Settings displays that `physical_surface`
+as package state, plugin id, marketplace id, Codex config path, and reload
+required status. Installed Codex-surface reload proof, release-packaged
+required skill-pack materialization and rollback cleanup, and live install
+readiness remain runtime or release-owner evidence; Settings must not present
+contract/readback evidence as live install readiness. The Registry never
+defines the agent's business behavior.
 
 The ordinary model is:
 

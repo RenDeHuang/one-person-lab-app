@@ -10,6 +10,8 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const policyPath = path.join(appRoot, 'contracts', 'app-install-exposure-policy.json');
 const profilePath = path.join(appRoot, 'contracts', 'app-product-profile.json');
 const registryPath = path.join(appRoot, 'contracts', 'agent-package-registry.json');
+const agentPackageSurfaceSchemaPath = path.join(appRoot, 'contracts', 'agent-package-surfaces.schema.json');
+const agentPackageManifestFixtureDir = path.join(appRoot, 'contracts', 'fixtures', 'agent-package-manifests');
 const packageJsonPath = path.join(appRoot, 'package.json');
 const expectedDefaultPluginAgentIds = ['mas', 'mag', 'rca', 'bookforge'];
 const expectedRepoPackagedPluginAgentIds = ['mas', 'mag', 'rca'];
@@ -65,8 +67,6 @@ const expectedRegistrySourceKinds = [
 ];
 const expectedRegistryManagementActions = [
   'refresh_registry',
-  'add_registry',
-  'remove_registry',
   'install_from_manifest_url',
 ];
 const expectedRegistryEntryFields = [
@@ -92,6 +92,28 @@ const expectedManifestRequiredFields = [
   'permissions',
   'update_channel',
   'rollback_ref',
+];
+const expectedHomeShortcutRequiredFields = [
+  'shortcut_id',
+  'package_id',
+  'primary_label',
+  'codex_visible_entry',
+  'required_skill_ids',
+  'source',
+  'executor',
+  'display_policy',
+  'default_visible',
+  'user_configurable',
+];
+const expectedInvocationReceiptRequiredFields = [
+  'receipt_type',
+  'executor',
+  'package_id',
+  'agent_id',
+  'skill_ids',
+  'source',
+  'launched_from',
+  'display_policy',
 ];
 const expectedRegistryExcludedFields = [
   'session_contract_ref',
@@ -287,10 +309,19 @@ function validateNoDuplicateBareDomainSkills(root: string | null): string | null
   return root;
 }
 
-function validateContract(policy: any, profile: any, registry: any, packageJson: any, agentRoots: AgentRootMap): void {
+function validateContract(
+  policy: any,
+  profile: any,
+  registry: any,
+  agentPackageSurfaceSchema: any,
+  packageJson: any,
+  agentRoots: AgentRootMap
+): void {
   validatePublicAbi(policy, packageJson);
   const contract = validateAgentInstallationContract(policy);
+  validateAgentPackageSurfaceSchema(contract, registry, agentPackageSurfaceSchema);
   validateAgentRegistryPolicy(contract, profile, registry);
+  validateFirstPartyManifestFixtures(profile, registry, agentPackageSurfaceSchema);
   validateManagedAgentPackDistribution(contract);
   validatePluginRegistrationInputs(contract);
   validateExposureClasses(policy, contract);
@@ -359,6 +390,11 @@ function validateRegistryPolicyShape(contract: any): void {
     default_registry_ref: 'contracts/agent-package-registry.json',
     default_registry_source_kind: 'default_opl_registry',
     default_registry_url: 'https://raw.githubusercontent.com/gaofeng21cn/opl-agent-registry/main/registry.json',
+    manifest_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/agent_package_manifest',
+    home_shortcut_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/home_shortcut_metadata',
+    invocation_receipt_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/invocation_receipt',
+    package_lock_receipt_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/package_lock_receipt',
+    first_party_manifest_fixture_dir: 'contracts/fixtures/agent-package-manifests',
     registry_is_discovery_only: true,
     registry_install_authority_allowed: false,
     manifest_url_required_for_install: true,
@@ -378,6 +414,52 @@ function validateRegistryPolicyShape(contract: any): void {
   assertArrayEqual(registryPolicy?.manifest_required_fields, expectedManifestRequiredFields, 'manifest required fields');
 }
 
+function schemaDef(schema: any, name: string): any {
+  const def = schema?.$defs?.[name];
+  if (!def || typeof def !== 'object') {
+    fail(`agent package surface schema missing $defs.${name}`);
+  }
+  return def;
+}
+
+function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema: any): void {
+  assertFieldsEqual(schema, {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    $id: 'https://onepersonlab.dev/contracts/agent-package-surfaces.schema.json',
+    title: 'OPL Agent Package Surfaces',
+  }, 'agent package surface schema');
+  assertArrayEqual(
+    schemaDef(schema, 'agent_package_manifest').required,
+    expectedManifestRequiredFields,
+    'agent package manifest schema required fields',
+  );
+  assertArrayEqual(
+    schemaDef(schema, 'home_shortcut_metadata').required,
+    expectedHomeShortcutRequiredFields,
+    'home shortcut metadata schema required fields',
+  );
+  assertArrayEqual(
+    schemaDef(schema, 'invocation_receipt').required,
+    expectedInvocationReceiptRequiredFields,
+    'invocation receipt schema required fields',
+  );
+  assertArrayEqual(
+    schemaDef(schema, 'package_lock_receipt').required,
+    expectedPackageLockReceiptFields,
+    'package lock receipt schema required fields',
+  );
+  assertEqual(
+    contract.agent_registry_policy.manifest_schema_ref,
+    registry.manifest_schema_ref,
+    'registry manifest schema ref',
+  );
+  assertEqual(
+    contract.agent_registry_policy.first_party_manifest_fixture_dir,
+    registry.first_party_manifest_fixture_dir,
+    'registry first-party manifest fixture dir',
+  );
+}
+
 function validateAgentRegistryPolicy(contract: any, profile: any, registry: any): void {
   const registryPolicy = contract.agent_registry_policy;
   assertFieldsEqual(registry, {
@@ -386,6 +468,8 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any)
     state: 'active_app_discovery_contract',
     version: 1,
     policy_ref: 'contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy',
+    manifest_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/agent_package_manifest',
+    first_party_manifest_fixture_dir: 'contracts/fixtures/agent-package-manifests',
     registry_id: 'opl-default-agent-registry',
     registry_name: 'OPL Agent Registry',
     registry_source_kind: 'default_opl_registry',
@@ -439,6 +523,94 @@ function validateAgentRegistryPolicy(contract: any, profile: any, registry: any)
     assertArrayEqual(entry.optional_skill_ids, profileEntry.optional_skill_ids, `${entry.package_id} registry optional skills`);
     assertArrayEqual(entry.home_shortcut_ids, profileEntry.home_shortcut_ids, `${entry.package_id} registry home shortcuts`);
     assertEqual(entry.starter_default, profileEntry.package_kind === 'starter_professional_agent_package', `${entry.package_id} registry starter default`);
+  }
+}
+
+function validateFirstPartyManifestFixtures(profile: any, registry: any, schema: any): void {
+  if (!fs.existsSync(agentPackageManifestFixtureDir)) {
+    fail(`missing first-party agent package manifest fixture dir: ${agentPackageManifestFixtureDir}`);
+  }
+  const manifestSchema = schemaDef(schema, 'agent_package_manifest');
+  const profilePackages = new Map(
+    (profile.gui?.professional_agent_packages ?? []).map((entry: any) => [entry.package_id, entry]),
+  );
+  const registryEntries = registry.entries ?? [];
+  assertArrayEqual(
+    fs.readdirSync(agentPackageManifestFixtureDir).filter((entry) => entry.endsWith('.json')).sort(),
+    expectedRegistryPackageIds.map((packageId) => `${packageId}.json`).sort(),
+    'agent package manifest fixture files',
+  );
+  for (const registryEntry of registryEntries) {
+    const fixturePath = path.join(agentPackageManifestFixtureDir, `${registryEntry.package_id}.json`);
+    const manifest = readJson(fixturePath);
+    const missing = expectedManifestRequiredFields.filter((field) => manifest[field] === undefined || manifest[field] === null || manifest[field] === '');
+    if (missing.length > 0) {
+      fail(`manifest fixture ${registryEntry.package_id} missing ${missing.join(', ')}`);
+    }
+    for (const forbiddenField of expectedRegistryExcludedFields) {
+      if (manifest[forbiddenField] !== undefined) {
+        fail(`manifest fixture ${registryEntry.package_id} must not define ${forbiddenField}`);
+      }
+    }
+    if (!manifestSchema?.not?.anyOf || !Array.isArray(manifestSchema.not.anyOf)) {
+      fail('agent package manifest schema must forbid session/domain authority fields');
+    }
+    const profileEntry = profilePackages.get(registryEntry.package_id);
+    if (!profileEntry) {
+      fail(`manifest fixture ${registryEntry.package_id} has no matching profile package`);
+    }
+    assertEqual(manifest.package_id, registryEntry.package_id, `${registryEntry.package_id} manifest package id`);
+    assertEqual(manifest.display_name, registryEntry.display_name, `${registryEntry.package_id} manifest display name`);
+    assertEqual(manifest.publisher, registryEntry.publisher, `${registryEntry.package_id} manifest publisher`);
+    assertEqual(manifest.source, registryEntry.source, `${registryEntry.package_id} manifest source`);
+    assertEqual(manifest.version, registryEntry.latest_version, `${registryEntry.package_id} manifest version`);
+    assertEqual(manifest.update_channel, 'managed_opl_packages', `${registryEntry.package_id} manifest update channel`);
+    assertEqual(manifest.health_check?.kind, 'opl_package_receipt', `${registryEntry.package_id} manifest health check kind`);
+    assertArrayEqual(
+      manifest.codex_surface?.plugin_ids,
+      [registryEntry.codex_visible_entry],
+      `${registryEntry.package_id} manifest plugin ids`,
+    );
+    assertArrayEqual(
+      manifest.codex_surface?.required_skill_ids,
+      registryEntry.required_skill_ids,
+      `${registryEntry.package_id} manifest required skill ids`,
+    );
+    assertArrayEqual(
+      manifest.codex_surface?.optional_skill_ids,
+      registryEntry.optional_skill_ids,
+      `${registryEntry.package_id} manifest optional skill ids`,
+    );
+    assertArrayEqual(
+      manifest.codex_surface?.required_skill_ids,
+      profileEntry.required_skill_ids,
+      `${registryEntry.package_id} manifest profile required skill ids`,
+    );
+    if (!Array.isArray(manifest.skill_packs) || manifest.skill_packs.length !== 1) {
+      fail(`manifest fixture ${registryEntry.package_id} must declare one bundled required skill pack`);
+    }
+    assertEqual(
+      manifest.skill_packs[0].install_mode,
+      'bundled_required',
+      `${registryEntry.package_id} manifest required skill pack install mode`,
+    );
+    if (!String(manifest.skill_packs[0].source ?? '').startsWith('github:')) {
+      fail(`manifest fixture ${registryEntry.package_id} required skill pack source must be a github ref`);
+    }
+    const expectedShortcutIds = registryEntry.home_shortcut_ids ?? [];
+    assertArrayEqual(
+      manifest.entrypoints.map((entry: any) => entry.shortcut_id),
+      expectedShortcutIds,
+      `${registryEntry.package_id} manifest entrypoint shortcuts`,
+    );
+    for (const entrypoint of manifest.entrypoints) {
+      assertArrayEqual(
+        entrypoint.required_skill_ids,
+        registryEntry.required_skill_ids,
+        `${registryEntry.package_id} manifest entrypoint required skills`,
+      );
+      assertEqual(entrypoint.shortcut_eligible, true, `${registryEntry.package_id} manifest entrypoint eligibility`);
+    }
   }
 }
 
@@ -675,7 +847,14 @@ function validateAgentInstallEntries(policy: any, contract: any, agentRoots: Age
 }
 
 const { agentRoots, codexSkillsRoot } = parseArgs(process.argv.slice(2));
-validateContract(readJson(policyPath), readJson(profilePath), readJson(registryPath), readJson(packageJsonPath), agentRoots);
+validateContract(
+  readJson(policyPath),
+  readJson(profilePath),
+  readJson(registryPath),
+  readJson(agentPackageSurfaceSchemaPath),
+  readJson(packageJsonPath),
+  agentRoots,
+);
 const validatedCodexSkillsRoot = validateNoDuplicateBareDomainSkills(codexSkillsRoot);
 
 console.log(JSON.stringify({
@@ -690,6 +869,8 @@ console.log(JSON.stringify({
   registry_source_kinds: expectedRegistrySourceKinds,
   package_lifecycle_actions: expectedPackageLifecycleActions,
   package_lock_receipt_fields: expectedPackageLockReceiptFields,
+  agent_package_surface_schema: path.relative(appRoot, agentPackageSurfaceSchemaPath),
+  agent_package_manifest_fixture_dir: path.relative(appRoot, agentPackageManifestFixtureDir),
   validated_plugin_roots: Object.fromEntries(agentRoots),
   validated_codex_skills_root: validatedCodexSkillsRoot,
 }, null, 2));

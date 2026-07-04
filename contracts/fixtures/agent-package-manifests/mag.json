@@ -1,0 +1,51 @@
+{
+  "package_id": "mag",
+  "agent_id": "mag",
+  "display_name": "Med Auto Grant",
+  "publisher": "one-person-lab",
+  "version": "0.1.0",
+  "source": "first_party",
+  "codex_surface": {
+    "plugin_ids": [
+      "mag"
+    ],
+    "required_skill_ids": [
+      "mag"
+    ],
+    "optional_skill_ids": [
+      "officecli-docx",
+      "officecli-xlsx",
+      "mineru-document-extractor"
+    ],
+    "plugin_source_ref": "gaofeng21cn/med-autogrant/plugins/mag"
+  },
+  "skill_packs": [
+    {
+      "id": "mag-professional-skill-pack",
+      "source": "github:gaofeng21cn/med-autogrant/plugins/mag/skills/mag",
+      "version": "0.1.0",
+      "lock_ref": "registry.latest_version",
+      "install_mode": "bundled_required"
+    }
+  ],
+  "entrypoints": [
+    {
+      "shortcut_id": "grant",
+      "label": "Grant",
+      "required_skill_ids": [
+        "mag"
+      ],
+      "shortcut_eligible": true
+    }
+  ],
+  "health_check": {
+    "kind": "opl_package_receipt",
+    "required_surfaces": [
+      "plugin_registry",
+      "required_skill_ids"
+    ]
+  },
+  "permissions": [],
+  "update_channel": "managed_opl_packages",
+  "rollback_ref": "package-receipt-ref"
+}

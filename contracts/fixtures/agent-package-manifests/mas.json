@@ -1,0 +1,51 @@
+{
+  "package_id": "mas",
+  "agent_id": "mas",
+  "display_name": "Med Auto Science",
+  "publisher": "one-person-lab",
+  "version": "0.1.0a4",
+  "source": "first_party",
+  "codex_surface": {
+    "plugin_ids": [
+      "mas"
+    ],
+    "required_skill_ids": [
+      "mas"
+    ],
+    "optional_skill_ids": [
+      "mineru-document-extractor",
+      "officecli-docx",
+      "officecli-xlsx"
+    ],
+    "plugin_source_ref": "gaofeng21cn/med-autoscience/plugins/mas"
+  },
+  "skill_packs": [
+    {
+      "id": "mas-professional-skill-pack",
+      "source": "github:gaofeng21cn/med-autoscience/plugins/mas/skills/mas",
+      "version": "0.1.0a4",
+      "lock_ref": "registry.latest_version",
+      "install_mode": "bundled_required"
+    }
+  ],
+  "entrypoints": [
+    {
+      "shortcut_id": "research",
+      "label": "Research",
+      "required_skill_ids": [
+        "mas"
+      ],
+      "shortcut_eligible": true
+    }
+  ],
+  "health_check": {
+    "kind": "opl_package_receipt",
+    "required_surfaces": [
+      "plugin_registry",
+      "required_skill_ids"
+    ]
+  },
+  "permissions": [],
+  "update_channel": "managed_opl_packages",
+  "rollback_ref": "package-receipt-ref"
+}

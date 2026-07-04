@@ -53,8 +53,6 @@ const EXPECTED_REGISTRY_SOURCE_KINDS = [
 ];
 const EXPECTED_REGISTRY_MANAGEMENT_ACTIONS = [
   'refresh_registry',
-  'add_registry',
-  'remove_registry',
   'install_from_manifest_url',
 ];
 const EXPECTED_REGISTRY_ENTRY_FIELDS = [
@@ -887,6 +885,11 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     default_registry_ref: 'contracts/agent-package-registry.json',
     default_registry_source_kind: 'default_opl_registry',
     default_registry_url: 'https://raw.githubusercontent.com/gaofeng21cn/opl-agent-registry/main/registry.json',
+    manifest_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/agent_package_manifest',
+    home_shortcut_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/home_shortcut_metadata',
+    invocation_receipt_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/invocation_receipt',
+    package_lock_receipt_schema_ref: 'contracts/agent-package-surfaces.schema.json#/$defs/package_lock_receipt',
+    first_party_manifest_fixture_dir: 'contracts/fixtures/agent-package-manifests',
     allowed_registry_source_kinds: EXPECTED_REGISTRY_SOURCE_KINDS,
     registry_management_actions: EXPECTED_REGISTRY_MANAGEMENT_ACTIONS,
     entry_required_fields: EXPECTED_REGISTRY_ENTRY_FIELDS,
@@ -908,6 +911,11 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(agentPackageRegistry.purpose, 'agent_package_registry_catalog_contract');
   assert.equal(agentPackageRegistry.state, 'active_app_discovery_contract');
   assert.equal(agentPackageRegistry.policy_ref, 'contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy');
+  assert.equal(agentPackageRegistry.manifest_schema_ref, policy.agent_installation_contract.agent_registry_policy.manifest_schema_ref);
+  assert.equal(
+    agentPackageRegistry.first_party_manifest_fixture_dir,
+    policy.agent_installation_contract.agent_registry_policy.first_party_manifest_fixture_dir,
+  );
   assert.equal(agentPackageRegistry.registry_source_kind, 'default_opl_registry');
   assert.equal(agentPackageRegistry.registry_url, policy.agent_installation_contract.agent_registry_policy.default_registry_url);
   assert.equal(agentPackageRegistry.discovery_only, true);

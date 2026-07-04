@@ -1,0 +1,370 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onepersonlab.dev/contracts/agent-package-surfaces.schema.json",
+  "title": "OPL Agent Package Surfaces",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "agent_package_manifest": {
+      "$ref": "#/$defs/agent_package_manifest"
+    },
+    "home_shortcut_metadata": {
+      "$ref": "#/$defs/home_shortcut_metadata"
+    },
+    "invocation_receipt": {
+      "$ref": "#/$defs/invocation_receipt"
+    },
+    "package_lock_receipt": {
+      "$ref": "#/$defs/package_lock_receipt"
+    }
+  },
+  "$defs": {
+    "string_array": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "agent_package_manifest": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "package_id",
+        "agent_id",
+        "display_name",
+        "publisher",
+        "version",
+        "source",
+        "codex_surface",
+        "skill_packs",
+        "entrypoints",
+        "health_check",
+        "permissions",
+        "update_channel",
+        "rollback_ref"
+      ],
+      "properties": {
+        "package_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publisher": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "codex_surface": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "plugin_ids",
+            "required_skill_ids"
+          ],
+          "properties": {
+            "plugin_ids": {
+              "$ref": "#/$defs/string_array"
+            },
+            "required_skill_ids": {
+              "$ref": "#/$defs/string_array"
+            },
+            "optional_skill_ids": {
+              "$ref": "#/$defs/string_array"
+            },
+            "plugin_source_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "plugin_source_ref": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "skill_packs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "id",
+              "source",
+              "version",
+              "install_mode"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1
+              },
+              "version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "lock_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "install_mode": {
+                "enum": [
+                  "bundled_required",
+                  "optional_ref"
+                ]
+              }
+            }
+          }
+        },
+        "entrypoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "shortcut_id",
+              "label",
+              "required_skill_ids",
+              "shortcut_eligible"
+            ],
+            "properties": {
+              "shortcut_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "required_skill_ids": {
+                "$ref": "#/$defs/string_array"
+              },
+              "shortcut_eligible": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "health_check": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "kind",
+            "required_surfaces"
+          ],
+          "properties": {
+            "kind": {
+              "const": "opl_package_receipt"
+            },
+            "required_surfaces": {
+              "$ref": "#/$defs/string_array"
+            }
+          }
+        },
+        "permissions": {
+          "type": "array"
+        },
+        "update_channel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rollback_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "not": {
+        "anyOf": [
+          { "required": ["session_contract_ref"] },
+          { "required": ["domain_workflow_schema"] },
+          { "required": ["prompt_body"] },
+          { "required": ["artifact_schema"] },
+          { "required": ["readiness_verdict_rule"] },
+          { "required": ["quality_verdict_rule"] },
+          { "required": ["owner_receipt_authority"] }
+        ]
+      }
+    },
+    "home_shortcut_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "shortcut_id",
+        "package_id",
+        "primary_label",
+        "codex_visible_entry",
+        "required_skill_ids",
+        "source",
+        "executor",
+        "display_policy",
+        "default_visible",
+        "user_configurable"
+      ],
+      "properties": {
+        "shortcut_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "package_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "primary_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "codex_visible_entry": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_skill_ids": {
+          "$ref": "#/$defs/string_array"
+        },
+        "source": {
+          "const": "opl_app_home"
+        },
+        "executor": {
+          "const": "codex_cli"
+        },
+        "display_policy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default_visible": {
+          "type": "boolean"
+        },
+        "user_configurable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "invocation_receipt": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "receipt_type",
+        "executor",
+        "package_id",
+        "agent_id",
+        "skill_ids",
+        "source",
+        "launched_from",
+        "display_policy"
+      ],
+      "properties": {
+        "receipt_type": {
+          "const": "capability_invocation"
+        },
+        "executor": {
+          "const": "codex_cli"
+        },
+        "package_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill_ids": {
+          "$ref": "#/$defs/string_array"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "launched_from": {
+          "type": "string",
+          "minLength": 1
+        },
+        "display_policy": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "package_lock_receipt": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "package_id",
+        "version_or_source_digest",
+        "installed_at",
+        "updated_at",
+        "codex_visible_entry",
+        "bundled_required_skill_ids",
+        "optional_skill_refs",
+        "source_kind",
+        "trust_tier",
+        "action_receipt_id",
+        "rollback_ref",
+        "physical_surface"
+      ],
+      "properties": {
+        "package_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version_or_source_digest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "installed_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "updated_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "codex_visible_entry": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bundled_required_skill_ids": {
+          "$ref": "#/$defs/string_array"
+        },
+        "optional_skill_refs": {
+          "$ref": "#/$defs/string_array"
+        },
+        "source_kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trust_tier": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_receipt_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rollback_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "physical_surface": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}
