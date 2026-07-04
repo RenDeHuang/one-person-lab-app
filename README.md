@@ -3,17 +3,13 @@
 </p>
 
 <p align="center">
-  <img src="assets/branding/opl-banner.png" alt="One Person Lab App banner" width="100%" />
-</p>
-
-<p align="center">
   <a href="./README.md"><strong>English</strong></a> | <a href="./README.zh-CN.md">中文</a>
 </p>
 
 <h1 align="center">One Person Lab App</h1>
 
-<p align="center"><strong>A chat-first desktop AI app for complex knowledge work</strong></p>
-<p align="center">Start research, grants, presentations, books, and general tasks from one app; track progress, resume long-running work, and inspect deliverables.</p>
+<p align="center"><strong>A local-first, cloud-continuous AI workbench for complex knowledge work</strong></p>
+<p align="center">Start research, grants, presentations, books, and general tasks from the desktop, browser, or OPL Workspace; track progress, resume long-running work, and inspect deliverables.</p>
 
 <!--
 Owner: `one-person-lab-app`
@@ -40,10 +36,15 @@ AI is already strong at answering questions and generating content. The harder p
 
 It does not reduce research, grants, presentations, and books to a row of buttons. It brings start, resume, progress, files, and blockers into one product experience. Users do not need to know which professional agent is working behind the scenes; they need to see where the task stands, what was produced, what is missing, and how to continue.
 
+OPL App is not limited to a single local Mac. The same workbench can run as the macOS desktop App, open as Docker/WebUI on Linux, Windows, a server, or a cloud VM, and become OPL Workspace when that WebUI is hosted with accounts, storage, and resource policy. Users keep the same project, task, artifact, and receipt language instead of switching to a second system.
+
 ## Core Highlights
 
 **One entry point for professional AI work**<br/>
 Enter general work, medical research, grant writing, presentation preparation, and book writing from the desktop app instead of jumping across commands, repositories, and tools.
+
+**The workbench follows where the work lives**<br/>
+Use the same OPL workbench from the local App, browser WebUI, or hosted OPL Workspace. Start locally, then move naturally to remote access, team environments, or stronger resources without learning a different product surface.
 
 **Visible progress for long tasks**<br/>
 The app shows task progress, files, runtime status, and recoverable work context. When you come back, you can see what happened, what was produced, and whether anything needs human attention.
@@ -58,7 +59,7 @@ Research Foundry, Grant Foundry, Presentation Foundry, and Book Foundry focus on
 The App makes entries, progress, files, and delivery usable. Medical research, grant writing, visual-delivery, and book-writing judgment remain with the corresponding professional agents. When work enters a professional stage, users can watch AI read material, compare options, accept review, keep revising, and produce the next deliverable version.
 
 **Built for daily use and long-running work**<br/>
-The app is not just for one chat. It supports work that needs multiple rounds, background maintenance, recovery after failure, and continuing delivery.
+The app is not just for one chat. It supports work that needs multiple rounds, background maintenance, recovery after failure, remote access, and continuing delivery.
 
 ## Download And Install
 
@@ -167,7 +168,7 @@ user-facing layers:
 | Workflow Profile | OPL Flow workflow guidance and profile material. Existing user `AGENTS.md` / `TASTE.md` content is not silently overwritten; profile changes use a Codex semantic merge packet. |
 | User Data / Artifacts | Workspaces, conversations, generated deliverables, logs, caches, and receipts. User artifacts require inventory, archive/restore proof, and explicit confirmation before deletion. |
 
-For Docker or server deployment, Linux, Windows, and server users should start
+For Docker or server deployment, Linux, Windows, server, and cloud-VM users should start
 from the Docker/WebUI one-click installer path in the
 [Docker/WebUI install guide](docs/public/docker-webui-install/index.html). The
 same guide is also available as a
@@ -181,6 +182,7 @@ troubleshooting references.
 One Person Lab App is the daily chat-first desktop entry point for users:
 
 - Enter general work, medical research, grant writing, presentation preparation, and book writing from one desktop interface.
+- Keep the same workbench experience across the macOS App, local/server browser WebUI, and hosted OPL Workspace.
 - Enter Research Foundry, Grant Foundry, Presentation Foundry, and Book Foundry.
 - View progress, files, runtime status, and recoverable work context for continuing long tasks and inspecting deliverables.
 - Complete the minimum first-run setup before the user starts, then let fuller runtime and professional-agent payloads continue as background maintenance.
@@ -201,6 +203,8 @@ One Person Lab App is the daily chat-first desktop entry point for users:
 One Person Lab App owns the desktop product experience: packaging, releases, updates, first-run setup, GUI state, screenshots, and user documentation. It proves whether a user can install, open, start work, see progress, and inspect files. Medical research, grant writing, visual-delivery quality, and book-writing quality remain with the corresponding professional agents and human decisions.
 
 The App decides what users see during install, first launch, task entry, and settings. One Person Lab Framework provides the runtime, initialization, and progress data behind those views, while MAS, MAG, RCA, and BookForge keep their professional judgment and deliverables. The App turns those capabilities into a desktop product experience without replacing professional-agent judgment.
+
+The OPL App workbench spans three entry points: the local desktop App, Docker/WebUI in a browser, and hosted OPL Workspace. Docker/WebUI is not a second product; it is the browser runtime form of the same App experience. OPL Workspace is the hosted product form of that WebUI, with account, storage, and resource policy attached. All three share the same task, artifact, progress, and receipt language.
 
 OPL BookForge is admitted into the App-owned default Home and Codex-visible skill surface through product contracts and active-shell validation. That default visibility supports the user entry point; it does not authorize production-ready book-writing, publication approval, owner acceptance, or hosted runtime parity claims.
 

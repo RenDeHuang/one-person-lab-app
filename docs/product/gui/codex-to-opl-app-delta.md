@@ -41,13 +41,16 @@ gate 提升。
 
 ## 增量摘要
 
-OPL App 增加五层产品能力：
+OPL App 增加六层产品能力：
 
 - OPL purpose routing：把 MAS、MAG、RCA 作为内置 purpose entries。
 - OPL domain skill profiles：每个 purpose 带一个 required domain skill 和
   相关 companion skills。
 - OPL runtime bridge：把 Framework-owned state/action/read-model surfaces
   展示为 refs、progress、receipts、blockers 和 safe actions。
+- OPL local-to-cloud continuity：同一套 App 工作台可以在 macOS 桌面、本机或服务器
+  Docker/WebUI、以及云端 OPL Workspace 中使用，保持一致的项目、任务、产物、
+  进度和回执语言。
 - OPL installation 与 release policy：App-owned packaging、first-run、
   updater/Full first-install 分离，以及 agent exposure contracts。
 - OPL evidence 与 authority boundaries：route receipts、release evidence、
@@ -214,6 +217,23 @@ Codex App 假设本机已有可用 Codex 环境。OPL App 增加产品化安装�
 
 用户应该能先打开 App，并理解还剩什么维护事项，而不是被迫先走 terminal-first
 setup narrative。
+
+## 本地优先与云端连续
+
+OPL App 的产品定义不应停在“桌面应用”。更准确的用户侧表达是：OPL App 是
+本地优先、云端连续的专业工作台。
+
+- 本地优先：用户可以先在自己的 Mac 上打开 App，选择工作目录，围绕本机材料开始
+  研究、基金、演示、书稿或通用任务。
+- 浏览器连续：Linux、Windows、服务器或云主机可以通过 Docker/WebUI 打开同一套
+  chat-first App 体验，适合远程访问、容器部署和非 macOS 用户。
+- 云端连续：当 WebUI 被云端托管，并绑定账号、存储、隔离、资源策略和组织管理时，
+  它就是 OPL Workspace。
+- 体验连续：三种入口共享同一套任务、产物、进度、回执和下一步语言；用户不需要从
+  “本机 App”切换到“另一套云系统”。
+- 权限连续：本机文件、用户自带 SSH/HPC、云主机、Gateway、Fabric 和
+  Console-managed resources 都进入同一条 plan / approve / run / collect /
+  receipt 工作线，但资源所有权和计费责任保持清楚。
 
 ## Context Surface 增量
 

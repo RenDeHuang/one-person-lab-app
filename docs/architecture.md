@@ -58,17 +58,25 @@ runtime projections and cannot read artifact bodies, own artifact authority, or
 turn runtime refs into domain quality, export, readiness, App release or family
 production claims.
 
-OPL App and OPL Workspace are deployment surfaces for the same App experience.
-The local desktop App, Docker/WebUI, and OPL Workspace present the same
-chat-first product model and consume the same Framework state/action contracts.
-OPL Workspace may add hosted URL, account, isolation, storage volume, and
-managed-resource receipts, and the user still sees the same App task flow:
-select a Workspace or local App surface, confirm the resource plan, run the
-task, and receive receipts. OPL Console manages organization policy, users,
-quota, billing, Workspace lifecycle, connector approval, environment policy,
-and managed resource packages for Console-managed resources. User-provided
-local, SSH, or HPC resources remain self-managed unless Framework projections
-explicitly mark them as Console-managed.
+OPL App is the local-first, cloud-continuous workbench for One Person Lab. The
+user-facing promise is not "desktop versus web" but "the same workbench follows
+where the work lives." A user can start on the macOS desktop App, open the same
+App experience through Docker/WebUI on Linux, Windows, a server, or a cloud VM,
+and later use OPL Workspace when that WebUI is hosted with account, storage,
+isolation, and managed-resource policy. Across those entry points, users keep
+the same project, task, artifact, progress, and receipt language.
+
+OPL App, Docker/WebUI, and OPL Workspace are deployment surfaces for the same App
+experience. They present the same chat-first product model and consume the same
+Framework state/action contracts. OPL Workspace may add hosted URL, account,
+isolation, storage volume, and managed-resource receipts, and the user still
+sees the same App task flow: choose the work, confirm the resource plan when
+needed, run the task, review artifacts and receipts, and continue. OPL Console
+manages organization policy, users, quota, billing, Workspace lifecycle,
+connector approval, environment policy, and managed resource packages for
+Console-managed resources. User-provided local, SSH, or HPC resources remain
+self-managed unless Framework projections explicitly mark them as
+Console-managed.
 
 OPL Fabric is the resource capability layer behind App and Workspace, not a new
 ordinary Settings top-level product. In App contracts it appears as refs-only

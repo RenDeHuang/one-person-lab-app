@@ -3,17 +3,13 @@
 </p>
 
 <p align="center">
-  <img src="assets/branding/opl-banner.png" alt="One Person Lab App banner" width="100%" />
-</p>
-
-<p align="center">
   <a href="./README.md">English</a> | <a href="./README.zh-CN.md"><strong>中文</strong></a>
 </p>
 
 <h1 align="center">One Person Lab App</h1>
 
-<p align="center"><strong>面向复杂知识工作的 chat-first 桌面 AI 应用</strong></p>
-<p align="center">从一个应用进入研究、基金、汇报和通用任务，查看进度、继续长任务、检查交付物</p>
+<p align="center"><strong>面向复杂知识工作的本地优先、云端连续 AI 工作台</strong></p>
+<p align="center">在本机、浏览器或云端 Workspace 里进入研究、基金、汇报和通用任务，查看进度、继续长任务、检查交付物</p>
 
 <!--
 Owner: `one-person-lab-app`
@@ -40,10 +36,15 @@ AI 已经很擅长回答问题和生成内容，但当工作变成一篇论文�
 
 它不是把研究、基金、汇报压成一排按钮，而是把“开始、继续、查看进度、打开文件、处理阻塞”放到同一个产品里。用户不用关心背后是哪一个专业 Agent 在工作，只需要看到当前任务做到哪一步、生成了什么、还缺什么、下一步怎么继续。
 
+OPL App 也不是只能装在一台 Mac 上的本地工具。它的工作台体验可以作为 macOS 桌面 App 使用，也可以通过 Docker/WebUI 在 Linux、Windows、服务器或云主机上用浏览器打开；当同一套 WebUI 由云端托管、绑定账号、存储和资源策略时，它就是 OPL Workspace。用户面对的仍然是同一套项目、任务、产物和回执语言，而不是换一套系统。
+
 ## 核心亮点
 
 **一个入口进入多类专业 AI 工作**<br/>
 从桌面应用进入通用工作、医学研究、基金写作和汇报材料准备，不需要在多个命令、仓库和工具之间切换。
+
+**工作台跟着你的工作走**<br/>
+同一套 OPL 工作台可以在本机 App、浏览器 WebUI 或云端 Workspace 中使用。工作从本机开始，之后需要远程访问、团队环境或更强资源时，可以自然进入云端，而不需要重新学习一套入口。
 
 **看得见长任务进度**<br/>
 应用展示任务进展、文件、运行状态和可继续的上下文。用户回来时可以直接看到做到了哪一步、有哪些结果、是否需要人工处理。
@@ -58,7 +59,7 @@ Research Foundry、Grant Foundry、Presentation Foundry 面向不同类型成果
 App 负责把入口、进度、文件和交付体验做好；医学研究、基金写作和视觉交付的具体判断，仍交给对应专业 Agent 完成。当任务进入专业阶段时，用户可以看到 AI 读资料、比较方案、接受审阅、继续修订并形成下一版交付物。
 
 **适合从日常使用走向长期托管**<br/>
-它不只服务一次对话，也面向需要多轮推进、后台维护、失败恢复和持续交付的工作。
+它不只服务一次对话，也面向需要多轮推进、后台维护、失败恢复、远程访问和持续交付的工作。
 
 ## 下载与安装
 
@@ -155,7 +156,7 @@ Full 首装包是给干净机器准备的预置载荷，不是长期更新通道
 | Workflow Profile | OPL Flow workflow guidance 与 profile material。已有用户 `AGENTS.md` / `TASTE.md` 不会被静默覆盖；已有 profile 变更走 Codex semantic merge packet。 |
 | User Data / Artifacts | 工作区、对话、生成交付物、日志、缓存和 receipts。用户产物删除前需要 inventory、archive/restore proof 和明确确认。 |
 
-Linux、Windows 或服务器用户默认使用 Docker/WebUI，请从
+Linux、Windows、服务器或云主机用户默认使用 Docker/WebUI，请从
 [Docker/WebUI install guide](docs/public/docker-webui-install/index.html) 开始；同一份
 guide 也提供
 [detailed PDF](docs/public/docker-webui-install/docker-webui-install-detailed-guide.pdf)。
@@ -165,6 +166,7 @@ guide 也提供
 One Person Lab App 是面向用户的日常 chat-first 桌面入口：
 
 - 从一个桌面界面进入通用工作、医学研究、基金写作和汇报材料准备。
+- 在 macOS 桌面、本机/服务器浏览器 WebUI、以及云端 OPL Workspace 之间保留同一套工作台体验。
 - 提供研究工坊、基金工坊、汇报工坊入口。
 - 展示进度、文件、运行状态和可恢复的工作上下文，帮助用户继续长任务和检查交付物。
 - 首次启动先完成最基本的可用准备，再让更完整的运行环境和专业 Agent 载荷在后台维护。
@@ -185,6 +187,8 @@ One Person Lab App 是面向用户的日常 chat-first 桌面入口：
 One Person Lab App 负责桌面产品体验：打包、发布、更新、首次启动、界面状态、截图和用户文档。它证明的是用户能否顺利安装、打开、进入任务、查看进度和处理文件；医学研究、基金写作和视觉交付是否合格，仍由对应专业 Agent 和人工决策来判断。
 
 App 决定用户看到的安装形态、默认入口、首次启动体验和设置界面。One Person Lab Framework 提供背后的运行、初始化和进度数据，MAS、MAG、RCA 承载各自专业判断和交付物。App 只负责把这些能力呈现为用户能使用的桌面产品体验，不替专业 Agent 做领域判断。
+
+OPL App 的工作台体验横跨三种入口：本机桌面 App、Docker/WebUI 浏览器入口和云端 OPL Workspace。Docker/WebUI 不是第二套产品，它是同一个 App 体验的浏览器运行形态；OPL Workspace 是这套 WebUI 在云端托管后的产品形态。三者共享同一套任务、产物、进度和回执语言。
 
 GUI 产品事实也由 App 仓维护。当前 GUI 主线是基于 AionUI 的 OPL 品牌壳；Hermes Desktop / `hermes-codex` 是唯一前台备选。`agui-codex`、PilotDeck 等只作为已归档技术验证或参考材料，不再作为日常实现、默认验证或抛光路线；真正进入产品的界面、默认行为和发布体验，以 App 仓的产品文档、合同和验证结果为准。
 
