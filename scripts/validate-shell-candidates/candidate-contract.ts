@@ -31,6 +31,14 @@ function assertCandidateFileContains(candidate: ShellCandidate, relativePath: st
   }
 }
 
+function missingCandidateCheckoutCanBeBlocked(candidate: ShellCandidate): boolean {
+  return Boolean(
+    !fs.existsSync(path.join(root, candidate.candidate_root))
+    && candidate.checkout_policy?.missing_checkout_status === 'blocked_missing_checkout'
+    && candidate.build_wrapper?.missing_checkout_blocker_allowed === true
+  );
+}
+
 type CandidateAdapterContract = {
   active_shell: string;
   shell_root: string;
@@ -400,7 +408,13 @@ function validateCandidateValidationCommands(candidate: ShellCandidate): void {
     if (!entry.id || !entry.cwd || !entry.command) {
       throw new Error(`${candidate.id} has invalid validation command ${JSON.stringify(entry)}`);
     }
-    assertFile(path.join(root, entry.cwd), `${candidate.id} validation cwd ${entry.id}`);
+    const cwdPath = path.join(root, entry.cwd);
+    if (!fs.existsSync(cwdPath)) {
+      if (missingCandidateCheckoutCanBeBlocked(candidate) && entry.cwd === candidate.candidate_root) {
+        continue;
+      }
+      assertFile(cwdPath, `${candidate.id} validation cwd ${entry.id}`);
+    }
   }
   const bundleCommand = candidate.validation_commands.find((entry) => entry.id === 'candidate_app_bundle_build');
   if (!bundleCommand) {
@@ -480,6 +494,9 @@ function validateCandidatePackageScriptSurfaces(candidate: ShellCandidate): void
     return;
   }
   if (candidate.id === 'opl-native-workbench') {
+    if (missingCandidateCheckoutCanBeBlocked(candidate)) {
+      return;
+    }
     assertFile(path.join(root, candidate.candidate_root, 'scripts', 'validate-native-workbench-candidate.mjs'), `${candidate.id} self-check`);
     assertCandidateFileContains(candidate, 'package.json', [
       '"build:webui"',
