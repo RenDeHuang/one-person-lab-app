@@ -7,7 +7,8 @@ Machine boundary: 本文是人读交互定义。机器可读 GUI 真相在 `cont
 page-state 矩阵、adapter contracts、源码、发布产物和测试输出中。
 
 本文定义 One Person Lab App 的理想用户交互模型。它不绑定具体 shell。当前 GUI
-主线是 AionUI；Hermes Desktop / `hermes-codex` 是唯一 foreground alternative；
+主线是 AionUI；`opl-native-workbench` 是 foreground alternative candidate；
+Hermes Desktop / `hermes-codex` 是 prior foreground alternative reference；
 `agui-codex` 只作为 AG-UI/CopilotKit archived technical proof 在用户明确要求
 AGUI replay 时读取。任何 shell 都只能实现这份 App-owned 产品定义，不能反过来
 重新定义它。
@@ -19,17 +20,16 @@ routes、组合已有 renderer primitives、调用 App state/action bridge，并
 focused tests 证明行为。不要把产品 IA、runtime truth、model/provider policy
 或 first-run gates 写成 fork-local authority。
 
-`hermes-codex` 是当前唯一 foreground alternative GUI candidate。它的外部来源是
-`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；当前路线是
-先回官方 Hermes Desktop 功能基线，再做最小 OPL delta：候选 branding、简体中文/英文
-copy、图标、bundle metadata、OPL App-managed first-run、OPL Gateway / 模型访问
-配置、Codex executor adapter 和 explicit candidate package。
-Codex 与 MAS 只作为 executor/agent route 扩展点接入，不全量替换 Hermes backend，
-也不把 OPL runtime truth 搬进 App repo。App state/action、page-state、first-run、
-Full runtime、WebUI parity 等面必须先经过 Hermes 功能对比和 App-owned adoption
-gate，不能按 AionUI 主线或 AGUI archived proof 路径直接搬运。Hermes candidate
-不改变当前 AionUI 默认 release shell，也不表达 release-ready。除非用户明确要求
-AGUI，本交互细则后续默认不再推动 AG-UI/CopilotKit 路线的更新、完善或抛光。
+`opl-native-workbench` 是当前 foreground alternative GUI candidate。它的路线是
+独立 shell repo / checkout、App state/action bridge、shared renderer、明确的交付
+体验和 explicit candidate package。Hermes Desktop / `hermes-codex` 的外部来源是
+`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；其 upstream-first
+经验继续作为 prior reference 读取。Codex 与 MAS 只作为 executor/agent route 扩展点
+接入，不把 OPL runtime truth 搬进 App repo。App state/action、page-state、
+first-run、Full runtime、WebUI parity 等面必须先经过 App-owned adoption gate，
+不能按 AionUI 主线、Hermes prior reference 或 AGUI archived proof 路径直接搬运。
+候选 shell 不改变当前 AionUI 默认 release shell，也不表达 release-ready。除非用户
+明确要求 AGUI，本交互细则后续默认不再推动 AG-UI/CopilotKit 路线的更新、完善或抛光。
 
 ## 文档分工
 

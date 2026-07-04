@@ -328,15 +328,17 @@ OPL-specific GUI modules：
 一个 shell 只有在 `contracts/app-shell-adapter.json` 被明确提升，且所有
 App-owned gates 通过后，才能成为默认 release shell。
 
-## Hermes Candidate 增量入口
+## Native Workbench / Hermes Reference 增量入口
 
-`hermes-codex` 是当前唯一 foreground alternative GUI route。它参考
-`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT；App repo 把它
-登记为唯一 foreground alternative，并把当前包、smoke 和 manifest 证据按
-technical verification 读取，直到显式 active-shell adoption 决策完成。登记位置在
+`opl-native-workbench` 是当前 foreground alternative GUI route。它由独立 shell repo
+挂载到 `shells/opl-native-workbench`，通过
 `contracts/app-shell-candidates.json` 和
-`contracts/shell-adapters/hermes-codex.json`。当前 active shell 仍是 AionUI，
-Hermes 不进入默认 stable/nightly release path。
+`contracts/shell-adapters/opl-native-workbench.json` 登记；当前 active shell 仍是
+AionUI，不进入默认 stable/nightly release path。Hermes Desktop / `hermes-codex`
+降为 prior foreground alternative reference；它参考
+`NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT，当前包、smoke 和
+manifest 证据仍按 technical verification 读取，直到显式 active-shell adoption
+决策完成。
 
 Hermes 的长期方向是 upstream-first OPL customization：先回官方 Hermes Desktop
 功能基线，以 `apps/desktop` 为明确参考系，跟随其成熟 GUI、Electron packaging、
