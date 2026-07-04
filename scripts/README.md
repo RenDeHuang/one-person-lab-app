@@ -4,9 +4,11 @@ The root `scripts/` directory exposes App-level wrappers. The active Electron
 shell implementation is checked out from `gaofeng21cn/opl-aion-shell` and
 exposes its shell-specific helpers under `shells/aionui/scripts/`.
 By default wrappers read `contracts/app-shell-adapter.json`. AionUI is the
-mainline GUI carrier, Hermes Desktop / `hermes-codex` is the only foreground
-alternative, and AGUI / `agui-codex` is archived technical proof rather than a
-routine implementation, validation, or polish lane. Technical
+mainline GUI carrier, `opl-native-workbench` is the foreground alternative
+candidate when selected by `contracts/app-shell-candidates.json`, Hermes
+Desktop / `hermes-codex` is the prior foreground alternative reference, and
+AGUI / `agui-codex` is archived technical proof rather than a routine
+implementation, validation, or polish lane. Technical
 verification can select a different linked shell repo with
 `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`;
 AGUI selection should happen only when AGUI replay is explicitly requested.
@@ -16,7 +18,7 @@ AGUI selection should happen only when AGUI replay is explicitly requested.
 | `ensure-active-shell.ts` | Clones or validates the selected external shell checkout, defaulting to `shells/aionui`. |
 | `verify.sh` | App-root verification wrapper for smoke, active-shell, release-boundary, candidate-shell, structure, and full lanes without running release packaging by default. |
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
-| `validate-shell-candidates.ts` | Validates the foreground GUI alternative from `contracts/app-shell-candidates.json` by default. Hermes Desktop is the only foreground alternative; archived AGUI proof is checked only with `--candidate agui-codex`. Selectable candidates are packageable only through an explicit adapter contract env override and must emit a real `.app` bundle manifest. |
+| `validate-shell-candidates.ts` | Validates the foreground GUI alternative from `contracts/app-shell-candidates.json` by default. `opl-native-workbench` is the foreground alternative when the registry selects it; Hermes is prior foreground reference; archived AGUI proof is checked only with `--candidate agui-codex`. Selectable candidates are packageable only through an explicit adapter contract env override and must emit a real `.app` bundle manifest. |
 | `prepare-release-assets.ts` | Calls the active shell release asset normalizer from the App root. |
 | `validate-release.ts` | Verifies release assets and enforces that standard updater metadata excludes Full first-install assets. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
@@ -90,6 +92,9 @@ node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir
 npm run release:evidence:validate -- --bundle-dir release-evidence/<version>
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
+npm run validate:shell-candidates -- --candidate opl-native-workbench --run-candidate-commands
+OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package
+# Prior Hermes reference only:
 npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package
 # Explicit AGUI replay only:
@@ -121,21 +126,25 @@ OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --
 docker build -t one-person-lab-webui:<version> shells/aionui
 ```
 
-For shell alternatives, `npm run validate:shell-candidates` covers the foreground
-Hermes Desktop alternative by default. `agui-codex` is archived technical proof
-and is validated only with `--candidate agui-codex`. When AGUI replay is
+For shell alternatives, `npm run validate:shell-candidates` covers the
+registry-selected foreground alternative by default. The current foreground
+candidate is `opl-native-workbench` once
+`contracts/app-shell-candidates.json` selects it; Hermes Desktop is the prior
+foreground alternative reference. `agui-codex` is archived technical proof and
+is validated only with `--candidate agui-codex`. When AGUI replay is
 explicitly requested, `npm run validate:shell-candidates -- --candidate agui-codex --run-candidate-commands`
 expects the selected package command to produce
 `out/agui-codex-candidate-manifest.json` with `candidate_app_bundle_ready`,
 `explicit_candidate_app_bundle`, and a relative `.app` bundle path whose bundle
 contains `Contents/Info.plist` and a `Contents/MacOS` executable. A `.txt` smoke
 output is intentionally rejected.
-Hermes candidate validation is non-foreground by default: the App-root
-candidate command chain may build the `.app` and run packaged first-run smoke,
-but it must not run screenshot capture or focus the user's active desktop.
-Packaged Settings visual smoke is manual/VM evidence only and requires
-`--allow-foreground`; prefer Tart/VM for that command when the maintainer is
-using the Mac.
+Candidate validation is non-release by default: the App-root candidate command
+chain may build the `.app` and run packaged smoke for the selected candidate,
+but it must not switch the active release shell, claim release readiness, or run
+screenshot capture / focus the user's active desktop unless a visual smoke lane
+explicitly requests it. Packaged Settings visual smoke is manual/VM evidence
+only and requires `--allow-foreground`; prefer Tart/VM for that command when
+the maintainer is using the Mac.
 
 `release:prepare-standard` also copies the App root installer into the active
 shell resources as `opl-install.sh`, which is the packaged standard DMG

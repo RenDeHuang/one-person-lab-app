@@ -13,8 +13,8 @@ installation evidence.
 
 Live Evidence deferred / functional structure first is the current App
 development rule. Normal App work should first close functional and structural
-gaps: App-owned contracts, active-shell sync, AionUI mainline behavior, Hermes
-foreground-alternative boundaries, page-state validation, first-run policy,
+gaps: App-owned contracts, active-shell sync, AionUI mainline behavior,
+`opl-native-workbench` foreground-alternative boundaries, page-state validation, first-run policy,
 Settings / Storage / route receipts, and no-authority runtime/domain guards.
 Release cohorts, clean-VM proof, packaged GUI smoke, same-cohort user-path
 evidence, real user-directory E2E, owner acceptance, and production-ready
@@ -29,7 +29,8 @@ promoted into release-ready or family production-ready proof.
 - Active shell: `aionui`.
 - Active shell root: `shells/aionui` as an external checkout.
 - Active shell source repo: `gaofeng21cn/opl-aion-shell`.
-- Foreground alternative GUI candidate: `hermes-codex`, based on Hermes Desktop.
+- Foreground alternative GUI candidate: `opl-native-workbench`, an independent shell checkout governed by the App candidate registry and adapter contract.
+- Prior foreground alternative reference: `hermes-codex`, based on Hermes Desktop.
 - Archived technical GUI proof: `agui-codex`; do not update or improve it unless AGUI is explicitly requested.
 - App product profile: `contracts/app-product-profile.json`.
 - Framework dependency: `gaofeng21cn/one-person-lab`.
@@ -42,16 +43,19 @@ The App repo must not merge AionUI history into its default branch. AionUI
 upstream-following work stays in `opl-aion-shell`; App product release and user
 docs stay in `one-person-lab-app`.
 
-Current GUI development follows one mainline and one alternative: AionUI is the
-stable App GUI mainline, and Hermes Desktop is the only foreground alternative
-candidate. The previous AG-UI/CopilotKit work remains useful as technical
-verification provenance and explicit replay material, but it is not a default
-candidate lane and should not receive routine updates or polish work. Treat
+Current GUI development follows one mainline and one foreground alternative:
+AionUI is the stable App GUI mainline, and `opl-native-workbench` is the
+foreground alternative candidate once the candidate registry selects it. Hermes
+Desktop / `hermes-codex` is retained as the prior foreground alternative
+reference, not the default foreground scope. The previous AG-UI/CopilotKit work
+remains useful as technical verification provenance and explicit replay
+material, but it is not a default candidate lane and should not receive routine
+updates or polish work. Treat
 `candidate` in AGUI filenames, manifests, scripts, and adapter contracts as a
 backward-compatible replay label only; it does not reopen AGUI as a foreground
 candidate or default validation target. The App-owned convergence readback is
-`npm run validate:shell-convergence`: it confirms the AionUI mainline, Hermes
-foreground alternative, AGUI archived/no-resurrection policy, and false-ready
+`npm run validate:shell-convergence`: it confirms the AionUI mainline,
+foreground alternative registry, AGUI archived/no-resurrection policy, and false-ready
 boundaries as structure evidence only. It cannot claim App release readiness,
 active-shell adoption, packaged GUI acceptance, production readiness, live user
 path evidence, or Live Evidence.
@@ -297,47 +301,36 @@ requirements, literal labels, forbidden-display lists, or test matrices.
 
 Shell alternative work is separated from the active release adapter.
 `contracts/app-shell-candidates.json` owns the registry,
-`contracts/shell-adapters/hermes-codex.json` owns the only foreground alternative
-adapter, and `contracts/shell-adapters/agui-codex.json` remains explicit replay
-only. `scripts/validate-shell-convergence.ts` is the App-owned aggregate readback
-for that policy: it reports `closed_structure_gate_not_live_evidence` only when
-the active AionUI adapter, Hermes foreground scope, AGUI archived proof policy,
-and no-release/no-live false-ready boundary all match the contracts. Hermes docs
-own the active alternative target plan:
+`contracts/shell-adapters/opl-native-workbench.json` owns the foreground
+alternative adapter when selected, and
+`contracts/shell-adapters/agui-codex.json` remains explicit replay only.
+`scripts/validate-shell-convergence.ts` is the App-owned aggregate readback for
+that policy: it reports structure evidence only when the active AionUI adapter,
+foreground alternative scope, AGUI archived proof policy, and no-release/no-live
+false-ready boundary all match the contracts. `docs/product/gui/opl-native-workbench-plan.md`
+owns the active candidate plan. Hermes docs remain prior-candidate reference:
 `docs/product/shell-alternatives/hermes-gui-adaptation-plan.md` and
-`docs/product/shell-alternatives/hermes-first-run-flow.md`. `docs/history/shell-candidates/agui-codex-candidate-verification.md`
-is read only for explicit AGUI replay or historical audit. Default stable/nightly
-packaging continues to resolve `contracts/app-shell-adapter.json` and the active
-`aionui` shell until an explicit release-owner decision changes that contract.
+`docs/product/shell-alternatives/hermes-first-run-flow.md`.
+`docs/history/shell-candidates/agui-codex-candidate-verification.md` is read only
+for explicit AGUI replay or historical audit. Default stable/nightly packaging
+continues to resolve `contracts/app-shell-adapter.json` and the active `aionui`
+shell until an explicit release-owner decision changes that contract.
 
-Hermes candidate now follows a three-phase route. Phase 1 is the compatibility
-firewall: keep the App-facing experience close to Codex App, implement adapter
-gaps that affect ordinary chat, adapt Hermes surfaces only when their semantics
-match OPL/Codex, move useful raw backend detail to Advanced/Diagnostics, and
-hide full-Hermes features that would otherwise look like working OPL App
-features. Phase 2 presents OPL branded Codex features such as MAS/MAG/RCA,
-model access, first-run, and capability status as ordinary product surfaces.
-Phase 3 is the full OPL product profile and possible active-shell adoption
-decision. None of these phases changes the active release shell by itself.
+The `opl-native-workbench` route is candidate-structure first: candidate
+registration, adapter contract, independent external checkout, state/action
+bridge, shared renderer, package manifest, source/WebUI smoke when claimed,
+docs/runbook, then later visual/live evidence. K-Dense, OpenClaudeScience /
+Claude Science, and AGUI lessons are intake material only: delivery experience,
+project sandbox, file/preview/result delivery, structured forms, shared renderer,
+and task/provenance framing can be adopted or adapted; external runtime/agent
+authority, Pi/DeepAgents/LangGraph-like runtimes, provider/backend marketplaces,
+and domain truth ownership are watch-only or rejected.
 
-The current `hermes-codex` state is Phase 1 foreground-alternative
-implementation and technical verification. Status does not freeze dated local
-smoke paths, VM cohort ids, guest metadata, screenshots, or candidate pass/fail
-logs. Current candidate behavior must be read from the App-owned candidate
-contracts, validation scripts, candidate manifests, shell artifacts, CI logs, or
-explicit history/provenance records. MAS/MAG/RCA are Codex Skill/Plugin
-entries: ordinary users invoke them through composer slash shortcuts such as
-`/mas` or explicit `$mas` prompt text, while Settings may show read-only status
-and diagnostics. The GUI must not recreate a purpose-route truth source,
-directly run domain CLIs, or turn MCP/Profile/Cron/Toolset management into
-ordinary App capability.
-
-Package/runtime/visual acceptance is still not complete: AionUI-vs-Hermes visual
-screenshot parity has not been accepted, packaged GUI acceptance is separate
-from local live app-server smoke, and this does not promote Hermes to the
-release shell. Therefore the current state is foreground-alternative technical
-verification work, not release-ready, active-shell-adopted, domain-ready, or
-production-ready.
+Package/runtime/visual acceptance is still not complete: candidate source/WebUI
+smoke, packaged GUI acceptance, clean VM proof, same-cohort user-path evidence,
+and owner acceptance remain separate evidence lanes. Therefore the current state
+is foreground-alternative technical-verification planning, not release-ready,
+active-shell-adopted, domain-ready, or production-ready.
 
 The current candidate read is technical verification only. Candidate smoke,
 manifests, package evidence, shell roadmaps, upstream GUI defaults, and external
