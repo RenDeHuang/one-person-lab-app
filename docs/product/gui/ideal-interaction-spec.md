@@ -347,14 +347,16 @@ leader configuration、Team 自动跳转和 Team deep link 默认隐藏或禁用
 兼容 route 只能 redirect 到 App-owned home 或明确 diagnostics，不能成为普通
 capability。
 
-Agents & Capabilities 主视图按科研、基金、演示和显式 OPL Meta Agent 组织。
-内置技能列表和自动注入技能只能显示 App product profile 的 packaged skill
-whitelist 里的技能；`aionui-skills`、`aionui-webui-setup`、`skill-creator` 等 AionUI
+Agents & Capabilities 主视图按 installed Agent Packages、用户可见快捷入口和
+starter work purposes 组织。MAS、MAG、RCA、BookForge、OMA 是 first-party starter
+packages，不是 App 能管理的全部专业智能体。内置技能列表和自动注入技能只能显示
+App product profile 的 packaged skill policy、installed package manifests 和 active
+shortcut 允许的技能；`aionui-skills`、`aionui-webui-setup`、`skill-creator` 等 AionUI
 implementation helper 不进入普通能力页。
 
 Home composer 和普通会话里的技能/MCP 选择更窄：只使用 App-owned ordinary
-capability allowlist。技能从 MAS/MAG/RCA 的 `assistant_skill_profiles` 推导；
-MCP 默认空白名单，只有 App product profile 明确列入的 OPL MCP 才能进入普通
+capability allowlist。技能从 active package shortcut 和 App packaged skill policy
+推导；MCP 默认空白名单，只有 App product profile 明确列入的 OPL MCP 才能进入普通
 选择器或 loaded-capability 展示。AionUI builtin-auto、用户本机 MCP 配置和 shell
 implementation helper 不直接成为 OPL App 普通会话能力。
 
@@ -502,7 +504,8 @@ renderer 结构变化。
 - 右侧 inspector 默认关闭。
 - Workspace/session rail 与右侧 inspector 在窄桌面/WebUI 下仍能通过用户动作
   打开，并且 context tabs 与 Routing summary 实际可见可操作。
-- MAS/MAG/RCA 是 Codex 之上的 purpose entries，不是 backend choices。
+- MAS/MAG/RCA/BookForge/OMA 是 Codex 之上的 first-party starter packages/shortcuts，
+  不是 backend choices 或 session behavior contracts。
 - 普通 home 和 conversation paths 隐藏 backend/provider/permission selectors；
   model selector 只作为 App-owned Codex 模型控制出现。
 - 普通 home 不显示 runtime activity、continue-work、activity refs grid、

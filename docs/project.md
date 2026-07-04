@@ -11,12 +11,14 @@ The intended product shape is a local-first, cloud-continuous workbench for the
 OPL family: users start from a chat-first App, choose the work they want to do,
 and keep the same project/task/artifact/receipt language whether they are on the
 macOS desktop App, Docker/WebUI in a browser, or hosted OPL Workspace. Codex CLI
-is the fixed executor on the ordinary user path, and MAS, MAG, RCA, and
-BookForge are built-in intelligent task entries for research, grants,
-presentation work, and book writing. The App does not present upstream AionUI
-multi-backend selection as a normal user workflow. Selecting a built-in entry
-creates a Codex CLI conversation with an App-owned route receipt; it is not a
-backend switcher.
+is the fixed executor on the ordinary user path. Professional agents such as
+MAS, MAG, RCA, BookForge, and OMA are first-party starter packages and shortcuts
+for research, grants, presentation work, book writing, and agent-building work;
+future compliant user, organization, or third-party packages should use the same
+management and launch path. The App does not present upstream AionUI
+multi-backend selection as a normal user workflow. Selecting a shortcut creates
+a Codex CLI conversation with an App-owned invocation receipt; it is not a
+backend switcher or a session-behavior contract.
 
 Docker/WebUI is the browser runtime form of the same App workbench, suitable for
 Linux, Windows, servers, and cloud VMs. OPL Workspace is the hosted product form

@@ -43,9 +43,12 @@ gate 提升。
 
 OPL App 增加六层产品能力：
 
-- OPL purpose routing：把 MAS、MAG、RCA 作为内置 purpose entries。
-- OPL domain skill profiles：每个 purpose 带一个 required domain skill 和
-  相关 companion skills。
+- OPL professional-agent package management：MAS、MAG、RCA、BookForge、OMA 是
+  first-party starter packages/shortcuts；用户、组织或第三方 compliant packages
+  应走同一安装、更新、隐藏、卸载和启动路径。
+- OPL package shortcut metadata：每个 shortcut 只声明 label、package、required
+  skills、optional companion refs 和 refs-only display policy；它不是 session
+  behavior contract。
 - OPL runtime bridge：把 Framework-owned state/action/read-model surfaces
   展示为 refs、progress、receipts、blockers 和 safe actions。
 - OPL local-to-cloud continuity：同一套 App 工作台可以在 macOS 桌面、本机或服务器
@@ -98,9 +101,10 @@ updater 等功能如果对 OPL 普通路径不合适，先判断它们应被保�
 Advanced / explicit mode、被重命名为 OPL 语义，还是暂时隐藏。只有当功能与 Codex
 CLI 固定执行器、App-owned runtime truth 或 release gate 冲突时，才替换实现。
 
-## OPL Purpose Entries
+## OPL Professional Agent Shortcuts
 
-普通 App home 上的 OPL purpose entries 是 Codex 之上的入口：
+普通 App home 上的 OPL shortcuts 是 Codex 之上的启动入口。它们默认可按工作目的
+组织，但本质是用户可配置的 installed package shortcuts：
 
 | Purpose | 用户标签 | Domain | 默认 route |
 | --- | --- | --- | --- |
@@ -108,30 +112,35 @@ CLI 固定执行器、App-owned runtime truth 或 release gate 冲突时，才�
 | Grant | `基金` | Med Auto Grant | MAG |
 | Presentation | `演示` | RedCube AI | RCA |
 
-每个 purpose 改变 assistant context、prompt rules、skill profile、route
-receipt 和 domain-specific contextual surfaces。它不改变 executor 或 backend。
+每个 shortcut 可以带 required skill ids、optional companion refs、source 和
+refs-only display policy。它不改变 executor 或 backend，也不能定义 MAS/MAG/RCA
+等专业智能体的 workflow、stage、prompt internals、artifact schema、readiness
+verdict 或 quality/export authority。
 `ppt` 是 App contracts、product profile 和 page-state matrix 当前稳定的内部
 purpose id，路由到 RCA；普通中文界面显示 `演示`，避免把 `PPT` 放进普通用户界面。
 
-OMA 保持 explicit 或 Settings-only，直到单独 App 产品决策让它进入普通 home。
+OMA 和其他 first-party packages 可以作为 starter shortcuts；是否出现在 Home
+由默认 shortcut 配置和用户选择决定，不表示它们成为 App 内置业务模块。
 
 ## Skill 与 Capability 增量
 
 Codex App 有 skills 和 tools。OPL App 增加 App-owned skill exposure policy：
 
-- MAS/MAG/RCA 是 family domain plugin surfaces。
-- 每个 purpose 有一个 required domain skill：`mas`、`mag` 或 `rca`。
+- MAS/MAG/RCA/BookForge/OMA 是 first-party professional Agent Packages，也是
+  family domain plugin surfaces。
+- 每个 package/shortcut 可以声明 required domain skills，例如 `mas`、`mag`
+  或 `rca`。
 - Companion skills 通过一份 App whitelist 打包，不区分来源是 AionUI、
   Skills Manager、本地 Codex skills 还是 plugin payloads。
 - Settings 里的自动注入技能也必须按同一 App whitelist 过滤；AionUI
   implementation helper 如 `aionui-skills`、`aionui-webui-setup` 和
   `skill-creator` 不应作为 OPL App 普通能力显示。
 - Home/new conversation 和普通会话 loaded-capability surface 使用更窄的
-  `gui.ordinary_capability_selector_policy`：技能只来自 MAS/MAG/RCA assistant
-  profiles，MCP 默认空白名单。未被 App profile 明确列入的 AionUI helper skill、
+  `gui.ordinary_capability_selector_policy`：技能来自 active package shortcut
+  和 App packaged skill policy，MCP 默认空白名单。未被 App profile 明确列入的 AionUI helper skill、
   auto-inject skill 或 MCP server 不进入选择器、展示或 create payload。
 - Plugin packaging 是 distribution shell；`skill` 仍是 public semantic ABI。
-- MAS/MAG/RCA 作为 plugins 打包时，不能再镜像成裸
+- MAS/MAG/RCA 作为 plugins/packages 打包时，不能再镜像成裸
   `~/.codex/skills/{mas,mag,rca}`。
 - OMA 是 OPL-generated local Codex plugin surface，在提升前保持 explicit。
 - Fresh install 后由 App/CLI 管理 `opl connect reconcile-modules`、`opl connect sync-skills`、
@@ -193,8 +202,8 @@ infrastructure repair，而不是 manuscript 或 deliverable progress。
 
 OPL App 增加普通 Codex App 不需要的证据要求：
 
-- Built-in assistant selection 创建 route receipts。
-- Packaged GUI route smoke 必须证明 MAS/MAG/RCA/BookForge entries 和 receipts。
+- Professional agent shortcut selection 创建 launch-only invocation receipts。
+- Packaged GUI route smoke 必须证明 starter shortcuts 和 receipts。
 - Release evidence 必须保持 cohort-bound。
 - First-run evidence 必须区分 Core launch readiness 与 Full maintenance。
 - Screenshot evidence 只证明产品 evidence，不证明 domain readiness。
@@ -261,9 +270,9 @@ Continue-work 详细列表也属于次级 surface。OPL App 可以让用户从 c
 
 用户可见名称应该描述工作，而不是基础设施：
 
-- 普通中文 purpose entries 使用 `科研`、`基金`、`演示`。
+- 普通中文 starter shortcuts 可使用 `科研`、`基金`、`演示`。
 - 英文 UI 中对应显示 `Research`、`Grant`、`Presentation`。
-- MAS/MAG/RCA 是 route receipt 和 technical refs；普通 chrome 使用
+- MAS/MAG/RCA 是 invocation receipt 和 technical refs；普通 chrome 使用
   `科研`、`基金`、`演示` 或 `Research`、`Grant`、`Presentation`。
 - 中文普通首页用 `本机助手 / 自动` 作为紧凑状态，英文界面用
   `Local assistant / Auto`；`Codex CLI` 可进入二级技术详情或 diagnostics，

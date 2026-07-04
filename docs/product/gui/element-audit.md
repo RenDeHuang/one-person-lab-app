@@ -21,7 +21,7 @@ Settings、About/Updates。当前实现 carrier 是 `shells/aionui`，但页面�
 | --- | --- | --- | --- |
 | App GUI product truth | `one-person-lab-app` | 定义普通用户可见 GUI 行为、页面状态、Settings IA、文档和 release/user-path 验收边界。 | `contracts/app-gui-product-contract.json`、`contracts/app-page-state-matrix.json`、`contracts/app-shell-adapter.json`、App-root validation、release evidence。 |
 | Runtime state/action | `one-person-lab` Framework | 产生 App state、operator/runtime projection 和 safe action 执行结果。 | `opl app state --profile fast --json`、显式 full state、`opl app action execute ... --json`。 |
-| Domain truth | MAS/MAG/RCA/OMA | 拥有 domain truth、quality/export verdict、memory body、artifact body、owner receipt 和 typed blocker。 | Domain-owned projections/receipts；App 只展示 refs。 |
+| Domain truth | MAS/MAG/RCA/BookForge/OMA and future agents | 拥有 domain truth、quality/export verdict、memory body、artifact body、owner receipt 和 typed blocker。 | Domain-owned projections/receipts；App 只展示 refs。 |
 | Shell implementation | active shell checkout | 渲染 App-owned 产品定义并桥接 App state/action。 | Active shell source/tests、adapter contract、App wrapper build/smoke。 |
 
 ## 总体结论
@@ -74,7 +74,7 @@ dashboard、settings bar 或通用 agent 控制台。
 | Runtime | Safe actions | dry-run/execute App-owned operator action。 | Runtime action/advanced 区。 | Mutation 走 `opl app action execute ... --json`。 |
 | Settings | General | 普通设置入口和概览。 | Settings ordinary tab。 | 当前 machine truth。 |
 | Settings | Access | Codex CLI/provider access、账号或配置可用性。 | Settings ordinary tab；`/guid` shortcut 进入这里。 | 正确。 |
-| Settings | Capabilities | MAS/MAG/RCA/OMA 能力和 App packaged skill 边界。 | Settings ordinary tab。 | Global catalog；Home 保持 purpose-first。 |
+| Settings | Capabilities | Installed Agent Packages、starter shortcuts、third-party/user packages 和 App packaged skill 边界。 | Settings ordinary tab。 | Global package/skill catalog；Home 显示用户选择的快捷入口。 |
 | Settings | Local Environment | runtime connection/readiness、module path source 和 refs。 | Settings ordinary tab。 | 配置面，不承载 project progress。 |
 | Settings | Advanced | OPL Flow Context、兼容技术项和高级配置。 | Settings ordinary tab。 | 不变成 runtime dashboard。 |
 | Settings | About & Updates | App version、shell version、release channel、updates、provenance。 | About surface。 | standard updater 与 Full first-install 必须分清。 |

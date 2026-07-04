@@ -211,7 +211,20 @@ Workspace must not be presented as a runtime diagnostic-only field.
 
 ### Agents & Capabilities
 
-Capabilities are organized by work purpose before implementation detail:
+Capabilities are organized by installed Agent Packages and user-facing work
+shortcuts before implementation detail. MAS, MAG, RCA, BookForge, and OMA are
+first-party starter packages/shortcuts, not the only packages OPL App can
+manage.
+
+The ordinary model is:
+
+- Agent Package: install/update/repair/rollback/hide/unhide/uninstall unit;
+- Home Shortcut: user-selected launch entry over an installed package;
+- Codex Surface: plugin registry, required skills, optional companion tools,
+  and post-apply sync state;
+- Invocation Receipt: launch fact only, not a session-behavior contract.
+
+Default starter shortcuts may still be grouped by work purpose:
 
 - Research;
 - Grant Writing;
@@ -219,10 +232,18 @@ Capabilities are organized by work purpose before implementation detail:
 - Book / manuscript work;
 - OPL automation and Meta Agent.
 
-Each purpose card shows current availability, primary entry, required package or
-skill support, whether it needs update or repair, and last capability sync when
+Each package/shortcut card shows current availability, source
+(`first_party`, `organization`, `user`, `third_party`, or developer override),
+primary entry, required package or skill support, whether it needs update,
+repair, rollback, hide/unhide, or uninstall, and last capability sync when
 available. Skills, external tools, MCP, voice, and custom assistants are
-supporting sections below the purpose model.
+supporting sections below the package/shortcut model.
+
+Settings must not introduce a strong Session Contract. Shortcut/profile
+metadata may describe label, package id, required skill ids, optional companion
+refs, source, and refs-only display policy. It must not describe a domain
+workflow, MAS stage behavior, prompt internals, artifact schema, readiness
+verdict, quality/export verdict, or owner receipt authority.
 
 Connector readiness appears as OPL Connect refs grouped by user purpose, such
 as literature databases, research databases, storage, tools/API, internal

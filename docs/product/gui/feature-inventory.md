@@ -96,9 +96,10 @@ App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent da
 - 提供右侧 contextual inspector tabs：Files、Skills/Capabilities、
   Routing/runtime refs、Memory refs、Always-On/Automations、Settings；这些
   tabs 不能和主 chat canvas 竞争。
-- MAS/MAG/RCA 是 Codex 之上的 built-in purpose entries。普通 chrome 使用
-  `科研`、`基金`、`演示` 或 `Research`、`Grant`、`Presentation`，route receipts
-  和 technical refs 再记录 MAS/MAG/RCA，不把它们当 separate backend choices。
+- MAS/MAG/RCA/BookForge/OMA 是 Codex 之上的 first-party starter packages 和
+  home shortcuts。普通 chrome 使用 `科研`、`基金`、`演示` 或
+  `Research`、`Grant`、`Presentation` 等用户标签，invocation receipts 和
+  technical refs 再记录具体 package/plugin，不把它们当 separate backend choices。
 - UI labels、empty states、button titles、aria labels、first-run、runtime、
   activity 和 settings copy 有简体中文/英文两套显示；切换语言不改变 runtime truth、
   route receipt 或 workspace/thread state。
@@ -289,10 +290,11 @@ workbench、表格化 dashboard 或默认右侧 inspector，应只吸收视觉 t
 - Settings sections 是 Overview、Setup & Access、Capabilities、
   Maintenance & Updates、Data & Storage、Preferences、Advanced；
   About、Update、Theme 是 secondary surfaces。
-- Agents & Capabilities 的内置技能列表和自动注入技能只展示 App packaged skill
-  whitelist 中的技能；AionUI implementation helper 如 `aionui-skills` 不作为 OPL 能力展示。
+- Agents & Capabilities 的 package/skill 列表和自动注入技能只展示 App packaged
+  skill policy、installed package manifests 和 active shortcut 允许的技能；
+  AionUI implementation helper 如 `aionui-skills` 不作为 OPL 能力展示。
 - Home/new conversation 的普通技能/MCP 选择不使用完整 packaged skill dump 或
-  AionUI backend MCP catalog。普通技能来自 MAS/MAG/RCA assistant profile allowlist；
+  AionUI backend MCP catalog。普通技能来自 active package shortcut 和 App packaged skill policy；
   MCP 默认空白名单，只能由 App product profile 显式加入。
 - AionUI upstream Team 入口不作为 OPL 普通能力、普通导航或 Settings tab 暴露；
   Team sidebar section、Team 自动跳转和 Team deep link 默认禁用，兼容 route 只做
@@ -450,8 +452,8 @@ Hermes 第一版只替换最小几类上游面，才能声称 minimal candidate 
   `codex app-server --listen stdio://`，并将 `session.create` 映射到
   `thread/start`、`prompt.submit` 映射到 `turn/start`、`item/agentMessage/delta`
   映射成 Hermes `message.delta`、`turn/completed` 映射成 Hermes `message.complete`。
-  MAS/MAG/RCA 作为 Codex Skill/Plugin 调用入口，由 GUI slash shortcut 转成显式
-  `$mas` / `$mag` / `$rca` prompt，并由 Codex app-server 的 structured skill input
+  MAS/MAG/RCA/BookForge/OMA 作为 Codex Skill/Plugin/package 调用入口，由 GUI
+  shortcut 或 slash shortcut 转成显式 skill prompt，并由 Codex app-server 的 structured skill input
   与本机 Skill/Plugin/MCP registry 决定实际加载；GUI 不做关键词 route，不直接执行
   domain CLI，也不拥有 runtime/domain truth。
 - Candidate package wrapper：使用 explicit adapter packaging，不能进入默认
@@ -460,7 +462,7 @@ Hermes 第一版只替换最小几类上游面，才能声称 minimal candidate 
 普通用户体验目标是套壳 Codex App，而不是把 Hermes 的通用 backend/provider 工作台
 暴露为 OPL home。用户应看到 workspace-aware chat、Codex conversation、Skill
 shortcuts 和必要 refs；Hermes backend/runtime/provider 细节只在 Advanced、diagnostics
-或明确 technical refs 中出现。Codex/MAS/MAG/RCA 接入是 Skill/Plugin extension，
+或明确 technical refs 中出现。Codex/MAS/MAG/RCA 接入是 Skill/Plugin/package extension，
 不是全量替换 Hermes backend。
 
 以下面必须先做 Hermes 原生功能对比，再决定是否进入候选：
