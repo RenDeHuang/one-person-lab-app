@@ -217,10 +217,16 @@ and starter shortcuts are defaults, not the only packages OPL App can manage.
 
 The package discovery source is the OPL Agent Registry. Users may point it at a
 GitHub-hosted JSON file or another configured URL; Settings uses it to show
-available packages and starter shortcuts. Installing or updating still follows
-the selected package's manifest URL through OPL Framework validation, lock,
-rollback, and receipt creation. The Registry never defines the agent's business
-behavior.
+available packages and starter shortcuts. Installing from a selected manifest
+URL follows OPL Framework validation, lock, rollback ref, receipt creation, and
+package list readback. Updating, repairing, rolling back, uninstalling,
+hiding/unhiding, enabling/disabling, and status readback are Framework-owned
+lifecycle receipt routes that Settings may expose as App actions. Active shell
+may persist local Home shortcut preferences. Physical Codex plugin/skill
+materialization, installed Codex-surface reload proof, release-packaged rollback
+cleanup, and live install readiness remain Framework/runtime or release-owner
+evidence; Settings must not present contract/readback evidence as live install
+readiness. The Registry never defines the agent's business behavior.
 
 The ordinary model is:
 
