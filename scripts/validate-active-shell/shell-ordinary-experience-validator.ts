@@ -111,6 +111,8 @@ const acpSendBoxExpected = [
   'shouldShowOplConversationPermissionModeSelector',
   "backend === 'codex'",
   'const showModeSelector',
+  'headDownQuickActionPrompt',
+  "data-testid='opl-head-down-send-btn'",
   'showModeSelector ?',
   '<ThoughtDisplay running={isBusy}',
 ];

@@ -1158,4 +1158,19 @@ export function validateOplFlowContext(context, label) {
       throw new Error(`${label}.${field} must be ${expected}`);
     }
   }
+  const headDownMode = context.optional_user_modes?.head_down;
+  if (
+    headDownMode?.id !== 'head_down' ||
+    headDownMode.settings_key !== 'codex.oplFlowHeadDownMode' ||
+    headDownMode.label_key !== 'settings.oplFlowHeadDownMode' ||
+    headDownMode.description_key !== 'settings.oplFlowHeadDownModeDesc' ||
+    headDownMode.prompt_line !== 'DO NOT send optional commentary' ||
+    headDownMode.quick_action_label_key !== 'conversation.headDownQuickAction' ||
+    headDownMode.quick_action_prompt !==
+      'Spend time on thinking; you do not need to use the commentary channel to report progress to me.' ||
+    headDownMode.quick_action_policy !== 'send_as_current_conversation_user_message_when_mode_enabled' ||
+    headDownMode.injection_policy !== 'prepend_before_opl_flow_context'
+  ) {
+    throw new Error(`${label} must declare the OPL Flow head_down optional prompt mode`);
+  }
 }

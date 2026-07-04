@@ -279,6 +279,7 @@
         "compact purpose tag",
         "assistant route receipt",
         "Codex default model and reasoning status",
+        "head-down quick action when head-down mode is enabled",
         "current task status slice when a task is active",
         "current task resource summary for Gateway, Fabric resources, environment, usage, and Console policy refs when active"
       ],

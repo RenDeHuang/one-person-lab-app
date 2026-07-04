@@ -185,6 +185,19 @@ export type AppProductProfile = {
       delivery: string;
       user_agents_policy: string;
       language_policy: string;
+      optional_user_modes?: {
+        head_down?: {
+          id: string;
+          settings_key: string;
+          label_key: string;
+          description_key: string;
+          prompt_line: string;
+          quick_action_label_key: string;
+          quick_action_prompt: string;
+          quick_action_policy: string;
+          injection_policy: string;
+        };
+      };
     };
     default_visible_skills: string[];
     skill_priority: string[];
