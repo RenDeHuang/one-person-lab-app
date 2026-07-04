@@ -11,6 +11,74 @@
     "tag_pattern": "v<version>",
     "rule": "GitHub Release names use the product-prefixed v-version format for both Stable and Nightly; tags remain v<version> for updater and automation compatibility."
   },
+  "public_release_notes": {
+    "owner": "one-person-lab-app",
+    "default_public_writer": "ai_assisted_public_copy",
+    "evidence_first": true,
+    "script": "scripts/generate-release-notes.ts",
+    "publish_script": "scripts/publish-release.ts",
+    "channels": {
+      "stable": {
+        "target_reader": "ordinary App users and release operators deciding whether to install, upgrade, promote, or troubleshoot the Stable package",
+        "comparison": "previous Stable release",
+        "lead_with": [
+          "user-visible scenarios",
+          "upgrade value",
+          "install or update actions",
+          "compatibility notes",
+          "known follow-up"
+        ]
+      },
+      "nightly": {
+        "target_reader": "opt-in testers, maintainers, and operators validating the latest prerelease",
+        "comparison": "previous Nightly prerelease",
+        "lead_with": [
+          "new user-visible behavior since the previous Nightly",
+          "flows that need validation",
+          "expected rough edges or risks",
+          "tester action items"
+        ]
+      }
+    },
+    "public_body_order": [
+      "product version headline",
+      "scenario_or_upgrade_highlights",
+      "install_update_or_tester_actions",
+      "compatibility_known_issues_or_follow_up",
+      "technical_details"
+    ],
+    "technical_details": {
+      "position": "end_of_public_body_or_evidence_artifact",
+      "allowed_content": [
+        "compared tags",
+        "App/Shell/Framework refs",
+        "workflow run ids",
+        "asset verification facts",
+        "compact changelog links",
+        "OPL-family repo changes",
+        "Full payload versions",
+        "release-note evidence artifact names"
+      ],
+      "forbidden_as_primary_narrative": [
+        "commit log",
+        "raw ref list",
+        "workflow or gate list",
+        "packaging audit table",
+        "release evidence table"
+      ]
+    },
+    "template_policy": {
+      "default_public_copy_allowed": false,
+      "allowed_modes": [
+        "ai_unavailable_fallback",
+        "dry_run",
+        "diagnostic_preview"
+      ],
+      "rule": "Template release notes preserve evidence facts and technical details only when AI public copy is unavailable or the operator requested a dry-run/diagnostic preview; template output is not the default polished public Stable or Nightly copy."
+    },
+    "public_asset_policy": "Release-note evidence JSON and technical audit output are operator evidence, not public download assets; the public GitHub Release asset list stays focused on install, update, checksum, and manifest entrypoints.",
+    "rule": "Public release notes default to AI-written user copy derived from script-generated evidence. The body leads with user scenarios, upgrade value, and action items; commit logs, refs, workflow facts, changelog details, and packaging audit material belong in Technical details or evidence artifacts instead of the main narrative."
+  },
   "active_shell": "aionui",
   "shell_root": "shells/aionui",
   "standard_updater": {

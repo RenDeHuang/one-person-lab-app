@@ -217,6 +217,52 @@ Every desktop release run also uploads `release-actions-timing-<version>`. Use
 that artifact to inspect workflow wall time, failed/canceled run tax, slow jobs,
 and slow steps before opening raw job logs.
 
+## Release Notes Runbook
+
+Public release notes are user communication, not the release audit ledger.
+Release scripts generate the evidence packet first: channel, version, compared
+release, user-facing change groups, OPL-family refs, Full payload versions,
+asset/readback facts, and technical provenance. The default public body is then
+AI-written from that evidence so the front matter explains what changed for
+users, why the upgrade matters, and what action they should take.
+
+Stable notes target ordinary App users and release operators deciding whether
+to install, upgrade, promote, or troubleshoot the current Stable package. Lead
+with the stable user scenarios that improved, upgrade value, install/update
+actions, compatibility notes, and known follow-up. Mention Full first-install
+only when that package is part of the cohort, and frame it as clean-machine
+first-launch value rather than packaging internals.
+
+Nightly notes target opt-in testers, maintainers, and operators checking the
+latest prerelease. Lead with what is new since the previous Nightly, which user
+flows need validation, what risks or rough edges are expected, and what feedback
+or smoke path matters. Nightly copy may be more explicit about validation
+intent, but it still starts from user-visible scenarios instead of raw commits.
+
+The public body should use this order unless a release owner chooses a more
+specific user story:
+
+1. User-facing headline for `One Person Lab v<version>`.
+2. Highlights grouped by scenario, upgrade value, or visible workflow.
+3. Install, update, or tester action items.
+4. Compatibility, known issues, and follow-up only when relevant.
+5. Technical details at the end: compared tags, App/Shell/Framework refs,
+   workflow run ids, asset verification, evidence artifact names, and compact
+   changelog links.
+
+Do not use commit logs, ref lists, workflow names, gate names, evidence tables,
+or packaging audit output as the main release-note narrative. Those details
+belong in the final Technical details section, the release evidence artifact,
+the candidate record, CI summaries, or closeout artifacts. The public download
+list must stay focused on install/update/checksum entrypoints; release-note
+evidence JSON is operator evidence, not a user download.
+
+AI public-copy generation is the default path. Template output is allowed only
+as a fallback when AI generation is unavailable, or for explicit dry-runs and
+diagnostic previews. A template fallback must preserve the evidence facts and
+technical details, but it should not be treated as polished public Stable copy
+without an AI or release-owner writing pass.
+
 ## No-Watch Operator Runbook
 
 Do not watch a release page as the control loop. Use the operator readout as
