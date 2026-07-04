@@ -267,6 +267,10 @@ jobs:
   publish-standard:
     name: Publish standard App assets
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+      models: read
     needs:
       - release-source-gate
       - standard-build
@@ -374,6 +378,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_MODE: ${{ inputs.release_mode }}
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_NOTES_MODE: ai
+          OPL_RELEASE_NOTES_PROVIDER: github_models
           OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/standard-release-notes-evidence.json
         run: |
           set -euo pipefail
@@ -412,6 +418,10 @@ jobs:
   publish-full-assets:
     name: Publish Full first-install assets
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+      models: read
     needs:
       - publish-standard
       - full-first-install
@@ -439,6 +449,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+          OPL_RELEASE_NOTES_MODE: ai
+          OPL_RELEASE_NOTES_PROVIDER: github_models
           OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/full-release-notes-evidence.json
         run: |
           npm run release:publish -- \
