@@ -517,7 +517,7 @@
           "artifact_body_access": false,
           "owner_receipt_write_access": false,
           "domain_verdict_authority": false,
-          "candidate_policy": "report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable_no_skill_body_write"
+          "candidate_policy": "report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write"
         },
         "forbidden_sources": [
           "upstream unified catalog without allowlist",

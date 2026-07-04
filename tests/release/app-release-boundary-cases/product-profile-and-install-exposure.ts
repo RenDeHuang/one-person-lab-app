@@ -46,6 +46,51 @@ const EXPECTED_PACKAGE_LIFECYCLE_ACTIONS = [
   'manual_check',
   'apply_selected',
 ];
+const EXPECTED_REGISTRY_SOURCE_KINDS = [
+  'default_opl_registry',
+  'organization_registry_url',
+  'user_registry_url',
+];
+const EXPECTED_REGISTRY_MANAGEMENT_ACTIONS = [
+  'refresh_registry',
+  'add_registry',
+  'remove_registry',
+  'install_from_manifest_url',
+];
+const EXPECTED_REGISTRY_ENTRY_FIELDS = [
+  'package_id',
+  'display_name',
+  'publisher',
+  'source',
+  'manifest_url',
+  'latest_version',
+  'trust_tier',
+];
+const EXPECTED_MANIFEST_REQUIRED_FIELDS = [
+  'package_id',
+  'agent_id',
+  'display_name',
+  'publisher',
+  'version',
+  'source',
+  'codex_surface',
+  'skill_packs',
+  'entrypoints',
+  'health_check',
+  'permissions',
+  'update_channel',
+  'rollback_ref',
+];
+const EXPECTED_REGISTRY_EXCLUDED_FIELDS = [
+  'session_contract_ref',
+  'domain_workflow_schema',
+  'prompt_body',
+  'artifact_schema',
+  'readiness_verdict_rule',
+  'quality_verdict_rule',
+  'owner_receipt_authority',
+];
+const EXPECTED_REGISTRY_PACKAGE_IDS = ['mas', 'mag', 'rca', 'bookforge', 'oma'];
 const EXPECTED_PACKAGE_LOCK_RECEIPT_FIELDS = [
   'package_id',
   'version_or_source_digest',
@@ -475,6 +520,10 @@ test('App product profile owns user-facing defaults without runtime authority', 
 
 test('App install exposure policy keeps skill ABI and plugin distribution separate', () => {
   const policy = readInstallExposurePolicy();
+  const profile = readProductProfile();
+  const agentPackageRegistry = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'agent-package-registry.json'), 'utf8'),
+  );
   const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
 
   assert.equal(policy.owner, 'one-person-lab-app');
@@ -832,6 +881,56 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'scholarskills',
   ]);
   assert.deepEqual(policy.agent_installation_contract.non_module_workflow_plugin_ids, ['opl-flow']);
+  assert.deepEqual(policy.agent_installation_contract.agent_registry_policy, {
+    policy_surface: 'Settings Capabilities registry discovery, manifest URL install entry, and package receipt display',
+    default_registry_ref: 'contracts/agent-package-registry.json',
+    default_registry_source_kind: 'default_opl_registry',
+    default_registry_url: 'https://raw.githubusercontent.com/gaofeng21cn/opl-agent-registry/main/registry.json',
+    allowed_registry_source_kinds: EXPECTED_REGISTRY_SOURCE_KINDS,
+    registry_management_actions: EXPECTED_REGISTRY_MANAGEMENT_ACTIONS,
+    entry_required_fields: EXPECTED_REGISTRY_ENTRY_FIELDS,
+    manifest_required_fields: EXPECTED_MANIFEST_REQUIRED_FIELDS,
+    registry_is_discovery_only: true,
+    registry_install_authority_allowed: false,
+    manifest_url_required_for_install: true,
+    manifest_validation_required_before_install: true,
+    install_authority: 'validated_agent_package_manifest_plus_framework_package_lock_receipt',
+    mutating_actions_owner: 'one-person-lab',
+    app_role: 'fetch_or_import_registry_entries_display_candidates_and_route_selected_manifest_url_to_framework_without_owning_agent_semantics',
+    direct_manifest_url_install_allowed: true,
+    third_party_registry_required_for_manual_install: false,
+    third_party_entry_policy: 'registry_entries_may_be_listed_for_discovery_but_install_requires_explicit_user_action_trust_tier_assignment_manifest_validation_package_lock_receipt_and_rollback_ref',
+    session_contract_allowed: false,
+    app_hardcoded_agent_ids_required: false,
+  });
+  assert.equal(agentPackageRegistry.owner, 'one-person-lab-app');
+  assert.equal(agentPackageRegistry.purpose, 'agent_package_registry_catalog_contract');
+  assert.equal(agentPackageRegistry.state, 'active_app_discovery_contract');
+  assert.equal(agentPackageRegistry.policy_ref, 'contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy');
+  assert.equal(agentPackageRegistry.registry_source_kind, 'default_opl_registry');
+  assert.equal(agentPackageRegistry.registry_url, policy.agent_installation_contract.agent_registry_policy.default_registry_url);
+  assert.equal(agentPackageRegistry.discovery_only, true);
+  assert.equal(agentPackageRegistry.install_authority_allowed, false);
+  assert.deepEqual(agentPackageRegistry.entry_required_fields, EXPECTED_REGISTRY_ENTRY_FIELDS);
+  assert.deepEqual(agentPackageRegistry.manifest_required_fields, EXPECTED_MANIFEST_REQUIRED_FIELDS);
+  assert.deepEqual(agentPackageRegistry.excluded_registry_fields, EXPECTED_REGISTRY_EXCLUDED_FIELDS);
+  assert.deepEqual(agentPackageRegistry.entries.map((entry) => entry.package_id), EXPECTED_REGISTRY_PACKAGE_IDS);
+  const profilePackageById = new Map(profile.gui.professional_agent_packages.map((entry) => [entry.package_id, entry]));
+  for (const entry of agentPackageRegistry.entries) {
+    const profileEntry = profilePackageById.get(entry.package_id);
+    assert.ok(profileEntry, `${entry.package_id} registry entry must match a professional package`);
+    assert.equal(entry.source, 'first_party');
+    assert.equal(entry.trust_tier, 'first_party');
+    assert.equal(entry.display_policy, 'refs_only_no_domain_verdict');
+    assert.match(entry.manifest_url, /^https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\//);
+    assert.equal(entry.codex_visible_entry, profileEntry.codex_visible_entry);
+    assert.deepEqual(entry.required_skill_ids, profileEntry.required_skill_ids);
+    assert.deepEqual(entry.optional_skill_ids, profileEntry.optional_skill_ids);
+    assert.deepEqual(entry.home_shortcut_ids, profileEntry.home_shortcut_ids);
+    for (const excludedField of EXPECTED_REGISTRY_EXCLUDED_FIELDS) {
+      assert.equal(entry[excludedField], undefined, `${entry.package_id} registry entry must not define ${excludedField}`);
+    }
+  }
   assert.deepEqual(policy.agent_installation_contract.package_manager_lifecycle.actions, EXPECTED_PACKAGE_LIFECYCLE_ACTIONS);
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.manual_check_policy, 'explicit_user_action_only');
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.apply_selected_policy, 'explicit_user_selected_package_set_only');

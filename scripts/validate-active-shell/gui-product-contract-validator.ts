@@ -643,7 +643,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'Environment Catalog refs grouped with OPL Fabric resource readiness when capability tasks declare runtime requirements',
       'reusable workflow refs without skill bodies',
       'reproducibility export bundle action ref with dry-run receipt boundary',
-      'workflow and skill candidate report-first refs with review, needs changes, and open in Codex actions',
+      'workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions',
     ],
     'Settings Capabilities task awareness must_show',
   );

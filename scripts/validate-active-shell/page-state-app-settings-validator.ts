@@ -110,7 +110,7 @@ function validateCapabilitiesPage(matrix) {
   }
   if (
     capabilitiesPage.workflow_skill_candidate_policy?.display_policy !==
-      'settings_capabilities_report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable' ||
+      'settings_capabilities_report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable' ||
     capabilitiesPage.workflow_skill_candidate_policy?.auto_enable_allowed !== false ||
     capabilitiesPage.workflow_skill_candidate_policy?.skill_body_write_access !== false
   ) {

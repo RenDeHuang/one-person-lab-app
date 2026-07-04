@@ -708,7 +708,7 @@
                 "available_actions": [
                   "review",
                   "needs_changes",
-                  "open_in_codex"
+                  "continue_in_conversation"
                 ],
                 "content_policy": "report_first_candidate_refs_only_no_skill_body",
                 "report_first": true,
@@ -775,13 +775,13 @@
             "mutates": "none_report_first_review_only"
           },
           {
-            "action_id": "workflow_skill_candidate_open_in_codex",
-            "label": "Open workflow or skill candidate in Codex",
+            "action_id": "workflow_skill_candidate_continue_in_conversation",
+            "label": "Continue workflow or skill candidate in conversation",
             "owner": "one-person-lab-app",
-            "route": "opl app action execute --action workflow_skill_candidate_open_in_codex --dry-run --json",
+            "route": "opl app action execute --action workflow_skill_candidate_continue_in_conversation --dry-run --json",
             "dry_run_required": true,
             "source_ref": "app_state.operator.workbench.task_run_projection_v2.tasks[0].workflow_skill_candidate_refs[0]",
-            "mutates": "none_opens_existing_codex_context_only"
+            "mutates": "none_continues_existing_app_conversation_context_only"
           }
         ],
         "refresh_policy": {
@@ -1007,7 +1007,7 @@
                   "available_actions": [
                     "review",
                     "needs_changes",
-                    "open_in_codex"
+                    "continue_in_conversation"
                   ],
                   "content_policy": "report_first_candidate_refs_only_no_skill_body",
                   "report_first": true,
@@ -1176,21 +1176,21 @@
         "route": "opl app action execute --action workflow_skill_candidate_needs_changes"
       },
       {
-        "action_id": "workflow_skill_candidate_open_in_codex",
-        "label": "Open workflow or skill candidate in Codex",
+        "action_id": "workflow_skill_candidate_continue_in_conversation",
+        "label": "Continue workflow or skill candidate in conversation",
         "surface": "opl app action execute",
-        "delegated_surface": "opl app action execute --action workflow_skill_candidate_open_in_codex --dry-run --json",
+        "delegated_surface": "opl app action execute --action workflow_skill_candidate_continue_in_conversation --dry-run --json",
         "payload_fields": [
           "candidate_ref",
           "source_report_ref"
         ],
-        "mutates": "none_opens_existing_codex_context_only",
+        "mutates": "none_continues_existing_app_conversation_context_only",
         "dry_run_supported": true,
         "confirmation_required": false,
         "owner": "one-person-lab-app",
         "submit_via": "opl app action execute",
         "execution_policy": "opl_safe_action_shell",
-        "route": "opl app action execute --action workflow_skill_candidate_open_in_codex"
+        "route": "opl app action execute --action workflow_skill_candidate_continue_in_conversation"
       }
     ],
     "settings_control_center": {

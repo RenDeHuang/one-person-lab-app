@@ -498,7 +498,7 @@ export const settingsPageExpectations = {
       'Environment Catalog refs grouped with OPL Fabric resource readiness when capability tasks declare runtime requirements',
       'reusable workflow refs without skill bodies',
       'reproducibility export bundle action ref with dry-run receipt boundary',
-      'workflow and skill candidate report-first refs with review, needs changes, and open in Codex actions',
+      'workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions',
     ],
     must_not_show: [
       'Skills and Tools as the only top-level mental model',

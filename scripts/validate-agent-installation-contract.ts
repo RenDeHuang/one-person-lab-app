@@ -9,6 +9,7 @@ type AgentRootMap = Map<string, string>;
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const policyPath = path.join(appRoot, 'contracts', 'app-install-exposure-policy.json');
 const profilePath = path.join(appRoot, 'contracts', 'app-product-profile.json');
+const registryPath = path.join(appRoot, 'contracts', 'agent-package-registry.json');
 const packageJsonPath = path.join(appRoot, 'package.json');
 const expectedDefaultPluginAgentIds = ['mas', 'mag', 'rca', 'bookforge'];
 const expectedRepoPackagedPluginAgentIds = ['mas', 'mag', 'rca'];
@@ -57,6 +58,51 @@ const expectedPackageLifecycleActions = [
   'manual_check',
   'apply_selected',
 ];
+const expectedRegistrySourceKinds = [
+  'default_opl_registry',
+  'organization_registry_url',
+  'user_registry_url',
+];
+const expectedRegistryManagementActions = [
+  'refresh_registry',
+  'add_registry',
+  'remove_registry',
+  'install_from_manifest_url',
+];
+const expectedRegistryEntryFields = [
+  'package_id',
+  'display_name',
+  'publisher',
+  'source',
+  'manifest_url',
+  'latest_version',
+  'trust_tier',
+];
+const expectedManifestRequiredFields = [
+  'package_id',
+  'agent_id',
+  'display_name',
+  'publisher',
+  'version',
+  'source',
+  'codex_surface',
+  'skill_packs',
+  'entrypoints',
+  'health_check',
+  'permissions',
+  'update_channel',
+  'rollback_ref',
+];
+const expectedRegistryExcludedFields = [
+  'session_contract_ref',
+  'domain_workflow_schema',
+  'prompt_body',
+  'artifact_schema',
+  'readiness_verdict_rule',
+  'quality_verdict_rule',
+  'owner_receipt_authority',
+];
+const expectedRegistryPackageIds = ['mas', 'mag', 'rca', 'bookforge', 'oma'];
 const expectedManualThirdPartySourceKinds = [
   'local_manifest_file',
   'manifest_url',
@@ -240,9 +286,10 @@ function validateNoDuplicateBareDomainSkills(root: string | null): string | null
   return root;
 }
 
-function validateContract(policy: any, profile: any, packageJson: any, agentRoots: AgentRootMap): void {
+function validateContract(policy: any, profile: any, registry: any, packageJson: any, agentRoots: AgentRootMap): void {
   validatePublicAbi(policy, packageJson);
   const contract = validateAgentInstallationContract(policy);
+  validateAgentRegistryPolicy(contract, profile, registry);
   validateManagedAgentPackDistribution(contract);
   validatePluginRegistrationInputs(contract);
   validateExposureClasses(policy, contract);
@@ -297,10 +344,101 @@ function validateAgentInstallationContract(policy: any): any {
   assertArrayEqual(contract.fail_closed_states, policy.sync_and_install_contract.fail_closed_states, 'shared fail closed states');
   assertArrayEqual(contract.module_package_channel_agent_ids, expectedRequiredAgentIds, 'module package channel agent ids');
   validatePackageManagerLifecycle(contract);
+  validateRegistryPolicyShape(contract);
   validateThirdPartyManualSourcePolicy(contract);
   validatePackageLockReceiptContract(contract);
   validateAtomicBundlePolicy(contract);
   return contract;
+}
+
+function validateRegistryPolicyShape(contract: any): void {
+  const registryPolicy = contract.agent_registry_policy;
+  assertFieldsEqual(registryPolicy, {
+    policy_surface: 'Settings Capabilities registry discovery, manifest URL install entry, and package receipt display',
+    default_registry_ref: 'contracts/agent-package-registry.json',
+    default_registry_source_kind: 'default_opl_registry',
+    default_registry_url: 'https://raw.githubusercontent.com/gaofeng21cn/opl-agent-registry/main/registry.json',
+    registry_is_discovery_only: true,
+    registry_install_authority_allowed: false,
+    manifest_url_required_for_install: true,
+    manifest_validation_required_before_install: true,
+    install_authority: 'validated_agent_package_manifest_plus_framework_package_lock_receipt',
+    mutating_actions_owner: 'one-person-lab',
+    app_role: 'fetch_or_import_registry_entries_display_candidates_and_route_selected_manifest_url_to_framework_without_owning_agent_semantics',
+    direct_manifest_url_install_allowed: true,
+    third_party_registry_required_for_manual_install: false,
+    third_party_entry_policy: 'registry_entries_may_be_listed_for_discovery_but_install_requires_explicit_user_action_trust_tier_assignment_manifest_validation_package_lock_receipt_and_rollback_ref',
+    session_contract_allowed: false,
+    app_hardcoded_agent_ids_required: false,
+  }, 'agent registry policy');
+  assertArrayEqual(registryPolicy?.allowed_registry_source_kinds, expectedRegistrySourceKinds, 'registry source kinds');
+  assertArrayEqual(registryPolicy?.registry_management_actions, expectedRegistryManagementActions, 'registry management actions');
+  assertArrayEqual(registryPolicy?.entry_required_fields, expectedRegistryEntryFields, 'registry entry fields');
+  assertArrayEqual(registryPolicy?.manifest_required_fields, expectedManifestRequiredFields, 'manifest required fields');
+}
+
+function validateAgentRegistryPolicy(contract: any, profile: any, registry: any): void {
+  const registryPolicy = contract.agent_registry_policy;
+  assertFieldsEqual(registry, {
+    owner: 'one-person-lab-app',
+    purpose: 'agent_package_registry_catalog_contract',
+    state: 'active_app_discovery_contract',
+    version: 1,
+    policy_ref: 'contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy',
+    registry_id: 'opl-default-agent-registry',
+    registry_name: 'OPL Agent Registry',
+    registry_source_kind: 'default_opl_registry',
+    registry_url: registryPolicy.default_registry_url,
+    discovery_only: true,
+    install_authority_allowed: false,
+  }, 'agent registry catalog');
+  if (!registry.machine_boundary?.includes('discovery catalog fixture')) {
+    fail('agent registry catalog must state that it is discovery-only App-owned fixture material');
+  }
+  assertArrayEqual(registry.entry_required_fields, expectedRegistryEntryFields, 'registry catalog entry fields');
+  assertArrayEqual(registry.manifest_required_fields, expectedManifestRequiredFields, 'registry catalog manifest fields');
+  assertArrayEqual(registry.excluded_registry_fields, expectedRegistryExcludedFields, 'registry catalog excluded fields');
+
+  const profilePackages = profile.gui?.professional_agent_packages ?? [];
+  assertArrayEqual(
+    profilePackages.map((entry: any) => entry.package_id),
+    expectedRegistryPackageIds,
+    'profile professional package ids',
+  );
+  const entries = registry.entries ?? [];
+  assertArrayEqual(
+    entries.map((entry: any) => entry.package_id),
+    expectedRegistryPackageIds,
+    'registry package ids',
+  );
+  const profileById = new Map(profilePackages.map((entry: any) => [entry.package_id, entry]));
+  for (const entry of entries) {
+    for (const field of expectedRegistryEntryFields) {
+      if (entry[field] === undefined || entry[field] === null || entry[field] === '') {
+        fail(`registry entry ${entry.package_id} missing ${field}`);
+      }
+    }
+    if (!String(entry.manifest_url).startsWith('https://raw.githubusercontent.com/')) {
+      fail(`registry entry ${entry.package_id} manifest_url must be a raw GitHub HTTPS URL`);
+    }
+    assertEqual(entry.source, 'first_party', `registry entry ${entry.package_id} source`);
+    assertEqual(entry.trust_tier, 'first_party', `registry entry ${entry.package_id} trust tier`);
+    assertEqual(entry.display_policy, 'refs_only_no_domain_verdict', `registry entry ${entry.package_id} display policy`);
+    for (const excludedField of expectedRegistryExcludedFields) {
+      if (entry[excludedField] !== undefined) {
+        fail(`registry entry ${entry.package_id} must not define ${excludedField}`);
+      }
+    }
+    const profileEntry = profileById.get(entry.package_id);
+    if (!profileEntry) {
+      fail(`registry entry ${entry.package_id} has no matching profile package`);
+    }
+    assertEqual(entry.codex_visible_entry, profileEntry.codex_visible_entry, `${entry.package_id} registry codex entry`);
+    assertArrayEqual(entry.required_skill_ids, profileEntry.required_skill_ids, `${entry.package_id} registry required skills`);
+    assertArrayEqual(entry.optional_skill_ids, profileEntry.optional_skill_ids, `${entry.package_id} registry optional skills`);
+    assertArrayEqual(entry.home_shortcut_ids, profileEntry.home_shortcut_ids, `${entry.package_id} registry home shortcuts`);
+    assertEqual(entry.starter_default, profileEntry.package_kind === 'starter_professional_agent_package', `${entry.package_id} registry starter default`);
+  }
 }
 
 function validatePackageManagerLifecycle(contract: any): void {
@@ -536,7 +674,7 @@ function validateAgentInstallEntries(policy: any, contract: any, agentRoots: Age
 }
 
 const { agentRoots, codexSkillsRoot } = parseArgs(process.argv.slice(2));
-validateContract(readJson(policyPath), readJson(profilePath), readJson(packageJsonPath), agentRoots);
+validateContract(readJson(policyPath), readJson(profilePath), readJson(registryPath), readJson(packageJsonPath), agentRoots);
 const validatedCodexSkillsRoot = validateNoDuplicateBareDomainSkills(codexSkillsRoot);
 
 console.log(JSON.stringify({
@@ -547,6 +685,8 @@ console.log(JSON.stringify({
   default_visible_domain_skills: expectedDefaultVisibleDomainSkillIds,
   generated_plugin_agents: expectedGeneratedAgentIds,
   generated_plugin_skills: expectedGeneratedPluginSkillIds,
+  registry_packages: expectedRegistryPackageIds,
+  registry_source_kinds: expectedRegistrySourceKinds,
   package_lifecycle_actions: expectedPackageLifecycleActions,
   package_lock_receipt_fields: expectedPackageLockReceiptFields,
   validated_plugin_roots: Object.fromEntries(agentRoots),

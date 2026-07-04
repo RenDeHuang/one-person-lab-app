@@ -68,25 +68,26 @@ or release package has changed.
 | 2 | Adapter contract | `contracts/shell-adapters/opl-native-workbench.json` selects the independent shell checkout and explicit candidate build path. | Adapter validation and no active-shell switch. |
 | 3 | External repo / checkout | `shells/opl-native-workbench` or its source repo is available as an external checkout without vendoring history into the App repo. | Checkout readback and source ref. |
 | 4 | State/action bridge | Candidate consumes `opl app state --profile fast --json` and `opl app action execute ... --json` only. | Source tests or bridge smoke. |
-| 5 | Basic UI modules | The candidate product target includes a workbench root, top bar, chat canvas, composer, workspace/session rail, context inspector, Runtime slice, and Settings slice as reusable modules, not a one-off static shell. | Source module inspection, source validation, and no hidden runtime/domain authority. |
-| 6 | Artifact preview tabs | Files, result refs, delivery refs, receipts, and review refs are shown through preview tabs or equivalent inspector panes. They are refs-only; artifact bodies and quality/export verdicts stay domain-owned. | Source UI evidence plus App state/action refs proving the preview is not shell-owned artifact authority. |
-| 7 | Provenance drawer | A drawer or inspector panel shows source refs, receipts, owner handoff state, and next action provenance without owning memory body, artifact body, runtime truth, or owner receipts. | Source UI evidence plus explicit forbidden-authority checks. |
-| 8 | Starter forms | Research, Grant, and Presentation starters become structured forms that prepare App action payloads and dry-run previews. They do not execute hidden shell-local workflows. | Source form evidence plus dry-run action receipt mapping. |
-| 9 | Confirmation / interview cards | User-input, permission, confirmation, and interview prompts render as explicit cards with accepted return shape and dry-run/execute separation. | Source UI evidence plus App action/user-input refs. |
-| 10 | Desktop / WebUI same renderer | Desktop and claimed WebUI use one App-owned renderer shape with Electron and browser delivery adapters. | Source/WebUI smoke when WebUI is claimed. |
-| 11 | Source visual smoke | A source-level visual smoke proves the non-live candidate surface paints visible pixels for the workbench modules above. | Source visual artifact for the exact candidate cohort; packaged/VM evidence remains separate. |
-| 12 | Package manifest | Explicit candidate package emits a real `.app` manifest without changing stable/nightly release packaging. | Candidate package manifest and release-isolation check. |
-| 13 | Docs / runbook | Product docs, feature inventory, status, product index, and scripts guide describe the non-live product surface closure and the residual live-only gates. | Markdown diff check and residual wording scan. |
-| 14 | Later live evidence | Packaged GUI smoke, clean VM, same-cohort user path, release owner acceptance, active-shell adoption, and release-ready proof stay outside this candidate product-surface closure. | Required only before visual acceptance, release-ready, active-shell-adopted, or live/currentness claims. |
+| 5 | Codex app-server conversation bridge | Candidate uses Codex app-server thread/turn JSON-RPC (`initialize`, `thread/start`, `turn/start`, streaming delta notifications, `turn/completed`, and resume-capable thread ids) instead of a shell-owned one-shot `codex exec` wrapper. | Native bridge compile, app-server protocol smoke, and candidate package manifest. |
+| 6 | Basic UI modules | The candidate product target includes a workbench root, top bar, chat canvas, composer, workspace/session rail, context inspector, Runtime slice, and Settings route as reusable modules, not a one-off static shell. Global settings such as language, model/account access, workspace, and runtime connection belong in Settings; the composer keeps only prompt-local actions. | Source module inspection, source validation, and no hidden runtime/domain authority. |
+| 7 | Artifact preview tabs | Files, result refs, delivery refs, receipts, and review refs are shown through preview tabs or equivalent inspector panes. They are refs-only; artifact bodies and quality/export verdicts stay domain-owned. | Source UI evidence plus App state/action refs proving the preview is not shell-owned artifact authority. |
+| 8 | Provenance drawer | A drawer or inspector panel shows source refs, receipts, owner handoff state, and next action provenance without owning memory body, artifact body, runtime truth, or owner receipts. | Source UI evidence plus explicit forbidden-authority checks. |
+| 9 | Starter forms | Research, Grant, and Presentation starters become structured forms that prepare App action payloads and dry-run previews. They do not execute hidden shell-local workflows. | Source form evidence plus dry-run action receipt mapping. |
+| 10 | Confirmation / interview cards | User-input, permission, confirmation, and interview prompts render as explicit cards with accepted return shape and dry-run/execute separation. | Source UI evidence plus App action/user-input refs. |
+| 11 | Desktop / WebUI same renderer | Desktop and claimed WebUI use one App-owned renderer shape with Electron and browser delivery adapters. | Source/WebUI smoke when WebUI is claimed. |
+| 12 | Source visual smoke | A source-level visual smoke proves the non-live candidate surface paints visible pixels for the workbench modules above. | Source visual artifact for the exact candidate cohort; packaged/VM evidence remains separate. |
+| 13 | Package manifest | Explicit candidate package emits a real `.app` manifest without changing stable/nightly release packaging. | Candidate package manifest and release-isolation check. |
+| 14 | Docs / runbook | Product docs, feature inventory, status, product index, and scripts guide describe the non-live product surface closure and the residual live-only gates. | Markdown diff check and residual wording scan. |
+| 15 | Later live evidence | Packaged GUI smoke, clean VM, same-cohort user path, release owner acceptance, active-shell adoption, and release-ready proof stay outside this candidate product-surface closure. | Required only before visual acceptance, release-ready, active-shell-adopted, or live/currentness claims. |
 
 ## Current Non-Live Acceptance
 
-This docs lane can close only the App-owned candidate product-surface target:
-the registry/adapter route, the foreground-candidate boundary, and the
-non-live UI acceptance items above are now explicit. The shell implementation
-lane must still provide the source validation, same-renderer WebUI evidence,
-source visual smoke, and any candidate package evidence before those stronger
-technical claims can be made.
+The current shell implementation slice now has candidate-level evidence for a
+real native `.app` bundle, Codex app-server thread/turn bridge, chat-first
+layout, Settings route, source/WebUI smoke, source visual smoke, and package
+manifest. This remains candidate technical evidence only: it does not prove
+clean-VM behavior, visual owner acceptance, active-shell adoption, release
+readiness, or live App release currentness.
 
 ## False-Ready Boundary
 

@@ -502,7 +502,7 @@ test('runtime page consumes OPL App/operator drilldown instead of App-owned runt
         grouping_source: 'OPL Connect/Fabric resource refs',
         allowed_groups: ['OPL Connect', 'Fabric resources'],
       },
-      candidate_policy: 'report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable_no_skill_body_write',
+      candidate_policy: 'report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write',
       refs_only: true,
       skill_body_access: false,
       workflow_body_access: false,

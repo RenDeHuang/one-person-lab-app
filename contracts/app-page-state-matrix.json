@@ -2363,7 +2363,7 @@
         "reproducibility export bundle action ref with dry-run receipt boundary",
         "External Tools & Voice entry with MCP described as secondary technical detail",
         "Custom Assistant entry as a secondary or advanced capability when enabled by product policy",
-        "workflow and skill candidate report-first refs with review, needs changes, and open in Codex actions"
+        "workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions"
       ],
       "must_not_show": [
         "Skills and Tools as the only top-level mental model",
@@ -2385,7 +2385,7 @@
         "authority": "opl_framework_refs_only_workflow_skill_candidate_projection",
         "projection_kind": "workflow_skill_candidate_projection",
         "surface_kind": "workflow_skill_candidate_report_first_refs",
-        "display_policy": "settings_capabilities_report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable",
+        "display_policy": "settings_capabilities_report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable",
         "surface": "settings_capabilities",
         "professional_agent_boundary": "professional_agents_are_codex_plugins_or_packaged_codex_skill_surfaces",
         "required_ref_fields": [
@@ -2399,7 +2399,7 @@
         "allowed_actions": [
           "review",
           "needs_changes",
-          "open_in_codex"
+          "continue_in_conversation"
         ],
         "report_first": true,
         "auto_enable_allowed": false,

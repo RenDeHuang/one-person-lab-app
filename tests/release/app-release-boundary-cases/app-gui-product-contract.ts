@@ -814,7 +814,7 @@ test('App GUI product contract owns GUI requirements and unified OPL state/actio
   );
   assert.ok(
     guiContract.pages.settings_capabilities.must_show.includes(
-      'workflow and skill candidate report-first refs with review, needs changes, and open in Codex actions',
+      'workflow and skill candidate report-first refs with review, needs changes, and continue in conversation actions',
     ),
   );
   assert.ok(

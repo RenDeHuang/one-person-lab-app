@@ -51,7 +51,7 @@ Codex skill surfaces.
 | Structured result panel | Conversation current-task slice and right inspector use `structured_result_panel_projection`. | Existing task surfaces only; no new dashboard, no domain verdict. |
 | Artifact/provenance | Artifacts tab may show a provenance card/drawer from `artifact_provenance_bundle_projection`. | Refs only; no artifact body, no quality/readiness verdict. |
 | Ref-level comment/follow-up | Review and Actions tabs may show `ref_level_follow_up_refs` for review, request-change, and follow-up prompt/action refs. | No App annotation store and no owner receipt write. |
-| Workflow/skill candidate | Settings / Capabilities may show `workflow_skill_candidate_refs` and `candidate_report_refs`. | Report-first candidate refs only; review / needs changes / open in Codex, no auto-enable and no skill body write. |
+| Workflow/skill candidate | Settings / Capabilities may show `workflow_skill_candidate_refs` and `candidate_report_refs`. | Report-first suggestion refs only; review / needs changes / continue in conversation, no auto-enable and no skill body write. |
 
 ## Acceptance Surface
 

@@ -212,13 +212,21 @@ Workspace must not be presented as a runtime diagnostic-only field.
 ### Agents & Capabilities
 
 Capabilities are organized by installed Agent Packages and user-facing work
-shortcuts before implementation detail. MAS, MAG, RCA, BookForge, and OMA are
-first-party starter packages/shortcuts, not the only packages OPL App can
-manage.
+shortcuts before implementation detail. First-party starter registry entries
+and starter shortcuts are defaults, not the only packages OPL App can manage.
+
+The package discovery source is the OPL Agent Registry. Users may point it at a
+GitHub-hosted JSON file or another configured URL; Settings uses it to show
+available packages and starter shortcuts. Installing or updating still follows
+the selected package's manifest URL through OPL Framework validation, lock,
+rollback, and receipt creation. The Registry never defines the agent's business
+behavior.
 
 The ordinary model is:
 
 - Agent Package: install/update/repair/rollback/hide/unhide/uninstall unit;
+- Agent Registry: configurable GitHub/URL discovery list with manifest URLs,
+  not an install or behavior authority;
 - Home Shortcut: user-selected launch entry over an installed package;
 - Codex Surface: plugin registry, required skills, optional companion tools,
   and post-apply sync state;
@@ -242,7 +250,7 @@ supporting sections below the package/shortcut model.
 Settings must not introduce a strong Session Contract. Shortcut/profile
 metadata may describe label, package id, required skill ids, optional companion
 refs, source, and refs-only display policy. It must not describe a domain
-workflow, MAS stage behavior, prompt internals, artifact schema, readiness
+workflow, agent stage behavior, prompt internals, artifact schema, readiness
 verdict, quality/export verdict, or owner receipt authority.
 
 Connector readiness appears as OPL Connect refs grouped by user purpose, such

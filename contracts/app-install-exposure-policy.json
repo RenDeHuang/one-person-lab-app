@@ -856,6 +856,59 @@
     "non_module_workflow_plugin_ids": [
       "opl-flow"
     ],
+    "agent_registry_policy": {
+      "policy_surface": "Settings Capabilities registry discovery, manifest URL install entry, and package receipt display",
+      "default_registry_ref": "contracts/agent-package-registry.json",
+      "default_registry_source_kind": "default_opl_registry",
+      "default_registry_url": "https://raw.githubusercontent.com/gaofeng21cn/opl-agent-registry/main/registry.json",
+      "allowed_registry_source_kinds": [
+        "default_opl_registry",
+        "organization_registry_url",
+        "user_registry_url"
+      ],
+      "registry_management_actions": [
+        "refresh_registry",
+        "add_registry",
+        "remove_registry",
+        "install_from_manifest_url"
+      ],
+      "entry_required_fields": [
+        "package_id",
+        "display_name",
+        "publisher",
+        "source",
+        "manifest_url",
+        "latest_version",
+        "trust_tier"
+      ],
+      "manifest_required_fields": [
+        "package_id",
+        "agent_id",
+        "display_name",
+        "publisher",
+        "version",
+        "source",
+        "codex_surface",
+        "skill_packs",
+        "entrypoints",
+        "health_check",
+        "permissions",
+        "update_channel",
+        "rollback_ref"
+      ],
+      "registry_is_discovery_only": true,
+      "registry_install_authority_allowed": false,
+      "manifest_url_required_for_install": true,
+      "manifest_validation_required_before_install": true,
+      "install_authority": "validated_agent_package_manifest_plus_framework_package_lock_receipt",
+      "mutating_actions_owner": "one-person-lab",
+      "app_role": "fetch_or_import_registry_entries_display_candidates_and_route_selected_manifest_url_to_framework_without_owning_agent_semantics",
+      "direct_manifest_url_install_allowed": true,
+      "third_party_registry_required_for_manual_install": false,
+      "third_party_entry_policy": "registry_entries_may_be_listed_for_discovery_but_install_requires_explicit_user_action_trust_tier_assignment_manifest_validation_package_lock_receipt_and_rollback_ref",
+      "session_contract_allowed": false,
+      "app_hardcoded_agent_ids_required": false
+    },
     "package_manager_lifecycle": {
       "policy_surface": "Settings Capabilities package manager and app/cli action receipts",
       "actions": [

@@ -278,7 +278,7 @@ export function validateSettingsCapabilitiesResourceGrouping(surface, label) {
   );
   if (
     surface.candidate_policy !==
-    'report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable_no_skill_body_write'
+    'report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable_no_skill_body_write'
   ) {
     throw new Error(`${label} must keep workflow/skill candidates report-first and no-auto-enable`);
   }
@@ -407,7 +407,7 @@ export function validateWorkflowSkillCandidateProjectionContract(projection, lab
     authority: 'opl_framework_refs_only_workflow_skill_candidate_projection',
     projection_kind: 'workflow_skill_candidate_projection',
     surface_kind: 'workflow_skill_candidate_report_first_refs',
-    display_policy: 'settings_capabilities_report_first_candidate_refs_review_needs_changes_open_in_codex_no_auto_enable',
+    display_policy: 'settings_capabilities_report_first_candidate_refs_review_needs_changes_continue_in_conversation_no_auto_enable',
     surface: 'settings_capabilities',
     professional_agent_boundary: 'professional_agents_are_codex_plugins_or_packaged_codex_skill_surfaces',
     app_role: 'display_only_workflow_skill_candidate_refs_consumer',
@@ -421,7 +421,7 @@ export function validateWorkflowSkillCandidateProjectionContract(projection, lab
     ['candidate_ref', 'source_report_ref', 'candidate_kind', 'status', 'available_actions', 'content_policy'],
     `${label} required_ref_fields`,
   );
-  assertDeepEqualJson(projection.allowed_actions, ['review', 'needs_changes', 'open_in_codex'], `${label} allowed_actions`);
+  assertDeepEqualJson(projection.allowed_actions, ['review', 'needs_changes', 'continue_in_conversation'], `${label} allowed_actions`);
   for (const [field, expected] of Object.entries({
     report_first: true,
     auto_enable_allowed: false,
@@ -1044,7 +1044,7 @@ export function validateOpenScienceAcceptedItemsFixture(task, label) {
     ['candidate_ref', 'source_report_ref', 'candidate_kind', 'status', 'available_actions', 'content_policy'],
     `${label} workflow_skill_candidate_refs[0] fields`,
   );
-  assertDeepEqualJson(candidates[0].available_actions, ['review', 'needs_changes', 'open_in_codex'], `${label} candidate actions`);
+  assertDeepEqualJson(candidates[0].available_actions, ['review', 'needs_changes', 'continue_in_conversation'], `${label} candidate actions`);
   if (
     candidates[0].display_surface !== 'settings_capabilities' ||
     candidates[0].report_first !== true ||
