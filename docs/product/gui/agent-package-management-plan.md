@@ -2,10 +2,13 @@
 
 Owner: `one-person-lab-app`
 Purpose: `professional_agent_package_management_plan`
-State: `active_plan`
+State: `app_landing_active_external_runtime_pending`
 Machine boundary: Human-readable product and architecture plan. Machine-readable
-truth must land later in `contracts/`, source, validators, package manifests,
-and OPL Framework readback/receipt outputs.
+truth lives in `contracts/`, source, validators, package manifests, and OPL
+Framework readback/receipt outputs. As of the App landing, App-owned
+contracts, active-shell consumption, and package-management documentation are
+in place; mutating package execution and live package receipts remain OPL
+Framework/runtime-owned.
 
 ## Core Decision
 
@@ -161,17 +164,17 @@ Avoid this shape:
 | Order | Work item | Current completion | Status | Evidence now | Target evidence |
 | --- | --- | ---: | --- | --- | --- |
 | 1 | Document the no-strong-session-contract boundary. | 100% | done | This plan plus architecture/decision/invariant updates. | Markdown diff and `git diff --check`. |
-| 2 | Rename product language from fixed assistants to configurable package shortcuts. | 70% | partial | Product/profile contracts now declare `professional_agent_packages` and `home_agent_shortcuts`; old assistant fields remain migration aliases for shell/tests. | Shell consumes package/shortcut fields directly and old alias fields can be retired. |
-| 3 | Define agent package manifest and shortcut metadata in contracts. | 45% | partial | Starter MAS/MAG/RCA/BookForge packages plus managed non-default OMA metadata are contract/profile fields with validator and release-boundary coverage. | Standalone JSON schema, fixtures, and lifecycle action coverage. |
-| 4 | Keep launch evidence as thin invocation receipt. | 75% | partial | `agent_package_invocation_receipt_policy` requires launch-only package/shortcut/Codex fields and explicitly excludes session behavior, domain workflow, and readiness authority. | Shell receipt producer emits the new route kind and runtime evidence consumes it end to end. |
+| 2 | Rename product language from fixed assistants to configurable package shortcuts. | 100% | done | Product/profile contracts declare `professional_agent_packages` and `home_agent_shortcuts`; active Aion shell consumes package/shortcut fields for Home, Settings, skill allowlist, and launch receipt while keeping old assistant fields as migration aliases. | Old alias fields can be retired only after downstream consumers stop requiring the migration shape. |
+| 3 | Define agent package manifest and shortcut metadata in contracts. | 55% | partial | Starter MAS/MAG/RCA/BookForge packages plus managed non-default OMA metadata are contract/profile fields with validator and release-boundary coverage; lifecycle policy defines package lock and receipt fields. | Standalone JSON schema, fixtures, and real package receipt validation. |
+| 4 | Keep launch evidence as thin invocation receipt. | 90% | partial | `agent_package_invocation_receipt_policy` requires launch-only package/shortcut/Codex fields and explicitly excludes session behavior, domain workflow, and readiness authority; active shell now emits `opl_agent_package_invocation` while retaining legacy `opl_assistant_route` as migration alias. | Runtime/readback surfaces still need to display or consume the new receipt end to end. |
 | 5 | Add package lifecycle actions. | 65% | partial | `app-install-exposure-policy` now names discover/install/update/repair/rollback/uninstall/enable/disable/hide/unhide/manual_check/apply_selected, package-lock requirement, action receipt, rollback ref, plus validator and release-boundary coverage. | OPL Framework action execution and package receipts prove each mutating route. |
 | 6 | Make MAS plus required skill packs atomic. | 60% | partial | Contract now requires atomic package units to include plugin manifest, bundled required skill entries, optional companion skill refs, and treats MAS plus professional skill pack as one lifecycle unit. | MAS package manifest lock, bundled skill-pack receipt, rollback proof from OPL Framework. |
-| 7 | Build Settings > Agents & Capabilities package manager UI. | 40% | partial | Existing Settings Capabilities page and OPL Packages maintenance entry. | Installed package list, source, version, update, repair, uninstall/hide/show status. |
-| 8 | Make Home shortcuts user-configurable. | 35% | partial | Contracts/profile now model Home as `home_agent_shortcuts` over installed packages with `user_configurable=true`; legacy purpose entries remain aliases. | Home reads persisted user shortcut config over installed packages. |
+| 7 | Build Settings > Agents & Capabilities package manager UI. | 70% | partial | Settings Capabilities now projects package id, Codex entry, default Home visibility, user-configurable flag, source kind, package lock ref, action receipt ref, rollback ref, workflow refs, connector refs, and resource refs from package/profile/runtime state. | Mutating install/update/repair/uninstall/hide/show buttons must wait for OPL Framework action execution and receipts. |
+| 8 | Make Home shortcuts user-configurable. | 55% | partial | Contracts/profile and active shell model Home as `home_agent_shortcuts` over installed packages with `user_configurable=true`; Home shortcuts no longer come from hard-coded MAS/MAG/RCA-only presentation constants. | Home still needs persisted user shortcut ordering/visibility preferences over installed packages. |
 | 9 | Support third-party/manual package install. | 55% | partial | Contract now allows local manifest file, manifest URL, and manifest import only through explicit user action, validation, trust tier, package lock receipt, and rollback ref; it forbids App hardcoded repo paths, duplicate bare skill mirrors, and Homebrew package formulae. | OPL Framework manual import command validates a real third-party manifest and emits lock/rollback receipt. |
-| 10 | Migration and regression gates. | 50% | partial | Validators/tests now require package shortcuts, the generic launch receipt, lifecycle/source/lock/atomic-bundle policy, and legacy assistant fields as migration inputs. | Tests prove starter migration, custom package install, uninstall/hide, shortcut reorder, and no duplicate skill mirror. |
+| 10 | Migration and regression gates. | 80% | partial | Validators/tests now require package shortcuts, generic launch receipts, lifecycle/source/lock/atomic-bundle policy; active shell tests cover package profile getters, Home shortcut rendering, Settings projection, and launch receipt emission. | End-to-end custom package install, uninstall/hide, shortcut reorder, and no duplicate skill mirror still require Framework runtime routes. |
 
-## Suggested Landing Order
+## Remaining Landing Order
 
 1. Contract rename and docs parity: introduce package/shortcut/invocation terms
    while keeping old fields as migration inputs.
