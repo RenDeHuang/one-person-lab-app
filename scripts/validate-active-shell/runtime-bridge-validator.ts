@@ -11,6 +11,7 @@ import {
   validateArtifactNativeDrilldownFixture,
   validateArtifactNativeDrilldownProjectionContract,
   validateArtifactProvenanceBundleProjectionContract,
+  validateOpenScienceConsoleProjectionContract,
   validateProviderReadinessRepairProjectionContract,
   validateProjectProgressDisplayContract,
   validateStageRunCockpitFixture,
@@ -566,6 +567,10 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
   validateArtifactProvenanceBundleProjectionContract(
     runtimeBridge.artifact_provenance_bundle_projection,
     'Runtime bridge Artifact Provenance Bundle projection',
+  );
+  validateOpenScienceConsoleProjectionContract(
+    runtimeBridge.openscience_console_projection,
+    'Runtime bridge OpenScience Console projection',
   );
   validateStageRunCockpitProjectionContract(
     runtimeBridge.stage_run_cockpit_projection,

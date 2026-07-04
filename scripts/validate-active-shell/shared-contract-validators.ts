@@ -75,6 +75,7 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
       'workflow_refs',
       'export_bundle_action_ref',
       'connector_readiness_refs',
+      'openscience_console_projection_ref',
       'diagnostic_substrate_refs',
       ...resourceContextOptionalTaskRefs,
     ],
@@ -818,6 +819,97 @@ export function validateArtifactProvenanceBundleProjectionContract(projection, l
       'domain_export_readiness',
       'domain_readiness',
       'owner_receipt_authority',
+      'app_release_readiness',
+      'family_production_readiness',
+    ],
+    `${label} forbidden_claims`,
+  );
+}
+
+export function validateOpenScienceConsoleProjectionContract(projection, label) {
+  if (!projection || typeof projection !== 'object') {
+    throw new Error(`${label} must be declared`);
+  }
+  for (const [field, expected] of Object.entries({
+    source: 'app_state.operator.workbench.task_drilldowns.openscience_console_projection',
+    detail_source: 'opl runtime app-operator-drilldown --task <task_id> --json',
+    authority: 'opl_framework_refs_only_console_projection',
+    projection_kind: 'openscience_console_watch_projection',
+    surface_kind: 'opl_console_watch_only_drilldown_projection',
+    display_policy: 'console_drilldown_only_watch_cards_no_readiness_or_verdict_claims',
+    inspiration: 'OpenScience product pattern',
+    full_detail_policy: 'on_demand_task_drilldown_only',
+    native_viewer_preview_policy: 'preview_refs_only_no_artifact_body_no_storage_truth',
+    app_role: 'display_only_openscience_console_projection_consumer',
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    projection.required_projection_cards,
+    ['artifact_graph', 'claim_warning', 'project_local_ledger_pointer', 'native_viewer_preview'],
+    `${label} required_projection_cards`,
+  );
+  assertDeepEqualJson(
+    projection.required_ref_fields,
+    ['artifact_graph_refs', 'claim_warning_refs', 'project_local_ledger_ref', 'native_viewer_preview_ref'],
+    `${label} required_ref_fields`,
+  );
+  assertIncludesAll(
+    projection.optional_ref_fields,
+    [
+      'artifact_node_refs',
+      'artifact_edge_refs',
+      'claim_source_refs',
+      'claim_severity_refs',
+      'ledger_record_refs',
+      'viewer_renderer_ref',
+      'preview_thumbnail_ref',
+      'open_in_native_viewer_action_ref',
+    ],
+    `${label} optional_ref_fields`,
+  );
+  for (const [field, expected] of Object.entries({
+    'card_policies.artifact_graph': 'graph_refs_only_no_artifact_body_no_storage_truth',
+    'card_policies.claim_warning': 'warning_refs_only_no_publication_or_quality_verdict',
+    'card_policies.project_local_ledger_pointer': 'ledger_pointer_only_no_ledger_writer_no_owner_receipt',
+    'card_policies.native_viewer_preview': 'native_preview_ref_only_no_source_readiness_or_release_claim',
+  })) {
+    const actual = field.split('.').reduce((value, key) => value?.[key], projection);
+    if (actual !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  for (const [field, expected] of Object.entries({
+    refs_only: true,
+    watch_only: true,
+    artifact_body_access: false,
+    memory_body_access: false,
+    domain_truth_write_access: false,
+    owner_receipt_write_access: false,
+    storage_truth_authority: false,
+    compute_policy_authority: false,
+    source_readiness_authority: false,
+    publication_verdict_authority: false,
+    release_readiness_authority: false,
+  })) {
+    if (projection[field] !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertIncludesAll(
+    projection.forbidden_claims,
+    [
+      'release_readiness',
+      'source_readiness',
+      'publication_verdict',
+      'owner_receipt_authority',
+      'storage_truth',
+      'compute_policy',
+      'artifact_body',
+      'domain_truth',
+      'domain_quality_verdict',
       'app_release_readiness',
       'family_production_readiness',
     ],

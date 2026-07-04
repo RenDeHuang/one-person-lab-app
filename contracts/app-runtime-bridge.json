@@ -225,7 +225,8 @@
       "environment_source_ref",
       "environment_task_refs",
       "resource_receipt_ref",
-      "cost_estimate_ref"
+      "cost_estimate_ref",
+      "openscience_console_projection_ref"
     ],
     "count_policies": {
       "running_task_count": "count user tasks projected as actively running or advancing, never raw provider attempts",
@@ -292,6 +293,7 @@
       "environment_task_refs",
       "resource_receipt_ref",
       "cost_estimate_ref",
+      "openscience_console_projection_ref",
       "diagnostic_substrate_refs"
     ],
     "artifact_or_blocker_policy": "summary_ref_only_no_artifact_body",
@@ -870,6 +872,70 @@
       "domain_export_readiness",
       "domain_readiness",
       "owner_receipt_authority",
+      "app_release_readiness",
+      "family_production_readiness"
+    ]
+  },
+  "openscience_console_projection": {
+    "source": "app_state.operator.workbench.task_drilldowns.openscience_console_projection",
+    "detail_source": "opl runtime app-operator-drilldown --task <task_id> --json",
+    "authority": "opl_framework_refs_only_console_projection",
+    "projection_kind": "openscience_console_watch_projection",
+    "surface_kind": "opl_console_watch_only_drilldown_projection",
+    "display_policy": "console_drilldown_only_watch_cards_no_readiness_or_verdict_claims",
+    "inspiration": "OpenScience product pattern",
+    "full_detail_policy": "on_demand_task_drilldown_only",
+    "required_projection_cards": [
+      "artifact_graph",
+      "claim_warning",
+      "project_local_ledger_pointer",
+      "native_viewer_preview"
+    ],
+    "required_ref_fields": [
+      "artifact_graph_refs",
+      "claim_warning_refs",
+      "project_local_ledger_ref",
+      "native_viewer_preview_ref"
+    ],
+    "optional_ref_fields": [
+      "artifact_node_refs",
+      "artifact_edge_refs",
+      "claim_source_refs",
+      "claim_severity_refs",
+      "ledger_record_refs",
+      "viewer_renderer_ref",
+      "preview_thumbnail_ref",
+      "open_in_native_viewer_action_ref"
+    ],
+    "card_policies": {
+      "artifact_graph": "graph_refs_only_no_artifact_body_no_storage_truth",
+      "claim_warning": "warning_refs_only_no_publication_or_quality_verdict",
+      "project_local_ledger_pointer": "ledger_pointer_only_no_ledger_writer_no_owner_receipt",
+      "native_viewer_preview": "native_preview_ref_only_no_source_readiness_or_release_claim"
+    },
+    "native_viewer_preview_policy": "preview_refs_only_no_artifact_body_no_storage_truth",
+    "refs_only": true,
+    "watch_only": true,
+    "artifact_body_access": false,
+    "memory_body_access": false,
+    "domain_truth_write_access": false,
+    "owner_receipt_write_access": false,
+    "storage_truth_authority": false,
+    "compute_policy_authority": false,
+    "source_readiness_authority": false,
+    "publication_verdict_authority": false,
+    "release_readiness_authority": false,
+    "app_role": "display_only_openscience_console_projection_consumer",
+    "forbidden_claims": [
+      "release_readiness",
+      "source_readiness",
+      "publication_verdict",
+      "owner_receipt_authority",
+      "storage_truth",
+      "compute_policy",
+      "artifact_body",
+      "domain_truth",
+      "domain_quality_verdict",
       "app_release_readiness",
       "family_production_readiness"
     ]

@@ -16,6 +16,7 @@ import {
 import {
   validateArtifactNativeDrilldownProjectionContract,
   validateBeginnerFirstRunPresentation,
+  validateOpenScienceConsoleProjectionContract,
   validateProviderReadinessRepairProjectionContract,
   validateProgressDeltaDisplayContract,
   validateProjectProgressDisplayContract,
@@ -272,6 +273,10 @@ export function validatePageStateMatrix(matrix, contract) {
   validateArtifactNativeDrilldownProjectionContract(
     runtimeViewModel.artifact_native_drilldown,
     'Runtime page Stage Artifact drilldown projection',
+  );
+  validateOpenScienceConsoleProjectionContract(
+    runtimeViewModel.openscience_console_projection,
+    'Runtime page OpenScience Console projection',
   );
   validateProviderReadinessRepairProjectionContract(
     runtimeViewModel.provider_readiness_repair,
