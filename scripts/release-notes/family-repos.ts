@@ -269,6 +269,13 @@ export function familyRepoChangeBullet(change: FamilyRepoChange) {
     ? `${change.commit_count} commit${change.commit_count === 1 ? '' : 's'}`
     : null;
   const subjects = summarizeSubjects(change.change_subjects);
-  const detail = [count, subjects, transition ? `refs ${transition}` : null].filter(Boolean).join(', ');
-  return `- ${change.label}: ${detail || 'updated in the bundled OPL family payload'}.`;
+  const userSummary = change.change_summary_hint || subjects;
+  const audit = [count, transition ? `audit ref ${transition}` : null].filter(Boolean).join(', ');
+  if (userSummary && audit) {
+    return `- ${change.label}: ${userSummary} (${audit}).`;
+  }
+  if (userSummary) {
+    return `- ${change.label}: ${userSummary}.`;
+  }
+  return `- ${change.label}: updated in the bundled OPL family payload${audit ? ` (${audit})` : ''}.`;
 }

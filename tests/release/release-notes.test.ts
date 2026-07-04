@@ -100,6 +100,23 @@ function buildFullManifest(refs) {
   };
 }
 
+function publicFirstScreen(markdown) {
+  const technicalDetails = markdown.indexOf('\n## Technical details\n');
+  return technicalDetails === -1 ? markdown : markdown.slice(0, technicalDetails);
+}
+
+function assertUserFirstLead(markdown) {
+  const lead = publicFirstScreen(markdown);
+  assert.match(lead, /## Highlights/);
+  assert.match(lead, /## What improved/);
+  assert.match(lead, /## Compatibility and action required/);
+  assert.doesNotMatch(
+    lead,
+    /\b(?:refs?|sha|cohort|gate|workflow|validation|release operator|owner receipt|currentness|handoff)\b/i,
+  );
+  assert.doesNotMatch(lead, /@\s*[0-9a-f]{7}/i);
+}
+
 function writeFakeGhReleaseDownload(binDir, publicReleaseManifest) {
   fs.mkdirSync(binDir, { recursive: true });
   const fakeGh = path.join(binDir, 'gh');
@@ -222,15 +239,16 @@ test('stable release notes are English and include bundled OPL-family agent vers
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /One Person Lab v26\.5\.31/);
-  assert.match(result.stdout, /This Stable release makes a new or upgraded OPL App install useful sooner/);
+  assert.match(result.stdout, /This Stable release is for users installing or upgrading One Person Lab App/);
+  assertUserFirstLead(result.stdout);
   assert.match(result.stdout, /## Install Stable/);
   assert.match(
     result.stdout,
     /curl -fsSL https:\/\/raw\.githubusercontent\.com\/gaofeng21cn\/one-person-lab-app\/main\/install\.sh \| bash -s -- --stable-macos-install --yes/,
   );
-  assert.match(result.stdout, /First-run setup/);
-  assert.match(result.stdout, /Simplified the first-run setup flow/);
-  assert.match(result.stdout, /OPL agent updates/);
+  assert.match(result.stdout, /First launch and setup/);
+  assert.match(result.stdout, /Made first launch and setup steps clearer/);
+  assert.match(result.stdout, /Built-in research, grant, and visual work/);
   assert.match(result.stdout, new RegExp(`MAS @ ${mas.currentRef.slice(0, 7)}`));
   assert.match(result.stdout, new RegExp(`MAG @ ${mag.currentRef.slice(0, 7)}`));
   assert.match(result.stdout, new RegExp(`RCA @ ${rca.currentRef.slice(0, 7)}`));
@@ -238,14 +256,16 @@ test('stable release notes are English and include bundled OPL-family agent vers
   assert.match(result.stdout, /OfficeCLI 1\.2\.3/);
   assert.match(result.stdout, /MinerU v0\.1\.3/);
   assert.match(result.stdout, /## OPL family updates/);
-  assert.match(result.stdout, /MAS: including .*route paper handoff receipts.*surface currentness blockers/);
-  assert.match(result.stdout, /MAG: including expose progress first owner payloads/);
-  assert.match(result.stdout, /RCA: including record operator evidence for visual deliverables/);
-  assert.match(result.stdout, /OPL Meta Agent: including persist work order currentness gates/);
-  assert.match(result.stdout, /OfficeCLI: refs 1\.2\.2 -> 1\.2\.3/);
-  assert.match(result.stdout, /MinerU: refs v0\.1\.2 -> v0\.1\.3/);
-  assert.match(result.stdout, /Packaging, updates, and release validation/);
-  assert.match(result.stdout, /Documentation/);
+  assert.match(result.stdout, /MAS: Research sessions make study and paper status/);
+  assert.match(result.stdout, /MAG: Grant-writing sessions make progress/);
+  assert.match(result.stdout, /RCA: Visual deliverable sessions make provider readiness/);
+  assert.match(result.stdout, /OPL Meta Agent: Agent-design sessions make work-order status/);
+  assert.match(result.stdout, /OfficeCLI: updated in the bundled OPL family payload \(audit ref 1\.2\.2 -> 1\.2\.3\)/);
+  assert.match(result.stdout, /MinerU: updated in the bundled OPL family payload \(audit ref v0\.1\.2 -> v0\.1\.3\)/);
+  assert.match(result.stdout, /Installing and updating/);
+  assert.match(result.stdout, /Guides and screenshots/);
+  assert.match(result.stdout, /## Technical details/);
+  assert.match(result.stdout, /Packaged component refs:/);
   assert.doesNotMatch(result.stdout, /Release focus/);
   assert.doesNotMatch(result.stdout, /Update channel guidance/);
   assert.doesNotMatch(result.stdout, /Full clean-install/);
@@ -335,7 +355,7 @@ test('stable release notes compare previous Full payload from public release man
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /Payload updates since previous Stable: MAS 0000000 -> 1234567; OfficeCLI 1\.2\.2 -> 1\.2\.3\./,
+    /Component updates since previous Stable: MAS 0000000 -> 1234567; OfficeCLI 1\.2\.2 -> 1\.2\.3\./,
   );
 });
 
@@ -381,9 +401,10 @@ test('nightly release notes compare against the previous nightly and stay standa
     'Standard macOS arm64 Nightly package and updater metadata; no Full first-install DMG in the Nightly channel.',
   );
   assert.match(result.stdout, /One Person Lab v26\.5\.31-nightly/);
-  assert.match(result.stdout, /This Nightly prerelease lets users try the current standard App shell/);
-  assert.match(result.stdout, /First-run setup/);
-  assert.match(result.stdout, /OPL agent updates/);
+  assert.match(result.stdout, /This Nightly prerelease is for users who want to try the current standard App shell/);
+  assertUserFirstLead(result.stdout);
+  assert.match(result.stdout, /First launch and setup/);
+  assert.match(result.stdout, /Built-in research, grant, and visual work/);
   assert.match(result.stdout, /Standard macOS arm64 Nightly package and updater metadata only/);
   assert.doesNotMatch(result.stdout, /Full clean-install/);
   assert.doesNotMatch(result.stdout, /[\u3400-\u9fff]/);

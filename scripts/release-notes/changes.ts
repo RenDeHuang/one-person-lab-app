@@ -3,12 +3,12 @@ import type { ChangeBucket, ChangeBucketId } from './types.ts';
 const bucketOrder: ChangeBucketId[] = ['first_run', 'agents', 'ui_settings', 'release', 'docs', 'quality'];
 
 const bucketTitles: Record<ChangeBucketId, string> = {
-  first_run: 'First-run setup',
-  agents: 'OPL agent updates',
-  ui_settings: 'App UI and runtime status',
-  release: 'Packaging, updates, and release validation',
-  docs: 'Documentation',
-  quality: 'Maintenance',
+  first_run: 'First launch and setup',
+  agents: 'Built-in research, grant, and visual work',
+  ui_settings: 'App readiness and settings',
+  release: 'Installing and updating',
+  docs: 'Guides and screenshots',
+  quality: 'Reliability polish',
 };
 
 export function normalizedSubject(subject: string) {
@@ -30,42 +30,42 @@ function classifySubject(subject: string): { bucket: ChangeBucketId; bullet: str
   if (/^docs(?:\([^)]+\))?!?:/i.test(subject) || /(readme|guide|screenshot|tutorial)/i.test(subject)) {
     return {
       bucket: 'docs',
-      bullet: 'Kept the install and getting-started guidance aligned with the agent entries and runtime payload shipped in the App.',
+      bullet: 'Updated the install and getting-started guidance so it matches what ships in the App.',
     };
   }
   if (/(first[- ]run|beginner|setup surface|bootstrap|initialize|launch ready|ready_to_launch|guid readiness)/i.test(subject)) {
     return {
       bucket: 'first_run',
-      bullet: 'Simplified the first-run setup flow so new users see the required setup steps earlier and with less noise.',
+      bullet: 'Made first launch and setup steps clearer before users open the built-in OPL sessions.',
     };
   }
   if (/(guid|assistant|skill|codex|model-selector|model selector|home skills|purpose assistant|route|mas|mag|rca|oma|opl meta agent|plugin)/i.test(subject)) {
     if (/model/i.test(subject)) {
       return {
         bucket: 'agents',
-        bullet: 'Improved Codex model status and preference handling for MAS, MAG, RCA, and related OPL agent sessions.',
+        bullet: 'Improved model status and preference handling before users start built-in OPL sessions.',
       };
     }
     return {
       bucket: 'agents',
-      bullet: 'Updated the App-managed MAS, MAG, RCA, OPL Meta Agent, and Codex skill/plugin surface used by OPL agent sessions.',
+      bullet: 'Refreshed the built-in research, grant, visual deliverable, and agent-design entries used from the App.',
     };
   }
   if (/(settings|gui|home|progress|runtime|provider|health|display)/i.test(subject)) {
     return {
       bucket: 'ui_settings',
-      bullet: 'Made App runtime and provider readiness easier to read before users open MAS, MAG, RCA, or other OPL agent sessions.',
+      bullet: 'Made App and provider readiness easier to check before starting an OPL session.',
     };
   }
   if (/(release|build|ci|vm|full|package|installer|update|webui|docker|cache|aioncore|dmg|asset)/i.test(subject)) {
     return {
       bucket: 'release',
-      bullet: 'Kept the standard DMG, Full DMG, one-shot installer, and Docker/WebUI install paths separately checked so users get the right package for their environment.',
+      bullet: 'Kept the standard updater, Full installer, and one-shot install path separate so users choose the right package.',
     };
   }
   return {
     bucket: 'quality',
-    bullet: 'Reduced maintenance noise around the App release surface so user-facing install and agent paths stay easier to verify.',
+    bullet: 'Reduced maintenance noise behind the App so install and session paths stay predictable.',
   };
 }
 
@@ -101,8 +101,8 @@ export function appendAgentChangeSummary(buckets: ChangeBucket[], includeFullPac
   addUnique(
     agentBucket.bullets,
     includeFullPackage
-      ? 'Shipped the App with the current MAS research workflow, MAG grant workflow, RCA visual-deliverable workflow, OPL Meta Agent, Framework runtime, and companion tools captured at build time.'
-      : 'Kept the standard App package aligned with MAS, MAG, RCA, and OPL Meta Agent entry points plus the Codex plugin and skill sync surface.',
+      ? 'Included refreshed research, grant, visual deliverable, agent-design, Office, and document-intake tools in the Full package.'
+      : 'Kept the standard App package aligned with built-in research, grant, visual deliverable, and agent-design entry points.',
   );
 }
 
@@ -128,7 +128,7 @@ export function fallbackChangeSummaryHint(label: string, subjects: string[]) {
   if (!detail) {
     return null;
   }
-  return `${label} change detail to cover in user terms: ${detail}.`;
+  return `${label} has user-visible updates around ${detail}.`;
 }
 
 export function buildChangeSummaryHint(label: string, subjects: string[]) {
@@ -138,27 +138,27 @@ export function buildChangeSummaryHint(label: string, subjects: string[]) {
   }
   if (label === 'MAS') {
     if (/(currentness|closeout|handoff|route[- ]back|blocker|redrive|paper)/i.test(text)) {
-      return 'Research workflows carry clearer currentness, blocker, route-back, and closeout handoff context before users rely on study or paper outputs.';
+      return 'Research sessions make study and paper status, handoff context, and next steps clearer before users rely on outputs.';
     }
   }
   if (label === 'MAG') {
     if (/(progress[- ]first|owner payload|grant|funding|generated interface|replacement boundary)/i.test(text)) {
-      return 'Grant workflows expose progress-first owner payloads and generated-interface boundaries so funding work has clearer next-step context.';
+      return 'Grant-writing sessions make progress, source material, and next-step ownership clearer for funding work.';
     }
   }
   if (label === 'RCA') {
     if (/(currentness|operator evidence|provider|visual|slide|deliverable|wrapper)/i.test(text)) {
-      return 'Visual deliverable workflows record provider currentness and operator evidence before users rely on generated slides or graphics.';
+      return 'Visual deliverable sessions make provider readiness and output evidence easier to check before users rely on slides or graphics.';
     }
   }
   if (label === 'OPL Meta Agent') {
     if (/(work[- ]order|currentness|progress[- ]first|install path|foundry|agent)/i.test(text)) {
-      return 'Agent design and testing workflows carry clearer work-order currentness and progress-first gates.';
+      return 'Agent-design sessions make work-order status and next steps clearer when users build or improve agents.';
     }
   }
   if (label === 'OPL Framework') {
     if (/(runtime|progress[- ]first|provider|state|action|receipt|liveness|supervision)/i.test(text)) {
-      return 'The shared runtime better surfaces progress-first supervision, provider liveness, and runtime state/action behavior.';
+      return 'The shared App foundation makes provider readiness, state reads, and App actions easier to inspect.';
     }
   }
   return fallbackChangeSummaryHint(label, subjects);
