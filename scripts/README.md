@@ -348,6 +348,16 @@ updates that tag to the current workflow commit on same-day reruns, keeps
 `latest` unchanged, writes release notes that compare against the previous
 Nightly, and runs the remote standard asset verifier without Full assets.
 
+AI release-note generation uses the same provider chain as Stable:
+`OPL_RELEASE_NOTES_PROVIDER=auto` tries GitHub Models with the compact evidence
+prompt first, then an optional OpenAI-compatible endpoint configured through
+`OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL` and
+`OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY`, then the local Codex provider for
+operator-run fallback. A self-hosted FreeLLMAPI server can fill the
+OpenAI-compatible slot by exposing `/v1/chat/completions` and using model
+`auto`. Use `OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS` to override the default
+75-second per-model online request timeout.
+
 Stable release verification keeps the heavy installation checks in separate
 lanes for speed and debuggability: standard DMG clean VM, Full DMG clean VM,
 one-shot App installer, Docker/WebUI, remote verification, and release evidence

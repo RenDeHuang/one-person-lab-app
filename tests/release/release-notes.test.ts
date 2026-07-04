@@ -117,6 +117,225 @@ function assertUserFirstLead(markdown) {
   assert.doesNotMatch(lead, /@\s*[0-9a-f]{7}/i);
 }
 
+test('AI release notes writer can use an OpenAI-compatible online endpoint', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-notes-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const fakeCurl = path.join(binDir, 'curl');
+  const requestPath = path.join(tempRoot, 'request.json');
+  const evidencePath = path.join(tempRoot, 'evidence.json');
+  const outputPath = path.join(tempRoot, 'notes.md');
+  const installCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes';
+  const publicMarkdown = `One Person Lab v26.9.1
+
+This release helps users upgrade the OPL App with clearer first launch setup before opening MAS research, MAG grant-writing, RCA visual deliverable, and OPL Meta Agent sessions.
+
+## What improved
+
+- First launch setup is clearer before users open built-in MAS, MAG, RCA, and OPL Meta Agent sessions.
+
+## OPL agents and runtime payload
+- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.
+
+## OPL family updates
+- One Person Lab App: current standard package changes keep the built-in OPL entries aligned.
+
+## Install Stable
+\`${installCommand}\`
+
+## Release scope
+- Standard macOS arm64 updater package is published for this release.
+
+Full Changelog: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.9.0...v26.9.1
+`;
+  const aiMarkdown = `${publicMarkdown}
+<!-- OPL_RELEASE_NOTES:en-US
+${publicMarkdown.trimEnd()}
+-->
+<!-- OPL_RELEASE_NOTES:zh-CN
+One Person Lab v26.9.1
+
+这次更新让用户升级 OPL App 后，更容易从首次启动进入 MAS、MAG、RCA 和 OPL Meta Agent 会话。
+
+## What improved
+- MAS、MAG 和 RCA 入口更清楚。
+
+## OPL agents and runtime payload
+- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.
+
+## Install Stable
+\`${installCommand}\`
+
+## Release scope
+- Standard macOS arm64 updater package is published for this release.
+-->
+`;
+
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.writeFileSync(fakeCurl, `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+const endpoint = args.find((arg) => /^https?:\\/\\//.test(arg));
+const body = args[args.indexOf('-d') + 1];
+const payload = JSON.parse(body);
+fs.writeFileSync(${JSON.stringify(requestPath)}, JSON.stringify({
+  endpoint,
+  model: payload.model,
+  contentIncludesEvidence: String(payload.messages?.[0]?.content || '').includes('"release_evidence"'),
+  hasBearer: args.includes('Authorization: Bearer freellmapi-test'),
+}, null, 2));
+process.stdout.write(JSON.stringify({ choices: [{ message: { content: ${JSON.stringify(aiMarkdown)} } }] }));
+`, { mode: 0o755 });
+  fs.writeFileSync(evidencePath, `${JSON.stringify({
+    schema: 'opl_app_release_notes_evidence.v1',
+    version: '26.9.1',
+    channel: 'stable',
+    release_title: 'One Person Lab v26.9.1',
+    release_repo: 'gaofeng21cn/one-person-lab-app',
+    current_tag: 'v26.9.1',
+    previous_tag: 'v26.9.0',
+    install_command: installCommand,
+    full_changelog_url: 'https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.9.0...v26.9.1',
+    grouped_changes: [
+      {
+        title: 'First launch and setup',
+        bullets: ['First launch setup is clearer before users open built-in OPL sessions.'],
+      },
+    ],
+    payload: {
+      include_full_package: false,
+      lines: ['- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.'],
+      bundled_refs: [],
+      updates_since_previous_stable: [],
+    },
+    agent_runtime_changes: [],
+    family_repo_changes: [
+      {
+        label: 'One Person Lab App',
+        repository: 'gaofeng21cn/one-person-lab-app',
+        previous_ref: 'v26.9.0',
+        current_ref: 'v26.9.1',
+        compare_url: 'https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.9.0...v26.9.1',
+        commit_count: 1,
+        change_subjects: ['fix(first-run): clarify setup'],
+      },
+    ],
+  }, null, 2)}\n`);
+
+  const result = runNode([
+    'scripts/release-notes-ai-writer.ts',
+    '--evidence',
+    evidencePath,
+    '--output',
+    outputPath,
+  ], {
+    env: {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+      OPL_RELEASE_NOTES_PROVIDER: 'openai_compatible',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: 'http://127.0.0.1:3001/v1',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: 'freellmapi-test',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: 'auto',
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const request = JSON.parse(fs.readFileSync(requestPath, 'utf8'));
+  assert.deepEqual(request, {
+    endpoint: 'http://127.0.0.1:3001/v1/chat/completions',
+    model: 'auto',
+    contentIncludesEvidence: true,
+    hasBearer: true,
+  });
+  assert.match(fs.readFileSync(outputPath, 'utf8'), /One Person Lab v26\.9\.1/);
+});
+
+test('AI release notes writer keeps evidence-completed user sections before Technical details', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-section-order-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const fakeCurl = path.join(binDir, 'curl');
+  const evidencePath = path.join(tempRoot, 'evidence.json');
+  const outputPath = path.join(tempRoot, 'notes.md');
+  const installCommand = 'curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/install.sh | bash -s -- --stable-macos-install --yes';
+
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.writeFileSync(fakeCurl, `#!/usr/bin/env node
+process.stdout.write(JSON.stringify({ choices: [{ message: { content: ${JSON.stringify(`One Person Lab v26.9.2
+
+## Technical details
+
+Generated by the provider.
+
+<!-- OPL_RELEASE_NOTES:en-US
+Popup summary without the release title.
+-->
+<!-- OPL_RELEASE_NOTES:zh-CN
+缺少发布标题的弹窗摘要。
+-->
+`)} } }] }));
+`, { mode: 0o755 });
+  fs.writeFileSync(evidencePath, `${JSON.stringify({
+    schema: 'opl_app_release_notes_evidence.v1',
+    version: '26.9.2',
+    channel: 'stable',
+    release_title: 'One Person Lab v26.9.2',
+    release_repo: 'gaofeng21cn/one-person-lab-app',
+    current_tag: 'v26.9.2',
+    previous_tag: 'v26.9.1',
+    install_command: installCommand,
+    full_changelog_url: 'https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.9.1...v26.9.2',
+    grouped_changes: [
+      {
+        title: 'First launch and setup',
+        bullets: ['MAS research, MAG grant-writing, RCA visual deliverable, and OPL Meta Agent sessions are clearer after first launch.'],
+      },
+    ],
+    payload: {
+      include_full_package: false,
+      lines: ['- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.'],
+      bundled_refs: [],
+      updates_since_previous_stable: [],
+    },
+    agent_runtime_changes: [],
+    family_repo_changes: [
+      {
+        label: 'One Person Lab App',
+        repository: 'gaofeng21cn/one-person-lab-app',
+        previous_ref: 'v26.9.1',
+        current_ref: 'v26.9.2',
+        compare_url: 'https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.9.1...v26.9.2',
+        commit_count: 1,
+        change_summary_hint: 'First launch copy now describes the built-in OPL entries more clearly.',
+        change_subjects: ['fix(first-run): clarify setup'],
+      },
+    ],
+  }, null, 2)}\n`);
+
+  const result = runNode([
+    'scripts/release-notes-ai-writer.ts',
+    '--evidence',
+    evidencePath,
+    '--output',
+    outputPath,
+  ], {
+    env: {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+      OPL_RELEASE_NOTES_PROVIDER: 'openai_compatible',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: 'http://127.0.0.1:3001/v1',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: 'freellmapi-test',
+      OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: 'auto',
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const notes = fs.readFileSync(outputPath, 'utf8');
+  const publicNotes = publicFirstScreen(notes);
+  assert.match(publicNotes, /Users can install or upgrade One Person Lab App/);
+  assert.match(publicNotes, /## What improved/);
+  assert.match(publicNotes, /## OPL agents and runtime payload/);
+  assert.match(publicNotes, /## OPL family updates/);
+  assert.match(publicNotes, /## Install Stable/);
+  assert.match(publicNotes, /## Release scope/);
+});
+
 function writeFakeGhReleaseDownload(binDir, publicReleaseManifest) {
   fs.mkdirSync(binDir, { recursive: true });
   const fakeGh = path.join(binDir, 'gh');

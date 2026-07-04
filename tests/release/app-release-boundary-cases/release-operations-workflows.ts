@@ -36,7 +36,9 @@ test('Nightly release workflow publishes standard-only semver prereleases', () =
   assert.match(workflow, /node --experimental-strip-types scripts\/validate-release\.ts release-assets/);
   assert.match(workflow, /node --experimental-strip-types scripts\/generate-release-notes\.ts[\s\S]*--channel nightly/);
   assert.match(workflow, /OPL_RELEASE_NOTES_MODE: ai/);
-  assert.match(workflow, /OPL_RELEASE_NOTES_PROVIDER: github_models/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_PROVIDER: auto/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL \}\}/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY \}\}/);
   assert.match(workflow, /OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: \$\{\{ runner\.temp \}\}\/opl-nightly-notes-evidence\.json/);
   assert.match(workflow, /node --experimental-strip-types scripts\/generate-release-notes\.ts[\s\S]*--evidence-output "\$OPL_RELEASE_NOTES_EVIDENCE_OUTPUT"[\s\S]*--output "\$template_notes_file"/);
   assert.match(workflow, /node --experimental-strip-types scripts\/release-notes-ai-writer\.ts[\s\S]*--evidence "\$OPL_RELEASE_NOTES_EVIDENCE_OUTPUT"[\s\S]*--output "\$notes_file"/);
@@ -553,11 +555,13 @@ test('release workflows resolve moving refs once and pass fixed SHA cohort refs 
   assert.match(desktopWorkflow, /standard-build:[\s\S]*ref: \$\{\{ needs\.release-source-gate\.outputs\.app_sha \}\}[\s\S]*shell_ref: \$\{\{ needs\.release-source-gate\.outputs\.shell_sha \}\}/);
   assert.match(workflowJobBlock(desktopWorkflow, 'publish-standard'), /permissions:[\s\S]*models: read/);
   assert.match(workflowJobBlock(desktopWorkflow, 'publish-standard'), /OPL_RELEASE_NOTES_MODE: ai/);
-  assert.match(workflowJobBlock(desktopWorkflow, 'publish-standard'), /OPL_RELEASE_NOTES_PROVIDER: github_models/);
+  assert.match(workflowJobBlock(desktopWorkflow, 'publish-standard'), /OPL_RELEASE_NOTES_PROVIDER: auto/);
+  assert.match(workflowJobBlock(desktopWorkflow, 'publish-standard'), /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL \}\}/);
   assert.match(desktopWorkflow, /publish-standard:[\s\S]*outputs:[\s\S]*app_sha: \$\{\{ steps\.release-cohort\.outputs\.app_sha \}\}[\s\S]*shell_sha: \$\{\{ steps\.release-cohort\.outputs\.shell_sha \}\}[\s\S]*framework_sha: \$\{\{ steps\.release-cohort\.outputs\.framework_sha \}\}/);
   assert.match(workflowJobBlock(desktopWorkflow, 'publish-full-assets'), /permissions:[\s\S]*models: read/);
   assert.match(workflowJobBlock(desktopWorkflow, 'publish-full-assets'), /OPL_RELEASE_NOTES_MODE: ai/);
-  assert.match(workflowJobBlock(desktopWorkflow, 'publish-full-assets'), /OPL_RELEASE_NOTES_PROVIDER: github_models/);
+  assert.match(workflowJobBlock(desktopWorkflow, 'publish-full-assets'), /OPL_RELEASE_NOTES_PROVIDER: auto/);
+  assert.match(workflowJobBlock(desktopWorkflow, 'publish-full-assets'), /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY \}\}/);
   assert.match(desktopWorkflow, /name: Record fixed release cohort refs[\s\S]*APP_SHA: \$\{\{ needs\.release-source-gate\.outputs\.app_sha \}\}[\s\S]*FRAMEWORK_SHA: \$\{\{ needs\.release-source-gate\.outputs\.framework_sha \}\}/);
   assert.match(desktopWorkflow, /full-first-install:[\s\S]*framework_ref: \$\{\{ needs\.standard-vm-smoke-gate-after-full\.outputs\.framework_sha \}\}[\s\S]*shell_ref: \$\{\{ needs\.standard-vm-smoke-gate-after-full\.outputs\.shell_sha \}\}/);
   assert.match(desktopWorkflow, /standard-first-run-vm-smoke-after-standard-only:[\s\S]*shell_ref: \$\{\{ needs\.publish-standard\.outputs\.shell_sha \}\}/);

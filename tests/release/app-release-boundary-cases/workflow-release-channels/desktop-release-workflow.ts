@@ -127,8 +127,9 @@ test('manual desktop release workflow supports new releases and same-tag refresh
   assert.match(workflowJobBlock(workflow, 'publish-full-assets'), /permissions:[\s\S]*models: read/);
   assert.doesNotMatch(workflow, /Install Codex release-note writer/);
   assert.doesNotMatch(workflow, /Configure Codex release-note writer/);
-  assert.doesNotMatch(workflow, /OPL_RELEASE_NOTES_PROVIDER: auto/);
-  assert.doesNotMatch(workflow, /OPL_RELEASE_NOTES_GITHUB_MODEL/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_PROVIDER: auto/);
+  assert.match(workflow, /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY/);
+  assert.doesNotMatch(workflow, /OPL_RELEASE_NOTES_GITHUB_MODEL:/);
   assert.doesNotMatch(workflow, /setup-release-notes-codex-config/);
   assert.doesNotMatch(workflow, /OPENAI_API_KEY: \$\{\{ secrets\.OPENAI_API_KEY \}\}/);
   assert.match(workflow, /OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: \$\{\{ runner\.temp \}\}\/standard-release-notes-evidence\.json/);

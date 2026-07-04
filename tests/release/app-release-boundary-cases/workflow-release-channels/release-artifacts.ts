@@ -90,8 +90,9 @@ test('stable release workflow publishes only macOS arm64 standard assets', () =>
   assert.match(publishStandard, /models: read/);
   assert.doesNotMatch(publishStandard, /Install Codex release-note writer/);
   assert.doesNotMatch(publishStandard, /Configure Codex release-note writer/);
-  assert.doesNotMatch(publishStandard, /OPL_RELEASE_NOTES_PROVIDER: auto/);
-  assert.doesNotMatch(publishStandard, /OPL_RELEASE_NOTES_GITHUB_MODEL/);
+  assert.match(publishStandard, /OPL_RELEASE_NOTES_PROVIDER: auto/);
+  assert.match(publishStandard, /OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL/);
+  assert.doesNotMatch(publishStandard, /OPL_RELEASE_NOTES_GITHUB_MODEL:/);
   assert.doesNotMatch(publishStandard, /setup-release-notes-codex-config/);
   assert.doesNotMatch(publishStandard, /OPENAI_API_KEY: \$\{\{ secrets\.OPENAI_API_KEY \}\}/);
   assert.match(publishStandard, /standard-release-notes-evidence-\$\{\{ inputs\.opl_version \}\}/);

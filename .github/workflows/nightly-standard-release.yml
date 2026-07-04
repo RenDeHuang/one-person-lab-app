@@ -158,7 +158,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPL_RELEASE_NOTES_MODE: ai
-          OPL_RELEASE_NOTES_PROVIDER: github_models
+          OPL_RELEASE_NOTES_PROVIDER: auto
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL }}
           OPL_RELEASE_NOTES_EVIDENCE_OUTPUT: ${{ runner.temp }}/opl-nightly-notes-evidence.json
           OPL_RELEASE_VERSION: ${{ needs.resolve-nightly.outputs.version }}
           OPL_RELEASE_TAG: ${{ needs.resolve-nightly.outputs.tag }}

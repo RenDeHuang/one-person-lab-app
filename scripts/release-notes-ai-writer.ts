@@ -10,8 +10,16 @@ type AiReleaseNotesOptions = {
 };
 
 type ReleaseNotesLocale = 'en-US' | 'zh-CN';
+type ReleaseNotesProvider = 'auto' | 'github_models' | 'openai_compatible' | 'codex';
 
 const releaseNotesLocales: ReleaseNotesLocale[] = ['en-US', 'zh-CN'];
+const defaultGitHubModels = [
+  'openai/gpt-4o-mini',
+  'openai/gpt-4.1-mini',
+  'mistral-ai/mistral-small-2503',
+];
+const defaultOpenAICompatibleModel = 'auto';
+const defaultProviderTimeoutSeconds = 75;
 
 const vaguePhrases = [
   'Strengthened package builds',
@@ -75,7 +83,7 @@ function defaultCodexCommand(model?: string) {
   return `tmp="$(mktemp)"; codex exec --sandbox read-only --output-last-message "$tmp"${modelArgs} - >/dev/null && cat "$tmp"; status=$?; rm -f "$tmp"; exit "$status"`;
 }
 
-function selectedProvider() {
+function selectedProvider(): ReleaseNotesProvider {
   const value = (process.env.OPL_RELEASE_NOTES_PROVIDER || '').trim().toLowerCase();
   if (!value && process.env.OPL_RELEASE_NOTES_AI_COMMAND) {
     return 'codex';
@@ -83,14 +91,74 @@ function selectedProvider() {
   if (!value) {
     return 'auto';
   }
-  if (!['auto', 'github_models', 'codex'].includes(value)) {
+  if (!['auto', 'github_models', 'openai_compatible', 'codex'].includes(value)) {
     throw new Error(`Unsupported OPL_RELEASE_NOTES_PROVIDER: ${process.env.OPL_RELEASE_NOTES_PROVIDER}`);
   }
-  return value;
+  return value as ReleaseNotesProvider;
 }
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function listFromEnv(value: string | undefined, fallback: string[]) {
+  const items = (value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return items.length > 0 ? items : fallback;
+}
+
+function providerTimeoutSeconds() {
+  const value = Number.parseInt(process.env.OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS || '', 10);
+  return Number.isFinite(value) && value > 0 ? value : defaultProviderTimeoutSeconds;
+}
+
+function compactArray<T>(values: T[] | undefined, limit: number) {
+  return Array.isArray(values) ? values.slice(0, limit) : [];
+}
+
+function compactReleaseNotesEvidence(evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  return {
+    schema: source.schema,
+    version: source.version,
+    channel: source.channel,
+    release_title: source.release_title,
+    release_repo: source.release_repo,
+    current_tag: source.current_tag,
+    previous_tag: source.previous_tag,
+    install_command: source.install_command,
+    full_changelog_url: source.full_changelog_url,
+    grouped_changes: source.grouped_changes,
+    payload: source.payload,
+    agent_runtime_changes: compactArray(source.agent_runtime_changes, 12).map((change: any) => ({
+      label: change.label,
+      component: change.component,
+      role: change.role,
+      previous_ref: change.previous_ref,
+      current_ref: change.current_ref,
+      audit_ref: change.audit_ref,
+      user_value_hint: change.user_value_hint,
+      change_summary_hint: change.change_summary_hint,
+      change_subjects: compactArray(change.change_subjects, 4),
+    })),
+    family_repo_changes: compactArray(source.family_repo_changes, 12).map((change: any) => ({
+      label: change.label,
+      repository: change.repository,
+      previous_ref: change.previous_ref,
+      current_ref: change.current_ref,
+      previous_version: change.previous_version,
+      current_version: change.current_version,
+      compare_url: change.compare_url,
+      compare_status: change.compare_status,
+      commit_count: change.commit_count,
+      change_summary_hint: change.change_summary_hint,
+      change_subjects: compactArray(change.change_subjects, 5),
+    })),
+    app_commit_subjects: compactArray(source.app_commit_subjects, 12),
+    shell_commit_subjects: compactArray(source.shell_commit_subjects, 12),
+  };
 }
 
 function extractLocalizedReleaseNotes(markdown: string, locale: ReleaseNotesLocale) {
@@ -118,6 +186,7 @@ function stripLocalizedReleaseNotes(markdown: string) {
   return `${markdown
     .replace(/<!--\s*OPL_RELEASE_NOTES:[A-Za-z-]+\s*\n[\s\S]*?\n?-->\s*/g, '')
     .replace(/<!--\s*OPL_RELEASE_NOTES:[A-Za-z-]+\s*-->[\s\S]*?<!--\s*\/OPL_RELEASE_NOTES:[A-Za-z-]+\s*-->\s*/g, '')
+    .replace(/<!--\s*OPL_RELEASE_NOTES:[A-Za-z-]+\s*-->\s*/g, '')
     .trimEnd()}\n`;
 }
 
@@ -132,10 +201,12 @@ function publicMarkdownBeforeTechnicalDetails(markdown: string) {
 }
 
 function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
+  const promptEvidence = compactReleaseNotesEvidence(evidence);
   return [
     'Write the public GitHub Release notes for One Person Lab App.',
     '',
-    'Use the JSON evidence below as the only source of truth.',
+    'Use the compact JSON evidence below as the only source of truth.',
+    'Subject lists are representative; commit counts, compare URLs, payload lines, refs, versions, and install commands are authoritative.',
     'Audience: normal OPL App users who want to know what improved and why they should upgrade.',
     '',
     'Hard requirements:',
@@ -145,6 +216,7 @@ function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
     '- The visible first paragraph must explain what a user can do more easily after installing or upgrading. Do not lead with CI, workflows, contracts, release-note generation, or audit mechanics.',
     '- Put that visible first paragraph immediately after the title, before any "##" section heading.',
     '- The first visible screen must be for users, not maintainers: avoid refs, SHA, cohort, gate, workflow, validation, release operator, owner receipt, owner verdict, and release candidate wording before the final technical section.',
+    '- Before "## Technical details", never use the words refs, SHA, cohort, gate, workflow, validation, release operator, owner receipt, owner verdict, or release candidate. Use user words such as sessions, work, entries, setup, install, or readiness instead.',
     '- If refs, SHAs, gates, validation details, owner-route terms, or other process evidence are necessary for auditability, put them only after a "## Technical details" heading or inside the hidden localization blocks.',
     '- Put the technical/audit tail after the user-facing narrative. The "## Technical details" heading is the boundary where maintainer evidence may begin.',
     '- Explain bundled OPL agent/runtime changes in plain language: MAS, MAG, RCA, OPL Meta Agent, OPL Framework, Codex CLI, OfficeCLI, MinerU, and Codex skills when present.',
@@ -158,7 +230,7 @@ function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
     '- In "## What improved", start with user-facing agent tasks and runtime use cases before mentioning release plumbing.',
     '- In "## OPL agents and runtime payload", include role-based payload bullets first. Keep raw release_evidence.payload.lines entries that contain refs, SHAs, boundaries, gates, validation wording, or packaged component refs after "## Technical details".',
     '- Do not format release_evidence.payload.lines as blockquotes. They must stay normal bullets.',
-    '- Keep packaged component refs and payload deltas after "## Technical details". They are supporting evidence, not the headline.',
+    '- Keep packaged component refs and payload deltas after "## Technical details". They are supporting evidence, not the headline. Include every release_evidence.payload.lines bullet exactly when provided.',
     '- Include the Full Changelog link when evidence.full_changelog_url is present.',
     '- Do not include Chinese text in the visible public Markdown.',
     '- Do not invent domain results, quality claims, benchmarks, or unsupported agent capabilities.',
@@ -176,7 +248,29 @@ function buildAiReleaseNotesPrompt(evidence: ReleaseNotesEvidence) {
     '- Output Markdown only. Do not wrap it in code fences.',
     '',
     'release_evidence:',
-    JSON.stringify({ release_evidence: evidence }, null, 2),
+    JSON.stringify({ release_evidence: promptEvidence }, null, 2),
+    '',
+  ].join('\n');
+}
+
+function buildAiReleaseNotesRepairPrompt(evidence: ReleaseNotesEvidence, markdown: string, failure: unknown) {
+  return [
+    'Repair the One Person Lab App GitHub Release notes below.',
+    '',
+    'Use the compact JSON evidence as the only source of truth.',
+    `Quality gate failure to fix: ${failure instanceof Error ? failure.message : String(failure)}`,
+    '',
+    'Return the full corrected Markdown only, with no code fences.',
+    'Keep the same required hidden OPL_RELEASE_NOTES:en-US and OPL_RELEASE_NOTES:zh-CN blocks.',
+    'Before "## Technical details", remove maintainer/process words such as refs, SHA, cohort, gate, workflow, validation, release operator, owner receipt, owner verdict, and release candidate.',
+    'For Stable, keep "## Install Stable" and include the install command exactly.',
+    'After "## Technical details", include all payload lines, packaged component refs, component updates, OPL family commit counts, and compare links from the evidence.',
+    '',
+    'release_evidence:',
+    JSON.stringify({ release_evidence: compactReleaseNotesEvidence(evidence) }, null, 2),
+    '',
+    'draft_markdown:',
+    markdown,
     '',
   ].join('\n');
 }
@@ -187,21 +281,297 @@ function extractMarkdown(stdout: string) {
   return `${(fenced ? fenced[1] : trimmed).trimEnd()}\n`;
 }
 
-function parseGitHubModelsContent(stdout: string) {
+function buildFallbackZhCNReleaseNotes(visibleMarkdown: string, evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  const stableAction = source.channel === 'stable' && source.install_command
+    ? `\n\n## 安装 Stable\n\n运行 \`${source.install_command}\``
+    : '';
+  return [
+    source.release_title,
+    '',
+    '本次更新面向普通 One Person Lab App 用户，重点是让首次启动、App 就绪检查和内置 OPL 会话入口更清楚。',
+    '',
+    '## 改进内容',
+    '',
+    '- MAS 支持研究和 study 会话。',
+    '- MAG 支持基金写作和资助材料会话。',
+    '- RCA 支持可视化交付物、幻灯片和报告图形。',
+    '- OPL Meta Agent 支持 agent 设计和改进。',
+    stableAction,
+    '',
+    '## 发布范围',
+    '',
+    visibleMarkdown.includes('Full first-install')
+      ? '标准 macOS arm64 更新包，以及 Full 首次安装 DMG。'
+      : '标准 macOS arm64 更新包。',
+  ].join('\n');
+}
+
+function localizedBlockHasReleaseTitle(markdown: string, evidence: ReleaseNotesEvidence) {
+  return new RegExp(`^#?\\s*${escapeRegExp(evidence.release_title)}(?:\\s|$)`).test(markdown);
+}
+
+function restoreLocalizedBlocks(visibleMarkdown: string, originalMarkdown: string, evidence: ReleaseNotesEvidence) {
+  const extractedEnUS = extractLocalizedReleaseNotes(originalMarkdown, 'en-US');
+  const enUS = extractedEnUS && localizedBlockHasReleaseTitle(extractedEnUS, evidence)
+    ? extractedEnUS
+    : visibleMarkdown;
+  let zhCN = extractLocalizedReleaseNotes(originalMarkdown, 'zh-CN');
+  if (!zhCN || !localizedBlockHasReleaseTitle(zhCN, evidence)) {
+    zhCN = buildFallbackZhCNReleaseNotes(visibleMarkdown, evidence);
+  }
+  if (/(MAS|MAG|RCA)/.test(visibleMarkdown) && !/(MAS|MAG|RCA)/.test(zhCN)) {
+    zhCN = `${zhCN.trimEnd()}\n\n本次更新覆盖 MAS、MAG 和 RCA 的 App 入口与相关使用场景。\n`;
+  }
+  return `${visibleMarkdown.trimEnd()}
+
+<!-- OPL_RELEASE_NOTES:en-US
+${enUS.trimEnd()}
+-->
+<!-- OPL_RELEASE_NOTES:zh-CN
+${zhCN.trimEnd()}
+-->
+`;
+}
+
+function sanitizePreTechnicalDeveloperTerms(visibleMarkdown: string) {
+  const offset = technicalDetailsOffset(visibleMarkdown);
+  if (offset < 0) {
+    return visibleMarkdown
+      .split('\n')
+      .filter((line) => !/[\u3400-\u9fff]/.test(line))
+      .join('\n')
+      .replace(/\brelease notes?\b/gi, 'update summary')
+      .replace(/\brelease-note\b/gi, 'update')
+      .replace(/\bworkflows?\b/gi, 'sessions')
+      .replace(/\bvalidation\b/gi, 'checks')
+      .replace(/\bgates?\b/gi, 'checks')
+      .replace(/\brefs?\b/gi, 'details');
+  }
+  const before = visibleMarkdown.slice(0, offset)
+    .split('\n')
+    .filter((line) => !/[\u3400-\u9fff]/.test(line))
+    .join('\n')
+    .replace(/\brelease notes?\b/gi, 'update summary')
+    .replace(/\brelease-note\b/gi, 'update')
+    .replace(/\bworkflows?\b/gi, 'sessions')
+    .replace(/\bvalidation\b/gi, 'checks')
+    .replace(/\bgates?\b/gi, 'checks')
+    .replace(/\brefs?\b/gi, 'details');
+  const after = visibleMarkdown.slice(offset)
+    .split('\n')
+    .filter((line) => !/[\u3400-\u9fff]/.test(line))
+    .join('\n')
+    .replace(/\brelease notes?\b/gi, 'update summary')
+    .replace(/\brelease-note\b/gi, 'update');
+  return `${before}${after}`;
+}
+
+function removePayloadEvidenceBeforeTechnical(visibleMarkdown: string, evidence: ReleaseNotesEvidence) {
+  const offset = technicalDetailsOffset(visibleMarkdown);
+  if (offset < 0) {
+    return visibleMarkdown;
+  }
+  const source = evidence as any;
+  const payloadRefs = compactArray(source.payload?.bundled_refs, 24);
+  const payloadUpdates = compactArray(source.payload?.updates_since_previous_stable, 24);
+  const before = visibleMarkdown
+    .slice(0, offset)
+    .split('\n')
+    .filter((line) => !payloadRefs.some((ref: string) => line.includes(ref)))
+    .filter((line) => !payloadUpdates.some((update: string) => line.includes(update)))
+    .join('\n')
+    .trimEnd();
+  return `${before}\n\n${visibleMarkdown.slice(offset).trimStart()}`;
+}
+
+function appendSectionIfMissing(markdown: string, heading: string, section: string) {
+  if (markdown.includes(heading)) {
+    return markdown;
+  }
+  return `${markdown.trimEnd()}\n\n${section.trimEnd()}\n`;
+}
+
+function insertSectionBeforeTechnicalIfMissing(markdown: string, heading: string, section: string) {
+  if (!section || markdown.includes(heading)) {
+    return markdown;
+  }
+  const offset = technicalDetailsOffset(markdown);
+  if (offset < 0) {
+    return appendSectionIfMissing(markdown, heading, section);
+  }
+  const before = markdown.slice(0, offset).trimEnd();
+  const after = markdown.slice(offset).trimStart();
+  return `${before}\n\n${section.trimEnd()}\n\n${after}`;
+}
+
+function formatFamilyUpdate(change: any) {
+  const subjects = compactArray(change.change_subjects, 3);
+  const subjectText = subjects.length > 0 ? ` Highlights include ${subjects.join('; ')}.` : '';
+  const summary = change.change_summary_hint || `${change.label} changed since the previous release.`;
+  const count = Number.isFinite(change.commit_count) ? `${change.commit_count} commits. ` : '';
+  const compare = change.compare_url ? ` [Compare changes](${change.compare_url})` : '';
+  return `- ${change.label}: ${count}${summary}${subjectText}${compare}`;
+}
+
+function buildWhatImprovedSection(evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  const bullets = compactArray(source.grouped_changes, 6)
+    .flatMap((group: any) => compactArray(group.bullets, 2))
+    .filter(Boolean);
+  const fallback = [
+    'Users can start OPL App sessions with clearer setup, readiness, and built-in agent entry points.',
+  ];
+  return [
+    '## What improved',
+    '',
+    ...(bullets.length > 0 ? bullets : fallback).map((bullet: string) => `- ${bullet}`),
+  ].join('\n');
+}
+
+function buildOpeningBenefitParagraph(evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  const installAction = source.channel === 'nightly' ? 'try the Nightly package' : 'install or upgrade One Person Lab App';
+  return `Users can ${installAction} and open MAS research, MAG grant-writing, RCA visual deliverable, and OPL Meta Agent sessions with clearer setup and built-in OPL entries.`;
+}
+
+function ensureOpeningBenefitParagraph(markdown: string, evidence: ReleaseNotesEvidence) {
+  const lines = markdown.trimEnd().split('\n');
+  const titleIndex = lines.findIndex((line) => new RegExp(`^#?\\s*${escapeRegExp(evidence.release_title)}(?:\\s|$)`).test(line.trim()));
+  if (titleIndex < 0) {
+    return markdown;
+  }
+  const nextContentIndex = lines.findIndex((line, index) => index > titleIndex && line.trim());
+  if (nextContentIndex < 0 || /^##\s+/.test(lines[nextContentIndex].trim())) {
+    lines.splice(titleIndex + 1, 0, '', buildOpeningBenefitParagraph(evidence));
+    return `${lines.join('\n').trimEnd()}\n`;
+  }
+  return markdown;
+}
+
+function buildInstallSection(evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  if (source.channel !== 'stable' || !source.install_command) {
+    return '';
+  }
+  return [
+    '## Install Stable',
+    '',
+    `\`${source.install_command}\``,
+  ].join('\n');
+}
+
+function buildPayloadSection(evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  const roleBullets = compactArray(source.agent_runtime_changes, 12)
+    .map((change: any) => `- ${change.label}: ${change.user_value_hint || change.role || 'Supports App-managed OPL work.'}`);
+  const payloadLines = compactArray(source.payload?.lines, 12);
+  const bullets = [...roleBullets, ...payloadLines];
+  return [
+    '## OPL agents and runtime payload',
+    '',
+    ...(bullets.length > 0 ? bullets : [
+      '- Standard package: App-managed MAS, MAG, RCA, and OPL Meta Agent entry surface plus Codex plugin and skill sync policy.',
+    ]),
+  ].join('\n');
+}
+
+function buildFamilyUpdatesSection(evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  const changes = compactArray(source.family_repo_changes, 12);
+  if (changes.length === 0) {
+    return '';
+  }
+  return [
+    '## OPL family updates',
+    '',
+    ...changes.map(formatFamilyUpdate),
+  ].join('\n');
+}
+
+function buildReleaseScopeSection(evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  const scope = source.channel === 'nightly'
+    ? 'Standard macOS arm64 Nightly package and updater metadata; no Full first-install DMG in the Nightly channel.'
+    : source.payload?.include_full_package
+      ? 'Standard macOS arm64 updater package plus Full first-install DMG.'
+      : 'Standard macOS arm64 updater package.';
+  return [
+    '## Release scope',
+    '',
+    `- ${scope}`,
+  ].join('\n');
+}
+
+function buildTechnicalDetailsSection(evidence: ReleaseNotesEvidence) {
+  const source = evidence as any;
+  const payloadLines = compactArray(source.payload?.lines, 12);
+  const lines = [
+    '## Technical details',
+    '',
+    'These details support release audit and package traceability; ordinary users should not need them for install or upgrade decisions.',
+  ];
+  if (payloadLines.length > 0) {
+    lines.push('', ...payloadLines);
+  }
+  const familyUpdates = buildFamilyUpdatesSection(evidence);
+  if (familyUpdates) {
+    lines.push('', familyUpdates);
+  }
+  if (source.full_changelog_url) {
+    lines.push('', `Full Changelog: ${source.full_changelog_url}`);
+  }
+  return lines.join('\n');
+}
+
+function completeAiReleaseNotesWithEvidence(markdown: string, evidence: ReleaseNotesEvidence) {
+  let visible = stripLocalizedReleaseNotes(markdown).trimEnd();
+  visible = sanitizePreTechnicalDeveloperTerms(visible);
+  visible = removePayloadEvidenceBeforeTechnical(visible, evidence);
+  visible = ensureOpeningBenefitParagraph(visible, evidence);
+  visible = insertSectionBeforeTechnicalIfMissing(visible, '## What improved', buildWhatImprovedSection(evidence));
+  const installSection = buildInstallSection(evidence);
+  if (installSection) {
+    visible = insertSectionBeforeTechnicalIfMissing(visible, '## Install Stable', installSection);
+  }
+  visible = insertSectionBeforeTechnicalIfMissing(visible, '## OPL agents and runtime payload', buildPayloadSection(evidence));
+  visible = insertSectionBeforeTechnicalIfMissing(visible, '## OPL family updates', buildFamilyUpdatesSection(evidence));
+  visible = insertSectionBeforeTechnicalIfMissing(visible, '## Release scope', buildReleaseScopeSection(evidence));
+  const technical = technicalDetailsOffset(visible);
+  if (technical < 0) {
+    visible = `${visible.trimEnd()}\n\n${buildTechnicalDetailsSection(evidence)}`;
+  } else {
+    const beforeTechnical = visible.slice(0, technical).trimEnd();
+    const afterTechnical = visible.slice(technical).trimEnd();
+    visible = `${beforeTechnical}\n\n${afterTechnical}`;
+  }
+  const source = evidence as any;
+  for (const line of compactArray(source.payload?.lines, 12)) {
+    if (!visible.includes(line)) {
+      visible = `${visible.trimEnd()}\n${line}`;
+    }
+  }
+  if (source.full_changelog_url && !visible.includes(source.full_changelog_url)) {
+    visible = `${visible.trimEnd()}\n\nFull Changelog: ${source.full_changelog_url}`;
+  }
+  return restoreLocalizedBlocks(visible, markdown, evidence);
+}
+
+function parseChatCompletionsContent(stdout: string, providerLabel: string) {
   let payload: any;
   try {
     payload = JSON.parse(stdout);
   } catch {
-    throw new Error(`GitHub Models returned invalid JSON: ${stdout.slice(0, 400)}`);
+    throw new Error(`${providerLabel} returned invalid JSON: ${stdout.slice(0, 400)}`);
   }
   const content = payload?.choices?.[0]?.message?.content;
   if (typeof content !== 'string' || !content.trim()) {
-    throw new Error('GitHub Models response did not include choices[0].message.content.');
+    throw new Error(`${providerLabel} response did not include choices[0].message.content.`);
   }
   return content;
 }
 
-function buildGitHubModelsRequest(model: string, prompt: string) {
+function buildChatCompletionsRequest(model: string, prompt: string) {
   return JSON.stringify({
     model,
     messages: [
@@ -213,20 +583,18 @@ function buildGitHubModelsRequest(model: string, prompt: string) {
   });
 }
 
-function runGitHubModelsProvider(prompt: string, evidence: ReleaseNotesEvidence) {
-  const token = process.env.GITHUB_TOKEN?.trim() || process.env.GH_TOKEN?.trim();
-  if (!token) {
-    throw new Error('Missing GITHUB_TOKEN or GH_TOKEN for GitHub Models release notes.');
-  }
-  const model = process.env.OPL_RELEASE_NOTES_GITHUB_MODEL?.trim() || 'openai/gpt-5-mini';
-  const endpoint = process.env.OPL_RELEASE_NOTES_GITHUB_MODELS_ENDPOINT?.trim()
-    || 'https://models.github.ai/inference/chat/completions';
-  const request = buildGitHubModelsRequest(model, prompt);
+function requestChatCompletions(endpoint: string, token: string, model: string, prompt: string, providerLabel: string) {
+  const request = buildChatCompletionsRequest(model, prompt);
+  const timeoutSeconds = providerTimeoutSeconds();
   const result = spawnSync('curl', [
     '-fsSL',
+    '--connect-timeout',
+    '10',
+    '--max-time',
+    String(timeoutSeconds),
     endpoint,
     '-H',
-    'Accept: application/vnd.github+json',
+    'Accept: application/json',
     '-H',
     'Content-Type: application/json',
     '-H',
@@ -237,13 +605,102 @@ function runGitHubModelsProvider(prompt: string, evidence: ReleaseNotesEvidence)
     encoding: 'utf8',
     stdio: 'pipe',
     env: process.env,
+    timeout: (timeoutSeconds + 5) * 1000,
   });
-  if (result.status !== 0) {
-    throw new Error(`GitHub Models provider failed: ${result.stderr || result.stdout || `exit ${result.status}`}`);
+  if (result.error) {
+    throw new Error(`${providerLabel} failed: ${result.error.message}`);
   }
-  const markdown = extractMarkdown(parseGitHubModelsContent(result.stdout));
-  validateAiReleaseNotes(markdown, evidence);
-  return markdown;
+  if (result.status !== 0) {
+    throw new Error(`${providerLabel} failed: ${result.stderr || result.stdout || `exit ${result.status}`}`);
+  }
+  return extractMarkdown(parseChatCompletionsContent(result.stdout, providerLabel));
+}
+
+function validateOrRepairGeneratedMarkdown(
+  initialPrompt: string,
+  evidence: ReleaseNotesEvidence,
+  requestMarkdown: (prompt: string) => string,
+) {
+  let markdown = completeAiReleaseNotesWithEvidence(requestMarkdown(initialPrompt), evidence);
+  try {
+    validateAiReleaseNotes(markdown, evidence);
+    return markdown;
+  } catch (error) {
+    const repairPrompt = buildAiReleaseNotesRepairPrompt(evidence, markdown, error);
+    markdown = completeAiReleaseNotesWithEvidence(requestMarkdown(repairPrompt), evidence);
+    validateAiReleaseNotes(markdown, evidence);
+    return markdown;
+  }
+}
+
+function runGitHubModelsProvider(prompt: string, evidence: ReleaseNotesEvidence) {
+  const token = process.env.GITHUB_TOKEN?.trim() || process.env.GH_TOKEN?.trim();
+  if (!token) {
+    throw new Error('Missing GITHUB_TOKEN or GH_TOKEN for GitHub Models release notes.');
+  }
+  const models = listFromEnv(
+    process.env.OPL_RELEASE_NOTES_GITHUB_MODELS || process.env.OPL_RELEASE_NOTES_GITHUB_MODEL,
+    defaultGitHubModels,
+  );
+  const endpoint = process.env.OPL_RELEASE_NOTES_GITHUB_MODELS_ENDPOINT?.trim()
+    || 'https://models.github.ai/inference/chat/completions';
+  const failures: string[] = [];
+  for (const model of models) {
+    const providerLabel = `GitHub Models ${model}`;
+    try {
+      return validateOrRepairGeneratedMarkdown(prompt, evidence, (activePrompt) => (
+        requestChatCompletions(endpoint, token, model, activePrompt, providerLabel)
+      ));
+    } catch (error) {
+      failures.push(`${model}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  throw new Error(`GitHub Models provider failed for ${models.join(', ')}: ${failures.join(' | ')}`);
+}
+
+function openAICompatibleEndpoint(baseUrl: string) {
+  const trimmed = baseUrl.trim().replace(/\/+$/, '');
+  if (!trimmed) {
+    return '';
+  }
+  if (/\/chat\/completions$/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (/\/v1$/i.test(trimmed)) {
+    return `${trimmed}/chat/completions`;
+  }
+  return `${trimmed}/v1/chat/completions`;
+}
+
+function openAICompatibleConfigured() {
+  return Boolean(
+    process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL?.trim()
+    && process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY?.trim()
+  );
+}
+
+function runOpenAICompatibleProvider(prompt: string, evidence: ReleaseNotesEvidence) {
+  const endpoint = openAICompatibleEndpoint(process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL || '');
+  const token = process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY?.trim() || '';
+  if (!endpoint || !token) {
+    throw new Error('Missing OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL or OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY.');
+  }
+  const models = listFromEnv(
+    process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS || process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL,
+    [defaultOpenAICompatibleModel],
+  );
+  const failures: string[] = [];
+  for (const model of models) {
+    const providerLabel = `OpenAI-compatible ${model}`;
+    try {
+      return validateOrRepairGeneratedMarkdown(prompt, evidence, (activePrompt) => (
+        requestChatCompletions(endpoint, token, model, activePrompt, providerLabel)
+      ));
+    } catch (error) {
+      failures.push(`${model}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  throw new Error(`OpenAI-compatible provider failed for ${models.join(', ')}: ${failures.join(' | ')}`);
 }
 
 function runCodexProvider(prompt: string, evidence: ReleaseNotesEvidence, command: string) {
@@ -256,7 +713,7 @@ function runCodexProvider(prompt: string, evidence: ReleaseNotesEvidence, comman
   if (result.status !== 0) {
     throw new Error(`Codex release notes provider failed: ${result.stderr || result.stdout || `exit ${result.status}`}`);
   }
-  const markdown = extractMarkdown(result.stdout);
+  const markdown = completeAiReleaseNotesWithEvidence(extractMarkdown(result.stdout), evidence);
   validateAiReleaseNotes(markdown, evidence);
   return markdown;
 }
@@ -418,14 +875,34 @@ export function buildAiReleaseNotesDocument(evidence: ReleaseNotesEvidence, opti
   if (provider === 'github_models') {
     return runGitHubModelsProvider(prompt, evidence);
   }
+  if (provider === 'openai_compatible') {
+    return runOpenAICompatibleProvider(prompt, evidence);
+  }
   if (provider === 'codex') {
     return runCodexProvider(prompt, evidence, command);
   }
+  const failures: string[] = [];
   try {
     return runGitHubModelsProvider(prompt, evidence);
   } catch (error) {
-    console.error(`GitHub Models release-note provider unavailable; falling back to Codex provider. ${error instanceof Error ? error.message : String(error)}`);
+    failures.push(`GitHub Models: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`GitHub Models release-note provider unavailable; trying next provider. ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (openAICompatibleConfigured()) {
+    try {
+      return runOpenAICompatibleProvider(prompt, evidence);
+    } catch (error) {
+      failures.push(`OpenAI-compatible: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`OpenAI-compatible release-note provider unavailable; trying Codex provider. ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } else {
+    failures.push('OpenAI-compatible: not configured');
+  }
+  try {
     return runCodexProvider(prompt, evidence, command);
+  } catch (error) {
+    failures.push(`Codex: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`No AI release-note provider succeeded. ${failures.join(' | ')}`);
   }
 }
 
