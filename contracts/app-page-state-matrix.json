@@ -937,6 +937,25 @@
           "surface_kind": "opl_console_watch_only_drilldown_projection",
           "display_policy": "console_drilldown_only_watch_cards_no_readiness_or_verdict_claims",
           "inspiration": "OpenScience product pattern",
+          "mode_label_policy": {
+            "adapted_source_modes": [
+              "Science",
+              "Medical Evidence",
+              "Goal",
+              "Knowledge Distillation"
+            ],
+            "app_display_terms": [
+              "Science workspace",
+              "Medical evidence",
+              "Goal tracking",
+              "Knowledge distillation"
+            ],
+            "mode_labels_are_navigation_only": true,
+            "medical_evidence_authority_owner": "domain_agent",
+            "can_authorize_medical_advice": false,
+            "can_authorize_medical_evidence_verdict": false,
+            "can_override_domain_mode": false
+          },
           "full_detail_policy": "on_demand_task_drilldown_only",
           "required_projection_cards": [
             "artifact_graph",

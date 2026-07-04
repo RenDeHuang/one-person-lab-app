@@ -20,6 +20,11 @@ refs for a task:
 | Project-local ledger pointer | Pointer to the local project ledger or provenance record. | Pointer only; no ledger write, owner receipt, or storage authority. |
 | Native viewer preview | Preview/open refs for the active shell viewer. | Preview only; no artifact mutation and no release/source readiness signal. |
 
+OpenScience mode names are adapted only as navigation labels: Science workspace,
+Medical evidence, Goal tracking, and Knowledge distillation. The Medical evidence
+label does not authorize medical advice, medical evidence verdicts, or domain
+mode overrides; those remain with the owning domain agent.
+
 ## Authority Boundary
 
 The projection is `refs_only` and `watch_only`. It is not:

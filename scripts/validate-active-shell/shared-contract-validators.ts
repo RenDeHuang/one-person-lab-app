@@ -847,6 +847,28 @@ export function validateOpenScienceConsoleProjectionContract(projection, label) 
     }
   }
   assertDeepEqualJson(
+    projection.mode_label_policy?.adapted_source_modes,
+    ['Science', 'Medical Evidence', 'Goal', 'Knowledge Distillation'],
+    `${label} mode_label_policy.adapted_source_modes`,
+  );
+  assertDeepEqualJson(
+    projection.mode_label_policy?.app_display_terms,
+    ['Science workspace', 'Medical evidence', 'Goal tracking', 'Knowledge distillation'],
+    `${label} mode_label_policy.app_display_terms`,
+  );
+  for (const [field, expected] of Object.entries({
+    'mode_label_policy.mode_labels_are_navigation_only': true,
+    'mode_label_policy.medical_evidence_authority_owner': 'domain_agent',
+    'mode_label_policy.can_authorize_medical_advice': false,
+    'mode_label_policy.can_authorize_medical_evidence_verdict': false,
+    'mode_label_policy.can_override_domain_mode': false,
+  })) {
+    const actual = field.split('.').reduce((value, key) => value?.[key], projection);
+    if (actual !== expected) {
+      throw new Error(`${label} ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
     projection.required_projection_cards,
     ['artifact_graph', 'claim_warning', 'project_local_ledger_pointer', 'native_viewer_preview'],
     `${label} required_projection_cards`,
