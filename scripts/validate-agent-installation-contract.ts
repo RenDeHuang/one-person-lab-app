@@ -135,6 +135,7 @@ const expectedPackageLockReceiptFields = [
   'trust_tier',
   'action_receipt_id',
   'rollback_ref',
+  'physical_surface',
 ];
 const expectedAtomicPackageUnitIncludes = [
   'plugin_manifest',

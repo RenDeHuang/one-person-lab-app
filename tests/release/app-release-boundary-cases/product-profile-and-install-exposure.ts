@@ -103,6 +103,7 @@ const EXPECTED_PACKAGE_LOCK_RECEIPT_FIELDS = [
   'trust_tier',
   'action_receipt_id',
   'rollback_ref',
+  'physical_surface',
 ];
 
 test('App product profile owns user-facing defaults without runtime authority', () => {

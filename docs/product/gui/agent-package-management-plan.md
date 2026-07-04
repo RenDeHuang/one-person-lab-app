@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `professional_agent_package_management_plan`
-State: `app_landing_active_framework_lifecycle_partial_live_evidence_deferred`
+State: `app_landing_active_framework_physical_partial_live_evidence_deferred`
 Machine boundary: Human-readable product and architecture plan. Machine-readable
 truth lives in `contracts/`, source, validators, package manifests, and OPL
 Framework readback/receipt outputs. As of the App landing, App-owned
@@ -10,11 +10,13 @@ contracts, active-shell consumption, and package-management documentation are
 in place. OPL Framework now owns and implements the non-live lifecycle readback
 slice for registry refresh, manifest validation, selected install lock
 recording, install/update/repair/rollback/uninstall/hide/unhide/enable/disable
-receipts, status, and package list readback. The active shell exposes those
-routes and persists local Home shortcut visibility/order preferences. Physical
-plugin/skill materialization, release-packaged rollback cleanup, installed
-Codex-surface reload proof, and live user-path evidence remain
-Framework/runtime or release-owner work, not App contract work.
+receipts, status, package list readback, and manifest-declared local Codex
+plugin materialization into `CODEX_HOME` plugin cache, OPL state marketplace
+wrapper, Codex config tables, package lock `physical_surface`, and lifecycle
+receipt `physical_surface`. The active shell exposes those routes and persists
+local Home shortcut visibility/order preferences. Release-packaged required
+skill-pack materialization, installed Codex-surface reload proof, and live
+user-path evidence remain runtime or release-owner work, not App contract work.
 
 ## Core Decision
 
@@ -52,7 +54,7 @@ for agent behavior.
 | OPL App | Registry discovery, user-facing package management, home shortcuts, Settings display, Codex launch, invocation receipt display, refs-only status panels. | Agent manifest authority, install/update/rollback execution, agent domain truth, prompt internals, stage progression, artifact bodies, quality verdicts, readiness truth. |
 | OPL Agent Registry | Configurable discovery list from GitHub or URL; entry metadata, labels, source/trust hints, and manifest URLs for packages the user may install. | Agent business behavior, package lock state, installed receipts, runtime mutation, or domain authority. |
 | Agent Manifest URL | Authoritative package input selected by a registry entry or explicit user import. | Registry-wide catalog policy, App shell behavior, or domain workflow truth. |
-| OPL Framework | Managed package roots, manifest validation, install/update/apply/repair/rollback, package manifests, post-apply Codex surface sync, package locks, package receipts. | App product IA, shell rendering, domain artifact authority. |
+| OPL Framework | Managed package roots, manifest validation, install/update/apply/repair/rollback, package manifests, post-apply Codex surface sync, package locks, package receipts, and non-live physical Codex plugin materialization when a manifest declares a local plugin source. | App product IA, shell rendering, domain artifact authority, live release readiness. |
 | Codex Surface | Plugin registry, plugin-packaged skills, direct skill discovery, executor invocation. | OPL package lifecycle policy or domain truth. |
 | Professional Agent Package | Agent manifest, bundled required skill packs, optional companion refs, entrypoints, health check, package version, rollback ref. | App shell behavior, App release readiness, other agents' package state. |
 | Skill Pack | Reusable Codex skill content and metadata. It may live in a separate repo during development. | Runtime install policy or App GUI state. |
@@ -87,7 +89,8 @@ rolls back, and receipts:
   "source": "first_party_starter",
   "codex_surface": {
     "plugin_ids": ["research-starter"],
-    "required_skill_ids": ["research-starter"]
+    "required_skill_ids": ["research-starter"],
+    "plugin_source_path": "/absolute/path/to/plugin-source"
   },
   "skill_packs": [
     {
@@ -163,7 +166,16 @@ OPL Framework owns producing and applying it:
   "source_kind": "first_party_managed_cohort",
   "trust_tier": "first_party",
   "action_receipt_id": "opl-action-receipt-ref",
-  "rollback_ref": "package-receipt-ref"
+  "rollback_ref": "package-receipt-ref",
+  "physical_surface": {
+    "status": "materialized",
+    "plugin_id": "research-starter",
+    "marketplace_id": "opl-agent-opl.research-starter-local",
+    "codex_plugin_cache_path": "$CODEX_HOME/plugins/cache/...",
+    "marketplace_path": "$OPL_STATE_DIR/codex-plugin-marketplaces/.../.agents/plugins/marketplace.json",
+    "codex_config_path": "$CODEX_HOME/config.toml",
+    "reload_required": true
+  }
 }
 ```
 
@@ -203,12 +215,12 @@ Avoid this shape:
 | 3 | Add OPL Agent Registry discovery and manifest URL boundary. | 100% | done | `contracts/agent-package-registry.json` defines first-party starter entries; `agent_registry_policy` defines GitHub/URL registry sources, discovery-only semantics, manifest URL install routing, and no Session Contract; validator and release-boundary tests cover it. Framework readback exposes `connect agent-packages registry refresh`, `validate-manifest`, `install`, and `list`; local `list --json` returns the Framework state files and no-authority boundary. | Physical marketplace curation and public registry publication remain release/distribution work. |
 | 4 | Define agent package manifest and shortcut metadata in contracts. | 85% | partial | First-party starter package metadata plus managed non-default package metadata are contract/profile fields with validator and release-boundary coverage; lifecycle policy defines package lock and receipt fields; registry entries now point at manifest URLs. Framework help/readback exposes manifest validation as a receipt-producing command and forbids session/domain authority fields by contract. | Standalone published JSON schema and broader manifest fixture set across first-party repos. |
 | 5 | Keep launch evidence as thin invocation receipt. | 90% | partial | `agent_package_invocation_receipt_policy` requires launch-only package/shortcut/Codex fields and explicitly excludes session behavior, domain workflow, and readiness authority; active shell now emits `opl_agent_package_invocation` while retaining legacy `opl_assistant_route` as migration alias. | Runtime/readback surfaces still need to display or consume the new receipt end to end. |
-| 6 | Add package lifecycle actions. | 100% | done | `app-install-exposure-policy` names discover/install/update/repair/rollback/uninstall/enable/disable/hide/unhide/manual_check/apply_selected, package-lock requirement, action receipt, rollback ref, plus validator and release-boundary coverage. Framework implements CLI and App-action routes for install/update/repair/rollback/uninstall/hide/unhide/enable/disable/status and writes lifecycle receipts/readback. | Physical plugin materialization and live Codex-surface reload proof are tracked separately below. |
-| 7 | Make first-party starter packages plus required skill packs atomic. | 70% | partial | Contract now requires atomic package units to include plugin manifest, bundled required skill entries, optional companion skill refs, and treats each starter plus required professional skill pack as one lifecycle unit. Framework install lock contract records `bundled_required_skill_ids` and rollback ref. | Release packaging must materialize locked required skill packs into each first-party package and prove rollback across the physical Codex surface. |
-| 8 | Build Settings > Agents & Capabilities package manager UI. | 92% | partial | Settings Capabilities projects package id, Codex entry, default Home visibility, user-configurable flag, registry discovery role, source kind, package lock ref, action receipt ref, rollback ref, workflow refs, connector refs, and resource refs from package/profile/runtime state. Active shell exposes registry refresh, manifest install, update, repair, rollback, uninstall, hide, and show action routes. | Post-install physical Codex-surface reload feedback remains release/runtime evidence. |
+| 6 | Add package lifecycle actions. | 100% | done | `app-install-exposure-policy` names discover/install/update/repair/rollback/uninstall/enable/disable/hide/unhide/manual_check/apply_selected, package-lock requirement, action receipt, rollback ref, plus validator and release-boundary coverage. Framework implements CLI and App-action routes for install/update/repair/rollback/uninstall/hide/unhide/enable/disable/status and writes lifecycle receipts/readback. | Live Codex-surface reload proof remains tracked separately below. |
+| 7 | Make first-party starter packages plus required skill packs atomic. | 80% | partial | Contract now requires atomic package units to include plugin manifest, bundled required skill entries, optional companion skill refs, and treats each starter plus required professional skill pack as one lifecycle unit. Framework install lock contract records `bundled_required_skill_ids`, rollback ref, and `physical_surface` for manifest-declared local plugin sources. | Release packaging must materialize locked required skill packs into each first-party package and prove rollback across the installed Codex surface. |
+| 8 | Build Settings > Agents & Capabilities package manager UI. | 92% | partial | Settings Capabilities projects package id, Codex entry, default Home visibility, user-configurable flag, registry discovery role, source kind, package lock ref, action receipt ref, rollback ref, workflow refs, connector refs, and resource refs from package/profile/runtime state. Active shell exposes registry refresh, manifest install, update, repair, rollback, uninstall, hide, and show action routes. | Post-install Codex-surface reload proof and richer `physical_surface` display remain release/runtime evidence. |
 | 9 | Make Home shortcuts user-configurable. | 85% | partial | Contracts/profile and active shell model Home as `home_agent_shortcuts` over installed packages with `user_configurable=true`; Home shortcuts no longer come from hard-coded starter presentation constants. Active shell persists local shortcut visibility and ordering preferences. | Framework-backed or cross-device preference readback over installed packages remains open. |
-| 10 | Support third-party/manual package install. | 90% | partial | Contract allows local manifest file, manifest URL, and manifest import only through explicit user action, validation, trust tier, package lock receipt, and rollback ref; the Registry is discovery-only and forbids App hardcoded repo paths, duplicate bare skill mirrors, and Homebrew package formulae. Framework readback exposes direct manifest install and registry-selected install routes. | Physical plugin/skill-pack materialization and uninstall/rollback cleanup for third-party packages. |
-| 11 | Migration and regression gates. | 92% | partial | Validators/tests require package shortcuts, registry discovery, generic launch receipts, lifecycle/source/lock/atomic-bundle policy; active shell tests cover package profile getters, Home shortcut rendering, Settings projection, lifecycle action routing, and launch receipt emission. Framework tests cover package list, lock file, lifecycle ledger file, and no-authority boundary. | End-to-end live custom package install, physical uninstall/hide cleanup, no duplicate skill mirror against installed Codex surface, and release/install evidence. |
+| 10 | Support third-party/manual package install. | 95% | partial | Contract allows local manifest file, manifest URL, and manifest import only through explicit user action, validation, trust tier, package lock receipt, and rollback ref; the Registry is discovery-only and forbids App hardcoded repo paths, duplicate bare skill mirrors, and Homebrew package formulae. Framework readback exposes direct manifest install, registry-selected install routes, and manifest-declared local plugin materialization/cleanup. | Remote payload sourcing, release-packaged skill-pack materialization, installed-surface reload proof, and live user-path evidence. |
+| 11 | Migration and regression gates. | 96% | partial | Validators/tests require package shortcuts, registry discovery, generic launch receipts, lifecycle/source/lock/atomic-bundle policy; active shell tests cover package profile getters, Home shortcut rendering, Settings projection, lifecycle action routing, and launch receipt emission. Framework tests cover package list, lock file, lifecycle ledger file, no-authority boundary, Codex plugin cache materialization, marketplace wrapper/config registration, repair, rollback, and uninstall cleanup. | End-to-end live custom package install, no duplicate skill mirror against an installed running Codex surface, and release/install evidence. |
 
 ## Completion Audit
 
@@ -216,10 +228,10 @@ Avoid this shape:
 | --- | --- | ---: | --- | --- |
 | App registry and manifest URL contract | done | 100% | `contracts/agent-package-registry.json`; `contracts/app-install-exposure-policy.json#agent_installation_contract.agent_registry_policy`; Framework help/readback for `connect agent-packages registry refresh`, `validate-manifest`, `install`, and `list`. | Public registry publication is separate release/distribution work. |
 | App no-strong-session and refs-only boundary | done | 100% | This plan, App decisions/invariants/architecture, and package/invocation receipt policy exclude prompt bodies, workflow schema, artifact schema, readiness verdicts, quality verdicts, and owner receipt authority. | None for App contract/docs. |
-| Framework registry/manifest/install lock/readback slice | done | 100% | `node --experimental-strip-types /Users/gaofeng/workspace/one-person-lab/src/entrypoints/cli.ts connect agent-packages list --json` returns `surface_kind=opl_agent_package_readback`, state file refs, installed count, lifecycle receipt count, and no-authority boundary. | This is non-live local readback; it does not prove physical plugin materialization. |
-| Update/repair/rollback/uninstall/hide/show execution | done | 100% | Framework implements CLI/App-action routes for update, repair, rollback, uninstall, hide, unhide, enable, disable, and status; focused tests cover package-only lifecycle actions and receipt/readback paths. | Physical Codex plugin/skill changes triggered by those receipts remain release/runtime evidence. |
+| Framework registry/manifest/install lock/readback and physical Codex surface slice | done | 100% | Framework main `1a691fbf` implements `physical_surface` in package locks and lifecycle receipts; focused tests prove registry fetch, manifest validation, install, list, status, local plugin cache materialization under `CODEX_HOME`, OPL state marketplace wrapper, Codex config registration, repair, rollback, uninstall cleanup, and no-authority boundary. | This is non-live Framework evidence; it does not prove installed App reload or release/currentness readiness. |
+| Update/repair/rollback/uninstall/hide/show execution | done | 100% | Framework implements CLI/App-action routes for update, repair, rollback, uninstall, hide, unhide, enable, disable, and status; focused tests cover package-only lifecycle actions, receipt/readback paths, physical repair/rematerialization, and uninstall cleanup. | Installed Codex-surface reload proof remains release/runtime evidence. |
 | Persisted Home shortcut ordering/visibility | partial | 85% | App contracts/profile and active shell model `home_agent_shortcuts` with `user_configurable=true`; active shell persists local shortcut visibility/order preferences and tests Home resolution from them. | Framework-backed or cross-device preference readback over installed packages remains open. |
-| Physical plugin and required skill-pack materialization | blocked | 0% | App contract requires atomic package units and forbids duplicate bare skill mirrors. | Needs release/runtime owner evidence that locked package payloads materialize into the Codex plugin/skill surface and can rollback/cleanup physically. |
+| Physical plugin and required skill-pack materialization | partial | 55% | Framework main `1a691fbf` materializes manifest-declared local plugin sources into `CODEX_HOME` plugin cache, OPL state marketplace wrapper, Codex config tables, lock `physical_surface`, and receipt `physical_surface`; focused tests prove install/repair/rollback/uninstall cleanup. | Release-packaged required skill-pack materialization for first-party starter packages, remote payload sourcing, and installed Codex reload/readback proof remain open. |
 | Live install/currentness/readiness evidence | blocked | 0% | Boundary explicitly remains deferred; no Live evidence claim is made here. | Requires real user-path or release-owner evidence, outside this docs/contract wording lane. |
 
 ## Remaining Landing Order
@@ -231,11 +243,11 @@ Avoid this shape:
 3. Package manifest schema and fixture: first-party starter registry entries
    become starter packages.
 4. Invocation receipt schema: keep it launch-only and refs-only.
-5. Physical Codex plugin/skill materialization: apply package locks to the
-   installed Codex plugin/skill surface, prove reload, and prove rollback /
-   uninstall cleanup. The registry, manifest validation, lock, lifecycle
-   receipt, exposure, status, App action, and list readback slice is already
-   Framework-owned.
+5. Installed Codex surface proof: Framework now writes local plugin cache,
+   marketplace wrapper, Codex config tables, lock `physical_surface`, and
+   receipt `physical_surface` for manifest-declared local plugin sources;
+   next proof is installed App/Codex reload readback plus release-packaged
+   rollback/uninstall cleanup.
 6. Starter package lock: materialize required external skill packs into the
    agent package at release time.
 7. Settings package manager: show package state, source, version, repair/update,

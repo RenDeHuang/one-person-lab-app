@@ -970,7 +970,8 @@
         "source_kind",
         "trust_tier",
         "action_receipt_id",
-        "rollback_ref"
+        "rollback_ref",
+        "physical_surface"
       ],
       "source_kind_allowed_values": [
         "first_party_managed_cohort",

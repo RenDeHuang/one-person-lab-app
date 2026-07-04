@@ -34,10 +34,13 @@ Framework validation and package lifecycle execution. The validated manifest
 plus Framework package lock, rollback ref, and action receipt is the install
 authority for the non-live contract/readback slice. Framework also owns
 update, repair, rollback, uninstall, hide/unhide, enable/disable, status, and
-their lifecycle receipts. Active shell may persist local Home shortcut
-preferences, but physical Codex plugin/skill materialization, release-packaged
-rollback cleanup, installed Codex-surface reload proof, and live user-path
-evidence still need separate Framework/runtime or release-owner evidence.
+their lifecycle receipts. Framework now also materializes manifest-declared
+local Codex plugin sources into `CODEX_HOME` plugin cache, OPL state local
+marketplace wrappers, Codex config tables, package lock `physical_surface`, and
+lifecycle receipt `physical_surface`. Active shell may persist local Home
+shortcut preferences, but release-packaged required skill-pack materialization,
+installed Codex-surface reload proof, and live user-path evidence still need
+separate runtime or release-owner evidence.
 
 Home entry ownership is split deliberately for GUI replacement. The App contract owns user-facing shortcut targets and labels, while installed Agent Packages provide the Codex plugin/skill surfaces that those shortcuts invoke. Existing MAS/MAG/RCA/BookForge entries are starter shortcuts and migration seeds; future compliant first-party, organization, user, or third-party packages should be able to provide the same shortcut metadata without App source edits. Shells render configured shortcuts, launch Codex with the package's declared plugin/skill surface, and persist an App-owned invocation receipt. They do not decide which packages are installed, which shortcuts are default, whether an agent appears on the home screen, or whether the route is exposed as a backend selector.
 
