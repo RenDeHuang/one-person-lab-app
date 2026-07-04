@@ -52,7 +52,8 @@ test('first-run matrix locks Full clean-machine and App-managed bootstrap rules'
   assert.ok(standardClean.expects.some((entry) => /Core first-launch readiness.*opl system initialize --json/.test(entry)));
   assert.ok(standardClean.release_evidence_artifacts.includes('artifacts/system-initialize.json'));
   assert.ok(standardClean.release_evidence_artifacts.includes('artifacts/assistant-route-smoke-summary.json'));
-  assert.ok(standardClean.expects.some((entry) => /Packaged GUI route smoke selects MAS, MAG, and RCA/.test(entry)));
+  assert.ok(standardClean.expects.some((entry) => /professional Agent Package shortcuts/.test(entry)));
+  assert.ok(standardClean.expects.some((entry) => /agent_package_shortcut invocation receipts/.test(entry)));
 
   assert.equal(fullDmg.release_gate, true);
   assert.equal(fullDmg.vm.runtime_profile, 'full');
