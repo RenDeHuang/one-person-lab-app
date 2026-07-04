@@ -19,10 +19,11 @@ and implementers, not for end-user onboarding.
 | [`gui/element-audit.md`](gui/element-audit.md) | Human review of ordinary user GUI elements, placement, gaps, and interaction logic. |
 | [`gui/codex-to-opl-app-delta.md`](gui/codex-to-opl-app-delta.md) | Product delta from Codex App baseline to OPL App. |
 | [`gui/feature-inventory.md`](gui/feature-inventory.md) | Cross-shell GUI capability inventory, reference mapping, and validation classes. |
+| [`gui/opl-native-workbench-plan.md`](gui/opl-native-workbench-plan.md) | `opl-native-workbench` foreground alternative candidate decision, external-learning landing, and staged evidence plan. |
 | [`gui/claude-science-runtime-task-awareness-plan.md`](gui/claude-science-runtime-task-awareness-plan.md) | Claude Science external-learning landing plan, mapped onto Runtime global task awareness and current-task slices. |
 | [`gui/settings-control-center.md`](gui/settings-control-center.md) | App-owned Settings Control Center product system and validation boundary. |
 | [`gui/settings-control-center-completion-audit.md`](gui/settings-control-center-completion-audit.md) | Current completion audit for the Settings Control Center product-system checklist. |
-| [`shell-alternatives/hermes-gui-adaptation-plan.md`](shell-alternatives/hermes-gui-adaptation-plan.md) | Hermes Desktop foreground alternative adaptation route. |
-| [`shell-alternatives/hermes-first-run-flow.md`](shell-alternatives/hermes-first-run-flow.md) | Hermes candidate first-run and model-access flow. |
+| [`shell-alternatives/hermes-gui-adaptation-plan.md`](shell-alternatives/hermes-gui-adaptation-plan.md) | Hermes Desktop prior foreground alternative adaptation route. |
+| [`shell-alternatives/hermes-first-run-flow.md`](shell-alternatives/hermes-first-run-flow.md) | Hermes prior-candidate first-run and model-access flow. |
 
 Archived shell-candidate proof lives under `docs/history/shell-candidates/`.

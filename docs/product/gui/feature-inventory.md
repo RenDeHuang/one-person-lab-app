@@ -17,11 +17,13 @@ thin adapter delta 表达：读取 generated profile、复用 existing primitive
 validation 证明。这样后续跟随 AionUI upstream 或替换为其他 shell 时，迁移的是
 contract implementation，而不是 fork-local 产品逻辑。
 
-对 `hermes-codex` 这样的成熟 upstream candidate，清单里的能力也不应解释为
-“从零设计并重写 Hermes”。Hermes Desktop 已经拥有 chat、文件/预览、工具输出、
-settings、onboarding 和原生打包能力；OPL 的目标是在这条成熟基线上做品牌化、
-Codex CLI 后端桥接、普通路径收窄、必要 OPL 功能接入和 release isolation。能力
-提升前先做 Hermes 原生功能对比，明确哪些保留、隐藏、重命名、替换或延后。
+对 `opl-native-workbench` 这样的 foreground alternative candidate，清单里的能力
+也不应解释为“从零重写整个 App”。候选 workbench 先通过 App-owned candidate
+registry、adapter、state/action bridge、shared renderer 和 explicit package
+wrapper 进入 OPL App，再按
+[`opl-native-workbench-plan.md`](opl-native-workbench-plan.md) 的 `adopt` /
+`adapt` / `watch_only` / `reject` 分类吸收 K-Dense、OpenClaudeScience /
+Claude Science、AGUI 和 Hermes 的成熟经验。
 
 本文是能力清单，不是完整交互细则。理想且不绑定具体 shell 的交互模型看
 [`ideal-interaction-spec.md`](ideal-interaction-spec.md)；
@@ -33,6 +35,8 @@ Codex App 变成 OPL App 的产品增量看
 - `ideal-interaction-spec.md` 定义不绑定 shell 的理想交互模型。
 - 本文只列产品级 GUI 能力和外部参考到 OPL App 的映射，不保存实现完成流水。
 - `codex-to-opl-app-delta.md` 只解释 Codex App-like 产品增量。
+- `opl-native-workbench-plan.md` 记录 foreground alternative candidate 的决策、
+  外部学习归类和 staged evidence 顺序。
 - Settings 的机器边界归 `contracts/app-settings-control-plane.json`；Settings 设计归
   `settings-control-center.md`；完成审计只读
   `settings-control-center-completion-audit.md` 的当前结论。
@@ -114,19 +118,19 @@ App 目标是专门服务 OPL 工作的 Codex App 体验，不是通用 agent da
   overlay/drawer/右侧浮层形式可见，至少保证 `opl-context-tabs` 和
   `opl-routing-panel` 实际显示。
 
-WebUI 目标与 foreground alternative shell 共享同一个 renderer。对已归档 AGUI
-proof，Electron 与 WebUI 曾共享 React/CopilotKit renderer；这只作为 explicit replay
-边界保留。Electron 通过 native preload/IPC 提供 `window.oplCandidate`；browser
-mode 通过 local Web transport bridge 暴露同样 App-owned API shape，使用 HTTP
-actions 和 SSE Codex events。WebUI 是同一 chat-first surface 的 delivery surface，
-不是拥有独立 state 或 authority 的第二个产品。
+WebUI 目标与 foreground alternative shell 共享同一个 renderer。对
+`opl-native-workbench`，Electron 与 WebUI 必须使用同一 App-owned renderer shape，
+只替换 delivery-surface adapter。对已归档 AGUI proof，Electron 与 WebUI 曾共享
+React/CopilotKit renderer；这只作为 explicit replay 边界保留。Electron 通过 native
+preload/IPC 提供 candidate bridge；browser mode 通过 local Web transport bridge
+暴露同样 App-owned API shape，使用 HTTP actions 和 SSE Codex events。WebUI 是同一
+chat-first surface 的 delivery surface，不是拥有独立 state 或 authority 的第二个产品。
 
-Hermes Desktop candidate 的 WebUI 要求遵循同源 UI 原则。Hermes upstream renderer
-已经是 React/Vite Web 技术栈；OPL 不应为 Docker/WebUI 另写一套相似界面。正确做法是
-保留同一 renderer 和 App product profile，只把 Electron preload/IPC adapter 替换为
-browser shim + Web server transport。Docker/WebUI 的 server 负责连接 Codex CLI、
-OPL CLI、workspace volume、HTTP/WebSocket/SSE events 和 file/preview APIs；浏览器
-只消费 bridge，不取得 runtime truth 或宿主机任意文件系统 authority。
+Hermes Desktop 的同源 renderer 经验作为 prior-candidate reference 保留。当前正确做法
+仍是保留同一 renderer 和 App product profile，只把 Electron preload/IPC adapter
+替换为 browser shim + Web server transport。Docker/WebUI 的 server 负责连接 Codex
+CLI、OPL CLI、workspace volume、HTTP/WebSocket/SSE events 和 file/preview APIs；
+浏览器只消费 bridge，不取得 runtime truth 或宿主机任意文件系统 authority。
 
 ## PilotDeck 启发的信息组织
 
@@ -163,7 +167,8 @@ authority。
 
 ## Codex App-like 视觉目标与 Stitch 工具边界
 
-`hermes-codex` 和未来 foreground shell 的主目标是 Codex App-like chat-first surface：
+`opl-native-workbench`、Hermes prior candidate 和未来 foreground shell 的主目标是
+Codex App-like chat-first surface：
 中心对话、底部多行 composer、轻量顶部 chrome、窄 icon rail，以及默认收起的
 workspace/session rail 和右侧 inspector。Google Stitch 可以持续作为在线设计
 工具，用来生成草图、校准比例、字体、圆角、留白和视觉层次；它不是唯一参考，
@@ -337,9 +342,52 @@ workbench、表格化 dashboard 或默认右侧 inspector，应只吸收视觉 t
 - 修改 primary chat surface 时，用 visible pixels 证明 source 和 packaged UI
   smoke。
 
-## Hermes Desktop Candidate 投影
+## OPL Native Workbench Candidate 投影
 
-`hermes-codex` 是当前唯一 foreground alternative GUI route。它的来源是
+`opl-native-workbench` 是 foreground alternative GUI route，作为独立 shell
+repo/checkout 挂载到 `shells/opl-native-workbench`。它和 AionUI、Hermes、AGUI 同类：
+shell implementation history 不进入 App repo 默认分支，App repo 只通过
+`contracts/app-shell-candidates.json`、`contracts/shell-adapters/opl-native-workbench.json`、
+App-owned GUI contracts、page-state matrices、candidate validation 和 release gates
+管控。
+
+第一版落地顺序来自
+[`opl-native-workbench-plan.md`](opl-native-workbench-plan.md)：
+
+1. Candidate registration：registry 把 foreground alternative 指向
+   `opl-native-workbench`。
+2. Adapter：新增 `contracts/shell-adapters/opl-native-workbench.json`，但默认 release
+   shell 仍由 `contracts/app-shell-adapter.json` 指向 AionUI。
+3. External repo / checkout：`shells/opl-native-workbench` 作为外部 checkout，不
+   vendoring shell history。
+4. State/action bridge：只消费 `opl app state --profile fast --json` 和
+   `opl app action execute ... --json`。
+5. Shared renderer：Electron 和明确 claim 的 WebUI 使用同一 App-owned renderer
+   shape。
+6. Package manifest：explicit candidate package 产出真实 `.app` manifest，不改变
+   stable/nightly release packaging。
+7. Source/WebUI smoke：只证明该 candidate cohort 的技术路径。
+8. Docs/runbook：本文、status、decisions、scripts guide 和 plan 对齐。
+9. Later visual/live evidence：截图、packaged smoke、clean VM、same-cohort user path
+   和 owner acceptance 以后单独证明。
+
+外部学习归类：
+
+| Pattern | Class | OPL landing |
+| --- | --- | --- |
+| K-Dense delivery experience、project sandbox、file/preview/result delivery、structured forms | adopt/adapt | 作为 workspace/project UX、delivery refs 和 App action dry-run / confirmation 形态。 |
+| OpenClaudeScience / Claude Science workbench framing | adapt | 借鉴“一个工作台、结果带来路、资源连续、连接器和 reviewer refs”的用户表达，落到 Runtime task awareness 和 inspector。 |
+| AGUI shared renderer / bridge proof | adapt | 保留 shared renderer 和 delivery adapter 经验，不复活 AGUI ordinary UI 或 debug protocol copy。 |
+| External runtime/agent authority、Pi/DeepAgents/LangGraph-like runtimes、provider/backend marketplace | watch_only/reject | 只作为研究材料，不进入普通 App executor、provider truth、runtime authority 或 marketplace。 |
+| Domain truth、artifact authority、owner receipts、release readiness | reject | 继续归 Framework、domain owners、release artifacts 和 owner receipts。 |
+
+当前 docs 和 candidate-structure work 不表示 release-ready、live evidence、
+active-shell-adopted、production-ready、domain-ready 或 packaged GUI acceptance。
+切默认 release shell 必须以后显式改 `contracts/app-shell-adapter.json` 并通过 gates。
+
+## Hermes Desktop Prior Candidate 投影
+
+`hermes-codex` 是 prior foreground alternative GUI route。它的来源是
 `NousResearch/hermes-agent` 的 `apps/desktop`，许可证记录为 MIT。Hermes 的价值
 在于它比通用 agent dashboard 更接近 Codex-like desktop 形态；但它仍必须通过
 App-owned contracts、adapter 和验证脚本进入 OPL App，不能直接成为 product truth。
@@ -362,6 +410,8 @@ Hermes 第一版接入边界：
 - Build wrapper：
   `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/hermes-codex.json npm run package`。
 - Active shell：仍为 AionUI；Hermes 不进入默认 stable/nightly release packaging。
+- Current role：保留为 prior foreground alternative reference，不再是默认
+  foreground implementation scope。
 
 Hermes 第一版按三阶段路线推进。当前 Phase 1 不是“实现所有 Hermes Desktop
 功能”，而是 compatibility firewall：每个 upstream 前端依赖必须被分类为
@@ -442,7 +492,7 @@ Hermes WebUI parity TODO：
 - 建立 WebUI smoke：同一 renderer paint、bridge init、Codex turn、workspace/file
   access、preview/tool output 和 settings 基本路径。
 - 通过 App-owned Docker/WebUI release gates 后，再把 `webui_parity` 从 deferred
-  surfaces 提升为 Hermes candidate capability。
+  surfaces 提升为 Hermes prior-candidate capability。
 
 Hermes 后续 OPL 定制的优先级：
 
@@ -467,8 +517,9 @@ Hermes 后续 OPL 定制的优先级：
 
 AG-UI/CopilotKit 已从 foreground candidate 降为 archived technical proof。以下内容
 只用于回放历史技术验证或在用户明确要求 AGUI 时恢复上下文；默认 GUI 完善路线不再
-更新 AGUI。当前 App GUI 主线是 AionUI，唯一 foreground alternative 是 Hermes
-Desktop / `hermes-codex`。
+更新 AGUI。当前 App GUI 主线是 AionUI，foreground alternative 是
+`opl-native-workbench`；Hermes Desktop / `hermes-codex` 是 prior foreground
+alternative reference。
 
 AG-UI/CopilotKit proof 使用：
 
@@ -560,7 +611,7 @@ isolation gate 由下列 owner 承接：
 | --- | --- |
 | Archived proof runbook、命令顺序、最低验收、evidence lifecycle | `docs/history/shell-candidates/agui-codex-candidate-verification.md` |
 | Archived proof registry、explicit adapter participation、explicit replay gate、reference implementations | `contracts/app-shell-candidates.json` |
-| Explicit adapter selection and shell root | `contracts/shell-adapters/agui-codex.json`; Hermes uses `contracts/shell-adapters/hermes-codex.json` |
+| Explicit adapter selection and shell root | `contracts/shell-adapters/agui-codex.json`; `opl-native-workbench` uses `contracts/shell-adapters/opl-native-workbench.json`; Hermes uses `contracts/shell-adapters/hermes-codex.json` as prior-candidate reference |
 | Archived proof registry validation | `scripts/validate-shell-candidates.ts` and `npm run validate:shell-candidates -- --candidate agui-codex` |
 | Default active-shell guard | `contracts/app-shell-adapter.json` and `scripts/validate-active-shell.ts --quick` |
 | Archived proof evidence | candidate manifests, shell artifacts, CI logs, source/WebUI/package smoke, and App-root validation output |
@@ -571,7 +622,7 @@ AGUI 的 active-shell adoption 路径；若 App owner 未来重新打开 AGUI，
 GUI route policy、active-shell contract 和 release gates，而不是从 archived replay
 证据直接推导默认 stable/nightly release path。
 
-`hermes-codex` 是唯一 foreground alternative candidate。Hermes 缺 checkout 时，
-验证结果应停在明确 blocker；
-补齐 `shells/hermes` 或 `../opl-hermes-shell` 后，才能继续做 branding/runtime
-bridge/build wrapper 替换和后续 smoke evidence。
+`opl-native-workbench` 是 foreground alternative candidate。缺
+`shells/opl-native-workbench` checkout 或 adapter contract 时，验证结果应停在明确
+blocker。Hermes 缺 checkout 时，只影响 prior-candidate reference replay，不阻断
+`opl-native-workbench` docs 或 candidate-structure lane。
