@@ -297,6 +297,50 @@ process.stdout.write(JSON.stringify({ choices: [{ message: { content: 'OPL_RELEA
   assert.equal(readback.model, 'auto');
 });
 
+test('AI release notes provider probe accepts the existing CODEX route names', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-codex-env-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const fakeCurl = path.join(binDir, 'curl');
+  const requestPath = path.join(tempRoot, 'probe-request.json');
+
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.writeFileSync(fakeCurl, `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+const endpoint = args.find((arg) => /^https?:\\/\\//.test(arg));
+const body = args[args.indexOf('-d') + 1];
+const payload = JSON.parse(body);
+fs.writeFileSync(${JSON.stringify(requestPath)}, JSON.stringify({
+  endpoint,
+  model: payload.model,
+  hasBearer: args.includes('Authorization: Bearer codex-secret-test'),
+}, null, 2));
+process.stdout.write(JSON.stringify({ choices: [{ message: { content: 'OPL_RELEASE_NOTES_PROVIDER_OK' } }] }));
+`, { mode: 0o755 });
+
+  const result = runNode(['scripts/release-notes-ai-writer.ts', '--probe-openai-compatible'], {
+    env: {
+      PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
+      OPL_RELEASE_NOTES_CODEX_BASE_URL: 'http://127.0.0.1:3001/v1',
+      OPL_RELEASE_NOTES_CODEX_API_KEY: 'codex-secret-test',
+      OPL_RELEASE_NOTES_MODEL: 'gpt-5.4-mini',
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.doesNotMatch(result.stdout, /codex-secret-test/);
+  assert.doesNotMatch(result.stderr, /codex-secret-test/);
+  const request = JSON.parse(fs.readFileSync(requestPath, 'utf8'));
+  assert.deepEqual(request, {
+    endpoint: 'http://127.0.0.1:3001/v1/chat/completions',
+    model: 'gpt-5.4-mini',
+    hasBearer: true,
+  });
+  const readback = JSON.parse(result.stdout);
+  assert.equal(readback.provider, 'openai_compatible');
+  assert.equal(readback.model, 'gpt-5.4-mini');
+});
+
 test('AI release notes writer keeps evidence-completed user sections before Technical details', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-section-order-'));
   const binDir = path.join(tempRoot, 'bin');
