@@ -289,6 +289,11 @@ OPL_RELEASE_NOTES_CODEX_API_KEY=<repo secret>
 OPL_RELEASE_NOTES_MODEL=gpt-5.4-mini
 ```
 
+The release-note writer reads the explicit `OPENAI_COMPATIBLE` route first and
+then the existing `CODEX` route. Workflows pass both names through separately so
+the compatibility behavior lives in the writer, not in a one-off workflow
+expression.
+
 Keep API keys in GitHub Actions secrets only. Do not put them in workflow vars,
 release evidence, artifacts, logs, or repository files. The probe prints only
 provider status, model, and endpoint host/path; it redacts provider output that

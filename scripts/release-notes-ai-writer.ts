@@ -117,6 +117,16 @@ function redactProviderOutput(value: string, token: string) {
   return redactSecret(value, token).slice(0, 1200);
 }
 
+function envValue(...names: string[]) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+  return '';
+}
+
 function compactArray<T>(values: T[] | undefined, limit: number) {
   return Array.isArray(values) ? values.slice(0, limit) : [];
 }
@@ -651,23 +661,37 @@ function openAICompatibleEndpoint(baseUrl: string) {
   return `${trimmed}/v1/chat/completions`;
 }
 
-function openAICompatibleConfigured() {
-  return Boolean(
-    process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL?.trim()
-    && process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY?.trim()
+function openAICompatibleConfig() {
+  const baseUrl = envValue(
+    'OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL',
+    'OPL_RELEASE_NOTES_CODEX_BASE_URL',
   );
+  const token = envValue(
+    'OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY',
+    'OPL_RELEASE_NOTES_CODEX_API_KEY',
+  );
+  const modelList = envValue(
+    'OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS',
+    'OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL',
+    'OPL_RELEASE_NOTES_MODEL',
+  );
+  return {
+    endpoint: openAICompatibleEndpoint(baseUrl),
+    token,
+    models: listFromEnv(modelList, [defaultOpenAICompatibleModel]),
+  };
+}
+
+function openAICompatibleConfigured() {
+  const config = openAICompatibleConfig();
+  return Boolean(config.endpoint && config.token);
 }
 
 function runOpenAICompatibleProvider(prompt: string, evidence: ReleaseNotesEvidence) {
-  const endpoint = openAICompatibleEndpoint(process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL || '');
-  const token = process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY?.trim() || '';
+  const { endpoint, token, models } = openAICompatibleConfig();
   if (!endpoint || !token) {
-    throw new Error('Missing OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL or OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY.');
+    throw new Error('Missing OpenAI-compatible release-note provider config. Set OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL and OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY, or the existing OPL_RELEASE_NOTES_CODEX_BASE_URL and OPL_RELEASE_NOTES_CODEX_API_KEY route.');
   }
-  const models = listFromEnv(
-    process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS || process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL,
-    [defaultOpenAICompatibleModel],
-  );
   const failures: string[] = [];
   for (const model of models) {
     const providerLabel = `OpenAI-compatible ${model}`;
@@ -683,15 +707,10 @@ function runOpenAICompatibleProvider(prompt: string, evidence: ReleaseNotesEvide
 }
 
 function runOpenAICompatibleProbe() {
-  const endpoint = openAICompatibleEndpoint(process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL || '');
-  const token = process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY?.trim() || '';
+  const { endpoint, token, models } = openAICompatibleConfig();
   if (!endpoint || !token) {
-    throw new Error('Missing OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL or OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY.');
+    throw new Error('Missing OpenAI-compatible release-note provider config. Set OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL and OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY, or the existing OPL_RELEASE_NOTES_CODEX_BASE_URL and OPL_RELEASE_NOTES_CODEX_API_KEY route.');
   }
-  const models = listFromEnv(
-    process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS || process.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL,
-    [defaultOpenAICompatibleModel],
-  );
   const failures: string[] = [];
   for (const model of models) {
     const providerLabel = `OpenAI-compatible ${model}`;
@@ -899,7 +918,7 @@ export function buildAiReleaseNotesDocument(evidence: ReleaseNotesEvidence, opti
   if (openAICompatibleConfigured()) {
     return runOpenAICompatibleProvider(prompt, evidence);
   }
-  throw new Error('No online OpenAI-compatible release-note provider is configured. Set OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL and OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY, or explicitly set OPL_RELEASE_NOTES_PROVIDER=codex for a local operator fallback.');
+  throw new Error('No online OpenAI-compatible release-note provider is configured. Set OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL and OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY, or the existing OPL_RELEASE_NOTES_CODEX_BASE_URL and OPL_RELEASE_NOTES_CODEX_API_KEY route. Set OPL_RELEASE_NOTES_PROVIDER=codex only for a local operator fallback.');
 }
 
 type AiReleaseNotesCliOptions = AiReleaseNotesOptions & {

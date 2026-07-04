@@ -1369,8 +1369,10 @@ test('existing same-tag standard plus Full publish uses deterministic full relea
   assert.match(fullWorkflow, /Verify release upload plan[\s\S]*OPL_RELEASE_NOTES_MODE: template/);
   assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_MODE: ai/);
   assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_PROVIDER: openai_compatible/);
-  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL \|\| vars\.OPL_RELEASE_NOTES_CODEX_BASE_URL \}\}/);
-  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY \|\| secrets\.OPL_RELEASE_NOTES_CODEX_API_KEY \}\}/);
+  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL \}\}/);
+  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY \}\}/);
+  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_CODEX_BASE_URL: \$\{\{ vars\.OPL_RELEASE_NOTES_CODEX_BASE_URL \}\}/);
+  assert.match(fullWorkflow, /Publish GitHub Release assets[\s\S]*OPL_RELEASE_NOTES_CODEX_API_KEY: \$\{\{ secrets\.OPL_RELEASE_NOTES_CODEX_API_KEY \}\}/);
   assert.match(fullWorkflow, /node --experimental-strip-types scripts\/release-notes-ai-writer\.ts --probe-openai-compatible/);
   assert.match(fullWorkflow, /readJson\('full-package-manifest\.json'\)/);
   assert.match(fullWorkflow, /fs\.writeFileSync\(path\.join\(outDir, 'opl-release-manifest\.json'\)/);

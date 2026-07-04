@@ -351,10 +351,11 @@ Nightly, and runs the remote standard asset verifier without Full assets.
 AI release-note generation uses the same provider chain as Stable:
 `OPL_RELEASE_NOTES_PROVIDER=openai_compatible` uses an OpenAI-compatible endpoint configured through
 `OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL` and
-`OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY`, with a GitHub Actions fallback to
-the existing `OPL_RELEASE_NOTES_CODEX_BASE_URL` /
-`OPL_RELEASE_NOTES_CODEX_API_KEY` route. GitHub Models is not in the release
-path. A self-hosted FreeLLMAPI server can fill the OpenAI-compatible slot by
+`OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY`. The writer also accepts the
+existing `OPL_RELEASE_NOTES_CODEX_BASE_URL` / `OPL_RELEASE_NOTES_CODEX_API_KEY`
+route directly, so GitHub Actions and local probes do not need a separate env
+remapping layer. GitHub Models is not in the release path. A self-hosted
+FreeLLMAPI server can fill the OpenAI-compatible slot by
 exposing `/v1/chat/completions` and using model `auto`. Release workflows run
 `scripts/release-notes-ai-writer.ts --probe-openai-compatible` before publishing
 and fail closed when the online route is not usable. Use
