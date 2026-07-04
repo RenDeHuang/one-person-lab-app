@@ -316,21 +316,24 @@ for explicit AGUI replay or historical audit. Default stable/nightly packaging
 continues to resolve `contracts/app-shell-adapter.json` and the active `aionui`
 shell until an explicit release-owner decision changes that contract.
 
-The `opl-native-workbench` route is candidate-structure first: candidate
-registration, adapter contract, independent external checkout, state/action
-bridge, shared renderer, package manifest, source/WebUI smoke when claimed,
-docs/runbook, then later visual/live evidence. K-Dense, OpenClaudeScience /
-Claude Science, and AGUI lessons are intake material only: delivery experience,
-project sandbox, file/preview/result delivery, structured forms, shared renderer,
-and task/provenance framing can be adopted or adapted; external runtime/agent
+The `opl-native-workbench` route is candidate-structure and non-live product
+surface first: candidate registration, adapter contract, independent external
+checkout, state/action bridge, basic UI modules, artifact preview tabs,
+provenance drawer, starter forms, confirmation/interview cards, desktop/WebUI
+same renderer, source visual smoke, package manifest when claimed, docs/runbook,
+then later live evidence. K-Dense, OpenClaudeScience / Claude Science, and AGUI
+lessons are intake material only: delivery experience, project sandbox,
+file/preview/result delivery, structured forms, shared renderer, and
+task/provenance framing can be adopted or adapted; external runtime/agent
 authority, Pi/DeepAgents/LangGraph-like runtimes, provider/backend marketplaces,
 and domain truth ownership are watch-only or rejected.
 
-Package/runtime/visual acceptance is still not complete: candidate source/WebUI
-smoke, packaged GUI acceptance, clean VM proof, same-cohort user-path evidence,
-and owner acceptance remain separate evidence lanes. Therefore the current state
-is foreground-alternative technical-verification planning, not release-ready,
-active-shell-adopted, domain-ready, or production-ready.
+The closeable current slice is the non-live candidate product surface. It does
+not include Live Evidence, packaged GUI acceptance, clean VM proof,
+same-cohort user-path evidence, owner acceptance, active-shell adoption, or
+release-ready proof. Candidate source/WebUI validation, source visual smoke, and
+candidate package evidence must stay tied to the exact candidate cohort before
+any stronger technical claim is made.
 
 The current candidate read is technical verification only. Candidate smoke,
 manifests, package evidence, shell roadmaps, upstream GUI defaults, and external

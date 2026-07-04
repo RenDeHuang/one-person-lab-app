@@ -146,6 +146,13 @@ explicitly requests it. Packaged Settings visual smoke is manual/VM evidence
 only and requires `--allow-foreground`; prefer Tart/VM for that command when
 the maintainer is using the Mac.
 
+For `opl-native-workbench`, the current non-live product-surface target includes
+basic UI modules, artifact preview tabs, provenance drawer, starter forms,
+confirmation/interview cards, desktop/WebUI same-renderer parity, and source
+visual smoke. These are candidate technical evidence targets only. Live
+Evidence, clean VM, same-cohort user path, owner acceptance, active-shell
+adoption, and release-ready proof remain outside candidate validation.
+
 `release:prepare-standard` also copies the App root installer into the active
 shell resources as `opl-install.sh`, which is the packaged standard DMG
 bootstrap carrier used when clean first launch cannot find `opl`.
