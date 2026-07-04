@@ -362,7 +362,23 @@
           "minLength": 1
         },
         "physical_surface": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "status": {
+              "type": "string",
+              "minLength": 1
+            },
+            "materialized_required_skill_ids": {
+              "$ref": "#/$defs/string_array"
+            },
+            "materialized_required_skill_paths": {
+              "$ref": "#/$defs/string_array"
+            },
+            "reload_required": {
+              "type": "boolean"
+            }
+          }
         }
       }
     }

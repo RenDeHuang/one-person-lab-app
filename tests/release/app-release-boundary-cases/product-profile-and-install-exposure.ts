@@ -43,6 +43,7 @@ const EXPECTED_PACKAGE_LIFECYCLE_ACTIONS = [
   'disable',
   'hide',
   'unhide',
+  'set_home_shortcut_preferences',
   'manual_check',
   'apply_selected',
 ];
@@ -947,6 +948,15 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.rollback_ref_required_for_mutating_actions, true);
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.package_lock_required, true);
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.domain_truth_authority_allowed, false);
+  assert.equal(policy.agent_installation_contract.package_manager_lifecycle.home_shortcut_preferences_owner, 'one-person-lab');
+  assert.equal(
+    policy.agent_installation_contract.package_manager_lifecycle.home_shortcut_preferences_action,
+    'agent_package_home_shortcut_preferences_set',
+  );
+  assert.equal(
+    policy.agent_installation_contract.package_manager_lifecycle.home_shortcut_preferences_readback,
+    'opl connect agent-packages list/status#home_shortcut_preferences',
+  );
   assert.deepEqual(policy.agent_installation_contract.third_party_manual_source_policy.manual_third_party_allowed_source_kinds, [
     'local_manifest_file',
     'manifest_url',
@@ -995,6 +1005,14 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     'plugin_manifest',
     'bundled_required_skill_entries',
     'optional_companion_skill_refs',
+  ]);
+  assert.equal(
+    policy.agent_installation_contract.atomic_bundle_policy.framework_local_payload_validation,
+    'manifest-declared plugin_source_path must contain .codex-plugin/plugin.json and skills/<required_skill_id>/SKILL.md before materialization',
+  );
+  assert.deepEqual(policy.agent_installation_contract.atomic_bundle_policy.physical_surface_required_skill_readback_fields, [
+    'materialized_required_skill_ids',
+    'materialized_required_skill_paths',
   ]);
   assert.equal(policy.agent_installation_contract.atomic_bundle_policy.reconcile_update_uninstall_as_unit, true);
   assert.equal(policy.agent_installation_contract.atomic_bundle_policy.domain_repo_remains_semantic_owner, true);

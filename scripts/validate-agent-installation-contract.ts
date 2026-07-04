@@ -57,6 +57,7 @@ const expectedPackageLifecycleActions = [
   'disable',
   'hide',
   'unhide',
+  'set_home_shortcut_preferences',
   'manual_check',
   'apply_selected',
 ];
@@ -624,6 +625,9 @@ function validatePackageManagerLifecycle(contract: any): void {
     rollback_ref_required_for_mutating_actions: true,
     package_lock_required: true,
     domain_truth_authority_allowed: false,
+    home_shortcut_preferences_owner: 'one-person-lab',
+    home_shortcut_preferences_action: 'agent_package_home_shortcut_preferences_set',
+    home_shortcut_preferences_readback: 'opl connect agent-packages list/status#home_shortcut_preferences',
   }, 'package manager lifecycle');
   assertArrayEqual(lifecycle?.actions, expectedPackageLifecycleActions, 'package manager lifecycle actions');
 }
@@ -692,10 +696,16 @@ function validateAtomicBundlePolicy(contract: any): void {
     'atomic package unit includes',
   );
   assertFieldsEqual(atomicPolicy, {
+    framework_local_payload_validation: 'manifest-declared plugin_source_path must contain .codex-plugin/plugin.json and skills/<required_skill_id>/SKILL.md before materialization',
     reconcile_update_uninstall_as_unit: true,
     domain_repo_remains_semantic_owner: true,
     app_package_manager_scope: 'install_exposure_package_lock_action_receipts_and_codex_visible_entries_only',
   }, 'atomic bundle policy');
+  assertArrayEqual(
+    atomicPolicy?.physical_surface_required_skill_readback_fields,
+    ['materialized_required_skill_ids', 'materialized_required_skill_paths'],
+    'atomic bundle physical surface required skill readback fields',
+  );
   assertFieldsEqual(atomicPolicy?.mas_professional_skill_pack_unit, {
     package_id: 'opl.mas',
     agent_id: 'mas',

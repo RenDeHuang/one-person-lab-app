@@ -925,6 +925,7 @@
         "disable",
         "hide",
         "unhide",
+        "set_home_shortcut_preferences",
         "manual_check",
         "apply_selected"
       ],
@@ -933,7 +934,10 @@
       "mutating_actions_require_action_receipt": true,
       "rollback_ref_required_for_mutating_actions": true,
       "package_lock_required": true,
-      "domain_truth_authority_allowed": false
+      "domain_truth_authority_allowed": false,
+      "home_shortcut_preferences_owner": "one-person-lab",
+      "home_shortcut_preferences_action": "agent_package_home_shortcut_preferences_set",
+      "home_shortcut_preferences_readback": "opl connect agent-packages list/status#home_shortcut_preferences"
     },
     "third_party_manual_source_policy": {
       "ordinary_user_default_source_kinds": [
@@ -1002,6 +1006,11 @@
         "plugin_manifest",
         "bundled_required_skill_entries",
         "optional_companion_skill_refs"
+      ],
+      "framework_local_payload_validation": "manifest-declared plugin_source_path must contain .codex-plugin/plugin.json and skills/<required_skill_id>/SKILL.md before materialization",
+      "physical_surface_required_skill_readback_fields": [
+        "materialized_required_skill_ids",
+        "materialized_required_skill_paths"
       ],
       "reconcile_update_uninstall_as_unit": true,
       "domain_repo_remains_semantic_owner": true,
