@@ -94,6 +94,15 @@ const expectedManifestRequiredFields = [
   'update_channel',
   'rollback_ref',
 ];
+const expectedDistributionPayloadFields = [
+  'payload_kind',
+  'payload_ref',
+  'payload_digest_ref',
+  'required_skill_pack_lock_refs',
+  'proof_status',
+  'live_download_proof',
+  'installed_reload_proof',
+];
 const expectedHomeShortcutRequiredFields = [
   'shortcut_id',
   'package_id',
@@ -136,6 +145,21 @@ const expectedManualThirdPartyRequires = [
   'manifest_validation',
   'trust_tier_assignment',
   'package_lock_receipt',
+  'rollback_ref',
+];
+const expectedRemoteDistributionPayloadFields = [
+  'remote_manifest_url',
+  'distribution_payload_ref',
+  'source_digest_ref',
+  'trust_tier',
+  'package_lock_receipt',
+  'rollback_ref',
+];
+const expectedFirstPartyDistributionPayloadFields = [
+  'cohort_manifest_ref',
+  'distribution_payload_ref',
+  'payload_digest_ref',
+  'required_skill_pack_lock_refs',
   'rollback_ref',
 ];
 const expectedPackageSourceKinds = [
@@ -435,6 +459,20 @@ function validateAgentPackageSurfaceSchema(contract: any, registry: any, schema:
     'agent package manifest schema required fields',
   );
   assertArrayEqual(
+    schemaDef(schema, 'agent_package_manifest').properties?.distribution_payload?.required,
+    expectedDistributionPayloadFields,
+    'agent package manifest distribution payload fields',
+  );
+  if (schemaDef(schema, 'agent_package_manifest').properties?.codex_surface?.properties?.plugin_payload_manifest_url?.type !== 'string') {
+    fail('agent package manifest codex_surface must allow plugin_payload_manifest_url');
+  }
+  const physicalSurfaceProperties = schemaDef(schema, 'package_lock_receipt').properties?.physical_surface?.properties;
+  for (const field of ['plugin_payload_manifest_url', 'plugin_payload_manifest_sha256', 'plugin_payload_cache_path']) {
+    if (physicalSurfaceProperties?.[field]?.type !== 'string') {
+      fail(`package lock physical_surface must allow ${field}`);
+    }
+  }
+  assertArrayEqual(
     schemaDef(schema, 'home_shortcut_metadata').required,
     expectedHomeShortcutRequiredFields,
     'home shortcut metadata schema required fields',
@@ -568,6 +606,17 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
     assertEqual(manifest.update_channel, 'managed_opl_packages', `${registryEntry.package_id} manifest update channel`);
     assertEqual(manifest.health_check?.kind, 'opl_package_receipt', `${registryEntry.package_id} manifest health check kind`);
     assertArrayEqual(
+      Object.keys(manifest.distribution_payload ?? {}),
+      expectedDistributionPayloadFields,
+      `${registryEntry.package_id} manifest distribution payload fields`,
+    );
+    assertFieldsEqual(manifest.distribution_payload, {
+      payload_kind: 'first_party_release_package',
+      proof_status: 'contract_fixture_non_live',
+      live_download_proof: false,
+      installed_reload_proof: false,
+    }, `${registryEntry.package_id} manifest distribution payload`);
+    assertArrayEqual(
       manifest.codex_surface?.plugin_ids,
       [registryEntry.codex_visible_entry],
       `${registryEntry.package_id} manifest plugin ids`,
@@ -594,6 +643,14 @@ function validateFirstPartyManifestFixtures(profile: any, registry: any, schema:
       manifest.skill_packs[0].install_mode,
       'bundled_required',
       `${registryEntry.package_id} manifest required skill pack install mode`,
+    );
+    if (manifest.skill_packs[0].lock_ref === 'registry.latest_version') {
+      fail(`manifest fixture ${registryEntry.package_id} required skill pack lock_ref must not use registry.latest_version`);
+    }
+    assertArrayEqual(
+      manifest.distribution_payload.required_skill_pack_lock_refs,
+      [manifest.skill_packs[0].lock_ref],
+      `${registryEntry.package_id} manifest distribution payload skill pack locks`,
     );
     if (!String(manifest.skill_packs[0].source ?? '').startsWith('github:')) {
       fail(`manifest fixture ${registryEntry.package_id} required skill pack source must be a github ref`);
@@ -656,6 +713,17 @@ function validateThirdPartyManualSourcePolicy(contract: any): void {
     homebrew_package_formula_allowed: false,
     third_party_catalog_required: false,
   }, 'manual source policy');
+  assertArrayEqual(
+    sourcePolicy?.remote_distribution_payload_contract?.required_fields,
+    expectedRemoteDistributionPayloadFields,
+    'manual source remote distribution payload fields',
+  );
+  assertFieldsEqual(sourcePolicy?.remote_distribution_payload_contract, {
+    download_execution_owner: 'one-person-lab',
+    app_contract_claim: 'validate_and_route_refs_only_without_claiming_live_download_or_installed_reload',
+    live_download_proof_claim_allowed: false,
+    installed_reload_proof_claim_allowed: false,
+  }, 'manual source remote distribution payload contract');
   if (!sourcePolicy?.validation_scope?.includes('without hardcoding exact third-party package ids')) {
     fail('manual source policy must validate shape without hardcoding exact third-party package ids');
   }
@@ -697,10 +765,18 @@ function validateAtomicBundlePolicy(contract: any): void {
   );
   assertFieldsEqual(atomicPolicy, {
     framework_local_payload_validation: 'manifest-declared plugin_source_path must contain .codex-plugin/plugin.json and skills/<required_skill_id>/SKILL.md before materialization',
+    required_skill_pack_lock_policy: 'skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version',
     reconcile_update_uninstall_as_unit: true,
     domain_repo_remains_semantic_owner: true,
     app_package_manager_scope: 'install_exposure_package_lock_action_receipts_and_codex_visible_entries_only',
+    release_payload_proof_live_claim_allowed: false,
+    installed_codex_reload_proof_deferred: true,
   }, 'atomic bundle policy');
+  assertArrayEqual(
+    atomicPolicy?.release_payload_proof_required_fields,
+    expectedDistributionPayloadFields,
+    'atomic bundle release payload proof fields',
+  );
   assertArrayEqual(
     atomicPolicy?.physical_surface_required_skill_readback_fields,
     ['materialized_required_skill_ids', 'materialized_required_skill_paths'],
@@ -727,6 +803,7 @@ function validateManagedAgentPackDistribution(contract: any): void {
     default_transport: 'app_cli_managed_background_maintenance',
     default_update_mode: 'silent_background',
     default_manifest_tag: 'latest',
+    first_party_distribution_payload_status: 'contract_required_non_live_until_release_owner_publishes_payload',
     must_not_depend_on_fixed_version_tag_by_default: true,
     github_packages_unavailable_policy: 'fail_closed_with_actionable_background_maintenance_error',
     homebrew_distribution_allowed: false,
@@ -739,6 +816,7 @@ function validateManagedAgentPackDistribution(contract: any): void {
     post_update_sync_required: ['codex_plugin_registry', 'plugin_packaged_skills', 'opl_generated_plugin_surface', 'codex_surface'],
     package_agent_ids: expectedRequiredAgentIds,
     activation_commands: ['opl connect reconcile-modules', 'opl connect sync-skills'],
+    first_party_distribution_payload_required_fields: expectedFirstPartyDistributionPayloadFields,
     fallback_source_order: [
       'bundled_full_runtime_modules',
       'app_cli_managed_ghcr_opl_packages_channel',

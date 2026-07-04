@@ -70,6 +70,46 @@
           "type": "string",
           "minLength": 1
         },
+        "distribution_payload": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "payload_kind",
+            "payload_ref",
+            "payload_digest_ref",
+            "required_skill_pack_lock_refs",
+            "proof_status",
+            "live_download_proof",
+            "installed_reload_proof"
+          ],
+          "properties": {
+            "payload_kind": {
+              "type": "string",
+              "minLength": 1
+            },
+            "payload_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "payload_digest_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required_skill_pack_lock_refs": {
+              "$ref": "#/$defs/string_array"
+            },
+            "proof_status": {
+              "type": "string",
+              "minLength": 1
+            },
+            "live_download_proof": {
+              "const": false
+            },
+            "installed_reload_proof": {
+              "const": false
+            }
+          }
+        },
         "codex_surface": {
           "type": "object",
           "additionalProperties": true,
@@ -94,6 +134,10 @@
             "plugin_source_ref": {
               "type": "string",
               "minLength": 1
+            },
+            "plugin_payload_manifest_url": {
+              "type": "string",
+              "minLength": 1
             }
           }
         },
@@ -106,6 +150,7 @@
               "id",
               "source",
               "version",
+              "lock_ref",
               "install_mode"
             ],
             "properties": {
@@ -123,7 +168,10 @@
               },
               "lock_ref": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "not": {
+                  "const": "registry.latest_version"
+                }
               },
               "install_mode": {
                 "enum": [
@@ -374,6 +422,18 @@
             },
             "materialized_required_skill_paths": {
               "$ref": "#/$defs/string_array"
+            },
+            "plugin_payload_manifest_url": {
+              "type": "string",
+              "minLength": 1
+            },
+            "plugin_payload_manifest_sha256": {
+              "type": "string",
+              "minLength": 1
+            },
+            "plugin_payload_cache_path": {
+              "type": "string",
+              "minLength": 1
             },
             "reload_required": {
               "type": "boolean"

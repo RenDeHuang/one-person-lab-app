@@ -5,6 +5,17 @@
   "publisher": "one-person-lab",
   "version": "0.1.0a4",
   "source": "first_party",
+  "distribution_payload": {
+    "payload_kind": "first_party_release_package",
+    "payload_ref": "opl-agent-packages/mas/0.1.0a4",
+    "payload_digest_ref": "release-lock://opl-agent-packages/mas/0.1.0a4/payload-digest",
+    "required_skill_pack_lock_refs": [
+      "release-lock://opl-agent-packages/mas/0.1.0a4/mas-professional-skill-pack"
+    ],
+    "proof_status": "contract_fixture_non_live",
+    "live_download_proof": false,
+    "installed_reload_proof": false
+  },
   "codex_surface": {
     "plugin_ids": [
       "mas"
@@ -24,7 +35,7 @@
       "id": "mas-professional-skill-pack",
       "source": "github:gaofeng21cn/med-autoscience/plugins/mas/skills/mas",
       "version": "0.1.0a4",
-      "lock_ref": "registry.latest_version",
+      "lock_ref": "release-lock://opl-agent-packages/mas/0.1.0a4/mas-professional-skill-pack",
       "install_mode": "bundled_required"
     }
   ],

@@ -961,7 +961,21 @@
       "duplicate_bare_skill_mirrors_allowed": false,
       "homebrew_package_formula_allowed": false,
       "third_party_catalog_required": false,
-      "validation_scope": "validate manifest shape, plugin manifest, required skill entries, source digest, trust tier, and rollback ref without hardcoding exact third-party package ids"
+      "remote_distribution_payload_contract": {
+        "required_fields": [
+          "remote_manifest_url",
+          "distribution_payload_ref",
+          "source_digest_ref",
+          "trust_tier",
+          "package_lock_receipt",
+          "rollback_ref"
+        ],
+        "download_execution_owner": "one-person-lab",
+        "app_contract_claim": "validate_and_route_refs_only_without_claiming_live_download_or_installed_reload",
+        "live_download_proof_claim_allowed": false,
+        "installed_reload_proof_claim_allowed": false
+      },
+      "validation_scope": "validate manifest shape, plugin manifest, required skill entries, source digest, remote/distribution payload refs, trust tier, and rollback ref without hardcoding exact third-party package ids"
     },
     "package_lock_receipt_contract": {
       "lock_owner": "one-person-lab",
@@ -1008,6 +1022,18 @@
         "optional_companion_skill_refs"
       ],
       "framework_local_payload_validation": "manifest-declared plugin_source_path must contain .codex-plugin/plugin.json and skills/<required_skill_id>/SKILL.md before materialization",
+      "required_skill_pack_lock_policy": "skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version",
+      "release_payload_proof_required_fields": [
+        "payload_kind",
+        "payload_ref",
+        "payload_digest_ref",
+        "required_skill_pack_lock_refs",
+        "proof_status",
+        "live_download_proof",
+        "installed_reload_proof"
+      ],
+      "release_payload_proof_live_claim_allowed": false,
+      "installed_codex_reload_proof_deferred": true,
       "physical_surface_required_skill_readback_fields": [
         "materialized_required_skill_ids",
         "materialized_required_skill_paths"
@@ -1139,6 +1165,14 @@
       "default_transport": "app_cli_managed_background_maintenance",
       "default_update_mode": "silent_background",
       "default_manifest_tag": "latest",
+      "first_party_distribution_payload_required_fields": [
+        "cohort_manifest_ref",
+        "distribution_payload_ref",
+        "payload_digest_ref",
+        "required_skill_pack_lock_refs",
+        "rollback_ref"
+      ],
+      "first_party_distribution_payload_status": "contract_required_non_live_until_release_owner_publishes_payload",
       "post_update_sync_required": [
         "codex_plugin_registry",
         "plugin_packaged_skills",

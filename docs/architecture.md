@@ -46,9 +46,7 @@ and owns package Home shortcut preference readback. Active shell reads
 Framework-backed Home shortcut preferences from App state, persists
 visibility/order changes through the Framework action route with local fallback,
 emits launch-only `opl_agent_package_invocation` route smoke, and renders
-`physical_surface` in Settings, but release-published
-first-party payload proof, installed Codex-surface reload proof, and live
-user-path evidence still need separate runtime or release-owner evidence.
+`physical_surface` in Settings, but non-live first-party distribution payload proof and remote payload manifest fields are landed; installed Codex-surface reload proof and live user-path evidence still need separate runtime or release-owner evidence.
 
 Home entry ownership is split deliberately for GUI replacement. The App contract owns user-facing shortcut targets and labels, while installed Agent Packages provide the Codex plugin/skill surfaces that those shortcuts invoke. Existing MAS/MAG/RCA/BookForge entries are starter shortcuts and migration seeds; future compliant first-party, organization, user, or third-party packages should be able to provide the same shortcut metadata without App source edits. Shells render configured shortcuts, launch Codex with the package's declared plugin/skill surface, and persist an App-owned invocation receipt. They do not decide which packages are installed, which shortcuts are default, whether an agent appears on the home screen, or whether the route is exposed as a backend selector.
 

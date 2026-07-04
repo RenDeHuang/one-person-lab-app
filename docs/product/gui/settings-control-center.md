@@ -232,9 +232,7 @@ owns manifest-declared local Codex plugin materialization and records it through
 package lock / lifecycle receipt `physical_surface`; Settings displays that
 `physical_surface` as package state, plugin id, marketplace id, Codex config
 path, materialized required skill ids/paths, and reload required status.
-Installed Codex-surface reload proof, release-published first-party payload
-proof and rollback cleanup, and live install readiness remain runtime or
-release-owner evidence; Settings must not present contract/readback evidence as
+First-party distribution payload refs and remote payload manifest fields are non-live contract/Framework evidence; installed Codex-surface reload proof and live install readiness remain runtime or release-owner evidence; Settings must not present contract/readback evidence as
 live install readiness. The Registry never defines the agent's business
 behavior.
 

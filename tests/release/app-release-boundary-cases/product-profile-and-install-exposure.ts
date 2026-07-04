@@ -80,6 +80,15 @@ const EXPECTED_MANIFEST_REQUIRED_FIELDS = [
   'update_channel',
   'rollback_ref',
 ];
+const EXPECTED_DISTRIBUTION_PAYLOAD_FIELDS = [
+  'payload_kind',
+  'payload_ref',
+  'payload_digest_ref',
+  'required_skill_pack_lock_refs',
+  'proof_status',
+  'live_download_proof',
+  'installed_reload_proof',
+];
 const EXPECTED_REGISTRY_EXCLUDED_FIELDS = [
   'session_contract_ref',
   'domain_workflow_schema',
@@ -103,6 +112,21 @@ const EXPECTED_PACKAGE_LOCK_RECEIPT_FIELDS = [
   'action_receipt_id',
   'rollback_ref',
   'physical_surface',
+];
+const EXPECTED_REMOTE_DISTRIBUTION_PAYLOAD_FIELDS = [
+  'remote_manifest_url',
+  'distribution_payload_ref',
+  'source_digest_ref',
+  'trust_tier',
+  'package_lock_receipt',
+  'rollback_ref',
+];
+const EXPECTED_FIRST_PARTY_DISTRIBUTION_PAYLOAD_FIELDS = [
+  'cohort_manifest_ref',
+  'distribution_payload_ref',
+  'payload_digest_ref',
+  'required_skill_pack_lock_refs',
+  'rollback_ref',
 ];
 
 test('App product profile owns user-facing defaults without runtime authority', () => {
@@ -941,6 +965,47 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
       assert.equal(entry[excludedField], undefined, `${entry.package_id} registry entry must not define ${excludedField}`);
     }
   }
+  const agentPackageSurfaceSchema = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts', 'agent-package-surfaces.schema.json'), 'utf8'),
+  );
+  assert.deepEqual(
+    agentPackageSurfaceSchema.$defs.agent_package_manifest.properties.distribution_payload.required,
+    EXPECTED_DISTRIBUTION_PAYLOAD_FIELDS,
+  );
+  assert.equal(
+    agentPackageSurfaceSchema.$defs.agent_package_manifest.properties.distribution_payload.properties.live_download_proof.const,
+    false,
+  );
+  assert.equal(
+    agentPackageSurfaceSchema.$defs.agent_package_manifest.properties.distribution_payload.properties.installed_reload_proof.const,
+    false,
+  );
+  assert.equal(
+    agentPackageSurfaceSchema.$defs.agent_package_manifest.properties.codex_surface.properties.plugin_payload_manifest_url.type,
+    'string',
+  );
+  assert.equal(
+    agentPackageSurfaceSchema.$defs.package_lock_receipt.properties.physical_surface.properties.plugin_payload_manifest_sha256.type,
+    'string',
+  );
+  assert.equal(
+    agentPackageSurfaceSchema.$defs.package_lock_receipt.properties.physical_surface.properties.plugin_payload_cache_path.type,
+    'string',
+  );
+  for (const entry of agentPackageRegistry.entries) {
+    const manifest = JSON.parse(
+      fs.readFileSync(
+        path.join(appRoot, 'contracts', 'fixtures', 'agent-package-manifests', `${entry.package_id}.json`),
+        'utf8',
+      ),
+    );
+    assert.deepEqual(Object.keys(manifest.distribution_payload), EXPECTED_DISTRIBUTION_PAYLOAD_FIELDS);
+    assert.equal(manifest.distribution_payload.proof_status, 'contract_fixture_non_live');
+    assert.equal(manifest.distribution_payload.live_download_proof, false);
+    assert.equal(manifest.distribution_payload.installed_reload_proof, false);
+    assert.equal(manifest.skill_packs[0].lock_ref === 'registry.latest_version', false);
+    assert.deepEqual(manifest.distribution_payload.required_skill_pack_lock_refs, [manifest.skill_packs[0].lock_ref]);
+  }
   assert.deepEqual(policy.agent_installation_contract.package_manager_lifecycle.actions, EXPECTED_PACKAGE_LIFECYCLE_ACTIONS);
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.manual_check_policy, 'explicit_user_action_only');
   assert.equal(policy.agent_installation_contract.package_manager_lifecycle.apply_selected_policy, 'explicit_user_selected_package_set_only');
@@ -975,7 +1040,27 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   assert.equal(policy.agent_installation_contract.third_party_manual_source_policy.third_party_catalog_required, false);
   assert.match(
     policy.agent_installation_contract.third_party_manual_source_policy.validation_scope,
-    /without hardcoding exact third-party package ids/,
+    /remote\/distribution payload refs.*without hardcoding exact third-party package ids/,
+  );
+  assert.deepEqual(
+    policy.agent_installation_contract.third_party_manual_source_policy.remote_distribution_payload_contract.required_fields,
+    EXPECTED_REMOTE_DISTRIBUTION_PAYLOAD_FIELDS,
+  );
+  assert.equal(
+    policy.agent_installation_contract.third_party_manual_source_policy.remote_distribution_payload_contract.download_execution_owner,
+    'one-person-lab',
+  );
+  assert.equal(
+    policy.agent_installation_contract.third_party_manual_source_policy.remote_distribution_payload_contract.app_contract_claim,
+    'validate_and_route_refs_only_without_claiming_live_download_or_installed_reload',
+  );
+  assert.equal(
+    policy.agent_installation_contract.third_party_manual_source_policy.remote_distribution_payload_contract.live_download_proof_claim_allowed,
+    false,
+  );
+  assert.equal(
+    policy.agent_installation_contract.third_party_manual_source_policy.remote_distribution_payload_contract.installed_reload_proof_claim_allowed,
+    false,
   );
   assert.deepEqual(policy.agent_installation_contract.package_lock_receipt_contract.required_fields, EXPECTED_PACKAGE_LOCK_RECEIPT_FIELDS);
   assert.deepEqual(policy.agent_installation_contract.package_lock_receipt_contract.source_kind_allowed_values, [
@@ -1010,6 +1095,16 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
     policy.agent_installation_contract.atomic_bundle_policy.framework_local_payload_validation,
     'manifest-declared plugin_source_path must contain .codex-plugin/plugin.json and skills/<required_skill_id>/SKILL.md before materialization',
   );
+  assert.equal(
+    policy.agent_installation_contract.atomic_bundle_policy.required_skill_pack_lock_policy,
+    'skill_packs[].lock_ref must be a release or digest lock and must not equal registry.latest_version',
+  );
+  assert.deepEqual(
+    policy.agent_installation_contract.atomic_bundle_policy.release_payload_proof_required_fields,
+    EXPECTED_DISTRIBUTION_PAYLOAD_FIELDS,
+  );
+  assert.equal(policy.agent_installation_contract.atomic_bundle_policy.release_payload_proof_live_claim_allowed, false);
+  assert.equal(policy.agent_installation_contract.atomic_bundle_policy.installed_codex_reload_proof_deferred, true);
   assert.deepEqual(policy.agent_installation_contract.atomic_bundle_policy.physical_surface_required_skill_readback_fields, [
     'materialized_required_skill_ids',
     'materialized_required_skill_paths',
@@ -1031,6 +1126,14 @@ test('App install exposure policy keeps skill ABI and plugin distribution separa
   );
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.default_update_mode, 'silent_background');
   assert.equal(policy.agent_installation_contract.managed_agent_pack_distribution.default_manifest_tag, 'latest');
+  assert.deepEqual(
+    policy.agent_installation_contract.managed_agent_pack_distribution.first_party_distribution_payload_required_fields,
+    EXPECTED_FIRST_PARTY_DISTRIBUTION_PAYLOAD_FIELDS,
+  );
+  assert.equal(
+    policy.agent_installation_contract.managed_agent_pack_distribution.first_party_distribution_payload_status,
+    'contract_required_non_live_until_release_owner_publishes_payload',
+  );
   assert.deepEqual(policy.agent_installation_contract.managed_agent_pack_distribution.post_update_sync_required, [
     'codex_plugin_registry',
     'plugin_packaged_skills',
