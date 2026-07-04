@@ -57,6 +57,22 @@ const ordinaryForbiddenCapabilityPolicy = {
     'tl',
   ],
 };
+const starterPackageIds = ['mas', 'mag', 'rca', 'bookforge'];
+const starterShortcutIds = ['research', 'grant', 'ppt', 'book'];
+const requiredSkillByPackageId = {
+  mas: ['mas'],
+  mag: ['mag'],
+  rca: ['rca'],
+  bookforge: ['opl-bookforge'],
+  oma: ['opl-meta-agent'],
+};
+const codexEntryByPackageId = {
+  mas: 'mas',
+  mag: 'mag',
+  rca: 'rca',
+  bookforge: 'opl-bookforge',
+  oma: 'opl-meta-agent',
+};
 
 function validateProductProfileIdentity(profile) {
   assertAppProductProfileIdentity(profile, 'product profile');
@@ -98,6 +114,7 @@ function validateProductProfileCodexDefaults(profile) {
   assertAppProductProfileCodexModelDisplayOptions(profile, 'Product profile');
   assertAppProductProfileRouteReceiptPolicy(profile, 'Product profile');
   validateHomeAssistantDefaults(profile);
+  validateProfessionalAgentPackages(profile);
   validateProductProfileSettings(profile);
   validateAssistantSkillProfiles(profile);
   validateProductProfileCodexSkills(profile);
@@ -112,6 +129,26 @@ function validateHomeAssistantDefaults(profile) {
   }
   if (JSON.stringify(homePurposeEntries.map((entry) => entry.target_assistant_id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
     throw new Error('Product profile GUI home purpose entries must target MAS, MAG, RCA, and BookForge');
+  }
+  const homeAgentShortcuts = profile.gui.home.home_agent_shortcuts ?? [];
+  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.shortcut_id)) !== JSON.stringify(starterShortcutIds)) {
+    throw new Error('Product profile GUI home must expose configurable research, grant, ppt, and book package shortcuts');
+  }
+  if (JSON.stringify(homeAgentShortcuts.map((entry) => entry.package_id)) !== JSON.stringify(starterPackageIds)) {
+    throw new Error('Product profile GUI home shortcuts must target MAS, MAG, RCA, and BookForge packages');
+  }
+  for (const shortcut of homeAgentShortcuts) {
+    if (
+      shortcut.executor !== 'codex_cli' ||
+      shortcut.source !== 'opl_app_home' ||
+      shortcut.display_policy !== 'purpose_first' ||
+      shortcut.home_entry_policy !== 'visible_click_to_start' ||
+      shortcut.default_visible !== true ||
+      shortcut.user_configurable !== true ||
+      JSON.stringify(shortcut.required_skill_ids) !== JSON.stringify(requiredSkillByPackageId[shortcut.package_id])
+    ) {
+      throw new Error(`Product profile GUI home shortcut ${shortcut.shortcut_id} must be a configurable Codex package launch shortcut`);
+    }
   }
   if (JSON.stringify((profile.gui.default_assistants ?? []).map((assistant) => assistant.id)) !== JSON.stringify(['mas', 'mag', 'rca', 'bookforge'])) {
     throw new Error('Product profile default assistants must be MAS, MAG, RCA, and BookForge');
@@ -128,6 +165,38 @@ function validateHomeAssistantDefaults(profile) {
   for (const retiredModel of ['gpt-5.3-codex', 'gpt-5.2', 'gpt-5.2-codex', 'gpt-5.1-codex-max', 'gpt-5.1-codex-mini']) {
     if (!profile.gui.home?.retired_codex_models_must_not_be_exposed?.includes(retiredModel)) {
       throw new Error(`Product profile GUI home must ban retired Codex model ${retiredModel}`);
+    }
+  }
+}
+
+function validateProfessionalAgentPackages(profile) {
+  const packages = profile.gui.professional_agent_packages ?? [];
+  if (JSON.stringify(packages.map((entry) => entry.package_id)) !== JSON.stringify([...starterPackageIds, 'oma'])) {
+    throw new Error('Product profile professional agent packages must declare MAS, MAG, RCA, BookForge, and OMA');
+  }
+  for (const entry of packages) {
+    const requiredSkills = requiredSkillByPackageId[entry.package_id];
+    if (
+      entry.installed_manageable !== true ||
+      entry.codex_visible_entry !== codexEntryByPackageId[entry.package_id] ||
+      JSON.stringify(entry.required_skill_ids) !== JSON.stringify(requiredSkills) ||
+      entry.required_skill_policy !== 'checked_locked' ||
+      entry.optional_skill_policy !== 'unchecked_user_selectable' ||
+      entry.skill_menu_policy !== 'assistant_scoped_required_checked_optional_visible'
+    ) {
+      throw new Error(`Product profile professional agent package ${entry.package_id} has invalid shortcut or skill policy`);
+    }
+    if (starterPackageIds.includes(entry.package_id)) {
+      if (entry.package_kind !== 'starter_professional_agent_package' || entry.default_home_visible !== true || entry.home_shortcut_ids.length !== 1) {
+        throw new Error(`Product profile starter package ${entry.package_id} must be default home visible through one shortcut`);
+      }
+    }
+    if (entry.package_id === 'oma' && (
+      entry.package_kind !== 'managed_professional_agent_package' ||
+      entry.default_home_visible !== false ||
+      entry.home_shortcut_ids.length !== 0
+    )) {
+      throw new Error('Product profile must keep OMA installed/manageable but out of default home shortcuts');
     }
   }
 }
@@ -287,7 +356,7 @@ function validateOrdinaryCapabilitySelectorPolicy(profile) {
   if (
     policy?.scope !== 'home_composer_and_ordinary_conversation' ||
     policy?.authority !== 'app_owned_opl_allowlist' ||
-    policy?.skill_source_ref !== 'gui.assistant_skill_profiles.required_skills + optional_skills' ||
+    policy?.skill_source_ref !== 'gui.professional_agent_packages.required_skill_ids + optional_skill_ids' ||
     policy?.mcp_server_source_ref !== 'gui.ordinary_capability_selector_policy.visible_mcp_server_ids' ||
     policy?.mcp_menu_policy !== 'empty_until_app_explicitly_whitelists_opl_mcp_servers' ||
     policy?.conversation_loaded_mcp_display_policy !== 'filter_to_visible_mcp_server_ids'

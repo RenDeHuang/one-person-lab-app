@@ -100,6 +100,20 @@ export type AppProductProfile = {
         display_policy: string;
         home_entry_policy: string;
       }>;
+      home_agent_shortcuts: Array<{
+        shortcut_id: string;
+        package_id: string;
+        primary_label: string;
+        package_short_name: string;
+        codex_visible_entry: string;
+        required_skill_ids: string[];
+        source: string;
+        executor: string;
+        display_policy: string;
+        home_entry_policy: string;
+        default_visible: boolean;
+        user_configurable: boolean;
+      }>;
       retired_codex_models_must_not_be_exposed: string[];
       activity_center_policy: {
         source: string;
@@ -112,7 +126,19 @@ export type AppProductProfile = {
         footer_quick_actions_policy: string;
       };
     };
+    agent_package_invocation_receipt_policy: {
+      scope: string;
+      required_for_package_shortcuts: string[];
+      route_kind: string;
+      executor: string;
+      source: string;
+      required_fields: string[];
+      receipt_authority: string;
+      must_not_govern: string[];
+      must_not_depend_on_visible_backend_selection: boolean;
+    };
     builtin_assistant_route_receipt_policy: {
+      migration_alias_for: string;
       scope: string;
       required_for_assistants: string[];
       route_kind: string;
@@ -127,6 +153,7 @@ export type AppProductProfile = {
       skill_source_ref: string;
       skill_menu_policy: string;
       conversation_loaded_skill_display_policy: string;
+      package_skill_source_ref?: string;
       mcp_server_source_ref: string;
       mcp_menu_policy: string;
       visible_mcp_server_ids: string[];
@@ -143,6 +170,22 @@ export type AppProductProfile = {
       scrub_extra_keys: string[];
       required_scrub_targets: string[];
     };
+    professional_agent_packages: Array<{
+      package_id: string;
+      display_name: string;
+      short_name: string;
+      role: string;
+      package_kind: string;
+      installed_manageable: boolean;
+      default_home_visible: boolean;
+      codex_visible_entry: string;
+      home_shortcut_ids: string[];
+      required_skill_ids: string[];
+      optional_skill_ids: string[];
+      required_skill_policy: string;
+      optional_skill_policy: string;
+      skill_menu_policy: string;
+    }>;
     default_assistants: Array<{
       id: string;
       display_name: string;

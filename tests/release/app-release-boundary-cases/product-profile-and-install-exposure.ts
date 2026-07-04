@@ -90,6 +90,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
     executor: 'codex_cli',
     composer_position: 'pinned_bottom',
     purpose_tag_visible: true,
+    agent_package_invocation_receipt_required: true,
     assistant_route_receipt_required: true,
     backend_selector_visible: false,
     model_selector_visible: true,
@@ -153,6 +154,21 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.primary_label), ['科研', '基金', '演示', '写书']);
   assert.deepEqual(profile.gui.home.home_purpose_entries.map((entry) => entry.target_assistant_id), ['mas', 'mag', 'rca', 'bookforge']);
   assert.ok(profile.gui.home.home_purpose_entries.every((entry) => entry.display_policy === 'purpose_first'));
+  assert.deepEqual(profile.gui.home.home_agent_shortcuts.map((entry) => entry.shortcut_id), ['research', 'grant', 'ppt', 'book']);
+  assert.deepEqual(profile.gui.home.home_agent_shortcuts.map((entry) => entry.package_id), ['mas', 'mag', 'rca', 'bookforge']);
+  assert.ok(profile.gui.home.home_agent_shortcuts.every((entry) => entry.executor === 'codex_cli' && entry.source === 'opl_app_home'));
+  assert.ok(profile.gui.home.home_agent_shortcuts.every((entry) => entry.default_visible === true && entry.user_configurable === true));
+  assert.deepEqual(profile.gui.professional_agent_packages.map((pkg) => pkg.package_id), ['mas', 'mag', 'rca', 'bookforge', 'oma']);
+  assert.deepEqual(
+    Object.fromEntries(profile.gui.professional_agent_packages.map((pkg) => [pkg.package_id, pkg.required_skill_ids])),
+    { mas: ['mas'], mag: ['mag'], rca: ['rca'], bookforge: ['opl-bookforge'], oma: ['opl-meta-agent'] },
+  );
+  assert.deepEqual(
+    Object.fromEntries(profile.gui.professional_agent_packages.map((pkg) => [pkg.package_id, pkg.codex_visible_entry])),
+    { mas: 'mas', mag: 'mag', rca: 'rca', bookforge: 'opl-bookforge', oma: 'opl-meta-agent' },
+  );
+  assert.ok(profile.gui.professional_agent_packages.filter((pkg) => pkg.package_id !== 'oma').every((pkg) => pkg.default_home_visible === true));
+  assert.equal(profile.gui.professional_agent_packages.find((pkg) => pkg.package_id === 'oma').default_home_visible, false);
   assert.deepEqual(profile.gui.default_assistants.map((assistant) => assistant.id), ['mas', 'mag', 'rca', 'bookforge']);
   assert.ok(profile.gui.default_assistants.every((assistant) => assistant.home_entry_policy === 'purpose_entry_target'));
   assert.deepEqual(profile.gui.assistant_skill_profiles.map((profile) => profile.assistant_id), ['mas', 'mag', 'rca', 'bookforge']);
@@ -173,6 +189,30 @@ test('App product profile owns user-facing defaults without runtime authority', 
   );
   assert.ok(profile.gui.assistant_skill_profiles.every((profile) => !('hidden_home_skill_names' in profile)));
   assert.ok(profile.gui.assistant_skill_profiles.every((profile) => !profile.optional_skills.includes('morph-ppt')));
+  assert.equal(profile.gui.agent_package_invocation_receipt_policy.scope, 'package_shortcut_launch_to_codex_conversation');
+  assert.deepEqual(profile.gui.agent_package_invocation_receipt_policy.required_for_package_shortcuts, ['research', 'grant', 'ppt', 'book']);
+  assert.equal(profile.gui.agent_package_invocation_receipt_policy.route_kind, 'agent_package_shortcut');
+  assert.equal(profile.gui.agent_package_invocation_receipt_policy.executor, 'codex_cli');
+  assert.equal(profile.gui.agent_package_invocation_receipt_policy.source, 'opl_app_home');
+  assert.deepEqual(profile.gui.agent_package_invocation_receipt_policy.required_fields, [
+    'route_kind',
+    'executor',
+    'package_id',
+    'shortcut_id',
+    'codex_visible_entry',
+    'required_skill_ids',
+    'source',
+  ]);
+  assert.deepEqual(profile.gui.agent_package_invocation_receipt_policy.must_not_govern, [
+    'session_behavior',
+    'domain_workflow',
+    'domain_readiness',
+  ]);
+  assert.equal(
+    profile.gui.agent_package_invocation_receipt_policy.receipt_authority,
+    'launch_fact_only_no_session_behavior_domain_workflow_or_readiness',
+  );
+  assert.equal(profile.gui.builtin_assistant_route_receipt_policy.migration_alias_for, 'agent_package_invocation_receipt_policy');
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.scope, 'home_purpose_entry_to_conversation');
   assert.deepEqual(profile.gui.builtin_assistant_route_receipt_policy.required_for_assistants, ['mas', 'mag', 'rca', 'bookforge']);
   assert.equal(profile.gui.builtin_assistant_route_receipt_policy.route_kind, 'builtin_capability');
@@ -189,7 +229,7 @@ test('App product profile owns user-facing defaults without runtime authority', 
   assert.deepEqual(profile.gui.ordinary_capability_selector_policy, {
     scope: 'home_composer_and_ordinary_conversation',
     authority: 'app_owned_opl_allowlist',
-    skill_source_ref: 'gui.assistant_skill_profiles.required_skills + optional_skills',
+    skill_source_ref: 'gui.professional_agent_packages.required_skill_ids + optional_skill_ids',
     skill_menu_policy: 'assistant_scoped_required_checked_optional_visible',
     conversation_loaded_skill_display_policy: 'filter_to_ordinary_skill_allowlist',
     mcp_server_source_ref: 'gui.ordinary_capability_selector_policy.visible_mcp_server_ids',

@@ -441,11 +441,42 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   if (!pages.guid_home.must_not_show?.includes('OPL Meta Agent as a default home assistant')) {
     throw new Error('App GUI home must keep OMA out of default home entries');
   }
+  const invocationReceiptPolicy = guiContract.agent_package_invocation_receipt_policy;
+  if (
+    invocationReceiptPolicy?.scope !== 'package_shortcut_launch_to_codex_conversation' ||
+    invocationReceiptPolicy.route_kind !== 'agent_package_shortcut' ||
+    invocationReceiptPolicy.executor !== 'codex_cli' ||
+    invocationReceiptPolicy.source !== 'opl_app_home' ||
+    invocationReceiptPolicy.receipt_authority !== 'launch_fact_only_no_session_behavior_domain_workflow_or_readiness' ||
+    invocationReceiptPolicy.must_not_depend_on_visible_backend_selection !== true
+  ) {
+    throw new Error('App GUI contract must require launch-only agent package shortcut invocation receipts');
+  }
+  assertDeepEqualJson(
+    invocationReceiptPolicy.required_for_package_shortcuts,
+    ['research', 'grant', 'ppt', 'book'],
+    'App GUI agent package shortcut receipt ids',
+  );
+  assertIncludesAll(
+    invocationReceiptPolicy.required_fields,
+    ['route_kind', 'executor', 'package_id', 'shortcut_id', 'codex_visible_entry', 'required_skill_ids', 'source'],
+    'App GUI agent package shortcut receipt fields',
+  );
+  assertIncludesAll(
+    invocationReceiptPolicy.must_not_govern,
+    ['session_behavior', 'domain_workflow', 'domain_readiness'],
+    'App GUI agent package shortcut receipt non-authority fields',
+  );
+  if (guiContract.builtin_assistant_route_receipt_policy?.migration_alias_for !== 'agent_package_invocation_receipt_policy') {
+    throw new Error('App GUI built-in assistant route receipt policy must be a migration alias');
+  }
   if (
     guiContract.ordinary_capability_selector_policy?.scope !== 'home_composer_and_ordinary_conversation' ||
     guiContract.ordinary_capability_selector_policy?.authority !== 'app_owned_opl_allowlist' ||
     guiContract.ordinary_capability_selector_policy?.skill_source_ref !==
       'assistant_skill_profiles.required_skills + optional_skills' ||
+    guiContract.ordinary_capability_selector_policy?.package_skill_source_ref !==
+      'professional_agent_packages.required_skill_ids + optional_skill_ids' ||
     guiContract.ordinary_capability_selector_policy?.mcp_menu_policy !==
       'empty_until_app_explicitly_whitelists_opl_mcp_servers' ||
     guiContract.ordinary_capability_selector_policy?.conversation_loaded_skill_display_policy !==
