@@ -57,17 +57,36 @@ explicitly requested.
 
 ## Landing Order
 
-| Order | Item | Completion meaning | Required evidence before stronger claim |
+The current closeable slice is the non-live candidate product surface. It
+turns the previous partial audit items into the next landing target; it does
+not claim that the active release shell, live user path, VM, owner acceptance,
+or release package has changed.
+
+| Order | Item | Current non-live landing meaning | Required evidence before stronger claim |
 | ---: | --- | --- | --- |
 | 1 | Candidate registration | `contracts/app-shell-candidates.json` declares `opl-native-workbench` as the foreground alternative and default candidate validation scope. | Registry validation. |
 | 2 | Adapter contract | `contracts/shell-adapters/opl-native-workbench.json` selects the independent shell checkout and explicit candidate build path. | Adapter validation and no active-shell switch. |
 | 3 | External repo / checkout | `shells/opl-native-workbench` or its source repo is available as an external checkout without vendoring history into the App repo. | Checkout readback and source ref. |
 | 4 | State/action bridge | Candidate consumes `opl app state --profile fast --json` and `opl app action execute ... --json` only. | Source tests or bridge smoke. |
-| 5 | Shared renderer | Desktop and claimed WebUI use one App-owned renderer shape with delivery adapters. | Source/WebUI smoke when WebUI is claimed. |
-| 6 | Package manifest | Explicit candidate package emits a real `.app` manifest without changing stable/nightly release packaging. | Candidate package manifest and release-isolation check. |
-| 7 | Source / WebUI smoke | Source smoke and WebUI smoke prove the claimed technical path only. | Smoke artifacts for the exact candidate cohort. |
-| 8 | Docs / runbook | Product docs, feature inventory, status, decisions, and scripts guide point to the new candidate boundary. | Markdown diff check and residual wording scan. |
-| 9 | Later visual / live evidence | Screenshots, packaged app smoke, clean VM, same-cohort user path, and owner acceptance. | Required only before visual acceptance, release-ready, active-shell-adopted, or live/currentness claims. |
+| 5 | Basic UI modules | The candidate product target includes a workbench root, top bar, chat canvas, composer, workspace/session rail, context inspector, Runtime slice, and Settings slice as reusable modules, not a one-off static shell. | Source module inspection, source validation, and no hidden runtime/domain authority. |
+| 6 | Artifact preview tabs | Files, result refs, delivery refs, receipts, and review refs are shown through preview tabs or equivalent inspector panes. They are refs-only; artifact bodies and quality/export verdicts stay domain-owned. | Source UI evidence plus App state/action refs proving the preview is not shell-owned artifact authority. |
+| 7 | Provenance drawer | A drawer or inspector panel shows source refs, receipts, owner handoff state, and next action provenance without owning memory body, artifact body, runtime truth, or owner receipts. | Source UI evidence plus explicit forbidden-authority checks. |
+| 8 | Starter forms | Research, Grant, and Presentation starters become structured forms that prepare App action payloads and dry-run previews. They do not execute hidden shell-local workflows. | Source form evidence plus dry-run action receipt mapping. |
+| 9 | Confirmation / interview cards | User-input, permission, confirmation, and interview prompts render as explicit cards with accepted return shape and dry-run/execute separation. | Source UI evidence plus App action/user-input refs. |
+| 10 | Desktop / WebUI same renderer | Desktop and claimed WebUI use one App-owned renderer shape with Electron and browser delivery adapters. | Source/WebUI smoke when WebUI is claimed. |
+| 11 | Source visual smoke | A source-level visual smoke proves the non-live candidate surface paints visible pixels for the workbench modules above. | Source visual artifact for the exact candidate cohort; packaged/VM evidence remains separate. |
+| 12 | Package manifest | Explicit candidate package emits a real `.app` manifest without changing stable/nightly release packaging. | Candidate package manifest and release-isolation check. |
+| 13 | Docs / runbook | Product docs, feature inventory, status, product index, and scripts guide describe the non-live product surface closure and the residual live-only gates. | Markdown diff check and residual wording scan. |
+| 14 | Later live evidence | Packaged GUI smoke, clean VM, same-cohort user path, release owner acceptance, active-shell adoption, and release-ready proof stay outside this candidate product-surface closure. | Required only before visual acceptance, release-ready, active-shell-adopted, or live/currentness claims. |
+
+## Current Non-Live Acceptance
+
+This docs lane can close only the App-owned candidate product-surface target:
+the registry/adapter route, the foreground-candidate boundary, and the
+non-live UI acceptance items above are now explicit. The shell implementation
+lane must still provide the source validation, same-renderer WebUI evidence,
+source visual smoke, and any candidate package evidence before those stronger
+technical claims can be made.
 
 ## False-Ready Boundary
 

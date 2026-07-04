@@ -364,13 +364,29 @@ App-owned GUI contracts、page-state matrices、candidate validation 和 release
    vendoring shell history。
 4. State/action bridge：只消费 `opl app state --profile fast --json` 和
    `opl app action execute ... --json`。
-5. Shared renderer：Electron 和明确 claim 的 WebUI 使用同一 App-owned renderer
-   shape。
-6. Package manifest：explicit candidate package 产出真实 `.app` manifest，不改变
+5. Basic UI modules：workbench root、topbar、chat canvas、composer、
+   workspace/session rail、context inspector、Runtime slice 和 Settings slice
+   是当前 non-live product surface 的最小模块面。
+6. Artifact preview tabs：files、results、deliverables、receipts、review refs
+   以 preview tabs 或 inspector panes 呈现，只显示 refs，不接管 artifact body
+   或 quality/export verdict。
+7. Provenance drawer：source refs、receipts、owner handoff、next action
+   provenance 放进 drawer/inspector，不把 runtime truth、memory body、
+   artifact body 或 owner receipts 移进 shell。
+8. Starter forms：科研、基金、演示 starter forms 只准备 App action payload 和
+   dry-run preview，不执行 shell-local workflow。
+9. Confirmation / interview cards：user-input、permission、confirmation、
+   interview prompt 以明确 card 展示 accepted return shape，并保持 dry-run /
+   execute 分离。
+10. Desktop/WebUI same renderer：Electron 和明确 claim 的 WebUI 使用同一
+   App-owned renderer shape，只替换 delivery-surface adapter。
+11. Source visual smoke：source-level visual smoke 要证明这些 non-live modules
+   paint visible pixels；packaged/VM visual evidence 仍是后续 evidence lane。
+12. Package manifest：explicit candidate package 产出真实 `.app` manifest，不改变
    stable/nightly release packaging。
-7. Source/WebUI smoke：只证明该 candidate cohort 的技术路径。
-8. Docs/runbook：本文、status、decisions、scripts guide 和 plan 对齐。
-9. Later visual/live evidence：截图、packaged smoke、clean VM、same-cohort user path
+13. Source/WebUI smoke：只证明该 candidate cohort 的技术路径。
+14. Docs/runbook：本文、status、product index、scripts guide 和 plan 对齐。
+15. Later live evidence：packaged smoke、clean VM、same-cohort user path
    和 owner acceptance 以后单独证明。
 
 外部学习归类：
@@ -383,9 +399,12 @@ App-owned GUI contracts、page-state matrices、candidate validation 和 release
 | External runtime/agent authority、Pi/DeepAgents/LangGraph-like runtimes、provider/backend marketplace | watch_only/reject | 只作为研究材料，不进入普通 App executor、provider truth、runtime authority 或 marketplace。 |
 | Domain truth、artifact authority、owner receipts、release readiness | reject | 继续归 Framework、domain owners、release artifacts 和 owner receipts。 |
 
-当前 docs 和 candidate-structure work 不表示 release-ready、live evidence、
-active-shell-adopted、production-ready、domain-ready 或 packaged GUI acceptance。
-切默认 release shell 必须以后显式改 `contracts/app-shell-adapter.json` 并通过 gates。
+当前可关闭的是 non-live candidate product surface：上面这些 UI / preview /
+provenance / form / card / same-renderer / source-visual-smoke 目标已经进入
+App-owned 产品口径。它不表示 Live Evidence、VM、owner acceptance、
+active-shell-adopted、release-ready、production-ready、domain-ready 或 packaged GUI
+acceptance。切默认 release shell 必须以后显式改
+`contracts/app-shell-adapter.json` 并通过 gates。
 
 ## Hermes Desktop Prior Candidate 投影
 
