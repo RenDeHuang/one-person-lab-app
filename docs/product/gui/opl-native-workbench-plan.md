@@ -89,6 +89,18 @@ manifest. This remains candidate technical evidence only: it does not prove
 clean-VM behavior, visual owner acceptance, active-shell adoption, release
 readiness, or live App release currentness.
 
+## Functional MVP Closeout Status
+
+| Status | Scope | Evidence boundary |
+| --- | --- | --- |
+| Implemented | Codex chat runtime path | Source validators require `codex app-server --stdio`, `initialize`, `thread/start`, `turn/start`, `item/agentMessage/delta`, `turn/completed`, and `thread/resume` markers across the bridge and native host. |
+| Implemented | OPL App state context | Source validators require fast state, full state, full drilldown, secondary runtime context, and active-project-line markers. |
+| Implemented | App action preview and receipt | Source validators require `opl app action execute --action`, `--dry-run`, visible action preview controls, and visible receipt markers. |
+| Implemented | Settings route | Source validators require the Settings route, model/account access entry, locale toggle, and packaged route switch markers. |
+| Partial | Packaged/WebUI/visual evidence | Current checks are candidate source/package evidence only. They do not prove same-cohort live user-path behavior, clean-VM behavior, owner acceptance, or release adoption. |
+| Partial | Artifact preview, provenance, starters, confirmations, export | These are refs-only candidate UI surfaces. Artifact bodies, domain truth, export verdicts, and owner receipts remain outside the shell. |
+| Not ready | Release and authority claims | `active_shell_adopted`, `release_ready`, `production_ready`, `domain_ready`, `clean_vm_ready`, `full_release_ready`, `live_evidence`, `owner_receipt`, `runtime_authority_transfer`, and `domain_truth_owned` must stay false until the App owner runs the later adoption and release gates. |
+
 ## False-Ready Boundary
 
 This plan can close a docs or candidate-structure lane only. It must not be
