@@ -117,7 +117,7 @@ function assertUserFirstLead(markdown) {
   assert.doesNotMatch(lead, /@\s*[0-9a-f]{7}/i);
 }
 
-test('AI release notes writer can use an OpenAI-compatible online endpoint', () => {
+test('AI release notes writer auto provider prefers the OpenAI-compatible online endpoint', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-openai-compatible-notes-'));
   const binDir = path.join(tempRoot, 'bin');
   const fakeCurl = path.join(binDir, 'curl');
@@ -230,10 +230,12 @@ process.stdout.write(JSON.stringify({ choices: [{ message: { content: ${JSON.str
   ], {
     env: {
       PATH: `${binDir}${path.delimiter}${process.env.PATH}`,
-      OPL_RELEASE_NOTES_PROVIDER: 'openai_compatible',
+      OPL_RELEASE_NOTES_PROVIDER: 'auto',
       OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: 'http://127.0.0.1:3001/v1',
       OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: 'freellmapi-test',
       OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: 'auto',
+      GITHUB_TOKEN: 'github-models-legacy-token',
+      GH_TOKEN: 'github-models-legacy-token',
     },
   });
 

@@ -349,10 +349,10 @@ updates that tag to the current workflow commit on same-day reruns, keeps
 Nightly, and runs the remote standard asset verifier without Full assets.
 
 AI release-note generation uses the same provider chain as Stable:
-`OPL_RELEASE_NOTES_PROVIDER=auto` tries GitHub Models with the compact evidence
-prompt first, then an optional OpenAI-compatible endpoint configured through
+`OPL_RELEASE_NOTES_PROVIDER=auto` tries an OpenAI-compatible endpoint configured through
 `OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL` and
-`OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY`, then the local Codex provider for
+`OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY` first, then GitHub Models only as a
+legacy fallback while it remains available, then the local Codex provider for
 operator-run fallback. A self-hosted FreeLLMAPI server can fill the
 OpenAI-compatible slot by exposing `/v1/chat/completions` and using model
 `auto`. Use `OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS` to override the default

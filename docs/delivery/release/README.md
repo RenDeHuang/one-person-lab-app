@@ -263,24 +263,23 @@ diagnostic previews. A template fallback must preserve the evidence facts and
 technical details, but it should not be treated as polished public Stable copy
 without an AI or release-owner writing pass.
 
-Release workflows use `OPL_RELEASE_NOTES_PROVIDER=auto`: GitHub Models first,
-then an optional OpenAI-compatible online endpoint, then the local Codex
-provider for operator-run fallbacks. The GitHub Models path defaults to the
-free low-tier model chain `openai/gpt-4o-mini`,
+Release workflows use `OPL_RELEASE_NOTES_PROVIDER=auto`: the maintained online
+path is an operator-configured OpenAI-compatible endpoint first, then GitHub
+Models only as a legacy fallback while it remains available, then the local Codex
+provider for operator-run fallbacks. GitHub announced that
+[GitHub Models is being fully retired on July 30, 2026](https://github.blog/changelog/2026-07-01-github-models-is-being-fully-retired-on-july-30-2026/),
+so do not treat a free GitHub model as the stable release-note route. If the
+GitHub legacy fallback is used explicitly, it defaults to `openai/gpt-4o-mini`,
 `openai/gpt-4.1-mini`, then `mistral-ai/mistral-small-2503`; override with
-`OPL_RELEASE_NOTES_GITHUB_MODELS` only when the GitHub catalog or quality
-checks show a better current choice. Keep `gpt-4o-mini` first unless live
-release-note probes show `gpt-4.1-mini` is consistently below the online timeout;
-catalog quality alone is not enough for the default release path. The evidence
-sent to the model is compacted
-before the request so public-preview token limits do not turn release notes into
-a large-prompt failure. Each online model request has a bounded timeout
+`OPL_RELEASE_NOTES_GITHUB_MODELS` only for short-lived operator probes. The
+evidence sent to the model is compacted
+before the request so token limits do not turn release notes into a large-prompt
+failure. Each online model request has a bounded timeout
 (`OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS`, default 75 seconds), so a slow provider
 falls through instead of hanging the release job.
 
-If GitHub Models becomes unavailable or too unstable, configure an online
-OpenAI-compatible fallback instead of switching release notes back to template
-copy:
+Configure the OpenAI-compatible online path before Stable or Nightly release
+publishing instead of switching release notes back to template copy:
 
 ```bash
 OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL=http://localhost:3001/v1
@@ -288,8 +287,8 @@ OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY=freellmapi-...
 OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL=auto
 ```
 
-`freellmapi` is acceptable for this fallback when it is a self-hosted,
-single-user gateway with provider keys managed by the operator. Treat it as an
+`freellmapi` is acceptable for this slot when it is a self-hosted, single-user
+gateway with provider keys managed by the operator. Treat it as an
 operator-provided inference route, not as an App-owned production dependency:
 its own README describes the project as personal experimentation, and upstream
 free tiers can change or disappear without notice.

@@ -789,7 +789,8 @@ function validateEnglishReleaseNotesMarkdown(markdown: string, evidence: Release
   if (vagueMatches.length > 0) {
     failures.push(`vague boilerplate: ${vagueMatches.join(', ')}`);
   }
-  if (/\brelease notes?\b/i.test(markdown) || /\brelease-note\b/i.test(markdown)) {
+  const userFacingMarkdown = publicMarkdownBeforeTechnicalDetails(markdown);
+  if (/\brelease notes?\b/i.test(userFacingMarkdown) || /\brelease-note\b/i.test(userFacingMarkdown)) {
     failures.push('self-referential release-note copy');
   }
   if (/^##\s+/m.test(firstParagraph)) {
@@ -882,21 +883,21 @@ export function buildAiReleaseNotesDocument(evidence: ReleaseNotesEvidence, opti
     return runCodexProvider(prompt, evidence, command);
   }
   const failures: string[] = [];
-  try {
-    return runGitHubModelsProvider(prompt, evidence);
-  } catch (error) {
-    failures.push(`GitHub Models: ${error instanceof Error ? error.message : String(error)}`);
-    console.error(`GitHub Models release-note provider unavailable; trying next provider. ${error instanceof Error ? error.message : String(error)}`);
-  }
   if (openAICompatibleConfigured()) {
     try {
       return runOpenAICompatibleProvider(prompt, evidence);
     } catch (error) {
       failures.push(`OpenAI-compatible: ${error instanceof Error ? error.message : String(error)}`);
-      console.error(`OpenAI-compatible release-note provider unavailable; trying Codex provider. ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`OpenAI-compatible release-note provider unavailable; trying GitHub Models legacy provider. ${error instanceof Error ? error.message : String(error)}`);
     }
   } else {
     failures.push('OpenAI-compatible: not configured');
+  }
+  try {
+    return runGitHubModelsProvider(prompt, evidence);
+  } catch (error) {
+    failures.push(`GitHub Models: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`GitHub Models legacy release-note provider unavailable; trying Codex provider. ${error instanceof Error ? error.message : String(error)}`);
   }
   try {
     return runCodexProvider(prompt, evidence, command);
